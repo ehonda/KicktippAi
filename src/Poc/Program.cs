@@ -36,10 +36,10 @@ public class Program
                 Console.WriteLine("✓ Login successful!");
                 
                 // Extract and display login token for future use
-                var loginToken = kicktippService.GetLoginToken();
+                var loginToken = await kicktippService.GetLoginTokenAsync();
                 if (!string.IsNullOrEmpty(loginToken))
                 {
-                    Console.WriteLine($"Login token: {loginToken}");
+                    Console.WriteLine("✓ Login token extracted and saved to .env file");
                 }
                 else
                 {

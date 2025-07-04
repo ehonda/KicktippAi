@@ -11,7 +11,7 @@ namespace KicktippAi.Poc.Services;
 /// </summary>
 public class KicktippService : IDisposable
 {
-    private const string BaseUrl = "http://www.kicktipp.de";
+    private const string BaseUrl = "https://www.kicktipp.de";
     private const string LoginUrl = $"{BaseUrl}/info/profil/login";
     
     private readonly HttpClient _httpClient;
@@ -63,7 +63,16 @@ public class KicktippService : IDisposable
                 return false;
             }
             
-            Console.WriteLine("Found login form, submitting credentials...");
+            Console.WriteLine("Found login form, parsing form action...");
+            
+            // Parse the form action URL - this is crucial for the correct POST target
+            var formAction = loginForm.Action;
+            var formActionUrl = string.IsNullOrEmpty(formAction) ? LoginUrl : 
+                (formAction.StartsWith("http") ? formAction : 
+                 formAction.StartsWith("/") ? $"{BaseUrl}{formAction}" : 
+                 $"{BaseUrl}/info/profil/{formAction}");
+            
+            Console.WriteLine($"✅ Form action URL: {formActionUrl}");
             
             // Prepare form data (field names from Python implementation)
             var formData = new List<KeyValuePair<string, string>>
@@ -79,12 +88,31 @@ public class KicktippService : IDisposable
                 if (!string.IsNullOrEmpty(input.Name) && !string.IsNullOrEmpty(input.Value))
                 {
                     formData.Add(new KeyValuePair<string, string>(input.Name, input.Value));
+                    Console.WriteLine($"📝 Added hidden field: {input.Name} = '{input.Value}'");
                 }
             }
             
-            // Submit login form
+            // Submit login form to the parsed action URL
             var formContent = new FormUrlEncodedContent(formData);
-            var loginResponse = await _httpClient.PostAsync(LoginUrl, formContent);
+            var loginResponse = await _httpClient.PostAsync(formActionUrl, formContent);
+            
+            // Debug: Check cookies after login attempt
+            Console.WriteLine("DEBUG: Checking cookies after login attempt...");
+            var cookiesAfterLoginHttps = _cookieContainer.GetCookies(new Uri("https://www.kicktipp.de"));
+            var cookiesAfterLoginHttp = _cookieContainer.GetCookies(new Uri("http://www.kicktipp.de"));
+            Console.WriteLine($"DEBUG: Found {cookiesAfterLoginHttps.Count} HTTPS cookies after login");
+            Console.WriteLine($"DEBUG: Found {cookiesAfterLoginHttp.Count} HTTP cookies after login");
+            
+            foreach (Cookie cookie in cookiesAfterLoginHttps)
+            {
+                var anonymizedValue = AnonymizeCookieValue(cookie.Value);
+                Console.WriteLine($"DEBUG: Post-login HTTPS cookie - Name: '{cookie.Name}', Value: '{anonymizedValue}', Domain: '{cookie.Domain}'");
+            }
+            foreach (Cookie cookie in cookiesAfterLoginHttp)
+            {
+                var anonymizedValue = AnonymizeCookieValue(cookie.Value);
+                Console.WriteLine($"DEBUG: Post-login HTTP cookie - Name: '{cookie.Name}', Value: '{anonymizedValue}', Domain: '{cookie.Domain}'");
+            }
             
             if (!loginResponse.IsSuccessStatusCode)
             {
@@ -106,20 +134,60 @@ public class KicktippService : IDisposable
     /// Get the login cookie value for token-based authentication
     /// </summary>
     /// <returns>Login cookie value or null if not found</returns>
-    public string? GetLoginToken()
+    public async Task<string?> GetLoginTokenAsync()
     {
         try
         {
-            var uri = new Uri(BaseUrl);
-            var cookies = _cookieContainer.GetCookies(uri);
+            // Check both HTTPS and HTTP variants
+            var httpsUri = new Uri("https://www.kicktipp.de");
+            var httpUri = new Uri("http://www.kicktipp.de");
             
-            foreach (Cookie cookie in cookies)
+            var httpsCookies = _cookieContainer.GetCookies(httpsUri);
+            var httpCookies = _cookieContainer.GetCookies(httpUri);
+            
+            Console.WriteLine($"DEBUG: Found {httpsCookies.Count} cookies for HTTPS");
+            Console.WriteLine($"DEBUG: Found {httpCookies.Count} cookies for HTTP");
+            
+            // Combine all cookies
+            var allCookies = new List<Cookie>();
+            foreach (Cookie cookie in httpsCookies) allCookies.Add(cookie);
+            foreach (Cookie cookie in httpCookies) allCookies.Add(cookie);
+            
+            // Debug: List all cookies
+            foreach (var cookie in allCookies)
+            {
+                var anonymizedValue = AnonymizeCookieValue(cookie.Value);
+                Console.WriteLine($"DEBUG: Cookie - Name: '{cookie.Name}', Value: '{anonymizedValue}', Domain: '{cookie.Domain}', Path: '{cookie.Path}'");
+            }
+            
+            // Try to find the login cookie (case-insensitive)
+            foreach (var cookie in allCookies)
             {
                 if (cookie.Name.Equals("login", StringComparison.OrdinalIgnoreCase))
                 {
+                    Console.WriteLine($"DEBUG: Found login cookie");
+                    await SaveTokenToFileAsync("LOGIN_TOKEN", cookie.Value);
                     return cookie.Value;
                 }
             }
+            
+            // If not found, try other potential cookie names based on common patterns
+            string[] potentialNames = { "sessionid", "session", "auth", "token", "sid", "PHPSESSID" };
+            
+            foreach (var cookie in allCookies)
+            {
+                foreach (var potentialName in potentialNames)
+                {
+                    if (cookie.Name.Equals(potentialName, StringComparison.OrdinalIgnoreCase))
+                    {
+                        Console.WriteLine($"DEBUG: Found potential session cookie '{cookie.Name}'");
+                        await SaveTokenToFileAsync($"{cookie.Name.ToUpper()}_TOKEN", cookie.Value);
+                        return cookie.Value;
+                    }
+                }
+            }
+            
+            Console.WriteLine("DEBUG: No login or session cookie found");
         }
         catch (Exception ex)
         {
@@ -134,19 +202,37 @@ public class KicktippService : IDisposable
         var responseContent = await loginResponse.Content.ReadAsStringAsync();
         var responseDocument = await _browsingContext.OpenAsync(req => req.Content(responseContent));
         
+        // Debug: Show response URL and status
+        var responseUrl = loginResponse.RequestMessage?.RequestUri?.ToString() ?? "";
+        Console.WriteLine($"DEBUG: Login response URL: {responseUrl}");
+        Console.WriteLine($"DEBUG: Login response status: {loginResponse.StatusCode}");
+        
         // Check if still on login page (Python implementation logic)
         var loginDiv = responseDocument.QuerySelector("div[content='Login']");
         var isStillOnLoginPage = loginDiv != null;
+        Console.WriteLine($"DEBUG: Still on login page: {isStillOnLoginPage}");
         
         // Check for profile links (indicates successful login)
         var profileElements = responseDocument.QuerySelectorAll("a[href*='/info/profil/']");
         var hasProfileLinks = profileElements.Any();
+        Console.WriteLine($"DEBUG: Has profile links: {hasProfileLinks}");
         
         // Check for redirect
         var currentUrl = loginResponse.RequestMessage?.RequestUri?.ToString() ?? "";
         var wasRedirected = !currentUrl.Contains("/login");
+        Console.WriteLine($"DEBUG: Was redirected: {wasRedirected}");
         
-        var loginSuccessful = !isStillOnLoginPage || hasProfileLinks || wasRedirected;
+        // Additional checks for common success indicators
+        var titleElement = responseDocument.QuerySelector("title");
+        var pageTitle = titleElement?.TextContent?.Trim() ?? "";
+        Console.WriteLine($"DEBUG: Page title: '{pageTitle}'");
+        
+        // Look for user-specific content or logout links
+        var logoutElements = responseDocument.QuerySelectorAll("a[href*='logout'], a[href*='abmelden']");
+        var hasLogoutLinks = logoutElements.Any();
+        Console.WriteLine($"DEBUG: Has logout links: {hasLogoutLinks}");
+        
+        var loginSuccessful = !isStillOnLoginPage || hasProfileLinks || wasRedirected || hasLogoutLinks;
         
         if (loginSuccessful)
         {
@@ -157,7 +243,7 @@ public class KicktippService : IDisposable
             Console.WriteLine("Login may have failed - still appears to be on login page");
             
             // Look for error messages
-            var errorElements = responseDocument.QuerySelectorAll(".error, .alert, .warning");
+            var errorElements = responseDocument.QuerySelectorAll(".error, .alert, .warning, .fehler");
             foreach (var error in errorElements)
             {
                 var errorText = error.TextContent?.Trim();
@@ -169,6 +255,61 @@ public class KicktippService : IDisposable
         }
         
         return loginSuccessful;
+    }
+
+    /// <summary>
+    /// Anonymize a cookie value for safe debug output
+    /// </summary>
+    /// <param name="value">The cookie value to anonymize</param>
+    /// <returns>Anonymized value showing only first and last few characters</returns>
+    private static string AnonymizeCookieValue(string? value)
+    {
+        if (string.IsNullOrEmpty(value))
+            return "[empty]";
+        
+        if (value.Length <= 8)
+            return "[***]";
+        
+        // Ensure we hide at least 12 characters in the middle for better privacy
+        if (value.Length <= 20)
+            return $"{value[..3]}...{value[^3..]}";
+        
+        return $"{value[..4]}...{value[^4..]}";
+    }
+
+    /// <summary>
+    /// Save a token to the .env file for later use
+    /// </summary>
+    /// <param name="tokenName">Name of the token variable</param>
+    /// <param name="tokenValue">Value of the token</param>
+    private static async Task SaveTokenToFileAsync(string tokenName, string tokenValue)
+    {
+        try
+        {
+            var envPath = Path.Combine(Directory.GetCurrentDirectory(), ".env");
+            var lines = new List<string>();
+            
+            // Read existing .env file if it exists
+            if (File.Exists(envPath))
+            {
+                lines.AddRange(await File.ReadAllLinesAsync(envPath));
+            }
+            
+            // Remove existing token entry if present
+            lines.RemoveAll(line => line.StartsWith($"{tokenName}=", StringComparison.OrdinalIgnoreCase));
+            
+            // Add new token entry
+            lines.Add($"{tokenName}={tokenValue}");
+            
+            // Write back to file
+            await File.WriteAllLinesAsync(envPath, lines);
+            
+            Console.WriteLine($"Token saved to .env file as {tokenName}");
+        }
+        catch (Exception ex)
+        {
+            Console.WriteLine($"Warning: Could not save token to file: {ex.Message}");
+        }
     }
 
     public void Dispose()
