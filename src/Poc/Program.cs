@@ -45,6 +45,25 @@ public class Program
                 {
                     Console.WriteLine("Warning: Could not extract login token");
                 }
+                
+                // Test fetching open predictions for ehonda-test community
+                Console.WriteLine();
+                Console.WriteLine("Fetching open predictions for ehonda-test community...");
+                var openPredictions = await kicktippService.GetOpenPredictionsAsync("ehonda-test");
+                
+                if (openPredictions.Any())
+                {
+                    Console.WriteLine($"✓ Found {openPredictions.Count} open matches:");
+                    Console.WriteLine();
+                    foreach (var match in openPredictions)
+                    {
+                        Console.WriteLine($"  {match}");
+                    }
+                }
+                else
+                {
+                    Console.WriteLine("No open predictions found for ehonda-test community");
+                }
             }
             else
             {

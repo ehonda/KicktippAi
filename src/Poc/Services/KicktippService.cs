@@ -243,6 +243,122 @@ public class KicktippService : IDisposable
         }
     }
 
+    /// <summary>
+    /// Get open predictions for the specified community
+    /// </summary>
+    /// <param name="community">Community name (e.g., "ehonda-test")</param>
+    /// <returns>List of matches available for prediction</returns>
+    public async Task<List<Match>> GetOpenPredictionsAsync(string community)
+    {
+        if (string.IsNullOrEmpty(community))
+        {
+            throw new ArgumentException("Community name cannot be empty");
+        }
+
+        try
+        {
+            Console.WriteLine($"Fetching open predictions for community: {community}");
+            
+            // Build the URL for the community's tippabgabe page
+            var tippabgabeUrl = $"{BaseUrl}/{community}/tippabgabe";
+            Console.WriteLine($"Navigating to: {tippabgabeUrl}");
+            
+            // Fetch the page
+            var response = await _httpClient.GetAsync(tippabgabeUrl);
+            if (!response.IsSuccessStatusCode)
+            {
+                Console.WriteLine($"Failed to access predictions page. Status: {response.StatusCode}");
+                return new List<Match>();
+            }
+            
+            var pageContent = await response.Content.ReadAsStringAsync();
+            var document = await _browsingContext.OpenAsync(req => req.Content(pageContent));
+            
+            // Find the main content area (kicktipp-content)
+            var contentArea = document.QuerySelector("#kicktipp-content");
+            if (contentArea == null)
+            {
+                Console.WriteLine("Could not find content area on the predictions page");
+                return new List<Match>();
+            }
+            
+            // Find the table with predictions
+            var tbody = contentArea.QuerySelector("tbody");
+            if (tbody == null)
+            {
+                Console.WriteLine("No predictions table found");
+                return new List<Match>();
+            }
+            
+            var matches = new List<Match>();
+            var rows = tbody.QuerySelectorAll("tr");
+            
+            Console.WriteLine($"Found {rows.Length} table rows to process");
+            
+            DateTimeOffset? lastMatchDate = null;
+            
+            foreach (var row in rows)
+            {
+                var cells = row.QuerySelectorAll("td");
+                if (cells.Length < 3) continue; // Need at least date, home team, road team
+                
+                try
+                {
+                    // Parse match data from table cells
+                    // Based on Python: row[0]=date, row[1]=hometeam, row[2]=roadteam
+                    var dateText = cells[0].TextContent?.Trim() ?? "";
+                    var homeTeam = cells[1].TextContent?.Trim() ?? "";
+                    var roadTeam = cells[2].TextContent?.Trim() ?? "";
+                    
+                    if (string.IsNullOrEmpty(homeTeam) || string.IsNullOrEmpty(roadTeam))
+                        continue;
+                    
+                    // Parse date - German format: "dd.MM.yy HH:mm"
+                    DateTimeOffset? matchDate = null;
+                    if (!string.IsNullOrEmpty(dateText))
+                    {
+                        if (DateTimeOffset.TryParseExact(dateText, "dd.MM.yy HH:mm", 
+                            System.Globalization.CultureInfo.InvariantCulture, 
+                            System.Globalization.DateTimeStyles.None, out var parsedDate))
+                        {
+                            matchDate = parsedDate;
+                            lastMatchDate = matchDate;
+                        }
+                    }
+                    
+                    // If no date in this row, use the last parsed date (matches can share dates)
+                    if (!matchDate.HasValue && lastMatchDate.HasValue)
+                    {
+                        matchDate = lastMatchDate;
+                    }
+                    
+                    var match = new Match
+                    {
+                        HomeTeam = homeTeam,
+                        RoadTeam = roadTeam,
+                        MatchDate = matchDate
+                    };
+                    
+                    matches.Add(match);
+                    Console.WriteLine($"Parsed match: {match}");
+                }
+                catch (Exception ex)
+                {
+                    Console.WriteLine($"Error parsing table row: {ex.Message}");
+                    continue;
+                }
+            }
+            
+            Console.WriteLine($"Successfully parsed {matches.Count} matches");
+            return matches;
+        }
+        catch (Exception ex)
+        {
+            Console.WriteLine($"Exception while fetching predictions: {ex.Message}");
+            return new List<Match>();
+        }
+    }
+
     public void Dispose()
     {
         _httpClient?.Dispose();
