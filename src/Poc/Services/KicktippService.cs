@@ -359,6 +359,240 @@ public class KicktippService : IDisposable
         }
     }
 
+    /// <summary>
+    /// Place random bets for open predictions in the specified community
+    /// Based on the Python place_bets function from kicktipp-cli
+    /// </summary>
+    /// <param name="community">Community name (e.g., "ehonda-test")</param>
+    /// <param name="dryRun">If true, don't actually submit bets, just show what would be bet</param>
+    /// <param name="overrideBets">If true, override existing bets, otherwise skip them</param>
+    /// <returns>True if betting process completed successfully</returns>
+    public async Task<bool> PlaceRandomBetsAsync(string community, bool dryRun = false, bool overrideBets = false)
+    {
+        if (string.IsNullOrEmpty(community))
+        {
+            throw new ArgumentException("Community name cannot be empty");
+        }
+
+        try
+        {
+            Console.WriteLine($"Starting bet placement for community: {community}");
+            Console.WriteLine($"Dry run: {dryRun}, Override existing bets: {overrideBets}");
+            
+            // Build the URL for the community's tippabgabe page
+            var tippabgabeUrl = $"{BaseUrl}/{community}/tippabgabe";
+            Console.WriteLine($"Navigating to: {tippabgabeUrl}");
+            
+            // Fetch the page
+            var response = await _httpClient.GetAsync(tippabgabeUrl);
+            if (!response.IsSuccessStatusCode)
+            {
+                Console.WriteLine($"Failed to access betting page. Status: {response.StatusCode}");
+                return false;
+            }
+            
+            var pageContent = await response.Content.ReadAsStringAsync();
+            var document = await _browsingContext.OpenAsync(req => req.Content(pageContent));
+            
+            // Find the bet form
+            var betForm = document.QuerySelector("form") as IHtmlFormElement;
+            if (betForm == null)
+            {
+                Console.WriteLine("Could not find betting form on the page");
+                return false;
+            }
+            
+            // Find the main content area
+            var contentArea = document.QuerySelector("#kicktipp-content");
+            if (contentArea == null)
+            {
+                Console.WriteLine("Could not find content area on the betting page");
+                return false;
+            }
+            
+            // Find the table with predictions
+            var tbody = contentArea.QuerySelector("tbody");
+            if (tbody == null)
+            {
+                Console.WriteLine("No betting table found");
+                return false;
+            }
+            
+            var rows = tbody.QuerySelectorAll("tr");
+            Console.WriteLine($"Found {rows.Length} betting rows to process");
+            
+            var predictor = new SimplePredictor();
+            var formData = new List<KeyValuePair<string, string>>();
+            var betsPlaced = 0;
+            var betsSkipped = 0;
+            
+            DateTimeOffset? lastMatchDate = null;
+            
+            // Add hidden fields from the form
+            var hiddenInputs = betForm.QuerySelectorAll("input[type=hidden]").OfType<IHtmlInputElement>();
+            foreach (var input in hiddenInputs)
+            {
+                if (!string.IsNullOrEmpty(input.Name) && input.Value != null)
+                {
+                    formData.Add(new KeyValuePair<string, string>(input.Name, input.Value));
+                }
+            }
+            
+            foreach (var row in rows)
+            {
+                var cells = row.QuerySelectorAll("td");
+                if (cells.Length < 4) continue; // Need at least date, home team, road team, and bet inputs
+                
+                try
+                {
+                    // Parse match data - cells[3] should contain the bet input fields
+                    var dateText = cells[0].TextContent?.Trim() ?? "";
+                    var homeTeam = cells[1].TextContent?.Trim() ?? "";
+                    var roadTeam = cells[2].TextContent?.Trim() ?? "";
+                    
+                    if (string.IsNullOrEmpty(homeTeam) || string.IsNullOrEmpty(roadTeam))
+                        continue;
+                    
+                    // Parse date
+                    DateTimeOffset? matchDate = null;
+                    if (!string.IsNullOrEmpty(dateText))
+                    {
+                        if (DateTimeOffset.TryParseExact(dateText, "dd.MM.yy HH:mm", 
+                            System.Globalization.CultureInfo.InvariantCulture, 
+                            System.Globalization.DateTimeStyles.None, out var parsedDate))
+                        {
+                            matchDate = parsedDate;
+                            lastMatchDate = matchDate;
+                        }
+                    }
+                    
+                    if (!matchDate.HasValue && lastMatchDate.HasValue)
+                    {
+                        matchDate = lastMatchDate;
+                    }
+                    
+                    var match = new Match
+                    {
+                        HomeTeam = homeTeam,
+                        RoadTeam = roadTeam,
+                        MatchDate = matchDate
+                    };
+                    
+                    // Find bet input fields in the row (based on Python: _heimTipp and _gastTipp)
+                    var homeInput = cells[3].QuerySelector("input[id$='_heimTipp']") as IHtmlInputElement;
+                    var awayInput = cells[3].QuerySelector("input[id$='_gastTipp']") as IHtmlInputElement;
+                    
+                    if (homeInput == null || awayInput == null)
+                    {
+                        Console.WriteLine($"{match} - no betting inputs found, skipping");
+                        continue;
+                    }
+                    
+                    // Check if bets are already placed
+                    var hasExistingHomeBet = !string.IsNullOrEmpty(homeInput.Value);
+                    var hasExistingAwayBet = !string.IsNullOrEmpty(awayInput.Value);
+                    
+                    if ((hasExistingHomeBet || hasExistingAwayBet) && !overrideBets)
+                    {
+                        var existingBet = $"{homeInput.Value ?? ""}:{awayInput.Value ?? ""}";
+                        Console.WriteLine($"{match} - skipped, already placed {existingBet}");
+                        betsSkipped++;
+                        continue;
+                    }
+                    
+                    // Generate prediction
+                    var prediction = predictor.Predict(match);
+                    
+                    Console.WriteLine($"{match} - betting {prediction}");
+                    
+                    // Add bet to form data
+                    if (!string.IsNullOrEmpty(homeInput.Name) && !string.IsNullOrEmpty(awayInput.Name))
+                    {
+                        formData.Add(new KeyValuePair<string, string>(homeInput.Name, prediction.HomeGoals.ToString()));
+                        formData.Add(new KeyValuePair<string, string>(awayInput.Name, prediction.AwayGoals.ToString()));
+                    }
+                    else
+                    {
+                        Console.WriteLine($"{match} - input field names are missing, skipping");
+                        continue;
+                    }
+                    
+                    betsPlaced++;
+                }
+                catch (Exception ex)
+                {
+                    Console.WriteLine($"Error processing betting row: {ex.Message}");
+                    continue;
+                }
+            }
+            
+            Console.WriteLine($"Summary: {betsPlaced} bets to place, {betsSkipped} skipped");
+            
+            if (betsPlaced == 0)
+            {
+                Console.WriteLine("No bets to place");
+                return true;
+            }
+            
+            if (dryRun)
+            {
+                Console.WriteLine("INFO: Dry run - no bets were actually submitted");
+                return true;
+            }
+            
+            // Submit the form with all bets
+            Console.WriteLine("Submitting betting form...");
+            
+            // Find submit button (based on Python: submit='submitbutton')
+            var submitButton = betForm.QuerySelector("input[type=submit], button[type=submit]") as IHtmlElement;
+            var submitName = "submitbutton"; // Default from Python
+            
+            if (submitButton != null)
+            {
+                if (submitButton is IHtmlInputElement inputSubmit && !string.IsNullOrEmpty(inputSubmit.Name))
+                {
+                    submitName = inputSubmit.Name;
+                    formData.Add(new KeyValuePair<string, string>(submitName, inputSubmit.Value ?? "Submit"));
+                }
+                else if (submitButton is IHtmlButtonElement buttonSubmit && !string.IsNullOrEmpty(buttonSubmit.Name))
+                {
+                    submitName = buttonSubmit.Name;
+                    formData.Add(new KeyValuePair<string, string>(submitName, buttonSubmit.Value ?? "Submit"));
+                }
+            }
+            else
+            {
+                // Fallback to default submit button name
+                formData.Add(new KeyValuePair<string, string>("submitbutton", "Submit"));
+            }
+            
+            // Submit form
+            var formActionUrl = string.IsNullOrEmpty(betForm.Action) ? tippabgabeUrl : 
+                (betForm.Action.StartsWith("http") ? betForm.Action : 
+                 betForm.Action.StartsWith("/") ? $"{BaseUrl}{betForm.Action}" : 
+                 $"{BaseUrl}/{community}/{betForm.Action}");
+            
+            var formContent = new FormUrlEncodedContent(formData);
+            var submitResponse = await _httpClient.PostAsync(formActionUrl, formContent);
+            
+            if (submitResponse.IsSuccessStatusCode)
+            {
+                Console.WriteLine($"✓ Successfully submitted {betsPlaced} bets!");
+                return true;
+            }
+            else
+            {
+                Console.WriteLine($"✗ Failed to submit bets. Status: {submitResponse.StatusCode}");
+                return false;
+            }
+        }
+        catch (Exception ex)
+        {
+            Console.WriteLine($"Exception during bet placement: {ex.Message}");
+            return false;
+        }
+    }
+
     public void Dispose()
     {
         _httpClient?.Dispose();

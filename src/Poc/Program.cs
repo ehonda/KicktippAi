@@ -59,6 +59,46 @@ public class Program
                     {
                         Console.WriteLine($"  {match}");
                     }
+                    
+                    // Place random bets for these matches
+                    Console.WriteLine();
+                    Console.WriteLine("Placing random bets for open predictions...");
+                    
+                    // First do a dry run to see what would be bet
+                    Console.WriteLine();
+                    Console.WriteLine("=== DRY RUN ===");
+                    var dryRunSuccess = await kicktippService.PlaceRandomBetsAsync("ehonda-test", dryRun: true, overrideBets: false);
+                    
+                    if (dryRunSuccess)
+                    {
+                        Console.WriteLine();
+                        Console.Write("Do you want to place these bets for real? (y/N): ");
+                        var userInput = Console.ReadLine()?.Trim().ToLowerInvariant();
+                        
+                        if (userInput == "y" || userInput == "yes")
+                        {
+                            Console.WriteLine();
+                            Console.WriteLine("=== PLACING REAL BETS ===");
+                            var realBetSuccess = await kicktippService.PlaceRandomBetsAsync("ehonda-test", dryRun: false, overrideBets: false);
+                            
+                            if (realBetSuccess)
+                            {
+                                Console.WriteLine("✓ Bets placed successfully!");
+                            }
+                            else
+                            {
+                                Console.WriteLine("✗ Failed to place bets");
+                            }
+                        }
+                        else
+                        {
+                            Console.WriteLine("Bet placement cancelled by user");
+                        }
+                    }
+                    else
+                    {
+                        Console.WriteLine("✗ Dry run failed, not proceeding with real bets");
+                    }
                 }
                 else
                 {
