@@ -1,6 +1,6 @@
 ﻿using DotNetEnv;
 using KicktippAi.Poc.Models;
-using KicktippAi.Poc.Services;
+using KicktippIntegration;
 
 namespace KicktippAi.Poc;
 
@@ -27,19 +27,20 @@ public class Program
             
             Console.WriteLine($"Attempting to login with username: {credentials.Username}");
             
-            // Create service and attempt login
-            using var kicktippService = new KicktippService();
-            var loginSuccess = await kicktippService.LoginAsync(credentials);
+            // Create client and attempt login
+            using var httpClient = new HttpClient();
+            using var kicktippClient = new KicktippClient(httpClient);
+            var loginSuccess = await kicktippClient.LoginAsync(credentials);
             
             if (loginSuccess)
             {
                 Console.WriteLine("✓ Login successful!");
                 
                 // Extract and display login token for future use
-                var loginToken = await kicktippService.GetLoginTokenAsync();
-                if (!string.IsNullOrEmpty(loginToken))
+                var loginToken = await kicktippClient.GetLoginTokenAsync();
+                if (loginToken != null && loginToken.IsValid)
                 {
-                    Console.WriteLine("✓ Login token extracted and saved to .env file");
+                    Console.WriteLine("✓ Login token extracted");
                 }
                 else
                 {
@@ -49,7 +50,7 @@ public class Program
                 // Test fetching open predictions for ehonda-test community
                 Console.WriteLine();
                 Console.WriteLine("Fetching open predictions for ehonda-test community...");
-                var openPredictions = await kicktippService.GetOpenPredictionsAsync("ehonda-test");
+                var openPredictions = await kicktippClient.GetOpenPredictionsAsync("ehonda-test");
                 
                 if (openPredictions.Any())
                 {
@@ -60,44 +61,52 @@ public class Program
                         Console.WriteLine($"  {match}");
                     }
                     
-                    // Place random bets for these matches
+                    // Generate random bets for these matches
                     Console.WriteLine();
-                    Console.WriteLine("Placing random bets for open predictions...");
+                    Console.WriteLine("Generating random bets for open predictions...");
+                    
+                    var predictor = new SimplePredictor();
+                    var bets = new Dictionary<Core.Match, KicktippIntegration.BetPrediction>();
+                    
+                    foreach (var match in openPredictions)
+                    {
+                        var pocPrediction = predictor.Predict(ConvertToPocMatch(match));
+                        var integrationPrediction = new KicktippIntegration.BetPrediction(
+                            pocPrediction.HomeGoals, 
+                            pocPrediction.AwayGoals);
+                        bets[match] = integrationPrediction;
+                    }
                     
                     // First do a dry run to see what would be bet
                     Console.WriteLine();
                     Console.WriteLine("=== DRY RUN ===");
-                    var dryRunSuccess = await kicktippService.PlaceRandomBetsAsync("ehonda-test", dryRun: true, overrideBets: false);
+                    foreach (var bet in bets)
+                    {
+                        Console.WriteLine($"  Would bet {bet.Value} for {bet.Key}");
+                    }
                     
-                    if (dryRunSuccess)
+                    Console.WriteLine();
+                    Console.Write("Do you want to place these bets for real? (y/N): ");
+                    var userInput = Console.ReadLine()?.Trim().ToLowerInvariant();
+                    
+                    if (userInput == "y" || userInput == "yes")
                     {
                         Console.WriteLine();
-                        Console.Write("Do you want to place these bets for real? (y/N): ");
-                        var userInput = Console.ReadLine()?.Trim().ToLowerInvariant();
+                        Console.WriteLine("=== PLACING REAL BETS ===");
+                        var realBetSuccess = await kicktippClient.PlaceBetsAsync("ehonda-test", bets, overrideBets: true);
                         
-                        if (userInput == "y" || userInput == "yes")
+                        if (realBetSuccess)
                         {
-                            Console.WriteLine();
-                            Console.WriteLine("=== PLACING REAL BETS ===");
-                            var realBetSuccess = await kicktippService.PlaceRandomBetsAsync("ehonda-test", dryRun: false, overrideBets: false);
-                            
-                            if (realBetSuccess)
-                            {
-                                Console.WriteLine("✓ Bets placed successfully!");
-                            }
-                            else
-                            {
-                                Console.WriteLine("✗ Failed to place bets");
-                            }
+                            Console.WriteLine("✓ Bets placed successfully!");
                         }
                         else
                         {
-                            Console.WriteLine("Bet placement cancelled by user");
+                            Console.WriteLine("✗ Failed to place bets");
                         }
                     }
                     else
                     {
-                        Console.WriteLine("✗ Dry run failed, not proceeding with real bets");
+                        Console.WriteLine("Bet placement cancelled by user");
                     }
                 }
                 else
@@ -161,12 +170,22 @@ public class Program
         }
     }
     
-    private static KicktippCredentials LoadCredentials()
+    private static KicktippIntegration.KicktippCredentials LoadCredentials()
     {
-        return new KicktippCredentials
+        return new KicktippIntegration.KicktippCredentials(
+            Environment.GetEnvironmentVariable("KICKTIPP_USERNAME") ?? string.Empty,
+            Environment.GetEnvironmentVariable("KICKTIPP_PASSWORD") ?? string.Empty
+        );
+    }
+    
+    // Helper method to convert Core.Match to POC Match for the predictor
+    private static KicktippAi.Poc.Models.Match ConvertToPocMatch(Core.Match coreMatch)
+    {
+        return new KicktippAi.Poc.Models.Match
         {
-            Username = Environment.GetEnvironmentVariable("KICKTIPP_USERNAME") ?? string.Empty,
-            Password = Environment.GetEnvironmentVariable("KICKTIPP_PASSWORD") ?? string.Empty
+            HomeTeam = coreMatch.HomeTeam,
+            RoadTeam = coreMatch.AwayTeam,
+            MatchDate = coreMatch.StartsAt.ToDateTimeOffset()
         };
     }
 }
