@@ -59,11 +59,8 @@ try {
     Write-Host "`nSuccessfully created Kicktipp sample file:" -ForegroundColor Cyan
     Write-Host $createdFile -ForegroundColor White
     
-    # Optional: Open the file in VS Code
-    $openFile = Read-Host "`nWould you like to open the file in VS Code? (y/N)"
-    if ($openFile -eq 'y' -or $openFile -eq 'Y') {
-        code $createdFile
-    }
+    # Always open the file in VS Code
+    code $createdFile
 }
 catch {
     Write-Error "An error occurred: $_"
