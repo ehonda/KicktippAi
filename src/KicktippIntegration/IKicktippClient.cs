@@ -1,4 +1,4 @@
-﻿namespace KicktippIntegration;
+namespace KicktippIntegration;
 
 public interface IKicktippClient
 {
