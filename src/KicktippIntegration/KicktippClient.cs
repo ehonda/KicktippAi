@@ -9,124 +9,19 @@ namespace KicktippIntegration;
 
 /// <summary>
 /// Implementation of IKicktippClient for interacting with kicktipp.de website
-/// Based on the POC KicktippService implementation
+/// Authentication is handled automatically via KicktippAuthenticationHandler
 /// </summary>
 public class KicktippClient : IKicktippClient, IDisposable
 {
-    private const string BaseUrl = "https://www.kicktipp.de";
-    private const string LoginUrl = $"{BaseUrl}/info/profil/login";
-    
     private readonly HttpClient _httpClient;
-    private readonly CookieContainer _cookieContainer;
     private readonly IBrowsingContext _browsingContext;
 
     public KicktippClient(HttpClient httpClient)
     {
-        _cookieContainer = new CookieContainer();
-        var handler = new HttpClientHandler() { CookieContainer = _cookieContainer };
-        _httpClient = httpClient ?? new HttpClient(handler);
+        _httpClient = httpClient ?? throw new ArgumentNullException(nameof(httpClient));
         
         var config = Configuration.Default.WithDefaultLoader();
         _browsingContext = BrowsingContext.New(config);
-    }
-
-    /// <inheritdoc />
-    public async Task<bool> LoginAsync(KicktippCredentials credentials)
-    {
-        if (!credentials.IsValid)
-        {
-            throw new ArgumentException("Invalid credentials provided");
-        }
-
-        try
-        {
-            Console.WriteLine("Navigating to login page...");
-            
-            // Get the login page
-            var loginPageResponse = await _httpClient.GetAsync(LoginUrl);
-            if (!loginPageResponse.IsSuccessStatusCode)
-            {
-                Console.WriteLine($"Failed to access login page. Status: {loginPageResponse.StatusCode}");
-                return false;
-            }
-            
-            var loginPageContent = await loginPageResponse.Content.ReadAsStringAsync();
-            var loginDocument = await _browsingContext.OpenAsync(req => req.Content(loginPageContent));
-            
-            // Find the login form
-            var loginForm = loginDocument.QuerySelector("form") as IHtmlFormElement;
-            if (loginForm == null)
-            {
-                Console.WriteLine("Could not find login form on the page");
-                return false;
-            }
-            
-            Console.WriteLine("Found login form, parsing form action...");
-            
-            // Parse the form action URL - this is crucial for the correct POST target
-            var formAction = loginForm.Action;
-            var formActionUrl = string.IsNullOrEmpty(formAction) ? LoginUrl : 
-                (formAction.StartsWith("http") ? formAction : 
-                 formAction.StartsWith("/") ? $"{BaseUrl}{formAction}" : 
-                 $"{BaseUrl}/info/profil/{formAction}");
-            
-            // Prepare form data (field names from Python implementation)
-            var formData = new List<KeyValuePair<string, string>>
-            {
-                new("kennung", credentials.Username),
-                new("passwort", credentials.Password)
-            };
-            
-            // Add hidden fields
-            var hiddenInputs = loginForm.QuerySelectorAll("input[type=hidden]").OfType<IHtmlInputElement>();
-            foreach (var input in hiddenInputs)
-            {
-                if (!string.IsNullOrEmpty(input.Name) && !string.IsNullOrEmpty(input.Value))
-                {
-                    formData.Add(new KeyValuePair<string, string>(input.Name, input.Value));
-                }
-            }
-            
-            // Submit login form to the parsed action URL
-            var formContent = new FormUrlEncodedContent(formData);
-            var loginResponse = await _httpClient.PostAsync(formActionUrl, formContent);
-            
-            if (!loginResponse.IsSuccessStatusCode)
-            {
-                Console.WriteLine($"Login request failed. Status: {loginResponse.StatusCode}");
-                return false;
-            }
-            
-            // Check login success
-            return await CheckLoginSuccessAsync(loginResponse);
-        }
-        catch (Exception ex)
-        {
-            Console.WriteLine($"Exception during login: {ex.Message}");
-            return false;
-        }
-    }
-
-    /// <inheritdoc />
-    public async Task<KicktippLoginToken?> GetLoginTokenAsync()
-    {
-        try
-        {
-            // For now, we'll extract token from cookies or page content
-            // This is a simplified implementation - in reality, we'd need to parse the actual token
-            var response = await _httpClient.GetAsync(BaseUrl);
-            if (response.IsSuccessStatusCode)
-            {
-                // Create a token with 24-hour expiration as a placeholder
-                // In real implementation, we'd extract the actual token and expiration
-                return new KicktippLoginToken("placeholder_token", DateTimeOffset.UtcNow.AddHours(24));
-            }
-            return null;
-        }
-        catch (Exception)
-        {
-            return null;
-        }
     }
 
     /// <inheritdoc />
@@ -134,7 +29,7 @@ public class KicktippClient : IKicktippClient, IDisposable
     {
         try
         {
-            var url = $"{BaseUrl}/{community}/tippabgabe";
+            var url = $"{community}/tippabgabe";
             var response = await _httpClient.GetAsync(url);
             
             if (!response.IsSuccessStatusCode)
@@ -207,7 +102,7 @@ public class KicktippClient : IKicktippClient, IDisposable
     {
         try
         {
-            var url = $"{BaseUrl}/{community}/tippabgabe";
+            var url = $"{community}/tippabgabe";
             var response = await _httpClient.GetAsync(url);
             
             if (!response.IsSuccessStatusCode)
@@ -365,8 +260,8 @@ public class KicktippClient : IKicktippClient, IDisposable
             // Submit form
             var formActionUrl = string.IsNullOrEmpty(betForm.Action) ? url : 
                 (betForm.Action.StartsWith("http") ? betForm.Action : 
-                 betForm.Action.StartsWith("/") ? $"{BaseUrl}{betForm.Action}" : 
-                 $"{BaseUrl}/{community}/{betForm.Action}");
+                 betForm.Action.StartsWith("/") ? betForm.Action : 
+                 $"{community}/{betForm.Action}");
             
             var formContent = new FormUrlEncodedContent(formData);
             var submitResponse = await _httpClient.PostAsync(formActionUrl, formContent);
@@ -394,7 +289,7 @@ public class KicktippClient : IKicktippClient, IDisposable
     {
         try
         {
-            var url = $"{BaseUrl}/{community}/tippabgabe";
+            var url = $"{community}/tippabgabe";
             var response = await _httpClient.GetAsync(url);
             
             if (!response.IsSuccessStatusCode)
@@ -562,8 +457,8 @@ public class KicktippClient : IKicktippClient, IDisposable
             // Submit form
             var formActionUrl = string.IsNullOrEmpty(betForm.Action) ? url : 
                 (betForm.Action.StartsWith("http") ? betForm.Action : 
-                 betForm.Action.StartsWith("/") ? $"{BaseUrl}{betForm.Action}" : 
-                 $"{BaseUrl}/{community}/{betForm.Action}");
+                 betForm.Action.StartsWith("/") ? betForm.Action : 
+                 $"{community}/{betForm.Action}");
             
             var formContent = new FormUrlEncodedContent(formData);
             var submitResponse = await _httpClient.PostAsync(formActionUrl, formContent);
@@ -584,52 +479,6 @@ public class KicktippClient : IKicktippClient, IDisposable
             Console.WriteLine($"Exception during bet placement: {ex.Message}");
             return false;
         }
-    }
-
-    private async Task<bool> CheckLoginSuccessAsync(HttpResponseMessage loginResponse)
-    {
-        var responseContent = await loginResponse.Content.ReadAsStringAsync();
-        var responseDocument = await _browsingContext.OpenAsync(req => req.Content(responseContent));
-        
-        // Check if still on login page (Python implementation logic)
-        var loginDiv = responseDocument.QuerySelector("div[content='Login']");
-        var isStillOnLoginPage = loginDiv != null;
-        
-        // Check for profile links (indicates successful login)
-        var profileElements = responseDocument.QuerySelectorAll("a[href*='/info/profil/']");
-        var hasProfileLinks = profileElements.Any();
-        
-        // Check for redirect
-        var currentUrl = loginResponse.RequestMessage?.RequestUri?.ToString() ?? "";
-        var wasRedirected = !currentUrl.Contains("/login");
-        
-        // Look for user-specific content or logout links
-        var logoutElements = responseDocument.QuerySelectorAll("a[href*='logout'], a[href*='abmelden']");
-        var hasLogoutLinks = logoutElements.Any();
-        
-        var loginSuccessful = !isStillOnLoginPage || hasProfileLinks || wasRedirected || hasLogoutLinks;
-        
-        if (loginSuccessful)
-        {
-            Console.WriteLine("Login appears successful - no longer on login page");
-        }
-        else
-        {
-            Console.WriteLine("Login may have failed - still appears to be on login page");
-            
-            // Look for error messages
-            var errorElements = responseDocument.QuerySelectorAll(".error, .alert, .warning, .fehler");
-            foreach (var error in errorElements)
-            {
-                var errorText = error.TextContent?.Trim();
-                if (!string.IsNullOrEmpty(errorText))
-                {
-                    Console.WriteLine($"Error message: {errorText}");
-                }
-            }
-        }
-        
-        return loginSuccessful;
     }
 
     private ZonedDateTime ParseMatchDateTime(string timeText)

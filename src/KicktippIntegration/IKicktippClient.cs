@@ -4,22 +4,10 @@ namespace KicktippIntegration;
 
 /// <summary>
 /// Interface for the Kicktipp client responsible for interacting with kicktipp.de
+/// Authentication is handled automatically via dependency injection
 /// </summary>
 public interface IKicktippClient
 {
-    /// <summary>
-    /// Attempt to login to kicktipp.de with provided credentials
-    /// </summary>
-    /// <param name="credentials">Username and password</param>
-    /// <returns>True if login was successful</returns>
-    Task<bool> LoginAsync(KicktippCredentials credentials);
-
-    /// <summary>
-    /// Extract and return the login token for future use
-    /// </summary>
-    /// <returns>The login token or null if not available</returns>
-    Task<KicktippLoginToken?> GetLoginTokenAsync();
-
     /// <summary>
     /// Get open predictions for a specific community
     /// </summary>
@@ -49,6 +37,7 @@ public interface IKicktippClient
 
 /// <summary>
 /// Represents login credentials for kicktipp.de
+/// Used for dependency injection configuration
 /// </summary>
 public record KicktippCredentials(string Username, string Password)
 {
@@ -56,12 +45,17 @@ public record KicktippCredentials(string Username, string Password)
 }
 
 /// <summary>
-/// Represents a kicktipp.de login token for authenticated requests
+/// Configuration class for Kicktipp credentials
+/// Used with IOptions pattern for dependency injection
 /// </summary>
-public record KicktippLoginToken(string Token, DateTimeOffset ExpiresAt)
+public class KicktippOptions
 {
-    public bool IsExpired => DateTimeOffset.UtcNow >= ExpiresAt;
-    public bool IsValid => !string.IsNullOrEmpty(Token) && !IsExpired;
+    public const string ConfigurationSectionName = "Kicktipp";
+    
+    public string Username { get; set; } = string.Empty;
+    public string Password { get; set; } = string.Empty;
+    
+    public KicktippCredentials ToCredentials() => new(Username, Password);
 }
 
 /// <summary>
