@@ -23,8 +23,27 @@ A C# proof-of-concept for automating login and betting on kicktipp.de, inspired 
 
 ## Usage
 
-1. **Setup credentials**: Copy `.env.example` to `.env` and add your kicktipp.de credentials
-2. **Run the application**: `dotnet run` from the `src/Poc` directory
+### Setup Credentials
+
+For security, credentials are stored outside the repository to prevent AI agents with solution directory read access from accidentally leaking credentials to remote sources:
+
+1. **Create secrets directory**: A `KicktippAi.Secrets` directory should exist as a sibling to the solution directory
+2. **Setup credentials**: Copy `.env.example` to the secrets directory at `KicktippAi.Secrets/src/Poc/.env`
+3. **Add your credentials**: Edit the `.env` file with your actual kicktipp.de credentials
+
+```
+# Directory structure:
+├── KicktippAi/                 # This repository
+│   ├── src/Poc/.env.example    # Template file
+│   └── ...
+└── KicktippAi.Secrets/         # Secrets directory (outside repo)
+    └── src/Poc/.env            # Your actual credentials
+```
+
+### Running the Application
+
+1. **Navigate to project**: `cd src/Poc`
+2. **Run the application**: `dotnet run`
 3. **Interactive betting**: The app will show a dry-run first, then ask for confirmation
 
 ## Example Output
@@ -86,8 +105,12 @@ src/Poc/
 │   └── KicktippService.cs  # Core web automation logic
 ├── Models/
 │   └── KicktippModels.cs   # Data models and predictor logic
-├── .env.example            # Environment template
-└── .env                    # Your credentials (gitignored)
+└── .env.example            # Environment template (instructions only)
+
+KicktippAi.Secrets/         # External secrets directory
+└── src/Poc/
+    ├── .env.example        # Copy of environment template  
+    └── .env                # Your actual credentials (gitignored)
 ```
 
 ## Future Enhancements
