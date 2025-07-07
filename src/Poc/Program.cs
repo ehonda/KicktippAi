@@ -1,6 +1,8 @@
 ﻿using DotNetEnv;
 using KicktippAi.Poc.Models;
 using KicktippIntegration;
+using OpenAiIntegration;
+using Core;
 using Microsoft.Extensions.DependencyInjection;
 using Microsoft.Extensions.Configuration;
 using Microsoft.Extensions.Logging;
@@ -36,12 +38,22 @@ public class Program
                 return;
             }
 
+            // Check for OpenAI API key
+            var openAiApiKey = Environment.GetEnvironmentVariable("OPENAI_API_KEY");
+            if (string.IsNullOrEmpty(openAiApiKey))
+            {
+                logger.LogError("Please set OPENAI_API_KEY in your .env file");
+                return;
+            }
+
             // Setup dependency injection with credentials
-            ConfigureServices(serviceCollection, credentials);
+            ConfigureServices(serviceCollection, credentials, openAiApiKey);
             var serviceProvider = serviceCollection.BuildServiceProvider();
             
             // Get the client from DI - authentication is handled automatically
             var kicktippClient = serviceProvider.GetRequiredService<IKicktippClient>();
+            var openAiPredictor = serviceProvider.GetRequiredService<IPredictor<PredictorContext>>();
+            var predictorContext = serviceProvider.GetRequiredService<PredictorContext>();
             
             logger.LogInformation("Attempting to login with username: {Username}", credentials.Username);
             
@@ -59,52 +71,41 @@ public class Program
                     logger.LogInformation("  {Match}", match);
                 }
                 
-                // Generate random bets for these matches
+                // Generate AI-powered bets for these matches
                 logger.LogInformation("");
-                logger.LogInformation("Generating random bets for open predictions...");
+                logger.LogInformation("Generating AI-powered predictions for open matches...");
                 
-                var predictor = new SimplePredictor();
                 var bets = new Dictionary<Core.Match, KicktippIntegration.BetPrediction>();
                 
                 foreach (var match in openPredictions)
                 {
-                    var pocPrediction = predictor.Predict(ConvertToPocMatch(match));
+                    // Use OpenAI predictor directly with Core.Match
+                    var aiPrediction = await openAiPredictor.PredictAsync(match, predictorContext);
                     var integrationPrediction = new KicktippIntegration.BetPrediction(
-                        pocPrediction.HomeGoals, 
-                        pocPrediction.AwayGoals);
+                        aiPrediction.HomeGoals, 
+                        aiPrediction.AwayGoals);
                     bets[match] = integrationPrediction;
                 }
-                
-                // First do a dry run to see what would be bet
+                  // Show AI predictions
                 logger.LogInformation("");
-                logger.LogInformation("=== DRY RUN ===");
+                logger.LogInformation("=== AI-POWERED PREDICTIONS ===");
                 foreach (var bet in bets)
                 {
-                    logger.LogInformation("  Would bet {Prediction} for {Match}", bet.Value, bet.Key);
+                    logger.LogInformation("  AI predicts {Prediction} for {Match}", bet.Value, bet.Key);
                 }
-                
+
+                // Automatically place bets
                 logger.LogInformation("");
-                Console.Write("Do you want to place these bets for real? (y/N): ");
-                var userInput = Console.ReadLine()?.Trim().ToLowerInvariant();
+                logger.LogInformation("=== PLACING BETS ===");
+                var realBetSuccess = await kicktippClient.PlaceBetsAsync("ehonda-test", bets, overrideBets: true);
                 
-                if (userInput == "y" || userInput == "yes")
+                if (realBetSuccess)
                 {
-                    logger.LogInformation("");
-                    logger.LogInformation("=== PLACING REAL BETS ===");
-                    var realBetSuccess = await kicktippClient.PlaceBetsAsync("ehonda-test", bets, overrideBets: true);
-                    
-                    if (realBetSuccess)
-                    {
-                        logger.LogInformation("✓ Bets placed successfully!");
-                    }
-                    else
-                    {
-                        logger.LogError("✗ Failed to place bets");
-                    }
+                    logger.LogInformation("✓ Bets placed successfully!");
                 }
                 else
                 {
-                    logger.LogInformation("Bet placement cancelled by user");
+                    logger.LogError("✗ Failed to place bets");
                 }
             }
             else
@@ -116,9 +117,6 @@ public class Program
         {
             logger.LogError(ex, "An error occurred during execution");
         }
-        
-        Console.WriteLine("\nPress any key to exit...");
-        Console.ReadKey();
     }
     
     private static void ConfigureLogging(IServiceCollection services)
@@ -129,8 +127,7 @@ public class Program
             builder.SetMinimumLevel(LogLevel.Information);
         });
     }
-    
-    private static void ConfigureServices(IServiceCollection services, KicktippIntegration.KicktippCredentials credentials)
+      private static void ConfigureServices(IServiceCollection services, KicktippIntegration.KicktippCredentials credentials, string openAiApiKey)
     {
         // Configure the Kicktipp options
         services.Configure<KicktippIntegration.KicktippOptions>(options =>
@@ -138,9 +135,12 @@ public class Program
             options.Username = credentials.Username;
             options.Password = credentials.Password;
         });
-        
+
         // Add the Kicktipp client with authentication
         services.AddKicktippClient();
+
+        // Add OpenAI predictor
+        services.AddOpenAiPredictor(openAiApiKey);
     }
     
     private static void LoadEnvironmentVariables(ILogger logger)
