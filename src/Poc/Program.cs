@@ -3,6 +3,7 @@ using KicktippAi.Poc.Models;
 using KicktippIntegration;
 using Microsoft.Extensions.DependencyInjection;
 using Microsoft.Extensions.Configuration;
+using Microsoft.Extensions.Logging;
 
 namespace KicktippAi.Poc;
 
@@ -10,50 +11,57 @@ public class Program
 {
     public static async Task Main(string[] args)
     {
-        Console.WriteLine("Kicktipp.de Automation POC");
-        Console.WriteLine("==========================");
+        // Setup dependency injection and logging first
+        var serviceCollection = new ServiceCollection();
+        ConfigureLogging(serviceCollection);
+        
+        // Build a temporary service provider to get logger for startup
+        var tempServiceProvider = serviceCollection.BuildServiceProvider();
+        var logger = tempServiceProvider.GetRequiredService<ILogger<Program>>();
+        
+        logger.LogInformation("Kicktipp.de Automation POC");
+        logger.LogInformation("==========================");
         
         try
         {
             // Load environment variables from .env file
-            LoadEnvironmentVariables();
+            LoadEnvironmentVariables(logger);
             
             // Get credentials from environment
             var credentials = LoadCredentials();
             if (!credentials.IsValid)
             {
-                Console.WriteLine("Error: Please set KICKTIPP_USERNAME and KICKTIPP_PASSWORD in your .env file");
-                Console.WriteLine("You can use .env.example as a template.");
+                logger.LogError("Please set KICKTIPP_USERNAME and KICKTIPP_PASSWORD in your .env file");
+                logger.LogInformation("You can use .env.example as a template.");
                 return;
             }
 
-            // Setup dependency injection
-            var serviceCollection = new ServiceCollection();
+            // Setup dependency injection with credentials
             ConfigureServices(serviceCollection, credentials);
             var serviceProvider = serviceCollection.BuildServiceProvider();
             
             // Get the client from DI - authentication is handled automatically
             var kicktippClient = serviceProvider.GetRequiredService<IKicktippClient>();
             
-            Console.WriteLine($"Attempting to login with username: {credentials.Username}");
+            logger.LogInformation("Attempting to login with username: {Username}", credentials.Username);
             
             // Test fetching open predictions for ehonda-test community
             // Authentication happens automatically via the authentication handler
-            Console.WriteLine("Fetching open predictions for ehonda-test community...");
+            logger.LogInformation("Fetching open predictions for ehonda-test community...");
             var openPredictions = await kicktippClient.GetOpenPredictionsAsync("ehonda-test");
                 
             if (openPredictions.Any())
             {
-                Console.WriteLine($"✓ Found {openPredictions.Count} open matches:");
-                Console.WriteLine();
+                logger.LogInformation("✓ Found {MatchCount} open matches:", openPredictions.Count);
+                logger.LogInformation("");
                 foreach (var match in openPredictions)
                 {
-                    Console.WriteLine($"  {match}");
+                    logger.LogInformation("  {Match}", match);
                 }
                 
                 // Generate random bets for these matches
-                Console.WriteLine();
-                Console.WriteLine("Generating random bets for open predictions...");
+                logger.LogInformation("");
+                logger.LogInformation("Generating random bets for open predictions...");
                 
                 var predictor = new SimplePredictor();
                 var bets = new Dictionary<Core.Match, KicktippIntegration.BetPrediction>();
@@ -68,53 +76,58 @@ public class Program
                 }
                 
                 // First do a dry run to see what would be bet
-                Console.WriteLine();
-                Console.WriteLine("=== DRY RUN ===");
+                logger.LogInformation("");
+                logger.LogInformation("=== DRY RUN ===");
                 foreach (var bet in bets)
                 {
-                    Console.WriteLine($"  Would bet {bet.Value} for {bet.Key}");
+                    logger.LogInformation("  Would bet {Prediction} for {Match}", bet.Value, bet.Key);
                 }
                 
-                Console.WriteLine();
+                logger.LogInformation("");
                 Console.Write("Do you want to place these bets for real? (y/N): ");
                 var userInput = Console.ReadLine()?.Trim().ToLowerInvariant();
                 
                 if (userInput == "y" || userInput == "yes")
                 {
-                    Console.WriteLine();
-                    Console.WriteLine("=== PLACING REAL BETS ===");
+                    logger.LogInformation("");
+                    logger.LogInformation("=== PLACING REAL BETS ===");
                     var realBetSuccess = await kicktippClient.PlaceBetsAsync("ehonda-test", bets, overrideBets: true);
                     
                     if (realBetSuccess)
                     {
-                        Console.WriteLine("✓ Bets placed successfully!");
+                        logger.LogInformation("✓ Bets placed successfully!");
                     }
                     else
                     {
-                        Console.WriteLine("✗ Failed to place bets");
+                        logger.LogError("✗ Failed to place bets");
                     }
                 }
                 else
                 {
-                    Console.WriteLine("Bet placement cancelled by user");
+                    logger.LogInformation("Bet placement cancelled by user");
                 }
             }
             else
             {
-                Console.WriteLine("No open predictions found for ehonda-test community");
+                logger.LogInformation("No open predictions found for ehonda-test community");
             }
         }
         catch (Exception ex)
         {
-            Console.WriteLine($"Error: {ex.Message}");
-            if (ex.InnerException != null)
-            {
-                Console.WriteLine($"Inner exception: {ex.InnerException.Message}");
-            }
+            logger.LogError(ex, "An error occurred during execution");
         }
         
         Console.WriteLine("\nPress any key to exit...");
         Console.ReadKey();
+    }
+    
+    private static void ConfigureLogging(IServiceCollection services)
+    {
+        services.AddLogging(builder =>
+        {
+            builder.AddConsole();
+            builder.SetMinimumLevel(LogLevel.Information);
+        });
     }
     
     private static void ConfigureServices(IServiceCollection services, KicktippIntegration.KicktippCredentials credentials)
@@ -130,7 +143,7 @@ public class Program
         services.AddKicktippClient();
     }
     
-    private static void LoadEnvironmentVariables()
+    private static void LoadEnvironmentVariables(ILogger logger)
     {
         try
         {
@@ -141,7 +154,7 @@ public class Program
             if (File.Exists(envPath))
             {
                 Env.Load(envPath);
-                Console.WriteLine($"Loaded .env file from: {envPath}");
+                logger.LogInformation("Loaded .env file from: {EnvPath}", envPath);
             }
             else
             {
@@ -153,18 +166,18 @@ public class Program
                     if (File.Exists(envPath))
                     {
                         Env.Load(envPath);
-                        Console.WriteLine($"Loaded .env file from: {envPath}");
+                        logger.LogInformation("Loaded .env file from: {EnvPath}", envPath);
                     }
                     else
                     {
-                        Console.WriteLine("Warning: No .env file found. Please create one based on .env.example");
+                        logger.LogWarning("No .env file found. Please create one based on .env.example");
                     }
                 }
             }
         }
         catch (Exception ex)
         {
-            Console.WriteLine($"Warning: Could not load .env file: {ex.Message}");
+            logger.LogWarning(ex, "Could not load .env file");
         }
     }
     

@@ -1,4 +1,5 @@
 using Microsoft.Extensions.Options;
+using Microsoft.Extensions.Logging;
 using AngleSharp;
 using AngleSharp.Html.Dom;
 
@@ -14,13 +15,15 @@ public class KicktippAuthenticationHandler : DelegatingHandler
     private const string LoginUrl = $"{BaseUrl}/info/profil/login";
     
     private readonly IOptions<KicktippOptions> _options;
+    private readonly ILogger<KicktippAuthenticationHandler> _logger;
     private readonly IBrowsingContext _browsingContext;
     private readonly SemaphoreSlim _loginSemaphore = new(1, 1);
     private bool _isLoggedIn = false;
 
-    public KicktippAuthenticationHandler(IOptions<KicktippOptions> options)
+    public KicktippAuthenticationHandler(IOptions<KicktippOptions> options, ILogger<KicktippAuthenticationHandler> logger)
     {
         _options = options;
+        _logger = logger;
         var config = Configuration.Default.WithDefaultLoader();
         _browsingContext = BrowsingContext.New(config);
     }
@@ -40,7 +43,7 @@ public class KicktippAuthenticationHandler : DelegatingHandler
             response.StatusCode == System.Net.HttpStatusCode.Forbidden ||
             response.RequestMessage?.RequestUri?.ToString().Contains("login") == true)
         {
-            Console.WriteLine("Authentication may have expired, attempting re-login...");
+            _logger.LogWarning("Authentication may have expired, attempting re-login...");
             _isLoggedIn = false;
             await EnsureLoggedInAsync(cancellationToken);
             
@@ -81,7 +84,7 @@ public class KicktippAuthenticationHandler : DelegatingHandler
                 throw new InvalidOperationException("Invalid Kicktipp credentials configured");
             }
 
-            Console.WriteLine("Performing Kicktipp authentication...");
+            _logger.LogInformation("Performing Kicktipp authentication...");
             
             // Get the login page first
             var loginPageRequest = new HttpRequestMessage(HttpMethod.Get, LoginUrl);
@@ -160,18 +163,18 @@ public class KicktippAuthenticationHandler : DelegatingHandler
             
             if (loginSuccessful)
             {
-                Console.WriteLine("✓ Kicktipp authentication successful");
+                _logger.LogInformation("✓ Kicktipp authentication successful");
                 _isLoggedIn = true;
             }
             else
             {
-                Console.WriteLine("Login failed - still on login page or login form present");
+                _logger.LogError("Login failed - still on login page or login form present");
                 throw new UnauthorizedAccessException("Kicktipp login failed - check credentials");
             }
         }
         catch (Exception ex)
         {
-            Console.WriteLine($"✗ Kicktipp authentication failed: {ex.Message}");
+            _logger.LogError(ex, "✗ Kicktipp authentication failed");
             throw;
         }
     }

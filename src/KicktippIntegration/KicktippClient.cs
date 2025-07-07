@@ -2,6 +2,7 @@ using System.Net;
 using AngleSharp;
 using AngleSharp.Html.Dom;
 using Core;
+using Microsoft.Extensions.Logging;
 using NodaTime;
 using NodaTime.Extensions;
 
@@ -14,11 +15,13 @@ namespace KicktippIntegration;
 public class KicktippClient : IKicktippClient, IDisposable
 {
     private readonly HttpClient _httpClient;
+    private readonly ILogger<KicktippClient> _logger;
     private readonly IBrowsingContext _browsingContext;
 
-    public KicktippClient(HttpClient httpClient)
+    public KicktippClient(HttpClient httpClient, ILogger<KicktippClient> logger)
     {
         _httpClient = httpClient ?? throw new ArgumentNullException(nameof(httpClient));
+        _logger = logger ?? throw new ArgumentNullException(nameof(logger));
         
         var config = Configuration.Default.WithDefaultLoader();
         _browsingContext = BrowsingContext.New(config);
@@ -34,7 +37,7 @@ public class KicktippClient : IKicktippClient, IDisposable
             
             if (!response.IsSuccessStatusCode)
             {
-                Console.WriteLine($"Failed to fetch tippabgabe page. Status: {response.StatusCode}");
+                _logger.LogError("Failed to fetch tippabgabe page. Status: {StatusCode}", response.StatusCode);
                 return new List<Match>();
             }
 
@@ -47,12 +50,12 @@ public class KicktippClient : IKicktippClient, IDisposable
             var matchTable = document.QuerySelector("#tippabgabeSpiele tbody");
             if (matchTable == null)
             {
-                Console.WriteLine("Could not find tippabgabe table");
+                _logger.LogWarning("Could not find tippabgabe table");
                 return matches;
             }
             
             var matchRows = matchTable.QuerySelectorAll("tr");
-            Console.WriteLine($"Found {matchRows.Length} potential match rows");
+            _logger.LogDebug("Found {MatchRowCount} potential match rows", matchRows.Length);
             
             foreach (var row in matchRows)
             {
@@ -70,7 +73,7 @@ public class KicktippClient : IKicktippClient, IDisposable
                         var bettingInputs = cells[3].QuerySelectorAll("input[type='text']");
                         if (bettingInputs.Length >= 2)
                         {
-                            Console.WriteLine($"Found open match: {homeTeam} vs {awayTeam} at {timeText}");
+                            _logger.LogDebug("Found open match: {HomeTeam} vs {AwayTeam} at {Time}", homeTeam, awayTeam, timeText);
                             
                             // Parse the date/time - for now use a simple approach
                             // Format appears to be "08.07.25 21:00"
@@ -82,17 +85,17 @@ public class KicktippClient : IKicktippClient, IDisposable
                 }
                 catch (Exception ex)
                 {
-                    Console.WriteLine($"Error parsing match row: {ex.Message}");
+                    _logger.LogWarning(ex, "Error parsing match row");
                     continue;
                 }
             }
 
-            Console.WriteLine($"Successfully parsed {matches.Count} open matches");
+            _logger.LogInformation("Successfully parsed {MatchCount} open matches", matches.Count);
             return matches;
         }
         catch (Exception ex)
         {
-            Console.WriteLine($"Exception in GetOpenPredictionsAsync: {ex.Message}");
+            _logger.LogError(ex, "Exception in GetOpenPredictionsAsync");
             return new List<Match>();
         }
     }
@@ -107,7 +110,7 @@ public class KicktippClient : IKicktippClient, IDisposable
             
             if (!response.IsSuccessStatusCode)
             {
-                Console.WriteLine($"Failed to access betting page. Status: {response.StatusCode}");
+                _logger.LogError("Failed to access betting page. Status: {StatusCode}", response.StatusCode);
                 return false;
             }
             
@@ -118,7 +121,7 @@ public class KicktippClient : IKicktippClient, IDisposable
             var betForm = document.QuerySelector("form") as IHtmlFormElement;
             if (betForm == null)
             {
-                Console.WriteLine("Could not find betting form on the page");
+                _logger.LogWarning("Could not find betting form on the page");
                 return false;
             }
             
@@ -126,7 +129,7 @@ public class KicktippClient : IKicktippClient, IDisposable
             var contentArea = document.QuerySelector("#kicktipp-content");
             if (contentArea == null)
             {
-                Console.WriteLine("Could not find content area on the betting page");
+                _logger.LogWarning("Could not find content area on the betting page");
                 return false;
             }
             
@@ -134,7 +137,7 @@ public class KicktippClient : IKicktippClient, IDisposable
             var tbody = contentArea.QuerySelector("tbody");
             if (tbody == null)
             {
-                Console.WriteLine("No betting table found");
+                _logger.LogWarning("No betting table found");
                 return false;
             }
             
@@ -142,13 +145,13 @@ public class KicktippClient : IKicktippClient, IDisposable
             var formData = new List<KeyValuePair<string, string>>();
             var matchFound = false;
             
-            // Add hidden fields from the form
-            var hiddenInputs = betForm.QuerySelectorAll("input[type=hidden]").OfType<IHtmlInputElement>();
-            foreach (var input in hiddenInputs)
+            // Copy hidden inputs from the original form
+            var hiddenInputs = betForm.QuerySelectorAll("input[type='hidden']");
+            foreach (var hiddenInput in hiddenInputs.Cast<IHtmlInputElement>())
             {
-                if (!string.IsNullOrEmpty(input.Name) && input.Value != null)
+                if (!string.IsNullOrEmpty(hiddenInput.Name) && hiddenInput.Value != null)
                 {
-                    formData.Add(new KeyValuePair<string, string>(input.Name, input.Value));
+                    formData.Add(new KeyValuePair<string, string>(hiddenInput.Name, hiddenInput.Value));
                 }
             }
             
@@ -175,7 +178,7 @@ public class KicktippClient : IKicktippClient, IDisposable
                         
                         if (homeInput == null || awayInput == null)
                         {
-                            Console.WriteLine($"No betting inputs found for {match}, skipping");
+                            _logger.LogWarning("No betting inputs found for {Match}, skipping", match);
                             continue;
                         }
                         
@@ -186,7 +189,7 @@ public class KicktippClient : IKicktippClient, IDisposable
                         if ((hasExistingHomeBet || hasExistingAwayBet) && !overrideBet)
                         {
                             var existingBet = $"{homeInput.Value ?? ""}:{awayInput.Value ?? ""}";
-                            Console.WriteLine($"{match} - skipped, already placed {existingBet}");
+                            _logger.LogInformation("{Match} - skipped, already placed {ExistingBet}", match, existingBet);
                             return true; // Consider this successful - bet already exists
                         }
                         
@@ -196,11 +199,11 @@ public class KicktippClient : IKicktippClient, IDisposable
                             formData.Add(new KeyValuePair<string, string>(homeInput.Name, prediction.HomeGoals.ToString()));
                             formData.Add(new KeyValuePair<string, string>(awayInput.Name, prediction.AwayGoals.ToString()));
                             matchFound = true;
-                            Console.WriteLine($"{match} - betting {prediction}");
+                            _logger.LogInformation("{Match} - betting {Prediction}", match, prediction);
                         }
                         else
                         {
-                            Console.WriteLine($"{match} - input field names are missing, skipping");
+                            _logger.LogWarning("{Match} - input field names are missing, skipping", match);
                             continue;
                         }
                         
@@ -209,14 +212,14 @@ public class KicktippClient : IKicktippClient, IDisposable
                 }
                 catch (Exception ex)
                 {
-                    Console.WriteLine($"Error processing betting row: {ex.Message}");
+                    _logger.LogError(ex, "Error processing betting row");
                     continue;
                 }
             }
             
             if (!matchFound)
             {
-                Console.WriteLine($"Match {match} not found in betting form");
+                _logger.LogWarning("Match {Match} not found in betting form", match);
                 return false;
             }
             
@@ -268,18 +271,18 @@ public class KicktippClient : IKicktippClient, IDisposable
             
             if (submitResponse.IsSuccessStatusCode)
             {
-                Console.WriteLine($"✓ Successfully submitted bet for {match}!");
+                _logger.LogInformation("✓ Successfully submitted bet for {Match}!", match);
                 return true;
             }
             else
             {
-                Console.WriteLine($"✗ Failed to submit bet. Status: {submitResponse.StatusCode}");
+                _logger.LogError("✗ Failed to submit bet. Status: {StatusCode}", submitResponse.StatusCode);
                 return false;
             }
         }
         catch (Exception ex)
         {
-            Console.WriteLine($"Exception during bet placement: {ex.Message}");
+            _logger.LogError(ex, "Exception during bet placement");
             return false;
         }
     }
@@ -294,7 +297,7 @@ public class KicktippClient : IKicktippClient, IDisposable
             
             if (!response.IsSuccessStatusCode)
             {
-                Console.WriteLine($"Failed to access betting page. Status: {response.StatusCode}");
+                _logger.LogError("Failed to access betting page. Status: {StatusCode}", response.StatusCode);
                 return false;
             }
             
@@ -305,7 +308,7 @@ public class KicktippClient : IKicktippClient, IDisposable
             var betForm = document.QuerySelector("form") as IHtmlFormElement;
             if (betForm == null)
             {
-                Console.WriteLine("Could not find betting form on the page");
+                _logger.LogWarning("Could not find betting form on the page");
                 return false;
             }
             
@@ -313,7 +316,7 @@ public class KicktippClient : IKicktippClient, IDisposable
             var contentArea = document.QuerySelector("#kicktipp-content");
             if (contentArea == null)
             {
-                Console.WriteLine("Could not find content area on the betting page");
+                _logger.LogWarning("Could not find content area on the betting page");
                 return false;
             }
             
@@ -321,7 +324,7 @@ public class KicktippClient : IKicktippClient, IDisposable
             var tbody = contentArea.QuerySelector("tbody");
             if (tbody == null)
             {
-                Console.WriteLine("No betting table found");
+                _logger.LogWarning("No betting table found");
                 return false;
             }
             
@@ -379,7 +382,7 @@ public class KicktippClient : IKicktippClient, IDisposable
                     
                     if (homeInput == null || awayInput == null)
                     {
-                        Console.WriteLine($"No betting inputs found for {matchKey}, skipping");
+                        _logger.LogWarning("No betting inputs found for {MatchKey}, skipping", matchKey);
                         continue;
                     }
                     
@@ -390,7 +393,7 @@ public class KicktippClient : IKicktippClient, IDisposable
                     if ((hasExistingHomeBet || hasExistingAwayBet) && !overrideBets)
                     {
                         var existingBet = $"{homeInput.Value ?? ""}:{awayInput.Value ?? ""}";
-                        Console.WriteLine($"{matchKey} - skipped, already placed {existingBet}");
+                        _logger.LogInformation("{MatchKey} - skipped, already placed {ExistingBet}", matchKey, existingBet);
                         betsSkipped++;
                         
                         // Keep existing values
@@ -408,26 +411,26 @@ public class KicktippClient : IKicktippClient, IDisposable
                         formData.Add(new KeyValuePair<string, string>(homeInput.Name, prediction.HomeGoals.ToString()));
                         formData.Add(new KeyValuePair<string, string>(awayInput.Name, prediction.AwayGoals.ToString()));
                         betsPlaced++;
-                        Console.WriteLine($"{matchKey} - betting {prediction}");
+                        _logger.LogInformation("{MatchKey} - betting {Prediction}", matchKey, prediction);
                     }
                     else
                     {
-                        Console.WriteLine($"{matchKey} - input field names are missing, skipping");
+                        _logger.LogWarning("{MatchKey} - input field names are missing, skipping", matchKey);
                         continue;
                     }
                 }
                 catch (Exception ex)
                 {
-                    Console.WriteLine($"Error processing betting row: {ex.Message}");
+                    _logger.LogError(ex, "Error processing betting row");
                     continue;
                 }
             }
             
-            Console.WriteLine($"Summary: {betsPlaced} bets to place, {betsSkipped} skipped");
+            _logger.LogInformation("Summary: {BetsPlaced} bets to place, {BetsSkipped} skipped", betsPlaced, betsSkipped);
             
             if (betsPlaced == 0)
             {
-                Console.WriteLine("No bets to place");
+                _logger.LogInformation("No bets to place");
                 return true;
             }
             
@@ -465,18 +468,18 @@ public class KicktippClient : IKicktippClient, IDisposable
             
             if (submitResponse.IsSuccessStatusCode)
             {
-                Console.WriteLine($"✓ Successfully submitted {betsPlaced} bets!");
+                _logger.LogInformation("✓ Successfully submitted {BetsPlaced} bets!", betsPlaced);
                 return true;
             }
             else
             {
-                Console.WriteLine($"✗ Failed to submit bets. Status: {submitResponse.StatusCode}");
+                _logger.LogError("✗ Failed to submit bets. Status: {StatusCode}", submitResponse.StatusCode);
                 return false;
             }
         }
         catch (Exception ex)
         {
-            Console.WriteLine($"Exception during bet placement: {ex.Message}");
+            _logger.LogError(ex, "Exception during bet placement");
             return false;
         }
     }
@@ -495,12 +498,12 @@ public class KicktippClient : IKicktippClient, IDisposable
             }
             
             // Fallback to current time if parsing fails
-            Console.WriteLine($"Could not parse match time: {timeText}, using current time");
+            _logger.LogWarning("Could not parse match time: {TimeText}, using current time", timeText);
             return DateTimeOffset.Now.ToZonedDateTime();
         }
         catch (Exception ex)
         {
-            Console.WriteLine($"Error parsing match time '{timeText}': {ex.Message}");
+            _logger.LogError(ex, "Error parsing match time '{TimeText}'", timeText);
             return DateTimeOffset.Now.ToZonedDateTime();
         }
     }
