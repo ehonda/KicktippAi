@@ -42,14 +42,42 @@ All prices are per 1M tokens, so the formula becomes:
 Total Cost = ((Context + System Message + Match Input) / 1,000,000 × Input Price) + (Output / 1,000,000 × Output Price)
 ```
 
-## Cost Scenarios by Model and Token Usage
+💡 **Note:** This is a conservative estimate. In typical usage, multiple matches are predicted in sequence on a match day. System message tokens and a proportion of context tokens would be cached across predictions, reducing costs by utilizing the lower cached input prices.
 
-### Scenario Assumptions
+## Context Token Estimation
+
+To create more realistic price estimates, we need to understand the different types of context and their typical token counts.
+
+### Kicktipp Context
+
+This category includes context specific to the prediction game and current state:
+
+| Context Type | Estimated Tokens | Caching Behavior | Notes |
+|--------------|------------------|------------------|-------|
+| **Community Rules** | 150 | ✅ Cached | Point system rules (2-4 points for tendency/goal difference/exact result), tie-breaking rules. Optimized with examples for "Tendenz", "Tordifferenz", "Ergebnis" |
+| **Current Community Standings** | 400 | ✅ Cached | Player rankings and total points only (excluding individual predictions). Typically only relevant for strategic decisions on final matchdays - should be provided via tool call when needed |
+| **Bundesliga Standings** | 450 | ✅ Cached | League table in CSV format: Position, Team, Games, Points, Goal_Ratio, Goals_For, Goals_Against, Wins, Draws, Losses (18 teams) |
+| **Recent History (Last 10 Games)** | 280 | ❌ Never Cached | Team-specific match results for both teams in CSV format: League, Home_Team, Away_Team, Score (~140 tokens per team) |
+| **Metadata** | 35 | ✅ Cached | Document headers: prediction-game-rules.md, bundesliga-standings.csv, recent-history-home-team.csv, recent-history-away-team.csv |
+
+**Total Kicktipp Context:** ~1,315 tokens (with ~1,035 cacheable, ~280 unique)
+
+💡 **Future Enhancement Hint:** Additional strategic context (provided to the model via tools, because it will only situationally be useful) could include prediction history, bonus predictions, future match day pairings, and Bundesliga rules. These would provide situational data for strategic decisions aimed at winning the community competition.
+
+## Scenarios
+
+### Simple Baseline
+
+⚠️ **Known Limitations:** This scenario significantly underestimates costs for reasoning models (o1, o1-pro, o3, o4-mini, o3-mini, o1-mini) because it assumes only 150 output tokens. Reasoning models generate substantial reasoning tokens that count as output tokens, potentially increasing output token usage by 5-10x or more.
+
+#### Simple Baseline Assumptions
 
 - **Context Tokens**: 5,000 (Low), 15,000 (Medium), 30,000 (High)
 - **System Message Tokens**: 500 (consistent across scenarios)
 - **Match Input Tokens**: 200 (consistent across scenarios)
 - **Output Tokens**: 150 (consistent across scenarios)
+
+#### Cost Estimates by Model and Token Usage
 
 | Model | Low Context (5.7K total) | Medium Context (15.7K total) | High Context (30.7K total) |
 |-------|---------------------------|-------------------------------|----------------------------|
@@ -66,7 +94,7 @@ Total Cost = ((Context + System Message + Match Input) / 1,000,000 × Input Pric
 | o3-mini | $0.0069 | $0.0179 | $0.0344 |
 | o1-mini | $0.0069 | $0.0179 | $0.0344 |
 
-### Cost Analysis Summary
+#### Cost Analysis Summary
 
 **Most Cost-Effective Options:**
 
