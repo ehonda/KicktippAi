@@ -31,6 +31,8 @@ Provided context can be though of as a set of documents, each with a name and co
 We will present the set of documents as follows:
 
 ```text
+---
+
 <document_0>
 
 ---
@@ -42,6 +44,8 @@ We will present the set of documents as follows:
 ...
 
 <document_n>
+
+---
 ```
 
 ## Context
