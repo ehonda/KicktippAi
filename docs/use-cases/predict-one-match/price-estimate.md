@@ -64,6 +64,18 @@ This category includes context specific to the prediction game and current state
 
 💡 **Future Enhancement Hint:** Additional strategic context (provided to the model via tools, because it will only situationally be useful) could include prediction history, bonus predictions, future match day pairings, and Bundesliga rules. These would provide situational data for strategic decisions aimed at winning the community competition.
 
+### Match Input Tokens
+
+The match input consists of a serialized `Match` object in minimized JSON format:
+
+**Example Match Input:**
+
+```json
+{"homeTeam":"VfB Stuttgart","awayTeam":"RB Leipzig","startsAt":"2025-01-18T15:30:00Z"}
+```
+
+**Estimated Tokens:** ~35 tokens (this one is 32 according to the [openai tokenizer](https://platform.openai.com/tokenizer))
+
 ## Scenarios
 
 ### Simple Baseline
