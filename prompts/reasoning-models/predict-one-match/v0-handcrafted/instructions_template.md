@@ -15,7 +15,7 @@ The match will be provided as minified JSON in the following format:
 For example:
 
 ```json
-{"homeTeam":"VfB Stuttgart","awayTeam":"RB Leipzig","startsAt":"2025-01-18T15:30:00Z"}
+{"homeTeam":"VfB Stuttgart","awayTeam":"RB Leipzig","startsAt":"2025-01-18T14:30:00Z"}
 ```
 
 ## Context Input Format

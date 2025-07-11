@@ -6,19 +6,20 @@
   </Configurations>
   <Folder Name="/src/">
     <Project Path="src/Poc/Poc.csproj" />
-    <Project Path="src\Core\Core.csproj" Type="Classic C#">
+    <Project Path="src/PromptSampleTests/PromptSampleTests.csproj" />
+    <Project Path="src\Core\Core.csproj" Type="C#">
       <Configuration Solution="Debug|x64" Project="Debug|Any CPU" />
       <Configuration Solution="Debug|x86" Project="Debug|Any CPU" />
       <Configuration Solution="Release|x64" Project="Release|Any CPU" />
       <Configuration Solution="Release|x86" Project="Release|Any CPU" />
     </Project>
-    <Project Path="src\KicktippIntegration\KicktippIntegration.csproj" Type="Classic C#">
+    <Project Path="src\KicktippIntegration\KicktippIntegration.csproj" Type="C#">
       <Configuration Solution="Debug|x64" Project="Debug|Any CPU" />
       <Configuration Solution="Debug|x86" Project="Debug|Any CPU" />
       <Configuration Solution="Release|x64" Project="Release|Any CPU" />
       <Configuration Solution="Release|x86" Project="Release|Any CPU" />
     </Project>
-    <Project Path="src\OpenAiIntegration\OpenAiIntegration.csproj" Type="Classic C#">
+    <Project Path="src\OpenAiIntegration\OpenAiIntegration.csproj" Type="C#">
       <Configuration Solution="Debug|x64" Project="Debug|Any CPU" />
       <Configuration Solution="Debug|x86" Project="Debug|Any CPU" />
       <Configuration Solution="Release|x64" Project="Release|Any CPU" />
