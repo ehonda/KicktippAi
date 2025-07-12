@@ -1,6 +1,7 @@
 using System.Text.Json;
 using Microsoft.Extensions.Logging;
 using OpenAI.Chat;
+using PromptSampleTests.Models;
 
 namespace PromptSampleTests;
 
@@ -50,6 +51,7 @@ public class PromptTestRunner
         Console.WriteLine($"Prompt Directory: {promptSampleDirectory}");
         Console.WriteLine($"Instructions loaded: {instructions.Length} characters");
         Console.WriteLine($"Match JSON: {matchJson.Trim()}");
+        Console.WriteLine("Using structured output format");
         Console.WriteLine();
 
         // Create ChatClient and run prediction
@@ -66,13 +68,49 @@ public class PromptTestRunner
             messages,
             new()
             {
-                MaxOutputTokenCount = 10_000 // Safeguard against high costs
+                MaxOutputTokenCount = 10_000, // Safeguard against high costs
+                ResponseFormat = ChatResponseFormat.CreateJsonSchemaFormat(
+                    jsonSchemaFormatName: "match_prediction",
+                    jsonSchema: BinaryData.FromBytes("""
+                        {
+                            "type": "object",
+                            "properties": {
+                                "home": {
+                                    "type": "integer",
+                                    "description": "Predicted goals for the home team"
+                                },
+                                "away": {
+                                    "type": "integer", 
+                                    "description": "Predicted goals for the away team"
+                                }
+                            },
+                            "required": ["home", "away"],
+                            "additionalProperties": false
+                        }
+                        """u8.ToArray()),
+                    jsonSchemaIsStrict: true)
             });
 
         // Output results with clean formatting
         Console.WriteLine();
-        Console.WriteLine("=== PREDICTION ===");
-        Console.WriteLine(response.Value.Content[0].Text);
+        Console.WriteLine("=== STRUCTURED PREDICTION ===");
+        var predictionJson = response.Value.Content[0].Text;
+        Console.WriteLine(predictionJson);
+        
+        // Parse and display the structured prediction
+        try
+        {
+            var prediction = JsonSerializer.Deserialize<MatchPrediction>(predictionJson);
+            Console.WriteLine();
+            Console.WriteLine("=== PARSED PREDICTION ===");
+            Console.WriteLine($"Home Goals: {prediction!.Home}");
+            Console.WriteLine($"Away Goals: {prediction.Away}");
+            Console.WriteLine($"Final Score: {prediction.Home}:{prediction.Away}");
+        }
+        catch (JsonException ex)
+        {
+            Console.WriteLine($"Error parsing structured output: {ex.Message}");
+        }
         Console.WriteLine();
 
         Console.WriteLine("=== TOKEN USAGE ===");
