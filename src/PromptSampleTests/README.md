@@ -51,7 +51,8 @@ The tool will output:
 ## Features
 
 - **Flexible API Key Loading**: Automatically loads API key from `.env` file with fallback to environment variables
-- **Comprehensive Logging**: Uses structured logging with clear information and warning messages
+- **Clean Console Output**: Main application output uses clean console formatting, while diagnostics use structured logging
+- **Hybrid Logging Approach**: Console.WriteLine for primary output, ILogger for configuration and error diagnostics
 - **Error Handling**: Detailed error messages for missing files, directories, and configuration
 - **Token Usage Logging**: Comprehensive token usage statistics in JSON format (similar to OpenAI API response format)
 - **Hard-coded Safety Limits**: Built-in safeguards for API usage

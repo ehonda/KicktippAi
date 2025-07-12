@@ -13,9 +13,17 @@ public class Program
 {
     public static async Task<int> Main(string[] args)
     {
-        // Setup logging
+        // Setup logging with minimal console output for diagnostics only
         var serviceCollection = new ServiceCollection();
-        serviceCollection.AddLogging(builder => builder.AddConsole());
+        serviceCollection.AddLogging(builder => 
+            builder.AddSimpleConsole(options =>
+            {
+                options.SingleLine = true;
+                options.IncludeScopes = false;
+                options.TimestampFormat = null;
+                options.ColorBehavior = Microsoft.Extensions.Logging.Console.LoggerColorBehavior.Enabled;
+            })
+            .SetMinimumLevel(LogLevel.Information)); // Show info level for .env loading feedback
         var serviceProvider = serviceCollection.BuildServiceProvider();
         var logger = serviceProvider.GetRequiredService<ILogger<Program>>();
 
@@ -40,8 +48,7 @@ public class Program
         }
         catch (Exception ex)
         {
-            logger.LogError(ex, "Error occurred while running prompt test");
-            Console.WriteLine($"Error: {ex.Message}");
+            logger.LogError(ex, "Error occurred while running prompt test: {Message}", ex.Message);
             return 1;
         }
     }
@@ -155,11 +162,12 @@ public class PromptTestRunner
         var instructions = await File.ReadAllTextAsync(instructionsPath);
         var matchJson = await File.ReadAllTextAsync(matchPath);
 
-        _logger.LogInformation("Model: {Model}", model);
-        _logger.LogInformation("Prompt Directory: {Directory}", promptSampleDirectory);
-        _logger.LogInformation("Instructions loaded: {Length} characters", instructions.Length);
-        _logger.LogInformation("Match JSON: {MatchJson}", matchJson.Trim());
-        _logger.LogInformation("");
+        // Use Console.WriteLine for clean main output
+        Console.WriteLine($"Model: {model}");
+        Console.WriteLine($"Prompt Directory: {promptSampleDirectory}");
+        Console.WriteLine($"Instructions loaded: {instructions.Length} characters");
+        Console.WriteLine($"Match JSON: {matchJson.Trim()}");
+        Console.WriteLine();
 
         // Create ChatClient and run prediction
         var chatClient = new ChatClient(model, apiKey);
@@ -170,10 +178,11 @@ public class PromptTestRunner
             new UserChatMessage(matchJson)
         };
 
-        _logger.LogInformation("Calling OpenAI API...");
+        Console.WriteLine("Calling OpenAI API...");
         var response = await chatClient.CompleteChatAsync(messages);
 
-        // Output results
+        // Output results with clean formatting
+        Console.WriteLine();
         Console.WriteLine("=== PREDICTION ===");
         Console.WriteLine(response.Value.Content[0].Text);
         Console.WriteLine();
