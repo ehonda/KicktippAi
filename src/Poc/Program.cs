@@ -1,4 +1,4 @@
-﻿using DotNetEnv;
+using DotNetEnv;
 using KicktippAi.Poc.Models;
 using KicktippIntegration;
 using OpenAiIntegration;
