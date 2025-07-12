@@ -2,6 +2,13 @@
 
 This project allows you to test prompt samples with different OpenAI models by loading instructions and match data from disk.
 
+## Project Structure
+
+- `Program.cs` - Main entry point and application orchestration
+- `PromptTestRunner.cs` - Core test execution logic and OpenAI API interaction
+- `EnvironmentHelper.cs` - Environment variable and .env file loading utilities
+- `LoggingConfiguration.cs` - Centralized logging configuration
+
 ## Prerequisites
 
 1. Set up your OpenAI API key using one of these methods:
@@ -50,9 +57,10 @@ The tool will output:
 
 ## Features
 
+- **Modular Architecture**: Clean separation of concerns with dedicated classes for different responsibilities
 - **Flexible API Key Loading**: Automatically loads API key from `.env` file with fallback to environment variables
 - **Clean Console Output**: Main application output uses clean console formatting, while diagnostics use structured logging
 - **Hybrid Logging Approach**: Console.WriteLine for primary output, ILogger for configuration and error diagnostics
 - **Error Handling**: Detailed error messages for missing files, directories, and configuration
-- **Token Usage Logging**: Comprehensive token usage statistics in JSON format (similar to OpenAI API response format)
-- **Hard-coded Safety Limits**: Built-in safeguards for API usage
+- **Token Usage Logging**: Complete token usage statistics including cached tokens, reasoning tokens, and audio tokens
+- **Hard-coded Safety Limits**: Built-in safeguards for API usage (10,000 max output tokens)
