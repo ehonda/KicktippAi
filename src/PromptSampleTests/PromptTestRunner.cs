@@ -1,3 +1,4 @@
+using System.Globalization;
 using System.Text.Json;
 using Microsoft.Extensions.Logging;
 using OpenAI.Chat;
@@ -118,5 +119,42 @@ public class PromptTestRunner
         var usageJson = JsonSerializer.Serialize(usage, new JsonSerializerOptions { WriteIndented = true });
         
         Console.WriteLine(usageJson);
+
+        // Calculate and display cost information
+        Console.WriteLine();
+        Console.WriteLine("=== COST ANALYSIS ===");
+        
+        if (ModelPricingData.Pricing.TryGetValue(model, out var pricing))
+        {
+            // Get exact token counts from usage details
+            var cachedInputTokens = usage.InputTokenDetails?.CachedTokenCount ?? 0;
+            var uncachedInputTokens = usage.InputTokenCount - cachedInputTokens;
+            var outputTokens = usage.OutputTokenCount;
+            
+            // Calculate costs for each component
+            var uncachedInputCost = (uncachedInputTokens / 1_000_000m) * pricing.InputPrice;
+            var cachedInputCost = pricing.CachedInputPrice.HasValue 
+                ? (cachedInputTokens / 1_000_000m) * pricing.CachedInputPrice.Value 
+                : 0m;
+            var outputCost = (outputTokens / 1_000_000m) * pricing.OutputPrice;
+            var totalCost = uncachedInputCost + cachedInputCost + outputCost;
+            
+            // Output the 4 cost analysis lines using invariant culture
+            Console.WriteLine($"Uncached Input Tokens: {uncachedInputTokens.ToString("N0", CultureInfo.InvariantCulture)} × ${pricing.InputPrice.ToString("F2", CultureInfo.InvariantCulture)}/1M = ${uncachedInputCost.ToString("F6", CultureInfo.InvariantCulture)}");
+            if (pricing.CachedInputPrice.HasValue && cachedInputTokens > 0)
+            {
+                Console.WriteLine($"Cached Input Tokens: {cachedInputTokens.ToString("N0", CultureInfo.InvariantCulture)} × ${pricing.CachedInputPrice.Value.ToString("F3", CultureInfo.InvariantCulture)}/1M = ${cachedInputCost.ToString("F6", CultureInfo.InvariantCulture)}");
+            }
+            else if (pricing.CachedInputPrice.HasValue)
+            {
+                Console.WriteLine($"Cached Input Tokens: {cachedInputTokens.ToString("N0", CultureInfo.InvariantCulture)} × ${pricing.CachedInputPrice.Value.ToString("F3", CultureInfo.InvariantCulture)}/1M = ${cachedInputCost.ToString("F6", CultureInfo.InvariantCulture)}");
+            }
+            Console.WriteLine($"Output Tokens: {outputTokens.ToString("N0", CultureInfo.InvariantCulture)} × ${pricing.OutputPrice.ToString("F2", CultureInfo.InvariantCulture)}/1M = ${outputCost.ToString("F6", CultureInfo.InvariantCulture)}");
+            Console.WriteLine($"Total Cost: ${totalCost.ToString("F6", CultureInfo.InvariantCulture)}");
+        }
+        else
+        {
+            Console.WriteLine($"Cost calculation not available: Pricing information not found for model '{model}'");
+        }
     }
 }
