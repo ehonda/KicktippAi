@@ -80,7 +80,7 @@ public class Program
                 foreach (var match in openPredictions)
                 {
                     // Use OpenAI predictor directly with Core.Match
-                    var aiPrediction = await openAiPredictor.PredictAsync(match, predictorContext);
+                    var aiPrediction = await openAiPredictor.PredictAsync(match, predictorContext, CancellationToken.None);
                     var integrationPrediction = new KicktippIntegration.BetPrediction(
                         aiPrediction.HomeGoals, 
                         aiPrediction.AwayGoals);

@@ -16,7 +16,7 @@ public class OpenAiPredictor : IPredictor<PredictorContext>
         _logger = logger;
     }
 
-    public async Task<Prediction> PredictAsync(Match match, PredictorContext context)
+    public async Task<Prediction> PredictAsync(Match match, PredictorContext context, CancellationToken cancellationToken = default)
     {
         _logger.LogInformation("Generating prediction for match: {HomeTeam} vs {AwayTeam} at {StartTime}", 
             match.HomeTeam, match.AwayTeam, match.StartsAt);
@@ -26,7 +26,12 @@ public class OpenAiPredictor : IPredictor<PredictorContext>
             var prompt = GeneratePrompt(match, context);
             _logger.LogDebug("Generated prompt: {Prompt}", prompt);
 
-            var response = await _client.CompleteChatAsync(prompt);
+            var messages = new List<ChatMessage>
+            {
+                new UserChatMessage(prompt)
+            };
+
+            var response = await _client.CompleteChatAsync(messages, cancellationToken: cancellationToken);
             _logger.LogDebug("Received response from OpenAI");
 
             var prediction = ParsePrediction(response);

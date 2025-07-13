@@ -1,3 +1,5 @@
+using Core;
+
 namespace OpenAiIntegration;
 
 /// <summary>
