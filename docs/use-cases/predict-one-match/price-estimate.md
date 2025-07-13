@@ -185,3 +185,44 @@ This scenario uses our refined token estimates for context and match input while
 
 - **gpt-4o**: $0.0051 per prediction (good performance/cost ratio)
 - **o1**: $0.0308 per prediction (advanced reasoning)
+
+### Baseline Reasoning
+
+This scenario provides refined estimates specifically for reasoning models, using actual system message token counts and observed reasoning token patterns.
+
+#### Baseline Reasoning Assumptions
+
+- **Context Tokens**: 915 (Kicktipp Context from refined estimates, excluding situational community standings)
+- **System Message Tokens**: 200 (refined estimate based on actual instructions_template.md)
+- **Match Input Tokens**: 35 (refined estimate based on actual JSON)
+- **Output Tokens**: 1,500 (refined estimate based on observed reasoning token patterns for o1 models)
+
+#### Cost Estimates by Model and Token Usage - Reasoning Models
+
+| Model | Total Input: 1,150 tokens | Total Cost per Prediction | Per Matchday (9 matches) | Per Season (34 matchdays) |
+|-------|---------------------------|---------------------------|---------------------------|----------------------------|
+| o1 | $0.0173 | $0.0900 | $0.810 | $27.54 |
+| o1-pro | $0.1725 | $0.9000 | $8.10 | $275.40 |
+| o3 | $0.0023 | $0.0120 | $0.108 | $3.67 |
+| o4-mini | $0.0013 | $0.0066 | $0.059 | $2.02 |
+| o3-mini | $0.0013 | $0.0066 | $0.059 | $2.02 |
+| o1-mini | $0.0013 | $0.0066 | $0.059 | $2.02 |
+
+#### Cost Analysis Summary - Reasoning Models
+
+**Most Cost-Effective Reasoning Options:**
+
+1. **o4-mini**: $0.0066 per prediction
+2. **o3-mini**: $0.0066 per prediction  
+3. **o1-mini**: $0.0066 per prediction
+
+**Premium Reasoning Options:**
+
+- **o1-pro**: $0.9000 per prediction (highest reasoning capability)
+- **o1**: $0.0900 per prediction (advanced reasoning)
+
+**Balanced Reasoning Options:**
+
+- **o3**: $0.0120 per prediction (good reasoning/cost ratio)
+
+💡 **Note:** These estimates are based on observed reasoning token patterns of ~1,500 tokens for o1 models. Actual reasoning token usage may vary significantly based on problem complexity and model behavior.
