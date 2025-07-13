@@ -21,8 +21,8 @@ public class Program
         var tempServiceProvider = serviceCollection.BuildServiceProvider();
         var logger = tempServiceProvider.GetRequiredService<ILogger<Program>>();
         
-        logger.LogInformation("Kicktipp.de Automation POC");
-        logger.LogInformation("==========================");
+        Console.WriteLine("Kicktipp.de Automation POC");
+        Console.WriteLine("==========================");
         
         try
         {
@@ -33,8 +33,8 @@ public class Program
             var credentials = LoadCredentials();
             if (!credentials.IsValid)
             {
-                logger.LogError("Please set KICKTIPP_USERNAME and KICKTIPP_PASSWORD in your .env file");
-                logger.LogInformation("You can use .env.example as a template.");
+                Console.WriteLine("❌ Please set KICKTIPP_USERNAME and KICKTIPP_PASSWORD in your .env file");
+                Console.WriteLine("You can use .env.example as a template.");
                 return;
             }
 
@@ -42,7 +42,7 @@ public class Program
             var openAiApiKey = Environment.GetEnvironmentVariable("OPENAI_API_KEY");
             if (string.IsNullOrEmpty(openAiApiKey))
             {
-                logger.LogError("Please set OPENAI_API_KEY in your .env file");
+                Console.WriteLine("❌ Please set OPENAI_API_KEY in your .env file");
                 return;
             }
 
@@ -55,25 +55,45 @@ public class Program
             var openAiPredictor = serviceProvider.GetRequiredService<IPredictor<PredictorContext>>();
             var predictorContext = serviceProvider.GetRequiredService<PredictorContext>();
             
-            logger.LogInformation("Attempting to login with username: {Username}", credentials.Username);
+            Console.WriteLine($"Attempting to login with username: {credentials.Username}");
+            
+            // Test fetching standings for ehonda-test-buli community
+            Console.WriteLine("Fetching standings for ehonda-test-buli community...");
+            var standings = await kicktippClient.GetStandingsAsync("ehonda-test-buli");
+            
+            if (standings.Any())
+            {
+                Console.WriteLine($"✓ Found {standings.Count} team standings:");
+                Console.WriteLine();
+                Console.WriteLine("=== CURRENT STANDINGS ===");
+                foreach (var standing in standings)
+                {
+                    Console.WriteLine($"  {standing.Position,2}. {standing.TeamName,-25} {standing.Points,3} pts | {standing.GoalsFormatted,6} | {standing.GoalDifference,+3} | {standing.Wins,2}W {standing.Draws,2}D {standing.Losses,2}L");
+                }
+                Console.WriteLine();
+            }
+            else
+            {
+                Console.WriteLine("No standings found for ehonda-test-buli community");
+            }
             
             // Test fetching open predictions for ehonda-test community
             // Authentication happens automatically via the authentication handler
-            logger.LogInformation("Fetching open predictions for ehonda-test community...");
+            Console.WriteLine("Fetching open predictions for ehonda-test community...");
             var openPredictions = await kicktippClient.GetOpenPredictionsAsync("ehonda-test");
                 
             if (openPredictions.Any())
             {
-                logger.LogInformation("✓ Found {MatchCount} open matches:", openPredictions.Count);
-                logger.LogInformation("");
+                Console.WriteLine($"✓ Found {openPredictions.Count} open matches:");
+                Console.WriteLine();
                 foreach (var match in openPredictions)
                 {
-                    logger.LogInformation("  {Match}", match);
+                    Console.WriteLine($"  {match}");
                 }
                 
                 // Generate AI-powered bets for these matches
-                logger.LogInformation("");
-                logger.LogInformation("Generating AI-powered predictions for open matches...");
+                Console.WriteLine();
+                Console.WriteLine("Generating AI-powered predictions for open matches...");
                 
                 var bets = new Dictionary<Core.Match, KicktippIntegration.BetPrediction>();
                 
@@ -87,34 +107,35 @@ public class Program
                     bets[match] = integrationPrediction;
                 }
                   // Show AI predictions
-                logger.LogInformation("");
-                logger.LogInformation("=== AI-POWERED PREDICTIONS ===");
+                Console.WriteLine();
+                Console.WriteLine("=== AI-POWERED PREDICTIONS ===");
                 foreach (var bet in bets)
                 {
-                    logger.LogInformation("  AI predicts {Prediction} for {Match}", bet.Value, bet.Key);
+                    Console.WriteLine($"  AI predicts {bet.Value} for {bet.Key}");
                 }
 
                 // Automatically place bets
-                logger.LogInformation("");
-                logger.LogInformation("=== PLACING BETS ===");
+                Console.WriteLine();
+                Console.WriteLine("=== PLACING BETS ===");
                 var realBetSuccess = await kicktippClient.PlaceBetsAsync("ehonda-test", bets, overrideBets: true);
                 
                 if (realBetSuccess)
                 {
-                    logger.LogInformation("✓ Bets placed successfully!");
+                    Console.WriteLine("✓ Bets placed successfully!");
                 }
                 else
                 {
-                    logger.LogError("✗ Failed to place bets");
+                    Console.WriteLine("❌ Failed to place bets");
                 }
             }
             else
             {
-                logger.LogInformation("No open predictions found for ehonda-test community");
+                Console.WriteLine("No open predictions found for ehonda-test community");
             }
         }
         catch (Exception ex)
         {
+            Console.WriteLine($"❌ An error occurred: {ex.Message}");
             logger.LogError(ex, "An error occurred during execution");
         }
     }

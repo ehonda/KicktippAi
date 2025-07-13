@@ -33,6 +33,13 @@ public interface IKicktippClient
     /// <param name="overrideBets">If true, overrides existing bets for the matches</param>
     /// <returns>True if all bets were placed successfully</returns>
     Task<bool> PlaceBetsAsync(string community, Dictionary<Match, BetPrediction> bets, bool overrideBets = false);
+
+    /// <summary>
+    /// Get the current standings (league table) for a specific community
+    /// </summary>
+    /// <param name="community">The community name</param>
+    /// <returns>List of team standings ordered by position</returns>
+    Task<List<TeamStanding>> GetStandingsAsync(string community);
 }
 
 /// <summary>

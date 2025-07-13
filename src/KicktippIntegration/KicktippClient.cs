@@ -484,6 +484,114 @@ public class KicktippClient : IKicktippClient, IDisposable
         }
     }
 
+    /// <inheritdoc />
+    public async Task<List<TeamStanding>> GetStandingsAsync(string community)
+    {
+        try
+        {
+            var url = $"{community}/tabellen";
+            var response = await _httpClient.GetAsync(url);
+            
+            if (!response.IsSuccessStatusCode)
+            {
+                _logger.LogError("Failed to fetch standings page. Status: {StatusCode}", response.StatusCode);
+                return new List<TeamStanding>();
+            }
+
+            var content = await response.Content.ReadAsStringAsync();
+            var document = await _browsingContext.OpenAsync(req => req.Content(content));
+
+            var standings = new List<TeamStanding>();
+            
+            // Find the standings table
+            var standingsTable = document.QuerySelector("table.sporttabelle tbody");
+            if (standingsTable == null)
+            {
+                _logger.LogWarning("Could not find standings table");
+                return standings;
+            }
+            
+            var rows = standingsTable.QuerySelectorAll("tr");
+            _logger.LogDebug("Found {RowCount} team rows in standings table", rows.Length);
+            
+            foreach (var row in rows)
+            {
+                try
+                {
+                    var cells = row.QuerySelectorAll("td");
+                    if (cells.Length >= 9) // Need at least 9 columns for all data
+                    {
+                        // Extract data from table cells
+                        var positionText = cells[0].TextContent?.Trim().TrimEnd('.') ?? "";
+                        var teamNameElement = cells[1].QuerySelector("div");
+                        var teamName = teamNameElement?.TextContent?.Trim() ?? "";
+                        var gamesPlayedText = cells[2].TextContent?.Trim() ?? "";
+                        var pointsText = cells[3].TextContent?.Trim() ?? "";
+                        var goalsText = cells[4].TextContent?.Trim() ?? "";
+                        var goalDifferenceText = cells[5].TextContent?.Trim() ?? "";
+                        var winsText = cells[6].TextContent?.Trim() ?? "";
+                        var drawsText = cells[7].TextContent?.Trim() ?? "";
+                        var lossesText = cells[8].TextContent?.Trim() ?? "";
+                        
+                        // Parse numeric values
+                        if (int.TryParse(positionText, out var position) &&
+                            int.TryParse(gamesPlayedText, out var gamesPlayed) &&
+                            int.TryParse(pointsText, out var points) &&
+                            int.TryParse(goalDifferenceText, out var goalDifference) &&
+                            int.TryParse(winsText, out var wins) &&
+                            int.TryParse(drawsText, out var draws) &&
+                            int.TryParse(lossesText, out var losses))
+                        {
+                            // Parse goals (format: "15:8")
+                            var goalsParts = goalsText.Split(':');
+                            var goalsFor = 0;
+                            var goalsAgainst = 0;
+                            
+                            if (goalsParts.Length == 2)
+                            {
+                                int.TryParse(goalsParts[0], out goalsFor);
+                                int.TryParse(goalsParts[1], out goalsAgainst);
+                            }
+                            
+                            var teamStanding = new TeamStanding(
+                                position,
+                                teamName,
+                                gamesPlayed,
+                                points,
+                                goalsFor,
+                                goalsAgainst,
+                                goalDifference,
+                                wins,
+                                draws,
+                                losses);
+                            
+                            standings.Add(teamStanding);
+                            _logger.LogDebug("Parsed team standing: {Position}. {TeamName} - {Points} points", 
+                                position, teamName, points);
+                        }
+                        else
+                        {
+                            _logger.LogWarning("Failed to parse numeric values for team row");
+                        }
+                    }
+                }
+                catch (Exception ex)
+                {
+                    _logger.LogWarning(ex, "Error parsing standings row");
+                    continue;
+                }
+            }
+
+            _logger.LogInformation("Successfully parsed {StandingsCount} team standings", standings.Count);
+            return standings;
+        }
+        catch (Exception ex)
+        {
+            _logger.LogError(ex, "Exception in GetStandingsAsync");
+            return new List<TeamStanding>();
+        }
+    }
+
     private ZonedDateTime ParseMatchDateTime(string timeText)
     {
         try
