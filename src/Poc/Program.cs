@@ -3,6 +3,7 @@ using KicktippAi.Poc.Models;
 using KicktippIntegration;
 using OpenAiIntegration;
 using Core;
+using ContextProviders.Kicktipp;
 using Microsoft.Extensions.DependencyInjection;
 using Microsoft.Extensions.Configuration;
 using Microsoft.Extensions.Logging;
