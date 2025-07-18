@@ -35,7 +35,7 @@ public class FileCommand : AsyncCommand<FileSettings>
             AnsiConsole.MarkupLine($"[green]Directory:[/] [blue]{settings.Directory}[/]");
             AnsiConsole.WriteLine();
 
-            await _runner.RunFileMode(settings.Model, settings.Directory);
+            await _runner.RunFileMode(settings.Model, settings.Directory, settings.Verbose);
             return 0;
         }
         catch (Exception ex)

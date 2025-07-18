@@ -41,7 +41,7 @@ public class LiveCommand : AsyncCommand<LiveSettings>
             AnsiConsole.MarkupLine($"[green]Match:[/] [blue]{settings.HomeTeam}[/] vs [blue]{settings.AwayTeam}[/]");
             AnsiConsole.WriteLine();
 
-            await _runner.RunLiveMode(settings.Model, settings.HomeTeam, settings.AwayTeam);
+            await _runner.RunLiveMode(settings.Model, settings.HomeTeam, settings.AwayTeam, settings.Verbose);
             return 0;
         }
         catch (Exception ex)

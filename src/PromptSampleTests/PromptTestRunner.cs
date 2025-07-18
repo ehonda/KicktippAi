@@ -20,7 +20,7 @@ public class PromptTestRunner
         _logger = logger;
     }
 
-    public async Task RunFileMode(string model, string promptSampleDirectory)
+    public async Task RunFileMode(string model, string promptSampleDirectory, bool verbose = false)
     {
         // Validate directory exists
         if (!Directory.Exists(promptSampleDirectory))
@@ -62,10 +62,10 @@ public class PromptTestRunner
         Console.WriteLine();
 
         // Run the prediction
-        await RunPrediction(model, apiKey, instructions, matchJson);
+        await RunPrediction(model, apiKey, instructions, matchJson, verbose);
     }
 
-    public async Task RunLiveMode(string model, string homeTeam, string awayTeam)
+    public async Task RunLiveMode(string model, string homeTeam, string awayTeam, bool verbose = false)
     {
         // Load API key from environment
         var apiKey = Environment.GetEnvironmentVariable("OPENAI_API_KEY");
@@ -163,10 +163,10 @@ public class PromptTestRunner
         Console.WriteLine();
 
         // Run the prediction using the same logic as file mode
-        await RunPrediction(model, apiKey, instructions, matchJson);
+        await RunPrediction(model, apiKey, instructions, matchJson, verbose);
     }
 
-    private async Task RunPrediction(string model, string apiKey, string instructions, string matchJson)
+    private async Task RunPrediction(string model, string apiKey, string instructions, string matchJson, bool verbose = false)
     {
         // Create ChatClient and run prediction
         var chatClient = new ChatClient(model, apiKey);
@@ -178,6 +178,18 @@ public class PromptTestRunner
         };
 
         Console.WriteLine("Calling OpenAI API...");
+
+        // Show instructions if verbose mode is enabled
+        if (verbose)
+        {
+            Console.WriteLine();
+            Console.WriteLine("=== INSTRUCTIONS SENT TO MODEL ===");
+            Console.WriteLine(instructions);
+            Console.WriteLine();
+            Console.WriteLine("=== MATCH JSON SENT TO MODEL ===");
+            Console.WriteLine(matchJson);
+            Console.WriteLine();
+        }
         var response = await chatClient.CompleteChatAsync(
             messages,
             new()
