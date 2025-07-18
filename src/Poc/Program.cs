@@ -77,6 +77,66 @@ public class Program
                 Console.WriteLine("No standings found for ehonda-test-buli community");
             }
             
+            // Test fetching matches with history for ehonda-test-buli community
+            Console.WriteLine("Fetching matches with detailed history for ehonda-test-buli community...");
+            var matchesWithHistory = await kicktippClient.GetMatchesWithHistoryAsync("ehonda-test-buli");
+            
+            if (matchesWithHistory.Any())
+            {
+                Console.WriteLine($"✓ Found {matchesWithHistory.Count} matches with history:");
+                Console.WriteLine();
+                Console.WriteLine("=== MATCHES WITH RECENT HISTORY ===");
+                
+                foreach (var matchWithHistory in matchesWithHistory.Take(2)) // Show first 2 matches for brevity
+                {
+                    var match = matchWithHistory.Match;
+                    Console.WriteLine($"🥅 {match.HomeTeam} vs {match.AwayTeam} - {match.StartsAt:dd.MM.yy HH:mm}");
+                    Console.WriteLine();
+                    
+                    // Show home team recent results
+                    Console.WriteLine($"  📊 {match.HomeTeam} - Last {matchWithHistory.HomeTeamHistory.Count} results:");
+                    foreach (var result in matchWithHistory.HomeTeamHistory.Take(5))
+                    {
+                        var outcomeIcon = result.Outcome switch
+                        {
+                            MatchOutcome.Win => "✅",
+                            MatchOutcome.Draw => "➰",
+                            MatchOutcome.Loss => "❌",
+                            _ => "⏳"
+                        };
+                        var scoreText = result.HomeGoals.HasValue && result.AwayGoals.HasValue 
+                            ? $"{result.HomeGoals}:{result.AwayGoals}" 
+                            : "-:-";
+                        Console.WriteLine($"    {outcomeIcon} {result.Competition}: {result.HomeTeam} vs {result.AwayTeam} ({scoreText})");
+                    }
+                    Console.WriteLine();
+                    
+                    // Show away team recent results
+                    Console.WriteLine($"  📊 {match.AwayTeam} - Last {matchWithHistory.AwayTeamHistory.Count} results:");
+                    foreach (var result in matchWithHistory.AwayTeamHistory.Take(5))
+                    {
+                        var outcomeIcon = result.Outcome switch
+                        {
+                            MatchOutcome.Win => "✅",
+                            MatchOutcome.Draw => "➰",
+                            MatchOutcome.Loss => "❌",
+                            _ => "⏳"
+                        };
+                        var scoreText = result.HomeGoals.HasValue && result.AwayGoals.HasValue 
+                            ? $"{result.HomeGoals}:{result.AwayGoals}" 
+                            : "-:-";
+                        Console.WriteLine($"    {outcomeIcon} {result.Competition}: {result.HomeTeam} vs {result.AwayTeam} ({scoreText})");
+                    }
+                    Console.WriteLine();
+                    Console.WriteLine("━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━");
+                    Console.WriteLine();
+                }
+            }
+            else
+            {
+                Console.WriteLine("No matches with history found for ehonda-test-buli community");
+            }
+            
             // Test fetching open predictions for ehonda-test community
             // Authentication happens automatically via the authentication handler
             Console.WriteLine("Fetching open predictions for ehonda-test community...");

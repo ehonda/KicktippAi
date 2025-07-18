@@ -1,5 +1,6 @@
 using System.Net;
 using AngleSharp;
+using AngleSharp.Dom;
 using AngleSharp.Html.Dom;
 using Core;
 using Microsoft.Extensions.Logging;
@@ -589,6 +590,281 @@ public class KicktippClient : IKicktippClient, IDisposable
         {
             _logger.LogError(ex, "Exception in GetStandingsAsync");
             return new List<TeamStanding>();
+        }
+    }
+
+    /// <inheritdoc />
+    public async Task<List<MatchWithHistory>> GetMatchesWithHistoryAsync(string community)
+    {
+        try
+        {
+            var matches = new List<MatchWithHistory>();
+            
+            // First, get the tippabgabe page to find the link to spielinfos
+            var tippabgabeUrl = $"{community}/tippabgabe";
+            var response = await _httpClient.GetAsync(tippabgabeUrl);
+            
+            if (!response.IsSuccessStatusCode)
+            {
+                _logger.LogError("Failed to fetch tippabgabe page. Status: {StatusCode}", response.StatusCode);
+                return matches;
+            }
+
+            var content = await response.Content.ReadAsStringAsync();
+            var document = await _browsingContext.OpenAsync(req => req.Content(content));
+
+            // Find the "Tippabgabe mit Spielinfos" link
+            var spielinfoLink = document.QuerySelector("a[href*='spielinfo']");
+            if (spielinfoLink == null)
+            {
+                _logger.LogWarning("Could not find Spielinfo link on tippabgabe page");
+                return matches;
+            }
+
+            var spielinfoUrl = spielinfoLink.GetAttribute("href");
+            if (string.IsNullOrEmpty(spielinfoUrl))
+            {
+                _logger.LogWarning("Spielinfo link has no href attribute");
+                return matches;
+            }
+
+            // Make URL absolute if it's relative
+            if (spielinfoUrl.StartsWith("/"))
+            {
+                spielinfoUrl = spielinfoUrl.Substring(1); // Remove leading slash
+            }
+            
+            _logger.LogInformation("Starting to fetch match details from spielinfo pages...");
+
+            // Navigate through all matches using the right arrow navigation
+            var currentUrl = spielinfoUrl;
+            var matchCount = 0;
+            
+            while (!string.IsNullOrEmpty(currentUrl))
+            {
+                try
+                {
+                    var spielinfoResponse = await _httpClient.GetAsync(currentUrl);
+                    if (!spielinfoResponse.IsSuccessStatusCode)
+                    {
+                        _logger.LogWarning("Failed to fetch spielinfo page: {Url}. Status: {StatusCode}", currentUrl, spielinfoResponse.StatusCode);
+                        break;
+                    }
+
+                    var spielinfoContent = await spielinfoResponse.Content.ReadAsStringAsync();
+                    var spielinfoDocument = await _browsingContext.OpenAsync(req => req.Content(spielinfoContent));
+
+                    // Extract match information
+                    var matchWithHistory = await ExtractMatchWithHistoryFromSpielinfoPage(spielinfoDocument);
+                    if (matchWithHistory != null)
+                    {
+                        matches.Add(matchWithHistory);
+                        matchCount++;
+                        _logger.LogDebug("Extracted match {Count}: {Match}", matchCount, matchWithHistory.Match);
+                    }
+
+                    // Find the next match link (right arrow)
+                    var nextLink = FindNextMatchLink(spielinfoDocument);
+                    if (nextLink != null)
+                    {
+                        currentUrl = nextLink;
+                        if (currentUrl.StartsWith("/"))
+                        {
+                            currentUrl = currentUrl.Substring(1); // Remove leading slash
+                        }
+                    }
+                    else
+                    {
+                        // No more matches
+                        break;
+                    }
+                }
+                catch (Exception ex)
+                {
+                    _logger.LogError(ex, "Error processing spielinfo page: {Url}", currentUrl);
+                    break;
+                }
+            }
+
+            _logger.LogInformation("Successfully extracted {MatchCount} matches with history", matches.Count);
+            return matches;
+        }
+        catch (Exception ex)
+        {
+            _logger.LogError(ex, "Exception in GetMatchesWithHistoryAsync");
+            return new List<MatchWithHistory>();
+        }
+    }
+
+    private async Task<MatchWithHistory?> ExtractMatchWithHistoryFromSpielinfoPage(IDocument document)
+    {
+        try
+        {
+            // Extract match information from the tippabgabe table
+            var matchTable = document.QuerySelector("table.tippabgabe tbody tr");
+            if (matchTable == null)
+            {
+                _logger.LogWarning("Could not find match table on spielinfo page");
+                return null;
+            }
+
+            var cells = matchTable.QuerySelectorAll("td");
+            if (cells.Length < 4)
+            {
+                _logger.LogWarning("Match table does not have enough cells");
+                return null;
+            }
+
+            var timeText = cells[0].TextContent?.Trim() ?? "";
+            var homeTeam = cells[1].TextContent?.Trim() ?? "";
+            var awayTeam = cells[2].TextContent?.Trim() ?? "";
+
+            if (string.IsNullOrEmpty(homeTeam) || string.IsNullOrEmpty(awayTeam))
+            {
+                _logger.LogWarning("Could not extract team names from match table");
+                return null;
+            }
+
+            var startsAt = ParseMatchDateTime(timeText);
+            var match = new Match(homeTeam, awayTeam, startsAt);
+
+            // Extract home team history
+            var homeTeamHistory = ExtractTeamHistory(document, "spielinfoHeim");
+            
+            // Extract away team history
+            var awayTeamHistory = ExtractTeamHistory(document, "spielinfoGast");
+
+            return new MatchWithHistory(match, homeTeamHistory, awayTeamHistory);
+        }
+        catch (Exception ex)
+        {
+            _logger.LogError(ex, "Error extracting match with history from spielinfo page");
+            return null;
+        }
+    }
+
+    private List<MatchResult> ExtractTeamHistory(IDocument document, string tableClass)
+    {
+        var results = new List<MatchResult>();
+        
+        try
+        {
+            var table = document.QuerySelector($"table.{tableClass} tbody");
+            if (table == null)
+            {
+                _logger.LogDebug("Could not find team history table with class: {TableClass}", tableClass);
+                return results;
+            }
+
+            var rows = table.QuerySelectorAll("tr");
+            foreach (var row in rows)
+            {
+                try
+                {
+                    var cells = row.QuerySelectorAll("td");
+                    if (cells.Length < 4)
+                        continue;
+
+                    var competition = cells[0].TextContent?.Trim() ?? "";
+                    var homeTeam = cells[1].TextContent?.Trim() ?? "";
+                    var awayTeam = cells[2].TextContent?.Trim() ?? "";
+                    
+                    // Extract result and outcome
+                    var resultCell = cells[3];
+                    var homeGoals = (int?)null;
+                    var awayGoals = (int?)null;
+                    var outcome = MatchOutcome.Pending;
+
+                    // Parse the score from the result cell
+                    var scoreElements = resultCell.QuerySelectorAll(".kicktipp-heim, .kicktipp-gast");
+                    if (scoreElements.Length >= 2)
+                    {
+                        var homeScoreText = scoreElements[0].TextContent?.Trim() ?? "";
+                        var awayScoreText = scoreElements[1].TextContent?.Trim() ?? "";
+                        
+                        if (homeScoreText != "-" && awayScoreText != "-")
+                        {
+                            if (int.TryParse(homeScoreText, out var homeScore) && int.TryParse(awayScoreText, out var awayScore))
+                            {
+                                homeGoals = homeScore;
+                                awayGoals = awayScore;
+                                
+                                // Determine outcome from team's perspective
+                                var isHomeTeam = cells[1].ClassList.Contains("sieg") || cells[1].ClassList.Contains("niederlage") || cells[1].ClassList.Contains("remis");
+                                var isAwayTeam = cells[2].ClassList.Contains("sieg") || cells[2].ClassList.Contains("niederlage") || cells[2].ClassList.Contains("remis");
+                                
+                                if (isHomeTeam)
+                                {
+                                    outcome = homeScore > awayScore ? MatchOutcome.Win : 
+                                             homeScore < awayScore ? MatchOutcome.Loss : MatchOutcome.Draw;
+                                }
+                                else if (isAwayTeam)
+                                {
+                                    outcome = awayScore > homeScore ? MatchOutcome.Win : 
+                                             awayScore < homeScore ? MatchOutcome.Loss : MatchOutcome.Draw;
+                                }
+                                else
+                                {
+                                    // Fallback: determine from score
+                                    outcome = homeScore == awayScore ? MatchOutcome.Draw : 
+                                             homeScore > awayScore ? MatchOutcome.Win : MatchOutcome.Loss;
+                                }
+                            }
+                        }
+                    }
+
+                    var matchResult = new MatchResult(competition, homeTeam, awayTeam, homeGoals, awayGoals, outcome);
+                    results.Add(matchResult);
+                }
+                catch (Exception ex)
+                {
+                    _logger.LogDebug(ex, "Error parsing team history row");
+                    continue;
+                }
+            }
+        }
+        catch (Exception ex)
+        {
+            _logger.LogError(ex, "Error extracting team history for table class: {TableClass}", tableClass);
+        }
+
+        return results;
+    }
+
+    private string? FindNextMatchLink(IDocument document)
+    {
+        try
+        {
+            // Look for the right arrow button in the match navigation
+            var nextButton = document.QuerySelector(".prevnextNext a");
+            if (nextButton == null)
+            {
+                _logger.LogDebug("No next match button found");
+                return null;
+            }
+
+            // Check if the button is disabled
+            var parentDiv = nextButton.ParentElement;
+            if (parentDiv?.ClassList.Contains("disabled") == true)
+            {
+                _logger.LogDebug("Next match button is disabled - reached end of matches");
+                return null;
+            }
+
+            var href = nextButton.GetAttribute("href");
+            if (string.IsNullOrEmpty(href))
+            {
+                _logger.LogDebug("Next match button has no href");
+                return null;
+            }
+
+            _logger.LogDebug("Found next match link: {Href}", href);
+            return href;
+        }
+        catch (Exception ex)
+        {
+            _logger.LogError(ex, "Error finding next match link");
+            return null;
         }
     }
 

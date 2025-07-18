@@ -40,6 +40,13 @@ public interface IKicktippClient
     /// <param name="community">The community name</param>
     /// <returns>List of team standings ordered by position</returns>
     Task<List<TeamStanding>> GetStandingsAsync(string community);
+
+    /// <summary>
+    /// Get matches with detailed information including recent history for both teams
+    /// </summary>
+    /// <param name="community">The community name</param>
+    /// <returns>List of matches with their recent history context</returns>
+    Task<List<MatchWithHistory>> GetMatchesWithHistoryAsync(string community);
 }
 
 /// <summary>
