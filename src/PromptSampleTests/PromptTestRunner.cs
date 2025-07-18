@@ -101,7 +101,7 @@ public class PromptTestRunner
         });
 
         // Load instructions template
-        var instructionsTemplatePath = Path.Combine("prompts", "reasoning-models", "predict-one-match", "v0-handcrafted", "instructions_template.md");
+        var instructionsTemplatePath = Path.Combine("..", "..", "prompts", "reasoning-models", "predict-one-match", "v0-handcrafted", "instructions_template.md");
         if (!File.Exists(instructionsTemplatePath))
         {
             throw new FileNotFoundException($"Instructions template not found: {instructionsTemplatePath}");
