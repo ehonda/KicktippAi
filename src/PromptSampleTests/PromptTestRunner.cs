@@ -100,8 +100,8 @@ public class PromptTestRunner
             startsAt = match.StartsAt.ToString()
         });
 
-        // Load instructions template
-        var instructionsTemplatePath = Path.Combine("..", "..", "prompts", "reasoning-models", "predict-one-match", "v0-handcrafted", "instructions_template.md");
+        // Load instructions template using PathUtility
+        var instructionsTemplatePath = PathUtility.GetInstructionsTemplatePath();
         if (!File.Exists(instructionsTemplatePath))
         {
             throw new FileNotFoundException($"Instructions template not found: {instructionsTemplatePath}");
