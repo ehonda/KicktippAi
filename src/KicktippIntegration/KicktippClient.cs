@@ -701,23 +701,57 @@ public class KicktippClient : IKicktippClient, IDisposable
         try
         {
             // Extract match information from the tippabgabe table
-            var matchTable = document.QuerySelector("table.tippabgabe tbody tr");
-            if (matchTable == null)
+            // Look for all rows in the table, not just the first one
+            var matchRows = document.QuerySelectorAll("table.tippabgabe tbody tr");
+            if (matchRows.Length == 0)
             {
-                _logger.LogWarning("Could not find match table on spielinfo page");
+                _logger.LogWarning("Could not find any match rows in tippabgabe table on spielinfo page");
                 return null;
             }
 
-            var cells = matchTable.QuerySelectorAll("td");
+            _logger.LogDebug("Found {RowCount} rows in tippabgabe table", matchRows.Length);
+
+            // Find the row that contains match data (has input fields for betting)
+            IElement? matchRow = null;
+            foreach (var row in matchRows)
+            {
+                var rowCells = row.QuerySelectorAll("td");
+                if (rowCells.Length >= 4)
+                {
+                    // Check if this row has betting inputs (indicates it's the match row)
+                    var bettingInputs = rowCells[3].QuerySelectorAll("input[type='text']");
+                    if (bettingInputs.Length >= 2)
+                    {
+                        matchRow = row;
+                        break;
+                    }
+                }
+            }
+
+            if (matchRow == null)
+            {
+                _logger.LogWarning("Could not find match row with betting inputs in tippabgabe table");
+                return null;
+            }
+
+            var cells = matchRow.QuerySelectorAll("td");
             if (cells.Length < 4)
             {
-                _logger.LogWarning("Match table does not have enough cells");
+                _logger.LogWarning("Match row does not have enough cells");
                 return null;
+            }
+
+            _logger.LogDebug("Found {CellCount} cells in match row", cells.Length);
+            for (int i = 0; i < Math.Min(cells.Length, 5); i++)
+            {
+                _logger.LogDebug("Cell[{Index}]: '{Content}' (Class: '{Class}')", i, cells[i].TextContent?.Trim(), cells[i].ClassName);
             }
 
             var timeText = cells[0].TextContent?.Trim() ?? "";
             var homeTeam = cells[1].TextContent?.Trim() ?? "";
             var awayTeam = cells[2].TextContent?.Trim() ?? "";
+
+            _logger.LogDebug("Extracted from spielinfo page - Time: '{TimeText}', Home: '{HomeTeam}', Away: '{AwayTeam}'", timeText, homeTeam, awayTeam);
 
             if (string.IsNullOrEmpty(homeTeam) || string.IsNullOrEmpty(awayTeam))
             {
@@ -872,9 +906,18 @@ public class KicktippClient : IKicktippClient, IDisposable
     {
         try
         {
-            // Expected format: "08.07.25 21:00"
+            // Handle empty or null time text
+            if (string.IsNullOrWhiteSpace(timeText))
+            {
+                _logger.LogWarning("Match time text is empty, using current time");
+                return DateTimeOffset.Now.ToZonedDateTime();
+            }
+
+            // Expected format: "22.08.25 20:30"
+            _logger.LogDebug("Attempting to parse time: '{TimeText}'", timeText);
             if (DateTime.TryParseExact(timeText, "dd.MM.yy HH:mm", null, System.Globalization.DateTimeStyles.None, out var dateTime))
             {
+                _logger.LogDebug("Successfully parsed time: {DateTime}", dateTime);
                 // Convert to DateTimeOffset and then to ZonedDateTime
                 // Assume Central European Time (Germany)
                 var dateTimeOffset = new DateTimeOffset(dateTime, TimeSpan.FromHours(1)); // CET offset
@@ -882,7 +925,7 @@ public class KicktippClient : IKicktippClient, IDisposable
             }
             
             // Fallback to current time if parsing fails
-            _logger.LogWarning("Could not parse match time: {TimeText}, using current time", timeText);
+            _logger.LogWarning("Could not parse match time: '{TimeText}', using current time", timeText);
             return DateTimeOffset.Now.ToZonedDateTime();
         }
         catch (Exception ex)

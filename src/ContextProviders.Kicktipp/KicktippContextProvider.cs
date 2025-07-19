@@ -1,9 +1,38 @@
+using System.Globalization;
+using System.Text;
 using Core;
+using CsvHelper;
+using KicktippIntegration;
 
 namespace ContextProviders.Kicktipp;
 
 public class KicktippContextProvider : IContextProvider<DocumentContext>
 {
+    private readonly IKicktippClient _kicktippClient;
+    private readonly string _community;
+    private readonly Lazy<Task<IReadOnlyDictionary<string, List<MatchResult>>>> _teamHistoryLazy;
+
+    public KicktippContextProvider(IKicktippClient kicktippClient, string community)
+    {
+        _kicktippClient = kicktippClient ?? throw new ArgumentNullException(nameof(kicktippClient));
+        _community = community ?? throw new ArgumentNullException(nameof(community));
+        _teamHistoryLazy = new Lazy<Task<IReadOnlyDictionary<string, List<MatchResult>>>>(LoadTeamHistoryAsync);
+    }
+
+    private async Task<IReadOnlyDictionary<string, List<MatchResult>>> LoadTeamHistoryAsync()
+    {
+        var matchesWithHistory = await _kicktippClient.GetMatchesWithHistoryAsync(_community);
+        var teamHistory = new Dictionary<string, List<MatchResult>>();
+
+        foreach (var matchWithHistory in matchesWithHistory)
+        {
+            teamHistory[matchWithHistory.Match.HomeTeam] = matchWithHistory.HomeTeamHistory;
+            teamHistory[matchWithHistory.Match.AwayTeam] = matchWithHistory.AwayTeamHistory;
+        }
+
+        return teamHistory;
+    }
+    
     public async IAsyncEnumerable<DocumentContext> GetContextAsync(CancellationToken cancellationToken = default)
     {
         // Provide current Bundesliga standings
@@ -14,29 +43,36 @@ public class KicktippContextProvider : IContextProvider<DocumentContext>
     }
     
     /// <summary>
+    /// Gets context for the two teams in a match.
+    /// </summary>
+    /// <param name="homeTeam">The home team name.</param>
+    /// <param name="awayTeam">The away team name.</param>
+    /// <returns>An enumerable of context documents for both teams.</returns>
+    public async IAsyncEnumerable<DocumentContext> GetMatchContextAsync(string homeTeam, string awayTeam, CancellationToken cancellationToken = default)
+    {
+        // Provide current Bundesliga standings
+        yield return await CurrentBundesligaStandings();
+        
+        // Provide community scoring rules
+        yield return await CommunityScoringRules();
+        
+        // Provide recent history for both teams
+        yield return await RecentHistory(homeTeam);
+        yield return await RecentHistory(awayTeam);
+    }
+    
+    /// <summary>
     /// Gets the current Bundesliga standings as context.
     /// </summary>
     /// <returns>A document context containing the current standings.</returns>
     public async Task<DocumentContext> CurrentBundesligaStandings()
     {
-        // TODO: Implement fetching actual standings from KicktippClient
-        await Task.CompletedTask;
-        
-        // For testing purposes, provide sample standings data
-        var sampleContent = @"Current Bundesliga Table (Season 2024/25):
-1. FC Bayern München - 42 points (14-0-0)
-2. RB Leipzig - 33 points (11-0-3)
-3. VfB Stuttgart - 30 points (9-3-2)
-4. Bayer 04 Leverkusen - 28 points (8-4-2)
-5. Borussia Dortmund - 27 points (8-3-3)
-6. 1. FC Union Berlin - 25 points (7-4-3)
-7. SC Freiburg - 24 points (7-3-4)
-8. Eintracht Frankfurt - 23 points (6-5-3)
-...";
+        var standings = await _kicktippClient.GetStandingsAsync(_community);
+        var csvContent = ConvertStandingsToCsv(standings);
         
         return new DocumentContext(
-            Name: "Current Bundesliga Standings",
-            Content: sampleContent);
+            Name: "bundesliga-standings.csv",
+            Content: csvContent);
     }
     
     /// <summary>
@@ -46,12 +82,17 @@ public class KicktippContextProvider : IContextProvider<DocumentContext>
     /// <returns>A document context containing the team's recent match history.</returns>
     public async Task<DocumentContext> RecentHistory(string teamName)
     {
-        // TODO: Implement fetching actual match history from KicktippClient
-        await Task.CompletedTask;
+        var teamHistory = await _teamHistoryLazy.Value;
+        var matchResults = teamHistory.TryGetValue(teamName, out var results) ? results : new List<MatchResult>();
+        
+        var csvContent = ConvertMatchResultsToCsv(matchResults);
+        
+        // Use naming convention: recent-history-{team-abbreviation}.csv
+        var teamAbbreviation = GetTeamAbbreviation(teamName);
         
         return new DocumentContext(
-            Name: $"Recent History - {teamName}",
-            Content: "");
+            Name: $"recent-history-{teamAbbreviation}.csv",
+            Content: csvContent);
     }
     
     /// <summary>
@@ -60,26 +101,172 @@ public class KicktippContextProvider : IContextProvider<DocumentContext>
     /// <returns>A document context containing the scoring rules.</returns>
     public async Task<DocumentContext> CommunityScoringRules()
     {
-        // TODO: Implement fetching actual scoring rules from KicktippClient
-        await Task.CompletedTask;
-        
-        // For testing purposes, provide sample scoring rules
-        var sampleContent = @"Kicktipp Community Scoring Rules:
-- Correct result (exact score): 4 points
-- Correct winner + goal difference: 3 points  
-- Correct winner only: 2 points
-- Wrong prediction: 0 points
+        // Hard-coded content from instructions.md lines 55-97
+        var content = @"# Prediction Community Rules
 
-Bonus points:
-- Correct first goalscorer: +1 point
-- Correct time of first goal: +1 point
+## Scoring System
 
-Season bonuses:
-- Correct champion prediction: +10 points
-- Correct relegation prediction: +5 points per team";
+| Result Type | Tendency | Goal Difference | Exact Result |
+|-------------|----------|-----------------|--------------|
+| Win         | 2        | 3               | 4            |
+| Draw        | 3        | -               | 4            |
+
+* Tendency: Predicting the winner or a draw
+* Goal Difference: Predicting the winner and the goal difference
+* Exact Result: Predicting the exact score
+
+## Examples
+
+### Tendency
+
+```text
+Prediction: 2:1
+Outcome:    3:1
+
+Prediction: 1:1
+Outcome:    2:2
+```
+
+### Goal Difference
+
+```text
+Prediction: 2:1
+Outcome:    3:2
+```
+
+### Exact Result
+
+```text
+Prediction: 2:1
+Outcome:    2:1
+
+Prediction: 1:1
+Outcome:    1:1
+```";
         
         return new DocumentContext(
-            Name: "Community Scoring Rules",
-            Content: sampleContent);
+            Name: "community-rules-scoring-only.md",
+            Content: content);
+    }
+    
+    /// <summary>
+    /// Converts team standings to CSV format.
+    /// </summary>
+    private string ConvertStandingsToCsv(List<TeamStanding> standings)
+    {
+        using var stringWriter = new StringWriter();
+        using var csvWriter = new CsvWriter(stringWriter, CultureInfo.InvariantCulture);
+        
+        // Write header
+        csvWriter.WriteField("Position");
+        csvWriter.WriteField("Team");
+        csvWriter.WriteField("Games");
+        csvWriter.WriteField("Points");
+        csvWriter.WriteField("Goal_Ratio");
+        csvWriter.WriteField("Goals_For");
+        csvWriter.WriteField("Goals_Against");
+        csvWriter.WriteField("Wins");
+        csvWriter.WriteField("Draws");
+        csvWriter.WriteField("Losses");
+        csvWriter.NextRecord();
+        
+        // Write data rows
+        foreach (var standing in standings)
+        {
+            csvWriter.WriteField(standing.Position);
+            csvWriter.WriteField(standing.TeamName);
+            csvWriter.WriteField(standing.GamesPlayed);
+            csvWriter.WriteField(standing.Points);
+            csvWriter.WriteField($"{standing.GoalsFor}:{standing.GoalsAgainst}");
+            csvWriter.WriteField(standing.GoalsFor);
+            csvWriter.WriteField(standing.GoalsAgainst);
+            csvWriter.WriteField(standing.Wins);
+            csvWriter.WriteField(standing.Draws);
+            csvWriter.WriteField(standing.Losses);
+            csvWriter.NextRecord();
+        }
+        
+        return stringWriter.ToString();
+    }
+    
+    /// <summary>
+    /// Converts match results to CSV format.
+    /// </summary>
+    private string ConvertMatchResultsToCsv(List<MatchResult> matchResults)
+    {
+        using var stringWriter = new StringWriter();
+        using var csvWriter = new CsvWriter(stringWriter, CultureInfo.InvariantCulture);
+        
+        // Write header
+        csvWriter.WriteField("League");
+        csvWriter.WriteField("Home_Team");
+        csvWriter.WriteField("Away_Team");
+        csvWriter.WriteField("Score");
+        csvWriter.NextRecord();
+        
+        // Write data rows
+        foreach (var result in matchResults)
+        {
+            csvWriter.WriteField(result.Competition);
+            csvWriter.WriteField(result.HomeTeam);
+            csvWriter.WriteField(result.AwayTeam);
+            
+            // Format score or leave empty for pending matches
+            var scoreText = result.HomeGoals.HasValue && result.AwayGoals.HasValue 
+                ? $"{result.HomeGoals}:{result.AwayGoals}" 
+                : "";
+            csvWriter.WriteField(scoreText);
+            csvWriter.NextRecord();
+        }
+        
+        return stringWriter.ToString();
+    }
+    
+    /// <summary>
+    /// Gets a team abbreviation for file naming.
+    /// </summary>
+    private string GetTeamAbbreviation(string teamName)
+    {
+        // Common team abbreviations based on the instructions.md example
+        var abbreviations = new Dictionary<string, string>(StringComparer.OrdinalIgnoreCase)
+        {
+            { "RB Leipzig", "rbl" },
+            { "VfB Stuttgart", "vfb" },
+            { "FC Bayern München", "fcb" },
+            { "Bayer 04 Leverkusen", "b04" },
+            { "Borussia Dortmund", "bvb" },
+            { "1. FC Union Berlin", "fcu" },
+            { "SC Freiburg", "scf" },
+            { "Eintracht Frankfurt", "sge" },
+            { "Werder Bremen", "svw" },
+            { "VfL Wolfsburg", "wob" },
+            { "FC Augsburg", "fca" },
+            { "Bor. Mönchengladbach", "bmg" },
+            { "FSV Mainz 05", "m05" },
+            { "FC St. Pauli", "fcs" },
+            { "1899 Hoffenheim", "tsg" },
+            { "1. FC Heidenheim 1846", "fch" },
+            { "Holstein Kiel", "ksx" },
+            { "VfL Bochum", "vfl" }
+        };
+        
+        if (abbreviations.TryGetValue(teamName, out var abbreviation))
+        {
+            return abbreviation;
+        }
+        
+        // Fallback: create abbreviation from team name
+        var words = teamName.Split(' ', StringSplitOptions.RemoveEmptyEntries);
+        var abbr = new StringBuilder();
+        
+        foreach (var word in words.Take(3)) // Take up to 3 words
+        {
+            if (word.Length > 0 && char.IsLetter(word[0]))
+            {
+                abbr.Append(char.ToLowerInvariant(word[0]));
+            }
+        }
+        
+        return abbr.Length > 0 ? abbr.ToString() : "unknown";
     }
 }

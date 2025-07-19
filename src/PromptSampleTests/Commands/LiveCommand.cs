@@ -16,6 +16,10 @@ public class LiveSettings : BaseSettings
     [Description("Away team name (default: RB Leipzig)")]
     [DefaultValue("RB Leipzig")]
     public string AwayTeam { get; set; } = "RB Leipzig";
+
+    [CommandOption("-m|--match")]
+    [Description("Match number (0-8) to predict from available matches. Overrides home/away team settings.")]
+    public int? MatchNumber { get; set; }
 }
 
 public class LiveCommand : AsyncCommand<LiveSettings>
@@ -38,10 +42,22 @@ public class LiveCommand : AsyncCommand<LiveSettings>
             EnvironmentHelper.LoadEnvironmentVariables(_logger);
 
             AnsiConsole.MarkupLine($"[green]Running live mode with model:[/] [yellow]{settings.Model}[/]");
-            AnsiConsole.MarkupLine($"[green]Match:[/] [blue]{settings.HomeTeam}[/] vs [blue]{settings.AwayTeam}[/]");
-            AnsiConsole.WriteLine();
-
-            await _runner.RunLiveMode(settings.Model, settings.HomeTeam, settings.AwayTeam, settings.Verbose);
+            
+            if (settings.MatchNumber.HasValue)
+            {
+                AnsiConsole.MarkupLine($"[green]Match:[/] [blue]#{settings.MatchNumber}[/] (from available matches)");
+                AnsiConsole.WriteLine();
+                
+                await _runner.RunLiveModeWithMatchSelection(settings.Model, settings.MatchNumber.Value, settings.Verbose);
+            }
+            else
+            {
+                AnsiConsole.MarkupLine($"[green]Match:[/] [blue]{settings.HomeTeam}[/] vs [blue]{settings.AwayTeam}[/]");
+                AnsiConsole.WriteLine();
+                
+                await _runner.RunLiveMode(settings.Model, settings.HomeTeam, settings.AwayTeam, settings.Verbose);
+            }
+            
             return 0;
         }
         catch (Exception ex)

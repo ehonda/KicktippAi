@@ -14,6 +14,8 @@ namespace PromptSampleTests;
 public class PromptTestRunner
 {
     private readonly ILogger<PromptTestRunner> _logger;
+    private string _apiKey = string.Empty;
+    private KicktippContextProvider _kicktippContextProvider = null!;
 
     public PromptTestRunner(ILogger<PromptTestRunner> logger)
     {
@@ -29,11 +31,7 @@ public class PromptTestRunner
         }
 
         // Load API key from environment (now loaded from .env file)
-        var apiKey = Environment.GetEnvironmentVariable("OPENAI_API_KEY");
-        if (string.IsNullOrWhiteSpace(apiKey))
-        {
-            throw new InvalidOperationException("OPENAI_API_KEY environment variable is not set. Please check your .env file or set the environment variable directly.");
-        }
+        _apiKey = Environment.GetEnvironmentVariable("OPENAI_API_KEY") ?? throw new InvalidOperationException("OPENAI_API_KEY environment variable is not set. Please check your .env file or set the environment variable directly.");
 
         // Load instructions and match data
         var instructionsPath = Path.Combine(promptSampleDirectory, "instructions.md");
@@ -62,17 +60,13 @@ public class PromptTestRunner
         Console.WriteLine();
 
         // Run the prediction
-        await RunPrediction(model, apiKey, instructions, matchJson, verbose);
+        await RunPrediction(model, _apiKey, instructions, matchJson, verbose);
     }
 
     public async Task RunLiveMode(string model, string homeTeam, string awayTeam, bool verbose = false)
     {
         // Load API key from environment
-        var apiKey = Environment.GetEnvironmentVariable("OPENAI_API_KEY");
-        if (string.IsNullOrWhiteSpace(apiKey))
-        {
-            throw new InvalidOperationException("OPENAI_API_KEY environment variable is not set. Please check your .env file or set the environment variable directly.");
-        }
+        _apiKey = Environment.GetEnvironmentVariable("OPENAI_API_KEY") ?? throw new InvalidOperationException("OPENAI_API_KEY environment variable is not set. Please check your .env file or set the environment variable directly.");
 
         // Load Kicktipp credentials (optional for testing with sample data)
         var kicktippUsername = Environment.GetEnvironmentVariable("KICKTIPP_USERNAME");
@@ -98,6 +92,9 @@ public class PromptTestRunner
             homeTeam = match.HomeTeam,
             awayTeam = match.AwayTeam,
             startsAt = match.StartsAt.ToString()
+        }, new JsonSerializerOptions
+        {
+            Encoder = System.Text.Encodings.Web.JavaScriptEncoder.UnsafeRelaxedJsonEscaping
         });
 
         // Load instructions template using PathUtility
@@ -109,27 +106,32 @@ public class PromptTestRunner
 
         var instructionsTemplate = await File.ReadAllTextAsync(instructionsTemplatePath);
 
-        // Setup dependency injection for Kicktipp services (only if credentials are available)
-        ServiceProvider? serviceProvider = null;
-        if (hasKicktippCredentials)
+        // Setup dependency injection for Kicktipp services (credentials are required)
+        if (!hasKicktippCredentials)
         {
-            var services = new ServiceCollection();
-            services.AddLogging(builder => builder.AddConsole());
-            services.Configure<KicktippOptions>(options =>
-            {
-                options.Username = kicktippUsername!;
-                options.Password = kicktippPassword!;
-            });
-            services.AddKicktippClient();
-            
-            serviceProvider = services.BuildServiceProvider();
+            throw new InvalidOperationException("Kicktipp credentials are required for live mode");
         }
+
+        var services = new ServiceCollection();
+        services.AddLogging(builder => builder.AddConsole());
+        services.Configure<KicktippOptions>(options =>
+        {
+            options.Username = kicktippUsername!;
+            options.Password = kicktippPassword!;
+        });
+        services.AddKicktippClient();
         
-        // Get context from KicktippContextProvider
-        var contextProvider = new KicktippContextProvider();
+        // Register the KicktippContextProvider with a community parameter
+        services.AddSingleton(provider =>
+            new KicktippContextProvider(
+                provider.GetRequiredService<IKicktippClient>(),
+                "ehonda-test-buli"));
+        
+        var serviceProvider = services.BuildServiceProvider();
+        var contextProvider = serviceProvider.GetRequiredService<KicktippContextProvider>();
         var contextDocuments = new List<DocumentContext>();
         
-        await foreach (var context in contextProvider.GetContextAsync())
+        await foreach (var context in contextProvider.GetMatchContextAsync(homeTeam, awayTeam))
         {
             contextDocuments.Add(context);
         }
@@ -139,7 +141,7 @@ public class PromptTestRunner
         
         if (contextDocuments.Any())
         {
-            var contextSection = "## Context\n\n";
+            var contextSection = "";
             foreach (var doc in contextDocuments)
             {
                 contextSection += "---\n\n";
@@ -148,7 +150,7 @@ public class PromptTestRunner
             }
             contextSection += "---";
             
-            instructions += "\n\n" + contextSection;
+            instructions += "\n" + contextSection;
         }
 
         // Use Console.WriteLine for clean main output
@@ -163,7 +165,168 @@ public class PromptTestRunner
         Console.WriteLine();
 
         // Run the prediction using the same logic as file mode
+        await RunPrediction(model, _apiKey, instructions, matchJson, verbose);
+    }
+
+    public async Task RunLiveModeWithMatchSelection(string model, int matchNumber, bool verbose = false)
+    {
+        // Get available matches first
+        var matches = await GetAvailableMatches();
+        
+        if (matchNumber < 0 || matchNumber >= matches.Count)
+        {
+            throw new ArgumentOutOfRangeException(nameof(matchNumber), 
+                $"Match number must be between 0 and {matches.Count - 1}. Available matches: {matches.Count}");
+        }
+        
+        var selectedMatch = matches[matchNumber];
+        
+        // Show available matches for context
+        Console.WriteLine("Available matches:");
+        for (int i = 0; i < matches.Count; i++)
+        {
+            var match = matches[i];
+            var marker = i == matchNumber ? "→ " : "  ";
+            Console.WriteLine($"{marker}{i}: {match.HomeTeam} vs {match.AwayTeam}");
+        }
+        Console.WriteLine();
+        
+        // Run prediction for the selected match
+        await RunLiveModeWithMatch(model, selectedMatch, verbose);
+    }
+    
+    private async Task<List<Core.Match>> GetAvailableMatches()
+    {
+        // Get API key and credentials
+        var apiKey = Environment.GetEnvironmentVariable("OPENAI_API_KEY");
+        if (string.IsNullOrEmpty(apiKey))
+        {
+            throw new InvalidOperationException("OPENAI_API_KEY environment variable is not set");
+        }
+
+        var kicktippUsername = Environment.GetEnvironmentVariable("KICKTIPP_USERNAME");
+        var kicktippPassword = Environment.GetEnvironmentVariable("KICKTIPP_PASSWORD");
+        var hasKicktippCredentials = !string.IsNullOrEmpty(kicktippUsername) && !string.IsNullOrEmpty(kicktippPassword);
+
+        if (!hasKicktippCredentials)
+        {
+            throw new InvalidOperationException("Kicktipp credentials are required for live mode");
+        }
+
+        var services = new ServiceCollection();
+        services.AddLogging(builder => builder.AddConsole().SetMinimumLevel(LogLevel.Warning));
+        services.Configure<KicktippOptions>(options =>
+        {
+            options.Username = kicktippUsername!;
+            options.Password = kicktippPassword!;
+        });
+        services.AddKicktippClient();
+
+        var serviceProvider = services.BuildServiceProvider();
+        var kicktippClient = serviceProvider.GetRequiredService<IKicktippClient>();
+
+        // Get matches with history (includes correct times from spielinfo pages)
+        var matchesWithHistory = await kicktippClient.GetMatchesWithHistoryAsync("ehonda-test-buli");
+        
+        serviceProvider.Dispose();
+        
+        // Extract just the Match objects (with correct times)
+        return matchesWithHistory.Select(mwh => mwh.Match).ToList();
+    }
+
+    public async Task RunLiveModeWithMatch(string model, Core.Match match, bool verbose = false)
+    {
+        var apiKey = Environment.GetEnvironmentVariable("OPENAI_API_KEY");
+        if (string.IsNullOrEmpty(apiKey))
+        {
+            throw new InvalidOperationException("OPENAI_API_KEY environment variable is not set");
+        }
+
+        var kicktippUsername = Environment.GetEnvironmentVariable("KICKTIPP_USERNAME");
+        var kicktippPassword = Environment.GetEnvironmentVariable("KICKTIPP_PASSWORD");
+        var hasKicktippCredentials = !string.IsNullOrEmpty(kicktippUsername) && !string.IsNullOrEmpty(kicktippPassword);
+
+        if (!hasKicktippCredentials)
+        {
+            throw new InvalidOperationException("Kicktipp credentials are required for live mode");
+        }
+
+        var services = new ServiceCollection();
+        services.AddLogging(builder => builder.AddConsole().SetMinimumLevel(LogLevel.Warning));
+        services.Configure<KicktippOptions>(options =>
+        {
+            options.Username = kicktippUsername!;
+            options.Password = kicktippPassword!;
+        });
+        services.AddKicktippClient();
+        
+        // Register the KicktippContextProvider with a community parameter
+        services.AddSingleton(provider =>
+            new KicktippContextProvider(
+                provider.GetRequiredService<IKicktippClient>(),
+                "ehonda-test-buli"));
+
+        var serviceProvider = services.BuildServiceProvider();
+        var kicktippContextProvider = serviceProvider.GetRequiredService<KicktippContextProvider>();
+
+        var matchJson = JsonSerializer.Serialize(new
+        {
+            homeTeam = match.HomeTeam,
+            awayTeam = match.AwayTeam,
+            startsAt = match.StartsAt.ToString()
+        }, new JsonSerializerOptions
+        {
+            Encoder = System.Text.Encodings.Web.JavaScriptEncoder.UnsafeRelaxedJsonEscaping
+        });
+
+        // Load instructions template using PathUtility
+        var instructionsTemplatePath = PathUtility.GetInstructionsTemplatePath();
+        if (!File.Exists(instructionsTemplatePath))
+        {
+            throw new FileNotFoundException($"Instructions template not found: {instructionsTemplatePath}");
+        }
+
+        var instructionsTemplate = await File.ReadAllTextAsync(instructionsTemplatePath);
+        
+        // Get context for the specific match
+        var contextDocuments = new List<DocumentContext>();
+        await foreach (var doc in kicktippContextProvider.GetMatchContextAsync(match.HomeTeam, match.AwayTeam))
+        {
+            contextDocuments.Add(doc);
+        }
+
+        // Build the final instructions by combining template with context
+        var instructions = instructionsTemplate;
+        
+        if (contextDocuments.Any())
+        {
+            var contextSection = "";
+            foreach (var doc in contextDocuments)
+            {
+                contextSection += "---\n\n";
+                contextSection += $"{doc.Name}\n\n";
+                contextSection += $"{doc.Content}\n\n";
+            }
+            contextSection += "---";
+            
+            instructions += "\n" + contextSection;
+        }
+
+        // Use Console.WriteLine for clean main output
+        Console.WriteLine($"Mode: live");
+        Console.WriteLine($"Model: {model}");
+        Console.WriteLine($"Match: {match.HomeTeam} vs {match.AwayTeam}");
+        Console.WriteLine($"Instructions template: {instructionsTemplate.Length} characters");
+        Console.WriteLine($"Context documents: {contextDocuments.Count}");
+        Console.WriteLine($"Final instructions: {instructions.Length} characters");
+        Console.WriteLine($"Match JSON: {matchJson.Trim()}");
+        Console.WriteLine("Using structured output format");
+        Console.WriteLine();
+
+        // Run the prediction using the same logic as file mode
         await RunPrediction(model, apiKey, instructions, matchJson, verbose);
+        
+        serviceProvider.Dispose();
     }
 
     private async Task RunPrediction(string model, string apiKey, string instructions, string matchJson, bool verbose = false)
