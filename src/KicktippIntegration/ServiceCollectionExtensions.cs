@@ -16,6 +16,9 @@ public static class ServiceCollectionExtensions
     /// <returns>The service collection for chaining</returns>
     public static IServiceCollection AddKicktippClient(this IServiceCollection services)
     {
+        // Register memory cache for caching Kicktipp data
+        services.AddMemoryCache();
+        
         // Register the authentication handler as singleton to share cookies across all clients
         services.TryAddSingleton<KicktippAuthenticationHandler>();
         

@@ -3,6 +3,7 @@ using AngleSharp;
 using AngleSharp.Dom;
 using AngleSharp.Html.Dom;
 using Core;
+using Microsoft.Extensions.Caching.Memory;
 using Microsoft.Extensions.Logging;
 using NodaTime;
 using NodaTime.Extensions;
@@ -18,11 +19,13 @@ public class KicktippClient : IKicktippClient, IDisposable
     private readonly HttpClient _httpClient;
     private readonly ILogger<KicktippClient> _logger;
     private readonly IBrowsingContext _browsingContext;
+    private readonly IMemoryCache _cache;
 
-    public KicktippClient(HttpClient httpClient, ILogger<KicktippClient> logger)
+    public KicktippClient(HttpClient httpClient, ILogger<KicktippClient> logger, IMemoryCache cache)
     {
         _httpClient = httpClient ?? throw new ArgumentNullException(nameof(httpClient));
         _logger = logger ?? throw new ArgumentNullException(nameof(logger));
+        _cache = cache ?? throw new ArgumentNullException(nameof(cache));
         
         var config = Configuration.Default.WithDefaultLoader();
         _browsingContext = BrowsingContext.New(config);
@@ -488,6 +491,16 @@ public class KicktippClient : IKicktippClient, IDisposable
     /// <inheritdoc />
     public async Task<List<TeamStanding>> GetStandingsAsync(string community)
     {
+        // Create cache key based on community
+        var cacheKey = $"standings_{community}";
+        
+        // Try to get from cache first
+        if (_cache.TryGetValue(cacheKey, out List<TeamStanding>? cachedStandings))
+        {
+            _logger.LogDebug("Retrieved standings for {Community} from cache", community);
+            return cachedStandings!;
+        }
+
         try
         {
             var url = $"{community}/tabellen";
@@ -584,6 +597,16 @@ public class KicktippClient : IKicktippClient, IDisposable
             }
 
             _logger.LogInformation("Successfully parsed {StandingsCount} team standings", standings.Count);
+            
+            // Cache the results for 20 minutes (standings change relatively infrequently)
+            var cacheOptions = new MemoryCacheEntryOptions
+            {
+                AbsoluteExpirationRelativeToNow = TimeSpan.FromMinutes(20),
+                SlidingExpiration = TimeSpan.FromMinutes(10) // Reset timer if accessed within 10 minutes
+            };
+            _cache.Set(cacheKey, standings, cacheOptions);
+            _logger.LogDebug("Cached standings for {Community} for 20 minutes", community);
+            
             return standings;
         }
         catch (Exception ex)
@@ -596,6 +619,16 @@ public class KicktippClient : IKicktippClient, IDisposable
     /// <inheritdoc />
     public async Task<List<MatchWithHistory>> GetMatchesWithHistoryAsync(string community)
     {
+        // Create cache key based on community
+        var cacheKey = $"matches_history_{community}";
+        
+        // Try to get from cache first
+        if (_cache.TryGetValue(cacheKey, out List<MatchWithHistory>? cachedMatches))
+        {
+            _logger.LogDebug("Retrieved matches with history for {Community} from cache", community);
+            return cachedMatches!;
+        }
+
         try
         {
             var matches = new List<MatchWithHistory>();
@@ -687,6 +720,16 @@ public class KicktippClient : IKicktippClient, IDisposable
             }
 
             _logger.LogInformation("Successfully extracted {MatchCount} matches with history", matches.Count);
+            
+            // Cache the results for 15 minutes (match info changes less frequently than live scores)
+            var cacheOptions = new MemoryCacheEntryOptions
+            {
+                AbsoluteExpirationRelativeToNow = TimeSpan.FromMinutes(15),
+                SlidingExpiration = TimeSpan.FromMinutes(7) // Reset timer if accessed within 7 minutes
+            };
+            _cache.Set(cacheKey, matches, cacheOptions);
+            _logger.LogDebug("Cached matches with history for {Community} for 15 minutes", community);
+            
             return matches;
         }
         catch (Exception ex)
