@@ -240,7 +240,7 @@ public class Program
             else
             {
                 logger.LogWarning("No .env file found. Please create one in the secrets directory based on .env.example");
-                logger.LogInformation("Expected location: KicktippAi.Secrets/src/Poc/.env (sibling to solution directory)");
+                logger.LogInformation("Expected location: KicktippAi.Secrets/dev/Poc/.env (sibling to solution directory)");
             }
         }
         catch (Exception ex)
@@ -266,7 +266,7 @@ public class Program
                 if (parentDir != null)
                 {
                     var secretsDir = Path.Combine(parentDir, "KicktippAi.Secrets");
-                    var envPath = Path.Combine(secretsDir, "src", "Poc", ".env");
+                    var envPath = Path.Combine(secretsDir, "dev", "Poc", ".env");
                     
                     if (File.Exists(envPath))
                     {
@@ -281,7 +281,7 @@ public class Program
         
         // Fallback: try relative to current working directory
         var currentWorkingDir = Directory.GetCurrentDirectory();
-        var fallbackPath = Path.Combine(currentWorkingDir, "..", "..", "..", "..", "KicktippAi.Secrets", "src", "Poc", ".env");
+        var fallbackPath = Path.Combine(currentWorkingDir, "..", "..", "..", "..", "KicktippAi.Secrets", "dev", "Poc", ".env");
         
         if (File.Exists(fallbackPath))
         {

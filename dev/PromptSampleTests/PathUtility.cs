@@ -43,6 +43,6 @@ public static class PathUtility
     public static string GetEnvFilePath(string projectName)
     {
         var solutionRoot = FindSolutionRoot();
-        return Path.Combine(solutionRoot, "..", "KicktippAi.Secrets", "src", projectName, ".env");
+        return Path.Combine(solutionRoot, "..", "KicktippAi.Secrets", "dev", projectName, ".env");
     }
 }

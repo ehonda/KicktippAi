@@ -8,7 +8,7 @@
 			"args": [
 				"run",
 				"--project",
-				"src/Poc/Poc.csproj"
+				"dev/Poc/Poc.csproj"
 			],
 			"group": "build",
 			"isBackground": false,

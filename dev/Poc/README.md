@@ -14,7 +14,7 @@ This is a C# POC (Proof of Concept) that demonstrates automated login to kicktip
 ## Project Structure
 
 ```
-src/Poc/
+dev/Poc/
 ├── Program.cs              # Main entry point
 ├── Models/
 │   └── KicktippModels.cs   # Data models (Match, Credentials)

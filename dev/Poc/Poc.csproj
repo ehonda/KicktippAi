@@ -18,10 +18,10 @@
   </ItemGroup>
 
   <ItemGroup>
-    <ProjectReference Include="..\Core\Core.csproj" />
-    <ProjectReference Include="..\ContextProviders.Kicktipp\ContextProviders.Kicktipp.csproj" />
-    <ProjectReference Include="..\KicktippIntegration\KicktippIntegration.csproj" />
-    <ProjectReference Include="..\OpenAiIntegration\OpenAiIntegration.csproj" />
+    <ProjectReference Include="..\..\src\Core\Core.csproj" />
+    <ProjectReference Include="..\..\src\ContextProviders.Kicktipp\ContextProviders.Kicktipp.csproj" />
+    <ProjectReference Include="..\..\src\KicktippIntegration\KicktippIntegration.csproj" />
+    <ProjectReference Include="..\..\src\OpenAiIntegration\OpenAiIntegration.csproj" />
   </ItemGroup>
 
 </Project>

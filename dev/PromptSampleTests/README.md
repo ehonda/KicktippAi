@@ -12,13 +12,13 @@ This project allows you to test prompt samples with different OpenAI models by l
 ## Prerequisites
 
 1. Set up your OpenAI API key using one of these methods:
-   - **Recommended**: Create a `.env` file in `KicktippAi.Secrets/src/PromptSampleTests/.env` (sibling to solution directory)
+   - **Recommended**: Create a `.env` file in `KicktippAi.Secrets/dev/PromptSampleTests/.env` (sibling to solution directory)
    - **Alternative**: Set the `OPENAI_API_KEY` environment variable directly
 2. Ensure you have a prompt sample directory with the required files
 
 ### .env File Setup
 
-Create a `.env` file at `KicktippAi.Secrets/src/PromptSampleTests/.env` with:
+Create a `.env` file at `KicktippAi.Secrets/dev/PromptSampleTests/.env` with:
 
 ```env
 OPENAI_API_KEY=your_openai_api_key_here
@@ -27,13 +27,13 @@ OPENAI_API_KEY=your_openai_api_key_here
 ## Usage
 
 ```bash
-dotnet run --project src/PromptSampleTests/PromptSampleTests.csproj <model> <prompt-sample-directory>
+dotnet run --project dev/PromptSampleTests/PromptSampleTests.csproj <model> <prompt-sample-directory>
 ```
 
 ### Example
 
 ```bash
-dotnet run --project src/PromptSampleTests/PromptSampleTests.csproj gpt-4o-2024-08-06 "c:\Users\dennis\source\repos\ehonda\KicktippAi\prompts\reasoning-models\predict-one-match\v0-handcrafted\samples\2425_md34_rbl_vfb"
+dotnet run --project dev/PromptSampleTests/PromptSampleTests.csproj gpt-4o-2024-08-06 "c:\Users\dennis\source\repos\ehonda\KicktippAi\prompts\reasoning-models\predict-one-match\v0-handcrafted\samples\2425_md34_rbl_vfb"
 ```
 
 ## Prompt Sample Directory Structure
