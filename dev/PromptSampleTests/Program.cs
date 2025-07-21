@@ -23,6 +23,11 @@ public class Program
                 .WithDescription("Test prompts using live Kicktipp data and instructions template")
                 .WithExample("live", "o4-mini")
                 .WithExample("live", "o4-mini", "--home", "VfB Stuttgart", "--away", "Borussia Dortmund");
+                
+            config.AddCommand<ServiceCommand>("service")
+                .WithDescription("Test the PredictionService with sample or live data")
+                .WithExample("service", "o4-mini")
+                .WithExample("service", "o4-mini", "--home", "Bayern München", "--away", "Borussia Dortmund");
         });
 
         return await app.RunAsync(args);

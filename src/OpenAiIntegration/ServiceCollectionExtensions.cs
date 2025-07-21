@@ -1,6 +1,7 @@
 using Microsoft.Extensions.DependencyInjection;
 using Microsoft.Extensions.DependencyInjection.Extensions;
 using Microsoft.Extensions.Configuration;
+using Microsoft.Extensions.Logging;
 using OpenAI.Chat;
 using Core;
 
@@ -39,6 +40,17 @@ public static class ServiceCollectionExtensions
 
         // Register the predictor implementation
         services.TryAddScoped<IPredictor<PredictorContext>, OpenAiPredictor>();
+
+        // Register the cost calculation service
+        services.TryAddScoped<ICostCalculationService, CostCalculationService>();
+
+        // Register the prediction service with model parameter
+        services.TryAddScoped<IPredictionService>(serviceProvider =>
+            new PredictionService(
+                serviceProvider.GetRequiredService<ChatClient>(),
+                serviceProvider.GetRequiredService<ILogger<PredictionService>>(),
+                serviceProvider.GetRequiredService<ICostCalculationService>(),
+                model));
 
         return services;
     }
