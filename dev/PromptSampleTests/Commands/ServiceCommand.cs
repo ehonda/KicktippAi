@@ -110,7 +110,8 @@ public class ServiceCommand : AsyncCommand<ServiceSettings>
             var match = new Match(
                 settings.HomeTeam,
                 settings.AwayTeam,
-                utcZone.AtLeniently(LocalDateTime.FromDateTime(DateTime.UtcNow.AddDays(1)))
+                utcZone.AtLeniently(LocalDateTime.FromDateTime(DateTime.UtcNow.AddDays(1))),
+                1
             );
 
             Console.WriteLine($"Match: {match.HomeTeam} vs {match.AwayTeam}");

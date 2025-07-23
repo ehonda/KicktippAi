@@ -84,7 +84,8 @@ public class PromptTestRunner
         var match = new Core.Match(
             homeTeam,
             awayTeam,
-            utcZone.AtLeniently(LocalDateTime.FromDateTime(DateTime.UtcNow.AddDays(1)))
+            utcZone.AtLeniently(LocalDateTime.FromDateTime(DateTime.UtcNow.AddDays(1))),
+            1
         );
 
         var matchJson = JsonSerializer.Serialize(new
@@ -389,7 +390,7 @@ public class PromptTestRunner
         // Parse and display the structured prediction
         try
         {
-            var prediction = JsonSerializer.Deserialize<MatchPrediction>(predictionJson);
+            var prediction = JsonSerializer.Deserialize<Models.MatchPrediction>(predictionJson);
             Console.WriteLine();
             Console.WriteLine("=== PARSED PREDICTION ===");
             Console.WriteLine($"Home Goals: {prediction!.Home}");

@@ -83,7 +83,7 @@ public class KicktippClient : IKicktippClient, IDisposable
                             // Format appears to be "08.07.25 21:00"
                             var startsAt = ParseMatchDateTime(timeText);
                             
-                            matches.Add(new Match(homeTeam, awayTeam, startsAt));
+                            matches.Add(new Match(homeTeam, awayTeam, startsAt, 1));
                         }
                     }
                 }
@@ -803,7 +803,7 @@ public class KicktippClient : IKicktippClient, IDisposable
             }
 
             var startsAt = ParseMatchDateTime(timeText);
-            var match = new Match(homeTeam, awayTeam, startsAt);
+            var match = new Match(homeTeam, awayTeam, startsAt, 1);
 
             // Extract home team history
             var homeTeamHistory = ExtractTeamHistory(document, "spielinfoHeim");
