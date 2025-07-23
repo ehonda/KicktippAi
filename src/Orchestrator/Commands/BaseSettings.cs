@@ -18,4 +18,9 @@ public class BaseSettings : CommandSettings
     [Description("Override existing predictions on Kicktipp (default: false)")]
     [DefaultValue(false)]
     public bool OverrideKicktipp { get; set; }
+
+    [CommandOption("--override-database")]
+    [Description("Override existing predictions in the database (default: false)")]
+    [DefaultValue(false)]
+    public bool OverrideDatabase { get; set; }
 }

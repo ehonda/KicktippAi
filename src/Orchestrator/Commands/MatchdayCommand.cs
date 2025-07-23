@@ -38,6 +38,11 @@ public class MatchdayCommand : AsyncCommand<BaseSettings>
                 AnsiConsole.MarkupLine("[yellow]Override mode enabled - will override existing Kicktipp predictions[/]");
             }
             
+            if (settings.OverrideDatabase)
+            {
+                AnsiConsole.MarkupLine("[yellow]Override database mode enabled - will override existing database predictions[/]");
+            }
+            
             // Execute the matchday workflow
             await ExecuteMatchdayWorkflow(serviceProvider, settings, logger);
             
@@ -96,7 +101,7 @@ public class MatchdayCommand : AsyncCommand<BaseSettings>
                 bool fromDatabase = false;
                 
                 // Check if we have an existing prediction in the database
-                if (databaseEnabled)
+                if (databaseEnabled && !settings.OverrideDatabase)
                 {
                     prediction = await predictionRepository!.GetPredictionAsync(match);
                     if (prediction != null)
