@@ -1008,6 +1008,8 @@ public class KicktippClient : IKicktippClient, IDisposable
             var matchRows = matchTable.QuerySelectorAll("tr");
             _logger.LogDebug("Found {MatchRowCount} potential match rows", matchRows.Length);
             
+            string lastValidTimeText = "";  // Track the last valid date/time for inheritance
+            
             foreach (var row in matchRows)
             {
                 try
@@ -1021,6 +1023,26 @@ public class KicktippClient : IKicktippClient, IDisposable
                         var awayTeam = cells[2].TextContent?.Trim() ?? "";
                         
                         _logger.LogDebug("Raw time text for {HomeTeam} vs {AwayTeam}: '{TimeText}'", homeTeam, awayTeam, timeText);
+                        
+                        // Handle date inheritance: if timeText is empty, use the last valid time
+                        if (string.IsNullOrWhiteSpace(timeText))
+                        {
+                            if (!string.IsNullOrWhiteSpace(lastValidTimeText))
+                            {
+                                timeText = lastValidTimeText;
+                                _logger.LogDebug("Using inherited time for {HomeTeam} vs {AwayTeam}: '{InheritedTime}'", homeTeam, awayTeam, timeText);
+                            }
+                            else
+                            {
+                                _logger.LogWarning("No previous valid time to inherit for {HomeTeam} vs {AwayTeam}", homeTeam, awayTeam);
+                            }
+                        }
+                        else
+                        {
+                            // Update the last valid time for future inheritance
+                            lastValidTimeText = timeText;
+                            _logger.LogDebug("Updated last valid time to: '{TimeText}'", timeText);
+                        }
                         
                         // Look for betting inputs to get placed predictions
                         var bettingInputs = cells[3].QuerySelectorAll("input[type='text']");
