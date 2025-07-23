@@ -13,4 +13,9 @@ public class BaseSettings : CommandSettings
     [Description("Enable verbose output to show detailed information")]
     [DefaultValue(false)]
     public bool Verbose { get; set; }
+
+    [CommandOption("--override-kicktipp")]
+    [Description("Override existing predictions on Kicktipp (default: false)")]
+    [DefaultValue(false)]
+    public bool OverrideKicktipp { get; set; }
 }

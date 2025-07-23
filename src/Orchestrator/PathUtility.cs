@@ -45,4 +45,14 @@ public static class PathUtility
         var solutionRoot = FindSolutionRoot();
         return Path.Combine(solutionRoot, "..", "KicktippAi.Secrets", "src", projectName, ".env");
     }
+
+    /// <summary>
+    /// Gets the path to the Firebase service account JSON file relative to the solution root.
+    /// </summary>
+    /// <returns>The full path to the firebase.json file.</returns>
+    public static string GetFirebaseJsonPath()
+    {
+        var solutionRoot = FindSolutionRoot();
+        return Path.Combine(solutionRoot, "..", "KicktippAi.Secrets", "src", "Orchestrator", "firebase.json");
+    }
 }

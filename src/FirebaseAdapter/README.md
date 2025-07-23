@@ -67,7 +67,15 @@ To use this adapter, you'll need:
 
 ## Usage
 
-The repository will be registered with dependency injection in a future step. The main methods include:
+The repository will be registered with dependency injection. See [DI-SETUP.md](DI-SETUP.md) for detailed configuration instructions.
+
+**Quick Setup:**
+```csharp
+// In Program.cs or Startup.cs
+services.AddFirebaseDatabase(configuration);
+```
+
+The main methods include:
 
 - `SavePredictionAsync()`: Store or update a match prediction
 - `GetPredictionAsync()`: Retrieve a prediction for a specific match

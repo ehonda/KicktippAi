@@ -1,6 +1,3 @@
----
-applyTo: '**'
----
 # Prompt Development Instructions
 
 The following instructions are crucial for the agent to follow when developing or testing prompts in this project.

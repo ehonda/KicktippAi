@@ -6,6 +6,7 @@ using Core;
 using KicktippIntegration;
 using OpenAiIntegration;
 using ContextProviders.Kicktipp;
+using FirebaseAdapter;
 
 namespace Orchestrator.Commands;
 
@@ -32,6 +33,11 @@ public class MatchdayCommand : AsyncCommand<BaseSettings>
                 AnsiConsole.MarkupLine("[dim]Verbose mode enabled[/]");
             }
             
+            if (settings.OverrideKicktipp)
+            {
+                AnsiConsole.MarkupLine("[yellow]Override mode enabled - will override existing Kicktipp predictions[/]");
+            }
+            
             // Execute the matchday workflow
             await ExecuteMatchdayWorkflow(serviceProvider, settings, logger);
             
@@ -51,6 +57,10 @@ public class MatchdayCommand : AsyncCommand<BaseSettings>
         var predictionService = serviceProvider.GetRequiredService<IPredictionService>();
         var contextProvider = serviceProvider.GetRequiredService<KicktippContextProvider>();
         
+        // Try to get the prediction repository (may be null if Firebase is not configured)
+        var predictionRepository = serviceProvider.GetService<IPredictionRepository>();
+        var databaseEnabled = predictionRepository != null;
+        
         // For now, use a hardcoded community - this could be made configurable later
         const string community = "ehonda-test-buli";
         
@@ -67,60 +77,110 @@ public class MatchdayCommand : AsyncCommand<BaseSettings>
         
         AnsiConsole.MarkupLine($"[green]Found {matchesWithHistory.Count} matches for current matchday[/]");
         
+        if (databaseEnabled)
+        {
+            AnsiConsole.MarkupLine("[blue]Database enabled - checking for existing predictions...[/]");
+        }
+        
         var predictions = new Dictionary<Match, BetPrediction>();
         
-        // Step 2: For each match, predict it using PredictMatchAsync
+        // Step 2: For each match, check database first, then predict if needed
         foreach (var matchWithHistory in matchesWithHistory)
         {
             var match = matchWithHistory.Match;
-            AnsiConsole.MarkupLine($"[cyan]Predicting:[/] {match.HomeTeam} vs {match.AwayTeam}");
+            AnsiConsole.MarkupLine($"[cyan]Processing:[/] {match.HomeTeam} vs {match.AwayTeam}");
             
             try
             {
-                // Step 3: Get context using GetMatchContextAsync
-                var contextDocuments = new List<DocumentContext>();
-                await foreach (var context in contextProvider.GetMatchContextAsync(match.HomeTeam, match.AwayTeam))
+                Prediction? prediction = null;
+                bool fromDatabase = false;
+                
+                // Check if we have an existing prediction in the database
+                if (databaseEnabled)
                 {
-                    contextDocuments.Add(context);
+                    prediction = await predictionRepository!.GetPredictionAsync(match);
+                    if (prediction != null)
+                    {
+                        fromDatabase = true;
+                        AnsiConsole.MarkupLine($"[green]  ✓ Found existing prediction:[/] {prediction.HomeGoals}:{prediction.AwayGoals} [dim](from database)[/]");
+                    }
                 }
                 
-                if (settings.Verbose)
+                // If no existing prediction, generate a new one
+                if (prediction == null)
                 {
-                    AnsiConsole.MarkupLine($"[dim]  Using {contextDocuments.Count} context documents[/]");
-                }
-                
-                // Predict the match
-                var prediction = await predictionService.PredictMatchAsync(match, contextDocuments);
-                
-                if (prediction != null)
-                {
-                    var betPrediction = new BetPrediction(prediction.HomeGoals, prediction.AwayGoals);
-                    predictions[match] = betPrediction;
+                    AnsiConsole.MarkupLine($"[yellow]  → Generating new prediction...[/]");
                     
-                    AnsiConsole.MarkupLine($"[green]  ✓ Predicted:[/] {betPrediction}");
+                    // Step 3: Get context using GetMatchContextAsync
+                    var contextDocuments = new List<DocumentContext>();
+                    await foreach (var context in contextProvider.GetMatchContextAsync(match.HomeTeam, match.AwayTeam))
+                    {
+                        contextDocuments.Add(context);
+                    }
+                    
+                    if (settings.Verbose)
+                    {
+                        AnsiConsole.MarkupLine($"[dim]    Using {contextDocuments.Count} context documents[/]");
+                    }
+                    
+                    // Predict the match
+                    prediction = await predictionService.PredictMatchAsync(match, contextDocuments);
+                    
+                    if (prediction != null)
+                    {
+                        AnsiConsole.MarkupLine($"[green]  ✓ Generated prediction:[/] {prediction.HomeGoals}:{prediction.AwayGoals}");
+                        
+                        // Save to database immediately if enabled
+                        if (databaseEnabled)
+                        {
+                            try
+                            {
+                                await predictionRepository!.SavePredictionAsync(match, prediction);
+                                if (settings.Verbose)
+                                {
+                                    AnsiConsole.MarkupLine($"[dim]    ✓ Saved to database[/]");
+                                }
+                            }
+                            catch (Exception ex)
+                            {
+                                logger.LogError(ex, "Failed to save prediction for match {Match}", match);
+                                AnsiConsole.MarkupLine($"[red]    ✗ Failed to save to database: {ex.Message}[/]");
+                            }
+                        }
+                    }
+                    else
+                    {
+                        AnsiConsole.MarkupLine($"[red]  ✗ Failed to generate prediction[/]");
+                        continue;
+                    }
                 }
-                else
+                
+                // Convert to BetPrediction for Kicktipp
+                var betPrediction = new BetPrediction(prediction.HomeGoals, prediction.AwayGoals);
+                predictions[match] = betPrediction;
+                
+                if (!fromDatabase && settings.Verbose)
                 {
-                    AnsiConsole.MarkupLine($"[red]  ✗ Failed to predict match[/]");
+                    AnsiConsole.MarkupLine($"[dim]    Already saved to database[/]");
                 }
             }
             catch (Exception ex)
             {
-                logger.LogError(ex, "Error predicting match {Match}", match);
-                AnsiConsole.MarkupLine($"[red]  ✗ Error predicting match: {ex.Message}[/]");
+                logger.LogError(ex, "Error processing match {Match}", match);
+                AnsiConsole.MarkupLine($"[red]  ✗ Error processing match: {ex.Message}[/]");
             }
         }
         
         if (!predictions.Any())
         {
-            AnsiConsole.MarkupLine("[yellow]No predictions generated, nothing to place[/]");
+            AnsiConsole.MarkupLine("[yellow]No predictions available, nothing to place[/]");
             return;
         }
         
         // Step 4: Place all predictions using PlaceBetsAsync
-        AnsiConsole.MarkupLine($"[blue]Placing {predictions.Count} predictions...[/]");
+        AnsiConsole.MarkupLine($"[blue]Placing {predictions.Count} predictions to Kicktipp...[/]");
         
-        var success = await kicktippClient.PlaceBetsAsync(community, predictions, overrideBets: false);
+        var success = await kicktippClient.PlaceBetsAsync(community, predictions, overrideBets: settings.OverrideKicktipp);
         
         if (success)
         {
@@ -164,6 +224,21 @@ public class MatchdayCommand : AsyncCommand<BaseSettings>
         
         // Add OpenAI integration
         services.AddOpenAiPredictor(apiKey, settings.Model);
+        
+        // Add Firebase database if credentials are available
+        var firebaseProjectId = Environment.GetEnvironmentVariable("FIREBASE_PROJECT_ID");
+        var firebaseServiceAccountJson = Environment.GetEnvironmentVariable("FIREBASE_SERVICE_ACCOUNT_JSON");
+        
+        if (!string.IsNullOrEmpty(firebaseProjectId) && !string.IsNullOrEmpty(firebaseServiceAccountJson))
+        {
+            services.AddFirebaseDatabase(firebaseProjectId, firebaseServiceAccountJson);
+            logger.LogInformation("Firebase database integration enabled for project: {ProjectId}", firebaseProjectId);
+        }
+        else
+        {
+            logger.LogWarning("Firebase credentials not found. Database integration disabled.");
+            logger.LogInformation("Set FIREBASE_PROJECT_ID and FIREBASE_SERVICE_ACCOUNT_JSON environment variables to enable database features");
+        }
         
         // Add context provider
         const string community = "ehonda-test-buli";
