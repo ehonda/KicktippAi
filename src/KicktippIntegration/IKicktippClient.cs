@@ -47,6 +47,13 @@ public interface IKicktippClient
     /// <param name="community">The community name</param>
     /// <returns>List of matches with their recent history context</returns>
     Task<List<MatchWithHistory>> GetMatchesWithHistoryAsync(string community);
+
+    /// <summary>
+    /// Get placed predictions for the current matchday
+    /// </summary>
+    /// <param name="community">The community name</param>
+    /// <returns>Dictionary of matches and their placed predictions</returns>
+    Task<Dictionary<Match, BetPrediction?>> GetPlacedPredictionsAsync(string community);
 }
 
 /// <summary>

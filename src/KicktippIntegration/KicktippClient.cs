@@ -978,6 +978,105 @@ public class KicktippClient : IKicktippClient, IDisposable
         }
     }
 
+    /// <inheritdoc />
+    public async Task<Dictionary<Match, BetPrediction?>> GetPlacedPredictionsAsync(string community)
+    {
+        try
+        {
+            var url = $"{community}/tippabgabe";
+            var response = await _httpClient.GetAsync(url);
+            
+            if (!response.IsSuccessStatusCode)
+            {
+                _logger.LogError("Failed to fetch tippabgabe page. Status: {StatusCode}", response.StatusCode);
+                return new Dictionary<Match, BetPrediction?>();
+            }
+
+            var content = await response.Content.ReadAsStringAsync();
+            var document = await _browsingContext.OpenAsync(req => req.Content(content));
+
+            var placedPredictions = new Dictionary<Match, BetPrediction?>();
+            
+            // Parse matches from the tippabgabe table
+            var matchTable = document.QuerySelector("#tippabgabeSpiele tbody");
+            if (matchTable == null)
+            {
+                _logger.LogWarning("Could not find tippabgabe table");
+                return placedPredictions;
+            }
+            
+            var matchRows = matchTable.QuerySelectorAll("tr");
+            _logger.LogDebug("Found {MatchRowCount} potential match rows", matchRows.Length);
+            
+            foreach (var row in matchRows)
+            {
+                try
+                {
+                    var cells = row.QuerySelectorAll("td");
+                    if (cells.Length >= 4)
+                    {
+                        // Extract match details from table cells
+                        var timeText = cells[0].TextContent?.Trim() ?? "";
+                        var homeTeam = cells[1].TextContent?.Trim() ?? "";
+                        var awayTeam = cells[2].TextContent?.Trim() ?? "";
+                        
+                        _logger.LogDebug("Raw time text for {HomeTeam} vs {AwayTeam}: '{TimeText}'", homeTeam, awayTeam, timeText);
+                        
+                        // Look for betting inputs to get placed predictions
+                        var bettingInputs = cells[3].QuerySelectorAll("input[type='text']");
+                        if (bettingInputs.Length >= 2)
+                        {
+                            var homeInput = bettingInputs[0] as IHtmlInputElement;
+                            var awayInput = bettingInputs[1] as IHtmlInputElement;
+                            
+                            // Parse the date/time
+                            var startsAt = ParseMatchDateTime(timeText);
+                            var match = new Match(homeTeam, awayTeam, startsAt, 1);
+                            
+                            // Check if predictions are placed (inputs have values)
+                            var homeValue = homeInput?.Value?.Trim();
+                            var awayValue = awayInput?.Value?.Trim();
+                            
+                            BetPrediction? prediction = null;
+                            if (!string.IsNullOrEmpty(homeValue) && !string.IsNullOrEmpty(awayValue))
+                            {
+                                if (int.TryParse(homeValue, out var homeGoals) && int.TryParse(awayValue, out var awayGoals))
+                                {
+                                    prediction = new BetPrediction(homeGoals, awayGoals);
+                                    _logger.LogDebug("Found placed prediction: {HomeTeam} vs {AwayTeam} = {Prediction}", homeTeam, awayTeam, prediction);
+                                }
+                                else
+                                {
+                                    _logger.LogWarning("Could not parse prediction values for {HomeTeam} vs {AwayTeam}: '{HomeValue}':'{AwayValue}'", homeTeam, awayTeam, homeValue, awayValue);
+                                }
+                            }
+                            else
+                            {
+                                _logger.LogDebug("No prediction placed for {HomeTeam} vs {AwayTeam}", homeTeam, awayTeam);
+                            }
+                            
+                            placedPredictions[match] = prediction;
+                        }
+                    }
+                }
+                catch (Exception ex)
+                {
+                    _logger.LogWarning(ex, "Error parsing match row");
+                    continue;
+                }
+            }
+
+            _logger.LogInformation("Successfully parsed {MatchCount} matches with {PlacedCount} placed predictions", 
+                placedPredictions.Count, placedPredictions.Values.Count(p => p != null));
+            return placedPredictions;
+        }
+        catch (Exception ex)
+        {
+            _logger.LogError(ex, "Exception in GetPlacedPredictionsAsync");
+            return new Dictionary<Match, BetPrediction?>();
+        }
+    }
+
     public void Dispose()
     {
         _httpClient?.Dispose();

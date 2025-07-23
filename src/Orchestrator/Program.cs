@@ -22,6 +22,9 @@ public class Program
             config.AddCommand<BonusCommand>("bonus")
                 .WithDescription("Generate bonus predictions")
                 .WithExample("bonus", "gpt-4o-2024-08-06");
+                
+            config.AddCommand<VerifyMatchdayCommand>("verify")
+                .WithDescription("Verify that database predictions have been successfully posted to Kicktipp");
         });
 
         return await app.RunAsync(args);
