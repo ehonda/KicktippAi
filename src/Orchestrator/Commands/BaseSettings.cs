@@ -23,4 +23,9 @@ public class BaseSettings : CommandSettings
     [Description("Override existing predictions in the database (default: false)")]
     [DefaultValue(false)]
     public bool OverrideDatabase { get; set; }
+
+    [CommandOption("--agent")]
+    [Description("Agent mode - hide prediction details from output (for automated environments)")]
+    [DefaultValue(false)]
+    public bool Agent { get; set; }
 }

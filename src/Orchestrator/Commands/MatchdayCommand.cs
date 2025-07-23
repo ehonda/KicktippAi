@@ -43,6 +43,11 @@ public class MatchdayCommand : AsyncCommand<BaseSettings>
                 AnsiConsole.MarkupLine("[yellow]Override database mode enabled - will override existing database predictions[/]");
             }
             
+            if (settings.Agent)
+            {
+                AnsiConsole.MarkupLine("[blue]Agent mode enabled - prediction details will be hidden[/]");
+            }
+            
             // Execute the matchday workflow
             await ExecuteMatchdayWorkflow(serviceProvider, settings, logger);
             
@@ -107,7 +112,14 @@ public class MatchdayCommand : AsyncCommand<BaseSettings>
                     if (prediction != null)
                     {
                         fromDatabase = true;
-                        AnsiConsole.MarkupLine($"[green]  ✓ Found existing prediction:[/] {prediction.HomeGoals}:{prediction.AwayGoals} [dim](from database)[/]");
+                        if (settings.Agent)
+                        {
+                            AnsiConsole.MarkupLine($"[green]  ✓ Found existing prediction[/] [dim](from database)[/]");
+                        }
+                        else
+                        {
+                            AnsiConsole.MarkupLine($"[green]  ✓ Found existing prediction:[/] {prediction.HomeGoals}:{prediction.AwayGoals} [dim](from database)[/]");
+                        }
                     }
                 }
                 
@@ -133,7 +145,14 @@ public class MatchdayCommand : AsyncCommand<BaseSettings>
                     
                     if (prediction != null)
                     {
-                        AnsiConsole.MarkupLine($"[green]  ✓ Generated prediction:[/] {prediction.HomeGoals}:{prediction.AwayGoals}");
+                        if (settings.Agent)
+                        {
+                            AnsiConsole.MarkupLine($"[green]  ✓ Generated prediction[/]");
+                        }
+                        else
+                        {
+                            AnsiConsole.MarkupLine($"[green]  ✓ Generated prediction:[/] {prediction.HomeGoals}:{prediction.AwayGoals}");
+                        }
                         
                         // Save to database immediately if enabled
                         if (databaseEnabled)
