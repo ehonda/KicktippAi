@@ -22,6 +22,13 @@ public interface ITokenUsageTracker
     string GetCompactSummary();
 
     /// <summary>
+    /// Get the last usage added (for displaying individual match usage)
+    /// Format: "uncached / cached / output-reasoning / output-rest / $cost"
+    /// </summary>
+    /// <returns>Compact usage summary string for the last operation</returns>
+    string GetLastUsageCompactSummary();
+
+    /// <summary>
     /// Get total cost across all tracked usage
     /// </summary>
     /// <returns>Total cost in USD</returns>

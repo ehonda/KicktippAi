@@ -184,6 +184,13 @@ public class MatchdayCommand : AsyncCommand<BaseSettings>
                         {
                             AnsiConsole.MarkupLine($"[dim]    (Dry run - skipped database save)[/]");
                         }
+                        
+                        // Show individual match token usage in verbose mode
+                        if (settings.Verbose && tokenUsageTracker != null)
+                        {
+                            var matchUsage = tokenUsageTracker.GetLastUsageCompactSummary();
+                            AnsiConsole.MarkupLine($"[dim]    Token usage: {matchUsage}[/]");
+                        }
                     }
                     else
                     {
