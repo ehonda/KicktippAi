@@ -83,19 +83,21 @@ public class FirebasePredictionRepository : IPredictionRepository
     {
         try
         {
-            var match = new Match(homeTeam, awayTeam, startsAt);
-            var documentId = GenerateMatchId(match);
+            // We need to find the document by querying, since we don't know the matchday
+            var query = _firestoreDb.Collection(PredictionsCollection)
+                .WhereEqualTo("homeTeam", homeTeam)
+                .WhereEqualTo("awayTeam", awayTeam)
+                .WhereEqualTo("startsAt", ConvertToTimestamp(startsAt))
+                .WhereEqualTo("competition", Competition);
 
-            var doc = await _firestoreDb.Collection(PredictionsCollection)
-                .Document(documentId)
-                .GetSnapshotAsync(cancellationToken);
-
-            if (!doc.Exists)
+            var snapshot = await query.GetSnapshotAsync(cancellationToken);
+            
+            if (snapshot.Documents.Count == 0)
             {
                 return null;
             }
 
-            var firestorePrediction = doc.ConvertTo<FirestoreMatchPrediction>();
+            var firestorePrediction = snapshot.Documents.First().ConvertTo<FirestoreMatchPrediction>();
             return new Prediction(firestorePrediction.HomeGoals, firestorePrediction.AwayGoals);
         }
         catch (Exception ex)

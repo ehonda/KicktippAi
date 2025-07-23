@@ -50,6 +50,10 @@ public class KicktippClient : IKicktippClient, IDisposable
 
             var matches = new List<Match>();
             
+            // Extract matchday from the page
+            var currentMatchday = ExtractMatchdayFromPage(document);
+            _logger.LogDebug("Extracted matchday: {Matchday}", currentMatchday);
+            
             // Parse matches from the tippabgabe table
             var matchTable = document.QuerySelector("#tippabgabeSpiele tbody");
             if (matchTable == null)
@@ -105,7 +109,7 @@ public class KicktippClient : IKicktippClient, IDisposable
                             // Format appears to be "08.07.25 21:00"
                             var startsAt = ParseMatchDateTime(timeText);
                             
-                            matches.Add(new Match(homeTeam, awayTeam, startsAt, 1));
+                            matches.Add(new Match(homeTeam, awayTeam, startsAt, currentMatchday));
                         }
                     }
                 }
@@ -668,6 +672,10 @@ public class KicktippClient : IKicktippClient, IDisposable
             var content = await response.Content.ReadAsStringAsync();
             var document = await _browsingContext.OpenAsync(req => req.Content(content));
 
+            // Extract matchday from the tippabgabe page
+            var currentMatchday = ExtractMatchdayFromPage(document);
+            _logger.LogDebug("Extracted matchday for history extraction: {Matchday}", currentMatchday);
+
             // Find the "Tippabgabe mit Spielinfos" link
             var spielinfoLink = document.QuerySelector("a[href*='spielinfo']");
             if (spielinfoLink == null)
@@ -710,7 +718,7 @@ public class KicktippClient : IKicktippClient, IDisposable
                     var spielinfoDocument = await _browsingContext.OpenAsync(req => req.Content(spielinfoContent));
 
                     // Extract match information
-                    var matchWithHistory = await ExtractMatchWithHistoryFromSpielinfoPage(spielinfoDocument);
+                    var matchWithHistory = ExtractMatchWithHistoryFromSpielinfoPage(spielinfoDocument, currentMatchday);
                     if (matchWithHistory != null)
                     {
                         matches.Add(matchWithHistory);
@@ -761,7 +769,7 @@ public class KicktippClient : IKicktippClient, IDisposable
         }
     }
 
-    private async Task<MatchWithHistory?> ExtractMatchWithHistoryFromSpielinfoPage(IDocument document)
+    private MatchWithHistory? ExtractMatchWithHistoryFromSpielinfoPage(IDocument document, int matchday)
     {
         try
         {
@@ -825,7 +833,7 @@ public class KicktippClient : IKicktippClient, IDisposable
             }
 
             var startsAt = ParseMatchDateTime(timeText);
-            var match = new Match(homeTeam, awayTeam, startsAt, 1);
+            var match = new Match(homeTeam, awayTeam, startsAt, matchday);
 
             // Extract home team history
             var homeTeamHistory = ExtractTeamHistory(document, "spielinfoHeim");
@@ -1019,6 +1027,10 @@ public class KicktippClient : IKicktippClient, IDisposable
 
             var placedPredictions = new Dictionary<Match, BetPrediction?>();
             
+            // Extract matchday from the page
+            var currentMatchday = ExtractMatchdayFromPage(document);
+            _logger.LogDebug("Extracted matchday for placed predictions: {Matchday}", currentMatchday);
+            
             // Parse matches from the tippabgabe table
             var matchTable = document.QuerySelector("#tippabgabeSpiele tbody");
             if (matchTable == null)
@@ -1075,7 +1087,7 @@ public class KicktippClient : IKicktippClient, IDisposable
                             
                             // Parse the date/time
                             var startsAt = ParseMatchDateTime(timeText);
-                            var match = new Match(homeTeam, awayTeam, startsAt, 1);
+                            var match = new Match(homeTeam, awayTeam, startsAt, currentMatchday);
                             
                             // Check if predictions are placed (inputs have values)
                             var homeValue = homeInput?.Value?.Trim();
@@ -1118,6 +1130,45 @@ public class KicktippClient : IKicktippClient, IDisposable
         {
             _logger.LogError(ex, "Exception in GetPlacedPredictionsAsync");
             return new Dictionary<Match, BetPrediction?>();
+        }
+    }
+
+    private int ExtractMatchdayFromPage(IDocument document)
+    {
+        try
+        {
+            // Try to extract from the navigation title (e.g., "1. Spieltag")
+            var titleElement = document.QuerySelector(".prevnextTitle a");
+            if (titleElement != null)
+            {
+                var titleText = titleElement.TextContent?.Trim();
+                if (!string.IsNullOrEmpty(titleText))
+                {
+                    // Extract number from text like "1. Spieltag"
+                    var match = System.Text.RegularExpressions.Regex.Match(titleText, @"(\d+)\.\s*Spieltag");
+                    if (match.Success && int.TryParse(match.Groups[1].Value, out var matchday))
+                    {
+                        _logger.LogDebug("Extracted matchday from title: {Matchday}", matchday);
+                        return matchday;
+                    }
+                }
+            }
+
+            // Fallback: try to extract from hidden input
+            var spieltagInput = document.QuerySelector("input[name='spieltagIndex']") as IHtmlInputElement;
+            if (spieltagInput?.Value != null && int.TryParse(spieltagInput.Value, out var matchdayFromInput))
+            {
+                _logger.LogDebug("Extracted matchday from hidden input: {Matchday}", matchdayFromInput);
+                return matchdayFromInput;
+            }
+
+            _logger.LogWarning("Could not extract matchday from page, defaulting to 1");
+            return 1;
+        }
+        catch (Exception ex)
+        {
+            _logger.LogError(ex, "Error extracting matchday from page, defaulting to 1");
+            return 1;
         }
     }
 

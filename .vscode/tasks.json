@@ -2,13 +2,17 @@
 	"version": "2.0.0",
 	"tasks": [
 		{
-			"label": "Run POC with AI Predictions",
+			"label": "Run Matchday Predictions",
 			"type": "shell",
 			"command": "dotnet",
 			"args": [
 				"run",
 				"--project",
-				"dev/Poc/Poc.csproj"
+				"src/Orchestrator/Orchestrator.csproj",
+				"--",
+				"matchday",
+				"o4-mini",
+				"--verbose"
 			],
 			"group": "build",
 			"isBackground": false,
