@@ -44,12 +44,16 @@ public static class ServiceCollectionExtensions
         // Register the cost calculation service
         services.TryAddScoped<ICostCalculationService, CostCalculationService>();
 
+        // Register the token usage tracker as singleton (to accumulate across requests)
+        services.TryAddSingleton<ITokenUsageTracker, TokenUsageTracker>();
+
         // Register the prediction service with model parameter
         services.TryAddScoped<IPredictionService>(serviceProvider =>
             new PredictionService(
                 serviceProvider.GetRequiredService<ChatClient>(),
                 serviceProvider.GetRequiredService<ILogger<PredictionService>>(),
                 serviceProvider.GetRequiredService<ICostCalculationService>(),
+                serviceProvider.GetRequiredService<ITokenUsageTracker>(),
                 model));
 
         return services;

@@ -71,10 +71,14 @@ public class MatchdayCommand : AsyncCommand<BaseSettings>
         var kicktippClient = serviceProvider.GetRequiredService<IKicktippClient>();
         var predictionService = serviceProvider.GetRequiredService<IPredictionService>();
         var contextProvider = serviceProvider.GetRequiredService<KicktippContextProvider>();
+        var tokenUsageTracker = serviceProvider.GetService<ITokenUsageTracker>();
         
         // Try to get the prediction repository (may be null if Firebase is not configured)
         var predictionRepository = serviceProvider.GetService<IPredictionRepository>();
         var databaseEnabled = predictionRepository != null;
+        
+        // Reset token usage tracker for this workflow
+        tokenUsageTracker?.Reset();
         
         // For now, use a hardcoded community - this could be made configurable later
         const string community = "ehonda-test-buli";
@@ -229,6 +233,13 @@ public class MatchdayCommand : AsyncCommand<BaseSettings>
             {
                 AnsiConsole.MarkupLine("[red]✗ Failed to place some or all predictions[/]");
             }
+        }
+        
+        // Display token usage summary
+        if (tokenUsageTracker != null)
+        {
+            var summary = tokenUsageTracker.GetCompactSummary();
+            AnsiConsole.MarkupLine($"[dim]Token usage (uncached/cached/reasoning/output/$cost): {summary}[/]");
         }
     }
     

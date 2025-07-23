@@ -14,6 +14,7 @@ public class PredictionService : IPredictionService
     private readonly ChatClient _chatClient;
     private readonly ILogger<PredictionService> _logger;
     private readonly ICostCalculationService _costCalculationService;
+    private readonly ITokenUsageTracker _tokenUsageTracker;
     private readonly string _model;
     private readonly string _instructionsTemplate;
 
@@ -21,11 +22,13 @@ public class PredictionService : IPredictionService
         ChatClient chatClient, 
         ILogger<PredictionService> logger,
         ICostCalculationService costCalculationService,
+        ITokenUsageTracker tokenUsageTracker,
         string model)
     {
         _chatClient = chatClient ?? throw new ArgumentNullException(nameof(chatClient));
         _logger = logger ?? throw new ArgumentNullException(nameof(logger));
         _costCalculationService = costCalculationService ?? throw new ArgumentNullException(nameof(costCalculationService));
+        _tokenUsageTracker = tokenUsageTracker ?? throw new ArgumentNullException(nameof(tokenUsageTracker));
         _model = model ?? throw new ArgumentNullException(nameof(model));
         _instructionsTemplate = LoadInstructionsTemplate();
     }
@@ -101,6 +104,9 @@ public class PredictionService : IPredictionService
             var usage = response.Value.Usage;
             _logger.LogDebug("Token usage - Input: {InputTokens}, Output: {OutputTokens}, Total: {TotalTokens}",
                 usage.InputTokenCount, usage.OutputTokenCount, usage.TotalTokenCount);
+
+            // Add usage to tracker
+            _tokenUsageTracker.AddUsage(_model, usage);
 
             // Calculate and log costs
             _costCalculationService.LogCostBreakdown(_model, usage);
