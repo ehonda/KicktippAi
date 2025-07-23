@@ -109,12 +109,12 @@ public class VerifyMatchdayCommand : AsyncCommand<VerifySettings>
                 if (databasePrediction != null)
                 {
                     matchesWithDatabasePredictions++;
-                    if (settings.Verbose)
+                    if (settings.Verbose && !settings.Agent)
                     {
                         AnsiConsole.MarkupLine($"[dim]  Found database prediction: {databasePrediction.HomeGoals}:{databasePrediction.AwayGoals}[/]");
                     }
                 }
-                else if (settings.Verbose)
+                else if (settings.Verbose && !settings.Agent)
                 {
                     AnsiConsole.MarkupLine($"[dim]  No database prediction found[/]");
                 }
