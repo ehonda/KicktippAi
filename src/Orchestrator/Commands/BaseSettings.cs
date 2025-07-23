@@ -28,4 +28,9 @@ public class BaseSettings : CommandSettings
     [Description("Agent mode - hide prediction details from output (for automated environments)")]
     [DefaultValue(false)]
     public bool Agent { get; set; }
+
+    [CommandOption("--dry-run")]
+    [Description("Dry run mode - no changes will be made to database or Kicktipp")]
+    [DefaultValue(false)]
+    public bool DryRun { get; set; }
 }

@@ -48,6 +48,11 @@ public class MatchdayCommand : AsyncCommand<BaseSettings>
                 AnsiConsole.MarkupLine("[blue]Agent mode enabled - prediction details will be hidden[/]");
             }
             
+            if (settings.DryRun)
+            {
+                AnsiConsole.MarkupLine("[magenta]Dry run mode enabled - no changes will be made to database or Kicktipp[/]");
+            }
+            
             // Execute the matchday workflow
             await ExecuteMatchdayWorkflow(serviceProvider, settings, logger);
             
@@ -155,7 +160,7 @@ public class MatchdayCommand : AsyncCommand<BaseSettings>
                         }
                         
                         // Save to database immediately if enabled
-                        if (databaseEnabled)
+                        if (databaseEnabled && !settings.DryRun)
                         {
                             try
                             {
@@ -170,6 +175,10 @@ public class MatchdayCommand : AsyncCommand<BaseSettings>
                                 logger.LogError(ex, "Failed to save prediction for match {Match}", match);
                                 AnsiConsole.MarkupLine($"[red]    ✗ Failed to save to database: {ex.Message}[/]");
                             }
+                        }
+                        else if (databaseEnabled && settings.DryRun && settings.Verbose)
+                        {
+                            AnsiConsole.MarkupLine($"[dim]    (Dry run - skipped database save)[/]");
                         }
                     }
                     else
@@ -204,15 +213,22 @@ public class MatchdayCommand : AsyncCommand<BaseSettings>
         // Step 4: Place all predictions using PlaceBetsAsync
         AnsiConsole.MarkupLine($"[blue]Placing {predictions.Count} predictions to Kicktipp...[/]");
         
-        var success = await kicktippClient.PlaceBetsAsync(community, predictions, overrideBets: settings.OverrideKicktipp);
-        
-        if (success)
+        if (settings.DryRun)
         {
-            AnsiConsole.MarkupLine($"[green]✓ Successfully placed all {predictions.Count} predictions![/]");
+            AnsiConsole.MarkupLine($"[magenta]✓ Dry run mode - would have placed {predictions.Count} predictions (no actual changes made)[/]");
         }
         else
         {
-            AnsiConsole.MarkupLine("[red]✗ Failed to place some or all predictions[/]");
+            var success = await kicktippClient.PlaceBetsAsync(community, predictions, overrideBets: settings.OverrideKicktipp);
+            
+            if (success)
+            {
+                AnsiConsole.MarkupLine($"[green]✓ Successfully placed all {predictions.Count} predictions![/]");
+            }
+            else
+            {
+                AnsiConsole.MarkupLine("[red]✗ Failed to place some or all predictions[/]");
+            }
         }
     }
     
