@@ -24,7 +24,17 @@ The workflow runs automatically twice daily:
 You can manually trigger the workflow from the GitHub Actions tab with the following options:
 
 - **Model Selection**: Choose from available OpenAI models (`o4-mini`, `o1`)
+- **Environment**: Select staging, production, or auto-detection
 - **Force Prediction**: Override the verification check and generate predictions regardless
+
+## Environment Configuration
+
+The workflow supports **staging** and **production** environments that can be easily configured via repository variables:
+
+- **Staging** (default: enabled, o4-mini): For testing and development
+- **Production** (default: disabled, o1): For final predictions
+
+For detailed configuration instructions, see [Environment Configuration Guide](ENVIRONMENT-CONFIG.md).
 
 ## Required Secrets
 
