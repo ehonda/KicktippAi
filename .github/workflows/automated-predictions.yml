@@ -6,6 +6,7 @@ on:
   schedule:
     - cron: '0 23 * * *'  # ~Midnight Europe/Berlin (23:00 UTC = 00:00 CET, 01:00 CEST)
     - cron: '0 11 * * *'  # ~Noon Europe/Berlin (11:00 UTC = 12:00 CET, 13:00 CEST)
+    - cron: '45 23 * * *' # TEMPORARY TEST: 01:45 Europe/Berlin (23:45 UTC = 01:45 CEST)
   
   # Allow manual triggering with model selection
   workflow_dispatch:
