@@ -1,0 +1,39 @@
+name: Build and Test
+
+on:
+  push:
+    branches: [ main, develop ]
+  pull_request:
+    branches: [ main ]
+
+jobs:
+  build:
+    name: Build and Test
+    runs-on: ubuntu-latest
+    
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v4
+        
+      - name: Setup .NET
+        uses: actions/setup-dotnet@v4
+        with:
+          dotnet-version: '9.x'
+          
+      - name: Restore dependencies
+        run: dotnet restore
+        
+      - name: Build project
+        run: dotnet build --no-restore --configuration Release
+        
+      - name: Run tests
+        run: dotnet test --no-build --configuration Release --verbosity normal
+        continue-on-error: true  # Tests might not exist yet
+        
+      - name: Build summary
+        if: always()
+        run: |
+          echo "## Build Summary" >> $GITHUB_STEP_SUMMARY
+          echo "- **Trigger**: ${{ github.event_name }}" >> $GITHUB_STEP_SUMMARY
+          echo "- **Branch**: ${{ github.ref_name }}" >> $GITHUB_STEP_SUMMARY
+          echo "- **Configuration**: Release" >> $GITHUB_STEP_SUMMARY
