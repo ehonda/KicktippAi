@@ -14,4 +14,9 @@ public class VerifySettings : CommandSettings
     [Description("Agent mode - hide prediction details from output (for automated environments)")]
     [DefaultValue(false)]
     public bool Agent { get; set; }
+
+    [CommandOption("--init-matchday")]
+    [Description("Init matchday mode - return error when no predictions exist to trigger initial prediction workflow")]
+    [DefaultValue(false)]
+    public bool InitMatchday { get; set; }
 }

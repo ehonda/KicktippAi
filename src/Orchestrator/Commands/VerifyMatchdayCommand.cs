@@ -36,6 +36,11 @@ public class VerifyMatchdayCommand : AsyncCommand<VerifySettings>
                 AnsiConsole.MarkupLine("[blue]Agent mode enabled - prediction details will be hidden[/]");
             }
             
+            if (settings.InitMatchday)
+            {
+                AnsiConsole.MarkupLine("[cyan]Init matchday mode enabled - will return error if no predictions exist[/]");
+            }
+            
             // Execute the verification workflow
             var hasDiscrepancies = await ExecuteVerificationWorkflow(serviceProvider, settings, logger);
             
@@ -181,6 +186,14 @@ public class VerifyMatchdayCommand : AsyncCommand<VerifySettings>
         AnsiConsole.MarkupLine($"  Matches with Kicktipp predictions: {matchesWithPlacedPredictions}");
         AnsiConsole.MarkupLine($"  Matches with database predictions: {matchesWithDatabasePredictions}");
         AnsiConsole.MarkupLine($"  Matching predictions: {matchingPredictions}");
+        
+        // Check for init-matchday mode first
+        if (settings.InitMatchday && matchesWithDatabasePredictions == 0)
+        {
+            AnsiConsole.MarkupLine("[yellow]  Init matchday detected - no database predictions exist[/]");
+            AnsiConsole.MarkupLine("[red]Returning error to trigger initial prediction workflow[/]");
+            return true; // Return error to trigger workflow
+        }
         
         if (hasDiscrepancies)
         {
