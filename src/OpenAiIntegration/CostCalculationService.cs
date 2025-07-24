@@ -62,10 +62,18 @@ internal static class ModelPricingData
 {
     public static readonly Dictionary<string, ModelPricing> Pricing = new()
     {
-        ["gpt-4o-mini"] = new(0.15m, 0.60m, 0.075m),
-        ["o4-mini"] = new(0.15m, 0.60m, 0.075m), // Alias for gpt-4o-mini
+        ["gpt-4.1"] = new(2.00m, 8.00m, 0.50m),
+        ["gpt-4.1-mini"] = new(0.40m, 1.60m, 0.10m),
+        ["gpt-4.1-nano"] = new(0.10m, 0.40m, 0.025m),
+        ["gpt-4.5-preview"] = new(75.00m, 150.00m, 37.50m),
         ["gpt-4o"] = new(2.50m, 10.00m, 1.25m),
-        ["gpt-4o-2024-08-06"] = new(2.50m, 10.00m, 1.25m),
+        ["gpt-4o-mini"] = new(0.15m, 0.60m, 0.075m),
+        ["o1"] = new(15.00m, 60.00m, 7.50m),
+        ["o1-pro"] = new(150.00m, 600.00m),
+        ["o3"] = new(2.00m, 8.00m, 0.50m),
+        ["o4-mini"] = new(1.10m, 4.40m, 0.275m),
+        ["o3-mini"] = new(1.10m, 4.40m, 0.55m),
+        ["o1-mini"] = new(1.10m, 4.40m, 0.55m),
     };
 }
 
