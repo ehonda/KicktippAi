@@ -37,14 +37,18 @@ The defaults are set in the workflow file itself in the `env` section. You can m
 
 ## Behavior
 
+### Configuration Validation
+The workflow will **fail with an error** if both `STAGING_ENABLED` and `PRODUCTION_ENABLED` are set to `true`. This prevents accidental misconfigurations where you might expect production runs but get staging runs instead.
+
+**Error message**: "Configuration Error: Both STAGING_ENABLED and PRODUCTION_ENABLED are set to true"
+
 ### Scheduled Runs
 When the workflow runs on schedule (twice daily):
 
-1. **If staging is enabled**: Uses staging environment with staging model
-2. **Else if production is enabled**: Uses production environment with production model  
-3. **Else**: Workflow skips execution with message "no environment enabled"
-
-Priority: Staging > Production > Skip
+1. **If only staging is enabled**: Uses staging environment with staging model
+2. **If only production is enabled**: Uses production environment with production model  
+3. **If both are enabled**: **FAILS with configuration error**
+4. **If neither is enabled**: Workflow skips execution with message "no environment enabled"
 
 ### Manual Runs
 When triggered manually via workflow_dispatch:
@@ -71,13 +75,13 @@ PRODUCTION_MODEL=o1
 ```
 → Runs twice daily with o1 for final predictions
 
-### Scenario 3: Both Environments (Advanced)
+### Scenario 3: Configuration Error (Will Fail)
 ```
 STAGING_ENABLED=true
 STAGING_MODEL=o4-mini
-PRODUCTION_ENABLED=false  # Will use staging when both enabled
+PRODUCTION_ENABLED=true  # ERROR: Both cannot be true
 ```
-→ Runs with staging since it has priority
+→ Workflow fails with configuration error message
 
 ### Scenario 4: Paused
 ```

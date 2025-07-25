@@ -66,6 +66,18 @@ jobs:
       - name: Determine environment and configuration
         id: config
         run: |
+          # Check for configuration conflicts first
+          if [ "${{ env.STAGING_ENABLED }}" = "true" ] && [ "${{ env.PRODUCTION_ENABLED }}" = "true" ]; then
+            echo "❌ Configuration Error: Both STAGING_ENABLED and PRODUCTION_ENABLED are set to true"
+            echo "This is likely a configuration mistake. Please set only one environment to true."
+            echo "Current settings:"
+            echo "  STAGING_ENABLED=${{ env.STAGING_ENABLED }}"
+            echo "  PRODUCTION_ENABLED=${{ env.PRODUCTION_ENABLED }}"
+            echo ""
+            echo "To fix this, go to Repository Settings → Actions → Variables and ensure only one environment is enabled."
+            exit 1
+          fi
+          
           # Determine which environment to use
           if [ "${{ github.event_name }}" = "workflow_dispatch" ] && [ "${{ github.event.inputs.environment }}" != "auto" ]; then
             # Manual trigger with explicit environment
