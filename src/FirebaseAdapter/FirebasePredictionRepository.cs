@@ -207,6 +207,132 @@ public class FirebasePredictionRepository : IPredictionRepository
         }
     }
 
+    public async Task SaveBonusPredictionAsync(BonusQuestion bonusQuestion, BonusPrediction bonusPrediction, CancellationToken cancellationToken = default)
+    {
+        try
+        {
+            var documentId = bonusPrediction.QuestionId;
+            var now = Timestamp.GetCurrentTimestamp();
+            
+            // Extract selected option texts for observability
+            var optionTextsLookup = bonusQuestion.Options.ToDictionary(o => o.Id, o => o.Text);
+            var selectedOptionTexts = bonusPrediction.SelectedOptionIds
+                .Select(id => optionTextsLookup.TryGetValue(id, out var text) ? text : $"Unknown option: {id}")
+                .ToArray();
+            
+            var firestoreBonusPrediction = new FirestoreBonusPrediction
+            {
+                Id = documentId,
+                QuestionId = bonusPrediction.QuestionId,
+                QuestionText = bonusQuestion.Text,
+                SelectedOptionIds = bonusPrediction.SelectedOptionIds.ToArray(),
+                SelectedOptionTexts = selectedOptionTexts,
+                UpdatedAt = now,
+                Competition = Competition
+            };
+
+            // Check if bonus prediction already exists to set created timestamp
+            var existingDoc = await _firestoreDb.Collection("bonusPredictions")
+                .Document(documentId)
+                .GetSnapshotAsync(cancellationToken);
+
+            if (existingDoc.Exists)
+            {
+                var existing = existingDoc.ConvertTo<FirestoreBonusPrediction>();
+                firestoreBonusPrediction.CreatedAt = existing.CreatedAt;
+                _logger.LogDebug("Updating existing bonus prediction for question {QuestionId}: {QuestionText}", 
+                    bonusPrediction.QuestionId, bonusQuestion.Text);
+            }
+            else
+            {
+                firestoreBonusPrediction.CreatedAt = now;
+                _logger.LogDebug("Creating new bonus prediction for question {QuestionId}: {QuestionText}", 
+                    bonusPrediction.QuestionId, bonusQuestion.Text);
+            }
+
+            await _firestoreDb.Collection("bonusPredictions")
+                .Document(documentId)
+                .SetAsync(firestoreBonusPrediction, cancellationToken: cancellationToken);
+
+            _logger.LogDebug("Saved bonus prediction for question '{QuestionText}' with selections: {SelectedOptions}", 
+                bonusQuestion.Text, string.Join(", ", selectedOptionTexts));
+        }
+        catch (Exception ex)
+        {
+            _logger.LogError(ex, "Failed to save bonus prediction for question {QuestionId}: {QuestionText}", 
+                bonusPrediction.QuestionId, bonusQuestion.Text);
+            throw;
+        }
+    }
+
+    public async Task<BonusPrediction?> GetBonusPredictionAsync(string questionId, CancellationToken cancellationToken = default)
+    {
+        try
+        {
+            var document = await _firestoreDb.Collection("bonusPredictions")
+                .Document(questionId)
+                .GetSnapshotAsync(cancellationToken);
+
+            if (!document.Exists)
+            {
+                return null;
+            }
+
+            var firestoreBonusPrediction = document.ConvertTo<FirestoreBonusPrediction>();
+            return new BonusPrediction(firestoreBonusPrediction.QuestionId, firestoreBonusPrediction.SelectedOptionIds.ToList());
+        }
+        catch (Exception ex)
+        {
+            _logger.LogError(ex, "Failed to get bonus prediction for question {QuestionId}", questionId);
+            throw;
+        }
+    }
+
+    public async Task<IReadOnlyList<BonusPrediction>> GetAllBonusPredictionsAsync(CancellationToken cancellationToken = default)
+    {
+        try
+        {
+            var query = _firestoreDb.Collection("bonusPredictions")
+                .WhereEqualTo("competition", Competition)
+                .OrderBy("createdAt");
+
+            var snapshot = await query.GetSnapshotAsync(cancellationToken);
+            
+            var bonusPredictions = new List<BonusPrediction>();
+            foreach (var document in snapshot.Documents)
+            {
+                var firestoreBonusPrediction = document.ConvertTo<FirestoreBonusPrediction>();
+                bonusPredictions.Add(new BonusPrediction(
+                    firestoreBonusPrediction.QuestionId, 
+                    firestoreBonusPrediction.SelectedOptionIds.ToList()));
+            }
+
+            return bonusPredictions.AsReadOnly();
+        }
+        catch (Exception ex)
+        {
+            _logger.LogError(ex, "Failed to get all bonus predictions");
+            throw;
+        }
+    }
+
+    public async Task<bool> HasBonusPredictionAsync(string questionId, CancellationToken cancellationToken = default)
+    {
+        try
+        {
+            var document = await _firestoreDb.Collection("bonusPredictions")
+                .Document(questionId)
+                .GetSnapshotAsync(cancellationToken);
+
+            return document.Exists;
+        }
+        catch (Exception ex)
+        {
+            _logger.LogError(ex, "Failed to check if bonus prediction exists for question {QuestionId}", questionId);
+            throw;
+        }
+    }
+
     /// <summary>
     /// Stores a match in the matches collection for matchday management.
     /// This is typically called when importing match schedules.

@@ -114,3 +114,58 @@ public class FirestoreMatch
     [FirestoreProperty("competition")]
     public string Competition { get; set; } = "bundesliga-2025-26";
 }
+
+/// <summary>
+/// Firestore document model for storing bonus predictions.
+/// </summary>
+[FirestoreData]
+public class FirestoreBonusPrediction
+{
+    /// <summary>
+    /// Document ID - the bonus question ID.
+    /// </summary>
+    [FirestoreDocumentId]
+    public string? Id { get; set; }
+
+    /// <summary>
+    /// The bonus question ID.
+    /// </summary>
+    [FirestoreProperty("questionId")]
+    public string QuestionId { get; set; } = string.Empty;
+
+    /// <summary>
+    /// The bonus question text (for observability).
+    /// </summary>
+    [FirestoreProperty("questionText")]
+    public string QuestionText { get; set; } = string.Empty;
+
+    /// <summary>
+    /// Selected option IDs for the bonus question.
+    /// </summary>
+    [FirestoreProperty("selectedOptionIds")]
+    public string[] SelectedOptionIds { get; set; } = [];
+
+    /// <summary>
+    /// Selected option texts (for observability).
+    /// </summary>
+    [FirestoreProperty("selectedOptionTexts")]
+    public string[] SelectedOptionTexts { get; set; } = [];
+
+    /// <summary>
+    /// When the bonus prediction was created (UTC timestamp).
+    /// </summary>
+    [FirestoreProperty("createdAt")]
+    public Timestamp CreatedAt { get; set; }
+
+    /// <summary>
+    /// When the bonus prediction was last updated (UTC timestamp).
+    /// </summary>
+    [FirestoreProperty("updatedAt")]
+    public Timestamp UpdatedAt { get; set; }
+
+    /// <summary>
+    /// Competition/season identifier (e.g., "bundesliga-2025-26").
+    /// </summary>
+    [FirestoreProperty("competition")]
+    public string Competition { get; set; } = "bundesliga-2025-26";
+}

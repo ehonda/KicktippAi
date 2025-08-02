@@ -65,6 +65,38 @@ public interface IPredictionRepository
     /// <param name="cancellationToken">Cancellation token.</param>
     /// <returns>True if a prediction exists, otherwise false.</returns>
     Task<bool> HasPredictionAsync(Match match, CancellationToken cancellationToken = default);
+
+    /// <summary>
+    /// Saves a bonus prediction for a specific question.
+    /// </summary>
+    /// <param name="bonusQuestion">The original bonus question (for text observability).</param>
+    /// <param name="bonusPrediction">The bonus prediction to save.</param>
+    /// <param name="cancellationToken">Cancellation token.</param>
+    /// <returns>A task representing the asynchronous operation.</returns>
+    Task SaveBonusPredictionAsync(BonusQuestion bonusQuestion, BonusPrediction bonusPrediction, CancellationToken cancellationToken = default);
+
+    /// <summary>
+    /// Retrieves a bonus prediction for a specific question.
+    /// </summary>
+    /// <param name="questionId">The ID of the bonus question.</param>
+    /// <param name="cancellationToken">Cancellation token.</param>
+    /// <returns>The bonus prediction if found, otherwise null.</returns>
+    Task<BonusPrediction?> GetBonusPredictionAsync(string questionId, CancellationToken cancellationToken = default);
+
+    /// <summary>
+    /// Retrieves all bonus predictions made so far.
+    /// </summary>
+    /// <param name="cancellationToken">Cancellation token.</param>
+    /// <returns>A collection of all bonus predictions.</returns>
+    Task<IReadOnlyList<BonusPrediction>> GetAllBonusPredictionsAsync(CancellationToken cancellationToken = default);
+
+    /// <summary>
+    /// Checks if a bonus prediction exists for a specific question.
+    /// </summary>
+    /// <param name="questionId">The ID of the bonus question.</param>
+    /// <param name="cancellationToken">Cancellation token.</param>
+    /// <returns>True if a bonus prediction exists, otherwise false.</returns>
+    Task<bool> HasBonusPredictionAsync(string questionId, CancellationToken cancellationToken = default);
 }
 
 /// <summary>
