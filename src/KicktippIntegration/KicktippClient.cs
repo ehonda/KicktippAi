@@ -1172,6 +1172,249 @@ public class KicktippClient : IKicktippClient, IDisposable
         }
     }
 
+    /// <inheritdoc />
+    public async Task<List<BonusQuestion>> GetOpenBonusQuestionsAsync(string community)
+    {
+        try
+        {
+            var url = $"{community}/tippabgabe";
+            var response = await _httpClient.GetAsync(url);
+            
+            if (!response.IsSuccessStatusCode)
+            {
+                _logger.LogError("Failed to fetch tippabgabe page for bonus questions. Status: {StatusCode}", response.StatusCode);
+                return new List<BonusQuestion>();
+            }
+
+            var content = await response.Content.ReadAsStringAsync();
+            var document = await _browsingContext.OpenAsync(req => req.Content(content));
+
+            var bonusQuestions = new List<BonusQuestion>();
+            
+            // Parse bonus questions from the tippabgabeFragen table
+            var bonusTable = document.QuerySelector("#tippabgabeFragen tbody");
+            if (bonusTable == null)
+            {
+                _logger.LogDebug("No bonus questions table found - this is normal if no bonus questions are available");
+                return bonusQuestions;
+            }
+            
+            var questionRows = bonusTable.QuerySelectorAll("tr");
+            _logger.LogDebug("Found {QuestionRowCount} potential bonus question rows", questionRows.Length);
+            
+            foreach (var row in questionRows)
+            {
+                var cells = row.QuerySelectorAll("td");
+                if (cells.Length < 3) continue;
+                
+                // Extract deadline and question text
+                var deadlineText = cells[0]?.TextContent?.Trim();
+                var questionText = cells[1]?.TextContent?.Trim();
+                
+                if (string.IsNullOrEmpty(questionText)) continue;
+                
+                // Parse deadline
+                var deadline = ParseMatchDateTime(deadlineText ?? "");
+                
+                // Extract options from select elements
+                var tipCell = cells[2];
+                var selectElements = tipCell?.QuerySelectorAll("select");
+                var options = new List<BonusQuestionOption>();
+                string? formFieldName = null;
+                
+                if (selectElements != null && selectElements.Length > 0)
+                {
+                    // Use the first select element to get the available options
+                    var firstSelect = selectElements[0] as IHtmlSelectElement;
+                    formFieldName = firstSelect?.Name;
+                    
+                    var optionElements = firstSelect?.QuerySelectorAll("option");
+                    if (optionElements != null)
+                    {
+                        foreach (var option in optionElements.Cast<IHtmlOptionElement>())
+                        {
+                            if (option.Value != "-1" && !string.IsNullOrEmpty(option.Text))
+                            {
+                                options.Add(new BonusQuestionOption(option.Value, option.Text.Trim()));
+                            }
+                        }
+                    }
+                }
+                
+                if (options.Any())
+                {
+                    // Generate a unique ID for the question based on form field name or text
+                    var questionId = formFieldName ?? questionText.GetHashCode().ToString();
+                    
+                    bonusQuestions.Add(new BonusQuestion(
+                        Id: questionId,
+                        Text: questionText,
+                        Deadline: deadline,
+                        Options: options,
+                        FormFieldName: formFieldName
+                    ));
+                }
+            }
+
+            _logger.LogInformation("Successfully parsed {QuestionCount} bonus questions", bonusQuestions.Count);
+            return bonusQuestions;
+        }
+        catch (Exception ex)
+        {
+            _logger.LogError(ex, "Exception in GetOpenBonusQuestionsAsync");
+            return new List<BonusQuestion>();
+        }
+    }
+
+    /// <inheritdoc />
+    public async Task<bool> PlaceBonusPredictionsAsync(string community, Dictionary<string, BonusPrediction> predictions, bool overridePredictions = false)
+    {
+        try
+        {
+            if (!predictions.Any())
+            {
+                _logger.LogInformation("No bonus predictions to place");
+                return true;
+            }
+
+            var url = $"{community}/tippabgabe";
+            var response = await _httpClient.GetAsync(url);
+            
+            if (!response.IsSuccessStatusCode)
+            {
+                _logger.LogError("Failed to access betting page for bonus predictions. Status: {StatusCode}", response.StatusCode);
+                return false;
+            }
+            
+            var pageContent = await response.Content.ReadAsStringAsync();
+            var document = await _browsingContext.OpenAsync(req => req.Content(pageContent));
+            
+            // Find the bet form
+            var betForm = document.QuerySelector("form") as IHtmlFormElement;
+            if (betForm == null)
+            {
+                _logger.LogWarning("Could not find betting form on the page");
+                return false;
+            }
+            
+            var formData = new List<KeyValuePair<string, string>>();
+            
+            // Copy hidden inputs from the original form
+            var hiddenInputs = betForm.QuerySelectorAll("input[type='hidden']");
+            foreach (var hiddenInput in hiddenInputs.Cast<IHtmlInputElement>())
+            {
+                if (!string.IsNullOrEmpty(hiddenInput.Name) && hiddenInput.Value != null)
+                {
+                    formData.Add(new KeyValuePair<string, string>(hiddenInput.Name, hiddenInput.Value));
+                }
+            }
+            
+            // Copy existing match predictions to avoid overwriting them
+            var allInputs = betForm.QuerySelectorAll("input[type=text], input[type=number]").OfType<IHtmlInputElement>();
+            foreach (var input in allInputs)
+            {
+                if (!string.IsNullOrEmpty(input.Name) && !string.IsNullOrEmpty(input.Value))
+                {
+                    formData.Add(new KeyValuePair<string, string>(input.Name, input.Value));
+                }
+            }
+            
+            // Add bonus predictions
+            var bonusTable = document.QuerySelector("#tippabgabeFragen tbody");
+            if (bonusTable != null)
+            {
+                var questionRows = bonusTable.QuerySelectorAll("tr");
+                
+                foreach (var row in questionRows)
+                {
+                    var cells = row.QuerySelectorAll("td");
+                    if (cells.Length < 3) continue;
+                    
+                    var tipCell = cells[2];
+                    var selectElements = tipCell?.QuerySelectorAll("select");
+                    
+                    if (selectElements != null)
+                    {
+                        foreach (var selectElement in selectElements.Cast<IHtmlSelectElement>())
+                        {
+                            var fieldName = selectElement.Name;
+                            if (string.IsNullOrEmpty(fieldName)) continue;
+                            
+                            // Check if we have a prediction for this question based on form field patterns
+                            var matchingPrediction = predictions.FirstOrDefault(p => 
+                                fieldName.Contains(p.Key) || p.Value.QuestionId == fieldName);
+                            
+                            if (matchingPrediction.Value != null && matchingPrediction.Value.SelectedOptionIds.Any())
+                            {
+                                // For select elements, we typically only use the first selected option
+                                var selectedOptionId = matchingPrediction.Value.SelectedOptionIds.First();
+                                
+                                // Check if this option exists in the select element
+                                var optionExists = selectElement.QuerySelectorAll("option")
+                                    .Cast<IHtmlOptionElement>()
+                                    .Any(opt => opt.Value == selectedOptionId);
+                                
+                                if (optionExists)
+                                {
+                                    formData.Add(new KeyValuePair<string, string>(fieldName, selectedOptionId));
+                                    _logger.LogDebug("Added bonus prediction for field {FieldName}: {OptionId}", fieldName, selectedOptionId);
+                                }
+                                else
+                                {
+                                    _logger.LogWarning("Option {OptionId} not found for field {FieldName}", selectedOptionId, fieldName);
+                                }
+                            }
+                        }
+                    }
+                }
+            }
+            
+            // Find submit button
+            var submitButton = betForm.QuerySelector("input[type=submit], button[type=submit]") as IHtmlElement;
+            if (submitButton != null)
+            {
+                if (submitButton is IHtmlInputElement inputSubmit && !string.IsNullOrEmpty(inputSubmit.Name))
+                {
+                    formData.Add(new KeyValuePair<string, string>(inputSubmit.Name, inputSubmit.Value ?? "Submit"));
+                }
+                else if (submitButton is IHtmlButtonElement buttonSubmit && !string.IsNullOrEmpty(buttonSubmit.Name))
+                {
+                    formData.Add(new KeyValuePair<string, string>(buttonSubmit.Name, buttonSubmit.Value ?? "Submit"));
+                }
+            }
+            else
+            {
+                // Fallback to default submit button name
+                formData.Add(new KeyValuePair<string, string>("submitbutton", "Submit"));
+            }
+            
+            // Submit form
+            var formActionUrl = string.IsNullOrEmpty(betForm.Action) ? url : 
+                (betForm.Action.StartsWith("http") ? betForm.Action : 
+                 betForm.Action.StartsWith("/") ? betForm.Action : 
+                 $"{community}/{betForm.Action}");
+            
+            var formContent = new FormUrlEncodedContent(formData);
+            var submitResponse = await _httpClient.PostAsync(formActionUrl, formContent);
+            
+            if (submitResponse.IsSuccessStatusCode)
+            {
+                _logger.LogInformation("✓ Successfully submitted {PredictionCount} bonus predictions!", predictions.Count);
+                return true;
+            }
+            else
+            {
+                _logger.LogError("✗ Failed to submit bonus predictions. Status: {StatusCode}", submitResponse.StatusCode);
+                return false;
+            }
+        }
+        catch (Exception ex)
+        {
+            _logger.LogError(ex, "Exception during bonus prediction placement");
+            return false;
+        }
+    }
+
     public void Dispose()
     {
         _httpClient?.Dispose();

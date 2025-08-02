@@ -54,6 +54,22 @@ public interface IKicktippClient
     /// <param name="community">The community name</param>
     /// <returns>Dictionary of matches and their placed predictions</returns>
     Task<Dictionary<Match, BetPrediction?>> GetPlacedPredictionsAsync(string community);
+
+    /// <summary>
+    /// Get open bonus questions for a specific community
+    /// </summary>
+    /// <param name="community">The community name</param>
+    /// <returns>List of bonus questions with open predictions</returns>
+    Task<List<BonusQuestion>> GetOpenBonusQuestionsAsync(string community);
+
+    /// <summary>
+    /// Place bonus predictions for a community
+    /// </summary>
+    /// <param name="community">The community name</param>
+    /// <param name="predictions">Dictionary of bonus question IDs and their corresponding predictions</param>
+    /// <param name="overridePredictions">If true, overrides existing predictions for the questions</param>
+    /// <returns>True if all predictions were placed successfully</returns>
+    Task<bool> PlaceBonusPredictionsAsync(string community, Dictionary<string, BonusPrediction> predictions, bool overridePredictions = false);
 }
 
 /// <summary>
