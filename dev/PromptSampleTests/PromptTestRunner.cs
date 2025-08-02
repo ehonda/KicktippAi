@@ -15,7 +15,6 @@ public class PromptTestRunner
 {
     private readonly ILogger<PromptTestRunner> _logger;
     private string _apiKey = string.Empty;
-    private KicktippContextProvider _kicktippContextProvider = null!;
 
     public PromptTestRunner(ILogger<PromptTestRunner> logger)
     {

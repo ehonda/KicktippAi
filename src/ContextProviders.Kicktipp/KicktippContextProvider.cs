@@ -1,4 +1,5 @@
 using System.Globalization;
+using System.Runtime.CompilerServices;
 using System.Text;
 using Core;
 using CsvHelper;
@@ -33,7 +34,7 @@ public class KicktippContextProvider : IContextProvider<DocumentContext>
         return teamHistory;
     }
     
-    public async IAsyncEnumerable<DocumentContext> GetContextAsync(CancellationToken cancellationToken = default)
+    public async IAsyncEnumerable<DocumentContext> GetContextAsync([EnumeratorCancellation] CancellationToken cancellationToken = default)
     {
         // Provide current Bundesliga standings
         yield return await CurrentBundesligaStandings();
@@ -48,7 +49,7 @@ public class KicktippContextProvider : IContextProvider<DocumentContext>
     /// <param name="homeTeam">The home team name.</param>
     /// <param name="awayTeam">The away team name.</param>
     /// <returns>An enumerable of context documents for both teams.</returns>
-    public async IAsyncEnumerable<DocumentContext> GetMatchContextAsync(string homeTeam, string awayTeam, CancellationToken cancellationToken = default)
+    public async IAsyncEnumerable<DocumentContext> GetMatchContextAsync(string homeTeam, string awayTeam, [EnumeratorCancellation] CancellationToken cancellationToken = default)
     {
         // Provide current Bundesliga standings
         yield return await CurrentBundesligaStandings();
@@ -99,7 +100,7 @@ public class KicktippContextProvider : IContextProvider<DocumentContext>
     /// Gets the community scoring rules as context.
     /// </summary>
     /// <returns>A document context containing the scoring rules.</returns>
-    public async Task<DocumentContext> CommunityScoringRules()
+    public Task<DocumentContext> CommunityScoringRules()
     {
         // Hard-coded content from instructions.md lines 55-97
         var content = @"# Prediction Community Rules
@@ -144,9 +145,9 @@ Prediction: 1:1
 Outcome:    1:1
 ```";
         
-        return new DocumentContext(
+        return Task.FromResult(new DocumentContext(
             Name: "community-rules-scoring-only.md",
-            Content: content);
+            Content: content));
     }
     
     /// <summary>

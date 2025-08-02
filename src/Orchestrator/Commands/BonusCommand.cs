@@ -7,7 +7,7 @@ namespace Orchestrator.Commands;
 
 public class BonusCommand : AsyncCommand<BaseSettings>
 {
-    public override async Task<int> ExecuteAsync(CommandContext context, BaseSettings settings)
+    public override Task<int> ExecuteAsync(CommandContext context, BaseSettings settings)
     {
         var logger = LoggingConfiguration.CreateLogger<BonusCommand>();
         
@@ -31,13 +31,13 @@ public class BonusCommand : AsyncCommand<BaseSettings>
             // TODO: Implement bonus prediction logic
             AnsiConsole.MarkupLine("[yellow]Bonus prediction functionality will be implemented here[/]");
             
-            return 0;
+            return Task.FromResult(0);
         }
         catch (Exception ex)
         {
             logger.LogError(ex, "Error executing bonus command");
             AnsiConsole.MarkupLine($"[red]Error:[/] {ex.Message}");
-            return 1;
+            return Task.FromResult(1);
         }
     }
     
