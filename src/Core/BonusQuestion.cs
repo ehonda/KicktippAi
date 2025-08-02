@@ -10,6 +10,7 @@ public record BonusQuestion(
     string Text,
     ZonedDateTime Deadline,
     List<BonusQuestionOption> Options,
+    int MaxSelections,
     string? FormFieldName = null
 );
 

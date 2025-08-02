@@ -18,4 +18,16 @@ public interface IPredictionService
         Match match, 
         IEnumerable<DocumentContext> contextDocuments, 
         CancellationToken cancellationToken = default);
+
+    /// <summary>
+    /// Predicts the answer to a bonus question based on the question and context documents
+    /// </summary>
+    /// <param name="bonusQuestion">The bonus question to predict</param>
+    /// <param name="contextDocuments">Additional context documents to inform the prediction</param>
+    /// <param name="cancellationToken">Cancellation token</param>
+    /// <returns>A prediction for the bonus question, or null if prediction fails</returns>
+    Task<BonusPrediction?> PredictBonusQuestionAsync(
+        BonusQuestion bonusQuestion,
+        IEnumerable<DocumentContext> contextDocuments,
+        CancellationToken cancellationToken = default);
 }

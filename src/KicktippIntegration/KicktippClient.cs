@@ -1221,9 +1221,13 @@ public class KicktippClient : IKicktippClient, IDisposable
                 var selectElements = tipCell?.QuerySelectorAll("select");
                 var options = new List<BonusQuestionOption>();
                 string? formFieldName = null;
+                int maxSelections = 1; // Default to single selection
                 
                 if (selectElements != null && selectElements.Length > 0)
                 {
+                    // The number of select elements indicates how many selections are allowed
+                    maxSelections = selectElements.Length;
+                    
                     // Use the first select element to get the available options
                     var firstSelect = selectElements[0] as IHtmlSelectElement;
                     formFieldName = firstSelect?.Name;
@@ -1251,6 +1255,7 @@ public class KicktippClient : IKicktippClient, IDisposable
                         Text: questionText,
                         Deadline: deadline,
                         Options: options,
+                        MaxSelections: maxSelections,
                         FormFieldName: formFieldName
                     ));
                 }
