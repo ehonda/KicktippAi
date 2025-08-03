@@ -1272,6 +1272,89 @@ public class KicktippClient : IKicktippClient, IDisposable
     }
 
     /// <inheritdoc />
+    public async Task<Dictionary<string, BonusPrediction?>> GetPlacedBonusPredictionsAsync(string community)
+    {
+        try
+        {
+            var url = $"{community}/tippabgabe";
+            var response = await _httpClient.GetAsync(url);
+            
+            if (!response.IsSuccessStatusCode)
+            {
+                _logger.LogError("Failed to fetch tippabgabe page for placed bonus predictions. Status: {StatusCode}", response.StatusCode);
+                return new Dictionary<string, BonusPrediction?>();
+            }
+
+            var content = await response.Content.ReadAsStringAsync();
+            var document = await _browsingContext.OpenAsync(req => req.Content(content));
+
+            var placedPredictions = new Dictionary<string, BonusPrediction?>();
+            
+            // Parse bonus questions from the tippabgabeFragen table
+            var bonusTable = document.QuerySelector("#tippabgabeFragen tbody");
+            if (bonusTable == null)
+            {
+                _logger.LogDebug("No bonus questions table found - this is normal if no bonus questions are available");
+                return placedPredictions;
+            }
+            
+            var questionRows = bonusTable.QuerySelectorAll("tr");
+            _logger.LogDebug("Found {QuestionRowCount} potential bonus question rows for placed predictions", questionRows.Length);
+            
+            foreach (var row in questionRows)
+            {
+                var cells = row.QuerySelectorAll("td");
+                if (cells.Length < 3) continue;
+                
+                // Extract question text
+                var questionText = cells[1]?.TextContent?.Trim();
+                if (string.IsNullOrEmpty(questionText)) continue;
+                
+                // Extract current selections from select elements
+                var tipCell = cells[2];
+                var selectElements = tipCell?.QuerySelectorAll("select");
+                
+                if (selectElements != null && selectElements.Length > 0)
+                {
+                    var selectedOptionIds = new List<string>();
+                    
+                    // Check each select element for its current selection
+                    foreach (var selectElement in selectElements.Cast<IHtmlSelectElement>())
+                    {
+                        var selectedOption = selectElement.SelectedOptions.FirstOrDefault();
+                        if (selectedOption != null && selectedOption.Value != "-1" && !string.IsNullOrEmpty(selectedOption.Value))
+                        {
+                            selectedOptionIds.Add(selectedOption.Value);
+                        }
+                    }
+                    
+                    // Generate the same question ID as in GetOpenBonusQuestionsAsync
+                    var formFieldName = (selectElements[0] as IHtmlSelectElement)?.Name;
+                    var questionId = formFieldName ?? questionText.GetHashCode().ToString();
+                    
+                    // Only create a prediction if there are actual selections
+                    if (selectedOptionIds.Any())
+                    {
+                        placedPredictions[questionId] = new BonusPrediction(questionId, selectedOptionIds);
+                    }
+                    else
+                    {
+                        placedPredictions[questionId] = null; // No prediction placed
+                    }
+                }
+            }
+
+            _logger.LogInformation("Successfully retrieved placed predictions for {QuestionCount} bonus questions", placedPredictions.Count);
+            return placedPredictions;
+        }
+        catch (Exception ex)
+        {
+            _logger.LogError(ex, "Exception in GetPlacedBonusPredictionsAsync");
+            return new Dictionary<string, BonusPrediction?>();
+        }
+    }
+
+    /// <inheritdoc />
     public async Task<bool> PlaceBonusPredictionsAsync(string community, Dictionary<string, BonusPrediction> predictions, bool overridePredictions = false)
     {
         try

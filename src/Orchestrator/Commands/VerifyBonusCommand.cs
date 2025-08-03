@@ -83,6 +83,11 @@ public class VerifyBonusCommand : AsyncCommand<VerifySettings>
         
         AnsiConsole.MarkupLine($"[green]Found {bonusQuestions.Count} bonus questions on Kicktipp[/]");
         
+        AnsiConsole.MarkupLine("[blue]Getting placed bonus predictions from Kicktipp...[/]");
+        
+        // Step 1.5: Get currently placed predictions from Kicktipp
+        var placedPredictions = await kicktippClient.GetPlacedBonusPredictionsAsync(community);
+        
         AnsiConsole.MarkupLine("[blue]Retrieving predictions from database...[/]");
         
         var hasDiscrepancies = false;
@@ -104,6 +109,7 @@ public class VerifyBonusCommand : AsyncCommand<VerifySettings>
                 }
                 
                 var databasePrediction = await predictionRepository.GetBonusPredictionAsync(question.Id);
+                var kicktippPrediction = placedPredictions.GetValueOrDefault(question.Id);
                 
                 if (databasePrediction != null)
                 {
@@ -112,7 +118,10 @@ public class VerifyBonusCommand : AsyncCommand<VerifySettings>
                     // Validate the prediction against the question
                     var isValidPrediction = ValidateBonusPrediction(question, databasePrediction);
                     
-                    if (isValidPrediction)
+                    // Compare database prediction with Kicktipp placed prediction
+                    var predictionsMatch = CompareBonusPredictions(databasePrediction, kicktippPrediction);
+                    
+                    if (isValidPrediction && predictionsMatch)
                     {
                         validPredictions++;
                         
@@ -137,14 +146,34 @@ public class VerifyBonusCommand : AsyncCommand<VerifySettings>
                         
                         if (settings.Agent)
                         {
-                            AnsiConsole.MarkupLine($"[red]✗ {Markup.Escape(question.Text)}[/] [dim](invalid prediction)[/]");
+                            var status = !isValidPrediction ? "invalid prediction" : "mismatch with Kicktipp";
+                            AnsiConsole.MarkupLine($"[red]✗ {Markup.Escape(question.Text)}[/] [dim]({status})[/]");
                         }
                         else
                         {
-                            var optionTexts = question.Options
-                                .Where(o => databasePrediction.SelectedOptionIds.Contains(o.Id))
-                                .Select(o => o.Text);
-                            AnsiConsole.MarkupLine($"[red]✗ {question.Text}:[/] {string.Join(", ", optionTexts)} [dim](invalid)[/]");
+                            if (!isValidPrediction)
+                            {
+                                var optionTexts = question.Options
+                                    .Where(o => databasePrediction.SelectedOptionIds.Contains(o.Id))
+                                    .Select(o => o.Text);
+                                AnsiConsole.MarkupLine($"[red]✗ {Markup.Escape(question.Text)}:[/] {string.Join(", ", optionTexts)} [dim](invalid prediction)[/]");
+                            }
+                            else
+                            {
+                                // Show mismatch details
+                                var databaseTexts = question.Options
+                                    .Where(o => databasePrediction.SelectedOptionIds.Contains(o.Id))
+                                    .Select(o => o.Text);
+                                var kicktippTexts = kicktippPrediction != null 
+                                    ? question.Options
+                                        .Where(o => kicktippPrediction.SelectedOptionIds.Contains(o.Id))
+                                        .Select(o => o.Text)
+                                    : new List<string>();
+                                
+                                AnsiConsole.MarkupLine($"[red]✗ {Markup.Escape(question.Text)}:[/]");
+                                AnsiConsole.MarkupLine($"  [yellow]Database:[/] {string.Join(", ", databaseTexts)}");
+                                AnsiConsole.MarkupLine($"  [yellow]Kicktipp:[/] {(kicktippTexts.Any() ? string.Join(", ", kicktippTexts) : "no prediction")}");
+                            }
                         }
                     }
                 }
@@ -235,6 +264,27 @@ public class VerifyBonusCommand : AsyncCommand<VerifySettings>
         }
         
         return true;
+    }
+    
+    private static bool CompareBonusPredictions(BonusPrediction? databasePrediction, BonusPrediction? kicktippPrediction)
+    {
+        // Both null - match
+        if (databasePrediction == null && kicktippPrediction == null)
+        {
+            return true;
+        }
+        
+        // One null, other not - mismatch
+        if (databasePrediction == null || kicktippPrediction == null)
+        {
+            return false;
+        }
+        
+        // Both have values - compare selected option IDs
+        var databaseOptions = databasePrediction.SelectedOptionIds.OrderBy(x => x).ToList();
+        var kicktippOptions = kicktippPrediction.SelectedOptionIds.OrderBy(x => x).ToList();
+        
+        return databaseOptions.SequenceEqual(kicktippOptions);
     }
     
     private static void ConfigureServices(IServiceCollection services, VerifySettings settings, ILogger logger)

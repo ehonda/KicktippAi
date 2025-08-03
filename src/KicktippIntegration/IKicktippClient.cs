@@ -70,6 +70,13 @@ public interface IKicktippClient
     /// <param name="overridePredictions">If true, overrides existing predictions for the questions</param>
     /// <returns>True if all predictions were placed successfully</returns>
     Task<bool> PlaceBonusPredictionsAsync(string community, Dictionary<string, BonusPrediction> predictions, bool overridePredictions = false);
+
+    /// <summary>
+    /// Get placed bonus predictions for a community
+    /// </summary>
+    /// <param name="community">The community name</param>
+    /// <returns>Dictionary of bonus question IDs and their currently placed predictions, or null if no prediction is placed</returns>
+    Task<Dictionary<string, BonusPrediction?>> GetPlacedBonusPredictionsAsync(string community);
 }
 
 /// <summary>
