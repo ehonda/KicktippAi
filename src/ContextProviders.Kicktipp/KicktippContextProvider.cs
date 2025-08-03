@@ -63,6 +63,22 @@ public class KicktippContextProvider : IContextProvider<DocumentContext>
     }
     
     /// <summary>
+    /// Gets context for bonus questions.
+    /// </summary>
+    /// <returns>An enumerable of context documents relevant for bonus questions.</returns>
+    public async IAsyncEnumerable<DocumentContext> GetBonusQuestionContextAsync([EnumeratorCancellation] CancellationToken cancellationToken = default)
+    {
+        // Provide current Bundesliga standings
+        yield return await CurrentBundesligaStandings();
+        
+        // Provide community scoring rules
+        yield return await CommunityScoringRules();
+        
+        // For bonus questions, we could add historical season data, transfer information, etc.
+        // For now, we'll use the standings as the primary context
+    }
+    
+    /// <summary>
     /// Gets the current Bundesliga standings as context.
     /// </summary>
     /// <returns>A document context containing the current standings.</returns>

@@ -1340,19 +1340,25 @@ public class KicktippClient : IKicktippClient, IDisposable
                     
                     if (selectElements != null)
                     {
-                        foreach (var selectElement in selectElements.Cast<IHtmlSelectElement>())
+                        var selectArray = selectElements.Cast<IHtmlSelectElement>().ToArray();
+                        
+                        // Check if we have a prediction for this question based on form field patterns
+                        var matchingPrediction = predictions.FirstOrDefault(p => 
+                            selectArray.Any(sel => sel.Name?.Contains(p.Key) == true) || 
+                            selectArray.Any(sel => p.Value.QuestionId == sel.Name));
+                        
+                        if (matchingPrediction.Value != null && matchingPrediction.Value.SelectedOptionIds.Any())
                         {
-                            var fieldName = selectElement.Name;
-                            if (string.IsNullOrEmpty(fieldName)) continue;
+                            var selectedOptions = matchingPrediction.Value.SelectedOptionIds;
                             
-                            // Check if we have a prediction for this question based on form field patterns
-                            var matchingPrediction = predictions.FirstOrDefault(p => 
-                                fieldName.Contains(p.Key) || p.Value.QuestionId == fieldName);
-                            
-                            if (matchingPrediction.Value != null && matchingPrediction.Value.SelectedOptionIds.Any())
+                            // For multi-selection questions, we need to fill multiple select elements
+                            for (int i = 0; i < Math.Min(selectArray.Length, selectedOptions.Count); i++)
                             {
-                                // For select elements, we typically only use the first selected option
-                                var selectedOptionId = matchingPrediction.Value.SelectedOptionIds.First();
+                                var selectElement = selectArray[i];
+                                var fieldName = selectElement.Name;
+                                if (string.IsNullOrEmpty(fieldName)) continue;
+                                
+                                var selectedOptionId = selectedOptions[i];
                                 
                                 // Check if this option exists in the select element
                                 var optionExists = selectElement.QuerySelectorAll("option")
@@ -1362,7 +1368,8 @@ public class KicktippClient : IKicktippClient, IDisposable
                                 if (optionExists)
                                 {
                                     formData.Add(new KeyValuePair<string, string>(fieldName, selectedOptionId));
-                                    _logger.LogDebug("Added bonus prediction for field {FieldName}: {OptionId}", fieldName, selectedOptionId);
+                                    _logger.LogDebug("Added bonus prediction for field {FieldName}: {OptionId} (selection {Index})", 
+                                        fieldName, selectedOptionId, i + 1);
                                 }
                                 else
                                 {

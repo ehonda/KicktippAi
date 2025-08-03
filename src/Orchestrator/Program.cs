@@ -25,6 +25,9 @@ public class Program
                 
             config.AddCommand<VerifyMatchdayCommand>("verify")
                 .WithDescription("Verify that database predictions have been successfully posted to Kicktipp");
+                
+            config.AddCommand<VerifyBonusCommand>("verify-bonus")
+                .WithDescription("Verify that database bonus predictions are valid and complete");
         });
 
         return await app.RunAsync(args);
