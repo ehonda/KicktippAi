@@ -13,14 +13,26 @@ public class FirebasePredictionRepository : IPredictionRepository
 {
     private readonly FirestoreDb _firestoreDb;
     private readonly ILogger<FirebasePredictionRepository> _logger;
-    private const string PredictionsCollection = "predictions";
-    private const string MatchesCollection = "matches";
-    private const string Competition = "bundesliga-2025-26";
+    private readonly string _predictionsCollection;
+    private readonly string _matchesCollection;
+    private readonly string _bonusPredictionsCollection;
+    private readonly string _competition;
 
-    public FirebasePredictionRepository(FirestoreDb firestoreDb, ILogger<FirebasePredictionRepository> logger)
+    public FirebasePredictionRepository(FirestoreDb firestoreDb, ILogger<FirebasePredictionRepository> logger, string community)
     {
         _firestoreDb = firestoreDb ?? throw new ArgumentNullException(nameof(firestoreDb));
         _logger = logger ?? throw new ArgumentNullException(nameof(logger));
+        
+        if (string.IsNullOrWhiteSpace(community))
+            throw new ArgumentException("Community cannot be null or empty", nameof(community));
+            
+        // Make collection names community-specific
+        _predictionsCollection = $"predictions-{community}";
+        _matchesCollection = $"matches-{community}";
+        _bonusPredictionsCollection = $"bonusPredictions-{community}";
+        _competition = $"bundesliga-2025-26-{community}";
+        
+        _logger.LogInformation("Firebase repository initialized for community: {Community}", community);
     }
 
     public async Task SavePredictionAsync(Match match, Prediction prediction, CancellationToken cancellationToken = default)
@@ -40,11 +52,11 @@ public class FirebasePredictionRepository : IPredictionRepository
                 HomeGoals = prediction.HomeGoals,
                 AwayGoals = prediction.AwayGoals,
                 UpdatedAt = now,
-                Competition = Competition
+                Competition = _competition
             };
 
             // Check if prediction already exists to set created timestamp
-            var existingDoc = await _firestoreDb.Collection(PredictionsCollection)
+            var existingDoc = await _firestoreDb.Collection(_predictionsCollection)
                 .Document(documentId)
                 .GetSnapshotAsync(cancellationToken);
 
@@ -59,7 +71,7 @@ public class FirebasePredictionRepository : IPredictionRepository
                 firestorePrediction.CreatedAt = existing.CreatedAt;
             }
 
-            await _firestoreDb.Collection(PredictionsCollection)
+            await _firestoreDb.Collection(_predictionsCollection)
                 .Document(documentId)
                 .SetAsync(firestorePrediction, cancellationToken: cancellationToken);
 
@@ -84,11 +96,11 @@ public class FirebasePredictionRepository : IPredictionRepository
         try
         {
             // We need to find the document by querying, since we don't know the matchday
-            var query = _firestoreDb.Collection(PredictionsCollection)
+            var query = _firestoreDb.Collection(_predictionsCollection)
                 .WhereEqualTo("homeTeam", homeTeam)
                 .WhereEqualTo("awayTeam", awayTeam)
                 .WhereEqualTo("startsAt", ConvertToTimestamp(startsAt))
-                .WhereEqualTo("competition", Competition);
+                .WhereEqualTo("competition", _competition);
 
             var snapshot = await query.GetSnapshotAsync(cancellationToken);
             
@@ -112,8 +124,8 @@ public class FirebasePredictionRepository : IPredictionRepository
     {
         try
         {
-            var query = _firestoreDb.Collection(MatchesCollection)
-                .WhereEqualTo("competition", Competition)
+            var query = _firestoreDb.Collection(_matchesCollection)
+                .WhereEqualTo("competition", _competition)
                 .WhereEqualTo("matchday", matchDay)
                 .OrderBy("startsAt");
 
@@ -166,8 +178,8 @@ public class FirebasePredictionRepository : IPredictionRepository
     {
         try
         {
-            var query = _firestoreDb.Collection(PredictionsCollection)
-                .WhereEqualTo("competition", Competition)
+            var query = _firestoreDb.Collection(_predictionsCollection)
+                .WhereEqualTo("competition", _competition)
                 .OrderBy("matchday");
 
             var snapshot = await query.GetSnapshotAsync(cancellationToken);
@@ -193,7 +205,7 @@ public class FirebasePredictionRepository : IPredictionRepository
         try
         {
             var documentId = GenerateMatchId(match);
-            var doc = await _firestoreDb.Collection(PredictionsCollection)
+            var doc = await _firestoreDb.Collection(_predictionsCollection)
                 .Document(documentId)
                 .GetSnapshotAsync(cancellationToken);
 
@@ -228,11 +240,11 @@ public class FirebasePredictionRepository : IPredictionRepository
                 SelectedOptionIds = bonusPrediction.SelectedOptionIds.ToArray(),
                 SelectedOptionTexts = selectedOptionTexts,
                 UpdatedAt = now,
-                Competition = Competition
+                Competition = _competition
             };
 
             // Check if bonus prediction already exists to set created timestamp
-            var existingDoc = await _firestoreDb.Collection("bonusPredictions")
+            var existingDoc = await _firestoreDb.Collection(_bonusPredictionsCollection)
                 .Document(documentId)
                 .GetSnapshotAsync(cancellationToken);
 
@@ -250,7 +262,7 @@ public class FirebasePredictionRepository : IPredictionRepository
                     bonusPrediction.QuestionId, bonusQuestion.Text);
             }
 
-            await _firestoreDb.Collection("bonusPredictions")
+            await _firestoreDb.Collection(_bonusPredictionsCollection)
                 .Document(documentId)
                 .SetAsync(firestoreBonusPrediction, cancellationToken: cancellationToken);
 
@@ -269,7 +281,7 @@ public class FirebasePredictionRepository : IPredictionRepository
     {
         try
         {
-            var document = await _firestoreDb.Collection("bonusPredictions")
+            var document = await _firestoreDb.Collection(_bonusPredictionsCollection)
                 .Document(questionId)
                 .GetSnapshotAsync(cancellationToken);
 
@@ -292,8 +304,8 @@ public class FirebasePredictionRepository : IPredictionRepository
     {
         try
         {
-            var query = _firestoreDb.Collection("bonusPredictions")
-                .WhereEqualTo("competition", Competition)
+            var query = _firestoreDb.Collection(_bonusPredictionsCollection)
+                .WhereEqualTo("competition", _competition)
                 .OrderBy("createdAt");
 
             var snapshot = await query.GetSnapshotAsync(cancellationToken);
@@ -320,7 +332,7 @@ public class FirebasePredictionRepository : IPredictionRepository
     {
         try
         {
-            var document = await _firestoreDb.Collection("bonusPredictions")
+            var document = await _firestoreDb.Collection(_bonusPredictionsCollection)
                 .Document(questionId)
                 .GetSnapshotAsync(cancellationToken);
 
@@ -350,10 +362,10 @@ public class FirebasePredictionRepository : IPredictionRepository
                 AwayTeam = match.AwayTeam,
                 StartsAt = ConvertToTimestamp(match.StartsAt),
                 Matchday = match.Matchday,
-                Competition = Competition
+                Competition = _competition
             };
 
-            await _firestoreDb.Collection(MatchesCollection)
+            await _firestoreDb.Collection(_matchesCollection)
                 .Document(documentId)
                 .SetAsync(firestoreMatch, cancellationToken: cancellationToken);
 

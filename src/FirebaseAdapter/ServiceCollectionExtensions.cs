@@ -19,10 +19,12 @@ public static class ServiceCollectionExtensions
     /// </summary>
     /// <param name="services">The service collection to add services to.</param>
     /// <param name="configureOptions">Optional configuration delegate for Firebase options.</param>
+    /// <param name="community">The community identifier for collection naming.</param>
     /// <returns>The service collection for chaining.</returns>
     public static IServiceCollection AddFirebaseDatabase(
         this IServiceCollection services, 
-        Action<FirebaseOptions>? configureOptions = null)
+        Action<FirebaseOptions>? configureOptions = null,
+        string? community = null)
     {
         // Configure options
         if (configureOptions != null)
@@ -79,7 +81,25 @@ public static class ServiceCollectionExtensions
         });
 
         // Register the prediction repository
-        services.AddScoped<IPredictionRepository, FirebasePredictionRepository>();
+        if (!string.IsNullOrWhiteSpace(community))
+        {
+            services.AddScoped<IPredictionRepository>(serviceProvider =>
+            {
+                var firestoreDb = serviceProvider.GetRequiredService<FirestoreDb>();
+                var logger = serviceProvider.GetRequiredService<ILogger<FirebasePredictionRepository>>();
+                return new FirebasePredictionRepository(firestoreDb, logger, community);
+            });
+        }
+        else
+        {
+            // Fallback for backward compatibility - but this should not be used in production
+            services.AddScoped<IPredictionRepository>(serviceProvider =>
+            {
+                var firestoreDb = serviceProvider.GetRequiredService<FirestoreDb>();
+                var logger = serviceProvider.GetRequiredService<ILogger<FirebasePredictionRepository>>();
+                return new FirebasePredictionRepository(firestoreDb, logger, "default");
+            });
+        }
 
         return services;
     }
@@ -104,17 +124,19 @@ public static class ServiceCollectionExtensions
     /// <param name="services">The service collection to add services to.</param>
     /// <param name="projectId">Firebase project ID.</param>
     /// <param name="serviceAccountJson">Service account JSON content.</param>
+    /// <param name="community">The community identifier for collection naming.</param>
     /// <returns>The service collection for chaining.</returns>
     public static IServiceCollection AddFirebaseDatabase(
         this IServiceCollection services,
         string projectId,
-        string serviceAccountJson)
+        string serviceAccountJson,
+        string community)
     {
         return services.AddFirebaseDatabase(options =>
         {
             options.ProjectId = projectId;
             options.ServiceAccountJson = serviceAccountJson;
-        });
+        }, community);
     }
 
     /// <summary>

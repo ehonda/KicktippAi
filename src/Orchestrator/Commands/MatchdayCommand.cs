@@ -287,8 +287,8 @@ public class MatchdayCommand : AsyncCommand<BaseSettings>
         
         if (!string.IsNullOrEmpty(firebaseProjectId) && !string.IsNullOrEmpty(firebaseServiceAccountJson))
         {
-            services.AddFirebaseDatabase(firebaseProjectId, firebaseServiceAccountJson);
-            logger.LogInformation("Firebase database integration enabled for project: {ProjectId}", firebaseProjectId);
+            services.AddFirebaseDatabase(firebaseProjectId, firebaseServiceAccountJson, settings.Community);
+            logger.LogInformation("Firebase database integration enabled for project: {ProjectId}, community: {Community}", firebaseProjectId, settings.Community);
         }
         else
         {
