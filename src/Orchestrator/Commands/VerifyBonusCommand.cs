@@ -100,14 +100,7 @@ public class VerifyBonusCommand : AsyncCommand<VerifySettings>
                 // Get prediction from database
                 if (settings.Verbose)
                 {
-                    if (settings.Agent)
-                    {
-                        AnsiConsole.MarkupLine($"[dim]  Looking up: Question {question.Id}[/]");
-                    }
-                    else
-                    {
-                        AnsiConsole.MarkupLine($"[dim]  Looking up: {question.Text}[/]");
-                    }
+                    AnsiConsole.MarkupLine($"[dim]  Looking up: {Markup.Escape(question.Text)}[/]");
                 }
                 
                 var databasePrediction = await predictionRepository.GetBonusPredictionAsync(question.Id);
@@ -127,14 +120,14 @@ public class VerifyBonusCommand : AsyncCommand<VerifySettings>
                         {
                             if (settings.Agent)
                             {
-                                AnsiConsole.MarkupLine($"[green]✓ Question {question.Id}[/] [dim](valid prediction)[/]");
+                                AnsiConsole.MarkupLine($"[green]✓ {Markup.Escape(question.Text)}[/] [dim](valid prediction)[/]");
                             }
                             else
                             {
                                 var optionTexts = question.Options
                                     .Where(o => databasePrediction.SelectedOptionIds.Contains(o.Id))
                                     .Select(o => o.Text);
-                                AnsiConsole.MarkupLine($"[green]✓ {question.Text}:[/] {string.Join(", ", optionTexts)} [dim](valid)[/]");
+                                AnsiConsole.MarkupLine($"[green]✓ {Markup.Escape(question.Text)}:[/] {string.Join(", ", optionTexts)} [dim](valid)[/]");
                             }
                         }
                     }
@@ -144,7 +137,7 @@ public class VerifyBonusCommand : AsyncCommand<VerifySettings>
                         
                         if (settings.Agent)
                         {
-                            AnsiConsole.MarkupLine($"[red]✗ Question {question.Id}[/] [dim](invalid prediction)[/]");
+                            AnsiConsole.MarkupLine($"[red]✗ {Markup.Escape(question.Text)}[/] [dim](invalid prediction)[/]");
                         }
                         else
                         {
@@ -163,11 +156,11 @@ public class VerifyBonusCommand : AsyncCommand<VerifySettings>
                     {
                         if (settings.Agent)
                         {
-                            AnsiConsole.MarkupLine($"[yellow]○ Question {question.Id}[/] [dim](no prediction)[/]");
+                            AnsiConsole.MarkupLine($"[yellow]○ {Markup.Escape(question.Text)}[/] [dim](no prediction)[/]");
                         }
                         else
                         {
-                            AnsiConsole.MarkupLine($"[yellow]○ {question.Text}:[/] [dim](no prediction)[/]");
+                            AnsiConsole.MarkupLine($"[yellow]○ {Markup.Escape(question.Text)}:[/] [dim](no prediction)[/]");
                         }
                     }
                 }
@@ -179,11 +172,11 @@ public class VerifyBonusCommand : AsyncCommand<VerifySettings>
                 
                 if (settings.Agent)
                 {
-                    AnsiConsole.MarkupLine($"[red]✗ Question {question.Id}[/] [dim](error)[/]");
+                    AnsiConsole.MarkupLine($"[red]✗ {Markup.Escape(question.Text)}[/] [dim](error)[/]");
                 }
                 else
                 {
-                    AnsiConsole.MarkupLine($"[red]✗ {question.Text}:[/] Error during verification");
+                    AnsiConsole.MarkupLine($"[red]✗ {Markup.Escape(question.Text)}:[/] Error during verification");
                 }
             }
         }

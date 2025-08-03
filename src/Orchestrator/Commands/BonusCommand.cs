@@ -106,14 +106,7 @@ public class BonusCommand : AsyncCommand<BaseSettings>
         // Step 2: For each question, check database first, then predict if needed
         foreach (var question in bonusQuestions)
         {
-            if (settings.Agent)
-            {
-                AnsiConsole.MarkupLine($"[cyan]Processing:[/] Question {question.Id}");
-            }
-            else
-            {
-                AnsiConsole.MarkupLine($"[cyan]Processing:[/] {question.Text}");
-            }
+            AnsiConsole.MarkupLine($"[cyan]Processing:[/] {Markup.Escape(question.Text)}");
             
             try
             {
