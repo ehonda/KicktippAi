@@ -12,6 +12,8 @@
 				"--",
 				"matchday",
 				"o4-mini",
+				"--community",
+				"ehonda-test-buli",
 				"--verbose"
 			],
 			"group": "build",

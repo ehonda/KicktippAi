@@ -5,6 +5,10 @@ namespace Orchestrator.Commands;
 
 public class VerifySettings : CommandSettings
 {
+    [CommandOption("-c|--community")]
+    [Description("The Kicktipp community to use (e.g., ehonda-test-buli)")]
+    public required string Community { get; set; }
+
     [CommandOption("-v|--verbose")]
     [Description("Enable verbose output to show detailed information")]
     [DefaultValue(false)]

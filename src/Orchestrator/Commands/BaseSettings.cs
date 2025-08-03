@@ -9,6 +9,10 @@ public class BaseSettings : CommandSettings
     [Description("The OpenAI model to use for prediction (e.g., gpt-4o-2024-08-06, o4-mini)")]
     public string Model { get; set; } = string.Empty;
 
+    [CommandOption("-c|--community")]
+    [Description("The Kicktipp community to use (e.g., ehonda-test-buli)")]
+    public required string Community { get; set; }
+
     [CommandOption("-v|--verbose")]
     [Description("Enable verbose output to show detailed information")]
     [DefaultValue(false)]

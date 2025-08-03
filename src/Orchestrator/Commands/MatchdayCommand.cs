@@ -80,13 +80,11 @@ public class MatchdayCommand : AsyncCommand<BaseSettings>
         // Reset token usage tracker for this workflow
         tokenUsageTracker?.Reset();
         
-        // For now, use a hardcoded community - this could be made configurable later
-        const string community = "ehonda-test-buli";
-        
+        AnsiConsole.MarkupLine($"[blue]Using community:[/] [yellow]{settings.Community}[/]");
         AnsiConsole.MarkupLine("[blue]Getting current matchday matches...[/]");
         
         // Step 1: Get current matchday via GetMatchesWithHistoryAsync
-        var matchesWithHistory = await kicktippClient.GetMatchesWithHistoryAsync(community);
+        var matchesWithHistory = await kicktippClient.GetMatchesWithHistoryAsync(settings.Community);
         
         if (!matchesWithHistory.Any())
         {
@@ -230,7 +228,7 @@ public class MatchdayCommand : AsyncCommand<BaseSettings>
         }
         else
         {
-            var success = await kicktippClient.PlaceBetsAsync(community, predictions, overrideBets: settings.OverrideKicktipp);
+            var success = await kicktippClient.PlaceBetsAsync(settings.Community, predictions, overrideBets: settings.OverrideKicktipp);
             
             if (success)
             {
@@ -299,11 +297,10 @@ public class MatchdayCommand : AsyncCommand<BaseSettings>
         }
         
         // Add context provider
-        const string community = "ehonda-test-buli";
         services.AddSingleton<KicktippContextProvider>(provider =>
         {
             var kicktippClient = provider.GetRequiredService<IKicktippClient>();
-            return new KicktippContextProvider(kicktippClient, community);
+            return new KicktippContextProvider(kicktippClient, settings.Community);
         });
     }
 }

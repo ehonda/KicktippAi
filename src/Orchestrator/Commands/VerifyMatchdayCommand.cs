@@ -67,13 +67,11 @@ public class VerifyMatchdayCommand : AsyncCommand<VerifySettings>
             return true; // Consider this a failure
         }
         
-        // For now, use a hardcoded community - this could be made configurable later
-        const string community = "ehonda-test-buli";
-        
+        AnsiConsole.MarkupLine($"[blue]Using community:[/] [yellow]{settings.Community}[/]");
         AnsiConsole.MarkupLine("[blue]Getting placed predictions from Kicktipp...[/]");
         
         // Step 1: Get placed predictions from Kicktipp
-        var placedPredictions = await kicktippClient.GetPlacedPredictionsAsync(community);
+        var placedPredictions = await kicktippClient.GetPlacedPredictionsAsync(settings.Community);
         
         if (!placedPredictions.Any())
         {

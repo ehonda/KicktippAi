@@ -80,13 +80,11 @@ public class BonusCommand : AsyncCommand<BaseSettings>
         // Reset token usage tracker for this workflow
         tokenUsageTracker?.Reset();
         
-        // For now, use a hardcoded community - this could be made configurable later
-        const string community = "ehonda-test-buli";
-        
+        AnsiConsole.MarkupLine($"[blue]Using community:[/] [yellow]{settings.Community}[/]");
         AnsiConsole.MarkupLine("[blue]Getting open bonus questions from Kicktipp...[/]");
         
         // Step 1: Get open bonus questions from Kicktipp
-        var bonusQuestions = await kicktippClient.GetOpenBonusQuestionsAsync(community);
+        var bonusQuestions = await kicktippClient.GetOpenBonusQuestionsAsync(settings.Community);
         
         if (!bonusQuestions.Any())
         {
@@ -233,7 +231,7 @@ public class BonusCommand : AsyncCommand<BaseSettings>
         }
         else
         {
-            var success = await kicktippClient.PlaceBonusPredictionsAsync(community, predictions, overridePredictions: settings.OverrideKicktipp);
+            var success = await kicktippClient.PlaceBonusPredictionsAsync(settings.Community, predictions, overridePredictions: settings.OverrideKicktipp);
             
             if (success)
             {
@@ -302,11 +300,10 @@ public class BonusCommand : AsyncCommand<BaseSettings>
         }
         
         // Add context provider
-        const string community = "ehonda-test-buli";
         services.AddSingleton<KicktippContextProvider>(provider =>
         {
             var kicktippClient = provider.GetRequiredService<IKicktippClient>();
-            return new KicktippContextProvider(kicktippClient, community);
+            return new KicktippContextProvider(kicktippClient, settings.Community);
         });
     }
 }

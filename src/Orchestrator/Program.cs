@@ -17,17 +17,19 @@ public class Program
             
             config.AddCommand<MatchdayCommand>("matchday")
                 .WithDescription("Generate predictions for the current matchday")
-                .WithExample("matchday", "gpt-4o-2024-08-06");
+                .WithExample("matchday", "gpt-4o-2024-08-06", "--community", "ehonda-test-buli");
                 
             config.AddCommand<BonusCommand>("bonus")
                 .WithDescription("Generate bonus predictions")
-                .WithExample("bonus", "gpt-4o-2024-08-06");
+                .WithExample("bonus", "gpt-4o-2024-08-06", "--community", "ehonda-test-buli");
                 
             config.AddCommand<VerifyMatchdayCommand>("verify")
-                .WithDescription("Verify that database predictions have been successfully posted to Kicktipp");
+                .WithDescription("Verify that database predictions have been successfully posted to Kicktipp")
+                .WithExample("verify", "--community", "ehonda-test-buli");
                 
             config.AddCommand<VerifyBonusCommand>("verify-bonus")
-                .WithDescription("Verify that database bonus predictions are valid and complete");
+                .WithDescription("Verify that database bonus predictions are valid and complete")
+                .WithExample("verify-bonus", "--community", "ehonda-test-buli");
         });
 
         return await app.RunAsync(args);

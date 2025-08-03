@@ -67,13 +67,11 @@ public class VerifyBonusCommand : AsyncCommand<VerifySettings>
             return true; // Consider this a failure
         }
         
-        // For now, use a hardcoded community - this could be made configurable later
-        const string community = "ehonda-test-buli";
-        
+        AnsiConsole.MarkupLine($"[blue]Using community:[/] [yellow]{settings.Community}[/]");
         AnsiConsole.MarkupLine("[blue]Getting open bonus questions from Kicktipp...[/]");
         
         // Step 1: Get open bonus questions from Kicktipp
-        var bonusQuestions = await kicktippClient.GetOpenBonusQuestionsAsync(community);
+        var bonusQuestions = await kicktippClient.GetOpenBonusQuestionsAsync(settings.Community);
         
         if (!bonusQuestions.Any())
         {
@@ -86,7 +84,7 @@ public class VerifyBonusCommand : AsyncCommand<VerifySettings>
         AnsiConsole.MarkupLine("[blue]Getting placed bonus predictions from Kicktipp...[/]");
         
         // Step 1.5: Get currently placed predictions from Kicktipp
-        var placedPredictions = await kicktippClient.GetPlacedBonusPredictionsAsync(community);
+        var placedPredictions = await kicktippClient.GetPlacedBonusPredictionsAsync(settings.Community);
         
         AnsiConsole.MarkupLine("[blue]Retrieving predictions from database...[/]");
         
