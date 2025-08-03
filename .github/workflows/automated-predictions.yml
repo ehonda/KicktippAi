@@ -38,8 +38,10 @@ env:
   # These can be overridden by repository variables in GitHub settings
   STAGING_ENABLED: ${{ vars.STAGING_ENABLED || 'true' }}
   STAGING_MODEL: ${{ vars.STAGING_MODEL || 'o4-mini' }}
+  STAGING_COMMUNITY: ${{ vars.STAGING_COMMUNITY || 'ehonda-test-buli' }}
   PRODUCTION_ENABLED: ${{ vars.PRODUCTION_ENABLED || 'false' }}
   PRODUCTION_MODEL: ${{ vars.PRODUCTION_MODEL || 'o1' }}
+  PRODUCTION_COMMUNITY: ${{ vars.PRODUCTION_COMMUNITY || 'ehonda-test-buli' }}
   # Set timezone for consistent logging
   TZ: 'Europe/Berlin'
 
@@ -84,33 +86,45 @@ jobs:
             ENVIRONMENT="${{ github.event.inputs.environment }}"
             MODEL="${{ github.event.inputs.model }}"
             FORCE_PREDICTION="${{ github.event.inputs.force_prediction }}"
-            echo "🎯 Manual trigger - using explicit environment: $ENVIRONMENT with model: $MODEL"
+            
+            # Set community based on environment
+            if [ "$ENVIRONMENT" = "staging" ]; then
+              COMMUNITY="${{ env.STAGING_COMMUNITY }}"
+            elif [ "$ENVIRONMENT" = "production" ]; then
+              COMMUNITY="${{ env.PRODUCTION_COMMUNITY }}"
+            fi
+            
+            echo "🎯 Manual trigger - using explicit environment: $ENVIRONMENT with model: $MODEL, community: $COMMUNITY"
           elif [ "${{ github.event_name }}" = "workflow_dispatch" ]; then
             # Manual trigger with auto-detection
             if [ "${{ env.STAGING_ENABLED }}" = "true" ]; then
               ENVIRONMENT="staging"
               MODEL="${{ env.STAGING_MODEL }}"
+              COMMUNITY="${{ env.STAGING_COMMUNITY }}"
             elif [ "${{ env.PRODUCTION_ENABLED }}" = "true" ]; then
               ENVIRONMENT="production"
               MODEL="${{ env.PRODUCTION_MODEL }}"
+              COMMUNITY="${{ env.PRODUCTION_COMMUNITY }}"
             else
               echo "❌ No environment enabled for auto-detection"
               exit 1
             fi
             FORCE_PREDICTION="${{ github.event.inputs.force_prediction }}"
-            echo "🤖 Manual trigger - auto-detected environment: $ENVIRONMENT with model: $MODEL"
+            echo "🤖 Manual trigger - auto-detected environment: $ENVIRONMENT with model: $MODEL, community: $COMMUNITY"
           else
             # Scheduled trigger
             if [ "${{ env.STAGING_ENABLED }}" = "true" ]; then
               ENVIRONMENT="staging"
               MODEL="${{ env.STAGING_MODEL }}"
+              COMMUNITY="${{ env.STAGING_COMMUNITY }}"
               FORCE_PREDICTION="false"
-              echo "⏰ Scheduled trigger - using staging environment with model: $MODEL"
+              echo "⏰ Scheduled trigger - using staging environment with model: $MODEL, community: $COMMUNITY"
             elif [ "${{ env.PRODUCTION_ENABLED }}" = "true" ]; then
               ENVIRONMENT="production"
               MODEL="${{ env.PRODUCTION_MODEL }}"
+              COMMUNITY="${{ env.PRODUCTION_COMMUNITY }}"
               FORCE_PREDICTION="false"
-              echo "⏰ Scheduled trigger - using production environment with model: $MODEL"
+              echo "⏰ Scheduled trigger - using production environment with model: $MODEL, community: $COMMUNITY"
             else
               echo "⏸️ Scheduled trigger - no environment enabled, skipping workflow"
               echo "enabled=false" >> $GITHUB_OUTPUT
@@ -120,6 +134,7 @@ jobs:
           
           echo "environment=$ENVIRONMENT" >> $GITHUB_OUTPUT
           echo "model=$MODEL" >> $GITHUB_OUTPUT
+          echo "community=$COMMUNITY" >> $GITHUB_OUTPUT
           echo "force_prediction=$FORCE_PREDICTION" >> $GITHUB_OUTPUT
           echo "enabled=true" >> $GITHUB_OUTPUT
           
@@ -131,7 +146,8 @@ jobs:
           echo "🔍 Verifying current matchday predictions..."
           echo "Environment: ${{ steps.config.outputs.environment }}"
           echo "Model: ${{ steps.config.outputs.model }}"
-          dotnet run --project src/Orchestrator/Orchestrator.csproj --configuration Release -- verify --init-matchday --agent
+          echo "Community: ${{ steps.config.outputs.community }}"
+          dotnet run --project src/Orchestrator/Orchestrator.csproj --configuration Release -- verify --community "${{ steps.config.outputs.community }}" --init-matchday --agent
         env:
           KICKTIPP_USERNAME: ${{ secrets.KICKTIPP_USERNAME }}
           KICKTIPP_PASSWORD: ${{ secrets.KICKTIPP_PASSWORD }}
@@ -144,13 +160,14 @@ jobs:
         run: |
           echo "🤖 Generating predictions with model: ${{ steps.config.outputs.model }}"
           echo "Environment: ${{ steps.config.outputs.environment }}"
+          echo "Community: ${{ steps.config.outputs.community }}"
           if [ "${{ steps.verify.outcome }}" = "failure" ]; then
             echo "📝 Predictions needed - verify command indicated missing or mismatched predictions"
           else
             echo "🔄 Force prediction enabled - running regardless of verify result"
           fi
           
-          dotnet run --project src/Orchestrator/Orchestrator.csproj --configuration Release -- matchday "${{ steps.config.outputs.model }}" --override-kicktipp --verbose --agent
+          dotnet run --project src/Orchestrator/Orchestrator.csproj --configuration Release -- matchday "${{ steps.config.outputs.model }}" --community "${{ steps.config.outputs.community }}" --override-kicktipp --verbose --agent
         env:
           KICKTIPP_USERNAME: ${{ secrets.KICKTIPP_USERNAME }}
           KICKTIPP_PASSWORD: ${{ secrets.KICKTIPP_PASSWORD }}
@@ -162,7 +179,7 @@ jobs:
         if: steps.config.outputs.enabled == 'true' && (steps.verify.outcome == 'failure' || steps.config.outputs.force_prediction == 'true')
         run: |
           echo "✅ Running final verification to confirm predictions were posted successfully..."
-          dotnet run --project src/Orchestrator/Orchestrator.csproj --configuration Release -- verify --agent
+          dotnet run --project src/Orchestrator/Orchestrator.csproj --configuration Release -- verify --community "${{ steps.config.outputs.community }}" --agent
         env:
           KICKTIPP_USERNAME: ${{ secrets.KICKTIPP_USERNAME }}
           KICKTIPP_PASSWORD: ${{ secrets.KICKTIPP_PASSWORD }}
@@ -183,6 +200,7 @@ jobs:
           if [ "${{ steps.config.outputs.enabled }}" = "true" ]; then
             echo "- **Environment**: ${{ steps.config.outputs.environment }}" >> $GITHUB_STEP_SUMMARY
             echo "- **Model**: ${{ steps.config.outputs.model }}" >> $GITHUB_STEP_SUMMARY
+            echo "- **Community**: ${{ steps.config.outputs.community }}" >> $GITHUB_STEP_SUMMARY
             echo "- **Verify Result**: ${{ steps.verify.outcome }}" >> $GITHUB_STEP_SUMMARY
             
             if [ "${{ steps.verify.outcome }}" = "failure" ] || [ "${{ steps.config.outputs.force_prediction }}" = "true" ]; then
