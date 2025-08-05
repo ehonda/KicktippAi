@@ -52,6 +52,11 @@ public class MatchdayCommand : AsyncCommand<BaseSettings>
             {
                 AnsiConsole.MarkupLine("[magenta]Dry run mode enabled - no changes will be made to database or Kicktipp[/]");
             }
+
+            if (!string.IsNullOrEmpty(settings.EstimatedCostsModel))
+            {
+                AnsiConsole.MarkupLine($"[cyan]Estimated costs will be calculated for model:[/] [yellow]{settings.EstimatedCostsModel}[/]");
+            }
             
             // Execute the matchday workflow
             await ExecuteMatchdayWorkflow(serviceProvider, settings, logger);
@@ -186,7 +191,9 @@ public class MatchdayCommand : AsyncCommand<BaseSettings>
                         // Show individual match token usage in verbose mode
                         if (settings.Verbose && tokenUsageTracker != null)
                         {
-                            var matchUsage = tokenUsageTracker.GetLastUsageCompactSummary();
+                            var matchUsage = !string.IsNullOrEmpty(settings.EstimatedCostsModel)
+                                ? tokenUsageTracker.GetLastUsageCompactSummaryWithEstimatedCosts(settings.EstimatedCostsModel)
+                                : tokenUsageTracker.GetLastUsageCompactSummary();
                             AnsiConsole.MarkupLine($"[dim]    Token usage: {matchUsage}[/]");
                         }
                     }
@@ -243,7 +250,9 @@ public class MatchdayCommand : AsyncCommand<BaseSettings>
         // Display token usage summary
         if (tokenUsageTracker != null)
         {
-            var summary = tokenUsageTracker.GetCompactSummary();
+            var summary = !string.IsNullOrEmpty(settings.EstimatedCostsModel)
+                ? tokenUsageTracker.GetCompactSummaryWithEstimatedCosts(settings.EstimatedCostsModel)
+                : tokenUsageTracker.GetCompactSummary();
             AnsiConsole.MarkupLine($"[dim]Token usage (uncached/cached/reasoning/output/$cost): {summary}[/]");
         }
     }

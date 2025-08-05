@@ -52,6 +52,11 @@ public class BonusCommand : AsyncCommand<BaseSettings>
             {
                 AnsiConsole.MarkupLine("[magenta]Dry run mode enabled - no changes will be made to database or Kicktipp[/]");
             }
+
+            if (!string.IsNullOrEmpty(settings.EstimatedCostsModel))
+            {
+                AnsiConsole.MarkupLine($"[cyan]Estimated costs will be calculated for model:[/] [yellow]{settings.EstimatedCostsModel}[/]");
+            }
             
             // Execute the bonus prediction workflow
             await ExecuteBonusWorkflow(serviceProvider, settings, logger);
@@ -191,7 +196,9 @@ public class BonusCommand : AsyncCommand<BaseSettings>
                         // Show individual question token usage in verbose mode
                         if (settings.Verbose && tokenUsageTracker != null)
                         {
-                            var questionUsage = tokenUsageTracker.GetLastUsageCompactSummary();
+                            var questionUsage = !string.IsNullOrEmpty(settings.EstimatedCostsModel)
+                                ? tokenUsageTracker.GetLastUsageCompactSummaryWithEstimatedCosts(settings.EstimatedCostsModel)
+                                : tokenUsageTracker.GetLastUsageCompactSummary();
                             AnsiConsole.MarkupLine($"[dim]    Token usage: {questionUsage}[/]");
                         }
                     }
@@ -246,7 +253,9 @@ public class BonusCommand : AsyncCommand<BaseSettings>
         // Display token usage summary
         if (tokenUsageTracker != null)
         {
-            var summary = tokenUsageTracker.GetCompactSummary();
+            var summary = !string.IsNullOrEmpty(settings.EstimatedCostsModel)
+                ? tokenUsageTracker.GetCompactSummaryWithEstimatedCosts(settings.EstimatedCostsModel)
+                : tokenUsageTracker.GetCompactSummary();
             AnsiConsole.MarkupLine($"[dim]Token usage (uncached/cached/reasoning/output/$cost): {summary}[/]");
         }
     }

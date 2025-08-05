@@ -37,4 +37,8 @@ public class BaseSettings : CommandSettings
     [Description("Dry run mode - no changes will be made to database or Kicktipp")]
     [DefaultValue(false)]
     public bool DryRun { get; set; }
+
+    [CommandOption("--estimated-costs")]
+    [Description("Model to estimate costs for (e.g., o1) - shows what costs would be if using that model with same token counts")]
+    public string? EstimatedCostsModel { get; set; }
 }

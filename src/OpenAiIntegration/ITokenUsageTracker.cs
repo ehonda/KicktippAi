@@ -22,11 +22,27 @@ public interface ITokenUsageTracker
     string GetCompactSummary();
 
     /// <summary>
+    /// Get a compact summary of total usage and cost with estimated costs for an alternative model
+    /// Format: "uncached / cached / output-reasoning / output-rest / $cost (est: $estimatedCost)"
+    /// </summary>
+    /// <param name="estimatedCostsModel">The model to estimate costs for</param>
+    /// <returns>Compact usage summary string with estimated costs</returns>
+    string GetCompactSummaryWithEstimatedCosts(string estimatedCostsModel);
+
+    /// <summary>
     /// Get the last usage added (for displaying individual match usage)
     /// Format: "uncached / cached / output-reasoning / output-rest / $cost"
     /// </summary>
     /// <returns>Compact usage summary string for the last operation</returns>
     string GetLastUsageCompactSummary();
+
+    /// <summary>
+    /// Get the last usage added with estimated costs for an alternative model
+    /// Format: "uncached / cached / output-reasoning / output-rest / $cost (est: $estimatedCost)"
+    /// </summary>
+    /// <param name="estimatedCostsModel">The model to estimate costs for</param>
+    /// <returns>Compact usage summary string for the last operation with estimated costs</returns>
+    string GetLastUsageCompactSummaryWithEstimatedCosts(string estimatedCostsModel);
 
     /// <summary>
     /// Get total cost across all tracked usage
