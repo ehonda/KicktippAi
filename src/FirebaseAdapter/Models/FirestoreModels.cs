@@ -169,3 +169,71 @@ public class FirestoreBonusPrediction
     [FirestoreProperty("competition")]
     public string Competition { get; set; } = "bundesliga-2025-26";
 }
+
+/// <summary>
+/// Firestore document model for storing KPI context documents.
+/// Used for storing contextual data for bonus predictions.
+/// </summary>
+[FirestoreData]
+public class FirestoreKpiDocument
+{
+    /// <summary>
+    /// Document ID - the KPI document identifier.
+    /// </summary>
+    [FirestoreDocumentId]
+    public string? Id { get; set; }
+
+    /// <summary>
+    /// The document identifier.
+    /// </summary>
+    [FirestoreProperty("documentId")]
+    public string DocumentId { get; set; } = string.Empty;
+
+    /// <summary>
+    /// The document name (for observability).
+    /// </summary>
+    [FirestoreProperty("name")]
+    public string Name { get; set; } = string.Empty;
+
+    /// <summary>
+    /// The document content (TSV format).
+    /// </summary>
+    [FirestoreProperty("content")]
+    public string Content { get; set; } = string.Empty;
+
+    /// <summary>
+    /// Document description.
+    /// </summary>
+    [FirestoreProperty("description")]
+    public string Description { get; set; } = string.Empty;
+
+    /// <summary>
+    /// Document type identifier.
+    /// </summary>
+    [FirestoreProperty("documentType")]
+    public string DocumentType { get; set; } = "kpi-context";
+
+    /// <summary>
+    /// Tags for categorizing the document.
+    /// </summary>
+    [FirestoreProperty("tags")]
+    public string[] Tags { get; set; } = [];
+
+    /// <summary>
+    /// When the document was created (UTC timestamp).
+    /// </summary>
+    [FirestoreProperty("createdAt")]
+    public Timestamp CreatedAt { get; set; }
+
+    /// <summary>
+    /// When the document was last updated (UTC timestamp).
+    /// </summary>
+    [FirestoreProperty("updatedAt")]
+    public Timestamp UpdatedAt { get; set; }
+
+    /// <summary>
+    /// Competition/season identifier (e.g., "bundesliga-2025-26").
+    /// </summary>
+    [FirestoreProperty("competition")]
+    public string Competition { get; set; } = "bundesliga-2025-26";
+}

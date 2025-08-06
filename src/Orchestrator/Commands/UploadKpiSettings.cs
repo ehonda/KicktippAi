@@ -1,0 +1,25 @@
+using System.ComponentModel;
+using Spectre.Console.Cli;
+
+namespace Orchestrator.Commands;
+
+public class UploadKpiSettings : CommandSettings
+{
+    [CommandArgument(0, "<DOCUMENT_NAME>")]
+    [Description("The name of the KPI document to upload (without file extension)")]
+    public string DocumentName { get; set; } = string.Empty;
+
+    [CommandOption("-c|--community")]
+    [Description("The Kicktipp community to use (e.g., ehonda-test-buli)")]
+    public required string Community { get; set; }
+
+    [CommandOption("-v|--verbose")]
+    [Description("Enable verbose output to show detailed information")]
+    [DefaultValue(false)]
+    public bool Verbose { get; set; }
+
+    [CommandOption("--override")]
+    [Description("Override existing KPI document if it exists (default: false)")]
+    [DefaultValue(false)]
+    public bool Override { get; set; }
+}

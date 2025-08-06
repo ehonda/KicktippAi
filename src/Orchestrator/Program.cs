@@ -30,6 +30,14 @@ public class Program
             config.AddCommand<VerifyBonusCommand>("verify-bonus")
                 .WithDescription("Verify that database bonus predictions are valid and complete")
                 .WithExample("verify-bonus", "--community", "ehonda-test-buli");
+                
+            config.AddCommand<UploadKpiCommand>("upload-kpi")
+                .WithDescription("Upload a KPI context document to Firebase")
+                .WithExample("upload-kpi", "team-data", "--community", "ehonda-test-buli");
+                
+            config.AddCommand<ListKpiCommand>("list-kpi")
+                .WithDescription("List KPI context documents from Firebase")
+                .WithExample("list-kpi", "--community", "ehonda-test-buli");
         });
 
         return await app.RunAsync(args);

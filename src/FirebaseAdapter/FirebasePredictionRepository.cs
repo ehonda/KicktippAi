@@ -17,6 +17,7 @@ public class FirebasePredictionRepository : IPredictionRepository
     private readonly string _matchesCollection;
     private readonly string _bonusPredictionsCollection;
     private readonly string _competition;
+    private readonly string _community;
 
     public FirebasePredictionRepository(FirestoreDb firestoreDb, ILogger<FirebasePredictionRepository> logger, string community)
     {
@@ -26,6 +27,8 @@ public class FirebasePredictionRepository : IPredictionRepository
         if (string.IsNullOrWhiteSpace(community))
             throw new ArgumentException("Community cannot be null or empty", nameof(community));
             
+        _community = community;
+        
         // Make collection names community-specific
         _predictionsCollection = $"predictions-{community}";
         _matchesCollection = $"matches-{community}";

@@ -5,7 +5,6 @@ using Spectre.Console;
 using Core;
 using KicktippIntegration;
 using OpenAiIntegration;
-using ContextProviders.Kicktipp;
 using FirebaseAdapter;
 
 namespace Orchestrator.Commands;
@@ -75,7 +74,10 @@ public class BonusCommand : AsyncCommand<BaseSettings>
     {
         var kicktippClient = serviceProvider.GetRequiredService<IKicktippClient>();
         var predictionService = serviceProvider.GetRequiredService<IPredictionService>();
-        var contextProvider = serviceProvider.GetRequiredService<KicktippContextProvider>();
+        
+        // Use Firebase KPI Context Provider for bonus predictions
+        var kpiContextProvider = serviceProvider.GetRequiredService<FirebaseKpiContextProvider>();
+        
         var tokenUsageTracker = serviceProvider.GetService<ITokenUsageTracker>();
         
         // Try to get the prediction repository (may be null if Firebase is not configured)
@@ -142,16 +144,18 @@ public class BonusCommand : AsyncCommand<BaseSettings>
                 {
                     AnsiConsole.MarkupLine($"[yellow]  → Generating new prediction...[/]");
                     
-                    // Step 3: Get context using GetMatchContextAsync (general context for bonus questions)
+                    // Step 3: Get KPI context for bonus predictions
                     var contextDocuments = new List<DocumentContext>();
-                    await foreach (var context in contextProvider.GetBonusQuestionContextAsync())
+                    
+                    // Use KPI documents as context for bonus predictions
+                    await foreach (var context in kpiContextProvider.GetBonusQuestionContextAsync())
                     {
                         contextDocuments.Add(context);
                     }
                     
                     if (settings.Verbose)
                     {
-                        AnsiConsole.MarkupLine($"[dim]    Using {contextDocuments.Count} context documents[/]");
+                        AnsiConsole.MarkupLine($"[dim]    Using {contextDocuments.Count} KPI context documents[/]");
                     }
                     
                     // Predict the bonus question
@@ -293,26 +297,17 @@ public class BonusCommand : AsyncCommand<BaseSettings>
         // Add OpenAI integration
         services.AddOpenAiPredictor(apiKey, settings.Model);
         
-        // Add Firebase database if credentials are available
+        // Add Firebase database (required for KPI context provider)
         var firebaseProjectId = Environment.GetEnvironmentVariable("FIREBASE_PROJECT_ID");
         var firebaseServiceAccountJson = Environment.GetEnvironmentVariable("FIREBASE_SERVICE_ACCOUNT_JSON");
         
-        if (!string.IsNullOrEmpty(firebaseProjectId) && !string.IsNullOrEmpty(firebaseServiceAccountJson))
+        if (string.IsNullOrEmpty(firebaseProjectId) || string.IsNullOrEmpty(firebaseServiceAccountJson))
         {
-            services.AddFirebaseDatabase(firebaseProjectId, firebaseServiceAccountJson, settings.Community);
-            logger.LogInformation("Firebase database integration enabled for project: {ProjectId}, community: {Community}", firebaseProjectId, settings.Community);
-        }
-        else
-        {
-            logger.LogWarning("Firebase credentials not found. Database integration disabled.");
-            logger.LogInformation("Set FIREBASE_PROJECT_ID and FIREBASE_SERVICE_ACCOUNT_JSON environment variables to enable database features");
+            throw new InvalidOperationException("Firebase credentials are required for bonus predictions. Set FIREBASE_PROJECT_ID and FIREBASE_SERVICE_ACCOUNT_JSON environment variables.");
         }
         
-        // Add context provider
-        services.AddSingleton<KicktippContextProvider>(provider =>
-        {
-            var kicktippClient = provider.GetRequiredService<IKicktippClient>();
-            return new KicktippContextProvider(kicktippClient, settings.Community);
-        });
+        services.AddFirebaseDatabase(firebaseProjectId, firebaseServiceAccountJson, settings.Community);
+        logger.LogInformation("Firebase database integration enabled for project: {ProjectId}, community: {Community}", firebaseProjectId, settings.Community);
+        logger.LogInformation("KPI Context Provider enabled for bonus predictions");
     }
 }
