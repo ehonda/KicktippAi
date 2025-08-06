@@ -66,6 +66,90 @@ public class FirebaseKpiContextProvider : IContextProvider<DocumentContext>
     }
 
     /// <summary>
+    /// Gets KPI context specifically tailored for a bonus question based on its content.
+    /// This method provides targeted context by including additional relevant documents based on question patterns.
+    /// </summary>
+    /// <param name="questionText">The text of the bonus question to provide context for.</param>
+    /// <param name="cancellationToken">Cancellation token for the operation.</param>
+    /// <returns>An async enumerable of document contexts containing relevant KPI data for the specific question.</returns>
+    public async IAsyncEnumerable<DocumentContext> GetBonusQuestionContextAsync(string questionText, [EnumeratorCancellation] CancellationToken cancellationToken = default)
+    {
+        _logger.LogDebug("Retrieving targeted KPI context for question: {QuestionText}", questionText);
+
+        // Always include team data for all bonus questions
+        var teamDataDocument = await GetKpiDocumentContextAsync("team-data", cancellationToken);
+        if (teamDataDocument != null)
+        {
+            yield return teamDataDocument;
+        }
+
+        // For trainer/manager change questions, also include manager data
+        if (IsTrainerChangeQuestion(questionText))
+        {
+            _logger.LogDebug("Detected trainer/manager change question, including manager data");
+            var managerDataDocument = await GetKpiDocumentContextAsync("manager-data", cancellationToken);
+            if (managerDataDocument != null)
+            {
+                yield return managerDataDocument;
+            }
+        }
+        
+        // For relegation questions, also include manager data (manager experience affects team performance)
+        if (IsRelegationQuestion(questionText))
+        {
+            _logger.LogDebug("Detected relegation question, including manager data");
+            var managerDataDocument = await GetKpiDocumentContextAsync("manager-data", cancellationToken);
+            if (managerDataDocument != null)
+            {
+                yield return managerDataDocument;
+            }
+        }
+    }
+
+    /// <summary>
+    /// Determines if a bonus question is about trainer/manager changes based on its text.
+    /// </summary>
+    /// <param name="questionText">The text of the bonus question.</param>
+    /// <returns>True if the question is about trainer/manager changes, false otherwise.</returns>
+    private static bool IsTrainerChangeQuestion(string questionText)
+    {
+        if (string.IsNullOrWhiteSpace(questionText))
+            return false;
+
+        var lowerText = questionText.ToLowerInvariant();
+        
+        // Check for German trainer/manager change keywords
+        return lowerText.Contains("trainerwechsel") || 
+               lowerText.Contains("trainer") ||
+               lowerText.Contains("cheftrainer") ||
+               lowerText.Contains("entlassung") ||
+               lowerText.Contains("entlassen") ||
+               lowerText.Contains("manager") ||
+               lowerText.Contains("coach");
+    }
+
+    /// <summary>
+    /// Determines if a bonus question is about relegation based on its text.
+    /// </summary>
+    /// <param name="questionText">The text of the bonus question.</param>
+    /// <returns>True if the question is about relegation, false otherwise.</returns>
+    private static bool IsRelegationQuestion(string questionText)
+    {
+        if (string.IsNullOrWhiteSpace(questionText))
+            return false;
+
+        var lowerText = questionText.ToLowerInvariant();
+        
+        // Check for German relegation keywords
+        return lowerText.Contains("16-18") || 
+               lowerText.Contains("plätze 16-18") ||
+               lowerText.Contains("abstieg") ||
+               lowerText.Contains("relegation") ||
+               lowerText.Contains("abstiegsplätze") ||
+               lowerText.Contains("absteiger");
+    }
+
+    /// <summary>
     /// Gets a specific KPI document by its ID.
     /// </summary>
     /// <param name="documentId">The ID of the KPI document to retrieve.</param>
