@@ -152,7 +152,7 @@ public class BonusCommand : AsyncCommand<BaseSettings>
                     var contextDocuments = new List<DocumentContext>();
                     
                     // Use KPI documents as context for bonus predictions (targeted by question content)
-                    await foreach (var context in kpiContextProvider.GetBonusQuestionContextAsync(question.Text))
+                    await foreach (var context in kpiContextProvider.GetBonusQuestionContextAsync(question.Text, communityContext))
                     {
                         contextDocuments.Add(context);
                     }

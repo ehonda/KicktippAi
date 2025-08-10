@@ -57,7 +57,7 @@ public class ListKpiCommand : AsyncCommand<ListKpiSettings>
                     .Select(t => t.Trim())
                     .ToArray();
                 
-                await foreach (var documentContext in kpiContextProvider.GetKpiDocumentsByTagsAsync(tags))
+                await foreach (var documentContext in kpiContextProvider.GetKpiDocumentsByTagsAsync(tags, settings.Community))
                 {
                     var preview = documentContext.Content.Length > 100 
                         ? documentContext.Content.Substring(0, 100) + "..." 
@@ -88,7 +88,7 @@ public class ListKpiCommand : AsyncCommand<ListKpiSettings>
             else
             {
                 // Get all documents
-                await foreach (var documentContext in kpiContextProvider.GetContextAsync())
+                await foreach (var documentContext in kpiContextProvider.GetContextAsync(settings.Community))
                 {
                     var preview = documentContext.Content.Length > 100 
                         ? documentContext.Content.Substring(0, 100) + "..." 

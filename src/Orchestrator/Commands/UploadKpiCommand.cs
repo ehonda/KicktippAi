@@ -94,7 +94,8 @@ public class UploadKpiCommand : AsyncCommand<UploadKpiSettings>
                 kpiDocument.Content,
                 kpiDocument.Description,
                 kpiDocument.DocumentType,
-                kpiDocument.Tags);
+                kpiDocument.Tags,
+                settings.Community);
                 
             AnsiConsole.MarkupLine($"[green]✓ Successfully uploaded KPI document '[/][white]{kpiDocument.DocumentId}[/][green]'[/]");
             

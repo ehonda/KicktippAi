@@ -284,4 +284,10 @@ public class FirestoreKpiDocument
     /// </summary>
     [FirestoreProperty("competition")]
     public string Competition { get; set; } = "bundesliga-2025-26";
+
+    /// <summary>
+    /// Community context for filtering KPI documents.
+    /// </summary>
+    [FirestoreProperty("communityContext")]
+    public string CommunityContext { get; set; } = string.Empty;
 }

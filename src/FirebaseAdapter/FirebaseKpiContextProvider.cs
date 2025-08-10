@@ -8,7 +8,7 @@ namespace FirebaseAdapter;
 /// Firebase-based context provider for KPI documents.
 /// Retrieves KPI documents from Firestore for use in bonus predictions.
 /// </summary>
-public class FirebaseKpiContextProvider : IContextProvider<DocumentContext>
+public class FirebaseKpiContextProvider
 {
     private readonly IKpiRepository _kpiRepository;
     private readonly ILogger<FirebaseKpiContextProvider> _logger;
@@ -20,24 +20,25 @@ public class FirebaseKpiContextProvider : IContextProvider<DocumentContext>
     }
 
     /// <summary>
-    /// Gets all KPI documents as context for predictions.
+    /// Gets all KPI documents as context for predictions for a specific community.
     /// This method provides all available KPI documents for bonus predictions.
     /// </summary>
+    /// <param name="communityContext">The community context to filter by.</param>
     /// <param name="cancellationToken">Cancellation token for the operation.</param>
     /// <returns>An async enumerable of document contexts containing KPI data.</returns>
-    public async IAsyncEnumerable<DocumentContext> GetContextAsync([EnumeratorCancellation] CancellationToken cancellationToken = default)
+    public async IAsyncEnumerable<DocumentContext> GetContextAsync(string communityContext, [EnumeratorCancellation] CancellationToken cancellationToken = default)
     {
-        _logger.LogDebug("Retrieving all KPI documents for context");
+        _logger.LogDebug("Retrieving all KPI documents for context in community: {CommunityContext}", communityContext);
 
         IReadOnlyList<KpiDocument> kpiDocuments;
         try
         {
-            kpiDocuments = await _kpiRepository.GetAllKpiDocumentsAsync(cancellationToken);
-            _logger.LogInformation("Found {DocumentCount} KPI documents for context", kpiDocuments.Count);
+            kpiDocuments = await _kpiRepository.GetAllKpiDocumentsAsync(communityContext, cancellationToken);
+            _logger.LogInformation("Found {DocumentCount} KPI documents for context in community: {CommunityContext}", kpiDocuments.Count, communityContext);
         }
         catch (Exception ex)
         {
-            _logger.LogError(ex, "Failed to retrieve KPI documents for context");
+            _logger.LogError(ex, "Failed to retrieve KPI documents for context in community: {CommunityContext}", communityContext);
             throw;
         }
 
@@ -52,14 +53,15 @@ public class FirebaseKpiContextProvider : IContextProvider<DocumentContext>
     }
 
     /// <summary>
-    /// Gets KPI context specifically for bonus questions.
+    /// Gets KPI context specifically for bonus questions for a specific community.
     /// This is an alias for GetContextAsync() since KPI documents are primarily used for bonus predictions.
     /// </summary>
+    /// <param name="communityContext">The community context to filter by.</param>
     /// <param name="cancellationToken">Cancellation token for the operation.</param>
     /// <returns>An async enumerable of document contexts containing KPI data for bonus questions.</returns>
-    public async IAsyncEnumerable<DocumentContext> GetBonusQuestionContextAsync([EnumeratorCancellation] CancellationToken cancellationToken = default)
+    public async IAsyncEnumerable<DocumentContext> GetBonusQuestionContextByCommunityAsync(string communityContext, [EnumeratorCancellation] CancellationToken cancellationToken = default)
     {
-        await foreach (var context in GetContextAsync(cancellationToken))
+        await foreach (var context in GetContextAsync(communityContext, cancellationToken))
         {
             yield return context;
         }
@@ -102,6 +104,46 @@ public class FirebaseKpiContextProvider : IContextProvider<DocumentContext>
             if (managerDataDocument != null)
             {
                 yield return managerDataDocument;
+            }
+        }
+    }
+
+    /// <summary>
+    /// Gets KPI context specifically tailored for a bonus question based on its content and community.
+    /// This method provides targeted context by including additional relevant documents based on question patterns.
+    /// </summary>
+    /// <param name="questionText">The text of the bonus question to provide context for.</param>
+    /// <param name="communityContext">The community context to filter by.</param>
+    /// <param name="cancellationToken">Cancellation token for the operation.</param>
+    /// <returns>An async enumerable of document contexts containing relevant KPI data for the specific question.</returns>
+    public async IAsyncEnumerable<DocumentContext> GetBonusQuestionContextAsync(string questionText, string communityContext, [EnumeratorCancellation] CancellationToken cancellationToken = default)
+    {
+        _logger.LogDebug("Retrieving targeted KPI context for question: {QuestionText} in community: {CommunityContext}", questionText, communityContext);
+
+        // For now, we'll get all documents for the community and filter based on question patterns
+        // In the future, we could make GetKpiDocumentContextAsync community-aware too
+        
+        // Always include team data for all bonus questions
+        await foreach (var context in GetContextAsync(communityContext, cancellationToken))
+        {
+            // Filter for team-data document
+            if (context.Name.Contains("team-data", StringComparison.OrdinalIgnoreCase))
+            {
+                yield return context;
+            }
+            
+            // For trainer/manager change questions, also include manager data
+            else if (IsTrainerChangeQuestion(questionText) && context.Name.Contains("manager-data", StringComparison.OrdinalIgnoreCase))
+            {
+                _logger.LogDebug("Detected trainer/manager change question, including manager data");
+                yield return context;
+            }
+            
+            // For relegation questions, also include manager data
+            else if (IsRelegationQuestion(questionText) && context.Name.Contains("manager-data", StringComparison.OrdinalIgnoreCase))
+            {
+                _logger.LogDebug("Detected relegation question, including manager data");
+                yield return context;
             }
         }
     }
@@ -183,23 +225,24 @@ public class FirebaseKpiContextProvider : IContextProvider<DocumentContext>
     }
 
     /// <summary>
-    /// Gets KPI documents filtered by specific tags.
+    /// Gets KPI documents filtered by specific tags for a community.
     /// </summary>
     /// <param name="tags">The tags to filter by.</param>
+    /// <param name="communityContext">The community context to filter by.</param>
     /// <param name="cancellationToken">Cancellation token for the operation.</param>
     /// <returns>An async enumerable of document contexts for KPI documents matching the specified tags.</returns>
-    public async IAsyncEnumerable<DocumentContext> GetKpiDocumentsByTagsAsync(string[] tags, [EnumeratorCancellation] CancellationToken cancellationToken = default)
+    public async IAsyncEnumerable<DocumentContext> GetKpiDocumentsByTagsAsync(string[] tags, string communityContext, [EnumeratorCancellation] CancellationToken cancellationToken = default)
     {
-        _logger.LogDebug("Retrieving KPI documents with tags: {Tags}", string.Join(", ", tags));
+        _logger.LogDebug("Retrieving KPI documents with tags: {Tags} for community: {CommunityContext}", string.Join(", ", tags), communityContext);
 
         IReadOnlyList<KpiDocument> allKpiDocuments;
         try
         {
-            allKpiDocuments = await _kpiRepository.GetAllKpiDocumentsAsync(cancellationToken);
+            allKpiDocuments = await _kpiRepository.GetAllKpiDocumentsAsync(communityContext, cancellationToken);
         }
         catch (Exception ex)
         {
-            _logger.LogError(ex, "Failed to retrieve KPI documents by tags: {Tags}", string.Join(", ", tags));
+            _logger.LogError(ex, "Failed to retrieve KPI documents by tags: {Tags} for community: {CommunityContext}", string.Join(", ", tags), communityContext);
             throw;
         }
 
@@ -207,8 +250,8 @@ public class FirebaseKpiContextProvider : IContextProvider<DocumentContext>
             tags.Any(tag => doc.Tags.Contains(tag, StringComparer.OrdinalIgnoreCase)));
 
         var filteredList = filteredDocuments.ToList();
-        _logger.LogInformation("Found {DocumentCount} KPI documents matching tags: {Tags}", 
-            filteredList.Count, string.Join(", ", tags));
+        _logger.LogInformation("Found {DocumentCount} KPI documents matching tags: {Tags} for community: {CommunityContext}", 
+            filteredList.Count, string.Join(", ", tags), communityContext);
 
         foreach (var kpiDocument in filteredList)
         {

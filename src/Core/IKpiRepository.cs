@@ -14,6 +14,7 @@ public interface IKpiRepository
     /// <param name="description">The document description.</param>
     /// <param name="documentType">The document type.</param>
     /// <param name="tags">Tags for categorizing the document.</param>
+    /// <param name="communityContext">The community context for filtering.</param>
     /// <param name="cancellationToken">Cancellation token.</param>
     /// <returns>A task representing the asynchronous operation.</returns>
     Task SaveKpiDocumentAsync(
@@ -22,7 +23,8 @@ public interface IKpiRepository
         string content, 
         string description, 
         string documentType, 
-        string[] tags, 
+        string[] tags,
+        string communityContext,
         CancellationToken cancellationToken = default);
 
     /// <summary>
@@ -34,9 +36,10 @@ public interface IKpiRepository
     Task<KpiDocument?> GetKpiDocumentAsync(string documentId, CancellationToken cancellationToken = default);
 
     /// <summary>
-    /// Retrieves all KPI documents.
+    /// Retrieves all KPI documents for a specific community context.
     /// </summary>
+    /// <param name="communityContext">The community context to filter by.</param>
     /// <param name="cancellationToken">Cancellation token.</param>
-    /// <returns>A collection of all KPI documents.</returns>
-    Task<IReadOnlyList<KpiDocument>> GetAllKpiDocumentsAsync(CancellationToken cancellationToken = default);
+    /// <returns>A collection of KPI documents for the specified community.</returns>
+    Task<IReadOnlyList<KpiDocument>> GetAllKpiDocumentsAsync(string communityContext, CancellationToken cancellationToken = default);
 }
