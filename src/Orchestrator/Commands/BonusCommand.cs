@@ -211,7 +211,7 @@ public class BonusCommand : AsyncCommand<BaseSettings>
                             }
                             catch (Exception ex)
                             {
-                                logger.LogError(ex, "Failed to save bonus prediction for question {QuestionId}", question.Id);
+                                logger.LogError(ex, "Failed to save bonus prediction for question '{QuestionText}'", question.Text);
                                 AnsiConsole.MarkupLine($"[red]    ✗ Failed to save to database: {ex.Message}[/]");
                             }
                         }
@@ -236,7 +236,7 @@ public class BonusCommand : AsyncCommand<BaseSettings>
                     }
                 }
                 
-                predictions[question.Id] = prediction;
+                predictions[question.FormFieldName ?? question.Text] = prediction;
                 
                 if (!fromDatabase && settings.Verbose)
                 {
@@ -245,7 +245,7 @@ public class BonusCommand : AsyncCommand<BaseSettings>
             }
             catch (Exception ex)
             {
-                logger.LogError(ex, "Error processing bonus question {QuestionId}", question.Id);
+                logger.LogError(ex, "Error processing bonus question '{QuestionText}'", question.Text);
                 AnsiConsole.MarkupLine($"[red]  ✗ Error processing question: {ex.Message}[/]");
             }
         }

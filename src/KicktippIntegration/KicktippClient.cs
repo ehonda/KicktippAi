@@ -1247,11 +1247,7 @@ public class KicktippClient : IKicktippClient, IDisposable
                 
                 if (options.Any())
                 {
-                    // Generate a unique ID for the question based on form field name or text
-                    var questionId = formFieldName ?? questionText.GetHashCode().ToString();
-                    
                     bonusQuestions.Add(new BonusQuestion(
-                        Id: questionId,
                         Text: questionText,
                         Deadline: deadline,
                         Options: options,
@@ -1316,6 +1312,10 @@ public class KicktippClient : IKicktippClient, IDisposable
                 
                 if (selectElements != null && selectElements.Length > 0)
                 {
+                    // Extract form field name from the first select element
+                    var firstSelect = selectElements[0] as IHtmlSelectElement;
+                    var formFieldName = firstSelect?.Name;
+                    
                     var selectedOptionIds = new List<string>();
                     
                     // Check each select element for its current selection
@@ -1328,18 +1328,17 @@ public class KicktippClient : IKicktippClient, IDisposable
                         }
                     }
                     
-                    // Generate the same question ID as in GetOpenBonusQuestionsAsync
-                    var formFieldName = (selectElements[0] as IHtmlSelectElement)?.Name;
-                    var questionId = formFieldName ?? questionText.GetHashCode().ToString();
+                    // Use form field name as key, fall back to question text
+                    var dictionaryKey = formFieldName ?? questionText;
                     
                     // Only create a prediction if there are actual selections
                     if (selectedOptionIds.Any())
                     {
-                        placedPredictions[questionId] = new BonusPrediction(questionId, selectedOptionIds);
+                        placedPredictions[dictionaryKey] = new BonusPrediction(selectedOptionIds);
                     }
                     else
                     {
-                        placedPredictions[questionId] = null; // No prediction placed
+                        placedPredictions[dictionaryKey] = null; // No prediction placed
                     }
                 }
             }
@@ -1425,10 +1424,10 @@ public class KicktippClient : IKicktippClient, IDisposable
                     {
                         var selectArray = selectElements.Cast<IHtmlSelectElement>().ToArray();
                         
-                        // Check if we have a prediction for this question based on form field patterns
+                        // Check if we have a prediction for this question based on form field name match
                         var matchingPrediction = predictions.FirstOrDefault(p => 
-                            selectArray.Any(sel => sel.Name?.Contains(p.Key) == true) || 
-                            selectArray.Any(sel => p.Value.QuestionId == sel.Name));
+                            selectArray.Any(sel => sel.Name == p.Key) || 
+                            selectArray.Any(sel => sel.Name?.Contains(p.Key) == true));
                         
                         if (matchingPrediction.Value != null && matchingPrediction.Value.SelectedOptionIds.Any())
                         {

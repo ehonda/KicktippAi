@@ -110,8 +110,8 @@ public class VerifyBonusCommand : AsyncCommand<VerifySettings>
                     AnsiConsole.MarkupLine($"[dim]  Looking up: {Markup.Escape(question.Text)}[/]");
                 }
                 
-                var databasePrediction = await predictionRepository.GetBonusPredictionAsync(question.Id, settings.Model, communityContext);
-                var kicktippPrediction = placedPredictions.GetValueOrDefault(question.Id);
+                var databasePrediction = await predictionRepository.GetBonusPredictionByTextAsync(question.Text, settings.Model, communityContext);
+                var kicktippPrediction = placedPredictions.GetValueOrDefault(question.FormFieldName ?? question.Text);
                 
                 if (databasePrediction != null)
                 {
@@ -199,7 +199,7 @@ public class VerifyBonusCommand : AsyncCommand<VerifySettings>
             catch (Exception ex)
             {
                 hasDiscrepancies = true;
-                logger.LogError(ex, "Error verifying bonus prediction for question {QuestionId}", question.Id);
+                logger.LogError(ex, "Error verifying bonus prediction for question '{QuestionText}'", question.Text);
                 
                 if (settings.Agent)
                 {

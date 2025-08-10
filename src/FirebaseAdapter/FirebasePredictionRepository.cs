@@ -267,7 +267,7 @@ public class FirebasePredictionRepository : IPredictionRepository
             
             // Check if a prediction already exists for this question, model, and community context
             var query = _firestoreDb.Collection(_bonusPredictionsCollection)
-                .WhereEqualTo("questionId", bonusPrediction.QuestionId)
+                .WhereEqualTo("questionText", bonusQuestion.Text)
                 .WhereEqualTo("competition", _competition)
                 .WhereEqualTo("model", model)
                 .WhereEqualTo("communityContext", communityContext);
@@ -289,8 +289,8 @@ public class FirebasePredictionRepository : IPredictionRepository
                 var existingData = existingDoc.ConvertTo<FirestoreBonusPrediction>();
                 existingCreatedAt = existingData.CreatedAt;
                 
-                _logger.LogDebug("Updating existing bonus prediction for question {QuestionId} (document: {DocumentId})", 
-                    bonusPrediction.QuestionId, existingDoc.Id);
+                _logger.LogDebug("Updating existing bonus prediction for question '{QuestionText}' (document: {DocumentId})", 
+                    bonusQuestion.Text, existingDoc.Id);
             }
             else
             {
@@ -298,8 +298,8 @@ public class FirebasePredictionRepository : IPredictionRepository
                 var documentId = Guid.NewGuid().ToString();
                 docRef = _firestoreDb.Collection(_bonusPredictionsCollection).Document(documentId);
                 
-                _logger.LogDebug("Creating new bonus prediction for question {QuestionId} (document: {DocumentId})", 
-                    bonusPrediction.QuestionId, documentId);
+                _logger.LogDebug("Creating new bonus prediction for question '{QuestionText}' (document: {DocumentId})", 
+                    bonusQuestion.Text, documentId);
             }
             
             // Extract selected option texts for observability
@@ -311,7 +311,6 @@ public class FirebasePredictionRepository : IPredictionRepository
             var firestoreBonusPrediction = new FirestoreBonusPrediction
             {
                 Id = docRef.Id,
-                QuestionId = bonusPrediction.QuestionId,
                 QuestionText = bonusQuestion.Text,
                 SelectedOptionIds = bonusPrediction.SelectedOptionIds.ToArray(),
                 SelectedOptionTexts = selectedOptionTexts,
@@ -334,8 +333,8 @@ public class FirebasePredictionRepository : IPredictionRepository
         }
         catch (Exception ex)
         {
-            _logger.LogError(ex, "Failed to save bonus prediction for question {QuestionId}: {QuestionText}", 
-                bonusPrediction.QuestionId, bonusQuestion.Text);
+            _logger.LogError(ex, "Failed to save bonus prediction for question: {QuestionText}", 
+                bonusQuestion.Text);
             throw;
         }
     }
@@ -359,7 +358,7 @@ public class FirebasePredictionRepository : IPredictionRepository
             }
 
             var firestoreBonusPrediction = snapshot.Documents.First().ConvertTo<FirestoreBonusPrediction>();
-            return new BonusPrediction(firestoreBonusPrediction.QuestionId, firestoreBonusPrediction.SelectedOptionIds.ToList());
+            return new BonusPrediction(firestoreBonusPrediction.SelectedOptionIds.ToList());
         }
         catch (Exception ex)
         {
@@ -390,7 +389,7 @@ public class FirebasePredictionRepository : IPredictionRepository
             }
 
             var firestoreBonusPrediction = snapshot.Documents.First().ConvertTo<FirestoreBonusPrediction>();
-            var bonusPrediction = new BonusPrediction(firestoreBonusPrediction.QuestionId, firestoreBonusPrediction.SelectedOptionIds.ToList());
+            var bonusPrediction = new BonusPrediction(firestoreBonusPrediction.SelectedOptionIds.ToList());
             
             _logger.LogDebug("Found bonus prediction for question text: {QuestionText} with model: {Model} and community context: {CommunityContext}", 
                 questionText, model, communityContext);
@@ -421,7 +420,6 @@ public class FirebasePredictionRepository : IPredictionRepository
             {
                 var firestoreBonusPrediction = document.ConvertTo<FirestoreBonusPrediction>();
                 bonusPredictions.Add(new BonusPrediction(
-                    firestoreBonusPrediction.QuestionId, 
                     firestoreBonusPrediction.SelectedOptionIds.ToList()));
             }
 

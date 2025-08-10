@@ -146,16 +146,10 @@ public class FirestoreMatch
 public class FirestoreBonusPrediction
 {
     /// <summary>
-    /// Document ID - the bonus question ID.
+    /// Document ID - unique identifier for the prediction.
     /// </summary>
     [FirestoreDocumentId]
     public string? Id { get; set; }
-
-    /// <summary>
-    /// The bonus question ID.
-    /// </summary>
-    [FirestoreProperty("questionId")]
-    public string QuestionId { get; set; } = string.Empty;
 
     /// <summary>
     /// The bonus question text (for observability).

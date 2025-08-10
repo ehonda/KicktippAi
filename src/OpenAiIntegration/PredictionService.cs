@@ -322,7 +322,6 @@ public class PredictionService : IPredictionService
     {
         var questionData = new
         {
-            id = question.Id,
             text = question.Text,
             options = question.Options.Select(o => new { id = o.Id, text = o.Text }).ToArray(),
             maxSelections = question.MaxSelections
@@ -378,8 +377,8 @@ public class PredictionService : IPredictionService
             
             if (invalidOptions.Any())
             {
-                _logger.LogWarning("Invalid option IDs for question {QuestionId}: {InvalidOptions}", 
-                    question.Id, string.Join(", ", invalidOptions));
+                _logger.LogWarning("Invalid option IDs for question '{QuestionText}': {InvalidOptions}", 
+                    question.Text, string.Join(", ", invalidOptions));
                 return null;
             }
 
@@ -392,23 +391,23 @@ public class PredictionService : IPredictionService
                 
             if (duplicateOptions.Any())
             {
-                _logger.LogWarning("Duplicate option IDs for question {QuestionId}: {DuplicateOptions}", 
-                    question.Id, string.Join(", ", duplicateOptions));
+                _logger.LogWarning("Duplicate option IDs for question '{QuestionText}': {DuplicateOptions}", 
+                    question.Text, string.Join(", ", duplicateOptions));
                 return null;
             }
 
             // Validate selection count - must match exactly MaxSelections for full predictions
             if (response.SelectedOptionIds.Length != question.MaxSelections)
             {
-                _logger.LogWarning("Invalid selection count for question {QuestionId}: expected exactly {MaxSelections}, got {ActualCount}", 
-                    question.Id, question.MaxSelections, response.SelectedOptionIds.Length);
+                _logger.LogWarning("Invalid selection count for question '{QuestionText}': expected exactly {MaxSelections}, got {ActualCount}", 
+                    question.Text, question.MaxSelections, response.SelectedOptionIds.Length);
                 return null;
             }
 
-            var prediction = new BonusPrediction(question.Id, response.SelectedOptionIds.ToList());
+            var prediction = new BonusPrediction(response.SelectedOptionIds.ToList());
             
-            _logger.LogDebug("Parsed prediction for question {QuestionId}: {SelectedOptions}", 
-                question.Id, string.Join(", ", response.SelectedOptionIds));
+            _logger.LogDebug("Parsed prediction: {SelectedOptions}", 
+                string.Join(", ", response.SelectedOptionIds));
 
             return prediction;
         }
