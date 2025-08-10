@@ -125,7 +125,8 @@ public class BonusCommand : AsyncCommand<BaseSettings>
                 // Check if we have an existing prediction in the database
                 if (databaseEnabled && !settings.OverrideDatabase)
                 {
-                    prediction = await predictionRepository!.GetBonusPredictionAsync(question.Id, settings.Model, communityContext);
+                    // Look for prediction by question text, model, and community context
+                    prediction = await predictionRepository!.GetBonusPredictionByTextAsync(question.Text, settings.Model, communityContext);
                     if (prediction != null)
                     {
                         fromDatabase = true;

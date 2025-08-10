@@ -23,7 +23,7 @@ public class ListKpiCommand : AsyncCommand<ListKpiSettings>
             ConfigureServices(services, settings, logger);
             var serviceProvider = services.BuildServiceProvider();
             
-            AnsiConsole.MarkupLine($"[green]List KPI command initialized for community:[/] [yellow]{settings.Community}[/]");
+            AnsiConsole.MarkupLine($"[green]List KPI command initialized for community context:[/] [yellow]{settings.CommunityContext}[/]");
             
             if (settings.Verbose)
             {
@@ -57,7 +57,7 @@ public class ListKpiCommand : AsyncCommand<ListKpiSettings>
                     .Select(t => t.Trim())
                     .ToArray();
                 
-                await foreach (var documentContext in kpiContextProvider.GetKpiDocumentsByTagsAsync(tags, settings.Community))
+                await foreach (var documentContext in kpiContextProvider.GetKpiDocumentsByTagsAsync(tags, settings.CommunityContext))
                 {
                     var preview = documentContext.Content.Length > 100 
                         ? documentContext.Content.Substring(0, 100) + "..." 
@@ -88,7 +88,7 @@ public class ListKpiCommand : AsyncCommand<ListKpiSettings>
             else
             {
                 // Get all documents
-                await foreach (var documentContext in kpiContextProvider.GetContextAsync(settings.Community))
+                await foreach (var documentContext in kpiContextProvider.GetContextAsync(settings.CommunityContext))
                 {
                     var preview = documentContext.Content.Length > 100 
                         ? documentContext.Content.Substring(0, 100) + "..." 
@@ -134,7 +134,7 @@ public class ListKpiCommand : AsyncCommand<ListKpiSettings>
         // Add logging services
         services.AddLogging();
         
-        // Configure Firebase
+        // Configure Firebase (no community parameter needed for unified collection)
         services.AddFirebaseDatabase(options =>
         {
             var serviceAccountPath = PathUtility.GetFirebaseJsonPath();
@@ -149,7 +149,7 @@ public class ListKpiCommand : AsyncCommand<ListKpiSettings>
             options.ProjectId = projectId;
             
             logger.LogDebug("Firebase configured with project ID: {ProjectId}", projectId);
-        }, settings.Community);
+        });
         
         logger.LogDebug("Services configured for list-kpi command");
     }

@@ -104,6 +104,17 @@ public interface IPredictionRepository
     Task<BonusPrediction?> GetBonusPredictionAsync(string questionId, string model, string communityContext, CancellationToken cancellationToken = default);
 
     /// <summary>
+    /// Retrieves a bonus prediction by question text and community context.
+    /// This allows lookup for the same question text with different form IDs.
+    /// </summary>
+    /// <param name="questionText">The text of the bonus question.</param>
+    /// <param name="model">The AI model used to generate the prediction.</param>
+    /// <param name="communityContext">The community context used for the prediction.</param>
+    /// <param name="cancellationToken">Cancellation token.</param>
+    /// <returns>The bonus prediction if found, otherwise null.</returns>
+    Task<BonusPrediction?> GetBonusPredictionByTextAsync(string questionText, string model, string communityContext, CancellationToken cancellationToken = default);
+
+    /// <summary>
     /// Retrieves all bonus predictions made with the specified model and community context.
     /// </summary>
     /// <param name="model">The AI model used to generate the predictions.</param>

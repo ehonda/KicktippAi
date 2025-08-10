@@ -5,9 +5,9 @@ namespace Orchestrator.Commands;
 
 public class ListKpiSettings : CommandSettings
 {
-    [CommandOption("-c|--community <COMMUNITY>")]
-    [Description("The community name (required)")]
-    public required string Community { get; set; } = string.Empty;
+    [CommandOption("-c|--community-context <COMMUNITY_CONTEXT>")]
+    [Description("The community context to filter by (required)")]
+    public required string CommunityContext { get; set; } = string.Empty;
 
     [CommandOption("-v|--verbose")]
     [Description("Enable verbose output")]

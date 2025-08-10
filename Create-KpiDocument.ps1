@@ -4,7 +4,10 @@ param(
     [string]$Mode,
     
     [Parameter(Mandatory = $false)]
-    [string]$DocumentName
+    [string]$DocumentName,
+    
+    [Parameter(Mandatory = $false)]
+    [string]$CommunityContext
 )
 
 # Function to prompt for mode if not provided
@@ -32,6 +35,19 @@ function Get-DocumentName {
     return $DocumentName
 }
 
+# Function to prompt for community context if not provided (for firebase mode)
+function Get-CommunityContext {
+    param([string]$Mode)
+    
+    # Only prompt for community context in firebase mode
+    if ($Mode -eq "firebase" -and [string]::IsNullOrWhiteSpace($CommunityContext)) {
+        do {
+            $CommunityContext = Read-Host "Please enter the community context"
+        } while ([string]::IsNullOrWhiteSpace($CommunityContext))
+    }
+    return $CommunityContext
+}
+
 # Function to create the timestamp suffix
 function Get-TimestampSuffix {
     return (Get-Date -AsUTC).ToString("yyyy-MM-dd-HH-mm-ss")
@@ -40,13 +56,19 @@ function Get-TimestampSuffix {
 # Function to create the directory structure
 function New-KpiDocumentDirectory {
     param(
-        [string]$Mode
+        [string]$Mode,
+        [string]$CommunityContext = ""
     )
     
     # Create the base directory path
     $baseDirectory = "kpi-documents"
     $subDirectory = if ($Mode -eq "tsv") { "input" } else { "output" }
     $directoryPath = Join-Path $baseDirectory $subDirectory
+    
+    # For firebase mode, add community context subfolder
+    if ($Mode -eq "firebase" -and ![string]::IsNullOrWhiteSpace($CommunityContext)) {
+        $directoryPath = Join-Path $directoryPath $CommunityContext
+    }
     
     # Create directory if it doesn't exist
     if (-not (Test-Path $directoryPath)) {
@@ -107,7 +129,8 @@ function New-TsvTemplate {
 function New-FirebaseDocument {
     param(
         [string]$DirectoryPath,
-        [string]$DocumentName
+        [string]$DocumentName,
+        [string]$CommunityContext
     )
     
     # Create the file name (no timestamp suffix)
@@ -159,6 +182,7 @@ function New-FirebaseDocument {
         "content" = $content
         "createdAt" = (Get-Date -AsUTC -Format 'o')
         "competition" = "bundesliga-2025-26"
+        "communityContext" = $CommunityContext
         "tags" = @("kpi", "bonus-predictions", "team-data")
         "documentType" = "kpi-context"
         "description" = "KPI context document containing team performance data for bonus predictions"
@@ -185,13 +209,19 @@ try {
     $documentName = Get-DocumentName
     Write-Host "Document: $documentName" -ForegroundColor Yellow
     
+    # Get the community context (only for firebase mode)
+    $communityContext = Get-CommunityContext -Mode $mode
+    if ($mode -eq "firebase" -and ![string]::IsNullOrWhiteSpace($communityContext)) {
+        Write-Host "Community Context: $communityContext" -ForegroundColor Yellow
+    }
+    
     # Generate timestamp suffix
     $suffix = Get-TimestampSuffix
     Write-Host "Timestamp: $suffix" -ForegroundColor Yellow
     Write-Host ""
     
     # Create the appropriate directory
-    $directoryPath = New-KpiDocumentDirectory -Mode $mode
+    $directoryPath = New-KpiDocumentDirectory -Mode $mode -CommunityContext $communityContext
     
     # Create the document based on mode
     $createdFile = switch ($mode) {
@@ -199,7 +229,7 @@ try {
             New-TsvTemplate -DirectoryPath $directoryPath -DocumentName $documentName
         }
         "firebase" {
-            New-FirebaseDocument -DirectoryPath $directoryPath -DocumentName $documentName
+            New-FirebaseDocument -DirectoryPath $directoryPath -DocumentName $documentName -CommunityContext $communityContext
         }
     }
     

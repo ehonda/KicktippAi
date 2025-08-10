@@ -25,6 +25,7 @@ public class UploadKpiCommand : AsyncCommand<UploadKpiSettings>
             var serviceProvider = services.BuildServiceProvider();
             
             AnsiConsole.MarkupLine($"[green]Upload KPI command initialized for document:[/] [yellow]{settings.DocumentName}[/]");
+            AnsiConsole.MarkupLine($"[blue]Using community context:[/] [yellow]{settings.CommunityContext}[/]");
             
             if (settings.Verbose)
             {
@@ -36,8 +37,8 @@ public class UploadKpiCommand : AsyncCommand<UploadKpiSettings>
                 AnsiConsole.MarkupLine("[yellow]Override mode enabled - will override existing KPI document[/]");
             }
             
-            // Check if the JSON file exists
-            var jsonFilePath = Path.Combine("kpi-documents", "output", $"{settings.DocumentName}.json");
+            // Check if the JSON file exists in the community-context specific subfolder
+            var jsonFilePath = Path.Combine("kpi-documents", "output", settings.CommunityContext, $"{settings.DocumentName}.json");
             if (!File.Exists(jsonFilePath))
             {
                 AnsiConsole.MarkupLine($"[red]KPI document file not found:[/] {jsonFilePath}");
@@ -65,6 +66,7 @@ public class UploadKpiCommand : AsyncCommand<UploadKpiSettings>
                 AnsiConsole.MarkupLine($"[dim]Document ID: {kpiDocument.DocumentId}[/]");
                 AnsiConsole.MarkupLine($"[dim]Name: {kpiDocument.Name}[/]");
                 AnsiConsole.MarkupLine($"[dim]Type: {kpiDocument.DocumentType}[/]");
+                AnsiConsole.MarkupLine($"[dim]Community Context: {kpiDocument.CommunityContext}[/]");
                 AnsiConsole.MarkupLine($"[dim]Content length: {kpiDocument.Content.Length} characters[/]");
             }
             
@@ -95,13 +97,13 @@ public class UploadKpiCommand : AsyncCommand<UploadKpiSettings>
                 kpiDocument.Description,
                 kpiDocument.DocumentType,
                 kpiDocument.Tags,
-                settings.Community);
+                kpiDocument.CommunityContext);
                 
             AnsiConsole.MarkupLine($"[green]✓ Successfully uploaded KPI document '[/][white]{kpiDocument.DocumentId}[/][green]'[/]");
             
             if (settings.Verbose)
             {
-                AnsiConsole.MarkupLine($"[dim]Document saved to Firebase collection: kpiDocuments-{settings.Community}[/]");
+                AnsiConsole.MarkupLine($"[dim]Document saved to unified kpi-documents collection with community context: {kpiDocument.CommunityContext}[/]");
             }
             
             return 0;
@@ -119,7 +121,7 @@ public class UploadKpiCommand : AsyncCommand<UploadKpiSettings>
         // Add logging services
         services.AddLogging();
         
-        // Configure Firebase
+        // Configure Firebase (no community parameter needed for unified collection)
         services.AddFirebaseDatabase(options =>
         {
             var serviceAccountPath = PathUtility.GetFirebaseJsonPath();
@@ -134,7 +136,7 @@ public class UploadKpiCommand : AsyncCommand<UploadKpiSettings>
             options.ProjectId = projectId;
             
             logger.LogDebug("Firebase configured with project ID: {ProjectId}", projectId);
-        }, settings.Community);
+        });
         
         logger.LogDebug("Services configured for upload-kpi command");
     }
@@ -152,5 +154,6 @@ public class UploadKpiCommand : AsyncCommand<UploadKpiSettings>
         public string[] Tags { get; set; } = [];
         public string CreatedAt { get; set; } = string.Empty;
         public string Competition { get; set; } = string.Empty;
+        public string CommunityContext { get; set; } = string.Empty;
     }
 }

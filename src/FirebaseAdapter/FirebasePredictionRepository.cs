@@ -368,6 +368,42 @@ public class FirebasePredictionRepository : IPredictionRepository
         }
     }
 
+    public async Task<BonusPrediction?> GetBonusPredictionByTextAsync(string questionText, string model, string communityContext, CancellationToken cancellationToken = default)
+    {
+        try
+        {
+            // Query by questionText, model, and community context
+            // Note: Removed OrderByDescending to avoid index requirement for testing
+            var query = _firestoreDb.Collection(_bonusPredictionsCollection)
+                .WhereEqualTo("questionText", questionText)
+                .WhereEqualTo("competition", _competition)
+                .WhereEqualTo("model", model)
+                .WhereEqualTo("communityContext", communityContext)
+                .Limit(1);
+
+            var snapshot = await query.GetSnapshotAsync(cancellationToken);
+            
+            if (snapshot.Documents.Count == 0)
+            {
+                _logger.LogDebug("No bonus prediction found for question text: {QuestionText} with model: {Model} and community context: {CommunityContext}", questionText, model, communityContext);
+                return null;
+            }
+
+            var firestoreBonusPrediction = snapshot.Documents.First().ConvertTo<FirestoreBonusPrediction>();
+            var bonusPrediction = new BonusPrediction(firestoreBonusPrediction.QuestionId, firestoreBonusPrediction.SelectedOptionIds.ToList());
+            
+            _logger.LogDebug("Found bonus prediction for question text: {QuestionText} with model: {Model} and community context: {CommunityContext}", 
+                questionText, model, communityContext);
+            
+            return bonusPrediction;
+        }
+        catch (Exception ex)
+        {
+            _logger.LogError(ex, "Failed to retrieve bonus prediction by text: {QuestionText} with model: {Model} and community context: {CommunityContext}", questionText, model, communityContext);
+            throw;
+        }
+    }
+
     public async Task<IReadOnlyList<BonusPrediction>> GetAllBonusPredictionsAsync(string model, string communityContext, CancellationToken cancellationToken = default)
     {
         try

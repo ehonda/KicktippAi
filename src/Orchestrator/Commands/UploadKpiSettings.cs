@@ -9,9 +9,9 @@ public class UploadKpiSettings : CommandSettings
     [Description("The name of the KPI document to upload (without file extension)")]
     public string DocumentName { get; set; } = string.Empty;
 
-    [CommandOption("-c|--community")]
-    [Description("The Kicktipp community to use (e.g., ehonda-test-buli)")]
-    public required string Community { get; set; }
+    [CommandOption("-c|--community-context")]
+    [Description("The community context to use (e.g., ehonda-test-buli)")]
+    public required string CommunityContext { get; set; }
 
     [CommandOption("-v|--verbose")]
     [Description("Enable verbose output to show detailed information")]
