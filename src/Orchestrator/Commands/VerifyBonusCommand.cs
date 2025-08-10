@@ -67,7 +67,11 @@ public class VerifyBonusCommand : AsyncCommand<VerifySettings>
             return true; // Consider this a failure
         }
         
+        // Determine community context (use explicit setting or fall back to community name)
+        string communityContext = settings.CommunityContext ?? settings.Community;
+        
         AnsiConsole.MarkupLine($"[blue]Using community:[/] [yellow]{settings.Community}[/]");
+        AnsiConsole.MarkupLine($"[blue]Using community context:[/] [yellow]{communityContext}[/]");
         AnsiConsole.MarkupLine("[blue]Getting open bonus questions from Kicktipp...[/]");
         
         // Step 1: Get open bonus questions from Kicktipp
@@ -106,7 +110,7 @@ public class VerifyBonusCommand : AsyncCommand<VerifySettings>
                     AnsiConsole.MarkupLine($"[dim]  Looking up: {Markup.Escape(question.Text)}[/]");
                 }
                 
-                var databasePrediction = await predictionRepository.GetBonusPredictionAsync(question.Id);
+                var databasePrediction = await predictionRepository.GetBonusPredictionAsync(question.Id, settings.Model, communityContext);
                 var kicktippPrediction = placedPredictions.GetValueOrDefault(question.Id);
                 
                 if (databasePrediction != null)

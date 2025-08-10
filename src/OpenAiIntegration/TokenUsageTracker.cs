@@ -1,4 +1,5 @@
 using System.Globalization;
+using System.Text.Json;
 using Microsoft.Extensions.Logging;
 using OpenAI.Chat;
 
@@ -133,11 +134,46 @@ public class TokenUsageTracker : ITokenUsageTracker
         }
     }
 
+    public string? GetLastUsageJson()
+    {
+        lock (_lock)
+        {
+            if (_lastUsage == null)
+                return null;
+                
+            var usageData = new
+            {
+                InputTokenCount = _lastUsage.InputTokenCount,
+                OutputTokenCount = _lastUsage.OutputTokenCount,
+                InputTokenDetails = _lastUsage.InputTokenDetails != null ? new
+                {
+                    CachedTokenCount = _lastUsage.InputTokenDetails.CachedTokenCount,
+                    AudioTokenCount = _lastUsage.InputTokenDetails.AudioTokenCount
+                } : null,
+                OutputTokenDetails = _lastUsage.OutputTokenDetails != null ? new
+                {
+                    ReasoningTokenCount = _lastUsage.OutputTokenDetails.ReasoningTokenCount,
+                    AudioTokenCount = _lastUsage.OutputTokenDetails.AudioTokenCount
+                } : null
+            };
+            
+            return JsonSerializer.Serialize(usageData, new JsonSerializerOptions { WriteIndented = false });
+        }
+    }
+
     public decimal GetTotalCost()
     {
         lock (_lock)
         {
             return _totalCost;
+        }
+    }
+
+    public decimal GetLastCost()
+    {
+        lock (_lock)
+        {
+            return _lastCost;
         }
     }
 

@@ -29,25 +29,63 @@ public class FirebasePredictionRepository : IPredictionRepository
             
         _community = community;
         
-        // Make collection names community-specific
-        _predictionsCollection = $"predictions-{community}";
-        _matchesCollection = $"matches-{community}";
-        _bonusPredictionsCollection = $"bonusPredictions-{community}";
-        _competition = $"bundesliga-2025-26-{community}";
+        // Use unified collection names (no longer community-specific)
+        _predictionsCollection = "match-predictions";
+        _matchesCollection = "matches";
+        _bonusPredictionsCollection = "bonus-predictions";
+        _competition = "bundesliga-2025-26"; // Remove community suffix
         
         _logger.LogInformation("Firebase repository initialized for community: {Community}", community);
     }
 
-    public async Task SavePredictionAsync(Match match, Prediction prediction, CancellationToken cancellationToken = default)
+    public async Task SavePredictionAsync(Match match, Prediction prediction, string model, string tokenUsage, double cost, string communityContext, CancellationToken cancellationToken = default)
     {
         try
         {
-            var documentId = GenerateMatchId(match);
             var now = Timestamp.GetCurrentTimestamp();
+            
+            // Check if a prediction already exists for this match, model, and community context
+            var query = _firestoreDb.Collection(_predictionsCollection)
+                .WhereEqualTo("homeTeam", match.HomeTeam)
+                .WhereEqualTo("awayTeam", match.AwayTeam)
+                .WhereEqualTo("startsAt", ConvertToTimestamp(match.StartsAt))
+                .WhereEqualTo("competition", _competition)
+                .WhereEqualTo("model", model)
+                .WhereEqualTo("communityContext", communityContext);
+
+            var snapshot = await query.GetSnapshotAsync(cancellationToken);
+            
+            DocumentReference docRef;
+            bool isUpdate = false;
+            Timestamp? existingCreatedAt = null;
+            
+            if (snapshot.Documents.Count > 0)
+            {
+                // Update existing document
+                var existingDoc = snapshot.Documents.First();
+                docRef = existingDoc.Reference;
+                isUpdate = true;
+                
+                // Preserve the original createdAt value
+                var existingData = existingDoc.ConvertTo<FirestoreMatchPrediction>();
+                existingCreatedAt = existingData.CreatedAt;
+                
+                _logger.LogDebug("Updating existing prediction for match {HomeTeam} vs {AwayTeam} (document: {DocumentId})", 
+                    match.HomeTeam, match.AwayTeam, existingDoc.Id);
+            }
+            else
+            {
+                // Create new document
+                var documentId = Guid.NewGuid().ToString();
+                docRef = _firestoreDb.Collection(_predictionsCollection).Document(documentId);
+                
+                _logger.LogDebug("Creating new prediction for match {HomeTeam} vs {AwayTeam} (document: {DocumentId})", 
+                    match.HomeTeam, match.AwayTeam, documentId);
+            }
             
             var firestorePrediction = new FirestoreMatchPrediction
             {
-                Id = documentId,
+                Id = docRef.Id,
                 HomeTeam = match.HomeTeam,
                 AwayTeam = match.AwayTeam,
                 StartsAt = ConvertToTimestamp(match.StartsAt),
@@ -55,31 +93,21 @@ public class FirebasePredictionRepository : IPredictionRepository
                 HomeGoals = prediction.HomeGoals,
                 AwayGoals = prediction.AwayGoals,
                 UpdatedAt = now,
-                Competition = _competition
+                Competition = _competition,
+                Model = model,
+                TokenUsage = tokenUsage,
+                Cost = cost,
+                CommunityContext = communityContext
             };
 
-            // Check if prediction already exists to set created timestamp
-            var existingDoc = await _firestoreDb.Collection(_predictionsCollection)
-                .Document(documentId)
-                .GetSnapshotAsync(cancellationToken);
+            // Set CreatedAt: preserve existing value for updates, set current time for new documents
+            firestorePrediction.CreatedAt = existingCreatedAt ?? now;
 
-            if (!existingDoc.Exists)
-            {
-                firestorePrediction.CreatedAt = now;
-            }
-            else
-            {
-                // Preserve original creation time
-                var existing = existingDoc.ConvertTo<FirestoreMatchPrediction>();
-                firestorePrediction.CreatedAt = existing.CreatedAt;
-            }
+            await docRef.SetAsync(firestorePrediction, cancellationToken: cancellationToken);
 
-            await _firestoreDb.Collection(_predictionsCollection)
-                .Document(documentId)
-                .SetAsync(firestorePrediction, cancellationToken: cancellationToken);
-
-            _logger.LogInformation("Saved prediction for match {HomeTeam} vs {AwayTeam} on matchday {Matchday}", 
-                match.HomeTeam, match.AwayTeam, match.Matchday);
+            var action = isUpdate ? "Updated" : "Saved";
+            _logger.LogInformation("{Action} prediction for match {HomeTeam} vs {AwayTeam} on matchday {Matchday}", 
+                action, match.HomeTeam, match.AwayTeam, match.Matchday);
         }
         catch (Exception ex)
         {
@@ -89,21 +117,23 @@ public class FirebasePredictionRepository : IPredictionRepository
         }
     }
 
-    public async Task<Prediction?> GetPredictionAsync(Match match, CancellationToken cancellationToken = default)
+    public async Task<Prediction?> GetPredictionAsync(Match match, string model, string communityContext, CancellationToken cancellationToken = default)
     {
-        return await GetPredictionAsync(match.HomeTeam, match.AwayTeam, match.StartsAt, cancellationToken);
+        return await GetPredictionAsync(match.HomeTeam, match.AwayTeam, match.StartsAt, model, communityContext, cancellationToken);
     }
 
-    public async Task<Prediction?> GetPredictionAsync(string homeTeam, string awayTeam, ZonedDateTime startsAt, CancellationToken cancellationToken = default)
+    public async Task<Prediction?> GetPredictionAsync(string homeTeam, string awayTeam, ZonedDateTime startsAt, string model, string communityContext, CancellationToken cancellationToken = default)
     {
         try
         {
-            // We need to find the document by querying, since we don't know the matchday
+            // Query by match characteristics, model, community context, and competition
             var query = _firestoreDb.Collection(_predictionsCollection)
                 .WhereEqualTo("homeTeam", homeTeam)
                 .WhereEqualTo("awayTeam", awayTeam)
                 .WhereEqualTo("startsAt", ConvertToTimestamp(startsAt))
-                .WhereEqualTo("competition", _competition);
+                .WhereEqualTo("competition", _competition)
+                .WhereEqualTo("model", model)
+                .WhereEqualTo("communityContext", communityContext);
 
             var snapshot = await query.GetSnapshotAsync(cancellationToken);
             
@@ -117,8 +147,8 @@ public class FirebasePredictionRepository : IPredictionRepository
         }
         catch (Exception ex)
         {
-            _logger.LogError(ex, "Failed to get prediction for match {HomeTeam} vs {AwayTeam}", 
-                homeTeam, awayTeam);
+            _logger.LogError(ex, "Failed to get prediction for match {HomeTeam} vs {AwayTeam} using model {Model} and community context {CommunityContext}", 
+                homeTeam, awayTeam, model, communityContext);
             throw;
         }
     }
@@ -152,19 +182,19 @@ public class FirebasePredictionRepository : IPredictionRepository
         }
     }
 
-    public async Task<IReadOnlyList<MatchPrediction>> GetMatchDayWithPredictionsAsync(int matchDay, CancellationToken cancellationToken = default)
+    public async Task<IReadOnlyList<MatchPrediction>> GetMatchDayWithPredictionsAsync(int matchDay, string model, string communityContext, CancellationToken cancellationToken = default)
     {
         try
         {
             // Get all matches for the matchday
             var matches = await GetMatchDayAsync(matchDay, cancellationToken);
             
-            // Get predictions for all matches
+            // Get predictions for all matches using the specified model and community context
             var matchPredictions = new List<MatchPrediction>();
             
             foreach (var match in matches)
             {
-                var prediction = await GetPredictionAsync(match, cancellationToken);
+                var prediction = await GetPredictionAsync(match, model, communityContext, cancellationToken);
                 matchPredictions.Add(new MatchPrediction(match, prediction));
             }
 
@@ -172,17 +202,19 @@ public class FirebasePredictionRepository : IPredictionRepository
         }
         catch (Exception ex)
         {
-            _logger.LogError(ex, "Failed to get matches with predictions for matchday {Matchday}", matchDay);
+            _logger.LogError(ex, "Failed to get matches with predictions for matchday {Matchday} using model {Model} and community context {CommunityContext}", matchDay, model, communityContext);
             throw;
         }
     }
 
-    public async Task<IReadOnlyList<MatchPrediction>> GetAllPredictionsAsync(CancellationToken cancellationToken = default)
+    public async Task<IReadOnlyList<MatchPrediction>> GetAllPredictionsAsync(string model, string communityContext, CancellationToken cancellationToken = default)
     {
         try
         {
             var query = _firestoreDb.Collection(_predictionsCollection)
                 .WhereEqualTo("competition", _competition)
+                .WhereEqualTo("model", model)
+                .WhereEqualTo("communityContext", communityContext)
                 .OrderBy("matchday");
 
             var snapshot = await query.GetSnapshotAsync(cancellationToken);
@@ -198,36 +230,77 @@ public class FirebasePredictionRepository : IPredictionRepository
         }
         catch (Exception ex)
         {
-            _logger.LogError(ex, "Failed to get all predictions");
+            _logger.LogError(ex, "Failed to get all predictions for model {Model} and community context {CommunityContext}", model, communityContext);
             throw;
         }
     }
 
-    public async Task<bool> HasPredictionAsync(Match match, CancellationToken cancellationToken = default)
+    public async Task<bool> HasPredictionAsync(Match match, string model, string communityContext, CancellationToken cancellationToken = default)
     {
         try
         {
-            var documentId = GenerateMatchId(match);
-            var doc = await _firestoreDb.Collection(_predictionsCollection)
-                .Document(documentId)
-                .GetSnapshotAsync(cancellationToken);
+            // Query by match characteristics, model, and community context instead of using deterministic ID
+            var query = _firestoreDb.Collection(_predictionsCollection)
+                .WhereEqualTo("homeTeam", match.HomeTeam)
+                .WhereEqualTo("awayTeam", match.AwayTeam)
+                .WhereEqualTo("startsAt", ConvertToTimestamp(match.StartsAt))
+                .WhereEqualTo("competition", _competition)
+                .WhereEqualTo("model", model)
+                .WhereEqualTo("communityContext", communityContext);
 
-            return doc.Exists;
+            var snapshot = await query.GetSnapshotAsync(cancellationToken);
+            return snapshot.Documents.Count > 0;
         }
         catch (Exception ex)
         {
-            _logger.LogError(ex, "Failed to check if prediction exists for match {HomeTeam} vs {AwayTeam}", 
-                match.HomeTeam, match.AwayTeam);
+            _logger.LogError(ex, "Failed to check if prediction exists for match {HomeTeam} vs {AwayTeam} using model {Model} and community context {CommunityContext}", 
+                match.HomeTeam, match.AwayTeam, model, communityContext);
             throw;
         }
     }
 
-    public async Task SaveBonusPredictionAsync(BonusQuestion bonusQuestion, BonusPrediction bonusPrediction, CancellationToken cancellationToken = default)
+    public async Task SaveBonusPredictionAsync(BonusQuestion bonusQuestion, BonusPrediction bonusPrediction, string model, string tokenUsage, double cost, string communityContext, CancellationToken cancellationToken = default)
     {
         try
         {
-            var documentId = bonusPrediction.QuestionId;
             var now = Timestamp.GetCurrentTimestamp();
+            
+            // Check if a prediction already exists for this question, model, and community context
+            var query = _firestoreDb.Collection(_bonusPredictionsCollection)
+                .WhereEqualTo("questionId", bonusPrediction.QuestionId)
+                .WhereEqualTo("competition", _competition)
+                .WhereEqualTo("model", model)
+                .WhereEqualTo("communityContext", communityContext);
+
+            var snapshot = await query.GetSnapshotAsync(cancellationToken);
+            
+            DocumentReference docRef;
+            bool isUpdate = false;
+            Timestamp? existingCreatedAt = null;
+            
+            if (snapshot.Documents.Count > 0)
+            {
+                // Update existing document
+                var existingDoc = snapshot.Documents.First();
+                docRef = existingDoc.Reference;
+                isUpdate = true;
+                
+                // Preserve the original createdAt value
+                var existingData = existingDoc.ConvertTo<FirestoreBonusPrediction>();
+                existingCreatedAt = existingData.CreatedAt;
+                
+                _logger.LogDebug("Updating existing bonus prediction for question {QuestionId} (document: {DocumentId})", 
+                    bonusPrediction.QuestionId, existingDoc.Id);
+            }
+            else
+            {
+                // Create new document
+                var documentId = Guid.NewGuid().ToString();
+                docRef = _firestoreDb.Collection(_bonusPredictionsCollection).Document(documentId);
+                
+                _logger.LogDebug("Creating new bonus prediction for question {QuestionId} (document: {DocumentId})", 
+                    bonusPrediction.QuestionId, documentId);
+            }
             
             // Extract selected option texts for observability
             var optionTextsLookup = bonusQuestion.Options.ToDictionary(o => o.Id, o => o.Text);
@@ -237,40 +310,27 @@ public class FirebasePredictionRepository : IPredictionRepository
             
             var firestoreBonusPrediction = new FirestoreBonusPrediction
             {
-                Id = documentId,
+                Id = docRef.Id,
                 QuestionId = bonusPrediction.QuestionId,
                 QuestionText = bonusQuestion.Text,
                 SelectedOptionIds = bonusPrediction.SelectedOptionIds.ToArray(),
                 SelectedOptionTexts = selectedOptionTexts,
                 UpdatedAt = now,
-                Competition = _competition
+                Competition = _competition,
+                Model = model,
+                TokenUsage = tokenUsage,
+                Cost = cost,
+                CommunityContext = communityContext
             };
 
-            // Check if bonus prediction already exists to set created timestamp
-            var existingDoc = await _firestoreDb.Collection(_bonusPredictionsCollection)
-                .Document(documentId)
-                .GetSnapshotAsync(cancellationToken);
+            // Set CreatedAt: preserve existing value for updates, set current time for new documents
+            firestoreBonusPrediction.CreatedAt = existingCreatedAt ?? now;
 
-            if (existingDoc.Exists)
-            {
-                var existing = existingDoc.ConvertTo<FirestoreBonusPrediction>();
-                firestoreBonusPrediction.CreatedAt = existing.CreatedAt;
-                _logger.LogDebug("Updating existing bonus prediction for question {QuestionId}: {QuestionText}", 
-                    bonusPrediction.QuestionId, bonusQuestion.Text);
-            }
-            else
-            {
-                firestoreBonusPrediction.CreatedAt = now;
-                _logger.LogDebug("Creating new bonus prediction for question {QuestionId}: {QuestionText}", 
-                    bonusPrediction.QuestionId, bonusQuestion.Text);
-            }
+            await docRef.SetAsync(firestoreBonusPrediction, cancellationToken: cancellationToken);
 
-            await _firestoreDb.Collection(_bonusPredictionsCollection)
-                .Document(documentId)
-                .SetAsync(firestoreBonusPrediction, cancellationToken: cancellationToken);
-
-            _logger.LogDebug("Saved bonus prediction for question '{QuestionText}' with selections: {SelectedOptions}", 
-                bonusQuestion.Text, string.Join(", ", selectedOptionTexts));
+            var action = isUpdate ? "Updated" : "Saved";
+            _logger.LogDebug("{Action} bonus prediction for question '{QuestionText}' with selections: {SelectedOptions}", 
+                action, bonusQuestion.Text, string.Join(", ", selectedOptionTexts));
         }
         catch (Exception ex)
         {
@@ -280,35 +340,42 @@ public class FirebasePredictionRepository : IPredictionRepository
         }
     }
 
-    public async Task<BonusPrediction?> GetBonusPredictionAsync(string questionId, CancellationToken cancellationToken = default)
+    public async Task<BonusPrediction?> GetBonusPredictionAsync(string questionId, string model, string communityContext, CancellationToken cancellationToken = default)
     {
         try
         {
-            var document = await _firestoreDb.Collection(_bonusPredictionsCollection)
-                .Document(questionId)
-                .GetSnapshotAsync(cancellationToken);
+            // Query by questionId, model, community context, and competition instead of using direct document lookup
+            var query = _firestoreDb.Collection(_bonusPredictionsCollection)
+                .WhereEqualTo("questionId", questionId)
+                .WhereEqualTo("competition", _competition)
+                .WhereEqualTo("model", model)
+                .WhereEqualTo("communityContext", communityContext);
 
-            if (!document.Exists)
+            var snapshot = await query.GetSnapshotAsync(cancellationToken);
+            
+            if (snapshot.Documents.Count == 0)
             {
                 return null;
             }
 
-            var firestoreBonusPrediction = document.ConvertTo<FirestoreBonusPrediction>();
+            var firestoreBonusPrediction = snapshot.Documents.First().ConvertTo<FirestoreBonusPrediction>();
             return new BonusPrediction(firestoreBonusPrediction.QuestionId, firestoreBonusPrediction.SelectedOptionIds.ToList());
         }
         catch (Exception ex)
         {
-            _logger.LogError(ex, "Failed to get bonus prediction for question {QuestionId}", questionId);
+            _logger.LogError(ex, "Failed to get bonus prediction for question {QuestionId} using model {Model} and community context {CommunityContext}", questionId, model, communityContext);
             throw;
         }
     }
 
-    public async Task<IReadOnlyList<BonusPrediction>> GetAllBonusPredictionsAsync(CancellationToken cancellationToken = default)
+    public async Task<IReadOnlyList<BonusPrediction>> GetAllBonusPredictionsAsync(string model, string communityContext, CancellationToken cancellationToken = default)
     {
         try
         {
             var query = _firestoreDb.Collection(_bonusPredictionsCollection)
                 .WhereEqualTo("competition", _competition)
+                .WhereEqualTo("model", model)
+                .WhereEqualTo("communityContext", communityContext)
                 .OrderBy("createdAt");
 
             var snapshot = await query.GetSnapshotAsync(cancellationToken);
@@ -326,24 +393,28 @@ public class FirebasePredictionRepository : IPredictionRepository
         }
         catch (Exception ex)
         {
-            _logger.LogError(ex, "Failed to get all bonus predictions");
+            _logger.LogError(ex, "Failed to get all bonus predictions for model {Model} and community context {CommunityContext}", model, communityContext);
             throw;
         }
     }
 
-    public async Task<bool> HasBonusPredictionAsync(string questionId, CancellationToken cancellationToken = default)
+    public async Task<bool> HasBonusPredictionAsync(string questionId, string model, string communityContext, CancellationToken cancellationToken = default)
     {
         try
         {
-            var document = await _firestoreDb.Collection(_bonusPredictionsCollection)
-                .Document(questionId)
-                .GetSnapshotAsync(cancellationToken);
+            // Query by questionId, model, and community context instead of using direct document lookup
+            var query = _firestoreDb.Collection(_bonusPredictionsCollection)
+                .WhereEqualTo("questionId", questionId)
+                .WhereEqualTo("competition", _competition)
+                .WhereEqualTo("model", model)
+                .WhereEqualTo("communityContext", communityContext);
 
-            return document.Exists;
+            var snapshot = await query.GetSnapshotAsync(cancellationToken);
+            return snapshot.Documents.Count > 0;
         }
         catch (Exception ex)
         {
-            _logger.LogError(ex, "Failed to check if bonus prediction exists for question {QuestionId}", questionId);
+            _logger.LogError(ex, "Failed to check if bonus prediction exists for question {QuestionId} using model {Model} and community context {CommunityContext}", questionId, model, communityContext);
             throw;
         }
     }
@@ -356,7 +427,7 @@ public class FirebasePredictionRepository : IPredictionRepository
     {
         try
         {
-            var documentId = GenerateMatchId(match);
+            var documentId = Guid.NewGuid().ToString();
             
             var firestoreMatch = new FirestoreMatch
             {
@@ -381,16 +452,6 @@ public class FirebasePredictionRepository : IPredictionRepository
                 match.HomeTeam, match.AwayTeam);
             throw;
         }
-    }
-
-    private static string GenerateMatchId(Match match)
-    {
-        // Create a deterministic ID from match details
-        var homeTeamSafe = match.HomeTeam.Replace(" ", "_").Replace(".", "");
-        var awayTeamSafe = match.AwayTeam.Replace(" ", "_").Replace(".", "");
-        var ticksSafe = match.StartsAt.ToInstant().ToUnixTimeTicks();
-        
-        return $"{homeTeamSafe}_{awayTeamSafe}_{ticksSafe}_{match.Matchday}";
     }
 
     private static Timestamp ConvertToTimestamp(ZonedDateTime zonedDateTime)

@@ -69,6 +69,30 @@ public class FirestoreMatchPrediction
     /// </summary>
     [FirestoreProperty("competition")]
     public string Competition { get; set; } = "bundesliga-2025-26";
+
+    /// <summary>
+    /// The AI model used to generate this prediction (e.g., "gpt-4o", "o1-mini").
+    /// </summary>
+    [FirestoreProperty("model")]
+    public string Model { get; set; } = string.Empty;
+
+    /// <summary>
+    /// JSON string containing the token usage object from the API (e.g., completion_tokens, prompt_tokens, total_tokens).
+    /// </summary>
+    [FirestoreProperty("tokenUsage")]
+    public string TokenUsage { get; set; } = string.Empty;
+
+    /// <summary>
+    /// Cost in USD to generate this prediction.
+    /// </summary>
+    [FirestoreProperty("cost")]
+    public double Cost { get; set; }
+
+    /// <summary>
+    /// The community context (community rules) used to generate this prediction.
+    /// </summary>
+    [FirestoreProperty("communityContext")]
+    public string CommunityContext { get; set; } = string.Empty;
 }
 
 /// <summary>
@@ -168,6 +192,30 @@ public class FirestoreBonusPrediction
     /// </summary>
     [FirestoreProperty("competition")]
     public string Competition { get; set; } = "bundesliga-2025-26";
+
+    /// <summary>
+    /// The AI model used to generate this prediction (e.g., "gpt-4o", "o1-mini").
+    /// </summary>
+    [FirestoreProperty("model")]
+    public string Model { get; set; } = string.Empty;
+
+    /// <summary>
+    /// JSON string containing the token usage object from the API (e.g., completion_tokens, prompt_tokens, total_tokens).
+    /// </summary>
+    [FirestoreProperty("tokenUsage")]
+    public string TokenUsage { get; set; } = string.Empty;
+
+    /// <summary>
+    /// Cost in USD to generate this prediction.
+    /// </summary>
+    [FirestoreProperty("cost")]
+    public double Cost { get; set; }
+
+    /// <summary>
+    /// The community context (community rules) used to generate this prediction.
+    /// </summary>
+    [FirestoreProperty("communityContext")]
+    public string CommunityContext { get; set; } = string.Empty;
 }
 
 /// <summary>

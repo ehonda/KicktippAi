@@ -45,6 +45,18 @@ public interface ITokenUsageTracker
     string GetLastUsageCompactSummaryWithEstimatedCosts(string estimatedCostsModel);
 
     /// <summary>
+    /// Get the raw token usage data for the last operation as JSON string
+    /// </summary>
+    /// <returns>JSON string containing the raw token usage data, or null if no usage recorded</returns>
+    string? GetLastUsageJson();
+
+    /// <summary>
+    /// Get the cost for the last operation only (not cumulative)
+    /// </summary>
+    /// <returns>Cost in USD for the last operation</returns>
+    decimal GetLastCost();
+
+    /// <summary>
     /// Get total cost across all tracked usage
     /// </summary>
     /// <returns>Total cost in USD</returns>

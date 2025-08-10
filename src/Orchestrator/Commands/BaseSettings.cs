@@ -13,6 +13,10 @@ public class BaseSettings : CommandSettings
     [Description("The Kicktipp community to use (e.g., ehonda-test-buli)")]
     public required string Community { get; set; }
 
+    [CommandOption("--community-context")]
+    [Description("The community context for filtering predictions (defaults to community name if not specified)")]
+    public string? CommunityContext { get; set; }
+
     [CommandOption("-v|--verbose")]
     [Description("Enable verbose output to show detailed information")]
     [DefaultValue(false)]

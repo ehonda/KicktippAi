@@ -5,9 +5,17 @@ namespace Orchestrator.Commands;
 
 public class VerifySettings : CommandSettings
 {
+    [CommandArgument(0, "<MODEL>")]
+    [Description("The OpenAI model to verify predictions for (e.g., gpt-4o-2024-08-06, o4-mini)")]
+    public string Model { get; set; } = string.Empty;
+
     [CommandOption("-c|--community")]
     [Description("The Kicktipp community to use (e.g., ehonda-test-buli)")]
     public required string Community { get; set; }
+
+    [CommandOption("--community-context")]
+    [Description("The community context for filtering predictions (defaults to community name if not specified)")]
+    public string? CommunityContext { get; set; }
 
     [CommandOption("-v|--verbose")]
     [Description("Enable verbose output to show detailed information")]

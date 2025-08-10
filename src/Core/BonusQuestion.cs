@@ -29,3 +29,13 @@ public record BonusPrediction(
     string QuestionId,
     List<string> SelectedOptionIds
 );
+
+/// <summary>
+/// Extended bonus prediction result that includes metadata about how the prediction was generated.
+/// </summary>
+public record BonusPredictionResult(
+    BonusPrediction BonusPrediction,
+    string Model,
+    string TokenUsage,
+    double Cost,
+    string CommunityContext);

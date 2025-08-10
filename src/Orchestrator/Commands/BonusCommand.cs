@@ -87,7 +87,11 @@ public class BonusCommand : AsyncCommand<BaseSettings>
         // Reset token usage tracker for this workflow
         tokenUsageTracker?.Reset();
         
+        // Determine community context (use explicit setting or fall back to community name)
+        string communityContext = settings.CommunityContext ?? settings.Community;
+        
         AnsiConsole.MarkupLine($"[blue]Using community:[/] [yellow]{settings.Community}[/]");
+        AnsiConsole.MarkupLine($"[blue]Using community context:[/] [yellow]{communityContext}[/]");
         AnsiConsole.MarkupLine("[blue]Getting open bonus questions from Kicktipp...[/]");
         
         // Step 1: Get open bonus questions from Kicktipp
@@ -121,7 +125,7 @@ public class BonusCommand : AsyncCommand<BaseSettings>
                 // Check if we have an existing prediction in the database
                 if (databaseEnabled && !settings.OverrideDatabase)
                 {
-                    prediction = await predictionRepository!.GetBonusPredictionAsync(question.Id);
+                    prediction = await predictionRepository!.GetBonusPredictionAsync(question.Id, settings.Model, communityContext);
                     if (prediction != null)
                     {
                         fromDatabase = true;
@@ -180,7 +184,25 @@ public class BonusCommand : AsyncCommand<BaseSettings>
                         {
                             try
                             {
-                                await predictionRepository!.SaveBonusPredictionAsync(question, prediction);
+                                // Get token usage and cost information
+                                string tokenUsageJson = "{}"; // Default empty JSON
+                                double cost = 0.0;
+                                
+                                if (tokenUsageTracker != null)
+                                {
+                                    cost = (double)tokenUsageTracker.GetLastCost(); // Get the cost for this individual question
+                                    // Use the new GetLastUsageJson method to get full JSON
+                                    tokenUsageJson = tokenUsageTracker.GetLastUsageJson() ?? "{}";
+                                }
+                                
+                                await predictionRepository!.SaveBonusPredictionAsync(
+                                    question, 
+                                    prediction, 
+                                    settings.Model, 
+                                    tokenUsageJson, 
+                                    cost, 
+                                    communityContext);
+                                    
                                 if (settings.Verbose)
                                 {
                                     AnsiConsole.MarkupLine($"[dim]    ✓ Saved to database[/]");

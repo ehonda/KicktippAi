@@ -67,7 +67,11 @@ public class VerifyMatchdayCommand : AsyncCommand<VerifySettings>
             return true; // Consider this a failure
         }
         
+        // Determine community context (use explicit setting or fall back to community name)
+        string communityContext = settings.CommunityContext ?? settings.Community;
+        
         AnsiConsole.MarkupLine($"[blue]Using community:[/] [yellow]{settings.Community}[/]");
+        AnsiConsole.MarkupLine($"[blue]Using community context:[/] [yellow]{communityContext}[/]");
         AnsiConsole.MarkupLine("[blue]Getting placed predictions from Kicktipp...[/]");
         
         // Step 1: Get placed predictions from Kicktipp
@@ -102,7 +106,7 @@ public class VerifyMatchdayCommand : AsyncCommand<VerifySettings>
                     AnsiConsole.MarkupLine($"[dim]  Looking up: {match.HomeTeam} vs {match.AwayTeam} at {match.StartsAt}[/]");
                 }
                 
-                var databasePrediction = await predictionRepository.GetPredictionAsync(match);
+                var databasePrediction = await predictionRepository.GetPredictionAsync(match, settings.Model, communityContext);
                 
                 if (kicktippPrediction != null)
                 {

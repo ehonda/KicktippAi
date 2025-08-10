@@ -85,7 +85,11 @@ public class MatchdayCommand : AsyncCommand<BaseSettings>
         // Reset token usage tracker for this workflow
         tokenUsageTracker?.Reset();
         
+        // Determine community context (use explicit setting or fall back to community name)
+        string communityContext = settings.CommunityContext ?? settings.Community;
+        
         AnsiConsole.MarkupLine($"[blue]Using community:[/] [yellow]{settings.Community}[/]");
+        AnsiConsole.MarkupLine($"[blue]Using community context:[/] [yellow]{communityContext}[/]");
         AnsiConsole.MarkupLine("[blue]Getting current matchday matches...[/]");
         
         // Step 1: Get current matchday via GetMatchesWithHistoryAsync
@@ -120,7 +124,7 @@ public class MatchdayCommand : AsyncCommand<BaseSettings>
                 // Check if we have an existing prediction in the database
                 if (databaseEnabled && !settings.OverrideDatabase)
                 {
-                    prediction = await predictionRepository!.GetPredictionAsync(match);
+                    prediction = await predictionRepository!.GetPredictionAsync(match, settings.Model, communityContext);
                     if (prediction != null)
                     {
                         fromDatabase = true;
@@ -171,7 +175,25 @@ public class MatchdayCommand : AsyncCommand<BaseSettings>
                         {
                             try
                             {
-                                await predictionRepository!.SavePredictionAsync(match, prediction);
+                                // Get token usage and cost information
+                                string tokenUsageJson = "{}"; // Default empty JSON
+                                double cost = 0.0;
+                                
+                                if (tokenUsageTracker != null)
+                                {
+                                    cost = (double)tokenUsageTracker.GetLastCost(); // Get the cost for this individual match
+                                    // Use the new GetLastUsageJson method to get full JSON
+                                    tokenUsageJson = tokenUsageTracker.GetLastUsageJson() ?? "{}";
+                                }
+                                
+                                await predictionRepository!.SavePredictionAsync(
+                                    match, 
+                                    prediction, 
+                                    settings.Model, 
+                                    tokenUsageJson, 
+                                    cost, 
+                                    communityContext);
+                                    
                                 if (settings.Verbose)
                                 {
                                     AnsiConsole.MarkupLine($"[dim]    ✓ Saved to database[/]");
