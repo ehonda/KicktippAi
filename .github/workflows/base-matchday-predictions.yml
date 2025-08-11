@@ -65,34 +65,15 @@ jobs:
       - name: Build project
         run: dotnet build --no-restore --configuration Release
         
-      - name: Parse community configuration
-        id: config
-        run: |
-          # Use the input values directly
-          COMMUNITY="${{ inputs.community }}"
-          MATCH_MODEL="${{ inputs.model }}"
-          COMMUNITY_CONTEXT="${{ inputs.community_context }}"
-          
-          echo "📊 Configuration:"
-          echo "  Community: $COMMUNITY"
-          echo "  Model: $MATCH_MODEL"
-          echo "  Community Context: $COMMUNITY_CONTEXT"
-          echo "  Trigger: ${{ inputs.trigger_type }}"
-          echo "  Force Prediction: ${{ inputs.force_prediction }}"
-          
-          # Set outputs
-          echo "community=$COMMUNITY" >> $GITHUB_OUTPUT
-          echo "model=$MATCH_MODEL" >> $GITHUB_OUTPUT
-          echo "community_context=$COMMUNITY_CONTEXT" >> $GITHUB_OUTPUT
-          
       - name: Verify current predictions
         id: verify
         continue-on-error: true
         run: |
           echo "🔍 Verifying current matchday predictions..."
-          echo "Community: ${{ steps.config.outputs.community }}"
-          echo "Model: ${{ steps.config.outputs.model }}"
-          dotnet run --project src/Orchestrator/Orchestrator.csproj --configuration Release -- verify "${{ steps.config.outputs.model }}" --community "${{ steps.config.outputs.community }}" --init-matchday --agent
+          echo "Community: ${{ inputs.community }}"
+          echo "Model: ${{ inputs.model }}"
+          echo "Community Context: ${{ inputs.community_context }}"
+          dotnet run --project src/Orchestrator --configuration Release -- verify "${{ inputs.model }}" --community "${{ inputs.community }}" --community-context "${{ inputs.community_context }}" --init-matchday --agent
         env:
           KICKTIPP_USERNAME: ${{ secrets.kicktipp_username }}
           KICKTIPP_PASSWORD: ${{ secrets.kicktipp_password }}
@@ -104,15 +85,16 @@ jobs:
         id: generate
         if: steps.verify.outcome == 'failure' || inputs.force_prediction == true
         run: |
-          echo "🤖 Generating predictions with model: ${{ steps.config.outputs.model }}"
-          echo "Community: ${{ steps.config.outputs.community }}"
+          echo "🤖 Generating predictions with model: ${{ inputs.model }}"
+          echo "Community: ${{ inputs.community }}"
+          echo "Community Context: ${{ inputs.community_context }}"
           if [ "${{ steps.verify.outcome }}" = "failure" ]; then
             echo "📝 Predictions needed - verify command indicated missing or mismatched predictions"
           else
             echo "🔄 Force prediction enabled - running regardless of verify result"
           fi
           
-          dotnet run --project src/Orchestrator/Orchestrator.csproj --configuration Release -- matchday "${{ steps.config.outputs.model }}" --community "${{ steps.config.outputs.community }}" --override-kicktipp --verbose --agent
+          dotnet run --project src/Orchestrator --configuration Release -- matchday "${{ inputs.model }}" --community "${{ inputs.community }}" --community-context "${{ inputs.community_context }}" --override-kicktipp --verbose --agent
         env:
           KICKTIPP_USERNAME: ${{ secrets.kicktipp_username }}
           KICKTIPP_PASSWORD: ${{ secrets.kicktipp_password }}
@@ -124,7 +106,7 @@ jobs:
         if: steps.verify.outcome == 'failure' || inputs.force_prediction == true
         run: |
           echo "✅ Running final verification to confirm predictions were posted successfully..."
-          dotnet run --project src/Orchestrator/Orchestrator.csproj --configuration Release -- verify "${{ steps.config.outputs.model }}" --community "${{ steps.config.outputs.community }}" --agent
+          dotnet run --project src/Orchestrator --configuration Release -- verify "${{ inputs.model }}" --community "${{ inputs.community }}" --community-context "${{ inputs.community_context }}" --agent
         env:
           KICKTIPP_USERNAME: ${{ secrets.kicktipp_username }}
           KICKTIPP_PASSWORD: ${{ secrets.kicktipp_password }}
@@ -141,9 +123,9 @@ jobs:
         if: always()
         run: |
           echo "## Matchday Predictions Summary" >> $GITHUB_STEP_SUMMARY
-          echo "- **Community**: ${{ steps.config.outputs.community }}" >> $GITHUB_STEP_SUMMARY
-          echo "- **Model**: ${{ steps.config.outputs.model }}" >> $GITHUB_STEP_SUMMARY
-          echo "- **Community Context**: ${{ steps.config.outputs.community_context }}" >> $GITHUB_STEP_SUMMARY
+          echo "- **Community**: ${{ inputs.community }}" >> $GITHUB_STEP_SUMMARY
+          echo "- **Model**: ${{ inputs.model }}" >> $GITHUB_STEP_SUMMARY
+          echo "- **Community Context**: ${{ inputs.community_context }}" >> $GITHUB_STEP_SUMMARY
           echo "- **Trigger**: ${{ inputs.trigger_type }}" >> $GITHUB_STEP_SUMMARY
           echo "- **Verify Result**: ${{ steps.verify.outcome }}" >> $GITHUB_STEP_SUMMARY
           
