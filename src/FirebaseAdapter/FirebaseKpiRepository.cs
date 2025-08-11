@@ -51,9 +51,44 @@ public class FirebaseKpiRepository : IKpiRepository
         {
             var now = Timestamp.GetCurrentTimestamp();
             
+            // Look for existing document with same documentId and communityContext
+            var existingQuery = await _firestoreDb.Collection(KpiCollectionName)
+                .WhereEqualTo("documentId", documentId)
+                .WhereEqualTo("communityContext", communityContext)
+                .WhereEqualTo("competition", _competition)
+                .Limit(1)
+                .GetSnapshotAsync(cancellationToken);
+
+            DocumentReference docRef;
+            bool isUpdate = false;
+            Timestamp? existingCreatedAt = null;
+
+            if (existingQuery.Documents.Count > 0)
+            {
+                // Update existing document
+                var existingDoc = existingQuery.Documents.First();
+                docRef = existingDoc.Reference;
+                isUpdate = true;
+                
+                var existingData = existingDoc.ConvertTo<FirestoreKpiDocument>();
+                existingCreatedAt = existingData.CreatedAt;
+                
+                _logger.LogDebug("Updating existing KPI document: {DocumentId} for community: {CommunityContext} (Firestore ID: {FirestoreId})", 
+                    documentId, communityContext, existingDoc.Id);
+            }
+            else
+            {
+                // Create new document with GUID
+                var firestoreDocumentId = Guid.NewGuid().ToString();
+                docRef = _firestoreDb.Collection(KpiCollectionName).Document(firestoreDocumentId);
+                
+                _logger.LogDebug("Creating new KPI document: {DocumentId} for community: {CommunityContext} (Firestore ID: {FirestoreId})", 
+                    documentId, communityContext, firestoreDocumentId);
+            }
+            
             var firestoreKpiDocument = new FirestoreKpiDocument
             {
-                Id = documentId,
+                Id = docRef.Id,
                 DocumentId = documentId,
                 Name = name,
                 Content = content,
@@ -61,32 +96,15 @@ public class FirebaseKpiRepository : IKpiRepository
                 DocumentType = documentType,
                 Tags = tags,
                 UpdatedAt = now,
+                CreatedAt = existingCreatedAt ?? now,
                 Competition = _competition,
                 CommunityContext = communityContext
             };
 
-            // Check if document already exists to set created timestamp
-            var existingDoc = await _firestoreDb.Collection(KpiCollectionName)
-                .Document(documentId)
-                .GetSnapshotAsync(cancellationToken);
+            await docRef.SetAsync(firestoreKpiDocument, cancellationToken: cancellationToken);
 
-            if (existingDoc.Exists)
-            {
-                var existing = existingDoc.ConvertTo<FirestoreKpiDocument>();
-                firestoreKpiDocument.CreatedAt = existing.CreatedAt;
-                _logger.LogDebug("Updating existing KPI document: {DocumentId}", documentId);
-            }
-            else
-            {
-                firestoreKpiDocument.CreatedAt = now;
-                _logger.LogDebug("Creating new KPI document: {DocumentId}", documentId);
-            }
-
-            await _firestoreDb.Collection(KpiCollectionName)
-                .Document(documentId)
-                .SetAsync(firestoreKpiDocument, cancellationToken: cancellationToken);
-
-            _logger.LogInformation("Saved KPI document: {DocumentId} for community: {CommunityContext}", documentId, communityContext);
+            var action = isUpdate ? "Updated" : "Created";
+            _logger.LogInformation("{Action} KPI document: {DocumentId} for community: {CommunityContext}", action, documentId, communityContext);
         }
         catch (Exception ex)
         {
@@ -96,25 +114,29 @@ public class FirebaseKpiRepository : IKpiRepository
     }
 
     /// <summary>
-    /// Retrieves a KPI document from Firestore.
+    /// Retrieves a KPI document from Firestore by documentId and communityContext.
     /// </summary>
     /// <param name="documentId">The document identifier.</param>
+    /// <param name="communityContext">The community context to filter by.</param>
     /// <param name="cancellationToken">Cancellation token.</param>
     /// <returns>The KPI document if found, otherwise null.</returns>
-    public async Task<KpiDocument?> GetKpiDocumentAsync(string documentId, CancellationToken cancellationToken = default)
+    public async Task<KpiDocument?> GetKpiDocumentAsync(string documentId, string communityContext, CancellationToken cancellationToken = default)
     {
         try
         {
-            var document = await _firestoreDb.Collection(KpiCollectionName)
-                .Document(documentId)
+            var query = await _firestoreDb.Collection(KpiCollectionName)
+                .WhereEqualTo("documentId", documentId)
+                .WhereEqualTo("communityContext", communityContext)
+                .WhereEqualTo("competition", _competition)
+                .Limit(1)
                 .GetSnapshotAsync(cancellationToken);
 
-            if (!document.Exists)
+            if (query.Documents.Count == 0)
             {
                 return null;
             }
 
-            var firestoreDoc = document.ConvertTo<FirestoreKpiDocument>();
+            var firestoreDoc = query.Documents.First().ConvertTo<FirestoreKpiDocument>();
             return new KpiDocument(
                 firestoreDoc.DocumentId,
                 firestoreDoc.Name,
@@ -125,7 +147,7 @@ public class FirebaseKpiRepository : IKpiRepository
         }
         catch (Exception ex)
         {
-            _logger.LogError(ex, "Failed to get KPI document: {DocumentId}", documentId);
+            _logger.LogError(ex, "Failed to get KPI document: {DocumentId} for community: {CommunityContext}", documentId, communityContext);
             throw;
         }
     }

@@ -31,9 +31,10 @@ public interface IKpiRepository
     /// Retrieves a KPI document.
     /// </summary>
     /// <param name="documentId">The document identifier.</param>
+    /// <param name="communityContext">The community context to filter by.</param>
     /// <param name="cancellationToken">Cancellation token.</param>
     /// <returns>The KPI document if found, otherwise null.</returns>
-    Task<KpiDocument?> GetKpiDocumentAsync(string documentId, CancellationToken cancellationToken = default);
+    Task<KpiDocument?> GetKpiDocumentAsync(string documentId, string communityContext, CancellationToken cancellationToken = default);
 
     /// <summary>
     /// Retrieves all KPI documents for a specific community context.

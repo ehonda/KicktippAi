@@ -73,8 +73,8 @@ public class UploadKpiCommand : AsyncCommand<UploadKpiSettings>
             // Get Firebase KPI repository
             var kpiRepository = serviceProvider.GetRequiredService<IKpiRepository>();
             
-            // Check if document already exists
-            var existingDocument = await kpiRepository.GetKpiDocumentAsync(kpiDocument.DocumentId);
+            // Check if document already exists for this community context
+            var existingDocument = await kpiRepository.GetKpiDocumentAsync(kpiDocument.DocumentId, kpiDocument.CommunityContext);
             if (existingDocument != null && !settings.Override)
             {
                 AnsiConsole.MarkupLine($"[yellow]KPI document '{kpiDocument.DocumentId}' already exists.[/]");

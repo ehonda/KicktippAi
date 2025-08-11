@@ -69,17 +69,20 @@ public class FirebaseKpiContextProvider
 
     /// <summary>
     /// Gets KPI context specifically tailored for a bonus question based on its content.
-    /// This method provides targeted context by including additional relevant documents based on question patterns.
+    /// Note: This method uses a default community context and may not return the correct documents for multi-community setups.
+    /// Consider using the overload with communityContext parameter instead.
     /// </summary>
     /// <param name="questionText">The text of the bonus question to provide context for.</param>
     /// <param name="cancellationToken">Cancellation token for the operation.</param>
     /// <returns>An async enumerable of document contexts containing relevant KPI data for the specific question.</returns>
+    [Obsolete("Use GetBonusQuestionContextAsync(string questionText, string communityContext, CancellationToken cancellationToken) instead for proper multi-community support")]
     public async IAsyncEnumerable<DocumentContext> GetBonusQuestionContextAsync(string questionText, [EnumeratorCancellation] CancellationToken cancellationToken = default)
     {
+        _logger.LogWarning("Using deprecated GetBonusQuestionContextAsync without community context. Consider upgrading to community-aware version.");
         _logger.LogDebug("Retrieving targeted KPI context for question: {QuestionText}", questionText);
 
         // Always include team data for all bonus questions
-        var teamDataDocument = await GetKpiDocumentContextAsync("team-data", cancellationToken);
+        var teamDataDocument = await GetKpiDocumentContextAsync("team-data", "default", cancellationToken);
         if (teamDataDocument != null)
         {
             yield return teamDataDocument;
@@ -89,7 +92,7 @@ public class FirebaseKpiContextProvider
         if (IsTrainerChangeQuestion(questionText))
         {
             _logger.LogDebug("Detected trainer/manager change question, including manager data");
-            var managerDataDocument = await GetKpiDocumentContextAsync("manager-data", cancellationToken);
+            var managerDataDocument = await GetKpiDocumentContextAsync("manager-data", "default", cancellationToken);
             if (managerDataDocument != null)
             {
                 yield return managerDataDocument;
@@ -100,7 +103,7 @@ public class FirebaseKpiContextProvider
         if (IsRelegationQuestion(questionText))
         {
             _logger.LogDebug("Detected relegation question, including manager data");
-            var managerDataDocument = await GetKpiDocumentContextAsync("manager-data", cancellationToken);
+            var managerDataDocument = await GetKpiDocumentContextAsync("manager-data", "default", cancellationToken);
             if (managerDataDocument != null)
             {
                 yield return managerDataDocument;
@@ -195,23 +198,24 @@ public class FirebaseKpiContextProvider
     /// Gets a specific KPI document by its ID.
     /// </summary>
     /// <param name="documentId">The ID of the KPI document to retrieve.</param>
+    /// <param name="communityContext">The community context to filter by.</param>
     /// <param name="cancellationToken">Cancellation token for the operation.</param>
     /// <returns>The document context for the specified KPI document, or null if not found.</returns>
-    public async Task<DocumentContext?> GetKpiDocumentContextAsync(string documentId, CancellationToken cancellationToken = default)
+    public async Task<DocumentContext?> GetKpiDocumentContextAsync(string documentId, string communityContext, CancellationToken cancellationToken = default)
     {
-        _logger.LogDebug("Retrieving specific KPI document: {DocumentId}", documentId);
+        _logger.LogDebug("Retrieving specific KPI document: {DocumentId} for community: {CommunityContext}", documentId, communityContext);
 
         try
         {
-            var kpiDocument = await _kpiRepository.GetKpiDocumentAsync(documentId, cancellationToken);
+            var kpiDocument = await _kpiRepository.GetKpiDocumentAsync(documentId, communityContext, cancellationToken);
             
             if (kpiDocument == null)
             {
-                _logger.LogWarning("KPI document not found: {DocumentId}", documentId);
+                _logger.LogWarning("KPI document not found: {DocumentId} for community: {CommunityContext}", documentId, communityContext);
                 return null;
             }
 
-            _logger.LogDebug("Found KPI document: {DocumentId}", documentId);
+            _logger.LogDebug("Found KPI document: {DocumentId} for community: {CommunityContext}", documentId, communityContext);
             
             return new DocumentContext(
                 Name: $"{kpiDocument.Name} ({kpiDocument.DocumentType})",
@@ -219,7 +223,7 @@ public class FirebaseKpiContextProvider
         }
         catch (Exception ex)
         {
-            _logger.LogError(ex, "Failed to retrieve KPI document: {DocumentId}", documentId);
+            _logger.LogError(ex, "Failed to retrieve KPI document: {DocumentId} for community: {CommunityContext}", documentId, communityContext);
             throw;
         }
     }
