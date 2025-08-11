@@ -22,10 +22,10 @@ Each community gets its own set of workflows that call the base workflows with s
 
 Each workflow implements the core prediction loop:
 
-1. **Configuration Parsing**: Extract community-specific settings from JSON configuration
-2. **Verification**: Check if predictions are needed for the community
+1. **Configuration Parsing**: Extract community-specific settings from inputs
+2. **Verification**: Check if predictions are needed for the community with `verify MODEL --community COMMUNITY --init-matchday --agent`
 3. **Prediction**: Generate and post predictions if verification fails or force is enabled
-4. **Final Check**: Verify that predictions were successfully posted
+4. **Final Check**: Verify that predictions were successfully posted with `verify MODEL --community COMMUNITY --agent`
 
 ## Community Configuration
 
