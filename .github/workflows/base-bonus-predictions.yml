@@ -101,6 +101,7 @@ jobs:
           OPENAI_API_KEY: ${{ secrets.openai_api_key }}
           
       - name: Generate and post bonus predictions
+        id: generate
         if: steps.verify.outcome == 'failure' || inputs.force_prediction == true
         run: |
           echo "🎯 Generating bonus predictions with model: ${{ steps.config.outputs.model }}"
@@ -147,9 +148,16 @@ jobs:
           echo "- **Trigger**: ${{ inputs.trigger_type }}" >> $GITHUB_STEP_SUMMARY
           echo "- **Verify Result**: ${{ steps.verify.outcome }}" >> $GITHUB_STEP_SUMMARY
           
-          if [ "${{ steps.verify.outcome }}" = "failure" ] || [ "${{ inputs.force_prediction }}" = "true" ]; then
-            echo "- **Action**: Bonus predictions generated and posted" >> $GITHUB_STEP_SUMMARY
-          else
+          # Determine action based on what actually happened
+          if [ "${{ steps.verify.outcome }}" = "success" ] && [ "${{ inputs.force_prediction }}" != "true" ]; then
             echo "- **Action**: No bonus predictions needed" >> $GITHUB_STEP_SUMMARY
+          elif [ "${{ steps.generate.outcome }}" = "success" ]; then
+            echo "- **Action**: Bonus predictions generated and posted successfully" >> $GITHUB_STEP_SUMMARY
+          elif [ "${{ steps.generate.outcome }}" = "failure" ]; then
+            echo "- **Action**: Bonus prediction generation failed" >> $GITHUB_STEP_SUMMARY
+          elif [ "${{ steps.generate.outcome }}" = "skipped" ]; then
+            echo "- **Action**: Bonus prediction generation skipped" >> $GITHUB_STEP_SUMMARY
+          else
+            echo "- **Action**: Bonus prediction generation attempted" >> $GITHUB_STEP_SUMMARY
           fi
           echo "- **Timezone**: ${{ env.TZ }}" >> $GITHUB_STEP_SUMMARY
