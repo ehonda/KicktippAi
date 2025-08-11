@@ -1,0 +1,162 @@
+name: Base Bonus Predictions
+
+# Reusable workflow for bonus predictions
+on:
+  workflow_call:
+    inputs:
+      community_config:
+        description: 'Community configuration JSON'
+        required: true
+        type: string
+      trigger_type:
+        description: 'How this workflow was triggered (scheduled, manual)'
+        required: true
+        type: string
+      force_prediction:
+        description: 'Force prediction even if verify passes'
+        required: false
+        type: boolean
+        default: false
+      model_override:
+        description: 'Override model from manual trigger'
+        required: false
+        type: string
+    secrets:
+      kicktipp_username:
+        description: 'Kicktipp username for this community'
+        required: true
+      kicktipp_password:
+        description: 'Kicktipp password for this community'
+        required: true
+      firebase_project_id:
+        description: 'Firebase project ID'
+        required: true
+      firebase_service_account_json:
+        description: 'Firebase service account JSON'
+        required: true
+      openai_api_key:
+        description: 'OpenAI API key'
+        required: true
+
+env:
+  TZ: 'Europe/Berlin'
+
+jobs:
+  bonus-predictions:
+    name: Bonus Predictions
+    runs-on: ubuntu-latest
+    
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v4
+        
+      - name: Setup .NET
+        uses: actions/setup-dotnet@v4
+        with:
+          dotnet-version: '9.x'
+          
+      - name: Restore dependencies
+        run: dotnet restore
+        
+      - name: Build project
+        run: dotnet build --no-restore --configuration Release
+        
+      - name: Parse community configuration
+        id: config
+        run: |
+          # Parse the community configuration JSON
+          echo '${{ inputs.community_config }}' > config.json
+          
+          # Extract configuration values
+          COMMUNITY=$(jq -r '.community' config.json)
+          BONUS_COMMUNITY_CONTEXT=$(jq -r '.predictions.bonus["community-context"]' config.json)
+          
+          # For bonus predictions, we typically use a specific model or default
+          BONUS_MODEL=$(jq -r '.predictions.bonus.model // "o1"' config.json)
+          
+          # Use model override if provided (from manual trigger)
+          if [ -n "${{ inputs.model_override }}" ] && [ "${{ inputs.model_override }}" != "" ]; then
+            BONUS_MODEL="${{ inputs.model_override }}"
+            echo "🎯 Using model override: $BONUS_MODEL"
+          fi
+          
+          echo "🎯 Configuration:"
+          echo "  Community: $COMMUNITY"
+          echo "  Model: $BONUS_MODEL"
+          echo "  Community Context: $BONUS_COMMUNITY_CONTEXT"
+          echo "  Trigger: ${{ inputs.trigger_type }}"
+          echo "  Force Prediction: ${{ inputs.force_prediction }}"
+          
+          # Set outputs
+          echo "community=$COMMUNITY" >> $GITHUB_OUTPUT
+          echo "model=$BONUS_MODEL" >> $GITHUB_OUTPUT
+          echo "community_context=$BONUS_COMMUNITY_CONTEXT" >> $GITHUB_OUTPUT
+          
+      - name: Verify current bonus predictions
+        id: verify
+        continue-on-error: true
+        run: |
+          echo "🔍 Verifying current bonus predictions..."
+          echo "Community: ${{ steps.config.outputs.community }}"
+          echo "Community Context: ${{ steps.config.outputs.community_context }}"
+          dotnet run --project src/Orchestrator/Orchestrator.csproj --configuration Release -- verify-bonus --community "${{ steps.config.outputs.community }}" --community-context "${{ steps.config.outputs.community_context }}" --agent
+        env:
+          KICKTIPP_USERNAME: ${{ secrets.kicktipp_username }}
+          KICKTIPP_PASSWORD: ${{ secrets.kicktipp_password }}
+          FIREBASE_PROJECT_ID: ${{ secrets.firebase_project_id }}
+          FIREBASE_SERVICE_ACCOUNT_JSON: ${{ secrets.firebase_service_account_json }}
+          OPENAI_API_KEY: ${{ secrets.openai_api_key }}
+          
+      - name: Generate and post bonus predictions
+        if: steps.verify.outcome == 'failure' || inputs.force_prediction == true
+        run: |
+          echo "🎯 Generating bonus predictions with model: ${{ steps.config.outputs.model }}"
+          echo "Community: ${{ steps.config.outputs.community }}"
+          echo "Community Context: ${{ steps.config.outputs.community_context }}"
+          if [ "${{ steps.verify.outcome }}" = "failure" ]; then
+            echo "📝 Bonus predictions needed - verify command indicated missing or mismatched predictions"
+          else
+            echo "🔄 Force prediction enabled - running regardless of verify result"
+          fi
+          
+          dotnet run --project src/Orchestrator/Orchestrator.csproj --configuration Release -- bonus "${{ steps.config.outputs.model }}" --community "${{ steps.config.outputs.community }}" --community-context "${{ steps.config.outputs.community_context }}" --override-kicktipp --verbose --agent
+        env:
+          KICKTIPP_USERNAME: ${{ secrets.kicktipp_username }}
+          KICKTIPP_PASSWORD: ${{ secrets.kicktipp_password }}
+          FIREBASE_PROJECT_ID: ${{ secrets.firebase_project_id }}
+          FIREBASE_SERVICE_ACCOUNT_JSON: ${{ secrets.firebase_service_account_json }}
+          OPENAI_API_KEY: ${{ secrets.openai_api_key }}
+          
+      - name: Final verification
+        if: steps.verify.outcome == 'failure' || inputs.force_prediction == true
+        run: |
+          echo "✅ Running final verification to confirm bonus predictions were posted successfully..."
+          dotnet run --project src/Orchestrator/Orchestrator.csproj --configuration Release -- verify-bonus --community "${{ steps.config.outputs.community }}" --community-context "${{ steps.config.outputs.community_context }}" --agent
+        env:
+          KICKTIPP_USERNAME: ${{ secrets.kicktipp_username }}
+          KICKTIPP_PASSWORD: ${{ secrets.kicktipp_password }}
+          FIREBASE_PROJECT_ID: ${{ secrets.firebase_project_id }}
+          FIREBASE_SERVICE_ACCOUNT_JSON: ${{ secrets.firebase_service_account_json }}
+          OPENAI_API_KEY: ${{ secrets.openai_api_key }}
+          
+      - name: Success notification
+        if: steps.verify.outcome == 'success' && inputs.force_prediction == false
+        run: |
+          echo "✅ All bonus predictions are up to date - no action needed"
+          
+      - name: Workflow summary
+        if: always()
+        run: |
+          echo "## Bonus Predictions Summary" >> $GITHUB_STEP_SUMMARY
+          echo "- **Community**: ${{ steps.config.outputs.community }}" >> $GITHUB_STEP_SUMMARY
+          echo "- **Model**: ${{ steps.config.outputs.model }}" >> $GITHUB_STEP_SUMMARY
+          echo "- **Community Context**: ${{ steps.config.outputs.community_context }}" >> $GITHUB_STEP_SUMMARY
+          echo "- **Trigger**: ${{ inputs.trigger_type }}" >> $GITHUB_STEP_SUMMARY
+          echo "- **Verify Result**: ${{ steps.verify.outcome }}" >> $GITHUB_STEP_SUMMARY
+          
+          if [ "${{ steps.verify.outcome }}" = "failure" ] || [ "${{ inputs.force_prediction }}" = "true" ]; then
+            echo "- **Action**: Bonus predictions generated and posted" >> $GITHUB_STEP_SUMMARY
+          else
+            echo "- **Action**: No bonus predictions needed" >> $GITHUB_STEP_SUMMARY
+          fi
+          echo "- **Timezone**: ${{ env.TZ }}" >> $GITHUB_STEP_SUMMARY

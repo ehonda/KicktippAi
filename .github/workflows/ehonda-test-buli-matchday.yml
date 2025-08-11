@@ -1,0 +1,53 @@
+name: Ehonda Test Buli - Matchday Predictions
+
+on:
+  # Schedule specifically for this community - twice daily
+  schedule:
+    - cron: '0 23 * * *'  # ~Midnight Europe/Berlin
+    - cron: '0 11 * * *'  # ~Noon Europe/Berlin
+  
+  # Allow manual triggering
+  workflow_dispatch:
+    inputs:
+      model:
+        description: 'OpenAI model to use for predictions'
+        required: true
+        default: 'o4-mini'
+        type: choice
+        options:
+          - 'o4-mini'
+          - 'o1'
+      force_prediction:
+        description: 'Force prediction even if verify passes'
+        required: false
+        default: false
+        type: boolean
+
+jobs:
+  call-base-workflow:
+    name: Run Matchday Predictions
+    uses: ./.github/workflows/base-matchday-predictions.yml
+    with:
+      # Community configuration for ehonda-test-buli
+      community_config: |
+        {
+          "community": "ehonda-test-buli",
+          "predictions": {
+            "matches": {
+              "model": "o4-mini",
+              "community-context": "pes-squad"
+            },
+            "bonus": {
+              "community-context": "pes-squad"
+            }
+          }
+        }
+      trigger_type: ${{ github.event_name == 'schedule' && 'scheduled' || 'manual' }}
+      force_prediction: ${{ github.event.inputs.force_prediction == 'true' }}
+      model_override: ${{ github.event.inputs.model || '' }}
+    secrets:
+      kicktipp_username: ${{ secrets.EHONDA_TEST_BULI_KICKTIPP_USERNAME }}
+      kicktipp_password: ${{ secrets.EHONDA_TEST_BULI_KICKTIPP_PASSWORD }}
+      firebase_project_id: ${{ secrets.FIREBASE_PROJECT_ID }}
+      firebase_service_account_json: ${{ secrets.FIREBASE_SERVICE_ACCOUNT_JSON }}
+      openai_api_key: ${{ secrets.OPENAI_API_KEY }}
