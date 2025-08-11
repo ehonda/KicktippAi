@@ -11,10 +11,12 @@ This document guides you through migrating from the old staging/production envir
 - Global scheduling for all environments
 
 ### New System (Current)
+
 - Separate workflows per community
-- JSON configuration per community
+- Direct input parameters per community
 - Community-specific Kicktipp credentials
 - Individual schedules per community
+- Fixed models per community (no runtime overrides)
 
 ## Migration Steps
 
@@ -43,9 +45,9 @@ If you had generic Kicktipp credentials, rename them to be community-specific:
 - `KICKTIPP_USERNAME`
 - `KICKTIPP_PASSWORD`
 
-**After (example for ehonda-test-buli community):**
-- `EHONDA_TEST_BULI_KICKTIPP_USERNAME` 
-- `EHONDA_TEST_BULI_KICKTIPP_PASSWORD`
+**After (example for test-community community):**
+- `TEST_COMMUNITY_KICKTIPP_USERNAME`
+- `TEST_COMMUNITY_KICKTIPP_PASSWORD`
 
 #### Add New Community Secrets
 For each additional community, add:
@@ -66,22 +68,20 @@ For each community you want to support, create two workflow files using the temp
 
 ## Configuration Reference
 
-### Community Configuration JSON Schema
+### Community Workflow Configuration
 
-```json
-{
-  "community": "string",              // Kicktipp community name
-  "predictions": {
-    "matches": {
-      "model": "o4-mini|o1",          // Default model for matchday predictions
-      "community-context": "string"   // Context for KPI data lookup
-    },
-    "bonus": {
-      "community-context": "string",  // Context for KPI data lookup
-      "model": "o1"                   // Optional: model for bonus predictions
-    }
-  }
-}
+Each community workflow is configured with direct parameters:
+
+- **`community`**: Kicktipp community name (string)
+- **`model`**: OpenAI model to use for predictions (o4-mini, o1)  
+- **`community_context`**: Community context when generating predictions (or using stored ones from the database) (string)
+
+### Example Parameters
+```yaml
+with:
+  community: "my-test-community"
+  model: "o4-mini"
+  community_context: "my-context"
 ```
 
 ### Secret Naming Convention
@@ -89,8 +89,8 @@ For each community you want to support, create two workflow files using the temp
 **Pattern:** `{COMMUNITY_UPPER}_KICKTIPP_{CREDENTIAL}`
 
 **Examples:**
-- Community `ehonda-test-buli` → `EHONDA_TEST_BULI_KICKTIPP_USERNAME`
-- Community `my-football-league` → `MY_FOOTBALL_LEAGUE_KICKTIPP_USERNAME`
+- Community `my-test-community` → `MY_TEST_COMMUNITY_KICKTIPP_USERNAME`
+- Community `prod-football-league` → `PROD_FOOTBALL_LEAGUE_KICKTIPP_USERNAME`
 
 ### Schedule Configuration
 
@@ -111,48 +111,45 @@ schedule:
 ## Example Migration
 
 ### Before (old system)
-You had one workflow running for "ehonda-test-buli" community in staging mode.
+You had one workflow running for "my-test-community" community in staging mode.
 
 ### After (new system)
 
 1. **Create matchday workflow** (`ehonda-test-buli-matchday.yml`):
    ```yaml
-   name: Ehonda Test Buli - Matchday Predictions
+   name: Test Community - Matchday Predictions
    on:
      schedule:
        - cron: '0 23 * * *'
        - cron: '0 11 * * *'
-     workflow_dispatch: # ... inputs
+     workflow_dispatch:
+       inputs:
+         force_prediction:
+           description: 'Force prediction even if verify passes'
+           required: false
+           default: false
+           type: boolean
    jobs:
      call-base-workflow:
        uses: ./.github/workflows/base-matchday-predictions.yml
        with:
-         community_config: |
-           {
-             "community": "ehonda-test-buli",
-             "predictions": {
-               "matches": {
-                 "model": "o4-mini",
-                 "community-context": "pes-squad"
-               },
-               "bonus": {
-                 "community-context": "pes-squad"
-               }
-             }
-           }
-         # ... other inputs
+         community: "my-test-community"
+         model: "o4-mini"
+         community_context: "my-context"
+         trigger_type: ${{ github.event_name == 'schedule' && 'scheduled' || 'manual' }}
+         force_prediction: ${{ github.event.inputs.force_prediction == 'true' }}
        secrets:
-         kicktipp_username: ${{ secrets.EHONDA_TEST_BULI_KICKTIPP_USERNAME }}
-         kicktipp_password: ${{ secrets.EHONDA_TEST_BULI_KICKTIPP_PASSWORD }}
+         kicktipp_username: ${{ secrets.MY_TEST_COMMUNITY_KICKTIPP_USERNAME }}
+         kicktipp_password: ${{ secrets.MY_TEST_COMMUNITY_KICKTIPP_PASSWORD }}
          # ... other secrets
    ```
 
-2. **Create bonus workflow** (`ehonda-test-buli-bonus.yml`):
+2. **Create bonus workflow** (`my-test-community-bonus.yml`):
    Similar structure but calls `base-bonus-predictions.yml`
 
 3. **Configure secrets:**
-   - `EHONDA_TEST_BULI_KICKTIPP_USERNAME`
-   - `EHONDA_TEST_BULI_KICKTIPP_PASSWORD`
+   - `MY_TEST_COMMUNITY_KICKTIPP_USERNAME`
+   - `MY_TEST_COMMUNITY_KICKTIPP_PASSWORD`
 
 ## Verification
 
@@ -181,6 +178,7 @@ After migration:
 - Check GitHub Actions quotas/limits
 
 ### Community Name Mismatch
-- Ensure `community` in JSON matches exact Kicktipp community name
-- Verify `community-context` matches your KPI data setup
+
+- Ensure `community` parameter matches exact Kicktipp community name
+- Verify `community_context` matches your KPI data setup
 - Check case sensitivity in community names

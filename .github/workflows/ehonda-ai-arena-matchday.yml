@@ -9,14 +9,6 @@ on:
   # Allow manual triggering
   workflow_dispatch:
     inputs:
-      model:
-        description: 'OpenAI model to use for predictions'
-        required: true
-        default: 'o1'
-        type: choice
-        options:
-          - 'o4-mini'
-          - 'o1'
       force_prediction:
         description: 'Force prediction even if verify passes'
         required: false
@@ -28,23 +20,11 @@ jobs:
     name: Run Matchday Predictions
     uses: ./.github/workflows/base-matchday-predictions.yml
     with:
-      # Community configuration for ehonda-ai-arena
-      community_config: |
-        {
-          "community": "ehonda-ai-arena",
-          "predictions": {
-            "matches": {
-              "model": "o1",
-              "community-context": "pes-squad"
-            },
-            "bonus": {
-              "community-context": "pes-squad"
-            }
-          }
-        }
+      community: "ehonda-ai-arena"
+      model: "o1"
+      community_context: "pes-squad"
       trigger_type: ${{ github.event_name == 'schedule' && 'scheduled' || 'manual' }}
       force_prediction: ${{ github.event.inputs.force_prediction == 'true' }}
-      model_override: ${{ github.event.inputs.model || '' }}
     secrets:
       kicktipp_username: ${{ secrets.EHONDA_AI_ARENA_KICKTIPP_USERNAME }}
       kicktipp_password: ${{ secrets.EHONDA_AI_ARENA_KICKTIPP_PASSWORD }}

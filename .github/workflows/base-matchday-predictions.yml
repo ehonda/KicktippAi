@@ -4,8 +4,16 @@ name: Base Matchday Predictions
 on:
   workflow_call:
     inputs:
-      community_config:
-        description: 'Community configuration JSON'
+      community:
+        description: 'Kicktipp community name'
+        required: true
+        type: string
+      model:
+        description: 'OpenAI model to use for predictions'
+        required: true
+        type: string
+      community_context:
+        description: 'Community context when generating predictions (or using stored ones from the database)'
         required: true
         type: string
       trigger_type:
@@ -17,10 +25,6 @@ on:
         required: false
         type: boolean
         default: false
-      model_override:
-        description: 'Override model from manual trigger'
-        required: false
-        type: string
     secrets:
       kicktipp_username:
         description: 'Kicktipp username for this community'
@@ -64,19 +68,10 @@ jobs:
       - name: Parse community configuration
         id: config
         run: |
-          # Parse the community configuration JSON
-          echo '${{ inputs.community_config }}' > config.json
-          
-          # Extract configuration values
-          COMMUNITY=$(jq -r '.community' config.json)
-          MATCH_MODEL=$(jq -r '.predictions.matches.model' config.json)
-          COMMUNITY_CONTEXT=$(jq -r '.predictions.matches["community-context"]' config.json)
-          
-          # Use model override if provided (from manual trigger)
-          if [ -n "${{ inputs.model_override }}" ] && [ "${{ inputs.model_override }}" != "" ]; then
-            MATCH_MODEL="${{ inputs.model_override }}"
-            echo "🎯 Using model override: $MATCH_MODEL"
-          fi
+          # Use the input values directly
+          COMMUNITY="${{ inputs.community }}"
+          MATCH_MODEL="${{ inputs.model }}"
+          COMMUNITY_CONTEXT="${{ inputs.community_context }}"
           
           echo "📊 Configuration:"
           echo "  Community: $COMMUNITY"

@@ -29,33 +29,21 @@ Each workflow implements the core prediction loop:
 
 ## Community Configuration
 
-Each community workflow includes a JSON configuration that defines:
+Each community workflow is configured with direct parameters:
 
-```json
-{
-  "community": "community-name-on-kicktipp",
-  "predictions": {
-    "matches": {
-      "model": "o4-mini",
-      "community-context": "context-for-kpi-data"
-    },
-    "bonus": {
-      "community-context": "context-for-kpi-data",
-      "model": "o1"
-    }
-  }
-}
-```
+- **`community`**: Kicktipp community name
+- **`model`**: OpenAI model to use for predictions (o4-mini, o1)
+- **`community_context`**: Community context when generating predictions (or using stored ones from the database)
 
 ## Example Communities
 
-### Ehonda Test Buli
+### Test Community
 
 - **Matchday**: Runs twice daily (midnight and noon Europe/Berlin)
 - **Bonus**: Runs daily at 6 PM Europe/Berlin
 - **Default Model**: o4-mini (testing/development)
 
-### Ehonda AI Arena
+### Production Community
 
 - **Matchday**: Runs twice daily (6:30 AM and 6:30 PM Europe/Berlin)
 - **Bonus**: Runs weekly on Sunday evening
@@ -74,10 +62,10 @@ For each community (replace `{COMMUNITY}` with uppercase community name with das
 
 Examples:
 
-- `EHONDA_TEST_BULI_KICKTIPP_USERNAME`
-- `EHONDA_TEST_BULI_KICKTIPP_PASSWORD`
-- `EHONDA_AI_ARENA_KICKTIPP_USERNAME`
-- `EHONDA_AI_ARENA_KICKTIPP_PASSWORD`
+- `TEST_COMMUNITY_KICKTIPP_USERNAME`
+- `TEST_COMMUNITY_KICKTIPP_PASSWORD`
+- `PROD_COMMUNITY_KICKTIPP_USERNAME`
+- `PROD_COMMUNITY_KICKTIPP_PASSWORD`
 
 ### Global Secrets (Shared Across Communities)
 
@@ -113,14 +101,6 @@ on:
     - cron: '0 23 * * *'  # Customize schedule
   workflow_dispatch:
     inputs:
-      model:
-        description: 'OpenAI model to use for predictions'
-        required: true
-        default: 'o4-mini'  # Customize default
-        type: choice
-        options:
-          - 'o4-mini'
-          - 'o1'
       force_prediction:
         description: 'Force prediction even if verify passes'
         required: false
@@ -132,22 +112,11 @@ jobs:
     name: Run Matchday Predictions
     uses: ./.github/workflows/base-matchday-predictions.yml
     with:
-      community_config: |
-        {
-          "community": "my-kicktipp-community",
-          "predictions": {
-            "matches": {
-              "model": "o4-mini",
-              "community-context": "my-context"
-            },
-            "bonus": {
-              "community-context": "my-context"
-            }
-          }
-        }
+      community: "my-kicktipp-community"
+      model: "o4-mini"
+      community_context: "my-context"
       trigger_type: ${{ github.event_name == 'schedule' && 'scheduled' || 'manual' }}
       force_prediction: ${{ github.event.inputs.force_prediction == 'true' }}
-      model_override: ${{ github.event.inputs.model || '' }}
     secrets:
       kicktipp_username: ${{ secrets.MY_COMMUNITY_KICKTIPP_USERNAME }}
       kicktipp_password: ${{ secrets.MY_COMMUNITY_KICKTIPP_PASSWORD }}
@@ -160,8 +129,9 @@ jobs:
 
 Each community workflow can be manually triggered from the GitHub Actions tab with:
 
-- **Model Selection**: Choose from available OpenAI models (`o4-mini`, `o1`)
 - **Force Prediction**: Override the verification check and generate predictions regardless
+
+The model used for predictions is fixed per community workflow (no override option).
 
 ## Migration from Old System
 
@@ -169,8 +139,9 @@ The previous staging/production environment system has been replaced with this m
 
 - **Environment Variables**: Removed `STAGING_ENABLED`, `PRODUCTION_ENABLED`, etc.
 - **Community-Specific**: Each community now has its own workflow with individual scheduling
-- **Flexible Configuration**: JSON-based configuration per community instead of environment variables
+- **Simplified Configuration**: Direct input parameters instead of JSON configuration
 - **Individual Credentials**: Each community uses its own Kicktipp credentials
+- **Fixed Models**: Models are defined per community workflow (no runtime overrides)
 
 ## Timezone Considerations
 
