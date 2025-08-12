@@ -94,7 +94,14 @@ jobs:
             echo "🔄 Force prediction enabled - running regardless of verify result"
           fi
           
-          dotnet run --project src/Orchestrator --configuration Release -- matchday "${{ inputs.model }}" --community "${{ inputs.community }}" --community-context "${{ inputs.community_context }}" --override-kicktipp --verbose --agent
+          # Set override database flag if force prediction is enabled
+          OVERRIDE_DB_FLAG=""
+          if [ "${{ inputs.force_prediction }}" = "true" ]; then
+            OVERRIDE_DB_FLAG="--override-database"
+            echo "💾 Adding --override-database flag to force regeneration of predictions"
+          fi
+          
+          dotnet run --project src/Orchestrator --configuration Release -- matchday "${{ inputs.model }}" --community "${{ inputs.community }}" --community-context "${{ inputs.community_context }}" --override-kicktipp --verbose --agent $OVERRIDE_DB_FLAG
         env:
           KICKTIPP_USERNAME: ${{ secrets.kicktipp_username }}
           KICKTIPP_PASSWORD: ${{ secrets.kicktipp_password }}
