@@ -73,7 +73,7 @@ jobs:
           echo "Community: ${{ inputs.community }}"
           echo "Model: ${{ inputs.model }}"
           echo "Community Context: ${{ inputs.community_context }}"
-          dotnet run --project src/Orchestrator --configuration Release -- verify-bonus --community "${{ inputs.community }}" --community-context "${{ inputs.community_context }}" --agent
+          dotnet run --project src/Orchestrator --configuration Release -- verify-bonus "${{ inputs.model }}" --community "${{ inputs.community }}" --community-context "${{ inputs.community_context }}" --agent
         env:
           KICKTIPP_USERNAME: ${{ secrets.kicktipp_username }}
           KICKTIPP_PASSWORD: ${{ secrets.kicktipp_password }}
@@ -106,7 +106,7 @@ jobs:
         if: steps.verify.outcome == 'failure' || inputs.force_prediction == true
         run: |
           echo "✅ Running final verification to confirm bonus predictions were posted successfully..."
-          dotnet run --project src/Orchestrator --configuration Release -- verify-bonus --community "${{ inputs.community }}" --community-context "${{ inputs.community_context }}" --agent
+          dotnet run --project src/Orchestrator --configuration Release -- verify-bonus "${{ inputs.model }}" --community "${{ inputs.community }}" --community-context "${{ inputs.community_context }}" --agent
         env:
           KICKTIPP_USERNAME: ${{ secrets.kicktipp_username }}
           KICKTIPP_PASSWORD: ${{ secrets.kicktipp_password }}
