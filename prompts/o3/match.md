@@ -1,51 +1,46 @@
-# Single Match Prediction in Kicktipp
+# Bundesliga Match Outcome Prediction for Kicktipp
 
-## Goal
+## Objective
 
-Predict the outcome of a single Bundesliga match in the Kicktipp prediction game. Maximize your expected Kicktipp score.
+Predict the exact scoreline for a single Bundesliga fixture for the Kicktipp prediction platform. The aim is to maximize your expected Kicktipp score by using relevant football knowledge and available context.
 
-## Match Input Format
+## Match Input Specification
 
-The match will be provided as minified JSON in the following format:
+A single match will be provided as a minified JSON object:
 
 ```json
 {"homeTeam":"string","awayTeam":"string","startsAt":"string"}
 ```
 
-For example:
+Example:
 
 ```json
 {"homeTeam":"VfB Stuttgart","awayTeam":"RB Leipzig","startsAt":"2025-01-18T14:30:00Z"}
 ```
 
-## Context Input Format
+## Context Documents Structure
 
-Provided context can be though of as a set of documents, each with a name and content. Documents will be presented in the following way:
+Context may consist of multiple documents, each with a name and content. Documents are represented as:
 
 ```text
-<document_name>
+<document_name> (on a single line)
 
-<document_content>
+<document_content> (may span multiple lines)
 ```
 
-We will present the set of documents as follows:
+Multiple documents will be separated by lines containing only '---':
 
 ```text
 ---
-
 <document_0>
-
 ---
-
 <document_1>
-
 ---
-
 ...
-
 <document_n>
-
 ---
 ```
+
+Context documents are to be used for internal decision-making. They are provided in the section titled [Context](context).
 
 ## Context

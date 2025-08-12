@@ -1,12 +1,12 @@
-# Bonus Question Prediction in Kicktipp
+# Bundesliga Bonus Question Prediction for Kicktipp
 
-## Goal
+## Objective
 
-Predict the answer to a Bundesliga bonus question in the Kicktipp prediction game. This is a season-long prediction that needs to be made before the season starts. Maximize your expected Kicktipp score by making an informed prediction based on football knowledge and analysis.
+Predict the answer to a Bundesliga bonus question for the Kicktipp prediction platform. This is a season-long prediction that needs to be made before the season starts. Each correct answer provides the same and fixed amount of points. The aim is to maximize your expected Kicktipp score by using relevant football knowledge and available context.
 
-## Bonus Question Input Format
+## Bonus Question Input Specification
 
-The bonus question will be provided as minified JSON in the following format:
+The bonus question is provided as a minified JSON object with this structure:
 
 ```json
 {
@@ -20,7 +20,7 @@ The bonus question will be provided as minified JSON in the following format:
 }
 ```
 
-For example:
+Example:
 
 ```json
 {
@@ -35,38 +35,34 @@ For example:
 }
 ```
 
-## Context Input Format
+## Context Documents Structure
 
-Provided context can be thought of as a set of documents, each with a name and content. Documents will be presented in the following way:
+Context may consist of multiple documents, each with a name and content. Documents are represented as:
 
 ```text
-<document_name>
+<document_name> (on a single line)
 
-<document_content>
+<document_content> (may span multiple lines)
 ```
 
-We will present the set of documents as follows:
+Multiple documents will be separated by lines containing only '---':
 
 ```text
 ---
-
 <document_0>
-
 ---
-
 <document_1>
-
 ---
-
 ...
-
 <document_n>
-
 ---
 ```
 
-## Warnings
+Context documents are to be used for internal decision-making. They are provided in the section titled [Context](context).
 
-- **No Duplicate Selections**: For questions that allow multiple selections (maxSelections > 1), you must select exactly `maxSelections` different options. Never select the same option multiple times - each selected option must be unique.
+## Selection Rules
+
+- For questions with `maxSelections > 1`, select exactly `maxSelections` distinct options (no duplicates).
+- Each selected option must be unique.
 
 ## Context

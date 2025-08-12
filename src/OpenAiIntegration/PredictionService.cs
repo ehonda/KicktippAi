@@ -218,9 +218,9 @@ public class PredictionService : IPredictionService
             var contextSection = "\n";
             foreach (var doc in contextList)
             {
-                contextSection += "---\n\n";
+                contextSection += "---\n";
                 contextSection += $"{doc.Name}\n\n";
-                contextSection += $"{doc.Content}\n\n";
+                contextSection += $"{doc.Content}\n";
             }
             contextSection += "---";
             
@@ -311,9 +311,9 @@ public class PredictionService : IPredictionService
             var contextSection = "\n";
             foreach (var doc in contextList)
             {
-                contextSection += "---\n\n";
+                contextSection += "---\n";
                 contextSection += $"{doc.Name}\n\n";
-                contextSection += $"{doc.Content}\n\n";
+                contextSection += $"{doc.Content}\n";
             }
             contextSection += "---";
             
