@@ -78,6 +78,12 @@ public class MatchdayCommand : AsyncCommand<BaseSettings>
         var contextProvider = serviceProvider.GetRequiredService<KicktippContextProvider>();
         var tokenUsageTracker = serviceProvider.GetService<ITokenUsageTracker>();
         
+        // Log the prompt paths being used
+        if (settings.Verbose)
+        {
+            AnsiConsole.MarkupLine($"[dim]Match prompt:[/] [blue]{predictionService.GetMatchPromptPath()}[/]");
+        }
+        
         // Try to get the prediction repository (may be null if Firebase is not configured)
         var predictionRepository = serviceProvider.GetService<IPredictionRepository>();
         var databaseEnabled = predictionRepository != null;

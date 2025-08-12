@@ -30,4 +30,16 @@ public interface IPredictionService
         BonusQuestion bonusQuestion,
         IEnumerable<DocumentContext> contextDocuments,
         CancellationToken cancellationToken = default);
+
+    /// <summary>
+    /// Gets the file path of the match prediction prompt being used by this service
+    /// </summary>
+    /// <returns>The absolute file path to the match prompt file</returns>
+    string GetMatchPromptPath();
+
+    /// <summary>
+    /// Gets the file path of the bonus question prediction prompt being used by this service
+    /// </summary>
+    /// <returns>The absolute file path to the bonus prompt file</returns>
+    string GetBonusPromptPath();
 }

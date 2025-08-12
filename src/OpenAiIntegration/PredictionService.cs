@@ -17,6 +17,9 @@ public class PredictionService : IPredictionService
     private readonly ITokenUsageTracker _tokenUsageTracker;
     private readonly string _model;
     private readonly string _instructionsTemplate;
+    private readonly string _bonusInstructionsTemplate;
+    private readonly string _matchPromptPath;
+    private readonly string _bonusPromptPath;
 
     public PredictionService(
         ChatClient chatClient, 
@@ -30,7 +33,14 @@ public class PredictionService : IPredictionService
         _costCalculationService = costCalculationService ?? throw new ArgumentNullException(nameof(costCalculationService));
         _tokenUsageTracker = tokenUsageTracker ?? throw new ArgumentNullException(nameof(tokenUsageTracker));
         _model = model ?? throw new ArgumentNullException(nameof(model));
-        _instructionsTemplate = LoadInstructionsTemplate();
+        
+        var (matchTemplate, matchPath) = LoadInstructionsTemplate();
+        var (bonusTemplate, bonusPath) = LoadBonusInstructionsTemplate();
+        
+        _instructionsTemplate = matchTemplate;
+        _bonusInstructionsTemplate = bonusTemplate;
+        _matchPromptPath = matchPath;
+        _bonusPromptPath = bonusPath;
     }
 
     public async Task<Prediction?> PredictMatchAsync(
@@ -262,9 +272,11 @@ public class PredictionService : IPredictionService
         }
     }
 
-    private static string LoadInstructionsTemplate()
+    private (string template, string path) LoadInstructionsTemplate()
     {
-        // Try to find the instructions template relative to the current directory
+        var promptModel = GetPromptModelForModel(_model);
+        
+        // Try to find the model-specific instructions template relative to the current directory
         var currentDirectory = Directory.GetCurrentDirectory();
         var directory = new DirectoryInfo(currentDirectory);
 
@@ -273,26 +285,25 @@ public class PredictionService : IPredictionService
             var solutionFile = Path.Combine(directory.FullName, "KicktippAi.slnx");
             if (File.Exists(solutionFile))
             {
-                var instructionsPath = Path.Combine(directory.FullName, "prompts", "reasoning-models", 
-                    "predict-one-match", "v0-handcrafted", "instructions_template.md");
+                var instructionsPath = Path.Combine(directory.FullName, "prompts", promptModel, "match.md");
                 
                 if (File.Exists(instructionsPath))
                 {
-                    return File.ReadAllText(instructionsPath);
+                    return (File.ReadAllText(instructionsPath), instructionsPath);
                 }
                 
-                throw new FileNotFoundException($"Instructions template not found at: {instructionsPath}");
+                throw new FileNotFoundException($"Match instructions not found at: {instructionsPath}");
             }
             directory = directory.Parent;
         }
 
-        throw new DirectoryNotFoundException("Could not find solution root (KicktippAi.slnx) to locate instructions template");
+        throw new DirectoryNotFoundException("Could not find solution root (KicktippAi.slnx) to locate match instructions");
     }
 
     private string BuildBonusInstructions(IEnumerable<DocumentContext> contextDocuments)
     {
-        // Load the bonus instructions template
-        var bonusInstructionsTemplate = LoadBonusInstructionsTemplate();
+        // Use the pre-loaded bonus instructions template
+        var bonusInstructionsTemplate = _bonusInstructionsTemplate;
         
         var contextList = contextDocuments.ToList();
         if (contextList.Any())
@@ -418,9 +429,11 @@ public class PredictionService : IPredictionService
         }
     }
 
-    private static string LoadBonusInstructionsTemplate()
+    private (string template, string path) LoadBonusInstructionsTemplate()
     {
-        // Try to find the bonus instructions template relative to the current directory
+        var promptModel = GetPromptModelForModel(_model);
+        
+        // Try to find the model-specific bonus instructions template relative to the current directory
         var currentDirectory = Directory.GetCurrentDirectory();
         var directory = new DirectoryInfo(currentDirectory);
 
@@ -429,21 +442,54 @@ public class PredictionService : IPredictionService
             var solutionFile = Path.Combine(directory.FullName, "KicktippAi.slnx");
             if (File.Exists(solutionFile))
             {
-                var instructionsPath = Path.Combine(directory.FullName, "prompts", "reasoning-models", 
-                    "predict-bonus-questions", "v0-handcrafted", "instructions_template.md");
+                var instructionsPath = Path.Combine(directory.FullName, "prompts", promptModel, "bonus.md");
                 
                 if (File.Exists(instructionsPath))
                 {
-                    return File.ReadAllText(instructionsPath);
+                    return (File.ReadAllText(instructionsPath), instructionsPath);
                 }
                 
-                throw new FileNotFoundException($"Bonus instructions template not found at: {instructionsPath}");
+                throw new FileNotFoundException($"Bonus instructions not found at: {instructionsPath}");
             }
             directory = directory.Parent;
         }
 
-        throw new DirectoryNotFoundException("Could not find solution root (KicktippAi.slnx) to locate bonus instructions template");
+        throw new DirectoryNotFoundException("Could not find solution root (KicktippAi.slnx) to locate bonus instructions");
     }
+
+    /// <summary>
+    /// Maps a model name to the appropriate prompt directory, handling cross-model mappings
+    /// </summary>
+    /// <param name="model">The model name to map</param>
+    /// <returns>The prompt directory name to use</returns>
+    private static string GetPromptModelForModel(string model)
+    {
+        return model switch
+        {
+            // Direct mappings
+            "o3" => "o3",
+            "gpt-5" => "gpt-5",
+            
+            // Cross-model mappings
+            "o4-mini" => "o3",
+            "gpt-5-nano" => "gpt-5",
+            
+            // Default to the model name itself for any new models
+            _ => model
+        };
+    }
+
+    /// <summary>
+    /// Gets the file path of the match prediction prompt being used by this service
+    /// </summary>
+    /// <returns>The absolute file path to the match prompt file</returns>
+    public string GetMatchPromptPath() => _matchPromptPath;
+
+    /// <summary>
+    /// Gets the file path of the bonus question prediction prompt being used by this service
+    /// </summary>
+    /// <returns>The absolute file path to the bonus prompt file</returns>
+    public string GetBonusPromptPath() => _bonusPromptPath;
 
     /// <summary>
     /// Internal class for deserializing the structured prediction response

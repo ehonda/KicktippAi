@@ -75,6 +75,12 @@ public class BonusCommand : AsyncCommand<BaseSettings>
         var kicktippClient = serviceProvider.GetRequiredService<IKicktippClient>();
         var predictionService = serviceProvider.GetRequiredService<IPredictionService>();
         
+        // Log the prompt paths being used
+        if (settings.Verbose)
+        {
+            AnsiConsole.MarkupLine($"[dim]Bonus prompt:[/] [blue]{predictionService.GetBonusPromptPath()}[/]");
+        }
+        
         // Use Firebase KPI Context Provider for bonus predictions
         var kpiContextProvider = serviceProvider.GetRequiredService<FirebaseKpiContextProvider>();
         
