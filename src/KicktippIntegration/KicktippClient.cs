@@ -774,35 +774,99 @@ public class KicktippClient : IKicktippClient, IDisposable
     {
         try
         {
-            var url = await FindSpielinfoUrlForMatch(community, homeTeam, awayTeam);
-            if (url == null)
-            {
-                _logger.LogWarning("Could not find spielinfo URL for match {HomeTeam} vs {AwayTeam}", homeTeam, awayTeam);
-                return (new List<MatchResult>(), new List<MatchResult>());
-            }
-
-            // Add ansicht=2 parameter for home/away history
-            var homeAwayUrl = url.Contains('?') 
-                ? $"{url}&ansicht=2" 
-                : $"{url}?ansicht=2";
+            // First, get the tippabgabe page to find the link to spielinfos
+            var tippabgabeUrl = $"{community}/tippabgabe";
+            var response = await _httpClient.GetAsync(tippabgabeUrl);
             
-            var response = await _httpClient.GetAsync(homeAwayUrl);
             if (!response.IsSuccessStatusCode)
             {
-                _logger.LogError("Failed to fetch home/away history page. Status: {StatusCode}", response.StatusCode);
+                _logger.LogError("Failed to fetch tippabgabe page. Status: {StatusCode}", response.StatusCode);
                 return (new List<MatchResult>(), new List<MatchResult>());
             }
 
             var content = await response.Content.ReadAsStringAsync();
             var document = await _browsingContext.OpenAsync(req => req.Content(content));
 
-            // Extract home team home history
-            var homeTeamHomeHistory = ExtractTeamHistory(document, "spielinfoHeim");
-            
-            // Extract away team away history  
-            var awayTeamAwayHistory = ExtractTeamHistory(document, "spielinfoGast");
+            // Find the "Tippabgabe mit Spielinfos" link
+            var spielinfoLink = document.QuerySelector("a[href*='spielinfo']");
+            if (spielinfoLink == null)
+            {
+                _logger.LogWarning("Could not find Spielinfo link on tippabgabe page");
+                return (new List<MatchResult>(), new List<MatchResult>());
+            }
 
-            return (homeTeamHomeHistory, awayTeamAwayHistory);
+            var spielinfoUrl = spielinfoLink.GetAttribute("href");
+            if (string.IsNullOrEmpty(spielinfoUrl))
+            {
+                _logger.LogWarning("Spielinfo link has no href attribute");
+                return (new List<MatchResult>(), new List<MatchResult>());
+            }
+
+            // Make URL absolute if it's relative
+            if (spielinfoUrl.StartsWith("/"))
+            {
+                spielinfoUrl = spielinfoUrl.Substring(1); // Remove leading slash
+            }
+
+            // Navigate through all matches using the right arrow navigation
+            var currentUrl = spielinfoUrl;
+            
+            while (!string.IsNullOrEmpty(currentUrl))
+            {
+                try
+                {
+                    // Add ansicht=2 parameter for home/away history
+                    var homeAwayUrl = currentUrl.Contains('?') 
+                        ? $"{currentUrl}&ansicht=2" 
+                        : $"{currentUrl}?ansicht=2";
+                    
+                    var spielinfoResponse = await _httpClient.GetAsync(homeAwayUrl);
+                    if (!spielinfoResponse.IsSuccessStatusCode)
+                    {
+                        _logger.LogWarning("Failed to fetch spielinfo page: {Url}. Status: {StatusCode}", homeAwayUrl, spielinfoResponse.StatusCode);
+                        break;
+                    }
+
+                    var spielinfoContent = await spielinfoResponse.Content.ReadAsStringAsync();
+                    var spielinfoDocument = await _browsingContext.OpenAsync(req => req.Content(spielinfoContent));
+
+                    // Check if this page contains our match
+                    if (IsMatchOnPage(spielinfoDocument, homeTeam, awayTeam))
+                    {
+                        // Extract home team home history
+                        var homeTeamHomeHistory = ExtractTeamHistory(spielinfoDocument, "spielinfoHeim");
+                        
+                        // Extract away team away history  
+                        var awayTeamAwayHistory = ExtractTeamHistory(spielinfoDocument, "spielinfoGast");
+
+                        return (homeTeamHomeHistory, awayTeamAwayHistory);
+                    }
+
+                    // Find the next match link (right arrow)
+                    var nextLink = FindNextMatchLink(spielinfoDocument);
+                    if (nextLink != null)
+                    {
+                        currentUrl = nextLink;
+                        if (currentUrl.StartsWith("/"))
+                        {
+                            currentUrl = currentUrl.Substring(1); // Remove leading slash
+                        }
+                    }
+                    else
+                    {
+                        // No more matches
+                        break;
+                    }
+                }
+                catch (Exception ex)
+                {
+                    _logger.LogError(ex, "Error processing spielinfo page for home/away history: {CurrentUrl}", currentUrl);
+                    break;
+                }
+            }
+
+            _logger.LogWarning("Could not find match {HomeTeam} vs {AwayTeam} in spielinfo pages", homeTeam, awayTeam);
+            return (new List<MatchResult>(), new List<MatchResult>());
         }
         catch (Exception ex)
         {
@@ -816,35 +880,197 @@ public class KicktippClient : IKicktippClient, IDisposable
     {
         try
         {
-            var url = await FindSpielinfoUrlForMatch(community, homeTeam, awayTeam);
-            if (url == null)
-            {
-                _logger.LogWarning("Could not find spielinfo URL for match {HomeTeam} vs {AwayTeam}", homeTeam, awayTeam);
-                return new List<MatchResult>();
-            }
-
-            // Add ansicht=3 parameter for head-to-head history
-            var headToHeadUrl = url.Contains('?') 
-                ? $"{url}&ansicht=3" 
-                : $"{url}?ansicht=3";
+            // First, get the tippabgabe page to find the link to spielinfos
+            var tippabgabeUrl = $"{community}/tippabgabe";
+            var response = await _httpClient.GetAsync(tippabgabeUrl);
             
-            var response = await _httpClient.GetAsync(headToHeadUrl);
             if (!response.IsSuccessStatusCode)
             {
-                _logger.LogError("Failed to fetch head-to-head history page. Status: {StatusCode}", response.StatusCode);
+                _logger.LogError("Failed to fetch tippabgabe page. Status: {StatusCode}", response.StatusCode);
                 return new List<MatchResult>();
             }
 
             var content = await response.Content.ReadAsStringAsync();
             var document = await _browsingContext.OpenAsync(req => req.Content(content));
 
-            // Extract head-to-head history
-            return ExtractTeamHistory(document, "spielinfoDirekterVergleich");
+            // Find the "Tippabgabe mit Spielinfos" link
+            var spielinfoLink = document.QuerySelector("a[href*='spielinfo']");
+            if (spielinfoLink == null)
+            {
+                _logger.LogWarning("Could not find Spielinfo link on tippabgabe page");
+                return new List<MatchResult>();
+            }
+
+            var spielinfoUrl = spielinfoLink.GetAttribute("href");
+            if (string.IsNullOrEmpty(spielinfoUrl))
+            {
+                _logger.LogWarning("Spielinfo link has no href attribute");
+                return new List<MatchResult>();
+            }
+
+            // Make URL absolute if it's relative
+            if (spielinfoUrl.StartsWith("/"))
+            {
+                spielinfoUrl = spielinfoUrl.Substring(1); // Remove leading slash
+            }
+
+            // Navigate through all matches using the right arrow navigation
+            var currentUrl = spielinfoUrl;
+            
+            while (!string.IsNullOrEmpty(currentUrl))
+            {
+                try
+                {
+                    // Add ansicht=3 parameter for head-to-head history
+                    var headToHeadUrl = currentUrl.Contains('?') 
+                        ? $"{currentUrl}&ansicht=3" 
+                        : $"{currentUrl}?ansicht=3";
+                    
+                    var spielinfoResponse = await _httpClient.GetAsync(headToHeadUrl);
+                    if (!spielinfoResponse.IsSuccessStatusCode)
+                    {
+                        _logger.LogWarning("Failed to fetch spielinfo page: {Url}. Status: {StatusCode}", headToHeadUrl, spielinfoResponse.StatusCode);
+                        break;
+                    }
+
+                    var spielinfoContent = await spielinfoResponse.Content.ReadAsStringAsync();
+                    var spielinfoDocument = await _browsingContext.OpenAsync(req => req.Content(spielinfoContent));
+
+                    // Check if this page contains our match
+                    if (IsMatchOnPage(spielinfoDocument, homeTeam, awayTeam))
+                    {
+                        // Extract head-to-head history
+                        return ExtractTeamHistory(spielinfoDocument, "spielinfoDirekterVergleich");
+                    }
+
+                    // Find the next match link (right arrow)
+                    var nextLink = FindNextMatchLink(spielinfoDocument);
+                    if (nextLink != null)
+                    {
+                        currentUrl = nextLink;
+                        if (currentUrl.StartsWith("/"))
+                        {
+                            currentUrl = currentUrl.Substring(1); // Remove leading slash
+                        }
+                    }
+                    else
+                    {
+                        // No more matches
+                        break;
+                    }
+                }
+                catch (Exception ex)
+                {
+                    _logger.LogError(ex, "Error processing spielinfo page for head-to-head history: {CurrentUrl}", currentUrl);
+                    break;
+                }
+            }
+
+            _logger.LogWarning("Could not find match {HomeTeam} vs {AwayTeam} in spielinfo pages", homeTeam, awayTeam);
+            return new List<MatchResult>();
         }
         catch (Exception ex)
         {
             _logger.LogError(ex, "Exception in GetHeadToHeadHistoryAsync for {HomeTeam} vs {AwayTeam}", homeTeam, awayTeam);
             return new List<MatchResult>();
+        }
+    }
+
+    /// <inheritdoc />
+    public async Task<List<HeadToHeadResult>> GetHeadToHeadDetailedHistoryAsync(string community, string homeTeam, string awayTeam)
+    {
+        try
+        {
+            // First, get the tippabgabe page to find the link to spielinfos
+            var tippabgabeUrl = $"{community}/tippabgabe";
+            var response = await _httpClient.GetAsync(tippabgabeUrl);
+            
+            if (!response.IsSuccessStatusCode)
+            {
+                _logger.LogError("Failed to fetch tippabgabe page. Status: {StatusCode}", response.StatusCode);
+                return new List<HeadToHeadResult>();
+            }
+
+            var content = await response.Content.ReadAsStringAsync();
+            var document = await _browsingContext.OpenAsync(req => req.Content(content));
+
+            // Find the "Tippabgabe mit Spielinfos" link
+            var spielinfoLink = document.QuerySelector("a[href*='spielinfo']");
+            if (spielinfoLink == null)
+            {
+                _logger.LogWarning("Could not find Spielinfo link on tippabgabe page");
+                return new List<HeadToHeadResult>();
+            }
+
+            var spielinfoUrl = spielinfoLink.GetAttribute("href");
+            if (string.IsNullOrEmpty(spielinfoUrl))
+            {
+                _logger.LogWarning("Spielinfo link has no href attribute");
+                return new List<HeadToHeadResult>();
+            }
+
+            // Make URL absolute if it's relative
+            if (spielinfoUrl.StartsWith("/"))
+            {
+                spielinfoUrl = spielinfoUrl.Substring(1); // Remove leading slash
+            }
+
+            // Navigate through all matches using the right arrow navigation
+            var currentUrl = spielinfoUrl;
+            
+            while (!string.IsNullOrEmpty(currentUrl))
+            {
+                try
+                {
+                    // Append ansicht=3 to get head-to-head view
+                    var urlWithAnsicht = currentUrl.Contains('?') ? $"{currentUrl}&ansicht=3" : $"{currentUrl}?ansicht=3";
+                    var spielinfoResponse = await _httpClient.GetAsync(urlWithAnsicht);
+                    
+                    if (!spielinfoResponse.IsSuccessStatusCode)
+                    {
+                        _logger.LogWarning("Failed to fetch spielinfo page: {Url}. Status: {StatusCode}", urlWithAnsicht, spielinfoResponse.StatusCode);
+                        break;
+                    }
+
+                    var spielinfoContent = await spielinfoResponse.Content.ReadAsStringAsync();
+                    var spielinfoDocument = await _browsingContext.OpenAsync(req => req.Content(spielinfoContent));
+
+                    // Check if this page contains our match
+                    if (IsMatchOnPage(spielinfoDocument, homeTeam, awayTeam))
+                    {
+                        // Extract head-to-head history from this page
+                        return ExtractHeadToHeadHistory(spielinfoDocument);
+                    }
+
+                    // Find the next match link (right arrow)
+                    var nextLink = FindNextMatchLink(spielinfoDocument);
+                    if (nextLink != null)
+                    {
+                        currentUrl = nextLink;
+                        if (currentUrl.StartsWith("/"))
+                        {
+                            currentUrl = currentUrl.Substring(1); // Remove leading slash
+                        }
+                    }
+                    else
+                    {
+                        break;
+                    }
+                }
+                catch (Exception ex)
+                {
+                    _logger.LogWarning(ex, "Error processing spielinfo page: {Url}", currentUrl);
+                    break;
+                }
+            }
+
+            _logger.LogWarning("Could not find match {HomeTeam} vs {AwayTeam} in spielinfo pages", homeTeam, awayTeam);
+            return new List<HeadToHeadResult>();
+        }
+        catch (Exception ex)
+        {
+            _logger.LogError(ex, "Exception in GetHeadToHeadDetailedHistoryAsync for {HomeTeam} vs {AwayTeam}", homeTeam, awayTeam);
+            return new List<HeadToHeadResult>();
         }
     }
 
@@ -1146,6 +1372,70 @@ public class KicktippClient : IKicktippClient, IDisposable
         catch (Exception ex)
         {
             _logger.LogError(ex, "Error extracting team history for table class: {TableClass}", tableClass);
+        }
+
+        return results;
+    }
+
+    private List<HeadToHeadResult> ExtractHeadToHeadHistory(IDocument document)
+    {
+        var results = new List<HeadToHeadResult>();
+        
+        try
+        {
+            var table = document.QuerySelector("table.spielinfoDirekterVergleich tbody");
+            if (table == null)
+            {
+                _logger.LogDebug("Could not find head-to-head table with class: spielinfoDirekterVergleich");
+                return results;
+            }
+
+            var rows = table.QuerySelectorAll("tr");
+            foreach (var row in rows)
+            {
+                try
+                {
+                    var cells = row.QuerySelectorAll("td");
+                    
+                    // Direct comparison format: Season | Matchday | Date | Home | Away | Result
+                    if (cells.Length < 6)
+                        continue;
+                    
+                    var league = cells[0].TextContent?.Trim() ?? "";
+                    var matchday = cells[1].TextContent?.Trim() ?? "";
+                    var playedAt = cells[2].TextContent?.Trim() ?? "";
+                    var homeTeam = cells[3].TextContent?.Trim() ?? "";
+                    var awayTeam = cells[4].TextContent?.Trim() ?? "";
+                    
+                    // Extract score from the result cell
+                    var resultCell = cells[5];
+                    var score = "";
+                    
+                    var scoreElements = resultCell.QuerySelectorAll(".kicktipp-heim, .kicktipp-gast");
+                    if (scoreElements.Length >= 2)
+                    {
+                        var homeScoreText = scoreElements[0].TextContent?.Trim() ?? "";
+                        var awayScoreText = scoreElements[1].TextContent?.Trim() ?? "";
+                        
+                        if (homeScoreText != "-" && awayScoreText != "-")
+                        {
+                            score = $"{homeScoreText}:{awayScoreText}";
+                        }
+                    }
+
+                    var headToHeadResult = new HeadToHeadResult(league, matchday, playedAt, homeTeam, awayTeam, score);
+                    results.Add(headToHeadResult);
+                }
+                catch (Exception ex)
+                {
+                    _logger.LogDebug(ex, "Error parsing head-to-head row");
+                    continue;
+                }
+            }
+        }
+        catch (Exception ex)
+        {
+            _logger.LogError(ex, "Error extracting head-to-head history");
         }
 
         return results;

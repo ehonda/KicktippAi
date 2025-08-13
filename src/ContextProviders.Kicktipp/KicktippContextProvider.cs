@@ -12,12 +12,18 @@ public class KicktippContextProvider : IContextProvider<DocumentContext>
     private readonly IKicktippClient _kicktippClient;
     private readonly string _community;
     private readonly Lazy<Task<IReadOnlyDictionary<string, List<MatchResult>>>> _teamHistoryLazy;
+    private readonly Lazy<Task<IReadOnlyDictionary<string, (List<MatchResult> homeHistory, List<MatchResult> awayHistory)>>> _homeAwayHistoryLazy;
+    private readonly Lazy<Task<IReadOnlyDictionary<string, List<MatchResult>>>> _headToHeadHistoryLazy;
+    private readonly Lazy<Task<IReadOnlyDictionary<string, List<HeadToHeadResult>>>> _detailedHeadToHeadHistoryLazy;
 
     public KicktippContextProvider(IKicktippClient kicktippClient, string community)
     {
         _kicktippClient = kicktippClient ?? throw new ArgumentNullException(nameof(kicktippClient));
         _community = community ?? throw new ArgumentNullException(nameof(community));
         _teamHistoryLazy = new Lazy<Task<IReadOnlyDictionary<string, List<MatchResult>>>>(LoadTeamHistoryAsync);
+        _homeAwayHistoryLazy = new Lazy<Task<IReadOnlyDictionary<string, (List<MatchResult> homeHistory, List<MatchResult> awayHistory)>>>(LoadHomeAwayHistoryAsync);
+        _headToHeadHistoryLazy = new Lazy<Task<IReadOnlyDictionary<string, List<MatchResult>>>>(LoadHeadToHeadHistoryAsync);
+        _detailedHeadToHeadHistoryLazy = new Lazy<Task<IReadOnlyDictionary<string, List<HeadToHeadResult>>>>(LoadDetailedHeadToHeadHistoryAsync);
     }
 
     private async Task<IReadOnlyDictionary<string, List<MatchResult>>> LoadTeamHistoryAsync()
@@ -32,6 +38,87 @@ public class KicktippContextProvider : IContextProvider<DocumentContext>
         }
 
         return teamHistory;
+    }
+    
+    private async Task<IReadOnlyDictionary<string, (List<MatchResult> homeHistory, List<MatchResult> awayHistory)>> LoadHomeAwayHistoryAsync()
+    {
+        var matchesWithHistory = await _kicktippClient.GetMatchesWithHistoryAsync(_community);
+        var homeAwayHistory = new Dictionary<string, (List<MatchResult> homeHistory, List<MatchResult> awayHistory)>();
+
+        foreach (var matchWithHistory in matchesWithHistory)
+        {
+            var homeTeam = matchWithHistory.Match.HomeTeam;
+            var awayTeam = matchWithHistory.Match.AwayTeam;
+            
+            try
+            {
+                var (homeTeamHistory, awayTeamHistory) = await _kicktippClient.GetHomeAwayHistoryAsync(_community, homeTeam, awayTeam);
+                var cacheKey = $"{homeTeam}|{awayTeam}";
+                homeAwayHistory[cacheKey] = (homeTeamHistory, awayTeamHistory);
+            }
+            catch (Exception)
+            {
+                // Continue with other matches if one fails
+                var cacheKey = $"{homeTeam}|{awayTeam}";
+                homeAwayHistory[cacheKey] = (new List<MatchResult>(), new List<MatchResult>());
+            }
+        }
+
+        return homeAwayHistory;
+    }
+    
+    private async Task<IReadOnlyDictionary<string, List<MatchResult>>> LoadHeadToHeadHistoryAsync()
+    {
+        var matchesWithHistory = await _kicktippClient.GetMatchesWithHistoryAsync(_community);
+        var headToHeadHistory = new Dictionary<string, List<MatchResult>>();
+
+        foreach (var matchWithHistory in matchesWithHistory)
+        {
+            var homeTeam = matchWithHistory.Match.HomeTeam;
+            var awayTeam = matchWithHistory.Match.AwayTeam;
+            
+            try
+            {
+                var history = await _kicktippClient.GetHeadToHeadHistoryAsync(_community, homeTeam, awayTeam);
+                var cacheKey = $"{homeTeam}|{awayTeam}";
+                headToHeadHistory[cacheKey] = history;
+            }
+            catch (Exception)
+            {
+                // Continue with other matches if one fails
+                var cacheKey = $"{homeTeam}|{awayTeam}";
+                headToHeadHistory[cacheKey] = new List<MatchResult>();
+            }
+        }
+
+        return headToHeadHistory;
+    }
+
+    private async Task<IReadOnlyDictionary<string, List<HeadToHeadResult>>> LoadDetailedHeadToHeadHistoryAsync()
+    {
+        var matchesWithHistory = await _kicktippClient.GetMatchesWithHistoryAsync(_community);
+        var detailedHeadToHeadHistory = new Dictionary<string, List<HeadToHeadResult>>();
+
+        foreach (var matchWithHistory in matchesWithHistory)
+        {
+            var homeTeam = matchWithHistory.Match.HomeTeam;
+            var awayTeam = matchWithHistory.Match.AwayTeam;
+            
+            try
+            {
+                var history = await _kicktippClient.GetHeadToHeadDetailedHistoryAsync(_community, homeTeam, awayTeam);
+                var cacheKey = $"{homeTeam}|{awayTeam}";
+                detailedHeadToHeadHistory[cacheKey] = history;
+            }
+            catch (Exception)
+            {
+                // Continue with other matches if one fails
+                var cacheKey = $"{homeTeam}|{awayTeam}";
+                detailedHeadToHeadHistory[cacheKey] = new List<HeadToHeadResult>();
+            }
+        }
+
+        return detailedHeadToHeadHistory;
     }
     
     public async IAsyncEnumerable<DocumentContext> GetContextAsync([EnumeratorCancellation] CancellationToken cancellationToken = default)
@@ -129,7 +216,12 @@ public class KicktippContextProvider : IContextProvider<DocumentContext>
     {
         try
         {
-            var (homeTeamHistory, _) = await _kicktippClient.GetHomeAwayHistoryAsync(_community, homeTeam, awayTeam);
+            var homeAwayHistory = await _homeAwayHistoryLazy.Value;
+            var cacheKey = $"{homeTeam}|{awayTeam}";
+            
+            var (homeTeamHistory, _) = homeAwayHistory.TryGetValue(cacheKey, out var history) 
+                ? history 
+                : (new List<MatchResult>(), new List<MatchResult>());
             
             var csvContent = new StringBuilder();
             csvContent.AppendLine("Competition,Home_Team,Away_Team,Score");
@@ -158,7 +250,12 @@ public class KicktippContextProvider : IContextProvider<DocumentContext>
     {
         try
         {
-            var (_, awayTeamHistory) = await _kicktippClient.GetHomeAwayHistoryAsync(_community, homeTeam, awayTeam);
+            var homeAwayHistory = await _homeAwayHistoryLazy.Value;
+            var cacheKey = $"{homeTeam}|{awayTeam}";
+            
+            var (_, awayTeamHistory) = homeAwayHistory.TryGetValue(cacheKey, out var history) 
+                ? history 
+                : (new List<MatchResult>(), new List<MatchResult>());
             
             var csvContent = new StringBuilder();
             csvContent.AppendLine("Competition,Home_Team,Away_Team,Score");
@@ -193,9 +290,14 @@ public class KicktippContextProvider : IContextProvider<DocumentContext>
     {
         try
         {
-            var headToHeadHistory = await _kicktippClient.GetHeadToHeadHistoryAsync(_community, homeTeam, awayTeam);
+            var detailedHeadToHeadHistory = await _detailedHeadToHeadHistoryLazy.Value;
+            var cacheKey = $"{homeTeam}|{awayTeam}";
             
-            var csvContent = ConvertMatchResultsToCsv(headToHeadHistory);
+            var history = detailedHeadToHeadHistory.TryGetValue(cacheKey, out var cachedHistory) 
+                ? cachedHistory 
+                : new List<HeadToHeadResult>();
+            
+            var csvContent = ConvertHeadToHeadResultsToCsv(history);
             
             // Use naming convention: head-to-head-{team1-abbreviation}-vs-{team2-abbreviation}.csv
             var homeAbbreviation = GetTeamAbbreviation(homeTeam);
@@ -210,7 +312,7 @@ public class KicktippContextProvider : IContextProvider<DocumentContext>
             // Return empty context on error
             return new DocumentContext(
                 Name: $"head-to-head-{GetTeamAbbreviation(homeTeam)}-vs-{GetTeamAbbreviation(awayTeam)}.csv",
-                Content: "Competition,Home_Team,Away_Team,Home_Goals,Away_Goals,Outcome\n");
+                Content: "League,Matchday,Played_At,Home_Team,Away_Team,Score\n");
         }
     }
     
@@ -316,8 +418,10 @@ Outcome:    1:1
         using var stringWriter = new StringWriter();
         using var csvWriter = new CsvWriter(stringWriter, CultureInfo.InvariantCulture);
         
-        // Write header
+        // Write header with enhanced format for head-to-head
         csvWriter.WriteField("League");
+        csvWriter.WriteField("Matchday");
+        csvWriter.WriteField("Played_At");
         csvWriter.WriteField("Home_Team");
         csvWriter.WriteField("Away_Team");
         csvWriter.WriteField("Score");
@@ -327,6 +431,9 @@ Outcome:    1:1
         foreach (var result in matchResults)
         {
             csvWriter.WriteField(result.Competition);
+            // TODO: Extract matchday information from competition field if available
+            csvWriter.WriteField(""); // Placeholder for matchday
+            csvWriter.WriteField(""); // Placeholder for played_at date
             csvWriter.WriteField(result.HomeTeam);
             csvWriter.WriteField(result.AwayTeam);
             
@@ -335,6 +442,35 @@ Outcome:    1:1
                 ? $"{result.HomeGoals}:{result.AwayGoals}" 
                 : "";
             csvWriter.WriteField(scoreText);
+            csvWriter.NextRecord();
+        }
+        
+        return stringWriter.ToString();
+    }
+
+    private string ConvertHeadToHeadResultsToCsv(List<HeadToHeadResult> headToHeadResults)
+    {
+        using var stringWriter = new StringWriter();
+        using var csvWriter = new CsvWriter(stringWriter, CultureInfo.InvariantCulture);
+        
+        // Write header with proper column separation
+        csvWriter.WriteField("League");
+        csvWriter.WriteField("Matchday");
+        csvWriter.WriteField("Played_At");
+        csvWriter.WriteField("Home_Team");
+        csvWriter.WriteField("Away_Team");
+        csvWriter.WriteField("Score");
+        csvWriter.NextRecord();
+        
+        // Write data rows
+        foreach (var result in headToHeadResults)
+        {
+            csvWriter.WriteField(result.League);
+            csvWriter.WriteField(result.Matchday);
+            csvWriter.WriteField(result.PlayedAt);
+            csvWriter.WriteField(result.HomeTeam);
+            csvWriter.WriteField(result.AwayTeam);
+            csvWriter.WriteField(result.Score);
             csvWriter.NextRecord();
         }
         
