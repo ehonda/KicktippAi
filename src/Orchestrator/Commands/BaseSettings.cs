@@ -42,6 +42,11 @@ public class BaseSettings : CommandSettings
     [DefaultValue(false)]
     public bool DryRun { get; set; }
 
+    [CommandOption("--show-context-documents")]
+    [Description("Show the content of context documents used for prediction")]
+    [DefaultValue(false)]
+    public bool ShowContextDocuments { get; set; }
+
     [CommandOption("--estimated-costs")]
     [Description("Model to estimate costs for (e.g., o1) - shows what costs would be if using that model with same token counts")]
     public string? EstimatedCostsModel { get; set; }

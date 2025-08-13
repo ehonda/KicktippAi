@@ -162,6 +162,34 @@ public class MatchdayCommand : AsyncCommand<BaseSettings>
                         AnsiConsole.MarkupLine($"[dim]    Using {contextDocuments.Count} context documents[/]");
                     }
                     
+                    // Show context documents if requested
+                    if (settings.ShowContextDocuments)
+                    {
+                        AnsiConsole.MarkupLine($"[cyan]    Context documents for {match.HomeTeam} vs {match.AwayTeam}:[/]");
+                        foreach (var doc in contextDocuments)
+                        {
+                            AnsiConsole.MarkupLine($"[dim]    📄 {doc.Name}[/]");
+                            
+                            // Show first few lines and total line count for readability
+                            var lines = doc.Content.Split('\n');
+                            var previewLines = lines.Take(10).ToArray();
+                            var hasMore = lines.Length > 10;
+                            
+                            foreach (var line in previewLines)
+                            {
+                                AnsiConsole.MarkupLine($"[grey]      {line.EscapeMarkup()}[/]");
+                            }
+                            
+                            if (hasMore)
+                            {
+                                AnsiConsole.MarkupLine($"[dim]      ... ({lines.Length - 10} more lines) ...[/]");
+                            }
+                            
+                            AnsiConsole.MarkupLine($"[dim]      (Total: {lines.Length} lines, {doc.Content.Length} characters)[/]");
+                            AnsiConsole.WriteLine();
+                        }
+                    }
+                    
                     // Predict the match
                     prediction = await predictionService.PredictMatchAsync(match, contextDocuments);
                     

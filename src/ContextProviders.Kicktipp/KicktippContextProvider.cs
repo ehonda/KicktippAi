@@ -57,9 +57,16 @@ public class KicktippContextProvider : IContextProvider<DocumentContext>
         // Provide community scoring rules
         yield return await CommunityScoringRules();
         
-        // Provide recent history for both teams
+        // Provide recent history for both teams (Position 1 - already implemented)
         yield return await RecentHistory(homeTeam);
         yield return await RecentHistory(awayTeam);
+
+        // Provide home/away specific history for both teams (Position 2)
+        yield return await HomeHistory(homeTeam, awayTeam);
+        yield return await AwayHistory(homeTeam, awayTeam);
+
+        // Provide head-to-head history between the teams (Position 3)
+        yield return await HeadToHeadHistory(homeTeam, awayTeam);
     }
     
     /// <summary>
@@ -110,6 +117,101 @@ public class KicktippContextProvider : IContextProvider<DocumentContext>
         return new DocumentContext(
             Name: $"recent-history-{teamAbbreviation}.csv",
             Content: csvContent);
+    }
+
+    /// <summary>
+    /// Gets home/away specific history for both teams in a match.
+    /// </summary>
+    /// <param name="homeTeam">The home team name.</param>
+    /// <param name="awayTeam">The away team name.</param>
+    /// <returns>A document context containing home team's home history and away team's away history.</returns>
+    public async Task<DocumentContext> HomeHistory(string homeTeam, string awayTeam)
+    {
+        try
+        {
+            var (homeTeamHistory, _) = await _kicktippClient.GetHomeAwayHistoryAsync(_community, homeTeam, awayTeam);
+            
+            var csvContent = new StringBuilder();
+            csvContent.AppendLine("Competition,Home_Team,Away_Team,Score");
+            
+            foreach (var result in homeTeamHistory)
+            {
+                var score = $"{result.HomeGoals?.ToString() ?? ""}:{result.AwayGoals?.ToString() ?? ""}";
+                csvContent.AppendLine($"\"{result.Competition}\",\"{result.HomeTeam}\",\"{result.AwayTeam}\",{score}");
+            }
+            
+            var homeAbbreviation = GetTeamAbbreviation(homeTeam);
+            return new DocumentContext(
+                Name: $"home-history-{homeAbbreviation}.csv",
+                Content: csvContent.ToString());
+        }
+        catch (Exception)
+        {
+            var homeAbbreviation = GetTeamAbbreviation(homeTeam);
+            return new DocumentContext(
+                Name: $"home-history-{homeAbbreviation}.csv",
+                Content: "Competition,Home_Team,Away_Team,Score\n");
+        }
+    }
+    
+    public async Task<DocumentContext> AwayHistory(string homeTeam, string awayTeam)
+    {
+        try
+        {
+            var (_, awayTeamHistory) = await _kicktippClient.GetHomeAwayHistoryAsync(_community, homeTeam, awayTeam);
+            
+            var csvContent = new StringBuilder();
+            csvContent.AppendLine("Competition,Home_Team,Away_Team,Score");
+            
+            foreach (var result in awayTeamHistory)
+            {
+                var score = $"{result.HomeGoals?.ToString() ?? ""}:{result.AwayGoals?.ToString() ?? ""}";
+                csvContent.AppendLine($"\"{result.Competition}\",\"{result.HomeTeam}\",\"{result.AwayTeam}\",{score}");
+            }
+            
+            var awayAbbreviation = GetTeamAbbreviation(awayTeam);
+            return new DocumentContext(
+                Name: $"away-history-{awayAbbreviation}.csv",
+                Content: csvContent.ToString());
+        }
+        catch (Exception)
+        {
+            var awayAbbreviation = GetTeamAbbreviation(awayTeam);
+            return new DocumentContext(
+                Name: $"away-history-{awayAbbreviation}.csv",
+                Content: "Competition,Home_Team,Away_Team,Score\n");
+        }
+    }
+
+    /// <summary>
+    /// Gets head-to-head history between two teams.
+    /// </summary>
+    /// <param name="homeTeam">The home team name.</param>
+    /// <param name="awayTeam">The away team name.</param>
+    /// <returns>A document context containing head-to-head match history.</returns>
+    public async Task<DocumentContext> HeadToHeadHistory(string homeTeam, string awayTeam)
+    {
+        try
+        {
+            var headToHeadHistory = await _kicktippClient.GetHeadToHeadHistoryAsync(_community, homeTeam, awayTeam);
+            
+            var csvContent = ConvertMatchResultsToCsv(headToHeadHistory);
+            
+            // Use naming convention: head-to-head-{team1-abbreviation}-vs-{team2-abbreviation}.csv
+            var homeAbbreviation = GetTeamAbbreviation(homeTeam);
+            var awayAbbreviation = GetTeamAbbreviation(awayTeam);
+            
+            return new DocumentContext(
+                Name: $"head-to-head-{homeAbbreviation}-vs-{awayAbbreviation}.csv",
+                Content: csvContent);
+        }
+        catch (Exception)
+        {
+            // Return empty context on error
+            return new DocumentContext(
+                Name: $"head-to-head-{GetTeamAbbreviation(homeTeam)}-vs-{GetTeamAbbreviation(awayTeam)}.csv",
+                Content: "Competition,Home_Team,Away_Team,Home_Goals,Away_Goals,Outcome\n");
+        }
     }
     
     /// <summary>
