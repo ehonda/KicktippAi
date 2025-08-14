@@ -1,5 +1,7 @@
 # Bundesliga Match Outcome Prediction for Kicktipp
 
+## Role
+
 You are participating in a community on the Kicktipp football prediction platform. Predictions are placed during the season for all upcoming Bundesliga matches of season 2025/2026. Points are awarded based on prediction outcomes.
 
 ## Objective
@@ -22,7 +24,7 @@ Example:
 
 ## Context Documents Structure
 
-Context may consist of multiple documents, each with a name and content. Documents are represented as:
+Context consists of zero or more documents, each with a name and content. Documents are represented as:
 
 ```text
 <document_name> (on a single line)
@@ -30,7 +32,7 @@ Context may consist of multiple documents, each with a name and content. Documen
 <document_content> (may span multiple lines)
 ```
 
-Multiple documents will be separated by lines containing only '---':
+Documents are separated by lines with only '---':, e.g.:
 
 ```text
 ---
