@@ -11,15 +11,17 @@ public class KicktippContextProvider : IContextProvider<DocumentContext>
 {
     private readonly IKicktippClient _kicktippClient;
     private readonly string _community;
+    private readonly string _communityContext;
     private readonly Lazy<Task<IReadOnlyDictionary<string, List<MatchResult>>>> _teamHistoryLazy;
     private readonly Lazy<Task<IReadOnlyDictionary<string, (List<MatchResult> homeHistory, List<MatchResult> awayHistory)>>> _homeAwayHistoryLazy;
     private readonly Lazy<Task<IReadOnlyDictionary<string, List<MatchResult>>>> _headToHeadHistoryLazy;
     private readonly Lazy<Task<IReadOnlyDictionary<string, List<HeadToHeadResult>>>> _detailedHeadToHeadHistoryLazy;
 
-    public KicktippContextProvider(IKicktippClient kicktippClient, string community)
+    public KicktippContextProvider(IKicktippClient kicktippClient, string community, string? communityContext = null)
     {
         _kicktippClient = kicktippClient ?? throw new ArgumentNullException(nameof(kicktippClient));
         _community = community ?? throw new ArgumentNullException(nameof(community));
+        _communityContext = communityContext ?? community;
         _teamHistoryLazy = new Lazy<Task<IReadOnlyDictionary<string, List<MatchResult>>>>(LoadTeamHistoryAsync);
         _homeAwayHistoryLazy = new Lazy<Task<IReadOnlyDictionary<string, (List<MatchResult> homeHistory, List<MatchResult> awayHistory)>>>(LoadHomeAwayHistoryAsync);
         _headToHeadHistoryLazy = new Lazy<Task<IReadOnlyDictionary<string, List<MatchResult>>>>(LoadHeadToHeadHistoryAsync);
@@ -320,54 +322,21 @@ public class KicktippContextProvider : IContextProvider<DocumentContext>
     /// Gets the community scoring rules as context.
     /// </summary>
     /// <returns>A document context containing the scoring rules.</returns>
-    public Task<DocumentContext> CommunityScoringRules()
+    /// <exception cref="FileNotFoundException">Thrown when the community-specific scoring rules file is not found.</exception>
+    public async Task<DocumentContext> CommunityScoringRules()
     {
-        // Hard-coded content from instructions.md lines 55-97
-        var content = @"# Prediction Community Rules
-
-## Scoring System
-
-| Result Type | Tendency | Goal Difference | Exact Result |
-|-------------|----------|-----------------|--------------|
-| Win         | 2        | 3               | 4            |
-| Draw        | 3        | -               | 4            |
-
-* Tendency: Predicting the winner or a draw
-* Goal Difference: Predicting the winner and the goal difference
-* Exact Result: Predicting the exact score
-
-## Examples
-
-### Tendency
-
-```text
-Prediction: 2:1
-Outcome:    3:1
-
-Prediction: 1:1
-Outcome:    2:2
-```
-
-### Goal Difference
-
-```text
-Prediction: 2:1
-Outcome:    3:2
-```
-
-### Exact Result
-
-```text
-Prediction: 2:1
-Outcome:    2:1
-
-Prediction: 1:1
-Outcome:    1:1
-```";
+        var solutionRoot = FindSolutionRoot();
+        var rulesFilePath = Path.Combine(solutionRoot, "community-rules", $"{_communityContext}.md");
         
-        return Task.FromResult(new DocumentContext(
-            Name: "community-rules-scoring-only.md",
-            Content: content));
+        if (!File.Exists(rulesFilePath))
+        {
+            throw new FileNotFoundException($"Community scoring rules file not found: {rulesFilePath}. Expected file for community context '{_communityContext}'.");
+        }
+        
+        var content = await File.ReadAllTextAsync(rulesFilePath);
+        return new DocumentContext(
+            Name: $"community-rules-{_communityContext}.md",
+            Content: content);
     }
     
     /// <summary>
@@ -523,5 +492,28 @@ Outcome:    1:1
         }
         
         return abbr.Length > 0 ? abbr.ToString() : "unknown";
+    }
+    
+    /// <summary>
+    /// Finds the solution root directory by looking for KicktippAi.slnx in parent directories.
+    /// </summary>
+    /// <returns>The path to the solution root directory.</returns>
+    /// <exception cref="DirectoryNotFoundException">Thrown when the solution root cannot be found.</exception>
+    private static string FindSolutionRoot()
+    {
+        var currentDirectory = Directory.GetCurrentDirectory();
+        var directory = new DirectoryInfo(currentDirectory);
+
+        while (directory != null)
+        {
+            var solutionFile = Path.Combine(directory.FullName, "KicktippAi.slnx");
+            if (File.Exists(solutionFile))
+            {
+                return directory.FullName;
+            }
+            directory = directory.Parent;
+        }
+
+        throw new DirectoryNotFoundException($"Could not find solution root (KicktippAi.slnx) starting from: {currentDirectory}");
     }
 }
