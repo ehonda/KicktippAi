@@ -225,19 +225,32 @@ public class KicktippContextProvider : IContextProvider<DocumentContext>
                 ? history 
                 : (new List<MatchResult>(), new List<MatchResult>());
             
-            var csvContent = new StringBuilder();
-            csvContent.AppendLine("Competition,Home_Team,Away_Team,Score");
+            using var stringWriter = new StringWriter();
+            using var csvWriter = new CsvWriter(stringWriter, CultureInfo.InvariantCulture);
             
+            // Write header
+            csvWriter.WriteField("Competition");
+            csvWriter.WriteField("Home_Team");
+            csvWriter.WriteField("Away_Team");
+            csvWriter.WriteField("Score");
+            csvWriter.NextRecord();
+            
+            // Write data rows
             foreach (var result in homeTeamHistory)
             {
+                csvWriter.WriteField(result.Competition);
+                csvWriter.WriteField(result.HomeTeam);
+                csvWriter.WriteField(result.AwayTeam);
+                
                 var score = $"{result.HomeGoals?.ToString() ?? ""}:{result.AwayGoals?.ToString() ?? ""}";
-                csvContent.AppendLine($"\"{result.Competition}\",\"{result.HomeTeam}\",\"{result.AwayTeam}\",{score}");
+                csvWriter.WriteField(score);
+                csvWriter.NextRecord();
             }
             
             var homeAbbreviation = GetTeamAbbreviation(homeTeam);
             return new DocumentContext(
                 Name: $"home-history-{homeAbbreviation}.csv",
-                Content: csvContent.ToString());
+                Content: stringWriter.ToString());
         }
         catch (Exception)
         {
@@ -259,19 +272,32 @@ public class KicktippContextProvider : IContextProvider<DocumentContext>
                 ? history 
                 : (new List<MatchResult>(), new List<MatchResult>());
             
-            var csvContent = new StringBuilder();
-            csvContent.AppendLine("Competition,Home_Team,Away_Team,Score");
+            using var stringWriter = new StringWriter();
+            using var csvWriter = new CsvWriter(stringWriter, CultureInfo.InvariantCulture);
             
+            // Write header
+            csvWriter.WriteField("Competition");
+            csvWriter.WriteField("Home_Team");
+            csvWriter.WriteField("Away_Team");
+            csvWriter.WriteField("Score");
+            csvWriter.NextRecord();
+            
+            // Write data rows
             foreach (var result in awayTeamHistory)
             {
+                csvWriter.WriteField(result.Competition);
+                csvWriter.WriteField(result.HomeTeam);
+                csvWriter.WriteField(result.AwayTeam);
+                
                 var score = $"{result.HomeGoals?.ToString() ?? ""}:{result.AwayGoals?.ToString() ?? ""}";
-                csvContent.AppendLine($"\"{result.Competition}\",\"{result.HomeTeam}\",\"{result.AwayTeam}\",{score}");
+                csvWriter.WriteField(score);
+                csvWriter.NextRecord();
             }
             
             var awayAbbreviation = GetTeamAbbreviation(awayTeam);
             return new DocumentContext(
                 Name: $"away-history-{awayAbbreviation}.csv",
-                Content: csvContent.ToString());
+                Content: stringWriter.ToString());
         }
         catch (Exception)
         {
@@ -387,10 +413,8 @@ public class KicktippContextProvider : IContextProvider<DocumentContext>
         using var stringWriter = new StringWriter();
         using var csvWriter = new CsvWriter(stringWriter, CultureInfo.InvariantCulture);
         
-        // Write header with enhanced format for head-to-head
-        csvWriter.WriteField("League");
-        csvWriter.WriteField("Matchday");
-        csvWriter.WriteField("Played_At");
+        // Write header in simple format like home/away history
+        csvWriter.WriteField("Competition");
         csvWriter.WriteField("Home_Team");
         csvWriter.WriteField("Away_Team");
         csvWriter.WriteField("Score");
@@ -400,9 +424,6 @@ public class KicktippContextProvider : IContextProvider<DocumentContext>
         foreach (var result in matchResults)
         {
             csvWriter.WriteField(result.Competition);
-            // TODO: Extract matchday information from competition field if available
-            csvWriter.WriteField(""); // Placeholder for matchday
-            csvWriter.WriteField(""); // Placeholder for played_at date
             csvWriter.WriteField(result.HomeTeam);
             csvWriter.WriteField(result.AwayTeam);
             
@@ -423,7 +444,7 @@ public class KicktippContextProvider : IContextProvider<DocumentContext>
         using var csvWriter = new CsvWriter(stringWriter, CultureInfo.InvariantCulture);
         
         // Write header with proper column separation
-        csvWriter.WriteField("League");
+        csvWriter.WriteField("Competition");
         csvWriter.WriteField("Matchday");
         csvWriter.WriteField("Played_At");
         csvWriter.WriteField("Home_Team");
