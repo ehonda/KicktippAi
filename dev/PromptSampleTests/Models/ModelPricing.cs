@@ -35,9 +35,13 @@ public static class ModelPricingData
         ["gpt-4.5-preview"] = new() { InputPrice = 75.00m, CachedInputPrice = 37.50m, OutputPrice = 150.00m },
         ["gpt-4o"] = new() { InputPrice = 2.50m, CachedInputPrice = 1.25m, OutputPrice = 10.00m },
         ["gpt-4o-mini"] = new() { InputPrice = 0.15m, CachedInputPrice = 0.075m, OutputPrice = 0.60m },
+        ["gpt-5"] = new() { InputPrice = 1.25m, CachedInputPrice = 0.125m, OutputPrice = 10.00m },
+        ["gpt-5-mini"] = new() { InputPrice = 0.25m, CachedInputPrice = 0.025m, OutputPrice = 2.00m },
+        ["gpt-5-nano"] = new() { InputPrice = 0.05m, CachedInputPrice = 0.005m, OutputPrice = 0.40m },
         ["o1"] = new() { InputPrice = 15.00m, CachedInputPrice = 7.50m, OutputPrice = 60.00m },
         ["o1-pro"] = new() { InputPrice = 150.00m, CachedInputPrice = null, OutputPrice = 600.00m },
         ["o3"] = new() { InputPrice = 2.00m, CachedInputPrice = 0.50m, OutputPrice = 8.00m },
+        ["o3-pro"] = new() { InputPrice = 20.00m, CachedInputPrice = null, OutputPrice = 80.00m },
         ["o4-mini"] = new() { InputPrice = 1.10m, CachedInputPrice = 0.275m, OutputPrice = 4.40m },
         ["o3-mini"] = new() { InputPrice = 1.10m, CachedInputPrice = 0.55m, OutputPrice = 4.40m },
         ["o1-mini"] = new() { InputPrice = 1.10m, CachedInputPrice = 0.55m, OutputPrice = 4.40m }
