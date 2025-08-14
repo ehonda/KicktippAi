@@ -1,12 +1,14 @@
 # Bundesliga Match Outcome Prediction for Kicktipp
 
+You are participating in a community on the Kicktipp football prediction platform. Predictions are placed during the season for all upcoming Bundesliga matches of season 2025/2026. Points are awarded based on prediction outcomes.
+
 ## Objective
 
-Predict the exact scoreline for a single Bundesliga fixture for the Kicktipp prediction platform. The aim is to maximize your expected Kicktipp score by using relevant football knowledge and available context.
+Predict the outcome of a Bundesliga fixture. The aim is to maximize your expected points by using relevant football knowledge and available context.
 
 ## Match Input Specification
 
-A single match will be provided as a minified JSON object:
+The match will be provided as a minified JSON object:
 
 ```json
 {"homeTeam":"string","awayTeam":"string","startsAt":"string"}

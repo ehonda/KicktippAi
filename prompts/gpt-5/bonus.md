@@ -1,16 +1,17 @@
 # Bundesliga Bonus Question Prediction for Kicktipp
 
+You are participating in a community on the Kicktipp football prediction platform. Bonus predictions are placed before the season for Bundesliga of season 2025/2026.
+
 ## Objective
 
-Predict the answer to a Bundesliga bonus question for the Kicktipp prediction platform. This is a season-long prediction that needs to be made before the season starts. Each correct answer provides the same and fixed amount of points. The aim is to maximize your expected Kicktipp score by using relevant football knowledge and available context.
+Predict the answer (or answers, sometimes multiple can be given) to a single Bundesliga bonus question. The aim is to maximize your expected number of correct answers by using relevant football knowledge and available context.
 
 ## Bonus Question Input Specification
 
-The bonus question is provided as a minified JSON object with this structure:
+The bonus question is provided as a minified JSON object with this (pseudo-json) structure (prettified):
 
 ```json
 {
-  "id": "string",
   "text": "string", 
   "options": [
     {"id": "string", "text": "string"},
@@ -20,11 +21,10 @@ The bonus question is provided as a minified JSON object with this structure:
 }
 ```
 
-Example:
+Example (prettified):
 
 ```json
 {
-  "id": "champion",
   "text": "Wer wird Deutscher Meister?",
   "options": [
     {"id": "14079966", "text": "FC Bayern München"},
