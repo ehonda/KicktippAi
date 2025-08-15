@@ -6,6 +6,7 @@ using FirebaseAdapter;
 using Core;
 using Google.Cloud.Firestore;
 using System.Globalization;
+using System.Text.Json;
 
 namespace Orchestrator.Commands;
 
@@ -17,6 +18,13 @@ public class CostCommand : AsyncCommand<CostSettings>
         
         try
         {
+            // Load configuration from file if specified
+            if (!string.IsNullOrWhiteSpace(settings.ConfigFile))
+            {
+                var fileConfig = await LoadConfigurationFromFile(settings.ConfigFile, logger);
+                settings = MergeConfigurations(fileConfig, settings, logger);
+            }
+            
             // Load environment variables
             EnvironmentHelper.LoadEnvironmentVariables(logger);
             
@@ -485,5 +493,130 @@ public class CostCommand : AsyncCommand<CostSettings>
         }
         
         return (totalCost, snapshot.Documents.Count);
+    }
+
+    private async Task<CostConfiguration> LoadConfigurationFromFile(string configFilePath, ILogger logger)
+    {
+        try
+        {
+            // Resolve relative paths
+            var resolvedPath = Path.IsPathRooted(configFilePath) 
+                ? configFilePath 
+                : Path.Combine(Directory.GetCurrentDirectory(), configFilePath);
+
+            if (!File.Exists(resolvedPath))
+            {
+                throw new FileNotFoundException($"Configuration file not found: {resolvedPath}");
+            }
+
+            logger.LogInformation("Loading configuration from: {ConfigPath}", resolvedPath);
+
+            var jsonContent = await File.ReadAllTextAsync(resolvedPath);
+            var options = new JsonSerializerOptions
+            {
+                PropertyNameCaseInsensitive = true,
+                AllowTrailingCommas = true,
+                ReadCommentHandling = JsonCommentHandling.Skip
+            };
+
+            var config = JsonSerializer.Deserialize<CostConfiguration>(jsonContent, options);
+            if (config == null)
+            {
+                throw new InvalidOperationException($"Failed to deserialize configuration from: {resolvedPath}");
+            }
+
+            return config;
+        }
+        catch (JsonException ex)
+        {
+            throw new InvalidOperationException($"Invalid JSON in configuration file: {configFilePath}. {ex.Message}", ex);
+        }
+        catch (Exception ex)
+        {
+            throw new InvalidOperationException($"Failed to load configuration from file: {configFilePath}. {ex.Message}", ex);
+        }
+    }
+
+    private CostSettings MergeConfigurations(CostConfiguration fileConfig, CostSettings cliSettings, ILogger logger)
+    {
+        logger.LogInformation("Merging file configuration with command line options (CLI options take precedence)");
+
+        // Create a new settings object with file config as base, CLI overrides
+        var mergedSettings = new CostSettings();
+
+        // Apply file config first (if values are not null/default)
+        if (!string.IsNullOrWhiteSpace(fileConfig.Matchdays))
+            mergedSettings.Matchdays = fileConfig.Matchdays;
+        
+        if (fileConfig.Bonus.HasValue)
+            mergedSettings.Bonus = fileConfig.Bonus.Value;
+        
+        if (!string.IsNullOrWhiteSpace(fileConfig.Models))
+            mergedSettings.Models = fileConfig.Models;
+        
+        if (!string.IsNullOrWhiteSpace(fileConfig.CommunityContexts))
+            mergedSettings.CommunityContexts = fileConfig.CommunityContexts;
+        
+        if (fileConfig.All.HasValue)
+            mergedSettings.All = fileConfig.All.Value;
+        
+        if (fileConfig.Verbose.HasValue)
+            mergedSettings.Verbose = fileConfig.Verbose.Value;
+        
+        if (fileConfig.DetailedBreakdown.HasValue)
+            mergedSettings.DetailedBreakdown = fileConfig.DetailedBreakdown.Value;
+
+        // Override with CLI settings (non-default values)
+        if (!string.IsNullOrWhiteSpace(cliSettings.Matchdays))
+        {
+            mergedSettings.Matchdays = cliSettings.Matchdays;
+            if (mergedSettings.Verbose)
+                logger.LogInformation("CLI override: Matchdays = {Value}", cliSettings.Matchdays);
+        }
+        
+        if (cliSettings.Bonus) // Only override if explicitly set to true
+        {
+            mergedSettings.Bonus = cliSettings.Bonus;
+            if (mergedSettings.Verbose)
+                logger.LogInformation("CLI override: Bonus = {Value}", cliSettings.Bonus);
+        }
+        
+        if (!string.IsNullOrWhiteSpace(cliSettings.Models))
+        {
+            mergedSettings.Models = cliSettings.Models;
+            if (mergedSettings.Verbose)
+                logger.LogInformation("CLI override: Models = {Value}", cliSettings.Models);
+        }
+        
+        if (!string.IsNullOrWhiteSpace(cliSettings.CommunityContexts))
+        {
+            mergedSettings.CommunityContexts = cliSettings.CommunityContexts;
+            if (mergedSettings.Verbose)
+                logger.LogInformation("CLI override: CommunityContexts = {Value}", cliSettings.CommunityContexts);
+        }
+        
+        if (cliSettings.All) // Only override if explicitly set to true
+        {
+            mergedSettings.All = cliSettings.All;
+            if (mergedSettings.Verbose)
+                logger.LogInformation("CLI override: All = {Value}", cliSettings.All);
+        }
+        
+        if (cliSettings.Verbose) // Only override if explicitly set to true
+        {
+            mergedSettings.Verbose = cliSettings.Verbose;
+        }
+        
+        if (cliSettings.DetailedBreakdown) // Only override if explicitly set to true
+        {
+            mergedSettings.DetailedBreakdown = cliSettings.DetailedBreakdown;
+            if (mergedSettings.Verbose)
+                logger.LogInformation("CLI override: DetailedBreakdown = {Value}", cliSettings.DetailedBreakdown);
+        }
+
+        // Always preserve the ConfigFile setting
+        mergedSettings.ConfigFile = cliSettings.ConfigFile;
+
+        return mergedSettings;
     }
 }

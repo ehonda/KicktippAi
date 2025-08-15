@@ -1,7 +1,32 @@
 using System.ComponentModel;
 using Spectre.Console.Cli;
+using System.Text.Json.Serialization;
 
 namespace Orchestrator.Commands;
+
+public class CostConfiguration
+{
+    [JsonPropertyName("matchdays")]
+    public string? Matchdays { get; set; }
+
+    [JsonPropertyName("bonus")]
+    public bool? Bonus { get; set; }
+
+    [JsonPropertyName("models")]
+    public string? Models { get; set; }
+
+    [JsonPropertyName("communityContexts")]
+    public string? CommunityContexts { get; set; }
+
+    [JsonPropertyName("all")]
+    public bool? All { get; set; }
+
+    [JsonPropertyName("verbose")]
+    public bool? Verbose { get; set; }
+
+    [JsonPropertyName("detailedBreakdown")]
+    public bool? DetailedBreakdown { get; set; }
+}
 
 public class CostSettings : CommandSettings
 {
@@ -36,4 +61,8 @@ public class CostSettings : CommandSettings
     [Description("Show detailed breakdown by community context and model in the results table")]
     [DefaultValue(false)]
     public bool DetailedBreakdown { get; set; }
+
+    [CommandOption("--file")]
+    [Description("Load configuration from a JSON file (absolute or relative path)")]
+    public string? ConfigFile { get; set; }
 }

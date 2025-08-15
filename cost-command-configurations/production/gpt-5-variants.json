@@ -1,0 +1,7 @@
+{
+    "matchdays": "all",
+    "bonus": true,
+    "models": "gpt-5, gpt-5-mini,gpt-5-nano",
+    "communityContexts": "all",
+    "detailedBreakdown": true
+}
