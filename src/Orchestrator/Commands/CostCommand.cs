@@ -126,6 +126,7 @@ public class CostCommand : AsyncCommand<CostSettings>
             
             // Display results
             var table = new Table();
+            table.Border(TableBorder.Rounded);
             
             if (settings.DetailedBreakdown)
             {
@@ -143,16 +144,34 @@ public class CostCommand : AsyncCommand<CostSettings>
                     .ThenBy(d => d.Category)
                     .ToList();
                 
-                // Add rows for detailed breakdown
-                foreach (var (communityContext, model, category, count, cost) in sortedData)
+                // Add rows for detailed breakdown with alternating styling
+                for (int i = 0; i < sortedData.Count; i++)
                 {
-                    table.AddRow(
-                        communityContext,
-                        model,
-                        category,
-                        count.ToString(CultureInfo.InvariantCulture),
-                        $"${cost.ToString("F4", CultureInfo.InvariantCulture)}"
-                    );
+                    var (communityContext, model, category, count, cost) = sortedData[i];
+                    var isEvenRow = i % 2 == 0;
+                    
+                    if (isEvenRow)
+                    {
+                        // Even rows - normal styling
+                        table.AddRow(
+                            communityContext,
+                            model,
+                            category,
+                            count.ToString(CultureInfo.InvariantCulture),
+                            $"${cost.ToString("F4", CultureInfo.InvariantCulture)}"
+                        );
+                    }
+                    else
+                    {
+                        // Odd rows - subtle blue tint for visual differentiation
+                        table.AddRow(
+                            $"[blue]{communityContext}[/]",
+                            $"[blue]{model}[/]",
+                            $"[blue]{category}[/]",
+                            $"[blue]{count.ToString(CultureInfo.InvariantCulture)}[/]",
+                            $"[blue]${cost.ToString("F4", CultureInfo.InvariantCulture)}[/]"
+                        );
+                    }
                 }
                 
                 // Add total row
@@ -175,11 +194,40 @@ public class CostCommand : AsyncCommand<CostSettings>
                 table.AddColumn("Count", col => col.RightAligned());
                 table.AddColumn("Cost (USD)", col => col.RightAligned());
                 
-                table.AddRow("Match", matchPredictionCount.ToString(CultureInfo.InvariantCulture), $"${matchPredictionCost.ToString("F4", CultureInfo.InvariantCulture)}");
+                var rowIndex = 0;
                 
+                // Add Match row
+                var isEvenRow = rowIndex % 2 == 0;
+                if (isEvenRow)
+                {
+                    table.AddRow("Match", matchPredictionCount.ToString(CultureInfo.InvariantCulture), $"${matchPredictionCost.ToString("F4", CultureInfo.InvariantCulture)}");
+                }
+                else
+                {
+                    table.AddRow(
+                        "[blue]Match[/]", 
+                        $"[blue]{matchPredictionCount.ToString(CultureInfo.InvariantCulture)}[/]", 
+                        $"[blue]${matchPredictionCost.ToString("F4", CultureInfo.InvariantCulture)}[/]"
+                    );
+                }
+                rowIndex++;
+                
+                // Add Bonus row if applicable
                 if (settings.Bonus || settings.All)
                 {
-                    table.AddRow("Bonus", bonusPredictionCount.ToString(CultureInfo.InvariantCulture), $"${bonusPredictionCost.ToString("F4", CultureInfo.InvariantCulture)}");
+                    isEvenRow = rowIndex % 2 == 0;
+                    if (isEvenRow)
+                    {
+                        table.AddRow("Bonus", bonusPredictionCount.ToString(CultureInfo.InvariantCulture), $"${bonusPredictionCost.ToString("F4", CultureInfo.InvariantCulture)}");
+                    }
+                    else
+                    {
+                        table.AddRow(
+                            "[blue]Bonus[/]", 
+                            $"[blue]{bonusPredictionCount.ToString(CultureInfo.InvariantCulture)}[/]", 
+                            $"[blue]${bonusPredictionCost.ToString("F4", CultureInfo.InvariantCulture)}[/]"
+                        );
+                    }
                 }
                 
                 table.AddEmptyRow();
