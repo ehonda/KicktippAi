@@ -472,6 +472,7 @@ public class PredictionService : IPredictionService
             
             // Cross-model mappings
             "o4-mini" => "o3",
+            "gpt-5-mini" => "gpt-5",
             "gpt-5-nano" => "gpt-5",
             
             // Default to the model name itself for any new models
