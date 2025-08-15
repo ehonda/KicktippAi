@@ -38,6 +38,12 @@ public class Program
             config.AddCommand<ListKpiCommand>("list-kpi")
                 .WithDescription("List KPI context documents from Firebase")
                 .WithExample("list-kpi", "--community", "ehonda-test-buli");
+                
+            config.AddCommand<CostCommand>("cost")
+                .WithDescription("Calculate aggregate costs for predictions")
+                .WithExample("cost", "--all")
+                .WithExample("cost", "--matchdays", "1,2,3")
+                .WithExample("cost", "--models", "gpt-4o,o1-mini", "--bonus");
         });
 
         return await app.RunAsync(args);
