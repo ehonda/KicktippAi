@@ -82,55 +82,28 @@ public static class ServiceCollectionExtensions
         });
 
         // Register the prediction repository
-        if (!string.IsNullOrWhiteSpace(community))
+        services.AddScoped<IPredictionRepository>(serviceProvider =>
         {
-            services.AddScoped<IPredictionRepository>(serviceProvider =>
-            {
-                var firestoreDb = serviceProvider.GetRequiredService<FirestoreDb>();
-                var logger = serviceProvider.GetRequiredService<ILogger<FirebasePredictionRepository>>();
-                return new FirebasePredictionRepository(firestoreDb, logger, community);
-            });
+            var firestoreDb = serviceProvider.GetRequiredService<FirestoreDb>();
+            var logger = serviceProvider.GetRequiredService<ILogger<FirebasePredictionRepository>>();
+            return new FirebasePredictionRepository(firestoreDb, logger);
+        });
 
-            // Register the KPI repository
-            services.AddScoped<IKpiRepository>(serviceProvider =>
-            {
-                var firestoreDb = serviceProvider.GetRequiredService<FirestoreDb>();
-                var logger = serviceProvider.GetRequiredService<ILogger<FirebaseKpiRepository>>();
-                return new FirebaseKpiRepository(firestoreDb, logger);
-            });
-
-            // Register the KPI context provider
-            services.AddScoped<FirebaseKpiContextProvider>(serviceProvider =>
-            {
-                var kpiRepository = serviceProvider.GetRequiredService<IKpiRepository>();
-                var logger = serviceProvider.GetRequiredService<ILogger<FirebaseKpiContextProvider>>();
-                return new FirebaseKpiContextProvider(kpiRepository, logger);
-            });
-        }
-        else
+        // Register the KPI repository
+        services.AddScoped<IKpiRepository>(serviceProvider =>
         {
-            // Fallback for backward compatibility - but this should not be used in production
-            services.AddScoped<IPredictionRepository>(serviceProvider =>
-            {
-                var firestoreDb = serviceProvider.GetRequiredService<FirestoreDb>();
-                var logger = serviceProvider.GetRequiredService<ILogger<FirebasePredictionRepository>>();
-                return new FirebasePredictionRepository(firestoreDb, logger, "default");
-            });
+            var firestoreDb = serviceProvider.GetRequiredService<FirestoreDb>();
+            var logger = serviceProvider.GetRequiredService<ILogger<FirebaseKpiRepository>>();
+            return new FirebaseKpiRepository(firestoreDb, logger);
+        });
 
-            services.AddScoped<IKpiRepository>(serviceProvider =>
-            {
-                var firestoreDb = serviceProvider.GetRequiredService<FirestoreDb>();
-                var logger = serviceProvider.GetRequiredService<ILogger<FirebaseKpiRepository>>();
-                return new FirebaseKpiRepository(firestoreDb, logger);
-            });
-
-            services.AddScoped<FirebaseKpiContextProvider>(serviceProvider =>
-            {
-                var kpiRepository = serviceProvider.GetRequiredService<IKpiRepository>();
-                var logger = serviceProvider.GetRequiredService<ILogger<FirebaseKpiContextProvider>>();
-                return new FirebaseKpiContextProvider(kpiRepository, logger);
-            });
-        }
+        // Register the KPI context provider
+        services.AddScoped<FirebaseKpiContextProvider>(serviceProvider =>
+        {
+            var kpiRepository = serviceProvider.GetRequiredService<IKpiRepository>();
+            var logger = serviceProvider.GetRequiredService<ILogger<FirebaseKpiContextProvider>>();
+            return new FirebaseKpiContextProvider(kpiRepository, logger);
+        });
 
         return services;
     }

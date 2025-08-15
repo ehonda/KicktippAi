@@ -56,7 +56,7 @@ public class CostCommand : AsyncCommand<CostSettings>
                 AnsiConsole.MarkupLine($"[dim]  Matchdays: {(matchdays?.Any() == true ? string.Join(", ", matchdays) : $"all ({availableMatchdays.Count} found)")}[/]");
                 AnsiConsole.MarkupLine($"[dim]  Models: {(models?.Any() == true ? string.Join(", ", models) : $"all ({availableModels.Count} found)")}[/]");
                 AnsiConsole.MarkupLine($"[dim]  Community Contexts: {(communityContexts?.Any() == true ? string.Join(", ", communityContexts) : $"all ({availableCommunityContexts.Count} found)")}[/]");
-                AnsiConsole.MarkupLine($"[dim]  Include Bonus: {settings.Bonus}[/]");
+                AnsiConsole.MarkupLine($"[dim]  Include Bonus: {settings.Bonus || settings.All}[/]");
             }
             
             // Calculate costs
@@ -65,6 +65,9 @@ public class CostCommand : AsyncCommand<CostSettings>
             var bonusPredictionCost = 0.0;
             var matchPredictionCount = 0;
             var bonusPredictionCount = 0;
+
+            // Structure to store detailed breakdown data
+            var detailedData = new List<(string CommunityContext, string Model, string Category, int Count, double Cost)>();
             
             AnsiConsole.Status()
                 .Spinner(Spinner.Known.Dots)
@@ -85,18 +88,30 @@ public class CostCommand : AsyncCommand<CostSettings>
                             var (matchCost, matchCount) = GetMatchPredictionCosts(firestoreDb, model, communityContext, availableMatchdays).Result;
                             matchPredictionCost += matchCost;
                             matchPredictionCount += matchCount;
+
+                            // Store detailed data for breakdown
+                            if (settings.DetailedBreakdown && (matchCost > 0 || matchCount > 0))
+                            {
+                                detailedData.Add((communityContext, model, "Match", matchCount, matchCost));
+                            }
                             
                             if (settings.Verbose && (matchCost > 0 || matchCount > 0))
                             {
                                 AnsiConsole.MarkupLine($"[dim]    Match predictions: {matchCount} documents, ${matchCost.ToString("F4", CultureInfo.InvariantCulture)}[/]");
                             }
                             
-                            // Get bonus prediction costs if requested
-                            if (settings.Bonus)
+                            // Get bonus prediction costs if requested or if all mode is enabled
+                            if (settings.Bonus || settings.All)
                             {
                                 var (bonusCost, bonusCount) = GetBonusPredictionCosts(firestoreDb, model, communityContext).Result;
                                 bonusPredictionCost += bonusCost;
                                 bonusPredictionCount += bonusCount;
+
+                                // Store detailed data for breakdown
+                                if (settings.DetailedBreakdown && (bonusCost > 0 || bonusCount > 0))
+                                {
+                                    detailedData.Add((communityContext, model, "Bonus", bonusCount, bonusCost));
+                                }
                                 
                                 if (settings.Verbose && (bonusCost > 0 || bonusCount > 0))
                                 {
@@ -111,19 +126,65 @@ public class CostCommand : AsyncCommand<CostSettings>
             
             // Display results
             var table = new Table();
-            table.AddColumn("Category");
-            table.AddColumn("Count", col => col.RightAligned());
-            table.AddColumn("Cost (USD)", col => col.RightAligned());
             
-            table.AddRow("Match Predictions", matchPredictionCount.ToString(CultureInfo.InvariantCulture), $"${matchPredictionCost.ToString("F4", CultureInfo.InvariantCulture)}");
-            
-            if (settings.Bonus)
+            if (settings.DetailedBreakdown)
             {
-                table.AddRow("Bonus Predictions", bonusPredictionCount.ToString(CultureInfo.InvariantCulture), $"${bonusPredictionCost.ToString("F4", CultureInfo.InvariantCulture)}");
+                // Add columns for detailed breakdown
+                table.AddColumn("Community Context");
+                table.AddColumn("Model");
+                table.AddColumn("Category");
+                table.AddColumn("Count", col => col.RightAligned());
+                table.AddColumn("Cost (USD)", col => col.RightAligned());
+                
+                // Sort detailed data by community context, then model, then category
+                var sortedData = detailedData
+                    .OrderBy(d => d.CommunityContext)
+                    .ThenBy(d => d.Model)
+                    .ThenBy(d => d.Category)
+                    .ToList();
+                
+                // Add rows for detailed breakdown
+                foreach (var (communityContext, model, category, count, cost) in sortedData)
+                {
+                    table.AddRow(
+                        communityContext,
+                        model,
+                        category,
+                        count.ToString(CultureInfo.InvariantCulture),
+                        $"${cost.ToString("F4", CultureInfo.InvariantCulture)}"
+                    );
+                }
+                
+                // Add total row
+                if (detailedData.Any())
+                {
+                    table.AddEmptyRow();
+                    table.AddRow(
+                        "[bold]Total[/]",
+                        "",
+                        "",
+                        $"[bold]{(matchPredictionCount + bonusPredictionCount).ToString(CultureInfo.InvariantCulture)}[/]",
+                        $"[bold]${totalCost.ToString("F4", CultureInfo.InvariantCulture)}[/]"
+                    );
+                }
             }
-            
-            table.AddEmptyRow();
-            table.AddRow("[bold]Total[/]", $"[bold]{(matchPredictionCount + bonusPredictionCount).ToString(CultureInfo.InvariantCulture)}[/]", $"[bold]${totalCost.ToString("F4", CultureInfo.InvariantCulture)}[/]");
+            else
+            {
+                // Standard summary table
+                table.AddColumn("Category");
+                table.AddColumn("Count", col => col.RightAligned());
+                table.AddColumn("Cost (USD)", col => col.RightAligned());
+                
+                table.AddRow("Match", matchPredictionCount.ToString(CultureInfo.InvariantCulture), $"${matchPredictionCost.ToString("F4", CultureInfo.InvariantCulture)}");
+                
+                if (settings.Bonus || settings.All)
+                {
+                    table.AddRow("Bonus", bonusPredictionCount.ToString(CultureInfo.InvariantCulture), $"${bonusPredictionCost.ToString("F4", CultureInfo.InvariantCulture)}");
+                }
+                
+                table.AddEmptyRow();
+                table.AddRow("[bold]Total[/]", $"[bold]{(matchPredictionCount + bonusPredictionCount).ToString(CultureInfo.InvariantCulture)}[/]", $"[bold]${totalCost.ToString("F4", CultureInfo.InvariantCulture)}[/]");
+            }
             
             AnsiConsole.Write(table);
             

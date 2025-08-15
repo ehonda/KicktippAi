@@ -23,7 +23,7 @@ public class CostSettings : CommandSettings
     public string? CommunityContexts { get; set; }
 
     [CommandOption("--all")]
-    [Description("Aggregate costs over all available matchdays, models, and community contexts")]
+    [Description("Aggregate costs over all available matchdays, models, community contexts, and includes bonus predictions")]
     [DefaultValue(false)]
     public bool All { get; set; }
 
@@ -31,4 +31,9 @@ public class CostSettings : CommandSettings
     [Description("Enable verbose output to show detailed cost breakdown")]
     [DefaultValue(false)]
     public bool Verbose { get; set; }
+
+    [CommandOption("--detailed-breakdown")]
+    [Description("Show detailed breakdown by community context and model in the results table")]
+    [DefaultValue(false)]
+    public bool DetailedBreakdown { get; set; }
 }

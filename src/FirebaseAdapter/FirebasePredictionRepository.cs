@@ -17,17 +17,11 @@ public class FirebasePredictionRepository : IPredictionRepository
     private readonly string _matchesCollection;
     private readonly string _bonusPredictionsCollection;
     private readonly string _competition;
-    private readonly string _community;
 
-    public FirebasePredictionRepository(FirestoreDb firestoreDb, ILogger<FirebasePredictionRepository> logger, string community)
+    public FirebasePredictionRepository(FirestoreDb firestoreDb, ILogger<FirebasePredictionRepository> logger)
     {
         _firestoreDb = firestoreDb ?? throw new ArgumentNullException(nameof(firestoreDb));
         _logger = logger ?? throw new ArgumentNullException(nameof(logger));
-        
-        if (string.IsNullOrWhiteSpace(community))
-            throw new ArgumentException("Community cannot be null or empty", nameof(community));
-            
-        _community = community;
         
         // Use unified collection names (no longer community-specific)
         _predictionsCollection = "match-predictions";
@@ -35,7 +29,7 @@ public class FirebasePredictionRepository : IPredictionRepository
         _bonusPredictionsCollection = "bonus-predictions";
         _competition = "bundesliga-2025-26"; // Remove community suffix
         
-        _logger.LogInformation("Firebase repository initialized for community: {Community}", community);
+        _logger.LogInformation("Firebase repository initialized");
     }
 
     public async Task SavePredictionAsync(Match match, Prediction prediction, string model, string tokenUsage, double cost, string communityContext, CancellationToken cancellationToken = default)
