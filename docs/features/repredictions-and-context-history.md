@@ -4,15 +4,35 @@
 
 We want to enable conditional reprediction of matchdays / bonus questions based on detected changes of context that was used as input to the generated predictions.
 
+## Implementation Status
+
+- ✅ **Context Collection**: Fully implemented with versioned storage and automated workflows
+- 🔄 **Database Context Integration**: Pending - adjust matchday/bonus commands to use stored context
+- 🔄 **Reprediction Logic**: Pending - implement `--repredict` and `--max-repredict-count` parameters
+- 🔄 **Verification Enhancements**: Pending - compare prediction timestamps with context changes
+- 🔄 **Workflow Updates**: Pending - integrate reprediction logic into automated workflows
+- 🔄 **Cost Command Updates**: Pending - include reprediction costs in calculations
+
 ## Requirements
 
-### `collect-context` Command
+### `collect-context` Command ✅ **COMPLETED**
 
-- `--kicktipp` flag support
-- Firebase integration
-- Workflow integration
-- Store context documents with versioning
-- When the latest version differs from the fetched state, store a newer version
+**Implementation Details:**
+
+- ✅ **Command Structure**: Implemented as `collect-context kicktipp` subcommand using Spectre.Console composing commands pattern
+- ✅ **Firebase Integration**: Full integration with versioned context document storage using `IContextRepository` and `FirebaseContextRepository`
+- ✅ **Workflow Integration**: Individual GitHub workflows for `pes-squad` and `schadensfresse` communities, running every 12 hours
+- ✅ **Versioned Storage**: Context documents stored with automatic versioning and duplicate detection
+- ✅ **Change Detection**: Only stores new versions when content differs from latest version, preventing redundant storage
+- ✅ **Community Context Support**: Uses `--community-context` parameter to organize context by scoring rules/community type
+- ✅ **DateTimeOffset Usage**: Timezone-safe timestamps using `DateTimeOffset` instead of `DateTime`
+
+**Key Implementation Notes:**
+
+- Uses community-context for organization rather than specific Kicktipp communities (more flexible approach)
+- Collects context from all current matchday matches for comprehensive coverage
+- Implements proper CLI inheritance with global and subcommand-specific options
+- Firebase composite index required: `collection: context-documents, fields: community-context (Ascending), name (Ascending), createdAt (Descending)`
 
 ### Adjustments to `matchday` / `bonus` Commands for Database Context
 
