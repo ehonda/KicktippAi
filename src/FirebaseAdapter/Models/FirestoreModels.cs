@@ -285,3 +285,54 @@ public class FirestoreKpiDocument
     [FirestoreProperty("communityContext")]
     public string CommunityContext { get; set; } = string.Empty;
 }
+
+/// <summary>
+/// Firestore document model for storing versioned context documents.
+/// Used for storing contextual data retrieved from Kicktipp for matchday predictions.
+/// </summary>
+[FirestoreData]
+public class FirestoreContextDocument
+{
+    /// <summary>
+    /// Document ID - constructed from document name, community context, and version.
+    /// Format: "{documentName}_{communityContext}_{version}"
+    /// </summary>
+    [FirestoreDocumentId]
+    public string? Id { get; set; }
+
+    /// <summary>
+    /// The context document name (e.g., "bundesliga-standings.csv", "recent-history-fcb.csv").
+    /// </summary>
+    [FirestoreProperty("documentName")]
+    public string DocumentName { get; set; } = string.Empty;
+
+    /// <summary>
+    /// The document content (CSV format).
+    /// </summary>
+    [FirestoreProperty("content")]
+    public string Content { get; set; } = string.Empty;
+
+    /// <summary>
+    /// Version number for this document (starts at 0).
+    /// </summary>
+    [FirestoreProperty("version")]
+    public int Version { get; set; }
+
+    /// <summary>
+    /// When the document was created (UTC timestamp).
+    /// </summary>
+    [FirestoreProperty("createdAt")]
+    public Timestamp CreatedAt { get; set; }
+
+    /// <summary>
+    /// Competition/season identifier (e.g., "bundesliga-2025-26").
+    /// </summary>
+    [FirestoreProperty("competition")]
+    public string Competition { get; set; } = "bundesliga-2025-26";
+
+    /// <summary>
+    /// Community context for filtering context documents.
+    /// </summary>
+    [FirestoreProperty("communityContext")]
+    public string CommunityContext { get; set; } = string.Empty;
+}

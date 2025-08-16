@@ -97,6 +97,14 @@ public static class ServiceCollectionExtensions
             return new FirebaseKpiRepository(firestoreDb, logger);
         });
 
+        // Register the context repository
+        services.AddScoped<IContextRepository>(serviceProvider =>
+        {
+            var firestoreDb = serviceProvider.GetRequiredService<FirestoreDb>();
+            var logger = serviceProvider.GetRequiredService<ILogger<FirebaseContextRepository>>();
+            return new FirebaseContextRepository(firestoreDb, logger);
+        });
+
         // Register the KPI context provider
         services.AddScoped<FirebaseKpiContextProvider>(serviceProvider =>
         {

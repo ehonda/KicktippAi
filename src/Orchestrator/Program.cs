@@ -23,6 +23,10 @@ public class Program
                 .WithDescription("Generate bonus predictions")
                 .WithExample("bonus", "gpt-4o-2024-08-06", "--community", "ehonda-test-buli");
                 
+            config.AddCommand<CollectContextCommand>("collect-context")
+                .WithDescription("Collect context documents and store them in database")
+                .WithExample("collect-context", "kicktipp", "--community", "ehonda-test-buli");
+                
             config.AddCommand<VerifyMatchdayCommand>("verify")
                 .WithDescription("Verify that database predictions have been successfully posted to Kicktipp")
                 .WithExample("verify", "--community", "ehonda-test-buli");
