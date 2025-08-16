@@ -10,32 +10,20 @@ using FirebaseAdapter;
 namespace Orchestrator.Commands;
 
 /// <summary>
-/// Command for collecting context documents and storing them in the database.
+/// Command for collecting Kicktipp context documents and storing them in the database.
 /// </summary>
-public class CollectContextCommand : AsyncCommand<CollectContextSettings>
+public class CollectContextKicktippCommand : AsyncCommand<CollectContextKicktippSettings>
 {
-    public override async Task<int> ExecuteAsync(CommandContext context, CollectContextSettings settings)
+    public override async Task<int> ExecuteAsync(CommandContext context, CollectContextKicktippSettings settings)
     {
-        var logger = LoggingConfiguration.CreateLogger<CollectContextCommand>();
+        var logger = LoggingConfiguration.CreateLogger<CollectContextKicktippCommand>();
         
         try
         {
             // Validate settings
-            if (string.IsNullOrWhiteSpace(settings.Subcommand))
+            if (string.IsNullOrWhiteSpace(settings.CommunityContext))
             {
-                AnsiConsole.MarkupLine("[red]Error: Subcommand is required[/]");
-                return 1;
-            }
-
-            if (settings.Subcommand.ToLowerInvariant() != "kicktipp")
-            {
-                AnsiConsole.MarkupLine($"[red]Error: Unknown subcommand '{settings.Subcommand}'. Available: kicktipp[/]");
-                return 1;
-            }
-
-            if (string.IsNullOrWhiteSpace(settings.Community))
-            {
-                AnsiConsole.MarkupLine("[red]Error: Community is required[/]");
+                AnsiConsole.MarkupLine("[red]Error: Community context is required[/]");
                 return 1;
             }
             
@@ -47,7 +35,7 @@ public class CollectContextCommand : AsyncCommand<CollectContextSettings>
             ConfigureServices(services, settings, logger);
             var serviceProvider = services.BuildServiceProvider();
             
-            AnsiConsole.MarkupLine($"[green]Collect-context command initialized:[/] [yellow]{settings.Subcommand}[/]");
+            AnsiConsole.MarkupLine($"[green]Collect-context kicktipp command initialized[/]");
             
             if (settings.Verbose)
             {
@@ -60,30 +48,19 @@ public class CollectContextCommand : AsyncCommand<CollectContextSettings>
             }
             
             // Execute the context collection workflow
-            await ExecuteContextCollectionWorkflow(serviceProvider, settings, logger);
+            await ExecuteKicktippContextCollection(serviceProvider, settings, logger);
             
             return 0;
         }
         catch (Exception ex)
         {
-            logger.LogError(ex, "Error executing collect-context command");
+            logger.LogError(ex, "Error executing collect-context kicktipp command");
             AnsiConsole.MarkupLine($"[red]Error:[/] {ex.Message}");
             return 1;
         }
     }
-    
-    private static async Task ExecuteContextCollectionWorkflow(IServiceProvider serviceProvider, CollectContextSettings settings, ILogger logger)
-    {
-        if (settings.Subcommand.ToLowerInvariant() != "kicktipp")
-        {
-            AnsiConsole.MarkupLine($"[red]Unknown subcommand: {settings.Subcommand}[/]");
-            return;
-        }
 
-        await ExecuteKicktippContextCollection(serviceProvider, settings, logger);
-    }
-
-    private static async Task ExecuteKicktippContextCollection(IServiceProvider serviceProvider, CollectContextSettings settings, ILogger logger)
+    private static async Task ExecuteKicktippContextCollection(IServiceProvider serviceProvider, CollectContextKicktippSettings settings, ILogger logger)
     {
         var kicktippClient = serviceProvider.GetRequiredService<IKicktippClient>();
         var contextProvider = serviceProvider.GetRequiredService<KicktippContextProvider>();
@@ -95,15 +72,11 @@ public class CollectContextCommand : AsyncCommand<CollectContextSettings>
             return;
         }
         
-        // Determine community context (use explicit setting or fall back to community name)
-        string communityContext = settings.CommunityContext ?? settings.Community;
-        
-        AnsiConsole.MarkupLine($"[blue]Using community:[/] [yellow]{settings.Community}[/]");
-        AnsiConsole.MarkupLine($"[blue]Using community context:[/] [yellow]{communityContext}[/]");
+        AnsiConsole.MarkupLine($"[blue]Using community context:[/] [yellow]{settings.CommunityContext}[/]");
         AnsiConsole.MarkupLine("[blue]Getting current matchday matches...[/]");
         
         // Step 1: Get current matchday matches
-        var matchesWithHistory = await kicktippClient.GetMatchesWithHistoryAsync(settings.Community);
+        var matchesWithHistory = await kicktippClient.GetMatchesWithHistoryAsync(settings.CommunityContext);
         
         if (!matchesWithHistory.Any())
         {
@@ -164,7 +137,7 @@ public class CollectContextCommand : AsyncCommand<CollectContextSettings>
                 var savedVersion = await contextRepository.SaveContextDocumentAsync(
                     documentName, 
                     content, 
-                    communityContext);
+                    settings.CommunityContext);
                 
                 if (savedVersion.HasValue)
                 {
@@ -202,7 +175,7 @@ public class CollectContextCommand : AsyncCommand<CollectContextSettings>
         }
     }
     
-    private static void ConfigureServices(IServiceCollection services, CollectContextSettings settings, ILogger logger)
+    private static void ConfigureServices(IServiceCollection services, CollectContextKicktippSettings settings, ILogger logger)
     {
         // Add logging
         services.AddSingleton(logger);
@@ -231,8 +204,8 @@ public class CollectContextCommand : AsyncCommand<CollectContextSettings>
         
         if (!string.IsNullOrEmpty(firebaseProjectId) && !string.IsNullOrEmpty(firebaseServiceAccountJson))
         {
-            services.AddFirebaseDatabase(firebaseProjectId, firebaseServiceAccountJson, settings.Community);
-            logger.LogInformation("Firebase database integration enabled for project: {ProjectId}, community: {Community}", firebaseProjectId, settings.Community);
+            services.AddFirebaseDatabase(firebaseProjectId, firebaseServiceAccountJson, settings.CommunityContext);
+            logger.LogInformation("Firebase database integration enabled for project: {ProjectId}, community: {Community}", firebaseProjectId, settings.CommunityContext);
         }
         else
         {
@@ -244,8 +217,7 @@ public class CollectContextCommand : AsyncCommand<CollectContextSettings>
         services.AddSingleton<KicktippContextProvider>(provider =>
         {
             var kicktippClient = provider.GetRequiredService<IKicktippClient>();
-            string communityContext = settings.CommunityContext ?? settings.Community;
-            return new KicktippContextProvider(kicktippClient, settings.Community, communityContext);
+            return new KicktippContextProvider(kicktippClient, settings.CommunityContext, settings.CommunityContext);
         });
     }
 }

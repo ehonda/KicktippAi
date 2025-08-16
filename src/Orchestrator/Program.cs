@@ -23,9 +23,13 @@ public class Program
                 .WithDescription("Generate bonus predictions")
                 .WithExample("bonus", "gpt-4o-2024-08-06", "--community", "ehonda-test-buli");
                 
-            config.AddCommand<CollectContextCommand>("collect-context")
-                .WithDescription("Collect context documents and store them in database")
-                .WithExample("collect-context", "kicktipp", "--community", "ehonda-test-buli");
+            config.AddBranch<CollectContextSettings>("collect-context", collectContext =>
+            {
+                collectContext.SetDescription("Collect context documents and store them in database");
+                collectContext.AddCommand<CollectContextKicktippCommand>("kicktipp")
+                    .WithDescription("Collect context from Kicktipp")
+                    .WithExample("collect-context", "kicktipp", "--community", "ehonda-test-buli", "--community-context", "ehonda-test-buli", "--dry-run");
+            });
                 
             config.AddCommand<VerifyMatchdayCommand>("verify")
                 .WithDescription("Verify that database predictions have been successfully posted to Kicktipp")

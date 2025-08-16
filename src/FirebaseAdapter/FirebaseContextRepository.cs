@@ -159,6 +159,6 @@ public class FirebaseContextRepository : IContextRepository
             firestoreDoc.DocumentName,
             firestoreDoc.Content,
             firestoreDoc.Version,
-            firestoreDoc.CreatedAt.ToDateTime());
+            firestoreDoc.CreatedAt.ToDateTimeOffset());
     }
 }

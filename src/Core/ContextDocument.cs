@@ -8,11 +8,11 @@ public class ContextDocument
     public string DocumentName { get; set; } = string.Empty;
     public string Content { get; set; } = string.Empty;
     public int Version { get; set; }
-    public DateTime CreatedAt { get; set; }
+    public DateTimeOffset CreatedAt { get; set; }
 
     public ContextDocument() { }
 
-    public ContextDocument(string documentName, string content, int version, DateTime createdAt)
+    public ContextDocument(string documentName, string content, int version, DateTimeOffset createdAt)
     {
         DocumentName = documentName;
         Content = content;
