@@ -1,0 +1,23 @@
+name: schadensfresse ⚽ Context Collection
+
+on:
+  # Schedule to run every 12 hours starting at 00:00 UTC
+  schedule:
+    - cron: '0 0 * * *'   # 00:00 UTC (01:00 CET, 02:00 CEST)
+    - cron: '0 12 * * *'  # 12:00 UTC (13:00 CET, 14:00 CEST)
+  
+  # Allow manual triggering
+  workflow_dispatch:
+
+jobs:
+  call-base-workflow:
+    name: Context Collection - schadensfresse
+    uses: ./.github/workflows/base-context-collection.yml
+    with:
+      community_context: "schadensfresse"
+      trigger_type: ${{ github.event_name == 'schedule' && 'scheduled' || 'manual' }}
+    secrets:
+      kicktipp_username: ${{ secrets.SCHADENSFRESSE_KICKTIPP_USERNAME }}
+      kicktipp_password: ${{ secrets.SCHADENSFRESSE_KICKTIPP_PASSWORD }}
+      firebase_project_id: ${{ secrets.FIREBASE_PROJECT_ID }}
+      firebase_service_account_json: ${{ secrets.FIREBASE_SERVICE_ACCOUNT_JSON }}

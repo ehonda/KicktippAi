@@ -10,6 +10,7 @@ The workflow system is built on a **reusable workflow architecture** that suppor
 
 - **`base-matchday-predictions.yml`**: Core logic for matchday predictions
 - **`base-bonus-predictions.yml`**: Core logic for bonus predictions
+- **`base-context-collection.yml`**: Core logic for context collection and storage
 
 ### Community-Specific Workflows
 
@@ -18,14 +19,34 @@ Each community gets its own set of workflows that call the base workflows with s
 - **`{community}-matchday.yml`**: Matchday predictions for a specific community
 - **`{community}-bonus.yml`**: Bonus predictions for a specific community
 
+### Context Collection Workflows
+
+- **`pes-squad-context-collection.yml`**: Automated context collection for pes-squad community
+  - Runs every 12 hours (00:00 and 12:00 UTC)
+  - Can be manually triggered
+- **`schadensfresse-context-collection.yml`**: Automated context collection for schadensfresse community
+  - Runs every 12 hours (00:00 and 12:00 UTC)
+  - Can be manually triggered
+
 ## How It Works
 
-Each workflow implements the core prediction loop:
+### Prediction Workflows
+
+Each prediction workflow implements the core prediction loop:
 
 1. **Configuration Parsing**: Extract community-specific settings from inputs
 2. **Verification**: Check if predictions are needed for the community with `verify MODEL --community COMMUNITY --init-matchday --agent`
 3. **Prediction**: Generate and post predictions if verification fails or force is enabled
 4. **Final Check**: Verify that predictions were successfully posted with `verify MODEL --community COMMUNITY --agent`
+
+### Context Collection Process
+
+Context collection workflows gather and store contextual data for multiple communities:
+
+1. **Environment Setup**: Configure Kicktipp and Firebase credentials
+2. **Context Gathering**: Collect match context from all current matchday matches
+3. **Database Storage**: Store context documents in Firebase with version control
+4. **Duplicate Detection**: Skip unchanged context to avoid redundant storage
 
 ## Community Configuration
 
@@ -72,6 +93,15 @@ Examples:
 - `FIREBASE_PROJECT_ID`: Your Firebase project ID
 - `FIREBASE_SERVICE_ACCOUNT_JSON`: Firebase service account JSON key
 - `OPENAI_API_KEY`: OpenAI API key for prediction generation
+
+### Context Collection Secrets
+
+- `PES_SQUAD_KICKTIPP_USERNAME`: Kicktipp username for pes-squad context collection
+- `PES_SQUAD_KICKTIPP_PASSWORD`: Kicktipp password for pes-squad context collection
+- `SCHADENSFRESSE_KICKTIPP_USERNAME`: Kicktipp username for schadensfresse context collection
+- `SCHADENSFRESSE_KICKTIPP_PASSWORD`: Kicktipp password for schadensfresse context collection
+- `FIREBASE_PROJECT_ID`: Same Firebase project ID (shared with predictions)
+- `FIREBASE_SERVICE_ACCOUNT_JSON`: Same Firebase service account (shared with predictions)
 
 ## Adding a New Community
 
@@ -211,6 +241,8 @@ If the workflow fails:
 
 To test the commands locally before relying on the automated workflow:
 
+### Prediction Testing
+
 ```bash
 # Test verification
 dotnet run --project src/Orchestrator/Orchestrator.csproj -- verify --init-matchday --agent
@@ -220,6 +252,20 @@ dotnet run --project src/Orchestrator/Orchestrator.csproj -- matchday o4-mini --
 
 # Test final verification
 dotnet run --project src/Orchestrator/Orchestrator.csproj -- verify --agent
+```
+
+### Context Collection Testing
+
+```bash
+# Test context collection with dry run for different communities
+dotnet run --project src/Orchestrator/Orchestrator.csproj -- collect-context kicktipp --community-context pes-squad --dry-run --verbose
+
+dotnet run --project src/Orchestrator/Orchestrator.csproj -- collect-context kicktipp --community-context schadensfresse --dry-run --verbose
+
+# Test actual context collection
+dotnet run --project src/Orchestrator/Orchestrator.csproj -- collect-context kicktipp --community-context pes-squad --verbose
+
+dotnet run --project src/Orchestrator/Orchestrator.csproj -- collect-context kicktipp --community-context schadensfresse --verbose
 ```
 
 Make sure to set the required environment variables locally for testing.

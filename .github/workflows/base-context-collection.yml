@@ -1,0 +1,72 @@
+name: Base Context Collection
+
+# Reusable workflow for context collection
+on:
+  workflow_call:
+    inputs:
+      community_context:
+        description: 'Community context (rules/scoring) to use for context collection'
+        required: true
+        type: string
+      trigger_type:
+        description: 'How this workflow was triggered (scheduled, manual)'
+        required: true
+        type: string
+    secrets:
+      kicktipp_username:
+        description: 'Kicktipp username'
+        required: true
+      kicktipp_password:
+        description: 'Kicktipp password'
+        required: true
+      firebase_project_id:
+        description: 'Firebase project ID'
+        required: true
+      firebase_service_account_json:
+        description: 'Firebase service account JSON'
+        required: true
+
+env:
+  TZ: 'Europe/Berlin'
+
+jobs:
+  context-collection:
+    name: Context Collection
+    runs-on: ubuntu-latest
+    timeout-minutes: 30
+    
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v4
+        
+      - name: Setup .NET
+        uses: actions/setup-dotnet@v4
+        with:
+          dotnet-version: '9.x'
+          
+      - name: Restore dependencies
+        run: dotnet restore
+        
+      - name: Build project
+        run: dotnet build --no-restore --configuration Release
+        
+      - name: Run context collection
+        run: |
+          dotnet run --project src/Orchestrator/Orchestrator.csproj --configuration Release -- \
+            collect-context kicktipp \
+            --community-context "${{ inputs.community_context }}" \
+            --verbose
+        env:
+          KICKTIPP_USERNAME: ${{ secrets.kicktipp_username }}
+          KICKTIPP_PASSWORD: ${{ secrets.kicktipp_password }}
+          FIREBASE_PROJECT_ID: ${{ secrets.firebase_project_id }}
+          FIREBASE_SERVICE_ACCOUNT_JSON: ${{ secrets.firebase_service_account_json }}
+        
+      - name: Build summary
+        if: always()
+        run: |
+          echo "## Context Collection Summary" >> $GITHUB_STEP_SUMMARY
+          echo "- **Community Context**: ${{ inputs.community_context }}" >> $GITHUB_STEP_SUMMARY
+          echo "- **Trigger**: ${{ inputs.trigger_type }}" >> $GITHUB_STEP_SUMMARY
+          echo "- **Timestamp**: $(date -u)" >> $GITHUB_STEP_SUMMARY
+          echo "- **Status**: ${{ job.status }}" >> $GITHUB_STEP_SUMMARY
