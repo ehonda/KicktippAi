@@ -226,7 +226,8 @@ public class MatchdayCommand : AsyncCommand<BaseSettings>
                                     settings.Model, 
                                     tokenUsageJson, 
                                     cost, 
-                                    communityContext);
+                                    communityContext,
+                                    contextDocuments.Select(d => d.Name));
                                     
                                 if (settings.Verbose)
                                 {

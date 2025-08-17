@@ -93,6 +93,13 @@ public class FirestoreMatchPrediction
     /// </summary>
     [FirestoreProperty("communityContext")]
     public string CommunityContext { get; set; } = string.Empty;
+
+    /// <summary>
+    /// Names of context documents that were used as input for generating this prediction.
+    /// Used to check if prediction is outdated compared to context changes.
+    /// </summary>
+    [FirestoreProperty("contextDocumentNames")]
+    public string[] ContextDocumentNames { get; set; } = [];
 }
 
 /// <summary>
@@ -210,6 +217,13 @@ public class FirestoreBonusPrediction
     /// </summary>
     [FirestoreProperty("communityContext")]
     public string CommunityContext { get; set; } = string.Empty;
+
+    /// <summary>
+    /// Names of context documents that were used as input for generating this prediction.
+    /// Used to check if prediction is outdated compared to context changes.
+    /// </summary>
+    [FirestoreProperty("contextDocumentNames")]
+    public string[] ContextDocumentNames { get; set; } = [];
 }
 
 /// <summary>
@@ -220,7 +234,8 @@ public class FirestoreBonusPrediction
 public class FirestoreKpiDocument
 {
     /// <summary>
-    /// Document ID - the KPI document identifier.
+    /// Document ID - constructed from document ID, community context, and version.
+    /// Format: "{documentId}_{communityContext}_{version}"
     /// </summary>
     [FirestoreDocumentId]
     public string? Id { get; set; }
@@ -260,6 +275,12 @@ public class FirestoreKpiDocument
     /// </summary>
     [FirestoreProperty("tags")]
     public string[] Tags { get; set; } = [];
+
+    /// <summary>
+    /// Version number for this document (starts at 0).
+    /// </summary>
+    [FirestoreProperty("version")]
+    public int Version { get; set; }
 
     /// <summary>
     /// When the document was created (UTC timestamp).

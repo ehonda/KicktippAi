@@ -41,6 +41,11 @@ public class VerifyBonusCommand : AsyncCommand<VerifySettings>
                 AnsiConsole.MarkupLine("[cyan]Init bonus mode enabled - will return error if no predictions exist[/]");
             }
             
+            if (settings.CheckOutdated)
+            {
+                AnsiConsole.MarkupLine("[cyan]Outdated check enabled - predictions will be checked against latest context documents[/]");
+            }
+            
             // Execute the verification workflow
             var hasDiscrepancies = await ExecuteVerificationWorkflow(serviceProvider, settings, logger);
             
@@ -63,6 +68,15 @@ public class VerifyBonusCommand : AsyncCommand<VerifySettings>
         if (predictionRepository == null)
         {
             AnsiConsole.MarkupLine("[red]Error: Database not configured. Cannot verify predictions without database access.[/]");
+            AnsiConsole.MarkupLine("[yellow]Hint: Set FIREBASE_PROJECT_ID and FIREBASE_SERVICE_ACCOUNT_JSON environment variables[/]");
+            return true; // Consider this a failure
+        }
+        
+        // Get context repository for outdated checks (may be null if Firebase is not configured)
+        var contextRepository = serviceProvider.GetService<IContextRepository>();
+        if (settings.CheckOutdated && contextRepository == null)
+        {
+            AnsiConsole.MarkupLine("[red]Error: Database not configured. Cannot check outdated predictions without database access.[/]");
             AnsiConsole.MarkupLine("[yellow]Hint: Set FIREBASE_PROJECT_ID and FIREBASE_SERVICE_ACCOUNT_JSON environment variables[/]");
             return true; // Consider this a failure
         }
@@ -123,7 +137,17 @@ public class VerifyBonusCommand : AsyncCommand<VerifySettings>
                     // Compare database prediction with Kicktipp placed prediction
                     var predictionsMatch = CompareBonusPredictions(databasePrediction, kicktippPrediction);
                     
-                    if (isValidPrediction && predictionsMatch)
+                    // Check if prediction is outdated (if enabled and context repository is available)
+                    var isOutdated = false;
+                    if (settings.CheckOutdated && contextRepository != null)
+                    {
+                        isOutdated = await CheckBonusPredictionOutdated(predictionRepository, contextRepository, question.Text, settings.Model, settings.Community, settings.Verbose);
+                    }
+                    
+                    // Consider prediction valid if it passes validation, matches Kicktipp, and is not outdated
+                    var isPredictionValid = isValidPrediction && predictionsMatch && !isOutdated;
+                    
+                    if (isPredictionValid)
                     {
                         validPredictions++;
                         
@@ -131,7 +155,7 @@ public class VerifyBonusCommand : AsyncCommand<VerifySettings>
                         {
                             if (settings.Agent)
                             {
-                                AnsiConsole.MarkupLine($"[green]✓ {Markup.Escape(question.Text)}[/] [dim](valid prediction)[/]");
+                                AnsiConsole.MarkupLine($"[green]✓ {Markup.Escape(question.Text)}[/] [dim](valid)[/]");
                             }
                             else
                             {
@@ -148,7 +172,8 @@ public class VerifyBonusCommand : AsyncCommand<VerifySettings>
                         
                         if (settings.Agent)
                         {
-                            var status = !isValidPrediction ? "invalid prediction" : "mismatch with Kicktipp";
+                            var status = !isValidPrediction ? "invalid prediction" : 
+                                        !predictionsMatch ? "mismatch with Kicktipp" : "outdated";
                             AnsiConsole.MarkupLine($"[red]✗ {Markup.Escape(question.Text)}[/] [dim]({status})[/]");
                         }
                         else
@@ -160,7 +185,7 @@ public class VerifyBonusCommand : AsyncCommand<VerifySettings>
                                     .Select(o => o.Text);
                                 AnsiConsole.MarkupLine($"[red]✗ {Markup.Escape(question.Text)}:[/] {string.Join(", ", optionTexts)} [dim](invalid prediction)[/]");
                             }
-                            else
+                            else if (!predictionsMatch)
                             {
                                 // Show mismatch details
                                 var databaseTexts = question.Options
@@ -175,6 +200,14 @@ public class VerifyBonusCommand : AsyncCommand<VerifySettings>
                                 AnsiConsole.MarkupLine($"[red]✗ {Markup.Escape(question.Text)}:[/]");
                                 AnsiConsole.MarkupLine($"  [yellow]Database:[/] {string.Join(", ", databaseTexts)}");
                                 AnsiConsole.MarkupLine($"  [yellow]Kicktipp:[/] {(kicktippTexts.Any() ? string.Join(", ", kicktippTexts) : "no prediction")}");
+                            }
+                            else if (isOutdated)
+                            {
+                                var optionTexts = question.Options
+                                    .Where(o => databasePrediction.SelectedOptionIds.Contains(o.Id))
+                                    .Select(o => o.Text);
+                                AnsiConsole.MarkupLine($"[red]✗ {Markup.Escape(question.Text)}:[/] {string.Join(", ", optionTexts)} [dim](outdated)[/]");
+                                AnsiConsole.MarkupLine($"  [yellow]Status:[/] Outdated (context updated after prediction)");
                             }
                         }
                     }
@@ -268,6 +301,64 @@ public class VerifyBonusCommand : AsyncCommand<VerifySettings>
         return true;
     }
     
+    private static async Task<bool> CheckBonusPredictionOutdated(
+        IPredictionRepository predictionRepository,
+        IContextRepository contextRepository,
+        string questionText,
+        string model,
+        string communityContext,
+        bool verbose)
+    {
+        try
+        {
+            // Get prediction metadata (includes creation timestamp and context document names)
+            var predictionMetadata = await predictionRepository.GetBonusPredictionMetadataByTextAsync(
+                questionText, model, communityContext);
+            
+            if (predictionMetadata == null)
+            {
+                // No metadata found, assume not outdated
+                return false;
+            }
+            
+            // Check if any context document has been updated after the prediction was created
+            foreach (var contextDocumentName in predictionMetadata.ContextDocumentNames)
+            {
+                // Strip any display suffix (e.g., " (kpi-context)") from the context document name
+                // to get the actual document name stored in the repository
+                var actualDocumentName = StripDisplaySuffix(contextDocumentName);
+                
+                var contextDocument = await contextRepository.GetLatestContextDocumentAsync(
+                    actualDocumentName, communityContext);
+                
+                if (contextDocument != null && contextDocument.CreatedAt > predictionMetadata.CreatedAt)
+                {
+                    if (verbose)
+                    {
+                        AnsiConsole.MarkupLine($"[yellow]Context document '{actualDocumentName}' (stored as '{contextDocumentName}') updated after prediction was created[/]");
+                        AnsiConsole.MarkupLine($"  [dim]Prediction created:[/] {predictionMetadata.CreatedAt:yyyy-MM-dd HH:mm:ss}");
+                        AnsiConsole.MarkupLine($"  [dim]Context updated:[/] {contextDocument.CreatedAt:yyyy-MM-dd HH:mm:ss}");
+                    }
+                    return true; // Prediction is outdated
+                }
+                else if (verbose && contextDocument == null)
+                {
+                    AnsiConsole.MarkupLine($"[yellow]Warning: Context document '{actualDocumentName}' not found in repository[/]");
+                }
+            }
+            
+            return false; // No context documents are newer than the prediction
+        }
+        catch (Exception ex)
+        {
+            if (verbose)
+            {
+                AnsiConsole.MarkupLine($"[yellow]Warning: Could not check if prediction is outdated: {ex.Message}[/]");
+            }
+            return false; // Assume not outdated if we can't determine
+        }
+    }
+    
     private static bool CompareBonusPredictions(BonusPrediction? databasePrediction, BonusPrediction? kicktippPrediction)
     {
         // Both null - match
@@ -326,5 +417,22 @@ public class VerifyBonusCommand : AsyncCommand<VerifySettings>
             logger.LogWarning("Firebase credentials not found. Database integration disabled.");
             logger.LogInformation("Set FIREBASE_PROJECT_ID and FIREBASE_SERVICE_ACCOUNT_JSON environment variables to enable database features");
         }
+    }
+    
+    /// <summary>
+    /// Strips display suffixes like " (kpi-context)" from context document names
+    /// to get the actual document name used in the repository.
+    /// </summary>
+    /// <param name="displayName">The display name that may contain a suffix</param>
+    /// <returns>The actual document name without any display suffix</returns>
+    private static string StripDisplaySuffix(string displayName)
+    {
+        // Look for patterns like " (some-text)" at the end and remove them
+        var lastParenIndex = displayName.LastIndexOf(" (");
+        if (lastParenIndex > 0 && displayName.EndsWith(")"))
+        {
+            return displayName.Substring(0, lastParenIndex);
+        }
+        return displayName;
     }
 }

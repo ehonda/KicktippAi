@@ -17,9 +17,10 @@ public interface IPredictionRepository
     /// <param name="tokenUsage">JSON string containing token usage information from the API.</param>
     /// <param name="cost">The cost in USD for generating the prediction.</param>
     /// <param name="communityContext">The community context (rules) used for the prediction.</param>
+    /// <param name="contextDocumentNames">Names of context documents used for this prediction.</param>
     /// <param name="cancellationToken">Cancellation token.</param>
     /// <returns>A task representing the asynchronous operation.</returns>
-    Task SavePredictionAsync(Match match, Prediction prediction, string model, string tokenUsage, double cost, string communityContext, CancellationToken cancellationToken = default);
+    Task SavePredictionAsync(Match match, Prediction prediction, string model, string tokenUsage, double cost, string communityContext, IEnumerable<string> contextDocumentNames, CancellationToken cancellationToken = default);
 
     /// <summary>
     /// Retrieves a prediction for a specific match using the specified model and community context.
@@ -30,6 +31,17 @@ public interface IPredictionRepository
     /// <param name="cancellationToken">Cancellation token.</param>
     /// <returns>The prediction if found, otherwise null.</returns>
     Task<Prediction?> GetPredictionAsync(Match match, string model, string communityContext, CancellationToken cancellationToken = default);
+
+    /// <summary>
+    /// Retrieves full prediction metadata for a specific match using the specified model and community context.
+    /// Includes context document names and timestamps for outdated checks.
+    /// </summary>
+    /// <param name="match">The match to get the prediction for.</param>
+    /// <param name="model">The AI model used to generate the prediction.</param>
+    /// <param name="communityContext">The community context used for the prediction.</param>
+    /// <param name="cancellationToken">Cancellation token.</param>
+    /// <returns>The prediction metadata if found, otherwise null.</returns>
+    Task<PredictionMetadata?> GetPredictionMetadataAsync(Match match, string model, string communityContext, CancellationToken cancellationToken = default);
 
     /// <summary>
     /// Retrieves a prediction for a specific match by team names, start time, model, and community context.
@@ -89,9 +101,10 @@ public interface IPredictionRepository
     /// <param name="tokenUsage">JSON string containing token usage information from the API.</param>
     /// <param name="cost">The cost in USD for generating the prediction.</param>
     /// <param name="communityContext">The community context (rules) used for the prediction.</param>
+    /// <param name="contextDocumentNames">Names of context documents used for this prediction.</param>
     /// <param name="cancellationToken">Cancellation token.</param>
     /// <returns>A task representing the asynchronous operation.</returns>
-    Task SaveBonusPredictionAsync(BonusQuestion bonusQuestion, BonusPrediction bonusPrediction, string model, string tokenUsage, double cost, string communityContext, CancellationToken cancellationToken = default);
+    Task SaveBonusPredictionAsync(BonusQuestion bonusQuestion, BonusPrediction bonusPrediction, string model, string tokenUsage, double cost, string communityContext, IEnumerable<string> contextDocumentNames, CancellationToken cancellationToken = default);
 
     /// <summary>
     /// Retrieves a bonus prediction for a specific question using the specified model and community context.
@@ -113,6 +126,17 @@ public interface IPredictionRepository
     /// <param name="cancellationToken">Cancellation token.</param>
     /// <returns>The bonus prediction if found, otherwise null.</returns>
     Task<BonusPrediction?> GetBonusPredictionByTextAsync(string questionText, string model, string communityContext, CancellationToken cancellationToken = default);
+
+    /// <summary>
+    /// Retrieves full bonus prediction metadata by question text and community context.
+    /// Includes context document names and timestamps for outdated checks.
+    /// </summary>
+    /// <param name="questionText">The text of the bonus question.</param>
+    /// <param name="model">The AI model used to generate the prediction.</param>
+    /// <param name="communityContext">The community context used for the prediction.</param>
+    /// <param name="cancellationToken">Cancellation token.</param>
+    /// <returns>The bonus prediction metadata if found, otherwise null.</returns>
+    Task<BonusPredictionMetadata?> GetBonusPredictionMetadataByTextAsync(string questionText, string model, string communityContext, CancellationToken cancellationToken = default);
 
     /// <summary>
     /// Retrieves all bonus predictions made with the specified model and community context.

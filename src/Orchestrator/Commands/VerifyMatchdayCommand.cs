@@ -41,6 +41,11 @@ public class VerifyMatchdayCommand : AsyncCommand<VerifySettings>
                 AnsiConsole.MarkupLine("[cyan]Init matchday mode enabled - will return error if no predictions exist[/]");
             }
             
+            if (settings.CheckOutdated)
+            {
+                AnsiConsole.MarkupLine("[cyan]Outdated check enabled - predictions will be checked against latest context documents[/]");
+            }
+            
             // Execute the verification workflow
             var hasDiscrepancies = await ExecuteVerificationWorkflow(serviceProvider, settings, logger);
             
@@ -63,6 +68,15 @@ public class VerifyMatchdayCommand : AsyncCommand<VerifySettings>
         if (predictionRepository == null)
         {
             AnsiConsole.MarkupLine("[red]Error: Database not configured. Cannot verify predictions without database access.[/]");
+            AnsiConsole.MarkupLine("[yellow]Hint: Set FIREBASE_PROJECT_ID and FIREBASE_SERVICE_ACCOUNT_JSON environment variables[/]");
+            return true; // Consider this a failure
+        }
+        
+        // Get context repository for outdated checks (may be null if Firebase is not configured)
+        var contextRepository = serviceProvider.GetService<IContextRepository>();
+        if (settings.CheckOutdated && contextRepository == null)
+        {
+            AnsiConsole.MarkupLine("[red]Error: Database not configured. Cannot check outdated predictions without database access.[/]");
             AnsiConsole.MarkupLine("[yellow]Hint: Set FIREBASE_PROJECT_ID and FIREBASE_SERVICE_ACCOUNT_JSON environment variables[/]");
             return true; // Consider this a failure
         }
@@ -126,10 +140,20 @@ public class VerifyMatchdayCommand : AsyncCommand<VerifySettings>
                     AnsiConsole.MarkupLine($"[dim]  No database prediction found[/]");
                 }
                 
+                // Check if prediction is outdated (if enabled and context repository is available)
+                var isOutdated = false;
+                if (settings.CheckOutdated && contextRepository != null && databasePrediction != null)
+                {
+                    isOutdated = await CheckPredictionOutdated(predictionRepository, contextRepository, match, settings.Model, communityContext, settings.Verbose);
+                }
+                
                 // Compare predictions
                 var isMatchingPrediction = ComparePredictions(kicktippPrediction, databasePrediction);
                 
-                if (isMatchingPrediction)
+                // Consider prediction invalid if it's outdated or mismatched
+                var isValidPrediction = isMatchingPrediction && !isOutdated;
+                
+                if (isValidPrediction)
                 {
                     matchingPredictions++;
                     
@@ -137,12 +161,12 @@ public class VerifyMatchdayCommand : AsyncCommand<VerifySettings>
                     {
                         if (settings.Agent)
                         {
-                            AnsiConsole.MarkupLine($"[green]✓ {match.HomeTeam} vs {match.AwayTeam}[/] [dim](match)[/]");
+                            AnsiConsole.MarkupLine($"[green]✓ {match.HomeTeam} vs {match.AwayTeam}[/] [dim](valid)[/]");
                         }
                         else
                         {
                             var predictionText = kicktippPrediction?.ToString() ?? "no prediction";
-                            AnsiConsole.MarkupLine($"[green]✓ {match.HomeTeam} vs {match.AwayTeam}:[/] {predictionText} [dim](match)[/]");
+                            AnsiConsole.MarkupLine($"[green]✓ {match.HomeTeam} vs {match.AwayTeam}:[/] {predictionText} [dim](valid)[/]");
                         }
                     }
                 }
@@ -152,7 +176,8 @@ public class VerifyMatchdayCommand : AsyncCommand<VerifySettings>
                     
                     if (settings.Agent)
                     {
-                        AnsiConsole.MarkupLine($"[red]✗ {match.HomeTeam} vs {match.AwayTeam}[/] [dim](mismatch)[/]");
+                        var reason = isOutdated ? "outdated" : "mismatch";
+                        AnsiConsole.MarkupLine($"[red]✗ {match.HomeTeam} vs {match.AwayTeam}[/] [dim]({reason})[/]");
                     }
                     else
                     {
@@ -162,6 +187,11 @@ public class VerifyMatchdayCommand : AsyncCommand<VerifySettings>
                         AnsiConsole.MarkupLine($"[red]✗ {match.HomeTeam} vs {match.AwayTeam}:[/]");
                         AnsiConsole.MarkupLine($"  [yellow]Kicktipp:[/] {kicktippText}");
                         AnsiConsole.MarkupLine($"  [yellow]Database:[/] {databaseText}");
+                        
+                        if (isOutdated)
+                        {
+                            AnsiConsole.MarkupLine($"  [yellow]Status:[/] Outdated (context updated after prediction)");
+                        }
                     }
                 }
             }
@@ -266,5 +296,76 @@ public class VerifyMatchdayCommand : AsyncCommand<VerifySettings>
             logger.LogWarning("Firebase credentials not found. Database integration disabled.");
             logger.LogInformation("Set FIREBASE_PROJECT_ID and FIREBASE_SERVICE_ACCOUNT_JSON environment variables to enable database features");
         }
+    }
+    
+    private static async Task<bool> CheckPredictionOutdated(IPredictionRepository predictionRepository, IContextRepository contextRepository, Match match, string model, string communityContext, bool verbose)
+    {
+        try
+        {
+            // Get prediction metadata with context document names and timestamps
+            var predictionMetadata = await predictionRepository.GetPredictionMetadataAsync(match, model, communityContext);
+            
+            if (predictionMetadata == null || !predictionMetadata.ContextDocumentNames.Any())
+            {
+                // If no context documents were used, prediction can't be outdated based on context changes
+                return false;
+            }
+            
+            if (verbose)
+            {
+                AnsiConsole.MarkupLine($"[dim]  Checking {predictionMetadata.ContextDocumentNames.Count} context documents for updates[/]");
+            }
+            
+            // Check if any context document has been updated after the prediction was created
+            foreach (var documentName in predictionMetadata.ContextDocumentNames)
+            {
+                // Strip any display suffix (e.g., " (kpi-context)") from the context document name
+                // to get the actual document name stored in the repository
+                var actualDocumentName = StripDisplaySuffix(documentName);
+                
+                var latestContextDocument = await contextRepository.GetLatestContextDocumentAsync(actualDocumentName, communityContext);
+                
+                if (latestContextDocument != null && latestContextDocument.CreatedAt > predictionMetadata.CreatedAt)
+                {
+                    if (verbose)
+                    {
+                        AnsiConsole.MarkupLine($"[dim]  Context document '{actualDocumentName}' (stored as '{documentName}') updated after prediction (document: {latestContextDocument.CreatedAt}, prediction: {predictionMetadata.CreatedAt})[/]");
+                    }
+                    return true; // Prediction is outdated
+                }
+                else if (verbose && latestContextDocument == null)
+                {
+                    AnsiConsole.MarkupLine($"[yellow]  Warning: Context document '{actualDocumentName}' not found in repository[/]");
+                }
+            }
+            
+            return false; // Prediction is up-to-date
+        }
+        catch (Exception ex)
+        {
+            // Log error but don't fail verification due to outdated check issues
+            if (verbose)
+            {
+                AnsiConsole.MarkupLine($"[yellow]  Warning: Failed to check outdated status: {ex.Message}[/]");
+            }
+            return false;
+        }
+    }
+    
+    /// <summary>
+    /// Strips display suffixes like " (kpi-context)" from context document names
+    /// to get the actual document name used in the repository.
+    /// </summary>
+    /// <param name="displayName">The display name that may contain a suffix</param>
+    /// <returns>The actual document name without any display suffix</returns>
+    private static string StripDisplaySuffix(string displayName)
+    {
+        // Look for patterns like " (some-text)" at the end and remove them
+        var lastParenIndex = displayName.LastIndexOf(" (");
+        if (lastParenIndex > 0 && displayName.EndsWith(")"))
+        {
+            return displayName.Substring(0, lastParenIndex);
+        }
+        return displayName;
     }
 }

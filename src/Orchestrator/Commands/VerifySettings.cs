@@ -31,4 +31,9 @@ public class VerifySettings : CommandSettings
     [Description("Init matchday mode - return error when no predictions exist to trigger initial prediction workflow")]
     [DefaultValue(false)]
     public bool InitMatchday { get; set; }
+
+    [CommandOption("--check-outdated")]
+    [Description("Check if predictions are outdated based on context document changes")]
+    [DefaultValue(false)]
+    public bool CheckOutdated { get; set; }
 }

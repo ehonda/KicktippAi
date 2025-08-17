@@ -17,9 +17,4 @@ public class UploadKpiSettings : CommandSettings
     [Description("Enable verbose output to show detailed information")]
     [DefaultValue(false)]
     public bool Verbose { get; set; }
-
-    [CommandOption("--override")]
-    [Description("Override existing KPI document if it exists (default: false)")]
-    [DefaultValue(false)]
-    public bool Override { get; set; }
 }

@@ -32,7 +32,7 @@ public class FirebasePredictionRepository : IPredictionRepository
         _logger.LogInformation("Firebase repository initialized");
     }
 
-    public async Task SavePredictionAsync(Match match, Prediction prediction, string model, string tokenUsage, double cost, string communityContext, CancellationToken cancellationToken = default)
+    public async Task SavePredictionAsync(Match match, Prediction prediction, string model, string tokenUsage, double cost, string communityContext, IEnumerable<string> contextDocumentNames, CancellationToken cancellationToken = default)
     {
         try
         {
@@ -91,7 +91,8 @@ public class FirebasePredictionRepository : IPredictionRepository
                 Model = model,
                 TokenUsage = tokenUsage,
                 Cost = cost,
-                CommunityContext = communityContext
+                CommunityContext = communityContext,
+                ContextDocumentNames = contextDocumentNames.ToArray()
             };
 
             // Set CreatedAt: preserve existing value for updates, set current time for new documents
@@ -143,6 +144,41 @@ public class FirebasePredictionRepository : IPredictionRepository
         {
             _logger.LogError(ex, "Failed to get prediction for match {HomeTeam} vs {AwayTeam} using model {Model} and community context {CommunityContext}", 
                 homeTeam, awayTeam, model, communityContext);
+            throw;
+        }
+    }
+
+    public async Task<PredictionMetadata?> GetPredictionMetadataAsync(Match match, string model, string communityContext, CancellationToken cancellationToken = default)
+    {
+        try
+        {
+            // Query by match characteristics, model, community context, and competition
+            var query = _firestoreDb.Collection(_predictionsCollection)
+                .WhereEqualTo("homeTeam", match.HomeTeam)
+                .WhereEqualTo("awayTeam", match.AwayTeam)
+                .WhereEqualTo("startsAt", ConvertToTimestamp(match.StartsAt))
+                .WhereEqualTo("competition", _competition)
+                .WhereEqualTo("model", model)
+                .WhereEqualTo("communityContext", communityContext);
+
+            var snapshot = await query.GetSnapshotAsync(cancellationToken);
+            
+            if (snapshot.Documents.Count == 0)
+            {
+                return null;
+            }
+
+            var firestorePrediction = snapshot.Documents.First().ConvertTo<FirestoreMatchPrediction>();
+            var prediction = new Prediction(firestorePrediction.HomeGoals, firestorePrediction.AwayGoals);
+            var createdAt = firestorePrediction.CreatedAt.ToDateTimeOffset();
+            var contextDocumentNames = firestorePrediction.ContextDocumentNames?.ToList() ?? new List<string>();
+            
+            return new PredictionMetadata(prediction, createdAt, contextDocumentNames);
+        }
+        catch (Exception ex)
+        {
+            _logger.LogError(ex, "Failed to get prediction metadata for match {HomeTeam} vs {AwayTeam} using model {Model} and community context {CommunityContext}", 
+                match.HomeTeam, match.AwayTeam, model, communityContext);
             throw;
         }
     }
@@ -253,7 +289,7 @@ public class FirebasePredictionRepository : IPredictionRepository
         }
     }
 
-    public async Task SaveBonusPredictionAsync(BonusQuestion bonusQuestion, BonusPrediction bonusPrediction, string model, string tokenUsage, double cost, string communityContext, CancellationToken cancellationToken = default)
+    public async Task SaveBonusPredictionAsync(BonusQuestion bonusQuestion, BonusPrediction bonusPrediction, string model, string tokenUsage, double cost, string communityContext, IEnumerable<string> contextDocumentNames, CancellationToken cancellationToken = default)
     {
         try
         {
@@ -313,7 +349,8 @@ public class FirebasePredictionRepository : IPredictionRepository
                 Model = model,
                 TokenUsage = tokenUsage,
                 Cost = cost,
-                CommunityContext = communityContext
+                CommunityContext = communityContext,
+                ContextDocumentNames = contextDocumentNames.ToArray()
             };
 
             // Set CreatedAt: preserve existing value for updates, set current time for new documents
@@ -393,6 +430,43 @@ public class FirebasePredictionRepository : IPredictionRepository
         catch (Exception ex)
         {
             _logger.LogError(ex, "Failed to retrieve bonus prediction by text: {QuestionText} with model: {Model} and community context: {CommunityContext}", questionText, model, communityContext);
+            throw;
+        }
+    }
+
+    public async Task<BonusPredictionMetadata?> GetBonusPredictionMetadataByTextAsync(string questionText, string model, string communityContext, CancellationToken cancellationToken = default)
+    {
+        try
+        {
+            // Query by questionText, model, and community context
+            var query = _firestoreDb.Collection(_bonusPredictionsCollection)
+                .WhereEqualTo("questionText", questionText)
+                .WhereEqualTo("competition", _competition)
+                .WhereEqualTo("model", model)
+                .WhereEqualTo("communityContext", communityContext)
+                .Limit(1);
+
+            var snapshot = await query.GetSnapshotAsync(cancellationToken);
+            
+            if (snapshot.Documents.Count == 0)
+            {
+                _logger.LogDebug("No bonus prediction metadata found for question text: {QuestionText} with model: {Model} and community context: {CommunityContext}", questionText, model, communityContext);
+                return null;
+            }
+
+            var firestoreBonusPrediction = snapshot.Documents.First().ConvertTo<FirestoreBonusPrediction>();
+            var bonusPrediction = new BonusPrediction(firestoreBonusPrediction.SelectedOptionIds.ToList());
+            var createdAt = firestoreBonusPrediction.CreatedAt.ToDateTimeOffset();
+            var contextDocumentNames = firestoreBonusPrediction.ContextDocumentNames?.ToList() ?? new List<string>();
+            
+            _logger.LogDebug("Found bonus prediction metadata for question text: {QuestionText} with model: {Model} and community context: {CommunityContext}", 
+                questionText, model, communityContext);
+                
+            return new BonusPredictionMetadata(bonusPrediction, createdAt, contextDocumentNames);
+        }
+        catch (Exception ex)
+        {
+            _logger.LogError(ex, "Failed to retrieve bonus prediction metadata by text: {QuestionText} with model: {Model} and community context: {CommunityContext}", questionText, model, communityContext);
             throw;
         }
     }

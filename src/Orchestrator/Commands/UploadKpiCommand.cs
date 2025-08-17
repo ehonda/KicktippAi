@@ -32,11 +32,6 @@ public class UploadKpiCommand : AsyncCommand<UploadKpiSettings>
                 AnsiConsole.MarkupLine("[dim]Verbose mode enabled[/]");
             }
             
-            if (settings.Override)
-            {
-                AnsiConsole.MarkupLine("[yellow]Override mode enabled - will override existing KPI document[/]");
-            }
-            
             // Check if the JSON file exists in the community-context specific subfolder
             var jsonFilePath = Path.Combine("kpi-documents", "output", settings.CommunityContext, $"{settings.DocumentName}.json");
             if (!File.Exists(jsonFilePath))
@@ -75,22 +70,27 @@ public class UploadKpiCommand : AsyncCommand<UploadKpiSettings>
             
             // Check if document already exists for this community context
             var existingDocument = await kpiRepository.GetKpiDocumentAsync(kpiDocument.DocumentId, kpiDocument.CommunityContext);
-            if (existingDocument != null && !settings.Override)
+            
+            if (existingDocument != null)
             {
-                AnsiConsole.MarkupLine($"[yellow]KPI document '{kpiDocument.DocumentId}' already exists.[/]");
-                AnsiConsole.MarkupLine($"[dim]Use --override flag to replace the existing document.[/]");
-                return 1;
+                AnsiConsole.MarkupLine($"[blue]Found existing KPI document '{kpiDocument.DocumentId}' (version {existingDocument.Version})[/]");
+                AnsiConsole.MarkupLine($"[blue]Checking for content changes...[/]");
+                
+                if (settings.Verbose)
+                {
+                    AnsiConsole.MarkupLine($"[dim]Current content length: {existingDocument.Content.Length} characters[/]");
+                    AnsiConsole.MarkupLine($"[dim]New content length: {kpiDocument.Content.Length} characters[/]");
+                }
+            }
+            else
+            {
+                AnsiConsole.MarkupLine($"[blue]No existing KPI document found for '{kpiDocument.DocumentId}' - will create version 0[/]");
             }
             
-            if (existingDocument != null && settings.Override)
-            {
-                AnsiConsole.MarkupLine($"[yellow]Overriding existing KPI document '{kpiDocument.DocumentId}'[/]");
-            }
+            // Upload the document (versioning is handled automatically by the repository)
+            AnsiConsole.MarkupLine($"[blue]Processing KPI document...[/]");
             
-            // Upload the document
-            AnsiConsole.MarkupLine($"[blue]Uploading KPI document to Firebase...[/]");
-            
-            await kpiRepository.SaveKpiDocumentAsync(
+            var savedVersion = await kpiRepository.SaveKpiDocumentAsync(
                 kpiDocument.DocumentId,
                 kpiDocument.Name,
                 kpiDocument.Content,
@@ -99,11 +99,23 @@ public class UploadKpiCommand : AsyncCommand<UploadKpiSettings>
                 kpiDocument.Tags,
                 kpiDocument.CommunityContext);
                 
-            AnsiConsole.MarkupLine($"[green]✓ Successfully uploaded KPI document '[/][white]{kpiDocument.DocumentId}[/][green]'[/]");
+            if (existingDocument != null && savedVersion == existingDocument.Version)
+            {
+                AnsiConsole.MarkupLine($"[green]✓ Content unchanged - KPI document '[/][white]{kpiDocument.DocumentId}[/][green]' remains at version {savedVersion}[/]");
+            }
+            else if (existingDocument != null)
+            {
+                AnsiConsole.MarkupLine($"[green]✓ Content changed - Created new version {savedVersion} for KPI document '[/][white]{kpiDocument.DocumentId}[/][green]'[/]");
+            }
+            else
+            {
+                AnsiConsole.MarkupLine($"[green]✓ Successfully created KPI document '[/][white]{kpiDocument.DocumentId}[/][green]' as version {savedVersion}[/]");
+            }
             
             if (settings.Verbose)
             {
                 AnsiConsole.MarkupLine($"[dim]Document saved to unified kpi-documents collection with community context: {kpiDocument.CommunityContext}[/]");
+                AnsiConsole.MarkupLine($"[dim]Document version: {savedVersion}[/]");
             }
             
             return 0;

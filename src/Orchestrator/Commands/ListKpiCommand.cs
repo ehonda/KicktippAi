@@ -34,13 +34,14 @@ public class ListKpiCommand : AsyncCommand<ListKpiSettings>
                 }
             }
             
-            // Get Firebase KPI context provider
-            var kpiContextProvider = serviceProvider.GetRequiredService<FirebaseKpiContextProvider>();
+            // Get Firebase KPI repository
+            var kpiRepository = serviceProvider.GetRequiredService<IKpiRepository>();
             
             var table = new Table();
             table.AddColumn("Document ID");
             table.AddColumn("Name");
             table.AddColumn("Type");
+            table.AddColumn("Version");
             table.AddColumn("Content Preview");
             
             if (settings.Verbose)
@@ -50,70 +51,50 @@ public class ListKpiCommand : AsyncCommand<ListKpiSettings>
 
             int documentCount = 0;
             
-            if (!string.IsNullOrWhiteSpace(settings.Tags))
+            // Get all latest documents directly from repository for better version support
+            var kpiDocuments = await kpiRepository.GetAllKpiDocumentsAsync(settings.CommunityContext);
+            
+            foreach (var document in kpiDocuments)
             {
-                // Filter by tags
-                var tags = settings.Tags.Split(',', StringSplitOptions.RemoveEmptyEntries)
-                    .Select(t => t.Trim())
-                    .ToArray();
+                // Filter by tags if specified
+                if (!string.IsNullOrWhiteSpace(settings.Tags))
+                {
+                    var tags = settings.Tags.Split(',', StringSplitOptions.RemoveEmptyEntries)
+                        .Select(t => t.Trim().ToLowerInvariant())
+                        .ToArray();
+                    
+                    var documentTagsLower = document.Tags.Select(t => t.ToLowerInvariant()).ToArray();
+                    if (!tags.Any(tag => documentTagsLower.Contains(tag)))
+                    {
+                        continue; // Skip this document if it doesn't match the tag filter
+                    }
+                }
                 
-                await foreach (var documentContext in kpiContextProvider.GetKpiDocumentsByTagsAsync(tags, settings.CommunityContext))
+                var preview = document.Content.Length > 100 
+                    ? document.Content.Substring(0, 100) + "..." 
+                    : document.Content;
+                
+                if (settings.Verbose)
                 {
-                    var preview = documentContext.Content.Length > 100 
-                        ? documentContext.Content.Substring(0, 100) + "..." 
-                        : documentContext.Content;
-                    
-                    if (settings.Verbose)
-                    {
-                        // We need to get the document details for tags - this is a limitation of the current design
-                        table.AddRow(
-                            $"[yellow]{documentContext.Name.Split(' ')[0]}[/]",
-                            documentContext.Name,
-                            documentContext.Name.Contains("(") ? documentContext.Name.Split('(')[1].TrimEnd(')') : "unknown",
-                            $"[dim]{preview.Replace("\n", " ").Replace("\t", " ")}[/]",
-                            "[dim]N/A[/]");
-                    }
-                    else
-                    {
-                        table.AddRow(
-                            $"[yellow]{documentContext.Name.Split(' ')[0]}[/]",
-                            documentContext.Name,
-                            documentContext.Name.Contains("(") ? documentContext.Name.Split('(')[1].TrimEnd(')') : "unknown",
-                            $"[dim]{preview.Replace("\n", " ").Replace("\t", " ")}[/]");
-                    }
-                    
-                    documentCount++;
+                    table.AddRow(
+                        $"[yellow]{document.DocumentId}[/]",
+                        document.Name,
+                        document.DocumentType,
+                        $"[blue]v{document.Version}[/]",
+                        $"[dim]{preview.Replace("\n", " ").Replace("\t", " ")}[/]",
+                        string.Join(", ", document.Tags));
                 }
-            }
-            else
-            {
-                // Get all documents
-                await foreach (var documentContext in kpiContextProvider.GetContextAsync(settings.CommunityContext))
+                else
                 {
-                    var preview = documentContext.Content.Length > 100 
-                        ? documentContext.Content.Substring(0, 100) + "..." 
-                        : documentContext.Content;
-                    
-                    if (settings.Verbose)
-                    {
-                        table.AddRow(
-                            $"[yellow]{documentContext.Name.Split(' ')[0]}[/]",
-                            documentContext.Name,
-                            documentContext.Name.Contains("(") ? documentContext.Name.Split('(')[1].TrimEnd(')') : "unknown",
-                            $"[dim]{preview.Replace("\n", " ").Replace("\t", " ")}[/]",
-                            "[dim]N/A[/]");
-                    }
-                    else
-                    {
-                        table.AddRow(
-                            $"[yellow]{documentContext.Name.Split(' ')[0]}[/]",
-                            documentContext.Name,
-                            documentContext.Name.Contains("(") ? documentContext.Name.Split('(')[1].TrimEnd(')') : "unknown",
-                            $"[dim]{preview.Replace("\n", " ").Replace("\t", " ")}[/]");
-                    }
-                    
-                    documentCount++;
+                    table.AddRow(
+                        $"[yellow]{document.DocumentId}[/]",
+                        document.Name,
+                        document.DocumentType,
+                        $"[blue]v{document.Version}[/]",
+                        $"[dim]{preview.Replace("\n", " ").Replace("\t", " ")}[/]");
                 }
+                
+                documentCount++;
             }
             
             AnsiConsole.Write(table);

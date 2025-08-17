@@ -36,4 +36,14 @@ public record BonusPredictionResult(
     string Model,
     string TokenUsage,
     double Cost,
-    string CommunityContext);
+    string CommunityContext,
+    List<string> ContextDocumentNames);
+
+/// <summary>
+/// Bonus prediction metadata for outdated checks and verification.
+/// Includes context document names and creation timestamp.
+/// </summary>
+public record BonusPredictionMetadata(
+    BonusPrediction BonusPrediction,
+    DateTimeOffset CreatedAt,
+    List<string> ContextDocumentNames);

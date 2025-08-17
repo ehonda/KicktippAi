@@ -12,4 +12,14 @@ public record PredictionResult(
     string Model,
     string TokenUsage,
     double Cost,
-    string CommunityContext);
+    string CommunityContext,
+    List<string> ContextDocumentNames);
+
+/// <summary>
+/// Prediction metadata for outdated checks and verification.
+/// Includes context document names and creation timestamp.
+/// </summary>
+public record PredictionMetadata(
+    Prediction Prediction,
+    DateTimeOffset CreatedAt,
+    List<string> ContextDocumentNames);
