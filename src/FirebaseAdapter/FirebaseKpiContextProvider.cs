@@ -44,10 +44,10 @@ public class FirebaseKpiContextProvider
 
         foreach (var kpiDocument in kpiDocuments)
         {
-            _logger.LogDebug("Providing KPI document context: {DocumentId}", kpiDocument.DocumentId);
+            _logger.LogDebug("Providing KPI document context: {DocumentName}", kpiDocument.DocumentName);
             
             yield return new DocumentContext(
-                Name: $"{kpiDocument.Name} ({kpiDocument.DocumentType})",
+                Name: kpiDocument.DocumentName,
                 Content: kpiDocument.Content);
         }
     }
@@ -218,7 +218,7 @@ public class FirebaseKpiContextProvider
             _logger.LogDebug("Found KPI document: {DocumentId} for community: {CommunityContext}", documentId, communityContext);
             
             return new DocumentContext(
-                Name: $"{kpiDocument.Name} ({kpiDocument.DocumentType})",
+                Name: kpiDocument.DocumentName,
                 Content: kpiDocument.Content);
         }
         catch (Exception ex)
@@ -228,43 +228,4 @@ public class FirebaseKpiContextProvider
         }
     }
 
-    /// <summary>
-    /// Gets KPI documents filtered by specific tags for a community.
-    /// </summary>
-    /// <param name="tags">The tags to filter by.</param>
-    /// <param name="communityContext">The community context to filter by.</param>
-    /// <param name="cancellationToken">Cancellation token for the operation.</param>
-    /// <returns>An async enumerable of document contexts for KPI documents matching the specified tags.</returns>
-    public async IAsyncEnumerable<DocumentContext> GetKpiDocumentsByTagsAsync(string[] tags, string communityContext, [EnumeratorCancellation] CancellationToken cancellationToken = default)
-    {
-        _logger.LogDebug("Retrieving KPI documents with tags: {Tags} for community: {CommunityContext}", string.Join(", ", tags), communityContext);
-
-        IReadOnlyList<KpiDocument> allKpiDocuments;
-        try
-        {
-            allKpiDocuments = await _kpiRepository.GetAllKpiDocumentsAsync(communityContext, cancellationToken);
-        }
-        catch (Exception ex)
-        {
-            _logger.LogError(ex, "Failed to retrieve KPI documents by tags: {Tags} for community: {CommunityContext}", string.Join(", ", tags), communityContext);
-            throw;
-        }
-
-        var filteredDocuments = allKpiDocuments.Where(doc => 
-            tags.Any(tag => doc.Tags.Contains(tag, StringComparer.OrdinalIgnoreCase)));
-
-        var filteredList = filteredDocuments.ToList();
-        _logger.LogInformation("Found {DocumentCount} KPI documents matching tags: {Tags} for community: {CommunityContext}", 
-            filteredList.Count, string.Join(", ", tags), communityContext);
-
-        foreach (var kpiDocument in filteredList)
-        {
-            _logger.LogDebug("Providing tagged KPI document context: {DocumentId} (tags: {DocumentTags})", 
-                kpiDocument.DocumentId, string.Join(", ", kpiDocument.Tags));
-            
-            yield return new DocumentContext(
-                Name: $"{kpiDocument.Name} ({kpiDocument.DocumentType})",
-                Content: kpiDocument.Content);
-        }
-    }
 }

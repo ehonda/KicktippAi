@@ -234,23 +234,17 @@ public class FirestoreBonusPrediction
 public class FirestoreKpiDocument
 {
     /// <summary>
-    /// Document ID - constructed from document ID, community context, and version.
-    /// Format: "{documentId}_{communityContext}_{version}"
+    /// Document ID - constructed from document name, community context, and version.
+    /// Format: "{documentName}_{communityContext}_{version}"
     /// </summary>
     [FirestoreDocumentId]
     public string? Id { get; set; }
 
     /// <summary>
-    /// The document identifier.
+    /// The document name (for observability and context lookup consistency).
     /// </summary>
-    [FirestoreProperty("documentId")]
-    public string DocumentId { get; set; } = string.Empty;
-
-    /// <summary>
-    /// The document name (for observability).
-    /// </summary>
-    [FirestoreProperty("name")]
-    public string Name { get; set; } = string.Empty;
+    [FirestoreProperty("documentName")]
+    public string DocumentName { get; set; } = string.Empty;
 
     /// <summary>
     /// The document content (TSV format).
@@ -265,18 +259,6 @@ public class FirestoreKpiDocument
     public string Description { get; set; } = string.Empty;
 
     /// <summary>
-    /// Document type identifier.
-    /// </summary>
-    [FirestoreProperty("documentType")]
-    public string DocumentType { get; set; } = "kpi-context";
-
-    /// <summary>
-    /// Tags for categorizing the document.
-    /// </summary>
-    [FirestoreProperty("tags")]
-    public string[] Tags { get; set; } = [];
-
-    /// <summary>
     /// Version number for this document (starts at 0).
     /// </summary>
     [FirestoreProperty("version")]
@@ -287,12 +269,6 @@ public class FirestoreKpiDocument
     /// </summary>
     [FirestoreProperty("createdAt")]
     public Timestamp CreatedAt { get; set; }
-
-    /// <summary>
-    /// When the document was last updated (UTC timestamp).
-    /// </summary>
-    [FirestoreProperty("updatedAt")]
-    public Timestamp UpdatedAt { get; set; }
 
     /// <summary>
     /// Competition/season identifier (e.g., "bundesliga-2025-26").

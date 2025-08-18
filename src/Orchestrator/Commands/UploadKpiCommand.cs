@@ -58,9 +58,7 @@ public class UploadKpiCommand : AsyncCommand<UploadKpiSettings>
             
             if (settings.Verbose)
             {
-                AnsiConsole.MarkupLine($"[dim]Document ID: {kpiDocument.DocumentId}[/]");
-                AnsiConsole.MarkupLine($"[dim]Name: {kpiDocument.Name}[/]");
-                AnsiConsole.MarkupLine($"[dim]Type: {kpiDocument.DocumentType}[/]");
+                AnsiConsole.MarkupLine($"[dim]Document Name: {kpiDocument.DocumentName}[/]");
                 AnsiConsole.MarkupLine($"[dim]Community Context: {kpiDocument.CommunityContext}[/]");
                 AnsiConsole.MarkupLine($"[dim]Content length: {kpiDocument.Content.Length} characters[/]");
             }
@@ -69,11 +67,11 @@ public class UploadKpiCommand : AsyncCommand<UploadKpiSettings>
             var kpiRepository = serviceProvider.GetRequiredService<IKpiRepository>();
             
             // Check if document already exists for this community context
-            var existingDocument = await kpiRepository.GetKpiDocumentAsync(kpiDocument.DocumentId, kpiDocument.CommunityContext);
+            var existingDocument = await kpiRepository.GetKpiDocumentAsync(kpiDocument.DocumentName, kpiDocument.CommunityContext);
             
             if (existingDocument != null)
             {
-                AnsiConsole.MarkupLine($"[blue]Found existing KPI document '{kpiDocument.DocumentId}' (version {existingDocument.Version})[/]");
+                AnsiConsole.MarkupLine($"[blue]Found existing KPI document '{kpiDocument.DocumentName}' (version {existingDocument.Version})[/]");
                 AnsiConsole.MarkupLine($"[blue]Checking for content changes...[/]");
                 
                 if (settings.Verbose)
@@ -84,32 +82,29 @@ public class UploadKpiCommand : AsyncCommand<UploadKpiSettings>
             }
             else
             {
-                AnsiConsole.MarkupLine($"[blue]No existing KPI document found for '{kpiDocument.DocumentId}' - will create version 0[/]");
+                AnsiConsole.MarkupLine($"[blue]No existing KPI document found for '{kpiDocument.DocumentName}' - will create version 0[/]");
             }
             
             // Upload the document (versioning is handled automatically by the repository)
             AnsiConsole.MarkupLine($"[blue]Processing KPI document...[/]");
             
             var savedVersion = await kpiRepository.SaveKpiDocumentAsync(
-                kpiDocument.DocumentId,
-                kpiDocument.Name,
+                kpiDocument.DocumentName,
                 kpiDocument.Content,
                 kpiDocument.Description,
-                kpiDocument.DocumentType,
-                kpiDocument.Tags,
                 kpiDocument.CommunityContext);
                 
             if (existingDocument != null && savedVersion == existingDocument.Version)
             {
-                AnsiConsole.MarkupLine($"[green]✓ Content unchanged - KPI document '[/][white]{kpiDocument.DocumentId}[/][green]' remains at version {savedVersion}[/]");
+                AnsiConsole.MarkupLine($"[green]✓ Content unchanged - KPI document '[/][white]{kpiDocument.DocumentName}[/][green]' remains at version {savedVersion}[/]");
             }
             else if (existingDocument != null)
             {
-                AnsiConsole.MarkupLine($"[green]✓ Content changed - Created new version {savedVersion} for KPI document '[/][white]{kpiDocument.DocumentId}[/][green]'[/]");
+                AnsiConsole.MarkupLine($"[green]✓ Content changed - Created new version {savedVersion} for KPI document '[/][white]{kpiDocument.DocumentName}[/][green]'[/]");
             }
             else
             {
-                AnsiConsole.MarkupLine($"[green]✓ Successfully created KPI document '[/][white]{kpiDocument.DocumentId}[/][green]' as version {savedVersion}[/]");
+                AnsiConsole.MarkupLine($"[green]✓ Successfully created KPI document '[/][white]{kpiDocument.DocumentName}[/][green]' as version {savedVersion}[/]");
             }
             
             if (settings.Verbose)
@@ -158,14 +153,9 @@ public class UploadKpiCommand : AsyncCommand<UploadKpiSettings>
     /// </summary>
     private class KpiDocumentJson
     {
-        public string DocumentId { get; set; } = string.Empty;
-        public string Name { get; set; } = string.Empty;
+        public string DocumentName { get; set; } = string.Empty;
         public string Content { get; set; } = string.Empty;
         public string Description { get; set; } = string.Empty;
-        public string DocumentType { get; set; } = string.Empty;
-        public string[] Tags { get; set; } = [];
-        public string CreatedAt { get; set; } = string.Empty;
-        public string Competition { get; set; } = string.Empty;
         public string CommunityContext { get; set; } = string.Empty;
     }
 }

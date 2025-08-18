@@ -9,52 +9,46 @@ public interface IKpiRepository
     /// Saves a KPI document with versioning support.
     /// Creates a new version if content differs from the latest version.
     /// </summary>
-    /// <param name="documentId">The document identifier.</param>
-    /// <param name="name">The document name.</param>
+    /// <param name="documentName">The document name.</param>
     /// <param name="content">The document content.</param>
     /// <param name="description">The document description.</param>
-    /// <param name="documentType">The document type.</param>
-    /// <param name="tags">Tags for categorizing the document.</param>
     /// <param name="communityContext">The community context for filtering.</param>
     /// <param name="cancellationToken">Cancellation token.</param>
     /// <returns>The version number of the saved document.</returns>
     Task<int> SaveKpiDocumentAsync(
-        string documentId, 
-        string name, 
+        string documentName, 
         string content, 
         string description, 
-        string documentType, 
-        string[] tags,
         string communityContext,
         CancellationToken cancellationToken = default);
 
     /// <summary>
     /// Retrieves the latest version of a KPI document.
     /// </summary>
-    /// <param name="documentId">The document identifier.</param>
+    /// <param name="documentName">The document name.</param>
     /// <param name="communityContext">The community context to filter by.</param>
     /// <param name="cancellationToken">Cancellation token.</param>
     /// <returns>The latest KPI document if found, otherwise null.</returns>
-    Task<KpiDocument?> GetKpiDocumentAsync(string documentId, string communityContext, CancellationToken cancellationToken = default);
+    Task<KpiDocument?> GetKpiDocumentAsync(string documentName, string communityContext, CancellationToken cancellationToken = default);
 
     /// <summary>
     /// Retrieves a specific version of a KPI document.
     /// </summary>
-    /// <param name="documentId">The document identifier.</param>
+    /// <param name="documentName">The document name.</param>
     /// <param name="communityContext">The community context to filter by.</param>
     /// <param name="version">The specific version to retrieve.</param>
     /// <param name="cancellationToken">Cancellation token.</param>
     /// <returns>The KPI document version if found, otherwise null.</returns>
-    Task<KpiDocument?> GetKpiDocumentAsync(string documentId, string communityContext, int version, CancellationToken cancellationToken = default);
+    Task<KpiDocument?> GetKpiDocumentAsync(string documentName, string communityContext, int version, CancellationToken cancellationToken = default);
 
     /// <summary>
     /// Retrieves all versions of a KPI document.
     /// </summary>
-    /// <param name="documentId">The document identifier.</param>
+    /// <param name="documentName">The document name.</param>
     /// <param name="communityContext">The community context to filter by.</param>
     /// <param name="cancellationToken">Cancellation token.</param>
     /// <returns>A collection of all versions of the KPI document.</returns>
-    Task<IReadOnlyList<KpiDocument>> GetKpiDocumentVersionsAsync(string documentId, string communityContext, CancellationToken cancellationToken = default);
+    Task<IReadOnlyList<KpiDocument>> GetKpiDocumentVersionsAsync(string documentName, string communityContext, CancellationToken cancellationToken = default);
 
     /// <summary>
     /// Retrieves all KPI documents for a specific community context (latest versions only).
@@ -67,9 +61,9 @@ public interface IKpiRepository
     /// <summary>
     /// Gets the latest version number for a specific KPI document.
     /// </summary>
-    /// <param name="documentId">The document identifier.</param>
+    /// <param name="documentName">The document name.</param>
     /// <param name="communityContext">The community context to filter by.</param>
     /// <param name="cancellationToken">Cancellation token.</param>
     /// <returns>The latest version number, or -1 if the document doesn't exist.</returns>
-    Task<int> GetLatestVersionAsync(string documentId, string communityContext, CancellationToken cancellationToken = default);
+    Task<int> GetLatestVersionAsync(string documentName, string communityContext, CancellationToken cancellationToken = default);
 }

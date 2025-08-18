@@ -177,15 +177,10 @@ function New-FirebaseDocument {
     
     # Create Firebase document template
     $firebaseContent = @{
-        "documentId" = $DocumentName
-        "name" = "$DocumentName.tsv"
+        "documentName" = $DocumentName
         "content" = $content
-        "createdAt" = (Get-Date -AsUTC -Format 'o')
-        "competition" = "bundesliga-2025-26"
-        "communityContext" = $CommunityContext
-        "tags" = @("kpi", "bonus-predictions", "team-data")
-        "documentType" = "kpi-context"
         "description" = "KPI context document containing team performance data for bonus predictions"
+        "communityContext" = $CommunityContext
     } | ConvertTo-Json -Depth 10
     
     # Create the JSON file

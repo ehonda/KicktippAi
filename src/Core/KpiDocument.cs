@@ -5,28 +5,28 @@ namespace Core;
 /// </summary>
 public class KpiDocument
 {
-    public string DocumentId { get; set; } = string.Empty;
-    public string Name { get; set; } = string.Empty;
+    public string DocumentName { get; set; } = string.Empty;
     public string Content { get; set; } = string.Empty;
     public string Description { get; set; } = string.Empty;
-    public string DocumentType { get; set; } = string.Empty;
-    public string[] Tags { get; set; } = Array.Empty<string>();
     
     /// <summary>
     /// Version number for this document (starts at 0).
     /// </summary>
     public int Version { get; set; }
 
+    /// <summary>
+    /// When the document was created (UTC timestamp).
+    /// </summary>
+    public DateTimeOffset CreatedAt { get; set; }
+
     public KpiDocument() { }
 
-    public KpiDocument(string documentId, string name, string content, string description, string documentType, string[] tags, int version = 0)
+    public KpiDocument(string documentName, string content, string description, int version = 0, DateTimeOffset createdAt = default)
     {
-        DocumentId = documentId;
-        Name = name;
+        DocumentName = documentName;
         Content = content;
         Description = description;
-        DocumentType = documentType;
-        Tags = tags;
         Version = version;
+        CreatedAt = createdAt == default ? DateTimeOffset.UtcNow : createdAt;
     }
 }

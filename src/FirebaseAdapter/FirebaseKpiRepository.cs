@@ -27,22 +27,16 @@ public class FirebaseKpiRepository : IKpiRepository
     /// Saves a KPI document with versioning support.
     /// Creates a new version if content differs from the latest version.
     /// </summary>
-    /// <param name="documentId">The document identifier.</param>
-    /// <param name="name">The document name.</param>
+    /// <param name="documentName">The document name.</param>
     /// <param name="content">The document content.</param>
     /// <param name="description">The document description.</param>
-    /// <param name="documentType">The document type.</param>
-    /// <param name="tags">Tags for categorizing the document.</param>
     /// <param name="communityContext">The community context for filtering.</param>
     /// <param name="cancellationToken">Cancellation token.</param>
     /// <returns>The version number of the saved document.</returns>
     public async Task<int> SaveKpiDocumentAsync(
-        string documentId, 
-        string name, 
+        string documentName, 
         string content, 
         string description, 
-        string documentType, 
-        string[] tags,
         string communityContext,
         CancellationToken cancellationToken = default)
     {
@@ -51,57 +45,53 @@ public class FirebaseKpiRepository : IKpiRepository
             var now = Timestamp.GetCurrentTimestamp();
             
             // Get the latest version to check if content has changed
-            var latestVersion = await GetLatestVersionAsync(documentId, communityContext, cancellationToken);
+            var latestVersion = await GetLatestVersionAsync(documentName, communityContext, cancellationToken);
             var version = 0;
             
             if (latestVersion >= 0)
             {
                 // Check if content has changed
-                var latestDocument = await GetKpiDocumentAsync(documentId, communityContext, latestVersion, cancellationToken);
+                var latestDocument = await GetKpiDocumentAsync(documentName, communityContext, latestVersion, cancellationToken);
                 if (latestDocument != null && latestDocument.Content == content)
                 {
-                    _logger.LogInformation("Content unchanged for KPI document: {DocumentId} version {Version}", documentId, latestVersion);
+                    _logger.LogInformation("Content unchanged for KPI document: {DocumentName} version {Version}", documentName, latestVersion);
                     return latestVersion; // Return existing version if content is the same
                 }
                 
                 version = latestVersion + 1;
-                _logger.LogDebug("Creating new version {Version} for KPI document: {DocumentId}", version, documentId);
+                _logger.LogDebug("Creating new version {Version} for KPI document: {DocumentName}", version, documentName);
             }
             else
             {
-                _logger.LogDebug("Creating first version (0) for new KPI document: {DocumentId}", documentId);
+                _logger.LogDebug("Creating first version (0) for new KPI document: {DocumentName}", documentName);
             }
             
-            // Create versioned document ID: "{documentId}_{communityContext}_{version}"
-            var versionedDocumentId = $"{documentId}_{communityContext}_{version}";
+            // Create versioned document ID: "{documentName}_{communityContext}_{version}"
+            var versionedDocumentId = $"{documentName}_{communityContext}_{version}";
             var docRef = _firestoreDb.Collection(KpiCollectionName).Document(versionedDocumentId);
             
             var firestoreKpiDocument = new FirestoreKpiDocument
             {
                 Id = versionedDocumentId,
-                DocumentId = documentId,
-                Name = name,
+                DocumentName = documentName,
                 Content = content,
                 Description = description,
-                DocumentType = documentType,
-                Tags = tags,
                 Version = version,
                 CreatedAt = now,
-                UpdatedAt = now,
                 Competition = _competition,
                 CommunityContext = communityContext
             };
 
             await docRef.SetAsync(firestoreKpiDocument, cancellationToken: cancellationToken);
 
-            _logger.LogInformation("Created KPI document: {DocumentId} version {Version} for community: {CommunityContext}", 
-                documentId, version, communityContext);
+            _logger.LogInformation("Created KPI document: {DocumentName} version {Version} for community: {CommunityContext}", 
+                documentName, version, communityContext);
             
             return version;
         }
         catch (Exception ex)
         {
-            _logger.LogError(ex, "Failed to save KPI document: {DocumentId}", documentId);
+            _logger.LogError(ex, "Failed to save KPI document: {DocumentName}", documentName);
             throw;
         }
     }
@@ -109,26 +99,26 @@ public class FirebaseKpiRepository : IKpiRepository
     /// <summary>
     /// Retrieves the latest version of a KPI document.
     /// </summary>
-    /// <param name="documentId">The document identifier.</param>
+    /// <param name="documentName">The document name.</param>
     /// <param name="communityContext">The community context to filter by.</param>
     /// <param name="cancellationToken">Cancellation token.</param>
     /// <returns>The latest KPI document if found, otherwise null.</returns>
-    public async Task<KpiDocument?> GetKpiDocumentAsync(string documentId, string communityContext, CancellationToken cancellationToken = default)
+    public async Task<KpiDocument?> GetKpiDocumentAsync(string documentName, string communityContext, CancellationToken cancellationToken = default)
     {
         try
         {
-            var latestVersion = await GetLatestVersionAsync(documentId, communityContext, cancellationToken);
+            var latestVersion = await GetLatestVersionAsync(documentName, communityContext, cancellationToken);
             if (latestVersion < 0)
             {
                 return null;
             }
             
-            return await GetKpiDocumentAsync(documentId, communityContext, latestVersion, cancellationToken);
+            return await GetKpiDocumentAsync(documentName, communityContext, latestVersion, cancellationToken);
         }
         catch (Exception ex)
         {
-            _logger.LogError(ex, "Failed to get latest KPI document: {DocumentId} for community: {CommunityContext}", 
-                documentId, communityContext);
+            _logger.LogError(ex, "Failed to get latest KPI document: {DocumentName} for community: {CommunityContext}", 
+                documentName, communityContext);
             throw;
         }
     }
@@ -136,16 +126,16 @@ public class FirebaseKpiRepository : IKpiRepository
     /// <summary>
     /// Retrieves a specific version of a KPI document.
     /// </summary>
-    /// <param name="documentId">The document identifier.</param>
+    /// <param name="documentName">The document name.</param>
     /// <param name="communityContext">The community context to filter by.</param>
     /// <param name="version">The specific version to retrieve.</param>
     /// <param name="cancellationToken">Cancellation token.</param>
     /// <returns>The KPI document version if found, otherwise null.</returns>
-    public async Task<KpiDocument?> GetKpiDocumentAsync(string documentId, string communityContext, int version, CancellationToken cancellationToken = default)
+    public async Task<KpiDocument?> GetKpiDocumentAsync(string documentName, string communityContext, int version, CancellationToken cancellationToken = default)
     {
         try
         {
-            var versionedDocumentId = $"{documentId}_{communityContext}_{version}";
+            var versionedDocumentId = $"{documentName}_{communityContext}_{version}";
             var docRef = _firestoreDb.Collection(KpiCollectionName).Document(versionedDocumentId);
             var snapshot = await docRef.GetSnapshotAsync(cancellationToken);
 
@@ -156,18 +146,16 @@ public class FirebaseKpiRepository : IKpiRepository
 
             var firestoreDoc = snapshot.ConvertTo<FirestoreKpiDocument>();
             return new KpiDocument(
-                firestoreDoc.DocumentId,
-                firestoreDoc.Name,
+                firestoreDoc.DocumentName,
                 firestoreDoc.Content,
                 firestoreDoc.Description,
-                firestoreDoc.DocumentType,
-                firestoreDoc.Tags,
-                firestoreDoc.Version);
+                firestoreDoc.Version,
+                firestoreDoc.CreatedAt.ToDateTimeOffset());
         }
         catch (Exception ex)
         {
-            _logger.LogError(ex, "Failed to get KPI document: {DocumentId} version {Version} for community: {CommunityContext}", 
-                documentId, version, communityContext);
+            _logger.LogError(ex, "Failed to get KPI document: {DocumentName} version {Version} for community: {CommunityContext}", 
+                documentName, version, communityContext);
             throw;
         }
     }
@@ -175,16 +163,16 @@ public class FirebaseKpiRepository : IKpiRepository
     /// <summary>
     /// Retrieves all versions of a KPI document.
     /// </summary>
-    /// <param name="documentId">The document identifier.</param>
+    /// <param name="documentName">The document name.</param>
     /// <param name="communityContext">The community context to filter by.</param>
     /// <param name="cancellationToken">Cancellation token.</param>
     /// <returns>A collection of all versions of the KPI document.</returns>
-    public async Task<IReadOnlyList<KpiDocument>> GetKpiDocumentVersionsAsync(string documentId, string communityContext, CancellationToken cancellationToken = default)
+    public async Task<IReadOnlyList<KpiDocument>> GetKpiDocumentVersionsAsync(string documentName, string communityContext, CancellationToken cancellationToken = default)
     {
         try
         {
             var query = _firestoreDb.Collection(KpiCollectionName)
-                .WhereEqualTo("documentId", documentId)
+                .WhereEqualTo("documentName", documentName)
                 .WhereEqualTo("communityContext", communityContext)
                 .WhereEqualTo("competition", _competition)
                 .OrderBy("version");
@@ -196,24 +184,22 @@ public class FirebaseKpiRepository : IKpiRepository
             {
                 var firestoreDoc = document.ConvertTo<FirestoreKpiDocument>();
                 versions.Add(new KpiDocument(
-                    firestoreDoc.DocumentId,
-                    firestoreDoc.Name,
+                    firestoreDoc.DocumentName,
                     firestoreDoc.Content,
                     firestoreDoc.Description,
-                    firestoreDoc.DocumentType,
-                    firestoreDoc.Tags,
-                    firestoreDoc.Version));
+                    firestoreDoc.Version,
+                    firestoreDoc.CreatedAt.ToDateTimeOffset()));
             }
 
-            _logger.LogInformation("Retrieved {Count} versions for KPI document: {DocumentId} in community: {CommunityContext}", 
-                versions.Count, documentId, communityContext);
+            _logger.LogInformation("Retrieved {Count} versions for KPI document: {DocumentName} in community: {CommunityContext}", 
+                versions.Count, documentName, communityContext);
             
             return versions.AsReadOnly();
         }
         catch (Exception ex)
         {
-            _logger.LogError(ex, "Failed to get versions for KPI document: {DocumentId} in community: {CommunityContext}", 
-                documentId, communityContext);
+            _logger.LogError(ex, "Failed to get versions for KPI document: {DocumentName} in community: {CommunityContext}", 
+                documentName, communityContext);
             throw;
         }
     }
@@ -234,10 +220,10 @@ public class FirebaseKpiRepository : IKpiRepository
 
             var snapshot = await query.GetSnapshotAsync(cancellationToken);
             
-            // Group by documentId and get the latest version for each
+            // Group by documentName and get the latest version for each
             var documentGroups = snapshot.Documents
                 .Select(doc => doc.ConvertTo<FirestoreKpiDocument>())
-                .GroupBy(doc => doc.DocumentId)
+                .GroupBy(doc => doc.DocumentName)
                 .ToList();
 
             var latestDocuments = new List<KpiDocument>();
@@ -245,13 +231,11 @@ public class FirebaseKpiRepository : IKpiRepository
             {
                 var latestDoc = group.OrderByDescending(d => d.Version).First();
                 latestDocuments.Add(new KpiDocument(
-                    latestDoc.DocumentId,
-                    latestDoc.Name,
+                    latestDoc.DocumentName,
                     latestDoc.Content,
                     latestDoc.Description,
-                    latestDoc.DocumentType,
-                    latestDoc.Tags,
-                    latestDoc.Version));
+                    latestDoc.Version,
+                    latestDoc.CreatedAt.ToDateTimeOffset()));
             }
 
             _logger.LogInformation("Retrieved {Count} latest KPI documents for community: {CommunityContext}", 
@@ -269,16 +253,16 @@ public class FirebaseKpiRepository : IKpiRepository
     /// <summary>
     /// Gets the latest version number for a specific KPI document.
     /// </summary>
-    /// <param name="documentId">The document identifier.</param>
+    /// <param name="documentName">The document name.</param>
     /// <param name="communityContext">The community context to filter by.</param>
     /// <param name="cancellationToken">Cancellation token.</param>
     /// <returns>The latest version number, or -1 if the document doesn't exist.</returns>
-    public async Task<int> GetLatestVersionAsync(string documentId, string communityContext, CancellationToken cancellationToken = default)
+    public async Task<int> GetLatestVersionAsync(string documentName, string communityContext, CancellationToken cancellationToken = default)
     {
         try
         {
             var query = _firestoreDb.Collection(KpiCollectionName)
-                .WhereEqualTo("documentId", documentId)
+                .WhereEqualTo("documentName", documentName)
                 .WhereEqualTo("communityContext", communityContext)
                 .WhereEqualTo("competition", _competition)
                 .OrderByDescending("version")
@@ -296,8 +280,8 @@ public class FirebaseKpiRepository : IKpiRepository
         }
         catch (Exception ex)
         {
-            _logger.LogError(ex, "Failed to get latest version for KPI document: {DocumentId} in community: {CommunityContext}", 
-                documentId, communityContext);
+            _logger.LogError(ex, "Failed to get latest version for KPI document: {DocumentName} in community: {CommunityContext}", 
+                documentName, communityContext);
             throw;
         }
     }

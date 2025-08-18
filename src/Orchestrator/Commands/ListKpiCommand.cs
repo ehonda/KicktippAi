@@ -28,26 +28,16 @@ public class ListKpiCommand : AsyncCommand<ListKpiSettings>
             if (settings.Verbose)
             {
                 AnsiConsole.MarkupLine("[dim]Verbose mode enabled[/]");
-                if (!string.IsNullOrWhiteSpace(settings.Tags))
-                {
-                    AnsiConsole.MarkupLine($"[dim]Filtering by tags: {settings.Tags}[/]");
-                }
             }
             
             // Get Firebase KPI repository
             var kpiRepository = serviceProvider.GetRequiredService<IKpiRepository>();
             
             var table = new Table();
-            table.AddColumn("Document ID");
-            table.AddColumn("Name");
-            table.AddColumn("Type");
+            table.AddColumn("Document Name");
             table.AddColumn("Version");
             table.AddColumn("Content Preview");
-            
-            if (settings.Verbose)
-            {
-                table.AddColumn("Tags");
-            }
+            table.AddColumn("Description");
 
             int documentCount = 0;
             
@@ -56,43 +46,19 @@ public class ListKpiCommand : AsyncCommand<ListKpiSettings>
             
             foreach (var document in kpiDocuments)
             {
-                // Filter by tags if specified
-                if (!string.IsNullOrWhiteSpace(settings.Tags))
-                {
-                    var tags = settings.Tags.Split(',', StringSplitOptions.RemoveEmptyEntries)
-                        .Select(t => t.Trim().ToLowerInvariant())
-                        .ToArray();
-                    
-                    var documentTagsLower = document.Tags.Select(t => t.ToLowerInvariant()).ToArray();
-                    if (!tags.Any(tag => documentTagsLower.Contains(tag)))
-                    {
-                        continue; // Skip this document if it doesn't match the tag filter
-                    }
-                }
-                
                 var preview = document.Content.Length > 100 
                     ? document.Content.Substring(0, 100) + "..." 
                     : document.Content;
                 
-                if (settings.Verbose)
-                {
-                    table.AddRow(
-                        $"[yellow]{document.DocumentId}[/]",
-                        document.Name,
-                        document.DocumentType,
-                        $"[blue]v{document.Version}[/]",
-                        $"[dim]{preview.Replace("\n", " ").Replace("\t", " ")}[/]",
-                        string.Join(", ", document.Tags));
-                }
-                else
-                {
-                    table.AddRow(
-                        $"[yellow]{document.DocumentId}[/]",
-                        document.Name,
-                        document.DocumentType,
-                        $"[blue]v{document.Version}[/]",
-                        $"[dim]{preview.Replace("\n", " ").Replace("\t", " ")}[/]");
-                }
+                var description = document.Description.Length > 50
+                    ? document.Description.Substring(0, 50) + "..."
+                    : document.Description;
+                
+                table.AddRow(
+                    $"[yellow]{document.DocumentName}[/]",
+                    $"[blue]v{document.Version}[/]",
+                    $"[dim]{preview.Replace("\n", " ").Replace("\t", " ")}[/]",
+                    $"[dim]{description}[/]");
                 
                 documentCount++;
             }
