@@ -45,6 +45,7 @@ Documents are separated by lines with only '---':, e.g.:
 ---
 ```
 
-Context documents are to be used for internal decision-making. They are provided in the section titled [Context](context).
+- Context documents are to be used for internal decision-making. They are provided in the section titled [Context](context).
+- There are several csv context documents that provide historical match data. They are ordered from most recent to oldest.
 
 ## Context
