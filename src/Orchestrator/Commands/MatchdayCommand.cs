@@ -86,6 +86,8 @@ public class MatchdayCommand : AsyncCommand<BaseSettings>
         
         // Try to get the prediction repository (may be null if Firebase is not configured)
         var predictionRepository = serviceProvider.GetService<IPredictionRepository>();
+        // Get the context repository (required)
+        var contextRepository = serviceProvider.GetRequiredService<IContextRepository>();
         var databaseEnabled = predictionRepository != null;
         
         // Reset token usage tracker for this workflow
@@ -150,12 +152,14 @@ public class MatchdayCommand : AsyncCommand<BaseSettings>
                 {
                     AnsiConsole.MarkupLine($"[yellow]  → Generating new prediction...[/]");
                     
-                    // Step 3: Get context using GetMatchContextAsync
-                    var contextDocuments = new List<DocumentContext>();
-                    await foreach (var context in contextProvider.GetMatchContextAsync(match.HomeTeam, match.AwayTeam))
-                    {
-                        contextDocuments.Add(context);
-                    }
+                    // Step 3: Get context using hybrid approach (database first, fallback to on-demand)
+                    var contextDocuments = await GetHybridContextAsync(
+                        contextRepository, 
+                        contextProvider, 
+                        match.HomeTeam, 
+                        match.AwayTeam, 
+                        communityContext, 
+                        settings.Verbose);
                     
                     if (settings.Verbose)
                     {
@@ -314,6 +318,167 @@ public class MatchdayCommand : AsyncCommand<BaseSettings>
         }
     }
     
+    /// <summary>
+    /// Retrieves all available context documents from the database for the given community context.
+    /// </summary>
+    private static async Task<Dictionary<string, DocumentContext>> GetMatchContextDocumentsAsync(
+        IContextRepository contextRepository, 
+        string homeTeam,
+        string awayTeam,
+        string communityContext, 
+        bool verbose = false)
+    {
+        var contextDocuments = new Dictionary<string, DocumentContext>();
+        var homeAbbreviation = GetTeamAbbreviation(homeTeam);
+        var awayAbbreviation = GetTeamAbbreviation(awayTeam);
+        
+        // Define the 7 specific document names needed for a match
+        var requiredDocuments = new[]
+        {
+            "bundesliga-standings.csv",
+            $"community-rules-{communityContext}.md",
+            $"recent-history-{homeAbbreviation}.csv",
+            $"recent-history-{awayAbbreviation}.csv",
+            $"home-history-{homeAbbreviation}.csv",
+            $"away-history-{awayAbbreviation}.csv",
+            $"head-to-head-{homeAbbreviation}-vs-{awayAbbreviation}.csv"
+        };
+        
+        if (verbose)
+        {
+            AnsiConsole.MarkupLine($"[dim]    Looking for {requiredDocuments.Length} specific context documents in database[/]");
+        }
+        
+        try
+        {
+            // Retrieve each specific document
+            foreach (var documentName in requiredDocuments)
+            {
+                var contextDoc = await contextRepository.GetLatestContextDocumentAsync(documentName, communityContext);
+                if (contextDoc != null)
+                {
+                    contextDocuments[documentName] = new DocumentContext(contextDoc.DocumentName, contextDoc.Content);
+                    
+                    if (verbose)
+                    {
+                        AnsiConsole.MarkupLine($"[dim]      ✓ Retrieved {documentName} (version {contextDoc.Version})[/]");
+                    }
+                }
+                else
+                {
+                    if (verbose)
+                    {
+                        AnsiConsole.MarkupLine($"[dim]      ✗ Missing {documentName}[/]");
+                    }
+                }
+            }
+        }
+        catch (Exception ex)
+        {
+            AnsiConsole.MarkupLine($"[red]    Warning: Failed to retrieve context from database: {ex.Message}[/]");
+        }
+        
+        return contextDocuments;
+    }
+    
+    /// <summary>
+    /// Gets context documents using database first, falling back to on-demand context provider if needed.
+    /// </summary>
+    private static async Task<List<DocumentContext>> GetHybridContextAsync(
+        IContextRepository contextRepository,
+        KicktippContextProvider contextProvider,
+        string homeTeam,
+        string awayTeam,
+        string communityContext,
+        bool verbose = false)
+    {
+        var contextDocuments = new List<DocumentContext>();
+        
+        // Step 1: Try to get specific context documents from database
+        var databaseContexts = await GetMatchContextDocumentsAsync(
+            contextRepository, 
+            homeTeam, 
+            awayTeam, 
+            communityContext, 
+            verbose);
+        
+        // Check if we have all 7 required documents
+        var expectedDocumentCount = 7;
+        if (databaseContexts.Count == expectedDocumentCount)
+        {
+            if (verbose)
+            {
+                AnsiConsole.MarkupLine($"[green]    Using all {databaseContexts.Count} context documents from database[/]");
+            }
+            contextDocuments.AddRange(databaseContexts.Values);
+        }
+        else
+        {
+            AnsiConsole.MarkupLine($"[yellow]    Warning: Only found {databaseContexts.Count}/{expectedDocumentCount} context documents in database, falling back to on-demand context[/]");
+            
+            // Step 2: Fall back to on-demand context provider
+            await foreach (var context in contextProvider.GetMatchContextAsync(homeTeam, awayTeam))
+            {
+                contextDocuments.Add(context);
+            }
+            
+            if (verbose)
+            {
+                AnsiConsole.MarkupLine($"[yellow]    Using {contextDocuments.Count} context documents from on-demand provider[/]");
+            }
+        }
+        
+        return contextDocuments;
+    }
+    
+    /// <summary>
+    /// Gets a team abbreviation for file naming.
+    /// </summary>
+    private static string GetTeamAbbreviation(string teamName)
+    {
+        // Current season team abbreviations (2025-26 Bundesliga participants)
+        var abbreviations = new Dictionary<string, string>(StringComparer.OrdinalIgnoreCase)
+        {
+            { "1. FC Heidenheim 1846", "fch" },
+            { "1. FC Köln", "fck" },
+            { "1. FC Union Berlin", "fcu" },
+            { "1899 Hoffenheim", "tsg" },
+            { "Bayer 04 Leverkusen", "b04" },
+            { "Bor. Mönchengladbach", "bmg" },
+            { "Borussia Dortmund", "bvb" },
+            { "Eintracht Frankfurt", "sge" },
+            { "FC Augsburg", "fca" },
+            { "FC Bayern München", "fcb" },
+            { "FC St. Pauli", "fcs" },
+            { "FSV Mainz 05", "m05" },
+            { "Hamburger SV", "hsv" },
+            { "RB Leipzig", "rbl" },
+            { "SC Freiburg", "scf" },
+            { "VfB Stuttgart", "vfb" },
+            { "VfL Wolfsburg", "wob" },
+            { "Werder Bremen", "svw" }
+        };
+        
+        if (abbreviations.TryGetValue(teamName, out var abbreviation))
+        {
+            return abbreviation;
+        }
+        
+        // Fallback: create abbreviation from team name
+        var words = teamName.Split(' ', StringSplitOptions.RemoveEmptyEntries);
+        var abbr = new System.Text.StringBuilder();
+        
+        foreach (var word in words.Take(3)) // Take up to 3 words
+        {
+            if (word.Length > 0 && char.IsLetter(word[0]))
+            {
+                abbr.Append(char.ToLowerInvariant(word[0]));
+            }
+        }
+        
+        return abbr.Length > 0 ? abbr.ToString() : "unknown";
+    }
+    
     private static void ConfigureServices(IServiceCollection services, BaseSettings settings, ILogger logger)
     {
         // Add logging
@@ -347,20 +512,17 @@ public class MatchdayCommand : AsyncCommand<BaseSettings>
         // Add OpenAI integration
         services.AddOpenAiPredictor(apiKey, settings.Model);
         
-        // Add Firebase database if credentials are available
+        // Add Firebase database (required)
         var firebaseProjectId = Environment.GetEnvironmentVariable("FIREBASE_PROJECT_ID");
         var firebaseServiceAccountJson = Environment.GetEnvironmentVariable("FIREBASE_SERVICE_ACCOUNT_JSON");
         
-        if (!string.IsNullOrEmpty(firebaseProjectId) && !string.IsNullOrEmpty(firebaseServiceAccountJson))
+        if (string.IsNullOrEmpty(firebaseProjectId) || string.IsNullOrEmpty(firebaseServiceAccountJson))
         {
-            services.AddFirebaseDatabase(firebaseProjectId, firebaseServiceAccountJson, settings.Community);
-            logger.LogInformation("Firebase database integration enabled for project: {ProjectId}, community: {Community}", firebaseProjectId, settings.Community);
+            throw new InvalidOperationException("FIREBASE_PROJECT_ID and FIREBASE_SERVICE_ACCOUNT_JSON environment variables are required");
         }
-        else
-        {
-            logger.LogWarning("Firebase credentials not found. Database integration disabled.");
-            logger.LogInformation("Set FIREBASE_PROJECT_ID and FIREBASE_SERVICE_ACCOUNT_JSON environment variables to enable database features");
-        }
+        
+        services.AddFirebaseDatabase(firebaseProjectId, firebaseServiceAccountJson, settings.Community);
+        logger.LogInformation("Firebase database integration enabled for project: {ProjectId}, community: {Community}", firebaseProjectId, settings.Community);
         
         // Add context provider
         services.AddSingleton<KicktippContextProvider>(provider =>

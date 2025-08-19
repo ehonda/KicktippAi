@@ -472,27 +472,27 @@ public class KicktippContextProvider : IContextProvider<DocumentContext>
     /// </summary>
     private string GetTeamAbbreviation(string teamName)
     {
-        // Common team abbreviations based on the instructions.md example
+        // Current season team abbreviations (2025-26 Bundesliga participants)
         var abbreviations = new Dictionary<string, string>(StringComparer.OrdinalIgnoreCase)
         {
-            { "RB Leipzig", "rbl" },
-            { "VfB Stuttgart", "vfb" },
-            { "FC Bayern München", "fcb" },
-            { "Bayer 04 Leverkusen", "b04" },
-            { "Borussia Dortmund", "bvb" },
-            { "1. FC Union Berlin", "fcu" },
-            { "SC Freiburg", "scf" },
-            { "Eintracht Frankfurt", "sge" },
-            { "Werder Bremen", "svw" },
-            { "VfL Wolfsburg", "wob" },
-            { "FC Augsburg", "fca" },
-            { "Bor. Mönchengladbach", "bmg" },
-            { "FSV Mainz 05", "m05" },
-            { "FC St. Pauli", "fcs" },
-            { "1899 Hoffenheim", "tsg" },
             { "1. FC Heidenheim 1846", "fch" },
-            { "Holstein Kiel", "ksx" },
-            { "VfL Bochum", "vfl" }
+            { "1. FC Köln", "fck" },
+            { "1. FC Union Berlin", "fcu" },
+            { "1899 Hoffenheim", "tsg" },
+            { "Bayer 04 Leverkusen", "b04" },
+            { "Bor. Mönchengladbach", "bmg" },
+            { "Borussia Dortmund", "bvb" },
+            { "Eintracht Frankfurt", "sge" },
+            { "FC Augsburg", "fca" },
+            { "FC Bayern München", "fcb" },
+            { "FC St. Pauli", "fcs" },
+            { "FSV Mainz 05", "m05" },
+            { "Hamburger SV", "hsv" },
+            { "RB Leipzig", "rbl" },
+            { "SC Freiburg", "scf" },
+            { "VfB Stuttgart", "vfb" },
+            { "VfL Wolfsburg", "wob" },
+            { "Werder Bremen", "svw" }
         };
         
         if (abbreviations.TryGetValue(teamName, out var abbreviation))

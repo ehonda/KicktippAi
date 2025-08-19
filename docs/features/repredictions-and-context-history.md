@@ -7,7 +7,7 @@ We want to enable conditional reprediction of matchdays / bonus questions based 
 ## Implementation Status
 
 - ✅ **Context Collection**: Fully implemented with versioned storage and automated workflows
-- 🔄 **Database Context Integration**: Pending - adjust matchday/bonus commands to use stored context
+- ✅ **Database Context Integration**: Completed - matchday commands now use stored context documents
 - 🔄 **Reprediction Logic**: Pending - implement `--repredict` and `--max-repredict-count` parameters
 - ✅ **Verification Enhancements**: Completed - compare prediction timestamps with context changes
 - 🔄 **Workflow Updates**: Pending - integrate reprediction logic into automated workflows
@@ -34,15 +34,43 @@ We want to enable conditional reprediction of matchdays / bonus questions based 
 - Implements proper CLI inheritance with global and subcommand-specific options
 - Firebase composite index required: `collection: context-documents, fields: community-context (Ascending), name (Ascending), createdAt (Descending)`
 
-### Adjustments to `matchday` / `bonus` Commands for Database Context
+### Adjustments to `matchday` / `bonus` Commands for Database Context ✅ **COMPLETED**
+
+**Implementation Details:**
+
+- ✅ **MatchdayCommand Database Integration**: Complete integration with Firebase context repository
+  - Made `IContextRepository` a required service - Firebase configuration now mandatory
+  - Replaced bulk context retrieval with targeted document fetching (7 specific documents per match)
+  - Implemented hybrid approach: database-first with on-demand fallback and warnings
+  - Added team abbreviation support for proper document name generation
+  - Optimized performance: reduced from 47 to 7 context documents per match prediction
+
+- ✅ **Context Document Targeting**: Retrieves exactly the same 7 documents as on-demand provider
+  - `bundesliga-standings.csv` - current league standings
+  - `community-rules-{communityContext}.md` - scoring rules for the community
+  - `recent-history-{homeTeam}.csv` - recent match history for home team
+  - `recent-history-{awayTeam}.csv` - recent match history for away team  
+  - `home-history-{homeTeam}.csv` - home-specific match history for home team
+  - `away-history-{awayTeam}.csv` - away-specific match history for away team
+  - `head-to-head-{homeTeam}-vs-{awayTeam}.csv` - direct matchup history
+
+- ✅ **Team Abbreviation Updates**: Updated hardcoded team abbreviations for 2025-26 Bundesliga season
+  - Removed non-participating teams: `Holstein Kiel`, `VfL Bochum`
+  - Added newly participating teams: `1. FC Köln` (fck), `Hamburger SV` (hsv)
+  - Maintains fallback logic for unknown teams
+
+**Key Implementation Notes:**
+
+- Uses latest version of each context document type from the database
+- Provides clear warnings when falling back to on-demand context generation
+- Maintains backwards compatibility through graceful fallback mechanisms
+- Enhanced verbose logging shows exactly which documents are retrieved and their versions
 
 - **`bonus` command**
   - Already comes completely from the database
   - We can detect in `verify` that predictions (`createdAt`) are outdated compared to changes in kpi-documents (`updatedAt`)
   - _Here it's actually updatedAt, unlike matchday_
-- **`matchday` command**
-  - If current matchday context is available in DB, use it
-  - Otherwise load on-demand (but don't save it to keep it clean)
+
 - Both commands must support `--repredict` and `--max-repredict-count`
   - Add a `RepredictIndex` to Firebase documents (starts at 0)
 
@@ -130,3 +158,12 @@ We want to enable conditional reprediction of matchdays / bonus questions based 
   - Uses context repository for timestamp comparisons
   - Maintains backwards compatibility with display suffix handling
   - Graceful error handling for missing context documents
+
+### Completed Database Context Integration Testing ✅
+
+- **MatchdayCommand Database Context**: Successfully tested with updated context retrieval
+  - Verified retrieval of exactly 7 context documents from database (down from 47)
+  - Confirmed proper document targeting: standings, community rules, team histories, head-to-head
+  - Validated team abbreviation updates for 2025-26 Bundesliga season participants
+  - Tested fallback mechanism when database documents are incomplete
+  - Example output: `Using all 7 context documents from database` with version information for each document
