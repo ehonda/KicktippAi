@@ -1,11 +1,11 @@
 name: ehonda-ai-arena ⚽ gpt-5 ⚽ Bonus
 
 on:
-  # Schedule to run twice daily 30 minutes after the original times
+  # Schedule to run twice daily 30 minutes after context collection
   # Note: GitHub Actions cron runs in UTC only, so these times approximate Europe/Berlin
   schedule:
-    - cron: '30 23 * * *'  # ~12:30 AM Europe/Berlin (23:30 UTC = 00:30 CET, 01:30 CEST)
-    - cron: '30 11 * * *'  # ~12:30 PM Europe/Berlin (11:30 UTC = 12:30 CET, 13:30 CEST)
+    - cron: '30 0 * * *'   # ~01:30 AM Europe/Berlin (00:30 UTC = 01:30 CET, 02:30 CEST) - 30 min after context collection
+    - cron: '30 12 * * *'  # ~01:30 PM Europe/Berlin (12:30 UTC = 13:30 CET, 14:30 CEST) - 30 min after context collection
   
   # Allow manual triggering
   workflow_dispatch:
