@@ -39,42 +39,48 @@ public class FirebasePredictionRepository : IPredictionRepository
             var now = Timestamp.GetCurrentTimestamp();
             
             // Check if a prediction already exists for this match, model, and community context
+            // Order by repredictionIndex descending to get the latest version for updating
             var query = _firestoreDb.Collection(_predictionsCollection)
                 .WhereEqualTo("homeTeam", match.HomeTeam)
                 .WhereEqualTo("awayTeam", match.AwayTeam)
                 .WhereEqualTo("startsAt", ConvertToTimestamp(match.StartsAt))
                 .WhereEqualTo("competition", _competition)
                 .WhereEqualTo("model", model)
-                .WhereEqualTo("communityContext", communityContext);
+                .WhereEqualTo("communityContext", communityContext)
+                .OrderByDescending("repredictionIndex")
+                .Limit(1);
 
             var snapshot = await query.GetSnapshotAsync(cancellationToken);
             
             DocumentReference docRef;
             bool isUpdate = false;
             Timestamp? existingCreatedAt = null;
+            int repredictionIndex = 0;
             
             if (snapshot.Documents.Count > 0)
             {
-                // Update existing document
+                // Update existing document (latest reprediction)
                 var existingDoc = snapshot.Documents.First();
                 docRef = existingDoc.Reference;
                 isUpdate = true;
                 
-                // Preserve the original createdAt value
+                // Preserve the original values
                 var existingData = existingDoc.ConvertTo<FirestoreMatchPrediction>();
                 existingCreatedAt = existingData.CreatedAt;
+                repredictionIndex = existingData.RepredictionIndex; // Keep same reprediction index for override
                 
-                _logger.LogDebug("Updating existing prediction for match {HomeTeam} vs {AwayTeam} (document: {DocumentId})", 
-                    match.HomeTeam, match.AwayTeam, existingDoc.Id);
+                _logger.LogDebug("Updating existing prediction for match {HomeTeam} vs {AwayTeam} (document: {DocumentId}, reprediction index: {RepredictionIndex})", 
+                    match.HomeTeam, match.AwayTeam, existingDoc.Id, repredictionIndex);
             }
             else
             {
                 // Create new document
                 var documentId = Guid.NewGuid().ToString();
                 docRef = _firestoreDb.Collection(_predictionsCollection).Document(documentId);
+                repredictionIndex = 0; // First prediction
                 
-                _logger.LogDebug("Creating new prediction for match {HomeTeam} vs {AwayTeam} (document: {DocumentId})", 
-                    match.HomeTeam, match.AwayTeam, documentId);
+                _logger.LogDebug("Creating new prediction for match {HomeTeam} vs {AwayTeam} (document: {DocumentId}, reprediction index: {RepredictionIndex})", 
+                    match.HomeTeam, match.AwayTeam, documentId, repredictionIndex);
             }
             
             var firestorePrediction = new FirestoreMatchPrediction
@@ -92,7 +98,8 @@ public class FirebasePredictionRepository : IPredictionRepository
                 TokenUsage = tokenUsage,
                 Cost = cost,
                 CommunityContext = communityContext,
-                ContextDocumentNames = contextDocumentNames.ToArray()
+                ContextDocumentNames = contextDocumentNames.ToArray(),
+                RepredictionIndex = repredictionIndex
             };
 
             // Set CreatedAt: preserve existing value for updates, set current time for new documents
@@ -101,8 +108,8 @@ public class FirebasePredictionRepository : IPredictionRepository
             await docRef.SetAsync(firestorePrediction, cancellationToken: cancellationToken);
 
             var action = isUpdate ? "Updated" : "Saved";
-            _logger.LogInformation("{Action} prediction for match {HomeTeam} vs {AwayTeam} on matchday {Matchday}", 
-                action, match.HomeTeam, match.AwayTeam, match.Matchday);
+            _logger.LogInformation("{Action} prediction for match {HomeTeam} vs {AwayTeam} on matchday {Matchday} (reprediction index: {RepredictionIndex})", 
+                action, match.HomeTeam, match.AwayTeam, match.Matchday, repredictionIndex);
         }
         catch (Exception ex)
         {
@@ -122,13 +129,16 @@ public class FirebasePredictionRepository : IPredictionRepository
         try
         {
             // Query by match characteristics, model, community context, and competition
+            // Order by repredictionIndex descending to get the latest version
             var query = _firestoreDb.Collection(_predictionsCollection)
                 .WhereEqualTo("homeTeam", homeTeam)
                 .WhereEqualTo("awayTeam", awayTeam)
                 .WhereEqualTo("startsAt", ConvertToTimestamp(startsAt))
                 .WhereEqualTo("competition", _competition)
                 .WhereEqualTo("model", model)
-                .WhereEqualTo("communityContext", communityContext);
+                .WhereEqualTo("communityContext", communityContext)
+                .OrderByDescending("repredictionIndex")
+                .Limit(1);
 
             var snapshot = await query.GetSnapshotAsync(cancellationToken);
             
@@ -296,40 +306,46 @@ public class FirebasePredictionRepository : IPredictionRepository
             var now = Timestamp.GetCurrentTimestamp();
             
             // Check if a prediction already exists for this question, model, and community context
+            // Order by repredictionIndex descending to get the latest version for updating
             var query = _firestoreDb.Collection(_bonusPredictionsCollection)
                 .WhereEqualTo("questionText", bonusQuestion.Text)
                 .WhereEqualTo("competition", _competition)
                 .WhereEqualTo("model", model)
-                .WhereEqualTo("communityContext", communityContext);
+                .WhereEqualTo("communityContext", communityContext)
+                .OrderByDescending("repredictionIndex")
+                .Limit(1);
 
             var snapshot = await query.GetSnapshotAsync(cancellationToken);
             
             DocumentReference docRef;
             bool isUpdate = false;
             Timestamp? existingCreatedAt = null;
+            int repredictionIndex = 0;
             
             if (snapshot.Documents.Count > 0)
             {
-                // Update existing document
+                // Update existing document (latest reprediction)
                 var existingDoc = snapshot.Documents.First();
                 docRef = existingDoc.Reference;
                 isUpdate = true;
                 
-                // Preserve the original createdAt value
+                // Preserve the original values
                 var existingData = existingDoc.ConvertTo<FirestoreBonusPrediction>();
                 existingCreatedAt = existingData.CreatedAt;
+                repredictionIndex = existingData.RepredictionIndex; // Keep same reprediction index for override
                 
-                _logger.LogDebug("Updating existing bonus prediction for question '{QuestionText}' (document: {DocumentId})", 
-                    bonusQuestion.Text, existingDoc.Id);
+                _logger.LogDebug("Updating existing bonus prediction for question '{QuestionText}' (document: {DocumentId}, reprediction index: {RepredictionIndex})", 
+                    bonusQuestion.Text, existingDoc.Id, repredictionIndex);
             }
             else
             {
                 // Create new document
                 var documentId = Guid.NewGuid().ToString();
                 docRef = _firestoreDb.Collection(_bonusPredictionsCollection).Document(documentId);
+                repredictionIndex = 0; // First prediction
                 
-                _logger.LogDebug("Creating new bonus prediction for question '{QuestionText}' (document: {DocumentId})", 
-                    bonusQuestion.Text, documentId);
+                _logger.LogDebug("Creating new bonus prediction for question '{QuestionText}' (document: {DocumentId}, reprediction index: {RepredictionIndex})", 
+                    bonusQuestion.Text, documentId, repredictionIndex);
             }
             
             // Extract selected option texts for observability
@@ -350,7 +366,8 @@ public class FirebasePredictionRepository : IPredictionRepository
                 TokenUsage = tokenUsage,
                 Cost = cost,
                 CommunityContext = communityContext,
-                ContextDocumentNames = contextDocumentNames.ToArray()
+                ContextDocumentNames = contextDocumentNames.ToArray(),
+                RepredictionIndex = repredictionIndex
             };
 
             // Set CreatedAt: preserve existing value for updates, set current time for new documents
@@ -359,8 +376,8 @@ public class FirebasePredictionRepository : IPredictionRepository
             await docRef.SetAsync(firestoreBonusPrediction, cancellationToken: cancellationToken);
 
             var action = isUpdate ? "Updated" : "Saved";
-            _logger.LogDebug("{Action} bonus prediction for question '{QuestionText}' with selections: {SelectedOptions}", 
-                action, bonusQuestion.Text, string.Join(", ", selectedOptionTexts));
+            _logger.LogDebug("{Action} bonus prediction for question '{QuestionText}' with selections: {SelectedOptions} (reprediction index: {RepredictionIndex})", 
+                action, bonusQuestion.Text, string.Join(", ", selectedOptionTexts), repredictionIndex);
         }
         catch (Exception ex)
         {
@@ -403,12 +420,13 @@ public class FirebasePredictionRepository : IPredictionRepository
         try
         {
             // Query by questionText, model, and community context
-            // Note: Removed OrderByDescending to avoid index requirement for testing
+            // Order by repredictionIndex descending to get the latest version
             var query = _firestoreDb.Collection(_bonusPredictionsCollection)
                 .WhereEqualTo("questionText", questionText)
                 .WhereEqualTo("competition", _competition)
                 .WhereEqualTo("model", model)
                 .WhereEqualTo("communityContext", communityContext)
+                .OrderByDescending("repredictionIndex")
                 .Limit(1);
 
             var snapshot = await query.GetSnapshotAsync(cancellationToken);
@@ -422,8 +440,8 @@ public class FirebasePredictionRepository : IPredictionRepository
             var firestoreBonusPrediction = snapshot.Documents.First().ConvertTo<FirestoreBonusPrediction>();
             var bonusPrediction = new BonusPrediction(firestoreBonusPrediction.SelectedOptionIds.ToList());
             
-            _logger.LogDebug("Found bonus prediction for question text: {QuestionText} with model: {Model} and community context: {CommunityContext}", 
-                questionText, model, communityContext);
+            _logger.LogDebug("Found bonus prediction for question text: {QuestionText} with model: {Model} and community context: {CommunityContext} (reprediction index: {RepredictionIndex})", 
+                questionText, model, communityContext, firestoreBonusPrediction.RepredictionIndex);
             
             return bonusPrediction;
         }
@@ -567,5 +585,166 @@ public class FirebasePredictionRepository : IPredictionRepository
         var dateTimeOffset = timestamp.ToDateTimeOffset();
         var instant = Instant.FromDateTimeOffset(dateTimeOffset);
         return instant.InUtc();
+    }
+
+    public async Task<int> GetMatchRepredictionIndexAsync(Match match, string model, string communityContext, CancellationToken cancellationToken = default)
+    {
+        try
+        {
+            // Query by match characteristics, model, community context, and competition
+            // Order by repredictionIndex descending to get the latest version
+            var query = _firestoreDb.Collection(_predictionsCollection)
+                .WhereEqualTo("homeTeam", match.HomeTeam)
+                .WhereEqualTo("awayTeam", match.AwayTeam)
+                .WhereEqualTo("startsAt", ConvertToTimestamp(match.StartsAt))
+                .WhereEqualTo("competition", _competition)
+                .WhereEqualTo("model", model)
+                .WhereEqualTo("communityContext", communityContext)
+                .OrderByDescending("repredictionIndex")
+                .Limit(1);
+
+            var snapshot = await query.GetSnapshotAsync(cancellationToken);
+            
+            if (snapshot.Documents.Count == 0)
+            {
+                return -1; // No prediction exists
+            }
+
+            var firestorePrediction = snapshot.Documents.First().ConvertTo<FirestoreMatchPrediction>();
+            return firestorePrediction.RepredictionIndex;
+        }
+        catch (Exception ex)
+        {
+            _logger.LogError(ex, "Failed to get reprediction index for match {HomeTeam} vs {AwayTeam} using model {Model} and community context {CommunityContext}", 
+                match.HomeTeam, match.AwayTeam, model, communityContext);
+            throw;
+        }
+    }
+
+    public async Task<int> GetBonusRepredictionIndexAsync(string questionText, string model, string communityContext, CancellationToken cancellationToken = default)
+    {
+        try
+        {
+            // Query by question text, model, community context, and competition
+            // Order by repredictionIndex descending to get the latest version
+            var query = _firestoreDb.Collection(_bonusPredictionsCollection)
+                .WhereEqualTo("questionText", questionText)
+                .WhereEqualTo("competition", _competition)
+                .WhereEqualTo("model", model)
+                .WhereEqualTo("communityContext", communityContext)
+                .OrderByDescending("repredictionIndex")
+                .Limit(1);
+
+            var snapshot = await query.GetSnapshotAsync(cancellationToken);
+            
+            if (snapshot.Documents.Count == 0)
+            {
+                return -1; // No prediction exists
+            }
+
+            var firestorePrediction = snapshot.Documents.First().ConvertTo<FirestoreBonusPrediction>();
+            return firestorePrediction.RepredictionIndex;
+        }
+        catch (Exception ex)
+        {
+            _logger.LogError(ex, "Failed to get reprediction index for bonus question '{QuestionText}' using model {Model} and community context {CommunityContext}", 
+                questionText, model, communityContext);
+            throw;
+        }
+    }
+
+    public async Task SaveRepredictionAsync(Match match, Prediction prediction, string model, string tokenUsage, double cost, string communityContext, IEnumerable<string> contextDocumentNames, int repredictionIndex, CancellationToken cancellationToken = default)
+    {
+        try
+        {
+            var now = Timestamp.GetCurrentTimestamp();
+            
+            // Create new document for this reprediction
+            var documentId = Guid.NewGuid().ToString();
+            var docRef = _firestoreDb.Collection(_predictionsCollection).Document(documentId);
+            
+            _logger.LogDebug("Creating reprediction for match {HomeTeam} vs {AwayTeam} (document: {DocumentId}, reprediction index: {RepredictionIndex})", 
+                match.HomeTeam, match.AwayTeam, documentId, repredictionIndex);
+            
+            var firestorePrediction = new FirestoreMatchPrediction
+            {
+                Id = docRef.Id,
+                HomeTeam = match.HomeTeam,
+                AwayTeam = match.AwayTeam,
+                StartsAt = ConvertToTimestamp(match.StartsAt),
+                Matchday = match.Matchday,
+                HomeGoals = prediction.HomeGoals,
+                AwayGoals = prediction.AwayGoals,
+                CreatedAt = now,
+                UpdatedAt = now,
+                Competition = _competition,
+                Model = model,
+                TokenUsage = tokenUsage,
+                Cost = cost,
+                CommunityContext = communityContext,
+                ContextDocumentNames = contextDocumentNames.ToArray(),
+                RepredictionIndex = repredictionIndex
+            };
+
+            await docRef.SetAsync(firestorePrediction, cancellationToken: cancellationToken);
+
+            _logger.LogInformation("Saved reprediction for match {HomeTeam} vs {AwayTeam} on matchday {Matchday} (reprediction index: {RepredictionIndex})", 
+                match.HomeTeam, match.AwayTeam, match.Matchday, repredictionIndex);
+        }
+        catch (Exception ex)
+        {
+            _logger.LogError(ex, "Failed to save reprediction for match {HomeTeam} vs {AwayTeam}", 
+                match.HomeTeam, match.AwayTeam);
+            throw;
+        }
+    }
+
+    public async Task SaveBonusRepredictionAsync(BonusQuestion bonusQuestion, BonusPrediction bonusPrediction, string model, string tokenUsage, double cost, string communityContext, IEnumerable<string> contextDocumentNames, int repredictionIndex, CancellationToken cancellationToken = default)
+    {
+        try
+        {
+            var now = Timestamp.GetCurrentTimestamp();
+            
+            // Create new document for this reprediction
+            var documentId = Guid.NewGuid().ToString();
+            var docRef = _firestoreDb.Collection(_bonusPredictionsCollection).Document(documentId);
+            
+            _logger.LogDebug("Creating bonus reprediction for question '{QuestionText}' (document: {DocumentId}, reprediction index: {RepredictionIndex})", 
+                bonusQuestion.Text, documentId, repredictionIndex);
+            
+            // Extract selected option texts for observability
+            var optionTextsLookup = bonusQuestion.Options.ToDictionary(o => o.Id, o => o.Text);
+            var selectedOptionTexts = bonusPrediction.SelectedOptionIds
+                .Select(id => optionTextsLookup.TryGetValue(id, out var text) ? text : $"Unknown option: {id}")
+                .ToArray();
+            
+            var firestoreBonusPrediction = new FirestoreBonusPrediction
+            {
+                Id = docRef.Id,
+                QuestionText = bonusQuestion.Text,
+                SelectedOptionIds = bonusPrediction.SelectedOptionIds.ToArray(),
+                SelectedOptionTexts = selectedOptionTexts,
+                CreatedAt = now,
+                UpdatedAt = now,
+                Competition = _competition,
+                Model = model,
+                TokenUsage = tokenUsage,
+                Cost = cost,
+                CommunityContext = communityContext,
+                ContextDocumentNames = contextDocumentNames.ToArray(),
+                RepredictionIndex = repredictionIndex
+            };
+
+            await docRef.SetAsync(firestoreBonusPrediction, cancellationToken: cancellationToken);
+
+            _logger.LogInformation("Saved bonus reprediction for question '{QuestionText}' (reprediction index: {RepredictionIndex})", 
+                bonusQuestion.Text, repredictionIndex);
+        }
+        catch (Exception ex)
+        {
+            _logger.LogError(ex, "Failed to save bonus reprediction for question: {QuestionText}", 
+                bonusQuestion.Text);
+            throw;
+        }
     }
 }

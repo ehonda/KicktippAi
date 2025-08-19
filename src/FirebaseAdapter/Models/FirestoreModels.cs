@@ -100,6 +100,13 @@ public class FirestoreMatchPrediction
     /// </summary>
     [FirestoreProperty("contextDocumentNames")]
     public string[] ContextDocumentNames { get; set; } = [];
+
+    /// <summary>
+    /// Reprediction index for tracking prediction versions.
+    /// Starts at 0 for the first prediction, increments for each reprediction.
+    /// </summary>
+    [FirestoreProperty("repredictionIndex")]
+    public int RepredictionIndex { get; set; } = 0;
 }
 
 /// <summary>
@@ -224,6 +231,13 @@ public class FirestoreBonusPrediction
     /// </summary>
     [FirestoreProperty("contextDocumentNames")]
     public string[] ContextDocumentNames { get; set; } = [];
+
+    /// <summary>
+    /// Reprediction index for tracking prediction versions.
+    /// Starts at 0 for the first prediction, increments for each reprediction.
+    /// </summary>
+    [FirestoreProperty("repredictionIndex")]
+    public int RepredictionIndex { get; set; } = 0;
 }
 
 /// <summary>

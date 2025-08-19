@@ -50,4 +50,18 @@ public class BaseSettings : CommandSettings
     [CommandOption("--estimated-costs")]
     [Description("Model to estimate costs for (e.g., o1) - shows what costs would be if using that model with same token counts")]
     public string? EstimatedCostsModel { get; set; }
+
+    [CommandOption("--repredict")]
+    [Description("Enable reprediction mode - create new predictions with incremented reprediction index (cannot be used with --override-database)")]
+    [DefaultValue(false)]
+    public bool Repredict { get; set; }
+
+    [CommandOption("--max-repredictions")]
+    [Description("Maximum number of repredictions allowed (0-based index). Implies --repredict. Example: 2 allows reprediction indices 0, 1, 2")]
+    public int? MaxRepredictions { get; set; }
+
+    /// <summary>
+    /// Gets whether reprediction mode is enabled (either explicitly via --repredict or implicitly via --max-repredictions).
+    /// </summary>
+    public bool IsRepredictMode => Repredict || MaxRepredictions.HasValue;
 }

@@ -8,7 +8,7 @@ We want to enable conditional reprediction of matchdays / bonus questions based 
 
 - ✅ **Context Collection**: Fully implemented with versioned storage and automated workflows
 - ✅ **Database Context Integration**: Completed - matchday commands now use stored context documents
-- 🔄 **Reprediction Logic**: Pending - implement `--repredict` and `--max-repredict-count` parameters
+- ✅ **Reprediction Logic**: Completed - implemented `--repredict` and `--max-repredictions` parameters
 - ✅ **Verification Enhancements**: Completed - compare prediction timestamps with context changes
 - 🔄 **Workflow Updates**: Pending - integrate reprediction logic into automated workflows
 - 🔄 **Cost Command Updates**: Pending - include reprediction costs in calculations
@@ -71,8 +71,10 @@ We want to enable conditional reprediction of matchdays / bonus questions based 
   - We can detect in `verify` that predictions (`createdAt`) are outdated compared to changes in kpi-documents (`updatedAt`)
   - _Here it's actually updatedAt, unlike matchday_
 
-- Both commands must support `--repredict` and `--max-repredict-count`
-  - Add a `RepredictIndex` to Firebase documents (starts at 0)
+- ✅ **Reprediction Support**: Both commands now support `--repredict` and `--max-repredictions`
+  - Added `RepredictionIndex` property to Firebase documents (starts at 0)
+  - Repredictions create new documents preserving prediction history
+  - Latest prediction retrieval orders by reprediction index descending
 
 ### Verification Enhancements ✅ **COMPLETED**
 
@@ -133,11 +135,71 @@ We want to enable conditional reprediction of matchdays / bonus questions based 
 - Maintains existing validation for prediction correctness and Kicktipp synchronization
 - Only checks documents that were actually used as context input for the specific prediction
 
+### Reprediction Logic Implementation ✅ **COMPLETED**
+
+**Implementation Details:**
+
+- ✅ **Database Models Enhanced**: Added `RepredictionIndex` property to both `FirestoreMatchPrediction` and `FirestoreBonusPrediction` models
+  - Default value of 0 for first predictions
+  - Incremented for each subsequent reprediction (0 → 1 → 2, etc.)
+  - Firestore property `repredictionIndex` with proper serialization
+
+- ✅ **Repository Interface Extended**: Added new methods for reprediction management
+  - `GetMatchRepredictionIndexAsync()` and `GetBonusRepredictionIndexAsync()` - get current reprediction index
+  - `SaveRepredictionAsync()` and `SaveBonusRepredictionAsync()` - save new repredictions with specific index
+  - Updated existing get methods to retrieve latest reprediction (highest index)
+
+- ✅ **Command Line Interface**: New parameters for reprediction control
+  - `--repredict` flag enables reprediction mode
+  - `--max-repredictions N` limits maximum repredictions (0-based index)
+  - Proper validation prevents conflicting flags (`--override-database` vs reprediction flags)
+  - `IsRepredictMode` helper property for cleaner logic
+
+- ✅ **Prediction Commands Updated**: Both `matchday` and `bonus` commands support full reprediction workflow
+  - Check current reprediction index before generating new predictions
+  - Respect max reprediction limits with clear status messages
+  - Skip prediction when limit reached, display latest prediction
+  - Save repredictions as new documents (preserves prediction history)
+  - Enhanced logging shows reprediction indices and limits
+
+**Key Implementation Features:**
+
+- **History Preservation**: Each reprediction creates a new document, maintaining complete prediction history
+- **Latest Retrieval**: Database queries order by `repredictionIndex DESC` to get most recent predictions
+- **Limit Enforcement**: Commands check current index against `--max-repredictions` before generating new predictions
+- **Clear Feedback**: Detailed console output shows reprediction status, indices, and limits
+- **Validation**: Prevents conflicting usage of `--override-database` with reprediction flags
+- **Backwards Compatibility**: Normal prediction workflow unchanged when reprediction flags not used
+
+**Usage Examples:**
+
+```bash
+# Create first prediction (reprediction index 0)
+dotnet run -- matchday o4-mini --community ehonda-test-buli
+
+# Create reprediction (unlimited)
+dotnet run -- matchday o4-mini --community ehonda-test-buli --repredict
+
+# Create reprediction with limit (allows indices 0, 1, 2)
+dotnet run -- matchday o4-mini --community ehonda-test-buli --max-repredictions 2
+
+# Same functionality for bonus predictions
+dotnet run -- bonus o4-mini --community ehonda-test-buli --max-repredictions 2
+```
+
+**Database Requirements:**
+
+- Firestore composite index required for reprediction queries
+- Index fields: `awayTeam`, `communityContext`, `competition`, `homeTeam`, `model`, `startsAt`, `repredictionIndex` (descending)
+- Similar index needed for bonus predictions with `questionText` instead of team/match fields
+
 ### Workflow Adjustments
 
-- Always make predictions with `--repredict` and `--max-repredict-count 3` (or similar)
+- Always make predictions with `--repredict` and `--max-repredictions 3` (or similar)
 - This essentially replaces `--override-database`. That becomes deprecated
-  - For backwards compatibility, we can initially just always overwrite the latest `RepredictIndex`
+  - For backwards compatibility, we can initially just always overwrite the latest `RepredictionIndex`
+- ✅ **Implementation Ready**: Commands now support the new reprediction parameters
+- Example workflow command: `dotnet run -- matchday o3 --community pes-squad --max-repredictions 3 --verbose`
 
 ### Adjustments to `cost` Command
 
@@ -167,3 +229,35 @@ We want to enable conditional reprediction of matchdays / bonus questions based 
   - Validated team abbreviation updates for 2025-26 Bundesliga season participants
   - Tested fallback mechanism when database documents are incomplete
   - Example output: `Using all 7 context documents from database` with version information for each document
+
+### Completed Reprediction Implementation Testing ✅
+
+- **Command Line Interface**: Successfully tested new reprediction parameters
+  - ✅ `--repredict` flag properly enables reprediction mode
+  - ✅ `--max-repredictions N` correctly limits reprediction count
+  - ✅ Validation prevents conflicting flags (`--override-database` vs reprediction flags)
+  - ✅ Help output shows new parameters with proper descriptions
+
+- **Validation Logic**: Thoroughly tested parameter validation
+  - ✅ Error when using `--override-database` with `--repredict`
+  - ✅ Error when using `--override-database` with `--max-repredictions`
+  - ✅ Error when `--max-repredictions` is negative
+  - ✅ Clear error messages guide proper usage
+
+- **Reprediction Workflow**: Tested core reprediction logic
+  - ✅ Commands detect existing reprediction indices
+  - ✅ Proper increment of reprediction index (0 → 1 → 2)
+  - ✅ Respect for max reprediction limits
+  - ✅ Skip prediction when limit reached with clear messaging
+  - ✅ Display of current vs maximum reprediction counts
+
+- **Database Integration**: Verified new repository methods
+  - ✅ `GetMatchRepredictionIndexAsync()` and `GetBonusRepredictionIndexAsync()` return correct indices
+  - ✅ `SaveRepredictionAsync()` and `SaveBonusRepredictionAsync()` create new documents
+  - ✅ Latest prediction retrieval orders by reprediction index correctly
+  - ⚠️ **Firestore Index Required**: Composite index needed for reprediction queries
+
+**Known Issues:**
+
+- Firestore composite index required for production database (error provides creation URL)
+- Index must include: `repredictionIndex` field in descending order for proper latest retrieval

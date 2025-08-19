@@ -156,6 +156,56 @@ public interface IPredictionRepository
     /// <param name="cancellationToken">Cancellation token.</param>
     /// <returns>True if a bonus prediction exists, otherwise false.</returns>
     Task<bool> HasBonusPredictionAsync(string questionId, string model, string communityContext, CancellationToken cancellationToken = default);
+
+    /// <summary>
+    /// Gets the current reprediction index for a specific match using the specified model and community context.
+    /// </summary>
+    /// <param name="match">The match to check.</param>
+    /// <param name="model">The AI model used to generate the prediction.</param>
+    /// <param name="communityContext">The community context used for the prediction.</param>
+    /// <param name="cancellationToken">Cancellation token.</param>
+    /// <returns>The current reprediction index, or -1 if no prediction exists.</returns>
+    Task<int> GetMatchRepredictionIndexAsync(Match match, string model, string communityContext, CancellationToken cancellationToken = default);
+
+    /// <summary>
+    /// Gets the current reprediction index for a specific bonus question using the specified model and community context.
+    /// </summary>
+    /// <param name="questionText">The text of the bonus question.</param>
+    /// <param name="model">The AI model used to generate the prediction.</param>
+    /// <param name="communityContext">The community context used for the prediction.</param>
+    /// <param name="cancellationToken">Cancellation token.</param>
+    /// <returns>The current reprediction index, or -1 if no prediction exists.</returns>
+    Task<int> GetBonusRepredictionIndexAsync(string questionText, string model, string communityContext, CancellationToken cancellationToken = default);
+
+    /// <summary>
+    /// Saves a repredicted match prediction with the next reprediction index.
+    /// </summary>
+    /// <param name="match">The match to predict.</param>
+    /// <param name="prediction">The prediction for the match.</param>
+    /// <param name="model">The AI model used to generate the prediction.</param>
+    /// <param name="tokenUsage">JSON string containing token usage information from the API.</param>
+    /// <param name="cost">The cost in USD for generating the prediction.</param>
+    /// <param name="communityContext">The community context (rules) used for the prediction.</param>
+    /// <param name="contextDocumentNames">Names of context documents used for this prediction.</param>
+    /// <param name="repredictionIndex">The reprediction index for this prediction.</param>
+    /// <param name="cancellationToken">Cancellation token.</param>
+    /// <returns>A task representing the asynchronous operation.</returns>
+    Task SaveRepredictionAsync(Match match, Prediction prediction, string model, string tokenUsage, double cost, string communityContext, IEnumerable<string> contextDocumentNames, int repredictionIndex, CancellationToken cancellationToken = default);
+
+    /// <summary>
+    /// Saves a repredicted bonus prediction with the next reprediction index.
+    /// </summary>
+    /// <param name="bonusQuestion">The original bonus question (for text observability).</param>
+    /// <param name="bonusPrediction">The bonus prediction to save.</param>
+    /// <param name="model">The AI model used to generate the prediction.</param>
+    /// <param name="tokenUsage">JSON string containing token usage information from the API.</param>
+    /// <param name="cost">The cost in USD for generating the prediction.</param>
+    /// <param name="communityContext">The community context (rules) used for the prediction.</param>
+    /// <param name="contextDocumentNames">Names of context documents used for this prediction.</param>
+    /// <param name="repredictionIndex">The reprediction index for this prediction.</param>
+    /// <param name="cancellationToken">Cancellation token.</param>
+    /// <returns>A task representing the asynchronous operation.</returns>
+    Task SaveBonusRepredictionAsync(BonusQuestion bonusQuestion, BonusPrediction bonusPrediction, string model, string tokenUsage, double cost, string communityContext, IEnumerable<string> contextDocumentNames, int repredictionIndex, CancellationToken cancellationToken = default);
 }
 
 /// <summary>

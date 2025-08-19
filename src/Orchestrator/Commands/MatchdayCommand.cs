@@ -57,6 +57,25 @@ public class MatchdayCommand : AsyncCommand<BaseSettings>
             {
                 AnsiConsole.MarkupLine($"[cyan]Estimated costs will be calculated for model:[/] [yellow]{settings.EstimatedCostsModel}[/]");
             }
+
+            // Validate reprediction settings
+            if (settings.OverrideDatabase && settings.IsRepredictMode)
+            {
+                AnsiConsole.MarkupLine($"[red]Error:[/] --override-database cannot be used with reprediction flags (--repredict or --max-repredictions)");
+                return 1;
+            }
+
+            if (settings.MaxRepredictions.HasValue && settings.MaxRepredictions.Value < 0)
+            {
+                AnsiConsole.MarkupLine($"[red]Error:[/] --max-repredictions must be 0 or greater");
+                return 1;
+            }
+
+            if (settings.IsRepredictMode)
+            {
+                var maxValue = settings.MaxRepredictions ?? int.MaxValue;
+                AnsiConsole.MarkupLine($"[yellow]Reprediction mode enabled - max repredictions: {(settings.MaxRepredictions?.ToString() ?? "unlimited")}[/]");
+            }
             
             // Execute the matchday workflow
             await ExecuteMatchdayWorkflow(serviceProvider, settings, logger);
@@ -128,9 +147,10 @@ public class MatchdayCommand : AsyncCommand<BaseSettings>
             {
                 Prediction? prediction = null;
                 bool fromDatabase = false;
+                bool shouldPredict = false;
                 
                 // Check if we have an existing prediction in the database
-                if (databaseEnabled && !settings.OverrideDatabase)
+                if (databaseEnabled && !settings.OverrideDatabase && !settings.IsRepredictMode)
                 {
                     prediction = await predictionRepository!.GetPredictionAsync(match, settings.Model, communityContext);
                     if (prediction != null)
@@ -147,8 +167,48 @@ public class MatchdayCommand : AsyncCommand<BaseSettings>
                     }
                 }
                 
-                // If no existing prediction, generate a new one
-                if (prediction == null)
+                // Handle reprediction logic
+                if (settings.IsRepredictMode && databaseEnabled)
+                {
+                    var currentRepredictionIndex = await predictionRepository!.GetMatchRepredictionIndexAsync(match, settings.Model, communityContext);
+                    
+                    if (currentRepredictionIndex == -1)
+                    {
+                        // No prediction exists yet - create first prediction
+                        shouldPredict = true;
+                        AnsiConsole.MarkupLine($"[yellow]  → No existing prediction found, creating first prediction...[/]");
+                    }
+                    else
+                    {
+                        // Check if we can create another reprediction
+                        var maxAllowed = settings.MaxRepredictions ?? int.MaxValue;
+                        var nextIndex = currentRepredictionIndex + 1;
+                        
+                        if (nextIndex <= maxAllowed)
+                        {
+                            shouldPredict = true;
+                            AnsiConsole.MarkupLine($"[yellow]  → Creating reprediction {nextIndex} (current: {currentRepredictionIndex}, max: {maxAllowed})...[/]");
+                        }
+                        else
+                        {
+                            AnsiConsole.MarkupLine($"[yellow]  ✗ Skipped - already at max repredictions ({currentRepredictionIndex}/{maxAllowed})[/]");
+                            
+                            // Get the latest prediction for display purposes
+                            prediction = await predictionRepository!.GetPredictionAsync(match, settings.Model, communityContext);
+                            if (prediction != null)
+                            {
+                                fromDatabase = true;
+                                if (!settings.Agent)
+                                {
+                                    AnsiConsole.MarkupLine($"[green]  ✓ Latest prediction:[/] {prediction.HomeGoals}:{prediction.AwayGoals} [dim](reprediction {currentRepredictionIndex})[/]");
+                                }
+                            }
+                        }
+                    }
+                }
+                
+                // If no existing prediction (normal mode) or we need to predict (reprediction mode), generate a new one
+                if (prediction == null || shouldPredict)
                 {
                     AnsiConsole.MarkupLine($"[yellow]  → Generating new prediction...[/]");
                     
@@ -224,18 +284,43 @@ public class MatchdayCommand : AsyncCommand<BaseSettings>
                                     tokenUsageJson = tokenUsageTracker.GetLastUsageJson() ?? "{}";
                                 }
                                 
-                                await predictionRepository!.SavePredictionAsync(
-                                    match, 
-                                    prediction, 
-                                    settings.Model, 
-                                    tokenUsageJson, 
-                                    cost, 
-                                    communityContext,
-                                    contextDocuments.Select(d => d.Name));
-                                    
-                                if (settings.Verbose)
+                                if (settings.IsRepredictMode)
                                 {
-                                    AnsiConsole.MarkupLine($"[dim]    ✓ Saved to database[/]");
+                                    // Save as reprediction with specific index
+                                    var currentIndex = await predictionRepository!.GetMatchRepredictionIndexAsync(match, settings.Model, communityContext);
+                                    var nextIndex = currentIndex == -1 ? 0 : currentIndex + 1;
+                                    
+                                    await predictionRepository!.SaveRepredictionAsync(
+                                        match, 
+                                        prediction, 
+                                        settings.Model, 
+                                        tokenUsageJson, 
+                                        cost, 
+                                        communityContext,
+                                        contextDocuments.Select(d => d.Name),
+                                        nextIndex);
+                                        
+                                    if (settings.Verbose)
+                                    {
+                                        AnsiConsole.MarkupLine($"[dim]    ✓ Saved as reprediction {nextIndex} to database[/]");
+                                    }
+                                }
+                                else
+                                {
+                                    // Save normally (override or new prediction)
+                                    await predictionRepository!.SavePredictionAsync(
+                                        match, 
+                                        prediction, 
+                                        settings.Model, 
+                                        tokenUsageJson, 
+                                        cost, 
+                                        communityContext,
+                                        contextDocuments.Select(d => d.Name));
+                                        
+                                    if (settings.Verbose)
+                                    {
+                                        AnsiConsole.MarkupLine($"[dim]    ✓ Saved to database[/]");
+                                    }
                                 }
                             }
                             catch (Exception ex)
