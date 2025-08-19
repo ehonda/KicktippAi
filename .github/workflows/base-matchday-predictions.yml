@@ -25,6 +25,11 @@ on:
         required: false
         type: boolean
         default: false
+      max_repredictions:
+        description: 'Maximum number of repredictions allowed (0-based index)'
+        required: false
+        type: number
+        default: 2
     secrets:
       kicktipp_username:
         description: 'Kicktipp username for this community'
@@ -73,7 +78,7 @@ jobs:
           echo "Community: ${{ inputs.community }}"
           echo "Model: ${{ inputs.model }}"
           echo "Community Context: ${{ inputs.community_context }}"
-          dotnet run --project src/Orchestrator --configuration Release -- verify "${{ inputs.model }}" --community "${{ inputs.community }}" --community-context "${{ inputs.community_context }}" --init-matchday --agent
+          dotnet run --project src/Orchestrator --configuration Release -- verify "${{ inputs.model }}" --community "${{ inputs.community }}" --community-context "${{ inputs.community_context }}" --init-matchday --check-outdated --agent
         env:
           KICKTIPP_USERNAME: ${{ secrets.kicktipp_username }}
           KICKTIPP_PASSWORD: ${{ secrets.kicktipp_password }}
@@ -88,20 +93,23 @@ jobs:
           echo "🤖 Generating predictions with model: ${{ inputs.model }}"
           echo "Community: ${{ inputs.community }}"
           echo "Community Context: ${{ inputs.community_context }}"
+          echo "Max Repredictions: ${{ inputs.max_repredictions }}"
           if [ "${{ steps.verify.outcome }}" = "failure" ]; then
             echo "📝 Predictions needed - verify command indicated missing or mismatched predictions"
           else
             echo "🔄 Force prediction enabled - running regardless of verify result"
           fi
           
-          # Set override database flag if force prediction is enabled
-          OVERRIDE_DB_FLAG=""
+          # Use reprediction logic with max repredictions limit unless force prediction is enabled
           if [ "${{ inputs.force_prediction }}" = "true" ]; then
-            OVERRIDE_DB_FLAG="--override-database"
-            echo "💾 Adding --override-database flag to force regeneration of predictions"
+            PREDICTION_FLAGS="--override-database"
+            echo "💾 Using --override-database flag to force regeneration of predictions"
+          else
+            PREDICTION_FLAGS="--max-repredictions ${{ inputs.max_repredictions }}"
+            echo "🔄 Using reprediction logic with max repredictions: ${{ inputs.max_repredictions }}"
           fi
           
-          dotnet run --project src/Orchestrator --configuration Release -- matchday "${{ inputs.model }}" --community "${{ inputs.community }}" --community-context "${{ inputs.community_context }}" --override-kicktipp --verbose --agent $OVERRIDE_DB_FLAG
+          dotnet run --project src/Orchestrator --configuration Release -- matchday "${{ inputs.model }}" --community "${{ inputs.community }}" --community-context "${{ inputs.community_context }}" --override-kicktipp --verbose --agent $PREDICTION_FLAGS
         env:
           KICKTIPP_USERNAME: ${{ secrets.kicktipp_username }}
           KICKTIPP_PASSWORD: ${{ secrets.kicktipp_password }}
@@ -133,6 +141,7 @@ jobs:
           echo "- **Community**: ${{ inputs.community }}" >> $GITHUB_STEP_SUMMARY
           echo "- **Model**: ${{ inputs.model }}" >> $GITHUB_STEP_SUMMARY
           echo "- **Community Context**: ${{ inputs.community_context }}" >> $GITHUB_STEP_SUMMARY
+          echo "- **Max Repredictions**: ${{ inputs.max_repredictions }}" >> $GITHUB_STEP_SUMMARY
           echo "- **Trigger**: ${{ inputs.trigger_type }}" >> $GITHUB_STEP_SUMMARY
           echo "- **Verify Result**: ${{ steps.verify.outcome }}" >> $GITHUB_STEP_SUMMARY
           

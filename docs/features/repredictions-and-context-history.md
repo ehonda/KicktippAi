@@ -10,7 +10,7 @@ We want to enable conditional reprediction of matchdays / bonus questions based 
 - ✅ **Database Context Integration**: Completed - matchday commands now use stored context documents
 - ✅ **Reprediction Logic**: Completed - implemented `--repredict` and `--max-repredictions` parameters
 - ✅ **Verification Enhancements**: Completed - compare prediction timestamps with context changes
-- 🔄 **Workflow Updates**: Pending - integrate reprediction logic into automated workflows
+- ✅ **Workflow Updates**: Completed - integrated reprediction logic into automated workflows
 - 🔄 **Cost Command Updates**: Pending - include reprediction costs in calculations
 
 ## Requirements
@@ -193,13 +193,54 @@ dotnet run -- bonus o4-mini --community ehonda-test-buli --max-repredictions 2
 - Index fields: `awayTeam`, `communityContext`, `competition`, `homeTeam`, `model`, `startsAt`, `repredictionIndex` (descending)
 - Similar index needed for bonus predictions with `questionText` instead of team/match fields
 
-### Workflow Adjustments
+### Workflow Adjustments ✅ **COMPLETED**
 
-- Always make predictions with `--repredict` and `--max-repredictions 3` (or similar)
-- This essentially replaces `--override-database`. That becomes deprecated
-  - For backwards compatibility, we can initially just always overwrite the latest `RepredictionIndex`
-- ✅ **Implementation Ready**: Commands now support the new reprediction parameters
-- Example workflow command: `dotnet run -- matchday o3 --community pes-squad --max-repredictions 3 --verbose`
+**Implementation Details:**
+
+- ✅ **Enhanced Verify Commands**: Updated both `verify` and `verify-bonus` commands to use `--check-outdated` flag
+  - Detects when predictions are outdated compared to context documents or KPI documents
+  - Returns exit code 1 when predictions need to be regenerated due to context changes
+  - Provides detailed timestamp comparison in verbose mode
+
+- ✅ **Reprediction Integration**: Replaced `--override-database` with reprediction logic in workflows
+  - Uses `--max-repredictions 2` by default (allows indices 0, 1, 2)
+  - Preserves prediction history while creating new repredictions when context changes
+  - Maintains backwards compatibility with `--force-prediction` for override scenarios
+
+- ✅ **Configurable Max Repredictions**: Added `max_repredictions` input parameter to workflows
+  - Default value of 2 (0-based index, allows 3 total predictions)
+  - Can be overridden during manual workflow dispatch
+  - Enables flexible reprediction limits based on operational needs
+
+- ✅ **Enhanced Workflow Logic**: Improved prediction generation decision making
+  - Uses reprediction flags when verify fails (normal automated operation)
+  - Falls back to `--override-database` only when `force_prediction` is true
+  - Clear logging shows which prediction strategy is being used
+
+**Key Implementation Features:**
+
+- **Automated Context-Driven Repredictions**: Workflows automatically detect context changes and create repredictions
+- **History Preservation**: Each reprediction maintains complete prediction history in database
+- **Flexible Limits**: Manual workflow dispatch can override default reprediction limits when needed
+- **Backwards Compatibility**: Force prediction option preserves legacy override behavior
+- **Enhanced Monitoring**: Workflow summaries include reprediction count and strategy used
+
+**Workflow Command Examples:**
+
+```bash
+# Normal scheduled execution (uses reprediction logic)
+dotnet run -- verify o3 --community pes-squad --community-context pes --check-outdated
+dotnet run -- matchday o3 --community pes-squad --community-context pes --max-repredictions 2
+
+# Manual override (forces regeneration)
+dotnet run -- matchday o3 --community pes-squad --community-context pes --override-database
+```
+
+**Updated Workflow Features:**
+
+- Both `base-matchday-predictions.yml` and `base-bonus-predictions.yml` support reprediction logic
+- Enhanced workflow summaries show max repredictions setting and strategy used
+- Clear distinction between automated repredictions and manual overrides
 
 ### Adjustments to `cost` Command
 
