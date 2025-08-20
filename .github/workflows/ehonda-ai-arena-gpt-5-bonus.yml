@@ -31,7 +31,7 @@ jobs:
       community_context: "pes-squad"
       trigger_type: ${{ github.event_name == 'schedule' && 'scheduled' || 'manual' }}
       force_prediction: ${{ github.event.inputs.force_prediction == 'true' }}
-      max_repredictions: ${{ github.event.inputs.max_repredictions || 2 }}
+      max_repredictions: ${{ github.event.inputs.max_repredictions == '' && 2 || fromJSON(github.event.inputs.max_repredictions) }}
     secrets:
       kicktipp_username: ${{ secrets.EHONDA_AI_ARENA_GPT_5_KICKTIPP_USERNAME }}
       kicktipp_password: ${{ secrets.EHONDA_AI_ARENA_GPT_5_KICKTIPP_PASSWORD }}
