@@ -1,0 +1,40 @@
+name: ehonda-ai-arena ⚽ o3 ⚽ Bonus
+
+on:
+  # Schedule to run twice daily one hour after context collection
+  # Note: GitHub Actions cron runs in UTC only, so these times approximate Europe/Berlin
+  schedule:
+    - cron: '0 1 * * *'    # ~02:00 AM Europe/Berlin (01:00 UTC = 02:00 CET, 03:00 CEST) - 1 hour after context collection
+    - cron: '0 13 * * *'   # ~02:00 PM Europe/Berlin (13:00 UTC = 14:00 CET, 15:00 CEST) - 1 hour after context collection
+  
+  # Allow manual triggering
+  workflow_dispatch:
+    inputs:
+      force_prediction:
+        description: 'Force prediction even if verify passes'
+        required: false
+        default: false
+        type: boolean
+      max_repredictions:
+        description: 'Maximum number of repredictions allowed (0-based index)'
+        required: false
+        default: 2
+        type: number
+
+jobs:
+  call-base-workflow:
+    name: Run Bonus Predictions
+    uses: ./.github/workflows/base-bonus-predictions.yml
+    with:
+      community: "ehonda-ai-arena"
+      model: "o3"
+      community_context: "pes-squad"
+      trigger_type: ${{ github.event_name == 'schedule' && 'scheduled' || 'manual' }}
+      force_prediction: ${{ github.event.inputs.force_prediction == 'true' }}
+      max_repredictions: ${{ github.event.inputs.max_repredictions && fromJSON(github.event.inputs.max_repredictions) || 2 }}
+    secrets:
+      kicktipp_username: ${{ secrets.EHONDA_AI_ARENA_O3_KICKTIPP_USERNAME }}
+      kicktipp_password: ${{ secrets.EHONDA_AI_ARENA_O3_KICKTIPP_PASSWORD }}
+      firebase_project_id: ${{ secrets.FIREBASE_PROJECT_ID }}
+      firebase_service_account_json: ${{ secrets.FIREBASE_SERVICE_ACCOUNT_JSON }}
+      openai_api_key: ${{ secrets.OPENAI_API_KEY }}
