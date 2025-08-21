@@ -1,0 +1,40 @@
+name: schadensfresse ⚽ Bonus
+
+on:
+  # Schedule to run twice daily 30 minutes after context collection
+  # Note: GitHub Actions cron runs in UTC only, so these times approximate Europe/Berlin
+  schedule:
+    - cron: '30 0 * * *'   # ~01:30 AM Europe/Berlin (00:30 UTC = 01:30 CET, 02:30 CEST) - 30 min after context collection
+    - cron: '30 12 * * *'  # ~01:30 PM Europe/Berlin (12:30 UTC = 13:30 CET, 14:30 CEST) - 30 min after context collection
+  
+  # Allow manual triggering
+  workflow_dispatch:
+    inputs:
+      force_prediction:
+        description: 'Force prediction even if verify passes'
+        required: false
+        default: false
+        type: boolean
+      max_repredictions:
+        description: 'Maximum number of repredictions allowed (0-based index)'
+        required: false
+        default: 2
+        type: number
+
+jobs:
+  call-base-workflow:
+    name: Run Bonus Predictions
+    uses: ./.github/workflows/base-bonus-predictions.yml
+    with:
+      community: "schadensfresse"
+      model: "o3"
+      community_context: "schadensfresse"
+      trigger_type: ${{ github.event_name == 'schedule' && 'scheduled' || 'manual' }}
+      force_prediction: ${{ github.event.inputs.force_prediction == 'true' }}
+      max_repredictions: ${{ github.event.inputs.max_repredictions == '' && 2 || fromJSON(github.event.inputs.max_repredictions) }}
+    secrets:
+      kicktipp_username: ${{ secrets.SCHADENSFRESSE_KICKTIPP_USERNAME }}
+      kicktipp_password: ${{ secrets.SCHADENSFRESSE_KICKTIPP_PASSWORD }}
+      firebase_project_id: ${{ secrets.FIREBASE_PROJECT_ID }}
+      firebase_service_account_json: ${{ secrets.FIREBASE_SERVICE_ACCOUNT_JSON }}
+      openai_api_key: ${{ secrets.OPENAI_API_KEY }}
