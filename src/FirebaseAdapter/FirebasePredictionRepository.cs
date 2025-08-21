@@ -747,4 +747,107 @@ public class FirebasePredictionRepository : IPredictionRepository
             throw;
         }
     }
+
+    /// <summary>
+    /// Get match prediction costs and counts grouped by reprediction index for cost analysis.
+    /// Used specifically by the cost command to include all repredictions.
+    /// </summary>
+    public async Task<Dictionary<int, (double cost, int count)>> GetMatchPredictionCostsByRepredictionIndexAsync(
+        string model, 
+        string communityContext, 
+        List<int>? matchdays = null,
+        CancellationToken cancellationToken = default)
+    {
+        try
+        {
+            var costsByIndex = new Dictionary<int, (double cost, int count)>();
+            
+            // Query for match predictions with cost data
+            var query = _firestoreDb.Collection(_predictionsCollection)
+                .WhereEqualTo("competition", _competition)
+                .WhereEqualTo("model", model)
+                .WhereEqualTo("communityContext", communityContext);
+                
+            // Add matchday filter if specified
+            if (matchdays?.Count > 0)
+            {
+                query = query.WhereIn("matchday", matchdays.Cast<object>().ToArray());
+            }
+            
+            var snapshot = await query.GetSnapshotAsync(cancellationToken);
+            
+            foreach (var doc in snapshot.Documents)
+            {
+                if (doc.Exists)
+                {
+                    var prediction = doc.ConvertTo<FirestoreMatchPrediction>();
+                    var repredictionIndex = prediction.RepredictionIndex;
+                    
+                    if (!costsByIndex.ContainsKey(repredictionIndex))
+                    {
+                        costsByIndex[repredictionIndex] = (0.0, 0);
+                    }
+                    
+                    var (currentCost, currentCount) = costsByIndex[repredictionIndex];
+                    costsByIndex[repredictionIndex] = (currentCost + prediction.Cost, currentCount + 1);
+                }
+            }
+            
+            return costsByIndex;
+        }
+        catch (Exception ex)
+        {
+            _logger.LogError(ex, "Failed to get match prediction costs by reprediction index for model {Model} and community context {CommunityContext}", 
+                model, communityContext);
+            throw;
+        }
+    }
+
+    /// <summary>
+    /// Get bonus prediction costs and counts grouped by reprediction index for cost analysis.
+    /// Used specifically by the cost command to include all repredictions.
+    /// </summary>
+    public async Task<Dictionary<int, (double cost, int count)>> GetBonusPredictionCostsByRepredictionIndexAsync(
+        string model, 
+        string communityContext,
+        CancellationToken cancellationToken = default)
+    {
+        try
+        {
+            var costsByIndex = new Dictionary<int, (double cost, int count)>();
+            
+            // Query for bonus predictions with cost data
+            var query = _firestoreDb.Collection(_bonusPredictionsCollection)
+                .WhereEqualTo("competition", _competition)
+                .WhereEqualTo("model", model)
+                .WhereEqualTo("communityContext", communityContext);
+            
+            var snapshot = await query.GetSnapshotAsync(cancellationToken);
+            
+            foreach (var doc in snapshot.Documents)
+            {
+                if (doc.Exists)
+                {
+                    var prediction = doc.ConvertTo<FirestoreBonusPrediction>();
+                    var repredictionIndex = prediction.RepredictionIndex;
+                    
+                    if (!costsByIndex.ContainsKey(repredictionIndex))
+                    {
+                        costsByIndex[repredictionIndex] = (0.0, 0);
+                    }
+                    
+                    var (currentCost, currentCount) = costsByIndex[repredictionIndex];
+                    costsByIndex[repredictionIndex] = (currentCost + prediction.Cost, currentCount + 1);
+                }
+            }
+            
+            return costsByIndex;
+        }
+        catch (Exception ex)
+        {
+            _logger.LogError(ex, "Failed to get bonus prediction costs by reprediction index for model {Model} and community context {CommunityContext}", 
+                model, communityContext);
+            throw;
+        }
+    }
 }

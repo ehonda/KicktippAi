@@ -206,6 +206,27 @@ public interface IPredictionRepository
     /// <param name="cancellationToken">Cancellation token.</param>
     /// <returns>A task representing the asynchronous operation.</returns>
     Task SaveBonusRepredictionAsync(BonusQuestion bonusQuestion, BonusPrediction bonusPrediction, string model, string tokenUsage, double cost, string communityContext, IEnumerable<string> contextDocumentNames, int repredictionIndex, CancellationToken cancellationToken = default);
+
+    /// <summary>
+    /// Get match prediction costs and counts grouped by reprediction index for cost analysis.
+    /// Used specifically by the cost command to include all repredictions.
+    /// </summary>
+    /// <param name="model">The AI model used to generate predictions.</param>
+    /// <param name="communityContext">The community context used for predictions.</param>
+    /// <param name="matchdays">Optional list of matchdays to filter by. If null, all matchdays are included.</param>
+    /// <param name="cancellationToken">Cancellation token.</param>
+    /// <returns>Dictionary mapping reprediction index to (cost, count) tuple.</returns>
+    Task<Dictionary<int, (double cost, int count)>> GetMatchPredictionCostsByRepredictionIndexAsync(string model, string communityContext, List<int>? matchdays = null, CancellationToken cancellationToken = default);
+
+    /// <summary>
+    /// Get bonus prediction costs and counts grouped by reprediction index for cost analysis.
+    /// Used specifically by the cost command to include all repredictions.
+    /// </summary>
+    /// <param name="model">The AI model used to generate predictions.</param>
+    /// <param name="communityContext">The community context used for predictions.</param>
+    /// <param name="cancellationToken">Cancellation token.</param>
+    /// <returns>Dictionary mapping reprediction index to (cost, count) tuple.</returns>
+    Task<Dictionary<int, (double cost, int count)>> GetBonusPredictionCostsByRepredictionIndexAsync(string model, string communityContext, CancellationToken cancellationToken = default);
 }
 
 /// <summary>

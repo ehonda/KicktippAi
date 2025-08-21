@@ -74,8 +74,8 @@ public class CostCommand : AsyncCommand<CostSettings>
             var matchPredictionCount = 0;
             var bonusPredictionCount = 0;
 
-            // Structure to store detailed breakdown data
-            var detailedData = new List<(string CommunityContext, string Model, string Category, int Count, double Cost)>();
+            // Structure to store detailed breakdown data with reprediction index support
+            var detailedData = new List<(string CommunityContext, string Model, string Category, int RepredictionIndex, int Count, double Cost)>();
             
             AnsiConsole.Status()
                 .Spinner(Spinner.Known.Dots)
@@ -92,38 +92,52 @@ public class CostCommand : AsyncCommand<CostSettings>
                                 AnsiConsole.MarkupLine($"[dim]  Processing model: {model}, community context: {communityContext}[/]");
                             }
                             
-                            // Get match prediction costs
-                            var (matchCost, matchCount) = GetMatchPredictionCosts(firestoreDb, model, communityContext, availableMatchdays).Result;
-                            matchPredictionCost += matchCost;
-                            matchPredictionCount += matchCount;
-
-                            // Store detailed data for breakdown
-                            if (settings.DetailedBreakdown && (matchCost > 0 || matchCount > 0))
-                            {
-                                detailedData.Add((communityContext, model, "Match", matchCount, matchCost));
-                            }
+                            // Get match prediction costs by reprediction index
+                            var matchCostsByIndex = predictionRepository.GetMatchPredictionCostsByRepredictionIndexAsync(model, communityContext, availableMatchdays).Result;
                             
-                            if (settings.Verbose && (matchCost > 0 || matchCount > 0))
+                            foreach (var kvp in matchCostsByIndex)
                             {
-                                AnsiConsole.MarkupLine($"[dim]    Match predictions: {matchCount} documents, ${matchCost.ToString("F4", CultureInfo.InvariantCulture)}[/]");
+                                var repredictionIndex = kvp.Key;
+                                var (cost, count) = kvp.Value;
+                                
+                                matchPredictionCost += cost;
+                                matchPredictionCount += count;
+
+                                // Store detailed data for breakdown
+                                if (settings.DetailedBreakdown && (cost > 0 || count > 0))
+                                {
+                                    detailedData.Add((communityContext, model, "Match", repredictionIndex, count, cost));
+                                }
+                                
+                                if (settings.Verbose && (cost > 0 || count > 0))
+                                {
+                                    AnsiConsole.MarkupLine($"[dim]    Match predictions (reprediction {repredictionIndex}): {count} documents, ${cost.ToString("F4", CultureInfo.InvariantCulture)}[/]");
+                                }
                             }
                             
                             // Get bonus prediction costs if requested or if all mode is enabled
                             if (settings.Bonus || settings.All)
                             {
-                                var (bonusCost, bonusCount) = GetBonusPredictionCosts(firestoreDb, model, communityContext).Result;
-                                bonusPredictionCost += bonusCost;
-                                bonusPredictionCount += bonusCount;
-
-                                // Store detailed data for breakdown
-                                if (settings.DetailedBreakdown && (bonusCost > 0 || bonusCount > 0))
-                                {
-                                    detailedData.Add((communityContext, model, "Bonus", bonusCount, bonusCost));
-                                }
+                                var bonusCostsByIndex = predictionRepository.GetBonusPredictionCostsByRepredictionIndexAsync(model, communityContext).Result;
                                 
-                                if (settings.Verbose && (bonusCost > 0 || bonusCount > 0))
+                                foreach (var kvp in bonusCostsByIndex)
                                 {
-                                    AnsiConsole.MarkupLine($"[dim]    Bonus predictions: {bonusCount} documents, ${bonusCost.ToString("F4", CultureInfo.InvariantCulture)}[/]");
+                                    var repredictionIndex = kvp.Key;
+                                    var (cost, count) = kvp.Value;
+                                    
+                                    bonusPredictionCost += cost;
+                                    bonusPredictionCount += count;
+
+                                    // Store detailed data for breakdown
+                                    if (settings.DetailedBreakdown && (cost > 0 || count > 0))
+                                    {
+                                        detailedData.Add((communityContext, model, "Bonus", repredictionIndex, count, cost));
+                                    }
+                                    
+                                    if (settings.Verbose && (cost > 0 || count > 0))
+                                    {
+                                        AnsiConsole.MarkupLine($"[dim]    Bonus predictions (reprediction {repredictionIndex}): {count} documents, ${cost.ToString("F4", CultureInfo.InvariantCulture)}[/]");
+                                    }
                                 }
                             }
                         }
@@ -138,46 +152,74 @@ public class CostCommand : AsyncCommand<CostSettings>
             
             if (settings.DetailedBreakdown)
             {
-                // Add columns for detailed breakdown
+                // Add columns for detailed breakdown with reprediction support
                 table.AddColumn("Community Context");
                 table.AddColumn("Model");
                 table.AddColumn("Category");
-                table.AddColumn("Count", col => col.RightAligned());
-                table.AddColumn("Cost (USD)", col => col.RightAligned());
+                table.AddColumn("Index 0", col => col.RightAligned());
+                table.AddColumn("Index 1", col => col.RightAligned());
+                table.AddColumn("Index 2+", col => col.RightAligned());
+                table.AddColumn("Total Count", col => col.RightAligned());
+                table.AddColumn("Total Cost (USD)", col => col.RightAligned());
                 
-                // Sort detailed data by community context, then model, then category
-                var sortedData = detailedData
-                    .OrderBy(d => d.CommunityContext)
-                    .ThenBy(d => d.Model)
-                    .ThenBy(d => d.Category)
+                // Group data by community context, model, and category to aggregate reprediction indices
+                var groupedData = detailedData
+                    .GroupBy(d => new { d.CommunityContext, d.Model, d.Category })
+                    .Select(g => new
+                    {
+                        g.Key.CommunityContext,
+                        g.Key.Model,
+                        g.Key.Category,
+                        Index0Count = g.Where(x => x.RepredictionIndex == 0).Sum(x => x.Count),
+                        Index0Cost = g.Where(x => x.RepredictionIndex == 0).Sum(x => x.Cost),
+                        Index1Count = g.Where(x => x.RepredictionIndex == 1).Sum(x => x.Count),
+                        Index1Cost = g.Where(x => x.RepredictionIndex == 1).Sum(x => x.Cost),
+                        Index2PlusCount = g.Where(x => x.RepredictionIndex >= 2).Sum(x => x.Count),
+                        Index2PlusCost = g.Where(x => x.RepredictionIndex >= 2).Sum(x => x.Cost),
+                        TotalCount = g.Sum(x => x.Count),
+                        TotalCost = g.Sum(x => x.Cost)
+                    })
+                    .OrderBy(g => g.CommunityContext)
+                    .ThenBy(g => g.Model)
+                    .ThenBy(g => g.Category)
                     .ToList();
                 
                 // Add rows for detailed breakdown with alternating styling
-                for (int i = 0; i < sortedData.Count; i++)
+                for (int i = 0; i < groupedData.Count; i++)
                 {
-                    var (communityContext, model, category, count, cost) = sortedData[i];
+                    var data = groupedData[i];
                     var isEvenRow = i % 2 == 0;
+                    
+                    var index0Text = data.Index0Count > 0 ? $"{data.Index0Count} (${data.Index0Cost.ToString("F2", CultureInfo.InvariantCulture)})" : "-";
+                    var index1Text = data.Index1Count > 0 ? $"{data.Index1Count} (${data.Index1Cost.ToString("F2", CultureInfo.InvariantCulture)})" : "-";
+                    var index2PlusText = data.Index2PlusCount > 0 ? $"{data.Index2PlusCount} (${data.Index2PlusCost.ToString("F2", CultureInfo.InvariantCulture)})" : "-";
                     
                     if (isEvenRow)
                     {
                         // Even rows - normal styling
                         table.AddRow(
-                            communityContext,
-                            model,
-                            category,
-                            count.ToString(CultureInfo.InvariantCulture),
-                            $"${cost.ToString("F4", CultureInfo.InvariantCulture)}"
+                            data.CommunityContext,
+                            data.Model,
+                            data.Category,
+                            index0Text,
+                            index1Text,
+                            index2PlusText,
+                            data.TotalCount.ToString(CultureInfo.InvariantCulture),
+                            $"${data.TotalCost.ToString("F4", CultureInfo.InvariantCulture)}"
                         );
                     }
                     else
                     {
                         // Odd rows - subtle blue tint for visual differentiation
                         table.AddRow(
-                            $"[blue]{communityContext}[/]",
-                            $"[blue]{model}[/]",
-                            $"[blue]{category}[/]",
-                            $"[blue]{count.ToString(CultureInfo.InvariantCulture)}[/]",
-                            $"[blue]${cost.ToString("F4", CultureInfo.InvariantCulture)}[/]"
+                            $"[blue]{data.CommunityContext}[/]",
+                            $"[blue]{data.Model}[/]",
+                            $"[blue]{data.Category}[/]",
+                            $"[blue]{index0Text}[/]",
+                            $"[blue]{index1Text}[/]",
+                            $"[blue]{index2PlusText}[/]",
+                            $"[blue]{data.TotalCount.ToString(CultureInfo.InvariantCulture)}[/]",
+                            $"[blue]${data.TotalCost.ToString("F4", CultureInfo.InvariantCulture)}[/]"
                         );
                     }
                 }
@@ -185,11 +227,26 @@ public class CostCommand : AsyncCommand<CostSettings>
                 // Add total row
                 if (detailedData.Any())
                 {
+                    // Calculate totals by reprediction index
+                    var totalIndex0Count = detailedData.Where(x => x.RepredictionIndex == 0).Sum(x => x.Count);
+                    var totalIndex0Cost = detailedData.Where(x => x.RepredictionIndex == 0).Sum(x => x.Cost);
+                    var totalIndex1Count = detailedData.Where(x => x.RepredictionIndex == 1).Sum(x => x.Count);
+                    var totalIndex1Cost = detailedData.Where(x => x.RepredictionIndex == 1).Sum(x => x.Cost);
+                    var totalIndex2PlusCount = detailedData.Where(x => x.RepredictionIndex >= 2).Sum(x => x.Count);
+                    var totalIndex2PlusCost = detailedData.Where(x => x.RepredictionIndex >= 2).Sum(x => x.Cost);
+                    
+                    var totalIndex0Text = totalIndex0Count > 0 ? $"{totalIndex0Count} (${totalIndex0Cost.ToString("F2", CultureInfo.InvariantCulture)})" : "-";
+                    var totalIndex1Text = totalIndex1Count > 0 ? $"{totalIndex1Count} (${totalIndex1Cost.ToString("F2", CultureInfo.InvariantCulture)})" : "-";
+                    var totalIndex2PlusText = totalIndex2PlusCount > 0 ? $"{totalIndex2PlusCount} (${totalIndex2PlusCost.ToString("F2", CultureInfo.InvariantCulture)})" : "-";
+                    
                     table.AddEmptyRow();
                     table.AddRow(
                         "[bold]Total[/]",
                         "",
                         "",
+                        $"[bold]{totalIndex0Text}[/]",
+                        $"[bold]{totalIndex1Text}[/]",
+                        $"[bold]{totalIndex2PlusText}[/]",
                         $"[bold]{(matchPredictionCount + bonusPredictionCount).ToString(CultureInfo.InvariantCulture)}[/]",
                         $"[bold]${totalCost.ToString("F4", CultureInfo.InvariantCulture)}[/]"
                     );
@@ -418,81 +475,6 @@ public class CostCommand : AsyncCommand<CostSettings>
         }
 
         return communityContexts.ToList();
-    }
-    
-    private async Task<(double cost, int count)> GetMatchPredictionCosts(
-        FirestoreDb firestoreDb,
-        string model, 
-        string communityContext, 
-        List<int> matchdays)
-    {
-        var totalCost = 0.0;
-        var competition = "bundesliga-2025-26"; // This matches the default in FirestoreModels
-        
-        // Query for match predictions with cost data
-        var query = firestoreDb.Collection("match-predictions")
-            .WhereEqualTo("competition", competition)
-            .WhereEqualTo("model", model)
-            .WhereEqualTo("communityContext", communityContext);
-            
-        // Add matchday filter if specified
-        if (matchdays?.Count > 0)
-        {
-            query = query.WhereIn("matchday", matchdays.Cast<object>().ToArray());
-        }
-        
-        var snapshot = await query.GetSnapshotAsync();
-        
-        foreach (var doc in snapshot.Documents)
-        {
-            if (doc.Exists && doc.TryGetValue<object>("cost", out var costValue))
-            {
-                if (costValue is double cost)
-                {
-                    totalCost += cost;
-                }
-                else if (double.TryParse(costValue.ToString(), out var parsedCost))
-                {
-                    totalCost += parsedCost;
-                }
-            }
-        }
-        
-        return (totalCost, snapshot.Documents.Count);
-    }
-    
-    private async Task<(double cost, int count)> GetBonusPredictionCosts(
-        FirestoreDb firestoreDb,
-        string model, 
-        string communityContext)
-    {
-        var totalCost = 0.0;
-        var competition = "bundesliga-2025-26"; // This matches the default in FirestoreModels
-        
-        // Query for bonus predictions with cost data
-        var query = firestoreDb.Collection("bonus-predictions")
-            .WhereEqualTo("competition", competition)
-            .WhereEqualTo("model", model)
-            .WhereEqualTo("communityContext", communityContext);
-        
-        var snapshot = await query.GetSnapshotAsync();
-        
-        foreach (var doc in snapshot.Documents)
-        {
-            if (doc.Exists && doc.TryGetValue<object>("cost", out var costValue))
-            {
-                if (costValue is double cost)
-                {
-                    totalCost += cost;
-                }
-                else if (double.TryParse(costValue.ToString(), out var parsedCost))
-                {
-                    totalCost += parsedCost;
-                }
-            }
-        }
-        
-        return (totalCost, snapshot.Documents.Count);
     }
 
     private async Task<CostConfiguration> LoadConfigurationFromFile(string configFilePath, ILogger logger)

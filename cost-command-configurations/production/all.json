@@ -1,7 +1,7 @@
 {
     "matchdays": "all",
     "bonus": true,
-    "models": "o3",
+    "models": "all",
     "communityContexts": "pes-squad,schadensfresse",
     "detailedBreakdown": true
 }
