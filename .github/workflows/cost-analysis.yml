@@ -1,4 +1,4 @@
-name: Cost Analysis
+name: 💰 Cost Analysis
 
 on:
   # Schedule to run 30 minutes after the last prediction workflows
