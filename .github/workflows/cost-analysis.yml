@@ -1,0 +1,63 @@
+name: Cost Analysis
+
+on:
+  # Schedule to run 30 minutes after the last prediction workflows
+  schedule:
+    - cron: '30 1 * * *'   # ~02:30 AM Europe/Berlin (01:30 UTC = 02:30 CET, 03:30 CEST) - 30 min after last predictions
+    - cron: '30 13 * * *'  # ~02:30 PM Europe/Berlin (13:30 UTC = 14:30 CET, 15:30 CEST) - 30 min after last predictions
+  
+  # Allow manual triggering
+  workflow_dispatch:
+
+env:
+  DOTNET_SKIP_FIRST_TIME_EXPERIENCE: true
+  DOTNET_NOLOGO: true
+
+jobs:
+  cost-analysis:
+    name: Cost Analysis
+    runs-on: ubuntu-latest
+    
+    strategy:
+      matrix:
+        config:
+          - name: "All Communities"
+            file: "all.json"
+          - name: "ehonda AI Arena"
+            file: "ehonda-ai-arena.json"
+          - name: "PES Squad"
+            file: "pes-squad.json"
+          - name: "Schadensfresse"
+            file: "schadensfresse.json"
+      fail-fast: false # Continue with other configurations even if one fails
+    
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v4
+        
+      - name: Setup .NET
+        uses: actions/setup-dotnet@v4
+        with:
+          dotnet-version: '9.x'
+          
+      - name: Restore dependencies
+        run: dotnet restore
+        
+      - name: Build project
+        run: dotnet build --no-restore --configuration Release
+        
+      - name: Run Cost Analysis - ${{ matrix.config.name }}
+        run: |
+          dotnet run --project src/Orchestrator/Orchestrator.csproj --configuration Release -- cost --file cost-command-configurations/production/${{ matrix.config.file }} --verbose
+        env:
+          FIREBASE_PROJECT_ID: ${{ secrets.FIREBASE_PROJECT_ID }}
+          FIREBASE_SERVICE_ACCOUNT_JSON: ${{ secrets.FIREBASE_SERVICE_ACCOUNT_JSON }}
+        continue-on-error: true # Don't fail the entire workflow if one config fails
+        
+      - name: Cost Analysis Summary
+        if: always()
+        run: |
+          echo "## Cost Analysis Summary - ${{ matrix.config.name }}" >> $GITHUB_STEP_SUMMARY
+          echo "- **Trigger**: ${{ github.event_name }}" >> $GITHUB_STEP_SUMMARY
+          echo "- **Configuration**: ${{ matrix.config.file }}" >> $GITHUB_STEP_SUMMARY
+          echo "- **Status**: ${{ job.status }}" >> $GITHUB_STEP_SUMMARY

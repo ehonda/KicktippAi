@@ -28,6 +28,15 @@ Each community gets its own set of workflows that call the base workflows with s
   - Runs every 12 hours (00:00 and 12:00 UTC)
   - Can be manually triggered
 
+### Cost Analysis Workflow
+
+- **`cost-analysis.yml`**: Automated cost analysis for all prediction activities
+  - Runs twice daily (01:30 and 13:30 UTC) - 30 minutes after the last prediction workflows
+  - Analyzes costs for all community configurations using a matrix strategy
+  - Configurations analyzed: `all.json`, `ehonda-ai-arena.json`, `pes-squad.json`, `schadensfresse.json`
+  - Can be manually triggered
+  - Provides detailed cost breakdown and observability into prediction expenses
+
 ## How It Works
 
 ### Prediction Workflows
@@ -266,6 +275,19 @@ dotnet run --project src/Orchestrator/Orchestrator.csproj -- collect-context kic
 dotnet run --project src/Orchestrator/Orchestrator.csproj -- collect-context kicktipp --community-context pes-squad --verbose
 
 dotnet run --project src/Orchestrator/Orchestrator.csproj -- collect-context kicktipp --community-context schadensfresse --verbose
+```
+
+### Cost Analysis Testing
+
+```bash
+# Test cost analysis with different configuration files
+dotnet run --project src/Orchestrator/Orchestrator.csproj -- cost --file cost-command-configurations/production/all.json --verbose
+
+dotnet run --project src/Orchestrator/Orchestrator.csproj -- cost --file cost-command-configurations/production/ehonda-ai-arena.json --verbose
+
+dotnet run --project src/Orchestrator/Orchestrator.csproj -- cost --file cost-command-configurations/production/pes-squad.json --verbose
+
+dotnet run --project src/Orchestrator/Orchestrator.csproj -- cost --file cost-command-configurations/production/schadensfresse.json --verbose
 ```
 
 Make sure to set the required environment variables locally for testing.
