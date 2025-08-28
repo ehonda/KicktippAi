@@ -323,6 +323,16 @@ public class VerifyMatchdayCommand : AsyncCommand<VerifySettings>
                 // to get the actual document name stored in the repository
                 var actualDocumentName = StripDisplaySuffix(documentName);
                 
+                // Skip bundesliga-standings.csv from outdated check to reduce unnecessary repredictions
+                if (actualDocumentName.Equals("bundesliga-standings.csv", StringComparison.OrdinalIgnoreCase))
+                {
+                    if (verbose)
+                    {
+                        AnsiConsole.MarkupLine($"[dim]  Skipping outdated check for '{actualDocumentName}' (excluded from cost optimization)[/]");
+                    }
+                    continue;
+                }
+                
                 var latestContextDocument = await contextRepository.GetLatestContextDocumentAsync(actualDocumentName, communityContext);
                 
                 if (latestContextDocument != null && latestContextDocument.CreatedAt > predictionMetadata.CreatedAt)

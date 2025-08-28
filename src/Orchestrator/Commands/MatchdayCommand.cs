@@ -186,8 +186,29 @@ public class MatchdayCommand : AsyncCommand<BaseSettings>
                         
                         if (nextIndex <= maxAllowed)
                         {
-                            shouldPredict = true;
-                            AnsiConsole.MarkupLine($"[yellow]  → Creating reprediction {nextIndex} (current: {currentRepredictionIndex}, max: {maxAllowed})...[/]");
+                            // Before repredicting, check if the current prediction is actually outdated
+                            var isOutdated = await CheckPredictionOutdated(predictionRepository!, contextRepository, match, settings.Model, communityContext, settings.Verbose);
+                            
+                            if (isOutdated)
+                            {
+                                shouldPredict = true;
+                                AnsiConsole.MarkupLine($"[yellow]  → Creating reprediction {nextIndex} (current: {currentRepredictionIndex}, max: {maxAllowed}) - prediction is outdated[/]");
+                            }
+                            else
+                            {
+                                AnsiConsole.MarkupLine($"[green]  ✓ Skipped reprediction - current prediction is up-to-date[/]");
+                                
+                                // Get the latest prediction for display purposes
+                                prediction = await predictionRepository!.GetPredictionAsync(match, settings.Model, communityContext);
+                                if (prediction != null)
+                                {
+                                    fromDatabase = true;
+                                    if (!settings.Agent)
+                                    {
+                                        AnsiConsole.MarkupLine($"[green]  ✓ Latest prediction:[/] {prediction.HomeGoals}:{prediction.AwayGoals} [dim](reprediction {currentRepredictionIndex})[/]");
+                                    }
+                                }
+                            }
                         }
                         else
                         {
@@ -616,5 +637,86 @@ public class MatchdayCommand : AsyncCommand<BaseSettings>
             string communityContext = settings.CommunityContext ?? settings.Community;
             return new KicktippContextProvider(kicktippClient, settings.Community, communityContext);
         });
+    }
+    
+    private static async Task<bool> CheckPredictionOutdated(IPredictionRepository predictionRepository, IContextRepository contextRepository, Match match, string model, string communityContext, bool verbose)
+    {
+        try
+        {
+            // Get prediction metadata with context document names and timestamps
+            var predictionMetadata = await predictionRepository.GetPredictionMetadataAsync(match, model, communityContext);
+            
+            if (predictionMetadata == null || !predictionMetadata.ContextDocumentNames.Any())
+            {
+                // If no context documents were used, prediction can't be outdated based on context changes
+                return false;
+            }
+            
+            if (verbose)
+            {
+                AnsiConsole.MarkupLine($"[dim]  Checking {predictionMetadata.ContextDocumentNames.Count} context documents for updates[/]");
+            }
+            
+            // Check if any context document has been updated after the prediction was created
+            foreach (var documentName in predictionMetadata.ContextDocumentNames)
+            {
+                // Strip any display suffix (e.g., " (kpi-context)") from the context document name
+                // to get the actual document name stored in the repository
+                var actualDocumentName = StripDisplaySuffix(documentName);
+                
+                // Skip bundesliga-standings.csv from outdated check to reduce unnecessary repredictions
+                if (actualDocumentName.Equals("bundesliga-standings.csv", StringComparison.OrdinalIgnoreCase))
+                {
+                    if (verbose)
+                    {
+                        AnsiConsole.MarkupLine($"[dim]  Skipping outdated check for '{actualDocumentName}' (excluded from cost optimization)[/]");
+                    }
+                    continue;
+                }
+                
+                var latestContextDocument = await contextRepository.GetLatestContextDocumentAsync(actualDocumentName, communityContext);
+                
+                if (latestContextDocument != null && latestContextDocument.CreatedAt > predictionMetadata.CreatedAt)
+                {
+                    if (verbose)
+                    {
+                        AnsiConsole.MarkupLine($"[dim]  Context document '{actualDocumentName}' (stored as '{documentName}') updated after prediction (document: {latestContextDocument.CreatedAt}, prediction: {predictionMetadata.CreatedAt})[/]");
+                    }
+                    return true; // Prediction is outdated
+                }
+                else if (verbose && latestContextDocument == null)
+                {
+                    AnsiConsole.MarkupLine($"[yellow]  Warning: Context document '{actualDocumentName}' not found in repository[/]");
+                }
+            }
+            
+            return false; // Prediction is up-to-date
+        }
+        catch (Exception ex)
+        {
+            // Log error but don't fail verification due to outdated check issues
+            if (verbose)
+            {
+                AnsiConsole.MarkupLine($"[yellow]  Warning: Failed to check outdated status: {ex.Message}[/]");
+            }
+            return false;
+        }
+    }
+    
+    /// <summary>
+    /// Strips display suffixes like " (kpi-context)" from context document names
+    /// to get the actual document name used in the repository.
+    /// </summary>
+    /// <param name="displayName">The display name that may contain a suffix</param>
+    /// <returns>The actual document name without any display suffix</returns>
+    private static string StripDisplaySuffix(string displayName)
+    {
+        // Look for patterns like " (some-text)" at the end and remove them
+        var lastParenIndex = displayName.LastIndexOf(" (");
+        if (lastParenIndex > 0 && displayName.EndsWith(")"))
+        {
+            return displayName.Substring(0, lastParenIndex);
+        }
+        return displayName;
     }
 }

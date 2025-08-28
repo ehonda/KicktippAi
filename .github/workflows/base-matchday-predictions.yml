@@ -78,7 +78,7 @@ jobs:
           echo "Community: ${{ inputs.community }}"
           echo "Model: ${{ inputs.model }}"
           echo "Community Context: ${{ inputs.community_context }}"
-          dotnet run --project src/Orchestrator --configuration Release -- verify "${{ inputs.model }}" --community "${{ inputs.community }}" --community-context "${{ inputs.community_context }}" --init-matchday --check-outdated --agent
+          dotnet run --project src/Orchestrator --configuration Release -- verify "${{ inputs.model }}" --community "${{ inputs.community }}" --community-context "${{ inputs.community_context }}" --init-matchday --check-outdated --agent --verbose
         env:
           KICKTIPP_USERNAME: ${{ secrets.kicktipp_username }}
           KICKTIPP_PASSWORD: ${{ secrets.kicktipp_password }}
@@ -121,7 +121,7 @@ jobs:
         if: steps.verify.outcome == 'failure' || inputs.force_prediction == true
         run: |
           echo "✅ Running final verification to confirm predictions were posted successfully..."
-          dotnet run --project src/Orchestrator --configuration Release -- verify "${{ inputs.model }}" --community "${{ inputs.community }}" --community-context "${{ inputs.community_context }}" --agent
+          dotnet run --project src/Orchestrator --configuration Release -- verify "${{ inputs.model }}" --community "${{ inputs.community }}" --community-context "${{ inputs.community_context }}" --agent --verbose
         env:
           KICKTIPP_USERNAME: ${{ secrets.kicktipp_username }}
           KICKTIPP_PASSWORD: ${{ secrets.kicktipp_password }}
