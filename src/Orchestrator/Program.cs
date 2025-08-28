@@ -47,6 +47,11 @@ public class Program
                 .WithDescription("List KPI context documents from Firebase")
                 .WithExample("list-kpi", "--community", "ehonda-test-buli");
                 
+            config.AddCommand<ContextChangesCommand>("context-changes")
+                .WithDescription("Show changes between latest and previous versions of context documents")
+                .WithExample("context-changes", "--community-context", "ehonda-test-buli", "--count", "5")
+                .WithExample("context-changes", "--community-context", "ehonda-test-buli", "--seed", "42");
+                
             config.AddCommand<CostCommand>("cost")
                 .WithDescription("Calculate aggregate costs for predictions")
                 .WithExample("cost", "--all")
