@@ -60,7 +60,7 @@ Context documents are to be used for internal decision-making. They are provided
 - There are several csv context documents that provide historical match data. They are ordered from most recent to oldest.
 - Some of the csv documents contain a column named `Data_Collected_At` which indicates when the data was collected.
   - Example values: `2025-08-31`, `2025-08-12 (initial)`
-  - This is a good proxy for when the match was played, as data is collected in regular intervals, so a match will typically be collected shortly (1-3 days) after it concludes.
+  - This is a good proxy for when the match was played, as data is collected in regular intervals, so a match will typically be collected shortly (0-3 days) after it concludes.
   - The only exception to this correspondence between collection and match date is for values tagged with `(initial)`, which indicate the first time match data was collected. In these cases, matches may have been played as much as several months earlier.
 
 ## Context
