@@ -153,6 +153,70 @@ public class FirebaseContextRepository : IContextRepository
         }
     }
 
+    public async Task<IReadOnlyList<ContextDocument>> GetContextDocumentVersionsAsync(string documentName, string communityContext, CancellationToken cancellationToken = default)
+    {
+        try
+        {
+            var query = _firestoreDb.Collection(_contextDocumentsCollection)
+                .WhereEqualTo("documentName", documentName)
+                .WhereEqualTo("communityContext", communityContext)
+                .WhereEqualTo("competition", _competition)
+                .OrderBy("version");
+
+            var snapshot = await query.GetSnapshotAsync(cancellationToken);
+            
+            var documents = snapshot.Documents
+                .Select(doc => doc.ConvertTo<FirestoreContextDocument>())
+                .Select(ConvertToContextDocument)
+                .ToList()
+                .AsReadOnly();
+            
+            return documents;
+        }
+        catch (Exception ex)
+        {
+            _logger.LogError(ex, "Failed to retrieve context document versions for {DocumentName} in community {CommunityContext}", 
+                documentName, communityContext);
+            throw;
+        }
+    }
+
+    public async Task<bool> UpdateContextDocumentVersionAsync(string documentName, int version, string newContent, string communityContext, CancellationToken cancellationToken = default)
+    {
+        try
+        {
+            var documentId = $"{documentName}_{communityContext}_{version}";
+            var docRef = _firestoreDb.Collection(_contextDocumentsCollection).Document(documentId);
+            
+            // Check if document exists
+            var snapshot = await docRef.GetSnapshotAsync(cancellationToken);
+            if (!snapshot.Exists)
+            {
+                _logger.LogWarning("Cannot update non-existent document {DocumentId}", documentId);
+                return false;
+            }
+            
+            // Update only the content field
+            var updates = new Dictionary<string, object>
+            {
+                ["content"] = newContent
+            };
+            
+            await docRef.UpdateAsync(updates, cancellationToken: cancellationToken);
+            
+            _logger.LogInformation("Updated content for context document {DocumentName} version {Version} in community {CommunityContext}", 
+                documentName, version, communityContext);
+            
+            return true;
+        }
+        catch (Exception ex)
+        {
+            _logger.LogError(ex, "Failed to update context document {DocumentName} version {Version} in community {CommunityContext}", 
+                documentName, version, communityContext);
+            throw;
+        }
+    }
+
     private static ContextDocument ConvertToContextDocument(FirestoreContextDocument firestoreDoc)
     {
         return new ContextDocument(

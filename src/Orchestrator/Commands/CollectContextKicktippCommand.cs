@@ -123,6 +123,7 @@ public class CollectContextKicktippCommand : AsyncCommand<CollectContextKicktipp
         // Step 3: Save context documents to database
         var savedCount = 0;
         var skippedCount = 0;
+        var currentDate = DateTime.Now.ToString("yyyy-MM-dd");
         
         foreach (var (documentName, content) in allContextDocuments)
         {
@@ -134,9 +135,26 @@ public class CollectContextKicktippCommand : AsyncCommand<CollectContextKicktipp
                     continue;
                 }
                 
+                // Check if this is a history document that needs Data_Collected_At column
+                string finalContent = content;
+                if (IsHistoryDocument(documentName))
+                {
+                    // Get the previous version to compare against
+                    var previousDocument = await contextRepository.GetLatestContextDocumentAsync(documentName, settings.CommunityContext);
+                    var previousContent = previousDocument?.Content;
+                    
+                    // Add Data_Collected_At column with current date for new matches
+                    finalContent = HistoryCsvUtility.AddDataCollectedAtColumn(content, previousContent, currentDate);
+                    
+                    if (settings.Verbose)
+                    {
+                        AnsiConsole.MarkupLine($"[dim]  Added Data_Collected_At column to {documentName}[/]");
+                    }
+                }
+                
                 var savedVersion = await contextRepository.SaveContextDocumentAsync(
                     documentName, 
-                    content, 
+                    finalContent, 
                     settings.CommunityContext);
                 
                 if (savedVersion.HasValue)
@@ -219,5 +237,12 @@ public class CollectContextKicktippCommand : AsyncCommand<CollectContextKicktipp
             var kicktippClient = provider.GetRequiredService<IKicktippClient>();
             return new KicktippContextProvider(kicktippClient, settings.CommunityContext, settings.CommunityContext);
         });
+    }
+    
+    private static bool IsHistoryDocument(string documentName)
+    {
+        return documentName.StartsWith("recent-history-", StringComparison.OrdinalIgnoreCase) ||
+               documentName.StartsWith("home-history-", StringComparison.OrdinalIgnoreCase) ||
+               documentName.StartsWith("away-history-", StringComparison.OrdinalIgnoreCase);
     }
 }

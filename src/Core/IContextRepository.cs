@@ -55,4 +55,32 @@ public interface IContextRepository
     Task<IReadOnlyList<string>> GetContextDocumentNamesAsync(
         string communityContext, 
         CancellationToken cancellationToken = default);
+
+    /// <summary>
+    /// Retrieves all versions of a context document.
+    /// </summary>
+    /// <param name="documentName">The document name.</param>
+    /// <param name="communityContext">The community context to filter by.</param>
+    /// <param name="cancellationToken">Cancellation token.</param>
+    /// <returns>A collection of all versions of the context document, ordered by version.</returns>
+    Task<IReadOnlyList<ContextDocument>> GetContextDocumentVersionsAsync(
+        string documentName, 
+        string communityContext, 
+        CancellationToken cancellationToken = default);
+
+    /// <summary>
+    /// Updates the content of a specific version of a context document.
+    /// </summary>
+    /// <param name="documentName">The document name.</param>
+    /// <param name="version">The version to update.</param>
+    /// <param name="newContent">The new content for the document.</param>
+    /// <param name="communityContext">The community context to filter by.</param>
+    /// <param name="cancellationToken">Cancellation token.</param>
+    /// <returns>True if the update was successful, false otherwise.</returns>
+    Task<bool> UpdateContextDocumentVersionAsync(
+        string documentName, 
+        int version,
+        string newContent,
+        string communityContext, 
+        CancellationToken cancellationToken = default);
 }
