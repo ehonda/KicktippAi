@@ -438,7 +438,7 @@ public class MatchdayCommand : AsyncCommand<BaseSettings>
         var homeAbbreviation = GetTeamAbbreviation(homeTeam);
         var awayAbbreviation = GetTeamAbbreviation(awayTeam);
         
-        // Define the 7 specific document names needed for a match
+        // Define the 7 specific document names needed for a match (required core set)
         var requiredDocuments = new[]
         {
             "bundesliga-standings.csv",
@@ -449,6 +449,13 @@ public class MatchdayCommand : AsyncCommand<BaseSettings>
             $"away-history-{awayAbbreviation}.csv",
             $"head-to-head-{homeAbbreviation}-vs-{awayAbbreviation}.csv"
         };
+
+        // Optional transfers documents (do not affect required count). Naming: <abbr>-transfers.csv
+        var optionalDocuments = new[]
+        {
+            $"{homeAbbreviation}-transfers.csv",
+            $"{awayAbbreviation}-transfers.csv"
+        };
         
         if (verbose)
         {
@@ -457,7 +464,7 @@ public class MatchdayCommand : AsyncCommand<BaseSettings>
         
         try
         {
-            // Retrieve each specific document
+            // Retrieve each required document
             foreach (var documentName in requiredDocuments)
             {
                 var contextDoc = await contextRepository.GetLatestContextDocumentAsync(documentName, communityContext);
@@ -475,6 +482,35 @@ public class MatchdayCommand : AsyncCommand<BaseSettings>
                     if (verbose)
                     {
                         AnsiConsole.MarkupLine($"[dim]      ✗ Missing {documentName}[/]");
+                    }
+                }
+            }
+
+            // Retrieve optional transfers documents (best-effort)
+            foreach (var documentName in optionalDocuments)
+            {
+                try
+                {
+                    var contextDoc = await contextRepository.GetLatestContextDocumentAsync(documentName, communityContext);
+                    if (contextDoc != null)
+                    {
+                        // Display name suffix to distinguish optional docs in prediction metadata (helps debug) 
+                        contextDocuments[documentName] = new DocumentContext(contextDoc.DocumentName, contextDoc.Content);
+                        if (verbose)
+                        {
+                            AnsiConsole.MarkupLine($"[dim]      ✓ Retrieved optional {documentName} (version {contextDoc.Version})[/]");
+                        }
+                    }
+                    else if (verbose)
+                    {
+                        AnsiConsole.MarkupLine($"[dim]      · Missing optional {documentName}[/]");
+                    }
+                }
+                catch (Exception optEx)
+                {
+                    if (verbose)
+                    {
+                        AnsiConsole.MarkupLine($"[dim]      · Failed optional {documentName}: {optEx.Message}[/]");
                     }
                 }
             }
@@ -499,41 +535,64 @@ public class MatchdayCommand : AsyncCommand<BaseSettings>
         bool verbose = false)
     {
         var contextDocuments = new List<DocumentContext>();
-        
-        // Step 1: Try to get specific context documents from database
+        // Step 1: Retrieve any database documents (required + optional)
         var databaseContexts = await GetMatchContextDocumentsAsync(
-            contextRepository, 
-            homeTeam, 
-            awayTeam, 
-            communityContext, 
+            contextRepository,
+            homeTeam,
+            awayTeam,
+            communityContext,
             verbose);
-        
-        // Check if we have all 7 required documents
-        var expectedDocumentCount = 7;
-        if (databaseContexts.Count == expectedDocumentCount)
+
+        // Reconstruct required document names (must match logic in GetMatchContextDocumentsAsync)
+        var homeAbbreviation = GetTeamAbbreviation(homeTeam);
+        var awayAbbreviation = GetTeamAbbreviation(awayTeam);
+        var requiredDocuments = new[]
         {
+            "bundesliga-standings.csv",
+            $"community-rules-{communityContext}.md",
+            $"recent-history-{homeAbbreviation}.csv",
+            $"recent-history-{awayAbbreviation}.csv",
+            $"home-history-{homeAbbreviation}.csv",
+            $"away-history-{awayAbbreviation}.csv",
+            $"head-to-head-{homeAbbreviation}-vs-{awayAbbreviation}.csv"
+        };
+
+        int requiredPresent = requiredDocuments.Count(d => databaseContexts.ContainsKey(d));
+        int requiredTotal = requiredDocuments.Length;
+
+        if (requiredPresent == requiredTotal)
+        {
+            // All required docs present; include every database doc (required + optional)
             if (verbose)
             {
-                AnsiConsole.MarkupLine($"[green]    Using all {databaseContexts.Count} context documents from database[/]");
+                AnsiConsole.MarkupLine($"[green]    Using {databaseContexts.Count} context documents from database (all required present)[/]");
             }
             contextDocuments.AddRange(databaseContexts.Values);
         }
         else
         {
-            AnsiConsole.MarkupLine($"[yellow]    Warning: Only found {databaseContexts.Count}/{expectedDocumentCount} context documents in database, falling back to on-demand context[/]");
-            
-            // Step 2: Fall back to on-demand context provider
+            // Fallback: use on-demand provider but still include any database docs we already have (including optional transfers)
+            AnsiConsole.MarkupLine($"[yellow]    Warning: Only found {requiredPresent}/{requiredTotal} required context documents in database (have {databaseContexts.Count} total incl. optional). Falling back to on-demand context while preserving retrieved documents[/]");
+
+            // Start with database docs
+            contextDocuments.AddRange(databaseContexts.Values);
+
+            // Add on-demand docs, skipping duplicates by name
+            var existingNames = new HashSet<string>(contextDocuments.Select(c => c.Name), StringComparer.OrdinalIgnoreCase);
             await foreach (var context in contextProvider.GetMatchContextAsync(homeTeam, awayTeam))
             {
-                contextDocuments.Add(context);
+                if (existingNames.Add(context.Name))
+                {
+                    contextDocuments.Add(context);
+                }
             }
-            
+
             if (verbose)
             {
-                AnsiConsole.MarkupLine($"[yellow]    Using {contextDocuments.Count} context documents from on-demand provider[/]");
+                AnsiConsole.MarkupLine($"[yellow]    Using {contextDocuments.Count} merged context documents (database + on-demand) [/]");
             }
         }
-        
+
         return contextDocuments;
     }
     

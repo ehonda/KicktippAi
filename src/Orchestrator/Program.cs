@@ -42,6 +42,10 @@ public class Program
             config.AddCommand<UploadKpiCommand>("upload-kpi")
                 .WithDescription("Upload a KPI context document to Firebase")
                 .WithExample("upload-kpi", "team-data", "--community", "ehonda-test-buli");
+            
+            config.AddCommand<UploadTransfersCommand>("upload-transfers")
+                .WithDescription("Upload a transfers context document to Firebase (team transfers CSV)")
+                .WithExample("upload-transfers", "fcb", "--community-context", "ehonda-test-buli");
                 
             config.AddCommand<ListKpiCommand>("list-kpi")
                 .WithDescription("List KPI context documents from Firebase")
