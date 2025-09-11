@@ -20,7 +20,7 @@ public interface IPredictionRepository
     /// <param name="contextDocumentNames">Names of context documents used for this prediction.</param>
     /// <param name="cancellationToken">Cancellation token.</param>
     /// <returns>A task representing the asynchronous operation.</returns>
-    Task SavePredictionAsync(Match match, Prediction prediction, string model, string tokenUsage, double cost, string communityContext, IEnumerable<string> contextDocumentNames, CancellationToken cancellationToken = default);
+    Task SavePredictionAsync(Match match, Prediction prediction, string model, string tokenUsage, double cost, string communityContext, IEnumerable<string> contextDocumentNames, bool overrideCreatedAt = false, CancellationToken cancellationToken = default);
 
     /// <summary>
     /// Retrieves a prediction for a specific match using the specified model and community context.
@@ -104,7 +104,7 @@ public interface IPredictionRepository
     /// <param name="contextDocumentNames">Names of context documents used for this prediction.</param>
     /// <param name="cancellationToken">Cancellation token.</param>
     /// <returns>A task representing the asynchronous operation.</returns>
-    Task SaveBonusPredictionAsync(BonusQuestion bonusQuestion, BonusPrediction bonusPrediction, string model, string tokenUsage, double cost, string communityContext, IEnumerable<string> contextDocumentNames, CancellationToken cancellationToken = default);
+    Task SaveBonusPredictionAsync(BonusQuestion bonusQuestion, BonusPrediction bonusPrediction, string model, string tokenUsage, double cost, string communityContext, IEnumerable<string> contextDocumentNames, bool overrideCreatedAt = false, CancellationToken cancellationToken = default);
 
     /// <summary>
     /// Retrieves a bonus prediction for a specific question using the specified model and community context.

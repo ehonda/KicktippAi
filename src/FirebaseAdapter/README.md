@@ -77,12 +77,13 @@ services.AddFirebaseDatabase(configuration);
 
 The main methods include:
 
-- `SavePredictionAsync()`: Store or update a match prediction
+- `SavePredictionAsync(..., bool overrideCreatedAt = false)`: Store or update a match prediction. When `overrideCreatedAt` is true (used by `--override-database`), the original `createdAt` timestamp is reset to now so that outdated checks compare against the new context documents used for the forced regeneration.
 - `GetPredictionAsync()`: Retrieve a prediction for a specific match
 - `GetMatchDayAsync()`: Get all matches for a matchday
 - `GetMatchDayWithPredictionsAsync()`: Get matches with their predictions
 - `GetAllPredictionsAsync()`: Retrieve all stored predictions
 - `HasPredictionAsync()`: Check if a prediction exists
+- `SaveBonusPredictionAsync(..., bool overrideCreatedAt = false)`: Same override semantics as match predictions.
 - `StoreMatchAsync()`: Store match information (for schedule management)
 
 ## Error Handling

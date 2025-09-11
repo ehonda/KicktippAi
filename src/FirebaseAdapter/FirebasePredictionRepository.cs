@@ -32,7 +32,7 @@ public class FirebasePredictionRepository : IPredictionRepository
         _logger.LogInformation("Firebase repository initialized");
     }
 
-    public async Task SavePredictionAsync(Match match, Prediction prediction, string model, string tokenUsage, double cost, string communityContext, IEnumerable<string> contextDocumentNames, CancellationToken cancellationToken = default)
+    public async Task SavePredictionAsync(Match match, Prediction prediction, string model, string tokenUsage, double cost, string communityContext, IEnumerable<string> contextDocumentNames, bool overrideCreatedAt = false, CancellationToken cancellationToken = default)
     {
         try
         {
@@ -102,8 +102,8 @@ public class FirebasePredictionRepository : IPredictionRepository
                 RepredictionIndex = repredictionIndex
             };
 
-            // Set CreatedAt: preserve existing value for updates, set current time for new documents
-            firestorePrediction.CreatedAt = existingCreatedAt ?? now;
+            // Set CreatedAt: preserve existing value for updates unless overrideCreatedAt is explicitly requested
+            firestorePrediction.CreatedAt = (overrideCreatedAt || existingCreatedAt == null) ? now : existingCreatedAt.Value;
 
             await docRef.SetAsync(firestorePrediction, cancellationToken: cancellationToken);
 
@@ -299,7 +299,7 @@ public class FirebasePredictionRepository : IPredictionRepository
         }
     }
 
-    public async Task SaveBonusPredictionAsync(BonusQuestion bonusQuestion, BonusPrediction bonusPrediction, string model, string tokenUsage, double cost, string communityContext, IEnumerable<string> contextDocumentNames, CancellationToken cancellationToken = default)
+    public async Task SaveBonusPredictionAsync(BonusQuestion bonusQuestion, BonusPrediction bonusPrediction, string model, string tokenUsage, double cost, string communityContext, IEnumerable<string> contextDocumentNames, bool overrideCreatedAt = false, CancellationToken cancellationToken = default)
     {
         try
         {
@@ -370,8 +370,8 @@ public class FirebasePredictionRepository : IPredictionRepository
                 RepredictionIndex = repredictionIndex
             };
 
-            // Set CreatedAt: preserve existing value for updates, set current time for new documents
-            firestoreBonusPrediction.CreatedAt = existingCreatedAt ?? now;
+            // Set CreatedAt: preserve existing value for updates unless overrideCreatedAt is explicitly requested
+            firestoreBonusPrediction.CreatedAt = (overrideCreatedAt || existingCreatedAt == null) ? now : existingCreatedAt.Value;
 
             await docRef.SetAsync(firestoreBonusPrediction, cancellationToken: cancellationToken);
 

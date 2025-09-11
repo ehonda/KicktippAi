@@ -336,7 +336,8 @@ public class MatchdayCommand : AsyncCommand<BaseSettings>
                                         tokenUsageJson, 
                                         cost, 
                                         communityContext,
-                                        contextDocuments.Select(d => d.Name));
+                                        contextDocuments.Select(d => d.Name),
+                                        overrideCreatedAt: settings.OverrideDatabase);
                                         
                                     if (settings.Verbose)
                                     {
