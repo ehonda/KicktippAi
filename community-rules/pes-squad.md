@@ -7,7 +7,7 @@ These are the points provided for different prediction outcomes in the Kicktipp 
 | Result Type | Tendency | Goal Difference | Exact Result |
 |-------------|----------|-----------------|--------------|
 | Win         | 2        | 3               | 4            |
-| Draw        | 3        | -               | 4            |
+| Draw        | 2        | -               | 4            |
 
 * Tendency: Predicting the winner or a draw
 * Goal Difference: Predicting the winner and the goal difference
