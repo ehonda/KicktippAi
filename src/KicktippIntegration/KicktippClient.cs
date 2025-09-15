@@ -1680,7 +1680,7 @@ public class KicktippClient : IKicktippClient, IDisposable
     {
         try
         {
-            var url = $"{community}/tippabgabe";
+            var url = $"{community}/tippabgabe?bonus=true";
             var response = await _httpClient.GetAsync(url);
             
             if (!response.IsSuccessStatusCode)
@@ -1775,7 +1775,7 @@ public class KicktippClient : IKicktippClient, IDisposable
     {
         try
         {
-            var url = $"{community}/tippabgabe";
+            var url = $"{community}/tippabgabe?bonus=true";
             var response = await _httpClient.GetAsync(url);
             
             if (!response.IsSuccessStatusCode)
@@ -1867,7 +1867,7 @@ public class KicktippClient : IKicktippClient, IDisposable
                 return true;
             }
 
-            var url = $"{community}/tippabgabe";
+            var url = $"{community}/tippabgabe?bonus=true";
             var response = await _httpClient.GetAsync(url);
             
             if (!response.IsSuccessStatusCode)
