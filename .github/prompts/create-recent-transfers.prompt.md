@@ -72,3 +72,4 @@ The output will be a CSV document with the following columns:
 * Create the file and insert the header 
 * Use the #fetch tool to retrieve the page content
 * For each transfer listed there, create a line in the document by extracting data for the fields from the listed transfer in accordance with the column details above
+* WAIT FOR THE USER TO PROVIDE THE LINK TO THE TRANSFER PAGE BEFORE STARTING THE TASK
