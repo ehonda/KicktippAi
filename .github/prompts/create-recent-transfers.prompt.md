@@ -14,6 +14,7 @@ We want to create a summary document of the recent transfers of a Bundesliga tea
 The output will be a CSV document with the following columns:
 
 * `Date`
+* `Transfer_Type`
 * `Name`
 * `Position`
 * `From_Team`
@@ -50,6 +51,8 @@ The output will be a CSV document with the following columns:
 
 * `Name`, `From_Team`, `To_Team`
   * Are explicitly given in the transfer listing
+* `Transfer_Type`
+  * For example `Loan Out`, `Permanent In`, `Coach In`, etc.
 * `Date`
   * The date of the transfer in `YYYY-MM-DD` format
   * The information can be extracted from the transfer listing
