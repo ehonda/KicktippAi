@@ -92,6 +92,7 @@ public class FirebasePredictionRepository : IPredictionRepository
                 Matchday = match.Matchday,
                 HomeGoals = prediction.HomeGoals,
                 AwayGoals = prediction.AwayGoals,
+                Justification = prediction.Justification,
                 UpdatedAt = now,
                 Competition = _competition,
                 Model = model,
@@ -148,7 +149,7 @@ public class FirebasePredictionRepository : IPredictionRepository
             }
 
             var firestorePrediction = snapshot.Documents.First().ConvertTo<FirestoreMatchPrediction>();
-            return new Prediction(firestorePrediction.HomeGoals, firestorePrediction.AwayGoals);
+            return new Prediction(firestorePrediction.HomeGoals, firestorePrediction.AwayGoals, firestorePrediction.Justification);
         }
         catch (Exception ex)
         {
@@ -179,7 +180,7 @@ public class FirebasePredictionRepository : IPredictionRepository
             }
 
             var firestorePrediction = snapshot.Documents.First().ConvertTo<FirestoreMatchPrediction>();
-            var prediction = new Prediction(firestorePrediction.HomeGoals, firestorePrediction.AwayGoals);
+            var prediction = new Prediction(firestorePrediction.HomeGoals, firestorePrediction.AwayGoals, firestorePrediction.Justification);
             var createdAt = firestorePrediction.CreatedAt.ToDateTimeOffset();
             var contextDocumentNames = firestorePrediction.ContextDocumentNames?.ToList() ?? new List<string>();
             
@@ -263,7 +264,7 @@ public class FirebasePredictionRepository : IPredictionRepository
                 .Select(doc => doc.ConvertTo<FirestoreMatchPrediction>())
                 .Select(fp => new MatchPrediction(
                     new Match(fp.HomeTeam, fp.AwayTeam, ConvertFromTimestamp(fp.StartsAt), fp.Matchday),
-                    new Prediction(fp.HomeGoals, fp.AwayGoals)))
+                    new Prediction(fp.HomeGoals, fp.AwayGoals, fp.Justification)))
                 .ToList();
 
             return matchPredictions.AsReadOnly();
@@ -675,6 +676,7 @@ public class FirebasePredictionRepository : IPredictionRepository
                 Matchday = match.Matchday,
                 HomeGoals = prediction.HomeGoals,
                 AwayGoals = prediction.AwayGoals,
+                Justification = prediction.Justification,
                 CreatedAt = now,
                 UpdatedAt = now,
                 Competition = _competition,

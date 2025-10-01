@@ -17,6 +17,7 @@ public interface IPredictionService
     Task<Prediction?> PredictMatchAsync(
         Match match, 
         IEnumerable<DocumentContext> contextDocuments, 
+        bool includeJustification = false,
         CancellationToken cancellationToken = default);
 
     /// <summary>

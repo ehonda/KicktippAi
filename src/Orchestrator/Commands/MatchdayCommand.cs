@@ -58,6 +58,17 @@ public class MatchdayCommand : AsyncCommand<BaseSettings>
                 AnsiConsole.MarkupLine($"[cyan]Estimated costs will be calculated for model:[/] [yellow]{settings.EstimatedCostsModel}[/]");
             }
 
+            if (settings.WithJustification)
+            {
+                if (settings.Agent)
+                {
+                    AnsiConsole.MarkupLine("[red]Error:[/] --with-justification cannot be used with --agent");
+                    return 1;
+                }
+
+                AnsiConsole.MarkupLine("[green]Justification output enabled - model reasoning will be captured[/]");
+            }
+
             // Validate reprediction settings
             if (settings.OverrideDatabase && settings.IsRepredictMode)
             {
@@ -163,6 +174,7 @@ public class MatchdayCommand : AsyncCommand<BaseSettings>
                         else
                         {
                             AnsiConsole.MarkupLine($"[green]  ✓ Found existing prediction:[/] {prediction.HomeGoals}:{prediction.AwayGoals} [dim](from database)[/]");
+                            WriteJustificationIfNeeded(prediction, settings.WithJustification, fromDatabase: true);
                         }
                     }
                 }
@@ -206,6 +218,7 @@ public class MatchdayCommand : AsyncCommand<BaseSettings>
                                     if (!settings.Agent)
                                     {
                                         AnsiConsole.MarkupLine($"[green]  ✓ Latest prediction:[/] {prediction.HomeGoals}:{prediction.AwayGoals} [dim](reprediction {currentRepredictionIndex})[/]");
+                                        WriteJustificationIfNeeded(prediction, settings.WithJustification, fromDatabase: true);
                                     }
                                 }
                             }
@@ -222,6 +235,7 @@ public class MatchdayCommand : AsyncCommand<BaseSettings>
                                 if (!settings.Agent)
                                 {
                                     AnsiConsole.MarkupLine($"[green]  ✓ Latest prediction:[/] {prediction.HomeGoals}:{prediction.AwayGoals} [dim](reprediction {currentRepredictionIndex})[/]");
+                                    WriteJustificationIfNeeded(prediction, settings.WithJustification, fromDatabase: true);
                                 }
                             }
                         }
@@ -276,7 +290,7 @@ public class MatchdayCommand : AsyncCommand<BaseSettings>
                     }
                     
                     // Predict the match
-                    prediction = await predictionService.PredictMatchAsync(match, contextDocuments);
+                    prediction = await predictionService.PredictMatchAsync(match, contextDocuments, settings.WithJustification);
                     
                     if (prediction != null)
                     {
@@ -287,6 +301,7 @@ public class MatchdayCommand : AsyncCommand<BaseSettings>
                         else
                         {
                             AnsiConsole.MarkupLine($"[green]  ✓ Generated prediction:[/] {prediction.HomeGoals}:{prediction.AwayGoals}");
+                            WriteJustificationIfNeeded(prediction, settings.WithJustification);
                         }
                         
                         // Save to database immediately if enabled
@@ -763,6 +778,24 @@ public class MatchdayCommand : AsyncCommand<BaseSettings>
         }
     }
     
+    private static void WriteJustificationIfNeeded(Prediction? prediction, bool includeJustification, bool fromDatabase = false)
+    {
+        if (!includeJustification || prediction == null)
+        {
+            return;
+        }
+
+        if (string.IsNullOrWhiteSpace(prediction.Justification))
+        {
+            var sourceLabel = fromDatabase ? "stored prediction" : "model response";
+            AnsiConsole.MarkupLine($"[yellow]    ↳ No justification available for this {sourceLabel}[/]");
+            return;
+        }
+
+        var flattened = prediction.Justification.ReplaceLineEndings(" ").Trim();
+        AnsiConsole.MarkupLine($"[dim]    ↳ Justification:[/] {Markup.Escape(flattened)}");
+    }
+
     /// <summary>
     /// Strips display suffixes like " (kpi-context)" from context document names
     /// to get the actual document name used in the repository.

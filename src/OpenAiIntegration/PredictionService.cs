@@ -46,6 +46,7 @@ public class PredictionService : IPredictionService
     public async Task<Prediction?> PredictMatchAsync(
         Match match, 
         IEnumerable<DocumentContext> contextDocuments, 
+        bool includeJustification = false,
         CancellationToken cancellationToken = default)
     {
         _logger.LogInformation("Generating prediction for match: {HomeTeam} vs {AwayTeam} at {StartTime}", 
@@ -54,7 +55,7 @@ public class PredictionService : IPredictionService
         try
         {
             // Build the instructions by combining template with context
-            var instructions = BuildInstructions(contextDocuments);
+            var instructions = BuildInstructions(contextDocuments, includeJustification);
             
             // Create match JSON
             var matchJson = CreateMatchJson(match);
@@ -80,23 +81,7 @@ public class PredictionService : IPredictionService
                     MaxOutputTokenCount = 10_000, // Safeguard against high costs
                     ResponseFormat = ChatResponseFormat.CreateJsonSchemaFormat(
                         jsonSchemaFormatName: "match_prediction",
-                        jsonSchema: BinaryData.FromBytes("""
-                            {
-                                "type": "object",
-                                "properties": {
-                                    "home": {
-                                        "type": "integer",
-                                        "description": "Predicted goals for the home team"
-                                    },
-                                    "away": {
-                                        "type": "integer", 
-                                        "description": "Predicted goals for the away team"
-                                    }
-                                },
-                                "required": ["home", "away"],
-                                "additionalProperties": false
-                            }
-                            """u8.ToArray()),
+                        jsonSchema: BinaryData.FromBytes(BuildPredictionJsonSchema(includeJustification)),
                         jsonSchemaIsStrict: true)
                 },
                 cancellationToken);
@@ -127,6 +112,7 @@ public class PredictionService : IPredictionService
         {
             _logger.LogError(ex, "Error generating prediction for match: {HomeTeam} vs {AwayTeam}", 
                 match.HomeTeam, match.AwayTeam);
+            Console.Error.WriteLine($"Prediction error for {match.HomeTeam} vs {match.AwayTeam}: {ex.Message}");
             
             return null;
         }
@@ -208,9 +194,14 @@ public class PredictionService : IPredictionService
         }
     }
 
-    private string BuildInstructions(IEnumerable<DocumentContext> contextDocuments)
+    private string BuildInstructions(IEnumerable<DocumentContext> contextDocuments, bool includeJustification)
     {
         var instructions = _instructionsTemplate;
+
+        if (includeJustification)
+        {
+            instructions += "\n\nWhen producing the structured JSON response, also include a \"justification\" property containing a concise explanation (1-2 sentences) for the predicted scoreline. Reference key context insights, stay objective, and avoid repeating raw document text verbatim.";
+        }
         
         var contextList = contextDocuments.ToList();
         if (contextList.Any())
@@ -249,6 +240,45 @@ public class PredictionService : IPredictionService
         });
     }
 
+    private static byte[] BuildPredictionJsonSchema(bool includeJustification)
+    {
+        var properties = new Dictionary<string, object?>
+        {
+            ["home"] = new Dictionary<string, object?>
+            {
+                ["type"] = "integer",
+                ["description"] = "Predicted goals for the home team"
+            },
+            ["away"] = new Dictionary<string, object?>
+            {
+                ["type"] = "integer",
+                ["description"] = "Predicted goals for the away team"
+            }
+        };
+
+        var required = new List<string> { "home", "away" };
+
+        if (includeJustification)
+        {
+            properties["justification"] = new Dictionary<string, object?>
+            {
+                ["type"] = "string",
+                ["description"] = "Concise explanation for the predicted outcome"
+            };
+            required.Add("justification");
+        }
+
+        var schema = new Dictionary<string, object?>
+        {
+            ["type"] = "object",
+            ["properties"] = properties,
+            ["required"] = required,
+            ["additionalProperties"] = false
+        };
+
+        return JsonSerializer.SerializeToUtf8Bytes(schema);
+    }
+
     private Prediction ParsePrediction(string predictionJson)
     {
         try
@@ -263,7 +293,16 @@ public class PredictionService : IPredictionService
 
             _logger.LogDebug("Parsed prediction response - Home: {Home}, Away: {Away}", predictionResponse.Home, predictionResponse.Away);
 
-            return new Prediction(predictionResponse.Home, predictionResponse.Away);
+            var justification = string.IsNullOrWhiteSpace(predictionResponse.Justification)
+                ? null
+                : predictionResponse.Justification.Trim();
+
+            if (!string.IsNullOrEmpty(justification))
+            {
+                _logger.LogDebug("Parsed justification: {Justification}", justification);
+            }
+
+            return new Prediction(predictionResponse.Home, predictionResponse.Away, justification);
         }
         catch (JsonException ex)
         {
@@ -502,6 +541,9 @@ public class PredictionService : IPredictionService
         
         [JsonPropertyName("away")]
         public int Away { get; set; }
+
+        [JsonPropertyName("justification")]
+        public string? Justification { get; set; }
     }
 
     /// <summary>

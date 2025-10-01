@@ -51,24 +51,24 @@ dotnet run -- bonus o4-mini --verbose
 
 - `<model>`: The OpenAI model to use for prediction (e.g., gpt-4o-2024-08-06, o4-mini)
 - `-v, --verbose`: Enable verbose output to show detailed information
+- `--with-justification`: Include concise reasoning text for each prediction (incompatible with `--agent` mode)
 
 ## Configuration
 
 The application uses environment variables for configuration. Create a `.env` file in the secrets directory or set environment variables directly.
 
-## Development
-
-The commands are currently empty placeholders and will be implemented with the following functionality:
-- ## Environment Variables
+## Environment Variables
 
 The Orchestrator requires the following environment variables to be set:
 
 ### Required
+
 - `OPENAI_API_KEY`: Your OpenAI API key
 - `KICKTIPP_USERNAME`: Your Kicktipp username  
 - `KICKTIPP_PASSWORD`: Your Kicktipp password
 
 ### Optional (Firebase Database)
+
 - `FIREBASE_PROJECT_ID`: Your Firebase project ID
 - `FIREBASE_SERVICE_ACCOUNT_JSON`: Firebase service account key (JSON content)
 
@@ -83,6 +83,7 @@ The application loads credentials in this order:
 3. **`firebase.json`** file at `../KicktippAi.Secrets/src/Orchestrator/firebase.json`
 
 **Example `.env` file:**
+
 ```env
 OPENAI_API_KEY=sk-your-openai-api-key
 KICKTIPP_USERNAME=your-username
@@ -91,6 +92,7 @@ FIREBASE_PROJECT_ID=your-firebase-project-id
 ```
 
 **Example `firebase.json` file:**
+
 ```json
 {
   "type": "service_account",

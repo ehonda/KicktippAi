@@ -53,6 +53,12 @@ public class FirestoreMatchPrediction
     public int AwayGoals { get; set; }
 
     /// <summary>
+    /// Optional justification text explaining the predicted outcome.
+    /// </summary>
+    [FirestoreProperty("justification")]
+    public string? Justification { get; set; }
+
+    /// <summary>
     /// When the prediction was created (UTC timestamp).
     /// </summary>
     [FirestoreProperty("createdAt")]

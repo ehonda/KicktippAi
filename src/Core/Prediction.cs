@@ -2,7 +2,8 @@ namespace Core;
 
 public record Prediction(
     int HomeGoals,
-    int AwayGoals);
+    int AwayGoals,
+    string? Justification = null);
 
 /// <summary>
 /// Extended prediction result that includes metadata about how the prediction was generated.

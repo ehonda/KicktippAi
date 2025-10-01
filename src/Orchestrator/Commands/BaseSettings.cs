@@ -47,6 +47,11 @@ public class BaseSettings : CommandSettings
     [DefaultValue(false)]
     public bool ShowContextDocuments { get; set; }
 
+    [CommandOption("--with-justification")]
+    [Description("Include model justification text alongside predictions (non-agent mode only)")]
+    [DefaultValue(false)]
+    public bool WithJustification { get; set; }
+
     [CommandOption("--estimated-costs")]
     [Description("Model to estimate costs for (e.g., o1) - shows what costs would be if using that model with same token counts")]
     public string? EstimatedCostsModel { get; set; }
