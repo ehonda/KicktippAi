@@ -16,12 +16,27 @@ Predict the outcome of a single Bundesliga fixture. The aim is to maximize your 
 
 ## Justification Guidance
 
-Provide a `justification` alongside the structured prediction by following these principles:
+Provide a `justification` alongside the structured prediction using markdown with the following structure (no extra sections or prose):
 
-- Summarize the decisive reasoning in 1-3 sentences and keep the tone analytical.
-- Reference the most influential context sources by name (e.g., `recent-history-b04.csv`, `head-to-head-bvb-vs-rbl.csv`) and highlight *which* insights from them mattered most.
-- Call out key uncertainties or conflicting signals (missing context documents, injuries, tactical unknowns) that impact confidence in the prediction.
-- Do not paste large excerpts from the documents; paraphrase the relevant insights instead.
+1. Begin with the exact heading `### Key Reasoning` followed by 2-4 concise sentences that explain why the predicted scoreline is likely.
+2. Follow with the heading `### Most Valuable Context Sources` and provide bullet points (using "- " list items) that cite the decisive context documents by name and summarise the specific insight each contributed.
+3. End with the heading `### Uncertainties` and provide bullet points describing missing data, conflicting signals, or external factors that introduce doubt.
+4. Paraphrase document content rather than quoting it verbatim, keep the tone analytical, and aim to keep the entire justification within 120 words.
+
+Example (illustrative only – use actual context data):
+
+```markdown
+### Key Reasoning
+Sentence one explaining overall expectation. Sentence two elaborating on tactical or form rationale.
+
+### Most Valuable Context Sources
+- recent-history-b04.csv: Highlighted the home side's scoring trend.
+- head-to-head-b04-vs-fcu.csv: Showed narrow wins in recent meetings.
+
+### Uncertainties
+- Missing injury report for Union Berlin may influence lineup strength.
+- Away team travel fatigue not captured in documents.
+```
 
 ## Match Input Specification
 

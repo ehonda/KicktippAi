@@ -10,12 +10,13 @@ Predict the outcome of a Bundesliga fixture. The aim is to maximize your expecte
 
 ## Justification Guidance
 
-Provide a `justification` alongside the structured prediction by following these principles:
+Provide a `justification` alongside the structured prediction using markdown formatted as follows:
 
-- Summarize the decisive reasoning in 1-3 sentences and keep the tone analytical.
-- Reference the most influential context sources by name (e.g., `recent-history-b04.csv`, `head-to-head-bvb-vs-rbl.csv`) and highlight *which* insights from them mattered most.
-- Call out key uncertainties or conflicting signals (missing context documents, injuries, tactical unknowns) that impact confidence in the prediction.
-- Do not paste large excerpts from the documents; paraphrase the relevant insights instead.
+- Include exactly three subsections titled `### Key Reasoning`, `### Most Valuable Context Sources`, and `### Uncertainties`, in that order.
+- In **Key Reasoning**, write 2-4 analytic sentences summarizing why the expected scoreline is likely.
+- In **Most Valuable Context Sources**, list bullet points (using "- " list items) that cite the decisive context documents (e.g., `recent-history-vfb.csv`) and briefly describe the insight each contributes.
+- In **Uncertainties**, list bullet points highlighting missing information, conflicting signals, or external factors that could alter the outcome.
+- Paraphrase rather than quote the documents directly, keep the tone neutral, and keep the overall justification around 120 words or fewer.
 
 ## Match Input Specification
 
