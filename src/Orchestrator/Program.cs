@@ -18,6 +18,22 @@ public class Program
             config.AddCommand<MatchdayCommand>("matchday")
                 .WithDescription("Generate predictions for the current matchday")
                 .WithExample("matchday", "gpt-4o-2024-08-06", "--community", "ehonda-test-buli");
+
+            config.AddCommand<AnalyzeMatchCommand>("analyze-match")
+                .WithDescription("Analyze prediction distributions for a single match without persisting results")
+                .WithExample(
+                    "analyze-match",
+                    "gpt-5-nano",
+                    "--community-context",
+                    "ehonda-test-buli",
+                    "--home",
+                    "FC Bayern München",
+                    "--away",
+                    "RB Leipzig",
+                    "--matchday",
+                    "1",
+                    "--runs",
+                    "5");
                 
             config.AddCommand<BonusCommand>("bonus")
                 .WithDescription("Generate bonus predictions")
