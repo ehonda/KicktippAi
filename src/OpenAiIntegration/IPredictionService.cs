@@ -35,8 +35,9 @@ public interface IPredictionService
     /// <summary>
     /// Gets the file path of the match prediction prompt being used by this service
     /// </summary>
+    /// <param name="includeJustification">Whether to return the prompt that includes justification guidance</param>
     /// <returns>The absolute file path to the match prompt file</returns>
-    string GetMatchPromptPath();
+    string GetMatchPromptPath(bool includeJustification = false);
 
     /// <summary>
     /// Gets the file path of the bonus question prediction prompt being used by this service

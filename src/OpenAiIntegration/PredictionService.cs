@@ -17,8 +17,10 @@ public class PredictionService : IPredictionService
     private readonly ITokenUsageTracker _tokenUsageTracker;
     private readonly string _model;
     private readonly string _instructionsTemplate;
+    private readonly string _instructionsTemplateWithJustification;
     private readonly string _bonusInstructionsTemplate;
     private readonly string _matchPromptPath;
+    private readonly string _matchPromptPathWithJustification;
     private readonly string _bonusPromptPath;
 
     public PredictionService(
@@ -34,12 +36,15 @@ public class PredictionService : IPredictionService
         _tokenUsageTracker = tokenUsageTracker ?? throw new ArgumentNullException(nameof(tokenUsageTracker));
         _model = model ?? throw new ArgumentNullException(nameof(model));
         
-        var (matchTemplate, matchPath) = LoadInstructionsTemplate();
+    var (matchTemplate, matchPath) = LoadInstructionsTemplate(includeJustification: false);
+    var (matchJustificationTemplate, matchJustificationPath) = LoadInstructionsTemplate(includeJustification: true);
         var (bonusTemplate, bonusPath) = LoadBonusInstructionsTemplate();
         
         _instructionsTemplate = matchTemplate;
+    _instructionsTemplateWithJustification = matchJustificationTemplate;
         _bonusInstructionsTemplate = bonusTemplate;
         _matchPromptPath = matchPath;
+    _matchPromptPathWithJustification = matchJustificationPath;
         _bonusPromptPath = bonusPath;
     }
 
@@ -196,13 +201,10 @@ public class PredictionService : IPredictionService
 
     private string BuildInstructions(IEnumerable<DocumentContext> contextDocuments, bool includeJustification)
     {
-        var instructions = _instructionsTemplate;
+        var instructions = includeJustification
+            ? _instructionsTemplateWithJustification
+            : _instructionsTemplate;
 
-        if (includeJustification)
-        {
-            instructions += "\n\nWhen producing the structured JSON response, also include a \"justification\" property containing a concise explanation (1-2 sentences) for the predicted scoreline. Reference key context insights, stay objective, and avoid repeating raw document text verbatim.";
-        }
-        
         var contextList = contextDocuments.ToList();
         if (contextList.Any())
         {
@@ -311,7 +313,7 @@ public class PredictionService : IPredictionService
         }
     }
 
-    private (string template, string path) LoadInstructionsTemplate()
+    private (string template, string path) LoadInstructionsTemplate(bool includeJustification)
     {
         var promptModel = GetPromptModelForModel(_model);
         
@@ -324,13 +326,24 @@ public class PredictionService : IPredictionService
             var solutionFile = Path.Combine(directory.FullName, "KicktippAi.slnx");
             if (File.Exists(solutionFile))
             {
-                var instructionsPath = Path.Combine(directory.FullName, "prompts", promptModel, "match.md");
+                var promptsDirectory = Path.Combine(directory.FullName, "prompts", promptModel);
+                var fileName = includeJustification ? "match.justification.md" : "match.md";
+                var instructionsPath = Path.Combine(promptsDirectory, fileName);
                 
                 if (File.Exists(instructionsPath))
                 {
                     return (File.ReadAllText(instructionsPath), instructionsPath);
                 }
-                
+
+                if (includeJustification)
+                {
+                    var fallbackPath = Path.Combine(promptsDirectory, "match.md");
+                    if (File.Exists(fallbackPath))
+                    {
+                        return (File.ReadAllText(fallbackPath), fallbackPath);
+                    }
+                }
+
                 throw new FileNotFoundException($"Match instructions not found at: {instructionsPath}");
             }
             directory = directory.Parent;
@@ -523,7 +536,7 @@ public class PredictionService : IPredictionService
     /// Gets the file path of the match prediction prompt being used by this service
     /// </summary>
     /// <returns>The absolute file path to the match prompt file</returns>
-    public string GetMatchPromptPath() => _matchPromptPath;
+    public string GetMatchPromptPath(bool includeJustification = false) => includeJustification ? _matchPromptPathWithJustification : _matchPromptPath;
 
     /// <summary>
     /// Gets the file path of the bonus question prediction prompt being used by this service

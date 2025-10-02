@@ -111,7 +111,7 @@ public class MatchdayCommand : AsyncCommand<BaseSettings>
         // Log the prompt paths being used
         if (settings.Verbose)
         {
-            AnsiConsole.MarkupLine($"[dim]Match prompt:[/] [blue]{predictionService.GetMatchPromptPath()}[/]");
+            AnsiConsole.MarkupLine($"[dim]Match prompt:[/] [blue]{predictionService.GetMatchPromptPath(settings.WithJustification)}[/]");
         }
         
         // Try to get the prediction repository (may be null if Firebase is not configured)
