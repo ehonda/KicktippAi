@@ -1,5 +1,6 @@
 using System.Collections.Generic;
 using System.ComponentModel;
+using System.Diagnostics;
 using System.Globalization;
 using System.Linq;
 using System.Text;
@@ -8,6 +9,7 @@ using Microsoft.Extensions.Logging;
 using NodaTime;
 using Spectre.Console;
 using Spectre.Console.Cli;
+using Spectre.Console.Rendering;
 using Core;
 using FirebaseAdapter;
 using OpenAiIntegration;
@@ -117,48 +119,133 @@ public class AnalyzeMatchCommand : AsyncCommand<AnalyzeMatchSettings>
             tokenUsageTracker.Reset();
 
             var predictions = new List<Prediction>();
+            var runMetrics = new List<RunMetric>();
+            var enableLiveEstimates = !settings.NoLiveEstimates;
 
-            for (var run = 1; run <= settings.Runs; run++)
+            string FormatCurrencyValue(decimal value) => $"${value.ToString("F4", CultureInfo.InvariantCulture)}";
+            string FormatCurrencyOptional(decimal? value) => value.HasValue ? FormatCurrencyValue(value.Value) : "n/a";
+
+            string FormatDurationValue(TimeSpan value) => value.ToString(@"hh\:mm\:ss\.fff", CultureInfo.InvariantCulture);
+            string FormatDurationOptional(TimeSpan? value) => value.HasValue ? FormatDurationValue(value.Value) : "n/a";
+
+            IRenderable BuildSummary()
             {
-                AnsiConsole.MarkupLine($"[cyan]\nRun {run}/{settings.Runs}[/]");
+                var completedRuns = runMetrics.Count;
+                var remainingRuns = Math.Max(settings.Runs - completedRuns, 0);
+                var successfulRuns = runMetrics.Where(metric => metric.Success).ToList();
+                var costValues = successfulRuns
+                    .Where(metric => metric.Cost.HasValue)
+                    .Select(metric => metric.Cost!.Value)
+                    .ToList();
 
-                var prediction = await predictionService.PredictMatchAsync(
-                    match,
-                    contextDocuments,
-                    includeJustification: true);
+                var totalCostSoFar = costValues.Aggregate(0m, (sum, value) => sum + value);
+                decimal? averageCost = costValues.Count > 0 ? totalCostSoFar / costValues.Count : (decimal?)null;
+                decimal? projectedCost = averageCost.HasValue ? averageCost.Value * settings.Runs : (decimal?)null;
 
-                if (prediction == null)
+                var totalDuration = runMetrics.Aggregate(TimeSpan.Zero, (current, metric) => current + metric.Duration);
+                TimeSpan? averageDuration = runMetrics.Count > 0
+                    ? TimeSpan.FromTicks(totalDuration.Ticks / runMetrics.Count)
+                    : (TimeSpan?)null;
+                TimeSpan? estimatedRemaining = averageDuration.HasValue && remainingRuns > 0
+                    ? TimeSpan.FromTicks(averageDuration.Value.Ticks * remainingRuns)
+                    : (TimeSpan?)null;
+
+                var table = new Table()
+                    .Title("[bold yellow]Live Estimates[/]")
+                    .Border(TableBorder.Rounded)
+                    .AddColumn(new TableColumn("[grey]Metric[/]").LeftAligned())
+                    .AddColumn(new TableColumn("[grey]Value[/]").LeftAligned());
+
+                table.AddRow("Completed runs", $"{completedRuns}/{settings.Runs}");
+                table.AddRow("Successful predictions", $"{successfulRuns.Count}/{settings.Runs}");
+                table.AddRow("Total cost so far", FormatCurrencyValue(totalCostSoFar));
+                table.AddRow("Average cost", FormatCurrencyOptional(averageCost));
+                table.AddRow("Projected total cost", FormatCurrencyOptional(projectedCost));
+                table.AddRow("Average run time", FormatDurationOptional(averageDuration));
+                table.AddRow("Estimated remaining time", FormatDurationOptional(estimatedRemaining));
+                table.AddRow("Elapsed time", FormatDurationValue(totalDuration));
+
+                return table;
+            }
+
+            Action refreshSummary = () => { };
+
+            async Task ExecuteRunsAsync()
+            {
+                for (var run = 1; run <= settings.Runs; run++)
                 {
-                    AnsiConsole.MarkupLine("[red]  ✗ Prediction failed[/]");
-                    continue;
+                    var stopwatch = Stopwatch.StartNew();
+
+                    AnsiConsole.MarkupLine($"[cyan]\nRun {run}/{settings.Runs}[/]");
+
+                    var prediction = await predictionService.PredictMatchAsync(
+                        match,
+                        contextDocuments,
+                        includeJustification: true);
+
+                    stopwatch.Stop();
+
+                    if (prediction == null)
+                    {
+                        AnsiConsole.MarkupLine("[red]  ✗ Prediction failed[/]");
+                        runMetrics.Add(new RunMetric(run, stopwatch.Elapsed, false, null));
+                        refreshSummary();
+                        continue;
+                    }
+
+                    predictions.Add(prediction);
+
+                    var lastCost = tokenUsageTracker.GetLastCost();
+                    var usageSummary = tokenUsageTracker.GetLastUsageCompactSummary();
+
+                    runMetrics.Add(new RunMetric(run, stopwatch.Elapsed, true, lastCost));
+
+                    AnsiConsole.MarkupLine($"[green]  ✓ Prediction:[/] [yellow]{prediction.HomeGoals}:{prediction.AwayGoals}[/]");
+
+                    if (!string.IsNullOrWhiteSpace(prediction.Justification))
+                    {
+                        AnsiConsole.MarkupLine("[cyan]  ↳ Justification:[/]");
+                        AnsiConsole.WriteLine(prediction.Justification.Trim());
+                    }
+                    else
+                    {
+                        AnsiConsole.MarkupLine("[yellow]  ↳ Justification: no explanation returned by model[/]");
+                    }
+
+                    AnsiConsole.MarkupLine($"[magenta]  ↳ Cost:[/] [cyan]{FormatCurrencyValue(lastCost)}[/] [grey]({usageSummary})[/]");
+
+                    refreshSummary();
                 }
 
-                predictions.Add(prediction);
+                refreshSummary();
+            }
 
-                var lastCost = tokenUsageTracker.GetLastCost();
-                var usageSummary = tokenUsageTracker.GetLastUsageCompactSummary();
+            if (enableLiveEstimates)
+            {
+                await AnsiConsole.Live(BuildSummary())
+                    .AutoClear(false)
+                    .StartAsync(async ctx =>
+                    {
+                        refreshSummary = () =>
+                        {
+                            ctx.UpdateTarget(BuildSummary());
+                            ctx.Refresh();
+                        };
 
-                AnsiConsole.MarkupLine($"[green]  ✓ Prediction:[/] [yellow]{prediction.HomeGoals}:{prediction.AwayGoals}[/]");
-
-                if (!string.IsNullOrWhiteSpace(prediction.Justification))
-                {
-                    AnsiConsole.MarkupLine("[cyan]  ↳ Justification:[/]");
-                    AnsiConsole.WriteLine(prediction.Justification.Trim());
-                }
-                else
-                {
-                    AnsiConsole.MarkupLine("[yellow]  ↳ Justification: no explanation returned by model[/]");
-                }
-
-                var lastCostFormatted = lastCost.ToString("F4", CultureInfo.InvariantCulture);
-                AnsiConsole.MarkupLine($"[magenta]  ↳ Cost:[/] [cyan]${lastCostFormatted}[/] [grey]({usageSummary})[/]");
+                        refreshSummary();
+                        await ExecuteRunsAsync();
+                    });
+            }
+            else
+            {
+                await ExecuteRunsAsync();
+                AnsiConsole.Write(BuildSummary());
             }
 
             if (predictions.Any())
             {
                 AnsiConsole.MarkupLine($"\n[blue]Total runs with predictions:[/] [yellow]{predictions.Count}/{settings.Runs}[/]");
-                var totalCost = tokenUsageTracker.GetTotalCost().ToString("F4", CultureInfo.InvariantCulture);
-                AnsiConsole.MarkupLine($"[blue]Total cost:[/] [yellow]${totalCost}[/]");
+                AnsiConsole.MarkupLine($"[blue]Total cost:[/] [yellow]{FormatCurrencyValue(tokenUsageTracker.GetTotalCost())}[/]");
             }
             else
             {
@@ -404,6 +491,7 @@ public class AnalyzeMatchCommand : AsyncCommand<AnalyzeMatchSettings>
     }
 
     private sealed record ContextDocumentInfo(DocumentContext Document, int Version);
+    private sealed record RunMetric(int RunNumber, TimeSpan Duration, bool Success, decimal? Cost);
 }
 
 public class AnalyzeMatchSettings : CommandSettings
@@ -447,6 +535,11 @@ public class AnalyzeMatchSettings : CommandSettings
     [Description("Enable detailed logging output")]
     [DefaultValue(false)]
     public bool Debug { get; set; }
+
+    [CommandOption("--no-live-estimates")]
+    [Description("Disable live cost and time estimates during execution")]
+    [DefaultValue(false)]
+    public bool NoLiveEstimates { get; set; }
 
     public override ValidationResult Validate()
     {
