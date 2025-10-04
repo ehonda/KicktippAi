@@ -202,15 +202,11 @@ public class AnalyzeMatchCommand : AsyncCommand<AnalyzeMatchSettings>
 
                     AnsiConsole.MarkupLine($"[green]  ✓ Prediction:[/] [yellow]{prediction.HomeGoals}:{prediction.AwayGoals}[/]");
 
-                    if (!string.IsNullOrWhiteSpace(prediction.Justification))
-                    {
-                        AnsiConsole.MarkupLine("[cyan]  ↳ Justification:[/]");
-                        AnsiConsole.WriteLine(prediction.Justification.Trim());
-                    }
-                    else
-                    {
-                        AnsiConsole.MarkupLine("[yellow]  ↳ Justification: no explanation returned by model[/]");
-                    }
+                    JustificationConsoleWriter.WriteJustification(
+                        prediction.Justification,
+                        "[cyan]  ↳ Justification:[/]",
+                        "      ",
+                        "[yellow]  ↳ Justification: no explanation returned by model[/]");
 
                     AnsiConsole.MarkupLine($"[magenta]  ↳ Cost:[/] [cyan]{FormatCurrencyValue(lastCost)}[/] [grey]({usageSummary})[/]");
 

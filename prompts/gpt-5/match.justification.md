@@ -16,27 +16,7 @@ Predict the outcome of a single Bundesliga fixture. The aim is to maximize your 
 
 ## Justification Guidance
 
-Provide a `justification` alongside the structured prediction using markdown with the following structure (no extra sections or prose):
-
-1. Begin with the exact heading `### Key Reasoning` followed by 2-4 concise sentences that explain why the predicted scoreline is likely.
-2. Follow with the heading `### Most Valuable Context Sources` and provide bullet points (using "- " list items) that cite the decisive context documents by name and summarise the specific insight each contributed.
-3. End with the heading `### Uncertainties` and provide bullet points describing missing data, conflicting signals, or external factors that introduce doubt.
-4. Paraphrase document content rather than quoting it verbatim, keep the tone analytical, and aim to keep the entire justification within 120 words.
-
-Example (illustrative only – use actual context data):
-
-```markdown
-### Key Reasoning
-Sentence one explaining overall expectation. Sentence two elaborating on tactical or form rationale.
-
-### Most Valuable Context Sources
-- recent-history-b04.csv: Highlighted the home side's scoring trend.
-- head-to-head-b04-vs-fcu.csv: Showed narrow wins in recent meetings.
-
-### Uncertainties
-- Missing injury report for Union Berlin may influence lineup strength.
-- Away team travel fatigue not captured in documents.
-```
+Populate the `justification` object in the structured response according to the descriptions provided in the json schema. Keep wording neutral and paraphrase rather than quote documents. Empty lists are acceptable when no sources or uncertainties are relevant.
 
 ## Match Input Specification
 

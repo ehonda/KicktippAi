@@ -53,7 +53,7 @@ public class FirestoreMatchPrediction
     public int AwayGoals { get; set; }
 
     /// <summary>
-    /// Optional justification text explaining the predicted outcome.
+    /// Optional structured justification payload (stored as JSON string) explaining the predicted outcome.
     /// </summary>
     [FirestoreProperty("justification")]
     public string? Justification { get; set; }

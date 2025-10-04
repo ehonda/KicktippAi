@@ -1,3 +1,7 @@
+using System.Collections.Generic;
+using System.Linq;
+using System.Text.Json;
+using System.Text.Json.Serialization;
 using Core;
 using FirebaseAdapter.Models;
 using Google.Cloud.Firestore;
@@ -11,6 +15,12 @@ namespace FirebaseAdapter;
 /// </summary>
 public class FirebasePredictionRepository : IPredictionRepository
 {
+    private static readonly JsonSerializerOptions JustificationSerializerOptions = new()
+    {
+        PropertyNamingPolicy = JsonNamingPolicy.CamelCase,
+        DefaultIgnoreCondition = JsonIgnoreCondition.WhenWritingNull
+    };
+
     private readonly FirestoreDb _firestoreDb;
     private readonly ILogger<FirebasePredictionRepository> _logger;
     private readonly string _predictionsCollection;
@@ -92,7 +102,7 @@ public class FirebasePredictionRepository : IPredictionRepository
                 Matchday = match.Matchday,
                 HomeGoals = prediction.HomeGoals,
                 AwayGoals = prediction.AwayGoals,
-                Justification = prediction.Justification,
+                Justification = SerializeJustification(prediction.Justification),
                 UpdatedAt = now,
                 Competition = _competition,
                 Model = model,
@@ -149,7 +159,10 @@ public class FirebasePredictionRepository : IPredictionRepository
             }
 
             var firestorePrediction = snapshot.Documents.First().ConvertTo<FirestoreMatchPrediction>();
-            return new Prediction(firestorePrediction.HomeGoals, firestorePrediction.AwayGoals, firestorePrediction.Justification);
+            return new Prediction(
+                firestorePrediction.HomeGoals,
+                firestorePrediction.AwayGoals,
+                DeserializeJustification(firestorePrediction.Justification));
         }
         catch (Exception ex)
         {
@@ -180,7 +193,10 @@ public class FirebasePredictionRepository : IPredictionRepository
             }
 
             var firestorePrediction = snapshot.Documents.First().ConvertTo<FirestoreMatchPrediction>();
-            var prediction = new Prediction(firestorePrediction.HomeGoals, firestorePrediction.AwayGoals, firestorePrediction.Justification);
+            var prediction = new Prediction(
+                firestorePrediction.HomeGoals,
+                firestorePrediction.AwayGoals,
+                DeserializeJustification(firestorePrediction.Justification));
             var createdAt = firestorePrediction.CreatedAt.ToDateTimeOffset();
             var contextDocumentNames = firestorePrediction.ContextDocumentNames?.ToList() ?? new List<string>();
             
@@ -264,7 +280,10 @@ public class FirebasePredictionRepository : IPredictionRepository
                 .Select(doc => doc.ConvertTo<FirestoreMatchPrediction>())
                 .Select(fp => new MatchPrediction(
                     new Match(fp.HomeTeam, fp.AwayTeam, ConvertFromTimestamp(fp.StartsAt), fp.Matchday),
-                    new Prediction(fp.HomeGoals, fp.AwayGoals, fp.Justification)))
+                    new Prediction(
+                        fp.HomeGoals,
+                        fp.AwayGoals,
+                        DeserializeJustification(fp.Justification))))
                 .ToList();
 
             return matchPredictions.AsReadOnly();
@@ -676,7 +695,7 @@ public class FirebasePredictionRepository : IPredictionRepository
                 Matchday = match.Matchday,
                 HomeGoals = prediction.HomeGoals,
                 AwayGoals = prediction.AwayGoals,
-                Justification = prediction.Justification,
+                Justification = SerializeJustification(prediction.Justification),
                 CreatedAt = now,
                 UpdatedAt = now,
                 Competition = _competition,
@@ -851,5 +870,171 @@ public class FirebasePredictionRepository : IPredictionRepository
                 model, communityContext);
             throw;
         }
+    }
+
+    private string? SerializeJustification(PredictionJustification? justification)
+    {
+        if (justification == null)
+        {
+            return null;
+        }
+
+        if (!HasJustificationContent(justification))
+        {
+            return null;
+        }
+
+        var stored = new StoredJustification
+        {
+            KeyReasoning = justification.KeyReasoning?.Trim() ?? string.Empty,
+            ContextSources = new StoredContextSources
+            {
+                MostValuable = justification.ContextSources?.MostValuable?
+                    .Where(entry => entry != null)
+                    .Select(ToStoredContextSource)
+                    .ToList() ?? new List<StoredContextSource>(),
+                LeastValuable = justification.ContextSources?.LeastValuable?
+                    .Where(entry => entry != null)
+                    .Select(ToStoredContextSource)
+                    .ToList() ?? new List<StoredContextSource>()
+            },
+            Uncertainties = justification.Uncertainties?
+                .Where(item => !string.IsNullOrWhiteSpace(item))
+                .Select(item => item.Trim())
+                .ToList() ?? new List<string>()
+        };
+
+        return JsonSerializer.Serialize(stored, JustificationSerializerOptions);
+    }
+
+    private static bool HasJustificationContent(PredictionJustification justification)
+    {
+        if (!string.IsNullOrWhiteSpace(justification.KeyReasoning))
+        {
+            return true;
+        }
+
+        if (justification.ContextSources?.MostValuable != null &&
+            justification.ContextSources.MostValuable.Any(HasSourceContent))
+        {
+            return true;
+        }
+
+        if (justification.ContextSources?.LeastValuable != null &&
+            justification.ContextSources.LeastValuable.Any(HasSourceContent))
+        {
+            return true;
+        }
+
+        return justification.Uncertainties != null &&
+               justification.Uncertainties.Any(item => !string.IsNullOrWhiteSpace(item));
+    }
+
+    private static bool HasSourceContent(PredictionJustificationContextSource source)
+    {
+        return !string.IsNullOrWhiteSpace(source?.DocumentName) ||
+               !string.IsNullOrWhiteSpace(source?.Details);
+    }
+
+    private PredictionJustification? DeserializeJustification(string? serialized)
+    {
+        if (string.IsNullOrWhiteSpace(serialized))
+        {
+            return null;
+        }
+
+        var trimmed = serialized.Trim();
+
+        if (!trimmed.StartsWith("{"))
+        {
+            return new PredictionJustification(
+                trimmed,
+                new PredictionJustificationContextSources(
+                    Array.Empty<PredictionJustificationContextSource>(),
+                    Array.Empty<PredictionJustificationContextSource>()),
+                Array.Empty<string>());
+        }
+
+        try
+        {
+            var stored = JsonSerializer.Deserialize<StoredJustification>(trimmed, JustificationSerializerOptions);
+
+            if (stored == null)
+            {
+                return null;
+            }
+
+            var contextSources = stored.ContextSources ?? new StoredContextSources();
+
+            var mostValuable = contextSources.MostValuable?
+                .Where(entry => entry != null)
+                .Select(ToDomainContextSource)
+                .ToList() ?? new List<PredictionJustificationContextSource>();
+
+            var leastValuable = contextSources.LeastValuable?
+                .Where(entry => entry != null)
+                .Select(ToDomainContextSource)
+                .ToList() ?? new List<PredictionJustificationContextSource>();
+
+            var uncertainties = stored.Uncertainties?
+                .Where(item => !string.IsNullOrWhiteSpace(item))
+                .Select(item => item.Trim())
+                .ToList() ?? new List<string>();
+
+            var justification = new PredictionJustification(
+                stored.KeyReasoning?.Trim() ?? string.Empty,
+                new PredictionJustificationContextSources(mostValuable, leastValuable),
+                uncertainties);
+
+            return HasJustificationContent(justification) ? justification : null;
+        }
+        catch (JsonException ex)
+        {
+            _logger.LogWarning(ex, "Failed to parse structured justification JSON; falling back to legacy text format");
+
+            var fallbackJustification = new PredictionJustification(
+                trimmed,
+                new PredictionJustificationContextSources(
+                    Array.Empty<PredictionJustificationContextSource>(),
+                    Array.Empty<PredictionJustificationContextSource>()),
+                Array.Empty<string>());
+
+            return HasJustificationContent(fallbackJustification) ? fallbackJustification : null;
+        }
+    }
+
+    private static StoredContextSource ToStoredContextSource(PredictionJustificationContextSource source)
+    {
+        return new StoredContextSource
+        {
+            DocumentName = source.DocumentName?.Trim() ?? string.Empty,
+            Details = source.Details?.Trim() ?? string.Empty
+        };
+    }
+
+    private static PredictionJustificationContextSource ToDomainContextSource(StoredContextSource source)
+    {
+        var documentName = source.DocumentName?.Trim() ?? string.Empty;
+        var details = source.Details?.Trim() ?? string.Empty;
+        return new PredictionJustificationContextSource(documentName, details);
+    }
+
+    private sealed class StoredJustification
+    {
+        public string? KeyReasoning { get; set; }
+        public StoredContextSources? ContextSources { get; set; }
+        public List<string>? Uncertainties { get; set; }
+    }
+
+    private sealed class StoredContextSources
+    {
+        public List<StoredContextSource>? MostValuable { get; set; }
+        public List<StoredContextSource>? LeastValuable { get; set; }
+    }
+
+    private sealed class StoredContextSource
+    {
+        public string? DocumentName { get; set; }
+        public string? Details { get; set; }
     }
 }

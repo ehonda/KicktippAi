@@ -1,3 +1,5 @@
+using System.Collections.Generic;
+using System.Linq;
 using System.Text.Json;
 using System.Text.Json.Serialization;
 using Core;
@@ -262,10 +264,95 @@ public class PredictionService : IPredictionService
 
         if (includeJustification)
         {
+            var mostValuableContextSourceItem = new Dictionary<string, object?>
+            {
+                ["type"] = "object",
+                ["properties"] = new Dictionary<string, object?>
+                {
+                    ["documentName"] = new Dictionary<string, object?>
+                    {
+                        ["type"] = "string",
+                        ["description"] = "Name of the context document referenced"
+                    },
+                    ["details"] = new Dictionary<string, object?>
+                    {
+                        ["type"] = "string",
+                        ["description"] = "Brief summary of why the document or parts of it were useful"
+                    }
+                },
+                ["required"] = new[] { "documentName", "details" },
+                ["additionalProperties"] = false
+            };
+
+            var leastValuableContextSourceItem = new Dictionary<string, object?>
+            {
+                ["type"] = "object",
+                ["properties"] = new Dictionary<string, object?>
+                {
+                    ["documentName"] = new Dictionary<string, object?>
+                    {
+                        ["type"] = "string",
+                        ["description"] = "Name of the context document referenced"
+                    },
+                    ["details"] = new Dictionary<string, object?>
+                    {
+                        ["type"] = "string",
+                        ["description"] = "Brief summary explaining why the document or parts of it offered limited insight"
+                    }
+                },
+                ["required"] = new[] { "documentName", "details" },
+                ["additionalProperties"] = false
+            };
+
+            var contextSources = new Dictionary<string, object?>
+            {
+                ["type"] = "object",
+                ["properties"] = new Dictionary<string, object?>
+                {
+                    ["mostValuable"] = new Dictionary<string, object?>
+                    {
+                        ["type"] = "array",
+                        ["items"] = mostValuableContextSourceItem,
+                        ["description"] = "Context documents that most influenced the prediction",
+                        ["minItems"] = 0
+                    },
+                    ["leastValuable"] = new Dictionary<string, object?>
+                    {
+                        ["type"] = "array",
+                        ["items"] = leastValuableContextSourceItem,
+                        ["description"] = "Context documents that provided limited or no valuable insight",
+                        ["minItems"] = 0
+                    }
+                },
+                ["required"] = new[] { "leastValuable", "mostValuable" },
+                ["additionalProperties"] = false
+            };
+
             properties["justification"] = new Dictionary<string, object?>
             {
-                ["type"] = "string",
-                ["description"] = "Concise explanation for the predicted outcome"
+                ["type"] = "object",
+                ["properties"] = new Dictionary<string, object?>
+                {
+                    ["keyReasoning"] = new Dictionary<string, object?>
+                    {
+                        ["type"] = "string",
+                        ["description"] = "Concise analytic summary motivating the predicted scoreline"
+                    },
+                    ["contextSources"] = contextSources,
+                    ["uncertainties"] = new Dictionary<string, object?>
+                    {
+                        ["type"] = "array",
+                        ["items"] = new Dictionary<string, object?>
+                        {
+                            ["type"] = "string",
+                            ["description"] = "Single uncertainty or external factor affecting confidence"
+                        },
+                        ["description"] = "Factors that could alter the predicted outcome",
+                        ["minItems"] = 0
+                    }
+                },
+                ["required"] = new[] { "contextSources", "keyReasoning", "uncertainties" },
+                ["additionalProperties"] = false
             };
             required.Add("justification");
         }
@@ -295,13 +382,42 @@ public class PredictionService : IPredictionService
 
             _logger.LogDebug("Parsed prediction response - Home: {Home}, Away: {Away}", predictionResponse.Home, predictionResponse.Away);
 
-            var justification = string.IsNullOrWhiteSpace(predictionResponse.Justification)
-                ? null
-                : predictionResponse.Justification.Trim();
+            PredictionJustification? justification = null;
 
-            if (!string.IsNullOrEmpty(justification))
+            if (predictionResponse.Justification != null)
             {
-                _logger.LogDebug("Parsed justification: {Justification}", justification);
+                var justificationResponse = predictionResponse.Justification;
+
+                var mostValuable = justificationResponse.ContextSources?.MostValuable?
+                    .Where(entry => entry != null)
+                    .Select(entry => new PredictionJustificationContextSource(
+                        entry!.DocumentName?.Trim() ?? string.Empty,
+                        entry.Details?.Trim() ?? string.Empty))
+                    .ToList() ?? new List<PredictionJustificationContextSource>();
+
+                var leastValuable = justificationResponse.ContextSources?.LeastValuable?
+                    .Where(entry => entry != null)
+                    .Select(entry => new PredictionJustificationContextSource(
+                        entry!.DocumentName?.Trim() ?? string.Empty,
+                        entry.Details?.Trim() ?? string.Empty))
+                    .ToList() ?? new List<PredictionJustificationContextSource>();
+
+                var uncertainties = justificationResponse.Uncertainties?
+                    .Where(item => !string.IsNullOrWhiteSpace(item))
+                    .Select(item => item.Trim())
+                    .ToList() ?? new List<string>();
+
+                justification = new PredictionJustification(
+                    justificationResponse.KeyReasoning?.Trim() ?? string.Empty,
+                    new PredictionJustificationContextSources(mostValuable, leastValuable),
+                    uncertainties);
+
+                _logger.LogDebug(
+                    "Parsed justification with key reasoning: {KeyReasoning}; Most valuable sources: {MostValuableCount}; Least valuable sources: {LeastValuableCount}; Uncertainties: {UncertaintiesCount}",
+                    justification.KeyReasoning,
+                    justification.ContextSources.MostValuable.Count,
+                    justification.ContextSources.LeastValuable.Count,
+                    justification.Uncertainties.Count);
             }
 
             return new Prediction(predictionResponse.Home, predictionResponse.Away, justification);
@@ -556,7 +672,37 @@ public class PredictionService : IPredictionService
         public int Away { get; set; }
 
         [JsonPropertyName("justification")]
-        public string? Justification { get; set; }
+        public JustificationResponse? Justification { get; set; }
+    }
+
+    private class JustificationResponse
+    {
+        [JsonPropertyName("keyReasoning")]
+        public string KeyReasoning { get; set; } = string.Empty;
+
+        [JsonPropertyName("contextSources")]
+        public JustificationContextSourcesResponse ContextSources { get; set; } = new();
+
+        [JsonPropertyName("uncertainties")]
+        public string[] Uncertainties { get; set; } = Array.Empty<string>();
+    }
+
+    private class JustificationContextSourcesResponse
+    {
+        [JsonPropertyName("mostValuable")]
+        public JustificationContextSourceEntry[] MostValuable { get; set; } = Array.Empty<JustificationContextSourceEntry>();
+
+        [JsonPropertyName("leastValuable")]
+        public JustificationContextSourceEntry[] LeastValuable { get; set; } = Array.Empty<JustificationContextSourceEntry>();
+    }
+
+    private class JustificationContextSourceEntry
+    {
+        [JsonPropertyName("documentName")]
+        public string DocumentName { get; set; } = string.Empty;
+
+        [JsonPropertyName("details")]
+        public string Details { get; set; } = string.Empty;
     }
 
     /// <summary>

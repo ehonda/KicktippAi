@@ -1,9 +1,24 @@
+using System.Collections.Generic;
+
 namespace Core;
 
 public record Prediction(
     int HomeGoals,
     int AwayGoals,
-    string? Justification = null);
+    PredictionJustification? Justification = null);
+
+public record PredictionJustification(
+    string KeyReasoning,
+    PredictionJustificationContextSources ContextSources,
+    IReadOnlyList<string> Uncertainties);
+
+public record PredictionJustificationContextSources(
+    IReadOnlyList<PredictionJustificationContextSource> MostValuable,
+    IReadOnlyList<PredictionJustificationContextSource> LeastValuable);
+
+public record PredictionJustificationContextSource(
+    string DocumentName,
+    string Details);
 
 /// <summary>
 /// Extended prediction result that includes metadata about how the prediction was generated.

@@ -785,15 +785,13 @@ public class MatchdayCommand : AsyncCommand<BaseSettings>
             return;
         }
 
-        if (string.IsNullOrWhiteSpace(prediction.Justification))
-        {
-            var sourceLabel = fromDatabase ? "stored prediction" : "model response";
-            AnsiConsole.MarkupLine($"[yellow]    ↳ No justification available for this {sourceLabel}[/]");
-            return;
-        }
+        var sourceLabel = fromDatabase ? "stored prediction" : "model response";
 
-        var flattened = prediction.Justification.ReplaceLineEndings(" ").Trim();
-        AnsiConsole.MarkupLine($"[dim]    ↳ Justification:[/] {Markup.Escape(flattened)}");
+        JustificationConsoleWriter.WriteJustification(
+            prediction.Justification,
+            "[dim]    ↳ Justification:[/]",
+            "        ",
+            $"[yellow]    ↳ No justification available for this {sourceLabel}[/]");
     }
 
     /// <summary>
