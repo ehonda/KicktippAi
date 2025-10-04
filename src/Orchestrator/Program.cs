@@ -19,21 +19,44 @@ public class Program
                 .WithDescription("Generate predictions for the current matchday")
                 .WithExample("matchday", "gpt-4o-2024-08-06", "--community", "ehonda-test-buli");
 
-            config.AddCommand<AnalyzeMatchCommand>("analyze-match")
-                .WithDescription("Analyze prediction distributions for a single match without persisting results")
-                .WithExample(
-                    "analyze-match",
-                    "gpt-5-nano",
-                    "--community-context",
-                    "ehonda-test-buli",
-                    "--home",
-                    "FC Bayern München",
-                    "--away",
-                    "RB Leipzig",
-                    "--matchday",
-                    "1",
-                    "--runs",
-                    "5");
+            config.AddBranch<AnalyzeMatchBaseSettings>("analyze-match", analyzeMatch =>
+            {
+                analyzeMatch.SetDescription("Analyze prediction distributions for a single match without persisting results");
+
+                analyzeMatch.AddCommand<AnalyzeMatchDetailedCommand>("detailed")
+                    .WithDescription("Detailed analysis with justification output and live estimates")
+                    .WithExample(
+                        "analyze-match",
+                        "detailed",
+                        "gpt-5-nano",
+                        "--community-context",
+                        "ehonda-test-buli",
+                        "--home",
+                        "FC Bayern München",
+                        "--away",
+                        "RB Leipzig",
+                        "--matchday",
+                        "1",
+                        "--runs",
+                        "5");
+
+                analyzeMatch.AddCommand<AnalyzeMatchComparisonCommand>("comparison")
+                    .WithDescription("Compare predictions generated with and without justification")
+                    .WithExample(
+                        "analyze-match",
+                        "comparison",
+                        "gpt-5-nano",
+                        "--community-context",
+                        "ehonda-test-buli",
+                        "--home",
+                        "FC Bayern München",
+                        "--away",
+                        "RB Leipzig",
+                        "--matchday",
+                        "1",
+                        "--runs",
+                        "5");
+            });
                 
             config.AddCommand<BonusCommand>("bonus")
                 .WithDescription("Generate bonus predictions")
