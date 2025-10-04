@@ -377,6 +377,7 @@ public class PredictionService : IPredictionService
             var predictionResponse = JsonSerializer.Deserialize<PredictionResponse>(predictionJson);
             if (predictionResponse == null)
             {
+                LogRawModelResponse(predictionJson);
                 throw new InvalidOperationException("Failed to deserialize prediction response");
             }
 
@@ -425,8 +426,24 @@ public class PredictionService : IPredictionService
         catch (JsonException ex)
         {
             _logger.LogError(ex, "Failed to parse prediction JSON: {PredictionJson}", predictionJson);
+            LogRawModelResponse(predictionJson);
             throw new InvalidOperationException($"Failed to parse prediction response: {ex.Message}", ex);
         }
+    }
+
+    private void LogRawModelResponse(string rawResponse)
+    {
+        if (string.IsNullOrWhiteSpace(rawResponse))
+        {
+            const string message = "Raw model response from OpenAI was empty or whitespace.";
+            _logger.LogError(message);
+            Console.Error.WriteLine(message);
+            return;
+        }
+
+        _logger.LogError("Raw model response from OpenAI: {RawResponse}", rawResponse);
+        Console.Error.WriteLine("Raw model response from OpenAI:");
+        Console.Error.WriteLine(rawResponse);
     }
 
     private (string template, string path) LoadInstructionsTemplate(bool includeJustification)
