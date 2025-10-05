@@ -19,7 +19,7 @@ public class Program
                 .WithDescription("Generate predictions for the current matchday")
                 .WithExample("matchday", "gpt-4o-2024-08-06", "--community", "ehonda-test-buli");
 
-            config.AddBranch<AnalyzeMatchBaseSettings>("analyze-match", analyzeMatch =>
+            config.AddBranch("analyze-match", analyzeMatch =>
             {
                 analyzeMatch.SetDescription("Analyze prediction distributions for a single match without persisting results");
 
