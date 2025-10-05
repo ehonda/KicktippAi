@@ -142,9 +142,10 @@ public class AnalyzeMatchComparisonCommand : AsyncCommand<AnalyzeMatchComparison
                 }
 
                 var lastCost = tokenUsageTracker.GetLastCost();
+                var usageSummary = tokenUsageTracker.GetLastUsageCompactSummary();
 
                 AnsiConsole.MarkupLine($"[green]  ✓ Prediction:[/] [yellow]{prediction.HomeGoals}:{prediction.AwayGoals}[/]");
-                AnsiConsole.MarkupLine($"[magenta]  ↳ Cost:[/] [cyan]{FormatCurrencyValue(lastCost)}[/]");
+                AnsiConsole.MarkupLine($"[magenta]  ↳ Cost:[/] [cyan]{FormatCurrencyValue(lastCost)}[/] [grey]({usageSummary})[/]");
 
                 return new ComparisonRunResult(runNumber, includeJustification, prediction, stopwatch.Elapsed, lastCost, true);
             }
