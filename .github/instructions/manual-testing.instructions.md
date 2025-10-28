@@ -1,9 +1,9 @@
 ---
 applyTo: '**'
 ---
-# Testing Guidelines
+# Manual Testing Guidelines
 
-These guidelines help effectively test when implementing changes across the solution's core components. As we have no form of automated testing right now (no unit / integration / ... tests), **they MUST BE FOLLOWED whenever testing changes.**
+These guidelines help effectively test when implementing changes across the solution's core components. Until we have comprehensive automated tests, these MUST be followed when working with manual tests.
 
 ## When to apply
 
