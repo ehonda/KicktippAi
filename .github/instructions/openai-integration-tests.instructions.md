@@ -5,6 +5,8 @@ applyTo: '**/OpenAiIntegration.Tests/**'
 
 ALWAYS follow these when writing `OpenAiIntegration.Tests`
 
-## Creating instances of library types
+## Do the following
 
-* When creating instances of types from the OpenAI library (e.g., `ChatMessage`, `ChatCompletionRequest`), use the library provided model factories. Consult the `README.md` and source code in #githubRepo openai/openai-dotnet for details on available factory methods and their usage.
+* Consult the `README.md` and source code in #githubRepo openai/openai-dotnet for details on any topic related to the OpenAI library.
+* When creating instances of types from the OpenAI library (e.g., `ChatMessage`, `ChatCompletionRequest`), use the library provided model factories.
+* When mocking OpenAI client calls, consult the library `README.md` for the correct way to set up the mocks.
