@@ -14,6 +14,7 @@ This guide is organized hierarchically to facilitate finding information at the 
 
 Foundational information for getting started and following project conventions:
 
+- **[Installation](general/installation.md)** - How to install TUnit and set up test projects
 - **[Quickstart](general/quickstart.md)** - Essential information to start writing tests immediately
 - **[Project Style Guide](general/project_style_guide.md)** - Conventions and patterns specific to this project
 
@@ -72,6 +73,6 @@ public class CalculatorTests
 
 ## Next Steps
 
-1. **New to TUnit?** Start with the [Quickstart](general/quickstart.md)
+1. **New to TUnit?** Start with [Installation](general/installation.md) and then the [Quickstart](general/quickstart.md)
 2. **Writing tests?** Reference the [Usage Patterns](usage_patterns/) for your specific scenario
 3. **Reviewing code?** Ensure adherence to the [Project Style Guide](general/project_style_guide.md)
