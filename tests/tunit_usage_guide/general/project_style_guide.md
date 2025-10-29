@@ -253,6 +253,107 @@ public class ShoppingCartTests
 
 ## Test Organization
 
+### File and Folder Structure
+
+The organization of test files depends on the size and complexity of the class being tested:
+
+#### Simple Test Fixtures
+
+For small classes with few methods, use a single test file named after the class being tested:
+
+```text
+tests/
+  MyProject.Tests/
+    CalculatorTests.cs
+    ValidatorTests.cs
+```
+
+**Example:**
+
+```csharp
+namespace MyProject.Tests;
+
+public class CalculatorTests
+{
+    [Test]
+    public async Task Adding_numbers_returns_sum() { }
+    
+    [Test]
+    public async Task Dividing_by_zero_throws_exception() { }
+}
+```
+
+#### Complex Test Fixtures
+
+For larger classes with multiple methods that require many tests, organize tests in a dedicated folder with:
+
+- A base class for shared test functionality
+- Separate test files for each method or logical grouping
+
+**Folder Structure:**
+
+```text
+tests/
+  MyProject.Tests/
+    CostCalculationServiceTests/
+      CostCalculationServiceTests_Base.cs
+      CostCalculationService_CalculateCost_Tests.cs
+      CostCalculationService_LogCostBreakdown_Tests.cs
+```
+
+**Base Class Example:**
+
+```csharp
+namespace MyProject.Tests.CostCalculationServiceTests;
+
+/// <summary>
+/// Base class for CostCalculationService tests providing shared helper functionality
+/// </summary>
+public abstract class CostCalculationServiceTests_Base
+{
+    protected static SomeTestData CreateTestData()
+    {
+        // Shared test data creation logic
+        return new SomeTestData();
+    }
+}
+```
+
+**Test Class Example:**
+
+```csharp
+namespace MyProject.Tests.CostCalculationServiceTests;
+
+/// <summary>
+/// Tests for the CostCalculationService CalculateCost method
+/// </summary>
+public class CostCalculationService_CalculateCost_Tests : CostCalculationServiceTests_Base
+{
+    [Test]
+    public async Task CalculateCost_with_valid_input_returns_result()
+    {
+        // Arrange
+        var data = CreateTestData(); // Using inherited helper
+        
+        // Act & Assert
+        // ...
+    }
+}
+```
+
+**Naming Conventions:**
+
+- **Folder name**: `{ClassName}Tests` (e.g., `CostCalculationServiceTests`)
+- **Base class**: `{ClassName}Tests_Base` (e.g., `CostCalculationServiceTests_Base`)
+- **Test classes**: `{ClassName}_{MethodName}_Tests` (e.g., `CostCalculationService_CalculateCost_Tests`)
+
+This structure:
+
+- Keeps test files focused on a single method or concern
+- Reduces code duplication through the base class
+- Makes it easy to locate tests for specific methods
+- Improves readability with clear, underscored naming
+
 ### Class Naming
 
 Test classes should be named after the class being tested with a `Tests` suffix:

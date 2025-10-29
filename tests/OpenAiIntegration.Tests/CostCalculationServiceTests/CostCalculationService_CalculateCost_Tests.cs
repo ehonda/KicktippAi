@@ -1,13 +1,12 @@
 using Microsoft.Extensions.Logging;
 using Moq;
-using OpenAI.Chat;
 
-namespace OpenAiIntegration.Tests;
+namespace OpenAiIntegration.Tests.CostCalculationServiceTests;
 
 /// <summary>
 /// Tests for the CostCalculationService CalculateCost method
 /// </summary>
-public class CostCalculationServiceCalculateCostTests
+public class CostCalculationService_CalculateCost_Tests : CostCalculationServiceTests_Base
 {
     [Test]
     public async Task CalculateCost_with_known_model_and_no_cached_tokens_returns_correct_cost()
@@ -168,20 +167,5 @@ public class CostCalculationServiceCalculateCostTests
         var expectedCost = inputPrice + outputPrice;
         await Assert.That(cost).IsNotNull();
         await Assert.That(cost!.Value).IsEqualTo(expectedCost);
-    }
-
-    private static ChatTokenUsage CreateChatTokenUsage(
-        int inputTokens, 
-        int outputTokens, 
-        int cachedInputTokens)
-    {
-        ChatInputTokenUsageDetails? inputDetails = cachedInputTokens > 0
-            ? OpenAIChatModelFactory.ChatInputTokenUsageDetails(cachedTokenCount: cachedInputTokens)
-            : null;
-        
-        return OpenAIChatModelFactory.ChatTokenUsage(
-            inputTokenCount: inputTokens,
-            outputTokenCount: outputTokens,
-            inputTokenDetails: inputDetails);
     }
 }

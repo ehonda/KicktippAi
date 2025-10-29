@@ -1,13 +1,12 @@
 using Microsoft.Extensions.Logging;
 using Moq;
-using OpenAI.Chat;
 
-namespace OpenAiIntegration.Tests;
+namespace OpenAiIntegration.Tests.CostCalculationServiceTests;
 
 /// <summary>
 /// Tests for the CostCalculationService LogCostBreakdown method
 /// </summary>
-public class CostCalculationServiceLogCostBreakdownTests
+public class CostCalculationService_LogCostBreakdown_Tests : CostCalculationServiceTests_Base
 {
     [Test]
     public Task LogCostBreakdown_with_known_model_logs_cost_breakdown()
@@ -222,20 +221,5 @@ public class CostCalculationServiceLogCostBreakdownTests
             Times.Once);
         
         return Task.CompletedTask;
-    }
-
-    private static ChatTokenUsage CreateChatTokenUsage(
-        int inputTokens, 
-        int outputTokens, 
-        int cachedInputTokens)
-    {
-        ChatInputTokenUsageDetails? inputDetails = cachedInputTokens > 0
-            ? OpenAIChatModelFactory.ChatInputTokenUsageDetails(cachedTokenCount: cachedInputTokens)
-            : null;
-        
-        return OpenAIChatModelFactory.ChatTokenUsage(
-            inputTokenCount: inputTokens,
-            outputTokenCount: outputTokens,
-            inputTokenDetails: inputDetails);
     }
 }
