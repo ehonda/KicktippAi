@@ -1,5 +1,5 @@
 using Microsoft.Extensions.Logging;
-using NSubstitute;
+using Moq;
 using OpenAI.Chat;
 
 namespace OpenAiIntegration.Tests;
@@ -13,8 +13,8 @@ public class CostCalculationServiceLogCostBreakdownTests
     public Task LogCostBreakdown_with_known_model_logs_cost_breakdown()
     {
         // Arrange
-        var logger = Substitute.For<ILogger<CostCalculationService>>();
-        var service = new CostCalculationService(logger);
+        var logger = new Mock<ILogger<CostCalculationService>>();
+        var service = new CostCalculationService(logger.Object);
         
         var usage = CreateChatTokenUsage(
             inputTokens: 1_000_000,
@@ -25,33 +25,41 @@ public class CostCalculationServiceLogCostBreakdownTests
         service.LogCostBreakdown("gpt-4o", usage);
         
         // Assert - Verify all log entries are created
-        logger.Received(1).Log(
-            LogLevel.Information,
-            Arg.Any<EventId>(),
-            Arg.Is<object>(o => o.ToString()!.Contains("Uncached Input Tokens")),
-            Arg.Any<Exception>(),
-            Arg.Any<Func<object, Exception?, string>>());
+        logger.Verify(
+            x => x.Log(
+                LogLevel.Information,
+                It.IsAny<EventId>(),
+                It.Is<It.IsAnyType>((o, t) => o.ToString()!.Contains("Uncached Input Tokens")),
+                It.IsAny<Exception>(),
+                It.IsAny<Func<It.IsAnyType, Exception?, string>>()),
+            Times.Once);
         
-        logger.Received(1).Log(
-            LogLevel.Information,
-            Arg.Any<EventId>(),
-            Arg.Is<object>(o => o.ToString()!.Contains("Cached Input Tokens")),
-            Arg.Any<Exception>(),
-            Arg.Any<Func<object, Exception?, string>>());
+        logger.Verify(
+            x => x.Log(
+                LogLevel.Information,
+                It.IsAny<EventId>(),
+                It.Is<It.IsAnyType>((o, t) => o.ToString()!.Contains("Cached Input Tokens")),
+                It.IsAny<Exception>(),
+                It.IsAny<Func<It.IsAnyType, Exception?, string>>()),
+            Times.Once);
         
-        logger.Received(1).Log(
-            LogLevel.Information,
-            Arg.Any<EventId>(),
-            Arg.Is<object>(o => o.ToString()!.Contains("Output Tokens")),
-            Arg.Any<Exception>(),
-            Arg.Any<Func<object, Exception?, string>>());
+        logger.Verify(
+            x => x.Log(
+                LogLevel.Information,
+                It.IsAny<EventId>(),
+                It.Is<It.IsAnyType>((o, t) => o.ToString()!.Contains("Output Tokens")),
+                It.IsAny<Exception>(),
+                It.IsAny<Func<It.IsAnyType, Exception?, string>>()),
+            Times.Once);
         
-        logger.Received(1).Log(
-            LogLevel.Information,
-            Arg.Any<EventId>(),
-            Arg.Is<object>(o => o.ToString()!.Contains("Total Cost")),
-            Arg.Any<Exception>(),
-            Arg.Any<Func<object, Exception?, string>>());
+        logger.Verify(
+            x => x.Log(
+                LogLevel.Information,
+                It.IsAny<EventId>(),
+                It.Is<It.IsAnyType>((o, t) => o.ToString()!.Contains("Total Cost")),
+                It.IsAny<Exception>(),
+                It.IsAny<Func<It.IsAnyType, Exception?, string>>()),
+            Times.Once);
         
         return Task.CompletedTask;
     }
@@ -60,8 +68,8 @@ public class CostCalculationServiceLogCostBreakdownTests
     public Task LogCostBreakdown_with_cached_tokens_logs_cached_cost_line()
     {
         // Arrange
-        var logger = Substitute.For<ILogger<CostCalculationService>>();
-        var service = new CostCalculationService(logger);
+        var logger = new Mock<ILogger<CostCalculationService>>();
+        var service = new CostCalculationService(logger.Object);
         
         var usage = CreateChatTokenUsage(
             inputTokens: 1_000_000,
@@ -72,12 +80,14 @@ public class CostCalculationServiceLogCostBreakdownTests
         service.LogCostBreakdown("gpt-4o", usage);
         
         // Assert - Verify cached tokens are logged
-        logger.Received(1).Log(
-            LogLevel.Information,
-            Arg.Any<EventId>(),
-            Arg.Is<object>(o => o.ToString()!.Contains("Cached Input Tokens: 600,000")),
-            Arg.Any<Exception>(),
-            Arg.Any<Func<object, Exception?, string>>());
+        logger.Verify(
+            x => x.Log(
+                LogLevel.Information,
+                It.IsAny<EventId>(),
+                It.Is<It.IsAnyType>((o, t) => o.ToString()!.Contains("Cached Input Tokens: 600,000")),
+                It.IsAny<Exception>(),
+                It.IsAny<Func<It.IsAnyType, Exception?, string>>()),
+            Times.Once);
         
         return Task.CompletedTask;
     }
@@ -86,8 +96,8 @@ public class CostCalculationServiceLogCostBreakdownTests
     public Task LogCostBreakdown_with_model_without_cached_pricing_does_not_log_cached_line()
     {
         // Arrange
-        var logger = Substitute.For<ILogger<CostCalculationService>>();
-        var service = new CostCalculationService(logger);
+        var logger = new Mock<ILogger<CostCalculationService>>();
+        var service = new CostCalculationService(logger.Object);
         
         var usage = CreateChatTokenUsage(
             inputTokens: 1_000_000,
@@ -98,12 +108,14 @@ public class CostCalculationServiceLogCostBreakdownTests
         service.LogCostBreakdown("o1-pro", usage);
         
         // Assert - Verify cached tokens line is NOT logged
-        logger.DidNotReceive().Log(
-            LogLevel.Information,
-            Arg.Any<EventId>(),
-            Arg.Is<object>(o => o.ToString()!.Contains("Cached Input Tokens")),
-            Arg.Any<Exception>(),
-            Arg.Any<Func<object, Exception?, string>>());
+        logger.Verify(
+            x => x.Log(
+                LogLevel.Information,
+                It.IsAny<EventId>(),
+                It.Is<It.IsAnyType>((o, t) => o.ToString()!.Contains("Cached Input Tokens")),
+                It.IsAny<Exception>(),
+                It.IsAny<Func<It.IsAnyType, Exception?, string>>()),
+            Times.Never);
         
         return Task.CompletedTask;
     }
@@ -112,8 +124,8 @@ public class CostCalculationServiceLogCostBreakdownTests
     public Task LogCostBreakdown_with_unknown_model_logs_warning()
     {
         // Arrange
-        var logger = Substitute.For<ILogger<CostCalculationService>>();
-        var service = new CostCalculationService(logger);
+        var logger = new Mock<ILogger<CostCalculationService>>();
+        var service = new CostCalculationService(logger.Object);
         
         var usage = CreateChatTokenUsage(
             inputTokens: 1_000_000,
@@ -124,12 +136,14 @@ public class CostCalculationServiceLogCostBreakdownTests
         service.LogCostBreakdown("unknown-model", usage);
         
         // Assert - Verify warning is logged
-        logger.Received(1).Log(
-            LogLevel.Warning,
-            Arg.Any<EventId>(),
-            Arg.Is<object>(o => o.ToString()!.Contains("Pricing information not found for model 'unknown-model'")),
-            Arg.Any<Exception>(),
-            Arg.Any<Func<object, Exception?, string>>());
+        logger.Verify(
+            x => x.Log(
+                LogLevel.Warning,
+                It.IsAny<EventId>(),
+                It.Is<It.IsAnyType>((o, t) => o.ToString()!.Contains("Pricing information not found for model 'unknown-model'")),
+                It.IsAny<Exception>(),
+                It.IsAny<Func<It.IsAnyType, Exception?, string>>()),
+            Times.Once);
         
         return Task.CompletedTask;
     }
@@ -138,8 +152,8 @@ public class CostCalculationServiceLogCostBreakdownTests
     public Task LogCostBreakdown_with_zero_cached_tokens_does_not_log_zero_cached_cost()
     {
         // Arrange
-        var logger = Substitute.For<ILogger<CostCalculationService>>();
-        var service = new CostCalculationService(logger);
+        var logger = new Mock<ILogger<CostCalculationService>>();
+        var service = new CostCalculationService(logger.Object);
         
         var usage = CreateChatTokenUsage(
             inputTokens: 1_000_000,
@@ -150,12 +164,14 @@ public class CostCalculationServiceLogCostBreakdownTests
         service.LogCostBreakdown("gpt-4o", usage);
         
         // Assert - When cachedInputTokens is 0, cached line should still be logged (showing 0 tokens)
-        logger.Received(1).Log(
-            LogLevel.Information,
-            Arg.Any<EventId>(),
-            Arg.Is<object>(o => o.ToString()!.Contains("Cached Input Tokens: 0")),
-            Arg.Any<Exception>(),
-            Arg.Any<Func<object, Exception?, string>>());
+        logger.Verify(
+            x => x.Log(
+                LogLevel.Information,
+                It.IsAny<EventId>(),
+                It.Is<It.IsAnyType>((o, t) => o.ToString()!.Contains("Cached Input Tokens: 0")),
+                It.IsAny<Exception>(),
+                It.IsAny<Func<It.IsAnyType, Exception?, string>>()),
+            Times.Once);
         
         return Task.CompletedTask;
     }
@@ -164,8 +180,8 @@ public class CostCalculationServiceLogCostBreakdownTests
     public Task LogCostBreakdown_logs_correct_token_counts_and_prices()
     {
         // Arrange
-        var logger = Substitute.For<ILogger<CostCalculationService>>();
-        var service = new CostCalculationService(logger);
+        var logger = new Mock<ILogger<CostCalculationService>>();
+        var service = new CostCalculationService(logger.Object);
         
         var usage = CreateChatTokenUsage(
             inputTokens: 2_500_000,
@@ -178,26 +194,32 @@ public class CostCalculationServiceLogCostBreakdownTests
         // Assert - Verify correct token counts are logged
         // o3: $2.00/1M input, $8.00/1M output, $0.50/1M cached
         // Uncached: 1,500,000 tokens
-        logger.Received(1).Log(
-            LogLevel.Information,
-            Arg.Any<EventId>(),
-            Arg.Is<object>(o => o.ToString()!.Contains("Uncached Input Tokens: 1,500,000")),
-            Arg.Any<Exception>(),
-            Arg.Any<Func<object, Exception?, string>>());
+        logger.Verify(
+            x => x.Log(
+                LogLevel.Information,
+                It.IsAny<EventId>(),
+                It.Is<It.IsAnyType>((o, t) => o.ToString()!.Contains("Uncached Input Tokens: 1,500,000")),
+                It.IsAny<Exception>(),
+                It.IsAny<Func<It.IsAnyType, Exception?, string>>()),
+            Times.Once);
         
-        logger.Received(1).Log(
-            LogLevel.Information,
-            Arg.Any<EventId>(),
-            Arg.Is<object>(o => o.ToString()!.Contains("Cached Input Tokens: 1,000,000")),
-            Arg.Any<Exception>(),
-            Arg.Any<Func<object, Exception?, string>>());
+        logger.Verify(
+            x => x.Log(
+                LogLevel.Information,
+                It.IsAny<EventId>(),
+                It.Is<It.IsAnyType>((o, t) => o.ToString()!.Contains("Cached Input Tokens: 1,000,000")),
+                It.IsAny<Exception>(),
+                It.IsAny<Func<It.IsAnyType, Exception?, string>>()),
+            Times.Once);
         
-        logger.Received(1).Log(
-            LogLevel.Information,
-            Arg.Any<EventId>(),
-            Arg.Is<object>(o => o.ToString()!.Contains("Output Tokens: 1,250,000")),
-            Arg.Any<Exception>(),
-            Arg.Any<Func<object, Exception?, string>>());
+        logger.Verify(
+            x => x.Log(
+                LogLevel.Information,
+                It.IsAny<EventId>(),
+                It.Is<It.IsAnyType>((o, t) => o.ToString()!.Contains("Output Tokens: 1,250,000")),
+                It.IsAny<Exception>(),
+                It.IsAny<Func<It.IsAnyType, Exception?, string>>()),
+            Times.Once);
         
         return Task.CompletedTask;
     }
@@ -207,17 +229,13 @@ public class CostCalculationServiceLogCostBreakdownTests
         int outputTokens, 
         int cachedInputTokens)
     {
-        var usage = Substitute.For<ChatTokenUsage>();
-        usage.InputTokenCount.Returns(inputTokens);
-        usage.OutputTokenCount.Returns(outputTokens);
+        ChatInputTokenUsageDetails? inputDetails = cachedInputTokens > 0
+            ? OpenAIChatModelFactory.ChatInputTokenUsageDetails(cachedTokenCount: cachedInputTokens)
+            : null;
         
-        if (cachedInputTokens > 0)
-        {
-            var inputDetails = Substitute.For<ChatInputTokenUsageDetails>();
-            inputDetails.CachedTokenCount.Returns(cachedInputTokens);
-            usage.InputTokenDetails.Returns(inputDetails);
-        }
-        
-        return usage;
+        return OpenAIChatModelFactory.ChatTokenUsage(
+            inputTokenCount: inputTokens,
+            outputTokenCount: outputTokens,
+            inputTokenDetails: inputDetails);
     }
 }

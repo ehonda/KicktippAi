@@ -52,6 +52,90 @@ public async Task ValidateStr_EmptyStr_RetsFalse() { }
 4. **Use underscores** to separate words for readability
 5. **Be specific** - avoid vague names like `Test1` or `BasicTest`
 
+## Mocking Library
+
+This project uses **Moq** (version 4.20.72 or later) as the mocking library for creating test doubles.
+
+### Basic Moq Usage
+
+```csharp
+using Moq;
+using Microsoft.Extensions.Logging;
+
+public class ServiceTests
+{
+    [Test]
+    public async Task Example_test_with_mocked_dependency()
+    {
+        // Arrange - Create a mock
+        var logger = new Mock<ILogger<MyService>>();
+        var service = new MyService(logger.Object);
+        
+        // Act
+        var result = service.DoSomething();
+        
+        // Assert
+        await Assert.That(result).IsNotNull();
+    }
+}
+```
+
+### Verifying Logger Calls
+
+When testing logging behavior, use Moq's `Verify` method with `It.IsAnyType` for the state parameter:
+
+```csharp
+[Test]
+public async Task Method_logs_information_message()
+{
+    // Arrange
+    var logger = new Mock<ILogger<MyService>>();
+    var service = new MyService(logger.Object);
+    
+    // Act
+    service.DoSomething();
+    
+    // Assert - Verify log was called
+    logger.Verify(
+        x => x.Log(
+            LogLevel.Information,
+            It.IsAny<EventId>(),
+            It.Is<It.IsAnyType>((o, t) => o.ToString()!.Contains("Expected message")),
+            It.IsAny<Exception>(),
+            It.IsAny<Func<It.IsAnyType, Exception?, string>>()),
+        Times.Once);
+}
+
+[Test]
+public async Task Method_does_not_log_warning()
+{
+    // Arrange
+    var logger = new Mock<ILogger<MyService>>();
+    var service = new MyService(logger.Object);
+    
+    // Act
+    service.DoSomething();
+    
+    // Assert - Verify log was NOT called
+    logger.Verify(
+        x => x.Log(
+            LogLevel.Warning,
+            It.IsAny<EventId>(),
+            It.Is<It.IsAnyType>((o, t) => o.ToString()!.Contains("Warning message")),
+            It.IsAny<Exception>(),
+            It.IsAny<Func<It.IsAnyType, Exception?, string>>()),
+        Times.Never);
+}
+```
+
+### Key Moq Patterns
+
+- **Creating mocks**: `var mock = new Mock<IInterface>();`
+- **Getting the object**: `mock.Object`
+- **Verifying calls**: `mock.Verify(x => x.Method(...), Times.Once);`
+- **Verifying no calls**: `mock.Verify(x => x.Method(...), Times.Never);`
+- **Setup return values**: `mock.Setup(x => x.Method()).Returns(value);`
+
 ## Examples by Category
 
 ### Testing Methods

@@ -1,5 +1,5 @@
 using Microsoft.Extensions.Logging;
-using NSubstitute;
+using Moq;
 using OpenAI.Chat;
 
 namespace OpenAiIntegration.Tests;
@@ -13,8 +13,8 @@ public class CostCalculationServiceCalculateCostTests
     public async Task CalculateCost_with_known_model_and_no_cached_tokens_returns_correct_cost()
     {
         // Arrange
-        var logger = Substitute.For<ILogger<CostCalculationService>>();
-        var service = new CostCalculationService(logger);
+        var logger = new Mock<ILogger<CostCalculationService>>();
+        var service = new CostCalculationService(logger.Object);
         
         var usage = CreateChatTokenUsage(
             inputTokens: 1_000_000,
@@ -35,8 +35,8 @@ public class CostCalculationServiceCalculateCostTests
     public async Task CalculateCost_with_cached_input_tokens_returns_correct_cost()
     {
         // Arrange
-        var logger = Substitute.For<ILogger<CostCalculationService>>();
-        var service = new CostCalculationService(logger);
+        var logger = new Mock<ILogger<CostCalculationService>>();
+        var service = new CostCalculationService(logger.Object);
         
         var usage = CreateChatTokenUsage(
             inputTokens: 1_000_000,
@@ -59,8 +59,8 @@ public class CostCalculationServiceCalculateCostTests
     public async Task CalculateCost_with_model_without_cached_pricing_ignores_cached_tokens()
     {
         // Arrange
-        var logger = Substitute.For<ILogger<CostCalculationService>>();
-        var service = new CostCalculationService(logger);
+        var logger = new Mock<ILogger<CostCalculationService>>();
+        var service = new CostCalculationService(logger.Object);
         
         var usage = CreateChatTokenUsage(
             inputTokens: 1_000_000,
@@ -83,8 +83,8 @@ public class CostCalculationServiceCalculateCostTests
     public async Task CalculateCost_with_unknown_model_returns_null()
     {
         // Arrange
-        var logger = Substitute.For<ILogger<CostCalculationService>>();
-        var service = new CostCalculationService(logger);
+        var logger = new Mock<ILogger<CostCalculationService>>();
+        var service = new CostCalculationService(logger.Object);
         
         var usage = CreateChatTokenUsage(
             inputTokens: 1_000_000,
@@ -102,8 +102,8 @@ public class CostCalculationServiceCalculateCostTests
     public async Task CalculateCost_with_zero_tokens_returns_zero_cost()
     {
         // Arrange
-        var logger = Substitute.For<ILogger<CostCalculationService>>();
-        var service = new CostCalculationService(logger);
+        var logger = new Mock<ILogger<CostCalculationService>>();
+        var service = new CostCalculationService(logger.Object);
         
         var usage = CreateChatTokenUsage(
             inputTokens: 0,
@@ -122,8 +122,8 @@ public class CostCalculationServiceCalculateCostTests
     public async Task CalculateCost_with_reasoning_model_o3_calculates_correctly()
     {
         // Arrange
-        var logger = Substitute.For<ILogger<CostCalculationService>>();
-        var service = new CostCalculationService(logger);
+        var logger = new Mock<ILogger<CostCalculationService>>();
+        var service = new CostCalculationService(logger.Object);
         
         var usage = CreateChatTokenUsage(
             inputTokens: 2_000_000,
@@ -153,8 +153,8 @@ public class CostCalculationServiceCalculateCostTests
         decimal cachedPrice)
     {
         // Arrange
-        var logger = Substitute.For<ILogger<CostCalculationService>>();
-        var service = new CostCalculationService(logger);
+        var logger = new Mock<ILogger<CostCalculationService>>();
+        var service = new CostCalculationService(logger.Object);
         
         var usage = CreateChatTokenUsage(
             inputTokens: 1_000_000,
@@ -175,17 +175,13 @@ public class CostCalculationServiceCalculateCostTests
         int outputTokens, 
         int cachedInputTokens)
     {
-        var usage = Substitute.For<ChatTokenUsage>();
-        usage.InputTokenCount.Returns(inputTokens);
-        usage.OutputTokenCount.Returns(outputTokens);
+        ChatInputTokenUsageDetails? inputDetails = cachedInputTokens > 0
+            ? OpenAIChatModelFactory.ChatInputTokenUsageDetails(cachedTokenCount: cachedInputTokens)
+            : null;
         
-        if (cachedInputTokens > 0)
-        {
-            var inputDetails = Substitute.For<ChatInputTokenUsageDetails>();
-            inputDetails.CachedTokenCount.Returns(cachedInputTokens);
-            usage.InputTokenDetails.Returns(inputDetails);
-        }
-        
-        return usage;
+        return OpenAIChatModelFactory.ChatTokenUsage(
+            inputTokenCount: inputTokens,
+            outputTokenCount: outputTokens,
+            inputTokenDetails: inputDetails);
     }
 }
