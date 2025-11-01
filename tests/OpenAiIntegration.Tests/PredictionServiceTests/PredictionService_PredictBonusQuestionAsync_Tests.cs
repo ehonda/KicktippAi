@@ -291,7 +291,7 @@ public class PredictionService_PredictBonusQuestionAsync_Tests : PredictionServi
             var tokenTracker = CreateMockTokenUsageTracker();
 
             var service = new PredictionService(
-                mockChatClient,
+                mockChatClient.Object,
                 logger.Object,
                 costCalc.Object,
                 tokenTracker.Object,
@@ -336,7 +336,7 @@ public class PredictionService_PredictBonusQuestionAsync_Tests : PredictionServi
             var tokenTracker = CreateMockTokenUsageTracker();
 
             var service = new PredictionService(
-                mockChatClient,
+                mockChatClient.Object,
                 logger.Object,
                 costCalc.Object,
                 tokenTracker.Object,

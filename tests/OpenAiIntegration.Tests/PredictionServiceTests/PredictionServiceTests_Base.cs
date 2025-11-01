@@ -2,10 +2,11 @@ using Core;
 using Microsoft.Extensions.Logging;
 using Moq;
 using NodaTime;
-using OpenAI;
 using OpenAI.Chat;
 using System.ClientModel;
 using System.ClientModel.Primitives;
+
+#pragma warning disable OPENAI001 // Suppress warnings for using OpenAI model factories for testing
 
 namespace OpenAiIntegration.Tests.PredictionServiceTests;
 
@@ -155,40 +156,39 @@ public abstract class PredictionServiceTests_Base
     /// </summary>
     protected static ChatClient CreateMockChatClient(string responseJson, ChatTokenUsage usage)
     {
-        // Create the response JSON that includes usage information
-        var fullResponse = $$"""
-        {
-            "id": "test-completion-id",
-            "object": "chat.completion",
-            "created": {{DateTimeOffset.UtcNow.ToUnixTimeSeconds()}},
-            "model": "gpt-5",
-            "choices": [
-                {
-                    "index": 0,
-                    "message": {
-                        "role": "assistant",
-                        "content": {{System.Text.Json.JsonSerializer.Serialize(responseJson)}}
-                    },
-                    "finish_reason": "stop"
-                }
-            ],
-            "usage": {
-                "prompt_tokens": {{usage.InputTokenCount}},
-                "completion_tokens": {{usage.OutputTokenCount}},
-                "total_tokens": {{usage.TotalTokenCount}}
-            }
-        }
-        """;
+        // Create the mock ChatClient and mock ClientResult
+        var mockClient = new Mock<ChatClient>();
+        var mockResult = new Mock<ClientResult<ChatCompletion>>(null, Mock.Of<PipelineResponse>());
         
-        MockPipelineResponse mockResponse = new MockPipelineResponse(200)
-            .WithContent(BinaryContent.Create(BinaryData.FromString(fullResponse)));
+        // Create the ChatCompletion using the model factory
+        var completion = OpenAIChatModelFactory.ChatCompletion(
+            id: "test-completion-id",
+            model: "gpt-5",
+            createdAt: DateTimeOffset.UtcNow,
+            finishReason: ChatFinishReason.Stop,
+            role: ChatMessageRole.Assistant,
+            content: [ChatMessageContentPart.CreateTextPart(responseJson)],
+            usage: usage);
         
-        OpenAIClientOptions options = new()
-        {
-            Transport = new MockPipelineTransport(_ => mockResponse)
-        };
+        // Set up the mock result to return the completion
+        mockResult
+            .SetupGet(result => result.Value)
+            .Returns(completion);
         
-        return new ChatClient("gpt-5", new ApiKeyCredential("test-key"), options);
+        // Set up both sync and async methods
+        mockClient.Setup(client => client.CompleteChat(
+                It.IsAny<IEnumerable<ChatMessage>>(),
+                It.IsAny<ChatCompletionOptions>(),
+                It.IsAny<CancellationToken>()))
+            .Returns(mockResult.Object);
+        
+        mockClient.Setup(client => client.CompleteChatAsync(
+                It.IsAny<IEnumerable<ChatMessage>>(),
+                It.IsAny<ChatCompletionOptions>(),
+                It.IsAny<CancellationToken>()))
+            .ReturnsAsync(mockResult.Object);
+        
+        return mockClient.Object;
     }
 
     /// <summary>
@@ -196,13 +196,20 @@ public abstract class PredictionServiceTests_Base
     /// </summary>
     protected static ChatClient CreateThrowingMockChatClient(Exception exception)
     {
-        var mockTransport = new Mock<MockPipelineTransport>(MockBehavior.Strict, (Func<PipelineRequest, PipelineResponse>)(_ => throw exception));
+        var mockClient = new Mock<ChatClient>();
         
-        OpenAIClientOptions options = new()
-        {
-            Transport = mockTransport.Object
-        };
+        mockClient.Setup(client => client.CompleteChat(
+                It.IsAny<IEnumerable<ChatMessage>>(),
+                It.IsAny<ChatCompletionOptions>(),
+                It.IsAny<CancellationToken>()))
+            .Throws(exception);
         
-        return new ChatClient("gpt-5", new ApiKeyCredential("test-key"), options);
+        mockClient.Setup(client => client.CompleteChatAsync(
+                It.IsAny<IEnumerable<ChatMessage>>(),
+                It.IsAny<ChatCompletionOptions>(),
+                It.IsAny<CancellationToken>()))
+            .ThrowsAsync(exception);
+        
+        return mockClient.Object;
     }
 }
