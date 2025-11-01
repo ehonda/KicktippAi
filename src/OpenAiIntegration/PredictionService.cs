@@ -17,6 +17,7 @@ public class PredictionService : IPredictionService
     private readonly ILogger<PredictionService> _logger;
     private readonly ICostCalculationService _costCalculationService;
     private readonly ITokenUsageTracker _tokenUsageTracker;
+    private readonly IInstructionsTemplateProvider _templateProvider;
     private readonly string _model;
     private readonly string _instructionsTemplate;
     private readonly string _instructionsTemplateWithJustification;
@@ -30,23 +31,25 @@ public class PredictionService : IPredictionService
         ILogger<PredictionService> logger,
         ICostCalculationService costCalculationService,
         ITokenUsageTracker tokenUsageTracker,
+        IInstructionsTemplateProvider templateProvider,
         string model)
     {
         _chatClient = chatClient ?? throw new ArgumentNullException(nameof(chatClient));
         _logger = logger ?? throw new ArgumentNullException(nameof(logger));
         _costCalculationService = costCalculationService ?? throw new ArgumentNullException(nameof(costCalculationService));
         _tokenUsageTracker = tokenUsageTracker ?? throw new ArgumentNullException(nameof(tokenUsageTracker));
+        _templateProvider = templateProvider ?? throw new ArgumentNullException(nameof(templateProvider));
         _model = model ?? throw new ArgumentNullException(nameof(model));
         
-    var (matchTemplate, matchPath) = LoadInstructionsTemplate(includeJustification: false);
-    var (matchJustificationTemplate, matchJustificationPath) = LoadInstructionsTemplate(includeJustification: true);
-        var (bonusTemplate, bonusPath) = LoadBonusInstructionsTemplate();
+        var (matchTemplate, matchPath) = _templateProvider.LoadMatchTemplate(_model, includeJustification: false);
+        var (matchJustificationTemplate, matchJustificationPath) = _templateProvider.LoadMatchTemplate(_model, includeJustification: true);
+        var (bonusTemplate, bonusPath) = _templateProvider.LoadBonusTemplate(_model);
         
         _instructionsTemplate = matchTemplate;
-    _instructionsTemplateWithJustification = matchJustificationTemplate;
+        _instructionsTemplateWithJustification = matchJustificationTemplate;
         _bonusInstructionsTemplate = bonusTemplate;
         _matchPromptPath = matchPath;
-    _matchPromptPathWithJustification = matchJustificationPath;
+        _matchPromptPathWithJustification = matchJustificationPath;
         _bonusPromptPath = bonusPath;
     }
 
@@ -446,45 +449,6 @@ public class PredictionService : IPredictionService
         Console.Error.WriteLine(rawResponse);
     }
 
-    private (string template, string path) LoadInstructionsTemplate(bool includeJustification)
-    {
-        var promptModel = GetPromptModelForModel(_model);
-        
-        // Try to find the model-specific instructions template relative to the current directory
-        var currentDirectory = Directory.GetCurrentDirectory();
-        var directory = new DirectoryInfo(currentDirectory);
-
-        while (directory != null)
-        {
-            var solutionFile = Path.Combine(directory.FullName, "KicktippAi.slnx");
-            if (File.Exists(solutionFile))
-            {
-                var promptsDirectory = Path.Combine(directory.FullName, "prompts", promptModel);
-                var fileName = includeJustification ? "match.justification.md" : "match.md";
-                var instructionsPath = Path.Combine(promptsDirectory, fileName);
-                
-                if (File.Exists(instructionsPath))
-                {
-                    return (File.ReadAllText(instructionsPath), instructionsPath);
-                }
-
-                if (includeJustification)
-                {
-                    var fallbackPath = Path.Combine(promptsDirectory, "match.md");
-                    if (File.Exists(fallbackPath))
-                    {
-                        return (File.ReadAllText(fallbackPath), fallbackPath);
-                    }
-                }
-
-                throw new FileNotFoundException($"Match instructions not found at: {instructionsPath}");
-            }
-            directory = directory.Parent;
-        }
-
-        throw new DirectoryNotFoundException("Could not find solution root (KicktippAi.slnx) to locate match instructions");
-    }
-
     private string BuildBonusInstructions(IEnumerable<DocumentContext> contextDocuments)
     {
         // Use the pre-loaded bonus instructions template
@@ -612,57 +576,6 @@ public class PredictionService : IPredictionService
             _logger.LogError(ex, "Failed to parse bonus prediction JSON: {PredictionJson}", predictionJson);
             return null;
         }
-    }
-
-    private (string template, string path) LoadBonusInstructionsTemplate()
-    {
-        var promptModel = GetPromptModelForModel(_model);
-        
-        // Try to find the model-specific bonus instructions template relative to the current directory
-        var currentDirectory = Directory.GetCurrentDirectory();
-        var directory = new DirectoryInfo(currentDirectory);
-
-        while (directory != null)
-        {
-            var solutionFile = Path.Combine(directory.FullName, "KicktippAi.slnx");
-            if (File.Exists(solutionFile))
-            {
-                var instructionsPath = Path.Combine(directory.FullName, "prompts", promptModel, "bonus.md");
-                
-                if (File.Exists(instructionsPath))
-                {
-                    return (File.ReadAllText(instructionsPath), instructionsPath);
-                }
-                
-                throw new FileNotFoundException($"Bonus instructions not found at: {instructionsPath}");
-            }
-            directory = directory.Parent;
-        }
-
-        throw new DirectoryNotFoundException("Could not find solution root (KicktippAi.slnx) to locate bonus instructions");
-    }
-
-    /// <summary>
-    /// Maps a model name to the appropriate prompt directory, handling cross-model mappings
-    /// </summary>
-    /// <param name="model">The model name to map</param>
-    /// <returns>The prompt directory name to use</returns>
-    private static string GetPromptModelForModel(string model)
-    {
-        return model switch
-        {
-            // Direct mappings
-            "o3" => "o3",
-            "gpt-5" => "gpt-5",
-            
-            // Cross-model mappings
-            "o4-mini" => "o3",
-            "gpt-5-mini" => "gpt-5",
-            "gpt-5-nano" => "gpt-5",
-            
-            // Default to the model name itself for any new models
-            _ => model
-        };
     }
 
     /// <summary>

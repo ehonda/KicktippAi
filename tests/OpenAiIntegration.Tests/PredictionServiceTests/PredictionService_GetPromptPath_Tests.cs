@@ -12,260 +12,181 @@ public class PredictionService_GetPromptPath_Tests : PredictionServiceTests_Base
     public async Task GetMatchPromptPath_without_justification_returns_correct_path()
     {
         // Arrange
-        var tempDir = CreateTestPromptFiles();
-        var originalDir = Directory.GetCurrentDirectory();
-        Directory.SetCurrentDirectory(tempDir);
+        var mockChatClient = CreateMockChatClient("{}", CreateChatTokenUsage(0, 0));
+        var logger = CreateMockLogger();
+        var costCalc = CreateMockCostCalculationService();
+        var tokenTracker = CreateMockTokenUsageTracker();
 
-        try
-        {
-            var mockChatClient = CreateMockChatClient("{}", CreateChatTokenUsage(0, 0));
-            var logger = CreateMockLogger();
-            var costCalc = CreateMockCostCalculationService();
-            var tokenTracker = CreateMockTokenUsageTracker();
+        var service = new PredictionService(
+            mockChatClient,
+            logger.Object,
+            costCalc.Object,
+            tokenTracker.Object,
+            CreateMockTemplateProvider().Object,
+            "gpt-5");
 
-            var service = new PredictionService(
-                mockChatClient,
-                logger.Object,
-                costCalc.Object,
-                tokenTracker.Object,
-                "gpt-5");
+        // Act
+        var promptPath = service.GetMatchPromptPath(includeJustification: false);
 
-            // Act
-            var promptPath = service.GetMatchPromptPath(includeJustification: false);
-
-            // Assert
-            await Assert.That(promptPath).IsNotNull();
-            await Assert.That(promptPath).Contains("prompts");
-            await Assert.That(promptPath).Contains("gpt-5");
-            await Assert.That(promptPath).Contains("match.md");
-            await Assert.That(File.Exists(promptPath)).IsTrue();
-        }
-        finally
-        {
-            Directory.SetCurrentDirectory(originalDir);
-            CleanupTestDirectory(tempDir);
-        }
+        // Assert
+        await Assert.That(promptPath).IsNotNull();
+        await Assert.That(promptPath).Contains("prompts");
+        await Assert.That(promptPath).Contains("gpt-5");
+        await Assert.That(promptPath).Contains("match.md");
     }
 
     [Test]
     public async Task GetMatchPromptPath_with_justification_returns_correct_path()
     {
         // Arrange
-        var tempDir = CreateTestPromptFiles();
-        var originalDir = Directory.GetCurrentDirectory();
-        Directory.SetCurrentDirectory(tempDir);
+        var mockChatClient = CreateMockChatClient("{}", CreateChatTokenUsage(0, 0));
+        var logger = CreateMockLogger();
+        var costCalc = CreateMockCostCalculationService();
+        var tokenTracker = CreateMockTokenUsageTracker();
 
-        try
-        {
-            var mockChatClient = CreateMockChatClient("{}", CreateChatTokenUsage(0, 0));
-            var logger = CreateMockLogger();
-            var costCalc = CreateMockCostCalculationService();
-            var tokenTracker = CreateMockTokenUsageTracker();
+        var service = new PredictionService(
+            mockChatClient,
+            logger.Object,
+            costCalc.Object,
+            tokenTracker.Object,
+            CreateMockTemplateProvider().Object,
+            "gpt-5");
 
-            var service = new PredictionService(
-                mockChatClient,
-                logger.Object,
-                costCalc.Object,
-                tokenTracker.Object,
-                "gpt-5");
+        // Act
+        var promptPath = service.GetMatchPromptPath(includeJustification: true);
 
-            // Act
-            var promptPath = service.GetMatchPromptPath(includeJustification: true);
-
-            // Assert
-            await Assert.That(promptPath).IsNotNull();
-            await Assert.That(promptPath).Contains("prompts");
-            await Assert.That(promptPath).Contains("gpt-5");
-            await Assert.That(promptPath).Contains("match.justification.md");
-            await Assert.That(File.Exists(promptPath)).IsTrue();
-        }
-        finally
-        {
-            Directory.SetCurrentDirectory(originalDir);
-            CleanupTestDirectory(tempDir);
-        }
+        // Assert
+        await Assert.That(promptPath).IsNotNull();
+        await Assert.That(promptPath).Contains("prompts");
+        await Assert.That(promptPath).Contains("gpt-5");
+        await Assert.That(promptPath).Contains("match.justification.md");
     }
 
     [Test]
     public async Task GetBonusPromptPath_returns_correct_path()
     {
         // Arrange
-        var tempDir = CreateTestPromptFiles();
-        var originalDir = Directory.GetCurrentDirectory();
-        Directory.SetCurrentDirectory(tempDir);
+        var mockChatClient = CreateMockChatClient("{}", CreateChatTokenUsage(0, 0));
+        var logger = CreateMockLogger();
+        var costCalc = CreateMockCostCalculationService();
+        var tokenTracker = CreateMockTokenUsageTracker();
 
-        try
-        {
-            var mockChatClient = CreateMockChatClient("{}", CreateChatTokenUsage(0, 0));
-            var logger = CreateMockLogger();
-            var costCalc = CreateMockCostCalculationService();
-            var tokenTracker = CreateMockTokenUsageTracker();
+        var service = new PredictionService(
+            mockChatClient,
+            logger.Object,
+            costCalc.Object,
+            tokenTracker.Object,
+            CreateMockTemplateProvider().Object,
+            "gpt-5");
 
-            var service = new PredictionService(
-                mockChatClient,
-                logger.Object,
-                costCalc.Object,
-                tokenTracker.Object,
-                "gpt-5");
+        // Act
+        var promptPath = service.GetBonusPromptPath();
 
-            // Act
-            var promptPath = service.GetBonusPromptPath();
-
-            // Assert
-            await Assert.That(promptPath).IsNotNull();
-            await Assert.That(promptPath).Contains("prompts");
-            await Assert.That(promptPath).Contains("gpt-5");
-            await Assert.That(promptPath).Contains("bonus.md");
-            await Assert.That(File.Exists(promptPath)).IsTrue();
-        }
-        finally
-        {
-            Directory.SetCurrentDirectory(originalDir);
-            CleanupTestDirectory(tempDir);
-        }
+        // Assert
+        await Assert.That(promptPath).IsNotNull();
+        await Assert.That(promptPath).Contains("prompts");
+        await Assert.That(promptPath).Contains("gpt-5");
+        await Assert.That(promptPath).Contains("bonus.md");
     }
 
     [Test]
     public async Task GetMatchPromptPath_for_o3_model_uses_o3_prompts()
     {
         // Arrange
-        var tempDir = CreateTestPromptFiles("o3");
-        var originalDir = Directory.GetCurrentDirectory();
-        Directory.SetCurrentDirectory(tempDir);
+        var mockChatClient = CreateMockChatClient("{}", CreateChatTokenUsage(0, 0));
+        var logger = CreateMockLogger();
+        var costCalc = CreateMockCostCalculationService();
+        var tokenTracker = CreateMockTokenUsageTracker();
 
-        try
-        {
-            var mockChatClient = CreateMockChatClient("{}", CreateChatTokenUsage(0, 0));
-            var logger = CreateMockLogger();
-            var costCalc = CreateMockCostCalculationService();
-            var tokenTracker = CreateMockTokenUsageTracker();
+        var service = new PredictionService(
+            mockChatClient,
+            logger.Object,
+            costCalc.Object,
+            tokenTracker.Object,
+            CreateMockTemplateProvider("o3").Object,
+            "o3");
 
-            var service = new PredictionService(
-                mockChatClient,
-                logger.Object,
-                costCalc.Object,
-                tokenTracker.Object,
-                "o3");
+        // Act
+        var promptPath = service.GetMatchPromptPath();
 
-            // Act
-            var promptPath = service.GetMatchPromptPath();
-
-            // Assert
-            await Assert.That(promptPath).Contains("o3");
+        // Assert
+        await Assert.That(promptPath).Contains("o3");
             await Assert.That(promptPath).Contains("match.md");
-        }
-        finally
-        {
-            Directory.SetCurrentDirectory(originalDir);
-            CleanupTestDirectory(tempDir);
-        }
+                
     }
 
     [Test]
     public async Task GetMatchPromptPath_for_o4_mini_model_uses_o3_prompts()
     {
         // Arrange
-        var tempDir = CreateTestPromptFiles("o3");
-        var originalDir = Directory.GetCurrentDirectory();
-        Directory.SetCurrentDirectory(tempDir);
+        var mockChatClient = CreateMockChatClient("{}", CreateChatTokenUsage(0, 0));
+        var logger = CreateMockLogger();
+        var costCalc = CreateMockCostCalculationService();
+        var tokenTracker = CreateMockTokenUsageTracker();
 
-        try
-        {
-            var mockChatClient = CreateMockChatClient("{}", CreateChatTokenUsage(0, 0));
-            var logger = CreateMockLogger();
-            var costCalc = CreateMockCostCalculationService();
-            var tokenTracker = CreateMockTokenUsageTracker();
+        var service = new PredictionService(
+            mockChatClient,
+            logger.Object,
+            costCalc.Object,
+            tokenTracker.Object,
+            CreateMockTemplateProvider("o3").Object,
+            "o4-mini");
 
-            var service = new PredictionService(
-                mockChatClient,
-                logger.Object,
-                costCalc.Object,
-                tokenTracker.Object,
-                "o4-mini");
+        // Act
+        var promptPath = service.GetMatchPromptPath();
 
-            // Act
-            var promptPath = service.GetMatchPromptPath();
-
-            // Assert
-            await Assert.That(promptPath).Contains("o3");
-            await Assert.That(promptPath).Contains("match.md");
-        }
-        finally
-        {
-            Directory.SetCurrentDirectory(originalDir);
-            CleanupTestDirectory(tempDir);
-        }
+        // Assert
+        await Assert.That(promptPath).Contains("o3");
+        await Assert.That(promptPath).Contains("match.md");
     }
 
     [Test]
     public async Task GetMatchPromptPath_for_gpt_5_mini_uses_gpt_5_prompts()
     {
         // Arrange
-        var tempDir = CreateTestPromptFiles("gpt-5");
-        var originalDir = Directory.GetCurrentDirectory();
-        Directory.SetCurrentDirectory(tempDir);
+        var mockChatClient = CreateMockChatClient("{}", CreateChatTokenUsage(0, 0));
+        var logger = CreateMockLogger();
+        var costCalc = CreateMockCostCalculationService();
+        var tokenTracker = CreateMockTokenUsageTracker();
 
-        try
-        {
-            var mockChatClient = CreateMockChatClient("{}", CreateChatTokenUsage(0, 0));
-            var logger = CreateMockLogger();
-            var costCalc = CreateMockCostCalculationService();
-            var tokenTracker = CreateMockTokenUsageTracker();
+        var service = new PredictionService(
+            mockChatClient,
+            logger.Object,
+            costCalc.Object,
+            tokenTracker.Object,
+            CreateMockTemplateProvider("gpt-5").Object,
+            "gpt-5-mini");
 
-            var service = new PredictionService(
-                mockChatClient,
-                logger.Object,
-                costCalc.Object,
-                tokenTracker.Object,
-                "gpt-5-mini");
+        // Act
+        var promptPath = service.GetMatchPromptPath();
 
-            // Act
-            var promptPath = service.GetMatchPromptPath();
-
-            // Assert
-            await Assert.That(promptPath).Contains("gpt-5");
-            await Assert.That(promptPath).Contains("match.md");
-        }
-        finally
-        {
-            Directory.SetCurrentDirectory(originalDir);
-            CleanupTestDirectory(tempDir);
-        }
+        // Assert
+        await Assert.That(promptPath).Contains("gpt-5");
+        await Assert.That(promptPath).Contains("match.md");
     }
 
     [Test]
     public async Task GetMatchPromptPath_for_gpt_5_nano_uses_gpt_5_prompts()
     {
         // Arrange
-        var tempDir = CreateTestPromptFiles("gpt-5");
-        var originalDir = Directory.GetCurrentDirectory();
-        Directory.SetCurrentDirectory(tempDir);
+        var mockChatClient = CreateMockChatClient("{}", CreateChatTokenUsage(0, 0));
+        var logger = CreateMockLogger();
+        var costCalc = CreateMockCostCalculationService();
+        var tokenTracker = CreateMockTokenUsageTracker();
 
-        try
-        {
-            var mockChatClient = CreateMockChatClient("{}", CreateChatTokenUsage(0, 0));
-            var logger = CreateMockLogger();
-            var costCalc = CreateMockCostCalculationService();
-            var tokenTracker = CreateMockTokenUsageTracker();
+        var service = new PredictionService(
+            mockChatClient,
+            logger.Object,
+            costCalc.Object,
+            tokenTracker.Object,
+            CreateMockTemplateProvider("gpt-5").Object,
+            "gpt-5-nano");
 
-            var service = new PredictionService(
-                mockChatClient,
-                logger.Object,
-                costCalc.Object,
-                tokenTracker.Object,
-                "gpt-5-nano");
+        // Act
+        var promptPath = service.GetMatchPromptPath();
 
-            // Act
-            var promptPath = service.GetMatchPromptPath();
-
-            // Assert
-            await Assert.That(promptPath).Contains("gpt-5");
-            await Assert.That(promptPath).Contains("match.md");
-        }
-        finally
-        {
-            Directory.SetCurrentDirectory(originalDir);
-            CleanupTestDirectory(tempDir);
-        }
+        // Assert
+        await Assert.That(promptPath).Contains("gpt-5");
+        await Assert.That(promptPath).Contains("match.md");
     }
 }

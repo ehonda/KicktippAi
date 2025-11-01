@@ -6,8 +6,6 @@ using OpenAI.Chat;
 using System.ClientModel;
 using System.ClientModel.Primitives;
 
-#pragma warning disable OPENAI001 // Suppress warnings for using OpenAI model factories for testing
-
 namespace OpenAiIntegration.Tests.PredictionServiceTests;
 
 /// <summary>
@@ -107,48 +105,77 @@ public abstract class PredictionServiceTests_Base
     }
 
     /// <summary>
-    /// Creates temporary test prompt files in a temp directory for testing
-    /// Returns the temp directory path that should be cleaned up after the test
+    /// Creates a mock IInstructionsTemplateProvider with default test templates
     /// </summary>
-    protected static string CreateTestPromptFiles(string model = "gpt-5")
+    protected static Mock<IInstructionsTemplateProvider> CreateMockTemplateProvider(string model = "gpt-5")
     {
-        var tempDir = Path.Combine(Path.GetTempPath(), Guid.NewGuid().ToString());
-        Directory.CreateDirectory(tempDir);
+        var mock = new Mock<IInstructionsTemplateProvider>();
         
-        // Create the prompts directory structure
-        var promptsDir = Path.Combine(tempDir, "prompts", model);
-        Directory.CreateDirectory(promptsDir);
-        
-        // Create solution file
-        File.WriteAllText(Path.Combine(tempDir, "KicktippAi.slnx"), "<solution />");
-        
-        // Create match.md
-        File.WriteAllText(
-            Path.Combine(promptsDir, "match.md"),
-            "You are a football prediction expert. Predict the match outcome.");
-        
-        // Create match.justification.md
-        File.WriteAllText(
-            Path.Combine(promptsDir, "match.justification.md"),
-            "You are a football prediction expert. Predict the match outcome and provide justification.");
-        
-        // Create bonus.md
-        File.WriteAllText(
-            Path.Combine(promptsDir, "bonus.md"),
-            "You are a football prediction expert. Answer the bonus question.");
-        
-        return tempDir;
-    }
-
-    /// <summary>
-    /// Cleans up temporary test directory
-    /// </summary>
-    protected static void CleanupTestDirectory(string tempDir)
-    {
-        if (Directory.Exists(tempDir))
+        // Map the model to the prompt model (same logic as GetPromptModelForModel)
+        var promptModel = model switch
         {
-            Directory.Delete(tempDir, recursive: true);
-        }
+            "o3" => "o3",
+            "gpt-5" => "gpt-5",
+            "o4-mini" => "o3",
+            "gpt-5-mini" => "gpt-5",
+            "gpt-5-nano" => "gpt-5",
+            _ => model
+        };
+        
+        var matchTemplate = "You are a football prediction expert. Predict the match outcome.";
+        var matchPath = $"/prompts/{promptModel}/match.md";
+        var matchJustificationTemplate = "You are a football prediction expert. Predict the match outcome and provide justification.";
+        var matchJustificationPath = $"/prompts/{promptModel}/match.justification.md";
+        var bonusTemplate = "You are a football prediction expert. Answer the bonus question.";
+        var bonusPath = $"/prompts/{promptModel}/bonus.md";
+        
+        // Set up the mock to handle any model by applying the mapping
+        mock.Setup(p => p.LoadMatchTemplate(It.IsAny<string>(), false))
+            .Returns((string m, bool _) =>
+            {
+                var pm = m switch
+                {
+                    "o3" => "o3",
+                    "gpt-5" => "gpt-5",
+                    "o4-mini" => "o3",
+                    "gpt-5-mini" => "gpt-5",
+                    "gpt-5-nano" => "gpt-5",
+                    _ => m
+                };
+                return (matchTemplate, $"/prompts/{pm}/match.md");
+            });
+        
+        mock.Setup(p => p.LoadMatchTemplate(It.IsAny<string>(), true))
+            .Returns((string m, bool _) =>
+            {
+                var pm = m switch
+                {
+                    "o3" => "o3",
+                    "gpt-5" => "gpt-5",
+                    "o4-mini" => "o3",
+                    "gpt-5-mini" => "gpt-5",
+                    "gpt-5-nano" => "gpt-5",
+                    _ => m
+                };
+                return (matchJustificationTemplate, $"/prompts/{pm}/match.justification.md");
+            });
+        
+        mock.Setup(p => p.LoadBonusTemplate(It.IsAny<string>()))
+            .Returns((string m) =>
+            {
+                var pm = m switch
+                {
+                    "o3" => "o3",
+                    "gpt-5" => "gpt-5",
+                    "o4-mini" => "o3",
+                    "gpt-5-mini" => "gpt-5",
+                    "gpt-5-nano" => "gpt-5",
+                    _ => m
+                };
+                return (bonusTemplate, $"/prompts/{pm}/bonus.md");
+            });
+        
+        return mock;
     }
 
     /// <summary>
@@ -158,7 +185,7 @@ public abstract class PredictionServiceTests_Base
     {
         // Create the mock ChatClient and mock ClientResult
         var mockClient = new Mock<ChatClient>();
-        var mockResult = new Mock<ClientResult<ChatCompletion>>(null, Mock.Of<PipelineResponse>());
+        var mockResult = new Mock<ClientResult<ChatCompletion>>(null!, Mock.Of<PipelineResponse>());
         
         // Create the ChatCompletion using the model factory
         var completion = OpenAIChatModelFactory.ChatCompletion(

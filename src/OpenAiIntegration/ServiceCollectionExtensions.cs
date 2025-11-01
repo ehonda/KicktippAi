@@ -44,6 +44,9 @@ public static class ServiceCollectionExtensions
         // Register the cost calculation service
         services.TryAddScoped<ICostCalculationService, CostCalculationService>();
 
+        // Register the instructions template provider
+        services.TryAddSingleton<IInstructionsTemplateProvider, InstructionsTemplateProvider>();
+
         // Register the token usage tracker as singleton (to accumulate across requests)
         services.TryAddSingleton<ITokenUsageTracker>(serviceProvider =>
             new TokenUsageTracker(
@@ -57,6 +60,7 @@ public static class ServiceCollectionExtensions
                 serviceProvider.GetRequiredService<ILogger<PredictionService>>(),
                 serviceProvider.GetRequiredService<ICostCalculationService>(),
                 serviceProvider.GetRequiredService<ITokenUsageTracker>(),
+                serviceProvider.GetRequiredService<IInstructionsTemplateProvider>(),
                 model));
 
         return services;

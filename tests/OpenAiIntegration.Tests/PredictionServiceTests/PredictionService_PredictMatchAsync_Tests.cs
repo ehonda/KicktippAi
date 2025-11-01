@@ -15,55 +15,38 @@ public class PredictionService_PredictMatchAsync_Tests : PredictionServiceTests_
     public async Task PredictMatchAsync_with_valid_input_returns_prediction()
     {
         // Arrange
-        var tempDir = CreateTestPromptFiles();
-        var originalDir = Directory.GetCurrentDirectory();
-        Directory.SetCurrentDirectory(tempDir);
+        var usage = CreateChatTokenUsage(1000, 50);
+        var responseJson = """{"home": 2, "away": 1}""";
+        var mockChatClient = CreateMockChatClient(responseJson, usage);
+        var logger = CreateMockLogger();
+        var costCalc = CreateMockCostCalculationService();
+        var tokenTracker = CreateMockTokenUsageTracker();
 
-        try
-        {
-            var usage = CreateChatTokenUsage(1000, 50);
-            var responseJson = """{"home": 2, "away": 1}""";
-            var mockChatClient = CreateMockChatClient(responseJson, usage);
-            var logger = CreateMockLogger();
-            var costCalc = CreateMockCostCalculationService();
-            var tokenTracker = CreateMockTokenUsageTracker();
+        var service = new PredictionService(
+            mockChatClient,
+            logger.Object,
+            costCalc.Object,
+            tokenTracker.Object,
+            CreateMockTemplateProvider().Object,
+            "gpt-5");
 
-            var service = new PredictionService(
-                mockChatClient,
-                logger.Object,
-                costCalc.Object,
-                tokenTracker.Object,
-                "gpt-5");
+        var match = CreateTestMatch();
+        var contextDocs = CreateTestContextDocuments();
 
-            var match = CreateTestMatch();
-            var contextDocs = CreateTestContextDocuments();
+        // Act
+        var prediction = await service.PredictMatchAsync(match, contextDocs);
 
-            // Act
-            var prediction = await service.PredictMatchAsync(match, contextDocs);
-
-            // Assert
-            await Assert.That(prediction).IsNotNull();
-            await Assert.That(prediction!.HomeGoals).IsEqualTo(2);
-            await Assert.That(prediction.AwayGoals).IsEqualTo(1);
-            await Assert.That(prediction.Justification).IsNull();
-        }
-        finally
-        {
-            Directory.SetCurrentDirectory(originalDir);
-            CleanupTestDirectory(tempDir);
-        }
+        // Assert
+        await Assert.That(prediction).IsNotNull();
+        await Assert.That(prediction!.HomeGoals).IsEqualTo(2);
+        await Assert.That(prediction.AwayGoals).IsEqualTo(1);
+        await Assert.That(prediction.Justification).IsNull();
     }
 
     [Test]
     public async Task PredictMatchAsync_with_includeJustification_returns_prediction_with_justification()
     {
         // Arrange
-        var tempDir = CreateTestPromptFiles();
-        var originalDir = Directory.GetCurrentDirectory();
-        Directory.SetCurrentDirectory(tempDir);
-
-        try
-        {
             var usage = CreateChatTokenUsage(1000, 150);
             var responseJson = """
                 {
@@ -93,7 +76,7 @@ public class PredictionService_PredictMatchAsync_Tests : PredictionServiceTests_
                 mockChatClient,
                 logger.Object,
                 costCalc.Object,
-                tokenTracker.Object,
+                tokenTracker.Object, CreateMockTemplateProvider().Object,
                 "gpt-5");
 
             var match = CreateTestMatch();
@@ -111,24 +94,13 @@ public class PredictionService_PredictMatchAsync_Tests : PredictionServiceTests_
             await Assert.That(prediction.Justification.ContextSources.MostValuable.Count).IsEqualTo(1);
             await Assert.That(prediction.Justification.ContextSources.MostValuable[0].DocumentName).IsEqualTo("Team Stats");
             await Assert.That(prediction.Justification.Uncertainties.Count).IsEqualTo(1);
-        }
-        finally
-        {
-            Directory.SetCurrentDirectory(originalDir);
-            CleanupTestDirectory(tempDir);
-        }
+                
     }
 
     [Test]
     public async Task PredictMatchAsync_calls_token_tracker_with_correct_usage()
     {
         // Arrange
-        var tempDir = CreateTestPromptFiles();
-        var originalDir = Directory.GetCurrentDirectory();
-        Directory.SetCurrentDirectory(tempDir);
-
-        try
-        {
             var usage = CreateChatTokenUsage(1000, 50);
             var responseJson = """{"home": 2, "away": 1}""";
             var mockChatClient = CreateMockChatClient(responseJson, usage);
@@ -140,7 +112,7 @@ public class PredictionService_PredictMatchAsync_Tests : PredictionServiceTests_
                 mockChatClient,
                 logger.Object,
                 costCalc.Object,
-                tokenTracker.Object,
+                tokenTracker.Object, CreateMockTemplateProvider().Object,
                 "gpt-5");
 
             var match = CreateTestMatch();
@@ -153,24 +125,13 @@ public class PredictionService_PredictMatchAsync_Tests : PredictionServiceTests_
             tokenTracker.Verify(
                 t => t.AddUsage("gpt-5", usage),
                 Times.Once);
-        }
-        finally
-        {
-            Directory.SetCurrentDirectory(originalDir);
-            CleanupTestDirectory(tempDir);
-        }
+                
     }
 
     [Test]
     public async Task PredictMatchAsync_calls_cost_calculation_service()
     {
         // Arrange
-        var tempDir = CreateTestPromptFiles();
-        var originalDir = Directory.GetCurrentDirectory();
-        Directory.SetCurrentDirectory(tempDir);
-
-        try
-        {
             var usage = CreateChatTokenUsage(1000, 50);
             var responseJson = """{"home": 2, "away": 1}""";
             var mockChatClient = CreateMockChatClient(responseJson, usage);
@@ -182,7 +143,7 @@ public class PredictionService_PredictMatchAsync_Tests : PredictionServiceTests_
                 mockChatClient,
                 logger.Object,
                 costCalc.Object,
-                tokenTracker.Object,
+                tokenTracker.Object, CreateMockTemplateProvider().Object,
                 "gpt-5");
 
             var match = CreateTestMatch();
@@ -195,24 +156,13 @@ public class PredictionService_PredictMatchAsync_Tests : PredictionServiceTests_
             costCalc.Verify(
                 c => c.LogCostBreakdown("gpt-5", usage),
                 Times.Once);
-        }
-        finally
-        {
-            Directory.SetCurrentDirectory(originalDir);
-            CleanupTestDirectory(tempDir);
-        }
+                
     }
 
     [Test]
     public async Task PredictMatchAsync_with_empty_context_documents_succeeds()
     {
         // Arrange
-        var tempDir = CreateTestPromptFiles();
-        var originalDir = Directory.GetCurrentDirectory();
-        Directory.SetCurrentDirectory(tempDir);
-
-        try
-        {
             var usage = CreateChatTokenUsage(500, 30);
             var responseJson = """{"home": 1, "away": 1}""";
             var mockChatClient = CreateMockChatClient(responseJson, usage);
@@ -224,7 +174,7 @@ public class PredictionService_PredictMatchAsync_Tests : PredictionServiceTests_
                 mockChatClient,
                 logger.Object,
                 costCalc.Object,
-                tokenTracker.Object,
+                tokenTracker.Object, CreateMockTemplateProvider().Object,
                 "gpt-5");
 
             var match = CreateTestMatch();
@@ -237,24 +187,13 @@ public class PredictionService_PredictMatchAsync_Tests : PredictionServiceTests_
             await Assert.That(prediction).IsNotNull();
             await Assert.That(prediction!.HomeGoals).IsEqualTo(1);
             await Assert.That(prediction.AwayGoals).IsEqualTo(1);
-        }
-        finally
-        {
-            Directory.SetCurrentDirectory(originalDir);
-            CleanupTestDirectory(tempDir);
-        }
+                
     }
 
     [Test]
     public async Task PredictMatchAsync_logs_information_message()
     {
         // Arrange
-        var tempDir = CreateTestPromptFiles();
-        var originalDir = Directory.GetCurrentDirectory();
-        Directory.SetCurrentDirectory(tempDir);
-
-        try
-        {
             var usage = CreateChatTokenUsage(1000, 50);
             var responseJson = """{"home": 2, "away": 1}""";
             var mockChatClient = CreateMockChatClient(responseJson, usage);
@@ -266,7 +205,7 @@ public class PredictionService_PredictMatchAsync_Tests : PredictionServiceTests_
                 mockChatClient,
                 logger.Object,
                 costCalc.Object,
-                tokenTracker.Object,
+                tokenTracker.Object, CreateMockTemplateProvider().Object,
                 "gpt-5");
 
             var match = CreateTestMatch();
@@ -284,24 +223,13 @@ public class PredictionService_PredictMatchAsync_Tests : PredictionServiceTests_
                     It.IsAny<Exception>(),
                     It.IsAny<Func<It.IsAnyType, Exception?, string>>()),
                 Times.AtLeastOnce);
-        }
-        finally
-        {
-            Directory.SetCurrentDirectory(originalDir);
-            CleanupTestDirectory(tempDir);
-        }
+                
     }
 
     [Test]
     public async Task PredictMatchAsync_with_API_exception_returns_null()
     {
         // Arrange
-        var tempDir = CreateTestPromptFiles();
-        var originalDir = Directory.GetCurrentDirectory();
-        Directory.SetCurrentDirectory(tempDir);
-
-        try
-        {
             var mockChatClient = CreateThrowingMockChatClient(new InvalidOperationException("API error"));
             var logger = CreateMockLogger();
             var costCalc = CreateMockCostCalculationService();
@@ -311,7 +239,7 @@ public class PredictionService_PredictMatchAsync_Tests : PredictionServiceTests_
                 mockChatClient,
                 logger.Object,
                 costCalc.Object,
-                tokenTracker.Object,
+                tokenTracker.Object, CreateMockTemplateProvider().Object,
                 "gpt-5");
 
             var match = CreateTestMatch();
@@ -322,24 +250,13 @@ public class PredictionService_PredictMatchAsync_Tests : PredictionServiceTests_
 
             // Assert
             await Assert.That(prediction).IsNull();
-        }
-        finally
-        {
-            Directory.SetCurrentDirectory(originalDir);
-            CleanupTestDirectory(tempDir);
-        }
+                
     }
 
     [Test]
     public async Task PredictMatchAsync_with_exception_logs_error()
     {
         // Arrange
-        var tempDir = CreateTestPromptFiles();
-        var originalDir = Directory.GetCurrentDirectory();
-        Directory.SetCurrentDirectory(tempDir);
-
-        try
-        {
             var mockChatClient = CreateThrowingMockChatClient(new InvalidOperationException("API error"));
             var logger = CreateMockLogger();
             var costCalc = CreateMockCostCalculationService();
@@ -349,7 +266,7 @@ public class PredictionService_PredictMatchAsync_Tests : PredictionServiceTests_
                 mockChatClient,
                 logger.Object,
                 costCalc.Object,
-                tokenTracker.Object,
+                tokenTracker.Object, CreateMockTemplateProvider().Object,
                 "gpt-5");
 
             var match = CreateTestMatch();
@@ -367,24 +284,13 @@ public class PredictionService_PredictMatchAsync_Tests : PredictionServiceTests_
                     It.IsAny<Exception>(),
                     It.IsAny<Func<It.IsAnyType, Exception?, string>>()),
                 Times.Once);
-        }
-        finally
-        {
-            Directory.SetCurrentDirectory(originalDir);
-            CleanupTestDirectory(tempDir);
-        }
+                
     }
 
     [Test]
     public async Task PredictMatchAsync_with_invalid_JSON_returns_null()
     {
         // Arrange
-        var tempDir = CreateTestPromptFiles();
-        var originalDir = Directory.GetCurrentDirectory();
-        Directory.SetCurrentDirectory(tempDir);
-
-        try
-        {
             var usage = CreateChatTokenUsage(1000, 50);
             var invalidJson = """{"invalid": "response"}""";
             var mockChatClient = CreateMockChatClient(invalidJson, usage);
@@ -396,7 +302,7 @@ public class PredictionService_PredictMatchAsync_Tests : PredictionServiceTests_
                 mockChatClient,
                 logger.Object,
                 costCalc.Object,
-                tokenTracker.Object,
+                tokenTracker.Object, CreateMockTemplateProvider().Object,
                 "gpt-5");
 
             var match = CreateTestMatch();
@@ -407,11 +313,6 @@ public class PredictionService_PredictMatchAsync_Tests : PredictionServiceTests_
 
             // Assert
             await Assert.That(prediction).IsNull();
-        }
-        finally
-        {
-            Directory.SetCurrentDirectory(originalDir);
-            CleanupTestDirectory(tempDir);
-        }
+        
     }
 }
