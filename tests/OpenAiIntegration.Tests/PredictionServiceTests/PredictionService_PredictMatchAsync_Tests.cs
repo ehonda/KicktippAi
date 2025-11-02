@@ -292,7 +292,8 @@ public class PredictionService_PredictMatchAsync_Tests : PredictionServiceTests_
     {
         // Arrange
             var usage = CreateChatTokenUsage(1000, 50);
-            var invalidJson = """{"invalid": "response"}""";
+            // Use malformed JSON that will cause JsonException during deserialization
+            var invalidJson = """not valid json at all""";
             var mockChatClient = CreateMockChatClient(invalidJson, usage);
             var logger = CreateMockLogger();
             var costCalc = CreateMockCostCalculationService();

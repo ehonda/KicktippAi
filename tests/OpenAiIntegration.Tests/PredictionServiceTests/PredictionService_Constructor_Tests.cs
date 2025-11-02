@@ -29,7 +29,7 @@ public class PredictionService_Constructor_Tests : PredictionServiceTests_Base
             model))
         .Throws<ArgumentNullException>();
         
-        await Assert.That(exception.ParamName).IsEqualTo("chatClient");
+        await Assert.That(exception!.ParamName).IsEqualTo("chatClient");
     }
 
     [Test]
@@ -52,7 +52,7 @@ public class PredictionService_Constructor_Tests : PredictionServiceTests_Base
             model))
         .Throws<ArgumentNullException>();
         
-        await Assert.That(exception.ParamName).IsEqualTo("logger");
+        await Assert.That(exception!.ParamName).IsEqualTo("logger");
     }
 
     [Test]
@@ -75,7 +75,7 @@ public class PredictionService_Constructor_Tests : PredictionServiceTests_Base
             model))
         .Throws<ArgumentNullException>();
         
-        await Assert.That(exception.ParamName).IsEqualTo("costCalculationService");
+        await Assert.That(exception!.ParamName).IsEqualTo("costCalculationService");
     }
 
     [Test]
@@ -98,7 +98,7 @@ public class PredictionService_Constructor_Tests : PredictionServiceTests_Base
             model))
         .Throws<ArgumentNullException>();
         
-        await Assert.That(exception.ParamName).IsEqualTo("tokenUsageTracker");
+        await Assert.That(exception!.ParamName).IsEqualTo("tokenUsageTracker");
     }
 
     [Test]
@@ -121,7 +121,7 @@ public class PredictionService_Constructor_Tests : PredictionServiceTests_Base
             model))
         .Throws<ArgumentNullException>();
         
-        await Assert.That(exception.ParamName).IsEqualTo("templateProvider");
+        await Assert.That(exception!.ParamName).IsEqualTo("templateProvider");
     }
 
     [Test]
@@ -144,6 +144,6 @@ public class PredictionService_Constructor_Tests : PredictionServiceTests_Base
             null!))
         .Throws<ArgumentNullException>();
         
-        await Assert.That(exception.ParamName).IsEqualTo("model");
+        await Assert.That(exception!.ParamName).IsEqualTo("model");
     }
 }
