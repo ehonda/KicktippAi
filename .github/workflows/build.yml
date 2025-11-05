@@ -28,7 +28,6 @@ jobs:
         
       - name: Run tests
         run: dotnet test --no-build --configuration Release --verbosity normal
-        continue-on-error: true  # Tests might not exist yet
         
       - name: Build summary
         if: always()
