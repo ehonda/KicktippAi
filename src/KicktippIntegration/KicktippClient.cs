@@ -1296,6 +1296,7 @@ public class KicktippClient : IKicktippClient, IDisposable
                     var homeGoals = (int?)null;
                     var awayGoals = (int?)null;
                     var outcome = MatchOutcome.Pending;
+                    string? annotation = null;
 
                     if (tableClass == "spielinfoDirekterVergleich")
                     {
@@ -1359,7 +1360,14 @@ public class KicktippClient : IKicktippClient, IDisposable
                         }
                     }
 
-                    var matchResult = new MatchResult(competition, homeTeam, awayTeam, homeGoals, awayGoals, outcome);
+                    // Extract annotation if present (e.g., "n.E." for penalty shootout)
+                    var annotationElement = resultCell.QuerySelector(".kicktipp-zusatz");
+                    if (annotationElement != null)
+                    {
+                        annotation = ExpandAnnotation(annotationElement.TextContent?.Trim());
+                    }
+
+                    var matchResult = new MatchResult(competition, homeTeam, awayTeam, homeGoals, awayGoals, outcome, annotation);
                     results.Add(matchResult);
                 }
                 catch (Exception ex)
@@ -1410,6 +1418,7 @@ public class KicktippClient : IKicktippClient, IDisposable
                     // Extract score from the result cell
                     var resultCell = cells[5];
                     var score = "";
+                    string? annotation = null;
                     
                     var scoreElements = resultCell.QuerySelectorAll(".kicktipp-heim, .kicktipp-gast");
                     if (scoreElements.Length >= 2)
@@ -1423,7 +1432,14 @@ public class KicktippClient : IKicktippClient, IDisposable
                         }
                     }
 
-                    var headToHeadResult = new HeadToHeadResult(league, matchday, playedAt, homeTeam, awayTeam, score);
+                    // Extract annotation if present (e.g., "n.E." for penalty shootout)
+                    var annotationElement = resultCell.QuerySelector(".kicktipp-zusatz");
+                    if (annotationElement != null)
+                    {
+                        annotation = ExpandAnnotation(annotationElement.TextContent?.Trim());
+                    }
+
+                    var headToHeadResult = new HeadToHeadResult(league, matchday, playedAt, homeTeam, awayTeam, score, annotation);
                     results.Add(headToHeadResult);
                 }
                 catch (Exception ex)
@@ -2010,6 +2026,24 @@ public class KicktippClient : IKicktippClient, IDisposable
             _logger.LogError(ex, "Exception during bonus prediction placement");
             return false;
         }
+    }
+
+    /// <summary>
+    /// Expands match annotation abbreviations to their full text.
+    /// </summary>
+    /// <param name="annotation">The abbreviated annotation (e.g., "n.E.", "n.V.")</param>
+    /// <returns>The expanded annotation or null if empty</returns>
+    private static string? ExpandAnnotation(string? annotation)
+    {
+        if (string.IsNullOrWhiteSpace(annotation))
+            return null;
+
+        return annotation.Trim() switch
+        {
+            "n.E." => "nach Elfmeterschießen",
+            "n.V." => "nach Verlängerung",
+            _ => annotation.Trim() // Return as-is if not recognized
+        };
     }
 
     public void Dispose()

@@ -11,7 +11,8 @@ public record MatchResult(
     string AwayTeam,
     int? HomeGoals,          // null if match hasn't been played yet
     int? AwayGoals,          // null if match hasn't been played yet
-    MatchOutcome Outcome     // Win, Draw, Loss from the perspective of the team we're tracking
+    MatchOutcome Outcome,    // Win, Draw, Loss from the perspective of the team we're tracking
+    string? Annotation = null // e.g., "nach Elfmeterschießen", "nach Verlängerung"
 );
 
 /// <summary>

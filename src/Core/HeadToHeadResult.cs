@@ -11,5 +11,6 @@ public record HeadToHeadResult(
     string PlayedAt,     // Date when the match was played (if available)
     string HomeTeam,     // Home team name
     string AwayTeam,     // Away team name
-    string Score         // Final score, e.g., "0:1", "1:3"
+    string Score,        // Final score, e.g., "0:1", "1:3"
+    string? Annotation = null // e.g., "nach Elfmeterschießen", "nach Verlängerung"
 );

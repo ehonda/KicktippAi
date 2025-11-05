@@ -71,8 +71,9 @@ public static class HistoryCsvUtility
                 var homeTeam = csv.GetField("Home_Team") ?? "";
                 var awayTeam = csv.GetField("Away_Team") ?? "";
                 var score = csv.GetField("Score") ?? "";
+                var annotation = (csv.TryGetField<string>("Annotation", out var ann) ? ann : null) ?? "";
                 
-                var matchKey = CreateMatchKey(competition, homeTeam, awayTeam, score);
+                var matchKey = CreateMatchKey(competition, homeTeam, awayTeam, score, annotation);
                 matches.Add(matchKey);
             }
         }
@@ -111,8 +112,9 @@ public static class HistoryCsvUtility
                 var homeTeam = csv.GetField("Home_Team") ?? "";
                 var awayTeam = csv.GetField("Away_Team") ?? "";
                 var score = csv.GetField("Score") ?? "";
+                var annotation = (csv.TryGetField<string>("Annotation", out var ann) ? ann : null) ?? "";
                 
-                var matchKey = CreateMatchKey(competition, homeTeam, awayTeam, score);
+                var matchKey = CreateMatchKey(competition, homeTeam, awayTeam, score, annotation);
                 matches[matchKey] = dataCollectedAt;
             }
         }
@@ -150,6 +152,7 @@ public static class HistoryCsvUtility
             csvWriter.WriteField("Home_Team");
             csvWriter.WriteField("Away_Team");
             csvWriter.WriteField("Score");
+            csvWriter.WriteField("Annotation");
             csvWriter.NextRecord();
             
             while (csv.Read())
@@ -158,8 +161,9 @@ public static class HistoryCsvUtility
                 var homeTeam = csv.GetField("Home_Team") ?? "";
                 var awayTeam = csv.GetField("Away_Team") ?? "";
                 var score = csv.GetField("Score") ?? "";
+                var annotation = (csv.TryGetField<string>("Annotation", out var ann) ? ann : null) ?? "";
                 
-                var matchKey = CreateMatchKey(competition, homeTeam, awayTeam, score);
+                var matchKey = CreateMatchKey(competition, homeTeam, awayTeam, score, annotation);
                 
                 // Determine the collection date for this match
                 string dataCollectedAt;
@@ -179,6 +183,7 @@ public static class HistoryCsvUtility
                 csvWriter.WriteField(homeTeam);
                 csvWriter.WriteField(awayTeam);
                 csvWriter.WriteField(score);
+                csvWriter.WriteField(annotation);
                 csvWriter.NextRecord();
             }
         }
@@ -194,8 +199,8 @@ public static class HistoryCsvUtility
     /// <summary>
     /// Creates a unique key for a match.
     /// </summary>
-    private static string CreateMatchKey(string competition, string homeTeam, string awayTeam, string score)
+    private static string CreateMatchKey(string competition, string homeTeam, string awayTeam, string score, string annotation)
     {
-        return $"{competition}|{homeTeam}|{awayTeam}|{score}";
+        return $"{competition}|{homeTeam}|{awayTeam}|{score}|{annotation}";
     }
 }

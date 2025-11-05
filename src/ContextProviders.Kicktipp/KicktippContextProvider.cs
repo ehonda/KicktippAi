@@ -233,6 +233,7 @@ public class KicktippContextProvider : IContextProvider<DocumentContext>
             csvWriter.WriteField("Home_Team");
             csvWriter.WriteField("Away_Team");
             csvWriter.WriteField("Score");
+            csvWriter.WriteField("Annotation");
             csvWriter.NextRecord();
             
             // Write data rows
@@ -244,6 +245,7 @@ public class KicktippContextProvider : IContextProvider<DocumentContext>
                 
                 var score = $"{result.HomeGoals?.ToString() ?? ""}:{result.AwayGoals?.ToString() ?? ""}";
                 csvWriter.WriteField(score);
+                csvWriter.WriteField(result.Annotation ?? "");
                 csvWriter.NextRecord();
             }
             
@@ -257,7 +259,7 @@ public class KicktippContextProvider : IContextProvider<DocumentContext>
             var homeAbbreviation = GetTeamAbbreviation(homeTeam);
             return new DocumentContext(
                 Name: $"home-history-{homeAbbreviation}.csv",
-                Content: "Competition,Home_Team,Away_Team,Score\n");
+                Content: "Competition,Home_Team,Away_Team,Score,Annotation\n");
         }
     }
     
@@ -280,6 +282,7 @@ public class KicktippContextProvider : IContextProvider<DocumentContext>
             csvWriter.WriteField("Home_Team");
             csvWriter.WriteField("Away_Team");
             csvWriter.WriteField("Score");
+            csvWriter.WriteField("Annotation");
             csvWriter.NextRecord();
             
             // Write data rows
@@ -291,6 +294,7 @@ public class KicktippContextProvider : IContextProvider<DocumentContext>
                 
                 var score = $"{result.HomeGoals?.ToString() ?? ""}:{result.AwayGoals?.ToString() ?? ""}";
                 csvWriter.WriteField(score);
+                csvWriter.WriteField(result.Annotation ?? "");
                 csvWriter.NextRecord();
             }
             
@@ -304,7 +308,7 @@ public class KicktippContextProvider : IContextProvider<DocumentContext>
             var awayAbbreviation = GetTeamAbbreviation(awayTeam);
             return new DocumentContext(
                 Name: $"away-history-{awayAbbreviation}.csv",
-                Content: "Competition,Home_Team,Away_Team,Score\n");
+                Content: "Competition,Home_Team,Away_Team,Score,Annotation\n");
         }
     }
 
@@ -418,6 +422,7 @@ public class KicktippContextProvider : IContextProvider<DocumentContext>
         csvWriter.WriteField("Home_Team");
         csvWriter.WriteField("Away_Team");
         csvWriter.WriteField("Score");
+        csvWriter.WriteField("Annotation");
         csvWriter.NextRecord();
         
         // Write data rows
@@ -432,6 +437,7 @@ public class KicktippContextProvider : IContextProvider<DocumentContext>
                 ? $"{result.HomeGoals}:{result.AwayGoals}" 
                 : "";
             csvWriter.WriteField(scoreText);
+            csvWriter.WriteField(result.Annotation ?? "");
             csvWriter.NextRecord();
         }
         
@@ -450,6 +456,7 @@ public class KicktippContextProvider : IContextProvider<DocumentContext>
         csvWriter.WriteField("Home_Team");
         csvWriter.WriteField("Away_Team");
         csvWriter.WriteField("Score");
+        csvWriter.WriteField("Annotation");
         csvWriter.NextRecord();
         
         // Write data rows
@@ -461,6 +468,7 @@ public class KicktippContextProvider : IContextProvider<DocumentContext>
             csvWriter.WriteField(result.HomeTeam);
             csvWriter.WriteField(result.AwayTeam);
             csvWriter.WriteField(result.Score);
+            csvWriter.WriteField(result.Annotation ?? "");
             csvWriter.NextRecord();
         }
         
