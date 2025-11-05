@@ -44,6 +44,9 @@ public static class ServiceCollectionExtensions
         // Register the cost calculation service
         services.TryAddScoped<ICostCalculationService, CostCalculationService>();
 
+        // Register the prompts directory provider
+        services.TryAddSingleton<IPromptsDirectoryProvider, RecursivePromptsDirectoryProvider>();
+
         // Register the instructions template provider
         services.TryAddSingleton<IInstructionsTemplateProvider, InstructionsTemplateProvider>();
 

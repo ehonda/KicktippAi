@@ -5,71 +5,50 @@ namespace OpenAiIntegration;
 /// </summary>
 public class InstructionsTemplateProvider : IInstructionsTemplateProvider
 {
+    private readonly IPromptsDirectoryProvider _promptsDirectoryProvider;
+
+    public InstructionsTemplateProvider(IPromptsDirectoryProvider promptsDirectoryProvider)
+    {
+        _promptsDirectoryProvider = promptsDirectoryProvider;
+    }
+
     public (string template, string path) LoadMatchTemplate(string model, bool includeJustification)
     {
         var promptModel = GetPromptModelForModel(model);
+        var promptsDirectory = _promptsDirectoryProvider.GetPromptsDirectory();
+        var modelDirectory = Path.Combine(promptsDirectory, promptModel);
+        var fileName = includeJustification ? "match.justification.md" : "match.md";
+        var instructionsPath = Path.Combine(modelDirectory, fileName);
         
-        // Try to find the model-specific instructions template relative to the current directory
-        var currentDirectory = Directory.GetCurrentDirectory();
-        var directory = new DirectoryInfo(currentDirectory);
-
-        while (directory != null)
+        if (File.Exists(instructionsPath))
         {
-            var solutionFile = Path.Combine(directory.FullName, "KicktippAi.slnx");
-            if (File.Exists(solutionFile))
-            {
-                var promptsDirectory = Path.Combine(directory.FullName, "prompts", promptModel);
-                var fileName = includeJustification ? "match.justification.md" : "match.md";
-                var instructionsPath = Path.Combine(promptsDirectory, fileName);
-                
-                if (File.Exists(instructionsPath))
-                {
-                    return (File.ReadAllText(instructionsPath), instructionsPath);
-                }
-
-                if (includeJustification)
-                {
-                    var fallbackPath = Path.Combine(promptsDirectory, "match.md");
-                    if (File.Exists(fallbackPath))
-                    {
-                        return (File.ReadAllText(fallbackPath), fallbackPath);
-                    }
-                }
-
-                throw new FileNotFoundException($"Match instructions not found at: {instructionsPath}");
-            }
-            directory = directory.Parent;
+            return (File.ReadAllText(instructionsPath), instructionsPath);
         }
 
-        throw new DirectoryNotFoundException("Could not find solution root (KicktippAi.slnx) to locate match instructions");
+        if (includeJustification)
+        {
+            var fallbackPath = Path.Combine(modelDirectory, "match.md");
+            if (File.Exists(fallbackPath))
+            {
+                return (File.ReadAllText(fallbackPath), fallbackPath);
+            }
+        }
+
+        throw new FileNotFoundException($"Match instructions not found at: {instructionsPath}");
     }
 
     public (string template, string path) LoadBonusTemplate(string model)
     {
         var promptModel = GetPromptModelForModel(model);
+        var promptsDirectory = _promptsDirectoryProvider.GetPromptsDirectory();
+        var instructionsPath = Path.Combine(promptsDirectory, promptModel, "bonus.md");
         
-        // Try to find the model-specific bonus instructions template relative to the current directory
-        var currentDirectory = Directory.GetCurrentDirectory();
-        var directory = new DirectoryInfo(currentDirectory);
-
-        while (directory != null)
+        if (File.Exists(instructionsPath))
         {
-            var solutionFile = Path.Combine(directory.FullName, "KicktippAi.slnx");
-            if (File.Exists(solutionFile))
-            {
-                var instructionsPath = Path.Combine(directory.FullName, "prompts", promptModel, "bonus.md");
-                
-                if (File.Exists(instructionsPath))
-                {
-                    return (File.ReadAllText(instructionsPath), instructionsPath);
-                }
-                
-                throw new FileNotFoundException($"Bonus instructions not found at: {instructionsPath}");
-            }
-            directory = directory.Parent;
+            return (File.ReadAllText(instructionsPath), instructionsPath);
         }
-
-        throw new DirectoryNotFoundException("Could not find solution root (KicktippAi.slnx) to locate bonus instructions");
+        
+        throw new FileNotFoundException($"Bonus instructions not found at: {instructionsPath}");
     }
 
     /// <summary>
