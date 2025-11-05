@@ -26,8 +26,22 @@ jobs:
       - name: Build project
         run: dotnet build --no-restore --configuration Release
         
+      # TUnit uses source generators for test discovery and doesn't integrate with the standard
+      # VSTest infrastructure. Running 'dotnet test' at the solution level doesn't discover TUnit tests.
+      # We must explicitly run each test project individually for TUnit to properly execute tests.
+      - name: Discover test projects
+        id: discover-tests
+        run: |
+          TEST_PROJECTS=$(find tests -name "*.csproj" -type f | tr '\n' ' ')
+          echo "test_projects=$TEST_PROJECTS" >> $GITHUB_OUTPUT
+          echo "Found test projects: $TEST_PROJECTS"
+        
       - name: Run tests
-        run: dotnet test --no-build --configuration Release --verbosity normal
+        run: |
+          for project in ${{ steps.discover-tests.outputs.test_projects }}; do
+            echo "Running tests in $project"
+            dotnet test "$project" --no-build --configuration Release --verbosity normal
+          done
         
       - name: Build summary
         if: always()
