@@ -11,8 +11,8 @@ public class InstructionsTemplateProvider_LoadMatchTemplate_Tests : Instructions
     public async Task Loading_match_template_without_justification_returns_correct_content()
     {
         // Arrange
-        var mockProvider = CreateMockPromptsDirectoryProvider(TempDir);
-        var sut = new InstructionsTemplateProvider(mockProvider.Object);
+        var mockFileProvider = CreateMockFileProvider();
+        var sut = new InstructionsTemplateProvider(mockFileProvider.Object);
 
         // Act
         var (template, path) = sut.LoadMatchTemplate("gpt-5", includeJustification: false);
@@ -27,8 +27,8 @@ public class InstructionsTemplateProvider_LoadMatchTemplate_Tests : Instructions
     public async Task Loading_match_template_with_justification_returns_justification_content()
     {
         // Arrange
-        var mockProvider = CreateMockPromptsDirectoryProvider(TempDir);
-        var sut = new InstructionsTemplateProvider(mockProvider.Object);
+        var mockFileProvider = CreateMockFileProvider();
+        var sut = new InstructionsTemplateProvider(mockFileProvider.Object);
 
         // Act
         var (template, path) = sut.LoadMatchTemplate("gpt-5", includeJustification: true);
@@ -43,8 +43,8 @@ public class InstructionsTemplateProvider_LoadMatchTemplate_Tests : Instructions
     public async Task Loading_match_template_with_justification_falls_back_to_regular_when_justification_missing()
     {
         // Arrange
-        var mockProvider = CreateMockPromptsDirectoryProvider(TempDir);
-        var sut = new InstructionsTemplateProvider(mockProvider.Object);
+        var mockFileProvider = CreateMockFileProvider();
+        var sut = new InstructionsTemplateProvider(mockFileProvider.Object);
 
         // Act - o3 doesn't have justification file
         var (template, path) = sut.LoadMatchTemplate("o3", includeJustification: true);
@@ -59,8 +59,8 @@ public class InstructionsTemplateProvider_LoadMatchTemplate_Tests : Instructions
     public async Task Loading_match_template_for_gpt_5_mini_uses_gpt_5_prompts()
     {
         // Arrange
-        var mockProvider = CreateMockPromptsDirectoryProvider(TempDir);
-        var sut = new InstructionsTemplateProvider(mockProvider.Object);
+        var mockFileProvider = CreateMockFileProvider();
+        var sut = new InstructionsTemplateProvider(mockFileProvider.Object);
 
         // Act
         var (template, path) = sut.LoadMatchTemplate("gpt-5-mini", includeJustification: false);
@@ -74,8 +74,8 @@ public class InstructionsTemplateProvider_LoadMatchTemplate_Tests : Instructions
     public async Task Loading_match_template_for_gpt_5_nano_uses_gpt_5_prompts()
     {
         // Arrange
-        var mockProvider = CreateMockPromptsDirectoryProvider(TempDir);
-        var sut = new InstructionsTemplateProvider(mockProvider.Object);
+        var mockFileProvider = CreateMockFileProvider();
+        var sut = new InstructionsTemplateProvider(mockFileProvider.Object);
 
         // Act
         var (template, path) = sut.LoadMatchTemplate("gpt-5-nano", includeJustification: false);
@@ -89,8 +89,8 @@ public class InstructionsTemplateProvider_LoadMatchTemplate_Tests : Instructions
     public async Task Loading_match_template_for_o4_mini_uses_o3_prompts()
     {
         // Arrange
-        var mockProvider = CreateMockPromptsDirectoryProvider(TempDir);
-        var sut = new InstructionsTemplateProvider(mockProvider.Object);
+        var mockFileProvider = CreateMockFileProvider();
+        var sut = new InstructionsTemplateProvider(mockFileProvider.Object);
 
         // Act
         var (template, path) = sut.LoadMatchTemplate("o4-mini", includeJustification: false);
@@ -104,13 +104,8 @@ public class InstructionsTemplateProvider_LoadMatchTemplate_Tests : Instructions
     public async Task Loading_match_template_for_unknown_model_uses_model_name_as_directory()
     {
         // Arrange
-        // Create a directory for a custom model
-        var customModelDir = Path.Combine(TempDir, "custom-model");
-        Directory.CreateDirectory(customModelDir);
-        File.WriteAllText(Path.Combine(customModelDir, "match.md"), "Custom Model Template");
-
-        var mockProvider = CreateMockPromptsDirectoryProvider(TempDir);
-        var sut = new InstructionsTemplateProvider(mockProvider.Object);
+        var mockFileProvider = CreateMockFileProviderWithCustomModel("custom-model", "Custom Model Template");
+        var sut = new InstructionsTemplateProvider(mockFileProvider.Object);
 
         // Act
         var (template, path) = sut.LoadMatchTemplate("custom-model", includeJustification: false);
@@ -124,8 +119,8 @@ public class InstructionsTemplateProvider_LoadMatchTemplate_Tests : Instructions
     public async Task Loading_match_template_throws_when_file_not_found()
     {
         // Arrange
-        var mockProvider = CreateMockPromptsDirectoryProvider(TempDir);
-        var sut = new InstructionsTemplateProvider(mockProvider.Object);
+        var mockFileProvider = CreateMockFileProvider();
+        var sut = new InstructionsTemplateProvider(mockFileProvider.Object);
 
         // Act & Assert
         await Assert.That(() => sut.LoadMatchTemplate("nonexistent-model", includeJustification: false))
@@ -136,8 +131,8 @@ public class InstructionsTemplateProvider_LoadMatchTemplate_Tests : Instructions
     public async Task Loading_match_template_with_justification_throws_when_neither_file_exists()
     {
         // Arrange
-        var mockProvider = CreateMockPromptsDirectoryProvider(TempDir);
-        var sut = new InstructionsTemplateProvider(mockProvider.Object);
+        var mockFileProvider = CreateMockFileProvider();
+        var sut = new InstructionsTemplateProvider(mockFileProvider.Object);
 
         // Act & Assert
         await Assert.That(() => sut.LoadMatchTemplate("nonexistent-model", includeJustification: true))

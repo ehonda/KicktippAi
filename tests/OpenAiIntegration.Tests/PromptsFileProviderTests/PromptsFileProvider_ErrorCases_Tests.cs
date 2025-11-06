@@ -1,14 +1,14 @@
 using TUnit.Core;
 
-namespace OpenAiIntegration.Tests.RecursivePromptsDirectoryProviderTests;
+namespace OpenAiIntegration.Tests.PromptsFileProviderTests;
 
 /// <summary>
-/// Tests for error cases in RecursivePromptsDirectoryProvider GetPromptsDirectory method
+/// Tests for error cases in PromptsFileProvider
 /// These tests use the NotInParallel attribute because they change the working directory,
 /// which is a shared global state that cannot be safely modified concurrently
 /// </summary>
 [NotInParallel]
-public class RecursivePromptsDirectoryProvider_GetPromptsDirectory_ErrorCases_Tests : RecursivePromptsDirectoryProviderTests_Base
+public class PromptsFileProvider_ErrorCases_Tests : PromptsFileProviderTests_Base
 {
     private string _tempDir = null!;
 
@@ -28,13 +28,12 @@ public class RecursivePromptsDirectoryProvider_GetPromptsDirectory_ErrorCases_Te
     }
 
     [Test]
-    public async Task Getting_prompts_directory_throws_when_solution_file_not_found()
+    public async Task Creating_provider_throws_when_solution_file_not_found()
     {
         // Arrange & Act & Assert
         await Assert.That(() => WithWorkingDirectory(_tempDir, () =>
         {
-            var sut = new RecursivePromptsDirectoryProvider();
-            return sut.GetPromptsDirectory();
+            return PromptsFileProvider.Create();
         })).Throws<DirectoryNotFoundException>();
     }
 }

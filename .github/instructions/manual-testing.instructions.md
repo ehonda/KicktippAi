@@ -5,6 +5,8 @@ applyTo: '**'
 
 These guidelines help effectively test when implementing changes across the solution's core components. Until we have comprehensive automated tests, these MUST be followed when working with manual tests.
 
+Note that we are gradually increasing our automated test coverage. Instructions for these are located at [tests.instructions.md](tests.instructions.md).
+
 ## When to apply
 
 * When testing changes to our core components

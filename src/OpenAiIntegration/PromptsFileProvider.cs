@@ -1,21 +1,21 @@
+using Microsoft.Extensions.FileProviders;
+
 namespace OpenAiIntegration;
 
 /// <summary>
-/// Provides the prompts directory by recursively searching upward from the current directory
-/// until it finds the solution root (KicktippAi.slnx)
+/// Factory for creating an IFileProvider rooted at the prompts directory
 /// </summary>
-public class RecursivePromptsDirectoryProvider : IPromptsDirectoryProvider
+public static class PromptsFileProvider
 {
-    private readonly Lazy<string> _promptsDirectory;
-
-    public RecursivePromptsDirectoryProvider()
+    /// <summary>
+    /// Creates a PhysicalFileProvider rooted at the prompts directory by finding the solution root
+    /// </summary>
+    /// <returns>An IFileProvider rooted at the prompts directory</returns>
+    /// <exception cref="DirectoryNotFoundException">Thrown when the solution root cannot be found</exception>
+    public static IFileProvider Create()
     {
-        _promptsDirectory = new Lazy<string>(FindPromptsDirectory);
-    }
-
-    public string GetPromptsDirectory()
-    {
-        return _promptsDirectory.Value;
+        var promptsDirectory = FindPromptsDirectory();
+        return new PhysicalFileProvider(promptsDirectory);
     }
 
     private static string FindPromptsDirectory()

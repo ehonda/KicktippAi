@@ -1,6 +1,7 @@
 using Microsoft.Extensions.DependencyInjection;
 using Microsoft.Extensions.DependencyInjection.Extensions;
 using Microsoft.Extensions.Configuration;
+using Microsoft.Extensions.FileProviders;
 using Microsoft.Extensions.Logging;
 using OpenAI.Chat;
 using Core;
@@ -44,8 +45,8 @@ public static class ServiceCollectionExtensions
         // Register the cost calculation service
         services.TryAddScoped<ICostCalculationService, CostCalculationService>();
 
-        // Register the prompts directory provider
-        services.TryAddSingleton<IPromptsDirectoryProvider, RecursivePromptsDirectoryProvider>();
+        // Register the file provider for prompts
+        services.TryAddSingleton(PromptsFileProvider.Create());
 
         // Register the instructions template provider
         services.TryAddSingleton<IInstructionsTemplateProvider, InstructionsTemplateProvider>();

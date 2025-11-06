@@ -1,24 +1,30 @@
 namespace OpenAiIntegration.Tests.PromptsFileProviderTests;
 
 /// <summary>
-/// Base class for RecursivePromptsDirectoryProvider tests providing shared helper functionality
+/// Base class for PromptsFileProvider tests providing shared helper functionality
 /// </summary>
-public abstract class RecursivePromptsDirectoryProviderTests_Base
+public abstract class PromptsFileProviderTests_Base
 {
     /// <summary>
     /// Creates a temporary directory structure that mimics the solution structure
     /// </summary>
     protected static string CreateTestSolutionStructure()
     {
-        var tempDir = Path.Combine(Path.GetTempPath(), $"KicktippAi_RecursiveTest_{Guid.NewGuid()}");
+        var tempDir = Path.Combine(Path.GetTempPath(), $"KicktippAi_PromptsFileProviderTest_{Guid.NewGuid()}");
         Directory.CreateDirectory(tempDir);
         
         // Create the solution file
         File.WriteAllText(Path.Combine(tempDir, "KicktippAi.slnx"), "<solution />");
         
-        // Create the prompts directory
+        // Create the prompts directory with test files
         var promptsDir = Path.Combine(tempDir, "prompts");
         Directory.CreateDirectory(promptsDir);
+        
+        // Create model directories and test prompt files
+        var gpt5Dir = Path.Combine(promptsDir, "gpt-5");
+        Directory.CreateDirectory(gpt5Dir);
+        File.WriteAllText(Path.Combine(gpt5Dir, "match.md"), "GPT-5 Match Template");
+        File.WriteAllText(Path.Combine(gpt5Dir, "bonus.md"), "GPT-5 Bonus Template");
         
         // Create some nested directories to simulate working from different locations
         var srcDir = Path.Combine(tempDir, "src");
@@ -39,14 +45,7 @@ public abstract class RecursivePromptsDirectoryProviderTests_Base
     {
         if (Directory.Exists(directory))
         {
-            try
-            {
-                Directory.Delete(directory, recursive: true);
-            }
-            catch
-            {
-                // Ignore cleanup errors
-            }
+            Directory.Delete(directory, recursive: true);
         }
     }
 

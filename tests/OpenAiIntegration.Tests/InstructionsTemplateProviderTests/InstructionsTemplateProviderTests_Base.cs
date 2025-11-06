@@ -1,3 +1,5 @@
+using Microsoft.Extensions.FileProviders;
+using Microsoft.Extensions.Primitives;
 using Moq;
 using TUnit.Core;
 
@@ -8,65 +10,73 @@ namespace OpenAiIntegration.Tests.InstructionsTemplateProviderTests;
 /// </summary>
 public abstract class InstructionsTemplateProviderTests_Base
 {
-    protected string TempDir { get; private set; } = null!;
-
-    [Before(Test)]
-    public async Task Setup()
-    {
-        TempDir = CreateTestPromptsDirectory();
-        await Task.CompletedTask;
-    }
-
-    [After(Test)]
-    public async Task Teardown()
-    {
-        CleanupTestPromptsDirectory(TempDir);
-        await Task.CompletedTask;
-    }
-
     /// <summary>
-    /// Creates a mock IPromptsDirectoryProvider that returns the specified directory
+    /// Creates a mock IFileProvider that simulates a prompts directory structure
     /// </summary>
-    protected static Mock<IPromptsDirectoryProvider> CreateMockPromptsDirectoryProvider(string promptsDirectory)
+    protected static Mock<IFileProvider> CreateMockFileProvider()
     {
-        var mock = new Mock<IPromptsDirectoryProvider>();
-        mock.Setup(x => x.GetPromptsDirectory()).Returns(promptsDirectory);
-        return mock;
-    }
+        var mockFileProvider = new Mock<IFileProvider>();
 
-    /// <summary>
-    /// Creates a temporary directory structure with test prompt files
-    /// </summary>
-    protected static string CreateTestPromptsDirectory()
-    {
-        var tempDir = Path.Combine(Path.GetTempPath(), $"KicktippAi_Tests_{Guid.NewGuid()}");
-        Directory.CreateDirectory(tempDir);
-        
-        // Create directory structure for different models
-        var gpt5Dir = Path.Combine(tempDir, "gpt-5");
-        var o3Dir = Path.Combine(tempDir, "o3");
-        Directory.CreateDirectory(gpt5Dir);
-        Directory.CreateDirectory(o3Dir);
-        
-        // Create test prompt files
-        File.WriteAllText(Path.Combine(gpt5Dir, "match.md"), "GPT-5 Match Template");
-        File.WriteAllText(Path.Combine(gpt5Dir, "match.justification.md"), "GPT-5 Match Template with Justification");
-        File.WriteAllText(Path.Combine(gpt5Dir, "bonus.md"), "GPT-5 Bonus Template");
-        
-        File.WriteAllText(Path.Combine(o3Dir, "match.md"), "O3 Match Template");
-        File.WriteAllText(Path.Combine(o3Dir, "bonus.md"), "O3 Bonus Template");
-        
-        return tempDir;
-    }
-
-    /// <summary>
-    /// Cleans up a test prompts directory
-    /// </summary>
-    protected static void CleanupTestPromptsDirectory(string directory)
-    {
-        if (Directory.Exists(directory))
+        // Define the content for each file
+        var fileContents = new Dictionary<string, string>
         {
-            Directory.Delete(directory, recursive: true);
+            ["gpt-5/match.md"] = "GPT-5 Match Template",
+            ["gpt-5/match.justification.md"] = "GPT-5 Match Template with Justification",
+            ["gpt-5/bonus.md"] = "GPT-5 Bonus Template",
+            ["o3/match.md"] = "O3 Match Template",
+            ["o3/bonus.md"] = "O3 Bonus Template"
+        };
+
+        // Setup GetFileInfo for each file
+        foreach (var (path, content) in fileContents)
+        {
+            var mockFileInfo = CreateMockFileInfo(content, path);
+            mockFileProvider.Setup(fp => fp.GetFileInfo(path)).Returns(mockFileInfo.Object);
         }
+
+        // Setup non-existent files to return NotFoundFileInfo
+        mockFileProvider.Setup(fp => fp.GetFileInfo(It.Is<string>(p => !fileContents.ContainsKey(p))))
+            .Returns<string>(name => new NotFoundFileInfo(name));
+
+        return mockFileProvider;
+    }
+
+    /// <summary>
+    /// Creates a mock IFileProvider that includes a custom model directory
+    /// </summary>
+    protected static Mock<IFileProvider> CreateMockFileProviderWithCustomModel(string customModel, string matchContent, string? bonusContent = null)
+    {
+        var mockFileProvider = CreateMockFileProvider();
+
+        // Add custom model files
+        var customMatchPath = $"{customModel}/match.md";
+        var mockMatchFileInfo = CreateMockFileInfo(matchContent, customMatchPath);
+        mockFileProvider.Setup(fp => fp.GetFileInfo(customMatchPath)).Returns(mockMatchFileInfo.Object);
+
+        if (bonusContent != null)
+        {
+            var customBonusPath = $"{customModel}/bonus.md";
+            var mockBonusFileInfo = CreateMockFileInfo(bonusContent, customBonusPath);
+            mockFileProvider.Setup(fp => fp.GetFileInfo(customBonusPath)).Returns(mockBonusFileInfo.Object);
+        }
+
+        return mockFileProvider;
+    }
+
+    /// <summary>
+    /// Creates a mock IFileInfo that returns the specified content
+    /// </summary>
+    private static Mock<IFileInfo> CreateMockFileInfo(string content, string path)
+    {
+        var mockFileInfo = new Mock<IFileInfo>();
+        mockFileInfo.Setup(fi => fi.Exists).Returns(true);
+        mockFileInfo.Setup(fi => fi.PhysicalPath).Returns(path);
+        mockFileInfo.Setup(fi => fi.CreateReadStream()).Returns(() => 
+        {
+            var bytes = System.Text.Encoding.UTF8.GetBytes(content);
+            return new MemoryStream(bytes);
+        });
+        
+        return mockFileInfo;
     }
 }
