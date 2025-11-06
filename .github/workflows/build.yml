@@ -26,9 +26,12 @@ jobs:
       - name: Build project
         run: dotnet build --no-restore --configuration Release
         
-      # TUnit uses source generators for test discovery and doesn't integrate with the standard
-      # VSTest infrastructure. Running 'dotnet test' at the solution level doesn't discover TUnit tests.
-      # We must explicitly run each test project individually for TUnit to properly execute tests.
+      # TUnit with Microsoft Testing Platform requires special handling:
+      # 1. TUnit doesn't use VSTest - it uses Microsoft Testing Platform with source generators
+      # 2. Must use 'dotnet run' instead of 'dotnet test' to execute tests
+      # 3. Each test project must be run individually (solution-level execution doesn't work)
+      # 4. The test project must have OutputType=Exe and include Microsoft.Testing.Extensions
+      #    packages (like TrxReport) for reporting features to work
       - name: Discover test projects
         id: discover-tests
         run: |
@@ -40,6 +43,8 @@ jobs:
         run: |
           for project in ${{ steps.discover-tests.outputs.test_projects }}; do
             echo "Running tests in $project"
+            # Use 'dotnet run' (not 'dotnet test') as required by TUnit with Microsoft Testing Platform
+            # This executes the test project as an executable, allowing TUnit's source generators to work properly
             dotnet run --project "$project" --configuration Release
           done
         
