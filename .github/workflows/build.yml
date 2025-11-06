@@ -40,7 +40,7 @@ jobs:
         run: |
           for project in ${{ steps.discover-tests.outputs.test_projects }}; do
             echo "Running tests in $project"
-            dotnet test "$project" --no-build --configuration Release --verbosity normal
+            dotnet run --project "$project" --configuration Release
           done
         
       - name: Build summary
