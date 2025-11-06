@@ -28,8 +28,8 @@ jobs:
         
       # TUnit with Microsoft Testing Platform requires special handling:
       # 1. TUnit doesn't use VSTest - it uses Microsoft Testing Platform with source generators
-      # 2. Must use 'dotnet run' instead of 'dotnet test' to execute tests
-      # 3. Each test project must be run individually (solution-level execution doesn't work)
+      # 2. 'dotnet test' at solution level builds but doesn't execute tests (observed behavior)
+      # 3. Must use 'dotnet run' on individual test projects to actually execute tests
       # 4. The test project must have OutputType=Exe and include Microsoft.Testing.Extensions
       #    packages (like TrxReport) for reporting features to work
       - name: Discover test projects
