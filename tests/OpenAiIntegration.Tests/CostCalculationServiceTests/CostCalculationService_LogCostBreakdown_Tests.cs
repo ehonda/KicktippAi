@@ -46,7 +46,25 @@ public class CostCalculationService_LogCostBreakdown_Tests : CostCalculationServ
             x => x.Log(
                 LogLevel.Information,
                 It.IsAny<EventId>(),
-                It.Is<It.IsAnyType>((o, t) => o.ToString()!.Contains("Output Tokens")),
+                It.Is<It.IsAnyType>((o, t) => o.ToString()!.Contains("Reasoning Output Tokens")),
+                It.IsAny<Exception>(),
+                It.IsAny<Func<It.IsAnyType, Exception?, string>>()),
+            Times.Once);
+        
+        logger.Verify(
+            x => x.Log(
+                LogLevel.Information,
+                It.IsAny<EventId>(),
+                It.Is<It.IsAnyType>((o, t) => o.ToString()!.Contains("Text Output Tokens")),
+                It.IsAny<Exception>(),
+                It.IsAny<Func<It.IsAnyType, Exception?, string>>()),
+            Times.Once);
+        
+        logger.Verify(
+            x => x.Log(
+                LogLevel.Information,
+                It.IsAny<EventId>(),
+                It.Is<It.IsAnyType>((o, t) => o.ToString()!.Contains("Total Output Tokens")),
                 It.IsAny<Exception>(),
                 It.IsAny<Func<It.IsAnyType, Exception?, string>>()),
             Times.Once);
@@ -215,7 +233,130 @@ public class CostCalculationService_LogCostBreakdown_Tests : CostCalculationServ
             x => x.Log(
                 LogLevel.Information,
                 It.IsAny<EventId>(),
-                It.Is<It.IsAnyType>((o, t) => o.ToString()!.Contains("Output Tokens: 1,250,000")),
+                It.Is<It.IsAnyType>((o, t) => o.ToString()!.Contains("Total Output Tokens: 1,250,000")),
+                It.IsAny<Exception>(),
+                It.IsAny<Func<It.IsAnyType, Exception?, string>>()),
+            Times.Once);
+        
+        return Task.CompletedTask;
+    }
+
+    [Test]
+    public Task LogCostBreakdown_with_reasoning_tokens_logs_reasoning_and_text_breakdown()
+    {
+        // Arrange
+        var logger = new Mock<ILogger<CostCalculationService>>();
+        var service = new CostCalculationService(logger.Object);
+        
+        var usage = CreateChatTokenUsage(
+            inputTokens: 1_000_000,
+            outputTokens: 500_000,
+            cachedInputTokens: 0,
+            reasoningTokens: 300_000);
+        
+        // Act
+        service.LogCostBreakdown("o3", usage);
+        
+        // Assert - Verify reasoning and text tokens are logged separately
+        logger.Verify(
+            x => x.Log(
+                LogLevel.Information,
+                It.IsAny<EventId>(),
+                It.Is<It.IsAnyType>((o, t) => o.ToString()!.Contains("Reasoning Output Tokens: 300,000")),
+                It.IsAny<Exception>(),
+                It.IsAny<Func<It.IsAnyType, Exception?, string>>()),
+            Times.Once);
+        
+        logger.Verify(
+            x => x.Log(
+                LogLevel.Information,
+                It.IsAny<EventId>(),
+                It.Is<It.IsAnyType>((o, t) => o.ToString()!.Contains("Text Output Tokens: 200,000")),
+                It.IsAny<Exception>(),
+                It.IsAny<Func<It.IsAnyType, Exception?, string>>()),
+            Times.Once);
+        
+        logger.Verify(
+            x => x.Log(
+                LogLevel.Information,
+                It.IsAny<EventId>(),
+                It.Is<It.IsAnyType>((o, t) => o.ToString()!.Contains("Total Output Tokens: 500,000")),
+                It.IsAny<Exception>(),
+                It.IsAny<Func<It.IsAnyType, Exception?, string>>()),
+            Times.Once);
+        
+        return Task.CompletedTask;
+    }
+
+    [Test]
+    public Task LogCostBreakdown_with_zero_reasoning_tokens_logs_zero_reasoning()
+    {
+        // Arrange
+        var logger = new Mock<ILogger<CostCalculationService>>();
+        var service = new CostCalculationService(logger.Object);
+        
+        var usage = CreateChatTokenUsage(
+            inputTokens: 1_000_000,
+            outputTokens: 500_000,
+            cachedInputTokens: 0,
+            reasoningTokens: 0);
+        
+        // Act
+        service.LogCostBreakdown("gpt-4o", usage);
+        
+        // Assert - Verify reasoning tokens shows 0
+        logger.Verify(
+            x => x.Log(
+                LogLevel.Information,
+                It.IsAny<EventId>(),
+                It.Is<It.IsAnyType>((o, t) => o.ToString()!.Contains("Reasoning Output Tokens: 0")),
+                It.IsAny<Exception>(),
+                It.IsAny<Func<It.IsAnyType, Exception?, string>>()),
+            Times.Once);
+        
+        logger.Verify(
+            x => x.Log(
+                LogLevel.Information,
+                It.IsAny<EventId>(),
+                It.Is<It.IsAnyType>((o, t) => o.ToString()!.Contains("Text Output Tokens: 500,000")),
+                It.IsAny<Exception>(),
+                It.IsAny<Func<It.IsAnyType, Exception?, string>>()),
+            Times.Once);
+        
+        return Task.CompletedTask;
+    }
+
+    [Test]
+    public Task LogCostBreakdown_with_all_reasoning_tokens_logs_zero_text()
+    {
+        // Arrange
+        var logger = new Mock<ILogger<CostCalculationService>>();
+        var service = new CostCalculationService(logger.Object);
+        
+        var usage = CreateChatTokenUsage(
+            inputTokens: 1_000_000,
+            outputTokens: 500_000,
+            cachedInputTokens: 0,
+            reasoningTokens: 500_000);
+        
+        // Act
+        service.LogCostBreakdown("o3", usage);
+        
+        // Assert - Verify all output is reasoning, no text tokens
+        logger.Verify(
+            x => x.Log(
+                LogLevel.Information,
+                It.IsAny<EventId>(),
+                It.Is<It.IsAnyType>((o, t) => o.ToString()!.Contains("Reasoning Output Tokens: 500,000")),
+                It.IsAny<Exception>(),
+                It.IsAny<Func<It.IsAnyType, Exception?, string>>()),
+            Times.Once);
+        
+        logger.Verify(
+            x => x.Log(
+                LogLevel.Information,
+                It.IsAny<EventId>(),
+                It.Is<It.IsAnyType>((o, t) => o.ToString()!.Contains("Text Output Tokens: 0")),
                 It.IsAny<Exception>(),
                 It.IsAny<Func<It.IsAnyType, Exception?, string>>()),
             Times.Once);

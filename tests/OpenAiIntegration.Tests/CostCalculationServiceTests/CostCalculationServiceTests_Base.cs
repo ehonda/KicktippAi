@@ -13,15 +13,21 @@ public abstract class CostCalculationServiceTests_Base
     protected static ChatTokenUsage CreateChatTokenUsage(
         int inputTokens, 
         int outputTokens, 
-        int cachedInputTokens)
+        int cachedInputTokens,
+        int reasoningTokens = 0)
     {
         ChatInputTokenUsageDetails? inputDetails = cachedInputTokens > 0
             ? OpenAIChatModelFactory.ChatInputTokenUsageDetails(cachedTokenCount: cachedInputTokens)
             : null;
         
+        ChatOutputTokenUsageDetails? outputDetails = reasoningTokens > 0
+            ? OpenAIChatModelFactory.ChatOutputTokenUsageDetails(reasoningTokenCount: reasoningTokens)
+            : null;
+        
         return OpenAIChatModelFactory.ChatTokenUsage(
             inputTokenCount: inputTokens,
             outputTokenCount: outputTokens,
-            inputTokenDetails: inputDetails);
+            inputTokenDetails: inputDetails,
+            outputTokenDetails: outputDetails);
     }
 }

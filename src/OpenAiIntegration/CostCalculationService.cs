@@ -23,14 +23,15 @@ public class CostCalculationService : ICostCalculationService
             // Get exact token counts from usage details
             var cachedInputTokens = usage.InputTokenDetails?.CachedTokenCount ?? 0;
             var uncachedInputTokens = usage.InputTokenCount - cachedInputTokens;
-            var outputTokens = usage.OutputTokenCount;
+            var reasoningOutputTokens = usage.OutputTokenDetails?.ReasoningTokenCount ?? 0;
+            var textOutputTokens = usage.OutputTokenCount - reasoningOutputTokens;
             
             // Calculate costs for each component
             var uncachedInputCost = (uncachedInputTokens / 1_000_000m) * pricing.InputPrice;
             var cachedInputCost = pricing.CachedInputPrice.HasValue 
                 ? (cachedInputTokens / 1_000_000m) * pricing.CachedInputPrice.Value 
                 : 0m;
-            var outputCost = (outputTokens / 1_000_000m) * pricing.OutputPrice;
+            var outputCost = (usage.OutputTokenCount / 1_000_000m) * pricing.OutputPrice;
             var totalCost = uncachedInputCost + cachedInputCost + outputCost;
             
             // Log the cost breakdown
@@ -43,8 +44,14 @@ public class CostCalculationService : ICostCalculationService
                     cachedInputTokens, pricing.CachedInputPrice.Value, cachedInputCost);
             }
             
-            _logger.LogInformation("Output Tokens: {OutputTokens:N0} × ${OutputPrice:F2}/1M = ${OutputCost:F6}",
-                outputTokens, pricing.OutputPrice, outputCost);
+            _logger.LogInformation("Reasoning Output Tokens: {ReasoningOutputTokens:N0}",
+                reasoningOutputTokens);
+            
+            _logger.LogInformation("Text Output Tokens: {TextOutputTokens:N0}",
+                textOutputTokens);
+            
+            _logger.LogInformation("Total Output Tokens: {TotalOutputTokens:N0} × ${OutputPrice:F2}/1M = ${OutputCost:F6}",
+                usage.OutputTokenCount, pricing.OutputPrice, outputCost);
                 
             _logger.LogInformation("Total Cost: ${TotalCost:F6}", totalCost);
         }
