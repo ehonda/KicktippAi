@@ -1,5 +1,6 @@
 using Core;
 using Microsoft.Extensions.Logging;
+using Microsoft.Extensions.Logging.Testing;
 using Moq;
 using NodaTime;
 using OpenAI.Chat;
@@ -81,11 +82,27 @@ public abstract class PredictionServiceTests_Base
     }
 
     /// <summary>
-    /// Creates a mock logger for PredictionService
+    /// Creates a FakeLogger for PredictionService
     /// </summary>
-    protected static Mock<ILogger<PredictionService>> CreateMockLogger()
+    protected static FakeLogger<PredictionService> CreateFakeLogger()
     {
-        return new Mock<ILogger<PredictionService>>();
+        return new FakeLogger<PredictionService>();
+    }
+
+    /// <summary>
+    /// Helper method to verify that a log message was logged
+    /// </summary>
+    protected static void AssertLogContains(FakeLogger<PredictionService> logger, LogLevel logLevel, string messageContent)
+    {
+        var logs = logger.Collector.GetSnapshot();
+        var matchingLogs = logs.Where(l => l.Level == logLevel && l.Message.Contains(messageContent));
+        
+        if (!matchingLogs.Any())
+        {
+            throw new Exception(
+                $"Expected to find a log at level {logLevel} containing '{messageContent}', but none was found. " +
+                $"Actual logs: {string.Join(", ", logs.Select(l => $"[{l.Level}] {l.Message}"))}");
+        }
     }
 
     /// <summary>

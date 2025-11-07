@@ -13,7 +13,7 @@ public class PredictionService_Constructor_Tests : PredictionServiceTests_Base
     public async Task Constructor_with_null_chatClient_throws_ArgumentNullException()
     {
         // Arrange
-        var logger = CreateMockLogger();
+        var logger = CreateFakeLogger();
         var costCalc = CreateMockCostCalculationService();
         var tokenTracker = CreateMockTokenUsageTracker();
         var templateProvider = CreateMockTemplateProvider();
@@ -22,7 +22,7 @@ public class PredictionService_Constructor_Tests : PredictionServiceTests_Base
         // Act & Assert
         var exception = await Assert.That(() => new PredictionService(
             null!,
-            logger.Object,
+            logger,
             costCalc.Object,
             tokenTracker.Object,
             templateProvider.Object,
@@ -60,7 +60,7 @@ public class PredictionService_Constructor_Tests : PredictionServiceTests_Base
     {
         // Arrange
         var chatClient = CreateMockChatClient("{}", CreateChatTokenUsage(0, 0));
-        var logger = CreateMockLogger();
+        var logger = CreateFakeLogger();
         var tokenTracker = CreateMockTokenUsageTracker();
         var templateProvider = CreateMockTemplateProvider();
         const string model = "gpt-5";
@@ -68,7 +68,7 @@ public class PredictionService_Constructor_Tests : PredictionServiceTests_Base
         // Act & Assert
         var exception = await Assert.That(() => new PredictionService(
             chatClient,
-            logger.Object,
+            logger,
             null!,
             tokenTracker.Object,
             templateProvider.Object,
@@ -83,7 +83,7 @@ public class PredictionService_Constructor_Tests : PredictionServiceTests_Base
     {
         // Arrange
         var chatClient = CreateMockChatClient("{}", CreateChatTokenUsage(0, 0));
-        var logger = CreateMockLogger();
+        var logger = CreateFakeLogger();
         var costCalc = CreateMockCostCalculationService();
         var templateProvider = CreateMockTemplateProvider();
         const string model = "gpt-5";
@@ -91,7 +91,7 @@ public class PredictionService_Constructor_Tests : PredictionServiceTests_Base
         // Act & Assert
         var exception = await Assert.That(() => new PredictionService(
             chatClient,
-            logger.Object,
+            logger,
             costCalc.Object,
             null!,
             templateProvider.Object,
@@ -106,7 +106,7 @@ public class PredictionService_Constructor_Tests : PredictionServiceTests_Base
     {
         // Arrange
         var chatClient = CreateMockChatClient("{}", CreateChatTokenUsage(0, 0));
-        var logger = CreateMockLogger();
+        var logger = CreateFakeLogger();
         var costCalc = CreateMockCostCalculationService();
         var tokenTracker = CreateMockTokenUsageTracker();
         const string model = "gpt-5";
@@ -114,7 +114,7 @@ public class PredictionService_Constructor_Tests : PredictionServiceTests_Base
         // Act & Assert
         var exception = await Assert.That(() => new PredictionService(
             chatClient,
-            logger.Object,
+            logger,
             costCalc.Object,
             tokenTracker.Object,
             null!,
@@ -129,7 +129,7 @@ public class PredictionService_Constructor_Tests : PredictionServiceTests_Base
     {
         // Arrange
         var chatClient = CreateMockChatClient("{}", CreateChatTokenUsage(0, 0));
-        var logger = CreateMockLogger();
+        var logger = CreateFakeLogger();
         var costCalc = CreateMockCostCalculationService();
         var tokenTracker = CreateMockTokenUsageTracker();
         var templateProvider = CreateMockTemplateProvider();
@@ -137,7 +137,7 @@ public class PredictionService_Constructor_Tests : PredictionServiceTests_Base
         // Act & Assert
         var exception = await Assert.That(() => new PredictionService(
             chatClient,
-            logger.Object,
+            logger,
             costCalc.Object,
             tokenTracker.Object,
             templateProvider.Object,

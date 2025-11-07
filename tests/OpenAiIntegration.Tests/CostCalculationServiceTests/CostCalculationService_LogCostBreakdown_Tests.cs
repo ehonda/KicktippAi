@@ -1,5 +1,4 @@
 using Microsoft.Extensions.Logging;
-using Moq;
 
 namespace OpenAiIntegration.Tests.CostCalculationServiceTests;
 
@@ -21,12 +20,12 @@ public class CostCalculationService_LogCostBreakdown_Tests : CostCalculationServ
         Service.LogCostBreakdown("gpt-4o", usage);
         
         // Assert - Verify all log entries are created
-        VerifyLogContains(LogLevel.Information, "Uncached Input Tokens", Times.Once);
-        VerifyLogContains(LogLevel.Information, "Cached Input Tokens", Times.Once);
-        VerifyLogContains(LogLevel.Information, "Reasoning Output Tokens", Times.Once);
-        VerifyLogContains(LogLevel.Information, "Text Output Tokens", Times.Once);
-        VerifyLogContains(LogLevel.Information, "Total Output Tokens", Times.Once);
-        VerifyLogContains(LogLevel.Information, "Total Cost", Times.Once);
+        AssertLogContains(LogLevel.Information, "Uncached Input Tokens");
+        AssertLogContains(LogLevel.Information, "Cached Input Tokens");
+        AssertLogContains(LogLevel.Information, "Reasoning Output Tokens");
+        AssertLogContains(LogLevel.Information, "Text Output Tokens");
+        AssertLogContains(LogLevel.Information, "Total Output Tokens");
+        AssertLogContains(LogLevel.Information, "Total Cost");
         
         return Task.CompletedTask;
     }
@@ -44,7 +43,7 @@ public class CostCalculationService_LogCostBreakdown_Tests : CostCalculationServ
         Service.LogCostBreakdown("gpt-4o", usage);
         
         // Assert - Verify cached tokens are logged
-        VerifyLogContains(LogLevel.Information, "Cached Input Tokens: 600,000", Times.Once);
+        AssertLogContains(LogLevel.Information, "Cached Input Tokens: 600,000");
         
         return Task.CompletedTask;
     }
@@ -62,7 +61,7 @@ public class CostCalculationService_LogCostBreakdown_Tests : CostCalculationServ
         Service.LogCostBreakdown("o1-pro", usage);
         
         // Assert - Verify cached tokens line is NOT logged
-        VerifyLogContains(LogLevel.Information, "Cached Input Tokens", Times.Never);
+        AssertLogDoesNotContain(LogLevel.Information, "Cached Input Tokens");
         
         return Task.CompletedTask;
     }
@@ -80,7 +79,7 @@ public class CostCalculationService_LogCostBreakdown_Tests : CostCalculationServ
         Service.LogCostBreakdown("unknown-model", usage);
         
         // Assert - Verify warning is logged
-        VerifyLogContains(LogLevel.Warning, "Pricing information not found for model 'unknown-model'", Times.Once);
+        AssertLogContains(LogLevel.Warning, "Pricing information not found for model 'unknown-model'");
         
         return Task.CompletedTask;
     }
@@ -98,7 +97,7 @@ public class CostCalculationService_LogCostBreakdown_Tests : CostCalculationServ
         Service.LogCostBreakdown("gpt-4o", usage);
         
         // Assert - When cachedInputTokens is 0, cached line should still be logged (showing 0 tokens)
-        VerifyLogContains(LogLevel.Information, "Cached Input Tokens: 0", Times.Once);
+        AssertLogContains(LogLevel.Information, "Cached Input Tokens: 0");
         
         return Task.CompletedTask;
     }
@@ -118,9 +117,9 @@ public class CostCalculationService_LogCostBreakdown_Tests : CostCalculationServ
         // Assert - Verify correct token counts are logged
         // o3: $2.00/1M input, $8.00/1M output, $0.50/1M cached
         // Uncached: 1,500,000 tokens
-        VerifyLogContains(LogLevel.Information, "Uncached Input Tokens: 1,500,000", Times.Once);
-        VerifyLogContains(LogLevel.Information, "Cached Input Tokens: 1,000,000", Times.Once);
-        VerifyLogContains(LogLevel.Information, "Total Output Tokens: 1,250,000", Times.Once);
+        AssertLogContains(LogLevel.Information, "Uncached Input Tokens: 1,500,000");
+        AssertLogContains(LogLevel.Information, "Cached Input Tokens: 1,000,000");
+        AssertLogContains(LogLevel.Information, "Total Output Tokens: 1,250,000");
         
         return Task.CompletedTask;
     }
@@ -139,9 +138,9 @@ public class CostCalculationService_LogCostBreakdown_Tests : CostCalculationServ
         Service.LogCostBreakdown("o3", usage);
         
         // Assert - Verify reasoning and text tokens are logged separately
-        VerifyLogContains(LogLevel.Information, "Reasoning Output Tokens: 300,000", Times.Once);
-        VerifyLogContains(LogLevel.Information, "Text Output Tokens: 200,000", Times.Once);
-        VerifyLogContains(LogLevel.Information, "Total Output Tokens: 500,000", Times.Once);
+        AssertLogContains(LogLevel.Information, "Reasoning Output Tokens: 300,000");
+        AssertLogContains(LogLevel.Information, "Text Output Tokens: 200,000");
+        AssertLogContains(LogLevel.Information, "Total Output Tokens: 500,000");
         
         return Task.CompletedTask;
     }
@@ -160,8 +159,8 @@ public class CostCalculationService_LogCostBreakdown_Tests : CostCalculationServ
         Service.LogCostBreakdown("gpt-4o", usage);
         
         // Assert - Verify reasoning tokens shows 0
-        VerifyLogContains(LogLevel.Information, "Reasoning Output Tokens: 0", Times.Once);
-        VerifyLogContains(LogLevel.Information, "Text Output Tokens: 500,000", Times.Once);
+        AssertLogContains(LogLevel.Information, "Reasoning Output Tokens: 0");
+        AssertLogContains(LogLevel.Information, "Text Output Tokens: 500,000");
         
         return Task.CompletedTask;
     }
@@ -180,8 +179,8 @@ public class CostCalculationService_LogCostBreakdown_Tests : CostCalculationServ
         Service.LogCostBreakdown("o3", usage);
         
         // Assert - Verify all output is reasoning, no text tokens
-        VerifyLogContains(LogLevel.Information, "Reasoning Output Tokens: 500,000", Times.Once);
-        VerifyLogContains(LogLevel.Information, "Text Output Tokens: 0", Times.Once);
+        AssertLogContains(LogLevel.Information, "Reasoning Output Tokens: 500,000");
+        AssertLogContains(LogLevel.Information, "Text Output Tokens: 0");
         
         return Task.CompletedTask;
     }

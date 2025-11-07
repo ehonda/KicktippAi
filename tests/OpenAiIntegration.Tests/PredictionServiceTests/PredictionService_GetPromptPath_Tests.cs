@@ -13,13 +13,13 @@ public class PredictionService_GetPromptPath_Tests : PredictionServiceTests_Base
     {
         // Arrange
         var mockChatClient = CreateMockChatClient("{}", CreateChatTokenUsage(0, 0));
-        var logger = CreateMockLogger();
+        var logger = CreateFakeLogger();
         var costCalc = CreateMockCostCalculationService();
         var tokenTracker = CreateMockTokenUsageTracker();
 
         var service = new PredictionService(
             mockChatClient,
-            logger.Object,
+            logger,
             costCalc.Object,
             tokenTracker.Object,
             CreateMockTemplateProvider().Object,
@@ -40,13 +40,13 @@ public class PredictionService_GetPromptPath_Tests : PredictionServiceTests_Base
     {
         // Arrange
         var mockChatClient = CreateMockChatClient("{}", CreateChatTokenUsage(0, 0));
-        var logger = CreateMockLogger();
+        var logger = CreateFakeLogger();
         var costCalc = CreateMockCostCalculationService();
         var tokenTracker = CreateMockTokenUsageTracker();
 
         var service = new PredictionService(
             mockChatClient,
-            logger.Object,
+            logger,
             costCalc.Object,
             tokenTracker.Object,
             CreateMockTemplateProvider().Object,
@@ -67,13 +67,13 @@ public class PredictionService_GetPromptPath_Tests : PredictionServiceTests_Base
     {
         // Arrange
         var mockChatClient = CreateMockChatClient("{}", CreateChatTokenUsage(0, 0));
-        var logger = CreateMockLogger();
+        var logger = CreateFakeLogger();
         var costCalc = CreateMockCostCalculationService();
         var tokenTracker = CreateMockTokenUsageTracker();
 
         var service = new PredictionService(
             mockChatClient,
-            logger.Object,
+            logger,
             costCalc.Object,
             tokenTracker.Object,
             CreateMockTemplateProvider().Object,
@@ -94,13 +94,13 @@ public class PredictionService_GetPromptPath_Tests : PredictionServiceTests_Base
     {
         // Arrange
         var mockChatClient = CreateMockChatClient("{}", CreateChatTokenUsage(0, 0));
-        var logger = CreateMockLogger();
+        var logger = CreateFakeLogger();
         var costCalc = CreateMockCostCalculationService();
         var tokenTracker = CreateMockTokenUsageTracker();
 
         var service = new PredictionService(
             mockChatClient,
-            logger.Object,
+            logger,
             costCalc.Object,
             tokenTracker.Object,
             CreateMockTemplateProvider("o3").Object,
@@ -120,13 +120,13 @@ public class PredictionService_GetPromptPath_Tests : PredictionServiceTests_Base
     {
         // Arrange
         var mockChatClient = CreateMockChatClient("{}", CreateChatTokenUsage(0, 0));
-        var logger = CreateMockLogger();
+        var logger = CreateFakeLogger();
         var costCalc = CreateMockCostCalculationService();
         var tokenTracker = CreateMockTokenUsageTracker();
 
         var service = new PredictionService(
             mockChatClient,
-            logger.Object,
+            logger,
             costCalc.Object,
             tokenTracker.Object,
             CreateMockTemplateProvider("o3").Object,
@@ -145,13 +145,13 @@ public class PredictionService_GetPromptPath_Tests : PredictionServiceTests_Base
     {
         // Arrange
         var mockChatClient = CreateMockChatClient("{}", CreateChatTokenUsage(0, 0));
-        var logger = CreateMockLogger();
+        var logger = CreateFakeLogger();
         var costCalc = CreateMockCostCalculationService();
         var tokenTracker = CreateMockTokenUsageTracker();
 
         var service = new PredictionService(
             mockChatClient,
-            logger.Object,
+            logger,
             costCalc.Object,
             tokenTracker.Object,
             CreateMockTemplateProvider("gpt-5").Object,
@@ -170,13 +170,13 @@ public class PredictionService_GetPromptPath_Tests : PredictionServiceTests_Base
     {
         // Arrange
         var mockChatClient = CreateMockChatClient("{}", CreateChatTokenUsage(0, 0));
-        var logger = CreateMockLogger();
+        var logger = CreateFakeLogger();
         var costCalc = CreateMockCostCalculationService();
         var tokenTracker = CreateMockTokenUsageTracker();
 
         var service = new PredictionService(
             mockChatClient,
-            logger.Object,
+            logger,
             costCalc.Object,
             tokenTracker.Object,
             CreateMockTemplateProvider("gpt-5").Object,

@@ -151,21 +151,14 @@ public class TokenUsageTracker_AddUsage_Tests : TokenUsageTrackerTests_Base
     public void AddUsage_logs_debug_message()
     {
         // Arrange
-        var tracker = CreateTracker(out var loggerMock, out _, costToReturn: 5.00m);
+        var tracker = CreateTrackerWithFakeLogger(out var logger, out _, costToReturn: 5.00m);
         var usage = CreateChatTokenUsage(inputTokens: 1000, outputTokens: 500);
 
         // Act
         tracker.AddUsage("gpt-4o", usage);
 
         // Assert
-        loggerMock.Verify(
-            x => x.Log(
-                LogLevel.Debug,
-                It.IsAny<EventId>(),
-                It.Is<It.IsAnyType>((o, t) => o.ToString()!.Contains("Added usage for model gpt-4o")),
-                It.IsAny<Exception>(),
-                It.IsAny<Func<It.IsAnyType, Exception?, string>>()),
-            Times.Once);
+        AssertLogContains(logger, LogLevel.Debug, "Added usage for model gpt-4o");
     }
 
     [Test]

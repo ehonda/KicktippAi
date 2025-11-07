@@ -120,20 +120,13 @@ public class TokenUsageTracker_Reset_Tests : TokenUsageTrackerTests_Base
     public void Reset_logs_debug_message()
     {
         // Arrange
-        var tracker = CreateTracker(out var loggerMock, out _);
+        var tracker = CreateTrackerWithFakeLogger(out var logger, out _);
 
         // Act
         tracker.Reset();
 
         // Assert
-        loggerMock.Verify(
-            x => x.Log(
-                LogLevel.Debug,
-                It.IsAny<EventId>(),
-                It.Is<It.IsAnyType>((o, t) => o.ToString()!.Contains("Token usage tracker reset")),
-                It.IsAny<Exception>(),
-                It.IsAny<Func<It.IsAnyType, Exception?, string>>()),
-            Times.Once);
+        AssertLogContains(logger, LogLevel.Debug, "Token usage tracker reset");
     }
 
     [Test]

@@ -18,13 +18,13 @@ public class PredictionService_PredictBonusQuestionAsync_Tests : PredictionServi
             var usage = CreateChatTokenUsage(800, 30);
             var responseJson = """{"selectedOptionIds": ["opt1"]}""";
             var mockChatClient = CreateMockChatClient(responseJson, usage);
-            var logger = CreateMockLogger();
+            var logger = CreateFakeLogger();
             var costCalc = CreateMockCostCalculationService();
             var tokenTracker = CreateMockTokenUsageTracker();
 
             var service = new PredictionService(
                 mockChatClient,
-                logger.Object,
+                logger,
                 costCalc.Object,
                 tokenTracker.Object, CreateMockTemplateProvider().Object,
                 "gpt-5");
@@ -49,13 +49,13 @@ public class PredictionService_PredictBonusQuestionAsync_Tests : PredictionServi
             var usage = CreateChatTokenUsage(900, 40);
             var responseJson = """{"selectedOptionIds": ["opt1", "opt2"]}""";
             var mockChatClient = CreateMockChatClient(responseJson, usage);
-            var logger = CreateMockLogger();
+            var logger = CreateFakeLogger();
             var costCalc = CreateMockCostCalculationService();
             var tokenTracker = CreateMockTokenUsageTracker();
 
             var service = new PredictionService(
                 mockChatClient,
-                logger.Object,
+                logger,
                 costCalc.Object,
                 tokenTracker.Object, CreateMockTemplateProvider().Object,
                 "gpt-5");
@@ -81,13 +81,13 @@ public class PredictionService_PredictBonusQuestionAsync_Tests : PredictionServi
             var usage = CreateChatTokenUsage(800, 30);
             var responseJson = """{"selectedOptionIds": ["opt2"]}""";
             var mockChatClient = CreateMockChatClient(responseJson, usage);
-            var logger = CreateMockLogger();
+            var logger = CreateFakeLogger();
             var costCalc = CreateMockCostCalculationService();
             var tokenTracker = CreateMockTokenUsageTracker();
 
             var service = new PredictionService(
                 mockChatClient,
-                logger.Object,
+                logger,
                 costCalc.Object,
                 tokenTracker.Object, CreateMockTemplateProvider().Object,
                 "gpt-5");
@@ -112,13 +112,13 @@ public class PredictionService_PredictBonusQuestionAsync_Tests : PredictionServi
             var usage = CreateChatTokenUsage(800, 30);
             var responseJson = """{"selectedOptionIds": ["opt3"]}""";
             var mockChatClient = CreateMockChatClient(responseJson, usage);
-            var logger = CreateMockLogger();
+            var logger = CreateFakeLogger();
             var costCalc = CreateMockCostCalculationService();
             var tokenTracker = CreateMockTokenUsageTracker();
 
             var service = new PredictionService(
                 mockChatClient,
-                logger.Object,
+                logger,
                 costCalc.Object,
                 tokenTracker.Object, CreateMockTemplateProvider().Object,
                 "gpt-5");
@@ -143,13 +143,13 @@ public class PredictionService_PredictBonusQuestionAsync_Tests : PredictionServi
             var usage = CreateChatTokenUsage(600, 25);
             var responseJson = """{"selectedOptionIds": ["opt1"]}""";
             var mockChatClient = CreateMockChatClient(responseJson, usage);
-            var logger = CreateMockLogger();
+            var logger = CreateFakeLogger();
             var costCalc = CreateMockCostCalculationService();
             var tokenTracker = CreateMockTokenUsageTracker();
 
             var service = new PredictionService(
                 mockChatClient,
-                logger.Object,
+                logger,
                 costCalc.Object,
                 tokenTracker.Object, CreateMockTemplateProvider().Object,
                 "gpt-5");
@@ -173,13 +173,13 @@ public class PredictionService_PredictBonusQuestionAsync_Tests : PredictionServi
             var usage = CreateChatTokenUsage(800, 30);
             var responseJson = """{"selectedOptionIds": ["opt1"]}""";
             var mockChatClient = CreateMockChatClient(responseJson, usage);
-            var logger = CreateMockLogger();
+            var logger = CreateFakeLogger();
             var costCalc = CreateMockCostCalculationService();
             var tokenTracker = CreateMockTokenUsageTracker();
 
             var service = new PredictionService(
                 mockChatClient,
-                logger.Object,
+                logger,
                 costCalc.Object,
                 tokenTracker.Object, CreateMockTemplateProvider().Object,
                 "gpt-5");
@@ -191,14 +191,7 @@ public class PredictionService_PredictBonusQuestionAsync_Tests : PredictionServi
             await service.PredictBonusQuestionAsync(bonusQuestion, contextDocs);
 
             // Assert
-            logger.Verify(
-                x => x.Log(
-                    LogLevel.Information,
-                    It.IsAny<EventId>(),
-                    It.Is<It.IsAnyType>((o, t) => o.ToString()!.Contains("Generating prediction for bonus question")),
-                    It.IsAny<Exception>(),
-                    It.IsAny<Func<It.IsAnyType, Exception?, string>>()),
-                Times.AtLeastOnce);
+            AssertLogContains(logger, LogLevel.Information, "Generating prediction for bonus question");
                 
     }
 
@@ -214,13 +207,13 @@ public class PredictionService_PredictBonusQuestionAsync_Tests : PredictionServi
                     It.IsAny<CancellationToken>()))
                 .ThrowsAsync(new InvalidOperationException("API error"));
 
-            var logger = CreateMockLogger();
+            var logger = CreateFakeLogger();
             var costCalc = CreateMockCostCalculationService();
             var tokenTracker = CreateMockTokenUsageTracker();
 
             var service = new PredictionService(
                 mockChatClient.Object,
-                logger.Object,
+                logger,
                 costCalc.Object,
                 tokenTracker.Object, CreateMockTemplateProvider().Object,
                 "gpt-5");
@@ -248,13 +241,13 @@ public class PredictionService_PredictBonusQuestionAsync_Tests : PredictionServi
                     It.IsAny<CancellationToken>()))
                 .ThrowsAsync(new InvalidOperationException("API error"));
 
-            var logger = CreateMockLogger();
+            var logger = CreateFakeLogger();
             var costCalc = CreateMockCostCalculationService();
             var tokenTracker = CreateMockTokenUsageTracker();
 
             var service = new PredictionService(
                 mockChatClient.Object,
-                logger.Object,
+                logger,
                 costCalc.Object,
                 tokenTracker.Object, CreateMockTemplateProvider().Object,
                 "gpt-5");
@@ -266,14 +259,7 @@ public class PredictionService_PredictBonusQuestionAsync_Tests : PredictionServi
             await service.PredictBonusQuestionAsync(bonusQuestion, contextDocs);
 
             // Assert
-            logger.Verify(
-                x => x.Log(
-                    LogLevel.Error,
-                    It.IsAny<EventId>(),
-                    It.Is<It.IsAnyType>((o, t) => o.ToString()!.Contains("Error generating bonus prediction")),
-                    It.IsAny<Exception>(),
-                    It.IsAny<Func<It.IsAnyType, Exception?, string>>()),
-                Times.Once);
+            AssertLogContains(logger, LogLevel.Error, "Error generating bonus prediction");
                 
     }
 
@@ -284,13 +270,13 @@ public class PredictionService_PredictBonusQuestionAsync_Tests : PredictionServi
             var usage = CreateChatTokenUsage(800, 30);
             var responseJson = """{"selectedOptionIds": ["invalid-option"]}""";
             var mockChatClient = CreateMockChatClient(responseJson, usage);
-            var logger = CreateMockLogger();
+            var logger = CreateFakeLogger();
             var costCalc = CreateMockCostCalculationService();
             var tokenTracker = CreateMockTokenUsageTracker();
 
             var service = new PredictionService(
                 mockChatClient,
-                logger.Object,
+                logger,
                 costCalc.Object,
                 tokenTracker.Object, CreateMockTemplateProvider().Object,
                 "gpt-5");
@@ -313,13 +299,13 @@ public class PredictionService_PredictBonusQuestionAsync_Tests : PredictionServi
             var usage = CreateChatTokenUsage(800, 30);
             var responseJson = """{"selectedOptionIds": ["opt1", "opt1"]}""";
             var mockChatClient = CreateMockChatClient(responseJson, usage);
-            var logger = CreateMockLogger();
+            var logger = CreateFakeLogger();
             var costCalc = CreateMockCostCalculationService();
             var tokenTracker = CreateMockTokenUsageTracker();
 
             var service = new PredictionService(
                 mockChatClient,
-                logger.Object,
+                logger,
                 costCalc.Object,
                 tokenTracker.Object, CreateMockTemplateProvider().Object,
                 "gpt-5");
@@ -342,13 +328,13 @@ public class PredictionService_PredictBonusQuestionAsync_Tests : PredictionServi
             var usage = CreateChatTokenUsage(800, 30);
             var responseJson = """{"selectedOptionIds": ["opt1", "opt2"]}""";
             var mockChatClient = CreateMockChatClient(responseJson, usage);
-            var logger = CreateMockLogger();
+            var logger = CreateFakeLogger();
             var costCalc = CreateMockCostCalculationService();
             var tokenTracker = CreateMockTokenUsageTracker();
 
             var service = new PredictionService(
                 mockChatClient,
-                logger.Object,
+                logger,
                 costCalc.Object,
                 tokenTracker.Object, CreateMockTemplateProvider().Object,
                 "gpt-5");
