@@ -12,7 +12,7 @@ public class CostCalculationService_LogCostBreakdown_Tests : CostCalculationServ
     public Task LogCostBreakdown_with_known_model_logs_cost_breakdown()
     {
         // Arrange
-        var usage = CreateChatTokenUsage(
+        var usage = OpenAITestHelpers.CreateChatTokenUsage(
             inputTokens: 1_000_000,
             outputTokens: 500_000,
             cachedInputTokens: 0);
@@ -35,7 +35,7 @@ public class CostCalculationService_LogCostBreakdown_Tests : CostCalculationServ
     public Task LogCostBreakdown_with_cached_tokens_logs_cached_cost_line()
     {
         // Arrange
-        var usage = CreateChatTokenUsage(
+        var usage = OpenAITestHelpers.CreateChatTokenUsage(
             inputTokens: 1_000_000,
             outputTokens: 500_000,
             cachedInputTokens: 600_000);
@@ -53,7 +53,7 @@ public class CostCalculationService_LogCostBreakdown_Tests : CostCalculationServ
     public Task LogCostBreakdown_with_model_without_cached_pricing_does_not_log_cached_line()
     {
         // Arrange
-        var usage = CreateChatTokenUsage(
+        var usage = OpenAITestHelpers.CreateChatTokenUsage(
             inputTokens: 1_000_000,
             outputTokens: 500_000,
             cachedInputTokens: 600_000);
@@ -71,7 +71,7 @@ public class CostCalculationService_LogCostBreakdown_Tests : CostCalculationServ
     public Task LogCostBreakdown_with_unknown_model_logs_warning()
     {
         // Arrange
-        var usage = CreateChatTokenUsage(
+        var usage = OpenAITestHelpers.CreateChatTokenUsage(
             inputTokens: 1_000_000,
             outputTokens: 500_000,
             cachedInputTokens: 0);
@@ -89,7 +89,7 @@ public class CostCalculationService_LogCostBreakdown_Tests : CostCalculationServ
     public Task LogCostBreakdown_with_zero_cached_tokens_does_not_log_zero_cached_cost()
     {
         // Arrange
-        var usage = CreateChatTokenUsage(
+        var usage = OpenAITestHelpers.CreateChatTokenUsage(
             inputTokens: 1_000_000,
             outputTokens: 500_000,
             cachedInputTokens: 0);
@@ -107,7 +107,7 @@ public class CostCalculationService_LogCostBreakdown_Tests : CostCalculationServ
     public Task LogCostBreakdown_logs_correct_token_counts_and_prices()
     {
         // Arrange
-        var usage = CreateChatTokenUsage(
+        var usage = OpenAITestHelpers.CreateChatTokenUsage(
             inputTokens: 2_500_000,
             outputTokens: 1_250_000,
             cachedInputTokens: 1_000_000);
@@ -129,11 +129,11 @@ public class CostCalculationService_LogCostBreakdown_Tests : CostCalculationServ
     public Task LogCostBreakdown_with_reasoning_tokens_logs_reasoning_and_text_breakdown()
     {
         // Arrange
-        var usage = CreateChatTokenUsage(
+        var usage = OpenAITestHelpers.CreateChatTokenUsage(
             inputTokens: 1_000_000,
             outputTokens: 500_000,
             cachedInputTokens: 0,
-            reasoningTokens: 300_000);
+            outputReasoningTokens: 300_000);
         
         // Act
         Service.LogCostBreakdown("o3", usage);
@@ -150,11 +150,11 @@ public class CostCalculationService_LogCostBreakdown_Tests : CostCalculationServ
     public Task LogCostBreakdown_with_zero_reasoning_tokens_logs_zero_reasoning()
     {
         // Arrange
-        var usage = CreateChatTokenUsage(
+        var usage = OpenAITestHelpers.CreateChatTokenUsage(
             inputTokens: 1_000_000,
             outputTokens: 500_000,
             cachedInputTokens: 0,
-            reasoningTokens: 0);
+            outputReasoningTokens: 0);
         
         // Act
         Service.LogCostBreakdown("gpt-4o", usage);
@@ -170,11 +170,11 @@ public class CostCalculationService_LogCostBreakdown_Tests : CostCalculationServ
     public Task LogCostBreakdown_with_all_reasoning_tokens_logs_zero_text()
     {
         // Arrange
-        var usage = CreateChatTokenUsage(
+        var usage = OpenAITestHelpers.CreateChatTokenUsage(
             inputTokens: 1_000_000,
             outputTokens: 500_000,
             cachedInputTokens: 0,
-            reasoningTokens: 500_000);
+            outputReasoningTokens: 500_000);
         
         // Act
         Service.LogCostBreakdown("o3", usage);

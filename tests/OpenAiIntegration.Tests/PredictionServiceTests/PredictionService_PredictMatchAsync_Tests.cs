@@ -16,7 +16,7 @@ public class PredictionService_PredictMatchAsync_Tests : PredictionServiceTests_
     public async Task PredictMatchAsync_with_valid_input_returns_prediction()
     {
         // Arrange
-        var usage = CreateChatTokenUsage(1000, 50);
+        var usage = OpenAITestHelpers.CreateChatTokenUsage(1000, 50);
         var responseJson = """{"home": 2, "away": 1}""";
         var mockChatClient = CreateMockChatClient(responseJson, usage);
         var logger = CreateFakeLogger();
@@ -48,7 +48,7 @@ public class PredictionService_PredictMatchAsync_Tests : PredictionServiceTests_
     public async Task PredictMatchAsync_with_includeJustification_returns_prediction_with_justification()
     {
         // Arrange
-            var usage = CreateChatTokenUsage(1000, 150);
+            var usage = OpenAITestHelpers.CreateChatTokenUsage(1000, 150);
             var responseJson = """
                 {
                     "home": 3,
@@ -102,7 +102,7 @@ public class PredictionService_PredictMatchAsync_Tests : PredictionServiceTests_
     public async Task PredictMatchAsync_calls_token_tracker_with_correct_usage()
     {
         // Arrange
-            var usage = CreateChatTokenUsage(1000, 50);
+            var usage = OpenAITestHelpers.CreateChatTokenUsage(1000, 50);
             var responseJson = """{"home": 2, "away": 1}""";
             var mockChatClient = CreateMockChatClient(responseJson, usage);
             var logger = CreateFakeLogger();
@@ -133,7 +133,7 @@ public class PredictionService_PredictMatchAsync_Tests : PredictionServiceTests_
     public async Task PredictMatchAsync_calls_cost_calculation_service()
     {
         // Arrange
-            var usage = CreateChatTokenUsage(1000, 50);
+            var usage = OpenAITestHelpers.CreateChatTokenUsage(1000, 50);
             var responseJson = """{"home": 2, "away": 1}""";
             var mockChatClient = CreateMockChatClient(responseJson, usage);
             var logger = CreateFakeLogger();
@@ -164,7 +164,7 @@ public class PredictionService_PredictMatchAsync_Tests : PredictionServiceTests_
     public async Task PredictMatchAsync_with_empty_context_documents_succeeds()
     {
         // Arrange
-            var usage = CreateChatTokenUsage(500, 30);
+            var usage = OpenAITestHelpers.CreateChatTokenUsage(500, 30);
             var responseJson = """{"home": 1, "away": 1}""";
             var mockChatClient = CreateMockChatClient(responseJson, usage);
             var logger = CreateFakeLogger();
@@ -195,7 +195,7 @@ public class PredictionService_PredictMatchAsync_Tests : PredictionServiceTests_
     public async Task PredictMatchAsync_logs_information_message()
     {
         // Arrange
-            var usage = CreateChatTokenUsage(1000, 50);
+            var usage = OpenAITestHelpers.CreateChatTokenUsage(1000, 50);
             var responseJson = """{"home": 2, "away": 1}""";
             var mockChatClient = CreateMockChatClient(responseJson, usage);
             var logger = CreateFakeLogger();
@@ -278,7 +278,7 @@ public class PredictionService_PredictMatchAsync_Tests : PredictionServiceTests_
     public async Task PredictMatchAsync_with_invalid_JSON_returns_null()
     {
         // Arrange
-            var usage = CreateChatTokenUsage(1000, 50);
+            var usage = OpenAITestHelpers.CreateChatTokenUsage(1000, 50);
             // Use malformed JSON that will cause JsonException during deserialization
             var invalidJson = """not valid json at all""";
             var mockChatClient = CreateMockChatClient(invalidJson, usage);

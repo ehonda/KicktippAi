@@ -1,3 +1,4 @@
+using TestUtilities;
 using Moq;
 using TUnit.Core;
 
@@ -12,7 +13,7 @@ public class PredictionService_GetPromptPath_Tests : PredictionServiceTests_Base
     public async Task GetMatchPromptPath_without_justification_returns_correct_path()
     {
         // Arrange
-        var mockChatClient = CreateMockChatClient("{}", CreateChatTokenUsage(0, 0));
+        var mockChatClient = CreateMockChatClient("{}", OpenAITestHelpers.CreateChatTokenUsage(0, 0));
         var logger = CreateFakeLogger();
         var costCalc = CreateMockCostCalculationService();
         var tokenTracker = CreateMockTokenUsageTracker();
@@ -39,7 +40,7 @@ public class PredictionService_GetPromptPath_Tests : PredictionServiceTests_Base
     public async Task GetMatchPromptPath_with_justification_returns_correct_path()
     {
         // Arrange
-        var mockChatClient = CreateMockChatClient("{}", CreateChatTokenUsage(0, 0));
+        var mockChatClient = CreateMockChatClient("{}", OpenAITestHelpers.CreateChatTokenUsage(0, 0));
         var logger = CreateFakeLogger();
         var costCalc = CreateMockCostCalculationService();
         var tokenTracker = CreateMockTokenUsageTracker();
@@ -66,7 +67,7 @@ public class PredictionService_GetPromptPath_Tests : PredictionServiceTests_Base
     public async Task GetBonusPromptPath_returns_correct_path()
     {
         // Arrange
-        var mockChatClient = CreateMockChatClient("{}", CreateChatTokenUsage(0, 0));
+        var mockChatClient = CreateMockChatClient("{}", OpenAITestHelpers.CreateChatTokenUsage(0, 0));
         var logger = CreateFakeLogger();
         var costCalc = CreateMockCostCalculationService();
         var tokenTracker = CreateMockTokenUsageTracker();
@@ -93,7 +94,7 @@ public class PredictionService_GetPromptPath_Tests : PredictionServiceTests_Base
     public async Task GetMatchPromptPath_for_o3_model_uses_o3_prompts()
     {
         // Arrange
-        var mockChatClient = CreateMockChatClient("{}", CreateChatTokenUsage(0, 0));
+        var mockChatClient = CreateMockChatClient("{}", OpenAITestHelpers.CreateChatTokenUsage(0, 0));
         var logger = CreateFakeLogger();
         var costCalc = CreateMockCostCalculationService();
         var tokenTracker = CreateMockTokenUsageTracker();
@@ -119,7 +120,7 @@ public class PredictionService_GetPromptPath_Tests : PredictionServiceTests_Base
     public async Task GetMatchPromptPath_for_o4_mini_model_uses_o3_prompts()
     {
         // Arrange
-        var mockChatClient = CreateMockChatClient("{}", CreateChatTokenUsage(0, 0));
+        var mockChatClient = CreateMockChatClient("{}", OpenAITestHelpers.CreateChatTokenUsage(0, 0));
         var logger = CreateFakeLogger();
         var costCalc = CreateMockCostCalculationService();
         var tokenTracker = CreateMockTokenUsageTracker();
@@ -144,7 +145,7 @@ public class PredictionService_GetPromptPath_Tests : PredictionServiceTests_Base
     public async Task GetMatchPromptPath_for_gpt_5_mini_uses_gpt_5_prompts()
     {
         // Arrange
-        var mockChatClient = CreateMockChatClient("{}", CreateChatTokenUsage(0, 0));
+        var mockChatClient = CreateMockChatClient("{}", OpenAITestHelpers.CreateChatTokenUsage(0, 0));
         var logger = CreateFakeLogger();
         var costCalc = CreateMockCostCalculationService();
         var tokenTracker = CreateMockTokenUsageTracker();
@@ -169,7 +170,7 @@ public class PredictionService_GetPromptPath_Tests : PredictionServiceTests_Base
     public async Task GetMatchPromptPath_for_gpt_5_nano_uses_gpt_5_prompts()
     {
         // Arrange
-        var mockChatClient = CreateMockChatClient("{}", CreateChatTokenUsage(0, 0));
+        var mockChatClient = CreateMockChatClient("{}", OpenAITestHelpers.CreateChatTokenUsage(0, 0));
         var logger = CreateFakeLogger();
         var costCalc = CreateMockCostCalculationService();
         var tokenTracker = CreateMockTokenUsageTracker();
@@ -190,3 +191,4 @@ public class PredictionService_GetPromptPath_Tests : PredictionServiceTests_Base
         await Assert.That(promptPath).Contains("match.md");
     }
 }
+

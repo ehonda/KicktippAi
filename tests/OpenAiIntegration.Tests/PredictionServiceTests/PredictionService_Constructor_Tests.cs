@@ -1,3 +1,4 @@
+using TestUtilities;
 using Microsoft.Extensions.Logging;
 using Moq;
 using TUnit.Core;
@@ -36,7 +37,7 @@ public class PredictionService_Constructor_Tests : PredictionServiceTests_Base
     public async Task Constructor_with_null_logger_throws_ArgumentNullException()
     {
         // Arrange
-        var chatClient = CreateMockChatClient("{}", CreateChatTokenUsage(0, 0));
+        var chatClient = CreateMockChatClient("{}", OpenAITestHelpers.CreateChatTokenUsage(0, 0));
         var costCalc = CreateMockCostCalculationService();
         var tokenTracker = CreateMockTokenUsageTracker();
         var templateProvider = CreateMockTemplateProvider();
@@ -59,7 +60,7 @@ public class PredictionService_Constructor_Tests : PredictionServiceTests_Base
     public async Task Constructor_with_null_costCalculationService_throws_ArgumentNullException()
     {
         // Arrange
-        var chatClient = CreateMockChatClient("{}", CreateChatTokenUsage(0, 0));
+        var chatClient = CreateMockChatClient("{}", OpenAITestHelpers.CreateChatTokenUsage(0, 0));
         var logger = CreateFakeLogger();
         var tokenTracker = CreateMockTokenUsageTracker();
         var templateProvider = CreateMockTemplateProvider();
@@ -82,7 +83,7 @@ public class PredictionService_Constructor_Tests : PredictionServiceTests_Base
     public async Task Constructor_with_null_tokenUsageTracker_throws_ArgumentNullException()
     {
         // Arrange
-        var chatClient = CreateMockChatClient("{}", CreateChatTokenUsage(0, 0));
+        var chatClient = CreateMockChatClient("{}", OpenAITestHelpers.CreateChatTokenUsage(0, 0));
         var logger = CreateFakeLogger();
         var costCalc = CreateMockCostCalculationService();
         var templateProvider = CreateMockTemplateProvider();
@@ -105,7 +106,7 @@ public class PredictionService_Constructor_Tests : PredictionServiceTests_Base
     public async Task Constructor_with_null_templateProvider_throws_ArgumentNullException()
     {
         // Arrange
-        var chatClient = CreateMockChatClient("{}", CreateChatTokenUsage(0, 0));
+        var chatClient = CreateMockChatClient("{}", OpenAITestHelpers.CreateChatTokenUsage(0, 0));
         var logger = CreateFakeLogger();
         var costCalc = CreateMockCostCalculationService();
         var tokenTracker = CreateMockTokenUsageTracker();
@@ -128,7 +129,7 @@ public class PredictionService_Constructor_Tests : PredictionServiceTests_Base
     public async Task Constructor_with_null_model_throws_ArgumentNullException()
     {
         // Arrange
-        var chatClient = CreateMockChatClient("{}", CreateChatTokenUsage(0, 0));
+        var chatClient = CreateMockChatClient("{}", OpenAITestHelpers.CreateChatTokenUsage(0, 0));
         var logger = CreateFakeLogger();
         var costCalc = CreateMockCostCalculationService();
         var tokenTracker = CreateMockTokenUsageTracker();
@@ -147,3 +148,4 @@ public class PredictionService_Constructor_Tests : PredictionServiceTests_Base
         await Assert.That(exception!.ParamName).IsEqualTo("model");
     }
 }
+

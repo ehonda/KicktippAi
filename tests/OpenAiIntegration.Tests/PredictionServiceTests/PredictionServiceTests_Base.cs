@@ -16,30 +16,6 @@ namespace OpenAiIntegration.Tests.PredictionServiceTests;
 public abstract class PredictionServiceTests_Base
 {
     /// <summary>
-    /// Helper method to create ChatTokenUsage instances for testing
-    /// </summary>
-    protected static ChatTokenUsage CreateChatTokenUsage(
-        int inputTokens, 
-        int outputTokens, 
-        int cachedInputTokens = 0,
-        int outputReasoningTokens = 0)
-    {
-        ChatInputTokenUsageDetails? inputDetails = cachedInputTokens > 0
-            ? OpenAIChatModelFactory.ChatInputTokenUsageDetails(cachedTokenCount: cachedInputTokens)
-            : null;
-        
-        ChatOutputTokenUsageDetails? outputDetails = outputReasoningTokens > 0
-            ? OpenAIChatModelFactory.ChatOutputTokenUsageDetails(reasoningTokenCount: outputReasoningTokens)
-            : null;
-        
-        return OpenAIChatModelFactory.ChatTokenUsage(
-            inputTokenCount: inputTokens,
-            outputTokenCount: outputTokens,
-            inputTokenDetails: inputDetails,
-            outputTokenDetails: outputDetails);
-    }
-
-    /// <summary>
     /// Helper method to create a test Match instance
     /// </summary>
     protected static Core.Match CreateTestMatch(

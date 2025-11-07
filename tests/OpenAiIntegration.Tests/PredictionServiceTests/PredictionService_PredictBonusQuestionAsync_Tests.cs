@@ -16,7 +16,7 @@ public class PredictionService_PredictBonusQuestionAsync_Tests : PredictionServi
     public async Task PredictBonusQuestionAsync_with_single_selection_returns_prediction()
     {
         // Arrange
-            var usage = CreateChatTokenUsage(800, 30);
+            var usage = OpenAITestHelpers.CreateChatTokenUsage(800, 30);
             var responseJson = """{"selectedOptionIds": ["opt1"]}""";
             var mockChatClient = CreateMockChatClient(responseJson, usage);
             var logger = CreateFakeLogger();
@@ -47,7 +47,7 @@ public class PredictionService_PredictBonusQuestionAsync_Tests : PredictionServi
     public async Task PredictBonusQuestionAsync_with_multiple_selections_returns_prediction()
     {
         // Arrange
-            var usage = CreateChatTokenUsage(900, 40);
+            var usage = OpenAITestHelpers.CreateChatTokenUsage(900, 40);
             var responseJson = """{"selectedOptionIds": ["opt1", "opt2"]}""";
             var mockChatClient = CreateMockChatClient(responseJson, usage);
             var logger = CreateFakeLogger();
@@ -79,7 +79,7 @@ public class PredictionService_PredictBonusQuestionAsync_Tests : PredictionServi
     public async Task PredictBonusQuestionAsync_calls_token_tracker_with_correct_usage()
     {
         // Arrange
-            var usage = CreateChatTokenUsage(800, 30);
+            var usage = OpenAITestHelpers.CreateChatTokenUsage(800, 30);
             var responseJson = """{"selectedOptionIds": ["opt2"]}""";
             var mockChatClient = CreateMockChatClient(responseJson, usage);
             var logger = CreateFakeLogger();
@@ -110,7 +110,7 @@ public class PredictionService_PredictBonusQuestionAsync_Tests : PredictionServi
     public async Task PredictBonusQuestionAsync_calls_cost_calculation_service()
     {
         // Arrange
-            var usage = CreateChatTokenUsage(800, 30);
+            var usage = OpenAITestHelpers.CreateChatTokenUsage(800, 30);
             var responseJson = """{"selectedOptionIds": ["opt3"]}""";
             var mockChatClient = CreateMockChatClient(responseJson, usage);
             var logger = CreateFakeLogger();
@@ -141,7 +141,7 @@ public class PredictionService_PredictBonusQuestionAsync_Tests : PredictionServi
     public async Task PredictBonusQuestionAsync_with_empty_context_documents_succeeds()
     {
         // Arrange
-            var usage = CreateChatTokenUsage(600, 25);
+            var usage = OpenAITestHelpers.CreateChatTokenUsage(600, 25);
             var responseJson = """{"selectedOptionIds": ["opt1"]}""";
             var mockChatClient = CreateMockChatClient(responseJson, usage);
             var logger = CreateFakeLogger();
@@ -171,7 +171,7 @@ public class PredictionService_PredictBonusQuestionAsync_Tests : PredictionServi
     public async Task PredictBonusQuestionAsync_logs_information_message()
     {
         // Arrange
-            var usage = CreateChatTokenUsage(800, 30);
+            var usage = OpenAITestHelpers.CreateChatTokenUsage(800, 30);
             var responseJson = """{"selectedOptionIds": ["opt1"]}""";
             var mockChatClient = CreateMockChatClient(responseJson, usage);
             var logger = CreateFakeLogger();
@@ -268,7 +268,7 @@ public class PredictionService_PredictBonusQuestionAsync_Tests : PredictionServi
     public async Task PredictBonusQuestionAsync_with_invalid_option_id_returns_null()
     {
         // Arrange
-            var usage = CreateChatTokenUsage(800, 30);
+            var usage = OpenAITestHelpers.CreateChatTokenUsage(800, 30);
             var responseJson = """{"selectedOptionIds": ["invalid-option"]}""";
             var mockChatClient = CreateMockChatClient(responseJson, usage);
             var logger = CreateFakeLogger();
@@ -297,7 +297,7 @@ public class PredictionService_PredictBonusQuestionAsync_Tests : PredictionServi
     public async Task PredictBonusQuestionAsync_with_duplicate_selections_returns_null()
     {
         // Arrange
-            var usage = CreateChatTokenUsage(800, 30);
+            var usage = OpenAITestHelpers.CreateChatTokenUsage(800, 30);
             var responseJson = """{"selectedOptionIds": ["opt1", "opt1"]}""";
             var mockChatClient = CreateMockChatClient(responseJson, usage);
             var logger = CreateFakeLogger();
@@ -326,7 +326,7 @@ public class PredictionService_PredictBonusQuestionAsync_Tests : PredictionServi
     public async Task PredictBonusQuestionAsync_with_wrong_selection_count_returns_null()
     {
         // Arrange
-            var usage = CreateChatTokenUsage(800, 30);
+            var usage = OpenAITestHelpers.CreateChatTokenUsage(800, 30);
             var responseJson = """{"selectedOptionIds": ["opt1", "opt2"]}""";
             var mockChatClient = CreateMockChatClient(responseJson, usage);
             var logger = CreateFakeLogger();

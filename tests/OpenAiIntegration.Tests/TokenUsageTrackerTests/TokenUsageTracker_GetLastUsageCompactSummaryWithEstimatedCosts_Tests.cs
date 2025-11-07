@@ -1,3 +1,4 @@
+using TestUtilities;
 using Moq;
 using OpenAI.Chat;
 
@@ -31,7 +32,7 @@ public class TokenUsageTracker_GetLastUsageCompactSummaryWithEstimatedCosts_Test
         costServiceMock.Setup(x => x.CalculateCost("o3", It.IsAny<ChatTokenUsage>()))
             .Returns(6.0m);
 
-        var usage = CreateChatTokenUsage(
+        var usage = OpenAITestHelpers.CreateChatTokenUsage(
             inputTokens: 1000000,
             outputTokens: 500000);
 
@@ -51,12 +52,12 @@ public class TokenUsageTracker_GetLastUsageCompactSummaryWithEstimatedCosts_Test
         var tracker = CreateTracker(out _, out var costServiceMock);
         
         // First usage - smaller
-        var usage1 = CreateChatTokenUsage(inputTokens: 100000, outputTokens: 50000);
+        var usage1 = OpenAITestHelpers.CreateChatTokenUsage(inputTokens: 100000, outputTokens: 50000);
         costServiceMock.Setup(x => x.CalculateCost("gpt-5-nano", usage1)).Returns(0.01m);
         costServiceMock.Setup(x => x.CalculateCost("gpt-4o", usage1)).Returns(0.75m);
         
         // Second usage - larger
-        var usage2 = CreateChatTokenUsage(inputTokens: 1000000, outputTokens: 500000);
+        var usage2 = OpenAITestHelpers.CreateChatTokenUsage(inputTokens: 1000000, outputTokens: 500000);
         costServiceMock.Setup(x => x.CalculateCost("gpt-5-nano", usage2)).Returns(0.05m);
         costServiceMock.Setup(x => x.CalculateCost("gpt-4o", usage2)).Returns(7.50m);
 
@@ -76,7 +77,7 @@ public class TokenUsageTracker_GetLastUsageCompactSummaryWithEstimatedCosts_Test
         // Arrange
         var tracker = CreateTracker(out _, out var costServiceMock);
         
-        var usage = CreateChatTokenUsage(
+        var usage = OpenAITestHelpers.CreateChatTokenUsage(
             inputTokens: 1000000,
             outputTokens: 500000,
             cachedInputTokens: 600000);
@@ -99,10 +100,10 @@ public class TokenUsageTracker_GetLastUsageCompactSummaryWithEstimatedCosts_Test
         // Arrange
         var tracker = CreateTracker(out _, out var costServiceMock);
         
-        var usage = CreateChatTokenUsage(
+        var usage = OpenAITestHelpers.CreateChatTokenUsage(
             inputTokens: 1000000,
             outputTokens: 1500000,
-            reasoningTokens: 1000000);
+            outputReasoningTokens: 1000000);
             
         costServiceMock.Setup(x => x.CalculateCost("gpt-5-nano", usage)).Returns(0.07m);
         costServiceMock.Setup(x => x.CalculateCost("o3", usage)).Returns(14.0m);
@@ -122,7 +123,7 @@ public class TokenUsageTracker_GetLastUsageCompactSummaryWithEstimatedCosts_Test
         // Arrange
         var tracker = CreateTracker(out _, out var costServiceMock);
         
-        var usage = CreateChatTokenUsage(inputTokens: 1000, outputTokens: 500);
+        var usage = OpenAITestHelpers.CreateChatTokenUsage(inputTokens: 1000, outputTokens: 500);
         costServiceMock.Setup(x => x.CalculateCost("gpt-4o", usage)).Returns(0.01m);
         costServiceMock.Setup(x => x.CalculateCost("unknown-model", usage)).Returns((decimal?)null);
 
@@ -140,11 +141,11 @@ public class TokenUsageTracker_GetLastUsageCompactSummaryWithEstimatedCosts_Test
         // Arrange
         var tracker = CreateTracker(out _, out var costServiceMock);
         
-        var usage1 = CreateChatTokenUsage(inputTokens: 100000, outputTokens: 50000);
+        var usage1 = OpenAITestHelpers.CreateChatTokenUsage(inputTokens: 100000, outputTokens: 50000);
         costServiceMock.Setup(x => x.CalculateCost("gpt-5-nano", usage1)).Returns(0.005m);
         costServiceMock.Setup(x => x.CalculateCost("o3", usage1)).Returns(0.60m);
         
-        var usage2 = CreateChatTokenUsage(inputTokens: 500000, outputTokens: 250000);
+        var usage2 = OpenAITestHelpers.CreateChatTokenUsage(inputTokens: 500000, outputTokens: 250000);
         costServiceMock.Setup(x => x.CalculateCost("gpt-5-nano", usage2)).Returns(0.025m);
         costServiceMock.Setup(x => x.CalculateCost("o3", usage2)).Returns(3.00m);
 
@@ -161,3 +162,4 @@ public class TokenUsageTracker_GetLastUsageCompactSummaryWithEstimatedCosts_Test
         await Assert.That(summary2).Contains("(est o3: $3.0000)");
     }
 }
+

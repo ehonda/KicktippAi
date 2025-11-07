@@ -1,5 +1,6 @@
 using Microsoft.Extensions.Logging;
 using Moq;
+using TestUtilities;
 
 namespace OpenAiIntegration.Tests.CostCalculationServiceTests;
 
@@ -12,7 +13,7 @@ public class CostCalculationService_CalculateCost_Tests : CostCalculationService
     public async Task CalculateCost_with_known_model_and_no_cached_tokens_returns_correct_cost()
     {
         // Arrange
-        var usage = CreateChatTokenUsage(
+        var usage = OpenAITestHelpers.CreateChatTokenUsage(
             inputTokens: 1_000_000,
             outputTokens: 500_000,
             cachedInputTokens: 0);
@@ -31,7 +32,7 @@ public class CostCalculationService_CalculateCost_Tests : CostCalculationService
     public async Task CalculateCost_with_cached_input_tokens_returns_correct_cost()
     {
         // Arrange
-        var usage = CreateChatTokenUsage(
+        var usage = OpenAITestHelpers.CreateChatTokenUsage(
             inputTokens: 1_000_000,
             outputTokens: 500_000,
             cachedInputTokens: 600_000);
@@ -52,7 +53,7 @@ public class CostCalculationService_CalculateCost_Tests : CostCalculationService
     public async Task CalculateCost_with_model_without_cached_pricing_ignores_cached_tokens()
     {
         // Arrange
-        var usage = CreateChatTokenUsage(
+        var usage = OpenAITestHelpers.CreateChatTokenUsage(
             inputTokens: 1_000_000,
             outputTokens: 500_000,
             cachedInputTokens: 600_000);
@@ -73,7 +74,7 @@ public class CostCalculationService_CalculateCost_Tests : CostCalculationService
     public async Task CalculateCost_with_unknown_model_returns_null()
     {
         // Arrange
-        var usage = CreateChatTokenUsage(
+        var usage = OpenAITestHelpers.CreateChatTokenUsage(
             inputTokens: 1_000_000,
             outputTokens: 500_000,
             cachedInputTokens: 0);
@@ -89,7 +90,7 @@ public class CostCalculationService_CalculateCost_Tests : CostCalculationService
     public async Task CalculateCost_with_zero_tokens_returns_zero_cost()
     {
         // Arrange
-        var usage = CreateChatTokenUsage(
+        var usage = OpenAITestHelpers.CreateChatTokenUsage(
             inputTokens: 0,
             outputTokens: 0,
             cachedInputTokens: 0);
@@ -106,7 +107,7 @@ public class CostCalculationService_CalculateCost_Tests : CostCalculationService
     public async Task CalculateCost_with_reasoning_model_o3_calculates_correctly()
     {
         // Arrange
-        var usage = CreateChatTokenUsage(
+        var usage = OpenAITestHelpers.CreateChatTokenUsage(
             inputTokens: 2_000_000,
             outputTokens: 1_000_000,
             cachedInputTokens: 500_000);
@@ -134,7 +135,7 @@ public class CostCalculationService_CalculateCost_Tests : CostCalculationService
         decimal cachedPrice)
     {
         // Arrange
-        var usage = CreateChatTokenUsage(
+        var usage = OpenAITestHelpers.CreateChatTokenUsage(
             inputTokens: 1_000_000,
             outputTokens: 1_000_000,
             cachedInputTokens: 0);

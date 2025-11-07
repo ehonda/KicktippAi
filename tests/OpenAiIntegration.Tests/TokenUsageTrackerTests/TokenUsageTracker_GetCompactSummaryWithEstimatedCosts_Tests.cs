@@ -1,3 +1,4 @@
+using TestUtilities;
 using Moq;
 using OpenAI.Chat;
 
@@ -26,7 +27,7 @@ public class TokenUsageTracker_GetCompactSummaryWithEstimatedCosts_Tests : Token
     {
         // Arrange
         var tracker = CreateTracker(out _, out _, costToReturn: 5.0m);
-        var usage = CreateChatTokenUsage(
+        var usage = OpenAITestHelpers.CreateChatTokenUsage(
             inputTokens: 1000000,
             outputTokens: 500000);
 
@@ -47,7 +48,7 @@ public class TokenUsageTracker_GetCompactSummaryWithEstimatedCosts_Tests : Token
     {
         // Arrange
         var tracker = CreateTracker(out _, out _, costToReturn: 3.0m);
-        var usage = CreateChatTokenUsage(
+        var usage = OpenAITestHelpers.CreateChatTokenUsage(
             inputTokens: 1000000,
             outputTokens: 500000,
             cachedInputTokens: 600000);
@@ -68,7 +69,7 @@ public class TokenUsageTracker_GetCompactSummaryWithEstimatedCosts_Tests : Token
     {
         // Arrange
         var tracker = CreateTracker(out _, out _, costToReturn: 1.0m);
-        var usage = CreateChatTokenUsage(
+        var usage = OpenAITestHelpers.CreateChatTokenUsage(
             inputTokens: 1000000,
             outputTokens: 500000,
             cachedInputTokens: 600000);
@@ -89,10 +90,10 @@ public class TokenUsageTracker_GetCompactSummaryWithEstimatedCosts_Tests : Token
     {
         // Arrange
         var tracker = CreateTracker(out _, out _, costToReturn: 2.0m);
-        var usage = CreateChatTokenUsage(
+        var usage = OpenAITestHelpers.CreateChatTokenUsage(
             inputTokens: 1000000,
             outputTokens: 1500000,
-            reasoningTokens: 1000000);
+            outputReasoningTokens: 1000000);
 
         // Act
         tracker.AddUsage("gpt-5-nano", usage);
@@ -110,7 +111,7 @@ public class TokenUsageTracker_GetCompactSummaryWithEstimatedCosts_Tests : Token
     {
         // Arrange
         var tracker = CreateTracker(out _, out _, costToReturn: 5.0m);
-        var usage = CreateChatTokenUsage(
+        var usage = OpenAITestHelpers.CreateChatTokenUsage(
             inputTokens: 1000000,
             outputTokens: 500000);
 
@@ -131,10 +132,10 @@ public class TokenUsageTracker_GetCompactSummaryWithEstimatedCosts_Tests : Token
             .Returns(1.0m)
             .Returns(2.0m);
 
-        var usage1 = CreateChatTokenUsage(
+        var usage1 = OpenAITestHelpers.CreateChatTokenUsage(
             inputTokens: 500000,
             outputTokens: 250000);
-        var usage2 = CreateChatTokenUsage(
+        var usage2 = OpenAITestHelpers.CreateChatTokenUsage(
             inputTokens: 1000000,
             outputTokens: 500000);
 
@@ -150,3 +151,4 @@ public class TokenUsageTracker_GetCompactSummaryWithEstimatedCosts_Tests : Token
         await Assert.That(summary).Contains("(est gpt-4o: $11.2500)");
     }
 }
+

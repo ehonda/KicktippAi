@@ -19,8 +19,8 @@ public class TokenUsageTracker_Reset_Tests : TokenUsageTrackerTests_Base
             .Returns(5.00m)
             .Returns(3.00m);
 
-        var usage1 = CreateChatTokenUsage(inputTokens: 10000, outputTokens: 5000);
-        var usage2 = CreateChatTokenUsage(inputTokens: 8000, outputTokens: 4000);
+        var usage1 = OpenAITestHelpers.CreateChatTokenUsage(inputTokens: 10000, outputTokens: 5000);
+        var usage2 = OpenAITestHelpers.CreateChatTokenUsage(inputTokens: 8000, outputTokens: 4000);
 
         tracker.AddUsage("gpt-4o", usage1);
         tracker.AddUsage("gpt-4o", usage2);
@@ -38,7 +38,7 @@ public class TokenUsageTracker_Reset_Tests : TokenUsageTrackerTests_Base
     {
         // Arrange
         var tracker = CreateTracker(out _, out _, costToReturn: 10.50m);
-        var usage = CreateChatTokenUsage(inputTokens: 5000, outputTokens: 2500);
+        var usage = OpenAITestHelpers.CreateChatTokenUsage(inputTokens: 5000, outputTokens: 2500);
         tracker.AddUsage("gpt-4o", usage);
 
         // Act
@@ -53,7 +53,7 @@ public class TokenUsageTracker_Reset_Tests : TokenUsageTrackerTests_Base
     {
         // Arrange
         var tracker = CreateTracker(out _, out _, costToReturn: 5.00m);
-        var usage = CreateChatTokenUsage(inputTokens: 3000, outputTokens: 1500);
+        var usage = OpenAITestHelpers.CreateChatTokenUsage(inputTokens: 3000, outputTokens: 1500);
         tracker.AddUsage("gpt-4o", usage);
 
         // Act
@@ -69,7 +69,7 @@ public class TokenUsageTracker_Reset_Tests : TokenUsageTrackerTests_Base
     {
         // Arrange
         var tracker = CreateTracker(out _, out _, costToReturn: 7.25m);
-        var usage = CreateChatTokenUsage(inputTokens: 4000, outputTokens: 2000);
+        var usage = OpenAITestHelpers.CreateChatTokenUsage(inputTokens: 4000, outputTokens: 2000);
         tracker.AddUsage("gpt-4o", usage);
 
         // Act
@@ -84,7 +84,7 @@ public class TokenUsageTracker_Reset_Tests : TokenUsageTrackerTests_Base
     {
         // Arrange
         var tracker = CreateTracker(out _, out _);
-        var usage = CreateChatTokenUsage(inputTokens: 1000, outputTokens: 500);
+        var usage = OpenAITestHelpers.CreateChatTokenUsage(inputTokens: 1000, outputTokens: 500);
         tracker.AddUsage("gpt-4o", usage);
 
         // Act
@@ -103,8 +103,8 @@ public class TokenUsageTracker_Reset_Tests : TokenUsageTrackerTests_Base
             .Returns(5.00m)
             .Returns(3.00m);
 
-        var usage1 = CreateChatTokenUsage(inputTokens: 10000, outputTokens: 5000);
-        var usage2 = CreateChatTokenUsage(inputTokens: 2000, outputTokens: 1000);
+        var usage1 = OpenAITestHelpers.CreateChatTokenUsage(inputTokens: 10000, outputTokens: 5000);
+        var usage2 = OpenAITestHelpers.CreateChatTokenUsage(inputTokens: 2000, outputTokens: 1000);
 
         tracker.AddUsage("gpt-4o", usage1);
         tracker.Reset();
@@ -135,7 +135,7 @@ public class TokenUsageTracker_Reset_Tests : TokenUsageTrackerTests_Base
     {
         // Arrange
         var tracker = CreateTracker(out _, out _, costToReturn: 5.00m);
-        var usage = CreateChatTokenUsage(inputTokens: 1000, outputTokens: 500);
+        var usage = OpenAITestHelpers.CreateChatTokenUsage(inputTokens: 1000, outputTokens: 500);
 
         // Act
         tracker.AddUsage("gpt-4o", usage);
