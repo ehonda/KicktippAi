@@ -136,6 +136,90 @@ public async Task Method_does_not_log_warning()
 - **Verifying no calls**: `mock.Verify(x => x.Method(...), Times.Never);`
 - **Setup return values**: `mock.Setup(x => x.Method()).Returns(value);`
 
+## Test Utilities Library
+
+This project provides a shared `TestUtilities` library (located at `src/TestUtilities`) with common test helper methods. Always include this using directive in your test files:
+
+```csharp
+using TestUtilities;
+```
+
+### OpenAI Test Helpers
+
+When testing code that uses OpenAI's `ChatTokenUsage`, use `OpenAITestHelpers.CreateChatTokenUsage()` instead of manually creating instances:
+
+```csharp
+[Test]
+public async Task Calculating_cost_with_token_usage_returns_correct_amount()
+{
+    // Arrange
+    var logger = new FakeLogger<CostCalculationService>();
+    var service = new CostCalculationService(logger);
+    
+    // Use OpenAITestHelpers to create test ChatTokenUsage
+    var usage = OpenAITestHelpers.CreateChatTokenUsage(
+        inputTokens: 1_000_000,
+        outputTokens: 500_000,
+        cachedInputTokens: 100_000,
+        outputReasoningTokens: 50_000);
+    
+    // Act
+    var cost = service.CalculateCost("gpt-4o", usage);
+    
+    // Assert
+    await Assert.That(cost).IsNotNull();
+}
+```
+
+### FakeLogger Assertion Extensions
+
+When testing logging behavior with `FakeLogger<T>`, use the assertion extension methods instead of manually inspecting the log collector:
+
+```csharp
+[Test]
+public async Task Service_logs_information_when_processing()
+{
+    // Arrange
+    var logger = new FakeLogger<MyService>();
+    var service = new MyService(logger);
+    
+    // Act
+    service.ProcessData();
+    
+    // Assert - Use the extension method
+    logger.AssertLogContains(LogLevel.Information, "Processing started");
+}
+
+[Test]
+public async Task Service_does_not_log_error_on_success()
+{
+    // Arrange
+    var logger = new FakeLogger<MyService>();
+    var service = new MyService(logger);
+    
+    // Act
+    service.ProcessData();
+    
+    // Assert - Use the extension method
+    logger.AssertLogDoesNotContain(LogLevel.Error, "Error occurred");
+}
+```
+
+**When to Use:**
+
+Use `FakeLogger` assertion extensions instead of Moq's `Verify` when:
+
+- You want clearer, more readable assertions
+- You need to verify log messages in tests where `FakeLogger` is already being used
+- You want better failure messages that show all captured logs
+
+Use Moq's `Verify` when:
+
+- You're already using mocked logger dependencies
+- You need to verify exact call counts or specific method overloads
+
+**Tip:** Check the source files in `src/TestUtilities/` for all available helper methods, extension methods, and their parameters.
+
 ## Examples by Category
 
 ### Testing Methods

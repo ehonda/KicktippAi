@@ -234,6 +234,68 @@ public async Task User_has_correct_email_and_name()
 }
 ```
 
+## Test Utilities
+
+This project provides a `TestUtilities` library with helpful test helper methods. Add it to your test files with:
+
+```csharp
+using TestUtilities;
+```
+
+### OpenAI Test Helpers
+
+For tests involving OpenAI's ChatTokenUsage, use `OpenAITestHelpers.CreateChatTokenUsage()`:
+
+```csharp
+[Test]
+public async Task Token_usage_is_calculated_correctly()
+{
+    // Create a ChatTokenUsage instance for testing
+    var usage = OpenAITestHelpers.CreateChatTokenUsage(
+        inputTokens: 1000,
+        outputTokens: 500,
+        cachedInputTokens: 100,
+        outputReasoningTokens: 50);
+    
+    var service = new TokenUsageService();
+    var result = service.Calculate(usage);
+    
+    await Assert.That(result).IsNotNull();
+}
+```
+
+### FakeLogger Assertions
+
+For tests using `FakeLogger<T>`, use the assertion extension methods:
+
+```csharp
+[Test]
+public async Task Service_logs_information_message()
+{
+    var logger = new FakeLogger<MyService>();
+    var service = new MyService(logger);
+    
+    service.DoSomething();
+    
+    // Assert that a log message was logged
+    logger.AssertLogContains(LogLevel.Information, "Operation completed");
+}
+
+[Test]
+public async Task Service_does_not_log_warning()
+{
+    var logger = new FakeLogger<MyService>();
+    var service = new MyService(logger);
+    
+    service.DoSomething();
+    
+    // Assert that NO log message was logged
+    logger.AssertLogDoesNotContain(LogLevel.Warning, "Warning message");
+}
+```
+
+**Tip:** Check the source files in `src/TestUtilities/` for all available helper methods and their parameters.
+
 ## What's Next?
 
 - **More complex scenarios?** See the [Usage Patterns](../usage_patterns/) section
