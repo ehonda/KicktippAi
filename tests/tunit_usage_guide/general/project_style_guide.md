@@ -311,6 +311,31 @@ namespace MyProject.Tests.CostCalculationServiceTests;
 /// </summary>
 public abstract class CostCalculationServiceTests_Base
 {
+    protected Mock<ILogger<CostCalculationService>> Logger = null!;
+    protected CostCalculationService Service = null!;
+
+    [Before(Test)]
+    public void SetupServiceAndLogger()
+    {
+        Logger = new Mock<ILogger<CostCalculationService>>();
+        Service = new CostCalculationService(Logger.Object);
+    }
+
+    /// <summary>
+    /// Verifies that a log message containing the specified text was logged at the specified level
+    /// </summary>
+    protected void VerifyLogContains(LogLevel logLevel, string messageContent, Func<Times> times)
+    {
+        Logger.Verify(
+            x => x.Log(
+                logLevel,
+                It.IsAny<EventId>(),
+                It.Is<It.IsAnyType>((o, t) => o.ToString()!.Contains(messageContent)),
+                It.IsAny<Exception>(),
+                It.IsAny<Func<It.IsAnyType, Exception?, string>>()),
+            times);
+    }
+
     protected static SomeTestData CreateTestData()
     {
         // Shared test data creation logic
@@ -335,8 +360,24 @@ public class CostCalculationService_CalculateCost_Tests : CostCalculationService
         // Arrange
         var data = CreateTestData(); // Using inherited helper
         
-        // Act & Assert
-        // ...
+        // Act
+        var result = Service.CalculateCost("model", data);
+        
+        // Assert
+        await Assert.That(result).IsNotNull();
+    }
+
+    [Test]
+    public async Task CalculateCost_logs_information()
+    {
+        // Arrange
+        var data = CreateTestData();
+        
+        // Act
+        Service.CalculateCost("model", data);
+        
+        // Assert - Using helper method for verification
+        VerifyLogContains(LogLevel.Information, "Expected message", Times.Once);
     }
 }
 ```
@@ -353,6 +394,104 @@ This structure:
 - Reduces code duplication through the base class
 - Makes it easy to locate tests for specific methods
 - Improves readability with clear, underscored naming
+
+### Base Class Best Practices
+
+When using a base class for complex test fixtures, follow these patterns to maximize maintainability:
+
+#### 1. Shared Setup with `[Before(Test)]`
+
+Use protected fields and setup methods to eliminate repetitive instantiation:
+
+```csharp
+public abstract class MyServiceTests_Base
+{
+    protected Mock<ILogger<MyService>> Logger = null!;
+    protected Mock<IDependency> Dependency = null!;
+    protected MyService Service = null!;
+
+    [Before(Test)]
+    public void SetupCommonDependencies()
+    {
+        Logger = new Mock<ILogger<MyService>>();
+        Dependency = new Mock<IDependency>();
+        Service = new MyService(Logger.Object, Dependency.Object);
+    }
+}
+```
+
+**Benefits:**
+
+- Each test automatically gets fresh instances
+- No need to repeat mock creation in every test
+- Changes to constructor signatures only require updating one place
+
+#### 2. Helper Methods for Repetitive Verifications
+
+Create helper methods to simplify common verification patterns:
+
+```csharp
+public abstract class MyServiceTests_Base
+{
+    protected Mock<ILogger<MyService>> Logger = null!;
+
+    /// <summary>
+    /// Verifies that a log message containing the specified text was logged
+    /// </summary>
+    protected void VerifyLogContains(LogLevel logLevel, string messageContent, Func<Times> times)
+    {
+        Logger.Verify(
+            x => x.Log(
+                logLevel,
+                It.IsAny<EventId>(),
+                It.Is<It.IsAnyType>((o, t) => o.ToString()!.Contains(messageContent)),
+                It.IsAny<Exception>(),
+                It.IsAny<Func<It.IsAnyType, Exception?, string>>()),
+            times);
+    }
+}
+```
+
+**Usage in tests:**
+
+```csharp
+// Instead of 8 lines of logger.Verify(...)
+VerifyLogContains(LogLevel.Information, "Expected message", Times.Once);
+```
+
+#### 3. Factory Methods for Test Data
+
+Provide methods to create common test data configurations:
+
+```csharp
+public abstract class MyServiceTests_Base
+{
+    protected static User CreateValidUser(string name = "John", string email = "john@example.com")
+    {
+        return new User { Name = name, Email = email };
+    }
+
+    protected static User CreateInvalidUser()
+    {
+        return new User { Name = "", Email = "invalid" };
+    }
+}
+```
+
+#### 4. When to Use Base Classes
+
+**Use a base class when:**
+
+- Multiple test files test the same class
+- Tests share common setup (mocks, dependencies)
+- You have repetitive verification patterns
+- You need shared test data factory methods
+
+**Keep tests in a single file when:**
+
+- The class being tested is simple with few methods
+- Tests don't share significant setup
+- Total number of tests is small (< 10-15)
 
 ### Class Naming
 
