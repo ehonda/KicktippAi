@@ -12,16 +12,13 @@ public class CostCalculationService_CalculateCost_Tests : CostCalculationService
     public async Task CalculateCost_with_known_model_and_no_cached_tokens_returns_correct_cost()
     {
         // Arrange
-        var logger = new Mock<ILogger<CostCalculationService>>();
-        var service = new CostCalculationService(logger.Object);
-        
         var usage = CreateChatTokenUsage(
             inputTokens: 1_000_000,
             outputTokens: 500_000,
             cachedInputTokens: 0);
         
         // Act
-        var cost = service.CalculateCost("gpt-4o", usage);
+        var cost = Service.CalculateCost("gpt-4o", usage);
         
         // Assert
         // gpt-4o: $2.50/1M input, $10.00/1M output
@@ -34,16 +31,13 @@ public class CostCalculationService_CalculateCost_Tests : CostCalculationService
     public async Task CalculateCost_with_cached_input_tokens_returns_correct_cost()
     {
         // Arrange
-        var logger = new Mock<ILogger<CostCalculationService>>();
-        var service = new CostCalculationService(logger.Object);
-        
         var usage = CreateChatTokenUsage(
             inputTokens: 1_000_000,
             outputTokens: 500_000,
             cachedInputTokens: 600_000);
         
         // Act
-        var cost = service.CalculateCost("gpt-4o", usage);
+        var cost = Service.CalculateCost("gpt-4o", usage);
         
         // Assert
         // gpt-4o: $2.50/1M input, $10.00/1M output, $1.25/1M cached
@@ -58,16 +52,13 @@ public class CostCalculationService_CalculateCost_Tests : CostCalculationService
     public async Task CalculateCost_with_model_without_cached_pricing_ignores_cached_tokens()
     {
         // Arrange
-        var logger = new Mock<ILogger<CostCalculationService>>();
-        var service = new CostCalculationService(logger.Object);
-        
         var usage = CreateChatTokenUsage(
             inputTokens: 1_000_000,
             outputTokens: 500_000,
             cachedInputTokens: 600_000);
         
         // Act - o1-pro doesn't have cached pricing
-        var cost = service.CalculateCost("o1-pro", usage);
+        var cost = Service.CalculateCost("o1-pro", usage);
         
         // Assert
         // o1-pro: $150/1M input, $600/1M output, no cached pricing
@@ -82,16 +73,13 @@ public class CostCalculationService_CalculateCost_Tests : CostCalculationService
     public async Task CalculateCost_with_unknown_model_returns_null()
     {
         // Arrange
-        var logger = new Mock<ILogger<CostCalculationService>>();
-        var service = new CostCalculationService(logger.Object);
-        
         var usage = CreateChatTokenUsage(
             inputTokens: 1_000_000,
             outputTokens: 500_000,
             cachedInputTokens: 0);
         
         // Act
-        var cost = service.CalculateCost("unknown-model", usage);
+        var cost = Service.CalculateCost("unknown-model", usage);
         
         // Assert
         await Assert.That(cost).IsNull();
@@ -101,16 +89,13 @@ public class CostCalculationService_CalculateCost_Tests : CostCalculationService
     public async Task CalculateCost_with_zero_tokens_returns_zero_cost()
     {
         // Arrange
-        var logger = new Mock<ILogger<CostCalculationService>>();
-        var service = new CostCalculationService(logger.Object);
-        
         var usage = CreateChatTokenUsage(
             inputTokens: 0,
             outputTokens: 0,
             cachedInputTokens: 0);
         
         // Act
-        var cost = service.CalculateCost("gpt-4o", usage);
+        var cost = Service.CalculateCost("gpt-4o", usage);
         
         // Assert
         await Assert.That(cost).IsNotNull();
@@ -121,16 +106,13 @@ public class CostCalculationService_CalculateCost_Tests : CostCalculationService
     public async Task CalculateCost_with_reasoning_model_o3_calculates_correctly()
     {
         // Arrange
-        var logger = new Mock<ILogger<CostCalculationService>>();
-        var service = new CostCalculationService(logger.Object);
-        
         var usage = CreateChatTokenUsage(
             inputTokens: 2_000_000,
             outputTokens: 1_000_000,
             cachedInputTokens: 500_000);
         
         // Act
-        var cost = service.CalculateCost("o3", usage);
+        var cost = Service.CalculateCost("o3", usage);
         
         // Assert
         // o3: $2.00/1M input, $8.00/1M output, $0.50/1M cached
@@ -152,16 +134,13 @@ public class CostCalculationService_CalculateCost_Tests : CostCalculationService
         decimal cachedPrice)
     {
         // Arrange
-        var logger = new Mock<ILogger<CostCalculationService>>();
-        var service = new CostCalculationService(logger.Object);
-        
         var usage = CreateChatTokenUsage(
             inputTokens: 1_000_000,
             outputTokens: 1_000_000,
             cachedInputTokens: 0);
         
         // Act
-        var cost = service.CalculateCost(model, usage);
+        var cost = Service.CalculateCost(model, usage);
         
         // Assert
         var expectedCost = inputPrice + outputPrice;
