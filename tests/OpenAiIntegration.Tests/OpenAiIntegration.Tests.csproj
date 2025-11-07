@@ -25,6 +25,7 @@
 
     <ItemGroup>
         <ProjectReference Include="..\..\src\OpenAiIntegration\OpenAiIntegration.csproj" />
+        <ProjectReference Include="..\..\src\TestUtilities\TestUtilities.csproj" />
     </ItemGroup>
 
 </Project>

@@ -2,6 +2,7 @@ using Core;
 using Microsoft.Extensions.Logging;
 using Moq;
 using OpenAI.Chat;
+using TestUtilities;
 using TUnit.Core;
 
 namespace OpenAiIntegration.Tests.PredictionServiceTests;
@@ -215,7 +216,7 @@ public class PredictionService_PredictMatchAsync_Tests : PredictionServiceTests_
             await service.PredictMatchAsync(match, contextDocs);
 
             // Assert
-            AssertLogContains(logger, LogLevel.Information, "Generating prediction for match");
+            logger.AssertLogContains( LogLevel.Information, "Generating prediction for match");
                 
     }
 
@@ -269,7 +270,7 @@ public class PredictionService_PredictMatchAsync_Tests : PredictionServiceTests_
             await service.PredictMatchAsync(match, contextDocs);
 
             // Assert
-            AssertLogContains(logger, LogLevel.Error, "Error generating prediction");
+            logger.AssertLogContains( LogLevel.Error, "Error generating prediction");
                 
     }
 

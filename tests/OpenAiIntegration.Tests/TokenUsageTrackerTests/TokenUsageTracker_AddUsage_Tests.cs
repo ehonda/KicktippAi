@@ -1,6 +1,7 @@
 using Microsoft.Extensions.Logging;
 using Moq;
 using OpenAI.Chat;
+using TestUtilities;
 
 namespace OpenAiIntegration.Tests.TokenUsageTrackerTests;
 
@@ -158,7 +159,7 @@ public class TokenUsageTracker_AddUsage_Tests : TokenUsageTrackerTests_Base
         tracker.AddUsage("gpt-4o", usage);
 
         // Assert
-        AssertLogContains(logger, LogLevel.Debug, "Added usage for model gpt-4o");
+        logger.AssertLogContains( LogLevel.Debug, "Added usage for model gpt-4o");
     }
 
     [Test]

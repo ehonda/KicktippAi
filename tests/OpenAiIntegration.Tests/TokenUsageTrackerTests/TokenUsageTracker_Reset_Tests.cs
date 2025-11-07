@@ -1,6 +1,7 @@
 using Microsoft.Extensions.Logging;
 using Moq;
 using OpenAI.Chat;
+using TestUtilities;
 
 namespace OpenAiIntegration.Tests.TokenUsageTrackerTests;
 
@@ -126,7 +127,7 @@ public class TokenUsageTracker_Reset_Tests : TokenUsageTrackerTests_Base
         tracker.Reset();
 
         // Assert
-        AssertLogContains(logger, LogLevel.Debug, "Token usage tracker reset");
+        logger.AssertLogContains( LogLevel.Debug, "Token usage tracker reset");
     }
 
     [Test]

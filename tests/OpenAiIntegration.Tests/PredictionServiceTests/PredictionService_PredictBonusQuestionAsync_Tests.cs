@@ -2,6 +2,7 @@ using Core;
 using Microsoft.Extensions.Logging;
 using Moq;
 using OpenAI.Chat;
+using TestUtilities;
 using TUnit.Core;
 
 namespace OpenAiIntegration.Tests.PredictionServiceTests;
@@ -191,7 +192,7 @@ public class PredictionService_PredictBonusQuestionAsync_Tests : PredictionServi
             await service.PredictBonusQuestionAsync(bonusQuestion, contextDocs);
 
             // Assert
-            AssertLogContains(logger, LogLevel.Information, "Generating prediction for bonus question");
+            logger.AssertLogContains( LogLevel.Information, "Generating prediction for bonus question");
                 
     }
 
@@ -259,7 +260,7 @@ public class PredictionService_PredictBonusQuestionAsync_Tests : PredictionServi
             await service.PredictBonusQuestionAsync(bonusQuestion, contextDocs);
 
             // Assert
-            AssertLogContains(logger, LogLevel.Error, "Error generating bonus prediction");
+            logger.AssertLogContains( LogLevel.Error, "Error generating bonus prediction");
                 
     }
 

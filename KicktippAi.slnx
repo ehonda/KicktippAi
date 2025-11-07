@@ -5,37 +5,38 @@
     <Platform Name="x86" />
   </Configurations>
   <Folder Name="/src/">
-    <Project Path="src\Core\Core.csproj" Type="C#">
+    <Project Path="src\Core\Core.csproj">
       <Configuration Solution="Debug|x64" Project="Debug|Any CPU" />
       <Configuration Solution="Debug|x86" Project="Debug|Any CPU" />
       <Configuration Solution="Release|x64" Project="Release|Any CPU" />
       <Configuration Solution="Release|x86" Project="Release|Any CPU" />
     </Project>
-    <Project Path="src\KicktippIntegration\KicktippIntegration.csproj" Type="C#">
+    <Project Path="src\KicktippIntegration\KicktippIntegration.csproj">
       <Configuration Solution="Debug|x64" Project="Debug|Any CPU" />
       <Configuration Solution="Debug|x86" Project="Debug|Any CPU" />
       <Configuration Solution="Release|x64" Project="Release|Any CPU" />
       <Configuration Solution="Release|x86" Project="Release|Any CPU" />
     </Project>
-    <Project Path="src\OpenAiIntegration\OpenAiIntegration.csproj" Type="C#">
+    <Project Path="src\OpenAiIntegration\OpenAiIntegration.csproj">
       <Configuration Solution="Debug|x64" Project="Debug|Any CPU" />
       <Configuration Solution="Debug|x86" Project="Debug|Any CPU" />
       <Configuration Solution="Release|x64" Project="Release|Any CPU" />
       <Configuration Solution="Release|x86" Project="Release|Any CPU" />
     </Project>
-    <Project Path="src\ContextProviders.Kicktipp\ContextProviders.Kicktipp.csproj" Type="C#">
+    <Project Path="src/TestUtilities/TestUtilities.csproj" />
+    <Project Path="src\ContextProviders.Kicktipp\ContextProviders.Kicktipp.csproj">
       <Configuration Solution="Debug|x64" Project="Debug|Any CPU" />
       <Configuration Solution="Debug|x86" Project="Debug|Any CPU" />
       <Configuration Solution="Release|x64" Project="Release|Any CPU" />
       <Configuration Solution="Release|x86" Project="Release|Any CPU" />
     </Project>
-    <Project Path="src\Orchestrator\Orchestrator.csproj" Type="C#">
+    <Project Path="src\Orchestrator\Orchestrator.csproj">
       <Configuration Solution="Debug|x64" Project="Debug|Any CPU" />
       <Configuration Solution="Debug|x86" Project="Debug|Any CPU" />
       <Configuration Solution="Release|x64" Project="Release|Any CPU" />
       <Configuration Solution="Release|x86" Project="Release|Any CPU" />
     </Project>
-    <Project Path="src\FirebaseAdapter\FirebaseAdapter.csproj" Type="C#">
+    <Project Path="src\FirebaseAdapter\FirebaseAdapter.csproj">
       <Configuration Solution="Debug|x64" Project="Debug|Any CPU" />
       <Configuration Solution="Debug|x86" Project="Debug|Any CPU" />
       <Configuration Solution="Release|x64" Project="Release|Any CPU" />

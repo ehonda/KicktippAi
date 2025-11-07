@@ -2,6 +2,7 @@ using Microsoft.Extensions.Logging;
 using Microsoft.Extensions.Logging.Testing;
 using Moq;
 using OpenAI.Chat;
+using TestUtilities;
 
 namespace OpenAiIntegration.Tests.TokenUsageTrackerTests;
 
@@ -69,19 +70,5 @@ public abstract class TokenUsageTrackerTests_Base
         logger = new FakeLogger<TokenUsageTracker>();
         costServiceMock = CreateMockCostCalculationService(costToReturn);
         return new TokenUsageTracker(logger, costServiceMock.Object);
-    }
-
-    /// <summary>
-    /// Asserts that a log message containing the specified text was logged at the specified level
-    /// </summary>
-    protected static void AssertLogContains(FakeLogger<TokenUsageTracker> logger, LogLevel logLevel, string messageContent)
-    {
-        var logs = logger.Collector.GetSnapshot();
-        var matchingLog = logs.FirstOrDefault(log => log.Level == logLevel && log.Message.Contains(messageContent));
-        
-        if (matchingLog == null)
-        {
-            throw new Exception($"Expected log message containing '{messageContent}' at level {logLevel}, but none was found.");
-        }
     }
 }
