@@ -138,7 +138,7 @@ public async Task Method_does_not_log_warning()
 
 ## Test Utilities Library
 
-This project provides a shared `TestUtilities` library (located at `src/TestUtilities`) with common test helper methods. Always include this using directive in your test files:
+This project provides a shared `TestUtilities` library (located at `src/TestUtilities`) with common test helper methods. Include this using directive in your test files when you need to use types from this library:
 
 ```csharp
 using TestUtilities;
@@ -648,6 +648,65 @@ await Assert.That(actualResult).IsEqualTo(expectedResult);
 var exp = 42;
 var act = calc.Add(20, 22);
 await Assert.That(act).IsEqualTo(exp);
+```
+
+### Naming System Under Test Variables
+
+When naming variables for the class being tested, use **concise but meaningful** names:
+
+**Do:** Use shortened but clear names that are contextually obvious
+
+```csharp
+// ✅ Good - "Service" is clear in context
+protected CostCalculationService Service = null!;
+
+// ✅ Good - "Provider" is clear in context
+protected InstructionsTemplateProvider Provider = null!;
+
+// ✅ Good - Full name when it's already short
+protected Calculator Calculator = null!;
+
+// ✅ Good - Full name when abbreviation would be unclear
+protected InstructionsTemplateProvider InstructionsTemplateProvider = null!;
+```
+
+**Don't:** Use generic abbreviations like `Sut` (System Under Test)
+
+```csharp
+// ❌ Avoid - Too generic, doesn't convey what's being tested
+protected CostCalculationService Sut = null!;
+
+// ❌ Avoid - Unnecessarily verbose when context is clear
+protected CostCalculationService CostCalculationService = null!;
+```
+
+**Guidelines:**
+
+1. **Prefer concise names** when the class type is clear from context (e.g., `Service`, `Provider`, `Repository`)
+2. **Use full names** when the class name is already short (e.g., `Calculator`, `Validator`)
+3. **Use full names** when abbreviation would be ambiguous or unclear
+4. **Never use generic names** like `Sut`, `Instance`, or `Target`
+5. **Be consistent** - use the same pattern throughout the test class
+
+**Examples:**
+
+```csharp
+// Services - use "Service"
+protected UserService Service = null!;
+protected PaymentService Service = null!;
+protected CostCalculationService Service = null!;
+
+// Providers - use "Provider"
+protected IFileProvider Provider = null!;
+protected InstructionsTemplateProvider Provider = null!;
+
+// Short names - use full name
+protected Calculator Calculator = null!;
+protected Validator Validator = null!;
+
+// When clarity requires it - use full name
+protected InstructionsTemplateProvider InstructionsTemplateProvider = null!;
+protected UserProfileManager UserProfileManager = null!;
 ```
 
 ### One Logical Assert Per Test

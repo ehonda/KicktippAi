@@ -236,7 +236,7 @@ public async Task User_has_correct_email_and_name()
 
 ## Test Utilities
 
-This project provides a `TestUtilities` library with helpful test helper methods. Add it to your test files with:
+This project provides a `TestUtilities` library with helpful test helper methods. Include it in your test files when you need to use types from this library:
 
 ```csharp
 using TestUtilities;
