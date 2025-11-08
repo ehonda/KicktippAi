@@ -10,6 +10,16 @@ namespace OpenAiIntegration.Tests.InstructionsTemplateProviderTests;
 /// </summary>
 public abstract class InstructionsTemplateProviderTests_Base
 {
+    protected Mock<IFileProvider> MockFileProvider = null!;
+    protected InstructionsTemplateProvider InstructionsTemplateProvider = null!;
+
+    [Before(Test)]
+    public void SetupMockFileProviderAndInstructionsTemplateProvider()
+    {
+        MockFileProvider = CreateMockFileProvider();
+        InstructionsTemplateProvider = new InstructionsTemplateProvider(MockFileProvider.Object);
+    }
+
     /// <summary>
     /// Creates a mock IFileProvider that simulates a prompts directory structure
     /// </summary>
