@@ -80,54 +80,6 @@ public class ServiceTests
 }
 ```
 
-### Verifying Logger Calls
-
-When testing logging behavior, use Moq's `Verify` method with `It.IsAnyType` for the state parameter:
-
-```csharp
-[Test]
-public async Task Method_logs_information_message()
-{
-    // Arrange
-    var logger = new Mock<ILogger<MyService>>();
-    var service = new MyService(logger.Object);
-    
-    // Act
-    service.DoSomething();
-    
-    // Assert - Verify log was called
-    logger.Verify(
-        x => x.Log(
-            LogLevel.Information,
-            It.IsAny<EventId>(),
-            It.Is<It.IsAnyType>((o, t) => o.ToString()!.Contains("Expected message")),
-            It.IsAny<Exception>(),
-            It.IsAny<Func<It.IsAnyType, Exception?, string>>()),
-        Times.Once);
-}
-
-[Test]
-public async Task Method_does_not_log_warning()
-{
-    // Arrange
-    var logger = new Mock<ILogger<MyService>>();
-    var service = new MyService(logger.Object);
-    
-    // Act
-    service.DoSomething();
-    
-    // Assert - Verify log was NOT called
-    logger.Verify(
-        x => x.Log(
-            LogLevel.Warning,
-            It.IsAny<EventId>(),
-            It.Is<It.IsAnyType>((o, t) => o.ToString()!.Contains("Warning message")),
-            It.IsAny<Exception>(),
-            It.IsAny<Func<It.IsAnyType, Exception?, string>>()),
-        Times.Never);
-}
-```
-
 ### Key Moq Patterns
 
 - **Creating mocks**: `var mock = new Mock<IInterface>();`
@@ -207,16 +159,28 @@ public async Task Service_does_not_log_error_on_success()
 
 **When to Use:**
 
-Use `FakeLogger` assertion extensions instead of Moq's `Verify` when:
+Always use `FakeLogger` for testing logging behavior:
 
-- You want clearer, more readable assertions
-- You need to verify log messages in tests where `FakeLogger` is already being used
-- You want better failure messages that show all captured logs
+- Provides clearer, more readable assertions
+- Better failure messages that show all captured logs
+- Simpler API than Moq's `Verify` method
+- Specifically designed for testing logging
 
-Use Moq's `Verify` when:
+**Migrating from Mock<ILogger>:**
 
-- You're already using mocked logger dependencies
-- You need to verify exact call counts or specific method overloads
+If you encounter existing tests using `Mock<ILogger<T>>`, replace them with `FakeLogger<T>`:
+
+```csharp
+// ❌ Old pattern - replace this
+var logger = new Mock<ILogger<MyService>>();
+var service = new MyService(logger.Object);
+logger.Verify(x => x.Log(...), Times.Once);
+
+// ✅ New pattern - use this instead
+var logger = new FakeLogger<MyService>();
+var service = new MyService(logger);
+logger.AssertLogContains(LogLevel.Information, "Expected message");
+```
 
 **Tip:** Check the source files in `src/TestUtilities/` for all available helper methods, extension methods, and their parameters.
 
@@ -395,29 +359,14 @@ namespace MyProject.Tests.CostCalculationServiceTests;
 /// </summary>
 public abstract class CostCalculationServiceTests_Base
 {
-    protected Mock<ILogger<CostCalculationService>> Logger = null!;
+    protected FakeLogger<CostCalculationService> Logger = null!;
     protected CostCalculationService Service = null!;
 
     [Before(Test)]
     public void SetupServiceAndLogger()
     {
-        Logger = new Mock<ILogger<CostCalculationService>>();
-        Service = new CostCalculationService(Logger.Object);
-    }
-
-    /// <summary>
-    /// Verifies that a log message containing the specified text was logged at the specified level
-    /// </summary>
-    protected void VerifyLogContains(LogLevel logLevel, string messageContent, Func<Times> times)
-    {
-        Logger.Verify(
-            x => x.Log(
-                logLevel,
-                It.IsAny<EventId>(),
-                It.Is<It.IsAnyType>((o, t) => o.ToString()!.Contains(messageContent)),
-                It.IsAny<Exception>(),
-                It.IsAny<Func<It.IsAnyType, Exception?, string>>()),
-            times);
+        Logger = new FakeLogger<CostCalculationService>();
+        Service = new CostCalculationService(Logger);
     }
 
     protected static SomeTestData CreateTestData()
@@ -452,7 +401,7 @@ public class CostCalculationService_CalculateCost_Tests : CostCalculationService
     }
 
     [Test]
-    public async Task CalculateCost_logs_information()
+    public void CalculateCost_logs_information()
     {
         // Arrange
         var data = CreateTestData();
@@ -460,8 +409,8 @@ public class CostCalculationService_CalculateCost_Tests : CostCalculationService
         // Act
         Service.CalculateCost("model", data);
         
-        // Assert - Using helper method for verification
-        VerifyLogContains(LogLevel.Information, "Expected message", Times.Once);
+        // Assert - Using FakeLogger assertion extension
+        Logger.AssertLogContains(LogLevel.Information, "Expected message");
     }
 }
 ```
@@ -490,16 +439,16 @@ Use protected fields and setup methods to eliminate repetitive instantiation:
 ```csharp
 public abstract class MyServiceTests_Base
 {
-    protected Mock<ILogger<MyService>> Logger = null!;
+    protected FakeLogger<MyService> Logger = null!;
     protected Mock<IDependency> Dependency = null!;
     protected MyService Service = null!;
 
     [Before(Test)]
     public void SetupCommonDependencies()
     {
-        Logger = new Mock<ILogger<MyService>>();
+        Logger = new FakeLogger<MyService>();
         Dependency = new Mock<IDependency>();
-        Service = new MyService(Logger.Object, Dependency.Object);
+        Service = new MyService(Logger, Dependency.Object);
     }
 }
 ```
@@ -510,28 +459,19 @@ public abstract class MyServiceTests_Base
 - No need to repeat mock creation in every test
 - Changes to constructor signatures only require updating one place
 
-#### 2. Helper Methods for Repetitive Verifications
+#### 2. Helper Methods for Repetitive Operations
 
-Create helper methods to simplify common verification patterns:
+Create helper methods to simplify common test patterns. When testing logging, use FakeLogger's built-in assertion extensions rather than creating custom verification helpers:
 
 ```csharp
 public abstract class MyServiceTests_Base
 {
-    protected Mock<ILogger<MyService>> Logger = null!;
+    protected FakeLogger<MyService> Logger = null!;
 
-    /// <summary>
-    /// Verifies that a log message containing the specified text was logged
-    /// </summary>
-    protected void VerifyLogContains(LogLevel logLevel, string messageContent, Func<Times> times)
+    [Before(Test)]
+    public void Setup()
     {
-        Logger.Verify(
-            x => x.Log(
-                logLevel,
-                It.IsAny<EventId>(),
-                It.Is<It.IsAnyType>((o, t) => o.ToString()!.Contains(messageContent)),
-                It.IsAny<Exception>(),
-                It.IsAny<Func<It.IsAnyType, Exception?, string>>()),
-            times);
+        Logger = new FakeLogger<MyService>();
     }
 }
 ```
@@ -539,8 +479,14 @@ public abstract class MyServiceTests_Base
 **Usage in tests:**
 
 ```csharp
-// Instead of 8 lines of logger.Verify(...)
-VerifyLogContains(LogLevel.Information, "Expected message", Times.Once);
+[Test]
+public void Method_logs_information()
+{
+    Service.DoSomething();
+    
+    // Use FakeLogger's built-in assertion extensions
+    Logger.AssertLogContains(LogLevel.Information, "Expected message");
+}
 ```
 
 #### 3. Factory Methods for Test Data
@@ -612,6 +558,78 @@ namespace KicktippAi.Orchestrator.Commands.Tests;
 - Use nested classes for grouping when appropriate
 
 ## Code Style
+
+### Async Test Methods
+
+**TUnit supports both synchronous and asynchronous test methods**, but the choice depends on what your test does:
+
+#### Use `async Task` when:
+
+- Your test uses `await Assert.That(...)` - TUnit's assertion library returns awaitable objects
+- Your test awaits any async operations
+- You need to test async code
+
+```csharp
+[Test]
+public async Task Adding_numbers_returns_sum()
+{
+    var result = calculator.Add(2, 3);
+    // Assert.That(...) must be awaited
+    await Assert.That(result).IsEqualTo(5);
+}
+
+[Test]
+public async Task Async_operation_completes_successfully()
+{
+    // Testing async code
+    var result = await someService.ProcessAsync();
+    await Assert.That(result).IsNotNull();
+}
+```
+
+#### Use `void` (synchronous) when:
+
+- Your test uses `Moq.Verify(...)` (returns void, not awaitable)
+- Your test uses `FakeLogger.AssertLogContains(...)` (returns void, not awaitable)
+- Your test has no async operations and no TUnit assertions
+
+```csharp
+[Test]
+public void Method_calls_dependency()
+{
+    var mock = new Mock<IDependency>();
+    var service = new MyService(mock.Object);
+    
+    service.DoSomething();
+    
+    // Moq.Verify returns void - no await needed
+    mock.Verify(x => x.Method(), Times.Once);
+}
+
+[Test]
+public void Method_logs_message()
+{
+    var logger = new FakeLogger<MyService>();
+    var service = new MyService(logger);
+    
+    service.DoSomething();
+    
+    // FakeLogger.AssertLogContains returns void - no await needed
+    logger.AssertLogContains(LogLevel.Information, "Message");
+}
+```
+
+#### Never use `async void`
+
+```csharp
+// ❌ Invalid - async void is not supported
+[Test]
+public async void Invalid_test() { }
+```
+
+**Source:** [TUnit Troubleshooting - Why do I have to await all assertions?](https://tunit.dev/docs/troubleshooting/#why-do-i-have-to-await-all-assertions-can-i-use-synchronous-assertions)
+
+**Compiler Warning CS1998:** If you see "This async method lacks 'await' operators" warnings, your test method should probably be `void` instead of `async Task`.
 
 ### Always Use Arrange-Act-Assert
 
@@ -934,5 +952,5 @@ Follow these key principles:
 2. **Clear structure** - Use Arrange-Act-Assert pattern
 3. **Single responsibility** - One logical assertion per test
 4. **Descriptive code** - No abbreviations or magic numbers
-5. **Async throughout** - All tests and assertions are async
+5. **Async when needed** - Use `async Task` for assertions and async operations, `void` for synchronous verifications
 6. **Performance awareness** - Share expensive setup when appropriate

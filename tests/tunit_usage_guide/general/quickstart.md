@@ -26,16 +26,31 @@ public class MyTests
 
 ## Key Principles
 
-### 1. All Tests Are Async
+### 1. Async Tests for Assertions
 
-Every test method should return `Task` and use `await` with assertions:
+Test methods that use `Assert.That(...)` must return `Task` and use `await` because TUnit assertions are awaitable:
 
 ```csharp
 [Test]
 public async Task My_test()
 {
     var value = 42;
-    await Assert.That(value).IsEqualTo(42);  // Always await assertions
+    await Assert.That(value).IsEqualTo(42);  // Must await Assert.That(...)
+}
+```
+
+Tests without assertions (e.g., using Moq.Verify or FakeLogger) can be synchronous:
+
+```csharp
+[Test]
+public void Test_with_mock_verification()
+{
+    var mock = new Mock<IService>();
+    var sut = new MyClass(mock.Object);
+    
+    sut.DoSomething();
+    
+    mock.Verify(x => x.Method(), Times.Once);  // Moq.Verify is synchronous
 }
 ```
 
