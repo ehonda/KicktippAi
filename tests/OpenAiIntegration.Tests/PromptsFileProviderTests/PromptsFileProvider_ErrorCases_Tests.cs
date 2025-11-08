@@ -13,18 +13,16 @@ public class PromptsFileProvider_ErrorCases_Tests : PromptsFileProviderTests_Bas
     private string _tempDir = null!;
 
     [Before(Test)]
-    public async Task Setup()
+    public void Setup()
     {
         _tempDir = Path.Combine(Path.GetTempPath(), $"KicktippAi_NoSolution_{Guid.NewGuid()}");
         Directory.CreateDirectory(_tempDir);
-        await Task.CompletedTask;
     }
 
     [After(Test)]
-    public async Task Teardown()
+    public void Teardown()
     {
         CleanupTestSolutionStructure(_tempDir);
-        await Task.CompletedTask;
     }
 
     [Test]

@@ -118,7 +118,7 @@ public class TokenUsageTracker_AddUsage_Tests : TokenUsageTrackerTests_Base
     }
 
     [Test]
-    public async Task AddUsage_calls_cost_calculation_service()
+    public void AddUsage_calls_cost_calculation_service()
     {
         // Arrange
         var tracker = CreateTracker(out _, out var costServiceMock, costToReturn: 5.00m);
@@ -149,7 +149,7 @@ public class TokenUsageTracker_AddUsage_Tests : TokenUsageTrackerTests_Base
     }
 
     [Test]
-    public async Task AddUsage_logs_debug_message()
+    public void AddUsage_logs_debug_message()
     {
         // Arrange
         var tracker = CreateTrackerWithFakeLogger(out var logger, out _, costToReturn: 5.00m);

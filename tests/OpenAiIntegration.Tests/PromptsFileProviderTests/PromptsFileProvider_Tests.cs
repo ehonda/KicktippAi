@@ -14,17 +14,15 @@ public class PromptsFileProvider_Tests : PromptsFileProviderTests_Base
     private string _tempSolutionDir = null!;
 
     [Before(Test)]
-    public async Task Setup()
+    public void Setup()
     {
         _tempSolutionDir = CreateTestSolutionStructure();
-        await Task.CompletedTask;
     }
 
     [After(Test)]
-    public async Task Teardown()
+    public void Teardown()
     {
         CleanupTestSolutionStructure(_tempSolutionDir);
-        await Task.CompletedTask;
     }
 
     [Test]

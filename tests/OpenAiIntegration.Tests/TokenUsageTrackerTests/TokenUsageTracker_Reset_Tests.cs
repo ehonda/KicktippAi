@@ -118,7 +118,7 @@ public class TokenUsageTracker_Reset_Tests : TokenUsageTrackerTests_Base
     }
 
     [Test]
-    public async Task Reset_logs_debug_message()
+    public void Reset_logs_debug_message()
     {
         // Arrange
         var tracker = CreateTrackerWithFakeLogger(out var logger, out _);
