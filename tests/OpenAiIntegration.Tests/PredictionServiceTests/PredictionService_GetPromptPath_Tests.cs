@@ -10,7 +10,7 @@ namespace OpenAiIntegration.Tests.PredictionServiceTests;
 public class PredictionService_GetPromptPath_Tests : PredictionServiceTests_Base
 {
     [Test]
-    public async Task GetMatchPromptPath_without_justification_returns_correct_path()
+    public async Task Getting_match_prompt_path_without_justification_returns_correct_path()
     {
         // Arrange
         var mockChatClient = CreateMockChatClient("{}", OpenAITestHelpers.CreateChatTokenUsage(0, 0));
@@ -37,7 +37,7 @@ public class PredictionService_GetPromptPath_Tests : PredictionServiceTests_Base
     }
 
     [Test]
-    public async Task GetMatchPromptPath_with_justification_returns_correct_path()
+    public async Task Getting_match_prompt_path_with_justification_returns_correct_path()
     {
         // Arrange
         var mockChatClient = CreateMockChatClient("{}", OpenAITestHelpers.CreateChatTokenUsage(0, 0));
@@ -64,7 +64,7 @@ public class PredictionService_GetPromptPath_Tests : PredictionServiceTests_Base
     }
 
     [Test]
-    public async Task GetBonusPromptPath_returns_correct_path()
+    public async Task Getting_bonus_prompt_path_returns_correct_path()
     {
         // Arrange
         var mockChatClient = CreateMockChatClient("{}", OpenAITestHelpers.CreateChatTokenUsage(0, 0));
@@ -91,7 +91,7 @@ public class PredictionService_GetPromptPath_Tests : PredictionServiceTests_Base
     }
 
     [Test]
-    public async Task GetMatchPromptPath_for_o3_model_uses_o3_prompts()
+    public async Task Getting_match_prompt_path_for_o3_model_uses_o3_prompts()
     {
         // Arrange
         var mockChatClient = CreateMockChatClient("{}", OpenAITestHelpers.CreateChatTokenUsage(0, 0));
@@ -112,12 +112,11 @@ public class PredictionService_GetPromptPath_Tests : PredictionServiceTests_Base
 
         // Assert
         await Assert.That(promptPath).Contains("o3");
-            await Assert.That(promptPath).Contains("match.md");
-                
+        await Assert.That(promptPath).Contains("match.md");
     }
 
     [Test]
-    public async Task GetMatchPromptPath_for_o4_mini_model_uses_o3_prompts()
+    public async Task Getting_match_prompt_path_for_o4_mini_model_uses_o3_prompts()
     {
         // Arrange
         var mockChatClient = CreateMockChatClient("{}", OpenAITestHelpers.CreateChatTokenUsage(0, 0));
@@ -142,7 +141,7 @@ public class PredictionService_GetPromptPath_Tests : PredictionServiceTests_Base
     }
 
     [Test]
-    public async Task GetMatchPromptPath_for_gpt_5_mini_uses_gpt_5_prompts()
+    public async Task Getting_match_prompt_path_for_gpt_5_mini_uses_gpt_5_prompts()
     {
         // Arrange
         var mockChatClient = CreateMockChatClient("{}", OpenAITestHelpers.CreateChatTokenUsage(0, 0));
@@ -167,7 +166,7 @@ public class PredictionService_GetPromptPath_Tests : PredictionServiceTests_Base
     }
 
     [Test]
-    public async Task GetMatchPromptPath_for_gpt_5_nano_uses_gpt_5_prompts()
+    public async Task Getting_match_prompt_path_for_gpt_5_nano_uses_gpt_5_prompts()
     {
         // Arrange
         var mockChatClient = CreateMockChatClient("{}", OpenAITestHelpers.CreateChatTokenUsage(0, 0));

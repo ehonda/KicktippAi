@@ -11,7 +11,7 @@ namespace OpenAiIntegration.Tests.PredictionServiceTests;
 public class PredictionService_Constructor_Tests : PredictionServiceTests_Base
 {
     [Test]
-    public async Task Constructor_with_null_chatClient_throws_ArgumentNullException()
+    public async Task Creating_service_with_null_chatClient_throws_ArgumentNullException()
     {
         // Arrange
         var logger = CreateFakeLogger();
@@ -34,7 +34,7 @@ public class PredictionService_Constructor_Tests : PredictionServiceTests_Base
     }
 
     [Test]
-    public async Task Constructor_with_null_logger_throws_ArgumentNullException()
+    public async Task Creating_service_with_null_logger_throws_ArgumentNullException()
     {
         // Arrange
         var chatClient = CreateMockChatClient("{}", OpenAITestHelpers.CreateChatTokenUsage(0, 0));
@@ -57,7 +57,7 @@ public class PredictionService_Constructor_Tests : PredictionServiceTests_Base
     }
 
     [Test]
-    public async Task Constructor_with_null_costCalculationService_throws_ArgumentNullException()
+    public async Task Creating_service_with_null_costCalculationService_throws_ArgumentNullException()
     {
         // Arrange
         var chatClient = CreateMockChatClient("{}", OpenAITestHelpers.CreateChatTokenUsage(0, 0));
@@ -80,7 +80,7 @@ public class PredictionService_Constructor_Tests : PredictionServiceTests_Base
     }
 
     [Test]
-    public async Task Constructor_with_null_tokenUsageTracker_throws_ArgumentNullException()
+    public async Task Creating_service_with_null_tokenUsageTracker_throws_ArgumentNullException()
     {
         // Arrange
         var chatClient = CreateMockChatClient("{}", OpenAITestHelpers.CreateChatTokenUsage(0, 0));
@@ -103,7 +103,7 @@ public class PredictionService_Constructor_Tests : PredictionServiceTests_Base
     }
 
     [Test]
-    public async Task Constructor_with_null_templateProvider_throws_ArgumentNullException()
+    public async Task Creating_service_with_null_templateProvider_throws_ArgumentNullException()
     {
         // Arrange
         var chatClient = CreateMockChatClient("{}", OpenAITestHelpers.CreateChatTokenUsage(0, 0));
@@ -126,7 +126,7 @@ public class PredictionService_Constructor_Tests : PredictionServiceTests_Base
     }
 
     [Test]
-    public async Task Constructor_with_null_model_throws_ArgumentNullException()
+    public async Task Creating_service_with_null_model_throws_ArgumentNullException()
     {
         // Arrange
         var chatClient = CreateMockChatClient("{}", OpenAITestHelpers.CreateChatTokenUsage(0, 0));

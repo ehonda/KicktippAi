@@ -13,341 +13,330 @@ namespace OpenAiIntegration.Tests.PredictionServiceTests;
 public class PredictionService_PredictBonusQuestionAsync_Tests : PredictionServiceTests_Base
 {
     [Test]
-    public async Task PredictBonusQuestionAsync_with_single_selection_returns_prediction()
+    public async Task Predicting_bonus_question_with_single_selection_returns_prediction()
     {
         // Arrange
-            var usage = OpenAITestHelpers.CreateChatTokenUsage(800, 30);
-            var responseJson = """{"selectedOptionIds": ["opt1"]}""";
-            var mockChatClient = CreateMockChatClient(responseJson, usage);
-            var logger = CreateFakeLogger();
-            var costCalc = CreateMockCostCalculationService();
-            var tokenTracker = CreateMockTokenUsageTracker();
+        var usage = OpenAITestHelpers.CreateChatTokenUsage(800, 30);
+        var responseJson = """{"selectedOptionIds": ["opt1"]}""";
+        var mockChatClient = CreateMockChatClient(responseJson, usage);
+        var logger = CreateFakeLogger();
+        var costCalc = CreateMockCostCalculationService();
+        var tokenTracker = CreateMockTokenUsageTracker();
 
-            var service = new PredictionService(
-                mockChatClient,
-                logger,
-                costCalc.Object,
-                tokenTracker.Object, CreateMockTemplateProvider().Object,
-                "gpt-5");
+        var service = new PredictionService(
+            mockChatClient,
+            logger,
+            costCalc.Object,
+            tokenTracker.Object, CreateMockTemplateProvider().Object,
+            "gpt-5");
 
-            var bonusQuestion = CreateTestBonusQuestion(maxSelections: 1);
-            var contextDocs = CreateTestContextDocuments();
+        var bonusQuestion = CreateTestBonusQuestion(maxSelections: 1);
+        var contextDocs = CreateTestContextDocuments();
 
-            // Act
-            var prediction = await service.PredictBonusQuestionAsync(bonusQuestion, contextDocs);
+        // Act
+        var prediction = await service.PredictBonusQuestionAsync(bonusQuestion, contextDocs);
 
-            // Assert
-            await Assert.That(prediction).IsNotNull();
-            await Assert.That(prediction!.SelectedOptionIds.Count).IsEqualTo(1);
-            await Assert.That(prediction.SelectedOptionIds[0]).IsEqualTo("opt1");
-                
+        // Assert
+        await Assert.That(prediction).IsNotNull();
+        await Assert.That(prediction!.SelectedOptionIds.Count).IsEqualTo(1);
+        await Assert.That(prediction.SelectedOptionIds[0]).IsEqualTo("opt1");
     }
 
     [Test]
-    public async Task PredictBonusQuestionAsync_with_multiple_selections_returns_prediction()
+    public async Task Predicting_bonus_question_with_multiple_selections_returns_prediction()
     {
         // Arrange
-            var usage = OpenAITestHelpers.CreateChatTokenUsage(900, 40);
-            var responseJson = """{"selectedOptionIds": ["opt1", "opt2"]}""";
-            var mockChatClient = CreateMockChatClient(responseJson, usage);
-            var logger = CreateFakeLogger();
-            var costCalc = CreateMockCostCalculationService();
-            var tokenTracker = CreateMockTokenUsageTracker();
+        var usage = OpenAITestHelpers.CreateChatTokenUsage(900, 40);
+        var responseJson = """{"selectedOptionIds": ["opt1", "opt2"]}""";
+        var mockChatClient = CreateMockChatClient(responseJson, usage);
+        var logger = CreateFakeLogger();
+        var costCalc = CreateMockCostCalculationService();
+        var tokenTracker = CreateMockTokenUsageTracker();
 
-            var service = new PredictionService(
-                mockChatClient,
-                logger,
-                costCalc.Object,
-                tokenTracker.Object, CreateMockTemplateProvider().Object,
-                "gpt-5");
+        var service = new PredictionService(
+            mockChatClient,
+            logger,
+            costCalc.Object,
+            tokenTracker.Object, CreateMockTemplateProvider().Object,
+            "gpt-5");
 
-            var bonusQuestion = CreateTestBonusQuestion(maxSelections: 2);
-            var contextDocs = CreateTestContextDocuments();
+        var bonusQuestion = CreateTestBonusQuestion(maxSelections: 2);
+        var contextDocs = CreateTestContextDocuments();
 
-            // Act
-            var prediction = await service.PredictBonusQuestionAsync(bonusQuestion, contextDocs);
+        // Act
+        var prediction = await service.PredictBonusQuestionAsync(bonusQuestion, contextDocs);
 
-            // Assert
-            await Assert.That(prediction).IsNotNull();
-            await Assert.That(prediction!.SelectedOptionIds.Count).IsEqualTo(2);
-            await Assert.That(prediction.SelectedOptionIds).Contains("opt1");
-            await Assert.That(prediction.SelectedOptionIds).Contains("opt2");
-                
+        // Assert
+        await Assert.That(prediction).IsNotNull();
+        await Assert.That(prediction!.SelectedOptionIds.Count).IsEqualTo(2);
+        await Assert.That(prediction.SelectedOptionIds).Contains("opt1");
+        await Assert.That(prediction.SelectedOptionIds).Contains("opt2");
     }
 
     [Test]
-    public async Task PredictBonusQuestionAsync_calls_token_tracker_with_correct_usage()
+    public void Predicting_bonus_question_calls_token_tracker_with_correct_usage()
     {
         // Arrange
-            var usage = OpenAITestHelpers.CreateChatTokenUsage(800, 30);
-            var responseJson = """{"selectedOptionIds": ["opt2"]}""";
-            var mockChatClient = CreateMockChatClient(responseJson, usage);
-            var logger = CreateFakeLogger();
-            var costCalc = CreateMockCostCalculationService();
-            var tokenTracker = CreateMockTokenUsageTracker();
+        var usage = OpenAITestHelpers.CreateChatTokenUsage(800, 30);
+        var responseJson = """{"selectedOptionIds": ["opt2"]}""";
+        var mockChatClient = CreateMockChatClient(responseJson, usage);
+        var logger = CreateFakeLogger();
+        var costCalc = CreateMockCostCalculationService();
+        var tokenTracker = CreateMockTokenUsageTracker();
 
-            var service = new PredictionService(
-                mockChatClient,
-                logger,
-                costCalc.Object,
-                tokenTracker.Object, CreateMockTemplateProvider().Object,
-                "gpt-5");
+        var service = new PredictionService(
+            mockChatClient,
+            logger,
+            costCalc.Object,
+            tokenTracker.Object, CreateMockTemplateProvider().Object,
+            "gpt-5");
 
-            var bonusQuestion = CreateTestBonusQuestion();
-            var contextDocs = CreateTestContextDocuments();
+        var bonusQuestion = CreateTestBonusQuestion();
+        var contextDocs = CreateTestContextDocuments();
 
-            // Act
-            await service.PredictBonusQuestionAsync(bonusQuestion, contextDocs);
+        // Act
+        service.PredictBonusQuestionAsync(bonusQuestion, contextDocs).Wait();
 
-            // Assert
-            tokenTracker.Verify(
-                t => t.AddUsage("gpt-5", usage),
-                Times.Once);
-                
+        // Assert
+        tokenTracker.Verify(
+            t => t.AddUsage("gpt-5", usage),
+            Times.Once);
     }
 
     [Test]
-    public async Task PredictBonusQuestionAsync_calls_cost_calculation_service()
+    public void Predicting_bonus_question_calls_cost_calculation_service()
     {
         // Arrange
-            var usage = OpenAITestHelpers.CreateChatTokenUsage(800, 30);
-            var responseJson = """{"selectedOptionIds": ["opt3"]}""";
-            var mockChatClient = CreateMockChatClient(responseJson, usage);
-            var logger = CreateFakeLogger();
-            var costCalc = CreateMockCostCalculationService();
-            var tokenTracker = CreateMockTokenUsageTracker();
+        var usage = OpenAITestHelpers.CreateChatTokenUsage(800, 30);
+        var responseJson = """{"selectedOptionIds": ["opt3"]}""";
+        var mockChatClient = CreateMockChatClient(responseJson, usage);
+        var logger = CreateFakeLogger();
+        var costCalc = CreateMockCostCalculationService();
+        var tokenTracker = CreateMockTokenUsageTracker();
 
-            var service = new PredictionService(
-                mockChatClient,
-                logger,
-                costCalc.Object,
-                tokenTracker.Object, CreateMockTemplateProvider().Object,
-                "gpt-5");
+        var service = new PredictionService(
+            mockChatClient,
+            logger,
+            costCalc.Object,
+            tokenTracker.Object, CreateMockTemplateProvider().Object,
+            "gpt-5");
 
-            var bonusQuestion = CreateTestBonusQuestion();
-            var contextDocs = CreateTestContextDocuments();
+        var bonusQuestion = CreateTestBonusQuestion();
+        var contextDocs = CreateTestContextDocuments();
 
-            // Act
-            await service.PredictBonusQuestionAsync(bonusQuestion, contextDocs);
+        // Act
+        service.PredictBonusQuestionAsync(bonusQuestion, contextDocs).Wait();
 
-            // Assert
-            costCalc.Verify(
-                c => c.LogCostBreakdown("gpt-5", usage),
-                Times.Once);
-                
+        // Assert
+        costCalc.Verify(
+            c => c.LogCostBreakdown("gpt-5", usage),
+            Times.Once);
     }
 
     [Test]
-    public async Task PredictBonusQuestionAsync_with_empty_context_documents_succeeds()
+    public async Task Predicting_bonus_question_with_empty_context_documents_succeeds()
     {
         // Arrange
-            var usage = OpenAITestHelpers.CreateChatTokenUsage(600, 25);
-            var responseJson = """{"selectedOptionIds": ["opt1"]}""";
-            var mockChatClient = CreateMockChatClient(responseJson, usage);
-            var logger = CreateFakeLogger();
-            var costCalc = CreateMockCostCalculationService();
-            var tokenTracker = CreateMockTokenUsageTracker();
+        var usage = OpenAITestHelpers.CreateChatTokenUsage(600, 25);
+        var responseJson = """{"selectedOptionIds": ["opt1"]}""";
+        var mockChatClient = CreateMockChatClient(responseJson, usage);
+        var logger = CreateFakeLogger();
+        var costCalc = CreateMockCostCalculationService();
+        var tokenTracker = CreateMockTokenUsageTracker();
 
-            var service = new PredictionService(
-                mockChatClient,
-                logger,
-                costCalc.Object,
-                tokenTracker.Object, CreateMockTemplateProvider().Object,
-                "gpt-5");
+        var service = new PredictionService(
+            mockChatClient,
+            logger,
+            costCalc.Object,
+            tokenTracker.Object, CreateMockTemplateProvider().Object,
+            "gpt-5");
 
-            var bonusQuestion = CreateTestBonusQuestion();
-            var emptyContextDocs = new List<DocumentContext>();
+        var bonusQuestion = CreateTestBonusQuestion();
+        var emptyContextDocs = new List<DocumentContext>();
 
-            // Act
-            var prediction = await service.PredictBonusQuestionAsync(bonusQuestion, emptyContextDocs);
+        // Act
+        var prediction = await service.PredictBonusQuestionAsync(bonusQuestion, emptyContextDocs);
 
-            // Assert
-            await Assert.That(prediction).IsNotNull();
-            await Assert.That(prediction!.SelectedOptionIds.Count).IsEqualTo(1);
-                
+        // Assert
+        await Assert.That(prediction).IsNotNull();
+        await Assert.That(prediction!.SelectedOptionIds.Count).IsEqualTo(1);
     }
 
     [Test]
-    public async Task PredictBonusQuestionAsync_logs_information_message()
+    public void Predicting_bonus_question_logs_information_message()
     {
         // Arrange
-            var usage = OpenAITestHelpers.CreateChatTokenUsage(800, 30);
-            var responseJson = """{"selectedOptionIds": ["opt1"]}""";
-            var mockChatClient = CreateMockChatClient(responseJson, usage);
-            var logger = CreateFakeLogger();
-            var costCalc = CreateMockCostCalculationService();
-            var tokenTracker = CreateMockTokenUsageTracker();
+        var usage = OpenAITestHelpers.CreateChatTokenUsage(800, 30);
+        var responseJson = """{"selectedOptionIds": ["opt1"]}""";
+        var mockChatClient = CreateMockChatClient(responseJson, usage);
+        var logger = CreateFakeLogger();
+        var costCalc = CreateMockCostCalculationService();
+        var tokenTracker = CreateMockTokenUsageTracker();
 
-            var service = new PredictionService(
-                mockChatClient,
-                logger,
-                costCalc.Object,
-                tokenTracker.Object, CreateMockTemplateProvider().Object,
-                "gpt-5");
+        var service = new PredictionService(
+            mockChatClient,
+            logger,
+            costCalc.Object,
+            tokenTracker.Object, CreateMockTemplateProvider().Object,
+            "gpt-5");
 
-            var bonusQuestion = CreateTestBonusQuestion();
-            var contextDocs = CreateTestContextDocuments();
+        var bonusQuestion = CreateTestBonusQuestion();
+        var contextDocs = CreateTestContextDocuments();
 
-            // Act
-            await service.PredictBonusQuestionAsync(bonusQuestion, contextDocs);
+        // Act
+        service.PredictBonusQuestionAsync(bonusQuestion, contextDocs).Wait();
 
-            // Assert
-            logger.AssertLogContains( LogLevel.Information, "Generating prediction for bonus question");
-                
+        // Assert
+        logger.AssertLogContains(LogLevel.Information, "Generating prediction for bonus question");
     }
 
     [Test]
-    public async Task PredictBonusQuestionAsync_with_API_exception_returns_null()
+    public async Task Predicting_bonus_question_with_API_exception_returns_null()
     {
         // Arrange
-            var mockChatClient = new Mock<ChatClient>();
-            mockChatClient
-                .Setup(c => c.CompleteChatAsync(
-                    It.IsAny<IEnumerable<ChatMessage>>(),
-                    It.IsAny<ChatCompletionOptions>(),
-                    It.IsAny<CancellationToken>()))
-                .ThrowsAsync(new InvalidOperationException("API error"));
+        var mockChatClient = new Mock<ChatClient>();
+        mockChatClient
+            .Setup(c => c.CompleteChatAsync(
+                It.IsAny<IEnumerable<ChatMessage>>(),
+                It.IsAny<ChatCompletionOptions>(),
+                It.IsAny<CancellationToken>()))
+            .ThrowsAsync(new InvalidOperationException("API error"));
 
-            var logger = CreateFakeLogger();
-            var costCalc = CreateMockCostCalculationService();
-            var tokenTracker = CreateMockTokenUsageTracker();
+        var logger = CreateFakeLogger();
+        var costCalc = CreateMockCostCalculationService();
+        var tokenTracker = CreateMockTokenUsageTracker();
 
-            var service = new PredictionService(
-                mockChatClient.Object,
-                logger,
-                costCalc.Object,
-                tokenTracker.Object, CreateMockTemplateProvider().Object,
-                "gpt-5");
+        var service = new PredictionService(
+            mockChatClient.Object,
+            logger,
+            costCalc.Object,
+            tokenTracker.Object, CreateMockTemplateProvider().Object,
+            "gpt-5");
 
-            var bonusQuestion = CreateTestBonusQuestion();
-            var contextDocs = CreateTestContextDocuments();
+        var bonusQuestion = CreateTestBonusQuestion();
+        var contextDocs = CreateTestContextDocuments();
 
-            // Act
-            var prediction = await service.PredictBonusQuestionAsync(bonusQuestion, contextDocs);
+        // Act
+        var prediction = await service.PredictBonusQuestionAsync(bonusQuestion, contextDocs);
 
-            // Assert
-            await Assert.That(prediction).IsNull();
-                
+        // Assert
+        await Assert.That(prediction).IsNull();
     }
 
     [Test]
-    public async Task PredictBonusQuestionAsync_with_exception_logs_error()
+    public void Predicting_bonus_question_with_exception_logs_error()
     {
         // Arrange
-            var mockChatClient = new Mock<ChatClient>();
-            mockChatClient
-                .Setup(c => c.CompleteChatAsync(
-                    It.IsAny<IEnumerable<ChatMessage>>(),
-                    It.IsAny<ChatCompletionOptions>(),
-                    It.IsAny<CancellationToken>()))
-                .ThrowsAsync(new InvalidOperationException("API error"));
+        var mockChatClient = new Mock<ChatClient>();
+        mockChatClient
+            .Setup(c => c.CompleteChatAsync(
+                It.IsAny<IEnumerable<ChatMessage>>(),
+                It.IsAny<ChatCompletionOptions>(),
+                It.IsAny<CancellationToken>()))
+            .ThrowsAsync(new InvalidOperationException("API error"));
 
-            var logger = CreateFakeLogger();
-            var costCalc = CreateMockCostCalculationService();
-            var tokenTracker = CreateMockTokenUsageTracker();
+        var logger = CreateFakeLogger();
+        var costCalc = CreateMockCostCalculationService();
+        var tokenTracker = CreateMockTokenUsageTracker();
 
-            var service = new PredictionService(
-                mockChatClient.Object,
-                logger,
-                costCalc.Object,
-                tokenTracker.Object, CreateMockTemplateProvider().Object,
-                "gpt-5");
+        var service = new PredictionService(
+            mockChatClient.Object,
+            logger,
+            costCalc.Object,
+            tokenTracker.Object, CreateMockTemplateProvider().Object,
+            "gpt-5");
 
-            var bonusQuestion = CreateTestBonusQuestion();
-            var contextDocs = CreateTestContextDocuments();
+        var bonusQuestion = CreateTestBonusQuestion();
+        var contextDocs = CreateTestContextDocuments();
 
-            // Act
-            await service.PredictBonusQuestionAsync(bonusQuestion, contextDocs);
+        // Act
+        service.PredictBonusQuestionAsync(bonusQuestion, contextDocs).Wait();
 
-            // Assert
-            logger.AssertLogContains( LogLevel.Error, "Error generating bonus prediction");
-                
+        // Assert
+        logger.AssertLogContains(LogLevel.Error, "Error generating bonus prediction");
     }
 
     [Test]
-    public async Task PredictBonusQuestionAsync_with_invalid_option_id_returns_null()
+    public async Task Predicting_bonus_question_with_invalid_option_id_returns_null()
     {
         // Arrange
-            var usage = OpenAITestHelpers.CreateChatTokenUsage(800, 30);
-            var responseJson = """{"selectedOptionIds": ["invalid-option"]}""";
-            var mockChatClient = CreateMockChatClient(responseJson, usage);
-            var logger = CreateFakeLogger();
-            var costCalc = CreateMockCostCalculationService();
-            var tokenTracker = CreateMockTokenUsageTracker();
+        var usage = OpenAITestHelpers.CreateChatTokenUsage(800, 30);
+        var responseJson = """{"selectedOptionIds": ["invalid-option"]}""";
+        var mockChatClient = CreateMockChatClient(responseJson, usage);
+        var logger = CreateFakeLogger();
+        var costCalc = CreateMockCostCalculationService();
+        var tokenTracker = CreateMockTokenUsageTracker();
 
-            var service = new PredictionService(
-                mockChatClient,
-                logger,
-                costCalc.Object,
-                tokenTracker.Object, CreateMockTemplateProvider().Object,
-                "gpt-5");
+        var service = new PredictionService(
+            mockChatClient,
+            logger,
+            costCalc.Object,
+            tokenTracker.Object, CreateMockTemplateProvider().Object,
+            "gpt-5");
 
-            var bonusQuestion = CreateTestBonusQuestion();
-            var contextDocs = CreateTestContextDocuments();
+        var bonusQuestion = CreateTestBonusQuestion();
+        var contextDocs = CreateTestContextDocuments();
 
-            // Act
-            var prediction = await service.PredictBonusQuestionAsync(bonusQuestion, contextDocs);
+        // Act
+        var prediction = await service.PredictBonusQuestionAsync(bonusQuestion, contextDocs);
 
-            // Assert
-            await Assert.That(prediction).IsNull();
-                
+        // Assert
+        await Assert.That(prediction).IsNull();
     }
 
     [Test]
-    public async Task PredictBonusQuestionAsync_with_duplicate_selections_returns_null()
+    public async Task Predicting_bonus_question_with_duplicate_selections_returns_null()
     {
         // Arrange
-            var usage = OpenAITestHelpers.CreateChatTokenUsage(800, 30);
-            var responseJson = """{"selectedOptionIds": ["opt1", "opt1"]}""";
-            var mockChatClient = CreateMockChatClient(responseJson, usage);
-            var logger = CreateFakeLogger();
-            var costCalc = CreateMockCostCalculationService();
-            var tokenTracker = CreateMockTokenUsageTracker();
+        var usage = OpenAITestHelpers.CreateChatTokenUsage(800, 30);
+        var responseJson = """{"selectedOptionIds": ["opt1", "opt1"]}""";
+        var mockChatClient = CreateMockChatClient(responseJson, usage);
+        var logger = CreateFakeLogger();
+        var costCalc = CreateMockCostCalculationService();
+        var tokenTracker = CreateMockTokenUsageTracker();
 
-            var service = new PredictionService(
-                mockChatClient,
-                logger,
-                costCalc.Object,
-                tokenTracker.Object, CreateMockTemplateProvider().Object,
-                "gpt-5");
+        var service = new PredictionService(
+            mockChatClient,
+            logger,
+            costCalc.Object,
+            tokenTracker.Object, CreateMockTemplateProvider().Object,
+            "gpt-5");
 
-            var bonusQuestion = CreateTestBonusQuestion(maxSelections: 2);
-            var contextDocs = CreateTestContextDocuments();
+        var bonusQuestion = CreateTestBonusQuestion(maxSelections: 2);
+        var contextDocs = CreateTestContextDocuments();
 
-            // Act
-            var prediction = await service.PredictBonusQuestionAsync(bonusQuestion, contextDocs);
+        // Act
+        var prediction = await service.PredictBonusQuestionAsync(bonusQuestion, contextDocs);
 
-            // Assert
-            await Assert.That(prediction).IsNull();
-                
+        // Assert
+        await Assert.That(prediction).IsNull();
     }
 
     [Test]
-    public async Task PredictBonusQuestionAsync_with_wrong_selection_count_returns_null()
+    public async Task Predicting_bonus_question_with_wrong_selection_count_returns_null()
     {
         // Arrange
-            var usage = OpenAITestHelpers.CreateChatTokenUsage(800, 30);
-            var responseJson = """{"selectedOptionIds": ["opt1", "opt2"]}""";
-            var mockChatClient = CreateMockChatClient(responseJson, usage);
-            var logger = CreateFakeLogger();
-            var costCalc = CreateMockCostCalculationService();
-            var tokenTracker = CreateMockTokenUsageTracker();
+        var usage = OpenAITestHelpers.CreateChatTokenUsage(800, 30);
+        var responseJson = """{"selectedOptionIds": ["opt1", "opt2"]}""";
+        var mockChatClient = CreateMockChatClient(responseJson, usage);
+        var logger = CreateFakeLogger();
+        var costCalc = CreateMockCostCalculationService();
+        var tokenTracker = CreateMockTokenUsageTracker();
 
-            var service = new PredictionService(
-                mockChatClient,
-                logger,
-                costCalc.Object,
-                tokenTracker.Object, CreateMockTemplateProvider().Object,
-                "gpt-5");
+        var service = new PredictionService(
+            mockChatClient,
+            logger,
+            costCalc.Object,
+            tokenTracker.Object, CreateMockTemplateProvider().Object,
+            "gpt-5");
 
-            var bonusQuestion = CreateTestBonusQuestion(maxSelections: 1);
-            var contextDocs = CreateTestContextDocuments();
+        var bonusQuestion = CreateTestBonusQuestion(maxSelections: 1);
+        var contextDocs = CreateTestContextDocuments();
 
-            // Act
-            var prediction = await service.PredictBonusQuestionAsync(bonusQuestion, contextDocs);
+        // Act
+        var prediction = await service.PredictBonusQuestionAsync(bonusQuestion, contextDocs);
 
-            // Assert
-            await Assert.That(prediction).IsNull();
-        
+        // Assert
+        await Assert.That(prediction).IsNull();
     }
 }
