@@ -118,7 +118,7 @@ public class TokenUsageTracker_Reset_Tests : TokenUsageTrackerTests_Base
     }
 
     [Test]
-    public void Reset_logs_debug_message()
+    public async Task Reset_logs_debug_message()
     {
         // Arrange
         var tracker = CreateTrackerWithFakeLogger(out var logger, out _);
@@ -127,7 +127,7 @@ public class TokenUsageTracker_Reset_Tests : TokenUsageTrackerTests_Base
         tracker.Reset();
 
         // Assert
-        logger.AssertLogContains( LogLevel.Debug, "Token usage tracker reset");
+        logger.AssertLogContains(LogLevel.Debug, "Token usage tracker reset");
     }
 
     [Test]
