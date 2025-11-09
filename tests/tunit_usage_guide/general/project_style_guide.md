@@ -459,6 +459,81 @@ public abstract class MyServiceTests_Base
 - No need to repeat mock creation in every test
 - Changes to constructor signatures only require updating one place
 
+**For more flexibility**, use a factory method pattern instead of creating the service directly:
+
+```csharp
+public abstract class MyServiceTests_Base
+{
+    protected FakeLogger<MyService> Logger = null!;
+    protected Mock<IDependency> Dependency = null!;
+    protected string ConfigValue = null!;
+
+    [Before(Test)]
+    public void SetupCommonDependencies()
+    {
+        // Set up default dependencies
+        Logger = new FakeLogger<MyService>();
+        Dependency = new Mock<IDependency>();
+        ConfigValue = "default-value";
+    }
+
+    /// <summary>
+    /// Factory method to create service with configured dependencies
+    /// </summary>
+    protected MyService CreateService()
+    {
+        return new MyService(Logger, Dependency.Object, ConfigValue);
+    }
+}
+```
+
+**Using the factory method in tests:**
+
+```csharp
+[Test]
+public async Task Test_with_default_dependencies()
+{
+    // Arrange - use defaults from setup
+    var service = CreateService();
+    
+    // Act & Assert
+    var result = service.DoSomething();
+    await Assert.That(result).IsNotNull();
+}
+
+[Test]
+public async Task Test_with_custom_dependency()
+{
+    // Arrange - modify only what's needed
+    Dependency.Setup(d => d.GetValue()).Returns(42);
+    var service = CreateService();
+    
+    // Act & Assert
+    var result = service.DoSomething();
+    await Assert.That(result).IsEqualTo(42);
+}
+
+[Test]
+public async Task Test_with_custom_config()
+{
+    // Arrange - change config before creating service
+    ConfigValue = "custom-value";
+    var service = CreateService();
+    
+    // Act & Assert
+    var result = service.GetConfig();
+    await Assert.That(result).IsEqualTo("custom-value");
+}
+```
+
+This pattern:
+
+- Eliminates repetitive dependency setup across all tests
+- Allows easy customization of individual dependencies per test
+- Keeps tests focused on what varies, not boilerplate
+- Makes it trivial to add new constructor parameters (update setup and factory once)
+
+
 #### 2. Helper Methods for Repetitive Operations
 
 Create helper methods to simplify common test patterns. When testing logging, use FakeLogger's built-in assertion extensions rather than creating custom verification helpers:
@@ -563,7 +638,7 @@ namespace KicktippAi.Orchestrator.Commands.Tests;
 
 **TUnit supports both synchronous and asynchronous test methods**, but the choice depends on what your test does:
 
-#### Use `async Task` when:
+#### Use `async Task` when
 
 - Your test uses `await Assert.That(...)` - TUnit's assertion library returns awaitable objects
 - Your test awaits any async operations
@@ -587,7 +662,7 @@ public async Task Async_operation_completes_successfully()
 }
 ```
 
-#### Use `void` (synchronous) when:
+#### Use `void` (synchronous) when
 
 - Your test uses `Moq.Verify(...)` (returns void, not awaitable)
 - Your test uses `FakeLogger.AssertLogContains(...)` (returns void, not awaitable)

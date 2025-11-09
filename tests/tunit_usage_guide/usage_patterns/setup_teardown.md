@@ -480,6 +480,133 @@ public class HttpClientTests
 }
 ```
 
+## Factory Method Pattern for Complex Dependencies
+
+When testing classes with multiple dependencies, use a base class with `[Before(Test)]` setup and a factory method to eliminate repetitive test code.
+
+### Without Factory Method (Repetitive)
+
+```csharp
+public class PredictionServiceTests
+{
+    [Test]
+    public async Task Test1()
+    {
+        // Repetitive setup in every test
+        var client = new Mock<ChatClient>();
+        var logger = new FakeLogger<PredictionService>();
+        var costCalc = new Mock<ICostCalculationService>();
+        var tokenTracker = new Mock<ITokenUsageTracker>();
+        var provider = new Mock<ITemplateProvider>();
+        
+        var service = new PredictionService(
+            client.Object,
+            logger,
+            costCalc.Object,
+            tokenTracker.Object,
+            provider.Object,
+            "gpt-4");
+        
+        // Actual test code
+    }
+
+    [Test]
+    public async Task Test2()
+    {
+        // Same repetitive setup again
+        var client = new Mock<ChatClient>();
+        var logger = new FakeLogger<PredictionService>();
+        // ... all dependencies again
+    }
+}
+```
+
+### With Factory Method (Clean)
+
+```csharp
+// Base class provides shared setup
+public abstract class PredictionServiceTests_Base
+{
+    protected Mock<ChatClient> ChatClient = null!;
+    protected FakeLogger<PredictionService> Logger = null!;
+    protected Mock<ICostCalculationService> CostCalculationService = null!;
+    protected Mock<ITokenUsageTracker> TokenUsageTracker = null!;
+    protected Mock<ITemplateProvider> TemplateProvider = null!;
+    protected string Model = null!;
+
+    [Before(Test)]
+    public void SetupDefaultDependencies()
+    {
+        ChatClient = new Mock<ChatClient>();
+        Logger = new FakeLogger<PredictionService>();
+        CostCalculationService = new Mock<ICostCalculationService>();
+        TokenUsageTracker = new Mock<ITokenUsageTracker>();
+        TemplateProvider = new Mock<ITemplateProvider>();
+        Model = "gpt-4";
+    }
+
+    protected PredictionService CreateService()
+    {
+        return new PredictionService(
+            ChatClient.Object,
+            Logger,
+            CostCalculationService.Object,
+            TokenUsageTracker.Object,
+            TemplateProvider.Object,
+            Model);
+    }
+}
+
+// Test class uses factory method
+public class PredictionService_Tests : PredictionServiceTests_Base
+{
+    [Test]
+    public async Task Test_with_defaults()
+    {
+        // Arrange - use defaults from base class
+        var service = CreateService();
+        
+        // Act & Assert
+        var result = await service.ProcessAsync();
+        await Assert.That(result).IsNotNull();
+    }
+
+    [Test]
+    public async Task Test_with_custom_model()
+    {
+        // Arrange - customize only what's needed
+        Model = "o3";
+        var service = CreateService();
+        
+        // Act & Assert
+        var result = await service.ProcessAsync();
+        await Assert.That(result).IsNotNull();
+    }
+
+    [Test]
+    public async Task Test_with_custom_behavior()
+    {
+        // Arrange - customize dependencies as needed
+        ChatClient.Setup(c => c.CompleteAsync(...))
+            .ReturnsAsync(mockResponse);
+        var service = CreateService();
+        
+        // Act & Assert
+        var result = await service.ProcessAsync();
+        await Assert.That(result).IsEqualTo(expected);
+    }
+}
+```
+
+### Benefits
+
+- **Eliminates 80%+ of boilerplate** - No repetitive mock creation
+- **Focuses tests on what matters** - Only customize what varies
+- **Easy to maintain** - Add constructor parameters in one place
+- **Flexible** - Tests can override any dependency they need
+
+See the [Project Style Guide - Base Class Best Practices](../general/project_style_guide.md#base-class-best-practices) for detailed guidance.
+
 ## Best Practices
 
 ### 1. Keep Setup and Teardown Simple

@@ -13,18 +13,7 @@ public class PredictionService_GetPromptPath_Tests : PredictionServiceTests_Base
     public async Task Getting_match_prompt_path_without_justification_returns_correct_path()
     {
         // Arrange
-        var mockChatClient = CreateMockChatClient("{}", OpenAITestHelpers.CreateChatTokenUsage(0, 0));
-        var logger = CreateFakeLogger();
-        var costCalc = CreateMockCostCalculationService();
-        var tokenTracker = CreateMockTokenUsageTracker();
-
-        var service = new PredictionService(
-            mockChatClient,
-            logger,
-            costCalc.Object,
-            tokenTracker.Object,
-            CreateMockTemplateProvider().Object,
-            "gpt-5");
+        var service = CreateService();
 
         // Act
         var promptPath = service.GetMatchPromptPath(includeJustification: false);
@@ -40,18 +29,7 @@ public class PredictionService_GetPromptPath_Tests : PredictionServiceTests_Base
     public async Task Getting_match_prompt_path_with_justification_returns_correct_path()
     {
         // Arrange
-        var mockChatClient = CreateMockChatClient("{}", OpenAITestHelpers.CreateChatTokenUsage(0, 0));
-        var logger = CreateFakeLogger();
-        var costCalc = CreateMockCostCalculationService();
-        var tokenTracker = CreateMockTokenUsageTracker();
-
-        var service = new PredictionService(
-            mockChatClient,
-            logger,
-            costCalc.Object,
-            tokenTracker.Object,
-            CreateMockTemplateProvider().Object,
-            "gpt-5");
+        var service = CreateService();
 
         // Act
         var promptPath = service.GetMatchPromptPath(includeJustification: true);
@@ -67,18 +45,7 @@ public class PredictionService_GetPromptPath_Tests : PredictionServiceTests_Base
     public async Task Getting_bonus_prompt_path_returns_correct_path()
     {
         // Arrange
-        var mockChatClient = CreateMockChatClient("{}", OpenAITestHelpers.CreateChatTokenUsage(0, 0));
-        var logger = CreateFakeLogger();
-        var costCalc = CreateMockCostCalculationService();
-        var tokenTracker = CreateMockTokenUsageTracker();
-
-        var service = new PredictionService(
-            mockChatClient,
-            logger,
-            costCalc.Object,
-            tokenTracker.Object,
-            CreateMockTemplateProvider().Object,
-            "gpt-5");
+        var service = CreateService();
 
         // Act
         var promptPath = service.GetBonusPromptPath();
@@ -94,18 +61,9 @@ public class PredictionService_GetPromptPath_Tests : PredictionServiceTests_Base
     public async Task Getting_match_prompt_path_for_o3_model_uses_o3_prompts()
     {
         // Arrange
-        var mockChatClient = CreateMockChatClient("{}", OpenAITestHelpers.CreateChatTokenUsage(0, 0));
-        var logger = CreateFakeLogger();
-        var costCalc = CreateMockCostCalculationService();
-        var tokenTracker = CreateMockTokenUsageTracker();
-
-        var service = new PredictionService(
-            mockChatClient,
-            logger,
-            costCalc.Object,
-            tokenTracker.Object,
-            CreateMockTemplateProvider("o3").Object,
-            "o3");
+        Model = "o3";
+        TemplateProvider = CreateMockTemplateProvider("o3");
+        var service = CreateService();
 
         // Act
         var promptPath = service.GetMatchPromptPath();
@@ -119,18 +77,9 @@ public class PredictionService_GetPromptPath_Tests : PredictionServiceTests_Base
     public async Task Getting_match_prompt_path_for_o4_mini_model_uses_o3_prompts()
     {
         // Arrange
-        var mockChatClient = CreateMockChatClient("{}", OpenAITestHelpers.CreateChatTokenUsage(0, 0));
-        var logger = CreateFakeLogger();
-        var costCalc = CreateMockCostCalculationService();
-        var tokenTracker = CreateMockTokenUsageTracker();
-
-        var service = new PredictionService(
-            mockChatClient,
-            logger,
-            costCalc.Object,
-            tokenTracker.Object,
-            CreateMockTemplateProvider("o3").Object,
-            "o4-mini");
+        Model = "o4-mini";
+        TemplateProvider = CreateMockTemplateProvider("o3");
+        var service = CreateService();
 
         // Act
         var promptPath = service.GetMatchPromptPath();
@@ -144,18 +93,9 @@ public class PredictionService_GetPromptPath_Tests : PredictionServiceTests_Base
     public async Task Getting_match_prompt_path_for_gpt_5_mini_uses_gpt_5_prompts()
     {
         // Arrange
-        var mockChatClient = CreateMockChatClient("{}", OpenAITestHelpers.CreateChatTokenUsage(0, 0));
-        var logger = CreateFakeLogger();
-        var costCalc = CreateMockCostCalculationService();
-        var tokenTracker = CreateMockTokenUsageTracker();
-
-        var service = new PredictionService(
-            mockChatClient,
-            logger,
-            costCalc.Object,
-            tokenTracker.Object,
-            CreateMockTemplateProvider("gpt-5").Object,
-            "gpt-5-mini");
+        Model = "gpt-5-mini";
+        TemplateProvider = CreateMockTemplateProvider("gpt-5");
+        var service = CreateService();
 
         // Act
         var promptPath = service.GetMatchPromptPath();
@@ -169,18 +109,9 @@ public class PredictionService_GetPromptPath_Tests : PredictionServiceTests_Base
     public async Task Getting_match_prompt_path_for_gpt_5_nano_uses_gpt_5_prompts()
     {
         // Arrange
-        var mockChatClient = CreateMockChatClient("{}", OpenAITestHelpers.CreateChatTokenUsage(0, 0));
-        var logger = CreateFakeLogger();
-        var costCalc = CreateMockCostCalculationService();
-        var tokenTracker = CreateMockTokenUsageTracker();
-
-        var service = new PredictionService(
-            mockChatClient,
-            logger,
-            costCalc.Object,
-            tokenTracker.Object,
-            CreateMockTemplateProvider("gpt-5").Object,
-            "gpt-5-nano");
+        Model = "gpt-5-nano";
+        TemplateProvider = CreateMockTemplateProvider("gpt-5");
+        var service = CreateService();
 
         // Act
         var promptPath = service.GetMatchPromptPath();

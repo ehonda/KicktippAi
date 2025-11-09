@@ -13,21 +13,14 @@ public class PredictionService_Constructor_Tests : PredictionServiceTests_Base
     [Test]
     public async Task Creating_service_with_null_chatClient_throws_ArgumentNullException()
     {
-        // Arrange
-        var logger = CreateFakeLogger();
-        var costCalc = CreateMockCostCalculationService();
-        var tokenTracker = CreateMockTokenUsageTracker();
-        var templateProvider = CreateMockTemplateProvider();
-        const string model = "gpt-5";
-
         // Act & Assert
         var exception = await Assert.That(() => new PredictionService(
             null!,
-            logger,
-            costCalc.Object,
-            tokenTracker.Object,
-            templateProvider.Object,
-            model))
+            Logger,
+            CostCalculationService.Object,
+            TokenUsageTracker.Object,
+            TemplateProvider.Object,
+            Model))
         .Throws<ArgumentNullException>();
         
         await Assert.That(exception!.ParamName).IsEqualTo("chatClient");
@@ -36,21 +29,14 @@ public class PredictionService_Constructor_Tests : PredictionServiceTests_Base
     [Test]
     public async Task Creating_service_with_null_logger_throws_ArgumentNullException()
     {
-        // Arrange
-        var chatClient = CreateMockChatClient("{}", OpenAITestHelpers.CreateChatTokenUsage(0, 0));
-        var costCalc = CreateMockCostCalculationService();
-        var tokenTracker = CreateMockTokenUsageTracker();
-        var templateProvider = CreateMockTemplateProvider();
-        const string model = "gpt-5";
-
         // Act & Assert
         var exception = await Assert.That(() => new PredictionService(
-            chatClient,
+            ChatClient,
             null!,
-            costCalc.Object,
-            tokenTracker.Object,
-            templateProvider.Object,
-            model))
+            CostCalculationService.Object,
+            TokenUsageTracker.Object,
+            TemplateProvider.Object,
+            Model))
         .Throws<ArgumentNullException>();
         
         await Assert.That(exception!.ParamName).IsEqualTo("logger");
@@ -59,21 +45,14 @@ public class PredictionService_Constructor_Tests : PredictionServiceTests_Base
     [Test]
     public async Task Creating_service_with_null_costCalculationService_throws_ArgumentNullException()
     {
-        // Arrange
-        var chatClient = CreateMockChatClient("{}", OpenAITestHelpers.CreateChatTokenUsage(0, 0));
-        var logger = CreateFakeLogger();
-        var tokenTracker = CreateMockTokenUsageTracker();
-        var templateProvider = CreateMockTemplateProvider();
-        const string model = "gpt-5";
-
         // Act & Assert
         var exception = await Assert.That(() => new PredictionService(
-            chatClient,
-            logger,
+            ChatClient,
+            Logger,
             null!,
-            tokenTracker.Object,
-            templateProvider.Object,
-            model))
+            TokenUsageTracker.Object,
+            TemplateProvider.Object,
+            Model))
         .Throws<ArgumentNullException>();
         
         await Assert.That(exception!.ParamName).IsEqualTo("costCalculationService");
@@ -82,21 +61,14 @@ public class PredictionService_Constructor_Tests : PredictionServiceTests_Base
     [Test]
     public async Task Creating_service_with_null_tokenUsageTracker_throws_ArgumentNullException()
     {
-        // Arrange
-        var chatClient = CreateMockChatClient("{}", OpenAITestHelpers.CreateChatTokenUsage(0, 0));
-        var logger = CreateFakeLogger();
-        var costCalc = CreateMockCostCalculationService();
-        var templateProvider = CreateMockTemplateProvider();
-        const string model = "gpt-5";
-
         // Act & Assert
         var exception = await Assert.That(() => new PredictionService(
-            chatClient,
-            logger,
-            costCalc.Object,
+            ChatClient,
+            Logger,
+            CostCalculationService.Object,
             null!,
-            templateProvider.Object,
-            model))
+            TemplateProvider.Object,
+            Model))
         .Throws<ArgumentNullException>();
         
         await Assert.That(exception!.ParamName).IsEqualTo("tokenUsageTracker");
@@ -105,21 +77,14 @@ public class PredictionService_Constructor_Tests : PredictionServiceTests_Base
     [Test]
     public async Task Creating_service_with_null_templateProvider_throws_ArgumentNullException()
     {
-        // Arrange
-        var chatClient = CreateMockChatClient("{}", OpenAITestHelpers.CreateChatTokenUsage(0, 0));
-        var logger = CreateFakeLogger();
-        var costCalc = CreateMockCostCalculationService();
-        var tokenTracker = CreateMockTokenUsageTracker();
-        const string model = "gpt-5";
-
         // Act & Assert
         var exception = await Assert.That(() => new PredictionService(
-            chatClient,
-            logger,
-            costCalc.Object,
-            tokenTracker.Object,
+            ChatClient,
+            Logger,
+            CostCalculationService.Object,
+            TokenUsageTracker.Object,
             null!,
-            model))
+            Model))
         .Throws<ArgumentNullException>();
         
         await Assert.That(exception!.ParamName).IsEqualTo("templateProvider");
@@ -128,20 +93,13 @@ public class PredictionService_Constructor_Tests : PredictionServiceTests_Base
     [Test]
     public async Task Creating_service_with_null_model_throws_ArgumentNullException()
     {
-        // Arrange
-        var chatClient = CreateMockChatClient("{}", OpenAITestHelpers.CreateChatTokenUsage(0, 0));
-        var logger = CreateFakeLogger();
-        var costCalc = CreateMockCostCalculationService();
-        var tokenTracker = CreateMockTokenUsageTracker();
-        var templateProvider = CreateMockTemplateProvider();
-
         // Act & Assert
         var exception = await Assert.That(() => new PredictionService(
-            chatClient,
-            logger,
-            costCalc.Object,
-            tokenTracker.Object,
-            templateProvider.Object,
+            ChatClient,
+            Logger,
+            CostCalculationService.Object,
+            TokenUsageTracker.Object,
+            TemplateProvider.Object,
             null!))
         .Throws<ArgumentNullException>();
         

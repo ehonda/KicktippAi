@@ -7,6 +7,7 @@ using OpenAI.Chat;
 using System.ClientModel;
 using System.ClientModel.Primitives;
 using TestUtilities;
+using TUnit.Core;
 
 namespace OpenAiIntegration.Tests.PredictionServiceTests;
 
@@ -15,6 +16,40 @@ namespace OpenAiIntegration.Tests.PredictionServiceTests;
 /// </summary>
 public abstract class PredictionServiceTests_Base
 {
+    protected ChatClient ChatClient = null!;
+    protected FakeLogger<PredictionService> Logger = null!;
+    protected Mock<ICostCalculationService> CostCalculationService = null!;
+    protected Mock<ITokenUsageTracker> TokenUsageTracker = null!;
+    protected Mock<IInstructionsTemplateProvider> TemplateProvider = null!;
+    protected string Model = null!;
+
+    [Before(Test)]
+    public void SetupDefaultDependencies()
+    {
+        // Set up default dependencies for most tests
+        var usage = OpenAITestHelpers.CreateChatTokenUsage(1000, 50);
+        ChatClient = CreateMockChatClient("""{"home": 2, "away": 1}""", usage);
+        Logger = CreateFakeLogger();
+        CostCalculationService = CreateMockCostCalculationService();
+        TokenUsageTracker = CreateMockTokenUsageTracker();
+        TemplateProvider = CreateMockTemplateProvider();
+        Model = "gpt-5";
+    }
+
+    /// <summary>
+    /// Factory method to create a PredictionService instance using the configured dependencies
+    /// </summary>
+    protected PredictionService CreateService()
+    {
+        return new PredictionService(
+            ChatClient,
+            Logger,
+            CostCalculationService.Object,
+            TokenUsageTracker.Object,
+            TemplateProvider.Object,
+            Model);
+    }
+
     /// <summary>
     /// Helper method to create a test Match instance
     /// </summary>

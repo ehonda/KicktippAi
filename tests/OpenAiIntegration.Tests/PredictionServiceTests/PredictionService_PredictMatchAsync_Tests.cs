@@ -16,21 +16,7 @@ public class PredictionService_PredictMatchAsync_Tests : PredictionServiceTests_
     public async Task Predicting_match_with_valid_input_returns_prediction()
     {
         // Arrange
-        var usage = OpenAITestHelpers.CreateChatTokenUsage(1000, 50);
-        var responseJson = """{"home": 2, "away": 1}""";
-        var mockChatClient = CreateMockChatClient(responseJson, usage);
-        var logger = CreateFakeLogger();
-        var costCalc = CreateMockCostCalculationService();
-        var tokenTracker = CreateMockTokenUsageTracker();
-
-        var service = new PredictionService(
-            mockChatClient,
-            logger,
-            costCalc.Object,
-            tokenTracker.Object,
-            CreateMockTemplateProvider().Object,
-            "gpt-5");
-
+        var service = CreateService();
         var match = CreateTestMatch();
         var contextDocs = CreateTestContextDocuments();
 
@@ -68,18 +54,9 @@ public class PredictionService_PredictMatchAsync_Tests : PredictionServiceTests_
                 }
             }
             """;
-        var mockChatClient = CreateMockChatClient(responseJson, usage);
-        var logger = CreateFakeLogger();
-        var costCalc = CreateMockCostCalculationService();
-        var tokenTracker = CreateMockTokenUsageTracker();
-
-        var service = new PredictionService(
-            mockChatClient,
-            logger,
-            costCalc.Object,
-            tokenTracker.Object, CreateMockTemplateProvider().Object,
-            "gpt-5");
-
+        ChatClient = CreateMockChatClient(responseJson, usage);
+        
+        var service = CreateService();
         var match = CreateTestMatch();
         var contextDocs = CreateTestContextDocuments();
 
@@ -98,61 +75,41 @@ public class PredictionService_PredictMatchAsync_Tests : PredictionServiceTests_
     }
 
     [Test]
-    public void Predicting_match_calls_token_tracker_with_correct_usage()
+    public async Task Predicting_match_calls_token_tracker_with_correct_usage()
     {
         // Arrange
         var usage = OpenAITestHelpers.CreateChatTokenUsage(1000, 50);
-        var responseJson = """{"home": 2, "away": 1}""";
-        var mockChatClient = CreateMockChatClient(responseJson, usage);
-        var logger = CreateFakeLogger();
-        var costCalc = CreateMockCostCalculationService();
-        var tokenTracker = CreateMockTokenUsageTracker();
-
-        var service = new PredictionService(
-            mockChatClient,
-            logger,
-            costCalc.Object,
-            tokenTracker.Object, CreateMockTemplateProvider().Object,
-            "gpt-5");
-
+        ChatClient = CreateMockChatClient("""{"home": 2, "away": 1}""", usage);
+        
+        var service = CreateService();
         var match = CreateTestMatch();
         var contextDocs = CreateTestContextDocuments();
 
         // Act
-        service.PredictMatchAsync(match, contextDocs).Wait();
+        await service.PredictMatchAsync(match, contextDocs);
 
         // Assert
-        tokenTracker.Verify(
+        TokenUsageTracker.Verify(
             t => t.AddUsage("gpt-5", usage),
             Times.Once);
     }
 
     [Test]
-    public void Predicting_match_calls_cost_calculation_service()
+    public async Task Predicting_match_calls_cost_calculation_service()
     {
         // Arrange
         var usage = OpenAITestHelpers.CreateChatTokenUsage(1000, 50);
-        var responseJson = """{"home": 2, "away": 1}""";
-        var mockChatClient = CreateMockChatClient(responseJson, usage);
-        var logger = CreateFakeLogger();
-        var costCalc = CreateMockCostCalculationService();
-        var tokenTracker = CreateMockTokenUsageTracker();
-
-        var service = new PredictionService(
-            mockChatClient,
-            logger,
-            costCalc.Object,
-            tokenTracker.Object, CreateMockTemplateProvider().Object,
-            "gpt-5");
-
+        ChatClient = CreateMockChatClient("""{"home": 2, "away": 1}""", usage);
+        
+        var service = CreateService();
         var match = CreateTestMatch();
         var contextDocs = CreateTestContextDocuments();
 
         // Act
-        service.PredictMatchAsync(match, contextDocs).Wait();
+        await service.PredictMatchAsync(match, contextDocs);
 
         // Assert
-        costCalc.Verify(
+        CostCalculationService.Verify(
             c => c.LogCostBreakdown("gpt-5", usage),
             Times.Once);
     }
@@ -162,19 +119,9 @@ public class PredictionService_PredictMatchAsync_Tests : PredictionServiceTests_
     {
         // Arrange
         var usage = OpenAITestHelpers.CreateChatTokenUsage(500, 30);
-        var responseJson = """{"home": 1, "away": 1}""";
-        var mockChatClient = CreateMockChatClient(responseJson, usage);
-        var logger = CreateFakeLogger();
-        var costCalc = CreateMockCostCalculationService();
-        var tokenTracker = CreateMockTokenUsageTracker();
-
-        var service = new PredictionService(
-            mockChatClient,
-            logger,
-            costCalc.Object,
-            tokenTracker.Object, CreateMockTemplateProvider().Object,
-            "gpt-5");
-
+        ChatClient = CreateMockChatClient("""{"home": 1, "away": 1}""", usage);
+        
+        var service = CreateService();
         var match = CreateTestMatch();
         var emptyContextDocs = new List<DocumentContext>();
 
@@ -188,49 +135,27 @@ public class PredictionService_PredictMatchAsync_Tests : PredictionServiceTests_
     }
 
     [Test]
-    public void Predicting_match_logs_information_message()
+    public async Task Predicting_match_logs_information_message()
     {
         // Arrange
-        var usage = OpenAITestHelpers.CreateChatTokenUsage(1000, 50);
-        var responseJson = """{"home": 2, "away": 1}""";
-        var mockChatClient = CreateMockChatClient(responseJson, usage);
-        var logger = CreateFakeLogger();
-        var costCalc = CreateMockCostCalculationService();
-        var tokenTracker = CreateMockTokenUsageTracker();
-
-        var service = new PredictionService(
-            mockChatClient,
-            logger,
-            costCalc.Object,
-            tokenTracker.Object, CreateMockTemplateProvider().Object,
-            "gpt-5");
-
+        var service = CreateService();
         var match = CreateTestMatch();
         var contextDocs = CreateTestContextDocuments();
 
         // Act
-        service.PredictMatchAsync(match, contextDocs).Wait();
+        await service.PredictMatchAsync(match, contextDocs);
 
         // Assert
-        logger.AssertLogContains(LogLevel.Information, "Generating prediction for match");
+        Logger.AssertLogContains(LogLevel.Information, "Generating prediction for match");
     }
 
     [Test]
     public async Task Predicting_match_with_API_exception_returns_null()
     {
         // Arrange
-        var mockChatClient = CreateThrowingMockChatClient(new InvalidOperationException("API error"));
-        var logger = CreateFakeLogger();
-        var costCalc = CreateMockCostCalculationService();
-        var tokenTracker = CreateMockTokenUsageTracker();
-
-        var service = new PredictionService(
-            mockChatClient,
-            logger,
-            costCalc.Object,
-            tokenTracker.Object, CreateMockTemplateProvider().Object,
-            "gpt-5");
-
+        ChatClient = CreateThrowingMockChatClient(new InvalidOperationException("API error"));
+        
+        var service = CreateService();
         var match = CreateTestMatch();
         var contextDocs = CreateTestContextDocuments();
 
@@ -242,29 +167,20 @@ public class PredictionService_PredictMatchAsync_Tests : PredictionServiceTests_
     }
 
     [Test]
-    public void Predicting_match_with_exception_logs_error()
+    public async Task Predicting_match_with_exception_logs_error()
     {
         // Arrange
-        var mockChatClient = CreateThrowingMockChatClient(new InvalidOperationException("API error"));
-        var logger = CreateFakeLogger();
-        var costCalc = CreateMockCostCalculationService();
-        var tokenTracker = CreateMockTokenUsageTracker();
-
-        var service = new PredictionService(
-            mockChatClient,
-            logger,
-            costCalc.Object,
-            tokenTracker.Object, CreateMockTemplateProvider().Object,
-            "gpt-5");
-
+        ChatClient = CreateThrowingMockChatClient(new InvalidOperationException("API error"));
+        
+        var service = CreateService();
         var match = CreateTestMatch();
         var contextDocs = CreateTestContextDocuments();
 
         // Act
-        service.PredictMatchAsync(match, contextDocs).Wait();
+        await service.PredictMatchAsync(match, contextDocs);
 
         // Assert
-        logger.AssertLogContains(LogLevel.Error, "Error generating prediction");
+        Logger.AssertLogContains(LogLevel.Error, "Error generating prediction");
     }
 
     [Test]
@@ -274,18 +190,9 @@ public class PredictionService_PredictMatchAsync_Tests : PredictionServiceTests_
         var usage = OpenAITestHelpers.CreateChatTokenUsage(1000, 50);
         // Use malformed JSON that will cause JsonException during deserialization
         var invalidJson = """not valid json at all""";
-        var mockChatClient = CreateMockChatClient(invalidJson, usage);
-        var logger = CreateFakeLogger();
-        var costCalc = CreateMockCostCalculationService();
-        var tokenTracker = CreateMockTokenUsageTracker();
-
-        var service = new PredictionService(
-            mockChatClient,
-            logger,
-            costCalc.Object,
-            tokenTracker.Object, CreateMockTemplateProvider().Object,
-            "gpt-5");
-
+        ChatClient = CreateMockChatClient(invalidJson, usage);
+        
+        var service = CreateService();
         var match = CreateTestMatch();
         var contextDocs = CreateTestContextDocuments();
 

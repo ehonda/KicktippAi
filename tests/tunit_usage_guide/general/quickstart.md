@@ -187,6 +187,105 @@ public async Task Fetching_user_data_returns_valid_user()
 }
 ```
 
+### ⚠️ Never Use `.Wait()` or `.Result` in Tests
+
+**Don't** block async operations with `.Wait()` or `.Result`:
+
+```csharp
+// ❌ BAD - Causes deadlocks and breaks async flow
+[Test]
+public void Bad_test_blocking_async()
+{
+    var service = new MyService();
+    var result = service.GetDataAsync().Result;  // DON'T DO THIS
+    // or
+    service.ProcessAsync().Wait();  // DON'T DO THIS
+}
+```
+
+**Do** use proper async/await:
+
+```csharp
+// ✅ GOOD - Proper async/await pattern
+[Test]
+public async Task Good_test_with_async()
+{
+    var service = new MyService();
+    var result = await service.GetDataAsync();  // Use await
+    
+    await Assert.That(result).IsNotNull();
+}
+```
+
+## Shared Setup with Factory Method Pattern
+
+For complex classes with many dependencies, use a base class with a factory method to eliminate repetitive setup:
+
+```csharp
+// Base class provides shared setup
+public abstract class MyServiceTests_Base
+{
+    // Protected fields initialized before each test
+    protected FakeLogger<MyService> Logger = null!;
+    protected Mock<IDependency> Dependency = null!;
+    protected string ConfigValue = null!;
+
+    [Before(Test)]
+    public void SetupCommonDependencies()
+    {
+        Logger = new FakeLogger<MyService>();
+        Dependency = new Mock<IDependency>();
+        ConfigValue = "default-value";
+    }
+
+    // Factory method to create service with configured dependencies
+    protected MyService CreateService()
+    {
+        return new MyService(Logger, Dependency.Object, ConfigValue);
+    }
+}
+
+// Test class uses factory method
+public class MyService_DoSomething_Tests : MyServiceTests_Base
+{
+    [Test]
+    public async Task DoSomething_with_valid_input_succeeds()
+    {
+        // Arrange - use defaults from base class
+        var service = CreateService();
+        
+        // Act
+        var result = service.DoSomething();
+        
+        // Assert
+        await Assert.That(result).IsTrue();
+    }
+
+    [Test]
+    public async Task DoSomething_with_custom_dependency_succeeds()
+    {
+        // Arrange - customize only what's needed
+        Dependency.Setup(d => d.GetValue()).Returns(42);
+        var service = CreateService();
+        
+        // Act
+        var result = service.DoSomething();
+        
+        // Assert
+        await Assert.That(result).IsEqualTo(42);
+    }
+}
+```
+
+**Benefits:**
+
+- Eliminates 80%+ of repetitive arrange code
+- Tests focus on what varies, not boilerplate
+- Easy to add new constructor parameters (update setup once)
+- Simple to customize individual dependencies per test
+
+See the [Project Style Guide - Base Class Best Practices](project_style_guide.md#base-class-best-practices) for more details.
+
 ## Running Tests
 
 ### Command Line
