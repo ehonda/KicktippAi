@@ -206,13 +206,13 @@ public class PaymentProcessorTests
     [Arguments(PaymentMethod.PayPal)]
     [MethodDataSource(nameof(GetPaymentAmounts))]
     public async Task Processing_payment_with_valid_method_succeeds(
-        PaymentMethod method, 
+        PaymentMethod method,
         decimal amount)
     {
         var processor = new PaymentProcessor();
-        
+
         var result = await processor.ProcessAsync(method, amount);
-        
+
         await Assert.That(result.Success).IsTrue();
     }
 
@@ -223,7 +223,69 @@ public class PaymentProcessorTests
         yield return 1000.00m;
     }
 }
+
 ```
+
+## Scenario Records with Custom Assertions
+
+When tests share significant Arrange logic (for example, building services, default inputs, and mocked responses), pair a helper method with a record-based test case so each scenario only specifies its deltas and assertions:
+
+```csharp
+public abstract class PredictionServiceTests_Base
+{
+    protected async Task<PredictMatchScenarioResult> RunPredictMatchScenarioAsync(PredictMatchScenario? scenario = null)
+    {
+        // Build default dependencies, apply overrides from scenario, execute PredictMatchAsync
+        return new PredictMatchScenarioResult(prediction, match, contextDocs, usage);
+    }
+}
+
+public record PredictMatchTestCase(
+    string Name,
+    PredictMatchScenario Scenario,
+    Func<PredictMatchScenarioResult, Task> AssertResult)
+{
+    public override string ToString() => Name; // Appears in the test runner
+}
+
+[Test]
+[MethodDataSource(nameof(GetPredictMatchScenarios))]
+public async Task Predicting_match_scenarios(PredictMatchTestCase testCase)
+{
+    var result = await RunPredictMatchScenarioAsync(testCase.Scenario);
+    await testCase.AssertResult(result);
+}
+
+public static IEnumerable<PredictMatchTestCase> GetPredictMatchScenarios()
+{
+    yield return new PredictMatchTestCase(
+        "prediction_without_justification",
+        new PredictMatchScenario(),
+        async result =>
+        {
+            await Assert.That(result.Prediction).IsNotNull();
+            await Assert.That(result.Prediction!.HomeGoals).IsEqualTo(2);
+        });
+
+    yield return new PredictMatchTestCase(
+        "prediction_with_justification",
+        new PredictMatchScenario
+        {
+            IncludeJustification = true,
+            ResponseJson = """{"home": 3, "away": 1, "justification": {...}}"""
+        },
+        async result =>
+        {
+            await Assert.That(result.Prediction!.Justification).IsNotNull();
+        });
+}
+```
+
+Key benefits:
+
+1. The helper centralizes service creation, mocks, and defaults so each scenario is tiny.
+2. Records keep scenario metadata (`Name`) close to the assertion logic; `ToString()` makes runner output readable.
+3. `Func<PredictMatchScenarioResult, Task>` lets each scenario express bespoke assertions while sharing the same test body.
 
 ## Naming Test Cases
 

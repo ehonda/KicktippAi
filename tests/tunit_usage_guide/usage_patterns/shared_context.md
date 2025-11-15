@@ -402,6 +402,38 @@ public class OrderTests
 }
 ```
 
+## Scenario Fixtures for Helper Orchestration
+
+When Arrange steps are complicated but still specific to a single test class, wrap them in a fixture that exposes helper methods while keeping each test isolated.
+
+```csharp
+public class PredictMatchScenarioFixture : PredictionServiceTests_Base
+{
+    public Task<PredictMatchScenarioResult> RunAsync(PredictMatchScenario? scenario = null)
+        => RunPredictMatchScenarioAsync(scenario);
+}
+
+[ClassDataSource<PredictMatchScenarioFixture>(SharedType.None)]
+public required PredictMatchScenarioFixture Scenarios { get; init; }
+
+[Test]
+public async Task Predicting_match_logs_error_on_api_failure()
+{
+    await Scenarios.RunAsync(new PredictMatchScenario
+    {
+        ClientException = new InvalidOperationException("API error")
+    });
+
+    Logger.AssertLogContains(LogLevel.Error, "Error generating prediction");
+}
+```
+
+Best practices:
+
+1. Use `SharedType.None` when each test needs fresh mocks; switch to `PerTestSession` if you want to reuse cached data.
+2. Let the fixture inherit from your existing base class so it automatically gets helper methods, FakeLoggers, and default dependency wiring.
+3. Keep helper methods returning rich context objects (like `PredictMatchScenarioResult`) so assertions stay terse inside each test body.
+
 ## Caching Expensive Operations
 
 ```csharp

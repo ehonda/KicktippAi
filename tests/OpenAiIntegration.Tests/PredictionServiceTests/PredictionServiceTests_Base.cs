@@ -6,6 +6,7 @@ using NodaTime;
 using OpenAI.Chat;
 using System.ClientModel;
 using System.ClientModel.Primitives;
+using System.Linq;
 using TestUtilities;
 using TUnit.Core;
 
@@ -251,5 +252,72 @@ public abstract class PredictionServiceTests_Base
             .ThrowsAsync(exception);
         
         return mockClient.Object;
+    }
+
+    /// <summary>
+    /// Describes the configuration for a PredictMatch scenario
+    /// </summary>
+    public record PredictMatchScenario
+    {
+        public string ResponseJson { get; init; } = """{"home": 2, "away": 1}""";
+        public ChatTokenUsage? Usage { get; init; }
+        public Exception? ClientException { get; init; }
+        public bool IncludeJustification { get; init; }
+        public IReadOnlyList<DocumentContext>? ContextDocuments { get; init; }
+        public Core.Match? Match { get; init; }
+        public string? ModelOverride { get; init; }
+    }
+
+    /// <summary>
+    /// Result returned after executing a PredictMatch scenario
+    /// </summary>
+    public record PredictMatchScenarioResult(
+        Prediction? Prediction,
+        PredictionService Service,
+        Core.Match Match,
+        IReadOnlyList<DocumentContext> ContextDocuments,
+        ChatTokenUsage Usage);
+
+    /// <summary>
+    /// Executes PredictMatchAsync with the provided scenario configuration and returns the result context
+    /// </summary>
+    protected async Task<PredictMatchScenarioResult> RunPredictMatchScenarioAsync(PredictMatchScenario? scenario = null)
+    {
+        scenario ??= new PredictMatchScenario();
+        var usage = scenario.Usage ?? OpenAITestHelpers.CreateChatTokenUsage(1000, 50);
+
+        if (scenario.ClientException is not null)
+        {
+            ChatClient = CreateThrowingMockChatClient(scenario.ClientException);
+        }
+        else
+        {
+            var responseJson = string.IsNullOrWhiteSpace(scenario.ResponseJson)
+                ? """{"home": 2, "away": 1}"""
+                : scenario.ResponseJson;
+            ChatClient = CreateMockChatClient(responseJson, usage);
+        }
+
+        if (!string.IsNullOrWhiteSpace(scenario.ModelOverride))
+        {
+            Model = scenario.ModelOverride!;
+        }
+
+        var match = scenario.Match ?? CreateTestMatch();
+        var contextDocs = scenario.ContextDocuments?.ToList()
+            ?? CreateTestContextDocuments();
+
+        var service = CreateService();
+        var prediction = await service.PredictMatchAsync(
+            match,
+            contextDocs,
+            scenario.IncludeJustification);
+
+        return new PredictMatchScenarioResult(
+            prediction,
+            service,
+            match,
+            contextDocs,
+            usage);
     }
 }
