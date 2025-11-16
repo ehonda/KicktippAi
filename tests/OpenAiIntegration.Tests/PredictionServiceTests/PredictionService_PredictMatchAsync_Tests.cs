@@ -24,11 +24,6 @@ public class PredictionService_PredictMatchAsync_Tests : PredictionServiceTests_
         bool includeJustification = false,
         CancellationToken cancellationToken = default)
     {
-        // Convert default! (null) to None for uninitialized parameters
-        service ??= new None();
-        match ??= new None();
-        contextDocuments ??= new None();
-        
         var actualService = service.GetValueOrCreate(() => CreateService());
         var actualMatch = match.GetValueOrCreate(() => CreateTestMatch());
         var actualContextDocs = contextDocuments.GetValueOrCreate(() => CreateTestContextDocuments());
