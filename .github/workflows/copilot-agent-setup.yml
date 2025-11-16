@@ -1,0 +1,58 @@
+name: Copilot Agent Environment Setup
+
+on:
+  workflow_dispatch:
+  push:
+    branches:
+      - 'copilot/**'
+
+jobs:
+  setup-environment:
+    name: Setup Development Environment
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v4
+
+      - name: Setup .NET
+        uses: actions/setup-dotnet@v4
+        with:
+          dotnet-version: '10.x'
+
+      - name: Restore dependencies
+        run: dotnet restore
+
+      - name: Build project
+        run: dotnet build --no-restore --configuration Release
+
+      - name: Verify test projects
+        id: verify-tests
+        run: |
+          TEST_PROJECTS=$(find tests -name "*.csproj" -type f | tr '\n' ' ')
+          echo "test_projects=$TEST_PROJECTS" >> $GITHUB_OUTPUT
+          echo "Found test projects: $TEST_PROJECTS"
+
+      - name: Build tests
+        run: |
+          for project in ${{ steps.verify-tests.outputs.test_projects }}; do
+            echo "Building test project $project"
+            dotnet build "$project" --configuration Release
+          done
+
+      - name: Setup summary
+        if: always()
+        run: |
+          echo "## Environment Setup Summary" >> $GITHUB_STEP_SUMMARY
+          echo "- **Runner**: ubuntu-latest" >> $GITHUB_STEP_SUMMARY
+          echo "- **.NET Version**: 10.x" >> $GITHUB_STEP_SUMMARY
+          echo "- **Configuration**: Release" >> $GITHUB_STEP_SUMMARY
+          echo "- **Purpose**: GitHub Copilot Coding Agent" \
+            >> $GITHUB_STEP_SUMMARY
+          echo "" >> $GITHUB_STEP_SUMMARY
+          echo "### Capabilities" >> $GITHUB_STEP_SUMMARY
+          echo "- ✅ Build the project" >> $GITHUB_STEP_SUMMARY
+          echo "- ✅ Run automated tests (no external dependencies)" \
+            >> $GITHUB_STEP_SUMMARY
+          echo "- ❌ Manual tests with external dependencies" \
+            >> $GITHUB_STEP_SUMMARY
