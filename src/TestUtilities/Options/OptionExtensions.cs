@@ -3,7 +3,7 @@ using OneOf.Types;
 namespace TestUtilities.Options;
 
 /// <summary>
-/// Extension methods for working with Option&lt;T&gt; types
+/// Extension methods for working with <see cref="Option{T}"/> types.
 /// </summary>
 public static class OptionExtensions
 {
