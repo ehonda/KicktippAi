@@ -4,9 +4,9 @@ using TestUtilities.Options;
 namespace OpenAiIntegration.Tests.OptionExtensionsTests;
 
 /// <summary>
-/// Tests for the OptionExtensions GetValueOr method
+/// Tests for the OptionExtensions GetValueOr method with default value
 /// </summary>
-public class OptionExtensions_GetValueOr_Tests
+public class OptionExtensions_GetValueOr_WithValue_Tests
 {
     [Test]
     public async Task GetValueOr_with_some_value_returns_value()

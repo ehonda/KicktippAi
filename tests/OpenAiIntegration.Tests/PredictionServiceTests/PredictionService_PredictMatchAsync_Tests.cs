@@ -24,9 +24,9 @@ public class PredictionService_PredictMatchAsync_Tests : PredictionServiceTests_
         bool includeJustification = false,
         CancellationToken cancellationToken = default)
     {
-        var actualService = service.GetValueOrCreate(() => CreateService());
-        var actualMatch = match.GetValueOrCreate(() => CreateTestMatch());
-        var actualContextDocs = contextDocuments.GetValueOrCreate(() => CreateTestContextDocuments());
+        var actualService = service.GetValueOr(CreateService);
+        var actualMatch = match.GetValueOr(() => CreateTestMatch());
+        var actualContextDocs = contextDocuments.GetValueOr(() => CreateTestContextDocuments());
         
         return actualService.PredictMatchAsync(
             actualMatch,
