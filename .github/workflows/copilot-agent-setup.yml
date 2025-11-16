@@ -1,21 +1,30 @@
-name: Copilot Agent Environment Setup
+name: "Copilot Setup Steps"
 
+# Automatically run the setup steps when they are changed to allow for easy validation, and
+# allow manual testing through the repository's "Actions" tab
 on:
   workflow_dispatch:
   push:
-    branches:
-      - 'copilot/**'
-
-permissions:
-  contents: read
+    paths:
+      - .github/workflows/copilot-agent-setup.yml
+  pull_request:
+    paths:
+      - .github/workflows/copilot-agent-setup.yml
 
 jobs:
-  setup-environment:
-    name: Setup Development Environment
+  # The job MUST be called `copilot-setup-steps` or it will not be picked up by Copilot.
+  copilot-setup-steps:
     runs-on: ubuntu-latest
 
+    # Set the permissions to the lowest permissions possible needed for your steps.
+    # Copilot will be given its own token for its operations.
+    permissions:
+      contents: read
+
+    # You can define any steps you want, and they will run before the agent starts.
+    # If you do not check out your code, Copilot will do this for you.
     steps:
-      - name: Checkout repository
+      - name: Checkout code
         uses: actions/checkout@v4
 
       - name: Setup .NET
@@ -25,37 +34,3 @@ jobs:
 
       - name: Restore dependencies
         run: dotnet restore
-
-      - name: Build project
-        run: dotnet build --no-restore --configuration Release
-
-      - name: Verify test projects
-        id: verify-tests
-        run: |
-          TEST_PROJECTS=$(find tests -name "*.csproj" -type f | tr '\n' ' ')
-          echo "test_projects=$TEST_PROJECTS" >> $GITHUB_OUTPUT
-          echo "Found test projects: $TEST_PROJECTS"
-
-      - name: Build tests
-        run: |
-          for project in ${{ steps.verify-tests.outputs.test_projects }}; do
-            echo "Building test project $project"
-            dotnet build "$project" --configuration Release
-          done
-
-      - name: Setup summary
-        if: always()
-        run: |
-          echo "## Environment Setup Summary" >> $GITHUB_STEP_SUMMARY
-          echo "- **Runner**: ubuntu-latest" >> $GITHUB_STEP_SUMMARY
-          echo "- **.NET Version**: 10.x" >> $GITHUB_STEP_SUMMARY
-          echo "- **Configuration**: Release" >> $GITHUB_STEP_SUMMARY
-          echo "- **Purpose**: GitHub Copilot Coding Agent" \
-            >> $GITHUB_STEP_SUMMARY
-          echo "" >> $GITHUB_STEP_SUMMARY
-          echo "### Capabilities" >> $GITHUB_STEP_SUMMARY
-          echo "- ✅ Build the project" >> $GITHUB_STEP_SUMMARY
-          echo "- ✅ Run automated tests (no external dependencies)" \
-            >> $GITHUB_STEP_SUMMARY
-          echo "- ❌ Manual tests with external dependencies" \
-            >> $GITHUB_STEP_SUMMARY
