@@ -47,4 +47,7 @@
     <Project Path="dev/Poc/Poc.csproj" />
     <Project Path="dev/PromptSampleTests/PromptSampleTests.csproj" />
   </Folder>
+  <Folder Name="/tests/">
+    <Project Path="tests/OpenAiIntegration.Tests/OpenAiIntegration.Tests.csproj" />
+  </Folder>
 </Solution>
