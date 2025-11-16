@@ -6,6 +6,9 @@ on:
     branches:
       - 'copilot/**'
 
+permissions:
+  contents: read
+
 jobs:
   setup-environment:
     name: Setup Development Environment
