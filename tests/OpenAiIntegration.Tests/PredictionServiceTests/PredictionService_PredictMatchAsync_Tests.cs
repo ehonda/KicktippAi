@@ -1,8 +1,10 @@
 using Core;
 using Microsoft.Extensions.Logging;
 using Moq;
+using OneOf.Types;
 using OpenAI.Chat;
 using TestUtilities;
+using TestUtilities.Options;
 using TUnit.Core;
 
 namespace OpenAiIntegration.Tests.PredictionServiceTests;
@@ -12,16 +14,37 @@ namespace OpenAiIntegration.Tests.PredictionServiceTests;
 /// </summary>
 public class PredictionService_PredictMatchAsync_Tests : PredictionServiceTests_Base
 {
+    /// <summary>
+    /// Helper method to call PredictMatchAsync with optional parameters that default to test helpers
+    /// </summary>
+    private Task<Prediction?> PredictMatchAsync(
+        Option<PredictionService> service = default!,
+        Option<Core.Match> match = default!,
+        Option<IEnumerable<DocumentContext>> contextDocuments = default!,
+        bool includeJustification = false,
+        CancellationToken cancellationToken = default)
+    {
+        // Convert default! (null) to None for uninitialized parameters
+        service ??= new None();
+        match ??= new None();
+        contextDocuments ??= new None();
+        
+        var actualService = service.GetValueOrCreate(() => CreateService());
+        var actualMatch = match.GetValueOrCreate(() => CreateTestMatch());
+        var actualContextDocs = contextDocuments.GetValueOrCreate(() => CreateTestContextDocuments());
+        
+        return actualService.PredictMatchAsync(
+            actualMatch,
+            actualContextDocs,
+            includeJustification,
+            cancellationToken);
+    }
+
     [Test]
     public async Task Predicting_match_with_valid_input_returns_prediction()
     {
-        // Arrange
-        var service = CreateService();
-        var match = CreateTestMatch();
-        var contextDocs = CreateTestContextDocuments();
-
         // Act
-        var prediction = await service.PredictMatchAsync(match, contextDocs);
+        var prediction = await PredictMatchAsync();
 
         // Assert
         await Assert.That(prediction).IsNotNull();
@@ -55,13 +78,9 @@ public class PredictionService_PredictMatchAsync_Tests : PredictionServiceTests_
             }
             """;
         ChatClient = CreateMockChatClient(responseJson, usage);
-        
-        var service = CreateService();
-        var match = CreateTestMatch();
-        var contextDocs = CreateTestContextDocuments();
 
         // Act
-        var prediction = await service.PredictMatchAsync(match, contextDocs, includeJustification: true);
+        var prediction = await PredictMatchAsync(includeJustification: true);
 
         // Assert
         await Assert.That(prediction).IsNotNull();
@@ -80,13 +99,9 @@ public class PredictionService_PredictMatchAsync_Tests : PredictionServiceTests_
         // Arrange
         var usage = OpenAITestHelpers.CreateChatTokenUsage(1000, 50);
         ChatClient = CreateMockChatClient("""{"home": 2, "away": 1}""", usage);
-        
-        var service = CreateService();
-        var match = CreateTestMatch();
-        var contextDocs = CreateTestContextDocuments();
 
         // Act
-        await service.PredictMatchAsync(match, contextDocs);
+        await PredictMatchAsync();
 
         // Assert
         TokenUsageTracker.Verify(
@@ -100,13 +115,9 @@ public class PredictionService_PredictMatchAsync_Tests : PredictionServiceTests_
         // Arrange
         var usage = OpenAITestHelpers.CreateChatTokenUsage(1000, 50);
         ChatClient = CreateMockChatClient("""{"home": 2, "away": 1}""", usage);
-        
-        var service = CreateService();
-        var match = CreateTestMatch();
-        var contextDocs = CreateTestContextDocuments();
 
         // Act
-        await service.PredictMatchAsync(match, contextDocs);
+        await PredictMatchAsync();
 
         // Assert
         CostCalculationService.Verify(
@@ -120,13 +131,10 @@ public class PredictionService_PredictMatchAsync_Tests : PredictionServiceTests_
         // Arrange
         var usage = OpenAITestHelpers.CreateChatTokenUsage(500, 30);
         ChatClient = CreateMockChatClient("""{"home": 1, "away": 1}""", usage);
-        
-        var service = CreateService();
-        var match = CreateTestMatch();
         var emptyContextDocs = new List<DocumentContext>();
 
         // Act
-        var prediction = await service.PredictMatchAsync(match, emptyContextDocs);
+        var prediction = await PredictMatchAsync(contextDocuments: emptyContextDocs);
 
         // Assert
         await Assert.That(prediction).IsNotNull();
@@ -137,13 +145,8 @@ public class PredictionService_PredictMatchAsync_Tests : PredictionServiceTests_
     [Test]
     public async Task Predicting_match_logs_information_message()
     {
-        // Arrange
-        var service = CreateService();
-        var match = CreateTestMatch();
-        var contextDocs = CreateTestContextDocuments();
-
         // Act
-        await service.PredictMatchAsync(match, contextDocs);
+        await PredictMatchAsync();
 
         // Assert
         Logger.AssertLogContains(LogLevel.Information, "Generating prediction for match");
@@ -154,13 +157,9 @@ public class PredictionService_PredictMatchAsync_Tests : PredictionServiceTests_
     {
         // Arrange
         ChatClient = CreateThrowingMockChatClient(new InvalidOperationException("API error"));
-        
-        var service = CreateService();
-        var match = CreateTestMatch();
-        var contextDocs = CreateTestContextDocuments();
 
         // Act
-        var prediction = await service.PredictMatchAsync(match, contextDocs);
+        var prediction = await PredictMatchAsync();
 
         // Assert
         await Assert.That(prediction).IsNull();
@@ -171,13 +170,9 @@ public class PredictionService_PredictMatchAsync_Tests : PredictionServiceTests_
     {
         // Arrange
         ChatClient = CreateThrowingMockChatClient(new InvalidOperationException("API error"));
-        
-        var service = CreateService();
-        var match = CreateTestMatch();
-        var contextDocs = CreateTestContextDocuments();
 
         // Act
-        await service.PredictMatchAsync(match, contextDocs);
+        await PredictMatchAsync();
 
         // Assert
         Logger.AssertLogContains(LogLevel.Error, "Error generating prediction");
@@ -191,13 +186,9 @@ public class PredictionService_PredictMatchAsync_Tests : PredictionServiceTests_
         // Use malformed JSON that will cause JsonException during deserialization
         var invalidJson = """not valid json at all""";
         ChatClient = CreateMockChatClient(invalidJson, usage);
-        
-        var service = CreateService();
-        var match = CreateTestMatch();
-        var contextDocs = CreateTestContextDocuments();
 
         // Act
-        var prediction = await service.PredictMatchAsync(match, contextDocs);
+        var prediction = await PredictMatchAsync();
 
         // Assert
         await Assert.That(prediction).IsNull();

@@ -11,6 +11,6 @@ ALWAYS follow these when writing `tests`
 * Ensure your tests are organized according to the [Project Style Guide](../../tests/tunit_usage_guide/general/project_style_guide.md) to maintain consistency across the codebase.
 * If information on some topic is missing, use #context7/* to try and find more information about it. When successful, contribute it to the TUnit Usage Guide following the existing structure.
 
-## DO NOT do the following
+## Running Tests with TUnit
 
-* Use `--logger "console;verbosity=normal"` with `dotnet test`, as it breaks shell command auto approval
+* Always use `dotnet run` instead of `dotnet test` to run tests
