@@ -1,10 +1,9 @@
 using EHonda.KicktippAi.Core;
 using Microsoft.Extensions.Logging;
 using Moq;
-using OneOf.Types;
 using OpenAI.Chat;
 using TestUtilities;
-using TestUtilities.Options;
+using EHonda.Optional.Core;
 using TUnit.Core;
 using Match = EHonda.KicktippAi.Core.Match;
 
@@ -19,15 +18,15 @@ public class PredictionService_PredictMatchAsync_Tests : PredictionServiceTests_
     /// Helper method to call PredictMatchAsync with optional parameters that default to test helpers
     /// </summary>
     private Task<Prediction?> PredictMatchAsync(
-        Option<PredictionService> service = default!,
-        Option<Match> match = default!,
-        Option<IEnumerable<DocumentContext>> contextDocuments = default!,
+        Option<PredictionService> service = default,
+        Option<Match> match = default,
+        Option<IEnumerable<DocumentContext>> contextDocuments = default,
         bool includeJustification = false,
         CancellationToken cancellationToken = default)
     {
-        var actualService = service.GetValueOr(CreateService);
-        var actualMatch = match.GetValueOr(() => CreateTestMatch());
-        var actualContextDocs = contextDocuments.GetValueOr(() => CreateTestContextDocuments());
+        var actualService = service.Or(CreateService);
+        var actualMatch = match.Or(() => CreateTestMatch());
+        var actualContextDocs = contextDocuments.Or(() => CreateTestContextDocuments());
         
         return actualService.PredictMatchAsync(
             actualMatch,

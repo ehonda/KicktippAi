@@ -9,10 +9,9 @@
   <ItemGroup>
     <PackageReference Include="Microsoft.Extensions.Diagnostics.Testing" Version="9.10.0" />
     <PackageReference Include="Microsoft.Extensions.Logging" Version="9.0.10" />
-    <PackageReference Include="OneOf" Version="3.0.271" />
-    <PackageReference Include="OneOf.SourceGenerator" Version="3.0.271" />
+    <PackageReference Include="EHonda.Optional.Core" Version="2.0.0" />
     <PackageReference Include="OpenAI" Version="2.2.0" />
-    <PackageReference Include="TUnit" Version="0.80.0" />
+    <PackageReference Include="TUnit" Version="1.2.11" />
   </ItemGroup>
 
 </Project>
