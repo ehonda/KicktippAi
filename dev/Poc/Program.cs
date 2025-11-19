@@ -1,14 +1,11 @@
 using DotNetEnv;
-using KicktippAi.Poc.Models;
+using EHonda.KicktippAi.Core;
 using KicktippIntegration;
-using OpenAiIntegration;
-using Core;
-using ContextProviders.Kicktipp;
 using Microsoft.Extensions.DependencyInjection;
-using Microsoft.Extensions.Configuration;
 using Microsoft.Extensions.Logging;
+using OpenAiIntegration;
 
-namespace KicktippAi.Poc;
+namespace Poc;
 
 public class Program
 {
@@ -156,7 +153,7 @@ public class Program
                 Console.WriteLine();
                 Console.WriteLine("Generating AI-powered predictions for open matches...");
                 
-                var bets = new Dictionary<Core.Match, KicktippIntegration.BetPrediction>();
+                var bets = new Dictionary<Match, KicktippIntegration.BetPrediction>();
                 
                 foreach (var match in openPredictions)
                 {
@@ -300,9 +297,9 @@ public class Program
     }
     
     // Helper method to convert Core.Match to POC Match for the predictor
-    private static KicktippAi.Poc.Models.Match ConvertToPocMatch(Core.Match coreMatch)
+    private static Models.Match ConvertToPocMatch(Match coreMatch)
     {
-        return new KicktippAi.Poc.Models.Match
+        return new Models.Match
         {
             HomeTeam = coreMatch.HomeTeam,
             RoadTeam = coreMatch.AwayTeam,

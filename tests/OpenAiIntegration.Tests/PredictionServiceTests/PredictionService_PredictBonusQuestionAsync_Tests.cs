@@ -1,4 +1,4 @@
-using Core;
+using EHonda.KicktippAi.Core;
 using Microsoft.Extensions.Logging;
 using Moq;
 using OpenAI.Chat;

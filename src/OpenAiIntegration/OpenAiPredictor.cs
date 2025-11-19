@@ -1,5 +1,5 @@
 using System.ClientModel;
-using Core;
+using EHonda.KicktippAi.Core;
 using Microsoft.Extensions.Logging;
 using OpenAI.Chat;
 

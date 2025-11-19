@@ -2,7 +2,7 @@ using System.Collections.Generic;
 using System.Linq;
 using System.Text.Json;
 using System.Text.Json.Serialization;
-using Core;
+using EHonda.KicktippAi.Core;
 using Microsoft.Extensions.Logging;
 using OpenAI.Chat;
 

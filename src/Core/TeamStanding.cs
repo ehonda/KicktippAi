@@ -1,4 +1,4 @@
-namespace Core;
+namespace EHonda.KicktippAi.Core;
 
 /// <summary>
 /// Represents a team's standing in a league table

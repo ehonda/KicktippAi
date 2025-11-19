@@ -1,4 +1,4 @@
-namespace Core;
+namespace EHonda.KicktippAi.Core;
 
 public interface IContextProvider<out TContext>
     where TContext : class

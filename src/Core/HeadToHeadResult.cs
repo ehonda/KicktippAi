@@ -1,6 +1,4 @@
-using NodaTime;
-
-namespace Core;
+namespace EHonda.KicktippAi.Core;
 
 /// <summary>
 /// Represents a head-to-head match result with detailed breakdown for CSV export

@@ -3,8 +3,8 @@ using Microsoft.Extensions.Logging;
 using Spectre.Console.Cli;
 using Spectre.Console;
 using System.Text.Json;
+using EHonda.KicktippAi.Core;
 using FirebaseAdapter;
-using Core;
 
 namespace Orchestrator.Commands;
 

@@ -4,6 +4,9 @@
         <TargetFramework>net10.0</TargetFramework>
         <ImplicitUsings>enable</ImplicitUsings>
         <Nullable>enable</Nullable>
+        <!-- TODO: Migrate to Directory.Build.props -->
+        <RootNamespace>EHonda.KicktippAi.$(MSBuildProjectName)</RootNamespace>
+        <AssemblyName>EHonda.KicktippAi.$(MSBuildProjectName)</AssemblyName>
     </PropertyGroup>
 
     <ItemGroup>

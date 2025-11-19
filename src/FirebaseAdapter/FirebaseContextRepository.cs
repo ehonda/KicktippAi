@@ -1,4 +1,4 @@
-using Core;
+using EHonda.KicktippAi.Core;
 using FirebaseAdapter.Models;
 using Google.Cloud.Firestore;
 using Microsoft.Extensions.Logging;

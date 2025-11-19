@@ -2,10 +2,10 @@ using Microsoft.Extensions.DependencyInjection;
 using Microsoft.Extensions.Logging;
 using Spectre.Console.Cli;
 using Spectre.Console;
-using Core;
 using FirebaseAdapter;
 using System.Globalization;
 using CsvHelper;
+using EHonda.KicktippAi.Core;
 
 namespace Orchestrator.Commands;
 

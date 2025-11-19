@@ -1,6 +1,6 @@
 using NodaTime;
 
-namespace Core;
+namespace EHonda.KicktippAi.Core;
 
 /// <summary>
 /// Represents a bonus question that can be answered by selecting from available options.

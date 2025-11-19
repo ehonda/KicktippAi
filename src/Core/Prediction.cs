@@ -1,6 +1,4 @@
-using System.Collections.Generic;
-
-namespace Core;
+namespace EHonda.KicktippAi.Core;
 
 public record Prediction(
     int HomeGoals,

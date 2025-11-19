@@ -1,6 +1,6 @@
 using System.Collections.Generic;
 using System.Linq;
-using Core;
+using EHonda.KicktippAi.Core;
 using Spectre.Console;
 
 namespace Orchestrator.Commands;

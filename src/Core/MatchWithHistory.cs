@@ -1,6 +1,4 @@
-using NodaTime;
-
-namespace Core;
+namespace EHonda.KicktippAi.Core;
 
 /// <summary>
 /// Represents a match result from a team's recent history

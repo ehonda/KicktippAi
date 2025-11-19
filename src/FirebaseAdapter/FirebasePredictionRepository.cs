@@ -2,7 +2,7 @@ using System.Collections.Generic;
 using System.Linq;
 using System.Text.Json;
 using System.Text.Json.Serialization;
-using Core;
+using EHonda.KicktippAi.Core;
 using FirebaseAdapter.Models;
 using Google.Cloud.Firestore;
 using Microsoft.Extensions.Logging;

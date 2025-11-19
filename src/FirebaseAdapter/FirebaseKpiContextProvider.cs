@@ -1,5 +1,5 @@
 using System.Runtime.CompilerServices;
-using Core;
+using EHonda.KicktippAi.Core;
 using Microsoft.Extensions.Logging;
 
 namespace FirebaseAdapter;

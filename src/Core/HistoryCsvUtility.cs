@@ -1,7 +1,7 @@
 using System.Globalization;
 using CsvHelper;
 
-namespace Core;
+namespace EHonda.KicktippAi.Core;
 
 /// <summary>
 /// Utility class for handling Data_Collected_At column in history CSV documents.

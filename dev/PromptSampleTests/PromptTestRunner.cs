@@ -3,8 +3,8 @@ using System.Text.Json;
 using Microsoft.Extensions.Logging;
 using OpenAI.Chat;
 using PromptSampleTests.Models;
-using Core;
 using ContextProviders.Kicktipp;
+using EHonda.KicktippAi.Core;
 using Microsoft.Extensions.DependencyInjection;
 using KicktippIntegration;
 using NodaTime;
@@ -80,7 +80,7 @@ public class PromptTestRunner
 
         // Create a dummy match for testing
         var utcZone = DateTimeZone.Utc;
-        var match = new Core.Match(
+        var match = new Match(
             homeTeam,
             awayTeam,
             utcZone.AtLeniently(LocalDateTime.FromDateTime(DateTime.UtcNow.AddDays(1))),
@@ -195,7 +195,7 @@ public class PromptTestRunner
         await RunLiveModeWithMatch(model, selectedMatch, verbose);
     }
     
-    private async Task<List<Core.Match>> GetAvailableMatches()
+    private async Task<List<Match>> GetAvailableMatches()
     {
         // Get API key and credentials
         var apiKey = Environment.GetEnvironmentVariable("OPENAI_API_KEY");
@@ -234,7 +234,7 @@ public class PromptTestRunner
         return matchesWithHistory.Select(mwh => mwh.Match).ToList();
     }
 
-    public async Task RunLiveModeWithMatch(string model, Core.Match match, bool verbose = false)
+    public async Task RunLiveModeWithMatch(string model, Match match, bool verbose = false)
     {
         var apiKey = Environment.GetEnvironmentVariable("OPENAI_API_KEY");
         if (string.IsNullOrEmpty(apiKey))

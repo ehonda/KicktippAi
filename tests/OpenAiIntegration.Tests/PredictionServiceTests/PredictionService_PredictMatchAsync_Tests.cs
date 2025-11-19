@@ -1,4 +1,4 @@
-using Core;
+using EHonda.KicktippAi.Core;
 using Microsoft.Extensions.Logging;
 using Moq;
 using OneOf.Types;
@@ -6,6 +6,7 @@ using OpenAI.Chat;
 using TestUtilities;
 using TestUtilities.Options;
 using TUnit.Core;
+using Match = EHonda.KicktippAi.Core.Match;
 
 namespace OpenAiIntegration.Tests.PredictionServiceTests;
 
@@ -19,7 +20,7 @@ public class PredictionService_PredictMatchAsync_Tests : PredictionServiceTests_
     /// </summary>
     private Task<Prediction?> PredictMatchAsync(
         Option<PredictionService> service = default!,
-        Option<Core.Match> match = default!,
+        Option<Match> match = default!,
         Option<IEnumerable<DocumentContext>> contextDocuments = default!,
         bool includeJustification = false,
         CancellationToken cancellationToken = default)

@@ -1,4 +1,3 @@
-using Core;
 using Microsoft.Extensions.Logging;
 using Microsoft.Extensions.Logging.Testing;
 using Moq;
@@ -6,8 +5,10 @@ using NodaTime;
 using OpenAI.Chat;
 using System.ClientModel;
 using System.ClientModel.Primitives;
+using EHonda.KicktippAi.Core;
 using TestUtilities;
 using TUnit.Core;
+using Match = EHonda.KicktippAi.Core.Match;
 
 namespace OpenAiIntegration.Tests.PredictionServiceTests;
 
@@ -53,14 +54,14 @@ public abstract class PredictionServiceTests_Base
     /// <summary>
     /// Helper method to create a test Match instance
     /// </summary>
-    protected static Core.Match CreateTestMatch(
+    protected static Match CreateTestMatch(
         string homeTeam = "Bayern Munich",
         string awayTeam = "Borussia Dortmund",
         int matchday = 1)
     {
         var instant = Instant.FromUtc(2025, 10, 30, 15, 30);
         var zonedDateTime = instant.InUtc();
-        return new Core.Match(homeTeam, awayTeam, zonedDateTime, matchday);
+        return new Match(homeTeam, awayTeam, zonedDateTime, matchday);
     }
 
     /// <summary>

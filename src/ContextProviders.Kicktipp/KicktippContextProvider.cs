@@ -1,8 +1,8 @@
 using System.Globalization;
 using System.Runtime.CompilerServices;
 using System.Text;
-using Core;
 using CsvHelper;
+using EHonda.KicktippAi.Core;
 using KicktippIntegration;
 
 namespace ContextProviders.Kicktipp;

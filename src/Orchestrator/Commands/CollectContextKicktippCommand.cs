@@ -2,9 +2,9 @@ using Microsoft.Extensions.DependencyInjection;
 using Microsoft.Extensions.Logging;
 using Spectre.Console.Cli;
 using Spectre.Console;
-using Core;
 using KicktippIntegration;
 using ContextProviders.Kicktipp;
+using EHonda.KicktippAi.Core;
 using FirebaseAdapter;
 
 namespace Orchestrator.Commands;

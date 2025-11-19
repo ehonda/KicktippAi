@@ -1,4 +1,4 @@
-using Core;
+using EHonda.KicktippAi.Core;
 
 namespace OpenAiIntegration;
 

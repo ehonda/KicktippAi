@@ -1,10 +1,10 @@
+using EHonda.KicktippAi.Core;
 using Microsoft.Extensions.DependencyInjection;
 using Microsoft.Extensions.DependencyInjection.Extensions;
 using Microsoft.Extensions.Configuration;
 using Microsoft.Extensions.FileProviders;
 using Microsoft.Extensions.Logging;
 using OpenAI.Chat;
-using Core;
 
 namespace OpenAiIntegration;
 

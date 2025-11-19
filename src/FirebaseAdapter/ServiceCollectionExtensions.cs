@@ -1,4 +1,3 @@
-using Core;
 using FirebaseAdapter.Configuration;
 using Google.Cloud.Firestore;
 using Microsoft.Extensions.DependencyInjection;
@@ -6,6 +5,7 @@ using Microsoft.Extensions.Logging;
 using Microsoft.Extensions.Options;
 using Microsoft.Extensions.Configuration;
 using System.Text;
+using EHonda.KicktippAi.Core;
 
 namespace FirebaseAdapter;
 

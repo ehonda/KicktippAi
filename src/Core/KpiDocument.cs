@@ -1,4 +1,4 @@
-namespace Core;
+namespace EHonda.KicktippAi.Core;
 
 /// <summary>
 /// Represents a KPI context document.

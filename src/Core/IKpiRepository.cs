@@ -1,4 +1,4 @@
-namespace Core;
+namespace EHonda.KicktippAi.Core;
 
 /// <summary>
 /// Repository interface for persisting and retrieving KPI context documents.

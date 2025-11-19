@@ -1,4 +1,4 @@
-namespace KicktippAi.Poc.Models;
+namespace Poc.Models;
 
 /// <summary>
 /// Represents a football match with betting odds, based on the Python Match class from kicktipp-cli

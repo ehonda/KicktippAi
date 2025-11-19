@@ -3,10 +3,10 @@ using Microsoft.Extensions.Logging;
 using Spectre.Console.Cli;
 using Spectre.Console;
 using FirebaseAdapter;
-using Core;
 using Google.Cloud.Firestore;
 using System.Globalization;
 using System.Text.Json;
+using EHonda.KicktippAi.Core;
 
 namespace Orchestrator.Commands;
 
