@@ -31,8 +31,7 @@ public abstract class PredictionServiceTests_Base
     {
         var actualChatClient = chatClient.Or(() =>
         {
-            var usage = OpenAITestHelpers.CreateChatTokenUsage(1000, 50);
-            return CreateMockChatClient("""{"home": 2, "away": 1}""", usage);
+            return CreateMockChatClient();
         });
 
         var actualLogger = logger.Or(CreateFakeLogger);
@@ -194,8 +193,13 @@ public abstract class PredictionServiceTests_Base
     /// <summary>
     /// Creates a mock ChatClient with a configured response
     /// </summary>
-    protected static ChatClient CreateMockChatClient(string responseJson, ChatTokenUsage usage)
+    protected static ChatClient CreateMockChatClient(
+        Option<string> responseJson = default,
+        Option<ChatTokenUsage> usage = default)
     {
+        var actualResponseJson = responseJson.Or("""{"home": 2, "away": 1}""");
+        var actualUsage = usage.Or(() => OpenAITestHelpers.CreateChatTokenUsage(1000, 50));
+
         // Create the mock ChatClient and mock ClientResult
         var mockClient = new Mock<ChatClient>();
         var mockResult = new Mock<ClientResult<ChatCompletion>>(null!, Mock.Of<PipelineResponse>());
@@ -207,8 +211,8 @@ public abstract class PredictionServiceTests_Base
             createdAt: DateTimeOffset.UtcNow,
             finishReason: ChatFinishReason.Stop,
             role: ChatMessageRole.Assistant,
-            content: [ChatMessageContentPart.CreateTextPart(responseJson)],
-            usage: usage);
+            content: [ChatMessageContentPart.CreateTextPart(actualResponseJson)],
+            usage: actualUsage);
         
         // Set up the mock result to return the completion
         mockResult

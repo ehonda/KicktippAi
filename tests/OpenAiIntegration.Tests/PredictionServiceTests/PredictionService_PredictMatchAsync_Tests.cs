@@ -72,7 +72,7 @@ public class PredictionService_PredictMatchAsync_Tests : PredictionServiceTests_
                 }
             }
             """;
-        var chatClient = CreateMockChatClient(responseJson, usage);
+        var chatClient = CreateMockChatClient(responseJson: responseJson, usage: usage);
         var service = CreateService(chatClient: chatClient);
 
         // Act
@@ -94,7 +94,7 @@ public class PredictionService_PredictMatchAsync_Tests : PredictionServiceTests_
     {
         // Arrange
         var usage = OpenAITestHelpers.CreateChatTokenUsage(1000, 50);
-        var chatClient = CreateMockChatClient("""{"home": 2, "away": 1}""", usage);
+        var chatClient = CreateMockChatClient(responseJson: """{"home": 2, "away": 1}""", usage: usage);
         var tokenUsageTracker = CreateMockTokenUsageTracker();
         var service = CreateService(chatClient: chatClient, tokenUsageTracker: Option.Some(tokenUsageTracker.Object));
 
@@ -112,7 +112,7 @@ public class PredictionService_PredictMatchAsync_Tests : PredictionServiceTests_
     {
         // Arrange
         var usage = OpenAITestHelpers.CreateChatTokenUsage(1000, 50);
-        var chatClient = CreateMockChatClient("""{"home": 2, "away": 1}""", usage);
+        var chatClient = CreateMockChatClient(responseJson: """{"home": 2, "away": 1}""", usage: usage);
         var costCalculationService = CreateMockCostCalculationService();
         var service = CreateService(chatClient: chatClient, costCalculationService: Option.Some(costCalculationService.Object));
 
@@ -130,7 +130,7 @@ public class PredictionService_PredictMatchAsync_Tests : PredictionServiceTests_
     {
         // Arrange
         var usage = OpenAITestHelpers.CreateChatTokenUsage(500, 30);
-        var chatClient = CreateMockChatClient("""{"home": 1, "away": 1}""", usage);
+        var chatClient = CreateMockChatClient(responseJson: """{"home": 1, "away": 1}""", usage: usage);
         var service = CreateService(chatClient: chatClient);
         var emptyContextDocs = new List<DocumentContext>();
 
@@ -193,7 +193,7 @@ public class PredictionService_PredictMatchAsync_Tests : PredictionServiceTests_
         var usage = OpenAITestHelpers.CreateChatTokenUsage(1000, 50);
         // Use malformed JSON that will cause JsonException during deserialization
         var invalidJson = """not valid json at all""";
-        var chatClient = CreateMockChatClient(invalidJson, usage);
+        var chatClient = CreateMockChatClient(responseJson: invalidJson, usage: usage);
         var service = CreateService(chatClient: chatClient);
 
         // Act

@@ -37,7 +37,7 @@ public class PredictionService_PredictBonusQuestionAsync_Tests : PredictionServi
     {
         // Arrange
         var usage = OpenAITestHelpers.CreateChatTokenUsage(800, 30);
-        var chatClient = CreateMockChatClient("""{"selectedOptionIds": ["opt1"]}""", usage);
+        var chatClient = CreateMockChatClient(responseJson: """{"selectedOptionIds": ["opt1"]}""", usage: usage);
         var service = CreateService(chatClient: chatClient);
         var bonusQuestion = CreateTestBonusQuestion(maxSelections: 1);
 
@@ -55,7 +55,7 @@ public class PredictionService_PredictBonusQuestionAsync_Tests : PredictionServi
     {
         // Arrange
         var usage = OpenAITestHelpers.CreateChatTokenUsage(900, 40);
-        var chatClient = CreateMockChatClient("""{"selectedOptionIds": ["opt1", "opt2"]}""", usage);
+        var chatClient = CreateMockChatClient(responseJson: """{"selectedOptionIds": ["opt1", "opt2"]}""", usage: usage);
         var service = CreateService(chatClient: chatClient);
         var bonusQuestion = CreateTestBonusQuestion(maxSelections: 2);
 
@@ -74,7 +74,7 @@ public class PredictionService_PredictBonusQuestionAsync_Tests : PredictionServi
     {
         // Arrange
         var usage = OpenAITestHelpers.CreateChatTokenUsage(800, 30);
-        var chatClient = CreateMockChatClient("""{"selectedOptionIds": ["opt2"]}""", usage);
+        var chatClient = CreateMockChatClient(responseJson: """{"selectedOptionIds": ["opt2"]}""", usage: usage);
         var tokenUsageTracker = CreateMockTokenUsageTracker();
         var service = CreateService(chatClient: chatClient, tokenUsageTracker: Option.Some(tokenUsageTracker.Object));
 
@@ -92,7 +92,7 @@ public class PredictionService_PredictBonusQuestionAsync_Tests : PredictionServi
     {
         // Arrange
         var usage = OpenAITestHelpers.CreateChatTokenUsage(800, 30);
-        var chatClient = CreateMockChatClient("""{"selectedOptionIds": ["opt3"]}""", usage);
+        var chatClient = CreateMockChatClient(responseJson: """{"selectedOptionIds": ["opt3"]}""", usage: usage);
         var costCalculationService = CreateMockCostCalculationService();
         var service = CreateService(chatClient: chatClient, costCalculationService: Option.Some(costCalculationService.Object));
 
@@ -110,7 +110,7 @@ public class PredictionService_PredictBonusQuestionAsync_Tests : PredictionServi
     {
         // Arrange
         var usage = OpenAITestHelpers.CreateChatTokenUsage(600, 25);
-        var chatClient = CreateMockChatClient("""{"selectedOptionIds": ["opt1"]}""", usage);
+        var chatClient = CreateMockChatClient(responseJson: """{"selectedOptionIds": ["opt1"]}""", usage: usage);
         var service = CreateService(chatClient: chatClient);
         var emptyContextDocs = new List<DocumentContext>();
 
@@ -170,7 +170,7 @@ public class PredictionService_PredictBonusQuestionAsync_Tests : PredictionServi
     {
         // Arrange
         var usage = OpenAITestHelpers.CreateChatTokenUsage(800, 30);
-        var chatClient = CreateMockChatClient("""{"selectedOptionIds": ["invalid-option"]}""", usage);
+        var chatClient = CreateMockChatClient(responseJson: """{"selectedOptionIds": ["invalid-option"]}""", usage: usage);
         var service = CreateService(chatClient: chatClient);
 
         // Act
@@ -185,7 +185,7 @@ public class PredictionService_PredictBonusQuestionAsync_Tests : PredictionServi
     {
         // Arrange
         var usage = OpenAITestHelpers.CreateChatTokenUsage(800, 30);
-        var chatClient = CreateMockChatClient("""{"selectedOptionIds": ["opt1", "opt1"]}""", usage);
+        var chatClient = CreateMockChatClient(responseJson: """{"selectedOptionIds": ["opt1", "opt1"]}""", usage: usage);
         var service = CreateService(chatClient: chatClient);
         var bonusQuestion = CreateTestBonusQuestion(maxSelections: 2);
 
@@ -201,7 +201,7 @@ public class PredictionService_PredictBonusQuestionAsync_Tests : PredictionServi
     {
         // Arrange
         var usage = OpenAITestHelpers.CreateChatTokenUsage(800, 30);
-        var chatClient = CreateMockChatClient("""{"selectedOptionIds": ["opt1", "opt2"]}""", usage);
+        var chatClient = CreateMockChatClient(responseJson: """{"selectedOptionIds": ["opt1", "opt2"]}""", usage: usage);
         var service = CreateService(chatClient: chatClient);
         var bonusQuestion = CreateTestBonusQuestion(maxSelections: 1);
 
@@ -218,7 +218,7 @@ public class PredictionService_PredictBonusQuestionAsync_Tests : PredictionServi
         // Arrange
         var usage = OpenAITestHelpers.CreateChatTokenUsage(800, 30);
         var invalidJson = """not valid json""";
-        var chatClient = CreateMockChatClient(invalidJson, usage);
+        var chatClient = CreateMockChatClient(responseJson: invalidJson, usage: usage);
         var service = CreateService(chatClient: chatClient);
 
         // Act
