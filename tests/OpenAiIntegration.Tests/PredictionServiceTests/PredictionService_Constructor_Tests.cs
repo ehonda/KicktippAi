@@ -17,7 +17,7 @@ public class PredictionService_Constructor_Tests : PredictionServiceTests_Base
     public async Task Creating_service_with_null_chatClient_throws_ArgumentNullException()
     {
         // Act & Assert
-        var exception = await Assert.That(() => CreateService(chatClient: Option.Some<ChatClient>(null!)))
+        var exception = await Assert.That(() => CreateService(Option.Some<ChatClient>(null!)))
         .Throws<ArgumentNullException>();
         
         await Assert.That(exception!.ParamName).IsEqualTo("chatClient");

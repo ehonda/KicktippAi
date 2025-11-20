@@ -52,7 +52,6 @@ public class PredictionService_PredictMatchAsync_Tests : PredictionServiceTests_
     public async Task Predicting_match_with_includeJustification_returns_prediction_with_justification()
     {
         // Arrange
-        var usage = OpenAITestHelpers.CreateChatTokenUsage(1000, 150);
         var responseJson = """
             {
                 "home": 3,
@@ -72,11 +71,11 @@ public class PredictionService_PredictMatchAsync_Tests : PredictionServiceTests_
                 }
             }
             """;
-        var chatClient = CreateMockChatClient(responseJson: responseJson, usage: usage);
-        var service = CreateService(chatClient: chatClient);
+        var chatClient = CreateMockChatClient(responseJson);
+        var service = CreateService(chatClient);
 
         // Act
-        var prediction = await PredictMatchAsync(service: service, includeJustification: true);
+        var prediction = await PredictMatchAsync(service, includeJustification: true);
 
         // Assert
         await Assert.That(prediction).IsNotNull();
@@ -94,12 +93,12 @@ public class PredictionService_PredictMatchAsync_Tests : PredictionServiceTests_
     {
         // Arrange
         var usage = OpenAITestHelpers.CreateChatTokenUsage(1000, 50);
-        var chatClient = CreateMockChatClient(responseJson: """{"home": 2, "away": 1}""", usage: usage);
+        var chatClient = CreateMockChatClient("""{"home": 2, "away": 1}""", usage);
         var tokenUsageTracker = CreateMockTokenUsageTracker();
-        var service = CreateService(chatClient: chatClient, tokenUsageTracker: Option.Some(tokenUsageTracker.Object));
+        var service = CreateService(chatClient, tokenUsageTracker: Option.Some(tokenUsageTracker.Object));
 
         // Act
-        await PredictMatchAsync(service: service);
+        await PredictMatchAsync(service);
 
         // Assert
         tokenUsageTracker.Verify(
@@ -112,12 +111,12 @@ public class PredictionService_PredictMatchAsync_Tests : PredictionServiceTests_
     {
         // Arrange
         var usage = OpenAITestHelpers.CreateChatTokenUsage(1000, 50);
-        var chatClient = CreateMockChatClient(responseJson: """{"home": 2, "away": 1}""", usage: usage);
+        var chatClient = CreateMockChatClient("""{"home": 2, "away": 1}""", usage);
         var costCalculationService = CreateMockCostCalculationService();
-        var service = CreateService(chatClient: chatClient, costCalculationService: Option.Some(costCalculationService.Object));
+        var service = CreateService(chatClient, costCalculationService: Option.Some(costCalculationService.Object));
 
         // Act
-        await PredictMatchAsync(service: service);
+        await PredictMatchAsync(service);
 
         // Assert
         costCalculationService.Verify(
@@ -129,17 +128,16 @@ public class PredictionService_PredictMatchAsync_Tests : PredictionServiceTests_
     public async Task Predicting_match_with_empty_context_documents_succeeds()
     {
         // Arrange
-        var usage = OpenAITestHelpers.CreateChatTokenUsage(500, 30);
-        var chatClient = CreateMockChatClient(responseJson: """{"home": 1, "away": 1}""", usage: usage);
-        var service = CreateService(chatClient: chatClient);
+        var chatClient = CreateMockChatClient("""{"home": 2, "away": 1}""");
+        var service = CreateService(chatClient);
         var emptyContextDocs = new List<DocumentContext>();
 
         // Act
-        var prediction = await PredictMatchAsync(service: service, contextDocuments: emptyContextDocs);
+        var prediction = await PredictMatchAsync(service, contextDocuments: emptyContextDocs);
 
         // Assert
         await Assert.That(prediction).IsNotNull();
-        await Assert.That(prediction!.HomeGoals).IsEqualTo(1);
+        await Assert.That(prediction!.HomeGoals).IsEqualTo(2);
         await Assert.That(prediction.AwayGoals).IsEqualTo(1);
     }
 
@@ -151,7 +149,7 @@ public class PredictionService_PredictMatchAsync_Tests : PredictionServiceTests_
         var service = CreateService(logger: logger);
 
         // Act
-        await PredictMatchAsync(service: service);
+        await PredictMatchAsync(service);
 
         // Assert
         logger.AssertLogContains(LogLevel.Information, "Generating prediction for match");
@@ -162,10 +160,10 @@ public class PredictionService_PredictMatchAsync_Tests : PredictionServiceTests_
     {
         // Arrange
         var chatClient = CreateThrowingMockChatClient(new InvalidOperationException("API error"));
-        var service = CreateService(chatClient: chatClient);
+        var service = CreateService(chatClient);
 
         // Act
-        var prediction = await PredictMatchAsync(service: service);
+        var prediction = await PredictMatchAsync(service);
 
         // Assert
         await Assert.That(prediction).IsNull();
@@ -177,27 +175,25 @@ public class PredictionService_PredictMatchAsync_Tests : PredictionServiceTests_
         // Arrange
         var chatClient = CreateThrowingMockChatClient(new InvalidOperationException("API error"));
         var logger = CreateFakeLogger();
-        var service = CreateService(chatClient: chatClient, logger: logger);
+        var service = CreateService(chatClient, logger: logger);
 
         // Act
-        await PredictMatchAsync(service: service);
+        await PredictMatchAsync(service);
 
         // Assert
-        logger.AssertLogContains(LogLevel.Error, "Error generating prediction");
+        logger.AssertLogContains(LogLevel.Error, "Error generating prediction for match");
     }
 
     [Test]
     public async Task Predicting_match_with_invalid_JSON_returns_null()
     {
         // Arrange
-        var usage = OpenAITestHelpers.CreateChatTokenUsage(1000, 50);
-        // Use malformed JSON that will cause JsonException during deserialization
-        var invalidJson = """not valid json at all""";
-        var chatClient = CreateMockChatClient(responseJson: invalidJson, usage: usage);
-        var service = CreateService(chatClient: chatClient);
+        var invalidJson = """not valid json""";
+        var chatClient = CreateMockChatClient(invalidJson);
+        var service = CreateService(chatClient);
 
         // Act
-        var prediction = await PredictMatchAsync(service: service);
+        var prediction = await PredictMatchAsync(service);
 
         // Assert
         await Assert.That(prediction).IsNull();
