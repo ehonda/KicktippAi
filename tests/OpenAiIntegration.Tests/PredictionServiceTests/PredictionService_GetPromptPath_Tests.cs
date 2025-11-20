@@ -1,6 +1,7 @@
 using TestUtilities;
 using Moq;
 using TUnit.Core;
+using EHonda.Optional.Core;
 
 namespace OpenAiIntegration.Tests.PredictionServiceTests;
 
@@ -61,9 +62,8 @@ public class PredictionService_GetPromptPath_Tests : PredictionServiceTests_Base
     public async Task Getting_match_prompt_path_for_o3_model_uses_o3_prompts()
     {
         // Arrange
-        Model = "o3";
-        TemplateProvider = CreateMockTemplateProvider("o3");
-        var service = CreateService();
+        var templateProvider = CreateMockTemplateProvider("o3");
+        var service = CreateService(model: "o3", templateProvider: Option.Some(templateProvider.Object));
 
         // Act
         var promptPath = service.GetMatchPromptPath();
@@ -77,9 +77,8 @@ public class PredictionService_GetPromptPath_Tests : PredictionServiceTests_Base
     public async Task Getting_match_prompt_path_for_o4_mini_model_uses_o3_prompts()
     {
         // Arrange
-        Model = "o4-mini";
-        TemplateProvider = CreateMockTemplateProvider("o3");
-        var service = CreateService();
+        var templateProvider = CreateMockTemplateProvider("o3");
+        var service = CreateService(model: "o4-mini", templateProvider: Option.Some(templateProvider.Object));
 
         // Act
         var promptPath = service.GetMatchPromptPath();
@@ -93,9 +92,8 @@ public class PredictionService_GetPromptPath_Tests : PredictionServiceTests_Base
     public async Task Getting_match_prompt_path_for_gpt_5_mini_uses_gpt_5_prompts()
     {
         // Arrange
-        Model = "gpt-5-mini";
-        TemplateProvider = CreateMockTemplateProvider("gpt-5");
-        var service = CreateService();
+        var templateProvider = CreateMockTemplateProvider("gpt-5");
+        var service = CreateService(model: "gpt-5-mini", templateProvider: Option.Some(templateProvider.Object));
 
         // Act
         var promptPath = service.GetMatchPromptPath();
@@ -109,9 +107,8 @@ public class PredictionService_GetPromptPath_Tests : PredictionServiceTests_Base
     public async Task Getting_match_prompt_path_for_gpt_5_nano_uses_gpt_5_prompts()
     {
         // Arrange
-        Model = "gpt-5-nano";
-        TemplateProvider = CreateMockTemplateProvider("gpt-5");
-        var service = CreateService();
+        var templateProvider = CreateMockTemplateProvider("gpt-5");
+        var service = CreateService(model: "gpt-5-nano", templateProvider: Option.Some(templateProvider.Object));
 
         // Act
         var promptPath = service.GetMatchPromptPath();
@@ -121,4 +118,3 @@ public class PredictionService_GetPromptPath_Tests : PredictionServiceTests_Base
         await Assert.That(promptPath).Contains("match.md");
     }
 }
-

@@ -8,6 +8,7 @@ using System.ClientModel.Primitives;
 using EHonda.KicktippAi.Core;
 using TestUtilities;
 using TUnit.Core;
+using EHonda.Optional.Core;
 using Match = EHonda.KicktippAi.Core.Match;
 
 namespace OpenAiIntegration.Tests.PredictionServiceTests;
@@ -17,38 +18,36 @@ namespace OpenAiIntegration.Tests.PredictionServiceTests;
 /// </summary>
 public abstract class PredictionServiceTests_Base
 {
-    protected ChatClient ChatClient = null!;
-    protected FakeLogger<PredictionService> Logger = null!;
-    protected Mock<ICostCalculationService> CostCalculationService = null!;
-    protected Mock<ITokenUsageTracker> TokenUsageTracker = null!;
-    protected Mock<IInstructionsTemplateProvider> TemplateProvider = null!;
-    protected string Model = null!;
-
-    [Before(Test)]
-    public void SetupDefaultDependencies()
-    {
-        // Set up default dependencies for most tests
-        var usage = OpenAITestHelpers.CreateChatTokenUsage(1000, 50);
-        ChatClient = CreateMockChatClient("""{"home": 2, "away": 1}""", usage);
-        Logger = CreateFakeLogger();
-        CostCalculationService = CreateMockCostCalculationService();
-        TokenUsageTracker = CreateMockTokenUsageTracker();
-        TemplateProvider = CreateMockTemplateProvider();
-        Model = "gpt-5";
-    }
-
     /// <summary>
     /// Factory method to create a PredictionService instance using the configured dependencies
     /// </summary>
-    protected PredictionService CreateService()
+    protected static PredictionService CreateService(
+        Option<ChatClient> chatClient = default,
+        Option<FakeLogger<PredictionService>> logger = default,
+        Option<ICostCalculationService> costCalculationService = default,
+        Option<ITokenUsageTracker> tokenUsageTracker = default,
+        Option<IInstructionsTemplateProvider> templateProvider = default,
+        Option<string> model = default)
     {
+        var actualChatClient = chatClient.Or(() =>
+        {
+            var usage = OpenAITestHelpers.CreateChatTokenUsage(1000, 50);
+            return CreateMockChatClient("""{"home": 2, "away": 1}""", usage);
+        });
+
+        var actualLogger = logger.Or(CreateFakeLogger);
+        var actualCostService = costCalculationService.Or(() => CreateMockCostCalculationService().Object);
+        var actualTokenTracker = tokenUsageTracker.Or(() => CreateMockTokenUsageTracker().Object);
+        var actualTemplateProvider = templateProvider.Or(() => CreateMockTemplateProvider().Object);
+        var actualModel = model.Or("gpt-5");
+
         return new PredictionService(
-            ChatClient,
-            Logger,
-            CostCalculationService.Object,
-            TokenUsageTracker.Object,
-            TemplateProvider.Object,
-            Model);
+            actualChatClient,
+            actualLogger,
+            actualCostService,
+            actualTokenTracker,
+            actualTemplateProvider,
+            actualModel);
     }
 
     /// <summary>

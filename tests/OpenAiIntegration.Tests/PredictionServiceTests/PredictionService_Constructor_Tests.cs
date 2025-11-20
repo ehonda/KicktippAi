@@ -16,11 +16,11 @@ public class PredictionService_Constructor_Tests : PredictionServiceTests_Base
         // Act & Assert
         var exception = await Assert.That(() => new PredictionService(
             null!,
-            Logger,
-            CostCalculationService.Object,
-            TokenUsageTracker.Object,
-            TemplateProvider.Object,
-            Model))
+            CreateFakeLogger(),
+            CreateMockCostCalculationService().Object,
+            CreateMockTokenUsageTracker().Object,
+            CreateMockTemplateProvider().Object,
+            "gpt-5"))
         .Throws<ArgumentNullException>();
         
         await Assert.That(exception!.ParamName).IsEqualTo("chatClient");
@@ -31,12 +31,12 @@ public class PredictionService_Constructor_Tests : PredictionServiceTests_Base
     {
         // Act & Assert
         var exception = await Assert.That(() => new PredictionService(
-            ChatClient,
+            CreateMockChatClient("{}", OpenAITestHelpers.CreateChatTokenUsage(0, 0)),
             null!,
-            CostCalculationService.Object,
-            TokenUsageTracker.Object,
-            TemplateProvider.Object,
-            Model))
+            CreateMockCostCalculationService().Object,
+            CreateMockTokenUsageTracker().Object,
+            CreateMockTemplateProvider().Object,
+            "gpt-5"))
         .Throws<ArgumentNullException>();
         
         await Assert.That(exception!.ParamName).IsEqualTo("logger");
@@ -47,12 +47,12 @@ public class PredictionService_Constructor_Tests : PredictionServiceTests_Base
     {
         // Act & Assert
         var exception = await Assert.That(() => new PredictionService(
-            ChatClient,
-            Logger,
+            CreateMockChatClient("{}", OpenAITestHelpers.CreateChatTokenUsage(0, 0)),
+            CreateFakeLogger(),
             null!,
-            TokenUsageTracker.Object,
-            TemplateProvider.Object,
-            Model))
+            CreateMockTokenUsageTracker().Object,
+            CreateMockTemplateProvider().Object,
+            "gpt-5"))
         .Throws<ArgumentNullException>();
         
         await Assert.That(exception!.ParamName).IsEqualTo("costCalculationService");
@@ -63,12 +63,12 @@ public class PredictionService_Constructor_Tests : PredictionServiceTests_Base
     {
         // Act & Assert
         var exception = await Assert.That(() => new PredictionService(
-            ChatClient,
-            Logger,
-            CostCalculationService.Object,
+            CreateMockChatClient("{}", OpenAITestHelpers.CreateChatTokenUsage(0, 0)),
+            CreateFakeLogger(),
+            CreateMockCostCalculationService().Object,
             null!,
-            TemplateProvider.Object,
-            Model))
+            CreateMockTemplateProvider().Object,
+            "gpt-5"))
         .Throws<ArgumentNullException>();
         
         await Assert.That(exception!.ParamName).IsEqualTo("tokenUsageTracker");
@@ -79,12 +79,12 @@ public class PredictionService_Constructor_Tests : PredictionServiceTests_Base
     {
         // Act & Assert
         var exception = await Assert.That(() => new PredictionService(
-            ChatClient,
-            Logger,
-            CostCalculationService.Object,
-            TokenUsageTracker.Object,
+            CreateMockChatClient("{}", OpenAITestHelpers.CreateChatTokenUsage(0, 0)),
+            CreateFakeLogger(),
+            CreateMockCostCalculationService().Object,
+            CreateMockTokenUsageTracker().Object,
             null!,
-            Model))
+            "gpt-5"))
         .Throws<ArgumentNullException>();
         
         await Assert.That(exception!.ParamName).IsEqualTo("templateProvider");
@@ -95,15 +95,14 @@ public class PredictionService_Constructor_Tests : PredictionServiceTests_Base
     {
         // Act & Assert
         var exception = await Assert.That(() => new PredictionService(
-            ChatClient,
-            Logger,
-            CostCalculationService.Object,
-            TokenUsageTracker.Object,
-            TemplateProvider.Object,
+            CreateMockChatClient("{}", OpenAITestHelpers.CreateChatTokenUsage(0, 0)),
+            CreateFakeLogger(),
+            CreateMockCostCalculationService().Object,
+            CreateMockTokenUsageTracker().Object,
+            CreateMockTemplateProvider().Object,
             null!))
         .Throws<ArgumentNullException>();
         
         await Assert.That(exception!.ParamName).IsEqualTo("model");
     }
 }
-

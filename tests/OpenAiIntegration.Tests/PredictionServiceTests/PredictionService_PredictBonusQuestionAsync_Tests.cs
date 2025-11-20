@@ -4,6 +4,7 @@ using Moq;
 using OpenAI.Chat;
 using TestUtilities;
 using TUnit.Core;
+using EHonda.Optional.Core;
 
 namespace OpenAiIntegration.Tests.PredictionServiceTests;
 
@@ -12,19 +13,36 @@ namespace OpenAiIntegration.Tests.PredictionServiceTests;
 /// </summary>
 public class PredictionService_PredictBonusQuestionAsync_Tests : PredictionServiceTests_Base
 {
+    /// <summary>
+    /// Helper method to call PredictBonusQuestionAsync with optional parameters that default to test helpers
+    /// </summary>
+    private Task<BonusPrediction?> PredictBonusQuestionAsync(
+        Option<PredictionService> service = default,
+        Option<BonusQuestion> bonusQuestion = default,
+        Option<IEnumerable<DocumentContext>> contextDocuments = default,
+        CancellationToken cancellationToken = default)
+    {
+        var actualService = service.Or(() => CreateService());
+        var actualBonusQuestion = bonusQuestion.Or(() => CreateTestBonusQuestion());
+        var actualContextDocs = contextDocuments.Or(() => CreateTestContextDocuments());
+        
+        return actualService.PredictBonusQuestionAsync(
+            actualBonusQuestion,
+            actualContextDocs,
+            cancellationToken);
+    }
+
     [Test]
     public async Task Predicting_bonus_question_with_single_selection_returns_prediction()
     {
         // Arrange
         var usage = OpenAITestHelpers.CreateChatTokenUsage(800, 30);
-        ChatClient = CreateMockChatClient("""{"selectedOptionIds": ["opt1"]}""", usage);
-        
-        var service = CreateService();
+        var chatClient = CreateMockChatClient("""{"selectedOptionIds": ["opt1"]}""", usage);
+        var service = CreateService(chatClient: chatClient);
         var bonusQuestion = CreateTestBonusQuestion(maxSelections: 1);
-        var contextDocs = CreateTestContextDocuments();
 
         // Act
-        var prediction = await service.PredictBonusQuestionAsync(bonusQuestion, contextDocs);
+        var prediction = await PredictBonusQuestionAsync(service: service, bonusQuestion: bonusQuestion);
 
         // Assert
         await Assert.That(prediction).IsNotNull();
@@ -37,14 +55,12 @@ public class PredictionService_PredictBonusQuestionAsync_Tests : PredictionServi
     {
         // Arrange
         var usage = OpenAITestHelpers.CreateChatTokenUsage(900, 40);
-        ChatClient = CreateMockChatClient("""{"selectedOptionIds": ["opt1", "opt2"]}""", usage);
-        
-        var service = CreateService();
+        var chatClient = CreateMockChatClient("""{"selectedOptionIds": ["opt1", "opt2"]}""", usage);
+        var service = CreateService(chatClient: chatClient);
         var bonusQuestion = CreateTestBonusQuestion(maxSelections: 2);
-        var contextDocs = CreateTestContextDocuments();
 
         // Act
-        var prediction = await service.PredictBonusQuestionAsync(bonusQuestion, contextDocs);
+        var prediction = await PredictBonusQuestionAsync(service: service, bonusQuestion: bonusQuestion);
 
         // Assert
         await Assert.That(prediction).IsNotNull();
@@ -58,17 +74,15 @@ public class PredictionService_PredictBonusQuestionAsync_Tests : PredictionServi
     {
         // Arrange
         var usage = OpenAITestHelpers.CreateChatTokenUsage(800, 30);
-        ChatClient = CreateMockChatClient("""{"selectedOptionIds": ["opt2"]}""", usage);
-        
-        var service = CreateService();
-        var bonusQuestion = CreateTestBonusQuestion();
-        var contextDocs = CreateTestContextDocuments();
+        var chatClient = CreateMockChatClient("""{"selectedOptionIds": ["opt2"]}""", usage);
+        var tokenUsageTracker = CreateMockTokenUsageTracker();
+        var service = CreateService(chatClient: chatClient, tokenUsageTracker: Option.Some(tokenUsageTracker.Object));
 
         // Act
-        await service.PredictBonusQuestionAsync(bonusQuestion, contextDocs);
+        await PredictBonusQuestionAsync(service: service);
 
         // Assert
-        TokenUsageTracker.Verify(
+        tokenUsageTracker.Verify(
             t => t.AddUsage("gpt-5", usage),
             Times.Once);
     }
@@ -78,17 +92,15 @@ public class PredictionService_PredictBonusQuestionAsync_Tests : PredictionServi
     {
         // Arrange
         var usage = OpenAITestHelpers.CreateChatTokenUsage(800, 30);
-        ChatClient = CreateMockChatClient("""{"selectedOptionIds": ["opt3"]}""", usage);
-        
-        var service = CreateService();
-        var bonusQuestion = CreateTestBonusQuestion();
-        var contextDocs = CreateTestContextDocuments();
+        var chatClient = CreateMockChatClient("""{"selectedOptionIds": ["opt3"]}""", usage);
+        var costCalculationService = CreateMockCostCalculationService();
+        var service = CreateService(chatClient: chatClient, costCalculationService: Option.Some(costCalculationService.Object));
 
         // Act
-        await service.PredictBonusQuestionAsync(bonusQuestion, contextDocs);
+        await PredictBonusQuestionAsync(service: service);
 
         // Assert
-        CostCalculationService.Verify(
+        costCalculationService.Verify(
             c => c.LogCostBreakdown("gpt-5", usage),
             Times.Once);
     }
@@ -98,14 +110,12 @@ public class PredictionService_PredictBonusQuestionAsync_Tests : PredictionServi
     {
         // Arrange
         var usage = OpenAITestHelpers.CreateChatTokenUsage(600, 25);
-        ChatClient = CreateMockChatClient("""{"selectedOptionIds": ["opt1"]}""", usage);
-        
-        var service = CreateService();
-        var bonusQuestion = CreateTestBonusQuestion();
+        var chatClient = CreateMockChatClient("""{"selectedOptionIds": ["opt1"]}""", usage);
+        var service = CreateService(chatClient: chatClient);
         var emptyContextDocs = new List<DocumentContext>();
 
         // Act
-        var prediction = await service.PredictBonusQuestionAsync(bonusQuestion, emptyContextDocs);
+        var prediction = await PredictBonusQuestionAsync(service: service, contextDocuments: emptyContextDocs);
 
         // Assert
         await Assert.That(prediction).IsNotNull();
@@ -116,36 +126,25 @@ public class PredictionService_PredictBonusQuestionAsync_Tests : PredictionServi
     public async Task Predicting_bonus_question_logs_information_message()
     {
         // Arrange
-        var service = CreateService();
-        var bonusQuestion = CreateTestBonusQuestion();
-        var contextDocs = CreateTestContextDocuments();
+        var logger = CreateFakeLogger();
+        var service = CreateService(logger: logger);
 
         // Act
-        await service.PredictBonusQuestionAsync(bonusQuestion, contextDocs);
+        await PredictBonusQuestionAsync(service: service);
 
         // Assert
-        Logger.AssertLogContains(LogLevel.Information, "Generating prediction for bonus question");
+        logger.AssertLogContains(LogLevel.Information, "Generating prediction for bonus question");
     }
 
     [Test]
     public async Task Predicting_bonus_question_with_API_exception_returns_null()
     {
         // Arrange
-        var mockChatClient = new Mock<ChatClient>();
-        mockChatClient
-            .Setup(c => c.CompleteChatAsync(
-                It.IsAny<IEnumerable<ChatMessage>>(),
-                It.IsAny<ChatCompletionOptions>(),
-                It.IsAny<CancellationToken>()))
-            .ThrowsAsync(new InvalidOperationException("API error"));
-        ChatClient = mockChatClient.Object;
-        
-        var service = CreateService();
-        var bonusQuestion = CreateTestBonusQuestion();
-        var contextDocs = CreateTestContextDocuments();
+        var chatClient = CreateThrowingMockChatClient(new InvalidOperationException("API error"));
+        var service = CreateService(chatClient: chatClient);
 
         // Act
-        var prediction = await service.PredictBonusQuestionAsync(bonusQuestion, contextDocs);
+        var prediction = await PredictBonusQuestionAsync(service: service);
 
         // Assert
         await Assert.That(prediction).IsNull();
@@ -155,24 +154,15 @@ public class PredictionService_PredictBonusQuestionAsync_Tests : PredictionServi
     public async Task Predicting_bonus_question_with_exception_logs_error()
     {
         // Arrange
-        var mockChatClient = new Mock<ChatClient>();
-        mockChatClient
-            .Setup(c => c.CompleteChatAsync(
-                It.IsAny<IEnumerable<ChatMessage>>(),
-                It.IsAny<ChatCompletionOptions>(),
-                It.IsAny<CancellationToken>()))
-            .ThrowsAsync(new InvalidOperationException("API error"));
-        ChatClient = mockChatClient.Object;
-        
-        var service = CreateService();
-        var bonusQuestion = CreateTestBonusQuestion();
-        var contextDocs = CreateTestContextDocuments();
+        var chatClient = CreateThrowingMockChatClient(new InvalidOperationException("API error"));
+        var logger = CreateFakeLogger();
+        var service = CreateService(chatClient: chatClient, logger: logger);
 
         // Act
-        await service.PredictBonusQuestionAsync(bonusQuestion, contextDocs);
+        await PredictBonusQuestionAsync(service: service);
 
         // Assert
-        Logger.AssertLogContains(LogLevel.Error, "Error generating bonus prediction");
+        logger.AssertLogContains(LogLevel.Error, "Error generating bonus prediction");
     }
 
     [Test]
@@ -180,14 +170,11 @@ public class PredictionService_PredictBonusQuestionAsync_Tests : PredictionServi
     {
         // Arrange
         var usage = OpenAITestHelpers.CreateChatTokenUsage(800, 30);
-        ChatClient = CreateMockChatClient("""{"selectedOptionIds": ["invalid-option"]}""", usage);
-        
-        var service = CreateService();
-        var bonusQuestion = CreateTestBonusQuestion();
-        var contextDocs = CreateTestContextDocuments();
+        var chatClient = CreateMockChatClient("""{"selectedOptionIds": ["invalid-option"]}""", usage);
+        var service = CreateService(chatClient: chatClient);
 
         // Act
-        var prediction = await service.PredictBonusQuestionAsync(bonusQuestion, contextDocs);
+        var prediction = await PredictBonusQuestionAsync(service: service);
 
         // Assert
         await Assert.That(prediction).IsNull();
@@ -198,14 +185,12 @@ public class PredictionService_PredictBonusQuestionAsync_Tests : PredictionServi
     {
         // Arrange
         var usage = OpenAITestHelpers.CreateChatTokenUsage(800, 30);
-        ChatClient = CreateMockChatClient("""{"selectedOptionIds": ["opt1", "opt1"]}""", usage);
-        
-        var service = CreateService();
+        var chatClient = CreateMockChatClient("""{"selectedOptionIds": ["opt1", "opt1"]}""", usage);
+        var service = CreateService(chatClient: chatClient);
         var bonusQuestion = CreateTestBonusQuestion(maxSelections: 2);
-        var contextDocs = CreateTestContextDocuments();
 
         // Act
-        var prediction = await service.PredictBonusQuestionAsync(bonusQuestion, contextDocs);
+        var prediction = await PredictBonusQuestionAsync(service: service, bonusQuestion: bonusQuestion);
 
         // Assert
         await Assert.That(prediction).IsNull();
@@ -216,14 +201,28 @@ public class PredictionService_PredictBonusQuestionAsync_Tests : PredictionServi
     {
         // Arrange
         var usage = OpenAITestHelpers.CreateChatTokenUsage(800, 30);
-        ChatClient = CreateMockChatClient("""{"selectedOptionIds": ["opt1", "opt2"]}""", usage);
-        
-        var service = CreateService();
+        var chatClient = CreateMockChatClient("""{"selectedOptionIds": ["opt1", "opt2"]}""", usage);
+        var service = CreateService(chatClient: chatClient);
         var bonusQuestion = CreateTestBonusQuestion(maxSelections: 1);
-        var contextDocs = CreateTestContextDocuments();
 
         // Act
-        var prediction = await service.PredictBonusQuestionAsync(bonusQuestion, contextDocs);
+        var prediction = await PredictBonusQuestionAsync(service: service, bonusQuestion: bonusQuestion);
+
+        // Assert
+        await Assert.That(prediction).IsNull();
+    }
+
+    [Test]
+    public async Task Predicting_bonus_question_with_invalid_JSON_returns_null()
+    {
+        // Arrange
+        var usage = OpenAITestHelpers.CreateChatTokenUsage(800, 30);
+        var invalidJson = """not valid json""";
+        var chatClient = CreateMockChatClient(invalidJson, usage);
+        var service = CreateService(chatClient: chatClient);
+
+        // Act
+        var prediction = await PredictBonusQuestionAsync(service: service);
 
         // Assert
         await Assert.That(prediction).IsNull();
