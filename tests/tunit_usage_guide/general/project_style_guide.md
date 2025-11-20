@@ -598,6 +598,92 @@ public abstract class MyServiceTests_Base
 - Tests don't share significant setup
 - Total number of tests is small (< 10-15)
 
+#### 5. Factory Methods and Flexible Defaults
+
+Use factory methods in your test base class or derived test classes to create instances of the system under test (SUT) or complex dependencies. This centralizes object creation and makes tests more maintainable.
+
+**Pattern: Factory Methods with `Option<T>`**
+
+Use `Option<T>` (from `EHonda.Optional.Core`) for factory method parameters. This allows tests to:
+
+1. Override specific dependencies when relevant to the test.
+2. Fall back to sensible defaults (mocks or fakes) for dependencies that don't matter for the specific test.
+
+**Base Class Implementation:**
+
+```csharp
+using EHonda.Optional.Core;
+
+public abstract class MyServiceTests_Base
+{
+    protected static MyService CreateService(
+        Option<IDependency> dependency = default,
+        Option<ILogger<MyService>> logger = default)
+    {
+        // Use provided dependency or create a default mock
+        var actualDependency = dependency.Or(() => new Mock<IDependency>().Object);
+        
+        // Use provided logger or create a default fake
+        var actualLogger = logger.Or(() => new FakeLogger<MyService>());
+
+        return new MyService(actualDependency, actualLogger);
+    }
+}
+```
+
+**Usage Guidelines:**
+
+1. **Only specify what is relevant**: When calling factory methods, only provide arguments for the dependencies that are specific to the test scenario. Rely on the defaults for everything else.
+2. **Minimize named arguments**: Do not use named arguments (e.g., `dependency: mock.Object`) unless necessary (i.e., when skipping preceding optional parameters). If you are passing the first parameter, pass it positionally.
+
+**Examples:**
+
+```csharp
+[Test]
+public async Task Test_with_default_dependencies()
+{
+    // ✅ Good: Use defaults for all dependencies
+    var service = CreateService();
+    
+    // ...
+}
+
+[Test]
+public async Task Test_with_specific_dependency()
+{
+    var mockDependency = new Mock<IDependency>();
+    
+    // ✅ Good: Override only the dependency. 
+    // No need to name the argument since it's the first parameter.
+    var service = CreateService(mockDependency.Object);
+    
+    // ...
+}
+
+[Test]
+public async Task Test_with_specific_logger()
+{
+    var logger = new FakeLogger<MyService>();
+    
+    // ✅ Good: Override only the logger.
+    // Named argument is required here to skip the 'dependency' parameter.
+    var service = CreateService(logger: logger);
+    
+    // ...
+}
+
+[Test]
+public async Task Test_with_unnecessary_verbosity()
+{
+    var mockDependency = new Mock<IDependency>();
+
+    // ❌ Avoid: Specifying argument name when not required
+    var service = CreateService(dependency: mockDependency.Object);
+    
+    // ...
+}
+```
+
 ### Class Naming
 
 Test classes should be named after the class being tested with a `Tests` suffix:
@@ -1029,3 +1115,4 @@ Follow these key principles:
 4. **Descriptive code** - No abbreviations or magic numbers
 5. **Async when needed** - Use `async Task` for assertions and async operations, `void` for synchronous verifications
 6. **Performance awareness** - Share expensive setup when appropriate
+7. **Factory Methods and Flexible Defaults** - Use factory methods with `Option<T>` and minimal arguments for maintainable test setup
