@@ -644,7 +644,7 @@ public abstract class MyServiceTests_Base
 1. **Only specify what is relevant**: When calling factory methods, only provide arguments for the dependencies that are specific to the test scenario. Rely on the defaults for everything else.
 2. **Minimize named arguments**: Do not use named arguments (e.g., `dependency: mock.Object`) unless necessary (i.e., when skipping preceding optional parameters). If you are passing the first parameter, pass it positionally.
 3. **Use `Option<T>` by default**: Start with `Option<T>` for all parameters. Only change to `NullableOption<T>` if you specifically need to pass `null` in a test (e.g. for null guard tests).
-4. **Argument passing preferences**: Implicit conversions are preferred, but might not always work:
+4. **Argument passing preferences**: Implicit conversions are preferred, but might not always work (note that explicit `NullableOption.Some(value)` is never needed, because either the implicit conversion from `null` works, or the implicit conversion from explicit `Option.Some(value)` to `NullableOption.Some(value)`):
     1. Implicit conversion by passing a value of `T` as `Option<T>` or a value / `null` of `T?` as `NullableOption<T>`.
     2. Explicitly using `Option.Some(value)` for `Option<T>` or `NullableOption<T>`.
 
