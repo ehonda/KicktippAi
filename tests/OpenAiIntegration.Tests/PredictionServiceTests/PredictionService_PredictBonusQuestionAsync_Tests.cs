@@ -18,8 +18,8 @@ public class PredictionService_PredictBonusQuestionAsync_Tests : PredictionServi
     /// </summary>
     private Task<BonusPrediction?> PredictBonusQuestionAsync(
         Option<PredictionService> service = default,
-        NullableOption<BonusQuestion> bonusQuestion = default,
-        NullableOption<IEnumerable<DocumentContext>> contextDocuments = default,
+        Option<BonusQuestion> bonusQuestion = default,
+        Option<IEnumerable<DocumentContext>> contextDocuments = default,
         CancellationToken cancellationToken = default)
     {
         var actualService = service.Or(() => CreateService());
@@ -27,8 +27,8 @@ public class PredictionService_PredictBonusQuestionAsync_Tests : PredictionServi
         var actualContextDocs = contextDocuments.Or(() => CreateTestContextDocuments());
         
         return actualService.PredictBonusQuestionAsync(
-            actualBonusQuestion!,
-            actualContextDocs!,
+            actualBonusQuestion,
+            actualContextDocs,
             cancellationToken);
     }
 

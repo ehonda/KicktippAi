@@ -194,8 +194,8 @@ public abstract class PredictionServiceTests_Base
     /// Creates a mock ChatClient with a configured response
     /// </summary>
     protected static ChatClient CreateMockChatClient(
-        NullableOption<string> responseJson = default,
-        NullableOption<ChatTokenUsage> usage = default)
+        Option<string> responseJson = default,
+        Option<ChatTokenUsage> usage = default)
     {
         var actualResponseJson = responseJson.Or("""{"home": 2, "away": 1}""");
         var actualUsage = usage.Or(() => OpenAITestHelpers.CreateChatTokenUsage(1000, 50));

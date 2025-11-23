@@ -19,8 +19,8 @@ public class PredictionService_PredictMatchAsync_Tests : PredictionServiceTests_
     /// </summary>
     private Task<Prediction?> PredictMatchAsync(
         Option<PredictionService> service = default,
-        NullableOption<Match> match = default,
-        NullableOption<IEnumerable<DocumentContext>> contextDocuments = default,
+        Option<Match> match = default,
+        Option<IEnumerable<DocumentContext>> contextDocuments = default,
         bool includeJustification = false,
         CancellationToken cancellationToken = default)
     {
@@ -29,8 +29,8 @@ public class PredictionService_PredictMatchAsync_Tests : PredictionServiceTests_
         var actualContextDocs = contextDocuments.Or(() => CreateTestContextDocuments());
         
         return actualService.PredictMatchAsync(
-            actualMatch!,
-            actualContextDocs!,
+            actualMatch,
+            actualContextDocs,
             includeJustification,
             cancellationToken);
     }

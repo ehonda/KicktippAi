@@ -602,13 +602,14 @@ public abstract class MyServiceTests_Base
 
 Use factory methods in your test base class or derived test classes to create instances of the system under test (SUT) or complex dependencies. This centralizes object creation and makes tests more maintainable.
 
-**Pattern: Factory Methods with `NullableOption<T>`**
+**Pattern: Factory Methods with `Option<T>` and `NullableOption<T>`**
 
-Use `NullableOption<T>` (from `EHonda.Optional.Core`) for factory method parameters. This allows tests to:
+Use `Option<T>` (from `EHonda.Optional.Core`) for factory method parameters by default. This allows tests to:
 
 1. Override specific dependencies when relevant to the test.
 2. Fall back to sensible defaults (mocks or fakes) for dependencies that don't matter for the specific test.
-3. Explicitly pass `null` to test null guards (using `NullableOption.Some(null)`).
+
+Use `NullableOption<T>` ONLY when you need to explicitly pass `null` (e.g., to test null guards).
 
 **Base Class Implementation:**
 
@@ -618,8 +619,11 @@ using EHonda.Optional.Core;
 public abstract class MyServiceTests_Base
 {
     protected static MyService CreateService(
+        // Use NullableOption<T> here because we want to test passing null to the constructor
         NullableOption<IDependency> dependency = default,
-        NullableOption<ILogger<MyService>> logger = default)
+        NullableOption<ILogger<MyService>> logger = default,
+        // Use Option<T> here because this parameter is required by the SUT and we don't test nulls for it
+        Option<string> config = default)
     {
         // Use provided dependency or create a default mock
         var actualDependency = dependency.Or(() => new Mock<IDependency>().Object);
@@ -627,7 +631,10 @@ public abstract class MyServiceTests_Base
         // Use provided logger or create a default fake
         var actualLogger = logger.Or(() => new FakeLogger<MyService>());
 
-        return new MyService(actualDependency!, actualLogger!);
+        // Use provided config or default value
+        var actualConfig = config.Or("default-config");
+
+        return new MyService(actualDependency!, actualLogger!, actualConfig);
     }
 }
 ```
@@ -636,9 +643,10 @@ public abstract class MyServiceTests_Base
 
 1. **Only specify what is relevant**: When calling factory methods, only provide arguments for the dependencies that are specific to the test scenario. Rely on the defaults for everything else.
 2. **Minimize named arguments**: Do not use named arguments (e.g., `dependency: mock.Object`) unless necessary (i.e., when skipping preceding optional parameters). If you are passing the first parameter, pass it positionally.
-3. **Use `NullableOption.Some(null)` for null testing**: When you need to verify that a constructor throws on null, pass `NullableOption.Some<T>(null)`.
-4. **Use `Option.Some(value)` for non-null values**: When passing a non-null value, use `Option.Some(value)` instead of `NullableOption.Some(value)`. It will be implicitly converted to `NullableOption<T>`.
-5. **Use `Option<T>` for infrastructure parameters**: If a parameter is used directly by the test helper (e.g., the SUT instance, or a required context object) and must not be null for the helper to function, use `Option<T>` instead of `NullableOption<T>`. This prevents passing `null` where it would cause the test helper to crash.
+3. **Use `Option<T>` by default**: Start with `Option<T>` for all parameters. Only change to `NullableOption<T>` if you specifically need to pass `null` in a test (e.g. for null guard tests).
+4. **Argument passing preferences**: Implicit conversions are preferred, but might not always work:
+    1. Implicit conversion by passing a value of `T` as `Option<T>` or a value / `null` of `T?` as `NullableOption<T>`.
+    2. Explicitly using `Option.Some(value)` for `Option<T>` or `NullableOption<T>`.
 
 **Examples:**
 
@@ -659,8 +667,8 @@ public async Task Test_with_specific_dependency()
     
     // ✅ Good: Override only the dependency. 
     // No need to name the argument since it's the first parameter.
-    // Use Option.Some (implicit conversion) for non-null values.
-    var service = CreateService(Option.Some(mockDependency.Object));
+    // Use implicit conversion (pass object directly).
+    var service = CreateService(mockDependency.Object);
     
     // ...
 }
@@ -672,7 +680,17 @@ public async Task Test_with_specific_logger()
     
     // ✅ Good: Override only the logger.
     // Named argument is required here to skip the 'dependency' parameter.
-    var service = CreateService(logger: Option.Some(logger));
+    var service = CreateService(logger: logger);
+    
+    // ...
+}
+
+[Test]
+public async Task Test_with_specific_config()
+{
+    // ✅ Good: Override only the config (Option<T> parameter).
+    // Use implicit conversion (pass string directly).
+    var service = CreateService(config: "custom-config");
     
     // ...
 }
@@ -690,7 +708,7 @@ public async Task Test_with_unnecessary_verbosity()
 {
     var mockDependency = new Mock<IDependency>();
 
-    // ❌ Avoid: Specifying argument name when not required
+    // ❌ Avoid: Explicitly wrapping in Option.Some when not needed
     var service = CreateService(dependency: Option.Some(mockDependency.Object));
     
     // ...
