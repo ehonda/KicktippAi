@@ -42,10 +42,11 @@ public class PredictionService_PredictMatchAsync_Tests : PredictionServiceTests_
         var prediction = await PredictMatchAsync();
 
         // Assert
-        await Assert.That(prediction).IsNotNull();
-        await Assert.That(prediction!.HomeGoals).IsEqualTo(2);
-        await Assert.That(prediction.AwayGoals).IsEqualTo(1);
-        await Assert.That(prediction.Justification).IsNull();
+        await Assert.That(prediction)
+            .IsNotNull()
+            .And.Member(p => p.HomeGoals, goals => goals.IsEqualTo(2))
+            .And.Member(p => p.AwayGoals, goals => goals.IsEqualTo(1))
+            .And.Member(p => p.Justification, justification => justification.IsNull());
     }
 
     [Test]
@@ -78,14 +79,16 @@ public class PredictionService_PredictMatchAsync_Tests : PredictionServiceTests_
         var prediction = await PredictMatchAsync(service, includeJustification: true);
 
         // Assert
-        await Assert.That(prediction).IsNotNull();
-        await Assert.That(prediction!.HomeGoals).IsEqualTo(3);
-        await Assert.That(prediction.AwayGoals).IsEqualTo(1);
-        await Assert.That(prediction.Justification).IsNotNull();
-        await Assert.That(prediction.Justification!.KeyReasoning).IsEqualTo("Bayern Munich has strong home form");
-        await Assert.That(prediction.Justification.ContextSources.MostValuable.Count).IsEqualTo(1);
-        await Assert.That(prediction.Justification.ContextSources.MostValuable[0].DocumentName).IsEqualTo("Team Stats");
-        await Assert.That(prediction.Justification.Uncertainties.Count).IsEqualTo(1);
+        await Assert.That(prediction)
+            .IsNotNull()
+            .And.Member(p => p.HomeGoals, goals => goals.IsEqualTo(3))
+            .And.Member(p => p.AwayGoals, goals => goals.IsEqualTo(1))
+            .And.Member(p => p.Justification, justification => justification
+                .IsNotEqualTo(null)
+                .And.Member(j => j!.KeyReasoning, reasoning => reasoning.IsEqualTo("Bayern Munich has strong home form"))
+                .And.Member(j => j!.ContextSources.MostValuable, sources => sources.HasCount().EqualTo(1))
+                .And.Member(j => j!.ContextSources.MostValuable[0].DocumentName, name => name.IsEqualTo("Team Stats"))
+                .And.Member(j => j!.Uncertainties, uncertainties => uncertainties.HasCount().EqualTo(1)));
     }
 
     [Test]
@@ -136,9 +139,10 @@ public class PredictionService_PredictMatchAsync_Tests : PredictionServiceTests_
         var prediction = await PredictMatchAsync(service, contextDocuments: emptyContextDocs);
 
         // Assert
-        await Assert.That(prediction).IsNotNull();
-        await Assert.That(prediction!.HomeGoals).IsEqualTo(2);
-        await Assert.That(prediction.AwayGoals).IsEqualTo(1);
+        await Assert.That(prediction)
+            .IsNotNull()
+            .And.Member(p => p.HomeGoals, goals => goals.IsEqualTo(2))
+            .And.Member(p => p.AwayGoals, goals => goals.IsEqualTo(1));
     }
 
     [Test]

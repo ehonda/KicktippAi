@@ -20,10 +20,11 @@ public class PredictionService_GetPromptPath_Tests : PredictionServiceTests_Base
         var promptPath = service.GetMatchPromptPath(includeJustification: false);
 
         // Assert
-        await Assert.That(promptPath).IsNotNull();
-        await Assert.That(promptPath).Contains("prompts");
-        await Assert.That(promptPath).Contains("gpt-5");
-        await Assert.That(promptPath).Contains("match.md");
+        await Assert.That(promptPath)
+            .IsNotNull()
+            .And.Contains("prompts")
+            .And.Contains("gpt-5")
+            .And.Contains("match.md");
     }
 
     [Test]
@@ -36,10 +37,11 @@ public class PredictionService_GetPromptPath_Tests : PredictionServiceTests_Base
         var promptPath = service.GetMatchPromptPath(includeJustification: true);
 
         // Assert
-        await Assert.That(promptPath).IsNotNull();
-        await Assert.That(promptPath).Contains("prompts");
-        await Assert.That(promptPath).Contains("gpt-5");
-        await Assert.That(promptPath).Contains("match.justification.md");
+        await Assert.That(promptPath)
+            .IsNotNull()
+            .And.Contains("prompts")
+            .And.Contains("gpt-5")
+            .And.Contains("match.justification.md");
     }
 
     [Test]
@@ -52,10 +54,11 @@ public class PredictionService_GetPromptPath_Tests : PredictionServiceTests_Base
         var promptPath = service.GetBonusPromptPath();
 
         // Assert
-        await Assert.That(promptPath).IsNotNull();
-        await Assert.That(promptPath).Contains("prompts");
-        await Assert.That(promptPath).Contains("gpt-5");
-        await Assert.That(promptPath).Contains("bonus.md");
+        await Assert.That(promptPath)
+            .IsNotNull()
+            .And.Contains("prompts")
+            .And.Contains("gpt-5")
+            .And.Contains("bonus.md");
     }
 
     [Test]
@@ -69,8 +72,9 @@ public class PredictionService_GetPromptPath_Tests : PredictionServiceTests_Base
         var promptPath = service.GetMatchPromptPath();
 
         // Assert
-        await Assert.That(promptPath).Contains("o3");
-        await Assert.That(promptPath).Contains("match.md");
+        await Assert.That(promptPath)
+            .Contains("o3")
+            .And.Contains("match.md");
     }
 
     [Test]
@@ -84,8 +88,9 @@ public class PredictionService_GetPromptPath_Tests : PredictionServiceTests_Base
         var promptPath = service.GetMatchPromptPath();
 
         // Assert
-        await Assert.That(promptPath).Contains("o3");
-        await Assert.That(promptPath).Contains("match.md");
+        await Assert.That(promptPath)
+            .Contains("o3")
+            .And.Contains("match.md");
     }
 
     [Test]
@@ -99,8 +104,9 @@ public class PredictionService_GetPromptPath_Tests : PredictionServiceTests_Base
         var promptPath = service.GetMatchPromptPath();
 
         // Assert
-        await Assert.That(promptPath).Contains("gpt-5");
-        await Assert.That(promptPath).Contains("match.md");
+        await Assert.That(promptPath)
+            .Contains("gpt-5")
+            .And.Contains("match.md");
     }
 
     [Test]
@@ -114,7 +120,8 @@ public class PredictionService_GetPromptPath_Tests : PredictionServiceTests_Base
         var promptPath = service.GetMatchPromptPath();
 
         // Assert
-        await Assert.That(promptPath).Contains("gpt-5");
-        await Assert.That(promptPath).Contains("match.md");
+        await Assert.That(promptPath)
+            .Contains("gpt-5")
+            .And.Contains("match.md");
     }
 }

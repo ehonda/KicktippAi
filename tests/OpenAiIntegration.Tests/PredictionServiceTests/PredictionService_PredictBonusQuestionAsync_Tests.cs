@@ -44,9 +44,11 @@ public class PredictionService_PredictBonusQuestionAsync_Tests : PredictionServi
         var prediction = await PredictBonusQuestionAsync(service, bonusQuestion);
 
         // Assert
-        await Assert.That(prediction).IsNotNull();
-        await Assert.That(prediction!.SelectedOptionIds.Count).IsEqualTo(1);
-        await Assert.That(prediction.SelectedOptionIds[0]).IsEqualTo("opt1");
+        await Assert.That(prediction)
+            .IsNotNull()
+            .And.Member(p => p.SelectedOptionIds, ids => ids
+                .HasCount().EqualTo(1)
+                .And.Contains("opt1"));
     }
 
     [Test]
@@ -61,10 +63,12 @@ public class PredictionService_PredictBonusQuestionAsync_Tests : PredictionServi
         var prediction = await PredictBonusQuestionAsync(service, bonusQuestion);
 
         // Assert
-        await Assert.That(prediction).IsNotNull();
-        await Assert.That(prediction!.SelectedOptionIds.Count).IsEqualTo(2);
-        await Assert.That(prediction.SelectedOptionIds).Contains("opt1");
-        await Assert.That(prediction.SelectedOptionIds).Contains("opt2");
+        await Assert.That(prediction)
+            .IsNotNull()
+            .And.Member(p => p.SelectedOptionIds, ids => ids
+                .HasCount().EqualTo(2)
+                .And.Contains("opt1")
+                .And.Contains("opt2"));
     }
 
     [Test]
