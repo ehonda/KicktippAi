@@ -44,11 +44,8 @@ public class PredictionService_PredictBonusQuestionAsync_Tests : PredictionServi
         var prediction = await PredictBonusQuestionAsync(service, bonusQuestion);
 
         // Assert
-        await Assert.That(prediction)
-            .IsNotNull()
-            .And.Member(p => p.SelectedOptionIds, ids => ids
-                .HasCount().EqualTo(1)
-                .And.Contains("opt1"));
+        var expected = new BonusPrediction(["opt1"]);
+        await Assert.That(prediction).IsEquivalentTo(expected);
     }
 
     [Test]
@@ -63,12 +60,8 @@ public class PredictionService_PredictBonusQuestionAsync_Tests : PredictionServi
         var prediction = await PredictBonusQuestionAsync(service, bonusQuestion);
 
         // Assert
-        await Assert.That(prediction)
-            .IsNotNull()
-            .And.Member(p => p.SelectedOptionIds, ids => ids
-                .HasCount().EqualTo(2)
-                .And.Contains("opt1")
-                .And.Contains("opt2"));
+        var expected = new BonusPrediction(["opt1", "opt2"]);
+        await Assert.That(prediction).IsEquivalentTo(expected);
     }
 
     [Test]

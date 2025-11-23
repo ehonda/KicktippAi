@@ -42,11 +42,8 @@ public class PredictionService_PredictMatchAsync_Tests : PredictionServiceTests_
         var prediction = await PredictMatchAsync();
 
         // Assert
-        await Assert.That(prediction)
-            .IsNotNull()
-            .And.Member(p => p.HomeGoals, goals => goals.IsEqualTo(2))
-            .And.Member(p => p.AwayGoals, goals => goals.IsEqualTo(1))
-            .And.Member(p => p.Justification, justification => justification.IsNull());
+        var expected = new Prediction(2, 1, null);
+        await Assert.That(prediction).IsEquivalentTo(expected);
     }
 
     [Test]
@@ -79,16 +76,16 @@ public class PredictionService_PredictMatchAsync_Tests : PredictionServiceTests_
         var prediction = await PredictMatchAsync(service, includeJustification: true);
 
         // Assert
-        await Assert.That(prediction)
-            .IsNotNull()
-            .And.Member(p => p.HomeGoals, goals => goals.IsEqualTo(3))
-            .And.Member(p => p.AwayGoals, goals => goals.IsEqualTo(1))
-            .And.Member(p => p.Justification, justification => justification
-                .IsNotEqualTo(null)
-                .And.Member(j => j!.KeyReasoning, reasoning => reasoning.IsEqualTo("Bayern Munich has strong home form"))
-                .And.Member(j => j!.ContextSources.MostValuable, sources => sources.HasCount().EqualTo(1))
-                .And.Member(j => j!.ContextSources.MostValuable[0].DocumentName, name => name.IsEqualTo("Team Stats"))
-                .And.Member(j => j!.Uncertainties, uncertainties => uncertainties.HasCount().EqualTo(1)));
+        var expected = new Prediction(3, 1, new PredictionJustification(
+            "Bayern Munich has strong home form",
+            new PredictionJustificationContextSources(
+                [new("Team Stats", "Bayern's recent winning streak")],
+                []
+            ),
+            ["Weather conditions unclear"]
+        ));
+
+        await Assert.That(prediction).IsEquivalentTo(expected);
     }
 
     [Test]
@@ -133,16 +130,14 @@ public class PredictionService_PredictMatchAsync_Tests : PredictionServiceTests_
         // Arrange
         var chatClient = CreateMockChatClient("""{"home": 2, "away": 1}""");
         var service = CreateService(chatClient);
-        var emptyContextDocs = new List<DocumentContext>();
+        List<DocumentContext> emptyContextDocs = [];
 
         // Act
         var prediction = await PredictMatchAsync(service, contextDocuments: emptyContextDocs);
 
         // Assert
-        await Assert.That(prediction)
-            .IsNotNull()
-            .And.Member(p => p.HomeGoals, goals => goals.IsEqualTo(2))
-            .And.Member(p => p.AwayGoals, goals => goals.IsEqualTo(1));
+        var expected = new Prediction(2, 1, null);
+        await Assert.That(prediction).IsEquivalentTo(expected);
     }
 
     [Test]
