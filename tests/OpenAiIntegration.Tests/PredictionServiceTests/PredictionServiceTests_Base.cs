@@ -22,12 +22,12 @@ public abstract class PredictionServiceTests_Base
     /// Factory method to create a PredictionService instance using the configured dependencies
     /// </summary>
     protected static PredictionService CreateService(
-        Option<ChatClient> chatClient = default,
-        Option<FakeLogger<PredictionService>> logger = default,
-        Option<ICostCalculationService> costCalculationService = default,
-        Option<ITokenUsageTracker> tokenUsageTracker = default,
-        Option<IInstructionsTemplateProvider> templateProvider = default,
-        Option<string> model = default)
+        NullableOption<ChatClient> chatClient = default,
+        NullableOption<FakeLogger<PredictionService>> logger = default,
+        NullableOption<ICostCalculationService> costCalculationService = default,
+        NullableOption<ITokenUsageTracker> tokenUsageTracker = default,
+        NullableOption<IInstructionsTemplateProvider> templateProvider = default,
+        NullableOption<string> model = default)
     {
         var actualChatClient = chatClient.Or(() =>
         {
@@ -41,12 +41,12 @@ public abstract class PredictionServiceTests_Base
         var actualModel = model.Or("gpt-5");
 
         return new PredictionService(
-            actualChatClient,
-            actualLogger,
-            actualCostService,
-            actualTokenTracker,
-            actualTemplateProvider,
-            actualModel);
+            actualChatClient!,
+            actualLogger!,
+            actualCostService!,
+            actualTokenTracker!,
+            actualTemplateProvider!,
+            actualModel!);
     }
 
     /// <summary>
@@ -194,8 +194,8 @@ public abstract class PredictionServiceTests_Base
     /// Creates a mock ChatClient with a configured response
     /// </summary>
     protected static ChatClient CreateMockChatClient(
-        Option<string> responseJson = default,
-        Option<ChatTokenUsage> usage = default)
+        NullableOption<string> responseJson = default,
+        NullableOption<ChatTokenUsage> usage = default)
     {
         var actualResponseJson = responseJson.Or("""{"home": 2, "away": 1}""");
         var actualUsage = usage.Or(() => OpenAITestHelpers.CreateChatTokenUsage(1000, 50));

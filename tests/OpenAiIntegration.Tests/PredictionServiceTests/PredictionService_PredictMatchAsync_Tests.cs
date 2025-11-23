@@ -19,8 +19,8 @@ public class PredictionService_PredictMatchAsync_Tests : PredictionServiceTests_
     /// </summary>
     private Task<Prediction?> PredictMatchAsync(
         Option<PredictionService> service = default,
-        Option<Match> match = default,
-        Option<IEnumerable<DocumentContext>> contextDocuments = default,
+        NullableOption<Match> match = default,
+        NullableOption<IEnumerable<DocumentContext>> contextDocuments = default,
         bool includeJustification = false,
         CancellationToken cancellationToken = default)
     {
@@ -29,8 +29,8 @@ public class PredictionService_PredictMatchAsync_Tests : PredictionServiceTests_
         var actualContextDocs = contextDocuments.Or(() => CreateTestContextDocuments());
         
         return actualService.PredictMatchAsync(
-            actualMatch,
-            actualContextDocs,
+            actualMatch!,
+            actualContextDocs!,
             includeJustification,
             cancellationToken);
     }
@@ -95,7 +95,7 @@ public class PredictionService_PredictMatchAsync_Tests : PredictionServiceTests_
         var usage = OpenAITestHelpers.CreateChatTokenUsage(1000, 50);
         var chatClient = CreateMockChatClient("""{"home": 2, "away": 1}""", usage);
         var tokenUsageTracker = CreateMockTokenUsageTracker();
-        var service = CreateService(chatClient, tokenUsageTracker: Option.Some(tokenUsageTracker.Object));
+        var service = CreateService(chatClient, tokenUsageTracker: NullableOption.Some(tokenUsageTracker.Object));
 
         // Act
         await PredictMatchAsync(service);
@@ -113,7 +113,7 @@ public class PredictionService_PredictMatchAsync_Tests : PredictionServiceTests_
         var usage = OpenAITestHelpers.CreateChatTokenUsage(1000, 50);
         var chatClient = CreateMockChatClient("""{"home": 2, "away": 1}""", usage);
         var costCalculationService = CreateMockCostCalculationService();
-        var service = CreateService(chatClient, costCalculationService: Option.Some(costCalculationService.Object));
+        var service = CreateService(chatClient, costCalculationService: NullableOption.Some(costCalculationService.Object));
 
         // Act
         await PredictMatchAsync(service);

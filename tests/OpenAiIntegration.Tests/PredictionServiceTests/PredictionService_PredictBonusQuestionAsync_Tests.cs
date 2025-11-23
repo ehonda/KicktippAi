@@ -18,8 +18,8 @@ public class PredictionService_PredictBonusQuestionAsync_Tests : PredictionServi
     /// </summary>
     private Task<BonusPrediction?> PredictBonusQuestionAsync(
         Option<PredictionService> service = default,
-        Option<BonusQuestion> bonusQuestion = default,
-        Option<IEnumerable<DocumentContext>> contextDocuments = default,
+        NullableOption<BonusQuestion> bonusQuestion = default,
+        NullableOption<IEnumerable<DocumentContext>> contextDocuments = default,
         CancellationToken cancellationToken = default)
     {
         var actualService = service.Or(() => CreateService());
@@ -27,8 +27,8 @@ public class PredictionService_PredictBonusQuestionAsync_Tests : PredictionServi
         var actualContextDocs = contextDocuments.Or(() => CreateTestContextDocuments());
         
         return actualService.PredictBonusQuestionAsync(
-            actualBonusQuestion,
-            actualContextDocs,
+            actualBonusQuestion!,
+            actualContextDocs!,
             cancellationToken);
     }
 
@@ -74,7 +74,7 @@ public class PredictionService_PredictBonusQuestionAsync_Tests : PredictionServi
         var usage = OpenAITestHelpers.CreateChatTokenUsage(800, 30);
         var chatClient = CreateMockChatClient("""{"selectedOptionIds": ["opt2"]}""", usage);
         var tokenUsageTracker = CreateMockTokenUsageTracker();
-        var service = CreateService(chatClient, tokenUsageTracker: Option.Some(tokenUsageTracker.Object));
+        var service = CreateService(chatClient, tokenUsageTracker: NullableOption.Some(tokenUsageTracker.Object));
 
         // Act
         await PredictBonusQuestionAsync(service);
@@ -92,7 +92,7 @@ public class PredictionService_PredictBonusQuestionAsync_Tests : PredictionServi
         var usage = OpenAITestHelpers.CreateChatTokenUsage(800, 30);
         var chatClient = CreateMockChatClient("""{"selectedOptionIds": ["opt3"]}""", usage);
         var costCalculationService = CreateMockCostCalculationService();
-        var service = CreateService(chatClient, costCalculationService: Option.Some(costCalculationService.Object));
+        var service = CreateService(chatClient, costCalculationService: NullableOption.Some(costCalculationService.Object));
 
         // Act
         await PredictBonusQuestionAsync(service);

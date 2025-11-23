@@ -1,5 +1,6 @@
 using TestUtilities;
 using Microsoft.Extensions.Logging;
+using Microsoft.Extensions.Logging.Testing;
 using Moq;
 using TUnit.Core;
 using EHonda.Optional.Core;
@@ -17,8 +18,8 @@ public class PredictionService_Constructor_Tests : PredictionServiceTests_Base
     public async Task Creating_service_with_null_chatClient_throws_ArgumentNullException()
     {
         // Act & Assert
-        var exception = await Assert.That(() => CreateService(Option.Some<ChatClient>(null!)))
-        .Throws<ArgumentNullException>();
+        var exception = await Assert.That(() => CreateService(NullableOption.Some<ChatClient>(null)))
+            .Throws<ArgumentNullException>();
         
         await Assert.That(exception!.ParamName).IsEqualTo("chatClient");
     }
@@ -27,8 +28,8 @@ public class PredictionService_Constructor_Tests : PredictionServiceTests_Base
     public async Task Creating_service_with_null_logger_throws_ArgumentNullException()
     {
         // Act & Assert
-        var exception = await Assert.That(() => CreateService(logger: Option.Some<Microsoft.Extensions.Logging.Testing.FakeLogger<PredictionService>>(null!)))
-        .Throws<ArgumentNullException>();
+        var exception = await Assert.That(() => CreateService(logger: NullableOption.Some<FakeLogger<PredictionService>>(null)))
+            .Throws<ArgumentNullException>();
         
         await Assert.That(exception!.ParamName).IsEqualTo("logger");
     }
@@ -37,8 +38,8 @@ public class PredictionService_Constructor_Tests : PredictionServiceTests_Base
     public async Task Creating_service_with_null_costCalculationService_throws_ArgumentNullException()
     {
         // Act & Assert
-        var exception = await Assert.That(() => CreateService(costCalculationService: Option.Some<ICostCalculationService>(null!)))
-        .Throws<ArgumentNullException>();
+        var exception = await Assert.That(() => CreateService(costCalculationService: NullableOption.Some<ICostCalculationService>(null)))
+            .Throws<ArgumentNullException>();
         
         await Assert.That(exception!.ParamName).IsEqualTo("costCalculationService");
     }
@@ -47,8 +48,8 @@ public class PredictionService_Constructor_Tests : PredictionServiceTests_Base
     public async Task Creating_service_with_null_tokenUsageTracker_throws_ArgumentNullException()
     {
         // Act & Assert
-        var exception = await Assert.That(() => CreateService(tokenUsageTracker: Option.Some<ITokenUsageTracker>(null!)))
-        .Throws<ArgumentNullException>();
+        var exception = await Assert.That(() => CreateService(tokenUsageTracker: NullableOption.Some<ITokenUsageTracker>(null)))
+            .Throws<ArgumentNullException>();
         
         await Assert.That(exception!.ParamName).IsEqualTo("tokenUsageTracker");
     }
@@ -57,8 +58,8 @@ public class PredictionService_Constructor_Tests : PredictionServiceTests_Base
     public async Task Creating_service_with_null_templateProvider_throws_ArgumentNullException()
     {
         // Act & Assert
-        var exception = await Assert.That(() => CreateService(templateProvider: Option.Some<IInstructionsTemplateProvider>(null!)))
-        .Throws<ArgumentNullException>();
+        var exception = await Assert.That(() => CreateService(templateProvider: NullableOption.Some<IInstructionsTemplateProvider>(null)))
+            .Throws<ArgumentNullException>();
         
         await Assert.That(exception!.ParamName).IsEqualTo("templateProvider");
     }
@@ -67,8 +68,8 @@ public class PredictionService_Constructor_Tests : PredictionServiceTests_Base
     public async Task Creating_service_with_null_model_throws_ArgumentNullException()
     {
         // Act & Assert
-        var exception = await Assert.That(() => CreateService(model: Option.Some<string>(null!)))
-        .Throws<ArgumentNullException>();
+        var exception = await Assert.That(() => CreateService(model: NullableOption.Some<string>(null)))
+            .Throws<ArgumentNullException>();
         
         await Assert.That(exception!.ParamName).IsEqualTo("model");
     }
