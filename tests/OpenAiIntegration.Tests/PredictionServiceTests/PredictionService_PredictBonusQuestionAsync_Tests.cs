@@ -24,7 +24,7 @@ public class PredictionService_PredictBonusQuestionAsync_Tests : PredictionServi
     {
         var actualService = service.Or(() => CreateService());
         var actualBonusQuestion = bonusQuestion.Or(() => CreateTestBonusQuestion());
-        var actualContextDocs = contextDocuments.Or(() => CreateTestContextDocuments());
+        var actualContextDocs = contextDocuments.Or(CreateTestContextDocuments);
         
         return actualService.PredictBonusQuestionAsync(
             actualBonusQuestion,

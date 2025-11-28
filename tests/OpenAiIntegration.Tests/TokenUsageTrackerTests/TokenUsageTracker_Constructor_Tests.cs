@@ -1,5 +1,6 @@
 using Microsoft.Extensions.Logging;
-using Moq;
+using Microsoft.Extensions.Logging.Testing;
+using EHonda.Optional.Core;
 
 namespace OpenAiIntegration.Tests.TokenUsageTrackerTests;
 
@@ -9,52 +10,38 @@ namespace OpenAiIntegration.Tests.TokenUsageTrackerTests;
 public class TokenUsageTracker_Constructor_Tests : TokenUsageTrackerTests_Base
 {
     [Test]
-    public async Task Constructor_with_valid_parameters_creates_instance()
+    public async Task Creating_tracker_with_valid_parameters_creates_instance()
     {
-        // Arrange
-        var logger = new Mock<ILogger<TokenUsageTracker>>();
-        var costService = new Mock<ICostCalculationService>();
-
         // Act
-        var tracker = new TokenUsageTracker(logger.Object, costService.Object);
+        var tracker = CreateTracker();
 
         // Assert
         await Assert.That(tracker).IsNotNull();
     }
 
     [Test]
-    public async Task Constructor_with_null_logger_throws_ArgumentNullException()
+    public async Task Creating_tracker_with_null_logger_throws_ArgumentNullException()
     {
-        // Arrange
-        var costService = new Mock<ICostCalculationService>();
-
         // Act & Assert
-        await Assert.That(() => new TokenUsageTracker(null!, costService.Object))
+        await Assert.That(() => CreateTracker(NullableOption.Some<FakeLogger<TokenUsageTracker>>(null)))
             .Throws<ArgumentNullException>()
-            .And.HasProperty(x => x.ParamName, "logger");
+            .WithParameterName("logger");
     }
 
     [Test]
-    public async Task Constructor_with_null_cost_service_throws_ArgumentNullException()
+    public async Task Creating_tracker_with_null_cost_service_throws_ArgumentNullException()
     {
-        // Arrange
-        var logger = new Mock<ILogger<TokenUsageTracker>>();
-
         // Act & Assert
-        await Assert.That(() => new TokenUsageTracker(logger.Object, null!))
+        await Assert.That(() => CreateTracker(costCalculationService: NullableOption.Some<ICostCalculationService>(null)))
             .Throws<ArgumentNullException>()
-            .And.HasProperty(x => x.ParamName, "costCalculationService");
+            .WithParameterName("costCalculationService");
     }
 
     [Test]
-    public async Task Constructor_initializes_with_zero_usage()
+    public async Task Creating_tracker_initializes_with_zero_usage()
     {
-        // Arrange
-        var logger = new Mock<ILogger<TokenUsageTracker>>();
-        var costService = new Mock<ICostCalculationService>();
-
         // Act
-        var tracker = new TokenUsageTracker(logger.Object, costService.Object);
+        var tracker = CreateTracker();
 
         // Assert
         await Assert.That(tracker.GetTotalCost()).IsEqualTo(0m);

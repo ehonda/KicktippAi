@@ -3,6 +3,7 @@ using Microsoft.Extensions.Logging.Testing;
 using Moq;
 using OpenAI.Chat;
 using TestUtilities;
+using EHonda.Optional.Core;
 
 namespace OpenAiIntegration.Tests.TokenUsageTrackerTests;
 
@@ -12,39 +13,36 @@ namespace OpenAiIntegration.Tests.TokenUsageTrackerTests;
 public abstract class TokenUsageTrackerTests_Base
 {
     /// <summary>
-    /// Helper method to create a mock cost calculation service with default behavior
-    /// </summary>
-    protected static Mock<ICostCalculationService> CreateMockCostCalculationService(decimal? costToReturn = 1.23m)
-    {
-        var mock = new Mock<ICostCalculationService>();
-        mock.Setup(x => x.CalculateCost(It.IsAny<string>(), It.IsAny<ChatTokenUsage>()))
-            .Returns(costToReturn);
-        return mock;
-    }
-
-    /// <summary>
-    /// Helper method to create a token usage tracker with mocked dependencies
+    /// Factory method to create a TokenUsageTracker instance using the configured dependencies
     /// </summary>
     protected static TokenUsageTracker CreateTracker(
-        out Mock<ILogger<TokenUsageTracker>> loggerMock,
-        out Mock<ICostCalculationService> costServiceMock,
-        decimal? costToReturn = 1.23m)
+        NullableOption<FakeLogger<TokenUsageTracker>> logger = default,
+        NullableOption<ICostCalculationService> costCalculationService = default)
     {
-        loggerMock = new Mock<ILogger<TokenUsageTracker>>();
-        costServiceMock = CreateMockCostCalculationService(costToReturn);
-        return new TokenUsageTracker(loggerMock.Object, costServiceMock.Object);
+        var actualLogger = logger.Or(CreateFakeLogger);
+        var actualCostService = costCalculationService.Or(() => CreateMockCostCalculationService().Object);
+
+        return new TokenUsageTracker(actualLogger!, actualCostService!);
     }
 
     /// <summary>
-    /// Helper method to create a token usage tracker with FakeLogger for testing log output
+    /// Creates a FakeLogger for TokenUsageTracker
     /// </summary>
-    protected static TokenUsageTracker CreateTrackerWithFakeLogger(
-        out FakeLogger<TokenUsageTracker> logger,
-        out Mock<ICostCalculationService> costServiceMock,
-        decimal? costToReturn = 1.23m)
+    protected static FakeLogger<TokenUsageTracker> CreateFakeLogger()
     {
-        logger = new FakeLogger<TokenUsageTracker>();
-        costServiceMock = CreateMockCostCalculationService(costToReturn);
-        return new TokenUsageTracker(logger, costServiceMock.Object);
+        return new FakeLogger<TokenUsageTracker>();
+    }
+
+    /// <summary>
+    /// Creates a mock ICostCalculationService with optional default return value
+    /// </summary>
+    protected static Mock<ICostCalculationService> CreateMockCostCalculationService(
+        NullableOption<decimal?> costToReturn = default)
+    {
+        var actualCost = costToReturn.Or(1.23m);
+        var mock = new Mock<ICostCalculationService>();
+        mock.Setup(x => x.CalculateCost(It.IsAny<string>(), It.IsAny<ChatTokenUsage>()))
+            .Returns(actualCost);
+        return mock;
     }
 }

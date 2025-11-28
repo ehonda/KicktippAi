@@ -1,6 +1,7 @@
 using TestUtilities;
 using Moq;
 using OpenAI.Chat;
+using EHonda.Optional.Core;
 
 namespace OpenAiIntegration.Tests.TokenUsageTrackerTests;
 
@@ -13,7 +14,7 @@ public class TokenUsageTracker_GetCost_Tests : TokenUsageTrackerTests_Base
     public async Task GetTotalCost_with_no_usage_returns_zero()
     {
         // Arrange
-        var tracker = CreateTracker(out _, out _);
+        var tracker = CreateTracker();
 
         // Act
         var cost = tracker.GetTotalCost();
@@ -26,7 +27,8 @@ public class TokenUsageTracker_GetCost_Tests : TokenUsageTrackerTests_Base
     public async Task GetTotalCost_with_single_usage_returns_cost()
     {
         // Arrange
-        var tracker = CreateTracker(out _, out _, costToReturn: 5.25m);
+        var costServiceMock = CreateMockCostCalculationService(5.25m);
+        var tracker = CreateTracker(costCalculationService: Option.Some(costServiceMock.Object));
         var usage = OpenAITestHelpers.CreateChatTokenUsage(inputTokens: 1000, outputTokens: 500);
 
         // Act
@@ -41,11 +43,12 @@ public class TokenUsageTracker_GetCost_Tests : TokenUsageTrackerTests_Base
     public async Task GetTotalCost_accumulates_multiple_usages()
     {
         // Arrange
-        var tracker = CreateTracker(out _, out var costServiceMock);
+        var costServiceMock = CreateMockCostCalculationService();
         costServiceMock.SetupSequence(x => x.CalculateCost(It.IsAny<string>(), It.IsAny<ChatTokenUsage>()))
             .Returns(1.50m)
             .Returns(2.75m)
             .Returns(3.25m);
+        var tracker = CreateTracker(costCalculationService: Option.Some(costServiceMock.Object));
 
         var usage1 = OpenAITestHelpers.CreateChatTokenUsage(inputTokens: 1000, outputTokens: 500);
         var usage2 = OpenAITestHelpers.CreateChatTokenUsage(inputTokens: 2000, outputTokens: 1000);
@@ -65,7 +68,7 @@ public class TokenUsageTracker_GetCost_Tests : TokenUsageTrackerTests_Base
     public async Task GetLastCost_with_no_usage_returns_zero()
     {
         // Arrange
-        var tracker = CreateTracker(out _, out _);
+        var tracker = CreateTracker();
 
         // Act
         var cost = tracker.GetLastCost();
@@ -78,11 +81,12 @@ public class TokenUsageTracker_GetCost_Tests : TokenUsageTrackerTests_Base
     public async Task GetLastCost_returns_only_last_usage_cost()
     {
         // Arrange
-        var tracker = CreateTracker(out _, out var costServiceMock);
+        var costServiceMock = CreateMockCostCalculationService();
         costServiceMock.SetupSequence(x => x.CalculateCost(It.IsAny<string>(), It.IsAny<ChatTokenUsage>()))
             .Returns(1.00m)
             .Returns(2.00m)
             .Returns(3.50m);
+        var tracker = CreateTracker(costCalculationService: Option.Some(costServiceMock.Object));
 
         var usage1 = OpenAITestHelpers.CreateChatTokenUsage(inputTokens: 1000, outputTokens: 500);
         var usage2 = OpenAITestHelpers.CreateChatTokenUsage(inputTokens: 2000, outputTokens: 1000);
@@ -102,10 +106,11 @@ public class TokenUsageTracker_GetCost_Tests : TokenUsageTrackerTests_Base
     public async Task GetLastCost_updates_with_each_new_usage()
     {
         // Arrange
-        var tracker = CreateTracker(out _, out var costServiceMock);
+        var costServiceMock = CreateMockCostCalculationService();
         costServiceMock.SetupSequence(x => x.CalculateCost(It.IsAny<string>(), It.IsAny<ChatTokenUsage>()))
             .Returns(1.25m)
             .Returns(4.75m);
+        var tracker = CreateTracker(costCalculationService: Option.Some(costServiceMock.Object));
 
         var usage1 = OpenAITestHelpers.CreateChatTokenUsage(inputTokens: 1000, outputTokens: 500);
         var usage2 = OpenAITestHelpers.CreateChatTokenUsage(inputTokens: 5000, outputTokens: 2500);
@@ -122,11 +127,12 @@ public class TokenUsageTracker_GetCost_Tests : TokenUsageTrackerTests_Base
     public async Task GetTotalCost_and_GetLastCost_are_independent()
     {
         // Arrange
-        var tracker = CreateTracker(out _, out var costServiceMock);
+        var costServiceMock = CreateMockCostCalculationService();
         costServiceMock.SetupSequence(x => x.CalculateCost(It.IsAny<string>(), It.IsAny<ChatTokenUsage>()))
             .Returns(2.00m)
             .Returns(3.00m)
             .Returns(5.00m);
+        var tracker = CreateTracker(costCalculationService: Option.Some(costServiceMock.Object));
 
         var usage1 = OpenAITestHelpers.CreateChatTokenUsage(inputTokens: 1000, outputTokens: 500);
         var usage2 = OpenAITestHelpers.CreateChatTokenUsage(inputTokens: 2000, outputTokens: 1000);
@@ -146,11 +152,12 @@ public class TokenUsageTracker_GetCost_Tests : TokenUsageTrackerTests_Base
     public async Task GetTotalCost_handles_null_cost_from_service()
     {
         // Arrange
-        var tracker = CreateTracker(out _, out var costServiceMock);
+        var costServiceMock = CreateMockCostCalculationService();
         costServiceMock.SetupSequence(x => x.CalculateCost(It.IsAny<string>(), It.IsAny<ChatTokenUsage>()))
             .Returns(2.00m)
             .Returns((decimal?)null)
             .Returns(3.00m);
+        var tracker = CreateTracker(costCalculationService: Option.Some(costServiceMock.Object));
 
         var usage1 = OpenAITestHelpers.CreateChatTokenUsage(inputTokens: 1000, outputTokens: 500);
         var usage2 = OpenAITestHelpers.CreateChatTokenUsage(inputTokens: 2000, outputTokens: 1000);
@@ -170,7 +177,8 @@ public class TokenUsageTracker_GetCost_Tests : TokenUsageTrackerTests_Base
     public async Task GetLastCost_handles_null_cost_from_service()
     {
         // Arrange
-        var tracker = CreateTracker(out _, out var costServiceMock, costToReturn: null);
+        var costServiceMock = CreateMockCostCalculationService(NullableOption.Some<decimal?>(null));
+        var tracker = CreateTracker(costCalculationService: Option.Some(costServiceMock.Object));
         var usage = OpenAITestHelpers.CreateChatTokenUsage(inputTokens: 1000, outputTokens: 500);
 
         // Act

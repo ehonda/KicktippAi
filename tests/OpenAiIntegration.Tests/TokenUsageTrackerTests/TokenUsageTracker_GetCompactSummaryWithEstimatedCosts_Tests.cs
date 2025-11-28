@@ -1,3 +1,4 @@
+using EHonda.Optional.Core;
 using TestUtilities;
 using Moq;
 using OpenAI.Chat;
@@ -13,7 +14,7 @@ public class TokenUsageTracker_GetCompactSummaryWithEstimatedCosts_Tests : Token
     public async Task GetCompactSummaryWithEstimatedCosts_with_no_usage_returns_zeros()
     {
         // Arrange
-        var tracker = CreateTracker(out _, out _);
+        var tracker = CreateTracker();
 
         // Act
         var summary = tracker.GetCompactSummaryWithEstimatedCosts("o3");
@@ -26,7 +27,8 @@ public class TokenUsageTracker_GetCompactSummaryWithEstimatedCosts_Tests : Token
     public async Task GetCompactSummaryWithEstimatedCosts_includes_estimated_cost()
     {
         // Arrange
-        var tracker = CreateTracker(out _, out _, costToReturn: 5.0m);
+        var costServiceMock = CreateMockCostCalculationService(5.0m);
+        var tracker = CreateTracker(costCalculationService: Option.Some(costServiceMock.Object));
         var usage = OpenAITestHelpers.CreateChatTokenUsage(
             inputTokens: 1000000,
             outputTokens: 500000);
@@ -39,15 +41,17 @@ public class TokenUsageTracker_GetCompactSummaryWithEstimatedCosts_Tests : Token
         // Base summary + estimated cost for o3
         // o3 pricing: $2.00/1M input, $8.00/1M output
         // Expected: (1M * 2.00) + (0.5M * 8.00) = 2.00 + 4.00 = 6.00
-        await Assert.That(summary).Contains("1,000,000 / 0 / 0 / 500,000 / $5.0000");
-        await Assert.That(summary).Contains("(est o3: $6.0000)");
+        await Assert.That(summary)
+            .Contains("1,000,000 / 0 / 0 / 500,000 / $5.0000")
+            .And.Contains("(est o3: $6.0000)");
     }
 
     [Test]
     public async Task GetCompactSummaryWithEstimatedCosts_with_cached_tokens_calculates_correctly()
     {
         // Arrange
-        var tracker = CreateTracker(out _, out _, costToReturn: 3.0m);
+        var costServiceMock = CreateMockCostCalculationService(3.0m);
+        var tracker = CreateTracker(costCalculationService: Option.Some(costServiceMock.Object));
         var usage = OpenAITestHelpers.CreateChatTokenUsage(
             inputTokens: 1000000,
             outputTokens: 500000,
@@ -68,7 +72,8 @@ public class TokenUsageTracker_GetCompactSummaryWithEstimatedCosts_Tests : Token
     public async Task GetCompactSummaryWithEstimatedCosts_with_model_without_cached_pricing_ignores_cached_tokens()
     {
         // Arrange
-        var tracker = CreateTracker(out _, out _, costToReturn: 1.0m);
+        var costServiceMock = CreateMockCostCalculationService(1.0m);
+        var tracker = CreateTracker(costCalculationService: Option.Some(costServiceMock.Object));
         var usage = OpenAITestHelpers.CreateChatTokenUsage(
             inputTokens: 1000000,
             outputTokens: 500000,
@@ -89,7 +94,8 @@ public class TokenUsageTracker_GetCompactSummaryWithEstimatedCosts_Tests : Token
     public async Task GetCompactSummaryWithEstimatedCosts_with_reasoning_tokens_includes_in_output_cost()
     {
         // Arrange
-        var tracker = CreateTracker(out _, out _, costToReturn: 2.0m);
+        var costServiceMock = CreateMockCostCalculationService(2.0m);
+        var tracker = CreateTracker(costCalculationService: Option.Some(costServiceMock.Object));
         var usage = OpenAITestHelpers.CreateChatTokenUsage(
             inputTokens: 1000000,
             outputTokens: 1500000,
@@ -110,7 +116,8 @@ public class TokenUsageTracker_GetCompactSummaryWithEstimatedCosts_Tests : Token
     public async Task GetCompactSummaryWithEstimatedCosts_with_unknown_model_returns_zero_estimate()
     {
         // Arrange
-        var tracker = CreateTracker(out _, out _, costToReturn: 5.0m);
+        var costServiceMock = CreateMockCostCalculationService(5.0m);
+        var tracker = CreateTracker(costCalculationService: Option.Some(costServiceMock.Object));
         var usage = OpenAITestHelpers.CreateChatTokenUsage(
             inputTokens: 1000000,
             outputTokens: 500000);
@@ -127,10 +134,11 @@ public class TokenUsageTracker_GetCompactSummaryWithEstimatedCosts_Tests : Token
     public async Task GetCompactSummaryWithEstimatedCosts_accumulates_multiple_usages()
     {
         // Arrange
-        var tracker = CreateTracker(out _, out var costServiceMock);
+        var costServiceMock = CreateMockCostCalculationService();
         costServiceMock.SetupSequence(x => x.CalculateCost(It.IsAny<string>(), It.IsAny<ChatTokenUsage>()))
             .Returns(1.0m)
             .Returns(2.0m);
+        var tracker = CreateTracker(costCalculationService: Option.Some(costServiceMock.Object));
 
         var usage1 = OpenAITestHelpers.CreateChatTokenUsage(
             inputTokens: 500000,
@@ -147,8 +155,9 @@ public class TokenUsageTracker_GetCompactSummaryWithEstimatedCosts_Tests : Token
         // Assert
         // Total: 1.5M input, 0.75M output
         // gpt-4o: (1.5M * 2.50) + (0.75M * 10.00) = 3.75 + 7.50 = 11.25
-        await Assert.That(summary).Contains("1,500,000 / 0 / 0 / 750,000 / $3.0000");
-        await Assert.That(summary).Contains("(est gpt-4o: $11.2500)");
+        await Assert.That(summary)
+            .Contains("1,500,000 / 0 / 0 / 750,000 / $3.0000")
+            .And.Contains("(est gpt-4o: $11.2500)");
     }
 }
 

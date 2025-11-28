@@ -1,6 +1,7 @@
 using TestUtilities;
 using Moq;
 using OpenAI.Chat;
+using EHonda.Optional.Core;
 
 namespace OpenAiIntegration.Tests.TokenUsageTrackerTests;
 
@@ -13,7 +14,7 @@ public class TokenUsageTracker_GetCompactSummary_Tests : TokenUsageTrackerTests_
     public async Task GetCompactSummary_with_no_usage_returns_zeros()
     {
         // Arrange
-        var tracker = CreateTracker(out _, out _);
+        var tracker = CreateTracker();
 
         // Act
         var summary = tracker.GetCompactSummary();
@@ -26,7 +27,8 @@ public class TokenUsageTracker_GetCompactSummary_Tests : TokenUsageTrackerTests_
     public async Task GetCompactSummary_with_single_usage_returns_correct_format()
     {
         // Arrange
-        var tracker = CreateTracker(out _, out _, costToReturn: 5.123456m);
+        var costServiceMock = CreateMockCostCalculationService(5.123456m);
+        var tracker = CreateTracker(costCalculationService: Option.Some(costServiceMock.Object));
         var usage = OpenAITestHelpers.CreateChatTokenUsage(
             inputTokens: 1000,
             outputTokens: 500,
@@ -44,7 +46,8 @@ public class TokenUsageTracker_GetCompactSummary_Tests : TokenUsageTrackerTests_
     public async Task GetCompactSummary_formats_numbers_with_thousand_separators()
     {
         // Arrange
-        var tracker = CreateTracker(out _, out _, costToReturn: 100.5m);
+        var costServiceMock = CreateMockCostCalculationService(100.5m);
+        var tracker = CreateTracker(costCalculationService: Option.Some(costServiceMock.Object));
         var usage = OpenAITestHelpers.CreateChatTokenUsage(
             inputTokens: 1234567,
             outputTokens: 987654);
@@ -54,18 +57,20 @@ public class TokenUsageTracker_GetCompactSummary_Tests : TokenUsageTrackerTests_
         var summary = tracker.GetCompactSummary();
 
         // Assert
-        await Assert.That(summary).Contains("1,234,567");
-        await Assert.That(summary).Contains("987,654");
+        await Assert.That(summary)
+            .Contains("1,234,567")
+            .And.Contains("987,654");
     }
 
     [Test]
     public async Task GetCompactSummary_accumulates_multiple_usages()
     {
         // Arrange
-        var tracker = CreateTracker(out _, out var costServiceMock);
+        var costServiceMock = CreateMockCostCalculationService();
         costServiceMock.SetupSequence(x => x.CalculateCost(It.IsAny<string>(), It.IsAny<ChatTokenUsage>()))
             .Returns(1.50m)
             .Returns(2.75m);
+        var tracker = CreateTracker(costCalculationService: Option.Some(costServiceMock.Object));
 
         var usage1 = OpenAITestHelpers.CreateChatTokenUsage(
             inputTokens: 1000,
@@ -95,7 +100,8 @@ public class TokenUsageTracker_GetCompactSummary_Tests : TokenUsageTrackerTests_
     public async Task GetCompactSummary_with_reasoning_tokens_shows_in_correct_position()
     {
         // Arrange
-        var tracker = CreateTracker(out _, out _, costToReturn: 10.0m);
+        var costServiceMock = CreateMockCostCalculationService(10.0m);
+        var tracker = CreateTracker(costCalculationService: Option.Some(costServiceMock.Object));
         var usage = OpenAITestHelpers.CreateChatTokenUsage(
             inputTokens: 5000,
             outputTokens: 3000,
@@ -113,7 +119,8 @@ public class TokenUsageTracker_GetCompactSummary_Tests : TokenUsageTrackerTests_
     public async Task GetCompactSummary_rounds_cost_to_four_decimal_places()
     {
         // Arrange
-        var tracker = CreateTracker(out _, out _, costToReturn: 1.23456789m);
+        var costServiceMock = CreateMockCostCalculationService(1.23456789m);
+        var tracker = CreateTracker(costCalculationService: Option.Some(costServiceMock.Object));
         var usage = OpenAITestHelpers.CreateChatTokenUsage(inputTokens: 100, outputTokens: 50);
 
         // Act
@@ -128,7 +135,8 @@ public class TokenUsageTracker_GetCompactSummary_Tests : TokenUsageTrackerTests_
     public async Task GetCompactSummary_uses_invariant_culture_for_formatting()
     {
         // Arrange
-        var tracker = CreateTracker(out _, out _, costToReturn: 1234.56m);
+        var costServiceMock = CreateMockCostCalculationService(1234.56m);
+        var tracker = CreateTracker(costCalculationService: Option.Some(costServiceMock.Object));
         var usage = OpenAITestHelpers.CreateChatTokenUsage(inputTokens: 1000000, outputTokens: 500000);
 
         // Act
@@ -137,8 +145,9 @@ public class TokenUsageTracker_GetCompactSummary_Tests : TokenUsageTrackerTests_
 
         // Assert
         // Should use comma for thousands, period for decimal (invariant culture)
-        await Assert.That(summary).Contains("1,000,000");
-        await Assert.That(summary).Contains("$1234.5600");
+        await Assert.That(summary)
+            .Contains("1,000,000")
+            .And.Contains("$1234.5600");
     }
 }
 

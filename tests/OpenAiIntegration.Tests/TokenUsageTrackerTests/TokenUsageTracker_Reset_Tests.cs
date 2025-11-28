@@ -1,3 +1,4 @@
+using EHonda.Optional.Core;
 using Microsoft.Extensions.Logging;
 using Moq;
 using OpenAI.Chat;
@@ -14,10 +15,11 @@ public class TokenUsageTracker_Reset_Tests : TokenUsageTrackerTests_Base
     public async Task Reset_clears_all_tracked_usage()
     {
         // Arrange
-        var tracker = CreateTracker(out _, out var costServiceMock);
+        var costServiceMock = CreateMockCostCalculationService();
         costServiceMock.SetupSequence(x => x.CalculateCost(It.IsAny<string>(), It.IsAny<ChatTokenUsage>()))
             .Returns(5.00m)
             .Returns(3.00m);
+        var tracker = CreateTracker(costCalculationService: Option.Some(costServiceMock.Object));
 
         var usage1 = OpenAITestHelpers.CreateChatTokenUsage(inputTokens: 10000, outputTokens: 5000);
         var usage2 = OpenAITestHelpers.CreateChatTokenUsage(inputTokens: 8000, outputTokens: 4000);
@@ -37,7 +39,8 @@ public class TokenUsageTracker_Reset_Tests : TokenUsageTrackerTests_Base
     public async Task Reset_clears_total_cost()
     {
         // Arrange
-        var tracker = CreateTracker(out _, out _, costToReturn: 10.50m);
+        var costServiceMock = CreateMockCostCalculationService(10.50m);
+        var tracker = CreateTracker(costCalculationService: Option.Some(costServiceMock.Object));
         var usage = OpenAITestHelpers.CreateChatTokenUsage(inputTokens: 5000, outputTokens: 2500);
         tracker.AddUsage("gpt-4o", usage);
 
@@ -52,7 +55,8 @@ public class TokenUsageTracker_Reset_Tests : TokenUsageTrackerTests_Base
     public async Task Reset_clears_last_usage_tracking()
     {
         // Arrange
-        var tracker = CreateTracker(out _, out _, costToReturn: 5.00m);
+        var costServiceMock = CreateMockCostCalculationService(5.00m);
+        var tracker = CreateTracker(costCalculationService: Option.Some(costServiceMock.Object));
         var usage = OpenAITestHelpers.CreateChatTokenUsage(inputTokens: 3000, outputTokens: 1500);
         tracker.AddUsage("gpt-4o", usage);
 
@@ -68,7 +72,8 @@ public class TokenUsageTracker_Reset_Tests : TokenUsageTrackerTests_Base
     public async Task Reset_clears_last_cost()
     {
         // Arrange
-        var tracker = CreateTracker(out _, out _, costToReturn: 7.25m);
+        var costServiceMock = CreateMockCostCalculationService(7.25m);
+        var tracker = CreateTracker(costCalculationService: Option.Some(costServiceMock.Object));
         var usage = OpenAITestHelpers.CreateChatTokenUsage(inputTokens: 4000, outputTokens: 2000);
         tracker.AddUsage("gpt-4o", usage);
 
@@ -83,7 +88,7 @@ public class TokenUsageTracker_Reset_Tests : TokenUsageTrackerTests_Base
     public async Task Reset_clears_last_usage_json()
     {
         // Arrange
-        var tracker = CreateTracker(out _, out _);
+        var tracker = CreateTracker();
         var usage = OpenAITestHelpers.CreateChatTokenUsage(inputTokens: 1000, outputTokens: 500);
         tracker.AddUsage("gpt-4o", usage);
 
@@ -98,10 +103,11 @@ public class TokenUsageTracker_Reset_Tests : TokenUsageTrackerTests_Base
     public async Task Reset_allows_new_usage_to_be_tracked()
     {
         // Arrange
-        var tracker = CreateTracker(out _, out var costServiceMock);
+        var costServiceMock = CreateMockCostCalculationService();
         costServiceMock.SetupSequence(x => x.CalculateCost(It.IsAny<string>(), It.IsAny<ChatTokenUsage>()))
             .Returns(5.00m)
             .Returns(3.00m);
+        var tracker = CreateTracker(costCalculationService: Option.Some(costServiceMock.Object));
 
         var usage1 = OpenAITestHelpers.CreateChatTokenUsage(inputTokens: 10000, outputTokens: 5000);
         var usage2 = OpenAITestHelpers.CreateChatTokenUsage(inputTokens: 2000, outputTokens: 1000);
@@ -121,7 +127,8 @@ public class TokenUsageTracker_Reset_Tests : TokenUsageTrackerTests_Base
     public void Reset_logs_debug_message()
     {
         // Arrange
-        var tracker = CreateTrackerWithFakeLogger(out var logger, out _);
+        var logger = CreateFakeLogger();
+        var tracker = CreateTracker(logger);
 
         // Act
         tracker.Reset();
@@ -134,7 +141,8 @@ public class TokenUsageTracker_Reset_Tests : TokenUsageTrackerTests_Base
     public async Task Reset_can_be_called_multiple_times()
     {
         // Arrange
-        var tracker = CreateTracker(out _, out _, costToReturn: 5.00m);
+        var costServiceMock = CreateMockCostCalculationService(5.00m);
+        var tracker = CreateTracker(costCalculationService: Option.Some(costServiceMock.Object));
         var usage = OpenAITestHelpers.CreateChatTokenUsage(inputTokens: 1000, outputTokens: 500);
 
         // Act
@@ -152,7 +160,7 @@ public class TokenUsageTracker_Reset_Tests : TokenUsageTrackerTests_Base
     public async Task Reset_on_tracker_with_no_usage_does_nothing()
     {
         // Arrange
-        var tracker = CreateTracker(out _, out _);
+        var tracker = CreateTracker();
 
         // Act
         tracker.Reset();

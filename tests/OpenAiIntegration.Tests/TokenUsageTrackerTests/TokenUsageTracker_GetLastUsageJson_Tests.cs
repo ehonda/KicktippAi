@@ -12,7 +12,7 @@ public class TokenUsageTracker_GetLastUsageJson_Tests : TokenUsageTrackerTests_B
     public async Task GetLastUsageJson_with_no_usage_returns_null()
     {
         // Arrange
-        var tracker = CreateTracker(out _, out _);
+        var tracker = CreateTracker();
 
         // Act
         var json = tracker.GetLastUsageJson();
@@ -25,7 +25,7 @@ public class TokenUsageTracker_GetLastUsageJson_Tests : TokenUsageTrackerTests_B
     public async Task GetLastUsageJson_with_basic_usage_returns_valid_json()
     {
         // Arrange
-        var tracker = CreateTracker(out _, out _);
+        var tracker = CreateTracker();
         var usage = OpenAITestHelpers.CreateChatTokenUsage(
             inputTokens: 1000,
             outputTokens: 500);
@@ -46,7 +46,7 @@ public class TokenUsageTracker_GetLastUsageJson_Tests : TokenUsageTrackerTests_B
     public async Task GetLastUsageJson_with_cached_tokens_includes_input_details()
     {
         // Arrange
-        var tracker = CreateTracker(out _, out _);
+        var tracker = CreateTracker();
         var usage = OpenAITestHelpers.CreateChatTokenUsage(
             inputTokens: 1000,
             outputTokens: 500,
@@ -68,7 +68,7 @@ public class TokenUsageTracker_GetLastUsageJson_Tests : TokenUsageTrackerTests_B
     public async Task GetLastUsageJson_with_reasoning_tokens_includes_output_details()
     {
         // Arrange
-        var tracker = CreateTracker(out _, out _);
+        var tracker = CreateTracker();
         var usage = OpenAITestHelpers.CreateChatTokenUsage(
             inputTokens: 1000,
             outputTokens: 1500,
@@ -90,7 +90,7 @@ public class TokenUsageTracker_GetLastUsageJson_Tests : TokenUsageTrackerTests_B
     public async Task GetLastUsageJson_with_all_token_types_includes_all_details()
     {
         // Arrange
-        var tracker = CreateTracker(out _, out _);
+        var tracker = CreateTracker();
         var usage = OpenAITestHelpers.CreateChatTokenUsage(
             inputTokens: 5000,
             outputTokens: 3000,
@@ -115,7 +115,7 @@ public class TokenUsageTracker_GetLastUsageJson_Tests : TokenUsageTrackerTests_B
     public async Task GetLastUsageJson_returns_only_last_usage()
     {
         // Arrange
-        var tracker = CreateTracker(out _, out _);
+        var tracker = CreateTracker();
         var usage1 = OpenAITestHelpers.CreateChatTokenUsage(inputTokens: 1000, outputTokens: 500);
         var usage2 = OpenAITestHelpers.CreateChatTokenUsage(inputTokens: 2000, outputTokens: 1000);
         var usage3 = OpenAITestHelpers.CreateChatTokenUsage(inputTokens: 3000, outputTokens: 1500);
@@ -138,7 +138,7 @@ public class TokenUsageTracker_GetLastUsageJson_Tests : TokenUsageTrackerTests_B
     public async Task GetLastUsageJson_without_cached_tokens_has_null_input_details()
     {
         // Arrange
-        var tracker = CreateTracker(out _, out _);
+        var tracker = CreateTracker();
         var usage = OpenAITestHelpers.CreateChatTokenUsage(
             inputTokens: 1000,
             outputTokens: 500);
@@ -162,7 +162,7 @@ public class TokenUsageTracker_GetLastUsageJson_Tests : TokenUsageTrackerTests_B
     public async Task GetLastUsageJson_without_reasoning_tokens_has_null_output_details()
     {
         // Arrange
-        var tracker = CreateTracker(out _, out _);
+        var tracker = CreateTracker();
         var usage = OpenAITestHelpers.CreateChatTokenUsage(
             inputTokens: 1000,
             outputTokens: 500);
@@ -186,7 +186,7 @@ public class TokenUsageTracker_GetLastUsageJson_Tests : TokenUsageTrackerTests_B
     public async Task GetLastUsageJson_returns_compact_json_without_indentation()
     {
         // Arrange
-        var tracker = CreateTracker(out _, out _);
+        var tracker = CreateTracker();
         var usage = OpenAITestHelpers.CreateChatTokenUsage(
             inputTokens: 1000,
             outputTokens: 500);
@@ -197,7 +197,7 @@ public class TokenUsageTracker_GetLastUsageJson_Tests : TokenUsageTrackerTests_B
 
         // Assert - Should not contain newlines (compact format)
         await Assert.That(json).IsNotNull();
-        await Assert.That(json!.Contains('\n')).IsFalse();
+        await Assert.That(json!).DoesNotContain("\n");
     }
 }
 

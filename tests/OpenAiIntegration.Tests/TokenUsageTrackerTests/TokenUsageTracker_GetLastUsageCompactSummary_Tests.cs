@@ -1,3 +1,4 @@
+using EHonda.Optional.Core;
 using TestUtilities;
 using Moq;
 using OpenAI.Chat;
@@ -13,7 +14,7 @@ public class TokenUsageTracker_GetLastUsageCompactSummary_Tests : TokenUsageTrac
     public async Task GetLastUsageCompactSummary_with_no_usage_returns_zeros()
     {
         // Arrange
-        var tracker = CreateTracker(out _, out _);
+        var tracker = CreateTracker();
 
         // Act
         var summary = tracker.GetLastUsageCompactSummary();
@@ -26,11 +27,12 @@ public class TokenUsageTracker_GetLastUsageCompactSummary_Tests : TokenUsageTrac
     public async Task GetLastUsageCompactSummary_returns_only_last_usage()
     {
         // Arrange
-        var tracker = CreateTracker(out _, out var costServiceMock);
+        var costServiceMock = CreateMockCostCalculationService();
         costServiceMock.SetupSequence(x => x.CalculateCost(It.IsAny<string>(), It.IsAny<ChatTokenUsage>()))
             .Returns(1.0m)
             .Returns(2.0m)
             .Returns(3.5m);
+        var tracker = CreateTracker(costCalculationService: Option.Some(costServiceMock.Object));
 
         var usage1 = OpenAITestHelpers.CreateChatTokenUsage(inputTokens: 1000, outputTokens: 500);
         var usage2 = OpenAITestHelpers.CreateChatTokenUsage(inputTokens: 2000, outputTokens: 1000);
@@ -50,10 +52,11 @@ public class TokenUsageTracker_GetLastUsageCompactSummary_Tests : TokenUsageTrac
     public async Task GetLastUsageCompactSummary_updates_with_each_new_usage()
     {
         // Arrange
-        var tracker = CreateTracker(out _, out var costServiceMock);
+        var costServiceMock = CreateMockCostCalculationService();
         costServiceMock.SetupSequence(x => x.CalculateCost(It.IsAny<string>(), It.IsAny<ChatTokenUsage>()))
             .Returns(1.0m)
             .Returns(2.5m);
+        var tracker = CreateTracker(costCalculationService: Option.Some(costServiceMock.Object));
 
         var usage1 = OpenAITestHelpers.CreateChatTokenUsage(inputTokens: 1000, outputTokens: 500);
         var usage2 = OpenAITestHelpers.CreateChatTokenUsage(inputTokens: 5000, outputTokens: 2500);
@@ -72,7 +75,8 @@ public class TokenUsageTracker_GetLastUsageCompactSummary_Tests : TokenUsageTrac
     public async Task GetLastUsageCompactSummary_with_cached_tokens_shows_breakdown()
     {
         // Arrange
-        var tracker = CreateTracker(out _, out _, costToReturn: 4.25m);
+        var costServiceMock = CreateMockCostCalculationService(4.25m);
+        var tracker = CreateTracker(costCalculationService: Option.Some(costServiceMock.Object));
         var usage = OpenAITestHelpers.CreateChatTokenUsage(
             inputTokens: 10000,
             outputTokens: 5000,
@@ -90,7 +94,8 @@ public class TokenUsageTracker_GetLastUsageCompactSummary_Tests : TokenUsageTrac
     public async Task GetLastUsageCompactSummary_with_reasoning_tokens_shows_breakdown()
     {
         // Arrange
-        var tracker = CreateTracker(out _, out _, costToReturn: 8.75m);
+        var costServiceMock = CreateMockCostCalculationService(8.75m);
+        var tracker = CreateTracker(costCalculationService: Option.Some(costServiceMock.Object));
         var usage = OpenAITestHelpers.CreateChatTokenUsage(
             inputTokens: 5000,
             outputTokens: 7000,
@@ -108,7 +113,8 @@ public class TokenUsageTracker_GetLastUsageCompactSummary_Tests : TokenUsageTrac
     public async Task GetLastUsageCompactSummary_with_all_token_types_shows_complete_breakdown()
     {
         // Arrange
-        var tracker = CreateTracker(out _, out _, costToReturn: 12.345m);
+        var costServiceMock = CreateMockCostCalculationService(12.345m);
+        var tracker = CreateTracker(costCalculationService: Option.Some(costServiceMock.Object));
         var usage = OpenAITestHelpers.CreateChatTokenUsage(
             inputTokens: 20000,
             outputTokens: 15000,
