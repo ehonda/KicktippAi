@@ -1,3 +1,24 @@
+# Build and Test Workflow
+#
+# This workflow builds the solution and runs tests in parallel at the test project level.
+#
+# Architecture:
+#   1. build          - Builds the entire solution once to catch compile errors early
+#   2. define-test-matrix - Discovers test projects dynamically for parallel execution
+#   3. test (matrix)  - Runs each test project in parallel using matrix strategy
+#
+# Design Decisions:
+#   - Test projects run in parallel jobs for faster feedback as the test suite grows
+#   - Each test job rebuilds its dependencies rather than sharing build artifacts because:
+#     * Artifact upload/download adds significant overhead for our current build size
+#     * Downloaded artifacts have permission issues on Linux runners
+#     * Incremental builds via 'dotnet run' are fast enough for now
+#   - Consider switching to artifact caching when build times become a bottleneck
+#
+# TUnit Note:
+#   TUnit uses Microsoft Testing Platform with source generators, not VSTest.
+#   Tests must be executed via 'dotnet run' (not 'dotnet test') on individual projects.
+
 name: Build and Test
 
 on:
@@ -25,15 +46,6 @@ jobs:
         
       - name: Build project
         run: dotnet build --no-restore --configuration Release
-        
-      - name: Upload build artifacts
-        uses: actions/upload-artifact@v4
-        with:
-          name: build-output
-          path: |
-            **/bin/Release
-            **/obj
-          retention-days: 1
 
   define-test-matrix:
     name: Define Test Matrix
@@ -45,6 +57,8 @@ jobs:
       - name: Checkout repository
         uses: actions/checkout@v4
         
+      # Discovers test projects by finding directories under tests/ that contain
+      # a .csproj file matching the directory name (convention-based discovery)
       - name: Discover test projects
         id: discover
         run: |
@@ -78,27 +92,9 @@ jobs:
         with:
           dotnet-version: '10.x'
           
-      - name: Download build artifacts
-        uses: actions/download-artifact@v4
-        with:
-          name: build-output
-          
-      # TUnit with Microsoft Testing Platform requires special handling:
-      # 1. TUnit doesn't use VSTest - it uses Microsoft Testing Platform with source generators
-      # 2. 'dotnet test' at solution level builds but doesn't execute tests (observed behavior)
-      # 3. Must use 'dotnet run' on individual test projects to actually execute tests
-      # 4. The test project must have OutputType=Exe and include Microsoft.Testing.Extensions
-      #    packages (like TrxReport) for reporting features to work
+      # Uses 'dotnet run' which builds and executes in one step.
+      # This is required for TUnit (Microsoft Testing Platform) - see workflow header comment.
       - name: Run tests
         run: |
           echo "Running tests in ${{ matrix.project }}"
-          dotnet run --project "tests/${{ matrix.project }}" \
-            --configuration Release --no-build
-        
-      - name: Test summary
-        if: always()
-        run: |
-          echo "## Test Summary: ${{ matrix.project }}" >> $GITHUB_STEP_SUMMARY
-          echo "- **Trigger**: ${{ github.event_name }}" >> $GITHUB_STEP_SUMMARY
-          echo "- **Branch**: ${{ github.ref_name }}" >> $GITHUB_STEP_SUMMARY
-          echo "- **Configuration**: Release" >> $GITHUB_STEP_SUMMARY
+          dotnet run --project "tests/${{ matrix.project }}" --configuration Release
