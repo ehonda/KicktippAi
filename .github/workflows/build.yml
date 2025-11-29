@@ -92,9 +92,63 @@ jobs:
         with:
           dotnet-version: '10.x'
           
+      - name: Install dotnet-coverage
+        run: dotnet tool install --global dotnet-coverage
+        
       # Uses 'dotnet run' which builds and executes in one step.
       # This is required for TUnit (Microsoft Testing Platform) - see workflow header comment.
-      - name: Run tests
+      # Coverage is collected using dotnet-coverage with our settings file.
+      - name: Run tests with coverage
         run: |
           echo "Running tests in ${{ matrix.project }}"
-          dotnet run --project "tests/${{ matrix.project }}" --configuration Release
+          dotnet-coverage collect \
+            -s coverage.settings.json \
+            -f cobertura \
+            -o "coverage/${{ matrix.project }}.cobertura.xml" \
+            "dotnet run --project tests/${{ matrix.project }} --configuration Release"
+            
+      - name: Upload coverage artifact
+        uses: actions/upload-artifact@v4
+        with:
+          name: coverage-${{ matrix.project }}
+          path: coverage/${{ matrix.project }}.cobertura.xml
+          retention-days: 7
+
+  merge-coverage:
+    name: Merge Coverage Reports
+    needs: test
+    runs-on: ubuntu-latest
+    if: always() && needs.test.result == 'success'
+    
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v4
+        
+      - name: Setup .NET
+        uses: actions/setup-dotnet@v4
+        with:
+          dotnet-version: '10.x'
+          
+      - name: Install dotnet-coverage
+        run: dotnet tool install --global dotnet-coverage
+        
+      - name: Download all coverage artifacts
+        uses: actions/download-artifact@v4
+        with:
+          pattern: coverage-*
+          path: coverage-reports
+          merge-multiple: true
+          
+      - name: Merge coverage reports
+        run: |
+          dotnet-coverage merge coverage-reports/*.cobertura.xml \
+            -f cobertura \
+            -o coverage/merged.cobertura.xml
+          echo "Merged coverage report created at coverage/merged.cobertura.xml"
+          
+      - name: Upload merged coverage
+        uses: actions/upload-artifact@v4
+        with:
+          name: coverage-merged
+          path: coverage/merged.cobertura.xml
+          retention-days: 30

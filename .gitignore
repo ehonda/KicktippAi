@@ -153,6 +153,9 @@ coverage*.json
 coverage*.xml
 coverage*.info
 
+# dotnet-coverage output directory
+coverage/
+
 # Visual Studio code coverage results
 *.coverage
 *.coveragexml
