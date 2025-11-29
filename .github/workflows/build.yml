@@ -8,7 +8,7 @@ on:
 
 jobs:
   build:
-    name: Build and Test
+    name: Build
     runs-on: ubuntu-latest
     
     steps:
@@ -26,32 +26,79 @@ jobs:
       - name: Build project
         run: dotnet build --no-restore --configuration Release
         
+      - name: Upload build artifacts
+        uses: actions/upload-artifact@v4
+        with:
+          name: build-output
+          path: |
+            **/bin/Release
+            **/obj
+          retention-days: 1
+
+  define-test-matrix:
+    name: Define Test Matrix
+    runs-on: ubuntu-latest
+    outputs:
+      test_projects: ${{ steps.discover.outputs.projects }}
+    
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v4
+        
+      - name: Discover test projects
+        id: discover
+        run: |
+          PROJECTS=()
+          for dir in tests/*/; do
+            name=$(basename "$dir")
+            if [ -f "$dir/$name.csproj" ]; then
+              PROJECTS+=("\"$name\"")
+            fi
+          done
+          IFS=','
+          JSON_OUTPUT="[${PROJECTS[*]}]"
+          echo "projects=$JSON_OUTPUT" >> "$GITHUB_OUTPUT"
+          echo "Found test projects: $JSON_OUTPUT"
+
+  test:
+    name: Test (${{ matrix.project }})
+    needs: [build, define-test-matrix]
+    runs-on: ubuntu-latest
+    strategy:
+      fail-fast: false
+      matrix:
+        project: ${{ fromJSON(needs.define-test-matrix.outputs.test_projects) }}
+    
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v4
+        
+      - name: Setup .NET
+        uses: actions/setup-dotnet@v4
+        with:
+          dotnet-version: '10.x'
+          
+      - name: Download build artifacts
+        uses: actions/download-artifact@v4
+        with:
+          name: build-output
+          
       # TUnit with Microsoft Testing Platform requires special handling:
       # 1. TUnit doesn't use VSTest - it uses Microsoft Testing Platform with source generators
       # 2. 'dotnet test' at solution level builds but doesn't execute tests (observed behavior)
       # 3. Must use 'dotnet run' on individual test projects to actually execute tests
       # 4. The test project must have OutputType=Exe and include Microsoft.Testing.Extensions
       #    packages (like TrxReport) for reporting features to work
-      - name: Discover test projects
-        id: discover-tests
-        run: |
-          TEST_PROJECTS=$(find tests -name "*.csproj" -type f | tr '\n' ' ')
-          echo "test_projects=$TEST_PROJECTS" >> $GITHUB_OUTPUT
-          echo "Found test projects: $TEST_PROJECTS"
-        
       - name: Run tests
         run: |
-          for project in ${{ steps.discover-tests.outputs.test_projects }}; do
-            echo "Running tests in $project"
-            # Use 'dotnet run' (not 'dotnet test') as required by TUnit with Microsoft Testing Platform
-            # This executes the test project as an executable, allowing TUnit's source generators to work properly
-            dotnet run --project "$project" --configuration Release
-          done
+          echo "Running tests in ${{ matrix.project }}"
+          dotnet run --project "tests/${{ matrix.project }}" \
+            --configuration Release --no-build
         
-      - name: Build summary
+      - name: Test summary
         if: always()
         run: |
-          echo "## Build Summary" >> $GITHUB_STEP_SUMMARY
+          echo "## Test Summary: ${{ matrix.project }}" >> $GITHUB_STEP_SUMMARY
           echo "- **Trigger**: ${{ github.event_name }}" >> $GITHUB_STEP_SUMMARY
           echo "- **Branch**: ${{ github.ref_name }}" >> $GITHUB_STEP_SUMMARY
           echo "- **Configuration**: Release" >> $GITHUB_STEP_SUMMARY
