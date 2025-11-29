@@ -9,4 +9,8 @@ applyTo: '**/*.cs,**/*.csproj,**/*.slnx'
 
 ## Adding .NET Packages
 
-- Always check nuget.org via #fetch for the latest version of any package you are adding and use that version.
+- Always check for the latest version of any package you are adding and use that version, by executing the following command:
+
+  ```console
+  dotnet package search <PACKAGE_NAME> --exact-match --format json | jq '.searchResult[] | select(.sourceName == "nuget.org") | .packages | sort_by(.version | split(".") | map(tonumber)) | reverse | .[0]'
+  ```
