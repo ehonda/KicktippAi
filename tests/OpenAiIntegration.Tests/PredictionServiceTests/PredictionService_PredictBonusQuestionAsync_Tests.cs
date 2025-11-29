@@ -3,6 +3,7 @@ using Microsoft.Extensions.Logging;
 using Moq;
 using OpenAI.Chat;
 using TestUtilities;
+using TestUtilities.FakeLoggerAssertions;
 using TUnit.Core;
 using EHonda.Optional.Core;
 
@@ -127,7 +128,7 @@ public class PredictionService_PredictBonusQuestionAsync_Tests : PredictionServi
         await PredictBonusQuestionAsync(service);
 
         // Assert
-        logger.AssertLogContains(LogLevel.Information, "Generating prediction for bonus question");
+        await Assert.That(logger).ContainsLog(LogLevel.Information, "Generating prediction for bonus question");
     }
 
     [Test]
@@ -156,7 +157,7 @@ public class PredictionService_PredictBonusQuestionAsync_Tests : PredictionServi
         await PredictBonusQuestionAsync(service);
 
         // Assert
-        logger.AssertLogContains(LogLevel.Error, "Error generating bonus prediction");
+        await Assert.That(logger).ContainsLog(LogLevel.Error, "Error generating bonus prediction");
     }
 
     [Test]

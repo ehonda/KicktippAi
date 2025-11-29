@@ -248,7 +248,6 @@ private async Task CallMethod(
 #### Use `void` (synchronous) when
 
 - Your test uses `Moq.Verify(...)` (returns void, not awaitable)
-- Your test uses `FakeLogger.AssertLogContains(...)` (returns void, not awaitable)
 - Your test has no async operations and no TUnit assertions
 
 ### Always Use Arrange-Act-Assert

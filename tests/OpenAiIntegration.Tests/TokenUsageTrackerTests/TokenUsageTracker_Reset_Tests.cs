@@ -3,6 +3,7 @@ using Microsoft.Extensions.Logging;
 using Moq;
 using OpenAI.Chat;
 using TestUtilities;
+using TestUtilities.FakeLoggerAssertions;
 
 namespace OpenAiIntegration.Tests.TokenUsageTrackerTests;
 
@@ -124,7 +125,7 @@ public class TokenUsageTracker_Reset_Tests : TokenUsageTrackerTests_Base
     }
 
     [Test]
-    public void Reset_logs_debug_message()
+    public async Task Reset_logs_debug_message()
     {
         // Arrange
         var logger = CreateFakeLogger();
@@ -134,7 +135,7 @@ public class TokenUsageTracker_Reset_Tests : TokenUsageTrackerTests_Base
         tracker.Reset();
 
         // Assert
-        logger.AssertLogContains(LogLevel.Debug, "Token usage tracker reset");
+        await Assert.That(logger).ContainsLog(LogLevel.Debug, "Token usage tracker reset");
     }
 
     [Test]

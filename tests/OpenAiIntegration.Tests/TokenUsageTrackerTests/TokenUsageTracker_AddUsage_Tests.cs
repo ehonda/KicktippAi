@@ -2,6 +2,7 @@ using Microsoft.Extensions.Logging;
 using Moq;
 using OpenAI.Chat;
 using TestUtilities;
+using TestUtilities.FakeLoggerAssertions;
 using EHonda.Optional.Core;
 
 namespace OpenAiIntegration.Tests.TokenUsageTrackerTests;
@@ -162,7 +163,7 @@ public class TokenUsageTracker_AddUsage_Tests : TokenUsageTrackerTests_Base
     }
 
     [Test]
-    public void AddUsage_logs_debug_message()
+    public async Task AddUsage_logs_debug_message()
     {
         // Arrange
         var logger = CreateFakeLogger();
@@ -174,7 +175,7 @@ public class TokenUsageTracker_AddUsage_Tests : TokenUsageTrackerTests_Base
         tracker.AddUsage("gpt-4o", usage);
 
         // Assert
-        logger.AssertLogContains(LogLevel.Debug, "Added usage for model gpt-4o");
+        await Assert.That(logger).ContainsLog(LogLevel.Debug, "Added usage for model gpt-4o");
     }
 
     [Test]

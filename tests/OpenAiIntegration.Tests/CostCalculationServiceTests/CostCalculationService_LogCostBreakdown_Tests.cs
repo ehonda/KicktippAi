@@ -1,5 +1,6 @@
 using Microsoft.Extensions.Logging;
 using TestUtilities;
+using TestUtilities.FakeLoggerAssertions;
 
 namespace OpenAiIntegration.Tests.CostCalculationServiceTests;
 
@@ -9,7 +10,7 @@ namespace OpenAiIntegration.Tests.CostCalculationServiceTests;
 public class CostCalculationService_LogCostBreakdown_Tests : CostCalculationServiceTests_Base
 {
     [Test]
-    public void LogCostBreakdown_with_known_model_logs_cost_breakdown()
+    public async Task LogCostBreakdown_with_known_model_logs_cost_breakdown()
     {
         // Arrange
         var usage = OpenAITestHelpers.CreateChatTokenUsage(
@@ -21,16 +22,17 @@ public class CostCalculationService_LogCostBreakdown_Tests : CostCalculationServ
         Service.LogCostBreakdown("gpt-4o", usage);
         
         // Assert - Verify all log entries are created
-        Logger.AssertLogContains(LogLevel.Information, "Uncached Input Tokens");
-        Logger.AssertLogContains(LogLevel.Information, "Cached Input Tokens");
-        Logger.AssertLogContains(LogLevel.Information, "Reasoning Output Tokens");
-        Logger.AssertLogContains(LogLevel.Information, "Text Output Tokens");
-        Logger.AssertLogContains(LogLevel.Information, "Total Output Tokens");
-        Logger.AssertLogContains(LogLevel.Information, "Total Cost");
+        await Assert.That(Logger)
+            .ContainsLog(LogLevel.Information, "Uncached Input Tokens").And
+            .ContainsLog(LogLevel.Information, "Cached Input Tokens").And
+            .ContainsLog(LogLevel.Information, "Reasoning Output Tokens").And
+            .ContainsLog(LogLevel.Information, "Text Output Tokens").And
+            .ContainsLog(LogLevel.Information, "Total Output Tokens").And
+            .ContainsLog(LogLevel.Information, "Total Cost");
     }
 
     [Test]
-    public void LogCostBreakdown_with_cached_tokens_logs_cached_cost_line()
+    public async Task LogCostBreakdown_with_cached_tokens_logs_cached_cost_line()
     {
         // Arrange
         var usage = OpenAITestHelpers.CreateChatTokenUsage(
@@ -42,11 +44,11 @@ public class CostCalculationService_LogCostBreakdown_Tests : CostCalculationServ
         Service.LogCostBreakdown("gpt-4o", usage);
         
         // Assert - Verify cached tokens are logged
-        Logger.AssertLogContains(LogLevel.Information, "Cached Input Tokens: 600,000");
+        await Assert.That(Logger).ContainsLog(LogLevel.Information, "Cached Input Tokens: 600,000");
     }
 
     [Test]
-    public void LogCostBreakdown_with_model_without_cached_pricing_does_not_log_cached_line()
+    public async Task LogCostBreakdown_with_model_without_cached_pricing_does_not_log_cached_line()
     {
         // Arrange
         var usage = OpenAITestHelpers.CreateChatTokenUsage(
@@ -58,11 +60,11 @@ public class CostCalculationService_LogCostBreakdown_Tests : CostCalculationServ
         Service.LogCostBreakdown("o1-pro", usage);
         
         // Assert - Verify cached tokens line is NOT logged
-        Logger.AssertLogDoesNotContain(LogLevel.Information, "Cached Input Tokens");
+        await Assert.That(Logger).DoesNotContainLog(LogLevel.Information, "Cached Input Tokens");
     }
 
     [Test]
-    public void LogCostBreakdown_with_unknown_model_logs_warning()
+    public async Task LogCostBreakdown_with_unknown_model_logs_warning()
     {
         // Arrange
         var usage = OpenAITestHelpers.CreateChatTokenUsage(
@@ -74,11 +76,11 @@ public class CostCalculationService_LogCostBreakdown_Tests : CostCalculationServ
         Service.LogCostBreakdown("unknown-model", usage);
         
         // Assert - Verify warning is logged
-        Logger.AssertLogContains(LogLevel.Warning, "Pricing information not found for model 'unknown-model'");
+        await Assert.That(Logger).ContainsLog(LogLevel.Warning, "Pricing information not found for model 'unknown-model'");
     }
 
     [Test]
-    public void LogCostBreakdown_with_zero_cached_tokens_does_not_log_zero_cached_cost()
+    public async Task LogCostBreakdown_with_zero_cached_tokens_does_not_log_zero_cached_cost()
     {
         // Arrange
         var usage = OpenAITestHelpers.CreateChatTokenUsage(
@@ -90,11 +92,11 @@ public class CostCalculationService_LogCostBreakdown_Tests : CostCalculationServ
         Service.LogCostBreakdown("gpt-4o", usage);
         
         // Assert - When cachedInputTokens is 0, cached line should still be logged (showing 0 tokens)
-        Logger.AssertLogContains(LogLevel.Information, "Cached Input Tokens: 0");
+        await Assert.That(Logger).ContainsLog(LogLevel.Information, "Cached Input Tokens: 0");
     }
 
     [Test]
-    public void LogCostBreakdown_logs_correct_token_counts_and_prices()
+    public async Task LogCostBreakdown_logs_correct_token_counts_and_prices()
     {
         // Arrange
         var usage = OpenAITestHelpers.CreateChatTokenUsage(
@@ -108,13 +110,14 @@ public class CostCalculationService_LogCostBreakdown_Tests : CostCalculationServ
         // Assert - Verify correct token counts are logged
         // o3: $2.00/1M input, $8.00/1M output, $0.50/1M cached
         // Uncached: 1,500,000 tokens
-        Logger.AssertLogContains(LogLevel.Information, "Uncached Input Tokens: 1,500,000");
-        Logger.AssertLogContains(LogLevel.Information, "Cached Input Tokens: 1,000,000");
-        Logger.AssertLogContains(LogLevel.Information, "Total Output Tokens: 1,250,000");
+        await Assert.That(Logger)
+            .ContainsLog(LogLevel.Information, "Uncached Input Tokens: 1,500,000").And
+            .ContainsLog(LogLevel.Information, "Cached Input Tokens: 1,000,000").And
+            .ContainsLog(LogLevel.Information, "Total Output Tokens: 1,250,000");
     }
 
     [Test]
-    public void LogCostBreakdown_with_reasoning_tokens_logs_reasoning_and_text_breakdown()
+    public async Task LogCostBreakdown_with_reasoning_tokens_logs_reasoning_and_text_breakdown()
     {
         // Arrange
         var usage = OpenAITestHelpers.CreateChatTokenUsage(
@@ -127,13 +130,14 @@ public class CostCalculationService_LogCostBreakdown_Tests : CostCalculationServ
         Service.LogCostBreakdown("o3", usage);
         
         // Assert - Verify reasoning and text tokens are logged separately
-        Logger.AssertLogContains(LogLevel.Information, "Reasoning Output Tokens: 300,000");
-        Logger.AssertLogContains(LogLevel.Information, "Text Output Tokens: 200,000");
-        Logger.AssertLogContains(LogLevel.Information, "Total Output Tokens: 500,000");
+        await Assert.That(Logger)
+            .ContainsLog(LogLevel.Information, "Reasoning Output Tokens: 300,000").And
+            .ContainsLog(LogLevel.Information, "Text Output Tokens: 200,000").And
+            .ContainsLog(LogLevel.Information, "Total Output Tokens: 500,000");
     }
 
     [Test]
-    public void LogCostBreakdown_with_zero_reasoning_tokens_logs_zero_reasoning()
+    public async Task LogCostBreakdown_with_zero_reasoning_tokens_logs_zero_reasoning()
     {
         // Arrange
         var usage = OpenAITestHelpers.CreateChatTokenUsage(
@@ -146,12 +150,13 @@ public class CostCalculationService_LogCostBreakdown_Tests : CostCalculationServ
         Service.LogCostBreakdown("gpt-4o", usage);
         
         // Assert - Verify reasoning tokens shows 0
-        Logger.AssertLogContains(LogLevel.Information, "Reasoning Output Tokens: 0");
-        Logger.AssertLogContains(LogLevel.Information, "Text Output Tokens: 500,000");
+        await Assert.That(Logger)
+            .ContainsLog(LogLevel.Information, "Reasoning Output Tokens: 0").And
+            .ContainsLog(LogLevel.Information, "Text Output Tokens: 500,000");
     }
 
     [Test]
-    public void LogCostBreakdown_with_all_reasoning_tokens_logs_zero_text()
+    public async Task LogCostBreakdown_with_all_reasoning_tokens_logs_zero_text()
     {
         // Arrange
         var usage = OpenAITestHelpers.CreateChatTokenUsage(
@@ -164,7 +169,8 @@ public class CostCalculationService_LogCostBreakdown_Tests : CostCalculationServ
         Service.LogCostBreakdown("o3", usage);
         
         // Assert - Verify all output is reasoning, no text tokens
-        Logger.AssertLogContains(LogLevel.Information, "Reasoning Output Tokens: 500,000");
-        Logger.AssertLogContains(LogLevel.Information, "Text Output Tokens: 0");
+        await Assert.That(Logger)
+            .ContainsLog(LogLevel.Information, "Reasoning Output Tokens: 500,000").And
+            .ContainsLog(LogLevel.Information, "Text Output Tokens: 0");
     }
 }

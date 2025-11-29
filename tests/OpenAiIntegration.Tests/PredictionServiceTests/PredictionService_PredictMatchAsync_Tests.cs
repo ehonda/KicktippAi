@@ -3,6 +3,7 @@ using Microsoft.Extensions.Logging;
 using Moq;
 using OpenAI.Chat;
 using TestUtilities;
+using TestUtilities.FakeLoggerAssertions;
 using EHonda.Optional.Core;
 using TUnit.Core;
 using Match = EHonda.KicktippAi.Core.Match;
@@ -151,7 +152,7 @@ public class PredictionService_PredictMatchAsync_Tests : PredictionServiceTests_
         await PredictMatchAsync(service);
 
         // Assert
-        logger.AssertLogContains(LogLevel.Information, "Generating prediction for match");
+        await Assert.That(logger).ContainsLog(LogLevel.Information, "Generating prediction for match");
     }
 
     [Test]
@@ -180,7 +181,7 @@ public class PredictionService_PredictMatchAsync_Tests : PredictionServiceTests_
         await PredictMatchAsync(service);
 
         // Assert
-        logger.AssertLogContains(LogLevel.Error, "Error generating prediction for match");
+        await Assert.That(logger).ContainsLog(LogLevel.Error, "Error generating prediction for match");
     }
 
     [Test]

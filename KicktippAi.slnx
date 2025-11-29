@@ -49,5 +49,6 @@
   </Folder>
   <Folder Name="/tests/">
     <Project Path="tests/OpenAiIntegration.Tests/OpenAiIntegration.Tests.csproj" />
+    <Project Path="tests/TestUtilities.Tests/TestUtilities.Tests.csproj" />
   </Folder>
 </Solution>
