@@ -161,6 +161,11 @@ jobs:
             -reports:coverage/merged.cobertura.xml \
             -targetdir:coverage-report \
             -reporttypes:Html
+            
+      - name: Apply mobile-friendly CSS
+        run: |
+          cp .github/styles/coverage-mobile-override.css coverage-report/mobile-override.css
+          sed -i 's|<link rel="stylesheet" type="text/css" href="report.css" />|<link rel="stylesheet" type="text/css" href="report.css" />\n<link rel="stylesheet" type="text/css" href="mobile-override.css" />|' coverage-report/index.html
           
       - name: Upload merged coverage
         uses: actions/upload-artifact@v4

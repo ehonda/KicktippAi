@@ -1,0 +1,57 @@
+/*
+ * Mobile-friendly overrides for ReportGenerator HTML reports.
+ * This CSS is injected post-generation to improve readability on mobile devices
+ * without affecting desktop display.
+ */
+
+/* Mobile-specific styles */
+@media screen and (max-width: 768px) {
+    /* Make tables horizontally scrollable */
+    .table-responsive,
+    .overview {
+        display: block;
+        overflow-x: auto;
+        -webkit-overflow-scrolling: touch;
+    }
+
+    /* Prevent assembly/class names from wrapping */
+    .overview th,
+    .overview td {
+        white-space: nowrap;
+    }
+
+    /* Risk Hotspots table - ensure names stay on one line */
+    .overview th:first-child,
+    .overview td:first-child {
+        min-width: 200px;
+    }
+
+    /* Adjust card layout for narrow screens */
+    .card-group {
+        flex-direction: column;
+    }
+
+    .card-group .card {
+        width: 100%;
+        max-width: 100%;
+    }
+
+    /* Ensure coverage percentage bars don't get too squished */
+    .coverage {
+        min-width: 100px;
+    }
+}
+
+/* Tablet adjustments */
+@media screen and (max-width: 1024px) and (min-width: 769px) {
+    .overview th,
+    .overview td {
+        white-space: nowrap;
+    }
+
+    .table-responsive,
+    .overview {
+        display: block;
+        overflow-x: auto;
+    }
+}
