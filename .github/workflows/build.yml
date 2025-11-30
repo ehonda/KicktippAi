@@ -3,19 +3,16 @@
 # This workflow builds the solution and runs tests in parallel at the test project level.
 #
 # Architecture:
-#   1. build            - Builds the entire solution once to catch compile errors early
+#   1. build            - Builds the entire solution once and uploads build artifacts
 #   2. define-test-matrix - Discovers test projects dynamically for parallel execution
-#   3. test (matrix)    - Runs each test project in parallel using matrix strategy
+#   3. test (matrix)    - Downloads build artifacts and runs each test project in parallel
 #   4. merge-coverage   - Merges coverage reports and generates HTML report
 #   5. deploy-coverage  - Publishes HTML report to GitHub Pages (main branch only)
 #
 # Design Decisions:
 #   - Test projects run in parallel jobs for faster feedback as the test suite grows
-#   - Each test job rebuilds its dependencies rather than sharing build artifacts because:
-#     * Artifact upload/download adds significant overhead for our current build size
-#     * Downloaded artifacts have permission issues on Linux runners
-#     * Incremental builds via 'dotnet run' are fast enough for now
-#   - Consider switching to artifact caching when build times become a bottleneck
+#   - Build artifacts are shared via actions/cache to avoid rebuilding in test jobs
+#   - Cache key uses commit SHA to ensure each commit gets a fresh build
 #
 # TUnit Note:
 #   TUnit uses Microsoft Testing Platform with source generators, not VSTest.
@@ -55,6 +52,15 @@ jobs:
         
       - name: Build project
         run: dotnet build --no-restore --configuration Release
+        
+      # Cache the build output so test jobs don't need to rebuild
+      - name: Cache build artifacts
+        uses: actions/cache/save@v4
+        with:
+          path: |
+            **/bin/Release
+            **/obj
+          key: build-${{ github.sha }}
 
   define-test-matrix:
     name: Define Test Matrix
@@ -104,7 +110,17 @@ jobs:
       - name: Restore dotnet tools
         run: dotnet tool restore
         
-      # Uses 'dotnet run' which builds and executes in one step.
+      # Restore cached build artifacts from the build job
+      - name: Restore build artifacts
+        uses: actions/cache/restore@v4
+        with:
+          path: |
+            **/bin/Release
+            **/obj
+          key: build-${{ github.sha }}
+          fail-on-cache-miss: true
+        
+      # Uses 'dotnet run' which will skip build since artifacts are cached.
       # This is required for TUnit (Microsoft Testing Platform) - see workflow header comment.
       # Coverage is collected using dotnet-coverage with our settings file.
       - name: Run tests with coverage
@@ -114,7 +130,7 @@ jobs:
             -s coverage.settings.json \
             -f cobertura \
             -o "coverage/${{ matrix.project }}.cobertura.xml" \
-            "dotnet run --project tests/${{ matrix.project }} --configuration Release"
+            "dotnet run --project tests/${{ matrix.project }} --configuration Release --no-build"
             
       - name: Upload coverage artifact
         uses: actions/upload-artifact@v4
