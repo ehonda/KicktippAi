@@ -155,6 +155,9 @@ coverage*.info
 # dotnet-coverage output directory
 coverage/
 
+# ReportGenerator output directory
+coverage-report/
+
 # Keep coverage settings file
 !coverage.settings.json
 

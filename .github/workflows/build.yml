@@ -6,7 +6,8 @@
 #   1. build            - Builds the entire solution once to catch compile errors early
 #   2. define-test-matrix - Discovers test projects dynamically for parallel execution
 #   3. test (matrix)    - Runs each test project in parallel using matrix strategy
-#   4. merge-coverage   - Merges coverage reports from all test projects
+#   4. merge-coverage   - Merges coverage reports and generates HTML report
+#   5. deploy-coverage  - Publishes HTML report to GitHub Pages (main branch only)
 #
 # Design Decisions:
 #   - Test projects run in parallel jobs for faster feedback as the test suite grows
@@ -24,6 +25,7 @@
 #   - Coverage is collected using dotnet-coverage (from .config/dotnet-tools.json)
 #   - Each test job uploads its coverage report as an artifact
 #   - The merge-coverage job combines all reports into a single Cobertura XML file
+#   - ReportGenerator creates an HTML report published to GitHub Pages
 #   - Configuration is in coverage.settings.json (filters to src/ assemblies only)
 
 name: Build and Test
@@ -153,9 +155,43 @@ jobs:
             -o coverage/merged.cobertura.xml
           echo "Merged coverage report created at coverage/merged.cobertura.xml"
           
+      - name: Generate HTML report
+        run: |
+          dotnet reportgenerator \
+            -reports:coverage/merged.cobertura.xml \
+            -targetdir:coverage-report \
+            -reporttypes:Html
+          
       - name: Upload merged coverage
         uses: actions/upload-artifact@v4
         with:
           name: coverage-merged
           path: coverage/merged.cobertura.xml
           retention-days: 30
+          
+      - name: Upload HTML report artifact
+        uses: actions/upload-artifact@v4
+        with:
+          name: coverage-report
+          path: coverage-report/
+          retention-days: 30
+          
+      - name: Upload Pages artifact
+        uses: actions/upload-pages-artifact@v3
+        with:
+          path: coverage-report/
+
+  deploy-coverage:
+    name: Deploy Coverage to GitHub Pages
+    needs: merge-coverage
+    runs-on: ubuntu-latest
+    if: github.ref == 'refs/heads/main' && github.event_name == 'push'
+    
+    permissions:
+      pages: write
+      id-token: write
+    
+    steps:
+      - name: Deploy to GitHub Pages
+        id: deployment
+        uses: actions/deploy-pages@v4
