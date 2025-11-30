@@ -1,0 +1,39 @@
+{
+  "$description": "Code Coverage Settings for dotnet-coverage. Only assemblies from src/ are included. See https://github.com/microsoft/codecoverage/blob/main/docs/configuration.md",
+  "Configuration": {
+    "IncludeTestAssembly": false,
+    "ExcludeAssembliesWithoutSources": "MissingAll",
+    "CodeCoverage": {
+      "ModulePaths": {
+        "Include": [
+          ".*EHonda\\.KicktippAi\\..*\\.dll$"
+        ],
+        "Exclude": [
+          ".*\\.Tests\\.dll$",
+          ".*Poc\\.dll$",
+          ".*PromptSampleTests\\.dll$"
+        ]
+      },
+      "Attributes": {
+        "Exclude": [
+          "^System\\.Diagnostics\\.CodeAnalysis\\.ExcludeFromCodeCoverageAttribute$",
+          "^System\\.Diagnostics\\.DebuggerHiddenAttribute$",
+          "^System\\.Diagnostics\\.DebuggerNonUserCodeAttribute$",
+          "^System\\.CodeDom\\.Compiler\\.GeneratedCodeAttribute$"
+        ]
+      },
+      "Sources": {
+        "Include": [
+          ".*[/\\\\]src[/\\\\].*"
+        ],
+        "Exclude": [
+          ".*[/\\\\]tests[/\\\\].*",
+          ".*[/\\\\]dev[/\\\\].*"
+        ]
+      },
+      "UseVerifiableInstrumentation": false,
+      "EnableStaticNativeInstrumentation": false,
+      "EnableDynamicNativeInstrumentation": false
+    }
+  }
+}

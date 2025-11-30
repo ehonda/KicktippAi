@@ -3,9 +3,10 @@
 # This workflow builds the solution and runs tests in parallel at the test project level.
 #
 # Architecture:
-#   1. build          - Builds the entire solution once to catch compile errors early
+#   1. build            - Builds the entire solution once to catch compile errors early
 #   2. define-test-matrix - Discovers test projects dynamically for parallel execution
-#   3. test (matrix)  - Runs each test project in parallel using matrix strategy
+#   3. test (matrix)    - Runs each test project in parallel using matrix strategy
+#   4. merge-coverage   - Merges coverage reports from all test projects
 #
 # Design Decisions:
 #   - Test projects run in parallel jobs for faster feedback as the test suite grows
@@ -18,6 +19,12 @@
 # TUnit Note:
 #   TUnit uses Microsoft Testing Platform with source generators, not VSTest.
 #   Tests must be executed via 'dotnet run' (not 'dotnet test') on individual projects.
+#
+# Code Coverage:
+#   - Coverage is collected using dotnet-coverage (from .config/dotnet-tools.json)
+#   - Each test job uploads its coverage report as an artifact
+#   - The merge-coverage job combines all reports into a single Cobertura XML file
+#   - Configuration is in coverage.settings.json (filters to src/ assemblies only)
 
 name: Build and Test
 
@@ -92,8 +99,8 @@ jobs:
         with:
           dotnet-version: '10.x'
           
-      - name: Install dotnet-coverage
-        run: dotnet tool install --global dotnet-coverage
+      - name: Restore dotnet tools
+        run: dotnet tool restore
         
       # Uses 'dotnet run' which builds and executes in one step.
       # This is required for TUnit (Microsoft Testing Platform) - see workflow header comment.
@@ -129,8 +136,8 @@ jobs:
         with:
           dotnet-version: '10.x'
           
-      - name: Install dotnet-coverage
-        run: dotnet tool install --global dotnet-coverage
+      - name: Restore dotnet tools
+        run: dotnet tool restore
         
       - name: Download all coverage artifacts
         uses: actions/download-artifact@v4
