@@ -48,6 +48,8 @@
     <Project Path="dev/PromptSampleTests/PromptSampleTests.csproj" />
   </Folder>
   <Folder Name="/tests/">
+    <!-- TEMPORARY PROJECT: Will be removed once we have dedicated test projects for all src assemblies -->
+    <Project Path="tests/Coverage.Tests/Coverage.Tests.csproj" />
     <Project Path="tests/OpenAiIntegration.Tests/OpenAiIntegration.Tests.csproj" />
     <Project Path="tests/TestUtilities.Tests/TestUtilities.Tests.csproj" />
   </Folder>
