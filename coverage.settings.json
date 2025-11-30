@@ -6,7 +6,13 @@
     "CodeCoverage": {
       "ModulePaths": {
         "Include": [
-          ".*EHonda\\.KicktippAi\\..*\\.dll$"
+          ".*EHonda\\.KicktippAi\\.Core\\.dll$",
+          ".*KicktippIntegration\\.dll$",
+          ".*ContextProviders\\.Kicktipp\\.dll$",
+          ".*FirebaseAdapter\\.dll$",
+          ".*OpenAiIntegration\\.dll$",
+          ".*TestUtilities\\.dll$",
+          ".*Orchestrator\\.dll$"
         ],
         "Exclude": [
           ".*\\.Tests\\.dll$",

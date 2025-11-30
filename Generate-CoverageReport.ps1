@@ -46,11 +46,15 @@ $MergedReport = Join-Path $CoverageDir "merged.cobertura.xml"
 Write-Host "Restoring dotnet tools..." -ForegroundColor Cyan
 dotnet tool restore
 
-# Clean previous coverage data
+# Clean previous coverage data and reports
 if (Test-Path $CoverageDir) {
     Remove-Item $CoverageDir -Recurse -Force
 }
 New-Item -ItemType Directory -Path $CoverageDir | Out-Null
+
+if (Test-Path $ReportDir) {
+    Remove-Item $ReportDir -Recurse -Force
+}
 
 # Discover test projects
 if ($Project) {
@@ -87,10 +91,9 @@ foreach ($TestProject in $TestProjects) {
 if ($CoverageFiles.Count -gt 1) {
     Write-Host "`nMerging coverage reports..." -ForegroundColor Cyan
     
-    $CoverageFilesArg = $CoverageFiles -join ";"
-    dotnet dotnet-coverage merge $CoverageFilesArg `
-        -f cobertura `
-        -o $MergedReport
+    # Pass files as separate arguments using array splatting
+    $MergeArgs = @("merge") + $CoverageFiles + @("-f", "cobertura", "-o", $MergedReport)
+    & dotnet dotnet-coverage @MergeArgs
     
     $ReportSource = $MergedReport
 } else {
@@ -101,9 +104,9 @@ if ($CoverageFiles.Count -gt 1) {
 Write-Host "`nGenerating HTML report..." -ForegroundColor Cyan
 
 dotnet reportgenerator `
-    -reports:$ReportSource `
-    -targetdir:$ReportDir `
-    -reporttypes:Html
+    "-reports:$ReportSource" `
+    "-targetdir:$ReportDir" `
+    "-reporttypes:Html"
 
 if ($LASTEXITCODE -ne 0) {
     Write-Error "Failed to generate HTML report"
