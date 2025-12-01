@@ -20,6 +20,13 @@
         white-space: nowrap;
     }
 
+    /* Override table-fixed layout to allow natural content sizing */
+    table.table-fixed {
+        table-layout: auto;
+        width: max-content;
+        min-width: 100%;
+    }
+
     /* Risk Hotspots table - ensure names stay on one line */
     .overview th:first-child,
     .overview td:first-child {
@@ -44,10 +51,11 @@
     /* Detail view: Line analysis table (source code coverage) 
        This table shows file contents with line-by-line coverage.
        We need horizontal scrolling to prevent code wrapping. */
-    .lineAnalysis {
-        display: block;
-        overflow-x: auto;
-        -webkit-overflow-scrolling: touch;
+    
+    /* Force table to expand to natural content width instead of shrinking */
+    table.lineAnalysis {
+        width: max-content;
+        min-width: 100%;
     }
 
     .lineAnalysis th,
@@ -58,6 +66,11 @@
     /* Prevent code cells from wrapping - these contain the actual source code */
     .lineAnalysis td code {
         white-space: pre;
+    }
+
+    /* Ensure the code column has minimum width for readability */
+    .lineAnalysis td:last-child {
+        min-width: 300px;
     }
 }
 
@@ -74,10 +87,19 @@
         overflow-x: auto;
     }
 
+    /* Override table-fixed layout to allow natural content sizing */
+    table.table-fixed {
+        table-layout: auto;
+        width: max-content;
+        min-width: 100%;
+    }
+
     /* Detail view: Line analysis table for tablet */
-    .lineAnalysis {
-        display: block;
-        overflow-x: auto;
+    
+    /* Force table to expand to natural content width instead of shrinking */
+    table.lineAnalysis {
+        width: max-content;
+        min-width: 100%;
     }
 
     .lineAnalysis th,
@@ -87,5 +109,10 @@
 
     .lineAnalysis td code {
         white-space: pre;
+    }
+
+    /* Ensure the code column has minimum width for readability */
+    .lineAnalysis td:last-child {
+        min-width: 300px;
     }
 }

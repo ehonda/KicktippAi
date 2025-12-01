@@ -119,12 +119,13 @@ $MobileOverrideCss = Join-Path $RepoRoot ".github\styles\coverage-mobile-overrid
 $ReportCss = Join-Path $ReportDir "mobile-override.css"
 Copy-Item $MobileOverrideCss $ReportCss
 
-# Add link to mobile override CSS in index.html
-$IndexPath = Join-Path $ReportDir "index.html"
-$IndexContent = Get-Content $IndexPath -Raw
+# Add link to mobile override CSS in all HTML files
 $CssLink = '<link rel="stylesheet" type="text/css" href="mobile-override.css" />'
-$IndexContent = $IndexContent -replace '(<link rel="stylesheet" type="text/css" href="report.css" />)', "`$1`n$CssLink"
-Set-Content $IndexPath $IndexContent -NoNewline
+Get-ChildItem -Path $ReportDir -Filter "*.html" | ForEach-Object {
+    $HtmlContent = Get-Content $_.FullName -Raw
+    $HtmlContent = $HtmlContent -replace '(<link rel="stylesheet" type="text/css" href="report.css" />)', "`$1`n$CssLink"
+    Set-Content $_.FullName $HtmlContent -NoNewline
+}
 
 Write-Host "`nCoverage report generated at: $IndexPath" -ForegroundColor Green
 
