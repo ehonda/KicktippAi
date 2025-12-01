@@ -40,6 +40,30 @@
     .coverage {
         min-width: 100px;
     }
+
+    /* Detail view: Metrics table (method names, parameters, etc.) */
+    .metrics {
+        display: block;
+        overflow-x: auto;
+        -webkit-overflow-scrolling: touch;
+    }
+
+    .metrics th,
+    .metrics td {
+        white-space: nowrap;
+    }
+
+    /* Detail view: File coverage table */
+    .filecoverage {
+        display: block;
+        overflow-x: auto;
+        -webkit-overflow-scrolling: touch;
+    }
+
+    .filecoverage th,
+    .filecoverage td {
+        white-space: nowrap;
+    }
 }
 
 /* Tablet adjustments */
@@ -53,5 +77,19 @@
     .overview {
         display: block;
         overflow-x: auto;
+    }
+
+    /* Detail view tables for tablet */
+    .metrics,
+    .filecoverage {
+        display: block;
+        overflow-x: auto;
+    }
+
+    .metrics th,
+    .metrics td,
+    .filecoverage th,
+    .filecoverage td {
+        white-space: nowrap;
     }
 }
