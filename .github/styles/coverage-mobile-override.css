@@ -41,28 +41,23 @@
         min-width: 100px;
     }
 
-    /* Detail view: Metrics table (method names, parameters, etc.) */
-    .metrics {
+    /* Detail view: Line analysis table (source code coverage) 
+       This table shows file contents with line-by-line coverage.
+       We need horizontal scrolling to prevent code wrapping. */
+    .lineAnalysis {
         display: block;
         overflow-x: auto;
         -webkit-overflow-scrolling: touch;
     }
 
-    .metrics th,
-    .metrics td {
+    .lineAnalysis th,
+    .lineAnalysis td {
         white-space: nowrap;
     }
 
-    /* Detail view: File coverage table */
-    .filecoverage {
-        display: block;
-        overflow-x: auto;
-        -webkit-overflow-scrolling: touch;
-    }
-
-    .filecoverage th,
-    .filecoverage td {
-        white-space: nowrap;
+    /* Prevent code cells from wrapping - these contain the actual source code */
+    .lineAnalysis td code {
+        white-space: pre;
     }
 }
 
@@ -79,17 +74,18 @@
         overflow-x: auto;
     }
 
-    /* Detail view tables for tablet */
-    .metrics,
-    .filecoverage {
+    /* Detail view: Line analysis table for tablet */
+    .lineAnalysis {
         display: block;
         overflow-x: auto;
     }
 
-    .metrics th,
-    .metrics td,
-    .filecoverage th,
-    .filecoverage td {
+    .lineAnalysis th,
+    .lineAnalysis td {
         white-space: nowrap;
+    }
+
+    .lineAnalysis td code {
+        white-space: pre;
     }
 }
