@@ -113,20 +113,11 @@ if ($LASTEXITCODE -ne 0) {
     exit 1
 }
 
-# Inject mobile-friendly CSS override
-Write-Host "Applying mobile-friendly CSS..." -ForegroundColor Cyan
-$MobileOverrideCss = Join-Path $RepoRoot ".github\styles\coverage-mobile-override.css"
-$ReportCss = Join-Path $ReportDir "mobile-override.css"
-Copy-Item $MobileOverrideCss $ReportCss
+# Inject mobile-friendly CSS override using shared script
+$ApplyMobileStylesScript = Join-Path $RepoRoot ".github/scripts/Apply-CoverageMobileStyles.ps1"
+& $ApplyMobileStylesScript -ReportDir $ReportDir
 
-# Add link to mobile override CSS in all HTML files
-$CssLink = '<link rel="stylesheet" type="text/css" href="mobile-override.css" />'
-Get-ChildItem -Path $ReportDir -Filter "*.html" | ForEach-Object {
-    $HtmlContent = Get-Content $_.FullName -Raw
-    $HtmlContent = $HtmlContent -replace '(<link rel="stylesheet" type="text/css" href="report.css" />)', "`$1`n$CssLink"
-    Set-Content $_.FullName $HtmlContent -NoNewline
-}
-
+$IndexPath = Join-Path $ReportDir "index.html"
 Write-Host "`nCoverage report generated at: $IndexPath" -ForegroundColor Green
 
 # Open report in browser
