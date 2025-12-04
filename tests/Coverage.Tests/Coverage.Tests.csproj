@@ -38,18 +38,17 @@
         As test projects are created for these assemblies, remove them from here.
         
         Current status:
-        - ContextProviders.Kicktipp: No tests → referenced here
         - FirebaseAdapter: No tests → referenced here
         - KicktippIntegration: No tests → referenced here
         - Orchestrator: No tests → referenced here
         
         Assemblies WITH dedicated test projects (NOT referenced here):
+        - ContextProviders.Kicktipp: ContextProviders.Kicktipp.Tests
         - Core: Tested via OpenAiIntegration.Tests (transitive)
         - OpenAiIntegration: OpenAiIntegration.Tests
         - TestUtilities: TestUtilities.Tests
     -->
     <ItemGroup>
-        <ProjectReference Include="..\..\src\ContextProviders.Kicktipp\ContextProviders.Kicktipp.csproj" />
         <ProjectReference Include="..\..\src\FirebaseAdapter\FirebaseAdapter.csproj" />
         <ProjectReference Include="..\..\src\KicktippIntegration\KicktippIntegration.csproj" />
         <ProjectReference Include="..\..\src\Orchestrator\Orchestrator.csproj" />
