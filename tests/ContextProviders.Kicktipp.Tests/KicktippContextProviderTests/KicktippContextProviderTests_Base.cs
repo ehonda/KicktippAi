@@ -19,34 +19,39 @@ public abstract class KicktippContextProviderTests_Base
     protected static KicktippContextProvider CreateProvider(
         NullableOption<IKicktippClient> kicktippClient = default,
         NullableOption<string> community = default,
-        Option<string?> communityContext = default)
+        NullableOption<string> communityContext = default)
     {
         var actualKicktippClient = kicktippClient.Or(() => CreateMockKicktippClient().Object);
         var actualCommunity = community.Or(TestCommunity);
-        var actualCommunityContext = communityContext.Or((string?)TestCommunity);
+        var actualCommunityContext = communityContext.Or(TestCommunity);
 
         return new KicktippContextProvider(actualKicktippClient!, actualCommunity!, actualCommunityContext);
     }
 
-    protected static Mock<IKicktippClient> CreateMockKicktippClient()
+    protected static Mock<IKicktippClient> CreateMockKicktippClient(
+        Option<List<TeamStanding>> standings = default,
+        Option<List<MatchWithHistory>> matchesWithHistory = default,
+        Option<(List<MatchResult> Home, List<MatchResult> Away)> homeAwayHistory = default,
+        Option<List<MatchResult>> headToHeadHistory = default,
+        Option<List<HeadToHeadResult>> headToHeadDetailedHistory = default)
     {
         var mock = new Mock<IKicktippClient>();
 
         // Setup default returns
         mock.Setup(c => c.GetStandingsAsync(It.IsAny<string>()))
-            .ReturnsAsync(CreateTestStandings());
+            .ReturnsAsync(standings.Or(CreateTestStandings));
 
         mock.Setup(c => c.GetMatchesWithHistoryAsync(It.IsAny<string>()))
-            .ReturnsAsync(CreateTestMatchesWithHistory());
+            .ReturnsAsync(matchesWithHistory.Or(CreateTestMatchesWithHistory));
 
         mock.Setup(c => c.GetHomeAwayHistoryAsync(It.IsAny<string>(), It.IsAny<string>(), It.IsAny<string>()))
-            .ReturnsAsync((CreateTestMatchResults("HomeHistory"), CreateTestMatchResults("AwayHistory")));
+            .ReturnsAsync(homeAwayHistory.Or(() => (CreateTestMatchResults("HomeHistory"), CreateTestMatchResults("AwayHistory"))));
 
         mock.Setup(c => c.GetHeadToHeadHistoryAsync(It.IsAny<string>(), It.IsAny<string>(), It.IsAny<string>()))
-            .ReturnsAsync(CreateTestMatchResults("H2H"));
+            .ReturnsAsync(headToHeadHistory.Or(() => CreateTestMatchResults("H2H")));
 
         mock.Setup(c => c.GetHeadToHeadDetailedHistoryAsync(It.IsAny<string>(), It.IsAny<string>(), It.IsAny<string>()))
-            .ReturnsAsync(CreateTestHeadToHeadResults());
+            .ReturnsAsync(headToHeadDetailedHistory.Or(CreateTestHeadToHeadResults));
 
         return mock;
     }
@@ -64,19 +69,19 @@ public abstract class KicktippContextProviderTests_Base
     protected static List<MatchWithHistory> CreateTestMatchesWithHistory()
     {
         var match = new Match(
-            HomeTeam: TestHomeTeam,
-            AwayTeam: TestAwayTeam,
-            StartsAt: new ZonedDateTime(
+            TestHomeTeam,
+            TestAwayTeam,
+            new ZonedDateTime(
                 Instant.FromUtc(2025, 12, 7, 15, 30),
                 DateTimeZone.Utc),
-            Matchday: 15);
+            15);
 
         return
         [
             new MatchWithHistory(
-                Match: match,
-                HomeTeamHistory: CreateTestMatchResults(TestHomeTeam),
-                AwayTeamHistory: CreateTestMatchResults(TestAwayTeam))
+                match,
+                CreateTestMatchResults(TestHomeTeam),
+                CreateTestMatchResults(TestAwayTeam))
         ];
     }
 
@@ -85,29 +90,29 @@ public abstract class KicktippContextProviderTests_Base
         return
         [
             new MatchResult(
-                Competition: "1.BL",
-                HomeTeam: "FC Bayern München",
-                AwayTeam: "VfB Stuttgart",
-                HomeGoals: 3,
-                AwayGoals: 1,
-                Outcome: MatchOutcome.Win,
-                Annotation: null),
+                "1.BL",
+                "FC Bayern München",
+                "VfB Stuttgart",
+                3,
+                1,
+                MatchOutcome.Win,
+                null),
             new MatchResult(
-                Competition: "1.BL",
-                HomeTeam: "RB Leipzig",
-                AwayTeam: "FC Bayern München",
-                HomeGoals: 1,
-                AwayGoals: 1,
-                Outcome: MatchOutcome.Draw,
-                Annotation: null),
+                "1.BL",
+                "RB Leipzig",
+                "FC Bayern München",
+                1,
+                1,
+                MatchOutcome.Draw,
+                null),
             new MatchResult(
-                Competition: "DFB",
-                HomeTeam: "FC Bayern München",
-                AwayTeam: "1. FC Köln",
-                HomeGoals: 5,
-                AwayGoals: 0,
-                Outcome: MatchOutcome.Win,
-                Annotation: null)
+                "DFB",
+                "FC Bayern München",
+                "1. FC Köln",
+                5,
+                0,
+                MatchOutcome.Win,
+                null)
         ];
     }
 
@@ -116,29 +121,34 @@ public abstract class KicktippContextProviderTests_Base
         return
         [
             new HeadToHeadResult(
-                League: "1.BL 2024/25",
-                Matchday: "5. Spieltag",
-                PlayedAt: "2024-09-28",
-                HomeTeam: "Borussia Dortmund",
-                AwayTeam: "FC Bayern München",
-                Score: "1:5",
-                Annotation: null),
+                "1.BL 2024/25",
+                "5. Spieltag",
+                "2024-09-28",
+                "Borussia Dortmund",
+                "FC Bayern München",
+                "1:5",
+                null),
             new HeadToHeadResult(
-                League: "1.BL 2023/24",
-                Matchday: "27. Spieltag",
-                PlayedAt: "2024-03-30",
-                HomeTeam: "FC Bayern München",
-                AwayTeam: "Borussia Dortmund",
-                Score: "0:2",
-                Annotation: null),
+                "1.BL 2023/24",
+                "27. Spieltag",
+                "2024-03-30",
+                "FC Bayern München",
+                "Borussia Dortmund",
+                "0:2",
+                null),
             new HeadToHeadResult(
-                League: "DFB 2022/23",
-                Matchday: "Achtelfinale",
-                PlayedAt: "2023-02-01",
-                HomeTeam: "FC Bayern München",
-                AwayTeam: "Borussia Dortmund",
-                Score: "2:1",
-                Annotation: "nach Verlängerung")
+                "DFB 2022/23",
+                "Achtelfinale",
+                "2023-02-01",
+                "FC Bayern München",
+                "Borussia Dortmund",
+                "2:1",
+                "nach Verlängerung")
         ];
+    }
+
+    protected static string NormalizeLineEndings(string input)
+    {
+        return input.Replace("\r\n", "\n");
     }
 }

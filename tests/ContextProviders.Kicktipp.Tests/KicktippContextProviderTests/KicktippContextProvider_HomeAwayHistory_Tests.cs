@@ -41,28 +41,24 @@ public class KicktippContextProvider_HomeAwayHistory_Tests : KicktippContextProv
         var homeHistory = new List<MatchResult>
         {
             new(
-                Competition: "1.BL",
-                HomeTeam: "FC Bayern München",
-                AwayTeam: "VfB Stuttgart",
-                HomeGoals: 4,
-                AwayGoals: 0,
-                Outcome: MatchOutcome.Win,
-                Annotation: null),
+                "1.BL",
+                "FC Bayern München",
+                "VfB Stuttgart",
+                4,
+                0,
+                MatchOutcome.Win,
+                null),
             new(
-                Competition: "1.BL",
-                HomeTeam: "FC Bayern München",
-                AwayTeam: "Werder Bremen",
-                HomeGoals: 2,
-                AwayGoals: 2,
-                Outcome: MatchOutcome.Draw,
-                Annotation: null)
+                "1.BL",
+                "FC Bayern München",
+                "Werder Bremen",
+                2,
+                2,
+                MatchOutcome.Draw,
+                null)
         };
 
-        var mockClient = CreateMockKicktippClient();
-        mockClient.Setup(c => c.GetMatchesWithHistoryAsync(It.IsAny<string>()))
-            .ReturnsAsync(CreateTestMatchesWithHistory());
-        mockClient.Setup(c => c.GetHomeAwayHistoryAsync(It.IsAny<string>(), It.IsAny<string>(), It.IsAny<string>()))
-            .ReturnsAsync((homeHistory, []));
+        var mockClient = CreateMockKicktippClient(homeAwayHistory: (homeHistory, new List<MatchResult>()));
         var provider = CreateProvider(Option.Some(mockClient.Object));
 
         // Act
@@ -75,7 +71,7 @@ public class KicktippContextProvider_HomeAwayHistory_Tests : KicktippContextProv
             1.BL,FC Bayern München,Werder Bremen,2:2,
 
             """;
-        await Assert.That(context.Content).IsEqualTo(expectedCsv);
+        await Assert.That(NormalizeLineEndings(context.Content)).IsEqualTo(NormalizeLineEndings(expectedCsv));
     }
 
     [Test]
@@ -85,28 +81,24 @@ public class KicktippContextProvider_HomeAwayHistory_Tests : KicktippContextProv
         var awayHistory = new List<MatchResult>
         {
             new(
-                Competition: "1.BL",
-                HomeTeam: "VfB Stuttgart",
-                AwayTeam: "Borussia Dortmund",
-                HomeGoals: 1,
-                AwayGoals: 3,
-                Outcome: MatchOutcome.Win,
-                Annotation: null),
+                "1.BL",
+                "VfB Stuttgart",
+                "Borussia Dortmund",
+                1,
+                3,
+                MatchOutcome.Win,
+                null),
             new(
-                Competition: "DFB",
-                HomeTeam: "1. FC Köln",
-                AwayTeam: "Borussia Dortmund",
-                HomeGoals: 0,
-                AwayGoals: 2,
-                Outcome: MatchOutcome.Win,
-                Annotation: "nach Verlängerung")
+                "DFB",
+                "1. FC Köln",
+                "Borussia Dortmund",
+                0,
+                2,
+                MatchOutcome.Win,
+                "nach Verlängerung")
         };
 
-        var mockClient = CreateMockKicktippClient();
-        mockClient.Setup(c => c.GetMatchesWithHistoryAsync(It.IsAny<string>()))
-            .ReturnsAsync(CreateTestMatchesWithHistory());
-        mockClient.Setup(c => c.GetHomeAwayHistoryAsync(It.IsAny<string>(), It.IsAny<string>(), It.IsAny<string>()))
-            .ReturnsAsync(([], awayHistory));
+        var mockClient = CreateMockKicktippClient(homeAwayHistory: (new List<MatchResult>(), awayHistory));
         var provider = CreateProvider(Option.Some(mockClient.Object));
 
         // Act
@@ -119,18 +111,14 @@ public class KicktippContextProvider_HomeAwayHistory_Tests : KicktippContextProv
             DFB,1. FC Köln,Borussia Dortmund,0:2,nach Verlängerung
 
             """;
-        await Assert.That(context.Content).IsEqualTo(expectedCsv);
+        await Assert.That(NormalizeLineEndings(context.Content)).IsEqualTo(NormalizeLineEndings(expectedCsv));
     }
 
     [Test]
     public async Task Getting_home_history_with_empty_data_returns_headers_only()
     {
         // Arrange
-        var mockClient = CreateMockKicktippClient();
-        mockClient.Setup(c => c.GetMatchesWithHistoryAsync(It.IsAny<string>()))
-            .ReturnsAsync(CreateTestMatchesWithHistory());
-        mockClient.Setup(c => c.GetHomeAwayHistoryAsync(It.IsAny<string>(), It.IsAny<string>(), It.IsAny<string>()))
-            .ReturnsAsync(([], []));
+        var mockClient = CreateMockKicktippClient(homeAwayHistory: (new List<MatchResult>(), new List<MatchResult>()));
         var provider = CreateProvider(Option.Some(mockClient.Object));
 
         // Act
@@ -141,18 +129,14 @@ public class KicktippContextProvider_HomeAwayHistory_Tests : KicktippContextProv
             Competition,Home_Team,Away_Team,Score,Annotation
 
             """;
-        await Assert.That(context.Content).IsEqualTo(expectedCsv);
+        await Assert.That(NormalizeLineEndings(context.Content)).IsEqualTo(NormalizeLineEndings(expectedCsv));
     }
 
     [Test]
     public async Task Getting_away_history_with_empty_data_returns_headers_only()
     {
         // Arrange
-        var mockClient = CreateMockKicktippClient();
-        mockClient.Setup(c => c.GetMatchesWithHistoryAsync(It.IsAny<string>()))
-            .ReturnsAsync(CreateTestMatchesWithHistory());
-        mockClient.Setup(c => c.GetHomeAwayHistoryAsync(It.IsAny<string>(), It.IsAny<string>(), It.IsAny<string>()))
-            .ReturnsAsync(([], []));
+        var mockClient = CreateMockKicktippClient(homeAwayHistory: (new List<MatchResult>(), new List<MatchResult>()));
         var provider = CreateProvider(Option.Some(mockClient.Object));
 
         // Act
@@ -163,7 +147,7 @@ public class KicktippContextProvider_HomeAwayHistory_Tests : KicktippContextProv
             Competition,Home_Team,Away_Team,Score,Annotation
 
             """;
-        await Assert.That(context.Content).IsEqualTo(expectedCsv);
+        await Assert.That(NormalizeLineEndings(context.Content)).IsEqualTo(NormalizeLineEndings(expectedCsv));
     }
 
     [Test]
@@ -173,20 +157,16 @@ public class KicktippContextProvider_HomeAwayHistory_Tests : KicktippContextProv
         var homeHistory = new List<MatchResult>
         {
             new(
-                Competition: "1.BL",
-                HomeTeam: "FC Bayern München",
-                AwayTeam: "VfB Stuttgart",
-                HomeGoals: null,
-                AwayGoals: null,
-                Outcome: MatchOutcome.Pending,
-                Annotation: null)
+                "1.BL",
+                "FC Bayern München",
+                "VfB Stuttgart",
+                null,
+                null,
+                MatchOutcome.Pending,
+                null)
         };
 
-        var mockClient = CreateMockKicktippClient();
-        mockClient.Setup(c => c.GetMatchesWithHistoryAsync(It.IsAny<string>()))
-            .ReturnsAsync(CreateTestMatchesWithHistory());
-        mockClient.Setup(c => c.GetHomeAwayHistoryAsync(It.IsAny<string>(), It.IsAny<string>(), It.IsAny<string>()))
-            .ReturnsAsync((homeHistory, []));
+        var mockClient = CreateMockKicktippClient(homeAwayHistory: (homeHistory, new List<MatchResult>()));
         var provider = CreateProvider(Option.Some(mockClient.Object));
 
         // Act
@@ -198,6 +178,6 @@ public class KicktippContextProvider_HomeAwayHistory_Tests : KicktippContextProv
             1.BL,FC Bayern München,VfB Stuttgart,:,
 
             """;
-        await Assert.That(context.Content).IsEqualTo(expectedCsv);
+        await Assert.That(NormalizeLineEndings(context.Content)).IsEqualTo(NormalizeLineEndings(expectedCsv));
     }
 }

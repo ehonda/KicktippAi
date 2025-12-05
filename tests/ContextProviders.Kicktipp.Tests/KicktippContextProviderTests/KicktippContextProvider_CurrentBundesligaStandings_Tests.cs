@@ -1,3 +1,4 @@
+using EHonda.KicktippAi.Core;
 using EHonda.Optional.Core;
 using Moq;
 
@@ -35,16 +36,14 @@ public class KicktippContextProvider_CurrentBundesligaStandings_Tests : Kicktipp
             3,RB Leipzig,10,20,22:14,22,14,6,2,2
 
             """;
-        await Assert.That(context.Content).IsEqualTo(expectedCsv);
+        await Assert.That(NormalizeLineEndings(context.Content)).IsEqualTo(NormalizeLineEndings(expectedCsv));
     }
 
     [Test]
     public async Task Getting_standings_with_empty_list_returns_headers_only()
     {
         // Arrange
-        var mockClient = CreateMockKicktippClient();
-        mockClient.Setup(c => c.GetStandingsAsync(It.IsAny<string>()))
-            .ReturnsAsync([]);
+        var mockClient = CreateMockKicktippClient(standings: new List<TeamStanding>());
         var provider = CreateProvider(Option.Some(mockClient.Object));
 
         // Act
@@ -55,6 +54,6 @@ public class KicktippContextProvider_CurrentBundesligaStandings_Tests : Kicktipp
             Position,Team,Games,Points,Goal_Ratio,Goals_For,Goals_Against,Wins,Draws,Losses
 
             """;
-        await Assert.That(context.Content).IsEqualTo(expectedCsv);
+        await Assert.That(NormalizeLineEndings(context.Content)).IsEqualTo(NormalizeLineEndings(expectedCsv));
     }
 }

@@ -38,7 +38,7 @@ public class KicktippContextProvider_RecentHistory_Tests : KicktippContextProvid
             DFB,FC Bayern München,1. FC Köln,5:0,
 
             """;
-        await Assert.That(context.Content).IsEqualTo(expectedCsv);
+        await Assert.That(NormalizeLineEndings(context.Content)).IsEqualTo(NormalizeLineEndings(expectedCsv));
     }
 
     [Test]
@@ -56,7 +56,7 @@ public class KicktippContextProvider_RecentHistory_Tests : KicktippContextProvid
             Competition,Home_Team,Away_Team,Score,Annotation
 
             """;
-        await Assert.That(context.Content).IsEqualTo(expectedCsv);
+        await Assert.That(NormalizeLineEndings(context.Content)).IsEqualTo(NormalizeLineEndings(expectedCsv));
     }
 
     [Test]
@@ -66,24 +66,24 @@ public class KicktippContextProvider_RecentHistory_Tests : KicktippContextProvid
         var matchResults = new List<MatchResult>
         {
             new(
-                Competition: "1.BL",
-                HomeTeam: "FC Bayern München",
-                AwayTeam: "VfB Stuttgart",
-                HomeGoals: null,
-                AwayGoals: null,
-                Outcome: MatchOutcome.Pending,
-                Annotation: null)
+                "1.BL",
+                "FC Bayern München",
+                "VfB Stuttgart",
+                null,
+                null,
+                MatchOutcome.Pending,
+                null)
         };
 
-        var mockClient = CreateMockKicktippClient();
-        mockClient.Setup(c => c.GetMatchesWithHistoryAsync(It.IsAny<string>()))
-            .ReturnsAsync(
-            [
-                    new MatchWithHistory(
-                        Match: new Match(TestHomeTeam, TestAwayTeam, default, 15),
-                        HomeTeamHistory: matchResults,
-                        AwayTeamHistory: [])
-            ]);
+        var matchesWithHistory = new List<MatchWithHistory>
+        {
+            new(
+                new Match(TestHomeTeam, TestAwayTeam, default, 15),
+                matchResults,
+                new List<MatchResult>())
+        };
+
+        var mockClient = CreateMockKicktippClient(matchesWithHistory: matchesWithHistory);
         var provider = CreateProvider(Option.Some(mockClient.Object));        // Act
         var context = await provider.RecentHistory(TestHomeTeam);
 
@@ -93,6 +93,6 @@ public class KicktippContextProvider_RecentHistory_Tests : KicktippContextProvid
             1.BL,FC Bayern München,VfB Stuttgart,,
 
             """;
-        await Assert.That(context.Content).IsEqualTo(expectedCsv);
+        await Assert.That(NormalizeLineEndings(context.Content)).IsEqualTo(NormalizeLineEndings(expectedCsv));
     }
 }

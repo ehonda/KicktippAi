@@ -27,13 +27,18 @@ public class KicktippContextProvider_GetMatchContextAsync_Tests : KicktippContex
         var contexts = await provider.GetMatchContextAsync(TestHomeTeam, TestAwayTeam).ToListAsync();
 
         // Assert - verify order
-        await Assert.That(contexts[0].Name).IsEqualTo("bundesliga-standings.csv");
-        await Assert.That(contexts[1].Name).IsEqualTo($"community-rules-{TestCommunity}.md");
-        await Assert.That(contexts[2].Name).IsEqualTo("recent-history-fcb.csv");
-        await Assert.That(contexts[3].Name).IsEqualTo("recent-history-bvb.csv");
-        await Assert.That(contexts[4].Name).IsEqualTo("home-history-fcb.csv");
-        await Assert.That(contexts[5].Name).IsEqualTo("away-history-bvb.csv");
-        await Assert.That(contexts[6].Name).IsEqualTo("head-to-head-fcb-vs-bvb.csv");
+        var expectedNames = new[]
+        {
+            "bundesliga-standings.csv",
+            $"community-rules-{TestCommunity}.md",
+            "recent-history-fcb.csv",
+            "recent-history-bvb.csv",
+            "home-history-fcb.csv",
+            "away-history-bvb.csv",
+            "head-to-head-fcb-vs-bvb.csv"
+        };
+
+        await Assert.That(contexts.Select(c => c.Name).SequenceEqual(expectedNames)).IsTrue();
     }
 
     [Test]
@@ -54,7 +59,7 @@ public class KicktippContextProvider_GetMatchContextAsync_Tests : KicktippContex
             DFB,FC Bayern München,1. FC Köln,5:0,
 
             """;
-        await Assert.That(recentHistory.Content).IsEqualTo(expectedCsv);
+        await Assert.That(NormalizeLineEndings(recentHistory.Content)).IsEqualTo(NormalizeLineEndings(expectedCsv));
     }
 
     [Test]
@@ -75,6 +80,6 @@ public class KicktippContextProvider_GetMatchContextAsync_Tests : KicktippContex
             DFB 2022/23,Achtelfinale,2023-02-01,FC Bayern München,Borussia Dortmund,2:1,nach Verlängerung
 
             """;
-        await Assert.That(h2hContext.Content).IsEqualTo(expectedCsv);
+        await Assert.That(NormalizeLineEndings(h2hContext.Content)).IsEqualTo(NormalizeLineEndings(expectedCsv));
     }
 }

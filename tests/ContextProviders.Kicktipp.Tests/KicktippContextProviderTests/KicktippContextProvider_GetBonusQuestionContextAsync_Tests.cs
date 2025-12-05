@@ -12,9 +12,8 @@ public class KicktippContextProvider_GetBonusQuestionContextAsync_Tests : Kickti
         var contexts = await provider.GetBonusQuestionContextAsync().ToListAsync();
 
         // Assert
-        await Assert.That(contexts).HasCount().EqualTo(2);
-        await Assert.That(contexts[0].Name).IsEqualTo("bundesliga-standings.csv");
-        await Assert.That(contexts[1].Name).IsEqualTo($"community-rules-{TestCommunity}.md");
+        var expectedNames = new[] { "bundesliga-standings.csv", $"community-rules-{TestCommunity}.md" };
+        await Assert.That(contexts.Select(c => c.Name).SequenceEqual(expectedNames)).IsTrue();
     }
 
     [Test]
@@ -35,6 +34,6 @@ public class KicktippContextProvider_GetBonusQuestionContextAsync_Tests : Kickti
             3,RB Leipzig,10,20,22:14,22,14,6,2,2
 
             """;
-        await Assert.That(standingsContext.Content).IsEqualTo(expectedCsv);
+        await Assert.That(NormalizeLineEndings(standingsContext.Content)).IsEqualTo(NormalizeLineEndings(expectedCsv));
     }
 }

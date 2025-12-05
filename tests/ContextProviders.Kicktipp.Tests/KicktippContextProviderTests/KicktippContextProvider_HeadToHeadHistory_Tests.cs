@@ -38,18 +38,14 @@ public class KicktippContextProvider_HeadToHeadHistory_Tests : KicktippContextPr
             DFB 2022/23,Achtelfinale,2023-02-01,FC Bayern München,Borussia Dortmund,2:1,nach Verlängerung
 
             """;
-        await Assert.That(context.Content).IsEqualTo(expectedCsv);
+        await Assert.That(NormalizeLineEndings(context.Content)).IsEqualTo(NormalizeLineEndings(expectedCsv));
     }
 
     [Test]
     public async Task Getting_head_to_head_history_with_empty_data_returns_headers_only()
     {
         // Arrange
-        var mockClient = CreateMockKicktippClient();
-        mockClient.Setup(c => c.GetMatchesWithHistoryAsync(It.IsAny<string>()))
-            .ReturnsAsync(CreateTestMatchesWithHistory());
-        mockClient.Setup(c => c.GetHeadToHeadDetailedHistoryAsync(It.IsAny<string>(), It.IsAny<string>(), It.IsAny<string>()))
-            .ReturnsAsync([]);
+        var mockClient = CreateMockKicktippClient(headToHeadDetailedHistory: new List<HeadToHeadResult>());
         var provider = CreateProvider(Option.Some(mockClient.Object));
 
         // Act
@@ -60,7 +56,7 @@ public class KicktippContextProvider_HeadToHeadHistory_Tests : KicktippContextPr
             Competition,Matchday,Played_At,Home_Team,Away_Team,Score,Annotation
 
             """;
-        await Assert.That(context.Content).IsEqualTo(expectedCsv);
+        await Assert.That(NormalizeLineEndings(context.Content)).IsEqualTo(NormalizeLineEndings(expectedCsv));
     }
 
     [Test]
@@ -70,20 +66,16 @@ public class KicktippContextProvider_HeadToHeadHistory_Tests : KicktippContextPr
         var h2hResults = new List<HeadToHeadResult>
         {
             new(
-                League: "1.BL 2024/25",
-                Matchday: "10. Spieltag",
-                PlayedAt: "2024-11-09",
-                HomeTeam: "FC Bayern München",
-                AwayTeam: "Borussia Dortmund",
-                Score: "3:0",
-                Annotation: null)
+                "1.BL 2024/25",
+                "10. Spieltag",
+                "2024-11-09",
+                "FC Bayern München",
+                "Borussia Dortmund",
+                "3:0",
+                null)
         };
 
-        var mockClient = CreateMockKicktippClient();
-        mockClient.Setup(c => c.GetMatchesWithHistoryAsync(It.IsAny<string>()))
-            .ReturnsAsync(CreateTestMatchesWithHistory());
-        mockClient.Setup(c => c.GetHeadToHeadDetailedHistoryAsync(It.IsAny<string>(), It.IsAny<string>(), It.IsAny<string>()))
-            .ReturnsAsync(h2hResults);
+        var mockClient = CreateMockKicktippClient(headToHeadDetailedHistory: h2hResults);
         var provider = CreateProvider(Option.Some(mockClient.Object));
 
         // Act
@@ -95,6 +87,6 @@ public class KicktippContextProvider_HeadToHeadHistory_Tests : KicktippContextPr
             1.BL 2024/25,10. Spieltag,2024-11-09,FC Bayern München,Borussia Dortmund,3:0,
 
             """;
-        await Assert.That(context.Content).IsEqualTo(expectedCsv);
+        await Assert.That(NormalizeLineEndings(context.Content)).IsEqualTo(NormalizeLineEndings(expectedCsv));
     }
 }
