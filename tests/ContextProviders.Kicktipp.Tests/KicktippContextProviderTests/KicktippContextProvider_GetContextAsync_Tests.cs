@@ -1,3 +1,7 @@
+using TUnit.Core;
+using TUnit.Assertions.Enums;
+using TestUtilities.StringAssertions;
+
 namespace ContextProviders.Kicktipp.Tests.KicktippContextProviderTests;
 
 public class KicktippContextProvider_GetContextAsync_Tests : KicktippContextProviderTests_Base
@@ -13,7 +17,7 @@ public class KicktippContextProvider_GetContextAsync_Tests : KicktippContextProv
 
         // Assert
         var expectedNames = new[] { "bundesliga-standings.csv", $"community-rules-{TestCommunity}.md" };
-        await Assert.That(contexts.Select(c => c.Name).SequenceEqual(expectedNames)).IsTrue();
+        await Assert.That(contexts.Select(c => c.Name)).IsEquivalentTo(expectedNames, CollectionOrdering.Matching);
     }
 
     [Test]
@@ -34,7 +38,7 @@ public class KicktippContextProvider_GetContextAsync_Tests : KicktippContextProv
             3,RB Leipzig,10,20,22:14,22,14,6,2,2
 
             """;
-        await Assert.That(NormalizeLineEndings(standingsContext.Content)).IsEqualTo(NormalizeLineEndings(expectedCsv));
+        await Assert.That(standingsContext.Content).IsEqualToWithNormalizedLineEndings(expectedCsv);
     }
 
     [Test]

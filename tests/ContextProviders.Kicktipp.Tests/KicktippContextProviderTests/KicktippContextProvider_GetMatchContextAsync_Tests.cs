@@ -1,3 +1,7 @@
+using TUnit.Core;
+using TUnit.Assertions.Enums;
+using TestUtilities.StringAssertions;
+
 namespace ContextProviders.Kicktipp.Tests.KicktippContextProviderTests;
 
 public class KicktippContextProvider_GetMatchContextAsync_Tests : KicktippContextProviderTests_Base
@@ -38,7 +42,7 @@ public class KicktippContextProvider_GetMatchContextAsync_Tests : KicktippContex
             "head-to-head-fcb-vs-bvb.csv"
         };
 
-        await Assert.That(contexts.Select(c => c.Name).SequenceEqual(expectedNames)).IsTrue();
+        await Assert.That(contexts.Select(c => c.Name)).IsEquivalentTo(expectedNames, CollectionOrdering.Matching);
     }
 
     [Test]
@@ -59,7 +63,7 @@ public class KicktippContextProvider_GetMatchContextAsync_Tests : KicktippContex
             DFB,FC Bayern München,1. FC Köln,5:0,
 
             """;
-        await Assert.That(NormalizeLineEndings(recentHistory.Content)).IsEqualTo(NormalizeLineEndings(expectedCsv));
+        await Assert.That(recentHistory.Content).IsEqualToWithNormalizedLineEndings(expectedCsv);
     }
 
     [Test]
@@ -80,6 +84,6 @@ public class KicktippContextProvider_GetMatchContextAsync_Tests : KicktippContex
             DFB 2022/23,Achtelfinale,2023-02-01,FC Bayern München,Borussia Dortmund,2:1,nach Verlängerung
 
             """;
-        await Assert.That(NormalizeLineEndings(h2hContext.Content)).IsEqualTo(NormalizeLineEndings(expectedCsv));
+        await Assert.That(h2hContext.Content).IsEqualToWithNormalizedLineEndings(expectedCsv);
     }
 }

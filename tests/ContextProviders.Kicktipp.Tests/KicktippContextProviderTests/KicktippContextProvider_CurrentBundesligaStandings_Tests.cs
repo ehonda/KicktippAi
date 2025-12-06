@@ -1,6 +1,8 @@
 using EHonda.KicktippAi.Core;
 using EHonda.Optional.Core;
 using Moq;
+using TUnit.Core;
+using TestUtilities.StringAssertions;
 
 namespace ContextProviders.Kicktipp.Tests.KicktippContextProviderTests;
 
@@ -36,7 +38,7 @@ public class KicktippContextProvider_CurrentBundesligaStandings_Tests : Kicktipp
             3,RB Leipzig,10,20,22:14,22,14,6,2,2
 
             """;
-        await Assert.That(NormalizeLineEndings(context.Content)).IsEqualTo(NormalizeLineEndings(expectedCsv));
+        await Assert.That(context.Content).IsEqualToWithNormalizedLineEndings(expectedCsv);
     }
 
     [Test]
@@ -54,6 +56,6 @@ public class KicktippContextProvider_CurrentBundesligaStandings_Tests : Kicktipp
             Position,Team,Games,Points,Goal_Ratio,Goals_For,Goals_Against,Wins,Draws,Losses
 
             """;
-        await Assert.That(NormalizeLineEndings(context.Content)).IsEqualTo(NormalizeLineEndings(expectedCsv));
+        await Assert.That(context.Content).IsEqualToWithNormalizedLineEndings(expectedCsv);
     }
 }

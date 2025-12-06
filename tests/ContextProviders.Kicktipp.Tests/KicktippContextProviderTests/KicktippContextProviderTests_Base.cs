@@ -146,9 +146,4 @@ public abstract class KicktippContextProviderTests_Base
                 "nach Verlängerung")
         ];
     }
-
-    protected static string NormalizeLineEndings(string input)
-    {
-        return input.Replace("\r\n", "\n");
-    }
 }

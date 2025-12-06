@@ -1,6 +1,8 @@
 using EHonda.KicktippAi.Core;
 using EHonda.Optional.Core;
 using Moq;
+using TUnit.Core;
+using TestUtilities.StringAssertions;
 
 using Match = EHonda.KicktippAi.Core.Match;
 
@@ -38,7 +40,7 @@ public class KicktippContextProvider_HeadToHeadHistory_Tests : KicktippContextPr
             DFB 2022/23,Achtelfinale,2023-02-01,FC Bayern München,Borussia Dortmund,2:1,nach Verlängerung
 
             """;
-        await Assert.That(NormalizeLineEndings(context.Content)).IsEqualTo(NormalizeLineEndings(expectedCsv));
+        await Assert.That(context.Content).IsEqualToWithNormalizedLineEndings(expectedCsv);
     }
 
     [Test]
@@ -56,7 +58,7 @@ public class KicktippContextProvider_HeadToHeadHistory_Tests : KicktippContextPr
             Competition,Matchday,Played_At,Home_Team,Away_Team,Score,Annotation
 
             """;
-        await Assert.That(NormalizeLineEndings(context.Content)).IsEqualTo(NormalizeLineEndings(expectedCsv));
+        await Assert.That(context.Content).IsEqualToWithNormalizedLineEndings(expectedCsv);
     }
 
     [Test]
@@ -87,6 +89,6 @@ public class KicktippContextProvider_HeadToHeadHistory_Tests : KicktippContextPr
             1.BL 2024/25,10. Spieltag,2024-11-09,FC Bayern München,Borussia Dortmund,3:0,
 
             """;
-        await Assert.That(NormalizeLineEndings(context.Content)).IsEqualTo(NormalizeLineEndings(expectedCsv));
+        await Assert.That(context.Content).IsEqualToWithNormalizedLineEndings(expectedCsv);
     }
 }

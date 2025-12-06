@@ -1,6 +1,8 @@
 using EHonda.KicktippAi.Core;
 using EHonda.Optional.Core;
 using Moq;
+using TUnit.Core;
+using TestUtilities.StringAssertions;
 
 using Match = EHonda.KicktippAi.Core.Match;
 
@@ -38,7 +40,7 @@ public class KicktippContextProvider_RecentHistory_Tests : KicktippContextProvid
             DFB,FC Bayern München,1. FC Köln,5:0,
 
             """;
-        await Assert.That(NormalizeLineEndings(context.Content)).IsEqualTo(NormalizeLineEndings(expectedCsv));
+        await Assert.That(context.Content).IsEqualToWithNormalizedLineEndings(expectedCsv);
     }
 
     [Test]
@@ -56,7 +58,7 @@ public class KicktippContextProvider_RecentHistory_Tests : KicktippContextProvid
             Competition,Home_Team,Away_Team,Score,Annotation
 
             """;
-        await Assert.That(NormalizeLineEndings(context.Content)).IsEqualTo(NormalizeLineEndings(expectedCsv));
+        await Assert.That(context.Content).IsEqualToWithNormalizedLineEndings(expectedCsv);
     }
 
     [Test]
@@ -93,6 +95,6 @@ public class KicktippContextProvider_RecentHistory_Tests : KicktippContextProvid
             1.BL,FC Bayern München,VfB Stuttgart,,
 
             """;
-        await Assert.That(NormalizeLineEndings(context.Content)).IsEqualTo(NormalizeLineEndings(expectedCsv));
+        await Assert.That(context.Content).IsEqualToWithNormalizedLineEndings(expectedCsv);
     }
 }
