@@ -5,6 +5,7 @@ using KicktippIntegration;
 using Microsoft.Extensions.FileProviders;
 using Moq;
 using NodaTime;
+using TestUtilities;
 using TUnit.Core;
 
 using Match = EHonda.KicktippAi.Core.Match;
@@ -45,39 +46,12 @@ public abstract class KicktippContextProviderTests_Base
     protected static Mock<IFileProvider> CreateMockCommunityRulesFileProvider(
         Option<Dictionary<string, string>> fileContents = default)
     {
-        var mockFileProvider = new Mock<IFileProvider>();
-        
         var actualFileContents = fileContents.Or(() => new Dictionary<string, string>
         {
             [$"{TestCommunity}.md"] = TestCommunityRulesContent
         });
         
-        // Setup GetFileInfo for each file
-        foreach (var (path, content) in actualFileContents)
-        {
-            var mockFileInfo = CreateMockFileInfo(content, path);
-            mockFileProvider.Setup(fp => fp.GetFileInfo(path)).Returns(mockFileInfo.Object);
-        }
-        
-        // Setup non-existent files to return NotFoundFileInfo
-        mockFileProvider.Setup(fp => fp.GetFileInfo(It.Is<string>(p => !actualFileContents.ContainsKey(p))))
-            .Returns<string>(name => new NotFoundFileInfo(name));
-        
-        return mockFileProvider;
-    }
-    
-    private static Mock<IFileInfo> CreateMockFileInfo(string content, string path)
-    {
-        var mockFileInfo = new Mock<IFileInfo>();
-        mockFileInfo.Setup(fi => fi.Exists).Returns(true);
-        mockFileInfo.Setup(fi => fi.PhysicalPath).Returns(path);
-        mockFileInfo.Setup(fi => fi.CreateReadStream()).Returns(() =>
-        {
-            var bytes = System.Text.Encoding.UTF8.GetBytes(content);
-            return new MemoryStream(bytes);
-        });
-        
-        return mockFileInfo;
+        return MockFileProviderHelpers.CreateMockFileProvider(actualFileContents);
     }
 
     protected static Mock<IKicktippClient> CreateMockKicktippClient(

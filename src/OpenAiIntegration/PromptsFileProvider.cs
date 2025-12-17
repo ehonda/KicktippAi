@@ -1,3 +1,4 @@
+using EHonda.KicktippAi.Core;
 using Microsoft.Extensions.FileProviders;
 
 namespace OpenAiIntegration;
@@ -14,26 +15,7 @@ public static class PromptsFileProvider
     /// <exception cref="DirectoryNotFoundException">Thrown when the solution root cannot be found</exception>
     public static IFileProvider Create()
     {
-        var promptsDirectory = FindPromptsDirectory();
+        var promptsDirectory = SolutionPathUtility.FindDirectoryUnderSolutionRoot("prompts");
         return new PhysicalFileProvider(promptsDirectory);
-    }
-
-    private static string FindPromptsDirectory()
-    {
-        var currentDirectory = Directory.GetCurrentDirectory();
-        var directory = new DirectoryInfo(currentDirectory);
-
-        while (directory != null)
-        {
-            var solutionFile = Path.Combine(directory.FullName, "KicktippAi.slnx");
-            if (File.Exists(solutionFile))
-            {
-                return Path.Combine(directory.FullName, "prompts");
-            }
-            directory = directory.Parent;
-        }
-
-        throw new DirectoryNotFoundException(
-            "Could not find solution root (KicktippAi.slnx) to locate prompts directory");
     }
 }

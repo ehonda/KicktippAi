@@ -1,6 +1,6 @@
 using Microsoft.Extensions.FileProviders;
-using Microsoft.Extensions.Primitives;
 using Moq;
+using TestUtilities;
 using TUnit.Core;
 
 namespace OpenAiIntegration.Tests.InstructionsTemplateProviderTests;
@@ -25,8 +25,6 @@ public abstract class InstructionsTemplateProviderTests_Base
     /// </summary>
     protected static Mock<IFileProvider> CreateMockFileProvider()
     {
-        var mockFileProvider = new Mock<IFileProvider>();
-
         // Define the content for each file
         var fileContents = new Dictionary<string, string>
         {
@@ -37,18 +35,7 @@ public abstract class InstructionsTemplateProviderTests_Base
             ["o3/bonus.md"] = "O3 Bonus Template"
         };
 
-        // Setup GetFileInfo for each file
-        foreach (var (path, content) in fileContents)
-        {
-            var mockFileInfo = CreateMockFileInfo(content, path);
-            mockFileProvider.Setup(fp => fp.GetFileInfo(path)).Returns(mockFileInfo.Object);
-        }
-
-        // Setup non-existent files to return NotFoundFileInfo
-        mockFileProvider.Setup(fp => fp.GetFileInfo(It.Is<string>(p => !fileContents.ContainsKey(p))))
-            .Returns<string>(name => new NotFoundFileInfo(name));
-
-        return mockFileProvider;
+        return MockFileProviderHelpers.CreateMockFileProvider(fileContents);
     }
 
     /// <summary>
@@ -60,33 +47,16 @@ public abstract class InstructionsTemplateProviderTests_Base
 
         // Add custom model files
         var customMatchPath = $"{customModel}/match.md";
-        var mockMatchFileInfo = CreateMockFileInfo(matchContent, customMatchPath);
+        var mockMatchFileInfo = MockFileProviderHelpers.CreateMockFileInfo(matchContent, customMatchPath);
         mockFileProvider.Setup(fp => fp.GetFileInfo(customMatchPath)).Returns(mockMatchFileInfo.Object);
 
         if (bonusContent != null)
         {
             var customBonusPath = $"{customModel}/bonus.md";
-            var mockBonusFileInfo = CreateMockFileInfo(bonusContent, customBonusPath);
+            var mockBonusFileInfo = MockFileProviderHelpers.CreateMockFileInfo(bonusContent, customBonusPath);
             mockFileProvider.Setup(fp => fp.GetFileInfo(customBonusPath)).Returns(mockBonusFileInfo.Object);
         }
 
         return mockFileProvider;
-    }
-
-    /// <summary>
-    /// Creates a mock IFileInfo that returns the specified content
-    /// </summary>
-    private static Mock<IFileInfo> CreateMockFileInfo(string content, string path)
-    {
-        var mockFileInfo = new Mock<IFileInfo>();
-        mockFileInfo.Setup(fi => fi.Exists).Returns(true);
-        mockFileInfo.Setup(fi => fi.PhysicalPath).Returns(path);
-        mockFileInfo.Setup(fi => fi.CreateReadStream()).Returns(() => 
-        {
-            var bytes = System.Text.Encoding.UTF8.GetBytes(content);
-            return new MemoryStream(bytes);
-        });
-        
-        return mockFileInfo;
     }
 }

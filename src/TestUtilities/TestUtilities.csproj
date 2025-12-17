@@ -8,7 +8,9 @@
 
   <ItemGroup>
     <PackageReference Include="Microsoft.Extensions.Diagnostics.Testing" Version="9.10.0" />
+    <PackageReference Include="Microsoft.Extensions.FileProviders.Abstractions" Version="10.0.1" />
     <PackageReference Include="Microsoft.Extensions.Logging" Version="9.0.10" />
+    <PackageReference Include="Moq" Version="4.20.72" />
     <PackageReference Include="EHonda.Optional.Core" Version="3.0.0" />
     <PackageReference Include="OpenAI" Version="2.2.0" />
     <PackageReference Include="TUnit" Version="1.2.11" />
