@@ -113,6 +113,8 @@ Use `Option<T>` (from `EHonda.Optional.Core`) for factory method parameters by d
 
 Use `NullableOption<T>` ONLY when you need to explicitly pass `null` (e.g., to test null guards).
 
+- **IMPORTANT:** If you need to pass `null` for a dependency in a test, you MUST USE `NullableOption<T>` for that parameter in the factory method, as `Option<T>` does not support `null` values.
+
 **Base Class Implementation:**
 
 ```csharp
@@ -256,7 +258,7 @@ Structure tests with clear sections:
 
 ```csharp
 [Test]
-public async Task Example_test()
+public async Task Processing_valid_input_returns_expected_result()
 {
     // Arrange - Set up test data and dependencies
     var service = new MyService();
@@ -266,9 +268,23 @@ public async Task Example_test()
     var result = await service.ProcessAsync(input);
 
     // Assert - Verify the outcome
-    await Assert.That(result).IsNotNull();
-    await Assert.That(result.Value).IsEqualTo(42);
+    await Assert.That(result).IsNotNull().And.HasValue(42);
 }
+```
+
+### Assertion Chaining
+
+When asserting multiple properties of the same object, use TUnit's assertion chaining to keep tests concise and readable.
+
+```csharp
+// ✅ Good: Chained assertions
+await Assert.That(result)
+    .IsNotNull()
+    .And.HasValue(42);
+
+// ❌ Avoid: Multiple separate assertions for the same object
+await Assert.That(result).IsNotNull();
+await Assert.That(result.Value).IsEqualTo(42);
 ```
 
 ### Naming System Under Test Variables
