@@ -7,6 +7,10 @@ applyTo: '**/project_style_guide.md'
 
 ENSURE COMPLIANCE with these guidelines when editing the project style guide.
 
+## Writing Style
+
+- **Be concise**: Write clear and to-the-point instructions, without leaving out necessary details.
+
 ## Code Examples
 
 - When adding or updating code examples, check whether they follow the established conventions in the style guide.
