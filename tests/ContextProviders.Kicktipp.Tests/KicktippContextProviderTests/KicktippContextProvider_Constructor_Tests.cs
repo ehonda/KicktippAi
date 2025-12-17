@@ -1,6 +1,7 @@
 using ContextProviders.Kicktipp;
 using EHonda.Optional.Core;
 using KicktippIntegration;
+using Microsoft.Extensions.FileProviders;
 
 namespace ContextProviders.Kicktipp.Tests.KicktippContextProviderTests;
 
@@ -12,6 +13,14 @@ public class KicktippContextProvider_Constructor_Tests : KicktippContextProvider
         await Assert.That(() => CreateProvider(NullableOption.Some<IKicktippClient>(null)))
             .Throws<ArgumentNullException>()
             .WithParameterName("kicktippClient");
+    }
+
+    [Test]
+    public async Task Passing_null_communityRulesFileProvider_throws_ArgumentNullException()
+    {
+        await Assert.That(() => CreateProvider(communityRulesFileProvider: NullableOption.Some<IFileProvider>(null)))
+            .Throws<ArgumentNullException>()
+            .WithParameterName("communityRulesFileProvider");
     }
 
     [Test]
@@ -27,11 +36,12 @@ public class KicktippContextProvider_Constructor_Tests : KicktippContextProvider
     {
         // Arrange - create provider directly without using factory since we need to pass null for communityContext
         var mockClient = CreateMockKicktippClient();
-        var provider = new KicktippContextProvider(mockClient.Object, "test-community", communityContext: null);
+        var mockFileProvider = CreateMockCommunityRulesFileProvider();
+        var provider = new KicktippContextProvider(mockClient.Object, mockFileProvider.Object, "test-community", communityContext: null);
 
         // Act & Assert - CommunityScoringRules uses communityContext for file lookup
         // If communityContext defaults to community, it should look for "test-community.md"
-        // which doesn't exist, so we expect FileNotFoundException mentioning "test-community"
+        // which doesn't exist in our mock, so we expect FileNotFoundException mentioning "test-community"
         await Assert.That(async () => await provider.CommunityScoringRules())
             .Throws<FileNotFoundException>()
             .WithMessageContaining("test-community");

@@ -235,7 +235,8 @@ public class CollectContextKicktippCommand : AsyncCommand<CollectContextKicktipp
         services.AddSingleton<KicktippContextProvider>(provider =>
         {
             var kicktippClient = provider.GetRequiredService<IKicktippClient>();
-            return new KicktippContextProvider(kicktippClient, settings.CommunityContext, settings.CommunityContext);
+            var communityRulesFileProvider = CommunityRulesFileProvider.Create();
+            return new KicktippContextProvider(kicktippClient, communityRulesFileProvider, settings.CommunityContext, settings.CommunityContext);
         });
     }
     

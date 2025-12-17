@@ -709,8 +709,9 @@ public class MatchdayCommand : AsyncCommand<BaseSettings>
         services.AddSingleton<KicktippContextProvider>(provider =>
         {
             var kicktippClient = provider.GetRequiredService<IKicktippClient>();
+            var communityRulesFileProvider = CommunityRulesFileProvider.Create();
             string communityContext = settings.CommunityContext ?? settings.Community;
-            return new KicktippContextProvider(kicktippClient, settings.Community, communityContext);
+            return new KicktippContextProvider(kicktippClient, communityRulesFileProvider, settings.Community, communityContext);
         });
     }
     

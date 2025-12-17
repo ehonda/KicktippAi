@@ -125,6 +125,7 @@ public class PromptTestRunner
         services.AddSingleton(provider =>
             new KicktippContextProvider(
                 provider.GetRequiredService<IKicktippClient>(),
+                CommunityRulesFileProvider.Create(),
                 "ehonda-test-buli"));
         
         var serviceProvider = services.BuildServiceProvider();
@@ -264,6 +265,7 @@ public class PromptTestRunner
         services.AddSingleton(provider =>
             new KicktippContextProvider(
                 provider.GetRequiredService<IKicktippClient>(),
+                CommunityRulesFileProvider.Create(),
                 "ehonda-test-buli"));
 
         var serviceProvider = services.BuildServiceProvider();

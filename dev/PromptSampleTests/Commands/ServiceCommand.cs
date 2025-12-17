@@ -94,6 +94,7 @@ public class ServiceCommand : AsyncCommand<ServiceSettings>
                 services.AddSingleton(provider =>
                     new KicktippContextProvider(
                         provider.GetRequiredService<IKicktippClient>(),
+                        CommunityRulesFileProvider.Create(),
                         "ehonda-test-buli"));
             }
             else

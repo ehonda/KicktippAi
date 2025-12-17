@@ -2,6 +2,7 @@ using ContextProviders.Kicktipp;
 using EHonda.KicktippAi.Core;
 using EHonda.Optional.Core;
 using KicktippIntegration;
+using Microsoft.Extensions.FileProviders;
 using Moq;
 using NodaTime;
 using TUnit.Core;
@@ -15,17 +16,68 @@ public abstract class KicktippContextProviderTests_Base
     protected const string TestCommunity = "ehonda-test-buli";
     protected const string TestHomeTeam = "FC Bayern München";
     protected const string TestAwayTeam = "Borussia Dortmund";
+    
+    protected const string TestCommunityRulesContent = """
+        # Kicktipp Community Scoring Rules
+
+        ## Scoring System
+
+        | Result Type | Tendency | Goal Difference | Exact Result |
+        |-------------|----------|-----------------|--------------|
+        | Win         | 2        | 3               | 4            |
+        | Draw        | 3        | -               | 4            |
+        """;
 
     protected static KicktippContextProvider CreateProvider(
         NullableOption<IKicktippClient> kicktippClient = default,
+        NullableOption<IFileProvider> communityRulesFileProvider = default,
         NullableOption<string> community = default,
         NullableOption<string> communityContext = default)
     {
         var actualKicktippClient = kicktippClient.Or(() => CreateMockKicktippClient().Object);
+        var actualCommunityRulesFileProvider = communityRulesFileProvider.Or(() => CreateMockCommunityRulesFileProvider().Object);
         var actualCommunity = community.Or(TestCommunity);
         var actualCommunityContext = communityContext.Or(TestCommunity);
 
-        return new KicktippContextProvider(actualKicktippClient!, actualCommunity!, actualCommunityContext);
+        return new KicktippContextProvider(actualKicktippClient!, actualCommunityRulesFileProvider!, actualCommunity!, actualCommunityContext);
+    }
+    
+    protected static Mock<IFileProvider> CreateMockCommunityRulesFileProvider(
+        Option<Dictionary<string, string>> fileContents = default)
+    {
+        var mockFileProvider = new Mock<IFileProvider>();
+        
+        var actualFileContents = fileContents.Or(() => new Dictionary<string, string>
+        {
+            [$"{TestCommunity}.md"] = TestCommunityRulesContent
+        });
+        
+        // Setup GetFileInfo for each file
+        foreach (var (path, content) in actualFileContents)
+        {
+            var mockFileInfo = CreateMockFileInfo(content, path);
+            mockFileProvider.Setup(fp => fp.GetFileInfo(path)).Returns(mockFileInfo.Object);
+        }
+        
+        // Setup non-existent files to return NotFoundFileInfo
+        mockFileProvider.Setup(fp => fp.GetFileInfo(It.Is<string>(p => !actualFileContents.ContainsKey(p))))
+            .Returns<string>(name => new NotFoundFileInfo(name));
+        
+        return mockFileProvider;
+    }
+    
+    private static Mock<IFileInfo> CreateMockFileInfo(string content, string path)
+    {
+        var mockFileInfo = new Mock<IFileInfo>();
+        mockFileInfo.Setup(fi => fi.Exists).Returns(true);
+        mockFileInfo.Setup(fi => fi.PhysicalPath).Returns(path);
+        mockFileInfo.Setup(fi => fi.CreateReadStream()).Returns(() =>
+        {
+            var bytes = System.Text.Encoding.UTF8.GetBytes(content);
+            return new MemoryStream(bytes);
+        });
+        
+        return mockFileInfo;
     }
 
     protected static Mock<IKicktippClient> CreateMockKicktippClient(

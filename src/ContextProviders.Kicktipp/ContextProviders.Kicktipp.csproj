@@ -13,6 +13,7 @@
 
     <ItemGroup>
       <PackageReference Include="CsvHelper" Version="33.0.1" />
+      <PackageReference Include="Microsoft.Extensions.FileProviders.Physical" Version="10.0.0-preview.1.25080.5" />
     </ItemGroup>
 
 </Project>
