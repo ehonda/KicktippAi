@@ -8,6 +8,7 @@ This document defines conventions and best practices for writing tests in this p
 - **Mocking**: Use **Moq**
 - **Logging**: Use **FakeLogger**
 - **Utilities**: Check `src/TestUtilities` before writing custom helpers
+- **CSV Assertions**: Use `IsEqualToWithNormalizedLineEndings`
 - **Structure**: Arrange-Act-Assert pattern
 - **Async**: Use `async Task` for TUnit assertions; `void` for Moq.Verify/FakeLogger assertions
 - **SUT naming**: `Service`, `Provider`, etc. (not `Sut`)
@@ -285,6 +286,18 @@ await Assert.That(result)
 // ❌ Avoid: Multiple separate assertions for the same object
 await Assert.That(result).IsNotNull();
 await Assert.That(result.Value).IsEqualTo(42);
+```
+
+### CSV Assertions
+
+When asserting CSV string data, always use `IsEqualToWithNormalizedLineEndings` to handle line ending differences (CRLF vs LF) consistently. This is crucial because CSV writers often use CRLF (in compliance with RFC 4180) while test strings might use LF (for example, if that is the environment's newline sequence).
+
+```csharp
+// ✅ Good: Use the custom assertion for CSV data
+await Assert.That(csvContent).IsEqualToWithNormalizedLineEndings(expectedCsv);
+
+// ❌ Avoid: Standard string equality checks for CSVs
+await Assert.That(csvContent).IsEqualTo(expectedCsv);
 ```
 
 ### Naming System Under Test Variables
