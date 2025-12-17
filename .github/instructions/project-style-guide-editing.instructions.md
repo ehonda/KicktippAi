@@ -10,6 +10,7 @@ ENSURE COMPLIANCE with these guidelines when editing the project style guide.
 ## Writing Style
 
 - **Be concise**: Write clear and to-the-point instructions, without leaving out necessary details.
+- **Clear structure**: Keep a consistent overall document structure. When adding new sections, follow the existing format, and look for the best place to insert them.
 
 ## Code Examples
 
