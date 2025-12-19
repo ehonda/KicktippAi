@@ -358,3 +358,63 @@ protected Validator Validator = null!;
 protected InstructionsTemplateProvider InstructionsTemplateProvider = null!;
 protected UserProfileManager UserProfileManager = null!;
 ```
+
+## Running and Filtering Tests
+
+### Running Tests
+
+Always use `dotnet run` instead of `dotnet test` to run TUnit tests:
+
+```powershell
+dotnet run --project tests/MyProject.Tests
+```
+
+To see available command-line options:
+
+```powershell
+dotnet run --project tests/MyProject.Tests -- --help
+```
+
+### Filtering Tests
+
+Use `--treenode-filter` to run specific tests. The filter syntax is:
+
+```text
+/<Assembly>/<Namespace>/<Class>/<Test>
+```
+
+Use `*` as a wildcard and `**` for multi-level matching.
+
+**Common Filter Patterns:**
+
+| Goal | Command |
+|------|---------|
+| Run all tests in a class | `dotnet run -- --treenode-filter "/*/*/MyTestClass/*"` |
+| Run a specific test | `dotnet run -- --treenode-filter "/*/*/*/My_test_name"` |
+| Run tests matching a prefix | `dotnet run -- --treenode-filter "/*/*/*/Adding_*"` |
+| Run all tests in matching classes | `dotnet run -- --treenode-filter "/*/*/MyService*/**"` |
+
+**Combining Filters:**
+
+Use `&` (AND) and `|` (OR) operators. OR requires parentheses at the name level:
+
+```powershell
+# Tests starting with "Valid" OR "Invalid"
+dotnet run -- --treenode-filter "/*/*/*/(Valid*)|(Invalid*)"
+```
+
+**Filtering by Properties:**
+
+Filter tests by custom properties using `[PropertyName=Value]`:
+
+```powershell
+dotnet run -- --treenode-filter "/*/*/*/*[Category=Unit]"
+```
+
+### Listing Available Tests
+
+To see all available tests without running them:
+
+```powershell
+dotnet run -- --list-tests
+```
