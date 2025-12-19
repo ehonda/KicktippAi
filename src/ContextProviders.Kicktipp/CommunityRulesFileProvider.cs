@@ -13,9 +13,5 @@ public static class CommunityRulesFileProvider
     /// </summary>
     /// <returns>An IFileProvider rooted at the community-rules directory</returns>
     /// <exception cref="DirectoryNotFoundException">Thrown when the solution root cannot be found</exception>
-    public static IFileProvider Create()
-    {
-        var communityRulesDirectory = SolutionPathUtility.FindDirectoryUnderSolutionRoot("community-rules");
-        return new PhysicalFileProvider(communityRulesDirectory);
-    }
+    public static IFileProvider Create() => SolutionRelativeFileProvider.Create("community-rules");
 }
