@@ -1,5 +1,6 @@
 using EHonda.KicktippAi.Core;
 using EHonda.Optional.Core;
+using KicktippIntegration;
 using Moq;
 using TUnit.Core;
 using TestUtilities.StringAssertions;
@@ -181,5 +182,39 @@ public class KicktippContextProvider_HomeAwayHistory_Tests : KicktippContextProv
 
             """;
         await Assert.That(context.Content).IsEqualToWithNormalizedLineEndings(expectedCsv);
+    }
+
+    [Test]
+    public async Task Getting_home_history_propagates_exceptions_from_client()
+    {
+        // Arrange
+        var mockClient = new Mock<IKicktippClient>();
+        mockClient.Setup(c => c.GetMatchesWithHistoryAsync(It.IsAny<string>()))
+            .ReturnsAsync(CreateTestMatchesWithHistory());
+        mockClient.Setup(c => c.GetHomeAwayHistoryAsync(It.IsAny<string>(), It.IsAny<string>(), It.IsAny<string>()))
+            .ThrowsAsync(new InvalidOperationException("Test exception"));
+        
+        var provider = CreateProvider(Option.Some(mockClient.Object));
+
+        // Act & Assert - exception should propagate, not be swallowed
+        await Assert.That(() => provider.HomeHistory(TestHomeTeam, TestAwayTeam)!)
+            .Throws<InvalidOperationException>();
+    }
+
+    [Test]
+    public async Task Getting_away_history_propagates_exceptions_from_client()
+    {
+        // Arrange
+        var mockClient = new Mock<IKicktippClient>();
+        mockClient.Setup(c => c.GetMatchesWithHistoryAsync(It.IsAny<string>()))
+            .ReturnsAsync(CreateTestMatchesWithHistory());
+        mockClient.Setup(c => c.GetHomeAwayHistoryAsync(It.IsAny<string>(), It.IsAny<string>(), It.IsAny<string>()))
+            .ThrowsAsync(new InvalidOperationException("Test exception"));
+        
+        var provider = CreateProvider(Option.Some(mockClient.Object));
+
+        // Act & Assert - exception should propagate, not be swallowed
+        await Assert.That(() => provider.AwayHistory(TestHomeTeam, TestAwayTeam)!)
+            .Throws<InvalidOperationException>();
     }
 }

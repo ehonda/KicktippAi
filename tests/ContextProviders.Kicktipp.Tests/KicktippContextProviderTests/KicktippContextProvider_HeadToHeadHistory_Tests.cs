@@ -1,5 +1,6 @@
 using EHonda.KicktippAi.Core;
 using EHonda.Optional.Core;
+using KicktippIntegration;
 using Moq;
 using TUnit.Core;
 using TestUtilities.StringAssertions;
@@ -90,5 +91,22 @@ public class KicktippContextProvider_HeadToHeadHistory_Tests : KicktippContextPr
 
             """;
         await Assert.That(context.Content).IsEqualToWithNormalizedLineEndings(expectedCsv);
+    }
+
+    [Test]
+    public async Task Getting_head_to_head_history_propagates_exceptions_from_client()
+    {
+        // Arrange
+        var mockClient = new Mock<IKicktippClient>();
+        mockClient.Setup(c => c.GetMatchesWithHistoryAsync(It.IsAny<string>()))
+            .ReturnsAsync(CreateTestMatchesWithHistory());
+        mockClient.Setup(c => c.GetHeadToHeadDetailedHistoryAsync(It.IsAny<string>(), It.IsAny<string>(), It.IsAny<string>()))
+            .ThrowsAsync(new InvalidOperationException("Test exception"));
+        
+        var provider = CreateProvider(Option.Some(mockClient.Object));
+
+        // Act & Assert - exception should propagate, not be swallowed
+        await Assert.That(() => provider.HeadToHeadHistory(TestHomeTeam, TestAwayTeam)!)
+            .Throws<InvalidOperationException>();
     }
 }
