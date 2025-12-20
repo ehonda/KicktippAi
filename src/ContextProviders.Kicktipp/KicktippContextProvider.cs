@@ -15,7 +15,6 @@ public class KicktippContextProvider : IContextProvider<DocumentContext>
     private readonly string _communityContext;
     private readonly Lazy<Task<IReadOnlyDictionary<string, List<MatchResult>>>> _teamHistoryLazy;
     private readonly Lazy<Task<IReadOnlyDictionary<string, (List<MatchResult> homeHistory, List<MatchResult> awayHistory)>>> _homeAwayHistoryLazy;
-    private readonly Lazy<Task<IReadOnlyDictionary<string, List<MatchResult>>>> _headToHeadHistoryLazy;
     private readonly Lazy<Task<IReadOnlyDictionary<string, List<HeadToHeadResult>>>> _detailedHeadToHeadHistoryLazy;
 
     public KicktippContextProvider(
@@ -30,7 +29,6 @@ public class KicktippContextProvider : IContextProvider<DocumentContext>
         _communityContext = communityContext ?? community;
         _teamHistoryLazy = new Lazy<Task<IReadOnlyDictionary<string, List<MatchResult>>>>(LoadTeamHistoryAsync);
         _homeAwayHistoryLazy = new Lazy<Task<IReadOnlyDictionary<string, (List<MatchResult> homeHistory, List<MatchResult> awayHistory)>>>(LoadHomeAwayHistoryAsync);
-        _headToHeadHistoryLazy = new Lazy<Task<IReadOnlyDictionary<string, List<MatchResult>>>>(LoadHeadToHeadHistoryAsync);
         _detailedHeadToHeadHistoryLazy = new Lazy<Task<IReadOnlyDictionary<string, List<HeadToHeadResult>>>>(LoadDetailedHeadToHeadHistoryAsync);
     }
 
@@ -64,24 +62,6 @@ public class KicktippContextProvider : IContextProvider<DocumentContext>
         }
 
         return homeAwayHistory;
-    }
-    
-    private async Task<IReadOnlyDictionary<string, List<MatchResult>>> LoadHeadToHeadHistoryAsync()
-    {
-        var matchesWithHistory = await _kicktippClient.GetMatchesWithHistoryAsync(_community);
-        var headToHeadHistory = new Dictionary<string, List<MatchResult>>();
-
-        foreach (var matchWithHistory in matchesWithHistory)
-        {
-            var homeTeam = matchWithHistory.Match.HomeTeam;
-            var awayTeam = matchWithHistory.Match.AwayTeam;
-            
-            var history = await _kicktippClient.GetHeadToHeadHistoryAsync(_community, homeTeam, awayTeam);
-            var cacheKey = $"{homeTeam}|{awayTeam}";
-            headToHeadHistory[cacheKey] = history;
-        }
-
-        return headToHeadHistory;
     }
 
     private async Task<IReadOnlyDictionary<string, List<HeadToHeadResult>>> LoadDetailedHeadToHeadHistoryAsync()
