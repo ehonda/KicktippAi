@@ -175,10 +175,10 @@ public class KicktippContextProvider_HomeAwayHistory_Tests : KicktippContextProv
         // Act
         var context = await provider.HomeHistory(TestHomeTeam, TestAwayTeam);
 
-        // Assert - null goals should result in ":" score
+        // Assert - null goals should result in empty score
         var expectedCsv = """
             Competition,Home_Team,Away_Team,Score,Annotation
-            1.BL,FC Bayern München,VfB Stuttgart,:,
+            1.BL,FC Bayern München,VfB Stuttgart,,
 
             """;
         await Assert.That(context.Content).IsEqualToWithNormalizedLineEndings(expectedCsv);

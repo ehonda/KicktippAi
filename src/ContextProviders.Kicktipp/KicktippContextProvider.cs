@@ -1,7 +1,6 @@
-using System.Globalization;
 using System.Runtime.CompilerServices;
 using System.Text;
-using CsvHelper;
+using ContextProviders.Kicktipp.Csv;
 using EHonda.KicktippAi.Core;
 using KicktippIntegration;
 using Microsoft.Extensions.FileProviders;
@@ -161,11 +160,8 @@ public class KicktippContextProvider : IContextProvider<DocumentContext>
     public async Task<DocumentContext> CurrentBundesligaStandings()
     {
         var standings = await _kicktippClient.GetStandingsAsync(_community);
-        var csvContent = ConvertStandingsToCsv(standings);
         
-        return new DocumentContext(
-            Name: "bundesliga-standings.csv",
-            Content: csvContent);
+        return standings.ToCsvDocumentContext<TeamStanding, TeamStandingCsvMap>("bundesliga-standings");
     }
     
     /// <summary>
@@ -178,14 +174,9 @@ public class KicktippContextProvider : IContextProvider<DocumentContext>
         var teamHistory = await _teamHistoryLazy.Value;
         var matchResults = teamHistory.TryGetValue(teamName, out var results) ? results : new List<MatchResult>();
         
-        var csvContent = ConvertMatchResultsToCsv(matchResults);
-        
-        // Use naming convention: recent-history-{team-abbreviation}.csv
         var teamAbbreviation = GetTeamAbbreviation(teamName);
         
-        return new DocumentContext(
-            Name: $"recent-history-{teamAbbreviation}.csv",
-            Content: csvContent);
+        return matchResults.ToCsvDocumentContext<MatchResult, MatchResultCsvMap>($"recent-history-{teamAbbreviation}");
     }
 
     /// <summary>
@@ -203,34 +194,9 @@ public class KicktippContextProvider : IContextProvider<DocumentContext>
             ? history 
             : (new List<MatchResult>(), new List<MatchResult>());
         
-        using var stringWriter = new StringWriter();
-        using var csvWriter = new CsvWriter(stringWriter, CultureInfo.InvariantCulture);
-        
-        // Write header
-        csvWriter.WriteField("Competition");
-        csvWriter.WriteField("Home_Team");
-        csvWriter.WriteField("Away_Team");
-        csvWriter.WriteField("Score");
-        csvWriter.WriteField("Annotation");
-        csvWriter.NextRecord();
-        
-        // Write data rows
-        foreach (var result in homeTeamHistory)
-        {
-            csvWriter.WriteField(result.Competition);
-            csvWriter.WriteField(result.HomeTeam);
-            csvWriter.WriteField(result.AwayTeam);
-            
-            var score = $"{result.HomeGoals?.ToString() ?? ""}:{result.AwayGoals?.ToString() ?? ""}";
-            csvWriter.WriteField(score);
-            csvWriter.WriteField(result.Annotation ?? "");
-            csvWriter.NextRecord();
-        }
-        
         var homeAbbreviation = GetTeamAbbreviation(homeTeam);
-        return new DocumentContext(
-            Name: $"home-history-{homeAbbreviation}.csv",
-            Content: stringWriter.ToString());
+        
+        return homeTeamHistory.ToCsvDocumentContext<MatchResult, MatchResultCsvMap>($"home-history-{homeAbbreviation}");
     }
     
     public async Task<DocumentContext> AwayHistory(string homeTeam, string awayTeam)
@@ -242,34 +208,9 @@ public class KicktippContextProvider : IContextProvider<DocumentContext>
             ? history 
             : (new List<MatchResult>(), new List<MatchResult>());
         
-        using var stringWriter = new StringWriter();
-        using var csvWriter = new CsvWriter(stringWriter, CultureInfo.InvariantCulture);
-        
-        // Write header
-        csvWriter.WriteField("Competition");
-        csvWriter.WriteField("Home_Team");
-        csvWriter.WriteField("Away_Team");
-        csvWriter.WriteField("Score");
-        csvWriter.WriteField("Annotation");
-        csvWriter.NextRecord();
-        
-        // Write data rows
-        foreach (var result in awayTeamHistory)
-        {
-            csvWriter.WriteField(result.Competition);
-            csvWriter.WriteField(result.HomeTeam);
-            csvWriter.WriteField(result.AwayTeam);
-            
-            var score = $"{result.HomeGoals?.ToString() ?? ""}:{result.AwayGoals?.ToString() ?? ""}";
-            csvWriter.WriteField(score);
-            csvWriter.WriteField(result.Annotation ?? "");
-            csvWriter.NextRecord();
-        }
-        
         var awayAbbreviation = GetTeamAbbreviation(awayTeam);
-        return new DocumentContext(
-            Name: $"away-history-{awayAbbreviation}.csv",
-            Content: stringWriter.ToString());
+        
+        return awayTeamHistory.ToCsvDocumentContext<MatchResult, MatchResultCsvMap>($"away-history-{awayAbbreviation}");
     }
 
     /// <summary>
@@ -287,15 +228,11 @@ public class KicktippContextProvider : IContextProvider<DocumentContext>
             ? cachedHistory 
             : new List<HeadToHeadResult>();
         
-        var csvContent = ConvertHeadToHeadResultsToCsv(history);
-        
-        // Use naming convention: head-to-head-{team1-abbreviation}-vs-{team2-abbreviation}.csv
         var homeAbbreviation = GetTeamAbbreviation(homeTeam);
         var awayAbbreviation = GetTeamAbbreviation(awayTeam);
         
-        return new DocumentContext(
-            Name: $"head-to-head-{homeAbbreviation}-vs-{awayAbbreviation}.csv",
-            Content: csvContent);
+        return history.ToCsvDocumentContext<HeadToHeadResult, HeadToHeadResultCsvMap>(
+            $"head-to-head-{homeAbbreviation}-vs-{awayAbbreviation}");
     }
     
     /// <summary>
@@ -330,112 +267,6 @@ public class KicktippContextProvider : IContextProvider<DocumentContext>
         await using var stream = fileInfo.CreateReadStream();
         using var reader = new StreamReader(stream);
         return await reader.ReadToEndAsync();
-    }
-    
-    /// <summary>
-    /// Converts team standings to CSV format.
-    /// </summary>
-    private string ConvertStandingsToCsv(List<TeamStanding> standings)
-    {
-        using var stringWriter = new StringWriter();
-        using var csvWriter = new CsvWriter(stringWriter, CultureInfo.InvariantCulture);
-        
-        // Write header
-        csvWriter.WriteField("Position");
-        csvWriter.WriteField("Team");
-        csvWriter.WriteField("Games");
-        csvWriter.WriteField("Points");
-        csvWriter.WriteField("Goal_Ratio");
-        csvWriter.WriteField("Goals_For");
-        csvWriter.WriteField("Goals_Against");
-        csvWriter.WriteField("Wins");
-        csvWriter.WriteField("Draws");
-        csvWriter.WriteField("Losses");
-        csvWriter.NextRecord();
-        
-        // Write data rows
-        foreach (var standing in standings)
-        {
-            csvWriter.WriteField(standing.Position);
-            csvWriter.WriteField(standing.TeamName);
-            csvWriter.WriteField(standing.GamesPlayed);
-            csvWriter.WriteField(standing.Points);
-            csvWriter.WriteField($"{standing.GoalsFor}:{standing.GoalsAgainst}");
-            csvWriter.WriteField(standing.GoalsFor);
-            csvWriter.WriteField(standing.GoalsAgainst);
-            csvWriter.WriteField(standing.Wins);
-            csvWriter.WriteField(standing.Draws);
-            csvWriter.WriteField(standing.Losses);
-            csvWriter.NextRecord();
-        }
-        
-        return stringWriter.ToString();
-    }
-    
-    /// <summary>
-    /// Converts match results to CSV format.
-    /// </summary>
-    private string ConvertMatchResultsToCsv(List<MatchResult> matchResults)
-    {
-        using var stringWriter = new StringWriter();
-        using var csvWriter = new CsvWriter(stringWriter, CultureInfo.InvariantCulture);
-        
-        // Write header in simple format like home/away history
-        csvWriter.WriteField("Competition");
-        csvWriter.WriteField("Home_Team");
-        csvWriter.WriteField("Away_Team");
-        csvWriter.WriteField("Score");
-        csvWriter.WriteField("Annotation");
-        csvWriter.NextRecord();
-        
-        // Write data rows
-        foreach (var result in matchResults)
-        {
-            csvWriter.WriteField(result.Competition);
-            csvWriter.WriteField(result.HomeTeam);
-            csvWriter.WriteField(result.AwayTeam);
-            
-            // Format score or leave empty for pending matches
-            var scoreText = result.HomeGoals.HasValue && result.AwayGoals.HasValue 
-                ? $"{result.HomeGoals}:{result.AwayGoals}" 
-                : "";
-            csvWriter.WriteField(scoreText);
-            csvWriter.WriteField(result.Annotation ?? "");
-            csvWriter.NextRecord();
-        }
-        
-        return stringWriter.ToString();
-    }
-
-    private string ConvertHeadToHeadResultsToCsv(List<HeadToHeadResult> headToHeadResults)
-    {
-        using var stringWriter = new StringWriter();
-        using var csvWriter = new CsvWriter(stringWriter, CultureInfo.InvariantCulture);
-        
-        // Write header with proper column separation
-        csvWriter.WriteField("Competition");
-        csvWriter.WriteField("Matchday");
-        csvWriter.WriteField("Played_At");
-        csvWriter.WriteField("Home_Team");
-        csvWriter.WriteField("Away_Team");
-        csvWriter.WriteField("Score");
-        csvWriter.WriteField("Annotation");
-        csvWriter.NextRecord();
-        
-        // Write data rows
-        foreach (var result in headToHeadResults)
-        {
-            csvWriter.WriteField(result.League);
-            csvWriter.WriteField(result.Matchday);
-            csvWriter.WriteField(result.PlayedAt);
-            csvWriter.WriteField(result.HomeTeam);
-            csvWriter.WriteField(result.AwayTeam);
-            csvWriter.WriteField(result.Score);
-            csvWriter.WriteField(result.Annotation ?? "");
-            csvWriter.NextRecord();
-        }
-        
-        return stringWriter.ToString();
     }
     
     /// <summary>
