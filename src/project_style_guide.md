@@ -17,31 +17,34 @@ This document defines conventions and best practices for writing production code
 2. **Makes debugging easier** by failing close to the source of the problem
 3. **Prevents data corruption** by not proceeding with invalid state
 
-**✅ Do:** Throw exceptions when data is missing or invalid
+**Note:** We generally trust nullability annotations in APIs. Only add null checks when the API genuinely returns `null` to signal an error or missing data (e.g., a client returning `null` on failure).
+
+**✅ Do:** Throw exceptions when nullable APIs return null unexpectedly
 
 ```csharp
-public string GetRequiredConfiguration(string key)
+public async Task<UserProfile> GetUserProfileAsync(string userId)
 {
-    var value = _configuration[key];
+    // Client returns null when user is not found (nullable API)
+    UserProfile? profile = await _userClient.GetProfileAsync(userId);
     
-    if (string.IsNullOrEmpty(value))
+    if (profile is null)
     {
-        throw new InvalidOperationException($"Required configuration key '{key}' is missing or empty.");
+        throw new InvalidOperationException($"User profile for '{userId}' not found.");
     }
     
-    return value;
+    return profile;
 }
 ```
 
 **❌ Avoid:** Silently returning fallback values
 
 ```csharp
-public string GetRequiredConfiguration(string key)
+public async Task<UserProfile> GetUserProfileAsync(string userId)
 {
-    var value = _configuration[key];
+    UserProfile? profile = await _userClient.GetProfileAsync(userId);
     
-    // BAD: Masks missing configuration, bug surfaces elsewhere
-    return string.IsNullOrEmpty(value) ? "default-value" : value;
+    // BAD: Masks missing data, bug surfaces elsewhere with wrong user info
+    return profile ?? new UserProfile { Id = userId, Name = "Unknown" };
 }
 ```
 
