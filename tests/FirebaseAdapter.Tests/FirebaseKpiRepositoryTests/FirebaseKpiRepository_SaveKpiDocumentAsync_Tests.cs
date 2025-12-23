@@ -1,13 +1,13 @@
 using FirebaseAdapter.Tests.Fixtures;
 using TUnit.Core;
 
-namespace FirebaseAdapter.Tests.FirebaseContextRepositoryTests;
+namespace FirebaseAdapter.Tests.FirebaseKpiRepositoryTests;
 
 /// <summary>
-/// Tests for FirebaseContextRepository.SaveContextDocumentAsync method.
+/// Tests for FirebaseKpiRepository.SaveKpiDocumentAsync method.
 /// </summary>
-public class FirebaseContextRepository_SaveContextDocumentAsync_Tests(FirestoreFixture fixture)
-    : FirebaseContextRepositoryTests_Base(fixture)
+public class FirebaseKpiRepository_SaveKpiDocumentAsync_Tests(FirestoreFixture fixture)
+    : FirebaseKpiRepositoryTests_Base(fixture)
 {
     [Test]
     public async Task Saving_new_document_returns_version_zero()
@@ -16,9 +16,10 @@ public class FirebaseContextRepository_SaveContextDocumentAsync_Tests(FirestoreF
         var repository = CreateRepository();
 
         // Act
-        var version = await repository.SaveContextDocumentAsync(
-            "test-document",
+        var version = await repository.SaveKpiDocumentAsync(
+            "test-kpi",
             "test content",
+            "test description",
             "test-community");
 
         // Assert
@@ -31,15 +32,17 @@ public class FirebaseContextRepository_SaveContextDocumentAsync_Tests(FirestoreF
         // Arrange
         var repository = CreateRepository();
 
-        await repository.SaveContextDocumentAsync(
-            "test-document",
+        await repository.SaveKpiDocumentAsync(
+            "test-kpi",
             "original content",
+            "description",
             "test-community");
 
         // Act
-        var version = await repository.SaveContextDocumentAsync(
-            "test-document",
+        var version = await repository.SaveKpiDocumentAsync(
+            "test-kpi",
             "updated content",
+            "description",
             "test-community");
 
         // Assert
@@ -47,24 +50,27 @@ public class FirebaseContextRepository_SaveContextDocumentAsync_Tests(FirestoreF
     }
 
     [Test]
-    public async Task Saving_document_with_same_content_returns_null()
+    public async Task Saving_document_with_same_content_returns_same_version()
     {
         // Arrange
         var repository = CreateRepository();
 
-        await repository.SaveContextDocumentAsync(
-            "test-document",
+        var firstVersion = await repository.SaveKpiDocumentAsync(
+            "test-kpi",
             "same content",
+            "description",
             "test-community");
 
         // Act
-        var version = await repository.SaveContextDocumentAsync(
-            "test-document",
+        var secondVersion = await repository.SaveKpiDocumentAsync(
+            "test-kpi",
             "same content",
+            "description",
             "test-community");
 
         // Assert
-        await Assert.That(version).IsNull();
+        await Assert.That(firstVersion).IsEqualTo(0);
+        await Assert.That(secondVersion).IsEqualTo(0);
     }
 
     [Test]
@@ -74,19 +80,21 @@ public class FirebaseContextRepository_SaveContextDocumentAsync_Tests(FirestoreF
         var repository = CreateRepository();
 
         // Act
-        await repository.SaveContextDocumentAsync(
-            "test-document",
+        await repository.SaveKpiDocumentAsync(
+            "test-kpi",
             "test content",
+            "test description",
             "test-community");
 
-        var retrieved = await repository.GetLatestContextDocumentAsync(
-            "test-document",
+        var retrieved = await repository.GetKpiDocumentAsync(
+            "test-kpi",
             "test-community");
 
         // Assert
         await Assert.That(retrieved).IsNotNull();
-        await Assert.That(retrieved!.DocumentName).IsEqualTo("test-document");
+        await Assert.That(retrieved!.DocumentName).IsEqualTo("test-kpi");
         await Assert.That(retrieved.Content).IsEqualTo("test content");
+        await Assert.That(retrieved.Description).IsEqualTo("test description");
         await Assert.That(retrieved.Version).IsEqualTo(0);
     }
 }

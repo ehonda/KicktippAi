@@ -1,4 +1,3 @@
-using FirebaseAdapter;
 using KicktippIntegration;
 using Orchestrator;
 
@@ -41,16 +40,12 @@ public static class AssemblyLoader
     /// <remarks>
     /// Current assemblies without dedicated test projects:
     /// <list type="bullet">
-    ///   <item><see cref="FirebaseContextRepository"/> - FirebaseAdapter.dll</item>
     ///   <item><see cref="IKicktippClient"/> - KicktippIntegration.dll</item>
     ///   <item><see cref="Program"/> - Orchestrator.dll</item>
     /// </list>
     /// </remarks>
     public static readonly Type[] LoadedAssemblyTypes =
     [
-        // FirebaseAdapter - No dedicated test project
-        typeof(FirebaseContextRepository),
-        
         // KicktippIntegration - No dedicated test project
         typeof(IKicktippClient),
         

@@ -20,7 +20,6 @@ public class AssemblyLoaderTests
 
         // Assert - Verify all expected assemblies are loaded
         // These are the assemblies that don't have dedicated test projects
-        await Assert.That(loadedAssemblies).Contains("FirebaseAdapter");
         await Assert.That(loadedAssemblies).Contains("KicktippIntegration");
         await Assert.That(loadedAssemblies).Contains("Orchestrator");
     }
