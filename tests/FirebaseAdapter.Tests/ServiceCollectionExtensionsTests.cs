@@ -13,15 +13,35 @@ namespace FirebaseAdapter.Tests;
 /// These tests verify that the DI registration is configured correctly.
 /// Note: These tests do not actually connect to Firebase; they verify service registration only.
 /// </summary>
-[NotInParallel("ServiceCollectionTests")]
 public class ServiceCollectionExtensionsTests
 {
+    /// <summary>
+    /// Creates a new ServiceCollection with logging already configured.
+    /// </summary>
+    private static ServiceCollection CreateServices()
+    {
+        var services = new ServiceCollection();
+        services.AddLogging();
+        return services;
+    }
+
+    /// <summary>
+    /// Configures the service collection with default Firebase options for testing.
+    /// </summary>
+    private static void AddDefaultFirebaseDatabase(IServiceCollection services)
+    {
+        services.AddFirebaseDatabase(options =>
+        {
+            options.ProjectId = "test-project";
+            options.ServiceAccountJson = "{}";
+        });
+    }
+
     [Test]
     public async Task AddFirebaseDatabase_with_options_delegate_configures_options()
     {
         // Arrange
-        var services = new ServiceCollection();
-        services.AddLogging();
+        var services = CreateServices();
 
         // Act
         services.AddFirebaseDatabase(options =>
@@ -42,15 +62,10 @@ public class ServiceCollectionExtensionsTests
     public async Task AddFirebaseDatabase_registers_FirestoreDb_as_singleton()
     {
         // Arrange
-        var services = new ServiceCollection();
-        services.AddLogging();
+        var services = CreateServices();
 
         // Act
-        services.AddFirebaseDatabase(options =>
-        {
-            options.ProjectId = "test-project";
-            options.ServiceAccountJson = "{}"; // Minimal JSON
-        });
+        AddDefaultFirebaseDatabase(services);
 
         // Assert
         var descriptor = services.FirstOrDefault(d => d.ServiceType == typeof(FirestoreDb));
@@ -63,14 +78,8 @@ public class ServiceCollectionExtensionsTests
     public async Task AddFirebaseDatabase_registers_IPredictionRepository_as_scoped()
     {
         // Arrange
-        var services = new ServiceCollection();
-        services.AddLogging();
-
-        services.AddFirebaseDatabase(options =>
-        {
-            options.ProjectId = "test-project";
-            options.ServiceAccountJson = "{}";
-        });
+        var services = CreateServices();
+        AddDefaultFirebaseDatabase(services);
 
         // Assert
         var descriptor = services.FirstOrDefault(d => d.ServiceType == typeof(IPredictionRepository));
@@ -83,14 +92,8 @@ public class ServiceCollectionExtensionsTests
     public async Task AddFirebaseDatabase_registers_IKpiRepository_as_scoped()
     {
         // Arrange
-        var services = new ServiceCollection();
-        services.AddLogging();
-
-        services.AddFirebaseDatabase(options =>
-        {
-            options.ProjectId = "test-project";
-            options.ServiceAccountJson = "{}";
-        });
+        var services = CreateServices();
+        AddDefaultFirebaseDatabase(services);
 
         // Assert
         var descriptor = services.FirstOrDefault(d => d.ServiceType == typeof(IKpiRepository));
@@ -103,14 +106,8 @@ public class ServiceCollectionExtensionsTests
     public async Task AddFirebaseDatabase_registers_IContextRepository_as_scoped()
     {
         // Arrange
-        var services = new ServiceCollection();
-        services.AddLogging();
-
-        services.AddFirebaseDatabase(options =>
-        {
-            options.ProjectId = "test-project";
-            options.ServiceAccountJson = "{}";
-        });
+        var services = CreateServices();
+        AddDefaultFirebaseDatabase(services);
 
         // Assert
         var descriptor = services.FirstOrDefault(d => d.ServiceType == typeof(IContextRepository));
@@ -123,14 +120,8 @@ public class ServiceCollectionExtensionsTests
     public async Task AddFirebaseDatabase_registers_FirebaseKpiContextProvider_as_scoped()
     {
         // Arrange
-        var services = new ServiceCollection();
-        services.AddLogging();
-
-        services.AddFirebaseDatabase(options =>
-        {
-            options.ProjectId = "test-project";
-            options.ServiceAccountJson = "{}";
-        });
+        var services = CreateServices();
+        AddDefaultFirebaseDatabase(services);
 
         // Assert
         var descriptor = services.FirstOrDefault(d => d.ServiceType == typeof(FirebaseKpiContextProvider));
@@ -143,8 +134,7 @@ public class ServiceCollectionExtensionsTests
     public async Task AddFirebaseDatabase_with_IConfiguration_binds_from_section()
     {
         // Arrange
-        var services = new ServiceCollection();
-        services.AddLogging();
+        var services = CreateServices();
 
         var configuration = new ConfigurationBuilder()
             .AddInMemoryCollection(new Dictionary<string, string?>
@@ -169,8 +159,7 @@ public class ServiceCollectionExtensionsTests
     public async Task AddFirebaseDatabase_with_explicit_params_configures_options()
     {
         // Arrange
-        var services = new ServiceCollection();
-        services.AddLogging();
+        var services = CreateServices();
 
         // Act
         services.AddFirebaseDatabase(
@@ -190,8 +179,7 @@ public class ServiceCollectionExtensionsTests
     public async Task AddFirebaseDatabaseWithFile_configures_ServiceAccountPath()
     {
         // Arrange
-        var services = new ServiceCollection();
-        services.AddLogging();
+        var services = CreateServices();
 
         // Act
         services.AddFirebaseDatabaseWithFile(
@@ -210,8 +198,7 @@ public class ServiceCollectionExtensionsTests
     public async Task AddFirebaseDatabase_returns_service_collection_for_chaining()
     {
         // Arrange
-        var services = new ServiceCollection();
-        services.AddLogging();
+        var services = CreateServices();
 
         // Act
         var result = services.AddFirebaseDatabase(options =>
