@@ -52,6 +52,7 @@
     <Project Path="tests/Coverage.Tests/Coverage.Tests.csproj" />
     <Project Path="tests/ContextProviders.Kicktipp.Tests/ContextProviders.Kicktipp.Tests.csproj" />
     <Project Path="tests/Core.Tests/Core.Tests.csproj" />
+    <Project Path="tests/FirebaseAdapter.Tests/FirebaseAdapter.Tests.csproj" />
     <Project Path="tests/OpenAiIntegration.Tests/OpenAiIntegration.Tests.csproj" />
     <Project Path="tests/TestUtilities.Tests/TestUtilities.Tests.csproj" />
   </Folder>
