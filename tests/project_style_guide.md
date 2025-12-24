@@ -56,6 +56,34 @@ This project provides a shared `TestUtilities` library (located at `src/TestUtil
 
 - When writing new tests utilizing common logic, make sure to check if a suitable helper method already exists in `TestUtilities` before implementing custom logic.
 
+### Core Test Factories
+
+The `CoreTestFactories` class provides factory methods for creating Core domain objects (such as `Match`, `Prediction`, `BonusQuestion`, etc.) with sensible defaults. Use these in your tests to:
+
+1. Reduce boilerplate code
+2. Ensure consistency across test files
+3. Override only the properties relevant to each test
+
+**Using CoreTestFactories:**
+
+```csharp
+// ✅ Good: Import the factory class for cleaner syntax
+using static TestUtilities.CoreTestFactories;
+
+[Test]
+public async Task Match_can_be_stored_and_retrieved()
+{
+    var match = CreateMatch(matchday: 10);  // Only override what matters for this test
+    await repository.StoreMatchAsync(match);
+    // ...
+}
+
+// ✅ Good: Override only relevant parameters
+var match = CreateMatch(homeTeam: "Team A", awayTeam: "Team B");
+var prediction = CreatePrediction(homeGoals: 3, awayGoals: 0);
+var bonusQuestion = CreateBonusQuestion(text: "Who will win?");
+```
+
 ## Testing Logging
 
 Always use `FakeLogger` for testing logging behavior, or when needing to pass a logger instance to entities involved in tests.
@@ -236,6 +264,23 @@ private async Task CallMethod(
 }
 ```
 
+**⚠️ Collection literals with `Option<List<T>>`:**
+
+Collection literals (e.g., `[]`, `["a", "b"]`) cannot be implicitly converted to `Option<List<T>>`. This causes build errors when passing collection literals to factory methods with `Option<List<T>>` parameters.
+
+```csharp
+// Given: CreateFoo(Option<List<string>> items = default)
+
+// ❌ Build error: Cannot convert collection literal to Option<List<string>>
+var foo = CreateFoo(items: ["a", "b"]);
+
+// ✅ Works: Wrap in explicit list constructor
+var foo = CreateFoo(items: new List<string> { "a", "b" });
+
+// ✅ Works: Use List<T> with collection expression
+var foo = CreateFoo(items: new List<string>(["a", "b"]));
+```
+
 ## Code Style
 
 ### Async Test Methods
@@ -287,6 +332,88 @@ await Assert.That(result)
 await Assert.That(result).IsNotNull();
 await Assert.That(result.Value).IsEqualTo(42);
 ```
+
+### Record Equality Assertions
+
+When asserting objects that are records or have value equality, prefer using `IsEqualTo` with an expected object instead of asserting individual properties. This is more concise and ensures complete equality.
+
+```csharp
+// ✅ Good: Use record equality
+var expected = new DocumentContext("team-data", "team content");
+await Assert.That(context).IsEqualTo(expected);
+
+// ✅ Good: Inline expected object
+await Assert.That(result).IsEqualTo(new Prediction(2, 1, null));
+
+// ❌ Avoid: Member-by-member assertions when record equality suffices
+await Assert.That(context).Member(c => c.Name, n => n.IsEqualTo("team-data"))
+    .And.Member(c => c.Content, c => c.IsEqualTo("team content"));
+```
+
+**When to use record equality:**
+
+- The type is a `record` or has proper `Equals` implementation
+- You want to verify all properties match
+- The expected object can be easily constructed
+
+**When to use member assertions:**
+
+- You only need to verify specific properties (partial assertion)
+- The type doesn't have proper equality semantics
+- Constructing a complete expected object would be impractical
+
+**⚠️ Records with collection properties:**
+
+Records use reference equality for collection properties (e.g., `List<T>`, `Dictionary<K,V>`). For records containing collections, compare the collection property directly:
+
+```csharp
+// Given: record BonusPrediction(List<string> SelectedOptionIds)
+
+// ❌ Fails: List uses reference equality
+await Assert.That(retrieved).IsEqualTo(prediction);
+
+// ✅ Works: Compare collection contents directly
+await Assert.That(retrieved!.SelectedOptionIds).IsEquivalentTo(prediction.SelectedOptionIds);
+```
+
+### Collection Equality Assertions
+
+When asserting collections, prefer `IsEquivalentTo` with an expected collection over asserting individual elements by index.
+
+```csharp
+// ✅ Good: Collection equality
+var expected = new List<DocumentContext>
+{
+    new("team-data", "team content"),
+    new("manager-data", "manager content")
+};
+await Assert.That(contexts).IsEquivalentTo(expected);
+
+// ✅ Good: Inline collection literal
+await Assert.That(contexts).IsEquivalentTo([
+    new DocumentContext("team-data", "team content"),
+    new DocumentContext("manager-data", "manager content")
+]);
+
+// ✅ Good: For ordered comparisons with partial data
+await Assert.That(versions.Select(v => (v.Version, v.Content)))
+    .IsEquivalentTo([(0, "v0"), (1, "v1"), (2, "v2")]);
+
+// ❌ Avoid: Element-by-element assertions
+await Assert.That(contexts[0]).Member(c => c.Name, n => n.IsEqualTo("team-data"));
+await Assert.That(contexts[1]).Member(c => c.Name, n => n.IsEqualTo("manager-data"));
+```
+
+**When to use collection assertions:**
+
+- Verifying entire collection contents
+- Order matters: use `IsEquivalentTo` (order-agnostic) or `IsEqualTo` (order-sensitive)
+- The expected collection can be easily constructed
+
+**When to use element assertions:**
+
+- You only need to verify specific elements exist (use `.Contains()` or `.Any()`)
+- The collection has dynamic values that can't be fully predicted
 
 ### CSV Assertions
 

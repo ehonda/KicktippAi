@@ -46,11 +46,12 @@ public class FirebaseKpiContextProviderTests
         }
 
         // Assert
-        await Assert.That(contexts).HasCount().EqualTo(2);
-        await Assert.That(contexts[0]).Member(c => c.Name, n => n.IsEqualTo("team-data"))
-            .And.Member(c => c.Content, c => c.IsEqualTo("team content"));
-        await Assert.That(contexts[1]).Member(c => c.Name, n => n.IsEqualTo("manager-data"))
-            .And.Member(c => c.Content, c => c.IsEqualTo("manager content"));
+        var expected = new List<DocumentContext>
+        {
+            new("team-data", "team content"),
+            new("manager-data", "manager content")
+        };
+        await Assert.That(contexts).IsEquivalentTo(expected);
     }
 
     [Test]
@@ -95,8 +96,7 @@ public class FirebaseKpiContextProviderTests
         }
 
         // Assert
-        await Assert.That(contexts).HasCount().EqualTo(1);
-        await Assert.That(contexts[0].Name).IsEqualTo("team-data");
+        await Assert.That(contexts).IsEquivalentTo([new DocumentContext("team-data", "team content")]);
     }
 
     [Test]
@@ -121,8 +121,7 @@ public class FirebaseKpiContextProviderTests
         }
 
         // Assert
-        await Assert.That(contexts).HasCount().EqualTo(1);
-        await Assert.That(contexts[0].Name).IsEqualTo("team-data");
+        await Assert.That(contexts).IsEquivalentTo([new DocumentContext("team-data", "team content")]);
     }
 
     [Test]
@@ -147,9 +146,12 @@ public class FirebaseKpiContextProviderTests
         }
 
         // Assert
-        await Assert.That(contexts).HasCount().EqualTo(2)
-            .And.Any(c => c.Name == "team-data")
-            .And.Any(c => c.Name == "manager-data");
+        var expected = new List<DocumentContext>
+        {
+            new("team-data", "team content"),
+            new("manager-data", "manager content")
+        };
+        await Assert.That(contexts).IsEquivalentTo(expected);
     }
 
     [Test]
@@ -174,9 +176,12 @@ public class FirebaseKpiContextProviderTests
         }
 
         // Assert
-        await Assert.That(contexts).HasCount().EqualTo(2)
-            .And.Any(c => c.Name == "team-data")
-            .And.Any(c => c.Name == "manager-data");
+        var expected = new List<DocumentContext>
+        {
+            new("team-data", "team content"),
+            new("manager-data", "manager content")
+        };
+        await Assert.That(contexts).IsEquivalentTo(expected);
     }
 
     [Test]
@@ -193,9 +198,7 @@ public class FirebaseKpiContextProviderTests
         var context = await provider.GetKpiDocumentContextAsync("team-data", "test-community");
 
         // Assert
-        await Assert.That(context).IsNotNull()
-            .And.Member(c => c!.Name, n => n.IsEqualTo("team-data"))
-            .And.Member(c => c!.Content, c => c.IsEqualTo("team content"));
+        await Assert.That(context).IsEqualTo(new DocumentContext("team-data", "team content"));
     }
 
     [Test]

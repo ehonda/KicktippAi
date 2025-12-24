@@ -1,6 +1,7 @@
+using EHonda.KicktippAi.Core;
 using FirebaseAdapter.Tests.Fixtures;
-using NodaTime;
 using TUnit.Core;
+using static TestUtilities.CoreTestFactories;
 
 namespace FirebaseAdapter.Tests.FirebasePredictionRepositoryTests;
 
@@ -15,7 +16,7 @@ public class FirebasePredictionRepository_Match_Tests(FirestoreFixture fixture)
     {
         // Arrange
         var repository = CreateRepository();
-        var match = CreateTestMatch(matchday: 10);
+        var match = CreateMatch(matchday: 10);
 
         // Act
         await repository.StoreMatchAsync(match);
@@ -23,8 +24,7 @@ public class FirebasePredictionRepository_Match_Tests(FirestoreFixture fixture)
 
         // Assert
         await Assert.That(matches).HasCount().EqualTo(1);
-        await Assert.That(matches[0]).Member(m => m.HomeTeam, h => h.IsEqualTo(match.HomeTeam))
-            .And.Member(m => m.AwayTeam, a => a.IsEqualTo(match.AwayTeam));
+        await Assert.That(matches[0]).IsEqualTo(match);
     }
 
     [Test]
@@ -46,9 +46,9 @@ public class FirebasePredictionRepository_Match_Tests(FirestoreFixture fixture)
         // Arrange
         var repository = CreateRepository();
 
-        await repository.StoreMatchAsync(CreateTestMatch(homeTeam: "Team A", awayTeam: "Team B", matchday: 5));
-        await repository.StoreMatchAsync(CreateTestMatch(homeTeam: "Team C", awayTeam: "Team D", matchday: 5));
-        await repository.StoreMatchAsync(CreateTestMatch(homeTeam: "Team E", awayTeam: "Team F", matchday: 6));
+        await repository.StoreMatchAsync(CreateMatch(homeTeam: "Team A", awayTeam: "Team B", matchday: 5));
+        await repository.StoreMatchAsync(CreateMatch(homeTeam: "Team C", awayTeam: "Team D", matchday: 5));
+        await repository.StoreMatchAsync(CreateMatch(homeTeam: "Team E", awayTeam: "Team F", matchday: 6));
 
         // Act
         var matchday5 = await repository.GetMatchDayAsync(5);
@@ -64,15 +64,16 @@ public class FirebasePredictionRepository_Match_Tests(FirestoreFixture fixture)
     {
         // Arrange
         var repository = CreateRepository();
-        var match1 = CreateTestMatch(homeTeam: "Team A", awayTeam: "Team B", matchday: 10);
-        var match2 = CreateTestMatch(homeTeam: "Team C", awayTeam: "Team D", matchday: 10);
+        var match1 = CreateMatch(homeTeam: "Team A", awayTeam: "Team B", matchday: 10);
+        var match2 = CreateMatch(homeTeam: "Team C", awayTeam: "Team D", matchday: 10);
+        var prediction1 = CreatePrediction(homeGoals: 2, awayGoals: 1);
 
         await repository.StoreMatchAsync(match1);
         await repository.StoreMatchAsync(match2);
 
         await repository.SavePredictionAsync(
             match1,
-            CreateTestPrediction(homeGoals: 2, awayGoals: 1),
+            prediction1,
             model: "gpt-4o",
             tokenUsage: "100",
             cost: 0.01,
@@ -87,12 +88,16 @@ public class FirebasePredictionRepository_Match_Tests(FirestoreFixture fixture)
 
         // Assert
         await Assert.That(matchPredictions).HasCount().EqualTo(2);
-        
+
         var withPrediction = matchPredictions.FirstOrDefault(mp => mp.Match.HomeTeam == "Team A");
         var withoutPrediction = matchPredictions.FirstOrDefault(mp => mp.Match.HomeTeam == "Team C");
 
-        await Assert.That(withPrediction!.Prediction).IsNotNull()
-            .And.Member(p => p!.HomeGoals, h => h.IsEqualTo(2));
+        await Assert.That(withPrediction).IsNotNull();
+        await Assert.That(withPrediction!.Match).IsEqualTo(match1);
+        await Assert.That(withPrediction!.Prediction).IsEqualTo(prediction1);
+
+        await Assert.That(withoutPrediction).IsNotNull();
+        await Assert.That(withoutPrediction!.Match).IsEqualTo(match2);
         await Assert.That(withoutPrediction!.Prediction).IsNull();
     }
 
@@ -101,12 +106,12 @@ public class FirebasePredictionRepository_Match_Tests(FirestoreFixture fixture)
     {
         // Arrange
         var repository = CreateRepository();
-        var match1 = CreateTestMatch(homeTeam: "Team A", awayTeam: "Team B", matchday: 1);
-        var match2 = CreateTestMatch(homeTeam: "Team C", awayTeam: "Team D", matchday: 2);
+        var match1 = CreateMatch(homeTeam: "Team A", awayTeam: "Team B", matchday: 1);
+        var match2 = CreateMatch(homeTeam: "Team C", awayTeam: "Team D", matchday: 2);
 
         await repository.SavePredictionAsync(
             match1,
-            CreateTestPrediction(),
+            CreatePrediction(),
             model: "gpt-4o",
             tokenUsage: "100",
             cost: 0.01,
@@ -115,7 +120,7 @@ public class FirebasePredictionRepository_Match_Tests(FirestoreFixture fixture)
 
         await repository.SavePredictionAsync(
             match2,
-            CreateTestPrediction(),
+            CreatePrediction(),
             model: "gpt-4o",
             tokenUsage: "100",
             cost: 0.01,

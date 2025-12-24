@@ -1,5 +1,7 @@
+using EHonda.KicktippAi.Core;
 using FirebaseAdapter.Tests.Fixtures;
 using TUnit.Core;
+using static TestUtilities.CoreTestFactories;
 
 namespace FirebaseAdapter.Tests.FirebasePredictionRepositoryTests;
 
@@ -14,7 +16,7 @@ public class FirebasePredictionRepository_Reprediction_Tests(FirestoreFixture fi
     {
         // Arrange
         var repository = CreateRepository();
-        var match = CreateTestMatch();
+        var match = CreateMatch();
 
         // Act
         var index = await repository.GetMatchRepredictionIndexAsync(
@@ -31,11 +33,11 @@ public class FirebasePredictionRepository_Reprediction_Tests(FirestoreFixture fi
     {
         // Arrange
         var repository = CreateRepository();
-        var match = CreateTestMatch();
+        var match = CreateMatch();
 
         await repository.SavePredictionAsync(
             match,
-            CreateTestPrediction(),
+            CreatePrediction(),
             model: "gpt-4o",
             tokenUsage: "100",
             cost: 0.01,
@@ -57,12 +59,13 @@ public class FirebasePredictionRepository_Reprediction_Tests(FirestoreFixture fi
     {
         // Arrange
         var repository = CreateRepository();
-        var match = CreateTestMatch();
+        var match = CreateMatch();
+        var reprediction = CreatePrediction(homeGoals: 2, awayGoals: 2);
 
         // Save initial prediction (index 0)
         await repository.SavePredictionAsync(
             match,
-            CreateTestPrediction(homeGoals: 1, awayGoals: 0),
+            CreatePrediction(homeGoals: 1, awayGoals: 0),
             model: "gpt-4o",
             tokenUsage: "100",
             cost: 0.01,
@@ -72,7 +75,7 @@ public class FirebasePredictionRepository_Reprediction_Tests(FirestoreFixture fi
         // Act - save reprediction with index 1
         await repository.SaveRepredictionAsync(
             match,
-            CreateTestPrediction(homeGoals: 2, awayGoals: 2),
+            reprediction,
             model: "gpt-4o",
             tokenUsage: "150",
             cost: 0.02,
@@ -92,8 +95,7 @@ public class FirebasePredictionRepository_Reprediction_Tests(FirestoreFixture fi
 
         // Assert
         await Assert.That(latestIndex).IsEqualTo(1);
-        await Assert.That(latestPrediction!).Member(p => p.HomeGoals, h => h.IsEqualTo(2))
-            .And.Member(p => p.AwayGoals, a => a.IsEqualTo(2));
+        await Assert.That(latestPrediction).IsEqualTo(reprediction);
     }
 
     [Test]
@@ -117,11 +119,11 @@ public class FirebasePredictionRepository_Reprediction_Tests(FirestoreFixture fi
     {
         // Arrange
         var repository = CreateRepository();
-        var question = CreateTestBonusQuestion(text: "Who will win?");
+        var question = CreateBonusQuestion(text: "Who will win?");
 
         await repository.SaveBonusPredictionAsync(
             question,
-            CreateTestBonusPrediction(),
+            CreateBonusPrediction(),
             model: "gpt-4o",
             tokenUsage: "100",
             cost: 0.01,
@@ -143,12 +145,13 @@ public class FirebasePredictionRepository_Reprediction_Tests(FirestoreFixture fi
     {
         // Arrange
         var repository = CreateRepository();
-        var question = CreateTestBonusQuestion(text: "Who will win?");
+        var question = CreateBonusQuestion(text: "Who will win?");
+        var reprediction = new BonusPrediction(["opt-2", "opt-3"]);
 
         // Save initial prediction (index 0)
         await repository.SaveBonusPredictionAsync(
             question,
-            CreateTestBonusPrediction(new List<string> { "opt-1" }),
+            new BonusPrediction(["opt-1"]),
             model: "gpt-4o",
             tokenUsage: "100",
             cost: 0.01,
@@ -158,7 +161,7 @@ public class FirebasePredictionRepository_Reprediction_Tests(FirestoreFixture fi
         // Act - save reprediction with index 1
         await repository.SaveBonusRepredictionAsync(
             question,
-            CreateTestBonusPrediction(new List<string> { "opt-2", "opt-3" }),
+            reprediction,
             model: "gpt-4o",
             tokenUsage: "150",
             cost: 0.02,
@@ -178,7 +181,6 @@ public class FirebasePredictionRepository_Reprediction_Tests(FirestoreFixture fi
 
         // Assert
         await Assert.That(latestIndex).IsEqualTo(1);
-        await Assert.That(latestPrediction!.SelectedOptionIds).HasCount().EqualTo(2)
-            .And.Contains("opt-2");
+        await Assert.That(latestPrediction!.SelectedOptionIds).IsEquivalentTo(reprediction.SelectedOptionIds);
     }
 }

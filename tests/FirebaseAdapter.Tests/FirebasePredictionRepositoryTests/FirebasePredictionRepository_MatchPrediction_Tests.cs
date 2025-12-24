@@ -1,5 +1,6 @@
 using FirebaseAdapter.Tests.Fixtures;
 using TUnit.Core;
+using static TestUtilities.CoreTestFactories;
 
 namespace FirebaseAdapter.Tests.FirebasePredictionRepositoryTests;
 
@@ -14,8 +15,8 @@ public class FirebasePredictionRepository_MatchPrediction_Tests(FirestoreFixture
     {
         // Arrange
         var repository = CreateRepository();
-        var match = CreateTestMatch();
-        var prediction = CreateTestPrediction(homeGoals: 3, awayGoals: 0);
+        var match = CreateMatch();
+        var prediction = CreatePrediction(homeGoals: 3, awayGoals: 0);
 
         // Act
         await repository.SavePredictionAsync(
@@ -33,9 +34,7 @@ public class FirebasePredictionRepository_MatchPrediction_Tests(FirestoreFixture
             communityContext: "test-community");
 
         // Assert
-        await Assert.That(retrieved).IsNotNull()
-            .And.Member(r => r!.HomeGoals, h => h.IsEqualTo(3))
-            .And.Member(r => r!.AwayGoals, a => a.IsEqualTo(0));
+        await Assert.That(retrieved).IsEqualTo(prediction);
     }
 
     [Test]
@@ -43,7 +42,7 @@ public class FirebasePredictionRepository_MatchPrediction_Tests(FirestoreFixture
     {
         // Arrange
         var repository = CreateRepository();
-        var match = CreateTestMatch();
+        var match = CreateMatch();
 
         // Act
         var result = await repository.GetPredictionAsync(
@@ -60,8 +59,8 @@ public class FirebasePredictionRepository_MatchPrediction_Tests(FirestoreFixture
     {
         // Arrange
         var repository = CreateRepository();
-        var match = CreateTestMatch();
-        var prediction = CreateTestPrediction();
+        var match = CreateMatch();
+        var prediction = CreatePrediction();
 
         await repository.SavePredictionAsync(
             match,
@@ -87,7 +86,7 @@ public class FirebasePredictionRepository_MatchPrediction_Tests(FirestoreFixture
     {
         // Arrange
         var repository = CreateRepository();
-        var match = CreateTestMatch();
+        var match = CreateMatch();
 
         // Act
         var result = await repository.HasPredictionAsync(
@@ -104,11 +103,12 @@ public class FirebasePredictionRepository_MatchPrediction_Tests(FirestoreFixture
     {
         // Arrange
         var repository = CreateRepository();
-        var match = CreateTestMatch();
+        var match = CreateMatch();
+        var updatedPrediction = CreatePrediction(homeGoals: 3, awayGoals: 2);
 
         await repository.SavePredictionAsync(
             match,
-            CreateTestPrediction(homeGoals: 1, awayGoals: 1),
+            CreatePrediction(homeGoals: 1, awayGoals: 1),
             model: "gpt-4o",
             tokenUsage: "100",
             cost: 0.01,
@@ -118,7 +118,7 @@ public class FirebasePredictionRepository_MatchPrediction_Tests(FirestoreFixture
         // Act
         await repository.SavePredictionAsync(
             match,
-            CreateTestPrediction(homeGoals: 3, awayGoals: 2),
+            updatedPrediction,
             model: "gpt-4o",
             tokenUsage: "150",
             cost: 0.02,
@@ -131,8 +131,7 @@ public class FirebasePredictionRepository_MatchPrediction_Tests(FirestoreFixture
             communityContext: "test-community");
 
         // Assert
-        await Assert.That(retrieved!).Member(r => r.HomeGoals, h => h.IsEqualTo(3))
-            .And.Member(r => r.AwayGoals, a => a.IsEqualTo(2));
+        await Assert.That(retrieved).IsEqualTo(updatedPrediction);
     }
 
     [Test]
@@ -140,11 +139,13 @@ public class FirebasePredictionRepository_MatchPrediction_Tests(FirestoreFixture
     {
         // Arrange
         var repository = CreateRepository();
-        var match = CreateTestMatch();
+        var match = CreateMatch();
+        var gpt4Prediction = CreatePrediction(homeGoals: 1, awayGoals: 0);
+        var o3Prediction = CreatePrediction(homeGoals: 2, awayGoals: 2);
 
         await repository.SavePredictionAsync(
             match,
-            CreateTestPrediction(homeGoals: 1, awayGoals: 0),
+            gpt4Prediction,
             model: "gpt-4o",
             tokenUsage: "100",
             cost: 0.01,
@@ -153,7 +154,7 @@ public class FirebasePredictionRepository_MatchPrediction_Tests(FirestoreFixture
 
         await repository.SavePredictionAsync(
             match,
-            CreateTestPrediction(homeGoals: 2, awayGoals: 2),
+            o3Prediction,
             model: "o3",
             tokenUsage: "100",
             cost: 0.05,
@@ -165,8 +166,8 @@ public class FirebasePredictionRepository_MatchPrediction_Tests(FirestoreFixture
         var o3Result = await repository.GetPredictionAsync(match, "o3", "test-community");
 
         // Assert
-        await Assert.That(gpt4Result!.HomeGoals).IsEqualTo(1);
-        await Assert.That(o3Result!.HomeGoals).IsEqualTo(2);
+        await Assert.That(gpt4Result).IsEqualTo(gpt4Prediction);
+        await Assert.That(o3Result).IsEqualTo(o3Prediction);
     }
 
     [Test]
@@ -174,11 +175,13 @@ public class FirebasePredictionRepository_MatchPrediction_Tests(FirestoreFixture
     {
         // Arrange
         var repository = CreateRepository();
-        var match = CreateTestMatch();
+        var match = CreateMatch();
+        var communityAPrediction = CreatePrediction(homeGoals: 1, awayGoals: 0);
+        var communityBPrediction = CreatePrediction(homeGoals: 3, awayGoals: 1);
 
         await repository.SavePredictionAsync(
             match,
-            CreateTestPrediction(homeGoals: 1, awayGoals: 0),
+            communityAPrediction,
             model: "gpt-4o",
             tokenUsage: "100",
             cost: 0.01,
@@ -187,7 +190,7 @@ public class FirebasePredictionRepository_MatchPrediction_Tests(FirestoreFixture
 
         await repository.SavePredictionAsync(
             match,
-            CreateTestPrediction(homeGoals: 3, awayGoals: 1),
+            communityBPrediction,
             model: "gpt-4o",
             tokenUsage: "100",
             cost: 0.01,
@@ -199,8 +202,8 @@ public class FirebasePredictionRepository_MatchPrediction_Tests(FirestoreFixture
         var communityBResult = await repository.GetPredictionAsync(match, "gpt-4o", "community-b");
 
         // Assert
-        await Assert.That(communityAResult!.HomeGoals).IsEqualTo(1);
-        await Assert.That(communityBResult!.HomeGoals).IsEqualTo(3);
+        await Assert.That(communityAResult).IsEqualTo(communityAPrediction);
+        await Assert.That(communityBResult).IsEqualTo(communityBPrediction);
     }
 
     [Test]
@@ -208,16 +211,17 @@ public class FirebasePredictionRepository_MatchPrediction_Tests(FirestoreFixture
     {
         // Arrange
         var repository = CreateRepository();
-        var match = CreateTestMatch();
+        var match = CreateMatch();
+        var expectedDocumentNames = new List<string> { "standings", "form", "injuries" };
 
         await repository.SavePredictionAsync(
             match,
-            CreateTestPrediction(),
+            CreatePrediction(),
             model: "gpt-4o",
             tokenUsage: "100",
             cost: 0.01,
             communityContext: "test-community",
-            contextDocumentNames: ["standings", "form", "injuries"]);
+            contextDocumentNames: expectedDocumentNames);
 
         // Act
         var metadata = await repository.GetPredictionMetadataAsync(
@@ -226,7 +230,7 @@ public class FirebasePredictionRepository_MatchPrediction_Tests(FirestoreFixture
             communityContext: "test-community");
 
         // Assert
-        await Assert.That(metadata).IsNotNull()
-            .And.Member(m => m!.ContextDocumentNames, n => n.Contains("standings").And.Contains("form").And.Contains("injuries"));
+        await Assert.That(metadata).IsNotNull();
+        await Assert.That(metadata!.ContextDocumentNames).IsEquivalentTo(expectedDocumentNames);
     }
 }

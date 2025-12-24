@@ -11,8 +11,6 @@ namespace TestUtilities;
 /// </summary>
 public static class CoreTestFactories
 {
-    #region Match
-
     /// <summary>
     /// Creates a test <see cref="Match"/> with default values.
     /// </summary>
@@ -33,10 +31,6 @@ public static class CoreTestFactories
             matchday.Or(25));
     }
 
-    #endregion
-
-    #region Prediction
-
     /// <summary>
     /// Creates a test <see cref="Prediction"/> with default values.
     /// </summary>
@@ -53,10 +47,6 @@ public static class CoreTestFactories
             awayGoals.Or(1),
             justification.Or((PredictionJustification?)null));
     }
-
-    #endregion
-
-    #region BonusQuestion
 
     /// <summary>
     /// Creates a test <see cref="BonusQuestion"/> with default values.
@@ -88,10 +78,6 @@ public static class CoreTestFactories
             formFieldName.Or((string?)null));
     }
 
-    #endregion
-
-    #region BonusPrediction
-
     /// <summary>
     /// Creates a test <see cref="BonusPrediction"/> with default values.
     /// </summary>
@@ -101,10 +87,6 @@ public static class CoreTestFactories
     {
         return new BonusPrediction(selectedOptionIds.Or(() => ["opt-1"]));
     }
-
-    #endregion
-
-    #region MatchResult
 
     /// <summary>
     /// Creates a test <see cref="MatchResult"/> with default values.
@@ -135,10 +117,6 @@ public static class CoreTestFactories
             annotation.Or((string?)null));
     }
 
-    #endregion
-
-    #region MatchWithHistory
-
     /// <summary>
     /// Creates a test <see cref="MatchWithHistory"/> with default values.
     /// </summary>
@@ -156,10 +134,6 @@ public static class CoreTestFactories
             awayTeamHistory.Or(() => []));
     }
 
-    #endregion
-
-    #region DocumentContext
-
     /// <summary>
     /// Creates a test <see cref="DocumentContext"/> with default values.
     /// </summary>
@@ -173,10 +147,6 @@ public static class CoreTestFactories
             name.Or("test-document"),
             content.Or("test content"));
     }
-
-    #endregion
-
-    #region TeamStanding
 
     /// <summary>
     /// Creates a test <see cref="TeamStanding"/> with default values.
@@ -216,10 +186,6 @@ public static class CoreTestFactories
             losses.Or(1));
     }
 
-    #endregion
-
-    #region HeadToHeadResult
-
     /// <summary>
     /// Creates a test <see cref="HeadToHeadResult"/> with default values.
     /// </summary>
@@ -248,6 +214,4 @@ public static class CoreTestFactories
             score.Or("2:1"),
             annotation.Or((string?)null));
     }
-
-    #endregion
 }

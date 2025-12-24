@@ -1,9 +1,6 @@
-using EHonda.KicktippAi.Core;
 using EHonda.Optional.Core;
 using FirebaseAdapter.Tests.Fixtures;
 using Microsoft.Extensions.Logging.Testing;
-using NodaTime;
-using TestUtilities;
 using TUnit.Core;
 
 namespace FirebaseAdapter.Tests.FirebasePredictionRepositoryTests;
@@ -63,40 +60,4 @@ public abstract class FirebasePredictionRepositoryTests_Base(FirestoreFixture fi
         var actualLogger = logger.Or(() => new FakeLogger<FirebasePredictionRepository>());
         return new FirebasePredictionRepository(Fixture.Db, actualLogger);
     }
-
-    /// <summary>
-    /// Creates a test match with default values using <see cref="CoreTestFactories.CreateMatch"/>.
-    /// </summary>
-    protected static Match CreateTestMatch(
-        Option<string> homeTeam = default,
-        Option<string> awayTeam = default,
-        Option<ZonedDateTime> startsAt = default,
-        Option<int> matchday = default)
-        => CoreTestFactories.CreateMatch(homeTeam, awayTeam, startsAt, matchday);
-
-    /// <summary>
-    /// Creates a test prediction with default values using <see cref="CoreTestFactories.CreatePrediction"/>.
-    /// </summary>
-    protected static Prediction CreateTestPrediction(
-        Option<int> homeGoals = default,
-        Option<int> awayGoals = default,
-        NullableOption<PredictionJustification> justification = default)
-        => CoreTestFactories.CreatePrediction(homeGoals, awayGoals, justification);
-
-    /// <summary>
-    /// Creates a test bonus question with default values using <see cref="CoreTestFactories.CreateBonusQuestion"/>.
-    /// </summary>
-    protected static BonusQuestion CreateTestBonusQuestion(
-        Option<string> text = default,
-        Option<List<BonusQuestionOption>> options = default)
-        => CoreTestFactories.CreateBonusQuestion(text: text, options: options);
-
-    /// <summary>
-    /// Creates a test bonus prediction with default values using <see cref="CoreTestFactories.CreateBonusPrediction"/>.
-    /// </summary>
-    /// <param name="selectedOptionIds">Optional list of selected option IDs. Defaults to ["opt-1"].</param>
-    protected static BonusPrediction CreateTestBonusPrediction(List<string>? selectedOptionIds = null)
-        => selectedOptionIds is null
-            ? CoreTestFactories.CreateBonusPrediction()
-            : CoreTestFactories.CreateBonusPrediction(selectedOptionIds);
 }

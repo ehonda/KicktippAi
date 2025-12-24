@@ -54,8 +54,8 @@ public class ServiceCollectionExtensionsTests
         var provider = services.BuildServiceProvider();
         var options = provider.GetRequiredService<IOptions<FirebaseOptions>>().Value;
 
-        await Assert.That(options).Member(o => o.ProjectId, p => p.IsEqualTo("test-project"))
-            .And.Member(o => o.ServiceAccountJson, s => s.IsEqualTo("test-json"));
+        await Assert.That(options.ProjectId).IsEqualTo("test-project");
+        await Assert.That(options.ServiceAccountJson).IsEqualTo("test-json");
     }
 
     [Test]
@@ -70,8 +70,8 @@ public class ServiceCollectionExtensionsTests
         // Assert
         var descriptor = services.FirstOrDefault(d => d.ServiceType == typeof(FirestoreDb));
 
-        await Assert.That(descriptor).IsNotNull()
-            .And.Member(d => d!.Lifetime, l => l.IsEqualTo(ServiceLifetime.Singleton));
+        await Assert.That(descriptor).IsNotNull();
+        await Assert.That(descriptor!.Lifetime).IsEqualTo(ServiceLifetime.Singleton);
     }
 
     [Test]
@@ -84,8 +84,8 @@ public class ServiceCollectionExtensionsTests
         // Assert
         var descriptor = services.FirstOrDefault(d => d.ServiceType == typeof(IPredictionRepository));
 
-        await Assert.That(descriptor).IsNotNull()
-            .And.Member(d => d!.Lifetime, l => l.IsEqualTo(ServiceLifetime.Scoped));
+        await Assert.That(descriptor).IsNotNull();
+        await Assert.That(descriptor!.Lifetime).IsEqualTo(ServiceLifetime.Scoped);
     }
 
     [Test]
@@ -98,8 +98,8 @@ public class ServiceCollectionExtensionsTests
         // Assert
         var descriptor = services.FirstOrDefault(d => d.ServiceType == typeof(IKpiRepository));
 
-        await Assert.That(descriptor).IsNotNull()
-            .And.Member(d => d!.Lifetime, l => l.IsEqualTo(ServiceLifetime.Scoped));
+        await Assert.That(descriptor).IsNotNull();
+        await Assert.That(descriptor!.Lifetime).IsEqualTo(ServiceLifetime.Scoped);
     }
 
     [Test]
@@ -112,8 +112,8 @@ public class ServiceCollectionExtensionsTests
         // Assert
         var descriptor = services.FirstOrDefault(d => d.ServiceType == typeof(IContextRepository));
 
-        await Assert.That(descriptor).IsNotNull()
-            .And.Member(d => d!.Lifetime, l => l.IsEqualTo(ServiceLifetime.Scoped));
+        await Assert.That(descriptor).IsNotNull();
+        await Assert.That(descriptor!.Lifetime).IsEqualTo(ServiceLifetime.Scoped);
     }
 
     [Test]
@@ -126,8 +126,8 @@ public class ServiceCollectionExtensionsTests
         // Assert
         var descriptor = services.FirstOrDefault(d => d.ServiceType == typeof(FirebaseKpiContextProvider));
 
-        await Assert.That(descriptor).IsNotNull()
-            .And.Member(d => d!.Lifetime, l => l.IsEqualTo(ServiceLifetime.Scoped));
+        await Assert.That(descriptor).IsNotNull();
+        await Assert.That(descriptor!.Lifetime).IsEqualTo(ServiceLifetime.Scoped);
     }
 
     [Test]
@@ -151,8 +151,8 @@ public class ServiceCollectionExtensionsTests
         var provider = services.BuildServiceProvider();
         var options = provider.GetRequiredService<IOptions<FirebaseOptions>>().Value;
 
-        await Assert.That(options).Member(o => o.ProjectId, p => p.IsEqualTo("config-project"))
-            .And.Member(o => o.ServiceAccountJson, s => s.IsEqualTo("config-json"));
+        await Assert.That(options.ProjectId).IsEqualTo("config-project");
+        await Assert.That(options.ServiceAccountJson).IsEqualTo("config-json");
     }
 
     [Test]
@@ -171,8 +171,8 @@ public class ServiceCollectionExtensionsTests
         var provider = services.BuildServiceProvider();
         var options = provider.GetRequiredService<IOptions<FirebaseOptions>>().Value;
 
-        await Assert.That(options).Member(o => o.ProjectId, p => p.IsEqualTo("explicit-project"))
-            .And.Member(o => o.ServiceAccountJson, s => s.IsEqualTo("explicit-json"));
+        await Assert.That(options.ProjectId).IsEqualTo("explicit-project");
+        await Assert.That(options.ServiceAccountJson).IsEqualTo("explicit-json");
     }
 
     [Test]
@@ -190,8 +190,8 @@ public class ServiceCollectionExtensionsTests
         var provider = services.BuildServiceProvider();
         var options = provider.GetRequiredService<IOptions<FirebaseOptions>>().Value;
 
-        await Assert.That(options).Member(o => o.ProjectId, p => p.IsEqualTo("file-project"))
-            .And.Member(o => o.ServiceAccountPath, s => s.IsEqualTo("/path/to/service-account.json"));
+        await Assert.That(options.ProjectId).IsEqualTo("file-project");
+        await Assert.That(options.ServiceAccountPath).IsEqualTo("/path/to/service-account.json");
     }
 
     [Test]

@@ -1,5 +1,6 @@
 using FirebaseAdapter.Tests.Fixtures;
 using TUnit.Core;
+using static TestUtilities.CoreTestFactories;
 
 namespace FirebaseAdapter.Tests.FirebasePredictionRepositoryTests;
 
@@ -29,13 +30,13 @@ public class FirebasePredictionRepository_Cost_Tests(FirestoreFixture fixture)
     {
         // Arrange
         var repository = CreateRepository();
-        var match1 = CreateTestMatch(homeTeam: "Team A", awayTeam: "Team B", matchday: 1);
-        var match2 = CreateTestMatch(homeTeam: "Team C", awayTeam: "Team D", matchday: 1);
+        var match1 = CreateMatch(homeTeam: "Team A", awayTeam: "Team B", matchday: 1);
+        var match2 = CreateMatch(homeTeam: "Team C", awayTeam: "Team D", matchday: 1);
 
         // Initial predictions (index 0)
         await repository.SavePredictionAsync(
             match1,
-            CreateTestPrediction(),
+            CreatePrediction(),
             model: "gpt-4o",
             tokenUsage: "100",
             cost: 0.01,
@@ -44,7 +45,7 @@ public class FirebasePredictionRepository_Cost_Tests(FirestoreFixture fixture)
 
         await repository.SavePredictionAsync(
             match2,
-            CreateTestPrediction(),
+            CreatePrediction(),
             model: "gpt-4o",
             tokenUsage: "100",
             cost: 0.02,
@@ -54,7 +55,7 @@ public class FirebasePredictionRepository_Cost_Tests(FirestoreFixture fixture)
         // Reprediction (index 1)
         await repository.SaveRepredictionAsync(
             match1,
-            CreateTestPrediction(),
+            CreatePrediction(),
             model: "gpt-4o",
             tokenUsage: "150",
             cost: 0.03,
@@ -69,10 +70,8 @@ public class FirebasePredictionRepository_Cost_Tests(FirestoreFixture fixture)
 
         // Assert
         await Assert.That(costs).ContainsKey(0).And.ContainsKey(1);
-        await Assert.That(costs[0]).Member(c => c.cost, c => c.IsGreaterThan(0.02)) // 0.01 + 0.02 = 0.03
-            .And.Member(c => c.count, c => c.IsEqualTo(2));
-        await Assert.That(costs[1]).Member(c => c.cost, c => c.IsEqualTo(0.03))
-            .And.Member(c => c.count, c => c.IsEqualTo(1));
+        await Assert.That(costs[0]).IsEqualTo((cost: 0.03, count: 2)); // 0.01 + 0.02 = 0.03
+        await Assert.That(costs[1]).IsEqualTo((cost: 0.03, count: 1));
     }
 
     [Test]
@@ -80,12 +79,12 @@ public class FirebasePredictionRepository_Cost_Tests(FirestoreFixture fixture)
     {
         // Arrange
         var repository = CreateRepository();
-        var match1 = CreateTestMatch(homeTeam: "Team A", awayTeam: "Team B", matchday: 1);
-        var match2 = CreateTestMatch(homeTeam: "Team C", awayTeam: "Team D", matchday: 2);
+        var match1 = CreateMatch(homeTeam: "Team A", awayTeam: "Team B", matchday: 1);
+        var match2 = CreateMatch(homeTeam: "Team C", awayTeam: "Team D", matchday: 2);
 
         await repository.SavePredictionAsync(
             match1,
-            CreateTestPrediction(),
+            CreatePrediction(),
             model: "gpt-4o",
             tokenUsage: "100",
             cost: 0.01,
@@ -94,7 +93,7 @@ public class FirebasePredictionRepository_Cost_Tests(FirestoreFixture fixture)
 
         await repository.SavePredictionAsync(
             match2,
-            CreateTestPrediction(),
+            CreatePrediction(),
             model: "gpt-4o",
             tokenUsage: "100",
             cost: 0.05,
@@ -108,8 +107,7 @@ public class FirebasePredictionRepository_Cost_Tests(FirestoreFixture fixture)
             matchdays: [1]);
 
         // Assert
-        await Assert.That(costs[0]).Member(c => c.cost, c => c.IsEqualTo(0.01))
-            .And.Member(c => c.count, c => c.IsEqualTo(1));
+        await Assert.That(costs[0]).IsEqualTo((cost: 0.01, count: 1));
     }
 
     [Test]
@@ -132,13 +130,13 @@ public class FirebasePredictionRepository_Cost_Tests(FirestoreFixture fixture)
     {
         // Arrange
         var repository = CreateRepository();
-        var question1 = CreateTestBonusQuestion(text: "Question 1");
-        var question2 = CreateTestBonusQuestion(text: "Question 2");
+        var question1 = CreateBonusQuestion(text: "Question 1");
+        var question2 = CreateBonusQuestion(text: "Question 2");
 
         // Initial predictions (index 0)
         await repository.SaveBonusPredictionAsync(
             question1,
-            CreateTestBonusPrediction(),
+            CreateBonusPrediction(),
             model: "gpt-4o",
             tokenUsage: "100",
             cost: 0.01,
@@ -147,7 +145,7 @@ public class FirebasePredictionRepository_Cost_Tests(FirestoreFixture fixture)
 
         await repository.SaveBonusPredictionAsync(
             question2,
-            CreateTestBonusPrediction(),
+            CreateBonusPrediction(),
             model: "gpt-4o",
             tokenUsage: "100",
             cost: 0.02,
@@ -157,7 +155,7 @@ public class FirebasePredictionRepository_Cost_Tests(FirestoreFixture fixture)
         // Reprediction (index 1)
         await repository.SaveBonusRepredictionAsync(
             question1,
-            CreateTestBonusPrediction(),
+            CreateBonusPrediction(),
             model: "gpt-4o",
             tokenUsage: "150",
             cost: 0.03,

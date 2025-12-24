@@ -1,5 +1,7 @@
+using EHonda.KicktippAi.Core;
 using FirebaseAdapter.Tests.Fixtures;
 using TUnit.Core;
+using static TestUtilities.CoreTestFactories;
 
 namespace FirebaseAdapter.Tests.FirebasePredictionRepositoryTests;
 
@@ -14,8 +16,8 @@ public class FirebasePredictionRepository_BonusPrediction_Tests(FirestoreFixture
     {
         // Arrange
         var repository = CreateRepository();
-        var question = CreateTestBonusQuestion(text: "Who will win the league?");
-        var prediction = CreateTestBonusPrediction(new List<string> { "opt-1", "opt-2" });
+        var question = CreateBonusQuestion(text: "Who will win the league?");
+        var prediction = new BonusPrediction(["opt-1", "opt-2"]);
 
         // Act
         await repository.SaveBonusPredictionAsync(
@@ -33,8 +35,7 @@ public class FirebasePredictionRepository_BonusPrediction_Tests(FirestoreFixture
             communityContext: "test-community");
 
         // Assert
-        await Assert.That(retrieved).IsNotNull()
-            .And.Member(r => r!.SelectedOptionIds, s => s.Contains("opt-1").And.Contains("opt-2"));
+        await Assert.That(retrieved!.SelectedOptionIds).IsEquivalentTo(prediction.SelectedOptionIds);
     }
 
     [Test]
@@ -58,11 +59,12 @@ public class FirebasePredictionRepository_BonusPrediction_Tests(FirestoreFixture
     {
         // Arrange
         var repository = CreateRepository();
-        var question = CreateTestBonusQuestion(text: "Who will win?");
+        var question = CreateBonusQuestion(text: "Who will win?");
+        var updatedPrediction = new BonusPrediction(["opt-2", "opt-3"]);
 
         await repository.SaveBonusPredictionAsync(
             question,
-            CreateTestBonusPrediction(new List<string> { "opt-1" }),
+            new BonusPrediction(["opt-1"]),
             model: "gpt-4o",
             tokenUsage: "100",
             cost: 0.01,
@@ -72,7 +74,7 @@ public class FirebasePredictionRepository_BonusPrediction_Tests(FirestoreFixture
         // Act
         await repository.SaveBonusPredictionAsync(
             question,
-            CreateTestBonusPrediction(new List<string> { "opt-2", "opt-3" }),
+            updatedPrediction,
             model: "gpt-4o",
             tokenUsage: "150",
             cost: 0.02,
@@ -85,9 +87,7 @@ public class FirebasePredictionRepository_BonusPrediction_Tests(FirestoreFixture
             communityContext: "test-community");
 
         // Assert
-        await Assert.That(retrieved!.SelectedOptionIds).HasCount().EqualTo(2)
-            .And.Contains("opt-2")
-            .And.Contains("opt-3");
+        await Assert.That(retrieved!.SelectedOptionIds).IsEquivalentTo(updatedPrediction.SelectedOptionIds);
     }
 
     [Test]
@@ -95,11 +95,13 @@ public class FirebasePredictionRepository_BonusPrediction_Tests(FirestoreFixture
     {
         // Arrange
         var repository = CreateRepository();
-        var question = CreateTestBonusQuestion(text: "Who will win?");
+        var question = CreateBonusQuestion(text: "Who will win?");
+        var gpt4Prediction = new BonusPrediction(["opt-1"]);
+        var o3Prediction = new BonusPrediction(["opt-2"]);
 
         await repository.SaveBonusPredictionAsync(
             question,
-            CreateTestBonusPrediction(new List<string> { "opt-1" }),
+            gpt4Prediction,
             model: "gpt-4o",
             tokenUsage: "100",
             cost: 0.01,
@@ -108,7 +110,7 @@ public class FirebasePredictionRepository_BonusPrediction_Tests(FirestoreFixture
 
         await repository.SaveBonusPredictionAsync(
             question,
-            CreateTestBonusPrediction(new List<string> { "opt-2" }),
+            o3Prediction,
             model: "o3",
             tokenUsage: "100",
             cost: 0.05,
@@ -120,8 +122,8 @@ public class FirebasePredictionRepository_BonusPrediction_Tests(FirestoreFixture
         var o3Result = await repository.GetBonusPredictionByTextAsync("Who will win?", "o3", "test-community");
 
         // Assert
-        await Assert.That(gpt4Result!.SelectedOptionIds).Contains("opt-1");
-        await Assert.That(o3Result!.SelectedOptionIds).Contains("opt-2");
+        await Assert.That(gpt4Result!.SelectedOptionIds).IsEquivalentTo(gpt4Prediction.SelectedOptionIds);
+        await Assert.That(o3Result!.SelectedOptionIds).IsEquivalentTo(o3Prediction.SelectedOptionIds);
     }
 
     [Test]
@@ -129,11 +131,13 @@ public class FirebasePredictionRepository_BonusPrediction_Tests(FirestoreFixture
     {
         // Arrange
         var repository = CreateRepository();
-        var question = CreateTestBonusQuestion(text: "Who will win?");
+        var question = CreateBonusQuestion(text: "Who will win?");
+        var communityAPrediction = new BonusPrediction(["opt-1"]);
+        var communityBPrediction = new BonusPrediction(["opt-3"]);
 
         await repository.SaveBonusPredictionAsync(
             question,
-            CreateTestBonusPrediction(new List<string> { "opt-1" }),
+            communityAPrediction,
             model: "gpt-4o",
             tokenUsage: "100",
             cost: 0.01,
@@ -142,7 +146,7 @@ public class FirebasePredictionRepository_BonusPrediction_Tests(FirestoreFixture
 
         await repository.SaveBonusPredictionAsync(
             question,
-            CreateTestBonusPrediction(new List<string> { "opt-3" }),
+            communityBPrediction,
             model: "gpt-4o",
             tokenUsage: "100",
             cost: 0.01,
@@ -154,8 +158,8 @@ public class FirebasePredictionRepository_BonusPrediction_Tests(FirestoreFixture
         var communityBResult = await repository.GetBonusPredictionByTextAsync("Who will win?", "gpt-4o", "community-b");
 
         // Assert
-        await Assert.That(communityAResult!.SelectedOptionIds).Contains("opt-1");
-        await Assert.That(communityBResult!.SelectedOptionIds).Contains("opt-3");
+        await Assert.That(communityAResult!.SelectedOptionIds).IsEquivalentTo(communityAPrediction.SelectedOptionIds);
+        await Assert.That(communityBResult!.SelectedOptionIds).IsEquivalentTo(communityBPrediction.SelectedOptionIds);
     }
 
     [Test]
@@ -163,16 +167,17 @@ public class FirebasePredictionRepository_BonusPrediction_Tests(FirestoreFixture
     {
         // Arrange
         var repository = CreateRepository();
-        var question = CreateTestBonusQuestion(text: "Who will win?");
+        var question = CreateBonusQuestion(text: "Who will win?");
+        var expectedDocumentNames = new List<string> { "team-data", "manager-data" };
 
         await repository.SaveBonusPredictionAsync(
             question,
-            CreateTestBonusPrediction(),
+            CreateBonusPrediction(),
             model: "gpt-4o",
             tokenUsage: "100",
             cost: 0.01,
             communityContext: "test-community",
-            contextDocumentNames: ["team-data", "manager-data"]);
+            contextDocumentNames: expectedDocumentNames);
 
         // Act
         var metadata = await repository.GetBonusPredictionMetadataByTextAsync(
@@ -181,8 +186,8 @@ public class FirebasePredictionRepository_BonusPrediction_Tests(FirestoreFixture
             communityContext: "test-community");
 
         // Assert
-        await Assert.That(metadata).IsNotNull()
-            .And.Member(m => m!.ContextDocumentNames, n => n.Contains("team-data").And.Contains("manager-data"));
+        await Assert.That(metadata).IsNotNull();
+        await Assert.That(metadata!.ContextDocumentNames).IsEquivalentTo(expectedDocumentNames);
     }
 
     [Test]
@@ -192,8 +197,8 @@ public class FirebasePredictionRepository_BonusPrediction_Tests(FirestoreFixture
         var repository = CreateRepository();
 
         await repository.SaveBonusPredictionAsync(
-            CreateTestBonusQuestion(text: "Question 1"),
-            CreateTestBonusPrediction(new List<string> { "opt-1" }),
+            CreateBonusQuestion(text: "Question 1"),
+            new BonusPrediction(["opt-1"]),
             model: "gpt-4o",
             tokenUsage: "100",
             cost: 0.01,
@@ -201,8 +206,8 @@ public class FirebasePredictionRepository_BonusPrediction_Tests(FirestoreFixture
             contextDocumentNames: []);
 
         await repository.SaveBonusPredictionAsync(
-            CreateTestBonusQuestion(text: "Question 2"),
-            CreateTestBonusPrediction(new List<string> { "opt-2" }),
+            CreateBonusQuestion(text: "Question 2"),
+            new BonusPrediction(["opt-2"]),
             model: "gpt-4o",
             tokenUsage: "100",
             cost: 0.01,

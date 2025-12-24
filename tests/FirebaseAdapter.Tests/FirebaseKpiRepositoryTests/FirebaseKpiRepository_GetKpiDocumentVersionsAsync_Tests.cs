@@ -39,14 +39,10 @@ public class FirebaseKpiRepository_GetKpiDocumentVersionsAsync_Tests(FirestoreFi
             "test-kpi",
             "test-community");
 
-        // Assert
+        // Assert - check only Version and Content as other fields have dynamic values
         await Assert.That(versions).HasCount().EqualTo(3);
-        await Assert.That(versions[0]).Member(v => v.Version, v => v.IsEqualTo(0))
-            .And.Member(v => v.Content, c => c.IsEqualTo("v0"));
-        await Assert.That(versions[1]).Member(v => v.Version, v => v.IsEqualTo(1))
-            .And.Member(v => v.Content, c => c.IsEqualTo("v1"));
-        await Assert.That(versions[2]).Member(v => v.Version, v => v.IsEqualTo(2))
-            .And.Member(v => v.Content, c => c.IsEqualTo("v2"));
+        await Assert.That(versions.Select(v => (v.Version, v.Content)))
+            .IsEquivalentTo([(0, "v0"), (1, "v1"), (2, "v2")]);
     }
 
     [Test]
