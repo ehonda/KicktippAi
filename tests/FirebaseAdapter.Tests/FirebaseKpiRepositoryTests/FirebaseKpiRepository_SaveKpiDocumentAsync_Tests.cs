@@ -91,10 +91,10 @@ public class FirebaseKpiRepository_SaveKpiDocumentAsync_Tests(FirestoreFixture f
             "test-community");
 
         // Assert
-        await Assert.That(retrieved).IsNotNull();
-        await Assert.That(retrieved!.DocumentName).IsEqualTo("test-kpi");
-        await Assert.That(retrieved.Content).IsEqualTo("test content");
-        await Assert.That(retrieved.Description).IsEqualTo("test description");
-        await Assert.That(retrieved.Version).IsEqualTo(0);
+        await Assert.That(retrieved).IsNotNull()
+            .And.Member(r => r!.DocumentName, n => n.IsEqualTo("test-kpi"))
+            .And.Member(r => r!.Content, c => c.IsEqualTo("test content"))
+            .And.Member(r => r!.Description, d => d.IsEqualTo("test description"))
+            .And.Member(r => r!.Version, v => v.IsEqualTo(0));
     }
 }

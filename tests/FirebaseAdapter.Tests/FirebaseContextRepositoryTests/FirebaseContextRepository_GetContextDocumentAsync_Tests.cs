@@ -48,9 +48,9 @@ public class FirebaseContextRepository_GetContextDocumentAsync_Tests(FirestoreFi
             "test-community");
 
         // Assert
-        await Assert.That(result).IsNotNull();
-        await Assert.That(result!.Content).IsEqualTo("version 0 content");
-        await Assert.That(result.Version).IsEqualTo(0);
+        await Assert.That(result).IsNotNull()
+            .And.Member(r => r!.Content, content => content.IsEqualTo("version 0 content"))
+            .And.Member(r => r!.Version, version => version.IsEqualTo(0));
     }
 
     [Test]

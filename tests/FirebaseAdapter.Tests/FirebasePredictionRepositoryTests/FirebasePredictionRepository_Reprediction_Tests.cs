@@ -92,8 +92,8 @@ public class FirebasePredictionRepository_Reprediction_Tests(FirestoreFixture fi
 
         // Assert
         await Assert.That(latestIndex).IsEqualTo(1);
-        await Assert.That(latestPrediction!.HomeGoals).IsEqualTo(2);
-        await Assert.That(latestPrediction.AwayGoals).IsEqualTo(2);
+        await Assert.That(latestPrediction!).Member(p => p.HomeGoals, h => h.IsEqualTo(2))
+            .And.Member(p => p.AwayGoals, a => a.IsEqualTo(2));
     }
 
     [Test]
@@ -178,7 +178,7 @@ public class FirebasePredictionRepository_Reprediction_Tests(FirestoreFixture fi
 
         // Assert
         await Assert.That(latestIndex).IsEqualTo(1);
-        await Assert.That(latestPrediction!.SelectedOptionIds).HasCount().EqualTo(2);
-        await Assert.That(latestPrediction.SelectedOptionIds).Contains("opt-2");
+        await Assert.That(latestPrediction!.SelectedOptionIds).HasCount().EqualTo(2)
+            .And.Contains("opt-2");
     }
 }

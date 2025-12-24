@@ -47,10 +47,10 @@ public class FirebaseKpiContextProviderTests
 
         // Assert
         await Assert.That(contexts).HasCount().EqualTo(2);
-        await Assert.That(contexts[0].Name).IsEqualTo("team-data");
-        await Assert.That(contexts[0].Content).IsEqualTo("team content");
-        await Assert.That(contexts[1].Name).IsEqualTo("manager-data");
-        await Assert.That(contexts[1].Content).IsEqualTo("manager content");
+        await Assert.That(contexts[0]).Member(c => c.Name, n => n.IsEqualTo("team-data"))
+            .And.Member(c => c.Content, c => c.IsEqualTo("team content"));
+        await Assert.That(contexts[1]).Member(c => c.Name, n => n.IsEqualTo("manager-data"))
+            .And.Member(c => c.Content, c => c.IsEqualTo("manager content"));
     }
 
     [Test]
@@ -147,9 +147,9 @@ public class FirebaseKpiContextProviderTests
         }
 
         // Assert
-        await Assert.That(contexts).HasCount().EqualTo(2);
-        await Assert.That(contexts.Any(c => c.Name == "team-data")).IsTrue();
-        await Assert.That(contexts.Any(c => c.Name == "manager-data")).IsTrue();
+        await Assert.That(contexts).HasCount().EqualTo(2)
+            .And.Any(c => c.Name == "team-data")
+            .And.Any(c => c.Name == "manager-data");
     }
 
     [Test]
@@ -174,9 +174,9 @@ public class FirebaseKpiContextProviderTests
         }
 
         // Assert
-        await Assert.That(contexts).HasCount().EqualTo(2);
-        await Assert.That(contexts.Any(c => c.Name == "team-data")).IsTrue();
-        await Assert.That(contexts.Any(c => c.Name == "manager-data")).IsTrue();
+        await Assert.That(contexts).HasCount().EqualTo(2)
+            .And.Any(c => c.Name == "team-data")
+            .And.Any(c => c.Name == "manager-data");
     }
 
     [Test]
@@ -193,9 +193,9 @@ public class FirebaseKpiContextProviderTests
         var context = await provider.GetKpiDocumentContextAsync("team-data", "test-community");
 
         // Assert
-        await Assert.That(context).IsNotNull();
-        await Assert.That(context!.Name).IsEqualTo("team-data");
-        await Assert.That(context.Content).IsEqualTo("team content");
+        await Assert.That(context).IsNotNull()
+            .And.Member(c => c!.Name, n => n.IsEqualTo("team-data"))
+            .And.Member(c => c!.Content, c => c.IsEqualTo("team content"));
     }
 
     [Test]

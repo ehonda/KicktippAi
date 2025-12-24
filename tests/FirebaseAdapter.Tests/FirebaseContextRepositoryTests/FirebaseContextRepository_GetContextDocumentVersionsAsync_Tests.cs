@@ -41,12 +41,12 @@ public class FirebaseContextRepository_GetContextDocumentVersionsAsync_Tests(Fir
 
         // Assert
         await Assert.That(versions).HasCount().EqualTo(3);
-        await Assert.That(versions[0].Version).IsEqualTo(0);
-        await Assert.That(versions[0].Content).IsEqualTo("v0");
-        await Assert.That(versions[1].Version).IsEqualTo(1);
-        await Assert.That(versions[1].Content).IsEqualTo("v1");
-        await Assert.That(versions[2].Version).IsEqualTo(2);
-        await Assert.That(versions[2].Content).IsEqualTo("v2");
+        await Assert.That(versions[0]).Member(v => v.Version, v => v.IsEqualTo(0))
+            .And.Member(v => v.Content, c => c.IsEqualTo("v0"));
+        await Assert.That(versions[1]).Member(v => v.Version, v => v.IsEqualTo(1))
+            .And.Member(v => v.Content, c => c.IsEqualTo("v1"));
+        await Assert.That(versions[2]).Member(v => v.Version, v => v.IsEqualTo(2))
+            .And.Member(v => v.Content, c => c.IsEqualTo("v2"));
     }
 
     [Test]

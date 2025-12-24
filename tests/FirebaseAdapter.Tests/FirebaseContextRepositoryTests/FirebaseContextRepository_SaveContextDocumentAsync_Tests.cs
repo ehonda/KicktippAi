@@ -84,9 +84,9 @@ public class FirebaseContextRepository_SaveContextDocumentAsync_Tests(FirestoreF
             "test-community");
 
         // Assert
-        await Assert.That(retrieved).IsNotNull();
-        await Assert.That(retrieved!.DocumentName).IsEqualTo("test-document");
-        await Assert.That(retrieved.Content).IsEqualTo("test content");
-        await Assert.That(retrieved.Version).IsEqualTo(0);
+        await Assert.That(retrieved).IsNotNull()
+            .And.Member(r => r!.DocumentName, n => n.IsEqualTo("test-document"))
+            .And.Member(r => r!.Content, c => c.IsEqualTo("test content"))
+            .And.Member(r => r!.Version, v => v.IsEqualTo(0));
     }
 }

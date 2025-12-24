@@ -33,9 +33,8 @@ public class FirebasePredictionRepository_BonusPrediction_Tests(FirestoreFixture
             communityContext: "test-community");
 
         // Assert
-        await Assert.That(retrieved).IsNotNull();
-        await Assert.That(retrieved!.SelectedOptionIds).Contains("opt-1");
-        await Assert.That(retrieved.SelectedOptionIds).Contains("opt-2");
+        await Assert.That(retrieved).IsNotNull()
+            .And.Member(r => r!.SelectedOptionIds, s => s.Contains("opt-1").And.Contains("opt-2"));
     }
 
     [Test]
@@ -86,9 +85,9 @@ public class FirebasePredictionRepository_BonusPrediction_Tests(FirestoreFixture
             communityContext: "test-community");
 
         // Assert
-        await Assert.That(retrieved!.SelectedOptionIds).HasCount().EqualTo(2);
-        await Assert.That(retrieved.SelectedOptionIds).Contains("opt-2");
-        await Assert.That(retrieved.SelectedOptionIds).Contains("opt-3");
+        await Assert.That(retrieved!.SelectedOptionIds).HasCount().EqualTo(2)
+            .And.Contains("opt-2")
+            .And.Contains("opt-3");
     }
 
     [Test]
@@ -182,9 +181,8 @@ public class FirebasePredictionRepository_BonusPrediction_Tests(FirestoreFixture
             communityContext: "test-community");
 
         // Assert
-        await Assert.That(metadata).IsNotNull();
-        await Assert.That(metadata!.ContextDocumentNames).Contains("team-data");
-        await Assert.That(metadata.ContextDocumentNames).Contains("manager-data");
+        await Assert.That(metadata).IsNotNull()
+            .And.Member(m => m!.ContextDocumentNames, n => n.Contains("team-data").And.Contains("manager-data"));
     }
 
     [Test]

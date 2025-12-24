@@ -3,6 +3,7 @@ using EHonda.Optional.Core;
 using FirebaseAdapter.Tests.Fixtures;
 using Microsoft.Extensions.Logging.Testing;
 using NodaTime;
+using TestUtilities;
 using TUnit.Core;
 
 namespace FirebaseAdapter.Tests.FirebasePredictionRepositoryTests;
@@ -64,62 +65,38 @@ public abstract class FirebasePredictionRepositoryTests_Base(FirestoreFixture fi
     }
 
     /// <summary>
-    /// Creates a test match with default values.
+    /// Creates a test match with default values using <see cref="CoreTestFactories.CreateMatch"/>.
     /// </summary>
     protected static Match CreateTestMatch(
         Option<string> homeTeam = default,
         Option<string> awayTeam = default,
         Option<ZonedDateTime> startsAt = default,
         Option<int> matchday = default)
-    {
-        return new Match(
-            homeTeam.Or("Bayern München"),
-            awayTeam.Or("Borussia Dortmund"),
-            startsAt.Or(() => Instant.FromUtc(2025, 3, 15, 15, 30).InUtc()),
-            matchday.Or(25));
-    }
+        => CoreTestFactories.CreateMatch(homeTeam, awayTeam, startsAt, matchday);
 
     /// <summary>
-    /// Creates a test prediction with default values.
+    /// Creates a test prediction with default values using <see cref="CoreTestFactories.CreatePrediction"/>.
     /// </summary>
     protected static Prediction CreateTestPrediction(
         Option<int> homeGoals = default,
         Option<int> awayGoals = default,
         NullableOption<PredictionJustification> justification = default)
-    {
-        return new Prediction(
-            homeGoals.Or(2),
-            awayGoals.Or(1),
-            justification.Or((PredictionJustification?)null));
-    }
+        => CoreTestFactories.CreatePrediction(homeGoals, awayGoals, justification);
 
     /// <summary>
-    /// Creates a test bonus question with default values.
+    /// Creates a test bonus question with default values using <see cref="CoreTestFactories.CreateBonusQuestion"/>.
     /// </summary>
     protected static BonusQuestion CreateTestBonusQuestion(
         Option<string> text = default,
         Option<List<BonusQuestionOption>> options = default)
-    {
-        var actualOptions = options.Or(() =>
-        [
-            new("opt-1", "Option 1"),
-            new("opt-2", "Option 2"),
-            new("opt-3", "Option 3")
-        ]);
-        
-        return new BonusQuestion(
-            text.Or("Who will win the league?"),
-            Instant.FromUtc(2025, 5, 15, 18, 0).InUtc(),
-            actualOptions,
-            MaxSelections: 1);
-    }
+        => CoreTestFactories.CreateBonusQuestion(text: text, options: options);
 
     /// <summary>
-    /// Creates a test bonus prediction with default values.
+    /// Creates a test bonus prediction with default values using <see cref="CoreTestFactories.CreateBonusPrediction"/>.
     /// </summary>
     /// <param name="selectedOptionIds">Optional list of selected option IDs. Defaults to ["opt-1"].</param>
     protected static BonusPrediction CreateTestBonusPrediction(List<string>? selectedOptionIds = null)
-    {
-        return new BonusPrediction(selectedOptionIds ?? ["opt-1"]);
-    }
+        => selectedOptionIds is null
+            ? CoreTestFactories.CreateBonusPrediction()
+            : CoreTestFactories.CreateBonusPrediction(selectedOptionIds);
 }

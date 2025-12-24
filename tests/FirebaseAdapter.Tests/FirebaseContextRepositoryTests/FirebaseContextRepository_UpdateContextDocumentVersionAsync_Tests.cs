@@ -72,8 +72,8 @@ public class FirebaseContextRepository_UpdateContextDocumentVersionAsync_Tests(F
             "test-community");
 
         // Assert
-        await Assert.That(retrieved).IsNotNull();
-        await Assert.That(retrieved!.Content).IsEqualTo("updated content");
+        await Assert.That(retrieved).IsNotNull()
+            .And.Member(r => r!.Content, c => c.IsEqualTo("updated content"));
     }
 
     [Test]

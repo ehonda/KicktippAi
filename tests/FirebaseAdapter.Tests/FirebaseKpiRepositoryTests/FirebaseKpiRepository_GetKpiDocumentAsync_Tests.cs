@@ -40,9 +40,9 @@ public class FirebaseKpiRepository_GetKpiDocumentAsync_Tests(FirestoreFixture fi
             "test-community");
 
         // Assert
-        await Assert.That(result).IsNotNull();
-        await Assert.That(result!.Version).IsEqualTo(2);
-        await Assert.That(result.Content).IsEqualTo("v2");
+        await Assert.That(result).IsNotNull()
+            .And.Member(r => r!.Version, v => v.IsEqualTo(2))
+            .And.Member(r => r!.Content, c => c.IsEqualTo("v2"));
     }
 
     [Test]

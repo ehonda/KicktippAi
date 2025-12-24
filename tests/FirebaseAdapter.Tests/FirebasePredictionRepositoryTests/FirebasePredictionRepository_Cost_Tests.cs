@@ -68,12 +68,11 @@ public class FirebasePredictionRepository_Cost_Tests(FirestoreFixture fixture)
             communityContext: "test-community");
 
         // Assert
-        await Assert.That(costs).ContainsKey(0);
-        await Assert.That(costs).ContainsKey(1);
-        await Assert.That(costs[0].cost).IsGreaterThan(0.02); // 0.01 + 0.02 = 0.03
-        await Assert.That(costs[0].count).IsEqualTo(2);
-        await Assert.That(costs[1].cost).IsEqualTo(0.03);
-        await Assert.That(costs[1].count).IsEqualTo(1);
+        await Assert.That(costs).ContainsKey(0).And.ContainsKey(1);
+        await Assert.That(costs[0]).Member(c => c.cost, c => c.IsGreaterThan(0.02)) // 0.01 + 0.02 = 0.03
+            .And.Member(c => c.count, c => c.IsEqualTo(2));
+        await Assert.That(costs[1]).Member(c => c.cost, c => c.IsEqualTo(0.03))
+            .And.Member(c => c.count, c => c.IsEqualTo(1));
     }
 
     [Test]
@@ -109,8 +108,8 @@ public class FirebasePredictionRepository_Cost_Tests(FirestoreFixture fixture)
             matchdays: [1]);
 
         // Assert
-        await Assert.That(costs[0].cost).IsEqualTo(0.01);
-        await Assert.That(costs[0].count).IsEqualTo(1);
+        await Assert.That(costs[0]).Member(c => c.cost, c => c.IsEqualTo(0.01))
+            .And.Member(c => c.count, c => c.IsEqualTo(1));
     }
 
     [Test]
@@ -172,8 +171,7 @@ public class FirebasePredictionRepository_Cost_Tests(FirestoreFixture fixture)
             communityContext: "test-community");
 
         // Assert
-        await Assert.That(costs).ContainsKey(0);
-        await Assert.That(costs).ContainsKey(1);
+        await Assert.That(costs).ContainsKey(0).And.ContainsKey(1);
         await Assert.That(costs[0].count).IsEqualTo(2);
         await Assert.That(costs[1].count).IsEqualTo(1);
     }

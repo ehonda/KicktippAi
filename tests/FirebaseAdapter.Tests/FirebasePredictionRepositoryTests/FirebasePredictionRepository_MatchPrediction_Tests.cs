@@ -33,9 +33,9 @@ public class FirebasePredictionRepository_MatchPrediction_Tests(FirestoreFixture
             communityContext: "test-community");
 
         // Assert
-        await Assert.That(retrieved).IsNotNull();
-        await Assert.That(retrieved!.HomeGoals).IsEqualTo(3);
-        await Assert.That(retrieved.AwayGoals).IsEqualTo(0);
+        await Assert.That(retrieved).IsNotNull()
+            .And.Member(r => r!.HomeGoals, h => h.IsEqualTo(3))
+            .And.Member(r => r!.AwayGoals, a => a.IsEqualTo(0));
     }
 
     [Test]
@@ -131,8 +131,8 @@ public class FirebasePredictionRepository_MatchPrediction_Tests(FirestoreFixture
             communityContext: "test-community");
 
         // Assert
-        await Assert.That(retrieved!.HomeGoals).IsEqualTo(3);
-        await Assert.That(retrieved.AwayGoals).IsEqualTo(2);
+        await Assert.That(retrieved!).Member(r => r.HomeGoals, h => h.IsEqualTo(3))
+            .And.Member(r => r.AwayGoals, a => a.IsEqualTo(2));
     }
 
     [Test]
@@ -226,9 +226,7 @@ public class FirebasePredictionRepository_MatchPrediction_Tests(FirestoreFixture
             communityContext: "test-community");
 
         // Assert
-        await Assert.That(metadata).IsNotNull();
-        await Assert.That(metadata!.ContextDocumentNames).Contains("standings");
-        await Assert.That(metadata.ContextDocumentNames).Contains("form");
-        await Assert.That(metadata.ContextDocumentNames).Contains("injuries");
+        await Assert.That(metadata).IsNotNull()
+            .And.Member(m => m!.ContextDocumentNames, n => n.Contains("standings").And.Contains("form").And.Contains("injuries"));
     }
 }

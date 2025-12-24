@@ -44,13 +44,13 @@ public class FirebaseKpiRepository_GetAllKpiDocumentsAsync_Tests(FirestoreFixtur
         var docA = documents.FirstOrDefault(d => d.DocumentName == "doc-a");
         var docB = documents.FirstOrDefault(d => d.DocumentName == "doc-b");
         
-        await Assert.That(docA).IsNotNull();
-        await Assert.That(docA!.Content).IsEqualTo("a-v1");
-        await Assert.That(docA.Version).IsEqualTo(1);
+        await Assert.That(docA).IsNotNull()
+            .And.Member(d => d!.Content, c => c.IsEqualTo("a-v1"))
+            .And.Member(d => d!.Version, v => v.IsEqualTo(1));
         
-        await Assert.That(docB).IsNotNull();
-        await Assert.That(docB!.Content).IsEqualTo("b-v0");
-        await Assert.That(docB.Version).IsEqualTo(0);
+        await Assert.That(docB).IsNotNull()
+            .And.Member(d => d!.Content, c => c.IsEqualTo("b-v0"))
+            .And.Member(d => d!.Version, v => v.IsEqualTo(0));
     }
 
     [Test]

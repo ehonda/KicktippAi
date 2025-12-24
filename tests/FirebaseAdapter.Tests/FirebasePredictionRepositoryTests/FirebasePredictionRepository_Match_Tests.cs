@@ -23,8 +23,8 @@ public class FirebasePredictionRepository_Match_Tests(FirestoreFixture fixture)
 
         // Assert
         await Assert.That(matches).HasCount().EqualTo(1);
-        await Assert.That(matches[0].HomeTeam).IsEqualTo(match.HomeTeam);
-        await Assert.That(matches[0].AwayTeam).IsEqualTo(match.AwayTeam);
+        await Assert.That(matches[0]).Member(m => m.HomeTeam, h => h.IsEqualTo(match.HomeTeam))
+            .And.Member(m => m.AwayTeam, a => a.IsEqualTo(match.AwayTeam));
     }
 
     [Test]
@@ -91,8 +91,8 @@ public class FirebasePredictionRepository_Match_Tests(FirestoreFixture fixture)
         var withPrediction = matchPredictions.FirstOrDefault(mp => mp.Match.HomeTeam == "Team A");
         var withoutPrediction = matchPredictions.FirstOrDefault(mp => mp.Match.HomeTeam == "Team C");
 
-        await Assert.That(withPrediction!.Prediction).IsNotNull();
-        await Assert.That(withPrediction.Prediction!.HomeGoals).IsEqualTo(2);
+        await Assert.That(withPrediction!.Prediction).IsNotNull()
+            .And.Member(p => p!.HomeGoals, h => h.IsEqualTo(2));
         await Assert.That(withoutPrediction!.Prediction).IsNull();
     }
 

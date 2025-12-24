@@ -36,10 +36,10 @@ public class FirebaseContextRepository_GetContextDocumentNamesAsync_Tests(Firest
         var names = await repository.GetContextDocumentNamesAsync("test-community");
 
         // Assert
-        await Assert.That(names).HasCount().EqualTo(3);
-        await Assert.That(names).Contains("doc-a");
-        await Assert.That(names).Contains("doc-b");
-        await Assert.That(names).Contains("doc-c");
+        await Assert.That(names).HasCount().EqualTo(3)
+            .And.Contains("doc-a")
+            .And.Contains("doc-b")
+            .And.Contains("doc-c");
     }
 
     [Test]
@@ -56,8 +56,8 @@ public class FirebaseContextRepository_GetContextDocumentNamesAsync_Tests(Firest
         var names = await repository.GetContextDocumentNamesAsync("test-community");
 
         // Assert
-        await Assert.That(names).HasCount().EqualTo(1);
-        await Assert.That(names).Contains("doc-a");
+        await Assert.That(names).HasCount().EqualTo(1)
+            .And.Contains("doc-a");
     }
 
     [Test]
@@ -73,7 +73,7 @@ public class FirebaseContextRepository_GetContextDocumentNamesAsync_Tests(Firest
         var names = await repository.GetContextDocumentNamesAsync("community-a");
 
         // Assert
-        await Assert.That(names).HasCount().EqualTo(1);
-        await Assert.That(names).Contains("doc-a");
+        await Assert.That(names).HasCount().EqualTo(1)
+            .And.Contains("doc-a");
     }
 }
