@@ -49,6 +49,51 @@ public static class CoreTestFactories
     }
 
     /// <summary>
+    /// Creates a test <see cref="PredictionJustification"/> with default values.
+    /// </summary>
+    /// <param name="keyReasoning">Key reasoning text. Defaults to "Default test reasoning".</param>
+    /// <param name="contextSources">Context sources. Defaults to empty sources.</param>
+    /// <param name="uncertainties">List of uncertainties. Defaults to empty list.</param>
+    public static PredictionJustification CreatePredictionJustification(
+        Option<string> keyReasoning = default,
+        Option<PredictionJustificationContextSources> contextSources = default,
+        Option<List<string>> uncertainties = default)
+    {
+        return new PredictionJustification(
+            keyReasoning.Or("Default test reasoning"),
+            contextSources.Or(() => CreatePredictionJustificationContextSources()),
+            uncertainties.Or(() => []));
+    }
+
+    /// <summary>
+    /// Creates a test <see cref="PredictionJustificationContextSources"/> with default values.
+    /// </summary>
+    /// <param name="mostValuable">Most valuable context sources. Defaults to empty list.</param>
+    /// <param name="leastValuable">Least valuable context sources. Defaults to empty list.</param>
+    public static PredictionJustificationContextSources CreatePredictionJustificationContextSources(
+        Option<List<PredictionJustificationContextSource>> mostValuable = default,
+        Option<List<PredictionJustificationContextSource>> leastValuable = default)
+    {
+        return new PredictionJustificationContextSources(
+            mostValuable.Or(() => []),
+            leastValuable.Or(() => []));
+    }
+
+    /// <summary>
+    /// Creates a test <see cref="PredictionJustificationContextSource"/> with default values.
+    /// </summary>
+    /// <param name="documentName">Document name. Defaults to "test-document".</param>
+    /// <param name="details">Details about the source. Defaults to "test details".</param>
+    public static PredictionJustificationContextSource CreatePredictionJustificationContextSource(
+        Option<string> documentName = default,
+        Option<string> details = default)
+    {
+        return new PredictionJustificationContextSource(
+            documentName.Or("test-document"),
+            details.Or("test details"));
+    }
+
+    /// <summary>
     /// Creates a test <see cref="BonusQuestion"/> with default values.
     /// </summary>
     /// <param name="text">Question text. Defaults to "Who will win the league?".</param>

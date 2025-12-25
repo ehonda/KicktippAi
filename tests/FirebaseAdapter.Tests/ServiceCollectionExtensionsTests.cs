@@ -70,8 +70,8 @@ public class ServiceCollectionExtensionsTests
         // Assert
         var descriptor = services.FirstOrDefault(d => d.ServiceType == typeof(FirestoreDb));
 
-        await Assert.That(descriptor).IsNotNull();
-        await Assert.That(descriptor!.Lifetime).IsEqualTo(ServiceLifetime.Singleton);
+        await Assert.That(descriptor).IsNotNull()
+            .And.Member(d => d!.Lifetime, lifetime => lifetime.IsEqualTo(ServiceLifetime.Singleton));
     }
 
     [Test]
@@ -84,8 +84,8 @@ public class ServiceCollectionExtensionsTests
         // Assert
         var descriptor = services.FirstOrDefault(d => d.ServiceType == typeof(IPredictionRepository));
 
-        await Assert.That(descriptor).IsNotNull();
-        await Assert.That(descriptor!.Lifetime).IsEqualTo(ServiceLifetime.Scoped);
+        await Assert.That(descriptor).IsNotNull()
+            .And.Member(d => d!.Lifetime, lifetime => lifetime.IsEqualTo(ServiceLifetime.Scoped));
     }
 
     [Test]
@@ -98,8 +98,8 @@ public class ServiceCollectionExtensionsTests
         // Assert
         var descriptor = services.FirstOrDefault(d => d.ServiceType == typeof(IKpiRepository));
 
-        await Assert.That(descriptor).IsNotNull();
-        await Assert.That(descriptor!.Lifetime).IsEqualTo(ServiceLifetime.Scoped);
+        await Assert.That(descriptor).IsNotNull()
+            .And.Member(d => d!.Lifetime, lifetime => lifetime.IsEqualTo(ServiceLifetime.Scoped));
     }
 
     [Test]
@@ -112,8 +112,8 @@ public class ServiceCollectionExtensionsTests
         // Assert
         var descriptor = services.FirstOrDefault(d => d.ServiceType == typeof(IContextRepository));
 
-        await Assert.That(descriptor).IsNotNull();
-        await Assert.That(descriptor!.Lifetime).IsEqualTo(ServiceLifetime.Scoped);
+        await Assert.That(descriptor).IsNotNull()
+            .And.Member(d => d!.Lifetime, lifetime => lifetime.IsEqualTo(ServiceLifetime.Scoped));
     }
 
     [Test]
@@ -126,8 +126,8 @@ public class ServiceCollectionExtensionsTests
         // Assert
         var descriptor = services.FirstOrDefault(d => d.ServiceType == typeof(FirebaseKpiContextProvider));
 
-        await Assert.That(descriptor).IsNotNull();
-        await Assert.That(descriptor!.Lifetime).IsEqualTo(ServiceLifetime.Scoped);
+        await Assert.That(descriptor).IsNotNull()
+            .And.Member(d => d!.Lifetime, lifetime => lifetime.IsEqualTo(ServiceLifetime.Scoped));
     }
 
     [Test]

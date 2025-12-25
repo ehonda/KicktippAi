@@ -186,8 +186,8 @@ public class FirebasePredictionRepository_BonusPrediction_Tests(FirestoreFixture
             communityContext: "test-community");
 
         // Assert
-        await Assert.That(metadata).IsNotNull();
-        await Assert.That(metadata!.ContextDocumentNames).IsEquivalentTo(expectedDocumentNames);
+        await Assert.That(metadata).IsNotNull()
+            .And.Member(m => m!.ContextDocumentNames, names => names.IsEquivalentTo(expectedDocumentNames));
     }
 
     [Test]
