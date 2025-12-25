@@ -68,50 +68,6 @@ public class FirebaseKpiContextProvider
     }
 
     /// <summary>
-    /// Gets KPI context specifically tailored for a bonus question based on its content.
-    /// Note: This method uses a default community context and may not return the correct documents for multi-community setups.
-    /// Consider using the overload with communityContext parameter instead.
-    /// </summary>
-    /// <param name="questionText">The text of the bonus question to provide context for.</param>
-    /// <param name="cancellationToken">Cancellation token for the operation.</param>
-    /// <returns>An async enumerable of document contexts containing relevant KPI data for the specific question.</returns>
-    [Obsolete("Use GetBonusQuestionContextAsync(string questionText, string communityContext, CancellationToken cancellationToken) instead for proper multi-community support")]
-    public async IAsyncEnumerable<DocumentContext> GetBonusQuestionContextAsync(string questionText, [EnumeratorCancellation] CancellationToken cancellationToken = default)
-    {
-        _logger.LogWarning("Using deprecated GetBonusQuestionContextAsync without community context. Consider upgrading to community-aware version.");
-        _logger.LogDebug("Retrieving targeted KPI context for question: {QuestionText}", questionText);
-
-        // Always include team data for all bonus questions
-        var teamDataDocument = await GetKpiDocumentContextAsync("team-data", "default", cancellationToken);
-        if (teamDataDocument != null)
-        {
-            yield return teamDataDocument;
-        }
-
-        // For trainer/manager change questions, also include manager data
-        if (IsTrainerChangeQuestion(questionText))
-        {
-            _logger.LogDebug("Detected trainer/manager change question, including manager data");
-            var managerDataDocument = await GetKpiDocumentContextAsync("manager-data", "default", cancellationToken);
-            if (managerDataDocument != null)
-            {
-                yield return managerDataDocument;
-            }
-        }
-        
-        // For relegation questions, also include manager data (manager experience affects team performance)
-        if (IsRelegationQuestion(questionText))
-        {
-            _logger.LogDebug("Detected relegation question, including manager data");
-            var managerDataDocument = await GetKpiDocumentContextAsync("manager-data", "default", cancellationToken);
-            if (managerDataDocument != null)
-            {
-                yield return managerDataDocument;
-            }
-        }
-    }
-
-    /// <summary>
     /// Gets KPI context specifically tailored for a bonus question based on its content and community.
     /// This method provides targeted context by including additional relevant documents based on question patterns.
     /// </summary>

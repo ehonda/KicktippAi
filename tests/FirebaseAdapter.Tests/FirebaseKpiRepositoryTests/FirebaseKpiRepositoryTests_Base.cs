@@ -1,5 +1,6 @@
 using EHonda.Optional.Core;
 using FirebaseAdapter.Tests.Fixtures;
+using Google.Cloud.Firestore;
 using Microsoft.Extensions.Logging.Testing;
 using TUnit.Core;
 
@@ -50,15 +51,18 @@ public abstract class FirebaseKpiRepositoryTests_Base(FirestoreFixture fixture)
     /// <summary>
     /// Creates a FirebaseKpiRepository instance with optional dependency overrides.
     /// </summary>
-    /// <param name="logger">Optional logger. Defaults to a new FakeLogger.</param>
+    /// <param name="firestoreDb">Optional FirestoreDb. Defaults to the fixture's Db. Use NullableOption to pass null for null guard tests.</param>
+    /// <param name="logger">Optional logger. Defaults to a new FakeLogger. Use NullableOption to pass null for null guard tests.</param>
     /// <param name="competition">Optional competition string. Defaults to "bundesliga-2025-26".</param>
     /// <returns>A configured FirebaseKpiRepository instance.</returns>
     protected FirebaseKpiRepository CreateRepository(
-        Option<FakeLogger<FirebaseKpiRepository>> logger = default,
+        NullableOption<FirestoreDb> firestoreDb = default,
+        NullableOption<FakeLogger<FirebaseKpiRepository>> logger = default,
         Option<string> competition = default)
     {
+        var actualDb = firestoreDb.Or(() => Fixture.Db);
         var actualLogger = logger.Or(() => new FakeLogger<FirebaseKpiRepository>());
         var actualCompetition = competition.Or("bundesliga-2025-26");
-        return new FirebaseKpiRepository(Fixture.Db, actualLogger, actualCompetition);
+        return new FirebaseKpiRepository(actualDb!, actualLogger!, actualCompetition);
     }
 }

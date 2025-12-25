@@ -222,4 +222,80 @@ public class FirebasePredictionRepository_BonusPrediction_Tests(FirestoreFixture
         // Assert
         await Assert.That(predictions).HasCount().EqualTo(2);
     }
+
+    [Test]
+    public async Task GetBonusPredictionAsync_by_questionId_returns_null_for_non_existent()
+    {
+        // Arrange
+        var repository = CreateRepository();
+
+        // Act - Query by questionId (this method queries by questionId field which is not populated by SaveBonusPredictionAsync)
+        var result = await repository.GetBonusPredictionAsync("non-existent-id", "gpt-4o", "test-community");
+
+        // Assert
+        await Assert.That(result).IsNull();
+    }
+
+    [Test]
+    public async Task GetBonusPredictionAsync_by_questionId_returns_null_for_text_saved_predictions()
+    {
+        // Arrange
+        var repository = CreateRepository();
+        var question = CreateBonusQuestion(text: "Who will win?");
+        var prediction = new BonusPrediction(["opt-1", "opt-2"]);
+
+        // Save using the standard method (stores by questionText, not questionId)
+        await repository.SaveBonusPredictionAsync(
+            question,
+            prediction,
+            model: "gpt-4o",
+            tokenUsage: "100",
+            cost: 0.01,
+            communityContext: "test-community",
+            contextDocumentNames: []);
+
+        // Act - Query by questionId (which is not stored by SaveBonusPredictionAsync)
+        var retrieved = await repository.GetBonusPredictionAsync("some-question-id", "gpt-4o", "test-community");
+
+        // Assert - Should return null since questionId field is not populated
+        await Assert.That(retrieved).IsNull();
+    }
+
+    [Test]
+    public async Task HasBonusPredictionAsync_by_questionId_returns_false_when_not_exists()
+    {
+        // Arrange
+        var repository = CreateRepository();
+
+        // Act
+        var exists = await repository.HasBonusPredictionAsync("non-existent-id", "gpt-4o", "test-community");
+
+        // Assert
+        await Assert.That(exists).IsFalse();
+    }
+
+    [Test]
+    public async Task HasBonusPredictionAsync_by_questionId_returns_false_for_text_saved_predictions()
+    {
+        // Arrange
+        var repository = CreateRepository();
+        var question = CreateBonusQuestion(text: "Top scorer?");
+        var prediction = new BonusPrediction(["opt-1"]);
+
+        // Save using the standard method (stores by questionText, not questionId)
+        await repository.SaveBonusPredictionAsync(
+            question,
+            prediction,
+            model: "gpt-4o",
+            tokenUsage: "100",
+            cost: 0.01,
+            communityContext: "test-community",
+            contextDocumentNames: []);
+
+        // Act - Check by questionId (which is not stored)
+        var exists = await repository.HasBonusPredictionAsync("some-question-id", "gpt-4o", "test-community");
+
+        // Assert - Should be false since questionId field is not populated
+        await Assert.That(exists).IsFalse();
+    }
 }

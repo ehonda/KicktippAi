@@ -210,4 +210,52 @@ public class ServiceCollectionExtensionsTests
         // Assert
         await Assert.That(result).IsEqualTo(services);
     }
+
+    [Test]
+    public async Task AddFirebaseDatabase_without_configureOptions_registers_services()
+    {
+        // Arrange
+        var services = CreateServices();
+        
+        // Pre-configure options so validation passes when FirestoreDb is resolved
+        services.Configure<FirebaseOptions>(options =>
+        {
+            options.ProjectId = "pre-configured-project";
+            options.ServiceAccountJson = "{}";
+        });
+
+        // Act - Call without configureOptions delegate
+        services.AddFirebaseDatabase();
+
+        // Assert - Services should still be registered
+        var predictionDescriptor = services.FirstOrDefault(d => d.ServiceType == typeof(IPredictionRepository));
+        var kpiDescriptor = services.FirstOrDefault(d => d.ServiceType == typeof(IKpiRepository));
+        var contextDescriptor = services.FirstOrDefault(d => d.ServiceType == typeof(IContextRepository));
+
+        await Assert.That(predictionDescriptor).IsNotNull();
+        await Assert.That(kpiDescriptor).IsNotNull();
+        await Assert.That(contextDescriptor).IsNotNull();
+    }
+
+    [Test]
+    public async Task AddFirebaseDatabaseWithFile_sets_ServiceAccountPath_option()
+    {
+        // Arrange
+        var services = CreateServices();
+        var expectedPath = "/path/to/credentials.json";
+
+        // Act
+        services.AddFirebaseDatabaseWithFile(
+            projectId: "file-test-project",
+            serviceAccountPath: expectedPath);
+
+        // Assert
+        var provider = services.BuildServiceProvider();
+        var options = provider.GetRequiredService<IOptions<FirebaseOptions>>().Value;
+
+        await Assert.That(options.ProjectId).IsEqualTo("file-test-project");
+        await Assert.That(options.ServiceAccountPath).IsEqualTo(expectedPath);
+        // ServiceAccountJson has a default value of string.Empty, not null
+        await Assert.That(options.ServiceAccountJson).IsEqualTo(string.Empty);
+    }
 }

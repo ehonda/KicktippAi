@@ -1,5 +1,6 @@
 using EHonda.Optional.Core;
 using FirebaseAdapter.Tests.Fixtures;
+using Google.Cloud.Firestore;
 using Microsoft.Extensions.Logging.Testing;
 using TUnit.Core;
 
@@ -50,12 +51,15 @@ public abstract class FirebaseContextRepositoryTests_Base(FirestoreFixture fixtu
     /// <summary>
     /// Creates a FirebaseContextRepository instance with optional dependency overrides.
     /// </summary>
-    /// <param name="logger">Optional logger. Defaults to a new FakeLogger.</param>
+    /// <param name="firestoreDb">Optional FirestoreDb. Defaults to the fixture's Db. Use NullableOption to pass null for null guard tests.</param>
+    /// <param name="logger">Optional logger. Defaults to a new FakeLogger. Use NullableOption to pass null for null guard tests.</param>
     /// <returns>A configured FirebaseContextRepository instance.</returns>
     protected FirebaseContextRepository CreateRepository(
-        Option<FakeLogger<FirebaseContextRepository>> logger = default)
+        NullableOption<FirestoreDb> firestoreDb = default,
+        NullableOption<FakeLogger<FirebaseContextRepository>> logger = default)
     {
+        var actualDb = firestoreDb.Or(() => Fixture.Db);
         var actualLogger = logger.Or(() => new FakeLogger<FirebaseContextRepository>());
-        return new FirebaseContextRepository(Fixture.Db, actualLogger);
+        return new FirebaseContextRepository(actualDb!, actualLogger!);
     }
 }

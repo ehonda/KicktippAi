@@ -16,6 +16,7 @@ This document defines conventions and best practices for writing tests in this p
 - **File organization**:
   - Simple: Single `{ClassName}Tests.cs`
   - Complex: Folder `{ClassName}Tests/` with `{ClassName}Tests_Base.cs` and `{ClassName}_{Method}_Tests.cs`
+- **No regions**: Do not use `#region`/`#endregion` in test files
 
 ## Test Naming Conventions
 
