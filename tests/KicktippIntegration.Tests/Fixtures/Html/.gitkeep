@@ -1,0 +1,9 @@
+# This directory contains encrypted HTML fixtures (.html.enc files).
+# 
+# To create a new fixture:
+# 1. Save the HTML content to a .html file
+# 2. Run: .\Encrypt-Fixture.ps1 -InputPath <file.html> -OutputPath <file.html.enc>
+# 3. Delete the original .html file
+# 4. Commit the .html.enc file
+#
+# See Encrypt-Fixture.ps1 in the repo root for more details.

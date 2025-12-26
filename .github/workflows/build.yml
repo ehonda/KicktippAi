@@ -136,6 +136,9 @@ jobs:
       # This is required for TUnit (Microsoft Testing Platform) - see workflow header comment.
       # Coverage is collected using dotnet-coverage with our settings file.
       - name: Run tests with coverage
+        env:
+          # Fixture encryption key for KicktippIntegration.Tests (encrypted HTML fixtures)
+          KICKTIPP_FIXTURE_KEY: ${{ matrix.project == 'KicktippIntegration.Tests' && secrets.KICKTIPP_FIXTURE_KEY || '' }}
         run: |
           echo "Running tests in ${{ matrix.project }}"
           dotnet dotnet-coverage collect \
