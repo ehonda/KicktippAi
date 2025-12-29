@@ -2,7 +2,7 @@ using AngleSharp;
 using AngleSharp.Dom;
 using Microsoft.Extensions.Logging;
 
-namespace Orchestrator.Commands;
+namespace Orchestrator.Commands.Snapshots;
 
 /// <summary>
 /// A simple HTTP client for fetching HTML snapshots from Kicktipp.

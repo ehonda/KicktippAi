@@ -1,6 +1,7 @@
 using Microsoft.Extensions.Logging;
 using Spectre.Console.Cli;
 using Orchestrator.Commands;
+using Orchestrator.Commands.Snapshots;
 
 namespace Orchestrator;
 
@@ -106,10 +107,25 @@ public class Program
                 .WithExample("cost", "--matchdays", "1,2,3")
                 .WithExample("cost", "--models", "gpt-4o,o1-mini", "--bonus");
                 
-            config.AddCommand<GenerateSnapshotsCommand>("generate-snapshots")
-                .WithDescription("Generate HTML snapshots from Kicktipp for test fixtures")
-                .WithExample("generate-snapshots", "--community", "ehonda-test-buli")
-                .WithExample("generate-snapshots", "--community", "ehonda-test-buli", "--output", "my-snapshots");
+            config.AddBranch("snapshots", snapshots =>
+            {
+                snapshots.SetDescription("Generate and encrypt HTML snapshots from Kicktipp for test fixtures");
+                
+                snapshots.AddCommand<SnapshotsFetchCommand>("fetch")
+                    .WithDescription("Fetch HTML snapshots from Kicktipp")
+                    .WithExample("snapshots", "fetch", "--community", "ehonda-test-buli")
+                    .WithExample("snapshots", "fetch", "--community", "ehonda-test-buli", "--output", "my-snapshots");
+                    
+                snapshots.AddCommand<SnapshotsEncryptCommand>("encrypt")
+                    .WithDescription("Encrypt HTML snapshots for safe committing")
+                    .WithExample("snapshots", "encrypt")
+                    .WithExample("snapshots", "encrypt", "--input", "my-snapshots", "--output", "tests/KicktippIntegration.Tests/Fixtures/Html");
+                    
+                snapshots.AddCommand<SnapshotsAllCommand>("all")
+                    .WithDescription("Fetch and encrypt snapshots in one step")
+                    .WithExample("snapshots", "all", "--community", "ehonda-test-buli")
+                    .WithExample("snapshots", "all", "--community", "ehonda-test-buli", "--keep-originals");
+            });
         });
 
         return await app.RunAsync(args);
