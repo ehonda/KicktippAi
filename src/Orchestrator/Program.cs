@@ -105,6 +105,11 @@ public class Program
                 .WithExample("cost", "--all")
                 .WithExample("cost", "--matchdays", "1,2,3")
                 .WithExample("cost", "--models", "gpt-4o,o1-mini", "--bonus");
+                
+            config.AddCommand<GenerateSnapshotsCommand>("generate-snapshots")
+                .WithDescription("Generate HTML snapshots from Kicktipp for test fixtures")
+                .WithExample("generate-snapshots", "--community", "ehonda-test-buli")
+                .WithExample("generate-snapshots", "--community", "ehonda-test-buli", "--output", "my-snapshots");
         });
 
         return await app.RunAsync(args);
