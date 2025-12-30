@@ -185,4 +185,9 @@ public class KicktippClient_PlaceBonusPredictions_Tests : KicktippClientTests_Ba
         // Should include the submit button
         await Assert.That(formData.ContainsKey("submitbutton")).IsTrue();
     }
+
+    // NOTE: Real fixture test for PlaceBonusPredictionsAsync using tippabgabe-bonus.html is not included
+    // because the snapshot was captured when all bonus questions were already locked (past deadline).
+    // The snapshot shows "nichttippbar" class on all questions, meaning they cannot be edited.
+    // To add a real fixture test, capture a bonus page during a period when bonus questions are still open.
 }

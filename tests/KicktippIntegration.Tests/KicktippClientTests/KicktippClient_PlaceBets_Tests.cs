@@ -219,4 +219,52 @@ public class KicktippClient_PlaceBets_Tests : KicktippClientTests_Base
         // Assert
         await Assert.That(result).IsFalse();
     }
+
+    [Test]
+    public async Task Placing_bets_parses_real_tippabgabe_snapshot()
+    {
+        // Arrange - use real snapshot from kicktipp-snapshots directory
+        // The tippabgabe.html has 9 Bundesliga matchday 16 games from January 2026
+        //
+        // NOTE: The form action in the snapshot is "/ehonda-test-buli/tippabgabe"
+        // so POST is made to that path, not the community parameter path
+        StubWithSnapshot("/test-community/tippabgabe", "tippabgabe");
+        StubPostResponse("/ehonda-test-buli/tippabgabe");  // Form action from snapshot
+        
+        var client = CreateClient();
+        
+        // Create match instances with exact team names from the snapshot
+        var instant1 = Instant.FromUtc(2026, 1, 9, 19, 30); // Frankfurt vs Dortmund
+        var instant2 = Instant.FromUtc(2026, 1, 10, 14, 30); // Heidenheim vs Köln
+        var zone = DateTimeZoneProviders.Tzdb["Europe/Berlin"];
+        
+        var bets = new Dictionary<Match, BetPrediction>
+        {
+            { new Match("Eintracht Frankfurt", "Borussia Dortmund", instant1.InZone(zone), 16), new BetPrediction(2, 1) },
+            { new Match("1. FC Heidenheim 1846", "1. FC Köln", instant2.InZone(zone), 16), new BetPrediction(1, 0) }
+        };
+
+        // Act
+        var result = await client.PlaceBetsAsync("test-community", bets);
+
+        // Assert - should succeed
+        await Assert.That(result).IsTrue();
+        
+        // Verify correct form data was submitted (POST goes to form action URL)
+        var postRequests = GetRequestsForPath("/ehonda-test-buli/tippabgabe")
+            .Where(r => r.RequestMessage.Method == "POST");
+        await Assert.That(postRequests.Count()).IsEqualTo(1);
+        
+        var formData = ParseFormData(postRequests.First().RequestMessage.Body);
+        
+        // Frankfurt vs Dortmund (match ID: 1384231935)
+        await Assert.That(formData).ContainsKey("spieltippForms[1384231935].heimTipp");
+        await Assert.That(formData["spieltippForms[1384231935].heimTipp"]).IsEqualTo("2");
+        await Assert.That(formData["spieltippForms[1384231935].gastTipp"]).IsEqualTo("1");
+        
+        // Heidenheim vs Köln (match ID: 1384231933)
+        await Assert.That(formData).ContainsKey("spieltippForms[1384231933].heimTipp");
+        await Assert.That(formData["spieltippForms[1384231933].heimTipp"]).IsEqualTo("1");
+        await Assert.That(formData["spieltippForms[1384231933].gastTipp"]).IsEqualTo("0");
+    }
 }

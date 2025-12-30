@@ -238,4 +238,38 @@ public class KicktippClient_GetOpenPredictions_Tests : KicktippClientTests_Base
         await Assert.That(matches).IsNotEmpty();
         await Assert.That(matches[0].Matchday).IsEqualTo(1);
     }
+
+    [Test]
+    public async Task Getting_open_predictions_parses_real_tippabgabe_page()
+    {
+        // Arrange - use real tippabgabe snapshot
+        StubWithSnapshot("/test-community/tippabgabe", "tippabgabe");
+        var client = CreateClient();
+
+        // Act
+        var matches = await client.GetOpenPredictionsAsync("test-community");
+
+        // Assert - the snapshot has 9 matches for matchday 16
+        await Assert.That(matches).HasCount().EqualTo(9);
+        
+        // Verify matchday is correctly parsed from "16. Spieltag"
+        await Assert.That(matches[0].Matchday).IsEqualTo(16);
+        
+        // Verify first match is Frankfurt vs Dortmund
+        await Assert.That(matches[0].HomeTeam).IsEqualTo("Eintracht Frankfurt");
+        await Assert.That(matches[0].AwayTeam).IsEqualTo("Borussia Dortmund");
+        
+        // Verify date parsing: 09.01.26 20:30
+        await Assert.That(matches[0].StartsAt.Hour).IsEqualTo(20);
+        await Assert.That(matches[0].StartsAt.Minute).IsEqualTo(30);
+        
+        // Verify other matches
+        var heidenheimMatch = matches.FirstOrDefault(m => m.HomeTeam == "1. FC Heidenheim 1846");
+        await Assert.That(heidenheimMatch).IsNotNull();
+        await Assert.That(heidenheimMatch!.AwayTeam).IsEqualTo("1. FC Köln");
+        
+        var freiburgMatch = matches.FirstOrDefault(m => m.HomeTeam == "SC Freiburg");
+        await Assert.That(freiburgMatch).IsNotNull();
+        await Assert.That(freiburgMatch!.AwayTeam).IsEqualTo("Hamburger SV");
+    }
 }

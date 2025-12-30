@@ -276,6 +276,60 @@ public abstract class KicktippClientTests_Base : IAsyncDisposable
     }
 
     /// <summary>
+    /// Loads a synthetic fixture file content (public for use in test classes).
+    /// </summary>
+    /// <param name="name">Name of the synthetic fixture file (without .html extension).</param>
+    /// <returns>The HTML content.</returns>
+    protected static string LoadSyntheticFixtureContent(string name)
+    {
+        return LoadSyntheticFixture(name);
+    }
+
+    /// <summary>
+    /// Loads a snapshot file from the kicktipp-snapshots directory.
+    /// </summary>
+    /// <param name="snapshotName">Name of the snapshot file (without .html extension).</param>
+    /// <returns>The HTML content.</returns>
+    protected static string LoadSnapshot(string snapshotName)
+    {
+        // Navigate from test project to kicktipp-snapshots at repository root
+        var testProjectDir = Directory.GetCurrentDirectory();
+        var repoRoot = Path.GetFullPath(Path.Combine(testProjectDir, "..", "..", "..", "..", ".."));
+        var snapshotsDir = Path.Combine(repoRoot, "kicktipp-snapshots");
+        var snapshotPath = Path.Combine(snapshotsDir, $"{snapshotName}.html");
+        
+        if (!File.Exists(snapshotPath))
+        {
+            throw new FileNotFoundException($"Snapshot file not found: {snapshotPath}");
+        }
+        
+        return File.ReadAllText(snapshotPath);
+    }
+
+    /// <summary>
+    /// Stubs a GET request using a snapshot file from kicktipp-snapshots.
+    /// </summary>
+    /// <param name="path">The URL path.</param>
+    /// <param name="snapshotName">Name of the snapshot file (without .html extension).</param>
+    protected void StubWithSnapshot(string path, string snapshotName)
+    {
+        var htmlContent = LoadSnapshot(snapshotName);
+        StubHtmlResponse(path, htmlContent);
+    }
+
+    /// <summary>
+    /// Stubs a GET request with query parameters using a snapshot file.
+    /// </summary>
+    /// <param name="path">The URL path.</param>
+    /// <param name="snapshotName">Name of the snapshot file (without .html extension).</param>
+    /// <param name="queryParams">Query parameters that must be present.</param>
+    protected void StubWithSnapshotAndParams(string path, string snapshotName, params (string key, string value)[] queryParams)
+    {
+        var htmlContent = LoadSnapshot(snapshotName);
+        StubHtmlResponseWithParams(path, htmlContent, queryParams);
+    }
+
+    /// <summary>
     /// Gets the requests received by the WireMock server for a specific path.
     /// Useful for verifying POST form data.
     /// </summary>

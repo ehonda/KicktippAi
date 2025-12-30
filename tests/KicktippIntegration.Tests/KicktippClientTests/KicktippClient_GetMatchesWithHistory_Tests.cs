@@ -180,10 +180,90 @@ public class KicktippClient_GetMatchesWithHistory_Tests : KicktippClientTests_Ba
         await Assert.That(matches).IsEmpty();
     }
 
-    private static string LoadSyntheticFixtureContent(string name)
+    [Test]
+    public async Task Getting_matches_with_history_parses_real_spielinfo_snapshots()
     {
-        var fixturesDir = Infrastructure.FixtureLoader.GetFixturesDirectory();
-        var syntheticDir = Path.Combine(fixturesDir, "Synthetic");
-        return File.ReadAllText(Path.Combine(syntheticDir, $"{name}.html"));
+        // Arrange - use real snapshots from kicktipp-snapshots directory
+        // The tippabgabe page contains the actual community name "ehonda-test-buli" in all its links
+        // The client extracts these links and uses them directly
+        StubWithSnapshot("/ehonda-test-buli/tippabgabe", "tippabgabe");
+        
+        // First spielinfo page (Frankfurt vs Dortmund) - no ansicht parameter in the initial link
+        StubWithSnapshotAndParams("/ehonda-test-buli/spielinfo",
+            "spielinfo-01",
+            ("tippsaisonId", "3684392"),
+            ("tippspielId", "1384231935"));
+        
+        // Subsequent pages navigated via prevnextNext links - these have ansicht=1 in the snapshot HTML
+        StubWithSnapshotAndParams("/ehonda-test-buli/spielinfo",
+            "spielinfo-02",
+            ("tippsaisonId", "3684392"),
+            ("ansicht", "1"),
+            ("tippspielId", "1384231933"));
+        
+        StubWithSnapshotAndParams("/ehonda-test-buli/spielinfo",
+            "spielinfo-03",
+            ("tippsaisonId", "3684392"),
+            ("ansicht", "1"),
+            ("tippspielId", "1384231934"));
+        
+        StubWithSnapshotAndParams("/ehonda-test-buli/spielinfo",
+            "spielinfo-04",
+            ("tippsaisonId", "3684392"),
+            ("ansicht", "1"),
+            ("tippspielId", "1384231931"));
+        
+        StubWithSnapshotAndParams("/ehonda-test-buli/spielinfo",
+            "spielinfo-05",
+            ("tippsaisonId", "3684392"),
+            ("ansicht", "1"),
+            ("tippspielId", "1384231932"));
+        
+        StubWithSnapshotAndParams("/ehonda-test-buli/spielinfo",
+            "spielinfo-06",
+            ("tippsaisonId", "3684392"),
+            ("ansicht", "1"),
+            ("tippspielId", "1384231939"));
+        
+        StubWithSnapshotAndParams("/ehonda-test-buli/spielinfo",
+            "spielinfo-07",
+            ("tippsaisonId", "3684392"),
+            ("ansicht", "1"),
+            ("tippspielId", "1384231938"));
+        
+        StubWithSnapshotAndParams("/ehonda-test-buli/spielinfo",
+            "spielinfo-08",
+            ("tippsaisonId", "3684392"),
+            ("ansicht", "1"),
+            ("tippspielId", "1384231936"));
+        
+        StubWithSnapshotAndParams("/ehonda-test-buli/spielinfo",
+            "spielinfo-09",
+            ("tippsaisonId", "3684392"),
+            ("ansicht", "1"),
+            ("tippspielId", "1384231937"));
+        
+        var client = CreateClient();
+
+        // Act - use the actual community name from the snapshot
+        var matches = await client.GetMatchesWithHistoryAsync("ehonda-test-buli");
+
+        // Assert - should get 9 matches with history
+        await Assert.That(matches).HasCount().EqualTo(9);
+        
+        // Verify first match details (Frankfurt vs Dortmund from spielinfo-01)
+        var frankfurtMatch = matches.FirstOrDefault(m => m.Match.HomeTeam == "Eintracht Frankfurt");
+        await Assert.That(frankfurtMatch).IsNotNull();
+        await Assert.That(frankfurtMatch!.Match.AwayTeam).IsEqualTo("Borussia Dortmund");
+        await Assert.That(frankfurtMatch.HomeTeamHistory).IsNotEmpty();
+        await Assert.That(frankfurtMatch.AwayTeamHistory).IsNotEmpty();
+        
+        // Verify Frankfurt's history (8 recent matches)
+        await Assert.That(frankfurtMatch.HomeTeamHistory).HasCount().EqualTo(8);
+        
+        // Verify Bayern match is present (from spielinfo-09)
+        var bayernMatch = matches.FirstOrDefault(m => m.Match.HomeTeam == "FC Bayern München");
+        await Assert.That(bayernMatch).IsNotNull();
+        await Assert.That(bayernMatch!.Match.AwayTeam).IsEqualTo("VfL Wolfsburg");
     }
 }

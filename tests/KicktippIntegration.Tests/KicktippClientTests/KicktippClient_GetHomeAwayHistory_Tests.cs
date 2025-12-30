@@ -284,4 +284,48 @@ public class KicktippClient_GetHomeAwayHistory_Tests : KicktippClientTests_Base
         await Assert.That(homeHistory).IsEmpty();
         await Assert.That(awayHistory).IsEmpty();
     }
+
+    [Test]
+    public async Task Getting_home_away_history_parses_real_spielinfo_snapshot()
+    {
+        // Arrange - use real snapshots from kicktipp-snapshots directory
+        // The tippabgabe page provides the spielinfo link which contains the actual community name "ehonda-test-buli"
+        // The client extracts the link from HTML and uses that path directly
+        StubWithSnapshot("/ehonda-test-buli/tippabgabe", "tippabgabe");
+        
+        // Stub the spielinfo page with ansicht=2 using spielinfo-01 which has home/away history
+        // Note: The snapshots have spielinfoHeim and spielinfoGast tables which contain the history
+        StubWithSnapshotAndParams("/ehonda-test-buli/spielinfo",
+            "spielinfo-01",  // This snapshot has Frankfurt vs Dortmund with history tables
+            ("tippsaisonId", "3684392"),
+            ("tippspielId", "1384231935"),
+            ("ansicht", "2"));
+        
+        var client = CreateClient();
+
+        // Act - use the actual community name from the snapshot
+        var (homeHistory, awayHistory) = await client.GetHomeAwayHistoryAsync(
+            "ehonda-test-buli",
+            "Eintracht Frankfurt",
+            "Borussia Dortmund");
+
+        // Assert - the spielinfo-01 snapshot contains history for both teams
+        // Eintracht Frankfurt home history has 8 matches
+        await Assert.That(homeHistory).HasCount().EqualTo(8);
+        
+        // First match: vs Hamburg 1:1
+        await Assert.That(homeHistory[0].HomeTeam).IsEqualTo("Hamburger SV");
+        await Assert.That(homeHistory[0].AwayTeam).IsEqualTo("Eintracht Frankfurt");
+        await Assert.That(homeHistory[0].HomeGoals).IsEqualTo(1);
+        await Assert.That(homeHistory[0].AwayGoals).IsEqualTo(1);
+        
+        // Borussia Dortmund away history has 8 matches
+        await Assert.That(awayHistory).HasCount().EqualTo(8);
+        
+        // First match in away history: Dortmund vs Gladbach 2:0
+        await Assert.That(awayHistory[0].HomeTeam).IsEqualTo("Borussia Dortmund");
+        await Assert.That(awayHistory[0].AwayTeam).IsEqualTo("Bor. Mönchengladbach");
+        await Assert.That(awayHistory[0].HomeGoals).IsEqualTo(2);
+        await Assert.That(awayHistory[0].AwayGoals).IsEqualTo(0);
+    }
 }

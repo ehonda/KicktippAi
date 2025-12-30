@@ -202,4 +202,51 @@ public class KicktippClient_PlaceBet_Tests : KicktippClientTests_Base
         var formData = ParseFormData(postRequests.First().RequestMessage.Body);
         await Assert.That(formData).ContainsKey("submitbutton");
     }
+
+    [Test]
+    public async Task Placing_bet_parses_real_tippabgabe_snapshot()
+    {
+        // Arrange - use real snapshot from kicktipp-snapshots directory
+        // The tippabgabe.html has 9 Bundesliga matchday 16 games from January 2026
+        // First match: Eintracht Frankfurt vs Borussia Dortmund (09.01.26 20:30)
+        // Match ID in the form: spieltippForms[1384231935]
+        // 
+        // NOTE: The form action in the snapshot is "/ehonda-test-buli/tippabgabe"
+        // so POST is made to that path, not the community parameter path
+        StubWithSnapshot("/test-community/tippabgabe", "tippabgabe");
+        StubPostResponse("/ehonda-test-buli/tippabgabe");  // Form action from snapshot
+        
+        var client = CreateClient();
+        
+        // Create match with exact team names from the snapshot
+        // The match is on 09.01.2026 20:30 (CET) which is matchday 16
+        var instant = Instant.FromUtc(2026, 1, 9, 19, 30); // 20:30 CET = 19:30 UTC
+        var zone = DateTimeZoneProviders.Tzdb["Europe/Berlin"];
+        var zonedDateTime = instant.InZone(zone);
+        var match = new Match("Eintracht Frankfurt", "Borussia Dortmund", zonedDateTime, 16);
+        
+        var prediction = new BetPrediction(2, 1);
+
+        // Act
+        var result = await client.PlaceBetAsync("test-community", match, prediction);
+
+        // Assert - should succeed
+        await Assert.That(result).IsTrue();
+        
+        // Verify correct form data was submitted (POST goes to form action URL)
+        var postRequests = GetRequestsForPath("/ehonda-test-buli/tippabgabe")
+            .Where(r => r.RequestMessage.Method == "POST");
+        await Assert.That(postRequests.Count()).IsEqualTo(1);
+        
+        var formData = ParseFormData(postRequests.First().RequestMessage.Body);
+        
+        // Check the match-specific form fields (using the match ID from snapshot)
+        await Assert.That(formData).ContainsKey("spieltippForms[1384231935].heimTipp");
+        await Assert.That(formData["spieltippForms[1384231935].heimTipp"]).IsEqualTo("2");
+        await Assert.That(formData["spieltippForms[1384231935].gastTipp"]).IsEqualTo("1");
+        
+        // Check hidden fields from the form
+        await Assert.That(formData["spieltagIndex"]).IsEqualTo("16");
+        await Assert.That(formData["tippsaisonId"]).IsEqualTo("3684392");
+    }
 }

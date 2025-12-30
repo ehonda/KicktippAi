@@ -205,10 +205,9 @@ public class KicktippClient_GetHeadToHead_Tests : KicktippClientTests_Base
         await Assert.That(history).IsEmpty();
     }
 
-    private static string LoadSyntheticFixtureContent(string name)
-    {
-        var fixturesDir = Infrastructure.FixtureLoader.GetFixturesDirectory();
-        var syntheticDir = Path.Combine(fixturesDir, "Synthetic");
-        return File.ReadAllText(Path.Combine(syntheticDir, $"{name}.html"));
-    }
+    // NOTE: Real fixture test for GetHeadToHeadHistoryAsync is not included because
+    // the kicktipp-snapshots directory does not contain ansicht=3 (Direkter Vergleich) pages.
+    // The existing snapshots (spielinfo-01 through spielinfo-09) are all ansicht=1 (Ergebnisse).
+    // To add a real fixture test, capture a page with URL like:
+    // /community/spielinfo?tippsaisonId=xxx&tippspielId=xxx&ansicht=3
 }

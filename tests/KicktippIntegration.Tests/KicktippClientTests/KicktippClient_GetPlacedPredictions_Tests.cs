@@ -126,4 +126,38 @@ public class KicktippClient_GetPlacedPredictions_Tests : KicktippClientTests_Bas
         var firstMatch = predictions.Keys.First(m => m.HomeTeam == "Team A");
         await Assert.That(secondMatch.StartsAt).IsEqualTo(firstMatch.StartsAt);
     }
+
+    [Test]
+    public async Task Getting_placed_predictions_parses_real_tippabgabe_page()
+    {
+        // Arrange - use real tippabgabe snapshot from kicktipp-snapshots directory
+        StubWithSnapshot("/test-community/tippabgabe", "tippabgabe");
+        var client = CreateClient();
+
+        // Act
+        var predictions = await client.GetPlacedPredictionsAsync("test-community");
+
+        // Assert - verify we got matches from the real fixture
+        // The snapshot has 9 matches for matchday 16
+        await Assert.That(predictions).HasCount().EqualTo(9);
+        
+        // Verify specific matches are present (from the actual snapshot data)
+        var frankfurtMatch = predictions.Keys.FirstOrDefault(m => m.HomeTeam == "Eintracht Frankfurt");
+        await Assert.That(frankfurtMatch).IsNotNull();
+        await Assert.That(frankfurtMatch!.AwayTeam).IsEqualTo("Borussia Dortmund");
+        await Assert.That(frankfurtMatch.Matchday).IsEqualTo(16);
+        
+        // First match should be Frankfurt vs Dortmund on 09.01.26 20:30
+        await Assert.That(frankfurtMatch.StartsAt.Year).IsEqualTo(2026);
+        await Assert.That(frankfurtMatch.StartsAt.Month).IsEqualTo(1);
+        await Assert.That(frankfurtMatch.StartsAt.Day).IsEqualTo(9);
+        
+        // Verify Bayern match is present
+        var bayernMatch = predictions.Keys.FirstOrDefault(m => m.HomeTeam == "FC Bayern München");
+        await Assert.That(bayernMatch).IsNotNull();
+        await Assert.That(bayernMatch!.AwayTeam).IsEqualTo("VfL Wolfsburg");
+        
+        // Predictions should be null since no values are entered in the snapshot
+        await Assert.That(predictions[frankfurtMatch]).IsNull();
+    }
 }

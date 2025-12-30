@@ -92,7 +92,9 @@ public class KicktippClient_GetOpenBonusQuestions_Tests : KicktippClientTests_Ba
     }
 
     [Test]
-    [FixtureRequired]
+    [Skip("The 'tippabgabe-bonus' fixture was captured when no open bonus questions were available. " +
+          "This test needs to be re-enabled after regenerating the fixture during a period when " +
+          "the Kicktipp community has open bonus questions to answer.")]
     public async Task Getting_open_bonus_questions_parses_real_bonus_page()
     {
         // Arrange
@@ -102,8 +104,27 @@ public class KicktippClient_GetOpenBonusQuestions_Tests : KicktippClientTests_Ba
         // Act
         var questions = await client.GetOpenBonusQuestionsAsync("test-community");
 
-        // Assert - the fixture may or may not have bonus questions depending on when it was captured
-        // We just verify the method executes successfully and returns a list
-        await Assert.That(questions).IsNotNull();
+        // Assert - once the fixture is regenerated with open bonus questions,
+        // update this test with precise assertions for the expected questions
+        await Assert.That(questions).IsNotEmpty();
+    }
+
+    [Test]
+    public async Task Getting_open_bonus_questions_returns_empty_for_locked_questions_snapshot()
+    {
+        // Arrange - use real snapshot from kicktipp-snapshots directory
+        // The tippabgabe-bonus.html snapshot was captured when all bonus questions
+        // were already answered and locked (showing "nichttippbar" divs with answers).
+        // This is the expected behavior - no OPEN questions to return.
+        StubWithSnapshotAndParams("/test-community/tippabgabe", "tippabgabe-bonus", ("bonus", "true"));
+        var client = CreateClient();
+
+        // Act
+        var questions = await client.GetOpenBonusQuestionsAsync("test-community");
+
+        // Assert - returns empty because all questions are locked (already answered)
+        // The snapshot shows 8 bonus questions, all with "nichttippbar" class
+        // meaning they cannot be edited - they are past their deadline
+        await Assert.That(questions).IsEmpty();
     }
 }

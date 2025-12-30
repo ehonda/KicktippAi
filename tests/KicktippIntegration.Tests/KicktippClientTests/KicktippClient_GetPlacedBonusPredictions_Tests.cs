@@ -101,4 +101,25 @@ public class KicktippClient_GetPlacedBonusPredictions_Tests : KicktippClientTest
         var topScorerPrediction = predictions.FirstOrDefault(p => p.Key == "Top scorer team?");
         await Assert.That(topScorerPrediction.Value).IsNull();
     }
+
+    [Test]
+    public async Task Getting_placed_bonus_predictions_returns_empty_for_locked_questions_snapshot()
+    {
+        // Arrange - use real snapshot from kicktipp-snapshots directory
+        // The tippabgabe-bonus.html shows locked questions with "nichttippbar" class
+        // and answers displayed as text divs, not select elements.
+        // The client only parses select elements, so locked questions return empty.
+        StubWithSnapshotAndParams("/test-community/tippabgabe", "tippabgabe-bonus", ("bonus", "true"));
+        var client = CreateClient();
+
+        // Act
+        var predictions = await client.GetPlacedBonusPredictionsAsync("test-community");
+
+        // Assert - returns empty because all questions are locked (no select elements)
+        // The snapshot shows 8 bonus questions with answers like:
+        // - "Welche Mannschaften belegen die Plätze 16-18?" -> 1. FC Heidenheim 1846, Hamburger SV, FC St. Pauli
+        // - "Wer wird Deutscher Meister?" -> FC Bayern München
+        // But these are shown as read-only text, not form elements
+        await Assert.That(predictions).IsEmpty();
+    }
 }
