@@ -1,0 +1,52 @@
+<!DOCTYPE html>
+<html>
+<head>
+    <meta charset="utf-8">
+    <title>Bonus Tippabgabe</title>
+</head>
+<body>
+    <form method="post" action="/test-community/tippabgabe">
+        <input type="hidden" name="_charset_" value="UTF-8">
+        <input type="hidden" name="submitbutton" value="">
+        
+        <!-- Bonus Question 1: Single select with existing prediction -->
+        <table class="kicktipp-table">
+            <tr class="headerext">
+                <td>
+                    <a href="/test-community/spielinfo?tip=99001">Bonus Question 1</a>
+                </td>
+            </tr>
+            <tr>
+                <td>
+                    <span class="kicktipp-wertung">+5</span>
+                    <select name="zusatzfragenSelect[1].auswahl">
+                        <option value="">-- Select --</option>
+                        <option value="101">Option A</option>
+                        <option value="102" selected="selected">Option B</option>
+                        <option value="103">Option C</option>
+                    </select>
+                </td>
+            </tr>
+        </table>
+        
+        <!-- Bonus Question 2: Multi-select with existing predictions -->
+        <table class="kicktipp-table">
+            <tr class="headerext">
+                <td>
+                    <a href="/test-community/spielinfo?tip=99002">Bonus Question 2</a>
+                </td>
+            </tr>
+            <tr>
+                <td>
+                    <span class="kicktipp-wertung">+10</span>
+                    <input type="checkbox" name="zusatzfragenCheck[2].auswahl" value="201"> Option X
+                    <input type="checkbox" name="zusatzfragenCheck[2].auswahl" value="202" checked="checked"> Option Y
+                    <input type="checkbox" name="zusatzfragenCheck[2].auswahl" value="203" checked="checked"> Option Z
+                </td>
+            </tr>
+        </table>
+        
+        <input type="submit" name="submitbutton" value="Tipp abgeben">
+    </form>
+</body>
+</html>

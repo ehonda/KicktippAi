@@ -1,0 +1,64 @@
+<!DOCTYPE html>
+<html lang="de">
+<head><title>Test Spielinfo Navigation</title></head>
+<body>
+<div class="kicktipp-content" id="kicktipp-content">
+    <div class="prevnextauswahl">
+        <div class="prevnextTitle"><a>1. Spieltag</a></div>
+    </div>
+    <div class="prevnext">
+        <div class="prevnextPrev disabled"><a><span class="kicktipp-icon-arrow-left disabled"></span></a></div>
+        <div class="prevnextNext"><a href="/test-community/spielinfo?tippspielId=2"><span class="kicktipp-icon-arrow-right"></span></a></div>
+    </div>
+    <form action="/test-community/spielinfo" method="post">
+        <table class="tippabgabe">
+            <tbody>
+                <tr>
+                    <td class="nw kicktipp-time">22.08.25 20:30</td>
+                    <td class="nw">Home Team 1</td>
+                    <td class="nw">Away Team 1</td>
+                    <td class="kicktipp-tippabgabe">
+                        <input type="hidden" name="tippAbgegeben" value="true" />
+                        <input type="text" name="heimTipp" />
+                        <input type="text" name="gastTipp" />
+                    </td>
+                </tr>
+            </tbody>
+        </table>
+    </form>
+    <div class="spielinfo-table">
+        <h2>Home Team 1</h2>
+        <table class="spielinfoHeim">
+            <tbody>
+                <tr>
+                    <td>1.BL</td>
+                    <td class="nw sieg">Home Team 1</td>
+                    <td class="nw">Opponent A</td>
+                    <td><span class="kicktipp-ergebnis"><span class="kicktipp-abschnitt kicktipp-abpfiff"><span class="kicktipp-heim">2</span><span class="kicktipp-tortrenner">:</span><span class="kicktipp-gast">1</span></span></span></td>
+                </tr>
+                <tr>
+                    <td>1.BL</td>
+                    <td class="nw">Opponent B</td>
+                    <td class="nw niederlage">Home Team 1</td>
+                    <td><span class="kicktipp-ergebnis"><span class="kicktipp-abschnitt kicktipp-abpfiff"><span class="kicktipp-heim">3</span><span class="kicktipp-tortrenner">:</span><span class="kicktipp-gast">0</span></span></span></td>
+                </tr>
+            </tbody>
+        </table>
+    </div>
+    <div class="spielinfo-table">
+        <h2>Away Team 1</h2>
+        <table class="spielinfoGast">
+            <tbody>
+                <tr>
+                    <td>1.BL</td>
+                    <td class="nw remis">Away Team 1</td>
+                    <td class="nw">Opponent C</td>
+                    <td><span class="kicktipp-ergebnis"><span class="kicktipp-abschnitt kicktipp-abpfiff"><span class="kicktipp-heim">1</span><span class="kicktipp-tortrenner">:</span><span class="kicktipp-gast">1</span></span></span></td>
+                </tr>
+            </tbody>
+        </table>
+    </div>
+    <a href="/test-community/tippabgabe?spieltagIndex=1">Tippabgabe mit Spielinfos</a>
+</div>
+</body>
+</html>

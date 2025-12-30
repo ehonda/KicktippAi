@@ -1,0 +1,57 @@
+<!DOCTYPE html>
+<html lang="de">
+<head><title>Test Spielinfo - Last Match</title></head>
+<body>
+<div class="kicktipp-content" id="kicktipp-content">
+    <div class="prevnextauswahl">
+        <div class="prevnextTitle"><a>1. Spieltag</a></div>
+    </div>
+    <div class="prevnext">
+        <div class="prevnextPrev"><a href="/test-community/spielinfo?tippspielId=1"><span class="kicktipp-icon-arrow-left"></span></a></div>
+        <div class="prevnextNext disabled"><a><span class="kicktipp-icon-arrow-right disabled"></span></a></div>
+    </div>
+    <form action="/test-community/spielinfo" method="post">
+        <table class="tippabgabe">
+            <tbody>
+                <tr>
+                    <td class="nw kicktipp-time">23.08.25 15:30</td>
+                    <td class="nw">Home Team 2</td>
+                    <td class="nw">Away Team 2</td>
+                    <td class="kicktipp-tippabgabe">
+                        <input type="hidden" name="tippAbgegeben" value="true" />
+                        <input type="text" name="heimTipp" />
+                        <input type="text" name="gastTipp" />
+                    </td>
+                </tr>
+            </tbody>
+        </table>
+    </form>
+    <div class="spielinfo-table">
+        <h2>Home Team 2</h2>
+        <table class="spielinfoHeim">
+            <tbody>
+                <tr>
+                    <td>1.BL</td>
+                    <td class="nw sieg">Home Team 2</td>
+                    <td class="nw">Opponent D</td>
+                    <td><span class="kicktipp-ergebnis"><span class="kicktipp-abschnitt kicktipp-abpfiff"><span class="kicktipp-heim">4</span><span class="kicktipp-tortrenner">:</span><span class="kicktipp-gast">0</span></span></span></td>
+                </tr>
+            </tbody>
+        </table>
+    </div>
+    <div class="spielinfo-table">
+        <h2>Away Team 2</h2>
+        <table class="spielinfoGast">
+            <tbody>
+                <tr>
+                    <td>1.BL</td>
+                    <td class="nw niederlage">Away Team 2</td>
+                    <td class="nw">Opponent E</td>
+                    <td><span class="kicktipp-ergebnis"><span class="kicktipp-abschnitt kicktipp-abpfiff"><span class="kicktipp-heim">0</span><span class="kicktipp-tortrenner">:</span><span class="kicktipp-gast">2</span></span></span></td>
+                </tr>
+            </tbody>
+        </table>
+    </div>
+</div>
+</body>
+</html>

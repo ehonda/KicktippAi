@@ -1,0 +1,58 @@
+<!DOCTYPE html>
+<html lang="de">
+<head><title>Test Bonus Questions with Predictions</title></head>
+<body>
+<div class="kicktipp-content" id="kicktipp-content">
+    <form id="tippabgabeForm" action="/test-community/tippabgabe" method="post">
+        <input type="hidden" name="bonus" value="true" />
+        <table id="tippabgabeFragen">
+            <tbody>
+                <tr>
+                    <td class="nw kicktipp-time">22.08.25 20:30</td>
+                    <td class="nw">Who will win the championship?</td>
+                    <td class="nw kicktipp-tippabgabe">
+                        <select name="bonusForms[1].antwortIds" id="bonusForms_1_antwortIds">
+                            <option value="-1">-- Bitte wählen --</option>
+                            <option value="101">Team A</option>
+                            <option value="102" selected="selected">Team B</option>
+                            <option value="103">Team C</option>
+                        </select>
+                    </td>
+                </tr>
+                <tr>
+                    <td class="nw kicktipp-time">22.08.25 20:30</td>
+                    <td class="nw">Which teams will be relegated?</td>
+                    <td class="nw kicktipp-tippabgabe">
+                        <!-- Multiple select elements for multi-selection (one per selection allowed) -->
+                        <select name="bonusForms[2].antwortIds[0]" id="bonusForms_2_antwortIds_0">
+                            <option value="-1">-- Bitte wählen --</option>
+                            <option value="201" selected="selected">Team D</option>
+                            <option value="202">Team E</option>
+                            <option value="203">Team F</option>
+                        </select>
+                        <select name="bonusForms[2].antwortIds[1]" id="bonusForms_2_antwortIds_1">
+                            <option value="-1">-- Bitte wählen --</option>
+                            <option value="201">Team D</option>
+                            <option value="202">Team E</option>
+                            <option value="203" selected="selected">Team F</option>
+                        </select>
+                    </td>
+                </tr>
+                <tr>
+                    <td class="nw kicktipp-time">22.08.25 20:30</td>
+                    <td class="nw">Top scorer team?</td>
+                    <td class="nw kicktipp-tippabgabe">
+                        <select name="bonusForms[3].antwortIds" id="bonusForms_3_antwortIds">
+                            <option value="-1">-- Bitte wählen --</option>
+                            <option value="301">Team G</option>
+                            <option value="302">Team H</option>
+                        </select>
+                    </td>
+                </tr>
+            </tbody>
+        </table>
+        <button type="submit" name="submitbutton">Tipps speichern</button>
+    </form>
+</div>
+</body>
+</html>

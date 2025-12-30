@@ -1,0 +1,49 @@
+<!DOCTYPE html>
+<html lang="de">
+<head><title>Test Tippabgabe</title></head>
+<body>
+<div class="kicktipp-content" id="kicktipp-content">
+    <div class="prevnextauswahl">
+        <div class="prevnextTitle"><a>5. Spieltag</a></div>
+    </div>
+    <form id="tippabgabeForm" action="/test-community/tippabgabe" method="post">
+        <input type="hidden" name="spieltagIndex" value="5" />
+        <table id="tippabgabeSpiele">
+            <tbody>
+                <tr>
+                    <td class="nw kicktipp-time">22.08.25 20:30</td>
+                    <td class="nw">Team A</td>
+                    <td class="nw">Team B</td>
+                    <td class="kicktipp-tippabgabe">
+                        <input type="hidden" name="spieltippForms[1].tippAbgegeben" value="true" />
+                        <input id="spieltippForms_1_heimTipp" name="spieltippForms[1].heimTipp" type="text" />
+                        <input id="spieltippForms_1_gastTipp" name="spieltippForms[1].gastTipp" type="text" />
+                    </td>
+                </tr>
+                <tr>
+                    <td class="nw kicktipp-time"></td>
+                    <td class="nw">Team C</td>
+                    <td class="nw">Team D</td>
+                    <td class="kicktipp-tippabgabe">
+                        <input type="hidden" name="spieltippForms[2].tippAbgegeben" value="true" />
+                        <input id="spieltippForms_2_heimTipp" name="spieltippForms[2].heimTipp" type="text" />
+                        <input id="spieltippForms_2_gastTipp" name="spieltippForms[2].gastTipp" type="text" />
+                    </td>
+                </tr>
+                <tr>
+                    <td class="nw kicktipp-time">23.08.25 15:30</td>
+                    <td class="nw">Team E</td>
+                    <td class="nw">Team F</td>
+                    <td class="kicktipp-tippabgabe">
+                        <input type="hidden" name="spieltippForms[3].tippAbgegeben" value="true" />
+                        <input id="spieltippForms_3_heimTipp" name="spieltippForms[3].heimTipp" type="text" />
+                        <input id="spieltippForms_3_gastTipp" name="spieltippForms[3].gastTipp" type="text" />
+                    </td>
+                </tr>
+            </tbody>
+        </table>
+        <button type="submit" name="submitbutton">Tipps speichern</button>
+    </form>
+</div>
+</body>
+</html>

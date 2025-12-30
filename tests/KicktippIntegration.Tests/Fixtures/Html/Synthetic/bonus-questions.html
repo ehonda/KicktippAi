@@ -1,0 +1,40 @@
+<!DOCTYPE html>
+<html lang="de">
+<head><title>Test Bonus Questions</title></head>
+<body>
+<div class="kicktipp-content" id="kicktipp-content">
+    <form id="tippabgabeForm" action="/test-community/tippabgabe?bonus=true" method="post">
+        <input type="hidden" name="_charset_" value="UTF-8">
+        <input type="hidden" name="bonus" value="true" />
+        <table id="tippabgabeFragen">
+            <tbody>
+                <tr>
+                    <td class="nw kicktipp-time">22.08.25 20:30</td>
+                    <td class="nw">Who will win the championship?</td>
+                    <td class="nw kicktipp-tippabgabe">
+                        <select name="zusatzfragenSelect[1].auswahl" id="zusatzfragenSelect_1_auswahl">
+                            <option value="-1">-- Bitte wählen --</option>
+                            <option value="101">Team A</option>
+                            <option value="102">Team B</option>
+                            <option value="103">Team C</option>
+                        </select>
+                    </td>
+                </tr>
+                <tr>
+                    <td class="nw kicktipp-time">22.08.25 20:30</td>
+                    <td class="nw">Which teams will be relegated?</td>
+                    <td class="nw kicktipp-tippabgabe">
+                        <select name="zusatzfragenSelect[2].auswahl" id="zusatzfragenSelect_2_auswahl" multiple="multiple">
+                            <option value="201">Team D</option>
+                            <option value="202">Team E</option>
+                            <option value="203">Team F</option>
+                        </select>
+                    </td>
+                </tr>
+            </tbody>
+        </table>
+        <input type="submit" name="submitbutton" value="Tipps speichern">
+    </form>
+</div>
+</body>
+</html>

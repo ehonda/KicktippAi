@@ -1,0 +1,61 @@
+<!DOCTYPE html>
+<html lang="de">
+<head><title>Test Head to Head</title></head>
+<body>
+<div class="kicktipp-content" id="kicktipp-content">
+    <div class="prevnextauswahl">
+        <div class="prevnextTitle"><a>1. Spieltag</a></div>
+    </div>
+    <div class="prevnext">
+        <div class="prevnextPrev disabled"><a><span class="kicktipp-icon-arrow-left disabled"></span></a></div>
+        <div class="prevnextNext disabled"><a><span class="kicktipp-icon-arrow-right disabled"></span></a></div>
+    </div>
+    <form action="/test-community/spielinfo" method="post">
+        <table class="tippabgabe">
+            <tbody>
+                <tr>
+                    <td class="nw kicktipp-time">22.08.25 20:30</td>
+                    <td class="nw">Team Alpha</td>
+                    <td class="nw">Team Beta</td>
+                    <td class="kicktipp-tippabgabe">
+                        <input type="hidden" name="tippAbgegeben" value="true" />
+                        <input type="text" name="heimTipp" />
+                        <input type="text" name="gastTipp" />
+                    </td>
+                </tr>
+            </tbody>
+        </table>
+    </form>
+    <div class="spielinfo-table">
+        <table class="spielinfoDirekterVergleich">
+            <tbody>
+                <tr>
+                    <td>1.BL</td>
+                    <td>2023/24</td>
+                    <td>22.08.24</td>
+                    <td class="nw sieg">Team Alpha</td>
+                    <td class="nw">Team Beta</td>
+                    <td><span class="kicktipp-ergebnis"><span class="kicktipp-abschnitt kicktipp-abpfiff"><span class="kicktipp-heim">3</span><span class="kicktipp-tortrenner">:</span><span class="kicktipp-gast">1</span></span></span></td>
+                </tr>
+                <tr>
+                    <td>DFB</td>
+                    <td>2022/23</td>
+                    <td>15.05.23</td>
+                    <td class="nw">Team Beta</td>
+                    <td class="nw sieg">Team Alpha</td>
+                    <td><span class="kicktipp-ergebnis"><span class="kicktipp-abschnitt kicktipp-abpfiff"><span class="kicktipp-heim">1</span><span class="kicktipp-tortrenner">:</span><span class="kicktipp-gast">2</span></span><span class="kicktipp-zusatz">n.V.</span></span></td>
+                </tr>
+                <tr>
+                    <td>CL</td>
+                    <td>2021/22</td>
+                    <td>10.03.22</td>
+                    <td class="nw remis">Team Alpha</td>
+                    <td class="nw">Team Beta</td>
+                    <td><span class="kicktipp-ergebnis"><span class="kicktipp-abschnitt kicktipp-abpfiff"><span class="kicktipp-heim">2</span><span class="kicktipp-tortrenner">:</span><span class="kicktipp-gast">2</span></span><span class="kicktipp-zusatz">n.E.</span></span></td>
+                </tr>
+            </tbody>
+        </table>
+    </div>
+</div>
+</body>
+</html>
