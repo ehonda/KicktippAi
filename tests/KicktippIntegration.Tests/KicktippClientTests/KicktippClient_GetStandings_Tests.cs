@@ -47,7 +47,6 @@ public class KicktippClient_GetStandings_Tests : KicktippClientTests_Base
     }
 
     [Test]
-    [Skip("We need to setup the page first")]
     [FixtureRequired]
     public async Task Getting_standings_parses_real_standings_page()
     {
