@@ -1,3 +1,23 @@
+<!--
+    SYNTHETIC FIXTURE: tippabgabe-bonus-with-predictions.html
+    
+    EDGE CASE: Alternative bonus page structure with checkboxes.
+    
+    NOTE: This fixture uses a DIFFERENT structure than the main bonus-questions.html.
+    It's based on an older or alternative Kicktipp page format where:
+    - Bonus questions are in separate tables with class "kicktipp-table"
+    - Multi-select uses checkboxes instead of multiple select elements
+    
+    This fixture may not be compatible with the current KicktippClient implementation
+    which expects the tippabgabeFragen table structure. It's kept for reference but
+    may need to be updated or removed.
+    
+    STRUCTURE DIFFERENCES FROM STANDARD:
+    - Uses <table class="kicktipp-table"> instead of <table id="tippabgabeFragen">
+    - Question text is in a header row with class "headerext"
+    - Multi-select uses <input type="checkbox"> instead of <select>
+    - Missing the 3-column row structure (deadline, question, options)
+-->
 <!DOCTYPE html>
 <html>
 <head>

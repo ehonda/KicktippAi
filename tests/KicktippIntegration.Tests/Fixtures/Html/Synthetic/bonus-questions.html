@@ -1,3 +1,25 @@
+<!--
+    SYNTHETIC FIXTURE: bonus-questions.html
+    
+    EDGE CASE: Bonus questions page structure for GetOpenBonusQuestionsAsync.
+    
+    Tests parsing of bonus questions from the tippabgabe?bonus=true page.
+    
+    KEY STRUCTURE REQUIREMENTS:
+    - Table must have id="tippabgabeFragen"
+    - Each row has 3 cells: deadline, question text, options
+    - Options are in <select> elements
+    - Placeholder option must have value="-1" to be filtered out
+    - Form action must include ?bonus=true for POST to work correctly
+    
+    STRUCTURE:
+    - Question 1: Single-select question (one select element)
+    - Question 2: Multi-select question (uses multiple="multiple" attribute)
+    
+    NOTE: The implementation counts the number of <select> elements to determine
+    maxSelections, which is why multi-select uses a single select with multiple="multiple"
+    rather than multiple separate select elements.
+-->
 <!DOCTYPE html>
 <html lang="de">
 <head><title>Test Bonus Questions</title></head>

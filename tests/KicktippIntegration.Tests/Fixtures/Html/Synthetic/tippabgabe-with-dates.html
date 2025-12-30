@@ -1,3 +1,21 @@
+<!--
+    SYNTHETIC FIXTURE: tippabgabe-with-dates.html
+    
+    EDGE CASE: Date/time inheritance across match rows.
+    
+    In Kicktipp's tippabgabe page, matches on the same day share a common date cell.
+    The date appears only in the first row, and subsequent rows on the same day have
+    an empty date cell. Parsing must inherit the date from the previous row.
+    
+    STRUCTURE:
+    - Row 1 (Team A vs Team B): Has date "22.08.25 20:30"
+    - Row 2 (Team C vs Team D): Empty date cell - inherits from Row 1
+    - Row 3 (Team E vs Team F): Has different date "23.08.25 15:30"
+    
+    Also tests matchday extraction from both:
+    - The title div ("5. Spieltag")
+    - Hidden form field (spieltagIndex=5)
+-->
 <!DOCTYPE html>
 <html lang="de">
 <head><title>Test Tippabgabe</title></head>

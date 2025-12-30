@@ -1,3 +1,19 @@
+<!--
+    SYNTHETIC FIXTURE: tippabgabe-with-predictions.html
+    
+    EDGE CASE: Tippabgabe page with existing predictions (bets already placed).
+    
+    Tests extraction of existing predictions from the form, which is needed for:
+    - GetPlacedPredictionsAsync: Extracting what bets the user has already made
+    - PlaceBetAsync/PlaceBetsAsync: Detecting existing bets to skip or override
+    
+    STRUCTURE:
+    - Row 1 (Team A vs Team B): Has existing prediction value="2" and value="1"
+    - Row 2 (Team C vs Team D): No existing prediction (empty value fields)
+    - Row 3 (Team E vs Team F): Has existing prediction value="0" and value="3"
+    
+    Also tests date inheritance (Row 2 has empty date cell).
+-->
 <!DOCTYPE html>
 <html lang="de">
 <head><title>Test Tippabgabe</title></head>

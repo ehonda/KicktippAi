@@ -1,3 +1,27 @@
+<!--
+    SYNTHETIC FIXTURE: bonus-questions-with-predictions.html
+    
+    EDGE CASE: Bonus questions with already-placed predictions.
+    
+    Tests GetPlacedBonusPredictionsAsync which extracts what bonus predictions
+    the user has already submitted.
+    
+    KEY STRUCTURE FOR MULTI-SELECT:
+    The implementation iterates over each <select> element and gets SelectedOptions.FirstOrDefault().
+    For multi-selection questions, Kicktipp uses MULTIPLE <select> elements (one per allowed selection),
+    NOT a single <select multiple="multiple">. Each select has the same options but different selected values.
+    
+    STRUCTURE:
+    - Question 1: Single-select, has option 102 ("Team B") selected
+    - Question 2: Multi-select with 2 selections allowed
+      - Uses two separate <select> elements with indexed names
+      - First select: option 201 ("Team D") selected
+      - Second select: option 203 ("Team F") selected
+    - Question 3: Single-select, no selection (unanswered)
+    
+    NOTE: The dictionary key returned by GetPlacedBonusPredictionsAsync is the
+    form field name from the first select element (e.g., "bonusForms[2].antwortIds[0]").
+-->
 <!DOCTYPE html>
 <html lang="de">
 <head><title>Test Bonus Questions with Predictions</title></head>

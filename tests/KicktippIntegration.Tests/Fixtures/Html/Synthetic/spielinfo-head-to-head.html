@@ -1,3 +1,24 @@
+<!--
+    SYNTHETIC FIXTURE: spielinfo-head-to-head.html
+    
+    EDGE CASE: Head-to-head (Direkter Vergleich) history with match annotations.
+    
+    Tests parsing of the head-to-head comparison table (ansicht=3) which shows
+    historical results between two specific teams. Key features:
+    - Result annotations: "n.V." (nach Verlängerung = after extra time)
+                          "n.E." (nach Elfmeterschießen = after penalties)
+    - These appear in a <span class="kicktipp-zusatz"> element inside the result cell
+    
+    STRUCTURE:
+    - Table: spielinfoDirekterVergleich (direct comparison)
+    - 6 columns: League | Season | Date | Home Team | Away Team | Result (with optional annotation)
+    - Row 1: Normal result 3:1, no annotation
+    - Row 2: Result 1:2 with "n.V." annotation (after extra time)
+    - Row 3: Result 2:2 with "n.E." annotation (after penalties)
+    
+    IMPORTANT: The annotation span must be INSIDE the result cell's kicktipp-ergebnis span,
+    not in a separate cell. The implementation looks for ".kicktipp-zusatz" within the result cell.
+-->
 <!DOCTYPE html>
 <html lang="de">
 <head><title>Test Head to Head</title></head>

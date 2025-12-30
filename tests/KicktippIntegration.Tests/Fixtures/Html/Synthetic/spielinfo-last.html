@@ -1,3 +1,22 @@
+<!--
+    SYNTHETIC FIXTURE: spielinfo-last.html
+    
+    EDGE CASE: Last match in multi-page spielinfo navigation.
+    
+    This fixture represents the LAST match where:
+    - Previous button (left arrow) is ENABLED with link to previous match
+    - Next button (right arrow) is DISABLED - end of navigation
+    
+    Used for testing GetMatchesWithHistoryAsync navigation termination:
+    - Detects this is the last page (prevnextNext.disabled)
+    - Stops iteration when reaching the end
+    - Extracts home/away team history tables
+    
+    STRUCTURE NOTES:
+    - prevnextPrev has active link to tippspielId=1
+    - prevnextNext has class "disabled" - cannot navigate forward
+    - Match: Home Team 2 vs Away Team 2
+-->
 <!DOCTYPE html>
 <html lang="de">
 <head><title>Test Spielinfo - Last Match</title></head>

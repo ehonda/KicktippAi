@@ -1,3 +1,25 @@
+<!--
+    SYNTHETIC FIXTURE: spielinfo-first.html
+    
+    EDGE CASE: First match in multi-page spielinfo navigation.
+    
+    The spielinfo pages show one match per page with navigation arrows.
+    This fixture represents the FIRST match where:
+    - Previous button (left arrow) is DISABLED
+    - Next button (right arrow) is ENABLED with link to next match
+    
+    Used for testing GetMatchesWithHistoryAsync navigation:
+    - Detects this is the first page (prevnextPrev.disabled)
+    - Follows the next link to iterate through all matches
+    - Extracts home/away team history tables (spielinfoHeim, spielinfoGast)
+    
+    STRUCTURE NOTES:
+    - prevnextPrev has class "disabled" - cannot navigate backward
+    - prevnextNext has active link to tippspielId=2
+    - Match: Home Team 1 vs Away Team 1
+    - Home history table: spielinfoHeim with 2 results
+    - Away history table: spielinfoGast with 1 result
+-->
 <!DOCTYPE html>
 <html lang="de">
 <head><title>Test Spielinfo Navigation</title></head>
