@@ -12,7 +12,7 @@ public class KicktippClient_GetStandings_Tests : KicktippClientTests_Base
     {
         // Arrange
         StubNotFound("/test-community/tabellen");
-        var client = CreateClient(Server);
+        var client = CreateClient();
 
         // Act
         var standings = await client.GetStandingsAsync("test-community");
@@ -37,7 +37,7 @@ public class KicktippClient_GetStandings_Tests : KicktippClientTests_Base
             </html>
             """;
         StubHtmlResponse("/test-community/tabellen", html);
-        var client = CreateClient(Server);
+        var client = CreateClient();
 
         // Act
         var standings = await client.GetStandingsAsync("test-community");
@@ -52,7 +52,7 @@ public class KicktippClient_GetStandings_Tests : KicktippClientTests_Base
     {
         // Arrange
         StubWithFixture("/test-community/tabellen", "tabellen");
-        var client = CreateClient(Server);
+        var client = CreateClient();
 
         // Act
         var standings = await client.GetStandingsAsync("test-community");

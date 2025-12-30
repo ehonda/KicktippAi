@@ -37,8 +37,7 @@ public abstract class KicktippClientTests_Base : IAsyncDisposable
     /// <summary>
     /// Creates a KicktippClient configured to use the WireMock server.
     /// </summary>
-    protected static KicktippClient CreateClient(
-        WireMockServer server,
+    protected KicktippClient CreateClient(
         Option<FakeLogger<KicktippClient>> logger = default,
         Option<IMemoryCache> cache = default)
     {
@@ -47,7 +46,7 @@ public abstract class KicktippClientTests_Base : IAsyncDisposable
 
         var httpClient = new HttpClient
         {
-            BaseAddress = new Uri(server.Urls[0])
+            BaseAddress = new Uri(Server.Urls[0])
         };
 
         return new KicktippClient(httpClient, actualLogger, actualCache);
