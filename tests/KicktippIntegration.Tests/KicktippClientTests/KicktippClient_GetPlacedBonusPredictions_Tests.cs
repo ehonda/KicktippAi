@@ -103,9 +103,6 @@ public class KicktippClient_GetPlacedBonusPredictions_Tests : KicktippClientTest
     }
 
     [Test]
-    [Skip("The real fixture was captured when all bonus questions were locked. " +
-          "The client only parses <select> elements but locked questions show answers as text divs. " +
-          "Re-enable after regenerating fixture during a period with open bonus questions.")]
     public async Task Getting_placed_bonus_predictions_with_real_fixture_returns_predictions()
     {
         // Arrange - use encrypted real fixture for the ehonda-test-buli community

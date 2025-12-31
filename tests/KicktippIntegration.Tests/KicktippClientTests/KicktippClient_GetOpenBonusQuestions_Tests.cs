@@ -92,8 +92,6 @@ public class KicktippClient_GetOpenBonusQuestions_Tests : KicktippClientTests_Ba
     }
 
     [Test]
-    [Skip("The real fixture was captured when all bonus questions were locked. " +
-          "Re-enable after regenerating fixture during a period with open bonus questions.")]
     public async Task Getting_open_bonus_questions_with_real_fixture_returns_questions()
     {
         // Arrange - use encrypted real fixture for the ehonda-test-buli community

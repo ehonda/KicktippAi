@@ -1,4 +1,5 @@
 using EHonda.KicktippAi.Core;
+using Microsoft.Extensions.Logging.Testing;
 
 namespace KicktippIntegration.Tests.KicktippClientTests;
 
@@ -178,8 +179,71 @@ public class KicktippClient_PlaceBonusPredictions_Tests : KicktippClientTests_Ba
         await Assert.That(formData.ContainsKey("submitbutton")).IsTrue();
     }
 
-    // NOTE: Real fixture test for PlaceBonusPredictionsAsync using tippabgabe-bonus.html is not included
-    // because the snapshot was captured when all bonus questions were already locked (past deadline).
-    // The snapshot shows "nichttippbar" class on all questions, meaning they cannot be edited.
-    // To add a real fixture test, capture a bonus page during a period when bonus questions are still open.
+    [Test]
+    public async Task Placing_bonus_predictions_with_real_fixture_submits_form_correctly()
+    {
+        // Arrange - use encrypted real fixture for the ehonda-test-buli community
+        // 
+        // REAL FIXTURE TESTING STRATEGY:
+        // - Real fixtures contain actual data from Kicktipp pages and may change when updated.
+        // - Test invariants (counts, structure, required fields) not concrete values.
+        // - Concrete data assertions belong in synthetic fixture tests for stability.
+        const string community = "ehonda-test-buli";
+        StubWithRealFixtureAndParams($"/{community}/tippabgabe", community, "tippabgabe-bonus",
+            ("bonus", "true"));
+        // The form might POST without the bonus parameter, so stub both
+        StubPostResponseWithParams(
+            $"/{community}/tippabgabe",
+            new Dictionary<string, string> { ["bonus"] = "true" });
+        StubPostResponse($"/{community}/tippabgabe");
+        
+        var logger = new FakeLogger<KicktippClient>();
+        var client = CreateClient(logger: logger);
+        
+        // First, get the bonus questions from the page to find real field names
+        var existingQuestions = await client.GetOpenBonusQuestionsAsync(community);
+        
+        // Take the first question and create a prediction for it
+        await Assert.That(existingQuestions).HasCount().GreaterThanOrEqualTo(1);
+        
+        var firstQuestion = existingQuestions.First();
+        await Assert.That(firstQuestion.Options).HasCount().GreaterThanOrEqualTo(1);
+        await Assert.That(firstQuestion.FormFieldName).IsNotNull();
+        
+        // Select the first option
+        var selectedOption = firstQuestion.Options.First();
+        var predictions = new Dictionary<string, BonusPrediction>
+        {
+            { firstQuestion.FormFieldName!, new BonusPrediction([selectedOption.Id]) }
+        };
+
+        // Act
+        var result = await client.PlaceBonusPredictionsAsync(community, predictions);
+
+        // Assert - should succeed
+        // If this fails, check the logger output for debugging info
+        if (!result)
+        {
+            var logMessages = string.Join("\n", logger.Collector.GetSnapshot()
+                .Select(e => $"[{e.Level}] {e.Message}"));
+            throw new Exception($"PlaceBonusPredictionsAsync returned false.\nLogger output:\n{logMessages}");
+        }
+        await Assert.That(result).IsTrue();
+        
+        // Verify a POST was made
+        var postRequests = GetRequestsForPath($"/{community}/tippabgabe")
+            .Where(r => r.RequestMessage.Method == "POST");
+        await Assert.That(postRequests.Count()).IsEqualTo(1);
+        
+        // Verify form data contains the expected structure
+        var formData = ParseFormData(postRequests.First().RequestMessage.Body);
+        
+        // Verify the prediction was submitted correctly
+        await Assert.That(formData).ContainsKey(firstQuestion.FormFieldName!);
+        await Assert.That(formData[firstQuestion.FormFieldName!]).IsEqualTo(selectedOption.Id);
+        
+        // Verify required hidden fields are present
+        await Assert.That(formData).ContainsKey("_charset_");
+        await Assert.That(formData).ContainsKey("submitbutton");
+    }
 }
