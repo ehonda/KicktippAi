@@ -159,4 +159,119 @@ public class KicktippClient_GetPlacedPredictions_Tests : KicktippClientTests_Bas
         var matchdays = predictions.Keys.Select(m => m.Matchday).Distinct().ToList();
         await Assert.That(matchdays).HasCount().EqualTo(1);
     }
+
+    [Test]
+    public async Task Getting_placed_predictions_handles_non_numeric_prediction_values()
+    {
+        // Arrange - prediction values that are not parseable as integers
+        var html = """
+            <!DOCTYPE html>
+            <html>
+            <body>
+            <div class="prevnextTitle"><a>1. Spieltag</a></div>
+            <table id="tippabgabeSpiele">
+                <tbody>
+                    <tr>
+                        <td>22.08.25 20:30</td>
+                        <td>Team A</td>
+                        <td>Team B</td>
+                        <td>
+                            <input type="text" name="heim" value="abc" />
+                            <input type="text" name="gast" value="xyz" />
+                        </td>
+                    </tr>
+                </tbody>
+            </table>
+            </body>
+            </html>
+            """;
+        StubHtmlResponse("/test-community/tippabgabe", html);
+        var client = CreateClient();
+
+        // Act
+        var predictions = await client.GetPlacedPredictionsAsync("test-community");
+
+        // Assert - match should be present but prediction should be null (unparseable)
+        await Assert.That(predictions).HasCount().EqualTo(1);
+        var match = predictions.Keys.First();
+        await Assert.That(predictions[match]).IsNull();
+    }
+
+    [Test]
+    public async Task Getting_placed_predictions_handles_rows_with_too_few_cells()
+    {
+        // Arrange - row with fewer than required cells
+        var html = """
+            <!DOCTYPE html>
+            <html>
+            <body>
+            <div class="prevnextTitle"><a>1. Spieltag</a></div>
+            <table id="tippabgabeSpiele">
+                <tbody>
+                    <tr>
+                        <td>22.08.25 20:30</td>
+                        <td>Team A</td>
+                    </tr>
+                    <tr>
+                        <td>22.08.25 20:30</td>
+                        <td>Team B</td>
+                        <td>Team C</td>
+                        <td>
+                            <input type="text" name="heim" value="2" />
+                            <input type="text" name="gast" value="1" />
+                        </td>
+                    </tr>
+                </tbody>
+            </table>
+            </body>
+            </html>
+            """;
+        StubHtmlResponse("/test-community/tippabgabe", html);
+        var client = CreateClient();
+
+        // Act
+        var predictions = await client.GetPlacedPredictionsAsync("test-community");
+
+        // Assert - only valid row should be parsed
+        await Assert.That(predictions).HasCount().EqualTo(1);
+        var match = predictions.Keys.First();
+        await Assert.That(match.HomeTeam).IsEqualTo("Team B");
+    }
+
+    [Test]
+    public async Task Getting_placed_predictions_handles_first_row_without_time()
+    {
+        // Arrange - first row has no time, cannot inherit from previous
+        var html = """
+            <!DOCTYPE html>
+            <html>
+            <body>
+            <div class="prevnextTitle"><a>1. Spieltag</a></div>
+            <table id="tippabgabeSpiele">
+                <tbody>
+                    <tr>
+                        <td></td>
+                        <td>Team A</td>
+                        <td>Team B</td>
+                        <td>
+                            <input type="text" name="heim" value="2" />
+                            <input type="text" name="gast" value="1" />
+                        </td>
+                    </tr>
+                </tbody>
+            </table>
+            </body>
+            </html>
+            """;
+        StubHtmlResponse("/test-community/tippabgabe", html);
+        var client = CreateClient();
+
+        // Act
+        var predictions = await client.GetPlacedPredictionsAsync("test-community");
+
+        // Assert - match should still be created with default time
+        await Assert.That(predictions).HasCount().EqualTo(1);
+        var match = predictions.Keys.First();
+        await Assert.That(match.HomeTeam).IsEqualTo("Team A");
+    }
 }

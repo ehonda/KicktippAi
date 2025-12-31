@@ -221,6 +221,394 @@ public class KicktippClient_PlaceBets_Tests : KicktippClientTests_Base
     }
 
     [Test]
+    public async Task Placing_bets_returns_false_when_content_area_missing()
+    {
+        // Arrange
+        var html = """
+            <!DOCTYPE html>
+            <html>
+            <body>
+            <form id="tippabgabeForm">
+                <p>No content area</p>
+            </form>
+            </body>
+            </html>
+            """;
+        StubHtmlResponse("/test-community/tippabgabe", html);
+        var client = CreateClient();
+        var bets = new Dictionary<Match, BetPrediction>
+        {
+            { CreateTestMatch(), new BetPrediction(2, 1) }
+        };
+
+        // Act
+        var result = await client.PlaceBetsAsync("test-community", bets);
+
+        // Assert
+        await Assert.That(result).IsFalse();
+    }
+
+    [Test]
+    public async Task Placing_bets_returns_false_when_tbody_missing()
+    {
+        // Arrange
+        var html = """
+            <!DOCTYPE html>
+            <html>
+            <body>
+            <div id="kicktipp-content">
+                <form id="tippabgabeForm">
+                    <p>No table body</p>
+                </form>
+            </div>
+            </body>
+            </html>
+            """;
+        StubHtmlResponse("/test-community/tippabgabe", html);
+        var client = CreateClient();
+        var bets = new Dictionary<Match, BetPrediction>
+        {
+            { CreateTestMatch(), new BetPrediction(2, 1) }
+        };
+
+        // Act
+        var result = await client.PlaceBetsAsync("test-community", bets);
+
+        // Assert
+        await Assert.That(result).IsFalse();
+    }
+
+    [Test]
+    public async Task Placing_bets_skips_matches_with_missing_input_names()
+    {
+        // Arrange - match input fields exist but have no name attribute
+        var html = """
+            <!DOCTYPE html>
+            <html>
+            <body>
+            <div id="kicktipp-content">
+                <form id="tippabgabeForm" action="/test-community/tippabgabe">
+                    <input type="hidden" name="spieltagIndex" value="1" />
+                    <table>
+                        <tbody>
+                            <tr>
+                                <td>22.08.25 20:30</td>
+                                <td>Team A</td>
+                                <td>Team B</td>
+                                <td>
+                                    <input id="heimTipp" type="text" />
+                                    <input id="gastTipp" type="text" />
+                                </td>
+                            </tr>
+                            <tr>
+                                <td>22.08.25 20:30</td>
+                                <td>Team C</td>
+                                <td>Team D</td>
+                                <td>
+                                    <input id="2_heimTipp" name="spieltippForms[2].heimTipp" type="text" />
+                                    <input id="2_gastTipp" name="spieltippForms[2].gastTipp" type="text" />
+                                </td>
+                            </tr>
+                        </tbody>
+                    </table>
+                    <button type="submit" name="submitbutton">Submit</button>
+                </form>
+            </div>
+            </body>
+            </html>
+            """;
+        StubHtmlResponse("/test-community/tippabgabe", html);
+        StubPostResponse("/test-community/tippabgabe");
+        var client = CreateClient();
+        var bets = new Dictionary<Match, BetPrediction>
+        {
+            { CreateTestMatch("Team A", "Team B"), new BetPrediction(2, 1) }, // Missing input names
+            { CreateTestMatch("Team C", "Team D"), new BetPrediction(3, 2) }  // Valid input names
+        };
+
+        // Act
+        var result = await client.PlaceBetsAsync("test-community", bets);
+
+        // Assert - should succeed but only Team C vs D bet was placed
+        await Assert.That(result).IsTrue();
+        
+        var postRequests = GetRequestsForPath("/test-community/tippabgabe")
+            .Where(r => r.RequestMessage.Method == "POST");
+        var formData = ParseFormData(postRequests.First().RequestMessage.Body);
+        
+        // Team C vs D should have bet placed
+        await Assert.That(formData["spieltippForms[2].heimTipp"]).IsEqualTo("3");
+        await Assert.That(formData["spieltippForms[2].gastTipp"]).IsEqualTo("2");
+        
+        // Team A vs B fields should not be in form data (no name)
+        await Assert.That(formData.Keys.Where(k => k.Contains("[1]"))).IsEmpty();
+    }
+
+    [Test]
+    public async Task Placing_bets_uses_input_submit_button()
+    {
+        // Arrange - use input element for submit instead of button
+        var html = """
+            <!DOCTYPE html>
+            <html>
+            <body>
+            <div id="kicktipp-content">
+                <form id="tippabgabeForm" action="/test-community/tippabgabe">
+                    <input type="hidden" name="spieltagIndex" value="1" />
+                    <table>
+                        <tbody>
+                            <tr>
+                                <td>22.08.25 20:30</td>
+                                <td>Team A</td>
+                                <td>Team B</td>
+                                <td>
+                                    <input id="1_heimTipp" name="spieltippForms[1].heimTipp" type="text" />
+                                    <input id="1_gastTipp" name="spieltippForms[1].gastTipp" type="text" />
+                                </td>
+                            </tr>
+                        </tbody>
+                    </table>
+                    <input type="submit" name="inputSubmit" value="Save" />
+                </form>
+            </div>
+            </body>
+            </html>
+            """;
+        StubHtmlResponse("/test-community/tippabgabe", html);
+        StubPostResponse("/test-community/tippabgabe");
+        var client = CreateClient();
+        var bets = new Dictionary<Match, BetPrediction>
+        {
+            { CreateTestMatch("Team A", "Team B"), new BetPrediction(2, 1) }
+        };
+
+        // Act
+        var result = await client.PlaceBetsAsync("test-community", bets);
+
+        // Assert
+        await Assert.That(result).IsTrue();
+        
+        var postRequests = GetRequestsForPath("/test-community/tippabgabe")
+            .Where(r => r.RequestMessage.Method == "POST");
+        var formData = ParseFormData(postRequests.First().RequestMessage.Body);
+        await Assert.That(formData).ContainsKey("inputSubmit");
+        await Assert.That(formData["inputSubmit"]).IsEqualTo("Save");
+    }
+
+    [Test]
+    public async Task Placing_bets_uses_fallback_submit_button_when_none_found()
+    {
+        // Arrange - no submit button in form
+        var html = """
+            <!DOCTYPE html>
+            <html>
+            <body>
+            <div id="kicktipp-content">
+                <form id="tippabgabeForm" action="/test-community/tippabgabe">
+                    <input type="hidden" name="spieltagIndex" value="1" />
+                    <table>
+                        <tbody>
+                            <tr>
+                                <td>22.08.25 20:30</td>
+                                <td>Team A</td>
+                                <td>Team B</td>
+                                <td>
+                                    <input id="1_heimTipp" name="spieltippForms[1].heimTipp" type="text" />
+                                    <input id="1_gastTipp" name="spieltippForms[1].gastTipp" type="text" />
+                                </td>
+                            </tr>
+                        </tbody>
+                    </table>
+                </form>
+            </div>
+            </body>
+            </html>
+            """;
+        StubHtmlResponse("/test-community/tippabgabe", html);
+        StubPostResponse("/test-community/tippabgabe");
+        var client = CreateClient();
+        var bets = new Dictionary<Match, BetPrediction>
+        {
+            { CreateTestMatch("Team A", "Team B"), new BetPrediction(2, 1) }
+        };
+
+        // Act
+        var result = await client.PlaceBetsAsync("test-community", bets);
+
+        // Assert
+        await Assert.That(result).IsTrue();
+        
+        var postRequests = GetRequestsForPath("/test-community/tippabgabe")
+            .Where(r => r.RequestMessage.Method == "POST");
+        var formData = ParseFormData(postRequests.First().RequestMessage.Body);
+        // Should use fallback submit button name
+        await Assert.That(formData).ContainsKey("submitbutton");
+    }
+
+    [Test]
+    public async Task Placing_bets_uses_button_element_submit()
+    {
+        // Arrange - use button element for submit
+        var html = """
+            <!DOCTYPE html>
+            <html>
+            <body>
+            <div id="kicktipp-content">
+                <form id="tippabgabeForm" action="/test-community/tippabgabe">
+                    <input type="hidden" name="spieltagIndex" value="1" />
+                    <table>
+                        <tbody>
+                            <tr>
+                                <td>22.08.25 20:30</td>
+                                <td>Team A</td>
+                                <td>Team B</td>
+                                <td>
+                                    <input id="1_heimTipp" name="spieltippForms[1].heimTipp" type="text" />
+                                    <input id="1_gastTipp" name="spieltippForms[1].gastTipp" type="text" />
+                                </td>
+                            </tr>
+                        </tbody>
+                    </table>
+                    <button type="submit" name="buttonSubmit" value="SaveBets">Save</button>
+                </form>
+            </div>
+            </body>
+            </html>
+            """;
+        StubHtmlResponse("/test-community/tippabgabe", html);
+        StubPostResponse("/test-community/tippabgabe");
+        var client = CreateClient();
+        var bets = new Dictionary<Match, BetPrediction>
+        {
+            { CreateTestMatch("Team A", "Team B"), new BetPrediction(2, 1) }
+        };
+
+        // Act
+        var result = await client.PlaceBetsAsync("test-community", bets);
+
+        // Assert
+        await Assert.That(result).IsTrue();
+        
+        var postRequests = GetRequestsForPath("/test-community/tippabgabe")
+            .Where(r => r.RequestMessage.Method == "POST");
+        var formData = ParseFormData(postRequests.First().RequestMessage.Body);
+        await Assert.That(formData).ContainsKey("buttonSubmit");
+        await Assert.That(formData["buttonSubmit"]).IsEqualTo("SaveBets");
+    }
+
+    [Test]
+    public async Task Placing_bets_handles_relative_form_action()
+    {
+        // Arrange - form action is a relative path (no leading slash)
+        var html = """
+            <!DOCTYPE html>
+            <html>
+            <body>
+            <div id="kicktipp-content">
+                <form id="tippabgabeForm" action="submit-bets">
+                    <input type="hidden" name="spieltagIndex" value="1" />
+                    <table>
+                        <tbody>
+                            <tr>
+                                <td>22.08.25 20:30</td>
+                                <td>Team A</td>
+                                <td>Team B</td>
+                                <td>
+                                    <input id="1_heimTipp" name="spieltippForms[1].heimTipp" type="text" />
+                                    <input id="1_gastTipp" name="spieltippForms[1].gastTipp" type="text" />
+                                </td>
+                            </tr>
+                        </tbody>
+                    </table>
+                    <button type="submit" name="submitbutton">Submit</button>
+                </form>
+            </div>
+            </body>
+            </html>
+            """;
+        StubHtmlResponse("/test-community/tippabgabe", html);
+        StubPostResponse("/test-community/submit-bets");
+        var client = CreateClient();
+        var bets = new Dictionary<Match, BetPrediction>
+        {
+            { CreateTestMatch("Team A", "Team B"), new BetPrediction(2, 1) }
+        };
+
+        // Act
+        var result = await client.PlaceBetsAsync("test-community", bets);
+
+        // Assert
+        await Assert.That(result).IsTrue();
+        
+        // Verify POST was made to the relative path (appended to community)
+        var postRequests = GetRequestsForPath("/test-community/submit-bets")
+            .Where(r => r.RequestMessage.Method == "POST");
+        await Assert.That(postRequests.Count()).IsEqualTo(1);
+    }
+
+    [Test]
+    public async Task Placing_bets_skips_rows_with_empty_team_names()
+    {
+        // Arrange - some rows have empty team names
+        var html = """
+            <!DOCTYPE html>
+            <html>
+            <body>
+            <div id="kicktipp-content">
+                <form id="tippabgabeForm" action="/test-community/tippabgabe">
+                    <input type="hidden" name="spieltagIndex" value="1" />
+                    <table>
+                        <tbody>
+                            <tr>
+                                <td>22.08.25 20:30</td>
+                                <td></td>
+                                <td></td>
+                                <td>
+                                    <input id="1_heimTipp" name="spieltippForms[1].heimTipp" type="text" />
+                                    <input id="1_gastTipp" name="spieltippForms[1].gastTipp" type="text" />
+                                </td>
+                            </tr>
+                            <tr>
+                                <td>22.08.25 20:30</td>
+                                <td>Team A</td>
+                                <td>Team B</td>
+                                <td>
+                                    <input id="2_heimTipp" name="spieltippForms[2].heimTipp" type="text" />
+                                    <input id="2_gastTipp" name="spieltippForms[2].gastTipp" type="text" />
+                                </td>
+                            </tr>
+                        </tbody>
+                    </table>
+                    <button type="submit" name="submitbutton">Submit</button>
+                </form>
+            </div>
+            </body>
+            </html>
+            """;
+        StubHtmlResponse("/test-community/tippabgabe", html);
+        StubPostResponse("/test-community/tippabgabe");
+        var client = CreateClient();
+        var bets = new Dictionary<Match, BetPrediction>
+        {
+            { CreateTestMatch("Team A", "Team B"), new BetPrediction(2, 1) }
+        };
+
+        // Act
+        var result = await client.PlaceBetsAsync("test-community", bets);
+
+        // Assert
+        await Assert.That(result).IsTrue();
+        
+        var postRequests = GetRequestsForPath("/test-community/tippabgabe")
+            .Where(r => r.RequestMessage.Method == "POST");
+        var formData = ParseFormData(postRequests.First().RequestMessage.Body);
+        
+        // Team A vs B should have bet placed
+        await Assert.That(formData["spieltippForms[2].heimTipp"]).IsEqualTo("2");
+        await Assert.That(formData["spieltippForms[2].gastTipp"]).IsEqualTo("1");
+    }
+
+    [Test]
     public async Task Placing_bets_with_real_fixture_submits_form_correctly()
     {
         // Arrange - use encrypted real fixture for the ehonda-test-buli community
