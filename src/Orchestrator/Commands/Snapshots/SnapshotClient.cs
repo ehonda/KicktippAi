@@ -50,10 +50,40 @@ public class SnapshotClient
     }
 
     /// <summary>
-    /// Fetches all spielinfo pages by traversing through them.
+    /// Fetches all spielinfo pages (default view) by traversing through them.
     /// Returns a list of (fileName, content) tuples.
     /// </summary>
     public async Task<List<(string fileName, string content)>> FetchAllSpielinfoAsync(string community)
+    {
+        return await FetchAllSpielinfoVariantAsync(community, fileNameSuffix: null, ansichtParam: null);
+    }
+
+    /// <summary>
+    /// Fetches all spielinfo pages with home/away history (ansicht=2) by traversing through them.
+    /// Returns a list of (fileName, content) tuples with "-homeaway" suffix.
+    /// </summary>
+    public async Task<List<(string fileName, string content)>> FetchAllSpielinfoHomeAwayAsync(string community)
+    {
+        return await FetchAllSpielinfoVariantAsync(community, fileNameSuffix: "-homeaway", ansichtParam: "2");
+    }
+
+    /// <summary>
+    /// Fetches all spielinfo pages with head-to-head history (ansicht=3) by traversing through them.
+    /// Returns a list of (fileName, content) tuples with "-h2h" suffix.
+    /// </summary>
+    public async Task<List<(string fileName, string content)>> FetchAllSpielinfoHeadToHeadAsync(string community)
+    {
+        return await FetchAllSpielinfoVariantAsync(community, fileNameSuffix: "-h2h", ansichtParam: "3");
+    }
+
+    /// <summary>
+    /// Fetches all spielinfo pages with an optional ansicht parameter.
+    /// </summary>
+    /// <param name="community">The community name.</param>
+    /// <param name="fileNameSuffix">Optional suffix to append to file names (e.g., "-homeaway", "-h2h").</param>
+    /// <param name="ansichtParam">Optional ansicht parameter value (e.g., "2" for home/away, "3" for head-to-head).</param>
+    private async Task<List<(string fileName, string content)>> FetchAllSpielinfoVariantAsync(
+        string community, string? fileNameSuffix, string? ansichtParam)
     {
         var results = new List<(string fileName, string content)>();
 
@@ -91,7 +121,8 @@ public class SnapshotClient
             spielinfoUrl = spielinfoUrl.Substring(1);
         }
 
-        _logger.LogInformation("Starting to fetch spielinfo pages...");
+        var variantDescription = ansichtParam != null ? $" (ansicht={ansichtParam})" : "";
+        _logger.LogInformation("Starting to fetch spielinfo pages{Variant}...", variantDescription);
 
         // Navigate through all matches using the right arrow navigation
         var currentUrl = spielinfoUrl;
@@ -101,23 +132,26 @@ public class SnapshotClient
         {
             try
             {
-                var spielinfoResponse = await _httpClient.GetAsync(currentUrl);
+                // Apply ansicht parameter if specified
+                var fetchUrl = ApplyAnsichtParam(currentUrl, ansichtParam);
+                
+                var spielinfoResponse = await _httpClient.GetAsync(fetchUrl);
                 if (!spielinfoResponse.IsSuccessStatusCode)
                 {
                     _logger.LogWarning("Failed to fetch spielinfo page: {Url}. Status: {StatusCode}", 
-                        currentUrl, spielinfoResponse.StatusCode);
+                        fetchUrl, spielinfoResponse.StatusCode);
                     break;
                 }
 
                 var spielinfoContent = await spielinfoResponse.Content.ReadAsStringAsync();
                 matchCount++;
 
-                // Generate filename from URL or index
-                var fileName = $"spielinfo-{matchCount:D2}";
+                // Generate filename from URL or index, with optional suffix
+                var fileName = $"spielinfo-{matchCount:D2}{fileNameSuffix ?? ""}";
                 results.Add((fileName, spielinfoContent));
-                _logger.LogDebug("Fetched spielinfo page {Count}: {Url}", matchCount, currentUrl);
+                _logger.LogDebug("Fetched spielinfo page {Count}: {Url}", matchCount, fetchUrl);
 
-                // Parse to find next link
+                // Parse to find next link (use the content without ansicht param for navigation)
                 var spielinfoDocument = await _browsingContext.OpenAsync(req => req.Content(spielinfoContent));
                 var nextLink = FindNextMatchLink(spielinfoDocument);
 
@@ -142,8 +176,23 @@ public class SnapshotClient
             }
         }
 
-        _logger.LogInformation("Fetched {Count} spielinfo pages", results.Count);
+        _logger.LogInformation("Fetched {Count} spielinfo pages{Variant}", results.Count, variantDescription);
         return results;
+    }
+
+    /// <summary>
+    /// Applies the ansicht query parameter to a URL.
+    /// </summary>
+    private static string ApplyAnsichtParam(string url, string? ansichtParam)
+    {
+        if (string.IsNullOrEmpty(ansichtParam))
+        {
+            return url;
+        }
+
+        return url.Contains('?')
+            ? $"{url}&ansicht={ansichtParam}"
+            : $"{url}?ansicht={ansichtParam}";
     }
 
     private async Task<string?> FetchPageAsync(string url, string pageName)

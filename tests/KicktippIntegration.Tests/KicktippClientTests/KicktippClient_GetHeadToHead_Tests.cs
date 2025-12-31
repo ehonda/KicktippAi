@@ -205,9 +205,86 @@ public class KicktippClient_GetHeadToHead_Tests : KicktippClientTests_Base
         await Assert.That(history).IsEmpty();
     }
 
-    // NOTE: Real fixture test for GetHeadToHeadHistoryAsync is not included because
-    // the kicktipp-snapshots directory does not contain ansicht=3 (Direkter Vergleich) pages.
-    // The existing snapshots (spielinfo-01 through spielinfo-09) are all ansicht=1 (Ergebnisse).
-    // To add a real fixture test, capture a page with URL like:
-    // /community/spielinfo?tippsaisonId=xxx&tippspielId=xxx&ansicht=3
+    [Test]
+    public async Task Getting_head_to_head_with_real_fixture_returns_match_history()
+    {
+        // Arrange - use encrypted real fixtures for the ehonda-test-buli community
+        // 
+        // REAL FIXTURE TESTING STRATEGY:
+        // - Real fixtures contain actual data from Kicktipp pages and may change when updated.
+        // - Test invariants (counts, structure, required fields) not concrete values.
+        // - Concrete data assertions belong in synthetic fixture tests for stability.
+        const string community = "ehonda-test-buli";
+        
+        // The tippabgabe page provides team names
+        StubWithRealFixture(community, "tippabgabe");
+        
+        // First, get matches to find valid team names from the fixture
+        var client = CreateClient();
+        var matches = await client.GetOpenPredictionsAsync(community);
+        var firstMatch = matches.First();
+        
+        // Stub the spielinfo page with ansicht=3 for head-to-head history
+        // Uses the -h2h fixture variant which contains the actual head-to-head view data
+        StubWithRealFixtureAndParams($"/{community}/spielinfo", community, "spielinfo-01-h2h",
+            ("tippsaisonId", "3684392"),
+            ("tippspielId", "1384231935"),
+            ("ansicht", "3"));
+
+        // Act
+        var history = await client.GetHeadToHeadHistoryAsync(
+            community,
+            firstMatch.HomeTeam,
+            firstMatch.AwayTeam);
+
+        // Assert - head-to-head history may be empty if teams haven't played before
+        // But if there is history, it should be valid
+        foreach (var result in history)
+        {
+            await Assert.That(result.HomeTeam).IsNotEmpty();
+            await Assert.That(result.AwayTeam).IsNotEmpty();
+            // Goals should be non-null and non-negative for historical matches
+            await Assert.That(result.HomeGoals).IsNotNull();
+            await Assert.That(result.AwayGoals).IsNotNull();
+            await Assert.That(result.HomeGoals!.Value).IsGreaterThanOrEqualTo(0);
+            await Assert.That(result.AwayGoals!.Value).IsGreaterThanOrEqualTo(0);
+        }
+    }
+
+    [Test]
+    public async Task Getting_detailed_head_to_head_with_real_fixture_returns_match_history_with_annotations()
+    {
+        // Arrange - use encrypted real fixtures for the ehonda-test-buli community
+        const string community = "ehonda-test-buli";
+        
+        // The tippabgabe page provides team names
+        StubWithRealFixture(community, "tippabgabe");
+        
+        // First, get matches to find valid team names from the fixture
+        var client = CreateClient();
+        var matches = await client.GetOpenPredictionsAsync(community);
+        var firstMatch = matches.First();
+        
+        // Stub the spielinfo page with ansicht=3 for head-to-head history
+        StubWithRealFixtureAndParams($"/{community}/spielinfo", community, "spielinfo-01-h2h",
+            ("tippsaisonId", "3684392"),
+            ("tippspielId", "1384231935"),
+            ("ansicht", "3"));
+
+        // Act
+        var history = await client.GetHeadToHeadDetailedHistoryAsync(
+            community,
+            firstMatch.HomeTeam,
+            firstMatch.AwayTeam);
+
+        // Assert - detailed history includes annotations
+        foreach (var result in history)
+        {
+            await Assert.That(result.HomeTeam).IsNotEmpty();
+            await Assert.That(result.AwayTeam).IsNotEmpty();
+            await Assert.That(result.Score).IsNotEmpty();
+            // Annotation can be null (no extra time/penalties) or a string
+        }
+    }
 }
+

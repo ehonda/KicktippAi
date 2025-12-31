@@ -305,7 +305,8 @@ public class KicktippClient_GetHomeAwayHistory_Tests : KicktippClientTests_Base
         var firstMatch = matches.First();
         
         // Stub the spielinfo page with ansicht=2 for home/away history
-        StubWithRealFixtureAndParams($"/{community}/spielinfo", community, "spielinfo-01",
+        // Uses the -homeaway fixture variant which contains the actual home/away view data
+        StubWithRealFixtureAndParams($"/{community}/spielinfo", community, "spielinfo-01-homeaway",
             ("tippsaisonId", "3684392"),
             ("tippspielId", "1384231935"),
             ("ansicht", "2"));

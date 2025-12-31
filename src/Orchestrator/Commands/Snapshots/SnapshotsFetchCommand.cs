@@ -133,6 +133,44 @@ public class SnapshotsFetchCommand : AsyncCommand<SnapshotsFetchSettings>
                 {
                     AnsiConsole.MarkupLine("[yellow]![/] No spielinfo pages found");
                 }
+
+                // 5. Spielinfo pages with home/away history (ansicht=2)
+                ctx.Status("Fetching spielinfo home/away pages...");
+                var homeAwayPages = await snapshotClient.FetchAllSpielinfoHomeAwayAsync(community);
+
+                foreach (var (fileName, content) in homeAwayPages)
+                {
+                    await SaveSnapshotAsync(outputPath, $"{fileName}.html", content);
+                    savedCount++;
+                }
+
+                if (homeAwayPages.Count > 0)
+                {
+                    AnsiConsole.MarkupLine($"[green]✓[/] Saved {homeAwayPages.Count} spielinfo home/away pages");
+                }
+                else
+                {
+                    AnsiConsole.MarkupLine("[yellow]![/] No spielinfo home/away pages found");
+                }
+
+                // 6. Spielinfo pages with head-to-head history (ansicht=3)
+                ctx.Status("Fetching spielinfo head-to-head pages...");
+                var h2hPages = await snapshotClient.FetchAllSpielinfoHeadToHeadAsync(community);
+
+                foreach (var (fileName, content) in h2hPages)
+                {
+                    await SaveSnapshotAsync(outputPath, $"{fileName}.html", content);
+                    savedCount++;
+                }
+
+                if (h2hPages.Count > 0)
+                {
+                    AnsiConsole.MarkupLine($"[green]✓[/] Saved {h2hPages.Count} spielinfo head-to-head pages");
+                }
+                else
+                {
+                    AnsiConsole.MarkupLine("[yellow]![/] No spielinfo head-to-head pages found");
+                }
             });
 
         return savedCount;

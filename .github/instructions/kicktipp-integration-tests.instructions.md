@@ -1,5 +1,5 @@
 ---
-applyTo: '**/KicktippIntegration*'
+applyTo: '**/KicktippIntegration*/**'
 ---
 # Kicktipp Integration Testing Guidelines
 
