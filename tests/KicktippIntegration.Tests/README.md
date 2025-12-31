@@ -6,6 +6,47 @@ Unit tests for the `KicktippIntegration` project, specifically the `KicktippClie
 
 Tests use [WireMock.Net](https://github.com/WireMock-Net/WireMock.Net) to serve HTML fixtures at the correct paths, allowing us to test the HTML parsing logic without hitting the real Kicktipp website.
 
+### Fixture Types
+
+The test suite uses two types of fixtures organized by community under `Fixtures/Html/`:
+
+#### Synthetic Fixtures (`Synthetic/{community}/`)
+
+Handcrafted HTML files designed for testing specific edge cases with predictable data:
+
+- **Purpose**: Test parsing logic for specific scenarios (date inheritance, empty values, etc.)
+- **Format**: Unencrypted `.html` files
+- **Assertions**: Use concrete value assertions (e.g., exact team names, dates, scores)
+- **Location**: `Fixtures/Html/Synthetic/test-community/`
+
+#### Real Fixtures (`Real/{community}/`)
+
+Encrypted snapshots of actual Kicktipp pages:
+
+- **Purpose**: Validate parsing against real-world HTML structure
+- **Format**: AES-256-GCM encrypted `.html.enc` files
+- **Assertions**: Use invariant-based assertions (counts, structure, required fields)
+- **Location**: `Fixtures/Html/Real/ehonda-test-buli/`
+
+### Testing Strategy
+
+**Synthetic fixture tests** assert concrete values:
+```csharp
+// Synthetic fixtures have predictable data - assert exact values
+StubWithSyntheticFixture("/test-community/tippabgabe", "test-community", "tippabgabe-with-dates");
+var predictions = await client.GetPlacedPredictionsAsync("test-community");
+await Assert.That(predictions).HasCount().EqualTo(3);
+```
+
+**Real fixture tests** assert invariants:
+```csharp
+// Real fixtures may change - test structure and invariants, not specific values
+StubWithRealFixture(community, "tippabgabe");
+var predictions = await client.GetPlacedPredictionsAsync(community);
+await Assert.That(predictions).HasCount().GreaterThan(0);
+// For POST operations, verify the exact values we submitted appear in the form
+```
+
 ## Encrypted Fixtures
 
 HTML fixtures are encrypted using AES-256-GCM to avoid committing actual Kicktipp page content. This approach:
@@ -28,19 +69,22 @@ HTML fixtures are encrypted using AES-256-GCM to avoid committing actual Kicktip
      ```
    - **CI/CD**: Set as a repository secret named `KICKTIPP_FIXTURE_KEY`
 
-3. Create encrypted fixtures using the helper script:
+3. Create encrypted fixtures using the orchestrator:
    ```powershell
-   .\Encrypt-Fixture.ps1 -InputPath path/to/page.html -OutputPath tests/KicktippIntegration.Tests/Fixtures/Html/page-name.html.enc
+   # Fetch and encrypt snapshots for a community
+   dotnet run --project src/Orchestrator -- snapshots all --community ehonda-test-buli
    ```
 
 ### Working with Fixtures
 
-Fixtures are stored in `Fixtures/Html/` as `.html.enc` files. To add a new fixture:
+To update real fixtures:
 
-1. Save the HTML page locally (do NOT commit unencrypted files)
-2. Run the encryption script
-3. Commit the `.html.enc` file
-4. Delete the original HTML file
+1. Run the orchestrator to fetch and encrypt new snapshots:
+   ```powershell
+   dotnet run --project src/Orchestrator -- snapshots all --community ehonda-test-buli
+   ```
+2. Commit the `.html.enc` files in `Fixtures/Html/Real/{community}/`
+3. Delete any unencrypted HTML files (the orchestrator does this by default)
 
 ### Tests Without Fixtures
 
@@ -58,4 +102,7 @@ dotnet run --project tests/KicktippIntegration.Tests
 
 # Run specific test class
 dotnet run --project tests/KicktippIntegration.Tests -- --treenode-filter "/*/*/KicktippClient_GetStandings_Tests/*"
+
+# Run tests matching a pattern
+dotnet run --project tests/KicktippIntegration.Tests -- --treenode-filter "/*/*/KicktippClient_PlaceBet*/*"
 ```

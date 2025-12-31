@@ -72,15 +72,16 @@ public class SnapshotsAllCommand : AsyncCommand<SnapshotsAllSettings>
 
             AnsiConsole.WriteLine();
 
-            // Step 2: Encrypt snapshots
+            // Step 2: Encrypt snapshots to community-specific subdirectory
             AnsiConsole.MarkupLine("[bold]Step 2: Encrypting snapshots[/]");
             var deleteOriginals = !settings.KeepOriginals;
+            var communityOutputPath = Path.Combine(outputPath, settings.Community);
             var (encryptedCount, deletedCount) = await SnapshotsEncryptCommand.EncryptSnapshotsAsync(
-                snapshotsPath, outputPath, encryptionKey, deleteOriginals);
+                snapshotsPath, communityOutputPath, encryptionKey, deleteOriginals);
 
             AnsiConsole.WriteLine();
             AnsiConsole.MarkupLine($"[green]Done![/] Fetched {fetchedCount}, encrypted {encryptedCount} snapshot(s)");
-            AnsiConsole.MarkupLine($"[dim]Encrypted files saved to: {outputPath}[/]");
+            AnsiConsole.MarkupLine($"[dim]Encrypted files saved to: {communityOutputPath}[/]");
 
             if (deletedCount > 0)
             {

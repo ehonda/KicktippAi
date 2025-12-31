@@ -199,36 +199,14 @@ public abstract class KicktippClientTests_Base : IAsyncDisposable
     }
 
     /// <summary>
-    /// Stubs a GET request using an encrypted fixture file.
-    /// </summary>
-    /// <param name="path">The URL path.</param>
-    /// <param name="fixtureName">Name of the fixture (without .html.enc extension).</param>
-    protected void StubWithFixture(string path, string fixtureName)
-    {
-        var htmlContent = FixtureLoader.LoadFixture(fixtureName);
-        StubHtmlResponse(path, htmlContent);
-    }
-
-    /// <summary>
-    /// Stubs a GET request with query parameters using an encrypted fixture file.
-    /// </summary>
-    /// <param name="path">The URL path.</param>
-    /// <param name="fixtureName">Name of the fixture (without .html.enc extension).</param>
-    /// <param name="queryParams">Query parameters that must be present.</param>
-    protected void StubWithFixtureAndParams(string path, string fixtureName, params (string key, string value)[] queryParams)
-    {
-        var htmlContent = FixtureLoader.LoadFixture(fixtureName);
-        StubHtmlResponseWithParams(path, htmlContent, queryParams);
-    }
-
-    /// <summary>
     /// Stubs a GET request using a synthetic fixture file from the Synthetic directory.
     /// </summary>
     /// <param name="path">The URL path.</param>
+    /// <param name="community">The community folder containing the fixture (e.g., "test-community").</param>
     /// <param name="syntheticFixtureName">Name of the synthetic fixture file (without .html extension).</param>
-    protected void StubWithSyntheticFixture(string path, string syntheticFixtureName)
+    protected void StubWithSyntheticFixture(string path, string community, string syntheticFixtureName)
     {
-        var htmlContent = LoadSyntheticFixture(syntheticFixtureName);
+        var htmlContent = FixtureLoader.LoadSyntheticFixture(community, syntheticFixtureName);
         StubHtmlResponse(path, htmlContent);
     }
 
@@ -236,11 +214,12 @@ public abstract class KicktippClientTests_Base : IAsyncDisposable
     /// Stubs a GET request with query parameters using a synthetic fixture file.
     /// </summary>
     /// <param name="path">The URL path.</param>
+    /// <param name="community">The community folder containing the fixture (e.g., "test-community").</param>
     /// <param name="syntheticFixtureName">Name of the synthetic fixture file (without .html extension).</param>
     /// <param name="queryParams">Query parameters that must be present.</param>
-    protected void StubWithSyntheticFixtureAndParams(string path, string syntheticFixtureName, params (string key, string value)[] queryParams)
+    protected void StubWithSyntheticFixtureAndParams(string path, string community, string syntheticFixtureName, params (string key, string value)[] queryParams)
     {
-        var htmlContent = LoadSyntheticFixture(syntheticFixtureName);
+        var htmlContent = FixtureLoader.LoadSyntheticFixture(community, syntheticFixtureName);
         StubHtmlResponseWithParams(path, htmlContent, queryParams);
     }
 
@@ -248,84 +227,66 @@ public abstract class KicktippClientTests_Base : IAsyncDisposable
     /// Stubs a GET request with query parameters (dictionary) using a synthetic fixture file.
     /// </summary>
     /// <param name="path">The URL path.</param>
+    /// <param name="community">The community folder containing the fixture (e.g., "test-community").</param>
     /// <param name="syntheticFixtureName">Name of the synthetic fixture file (without .html extension).</param>
     /// <param name="queryParams">Query parameters that must be present.</param>
-    protected void StubWithSyntheticFixtureAndParams(string path, string syntheticFixtureName, Dictionary<string, string> queryParams)
+    protected void StubWithSyntheticFixtureAndParams(string path, string community, string syntheticFixtureName, Dictionary<string, string> queryParams)
     {
         var paramTuples = queryParams.Select(kvp => (kvp.Key, kvp.Value)).ToArray();
-        StubWithSyntheticFixtureAndParams(path, syntheticFixtureName, paramTuples);
+        StubWithSyntheticFixtureAndParams(path, community, syntheticFixtureName, paramTuples);
     }
 
     /// <summary>
-    /// Loads a synthetic (unencrypted) fixture file.
+    /// Loads a synthetic fixture file content (public for use in test classes when direct access is needed).
     /// </summary>
-    /// <param name="syntheticFixtureName">Name of the synthetic fixture file (without .html extension).</param>
-    /// <returns>The HTML content.</returns>
-    private static string LoadSyntheticFixture(string syntheticFixtureName)
-    {
-        var fixturesDir = FixtureLoader.GetFixturesDirectory();
-        var syntheticDir = Path.Combine(fixturesDir, "Synthetic");
-        var fixturePath = Path.Combine(syntheticDir, $"{syntheticFixtureName}.html");
-        
-        if (!File.Exists(fixturePath))
-        {
-            throw new FileNotFoundException($"Synthetic fixture file not found: {fixturePath}");
-        }
-        
-        return File.ReadAllText(fixturePath);
-    }
-
-    /// <summary>
-    /// Loads a synthetic fixture file content (public for use in test classes).
-    /// </summary>
+    /// <param name="community">The community folder containing the fixture (e.g., "test-community").</param>
     /// <param name="name">Name of the synthetic fixture file (without .html extension).</param>
     /// <returns>The HTML content.</returns>
-    protected static string LoadSyntheticFixtureContent(string name)
+    protected static string LoadSyntheticFixtureContent(string community, string name)
     {
-        return LoadSyntheticFixture(name);
+        return FixtureLoader.LoadSyntheticFixture(community, name);
     }
 
     /// <summary>
-    /// Loads a snapshot file from the kicktipp-snapshots directory.
+    /// Stubs a GET request using an encrypted real fixture file for a specific community.
+    /// Uses the default path pattern "/{community}/{fixtureName}".
+    /// Real fixtures contain actual data from Kicktipp pages and should be tested for invariants only.
     /// </summary>
-    /// <param name="snapshotName">Name of the snapshot file (without .html extension).</param>
-    /// <returns>The HTML content.</returns>
-    protected static string LoadSnapshot(string snapshotName)
+    /// <param name="community">The Kicktipp community (e.g., "ehonda-test-buli").</param>
+    /// <param name="fixtureName">Name of the fixture file (without .html.enc extension).</param>
+    protected void StubWithRealFixture(string community, string fixtureName)
     {
-        // Navigate from test project to kicktipp-snapshots at repository root
-        var testProjectDir = Directory.GetCurrentDirectory();
-        var repoRoot = Path.GetFullPath(Path.Combine(testProjectDir, "..", "..", "..", "..", ".."));
-        var snapshotsDir = Path.Combine(repoRoot, "kicktipp-snapshots");
-        var snapshotPath = Path.Combine(snapshotsDir, $"{snapshotName}.html");
-        
-        if (!File.Exists(snapshotPath))
-        {
-            throw new FileNotFoundException($"Snapshot file not found: {snapshotPath}");
-        }
-        
-        return File.ReadAllText(snapshotPath);
+        StubWithRealFixture($"/{community}/{fixtureName}", community, fixtureName);
     }
 
     /// <summary>
-    /// Stubs a GET request using a snapshot file from kicktipp-snapshots.
+    /// Stubs a GET request using an encrypted real fixture file for a specific community.
+    /// Real fixtures contain actual data from Kicktipp pages and should be tested for invariants only.
     /// </summary>
     /// <param name="path">The URL path.</param>
-    /// <param name="snapshotName">Name of the snapshot file (without .html extension).</param>
-    protected void StubWithSnapshot(string path, string snapshotName)
+    /// <param name="community">The Kicktipp community (e.g., "ehonda-test-buli").</param>
+    /// <param name="fixtureName">Name of the fixture file (without .html.enc extension).</param>
+    protected void StubWithRealFixture(string path, string community, string fixtureName)
     {
-        var htmlContent = LoadSnapshot(snapshotName);
+        var htmlContent = FixtureLoader.LoadRealFixture(community, fixtureName);
         StubHtmlResponse(path, htmlContent);
     }
 
     /// <summary>
-    /// Stubs a GET request with query parameters using a snapshot file.
+    /// Stubs a GET request with query parameters using an encrypted real fixture file for a specific community.
+    /// Real fixtures contain actual data from Kicktipp pages and should be tested for invariants only.
     /// </summary>
     /// <param name="path">The URL path.</param>
-    /// <param name="snapshotName">Name of the snapshot file (without .html extension).</param>
+    /// <param name="community">The Kicktipp community (e.g., "ehonda-test-buli").</param>
+    /// <param name="fixtureName">Name of the fixture file (without .html.enc extension).</param>
     /// <param name="queryParams">Query parameters that must be present.</param>
-    protected void StubWithSnapshotAndParams(string path, string snapshotName, params (string key, string value)[] queryParams)
+    protected void StubWithRealFixtureAndParams(
+        string path,
+        string community,
+        string fixtureName,
+        params (string key, string value)[] queryParams)
     {
-        var htmlContent = LoadSnapshot(snapshotName);
+        var htmlContent = FixtureLoader.LoadRealFixture(community, fixtureName);
         StubHtmlResponseWithParams(path, htmlContent, queryParams);
     }
 

@@ -60,7 +60,7 @@ public class KicktippClient_GetHeadToHead_Tests : KicktippClientTests_Base
         // The client should append ansicht=3 for head-to-head view
         // Only respond if the exact parameter is used
         StubHtmlResponseWithParams("/test-community/spielinfo",
-            LoadSyntheticFixtureContent("spielinfo-head-to-head"),
+            LoadSyntheticFixtureContent("test-community", "spielinfo-head-to-head"),
             ("tippspielId", "1"),
             ("ansicht", "3"));
         
@@ -87,7 +87,7 @@ public class KicktippClient_GetHeadToHead_Tests : KicktippClientTests_Base
             """;
         StubHtmlResponse("/test-community/tippabgabe", tippabgabeHtml);
         StubHtmlResponseWithParams("/test-community/spielinfo",
-            LoadSyntheticFixtureContent("spielinfo-head-to-head"),
+            LoadSyntheticFixtureContent("test-community", "spielinfo-head-to-head"),
             ("tippspielId", "1"),
             ("ansicht", "3"));
         
@@ -147,7 +147,7 @@ public class KicktippClient_GetHeadToHead_Tests : KicktippClientTests_Base
         
         // Second page has the match
         StubHtmlResponseWithParams("/test-community/spielinfo",
-            LoadSyntheticFixtureContent("spielinfo-head-to-head"),
+            LoadSyntheticFixtureContent("test-community", "spielinfo-head-to-head"),
             ("tippspielId", "2"),
             ("ansicht", "3"));
         

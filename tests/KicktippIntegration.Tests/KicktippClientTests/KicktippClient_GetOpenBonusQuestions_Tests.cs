@@ -47,7 +47,7 @@ public class KicktippClient_GetOpenBonusQuestions_Tests : KicktippClientTests_Ba
     public async Task Getting_open_bonus_questions_uses_bonus_true_parameter()
     {
         // Arrange - only respond if bonus=true is present
-        StubWithSyntheticFixtureAndParams("/test-community/tippabgabe", "bonus-questions", ("bonus", "true"));
+        StubWithSyntheticFixtureAndParams("/test-community/tippabgabe", "test-community", "bonus-questions", ("bonus", "true"));
         var client = CreateClient();
 
         // Act
@@ -61,7 +61,7 @@ public class KicktippClient_GetOpenBonusQuestions_Tests : KicktippClientTests_Ba
     public async Task Getting_open_bonus_questions_parses_single_select_options()
     {
         // Arrange
-        StubWithSyntheticFixtureAndParams("/test-community/tippabgabe", "bonus-questions", ("bonus", "true"));
+        StubWithSyntheticFixtureAndParams("/test-community/tippabgabe", "test-community", "bonus-questions", ("bonus", "true"));
         var client = CreateClient();
 
         // Act
@@ -79,7 +79,7 @@ public class KicktippClient_GetOpenBonusQuestions_Tests : KicktippClientTests_Ba
     public async Task Getting_open_bonus_questions_parses_multi_select_options()
     {
         // Arrange
-        StubWithSyntheticFixtureAndParams("/test-community/tippabgabe", "bonus-questions", ("bonus", "true"));
+        StubWithSyntheticFixtureAndParams("/test-community/tippabgabe", "test-community", "bonus-questions", ("bonus", "true"));
         var client = CreateClient();
 
         // Act
@@ -92,39 +92,43 @@ public class KicktippClient_GetOpenBonusQuestions_Tests : KicktippClientTests_Ba
     }
 
     [Test]
-    [Skip("The 'tippabgabe-bonus' fixture was captured when no open bonus questions were available. " +
-          "This test needs to be re-enabled after regenerating the fixture during a period when " +
-          "the Kicktipp community has open bonus questions to answer.")]
-    public async Task Getting_open_bonus_questions_parses_real_bonus_page()
+    [Skip("The real fixture was captured when all bonus questions were locked. " +
+          "Re-enable after regenerating fixture during a period with open bonus questions.")]
+    public async Task Getting_open_bonus_questions_with_real_fixture_returns_questions()
     {
-        // Arrange
-        StubWithFixtureAndParams("/test-community/tippabgabe", "tippabgabe-bonus", ("bonus", "true"));
+        // Arrange - use encrypted real fixture for the ehonda-test-buli community
+        // 
+        // REAL FIXTURE TESTING STRATEGY:
+        // - Real fixtures contain actual data from Kicktipp pages and may change when updated.
+        // - Test invariants (counts, structure, required fields) not concrete values.
+        // - Concrete data assertions belong in synthetic fixture tests for stability.
+        // 
+        // NOTE: This test is skipped because the current fixture was captured when all bonus 
+        // questions were locked. It needs to be re-enabled after regenerating the fixture
+        // during a period when the community has open bonus questions to answer.
+        const string community = "ehonda-test-buli";
+        StubWithRealFixtureAndParams($"/{community}/tippabgabe", community, "tippabgabe-bonus",
+            ("bonus", "true"));
         var client = CreateClient();
 
         // Act
-        var questions = await client.GetOpenBonusQuestionsAsync("test-community");
+        var questions = await client.GetOpenBonusQuestionsAsync(community);
 
-        // Assert - once the fixture is regenerated with open bonus questions,
-        // update this test with precise assertions for the expected questions
-        await Assert.That(questions).IsNotEmpty();
-    }
-
-    [Test]
-    public async Task Getting_open_bonus_questions_returns_empty_for_locked_questions_snapshot()
-    {
-        // Arrange - use real snapshot from kicktipp-snapshots directory
-        // The tippabgabe-bonus.html snapshot was captured when all bonus questions
-        // were already answered and locked (showing "nichttippbar" divs with answers).
-        // This is the expected behavior - no OPEN questions to return.
-        StubWithSnapshotAndParams("/test-community/tippabgabe", "tippabgabe-bonus", ("bonus", "true"));
-        var client = CreateClient();
-
-        // Act
-        var questions = await client.GetOpenBonusQuestionsAsync("test-community");
-
-        // Assert - returns empty because all questions are locked (already answered)
-        // The snapshot shows 8 bonus questions, all with "nichttippbar" class
-        // meaning they cannot be edited - they are past their deadline
-        await Assert.That(questions).IsEmpty();
+        // Assert - should have questions with valid structure
+        await Assert.That(questions.Count).IsGreaterThan(0);
+        
+        foreach (var question in questions)
+        {
+            await Assert.That(question.Text).IsNotEmpty();
+            await Assert.That(question.Options).IsNotEmpty();
+            await Assert.That(question.MaxSelections).IsGreaterThan(0);
+            
+            // Each option should have valid data
+            foreach (var option in question.Options)
+            {
+                await Assert.That(option.Id).IsNotEmpty();
+                await Assert.That(option.Text).IsNotEmpty();
+            }
+        }
     }
 }

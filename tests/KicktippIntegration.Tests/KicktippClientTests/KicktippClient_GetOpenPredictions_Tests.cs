@@ -48,7 +48,7 @@ public class KicktippClient_GetOpenPredictions_Tests : KicktippClientTests_Base
     public async Task Getting_open_predictions_parses_matches_with_date_inheritance()
     {
         // Arrange
-        StubWithSyntheticFixture("/test-community/tippabgabe", "tippabgabe-with-dates");
+        StubWithSyntheticFixture("/test-community/tippabgabe", "test-community", "tippabgabe-with-dates");
         var client = CreateClient();
 
         // Act
@@ -75,7 +75,7 @@ public class KicktippClient_GetOpenPredictions_Tests : KicktippClientTests_Base
     public async Task Getting_open_predictions_extracts_matchday_from_title()
     {
         // Arrange
-        StubWithSyntheticFixture("/test-community/tippabgabe", "tippabgabe-with-dates");
+        StubWithSyntheticFixture("/test-community/tippabgabe", "test-community", "tippabgabe-with-dates");
         var client = CreateClient();
 
         // Act
@@ -240,36 +240,42 @@ public class KicktippClient_GetOpenPredictions_Tests : KicktippClientTests_Base
     }
 
     [Test]
-    public async Task Getting_open_predictions_parses_real_tippabgabe_page()
+    public async Task Getting_open_predictions_with_real_fixture_returns_valid_matchday()
     {
-        // Arrange - use real tippabgabe snapshot
-        StubWithSnapshot("/test-community/tippabgabe", "tippabgabe");
+        // Arrange - use encrypted real fixture for the ehonda-test-buli community
+        // 
+        // REAL FIXTURE TESTING STRATEGY:
+        // - Real fixtures contain actual data from Kicktipp pages and may change when updated.
+        // - Test invariants (counts, structure, required fields) not concrete values.
+        // - Concrete data assertions belong in synthetic fixture tests for stability.
+        const string community = "ehonda-test-buli";
+        StubWithRealFixture(community, "tippabgabe");
         var client = CreateClient();
 
         // Act
-        var matches = await client.GetOpenPredictionsAsync("test-community");
+        var matches = await client.GetOpenPredictionsAsync(community);
 
-        // Assert - the snapshot has 9 matches for matchday 16
-        await Assert.That(matches).HasCount().EqualTo(9);
+        // Assert - Bundesliga matchday typically has 9 matches
+        await Assert.That(matches).HasCount().GreaterThanOrEqualTo(9);
         
-        // Verify matchday is correctly parsed from "16. Spieltag"
-        await Assert.That(matches[0].Matchday).IsEqualTo(16);
+        // All matches should have valid data
+        foreach (var match in matches)
+        {
+            await Assert.That(match.HomeTeam).IsNotEmpty();
+            await Assert.That(match.AwayTeam).IsNotEmpty();
+            await Assert.That(match.HomeTeam).IsNotEqualTo(match.AwayTeam);
+            await Assert.That(match.Matchday).IsGreaterThan(0);
+        }
         
-        // Verify first match is Frankfurt vs Dortmund
-        await Assert.That(matches[0].HomeTeam).IsEqualTo("Eintracht Frankfurt");
-        await Assert.That(matches[0].AwayTeam).IsEqualTo("Borussia Dortmund");
+        // All matches should be in the same matchday
+        var matchdays = matches.Select(m => m.Matchday).Distinct().ToList();
+        await Assert.That(matchdays).HasCount().EqualTo(1);
         
-        // Verify date parsing: 09.01.26 20:30
-        await Assert.That(matches[0].StartsAt.Hour).IsEqualTo(20);
-        await Assert.That(matches[0].StartsAt.Minute).IsEqualTo(30);
-        
-        // Verify other matches
-        var heidenheimMatch = matches.FirstOrDefault(m => m.HomeTeam == "1. FC Heidenheim 1846");
-        await Assert.That(heidenheimMatch).IsNotNull();
-        await Assert.That(heidenheimMatch!.AwayTeam).IsEqualTo("1. FC Köln");
-        
-        var freiburgMatch = matches.FirstOrDefault(m => m.HomeTeam == "SC Freiburg");
-        await Assert.That(freiburgMatch).IsNotNull();
-        await Assert.That(freiburgMatch!.AwayTeam).IsEqualTo("Hamburger SV");
+        // Matches should have valid times (hours in reasonable range)
+        foreach (var match in matches)
+        {
+            await Assert.That(match.StartsAt.Hour).IsGreaterThanOrEqualTo(0);
+            await Assert.That(match.StartsAt.Hour).IsLessThan(24);
+        }
     }
 }

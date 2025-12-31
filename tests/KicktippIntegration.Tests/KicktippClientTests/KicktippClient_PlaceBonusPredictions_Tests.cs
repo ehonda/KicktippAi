@@ -43,9 +43,7 @@ public class KicktippClient_PlaceBonusPredictions_Tests : KicktippClientTests_Ba
     public async Task Placing_bonus_predictions_submits_single_select_correctly()
     {
         // Arrange
-        StubWithSyntheticFixtureAndParams(
-            "/test-community/tippabgabe", 
-            "bonus-questions",
+        StubWithSyntheticFixtureAndParams("/test-community/tippabgabe", "test-community", "bonus-questions",
             new Dictionary<string, string> { ["bonus"] = "true" });
         StubPostResponseWithParams(
             "/test-community/tippabgabe",
@@ -76,9 +74,7 @@ public class KicktippClient_PlaceBonusPredictions_Tests : KicktippClientTests_Ba
     public async Task Placing_bonus_predictions_returns_false_on_post_failure()
     {
         // Arrange
-        StubWithSyntheticFixtureAndParams(
-            "/test-community/tippabgabe", 
-            "bonus-questions",
+        StubWithSyntheticFixtureAndParams("/test-community/tippabgabe", "test-community", "bonus-questions",
             new Dictionary<string, string> { ["bonus"] = "true" });
         StubPostResponseWithParams(
             "/test-community/tippabgabe",
@@ -125,9 +121,7 @@ public class KicktippClient_PlaceBonusPredictions_Tests : KicktippClientTests_Ba
     public async Task Placing_bonus_predictions_preserves_hidden_fields()
     {
         // Arrange
-        StubWithSyntheticFixtureAndParams(
-            "/test-community/tippabgabe", 
-            "bonus-questions",
+        StubWithSyntheticFixtureAndParams("/test-community/tippabgabe", "test-community", "bonus-questions",
             new Dictionary<string, string> { ["bonus"] = "true" });
         StubPostResponseWithParams(
             "/test-community/tippabgabe",
@@ -158,9 +152,7 @@ public class KicktippClient_PlaceBonusPredictions_Tests : KicktippClientTests_Ba
     public async Task Placing_bonus_predictions_includes_submit_button()
     {
         // Arrange
-        StubWithSyntheticFixtureAndParams(
-            "/test-community/tippabgabe", 
-            "bonus-questions",
+        StubWithSyntheticFixtureAndParams("/test-community/tippabgabe", "test-community", "bonus-questions",
             new Dictionary<string, string> { ["bonus"] = "true" });
         StubPostResponseWithParams(
             "/test-community/tippabgabe",

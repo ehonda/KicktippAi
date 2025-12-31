@@ -45,7 +45,7 @@ public class KicktippClient_GetPlacedPredictions_Tests : KicktippClientTests_Bas
     public async Task Getting_placed_predictions_extracts_existing_predictions()
     {
         // Arrange
-        StubWithSyntheticFixture("/test-community/tippabgabe", "tippabgabe-with-predictions");
+        StubWithSyntheticFixture("/test-community/tippabgabe", "test-community", "tippabgabe-with-predictions");
         var client = CreateClient();
 
         // Act
@@ -114,7 +114,7 @@ public class KicktippClient_GetPlacedPredictions_Tests : KicktippClientTests_Bas
     public async Task Getting_placed_predictions_inherits_time_from_previous_row()
     {
         // Arrange
-        StubWithSyntheticFixture("/test-community/tippabgabe", "tippabgabe-with-predictions");
+        StubWithSyntheticFixture("/test-community/tippabgabe", "test-community", "tippabgabe-with-predictions");
         var client = CreateClient();
 
         // Act
@@ -128,36 +128,35 @@ public class KicktippClient_GetPlacedPredictions_Tests : KicktippClientTests_Bas
     }
 
     [Test]
-    public async Task Getting_placed_predictions_parses_real_tippabgabe_page()
+    public async Task Getting_placed_predictions_with_real_fixture_returns_valid_matchday()
     {
-        // Arrange - use real tippabgabe snapshot from kicktipp-snapshots directory
-        StubWithSnapshot("/test-community/tippabgabe", "tippabgabe");
+        // Arrange - use encrypted real fixture for the ehonda-test-buli community
+        // 
+        // REAL FIXTURE TESTING STRATEGY:
+        // - Real fixtures contain actual data from Kicktipp pages and may change when updated.
+        // - Test invariants (counts, structure, required fields) not concrete values.
+        // - Concrete data assertions belong in synthetic fixture tests for stability.
+        const string community = "ehonda-test-buli";
+        StubWithRealFixture(community, "tippabgabe");
         var client = CreateClient();
 
         // Act
-        var predictions = await client.GetPlacedPredictionsAsync("test-community");
+        var predictions = await client.GetPlacedPredictionsAsync(community);
 
-        // Assert - verify we got matches from the real fixture
-        // The snapshot has 9 matches for matchday 16
-        await Assert.That(predictions).HasCount().EqualTo(9);
+        // Assert - Bundesliga matchday typically has 9 matches
+        await Assert.That(predictions.Count).IsGreaterThanOrEqualTo(9);
         
-        // Verify specific matches are present (from the actual snapshot data)
-        var frankfurtMatch = predictions.Keys.FirstOrDefault(m => m.HomeTeam == "Eintracht Frankfurt");
-        await Assert.That(frankfurtMatch).IsNotNull();
-        await Assert.That(frankfurtMatch!.AwayTeam).IsEqualTo("Borussia Dortmund");
-        await Assert.That(frankfurtMatch.Matchday).IsEqualTo(16);
+        // All matches should have valid data
+        foreach (var (match, _) in predictions)
+        {
+            await Assert.That(match.HomeTeam).IsNotEmpty();
+            await Assert.That(match.AwayTeam).IsNotEmpty();
+            await Assert.That(match.HomeTeam).IsNotEqualTo(match.AwayTeam);
+            await Assert.That(match.Matchday).IsGreaterThan(0);
+        }
         
-        // First match should be Frankfurt vs Dortmund on 09.01.26 20:30
-        await Assert.That(frankfurtMatch.StartsAt.Year).IsEqualTo(2026);
-        await Assert.That(frankfurtMatch.StartsAt.Month).IsEqualTo(1);
-        await Assert.That(frankfurtMatch.StartsAt.Day).IsEqualTo(9);
-        
-        // Verify Bayern match is present
-        var bayernMatch = predictions.Keys.FirstOrDefault(m => m.HomeTeam == "FC Bayern München");
-        await Assert.That(bayernMatch).IsNotNull();
-        await Assert.That(bayernMatch!.AwayTeam).IsEqualTo("VfL Wolfsburg");
-        
-        // Predictions should be null since no values are entered in the snapshot
-        await Assert.That(predictions[frankfurtMatch]).IsNull();
+        // All matches in a matchday should have the same matchday number
+        var matchdays = predictions.Keys.Select(m => m.Matchday).Distinct().ToList();
+        await Assert.That(matchdays).HasCount().EqualTo(1);
     }
 }

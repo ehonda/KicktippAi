@@ -32,7 +32,8 @@ public class SnapshotsEncryptCommand : AsyncCommand<SnapshotsEncryptSettings>
             }
 
             var inputPath = Path.GetFullPath(settings.InputDirectory);
-            var outputPath = Path.GetFullPath(settings.OutputDirectory);
+            // Output to community-specific subdirectory
+            var outputPath = Path.GetFullPath(Path.Combine(settings.OutputDirectory, settings.Community));
 
             if (!Directory.Exists(inputPath))
             {
@@ -41,6 +42,7 @@ public class SnapshotsEncryptCommand : AsyncCommand<SnapshotsEncryptSettings>
             }
 
             AnsiConsole.MarkupLine("[green]Encrypting snapshots...[/]");
+            AnsiConsole.MarkupLine($"[blue]Community:[/] [yellow]{settings.Community}[/]");
             AnsiConsole.MarkupLine($"[blue]Input directory:[/] [yellow]{inputPath}[/]");
             AnsiConsole.MarkupLine($"[blue]Output directory:[/] [yellow]{outputPath}[/]");
             AnsiConsole.WriteLine();

@@ -286,46 +286,62 @@ public class KicktippClient_GetHomeAwayHistory_Tests : KicktippClientTests_Base
     }
 
     [Test]
-    public async Task Getting_home_away_history_parses_real_spielinfo_snapshot()
+    public async Task Getting_home_away_history_with_real_fixture_returns_team_histories()
     {
-        // Arrange - use real snapshots from kicktipp-snapshots directory
-        // The tippabgabe page provides the spielinfo link which contains the actual community name "ehonda-test-buli"
-        // The client extracts the link from HTML and uses that path directly
-        StubWithSnapshot("/ehonda-test-buli/tippabgabe", "tippabgabe");
+        // Arrange - use encrypted real fixtures for the ehonda-test-buli community
+        // 
+        // REAL FIXTURE TESTING STRATEGY:
+        // - Real fixtures contain actual data from Kicktipp pages and may change when updated.
+        // - Test invariants (counts, structure, required fields) not concrete values.
+        // - Concrete data assertions belong in synthetic fixture tests for stability.
+        const string community = "ehonda-test-buli";
         
-        // Stub the spielinfo page with ansicht=2 using spielinfo-01 which has home/away history
-        // Note: The snapshots have spielinfoHeim and spielinfoGast tables which contain the history
-        StubWithSnapshotAndParams("/ehonda-test-buli/spielinfo",
-            "spielinfo-01",  // This snapshot has Frankfurt vs Dortmund with history tables
+        // The tippabgabe page provides team names
+        StubWithRealFixture(community, "tippabgabe");
+        
+        // First, get matches to find valid team names from the fixture
+        var client = CreateClient();
+        var matches = await client.GetOpenPredictionsAsync(community);
+        var firstMatch = matches.First();
+        
+        // Stub the spielinfo page with ansicht=2 for home/away history
+        StubWithRealFixtureAndParams($"/{community}/spielinfo", community, "spielinfo-01",
             ("tippsaisonId", "3684392"),
             ("tippspielId", "1384231935"),
             ("ansicht", "2"));
-        
-        var client = CreateClient();
 
-        // Act - use the actual community name from the snapshot
+        // Act
         var (homeHistory, awayHistory) = await client.GetHomeAwayHistoryAsync(
-            "ehonda-test-buli",
-            "Eintracht Frankfurt",
-            "Borussia Dortmund");
+            community,
+            firstMatch.HomeTeam,
+            firstMatch.AwayTeam);
 
-        // Assert - the spielinfo-01 snapshot contains history for both teams
-        // Eintracht Frankfurt home history has 8 matches
-        await Assert.That(homeHistory).HasCount().EqualTo(8);
+        // Assert - should have history for both teams
+        // History typically contains up to 8 recent matches
+        await Assert.That(homeHistory.Count).IsGreaterThan(0);
+        await Assert.That(awayHistory.Count).IsGreaterThan(0);
         
-        // First match: vs Hamburg 1:1
-        await Assert.That(homeHistory[0].HomeTeam).IsEqualTo("Hamburger SV");
-        await Assert.That(homeHistory[0].AwayTeam).IsEqualTo("Eintracht Frankfurt");
-        await Assert.That(homeHistory[0].HomeGoals).IsEqualTo(1);
-        await Assert.That(homeHistory[0].AwayGoals).IsEqualTo(1);
+        // All history entries should have valid match results
+        foreach (var result in homeHistory)
+        {
+            await Assert.That(result.HomeTeam).IsNotEmpty();
+            await Assert.That(result.AwayTeam).IsNotEmpty();
+            // Goals are nullable (null if match not yet played)
+            // For history, they should be non-null and non-negative
+            await Assert.That(result.HomeGoals).IsNotNull();
+            await Assert.That(result.AwayGoals).IsNotNull();
+            await Assert.That(result.HomeGoals!.Value).IsGreaterThanOrEqualTo(0);
+            await Assert.That(result.AwayGoals!.Value).IsGreaterThanOrEqualTo(0);
+        }
         
-        // Borussia Dortmund away history has 8 matches
-        await Assert.That(awayHistory).HasCount().EqualTo(8);
-        
-        // First match in away history: Dortmund vs Gladbach 2:0
-        await Assert.That(awayHistory[0].HomeTeam).IsEqualTo("Borussia Dortmund");
-        await Assert.That(awayHistory[0].AwayTeam).IsEqualTo("Bor. Mönchengladbach");
-        await Assert.That(awayHistory[0].HomeGoals).IsEqualTo(2);
-        await Assert.That(awayHistory[0].AwayGoals).IsEqualTo(0);
+        foreach (var result in awayHistory)
+        {
+            await Assert.That(result.HomeTeam).IsNotEmpty();
+            await Assert.That(result.AwayTeam).IsNotEmpty();
+            await Assert.That(result.HomeGoals).IsNotNull();
+            await Assert.That(result.AwayGoals).IsNotNull();
+            await Assert.That(result.HomeGoals!.Value).IsGreaterThanOrEqualTo(0);
+            await Assert.That(result.AwayGoals!.Value).IsGreaterThanOrEqualTo(0);
+        }
     }
 }

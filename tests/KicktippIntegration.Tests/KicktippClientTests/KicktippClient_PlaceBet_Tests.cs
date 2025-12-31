@@ -58,7 +58,7 @@ public class KicktippClient_PlaceBet_Tests : KicktippClientTests_Base
     public async Task Placing_bet_returns_false_when_match_not_found()
     {
         // Arrange
-        StubWithSyntheticFixture("/test-community/tippabgabe", "tippabgabe-with-dates");
+        StubWithSyntheticFixture("/test-community/tippabgabe", "test-community", "tippabgabe-with-dates");
         var client = CreateClient();
         var match = CreateTestMatch("NonExistent Home", "NonExistent Away");
         var prediction = new BetPrediction(2, 1);
@@ -74,7 +74,7 @@ public class KicktippClient_PlaceBet_Tests : KicktippClientTests_Base
     public async Task Placing_bet_submits_form_data_correctly()
     {
         // Arrange
-        StubWithSyntheticFixture("/test-community/tippabgabe", "tippabgabe-with-dates");
+        StubWithSyntheticFixture("/test-community/tippabgabe", "test-community", "tippabgabe-with-dates");
         StubPostResponse("/test-community/tippabgabe");
         var client = CreateClient();
         var match = CreateTestMatch("Team A", "Team B");
@@ -101,7 +101,7 @@ public class KicktippClient_PlaceBet_Tests : KicktippClientTests_Base
     public async Task Placing_bet_skips_when_existing_bet_and_override_false()
     {
         // Arrange
-        StubWithSyntheticFixture("/test-community/tippabgabe", "tippabgabe-with-predictions");
+        StubWithSyntheticFixture("/test-community/tippabgabe", "test-community", "tippabgabe-with-predictions");
         StubPostResponse("/test-community/tippabgabe");
         var client = CreateClient();
         var match = CreateTestMatch("Team A", "Team B"); // Already has prediction 2:1
@@ -123,7 +123,7 @@ public class KicktippClient_PlaceBet_Tests : KicktippClientTests_Base
     public async Task Placing_bet_overrides_when_existing_bet_and_override_true()
     {
         // Arrange
-        StubWithSyntheticFixture("/test-community/tippabgabe", "tippabgabe-with-predictions");
+        StubWithSyntheticFixture("/test-community/tippabgabe", "test-community", "tippabgabe-with-predictions");
         StubPostResponse("/test-community/tippabgabe");
         var client = CreateClient();
         var match = CreateTestMatch("Team A", "Team B");
@@ -147,7 +147,7 @@ public class KicktippClient_PlaceBet_Tests : KicktippClientTests_Base
     public async Task Placing_bet_returns_false_on_post_failure()
     {
         // Arrange
-        StubWithSyntheticFixture("/test-community/tippabgabe", "tippabgabe-with-dates");
+        StubWithSyntheticFixture("/test-community/tippabgabe", "test-community", "tippabgabe-with-dates");
         StubPostResponse("/test-community/tippabgabe", 500);
         var client = CreateClient();
         var match = CreateTestMatch("Team A", "Team B");
@@ -164,7 +164,7 @@ public class KicktippClient_PlaceBet_Tests : KicktippClientTests_Base
     public async Task Placing_bet_includes_hidden_fields_in_submission()
     {
         // Arrange
-        StubWithSyntheticFixture("/test-community/tippabgabe", "tippabgabe-with-dates");
+        StubWithSyntheticFixture("/test-community/tippabgabe", "test-community", "tippabgabe-with-dates");
         StubPostResponse("/test-community/tippabgabe");
         var client = CreateClient();
         var match = CreateTestMatch("Team A", "Team B");
@@ -187,7 +187,7 @@ public class KicktippClient_PlaceBet_Tests : KicktippClientTests_Base
     public async Task Placing_bet_includes_submit_button_in_form_data()
     {
         // Arrange
-        StubWithSyntheticFixture("/test-community/tippabgabe", "tippabgabe-with-dates");
+        StubWithSyntheticFixture("/test-community/tippabgabe", "test-community", "tippabgabe-with-dates");
         StubPostResponse("/test-community/tippabgabe");
         var client = CreateClient();
         var match = CreateTestMatch("Team A", "Team B");
@@ -204,49 +204,60 @@ public class KicktippClient_PlaceBet_Tests : KicktippClientTests_Base
     }
 
     [Test]
-    public async Task Placing_bet_parses_real_tippabgabe_snapshot()
+    public async Task Placing_bet_with_real_fixture_submits_form_correctly()
     {
-        // Arrange - use real snapshot from kicktipp-snapshots directory
-        // The tippabgabe.html has 9 Bundesliga matchday 16 games from January 2026
-        // First match: Eintracht Frankfurt vs Borussia Dortmund (09.01.26 20:30)
-        // Match ID in the form: spieltippForms[1384231935]
+        // Arrange - use encrypted real fixture for the ehonda-test-buli community
         // 
-        // NOTE: The form action in the snapshot is "/ehonda-test-buli/tippabgabe"
-        // so POST is made to that path, not the community parameter path
-        StubWithSnapshot("/test-community/tippabgabe", "tippabgabe");
-        StubPostResponse("/ehonda-test-buli/tippabgabe");  // Form action from snapshot
+        // REAL FIXTURE TESTING STRATEGY:
+        // - Real fixtures contain actual data from Kicktipp pages and may change when updated.
+        // - Test invariants (counts, structure, required fields) not concrete values.
+        // - Concrete data assertions belong in synthetic fixture tests for stability.
+        const string community = "ehonda-test-buli";
+        StubWithRealFixture(community, "tippabgabe");
+        StubPostResponse($"/{community}/tippabgabe");
         
         var client = CreateClient();
         
-        // Create match with exact team names from the snapshot
-        // The match is on 09.01.2026 20:30 (CET) which is matchday 16
-        var instant = Instant.FromUtc(2026, 1, 9, 19, 30); // 20:30 CET = 19:30 UTC
-        var zone = DateTimeZoneProviders.Tzdb["Europe/Berlin"];
-        var zonedDateTime = instant.InZone(zone);
-        var match = new Match("Eintracht Frankfurt", "Borussia Dortmund", zonedDateTime, 16);
+        // First, get the matches from the page to find a real match
+        var existingPredictions = await client.GetPlacedPredictionsAsync(community);
+        await Assert.That(existingPredictions).HasCount().GreaterThan(0);
         
+        var match = existingPredictions.Keys.First();
         var prediction = new BetPrediction(2, 1);
 
         // Act
-        var result = await client.PlaceBetAsync("test-community", match, prediction);
+        var result = await client.PlaceBetAsync(community, match, prediction);
 
         // Assert - should succeed
         await Assert.That(result).IsTrue();
         
-        // Verify correct form data was submitted (POST goes to form action URL)
-        var postRequests = GetRequestsForPath("/ehonda-test-buli/tippabgabe")
+        // Verify a POST was made
+        var postRequests = GetRequestsForPath($"/{community}/tippabgabe")
             .Where(r => r.RequestMessage.Method == "POST");
         await Assert.That(postRequests.Count()).IsEqualTo(1);
         
+        // Verify form data contains the expected structure
         var formData = ParseFormData(postRequests.First().RequestMessage.Body);
         
-        // Check the match-specific form fields (using the match ID from snapshot)
-        await Assert.That(formData).ContainsKey("spieltippForms[1384231935].heimTipp");
-        await Assert.That(formData["spieltippForms[1384231935].heimTipp"]).IsEqualTo("2");
-        await Assert.That(formData["spieltippForms[1384231935].gastTipp"]).IsEqualTo("1");
+        // Find the field that was updated with our prediction value
+        // The form contains fields like spieltippForms[N].heimTipp and spieltippForms[N].gastTipp
+        var fieldsWithHome2 = formData.Where(kv => kv.Key.EndsWith(".heimTipp") && kv.Value == "2").ToList();
+        var fieldsWithAway1 = formData.Where(kv => kv.Key.EndsWith(".gastTipp") && kv.Value == "1").ToList();
         
-        // Check hidden fields from the form
-        await Assert.That(formData["spieltagIndex"]).IsEqualTo("16");
-        await Assert.That(formData["tippsaisonId"]).IsEqualTo("3684392");
+        // There should be exactly one match with our prediction (2:1)
+        await Assert.That(fieldsWithHome2).HasCount().EqualTo(1);
+        await Assert.That(fieldsWithAway1).HasCount().EqualTo(1);
+        
+        // The fields should be for the same match ID (same form index)
+        var homeFieldName = fieldsWithHome2.First().Key;
+        var awayFieldName = fieldsWithAway1.First().Key;
+        var homeMatchId = homeFieldName.Replace(".heimTipp", "");
+        var awayMatchId = awayFieldName.Replace(".gastTipp", "");
+        await Assert.That(homeMatchId).IsEqualTo(awayMatchId);
+        
+        // Verify required hidden fields are present
+        await Assert.That(formData).ContainsKey("spieltagIndex");
+        await Assert.That(formData).ContainsKey("tippsaisonId");
+        await Assert.That(formData).ContainsKey("submitbutton");
     }
 }
