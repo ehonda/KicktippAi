@@ -86,14 +86,6 @@ To update real fixtures:
 2. Commit the `.html.enc` files in `Fixtures/Html/Real/{community}/`
 3. Delete any unencrypted HTML files (the orchestrator does this by default)
 
-### Tests Without Fixtures
-
-Tests that require encrypted fixtures are marked with `[FixtureRequired]`. If the encryption key is not available:
-- These tests will be **skipped** (not failed)
-- A warning message explains why
-
-This allows contributors without the key to still build and run other tests.
-
 ## Running Tests
 
 ```powershell
