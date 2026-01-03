@@ -286,5 +286,227 @@ public class KicktippClient_GetHeadToHead_Tests : KicktippClientTests_Base
             // Annotation can be null (no extra time/penalties) or a string
         }
     }
+
+    [Test]
+    public async Task Getting_head_to_head_returns_empty_when_spielinfo_link_has_empty_href()
+    {
+        // Arrange
+        var html = """
+            <!DOCTYPE html>
+            <html>
+            <body>
+            <a href="">Tippabgabe mit Spielinfos</a>
+            </body>
+            </html>
+            """;
+        StubHtmlResponse("/test-community/tippabgabe", html);
+        var client = CreateClient();
+
+        // Act
+        var history = await client.GetHeadToHeadHistoryAsync("test-community", "Team A", "Team B");
+
+        // Assert
+        await Assert.That(history).IsEmpty();
+    }
+
+    [Test]
+    public async Task Getting_head_to_head_returns_empty_when_spielinfo_returns_404()
+    {
+        // Arrange
+        var tippabgabeHtml = """
+            <!DOCTYPE html>
+            <html>
+            <body>
+            <a href="/test-community/spielinfo?tippspielId=1">Tippabgabe mit Spielinfos</a>
+            </body>
+            </html>
+            """;
+        StubHtmlResponse("/test-community/tippabgabe", tippabgabeHtml);
+        StubNotFoundWithParams("/test-community/spielinfo", ("tippspielId", "1"), ("ansicht", "3"));
+        var client = CreateClient();
+
+        // Act
+        var history = await client.GetHeadToHeadHistoryAsync("test-community", "Team A", "Team B");
+
+        // Assert
+        await Assert.That(history).IsEmpty();
+    }
+
+    [Test]
+    public async Task Getting_detailed_head_to_head_returns_empty_on_tippabgabe_404()
+    {
+        // Arrange
+        StubNotFound("/test-community/tippabgabe");
+        var client = CreateClient();
+
+        // Act
+        var history = await client.GetHeadToHeadDetailedHistoryAsync("test-community", "Team A", "Team B");
+
+        // Assert
+        await Assert.That(history).IsEmpty();
+    }
+
+    [Test]
+    public async Task Getting_detailed_head_to_head_returns_empty_when_spielinfo_link_missing()
+    {
+        // Arrange
+        var html = """
+            <!DOCTYPE html>
+            <html>
+            <body>
+            <div class="content"><p>No spielinfo link</p></div>
+            </body>
+            </html>
+            """;
+        StubHtmlResponse("/test-community/tippabgabe", html);
+        var client = CreateClient();
+
+        // Act
+        var history = await client.GetHeadToHeadDetailedHistoryAsync("test-community", "Team A", "Team B");
+
+        // Assert
+        await Assert.That(history).IsEmpty();
+    }
+
+    [Test]
+    public async Task Getting_detailed_head_to_head_returns_empty_when_spielinfo_link_has_empty_href()
+    {
+        // Arrange
+        var html = """
+            <!DOCTYPE html>
+            <html>
+            <body>
+            <a href="">Tippabgabe mit Spielinfos</a>
+            </body>
+            </html>
+            """;
+        StubHtmlResponse("/test-community/tippabgabe", html);
+        var client = CreateClient();
+
+        // Act
+        var history = await client.GetHeadToHeadDetailedHistoryAsync("test-community", "Team A", "Team B");
+
+        // Assert
+        await Assert.That(history).IsEmpty();
+    }
+
+    [Test]
+    public async Task Getting_detailed_head_to_head_returns_empty_when_spielinfo_returns_404()
+    {
+        // Arrange
+        var tippabgabeHtml = """
+            <!DOCTYPE html>
+            <html>
+            <body>
+            <a href="/test-community/spielinfo?tippspielId=1">Tippabgabe mit Spielinfos</a>
+            </body>
+            </html>
+            """;
+        StubHtmlResponse("/test-community/tippabgabe", tippabgabeHtml);
+        StubNotFoundWithParams("/test-community/spielinfo", ("tippspielId", "1"), ("ansicht", "3"));
+        var client = CreateClient();
+
+        // Act
+        var history = await client.GetHeadToHeadDetailedHistoryAsync("test-community", "Team A", "Team B");
+
+        // Assert
+        await Assert.That(history).IsEmpty();
+    }
+
+    [Test]
+    public async Task Getting_detailed_head_to_head_returns_empty_when_match_not_found()
+    {
+        // Arrange
+        var tippabgabeHtml = """
+            <!DOCTYPE html>
+            <html>
+            <body>
+            <a href="/test-community/spielinfo?tippspielId=1">Tippabgabe mit Spielinfos</a>
+            </body>
+            </html>
+            """;
+        StubHtmlResponse("/test-community/tippabgabe", tippabgabeHtml);
+        
+        // Page doesn't have the match and no next link
+        var pageHtml = """
+            <!DOCTYPE html>
+            <html>
+            <body>
+            <div class="prevnextNext disabled"><a></a></div>
+            <table class="tippabgabe">
+                <tbody>
+                    <tr>
+                        <td>22.08.25 20:30</td>
+                        <td>Other Team</td>
+                        <td>Another Team</td>
+                        <td><input type="text" /><input type="text" /></td>
+                    </tr>
+                </tbody>
+            </table>
+            </body>
+            </html>
+            """;
+        StubHtmlResponseWithParams("/test-community/spielinfo", pageHtml,
+            ("tippspielId", "1"), ("ansicht", "3"));
+        
+        var client = CreateClient();
+
+        // Act
+        var history = await client.GetHeadToHeadDetailedHistoryAsync("test-community", "NonExistent Home", "NonExistent Away");
+
+        // Assert
+        await Assert.That(history).IsEmpty();
+    }
+
+    [Test]
+    public async Task Getting_detailed_head_to_head_navigates_to_find_correct_match()
+    {
+        // Arrange
+        var tippabgabeHtml = """
+            <!DOCTYPE html>
+            <html>
+            <body>
+            <a href="/test-community/spielinfo?tippspielId=1">Tippabgabe mit Spielinfos</a>
+            </body>
+            </html>
+            """;
+        StubHtmlResponse("/test-community/tippabgabe", tippabgabeHtml);
+        
+        // First page doesn't have the match we're looking for
+        var firstPageHtml = """
+            <!DOCTYPE html>
+            <html>
+            <body>
+            <div class="prevnextNext"><a href="/test-community/spielinfo?tippspielId=2"><span class="kicktipp-icon-arrow-right"></span></a></div>
+            <table class="tippabgabe">
+                <tbody>
+                    <tr>
+                        <td>22.08.25 20:30</td>
+                        <td>Wrong Team 1</td>
+                        <td>Wrong Team 2</td>
+                        <td><input type="text" /><input type="text" /></td>
+                    </tr>
+                </tbody>
+            </table>
+            </body>
+            </html>
+            """;
+        StubHtmlResponseWithParams("/test-community/spielinfo", firstPageHtml, 
+            ("tippspielId", "1"), ("ansicht", "3"));
+        
+        // Second page has the match
+        StubHtmlResponseWithParams("/test-community/spielinfo",
+            LoadSyntheticFixtureContent("test-community", "spielinfo-head-to-head"),
+            ("tippspielId", "2"),
+            ("ansicht", "3"));
+        
+        var client = CreateClient();
+
+        // Act
+        var history = await client.GetHeadToHeadDetailedHistoryAsync("test-community", "Team Alpha", "Team Beta");
+
+        // Assert
+        await Assert.That(history).IsNotEmpty();
+    }
 }
 

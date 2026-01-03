@@ -345,4 +345,74 @@ public class KicktippClient_GetHomeAwayHistory_Tests : KicktippClientTests_Base
             await Assert.That(result.AwayGoals!.Value).IsGreaterThanOrEqualTo(0);
         }
     }
+
+    [Test]
+    public async Task Getting_home_away_history_returns_empty_when_spielinfo_link_has_empty_href()
+    {
+        // Arrange
+        var html = """
+            <!DOCTYPE html>
+            <html>
+            <body>
+            <a href="">Tippabgabe mit Spielinfos</a>
+            </body>
+            </html>
+            """;
+        StubHtmlResponse("/test-community/tippabgabe", html);
+        var client = CreateClient();
+
+        // Act
+        var (homeHistory, awayHistory) = await client.GetHomeAwayHistoryAsync("test-community", "Team A", "Team B");
+
+        // Assert
+        await Assert.That(homeHistory).IsEmpty();
+        await Assert.That(awayHistory).IsEmpty();
+    }
+
+    [Test]
+    public async Task Getting_home_away_history_returns_empty_when_spielinfo_returns_404()
+    {
+        // Arrange
+        var tippabgabeHtml = """
+            <!DOCTYPE html>
+            <html>
+            <body>
+            <a href="/test-community/spielinfo?tippspielId=1">Tippabgabe mit Spielinfos</a>
+            </body>
+            </html>
+            """;
+        StubHtmlResponse("/test-community/tippabgabe", tippabgabeHtml);
+        StubNotFoundWithParams("/test-community/spielinfo", ("tippspielId", "1"), ("ansicht", "2"));
+        var client = CreateClient();
+
+        // Act
+        var (homeHistory, awayHistory) = await client.GetHomeAwayHistoryAsync("test-community", "Team A", "Team B");
+
+        // Assert
+        await Assert.That(homeHistory).IsEmpty();
+        await Assert.That(awayHistory).IsEmpty();
+    }
+
+    [Test]
+    public async Task Getting_home_away_history_returns_empty_when_spielinfo_link_missing()
+    {
+        // Arrange
+        var html = """
+            <!DOCTYPE html>
+            <html>
+            <body>
+            <div class="content"><p>No spielinfo link here</p></div>
+            </body>
+            </html>
+            """;
+        StubHtmlResponse("/test-community/tippabgabe", html);
+        var client = CreateClient();
+
+        // Act
+        var (homeHistory, awayHistory) = await client.GetHomeAwayHistoryAsync("test-community", "Team A", "Team B");
+
+        // Assert
+        await Assert.That(homeHistory).IsEmpty();
+        await Assert.That(awayHistory).IsEmpty();
+    }
 }

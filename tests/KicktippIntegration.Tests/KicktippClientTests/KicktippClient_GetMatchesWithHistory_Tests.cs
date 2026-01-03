@@ -247,4 +247,123 @@ public class KicktippClient_GetMatchesWithHistory_Tests : KicktippClientTests_Ba
         var matchdays = matches.Select(m => m.Match.Matchday).Distinct().ToList();
         await Assert.That(matchdays).HasCount().EqualTo(1);
     }
+
+    [Test]
+    public async Task Getting_matches_with_history_returns_empty_list_when_spielinfo_link_has_empty_href()
+    {
+        // Arrange - tippabgabe page with spielinfo link but empty href
+        var html = """
+            <!DOCTYPE html>
+            <html>
+            <body>
+            <div class="prevnextTitle"><a>1. Spieltag</a></div>
+            <a href="">Tippabgabe mit Spielinfos</a>
+            </body>
+            </html>
+            """;
+        StubHtmlResponse("/test-community/tippabgabe", html);
+        var client = CreateClient();
+
+        // Act
+        var matches = await client.GetMatchesWithHistoryAsync("test-community");
+
+        // Assert
+        await Assert.That(matches).IsEmpty();
+    }
+
+    [Test]
+    public async Task Getting_matches_with_history_returns_empty_on_exception_in_extraction()
+    {
+        // Arrange - set up tippabgabe with spielinfo link
+        var tippabgabeHtml = """
+            <!DOCTYPE html>
+            <html>
+            <body>
+            <div class="prevnextTitle"><a>1. Spieltag</a></div>
+            <a href="/test-community/spielinfo?tippspielId=1">Tippabgabe mit Spielinfos</a>
+            </body>
+            </html>
+            """;
+        StubHtmlResponse("/test-community/tippabgabe", tippabgabeHtml);
+        
+        // Spielinfo page with malformed content that may cause issues
+        var malformedHtml = """
+            <!DOCTYPE html>
+            <html>
+            <body>
+            <div class="prevnextNext disabled"></div>
+            <table class="tippabgabe">
+                <tbody>
+                    <tr>
+                        <td></td>
+                        <td></td>
+                        <td></td>
+                    </tr>
+                </tbody>
+            </table>
+            </body>
+            </html>
+            """;
+        StubHtmlResponse("/test-community/spielinfo", malformedHtml);
+        
+        var client = CreateClient();
+
+        // Act
+        var matches = await client.GetMatchesWithHistoryAsync("test-community");
+
+        // Assert - should return empty list gracefully, skipping the malformed match
+        await Assert.That(matches).IsEmpty();
+    }
+
+    [Test]
+    public async Task Getting_matches_with_history_stops_on_spielinfo_404_during_navigation()
+    {
+        // Arrange - set up tippabgabe with spielinfo link
+        var tippabgabeHtml = """
+            <!DOCTYPE html>
+            <html>
+            <body>
+            <div class="prevnextTitle"><a>1. Spieltag</a></div>
+            <a href="/test-community/spielinfo?tippspielId=1">Tippabgabe mit Spielinfos</a>
+            </body>
+            </html>
+            """;
+        StubHtmlResponse("/test-community/tippabgabe", tippabgabeHtml);
+        
+        // First spielinfo page with next link pointing to non-existent page
+        var firstPageHtml = """
+            <!DOCTYPE html>
+            <html>
+            <body>
+            <div class="prevnextTitle"><a>1. Spieltag</a></div>
+            <div class="prevnextNext"><a href="/test-community/spielinfo?tippspielId=2"><span class="kicktipp-icon-arrow-right"></span></a></div>
+            <table class="tippabgabe">
+                <tbody>
+                    <tr>
+                        <td>22.08.25 20:30</td>
+                        <td>Home Team 1</td>
+                        <td>Away Team 1</td>
+                        <td><input type="text" /><input type="text" /></td>
+                    </tr>
+                </tbody>
+            </table>
+            <table class="spielinfoHeim"><tbody></tbody></table>
+            <table class="spielinfoGast"><tbody></tbody></table>
+            </body>
+            </html>
+            """;
+        StubHtmlResponse("/test-community/spielinfo", firstPageHtml);
+        
+        // Second spielinfo page returns 404
+        StubNotFoundWithParams("/test-community/spielinfo", ("tippspielId", "2"));
+        
+        var client = CreateClient();
+
+        // Act
+        var matches = await client.GetMatchesWithHistoryAsync("test-community");
+
+        // Assert - should return the first match and stop gracefully
+        await Assert.That(matches).HasCount().EqualTo(1);
+        await Assert.That(matches[0].Match.HomeTeam).IsEqualTo("Home Team 1");
+    }
 }
