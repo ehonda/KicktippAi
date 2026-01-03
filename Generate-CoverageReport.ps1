@@ -12,8 +12,8 @@
 .PARAMETER NoOpen
     If specified, the HTML report will not be automatically opened in the browser.
 
-.PARAMETER Project
-    Run coverage for a specific test project only (e.g., "OpenAiIntegration.Tests").
+.PARAMETER Projects
+    Run coverage for specific test projects only (e.g., "OpenAiIntegration.Tests", "Core.Tests").
     If not specified, all test projects under tests/ are run.
 
 .EXAMPLE
@@ -25,13 +25,17 @@
     Runs all tests with coverage without opening the report.
 
 .EXAMPLE
-    .\Generate-CoverageReport.ps1 -Project OpenAiIntegration.Tests
+    .\Generate-CoverageReport.ps1 -Projects OpenAiIntegration.Tests
     Runs only the specified test project with coverage.
+
+.EXAMPLE
+    .\Generate-CoverageReport.ps1 -Projects OpenAiIntegration.Tests,Core.Tests
+    Runs the specified test projects with coverage.
 #>
 
 param(
     [switch]$NoOpen,
-    [string]$Project
+    [string[]]$Projects
 )
 
 $ErrorActionPreference = "Stop"
@@ -57,9 +61,9 @@ if (Test-Path $ReportDir) {
 }
 
 # Discover test projects
-if ($Project) {
-    $TestProjects = @($Project)
-    Write-Host "Running coverage for: $Project" -ForegroundColor Cyan
+if ($Projects) {
+    $TestProjects = $Projects
+    Write-Host "Running coverage for: $($Projects -join ', ')" -ForegroundColor Cyan
 } else {
     $TestProjects = Get-ChildItem -Path (Join-Path $RepoRoot "tests") -Directory | 
         Where-Object { Test-Path (Join-Path $_.FullName "$($_.Name).csproj") } |
