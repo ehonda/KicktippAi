@@ -10,7 +10,6 @@ using Orchestrator.Commands.Observability.Cost;
 using Orchestrator.Commands.Utility.UploadKpi;
 using Orchestrator.Commands.Utility.UploadTransfers;
 using Orchestrator.Commands.Utility.ListKpi;
-using Orchestrator.Commands.Utility.ReconstructDataCollectedAt;
 using Orchestrator.Commands.Utility.Snapshots;
 
 namespace Orchestrator;
@@ -105,11 +104,6 @@ public class Program
                 .WithDescription("Show changes between latest and previous versions of context documents")
                 .WithExample("context-changes", "--community-context", "ehonda-test-buli", "--count", "5")
                 .WithExample("context-changes", "--community-context", "ehonda-test-buli", "--seed", "42");
-                
-            config.AddCommand<ReconstructDataCollectedAtCommand>("reconstruct-data-collected-at")
-                .WithDescription("Add Data_Collected_At column to existing history context documents")
-                .WithExample("reconstruct-data-collected-at", "--community", "ehonda-test-buli", "--dry-run")
-                .WithExample("reconstruct-data-collected-at", "--community", "ehonda-test-buli", "--verbose");
                 
             config.AddCommand<CostCommand>("cost")
                 .WithDescription("Calculate aggregate costs for predictions")
