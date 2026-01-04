@@ -170,4 +170,64 @@ public abstract class KicktippAuthenticationHandlerTests_Base : WireMockTestBase
                     };
                 }));
     }
+
+    /// <summary>
+    /// Stubs a POST request with a callback that can return different responses.
+    /// Useful for testing re-authentication scenarios with POST requests that have body content.
+    /// </summary>
+    /// <param name="path">The URL path.</param>
+    /// <param name="responseProvider">A function returning (statusCode, htmlBody) tuple.</param>
+    protected void StubPostResponseWithCallback(string path, Func<(int statusCode, string body)> responseProvider)
+    {
+        Server
+            .Given(Request.Create()
+                .WithPath(path)
+                .UsingPost())
+            .RespondWith(Response.Create()
+                .WithCallback(_ =>
+                {
+                    var (statusCode, body) = responseProvider();
+                    return new WireMock.ResponseMessage
+                    {
+                        StatusCode = statusCode,
+                        Headers = new Dictionary<string, WireMock.Types.WireMockList<string>>
+                        {
+                            ["Content-Type"] = new WireMock.Types.WireMockList<string>("text/html; charset=utf-8")
+                        },
+                        BodyData = new WireMock.Util.BodyData
+                        {
+                            DetectedBodyType = WireMock.Types.BodyType.String,
+                            BodyAsString = body
+                        }
+                    };
+                }));
+    }
+
+    /// <summary>
+    /// Stubs the login action POST to redirect to a non-login URL that still contains
+    /// the login form. This tests the edge case where URL-based success detection passes
+    /// but form-presence check catches the failed login.
+    /// </summary>
+    protected void StubLoginActionReturnsNonLoginUrlWithForm()
+    {
+        // Redirect to a non-login URL
+        Server
+            .Given(Request.Create()
+                .WithPath(LoginActionPath)
+                .UsingPost())
+            .RespondWith(Response.Create()
+                .WithStatusCode(302)
+                .WithHeader("Location", "/some-error-page"));
+
+        // That page still has the login form (unusual but possible edge case)
+        var loginFormContent = LoadSyntheticFixtureContent("login", "login-form");
+        Server
+            .Given(Request.Create()
+                .WithPath("/some-error-page")
+                .UsingGet())
+            .RespondWith(Response.Create()
+                .WithStatusCode(200)
+                .WithHeader("Content-Type", "text/html; charset=utf-8")
+                .WithBody(loginFormContent));
+    }
 }

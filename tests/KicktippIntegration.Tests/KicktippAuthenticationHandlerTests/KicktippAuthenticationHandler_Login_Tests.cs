@@ -164,4 +164,37 @@ public class KicktippAuthenticationHandler_Login_Tests : KicktippAuthenticationH
             .Throws<InvalidOperationException>()
             .WithMessageContaining("credentials");
     }
+
+    [Test]
+    public async Task Login_action_failure_throws_http_request_exception()
+    {
+        // Arrange - login page works but login action returns 500
+        StubLoginPageWithForm();
+        StubStatusCode(LoginActionPath, 500);
+
+        var handler = CreateHandler();
+        var client = CreateHttpClientWithHandler(handler);
+
+        // Act & Assert
+        await Assert.That(async () => await client.GetAsync("/test-community/tabellen"))
+            .Throws<HttpRequestException>()
+            .WithMessageContaining("Login request failed");
+    }
+
+    [Test]
+    public async Task Login_success_detection_checks_form_presence_when_url_has_no_login()
+    {
+        // Arrange - login page works, but login action redirects to a non-login URL
+        // that still contains the login form (edge case)
+        StubLoginPageWithForm();
+        StubLoginActionReturnsNonLoginUrlWithForm();
+
+        var handler = CreateHandler();
+        var client = CreateHttpClientWithHandler(handler);
+
+        // Act & Assert - should fail because login form is still present despite URL
+        await Assert.That(async () => await client.GetAsync("/test-community/tabellen"))
+            .Throws<UnauthorizedAccessException>()
+            .WithMessageContaining("login failed");
+    }
 }
