@@ -1,7 +1,17 @@
 using Microsoft.Extensions.Logging;
 using Spectre.Console.Cli;
-using Orchestrator.Commands;
-using Orchestrator.Commands.Snapshots;
+using Orchestrator.Commands.Operations.Matchday;
+using Orchestrator.Commands.Operations.Bonus;
+using Orchestrator.Commands.Operations.CollectContext;
+using Orchestrator.Commands.Operations.Verify;
+using Orchestrator.Commands.Observability.AnalyzeMatch;
+using Orchestrator.Commands.Observability.ContextChanges;
+using Orchestrator.Commands.Observability.Cost;
+using Orchestrator.Commands.Utility.UploadKpi;
+using Orchestrator.Commands.Utility.UploadTransfers;
+using Orchestrator.Commands.Utility.ListKpi;
+using Orchestrator.Commands.Utility.ReconstructDataCollectedAt;
+using Orchestrator.Commands.Utility.Snapshots;
 
 namespace Orchestrator;
 
