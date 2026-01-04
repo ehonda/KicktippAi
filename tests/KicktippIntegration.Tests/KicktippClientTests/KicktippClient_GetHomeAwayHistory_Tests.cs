@@ -1,3 +1,5 @@
+using EHonda.KicktippAi.Core;
+
 namespace KicktippIntegration.Tests.KicktippClientTests;
 
 /// <summary>
@@ -161,13 +163,14 @@ public class KicktippClient_GetHomeAwayHistory_Tests : KicktippClientTests_Base
         var (homeHistory, awayHistory) = await client.GetHomeAwayHistoryAsync("test-community", "FC Bayern", "BVB");
 
         // Assert
-        await Assert.That(homeHistory).HasCount().EqualTo(2);
-        await Assert.That(homeHistory[0].HomeGoals).IsEqualTo(3);
-        await Assert.That(homeHistory[0].AwayGoals).IsEqualTo(1);
+        await Assert.That(homeHistory).IsEquivalentTo([
+            new MatchResult("1.BL", "FC Bayern", "Opponent", 3, 1, MatchOutcome.Win),
+            new MatchResult("CL", "FC Bayern", "Another", 2, 2, MatchOutcome.Draw)
+        ]);
         
-        await Assert.That(awayHistory).HasCount().EqualTo(1);
-        await Assert.That(awayHistory[0].HomeGoals).IsEqualTo(4);
-        await Assert.That(awayHistory[0].AwayGoals).IsEqualTo(2);
+        await Assert.That(awayHistory).IsEquivalentTo([
+            new MatchResult("DFB", "Team X", "BVB", 4, 2, MatchOutcome.Loss)
+        ]);
     }
 
     [Test]
