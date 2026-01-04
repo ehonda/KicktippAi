@@ -11,22 +11,39 @@ namespace KicktippIntegration.Authentication;
 /// </summary>
 public class KicktippAuthenticationHandler : DelegatingHandler
 {
-    private const string BaseUrl = "https://www.kicktipp.de";
-    private const string LoginUrl = $"{BaseUrl}/info/profil/login";
+    /// <summary>
+    /// The default base URL for Kicktipp.
+    /// </summary>
+    public const string DefaultBaseUrl = "https://www.kicktipp.de";
+    
+    private const string LoginPath = "/info/profil/login";
     
     private readonly IOptions<KicktippOptions> _options;
     private readonly ILogger<KicktippAuthenticationHandler> _logger;
     private readonly IBrowsingContext _browsingContext;
     private readonly SemaphoreSlim _loginSemaphore = new(1, 1);
+    private readonly string _baseUrl;
     private bool _isLoggedIn = false;
 
-    public KicktippAuthenticationHandler(IOptions<KicktippOptions> options, ILogger<KicktippAuthenticationHandler> logger)
+    /// <summary>
+    /// Creates a new instance of the authentication handler.
+    /// </summary>
+    /// <param name="options">Kicktipp configuration options.</param>
+    /// <param name="logger">Logger instance.</param>
+    /// <param name="baseUrl">Base URL for Kicktipp. Defaults to production URL. Can be overridden for testing.</param>
+    public KicktippAuthenticationHandler(
+        IOptions<KicktippOptions> options, 
+        ILogger<KicktippAuthenticationHandler> logger,
+        string? baseUrl = null)
     {
         _options = options;
         _logger = logger;
+        _baseUrl = baseUrl ?? DefaultBaseUrl;
         var config = Configuration.Default.WithDefaultLoader();
         _browsingContext = BrowsingContext.New(config);
     }
+
+    private string LoginUrl => $"{_baseUrl}{LoginPath}";
 
     protected override async Task<HttpResponseMessage> SendAsync(
         HttpRequestMessage request,
@@ -108,7 +125,7 @@ public class KicktippAuthenticationHandler : DelegatingHandler
             // Parse the form action URL - use the action from the form
             var formAction = loginForm.Action;
             var formActionUrl = string.IsNullOrEmpty(formAction) ? LoginUrl : 
-                (formAction.StartsWith("http") ? formAction : $"{BaseUrl}{formAction}");
+                (formAction.StartsWith("http") ? formAction : $"{_baseUrl}{formAction}");
             
             // Prepare form data with the exact field names from the HTML
             var formData = new List<KeyValuePair<string, string>>

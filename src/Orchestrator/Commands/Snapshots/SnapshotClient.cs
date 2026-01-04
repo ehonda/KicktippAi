@@ -23,6 +23,16 @@ public class SnapshotClient
     }
 
     /// <summary>
+    /// Fetches the login page.
+    /// Note: This is fetched without authentication to capture the login form structure.
+    /// </summary>
+    public async Task<string?> FetchLoginPageAsync()
+    {
+        var url = "info/profil/login";
+        return await FetchPageAsync(url, "login");
+    }
+
+    /// <summary>
     /// Fetches the standings page (tabellen).
     /// </summary>
     public async Task<string?> FetchStandingsPageAsync(string community)

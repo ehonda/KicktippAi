@@ -73,6 +73,20 @@ public class SnapshotsFetchCommand : AsyncCommand<SnapshotsFetchSettings>
         await AnsiConsole.Status()
             .StartAsync("Fetching snapshots...", async ctx =>
             {
+                // 0. Login page (fetched without community context)
+                ctx.Status("Fetching login page...");
+                var loginContent = await snapshotClient.FetchLoginPageAsync();
+                if (loginContent != null)
+                {
+                    await SaveSnapshotAsync(outputPath, "login.html", loginContent);
+                    savedCount++;
+                    AnsiConsole.MarkupLine("[green]✓[/] Saved login.html");
+                }
+                else
+                {
+                    AnsiConsole.MarkupLine("[red]✗[/] Failed to fetch login page");
+                }
+
                 // 1. Tabellen (standings)
                 ctx.Status("Fetching tabellen...");
                 var tabellenContent = await snapshotClient.FetchStandingsPageAsync(community);
