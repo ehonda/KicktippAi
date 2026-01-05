@@ -48,13 +48,12 @@
     <Project Path="dev/PromptSampleTests/PromptSampleTests.csproj" />
   </Folder>
   <Folder Name="/tests/">
-    <!-- TEMPORARY PROJECT: Will be removed once we have dedicated test projects for all src assemblies -->
-    <Project Path="tests/Coverage.Tests/Coverage.Tests.csproj" />
     <Project Path="tests/ContextProviders.Kicktipp.Tests/ContextProviders.Kicktipp.Tests.csproj" />
     <Project Path="tests/Core.Tests/Core.Tests.csproj" />
     <Project Path="tests/FirebaseAdapter.Tests/FirebaseAdapter.Tests.csproj" />
     <Project Path="tests/KicktippIntegration.Tests/KicktippIntegration.Tests.csproj" />
     <Project Path="tests/OpenAiIntegration.Tests/OpenAiIntegration.Tests.csproj" />
+    <Project Path="tests/Orchestrator.Tests/Orchestrator.Tests.csproj" />
     <Project Path="tests/TestUtilities.Tests/TestUtilities.Tests.csproj" />
   </Folder>
 </Solution>

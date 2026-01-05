@@ -1,4 +1,3 @@
-using Microsoft.Extensions.Logging;
 using Spectre.Console.Cli;
 using Orchestrator.Commands.Operations.Matchday;
 using Orchestrator.Commands.Operations.Bonus;
