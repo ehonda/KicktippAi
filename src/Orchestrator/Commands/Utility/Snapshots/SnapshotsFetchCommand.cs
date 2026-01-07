@@ -12,6 +12,13 @@ namespace Orchestrator.Commands.Utility.Snapshots;
 /// </summary>
 public class SnapshotsFetchCommand : AsyncCommand<SnapshotsFetchSettings>
 {
+    private readonly IAnsiConsole _console;
+
+    public SnapshotsFetchCommand(IAnsiConsole console)
+    {
+        _console = console;
+    }
+
     public override async Task<int> ExecuteAsync(CommandContext context, SnapshotsFetchSettings settings)
     {
         var logger = LoggingConfiguration.CreateLogger<SnapshotsFetchCommand>();
@@ -21,7 +28,7 @@ public class SnapshotsFetchCommand : AsyncCommand<SnapshotsFetchSettings>
             // Validate settings
             if (string.IsNullOrWhiteSpace(settings.Community))
             {
-                AnsiConsole.MarkupLine("[red]Error: Community is required[/]");
+                _console.MarkupLine("[red]Error: Community is required[/]");
                 return 1;
             }
 
@@ -33,44 +40,44 @@ public class SnapshotsFetchCommand : AsyncCommand<SnapshotsFetchSettings>
             ConfigureServices(services, logger);
             var serviceProvider = services.BuildServiceProvider();
 
-            AnsiConsole.MarkupLine("[green]Fetching snapshots...[/]");
-            AnsiConsole.MarkupLine($"[blue]Community:[/] [yellow]{settings.Community}[/]");
-            AnsiConsole.MarkupLine($"[blue]Output directory:[/] [yellow]{settings.OutputDirectory}[/]");
+            _console.MarkupLine("[green]Fetching snapshots...[/]");
+            _console.MarkupLine($"[blue]Community:[/] [yellow]{settings.Community}[/]");
+            _console.MarkupLine($"[blue]Output directory:[/] [yellow]{settings.OutputDirectory}[/]");
 
             // Create output directory
             var outputPath = Path.GetFullPath(settings.OutputDirectory);
             Directory.CreateDirectory(outputPath);
 
             // Warn if not gitignored
-            WarnIfNotGitignored(outputPath);
+            WarnIfNotGitignored(_console, outputPath);
 
             // Create snapshot client
             var httpClientFactory = serviceProvider.GetRequiredService<IHttpClientFactory>();
             var httpClient = httpClientFactory.CreateClient("Kicktipp");
             var snapshotClient = new SnapshotClient(httpClient, logger);
 
-            var savedCount = await FetchSnapshotsAsync(snapshotClient, settings.Community, outputPath);
+            var savedCount = await FetchSnapshotsAsync(_console, snapshotClient, settings.Community, outputPath);
 
-            AnsiConsole.WriteLine();
-            AnsiConsole.MarkupLine($"[green]Done![/] Saved {savedCount} snapshot(s) to [yellow]{outputPath}[/]");
-            AnsiConsole.WriteLine();
-            AnsiConsole.MarkupLine("[dim]Next step: Run 'snapshots encrypt' to encrypt them for committing[/]");
+            _console.WriteLine();
+            _console.MarkupLine($"[green]Done![/] Saved {savedCount} snapshot(s) to [yellow]{outputPath}[/]");
+            _console.WriteLine();
+            _console.MarkupLine("[dim]Next step: Run 'snapshots encrypt' to encrypt them for committing[/]");
 
             return 0;
         }
         catch (Exception ex)
         {
             logger.LogError(ex, "Error fetching snapshots");
-            AnsiConsole.MarkupLine($"[red]Error:[/] {ex.Message}");
+            _console.MarkupLine($"[red]Error:[/] {ex.Message}");
             return 1;
         }
     }
 
-    internal static async Task<int> FetchSnapshotsAsync(SnapshotClient snapshotClient, string community, string outputPath)
+    internal static async Task<int> FetchSnapshotsAsync(IAnsiConsole console, SnapshotClient snapshotClient, string community, string outputPath)
     {
         var savedCount = 0;
 
-        await AnsiConsole.Status()
+        await console.Status()
             .StartAsync("Fetching snapshots...", async ctx =>
             {
                 // 0. Login page (fetched without community context)
@@ -80,11 +87,11 @@ public class SnapshotsFetchCommand : AsyncCommand<SnapshotsFetchSettings>
                 {
                     await SaveSnapshotAsync(outputPath, "login.html", loginContent);
                     savedCount++;
-                    AnsiConsole.MarkupLine("[green]✓[/] Saved login.html");
+                    console.MarkupLine("[green]✓[/] Saved login.html");
                 }
                 else
                 {
-                    AnsiConsole.MarkupLine("[red]✗[/] Failed to fetch login page");
+                    console.MarkupLine("[red]✗[/] Failed to fetch login page");
                 }
 
                 // 1. Tabellen (standings)
@@ -94,11 +101,11 @@ public class SnapshotsFetchCommand : AsyncCommand<SnapshotsFetchSettings>
                 {
                     await SaveSnapshotAsync(outputPath, "tabellen.html", tabellenContent);
                     savedCount++;
-                    AnsiConsole.MarkupLine("[green]✓[/] Saved tabellen.html");
+                    console.MarkupLine("[green]✓[/] Saved tabellen.html");
                 }
                 else
                 {
-                    AnsiConsole.MarkupLine("[red]✗[/] Failed to fetch tabellen");
+                    console.MarkupLine("[red]✗[/] Failed to fetch tabellen");
                 }
 
                 // 2. Tippabgabe (main betting page)
@@ -108,11 +115,11 @@ public class SnapshotsFetchCommand : AsyncCommand<SnapshotsFetchSettings>
                 {
                     await SaveSnapshotAsync(outputPath, "tippabgabe.html", tippabgabeContent);
                     savedCount++;
-                    AnsiConsole.MarkupLine("[green]✓[/] Saved tippabgabe.html");
+                    console.MarkupLine("[green]✓[/] Saved tippabgabe.html");
                 }
                 else
                 {
-                    AnsiConsole.MarkupLine("[red]✗[/] Failed to fetch tippabgabe");
+                    console.MarkupLine("[red]✗[/] Failed to fetch tippabgabe");
                 }
 
                 // 3. Tippabgabe bonus (bonus questions)
@@ -122,11 +129,11 @@ public class SnapshotsFetchCommand : AsyncCommand<SnapshotsFetchSettings>
                 {
                     await SaveSnapshotAsync(outputPath, "tippabgabe-bonus.html", bonusContent);
                     savedCount++;
-                    AnsiConsole.MarkupLine("[green]✓[/] Saved tippabgabe-bonus.html");
+                    console.MarkupLine("[green]✓[/] Saved tippabgabe-bonus.html");
                 }
                 else
                 {
-                    AnsiConsole.MarkupLine("[red]✗[/] Failed to fetch tippabgabe-bonus");
+                    console.MarkupLine("[red]✗[/] Failed to fetch tippabgabe-bonus");
                 }
 
                 // 4. Spielinfo pages (match details with history)
@@ -141,11 +148,11 @@ public class SnapshotsFetchCommand : AsyncCommand<SnapshotsFetchSettings>
 
                 if (spielinfoPages.Count > 0)
                 {
-                    AnsiConsole.MarkupLine($"[green]✓[/] Saved {spielinfoPages.Count} spielinfo pages");
+                    console.MarkupLine($"[green]✓[/] Saved {spielinfoPages.Count} spielinfo pages");
                 }
                 else
                 {
-                    AnsiConsole.MarkupLine("[yellow]![/] No spielinfo pages found");
+                    console.MarkupLine("[yellow]![/] No spielinfo pages found");
                 }
 
                 // 5. Spielinfo pages with home/away history (ansicht=2)
@@ -160,11 +167,11 @@ public class SnapshotsFetchCommand : AsyncCommand<SnapshotsFetchSettings>
 
                 if (homeAwayPages.Count > 0)
                 {
-                    AnsiConsole.MarkupLine($"[green]✓[/] Saved {homeAwayPages.Count} spielinfo home/away pages");
+                    console.MarkupLine($"[green]✓[/] Saved {homeAwayPages.Count} spielinfo home/away pages");
                 }
                 else
                 {
-                    AnsiConsole.MarkupLine("[yellow]![/] No spielinfo home/away pages found");
+                    console.MarkupLine("[yellow]![/] No spielinfo home/away pages found");
                 }
 
                 // 6. Spielinfo pages with head-to-head history (ansicht=3)
@@ -179,11 +186,11 @@ public class SnapshotsFetchCommand : AsyncCommand<SnapshotsFetchSettings>
 
                 if (h2hPages.Count > 0)
                 {
-                    AnsiConsole.MarkupLine($"[green]✓[/] Saved {h2hPages.Count} spielinfo head-to-head pages");
+                    console.MarkupLine($"[green]✓[/] Saved {h2hPages.Count} spielinfo head-to-head pages");
                 }
                 else
                 {
-                    AnsiConsole.MarkupLine("[yellow]![/] No spielinfo head-to-head pages found");
+                    console.MarkupLine("[yellow]![/] No spielinfo head-to-head pages found");
                 }
             });
 
@@ -230,7 +237,7 @@ public class SnapshotsFetchCommand : AsyncCommand<SnapshotsFetchSettings>
         await File.WriteAllTextAsync(filePath, content);
     }
 
-    private static void WarnIfNotGitignored(string outputPath)
+    private static void WarnIfNotGitignored(IAnsiConsole console, string outputPath)
     {
         var relativePath = Path.GetRelativePath(Directory.GetCurrentDirectory(), outputPath);
         var directoryName = Path.GetFileName(outputPath.TrimEnd(Path.DirectorySeparatorChar));
@@ -241,11 +248,11 @@ public class SnapshotsFetchCommand : AsyncCommand<SnapshotsFetchSettings>
 
         if (!looksIgnored)
         {
-            AnsiConsole.MarkupLine(
+            console.MarkupLine(
                 $"[yellow]⚠ Warning:[/] Output directory '{relativePath}' may not be gitignored.");
-            AnsiConsole.MarkupLine(
+            console.MarkupLine(
                 "[yellow]  Make sure to add it to .gitignore before committing![/]");
-            AnsiConsole.WriteLine();
+            console.WriteLine();
         }
     }
 }

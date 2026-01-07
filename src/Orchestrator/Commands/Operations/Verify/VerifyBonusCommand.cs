@@ -10,6 +10,13 @@ namespace Orchestrator.Commands.Operations.Verify;
 
 public class VerifyBonusCommand : AsyncCommand<VerifySettings>
 {
+    private readonly IAnsiConsole _console;
+
+    public VerifyBonusCommand(IAnsiConsole console)
+    {
+        _console = console;
+    }
+
     public override async Task<int> ExecuteAsync(CommandContext context, VerifySettings settings)
     {
         var logger = LoggingConfiguration.CreateLogger<VerifyBonusCommand>();
@@ -24,26 +31,26 @@ public class VerifyBonusCommand : AsyncCommand<VerifySettings>
             ConfigureServices(services, settings, logger);
             var serviceProvider = services.BuildServiceProvider();
             
-            AnsiConsole.MarkupLine($"[green]Verify bonus command initialized[/]");
+            _console.MarkupLine($"[green]Verify bonus command initialized[/]");
             
             if (settings.Verbose)
             {
-                AnsiConsole.MarkupLine("[dim]Verbose mode enabled[/]");
+                _console.MarkupLine("[dim]Verbose mode enabled[/]");
             }
             
             if (settings.Agent)
             {
-                AnsiConsole.MarkupLine("[blue]Agent mode enabled - prediction details will be hidden[/]");
+                _console.MarkupLine("[blue]Agent mode enabled - prediction details will be hidden[/]");
             }
             
             if (settings.InitMatchday)
             {
-                AnsiConsole.MarkupLine("[cyan]Init bonus mode enabled - will return error if no predictions exist[/]");
+                _console.MarkupLine("[cyan]Init bonus mode enabled - will return error if no predictions exist[/]");
             }
             
             if (settings.CheckOutdated)
             {
-                AnsiConsole.MarkupLine("[cyan]Outdated check enabled - predictions will be checked against latest context documents[/]");
+                _console.MarkupLine("[cyan]Outdated check enabled - predictions will be checked against latest context documents[/]");
             }
             
             // Execute the verification workflow
@@ -54,12 +61,12 @@ public class VerifyBonusCommand : AsyncCommand<VerifySettings>
         catch (Exception ex)
         {
             logger.LogError(ex, "Error executing verify bonus command");
-            AnsiConsole.MarkupLine($"[red]Error:[/] {ex.Message}");
+            _console.MarkupLine($"[red]Error:[/] {ex.Message}");
             return 1;
         }
     }
     
-    private static async Task<bool> ExecuteVerificationWorkflow(IServiceProvider serviceProvider, VerifySettings settings, ILogger logger)
+    private async Task<bool> ExecuteVerificationWorkflow(IServiceProvider serviceProvider, VerifySettings settings, ILogger logger)
     {
         var kicktippClient = serviceProvider.GetRequiredService<IKicktippClient>();
         
@@ -67,8 +74,8 @@ public class VerifyBonusCommand : AsyncCommand<VerifySettings>
         var predictionRepository = serviceProvider.GetService<IPredictionRepository>();
         if (predictionRepository == null)
         {
-            AnsiConsole.MarkupLine("[red]Error: Database not configured. Cannot verify predictions without database access.[/]");
-            AnsiConsole.MarkupLine("[yellow]Hint: Set FIREBASE_PROJECT_ID and FIREBASE_SERVICE_ACCOUNT_JSON environment variables[/]");
+            _console.MarkupLine("[red]Error: Database not configured. Cannot verify predictions without database access.[/]");
+            _console.MarkupLine("[yellow]Hint: Set FIREBASE_PROJECT_ID and FIREBASE_SERVICE_ACCOUNT_JSON environment variables[/]");
             return true; // Consider this a failure
         }
         
@@ -78,27 +85,27 @@ public class VerifyBonusCommand : AsyncCommand<VerifySettings>
         // Determine community context (use explicit setting or fall back to community name)
         string communityContext = settings.CommunityContext ?? settings.Community;
         
-        AnsiConsole.MarkupLine($"[blue]Using community:[/] [yellow]{settings.Community}[/]");
-        AnsiConsole.MarkupLine($"[blue]Using community context:[/] [yellow]{communityContext}[/]");
-        AnsiConsole.MarkupLine("[blue]Getting open bonus questions from Kicktipp...[/]");
+        _console.MarkupLine($"[blue]Using community:[/] [yellow]{settings.Community}[/]");
+        _console.MarkupLine($"[blue]Using community context:[/] [yellow]{communityContext}[/]");
+        _console.MarkupLine("[blue]Getting open bonus questions from Kicktipp...[/]");
         
         // Step 1: Get open bonus questions from Kicktipp
         var bonusQuestions = await kicktippClient.GetOpenBonusQuestionsAsync(settings.Community);
         
         if (!bonusQuestions.Any())
         {
-            AnsiConsole.MarkupLine("[yellow]No bonus questions found on Kicktipp[/]");
+            _console.MarkupLine("[yellow]No bonus questions found on Kicktipp[/]");
             return false;
         }
         
-        AnsiConsole.MarkupLine($"[green]Found {bonusQuestions.Count} bonus questions on Kicktipp[/]");
+        _console.MarkupLine($"[green]Found {bonusQuestions.Count} bonus questions on Kicktipp[/]");
         
-        AnsiConsole.MarkupLine("[blue]Getting placed bonus predictions from Kicktipp...[/]");
+        _console.MarkupLine("[blue]Getting placed bonus predictions from Kicktipp...[/]");
         
         // Step 1.5: Get currently placed predictions from Kicktipp
         var placedPredictions = await kicktippClient.GetPlacedBonusPredictionsAsync(settings.Community);
         
-        AnsiConsole.MarkupLine("[blue]Retrieving predictions from database...[/]");
+        _console.MarkupLine("[blue]Retrieving predictions from database...[/]");
         
         var hasDiscrepancies = false;
         var totalQuestions = 0;
@@ -115,7 +122,7 @@ public class VerifyBonusCommand : AsyncCommand<VerifySettings>
                 // Get prediction from database
                 if (settings.Verbose)
                 {
-                    AnsiConsole.MarkupLine($"[dim]  Looking up: {Markup.Escape(question.Text)}[/]");
+                    _console.MarkupLine($"[dim]  Looking up: {Markup.Escape(question.Text)}[/]");
                 }
                 
                 var databasePrediction = await predictionRepository.GetBonusPredictionByTextAsync(question.Text, settings.Model, communityContext);
@@ -149,14 +156,14 @@ public class VerifyBonusCommand : AsyncCommand<VerifySettings>
                         {
                             if (settings.Agent)
                             {
-                                AnsiConsole.MarkupLine($"[green]✓ {Markup.Escape(question.Text)}[/] [dim](valid)[/]");
+                                _console.MarkupLine($"[green]✓ {Markup.Escape(question.Text)}[/] [dim](valid)[/]");
                             }
                             else
                             {
                                 var optionTexts = question.Options
                                     .Where(o => databasePrediction.SelectedOptionIds.Contains(o.Id))
                                     .Select(o => o.Text);
-                                AnsiConsole.MarkupLine($"[green]✓ {Markup.Escape(question.Text)}:[/] {string.Join(", ", optionTexts)} [dim](valid)[/]");
+                                _console.MarkupLine($"[green]✓ {Markup.Escape(question.Text)}:[/] {string.Join(", ", optionTexts)} [dim](valid)[/]");
                             }
                         }
                     }
@@ -168,7 +175,7 @@ public class VerifyBonusCommand : AsyncCommand<VerifySettings>
                         {
                             var status = !isValidPrediction ? "invalid prediction" : 
                                         !predictionsMatch ? "mismatch with Kicktipp" : "outdated";
-                            AnsiConsole.MarkupLine($"[red]✗ {Markup.Escape(question.Text)}[/] [dim]({status})[/]");
+                            _console.MarkupLine($"[red]✗ {Markup.Escape(question.Text)}[/] [dim]({status})[/]");
                         }
                         else
                         {
@@ -177,7 +184,7 @@ public class VerifyBonusCommand : AsyncCommand<VerifySettings>
                                 var optionTexts = question.Options
                                     .Where(o => databasePrediction.SelectedOptionIds.Contains(o.Id))
                                     .Select(o => o.Text);
-                                AnsiConsole.MarkupLine($"[red]✗ {Markup.Escape(question.Text)}:[/] {string.Join(", ", optionTexts)} [dim](invalid prediction)[/]");
+                                _console.MarkupLine($"[red]✗ {Markup.Escape(question.Text)}:[/] {string.Join(", ", optionTexts)} [dim](invalid prediction)[/]");
                             }
                             else if (!predictionsMatch)
                             {
@@ -191,17 +198,17 @@ public class VerifyBonusCommand : AsyncCommand<VerifySettings>
                                         .Select(o => o.Text)
                                     : new List<string>();
                                 
-                                AnsiConsole.MarkupLine($"[red]✗ {Markup.Escape(question.Text)}:[/]");
-                                AnsiConsole.MarkupLine($"  [yellow]Database:[/] {string.Join(", ", databaseTexts)}");
-                                AnsiConsole.MarkupLine($"  [yellow]Kicktipp:[/] {(kicktippTexts.Any() ? string.Join(", ", kicktippTexts) : "no prediction")}");
+                                _console.MarkupLine($"[red]✗ {Markup.Escape(question.Text)}:[/]");
+                                _console.MarkupLine($"  [yellow]Database:[/] {string.Join(", ", databaseTexts)}");
+                                _console.MarkupLine($"  [yellow]Kicktipp:[/] {(kicktippTexts.Any() ? string.Join(", ", kicktippTexts) : "no prediction")}");
                             }
                             else if (isOutdated)
                             {
                                 var optionTexts = question.Options
                                     .Where(o => databasePrediction.SelectedOptionIds.Contains(o.Id))
                                     .Select(o => o.Text);
-                                AnsiConsole.MarkupLine($"[red]✗ {Markup.Escape(question.Text)}:[/] {string.Join(", ", optionTexts)} [dim](outdated)[/]");
-                                AnsiConsole.MarkupLine($"  [yellow]Status:[/] Outdated (context updated after prediction)");
+                                _console.MarkupLine($"[red]✗ {Markup.Escape(question.Text)}:[/] {string.Join(", ", optionTexts)} [dim](outdated)[/]");
+                                _console.MarkupLine($"  [yellow]Status:[/] Outdated (context updated after prediction)");
                             }
                         }
                     }
@@ -214,11 +221,11 @@ public class VerifyBonusCommand : AsyncCommand<VerifySettings>
                     {
                         if (settings.Agent)
                         {
-                            AnsiConsole.MarkupLine($"[yellow]○ {Markup.Escape(question.Text)}[/] [dim](no prediction)[/]");
+                            _console.MarkupLine($"[yellow]○ {Markup.Escape(question.Text)}[/] [dim](no prediction)[/]");
                         }
                         else
                         {
-                            AnsiConsole.MarkupLine($"[yellow]○ {Markup.Escape(question.Text)}:[/] [dim](no prediction)[/]");
+                            _console.MarkupLine($"[yellow]○ {Markup.Escape(question.Text)}:[/] [dim](no prediction)[/]");
                         }
                     }
                 }
@@ -230,38 +237,38 @@ public class VerifyBonusCommand : AsyncCommand<VerifySettings>
                 
                 if (settings.Agent)
                 {
-                    AnsiConsole.MarkupLine($"[red]✗ {Markup.Escape(question.Text)}[/] [dim](error)[/]");
+                    _console.MarkupLine($"[red]✗ {Markup.Escape(question.Text)}[/] [dim](error)[/]");
                 }
                 else
                 {
-                    AnsiConsole.MarkupLine($"[red]✗ {Markup.Escape(question.Text)}:[/] Error during verification");
+                    _console.MarkupLine($"[red]✗ {Markup.Escape(question.Text)}:[/] Error during verification");
                 }
             }
         }
         
         // Step 3: Display summary
-        AnsiConsole.WriteLine();
-        AnsiConsole.MarkupLine("[bold]Verification Summary:[/]");
-        AnsiConsole.MarkupLine($"  Total bonus questions: {totalQuestions}");
-        AnsiConsole.MarkupLine($"  Questions with database predictions: {questionsWithDatabasePredictions}");
-        AnsiConsole.MarkupLine($"  Valid predictions: {validPredictions}");
+        _console.WriteLine();
+        _console.MarkupLine("[bold]Verification Summary:[/]");
+        _console.MarkupLine($"  Total bonus questions: {totalQuestions}");
+        _console.MarkupLine($"  Questions with database predictions: {questionsWithDatabasePredictions}");
+        _console.MarkupLine($"  Valid predictions: {validPredictions}");
         
         // Check for init-bonus mode first
         if (settings.InitMatchday && questionsWithDatabasePredictions == 0)
         {
-            AnsiConsole.MarkupLine("[yellow]  Init bonus detected - no database predictions exist[/]");
-            AnsiConsole.MarkupLine("[red]Returning error to trigger initial prediction workflow[/]");
+            _console.MarkupLine("[yellow]  Init bonus detected - no database predictions exist[/]");
+            _console.MarkupLine("[red]Returning error to trigger initial prediction workflow[/]");
             return true; // Return error to trigger workflow
         }
         
         if (hasDiscrepancies)
         {
-            AnsiConsole.MarkupLine($"[red]  Missing or invalid predictions: {totalQuestions - validPredictions}[/]");
-            AnsiConsole.MarkupLine("[red]Verification failed - some predictions are missing or invalid[/]");
+            _console.MarkupLine($"[red]  Missing or invalid predictions: {totalQuestions - validPredictions}[/]");
+            _console.MarkupLine("[red]Verification failed - some predictions are missing or invalid[/]");
         }
         else
         {
-            AnsiConsole.MarkupLine("[green]  All predictions are valid - verification successful[/]");
+            _console.MarkupLine("[green]  All predictions are valid - verification successful[/]");
         }
         
         return hasDiscrepancies;
@@ -295,7 +302,7 @@ public class VerifyBonusCommand : AsyncCommand<VerifySettings>
         return true;
     }
     
-    private static async Task<bool> CheckBonusPredictionOutdated(
+    private async Task<bool> CheckBonusPredictionOutdated(
         IPredictionRepository predictionRepository,
         IKpiRepository kpiRepository,
         string questionText,
@@ -328,21 +335,21 @@ public class VerifyBonusCommand : AsyncCommand<VerifySettings>
                     {
                         if (verbose)
                         {
-                            AnsiConsole.MarkupLine($"[yellow]KPI document '{contextDocumentName}' updated after prediction was created[/]");
-                            AnsiConsole.MarkupLine($"  [dim]Prediction created:[/] {predictionMetadata.CreatedAt:yyyy-MM-dd HH:mm:ss} UTC");
-                            AnsiConsole.MarkupLine($"  [dim]KPI document created:[/] {kpiDocument.CreatedAt:yyyy-MM-dd HH:mm:ss} UTC");
+                            _console.MarkupLine($"[yellow]KPI document '{contextDocumentName}' updated after prediction was created[/]");
+                            _console.MarkupLine($"  [dim]Prediction created:[/] {predictionMetadata.CreatedAt:yyyy-MM-dd HH:mm:ss} UTC");
+                            _console.MarkupLine($"  [dim]KPI document created:[/] {kpiDocument.CreatedAt:yyyy-MM-dd HH:mm:ss} UTC");
                         }
                         return true; // Prediction is outdated
                     }
                     
                     if (verbose)
                     {
-                        AnsiConsole.MarkupLine($"[dim]KPI document '{contextDocumentName}' found, version {kpiDocument.Version} is latest[/]");
+                        _console.MarkupLine($"[dim]KPI document '{contextDocumentName}' found, version {kpiDocument.Version} is latest[/]");
                     }
                 }
                 else if (verbose)
                 {
-                    AnsiConsole.MarkupLine($"[yellow]Warning: KPI document '{contextDocumentName}' not found[/]");
+                    _console.MarkupLine($"[yellow]Warning: KPI document '{contextDocumentName}' not found[/]");
                 }
             }
             
@@ -352,7 +359,7 @@ public class VerifyBonusCommand : AsyncCommand<VerifySettings>
         {
             if (verbose)
             {
-                AnsiConsole.MarkupLine($"[yellow]Warning: Could not check if prediction is outdated: {ex.Message}[/]");
+                _console.MarkupLine($"[yellow]Warning: Could not check if prediction is outdated: {ex.Message}[/]");
             }
             return false; // Assume not outdated if we can't determine
         }

@@ -13,6 +13,13 @@ namespace Orchestrator.Commands.Operations.Matchday;
 
 public class MatchdayCommand : AsyncCommand<BaseSettings>
 {
+    private readonly IAnsiConsole _console;
+
+    public MatchdayCommand(IAnsiConsole console)
+    {
+        _console = console;
+    }
+
     public override async Task<int> ExecuteAsync(CommandContext context, BaseSettings settings)
     {
         var logger = LoggingConfiguration.CreateLogger<MatchdayCommand>();
@@ -27,66 +34,66 @@ public class MatchdayCommand : AsyncCommand<BaseSettings>
             ConfigureServices(services, settings, logger);
             var serviceProvider = services.BuildServiceProvider();
             
-            AnsiConsole.MarkupLine($"[green]Matchday command initialized with model:[/] [yellow]{settings.Model}[/]");
+            _console.MarkupLine($"[green]Matchday command initialized with model:[/] [yellow]{settings.Model}[/]");
             
             if (settings.Verbose)
             {
-                AnsiConsole.MarkupLine("[dim]Verbose mode enabled[/]");
+                _console.MarkupLine("[dim]Verbose mode enabled[/]");
             }
             
             if (settings.OverrideKicktipp)
             {
-                AnsiConsole.MarkupLine("[yellow]Override mode enabled - will override existing Kicktipp predictions[/]");
+                _console.MarkupLine("[yellow]Override mode enabled - will override existing Kicktipp predictions[/]");
             }
             
             if (settings.OverrideDatabase)
             {
-                AnsiConsole.MarkupLine("[yellow]Override database mode enabled - will override existing database predictions[/]");
+                _console.MarkupLine("[yellow]Override database mode enabled - will override existing database predictions[/]");
             }
             
             if (settings.Agent)
             {
-                AnsiConsole.MarkupLine("[blue]Agent mode enabled - prediction details will be hidden[/]");
+                _console.MarkupLine("[blue]Agent mode enabled - prediction details will be hidden[/]");
             }
             
             if (settings.DryRun)
             {
-                AnsiConsole.MarkupLine("[magenta]Dry run mode enabled - no changes will be made to database or Kicktipp[/]");
+                _console.MarkupLine("[magenta]Dry run mode enabled - no changes will be made to database or Kicktipp[/]");
             }
 
             if (!string.IsNullOrEmpty(settings.EstimatedCostsModel))
             {
-                AnsiConsole.MarkupLine($"[cyan]Estimated costs will be calculated for model:[/] [yellow]{settings.EstimatedCostsModel}[/]");
+                _console.MarkupLine($"[cyan]Estimated costs will be calculated for model:[/] [yellow]{settings.EstimatedCostsModel}[/]");
             }
 
             if (settings.WithJustification)
             {
                 if (settings.Agent)
                 {
-                    AnsiConsole.MarkupLine("[red]Error:[/] --with-justification cannot be used with --agent");
+                    _console.MarkupLine("[red]Error:[/] --with-justification cannot be used with --agent");
                     return 1;
                 }
 
-                AnsiConsole.MarkupLine("[green]Justification output enabled - model reasoning will be captured[/]");
+                _console.MarkupLine("[green]Justification output enabled - model reasoning will be captured[/]");
             }
 
             // Validate reprediction settings
             if (settings.OverrideDatabase && settings.IsRepredictMode)
             {
-                AnsiConsole.MarkupLine($"[red]Error:[/] --override-database cannot be used with reprediction flags (--repredict or --max-repredictions)");
+                _console.MarkupLine($"[red]Error:[/] --override-database cannot be used with reprediction flags (--repredict or --max-repredictions)");
                 return 1;
             }
 
             if (settings.MaxRepredictions.HasValue && settings.MaxRepredictions.Value < 0)
             {
-                AnsiConsole.MarkupLine($"[red]Error:[/] --max-repredictions must be 0 or greater");
+                _console.MarkupLine($"[red]Error:[/] --max-repredictions must be 0 or greater");
                 return 1;
             }
 
             if (settings.IsRepredictMode)
             {
                 var maxValue = settings.MaxRepredictions ?? int.MaxValue;
-                AnsiConsole.MarkupLine($"[yellow]Reprediction mode enabled - max repredictions: {(settings.MaxRepredictions?.ToString() ?? "unlimited")}[/]");
+                _console.MarkupLine($"[yellow]Reprediction mode enabled - max repredictions: {(settings.MaxRepredictions?.ToString() ?? "unlimited")}[/]");
             }
             
             // Execute the matchday workflow
@@ -97,12 +104,12 @@ public class MatchdayCommand : AsyncCommand<BaseSettings>
         catch (Exception ex)
         {
             logger.LogError(ex, "Error executing matchday command");
-            AnsiConsole.MarkupLine($"[red]Error:[/] {ex.Message}");
+            _console.MarkupLine($"[red]Error:[/] {ex.Message}");
             return 1;
         }
     }
     
-    private static async Task ExecuteMatchdayWorkflow(IServiceProvider serviceProvider, BaseSettings settings, ILogger logger)
+    private async Task ExecuteMatchdayWorkflow(IServiceProvider serviceProvider, BaseSettings settings, ILogger logger)
     {
         var kicktippClient = serviceProvider.GetRequiredService<IKicktippClient>();
         var predictionService = serviceProvider.GetRequiredService<IPredictionService>();
@@ -112,7 +119,7 @@ public class MatchdayCommand : AsyncCommand<BaseSettings>
         // Log the prompt paths being used
         if (settings.Verbose)
         {
-            AnsiConsole.MarkupLine($"[dim]Match prompt:[/] [blue]{predictionService.GetMatchPromptPath(settings.WithJustification)}[/]");
+            _console.MarkupLine($"[dim]Match prompt:[/] [blue]{predictionService.GetMatchPromptPath(settings.WithJustification)}[/]");
         }
         
         // Try to get the prediction repository (may be null if Firebase is not configured)
@@ -127,24 +134,24 @@ public class MatchdayCommand : AsyncCommand<BaseSettings>
         // Determine community context (use explicit setting or fall back to community name)
         string communityContext = settings.CommunityContext ?? settings.Community;
         
-        AnsiConsole.MarkupLine($"[blue]Using community:[/] [yellow]{settings.Community}[/]");
-        AnsiConsole.MarkupLine($"[blue]Using community context:[/] [yellow]{communityContext}[/]");
-        AnsiConsole.MarkupLine("[blue]Getting current matchday matches...[/]");
+        _console.MarkupLine($"[blue]Using community:[/] [yellow]{settings.Community}[/]");
+        _console.MarkupLine($"[blue]Using community context:[/] [yellow]{communityContext}[/]");
+        _console.MarkupLine("[blue]Getting current matchday matches...[/]");
         
         // Step 1: Get current matchday via GetMatchesWithHistoryAsync
         var matchesWithHistory = await kicktippClient.GetMatchesWithHistoryAsync(settings.Community);
         
         if (!matchesWithHistory.Any())
         {
-            AnsiConsole.MarkupLine("[yellow]No matches found for current matchday[/]");
+            _console.MarkupLine("[yellow]No matches found for current matchday[/]");
             return;
         }
         
-        AnsiConsole.MarkupLine($"[green]Found {matchesWithHistory.Count} matches for current matchday[/]");
+        _console.MarkupLine($"[green]Found {matchesWithHistory.Count} matches for current matchday[/]");
         
         if (databaseEnabled)
         {
-            AnsiConsole.MarkupLine("[blue]Database enabled - checking for existing predictions...[/]");
+            _console.MarkupLine("[blue]Database enabled - checking for existing predictions...[/]");
         }
         
         var predictions = new Dictionary<Match, BetPrediction>();
@@ -153,7 +160,7 @@ public class MatchdayCommand : AsyncCommand<BaseSettings>
         foreach (var matchWithHistory in matchesWithHistory)
         {
             var match = matchWithHistory.Match;
-            AnsiConsole.MarkupLine($"[cyan]Processing:[/] {match.HomeTeam} vs {match.AwayTeam}");
+            _console.MarkupLine($"[cyan]Processing:[/] {match.HomeTeam} vs {match.AwayTeam}");
             
             try
             {
@@ -170,11 +177,11 @@ public class MatchdayCommand : AsyncCommand<BaseSettings>
                         fromDatabase = true;
                         if (settings.Agent)
                         {
-                            AnsiConsole.MarkupLine($"[green]  ✓ Found existing prediction[/] [dim](from database)[/]");
+                            _console.MarkupLine($"[green]  ✓ Found existing prediction[/] [dim](from database)[/]");
                         }
                         else
                         {
-                            AnsiConsole.MarkupLine($"[green]  ✓ Found existing prediction:[/] {prediction.HomeGoals}:{prediction.AwayGoals} [dim](from database)[/]");
+                            _console.MarkupLine($"[green]  ✓ Found existing prediction:[/] {prediction.HomeGoals}:{prediction.AwayGoals} [dim](from database)[/]");
                             WriteJustificationIfNeeded(prediction, settings.WithJustification, fromDatabase: true);
                         }
                     }
@@ -189,7 +196,7 @@ public class MatchdayCommand : AsyncCommand<BaseSettings>
                     {
                         // No prediction exists yet - create first prediction
                         shouldPredict = true;
-                        AnsiConsole.MarkupLine($"[yellow]  → No existing prediction found, creating first prediction...[/]");
+                        _console.MarkupLine($"[yellow]  → No existing prediction found, creating first prediction...[/]");
                     }
                     else
                     {
@@ -205,11 +212,11 @@ public class MatchdayCommand : AsyncCommand<BaseSettings>
                             if (isOutdated)
                             {
                                 shouldPredict = true;
-                                AnsiConsole.MarkupLine($"[yellow]  → Creating reprediction {nextIndex} (current: {currentRepredictionIndex}, max: {maxAllowed}) - prediction is outdated[/]");
+                                _console.MarkupLine($"[yellow]  → Creating reprediction {nextIndex} (current: {currentRepredictionIndex}, max: {maxAllowed}) - prediction is outdated[/]");
                             }
                             else
                             {
-                                AnsiConsole.MarkupLine($"[green]  ✓ Skipped reprediction - current prediction is up-to-date[/]");
+                                _console.MarkupLine($"[green]  ✓ Skipped reprediction - current prediction is up-to-date[/]");
                                 
                                 // Get the latest prediction for display purposes
                                 prediction = await predictionRepository!.GetPredictionAsync(match, settings.Model, communityContext);
@@ -218,7 +225,7 @@ public class MatchdayCommand : AsyncCommand<BaseSettings>
                                     fromDatabase = true;
                                     if (!settings.Agent)
                                     {
-                                        AnsiConsole.MarkupLine($"[green]  ✓ Latest prediction:[/] {prediction.HomeGoals}:{prediction.AwayGoals} [dim](reprediction {currentRepredictionIndex})[/]");
+                                        _console.MarkupLine($"[green]  ✓ Latest prediction:[/] {prediction.HomeGoals}:{prediction.AwayGoals} [dim](reprediction {currentRepredictionIndex})[/]");
                                         WriteJustificationIfNeeded(prediction, settings.WithJustification, fromDatabase: true);
                                     }
                                 }
@@ -226,7 +233,7 @@ public class MatchdayCommand : AsyncCommand<BaseSettings>
                         }
                         else
                         {
-                            AnsiConsole.MarkupLine($"[yellow]  ✗ Skipped - already at max repredictions ({currentRepredictionIndex}/{maxAllowed})[/]");
+                            _console.MarkupLine($"[yellow]  ✗ Skipped - already at max repredictions ({currentRepredictionIndex}/{maxAllowed})[/]");
                             
                             // Get the latest prediction for display purposes
                             prediction = await predictionRepository!.GetPredictionAsync(match, settings.Model, communityContext);
@@ -235,7 +242,7 @@ public class MatchdayCommand : AsyncCommand<BaseSettings>
                                 fromDatabase = true;
                                 if (!settings.Agent)
                                 {
-                                    AnsiConsole.MarkupLine($"[green]  ✓ Latest prediction:[/] {prediction.HomeGoals}:{prediction.AwayGoals} [dim](reprediction {currentRepredictionIndex})[/]");
+                                    _console.MarkupLine($"[green]  ✓ Latest prediction:[/] {prediction.HomeGoals}:{prediction.AwayGoals} [dim](reprediction {currentRepredictionIndex})[/]");
                                     WriteJustificationIfNeeded(prediction, settings.WithJustification, fromDatabase: true);
                                 }
                             }
@@ -246,7 +253,7 @@ public class MatchdayCommand : AsyncCommand<BaseSettings>
                 // If no existing prediction (normal mode) or we need to predict (reprediction mode), generate a new one
                 if (prediction == null || shouldPredict)
                 {
-                    AnsiConsole.MarkupLine($"[yellow]  → Generating new prediction...[/]");
+                    _console.MarkupLine($"[yellow]  → Generating new prediction...[/]");
                     
                     // Step 3: Get context using hybrid approach (database first, fallback to on-demand)
                     var contextDocuments = await GetHybridContextAsync(
@@ -259,16 +266,16 @@ public class MatchdayCommand : AsyncCommand<BaseSettings>
                     
                     if (settings.Verbose)
                     {
-                        AnsiConsole.MarkupLine($"[dim]    Using {contextDocuments.Count} context documents[/]");
+                        _console.MarkupLine($"[dim]    Using {contextDocuments.Count} context documents[/]");
                     }
                     
                     // Show context documents if requested
                     if (settings.ShowContextDocuments)
                     {
-                        AnsiConsole.MarkupLine($"[cyan]    Context documents for {match.HomeTeam} vs {match.AwayTeam}:[/]");
+                        _console.MarkupLine($"[cyan]    Context documents for {match.HomeTeam} vs {match.AwayTeam}:[/]");
                         foreach (var doc in contextDocuments)
                         {
-                            AnsiConsole.MarkupLine($"[dim]    📄 {doc.Name}[/]");
+                            _console.MarkupLine($"[dim]    📄 {doc.Name}[/]");
                             
                             // Show first few lines and total line count for readability
                             var lines = doc.Content.Split('\n');
@@ -277,16 +284,16 @@ public class MatchdayCommand : AsyncCommand<BaseSettings>
                             
                             foreach (var line in previewLines)
                             {
-                                AnsiConsole.MarkupLine($"[grey]      {line.EscapeMarkup()}[/]");
+                                _console.MarkupLine($"[grey]      {line.EscapeMarkup()}[/]");
                             }
                             
                             if (hasMore)
                             {
-                                AnsiConsole.MarkupLine($"[dim]      ... ({lines.Length - 10} more lines) ...[/]");
+                                _console.MarkupLine($"[dim]      ... ({lines.Length - 10} more lines) ...[/]");
                             }
                             
-                            AnsiConsole.MarkupLine($"[dim]      (Total: {lines.Length} lines, {doc.Content.Length} characters)[/]");
-                            AnsiConsole.WriteLine();
+                            _console.MarkupLine($"[dim]      (Total: {lines.Length} lines, {doc.Content.Length} characters)[/]");
+                            _console.WriteLine();
                         }
                     }
                     
@@ -297,11 +304,11 @@ public class MatchdayCommand : AsyncCommand<BaseSettings>
                     {
                         if (settings.Agent)
                         {
-                            AnsiConsole.MarkupLine($"[green]  ✓ Generated prediction[/]");
+                            _console.MarkupLine($"[green]  ✓ Generated prediction[/]");
                         }
                         else
                         {
-                            AnsiConsole.MarkupLine($"[green]  ✓ Generated prediction:[/] {prediction.HomeGoals}:{prediction.AwayGoals}");
+                            _console.MarkupLine($"[green]  ✓ Generated prediction:[/] {prediction.HomeGoals}:{prediction.AwayGoals}");
                             WriteJustificationIfNeeded(prediction, settings.WithJustification);
                         }
                         
@@ -339,7 +346,7 @@ public class MatchdayCommand : AsyncCommand<BaseSettings>
                                         
                                     if (settings.Verbose)
                                     {
-                                        AnsiConsole.MarkupLine($"[dim]    ✓ Saved as reprediction {nextIndex} to database[/]");
+                                        _console.MarkupLine($"[dim]    ✓ Saved as reprediction {nextIndex} to database[/]");
                                     }
                                 }
                                 else
@@ -357,19 +364,19 @@ public class MatchdayCommand : AsyncCommand<BaseSettings>
                                         
                                     if (settings.Verbose)
                                     {
-                                        AnsiConsole.MarkupLine($"[dim]    ✓ Saved to database[/]");
+                                        _console.MarkupLine($"[dim]    ✓ Saved to database[/]");
                                     }
                                 }
                             }
                             catch (Exception ex)
                             {
                                 logger.LogError(ex, "Failed to save prediction for match {Match}", match);
-                                AnsiConsole.MarkupLine($"[red]    ✗ Failed to save to database: {ex.Message}[/]");
+                                _console.MarkupLine($"[red]    ✗ Failed to save to database: {ex.Message}[/]");
                             }
                         }
                         else if (databaseEnabled && settings.DryRun && settings.Verbose)
                         {
-                            AnsiConsole.MarkupLine($"[dim]    (Dry run - skipped database save)[/]");
+                            _console.MarkupLine($"[dim]    (Dry run - skipped database save)[/]");
                         }
                         
                         // Show individual match token usage in verbose mode
@@ -378,12 +385,12 @@ public class MatchdayCommand : AsyncCommand<BaseSettings>
                             var matchUsage = !string.IsNullOrEmpty(settings.EstimatedCostsModel)
                                 ? tokenUsageTracker.GetLastUsageCompactSummaryWithEstimatedCosts(settings.EstimatedCostsModel)
                                 : tokenUsageTracker.GetLastUsageCompactSummary();
-                            AnsiConsole.MarkupLine($"[dim]    Token usage: {matchUsage}[/]");
+                            _console.MarkupLine($"[dim]    Token usage: {matchUsage}[/]");
                         }
                     }
                     else
                     {
-                        AnsiConsole.MarkupLine($"[red]  ✗ Failed to generate prediction[/]");
+                        _console.MarkupLine($"[red]  ✗ Failed to generate prediction[/]");
                         continue;
                     }
                 }
@@ -394,28 +401,28 @@ public class MatchdayCommand : AsyncCommand<BaseSettings>
                 
                 if (!fromDatabase && settings.Verbose)
                 {
-                    AnsiConsole.MarkupLine($"[dim]    Already saved to database[/]");
+                    _console.MarkupLine($"[dim]    Already saved to database[/]");
                 }
             }
             catch (Exception ex)
             {
                 logger.LogError(ex, "Error processing match {Match}", match);
-                AnsiConsole.MarkupLine($"[red]  ✗ Error processing match: {ex.Message}[/]");
+                _console.MarkupLine($"[red]  ✗ Error processing match: {ex.Message}[/]");
             }
         }
         
         if (!predictions.Any())
         {
-            AnsiConsole.MarkupLine("[yellow]No predictions available, nothing to place[/]");
+            _console.MarkupLine("[yellow]No predictions available, nothing to place[/]");
             return;
         }
         
         // Step 4: Place all predictions using PlaceBetsAsync
-        AnsiConsole.MarkupLine($"[blue]Placing {predictions.Count} predictions to Kicktipp...[/]");
+        _console.MarkupLine($"[blue]Placing {predictions.Count} predictions to Kicktipp...[/]");
         
         if (settings.DryRun)
         {
-            AnsiConsole.MarkupLine($"[magenta]✓ Dry run mode - would have placed {predictions.Count} predictions (no actual changes made)[/]");
+            _console.MarkupLine($"[magenta]✓ Dry run mode - would have placed {predictions.Count} predictions (no actual changes made)[/]");
         }
         else
         {
@@ -423,11 +430,11 @@ public class MatchdayCommand : AsyncCommand<BaseSettings>
             
             if (success)
             {
-                AnsiConsole.MarkupLine($"[green]✓ Successfully placed all {predictions.Count} predictions![/]");
+                _console.MarkupLine($"[green]✓ Successfully placed all {predictions.Count} predictions![/]");
             }
             else
             {
-                AnsiConsole.MarkupLine("[red]✗ Failed to place some or all predictions[/]");
+                _console.MarkupLine("[red]✗ Failed to place some or all predictions[/]");
             }
         }
         
@@ -437,14 +444,14 @@ public class MatchdayCommand : AsyncCommand<BaseSettings>
             var summary = !string.IsNullOrEmpty(settings.EstimatedCostsModel)
                 ? tokenUsageTracker.GetCompactSummaryWithEstimatedCosts(settings.EstimatedCostsModel)
                 : tokenUsageTracker.GetCompactSummary();
-            AnsiConsole.MarkupLine($"[dim]Token usage (uncached/cached/reasoning/output/$cost): {summary}[/]");
+            _console.MarkupLine($"[dim]Token usage (uncached/cached/reasoning/output/$cost): {summary}[/]");
         }
     }
     
     /// <summary>
     /// Retrieves all available context documents from the database for the given community context.
     /// </summary>
-    private static async Task<Dictionary<string, DocumentContext>> GetMatchContextDocumentsAsync(
+    private async Task<Dictionary<string, DocumentContext>> GetMatchContextDocumentsAsync(
         IContextRepository contextRepository, 
         string homeTeam,
         string awayTeam,
@@ -476,7 +483,7 @@ public class MatchdayCommand : AsyncCommand<BaseSettings>
         
         if (verbose)
         {
-            AnsiConsole.MarkupLine($"[dim]    Looking for {requiredDocuments.Length} specific context documents in database[/]");
+            _console.MarkupLine($"[dim]    Looking for {requiredDocuments.Length} specific context documents in database[/]");
         }
         
         try
@@ -491,14 +498,14 @@ public class MatchdayCommand : AsyncCommand<BaseSettings>
                     
                     if (verbose)
                     {
-                        AnsiConsole.MarkupLine($"[dim]      ✓ Retrieved {documentName} (version {contextDoc.Version})[/]");
+                        _console.MarkupLine($"[dim]      ✓ Retrieved {documentName} (version {contextDoc.Version})[/]");
                     }
                 }
                 else
                 {
                     if (verbose)
                     {
-                        AnsiConsole.MarkupLine($"[dim]      ✗ Missing {documentName}[/]");
+                        _console.MarkupLine($"[dim]      ✗ Missing {documentName}[/]");
                     }
                 }
             }
@@ -515,26 +522,26 @@ public class MatchdayCommand : AsyncCommand<BaseSettings>
                         contextDocuments[documentName] = new DocumentContext(contextDoc.DocumentName, contextDoc.Content);
                         if (verbose)
                         {
-                            AnsiConsole.MarkupLine($"[dim]      ✓ Retrieved optional {documentName} (version {contextDoc.Version})[/]");
+                            _console.MarkupLine($"[dim]      ✓ Retrieved optional {documentName} (version {contextDoc.Version})[/]");
                         }
                     }
                     else if (verbose)
                     {
-                        AnsiConsole.MarkupLine($"[dim]      · Missing optional {documentName}[/]");
+                        _console.MarkupLine($"[dim]      · Missing optional {documentName}[/]");
                     }
                 }
                 catch (Exception optEx)
                 {
                     if (verbose)
                     {
-                        AnsiConsole.MarkupLine($"[dim]      · Failed optional {documentName}: {optEx.Message}[/]");
+                        _console.MarkupLine($"[dim]      · Failed optional {documentName}: {optEx.Message}[/]");
                     }
                 }
             }
         }
         catch (Exception ex)
         {
-            AnsiConsole.MarkupLine($"[red]    Warning: Failed to retrieve context from database: {ex.Message}[/]");
+            _console.MarkupLine($"[red]    Warning: Failed to retrieve context from database: {ex.Message}[/]");
         }
         
         return contextDocuments;
@@ -543,7 +550,7 @@ public class MatchdayCommand : AsyncCommand<BaseSettings>
     /// <summary>
     /// Gets context documents using database first, falling back to on-demand context provider if needed.
     /// </summary>
-    private static async Task<List<DocumentContext>> GetHybridContextAsync(
+    private async Task<List<DocumentContext>> GetHybridContextAsync(
         IContextRepository contextRepository,
         KicktippContextProvider contextProvider,
         string homeTeam,
@@ -582,14 +589,14 @@ public class MatchdayCommand : AsyncCommand<BaseSettings>
             // All required docs present; include every database doc (required + optional)
             if (verbose)
             {
-                AnsiConsole.MarkupLine($"[green]    Using {databaseContexts.Count} context documents from database (all required present)[/]");
+                _console.MarkupLine($"[green]    Using {databaseContexts.Count} context documents from database (all required present)[/]");
             }
             contextDocuments.AddRange(databaseContexts.Values);
         }
         else
         {
             // Fallback: use on-demand provider but still include any database docs we already have (including optional transfers)
-            AnsiConsole.MarkupLine($"[yellow]    Warning: Only found {requiredPresent}/{requiredTotal} required context documents in database (have {databaseContexts.Count} total incl. optional). Falling back to on-demand context while preserving retrieved documents[/]");
+            _console.MarkupLine($"[yellow]    Warning: Only found {requiredPresent}/{requiredTotal} required context documents in database (have {databaseContexts.Count} total incl. optional). Falling back to on-demand context while preserving retrieved documents[/]");
 
             // Start with database docs
             contextDocuments.AddRange(databaseContexts.Values);
@@ -606,7 +613,7 @@ public class MatchdayCommand : AsyncCommand<BaseSettings>
 
             if (verbose)
             {
-                AnsiConsole.MarkupLine($"[yellow]    Using {contextDocuments.Count} merged context documents (database + on-demand) [/]");
+                _console.MarkupLine($"[yellow]    Using {contextDocuments.Count} merged context documents (database + on-demand) [/]");
             }
         }
 
@@ -716,7 +723,7 @@ public class MatchdayCommand : AsyncCommand<BaseSettings>
         });
     }
     
-    private static async Task<bool> CheckPredictionOutdated(IPredictionRepository predictionRepository, IContextRepository contextRepository, Match match, string model, string communityContext, bool verbose)
+    private async Task<bool> CheckPredictionOutdated(IPredictionRepository predictionRepository, IContextRepository contextRepository, Match match, string model, string communityContext, bool verbose)
     {
         try
         {
@@ -731,7 +738,7 @@ public class MatchdayCommand : AsyncCommand<BaseSettings>
             
             if (verbose)
             {
-                AnsiConsole.MarkupLine($"[dim]  Checking {predictionMetadata.ContextDocumentNames.Count} context documents for updates[/]");
+                _console.MarkupLine($"[dim]  Checking {predictionMetadata.ContextDocumentNames.Count} context documents for updates[/]");
             }
             
             // Check if any context document has been updated after the prediction was created
@@ -746,7 +753,7 @@ public class MatchdayCommand : AsyncCommand<BaseSettings>
                 {
                     if (verbose)
                     {
-                        AnsiConsole.MarkupLine($"[dim]  Skipping outdated check for '{actualDocumentName}' (excluded from cost optimization)[/]");
+                        _console.MarkupLine($"[dim]  Skipping outdated check for '{actualDocumentName}' (excluded from cost optimization)[/]");
                     }
                     continue;
                 }
@@ -757,13 +764,13 @@ public class MatchdayCommand : AsyncCommand<BaseSettings>
                 {
                     if (verbose)
                     {
-                        AnsiConsole.MarkupLine($"[dim]  Context document '{actualDocumentName}' (stored as '{documentName}') updated after prediction (document: {latestContextDocument.CreatedAt}, prediction: {predictionMetadata.CreatedAt})[/]");
+                        _console.MarkupLine($"[dim]  Context document '{actualDocumentName}' (stored as '{documentName}') updated after prediction (document: {latestContextDocument.CreatedAt}, prediction: {predictionMetadata.CreatedAt})[/]");
                     }
                     return true; // Prediction is outdated
                 }
                 else if (verbose && latestContextDocument == null)
                 {
-                    AnsiConsole.MarkupLine($"[yellow]  Warning: Context document '{actualDocumentName}' not found in repository[/]");
+                    _console.MarkupLine($"[yellow]  Warning: Context document '{actualDocumentName}' not found in repository[/]");
                 }
             }
             
@@ -774,13 +781,13 @@ public class MatchdayCommand : AsyncCommand<BaseSettings>
             // Log error but don't fail verification due to outdated check issues
             if (verbose)
             {
-                AnsiConsole.MarkupLine($"[yellow]  Warning: Failed to check outdated status: {ex.Message}[/]");
+                _console.MarkupLine($"[yellow]  Warning: Failed to check outdated status: {ex.Message}[/]");
             }
             return false;
         }
     }
     
-    private static void WriteJustificationIfNeeded(Prediction? prediction, bool includeJustification, bool fromDatabase = false)
+    private void WriteJustificationIfNeeded(Prediction? prediction, bool includeJustification, bool fromDatabase = false)
     {
         if (!includeJustification || prediction == null)
         {
@@ -789,7 +796,8 @@ public class MatchdayCommand : AsyncCommand<BaseSettings>
 
         var sourceLabel = fromDatabase ? "stored prediction" : "model response";
 
-        JustificationConsoleWriter.WriteJustification(
+        var justificationWriter = new JustificationConsoleWriter(_console);
+        justificationWriter.WriteJustification(
             prediction.Justification,
             "[dim]    ↳ Justification:[/]",
             "        ",

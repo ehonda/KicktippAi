@@ -10,6 +10,13 @@ namespace Orchestrator.Commands.Utility.Snapshots;
 /// </summary>
 public class SnapshotsAllCommand : AsyncCommand<SnapshotsAllSettings>
 {
+    private readonly IAnsiConsole _console;
+
+    public SnapshotsAllCommand(IAnsiConsole console)
+    {
+        _console = console;
+    }
+
     public override async Task<int> ExecuteAsync(CommandContext context, SnapshotsAllSettings settings)
     {
         var logger = LoggingConfiguration.CreateLogger<SnapshotsAllCommand>();
@@ -19,7 +26,7 @@ public class SnapshotsAllCommand : AsyncCommand<SnapshotsAllSettings>
             // Validate settings
             if (string.IsNullOrWhiteSpace(settings.Community))
             {
-                AnsiConsole.MarkupLine("[red]Error: Community is required[/]");
+                _console.MarkupLine("[red]Error: Community is required[/]");
                 return 1;
             }
 
@@ -30,18 +37,18 @@ public class SnapshotsAllCommand : AsyncCommand<SnapshotsAllSettings>
             var encryptionKey = Environment.GetEnvironmentVariable("KICKTIPP_FIXTURE_KEY");
             if (string.IsNullOrEmpty(encryptionKey))
             {
-                AnsiConsole.MarkupLine("[red]Error: KICKTIPP_FIXTURE_KEY environment variable is not set.[/]");
-                AnsiConsole.WriteLine();
-                AnsiConsole.MarkupLine("[yellow]To generate a new key:[/]");
-                AnsiConsole.MarkupLine("[dim]  .\\Encrypt-Fixture.ps1 -GenerateKey[/]");
+                _console.MarkupLine("[red]Error: KICKTIPP_FIXTURE_KEY environment variable is not set.[/]");
+                _console.WriteLine();
+                _console.MarkupLine("[yellow]To generate a new key:[/]");
+                _console.MarkupLine("[dim]  .\\Encrypt-Fixture.ps1 -GenerateKey[/]");
                 return 1;
             }
 
-            AnsiConsole.MarkupLine("[green]Fetching and encrypting snapshots...[/]");
-            AnsiConsole.MarkupLine($"[blue]Community:[/] [yellow]{settings.Community}[/]");
-            AnsiConsole.MarkupLine($"[blue]Snapshots directory:[/] [yellow]{settings.SnapshotsDirectory}[/]");
-            AnsiConsole.MarkupLine($"[blue]Output directory:[/] [yellow]{settings.OutputDirectory}[/]");
-            AnsiConsole.WriteLine();
+            _console.MarkupLine("[green]Fetching and encrypting snapshots...[/]");
+            _console.MarkupLine($"[blue]Community:[/] [yellow]{settings.Community}[/]");
+            _console.MarkupLine($"[blue]Snapshots directory:[/] [yellow]{settings.SnapshotsDirectory}[/]");
+            _console.MarkupLine($"[blue]Output directory:[/] [yellow]{settings.OutputDirectory}[/]");
+            _console.WriteLine();
 
             // Setup dependency injection for fetching
             var services = new ServiceCollection();
@@ -60,36 +67,36 @@ public class SnapshotsAllCommand : AsyncCommand<SnapshotsAllSettings>
             var snapshotClient = new SnapshotClient(httpClient, logger);
 
             // Step 1: Fetch snapshots
-            AnsiConsole.MarkupLine("[bold]Step 1: Fetching snapshots[/]");
+            _console.MarkupLine("[bold]Step 1: Fetching snapshots[/]");
             var fetchedCount = await SnapshotsFetchCommand.FetchSnapshotsAsync(
-                snapshotClient, settings.Community, snapshotsPath);
+                _console, snapshotClient, settings.Community, snapshotsPath);
 
             if (fetchedCount == 0)
             {
-                AnsiConsole.MarkupLine("[yellow]No snapshots fetched, nothing to encrypt[/]");
+                _console.MarkupLine("[yellow]No snapshots fetched, nothing to encrypt[/]");
                 return 0;
             }
 
-            AnsiConsole.WriteLine();
+            _console.WriteLine();
 
             // Step 2: Encrypt snapshots to community-specific subdirectory
-            AnsiConsole.MarkupLine("[bold]Step 2: Encrypting snapshots[/]");
+            _console.MarkupLine("[bold]Step 2: Encrypting snapshots[/]");
             var deleteOriginals = !settings.KeepOriginals;
             var communityOutputPath = Path.Combine(outputPath, settings.Community);
             var (encryptedCount, deletedCount) = await SnapshotsEncryptCommand.EncryptSnapshotsAsync(
-                snapshotsPath, communityOutputPath, encryptionKey, deleteOriginals);
+                _console, snapshotsPath, communityOutputPath, encryptionKey, deleteOriginals);
 
-            AnsiConsole.WriteLine();
-            AnsiConsole.MarkupLine($"[green]Done![/] Fetched {fetchedCount}, encrypted {encryptedCount} snapshot(s)");
-            AnsiConsole.MarkupLine($"[dim]Encrypted files saved to: {communityOutputPath}[/]");
+            _console.WriteLine();
+            _console.MarkupLine($"[green]Done![/] Fetched {fetchedCount}, encrypted {encryptedCount} snapshot(s)");
+            _console.MarkupLine($"[dim]Encrypted files saved to: {communityOutputPath}[/]");
 
             if (deletedCount > 0)
             {
-                AnsiConsole.MarkupLine($"[dim]Deleted {deletedCount} original HTML file(s)[/]");
+                _console.MarkupLine($"[dim]Deleted {deletedCount} original HTML file(s)[/]");
             }
             else if (!settings.KeepOriginals && fetchedCount > 0)
             {
-                AnsiConsole.MarkupLine("[dim]Original HTML files kept (use default behavior to delete)[/]");
+                _console.MarkupLine("[dim]Original HTML files kept (use default behavior to delete)[/]");
             }
 
             return 0;
@@ -97,7 +104,7 @@ public class SnapshotsAllCommand : AsyncCommand<SnapshotsAllSettings>
         catch (Exception ex)
         {
             logger.LogError(ex, "Error in snapshots all command");
-            AnsiConsole.MarkupLine($"[red]Error:[/] {ex.Message}");
+            _console.MarkupLine($"[red]Error:[/] {ex.Message}");
             return 1;
         }
     }

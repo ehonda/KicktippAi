@@ -8,20 +8,79 @@ This document outlines the approach for achieving comprehensive unit test covera
 - **Commands to Test**: 15 commands across 3 categories
 - **Refactoring Required**: Commands currently use static `AnsiConsole` which makes console output verification difficult
 
+## Package References
+
+Add the following packages to `Orchestrator.Tests.csproj`:
+
+```xml
+<!-- Most recent versions at the time of writing -->
+<PackageReference Include="Spectre.Console.Cli.Testing" Version="0.54.0" />
+<PackageReference Include="Spectre.Console.Testing" Version="0.54.0" />
+```
+
+These provide:
+- `CommandAppTester` - Test harness for CLI commands
+- `FakeTypeRegistrar` / `FakeTypeResolver` - Test doubles for DI infrastructure
+- `TestConsole` - Captures console output for assertions
+
+---
+
 ## Testing Strategy
 
-### Phase 1: Command Refactoring for Testability
+### Preparation: IAnsiConsole Injection (Completed)
 
-Before comprehensive testing, commands need refactoring to accept `IAnsiConsole` via constructor injection. This enables:
+Commands have been refactored to accept `IAnsiConsole` via constructor injection. This enables console output verification using `TestConsole`. See [finished-preparation.md](finished-preparation.md) for details on the completed work.
 
-1. **Console output verification** using `TestConsole` from `Spectre.Console.Testing`
-2. **Dependency injection** for mocking services (IKicktippClient, IPredictionService, etc.)
+### Phase 1.5: Full Dependency Injection for Commands
 
-**Approach**: Use Spectre.Console.Cli's `ITypeRegistrar` pattern to bridge Microsoft.Extensions.DependencyInjection:
+Commands currently have `IAnsiConsole` injected but still build their own `ServiceCollection` internally. Phase 1.5 addresses moving **all** command dependencies to the global DI container.
 
-- Create `TypeRegistrar` and `TypeResolver` infrastructure classes
-- Register `IAnsiConsole` (use `AnsiConsole.Console` in production, `TestConsole` in tests)
-- Update each command to receive `IAnsiConsole` via constructor
+**Goals:**
+- All services (`IKicktippClient`, `IPredictionService`, repositories, etc.) registered at startup
+- Commands receive all dependencies via constructor injection
+- Tests can mock any dependency via `FakeTypeRegistrar.RegisterInstance()`
+
+**Open Questions:**
+1. **Conflicting registrations**: Do any commands register the same service with different configurations? This would make global setup difficult.
+2. **Keyed dependencies**: Consider using keyed/named dependency registration so each command can register its specific configuration without affecting others. Example:
+   ```csharp
+   // Command registers its own keyed services
+   services.AddKeyedSingleton<IKicktippClient>("matchday", sp => CreateMatchdayClient(sp));
+   services.AddKeyedSingleton<IKicktippClient>("bonus", sp => CreateBonusClient(sp));
+   ```
+3. **Standardized registration pattern**: Define a convention for commands to declare their dependencies, e.g.:
+   ```csharp
+   public interface ICommandDependencyRegistrar
+   {
+       void RegisterDependencies(IServiceCollection services, CommandSettings settings);
+   }
+   ```
+   This could be swapped in tests to register mocks instead.
+
+**Recommended approach**: Investigate each command's `ConfigureServices` method to catalog service registrations and identify conflicts before designing the global DI strategy.
+
+### Optional Future Refactoring
+
+**Abstract Base Command Class**: Consider introducing an abstract base class with `IAnsiConsole`:
+```csharp
+public abstract class BaseCommand<TSettings> : AsyncCommand<TSettings>
+    where TSettings : CommandSettings
+{
+    protected IAnsiConsole Console { get; }
+    
+    protected BaseCommand(IAnsiConsole console)
+    {
+        Console = console;
+    }
+}
+```
+
+**Evaluation needed**: This reduces boilerplate but adds inheritance coupling. May not be worth it given:
+- Only 15 commands total
+- Each command has unique dependencies beyond `IAnsiConsole`
+- Composition (storing `IAnsiConsole` in each command) is simpler and more flexible
+
+**Recommendation**: Defer this refactoring until after Phase 1 when all dependencies are injected. At that point, patterns may emerge that justify a base class.
 
 ### Phase 2: Shared Test Infrastructure
 
@@ -30,14 +89,34 @@ Create reusable test infrastructure in `Orchestrator.Tests`:
 ```
 tests/Orchestrator.Tests/
 ├── Infrastructure/
-│   ├── OrchestratorTestFactories.cs    # Factory methods for creating commands with mocked dependencies
-│   └── ConsoleAssertions.cs            # Custom assertions for TestConsole output patterns
+│   ├── OrchestratorTestFactories.cs    # Factory methods for domain objects and mocked services
+│   └── ConsoleAssertions.cs            # Custom assertions for output patterns (if needed beyond Contains)
 ├── Commands/
 │   ├── Operations/
 │   ├── Observability/
 │   └── Utility/
 └── Orchestrator.Tests.csproj
 ```
+
+### CommandAppTester Usage
+
+Use `CommandAppTester` from `Spectre.Console.Cli.Testing` as the primary test harness. It wraps command execution and provides:
+
+| Property/Method | Description |
+|-----------------|-------------|
+| `Console` | The `TestConsole` instance for input simulation |
+| `Configure(Action<IConfigurator>)` | Configure commands and settings |
+| `SetDefaultCommand<T>()` | Set the default command |
+| `RunAsync(params string[])` | Execute and return `CommandAppResult` |
+
+**`CommandAppResult` properties:**
+
+| Property | Description |
+|----------|-------------|
+| `ExitCode` | Command exit code (0 = success) |
+| `Output` | Captured console output as string |
+| `Context` | The `CommandContext` from execution |
+| `Settings` | The parsed `CommandSettings` instance |
 
 ### Phase 3: Command-by-Command Testing
 
@@ -126,40 +205,54 @@ For each command, implement tests covering:
 ## Implementation Order
 
 ### Milestone 1: Infrastructure & Shared Components
-- [ ] Implement `TypeRegistrar` / `TypeResolver` for DI
-- [ ] Create `OrchestratorTestFactories.cs` with common factory methods
-- [ ] Create `ConsoleAssertions.cs` for pattern-based output assertions
+- [ ] Complete Phase 1 (full DI for all command dependencies)
+- [ ] Create `OrchestratorTestFactories.cs` with factory methods for domain objects and mocked services
 - [ ] Test `JustificationConsoleWriter`
 - [ ] Test `BaseSettings` validation
 - [ ] Test `EnvironmentHelper`
 - [ ] Test `PathUtility`
 
 ### Milestone 2: Utility Commands (Simplest)
-- [ ] Refactor & test `ListKpiCommand`
-- [ ] Refactor & test `UploadKpiCommand`
-- [ ] Refactor & test `UploadTransfersCommand`
-- [ ] Refactor & test `ContextChangesCommand`
-- [ ] Refactor & test `SnapshotsEncryptCommand`
-- [ ] Refactor & test `SnapshotsFetchCommand`
-- [ ] Refactor & test `SnapshotsAllCommand`
+- [ ] DI for `ListKpiCommand`
+- [ ] DI for `UploadKpiCommand`
+- [ ] DI for `UploadTransfersCommand`
+- [ ] DI for `ContextChangesCommand`
+- [ ] DI for `SnapshotsEncryptCommand`
+- [ ] DI for `SnapshotsFetchCommand`
+- [ ] DI for `SnapshotsAllCommand`
+- [ ] Test `ListKpiCommand`
+- [ ] Test `UploadKpiCommand`
+- [ ] Test `UploadTransfersCommand`
+- [ ] Test `ContextChangesCommand`
+- [ ] Test `SnapshotsEncryptCommand`
+- [ ] Test `SnapshotsFetchCommand`
+- [ ] Test `SnapshotsAllCommand`
 
 ### Milestone 3: Observability Commands
-- [ ] Refactor & test `CostCommand`
-- [ ] Refactor & test `AnalyzeMatchDetailedCommand`
-- [ ] Refactor & test `AnalyzeMatchComparisonCommand`
+- [ ] DI for `CostCommand`
+- [ ] DI for `AnalyzeMatchDetailedCommand`
+- [ ] DI for `AnalyzeMatchComparisonCommand`
+- [ ] Test `CostCommand`
+- [ ] Test `AnalyzeMatchDetailedCommand`
+- [ ] Test `AnalyzeMatchComparisonCommand`
 
 ### Milestone 4: Operations Commands (Most Complex)
-- [ ] Refactor & test `VerifyMatchdayCommand`
-- [ ] Refactor & test `VerifyBonusCommand`
-- [ ] Refactor & test `CollectContextKicktippCommand`
-- [ ] Refactor & test `BonusCommand`
-- [ ] Refactor & test `MatchdayCommand`
+- [ ] DI for `VerifyMatchdayCommand`
+- [ ] DI for `VerifyBonusCommand`
+- [ ] DI for `CollectContextKicktippCommand`
+- [ ] DI for `BonusCommand`
+- [ ] DI for `MatchdayCommand`
+- [ ] Test `VerifyMatchdayCommand`
+- [ ] Test `VerifyBonusCommand`
+- [ ] Test `CollectContextKicktippCommand`
+- [ ] Test `BonusCommand`
+- [ ] Test `MatchdayCommand`
 
 ---
 
 ## Console Output Testing Approach
 
-Using `Spectre.Console.Testing.TestConsole`:
+Using `CommandAppTester` from `Spectre.Console.Cli.Testing`:
 
 ```csharp
 // Example test pattern
@@ -167,16 +260,41 @@ Using `Spectre.Console.Testing.TestConsole`:
 public async Task Command_displays_success_message_on_completion()
 {
     // Arrange
-    var console = new TestConsole();
-    var command = CreateCommand(console: console);
-    var settings = CreateSettings();
+    var registrar = new FakeTypeRegistrar();
+    // Register mocked dependencies as needed
+    registrar.RegisterInstance(typeof(IMyService), mockService.Object);
+    
+    var app = new CommandAppTester(registrar: registrar);
+    app.Configure(config => config.AddCommand<MyCommand>("mycommand"));
 
     // Act
-    var result = await command.ExecuteAsync(CreateContext(), settings);
+    var result = await app.RunAsync("mycommand", "--option", "value");
 
     // Assert
-    await Assert.That(result).IsEqualTo(0);
-    await Assert.That(console.Output).Contains("Successfully");
+    await Assert.That(result.ExitCode).IsEqualTo(0);
+    await Assert.That(result.Output).Contains("Successfully");
+    
+    // Optionally verify parsed settings
+    var settings = result.Settings as MyCommand.Settings;
+    await Assert.That(settings!.Option).IsEqualTo("value");
+}
+```
+
+```csharp
+// Testing interactive input
+[Test]
+public async Task Command_handles_user_confirmation()
+{
+    // Arrange
+    var app = new CommandAppTester();
+    app.Console.Input.PushTextWithEnter("yes");
+    app.Configure(config => config.AddCommand<ConfirmCommand>("confirm"));
+
+    // Act
+    var result = await app.RunAsync("confirm");
+
+    // Assert
+    await Assert.That(result.ExitCode).IsEqualTo(0);
 }
 ```
 
@@ -184,6 +302,7 @@ public async Task Command_displays_success_message_on_completion()
 - Use `Contains()` for key content patterns (not exact matching)
 - Verify structured output (tables) by checking column headers and key data
 - Avoid asserting ANSI escape codes or exact formatting
+- Use `result.Settings` to verify argument/option parsing
 
 ---
 

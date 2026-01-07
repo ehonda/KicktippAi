@@ -10,6 +10,13 @@ namespace Orchestrator.Commands.Operations.Verify;
 
 public class VerifyMatchdayCommand : AsyncCommand<VerifySettings>
 {
+    private readonly IAnsiConsole _console;
+
+    public VerifyMatchdayCommand(IAnsiConsole console)
+    {
+        _console = console;
+    }
+
     public override async Task<int> ExecuteAsync(CommandContext context, VerifySettings settings)
     {
         var logger = LoggingConfiguration.CreateLogger<VerifyMatchdayCommand>();
@@ -24,26 +31,26 @@ public class VerifyMatchdayCommand : AsyncCommand<VerifySettings>
             ConfigureServices(services, settings, logger);
             var serviceProvider = services.BuildServiceProvider();
             
-            AnsiConsole.MarkupLine($"[green]Verify matchday command initialized[/]");
+            _console.MarkupLine($"[green]Verify matchday command initialized[/]");
             
             if (settings.Verbose)
             {
-                AnsiConsole.MarkupLine("[dim]Verbose mode enabled[/]");
+                _console.MarkupLine("[dim]Verbose mode enabled[/]");
             }
             
             if (settings.Agent)
             {
-                AnsiConsole.MarkupLine("[blue]Agent mode enabled - prediction details will be hidden[/]");
+                _console.MarkupLine("[blue]Agent mode enabled - prediction details will be hidden[/]");
             }
             
             if (settings.InitMatchday)
             {
-                AnsiConsole.MarkupLine("[cyan]Init matchday mode enabled - will return error if no predictions exist[/]");
+                _console.MarkupLine("[cyan]Init matchday mode enabled - will return error if no predictions exist[/]");
             }
             
             if (settings.CheckOutdated)
             {
-                AnsiConsole.MarkupLine("[cyan]Outdated check enabled - predictions will be checked against latest context documents[/]");
+                _console.MarkupLine("[cyan]Outdated check enabled - predictions will be checked against latest context documents[/]");
             }
             
             // Execute the verification workflow
@@ -54,12 +61,12 @@ public class VerifyMatchdayCommand : AsyncCommand<VerifySettings>
         catch (Exception ex)
         {
             logger.LogError(ex, "Error executing verify matchday command");
-            AnsiConsole.MarkupLine($"[red]Error:[/] {ex.Message}");
+            _console.MarkupLine($"[red]Error:[/] {ex.Message}");
             return 1;
         }
     }
     
-    private static async Task<bool> ExecuteVerificationWorkflow(IServiceProvider serviceProvider, VerifySettings settings, ILogger logger)
+    private async Task<bool> ExecuteVerificationWorkflow(IServiceProvider serviceProvider, VerifySettings settings, ILogger logger)
     {
         var kicktippClient = serviceProvider.GetRequiredService<IKicktippClient>();
         
@@ -67,8 +74,8 @@ public class VerifyMatchdayCommand : AsyncCommand<VerifySettings>
         var predictionRepository = serviceProvider.GetService<IPredictionRepository>();
         if (predictionRepository == null)
         {
-            AnsiConsole.MarkupLine("[red]Error: Database not configured. Cannot verify predictions without database access.[/]");
-            AnsiConsole.MarkupLine("[yellow]Hint: Set FIREBASE_PROJECT_ID and FIREBASE_SERVICE_ACCOUNT_JSON environment variables[/]");
+            _console.MarkupLine("[red]Error: Database not configured. Cannot verify predictions without database access.[/]");
+            _console.MarkupLine("[yellow]Hint: Set FIREBASE_PROJECT_ID and FIREBASE_SERVICE_ACCOUNT_JSON environment variables[/]");
             return true; // Consider this a failure
         }
         
@@ -76,30 +83,30 @@ public class VerifyMatchdayCommand : AsyncCommand<VerifySettings>
         var contextRepository = serviceProvider.GetService<IContextRepository>();
         if (settings.CheckOutdated && contextRepository == null)
         {
-            AnsiConsole.MarkupLine("[red]Error: Database not configured. Cannot check outdated predictions without database access.[/]");
-            AnsiConsole.MarkupLine("[yellow]Hint: Set FIREBASE_PROJECT_ID and FIREBASE_SERVICE_ACCOUNT_JSON environment variables[/]");
+            _console.MarkupLine("[red]Error: Database not configured. Cannot check outdated predictions without database access.[/]");
+            _console.MarkupLine("[yellow]Hint: Set FIREBASE_PROJECT_ID and FIREBASE_SERVICE_ACCOUNT_JSON environment variables[/]");
             return true; // Consider this a failure
         }
         
         // Determine community context (use explicit setting or fall back to community name)
         string communityContext = settings.CommunityContext ?? settings.Community;
         
-        AnsiConsole.MarkupLine($"[blue]Using community:[/] [yellow]{settings.Community}[/]");
-        AnsiConsole.MarkupLine($"[blue]Using community context:[/] [yellow]{communityContext}[/]");
-        AnsiConsole.MarkupLine("[blue]Getting placed predictions from Kicktipp...[/]");
+        _console.MarkupLine($"[blue]Using community:[/] [yellow]{settings.Community}[/]");
+        _console.MarkupLine($"[blue]Using community context:[/] [yellow]{communityContext}[/]");
+        _console.MarkupLine("[blue]Getting placed predictions from Kicktipp...[/]");
         
         // Step 1: Get placed predictions from Kicktipp
         var placedPredictions = await kicktippClient.GetPlacedPredictionsAsync(settings.Community);
         
         if (!placedPredictions.Any())
         {
-            AnsiConsole.MarkupLine("[yellow]No matches found on Kicktipp[/]");
+            _console.MarkupLine("[yellow]No matches found on Kicktipp[/]");
             return false;
         }
         
-        AnsiConsole.MarkupLine($"[green]Found {placedPredictions.Count} matches on Kicktipp[/]");
+        _console.MarkupLine($"[green]Found {placedPredictions.Count} matches on Kicktipp[/]");
         
-        AnsiConsole.MarkupLine("[blue]Retrieving predictions from database...[/]");
+        _console.MarkupLine("[blue]Retrieving predictions from database...[/]");
         
         var hasDiscrepancies = false;
         var totalMatches = 0;
@@ -117,7 +124,7 @@ public class VerifyMatchdayCommand : AsyncCommand<VerifySettings>
                 // Get prediction from database
                 if (settings.Verbose)
                 {
-                    AnsiConsole.MarkupLine($"[dim]  Looking up: {match.HomeTeam} vs {match.AwayTeam} at {match.StartsAt}[/]");
+                    _console.MarkupLine($"[dim]  Looking up: {match.HomeTeam} vs {match.AwayTeam} at {match.StartsAt}[/]");
                 }
                 
                 var databasePrediction = await predictionRepository.GetPredictionAsync(match, settings.Model, communityContext);
@@ -132,12 +139,12 @@ public class VerifyMatchdayCommand : AsyncCommand<VerifySettings>
                     matchesWithDatabasePredictions++;
                     if (settings.Verbose && !settings.Agent)
                     {
-                        AnsiConsole.MarkupLine($"[dim]  Found database prediction: {databasePrediction.HomeGoals}:{databasePrediction.AwayGoals}[/]");
+                        _console.MarkupLine($"[dim]  Found database prediction: {databasePrediction.HomeGoals}:{databasePrediction.AwayGoals}[/]");
                     }
                 }
                 else if (settings.Verbose && !settings.Agent)
                 {
-                    AnsiConsole.MarkupLine($"[dim]  No database prediction found[/]");
+                    _console.MarkupLine($"[dim]  No database prediction found[/]");
                 }
                 
                 // Check if prediction is outdated (if enabled and context repository is available)
@@ -161,12 +168,12 @@ public class VerifyMatchdayCommand : AsyncCommand<VerifySettings>
                     {
                         if (settings.Agent)
                         {
-                            AnsiConsole.MarkupLine($"[green]✓ {match.HomeTeam} vs {match.AwayTeam}[/] [dim](valid)[/]");
+                            _console.MarkupLine($"[green]✓ {match.HomeTeam} vs {match.AwayTeam}[/] [dim](valid)[/]");
                         }
                         else
                         {
                             var predictionText = kicktippPrediction?.ToString() ?? "no prediction";
-                            AnsiConsole.MarkupLine($"[green]✓ {match.HomeTeam} vs {match.AwayTeam}:[/] {predictionText} [dim](valid)[/]");
+                            _console.MarkupLine($"[green]✓ {match.HomeTeam} vs {match.AwayTeam}:[/] {predictionText} [dim](valid)[/]");
                         }
                     }
                 }
@@ -177,20 +184,20 @@ public class VerifyMatchdayCommand : AsyncCommand<VerifySettings>
                     if (settings.Agent)
                     {
                         var reason = isOutdated ? "outdated" : "mismatch";
-                        AnsiConsole.MarkupLine($"[red]✗ {match.HomeTeam} vs {match.AwayTeam}[/] [dim]({reason})[/]");
+                        _console.MarkupLine($"[red]✗ {match.HomeTeam} vs {match.AwayTeam}[/] [dim]({reason})[/]");
                     }
                     else
                     {
                         var kicktippText = kicktippPrediction?.ToString() ?? "no prediction";
                         var databaseText = databasePrediction != null ? $"{databasePrediction.HomeGoals}:{databasePrediction.AwayGoals}" : "no prediction";
                         
-                        AnsiConsole.MarkupLine($"[red]✗ {match.HomeTeam} vs {match.AwayTeam}:[/]");
-                        AnsiConsole.MarkupLine($"  [yellow]Kicktipp:[/] {kicktippText}");
-                        AnsiConsole.MarkupLine($"  [yellow]Database:[/] {databaseText}");
+                        _console.MarkupLine($"[red]✗ {match.HomeTeam} vs {match.AwayTeam}:[/]");
+                        _console.MarkupLine($"  [yellow]Kicktipp:[/] {kicktippText}");
+                        _console.MarkupLine($"  [yellow]Database:[/] {databaseText}");
                         
                         if (isOutdated)
                         {
-                            AnsiConsole.MarkupLine($"  [yellow]Status:[/] Outdated (context updated after prediction)");
+                            _console.MarkupLine($"  [yellow]Status:[/] Outdated (context updated after prediction)");
                         }
                     }
                 }
@@ -202,39 +209,39 @@ public class VerifyMatchdayCommand : AsyncCommand<VerifySettings>
                 
                 if (settings.Agent)
                 {
-                    AnsiConsole.MarkupLine($"[red]✗ {match.HomeTeam} vs {match.AwayTeam}[/] [dim](error)[/]");
+                    _console.MarkupLine($"[red]✗ {match.HomeTeam} vs {match.AwayTeam}[/] [dim](error)[/]");
                 }
                 else
                 {
-                    AnsiConsole.MarkupLine($"[red]✗ {match.HomeTeam} vs {match.AwayTeam}:[/] Error during verification");
+                    _console.MarkupLine($"[red]✗ {match.HomeTeam} vs {match.AwayTeam}:[/] Error during verification");
                 }
             }
         }
         
         // Step 3: Display summary
-        AnsiConsole.WriteLine();
-        AnsiConsole.MarkupLine("[bold]Verification Summary:[/]");
-        AnsiConsole.MarkupLine($"  Total matches: {totalMatches}");
-        AnsiConsole.MarkupLine($"  Matches with Kicktipp predictions: {matchesWithPlacedPredictions}");
-        AnsiConsole.MarkupLine($"  Matches with database predictions: {matchesWithDatabasePredictions}");
-        AnsiConsole.MarkupLine($"  Matching predictions: {matchingPredictions}");
+        _console.WriteLine();
+        _console.MarkupLine("[bold]Verification Summary:[/]");
+        _console.MarkupLine($"  Total matches: {totalMatches}");
+        _console.MarkupLine($"  Matches with Kicktipp predictions: {matchesWithPlacedPredictions}");
+        _console.MarkupLine($"  Matches with database predictions: {matchesWithDatabasePredictions}");
+        _console.MarkupLine($"  Matching predictions: {matchingPredictions}");
         
         // Check for init-matchday mode first
         if (settings.InitMatchday && matchesWithDatabasePredictions == 0)
         {
-            AnsiConsole.MarkupLine("[yellow]  Init matchday detected - no database predictions exist[/]");
-            AnsiConsole.MarkupLine("[red]Returning error to trigger initial prediction workflow[/]");
+            _console.MarkupLine("[yellow]  Init matchday detected - no database predictions exist[/]");
+            _console.MarkupLine("[red]Returning error to trigger initial prediction workflow[/]");
             return true; // Return error to trigger workflow
         }
         
         if (hasDiscrepancies)
         {
-            AnsiConsole.MarkupLine($"[red]  Discrepancies found: {totalMatches - matchingPredictions}[/]");
-            AnsiConsole.MarkupLine("[red]Verification failed - predictions do not match[/]");
+            _console.MarkupLine($"[red]  Discrepancies found: {totalMatches - matchingPredictions}[/]");
+            _console.MarkupLine("[red]Verification failed - predictions do not match[/]");
         }
         else
         {
-            AnsiConsole.MarkupLine("[green]  All predictions match - verification successful[/]");
+            _console.MarkupLine("[green]  All predictions match - verification successful[/]");
         }
         
         return hasDiscrepancies;
@@ -298,7 +305,7 @@ public class VerifyMatchdayCommand : AsyncCommand<VerifySettings>
         }
     }
     
-    private static async Task<bool> CheckPredictionOutdated(IPredictionRepository predictionRepository, IContextRepository contextRepository, Match match, string model, string communityContext, bool verbose)
+    private async Task<bool> CheckPredictionOutdated(IPredictionRepository predictionRepository, IContextRepository contextRepository, Match match, string model, string communityContext, bool verbose)
     {
         try
         {
@@ -313,7 +320,7 @@ public class VerifyMatchdayCommand : AsyncCommand<VerifySettings>
             
             if (verbose)
             {
-                AnsiConsole.MarkupLine($"[dim]  Checking {predictionMetadata.ContextDocumentNames.Count} context documents for updates[/]");
+                _console.MarkupLine($"[dim]  Checking {predictionMetadata.ContextDocumentNames.Count} context documents for updates[/]");
             }
             
             // Check if any context document has been updated after the prediction was created
@@ -328,7 +335,7 @@ public class VerifyMatchdayCommand : AsyncCommand<VerifySettings>
                 {
                     if (verbose)
                     {
-                        AnsiConsole.MarkupLine($"[dim]  Skipping outdated check for '{actualDocumentName}' (excluded from cost optimization)[/]");
+                        _console.MarkupLine($"[dim]  Skipping outdated check for '{actualDocumentName}' (excluded from cost optimization)[/]");
                     }
                     continue;
                 }
@@ -339,13 +346,13 @@ public class VerifyMatchdayCommand : AsyncCommand<VerifySettings>
                 {
                     if (verbose)
                     {
-                        AnsiConsole.MarkupLine($"[dim]  Context document '{actualDocumentName}' (stored as '{documentName}') updated after prediction (document: {latestContextDocument.CreatedAt}, prediction: {predictionMetadata.CreatedAt})[/]");
+                        _console.MarkupLine($"[dim]  Context document '{actualDocumentName}' (stored as '{documentName}') updated after prediction (document: {latestContextDocument.CreatedAt}, prediction: {predictionMetadata.CreatedAt})[/]");
                     }
                     return true; // Prediction is outdated
                 }
                 else if (verbose && latestContextDocument == null)
                 {
-                    AnsiConsole.MarkupLine($"[yellow]  Warning: Context document '{actualDocumentName}' not found in repository[/]");
+                    _console.MarkupLine($"[yellow]  Warning: Context document '{actualDocumentName}' not found in repository[/]");
                 }
             }
             
@@ -356,7 +363,7 @@ public class VerifyMatchdayCommand : AsyncCommand<VerifySettings>
             // Log error but don't fail verification due to outdated check issues
             if (verbose)
             {
-                AnsiConsole.MarkupLine($"[yellow]  Warning: Failed to check outdated status: {ex.Message}[/]");
+                _console.MarkupLine($"[yellow]  Warning: Failed to check outdated status: {ex.Message}[/]");
             }
             return false;
         }

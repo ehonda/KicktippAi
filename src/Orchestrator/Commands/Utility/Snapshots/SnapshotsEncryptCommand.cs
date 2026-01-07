@@ -9,6 +9,13 @@ namespace Orchestrator.Commands.Utility.Snapshots;
 /// </summary>
 public class SnapshotsEncryptCommand : AsyncCommand<SnapshotsEncryptSettings>
 {
+    private readonly IAnsiConsole _console;
+
+    public SnapshotsEncryptCommand(IAnsiConsole console)
+    {
+        _console = console;
+    }
+
     public override async Task<int> ExecuteAsync(CommandContext context, SnapshotsEncryptSettings settings)
     {
         var logger = LoggingConfiguration.CreateLogger<SnapshotsEncryptCommand>();
@@ -21,13 +28,13 @@ public class SnapshotsEncryptCommand : AsyncCommand<SnapshotsEncryptSettings>
             var encryptionKey = Environment.GetEnvironmentVariable("KICKTIPP_FIXTURE_KEY");
             if (string.IsNullOrEmpty(encryptionKey))
             {
-                AnsiConsole.MarkupLine("[red]Error: KICKTIPP_FIXTURE_KEY environment variable is not set.[/]");
-                AnsiConsole.WriteLine();
-                AnsiConsole.MarkupLine("[yellow]To generate a new key:[/]");
-                AnsiConsole.MarkupLine("[dim]  .\\Encrypt-Fixture.ps1 -GenerateKey[/]");
-                AnsiConsole.WriteLine();
-                AnsiConsole.MarkupLine("[yellow]Then store the key in:[/]");
-                AnsiConsole.MarkupLine("[dim]  <repo>/../KicktippAi.Secrets/tests/KicktippIntegration.Tests/.env[/]");
+                _console.MarkupLine("[red]Error: KICKTIPP_FIXTURE_KEY environment variable is not set.[/]");
+                _console.WriteLine();
+                _console.MarkupLine("[yellow]To generate a new key:[/]");
+                _console.MarkupLine("[dim]  .\\Encrypt-Fixture.ps1 -GenerateKey[/]");
+                _console.WriteLine();
+                _console.MarkupLine("[yellow]Then store the key in:[/]");
+                _console.MarkupLine("[dim]  <repo>/../KicktippAi.Secrets/tests/KicktippIntegration.Tests/.env[/]");
                 return 1;
             }
 
@@ -37,25 +44,25 @@ public class SnapshotsEncryptCommand : AsyncCommand<SnapshotsEncryptSettings>
 
             if (!Directory.Exists(inputPath))
             {
-                AnsiConsole.MarkupLine($"[red]Error: Input directory not found: {inputPath}[/]");
+                _console.MarkupLine($"[red]Error: Input directory not found: {inputPath}[/]");
                 return 1;
             }
 
-            AnsiConsole.MarkupLine("[green]Encrypting snapshots...[/]");
-            AnsiConsole.MarkupLine($"[blue]Community:[/] [yellow]{settings.Community}[/]");
-            AnsiConsole.MarkupLine($"[blue]Input directory:[/] [yellow]{inputPath}[/]");
-            AnsiConsole.MarkupLine($"[blue]Output directory:[/] [yellow]{outputPath}[/]");
-            AnsiConsole.WriteLine();
+            _console.MarkupLine("[green]Encrypting snapshots...[/]");
+            _console.MarkupLine($"[blue]Community:[/] [yellow]{settings.Community}[/]");
+            _console.MarkupLine($"[blue]Input directory:[/] [yellow]{inputPath}[/]");
+            _console.MarkupLine($"[blue]Output directory:[/] [yellow]{outputPath}[/]");
+            _console.WriteLine();
 
             var (encryptedCount, deletedCount) = await EncryptSnapshotsAsync(
-                inputPath, outputPath, encryptionKey, settings.DeleteOriginals);
+                _console, inputPath, outputPath, encryptionKey, settings.DeleteOriginals);
 
-            AnsiConsole.WriteLine();
-            AnsiConsole.MarkupLine($"[green]Done![/] Encrypted {encryptedCount} file(s) to [yellow]{outputPath}[/]");
+            _console.WriteLine();
+            _console.MarkupLine($"[green]Done![/] Encrypted {encryptedCount} file(s) to [yellow]{outputPath}[/]");
 
             if (deletedCount > 0)
             {
-                AnsiConsole.MarkupLine($"[dim]Deleted {deletedCount} original HTML file(s)[/]");
+                _console.MarkupLine($"[dim]Deleted {deletedCount} original HTML file(s)[/]");
             }
 
             return 0;
@@ -63,12 +70,13 @@ public class SnapshotsEncryptCommand : AsyncCommand<SnapshotsEncryptSettings>
         catch (Exception ex)
         {
             logger.LogError(ex, "Error encrypting snapshots");
-            AnsiConsole.MarkupLine($"[red]Error:[/] {ex.Message}");
+            _console.MarkupLine($"[red]Error:[/] {ex.Message}");
             return 1;
         }
     }
 
     internal static async Task<(int encryptedCount, int deletedCount)> EncryptSnapshotsAsync(
+        IAnsiConsole console,
         string inputPath,
         string outputPath,
         string encryptionKey,
@@ -85,11 +93,11 @@ public class SnapshotsEncryptCommand : AsyncCommand<SnapshotsEncryptSettings>
 
         if (htmlFiles.Length == 0)
         {
-            AnsiConsole.MarkupLine("[yellow]No HTML files found to encrypt[/]");
+            console.MarkupLine("[yellow]No HTML files found to encrypt[/]");
             return (0, 0);
         }
 
-        await AnsiConsole.Status()
+        await console.Status()
             .StartAsync("Encrypting files...", async ctx =>
             {
                 foreach (var htmlFile in htmlFiles)
@@ -106,7 +114,7 @@ public class SnapshotsEncryptCommand : AsyncCommand<SnapshotsEncryptSettings>
                     await File.WriteAllTextAsync(outputFile, encrypted);
                     encryptedCount++;
 
-                    AnsiConsole.MarkupLine($"[green]✓[/] Encrypted {fileName} → {Path.GetFileName(outputFile)}");
+                    console.MarkupLine($"[green]✓[/] Encrypted {fileName} → {Path.GetFileName(outputFile)}");
 
                     // Delete original if requested
                     if (deleteOriginals)

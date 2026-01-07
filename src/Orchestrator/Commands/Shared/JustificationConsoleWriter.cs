@@ -5,9 +5,16 @@ using Spectre.Console;
 
 namespace Orchestrator.Commands.Shared;
 
-internal static class JustificationConsoleWriter
+internal sealed class JustificationConsoleWriter
 {
-    public static void WriteJustification(
+    private readonly IAnsiConsole _console;
+
+    public JustificationConsoleWriter(IAnsiConsole console)
+    {
+        _console = console;
+    }
+
+    public void WriteJustification(
         PredictionJustification? justification,
         string headingMarkup,
         string indent,
@@ -15,15 +22,15 @@ internal static class JustificationConsoleWriter
     {
         if (justification == null || !HasContent(justification))
         {
-            AnsiConsole.MarkupLine(fallbackMarkup);
+            _console.MarkupLine(fallbackMarkup);
             return;
         }
 
-        AnsiConsole.MarkupLine(headingMarkup);
+        _console.MarkupLine(headingMarkup);
 
         if (!string.IsNullOrWhiteSpace(justification.KeyReasoning))
         {
-            AnsiConsole.MarkupLine($"{indent}[white]Key reasoning:[/] {Markup.Escape(justification.KeyReasoning.Trim())}");
+            _console.MarkupLine($"{indent}[white]Key reasoning:[/] {Markup.Escape(justification.KeyReasoning.Trim())}");
         }
 
         WriteSources("Most valuable context sources", justification.ContextSources?.MostValuable, indent);
@@ -60,7 +67,7 @@ internal static class JustificationConsoleWriter
                !string.IsNullOrWhiteSpace(source?.Details);
     }
 
-    private static void WriteSources(
+    private void WriteSources(
         string heading,
         IReadOnlyList<PredictionJustificationContextSource>? sources,
         string indent)
@@ -79,7 +86,7 @@ internal static class JustificationConsoleWriter
             return;
         }
 
-        AnsiConsole.MarkupLine($"{indent}[white]{heading}[/]");
+        _console.MarkupLine($"{indent}[white]{heading}[/]");
 
         foreach (var entry in entries)
         {
@@ -91,11 +98,11 @@ internal static class JustificationConsoleWriter
                 ? "No details provided"
                 : entry.Details.Trim();
 
-            AnsiConsole.MarkupLine($"{indent}  • [yellow]{Markup.Escape(documentName)}[/]: {Markup.Escape(details)}");
+            _console.MarkupLine($"{indent}  • [yellow]{Markup.Escape(documentName)}[/]: {Markup.Escape(details)}");
         }
     }
 
-    private static void WriteUncertainties(IReadOnlyList<string>? uncertainties, string indent)
+    private void WriteUncertainties(IReadOnlyList<string>? uncertainties, string indent)
     {
         if (uncertainties == null)
         {
@@ -112,11 +119,11 @@ internal static class JustificationConsoleWriter
             return;
         }
 
-        AnsiConsole.MarkupLine($"{indent}[white]Uncertainties:[/]");
+        _console.MarkupLine($"{indent}[white]Uncertainties:[/]");
 
         foreach (var item in items)
         {
-            AnsiConsole.MarkupLine($"{indent}  • {Markup.Escape(item)}");
+            _console.MarkupLine($"{indent}  • {Markup.Escape(item)}");
         }
     }
 }

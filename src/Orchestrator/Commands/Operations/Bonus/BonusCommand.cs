@@ -13,6 +13,13 @@ namespace Orchestrator.Commands.Operations.Bonus;
 
 public class BonusCommand : AsyncCommand<BaseSettings>
 {
+    private readonly IAnsiConsole _console;
+
+    public BonusCommand(IAnsiConsole console)
+    {
+        _console = console;
+    }
+
     public override async Task<int> ExecuteAsync(CommandContext context, BaseSettings settings)
     {
         var logger = LoggingConfiguration.CreateLogger<BonusCommand>();
@@ -27,55 +34,55 @@ public class BonusCommand : AsyncCommand<BaseSettings>
             ConfigureServices(services, settings, logger);
             var serviceProvider = services.BuildServiceProvider();
             
-            AnsiConsole.MarkupLine($"[green]Bonus command initialized with model:[/] [yellow]{settings.Model}[/]");
+            _console.MarkupLine($"[green]Bonus command initialized with model:[/] [yellow]{settings.Model}[/]");
             
             if (settings.Verbose)
             {
-                AnsiConsole.MarkupLine("[dim]Verbose mode enabled[/]");
+                _console.MarkupLine("[dim]Verbose mode enabled[/]");
             }
             
             if (settings.OverrideKicktipp)
             {
-                AnsiConsole.MarkupLine("[yellow]Override mode enabled - will override existing Kicktipp predictions[/]");
+                _console.MarkupLine("[yellow]Override mode enabled - will override existing Kicktipp predictions[/]");
             }
             
             if (settings.OverrideDatabase)
             {
-                AnsiConsole.MarkupLine("[yellow]Override database mode enabled - will override existing database predictions[/]");
+                _console.MarkupLine("[yellow]Override database mode enabled - will override existing database predictions[/]");
             }
             
             if (settings.Agent)
             {
-                AnsiConsole.MarkupLine("[blue]Agent mode enabled - prediction details will be hidden[/]");
+                _console.MarkupLine("[blue]Agent mode enabled - prediction details will be hidden[/]");
             }
             
             if (settings.DryRun)
             {
-                AnsiConsole.MarkupLine("[magenta]Dry run mode enabled - no changes will be made to database or Kicktipp[/]");
+                _console.MarkupLine("[magenta]Dry run mode enabled - no changes will be made to database or Kicktipp[/]");
             }
 
             if (!string.IsNullOrEmpty(settings.EstimatedCostsModel))
             {
-                AnsiConsole.MarkupLine($"[cyan]Estimated costs will be calculated for model:[/] [yellow]{settings.EstimatedCostsModel}[/]");
+                _console.MarkupLine($"[cyan]Estimated costs will be calculated for model:[/] [yellow]{settings.EstimatedCostsModel}[/]");
             }
 
             // Validate reprediction settings
             if (settings.OverrideDatabase && settings.IsRepredictMode)
             {
-                AnsiConsole.MarkupLine($"[red]Error:[/] --override-database cannot be used with reprediction flags (--repredict or --max-repredictions)");
+                _console.MarkupLine($"[red]Error:[/] --override-database cannot be used with reprediction flags (--repredict or --max-repredictions)");
                 return 1;
             }
 
             if (settings.MaxRepredictions.HasValue && settings.MaxRepredictions.Value < 0)
             {
-                AnsiConsole.MarkupLine($"[red]Error:[/] --max-repredictions must be 0 or greater");
+                _console.MarkupLine($"[red]Error:[/] --max-repredictions must be 0 or greater");
                 return 1;
             }
 
             if (settings.IsRepredictMode)
             {
                 var maxValue = settings.MaxRepredictions ?? int.MaxValue;
-                AnsiConsole.MarkupLine($"[yellow]Reprediction mode enabled - max repredictions: {(settings.MaxRepredictions?.ToString() ?? "unlimited")}[/]");
+                _console.MarkupLine($"[yellow]Reprediction mode enabled - max repredictions: {(settings.MaxRepredictions?.ToString() ?? "unlimited")}[/]");
             }
             
             // Execute the bonus prediction workflow
@@ -86,12 +93,12 @@ public class BonusCommand : AsyncCommand<BaseSettings>
         catch (Exception ex)
         {
             logger.LogError(ex, "Error executing bonus command");
-            AnsiConsole.MarkupLine($"[red]Error:[/] {ex.Message}");
+            _console.MarkupLine($"[red]Error:[/] {ex.Message}");
             return 1;
         }
     }
     
-    private static async Task ExecuteBonusWorkflow(IServiceProvider serviceProvider, BaseSettings settings, ILogger logger)
+    private async Task ExecuteBonusWorkflow(IServiceProvider serviceProvider, BaseSettings settings, ILogger logger)
     {
         var kicktippClient = serviceProvider.GetRequiredService<IKicktippClient>();
         var predictionService = serviceProvider.GetRequiredService<IPredictionService>();
@@ -99,7 +106,7 @@ public class BonusCommand : AsyncCommand<BaseSettings>
         // Log the prompt paths being used
         if (settings.Verbose)
         {
-            AnsiConsole.MarkupLine($"[dim]Bonus prompt:[/] [blue]{predictionService.GetBonusPromptPath()}[/]");
+            _console.MarkupLine($"[dim]Bonus prompt:[/] [blue]{predictionService.GetBonusPromptPath()}[/]");
         }
         
         // Use Firebase KPI Context Provider for bonus predictions
@@ -117,24 +124,24 @@ public class BonusCommand : AsyncCommand<BaseSettings>
         // Determine community context (use explicit setting or fall back to community name)
         string communityContext = settings.CommunityContext ?? settings.Community;
         
-        AnsiConsole.MarkupLine($"[blue]Using community:[/] [yellow]{settings.Community}[/]");
-        AnsiConsole.MarkupLine($"[blue]Using community context:[/] [yellow]{communityContext}[/]");
-        AnsiConsole.MarkupLine("[blue]Getting open bonus questions from Kicktipp...[/]");
+        _console.MarkupLine($"[blue]Using community:[/] [yellow]{settings.Community}[/]");
+        _console.MarkupLine($"[blue]Using community context:[/] [yellow]{communityContext}[/]");
+        _console.MarkupLine("[blue]Getting open bonus questions from Kicktipp...[/]");
         
         // Step 1: Get open bonus questions from Kicktipp
         var bonusQuestions = await kicktippClient.GetOpenBonusQuestionsAsync(settings.Community);
         
         if (!bonusQuestions.Any())
         {
-            AnsiConsole.MarkupLine("[yellow]No open bonus questions found[/]");
+            _console.MarkupLine("[yellow]No open bonus questions found[/]");
             return;
         }
         
-        AnsiConsole.MarkupLine($"[green]Found {bonusQuestions.Count} open bonus questions[/]");
+        _console.MarkupLine($"[green]Found {bonusQuestions.Count} open bonus questions[/]");
         
         if (databaseEnabled)
         {
-            AnsiConsole.MarkupLine("[blue]Database enabled - checking for existing predictions...[/]");
+            _console.MarkupLine("[blue]Database enabled - checking for existing predictions...[/]");
         }
         
         var predictions = new Dictionary<string, BonusPrediction>();
@@ -142,7 +149,7 @@ public class BonusCommand : AsyncCommand<BaseSettings>
         // Step 2: For each question, check database first, then predict if needed
         foreach (var question in bonusQuestions)
         {
-            AnsiConsole.MarkupLine($"[cyan]Processing:[/] {Markup.Escape(question.Text)}");
+            _console.MarkupLine($"[cyan]Processing:[/] {Markup.Escape(question.Text)}");
             
             try
             {
@@ -160,14 +167,14 @@ public class BonusCommand : AsyncCommand<BaseSettings>
                         fromDatabase = true;
                         if (settings.Agent)
                         {
-                            AnsiConsole.MarkupLine($"[green]  ✓ Found existing prediction[/] [dim](from database)[/]");
+                            _console.MarkupLine($"[green]  ✓ Found existing prediction[/] [dim](from database)[/]");
                         }
                         else
                         {
                             var optionTexts = question.Options
                                 .Where(o => prediction.SelectedOptionIds.Contains(o.Id))
                                 .Select(o => o.Text);
-                            AnsiConsole.MarkupLine($"[green]  ✓ Found existing prediction:[/] {string.Join(", ", optionTexts)} [dim](from database)[/]");
+                            _console.MarkupLine($"[green]  ✓ Found existing prediction:[/] {string.Join(", ", optionTexts)} [dim](from database)[/]");
                         }
                     }
                 }
@@ -181,7 +188,7 @@ public class BonusCommand : AsyncCommand<BaseSettings>
                     {
                         // No prediction exists yet - create first prediction
                         shouldPredict = true;
-                        AnsiConsole.MarkupLine($"[yellow]  → No existing prediction found, creating first prediction...[/]");
+                        _console.MarkupLine($"[yellow]  → No existing prediction found, creating first prediction...[/]");
                     }
                     else
                     {
@@ -192,11 +199,11 @@ public class BonusCommand : AsyncCommand<BaseSettings>
                         if (nextIndex <= maxAllowed)
                         {
                             shouldPredict = true;
-                            AnsiConsole.MarkupLine($"[yellow]  → Creating reprediction {nextIndex} (current: {currentRepredictionIndex}, max: {maxAllowed})...[/]");
+                            _console.MarkupLine($"[yellow]  → Creating reprediction {nextIndex} (current: {currentRepredictionIndex}, max: {maxAllowed})...[/]");
                         }
                         else
                         {
-                            AnsiConsole.MarkupLine($"[yellow]  ✗ Skipped - already at max repredictions ({currentRepredictionIndex}/{maxAllowed})[/]");
+                            _console.MarkupLine($"[yellow]  ✗ Skipped - already at max repredictions ({currentRepredictionIndex}/{maxAllowed})[/]");
                             
                             // Get the latest prediction for display purposes
                             prediction = await predictionRepository!.GetBonusPredictionByTextAsync(question.Text, settings.Model, communityContext);
@@ -208,7 +215,7 @@ public class BonusCommand : AsyncCommand<BaseSettings>
                                     var optionTexts = question.Options
                                         .Where(o => prediction.SelectedOptionIds.Contains(o.Id))
                                         .Select(o => o.Text);
-                                    AnsiConsole.MarkupLine($"[green]  ✓ Latest prediction:[/] {string.Join(", ", optionTexts)} [dim](reprediction {currentRepredictionIndex})[/]");
+                                    _console.MarkupLine($"[green]  ✓ Latest prediction:[/] {string.Join(", ", optionTexts)} [dim](reprediction {currentRepredictionIndex})[/]");
                                 }
                             }
                         }
@@ -218,7 +225,7 @@ public class BonusCommand : AsyncCommand<BaseSettings>
                 // If no existing prediction (normal mode) or we need to predict (reprediction mode), generate a new one
                 if (prediction == null || shouldPredict)
                 {
-                    AnsiConsole.MarkupLine($"[yellow]  → Generating new prediction...[/]");
+                    _console.MarkupLine($"[yellow]  → Generating new prediction...[/]");
                     
                     // Step 3: Get KPI context for bonus predictions
                     var contextDocuments = new List<DocumentContext>();
@@ -231,7 +238,7 @@ public class BonusCommand : AsyncCommand<BaseSettings>
                     
                     if (settings.Verbose)
                     {
-                        AnsiConsole.MarkupLine($"[dim]    Using {contextDocuments.Count} KPI context documents[/]");
+                        _console.MarkupLine($"[dim]    Using {contextDocuments.Count} KPI context documents[/]");
                     }
                     
                     // Predict the bonus question
@@ -241,14 +248,14 @@ public class BonusCommand : AsyncCommand<BaseSettings>
                     {
                         if (settings.Agent)
                         {
-                            AnsiConsole.MarkupLine($"[green]  ✓ Generated prediction[/]");
+                            _console.MarkupLine($"[green]  ✓ Generated prediction[/]");
                         }
                         else
                         {
                             var optionTexts = question.Options
                                 .Where(o => prediction.SelectedOptionIds.Contains(o.Id))
                                 .Select(o => o.Text);
-                            AnsiConsole.MarkupLine($"[green]  ✓ Generated prediction:[/] {string.Join(", ", optionTexts)}");
+                            _console.MarkupLine($"[green]  ✓ Generated prediction:[/] {string.Join(", ", optionTexts)}");
                         }
                         
                         // Save to database immediately if enabled
@@ -285,7 +292,7 @@ public class BonusCommand : AsyncCommand<BaseSettings>
                                         
                                     if (settings.Verbose)
                                     {
-                                        AnsiConsole.MarkupLine($"[dim]    ✓ Saved as reprediction {nextIndex} to database[/]");
+                                        _console.MarkupLine($"[dim]    ✓ Saved as reprediction {nextIndex} to database[/]");
                                     }
                                 }
                                 else
@@ -303,19 +310,19 @@ public class BonusCommand : AsyncCommand<BaseSettings>
                                         
                                     if (settings.Verbose)
                                     {
-                                        AnsiConsole.MarkupLine($"[dim]    ✓ Saved to database[/]");
+                                        _console.MarkupLine($"[dim]    ✓ Saved to database[/]");
                                     }
                                 }
                             }
                             catch (Exception ex)
                             {
                                 logger.LogError(ex, "Failed to save bonus prediction for question '{QuestionText}'", question.Text);
-                                AnsiConsole.MarkupLine($"[red]    ✗ Failed to save to database: {ex.Message}[/]");
+                                _console.MarkupLine($"[red]    ✗ Failed to save to database: {ex.Message}[/]");
                             }
                         }
                         else if (databaseEnabled && settings.DryRun && settings.Verbose)
                         {
-                            AnsiConsole.MarkupLine($"[dim]    (Dry run - skipped database save)[/]");
+                            _console.MarkupLine($"[dim]    (Dry run - skipped database save)[/]");
                         }
                         
                         // Show individual question token usage in verbose mode
@@ -324,12 +331,12 @@ public class BonusCommand : AsyncCommand<BaseSettings>
                             var questionUsage = !string.IsNullOrEmpty(settings.EstimatedCostsModel)
                                 ? tokenUsageTracker.GetLastUsageCompactSummaryWithEstimatedCosts(settings.EstimatedCostsModel)
                                 : tokenUsageTracker.GetLastUsageCompactSummary();
-                            AnsiConsole.MarkupLine($"[dim]    Token usage: {questionUsage}[/]");
+                            _console.MarkupLine($"[dim]    Token usage: {questionUsage}[/]");
                         }
                     }
                     else
                     {
-                        AnsiConsole.MarkupLine($"[red]  ✗ Failed to generate prediction[/]");
+                        _console.MarkupLine($"[red]  ✗ Failed to generate prediction[/]");
                         continue;
                     }
                 }
@@ -338,28 +345,28 @@ public class BonusCommand : AsyncCommand<BaseSettings>
                 
                 if (!fromDatabase && settings.Verbose)
                 {
-                    AnsiConsole.MarkupLine($"[dim]    Ready for Kicktipp placement[/]");
+                    _console.MarkupLine($"[dim]    Ready for Kicktipp placement[/]");
                 }
             }
             catch (Exception ex)
             {
                 logger.LogError(ex, "Error processing bonus question '{QuestionText}'", question.Text);
-                AnsiConsole.MarkupLine($"[red]  ✗ Error processing question: {ex.Message}[/]");
+                _console.MarkupLine($"[red]  ✗ Error processing question: {ex.Message}[/]");
             }
         }
         
         if (!predictions.Any())
         {
-            AnsiConsole.MarkupLine("[yellow]No predictions available, nothing to place[/]");
+            _console.MarkupLine("[yellow]No predictions available, nothing to place[/]");
             return;
         }
         
         // Step 4: Place all predictions using PlaceBonusPredictionsAsync
-        AnsiConsole.MarkupLine($"[blue]Placing {predictions.Count} bonus predictions to Kicktipp...[/]");
+        _console.MarkupLine($"[blue]Placing {predictions.Count} bonus predictions to Kicktipp...[/]");
         
         if (settings.DryRun)
         {
-            AnsiConsole.MarkupLine($"[magenta]✓ Dry run mode - would have placed {predictions.Count} bonus predictions (no actual changes made)[/]");
+            _console.MarkupLine($"[magenta]✓ Dry run mode - would have placed {predictions.Count} bonus predictions (no actual changes made)[/]");
         }
         else
         {
@@ -367,11 +374,11 @@ public class BonusCommand : AsyncCommand<BaseSettings>
             
             if (success)
             {
-                AnsiConsole.MarkupLine($"[green]✓ Successfully placed all {predictions.Count} bonus predictions![/]");
+                _console.MarkupLine($"[green]✓ Successfully placed all {predictions.Count} bonus predictions![/]");
             }
             else
             {
-                AnsiConsole.MarkupLine("[red]✗ Failed to place some or all bonus predictions[/]");
+                _console.MarkupLine("[red]✗ Failed to place some or all bonus predictions[/]");
             }
         }
         
@@ -381,7 +388,7 @@ public class BonusCommand : AsyncCommand<BaseSettings>
             var summary = !string.IsNullOrEmpty(settings.EstimatedCostsModel)
                 ? tokenUsageTracker.GetCompactSummaryWithEstimatedCosts(settings.EstimatedCostsModel)
                 : tokenUsageTracker.GetCompactSummary();
-            AnsiConsole.MarkupLine($"[dim]Token usage (uncached/cached/reasoning/output/$cost): {summary}[/]");
+            _console.MarkupLine($"[dim]Token usage (uncached/cached/reasoning/output/$cost): {summary}[/]");
         }
     }
     

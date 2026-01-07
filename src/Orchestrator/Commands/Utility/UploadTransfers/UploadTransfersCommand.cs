@@ -10,6 +10,13 @@ namespace Orchestrator.Commands.Utility.UploadTransfers;
 
 public class UploadTransfersCommand : AsyncCommand<UploadTransfersSettings>
 {
+    private readonly IAnsiConsole _console;
+
+    public UploadTransfersCommand(IAnsiConsole console)
+    {
+        _console = console;
+    }
+
     public override async Task<int> ExecuteAsync(CommandContext context, UploadTransfersSettings settings)
     {
         var logger = LoggingConfiguration.CreateLogger<UploadTransfersCommand>();
@@ -23,48 +30,48 @@ public class UploadTransfersCommand : AsyncCommand<UploadTransfersSettings>
             var provider = services.BuildServiceProvider();
 
             var docName = $"{settings.TeamAbbreviation.ToLowerInvariant()}-transfers.csv";
-            AnsiConsole.MarkupLine($"[green]Upload Transfers command initialized for document:[/] [yellow]{docName}[/]");
-            AnsiConsole.MarkupLine($"[blue]Using community context:[/] [yellow]{settings.CommunityContext}[/]");
-            if (settings.Verbose) AnsiConsole.MarkupLine("[dim]Verbose mode enabled[/]");
+            _console.MarkupLine($"[green]Upload Transfers command initialized for document:[/] [yellow]{docName}[/]");
+            _console.MarkupLine($"[blue]Using community context:[/] [yellow]{settings.CommunityContext}[/]");
+            if (settings.Verbose) _console.MarkupLine("[dim]Verbose mode enabled[/]");
 
             // JSON file path produced by Create-TransfersDocument.ps1 firebase mode
             var jsonPath = Path.Combine("transfers-documents", "output", settings.CommunityContext, $"{docName}.json");
             if (!File.Exists(jsonPath))
             {
-                AnsiConsole.MarkupLine($"[red]Transfers document JSON not found:[/] {jsonPath}");
-                AnsiConsole.MarkupLine("[dim]Run Create-TransfersDocument.ps1 in firebase mode first.[/]");
+                _console.MarkupLine($"[red]Transfers document JSON not found:[/] {jsonPath}");
+                _console.MarkupLine("[dim]Run Create-TransfersDocument.ps1 in firebase mode first.[/]");
                 return 1;
             }
 
-            AnsiConsole.MarkupLine($"[blue]Reading transfers document from:[/] {jsonPath}");
+            _console.MarkupLine($"[blue]Reading transfers document from:[/] {jsonPath}");
             var jsonContent = await File.ReadAllTextAsync(jsonPath);
             var transfersDoc = JsonSerializer.Deserialize<TransfersDocumentJson>(jsonContent, new JsonSerializerOptions { PropertyNameCaseInsensitive = true });
             if (transfersDoc == null)
             {
-                AnsiConsole.MarkupLine("[red]Failed to parse transfers document JSON[/]");
+                _console.MarkupLine("[red]Failed to parse transfers document JSON[/]");
                 return 1;
             }
 
             if (settings.Verbose)
             {
-                AnsiConsole.MarkupLine($"[dim]Document Name: {transfersDoc.DocumentName}[/]");
-                AnsiConsole.MarkupLine($"[dim]Community Context: {transfersDoc.CommunityContext}[/]");
-                AnsiConsole.MarkupLine($"[dim]Content length: {transfersDoc.Content.Length} characters[/]");
+                _console.MarkupLine($"[dim]Document Name: {transfersDoc.DocumentName}[/]");
+                _console.MarkupLine($"[dim]Community Context: {transfersDoc.CommunityContext}[/]");
+                _console.MarkupLine($"[dim]Content length: {transfersDoc.Content.Length} characters[/]");
             }
 
             var contextRepo = provider.GetRequiredService<IContextRepository>();
             var existing = await contextRepo.GetLatestContextDocumentAsync(transfersDoc.DocumentName, transfersDoc.CommunityContext);
             if (existing != null)
             {
-                AnsiConsole.MarkupLine($"[blue]Found existing transfers document '{transfersDoc.DocumentName}' (version {existing.Version})[/]");
+                _console.MarkupLine($"[blue]Found existing transfers document '{transfersDoc.DocumentName}' (version {existing.Version})[/]");
                 if (settings.Verbose)
                 {
-                    AnsiConsole.MarkupLine("[dim]Checking for changes...[/]");
+                    _console.MarkupLine("[dim]Checking for changes...[/]");
                 }
             }
             else
             {
-                AnsiConsole.MarkupLine($"[blue]No existing transfers document found - will create version 0[/]");
+                _console.MarkupLine($"[blue]No existing transfers document found - will create version 0[/]");
             }
 
             var savedVersion = await contextRepo.SaveContextDocumentAsync(
@@ -74,15 +81,15 @@ public class UploadTransfersCommand : AsyncCommand<UploadTransfersSettings>
 
             if (existing != null && savedVersion == null)
             {
-                AnsiConsole.MarkupLine($"[green]✓ Content unchanged - transfers document remains at version {existing.Version}[/]");
+                _console.MarkupLine($"[green]✓ Content unchanged - transfers document remains at version {existing.Version}[/]");
             }
             else if (existing != null)
             {
-                AnsiConsole.MarkupLine($"[green]✓ Content changed - created new version {savedVersion}[/]");
+                _console.MarkupLine($"[green]✓ Content changed - created new version {savedVersion}[/]");
             }
             else
             {
-                AnsiConsole.MarkupLine($"[green]✓ Created transfers document version {savedVersion}[/]");
+                _console.MarkupLine($"[green]✓ Created transfers document version {savedVersion}[/]");
             }
 
             return 0;
@@ -90,7 +97,7 @@ public class UploadTransfersCommand : AsyncCommand<UploadTransfersSettings>
         catch (Exception ex)
         {
             logger.LogError(ex, "Error in upload-transfers command");
-            AnsiConsole.MarkupLine($"[red]Error: {ex.Message}[/]");
+            _console.MarkupLine($"[red]Error: {ex.Message}[/]");
             return 1;
         }
     }

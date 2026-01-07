@@ -9,6 +9,13 @@ namespace Orchestrator.Commands.Utility.ListKpi;
 
 public class ListKpiCommand : AsyncCommand<ListKpiSettings>
 {
+    private readonly IAnsiConsole _console;
+
+    public ListKpiCommand(IAnsiConsole console)
+    {
+        _console = console;
+    }
+
     public override async Task<int> ExecuteAsync(CommandContext context, ListKpiSettings settings)
     {
         var logger = LoggingConfiguration.CreateLogger<ListKpiCommand>();
@@ -23,11 +30,11 @@ public class ListKpiCommand : AsyncCommand<ListKpiSettings>
             ConfigureServices(services, settings, logger);
             var serviceProvider = services.BuildServiceProvider();
             
-            AnsiConsole.MarkupLine($"[green]List KPI command initialized for community context:[/] [yellow]{settings.CommunityContext}[/]");
+            _console.MarkupLine($"[green]List KPI command initialized for community context:[/] [yellow]{settings.CommunityContext}[/]");
             
             if (settings.Verbose)
             {
-                AnsiConsole.MarkupLine("[dim]Verbose mode enabled[/]");
+                _console.MarkupLine("[dim]Verbose mode enabled[/]");
             }
             
             // Get Firebase KPI repository
@@ -63,15 +70,15 @@ public class ListKpiCommand : AsyncCommand<ListKpiSettings>
                 documentCount++;
             }
             
-            AnsiConsole.Write(table);
-            AnsiConsole.MarkupLine($"[green]Found {documentCount} KPI document(s)[/]");
+            _console.Write(table);
+            _console.MarkupLine($"[green]Found {documentCount} KPI document(s)[/]");
             
             return 0;
         }
         catch (Exception ex)
         {
             logger.LogError(ex, "Error in list-kpi command");
-            AnsiConsole.MarkupLine($"[red]Error: {ex.Message}[/]");
+            _console.MarkupLine($"[red]Error: {ex.Message}[/]");
             return 1;
         }
     }

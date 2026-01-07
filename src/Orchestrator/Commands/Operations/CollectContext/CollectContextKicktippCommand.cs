@@ -14,6 +14,13 @@ namespace Orchestrator.Commands.Operations.CollectContext;
 /// </summary>
 public class CollectContextKicktippCommand : AsyncCommand<CollectContextKicktippSettings>
 {
+    private readonly IAnsiConsole _console;
+
+    public CollectContextKicktippCommand(IAnsiConsole console)
+    {
+        _console = console;
+    }
+
     public override async Task<int> ExecuteAsync(CommandContext context, CollectContextKicktippSettings settings)
     {
         var logger = LoggingConfiguration.CreateLogger<CollectContextKicktippCommand>();
@@ -23,7 +30,7 @@ public class CollectContextKicktippCommand : AsyncCommand<CollectContextKicktipp
             // Validate settings
             if (string.IsNullOrWhiteSpace(settings.CommunityContext))
             {
-                AnsiConsole.MarkupLine("[red]Error: Community context is required[/]");
+                _console.MarkupLine("[red]Error: Community context is required[/]");
                 return 1;
             }
             
@@ -35,16 +42,16 @@ public class CollectContextKicktippCommand : AsyncCommand<CollectContextKicktipp
             ConfigureServices(services, settings, logger);
             var serviceProvider = services.BuildServiceProvider();
             
-            AnsiConsole.MarkupLine($"[green]Collect-context kicktipp command initialized[/]");
+            _console.MarkupLine($"[green]Collect-context kicktipp command initialized[/]");
             
             if (settings.Verbose)
             {
-                AnsiConsole.MarkupLine("[dim]Verbose mode enabled[/]");
+                _console.MarkupLine("[dim]Verbose mode enabled[/]");
             }
             
             if (settings.DryRun)
             {
-                AnsiConsole.MarkupLine("[magenta]Dry run mode enabled - no changes will be made to database[/]");
+                _console.MarkupLine("[magenta]Dry run mode enabled - no changes will be made to database[/]");
             }
             
             // Execute the context collection workflow
@@ -55,12 +62,12 @@ public class CollectContextKicktippCommand : AsyncCommand<CollectContextKicktipp
         catch (Exception ex)
         {
             logger.LogError(ex, "Error executing collect-context kicktipp command");
-            AnsiConsole.MarkupLine($"[red]Error:[/] {ex.Message}");
+            _console.MarkupLine($"[red]Error:[/] {ex.Message}");
             return 1;
         }
     }
 
-    private static async Task ExecuteKicktippContextCollection(IServiceProvider serviceProvider, CollectContextKicktippSettings settings, ILogger logger)
+    private async Task ExecuteKicktippContextCollection(IServiceProvider serviceProvider, CollectContextKicktippSettings settings, ILogger logger)
     {
         var kicktippClient = serviceProvider.GetRequiredService<IKicktippClient>();
         var contextProvider = serviceProvider.GetRequiredService<KicktippContextProvider>();
@@ -68,23 +75,23 @@ public class CollectContextKicktippCommand : AsyncCommand<CollectContextKicktipp
         
         if (contextRepository == null)
         {
-            AnsiConsole.MarkupLine("[red]Database not available - context repository not configured[/]");
+            _console.MarkupLine("[red]Database not available - context repository not configured[/]");
             return;
         }
         
-        AnsiConsole.MarkupLine($"[blue]Using community context:[/] [yellow]{settings.CommunityContext}[/]");
-        AnsiConsole.MarkupLine("[blue]Getting current matchday matches...[/]");
+        _console.MarkupLine($"[blue]Using community context:[/] [yellow]{settings.CommunityContext}[/]");
+        _console.MarkupLine("[blue]Getting current matchday matches...[/]");
         
         // Step 1: Get current matchday matches
         var matchesWithHistory = await kicktippClient.GetMatchesWithHistoryAsync(settings.CommunityContext);
         
         if (!matchesWithHistory.Any())
         {
-            AnsiConsole.MarkupLine("[yellow]No matches found for current matchday[/]");
+            _console.MarkupLine("[yellow]No matches found for current matchday[/]");
             return;
         }
         
-        AnsiConsole.MarkupLine($"[green]Found {matchesWithHistory.Count} matches for current matchday[/]");
+        _console.MarkupLine($"[green]Found {matchesWithHistory.Count} matches for current matchday[/]");
         
         // Step 2: Collect all unique context documents for all matches
         var allContextDocuments = new Dictionary<string, string>(); // documentName -> content
@@ -92,7 +99,7 @@ public class CollectContextKicktippCommand : AsyncCommand<CollectContextKicktipp
         foreach (var matchWithHistory in matchesWithHistory)
         {
             var match = matchWithHistory.Match;
-            AnsiConsole.MarkupLine($"[cyan]Collecting context for:[/] {match.HomeTeam} vs {match.AwayTeam}");
+            _console.MarkupLine($"[cyan]Collecting context for:[/] {match.HomeTeam} vs {match.AwayTeam}");
             
             try
             {
@@ -106,7 +113,7 @@ public class CollectContextKicktippCommand : AsyncCommand<CollectContextKicktipp
                         
                         if (settings.Verbose)
                         {
-                            AnsiConsole.MarkupLine($"[dim]  Collected context document: {contextDoc.Name}[/]");
+                            _console.MarkupLine($"[dim]  Collected context document: {contextDoc.Name}[/]");
                         }
                     }
                 }
@@ -114,11 +121,11 @@ public class CollectContextKicktippCommand : AsyncCommand<CollectContextKicktipp
             catch (Exception ex)
             {
                 logger.LogError(ex, "Failed to collect context for match {HomeTeam} vs {AwayTeam}", match.HomeTeam, match.AwayTeam);
-                AnsiConsole.MarkupLine($"[red]  ✗ Failed to collect context: {ex.Message}[/]");
+                _console.MarkupLine($"[red]  ✗ Failed to collect context: {ex.Message}[/]");
             }
         }
         
-        AnsiConsole.MarkupLine($"[green]Collected {allContextDocuments.Count} unique context documents[/]");
+        _console.MarkupLine($"[green]Collected {allContextDocuments.Count} unique context documents[/]");
         
         // Step 3: Save context documents to database
         var savedCount = 0;
@@ -131,7 +138,7 @@ public class CollectContextKicktippCommand : AsyncCommand<CollectContextKicktipp
             {
                 if (settings.DryRun)
                 {
-                    AnsiConsole.MarkupLine($"[magenta]  Dry run - would save:[/] {documentName}");
+                    _console.MarkupLine($"[magenta]  Dry run - would save:[/] {documentName}");
                     continue;
                 }
                 
@@ -148,7 +155,7 @@ public class CollectContextKicktippCommand : AsyncCommand<CollectContextKicktipp
                     
                     if (settings.Verbose)
                     {
-                        AnsiConsole.MarkupLine($"[dim]  Added Data_Collected_At column to {documentName}[/]");
+                        _console.MarkupLine($"[dim]  Added Data_Collected_At column to {documentName}[/]");
                     }
                 }
                 
@@ -162,7 +169,7 @@ public class CollectContextKicktippCommand : AsyncCommand<CollectContextKicktipp
                     savedCount++;
                     if (settings.Verbose)
                     {
-                        AnsiConsole.MarkupLine($"[green]  ✓ Saved {documentName} as version {savedVersion.Value}[/]");
+                        _console.MarkupLine($"[green]  ✓ Saved {documentName} as version {savedVersion.Value}[/]");
                     }
                 }
                 else
@@ -170,26 +177,26 @@ public class CollectContextKicktippCommand : AsyncCommand<CollectContextKicktipp
                     skippedCount++;
                     if (settings.Verbose)
                     {
-                        AnsiConsole.MarkupLine($"[dim]  - Skipped {documentName} (content unchanged)[/]");
+                        _console.MarkupLine($"[dim]  - Skipped {documentName} (content unchanged)[/]");
                     }
                 }
             }
             catch (Exception ex)
             {
                 logger.LogError(ex, "Failed to save context document {DocumentName}", documentName);
-                AnsiConsole.MarkupLine($"[red]  ✗ Failed to save {documentName}: {ex.Message}[/]");
+                _console.MarkupLine($"[red]  ✗ Failed to save {documentName}: {ex.Message}[/]");
             }
         }
         
         if (settings.DryRun)
         {
-            AnsiConsole.MarkupLine($"[magenta]✓ Dry run completed - would have processed {allContextDocuments.Count} documents[/]");
+            _console.MarkupLine($"[magenta]✓ Dry run completed - would have processed {allContextDocuments.Count} documents[/]");
         }
         else
         {
-            AnsiConsole.MarkupLine($"[green]✓ Context collection completed![/]");
-            AnsiConsole.MarkupLine($"[green]  Saved: {savedCount} documents[/]");
-            AnsiConsole.MarkupLine($"[dim]  Skipped: {skippedCount} documents (unchanged)[/]");
+            _console.MarkupLine($"[green]✓ Context collection completed![/]");
+            _console.MarkupLine($"[green]  Saved: {savedCount} documents[/]");
+            _console.MarkupLine($"[dim]  Skipped: {skippedCount} documents (unchanged)[/]");
         }
     }
     

@@ -10,6 +10,13 @@ namespace Orchestrator.Commands.Utility.UploadKpi;
 
 public class UploadKpiCommand : AsyncCommand<UploadKpiSettings>
 {
+    private readonly IAnsiConsole _console;
+
+    public UploadKpiCommand(IAnsiConsole console)
+    {
+        _console = console;
+    }
+
     public override async Task<int> ExecuteAsync(CommandContext context, UploadKpiSettings settings)
     {
         var logger = LoggingConfiguration.CreateLogger<UploadKpiCommand>();
@@ -24,24 +31,24 @@ public class UploadKpiCommand : AsyncCommand<UploadKpiSettings>
             ConfigureServices(services, settings, logger);
             var serviceProvider = services.BuildServiceProvider();
             
-            AnsiConsole.MarkupLine($"[green]Upload KPI command initialized for document:[/] [yellow]{settings.DocumentName}[/]");
-            AnsiConsole.MarkupLine($"[blue]Using community context:[/] [yellow]{settings.CommunityContext}[/]");
+            _console.MarkupLine($"[green]Upload KPI command initialized for document:[/] [yellow]{settings.DocumentName}[/]");
+            _console.MarkupLine($"[blue]Using community context:[/] [yellow]{settings.CommunityContext}[/]");
             
             if (settings.Verbose)
             {
-                AnsiConsole.MarkupLine("[dim]Verbose mode enabled[/]");
+                _console.MarkupLine("[dim]Verbose mode enabled[/]");
             }
             
             // Check if the JSON file exists in the community-context specific subfolder
             var jsonFilePath = Path.Combine("kpi-documents", "output", settings.CommunityContext, $"{settings.DocumentName}.json");
             if (!File.Exists(jsonFilePath))
             {
-                AnsiConsole.MarkupLine($"[red]KPI document file not found:[/] {jsonFilePath}");
-                AnsiConsole.MarkupLine($"[dim]Run the PowerShell script with firebase mode to create the document first.[/]");
+                _console.MarkupLine($"[red]KPI document file not found:[/] {jsonFilePath}");
+                _console.MarkupLine($"[dim]Run the PowerShell script with firebase mode to create the document first.[/]");
                 return 1;
             }
             
-            AnsiConsole.MarkupLine($"[blue]Reading KPI document from:[/] {jsonFilePath}");
+            _console.MarkupLine($"[blue]Reading KPI document from:[/] {jsonFilePath}");
             
             // Read and parse the JSON file
             var jsonContent = await File.ReadAllTextAsync(jsonFilePath);
@@ -52,15 +59,15 @@ public class UploadKpiCommand : AsyncCommand<UploadKpiSettings>
             
             if (kpiDocument == null)
             {
-                AnsiConsole.MarkupLine("[red]Failed to parse KPI document JSON[/]");
+                _console.MarkupLine("[red]Failed to parse KPI document JSON[/]");
                 return 1;
             }
             
             if (settings.Verbose)
             {
-                AnsiConsole.MarkupLine($"[dim]Document Name: {kpiDocument.DocumentName}[/]");
-                AnsiConsole.MarkupLine($"[dim]Community Context: {kpiDocument.CommunityContext}[/]");
-                AnsiConsole.MarkupLine($"[dim]Content length: {kpiDocument.Content.Length} characters[/]");
+                _console.MarkupLine($"[dim]Document Name: {kpiDocument.DocumentName}[/]");
+                _console.MarkupLine($"[dim]Community Context: {kpiDocument.CommunityContext}[/]");
+                _console.MarkupLine($"[dim]Content length: {kpiDocument.Content.Length} characters[/]");
             }
             
             // Get Firebase KPI repository
@@ -71,22 +78,22 @@ public class UploadKpiCommand : AsyncCommand<UploadKpiSettings>
             
             if (existingDocument != null)
             {
-                AnsiConsole.MarkupLine($"[blue]Found existing KPI document '{kpiDocument.DocumentName}' (version {existingDocument.Version})[/]");
-                AnsiConsole.MarkupLine($"[blue]Checking for content changes...[/]");
+                _console.MarkupLine($"[blue]Found existing KPI document '{kpiDocument.DocumentName}' (version {existingDocument.Version})[/]");
+                _console.MarkupLine($"[blue]Checking for content changes...[/]");
                 
                 if (settings.Verbose)
                 {
-                    AnsiConsole.MarkupLine($"[dim]Current content length: {existingDocument.Content.Length} characters[/]");
-                    AnsiConsole.MarkupLine($"[dim]New content length: {kpiDocument.Content.Length} characters[/]");
+                    _console.MarkupLine($"[dim]Current content length: {existingDocument.Content.Length} characters[/]");
+                    _console.MarkupLine($"[dim]New content length: {kpiDocument.Content.Length} characters[/]");
                 }
             }
             else
             {
-                AnsiConsole.MarkupLine($"[blue]No existing KPI document found for '{kpiDocument.DocumentName}' - will create version 0[/]");
+                _console.MarkupLine($"[blue]No existing KPI document found for '{kpiDocument.DocumentName}' - will create version 0[/]");
             }
             
             // Upload the document (versioning is handled automatically by the repository)
-            AnsiConsole.MarkupLine($"[blue]Processing KPI document...[/]");
+            _console.MarkupLine($"[blue]Processing KPI document...[/]");
             
             var savedVersion = await kpiRepository.SaveKpiDocumentAsync(
                 kpiDocument.DocumentName,
@@ -96,21 +103,21 @@ public class UploadKpiCommand : AsyncCommand<UploadKpiSettings>
                 
             if (existingDocument != null && savedVersion == existingDocument.Version)
             {
-                AnsiConsole.MarkupLine($"[green]✓ Content unchanged - KPI document '[/][white]{kpiDocument.DocumentName}[/][green]' remains at version {savedVersion}[/]");
+                _console.MarkupLine($"[green]✓ Content unchanged - KPI document '[/][white]{kpiDocument.DocumentName}[/][green]' remains at version {savedVersion}[/]");
             }
             else if (existingDocument != null)
             {
-                AnsiConsole.MarkupLine($"[green]✓ Content changed - Created new version {savedVersion} for KPI document '[/][white]{kpiDocument.DocumentName}[/][green]'[/]");
+                _console.MarkupLine($"[green]✓ Content changed - Created new version {savedVersion} for KPI document '[/][white]{kpiDocument.DocumentName}[/][green]'[/]");
             }
             else
             {
-                AnsiConsole.MarkupLine($"[green]✓ Successfully created KPI document '[/][white]{kpiDocument.DocumentName}[/][green]' as version {savedVersion}[/]");
+                _console.MarkupLine($"[green]✓ Successfully created KPI document '[/][white]{kpiDocument.DocumentName}[/][green]' as version {savedVersion}[/]");
             }
             
             if (settings.Verbose)
             {
-                AnsiConsole.MarkupLine($"[dim]Document saved to unified kpi-documents collection with community context: {kpiDocument.CommunityContext}[/]");
-                AnsiConsole.MarkupLine($"[dim]Document version: {savedVersion}[/]");
+                _console.MarkupLine($"[dim]Document saved to unified kpi-documents collection with community context: {kpiDocument.CommunityContext}[/]");
+                _console.MarkupLine($"[dim]Document version: {savedVersion}[/]");
             }
             
             return 0;
@@ -118,7 +125,7 @@ public class UploadKpiCommand : AsyncCommand<UploadKpiSettings>
         catch (Exception ex)
         {
             logger.LogError(ex, "Error in upload-kpi command");
-            AnsiConsole.MarkupLine($"[red]Error: {ex.Message}[/]");
+            _console.MarkupLine($"[red]Error: {ex.Message}[/]");
             return 1;
         }
     }

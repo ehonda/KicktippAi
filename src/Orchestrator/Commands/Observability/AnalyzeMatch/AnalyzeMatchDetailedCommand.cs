@@ -18,6 +18,13 @@ namespace Orchestrator.Commands.Observability.AnalyzeMatch;
 
 public class AnalyzeMatchDetailedCommand : AsyncCommand<AnalyzeMatchDetailedSettings>
 {
+    private readonly IAnsiConsole _console;
+
+    public AnalyzeMatchDetailedCommand(IAnsiConsole console)
+    {
+        _console = console;
+    }
+
     public override async Task<int> ExecuteAsync(CommandContext context, AnalyzeMatchDetailedSettings settings)
     {
         var loggerFactory = AnalyzeMatchCommandHelpers.CreateLoggerFactory(settings.Debug);
@@ -30,7 +37,7 @@ public class AnalyzeMatchDetailedCommand : AsyncCommand<AnalyzeMatchDetailedSett
             var validation = settings.Validate();
             if (!validation.Successful)
             {
-                AnsiConsole.MarkupLine($"[red]Error:[/] {validation.Message}");
+                _console.MarkupLine($"[red]Error:[/] {validation.Message}");
                 return 1;
             }
 
@@ -44,19 +51,19 @@ public class AnalyzeMatchDetailedCommand : AsyncCommand<AnalyzeMatchDetailedSett
 
             var communityContext = settings.CommunityContext!;
 
-            AnsiConsole.MarkupLine($"[green]Analyze match initialized with model:[/] [yellow]{settings.Model}[/]");
-            AnsiConsole.MarkupLine($"[blue]Using community context:[/] [yellow]{communityContext}[/]");
-            AnsiConsole.MarkupLine($"[blue]Runs:[/] [yellow]{settings.Runs}[/]");
+            _console.MarkupLine($"[green]Analyze match initialized with model:[/] [yellow]{settings.Model}[/]");
+            _console.MarkupLine($"[blue]Using community context:[/] [yellow]{communityContext}[/]");
+            _console.MarkupLine($"[blue]Runs:[/] [yellow]{settings.Runs}[/]");
 
             if (settings.Debug)
             {
-                AnsiConsole.MarkupLine("[dim]Debug logging enabled[/]");
+                _console.MarkupLine("[dim]Debug logging enabled[/]");
             }
 
             var match = await AnalyzeMatchCommandHelpers.ResolveMatchAsync(settings, serviceProvider, logger, communityContext);
             if (match == null)
             {
-                AnsiConsole.MarkupLine("[red]Failed to resolve match details. Aborting.[/]");
+                _console.MarkupLine("[red]Failed to resolve match details. Aborting.[/]");
                 return 1;
             }
 
@@ -75,34 +82,34 @@ public class AnalyzeMatchDetailedCommand : AsyncCommand<AnalyzeMatchDetailedSett
 
                 if (contextDocumentInfos.Any())
                 {
-                    AnsiConsole.MarkupLine("[dim]Loaded context documents:[/]");
+                    _console.MarkupLine("[dim]Loaded context documents:[/]");
                     foreach (var info in contextDocumentInfos)
                     {
-                        AnsiConsole.MarkupLine($"[grey]  • {info.Document.Name}[/] [dim](v{info.Version})[/]");
+                        _console.MarkupLine($"[grey]  • {info.Document.Name}[/] [dim](v{info.Version})[/]");
 
                         if (settings.ShowContextDocuments)
                         {
                             var lines = info.Document.Content.Split('\n');
                             foreach (var line in lines.Take(10))
                             {
-                                AnsiConsole.MarkupLine($"[grey]      {line.EscapeMarkup()}[/]");
+                                _console.MarkupLine($"[grey]      {line.EscapeMarkup()}[/]");
                             }
 
                             if (lines.Length > 10)
                             {
-                                AnsiConsole.MarkupLine($"[dim]      ... ({lines.Length - 10} more lines) ...[/]");
+                                _console.MarkupLine($"[dim]      ... ({lines.Length - 10} more lines) ...[/]");
                             }
                         }
                     }
                 }
                 else
                 {
-                    AnsiConsole.MarkupLine("[yellow]No context documents retrieved; proceeding without additional context[/]");
+                    _console.MarkupLine("[yellow]No context documents retrieved; proceeding without additional context[/]");
                 }
             }
             else
             {
-                AnsiConsole.MarkupLine("[yellow]Context repository not configured. Proceeding without context documents.[/]");
+                _console.MarkupLine("[yellow]Context repository not configured. Proceeding without context documents.[/]");
             }
 
             tokenUsageTracker.Reset();
@@ -165,7 +172,7 @@ public class AnalyzeMatchDetailedCommand : AsyncCommand<AnalyzeMatchDetailedSett
                 {
                     var stopwatch = Stopwatch.StartNew();
 
-                    AnsiConsole.MarkupLine($"[cyan]\nRun {run}/{settings.Runs}[/]");
+                    _console.MarkupLine($"[cyan]\nRun {run}/{settings.Runs}[/]");
 
                     var prediction = await predictionService.PredictMatchAsync(
                         match,
@@ -176,7 +183,7 @@ public class AnalyzeMatchDetailedCommand : AsyncCommand<AnalyzeMatchDetailedSett
 
                     if (prediction == null)
                     {
-                        AnsiConsole.MarkupLine("[red]  ✗ Prediction failed[/]");
+                        _console.MarkupLine("[red]  ✗ Prediction failed[/]");
                         runMetrics.Add(new RunMetric(run, stopwatch.Elapsed, false, null));
                         refreshSummary();
                         continue;
@@ -189,15 +196,16 @@ public class AnalyzeMatchDetailedCommand : AsyncCommand<AnalyzeMatchDetailedSett
 
                     runMetrics.Add(new RunMetric(run, stopwatch.Elapsed, true, lastCost));
 
-                    AnsiConsole.MarkupLine($"[green]  ✓ Prediction:[/] [yellow]{prediction.HomeGoals}:{prediction.AwayGoals}[/]");
+                    _console.MarkupLine($"[green]  ✓ Prediction:[/] [yellow]{prediction.HomeGoals}:{prediction.AwayGoals}[/]");
 
-                    JustificationConsoleWriter.WriteJustification(
+                    var justificationWriter = new JustificationConsoleWriter(_console);
+                    justificationWriter.WriteJustification(
                         prediction.Justification,
                         "[cyan]  ↳ Justification:[/]",
                         "      ",
                         "[yellow]  ↳ Justification: no explanation returned by model[/]");
 
-                    AnsiConsole.MarkupLine($"[magenta]  ↳ Cost:[/] [cyan]{FormatCurrencyValue(lastCost)}[/] [grey]({usageSummary})[/]");
+                    _console.MarkupLine($"[magenta]  ↳ Cost:[/] [cyan]{FormatCurrencyValue(lastCost)}[/] [grey]({usageSummary})[/]");
 
                     refreshSummary();
                 }
@@ -207,7 +215,7 @@ public class AnalyzeMatchDetailedCommand : AsyncCommand<AnalyzeMatchDetailedSett
 
             if (enableLiveEstimates)
             {
-                await AnsiConsole.Live(BuildSummary())
+                await _console.Live(BuildSummary())
                     .AutoClear(false)
                     .StartAsync(async ctx =>
                     {
@@ -224,17 +232,17 @@ public class AnalyzeMatchDetailedCommand : AsyncCommand<AnalyzeMatchDetailedSett
             else
             {
                 await ExecuteRunsAsync();
-                AnsiConsole.Write(BuildSummary());
+                _console.Write(BuildSummary());
             }
 
             if (predictions.Any())
             {
-                AnsiConsole.MarkupLine($"\n[blue]Total runs with predictions:[/] [yellow]{predictions.Count}/{settings.Runs}[/]");
-                AnsiConsole.MarkupLine($"[blue]Total cost:[/] [yellow]{FormatCurrencyValue(tokenUsageTracker.GetTotalCost())}[/]");
+                _console.MarkupLine($"\n[blue]Total runs with predictions:[/] [yellow]{predictions.Count}/{settings.Runs}[/]");
+                _console.MarkupLine($"[blue]Total cost:[/] [yellow]{FormatCurrencyValue(tokenUsageTracker.GetTotalCost())}[/]");
             }
             else
             {
-                AnsiConsole.MarkupLine("[red]No successful predictions generated.[/]");
+                _console.MarkupLine("[red]No successful predictions generated.[/]");
             }
 
             return 0;
@@ -242,7 +250,7 @@ public class AnalyzeMatchDetailedCommand : AsyncCommand<AnalyzeMatchDetailedSett
         catch (Exception ex)
         {
             logger.LogError(ex, "Error executing analyze-match command");
-            AnsiConsole.MarkupLine($"[red]Error:[/] {ex.Message}");
+            _console.MarkupLine($"[red]Error:[/] {ex.Message}");
             return 1;
         }
         finally

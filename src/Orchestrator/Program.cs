@@ -1,3 +1,5 @@
+using Microsoft.Extensions.DependencyInjection;
+using Spectre.Console;
 using Spectre.Console.Cli;
 using Orchestrator.Commands.Operations.Matchday;
 using Orchestrator.Commands.Operations.Bonus;
@@ -10,6 +12,7 @@ using Orchestrator.Commands.Utility.UploadKpi;
 using Orchestrator.Commands.Utility.UploadTransfers;
 using Orchestrator.Commands.Utility.ListKpi;
 using Orchestrator.Commands.Utility.Snapshots;
+using Orchestrator.Infrastructure;
 
 namespace Orchestrator;
 
@@ -17,7 +20,16 @@ public class Program
 {
     public static async Task<int> Main(string[] args)
     {
-        var app = new CommandApp();
+        // Dependency Injection setup follows Spectre.Console.Cli patterns:
+        // - Tutorial: https://github.com/spectreconsole/website/blob/main/Spectre.Docs/Content/cli/tutorials/dependency-injection-in-cli-apps.md
+        // - Testing: https://github.com/spectreconsole/website/blob/main/Spectre.Docs/Content/cli/how-to/testing-command-line-applications.md
+        var services = new ServiceCollection();
+        
+        // Register IAnsiConsole for dependency injection into commands
+        services.AddSingleton<IAnsiConsole>(AnsiConsole.Console);
+        
+        var registrar = new TypeRegistrar(services);
+        var app = new CommandApp(registrar);
         
         app.Configure(config =>
         {

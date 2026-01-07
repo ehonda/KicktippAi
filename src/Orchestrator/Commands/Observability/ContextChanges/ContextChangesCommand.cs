@@ -12,6 +12,13 @@ namespace Orchestrator.Commands.Observability.ContextChanges;
 /// </summary>
 public class ContextChangesCommand : AsyncCommand<ContextChangesSettings>
 {
+    private readonly IAnsiConsole _console;
+
+    public ContextChangesCommand(IAnsiConsole console)
+    {
+        _console = console;
+    }
+
     public override async Task<int> ExecuteAsync(CommandContext context, ContextChangesSettings settings)
     {
         var logger = LoggingConfiguration.CreateLogger<ContextChangesCommand>();
@@ -26,11 +33,11 @@ public class ContextChangesCommand : AsyncCommand<ContextChangesSettings>
             ConfigureServices(services, settings, logger);
             var serviceProvider = services.BuildServiceProvider();
             
-            AnsiConsole.MarkupLine($"[green]Context changes command initialized for community context:[/] [yellow]{settings.CommunityContext}[/]");
+            _console.MarkupLine($"[green]Context changes command initialized for community context:[/] [yellow]{settings.CommunityContext}[/]");
             
             if (settings.Verbose)
             {
-                AnsiConsole.MarkupLine("[dim]Verbose mode enabled[/]");
+                _console.MarkupLine("[dim]Verbose mode enabled[/]");
             }
             
             // Execute the context changes workflow
@@ -41,29 +48,29 @@ public class ContextChangesCommand : AsyncCommand<ContextChangesSettings>
         catch (Exception ex)
         {
             logger.LogError(ex, "Error executing context-changes command");
-            AnsiConsole.MarkupLine($"[red]Error:[/] {ex.Message}");
+            _console.MarkupLine($"[red]Error:[/] {ex.Message}");
             return 1;
         }
     }
     
-    private static async Task ExecuteContextChanges(IServiceProvider serviceProvider, ContextChangesSettings settings, ILogger logger)
+    private async Task ExecuteContextChanges(IServiceProvider serviceProvider, ContextChangesSettings settings, ILogger logger)
     {
         var contextRepository = serviceProvider.GetRequiredService<IContextRepository>();
         
-        AnsiConsole.MarkupLine($"[blue]Getting context document names for community:[/] [yellow]{settings.CommunityContext}[/]");
+        _console.MarkupLine($"[blue]Getting context document names for community:[/] [yellow]{settings.CommunityContext}[/]");
         
         // Get all context document names
         var allDocumentNames = await contextRepository.GetContextDocumentNamesAsync(settings.CommunityContext);
         
         if (!allDocumentNames.Any())
         {
-            AnsiConsole.MarkupLine("[yellow]No context documents found for this community[/]");
+            _console.MarkupLine("[yellow]No context documents found for this community[/]");
             return;
         }
         
         if (settings.Verbose)
         {
-            AnsiConsole.MarkupLine($"[dim]Found {allDocumentNames.Count} context document(s)[/]");
+            _console.MarkupLine($"[dim]Found {allDocumentNames.Count} context document(s)[/]");
         }
         
         // Select documents to show (either random selection or all if count is larger)
@@ -71,7 +78,7 @@ public class ContextChangesCommand : AsyncCommand<ContextChangesSettings>
         
         if (settings.Verbose && documentsToShow.Count < allDocumentNames.Count)
         {
-            AnsiConsole.MarkupLine($"[dim]Showing {documentsToShow.Count} of {allDocumentNames.Count} documents{(settings.Seed.HasValue ? $" (seed: {settings.Seed})" : "")}[/]");
+            _console.MarkupLine($"[dim]Showing {documentsToShow.Count} of {allDocumentNames.Count} documents{(settings.Seed.HasValue ? $" (seed: {settings.Seed})" : "")}[/]");
         }
         
         var changesFound = 0;
@@ -80,7 +87,7 @@ public class ContextChangesCommand : AsyncCommand<ContextChangesSettings>
         {
             if (settings.Verbose)
             {
-                AnsiConsole.MarkupLine($"[dim]Checking document: {documentName}[/]");
+                _console.MarkupLine($"[dim]Checking document: {documentName}[/]");
             }
             
             var hasChanges = await ShowDocumentChanges(contextRepository, documentName, settings.CommunityContext, settings.Verbose);
@@ -90,14 +97,14 @@ public class ContextChangesCommand : AsyncCommand<ContextChangesSettings>
             }
         }
         
-        AnsiConsole.WriteLine();
+        _console.WriteLine();
         if (changesFound == 0)
         {
-            AnsiConsole.MarkupLine("[yellow]No changes found between versions[/]");
+            _console.MarkupLine("[yellow]No changes found between versions[/]");
         }
         else
         {
-            AnsiConsole.MarkupLine($"[green]Found changes in {changesFound} document(s)[/]");
+            _console.MarkupLine($"[green]Found changes in {changesFound} document(s)[/]");
         }
     }
     
@@ -112,7 +119,7 @@ public class ContextChangesCommand : AsyncCommand<ContextChangesSettings>
         return allDocuments.OrderBy(x => random.Next()).Take(count).ToList();
     }
     
-    private static async Task<bool> ShowDocumentChanges(IContextRepository contextRepository, string documentName, string communityContext, bool verbose)
+    private async Task<bool> ShowDocumentChanges(IContextRepository contextRepository, string documentName, string communityContext, bool verbose)
     {
         try
         {
@@ -123,7 +130,7 @@ public class ContextChangesCommand : AsyncCommand<ContextChangesSettings>
             {
                 if (verbose)
                 {
-                    AnsiConsole.MarkupLine($"[dim]Document '{documentName}' not found[/]");
+                    _console.MarkupLine($"[dim]Document '{documentName}' not found[/]");
                 }
                 return false;
             }
@@ -132,7 +139,7 @@ public class ContextChangesCommand : AsyncCommand<ContextChangesSettings>
             {
                 if (verbose)
                 {
-                    AnsiConsole.MarkupLine($"[dim]Document '{documentName}' has only one version (v{latestDocument.Version})[/]");
+                    _console.MarkupLine($"[dim]Document '{documentName}' has only one version (v{latestDocument.Version})[/]");
                 }
                 return false;
             }
@@ -144,7 +151,7 @@ public class ContextChangesCommand : AsyncCommand<ContextChangesSettings>
             {
                 if (verbose)
                 {
-                    AnsiConsole.MarkupLine($"[dim]Previous version of '{documentName}' not found[/]");
+                    _console.MarkupLine($"[dim]Previous version of '{documentName}' not found[/]");
                 }
                 return false;
             }
@@ -154,7 +161,7 @@ public class ContextChangesCommand : AsyncCommand<ContextChangesSettings>
             {
                 if (verbose)
                 {
-                    AnsiConsole.MarkupLine($"[dim]Document '{documentName}' has no content changes between v{previousDocument.Version} and v{latestDocument.Version}[/]");
+                    _console.MarkupLine($"[dim]Document '{documentName}' has no content changes between v{previousDocument.Version} and v{latestDocument.Version}[/]");
                 }
                 return false;
             }
@@ -165,20 +172,20 @@ public class ContextChangesCommand : AsyncCommand<ContextChangesSettings>
         }
         catch (Exception ex)
         {
-            AnsiConsole.MarkupLine($"[red]Error processing document '{documentName}': {ex.Message}[/]");
+            _console.MarkupLine($"[red]Error processing document '{documentName}': {ex.Message}[/]");
             return false;
         }
     }
     
-    private static void ShowDocumentDiff(string documentName, ContextDocument oldDocument, ContextDocument newDocument)
+    private void ShowDocumentDiff(string documentName, ContextDocument oldDocument, ContextDocument newDocument)
     {
         var panel = new Panel($"[bold]{documentName}[/]")
             .Border(BoxBorder.Rounded)
             .BorderColor(Color.Blue);
-        AnsiConsole.Write(panel);
+        _console.Write(panel);
         
-        AnsiConsole.MarkupLine($"[dim]Changes from v{oldDocument.Version} ({oldDocument.CreatedAt:yyyy-MM-dd HH:mm}) to v{newDocument.Version} ({newDocument.CreatedAt:yyyy-MM-dd HH:mm})[/]");
-        AnsiConsole.WriteLine();
+        _console.MarkupLine($"[dim]Changes from v{oldDocument.Version} ({oldDocument.CreatedAt:yyyy-MM-dd HH:mm}) to v{newDocument.Version} ({newDocument.CreatedAt:yyyy-MM-dd HH:mm})[/]");
+        _console.WriteLine();
         
         // Simple line-by-line diff
         var oldLines = oldDocument.Content.Split('\n');
@@ -214,8 +221,8 @@ public class ContextChangesCommand : AsyncCommand<ContextChangesSettings>
             table.AddRow(lineNumber, changeType, content);
         }
         
-        AnsiConsole.Write(table);
-        AnsiConsole.WriteLine();
+        _console.Write(table);
+        _console.WriteLine();
     }
     
     private static string EscapeMarkup(string text)

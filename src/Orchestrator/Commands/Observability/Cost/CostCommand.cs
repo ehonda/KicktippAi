@@ -12,6 +12,13 @@ namespace Orchestrator.Commands.Observability.Cost;
 
 public class CostCommand : AsyncCommand<CostSettings>
 {
+    private readonly IAnsiConsole _console;
+
+    public CostCommand(IAnsiConsole console)
+    {
+        _console = console;
+    }
+
     public override async Task<int> ExecuteAsync(CommandContext context, CostSettings settings)
     {
         var logger = LoggingConfiguration.CreateLogger<CostCommand>();
@@ -33,16 +40,16 @@ public class CostCommand : AsyncCommand<CostSettings>
             ConfigureServices(services, settings, logger);
             var serviceProvider = services.BuildServiceProvider();
             
-            AnsiConsole.MarkupLine($"[green]Cost command initialized[/]");
+            _console.MarkupLine($"[green]Cost command initialized[/]");
             
             if (settings.Verbose)
             {
-                AnsiConsole.MarkupLine("[dim]Verbose mode enabled[/]");
+                _console.MarkupLine("[dim]Verbose mode enabled[/]");
             }
             
             if (settings.All)
             {
-                AnsiConsole.MarkupLine("[blue]All mode enabled - aggregating over all available data[/]");
+                _console.MarkupLine("[blue]All mode enabled - aggregating over all available data[/]");
             }
             
             var predictionRepository = serviceProvider.GetRequiredService<IPredictionRepository>();
@@ -60,11 +67,11 @@ public class CostCommand : AsyncCommand<CostSettings>
             
             if (settings.Verbose)
             {
-                AnsiConsole.MarkupLine($"[dim]Filters:[/]");
-                AnsiConsole.MarkupLine($"[dim]  Matchdays: {(matchdays?.Any() == true ? string.Join(", ", matchdays) : $"all ({availableMatchdays.Count} found)")}[/]");
-                AnsiConsole.MarkupLine($"[dim]  Models: {(models?.Any() == true ? string.Join(", ", models) : $"all ({availableModels.Count} found)")}[/]");
-                AnsiConsole.MarkupLine($"[dim]  Community Contexts: {(communityContexts?.Any() == true ? string.Join(", ", communityContexts) : $"all ({availableCommunityContexts.Count} found)")}[/]");
-                AnsiConsole.MarkupLine($"[dim]  Include Bonus: {settings.Bonus || settings.All}[/]");
+                _console.MarkupLine($"[dim]Filters:[/]");
+                _console.MarkupLine($"[dim]  Matchdays: {(matchdays?.Any() == true ? string.Join(", ", matchdays) : $"all ({availableMatchdays.Count} found)")}[/]");
+                _console.MarkupLine($"[dim]  Models: {(models?.Any() == true ? string.Join(", ", models) : $"all ({availableModels.Count} found)")}[/]");
+                _console.MarkupLine($"[dim]  Community Contexts: {(communityContexts?.Any() == true ? string.Join(", ", communityContexts) : $"all ({availableCommunityContexts.Count} found)")}[/]");
+                _console.MarkupLine($"[dim]  Include Bonus: {settings.Bonus || settings.All}[/]");
             }
             
             // Calculate costs
@@ -77,7 +84,7 @@ public class CostCommand : AsyncCommand<CostSettings>
             // Structure to store detailed breakdown data with reprediction index support
             var detailedData = new List<(string CommunityContext, string Model, string Category, int RepredictionIndex, int Count, double Cost)>();
             
-            AnsiConsole.Status()
+            _console.Status()
                 .Spinner(Spinner.Known.Dots)
                 .Start("Calculating costs...", ctx =>
                 {
@@ -89,7 +96,7 @@ public class CostCommand : AsyncCommand<CostSettings>
                             
                             if (settings.Verbose)
                             {
-                                AnsiConsole.MarkupLine($"[dim]  Processing model: {model}, community context: {communityContext}[/]");
+                                _console.MarkupLine($"[dim]  Processing model: {model}, community context: {communityContext}[/]");
                             }
                             
                             // Get match prediction costs by reprediction index
@@ -111,7 +118,7 @@ public class CostCommand : AsyncCommand<CostSettings>
                                 
                                 if (settings.Verbose && (cost > 0 || count > 0))
                                 {
-                                    AnsiConsole.MarkupLine($"[dim]    Match predictions (reprediction {repredictionIndex}): {count} documents, ${cost.ToString("F4", CultureInfo.InvariantCulture)}[/]");
+                                    _console.MarkupLine($"[dim]    Match predictions (reprediction {repredictionIndex}): {count} documents, ${cost.ToString("F4", CultureInfo.InvariantCulture)}[/]");
                                 }
                             }
                             
@@ -136,7 +143,7 @@ public class CostCommand : AsyncCommand<CostSettings>
                                     
                                     if (settings.Verbose && (cost > 0 || count > 0))
                                     {
-                                        AnsiConsole.MarkupLine($"[dim]    Bonus predictions (reprediction {repredictionIndex}): {count} documents, ${cost.ToString("F4", CultureInfo.InvariantCulture)}[/]");
+                                        _console.MarkupLine($"[dim]    Bonus predictions (reprediction {repredictionIndex}): {count} documents, ${cost.ToString("F4", CultureInfo.InvariantCulture)}[/]");
                                     }
                                 }
                             }
@@ -299,16 +306,16 @@ public class CostCommand : AsyncCommand<CostSettings>
                 table.AddRow("[bold]Total[/]", $"[bold]{(matchPredictionCount + bonusPredictionCount).ToString(CultureInfo.InvariantCulture)}[/]", $"[bold]${totalCost.ToString("F4", CultureInfo.InvariantCulture)}[/]");
             }
             
-            AnsiConsole.Write(table);
+            _console.Write(table);
             
-            AnsiConsole.MarkupLine($"[green]✓ Cost calculation completed[/]");
+            _console.MarkupLine($"[green]✓ Cost calculation completed[/]");
             
             return 0;
         }
         catch (Exception ex)
         {
             logger.LogError(ex, "Failed to calculate costs");
-            AnsiConsole.MarkupLine($"[red]✗ Failed to calculate costs: {ex.Message}[/]");
+            _console.MarkupLine($"[red]✗ Failed to calculate costs: {ex.Message}[/]");
             return 1;
         }
     }
