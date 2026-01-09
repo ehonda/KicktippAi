@@ -31,91 +31,24 @@ These provide:
 
 Commands have been refactored to accept `IAnsiConsole` via constructor injection. This enables console output verification using `TestConsole`. See [finished-preparation.md](finished-preparation.md) for details on the completed work.
 
-### Phase 1.5: Full Dependency Injection for Commands (In Progress)
+### Preparation: Full Dependency Injection for Commands (Completed)
 
-Commands currently have `IAnsiConsole` injected but still build their own `ServiceCollection` internally. Phase 1.5 addresses moving **all** command dependencies to the global DI container.
+All commands now use factory-based dependency injection instead of building their own `ServiceCollection` internally. See [finished-preparation.md](finished-preparation.md) for details on the completed work.
 
-**Architecture:**
-- **Factory pattern** for settings-dependent services (Firebase, Kicktipp, OpenAI)
-- **Idempotent registration** via `TryAdd*` methods
-- **No keyed services needed** - factories handle runtime configuration
+### Phase 2: Command-by-Command Testing
 
-**Infrastructure Created:**
+Test each command to ~100% unit test coverage with mocked dependencies.
 
-| File | Purpose |
-|------|---------|
-| `Infrastructure/Factories/IFirebaseServiceFactory.cs` | Interface for Firebase service creation |
-| `Infrastructure/Factories/FirebaseServiceFactory.cs` | Creates `FirestoreDb`, repositories |
-| `Infrastructure/Factories/IKicktippClientFactory.cs` | Interface for Kicktipp client creation |
-| `Infrastructure/Factories/KicktippClientFactory.cs` | Creates `IKicktippClient` with credentials |
-| `Infrastructure/Factories/IOpenAiServiceFactory.cs` | Interface for OpenAI service creation |
-| `Infrastructure/Factories/OpenAiServiceFactory.cs` | Creates `IPredictionService`, `ITokenUsageTracker` |
-| `Infrastructure/ServiceRegistrationExtensions.cs` | Extension methods for service registration |
+**Coverage Workflow**: When implementing tests for individual commands, follow the workflow in `.github/instructions/test-coverage.instructions.md`:
+1. Run `Generate-CoverageReport.ps1 -Projects Orchestrator.Tests` to generate coverage data
+2. Use `Get-CoverageDetails.ps1` to identify untested code areas
+3. Iterate on tests until coverage targets are met
 
-**Refactored Commands (✅ Complete):**
-- [x] `ListKpiCommand` - Uses `IFirebaseServiceFactory`
-- [x] `UploadKpiCommand` - Uses `IFirebaseServiceFactory`
-- [x] `CostCommand` - Uses `IFirebaseServiceFactory`
+### Phase 2.5: Shared Test Infrastructure (Incremental)
 
-**Remaining Commands:**
-- [ ] `UploadTransfersCommand`
-- [ ] `ContextChangesCommand`
-- [ ] `SnapshotsEncryptCommand`
-- [ ] `SnapshotsFetchCommand`
-- [ ] `SnapshotsAllCommand`
-- [ ] `AnalyzeMatchDetailedCommand`
-- [ ] `AnalyzeMatchComparisonCommand`
-- [ ] `VerifyMatchdayCommand`
-- [ ] `VerifyBonusCommand`
-- [ ] `CollectContextKicktippCommand`
-- [ ] `BonusCommand`
-- [ ] `MatchdayCommand`
+Shared test infrastructure is built incrementally as we implement command tests. We add utilities to `Orchestrator.Tests/Infrastructure/` as patterns emerge, rather than designing everything upfront—this ensures we only build what we actually need and can iterate on ergonomics based on real usage.
 
-**Testing Approach with Factories:**
-```csharp
-// In tests, mock the factory interfaces
-var mockFirebaseFactory = new Mock<IFirebaseServiceFactory>();
-var mockKpiRepository = new Mock<IKpiRepository>();
-
-mockFirebaseFactory
-    .Setup(f => f.CreateKpiRepository(It.IsAny<FirestoreDb>()))
-    .Returns(mockKpiRepository.Object);
-
-// Register mocks in TypeRegistrar
-var services = new ServiceCollection();
-services.AddSingleton<IAnsiConsole>(new TestConsole());
-services.AddSingleton(mockFirebaseFactory.Object);
-
-var registrar = new TypeRegistrar(services);
-var app = new CommandAppTester(registrar: registrar);
-```
-
-### Optional Future Refactoring
-
-**Abstract Base Command Class**: Consider introducing an abstract base class with `IAnsiConsole`:
-```csharp
-public abstract class BaseCommand<TSettings> : AsyncCommand<TSettings>
-    where TSettings : CommandSettings
-{
-    protected IAnsiConsole Console { get; }
-    
-    protected BaseCommand(IAnsiConsole console)
-    {
-        Console = console;
-    }
-}
-```
-
-**Evaluation needed**: This reduces boilerplate but adds inheritance coupling. May not be worth it given:
-- Only 15 commands total
-- Each command has unique dependencies beyond `IAnsiConsole`
-- Composition (storing `IAnsiConsole` in each command) is simpler and more flexible
-
-**Recommendation**: Defer this refactoring until after Phase 1 when all dependencies are injected. At that point, patterns may emerge that justify a base class.
-
-### Phase 2: Shared Test Infrastructure
-
-Create reusable test infrastructure in `Orchestrator.Tests`:
+Target structure:
 
 ```
 tests/Orchestrator.Tests/
@@ -148,15 +81,6 @@ Use `CommandAppTester` from `Spectre.Console.Cli.Testing` as the primary test ha
 | `Output` | Captured console output as string |
 | `Context` | The `CommandContext` from execution |
 | `Settings` | The parsed `CommandSettings` instance |
-
-### Phase 3: Command-by-Command Testing
-
-Test each command to ~100% unit test coverage with mocked dependencies.
-
-**Coverage Workflow**: When implementing tests for individual commands, follow the workflow in `.github/instructions/test-coverage.instructions.md`:
-1. Run `Generate-CoverageReport.ps1 -Projects Orchestrator.Tests` to generate coverage data
-2. Use `Get-CoverageDetails.ps1` to identify untested code areas
-3. Iterate on tests until coverage targets are met
 
 ---
 
@@ -236,21 +160,13 @@ For each command, implement tests covering:
 ## Implementation Order
 
 ### Milestone 1: Infrastructure & Shared Components
-- [x] Complete Phase 1.5 (factory-based DI for command dependencies)
-- [ ] Create `OrchestratorTestFactories.cs` with factory methods for domain objects and mocked services
+- [x] Complete preparation phases (IAnsiConsole injection, factory-based DI)
 - [ ] Test `JustificationConsoleWriter`
 - [ ] Test `BaseSettings` validation
 - [ ] Test `EnvironmentHelper`
 - [ ] Test `PathUtility`
 
 ### Milestone 2: Utility Commands (Simplest)
-- [x] DI for `ListKpiCommand`
-- [x] DI for `UploadKpiCommand`
-- [ ] DI for `UploadTransfersCommand`
-- [ ] DI for `ContextChangesCommand`
-- [ ] DI for `SnapshotsEncryptCommand`
-- [ ] DI for `SnapshotsFetchCommand`
-- [ ] DI for `SnapshotsAllCommand`
 - [ ] Test `ListKpiCommand`
 - [ ] Test `UploadKpiCommand`
 - [ ] Test `UploadTransfersCommand`
@@ -260,19 +176,11 @@ For each command, implement tests covering:
 - [ ] Test `SnapshotsAllCommand`
 
 ### Milestone 3: Observability Commands
-- [x] DI for `CostCommand`
-- [ ] DI for `AnalyzeMatchDetailedCommand`
-- [ ] DI for `AnalyzeMatchComparisonCommand`
 - [ ] Test `CostCommand`
 - [ ] Test `AnalyzeMatchDetailedCommand`
 - [ ] Test `AnalyzeMatchComparisonCommand`
 
 ### Milestone 4: Operations Commands (Most Complex)
-- [ ] DI for `VerifyMatchdayCommand`
-- [ ] DI for `VerifyBonusCommand`
-- [ ] DI for `CollectContextKicktippCommand`
-- [ ] DI for `BonusCommand`
-- [ ] DI for `MatchdayCommand`
 - [ ] Test `VerifyMatchdayCommand`
 - [ ] Test `VerifyBonusCommand`
 - [ ] Test `CollectContextKicktippCommand`
@@ -354,6 +262,6 @@ public async Task Command_handles_user_confirmation()
 ## Notes
 
 - Commands use factory pattern for service creation - factories are injected via constructor, making them easily mockable in tests
-- Some commands read from file system (`kpi-documents/`, `transfers-documents/`) - refactor to use `SolutionRelativeFileProvider` pattern (from `EHonda.KicktippAi.Core`) which can be easily mocked via `IFileProvider` in tests
-- Environment variables are loaded per-command (lazy loading) - commands only load what they need
-- Mock factory interfaces (`IFirebaseServiceFactory`, `IKicktippClientFactory`, `IOpenAiServiceFactory`) in tests rather than the underlying services directly
+- Some commands read from file system (`kpi-documents/`, `transfers-documents/`) - consider using `IFileProvider` abstraction if file system mocking is needed in tests
+- Environment variables are loaded at startup by `EnvironmentHelper` - factories lazily initialize from these cached values
+- Mock factory interfaces (`IFirebaseServiceFactory`, `IKicktippClientFactory`, `IOpenAiServiceFactory`, `IContextProviderFactory`) in tests rather than the underlying services directly
