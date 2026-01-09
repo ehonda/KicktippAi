@@ -22,9 +22,7 @@ public class SnapshotsEncryptCommand : AsyncCommand<SnapshotsEncryptSettings>
 
         try
         {
-            // Load environment to get encryption key
-            EnvironmentHelper.LoadEnvironmentVariables(logger);
-
+            // Get encryption key from environment (loaded at startup)
             var encryptionKey = Environment.GetEnvironmentVariable("KICKTIPP_FIXTURE_KEY");
             if (string.IsNullOrEmpty(encryptionKey))
             {

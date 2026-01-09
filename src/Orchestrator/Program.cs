@@ -20,6 +20,10 @@ public class Program
 {
     public static async Task<int> Main(string[] args)
     {
+        // Load environment variables once at startup
+        var startupLogger = LoggingConfiguration.CreateLogger<Program>();
+        EnvironmentHelper.LoadEnvironmentVariables(startupLogger);
+        
         // Dependency Injection setup follows Spectre.Console.Cli patterns:
         // - Tutorial: https://github.com/spectreconsole/website/blob/main/Spectre.Docs/Content/cli/tutorials/dependency-injection-in-cli-apps.md
         // - Testing: https://github.com/spectreconsole/website/blob/main/Spectre.Docs/Content/cli/how-to/testing-command-line-applications.md
@@ -27,6 +31,9 @@ public class Program
         
         // Register IAnsiConsole for dependency injection into commands
         services.AddSingleton<IAnsiConsole>(AnsiConsole.Console);
+        
+        // Register all command services (factories and shared infrastructure)
+        services.AddAllCommandServices();
         
         var registrar = new TypeRegistrar(services);
         var app = new CommandApp(registrar);

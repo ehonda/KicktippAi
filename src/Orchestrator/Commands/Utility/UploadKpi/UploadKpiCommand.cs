@@ -1,20 +1,21 @@
-using Microsoft.Extensions.DependencyInjection;
 using Microsoft.Extensions.Logging;
 using Spectre.Console.Cli;
 using Spectre.Console;
 using System.Text.Json;
 using EHonda.KicktippAi.Core;
-using FirebaseAdapter;
+using Orchestrator.Infrastructure.Factories;
 
 namespace Orchestrator.Commands.Utility.UploadKpi;
 
 public class UploadKpiCommand : AsyncCommand<UploadKpiSettings>
 {
     private readonly IAnsiConsole _console;
+    private readonly IFirebaseServiceFactory _firebaseServiceFactory;
 
-    public UploadKpiCommand(IAnsiConsole console)
+    public UploadKpiCommand(IAnsiConsole console, IFirebaseServiceFactory firebaseServiceFactory)
     {
         _console = console;
+        _firebaseServiceFactory = firebaseServiceFactory;
     }
 
     public override async Task<int> ExecuteAsync(CommandContext context, UploadKpiSettings settings)
@@ -23,14 +24,6 @@ public class UploadKpiCommand : AsyncCommand<UploadKpiSettings>
         
         try
         {
-            // Load environment variables
-            EnvironmentHelper.LoadEnvironmentVariables(logger);
-            
-            // Setup dependency injection
-            var services = new ServiceCollection();
-            ConfigureServices(services, settings, logger);
-            var serviceProvider = services.BuildServiceProvider();
-            
             _console.MarkupLine($"[green]Upload KPI command initialized for document:[/] [yellow]{settings.DocumentName}[/]");
             _console.MarkupLine($"[blue]Using community context:[/] [yellow]{settings.CommunityContext}[/]");
             
@@ -70,8 +63,8 @@ public class UploadKpiCommand : AsyncCommand<UploadKpiSettings>
                 _console.MarkupLine($"[dim]Content length: {kpiDocument.Content.Length} characters[/]");
             }
             
-            // Get Firebase KPI repository
-            var kpiRepository = serviceProvider.GetRequiredService<IKpiRepository>();
+            // Create Firebase services using factory (factory handles env var loading)
+            var kpiRepository = _firebaseServiceFactory.CreateKpiRepository();
             
             // Check if document already exists for this community context
             var existingDocument = await kpiRepository.GetKpiDocumentAsync(kpiDocument.DocumentName, kpiDocument.CommunityContext);
@@ -128,31 +121,6 @@ public class UploadKpiCommand : AsyncCommand<UploadKpiSettings>
             _console.MarkupLine($"[red]Error: {ex.Message}[/]");
             return 1;
         }
-    }
-    
-    private static void ConfigureServices(IServiceCollection services, UploadKpiSettings settings, ILogger logger)
-    {
-        // Add logging services
-        services.AddLogging();
-        
-        // Configure Firebase (no community parameter needed for unified collection)
-        services.AddFirebaseDatabase(options =>
-        {
-            var serviceAccountPath = PathUtility.GetFirebaseJsonPath();
-            var projectId = Environment.GetEnvironmentVariable("FIREBASE_PROJECT_ID");
-            
-            if (string.IsNullOrWhiteSpace(projectId))
-            {
-                throw new InvalidOperationException("FIREBASE_PROJECT_ID environment variable is required");
-            }
-            
-            options.ServiceAccountPath = serviceAccountPath;
-            options.ProjectId = projectId;
-            
-            logger.LogDebug("Firebase configured with project ID: {ProjectId}", projectId);
-        });
-        
-        logger.LogDebug("Services configured for upload-kpi command");
     }
     
     /// <summary>

@@ -1,9 +1,8 @@
 using EHonda.KicktippAi.Core;
-using Microsoft.Extensions.DependencyInjection;
 using Microsoft.Extensions.Logging;
 using Spectre.Console.Cli;
 using Spectre.Console;
-using FirebaseAdapter;
+using Orchestrator.Infrastructure.Factories;
 
 namespace Orchestrator.Commands.Observability.ContextChanges;
 
@@ -13,10 +12,12 @@ namespace Orchestrator.Commands.Observability.ContextChanges;
 public class ContextChangesCommand : AsyncCommand<ContextChangesSettings>
 {
     private readonly IAnsiConsole _console;
+    private readonly IFirebaseServiceFactory _firebaseServiceFactory;
 
-    public ContextChangesCommand(IAnsiConsole console)
+    public ContextChangesCommand(IAnsiConsole console, IFirebaseServiceFactory firebaseServiceFactory)
     {
         _console = console;
+        _firebaseServiceFactory = firebaseServiceFactory;
     }
 
     public override async Task<int> ExecuteAsync(CommandContext context, ContextChangesSettings settings)
@@ -25,14 +26,6 @@ public class ContextChangesCommand : AsyncCommand<ContextChangesSettings>
         
         try
         {
-            // Load environment variables
-            EnvironmentHelper.LoadEnvironmentVariables(logger);
-            
-            // Setup dependency injection
-            var services = new ServiceCollection();
-            ConfigureServices(services, settings, logger);
-            var serviceProvider = services.BuildServiceProvider();
-            
             _console.MarkupLine($"[green]Context changes command initialized for community context:[/] [yellow]{settings.CommunityContext}[/]");
             
             if (settings.Verbose)
@@ -41,7 +34,7 @@ public class ContextChangesCommand : AsyncCommand<ContextChangesSettings>
             }
             
             // Execute the context changes workflow
-            await ExecuteContextChanges(serviceProvider, settings, logger);
+            await ExecuteContextChanges(settings, logger);
             
             return 0;
         }
@@ -53,9 +46,10 @@ public class ContextChangesCommand : AsyncCommand<ContextChangesSettings>
         }
     }
     
-    private async Task ExecuteContextChanges(IServiceProvider serviceProvider, ContextChangesSettings settings, ILogger logger)
+    private async Task ExecuteContextChanges(ContextChangesSettings settings, ILogger logger)
     {
-        var contextRepository = serviceProvider.GetRequiredService<IContextRepository>();
+        // Create context repository using factory (factory handles env var loading)
+        var contextRepository = _firebaseServiceFactory.CreateContextRepository();
         
         _console.MarkupLine($"[blue]Getting context document names for community:[/] [yellow]{settings.CommunityContext}[/]");
         
@@ -268,31 +262,6 @@ public class ContextChangesCommand : AsyncCommand<ContextChangesSettings>
         }
         
         return result;
-    }
-    
-    private static void ConfigureServices(IServiceCollection services, ContextChangesSettings settings, ILogger logger)
-    {
-        // Add logging services
-        services.AddLogging();
-        
-        // Configure Firebase
-        services.AddFirebaseDatabase(options =>
-        {
-            var serviceAccountPath = PathUtility.GetFirebaseJsonPath();
-            var projectId = Environment.GetEnvironmentVariable("FIREBASE_PROJECT_ID");
-            
-            if (string.IsNullOrWhiteSpace(projectId))
-            {
-                throw new InvalidOperationException("FIREBASE_PROJECT_ID environment variable is required");
-            }
-            
-            options.ServiceAccountPath = serviceAccountPath;
-            options.ProjectId = projectId;
-            
-            logger.LogDebug("Firebase configured with project ID: {ProjectId}", projectId);
-        });
-        
-        logger.LogDebug("Services configured for context-changes command");
     }
 }
 

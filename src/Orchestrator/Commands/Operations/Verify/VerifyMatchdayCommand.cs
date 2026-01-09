@@ -1,20 +1,26 @@
 using EHonda.KicktippAi.Core;
-using Microsoft.Extensions.DependencyInjection;
 using Microsoft.Extensions.Logging;
 using Spectre.Console.Cli;
 using Spectre.Console;
 using KicktippIntegration;
-using FirebaseAdapter;
+using Orchestrator.Infrastructure.Factories;
 
 namespace Orchestrator.Commands.Operations.Verify;
 
 public class VerifyMatchdayCommand : AsyncCommand<VerifySettings>
 {
     private readonly IAnsiConsole _console;
+    private readonly IFirebaseServiceFactory _firebaseServiceFactory;
+    private readonly IKicktippClientFactory _kicktippClientFactory;
 
-    public VerifyMatchdayCommand(IAnsiConsole console)
+    public VerifyMatchdayCommand(
+        IAnsiConsole console,
+        IFirebaseServiceFactory firebaseServiceFactory,
+        IKicktippClientFactory kicktippClientFactory)
     {
         _console = console;
+        _firebaseServiceFactory = firebaseServiceFactory;
+        _kicktippClientFactory = kicktippClientFactory;
     }
 
     public override async Task<int> ExecuteAsync(CommandContext context, VerifySettings settings)
@@ -23,14 +29,6 @@ public class VerifyMatchdayCommand : AsyncCommand<VerifySettings>
         
         try
         {
-            // Load environment variables
-            EnvironmentHelper.LoadEnvironmentVariables(logger);
-            
-            // Setup dependency injection
-            var services = new ServiceCollection();
-            ConfigureServices(services, settings, logger);
-            var serviceProvider = services.BuildServiceProvider();
-            
             _console.MarkupLine($"[green]Verify matchday command initialized[/]");
             
             if (settings.Verbose)
@@ -54,7 +52,7 @@ public class VerifyMatchdayCommand : AsyncCommand<VerifySettings>
             }
             
             // Execute the verification workflow
-            var hasDiscrepancies = await ExecuteVerificationWorkflow(serviceProvider, settings, logger);
+            var hasDiscrepancies = await ExecuteVerificationWorkflow(settings, logger);
             
             return hasDiscrepancies ? 1 : 0;
         }
@@ -66,12 +64,12 @@ public class VerifyMatchdayCommand : AsyncCommand<VerifySettings>
         }
     }
     
-    private async Task<bool> ExecuteVerificationWorkflow(IServiceProvider serviceProvider, VerifySettings settings, ILogger logger)
+    private async Task<bool> ExecuteVerificationWorkflow(VerifySettings settings, ILogger logger)
     {
-        var kicktippClient = serviceProvider.GetRequiredService<IKicktippClient>();
+        var kicktippClient = _kicktippClientFactory.CreateClient();
         
         // Try to get the prediction repository (may be null if Firebase is not configured)
-        var predictionRepository = serviceProvider.GetService<IPredictionRepository>();
+        var predictionRepository = _firebaseServiceFactory.CreatePredictionRepository();
         if (predictionRepository == null)
         {
             _console.MarkupLine("[red]Error: Database not configured. Cannot verify predictions without database access.[/]");
@@ -80,7 +78,7 @@ public class VerifyMatchdayCommand : AsyncCommand<VerifySettings>
         }
         
         // Get context repository for outdated checks (may be null if Firebase is not configured)
-        var contextRepository = serviceProvider.GetService<IContextRepository>();
+        var contextRepository = _firebaseServiceFactory.CreateContextRepository();
         if (settings.CheckOutdated && contextRepository == null)
         {
             _console.MarkupLine("[red]Error: Database not configured. Cannot check outdated predictions without database access.[/]");
@@ -264,45 +262,6 @@ public class VerifyMatchdayCommand : AsyncCommand<VerifySettings>
         // Both have values - compare
         return kicktippPrediction.HomeGoals == databasePrediction.HomeGoals &&
                kicktippPrediction.AwayGoals == databasePrediction.AwayGoals;
-    }
-    
-    private static void ConfigureServices(IServiceCollection services, VerifySettings settings, ILogger logger)
-    {
-        // Add logging
-        services.AddSingleton(logger);
-        
-        // Get Kicktipp credentials from environment
-        var username = Environment.GetEnvironmentVariable("KICKTIPP_USERNAME");
-        var password = Environment.GetEnvironmentVariable("KICKTIPP_PASSWORD");
-        if (string.IsNullOrEmpty(username) || string.IsNullOrEmpty(password))
-        {
-            throw new InvalidOperationException("KICKTIPP_USERNAME and KICKTIPP_PASSWORD environment variables are required");
-        }
-        
-        // Configure Kicktipp credentials
-        services.Configure<KicktippOptions>(options =>
-        {
-            options.Username = username;
-            options.Password = password;
-        });
-        
-        // Add Kicktipp integration
-        services.AddKicktippClient();
-        
-        // Add Firebase database if credentials are available
-        var firebaseProjectId = Environment.GetEnvironmentVariable("FIREBASE_PROJECT_ID");
-        var firebaseServiceAccountJson = Environment.GetEnvironmentVariable("FIREBASE_SERVICE_ACCOUNT_JSON");
-        
-        if (!string.IsNullOrEmpty(firebaseProjectId) && !string.IsNullOrEmpty(firebaseServiceAccountJson))
-        {
-            services.AddFirebaseDatabase(firebaseProjectId, firebaseServiceAccountJson, settings.Community);
-            logger.LogInformation("Firebase database integration enabled for project: {ProjectId}, community: {Community}", firebaseProjectId, settings.Community);
-        }
-        else
-        {
-            logger.LogWarning("Firebase credentials not found. Database integration disabled.");
-            logger.LogInformation("Set FIREBASE_PROJECT_ID and FIREBASE_SERVICE_ACCOUNT_JSON environment variables to enable database features");
-        }
     }
     
     private async Task<bool> CheckPredictionOutdated(IPredictionRepository predictionRepository, IContextRepository contextRepository, Match match, string model, string communityContext, bool verbose)

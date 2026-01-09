@@ -1,11 +1,8 @@
-using Microsoft.Extensions.DependencyInjection;
 using Microsoft.Extensions.Logging;
 using Spectre.Console.Cli;
 using Spectre.Console;
-using KicktippIntegration;
-using ContextProviders.Kicktipp;
 using EHonda.KicktippAi.Core;
-using FirebaseAdapter;
+using Orchestrator.Infrastructure.Factories;
 
 namespace Orchestrator.Commands.Operations.CollectContext;
 
@@ -15,10 +12,20 @@ namespace Orchestrator.Commands.Operations.CollectContext;
 public class CollectContextKicktippCommand : AsyncCommand<CollectContextKicktippSettings>
 {
     private readonly IAnsiConsole _console;
+    private readonly IFirebaseServiceFactory _firebaseServiceFactory;
+    private readonly IKicktippClientFactory _kicktippClientFactory;
+    private readonly IContextProviderFactory _contextProviderFactory;
 
-    public CollectContextKicktippCommand(IAnsiConsole console)
+    public CollectContextKicktippCommand(
+        IAnsiConsole console,
+        IFirebaseServiceFactory firebaseServiceFactory,
+        IKicktippClientFactory kicktippClientFactory,
+        IContextProviderFactory contextProviderFactory)
     {
         _console = console;
+        _firebaseServiceFactory = firebaseServiceFactory;
+        _kicktippClientFactory = kicktippClientFactory;
+        _contextProviderFactory = contextProviderFactory;
     }
 
     public override async Task<int> ExecuteAsync(CommandContext context, CollectContextKicktippSettings settings)
@@ -34,14 +41,6 @@ public class CollectContextKicktippCommand : AsyncCommand<CollectContextKicktipp
                 return 1;
             }
             
-            // Load environment variables
-            EnvironmentHelper.LoadEnvironmentVariables(logger);
-            
-            // Setup dependency injection
-            var services = new ServiceCollection();
-            ConfigureServices(services, settings, logger);
-            var serviceProvider = services.BuildServiceProvider();
-            
             _console.MarkupLine($"[green]Collect-context kicktipp command initialized[/]");
             
             if (settings.Verbose)
@@ -55,7 +54,7 @@ public class CollectContextKicktippCommand : AsyncCommand<CollectContextKicktipp
             }
             
             // Execute the context collection workflow
-            await ExecuteKicktippContextCollection(serviceProvider, settings, logger);
+            await ExecuteKicktippContextCollection(settings, logger);
             
             return 0;
         }
@@ -67,17 +66,15 @@ public class CollectContextKicktippCommand : AsyncCommand<CollectContextKicktipp
         }
     }
 
-    private async Task ExecuteKicktippContextCollection(IServiceProvider serviceProvider, CollectContextKicktippSettings settings, ILogger logger)
+    private async Task ExecuteKicktippContextCollection(CollectContextKicktippSettings settings, ILogger logger)
     {
-        var kicktippClient = serviceProvider.GetRequiredService<IKicktippClient>();
-        var contextProvider = serviceProvider.GetRequiredService<KicktippContextProvider>();
-        var contextRepository = serviceProvider.GetService<IContextRepository>();
+        // Create services using factories (factories handle env var loading)
+        var kicktippClient = _kicktippClientFactory.CreateClient();
+        var contextRepository = _firebaseServiceFactory.CreateContextRepository();
         
-        if (contextRepository == null)
-        {
-            _console.MarkupLine("[red]Database not available - context repository not configured[/]");
-            return;
-        }
+        // Create context provider using factory
+        var contextProvider = _contextProviderFactory.CreateKicktippContextProvider(
+            kicktippClient, settings.CommunityContext, settings.CommunityContext);
         
         _console.MarkupLine($"[blue]Using community context:[/] [yellow]{settings.CommunityContext}[/]");
         _console.MarkupLine("[blue]Getting current matchday matches...[/]");
@@ -198,53 +195,6 @@ public class CollectContextKicktippCommand : AsyncCommand<CollectContextKicktipp
             _console.MarkupLine($"[green]  Saved: {savedCount} documents[/]");
             _console.MarkupLine($"[dim]  Skipped: {skippedCount} documents (unchanged)[/]");
         }
-    }
-    
-    private static void ConfigureServices(IServiceCollection services, CollectContextKicktippSettings settings, ILogger logger)
-    {
-        // Add logging
-        services.AddSingleton(logger);
-        
-        // Get Kicktipp credentials from environment
-        var username = Environment.GetEnvironmentVariable("KICKTIPP_USERNAME");
-        var password = Environment.GetEnvironmentVariable("KICKTIPP_PASSWORD");
-        if (string.IsNullOrEmpty(username) || string.IsNullOrEmpty(password))
-        {
-            throw new InvalidOperationException("KICKTIPP_USERNAME and KICKTIPP_PASSWORD environment variables are required");
-        }
-        
-        // Configure Kicktipp credentials
-        services.Configure<KicktippOptions>(options =>
-        {
-            options.Username = username;
-            options.Password = password;
-        });
-        
-        // Add Kicktipp integration
-        services.AddKicktippClient();
-        
-        // Add Firebase database if credentials are available
-        var firebaseProjectId = Environment.GetEnvironmentVariable("FIREBASE_PROJECT_ID");
-        var firebaseServiceAccountJson = Environment.GetEnvironmentVariable("FIREBASE_SERVICE_ACCOUNT_JSON");
-        
-        if (!string.IsNullOrEmpty(firebaseProjectId) && !string.IsNullOrEmpty(firebaseServiceAccountJson))
-        {
-            services.AddFirebaseDatabase(firebaseProjectId, firebaseServiceAccountJson, settings.CommunityContext);
-            logger.LogInformation("Firebase database integration enabled for project: {ProjectId}, community: {Community}", firebaseProjectId, settings.CommunityContext);
-        }
-        else
-        {
-            logger.LogWarning("Firebase credentials not found. Database integration disabled.");
-            logger.LogInformation("Set FIREBASE_PROJECT_ID and FIREBASE_SERVICE_ACCOUNT_JSON environment variables to enable database features");
-        }
-        
-        // Add context provider
-        services.AddSingleton<KicktippContextProvider>(provider =>
-        {
-            var kicktippClient = provider.GetRequiredService<IKicktippClient>();
-            var communityRulesFileProvider = CommunityRulesFileProvider.Create();
-            return new KicktippContextProvider(kicktippClient, communityRulesFileProvider, settings.CommunityContext, settings.CommunityContext);
-        });
     }
     
     private static bool IsHistoryDocument(string documentName)

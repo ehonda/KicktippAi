@@ -1,16 +1,9 @@
-using System;
-using System.Collections.Generic;
-using System.Linq;
 using System.Text;
-using System.Threading.Tasks;
 using EHonda.KicktippAi.Core;
-using Microsoft.Extensions.DependencyInjection;
 using Microsoft.Extensions.Logging;
 using Spectre.Console;
 using FirebaseAdapter;
-using OpenAiIntegration;
 using KicktippIntegration;
-using Orchestrator.Commands.Shared;
 
 namespace Orchestrator.Commands.Observability.AnalyzeMatch;
 
@@ -32,64 +25,12 @@ internal static class AnalyzeMatchCommandHelpers
         });
     }
 
-    public static void ConfigureServices(IServiceCollection services, AnalyzeMatchBaseSettings settings, ILogger logger)
-    {
-        services.AddLogging(builder =>
-        {
-            builder.AddSimpleConsole(options =>
-            {
-                options.SingleLine = true;
-                options.IncludeScopes = false;
-                options.ColorBehavior = Microsoft.Extensions.Logging.Console.LoggerColorBehavior.Enabled;
-            });
-            builder.SetMinimumLevel(settings.Debug ? LogLevel.Information : LogLevel.Error);
-        });
-
-        services.AddSingleton(logger);
-
-        var apiKey = Environment.GetEnvironmentVariable("OPENAI_API_KEY");
-        if (string.IsNullOrWhiteSpace(apiKey))
-        {
-            throw new InvalidOperationException("OPENAI_API_KEY environment variable is required");
-        }
-
-        services.AddOpenAiPredictor(apiKey, settings.Model);
-
-        var firebaseProjectId = Environment.GetEnvironmentVariable("FIREBASE_PROJECT_ID");
-        var firebaseServiceAccountJson = Environment.GetEnvironmentVariable("FIREBASE_SERVICE_ACCOUNT_JSON");
-
-        if (!string.IsNullOrWhiteSpace(firebaseProjectId) && !string.IsNullOrWhiteSpace(firebaseServiceAccountJson))
-        {
-            services.AddFirebaseDatabase(firebaseProjectId, firebaseServiceAccountJson, settings.CommunityContext);
-            logger.LogInformation("Firebase database integration enabled for project: {ProjectId}", firebaseProjectId);
-        }
-        else
-        {
-            logger.LogWarning("Firebase credentials not found; context documents will not be loaded from database");
-        }
-
-        var username = Environment.GetEnvironmentVariable("KICKTIPP_USERNAME");
-        var password = Environment.GetEnvironmentVariable("KICKTIPP_PASSWORD");
-
-        if (!string.IsNullOrWhiteSpace(username) && !string.IsNullOrWhiteSpace(password))
-        {
-            services.Configure<KicktippOptions>(options =>
-            {
-                options.Username = username;
-                options.Password = password;
-            });
-
-            services.AddKicktippClient();
-        }
-    }
-
     public static async Task<Match?> ResolveMatchAsync(
         AnalyzeMatchBaseSettings settings,
-        IServiceProvider serviceProvider,
+        IKicktippClient? kicktippClient,
         ILogger logger,
         string communityContext)
     {
-        var kicktippClient = serviceProvider.GetService<IKicktippClient>();
 
         if (kicktippClient != null)
         {

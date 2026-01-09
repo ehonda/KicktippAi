@@ -1,7 +1,7 @@
-using Microsoft.Extensions.DependencyInjection;
 using Microsoft.Extensions.Logging;
 using Spectre.Console;
 using Spectre.Console.Cli;
+using Orchestrator.Infrastructure.Factories;
 
 namespace Orchestrator.Commands.Utility.Snapshots;
 
@@ -11,10 +11,12 @@ namespace Orchestrator.Commands.Utility.Snapshots;
 public class SnapshotsAllCommand : AsyncCommand<SnapshotsAllSettings>
 {
     private readonly IAnsiConsole _console;
+    private readonly IKicktippClientFactory _kicktippClientFactory;
 
-    public SnapshotsAllCommand(IAnsiConsole console)
+    public SnapshotsAllCommand(IAnsiConsole console, IKicktippClientFactory kicktippClientFactory)
     {
         _console = console;
+        _kicktippClientFactory = kicktippClientFactory;
     }
 
     public override async Task<int> ExecuteAsync(CommandContext context, SnapshotsAllSettings settings)
@@ -30,10 +32,7 @@ public class SnapshotsAllCommand : AsyncCommand<SnapshotsAllSettings>
                 return 1;
             }
 
-            // Load environment variables
-            EnvironmentHelper.LoadEnvironmentVariables(logger);
-
-            // Check encryption key early
+            // Check encryption key early (loaded at startup)
             var encryptionKey = Environment.GetEnvironmentVariable("KICKTIPP_FIXTURE_KEY");
             if (string.IsNullOrEmpty(encryptionKey))
             {
@@ -50,21 +49,14 @@ public class SnapshotsAllCommand : AsyncCommand<SnapshotsAllSettings>
             _console.MarkupLine($"[blue]Output directory:[/] [yellow]{settings.OutputDirectory}[/]");
             _console.WriteLine();
 
-            // Setup dependency injection for fetching
-            var services = new ServiceCollection();
-            SnapshotsFetchCommand.ConfigureServices(services, logger);
-            var serviceProvider = services.BuildServiceProvider();
-
             var snapshotsPath = Path.GetFullPath(settings.SnapshotsDirectory);
             var outputPath = Path.GetFullPath(settings.OutputDirectory);
 
             // Create snapshots directory
             Directory.CreateDirectory(snapshotsPath);
 
-            // Create snapshot client
-            var httpClientFactory = serviceProvider.GetRequiredService<IHttpClientFactory>();
-            var httpClient = httpClientFactory.CreateClient("Kicktipp");
-            var snapshotClient = new SnapshotClient(httpClient, logger);
+            // Create snapshot client using factory (factory handles env var loading)
+            var snapshotClient = _kicktippClientFactory.CreateSnapshotClient();
 
             // Step 1: Fetch snapshots
             _console.MarkupLine("[bold]Step 1: Fetching snapshots[/]");

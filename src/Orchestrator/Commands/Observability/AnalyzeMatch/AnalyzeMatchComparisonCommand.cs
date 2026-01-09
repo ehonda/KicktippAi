@@ -5,22 +5,31 @@ using System.Globalization;
 using System.Linq;
 using System.Threading.Tasks;
 using EHonda.KicktippAi.Core;
-using Microsoft.Extensions.DependencyInjection;
 using Microsoft.Extensions.Logging;
 using Spectre.Console;
 using Spectre.Console.Cli;
-using FirebaseAdapter;
 using OpenAiIntegration;
+using Orchestrator.Infrastructure.Factories;
 
 namespace Orchestrator.Commands.Observability.AnalyzeMatch;
 
 public class AnalyzeMatchComparisonCommand : AsyncCommand<AnalyzeMatchComparisonSettings>
 {
     private readonly IAnsiConsole _console;
+    private readonly IFirebaseServiceFactory _firebaseServiceFactory;
+    private readonly IKicktippClientFactory _kicktippClientFactory;
+    private readonly IOpenAiServiceFactory _openAiServiceFactory;
 
-    public AnalyzeMatchComparisonCommand(IAnsiConsole console)
+    public AnalyzeMatchComparisonCommand(
+        IAnsiConsole console,
+        IFirebaseServiceFactory firebaseServiceFactory,
+        IKicktippClientFactory kicktippClientFactory,
+        IOpenAiServiceFactory openAiServiceFactory)
     {
         _console = console;
+        _firebaseServiceFactory = firebaseServiceFactory;
+        _kicktippClientFactory = kicktippClientFactory;
+        _openAiServiceFactory = openAiServiceFactory;
     }
 
     public override async Task<int> ExecuteAsync(CommandContext context, AnalyzeMatchComparisonSettings settings)
@@ -30,8 +39,6 @@ public class AnalyzeMatchComparisonCommand : AsyncCommand<AnalyzeMatchComparison
 
         try
         {
-            EnvironmentHelper.LoadEnvironmentVariables(logger);
-
             var validation = settings.Validate();
             if (!validation.Successful)
             {
@@ -39,13 +46,10 @@ public class AnalyzeMatchComparisonCommand : AsyncCommand<AnalyzeMatchComparison
                 return 1;
             }
 
-            var services = new ServiceCollection();
-            AnalyzeMatchCommandHelpers.ConfigureServices(services, settings, logger);
-            using var serviceProvider = services.BuildServiceProvider();
-
-            var predictionService = serviceProvider.GetRequiredService<IPredictionService>();
-            var tokenUsageTracker = serviceProvider.GetRequiredService<ITokenUsageTracker>();
-            var contextRepository = serviceProvider.GetService<IContextRepository>();
+            var predictionService = _openAiServiceFactory.CreatePredictionService(settings.Model);
+            var tokenUsageTracker = _openAiServiceFactory.GetTokenUsageTracker();
+            var contextRepository = _firebaseServiceFactory.CreateContextRepository();
+            var kicktippClient = _kicktippClientFactory.CreateClient();
 
             var communityContext = settings.CommunityContext!;
 
@@ -58,7 +62,7 @@ public class AnalyzeMatchComparisonCommand : AsyncCommand<AnalyzeMatchComparison
                 _console.MarkupLine("[dim]Debug logging enabled[/]");
             }
 
-            var match = await AnalyzeMatchCommandHelpers.ResolveMatchAsync(settings, serviceProvider, logger, communityContext);
+            var match = await AnalyzeMatchCommandHelpers.ResolveMatchAsync(settings, kicktippClient, logger, communityContext);
             if (match == null)
             {
                 _console.MarkupLine("[red]Failed to resolve match details. Aborting.[/]");

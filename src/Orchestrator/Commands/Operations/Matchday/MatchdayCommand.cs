@@ -1,4 +1,3 @@
-using Microsoft.Extensions.DependencyInjection;
 using Microsoft.Extensions.Logging;
 using Spectre.Console.Cli;
 using Spectre.Console;
@@ -6,18 +5,31 @@ using KicktippIntegration;
 using OpenAiIntegration;
 using ContextProviders.Kicktipp;
 using EHonda.KicktippAi.Core;
-using FirebaseAdapter;
 using Orchestrator.Commands.Shared;
+using Orchestrator.Infrastructure.Factories;
 
 namespace Orchestrator.Commands.Operations.Matchday;
 
 public class MatchdayCommand : AsyncCommand<BaseSettings>
 {
     private readonly IAnsiConsole _console;
+    private readonly IFirebaseServiceFactory _firebaseServiceFactory;
+    private readonly IKicktippClientFactory _kicktippClientFactory;
+    private readonly IOpenAiServiceFactory _openAiServiceFactory;
+    private readonly IContextProviderFactory _contextProviderFactory;
 
-    public MatchdayCommand(IAnsiConsole console)
+    public MatchdayCommand(
+        IAnsiConsole console,
+        IFirebaseServiceFactory firebaseServiceFactory,
+        IKicktippClientFactory kicktippClientFactory,
+        IOpenAiServiceFactory openAiServiceFactory,
+        IContextProviderFactory contextProviderFactory)
     {
         _console = console;
+        _firebaseServiceFactory = firebaseServiceFactory;
+        _kicktippClientFactory = kicktippClientFactory;
+        _openAiServiceFactory = openAiServiceFactory;
+        _contextProviderFactory = contextProviderFactory;
     }
 
     public override async Task<int> ExecuteAsync(CommandContext context, BaseSettings settings)
@@ -26,14 +38,6 @@ public class MatchdayCommand : AsyncCommand<BaseSettings>
         
         try
         {
-            // Load environment variables
-            EnvironmentHelper.LoadEnvironmentVariables(logger);
-            
-            // Setup dependency injection
-            var services = new ServiceCollection();
-            ConfigureServices(services, settings, logger);
-            var serviceProvider = services.BuildServiceProvider();
-            
             _console.MarkupLine($"[green]Matchday command initialized with model:[/] [yellow]{settings.Model}[/]");
             
             if (settings.Verbose)
@@ -97,7 +101,7 @@ public class MatchdayCommand : AsyncCommand<BaseSettings>
             }
             
             // Execute the matchday workflow
-            await ExecuteMatchdayWorkflow(serviceProvider, settings, logger);
+            await ExecuteMatchdayWorkflow(settings, logger);
             
             return 0;
         }
@@ -109,12 +113,18 @@ public class MatchdayCommand : AsyncCommand<BaseSettings>
         }
     }
     
-    private async Task ExecuteMatchdayWorkflow(IServiceProvider serviceProvider, BaseSettings settings, ILogger logger)
+    private async Task ExecuteMatchdayWorkflow(BaseSettings settings, ILogger logger)
     {
-        var kicktippClient = serviceProvider.GetRequiredService<IKicktippClient>();
-        var predictionService = serviceProvider.GetRequiredService<IPredictionService>();
-        var contextProvider = serviceProvider.GetRequiredService<KicktippContextProvider>();
-        var tokenUsageTracker = serviceProvider.GetService<ITokenUsageTracker>();
+        // Create services using factories
+        var kicktippClient = _kicktippClientFactory.CreateClient();
+        var predictionService = _openAiServiceFactory.CreatePredictionService(settings.Model);
+        
+        // Create context provider using factory
+        string communityContext = settings.CommunityContext ?? settings.Community;
+        var contextProvider = _contextProviderFactory.CreateKicktippContextProvider(
+            kicktippClient, settings.Community, communityContext);
+        
+        var tokenUsageTracker = _openAiServiceFactory.GetTokenUsageTracker();
         
         // Log the prompt paths being used
         if (settings.Verbose)
@@ -122,17 +132,13 @@ public class MatchdayCommand : AsyncCommand<BaseSettings>
             _console.MarkupLine($"[dim]Match prompt:[/] [blue]{predictionService.GetMatchPromptPath(settings.WithJustification)}[/]");
         }
         
-        // Try to get the prediction repository (may be null if Firebase is not configured)
-        var predictionRepository = serviceProvider.GetService<IPredictionRepository>();
-        // Get the context repository (required)
-        var contextRepository = serviceProvider.GetRequiredService<IContextRepository>();
-        var databaseEnabled = predictionRepository != null;
+        // Create repositories
+        var predictionRepository = _firebaseServiceFactory.CreatePredictionRepository();
+        var contextRepository = _firebaseServiceFactory.CreateContextRepository();
+        var databaseEnabled = true;
         
         // Reset token usage tracker for this workflow
-        tokenUsageTracker?.Reset();
-        
-        // Determine community context (use explicit setting or fall back to community name)
-        string communityContext = settings.CommunityContext ?? settings.Community;
+        tokenUsageTracker.Reset();
         
         _console.MarkupLine($"[blue]Using community:[/] [yellow]{settings.Community}[/]");
         _console.MarkupLine($"[blue]Using community context:[/] [yellow]{communityContext}[/]");
@@ -318,15 +324,9 @@ public class MatchdayCommand : AsyncCommand<BaseSettings>
                             try
                             {
                                 // Get token usage and cost information
-                                string tokenUsageJson = "{}"; // Default empty JSON
-                                double cost = 0.0;
-                                
-                                if (tokenUsageTracker != null)
-                                {
-                                    cost = (double)tokenUsageTracker.GetLastCost(); // Get the cost for this individual match
-                                    // Use the new GetLastUsageJson method to get full JSON
-                                    tokenUsageJson = tokenUsageTracker.GetLastUsageJson() ?? "{}";
-                                }
+                                var cost = (double)tokenUsageTracker.GetLastCost(); // Get the cost for this individual match
+                                // Use the new GetLastUsageJson method to get full JSON
+                                var tokenUsageJson = tokenUsageTracker.GetLastUsageJson() ?? "{}";
                                 
                                 if (settings.IsRepredictMode)
                                 {
@@ -380,7 +380,7 @@ public class MatchdayCommand : AsyncCommand<BaseSettings>
                         }
                         
                         // Show individual match token usage in verbose mode
-                        if (settings.Verbose && tokenUsageTracker != null)
+                        if (settings.Verbose)
                         {
                             var matchUsage = !string.IsNullOrEmpty(settings.EstimatedCostsModel)
                                 ? tokenUsageTracker.GetLastUsageCompactSummaryWithEstimatedCosts(settings.EstimatedCostsModel)
@@ -439,13 +439,10 @@ public class MatchdayCommand : AsyncCommand<BaseSettings>
         }
         
         // Display token usage summary
-        if (tokenUsageTracker != null)
-        {
-            var summary = !string.IsNullOrEmpty(settings.EstimatedCostsModel)
-                ? tokenUsageTracker.GetCompactSummaryWithEstimatedCosts(settings.EstimatedCostsModel)
-                : tokenUsageTracker.GetCompactSummary();
-            _console.MarkupLine($"[dim]Token usage (uncached/cached/reasoning/output/$cost): {summary}[/]");
-        }
+        var summary = !string.IsNullOrEmpty(settings.EstimatedCostsModel)
+            ? tokenUsageTracker.GetCompactSummaryWithEstimatedCosts(settings.EstimatedCostsModel)
+            : tokenUsageTracker.GetCompactSummary();
+        _console.MarkupLine($"[dim]Token usage (uncached/cached/reasoning/output/$cost): {summary}[/]");
     }
     
     /// <summary>
@@ -666,61 +663,6 @@ public class MatchdayCommand : AsyncCommand<BaseSettings>
         }
         
         return abbr.Length > 0 ? abbr.ToString() : "unknown";
-    }
-    
-    private static void ConfigureServices(IServiceCollection services, BaseSettings settings, ILogger logger)
-    {
-        // Add logging
-        services.AddSingleton(logger);
-        
-        // Get API key from environment
-        var apiKey = Environment.GetEnvironmentVariable("OPENAI_API_KEY");
-        if (string.IsNullOrEmpty(apiKey))
-        {
-            throw new InvalidOperationException("OPENAI_API_KEY environment variable is required");
-        }
-        
-        // Get Kicktipp credentials from environment
-        var username = Environment.GetEnvironmentVariable("KICKTIPP_USERNAME");
-        var password = Environment.GetEnvironmentVariable("KICKTIPP_PASSWORD");
-        if (string.IsNullOrEmpty(username) || string.IsNullOrEmpty(password))
-        {
-            throw new InvalidOperationException("KICKTIPP_USERNAME and KICKTIPP_PASSWORD environment variables are required");
-        }
-        
-        // Configure Kicktipp credentials
-        services.Configure<KicktippOptions>(options =>
-        {
-            options.Username = username;
-            options.Password = password;
-        });
-        
-        // Add Kicktipp integration
-        services.AddKicktippClient();
-        
-        // Add OpenAI integration
-        services.AddOpenAiPredictor(apiKey, settings.Model);
-        
-        // Add Firebase database (required)
-        var firebaseProjectId = Environment.GetEnvironmentVariable("FIREBASE_PROJECT_ID");
-        var firebaseServiceAccountJson = Environment.GetEnvironmentVariable("FIREBASE_SERVICE_ACCOUNT_JSON");
-        
-        if (string.IsNullOrEmpty(firebaseProjectId) || string.IsNullOrEmpty(firebaseServiceAccountJson))
-        {
-            throw new InvalidOperationException("FIREBASE_PROJECT_ID and FIREBASE_SERVICE_ACCOUNT_JSON environment variables are required");
-        }
-        
-        services.AddFirebaseDatabase(firebaseProjectId, firebaseServiceAccountJson, settings.Community);
-        logger.LogInformation("Firebase database integration enabled for project: {ProjectId}, community: {Community}", firebaseProjectId, settings.Community);
-        
-        // Add context provider
-        services.AddSingleton<KicktippContextProvider>(provider =>
-        {
-            var kicktippClient = provider.GetRequiredService<IKicktippClient>();
-            var communityRulesFileProvider = CommunityRulesFileProvider.Create();
-            string communityContext = settings.CommunityContext ?? settings.Community;
-            return new KicktippContextProvider(kicktippClient, communityRulesFileProvider, settings.Community, communityContext);
-        });
     }
     
     private async Task<bool> CheckPredictionOutdated(IPredictionRepository predictionRepository, IContextRepository contextRepository, Match match, string model, string communityContext, bool verbose)

@@ -31,33 +31,64 @@ These provide:
 
 Commands have been refactored to accept `IAnsiConsole` via constructor injection. This enables console output verification using `TestConsole`. See [finished-preparation.md](finished-preparation.md) for details on the completed work.
 
-### Phase 1.5: Full Dependency Injection for Commands
+### Phase 1.5: Full Dependency Injection for Commands (In Progress)
 
 Commands currently have `IAnsiConsole` injected but still build their own `ServiceCollection` internally. Phase 1.5 addresses moving **all** command dependencies to the global DI container.
 
-**Goals:**
-- All services (`IKicktippClient`, `IPredictionService`, repositories, etc.) registered at startup
-- Commands receive all dependencies via constructor injection
-- Tests can mock any dependency via `FakeTypeRegistrar.RegisterInstance()`
+**Architecture:**
+- **Factory pattern** for settings-dependent services (Firebase, Kicktipp, OpenAI)
+- **Idempotent registration** via `TryAdd*` methods
+- **No keyed services needed** - factories handle runtime configuration
 
-**Open Questions:**
-1. **Conflicting registrations**: Do any commands register the same service with different configurations? This would make global setup difficult.
-2. **Keyed dependencies**: Consider using keyed/named dependency registration so each command can register its specific configuration without affecting others. Example:
-   ```csharp
-   // Command registers its own keyed services
-   services.AddKeyedSingleton<IKicktippClient>("matchday", sp => CreateMatchdayClient(sp));
-   services.AddKeyedSingleton<IKicktippClient>("bonus", sp => CreateBonusClient(sp));
-   ```
-3. **Standardized registration pattern**: Define a convention for commands to declare their dependencies, e.g.:
-   ```csharp
-   public interface ICommandDependencyRegistrar
-   {
-       void RegisterDependencies(IServiceCollection services, CommandSettings settings);
-   }
-   ```
-   This could be swapped in tests to register mocks instead.
+**Infrastructure Created:**
 
-**Recommended approach**: Investigate each command's `ConfigureServices` method to catalog service registrations and identify conflicts before designing the global DI strategy.
+| File | Purpose |
+|------|---------|
+| `Infrastructure/Factories/IFirebaseServiceFactory.cs` | Interface for Firebase service creation |
+| `Infrastructure/Factories/FirebaseServiceFactory.cs` | Creates `FirestoreDb`, repositories |
+| `Infrastructure/Factories/IKicktippClientFactory.cs` | Interface for Kicktipp client creation |
+| `Infrastructure/Factories/KicktippClientFactory.cs` | Creates `IKicktippClient` with credentials |
+| `Infrastructure/Factories/IOpenAiServiceFactory.cs` | Interface for OpenAI service creation |
+| `Infrastructure/Factories/OpenAiServiceFactory.cs` | Creates `IPredictionService`, `ITokenUsageTracker` |
+| `Infrastructure/ServiceRegistrationExtensions.cs` | Extension methods for service registration |
+
+**Refactored Commands (✅ Complete):**
+- [x] `ListKpiCommand` - Uses `IFirebaseServiceFactory`
+- [x] `UploadKpiCommand` - Uses `IFirebaseServiceFactory`
+- [x] `CostCommand` - Uses `IFirebaseServiceFactory`
+
+**Remaining Commands:**
+- [ ] `UploadTransfersCommand`
+- [ ] `ContextChangesCommand`
+- [ ] `SnapshotsEncryptCommand`
+- [ ] `SnapshotsFetchCommand`
+- [ ] `SnapshotsAllCommand`
+- [ ] `AnalyzeMatchDetailedCommand`
+- [ ] `AnalyzeMatchComparisonCommand`
+- [ ] `VerifyMatchdayCommand`
+- [ ] `VerifyBonusCommand`
+- [ ] `CollectContextKicktippCommand`
+- [ ] `BonusCommand`
+- [ ] `MatchdayCommand`
+
+**Testing Approach with Factories:**
+```csharp
+// In tests, mock the factory interfaces
+var mockFirebaseFactory = new Mock<IFirebaseServiceFactory>();
+var mockKpiRepository = new Mock<IKpiRepository>();
+
+mockFirebaseFactory
+    .Setup(f => f.CreateKpiRepository(It.IsAny<FirestoreDb>()))
+    .Returns(mockKpiRepository.Object);
+
+// Register mocks in TypeRegistrar
+var services = new ServiceCollection();
+services.AddSingleton<IAnsiConsole>(new TestConsole());
+services.AddSingleton(mockFirebaseFactory.Object);
+
+var registrar = new TypeRegistrar(services);
+var app = new CommandAppTester(registrar: registrar);
+```
 
 ### Optional Future Refactoring
 
@@ -205,7 +236,7 @@ For each command, implement tests covering:
 ## Implementation Order
 
 ### Milestone 1: Infrastructure & Shared Components
-- [ ] Complete Phase 1 (full DI for all command dependencies)
+- [x] Complete Phase 1.5 (factory-based DI for command dependencies)
 - [ ] Create `OrchestratorTestFactories.cs` with factory methods for domain objects and mocked services
 - [ ] Test `JustificationConsoleWriter`
 - [ ] Test `BaseSettings` validation
@@ -213,8 +244,8 @@ For each command, implement tests covering:
 - [ ] Test `PathUtility`
 
 ### Milestone 2: Utility Commands (Simplest)
-- [ ] DI for `ListKpiCommand`
-- [ ] DI for `UploadKpiCommand`
+- [x] DI for `ListKpiCommand`
+- [x] DI for `UploadKpiCommand`
 - [ ] DI for `UploadTransfersCommand`
 - [ ] DI for `ContextChangesCommand`
 - [ ] DI for `SnapshotsEncryptCommand`
@@ -229,7 +260,7 @@ For each command, implement tests covering:
 - [ ] Test `SnapshotsAllCommand`
 
 ### Milestone 3: Observability Commands
-- [ ] DI for `CostCommand`
+- [x] DI for `CostCommand`
 - [ ] DI for `AnalyzeMatchDetailedCommand`
 - [ ] DI for `AnalyzeMatchComparisonCommand`
 - [ ] Test `CostCommand`
@@ -322,7 +353,7 @@ public async Task Command_handles_user_confirmation()
 
 ## Notes
 
-- Commands use internal DI setup via `ServiceCollection` - tests can either mock at service level or refactor to inject services directly
+- Commands use factory pattern for service creation - factories are injected via constructor, making them easily mockable in tests
 - Some commands read from file system (`kpi-documents/`, `transfers-documents/`) - refactor to use `SolutionRelativeFileProvider` pattern (from `EHonda.KicktippAi.Core`) which can be easily mocked via `IFileProvider` in tests
-- Environment variables are used extensively - use test fixtures to set up required variables
-- Mock repository interfaces (`IPredictionRepository`, `IContextRepository`, `IKpiRepository`) rather than the underlying Firebase/Firestore infrastructure
+- Environment variables are loaded per-command (lazy loading) - commands only load what they need
+- Mock factory interfaces (`IFirebaseServiceFactory`, `IKicktippClientFactory`, `IOpenAiServiceFactory`) in tests rather than the underlying services directly

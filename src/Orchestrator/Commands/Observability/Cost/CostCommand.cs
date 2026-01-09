@@ -1,22 +1,23 @@
-using Microsoft.Extensions.DependencyInjection;
 using Microsoft.Extensions.Logging;
 using Spectre.Console.Cli;
 using Spectre.Console;
-using FirebaseAdapter;
 using Google.Cloud.Firestore;
 using System.Globalization;
 using System.Text.Json;
 using EHonda.KicktippAi.Core;
+using Orchestrator.Infrastructure.Factories;
 
 namespace Orchestrator.Commands.Observability.Cost;
 
 public class CostCommand : AsyncCommand<CostSettings>
 {
     private readonly IAnsiConsole _console;
+    private readonly IFirebaseServiceFactory _firebaseServiceFactory;
 
-    public CostCommand(IAnsiConsole console)
+    public CostCommand(IAnsiConsole console, IFirebaseServiceFactory firebaseServiceFactory)
     {
         _console = console;
+        _firebaseServiceFactory = firebaseServiceFactory;
     }
 
     public override async Task<int> ExecuteAsync(CommandContext context, CostSettings settings)
@@ -32,13 +33,9 @@ public class CostCommand : AsyncCommand<CostSettings>
                 settings = MergeConfigurations(fileConfig, settings, logger);
             }
             
-            // Load environment variables
-            EnvironmentHelper.LoadEnvironmentVariables(logger);
-            
-            // Setup dependency injection
-            var services = new ServiceCollection();
-            ConfigureServices(services, settings, logger);
-            var serviceProvider = services.BuildServiceProvider();
+            // Create Firebase services using factory (factory handles env var loading)
+            var firestoreDb = _firebaseServiceFactory.FirestoreDb;
+            var predictionRepository = _firebaseServiceFactory.CreatePredictionRepository();
             
             _console.MarkupLine($"[green]Cost command initialized[/]");
             
@@ -51,9 +48,6 @@ public class CostCommand : AsyncCommand<CostSettings>
             {
                 _console.MarkupLine("[blue]All mode enabled - aggregating over all available data[/]");
             }
-            
-            var predictionRepository = serviceProvider.GetRequiredService<IPredictionRepository>();
-            var firestoreDb = serviceProvider.GetRequiredService<FirestoreDb>();
             
             // Parse filter parameters
             var matchdays = ParseMatchdays(settings);
@@ -317,30 +311,6 @@ public class CostCommand : AsyncCommand<CostSettings>
             logger.LogError(ex, "Failed to calculate costs");
             _console.MarkupLine($"[red]✗ Failed to calculate costs: {ex.Message}[/]");
             return 1;
-        }
-    }
-    
-    private static void ConfigureServices(ServiceCollection services, CostSettings settings, ILogger logger)
-    {
-        // Add logging
-        services.AddSingleton(logger);
-        services.AddLogging(builder => 
-        {
-            builder.SetMinimumLevel(LogLevel.Information);
-        });
-        
-        // Add Firebase database if credentials are available
-        var firebaseProjectId = Environment.GetEnvironmentVariable("FIREBASE_PROJECT_ID");
-        var firebaseServiceAccountJson = Environment.GetEnvironmentVariable("FIREBASE_SERVICE_ACCOUNT_JSON");
-        
-        if (!string.IsNullOrEmpty(firebaseProjectId) && !string.IsNullOrEmpty(firebaseServiceAccountJson))
-        {
-            services.AddFirebaseDatabase(firebaseProjectId, firebaseServiceAccountJson, "default"); // Use a default community since it's not used anyway
-            logger.LogInformation("Firebase database integration enabled for project: {ProjectId}", firebaseProjectId);
-        }
-        else
-        {
-            throw new InvalidOperationException("Firebase credentials are required for cost analysis. Set FIREBASE_PROJECT_ID and FIREBASE_SERVICE_ACCOUNT_JSON environment variables.");
         }
     }
     

@@ -1,23 +1,32 @@
 using EHonda.KicktippAi.Core;
-using Microsoft.Extensions.DependencyInjection;
 using Microsoft.Extensions.Logging;
 using Spectre.Console.Cli;
 using Spectre.Console;
-using KicktippIntegration;
 using OpenAiIntegration;
 using FirebaseAdapter;
 using Orchestrator.Commands.Operations.Matchday;
 using Orchestrator.Commands.Shared;
+using Orchestrator.Infrastructure.Factories;
 
 namespace Orchestrator.Commands.Operations.Bonus;
 
 public class BonusCommand : AsyncCommand<BaseSettings>
 {
     private readonly IAnsiConsole _console;
+    private readonly IFirebaseServiceFactory _firebaseServiceFactory;
+    private readonly IKicktippClientFactory _kicktippClientFactory;
+    private readonly IOpenAiServiceFactory _openAiServiceFactory;
 
-    public BonusCommand(IAnsiConsole console)
+    public BonusCommand(
+        IAnsiConsole console,
+        IFirebaseServiceFactory firebaseServiceFactory,
+        IKicktippClientFactory kicktippClientFactory,
+        IOpenAiServiceFactory openAiServiceFactory)
     {
         _console = console;
+        _firebaseServiceFactory = firebaseServiceFactory;
+        _kicktippClientFactory = kicktippClientFactory;
+        _openAiServiceFactory = openAiServiceFactory;
     }
 
     public override async Task<int> ExecuteAsync(CommandContext context, BaseSettings settings)
@@ -26,14 +35,6 @@ public class BonusCommand : AsyncCommand<BaseSettings>
         
         try
         {
-            // Load environment variables
-            EnvironmentHelper.LoadEnvironmentVariables(logger);
-            
-            // Setup dependency injection
-            var services = new ServiceCollection();
-            ConfigureServices(services, settings, logger);
-            var serviceProvider = services.BuildServiceProvider();
-            
             _console.MarkupLine($"[green]Bonus command initialized with model:[/] [yellow]{settings.Model}[/]");
             
             if (settings.Verbose)
@@ -86,7 +87,7 @@ public class BonusCommand : AsyncCommand<BaseSettings>
             }
             
             // Execute the bonus prediction workflow
-            await ExecuteBonusWorkflow(serviceProvider, settings, logger);
+            await ExecuteBonusWorkflow(settings, logger);
             
             return 0;
         }
@@ -98,10 +99,11 @@ public class BonusCommand : AsyncCommand<BaseSettings>
         }
     }
     
-    private async Task ExecuteBonusWorkflow(IServiceProvider serviceProvider, BaseSettings settings, ILogger logger)
+    private async Task ExecuteBonusWorkflow(BaseSettings settings, ILogger logger)
     {
-        var kicktippClient = serviceProvider.GetRequiredService<IKicktippClient>();
-        var predictionService = serviceProvider.GetRequiredService<IPredictionService>();
+        // Create services using factories
+        var kicktippClient = _kicktippClientFactory.CreateClient();
+        var predictionService = _openAiServiceFactory.CreatePredictionService(settings.Model);
         
         // Log the prompt paths being used
         if (settings.Verbose)
@@ -109,17 +111,19 @@ public class BonusCommand : AsyncCommand<BaseSettings>
             _console.MarkupLine($"[dim]Bonus prompt:[/] [blue]{predictionService.GetBonusPromptPath()}[/]");
         }
         
-        // Use Firebase KPI Context Provider for bonus predictions
-        var kpiContextProvider = serviceProvider.GetRequiredService<FirebaseKpiContextProvider>();
+        // Create Firebase KPI Context Provider for bonus predictions
+        var kpiRepository = _firebaseServiceFactory.CreateKpiRepository();
+        var kpiContextProviderLogger = LoggingConfiguration.CreateLogger<FirebaseKpiContextProvider>();
+        var kpiContextProvider = new FirebaseKpiContextProvider(kpiRepository, kpiContextProviderLogger);
         
-        var tokenUsageTracker = serviceProvider.GetService<ITokenUsageTracker>();
+        var tokenUsageTracker = _openAiServiceFactory.GetTokenUsageTracker();
         
-        // Try to get the prediction repository (may be null if Firebase is not configured)
-        var predictionRepository = serviceProvider.GetService<IPredictionRepository>();
-        var databaseEnabled = predictionRepository != null;
+        // Create prediction repository
+        var predictionRepository = _firebaseServiceFactory.CreatePredictionRepository();
+        var databaseEnabled = true;
         
         // Reset token usage tracker for this workflow
-        tokenUsageTracker?.Reset();
+        tokenUsageTracker.Reset();
         
         // Determine community context (use explicit setting or fall back to community name)
         string communityContext = settings.CommunityContext ?? settings.Community;
@@ -264,15 +268,9 @@ public class BonusCommand : AsyncCommand<BaseSettings>
                             try
                             {
                                 // Get token usage and cost information
-                                string tokenUsageJson = "{}"; // Default empty JSON
-                                double cost = 0.0;
-                                
-                                if (tokenUsageTracker != null)
-                                {
-                                    cost = (double)tokenUsageTracker.GetLastCost(); // Get the cost for this individual question
-                                    // Use the new GetLastUsageJson method to get full JSON
-                                    tokenUsageJson = tokenUsageTracker.GetLastUsageJson() ?? "{}";
-                                }
+                                var cost = (double)tokenUsageTracker.GetLastCost(); // Get the cost for this individual question
+                                // Use the new GetLastUsageJson method to get full JSON
+                                var tokenUsageJson = tokenUsageTracker.GetLastUsageJson() ?? "{}";
                                 
                                 if (settings.IsRepredictMode)
                                 {
@@ -326,7 +324,7 @@ public class BonusCommand : AsyncCommand<BaseSettings>
                         }
                         
                         // Show individual question token usage in verbose mode
-                        if (settings.Verbose && tokenUsageTracker != null)
+                        if (settings.Verbose)
                         {
                             var questionUsage = !string.IsNullOrEmpty(settings.EstimatedCostsModel)
                                 ? tokenUsageTracker.GetLastUsageCompactSummaryWithEstimatedCosts(settings.EstimatedCostsModel)
@@ -383,59 +381,9 @@ public class BonusCommand : AsyncCommand<BaseSettings>
         }
         
         // Display token usage summary
-        if (tokenUsageTracker != null)
-        {
-            var summary = !string.IsNullOrEmpty(settings.EstimatedCostsModel)
-                ? tokenUsageTracker.GetCompactSummaryWithEstimatedCosts(settings.EstimatedCostsModel)
-                : tokenUsageTracker.GetCompactSummary();
-            _console.MarkupLine($"[dim]Token usage (uncached/cached/reasoning/output/$cost): {summary}[/]");
-        }
-    }
-    
-    private static void ConfigureServices(IServiceCollection services, BaseSettings settings, ILogger logger)
-    {
-        // Add logging
-        services.AddSingleton(logger);
-        
-        // Get API key from environment
-        var apiKey = Environment.GetEnvironmentVariable("OPENAI_API_KEY");
-        if (string.IsNullOrEmpty(apiKey))
-        {
-            throw new InvalidOperationException("OPENAI_API_KEY environment variable is required");
-        }
-        
-        // Get Kicktipp credentials from environment
-        var username = Environment.GetEnvironmentVariable("KICKTIPP_USERNAME");
-        var password = Environment.GetEnvironmentVariable("KICKTIPP_PASSWORD");
-        if (string.IsNullOrEmpty(username) || string.IsNullOrEmpty(password))
-        {
-            throw new InvalidOperationException("KICKTIPP_USERNAME and KICKTIPP_PASSWORD environment variables are required");
-        }
-        
-        // Configure Kicktipp credentials
-        services.Configure<KicktippOptions>(options =>
-        {
-            options.Username = username;
-            options.Password = password;
-        });
-        
-        // Add Kicktipp integration
-        services.AddKicktippClient();
-        
-        // Add OpenAI integration
-        services.AddOpenAiPredictor(apiKey, settings.Model);
-        
-        // Add Firebase database (required for KPI context provider)
-        var firebaseProjectId = Environment.GetEnvironmentVariable("FIREBASE_PROJECT_ID");
-        var firebaseServiceAccountJson = Environment.GetEnvironmentVariable("FIREBASE_SERVICE_ACCOUNT_JSON");
-        
-        if (string.IsNullOrEmpty(firebaseProjectId) || string.IsNullOrEmpty(firebaseServiceAccountJson))
-        {
-            throw new InvalidOperationException("Firebase credentials are required for bonus predictions. Set FIREBASE_PROJECT_ID and FIREBASE_SERVICE_ACCOUNT_JSON environment variables.");
-        }
-        
-        services.AddFirebaseDatabase(firebaseProjectId, firebaseServiceAccountJson, settings.Community);
-        logger.LogInformation("Firebase database integration enabled for project: {ProjectId}, community: {Community}", firebaseProjectId, settings.Community);
-        logger.LogInformation("KPI Context Provider enabled for bonus predictions");
+        var summary = !string.IsNullOrEmpty(settings.EstimatedCostsModel)
+            ? tokenUsageTracker.GetCompactSummaryWithEstimatedCosts(settings.EstimatedCostsModel)
+            : tokenUsageTracker.GetCompactSummary();
+        _console.MarkupLine($"[dim]Token usage (uncached/cached/reasoning/output/$cost): {summary}[/]");
     }
 }

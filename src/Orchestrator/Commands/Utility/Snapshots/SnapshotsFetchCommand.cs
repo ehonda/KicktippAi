@@ -1,9 +1,7 @@
-using KicktippIntegration;
-using KicktippIntegration.Authentication;
-using Microsoft.Extensions.DependencyInjection;
 using Microsoft.Extensions.Logging;
 using Spectre.Console;
 using Spectre.Console.Cli;
+using Orchestrator.Infrastructure.Factories;
 
 namespace Orchestrator.Commands.Utility.Snapshots;
 
@@ -13,10 +11,12 @@ namespace Orchestrator.Commands.Utility.Snapshots;
 public class SnapshotsFetchCommand : AsyncCommand<SnapshotsFetchSettings>
 {
     private readonly IAnsiConsole _console;
+    private readonly IKicktippClientFactory _kicktippClientFactory;
 
-    public SnapshotsFetchCommand(IAnsiConsole console)
+    public SnapshotsFetchCommand(IAnsiConsole console, IKicktippClientFactory kicktippClientFactory)
     {
         _console = console;
+        _kicktippClientFactory = kicktippClientFactory;
     }
 
     public override async Task<int> ExecuteAsync(CommandContext context, SnapshotsFetchSettings settings)
@@ -32,14 +32,6 @@ public class SnapshotsFetchCommand : AsyncCommand<SnapshotsFetchSettings>
                 return 1;
             }
 
-            // Load environment variables (for Kicktipp credentials)
-            EnvironmentHelper.LoadEnvironmentVariables(logger);
-
-            // Setup dependency injection
-            var services = new ServiceCollection();
-            ConfigureServices(services, logger);
-            var serviceProvider = services.BuildServiceProvider();
-
             _console.MarkupLine("[green]Fetching snapshots...[/]");
             _console.MarkupLine($"[blue]Community:[/] [yellow]{settings.Community}[/]");
             _console.MarkupLine($"[blue]Output directory:[/] [yellow]{settings.OutputDirectory}[/]");
@@ -51,10 +43,8 @@ public class SnapshotsFetchCommand : AsyncCommand<SnapshotsFetchSettings>
             // Warn if not gitignored
             WarnIfNotGitignored(_console, outputPath);
 
-            // Create snapshot client
-            var httpClientFactory = serviceProvider.GetRequiredService<IHttpClientFactory>();
-            var httpClient = httpClientFactory.CreateClient("Kicktipp");
-            var snapshotClient = new SnapshotClient(httpClient, logger);
+            // Create snapshot client using factory (factory handles env var loading)
+            var snapshotClient = _kicktippClientFactory.CreateSnapshotClient();
 
             var savedCount = await FetchSnapshotsAsync(_console, snapshotClient, settings.Community, outputPath);
 
@@ -195,40 +185,6 @@ public class SnapshotsFetchCommand : AsyncCommand<SnapshotsFetchSettings>
             });
 
         return savedCount;
-    }
-
-    internal static void ConfigureServices(IServiceCollection services, ILogger logger)
-    {
-        // Add logging
-        services.AddSingleton(logger);
-
-        // Get Kicktipp credentials from environment
-        var username = Environment.GetEnvironmentVariable("KICKTIPP_USERNAME");
-        var password = Environment.GetEnvironmentVariable("KICKTIPP_PASSWORD");
-        if (string.IsNullOrEmpty(username) || string.IsNullOrEmpty(password))
-        {
-            throw new InvalidOperationException("KICKTIPP_USERNAME and KICKTIPP_PASSWORD environment variables are required");
-        }
-
-        // Configure Kicktipp credentials
-        services.Configure<KicktippOptions>(options =>
-        {
-            options.Username = username;
-            options.Password = password;
-        });
-
-        // Register the authentication handler
-        services.AddSingleton<KicktippAuthenticationHandler>();
-
-        // Register HttpClient with authentication
-        services.AddHttpClient("Kicktipp", client =>
-            {
-                client.BaseAddress = new Uri("https://www.kicktipp.de");
-                client.Timeout = TimeSpan.FromMinutes(2);
-                client.DefaultRequestHeaders.Add("User-Agent",
-                    "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/91.0.4472.124 Safari/537.36");
-            })
-            .AddHttpMessageHandler<KicktippAuthenticationHandler>();
     }
 
     internal static async Task SaveSnapshotAsync(string outputPath, string fileName, string content)

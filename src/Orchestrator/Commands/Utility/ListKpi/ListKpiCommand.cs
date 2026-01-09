@@ -1,19 +1,20 @@
 using EHonda.KicktippAi.Core;
-using Microsoft.Extensions.DependencyInjection;
 using Microsoft.Extensions.Logging;
 using Spectre.Console.Cli;
 using Spectre.Console;
-using FirebaseAdapter;
+using Orchestrator.Infrastructure.Factories;
 
 namespace Orchestrator.Commands.Utility.ListKpi;
 
 public class ListKpiCommand : AsyncCommand<ListKpiSettings>
 {
     private readonly IAnsiConsole _console;
+    private readonly IFirebaseServiceFactory _firebaseServiceFactory;
 
-    public ListKpiCommand(IAnsiConsole console)
+    public ListKpiCommand(IAnsiConsole console, IFirebaseServiceFactory firebaseServiceFactory)
     {
         _console = console;
+        _firebaseServiceFactory = firebaseServiceFactory;
     }
 
     public override async Task<int> ExecuteAsync(CommandContext context, ListKpiSettings settings)
@@ -22,14 +23,6 @@ public class ListKpiCommand : AsyncCommand<ListKpiSettings>
         
         try
         {
-            // Load environment variables
-            EnvironmentHelper.LoadEnvironmentVariables(logger);
-            
-            // Setup dependency injection
-            var services = new ServiceCollection();
-            ConfigureServices(services, settings, logger);
-            var serviceProvider = services.BuildServiceProvider();
-            
             _console.MarkupLine($"[green]List KPI command initialized for community context:[/] [yellow]{settings.CommunityContext}[/]");
             
             if (settings.Verbose)
@@ -37,8 +30,8 @@ public class ListKpiCommand : AsyncCommand<ListKpiSettings>
                 _console.MarkupLine("[dim]Verbose mode enabled[/]");
             }
             
-            // Get Firebase KPI repository
-            var kpiRepository = serviceProvider.GetRequiredService<IKpiRepository>();
+            // Create Firebase services using factory (factory handles env var loading)
+            var kpiRepository = _firebaseServiceFactory.CreateKpiRepository();
             
             var table = new Table();
             table.AddColumn("Document Name");
@@ -81,30 +74,5 @@ public class ListKpiCommand : AsyncCommand<ListKpiSettings>
             _console.MarkupLine($"[red]Error: {ex.Message}[/]");
             return 1;
         }
-    }
-    
-    private static void ConfigureServices(IServiceCollection services, ListKpiSettings settings, ILogger logger)
-    {
-        // Add logging services
-        services.AddLogging();
-        
-        // Configure Firebase (no community parameter needed for unified collection)
-        services.AddFirebaseDatabase(options =>
-        {
-            var serviceAccountPath = PathUtility.GetFirebaseJsonPath();
-            var projectId = Environment.GetEnvironmentVariable("FIREBASE_PROJECT_ID");
-            
-            if (string.IsNullOrWhiteSpace(projectId))
-            {
-                throw new InvalidOperationException("FIREBASE_PROJECT_ID environment variable is required");
-            }
-            
-            options.ServiceAccountPath = serviceAccountPath;
-            options.ProjectId = projectId;
-            
-            logger.LogDebug("Firebase configured with project ID: {ProjectId}", projectId);
-        });
-        
-        logger.LogDebug("Services configured for list-kpi command");
     }
 }

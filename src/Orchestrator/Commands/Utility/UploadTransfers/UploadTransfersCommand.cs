@@ -1,20 +1,21 @@
-using Microsoft.Extensions.DependencyInjection;
 using Microsoft.Extensions.Logging;
 using Spectre.Console.Cli;
 using Spectre.Console;
 using System.Text.Json;
 using EHonda.KicktippAi.Core;
-using FirebaseAdapter;
+using Orchestrator.Infrastructure.Factories;
 
 namespace Orchestrator.Commands.Utility.UploadTransfers;
 
 public class UploadTransfersCommand : AsyncCommand<UploadTransfersSettings>
 {
     private readonly IAnsiConsole _console;
+    private readonly IFirebaseServiceFactory _firebaseServiceFactory;
 
-    public UploadTransfersCommand(IAnsiConsole console)
+    public UploadTransfersCommand(IAnsiConsole console, IFirebaseServiceFactory firebaseServiceFactory)
     {
         _console = console;
+        _firebaseServiceFactory = firebaseServiceFactory;
     }
 
     public override async Task<int> ExecuteAsync(CommandContext context, UploadTransfersSettings settings)
@@ -23,12 +24,6 @@ public class UploadTransfersCommand : AsyncCommand<UploadTransfersSettings>
 
         try
         {
-            EnvironmentHelper.LoadEnvironmentVariables(logger);
-
-            var services = new ServiceCollection();
-            ConfigureServices(services, settings, logger);
-            var provider = services.BuildServiceProvider();
-
             var docName = $"{settings.TeamAbbreviation.ToLowerInvariant()}-transfers.csv";
             _console.MarkupLine($"[green]Upload Transfers command initialized for document:[/] [yellow]{docName}[/]");
             _console.MarkupLine($"[blue]Using community context:[/] [yellow]{settings.CommunityContext}[/]");
@@ -59,7 +54,8 @@ public class UploadTransfersCommand : AsyncCommand<UploadTransfersSettings>
                 _console.MarkupLine($"[dim]Content length: {transfersDoc.Content.Length} characters[/]");
             }
 
-            var contextRepo = provider.GetRequiredService<IContextRepository>();
+            // Create Firebase services using factory (factory handles env var loading)
+            var contextRepo = _firebaseServiceFactory.CreateContextRepository();
             var existing = await contextRepo.GetLatestContextDocumentAsync(transfersDoc.DocumentName, transfersDoc.CommunityContext);
             if (existing != null)
             {
@@ -100,24 +96,6 @@ public class UploadTransfersCommand : AsyncCommand<UploadTransfersSettings>
             _console.MarkupLine($"[red]Error: {ex.Message}[/]");
             return 1;
         }
-    }
-
-    private static void ConfigureServices(IServiceCollection services, UploadTransfersSettings settings, ILogger logger)
-    {
-        services.AddLogging();
-
-        services.AddFirebaseDatabase(options =>
-        {
-            var serviceAccountPath = PathUtility.GetFirebaseJsonPath();
-            var projectId = Environment.GetEnvironmentVariable("FIREBASE_PROJECT_ID");
-            if (string.IsNullOrWhiteSpace(projectId))
-            {
-                throw new InvalidOperationException("FIREBASE_PROJECT_ID environment variable is required");
-            }
-            options.ServiceAccountPath = serviceAccountPath;
-            options.ProjectId = projectId;
-            logger.LogDebug("Firebase configured with project ID: {ProjectId}", projectId);
-        });
     }
 
     private class TransfersDocumentJson
