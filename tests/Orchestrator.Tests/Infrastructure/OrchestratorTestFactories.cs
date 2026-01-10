@@ -1,15 +1,19 @@
+using ContextProviders.Kicktipp;
 using EHonda.KicktippAi.Core;
 using EHonda.Optional.Core;
+using KicktippIntegration;
 using Microsoft.Extensions.DependencyInjection;
 using Microsoft.Extensions.Logging;
 using Microsoft.Extensions.Logging.Testing;
 using Moq;
+using OpenAiIntegration;
 using Orchestrator.Commands.Utility.ListKpi;
 using Orchestrator.Infrastructure;
 using Orchestrator.Infrastructure.Factories;
 using Spectre.Console;
 using Spectre.Console.Cli;
 using Spectre.Console.Testing;
+using Match = EHonda.KicktippAi.Core.Match;
 
 namespace Orchestrator.Tests.Infrastructure;
 
@@ -141,4 +145,362 @@ public static class OrchestratorTestFactories
             version.Or(1),
             createdAt.Or(() => new DateTimeOffset(2025, 1, 10, 12, 0, 0, TimeSpan.Zero)));
     }
+
+    #region Kicktipp Client Factory Mocks
+
+    /// <summary>
+    /// Creates a mock <see cref="IKicktippClient"/> with configurable behavior.
+    /// </summary>
+    /// <param name="matchesWithHistory">Matches returned by GetMatchesWithHistoryAsync. Defaults to empty list.</param>
+    /// <param name="placeBetsResult">Result of PlaceBetsAsync. Defaults to true.</param>
+    public static Mock<IKicktippClient> CreateMockKicktippClient(
+        Option<List<MatchWithHistory>> matchesWithHistory = default,
+        Option<bool> placeBetsResult = default)
+    {
+        var mock = new Mock<IKicktippClient>();
+        var matches = matchesWithHistory.Or(() => []);
+        var betsResult = placeBetsResult.Or(true);
+
+        mock.Setup(c => c.GetMatchesWithHistoryAsync(It.IsAny<string>()))
+            .ReturnsAsync(matches);
+
+        mock.Setup(c => c.PlaceBetsAsync(It.IsAny<string>(), It.IsAny<Dictionary<Match, BetPrediction>>(), It.IsAny<bool>()))
+            .ReturnsAsync(betsResult);
+
+        return mock;
+    }
+
+    /// <summary>
+    /// Creates a mock <see cref="IKicktippClientFactory"/> that returns the specified client.
+    /// </summary>
+    /// <param name="kicktippClient">The Kicktipp client to return. Defaults to a new mock.</param>
+    public static Mock<IKicktippClientFactory> CreateMockKicktippClientFactory(
+        Option<Mock<IKicktippClient>> kicktippClient = default)
+    {
+        var mockFactory = new Mock<IKicktippClientFactory>();
+        var mockClient = kicktippClient.Or(() => CreateMockKicktippClient());
+
+        mockFactory.Setup(f => f.CreateClient()).Returns(mockClient.Object);
+
+        return mockFactory;
+    }
+
+    #endregion
+
+    #region OpenAI Service Factory Mocks
+
+    /// <summary>
+    /// Creates a mock <see cref="IPredictionService"/> with configurable behavior.
+    /// </summary>
+    /// <param name="predictMatchResult">Result of PredictMatchAsync. Defaults to a new test prediction.</param>
+    /// <param name="matchPromptPath">Result of GetMatchPromptPath. Defaults to "prompts/match-prompt.md".</param>
+    public static Mock<IPredictionService> CreateMockPredictionService(
+        NullableOption<Prediction> predictMatchResult = default,
+        Option<string> matchPromptPath = default)
+    {
+        var mock = new Mock<IPredictionService>();
+
+        var prediction = predictMatchResult.Or(() => new Prediction(2, 1, null));
+        mock.Setup(s => s.PredictMatchAsync(
+                It.IsAny<Match>(),
+                It.IsAny<IEnumerable<DocumentContext>>(),
+                It.IsAny<bool>(),
+                It.IsAny<CancellationToken>()))
+            .ReturnsAsync(prediction);
+
+        mock.Setup(s => s.GetMatchPromptPath(It.IsAny<bool>()))
+            .Returns(matchPromptPath.Or("prompts/match-prompt.md"));
+
+        return mock;
+    }
+
+    /// <summary>
+    /// Creates a mock <see cref="ITokenUsageTracker"/> with configurable behavior.
+    /// </summary>
+    /// <param name="compactSummary">Result of GetCompactSummary. Defaults to "0/0/0/0/$0.00".</param>
+    /// <param name="lastCost">Result of GetLastCost. Defaults to 0.01m.</param>
+    /// <param name="lastUsageJson">Result of GetLastUsageJson. Defaults to "{}".</param>
+    public static Mock<ITokenUsageTracker> CreateMockTokenUsageTracker(
+        Option<string> compactSummary = default,
+        Option<decimal> lastCost = default,
+        NullableOption<string> lastUsageJson = default)
+    {
+        var mock = new Mock<ITokenUsageTracker>();
+        var summary = compactSummary.Or("0/0/0/0/$0.00");
+
+        mock.Setup(t => t.GetCompactSummary()).Returns(summary);
+        mock.Setup(t => t.GetCompactSummaryWithEstimatedCosts(It.IsAny<string>())).Returns(summary);
+        mock.Setup(t => t.GetLastUsageCompactSummary()).Returns(summary);
+        mock.Setup(t => t.GetLastUsageCompactSummaryWithEstimatedCosts(It.IsAny<string>())).Returns(summary);
+        mock.Setup(t => t.GetLastCost()).Returns(lastCost.Or(0.01m));
+        mock.Setup(t => t.GetLastUsageJson()).Returns(lastUsageJson.Or("{}"));
+        mock.Setup(t => t.GetTotalCost()).Returns(lastCost.Or(0.01m));
+
+        return mock;
+    }
+
+    /// <summary>
+    /// Creates a mock <see cref="IOpenAiServiceFactory"/> that returns the specified services.
+    /// </summary>
+    /// <param name="predictionService">The prediction service to return. Defaults to a new mock.</param>
+    /// <param name="tokenUsageTracker">The token usage tracker to return. Defaults to a new mock.</param>
+    public static Mock<IOpenAiServiceFactory> CreateMockOpenAiServiceFactory(
+        Option<Mock<IPredictionService>> predictionService = default,
+        Option<Mock<ITokenUsageTracker>> tokenUsageTracker = default)
+    {
+        var mockFactory = new Mock<IOpenAiServiceFactory>();
+        var mockPredictionService = predictionService.Or(() => CreateMockPredictionService());
+        var mockTracker = tokenUsageTracker.Or(() => CreateMockTokenUsageTracker());
+
+        mockFactory.Setup(f => f.CreatePredictionService(It.IsAny<string>()))
+            .Returns(mockPredictionService.Object);
+        mockFactory.Setup(f => f.GetTokenUsageTracker())
+            .Returns(mockTracker.Object);
+
+        return mockFactory;
+    }
+
+    #endregion
+
+    #region Context Provider Factory Mocks
+
+    /// <summary>
+    /// Creates a mock <see cref="KicktippContextProvider"/> that returns the specified context documents.
+    /// Note: KicktippContextProvider is a concrete class, so this creates a setup that can be used
+    /// with a mocked factory return.
+    /// </summary>
+    /// <param name="contextDocuments">Context documents to return. Defaults to empty async enumerable.</param>
+    public static Mock<IContextProviderFactory> CreateMockContextProviderFactory()
+    {
+        var mockFactory = new Mock<IContextProviderFactory>();
+
+        // Since KicktippContextProvider is a concrete class, we cannot mock it directly.
+        // The factory will need to return null, and tests should configure behavior via
+        // the context repository mock instead (hybrid context approach).
+        // For tests that need on-demand context, they should use the context repository.
+        mockFactory.Setup(f => f.CreateKicktippContextProvider(
+                It.IsAny<IKicktippClient>(),
+                It.IsAny<string>(),
+                It.IsAny<string?>()))
+            .Returns((KicktippContextProvider)null!);
+
+        return mockFactory;
+    }
+
+    #endregion
+
+    #region Firebase Service Factory Extended Mocks
+
+    /// <summary>
+    /// Creates a mock <see cref="IPredictionRepository"/> with configurable behavior.
+    /// </summary>
+    /// <param name="getPredictionResult">Result of GetPredictionAsync. Defaults to null.</param>
+    /// <param name="getPredictionMetadataResult">Result of GetPredictionMetadataAsync. Defaults to null.</param>
+    /// <param name="getRepredictionIndexResult">Result of GetMatchRepredictionIndexAsync. Defaults to -1.</param>
+    public static Mock<IPredictionRepository> CreateMockPredictionRepository(
+        NullableOption<Prediction> getPredictionResult = default,
+        NullableOption<PredictionMetadata> getPredictionMetadataResult = default,
+        Option<int> getRepredictionIndexResult = default)
+    {
+        var mock = new Mock<IPredictionRepository>();
+
+        mock.Setup(r => r.GetPredictionAsync(
+                It.IsAny<Match>(),
+                It.IsAny<string>(),
+                It.IsAny<string>(),
+                It.IsAny<CancellationToken>()))
+            .ReturnsAsync(getPredictionResult.Or((Prediction?)null));
+
+        mock.Setup(r => r.GetPredictionMetadataAsync(
+                It.IsAny<Match>(),
+                It.IsAny<string>(),
+                It.IsAny<string>(),
+                It.IsAny<CancellationToken>()))
+            .ReturnsAsync(getPredictionMetadataResult.Or((PredictionMetadata?)null));
+
+        mock.Setup(r => r.GetMatchRepredictionIndexAsync(
+                It.IsAny<Match>(),
+                It.IsAny<string>(),
+                It.IsAny<string>(),
+                It.IsAny<CancellationToken>()))
+            .ReturnsAsync(getRepredictionIndexResult.Or(-1));
+
+        mock.Setup(r => r.SavePredictionAsync(
+                It.IsAny<Match>(),
+                It.IsAny<Prediction>(),
+                It.IsAny<string>(),
+                It.IsAny<string>(),
+                It.IsAny<double>(),
+                It.IsAny<string>(),
+                It.IsAny<IEnumerable<string>>(),
+                It.IsAny<bool>(),
+                It.IsAny<CancellationToken>()))
+            .Returns(Task.CompletedTask);
+
+        mock.Setup(r => r.SaveRepredictionAsync(
+                It.IsAny<Match>(),
+                It.IsAny<Prediction>(),
+                It.IsAny<string>(),
+                It.IsAny<string>(),
+                It.IsAny<double>(),
+                It.IsAny<string>(),
+                It.IsAny<IEnumerable<string>>(),
+                It.IsAny<int>(),
+                It.IsAny<CancellationToken>()))
+            .Returns(Task.CompletedTask);
+
+        return mock;
+    }
+
+    /// <summary>
+    /// Creates a mock <see cref="IContextRepository"/> with configurable behavior.
+    /// </summary>
+    /// <param name="getLatestContextDocumentResult">Result of GetLatestContextDocumentAsync. Defaults to null.</param>
+    public static Mock<IContextRepository> CreateMockContextRepository(
+        NullableOption<ContextDocument> getLatestContextDocumentResult = default)
+    {
+        var mock = new Mock<IContextRepository>();
+
+        mock.Setup(r => r.GetLatestContextDocumentAsync(
+                It.IsAny<string>(),
+                It.IsAny<string>(),
+                It.IsAny<CancellationToken>()))
+            .ReturnsAsync(getLatestContextDocumentResult.Or((ContextDocument?)null));
+
+        return mock;
+    }
+
+    /// <summary>
+    /// Creates a mock <see cref="IContextRepository"/> that returns documents based on document name.
+    /// </summary>
+    /// <param name="documentsByName">Dictionary mapping document names to their content.</param>
+    /// <param name="communityContext">Community context to match. If not provided, matches any.</param>
+    public static Mock<IContextRepository> CreateMockContextRepositoryWithDocuments(
+        Dictionary<string, ContextDocument> documentsByName,
+        Option<string> communityContext = default)
+    {
+        var mock = new Mock<IContextRepository>();
+        var (hasContext, contextValue) = communityContext;
+
+        if (hasContext)
+        {
+            mock.Setup(r => r.GetLatestContextDocumentAsync(
+                    It.IsAny<string>(),
+                    contextValue,
+                    It.IsAny<CancellationToken>()))
+                .ReturnsAsync((string docName, string _, CancellationToken _) =>
+                    documentsByName.TryGetValue(docName, out var doc) ? doc : null);
+        }
+        else
+        {
+            mock.Setup(r => r.GetLatestContextDocumentAsync(
+                    It.IsAny<string>(),
+                    It.IsAny<string>(),
+                    It.IsAny<CancellationToken>()))
+                .ReturnsAsync((string docName, string _, CancellationToken _) =>
+                    documentsByName.TryGetValue(docName, out var doc) ? doc : null);
+        }
+
+        return mock;
+    }
+
+    /// <summary>
+    /// Creates a mock <see cref="IFirebaseServiceFactory"/> with all repositories configured.
+    /// </summary>
+    /// <param name="kpiRepository">The KPI repository to return. Defaults to a new mock.</param>
+    /// <param name="predictionRepository">The prediction repository to return. Defaults to a new mock.</param>
+    /// <param name="contextRepository">The context repository to return. Defaults to a new mock.</param>
+    public static Mock<IFirebaseServiceFactory> CreateMockFirebaseServiceFactoryFull(
+        Option<Mock<IKpiRepository>> kpiRepository = default,
+        Option<Mock<IPredictionRepository>> predictionRepository = default,
+        Option<Mock<IContextRepository>> contextRepository = default)
+    {
+        var mockFactory = new Mock<IFirebaseServiceFactory>();
+        var mockKpiRepo = kpiRepository.Or(() => new Mock<IKpiRepository>());
+        var mockPredictionRepo = predictionRepository.Or(() => CreateMockPredictionRepository());
+        var mockContextRepo = contextRepository.Or(() => CreateMockContextRepository());
+
+        mockFactory.Setup(f => f.CreateKpiRepository()).Returns(mockKpiRepo.Object);
+        mockFactory.Setup(f => f.CreatePredictionRepository()).Returns(mockPredictionRepo.Object);
+        mockFactory.Setup(f => f.CreateContextRepository()).Returns(mockContextRepo.Object);
+
+        return mockFactory;
+    }
+
+    #endregion
+
+    #region Context Document Helpers
+
+    /// <summary>
+    /// Creates a test <see cref="ContextDocument"/> with default values.
+    /// </summary>
+    /// <param name="documentName">Document name. Defaults to "test-document".</param>
+    /// <param name="content">Document content. Defaults to "test content".</param>
+    /// <param name="version">Document version. Defaults to 1.</param>
+    /// <param name="createdAt">Creation timestamp. Defaults to 2025-01-10 12:00 UTC.</param>
+    public static ContextDocument CreateContextDocument(
+        Option<string> documentName = default,
+        Option<string> content = default,
+        Option<int> version = default,
+        Option<DateTimeOffset> createdAt = default)
+    {
+        return new ContextDocument(
+            documentName.Or("test-document"),
+            content.Or("test content"),
+            version.Or(1),
+            createdAt.Or(() => new DateTimeOffset(2025, 1, 10, 12, 0, 0, TimeSpan.Zero)));
+    }
+
+    /// <summary>
+    /// Creates a set of context documents required for a match prediction.
+    /// </summary>
+    /// <param name="homeAbbreviation">Home team abbreviation. Defaults to "fcb".</param>
+    /// <param name="awayAbbreviation">Away team abbreviation. Defaults to "bvb".</param>
+    /// <param name="communityContext">Community context. Defaults to "test-community".</param>
+    /// <param name="createdAt">Creation timestamp for all documents. Defaults to 2025-01-10 12:00 UTC.</param>
+    public static Dictionary<string, ContextDocument> CreateMatchContextDocuments(
+        Option<string> homeAbbreviation = default,
+        Option<string> awayAbbreviation = default,
+        Option<string> communityContext = default,
+        Option<DateTimeOffset> createdAt = default)
+    {
+        var home = homeAbbreviation.Or("fcb");
+        var away = awayAbbreviation.Or("bvb");
+        var context = communityContext.Or("test-community");
+        var timestamp = createdAt.Or(() => new DateTimeOffset(2025, 1, 10, 12, 0, 0, TimeSpan.Zero));
+
+        return new Dictionary<string, ContextDocument>
+        {
+            ["bundesliga-standings.csv"] = CreateContextDocument(
+                documentName: "bundesliga-standings.csv",
+                content: "Position,Team,Points\n1,Bayern,50",
+                createdAt: timestamp),
+            [$"community-rules-{context}.md"] = CreateContextDocument(
+                documentName: $"community-rules-{context}.md",
+                content: "# Community Rules",
+                createdAt: timestamp),
+            [$"recent-history-{home}.csv"] = CreateContextDocument(
+                documentName: $"recent-history-{home}.csv",
+                content: "Match,Result\n1,W",
+                createdAt: timestamp),
+            [$"recent-history-{away}.csv"] = CreateContextDocument(
+                documentName: $"recent-history-{away}.csv",
+                content: "Match,Result\n1,L",
+                createdAt: timestamp),
+            [$"home-history-{home}.csv"] = CreateContextDocument(
+                documentName: $"home-history-{home}.csv",
+                content: "Match,Result\n1,W",
+                createdAt: timestamp),
+            [$"away-history-{away}.csv"] = CreateContextDocument(
+                documentName: $"away-history-{away}.csv",
+                content: "Match,Result\n1,L",
+                createdAt: timestamp),
+            [$"head-to-head-{home}-vs-{away}.csv"] = CreateContextDocument(
+                documentName: $"head-to-head-{home}-vs-{away}.csv",
+                content: "Match,Score\n1,2-1",
+                createdAt: timestamp)
+        };
+    }
+
+    #endregion
 }
