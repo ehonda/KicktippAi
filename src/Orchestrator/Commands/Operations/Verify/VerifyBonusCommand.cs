@@ -12,20 +12,22 @@ public class VerifyBonusCommand : AsyncCommand<VerifySettings>
     private readonly IAnsiConsole _console;
     private readonly IFirebaseServiceFactory _firebaseServiceFactory;
     private readonly IKicktippClientFactory _kicktippClientFactory;
+    private readonly ILogger<VerifyBonusCommand> _logger;
 
     public VerifyBonusCommand(
         IAnsiConsole console,
         IFirebaseServiceFactory firebaseServiceFactory,
-        IKicktippClientFactory kicktippClientFactory)
+        IKicktippClientFactory kicktippClientFactory,
+        ILogger<VerifyBonusCommand> logger)
     {
         _console = console;
         _firebaseServiceFactory = firebaseServiceFactory;
         _kicktippClientFactory = kicktippClientFactory;
+        _logger = logger;
     }
 
     public override async Task<int> ExecuteAsync(CommandContext context, VerifySettings settings)
     {
-        var logger = LoggingConfiguration.CreateLogger<VerifyBonusCommand>();
         
         try
         {
@@ -52,19 +54,19 @@ public class VerifyBonusCommand : AsyncCommand<VerifySettings>
             }
             
             // Execute the verification workflow
-            var hasDiscrepancies = await ExecuteVerificationWorkflow(settings, logger);
+            var hasDiscrepancies = await ExecuteVerificationWorkflow(settings);
             
             return hasDiscrepancies ? 1 : 0;
         }
         catch (Exception ex)
         {
-            logger.LogError(ex, "Error executing verify bonus command");
+            _logger.LogError(ex, "Error executing verify bonus command");
             _console.MarkupLine($"[red]Error:[/] {ex.Message}");
             return 1;
         }
     }
     
-    private async Task<bool> ExecuteVerificationWorkflow(VerifySettings settings, ILogger logger)
+    private async Task<bool> ExecuteVerificationWorkflow(VerifySettings settings)
     {
         var kicktippClient = _kicktippClientFactory.CreateClient();
         
@@ -231,7 +233,7 @@ public class VerifyBonusCommand : AsyncCommand<VerifySettings>
             catch (Exception ex)
             {
                 hasDiscrepancies = true;
-                logger.LogError(ex, "Error verifying bonus prediction for question '{QuestionText}'", question.Text);
+                _logger.LogError(ex, "Error verifying bonus prediction for question '{QuestionText}'", question.Text);
                 
                 if (settings.Agent)
                 {

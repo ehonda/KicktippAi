@@ -12,16 +12,20 @@ public class SnapshotsAllCommand : AsyncCommand<SnapshotsAllSettings>
 {
     private readonly IAnsiConsole _console;
     private readonly IKicktippClientFactory _kicktippClientFactory;
+    private readonly ILogger<SnapshotsAllCommand> _logger;
 
-    public SnapshotsAllCommand(IAnsiConsole console, IKicktippClientFactory kicktippClientFactory)
+    public SnapshotsAllCommand(
+        IAnsiConsole console,
+        IKicktippClientFactory kicktippClientFactory,
+        ILogger<SnapshotsAllCommand> logger)
     {
         _console = console;
         _kicktippClientFactory = kicktippClientFactory;
+        _logger = logger;
     }
 
     public override async Task<int> ExecuteAsync(CommandContext context, SnapshotsAllSettings settings)
     {
-        var logger = LoggingConfiguration.CreateLogger<SnapshotsAllCommand>();
 
         try
         {
@@ -95,7 +99,7 @@ public class SnapshotsAllCommand : AsyncCommand<SnapshotsAllSettings>
         }
         catch (Exception ex)
         {
-            logger.LogError(ex, "Error in snapshots all command");
+            _logger.LogError(ex, "Error in snapshots all command");
             _console.MarkupLine($"[red]Error:[/] {ex.Message}");
             return 1;
         }

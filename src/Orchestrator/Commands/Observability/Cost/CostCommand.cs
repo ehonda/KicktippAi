@@ -13,24 +13,28 @@ public class CostCommand : AsyncCommand<CostSettings>
 {
     private readonly IAnsiConsole _console;
     private readonly IFirebaseServiceFactory _firebaseServiceFactory;
+    private readonly ILogger<CostCommand> _logger;
 
-    public CostCommand(IAnsiConsole console, IFirebaseServiceFactory firebaseServiceFactory)
+    public CostCommand(
+        IAnsiConsole console,
+        IFirebaseServiceFactory firebaseServiceFactory,
+        ILogger<CostCommand> logger)
     {
         _console = console;
         _firebaseServiceFactory = firebaseServiceFactory;
+        _logger = logger;
     }
 
     public override async Task<int> ExecuteAsync(CommandContext context, CostSettings settings)
     {
-        var logger = LoggingConfiguration.CreateLogger<CostCommand>();
         
         try
         {
             // Load configuration from file if specified
             if (!string.IsNullOrWhiteSpace(settings.ConfigFile))
             {
-                var fileConfig = await LoadConfigurationFromFile(settings.ConfigFile, logger);
-                settings = MergeConfigurations(fileConfig, settings, logger);
+                var fileConfig = await LoadConfigurationFromFile(settings.ConfigFile);
+                settings = MergeConfigurations(fileConfig, settings);
             }
             
             // Create Firebase services using factory (factory handles env var loading)
@@ -308,7 +312,7 @@ public class CostCommand : AsyncCommand<CostSettings>
         }
         catch (Exception ex)
         {
-            logger.LogError(ex, "Failed to calculate costs");
+            _logger.LogError(ex, "Failed to calculate costs");
             _console.MarkupLine($"[red]✗ Failed to calculate costs: {ex.Message}[/]");
             return 1;
         }
@@ -454,7 +458,7 @@ public class CostCommand : AsyncCommand<CostSettings>
         return communityContexts.ToList();
     }
 
-    private async Task<CostConfiguration> LoadConfigurationFromFile(string configFilePath, ILogger logger)
+    private async Task<CostConfiguration> LoadConfigurationFromFile(string configFilePath)
     {
         try
         {
@@ -468,7 +472,7 @@ public class CostCommand : AsyncCommand<CostSettings>
                 throw new FileNotFoundException($"Configuration file not found: {resolvedPath}");
             }
 
-            logger.LogInformation("Loading configuration from: {ConfigPath}", resolvedPath);
+            _logger.LogInformation("Loading configuration from: {ConfigPath}", resolvedPath);
 
             var jsonContent = await File.ReadAllTextAsync(resolvedPath);
             var options = new JsonSerializerOptions
@@ -496,9 +500,9 @@ public class CostCommand : AsyncCommand<CostSettings>
         }
     }
 
-    private CostSettings MergeConfigurations(CostConfiguration fileConfig, CostSettings cliSettings, ILogger logger)
+    private CostSettings MergeConfigurations(CostConfiguration fileConfig, CostSettings cliSettings)
     {
-        logger.LogInformation("Merging file configuration with command line options (CLI options take precedence)");
+        _logger.LogInformation("Merging file configuration with command line options (CLI options take precedence)");
 
         // Create a new settings object with file config as base, CLI overrides
         var mergedSettings = new CostSettings();
@@ -530,35 +534,35 @@ public class CostCommand : AsyncCommand<CostSettings>
         {
             mergedSettings.Matchdays = cliSettings.Matchdays;
             if (mergedSettings.Verbose)
-                logger.LogInformation("CLI override: Matchdays = {Value}", cliSettings.Matchdays);
+                _logger.LogInformation("CLI override: Matchdays = {Value}", cliSettings.Matchdays);
         }
         
         if (cliSettings.Bonus) // Only override if explicitly set to true
         {
             mergedSettings.Bonus = cliSettings.Bonus;
             if (mergedSettings.Verbose)
-                logger.LogInformation("CLI override: Bonus = {Value}", cliSettings.Bonus);
+                _logger.LogInformation("CLI override: Bonus = {Value}", cliSettings.Bonus);
         }
         
         if (!string.IsNullOrWhiteSpace(cliSettings.Models))
         {
             mergedSettings.Models = cliSettings.Models;
             if (mergedSettings.Verbose)
-                logger.LogInformation("CLI override: Models = {Value}", cliSettings.Models);
+                _logger.LogInformation("CLI override: Models = {Value}", cliSettings.Models);
         }
         
         if (!string.IsNullOrWhiteSpace(cliSettings.CommunityContexts))
         {
             mergedSettings.CommunityContexts = cliSettings.CommunityContexts;
             if (mergedSettings.Verbose)
-                logger.LogInformation("CLI override: CommunityContexts = {Value}", cliSettings.CommunityContexts);
+                _logger.LogInformation("CLI override: CommunityContexts = {Value}", cliSettings.CommunityContexts);
         }
         
         if (cliSettings.All) // Only override if explicitly set to true
         {
             mergedSettings.All = cliSettings.All;
             if (mergedSettings.Verbose)
-                logger.LogInformation("CLI override: All = {Value}", cliSettings.All);
+                _logger.LogInformation("CLI override: All = {Value}", cliSettings.All);
         }
         
         if (cliSettings.Verbose) // Only override if explicitly set to true
@@ -570,7 +574,7 @@ public class CostCommand : AsyncCommand<CostSettings>
         {
             mergedSettings.DetailedBreakdown = cliSettings.DetailedBreakdown;
             if (mergedSettings.Verbose)
-                logger.LogInformation("CLI override: DetailedBreakdown = {Value}", cliSettings.DetailedBreakdown);
+                _logger.LogInformation("CLI override: DetailedBreakdown = {Value}", cliSettings.DetailedBreakdown);
         }
 
         // Always preserve the ConfigFile setting

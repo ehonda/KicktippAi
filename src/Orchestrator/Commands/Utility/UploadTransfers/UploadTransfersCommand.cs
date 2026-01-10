@@ -11,16 +11,20 @@ public class UploadTransfersCommand : AsyncCommand<UploadTransfersSettings>
 {
     private readonly IAnsiConsole _console;
     private readonly IFirebaseServiceFactory _firebaseServiceFactory;
+    private readonly ILogger<UploadTransfersCommand> _logger;
 
-    public UploadTransfersCommand(IAnsiConsole console, IFirebaseServiceFactory firebaseServiceFactory)
+    public UploadTransfersCommand(
+        IAnsiConsole console,
+        IFirebaseServiceFactory firebaseServiceFactory,
+        ILogger<UploadTransfersCommand> logger)
     {
         _console = console;
         _firebaseServiceFactory = firebaseServiceFactory;
+        _logger = logger;
     }
 
     public override async Task<int> ExecuteAsync(CommandContext context, UploadTransfersSettings settings)
     {
-        var logger = LoggingConfiguration.CreateLogger<UploadTransfersCommand>();
 
         try
         {
@@ -92,7 +96,7 @@ public class UploadTransfersCommand : AsyncCommand<UploadTransfersSettings>
         }
         catch (Exception ex)
         {
-            logger.LogError(ex, "Error in upload-transfers command");
+            _logger.LogError(ex, "Error in upload-transfers command");
             _console.MarkupLine($"[red]Error: {ex.Message}[/]");
             return 1;
         }

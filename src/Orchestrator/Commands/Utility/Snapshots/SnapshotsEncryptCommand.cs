@@ -10,15 +10,16 @@ namespace Orchestrator.Commands.Utility.Snapshots;
 public class SnapshotsEncryptCommand : AsyncCommand<SnapshotsEncryptSettings>
 {
     private readonly IAnsiConsole _console;
+    private readonly ILogger<SnapshotsEncryptCommand> _logger;
 
-    public SnapshotsEncryptCommand(IAnsiConsole console)
+    public SnapshotsEncryptCommand(IAnsiConsole console, ILogger<SnapshotsEncryptCommand> logger)
     {
         _console = console;
+        _logger = logger;
     }
 
     public override async Task<int> ExecuteAsync(CommandContext context, SnapshotsEncryptSettings settings)
     {
-        var logger = LoggingConfiguration.CreateLogger<SnapshotsEncryptCommand>();
 
         try
         {
@@ -67,7 +68,7 @@ public class SnapshotsEncryptCommand : AsyncCommand<SnapshotsEncryptSettings>
         }
         catch (Exception ex)
         {
-            logger.LogError(ex, "Error encrypting snapshots");
+            _logger.LogError(ex, "Error encrypting snapshots");
             _console.MarkupLine($"[red]Error:[/] {ex.Message}");
             return 1;
         }

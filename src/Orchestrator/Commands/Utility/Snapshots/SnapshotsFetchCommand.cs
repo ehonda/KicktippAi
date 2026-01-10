@@ -12,16 +12,20 @@ public class SnapshotsFetchCommand : AsyncCommand<SnapshotsFetchSettings>
 {
     private readonly IAnsiConsole _console;
     private readonly IKicktippClientFactory _kicktippClientFactory;
+    private readonly ILogger<SnapshotsFetchCommand> _logger;
 
-    public SnapshotsFetchCommand(IAnsiConsole console, IKicktippClientFactory kicktippClientFactory)
+    public SnapshotsFetchCommand(
+        IAnsiConsole console,
+        IKicktippClientFactory kicktippClientFactory,
+        ILogger<SnapshotsFetchCommand> logger)
     {
         _console = console;
         _kicktippClientFactory = kicktippClientFactory;
+        _logger = logger;
     }
 
     public override async Task<int> ExecuteAsync(CommandContext context, SnapshotsFetchSettings settings)
     {
-        var logger = LoggingConfiguration.CreateLogger<SnapshotsFetchCommand>();
 
         try
         {
@@ -57,7 +61,7 @@ public class SnapshotsFetchCommand : AsyncCommand<SnapshotsFetchSettings>
         }
         catch (Exception ex)
         {
-            logger.LogError(ex, "Error fetching snapshots");
+            _logger.LogError(ex, "Error fetching snapshots");
             _console.MarkupLine($"[red]Error:[/] {ex.Message}");
             return 1;
         }

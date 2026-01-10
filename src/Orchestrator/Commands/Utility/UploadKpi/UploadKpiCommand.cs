@@ -11,16 +11,20 @@ public class UploadKpiCommand : AsyncCommand<UploadKpiSettings>
 {
     private readonly IAnsiConsole _console;
     private readonly IFirebaseServiceFactory _firebaseServiceFactory;
+    private readonly ILogger<UploadKpiCommand> _logger;
 
-    public UploadKpiCommand(IAnsiConsole console, IFirebaseServiceFactory firebaseServiceFactory)
+    public UploadKpiCommand(
+        IAnsiConsole console,
+        IFirebaseServiceFactory firebaseServiceFactory,
+        ILogger<UploadKpiCommand> logger)
     {
         _console = console;
         _firebaseServiceFactory = firebaseServiceFactory;
+        _logger = logger;
     }
 
     public override async Task<int> ExecuteAsync(CommandContext context, UploadKpiSettings settings)
     {
-        var logger = LoggingConfiguration.CreateLogger<UploadKpiCommand>();
         
         try
         {
@@ -117,7 +121,7 @@ public class UploadKpiCommand : AsyncCommand<UploadKpiSettings>
         }
         catch (Exception ex)
         {
-            logger.LogError(ex, "Error in upload-kpi command");
+            _logger.LogError(ex, "Error in upload-kpi command");
             _console.MarkupLine($"[red]Error: {ex.Message}[/]");
             return 1;
         }

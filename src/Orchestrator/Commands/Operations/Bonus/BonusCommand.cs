@@ -16,22 +16,24 @@ public class BonusCommand : AsyncCommand<BaseSettings>
     private readonly IFirebaseServiceFactory _firebaseServiceFactory;
     private readonly IKicktippClientFactory _kicktippClientFactory;
     private readonly IOpenAiServiceFactory _openAiServiceFactory;
+    private readonly ILogger<BonusCommand> _logger;
 
     public BonusCommand(
         IAnsiConsole console,
         IFirebaseServiceFactory firebaseServiceFactory,
         IKicktippClientFactory kicktippClientFactory,
-        IOpenAiServiceFactory openAiServiceFactory)
+        IOpenAiServiceFactory openAiServiceFactory,
+        ILogger<BonusCommand> logger)
     {
         _console = console;
         _firebaseServiceFactory = firebaseServiceFactory;
         _kicktippClientFactory = kicktippClientFactory;
         _openAiServiceFactory = openAiServiceFactory;
+        _logger = logger;
     }
 
     public override async Task<int> ExecuteAsync(CommandContext context, BaseSettings settings)
     {
-        var logger = LoggingConfiguration.CreateLogger<BonusCommand>();
         
         try
         {
@@ -87,19 +89,19 @@ public class BonusCommand : AsyncCommand<BaseSettings>
             }
             
             // Execute the bonus prediction workflow
-            await ExecuteBonusWorkflow(settings, logger);
+            await ExecuteBonusWorkflow(settings);
             
             return 0;
         }
         catch (Exception ex)
         {
-            logger.LogError(ex, "Error executing bonus command");
+            _logger.LogError(ex, "Error executing bonus command");
             _console.MarkupLine($"[red]Error:[/] {ex.Message}");
             return 1;
         }
     }
     
-    private async Task ExecuteBonusWorkflow(BaseSettings settings, ILogger logger)
+    private async Task ExecuteBonusWorkflow(BaseSettings settings)
     {
         // Create services using factories
         var kicktippClient = _kicktippClientFactory.CreateClient();
@@ -314,7 +316,7 @@ public class BonusCommand : AsyncCommand<BaseSettings>
                             }
                             catch (Exception ex)
                             {
-                                logger.LogError(ex, "Failed to save bonus prediction for question '{QuestionText}'", question.Text);
+                                _logger.LogError(ex, "Failed to save bonus prediction for question '{QuestionText}'", question.Text);
                                 _console.MarkupLine($"[red]    ✗ Failed to save to database: {ex.Message}[/]");
                             }
                         }
@@ -348,7 +350,7 @@ public class BonusCommand : AsyncCommand<BaseSettings>
             }
             catch (Exception ex)
             {
-                logger.LogError(ex, "Error processing bonus question '{QuestionText}'", question.Text);
+                _logger.LogError(ex, "Error processing bonus question '{QuestionText}'", question.Text);
                 _console.MarkupLine($"[red]  ✗ Error processing question: {ex.Message}[/]");
             }
         }

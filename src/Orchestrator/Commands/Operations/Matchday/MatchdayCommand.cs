@@ -17,24 +17,26 @@ public class MatchdayCommand : AsyncCommand<BaseSettings>
     private readonly IKicktippClientFactory _kicktippClientFactory;
     private readonly IOpenAiServiceFactory _openAiServiceFactory;
     private readonly IContextProviderFactory _contextProviderFactory;
+    private readonly ILogger<MatchdayCommand> _logger;
 
     public MatchdayCommand(
         IAnsiConsole console,
         IFirebaseServiceFactory firebaseServiceFactory,
         IKicktippClientFactory kicktippClientFactory,
         IOpenAiServiceFactory openAiServiceFactory,
-        IContextProviderFactory contextProviderFactory)
+        IContextProviderFactory contextProviderFactory,
+        ILogger<MatchdayCommand> logger)
     {
         _console = console;
         _firebaseServiceFactory = firebaseServiceFactory;
         _kicktippClientFactory = kicktippClientFactory;
         _openAiServiceFactory = openAiServiceFactory;
         _contextProviderFactory = contextProviderFactory;
+        _logger = logger;
     }
 
     public override async Task<int> ExecuteAsync(CommandContext context, BaseSettings settings)
     {
-        var logger = LoggingConfiguration.CreateLogger<MatchdayCommand>();
         
         try
         {
@@ -101,19 +103,19 @@ public class MatchdayCommand : AsyncCommand<BaseSettings>
             }
             
             // Execute the matchday workflow
-            await ExecuteMatchdayWorkflow(settings, logger);
+            await ExecuteMatchdayWorkflow(settings);
             
             return 0;
         }
         catch (Exception ex)
         {
-            logger.LogError(ex, "Error executing matchday command");
+            _logger.LogError(ex, "Error executing matchday command");
             _console.MarkupLine($"[red]Error:[/] {ex.Message}");
             return 1;
         }
     }
     
-    private async Task ExecuteMatchdayWorkflow(BaseSettings settings, ILogger logger)
+    private async Task ExecuteMatchdayWorkflow(BaseSettings settings)
     {
         // Create services using factories
         var kicktippClient = _kicktippClientFactory.CreateClient();
@@ -370,7 +372,7 @@ public class MatchdayCommand : AsyncCommand<BaseSettings>
                             }
                             catch (Exception ex)
                             {
-                                logger.LogError(ex, "Failed to save prediction for match {Match}", match);
+                                _logger.LogError(ex, "Failed to save prediction for match {Match}", match);
                                 _console.MarkupLine($"[red]    ✗ Failed to save to database: {ex.Message}[/]");
                             }
                         }
@@ -406,7 +408,7 @@ public class MatchdayCommand : AsyncCommand<BaseSettings>
             }
             catch (Exception ex)
             {
-                logger.LogError(ex, "Error processing match {Match}", match);
+                _logger.LogError(ex, "Error processing match {Match}", match);
                 _console.MarkupLine($"[red]  ✗ Error processing match: {ex.Message}[/]");
             }
         }

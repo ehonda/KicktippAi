@@ -15,22 +15,24 @@ public class CollectContextKicktippCommand : AsyncCommand<CollectContextKicktipp
     private readonly IFirebaseServiceFactory _firebaseServiceFactory;
     private readonly IKicktippClientFactory _kicktippClientFactory;
     private readonly IContextProviderFactory _contextProviderFactory;
+    private readonly ILogger<CollectContextKicktippCommand> _logger;
 
     public CollectContextKicktippCommand(
         IAnsiConsole console,
         IFirebaseServiceFactory firebaseServiceFactory,
         IKicktippClientFactory kicktippClientFactory,
-        IContextProviderFactory contextProviderFactory)
+        IContextProviderFactory contextProviderFactory,
+        ILogger<CollectContextKicktippCommand> logger)
     {
         _console = console;
         _firebaseServiceFactory = firebaseServiceFactory;
         _kicktippClientFactory = kicktippClientFactory;
         _contextProviderFactory = contextProviderFactory;
+        _logger = logger;
     }
 
     public override async Task<int> ExecuteAsync(CommandContext context, CollectContextKicktippSettings settings)
     {
-        var logger = LoggingConfiguration.CreateLogger<CollectContextKicktippCommand>();
         
         try
         {
@@ -54,19 +56,19 @@ public class CollectContextKicktippCommand : AsyncCommand<CollectContextKicktipp
             }
             
             // Execute the context collection workflow
-            await ExecuteKicktippContextCollection(settings, logger);
+            await ExecuteKicktippContextCollection(settings);
             
             return 0;
         }
         catch (Exception ex)
         {
-            logger.LogError(ex, "Error executing collect-context kicktipp command");
+            _logger.LogError(ex, "Error executing collect-context kicktipp command");
             _console.MarkupLine($"[red]Error:[/] {ex.Message}");
             return 1;
         }
     }
 
-    private async Task ExecuteKicktippContextCollection(CollectContextKicktippSettings settings, ILogger logger)
+    private async Task ExecuteKicktippContextCollection(CollectContextKicktippSettings settings)
     {
         // Create services using factories (factories handle env var loading)
         var kicktippClient = _kicktippClientFactory.CreateClient();
@@ -117,7 +119,7 @@ public class CollectContextKicktippCommand : AsyncCommand<CollectContextKicktipp
             }
             catch (Exception ex)
             {
-                logger.LogError(ex, "Failed to collect context for match {HomeTeam} vs {AwayTeam}", match.HomeTeam, match.AwayTeam);
+                _logger.LogError(ex, "Failed to collect context for match {HomeTeam} vs {AwayTeam}", match.HomeTeam, match.AwayTeam);
                 _console.MarkupLine($"[red]  ✗ Failed to collect context: {ex.Message}[/]");
             }
         }
@@ -180,7 +182,7 @@ public class CollectContextKicktippCommand : AsyncCommand<CollectContextKicktipp
             }
             catch (Exception ex)
             {
-                logger.LogError(ex, "Failed to save context document {DocumentName}", documentName);
+                _logger.LogError(ex, "Failed to save context document {DocumentName}", documentName);
                 _console.MarkupLine($"[red]  ✗ Failed to save {documentName}: {ex.Message}[/]");
             }
         }

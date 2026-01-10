@@ -13,16 +13,20 @@ public class ContextChangesCommand : AsyncCommand<ContextChangesSettings>
 {
     private readonly IAnsiConsole _console;
     private readonly IFirebaseServiceFactory _firebaseServiceFactory;
+    private readonly ILogger<ContextChangesCommand> _logger;
 
-    public ContextChangesCommand(IAnsiConsole console, IFirebaseServiceFactory firebaseServiceFactory)
+    public ContextChangesCommand(
+        IAnsiConsole console,
+        IFirebaseServiceFactory firebaseServiceFactory,
+        ILogger<ContextChangesCommand> logger)
     {
         _console = console;
         _firebaseServiceFactory = firebaseServiceFactory;
+        _logger = logger;
     }
 
     public override async Task<int> ExecuteAsync(CommandContext context, ContextChangesSettings settings)
     {
-        var logger = LoggingConfiguration.CreateLogger<ContextChangesCommand>();
         
         try
         {
@@ -34,19 +38,19 @@ public class ContextChangesCommand : AsyncCommand<ContextChangesSettings>
             }
             
             // Execute the context changes workflow
-            await ExecuteContextChanges(settings, logger);
+            await ExecuteContextChanges(settings);
             
             return 0;
         }
         catch (Exception ex)
         {
-            logger.LogError(ex, "Error executing context-changes command");
+            _logger.LogError(ex, "Error executing context-changes command");
             _console.MarkupLine($"[red]Error:[/] {ex.Message}");
             return 1;
         }
     }
     
-    private async Task ExecuteContextChanges(ContextChangesSettings settings, ILogger logger)
+    private async Task ExecuteContextChanges(ContextChangesSettings settings)
     {
         // Create context repository using factory (factory handles env var loading)
         var contextRepository = _firebaseServiceFactory.CreateContextRepository();
