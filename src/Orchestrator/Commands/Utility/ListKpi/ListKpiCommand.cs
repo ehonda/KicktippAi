@@ -10,16 +10,20 @@ public class ListKpiCommand : AsyncCommand<ListKpiSettings>
 {
     private readonly IAnsiConsole _console;
     private readonly IFirebaseServiceFactory _firebaseServiceFactory;
+    private readonly ILogger<ListKpiCommand> _logger;
 
-    public ListKpiCommand(IAnsiConsole console, IFirebaseServiceFactory firebaseServiceFactory)
+    public ListKpiCommand(
+        IAnsiConsole console,
+        IFirebaseServiceFactory firebaseServiceFactory,
+        ILogger<ListKpiCommand> logger)
     {
         _console = console;
         _firebaseServiceFactory = firebaseServiceFactory;
+        _logger = logger;
     }
 
     public override async Task<int> ExecuteAsync(CommandContext context, ListKpiSettings settings)
     {
-        var logger = LoggingConfiguration.CreateLogger<ListKpiCommand>();
         
         try
         {
@@ -70,7 +74,7 @@ public class ListKpiCommand : AsyncCommand<ListKpiSettings>
         }
         catch (Exception ex)
         {
-            logger.LogError(ex, "Error in list-kpi command");
+            _logger.LogError(ex, "Error in list-kpi command");
             _console.MarkupLine($"[red]Error: {ex.Message}[/]");
             return 1;
         }
