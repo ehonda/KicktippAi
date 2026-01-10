@@ -152,13 +152,16 @@ public static class OrchestratorTestFactories
     /// </summary>
     /// <param name="matchesWithHistory">Matches returned by GetMatchesWithHistoryAsync. Defaults to empty list.</param>
     /// <param name="placeBetsResult">Result of PlaceBetsAsync. Defaults to true.</param>
+    /// <param name="placedPredictions">Predictions returned by GetPlacedPredictionsAsync. Defaults to empty dictionary.</param>
     public static Mock<IKicktippClient> CreateMockKicktippClient(
         Option<List<MatchWithHistory>> matchesWithHistory = default,
-        Option<bool> placeBetsResult = default)
+        Option<bool> placeBetsResult = default,
+        Option<Dictionary<Match, BetPrediction?>> placedPredictions = default)
     {
         var mock = new Mock<IKicktippClient>();
         var matches = matchesWithHistory.Or(() => []);
         var betsResult = placeBetsResult.Or(true);
+        var predictions = placedPredictions.Or(() => new Dictionary<Match, BetPrediction?>());
 
         mock.Setup(c => c.GetMatchesWithHistoryAsync(It.IsAny<string>()))
             .ReturnsAsync(matches);
@@ -166,7 +169,24 @@ public static class OrchestratorTestFactories
         mock.Setup(c => c.PlaceBetsAsync(It.IsAny<string>(), It.IsAny<Dictionary<Match, BetPrediction>>(), It.IsAny<bool>()))
             .ReturnsAsync(betsResult);
 
+        mock.Setup(c => c.GetPlacedPredictionsAsync(It.IsAny<string>()))
+            .ReturnsAsync(predictions);
+
         return mock;
+    }
+
+    /// <summary>
+    /// Creates a test <see cref="BetPrediction"/> with default values.
+    /// </summary>
+    /// <param name="homeGoals">Home team goals. Defaults to 2.</param>
+    /// <param name="awayGoals">Away team goals. Defaults to 1.</param>
+    public static BetPrediction CreateBetPrediction(
+        Option<int> homeGoals = default,
+        Option<int> awayGoals = default)
+    {
+        return new BetPrediction(
+            homeGoals.Or(2),
+            awayGoals.Or(1));
     }
 
     /// <summary>

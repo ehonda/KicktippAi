@@ -259,4 +259,21 @@ public static class CoreTestFactories
             score.Or("2:1"),
             annotation.Or((string?)null));
     }
+
+    /// <summary>
+    /// Creates a test <see cref="PredictionMetadata"/> with default values.
+    /// </summary>
+    /// <param name="prediction">The prediction. Defaults to a new test prediction.</param>
+    /// <param name="createdAt">Creation timestamp. Defaults to 2025-01-10 12:00 UTC.</param>
+    /// <param name="contextDocumentNames">Context document names used. Defaults to empty list.</param>
+    public static PredictionMetadata CreatePredictionMetadata(
+        Option<Prediction> prediction = default,
+        Option<DateTimeOffset> createdAt = default,
+        Option<List<string>> contextDocumentNames = default)
+    {
+        return new PredictionMetadata(
+            prediction.Or(() => CreatePrediction()),
+            createdAt.Or(() => new DateTimeOffset(2025, 1, 10, 12, 0, 0, TimeSpan.Zero)),
+            contextDocumentNames.Or(() => []));
+    }
 }
