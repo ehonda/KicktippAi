@@ -307,4 +307,104 @@ public class MatchdayCommand_AdditionalCoverage_Tests : MatchdayCommandTests_Bas
         await Assert.That(exitCode).IsEqualTo(0);
         await Assert.That(output).Contains("up-to-date");
     }
+
+    [Test]
+    public async Task Fallback_adds_on_demand_context_documents_when_database_has_partial_docs()
+    {
+        var partialDocs = new Dictionary<string, ContextDocument>
+        {
+            ["bundesliga-standings.csv"] = CreateContextDocument(documentName: "bundesliga-standings.csv", content: "Position,Team,Points\n1,Bayern,50")
+        };
+
+        var onDemandDocs = new List<DocumentContext>
+        {
+            new("recent-history-fcb.csv", "Match,Result\n1,W"),
+            new("recent-history-bvb.csv", "Match,Result\n1,L")
+        };
+
+        var mockContextProvider = CreateMockKicktippContextProvider(matchContextDocuments: onDemandDocs);
+        var mockContextProviderFactory = CreateMockContextProviderFactory(contextProvider: mockContextProvider);
+
+        var mockFirebaseFactory = CreateMockFirebaseServiceFactoryFull(contextRepository: CreateMockContextRepositoryWithDocuments(partialDocs));
+
+        var ctx = CreateMatchdayCommandApp(
+            firebaseServiceFactory: mockFirebaseFactory,
+            contextProviderFactory: mockContextProviderFactory);
+
+        var (exitCode, output) = await RunCommandAsync(ctx.App, ctx.Console, "matchday", "gpt-4o", "-c", "test-community");
+
+        await Assert.That(exitCode).IsEqualTo(0);
+        await Assert.That(output).Contains("Warning:");
+        await Assert.That(output).Contains("Falling back");
+        ctx.PredictionService.Verify(
+            s => s.PredictMatchAsync(It.IsAny<Match>(), It.Is<IEnumerable<DocumentContext>>(docs => docs.Count() >= 3), It.IsAny<bool>(), It.IsAny<CancellationToken>()),
+            Times.Once);
+    }
+
+    [Test]
+    public async Task Fallback_skips_duplicate_documents_from_on_demand_provider()
+    {
+        var partialDocs = new Dictionary<string, ContextDocument>
+        {
+            ["bundesliga-standings.csv"] = CreateContextDocument(documentName: "bundesliga-standings.csv", content: "Position,Team,Points\n1,Bayern,50")
+        };
+
+        var onDemandDocs = new List<DocumentContext>
+        {
+            new("bundesliga-standings.csv", "Duplicate - should be skipped"),
+            new("new-document.csv", "New content - should be added")
+        };
+
+        var mockContextProvider = CreateMockKicktippContextProvider(matchContextDocuments: onDemandDocs);
+        var mockContextProviderFactory = CreateMockContextProviderFactory(contextProvider: mockContextProvider);
+
+        var mockFirebaseFactory = CreateMockFirebaseServiceFactoryFull(contextRepository: CreateMockContextRepositoryWithDocuments(partialDocs));
+
+        var ctx = CreateMatchdayCommandApp(
+            firebaseServiceFactory: mockFirebaseFactory,
+            contextProviderFactory: mockContextProviderFactory);
+
+        var (exitCode, output) = await RunCommandAsync(ctx.App, ctx.Console, "matchday", "gpt-4o", "-c", "test-community");
+
+        await Assert.That(exitCode).IsEqualTo(0);
+        ctx.PredictionService.Verify(
+            s => s.PredictMatchAsync(
+                It.IsAny<Match>(),
+                It.Is<IEnumerable<DocumentContext>>(docs =>
+                    docs.Count() == 2 &&
+                    docs.Any(d => d.Name == "bundesliga-standings.csv" && d.Content.Contains("Bayern")) &&
+                    docs.Any(d => d.Name == "new-document.csv")),
+                It.IsAny<bool>(),
+                It.IsAny<CancellationToken>()),
+            Times.Once);
+    }
+
+    [Test]
+    public async Task Fallback_verbose_mode_shows_merged_context_document_count()
+    {
+        var partialDocs = new Dictionary<string, ContextDocument>
+        {
+            ["bundesliga-standings.csv"] = CreateContextDocument(documentName: "bundesliga-standings.csv", content: "Position,Team,Points\n1,Bayern,50")
+        };
+
+        var onDemandDocs = new List<DocumentContext>
+        {
+            new("recent-history-fcb.csv", "Match,Result\n1,W"),
+            new("recent-history-bvb.csv", "Match,Result\n1,L")
+        };
+
+        var mockContextProvider = CreateMockKicktippContextProvider(matchContextDocuments: onDemandDocs);
+        var mockContextProviderFactory = CreateMockContextProviderFactory(contextProvider: mockContextProvider);
+
+        var mockFirebaseFactory = CreateMockFirebaseServiceFactoryFull(contextRepository: CreateMockContextRepositoryWithDocuments(partialDocs));
+
+        var ctx = CreateMatchdayCommandApp(
+            firebaseServiceFactory: mockFirebaseFactory,
+            contextProviderFactory: mockContextProviderFactory);
+
+        var (exitCode, output) = await RunCommandAsync(ctx.App, ctx.Console, "matchday", "gpt-4o", "-c", "test-community", "-v");
+
+        await Assert.That(exitCode).IsEqualTo(0);
+        await Assert.That(output).Contains("merged context documents");
+    }
 }

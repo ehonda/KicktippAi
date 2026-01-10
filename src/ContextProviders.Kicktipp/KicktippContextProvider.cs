@@ -7,7 +7,7 @@ using Microsoft.Extensions.FileProviders;
 
 namespace ContextProviders.Kicktipp;
 
-public class KicktippContextProvider : IContextProvider<DocumentContext>
+public class KicktippContextProvider : IKicktippContextProvider
 {
     private readonly IKicktippClient _kicktippClient;
     private readonly IFileProvider _communityRulesFileProvider;

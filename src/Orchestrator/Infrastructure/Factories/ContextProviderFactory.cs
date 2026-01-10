@@ -21,7 +21,7 @@ public sealed class ContextProviderFactory : IContextProviderFactory
     public IFileProvider CommunityRulesFileProvider => _communityRulesFileProvider.Value;
 
     /// <inheritdoc />
-    public KicktippContextProvider CreateKicktippContextProvider(
+    public IKicktippContextProvider CreateKicktippContextProvider(
         IKicktippClient kicktippClient,
         string community,
         string? communityContext = null)

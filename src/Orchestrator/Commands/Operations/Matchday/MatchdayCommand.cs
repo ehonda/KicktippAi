@@ -551,7 +551,7 @@ public class MatchdayCommand : AsyncCommand<BaseSettings>
     /// </summary>
     private async Task<List<DocumentContext>> GetHybridContextAsync(
         IContextRepository contextRepository,
-        KicktippContextProvider contextProvider,
+        IKicktippContextProvider contextProvider,
         string homeTeam,
         string awayTeam,
         string communityContext,

@@ -255,26 +255,53 @@ public static class OrchestratorTestFactories
     }
 
     /// <summary>
-    /// Creates a mock <see cref="KicktippContextProvider"/> that returns the specified context documents.
-    /// Note: KicktippContextProvider is a concrete class, so this creates a setup that can be used
-    /// with a mocked factory return.
+    /// Creates a mock <see cref="IContextProviderFactory"/> with configurable context provider behavior.
     /// </summary>
-    /// <param name="contextDocuments">Context documents to return. Defaults to empty async enumerable.</param>
-    public static Mock<IContextProviderFactory> CreateMockContextProviderFactory()
+    /// <param name="contextProvider">Optional mock context provider. If not provided, creates an empty one.</param>
+    public static Mock<IContextProviderFactory> CreateMockContextProviderFactory(
+        Option<Mock<IKicktippContextProvider>> contextProvider = default)
     {
         var mockFactory = new Mock<IContextProviderFactory>();
+        var mockProvider = contextProvider.Or(() => CreateMockKicktippContextProvider());
 
-        // Since KicktippContextProvider is a concrete class, we cannot mock it directly.
-        // The factory will need to return null, and tests should configure behavior via
-        // the context repository mock instead (hybrid context approach).
-        // For tests that need on-demand context, they should use the context repository.
         mockFactory.Setup(f => f.CreateKicktippContextProvider(
                 It.IsAny<IKicktippClient>(),
                 It.IsAny<string>(),
                 It.IsAny<string?>()))
-            .Returns((KicktippContextProvider)null!);
+            .Returns(mockProvider.Object);
 
         return mockFactory;
+    }
+
+    /// <summary>
+    /// Creates a mock <see cref="IKicktippContextProvider"/> with configurable behavior.
+    /// </summary>
+    /// <param name="matchContextDocuments">Documents to return from GetMatchContextAsync. Defaults to empty.</param>
+    public static Mock<IKicktippContextProvider> CreateMockKicktippContextProvider(
+        Option<List<DocumentContext>> matchContextDocuments = default)
+    {
+        var mock = new Mock<IKicktippContextProvider>();
+        var docs = matchContextDocuments.Or(() => new List<DocumentContext>());
+
+        mock.Setup(p => p.GetMatchContextAsync(
+                It.IsAny<string>(),
+                It.IsAny<string>(),
+                It.IsAny<CancellationToken>()))
+            .Returns(ToAsyncEnumerableHelper(docs));
+
+        return mock;
+    }
+
+    /// <summary>
+    /// Helper method to convert a list to IAsyncEnumerable without ambiguity.
+    /// </summary>
+    private static async IAsyncEnumerable<T> ToAsyncEnumerableHelper<T>(IEnumerable<T> source)
+    {
+        foreach (var item in source)
+        {
+            yield return item;
+        }
+        await Task.CompletedTask;
     }
 
     /// <summary>
