@@ -9,6 +9,14 @@
     </PropertyGroup>
 
     <ItemGroup>
+        <!--
+            We get System.Linq.Async transitively via Google.Cloud.Firestore and this causes problems with ambiguous
+            calls. We fix this using the recommended approach:
+                https://learn.microsoft.com/en-us/dotnet/core/compatibility/core-libraries/10.0/asyncenumerable#recommended-action
+        -->
+        <PackageReference Include="System.Linq.Async" Version="6.0.1">
+            <ExcludeAssets>compile</ExcludeAssets>
+        </PackageReference>
         <!-- TUnit framework -->
         <PackageReference Include="TUnit" Version="1.2.11" />
         <PackageReference Include="Microsoft.Testing.Extensions.TrxReport" Version="2.0.2" />

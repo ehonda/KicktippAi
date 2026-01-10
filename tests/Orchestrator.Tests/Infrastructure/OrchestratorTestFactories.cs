@@ -10,6 +10,7 @@ using OpenAiIntegration;
 using Orchestrator.Commands.Utility.ListKpi;
 using Orchestrator.Infrastructure;
 using Orchestrator.Infrastructure.Factories;
+using System.Linq;
 using Spectre.Console;
 using Spectre.Console.Cli;
 using Spectre.Console.Testing;
@@ -287,21 +288,9 @@ public static class OrchestratorTestFactories
                 It.IsAny<string>(),
                 It.IsAny<string>(),
                 It.IsAny<CancellationToken>()))
-            .Returns(ToAsyncEnumerableHelper(docs));
+            .Returns(docs.ToAsyncEnumerable());
 
         return mock;
-    }
-
-    /// <summary>
-    /// Helper method to convert a list to IAsyncEnumerable without ambiguity.
-    /// </summary>
-    private static async IAsyncEnumerable<T> ToAsyncEnumerableHelper<T>(IEnumerable<T> source)
-    {
-        foreach (var item in source)
-        {
-            yield return item;
-        }
-        await Task.CompletedTask;
     }
 
     /// <summary>
