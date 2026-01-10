@@ -26,25 +26,87 @@ public abstract class MatchdayCommandTests_Base
 {
     /// <summary>
     /// Creates a configured <see cref="CommandApp"/> for testing the matchday command.
+    /// This is the primary factory method for creating test scenarios.
     /// </summary>
-    /// <param name="console">Optional TestConsole instance. Defaults to a new TestConsole.</param>
-    /// <param name="firebaseServiceFactory">Optional mock for IFirebaseServiceFactory.</param>
-    /// <param name="kicktippClientFactory">Optional mock for IKicktippClientFactory.</param>
-    /// <param name="openAiServiceFactory">Optional mock for IOpenAiServiceFactory.</param>
-    /// <param name="contextProviderFactory">Optional mock for IContextProviderFactory.</param>
-    /// <returns>A tuple containing the CommandApp and the TestConsole for assertions.</returns>
-    protected static (CommandApp App, TestConsole Console) CreateMatchdayCommandApp(
+    /// <remarks>
+    /// The method supports two usage patterns:
+    /// <list type="bullet">
+    /// <item>
+    /// <description>
+    /// <b>Simple pattern:</b> Pass domain-level parameters (matches, documents, predictions).
+    /// The method creates properly wired mocks internally.
+    /// </description>
+    /// </item>
+    /// <item>
+    /// <description>
+    /// <b>Advanced pattern:</b> Pass pre-configured factory mocks for scenarios requiring
+    /// custom mock behavior (e.g., exceptions, specific verification).
+    /// </description>
+    /// </item>
+    /// </list>
+    /// Domain parameters are ignored when corresponding factory mocks are provided.
+    /// </remarks>
+    /// <param name="console">Optional TestConsole. Defaults to a new TestConsole.</param>
+    /// <param name="matchesWithHistory">Matches returned by the Kicktipp client.</param>
+    /// <param name="contextDocuments">Documents returned by the context repository.</param>
+    /// <param name="existingPrediction">Prediction returned by GetPredictionAsync (null = no existing).</param>
+    /// <param name="predictionResult">Prediction returned by PredictMatchAsync.</param>
+    /// <param name="placeBetsResult">Result of PlaceBetsAsync. Defaults to true.</param>
+    /// <param name="firebaseServiceFactory">Pre-configured mock (overrides domain params).</param>
+    /// <param name="kicktippClientFactory">Pre-configured mock (overrides domain params).</param>
+    /// <param name="openAiServiceFactory">Pre-configured mock (overrides domain params).</param>
+    /// <param name="contextProviderFactory">Pre-configured mock.</param>
+    /// <returns>A tuple with the CommandApp, TestConsole, and mocks for verification.</returns>
+    protected static MatchdayCommandTestContext CreateMatchdayCommandApp(
         Option<TestConsole> console = default,
+        // Domain-level parameters for simple test scenarios
+        Option<List<MatchWithHistory>> matchesWithHistory = default,
+        Option<Dictionary<string, ContextDocument>> contextDocuments = default,
+        NullableOption<Prediction> existingPrediction = default,
+        NullableOption<Prediction> predictionResult = default,
+        Option<bool> placeBetsResult = default,
+        // Factory-level parameters for advanced scenarios
         Option<Mock<IFirebaseServiceFactory>> firebaseServiceFactory = default,
         Option<Mock<IKicktippClientFactory>> kicktippClientFactory = default,
         Option<Mock<IOpenAiServiceFactory>> openAiServiceFactory = default,
         Option<Mock<IContextProviderFactory>> contextProviderFactory = default)
     {
         var testConsole = console.Or(() => new TestConsole());
-        var mockFirebaseFactory = firebaseServiceFactory.Or(() => CreateMockFirebaseServiceFactoryFull());
-        var mockKicktippFactory = kicktippClientFactory.Or(() => CreateMockKicktippClientFactory());
-        var mockOpenAiFactory = openAiServiceFactory.Or(() => CreateMockOpenAiServiceFactory());
-        var mockContextProviderFactory = contextProviderFactory.Or(() => CreateMockContextProviderFactory());
+
+        // Build internal mocks from domain parameters (used when factory mocks not provided)
+        var matches = matchesWithHistory.Or(() => [CreateBayernVsDortmundMatchWithHistory()]);
+        var docs = contextDocuments.Or(() => CreateBayernVsDortmundContextDocuments());
+
+        var mockKicktippClient = CreateMockKicktippClient(
+            matchesWithHistory: matches,
+            placeBetsResult: placeBetsResult.Or(true));
+
+        var mockContextRepository = CreateMockContextRepositoryWithDocuments(docs);
+
+        var mockPredictionRepository = CreateMockPredictionRepository(
+            getPredictionResult: existingPrediction);
+
+        var mockPredictionService = CreateMockPredictionService(
+            predictMatchResult: predictionResult.Or(() => CreatePrediction()));
+
+        var mockTokenUsageTracker = CreateMockTokenUsageTracker();
+
+        // Use provided factory mocks or build from internal mocks
+        var mockFirebaseFactory = firebaseServiceFactory.Or(() =>
+            CreateMockFirebaseServiceFactoryFull(
+                predictionRepository: mockPredictionRepository,
+                contextRepository: mockContextRepository));
+
+        var mockKicktippFactory = kicktippClientFactory.Or(() =>
+            CreateMockKicktippClientFactory(mockKicktippClient));
+
+        var mockOpenAiFactory = openAiServiceFactory.Or(() =>
+            CreateMockOpenAiServiceFactory(
+                predictionService: mockPredictionService,
+                tokenUsageTracker: mockTokenUsageTracker));
+
+        var mockContextProviderFactory = contextProviderFactory.Or(() =>
+            CreateMockContextProviderFactory());
 
         var services = new ServiceCollection();
         services.AddSingleton<IAnsiConsole>(testConsole);
@@ -62,7 +124,18 @@ public abstract class MatchdayCommandTests_Base
             config.AddCommand<MatchdayCommand>("matchday");
         });
 
-        return (app, testConsole);
+        return new MatchdayCommandTestContext(
+            app,
+            testConsole,
+            mockFirebaseFactory,
+            mockKicktippFactory,
+            mockOpenAiFactory,
+            mockContextProviderFactory,
+            mockKicktippClient,
+            mockPredictionRepository,
+            mockContextRepository,
+            mockPredictionService,
+            mockTokenUsageTracker);
     }
 
     /// <summary>
@@ -104,65 +177,11 @@ public abstract class MatchdayCommandTests_Base
     }
 
     /// <summary>
-    /// Creates a fully configured set of mocks for a standard matchday command test scenario.
+    /// Contains the CommandApp, TestConsole, and all mocks for a matchday command test.
     /// </summary>
-    /// <param name="matchesWithHistory">Matches to return from Kicktipp client.</param>
-    /// <param name="contextDocuments">Context documents to return from context repository.</param>
-    /// <param name="existingPrediction">Existing prediction to return from prediction repository.</param>
-    /// <param name="predictionResult">Result to return from prediction service.</param>
-    /// <param name="placeBetsResult">Result of PlaceBetsAsync.</param>
-    protected static MatchdayCommandMocks CreateStandardMocks(
-        Option<List<MatchWithHistory>> matchesWithHistory = default,
-        Option<Dictionary<string, ContextDocument>> contextDocuments = default,
-        NullableOption<Prediction> existingPrediction = default,
-        NullableOption<Prediction> predictionResult = default,
-        Option<bool> placeBetsResult = default)
-    {
-        var matches = matchesWithHistory.Or(() => [CreateBayernVsDortmundMatchWithHistory()]);
-        var docs = contextDocuments.Or(() => CreateBayernVsDortmundContextDocuments());
-
-        var mockKicktippClient = CreateMockKicktippClient(
-            matchesWithHistory: matches,
-            placeBetsResult: placeBetsResult.Or(true));
-
-        var mockContextRepository = CreateMockContextRepositoryWithDocuments(docs);
-
-        var mockPredictionRepository = CreateMockPredictionRepository(
-            getPredictionResult: existingPrediction);
-
-        var mockPredictionService = CreateMockPredictionService(
-            predictMatchResult: predictionResult.Or(() => CreatePrediction()));
-
-        var mockTokenUsageTracker = CreateMockTokenUsageTracker();
-
-        var mockFirebaseFactory = CreateMockFirebaseServiceFactoryFull(
-            predictionRepository: mockPredictionRepository,
-            contextRepository: mockContextRepository);
-
-        var mockKicktippFactory = CreateMockKicktippClientFactory(mockKicktippClient);
-
-        var mockOpenAiFactory = CreateMockOpenAiServiceFactory(
-            predictionService: mockPredictionService,
-            tokenUsageTracker: mockTokenUsageTracker);
-
-        var mockContextProviderFactory = CreateMockContextProviderFactory();
-
-        return new MatchdayCommandMocks(
-            mockFirebaseFactory,
-            mockKicktippFactory,
-            mockOpenAiFactory,
-            mockContextProviderFactory,
-            mockKicktippClient,
-            mockPredictionRepository,
-            mockContextRepository,
-            mockPredictionService,
-            mockTokenUsageTracker);
-    }
-
-    /// <summary>
-    /// Container for all mocks used in matchday command tests.
-    /// </summary>
-    protected record MatchdayCommandMocks(
+    protected record MatchdayCommandTestContext(
+        CommandApp App,
+        TestConsole Console,
         Mock<IFirebaseServiceFactory> FirebaseServiceFactory,
         Mock<IKicktippClientFactory> KicktippClientFactory,
         Mock<IOpenAiServiceFactory> OpenAiServiceFactory,

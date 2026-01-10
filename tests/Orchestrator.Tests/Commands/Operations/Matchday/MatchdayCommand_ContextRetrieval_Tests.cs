@@ -13,27 +13,14 @@ namespace Orchestrator.Tests.Commands.Operations.Matchday;
 /// </summary>
 public class MatchdayCommand_ContextRetrieval_Tests : MatchdayCommandTests_Base
 {
-    #region Context From Database Tests
-
     [Test]
     public async Task Running_command_retrieves_context_from_database_when_all_required_documents_present()
     {
-        // Arrange
         var contextDocs = CreateBayernVsDortmundContextDocuments();
-        var mocks = CreateStandardMocks(
-            contextDocuments: contextDocs,
-            existingPrediction: (Prediction?)null);
+        var ctx = CreateMatchdayCommandApp(contextDocuments: contextDocs, existingPrediction: (Prediction?)null);
 
-        var (app, console) = CreateMatchdayCommandApp(
-            firebaseServiceFactory: mocks.FirebaseServiceFactory,
-            kicktippClientFactory: mocks.KicktippClientFactory,
-            openAiServiceFactory: mocks.OpenAiServiceFactory,
-            contextProviderFactory: mocks.ContextProviderFactory);
+        var (exitCode, output) = await RunCommandAsync(ctx.App, ctx.Console, "matchday", "gpt-4o", "-c", "test-community", "--verbose");
 
-        // Act
-        var (exitCode, output) = await RunCommandAsync(app, console, "matchday", "gpt-4o", "-c", "test-community", "--verbose");
-
-        // Assert
         await Assert.That(exitCode).IsEqualTo(0);
         await Assert.That(output).Contains("context documents from database");
     }
@@ -41,27 +28,16 @@ public class MatchdayCommand_ContextRetrieval_Tests : MatchdayCommandTests_Base
     [Test]
     public async Task Running_command_shows_fallback_warning_when_required_documents_missing()
     {
-        // Arrange - Only provide some context documents, not all required ones
         var partialDocs = new Dictionary<string, ContextDocument>
         {
             ["bundesliga-standings.csv"] = CreateContextDocument(
                 documentName: "bundesliga-standings.csv",
                 content: "Position,Team,Points\n1,Bayern,50")
         };
-        var mocks = CreateStandardMocks(
-            contextDocuments: partialDocs,
-            existingPrediction: (Prediction?)null);
+        var ctx = CreateMatchdayCommandApp(contextDocuments: partialDocs, existingPrediction: (Prediction?)null);
 
-        var (app, console) = CreateMatchdayCommandApp(
-            firebaseServiceFactory: mocks.FirebaseServiceFactory,
-            kicktippClientFactory: mocks.KicktippClientFactory,
-            openAiServiceFactory: mocks.OpenAiServiceFactory,
-            contextProviderFactory: mocks.ContextProviderFactory);
+        var (exitCode, output) = await RunCommandAsync(ctx.App, ctx.Console, "matchday", "gpt-4o", "-c", "test-community");
 
-        // Act
-        var (exitCode, output) = await RunCommandAsync(app, console, "matchday", "gpt-4o", "-c", "test-community");
-
-        // Assert
         await Assert.That(exitCode).IsEqualTo(0);
         await Assert.That(output).Contains("Warning:");
         await Assert.That(output).Contains("required context documents");
@@ -70,30 +46,14 @@ public class MatchdayCommand_ContextRetrieval_Tests : MatchdayCommandTests_Base
     [Test]
     public async Task Running_command_uses_context_for_prediction()
     {
-        // Arrange
-        var mocks = CreateStandardMocks(existingPrediction: (Prediction?)null);
-        var (app, console) = CreateMatchdayCommandApp(
-            firebaseServiceFactory: mocks.FirebaseServiceFactory,
-            kicktippClientFactory: mocks.KicktippClientFactory,
-            openAiServiceFactory: mocks.OpenAiServiceFactory,
-            contextProviderFactory: mocks.ContextProviderFactory);
+        var ctx = CreateMatchdayCommandApp(existingPrediction: (Prediction?)null);
 
-        // Act
-        await RunCommandAsync(app, console, "matchday", "gpt-4o", "-c", "test-community");
+        await RunCommandAsync(ctx.App, ctx.Console, "matchday", "gpt-4o", "-c", "test-community");
 
-        // Assert - Verify prediction service was called with context documents
-        mocks.PredictionService.Verify(
-            s => s.PredictMatchAsync(
-                It.IsAny<Match>(),
-                It.Is<IEnumerable<DocumentContext>>(docs => docs.Any()),
-                It.IsAny<bool>(),
-                It.IsAny<CancellationToken>()),
+        ctx.PredictionService.Verify(
+            s => s.PredictMatchAsync(It.IsAny<Match>(), It.Is<IEnumerable<DocumentContext>>(docs => docs.Any()), It.IsAny<bool>(), It.IsAny<CancellationToken>()),
             Times.Once);
     }
-
-    #endregion
-
-    #region Team Abbreviation Tests (Indirect via Context Retrieval)
 
     [Test]
     [Arguments("FC Bayern München", "fcb")]
@@ -116,8 +76,6 @@ public class MatchdayCommand_ContextRetrieval_Tests : MatchdayCommandTests_Base
     [Arguments("Hamburger SV", "hsv")]
     public async Task Running_command_retrieves_context_for_team_using_correct_abbreviation(string teamName, string expectedAbbreviation)
     {
-        // Arrange
-        // Create context documents that would match the expected abbreviation
         var contextTimestamp = new DateTimeOffset(2025, 1, 10, 12, 0, 0, TimeSpan.Zero);
         var contextDocs = new Dictionary<string, ContextDocument>
         {
@@ -156,95 +114,44 @@ public class MatchdayCommand_ContextRetrieval_Tests : MatchdayCommandTests_Base
             CreateMatchWithHistory(match: CreateMatch(homeTeam: teamName, awayTeam: "Borussia Dortmund"))
         };
 
-        var mocks = CreateStandardMocks(
-            matchesWithHistory: matches,
-            contextDocuments: contextDocs,
-            existingPrediction: (Prediction?)null);
+        var ctx = CreateMatchdayCommandApp(matchesWithHistory: matches, contextDocuments: contextDocs, existingPrediction: (Prediction?)null);
 
-        var (app, console) = CreateMatchdayCommandApp(
-            firebaseServiceFactory: mocks.FirebaseServiceFactory,
-            kicktippClientFactory: mocks.KicktippClientFactory,
-            openAiServiceFactory: mocks.OpenAiServiceFactory,
-            contextProviderFactory: mocks.ContextProviderFactory);
+        var (exitCode, output) = await RunCommandAsync(ctx.App, ctx.Console, "matchday", "gpt-4o", "-c", "test-community", "--verbose");
 
-        // Act
-        var (exitCode, output) = await RunCommandAsync(app, console, "matchday", "gpt-4o", "-c", "test-community", "--verbose");
-
-        // Assert
         await Assert.That(exitCode).IsEqualTo(0);
-        // In verbose mode with all required docs present, we should see the success message
         await Assert.That(output).Contains("context documents from database");
     }
 
     [Test]
     public async Task Running_command_generates_fallback_abbreviation_for_unknown_team()
     {
-        // Arrange - Use a team name that's not in the known list
         var matches = new List<MatchWithHistory>
         {
             CreateMatchWithHistory(match: CreateMatch(homeTeam: "Unknown Team FC", awayTeam: "Another Unknown"))
         };
+        var ctx = CreateMatchdayCommandApp(matchesWithHistory: matches, existingPrediction: (Prediction?)null);
 
-        var mocks = CreateStandardMocks(
-            matchesWithHistory: matches,
-            existingPrediction: (Prediction?)null);
+        var (exitCode, output) = await RunCommandAsync(ctx.App, ctx.Console, "matchday", "gpt-4o", "-c", "test-community");
 
-        var (app, console) = CreateMatchdayCommandApp(
-            firebaseServiceFactory: mocks.FirebaseServiceFactory,
-            kicktippClientFactory: mocks.KicktippClientFactory,
-            openAiServiceFactory: mocks.OpenAiServiceFactory,
-            contextProviderFactory: mocks.ContextProviderFactory);
-
-        // Act
-        var (exitCode, output) = await RunCommandAsync(app, console, "matchday", "gpt-4o", "-c", "test-community");
-
-        // Assert - Command should still work, just with fallback abbreviations
         await Assert.That(exitCode).IsEqualTo(0);
         await Assert.That(output).Contains("Processing:");
         await Assert.That(output).Contains("Unknown Team FC");
     }
 
-    #endregion
-
-    #region Optional Context Documents Tests
-
     [Test]
     public async Task Running_command_includes_optional_transfers_documents_when_available()
     {
-        // Arrange
         var contextDocs = CreateBayernVsDortmundContextDocuments();
-        // Add optional transfers documents
-        contextDocs["fcb-transfers.csv"] = CreateContextDocument(
-            documentName: "fcb-transfers.csv",
-            content: "Player,From,To");
-        contextDocs["bvb-transfers.csv"] = CreateContextDocument(
-            documentName: "bvb-transfers.csv",
-            content: "Player,From,To");
+        contextDocs["fcb-transfers.csv"] = CreateContextDocument(documentName: "fcb-transfers.csv", content: "Player,From,To");
+        contextDocs["bvb-transfers.csv"] = CreateContextDocument(documentName: "bvb-transfers.csv", content: "Player,From,To");
 
-        var mocks = CreateStandardMocks(
-            contextDocuments: contextDocs,
-            existingPrediction: (Prediction?)null);
+        var ctx = CreateMatchdayCommandApp(contextDocuments: contextDocs, existingPrediction: (Prediction?)null);
 
-        var (app, console) = CreateMatchdayCommandApp(
-            firebaseServiceFactory: mocks.FirebaseServiceFactory,
-            kicktippClientFactory: mocks.KicktippClientFactory,
-            openAiServiceFactory: mocks.OpenAiServiceFactory,
-            contextProviderFactory: mocks.ContextProviderFactory);
+        var (exitCode, output) = await RunCommandAsync(ctx.App, ctx.Console, "matchday", "gpt-4o", "-c", "test-community", "--verbose");
 
-        // Act
-        var (exitCode, output) = await RunCommandAsync(app, console, "matchday", "gpt-4o", "-c", "test-community", "--verbose");
-
-        // Assert
         await Assert.That(exitCode).IsEqualTo(0);
-        // Verify prediction was called - the actual document count would include transfers
-        mocks.PredictionService.Verify(
-            s => s.PredictMatchAsync(
-                It.IsAny<Match>(),
-                It.IsAny<IEnumerable<DocumentContext>>(),
-                It.IsAny<bool>(),
-                It.IsAny<CancellationToken>()),
+        ctx.PredictionService.Verify(
+            s => s.PredictMatchAsync(It.IsAny<Match>(), It.IsAny<IEnumerable<DocumentContext>>(), It.IsAny<bool>(), It.IsAny<CancellationToken>()),
             Times.Once);
     }
-
-    #endregion
 }

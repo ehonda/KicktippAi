@@ -146,8 +146,6 @@ public static class OrchestratorTestFactories
             createdAt.Or(() => new DateTimeOffset(2025, 1, 10, 12, 0, 0, TimeSpan.Zero)));
     }
 
-    #region Kicktipp Client Factory Mocks
-
     /// <summary>
     /// Creates a mock <see cref="IKicktippClient"/> with configurable behavior.
     /// </summary>
@@ -184,10 +182,6 @@ public static class OrchestratorTestFactories
 
         return mockFactory;
     }
-
-    #endregion
-
-    #region OpenAI Service Factory Mocks
 
     /// <summary>
     /// Creates a mock <see cref="IPredictionService"/> with configurable behavior.
@@ -260,10 +254,6 @@ public static class OrchestratorTestFactories
         return mockFactory;
     }
 
-    #endregion
-
-    #region Context Provider Factory Mocks
-
     /// <summary>
     /// Creates a mock <see cref="KicktippContextProvider"/> that returns the specified context documents.
     /// Note: KicktippContextProvider is a concrete class, so this creates a setup that can be used
@@ -286,10 +276,6 @@ public static class OrchestratorTestFactories
 
         return mockFactory;
     }
-
-    #endregion
-
-    #region Firebase Service Factory Extended Mocks
 
     /// <summary>
     /// Creates a mock <see cref="IPredictionRepository"/> with configurable behavior.
@@ -427,10 +413,6 @@ public static class OrchestratorTestFactories
         return mockFactory;
     }
 
-    #endregion
-
-    #region Context Document Helpers
-
     /// <summary>
     /// Creates a test <see cref="ContextDocument"/> with default values.
     /// </summary>
@@ -501,6 +483,4 @@ public static class OrchestratorTestFactories
                 createdAt: timestamp)
         };
     }
-
-    #endregion
 }
