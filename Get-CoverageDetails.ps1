@@ -6,6 +6,7 @@
     This script parses cobertura XML coverage reports and displays coverage
     details in a terminal-friendly format. It supports:
     - Filtering by assembly name
+    - Filtering by class/file name
     - Overview of line/branch coverage
     - Detailed breakdown by class
     - Showing uncovered line numbers
@@ -13,6 +14,10 @@
 .PARAMETER Assembly
     Filter results to a specific assembly name (supports wildcards).
     If not specified, shows all assemblies.
+
+.PARAMETER Filter
+    Filter classes by name pattern (supports wildcards).
+    Example: -Filter ListKpiCommand to find classes matching "*ListKpiCommand*"
 
 .PARAMETER Detailed
     Show detailed breakdown by class within each assembly.
@@ -34,6 +39,10 @@
     Shows coverage summary for the FirebaseAdapter assembly.
 
 .EXAMPLE
+    .\Get-CoverageDetails.ps1 -Filter ListKpiCommand
+    Shows coverage for classes matching "*ListKpiCommand*".
+
+.EXAMPLE
     .\Get-CoverageDetails.ps1 -Assembly Core -Detailed
     Shows detailed class-by-class breakdown for assemblies matching "Core".
 
@@ -48,6 +57,7 @@
 
 param(
     [string]$Assembly,
+    [string]$Filter,
     [switch]$Detailed,
     [switch]$ShowUncovered,
     [string]$ReportPath
@@ -118,6 +128,44 @@ if ($Assembly) {
     }
 }
 
+# Helper function to get classes from a package, optionally filtered
+function Get-PackageClasses {
+    param (
+        [Parameter(Mandatory)]
+        $Package,
+        [string]$FilterPattern = $null
+    )
+    
+    $Classes = $Package.classes.class
+    if ($FilterPattern) {
+        $Classes = $Classes | Where-Object { $_.name -like "*$FilterPattern*" }
+    }
+    return $Classes
+}
+
+# Check if filter matches any classes
+if ($Filter) {
+    $AllMatchingClasses = @()
+    foreach ($Package in $Packages) {
+        $MatchingClasses = Get-PackageClasses -Package $Package -FilterPattern $Filter
+        if ($MatchingClasses) {
+            $AllMatchingClasses += $MatchingClasses
+        }
+    }
+    
+    if ($AllMatchingClasses.Count -eq 0) {
+        Write-Host "No classes found matching filter '$Filter'" -ForegroundColor Yellow
+        Write-Host ""
+        Write-Host "Available classes:" -ForegroundColor Cyan
+        $AllClasses = $Packages | ForEach-Object { $_.classes.class } | ForEach-Object { $_.name } | Sort-Object
+        $AllClasses | ForEach-Object { Write-Host "  - $_" }
+        exit 0
+    }
+    
+    Write-Host "Filtering by: '$Filter'" -ForegroundColor Cyan
+    Write-Host ""
+}
+
 # Display overall summary from root coverage element
 $Coverage = $CoverageXml.coverage
 Write-Host "=== Overall Coverage ===" -ForegroundColor Green
@@ -144,12 +192,14 @@ if ($Detailed) {
     Write-Host ""
     
     foreach ($Package in $Packages) {
+        $Classes = Get-PackageClasses -Package $Package -FilterPattern $Filter | Sort-Object { [double]$_.'line-rate' }
+        
+        if (-not $Classes) { continue }
+        
         Write-Host "[$($Package.name)]" -ForegroundColor Yellow
         Write-Host ""
         Write-Host ("  {0,-60} {1,12} {2,14}" -f "Class", "Line %", "Branch %") -ForegroundColor Cyan
         Write-Host ("  {0,-60} {1,12} {2,14}" -f "-----", "------", "--------") -ForegroundColor Cyan
-        
-        $Classes = $Package.classes.class | Sort-Object { [double]$_.'line-rate' }
         
         foreach ($Class in $Classes) {
             $ClassName = $Class.name -replace "^$($Package.name)\.", ""
@@ -177,8 +227,9 @@ if ($ShowUncovered) {
     
     foreach ($Package in $Packages) {
         $HasUncovered = $false
+        $Classes = Get-PackageClasses -Package $Package -FilterPattern $Filter
         
-        foreach ($Class in $Package.classes.class) {
+        foreach ($Class in $Classes) {
             $UncoveredLines = $Class.lines.line | Where-Object { $_.hits -eq "0" }
             
             if ($UncoveredLines) {

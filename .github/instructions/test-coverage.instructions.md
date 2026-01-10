@@ -11,3 +11,6 @@ These are guidelines to follow when working on test coverage for the project.
 - MAKE SURE to have up to date local coverage data by running `Generate-CoverageReport.ps1` before analyzing coverage details.
   - ALWAYS focus the generation on the current area of focus to speed up the cycle, by using the `-Projects` parameter.
   - For example: `.\Generate-CoverageReport.ps1 -Projects OpenAiIntegration.Tests,Core.Tests`
+- When checking coverage details via `Get-CoverageDetails.ps1`, there are different command line options available
+  - `-Filter` filters for a class name and supports wildcards
+  - Use the command help for further details: `Get-Help .\Get-CoverageDetails.ps1`
