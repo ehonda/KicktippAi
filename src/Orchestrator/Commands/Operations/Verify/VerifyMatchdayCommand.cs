@@ -119,12 +119,19 @@ public class VerifyMatchdayCommand : AsyncCommand<VerifySettings>
         {
             totalMatches++;
             
+            // Log warning for cancelled matches - they have inherited times which may affect database lookup reliability
+            if (match.IsCancelled)
+            {
+                _console.MarkupLine($"[yellow]  ⚠ {match.HomeTeam} vs {match.AwayTeam} is cancelled (Abgesagt). " +
+                    $"Database lookup uses inherited time which may not match original prediction time.[/]");
+            }
+            
             try
             {
                 // Get prediction from database
                 if (settings.Verbose)
                 {
-                    _console.MarkupLine($"[dim]  Looking up: {match.HomeTeam} vs {match.AwayTeam} at {match.StartsAt}[/]");
+                    _console.MarkupLine($"[dim]  Looking up: {match.HomeTeam} vs {match.AwayTeam} at {match.StartsAt}{(match.IsCancelled ? " (CANCELLED)" : "")}[/]");
                 }
                 
                 var databasePrediction = await predictionRepository.GetPredictionAsync(match, settings.Model, communityContext);

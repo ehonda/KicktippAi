@@ -278,4 +278,77 @@ public class KicktippClient_GetOpenPredictions_Tests : KicktippClientTests_Base
             await Assert.That(match.StartsAt.Hour).IsLessThan(24);
         }
     }
+
+    /// <summary>
+    /// Verifies that cancelled matches ("Abgesagt") are detected and marked with IsCancelled = true.
+    /// Cancelled matches should still be included in the results since Kicktipp allows placing predictions on them.
+    /// See docs/features/cancelled-matches.md for design rationale.
+    /// </summary>
+    [Test]
+    public async Task Getting_open_predictions_detects_cancelled_matches()
+    {
+        // Arrange
+        StubWithSyntheticFixture("/test-community/tippabgabe", "test-community", "tippabgabe-with-cancelled");
+        var client = CreateClient();
+
+        // Act
+        var matches = await client.GetOpenPredictionsAsync("test-community");
+
+        // Assert - all 4 matches should be returned (including cancelled ones)
+        await Assert.That(matches).HasCount().EqualTo(4);
+        
+        // First match: normal
+        var firstMatch = matches.First(m => m.HomeTeam == "Team A");
+        await Assert.That(firstMatch.IsCancelled).IsFalse();
+        
+        // Second match: cancelled (should have IsCancelled = true)
+        var cancelledMatch1 = matches.First(m => m.HomeTeam == "Team C");
+        await Assert.That(cancelledMatch1.IsCancelled).IsTrue();
+        
+        // Third match: normal
+        var thirdMatch = matches.First(m => m.HomeTeam == "Team E");
+        await Assert.That(thirdMatch.IsCancelled).IsFalse();
+        
+        // Fourth match: also cancelled
+        var cancelledMatch2 = matches.First(m => m.HomeTeam == "Team G");
+        await Assert.That(cancelledMatch2.IsCancelled).IsTrue();
+    }
+
+    /// <summary>
+    /// Verifies that cancelled matches inherit the time from the previous match in the table.
+    /// This is critical for database key consistency since startsAt is part of the composite key.
+    /// </summary>
+    [Test]
+    public async Task Getting_open_predictions_cancelled_matches_inherit_previous_time()
+    {
+        // Arrange
+        StubWithSyntheticFixture("/test-community/tippabgabe", "test-community", "tippabgabe-with-cancelled");
+        var client = CreateClient();
+
+        // Act
+        var matches = await client.GetOpenPredictionsAsync("test-community");
+
+        // Assert
+        // First match: explicit time 15:30
+        var firstMatch = matches.First(m => m.HomeTeam == "Team A");
+        await Assert.That(firstMatch.StartsAt.Hour).IsEqualTo(15);
+        await Assert.That(firstMatch.StartsAt.Minute).IsEqualTo(30);
+        
+        // Second match (cancelled): should inherit 15:30 from first match
+        var cancelledMatch1 = matches.First(m => m.HomeTeam == "Team C");
+        await Assert.That(cancelledMatch1.StartsAt.Hour).IsEqualTo(15);
+        await Assert.That(cancelledMatch1.StartsAt.Minute).IsEqualTo(30);
+        await Assert.That(cancelledMatch1.IsCancelled).IsTrue();
+        
+        // Third match: new explicit time 18:30
+        var thirdMatch = matches.First(m => m.HomeTeam == "Team E");
+        await Assert.That(thirdMatch.StartsAt.Hour).IsEqualTo(18);
+        await Assert.That(thirdMatch.StartsAt.Minute).IsEqualTo(30);
+        
+        // Fourth match (cancelled): should inherit 18:30 from third match
+        var cancelledMatch2 = matches.First(m => m.HomeTeam == "Team G");
+        await Assert.That(cancelledMatch2.StartsAt.Hour).IsEqualTo(18);
+        await Assert.That(cancelledMatch2.StartsAt.Minute).IsEqualTo(30);
+        await Assert.That(cancelledMatch2.IsCancelled).IsTrue();
+    }
 }

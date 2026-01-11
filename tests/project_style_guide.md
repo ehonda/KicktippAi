@@ -319,6 +319,37 @@ public async Task Processing_valid_input_returns_expected_result()
 }
 ```
 
+### No Regions
+
+Do not use `#region`/`#endregion` blocks in test files. Regions hide code and make navigation harder. If you find yourself wanting to group tests into regions:
+
+1. **Consider splitting the file**: If there are distinct groups of tests, create separate test files (e.g., `MyService_MethodA_Tests.cs`, `MyService_MethodB_Tests.cs`)
+2. **Use XML documentation**: Add `/// <summary>` comments to describe test groupings or scenarios
+3. **Order tests logically**: Group related tests together by method/scenario without artificial separators
+
+```csharp
+// ❌ Avoid: Using regions to group tests
+#region Validation Tests
+
+[Test]
+public async Task Empty_input_throws_exception() { }
+
+[Test]
+public async Task Null_input_throws_exception() { }
+
+#endregion
+
+// ✅ Good: Use XML documentation for logical groupings when needed
+/// <summary>
+/// Tests for input validation scenarios.
+/// </summary>
+[Test]
+public async Task Empty_input_throws_exception() { }
+
+[Test]
+public async Task Null_input_throws_exception() { }
+```
+
 ### Assertion Chaining
 
 When asserting multiple properties of the same object, use TUnit's assertion chaining to keep tests concise and readable.

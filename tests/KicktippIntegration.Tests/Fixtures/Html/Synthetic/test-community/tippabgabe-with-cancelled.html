@@ -1,0 +1,64 @@
+<!DOCTYPE html>
+<html lang="de">
+<head>
+    <meta charset="utf-8">
+    <title>Test Community - Tippabgabe with Cancelled Matches</title>
+</head>
+<body>
+<div id="wrapper">
+    <div class="prevnextTitle"><a>16. Spieltag</a></div>
+    <table id="tippabgabeSpiele">
+        <thead>
+            <tr>
+                <th>Tipptermin</th>
+                <th>Heim</th>
+                <th>Gast</th>
+                <th>Tipp</th>
+            </tr>
+        </thead>
+        <tbody>
+            <!-- First match: Normal with explicit time -->
+            <tr>
+                <td class="nw kicktipp-time">10.01.26 15:30</td>
+                <td class="nw">Team A</td>
+                <td class="nw">Team B</td>
+                <td class="kicktipp-tippabgabe">
+                    <input type="text" name="spieltippForms[1].heimTipp" value="" />
+                    <input type="text" name="spieltippForms[1].gastTipp" value="" />
+                </td>
+            </tr>
+            <!-- Second match: Cancelled - should inherit 15:30 from first match -->
+            <tr>
+                <td class="nw kicktipp-time">Abgesagt</td>
+                <td class="nw">Team C</td>
+                <td class="nw">Team D</td>
+                <td class="kicktipp-tippabgabe">
+                    <input type="text" name="spieltippForms[2].heimTipp" value="" />
+                    <input type="text" name="spieltippForms[2].gastTipp" value="" />
+                </td>
+            </tr>
+            <!-- Third match: Normal with new time -->
+            <tr>
+                <td class="nw kicktipp-time">10.01.26 18:30</td>
+                <td class="nw">Team E</td>
+                <td class="nw">Team F</td>
+                <td class="kicktipp-tippabgabe">
+                    <input type="text" name="spieltippForms[3].heimTipp" value="" />
+                    <input type="text" name="spieltippForms[3].gastTipp" value="" />
+                </td>
+            </tr>
+            <!-- Fourth match: Also cancelled - should inherit 18:30 from third match -->
+            <tr>
+                <td class="nw kicktipp-time">Abgesagt</td>
+                <td class="nw">Team G</td>
+                <td class="nw">Team H</td>
+                <td class="kicktipp-tippabgabe">
+                    <input type="text" name="spieltippForms[4].heimTipp" value="" />
+                    <input type="text" name="spieltippForms[4].gastTipp" value="" />
+                </td>
+            </tr>
+        </tbody>
+    </table>
+</div>
+</body>
+</html>

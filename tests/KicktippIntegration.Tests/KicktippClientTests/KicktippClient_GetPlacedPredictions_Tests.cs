@@ -274,4 +274,96 @@ public class KicktippClient_GetPlacedPredictions_Tests : KicktippClientTests_Bas
         var match = predictions.Keys.First();
         await Assert.That(match.HomeTeam).IsEqualTo("Team A");
     }
+
+    /// <summary>
+    /// Verifies that cancelled matches ("Abgesagt") are detected and marked with IsCancelled = true.
+    /// Cancelled matches should still be included and their predictions should be extracted.
+    /// See docs/features/cancelled-matches.md for design rationale.
+    /// </summary>
+    [Test]
+    public async Task Getting_placed_predictions_detects_cancelled_matches()
+    {
+        // Arrange
+        StubWithSyntheticFixture("/test-community/tippabgabe", "test-community", "tippabgabe-cancelled-with-predictions");
+        var client = CreateClient();
+
+        // Act
+        var predictions = await client.GetPlacedPredictionsAsync("test-community");
+
+        // Assert - all 4 matches should be returned (including cancelled ones)
+        await Assert.That(predictions).HasCount().EqualTo(4);
+        
+        // Verify cancelled matches are marked correctly
+        var cancelledMatch1 = predictions.Keys.First(m => m.HomeTeam == "Team C");
+        await Assert.That(cancelledMatch1.IsCancelled).IsTrue();
+        
+        var cancelledMatch2 = predictions.Keys.First(m => m.HomeTeam == "Team E");
+        await Assert.That(cancelledMatch2.IsCancelled).IsTrue();
+        
+        // Normal matches should not be marked as cancelled
+        var normalMatch1 = predictions.Keys.First(m => m.HomeTeam == "Team A");
+        await Assert.That(normalMatch1.IsCancelled).IsFalse();
+        
+        var normalMatch2 = predictions.Keys.First(m => m.HomeTeam == "Team G");
+        await Assert.That(normalMatch2.IsCancelled).IsFalse();
+    }
+
+    /// <summary>
+    /// Verifies that predictions can be extracted from cancelled matches.
+    /// </summary>
+    [Test]
+    public async Task Getting_placed_predictions_extracts_predictions_from_cancelled_matches()
+    {
+        // Arrange
+        StubWithSyntheticFixture("/test-community/tippabgabe", "test-community", "tippabgabe-cancelled-with-predictions");
+        var client = CreateClient();
+
+        // Act
+        var predictions = await client.GetPlacedPredictionsAsync("test-community");
+
+        // Assert - cancelled match with prediction (Team C vs Team D has 1:2)
+        var cancelledMatchWithPrediction = predictions.Keys.First(m => m.HomeTeam == "Team C");
+        var prediction = predictions[cancelledMatchWithPrediction];
+        await Assert.That(prediction).IsNotNull();
+        await Assert.That(prediction!.HomeGoals).IsEqualTo(1);
+        await Assert.That(prediction.AwayGoals).IsEqualTo(2);
+        
+        // Cancelled match without prediction (Team E vs Team F has no prediction)
+        var cancelledMatchWithoutPrediction = predictions.Keys.First(m => m.HomeTeam == "Team E");
+        await Assert.That(predictions[cancelledMatchWithoutPrediction]).IsNull();
+    }
+
+    /// <summary>
+    /// Verifies that cancelled matches inherit the time from the previous match in the table.
+    /// </summary>
+    [Test]
+    public async Task Getting_placed_predictions_cancelled_matches_inherit_previous_time()
+    {
+        // Arrange
+        StubWithSyntheticFixture("/test-community/tippabgabe", "test-community", "tippabgabe-cancelled-with-predictions");
+        var client = CreateClient();
+
+        // Act
+        var predictions = await client.GetPlacedPredictionsAsync("test-community");
+
+        // Assert
+        // First match: explicit time 15:30
+        var firstMatch = predictions.Keys.First(m => m.HomeTeam == "Team A");
+        await Assert.That(firstMatch.StartsAt.Hour).IsEqualTo(15);
+        await Assert.That(firstMatch.StartsAt.Minute).IsEqualTo(30);
+        
+        // Second and third matches (both cancelled): should inherit 15:30 from first match
+        var cancelledMatch1 = predictions.Keys.First(m => m.HomeTeam == "Team C");
+        await Assert.That(cancelledMatch1.StartsAt.Hour).IsEqualTo(15);
+        await Assert.That(cancelledMatch1.StartsAt.Minute).IsEqualTo(30);
+        
+        var cancelledMatch2 = predictions.Keys.First(m => m.HomeTeam == "Team E");
+        await Assert.That(cancelledMatch2.StartsAt.Hour).IsEqualTo(15);
+        await Assert.That(cancelledMatch2.StartsAt.Minute).IsEqualTo(30);
+        
+        // Fourth match: new explicit time 18:30
+        var fourthMatch = predictions.Keys.First(m => m.HomeTeam == "Team G");
+        await Assert.That(fourthMatch.StartsAt.Hour).IsEqualTo(18);
+        await Assert.That(fourthMatch.StartsAt.Minute).IsEqualTo(30);
+    }
 }

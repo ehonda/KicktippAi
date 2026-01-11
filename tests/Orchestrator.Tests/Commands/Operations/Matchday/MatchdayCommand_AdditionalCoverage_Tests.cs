@@ -407,4 +407,91 @@ public class MatchdayCommand_AdditionalCoverage_Tests : MatchdayCommandTests_Bas
         await Assert.That(exitCode).IsEqualTo(0);
         await Assert.That(output).Contains("merged context documents");
     }
+
+    [Test]
+    public async Task Cancelled_match_displays_warning_message()
+    {
+        // Arrange
+        var cancelledMatch = CreateMatch(
+            homeTeam: "FC Bayern München",
+            awayTeam: "Borussia Dortmund",
+            matchday: 16,
+            isCancelled: true);
+        var matchesWithHistory = new List<MatchWithHistory>
+        {
+            CreateMatchWithHistory(match: cancelledMatch)
+        };
+
+        var ctx = CreateMatchdayCommandApp(matchesWithHistory: matchesWithHistory);
+
+        // Act
+        var (exitCode, output) = await RunCommandAsync(ctx.App, ctx.Console, "matchday", "gpt-4o", "-c", "test-community");
+
+        // Assert - should display warning for cancelled match
+        await Assert.That(output).Contains("FC Bayern München vs Borussia Dortmund is cancelled (Abgesagt)");
+        await Assert.That(output).Contains("inherited time");
+        await Assert.That(output).Contains("re-evaluation when rescheduled");
+    }
+
+    [Test]
+    public async Task Cancelled_match_processing_text_includes_cancelled_indicator()
+    {
+        // Arrange
+        var cancelledMatch = CreateMatch(
+            homeTeam: "Team A",
+            awayTeam: "Team B",
+            matchday: 16,
+            isCancelled: true);
+        var matchesWithHistory = new List<MatchWithHistory>
+        {
+            CreateMatchWithHistory(match: cancelledMatch)
+        };
+
+        var ctx = CreateMatchdayCommandApp(matchesWithHistory: matchesWithHistory);
+
+        // Act
+        var (exitCode, output) = await RunCommandAsync(ctx.App, ctx.Console, "matchday", "gpt-4o", "-c", "test-community");
+
+        // Assert - Processing line should indicate cancelled status
+        await Assert.That(output).Contains("Processing:").And.Contains("Team A vs Team B").And.Contains("(CANCELLED)");
+    }
+
+    [Test]
+    public async Task Multiple_cancelled_matches_display_multiple_warnings()
+    {
+        // Arrange
+        var cancelledMatch1 = CreateMatch(
+            homeTeam: "Team A",
+            awayTeam: "Team B",
+            matchday: 16,
+            isCancelled: true);
+        var cancelledMatch2 = CreateMatch(
+            homeTeam: "Team C",
+            awayTeam: "Team D",
+            matchday: 16,
+            isCancelled: true);
+        var normalMatch = CreateMatch(
+            homeTeam: "Team E",
+            awayTeam: "Team F",
+            matchday: 16,
+            isCancelled: false);
+
+        var matchesWithHistory = new List<MatchWithHistory>
+        {
+            CreateMatchWithHistory(match: cancelledMatch1),
+            CreateMatchWithHistory(match: cancelledMatch2),
+            CreateMatchWithHistory(match: normalMatch)
+        };
+
+        var ctx = CreateMatchdayCommandApp(matchesWithHistory: matchesWithHistory);
+
+        // Act
+        var (exitCode, output) = await RunCommandAsync(ctx.App, ctx.Console, "matchday", "gpt-4o", "-c", "test-community");
+
+        // Assert - should display warning for both cancelled matches
+        await Assert.That(output).Contains("Team A vs Team B is cancelled (Abgesagt)");
+        await Assert.That(output).Contains("Team C vs Team D is cancelled (Abgesagt)");
+        // Normal match should NOT have cancelled warning
+        await Assert.That(output).DoesNotContain("Team E vs Team F is cancelled");
+    }
 }

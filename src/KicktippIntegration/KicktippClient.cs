@@ -79,17 +79,34 @@ public class KicktippClient : IKicktippClient, IDisposable
                         var homeTeam = cells[1].TextContent?.Trim() ?? "";
                         var awayTeam = cells[2].TextContent?.Trim() ?? "";
                         
-                        // Handle date inheritance: if timeText is empty, use the last valid time
-                        if (string.IsNullOrWhiteSpace(timeText))
+                        // Check if match is cancelled ("Abgesagt" in German)
+                        // Cancelled matches still accept predictions on Kicktipp, so we process them.
+                        // See docs/features/cancelled-matches.md for design rationale.
+                        var isCancelled = IsCancelledTimeText(timeText);
+                        
+                        // Handle date inheritance: if timeText is empty or cancelled, use the last valid time
+                        // This preserves database key consistency (startsAt is part of the composite key)
+                        if (string.IsNullOrWhiteSpace(timeText) || isCancelled)
                         {
                             if (!string.IsNullOrWhiteSpace(lastValidTimeText))
                             {
+                                if (isCancelled)
+                                {
+                                    _logger.LogWarning(
+                                        "Match {HomeTeam} vs {AwayTeam} is cancelled (Abgesagt). Using inherited time '{InheritedTime}' for database consistency. " +
+                                        "Predictions can still be placed but may need to be re-evaluated when the match is rescheduled.",
+                                        homeTeam, awayTeam, lastValidTimeText);
+                                }
+                                else
+                                {
+                                    _logger.LogDebug("Using inherited time for {HomeTeam} vs {AwayTeam}: '{InheritedTime}'", homeTeam, awayTeam, lastValidTimeText);
+                                }
                                 timeText = lastValidTimeText;
-                                _logger.LogDebug("Using inherited time for {HomeTeam} vs {AwayTeam}: '{InheritedTime}'", homeTeam, awayTeam, timeText);
                             }
                             else
                             {
-                                _logger.LogWarning("No previous valid time to inherit for {HomeTeam} vs {AwayTeam}", homeTeam, awayTeam);
+                                _logger.LogWarning("No previous valid time to inherit for {HomeTeam} vs {AwayTeam}{Cancelled}", 
+                                    homeTeam, awayTeam, isCancelled ? " (cancelled match)" : "");
                             }
                         }
                         else
@@ -103,13 +120,14 @@ public class KicktippClient : IKicktippClient, IDisposable
                         var bettingInputs = cells[3].QuerySelectorAll("input[type='text']");
                         if (bettingInputs.Length >= 2)
                         {
-                            _logger.LogDebug("Found open match: {HomeTeam} vs {AwayTeam} at {Time}", homeTeam, awayTeam, timeText);
+                            _logger.LogDebug("Found open match: {HomeTeam} vs {AwayTeam} at {Time}{Cancelled}", 
+                                homeTeam, awayTeam, timeText, isCancelled ? " (CANCELLED)" : "");
                             
                             // Parse the date/time - for now use a simple approach
                             // Format appears to be "08.07.25 21:00"
                             var startsAt = ParseMatchDateTime(timeText);
                             
-                            matches.Add(new Match(homeTeam, awayTeam, startsAt, currentMatchday));
+                            matches.Add(new Match(homeTeam, awayTeam, startsAt, currentMatchday, isCancelled));
                         }
                     }
                 }
@@ -1167,8 +1185,19 @@ public class KicktippClient : IKicktippClient, IDisposable
                 return null;
             }
 
+            // Check if match is cancelled ("Abgesagt" in German)
+            // Note: On spielinfo pages, cancelled matches may still show - process them with IsCancelled flag
+            var isCancelled = IsCancelledTimeText(timeText);
+            if (isCancelled)
+            {
+                _logger.LogWarning(
+                    "Match {HomeTeam} vs {AwayTeam} is cancelled (Abgesagt) on spielinfo page. " +
+                    "Using current time as fallback since spielinfo doesn't provide time inheritance context.",
+                    homeTeam, awayTeam);
+            }
+
             var startsAt = ParseMatchDateTime(timeText);
-            var match = new Match(homeTeam, awayTeam, startsAt, matchday);
+            var match = new Match(homeTeam, awayTeam, startsAt, matchday, isCancelled);
 
             // Extract home team history
             var homeTeamHistory = ExtractTeamHistory(document, "spielinfoHeim");
@@ -1414,10 +1443,12 @@ public class KicktippClient : IKicktippClient, IDisposable
         try
         {
             // Handle empty or null time text
+            // Use MinValue to ensure database key consistency and prevent orphaned predictions
+            // See docs/features/cancelled-matches.md for design rationale
             if (string.IsNullOrWhiteSpace(timeText))
             {
-                _logger.LogWarning("Match time text is empty, using current time");
-                return DateTimeOffset.Now.ToZonedDateTime();
+                _logger.LogWarning("Match time text is empty, using MinValue for database consistency");
+                return DateTimeOffset.MinValue.ToZonedDateTime();
             }
 
             // Expected format: "22.08.25 20:30"
@@ -1431,15 +1462,41 @@ public class KicktippClient : IKicktippClient, IDisposable
                 return dateTimeOffset.ToZonedDateTime();
             }
             
-            // Fallback to current time if parsing fails
-            _logger.LogWarning("Could not parse match time: '{TimeText}', using current time", timeText);
-            return DateTimeOffset.Now.ToZonedDateTime();
+            // Fallback to MinValue if parsing fails - ensures database key consistency
+            // and prevents orphaned predictions from being created with varying timestamps
+            // See docs/features/cancelled-matches.md for design rationale
+            _logger.LogWarning("Could not parse match time: '{TimeText}', using MinValue for database consistency", timeText);
+            return DateTimeOffset.MinValue.ToZonedDateTime();
         }
         catch (Exception ex)
         {
             _logger.LogError(ex, "Error parsing match time '{TimeText}'", timeText);
-            return DateTimeOffset.Now.ToZonedDateTime();
+            return DateTimeOffset.MinValue.ToZonedDateTime();
         }
+    }
+
+    /// <summary>
+    /// Determines if the given time text indicates a cancelled match.
+    /// </summary>
+    /// <param name="timeText">The time text from the Kicktipp page.</param>
+    /// <returns>True if the match is cancelled ("Abgesagt" in German), false otherwise.</returns>
+    /// <remarks>
+    /// <para>
+    /// Cancelled matches on Kicktipp display "Abgesagt" instead of a date/time in the schedule.
+    /// These matches can still receive predictions, so we continue processing them rather than skipping.
+    /// </para>
+    /// <para>
+    /// <b>Design Decision:</b> We treat "Abgesagt" similar to an empty time cell and inherit the
+    /// previous valid time. This preserves database key consistency since the composite key
+    /// (HomeTeam, AwayTeam, StartsAt, ...) must remain stable across prediction operations.
+    /// </para>
+    /// <para>
+    /// See <c>docs/features/cancelled-matches.md</c> for complete design rationale.
+    /// </para>
+    /// </remarks>
+    private static bool IsCancelledTimeText(string timeText)
+    {
+        return string.Equals(timeText, "Abgesagt", StringComparison.OrdinalIgnoreCase);
     }
 
     /// <inheritdoc />
@@ -1492,17 +1549,34 @@ public class KicktippClient : IKicktippClient, IDisposable
                         
                         _logger.LogDebug("Raw time text for {HomeTeam} vs {AwayTeam}: '{TimeText}'", homeTeam, awayTeam, timeText);
                         
-                        // Handle date inheritance: if timeText is empty, use the last valid time
-                        if (string.IsNullOrWhiteSpace(timeText))
+                        // Check if match is cancelled ("Abgesagt" in German)
+                        // Cancelled matches still accept predictions on Kicktipp, so we process them.
+                        // See docs/features/cancelled-matches.md for design rationale.
+                        var isCancelled = IsCancelledTimeText(timeText);
+                        
+                        // Handle date inheritance: if timeText is empty or cancelled, use the last valid time
+                        // This preserves database key consistency (startsAt is part of the composite key)
+                        if (string.IsNullOrWhiteSpace(timeText) || isCancelled)
                         {
                             if (!string.IsNullOrWhiteSpace(lastValidTimeText))
                             {
+                                if (isCancelled)
+                                {
+                                    _logger.LogWarning(
+                                        "Match {HomeTeam} vs {AwayTeam} is cancelled (Abgesagt). Using inherited time '{InheritedTime}' for database consistency. " +
+                                        "Predictions can still be placed but may need to be re-evaluated when the match is rescheduled.",
+                                        homeTeam, awayTeam, lastValidTimeText);
+                                }
+                                else
+                                {
+                                    _logger.LogDebug("Using inherited time for {HomeTeam} vs {AwayTeam}: '{InheritedTime}'", homeTeam, awayTeam, lastValidTimeText);
+                                }
                                 timeText = lastValidTimeText;
-                                _logger.LogDebug("Using inherited time for {HomeTeam} vs {AwayTeam}: '{InheritedTime}'", homeTeam, awayTeam, timeText);
                             }
                             else
                             {
-                                _logger.LogWarning("No previous valid time to inherit for {HomeTeam} vs {AwayTeam}", homeTeam, awayTeam);
+                                _logger.LogWarning("No previous valid time to inherit for {HomeTeam} vs {AwayTeam}{Cancelled}", 
+                                    homeTeam, awayTeam, isCancelled ? " (cancelled match)" : "");
                             }
                         }
                         else
@@ -1521,7 +1595,7 @@ public class KicktippClient : IKicktippClient, IDisposable
                             
                             // Parse the date/time
                             var startsAt = ParseMatchDateTime(timeText);
-                            var match = new Match(homeTeam, awayTeam, startsAt, currentMatchday);
+                            var match = new Match(homeTeam, awayTeam, startsAt, currentMatchday, isCancelled);
                             
                             // Check if predictions are placed (inputs have values)
                             var homeValue = homeInput?.Value?.Trim();

@@ -18,17 +18,20 @@ public static class CoreTestFactories
     /// <param name="awayTeam">Away team name. Defaults to "Borussia Dortmund".</param>
     /// <param name="startsAt">Match start time. Defaults to 2025-03-15 15:30 UTC.</param>
     /// <param name="matchday">Matchday number. Defaults to 25.</param>
+    /// <param name="isCancelled">Whether the match is cancelled. Defaults to false.</param>
     public static Match CreateMatch(
         Option<string> homeTeam = default,
         Option<string> awayTeam = default,
         Option<ZonedDateTime> startsAt = default,
-        Option<int> matchday = default)
+        Option<int> matchday = default,
+        Option<bool> isCancelled = default)
     {
         return new Match(
             homeTeam.Or("Bayern München"),
             awayTeam.Or("Borussia Dortmund"),
             startsAt.Or(() => Instant.FromUtc(2025, 3, 15, 15, 30).InUtc()),
-            matchday.Or(25));
+            matchday.Or(25),
+            isCancelled.Or(false));
     }
 
     /// <summary>

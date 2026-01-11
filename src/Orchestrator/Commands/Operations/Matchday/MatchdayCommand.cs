@@ -168,7 +168,15 @@ public class MatchdayCommand : AsyncCommand<BaseSettings>
         foreach (var matchWithHistory in matchesWithHistory)
         {
             var match = matchWithHistory.Match;
-            _console.MarkupLine($"[cyan]Processing:[/] {match.HomeTeam} vs {match.AwayTeam}");
+            
+            // Log warning for cancelled matches - they have inherited times which may affect database operations
+            if (match.IsCancelled)
+            {
+                _console.MarkupLine($"[yellow]  ⚠ {match.HomeTeam} vs {match.AwayTeam} is cancelled (Abgesagt). " +
+                    $"Processing with inherited time - prediction may need re-evaluation when rescheduled.[/]");
+            }
+            
+            _console.MarkupLine($"[cyan]Processing:[/] {match.HomeTeam} vs {match.AwayTeam}{(match.IsCancelled ? " [yellow](CANCELLED)[/]" : "")}");
             
             try
             {

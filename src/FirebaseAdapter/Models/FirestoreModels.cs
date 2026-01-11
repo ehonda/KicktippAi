@@ -157,6 +157,14 @@ public class FirestoreMatch
     /// </summary>
     [FirestoreProperty("competition")]
     public string Competition { get; set; } = "bundesliga-2025-26";
+    
+    /// <summary>
+    /// Indicates whether the match has been cancelled.
+    /// Cancelled matches show "Abgesagt" on Kicktipp instead of a scheduled time.
+    /// See docs/features/cancelled-matches.md for design rationale.
+    /// </summary>
+    [FirestoreProperty("isCancelled")]
+    public bool IsCancelled { get; set; } = false;
 }
 
 /// <summary>

@@ -227,7 +227,8 @@ public class FirebasePredictionRepository : IPredictionRepository
                     fm.HomeTeam,
                     fm.AwayTeam,
                     ConvertFromTimestamp(fm.StartsAt),
-                    fm.Matchday))
+                    fm.Matchday,
+                    fm.IsCancelled))
                 .ToList();
 
             return matches.AsReadOnly();
@@ -576,15 +577,16 @@ public class FirebasePredictionRepository : IPredictionRepository
                 AwayTeam = match.AwayTeam,
                 StartsAt = ConvertToTimestamp(match.StartsAt),
                 Matchday = match.Matchday,
-                Competition = _competition
+                Competition = _competition,
+                IsCancelled = match.IsCancelled
             };
 
             await _firestoreDb.Collection(_matchesCollection)
                 .Document(documentId)
                 .SetAsync(firestoreMatch, cancellationToken: cancellationToken);
 
-            _logger.LogDebug("Stored match {HomeTeam} vs {AwayTeam} for matchday {Matchday}", 
-                match.HomeTeam, match.AwayTeam, match.Matchday);
+            _logger.LogDebug("Stored match {HomeTeam} vs {AwayTeam} for matchday {Matchday}{Cancelled}", 
+                match.HomeTeam, match.AwayTeam, match.Matchday, match.IsCancelled ? " (CANCELLED)" : "");
         }
         catch (Exception ex)
         {

@@ -200,4 +200,74 @@ public class VerifyMatchdayCommand_Comparison_Tests : VerifyMatchdayCommandTests
         await Assert.That(output).Contains("Using community:").And.Contains("my-community");
         await Assert.That(output).Contains("Using community context:").And.Contains("my-community");
     }
+
+    [Test]
+    public async Task Cancelled_match_displays_warning_message()
+    {
+        // Arrange
+        var cancelledMatch = CreateMatch(
+            homeTeam: "FC Bayern München",
+            awayTeam: "Borussia Dortmund",
+            matchday: 16,
+            isCancelled: true);
+        var kicktippPrediction = CreateBetPrediction(homeGoals: 2, awayGoals: 1);
+        var databasePrediction = CreatePrediction(homeGoals: 2, awayGoals: 1);
+
+        var ctx = CreateVerifyMatchdayCommandApp(
+            placedPredictions: CreatePlacedPredictions(cancelledMatch, kicktippPrediction),
+            databasePrediction: databasePrediction);
+
+        // Act
+        var (exitCode, output) = await RunCommandAsync(ctx.App, ctx.Console, "verify-matchday", "gpt-4o", "-c", "test-community");
+
+        // Assert - should display warning for cancelled match
+        await Assert.That(output).Contains("FC Bayern München vs Borussia Dortmund is cancelled (Abgesagt)");
+        await Assert.That(output).Contains("inherited time");
+        // Should still succeed if predictions match
+        await Assert.That(exitCode).IsEqualTo(0);
+    }
+
+    [Test]
+    public async Task Multiple_cancelled_matches_display_multiple_warnings()
+    {
+        // Arrange
+        var cancelledMatch1 = CreateMatch(
+            homeTeam: "Team A",
+            awayTeam: "Team B",
+            matchday: 16,
+            isCancelled: true);
+        var cancelledMatch2 = CreateMatch(
+            homeTeam: "Team C",
+            awayTeam: "Team D",
+            matchday: 16,
+            isCancelled: true);
+        var normalMatch = CreateMatch(
+            homeTeam: "Team E",
+            awayTeam: "Team F",
+            matchday: 16,
+            isCancelled: false);
+
+        var prediction = CreateBetPrediction(homeGoals: 1, awayGoals: 0);
+        var dbPrediction = CreatePrediction(homeGoals: 1, awayGoals: 0);
+
+        var placedPredictions = new Dictionary<Match, BetPrediction?>
+        {
+            [cancelledMatch1] = prediction,
+            [cancelledMatch2] = prediction,
+            [normalMatch] = prediction
+        };
+
+        var ctx = CreateVerifyMatchdayCommandApp(
+            placedPredictions: placedPredictions,
+            databasePrediction: dbPrediction);
+
+        // Act
+        var (exitCode, output) = await RunCommandAsync(ctx.App, ctx.Console, "verify-matchday", "gpt-4o", "-c", "test-community");
+
+        // Assert - should display warning for both cancelled matches
+        await Assert.That(output).Contains("Team A vs Team B is cancelled (Abgesagt)");
+        await Assert.That(output).Contains("Team C vs Team D is cancelled (Abgesagt)");
+        // Normal match should NOT have cancelled warning
+        await Assert.That(output).DoesNotContain("Team E vs Team F is cancelled");
+    }
 }
