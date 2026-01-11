@@ -378,8 +378,10 @@ public static class OrchestratorTestFactories
     /// Creates a mock <see cref="IContextRepository"/> with configurable behavior.
     /// </summary>
     /// <param name="getLatestContextDocumentResult">Result of GetLatestContextDocumentAsync. Defaults to null.</param>
+    /// <param name="saveContextDocumentResult">Result of SaveContextDocumentAsync (version number or null if unchanged). Defaults to 1.</param>
     public static Mock<IContextRepository> CreateMockContextRepository(
-        NullableOption<ContextDocument> getLatestContextDocumentResult = default)
+        NullableOption<ContextDocument> getLatestContextDocumentResult = default,
+        NullableOption<int?> saveContextDocumentResult = default)
     {
         var mock = new Mock<IContextRepository>();
 
@@ -388,6 +390,13 @@ public static class OrchestratorTestFactories
                 It.IsAny<string>(),
                 It.IsAny<CancellationToken>()))
             .ReturnsAsync(getLatestContextDocumentResult.Or((ContextDocument?)null));
+
+        mock.Setup(r => r.SaveContextDocumentAsync(
+                It.IsAny<string>(),
+                It.IsAny<string>(),
+                It.IsAny<string>(),
+                It.IsAny<CancellationToken>()))
+            .ReturnsAsync(saveContextDocumentResult.Or(1));
 
         return mock;
     }
