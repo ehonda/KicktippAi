@@ -153,15 +153,21 @@ public static class OrchestratorTestFactories
     /// <param name="matchesWithHistory">Matches returned by GetMatchesWithHistoryAsync. Defaults to empty list.</param>
     /// <param name="placeBetsResult">Result of PlaceBetsAsync. Defaults to true.</param>
     /// <param name="placedPredictions">Predictions returned by GetPlacedPredictionsAsync. Defaults to empty dictionary.</param>
+    /// <param name="openBonusQuestions">Bonus questions returned by GetOpenBonusQuestionsAsync. Defaults to empty list.</param>
+    /// <param name="placeBonusPredictionsResult">Result of PlaceBonusPredictionsAsync. Defaults to true.</param>
     public static Mock<IKicktippClient> CreateMockKicktippClient(
         Option<List<MatchWithHistory>> matchesWithHistory = default,
         Option<bool> placeBetsResult = default,
-        Option<Dictionary<Match, BetPrediction?>> placedPredictions = default)
+        Option<Dictionary<Match, BetPrediction?>> placedPredictions = default,
+        Option<List<BonusQuestion>> openBonusQuestions = default,
+        Option<bool> placeBonusPredictionsResult = default)
     {
         var mock = new Mock<IKicktippClient>();
         var matches = matchesWithHistory.Or(() => []);
         var betsResult = placeBetsResult.Or(true);
         var predictions = placedPredictions.Or(() => new Dictionary<Match, BetPrediction?>());
+        var bonusQuestions = openBonusQuestions.Or(() => []);
+        var bonusResult = placeBonusPredictionsResult.Or(true);
 
         mock.Setup(c => c.GetMatchesWithHistoryAsync(It.IsAny<string>()))
             .ReturnsAsync(matches);
@@ -171,6 +177,15 @@ public static class OrchestratorTestFactories
 
         mock.Setup(c => c.GetPlacedPredictionsAsync(It.IsAny<string>()))
             .ReturnsAsync(predictions);
+
+        mock.Setup(c => c.GetOpenBonusQuestionsAsync(It.IsAny<string>()))
+            .ReturnsAsync(bonusQuestions);
+
+        mock.Setup(c => c.PlaceBonusPredictionsAsync(
+                It.IsAny<string>(),
+                It.IsAny<Dictionary<string, BonusPrediction>>(),
+                It.IsAny<bool>()))
+            .ReturnsAsync(bonusResult);
 
         return mock;
     }
@@ -209,9 +224,13 @@ public static class OrchestratorTestFactories
     /// </summary>
     /// <param name="predictMatchResult">Result of PredictMatchAsync. Defaults to a new test prediction.</param>
     /// <param name="matchPromptPath">Result of GetMatchPromptPath. Defaults to "prompts/match-prompt.md".</param>
+    /// <param name="predictBonusResult">Result of PredictBonusQuestionAsync. Defaults to a new test bonus prediction.</param>
+    /// <param name="bonusPromptPath">Result of GetBonusPromptPath. Defaults to "prompts/bonus-prompt.md".</param>
     public static Mock<IPredictionService> CreateMockPredictionService(
         NullableOption<Prediction> predictMatchResult = default,
-        Option<string> matchPromptPath = default)
+        Option<string> matchPromptPath = default,
+        NullableOption<BonusPrediction> predictBonusResult = default,
+        Option<string> bonusPromptPath = default)
     {
         var mock = new Mock<IPredictionService>();
 
@@ -225,6 +244,16 @@ public static class OrchestratorTestFactories
 
         mock.Setup(s => s.GetMatchPromptPath(It.IsAny<bool>()))
             .Returns(matchPromptPath.Or("prompts/match-prompt.md"));
+
+        var bonusPrediction = predictBonusResult.Or(() => new BonusPrediction(["opt-1"]));
+        mock.Setup(s => s.PredictBonusQuestionAsync(
+                It.IsAny<BonusQuestion>(),
+                It.IsAny<IEnumerable<DocumentContext>>(),
+                It.IsAny<CancellationToken>()))
+            .ReturnsAsync(bonusPrediction);
+
+        mock.Setup(s => s.GetBonusPromptPath())
+            .Returns(bonusPromptPath.Or("prompts/bonus-prompt.md"));
 
         return mock;
     }
@@ -278,18 +307,24 @@ public static class OrchestratorTestFactories
     /// <summary>
     /// Creates a mock <see cref="IContextProviderFactory"/> with configurable context provider behavior.
     /// </summary>
-    /// <param name="contextProvider">Optional mock context provider. If not provided, creates an empty one.</param>
+    /// <param name="contextProvider">Optional mock Kicktipp context provider. If not provided, creates an empty one.</param>
+    /// <param name="kpiContextProvider">Optional mock KPI context provider. If not provided, creates an empty one.</param>
     public static Mock<IContextProviderFactory> CreateMockContextProviderFactory(
-        Option<Mock<IKicktippContextProvider>> contextProvider = default)
+        Option<Mock<IKicktippContextProvider>> contextProvider = default,
+        Option<Mock<IKpiContextProvider>> kpiContextProvider = default)
     {
         var mockFactory = new Mock<IContextProviderFactory>();
         var mockProvider = contextProvider.Or(() => CreateMockKicktippContextProvider());
+        var mockKpiProvider = kpiContextProvider.Or(() => CreateMockKpiContextProvider());
 
         mockFactory.Setup(f => f.CreateKicktippContextProvider(
                 It.IsAny<IKicktippClient>(),
                 It.IsAny<string>(),
                 It.IsAny<string?>()))
             .Returns(mockProvider.Object);
+
+        mockFactory.Setup(f => f.CreateKpiContextProvider())
+            .Returns(mockKpiProvider.Object);
 
         return mockFactory;
     }
@@ -314,15 +349,46 @@ public static class OrchestratorTestFactories
     }
 
     /// <summary>
+    /// Creates a mock <see cref="IKpiContextProvider"/> with configurable behavior.
+    /// </summary>
+    /// <param name="bonusQuestionContextDocuments">Documents to return from GetBonusQuestionContextAsync. Defaults to empty.</param>
+    /// <param name="contextDocuments">Documents to return from GetContextAsync. Defaults to empty.</param>
+    public static Mock<IKpiContextProvider> CreateMockKpiContextProvider(
+        Option<List<DocumentContext>> bonusQuestionContextDocuments = default,
+        Option<List<DocumentContext>> contextDocuments = default)
+    {
+        var mock = new Mock<IKpiContextProvider>();
+        var bonusDocs = bonusQuestionContextDocuments.Or(() => []);
+        var docs = contextDocuments.Or(() => []);
+
+        mock.Setup(p => p.GetBonusQuestionContextAsync(
+                It.IsAny<string>(),
+                It.IsAny<string>(),
+                It.IsAny<CancellationToken>()))
+            .Returns(bonusDocs.ToAsyncEnumerable());
+
+        mock.Setup(p => p.GetContextAsync(
+                It.IsAny<string>(),
+                It.IsAny<CancellationToken>()))
+            .Returns(docs.ToAsyncEnumerable());
+
+        return mock;
+    }
+
+    /// <summary>
     /// Creates a mock <see cref="IPredictionRepository"/> with configurable behavior.
     /// </summary>
     /// <param name="getPredictionResult">Result of GetPredictionAsync. Defaults to null.</param>
     /// <param name="getPredictionMetadataResult">Result of GetPredictionMetadataAsync. Defaults to null.</param>
     /// <param name="getRepredictionIndexResult">Result of GetMatchRepredictionIndexAsync. Defaults to -1.</param>
+    /// <param name="getBonusPredictionByTextResult">Result of GetBonusPredictionByTextAsync. Defaults to null.</param>
+    /// <param name="getBonusRepredictionIndexResult">Result of GetBonusRepredictionIndexAsync. Defaults to -1.</param>
     public static Mock<IPredictionRepository> CreateMockPredictionRepository(
         NullableOption<Prediction> getPredictionResult = default,
         NullableOption<PredictionMetadata> getPredictionMetadataResult = default,
-        Option<int> getRepredictionIndexResult = default)
+        Option<int> getRepredictionIndexResult = default,
+        NullableOption<BonusPrediction> getBonusPredictionByTextResult = default,
+        Option<int> getBonusRepredictionIndexResult = default)
     {
         var mock = new Mock<IPredictionRepository>();
 
@@ -369,6 +435,57 @@ public static class OrchestratorTestFactories
                 It.IsAny<IEnumerable<string>>(),
                 It.IsAny<int>(),
                 It.IsAny<CancellationToken>()))
+            .Returns(Task.CompletedTask);
+
+        // Bonus prediction methods
+        mock.Setup(r => r.GetBonusPredictionByTextAsync(
+                It.IsAny<string>(),
+                It.IsAny<string>(),
+                It.IsAny<string>(),
+                It.IsAny<CancellationToken>()))
+            .ReturnsAsync(getBonusPredictionByTextResult.Or((BonusPrediction?)null));
+
+        mock.Setup(r => r.GetBonusRepredictionIndexAsync(
+                It.IsAny<string>(),
+                It.IsAny<string>(),
+                It.IsAny<string>(),
+                It.IsAny<CancellationToken>()))
+            .ReturnsAsync(getBonusRepredictionIndexResult.Or(-1));
+
+        mock.Setup(r => r.SaveBonusPredictionAsync(
+                It.IsAny<BonusQuestion>(),
+                It.IsAny<BonusPrediction>(),
+                It.IsAny<string>(),
+                It.IsAny<string>(),
+                It.IsAny<double>(),
+                It.IsAny<string>(),
+                It.IsAny<IEnumerable<string>>(),
+                It.IsAny<bool>(),
+                It.IsAny<CancellationToken>()))
+            .Callback<BonusQuestion, BonusPrediction, string, string, double, string, IEnumerable<string>, bool, CancellationToken>(
+                (_, _, _, _, _, _, contextDocumentNames, _, _) =>
+                {
+                    // Force enumeration of the context document names to exercise the Select lambda
+                    _ = contextDocumentNames.ToList();
+                })
+            .Returns(Task.CompletedTask);
+
+        mock.Setup(r => r.SaveBonusRepredictionAsync(
+                It.IsAny<BonusQuestion>(),
+                It.IsAny<BonusPrediction>(),
+                It.IsAny<string>(),
+                It.IsAny<string>(),
+                It.IsAny<double>(),
+                It.IsAny<string>(),
+                It.IsAny<IEnumerable<string>>(),
+                It.IsAny<int>(),
+                It.IsAny<CancellationToken>()))
+            .Callback<BonusQuestion, BonusPrediction, string, string, double, string, IEnumerable<string>, int, CancellationToken>(
+                (_, _, _, _, _, _, contextDocumentNames, _, _) =>
+                {
+                    // Force enumeration of the context document names to exercise the Select lambda
+                    _ = contextDocumentNames.ToList();
+                })
             .Returns(Task.CompletedTask);
 
         return mock;

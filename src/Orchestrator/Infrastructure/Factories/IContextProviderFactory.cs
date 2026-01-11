@@ -1,4 +1,5 @@
 using ContextProviders.Kicktipp;
+using EHonda.KicktippAi.Core;
 using Microsoft.Extensions.FileProviders;
 
 namespace Orchestrator.Infrastructure.Factories;
@@ -28,4 +29,10 @@ public interface IContextProviderFactory
         KicktippIntegration.IKicktippClient kicktippClient,
         string community,
         string? communityContext = null);
+
+    /// <summary>
+    /// Creates a KPI context provider for bonus predictions.
+    /// </summary>
+    /// <returns>A configured <see cref="IKpiContextProvider"/> instance.</returns>
+    IKpiContextProvider CreateKpiContextProvider();
 }

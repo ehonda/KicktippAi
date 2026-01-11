@@ -3,7 +3,6 @@ using Microsoft.Extensions.Logging;
 using Spectre.Console.Cli;
 using Spectre.Console;
 using OpenAiIntegration;
-using FirebaseAdapter;
 using Orchestrator.Commands.Operations.Matchday;
 using Orchestrator.Commands.Shared;
 using Orchestrator.Infrastructure.Factories;
@@ -16,6 +15,7 @@ public class BonusCommand : AsyncCommand<BaseSettings>
     private readonly IFirebaseServiceFactory _firebaseServiceFactory;
     private readonly IKicktippClientFactory _kicktippClientFactory;
     private readonly IOpenAiServiceFactory _openAiServiceFactory;
+    private readonly IContextProviderFactory _contextProviderFactory;
     private readonly ILogger<BonusCommand> _logger;
 
     public BonusCommand(
@@ -23,12 +23,14 @@ public class BonusCommand : AsyncCommand<BaseSettings>
         IFirebaseServiceFactory firebaseServiceFactory,
         IKicktippClientFactory kicktippClientFactory,
         IOpenAiServiceFactory openAiServiceFactory,
+        IContextProviderFactory contextProviderFactory,
         ILogger<BonusCommand> logger)
     {
         _console = console;
         _firebaseServiceFactory = firebaseServiceFactory;
         _kicktippClientFactory = kicktippClientFactory;
         _openAiServiceFactory = openAiServiceFactory;
+        _contextProviderFactory = contextProviderFactory;
         _logger = logger;
     }
 
@@ -113,10 +115,8 @@ public class BonusCommand : AsyncCommand<BaseSettings>
             _console.MarkupLine($"[dim]Bonus prompt:[/] [blue]{predictionService.GetBonusPromptPath()}[/]");
         }
         
-        // Create Firebase KPI Context Provider for bonus predictions
-        var kpiRepository = _firebaseServiceFactory.CreateKpiRepository();
-        var kpiContextProviderLogger = LoggingConfiguration.CreateLogger<FirebaseKpiContextProvider>();
-        var kpiContextProvider = new FirebaseKpiContextProvider(kpiRepository, kpiContextProviderLogger);
+        // Create KPI Context Provider for bonus predictions using factory
+        var kpiContextProvider = _contextProviderFactory.CreateKpiContextProvider();
         
         var tokenUsageTracker = _openAiServiceFactory.GetTokenUsageTracker();
         

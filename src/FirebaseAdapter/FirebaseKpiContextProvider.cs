@@ -8,7 +8,7 @@ namespace FirebaseAdapter;
 /// Firebase-based context provider for KPI documents.
 /// Retrieves KPI documents from Firestore for use in bonus predictions.
 /// </summary>
-public class FirebaseKpiContextProvider
+public class FirebaseKpiContextProvider : IKpiContextProvider
 {
     private readonly IKpiRepository _kpiRepository;
     private readonly ILogger<FirebaseKpiContextProvider> _logger;
