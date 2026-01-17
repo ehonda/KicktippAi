@@ -167,8 +167,8 @@ For each command, implement tests covering:
 - [ ] Test `PathUtility`
 
 ### Milestone 2: Utility Commands (Simplest)
-- [ ] Test `ListKpiCommand`
-- [ ] Test `UploadKpiCommand`
+- [x] Test `ListKpiCommand`
+- [x] Test `UploadKpiCommand`
 - [ ] Test `UploadTransfersCommand`
 - [ ] Test `ContextChangesCommand`
 - [ ] Test `SnapshotsEncryptCommand`

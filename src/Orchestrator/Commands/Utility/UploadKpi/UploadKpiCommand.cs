@@ -1,8 +1,11 @@
+using Microsoft.Extensions.DependencyInjection;
+using Microsoft.Extensions.FileProviders;
 using Microsoft.Extensions.Logging;
 using Spectre.Console.Cli;
 using Spectre.Console;
 using System.Text.Json;
 using EHonda.KicktippAi.Core;
+using Orchestrator.Infrastructure;
 using Orchestrator.Infrastructure.Factories;
 
 namespace Orchestrator.Commands.Utility.UploadKpi;
@@ -11,21 +14,23 @@ public class UploadKpiCommand : AsyncCommand<UploadKpiSettings>
 {
     private readonly IAnsiConsole _console;
     private readonly IFirebaseServiceFactory _firebaseServiceFactory;
+    private readonly IFileProvider _fileProvider;
     private readonly ILogger<UploadKpiCommand> _logger;
 
     public UploadKpiCommand(
         IAnsiConsole console,
         IFirebaseServiceFactory firebaseServiceFactory,
+        [FromKeyedServices(ServiceRegistrationExtensions.KpiDocumentsFileProviderKey)] IFileProvider fileProvider,
         ILogger<UploadKpiCommand> logger)
     {
         _console = console;
         _firebaseServiceFactory = firebaseServiceFactory;
+        _fileProvider = fileProvider;
         _logger = logger;
     }
 
     public override async Task<int> ExecuteAsync(CommandContext context, UploadKpiSettings settings)
     {
-        
         try
         {
             _console.MarkupLine($"[green]Upload KPI command initialized for document:[/] [yellow]{settings.DocumentName}[/]");
@@ -37,8 +42,9 @@ public class UploadKpiCommand : AsyncCommand<UploadKpiSettings>
             }
             
             // Check if the JSON file exists in the community-context specific subfolder
-            var jsonFilePath = Path.Combine("kpi-documents", "output", settings.CommunityContext, $"{settings.DocumentName}.json");
-            if (!File.Exists(jsonFilePath))
+            var jsonFilePath = $"output/{settings.CommunityContext}/{settings.DocumentName}.json";
+            var fileInfo = _fileProvider.GetFileInfo(jsonFilePath);
+            if (!fileInfo.Exists)
             {
                 _console.MarkupLine($"[red]KPI document file not found:[/] {jsonFilePath}");
                 _console.MarkupLine($"[dim]Run the PowerShell script with firebase mode to create the document first.[/]");
@@ -48,8 +54,8 @@ public class UploadKpiCommand : AsyncCommand<UploadKpiSettings>
             _console.MarkupLine($"[blue]Reading KPI document from:[/] {jsonFilePath}");
             
             // Read and parse the JSON file
-            var jsonContent = await File.ReadAllTextAsync(jsonFilePath);
-            var kpiDocument = JsonSerializer.Deserialize<KpiDocumentJson>(jsonContent, new JsonSerializerOptions
+            using var stream = fileInfo.CreateReadStream();
+            var kpiDocument = await JsonSerializer.DeserializeAsync<KpiDocumentJson>(stream, new JsonSerializerOptions
             {
                 PropertyNameCaseInsensitive = true
             });

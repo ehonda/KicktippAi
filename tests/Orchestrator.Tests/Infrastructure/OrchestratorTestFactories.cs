@@ -3,6 +3,7 @@ using EHonda.KicktippAi.Core;
 using EHonda.Optional.Core;
 using KicktippIntegration;
 using Microsoft.Extensions.DependencyInjection;
+using Microsoft.Extensions.FileProviders;
 using Microsoft.Extensions.Logging;
 using Microsoft.Extensions.Logging.Testing;
 using Moq;
@@ -14,6 +15,7 @@ using System.Linq;
 using Spectre.Console;
 using Spectre.Console.Cli;
 using Spectre.Console.Testing;
+using TestUtilities;
 using Match = EHonda.KicktippAi.Core.Match;
 
 namespace Orchestrator.Tests.Infrastructure;
@@ -675,5 +677,71 @@ public static class OrchestratorTestFactories
                 content: "Match,Score\n1,2-1",
                 createdAt: timestamp)
         };
+    }
+
+    /// <summary>
+    /// Creates a mock <see cref="IKpiRepository"/> configured for upload operations.
+    /// </summary>
+    /// <param name="existingDocument">Document returned by GetKpiDocumentAsync. Defaults to null (no existing document).</param>
+    /// <param name="savedVersion">Version returned by SaveKpiDocumentAsync. Defaults to 0.</param>
+    public static Mock<IKpiRepository> CreateMockKpiRepositoryForUpload(
+        NullableOption<KpiDocument> existingDocument = default,
+        Option<int> savedVersion = default)
+    {
+        var mock = new Mock<IKpiRepository>();
+
+        mock.Setup(r => r.GetKpiDocumentAsync(
+                It.IsAny<string>(),
+                It.IsAny<string>(),
+                It.IsAny<CancellationToken>()))
+            .ReturnsAsync(existingDocument.Or((KpiDocument?)null));
+
+        mock.Setup(r => r.SaveKpiDocumentAsync(
+                It.IsAny<string>(),
+                It.IsAny<string>(),
+                It.IsAny<string>(),
+                It.IsAny<string>(),
+                It.IsAny<CancellationToken>()))
+            .ReturnsAsync(savedVersion.Or(0));
+
+        return mock;
+    }
+
+    /// <summary>
+    /// Creates a mock <see cref="IFileProvider"/> configured with the specified KPI document JSON files.
+    /// </summary>
+    /// <param name="files">Dictionary mapping relative file paths (e.g., "output/community/doc.json") to file contents.</param>
+    /// <returns>A configured mock IFileProvider.</returns>
+    public static Mock<IFileProvider> CreateMockKpiFileProvider(Dictionary<string, string> files)
+    {
+        return MockFileProviderHelpers.CreateMockFileProvider(files);
+    }
+
+    /// <summary>
+    /// Creates a JSON string representing a KPI document file.
+    /// </summary>
+    /// <param name="documentName">Document name. Defaults to "test-document".</param>
+    /// <param name="content">Document content. Defaults to "test content".</param>
+    /// <param name="description">Document description. Defaults to "test description".</param>
+    /// <param name="communityContext">Community context. Defaults to "test-community".</param>
+    public static string CreateKpiDocumentJson(
+        Option<string> documentName = default,
+        Option<string> content = default,
+        Option<string> description = default,
+        Option<string> communityContext = default)
+    {
+        var name = documentName.Or("test-document");
+        var contentValue = content.Or("test content");
+        var desc = description.Or("test description");
+        var context = communityContext.Or("test-community");
+
+        return $$"""
+            {
+                "documentName": "{{name}}",
+                "content": "{{contentValue}}",
+                "description": "{{desc}}",
+                "communityContext": "{{context}}"
+            }
+            """;
     }
 }

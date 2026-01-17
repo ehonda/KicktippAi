@@ -1,5 +1,7 @@
+using EHonda.KicktippAi.Core;
 using Microsoft.Extensions.DependencyInjection;
 using Microsoft.Extensions.DependencyInjection.Extensions;
+using Microsoft.Extensions.FileProviders;
 using Microsoft.Extensions.Logging;
 using Orchestrator.Infrastructure.Factories;
 
@@ -56,6 +58,11 @@ public static class ServiceRegistrationExtensions
     }
 
     /// <summary>
+    /// Service key for the KPI documents file provider.
+    /// </summary>
+    public const string KpiDocumentsFileProviderKey = "kpi-documents";
+
+    /// <summary>
     /// Registers services specific to the UploadKpiCommand.
     /// </summary>
     /// <remarks>
@@ -66,7 +73,10 @@ public static class ServiceRegistrationExtensions
         services.AddOrchestratorInfrastructure();
 
         // UploadKpiCommand only needs Firebase factory (uses IKpiRepository)
-        // No command-specific keyed services needed - factory pattern handles runtime config
+        // Register keyed file provider for KPI documents directory
+        services.TryAddKeyedSingleton<IFileProvider>(
+            KpiDocumentsFileProviderKey,
+            (_, _) => SolutionRelativeFileProvider.Create("kpi-documents"));
 
         return services;
     }
