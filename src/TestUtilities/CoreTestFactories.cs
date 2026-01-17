@@ -279,4 +279,21 @@ public static class CoreTestFactories
             createdAt.Or(() => new DateTimeOffset(2025, 1, 10, 12, 0, 0, TimeSpan.Zero)),
             contextDocumentNames.Or(() => []));
     }
+
+    /// <summary>
+    /// Creates a test <see cref="BonusPredictionMetadata"/> with default values.
+    /// </summary>
+    /// <param name="bonusPrediction">The bonus prediction. Defaults to a new test bonus prediction.</param>
+    /// <param name="createdAt">Creation timestamp. Defaults to 2025-01-10 12:00 UTC.</param>
+    /// <param name="contextDocumentNames">Context document names used. Defaults to empty list.</param>
+    public static BonusPredictionMetadata CreateBonusPredictionMetadata(
+        Option<BonusPrediction> bonusPrediction = default,
+        Option<DateTimeOffset> createdAt = default,
+        Option<List<string>> contextDocumentNames = default)
+    {
+        return new BonusPredictionMetadata(
+            bonusPrediction.Or(() => CreateBonusPrediction()),
+            createdAt.Or(() => new DateTimeOffset(2025, 1, 10, 12, 0, 0, TimeSpan.Zero)),
+            contextDocumentNames.Or(() => []));
+    }
 }

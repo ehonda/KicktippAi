@@ -157,12 +157,14 @@ public static class OrchestratorTestFactories
     /// <param name="placedPredictions">Predictions returned by GetPlacedPredictionsAsync. Defaults to empty dictionary.</param>
     /// <param name="openBonusQuestions">Bonus questions returned by GetOpenBonusQuestionsAsync. Defaults to empty list.</param>
     /// <param name="placeBonusPredictionsResult">Result of PlaceBonusPredictionsAsync. Defaults to true.</param>
+    /// <param name="placedBonusPredictions">Predictions returned by GetPlacedBonusPredictionsAsync. Defaults to empty dictionary.</param>
     public static Mock<IKicktippClient> CreateMockKicktippClient(
         Option<List<MatchWithHistory>> matchesWithHistory = default,
         Option<bool> placeBetsResult = default,
         Option<Dictionary<Match, BetPrediction?>> placedPredictions = default,
         Option<List<BonusQuestion>> openBonusQuestions = default,
-        Option<bool> placeBonusPredictionsResult = default)
+        Option<bool> placeBonusPredictionsResult = default,
+        Option<Dictionary<string, BonusPrediction?>> placedBonusPredictions = default)
     {
         var mock = new Mock<IKicktippClient>();
         var matches = matchesWithHistory.Or(() => []);
@@ -170,6 +172,7 @@ public static class OrchestratorTestFactories
         var predictions = placedPredictions.Or(() => new Dictionary<Match, BetPrediction?>());
         var bonusQuestions = openBonusQuestions.Or(() => []);
         var bonusResult = placeBonusPredictionsResult.Or(true);
+        var bonusPredictions = placedBonusPredictions.Or(() => new Dictionary<string, BonusPrediction?>());
 
         mock.Setup(c => c.GetMatchesWithHistoryAsync(It.IsAny<string>()))
             .ReturnsAsync(matches);
@@ -188,6 +191,9 @@ public static class OrchestratorTestFactories
                 It.IsAny<Dictionary<string, BonusPrediction>>(),
                 It.IsAny<bool>()))
             .ReturnsAsync(bonusResult);
+
+        mock.Setup(c => c.GetPlacedBonusPredictionsAsync(It.IsAny<string>()))
+            .ReturnsAsync(bonusPredictions);
 
         return mock;
     }
@@ -388,6 +394,7 @@ public static class OrchestratorTestFactories
     /// <param name="getCancelledMatchPredictionResult">Result of GetCancelledMatchPredictionAsync. Defaults to null.</param>
     /// <param name="getCancelledMatchPredictionMetadataResult">Result of GetCancelledMatchPredictionMetadataAsync. Defaults to null.</param>
     /// <param name="getCancelledMatchRepredictionIndexResult">Result of GetCancelledMatchRepredictionIndexAsync. Defaults to -1.</param>
+    /// <param name="getBonusPredictionMetadataByTextResult">Result of GetBonusPredictionMetadataByTextAsync. Defaults to null.</param>
     public static Mock<IPredictionRepository> CreateMockPredictionRepository(
         NullableOption<Prediction> getPredictionResult = default,
         NullableOption<PredictionMetadata> getPredictionMetadataResult = default,
@@ -396,7 +403,8 @@ public static class OrchestratorTestFactories
         Option<int> getBonusRepredictionIndexResult = default,
         NullableOption<Prediction> getCancelledMatchPredictionResult = default,
         NullableOption<PredictionMetadata> getCancelledMatchPredictionMetadataResult = default,
-        Option<int> getCancelledMatchRepredictionIndexResult = default)
+        Option<int> getCancelledMatchRepredictionIndexResult = default,
+        NullableOption<BonusPredictionMetadata> getBonusPredictionMetadataByTextResult = default)
     {
         var mock = new Mock<IPredictionRepository>();
 
@@ -452,6 +460,13 @@ public static class OrchestratorTestFactories
                 It.IsAny<string>(),
                 It.IsAny<CancellationToken>()))
             .ReturnsAsync(getBonusPredictionByTextResult.Or((BonusPrediction?)null));
+
+        mock.Setup(r => r.GetBonusPredictionMetadataByTextAsync(
+                It.IsAny<string>(),
+                It.IsAny<string>(),
+                It.IsAny<string>(),
+                It.IsAny<CancellationToken>()))
+            .ReturnsAsync(getBonusPredictionMetadataByTextResult.Or((BonusPredictionMetadata?)null));
 
         mock.Setup(r => r.GetBonusRepredictionIndexAsync(
                 It.IsAny<string>(),
