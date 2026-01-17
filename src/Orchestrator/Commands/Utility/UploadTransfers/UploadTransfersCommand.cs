@@ -1,8 +1,11 @@
+using Microsoft.Extensions.DependencyInjection;
+using Microsoft.Extensions.FileProviders;
 using Microsoft.Extensions.Logging;
 using Spectre.Console.Cli;
 using Spectre.Console;
 using System.Text.Json;
 using EHonda.KicktippAi.Core;
+using Orchestrator.Infrastructure;
 using Orchestrator.Infrastructure.Factories;
 
 namespace Orchestrator.Commands.Utility.UploadTransfers;
@@ -11,15 +14,18 @@ public class UploadTransfersCommand : AsyncCommand<UploadTransfersSettings>
 {
     private readonly IAnsiConsole _console;
     private readonly IFirebaseServiceFactory _firebaseServiceFactory;
+    private readonly IFileProvider _fileProvider;
     private readonly ILogger<UploadTransfersCommand> _logger;
 
     public UploadTransfersCommand(
         IAnsiConsole console,
         IFirebaseServiceFactory firebaseServiceFactory,
+        [FromKeyedServices(ServiceRegistrationExtensions.TransfersDocumentsFileProviderKey)] IFileProvider fileProvider,
         ILogger<UploadTransfersCommand> logger)
     {
         _console = console;
         _firebaseServiceFactory = firebaseServiceFactory;
+        _fileProvider = fileProvider;
         _logger = logger;
     }
 
@@ -34,8 +40,9 @@ public class UploadTransfersCommand : AsyncCommand<UploadTransfersSettings>
             if (settings.Verbose) _console.MarkupLine("[dim]Verbose mode enabled[/]");
 
             // JSON file path produced by Create-TransfersDocument.ps1 firebase mode
-            var jsonPath = Path.Combine("transfers-documents", "output", settings.CommunityContext, $"{docName}.json");
-            if (!File.Exists(jsonPath))
+            var jsonPath = $"output/{settings.CommunityContext}/{docName}.json";
+            var fileInfo = _fileProvider.GetFileInfo(jsonPath);
+            if (!fileInfo.Exists)
             {
                 _console.MarkupLine($"[red]Transfers document JSON not found:[/] {jsonPath}");
                 _console.MarkupLine("[dim]Run Create-TransfersDocument.ps1 in firebase mode first.[/]");
@@ -43,8 +50,8 @@ public class UploadTransfersCommand : AsyncCommand<UploadTransfersSettings>
             }
 
             _console.MarkupLine($"[blue]Reading transfers document from:[/] {jsonPath}");
-            var jsonContent = await File.ReadAllTextAsync(jsonPath);
-            var transfersDoc = JsonSerializer.Deserialize<TransfersDocumentJson>(jsonContent, new JsonSerializerOptions { PropertyNameCaseInsensitive = true });
+            using var stream = fileInfo.CreateReadStream();
+            var transfersDoc = await JsonSerializer.DeserializeAsync<TransfersDocumentJson>(stream, new JsonSerializerOptions { PropertyNameCaseInsensitive = true });
             if (transfersDoc == null)
             {
                 _console.MarkupLine("[red]Failed to parse transfers document JSON[/]");

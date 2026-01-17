@@ -567,6 +567,33 @@ public static class OrchestratorTestFactories
     }
 
     /// <summary>
+    /// Creates a mock <see cref="IContextRepository"/> configured for upload operations.
+    /// </summary>
+    /// <param name="existingDocument">Document returned by GetLatestContextDocumentAsync. Defaults to null (no existing document).</param>
+    /// <param name="savedVersion">Version returned by SaveContextDocumentAsync. Defaults to 0. Pass null to simulate unchanged content.</param>
+    public static Mock<IContextRepository> CreateMockContextRepositoryForUpload(
+        NullableOption<ContextDocument> existingDocument = default,
+        NullableOption<int?> savedVersion = default)
+    {
+        var mock = new Mock<IContextRepository>();
+
+        mock.Setup(r => r.GetLatestContextDocumentAsync(
+                It.IsAny<string>(),
+                It.IsAny<string>(),
+                It.IsAny<CancellationToken>()))
+            .ReturnsAsync(existingDocument.Or((ContextDocument?)null));
+
+        mock.Setup(r => r.SaveContextDocumentAsync(
+                It.IsAny<string>(),
+                It.IsAny<string>(),
+                It.IsAny<string>(),
+                It.IsAny<CancellationToken>()))
+            .ReturnsAsync(savedVersion.Or((int?)0));
+
+        return mock;
+    }
+
+    /// <summary>
     /// Creates a mock <see cref="IContextRepository"/> that returns documents based on document name.
     /// </summary>
     /// <param name="documentsByName">Dictionary mapping document names to their content.</param>
@@ -758,5 +785,43 @@ public static class OrchestratorTestFactories
                 "communityContext": "{{context}}"
             }
             """;
+    }
+
+    /// <summary>
+    /// Creates a JSON string representing a transfers document file.
+    /// </summary>
+    /// <param name="documentName">Document name. Defaults to "test-transfers.csv".</param>
+    /// <param name="content">Document content. Defaults to "test transfers content".</param>
+    /// <param name="description">Document description. Defaults to "test transfers description".</param>
+    /// <param name="communityContext">Community context. Defaults to "test-community".</param>
+    public static string CreateTransfersDocumentJson(
+        Option<string> documentName = default,
+        Option<string> content = default,
+        Option<string> description = default,
+        Option<string> communityContext = default)
+    {
+        var name = documentName.Or("test-transfers.csv");
+        var contentValue = content.Or("test transfers content");
+        var desc = description.Or("test transfers description");
+        var context = communityContext.Or("test-community");
+
+        return $$"""
+            {
+                "documentName": "{{name}}",
+                "content": "{{contentValue}}",
+                "description": "{{desc}}",
+                "communityContext": "{{context}}"
+            }
+            """;
+    }
+
+    /// <summary>
+    /// Creates a mock <see cref="IFileProvider"/> configured with the specified transfers document JSON files.
+    /// </summary>
+    /// <param name="files">Dictionary mapping relative file paths (e.g., "output/community/doc.json") to file contents.</param>
+    /// <returns>A configured mock IFileProvider.</returns>
+    public static Mock<IFileProvider> CreateMockTransfersFileProvider(Dictionary<string, string> files)
+    {
+        return MockFileProviderHelpers.CreateMockFileProvider(files);
     }
 }

@@ -63,6 +63,11 @@ public static class ServiceRegistrationExtensions
     public const string KpiDocumentsFileProviderKey = "kpi-documents";
 
     /// <summary>
+    /// Service key for the transfers documents file provider.
+    /// </summary>
+    public const string TransfersDocumentsFileProviderKey = "transfers-documents";
+
+    /// <summary>
     /// Registers services specific to the UploadKpiCommand.
     /// </summary>
     /// <remarks>
@@ -195,7 +200,11 @@ public static class ServiceRegistrationExtensions
     {
         services.AddOrchestratorInfrastructure();
 
-        // UploadTransfersCommand only needs Firebase (IContextRepository)
+        // UploadTransfersCommand needs Firebase (IContextRepository)
+        // Register keyed file provider for transfers documents directory
+        services.TryAddKeyedSingleton<IFileProvider>(
+            TransfersDocumentsFileProviderKey,
+            (_, _) => SolutionRelativeFileProvider.Create("transfers-documents"));
 
         return services;
     }
