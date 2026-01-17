@@ -48,6 +48,7 @@ public abstract class VerifyMatchdayCommandTests_Base
     /// <param name="databasePrediction">Prediction returned by GetPredictionAsync. Defaults to null.</param>
     /// <param name="predictionMetadata">Metadata returned by GetPredictionMetadataAsync. Defaults to null.</param>
     /// <param name="contextDocumentsByName">Context documents keyed by name. Defaults to empty.</param>
+    /// <param name="cancelledMatchPrediction">Prediction returned by GetCancelledMatchPredictionAsync. Defaults to null.</param>
     /// <param name="predictionRepositoryReturnsNull">If true, CreatePredictionRepository returns null.</param>
     /// <param name="contextRepositoryReturnsNull">If true, CreateContextRepository returns null.</param>
     /// <param name="firebaseServiceFactory">Pre-configured mock (overrides domain params).</param>
@@ -60,6 +61,7 @@ public abstract class VerifyMatchdayCommandTests_Base
         NullableOption<Prediction> databasePrediction = default,
         NullableOption<PredictionMetadata> predictionMetadata = default,
         Option<Dictionary<string, ContextDocument>> contextDocumentsByName = default,
+        NullableOption<Prediction> cancelledMatchPrediction = default,
         Option<bool> predictionRepositoryReturnsNull = default,
         Option<bool> contextRepositoryReturnsNull = default,
         // Factory-level parameters for advanced scenarios
@@ -76,7 +78,8 @@ public abstract class VerifyMatchdayCommandTests_Base
 
         var mockPredictionRepository = CreateMockPredictionRepository(
             getPredictionResult: databasePrediction,
-            getPredictionMetadataResult: predictionMetadata);
+            getPredictionMetadataResult: predictionMetadata,
+            getCancelledMatchPredictionResult: cancelledMatchPrediction);
 
         var mockContextRepository = CreateMockContextRepositoryWithDocuments(docs);
 

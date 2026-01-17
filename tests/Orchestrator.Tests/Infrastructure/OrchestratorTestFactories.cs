@@ -383,12 +383,18 @@ public static class OrchestratorTestFactories
     /// <param name="getRepredictionIndexResult">Result of GetMatchRepredictionIndexAsync. Defaults to -1.</param>
     /// <param name="getBonusPredictionByTextResult">Result of GetBonusPredictionByTextAsync. Defaults to null.</param>
     /// <param name="getBonusRepredictionIndexResult">Result of GetBonusRepredictionIndexAsync. Defaults to -1.</param>
+    /// <param name="getCancelledMatchPredictionResult">Result of GetCancelledMatchPredictionAsync. Defaults to null.</param>
+    /// <param name="getCancelledMatchPredictionMetadataResult">Result of GetCancelledMatchPredictionMetadataAsync. Defaults to null.</param>
+    /// <param name="getCancelledMatchRepredictionIndexResult">Result of GetCancelledMatchRepredictionIndexAsync. Defaults to -1.</param>
     public static Mock<IPredictionRepository> CreateMockPredictionRepository(
         NullableOption<Prediction> getPredictionResult = default,
         NullableOption<PredictionMetadata> getPredictionMetadataResult = default,
         Option<int> getRepredictionIndexResult = default,
         NullableOption<BonusPrediction> getBonusPredictionByTextResult = default,
-        Option<int> getBonusRepredictionIndexResult = default)
+        Option<int> getBonusRepredictionIndexResult = default,
+        NullableOption<Prediction> getCancelledMatchPredictionResult = default,
+        NullableOption<PredictionMetadata> getCancelledMatchPredictionMetadataResult = default,
+        Option<int> getCancelledMatchRepredictionIndexResult = default)
     {
         var mock = new Mock<IPredictionRepository>();
 
@@ -451,6 +457,31 @@ public static class OrchestratorTestFactories
                 It.IsAny<string>(),
                 It.IsAny<CancellationToken>()))
             .ReturnsAsync(getBonusRepredictionIndexResult.Or(-1));
+
+        // Cancelled match methods - must be explicitly configured when testing cancelled matches
+        mock.Setup(r => r.GetCancelledMatchPredictionAsync(
+                It.IsAny<string>(),
+                It.IsAny<string>(),
+                It.IsAny<string>(),
+                It.IsAny<string>(),
+                It.IsAny<CancellationToken>()))
+            .ReturnsAsync(getCancelledMatchPredictionResult.Or((Prediction?)null));
+
+        mock.Setup(r => r.GetCancelledMatchPredictionMetadataAsync(
+                It.IsAny<string>(),
+                It.IsAny<string>(),
+                It.IsAny<string>(),
+                It.IsAny<string>(),
+                It.IsAny<CancellationToken>()))
+            .ReturnsAsync(getCancelledMatchPredictionMetadataResult.Or((PredictionMetadata?)null));
+
+        mock.Setup(r => r.GetCancelledMatchRepredictionIndexAsync(
+                It.IsAny<string>(),
+                It.IsAny<string>(),
+                It.IsAny<string>(),
+                It.IsAny<string>(),
+                It.IsAny<CancellationToken>()))
+            .ReturnsAsync(getCancelledMatchRepredictionIndexResult.Or(-1));
 
         mock.Setup(r => r.SaveBonusPredictionAsync(
                 It.IsAny<BonusQuestion>(),

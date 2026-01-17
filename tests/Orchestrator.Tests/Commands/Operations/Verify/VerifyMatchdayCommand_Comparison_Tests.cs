@@ -202,7 +202,7 @@ public class VerifyMatchdayCommand_Comparison_Tests : VerifyMatchdayCommandTests
     }
 
     [Test]
-    public async Task Cancelled_match_displays_warning_message()
+    public async Task Cancelled_match_uses_team_names_only_lookup_in_verbose_mode()
     {
         // Arrange
         var cancelledMatch = CreateMatch(
@@ -215,20 +215,21 @@ public class VerifyMatchdayCommand_Comparison_Tests : VerifyMatchdayCommandTests
 
         var ctx = CreateVerifyMatchdayCommandApp(
             placedPredictions: CreatePlacedPredictions(cancelledMatch, kicktippPrediction),
-            databasePrediction: databasePrediction);
+            cancelledMatchPrediction: databasePrediction);
 
-        // Act
-        var (exitCode, output) = await RunCommandAsync(ctx.App, ctx.Console, "verify-matchday", "gpt-4o", "-c", "test-community");
+        // Act - use verbose mode to see the lookup message
+        var (exitCode, output) = await RunCommandAsync(ctx.App, ctx.Console, "verify-matchday", "gpt-4o", "-c", "test-community", "--verbose");
 
-        // Assert - should display warning for cancelled match
-        await Assert.That(output).Contains("FC Bayern München vs Borussia Dortmund is cancelled (Abgesagt)");
-        await Assert.That(output).Contains("inherited time");
+        // Assert - should show team-names-only lookup for cancelled match
+        // The lookup message indicates we're using the special cancelled match handling
+        await Assert.That(output).Contains("cancelled match, team-names-only");
+        await Assert.That(output).Contains("FC Bayern München vs Borussia Dortmund");
         // Should still succeed if predictions match
         await Assert.That(exitCode).IsEqualTo(0);
     }
 
     [Test]
-    public async Task Multiple_cancelled_matches_display_multiple_warnings()
+    public async Task Multiple_cancelled_matches_use_team_names_only_lookup()
     {
         // Arrange
         var cancelledMatch1 = CreateMatch(
@@ -259,15 +260,18 @@ public class VerifyMatchdayCommand_Comparison_Tests : VerifyMatchdayCommandTests
 
         var ctx = CreateVerifyMatchdayCommandApp(
             placedPredictions: placedPredictions,
-            databasePrediction: dbPrediction);
+            databasePrediction: dbPrediction,
+            cancelledMatchPrediction: dbPrediction);
 
-        // Act
-        var (exitCode, output) = await RunCommandAsync(ctx.App, ctx.Console, "verify-matchday", "gpt-4o", "-c", "test-community");
+        // Act - use verbose mode to see lookup messages
+        var (exitCode, output) = await RunCommandAsync(ctx.App, ctx.Console, "verify-matchday", "gpt-4o", "-c", "test-community", "--verbose");
 
-        // Assert - should display warning for both cancelled matches
-        await Assert.That(output).Contains("Team A vs Team B is cancelled (Abgesagt)");
-        await Assert.That(output).Contains("Team C vs Team D is cancelled (Abgesagt)");
-        // Normal match should NOT have cancelled warning
-        await Assert.That(output).DoesNotContain("Team E vs Team F is cancelled");
+        // Assert - cancelled matches should use team-names-only lookup
+        // Count occurrences of "cancelled match, team-names-only" - should be 2 (for Team A/B and Team C/D)
+        var teamNamesOnlyCount = System.Text.RegularExpressions.Regex.Matches(output, "cancelled match, team-names-only").Count;
+        await Assert.That(teamNamesOnlyCount).IsEqualTo(2);
+        
+        // Normal match should use regular lookup (with startsAt)
+        await Assert.That(output).Contains("Looking up: Team E vs Team F at");
     }
 }

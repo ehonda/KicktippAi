@@ -105,6 +105,28 @@ If the first match on a matchday is cancelled (no previous time to inherit), `Pa
 
 This is logged as a warning. In practice, this edge case is rare.
 
+### Edge Case: Spielinfo vs Tippabgabe Page Inconsistency
+
+**Problem discovered:** Different Kicktipp pages handle cancelled matches inconsistently:
+
+| Page | Access Pattern | Time Handling for Cancelled Matches |
+|------|----------------|-------------------------------------|
+| `tippabgabe` | Table with all matches | Inherits time from previous row |
+| `spielinfo` | Individual match pages | No previous row → uses `DateTimeOffset.MinValue` |
+
+This caused a critical bug where:
+- `MatchdayCommand` uses spielinfo pages → gets `startsAt = MinValue`
+- `VerifyMatchdayCommand` uses tippabgabe page → gets `startsAt = inherited time (e.g., 15:30)`
+- Database lookups fail because the same match has different keys!
+
+**Solution:** For cancelled matches, the repository uses **team-names-only lookups** (omitting `startsAt` from the query). This finds the prediction regardless of which `startsAt` value was used when storing. See `IPredictionRepository.GetCancelledMatchPredictionAsync` and related methods for implementation details.
+
+**Why this is safe:**
+- Teams can only play each other once per season in Bundesliga (in a given home / away configuration)
+- The `model` and `communityContext` constraints remain in place
+- We order by `createdAt` descending to get the most recent prediction
+- Only applied to matches with `IsCancelled = true`
+
 ## Implementation Details
 
 ### Match Record
@@ -139,9 +161,12 @@ The following methods handle cancelled matches:
 |--------|------|----------|
 | `GetOpenPredictionsAsync` | KicktippClient.cs | Inherits time, sets `IsCancelled = true` |
 | `GetPlacedPredictionsAsync` | KicktippClient.cs | Inherits time, sets `IsCancelled = true` |
-| `ExtractMatchWithHistoryFromSpielinfoPage` | KicktippClient.cs | Sets `IsCancelled = true`, uses `DateTime.Now` fallback |
-| `ExecuteVerificationWorkflow` | VerifyMatchdayCommand.cs | Logs warning for cancelled matches |
-| `ExecuteMatchdayWorkflow` | MatchdayCommand.cs | Logs warning for cancelled matches |
+| `ExtractMatchWithHistoryFromSpielinfoPage` | KicktippClient.cs | Sets `IsCancelled = true`, uses `MinValue` fallback |
+| `GetCancelledMatchPredictionAsync` | FirebasePredictionRepository.cs | Team-names-only lookup (no `startsAt`) |
+| `GetCancelledMatchPredictionMetadataAsync` | FirebasePredictionRepository.cs | Team-names-only lookup (no `startsAt`) |
+| `GetCancelledMatchRepredictionIndexAsync` | FirebasePredictionRepository.cs | Team-names-only lookup (no `startsAt`) |
+| `ExecuteVerificationWorkflow` | VerifyMatchdayCommand.cs | Uses team-names-only lookup for cancelled matches |
+| `ExecuteMatchdayWorkflow` | MatchdayCommand.cs | Uses team-names-only lookup for cancelled matches |
 
 ## Assumptions
 

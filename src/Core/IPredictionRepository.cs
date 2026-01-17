@@ -167,6 +167,88 @@ public interface IPredictionRepository
     /// <returns>The current reprediction index, or -1 if no prediction exists.</returns>
     Task<int> GetMatchRepredictionIndexAsync(Match match, string model, string communityContext, CancellationToken cancellationToken = default);
 
+    // ============================================================================
+    // CANCELLED MATCH LOOKUPS (Team Names Only - No startsAt Constraint)
+    // ============================================================================
+    //
+    // These methods exist to handle a specific edge case with cancelled matches:
+    //
+    // PROBLEM:
+    // When a match is cancelled ("Abgesagt" on Kicktipp), the match time is no longer
+    // displayed. Different Kicktipp pages handle this inconsistently:
+    //   - tippabgabe page: Shows multiple matches in a table, allowing time inheritance
+    //     from the previous row (e.g., 15:30 from the match above)
+    //   - spielinfo pages: Show one match at a time, so there's no "previous row" to
+    //     inherit from, resulting in DateTimeOffset.MinValue as fallback
+    //
+    // This causes the same cancelled match to have different `startsAt` values depending
+    // on which page was scraped, leading to database lookup mismatches:
+    //   - MatchdayCommand uses spielinfo → startsAt = MinValue
+    //   - VerifyCommand uses tippabgabe → startsAt = inherited time (e.g., 15:30)
+    //
+    // SOLUTION:
+    // For cancelled matches ONLY, we query by team names without the startsAt constraint.
+    // This finds the prediction regardless of which startsAt value was used when storing.
+    // We order by createdAt descending to get the most recent prediction.
+    //
+    // WHY NOT CHANGE THE NORMAL FLOW:
+    // The startsAt constraint is important for non-cancelled matches because:
+    //   1. It's part of the natural composite key (teams can play multiple times)
+    //   2. It ensures we don't accidentally retrieve predictions for rescheduled matches
+    //   3. It maintains data integrity for the vast majority of matches
+    //
+    // Cancelled matches are rare edge cases where this constraint causes more problems
+    // than it solves, so we relax it only for this specific scenario.
+    // ============================================================================
+
+    /// <summary>
+    /// Retrieves a prediction for a cancelled match by team names only (ignoring startsAt).
+    /// <para>
+    /// This method should ONLY be used for cancelled matches where the startsAt value
+    /// may be inconsistent across different Kicktipp pages. For normal matches, use
+    /// <see cref="GetPredictionAsync(Match, string, string, CancellationToken)"/> instead.
+    /// </para>
+    /// </summary>
+    /// <param name="homeTeam">The home team name.</param>
+    /// <param name="awayTeam">The away team name.</param>
+    /// <param name="model">The AI model used to generate the prediction.</param>
+    /// <param name="communityContext">The community context used for the prediction.</param>
+    /// <param name="cancellationToken">Cancellation token.</param>
+    /// <returns>The most recent prediction if found, otherwise null.</returns>
+    Task<Prediction?> GetCancelledMatchPredictionAsync(string homeTeam, string awayTeam, string model, string communityContext, CancellationToken cancellationToken = default);
+
+    /// <summary>
+    /// Retrieves prediction metadata for a cancelled match by team names only (ignoring startsAt).
+    /// <para>
+    /// This method should ONLY be used for cancelled matches where the startsAt value
+    /// may be inconsistent across different Kicktipp pages. For normal matches, use
+    /// <see cref="GetPredictionMetadataAsync(Match, string, string, CancellationToken)"/> instead.
+    /// </para>
+    /// </summary>
+    /// <param name="homeTeam">The home team name.</param>
+    /// <param name="awayTeam">The away team name.</param>
+    /// <param name="model">The AI model used to generate the prediction.</param>
+    /// <param name="communityContext">The community context used for the prediction.</param>
+    /// <param name="cancellationToken">Cancellation token.</param>
+    /// <returns>The most recent prediction metadata if found, otherwise null.</returns>
+    Task<PredictionMetadata?> GetCancelledMatchPredictionMetadataAsync(string homeTeam, string awayTeam, string model, string communityContext, CancellationToken cancellationToken = default);
+
+    /// <summary>
+    /// Gets the reprediction index for a cancelled match by team names only (ignoring startsAt).
+    /// <para>
+    /// This method should ONLY be used for cancelled matches where the startsAt value
+    /// may be inconsistent across different Kicktipp pages. For normal matches, use
+    /// <see cref="GetMatchRepredictionIndexAsync(Match, string, string, CancellationToken)"/> instead.
+    /// </para>
+    /// </summary>
+    /// <param name="homeTeam">The home team name.</param>
+    /// <param name="awayTeam">The away team name.</param>
+    /// <param name="model">The AI model used to generate the prediction.</param>
+    /// <param name="communityContext">The community context used for the prediction.</param>
+    /// <param name="cancellationToken">Cancellation token.</param>
+    /// <returns>The current reprediction index, or -1 if no prediction exists.</returns>
+    Task<int> GetCancelledMatchRepredictionIndexAsync(string homeTeam, string awayTeam, string model, string communityContext, CancellationToken cancellationToken = default);
+
     /// <summary>
     /// Gets the current reprediction index for a specific bonus question using the specified model and community context.
     /// </summary>

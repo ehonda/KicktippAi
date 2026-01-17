@@ -187,7 +187,18 @@ public class MatchdayCommand : AsyncCommand<BaseSettings>
                 // Check if we have an existing prediction in the database
                 if (databaseEnabled && !settings.OverrideDatabase && !settings.IsRepredictMode)
                 {
-                    prediction = await predictionRepository!.GetPredictionAsync(match, settings.Model, communityContext);
+                    // For cancelled matches, use team-names-only lookup to handle startsAt inconsistencies
+                    // See IPredictionRepository.cs for detailed documentation on this edge case
+                    if (match.IsCancelled)
+                    {
+                        prediction = await predictionRepository!.GetCancelledMatchPredictionAsync(
+                            match.HomeTeam, match.AwayTeam, settings.Model, communityContext);
+                    }
+                    else
+                    {
+                        prediction = await predictionRepository!.GetPredictionAsync(match, settings.Model, communityContext);
+                    }
+                    
                     if (prediction != null)
                     {
                         fromDatabase = true;
@@ -206,7 +217,17 @@ public class MatchdayCommand : AsyncCommand<BaseSettings>
                 // Handle reprediction logic
                 if (settings.IsRepredictMode && databaseEnabled)
                 {
-                    var currentRepredictionIndex = await predictionRepository!.GetMatchRepredictionIndexAsync(match, settings.Model, communityContext);
+                    // For cancelled matches, use team-names-only lookup to handle startsAt inconsistencies
+                    int currentRepredictionIndex;
+                    if (match.IsCancelled)
+                    {
+                        currentRepredictionIndex = await predictionRepository!.GetCancelledMatchRepredictionIndexAsync(
+                            match.HomeTeam, match.AwayTeam, settings.Model, communityContext);
+                    }
+                    else
+                    {
+                        currentRepredictionIndex = await predictionRepository!.GetMatchRepredictionIndexAsync(match, settings.Model, communityContext);
+                    }
                     
                     if (currentRepredictionIndex == -1)
                     {
@@ -235,7 +256,17 @@ public class MatchdayCommand : AsyncCommand<BaseSettings>
                                 _console.MarkupLine($"[green]  ✓ Skipped reprediction - current prediction is up-to-date[/]");
                                 
                                 // Get the latest prediction for display purposes
-                                prediction = await predictionRepository!.GetPredictionAsync(match, settings.Model, communityContext);
+                                // For cancelled matches, use team-names-only lookup
+                                if (match.IsCancelled)
+                                {
+                                    prediction = await predictionRepository!.GetCancelledMatchPredictionAsync(
+                                        match.HomeTeam, match.AwayTeam, settings.Model, communityContext);
+                                }
+                                else
+                                {
+                                    prediction = await predictionRepository!.GetPredictionAsync(match, settings.Model, communityContext);
+                                }
+                                
                                 if (prediction != null)
                                 {
                                     fromDatabase = true;
@@ -252,7 +283,17 @@ public class MatchdayCommand : AsyncCommand<BaseSettings>
                             _console.MarkupLine($"[yellow]  ✗ Skipped - already at max repredictions ({currentRepredictionIndex}/{maxAllowed})[/]");
                             
                             // Get the latest prediction for display purposes
-                            prediction = await predictionRepository!.GetPredictionAsync(match, settings.Model, communityContext);
+                            // For cancelled matches, use team-names-only lookup
+                            if (match.IsCancelled)
+                            {
+                                prediction = await predictionRepository!.GetCancelledMatchPredictionAsync(
+                                    match.HomeTeam, match.AwayTeam, settings.Model, communityContext);
+                            }
+                            else
+                            {
+                                prediction = await predictionRepository!.GetPredictionAsync(match, settings.Model, communityContext);
+                            }
+                            
                             if (prediction != null)
                             {
                                 fromDatabase = true;
@@ -341,7 +382,17 @@ public class MatchdayCommand : AsyncCommand<BaseSettings>
                                 if (settings.IsRepredictMode)
                                 {
                                     // Save as reprediction with specific index
-                                    var currentIndex = await predictionRepository!.GetMatchRepredictionIndexAsync(match, settings.Model, communityContext);
+                                    // For cancelled matches, use team-names-only lookup for the current index
+                                    int currentIndex;
+                                    if (match.IsCancelled)
+                                    {
+                                        currentIndex = await predictionRepository!.GetCancelledMatchRepredictionIndexAsync(
+                                            match.HomeTeam, match.AwayTeam, settings.Model, communityContext);
+                                    }
+                                    else
+                                    {
+                                        currentIndex = await predictionRepository!.GetMatchRepredictionIndexAsync(match, settings.Model, communityContext);
+                                    }
                                     var nextIndex = currentIndex == -1 ? 0 : currentIndex + 1;
                                     
                                     await predictionRepository!.SaveRepredictionAsync(
@@ -680,7 +731,17 @@ public class MatchdayCommand : AsyncCommand<BaseSettings>
         try
         {
             // Get prediction metadata with context document names and timestamps
-            var predictionMetadata = await predictionRepository.GetPredictionMetadataAsync(match, model, communityContext);
+            // For cancelled matches, use team-names-only lookup to handle startsAt inconsistencies
+            PredictionMetadata? predictionMetadata;
+            if (match.IsCancelled)
+            {
+                predictionMetadata = await predictionRepository.GetCancelledMatchPredictionMetadataAsync(
+                    match.HomeTeam, match.AwayTeam, model, communityContext);
+            }
+            else
+            {
+                predictionMetadata = await predictionRepository.GetPredictionMetadataAsync(match, model, communityContext);
+            }
             
             if (predictionMetadata == null || !predictionMetadata.ContextDocumentNames.Any())
             {

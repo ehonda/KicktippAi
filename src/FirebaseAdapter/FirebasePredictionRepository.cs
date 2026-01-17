@@ -643,6 +643,132 @@ public class FirebasePredictionRepository : IPredictionRepository
         }
     }
 
+    // See IPredictionRepository.cs for detailed documentation on why these methods exist.
+    // In short: cancelled matches have inconsistent startsAt values across different Kicktipp pages,
+    // so we query by team names only to find predictions regardless of which startsAt was used.
+
+    /// <inheritdoc />
+    public async Task<Prediction?> GetCancelledMatchPredictionAsync(string homeTeam, string awayTeam, string model, string communityContext, CancellationToken cancellationToken = default)
+    {
+        try
+        {
+            // Query by team names only (no startsAt), ordered by createdAt descending to get the most recent
+            // We use repredictionIndex descending first to get the latest reprediction, then createdAt for tiebreaking
+            var query = _firestoreDb.Collection(_predictionsCollection)
+                .WhereEqualTo("homeTeam", homeTeam)
+                .WhereEqualTo("awayTeam", awayTeam)
+                .WhereEqualTo("competition", _competition)
+                .WhereEqualTo("model", model)
+                .WhereEqualTo("communityContext", communityContext)
+                .OrderByDescending("createdAt")
+                .Limit(1);
+
+            var snapshot = await query.GetSnapshotAsync(cancellationToken);
+            
+            if (snapshot.Documents.Count == 0)
+            {
+                _logger.LogDebug("No prediction found for cancelled match {HomeTeam} vs {AwayTeam} (team-names-only lookup)", homeTeam, awayTeam);
+                return null;
+            }
+
+            var firestorePrediction = snapshot.Documents.First().ConvertTo<FirestoreMatchPrediction>();
+            _logger.LogDebug("Found prediction for cancelled match {HomeTeam} vs {AwayTeam} with startsAt={StartsAt} (team-names-only lookup)", 
+                homeTeam, awayTeam, firestorePrediction.StartsAt);
+            
+            return new Prediction(
+                firestorePrediction.HomeGoals,
+                firestorePrediction.AwayGoals,
+                DeserializeJustification(firestorePrediction.Justification));
+        }
+        catch (Exception ex)
+        {
+            _logger.LogError(ex, "Failed to get prediction for cancelled match {HomeTeam} vs {AwayTeam} using model {Model} and community context {CommunityContext}", 
+                homeTeam, awayTeam, model, communityContext);
+            throw;
+        }
+    }
+
+    /// <inheritdoc />
+    public async Task<PredictionMetadata?> GetCancelledMatchPredictionMetadataAsync(string homeTeam, string awayTeam, string model, string communityContext, CancellationToken cancellationToken = default)
+    {
+        try
+        {
+            // Query by team names only (no startsAt), ordered by createdAt descending to get the most recent
+            var query = _firestoreDb.Collection(_predictionsCollection)
+                .WhereEqualTo("homeTeam", homeTeam)
+                .WhereEqualTo("awayTeam", awayTeam)
+                .WhereEqualTo("competition", _competition)
+                .WhereEqualTo("model", model)
+                .WhereEqualTo("communityContext", communityContext)
+                .OrderByDescending("createdAt")
+                .Limit(1);
+
+            var snapshot = await query.GetSnapshotAsync(cancellationToken);
+            
+            if (snapshot.Documents.Count == 0)
+            {
+                _logger.LogDebug("No prediction metadata found for cancelled match {HomeTeam} vs {AwayTeam} (team-names-only lookup)", homeTeam, awayTeam);
+                return null;
+            }
+
+            var firestorePrediction = snapshot.Documents.First().ConvertTo<FirestoreMatchPrediction>();
+            _logger.LogDebug("Found prediction metadata for cancelled match {HomeTeam} vs {AwayTeam} with startsAt={StartsAt} (team-names-only lookup)", 
+                homeTeam, awayTeam, firestorePrediction.StartsAt);
+            
+            var prediction = new Prediction(
+                firestorePrediction.HomeGoals,
+                firestorePrediction.AwayGoals,
+                DeserializeJustification(firestorePrediction.Justification));
+            var createdAt = firestorePrediction.CreatedAt.ToDateTimeOffset();
+            var contextDocumentNames = firestorePrediction.ContextDocumentNames?.ToList() ?? new List<string>();
+            
+            return new PredictionMetadata(prediction, createdAt, contextDocumentNames);
+        }
+        catch (Exception ex)
+        {
+            _logger.LogError(ex, "Failed to get prediction metadata for cancelled match {HomeTeam} vs {AwayTeam} using model {Model} and community context {CommunityContext}", 
+                homeTeam, awayTeam, model, communityContext);
+            throw;
+        }
+    }
+
+    /// <inheritdoc />
+    public async Task<int> GetCancelledMatchRepredictionIndexAsync(string homeTeam, string awayTeam, string model, string communityContext, CancellationToken cancellationToken = default)
+    {
+        try
+        {
+            // Query by team names only (no startsAt), ordered by repredictionIndex descending to get the highest
+            var query = _firestoreDb.Collection(_predictionsCollection)
+                .WhereEqualTo("homeTeam", homeTeam)
+                .WhereEqualTo("awayTeam", awayTeam)
+                .WhereEqualTo("competition", _competition)
+                .WhereEqualTo("model", model)
+                .WhereEqualTo("communityContext", communityContext)
+                .OrderByDescending("repredictionIndex")
+                .Limit(1);
+
+            var snapshot = await query.GetSnapshotAsync(cancellationToken);
+            
+            if (snapshot.Documents.Count == 0)
+            {
+                _logger.LogDebug("No reprediction index found for cancelled match {HomeTeam} vs {AwayTeam} (team-names-only lookup)", homeTeam, awayTeam);
+                return -1;
+            }
+
+            var firestorePrediction = snapshot.Documents.First().ConvertTo<FirestoreMatchPrediction>();
+            _logger.LogDebug("Found reprediction index {Index} for cancelled match {HomeTeam} vs {AwayTeam} with startsAt={StartsAt} (team-names-only lookup)", 
+                firestorePrediction.RepredictionIndex, homeTeam, awayTeam, firestorePrediction.StartsAt);
+            
+            return firestorePrediction.RepredictionIndex;
+        }
+        catch (Exception ex)
+        {
+            _logger.LogError(ex, "Failed to get reprediction index for cancelled match {HomeTeam} vs {AwayTeam} using model {Model} and community context {CommunityContext}", 
+                homeTeam, awayTeam, model, communityContext);
+            throw;
+        }
+    }
+
     public async Task<int> GetBonusRepredictionIndexAsync(string questionText, string model, string communityContext, CancellationToken cancellationToken = default)
     {
         try

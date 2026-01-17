@@ -119,22 +119,29 @@ public class VerifyMatchdayCommand : AsyncCommand<VerifySettings>
         {
             totalMatches++;
             
-            // Log warning for cancelled matches - they have inherited times which may affect database lookup reliability
-            if (match.IsCancelled)
-            {
-                _console.MarkupLine($"[yellow]  ⚠ {match.HomeTeam} vs {match.AwayTeam} is cancelled (Abgesagt). " +
-                    $"Database lookup uses inherited time which may not match original prediction time.[/]");
-            }
-            
             try
             {
-                // Get prediction from database
-                if (settings.Verbose)
-                {
-                    _console.MarkupLine($"[dim]  Looking up: {match.HomeTeam} vs {match.AwayTeam} at {match.StartsAt}{(match.IsCancelled ? " (CANCELLED)" : "")}[/]");
-                }
+                Prediction? databasePrediction;
                 
-                var databasePrediction = await predictionRepository.GetPredictionAsync(match, settings.Model, communityContext);
+                // For cancelled matches, use team-names-only lookup to handle startsAt inconsistencies
+                // See IPredictionRepository.cs for detailed documentation on this edge case
+                if (match.IsCancelled)
+                {
+                    if (settings.Verbose)
+                    {
+                        _console.MarkupLine($"[dim]  Looking up (cancelled match, team-names-only): {match.HomeTeam} vs {match.AwayTeam}[/]");
+                    }
+                    databasePrediction = await predictionRepository.GetCancelledMatchPredictionAsync(
+                        match.HomeTeam, match.AwayTeam, settings.Model, communityContext);
+                }
+                else
+                {
+                    if (settings.Verbose)
+                    {
+                        _console.MarkupLine($"[dim]  Looking up: {match.HomeTeam} vs {match.AwayTeam} at {match.StartsAt}[/]");
+                    }
+                    databasePrediction = await predictionRepository.GetPredictionAsync(match, settings.Model, communityContext);
+                }
                 
                 if (kicktippPrediction != null)
                 {
@@ -278,7 +285,17 @@ public class VerifyMatchdayCommand : AsyncCommand<VerifySettings>
         try
         {
             // Get prediction metadata with context document names and timestamps
-            var predictionMetadata = await predictionRepository.GetPredictionMetadataAsync(match, model, communityContext);
+            // For cancelled matches, use team-names-only lookup to handle startsAt inconsistencies
+            PredictionMetadata? predictionMetadata;
+            if (match.IsCancelled)
+            {
+                predictionMetadata = await predictionRepository.GetCancelledMatchPredictionMetadataAsync(
+                    match.HomeTeam, match.AwayTeam, model, communityContext);
+            }
+            else
+            {
+                predictionMetadata = await predictionRepository.GetPredictionMetadataAsync(match, model, communityContext);
+            }
             
             if (predictionMetadata == null || !predictionMetadata.ContextDocumentNames.Any())
             {

@@ -409,7 +409,7 @@ public class MatchdayCommand_AdditionalCoverage_Tests : MatchdayCommandTests_Bas
     }
 
     [Test]
-    public async Task Cancelled_match_displays_warning_message()
+    public async Task Cancelled_match_processing_text_includes_cancelled_indicator()
     {
         // Arrange
         var cancelledMatch = CreateMatch(
@@ -427,37 +427,12 @@ public class MatchdayCommand_AdditionalCoverage_Tests : MatchdayCommandTests_Bas
         // Act
         var (exitCode, output) = await RunCommandAsync(ctx.App, ctx.Console, "matchday", "gpt-4o", "-c", "test-community");
 
-        // Assert - should display warning for cancelled match
-        await Assert.That(output).Contains("FC Bayern München vs Borussia Dortmund is cancelled (Abgesagt)");
-        await Assert.That(output).Contains("inherited time");
-        await Assert.That(output).Contains("re-evaluation when rescheduled");
-    }
-
-    [Test]
-    public async Task Cancelled_match_processing_text_includes_cancelled_indicator()
-    {
-        // Arrange
-        var cancelledMatch = CreateMatch(
-            homeTeam: "Team A",
-            awayTeam: "Team B",
-            matchday: 16,
-            isCancelled: true);
-        var matchesWithHistory = new List<MatchWithHistory>
-        {
-            CreateMatchWithHistory(match: cancelledMatch)
-        };
-
-        var ctx = CreateMatchdayCommandApp(matchesWithHistory: matchesWithHistory);
-
-        // Act
-        var (exitCode, output) = await RunCommandAsync(ctx.App, ctx.Console, "matchday", "gpt-4o", "-c", "test-community");
-
         // Assert - Processing line should indicate cancelled status
-        await Assert.That(output).Contains("Processing:").And.Contains("Team A vs Team B").And.Contains("(CANCELLED)");
+        await Assert.That(output).Contains("Processing:").And.Contains("FC Bayern München vs Borussia Dortmund").And.Contains("(CANCELLED)");
     }
 
     [Test]
-    public async Task Multiple_cancelled_matches_display_multiple_warnings()
+    public async Task Multiple_cancelled_matches_processing_text_includes_cancelled_indicator()
     {
         // Arrange
         var cancelledMatch1 = CreateMatch(
@@ -488,10 +463,17 @@ public class MatchdayCommand_AdditionalCoverage_Tests : MatchdayCommandTests_Bas
         // Act
         var (exitCode, output) = await RunCommandAsync(ctx.App, ctx.Console, "matchday", "gpt-4o", "-c", "test-community");
 
-        // Assert - should display warning for both cancelled matches
-        await Assert.That(output).Contains("Team A vs Team B is cancelled (Abgesagt)");
-        await Assert.That(output).Contains("Team C vs Team D is cancelled (Abgesagt)");
-        // Normal match should NOT have cancelled warning
-        await Assert.That(output).DoesNotContain("Team E vs Team F is cancelled");
+        // Assert - both cancelled matches should show (CANCELLED) in processing text
+        // Count occurrences of "(CANCELLED)" - should be exactly 2
+        var cancelledCount = System.Text.RegularExpressions.Regex.Matches(output, @"\(CANCELLED\)").Count;
+        await Assert.That(cancelledCount).IsEqualTo(2);
+        
+        // Normal match should NOT have cancelled indicator in processing
+        await Assert.That(output).Contains("Processing:").And.Contains("Team E vs Team F");
+        // Verify the normal match doesn't show (CANCELLED)
+        // Check that "Team E vs Team F" line doesn't contain "CANCELLED"
+        var lines = output.Split('\n');
+        var teamEFLine = lines.FirstOrDefault(l => l.Contains("Team E vs Team F") && l.Contains("Processing:"));
+        await Assert.That(teamEFLine).IsNotNull().And.DoesNotContain("CANCELLED");
     }
 }
