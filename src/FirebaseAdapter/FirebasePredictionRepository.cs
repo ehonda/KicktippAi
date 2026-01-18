@@ -1000,6 +1000,119 @@ public class FirebasePredictionRepository : IPredictionRepository
         }
     }
 
+    /// <inheritdoc />
+    public async Task<List<int>> GetAvailableMatchdaysAsync(CancellationToken cancellationToken = default)
+    {
+        try
+        {
+            var matchdays = new HashSet<int>();
+
+            // Query match predictions for unique matchdays
+            var query = _firestoreDb.Collection(_predictionsCollection)
+                .WhereEqualTo("competition", _competition);
+            var snapshot = await query.GetSnapshotAsync(cancellationToken);
+            
+            foreach (var doc in snapshot.Documents)
+            {
+                if (doc.TryGetValue<int>("matchday", out var matchday) && matchday > 0)
+                {
+                    matchdays.Add(matchday);
+                }
+            }
+
+            return matchdays.OrderBy(m => m).ToList();
+        }
+        catch (Exception ex)
+        {
+            _logger.LogError(ex, "Failed to get available matchdays");
+            throw;
+        }
+    }
+
+    /// <inheritdoc />
+    public async Task<List<string>> GetAvailableModelsAsync(CancellationToken cancellationToken = default)
+    {
+        try
+        {
+            var models = new HashSet<string>();
+
+            // Query match predictions for unique models
+            var matchQuery = _firestoreDb.Collection(_predictionsCollection)
+                .WhereEqualTo("competition", _competition);
+            var matchSnapshot = await matchQuery.GetSnapshotAsync(cancellationToken);
+            
+            foreach (var doc in matchSnapshot.Documents)
+            {
+                if (doc.TryGetValue<string>("model", out var model) && !string.IsNullOrWhiteSpace(model))
+                {
+                    models.Add(model);
+                }
+            }
+
+            // Query bonus predictions for unique models
+            var bonusQuery = _firestoreDb.Collection(_bonusPredictionsCollection)
+                .WhereEqualTo("competition", _competition);
+            var bonusSnapshot = await bonusQuery.GetSnapshotAsync(cancellationToken);
+            
+            foreach (var doc in bonusSnapshot.Documents)
+            {
+                if (doc.TryGetValue<string>("model", out var model) && !string.IsNullOrWhiteSpace(model))
+                {
+                    models.Add(model);
+                }
+            }
+
+            return models.ToList();
+        }
+        catch (Exception ex)
+        {
+            _logger.LogError(ex, "Failed to get available models");
+            throw;
+        }
+    }
+
+    /// <inheritdoc />
+    public async Task<List<string>> GetAvailableCommunityContextsAsync(CancellationToken cancellationToken = default)
+    {
+        try
+        {
+            var communityContexts = new HashSet<string>();
+
+            // Query match predictions for unique community contexts
+            var matchQuery = _firestoreDb.Collection(_predictionsCollection)
+                .WhereEqualTo("competition", _competition);
+            var matchSnapshot = await matchQuery.GetSnapshotAsync(cancellationToken);
+            
+            foreach (var doc in matchSnapshot.Documents)
+            {
+                if (doc.TryGetValue<string>("communityContext", out var context) && !string.IsNullOrWhiteSpace(context))
+                {
+                    communityContexts.Add(context);
+                }
+            }
+
+            // Query bonus predictions for unique community contexts
+            var bonusQuery = _firestoreDb.Collection(_bonusPredictionsCollection)
+                .WhereEqualTo("competition", _competition);
+            var bonusSnapshot = await bonusQuery.GetSnapshotAsync(cancellationToken);
+            
+            foreach (var doc in bonusSnapshot.Documents)
+            {
+                if (doc.TryGetValue<string>("communityContext", out var context) && !string.IsNullOrWhiteSpace(context))
+                {
+                    communityContexts.Add(context);
+                }
+            }
+
+            return communityContexts.ToList();
+        }
+        catch (Exception ex)
+        {
+            _logger.LogError(ex, "Failed to get available community contexts");
+            throw;
+        }
+    }
+
     private string? SerializeJustification(PredictionJustification? justification)
     {
         if (justification == null)

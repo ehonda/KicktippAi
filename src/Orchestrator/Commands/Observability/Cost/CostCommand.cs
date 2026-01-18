@@ -1,7 +1,6 @@
 using Microsoft.Extensions.Logging;
 using Spectre.Console.Cli;
 using Spectre.Console;
-using Google.Cloud.Firestore;
 using System.Globalization;
 using System.Text.Json;
 using EHonda.KicktippAi.Core;
@@ -38,7 +37,6 @@ public class CostCommand : AsyncCommand<CostSettings>
             }
             
             // Create Firebase services using factory (factory handles env var loading)
-            var firestoreDb = _firebaseServiceFactory.FirestoreDb;
             var predictionRepository = _firebaseServiceFactory.CreatePredictionRepository();
             
             _console.MarkupLine($"[green]Cost command initialized[/]");
@@ -59,9 +57,9 @@ public class CostCommand : AsyncCommand<CostSettings>
             var communityContexts = ParseCommunityContexts(settings);
             
             // Get available models and community contexts if not specified
-            var availableModels = models ?? await GetAvailableModels(firestoreDb);
-            var availableCommunityContexts = communityContexts ?? await GetAvailableCommunityContexts(firestoreDb);
-            var availableMatchdays = matchdays ?? await GetAvailableMatchdays(firestoreDb);
+            var availableModels = models ?? await predictionRepository.GetAvailableModelsAsync();
+            var availableCommunityContexts = communityContexts ?? await predictionRepository.GetAvailableCommunityContextsAsync();
+            var availableMatchdays = matchdays ?? await predictionRepository.GetAvailableMatchdaysAsync();
             
             if (settings.Verbose)
             {
@@ -339,27 +337,6 @@ public class CostCommand : AsyncCommand<CostSettings>
         }
     }
     
-    private async Task<List<int>> GetAvailableMatchdays(FirestoreDb firestoreDb)
-    {
-        var matchdays = new HashSet<int>();
-        var competition = "bundesliga-2025-26";
-
-        // Query match predictions for unique matchdays
-        var query = firestoreDb.Collection("match-predictions")
-            .WhereEqualTo("competition", competition);
-        var snapshot = await query.GetSnapshotAsync();
-        
-        foreach (var doc in snapshot.Documents)
-        {
-            if (doc.TryGetValue<int>("matchday", out var matchday) && matchday > 0)
-            {
-                matchdays.Add(matchday);
-            }
-        }
-
-        return matchdays.OrderBy(m => m).ToList();
-    }
-    
     private List<string>? ParseModels(CostSettings settings)
     {
         if (settings.All || string.IsNullOrWhiteSpace(settings.Models))
@@ -388,74 +365,6 @@ public class CostCommand : AsyncCommand<CostSettings>
             .Select(cc => cc.Trim())
             .Where(cc => !string.IsNullOrWhiteSpace(cc))
             .ToList();
-    }
-    
-    private async Task<List<string>> GetAvailableModels(FirestoreDb firestoreDb)
-    {
-        var models = new HashSet<string>();
-        var competition = "bundesliga-2025-26";
-
-        // Query match predictions for unique models
-        var matchQuery = firestoreDb.Collection("match-predictions")
-            .WhereEqualTo("competition", competition);
-        var matchSnapshot = await matchQuery.GetSnapshotAsync();
-        
-        foreach (var doc in matchSnapshot.Documents)
-        {
-            if (doc.TryGetValue<string>("model", out var model) && !string.IsNullOrWhiteSpace(model))
-            {
-                models.Add(model);
-            }
-        }
-
-        // Query bonus predictions for unique models
-        var bonusQuery = firestoreDb.Collection("bonus-predictions")
-            .WhereEqualTo("competition", competition);
-        var bonusSnapshot = await bonusQuery.GetSnapshotAsync();
-        
-        foreach (var doc in bonusSnapshot.Documents)
-        {
-            if (doc.TryGetValue<string>("model", out var model) && !string.IsNullOrWhiteSpace(model))
-            {
-                models.Add(model);
-            }
-        }
-
-        return models.ToList();
-    }
-    
-    private async Task<List<string>> GetAvailableCommunityContexts(FirestoreDb firestoreDb)
-    {
-        var communityContexts = new HashSet<string>();
-        var competition = "bundesliga-2025-26";
-
-        // Query match predictions for unique community contexts
-        var matchQuery = firestoreDb.Collection("match-predictions")
-            .WhereEqualTo("competition", competition);
-        var matchSnapshot = await matchQuery.GetSnapshotAsync();
-        
-        foreach (var doc in matchSnapshot.Documents)
-        {
-            if (doc.TryGetValue<string>("communityContext", out var context) && !string.IsNullOrWhiteSpace(context))
-            {
-                communityContexts.Add(context);
-            }
-        }
-
-        // Query bonus predictions for unique community contexts
-        var bonusQuery = firestoreDb.Collection("bonus-predictions")
-            .WhereEqualTo("competition", competition);
-        var bonusSnapshot = await bonusQuery.GetSnapshotAsync();
-        
-        foreach (var doc in bonusSnapshot.Documents)
-        {
-            if (doc.TryGetValue<string>("communityContext", out var context) && !string.IsNullOrWhiteSpace(context))
-            {
-                communityContexts.Add(context);
-            }
-        }
-
-        return communityContexts.ToList();
     }
 
     private async Task<CostConfiguration> LoadConfigurationFromFile(string configFilePath)

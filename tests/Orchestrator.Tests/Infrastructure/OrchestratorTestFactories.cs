@@ -541,6 +541,53 @@ public static class OrchestratorTestFactories
     }
 
     /// <summary>
+    /// Creates a mock <see cref="IPredictionRepository"/> configured for cost command testing.
+    /// </summary>
+    /// <param name="matchCostsByIndex">Dictionary mapping reprediction index to (cost, count) for match predictions. Defaults to empty.</param>
+    /// <param name="bonusCostsByIndex">Dictionary mapping reprediction index to (cost, count) for bonus predictions. Defaults to empty.</param>
+    /// <param name="availableModels">List of available model names. Defaults to empty.</param>
+    /// <param name="availableCommunityContexts">List of available community context names. Defaults to empty.</param>
+    /// <param name="availableMatchdays">List of available matchdays. Defaults to empty.</param>
+    public static Mock<IPredictionRepository> CreateMockPredictionRepositoryForCosts(
+        Option<Dictionary<int, (double cost, int count)>> matchCostsByIndex = default,
+        Option<Dictionary<int, (double cost, int count)>> bonusCostsByIndex = default,
+        Option<List<string>> availableModels = default,
+        Option<List<string>> availableCommunityContexts = default,
+        Option<List<int>> availableMatchdays = default)
+    {
+        var mock = new Mock<IPredictionRepository>();
+        var matchCosts = matchCostsByIndex.Or(() => new Dictionary<int, (double cost, int count)>());
+        var bonusCosts = bonusCostsByIndex.Or(() => new Dictionary<int, (double cost, int count)>());
+        var models = availableModels.Or(() => []);
+        var contexts = availableCommunityContexts.Or(() => []);
+        var matchdays = availableMatchdays.Or(() => []);
+
+        mock.Setup(r => r.GetMatchPredictionCostsByRepredictionIndexAsync(
+                It.IsAny<string>(),
+                It.IsAny<string>(),
+                It.IsAny<List<int>?>(),
+                It.IsAny<CancellationToken>()))
+            .ReturnsAsync(matchCosts);
+
+        mock.Setup(r => r.GetBonusPredictionCostsByRepredictionIndexAsync(
+                It.IsAny<string>(),
+                It.IsAny<string>(),
+                It.IsAny<CancellationToken>()))
+            .ReturnsAsync(bonusCosts);
+
+        mock.Setup(r => r.GetAvailableModelsAsync(It.IsAny<CancellationToken>()))
+            .ReturnsAsync(models);
+
+        mock.Setup(r => r.GetAvailableCommunityContextsAsync(It.IsAny<CancellationToken>()))
+            .ReturnsAsync(contexts);
+
+        mock.Setup(r => r.GetAvailableMatchdaysAsync(It.IsAny<CancellationToken>()))
+            .ReturnsAsync(matchdays);
+
+        return mock;
+    }
+
+    /// <summary>
     /// Creates a mock <see cref="IContextRepository"/> with configurable behavior.
     /// </summary>
     /// <param name="getLatestContextDocumentResult">Result of GetLatestContextDocumentAsync. Defaults to null.</param>

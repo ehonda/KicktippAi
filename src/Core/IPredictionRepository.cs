@@ -309,6 +309,30 @@ public interface IPredictionRepository
     /// <param name="cancellationToken">Cancellation token.</param>
     /// <returns>Dictionary mapping reprediction index to (cost, count) tuple.</returns>
     Task<Dictionary<int, (double cost, int count)>> GetBonusPredictionCostsByRepredictionIndexAsync(string model, string communityContext, CancellationToken cancellationToken = default);
+
+    /// <summary>
+    /// Gets all unique matchdays that have predictions stored.
+    /// Used by the cost command to discover available matchdays when no filter is specified.
+    /// </summary>
+    /// <param name="cancellationToken">Cancellation token.</param>
+    /// <returns>A sorted list of matchday numbers.</returns>
+    Task<List<int>> GetAvailableMatchdaysAsync(CancellationToken cancellationToken = default);
+
+    /// <summary>
+    /// Gets all unique AI models that have predictions stored.
+    /// Used by the cost command to discover available models when no filter is specified.
+    /// </summary>
+    /// <param name="cancellationToken">Cancellation token.</param>
+    /// <returns>A list of model names.</returns>
+    Task<List<string>> GetAvailableModelsAsync(CancellationToken cancellationToken = default);
+
+    /// <summary>
+    /// Gets all unique community contexts that have predictions stored.
+    /// Used by the cost command to discover available community contexts when no filter is specified.
+    /// </summary>
+    /// <param name="cancellationToken">Cancellation token.</param>
+    /// <returns>A list of community context names.</returns>
+    Task<List<string>> GetAvailableCommunityContextsAsync(CancellationToken cancellationToken = default);
 }
 
 /// <summary>
