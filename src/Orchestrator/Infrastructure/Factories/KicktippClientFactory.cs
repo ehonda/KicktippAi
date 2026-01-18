@@ -58,7 +58,7 @@ public sealed class KicktippClientFactory : IKicktippClientFactory
     }
 
     /// <inheritdoc />
-    public SnapshotClient CreateSnapshotClient()
+    public ISnapshotClient CreateSnapshotClient()
     {
         var httpClient = CreateAuthenticatedHttpClient();
         var logger = _loggerFactory.CreateLogger<SnapshotClient>();

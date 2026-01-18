@@ -24,6 +24,9 @@
         <!-- Mocking -->
         <PackageReference Include="Moq" Version="4.20.72" />
         
+        <!-- WireMock for HTTP stubbing -->
+        <PackageReference Include="WireMock.Net" Version="1.21.0" />
+        
         <!-- Logging testing -->
         <PackageReference Include="Microsoft.Extensions.Diagnostics.Testing" Version="9.10.0" />
         

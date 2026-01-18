@@ -67,7 +67,7 @@ public class SnapshotsFetchCommand : AsyncCommand<SnapshotsFetchSettings>
         }
     }
 
-    internal static async Task<int> FetchSnapshotsAsync(IAnsiConsole console, SnapshotClient snapshotClient, string community, string outputPath)
+    internal static async Task<int> FetchSnapshotsAsync(IAnsiConsole console, ISnapshotClient snapshotClient, string community, string outputPath)
     {
         var savedCount = 0;
 

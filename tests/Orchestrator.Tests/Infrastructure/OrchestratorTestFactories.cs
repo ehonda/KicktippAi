@@ -9,6 +9,7 @@ using Microsoft.Extensions.Logging.Testing;
 using Moq;
 using OpenAiIntegration;
 using Orchestrator.Commands.Utility.ListKpi;
+using Orchestrator.Commands.Utility.Snapshots;
 using Orchestrator.Infrastructure;
 using Orchestrator.Infrastructure.Factories;
 using System.Linq;
@@ -823,5 +824,69 @@ public static class OrchestratorTestFactories
     public static Mock<IFileProvider> CreateMockTransfersFileProvider(Dictionary<string, string> files)
     {
         return MockFileProviderHelpers.CreateMockFileProvider(files);
+    }
+
+    /// <summary>
+    /// Creates a mock <see cref="ISnapshotClient"/> with configurable behavior for snapshot tests.
+    /// </summary>
+    /// <param name="loginPageContent">Content returned by FetchLoginPageAsync. Defaults to null (failure).</param>
+    /// <param name="standingsPageContent">Content returned by FetchStandingsPageAsync. Defaults to null (failure).</param>
+    /// <param name="tippabgabePageContent">Content returned by FetchTippabgabePageAsync. Defaults to null (failure).</param>
+    /// <param name="bonusPageContent">Content returned by FetchBonusPageAsync. Defaults to null (failure).</param>
+    /// <param name="spielinfoPages">Pages returned by FetchAllSpielinfoAsync. Defaults to empty list.</param>
+    /// <param name="spielinfoHomeAwayPages">Pages returned by FetchAllSpielinfoHomeAwayAsync. Defaults to empty list.</param>
+    /// <param name="spielinfoH2hPages">Pages returned by FetchAllSpielinfoHeadToHeadAsync. Defaults to empty list.</param>
+    public static Mock<ISnapshotClient> CreateMockSnapshotClient(
+        NullableOption<string> loginPageContent = default,
+        NullableOption<string> standingsPageContent = default,
+        NullableOption<string> tippabgabePageContent = default,
+        NullableOption<string> bonusPageContent = default,
+        Option<List<(string fileName, string content)>> spielinfoPages = default,
+        Option<List<(string fileName, string content)>> spielinfoHomeAwayPages = default,
+        Option<List<(string fileName, string content)>> spielinfoH2hPages = default)
+    {
+        var mock = new Mock<ISnapshotClient>();
+
+        mock.Setup(c => c.FetchLoginPageAsync())
+            .ReturnsAsync(loginPageContent.Or(() => null));
+
+        mock.Setup(c => c.FetchStandingsPageAsync(It.IsAny<string>()))
+            .ReturnsAsync(standingsPageContent.Or(() => null));
+
+        mock.Setup(c => c.FetchTippabgabePageAsync(It.IsAny<string>()))
+            .ReturnsAsync(tippabgabePageContent.Or(() => null));
+
+        mock.Setup(c => c.FetchBonusPageAsync(It.IsAny<string>()))
+            .ReturnsAsync(bonusPageContent.Or(() => null));
+
+        mock.Setup(c => c.FetchAllSpielinfoAsync(It.IsAny<string>()))
+            .ReturnsAsync(spielinfoPages.Or(() => []));
+
+        mock.Setup(c => c.FetchAllSpielinfoHomeAwayAsync(It.IsAny<string>()))
+            .ReturnsAsync(spielinfoHomeAwayPages.Or(() => []));
+
+        mock.Setup(c => c.FetchAllSpielinfoHeadToHeadAsync(It.IsAny<string>()))
+            .ReturnsAsync(spielinfoH2hPages.Or(() => []));
+
+        return mock;
+    }
+
+    /// <summary>
+    /// Creates a mock <see cref="IKicktippClientFactory"/> that returns the specified snapshot client.
+    /// </summary>
+    /// <param name="snapshotClient">The snapshot client to return from CreateSnapshotClient. Defaults to a new mock.</param>
+    /// <param name="kicktippClient">The Kicktipp client to return from CreateClient. Defaults to a new mock.</param>
+    public static Mock<IKicktippClientFactory> CreateMockKicktippClientFactoryWithSnapshotClient(
+        Option<Mock<ISnapshotClient>> snapshotClient = default,
+        Option<Mock<IKicktippClient>> kicktippClient = default)
+    {
+        var mockFactory = new Mock<IKicktippClientFactory>();
+        var mockSnapshotClient = snapshotClient.Or(() => CreateMockSnapshotClient());
+        var mockKicktippClient = kicktippClient.Or(() => CreateMockKicktippClient());
+
+        mockFactory.Setup(f => f.CreateSnapshotClient()).Returns(mockSnapshotClient.Object);
+        mockFactory.Setup(f => f.CreateClient()).Returns(mockKicktippClient.Object);
+
+        return mockFactory;
     }
 }

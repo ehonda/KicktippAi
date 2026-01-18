@@ -31,6 +31,6 @@ public interface IKicktippClientFactory
     /// <summary>
     /// Creates a snapshot client for fetching HTML snapshots from Kicktipp.
     /// </summary>
-    /// <returns>A configured <see cref="SnapshotClient"/> instance.</returns>
-    SnapshotClient CreateSnapshotClient();
+    /// <returns>A configured <see cref="ISnapshotClient"/> instance.</returns>
+    ISnapshotClient CreateSnapshotClient();
 }

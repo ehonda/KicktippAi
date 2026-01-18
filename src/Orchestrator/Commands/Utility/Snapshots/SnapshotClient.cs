@@ -8,7 +8,7 @@ namespace Orchestrator.Commands.Utility.Snapshots;
 /// A simple HTTP client for fetching HTML snapshots from Kicktipp.
 /// This client is specifically for snapshot generation and does not parse the HTML.
 /// </summary>
-public class SnapshotClient
+public class SnapshotClient : ISnapshotClient
 {
     private readonly HttpClient _httpClient;
     private readonly ILogger _logger;

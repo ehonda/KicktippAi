@@ -17,6 +17,8 @@ This document defines conventions and best practices for writing tests in this p
   - Simple: Single `{ClassName}Tests.cs`
   - Complex: Folder `{ClassName}Tests/` with `{ClassName}Tests_Base.cs` and `{ClassName}_{Method}_Tests.cs`
 - **No regions**: Do not use `#region`/`#endregion` in test files
+- **Temp directories**: Use `TempDirectoryTestBase` (or `TempDirectoryWithEncryptionKeyTestBase` for encryption tests)
+- **Cleanup**: Use `[After(Test)]` hooks, not `IAsyncDisposable`
 
 ## Test Naming Conventions
 
@@ -280,6 +282,77 @@ var foo = CreateFoo(items: new List<string> { "a", "b" });
 
 // ✅ Works: Use List<T> with collection expression
 var foo = CreateFoo(items: new List<string>(["a", "b"]));
+```
+
+## Temporary Directories for Tests
+
+Tests that require temporary files or directories should use the `TempDirectoryTestBase` base class (located at `tests/Orchestrator.Tests/Infrastructure/TempDirectoryTestBase.cs`). This provides:
+
+1. **Unique directories per test** - Each test gets a GUID-named subdirectory
+2. **Automatic cleanup** - Directories are deleted after tests complete
+3. **Stale directory cleanup** - Old directories from interrupted test runs are cleaned up before the test class runs
+
+### Using TempDirectoryTestBase
+
+Inherit from `TempDirectoryTestBase` and override `TestDirectoryName`:
+
+```csharp
+using Orchestrator.Tests.Infrastructure;
+
+public class MyFileTests : TempDirectoryTestBase
+{
+    protected override string TestDirectoryName => "MyFileTests";
+
+    [Test]
+    public async Task Writing_file_creates_file_in_temp_directory()
+    {
+        // TestDirectory is the unique path for this test run
+        var filePath = Path.Combine(TestDirectory, "output.txt");
+        
+        await File.WriteAllTextAsync(filePath, "content");
+        
+        await Assert.That(File.Exists(filePath)).IsTrue();
+    }
+}
+```
+
+### How the Base Classes Work
+
+The base classes use TUnit's lifecycle hooks:
+
+1. **`[Before(Class)]`** (static) - Cleans up all stale subdirectories from previous test runs
+2. **`[Before(Test)]`** - Creates a unique GUID-named subdirectory for the test
+3. **`[After(Test)]`** - Deletes the subdirectory after the test completes
+
+**Directory structure:**
+
+```text
+%TEMP%/
+  {TestDirectoryName}/           # e.g., "SnapshotsEncryptTests"
+    {guid-1}/                    # Directory for test run 1
+    {guid-2}/                    # Directory for test run 2
+    ...
+```
+
+The `[Before(Class)]` hook deletes all subdirectories under `{TestDirectoryName}`, ensuring cleanup even if a previous test run was interrupted (e.g., process killed).
+
+### Why Not Use IAsyncDisposable?
+
+TUnit guarantees that `[After(Test)]` hooks run even when tests throw exceptions. This makes `IAsyncDisposable` redundant for cleanup purposes. Use `[After(Test)]` instead:
+
+```csharp
+// ✅ Good: Use TUnit's After hook for cleanup
+[After(Test)]
+public void TearDown()
+{
+    _resource?.Dispose();
+}
+
+// ❌ Avoid: IAsyncDisposable is unnecessary with TUnit's guaranteed cleanup
+public class MyTests : IAsyncDisposable
+{
+    public async ValueTask DisposeAsync() { ... }
+}
 ```
 
 ## Code Style
