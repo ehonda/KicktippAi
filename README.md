@@ -1,127 +1,149 @@
-# KicktippAi - Kicktipp.de Automation POC
+# KicktippAi 🤖⚽
 
-A C# proof-of-concept for automating login and betting on kicktipp.de, inspired by the Python project [schwalle/kicktipp-betbot](https://github.com/schwalle/kicktipp-betbot) and its fork [ehonda/kicktipp-cli](https://github.com/ehonda/kicktipp-cli).
+AI-powered football prediction system for [Kicktipp.de](https://www.kicktipp.de) using OpenAI's GPT models.
 
-## Features
+## Overview
 
-✅ **Completed:**
-- **Environment-based credentials**: Load username/password from `.env` file
-- **Secure login automation**: Uses HttpClient and AngleSharp for form parsing and submission
-- **Cookie management**: Extracts and saves login tokens for future use
-- **Open predictions fetching**: Retrieves available matches for betting
-- **Random bet placement**: Automatically places random bets on open predictions
-- **Safety features**: Dry-run mode and existing bet detection
-- **Hard-coded community**: Currently targets "ehonda-test" community
+KicktippAi automatically generates intelligent match predictions and places bets on the German football prediction platform Kicktipp.de. The system uses advanced AI models, historical data, and real-time context to make informed predictions, running fully automated via GitHub Actions.
+
+### Key Features
+
+- 🤖 **AI-Powered Predictions** - Uses OpenAI GPT models (gpt-4o, o3, gpt-5-nano) for intelligent score predictions
+- 📊 **Context-Aware** - Analyzes team standings, head-to-head records, and historical performance
+- 🔄 **Fully Automated** - GitHub Actions workflows run twice daily (midnight & noon Berlin time)
+- 💾 **Database Integration** - Firebase Firestore for prediction history and analytics
+- 💰 **Cost Optimized** - Configurable models with cost tracking and estimation
+- 🎯 **Multi-Community Support** - Manages predictions for multiple Kicktipp communities
+- 🔒 **Secure** - Environment-based credential management
 
 ## Architecture
 
-- **HttpClient + AngleSharp**: Modern C# web automation stack
-- **Environment variables**: Secure credential storage via `.env` file
-- **HTTPS support**: All communication uses secure connections
-- **Form parsing**: Robust HTML form handling for login and betting
-- **Error handling**: Comprehensive exception handling and status reporting
-
-## Usage
-
-### Setup Credentials
-
-For security, credentials are stored outside the repository to prevent AI agents with solution directory read access from accidentally leaking credentials to remote sources:
-
-1. **Create secrets directory**: A `KicktippAi.Secrets` directory should exist as a sibling to the solution directory
-2. **Setup credentials**: Copy `.env.example` to the secrets directory at `KicktippAi.Secrets/dev/Poc/.env`
-3. **Add your credentials**: Edit the `.env` file with your actual kicktipp.de credentials
-
 ```
-# Directory structure:
-├── KicktippAi/                 # This repository
-│   ├── dev/Poc/.env.example    # Template file
-│   └── ...
-└── KicktippAi.Secrets/         # Secrets directory (outside repo)
-    └── dev/Poc/.env            # Your actual credentials
+┌─────────────────────────────────────────────────────────────┐
+│                    GitHub Actions                            │
+│                   (Automated Workflows)                      │
+└────────────┬────────────────────────────────────────────────┘
+             │
+             ▼
+┌─────────────────────────────────────────────────────────────┐
+│                     Orchestrator                             │
+│           (CLI - Coordinates all components)                 │
+└─┬─────────┬──────────┬────────────┬────────────┬───────────┘
+  │         │          │            │            │
+  ▼         ▼          ▼            ▼            ▼
+┌──────┐ ┌─────┐ ┌──────────┐ ┌──────────┐ ┌─────────┐
+│OpenAI│ │Core │ │Kicktipp  │ │Firebase  │ │Context  │
+│ API  │ │Logic│ │Integration│ │Adapter   │ │Providers│
+└──────┘ └─────┘ └──────────┘ └──────────┘ └─────────┘
 ```
 
-### Running the Application
+### Components
 
-1. **Navigate to project**: `cd dev/Poc`
-2. **Run the application**: `dotnet run`
-3. **Interactive betting**: The app will show a dry-run first, then ask for confirmation
+- **Orchestrator** - Main CLI application coordinating prediction generation and placement
+- **OpenAI Integration** - Service layer for AI-powered prediction generation
+- **Kicktipp Integration** - Web automation (login, bet placement) using HttpClient & AngleSharp; inspired by [schwalle/kicktipp-betbot](https://github.com/schwalle/kicktipp-betbot)
+- **Firebase Adapter** - Firestore-based prediction persistence and analytics
+- **Context Providers** - Supply match data, team standings, and historical records to the AI
+- **Core** - Shared domain models (Match, Prediction, etc.)
 
-## Example Output
+## Technologies
 
-```
-Kicktipp.de Automation POC
-==========================
-✓ Login successful!
-✓ Login token extracted and saved to .env file
+- **.NET 10.0** - Modern C# runtime
+- **OpenAI API** - AI prediction generation
+- **Firebase Firestore** - Database and analytics
+- **AngleSharp** - HTML parsing for web automation
+- **GitHub Actions** - Automated workflows
+- **TUnit** - Testing framework
 
-✓ Found 4 open matches:
-  04.07.2025 21:00 'Fluminense' vs. 'Al-Hilal'
-  05.07.2025 03:00 'Palmeiras' vs. 'FC Chelsea'
-  05.07.2025 18:00 'Paris St. Germain' vs. 'FC Bayern München'
-  05.07.2025 22:00 'Real Madrid' vs. 'Borussia Dortmund'
+## Quick Start
 
-=== DRY RUN ===
-05.07.2025 03:00 'Palmeiras' vs. 'FC Chelsea' - betting 3:0
-05.07.2025 18:00 'Paris St. Germain' vs. 'FC Bayern München' - betting 0:0
-05.07.2025 22:00 'Real Madrid' vs. 'Borussia Dortmund' - betting 1:2
-Summary: 3 bets to place, 0 skipped
+### Prerequisites
 
-Do you want to place these bets for real? (y/N): y
+- .NET 10.0 SDK
+- OpenAI API key
+- Kicktipp.de account
+- Firebase project (for database)
 
-=== PLACING REAL BETS ===
-✓ Successfully submitted 3 bets!
-```
+### Local Testing
 
-## Technical Implementation
+```bash
+# Predict a matchday using a fast model
+dotnet run --project src/Orchestrator -- matchday gpt-5-nano --community ehonda-test-buli
 
-### Random Bet Generation
-The `SimplePredictor` class generates random but realistic football scores:
-- Common scores like 1:0, 2:1, 1:1, 3:1, etc.
-- Based on the Python reference implementation patterns
-
-### Form Field Detection
-- Automatically finds betting input fields ending with `_heimTipp` and `_gastTipp`
-- Handles hidden form fields and submit buttons correctly
-- Follows the same patterns as the Python kicktipp-cli
-
-### Safety Features
-- **Dry run mode**: Shows what would be bet without actually submitting
-- **Existing bet detection**: Skips matches where bets are already placed
-- **Override option**: Can override existing bets if needed (implemented but not exposed in UI)
-- **Interactive confirmation**: User must explicitly confirm bet placement
-
-## Dependencies
-
-- **.NET 9.0**: Modern C# runtime
-- **AngleSharp**: HTML parsing and DOM manipulation
-- **DotNetEnv**: Environment variable loading from `.env` files
-
-## Project Structure
-
-```
-dev/Poc/
-├── Program.cs              # Main application entry point
-├── Services/
-│   └── KicktippService.cs  # Core web automation logic
-├── Models/
-│   └── KicktippModels.cs   # Data models and predictor logic
-└── .env.example            # Environment template (instructions only)
-
-KicktippAi.Secrets/         # External secrets directory
-└── dev/Poc/
-    ├── .env.example        # Copy of environment template  
-    └── .env                # Your actual credentials (gitignored)
+# Get help on available commands
+dotnet run --project src/Orchestrator -- --help
+dotnet run --project src/Orchestrator -- matchday --help
 ```
 
-## Future Enhancements
+### Configuration
 
-Potential next steps:
-- Multi-community support (beyond hardcoded "ehonda-test")
-- More sophisticated prediction algorithms
-- Command-line arguments for configuration
-- Scheduling and automation features
-- Better error handling and retry logic
+The system requires the following secrets:
+- **Kicktipp**: `KICKTIPP_USERNAME`, `KICKTIPP_PASSWORD`
+- **Firebase**: `FIREBASE_PROJECT_ID`, `FIREBASE_SERVICE_ACCOUNT_JSON`
+- **OpenAI**: `OPENAI_API_KEY`
 
-## Acknowledgments
+For local development, see [manual testing guidelines](.github/instructions/manual-testing.instructions.md).
 
-This project is inspired by and follows the patterns established in [schwalle/kicktipp-betbot](https://github.com/schwalle/kicktipp-betbot), the original Python implementation for kicktipp.de automation. We specifically used the [ehonda/kicktipp-cli](https://github.com/ehonda/kicktipp-cli) fork (dev branch) as a reference for translating the Python implementation concepts to modern C#.
+## Automated Workflows
+
+The system runs automated predictions via GitHub Actions:
+
+- **Schedule**: Twice daily (00:00 and 12:00 Berlin time)
+- **Communities**: Multiple communities with individual configurations
+- **Models**: Configurable OpenAI models (production uses o3)
+- **Cost Analysis**: Automated cost tracking and reporting
+
+For details, see [automation documentation](docs/automation.md) and [workflow README](.github/workflows/README.md).
+
+## Development
+
+### Project Structure
+
+```
+src/
+├── Orchestrator/           # Main CLI application
+├── OpenAiIntegration/      # AI prediction service
+├── KicktippIntegration/    # Web automation
+├── FirebaseAdapter/        # Database layer
+├── ContextProviders.Kicktipp/ # Match context data
+├── Core/                   # Domain models
+└── TestUtilities/          # Test helpers
+
+tests/                      # TUnit test suites
+docs/                       # Documentation
+.github/workflows/          # GitHub Actions
+```
+
+### Running Tests
+
+```bash
+# Generate coverage report (focused on specific projects)
+./Generate-CoverageReport.ps1 -Projects OpenAiIntegration.Tests,Core.Tests
+
+# Get coverage details for specific classes
+./Get-CoverageDetails.ps1 -Filter "ClassName" -ShowUncovered
+```
+
+### Contributing
+
+1. Follow the [project style guide](src/project_style_guide.md)
+2. Write tests using TUnit (see [test instructions](.github/instructions/tests.instructions.md))
+3. Run linters and tests before submitting
+4. Check the [troubleshooting guide](docs/troubleshooting.md) if you encounter issues
+
+## Cost Optimization
+
+The system includes several cost-saving features:
+- Uses gpt-5-nano for development/testing
+- Caches predictions to avoid regeneration
+- Estimates costs before running production models
+- Tracks actual costs via automated analysis
+
+Example cost estimate command:
+```bash
+dotnet run --project src/Orchestrator -- matchday o3 --community ehonda-test-buli --verbose --estimated-costs o3
+```
+
+## License
+
+See [LICENSE](LICENSE) file for details.
