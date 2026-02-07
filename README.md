@@ -134,7 +134,7 @@ docs/                       # Documentation
 ## Cost Optimization
 
 The system includes several cost-saving features:
-- Uses gpt-4o-mini for development/testing
+- Uses gpt-5-nano for development/testing
 - Caches predictions to avoid regeneration
 - Estimates costs before running production models
 - Tracks actual costs via automated analysis
