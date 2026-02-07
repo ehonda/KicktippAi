@@ -29,7 +29,8 @@ internal static class AnalyzeMatchCommandHelpers
         AnalyzeMatchBaseSettings settings,
         IKicktippClient? kicktippClient,
         ILogger logger,
-        string communityContext)
+        string communityContext,
+        IAnsiConsole console)
     {
 
         if (kicktippClient != null)
@@ -44,7 +45,7 @@ internal static class AnalyzeMatchCommandHelpers
 
                 if (found != null)
                 {
-                    AnsiConsole.MarkupLine("[dim]Using match metadata from Kicktipp schedule[/]");
+                    console.MarkupLine("[dim]Using match metadata from Kicktipp schedule[/]");
                     return found.Match;
                 }
 
@@ -77,7 +78,8 @@ internal static class AnalyzeMatchCommandHelpers
         string homeTeam,
         string awayTeam,
         string communityContext,
-        bool verbose)
+        bool verbose,
+        IAnsiConsole console)
     {
         var contextDocuments = new List<AnalyzeMatchContextDocumentInfo>();
         var homeAbbreviation = GetTeamAbbreviation(homeTeam);
@@ -102,7 +104,7 @@ internal static class AnalyzeMatchCommandHelpers
 
         if (verbose)
         {
-            AnsiConsole.MarkupLine($"[dim]Looking for {requiredDocuments.Length} required context documents in database[/]");
+            console.MarkupLine($"[dim]Looking for {requiredDocuments.Length} required context documents in database[/]");
         }
 
         foreach (var documentName in requiredDocuments)
@@ -114,12 +116,12 @@ internal static class AnalyzeMatchCommandHelpers
 
                 if (verbose)
                 {
-                    AnsiConsole.MarkupLine($"[dim]  ✓ Retrieved {documentName} (version {contextDoc.Version})[/]");
+                    console.MarkupLine($"[dim]  ✓ Retrieved {documentName} (version {contextDoc.Version})[/]");
                 }
             }
             else if (verbose)
             {
-                AnsiConsole.MarkupLine($"[dim]  ✗ Missing {documentName}[/]");
+                console.MarkupLine($"[dim]  ✗ Missing {documentName}[/]");
             }
         }
 
@@ -134,19 +136,19 @@ internal static class AnalyzeMatchCommandHelpers
 
                     if (verbose)
                     {
-                        AnsiConsole.MarkupLine($"[dim]  ✓ Retrieved optional {documentName} (version {contextDoc.Version})[/]");
+                        console.MarkupLine($"[dim]  ✓ Retrieved optional {documentName} (version {contextDoc.Version})[/]");
                     }
                 }
                 else if (verbose)
                 {
-                    AnsiConsole.MarkupLine($"[dim]  · Missing optional {documentName}[/]");
+                    console.MarkupLine($"[dim]  · Missing optional {documentName}[/]");
                 }
             }
             catch (Exception ex)
             {
                 if (verbose)
                 {
-                    AnsiConsole.MarkupLine($"[dim]  · Failed optional {documentName}: {Markup.Escape(ex.Message)}[/]");
+                    console.MarkupLine($"[dim]  · Failed optional {documentName}: {Markup.Escape(ex.Message)}[/]");
                 }
             }
         }

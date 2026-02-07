@@ -62,7 +62,7 @@ public class AnalyzeMatchComparisonCommand : AsyncCommand<AnalyzeMatchComparison
                 _console.MarkupLine("[dim]Debug logging enabled[/]");
             }
 
-            var match = await AnalyzeMatchCommandHelpers.ResolveMatchAsync(settings, kicktippClient, logger, communityContext);
+            var match = await AnalyzeMatchCommandHelpers.ResolveMatchAsync(settings, kicktippClient, logger, communityContext, _console);
             if (match == null)
             {
                 _console.MarkupLine("[red]Failed to resolve match details. Aborting.[/]");
@@ -78,7 +78,8 @@ public class AnalyzeMatchComparisonCommand : AsyncCommand<AnalyzeMatchComparison
                     match.HomeTeam,
                     match.AwayTeam,
                     communityContext,
-                    settings.Verbose);
+                    settings.Verbose,
+                    _console);
 
                 contextDocuments = contextDocumentInfos.Select(info => info.Document).ToList();
 
