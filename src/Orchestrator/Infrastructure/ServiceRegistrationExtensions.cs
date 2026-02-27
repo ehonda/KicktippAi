@@ -178,6 +178,24 @@ public static class ServiceRegistrationExtensions
     }
 
     /// <summary>
+    /// Registers services specific to the RandomMatchCommand.
+    /// </summary>
+    /// <remarks>
+    /// This method is idempotent and ensures infrastructure is registered.
+    /// </remarks>
+    public static IServiceCollection AddRandomMatchCommandServices(this IServiceCollection services)
+    {
+        services.AddOrchestratorInfrastructure();
+
+        // RandomMatchCommand needs the same factories as MatchdayCommand:
+        // - Firebase (IPredictionRepository, IContextRepository)
+        // - Kicktipp (IKicktippClient)
+        // - OpenAI (IPredictionService, ITokenUsageTracker)
+
+        return services;
+    }
+
+    /// <summary>
     /// Registers services specific to the BonusCommand.
     /// </summary>
     /// <remarks>
@@ -306,6 +324,7 @@ public static class ServiceRegistrationExtensions
         services.AddUploadKpiCommandServices();
         services.AddCostCommandServices();
         services.AddMatchdayCommandServices();
+        services.AddRandomMatchCommandServices();
         services.AddBonusCommandServices();
         services.AddVerifyMatchdayCommandServices();
         services.AddVerifyBonusCommandServices();
