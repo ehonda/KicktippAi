@@ -22,15 +22,18 @@ Always check for the latest versions before adding.
 
 ### 2. Add Langfuse Credentials to `.env`
 
-Add three new environment variables (loaded by `EnvironmentHelper`):
+Add two new environment variables (loaded by `EnvironmentHelper`):
 
 ```
 LANGFUSE_PUBLIC_KEY=pk-lf-...
 LANGFUSE_SECRET_KEY=sk-lf-...
-LANGFUSE_BASE_URL=https://cloud.langfuse.com
 ```
 
-`LANGFUSE_BASE_URL` should default to `https://cloud.langfuse.com` if not set.
+`LANGFUSE_BASE_URL` is **not** stored in `.env` — it defaults to `https://cloud.langfuse.com` in code and can be overridden via environment variable only when self-hosting Langfuse:
+
+```csharp
+var baseUrl = Environment.GetEnvironmentVariable("LANGFUSE_BASE_URL") ?? "https://cloud.langfuse.com";
+```
 
 ### 3. Configure the OpenTelemetry Pipeline
 
