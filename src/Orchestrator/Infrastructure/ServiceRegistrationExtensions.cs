@@ -57,14 +57,24 @@ public static class ServiceRegistrationExtensions
     /// calls return <c>null</c> (graceful degradation).
     /// </summary>
     /// <remarks>
+    /// <para>
     /// The <see cref="TracerProvider"/> is built eagerly (not via <c>AddOpenTelemetry()</c>)
     /// because this app uses a raw <see cref="ServiceCollection"/> without <c>IHost</c>.
     /// The host-based API relies on <c>IHostedService</c> to construct the provider;
     /// without a host the provider would never be activated and all
     /// <see cref="System.Diagnostics.ActivitySource.StartActivity(string)"/> calls would return <c>null</c>.
+    /// </para>
+    /// <para>
+    /// This method is idempotent — if a <see cref="TracerProvider"/> has already been
+    /// registered, subsequent calls are no-ops.
+    /// </para>
     /// </remarks>
     public static IServiceCollection AddLangfuseTracing(this IServiceCollection services)
     {
+        // Idempotency: skip if a TracerProvider is already registered.
+        if (services.Any(d => d.ServiceType == typeof(TracerProvider)))
+            return services;
+
         var publicKey = Environment.GetEnvironmentVariable("LANGFUSE_PUBLIC_KEY");
         var secretKey = Environment.GetEnvironmentVariable("LANGFUSE_SECRET_KEY");
 
@@ -78,13 +88,14 @@ public static class ServiceRegistrationExtensions
         var authHeader = $"Authorization=Basic {Convert.ToBase64String(Encoding.UTF8.GetBytes($"{publicKey}:{secretKey}"))}";
 
         // Build the TracerProvider eagerly so the ActivitySource listener is active immediately.
-        // The OTLP HTTP exporter auto-appends "/v1/traces" to the base endpoint.
+        // NOTE: AddOtlpExporter does NOT auto-append the signal path when the endpoint is set
+        // programmatically — the full URL including /v1/traces must be provided.
         var tracerProvider = Sdk.CreateTracerProviderBuilder()
             .SetResourceBuilder(ResourceBuilder.CreateDefault().AddService("KicktippAi"))
             .AddSource(Telemetry.Source.Name)
             .AddOtlpExporter(options =>
             {
-                options.Endpoint = new Uri($"{baseUrl}/api/public/otel");
+                options.Endpoint = new Uri($"{baseUrl}/api/public/otel/v1/traces");
                 options.Protocol = OtlpExportProtocol.HttpProtobuf;
                 options.Headers = authHeader;
             })
