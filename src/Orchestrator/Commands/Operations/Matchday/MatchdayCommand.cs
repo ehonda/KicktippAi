@@ -1,3 +1,4 @@
+using System.Text.Json;
 using Microsoft.Extensions.Logging;
 using Spectre.Console.Cli;
 using Spectre.Console;
@@ -117,6 +118,9 @@ public class MatchdayCommand : AsyncCommand<BaseSettings>
     
     private async Task ExecuteMatchdayWorkflow(BaseSettings settings)
     {
+        // Start root OTel activity for Langfuse trace
+        using var activity = Telemetry.Source.StartActivity("matchday-workflow");
+
         // Create services using factories
         var kicktippClient = _kicktippClientFactory.CreateClient();
         var predictionService = _openAiServiceFactory.CreatePredictionService(settings.Model);
@@ -154,6 +158,14 @@ public class MatchdayCommand : AsyncCommand<BaseSettings>
             _console.MarkupLine("[yellow]No matches found for current matchday[/]");
             return;
         }
+
+        // Set Langfuse trace-level attributes now that we know the matchday
+        var matchday = matchesWithHistory.First().Match.Matchday;
+        activity?.SetTag("langfuse.session.id", $"matchday-{matchday}-{settings.Community}");
+        activity?.SetTag("langfuse.trace.tags", JsonSerializer.Serialize(new[] { settings.Community, settings.Model }));
+        activity?.SetTag("langfuse.trace.metadata.community", settings.Community);
+        activity?.SetTag("langfuse.trace.metadata.matchday", matchday.ToString());
+        activity?.SetTag("langfuse.trace.metadata.model", settings.Model);
         
         _console.MarkupLine($"[green]Found {matchesWithHistory.Count} matches for current matchday[/]");
         

@@ -1,3 +1,4 @@
+using System.Text.Json;
 using EHonda.KicktippAi.Core;
 using Microsoft.Extensions.Logging;
 using Spectre.Console.Cli;
@@ -105,6 +106,15 @@ public class BonusCommand : AsyncCommand<BaseSettings>
     
     private async Task ExecuteBonusWorkflow(BaseSettings settings)
     {
+        // Start root OTel activity for Langfuse trace
+        using var activity = Telemetry.Source.StartActivity("bonus-workflow");
+
+        // Set Langfuse trace-level attributes
+        activity?.SetTag("langfuse.session.id", $"bonus-{settings.Community}");
+        activity?.SetTag("langfuse.trace.tags", JsonSerializer.Serialize(new[] { settings.Community, settings.Model }));
+        activity?.SetTag("langfuse.trace.metadata.community", settings.Community);
+        activity?.SetTag("langfuse.trace.metadata.model", settings.Model);
+
         // Create services using factories
         var kicktippClient = _kicktippClientFactory.CreateClient();
         var predictionService = _openAiServiceFactory.CreatePredictionService(settings.Model);

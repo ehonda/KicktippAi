@@ -63,23 +63,28 @@ public class CostCalculationService : ICostCalculationService
 
     public decimal? CalculateCost(string model, ChatTokenUsage usage)
     {
+        return CalculateCostBreakdown(model, usage)?.Total;
+    }
+
+    public CostBreakdown? CalculateCostBreakdown(string model, ChatTokenUsage usage)
+    {
         if (ModelPricingData.Pricing.TryGetValue(model, out var pricing))
         {
             // Get exact token counts from usage details
             var cachedInputTokens = usage.InputTokenDetails?.CachedTokenCount ?? 0;
             var uncachedInputTokens = usage.InputTokenCount - cachedInputTokens;
             var outputTokens = usage.OutputTokenCount;
-            
+
             // Calculate costs for each component
             var uncachedInputCost = (uncachedInputTokens / 1_000_000m) * pricing.InputPrice;
-            var cachedInputCost = pricing.CachedInputPrice.HasValue 
-                ? (cachedInputTokens / 1_000_000m) * pricing.CachedInputPrice.Value 
+            var cachedInputCost = pricing.CachedInputPrice.HasValue
+                ? (cachedInputTokens / 1_000_000m) * pricing.CachedInputPrice.Value
                 : 0m;
             var outputCost = (outputTokens / 1_000_000m) * pricing.OutputPrice;
-            
-            return uncachedInputCost + cachedInputCost + outputCost;
+
+            return new CostBreakdown(uncachedInputCost, cachedInputCost, outputCost, uncachedInputCost + cachedInputCost + outputCost);
         }
-        
+
         return null;
     }
 }

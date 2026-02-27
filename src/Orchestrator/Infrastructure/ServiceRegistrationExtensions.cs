@@ -1,8 +1,14 @@
+using System.Text;
 using EHonda.KicktippAi.Core;
 using Microsoft.Extensions.DependencyInjection;
 using Microsoft.Extensions.DependencyInjection.Extensions;
 using Microsoft.Extensions.FileProviders;
 using Microsoft.Extensions.Logging;
+using OpenTelemetry;
+using OpenTelemetry.Exporter;
+using OpenTelemetry.Resources;
+using OpenTelemetry.Trace;
+using OpenAiIntegration;
 using Orchestrator.Infrastructure.Factories;
 
 namespace Orchestrator.Infrastructure;
@@ -37,6 +43,56 @@ public static class ServiceRegistrationExtensions
         services.TryAddSingleton<IKicktippClientFactory, KicktippClientFactory>();
         services.TryAddSingleton<IOpenAiServiceFactory, OpenAiServiceFactory>();
         services.TryAddSingleton<IContextProviderFactory, ContextProviderFactory>();
+
+        // Register Langfuse/OTel tracing (no-op if credentials are absent)
+        services.AddLangfuseTracing();
+
+        return services;
+    }
+
+    /// <summary>
+    /// Registers the OpenTelemetry tracing pipeline with the Langfuse OTLP endpoint.
+    /// If <c>LANGFUSE_PUBLIC_KEY</c> or <c>LANGFUSE_SECRET_KEY</c> are not set,
+    /// no pipeline is registered and all <see cref="System.Diagnostics.ActivitySource.StartActivity(string)"/>
+    /// calls return <c>null</c> (graceful degradation).
+    /// </summary>
+    /// <remarks>
+    /// The <see cref="TracerProvider"/> is built eagerly (not via <c>AddOpenTelemetry()</c>)
+    /// because this app uses a raw <see cref="ServiceCollection"/> without <c>IHost</c>.
+    /// The host-based API relies on <c>IHostedService</c> to construct the provider;
+    /// without a host the provider would never be activated and all
+    /// <see cref="System.Diagnostics.ActivitySource.StartActivity(string)"/> calls would return <c>null</c>.
+    /// </remarks>
+    public static IServiceCollection AddLangfuseTracing(this IServiceCollection services)
+    {
+        var publicKey = Environment.GetEnvironmentVariable("LANGFUSE_PUBLIC_KEY");
+        var secretKey = Environment.GetEnvironmentVariable("LANGFUSE_SECRET_KEY");
+
+        if (string.IsNullOrEmpty(publicKey) || string.IsNullOrEmpty(secretKey))
+        {
+            // No credentials — skip OTel registration entirely
+            return services;
+        }
+
+        var baseUrl = Environment.GetEnvironmentVariable("LANGFUSE_BASE_URL") ?? "https://cloud.langfuse.com";
+        var authHeader = $"Authorization=Basic {Convert.ToBase64String(Encoding.UTF8.GetBytes($"{publicKey}:{secretKey}"))}";
+
+        // Build the TracerProvider eagerly so the ActivitySource listener is active immediately.
+        // The OTLP HTTP exporter auto-appends "/v1/traces" to the base endpoint.
+        var tracerProvider = Sdk.CreateTracerProviderBuilder()
+            .SetResourceBuilder(ResourceBuilder.CreateDefault().AddService("KicktippAi"))
+            .AddSource(Telemetry.Source.Name)
+            .AddOtlpExporter(options =>
+            {
+                options.Endpoint = new Uri($"{baseUrl}/api/public/otel");
+                options.Protocol = OtlpExportProtocol.HttpProtobuf;
+                options.Headers = authHeader;
+            })
+            .Build()!;
+
+        // Register as singleton so the DI container disposes it on shutdown,
+        // which triggers ForceFlush and ensures all spans reach Langfuse.
+        services.AddSingleton(tracerProvider);
 
         return services;
     }
