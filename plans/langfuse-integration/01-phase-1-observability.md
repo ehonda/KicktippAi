@@ -20,14 +20,9 @@ Add to `src/Orchestrator/Orchestrator.csproj` (or a shared project if preferred)
 
 Always check for the latest versions before adding.
 
-### 2. Add Langfuse Credentials to `.env`
+### 2. Langfuse Credentials — Already Available
 
-Add two new environment variables (loaded by `EnvironmentHelper`):
-
-```
-LANGFUSE_PUBLIC_KEY=pk-lf-...
-LANGFUSE_SECRET_KEY=sk-lf-...
-```
+`LANGFUSE_PUBLIC_KEY` and `LANGFUSE_SECRET_KEY` were already manually added to the `.env` file (stored outside the repository for access control reasons). `EnvironmentHelper.LoadEnvironmentVariables` loads that file on startup, so both variables are already available to the application — **no code changes needed here**.
 
 `LANGFUSE_BASE_URL` is **not** stored in `.env` — it defaults to `https://cloud.langfuse.com` in code and can be overridden via environment variable only when self-hosting Langfuse:
 
@@ -101,7 +96,7 @@ The Orchestrator is a short-lived CLI app. Ensure `TracerProvider.ForceFlush()` 
 
 ## Verification
 
-1. Configure Langfuse credentials in `.env`
+1. Confirm `LANGFUSE_PUBLIC_KEY` and `LANGFUSE_SECRET_KEY` are present in the external `.env` file (already done manually)
 2. Run: `dotnet run --project src/Orchestrator -- matchday gpt-5-nano --community ehonda-test-buli`
 3. Check Langfuse Cloud dashboard:
    - A trace appears with the correct session ID and tags
@@ -119,5 +114,4 @@ The Orchestrator is a short-lived CLI app. Ensure `TracerProvider.ForceFlush()` 
 | `src/OpenAiIntegration/PredictionService.cs` | Add `Activity` spans + Langfuse attributes |
 | `src/Orchestrator/Commands/Operations/Matchday/MatchdayCommand.cs` | Root activity span |
 | `src/Orchestrator/Commands/Operations/Bonus/BonusCommand.cs` | Root activity span |
-| `src/Orchestrator/EnvironmentHelper.cs` | Load Langfuse env vars |
-| `.env` | Add Langfuse credentials |
+| `src/Orchestrator/EnvironmentHelper.cs` | No changes needed — already loads `.env` which contains the keys |
