@@ -155,6 +155,16 @@ public class Program
             });
         });
 
-        return await app.RunAsync(args);
+        try
+        {
+            return await app.RunAsync(args);
+        }
+        finally
+        {
+            // Explicitly dispose the TracerProvider to trigger ForceFlush on the OTLP exporter.
+            // This is necessary because the DI container does not dispose externally-provided
+            // singleton instances — see ServiceRegistrationExtensions.AddLangfuseTracing().
+            ServiceRegistrationExtensions.ActiveTracerProvider?.Dispose();
+        }
     }
 }

@@ -51,6 +51,12 @@ public static class ServiceRegistrationExtensions
     }
 
     /// <summary>
+    /// Gets the actively configured <see cref="TracerProvider"/>, if any.
+    /// Disposed explicitly in <c>Program.Main</c> to ensure all buffered spans are flushed.
+    /// </summary>
+    internal static TracerProvider? ActiveTracerProvider { get; private set; }
+
+    /// <summary>
     /// Registers the OpenTelemetry tracing pipeline with the Langfuse OTLP endpoint.
     /// If <c>LANGFUSE_PUBLIC_KEY</c> or <c>LANGFUSE_SECRET_KEY</c> are not set,
     /// no pipeline is registered and all <see cref="System.Diagnostics.ActivitySource.StartActivity(string)"/>
@@ -71,8 +77,8 @@ public static class ServiceRegistrationExtensions
     /// </remarks>
     public static IServiceCollection AddLangfuseTracing(this IServiceCollection services)
     {
-        // Idempotency: skip if a TracerProvider is already registered.
-        if (services.Any(d => d.ServiceType == typeof(TracerProvider)))
+        // Idempotency: skip if a TracerProvider has already been built.
+        if (ActiveTracerProvider is not null)
             return services;
 
         var publicKey = Environment.GetEnvironmentVariable("LANGFUSE_PUBLIC_KEY");
@@ -101,9 +107,14 @@ public static class ServiceRegistrationExtensions
             })
             .Build()!;
 
-        // Register as singleton so the DI container disposes it on shutdown,
-        // which triggers ForceFlush and ensures all spans reach Langfuse.
-        services.AddSingleton(tracerProvider);
+        // Store reference for explicit disposal in Program.Main.
+        // NOTE: We intentionally do NOT register the TracerProvider in the DI container.
+        // The .NET DI container does not dispose externally-provided singleton instances
+        // (only objects it creates via factories). Since the TracerProvider is built eagerly
+        // before the ServiceProvider exists, registering it via AddSingleton(instance) would
+        // mean TracerProvider.Dispose() — and therefore ForceFlush() — is never called,
+        // silently dropping all buffered spans.
+        ActiveTracerProvider = tracerProvider;
 
         return services;
     }

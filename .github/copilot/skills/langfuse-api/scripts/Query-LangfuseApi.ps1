@@ -71,9 +71,21 @@ if ($QueryParams -and $QueryParams.Count -gt 0) {
 # Execute API call with Basic Auth
 $response = curl.exe -s -u "${publicKey}:${secretKey}" $url
 
-# Pretty-print JSON output
+# Pretty-print JSON output, with clear indication when results are empty
+if ([string]::IsNullOrWhiteSpace($response)) {
+    Write-Warning "Langfuse API returned an EMPTY response for: $url"
+    return
+}
+
 try {
-    $response | ConvertFrom-Json | ConvertTo-Json -Depth 20
+    $parsed = $response | ConvertFrom-Json
+
+    # Check for list endpoints that return a data array
+    if ($null -ne $parsed.data -and $parsed.data.Count -eq 0) {
+        Write-Warning "Langfuse API returned ZERO results for: $url"
+    }
+
+    $parsed | ConvertTo-Json -Depth 20
 }
 catch {
     $response
