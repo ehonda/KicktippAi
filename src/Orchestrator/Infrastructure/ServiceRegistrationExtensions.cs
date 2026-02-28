@@ -4,7 +4,6 @@ using Microsoft.Extensions.DependencyInjection;
 using Microsoft.Extensions.DependencyInjection.Extensions;
 using Microsoft.Extensions.FileProviders;
 using Microsoft.Extensions.Logging;
-using OpenTelemetry;
 using OpenTelemetry.Exporter;
 using OpenTelemetry.Resources;
 using OpenTelemetry.Trace;
@@ -51,12 +50,6 @@ public static class ServiceRegistrationExtensions
     }
 
     /// <summary>
-    /// Gets the actively configured <see cref="TracerProvider"/>, if any.
-    /// Disposed explicitly in <c>Program.Main</c> to ensure all buffered spans are flushed.
-    /// </summary>
-    internal static TracerProvider? ActiveTracerProvider { get; private set; }
-
-    /// <summary>
     /// Registers the OpenTelemetry tracing pipeline with the Langfuse OTLP endpoint.
     /// If <c>LANGFUSE_PUBLIC_KEY</c> or <c>LANGFUSE_SECRET_KEY</c> are not set,
     /// no pipeline is registered and all <see cref="System.Diagnostics.ActivitySource.StartActivity(string)"/>
@@ -64,21 +57,20 @@ public static class ServiceRegistrationExtensions
     /// </summary>
     /// <remarks>
     /// <para>
-    /// The <see cref="TracerProvider"/> is built eagerly (not via <c>AddOpenTelemetry()</c>)
-    /// because this app uses a raw <see cref="ServiceCollection"/> without <c>IHost</c>.
-    /// The host-based API relies on <c>IHostedService</c> to construct the provider;
-    /// without a host the provider would never be activated and all
-    /// <see cref="System.Diagnostics.ActivitySource.StartActivity(string)"/> calls would return <c>null</c>.
+    /// Uses the standard <c>AddOpenTelemetry()</c> API from <c>OpenTelemetry.Extensions.Hosting</c>,
+    /// which registers the <see cref="TracerProvider"/> as a DI-managed singleton and an
+    /// <see cref="Microsoft.Extensions.Hosting.IHostedService"/> that triggers provider construction.
+    /// Since this app uses Spectre.Console.Cli (no <c>IHost</c>), the <see cref="TypeRegistrar"/>
+    /// manually starts hosted services after building the <c>ServiceProvider</c>.
     /// </para>
     /// <para>
-    /// This method is idempotent — if a <see cref="TracerProvider"/> has already been
-    /// registered, subsequent calls are no-ops.
+    /// This method is idempotent — multiple calls have no additional effect.
     /// </para>
     /// </remarks>
     public static IServiceCollection AddLangfuseTracing(this IServiceCollection services)
     {
-        // Idempotency: skip if a TracerProvider has already been built.
-        if (ActiveTracerProvider is not null)
+        // Idempotency: skip if tracing has already been registered.
+        if (_langfuseTracingRegistered)
             return services;
 
         var publicKey = Environment.GetEnvironmentVariable("LANGFUSE_PUBLIC_KEY");
@@ -90,34 +82,28 @@ public static class ServiceRegistrationExtensions
             return services;
         }
 
+        _langfuseTracingRegistered = true;
+
         var baseUrl = Environment.GetEnvironmentVariable("LANGFUSE_BASE_URL") ?? "https://cloud.langfuse.com";
         var authHeader = $"Authorization=Basic {Convert.ToBase64String(Encoding.UTF8.GetBytes($"{publicKey}:{secretKey}"))}";
 
-        // Build the TracerProvider eagerly so the ActivitySource listener is active immediately.
-        // NOTE: AddOtlpExporter does NOT auto-append the signal path when the endpoint is set
-        // programmatically — the full URL including /v1/traces must be provided.
-        var tracerProvider = Sdk.CreateTracerProviderBuilder()
-            .SetResourceBuilder(ResourceBuilder.CreateDefault().AddService("KicktippAi"))
-            .AddSource(Telemetry.Source.Name)
-            .AddOtlpExporter(options =>
-            {
-                options.Endpoint = new Uri($"{baseUrl}/api/public/otel/v1/traces");
-                options.Protocol = OtlpExportProtocol.HttpProtobuf;
-                options.Headers = authHeader;
-            })
-            .Build()!;
-
-        // Store reference for explicit disposal in Program.Main.
-        // NOTE: We intentionally do NOT register the TracerProvider in the DI container.
-        // The .NET DI container does not dispose externally-provided singleton instances
-        // (only objects it creates via factories). Since the TracerProvider is built eagerly
-        // before the ServiceProvider exists, registering it via AddSingleton(instance) would
-        // mean TracerProvider.Dispose() — and therefore ForceFlush() — is never called,
-        // silently dropping all buffered spans.
-        ActiveTracerProvider = tracerProvider;
+        // NOTE: Setting options.Endpoint programmatically sets AppendSignalPathToEndpoint = false,
+        // so the full URL including /v1/traces must be provided.
+        services.AddOpenTelemetry()
+            .ConfigureResource(r => r.AddService("KicktippAi"))
+            .WithTracing(tracing => tracing
+                .AddSource(Telemetry.Source.Name)
+                .AddOtlpExporter(options =>
+                {
+                    options.Endpoint = new Uri($"{baseUrl}/api/public/otel/v1/traces");
+                    options.Protocol = OtlpExportProtocol.HttpProtobuf;
+                    options.Headers = authHeader;
+                }));
 
         return services;
     }
+
+    private static bool _langfuseTracingRegistered;
 
     /// <summary>
     /// Registers services specific to the ListKpiCommand.

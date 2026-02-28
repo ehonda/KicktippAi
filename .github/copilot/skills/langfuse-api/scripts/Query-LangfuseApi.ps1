@@ -65,28 +65,25 @@ if ($QueryParams -and $QueryParams.Count -gt 0) {
     $queryParts = $QueryParams.GetEnumerator() | ForEach-Object {
         "$([uri]::EscapeDataString("$($_.Key)"))=$([uri]::EscapeDataString("$($_.Value)"))"
     }
-    $url = "$url?$($queryParts -join '&')"
+    # Use ${url} braces to prevent PowerShell 7.4+ from parsing $url? as a null-conditional expression
+    $url = "${url}?$($queryParts -join '&')"
 }
 
-# Execute API call with Basic Auth
-$response = curl.exe -s -u "${publicKey}:${secretKey}" $url
+# Execute API call with Basic Auth using Invoke-RestMethod
+$base64Auth = [Convert]::ToBase64String([Text.Encoding]::UTF8.GetBytes("${publicKey}:${secretKey}"))
+$headers = @{ Authorization = "Basic $base64Auth" }
 
-# Pretty-print JSON output, with clear indication when results are empty
-if ([string]::IsNullOrWhiteSpace($response)) {
-    Write-Warning "Langfuse API returned an EMPTY response for: $url"
+try {
+    $parsed = Invoke-RestMethod -Uri $url -Headers $headers -ErrorAction Stop
+}
+catch {
+    Write-Error "Langfuse API request failed: $_"
     return
 }
 
-try {
-    $parsed = $response | ConvertFrom-Json
-
-    # Check for list endpoints that return a data array
-    if ($null -ne $parsed.data -and $parsed.data.Count -eq 0) {
-        Write-Warning "Langfuse API returned ZERO results for: $url"
-    }
-
-    $parsed | ConvertTo-Json -Depth 20
+# Check for list endpoints that return a data array
+if ($null -ne $parsed.data -and $parsed.data.Count -eq 0) {
+    Write-Warning "Langfuse API returned ZERO results for: $url"
 }
-catch {
-    $response
-}
+
+$parsed | ConvertTo-Json -Depth 20
