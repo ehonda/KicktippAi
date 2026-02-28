@@ -14,13 +14,13 @@
     Optional hashtable of query parameters to append to the URL.
 
 .EXAMPLE
-    .\.github\scripts\Query-LangfuseApi.ps1 -Endpoint "traces" -QueryParams @{limit=5}
+    .\.github\copilot\skills\langfuse-api\scripts\Query-LangfuseApi.ps1 -Endpoint "traces" -QueryParams @{limit=5}
 
 .EXAMPLE
-    .\.github\scripts\Query-LangfuseApi.ps1 -Endpoint "traces/abc-123"
+    .\.github\copilot\skills\langfuse-api\scripts\Query-LangfuseApi.ps1 -Endpoint "traces/abc-123"
 
 .EXAMPLE
-    .\.github\scripts\Query-LangfuseApi.ps1 -Endpoint "observations" -QueryParams @{traceId="abc-123"; type="GENERATION"}
+    .\.github\copilot\skills\langfuse-api\scripts\Query-LangfuseApi.ps1 -Endpoint "observations" -QueryParams @{traceId="abc-123"; type="GENERATION"}
 #>
 param(
     [Parameter(Mandatory)]
@@ -37,8 +37,8 @@ if (-not (Get-Command dotenvx -ErrorAction SilentlyContinue)) {
 }
 
 # Resolve .env file path
-# Script is at .github/scripts/, so two levels up is the solution root
-$solutionRoot = Resolve-Path (Join-Path $PSScriptRoot "../..")
+# Script is at .github/copilot/skills/langfuse-api/scripts/, so five levels up is the solution root
+$solutionRoot = Resolve-Path (Join-Path $PSScriptRoot "../../../../..")
 $envFilePath = Join-Path $solutionRoot "../KicktippAi.Secrets/src/Orchestrator/.env"
 
 if (-not (Test-Path $envFilePath)) {

@@ -1,5 +1,6 @@
 ---
-description: Query the Langfuse REST API to inspect traces, observations, and other observability data for debugging.
+name: langfuse-api
+description: Query the Langfuse REST API to inspect traces, observations, and other observability data. Use this for debugging.
 ---
 
 # Langfuse API
@@ -9,10 +10,10 @@ OpenTelemetry traces to Langfuse (see `src/Orchestrator/Infrastructure/ServiceRe
 
 ## How to Query
 
-Run the PowerShell script at `.github/scripts/Query-LangfuseApi.ps1`:
+Run the PowerShell script:
 
 ```powershell
-.github/scripts/Query-LangfuseApi.ps1 -Endpoint "<endpoint>" [-QueryParams @{key="value"}]
+.github/copilot/skills/langfuse-api/scripts/Query-LangfuseApi.ps1 -Endpoint "<endpoint>" [-QueryParams @{key="value"}]
 ```
 
 ## Supported Endpoints
@@ -20,7 +21,7 @@ Run the PowerShell script at `.github/scripts/Query-LangfuseApi.ps1`:
 ### List Traces
 
 ```powershell
-.github/scripts/Query-LangfuseApi.ps1 -Endpoint "traces" -QueryParams @{limit=10}
+.github/copilot/skills/langfuse-api/scripts/Query-LangfuseApi.ps1 -Endpoint "traces" -QueryParams @{limit=10}
 ```
 
 Optional query parameters:
@@ -34,13 +35,13 @@ Optional query parameters:
 ### Get Trace by ID
 
 ```powershell
-.github/scripts/Query-LangfuseApi.ps1 -Endpoint "traces/<traceId>"
+.github/copilot/skills/langfuse-api/scripts/Query-LangfuseApi.ps1 -Endpoint "traces/<traceId>"
 ```
 
 ### List Observations
 
 ```powershell
-.github/scripts/Query-LangfuseApi.ps1 -Endpoint "observations" -QueryParams @{limit=10}
+.github/copilot/skills/langfuse-api/scripts/Query-LangfuseApi.ps1 -Endpoint "observations" -QueryParams @{limit=10}
 ```
 
 Optional query parameters:
@@ -53,7 +54,7 @@ Optional query parameters:
 ### Get Observation by ID
 
 ```powershell
-.github/scripts/Query-LangfuseApi.ps1 -Endpoint "observations/<observationId>"
+.github/copilot/skills/langfuse-api/scripts/Query-LangfuseApi.ps1 -Endpoint "observations/<observationId>"
 ```
 
 ## Authentication
