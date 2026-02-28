@@ -1,0 +1,5 @@
+{
+    "chat.tools.terminal.autoApprove": {
+        ".github/copilot/skills/langfuse-api/scripts/Query-LangfuseApi.ps1": true
+    }
+}
