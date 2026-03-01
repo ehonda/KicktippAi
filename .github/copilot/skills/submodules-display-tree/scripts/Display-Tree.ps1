@@ -15,6 +15,11 @@
 .PARAMETER Depth
     Maximum traversal depth. 0 means unlimited. Default: 0
 
+.PARAMETER DetailView
+    One or more submodule root names to show in detail.
+    When specified, only matching submodules are displayed and their
+    full internal directory structure is included.
+
 .PARAMETER Help
     Show usage information.
 
@@ -27,6 +32,9 @@
 
 .EXAMPLE
     .\Display-Tree.ps1 -Format tree -Depth 2
+
+.EXAMPLE
+    .\Display-Tree.ps1 -DetailView dotnet-api-docs,openai-dotnet -Format tree
 #>
 
 [CmdletBinding()]
@@ -39,6 +47,8 @@ param(
 
     [int]$Depth = 0,
 
+    [string[]]$DetailView = @(),
+
     [switch]$Help
 )
 
@@ -50,6 +60,7 @@ if ($Help) {
     @"
 Usage:
   Display-Tree.ps1 [Directory] [-Format tree|indented|flat] [-Depth N]
+  Display-Tree.ps1 -DetailView name1,name2 [-Format tree|indented|flat] [-Depth N]
   Display-Tree.ps1 -Help
 
 Arguments:
@@ -58,6 +69,8 @@ Arguments:
 Options:
   -Format FORMAT        Output format: tree, indented, flat (default: flat)
   -Depth N              Maximum traversal depth (default: 0 = unlimited)
+  -DetailView NAMES     Comma-separated submodule root names to show in detail
+                        (shows full internal structure for those submodules only)
 
 Formats:
   flat       Brace-expansion notation:  root/{dir1/{a,b},dir2/c}
@@ -77,6 +90,38 @@ if (-not (Test-Path $Directory -PathType Container)) {
     exit 1
 }
 
+# ── Submodule roots ──────────────────────────────────────────────────────────
+
+$script:SubmoduleRoots = @()
+$gitmodulesOutput = git config --file .gitmodules --get-regexp path 2>$null
+if ($gitmodulesOutput) {
+    foreach ($line in @($gitmodulesOutput)) {
+        $subPath = ($line -split '\s+', 2)[1]
+        if ($subPath) {
+            $fullPath = Join-Path (Get-Location) $subPath
+            if (Test-Path $fullPath) {
+                $script:SubmoduleRoots += (Resolve-Path $fullPath).Path
+            }
+        }
+    }
+}
+
+# Resolve detail-view selections to full paths
+$script:DetailViewRoots = @()
+$script:IsDetailView = $DetailView.Count -gt 0
+if ($script:IsDetailView) {
+    foreach ($name in $DetailView) {
+        $matched = $script:SubmoduleRoots | Where-Object { (Split-Path $_ -Leaf) -eq $name }
+        if (-not $matched) {
+            Write-Error "Submodule root not found: $name"
+            exit 1
+        }
+        foreach ($m in @($matched)) {
+            $script:DetailViewRoots += $m
+        }
+    }
+}
+
 # ── Gather entries ───────────────────────────────────────────────────────────
 
 function Get-Entries {
@@ -94,6 +139,39 @@ function Get-Entries {
         Where-Object {
             # Only include directories (we display directory structure)
             $_.PSIsContainer
+        } |
+        Where-Object {
+            $itemFull = $_.FullName
+
+            if ($script:IsDetailView) {
+                # In detail-view: only keep items that are ancestors of, equal to,
+                # or descendants of a selected submodule root
+                $keep = $false
+                foreach ($dvRoot in $script:DetailViewRoots) {
+                    # Item is the selected root itself
+                    if ($itemFull -eq $dvRoot) { $keep = $true; break }
+                    # Item is an ancestor of a selected root (on the path to it)
+                    if ($dvRoot.StartsWith($itemFull + '\') -or $dvRoot.StartsWith($itemFull + '/')) {
+                        $keep = $true; break
+                    }
+                    # Item is a descendant inside a selected root
+                    if ($itemFull.StartsWith($dvRoot + '\') -or $itemFull.StartsWith($dvRoot + '/')) {
+                        $keep = $true; break
+                    }
+                }
+                $keep
+            } else {
+                # Default mode: exclude contents inside submodule roots
+                $isInsideSubmodule = $false
+                foreach ($smRoot in $script:SubmoduleRoots) {
+                    if ($itemFull -ne $smRoot -and
+                        ($itemFull.StartsWith($smRoot + '\') -or $itemFull.StartsWith($smRoot + '/'))) {
+                        $isInsideSubmodule = $true
+                        break
+                    }
+                }
+                -not $isInsideSubmodule
+            }
         } |
         Where-Object {
             if ($MaxDepth -gt 0) {
@@ -228,11 +306,53 @@ function Build-Flat {
     $parts = @()
     foreach ($child in $children) {
         $cname = $child.Name
-        $sub = Build-Flat -Dir $child.FullName -EffectiveDepth ($EffectiveDepth + 1) -MaxD $MaxD
-        if ($sub) {
-            $parts += "$cname/$sub"
+        $childFull = (Resolve-Path $child.FullName).Path
+
+        if ($script:IsDetailView) {
+            # In detail-view: only follow paths leading to or inside selected roots
+            $isSelected = $script:DetailViewRoots -contains $childFull
+            $isAncestor = $false
+            $isDescendant = $false
+            foreach ($dvRoot in $script:DetailViewRoots) {
+                if ($dvRoot.StartsWith($childFull + '\') -or $dvRoot.StartsWith($childFull + '/')) {
+                    $isAncestor = $true; break
+                }
+                if ($childFull.StartsWith($dvRoot + '\') -or $childFull.StartsWith($dvRoot + '/')) {
+                    $isDescendant = $true; break
+                }
+            }
+
+            if ($isSelected -or $isDescendant) {
+                # Selected submodule root or inside one: recurse fully
+                $sub = Build-Flat -Dir $child.FullName -EffectiveDepth ($EffectiveDepth + 1) -MaxD $MaxD
+                if ($sub) {
+                    $parts += "$cname/$sub"
+                } else {
+                    $parts += $cname
+                }
+            } elseif ($isAncestor) {
+                # On the path to a selected root: recurse but same detail-view filtering applies
+                $sub = Build-Flat -Dir $child.FullName -EffectiveDepth ($EffectiveDepth + 1) -MaxD $MaxD
+                if ($sub) {
+                    $parts += "$cname/$sub"
+                } else {
+                    $parts += $cname
+                }
+            }
+            # else: skip this child entirely
         } else {
-            $parts += $cname
+            # Default mode: stop at submodule roots
+            $isSubmoduleRoot = $script:SubmoduleRoots -contains $childFull
+            if ($isSubmoduleRoot) {
+                $parts += $cname
+            } else {
+                $sub = Build-Flat -Dir $child.FullName -EffectiveDepth ($EffectiveDepth + 1) -MaxD $MaxD
+                if ($sub) {
+                    $parts += "$cname/$sub"
+                } else {
+                    $parts += $cname
+                }
+            }
         }
     }
 
