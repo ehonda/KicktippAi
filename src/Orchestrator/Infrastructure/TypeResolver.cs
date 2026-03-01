@@ -41,6 +41,14 @@ public sealed class TypeResolver : ITypeResolver, IDisposable
     {
         // Stop hosted services before disposing the provider to allow graceful shutdown
         // (e.g. OpenTelemetry TracerProvider flush).
+        //
+        // Blocking wait rationale: Spectre.Console.Cli disposes our resolver through
+        // TypeResolverAdapter.Dispose(), which only checks for IDisposable — not IAsyncDisposable.
+        // The enclosing `using` block in CommandExecutor.ExecuteAsync is synchronous, so there is no
+        // async disposal path we can participate in. IHostedService only exposes async lifecycle
+        // methods, so the .GetAwaiter().GetResult() bridge is required here.
+        // See: spectre.console.cli/src/Spectre.Console.Cli/Internal/TypeResolverAdapter.cs
+        //      spectre.console.cli/src/Spectre.Console.Cli/Internal/CommandExecutor.cs (~line 88)
         foreach (var service in _hostedServices)
         {
             service.StopAsync(CancellationToken.None).GetAwaiter().GetResult();

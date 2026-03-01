@@ -19,3 +19,6 @@
 [submodule "external/dotnet/dotnet-api-docs"]
 	path = external/dotnet/dotnet-api-docs
 	url = https://github.com/dotnet/dotnet-api-docs.git
+[submodule "external/spectreconsole/spectre.console.cli"]
+	path = external/spectreconsole/spectre.console.cli
+	url = https://github.com/spectreconsole/spectre.console.cli.git

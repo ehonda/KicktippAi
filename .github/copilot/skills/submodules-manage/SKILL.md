@@ -82,6 +82,19 @@ Based on the user's confirmation, run `add` with the appropriate options:
 .\.github\copilot\skills\submodules-manage\scripts\Manage-Submodules.ps1 add thomhurst/TUnit --sparse-paths "docs/docs"
 ```
 
+### Mandatory: Refresh the Tree Document After Any Change
+
+After **any** submodule addition, removal, or sparse-path change, you MUST update the tree document:
+
+```powershell
+.\.github\copilot\skills\submodules-update-tree-document\scripts\Update-TreeDocument.ps1
+```
+
+This keeps `agent-files/submodule-tree.txt` in sync so that future agents discover the correct submodule
+structure. Skipping this step leaves stale information in the tree document.
+
+---
+
 ### Remove a Submodule
 
 ```powershell

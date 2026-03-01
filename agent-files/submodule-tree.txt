@@ -1,1 +1,1 @@
-external/{dotnet/dotnet-api-docs,openai/openai-dotnet,spectreconsole/{spectre.console,website},thomhurst/TUnit,wiremock/{WireMock.Net,wiremock.org}}
+external/{dotnet/dotnet-api-docs,openai/openai-dotnet,spectreconsole/{spectre.console,spectre.console.cli,website},thomhurst/TUnit,wiremock/{WireMock.Net,wiremock.org}}

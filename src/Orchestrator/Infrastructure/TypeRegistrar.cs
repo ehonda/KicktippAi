@@ -34,6 +34,14 @@ public sealed class TypeRegistrar : ITypeRegistrar
 
         // Start any registered IHostedService instances so they can initialize
         // (e.g. OpenTelemetry builds its TracerProvider during StartAsync).
+        //
+        // Blocking wait rationale: IHostedService only exposes async lifecycle methods, but
+        // Spectre.Console.Cli calls Build() from a synchronous context (CommandExecutor.ExecuteAsync
+        // creates a synchronous `using` block around TypeResolverAdapter, which wraps our resolver).
+        // TypeResolverAdapter.Dispose() only checks for IDisposable — not IAsyncDisposable — so
+        // there is no async disposal path available. The .GetAwaiter().GetResult() bridge is required.
+        // See: spectre.console.cli/src/Spectre.Console.Cli/Internal/TypeResolverAdapter.cs
+        //      spectre.console.cli/src/Spectre.Console.Cli/Internal/CommandExecutor.cs (~line 88)
         var hostedServices = provider.GetServices<IHostedService>().ToList();
         foreach (var service in hostedServices)
         {
