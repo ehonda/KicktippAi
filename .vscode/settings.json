@@ -1,5 +1,8 @@
 {
     "chat.tools.terminal.autoApprove": {
-        ".github/copilot/skills/langfuse-api/scripts/Query-LangfuseApi.ps1": true
+        ".github/copilot/skills/langfuse-api/scripts/Query-LangfuseApi.ps1": true,
+        ".github/copilot/skills/submodules-manage/scripts/Manage-Submodules.ps1": true,
+        ".github/copilot/skills/submodules-update-tree-document/scripts/Update-TreeDocument.ps1": true,
+        ".github/copilot/skills/submodules-display-tree/scripts/Display-Tree.ps1": true
     }
 }

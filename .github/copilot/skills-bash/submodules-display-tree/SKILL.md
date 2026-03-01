@@ -9,20 +9,20 @@ Render the `external/` submodule directory tree in one of three formats.
 
 ## How to Use
 
-Run the PowerShell script from the repository root:
+Run the bash script from the repository root:
 
-```powershell
-.\.github\copilot\skills\submodules-display-tree\scripts\Display-Tree.ps1 [Directory] [options]
+```bash
+./.github/copilot/skills-bash/submodules-display-tree/scripts/display-tree.sh [directory] [options]
 ```
 
 Arguments:
 
-- `Directory` — Directory to display (default: `external`)
+- `directory` — Directory to display (default: `external/`)
 
 Options:
 
-- `-Format <tree|indented|flat>` — Output format (default: `flat`)
-- `-Depth N` — Maximum traversal depth (default: `0` = unlimited)
+- `--format <tree|indented|flat>` — Output format (default: `flat`)
+- `--depth N` — Maximum traversal depth (default: unlimited)
 
 ## Formats
 
@@ -31,7 +31,7 @@ Options:
 Brace-expansion notation, compact single-line per top-level group:
 
 ```text
-external/{dotnet/dotnet-api-docs,spectreconsole/{spectre.console,website}}
+external/[dotnet/dotnet-api-docs,spectreconsole/{spectre.console,website}]
 ```
 
 ### Indented
@@ -62,16 +62,16 @@ external/
 
 ## Examples
 
-```powershell
+```bash
 # Flat format (default)
-.\.github\copilot\skills\submodules-display-tree\scripts\Display-Tree.ps1
+./.github/copilot/skills-bash/submodules-display-tree/scripts/display-tree.sh
 
 # Indented format
-.\.github\copilot\skills\submodules-display-tree\scripts\Display-Tree.ps1 -Format indented
+./.github/copilot/skills-bash/submodules-display-tree/scripts/display-tree.sh --format indented
 
 # Tree format, depth-limited
-.\.github\copilot\skills\submodules-display-tree\scripts\Display-Tree.ps1 -Format tree -Depth 2
+./.github/copilot/skills-bash/submodules-display-tree/scripts/display-tree.sh --format tree --depth 2
 
 # Custom directory
-.\.github\copilot\skills\submodules-display-tree\scripts\Display-Tree.ps1 some/other/dir -Format indented
+./.github/copilot/skills-bash/submodules-display-tree/scripts/display-tree.sh some/other/dir --format indented
 ```

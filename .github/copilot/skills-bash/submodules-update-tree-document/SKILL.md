@@ -7,20 +7,20 @@ description: Update the agent-files/submodule-tree.txt file with the current fla
 
 Update `agent-files/submodule-tree.txt` with the current flat tree view of the `external/` submodule directory.
 
-The output file contains **only** the raw output from the Display-Tree script — no headers, no markdown, no timestamps.
+The output file contains **only** the raw output from the display-tree script — no headers, no markdown, no timestamps.
 
 ## How to Use
 
-Run the PowerShell script from the repository root:
+Run the bash script from the repository root:
 
-```powershell
-.\.github\copilot\skills\submodules-update-tree-document\scripts\Update-TreeDocument.ps1
+```bash
+./.github/copilot/skills-bash/submodules-update-tree-document/scripts/update-tree-document.sh
 ```
 
 ## What It Does
 
 1. Creates `agent-files/` directory if it doesn't exist
-2. Runs the `submodules-display-tree` script with `-Format flat` on `external/`
+2. Runs the `submodules-display-tree` script with `--format flat` on `external/`
 3. Writes the raw output to `agent-files/submodule-tree.txt`
 
 The file is overwritten on each run (idempotent).

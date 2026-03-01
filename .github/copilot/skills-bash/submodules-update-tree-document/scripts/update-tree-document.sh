@@ -47,7 +47,7 @@ fi
 mkdir -p "$OUTPUT_DIR"
 
 echo "Generating flat tree of external/..." >&2
-tree_output="$(bash "$DISPLAY_TREE_SCRIPT" external --format flat)"
+tree_output="$("$DISPLAY_TREE_SCRIPT" external --format flat)"
 
 echo "$tree_output" > "$OUTPUT_FILE"
 echo "Updated ${OUTPUT_FILE}" >&2
