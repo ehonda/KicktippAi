@@ -37,6 +37,8 @@ Key constraints:
 | **2** | Evaluation & experiments | [02-phase-2-evaluation.md](02-phase-2-evaluation.md) |
 | **3** | Prompt management | [03-phase-3-prompt-management.md](03-phase-3-prompt-management.md) |
 
+Current progress across all phases is tracked in [implementation-status.md](implementation-status.md).
+
 Manual steps (account setup, credential provisioning, etc.) are documented separately in [manual-steps.md](manual-steps.md).
 
 ## Decisions
