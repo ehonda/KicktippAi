@@ -1,7 +1,6 @@
 ---
 name: submodules-display-tree
 description: Display the external/ submodule directory tree in multiple formats (tree, indented, flat). Use this to visualize the current submodule structure.
-compatibility: Requires bash and find
 ---
 
 # Submodules — Display Tree

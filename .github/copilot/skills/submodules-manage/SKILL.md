@@ -1,7 +1,6 @@
 ---
 name: submodules-manage
 description: Manage external git submodules under the external/ directory. Use this skill to add, remove, or list git submodules that provide local access to external repositories (documentation, source code) referenced by this project.
-compatibility: Requires git and bash
 ---
 
 # Submodules — Manage

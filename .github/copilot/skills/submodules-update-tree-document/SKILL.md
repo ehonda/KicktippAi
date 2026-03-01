@@ -1,7 +1,6 @@
 ---
 name: submodules-update-tree-document
 description: Update the agent-files/submodule-tree.txt file with the current flat tree view of external/ submodules. Use this after adding or removing submodules to keep the tree document in sync.
-compatibility: Requires bash
 ---
 
 # Submodules — Update Tree Document
