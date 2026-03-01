@@ -20,28 +20,66 @@ bash .github/copilot/skills/submodules-manage/scripts/manage-submodules.sh <comm
 
 ### Add a Submodule
 
+Adding a submodule is a **multi-step workflow**. Never run `add` without `--info-only` first — always preview the
+repository and confirm scope with the user before committing to a checkout.
+
+#### Step 1 — Preview the repository
+
+Run `add` with `--info-only` to fetch repository metrics without actually adding the submodule:
+
 ```bash
-bash .github/copilot/skills/submodules-manage/scripts/manage-submodules.sh add <owner/repo> [options]
+bash .github/copilot/skills/submodules-manage/scripts/manage-submodules.sh add <owner/repo> --info-only
 ```
 
-Options:
+This outputs JSON with:
 
-- `--depth N` — Clone depth (default: 1, shallow)
-- `--full` — Clone with full history (overrides `--depth`)
-- `--sparse-paths <paths>` — Comma-separated list of top-level paths to check out via sparse checkout
-- `--info-only` — Print repo size and top-level contents without actually adding the submodule (see [Large Repository Guidance](#large-repository-guidance))
+- **Repository size** (on-disk size, file count)
+- **Top-level contents** (list of top-level files and directories with sizes)
 
-Examples:
+#### Step 2 — Present findings and confirm scope with the user
+
+Use an interview or feedback tool to present the `--info-only` output and confirm checkout scope. Provide:
+
+- The repo size and file count
+- The list of top-level contents
+- A **recommendation** on which top-level paths are relevant, based on the user's task or the instruction files that
+  reference this repository
+
+Ask the user whether to:
+
+- Check out the **full repository** (if it's small or everything is needed)
+- Check out **specific paths only** via sparse checkout (recommended for large repos)
+
+#### Step 3 — Add the submodule
+
+Based on the user's confirmation, run `add` with the appropriate options:
 
 ```bash
-# Add a repo with default shallow clone
-bash .github/copilot/skills/submodules-manage/scripts/manage-submodules.sh add spectreconsole/spectre.console
+# Full checkout (user confirmed full repo is needed)
+bash .github/copilot/skills/submodules-manage/scripts/manage-submodules.sh add <owner/repo>
 
-# Add with sparse checkout (only specific directories)
+# Sparse checkout (user selected specific paths)
+bash .github/copilot/skills/submodules-manage/scripts/manage-submodules.sh add <owner/repo> --sparse-paths "<comma-separated-paths>"
+```
+
+#### Add options reference
+
+- `--info-only` — Preview repo size and top-level contents (Step 1, always run first)
+- `--depth N` — Clone depth (default: 1, shallow)
+- `--full` — Clone with full history (overrides `--depth`)
+- `--sparse-paths <paths>` — Comma-separated list of top-level paths for sparse checkout
+
+#### Example: full add workflow
+
+```bash
+# Step 1: Preview
+bash .github/copilot/skills/submodules-manage/scripts/manage-submodules.sh add thomhurst/TUnit --info-only
+# → JSON output shows repo is 150MB, top-level dirs include docs/, src/, tests/, ...
+
+# Step 2: Present to user, recommend --sparse-paths "docs/docs" based on tunit.instructions.md
+
+# Step 3: Add with confirmed scope
 bash .github/copilot/skills/submodules-manage/scripts/manage-submodules.sh add thomhurst/TUnit --sparse-paths "docs/docs"
-
-# Preview repo info before adding
-bash .github/copilot/skills/submodules-manage/scripts/manage-submodules.sh add spectreconsole/spectre.console --info-only
 ```
 
 ### Remove a Submodule
@@ -59,26 +97,3 @@ bash .github/copilot/skills/submodules-manage/scripts/manage-submodules.sh list
 ```
 
 Outputs a JSON array of `{"path": "...", "url": "..."}` objects.
-
-## Large Repository Guidance
-
-**When adding a repository, you MUST follow this process for any repository that is not already known to be small:**
-
-1. **Run with `--info-only` first** to get repository metrics:
-   ```bash
-   bash .github/copilot/skills/submodules-manage/scripts/manage-submodules.sh add <owner/repo> --info-only
-   ```
-   This outputs:
-   - **Repository size** (on-disk size, file count)
-   - **Top-level contents** (list of top-level files and directories with sizes)
-
-2. **Present findings to the user** using an interview or feedback tool. Provide:
-   - The repo size and file count from the `--info-only` output
-   - The list of top-level contents
-   - A **recommendation** on which top-level paths are relevant based on the user's task or the instruction files that reference this repository
-
-3. **Confirm checkout scope** with the user before proceeding:
-   - If the user agrees the full repo is needed, run `add` without `--sparse-paths`
-   - If the user selects specific paths, run `add` with `--sparse-paths "<comma-separated-paths>"`
-
-This process prevents unnecessarily large checkouts that waste disk space and clone time.
