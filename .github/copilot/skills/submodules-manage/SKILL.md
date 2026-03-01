@@ -1,4 +1,3 @@
-````skill
 ---
 name: submodules-manage
 description: Manage external git submodules under the external/ directory. Use this skill to add, remove, or list git submodules that provide local access to external repositories (documentation, source code) referenced by this project.
@@ -84,5 +83,3 @@ Outputs a JSON array of `{"path": "...", "url": "..."}` objects.
    - If the user selects specific paths, run `add` with `--sparse-paths "<comma-separated-paths>"`
 
 This process prevents unnecessarily large checkouts that waste disk space and clone time.
-
-````

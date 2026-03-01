@@ -1,4 +1,3 @@
-````skill
 ---
 name: submodules-display-tree
 description: Display the external/ submodule directory tree in multiple formats (tree, indented, flat). Use this to visualize the current submodule structure.
@@ -77,5 +76,3 @@ bash .github/copilot/skills/submodules-display-tree/scripts/display-tree.sh --fo
 # Custom directory
 bash .github/copilot/skills/submodules-display-tree/scripts/display-tree.sh some/other/dir --format indented
 ```
-
-````
