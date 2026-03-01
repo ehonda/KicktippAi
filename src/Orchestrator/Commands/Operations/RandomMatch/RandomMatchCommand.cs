@@ -110,6 +110,16 @@ public class RandomMatchCommand : AsyncCommand<RandomMatchSettings>
         activity?.SetTag("langfuse.trace.metadata.model", settings.Model);
         activity?.SetTag("langfuse.trace.metadata.selectedMatch", $"{match.HomeTeam} vs {match.AwayTeam}");
 
+        // Set trace input
+        var traceInput = new
+        {
+            community = settings.Community,
+            matchday,
+            model = settings.Model,
+            match = $"{match.HomeTeam} vs {match.AwayTeam}"
+        };
+        activity?.SetTag("langfuse.trace.input", JsonSerializer.Serialize(traceInput));
+
         _console.MarkupLine($"[dim]Matchday: {matchday}[/]");
 
         if (match.IsCancelled)
@@ -138,10 +148,19 @@ public class RandomMatchCommand : AsyncCommand<RandomMatchSettings>
         {
             _console.MarkupLine($"[green]  ✓ Prediction:[/] {prediction.HomeGoals}:{prediction.AwayGoals}");
             WriteJustificationIfNeeded(prediction, settings.WithJustification);
+
+            // Set trace output
+            var traceOutput = new
+            {
+                match = $"{match.HomeTeam} vs {match.AwayTeam}",
+                prediction = $"{prediction.HomeGoals}:{prediction.AwayGoals}"
+            };
+            activity?.SetTag("langfuse.trace.output", JsonSerializer.Serialize(traceOutput));
         }
         else
         {
             _console.MarkupLine($"[red]  ✗ Failed to generate prediction[/]");
+            activity?.SetTag("langfuse.trace.output", JsonSerializer.Serialize(new { error = "Failed to generate prediction" }));
         }
 
         // Display token usage summary

@@ -166,6 +166,16 @@ public class MatchdayCommand : AsyncCommand<BaseSettings>
         activity?.SetTag("langfuse.trace.metadata.community", settings.Community);
         activity?.SetTag("langfuse.trace.metadata.matchday", matchday.ToString());
         activity?.SetTag("langfuse.trace.metadata.model", settings.Model);
+
+        // Set trace input
+        var traceInput = new
+        {
+            community = settings.Community,
+            matchday,
+            model = settings.Model,
+            matches = matchesWithHistory.Select(m => $"{m.Match.HomeTeam} vs {m.Match.AwayTeam}").ToArray()
+        };
+        activity?.SetTag("langfuse.trace.input", JsonSerializer.Serialize(traceInput));
         
         _console.MarkupLine($"[green]Found {matchesWithHistory.Count} matches for current matchday[/]");
         
@@ -487,8 +497,17 @@ public class MatchdayCommand : AsyncCommand<BaseSettings>
         if (!predictions.Any())
         {
             _console.MarkupLine("[yellow]No predictions available, nothing to place[/]");
+            activity?.SetTag("langfuse.trace.output", JsonSerializer.Serialize(new { error = "No predictions available" }));
             return;
         }
+
+        // Set trace output with all predictions
+        var traceOutput = predictions.Select(p => new
+        {
+            match = $"{p.Key.HomeTeam} vs {p.Key.AwayTeam}",
+            prediction = $"{p.Value.HomeGoals}:{p.Value.AwayGoals}"
+        }).ToArray();
+        activity?.SetTag("langfuse.trace.output", JsonSerializer.Serialize(traceOutput));
         
         // Step 4: Place all predictions using PlaceBetsAsync
         _console.MarkupLine($"[blue]Placing {predictions.Count} predictions to Kicktipp...[/]");
