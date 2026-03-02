@@ -38,3 +38,4 @@ jobs:
       firebase_project_id: ${{ secrets.FIREBASE_PROJECT_ID }}
       firebase_service_account_json: ${{ secrets.FIREBASE_SERVICE_ACCOUNT_JSON }}
       openai_api_key: ${{ secrets.OPENAI_API_KEY }}
+      langfuse_secret_key: ${{ secrets.LANGFUSE_SECRET_KEY }}

@@ -38,6 +38,18 @@ LANGFUSE_BASE_URL=https://cloud.langfuse.com
 
 Confirm that `.env` is listed in `.gitignore` so credentials are never committed. (It likely already is, since `OPENAI_API_KEY` and Firebase credentials are loaded the same way.)
 
+### 6. Add Credentials to GitHub for CI/CD
+
+Langfuse tracing also runs in GitHub Actions workflows. The public key is **not a secret** (it's used as a Basic Auth username and cannot authenticate on its own), so it goes in a repository **variable**. The secret key is sensitive and goes in a repository **secret**.
+
+1. Go to **GitHub → Repository Settings → Secrets and variables → Actions**
+2. Under the **Variables** tab, create:
+   - `LANGFUSE_PUBLIC_KEY` = `pk-lf-...`
+3. Under the **Secrets** tab, create (if not already present):
+   - `LANGFUSE_SECRET_KEY` = `sk-lf-...`
+
+The base workflows read `LANGFUSE_PUBLIC_KEY` from `vars.*` (repository variables) and `LANGFUSE_SECRET_KEY` from `secrets.*` (repository secrets). Caller workflows forward only the secret key; the variable is automatically available in reusable workflows within the same repository.
+
 ---
 
 ## After Phase 1 Implementation
@@ -107,6 +119,7 @@ Before uploading datasets and running experiments:
 | Before Phase 1 | Create project + API keys | Manual (one-time) |
 | Before Phase 1 | Add credentials to `.env` | Manual (one-time) |
 | Before Phase 1 | Verify `.gitignore` | Manual (one-time) |
+| Before Phase 1 | Add credentials to GitHub (variable + secret) | Manual (one-time) |
 | After Phase 1 | Verify traces in dashboard | Manual (validation) |
 | After Phase 1 | Configure custom models (optional) | Manual (optional) |
 | Before Phase 2 | Review pricing / limits | Manual (decision) |
