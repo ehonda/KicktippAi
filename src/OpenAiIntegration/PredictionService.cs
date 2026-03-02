@@ -723,18 +723,9 @@ public class PredictionService : IPredictionService
         };
         activity.SetTag("langfuse.observation.usage_details", JsonSerializer.Serialize(usageDetails));
 
-        // Cost details
-        var costBreakdown = _costCalculationService.CalculateCostBreakdown(_model, usage);
-        if (costBreakdown is not null)
-        {
-            var costDetails = new
-            {
-                input = costBreakdown.Input,
-                cache_read_input_tokens = costBreakdown.CachedInput,
-                output = costBreakdown.Output,
-                total = costBreakdown.Total
-            };
-            activity.SetTag("langfuse.observation.cost_details", JsonSerializer.Serialize(costDetails));
-        }
+        // Cost details are intentionally omitted here: Langfuse automatically infers costs from the
+        // model name and usage_details using its maintained pricing tables, which are more up-to-date
+        // than the prices kept in this repository. Explicitly ingesting cost_details would override
+        // that inference (ingested values take priority over inferred ones).
     }
 }
