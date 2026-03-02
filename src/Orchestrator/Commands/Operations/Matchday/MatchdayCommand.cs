@@ -116,10 +116,26 @@ public class MatchdayCommand : AsyncCommand<BaseSettings>
         }
     }
     
+    /// <summary>
+    /// Communities that have production workflows invoking the matchday command.
+    /// Update this set when adding or removing community matchday workflows in .github/workflows/.
+    /// See .github/workflows/AGENTS.md for details.
+    /// </summary>
+    private static readonly HashSet<string> ProductionCommunities = new(StringComparer.OrdinalIgnoreCase)
+    {
+        "schadensfresse",
+        "pes-squad",
+        "ehonda-ai-arena"
+    };
+
     private async Task ExecuteMatchdayWorkflow(BaseSettings settings)
     {
         // Start root OTel activity for Langfuse trace
-        using var activity = Telemetry.Source.StartActivity("matchday-workflow");
+        using var activity = Telemetry.Source.StartActivity("matchday");
+
+        // Set Langfuse environment based on community
+        var environment = ProductionCommunities.Contains(settings.Community) ? "production" : "development";
+        activity?.SetTag("langfuse.environment", environment);
 
         // Create services using factories
         var kicktippClient = _kicktippClientFactory.CreateClient();

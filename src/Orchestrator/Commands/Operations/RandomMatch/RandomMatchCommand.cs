@@ -61,7 +61,10 @@ public class RandomMatchCommand : AsyncCommand<RandomMatchSettings>
     private async Task ExecuteRandomMatchWorkflow(RandomMatchSettings settings)
     {
         // Start root OTel activity for Langfuse trace
-        using var activity = Telemetry.Source.StartActivity("random-match-workflow");
+        using var activity = Telemetry.Source.StartActivity("random-match");
+
+        // RandomMatch is always a development trace
+        activity?.SetTag("langfuse.environment", "development");
 
         // Create services using factories
         var kicktippClient = _kicktippClientFactory.CreateClient();

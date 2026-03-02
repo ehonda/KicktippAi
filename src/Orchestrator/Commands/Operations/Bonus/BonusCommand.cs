@@ -104,10 +104,26 @@ public class BonusCommand : AsyncCommand<BaseSettings>
         }
     }
     
+    /// <summary>
+    /// Communities that have production workflows invoking the bonus command.
+    /// Update this set when adding or removing community bonus workflows in .github/workflows/.
+    /// See .github/workflows/AGENTS.md for details.
+    /// </summary>
+    private static readonly HashSet<string> ProductionCommunities = new(StringComparer.OrdinalIgnoreCase)
+    {
+        "schadensfresse",
+        "pes-squad",
+        "ehonda-ai-arena"
+    };
+
     private async Task ExecuteBonusWorkflow(BaseSettings settings)
     {
         // Start root OTel activity for Langfuse trace
-        using var activity = Telemetry.Source.StartActivity("bonus-workflow");
+        using var activity = Telemetry.Source.StartActivity("bonus");
+
+        // Set Langfuse environment based on community
+        var environment = ProductionCommunities.Contains(settings.Community) ? "production" : "development";
+        activity?.SetTag("langfuse.environment", environment);
 
         // Set Langfuse trace-level attributes
         activity?.SetTag("langfuse.session.id", $"bonus-{settings.Community}");

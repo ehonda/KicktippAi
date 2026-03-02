@@ -1,4 +1,5 @@
 using ContextProviders.Kicktipp;
+using System.Diagnostics;
 using EHonda.KicktippAi.Core;
 using EHonda.Optional.Core;
 using KicktippIntegration;
@@ -935,5 +936,30 @@ public static class OrchestratorTestFactories
         mockFactory.Setup(f => f.CreateClient()).Returns(mockKicktippClient.Object);
 
         return mockFactory;
+    }
+
+    /// <summary>
+    /// Creates an <see cref="ActivityListener"/> that captures activities from the "KicktippAi"
+    /// <see cref="ActivitySource"/> into the provided list. The listener uses
+    /// <see cref="ActivitySamplingResult.AllDataAndRecorded"/> to ensure all activities are recorded.
+    /// </summary>
+    /// <remarks>
+    /// The returned listener must be disposed after the test to stop capturing.
+    /// Tests using this helper should be marked with <c>[NotInParallel("Telemetry")]</c>
+    /// because <see cref="ActivitySource"/> and <see cref="ActivityListener"/> are process-global.
+    /// </remarks>
+    /// <param name="capturedActivities">The list that captured activities will be added to.</param>
+    /// <returns>A started <see cref="ActivityListener"/> that captures activities.</returns>
+    public static ActivityListener CreateActivityListener(List<Activity> capturedActivities)
+    {
+        var listener = new ActivityListener
+        {
+            ShouldListenTo = source => source.Name == "KicktippAi",
+            Sample = (ref ActivityCreationOptions<ActivityContext> _) => ActivitySamplingResult.AllDataAndRecorded,
+            ActivityStopped = activity => capturedActivities.Add(activity)
+        };
+
+        ActivitySource.AddActivityListener(listener);
+        return listener;
     }
 }
