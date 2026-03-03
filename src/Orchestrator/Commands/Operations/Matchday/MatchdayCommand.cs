@@ -1,3 +1,4 @@
+using System.Text.Json;
 using Microsoft.Extensions.Logging;
 using Spectre.Console.Cli;
 using Spectre.Console;
@@ -115,8 +116,27 @@ public class MatchdayCommand : AsyncCommand<BaseSettings>
         }
     }
     
+    /// <summary>
+    /// Communities that have production workflows invoking the matchday command.
+    /// Update this set when adding or removing community matchday workflows in .github/workflows/.
+    /// See .github/workflows/AGENTS.md for details.
+    /// </summary>
+    private static readonly HashSet<string> ProductionCommunities = new(StringComparer.OrdinalIgnoreCase)
+    {
+        "schadensfresse",
+        "pes-squad",
+        "ehonda-ai-arena"
+    };
+
     private async Task ExecuteMatchdayWorkflow(BaseSettings settings)
     {
+        // Start root OTel activity for Langfuse trace
+        using var activity = Telemetry.Source.StartActivity("matchday");
+
+        // Set Langfuse environment based on community
+        var environment = ProductionCommunities.Contains(settings.Community) ? "production" : "development";
+        activity?.SetTag("langfuse.environment", environment);
+
         // Create services using factories
         var kicktippClient = _kicktippClientFactory.CreateClient();
         var predictionService = _openAiServiceFactory.CreatePredictionService(settings.Model);
@@ -154,6 +174,24 @@ public class MatchdayCommand : AsyncCommand<BaseSettings>
             _console.MarkupLine("[yellow]No matches found for current matchday[/]");
             return;
         }
+
+        // Set Langfuse trace-level attributes now that we know the matchday
+        var matchday = matchesWithHistory.First().Match.Matchday;
+        activity?.SetTag("langfuse.session.id", $"matchday-{matchday}-{settings.Community}");
+        activity?.SetTag("langfuse.trace.tags", JsonSerializer.Serialize(new[] { settings.Community, settings.Model }));
+        activity?.SetTag("langfuse.trace.metadata.community", settings.Community);
+        activity?.SetTag("langfuse.trace.metadata.matchday", matchday.ToString());
+        activity?.SetTag("langfuse.trace.metadata.model", settings.Model);
+
+        // Set trace input
+        var traceInput = new
+        {
+            community = settings.Community,
+            matchday,
+            model = settings.Model,
+            matches = matchesWithHistory.Select(m => $"{m.Match.HomeTeam} vs {m.Match.AwayTeam}").ToArray()
+        };
+        activity?.SetTag("langfuse.trace.input", JsonSerializer.Serialize(traceInput));
         
         _console.MarkupLine($"[green]Found {matchesWithHistory.Count} matches for current matchday[/]");
         
@@ -475,8 +513,17 @@ public class MatchdayCommand : AsyncCommand<BaseSettings>
         if (!predictions.Any())
         {
             _console.MarkupLine("[yellow]No predictions available, nothing to place[/]");
+            activity?.SetTag("langfuse.trace.output", JsonSerializer.Serialize(new { error = "No predictions available" }));
             return;
         }
+
+        // Set trace output with all predictions
+        var traceOutput = predictions.Select(p => new
+        {
+            match = $"{p.Key.HomeTeam} vs {p.Key.AwayTeam}",
+            prediction = $"{p.Value.HomeGoals}:{p.Value.AwayGoals}"
+        }).ToArray();
+        activity?.SetTag("langfuse.trace.output", JsonSerializer.Serialize(traceOutput));
         
         // Step 4: Place all predictions using PlaceBetsAsync
         _console.MarkupLine($"[blue]Placing {predictions.Count} predictions to Kicktipp...[/]");

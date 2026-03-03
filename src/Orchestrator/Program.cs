@@ -2,6 +2,7 @@ using Microsoft.Extensions.DependencyInjection;
 using Spectre.Console;
 using Spectre.Console.Cli;
 using Orchestrator.Commands.Operations.Matchday;
+using Orchestrator.Commands.Operations.RandomMatch;
 using Orchestrator.Commands.Operations.Bonus;
 using Orchestrator.Commands.Operations.CollectContext;
 using Orchestrator.Commands.Operations.Verify;
@@ -46,6 +47,10 @@ public class Program
             config.AddCommand<MatchdayCommand>("matchday")
                 .WithDescription("Generate predictions for the current matchday")
                 .WithExample("matchday", "gpt-4o-2024-08-06", "--community", "ehonda-test-buli");
+
+            config.AddCommand<RandomMatchCommand>("random-match")
+                .WithDescription("Generate a prediction for a random match from the current matchday (useful for testing)")
+                .WithExample("random-match", "gpt-5-nano", "--community", "ehonda-test-buli");
 
             config.AddBranch("analyze-match", analyzeMatch =>
             {

@@ -1,4 +1,5 @@
 using Microsoft.Extensions.DependencyInjection;
+using Microsoft.Extensions.Hosting;
 using Spectre.Console.Cli;
 
 namespace Orchestrator.Infrastructure;
@@ -7,8 +8,16 @@ namespace Orchestrator.Infrastructure;
 /// Bridges Microsoft.Extensions.DependencyInjection with Spectre.Console.Cli's <see cref="ITypeRegistrar"/>.
 /// </summary>
 /// <remarks>
+/// <para>
 /// Based on the canonical implementation from spectreconsole/examples:
 /// <see href="https://github.com/spectreconsole/examples/blob/main/examples/Cli/Logging/Infrastructure/TypeRegistrar.cs"/>
+/// </para>
+/// <para>
+/// Extended to start <see cref="IHostedService"/> instances after building the
+/// <see cref="ServiceProvider"/>. This is necessary because Spectre.Console.Cli does not use
+/// <c>IHost</c>, so hosted services (e.g. OpenTelemetry's <c>TelemetryHostedService</c>)
+/// would never be started otherwise.
+/// </para>
 /// </remarks>
 public sealed class TypeRegistrar : ITypeRegistrar
 {
@@ -21,7 +30,25 @@ public sealed class TypeRegistrar : ITypeRegistrar
 
     public ITypeResolver Build()
     {
-        return new TypeResolver(_builder.BuildServiceProvider());
+        var provider = _builder.BuildServiceProvider();
+
+        // Start any registered IHostedService instances so they can initialize
+        // (e.g. OpenTelemetry builds its TracerProvider during StartAsync).
+        //
+        // Blocking wait rationale: IHostedService only exposes async lifecycle methods, but
+        // Spectre.Console.Cli calls Build() from a synchronous context (CommandExecutor.ExecuteAsync
+        // creates a synchronous `using` block around TypeResolverAdapter, which wraps our resolver).
+        // TypeResolverAdapter.Dispose() only checks for IDisposable — not IAsyncDisposable — so
+        // there is no async disposal path available. The .GetAwaiter().GetResult() bridge is required.
+        // See: spectre.console.cli/src/Spectre.Console.Cli/Internal/TypeResolverAdapter.cs
+        //      spectre.console.cli/src/Spectre.Console.Cli/Internal/CommandExecutor.cs (~line 88)
+        var hostedServices = provider.GetServices<IHostedService>().ToList();
+        foreach (var service in hostedServices)
+        {
+            service.StartAsync(CancellationToken.None).GetAwaiter().GetResult();
+        }
+
+        return new TypeResolver(provider, hostedServices);
     }
 
     public void Register(Type service, Type implementation)

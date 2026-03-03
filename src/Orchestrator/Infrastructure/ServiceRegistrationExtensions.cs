@@ -1,8 +1,13 @@
+using System.Text;
 using EHonda.KicktippAi.Core;
 using Microsoft.Extensions.DependencyInjection;
 using Microsoft.Extensions.DependencyInjection.Extensions;
 using Microsoft.Extensions.FileProviders;
 using Microsoft.Extensions.Logging;
+using OpenTelemetry.Exporter;
+using OpenTelemetry.Resources;
+using OpenTelemetry.Trace;
+using OpenAiIntegration;
 using Orchestrator.Infrastructure.Factories;
 
 namespace Orchestrator.Infrastructure;
@@ -38,8 +43,67 @@ public static class ServiceRegistrationExtensions
         services.TryAddSingleton<IOpenAiServiceFactory, OpenAiServiceFactory>();
         services.TryAddSingleton<IContextProviderFactory, ContextProviderFactory>();
 
+        // Register Langfuse/OTel tracing (no-op if credentials are absent)
+        services.AddLangfuseTracing();
+
         return services;
     }
+
+    /// <summary>
+    /// Registers the OpenTelemetry tracing pipeline with the Langfuse OTLP endpoint.
+    /// If <c>LANGFUSE_PUBLIC_KEY</c> or <c>LANGFUSE_SECRET_KEY</c> are not set,
+    /// no pipeline is registered and all <see cref="System.Diagnostics.ActivitySource.StartActivity(string)"/>
+    /// calls return <c>null</c> (graceful degradation).
+    /// </summary>
+    /// <remarks>
+    /// <para>
+    /// Uses the standard <c>AddOpenTelemetry()</c> API from <c>OpenTelemetry.Extensions.Hosting</c>,
+    /// which registers the <see cref="TracerProvider"/> as a DI-managed singleton and an
+    /// <see cref="Microsoft.Extensions.Hosting.IHostedService"/> that triggers provider construction.
+    /// Since this app uses Spectre.Console.Cli (no <c>IHost</c>), the <see cref="TypeRegistrar"/>
+    /// manually starts hosted services after building the <c>ServiceProvider</c>.
+    /// </para>
+    /// <para>
+    /// This method is idempotent — multiple calls have no additional effect.
+    /// </para>
+    /// </remarks>
+    public static IServiceCollection AddLangfuseTracing(this IServiceCollection services)
+    {
+        // Idempotency: skip if tracing has already been registered.
+        if (_langfuseTracingRegistered)
+            return services;
+
+        var publicKey = Environment.GetEnvironmentVariable("LANGFUSE_PUBLIC_KEY");
+        var secretKey = Environment.GetEnvironmentVariable("LANGFUSE_SECRET_KEY");
+
+        if (string.IsNullOrEmpty(publicKey) || string.IsNullOrEmpty(secretKey))
+        {
+            // No credentials — skip OTel registration entirely
+            return services;
+        }
+
+        _langfuseTracingRegistered = true;
+
+        var baseUrl = Environment.GetEnvironmentVariable("LANGFUSE_BASE_URL") ?? "https://cloud.langfuse.com";
+        var authHeader = $"Authorization=Basic {Convert.ToBase64String(Encoding.UTF8.GetBytes($"{publicKey}:{secretKey}"))}";
+
+        // NOTE: Setting options.Endpoint programmatically sets AppendSignalPathToEndpoint = false,
+        // so the full URL including /v1/traces must be provided.
+        services.AddOpenTelemetry()
+            .ConfigureResource(r => r.AddService("KicktippAi"))
+            .WithTracing(tracing => tracing
+                .AddSource(Telemetry.Source.Name)
+                .AddOtlpExporter(options =>
+                {
+                    options.Endpoint = new Uri($"{baseUrl}/api/public/otel/v1/traces");
+                    options.Protocol = OtlpExportProtocol.HttpProtobuf;
+                    options.Headers = authHeader;
+                }));
+
+        return services;
+    }
+
+    private static bool _langfuseTracingRegistered;
 
     /// <summary>
     /// Registers services specific to the ListKpiCommand.
@@ -117,6 +181,24 @@ public static class ServiceRegistrationExtensions
         // - Kicktipp (IKicktippClient)
         // - OpenAI (IPredictionService, ITokenUsageTracker)
         // Factory pattern handles runtime config based on settings
+
+        return services;
+    }
+
+    /// <summary>
+    /// Registers services specific to the RandomMatchCommand.
+    /// </summary>
+    /// <remarks>
+    /// This method is idempotent and ensures infrastructure is registered.
+    /// </remarks>
+    public static IServiceCollection AddRandomMatchCommandServices(this IServiceCollection services)
+    {
+        services.AddOrchestratorInfrastructure();
+
+        // RandomMatchCommand needs the same factories as MatchdayCommand:
+        // - Firebase (IPredictionRepository, IContextRepository)
+        // - Kicktipp (IKicktippClient)
+        // - OpenAI (IPredictionService, ITokenUsageTracker)
 
         return services;
     }
@@ -250,6 +332,7 @@ public static class ServiceRegistrationExtensions
         services.AddUploadKpiCommandServices();
         services.AddCostCommandServices();
         services.AddMatchdayCommandServices();
+        services.AddRandomMatchCommandServices();
         services.AddBonusCommandServices();
         services.AddVerifyMatchdayCommandServices();
         services.AddVerifyBonusCommandServices();

@@ -1,3 +1,4 @@
+using System.Text.Json;
 using EHonda.KicktippAi.Core;
 using Microsoft.Extensions.Logging;
 using Spectre.Console.Cli;
@@ -103,8 +104,35 @@ public class BonusCommand : AsyncCommand<BaseSettings>
         }
     }
     
+    /// <summary>
+    /// Communities that have production workflows invoking the bonus command.
+    /// Update this set when adding or removing community bonus workflows in .github/workflows/.
+    /// See .github/workflows/AGENTS.md for details.
+    /// </summary>
+    private static readonly HashSet<string> ProductionCommunities = new(StringComparer.OrdinalIgnoreCase)
+    {
+        "schadensfresse",
+        "pes-squad",
+        "ehonda-ai-arena"
+    };
+
     private async Task ExecuteBonusWorkflow(BaseSettings settings)
     {
+        // Start root OTel activity for Langfuse trace
+        using var activity = Telemetry.Source.StartActivity("bonus");
+
+        // Set Langfuse environment based on community
+        var environment = ProductionCommunities.Contains(settings.Community) ? "production" : "development";
+        activity?.SetTag("langfuse.environment", environment);
+
+        // Set Langfuse trace-level attributes
+        activity?.SetTag("langfuse.session.id", $"bonus-{settings.Community}");
+        activity?.SetTag("langfuse.trace.tags", JsonSerializer.Serialize(new[] { settings.Community, settings.Model }));
+        activity?.SetTag("langfuse.trace.metadata.community", settings.Community);
+        activity?.SetTag("langfuse.trace.metadata.model", settings.Model);
+
+        // Note: trace input is set after bonus questions are fetched
+
         // Create services using factories
         var kicktippClient = _kicktippClientFactory.CreateClient();
         var predictionService = _openAiServiceFactory.CreatePredictionService(settings.Model);
@@ -144,6 +172,15 @@ public class BonusCommand : AsyncCommand<BaseSettings>
         }
         
         _console.MarkupLine($"[green]Found {bonusQuestions.Count} open bonus questions[/]");
+
+        // Set trace input now that we know the questions
+        var traceInput = new
+        {
+            community = settings.Community,
+            model = settings.Model,
+            questions = bonusQuestions.Select(q => q.Text).ToArray()
+        };
+        activity?.SetTag("langfuse.trace.input", JsonSerializer.Serialize(traceInput));
         
         if (databaseEnabled)
         {
@@ -358,8 +395,17 @@ public class BonusCommand : AsyncCommand<BaseSettings>
         if (!predictions.Any())
         {
             _console.MarkupLine("[yellow]No predictions available, nothing to place[/]");
+            activity?.SetTag("langfuse.trace.output", JsonSerializer.Serialize(new { error = "No predictions available" }));
             return;
         }
+
+        // Set trace output with all bonus predictions
+        var traceOutput = predictions.Select(p => new
+        {
+            question = p.Key,
+            selectedOptionIds = p.Value.SelectedOptionIds
+        }).ToArray();
+        activity?.SetTag("langfuse.trace.output", JsonSerializer.Serialize(traceOutput));
         
         // Step 4: Place all predictions using PlaceBonusPredictionsAsync
         _console.MarkupLine($"[blue]Placing {predictions.Count} bonus predictions to Kicktipp...[/]");

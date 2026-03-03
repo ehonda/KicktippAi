@@ -1,0 +1,24 @@
+[submodule "external/thomhurst/TUnit"]
+	path = external/thomhurst/TUnit
+	url = https://github.com/thomhurst/TUnit.git
+[submodule "external/spectreconsole/website"]
+	path = external/spectreconsole/website
+	url = https://github.com/spectreconsole/website.git
+[submodule "external/wiremock/wiremock.org"]
+	path = external/wiremock/wiremock.org
+	url = https://github.com/wiremock/wiremock.org.git
+[submodule "external/spectreconsole/spectre.console"]
+	path = external/spectreconsole/spectre.console
+	url = https://github.com/spectreconsole/spectre.console.git
+[submodule "external/openai/openai-dotnet"]
+	path = external/openai/openai-dotnet
+	url = https://github.com/openai/openai-dotnet.git
+[submodule "external/wiremock/WireMock.Net"]
+	path = external/wiremock/WireMock.Net
+	url = https://github.com/wiremock/WireMock.Net.git
+[submodule "external/dotnet/dotnet-api-docs"]
+	path = external/dotnet/dotnet-api-docs
+	url = https://github.com/dotnet/dotnet-api-docs.git
+[submodule "external/spectreconsole/spectre.console.cli"]
+	path = external/spectreconsole/spectre.console.cli
+	url = https://github.com/spectreconsole/spectre.console.cli.git

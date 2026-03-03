@@ -1,0 +1,89 @@
+# KicktippAi Agent Context
+
+This document contains context relevant when working on tasks in this repository.
+
+## Gathering Information
+
+We use different external dependencies, some of which are partially or fully available locally via git submodules. When gathering information like
+
+- Code
+- Documentation
+- Usage examples
+
+search it in the following places, in that order:
+
+1. Local git submodules (See [Submodule Tree](#submodule-tree))
+2. GitHub via MCP
+3. Web search
+
+## Git Submodules
+
+### Submodule Tree
+
+@agent-files/submodule-tree.txt
+
+### Updating the Submodules
+
+When you encounter a dependency that is not available locally, and which has a chance of being consulted multiple times, use the `submodules-manage` skill to add it or part of it as a git submodule. This will make it available locally for future reference and easy agentic access.
+
+## Running and Filtering Tests
+
+This project uses TUnit for testing, which has some differences compared to more common frameworks like xUnit or NUnit. They are documented in the following sections.
+
+### Running Tests
+
+Always use `dotnet run` instead of `dotnet test` to run TUnit tests:
+
+```powershell
+dotnet run --project tests/MyProject.Tests
+```
+
+To see available command-line options:
+
+```powershell
+dotnet run --project tests/MyProject.Tests -- --help
+```
+
+### Filtering Tests
+
+Use `--treenode-filter` to run specific tests. The filter syntax is:
+
+```text
+/<Assembly>/<Namespace>/<Class>/<Test>
+```
+
+Use `*` as a wildcard and `**` for multi-level matching.
+
+**Common Filter Patterns:**
+
+| Goal | Command |
+|------|---------|
+| Run all tests in a class | `dotnet run -- --treenode-filter "/*/*/MyTestClass/*"` |
+| Run a specific test | `dotnet run -- --treenode-filter "/*/*/*/My_test_name"` |
+| Run tests matching a prefix | `dotnet run -- --treenode-filter "/*/*/*/Adding_*"` |
+| Run all tests in matching classes | `dotnet run -- --treenode-filter "/*/*/MyService*/**"` |
+
+**Combining Filters:**
+
+Use `&` (AND) and `|` (OR) operators. OR requires parentheses at the name level:
+
+```powershell
+# Tests starting with "Valid" OR "Invalid"
+dotnet run -- --treenode-filter "/*/*/*/(Valid*)|(Invalid*)"
+```
+
+**Filtering by Properties:**
+
+Filter tests by custom properties using `[PropertyName=Value]`:
+
+```powershell
+dotnet run -- --treenode-filter "/*/*/*/*[Category=Unit]"
+```
+
+### Listing Available Tests
+
+To see all available tests without running them:
+
+```powershell
+dotnet run -- --list-tests
+```

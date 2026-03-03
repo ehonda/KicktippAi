@@ -1,4 +1,5 @@
 using System.Collections.Generic;
+using System.Diagnostics;
 using System.Linq;
 using System.Text.Json;
 using System.Text.Json.Serialization;
@@ -83,6 +84,9 @@ public class PredictionService : IPredictionService
 
             _logger.LogDebug("Calling OpenAI API for prediction");
 
+            // Start an OTel activity for Langfuse generation tracking
+            using var activity = Telemetry.Source.StartActivity("predict-match");
+
             // Call OpenAI with structured output format
             var response = await _chatClient.CompleteChatAsync(
                 messages,
@@ -109,6 +113,9 @@ public class PredictionService : IPredictionService
             var usage = response.Value.Usage;
             _logger.LogDebug("Token usage - Input: {InputTokens}, Output: {OutputTokens}, Total: {TotalTokens}",
                 usage.InputTokenCount, usage.OutputTokenCount, usage.TotalTokenCount);
+
+            // Set Langfuse generation attributes on the activity
+            SetLangfuseGenerationAttributes(activity, messages, predictionJson, usage);
 
             // Add usage to tracker
             _tokenUsageTracker.AddUsage(_model, usage);
@@ -159,6 +166,9 @@ public class PredictionService : IPredictionService
             // Create JSON schema based on the question
             var jsonSchema = CreateSingleBonusPredictionJsonSchema(bonusQuestion);
 
+            // Start an OTel activity for Langfuse generation tracking
+            using var activity = Telemetry.Source.StartActivity("predict-bonus");
+
             // Call OpenAI with structured output format
             var response = await _chatClient.CompleteChatAsync(
                 messages,
@@ -188,6 +198,9 @@ public class PredictionService : IPredictionService
             var usage = response.Value.Usage;
             _logger.LogDebug("Token usage - Input: {InputTokens}, Output: {OutputTokens}, Total: {TotalTokens}",
                 usage.InputTokenCount, usage.OutputTokenCount, usage.TotalTokenCount);
+
+            // Set Langfuse generation attributes on the activity
+            SetLangfuseGenerationAttributes(activity, messages, predictionJson, usage);
 
             // Add usage to tracker
             _tokenUsageTracker.AddUsage(_model, usage);
@@ -663,5 +676,56 @@ public class PredictionService : IPredictionService
     {
         [JsonPropertyName("selectedOptionIds")]
         public string[] SelectedOptionIds { get; set; } = Array.Empty<string>();
+    }
+
+    /// <summary>
+    /// Sets Langfuse-mapped OpenTelemetry attributes on the given activity.
+    /// If <paramref name="activity"/> is <c>null</c> (no OTel listener registered), this is a no-op.
+    /// </summary>
+    private void SetLangfuseGenerationAttributes(
+        Activity? activity,
+        List<ChatMessage> messages,
+        string responseJson,
+        ChatTokenUsage usage)
+    {
+        if (activity is null)
+            return;
+
+        activity.SetTag("langfuse.observation.type", "generation");
+        activity.SetTag("gen_ai.request.model", _model);
+
+        // Serialize messages as input (system prompt + user message)
+        var inputMessages = messages.Select(m => new
+        {
+            role = m switch
+            {
+                SystemChatMessage => "system",
+                UserChatMessage => "user",
+                _ => "unknown"
+            },
+            content = m switch
+            {
+                SystemChatMessage s => s.Content[0].Text,
+                UserChatMessage u => u.Content[0].Text,
+                _ => string.Empty
+            }
+        });
+        activity.SetTag("langfuse.observation.input", JsonSerializer.Serialize(inputMessages));
+        activity.SetTag("langfuse.observation.output", responseJson);
+
+        // Token usage details
+        var usageDetails = new
+        {
+            input = usage.InputTokenCount,
+            output = usage.OutputTokenCount,
+            cache_read_input_tokens = usage.InputTokenDetails?.CachedTokenCount ?? 0,
+            reasoning_tokens = usage.OutputTokenDetails?.ReasoningTokenCount ?? 0
+        };
+        activity.SetTag("langfuse.observation.usage_details", JsonSerializer.Serialize(usageDetails));
+
+        // Cost details are intentionally omitted here: Langfuse automatically infers costs from the
+        // model name and usage_details using its maintained pricing tables, which are more up-to-date
+        // than the prices kept in this repository. Explicitly ingesting cost_details would override
+        // that inference (ingested values take priority over inferred ones).
     }
 }

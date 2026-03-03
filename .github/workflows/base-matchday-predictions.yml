@@ -46,6 +46,9 @@ on:
       openai_api_key:
         description: 'OpenAI API key'
         required: true
+      langfuse_secret_key:
+        description: 'Langfuse secret key for tracing'
+        required: false
 
 env:
   TZ: 'Europe/Berlin'
@@ -116,6 +119,8 @@ jobs:
           FIREBASE_PROJECT_ID: ${{ secrets.firebase_project_id }}
           FIREBASE_SERVICE_ACCOUNT_JSON: ${{ secrets.firebase_service_account_json }}
           OPENAI_API_KEY: ${{ secrets.openai_api_key }}
+          LANGFUSE_PUBLIC_KEY: ${{ vars.LANGFUSE_PUBLIC_KEY }}
+          LANGFUSE_SECRET_KEY: ${{ secrets.langfuse_secret_key }}
           
       - name: Final verification
         if: steps.verify.outcome == 'failure' || inputs.force_prediction == true
