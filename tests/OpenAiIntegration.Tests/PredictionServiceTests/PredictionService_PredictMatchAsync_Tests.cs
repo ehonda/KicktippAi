@@ -33,7 +33,7 @@ public class PredictionService_PredictMatchAsync_Tests : PredictionServiceTests_
             actualMatch,
             actualContextDocs,
             includeJustification,
-            cancellationToken);
+            cancellationToken: cancellationToken);
     }
 
     [Test]

@@ -112,11 +112,11 @@ public class RandomMatchCommand : AsyncCommand<RandomMatchSettings>
         LangfuseActivityPropagation.SetTraceTags(activity, traceTags);
         LangfuseActivityPropagation.SetTraceMetadata(activity, "community", settings.Community);
         LangfuseActivityPropagation.SetTraceMetadata(activity, "matchday", matchday.ToString());
-        activity?.SetTag("langfuse.trace.metadata.model", settings.Model);
-        activity?.SetTag("langfuse.trace.metadata.homeTeams", PredictionTelemetryMetadata.BuildDelimitedFilterValue(new[] { match.HomeTeam }));
-        activity?.SetTag("langfuse.trace.metadata.awayTeams", PredictionTelemetryMetadata.BuildDelimitedFilterValue(new[] { match.AwayTeam }));
-        activity?.SetTag("langfuse.trace.metadata.teams", PredictionTelemetryMetadata.BuildDelimitedFilterValue(new[] { match.HomeTeam, match.AwayTeam }));
-        activity?.SetTag("langfuse.trace.metadata.selectedMatch", $"{match.HomeTeam} vs {match.AwayTeam}");
+        LangfuseActivityPropagation.SetTraceMetadata(activity, "model", settings.Model);
+        LangfuseActivityPropagation.SetTraceMetadata(activity, "homeTeams", PredictionTelemetryMetadata.BuildDelimitedFilterValue(new[] { match.HomeTeam }), propagateToObservations: false);
+        LangfuseActivityPropagation.SetTraceMetadata(activity, "awayTeams", PredictionTelemetryMetadata.BuildDelimitedFilterValue(new[] { match.AwayTeam }), propagateToObservations: false);
+        LangfuseActivityPropagation.SetTraceMetadata(activity, "teams", PredictionTelemetryMetadata.BuildDelimitedFilterValue(new[] { match.HomeTeam, match.AwayTeam }), propagateToObservations: false);
+        LangfuseActivityPropagation.SetTraceMetadata(activity, "selectedMatch", $"{match.HomeTeam} vs {match.AwayTeam}", propagateToObservations: false);
 
         // Set trace input
         var traceInput = new

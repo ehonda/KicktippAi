@@ -131,8 +131,8 @@ public class BonusCommand : AsyncCommand<BaseSettings>
         LangfuseActivityPropagation.SetSessionId(activity, sessionId);
         LangfuseActivityPropagation.SetTraceTags(activity, traceTags);
         LangfuseActivityPropagation.SetTraceMetadata(activity, "community", settings.Community);
-        activity?.SetTag("langfuse.trace.metadata.model", settings.Model);
-        activity?.SetTag("langfuse.trace.metadata.repredictMode", settings.IsRepredictMode ? "true" : "false");
+        LangfuseActivityPropagation.SetTraceMetadata(activity, "model", settings.Model);
+        LangfuseActivityPropagation.SetTraceMetadata(activity, "repredictMode", settings.IsRepredictMode ? "true" : "false");
 
         // Note: trace input is set after bonus questions are fetched
 
@@ -411,8 +411,8 @@ public class BonusCommand : AsyncCommand<BaseSettings>
 
         if (traceRepredictionIndices.Count > 0)
         {
-            activity?.SetTag("langfuse.trace.metadata.repredictionIndices", PredictionTelemetryMetadata.BuildDelimitedFilterValue(traceRepredictionIndices));
-            activity?.SetTag("langfuse.trace.metadata.hasRepredictions", traceRepredictionIndices.Any(index => index != "0") ? "true" : "false");
+            LangfuseActivityPropagation.SetTraceMetadata(activity, "repredictionIndices", PredictionTelemetryMetadata.BuildDelimitedFilterValue(traceRepredictionIndices), propagateToObservations: false);
+            LangfuseActivityPropagation.SetTraceMetadata(activity, "hasRepredictions", traceRepredictionIndices.Any(index => index != "0") ? "true" : "false", propagateToObservations: false);
         }
         
         if (!predictions.Any())

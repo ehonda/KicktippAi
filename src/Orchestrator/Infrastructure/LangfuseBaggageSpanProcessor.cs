@@ -1,6 +1,7 @@
 using System.Diagnostics;
 using OpenTelemetry;
 using OpenTelemetry.Trace;
+using OpenAiIntegration;
 
 namespace Orchestrator.Infrastructure;
 
@@ -27,6 +28,22 @@ public sealed class LangfuseBaggageSpanProcessor : BaseProcessor<Activity>
             {
                 data.SetTag(baggage.Key, baggage.Value);
             }
+        }
+
+        foreach (var metadata in LangfuseActivityPropagation.GetObservationMetadata(data))
+        {
+            if (data.GetTagItem(metadata.Key) is null)
+            {
+                data.SetTag(metadata.Key, metadata.Value);
+            }
+        }
+    }
+
+    public override void OnEnd(Activity data)
+    {
+        if (data.ParentSpanId == default)
+        {
+            LangfuseActivityPropagation.ClearTraceMetadata(data);
         }
     }
 }

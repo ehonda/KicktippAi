@@ -100,6 +100,7 @@ public class BonusCommand_DryRun_Tests : BonusCommandTests_Base
         context.PredictionService.Verify(s => s.PredictBonusQuestionAsync(
             It.IsAny<BonusQuestion>(),
             It.IsAny<IEnumerable<DocumentContext>>(),
+            It.IsAny<OpenAiIntegration.PredictionTelemetryMetadata?>(),
             It.IsAny<CancellationToken>()), Times.Once);
     }
 

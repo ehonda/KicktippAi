@@ -337,7 +337,7 @@ public class MatchdayCommand_AdditionalCoverage_Tests : MatchdayCommandTests_Bas
         await Assert.That(output).Contains("Warning:");
         await Assert.That(output).Contains("Falling back");
         ctx.PredictionService.Verify(
-            s => s.PredictMatchAsync(It.IsAny<Match>(), It.Is<IEnumerable<DocumentContext>>(docs => docs.Count() >= 3), It.IsAny<bool>(), It.IsAny<CancellationToken>()),
+            s => s.PredictMatchAsync(It.IsAny<Match>(), It.Is<IEnumerable<DocumentContext>>(docs => docs.Count() >= 3), It.IsAny<bool>(), It.IsAny<OpenAiIntegration.PredictionTelemetryMetadata?>(), It.IsAny<CancellationToken>()),
             Times.Once);
     }
 
@@ -375,6 +375,7 @@ public class MatchdayCommand_AdditionalCoverage_Tests : MatchdayCommandTests_Bas
                     docs.Any(d => d.Name == "bundesliga-standings.csv" && d.Content.Contains("Bayern")) &&
                     docs.Any(d => d.Name == "new-document.csv")),
                 It.IsAny<bool>(),
+                It.IsAny<OpenAiIntegration.PredictionTelemetryMetadata?>(),
                 It.IsAny<CancellationToken>()),
             Times.Once);
     }

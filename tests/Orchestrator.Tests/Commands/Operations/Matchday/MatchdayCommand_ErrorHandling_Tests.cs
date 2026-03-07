@@ -47,7 +47,7 @@ public class MatchdayCommand_ErrorHandling_Tests : MatchdayCommandTests_Base
     {
         var mockPredictionService = new Mock<IPredictionService>();
         mockPredictionService
-            .Setup(s => s.PredictMatchAsync(It.IsAny<Match>(), It.IsAny<IEnumerable<DocumentContext>>(), It.IsAny<bool>(), It.IsAny<CancellationToken>()))
+            .Setup(s => s.PredictMatchAsync(It.IsAny<Match>(), It.IsAny<IEnumerable<DocumentContext>>(), It.IsAny<bool>(), It.IsAny<OpenAiIntegration.PredictionTelemetryMetadata?>(), It.IsAny<CancellationToken>()))
             .ThrowsAsync(new InvalidOperationException("API error"));
         mockPredictionService
             .Setup(s => s.GetMatchPromptPath(It.IsAny<bool>()))
@@ -68,7 +68,7 @@ public class MatchdayCommand_ErrorHandling_Tests : MatchdayCommandTests_Base
         var callCount = 0;
         var mockPredictionService = new Mock<IPredictionService>();
         mockPredictionService
-            .Setup(s => s.PredictMatchAsync(It.IsAny<Match>(), It.IsAny<IEnumerable<DocumentContext>>(), It.IsAny<bool>(), It.IsAny<CancellationToken>()))
+            .Setup(s => s.PredictMatchAsync(It.IsAny<Match>(), It.IsAny<IEnumerable<DocumentContext>>(), It.IsAny<bool>(), It.IsAny<OpenAiIntegration.PredictionTelemetryMetadata?>(), It.IsAny<CancellationToken>()))
             .Returns(() =>
             {
                 callCount++;

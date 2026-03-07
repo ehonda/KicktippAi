@@ -40,6 +40,7 @@ public class BonusCommand_ErrorHandling_Tests : BonusCommandTests_Base
         mockPredictionService.Setup(s => s.PredictBonusQuestionAsync(
                 It.IsAny<BonusQuestion>(),
                 It.IsAny<IEnumerable<DocumentContext>>(),
+            It.IsAny<OpenAiIntegration.PredictionTelemetryMetadata?>(),
                 It.IsAny<CancellationToken>()))
             .ThrowsAsync(new InvalidOperationException("API error"));
 
@@ -73,6 +74,7 @@ public class BonusCommand_ErrorHandling_Tests : BonusCommandTests_Base
         mockPredictionService.Setup(s => s.PredictBonusQuestionAsync(
                 It.IsAny<BonusQuestion>(),
                 It.IsAny<IEnumerable<DocumentContext>>(),
+            It.IsAny<OpenAiIntegration.PredictionTelemetryMetadata?>(),
                 It.IsAny<CancellationToken>()))
             .ReturnsAsync(() =>
             {

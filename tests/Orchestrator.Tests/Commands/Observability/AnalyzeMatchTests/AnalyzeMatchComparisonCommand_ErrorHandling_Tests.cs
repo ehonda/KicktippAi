@@ -76,6 +76,7 @@ public class AnalyzeMatchComparisonCommand_ErrorHandling_Tests : AnalyzeMatchTes
                 It.IsAny<Match>(),
                 It.IsAny<IEnumerable<DocumentContext>>(),
                 It.IsAny<bool>(),
+            It.IsAny<OpenAiIntegration.PredictionTelemetryMetadata?>(),
                 It.IsAny<CancellationToken>()))
             .ThrowsAsync(new InvalidOperationException("Service unavailable"));
         var mockOpenAiFactory = CreateMockOpenAiServiceFactory(predictionService: mockPredictionService);

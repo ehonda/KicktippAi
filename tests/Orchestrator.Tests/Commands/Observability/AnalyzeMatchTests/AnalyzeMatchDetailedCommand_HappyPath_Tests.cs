@@ -64,6 +64,7 @@ public class AnalyzeMatchDetailedCommand_HappyPath_Tests : AnalyzeMatchTests_Bas
                 It.IsAny<EHonda.KicktippAi.Core.Match>(),
                 It.IsAny<IEnumerable<DocumentContext>>(),
                 true,
+                It.IsAny<OpenAiIntegration.PredictionTelemetryMetadata?>(),
                 It.IsAny<CancellationToken>()),
             Times.Once());
     }

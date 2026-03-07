@@ -164,7 +164,7 @@ public class MatchdayCommand_Modes_Tests : MatchdayCommandTests_Base
         await RunCommandAsync(ctx.App, ctx.Console, "matchday", "gpt-4o", "-c", "test-community", "--with-justification");
 
         ctx.PredictionService.Verify(
-            s => s.PredictMatchAsync(It.IsAny<Match>(), It.IsAny<IEnumerable<DocumentContext>>(), true, It.IsAny<CancellationToken>()),
+            s => s.PredictMatchAsync(It.IsAny<Match>(), It.IsAny<IEnumerable<DocumentContext>>(), true, It.IsAny<OpenAiIntegration.PredictionTelemetryMetadata?>(), It.IsAny<CancellationToken>()),
             Times.Once);
     }
 
@@ -176,7 +176,7 @@ public class MatchdayCommand_Modes_Tests : MatchdayCommandTests_Base
         await RunCommandAsync(ctx.App, ctx.Console, "matchday", "gpt-4o", "-c", "test-community");
 
         ctx.PredictionService.Verify(
-            s => s.PredictMatchAsync(It.IsAny<Match>(), It.IsAny<IEnumerable<DocumentContext>>(), false, It.IsAny<CancellationToken>()),
+            s => s.PredictMatchAsync(It.IsAny<Match>(), It.IsAny<IEnumerable<DocumentContext>>(), false, It.IsAny<OpenAiIntegration.PredictionTelemetryMetadata?>(), It.IsAny<CancellationToken>()),
             Times.Once);
     }
 

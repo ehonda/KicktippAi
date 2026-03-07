@@ -1,4 +1,5 @@
 using System.Diagnostics;
+using System.Collections.Concurrent;
 using System.Text.Json;
 
 namespace OpenAiIntegration;
@@ -8,6 +9,8 @@ namespace OpenAiIntegration;
 /// </summary>
 public static class LangfuseActivityPropagation
 {
+    private static readonly ConcurrentDictionary<string, ConcurrentDictionary<string, string>> TraceMetadataByTraceId = new(StringComparer.Ordinal);
+
     public static void SetEnvironment(Activity? activity, string? environment)
     {
         SetTagAndBaggage(activity, "langfuse.environment", environment);
@@ -41,7 +44,44 @@ public static class LangfuseActivityPropagation
         if (propagateToObservations)
         {
             activity.AddBaggage($"langfuse.observation.metadata.{metadataKey}", value);
+            RegisterTraceMetadata(activity, metadataKey, value);
         }
+    }
+
+    public static IEnumerable<KeyValuePair<string, string>> GetObservationMetadata(Activity activity)
+    {
+        if (activity.TraceId == default)
+        {
+            return [];
+        }
+
+        return TraceMetadataByTraceId.TryGetValue(activity.TraceId.ToString(), out var metadata)
+            ? metadata.Select(pair => new KeyValuePair<string, string>($"langfuse.observation.metadata.{pair.Key}", pair.Value))
+            : [];
+    }
+
+    public static void ClearTraceMetadata(Activity activity)
+    {
+        if (activity.TraceId == default)
+        {
+            return;
+        }
+
+        TraceMetadataByTraceId.TryRemove(activity.TraceId.ToString(), out _);
+    }
+
+    private static void RegisterTraceMetadata(Activity activity, string metadataKey, string value)
+    {
+        if (activity.TraceId == default)
+        {
+            return;
+        }
+
+        var traceMetadata = TraceMetadataByTraceId.GetOrAdd(
+            activity.TraceId.ToString(),
+            _ => new ConcurrentDictionary<string, string>(StringComparer.Ordinal));
+
+        traceMetadata[metadataKey] = value;
     }
 
     private static void SetTagAndBaggage(Activity? activity, string attributeName, string? value)

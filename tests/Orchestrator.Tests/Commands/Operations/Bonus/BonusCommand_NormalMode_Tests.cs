@@ -281,6 +281,7 @@ public class BonusCommand_NormalMode_Tests : BonusCommandTests_Base
         mockPredictionService.Setup(s => s.PredictBonusQuestionAsync(
                 It.IsAny<BonusQuestion>(),
                 It.IsAny<IEnumerable<DocumentContext>>(),
+            It.IsAny<OpenAiIntegration.PredictionTelemetryMetadata?>(),
                 It.IsAny<CancellationToken>()))
             .ReturnsAsync((BonusPrediction?)null);
         var mockOpenAiFactory = CreateMockOpenAiServiceFactory(predictionService: mockPredictionService);
@@ -305,6 +306,7 @@ public class BonusCommand_NormalMode_Tests : BonusCommandTests_Base
         mockPredictionService.Setup(s => s.PredictBonusQuestionAsync(
                 It.IsAny<BonusQuestion>(),
                 It.IsAny<IEnumerable<DocumentContext>>(),
+            It.IsAny<OpenAiIntegration.PredictionTelemetryMetadata?>(),
                 It.IsAny<CancellationToken>()))
             .ReturnsAsync((BonusPrediction?)null);
         var mockOpenAiFactory = CreateMockOpenAiServiceFactory(predictionService: mockPredictionService);

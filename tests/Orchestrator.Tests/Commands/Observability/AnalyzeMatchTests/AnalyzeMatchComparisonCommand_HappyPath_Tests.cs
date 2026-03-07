@@ -52,6 +52,7 @@ public class AnalyzeMatchComparisonCommand_HappyPath_Tests : AnalyzeMatchTests_B
                 It.IsAny<EHonda.KicktippAi.Core.Match>(),
                 It.IsAny<IEnumerable<DocumentContext>>(),
                 true,
+                It.IsAny<OpenAiIntegration.PredictionTelemetryMetadata?>(),
                 It.IsAny<CancellationToken>()),
             Times.Once());
 
@@ -60,6 +61,7 @@ public class AnalyzeMatchComparisonCommand_HappyPath_Tests : AnalyzeMatchTests_B
                 It.IsAny<EHonda.KicktippAi.Core.Match>(),
                 It.IsAny<IEnumerable<DocumentContext>>(),
                 false,
+                It.IsAny<OpenAiIntegration.PredictionTelemetryMetadata?>(),
                 It.IsAny<CancellationToken>()),
             Times.Once());
     }
@@ -88,6 +90,7 @@ public class AnalyzeMatchComparisonCommand_HappyPath_Tests : AnalyzeMatchTests_B
                 It.IsAny<EHonda.KicktippAi.Core.Match>(),
                 It.IsAny<IEnumerable<DocumentContext>>(),
                 It.IsAny<bool>(),
+                It.IsAny<OpenAiIntegration.PredictionTelemetryMetadata?>(),
                 It.IsAny<CancellationToken>()),
             Times.Exactly(6));
     }

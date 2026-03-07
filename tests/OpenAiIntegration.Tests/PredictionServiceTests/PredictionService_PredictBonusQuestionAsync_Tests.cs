@@ -30,7 +30,7 @@ public class PredictionService_PredictBonusQuestionAsync_Tests : PredictionServi
         return actualService.PredictBonusQuestionAsync(
             actualBonusQuestion,
             actualContextDocs,
-            cancellationToken);
+            cancellationToken: cancellationToken);
     }
 
     [Test]

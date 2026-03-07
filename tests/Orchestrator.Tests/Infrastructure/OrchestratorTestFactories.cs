@@ -249,6 +249,7 @@ public static class OrchestratorTestFactories
                 It.IsAny<Match>(),
                 It.IsAny<IEnumerable<DocumentContext>>(),
                 It.IsAny<bool>(),
+            It.IsAny<OpenAiIntegration.PredictionTelemetryMetadata?>(),
                 It.IsAny<CancellationToken>()))
             .ReturnsAsync(prediction);
 
@@ -259,6 +260,7 @@ public static class OrchestratorTestFactories
         mock.Setup(s => s.PredictBonusQuestionAsync(
                 It.IsAny<BonusQuestion>(),
                 It.IsAny<IEnumerable<DocumentContext>>(),
+            It.IsAny<OpenAiIntegration.PredictionTelemetryMetadata?>(),
                 It.IsAny<CancellationToken>()))
             .ReturnsAsync(bonusPrediction);
 
