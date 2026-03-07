@@ -64,7 +64,7 @@ public class RandomMatchCommand : AsyncCommand<RandomMatchSettings>
         using var activity = Telemetry.Source.StartActivity("random-match");
 
         // RandomMatch is always a development trace
-        activity?.SetTag("langfuse.environment", "development");
+        LangfuseActivityPropagation.SetEnvironment(activity, "development");
 
         // Create services using factories
         var kicktippClient = _kicktippClientFactory.CreateClient();
@@ -106,11 +106,16 @@ public class RandomMatchCommand : AsyncCommand<RandomMatchSettings>
 
         // Set Langfuse trace-level attributes
         var matchday = match.Matchday;
-        activity?.SetTag("langfuse.session.id", $"random-match-{matchday}-{settings.Community}");
-        activity?.SetTag("langfuse.trace.tags", JsonSerializer.Serialize(new[] { settings.Community, settings.Model, "random-match" }));
-        activity?.SetTag("langfuse.trace.metadata.community", settings.Community);
-        activity?.SetTag("langfuse.trace.metadata.matchday", matchday.ToString());
+        var sessionId = $"random-match-{matchday}-{settings.Community}";
+        var traceTags = new[] { settings.Community, settings.Model, "random-match" };
+        LangfuseActivityPropagation.SetSessionId(activity, sessionId);
+        LangfuseActivityPropagation.SetTraceTags(activity, traceTags);
+        LangfuseActivityPropagation.SetTraceMetadata(activity, "community", settings.Community);
+        LangfuseActivityPropagation.SetTraceMetadata(activity, "matchday", matchday.ToString());
         activity?.SetTag("langfuse.trace.metadata.model", settings.Model);
+        activity?.SetTag("langfuse.trace.metadata.homeTeams", PredictionTelemetryMetadata.BuildDelimitedFilterValue(new[] { match.HomeTeam }));
+        activity?.SetTag("langfuse.trace.metadata.awayTeams", PredictionTelemetryMetadata.BuildDelimitedFilterValue(new[] { match.AwayTeam }));
+        activity?.SetTag("langfuse.trace.metadata.teams", PredictionTelemetryMetadata.BuildDelimitedFilterValue(new[] { match.HomeTeam, match.AwayTeam }));
         activity?.SetTag("langfuse.trace.metadata.selectedMatch", $"{match.HomeTeam} vs {match.AwayTeam}");
 
         // Set trace input
@@ -145,7 +150,12 @@ public class RandomMatchCommand : AsyncCommand<RandomMatchSettings>
         _console.MarkupLine($"[dim]    Using {contextDocuments.Count} context documents[/]");
 
         // Predict the match
-        var prediction = await predictionService.PredictMatchAsync(match, contextDocuments, settings.WithJustification);
+        var telemetryMetadata = new PredictionTelemetryMetadata(
+            HomeTeam: match.HomeTeam,
+            AwayTeam: match.AwayTeam,
+            RepredictionIndex: 0);
+
+        var prediction = await predictionService.PredictMatchAsync(match, contextDocuments, settings.WithJustification, telemetryMetadata);
 
         if (prediction != null)
         {

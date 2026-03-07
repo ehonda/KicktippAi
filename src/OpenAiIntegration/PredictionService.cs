@@ -58,6 +58,7 @@ public class PredictionService : IPredictionService
         Match match, 
         IEnumerable<DocumentContext> contextDocuments, 
         bool includeJustification = false,
+        PredictionTelemetryMetadata? telemetryMetadata = null,
         CancellationToken cancellationToken = default)
     {
         _logger.LogInformation("Generating prediction for match: {HomeTeam} vs {AwayTeam} at {StartTime}", 
@@ -115,7 +116,7 @@ public class PredictionService : IPredictionService
                 usage.InputTokenCount, usage.OutputTokenCount, usage.TotalTokenCount);
 
             // Set Langfuse generation attributes on the activity
-            SetLangfuseGenerationAttributes(activity, messages, predictionJson, usage);
+            SetLangfuseGenerationAttributes(activity, messages, predictionJson, usage, telemetryMetadata);
 
             // Add usage to tracker
             _tokenUsageTracker.AddUsage(_model, usage);
@@ -138,6 +139,7 @@ public class PredictionService : IPredictionService
     public async Task<BonusPrediction?> PredictBonusQuestionAsync(
         BonusQuestion bonusQuestion,
         IEnumerable<DocumentContext> contextDocuments,
+        PredictionTelemetryMetadata? telemetryMetadata = null,
         CancellationToken cancellationToken = default)
     {
         _logger.LogInformation("Generating prediction for bonus question: {QuestionText}", bonusQuestion.Text);
@@ -200,7 +202,7 @@ public class PredictionService : IPredictionService
                 usage.InputTokenCount, usage.OutputTokenCount, usage.TotalTokenCount);
 
             // Set Langfuse generation attributes on the activity
-            SetLangfuseGenerationAttributes(activity, messages, predictionJson, usage);
+            SetLangfuseGenerationAttributes(activity, messages, predictionJson, usage, telemetryMetadata);
 
             // Add usage to tracker
             _tokenUsageTracker.AddUsage(_model, usage);
@@ -686,7 +688,8 @@ public class PredictionService : IPredictionService
         Activity? activity,
         List<ChatMessage> messages,
         string responseJson,
-        ChatTokenUsage usage)
+        ChatTokenUsage usage,
+        PredictionTelemetryMetadata? telemetryMetadata)
     {
         if (activity is null)
             return;
@@ -712,6 +715,7 @@ public class PredictionService : IPredictionService
         });
         activity.SetTag("langfuse.observation.input", JsonSerializer.Serialize(inputMessages));
         activity.SetTag("langfuse.observation.output", responseJson);
+        telemetryMetadata?.ApplyToObservation(activity);
 
         // Token usage details
         var usageDetails = new

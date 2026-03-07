@@ -123,13 +123,16 @@ public class BonusCommand : AsyncCommand<BaseSettings>
 
         // Set Langfuse environment based on community
         var environment = ProductionCommunities.Contains(settings.Community) ? "production" : "development";
-        activity?.SetTag("langfuse.environment", environment);
+        LangfuseActivityPropagation.SetEnvironment(activity, environment);
 
         // Set Langfuse trace-level attributes
-        activity?.SetTag("langfuse.session.id", $"bonus-{settings.Community}");
-        activity?.SetTag("langfuse.trace.tags", JsonSerializer.Serialize(new[] { settings.Community, settings.Model }));
-        activity?.SetTag("langfuse.trace.metadata.community", settings.Community);
+        var sessionId = $"bonus-{settings.Community}";
+        var traceTags = new[] { settings.Community, settings.Model };
+        LangfuseActivityPropagation.SetSessionId(activity, sessionId);
+        LangfuseActivityPropagation.SetTraceTags(activity, traceTags);
+        LangfuseActivityPropagation.SetTraceMetadata(activity, "community", settings.Community);
         activity?.SetTag("langfuse.trace.metadata.model", settings.Model);
+        activity?.SetTag("langfuse.trace.metadata.repredictMode", settings.IsRepredictMode ? "true" : "false");
 
         // Note: trace input is set after bonus questions are fetched
 
@@ -157,6 +160,7 @@ public class BonusCommand : AsyncCommand<BaseSettings>
         
         // Determine community context (use explicit setting or fall back to community name)
         string communityContext = settings.CommunityContext ?? settings.Community;
+        LangfuseActivityPropagation.SetTraceMetadata(activity, "communityContext", communityContext);
         
         _console.MarkupLine($"[blue]Using community:[/] [yellow]{settings.Community}[/]");
         _console.MarkupLine($"[blue]Using community context:[/] [yellow]{communityContext}[/]");
@@ -188,6 +192,7 @@ public class BonusCommand : AsyncCommand<BaseSettings>
         }
         
         var predictions = new Dictionary<string, BonusPrediction>();
+        var traceRepredictionIndices = new HashSet<string>(StringComparer.Ordinal);
         
         // Step 2: For each question, check database first, then predict if needed
         foreach (var question in bonusQuestions)
@@ -199,6 +204,7 @@ public class BonusCommand : AsyncCommand<BaseSettings>
                 BonusPrediction? prediction = null;
                 bool fromDatabase = false;
                 bool shouldPredict = false;
+                int? predictionRepredictionIndex = settings.IsRepredictMode ? null : 0;
                 
                 // Check if we have an existing prediction in the database
                 if (databaseEnabled && !settings.OverrideDatabase && !settings.IsRepredictMode)
@@ -231,6 +237,7 @@ public class BonusCommand : AsyncCommand<BaseSettings>
                     {
                         // No prediction exists yet - create first prediction
                         shouldPredict = true;
+                        predictionRepredictionIndex = 0;
                         _console.MarkupLine($"[yellow]  → No existing prediction found, creating first prediction...[/]");
                     }
                     else
@@ -242,10 +249,12 @@ public class BonusCommand : AsyncCommand<BaseSettings>
                         if (nextIndex <= maxAllowed)
                         {
                             shouldPredict = true;
+                            predictionRepredictionIndex = nextIndex;
                             _console.MarkupLine($"[yellow]  → Creating reprediction {nextIndex} (current: {currentRepredictionIndex}, max: {maxAllowed})...[/]");
                         }
                         else
                         {
+                            traceRepredictionIndices.Add(currentRepredictionIndex.ToString());
                             _console.MarkupLine($"[yellow]  ✗ Skipped - already at max repredictions ({currentRepredictionIndex}/{maxAllowed})[/]");
                             
                             // Get the latest prediction for display purposes
@@ -283,12 +292,20 @@ public class BonusCommand : AsyncCommand<BaseSettings>
                     {
                         _console.MarkupLine($"[dim]    Using {contextDocuments.Count} KPI context documents[/]");
                     }
+
+                    var telemetryMetadata = new PredictionTelemetryMetadata(
+                        RepredictionIndex: predictionRepredictionIndex);
                     
                     // Predict the bonus question
-                    prediction = await predictionService.PredictBonusQuestionAsync(question, contextDocuments);
+                    prediction = await predictionService.PredictBonusQuestionAsync(question, contextDocuments, telemetryMetadata);
                     
                     if (prediction != null)
                     {
+                        if (predictionRepredictionIndex.HasValue)
+                        {
+                            traceRepredictionIndices.Add(predictionRepredictionIndex.Value.ToString());
+                        }
+
                         if (settings.Agent)
                         {
                             _console.MarkupLine($"[green]  ✓ Generated prediction[/]");
@@ -390,6 +407,12 @@ public class BonusCommand : AsyncCommand<BaseSettings>
                 _logger.LogError(ex, "Error processing bonus question '{QuestionText}'", question.Text);
                 _console.MarkupLine($"[red]  ✗ Error processing question: {ex.Message}[/]");
             }
+        }
+
+        if (traceRepredictionIndices.Count > 0)
+        {
+            activity?.SetTag("langfuse.trace.metadata.repredictionIndices", PredictionTelemetryMetadata.BuildDelimitedFilterValue(traceRepredictionIndices));
+            activity?.SetTag("langfuse.trace.metadata.hasRepredictions", traceRepredictionIndices.Any(index => index != "0") ? "true" : "false");
         }
         
         if (!predictions.Any())

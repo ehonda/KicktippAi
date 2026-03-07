@@ -18,6 +18,7 @@ public interface IPredictionService
         Match match, 
         IEnumerable<DocumentContext> contextDocuments, 
         bool includeJustification = false,
+        PredictionTelemetryMetadata? telemetryMetadata = null,
         CancellationToken cancellationToken = default);
 
     /// <summary>
@@ -30,6 +31,7 @@ public interface IPredictionService
     Task<BonusPrediction?> PredictBonusQuestionAsync(
         BonusQuestion bonusQuestion,
         IEnumerable<DocumentContext> contextDocuments,
+        PredictionTelemetryMetadata? telemetryMetadata = null,
         CancellationToken cancellationToken = default);
 
     /// <summary>

@@ -93,6 +93,7 @@ public static class ServiceRegistrationExtensions
             .ConfigureResource(r => r.AddService("KicktippAi"))
             .WithTracing(tracing => tracing
                 .AddSource(Telemetry.Source.Name)
+                .AddProcessor(new LangfuseBaggageSpanProcessor())
                 .AddOtlpExporter(options =>
                 {
                     options.Endpoint = new Uri($"{baseUrl}/api/public/otel/v1/traces");

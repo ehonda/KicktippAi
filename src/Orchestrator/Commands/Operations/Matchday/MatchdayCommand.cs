@@ -135,7 +135,7 @@ public class MatchdayCommand : AsyncCommand<BaseSettings>
 
         // Set Langfuse environment based on community
         var environment = ProductionCommunities.Contains(settings.Community) ? "production" : "development";
-        activity?.SetTag("langfuse.environment", environment);
+        LangfuseActivityPropagation.SetEnvironment(activity, environment);
 
         // Create services using factories
         var kicktippClient = _kicktippClientFactory.CreateClient();
@@ -177,11 +177,18 @@ public class MatchdayCommand : AsyncCommand<BaseSettings>
 
         // Set Langfuse trace-level attributes now that we know the matchday
         var matchday = matchesWithHistory.First().Match.Matchday;
-        activity?.SetTag("langfuse.session.id", $"matchday-{matchday}-{settings.Community}");
-        activity?.SetTag("langfuse.trace.tags", JsonSerializer.Serialize(new[] { settings.Community, settings.Model }));
-        activity?.SetTag("langfuse.trace.metadata.community", settings.Community);
-        activity?.SetTag("langfuse.trace.metadata.matchday", matchday.ToString());
+        var sessionId = $"matchday-{matchday}-{settings.Community}";
+        var traceTags = new[] { settings.Community, settings.Model };
+        LangfuseActivityPropagation.SetSessionId(activity, sessionId);
+        LangfuseActivityPropagation.SetTraceTags(activity, traceTags);
+        LangfuseActivityPropagation.SetTraceMetadata(activity, "community", settings.Community);
+        LangfuseActivityPropagation.SetTraceMetadata(activity, "communityContext", communityContext);
+        LangfuseActivityPropagation.SetTraceMetadata(activity, "matchday", matchday.ToString());
         activity?.SetTag("langfuse.trace.metadata.model", settings.Model);
+        activity?.SetTag("langfuse.trace.metadata.homeTeams", PredictionTelemetryMetadata.BuildDelimitedFilterValue(matchesWithHistory.Select(m => m.Match.HomeTeam)));
+        activity?.SetTag("langfuse.trace.metadata.awayTeams", PredictionTelemetryMetadata.BuildDelimitedFilterValue(matchesWithHistory.Select(m => m.Match.AwayTeam)));
+        activity?.SetTag("langfuse.trace.metadata.teams", PredictionTelemetryMetadata.BuildDelimitedFilterValue(matchesWithHistory.SelectMany(m => new[] { m.Match.HomeTeam, m.Match.AwayTeam })));
+        activity?.SetTag("langfuse.trace.metadata.repredictMode", settings.IsRepredictMode ? "true" : "false");
 
         // Set trace input
         var traceInput = new
@@ -201,6 +208,7 @@ public class MatchdayCommand : AsyncCommand<BaseSettings>
         }
         
         var predictions = new Dictionary<Match, BetPrediction>();
+        var traceRepredictionIndices = new HashSet<string>(StringComparer.Ordinal);
         
         // Step 2: For each match, check database first, then predict if needed
         foreach (var matchWithHistory in matchesWithHistory)
@@ -221,6 +229,7 @@ public class MatchdayCommand : AsyncCommand<BaseSettings>
                 Prediction? prediction = null;
                 bool fromDatabase = false;
                 bool shouldPredict = false;
+                int? predictionRepredictionIndex = settings.IsRepredictMode ? null : 0;
                 
                 // Check if we have an existing prediction in the database
                 if (databaseEnabled && !settings.OverrideDatabase && !settings.IsRepredictMode)
@@ -271,6 +280,7 @@ public class MatchdayCommand : AsyncCommand<BaseSettings>
                     {
                         // No prediction exists yet - create first prediction
                         shouldPredict = true;
+                        predictionRepredictionIndex = 0;
                         _console.MarkupLine($"[yellow]  → No existing prediction found, creating first prediction...[/]");
                     }
                     else
@@ -287,10 +297,12 @@ public class MatchdayCommand : AsyncCommand<BaseSettings>
                             if (isOutdated)
                             {
                                 shouldPredict = true;
+                                predictionRepredictionIndex = nextIndex;
                                 _console.MarkupLine($"[yellow]  → Creating reprediction {nextIndex} (current: {currentRepredictionIndex}, max: {maxAllowed}) - prediction is outdated[/]");
                             }
                             else
                             {
+                                traceRepredictionIndices.Add(currentRepredictionIndex.ToString());
                                 _console.MarkupLine($"[green]  ✓ Skipped reprediction - current prediction is up-to-date[/]");
                                 
                                 // Get the latest prediction for display purposes
@@ -318,6 +330,7 @@ public class MatchdayCommand : AsyncCommand<BaseSettings>
                         }
                         else
                         {
+                            traceRepredictionIndices.Add(currentRepredictionIndex.ToString());
                             _console.MarkupLine($"[yellow]  ✗ Skipped - already at max repredictions ({currentRepredictionIndex}/{maxAllowed})[/]");
                             
                             // Get the latest prediction for display purposes
@@ -392,11 +405,21 @@ public class MatchdayCommand : AsyncCommand<BaseSettings>
                         }
                     }
                     
+                    var telemetryMetadata = new PredictionTelemetryMetadata(
+                        HomeTeam: match.HomeTeam,
+                        AwayTeam: match.AwayTeam,
+                        RepredictionIndex: predictionRepredictionIndex);
+
                     // Predict the match
-                    prediction = await predictionService.PredictMatchAsync(match, contextDocuments, settings.WithJustification);
+                    prediction = await predictionService.PredictMatchAsync(match, contextDocuments, settings.WithJustification, telemetryMetadata);
                     
                     if (prediction != null)
                     {
+                        if (predictionRepredictionIndex.HasValue)
+                        {
+                            traceRepredictionIndices.Add(predictionRepredictionIndex.Value.ToString());
+                        }
+
                         if (settings.Agent)
                         {
                             _console.MarkupLine($"[green]  ✓ Generated prediction[/]");
@@ -508,6 +531,12 @@ public class MatchdayCommand : AsyncCommand<BaseSettings>
                 _logger.LogError(ex, "Error processing match {Match}", match);
                 _console.MarkupLine($"[red]  ✗ Error processing match: {ex.Message}[/]");
             }
+        }
+
+        if (traceRepredictionIndices.Count > 0)
+        {
+            activity?.SetTag("langfuse.trace.metadata.repredictionIndices", PredictionTelemetryMetadata.BuildDelimitedFilterValue(traceRepredictionIndices));
+            activity?.SetTag("langfuse.trace.metadata.hasRepredictions", traceRepredictionIndices.Any(index => index != "0") ? "true" : "false");
         }
         
         if (!predictions.Any())
