@@ -11,6 +11,7 @@ using NodaTime;
 using Orchestrator.Commands.Operations.CollectContext;
 using Orchestrator.Infrastructure;
 using Orchestrator.Infrastructure.Factories;
+using Orchestrator.Services;
 using Spectre.Console;
 using Spectre.Console.Cli;
 using Spectre.Console.Testing;
@@ -97,6 +98,8 @@ public abstract class CollectContextKicktippCommandTests_Base
         services.AddSingleton(mockFirebaseFactory.Object);
         services.AddSingleton(mockKicktippFactory.Object);
         services.AddSingleton(mockContextProviderFactory.Object);
+        services.AddSingleton<ILogger<MatchOutcomeCollectionService>>(new FakeLogger<MatchOutcomeCollectionService>());
+        services.AddSingleton<MatchOutcomeCollectionService>();
         services.AddSingleton<ILogger<CollectContextKicktippCommand>>(new FakeLogger<CollectContextKicktippCommand>());
 
         var registrar = new TypeRegistrar(services);

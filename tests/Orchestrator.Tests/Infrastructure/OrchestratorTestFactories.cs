@@ -8,6 +8,7 @@ using Microsoft.Extensions.FileProviders;
 using Microsoft.Extensions.Logging;
 using Microsoft.Extensions.Logging.Testing;
 using Moq;
+using NodaTime;
 using OpenAiIntegration;
 using Orchestrator.Commands.Utility.ListKpi;
 using Orchestrator.Commands.Utility.Snapshots;
@@ -166,7 +167,9 @@ public static class OrchestratorTestFactories
         Option<Dictionary<Match, BetPrediction?>> placedPredictions = default,
         Option<List<BonusQuestion>> openBonusQuestions = default,
         Option<bool> placeBonusPredictionsResult = default,
-        Option<Dictionary<string, BonusPrediction?>> placedBonusPredictions = default)
+        Option<Dictionary<string, BonusPrediction?>> placedBonusPredictions = default,
+        Option<int> currentTippuebersichtMatchday = default,
+        Option<IReadOnlyList<CollectedMatchOutcome>> matchdayOutcomes = default)
     {
         var mock = new Mock<IKicktippClient>();
         var matches = matchesWithHistory.Or(() => []);
@@ -175,9 +178,17 @@ public static class OrchestratorTestFactories
         var bonusQuestions = openBonusQuestions.Or(() => []);
         var bonusResult = placeBonusPredictionsResult.Or(true);
         var bonusPredictions = placedBonusPredictions.Or(() => new Dictionary<string, BonusPrediction?>());
+        var currentMatchday = currentTippuebersichtMatchday.Or(25);
+        var outcomes = matchdayOutcomes.Or(() => []);
 
         mock.Setup(c => c.GetMatchesWithHistoryAsync(It.IsAny<string>()))
             .ReturnsAsync(matches);
+
+        mock.Setup(c => c.GetCurrentTippuebersichtMatchdayAsync(It.IsAny<string>()))
+            .ReturnsAsync(currentMatchday);
+
+        mock.Setup(c => c.GetMatchdayOutcomesAsync(It.IsAny<string>(), It.IsAny<int>()))
+            .ReturnsAsync(outcomes);
 
         mock.Setup(c => c.PlaceBetsAsync(It.IsAny<string>(), It.IsAny<Dictionary<Match, BetPrediction>>(), It.IsAny<bool>()))
             .ReturnsAsync(betsResult);
@@ -196,6 +207,57 @@ public static class OrchestratorTestFactories
 
         mock.Setup(c => c.GetPlacedBonusPredictionsAsync(It.IsAny<string>()))
             .ReturnsAsync(bonusPredictions);
+
+        return mock;
+    }
+
+    /// <summary>
+    /// Creates a mock <see cref="IMatchOutcomeRepository"/> with configurable behavior.
+    /// </summary>
+    /// <param name="incompleteMatchdays">Matchdays returned by GetIncompleteMatchdaysAsync. Defaults to empty list.</param>
+    /// <param name="matchdayOutcomes">Persisted outcomes returned by GetMatchdayOutcomesAsync. Defaults to empty list.</param>
+    /// <param name="upsertResult">Result returned by UpsertMatchOutcomeAsync. Defaults to unchanged.</param>
+    public static Mock<IMatchOutcomeRepository> CreateMockMatchOutcomeRepository(
+        Option<IReadOnlyList<int>> incompleteMatchdays = default,
+        Option<IReadOnlyList<PersistedMatchOutcome>> matchdayOutcomes = default,
+        Option<MatchOutcomeUpsertResult> upsertResult = default)
+    {
+        var mock = new Mock<IMatchOutcomeRepository>();
+        var incomplete = incompleteMatchdays.Or(() => []);
+        var outcomes = matchdayOutcomes.Or(() => []);
+        var result = upsertResult.Or(() => new MatchOutcomeUpsertResult(
+            MatchOutcomeWriteDisposition.Unchanged,
+            new PersistedMatchOutcome(
+                "test-community",
+                "Bundesliga",
+                "FC Bayern Muenchen",
+                "Borussia Dortmund",
+                Instant.FromUtc(2025, 3, 15, 15, 30).InUtc(),
+                25,
+                2,
+                1,
+                MatchOutcomeAvailability.Completed,
+                "test-tippspiel-id",
+                new DateTimeOffset(2025, 3, 15, 15, 30, 0, TimeSpan.Zero),
+                new DateTimeOffset(2025, 3, 15, 15, 30, 0, TimeSpan.Zero))));
+
+        mock.Setup(r => r.GetIncompleteMatchdaysAsync(
+                It.IsAny<string>(),
+                It.IsAny<int>(),
+                It.IsAny<CancellationToken>()))
+            .ReturnsAsync(incomplete);
+
+        mock.Setup(r => r.GetMatchdayOutcomesAsync(
+                It.IsAny<int>(),
+                It.IsAny<string>(),
+                It.IsAny<CancellationToken>()))
+            .ReturnsAsync(outcomes);
+
+        mock.Setup(r => r.UpsertMatchOutcomeAsync(
+                It.IsAny<CollectedMatchOutcome>(),
+                It.IsAny<string>(),
+                It.IsAny<CancellationToken>()))
+            .ReturnsAsync(result);
 
         return mock;
     }
@@ -687,16 +749,19 @@ public static class OrchestratorTestFactories
     public static Mock<IFirebaseServiceFactory> CreateMockFirebaseServiceFactoryFull(
         Option<Mock<IKpiRepository>> kpiRepository = default,
         Option<Mock<IPredictionRepository>> predictionRepository = default,
-        Option<Mock<IContextRepository>> contextRepository = default)
+        Option<Mock<IContextRepository>> contextRepository = default,
+        Option<Mock<IMatchOutcomeRepository>> matchOutcomeRepository = default)
     {
         var mockFactory = new Mock<IFirebaseServiceFactory>();
         var mockKpiRepo = kpiRepository.Or(() => new Mock<IKpiRepository>());
         var mockPredictionRepo = predictionRepository.Or(() => CreateMockPredictionRepository());
         var mockContextRepo = contextRepository.Or(() => CreateMockContextRepository());
+        var mockMatchOutcomeRepo = matchOutcomeRepository.Or(() => CreateMockMatchOutcomeRepository());
 
         mockFactory.Setup(f => f.CreateKpiRepository()).Returns(mockKpiRepo.Object);
         mockFactory.Setup(f => f.CreatePredictionRepository()).Returns(mockPredictionRepo.Object);
         mockFactory.Setup(f => f.CreateContextRepository()).Returns(mockContextRepo.Object);
+        mockFactory.Setup(f => f.CreateMatchOutcomeRepository()).Returns(mockMatchOutcomeRepo.Object);
 
         return mockFactory;
     }
