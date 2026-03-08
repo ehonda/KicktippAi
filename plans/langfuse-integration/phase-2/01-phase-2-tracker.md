@@ -29,15 +29,15 @@ Set up a reproducible Langfuse experiment workflow for KicktippAi that can:
 - Shared context consolidated into [00-common-context.md](00-common-context.md)
 - Manual actions consolidated into [manual-steps.md](manual-steps.md)
 - Domain-specific first-milestone design kept in [buli-25-26-experiments.md](buli-25-26-experiments.md)
-- No implementation task has started yet
+- Task 1 data-foundation decisions are being locked and implemented
 
 ## Cross-Task Risks
 
-### 1. Actual Outcome Source Not Yet Confirmed
+### 1. Outcome Persistence Must Be Added
 
-The current Firestore prediction and context models clearly support prediction export and prompt reconstruction inputs. They do not yet clearly prove where authoritative actual match outcomes should be loaded from for dataset `expectedOutput`.
+The current Firestore prediction and context models clearly support prediction export and prompt reconstruction inputs. Actual match outcomes should be scraped from Kicktipp `tippuebersicht` pages by matchday and persisted into a new Firebase collection before dataset export can rely on them.
 
-This must be resolved in Task 1.
+Task 1 must add the repository and collection seam for this.
 
 ### 2. Runner Language Is Not Locked
 

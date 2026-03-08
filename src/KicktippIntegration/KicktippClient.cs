@@ -1,4 +1,5 @@
 using System.Net;
+using Regex = System.Text.RegularExpressions.Regex;
 using AngleSharp;
 using AngleSharp.Dom;
 using AngleSharp.Html.Dom;
@@ -788,6 +789,53 @@ public class KicktippClient : IKicktippClient, IDisposable
     }
 
     /// <inheritdoc />
+    public async Task<int> GetCurrentTippuebersichtMatchdayAsync(string community)
+    {
+        var document = await GetTippuebersichtDocumentAsync(community, null);
+        if (document == null)
+        {
+            return 1;
+        }
+
+        return ExtractMatchdayFromPage(document);
+    }
+
+    /// <inheritdoc />
+    public async Task<IReadOnlyList<CollectedMatchOutcome>> GetMatchdayOutcomesAsync(string community, int matchday)
+    {
+        var cacheKey = $"tippuebersicht_outcomes_{community}_{matchday}";
+        if (_cache.TryGetValue(cacheKey, out IReadOnlyList<CollectedMatchOutcome>? cachedOutcomes))
+        {
+            _logger.LogDebug("Retrieved tippuebersicht outcomes for {Community} matchday {Matchday} from cache", community, matchday);
+            return cachedOutcomes;
+        }
+
+        var document = await GetTippuebersichtDocumentAsync(community, matchday);
+        if (document == null)
+        {
+            return Array.Empty<CollectedMatchOutcome>();
+        }
+
+        var displayedMatchday = ExtractMatchdayFromPage(document);
+        if (displayedMatchday != matchday)
+        {
+            _logger.LogWarning("Requested tippuebersicht matchday {RequestedMatchday}, but page displayed {DisplayedMatchday}", matchday, displayedMatchday);
+        }
+
+        var outcomes = ParseTippuebersichtMatchdayOutcomes(document, displayedMatchday)
+            .AsReadOnly();
+
+        var cacheOptions = new MemoryCacheEntryOptions
+        {
+            AbsoluteExpirationRelativeToNow = TimeSpan.FromMinutes(10),
+            SlidingExpiration = TimeSpan.FromMinutes(5)
+        };
+
+        _cache.Set(cacheKey, outcomes, cacheOptions);
+        return outcomes;
+    }
+
+    /// <inheritdoc />
     public async Task<(List<MatchResult> homeTeamHomeHistory, List<MatchResult> awayTeamAwayHistory)> GetHomeAwayHistoryAsync(string community, string homeTeam, string awayTeam)
     {
         try
@@ -1497,6 +1545,125 @@ public class KicktippClient : IKicktippClient, IDisposable
     private static bool IsCancelledTimeText(string timeText)
     {
         return string.Equals(timeText, "Abgesagt", StringComparison.OrdinalIgnoreCase);
+    }
+
+    private async Task<IDocument?> GetTippuebersichtDocumentAsync(string community, int? matchday)
+    {
+        try
+        {
+            var url = matchday.HasValue
+                ? $"{community}/tippuebersicht?spieltagIndex={matchday.Value}"
+                : $"{community}/tippuebersicht";
+
+            var response = await _httpClient.GetAsync(url);
+            if (!response.IsSuccessStatusCode)
+            {
+                _logger.LogError("Failed to fetch tippuebersicht page {Url}. Status: {StatusCode}", url, response.StatusCode);
+                return null;
+            }
+
+            var content = await response.Content.ReadAsStringAsync();
+            return await _browsingContext.OpenAsync(req => req.Content(content));
+        }
+        catch (Exception ex)
+        {
+            _logger.LogError(ex, "Error fetching tippuebersicht page for {Community} matchday {Matchday}", community, matchday);
+            return null;
+        }
+    }
+
+    private List<CollectedMatchOutcome> ParseTippuebersichtMatchdayOutcomes(IDocument document, int matchday)
+    {
+        var outcomes = new List<CollectedMatchOutcome>();
+
+        var matchTable = document.QuerySelector("#spielplanSpiele tbody");
+        if (matchTable == null)
+        {
+            _logger.LogWarning("Could not find tippuebersicht match table for matchday {Matchday}", matchday);
+            return outcomes;
+        }
+
+        var matchRows = matchTable.QuerySelectorAll("tr");
+        string lastValidTimeText = string.Empty;
+
+        foreach (var row in matchRows)
+        {
+            try
+            {
+                var cells = row.QuerySelectorAll("td");
+                if (cells.Length < 4)
+                {
+                    continue;
+                }
+
+                var timeText = cells[0].TextContent?.Trim() ?? string.Empty;
+                var homeTeam = cells[1].TextContent?.Trim() ?? string.Empty;
+                var awayTeam = cells[2].TextContent?.Trim() ?? string.Empty;
+
+                if (string.IsNullOrWhiteSpace(homeTeam) || string.IsNullOrWhiteSpace(awayTeam))
+                {
+                    continue;
+                }
+
+                var isCancelled = IsCancelledTimeText(timeText);
+                if (string.IsNullOrWhiteSpace(timeText) || isCancelled)
+                {
+                    if (!string.IsNullOrWhiteSpace(lastValidTimeText))
+                    {
+                        timeText = lastValidTimeText;
+                    }
+                }
+                else
+                {
+                    lastValidTimeText = timeText;
+                }
+
+                var startsAt = ParseMatchDateTime(timeText);
+                var (homeGoals, awayGoals, availability) = ParseMatchOutcome(cells[3]);
+                var tippSpielId = ExtractTippSpielId(row.GetAttribute("data-url"));
+
+                outcomes.Add(new CollectedMatchOutcome(
+                    homeTeam,
+                    awayTeam,
+                    startsAt,
+                    matchday,
+                    homeGoals,
+                    awayGoals,
+                    availability,
+                    tippSpielId));
+            }
+            catch (Exception ex)
+            {
+                _logger.LogWarning(ex, "Error parsing tippuebersicht row for matchday {Matchday}", matchday);
+            }
+        }
+
+        _logger.LogInformation("Parsed {MatchCount} tippuebersicht matches for matchday {Matchday}", outcomes.Count, matchday);
+        return outcomes;
+    }
+
+    private static (int? homeGoals, int? awayGoals, MatchOutcomeAvailability availability) ParseMatchOutcome(IElement resultCell)
+    {
+        var homeGoalText = resultCell.QuerySelector(".kicktipp-heim")?.TextContent?.Trim();
+        var awayGoalText = resultCell.QuerySelector(".kicktipp-gast")?.TextContent?.Trim();
+
+        if (int.TryParse(homeGoalText, out var homeGoals) && int.TryParse(awayGoalText, out var awayGoals))
+        {
+            return (homeGoals, awayGoals, MatchOutcomeAvailability.Completed);
+        }
+
+        return (null, null, MatchOutcomeAvailability.Pending);
+    }
+
+    private static string? ExtractTippSpielId(string? dataUrl)
+    {
+        if (string.IsNullOrWhiteSpace(dataUrl))
+        {
+            return null;
+        }
+
+        var match = Regex.Match(dataUrl, @"(?:\?|&)tippspielId=(\d+)");
+        return match.Success ? match.Groups[1].Value : null;
     }
 
     /// <inheritdoc />

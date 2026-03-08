@@ -47,6 +47,13 @@ public sealed class FirebaseServiceFactory : IFirebaseServiceFactory
         return new FirebaseContextRepository(FirestoreDb, logger);
     }
 
+    /// <inheritdoc />
+    public IMatchOutcomeRepository CreateMatchOutcomeRepository()
+    {
+        var logger = _loggerFactory.CreateLogger<FirebaseMatchOutcomeRepository>();
+        return new FirebaseMatchOutcomeRepository(FirestoreDb, logger);
+    }
+
     private FirestoreDb InitializeFirestoreDb()
     {
         var projectId = Environment.GetEnvironmentVariable("FIREBASE_PROJECT_ID");

@@ -22,7 +22,14 @@ This is how our dataset should look
   - **historical prediction baseline:** Optional, but useful for later comparisons against already stored predictions
   - `matchday`, `season`, `homeTeam`, `awayTeam`: We might use this to filter during experiments, analze results, etc.
 - Use JSON schemas to validate the entries in dataset columns
-- We can create most of this dataset from historic prediction records plus versioned context documents in Firestore; the authoritative source for actual outcomes still needs to be confirmed explicitly during implementation
+- We can create most of this dataset from historic prediction records plus versioned context documents in Firestore; actual outcomes should be collected from Kicktipp `tippuebersicht` pages and persisted into Firebase before export materialization runs
+
+## Scope Decisions
+
+- Dataset scope is the Kicktipp `community`
+- The first hosted dataset rollout targets only `pes-squad`
+- The initial slice is all completed Bundesliga 2025/2026 matches available in `pes-squad`
+- Matches without persisted outcomes must be excluded from dataset export until they are completed
 
 ## Dataset for Bonus Predictions
 

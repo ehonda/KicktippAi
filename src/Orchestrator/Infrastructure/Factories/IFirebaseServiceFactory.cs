@@ -34,4 +34,10 @@ public interface IFirebaseServiceFactory
     /// </summary>
     /// <returns>A context repository instance.</returns>
     IContextRepository CreateContextRepository();
+
+    /// <summary>
+    /// Creates a match outcome repository instance.
+    /// </summary>
+    /// <returns>A match outcome repository instance.</returns>
+    IMatchOutcomeRepository CreateMatchOutcomeRepository();
 }

@@ -31,6 +31,8 @@ The experiment dataset is only credible if prompt reconstruction is deterministi
 - [src/FirebaseAdapter/FirebaseContextRepository.cs](src/FirebaseAdapter/FirebaseContextRepository.cs)
 - [src/OpenAiIntegration/PredictionService.cs](src/OpenAiIntegration/PredictionService.cs)
 
+Task 2 should assume that actual outcomes already come from the persisted Firebase match-outcome store created in Task 1. Prompt reconstruction should not scrape live Kicktipp data during dataset export.
+
 ## Manual Steps
 
 Use [manual-steps.md](manual-steps.md#task-2--prompt-reconstruction) during implementation.

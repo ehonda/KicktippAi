@@ -9,6 +9,7 @@ using OpenTelemetry.Resources;
 using OpenTelemetry.Trace;
 using OpenAiIntegration;
 using Orchestrator.Infrastructure.Factories;
+using Orchestrator.Services;
 
 namespace Orchestrator.Infrastructure;
 
@@ -42,6 +43,7 @@ public static class ServiceRegistrationExtensions
         services.TryAddSingleton<IKicktippClientFactory, KicktippClientFactory>();
         services.TryAddSingleton<IOpenAiServiceFactory, OpenAiServiceFactory>();
         services.TryAddSingleton<IContextProviderFactory, ContextProviderFactory>();
+        services.TryAddTransient<MatchOutcomeCollectionService>();
 
         // Register Langfuse/OTel tracing (no-op if credentials are absent)
         services.AddLangfuseTracing();
@@ -258,7 +260,7 @@ public static class ServiceRegistrationExtensions
         services.AddOrchestratorInfrastructure();
 
         // CollectContextKicktippCommand needs:
-        // - Firebase (IContextRepository)
+        // - Firebase (IContextRepository, IMatchOutcomeRepository)
         // - Kicktipp (IKicktippClient)
 
         return services;

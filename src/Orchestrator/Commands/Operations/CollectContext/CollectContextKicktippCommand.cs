@@ -3,6 +3,7 @@ using Spectre.Console.Cli;
 using Spectre.Console;
 using EHonda.KicktippAi.Core;
 using Orchestrator.Infrastructure.Factories;
+using Orchestrator.Services;
 
 namespace Orchestrator.Commands.Operations.CollectContext;
 
@@ -15,6 +16,7 @@ public class CollectContextKicktippCommand : AsyncCommand<CollectContextKicktipp
     private readonly IFirebaseServiceFactory _firebaseServiceFactory;
     private readonly IKicktippClientFactory _kicktippClientFactory;
     private readonly IContextProviderFactory _contextProviderFactory;
+    private readonly MatchOutcomeCollectionService _matchOutcomeCollectionService;
     private readonly ILogger<CollectContextKicktippCommand> _logger;
 
     public CollectContextKicktippCommand(
@@ -22,12 +24,14 @@ public class CollectContextKicktippCommand : AsyncCommand<CollectContextKicktipp
         IFirebaseServiceFactory firebaseServiceFactory,
         IKicktippClientFactory kicktippClientFactory,
         IContextProviderFactory contextProviderFactory,
+        MatchOutcomeCollectionService matchOutcomeCollectionService,
         ILogger<CollectContextKicktippCommand> logger)
     {
         _console = console;
         _firebaseServiceFactory = firebaseServiceFactory;
         _kicktippClientFactory = kicktippClientFactory;
         _contextProviderFactory = contextProviderFactory;
+        _matchOutcomeCollectionService = matchOutcomeCollectionService;
         _logger = logger;
     }
 
@@ -70,6 +74,12 @@ public class CollectContextKicktippCommand : AsyncCommand<CollectContextKicktipp
 
     private async Task ExecuteKicktippContextCollection(CollectContextKicktippSettings settings)
     {
+        var outcomeCollectionResult = await _matchOutcomeCollectionService.CollectAsync(
+            settings.CommunityContext,
+            settings.DryRun);
+
+        PrintOutcomeCollectionSummary(outcomeCollectionResult, settings);
+
         // Create services using factories (factories handle env var loading)
         var kicktippClient = _kicktippClientFactory.CreateClient();
         var contextRepository = _firebaseServiceFactory.CreateContextRepository();
@@ -204,5 +214,34 @@ public class CollectContextKicktippCommand : AsyncCommand<CollectContextKicktipp
         return documentName.StartsWith("recent-history-", StringComparison.OrdinalIgnoreCase) ||
                documentName.StartsWith("home-history-", StringComparison.OrdinalIgnoreCase) ||
                documentName.StartsWith("away-history-", StringComparison.OrdinalIgnoreCase);
+    }
+
+    private void PrintOutcomeCollectionSummary(MatchOutcomeCollectionResult result, CollectContextKicktippSettings settings)
+    {
+        _console.MarkupLine($"[blue]Current tippuebersicht matchday:[/] [yellow]{result.CurrentMatchday}[/]");
+
+        if (!result.IncompleteMatchdays.Any())
+        {
+            _console.MarkupLine("[green]All persisted matchdays up to the current matchday are already complete[/]");
+            return;
+        }
+
+        _console.MarkupLine($"[blue]Incomplete matchdays to check:[/] [yellow]{string.Join(", ", result.IncompleteMatchdays)}[/]");
+
+        foreach (var summary in result.MatchdaySummaries)
+        {
+            if (settings.DryRun)
+            {
+                _console.MarkupLine(
+                    $"[magenta]  Dry run - would evaluate matchday {summary.Matchday}[/] " +
+                    $"({summary.FetchedMatches} matches, {summary.CompletedMatches} completed, {summary.PendingMatches} pending)");
+                continue;
+            }
+
+            _console.MarkupLine(
+                $"[green]  Matchday {summary.Matchday}:[/] {summary.FetchedMatches} matches, " +
+                $"created {summary.CreatedCount}, updated {summary.UpdatedCount}, unchanged {summary.UnchangedCount}, " +
+                $"pending {summary.PendingMatches}");
+        }
     }
 }

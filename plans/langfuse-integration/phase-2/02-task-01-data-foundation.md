@@ -2,7 +2,7 @@
 
 ## Status
 
-Ready
+In progress
 
 ## Objective
 
@@ -25,9 +25,9 @@ Every later task depends on stable answers to three questions:
 
 ## Planned Work
 
-1. Confirm whether actual outcomes live in Firebase, another persisted store, or must be enriched from Kicktipp history
+1. Freeze Kicktipp `tippuebersicht` as the external source for actual outcomes and persist them into Firebase as the internal source used by dataset export
 2. Freeze the hosted dataset item contract for the first match experiment milestone
-3. Decide whether to add a new Orchestrator export command, a dedicated service, or both
+3. Implement the reusable service seam that collects outcomes and integrates into `collect-context`
 4. Identify any repository gaps between current read APIs and what export/materialization needs
 
 ## Inputs
@@ -44,9 +44,46 @@ Use [manual-steps.md](manual-steps.md#task-1--data-foundation) during implementa
 
 ## Open Questions To Resolve In This Task
 
-- Is Firebase the authoritative source for actual outcomes, or only for predictions and context usage?
-- Should the initial export seam be a reusable service only, or also a CLI command for manual validation?
-- How much historical scope should be included in the first hosted dataset upload?
+- Should `tippspielId` be persisted as a secondary field even though the primary identity stays community plus matchday plus teams?
+- Does any postponed-match case require additional status beyond "completed" and "not completed yet" in the persisted contract?
+- Do we need a dedicated export-oriented prediction read model in Task 2, or can that wait until the dataset export implementation lands?
+
+## Decisions Locked In This Task
+
+- Dataset scope is the Kicktipp `community`
+- The first rollout is limited to `pes-squad`
+- The initial hosted dataset slice is all completed Bundesliga 2025/2026 matches available in `pes-squad`
+- Actual match outcomes come from Kicktipp `tippuebersicht` pages navigated by `spieltagIndex`
+- Firebase becomes the internal authoritative store for experiment `expectedOutput` after those outcomes are collected
+- Only matches with persisted outcomes are eligible dataset items
+- The initial seam is a reusable .NET service integrated into `collect-context`
+- Automatic Langfuse dataset updates are explicitly deferred
+
+## Experiment Item Contract
+
+For the first match experiment milestone:
+
+- `input` is the match-to-predict payload used for `predict-match`
+- `expectedOutput` is sourced from the persisted Firebase match-outcome record and must include at least home goals, away goals, and a normalized completion status so Kicktipp scoring can be computed deterministically
+- `metadata` includes `community`, `competition`, `matchday`, `homeTeam`, `awayTeam`, prediction timestamp, context document names, resolved context versions, and optional historical baseline fields
+- The system prompt is not stored directly in the dataset item and remains a reconstruction concern for Task 2
+
+## Outcome Collection Shape
+
+- `collect-context kicktipp` should first determine the current matchday from `tippuebersicht` without query parameters
+- It should then ask Firebase which matchdays from `1..currentMatchday` are not fully persisted yet
+- On the first run this can be the full range; on later runs this should usually shrink to current and any postponed matchdays that still contain incomplete outcomes
+- For each incomplete matchday, the collector should re-fetch `tippuebersicht?spieltagIndex=<n>` and upsert match outcome rows
+- Postponed matches are handled by re-running incomplete matchdays until their scores appear on the original matchday page
+- `tippspielId` may be persisted as an auxiliary field, but the preferred primary identity remains community plus matchday plus teams
+
+## Repository Interface Changes Required Before Export Work
+
+- Add a match-outcome repository interface to the core layer
+- Add a Firebase match-outcome repository and Firestore model for persisted outcome rows
+- Add a Kicktipp client seam for reading `tippuebersicht` matchday outcomes and the current displayed matchday
+- Add a reusable collection service that combines the Kicktipp client and the outcome repository for `collect-context`
+- Document that the current prediction repository surface is not yet ideal for dataset export because export needs prediction values plus stable metadata without per-match ad hoc lookups
 
 ## Completion Criteria
 

@@ -10,7 +10,7 @@ Use this file during implementation, not just for planning.
 |------|------|-------------|----------|
 | Before Task 1 | Cross-cutting | Review Langfuse pricing and plan limits for hosted datasets, traces, and scores | Yes |
 | Before Task 1 | Cross-cutting | Decide the initial historical scope for the first hosted dataset | Yes |
-| During Task 1 | Task 1 | Manually confirm where authoritative actual outcomes are sourced from | Yes |
+| During Task 1 | Task 1 | Manually validate `tippuebersicht` parsing and postponed-match update behavior | Yes |
 | During Task 3 | Task 3 | Verify local Python setup is acceptable, or explicitly fall back to JS/TS | Yes |
 | During Task 3 | Task 3 | Verify a minimal spike trace is visible in Langfuse | Yes |
 | During Task 4 | Task 4 | Inspect the hosted dataset in the Langfuse UI after first sync | Yes |
@@ -30,16 +30,16 @@ Use this file during implementation, not just for planning.
 
 2. Decide the first dataset scope
 
-- Choose the first historical slice to support, for example the full Bundesliga 2025/2026 season or a smaller initial subset
-- Decide whether the first dataset should include only one community context or multiple
+- Choose the first historical slice to support
+- For the first rollout, use all completed Bundesliga 2025/2026 matches available in `pes-squad`
 - Record the decision in [02-task-01-data-foundation.md](02-task-01-data-foundation.md)
 
 ## Task 1 — Data Foundation
 
 1. Manually confirm actual-result provenance
 
-- Verify whether authoritative actual outcomes are already persisted in Firebase in a usable form
-- If not, verify which Kicktipp or historical retrieval path should be treated as the ground-truth source
+- Verify that `tippuebersicht` exposes the expected match rows, scores, and matchday navigation for outcome collection
+- Verify that Firebase persists incomplete matches and that a later rerun can fill postponed outcomes when they appear on the original matchday page
 - Record the answer and any caveats in [02-task-01-data-foundation.md](02-task-01-data-foundation.md)
 
 2. Manually inspect representative historical records

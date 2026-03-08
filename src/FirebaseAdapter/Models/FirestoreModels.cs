@@ -1,5 +1,6 @@
 using Google.Cloud.Firestore;
 using NodaTime;
+using EHonda.KicktippAi.Core;
 
 namespace FirebaseAdapter.Models;
 
@@ -358,6 +359,52 @@ public class FirestoreContextDocument
     /// <summary>
     /// Community context for filtering context documents.
     /// </summary>
+    [FirestoreProperty("communityContext")]
+    public string CommunityContext { get; set; } = string.Empty;
+}
+
+/// <summary>
+/// Firestore document model for storing persisted match outcomes collected from Kicktipp.
+/// </summary>
+[FirestoreData]
+public class FirestoreMatchOutcome
+{
+    [FirestoreDocumentId]
+    public string? Id { get; set; }
+
+    [FirestoreProperty("homeTeam")]
+    public string HomeTeam { get; set; } = string.Empty;
+
+    [FirestoreProperty("awayTeam")]
+    public string AwayTeam { get; set; } = string.Empty;
+
+    [FirestoreProperty("startsAt")]
+    public Timestamp StartsAt { get; set; }
+
+    [FirestoreProperty("matchday")]
+    public int Matchday { get; set; }
+
+    [FirestoreProperty("homeGoals")]
+    public int? HomeGoals { get; set; }
+
+    [FirestoreProperty("awayGoals")]
+    public int? AwayGoals { get; set; }
+
+    [FirestoreProperty("availability")]
+    public string Availability { get; set; } = nameof(MatchOutcomeAvailability.Pending);
+
+    [FirestoreProperty("tippspielId")]
+    public string? TippSpielId { get; set; }
+
+    [FirestoreProperty("createdAt")]
+    public Timestamp CreatedAt { get; set; }
+
+    [FirestoreProperty("updatedAt")]
+    public Timestamp UpdatedAt { get; set; }
+
+    [FirestoreProperty("competition")]
+    public string Competition { get; set; } = "bundesliga-2025-26";
+
     [FirestoreProperty("communityContext")]
     public string CommunityContext { get; set; } = string.Empty;
 }

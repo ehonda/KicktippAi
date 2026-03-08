@@ -50,9 +50,18 @@ Existing reusable pieces:
 
 Known gaps:
 
-- The Firestore prediction models clearly persist predictions and context usage, but the authoritative source for **actual match outcomes** still needs to be confirmed during implementation
+- Actual match outcomes for experiments should be collected from Kicktipp `tippuebersicht` pages by `spieltagIndex`, then persisted into Firebase as the internal authoritative store used by dataset export
 - The current repository surface is good for reading predictions, but a dedicated **export/materialization seam** is still needed for experiment items
 - Prompt reconstruction rules are not yet materialized into a reusable service or export contract
+
+## Task 1 Decisions
+
+- Dataset scope is the Kicktipp `community`
+- The first rollout should target only `pes-squad`
+- The initial hosted dataset slice should include all completed Bundesliga 2025/2026 matches available in `pes-squad`
+- Only matches with persisted outcomes are eligible dataset items
+- Outcome collection should be implemented as a reusable .NET service and integrated into `collect-context`
+- Automatic Langfuse dataset updates remain a later improvement, not part of the initial implementation
 
 ## Manual Validation Guidance
 
@@ -60,17 +69,15 @@ Use these repo conventions during implementation:
 
 - Prefer `gpt-5-nano` for cheap and fast manual validation runs
 - Prefer `ehonda-test-buli` as the default test community
-- When generating predictions into storage, use verbose output and production-cost estimates:
 
 ```powershell
-dotnet run --project src/Orchestrator -- matchday gpt-5-nano --community ehonda-test-buli --verbose --estimated-costs o3
+dotnet run --project src/Orchestrator -- matchday gpt-5-nano --community ehonda-test-buli
 ```
 
 Useful commands:
 
 ```powershell
 dotnet run --project src/Orchestrator -- random-match gpt-5-nano --community ehonda-test-buli
-dotnet run --project src/Orchestrator -- analyze-match detailed gpt-5-nano --community-context ehonda-test-buli --home "FC Bayern München" --away "RB Leipzig" --matchday 1 --runs 5
 ```
 
 Useful Langfuse inspection command:
