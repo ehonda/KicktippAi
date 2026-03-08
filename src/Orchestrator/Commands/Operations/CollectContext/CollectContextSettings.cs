@@ -19,6 +19,10 @@ public class CollectContextKicktippSettings : CollectContextSettings
     [Description("Show what would be saved without actually saving to database")]
     public bool DryRun { get; set; }
 
+    [CommandOption("--match-outcomes-only")]
+    [Description("Collect and persist match outcomes without updating other context documents")]
+    public bool MatchOutcomesOnly { get; set; }
+
     [CommandOption("--community-context")]
     [Description("The community context (rules/scoring) to use")]
     public string CommunityContext { get; set; } = string.Empty;

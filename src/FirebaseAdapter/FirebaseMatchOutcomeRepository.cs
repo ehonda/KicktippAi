@@ -28,7 +28,7 @@ public class FirebaseMatchOutcomeRepository : IMatchOutcomeRepository
         string communityContext,
         CancellationToken cancellationToken = default)
     {
-        var documentId = BuildDocumentId(outcome, communityContext);
+        var documentId = BuildDocumentId(outcome);
         var docRef = _firestoreDb.Collection(_matchOutcomesCollection).Document(documentId);
         var snapshot = await docRef.GetSnapshotAsync(cancellationToken);
         var now = Timestamp.GetCurrentTimestamp();
@@ -164,14 +164,10 @@ public class FirebaseMatchOutcomeRepository : IMatchOutcomeRepository
             firestoreOutcome.UpdatedAt.ToDateTimeOffset());
     }
 
-    private static string BuildDocumentId(CollectedMatchOutcome outcome, string communityContext)
+    private static string BuildDocumentId(CollectedMatchOutcome outcome)
     {
-        return $"{NormalizeKeySegment(communityContext)}_{outcome.Matchday}_{NormalizeKeySegment(outcome.HomeTeam)}_{NormalizeKeySegment(outcome.AwayTeam)}";
-    }
-
-    private static string NormalizeKeySegment(string segment)
-    {
-        return segment.Trim().Replace('/', '-').Replace(' ', '_');
+        return outcome.TippSpielId ?? throw new InvalidOperationException(
+            $"Cannot persist match outcome for {outcome.HomeTeam} vs {outcome.AwayTeam} on matchday {outcome.Matchday} because tippspielId is missing.");
     }
 
     private static Timestamp ConvertToTimestamp(ZonedDateTime zonedDateTime)

@@ -58,6 +58,11 @@ public class CollectContextKicktippCommand : AsyncCommand<CollectContextKicktipp
             {
                 _console.MarkupLine("[magenta]Dry run mode enabled - no changes will be made to database[/]");
             }
+
+            if (settings.MatchOutcomesOnly)
+            {
+                _console.MarkupLine("[blue]Match outcomes only mode enabled - context documents will not be updated[/]");
+            }
             
             // Execute the context collection workflow
             await ExecuteKicktippContextCollection(settings);
@@ -79,6 +84,15 @@ public class CollectContextKicktippCommand : AsyncCommand<CollectContextKicktipp
             settings.DryRun);
 
         PrintOutcomeCollectionSummary(outcomeCollectionResult, settings);
+
+        if (settings.MatchOutcomesOnly)
+        {
+            var completionMessage = settings.DryRun
+                ? "[magenta]✓ Match outcome dry run completed[/]"
+                : "[green]✓ Match outcome collection completed![/]";
+            _console.MarkupLine(completionMessage);
+            return;
+        }
 
         // Create services using factories (factories handle env var loading)
         var kicktippClient = _kicktippClientFactory.CreateClient();
