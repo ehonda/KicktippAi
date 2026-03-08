@@ -807,7 +807,7 @@ public class KicktippClient : IKicktippClient, IDisposable
         if (_cache.TryGetValue(cacheKey, out IReadOnlyList<CollectedMatchOutcome>? cachedOutcomes))
         {
             _logger.LogDebug("Retrieved tippuebersicht outcomes for {Community} matchday {Matchday} from cache", community, matchday);
-            return cachedOutcomes;
+            return cachedOutcomes!;
         }
 
         var document = await GetTippuebersichtDocumentAsync(community, matchday);
