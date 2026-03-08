@@ -26,6 +26,13 @@ search it in the following places, in that order:
 
 When you encounter a dependency that is not available locally, and which has a chance of being consulted multiple times, use the `submodules-manage` skill to add it or part of it as a git submodule. This will make it available locally for future reference and easy agentic access.
 
+## Langfuse Experiments
+
+For Langfuse evaluation and experiment work, prefer the Python SDK first because Langfuse's experiment runner, examples, and evaluation integrations are strongest there.
+
+- Keep JS/TS as the fallback when local Python tooling becomes the main source of friction
+- Before starting Phase 2 implementation work, read `plans/langfuse-integration/phase-2/AGENTS.md` and the linked tracker documents there
+
 ## Running and Filtering Tests
 
 This project uses TUnit for testing, which has some differences compared to more common frameworks like xUnit or NUnit. They are documented in the following sections.

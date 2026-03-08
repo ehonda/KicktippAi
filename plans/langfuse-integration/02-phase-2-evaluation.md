@@ -2,6 +2,8 @@
 
 > **Status**: Future — to be started after Phase 1 is complete and validated.
 
+Detailed planning, task tracking, shared context, and Phase 2-specific manual steps now live under [phase-2](phase-2).
+
 ## Objective
 
 Use Langfuse's evaluation features to systematically measure prediction quality across models and prompts, replacing ad-hoc analysis with persistent, visual experiment tracking.
@@ -18,7 +20,7 @@ Use Langfuse's evaluation features to systematically measure prediction quality 
 
 - Export past matches (with actual outcomes) and their predictions from Firebase
 - Upload as Langfuse datasets via the [REST API](https://langfuse.com/docs/api-and-data-platform/features/public-api) (`POST /api/public/datasets`)
-- Each dataset item: input = match context documents, expected output = actual match result
+- Each dataset item: input = match-to-predict payload, expected output = actual match result, metadata = prompt reconstruction and filtering context
 
 ### 2. Run Experiments
 
@@ -48,3 +50,5 @@ Use Langfuse's evaluation features to systematically measure prediction quality 
 - How far back should historical data go for the initial dataset?
 - What scoring dimensions matter most for prompt iteration decisions?
 - Should evaluation run as a CLI command or a separate tool?
+
+These questions are now broken down into implementation tasks in [phase-2/01-phase-2-tracker.md](phase-2/01-phase-2-tracker.md).

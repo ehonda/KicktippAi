@@ -2,6 +2,8 @@
 
 This directory contains plans and tracking documents for the **multi-phase Langfuse integration** currently in progress. See [implementation-status.md](implementation-status.md) for the current state of each phase.
 
+When working on Phase 2, start with [phase-2/AGENTS.md](phase-2/AGENTS.md). That document explains the local document structure, the handoff flow, and which task tracker to pick up next.
+
 ## Creating Test Traces
 
 Use the `random-match` command to quickly produce a single-prediction trace in Langfuse without running a full matchday:

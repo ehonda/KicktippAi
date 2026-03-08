@@ -5,7 +5,7 @@
 | Phase | Title | Status |
 |-------|-------|--------|
 | **1** | Observability & Cost Tracking | ✅ Complete |
-| **2** | Evaluation & Experiments | ⬜ Not started |
+| **2** | Evaluation & Experiments | 🟨 Planning in progress |
 | **3** | Prompt Management | ⬜ Not started |
 
 ---
@@ -37,9 +37,9 @@ All implementation steps from [01-phase-1-observability.md](01-phase-1-observabi
 
 ## Phase 2 — Evaluation & Experiments
 
-**Status:** ⬜ Not started
+**Status:** 🟨 Planning in progress
 
-See [02-phase-2-evaluation.md](02-phase-2-evaluation.md).
+See [02-phase-2-evaluation.md](02-phase-2-evaluation.md) and the tracker set under [phase-2](phase-2).
 
 ---
 
