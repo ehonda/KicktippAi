@@ -6,6 +6,7 @@ using OpenAiIntegration;
 using ContextProviders.Kicktipp;
 using EHonda.KicktippAi.Core;
 using Orchestrator.Commands.Shared;
+using Orchestrator.Infrastructure;
 using Orchestrator.Infrastructure.Factories;
 
 namespace Orchestrator.Commands.Operations.RandomMatch;
@@ -111,6 +112,7 @@ public class RandomMatchCommand : AsyncCommand<RandomMatchSettings>
         LangfuseActivityPropagation.SetSessionId(activity, sessionId);
         LangfuseActivityPropagation.SetTraceTags(activity, traceTags);
         LangfuseActivityPropagation.SetTraceMetadata(activity, "community", settings.Community);
+        LangfuseActivityPropagation.SetTraceMetadata(activity, "kicktipp-season", KicktippSeasonMetadata.Current);
         LangfuseActivityPropagation.SetTraceMetadata(activity, "matchday", matchday.ToString());
         LangfuseActivityPropagation.SetTraceMetadata(activity, "model", settings.Model);
         LangfuseActivityPropagation.SetTraceMetadata(activity, "homeTeams", PredictionTelemetryMetadata.BuildDelimitedFilterValue(new[] { match.HomeTeam }), propagateToObservations: false);

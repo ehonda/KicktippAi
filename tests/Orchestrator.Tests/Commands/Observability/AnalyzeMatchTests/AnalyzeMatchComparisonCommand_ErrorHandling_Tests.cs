@@ -102,7 +102,7 @@ public class AnalyzeMatchComparisonCommand_ErrorHandling_Tests : AnalyzeMatchTes
     public async Task Null_kicktipp_client_still_succeeds()
     {
         var mockKicktippFactory = new Mock<IKicktippClientFactory>();
-        mockKicktippFactory.Setup(f => f.CreateClient()).Returns((IKicktippClient?)null);
+        mockKicktippFactory.Setup(f => f.CreateClient()).Returns((IKicktippClient)null!);
         var context = CreateComparisonCommandApp(kicktippClientFactory: mockKicktippFactory);
         var (exitCode, _) = await RunComparisonAsync(context, "--runs", "1");
 

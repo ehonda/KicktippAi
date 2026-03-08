@@ -6,6 +6,7 @@ using Spectre.Console;
 using OpenAiIntegration;
 using Orchestrator.Commands.Operations.Matchday;
 using Orchestrator.Commands.Shared;
+using Orchestrator.Infrastructure;
 using Orchestrator.Infrastructure.Factories;
 
 namespace Orchestrator.Commands.Operations.Bonus;
@@ -131,6 +132,7 @@ public class BonusCommand : AsyncCommand<BaseSettings>
         LangfuseActivityPropagation.SetSessionId(activity, sessionId);
         LangfuseActivityPropagation.SetTraceTags(activity, traceTags);
         LangfuseActivityPropagation.SetTraceMetadata(activity, "community", settings.Community);
+        LangfuseActivityPropagation.SetTraceMetadata(activity, "kicktipp-season", KicktippSeasonMetadata.Current);
         LangfuseActivityPropagation.SetTraceMetadata(activity, "model", settings.Model);
         LangfuseActivityPropagation.SetTraceMetadata(activity, "repredictMode", settings.IsRepredictMode ? "true" : "false");
 

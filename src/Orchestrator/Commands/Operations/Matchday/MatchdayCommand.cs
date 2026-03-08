@@ -7,6 +7,7 @@ using OpenAiIntegration;
 using ContextProviders.Kicktipp;
 using EHonda.KicktippAi.Core;
 using Orchestrator.Commands.Shared;
+using Orchestrator.Infrastructure;
 using Orchestrator.Infrastructure.Factories;
 
 namespace Orchestrator.Commands.Operations.Matchday;
@@ -183,6 +184,7 @@ public class MatchdayCommand : AsyncCommand<BaseSettings>
         LangfuseActivityPropagation.SetTraceTags(activity, traceTags);
         LangfuseActivityPropagation.SetTraceMetadata(activity, "community", settings.Community);
         LangfuseActivityPropagation.SetTraceMetadata(activity, "communityContext", communityContext);
+        LangfuseActivityPropagation.SetTraceMetadata(activity, "kicktipp-season", KicktippSeasonMetadata.Current);
         LangfuseActivityPropagation.SetTraceMetadata(activity, "matchday", matchday.ToString());
         LangfuseActivityPropagation.SetTraceMetadata(activity, "model", settings.Model);
         LangfuseActivityPropagation.SetTraceMetadata(activity, "homeTeams", PredictionTelemetryMetadata.BuildDelimitedFilterValue(matchesWithHistory.Select(m => m.Match.HomeTeam)), propagateToObservations: false);

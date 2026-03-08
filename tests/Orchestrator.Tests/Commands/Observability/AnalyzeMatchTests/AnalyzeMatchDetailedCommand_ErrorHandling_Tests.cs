@@ -135,7 +135,7 @@ public class AnalyzeMatchDetailedCommand_ErrorHandling_Tests : AnalyzeMatchTests
     public async Task Null_kicktipp_client_still_succeeds()
     {
         var mockKicktippFactory = new Mock<IKicktippClientFactory>();
-        mockKicktippFactory.Setup(f => f.CreateClient()).Returns((IKicktippClient?)null);
+        mockKicktippFactory.Setup(f => f.CreateClient()).Returns((IKicktippClient)null!);
         var context = CreateDetailedCommandApp(kicktippClientFactory: mockKicktippFactory);
         var (exitCode, _) = await RunDetailedAsync(context, "--runs", "1", "--no-live-estimates");
 
