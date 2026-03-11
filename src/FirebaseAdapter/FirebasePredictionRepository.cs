@@ -176,14 +176,17 @@ public class FirebasePredictionRepository : IPredictionRepository
     {
         try
         {
-            // Query by match characteristics, model, community context, and competition
+            // Query by match characteristics, model, community context, and competition.
+            // Order by repredictionIndex descending to keep metadata reads aligned with latest prediction retrieval.
             var query = _firestoreDb.Collection(_predictionsCollection)
                 .WhereEqualTo("homeTeam", match.HomeTeam)
                 .WhereEqualTo("awayTeam", match.AwayTeam)
                 .WhereEqualTo("startsAt", ConvertToTimestamp(match.StartsAt))
                 .WhereEqualTo("competition", _competition)
                 .WhereEqualTo("model", model)
-                .WhereEqualTo("communityContext", communityContext);
+                .WhereEqualTo("communityContext", communityContext)
+                .OrderByDescending("repredictionIndex")
+                .Limit(1);
 
             var snapshot = await query.GetSnapshotAsync(cancellationToken);
             
@@ -477,12 +480,14 @@ public class FirebasePredictionRepository : IPredictionRepository
     {
         try
         {
-            // Query by questionText, model, and community context
+            // Query by questionText, model, and community context.
+            // Order by repredictionIndex descending to align metadata reads with latest bonus prediction retrieval.
             var query = _firestoreDb.Collection(_bonusPredictionsCollection)
                 .WhereEqualTo("questionText", questionText)
                 .WhereEqualTo("competition", _competition)
                 .WhereEqualTo("model", model)
                 .WhereEqualTo("communityContext", communityContext)
+                .OrderByDescending("repredictionIndex")
                 .Limit(1);
 
             var snapshot = await query.GetSnapshotAsync(cancellationToken);
@@ -693,14 +698,14 @@ public class FirebasePredictionRepository : IPredictionRepository
     {
         try
         {
-            // Query by team names only (no startsAt), ordered by createdAt descending to get the most recent
+            // Query by team names only (no startsAt), ordered by repredictionIndex descending to get the latest reprediction.
             var query = _firestoreDb.Collection(_predictionsCollection)
                 .WhereEqualTo("homeTeam", homeTeam)
                 .WhereEqualTo("awayTeam", awayTeam)
                 .WhereEqualTo("competition", _competition)
                 .WhereEqualTo("model", model)
                 .WhereEqualTo("communityContext", communityContext)
-                .OrderByDescending("createdAt")
+                .OrderByDescending("repredictionIndex")
                 .Limit(1);
 
             var snapshot = await query.GetSnapshotAsync(cancellationToken);

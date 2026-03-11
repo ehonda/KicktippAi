@@ -1,3 +1,4 @@
+using System.ComponentModel;
 using EHonda.KicktippAi.Core;
 using KicktippIntegration;
 using Moq;
@@ -11,6 +12,112 @@ namespace Orchestrator.Tests.Commands.Operations.Verify;
 /// </summary>
 public class VerifyMatchdayCommand_Outdated_Tests : VerifyMatchdayCommandTests_Base
 {
+    [Test]
+    [Description(
+        """
+        Regression test for the stale-metadata root cause behind an unnecessary reprediction.
+        The real production failure required two predictions to exist in storage: repredictionIndex 0 was once outdated,
+        then repredictionIndex 1 was created from the updated context and was no longer outdated.
+        This test recreates that exact inconsistency at the command boundary by mocking the repository so GetPredictionAsync returns
+        the latest prediction while GetPredictionMetadataAsync incorrectly returns metadata for the older prediction.
+        The verify command then marks the latest prediction as outdated even though the newer prediction already incorporated those context updates.
+        The repository now prevents this by ordering metadata lookups by repredictionIndex descending, but this test intentionally mocks the old bug back in so the failure mode stays documented.
+        """)]
+    public async Task Stale_prediction_metadata_from_initial_prediction_can_mark_latest_prediction_as_outdated()
+    {
+        // Arrange
+        var match = CreateTestMatch(homeTeam: "Bayer 04 Leverkusen", awayTeam: "FC Bayern München", matchday: 26);
+        var initialPrediction = CreatePrediction(homeGoals: 2, awayGoals: 2);
+        var latestPrediction = CreatePrediction(homeGoals: 1, awayGoals: 3);
+        var staleMetadata = CreatePredictionMetadata(
+            prediction: initialPrediction,
+            createdAt: new DateTimeOffset(2026, 3, 9, 1, 38, 45, TimeSpan.Zero),
+            contextDocumentNames: new List<string> { "recent-history-fcb.csv", "away-history-fcb.csv" });
+
+        var mockPredictionRepository = CreateMockPredictionRepository(
+            getPredictionResult: latestPrediction,
+            getPredictionMetadataResult: staleMetadata);
+
+        var mockContextRepository = CreateMockContextRepositoryWithDocuments(
+            new Dictionary<string, ContextDocument>
+            {
+                ["recent-history-fcb.csv"] = CreateContextDocument(
+                    documentName: "recent-history-fcb.csv",
+                    createdAt: new DateTimeOffset(2026, 3, 11, 1, 37, 59, TimeSpan.Zero)),
+                ["away-history-fcb.csv"] = CreateContextDocument(
+                    documentName: "away-history-fcb.csv",
+                    createdAt: new DateTimeOffset(2026, 3, 11, 1, 37, 59, TimeSpan.Zero))
+            });
+
+        var mockFirebaseFactory = CreateMockFirebaseServiceFactoryFull(
+            predictionRepository: mockPredictionRepository,
+            contextRepository: mockContextRepository);
+
+        var ctx = CreateVerifyMatchdayCommandApp(
+            placedPredictions: CreatePlacedPredictions(match, CreateBetPrediction(homeGoals: 1, awayGoals: 3)),
+            firebaseServiceFactory: mockFirebaseFactory);
+
+        // Act
+        var (exitCode, output) = await RunCommandAsync(ctx.App, ctx.Console, "verify-matchday", "o4-mini", "-c", "ehonda-ai-arena", "--check-outdated");
+
+        // Assert
+        await Assert.That(exitCode).IsEqualTo(1);
+        await Assert.That(output).Contains("Status:").And.Contains("Outdated");
+        await Assert.That(output).DoesNotContain("Mismatch");
+    }
+
+    [Test]
+    [Description(
+        """
+        Regression test for the cancelled-match variant of the stale-metadata bug.
+        Cancelled matches use team-name-only repository methods, but the failure mode is the same: the latest stored prediction can be current while
+        GetCancelledMatchPredictionMetadataAsync accidentally returns metadata for an older prediction version.
+        That stale timestamp makes VerifyMatchdayCommand treat the latest cancelled-match prediction as outdated.
+        The repository fix now orders cancelled-match metadata lookups by repredictionIndex descending as well, but this test keeps the old inconsistency reproducible via mocks.
+        """)]
+    public async Task Stale_cancelled_match_prediction_metadata_can_mark_latest_prediction_as_outdated()
+    {
+        // Arrange
+        var cancelledMatch = CreateMatch(
+            homeTeam: "Bayer 04 Leverkusen",
+            awayTeam: "FC Bayern München",
+            matchday: 26,
+            isCancelled: true);
+        var initialPrediction = CreatePrediction(homeGoals: 0, awayGoals: 0);
+        var latestPrediction = CreatePrediction(homeGoals: 1, awayGoals: 1);
+        var staleMetadata = CreatePredictionMetadata(
+            prediction: initialPrediction,
+            createdAt: new DateTimeOffset(2026, 3, 9, 1, 38, 45, TimeSpan.Zero),
+            contextDocumentNames: new List<string> { "recent-history-fcb.csv" });
+
+        var mockPredictionRepository = CreateMockPredictionRepository(
+            getCancelledMatchPredictionResult: latestPrediction,
+            getCancelledMatchPredictionMetadataResult: staleMetadata);
+
+        var mockContextRepository = CreateMockContextRepositoryWithDocuments(
+            new Dictionary<string, ContextDocument>
+            {
+                ["recent-history-fcb.csv"] = CreateContextDocument(
+                    documentName: "recent-history-fcb.csv",
+                    createdAt: new DateTimeOffset(2026, 3, 11, 1, 37, 59, TimeSpan.Zero))
+            });
+
+        var mockFirebaseFactory = CreateMockFirebaseServiceFactoryFull(
+            predictionRepository: mockPredictionRepository,
+            contextRepository: mockContextRepository);
+
+        var ctx = CreateVerifyMatchdayCommandApp(
+            placedPredictions: CreatePlacedPredictions(cancelledMatch, CreateBetPrediction(homeGoals: 1, awayGoals: 1)),
+            firebaseServiceFactory: mockFirebaseFactory);
+
+        // Act
+        var (exitCode, output) = await RunCommandAsync(ctx.App, ctx.Console, "verify-matchday", "o4-mini", "-c", "ehonda-ai-arena", "--check-outdated");
+
+        // Assert
+        await Assert.That(exitCode).IsEqualTo(1);
+        await Assert.That(output).Contains("Status:").And.Contains("Outdated");
+    }
+
     [Test]
     public async Task Prediction_with_newer_context_document_is_outdated()
     {

@@ -191,6 +191,48 @@ public class FirebasePredictionRepository_BonusPrediction_Tests(FirestoreFixture
     }
 
     [Test]
+    public async Task GetBonusPredictionMetadataByTextAsync_returns_latest_reprediction_metadata()
+    {
+        // Arrange
+        var repository = CreateRepository();
+        var question = CreateBonusQuestion(text: "Who will win?");
+        var initialPrediction = new BonusPrediction([question.Options[0].Id]);
+        var reprediction = new BonusPrediction([question.Options[1].Id]);
+        var initialDocuments = new[] { "team-data" };
+        var updatedDocuments = new[] { "team-data", "manager-data" };
+
+        await repository.SaveBonusPredictionAsync(
+            question,
+            initialPrediction,
+            model: "o4-mini",
+            tokenUsage: "100",
+            cost: 0.01,
+            communityContext: "test-community",
+            contextDocumentNames: initialDocuments);
+
+        await repository.SaveBonusRepredictionAsync(
+            question,
+            reprediction,
+            model: "o4-mini",
+            tokenUsage: "120",
+            cost: 0.02,
+            communityContext: "test-community",
+            contextDocumentNames: updatedDocuments,
+            repredictionIndex: 1);
+
+        // Act
+        var metadata = await repository.GetBonusPredictionMetadataByTextAsync(
+            "Who will win?",
+            model: "o4-mini",
+            communityContext: "test-community");
+
+        // Assert
+        await Assert.That(metadata).IsNotNull();
+        await Assert.That(metadata!.BonusPrediction.SelectedOptionIds).IsEquivalentTo(reprediction.SelectedOptionIds);
+        await Assert.That(metadata.ContextDocumentNames).IsEquivalentTo(updatedDocuments);
+    }
+
+    [Test]
     public async Task GetAllBonusPredictionsAsync_returns_all_predictions_for_model_and_community()
     {
         // Arrange

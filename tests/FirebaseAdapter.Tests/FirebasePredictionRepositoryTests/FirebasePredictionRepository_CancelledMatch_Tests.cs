@@ -190,6 +190,49 @@ public class FirebasePredictionRepository_CancelledMatch_Tests(FirestoreFixture 
     }
 
     [Test]
+    public async Task GetCancelledMatchPredictionMetadataAsync_returns_latest_reprediction_metadata()
+    {
+        // Arrange
+        var repository = CreateRepository();
+        var match = CreateMatch(homeTeam: "Team A", awayTeam: "Team B");
+        var initialPrediction = CreatePrediction(homeGoals: 2, awayGoals: 1);
+        var reprediction = CreatePrediction(homeGoals: 1, awayGoals: 1);
+        var initialDocuments = new[] { "recent-history-fcb.csv" };
+        var updatedDocuments = new[] { "recent-history-fcb.csv", "recent-history-b04.csv" };
+
+        await repository.SavePredictionAsync(
+            match,
+            initialPrediction,
+            model: "o4-mini",
+            tokenUsage: "100",
+            cost: 0.01,
+            communityContext: "test-community",
+            contextDocumentNames: initialDocuments);
+
+        await repository.SaveRepredictionAsync(
+            match,
+            reprediction,
+            model: "o4-mini",
+            tokenUsage: "120",
+            cost: 0.02,
+            communityContext: "test-community",
+            contextDocumentNames: updatedDocuments,
+            repredictionIndex: 1);
+
+        // Act
+        var metadata = await repository.GetCancelledMatchPredictionMetadataAsync(
+            homeTeam: "Team A",
+            awayTeam: "Team B",
+            model: "o4-mini",
+            communityContext: "test-community");
+
+        // Assert
+        await Assert.That(metadata).IsNotNull();
+        await Assert.That(metadata!.Prediction).IsEqualTo(reprediction);
+        await Assert.That(metadata.ContextDocumentNames).IsEquivalentTo(updatedDocuments);
+    }
+
+    [Test]
     public async Task GetCancelledMatchRepredictionIndexAsync_returns_highest_index_for_team_names()
     {
         // Arrange

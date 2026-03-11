@@ -233,4 +233,46 @@ public class FirebasePredictionRepository_MatchPrediction_Tests(FirestoreFixture
         await Assert.That(metadata).IsNotNull()
             .And.Member(m => m!.ContextDocumentNames, names => names.IsEquivalentTo(expectedDocumentNames));
     }
+
+    [Test]
+    public async Task GetPredictionMetadataAsync_returns_latest_reprediction_metadata()
+    {
+        // Arrange
+        var repository = CreateRepository();
+        var match = CreateMatch();
+        var initialPrediction = CreatePrediction(homeGoals: 1, awayGoals: 3);
+        var reprediction = CreatePrediction(homeGoals: 1, awayGoals: 2);
+        var initialDocuments = new[] { "recent-history-fcb.csv", "away-history-fcb.csv" };
+        var updatedDocuments = new[] { "recent-history-fcb.csv", "away-history-fcb.csv", "recent-history-b04.csv" };
+
+        await repository.SavePredictionAsync(
+            match,
+            initialPrediction,
+            model: "o4-mini",
+            tokenUsage: "100",
+            cost: 0.01,
+            communityContext: "test-community",
+            contextDocumentNames: initialDocuments);
+
+        await repository.SaveRepredictionAsync(
+            match,
+            reprediction,
+            model: "o4-mini",
+            tokenUsage: "120",
+            cost: 0.02,
+            communityContext: "test-community",
+            contextDocumentNames: updatedDocuments,
+            repredictionIndex: 1);
+
+        // Act
+        var metadata = await repository.GetPredictionMetadataAsync(
+            match,
+            model: "o4-mini",
+            communityContext: "test-community");
+
+        // Assert
+        await Assert.That(metadata).IsNotNull();
+        await Assert.That(metadata!.Prediction).IsEqualTo(reprediction);
+        await Assert.That(metadata.ContextDocumentNames).IsEquivalentTo(updatedDocuments);
+    }
 }

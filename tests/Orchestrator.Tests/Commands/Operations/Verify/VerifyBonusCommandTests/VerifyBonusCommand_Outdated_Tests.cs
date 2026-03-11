@@ -1,3 +1,4 @@
+using System.ComponentModel;
 using EHonda.KicktippAi.Core;
 using Moq;
 using static Orchestrator.Tests.Infrastructure.OrchestratorTestFactories;
@@ -10,6 +11,56 @@ namespace Orchestrator.Tests.Commands.Operations.Verify.VerifyBonusCommandTests;
 /// </summary>
 public class VerifyBonusCommand_Outdated_Tests : VerifyBonusCommandTests_Base
 {
+    [Test]
+    [Description(
+        """
+        Regression test for the stale-metadata failure mode in VerifyBonusCommand.
+        The affected repository method was GetBonusPredictionMetadataByTextAsync, which could previously return metadata for an older bonus prediction even when GetBonusPredictionByTextAsync returned the latest one.
+        This test recreates the production-shaped inconsistency with two conceptual prediction versions: an initial prediction whose KPI documents later changed, and a newer reprediction that already incorporated those KPI changes.
+        By mocking the old repository bug back in, VerifyBonusCommand still marks the latest bonus prediction as outdated.
+        This remains valuable after the repository fix because it documents the exact inconsistent contract that must never reappear.
+        """)]
+    public async Task Stale_bonus_prediction_metadata_from_initial_prediction_can_mark_latest_prediction_as_outdated()
+    {
+        // Arrange
+        var question = CreateTestBonusQuestion(text: "Who will win the league?", formFieldName: "bonus_q1");
+        var initialPrediction = CreateBonusPrediction(selectedOptionIds: new List<string> { "opt-1" });
+        var latestPrediction = CreateBonusPrediction(selectedOptionIds: new List<string> { "opt-2" });
+        var staleMetadata = CreateBonusPredictionMetadata(
+            bonusPrediction: initialPrediction,
+            createdAt: new DateTimeOffset(2026, 3, 9, 1, 38, 45, TimeSpan.Zero),
+            contextDocumentNames: new List<string> { "title-race-kpi.md" });
+
+        var mockPredictionRepository = CreateMockPredictionRepository(
+            getBonusPredictionByTextResult: latestPrediction,
+            getBonusPredictionMetadataByTextResult: staleMetadata);
+
+        var mockKpiRepository = CreateMockKpiRepositoryWithDocuments(
+            new Dictionary<string, KpiDocument>
+            {
+                ["title-race-kpi.md"] = CreateKpiDocument(
+                    documentName: "title-race-kpi.md",
+                    createdAt: new DateTimeOffset(2026, 3, 11, 1, 37, 59, TimeSpan.Zero))
+            });
+
+        var mockFirebaseFactory = CreateMockFirebaseServiceFactoryFull(
+            predictionRepository: mockPredictionRepository,
+            kpiRepository: mockKpiRepository);
+
+        var ctx = CreateVerifyBonusCommandApp(
+            bonusQuestions: new List<BonusQuestion> { question },
+            placedBonusPredictions: CreatePlacedBonusPredictions("bonus_q1", latestPrediction),
+            firebaseServiceFactory: mockFirebaseFactory);
+
+        // Act
+        var (exitCode, output) = await RunCommandAsync(ctx.App, ctx.Console, "verify-bonus", "o4-mini", "-c", "ehonda-ai-arena", "--check-outdated");
+
+        // Assert
+        await Assert.That(exitCode).IsEqualTo(1);
+        await Assert.That(output).Contains("outdated");
+        await Assert.That(output).DoesNotContain("mismatch with Kicktipp");
+    }
+
     [Test]
     public async Task Prediction_with_newer_kpi_document_is_outdated()
     {
