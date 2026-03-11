@@ -2,6 +2,14 @@
 
 This document contains context relevant when working on tasks in this repository.
 
+## GitHub Copilot Configuration
+
+### Workaround for truncated output when using the `run_in_terminal` tool
+
+This is a workaround for this [issue](https://github.com/microsoft/vscode/issues/299486).
+
+**CRITICAL**: When using the `run_in_terminal` tool, **ALWAYS USE `"timeout": 0`**. Otherwise, outputs from commands will be silently truncated if they time out, which happens often on our slow local machine.
+
 ## Gathering Information
 
 We use different external dependencies, some of which are partially or fully available locally via git submodules. When gathering information like
