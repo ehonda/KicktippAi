@@ -13,7 +13,7 @@ public class KicktippContextProvider_GetMatchContextAsync_Tests : KicktippContex
         var provider = CreateProvider();
 
         // Act
-        var contexts = await provider.GetMatchContextAsync(TestHomeTeam, TestAwayTeam).ToListAsync();
+        var contexts = await ToListAsync(provider.GetMatchContextAsync(TestHomeTeam, TestAwayTeam));
 
         // Assert - should return 7 documents:
         // 1. standings, 2. community rules, 3. home recent history, 4. away recent history,
@@ -28,7 +28,7 @@ public class KicktippContextProvider_GetMatchContextAsync_Tests : KicktippContex
         var provider = CreateProvider();
 
         // Act
-        var contexts = await provider.GetMatchContextAsync(TestHomeTeam, TestAwayTeam).ToListAsync();
+        var contexts = await ToListAsync(provider.GetMatchContextAsync(TestHomeTeam, TestAwayTeam));
 
         // Assert - verify order
         var expectedNames = new[]
@@ -52,7 +52,7 @@ public class KicktippContextProvider_GetMatchContextAsync_Tests : KicktippContex
         var provider = CreateProvider();
 
         // Act
-        var contexts = await provider.GetMatchContextAsync(TestHomeTeam, TestAwayTeam).ToListAsync();
+        var contexts = await ToListAsync(provider.GetMatchContextAsync(TestHomeTeam, TestAwayTeam));
         var recentHistory = contexts[2]; // Home team recent history
 
         // Assert - verify CSV format
@@ -73,7 +73,7 @@ public class KicktippContextProvider_GetMatchContextAsync_Tests : KicktippContex
         var provider = CreateProvider();
 
         // Act
-        var contexts = await provider.GetMatchContextAsync(TestHomeTeam, TestAwayTeam).ToListAsync();
+        var contexts = await ToListAsync(provider.GetMatchContextAsync(TestHomeTeam, TestAwayTeam));
         var h2hContext = contexts[6];
 
         // Assert - verify CSV format with all H2H columns
