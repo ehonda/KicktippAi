@@ -84,6 +84,8 @@ public abstract class KicktippContextProviderTests_Base
 
     protected static async Task<List<T>> ToListAsync<T>(IAsyncEnumerable<T> source)
     {
+        ArgumentNullException.ThrowIfNull(source);
+
         List<T> items = [];
 
         await foreach (var item in source)
