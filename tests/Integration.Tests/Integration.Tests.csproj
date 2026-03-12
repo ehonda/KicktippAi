@@ -9,39 +9,20 @@
     </PropertyGroup>
 
     <ItemGroup>
-        <!--
-            We get System.Linq.Async transitively via Google.Cloud.Firestore and this causes problems with ambiguous
-            calls. We fix this using the recommended approach:
-                https://learn.microsoft.com/en-us/dotnet/core/compatibility/core-libraries/10.0/asyncenumerable#recommended-action
-        -->
         <PackageReference Include="System.Linq.Async" Version="6.0.3">
             <ExcludeAssets>compile</ExcludeAssets>
         </PackageReference>
-        <!-- TUnit framework -->
         <PackageReference Include="TUnit" Version="1.2.11" />
         <PackageReference Include="Microsoft.Testing.Extensions.TrxReport" Version="2.0.2" />
-        
-        <!-- Mocking -->
         <PackageReference Include="Moq" Version="4.20.72" />
-        
-        <!-- WireMock for HTTP stubbing -->
-        <PackageReference Include="WireMock.Net" Version="1.21.0" />
-        
-        <!-- Logging testing -->
         <PackageReference Include="Microsoft.Extensions.Diagnostics.Testing" Version="9.10.0" />
-        
-        <!-- Spectre.Console testing support -->
         <PackageReference Include="Spectre.Console.Testing" Version="0.49.0" />
-        
-        <!-- Environment loading (same as Orchestrator) -->
         <PackageReference Include="DotNetEnv" Version="3.1.1" />
     </ItemGroup>
 
     <ItemGroup>
-        <!-- Project under test -->
         <ProjectReference Include="..\..\src\Orchestrator\Orchestrator.csproj" />
-        
-        <!-- Shared test utilities -->
+        <ProjectReference Include="..\..\src\FirebaseAdapter\FirebaseAdapter.csproj" />
         <ProjectReference Include="..\..\src\TestUtilities\TestUtilities.csproj" />
     </ItemGroup>
 

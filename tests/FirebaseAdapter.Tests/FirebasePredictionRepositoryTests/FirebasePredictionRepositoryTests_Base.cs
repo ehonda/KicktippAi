@@ -1,7 +1,7 @@
 using EHonda.Optional.Core;
-using FirebaseAdapter.Tests.Fixtures;
 using Google.Cloud.Firestore;
 using Microsoft.Extensions.Logging.Testing;
+using TestUtilities;
 using TUnit.Core;
 
 namespace FirebaseAdapter.Tests.FirebasePredictionRepositoryTests;
