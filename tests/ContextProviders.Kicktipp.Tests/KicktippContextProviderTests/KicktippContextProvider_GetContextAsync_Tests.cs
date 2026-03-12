@@ -13,7 +13,7 @@ public class KicktippContextProvider_GetContextAsync_Tests : KicktippContextProv
         var provider = CreateProvider();
 
         // Act
-        var contexts = await provider.GetContextAsync().ToListAsync();
+        var contexts = await ToListAsync(provider.GetContextAsync());
 
         // Assert
         var expectedNames = new[] { "bundesliga-standings.csv", $"community-rules-{TestCommunity}.md" };
@@ -27,7 +27,7 @@ public class KicktippContextProvider_GetContextAsync_Tests : KicktippContextProv
         var provider = CreateProvider();
 
         // Act
-        var contexts = await provider.GetContextAsync().ToListAsync();
+        var contexts = await ToListAsync(provider.GetContextAsync());
         var standingsContext = contexts[0];
 
         // Assert - verify CSV header and structure
@@ -48,7 +48,7 @@ public class KicktippContextProvider_GetContextAsync_Tests : KicktippContextProv
         var provider = CreateProvider();
 
         // Act
-        var contexts = await provider.GetContextAsync().ToListAsync();
+        var contexts = await ToListAsync(provider.GetContextAsync());
         var rulesContext = contexts[1];
 
         // Assert - verify it contains expected content from the actual file

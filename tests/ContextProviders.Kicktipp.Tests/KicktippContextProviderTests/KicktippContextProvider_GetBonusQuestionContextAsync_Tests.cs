@@ -13,7 +13,7 @@ public class KicktippContextProvider_GetBonusQuestionContextAsync_Tests : Kickti
         var provider = CreateProvider();
 
         // Act
-        var contexts = await provider.GetBonusQuestionContextAsync().ToListAsync();
+        var contexts = await ToListAsync(provider.GetBonusQuestionContextAsync());
 
         // Assert
         var expectedNames = new[] { "bundesliga-standings.csv", $"community-rules-{TestCommunity}.md" };
@@ -27,7 +27,7 @@ public class KicktippContextProvider_GetBonusQuestionContextAsync_Tests : Kickti
         var provider = CreateProvider();
 
         // Act
-        var contexts = await provider.GetBonusQuestionContextAsync().ToListAsync();
+        var contexts = await ToListAsync(provider.GetBonusQuestionContextAsync());
         var standingsContext = contexts[0];
 
         // Assert - verify CSV structure is consistent with GetContextAsync

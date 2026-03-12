@@ -82,6 +82,18 @@ public abstract class KicktippContextProviderTests_Base
         return mock;
     }
 
+    protected static async Task<List<T>> ToListAsync<T>(IAsyncEnumerable<T> source)
+    {
+        List<T> items = [];
+
+        await foreach (var item in source)
+        {
+            items.Add(item);
+        }
+
+        return items;
+    }
+
     protected static List<TeamStanding> CreateTestStandings()
     {
         return
