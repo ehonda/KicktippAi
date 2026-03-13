@@ -40,6 +40,7 @@ For Langfuse evaluation and experiment work, prefer the Python SDK first because
 
 - Keep JS/TS as the fallback when local Python tooling becomes the main source of friction
 - Before starting Phase 2 implementation work, read `plans/langfuse-integration/phase-2/AGENTS.md` and the linked tracker documents there
+- For verified repository-specific Langfuse tracing and filtering behavior, read [docs/langfuse.md](docs/langfuse.md)
 
 ## Running and Filtering Tests
 
