@@ -1,5 +1,5 @@
 using EHonda.KicktippAi.Core;
-using FirebaseAdapter.Tests.Fixtures;
+using TestUtilities;
 using NodaTime.Extensions;
 using TUnit.Core;
 using static TestUtilities.CoreTestFactories;

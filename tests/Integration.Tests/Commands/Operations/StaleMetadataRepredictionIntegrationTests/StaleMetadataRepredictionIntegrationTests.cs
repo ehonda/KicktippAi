@@ -102,8 +102,7 @@ public class StaleMetadataRepredictionIntegrationTests : StaleMetadataRepredicti
             Model,
             "-c",
             Community,
-            "--repredict",
-            "--dry-run");
+            "--repredict");
 
         await Assert.That(matchdayExitCode).IsEqualTo(0);
         await Assert.That(matchdayOutput).Contains("Skipped reprediction");

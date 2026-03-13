@@ -1,4 +1,4 @@
-using FirebaseAdapter.Tests.Fixtures;
+using TestUtilities;
 using TUnit.Core;
 using static TestUtilities.CoreTestFactories;
 
