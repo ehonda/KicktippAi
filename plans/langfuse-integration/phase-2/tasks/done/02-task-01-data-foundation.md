@@ -42,11 +42,11 @@ Every later task depends on stable answers to three questions:
 
 Use [manual-steps.md](../manual-steps.md#task-1--data-foundation) during implementation.
 
-## Open Questions To Resolve In This Task
+## Questions Resolved In This Task
 
-- Should `tippspielId` be persisted as a secondary field even though the primary identity stays community plus matchday plus teams?
-- Does any postponed-match case require additional status beyond "completed" and "not completed yet" in the persisted contract?
-- Do we need a dedicated export-oriented prediction read model in Task 2, or can that wait until the dataset export implementation lands?
+- `tippspielId` is persisted and used by the current Firebase outcome storage path; the provided cross-community samples did not show a collision between `pes-squad` and `ehonda-test-buli`
+- The persisted outcome contract currently uses a normalized `Pending` or `Completed` availability state, which is sufficient for postponed-match refresh handling in the collection flow
+- A dedicated export-oriented prediction read model can wait for later dataset-export work; Task 2 should consume the frozen outcome contract and focus on prompt reconstruction
 
 ## Decisions Locked In This Task
 
@@ -75,7 +75,7 @@ For the first match experiment milestone:
 - On the first run this can be the full range; on later runs this should usually shrink to current and any postponed matchdays that still contain incomplete outcomes
 - For each incomplete matchday, the collector should re-fetch `tippuebersicht?spieltagIndex=<n>` and upsert match outcome rows
 - Postponed matches are handled by re-running incomplete matchdays until their scores appear on the original matchday page
-- `tippspielId` may be persisted as an auxiliary field, but the preferred primary identity remains community plus matchday plus teams
+- `tippspielId` is persisted on the outcome record and is the current document-identity basis for the Firebase storage path
 
 ## Repository Interface Changes Required Before Export Work
 

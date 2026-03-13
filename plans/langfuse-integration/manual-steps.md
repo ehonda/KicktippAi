@@ -95,7 +95,7 @@ Before uploading datasets and running experiments:
 - Decide on the dataset scope (e.g., last N matchdays, specific communities)
 - This is a manual decision; the code to export and upload will be part of Phase 2 implementation
 
-Phase 2 now has its own detailed implementation-time manual checklist in [phase-2/manual-steps.md](phase-2/manual-steps.md). Use that document during execution; keep this file as the cross-phase summary.
+Phase 2 now has its own detailed implementation-time manual checklist in [phase-2/tasks/manual-steps.md](phase-2/tasks/manual-steps.md). Use that document during execution; keep this file as the cross-phase summary.
 
 ---
 

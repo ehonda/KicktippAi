@@ -93,5 +93,5 @@ A new session should be able to continue the work by reading:
 1. [AGENTS.md](AGENTS.md)
 2. This file
 3. [01-phase-2-tracker.md](01-phase-2-tracker.md)
-4. [manual-steps.md](manual-steps.md)
+4. [manual-steps.md](tasks/manual-steps.md)
 5. The next incomplete numbered task tracker

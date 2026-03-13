@@ -2,7 +2,7 @@
 
 ## Status
 
-Blocked by Task 1
+Ready
 
 ## Objective
 

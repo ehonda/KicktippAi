@@ -6,31 +6,31 @@ This directory contains the handoff-ready planning and tracking package for **Ph
 
 When starting a new implementation session for Phase 2, read these files in order:
 
-1. [first-session-handoff.md](first-session-handoff.md) for the immediate starting brief
+1. [first-session-handoff.md](tasks/done/first-session-handoff.md) for the immediate starting brief
 2. [00-common-context.md](00-common-context.md)
 3. [01-phase-2-tracker.md](01-phase-2-tracker.md)
-4. [manual-steps.md](manual-steps.md)
+4. [manual-steps.md](tasks/manual-steps.md)
 5. The next incomplete numbered task tracker listed in the master tracker
 6. [buli-25-26-experiments.md](buli-25-26-experiments.md) when working on the first Bundesliga experiment milestone
 
 ## Local Document Structure
 
-- [first-session-handoff.md](first-session-handoff.md): Focused brief for the next implementation session, starting with Task 1
+- [first-session-handoff.md](tasks/done/first-session-handoff.md): Archived brief from the Task 1 starting session
 - [00-common-context.md](00-common-context.md): Shared technical and product context relevant to all Phase 2 tasks
 - [01-phase-2-tracker.md](01-phase-2-tracker.md): Master tracker, task order, dependencies, and handoff rules
-- [02-task-01-data-foundation.md](02-task-01-data-foundation.md): Confirm sources, data contract, and export seam
-- [03-task-02-prompt-reconstruction.md](03-task-02-prompt-reconstruction.md): Prompt reconstruction and export materialization
-- [04-task-03-runner-spike.md](04-task-03-runner-spike.md): Python vs JS/TS runner spike and decision checkpoint
-- [05-task-04-dataset-sync.md](05-task-04-dataset-sync.md): Hosted dataset creation and synchronization
-- [06-task-05-first-experiment.md](06-task-05-first-experiment.md): First sampled Bundesliga match experiment
-- [07-task-06-follow-up-evaluation.md](07-task-06-follow-up-evaluation.md): Follow-up scoring, automation, and expansion work
-- [manual-steps.md](manual-steps.md): Manual actions grouped by timing and by task
+- [02-task-01-data-foundation.md](tasks/done/02-task-01-data-foundation.md): Completed Task 1 planning and implementation record
+- [03-task-02-prompt-reconstruction.md](tasks/03-task-02-prompt-reconstruction.md): Prompt reconstruction and export materialization
+- [04-task-03-runner-spike.md](tasks/04-task-03-runner-spike.md): Python vs JS/TS runner spike and decision checkpoint
+- [05-task-04-dataset-sync.md](tasks/05-task-04-dataset-sync.md): Hosted dataset creation and synchronization
+- [06-task-05-first-experiment.md](tasks/06-task-05-first-experiment.md): First sampled Bundesliga match experiment
+- [07-task-06-follow-up-evaluation.md](tasks/07-task-06-follow-up-evaluation.md): Follow-up scoring, automation, and expansion work
+- [manual-steps.md](tasks/manual-steps.md): Manual actions grouped by timing and by task
 - [buli-25-26-experiments.md](buli-25-26-experiments.md): Domain-specific experiment design note for the first milestone
 
 ## Working Rules
 
 - Treat [01-phase-2-tracker.md](01-phase-2-tracker.md) as the source of truth for sequencing and handoff status
-- Treat [manual-steps.md](manual-steps.md) as the source of truth for UI work, environment setup checks, and other non-code actions
+- Treat [manual-steps.md](tasks/manual-steps.md) as the source of truth for UI work, environment setup checks, and other non-code actions
 - When a task is started or completed, update both the task tracker and the master tracker in the same session when possible
 - If a blocker is discovered that affects later tasks, record it in [01-phase-2-tracker.md](01-phase-2-tracker.md) and in the affected task file
 

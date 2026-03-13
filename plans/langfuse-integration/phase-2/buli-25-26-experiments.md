@@ -2,7 +2,7 @@
 
 This is the domain-specific design note for the first Phase 2 milestone: Langfuse experiments for the 2025/2026 Bundesliga season, which is the first kicktipp.ai season we have data for.
 
-For implementation tracking, use [01-phase-2-tracker.md](01-phase-2-tracker.md), [00-common-context.md](00-common-context.md), and the numbered task trackers in this directory.
+For implementation tracking, use [01-phase-2-tracker.md](01-phase-2-tracker.md), [00-common-context.md](00-common-context.md), and the numbered task trackers in [tasks](tasks).
 
 ## Dataset for Matches
 
@@ -52,4 +52,4 @@ As these only matter during the start of the season, we'll postpone it for now. 
 
 - Shared context and repository findings: [00-common-context.md](00-common-context.md)
 - Master tracker and task order: [01-phase-2-tracker.md](01-phase-2-tracker.md)
-- Manual steps by task and execution point: [manual-steps.md](manual-steps.md)
+- Manual steps by task and execution point: [manual-steps.md](tasks/manual-steps.md)

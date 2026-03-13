@@ -16,28 +16,38 @@ Set up a reproducible Langfuse experiment workflow for KicktippAi that can:
 
 | Order | Task | Purpose | Depends On | Status |
 |------|------|---------|------------|--------|
-| 1 | [02-task-01-data-foundation.md](02-task-01-data-foundation.md) | Confirm data sources, freeze dataset contract, design export seam | None | Ready |
-| 2 | [03-task-02-prompt-reconstruction.md](03-task-02-prompt-reconstruction.md) | Resolve exact context versions and reproducible prompt reconstruction | Task 1 | Blocked by Task 1 |
-| 3 | [04-task-03-runner-spike.md](04-task-03-runner-spike.md) | Choose Python or JS/TS experiment runner with a narrow spike | Tasks 1-2 | Blocked by Tasks 1-2 |
-| 4 | [05-task-04-dataset-sync.md](05-task-04-dataset-sync.md) | Create and synchronize the hosted Langfuse dataset | Tasks 1-3 | Blocked by Tasks 1-3 |
-| 5 | [06-task-05-first-experiment.md](06-task-05-first-experiment.md) | Run the first sampled Bundesliga experiment with scoring | Tasks 1-4 | Blocked by Tasks 1-4 |
-| 6 | [07-task-06-follow-up-evaluation.md](07-task-06-follow-up-evaluation.md) | Add follow-up metrics, automation, and next experiment layers | Task 5 | Blocked by Task 5 |
+| 1 | [02-task-01-data-foundation.md](tasks/done/02-task-01-data-foundation.md) | Confirm data sources, freeze dataset contract, design export seam | None | Completed |
+| 2 | [03-task-02-prompt-reconstruction.md](tasks/03-task-02-prompt-reconstruction.md) | Resolve exact context versions and reproducible prompt reconstruction | Task 1 | Ready |
+| 3 | [04-task-03-runner-spike.md](tasks/04-task-03-runner-spike.md) | Choose Python or JS/TS experiment runner with a narrow spike | Task 2 | Blocked by Task 2 |
+| 4 | [05-task-04-dataset-sync.md](tasks/05-task-04-dataset-sync.md) | Create and synchronize the hosted Langfuse dataset | Tasks 2-3 | Blocked by Tasks 2-3 |
+| 5 | [06-task-05-first-experiment.md](tasks/06-task-05-first-experiment.md) | Run the first sampled Bundesliga experiment with scoring | Tasks 2-4 | Blocked by Tasks 2-4 |
+| 6 | [07-task-06-follow-up-evaluation.md](tasks/07-task-06-follow-up-evaluation.md) | Add follow-up metrics, automation, and next experiment layers | Task 5 | Blocked by Task 5 |
+
+## Task Checklist
+
+- [x] [Task 1 — Data Foundation](tasks/done/02-task-01-data-foundation.md)
+- [ ] [Task 2 — Prompt Reconstruction](tasks/03-task-02-prompt-reconstruction.md)
+- [ ] [Task 3 — Runner Spike](tasks/04-task-03-runner-spike.md)
+- [ ] [Task 4 — Hosted Dataset Sync](tasks/05-task-04-dataset-sync.md)
+- [ ] [Task 5 — First Experiment](tasks/06-task-05-first-experiment.md)
+- [ ] [Task 6 — Follow-up Evaluation](tasks/07-task-06-follow-up-evaluation.md)
 
 ## Current Status
 
 - Planning scaffold created
 - Shared context consolidated into [00-common-context.md](00-common-context.md)
-- Manual actions consolidated into [manual-steps.md](manual-steps.md)
+- Manual actions consolidated into [manual-steps.md](tasks/manual-steps.md)
 - Domain-specific first-milestone design kept in [buli-25-26-experiments.md](buli-25-26-experiments.md)
-- Task 1 data-foundation decisions are being locked and implemented
+- Task 1 data-foundation work is complete and archived in [02-task-01-data-foundation.md](tasks/done/02-task-01-data-foundation.md)
+- Task 2 prompt reconstruction is the next open implementation task
 
 ## Cross-Task Risks
 
-### 1. Outcome Persistence Must Be Added
+### 1. Dataset Export Must Use The Persisted Outcome Store
 
-The current Firestore prediction and context models clearly support prediction export and prompt reconstruction inputs. Actual match outcomes should be scraped from Kicktipp `tippuebersicht` pages by matchday and persisted into a new Firebase collection before dataset export can rely on them.
+The Phase 2 outcome collection seam is now in place: actual match outcomes are collected from Kicktipp `tippuebersicht` pages and persisted into Firebase.
 
-Task 1 must add the repository and collection seam for this.
+Later tasks must build on that persisted store rather than reintroducing live scraping into dataset export or experiment execution flows.
 
 ### 2. Runner Language Is Not Locked
 
@@ -56,15 +66,15 @@ This affects dataset sync design in Task 4.
 - Before starting a task, update its `Status` section from `Ready` or `Blocked` to `In progress`
 - When a task completes, update this master tracker and the task file in the same session if possible
 - Any blocker discovered during implementation must be recorded here and in the affected task file
-- If a manual step is required, record evidence or completion notes in [manual-steps.md](manual-steps.md)
+- If a manual step is required, record evidence or completion notes in [manual-steps.md](tasks/manual-steps.md)
 
 ## What A New Session Should Do First
 
 1. Read [AGENTS.md](AGENTS.md)
-2. Read [first-session-handoff.md](first-session-handoff.md)
+2. Read [first-session-handoff.md](tasks/done/first-session-handoff.md)
 3. Read [00-common-context.md](00-common-context.md)
-4. Read [manual-steps.md](manual-steps.md)
-5. Start with [02-task-01-data-foundation.md](02-task-01-data-foundation.md)
+4. Read [manual-steps.md](tasks/manual-steps.md)
+5. Start with the next incomplete task from the checklist, currently [03-task-02-prompt-reconstruction.md](tasks/03-task-02-prompt-reconstruction.md)
 
 ## Completion Criteria For The First Milestone
 
