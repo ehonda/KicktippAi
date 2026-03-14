@@ -43,10 +43,6 @@
       <Configuration Solution="Release|x86" Project="Release|Any CPU" />
     </Project>
   </Folder>
-  <Folder Name="/dev/">
-    <Project Path="dev/Poc/Poc.csproj" />
-    <Project Path="dev/PromptSampleTests/PromptSampleTests.csproj" />
-  </Folder>
   <Folder Name="/tests/">
     <Project Path="tests/ContextProviders.Kicktipp.Tests/ContextProviders.Kicktipp.Tests.csproj" />
     <Project Path="tests/Core.Tests/Core.Tests.csproj" />
