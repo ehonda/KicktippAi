@@ -51,6 +51,8 @@ public static class ServiceCollectionExtensions
         // Register the instructions template provider
         services.TryAddSingleton<IInstructionsTemplateProvider, InstructionsTemplateProvider>();
 
+        services.TryAddScoped<IMatchPromptReconstructionService, MatchPromptReconstructionService>();
+
         // Register the token usage tracker as singleton (to accumulate across requests)
         services.TryAddSingleton<ITokenUsageTracker>(serviceProvider =>
             new TokenUsageTracker(

@@ -9,6 +9,7 @@ using Orchestrator.Commands.Operations.Verify;
 using Orchestrator.Commands.Observability.AnalyzeMatch;
 using Orchestrator.Commands.Observability.ContextChanges;
 using Orchestrator.Commands.Observability.Cost;
+using Orchestrator.Commands.Observability.ReconstructPrompt;
 using Orchestrator.Commands.Utility.UploadKpi;
 using Orchestrator.Commands.Utility.UploadTransfers;
 using Orchestrator.Commands.Utility.ListKpi;
@@ -127,6 +128,11 @@ public class Program
                 .WithDescription("Show changes between latest and previous versions of context documents")
                 .WithExample("context-changes", "--community-context", "ehonda-test-buli", "--count", "5")
                 .WithExample("context-changes", "--community-context", "ehonda-test-buli", "--seed", "42");
+
+            config.AddCommand<ReconstructPromptCommand>("reconstruct-prompt")
+                .WithDescription("Reconstruct the historical prompt inputs for a stored match prediction")
+                .WithExample("reconstruct-prompt", "o4-mini", "--community-context", "pes-squad", "--home", "VfB Stuttgart", "--away", "RB Leipzig", "--matchday", "26")
+                .WithExample("reconstruct-prompt", "o4-mini", "--community-context", "pes-squad", "--home", "VfB Stuttgart", "--away", "RB Leipzig", "--matchday", "26", "--with-justification");
                 
             config.AddCommand<CostCommand>("cost")
                 .WithDescription("Calculate aggregate costs for predictions")

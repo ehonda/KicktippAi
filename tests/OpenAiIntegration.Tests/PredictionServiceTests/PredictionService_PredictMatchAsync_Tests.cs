@@ -2,6 +2,8 @@ using EHonda.KicktippAi.Core;
 using Microsoft.Extensions.Logging;
 using Moq;
 using OpenAI.Chat;
+using System.ClientModel;
+using System.ClientModel.Primitives;
 using TestUtilities;
 using TestUtilities.FakeLoggerAssertions;
 using EHonda.Optional.Core;
@@ -197,5 +199,33 @@ public class PredictionService_PredictMatchAsync_Tests : PredictionServiceTests_
 
         // Assert
         await Assert.That(prediction).IsNull();
+    }
+
+    [Test]
+    public async Task Predicting_match_uses_shared_prompt_composer_for_system_prompt_and_match_json()
+    {
+        // Arrange
+        IReadOnlyList<ChatMessage>? capturedMessages = null;
+        var contextDocuments = CreateTestContextDocuments();
+        var chatClient = CreateMockChatClientWithCapture(messages => capturedMessages = messages);
+        var service = CreateService(chatClient);
+        var match = CreateTestMatch();
+
+        // Act
+        await PredictMatchAsync(service, match, contextDocuments);
+
+        // Assert
+        await Assert.That(capturedMessages).IsNotNull();
+        await Assert.That(capturedMessages!.Count).IsEqualTo(2);
+
+        var systemMessage = (SystemChatMessage)capturedMessages[0];
+        var userMessage = (UserChatMessage)capturedMessages[1];
+
+        var expectedSystemPrompt = PredictionPromptComposer.BuildSystemPrompt(
+            "You are a football prediction expert. Predict the match outcome.",
+            contextDocuments);
+
+        await Assert.That(systemMessage.Content[0].Text).IsEqualTo(expectedSystemPrompt);
+        await Assert.That(userMessage.Content[0].Text).IsEqualTo(PredictionPromptComposer.CreateMatchJson(match));
     }
 }

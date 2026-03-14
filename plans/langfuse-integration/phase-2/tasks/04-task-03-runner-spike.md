@@ -2,7 +2,7 @@
 
 ## Status
 
-Blocked by Task 2
+Ready
 
 ## Objective
 
@@ -28,7 +28,7 @@ The runner decision should be made after the data contract and prompt reconstruc
 ## Inputs
 
 - Results of [02-task-01-data-foundation.md](done/02-task-01-data-foundation.md)
-- Results of [03-task-02-prompt-reconstruction.md](03-task-02-prompt-reconstruction.md)
+- Results of [03-task-02-prompt-reconstruction.md](done/03-task-02-prompt-reconstruction.md)
 - [src/Orchestrator/Infrastructure/ServiceRegistrationExtensions.cs](src/Orchestrator/Infrastructure/ServiceRegistrationExtensions.cs)
 
 ## Manual Steps

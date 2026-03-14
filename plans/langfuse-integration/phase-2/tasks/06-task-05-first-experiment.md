@@ -2,7 +2,7 @@
 
 ## Status
 
-Blocked by Tasks 2-4
+Blocked by Tasks 3-4
 
 ## Objective
 
@@ -29,7 +29,7 @@ This is the first milestone payoff task. It depends on the data contract, prompt
 ## Inputs
 
 - Results of [02-task-01-data-foundation.md](done/02-task-01-data-foundation.md)
-- Results of [03-task-02-prompt-reconstruction.md](03-task-02-prompt-reconstruction.md)
+- Results of [03-task-02-prompt-reconstruction.md](done/03-task-02-prompt-reconstruction.md)
 - Results of [04-task-03-runner-spike.md](04-task-03-runner-spike.md)
 - Results of [05-task-04-dataset-sync.md](05-task-04-dataset-sync.md)
 - [buli-25-26-experiments.md](../buli-25-26-experiments.md)

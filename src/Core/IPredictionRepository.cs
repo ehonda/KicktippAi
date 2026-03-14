@@ -64,6 +64,18 @@ public interface IPredictionRepository
     Task<IReadOnlyList<Match>> GetMatchDayAsync(int matchDay, CancellationToken cancellationToken = default);
 
     /// <summary>
+    /// Retrieves a stored match by team names and matchday.
+    /// </summary>
+    /// <param name="homeTeam">The home team name.</param>
+    /// <param name="awayTeam">The away team name.</param>
+    /// <param name="matchDay">The match day number.</param>
+    /// <param name="model">Optional model used to narrow prediction-based fallback lookups.</param>
+    /// <param name="communityContext">Optional community context used to narrow prediction-based fallback lookups.</param>
+    /// <param name="cancellationToken">Cancellation token.</param>
+    /// <returns>The stored match if found, otherwise null.</returns>
+    Task<Match?> GetStoredMatchAsync(string homeTeam, string awayTeam, int matchDay, string? model = null, string? communityContext = null, CancellationToken cancellationToken = default);
+
+    /// <summary>
     /// Retrieves all matches with their predictions for a specific match day using the specified model and community context.
     /// </summary>
     /// <param name="matchDay">The match day number (1-34 for Bundesliga).</param>

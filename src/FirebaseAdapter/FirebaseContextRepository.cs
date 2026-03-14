@@ -127,6 +127,34 @@ public class FirebaseContextRepository : IContextRepository
         }
     }
 
+    public async Task<ContextDocument?> GetContextDocumentByTimestampAsync(
+        string documentName,
+        DateTimeOffset createdAtOrEarlier,
+        string communityContext,
+        CancellationToken cancellationToken = default)
+    {
+        try
+        {
+            var versions = await GetContextDocumentVersionsAsync(documentName, communityContext, cancellationToken);
+
+            return versions
+                .Where(document => document.CreatedAt <= createdAtOrEarlier)
+                .OrderByDescending(document => document.CreatedAt)
+                .ThenByDescending(document => document.Version)
+                .FirstOrDefault();
+        }
+        catch (Exception ex)
+        {
+            _logger.LogError(
+                ex,
+                "Failed to retrieve context document {DocumentName} at timestamp {CreatedAt} for community {CommunityContext}",
+                documentName,
+                createdAtOrEarlier,
+                communityContext);
+            throw;
+        }
+    }
+
     public async Task<IReadOnlyList<string>> GetContextDocumentNamesAsync(string communityContext, CancellationToken cancellationToken = default)
     {
         try
@@ -141,6 +169,7 @@ public class FirebaseContextRepository : IContextRepository
             var documentNames = snapshot.Documents
                 .Select(doc => doc.GetValue<string>("documentName"))
                 .Distinct()
+                .OrderBy(name => name, StringComparer.Ordinal)
                 .ToList()
                 .AsReadOnly();
             

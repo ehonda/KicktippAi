@@ -1,4 +1,6 @@
 using EHonda.KicktippAi.Core;
+using Google.Cloud.Firestore;
+using NodaTime;
 using TestUtilities;
 using NodaTime.Extensions;
 using TUnit.Core;
@@ -135,6 +137,50 @@ public class FirebasePredictionRepository_Match_Tests(FirestoreFixture fixture)
 
         // Assert
         await Assert.That(predictions).HasCount().EqualTo(2);
+    }
+
+    [Test]
+    public async Task GetStoredMatchAsync_prediction_fallback_uses_requested_model_and_community_deterministically()
+    {
+        var repository = CreateRepository();
+        var requestedMatch = CreateMatch(
+            homeTeam: "Team A",
+            awayTeam: "Team B",
+            startsAt: Instant.FromUtc(2026, 2, 21, 14, 30).InUtc(),
+            matchday: 25);
+        var otherMatch = CreateMatch(
+            homeTeam: "Team A",
+            awayTeam: "Team B",
+            startsAt: Instant.FromUtc(2026, 2, 21, 16, 30).InUtc(),
+            matchday: 25);
+
+        await repository.SavePredictionAsync(
+            requestedMatch,
+            CreatePrediction(homeGoals: 2, awayGoals: 1),
+            model: "o4-mini",
+            tokenUsage: "100",
+            cost: 0.01,
+            communityContext: "pes-squad",
+            contextDocumentNames: []);
+
+        await repository.SavePredictionAsync(
+            otherMatch,
+            CreatePrediction(homeGoals: 1, awayGoals: 1),
+            model: "gpt-4o",
+            tokenUsage: "100",
+            cost: 0.01,
+            communityContext: "other-community",
+            contextDocumentNames: []);
+
+        var storedMatch = await repository.GetStoredMatchAsync(
+            "Team A",
+            "Team B",
+            25,
+            "o4-mini",
+            "pes-squad");
+
+        await Assert.That(storedMatch).IsNotNull();
+        await Assert.That(storedMatch!.StartsAt.ToInstant()).IsEqualTo(requestedMatch.StartsAt.ToInstant());
     }
 
     /// <summary>

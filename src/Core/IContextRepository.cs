@@ -47,6 +47,20 @@ public interface IContextRepository
         CancellationToken cancellationToken = default);
 
     /// <summary>
+    /// Retrieves the latest version of a context document that existed at the specified timestamp.
+    /// </summary>
+    /// <param name="documentName">The document name.</param>
+    /// <param name="createdAtOrEarlier">The timestamp that the resolved document must not exceed.</param>
+    /// <param name="communityContext">The community context to filter by.</param>
+    /// <param name="cancellationToken">Cancellation token.</param>
+    /// <returns>The latest context document whose creation time is less than or equal to the supplied timestamp, or null if none match.</returns>
+    Task<ContextDocument?> GetContextDocumentByTimestampAsync(
+        string documentName,
+        DateTimeOffset createdAtOrEarlier,
+        string communityContext,
+        CancellationToken cancellationToken = default);
+
+    /// <summary>
     /// Retrieves all context document names for a specific community context.
     /// </summary>
     /// <param name="communityContext">The community context to filter by.</param>

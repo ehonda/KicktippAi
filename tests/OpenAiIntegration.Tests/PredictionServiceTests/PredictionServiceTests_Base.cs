@@ -236,6 +236,50 @@ public abstract class PredictionServiceTests_Base
     }
 
     /// <summary>
+    /// Creates a mock ChatClient and captures the chat messages passed to the async API.
+    /// </summary>
+    protected static ChatClient CreateMockChatClientWithCapture(
+        Action<IReadOnlyList<ChatMessage>> captureMessages,
+        Option<string> responseJson = default,
+        Option<ChatTokenUsage> usage = default)
+    {
+        var actualResponseJson = responseJson.Or("""{"home": 2, "away": 1}""");
+        var actualUsage = usage.Or(() => OpenAITestHelpers.CreateChatTokenUsage(1000, 50));
+
+        var mockClient = new Mock<ChatClient>();
+        var mockResult = new Mock<ClientResult<ChatCompletion>>(null!, Mock.Of<PipelineResponse>());
+
+        var completion = OpenAIChatModelFactory.ChatCompletion(
+            id: "test-completion-id",
+            model: "gpt-5",
+            createdAt: DateTimeOffset.UtcNow,
+            finishReason: ChatFinishReason.Stop,
+            role: ChatMessageRole.Assistant,
+            content: [ChatMessageContentPart.CreateTextPart(actualResponseJson)],
+            usage: actualUsage);
+
+        mockResult
+            .SetupGet(result => result.Value)
+            .Returns(completion);
+
+        mockClient.Setup(client => client.CompleteChatAsync(
+                It.IsAny<IEnumerable<ChatMessage>>(),
+                It.IsAny<ChatCompletionOptions>(),
+                It.IsAny<CancellationToken>()))
+            .Callback<IEnumerable<ChatMessage>, ChatCompletionOptions, CancellationToken>((messages, _, _) =>
+                captureMessages(messages.ToList()))
+            .ReturnsAsync(mockResult.Object);
+
+        mockClient.Setup(client => client.CompleteChat(
+                It.IsAny<IEnumerable<ChatMessage>>(),
+                It.IsAny<ChatCompletionOptions>(),
+                It.IsAny<CancellationToken>()))
+            .Returns(mockResult.Object);
+
+        return mockClient.Object;
+    }
+
+    /// <summary>
     /// Creates a mock ChatClient that throws an exception when called
     /// </summary>
     protected static ChatClient CreateThrowingMockChatClient(Exception exception)

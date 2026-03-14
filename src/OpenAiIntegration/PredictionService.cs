@@ -70,7 +70,7 @@ public class PredictionService : IPredictionService
             var instructions = BuildInstructions(contextDocuments, includeJustification);
             
             // Create match JSON
-            var matchJson = CreateMatchJson(match);
+            var matchJson = PredictionPromptComposer.CreateMatchJson(match);
             
             _logger.LogDebug("Instructions length: {InstructionsLength} characters", instructions.Length);
             _logger.LogDebug("Context documents: {ContextCount}", contextDocuments.Count());
@@ -150,7 +150,7 @@ public class PredictionService : IPredictionService
             var instructions = BuildBonusInstructions(contextDocuments);
             
             // Create bonus question JSON
-            var questionJson = CreateBonusQuestionJson(bonusQuestion);
+            var questionJson = PredictionPromptComposer.CreateBonusQuestionJson(bonusQuestion);
             
             _logger.LogDebug("Instructions length: {InstructionsLength} characters", instructions.Length);
             _logger.LogDebug("Context documents: {ContextCount}", contextDocuments.Count());
@@ -221,24 +221,13 @@ public class PredictionService : IPredictionService
 
     private string BuildInstructions(IEnumerable<DocumentContext> contextDocuments, bool includeJustification)
     {
-        var instructions = includeJustification
+        var template = includeJustification
             ? _instructionsTemplateWithJustification
             : _instructionsTemplate;
 
         var contextList = contextDocuments.ToList();
         if (contextList.Any())
         {
-            var contextSection = "\n";
-            foreach (var doc in contextList)
-            {
-                contextSection += "---\n";
-                contextSection += $"{doc.Name}\n\n";
-                contextSection += $"{doc.Content}\n";
-            }
-            contextSection += "---";
-            
-            instructions += contextSection;
-            
             _logger.LogDebug("Added {ContextCount} context documents to instructions", contextList.Count);
         }
         else
@@ -246,20 +235,7 @@ public class PredictionService : IPredictionService
             _logger.LogDebug("No context documents provided");
         }
 
-        return instructions;
-    }
-
-    private static string CreateMatchJson(Match match)
-    {
-        return JsonSerializer.Serialize(new
-        {
-            homeTeam = match.HomeTeam,
-            awayTeam = match.AwayTeam,
-            startsAt = match.StartsAt.ToString()
-        }, new JsonSerializerOptions
-        {
-            Encoder = System.Text.Encodings.Web.JavaScriptEncoder.UnsafeRelaxedJsonEscaping
-        });
+        return PredictionPromptComposer.BuildSystemPrompt(template, contextList);
     }
 
     private static byte[] BuildPredictionJsonSchema(bool includeJustification)
@@ -472,17 +448,6 @@ public class PredictionService : IPredictionService
         var contextList = contextDocuments.ToList();
         if (contextList.Any())
         {
-            var contextSection = "\n";
-            foreach (var doc in contextList)
-            {
-                contextSection += "---\n";
-                contextSection += $"{doc.Name}\n\n";
-                contextSection += $"{doc.Content}\n";
-            }
-            contextSection += "---";
-            
-            bonusInstructionsTemplate += contextSection;
-            
             _logger.LogDebug("Added {ContextCount} context documents to bonus instructions", contextList.Count);
         }
         else
@@ -490,22 +455,7 @@ public class PredictionService : IPredictionService
             _logger.LogDebug("No context documents provided for bonus predictions");
         }
 
-        return bonusInstructionsTemplate;
-    }
-
-    private static string CreateBonusQuestionJson(BonusQuestion question)
-    {
-        var questionData = new
-        {
-            text = question.Text,
-            options = question.Options.Select(o => new { id = o.Id, text = o.Text }).ToArray(),
-            maxSelections = question.MaxSelections
-        };
-
-        return JsonSerializer.Serialize(questionData, new JsonSerializerOptions
-        {
-            Encoder = System.Text.Encodings.Web.JavaScriptEncoder.UnsafeRelaxedJsonEscaping
-        });
+        return PredictionPromptComposer.BuildSystemPrompt(bonusInstructionsTemplate, contextList);
     }
 
     private static byte[] CreateSingleBonusPredictionJsonSchema(BonusQuestion question)

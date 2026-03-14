@@ -54,6 +54,7 @@ Use this file during implementation, not just for planning.
 
 - Pick a small set of historical predictions from different matchdays
 - Confirm that the resolved context versions make sense chronologically
+- Record the observation or trace IDs used for comparison and whether the reconstructed match payload and system prompt matched
 - If a reconstructed prompt looks suspicious, record the edge case before moving on
 
 2. Manually review the reconstructed metadata shape

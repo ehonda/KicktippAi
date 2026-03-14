@@ -1,4 +1,5 @@
 using EHonda.KicktippAi.Core;
+using Google.Cloud.Firestore;
 using TestUtilities;
 using TUnit.Core;
 using static TestUtilities.CoreTestFactories;
@@ -301,6 +302,57 @@ public class FirebasePredictionRepository_BonusPrediction_Tests(FirestoreFixture
 
         // Assert - Should return null since questionId field is not populated
         await Assert.That(retrieved).IsNull();
+    }
+
+    [Test]
+    public async Task GetBonusPredictionAsync_by_questionId_returns_latest_reprediction_deterministically()
+    {
+        var repository = CreateRepository();
+        var firstId = Guid.NewGuid().ToString();
+        var secondId = Guid.NewGuid().ToString();
+
+        await Fixture.Db.Collection("bonus-predictions")
+            .Document(firstId)
+            .SetAsync(new Dictionary<string, object>
+            {
+                ["questionId"] = "question-42",
+                ["questionText"] = "Who will win?",
+                ["selectedOptionIds"] = new[] { "opt-1" },
+                ["selectedOptionTexts"] = new[] { "Option 1" },
+                ["createdAt"] = Timestamp.FromDateTime(DateTime.SpecifyKind(new DateTime(2026, 2, 1, 12, 0, 0), DateTimeKind.Utc)),
+                ["updatedAt"] = Timestamp.FromDateTime(DateTime.SpecifyKind(new DateTime(2026, 2, 1, 12, 0, 0), DateTimeKind.Utc)),
+                ["competition"] = "bundesliga-2025-26",
+                ["model"] = "gpt-4o",
+                ["tokenUsage"] = "100",
+                ["cost"] = 0.01,
+                ["communityContext"] = "test-community",
+                ["contextDocumentNames"] = Array.Empty<string>(),
+                ["repredictionIndex"] = 0
+            });
+
+        await Fixture.Db.Collection("bonus-predictions")
+            .Document(secondId)
+            .SetAsync(new Dictionary<string, object>
+            {
+                ["questionId"] = "question-42",
+                ["questionText"] = "Who will win?",
+                ["selectedOptionIds"] = new[] { "opt-2" },
+                ["selectedOptionTexts"] = new[] { "Option 2" },
+                ["createdAt"] = Timestamp.FromDateTime(DateTime.SpecifyKind(new DateTime(2026, 2, 2, 12, 0, 0), DateTimeKind.Utc)),
+                ["updatedAt"] = Timestamp.FromDateTime(DateTime.SpecifyKind(new DateTime(2026, 2, 2, 12, 0, 0), DateTimeKind.Utc)),
+                ["competition"] = "bundesliga-2025-26",
+                ["model"] = "gpt-4o",
+                ["tokenUsage"] = "120",
+                ["cost"] = 0.02,
+                ["communityContext"] = "test-community",
+                ["contextDocumentNames"] = Array.Empty<string>(),
+                ["repredictionIndex"] = 1
+            });
+
+        var retrieved = await repository.GetBonusPredictionAsync("question-42", "gpt-4o", "test-community");
+
+        await Assert.That(retrieved).IsNotNull();
+        await Assert.That(retrieved!.SelectedOptionIds).IsEquivalentTo(["opt-2"]);
     }
 
     [Test]

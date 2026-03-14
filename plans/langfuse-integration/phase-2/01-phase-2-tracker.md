@@ -17,16 +17,16 @@ Set up a reproducible Langfuse experiment workflow for KicktippAi that can:
 | Order | Task | Purpose | Depends On | Status |
 |------|------|---------|------------|--------|
 | 1 | [02-task-01-data-foundation.md](tasks/done/02-task-01-data-foundation.md) | Confirm data sources, freeze dataset contract, design export seam | None | Completed |
-| 2 | [03-task-02-prompt-reconstruction.md](tasks/03-task-02-prompt-reconstruction.md) | Resolve exact context versions and reproducible prompt reconstruction | Task 1 | Ready |
-| 3 | [04-task-03-runner-spike.md](tasks/04-task-03-runner-spike.md) | Choose Python or JS/TS experiment runner with a narrow spike | Task 2 | Blocked by Task 2 |
-| 4 | [05-task-04-dataset-sync.md](tasks/05-task-04-dataset-sync.md) | Create and synchronize the hosted Langfuse dataset | Tasks 2-3 | Blocked by Tasks 2-3 |
-| 5 | [06-task-05-first-experiment.md](tasks/06-task-05-first-experiment.md) | Run the first sampled Bundesliga experiment with scoring | Tasks 2-4 | Blocked by Tasks 2-4 |
+| 2 | [03-task-02-prompt-reconstruction.md](tasks/done/03-task-02-prompt-reconstruction.md) | Resolve exact context versions and reproducible prompt reconstruction | Task 1 | Completed |
+| 3 | [04-task-03-runner-spike.md](tasks/04-task-03-runner-spike.md) | Choose Python or JS/TS experiment runner with a narrow spike | Task 2 | Ready |
+| 4 | [05-task-04-dataset-sync.md](tasks/05-task-04-dataset-sync.md) | Create and synchronize the hosted Langfuse dataset | Task 3 | Blocked by Task 3 |
+| 5 | [06-task-05-first-experiment.md](tasks/06-task-05-first-experiment.md) | Run the first sampled Bundesliga experiment with scoring | Tasks 3-4 | Blocked by Tasks 3-4 |
 | 6 | [07-task-06-follow-up-evaluation.md](tasks/07-task-06-follow-up-evaluation.md) | Add follow-up metrics, automation, and next experiment layers | Task 5 | Blocked by Task 5 |
 
 ## Task Checklist
 
 - [x] [Task 1 — Data Foundation](tasks/done/02-task-01-data-foundation.md)
-- [ ] [Task 2 — Prompt Reconstruction](tasks/03-task-02-prompt-reconstruction.md)
+- [x] [Task 2 — Prompt Reconstruction](tasks/done/03-task-02-prompt-reconstruction.md)
 - [ ] [Task 3 — Runner Spike](tasks/04-task-03-runner-spike.md)
 - [ ] [Task 4 — Hosted Dataset Sync](tasks/05-task-04-dataset-sync.md)
 - [ ] [Task 5 — First Experiment](tasks/06-task-05-first-experiment.md)
@@ -39,7 +39,8 @@ Set up a reproducible Langfuse experiment workflow for KicktippAi that can:
 - Manual actions consolidated into [manual-steps.md](tasks/manual-steps.md)
 - Domain-specific first-milestone design kept in [buli-25-26-experiments.md](buli-25-26-experiments.md)
 - Task 1 data-foundation work is complete and archived in [02-task-01-data-foundation.md](tasks/done/02-task-01-data-foundation.md)
-- Task 2 prompt reconstruction is the next open implementation task
+- Task 2 prompt reconstruction is complete and archived in [03-task-02-prompt-reconstruction.md](tasks/done/03-task-02-prompt-reconstruction.md)
+- Task 3 runner spike is the next open implementation task
 
 ## Cross-Task Risks
 
@@ -74,7 +75,7 @@ This affects dataset sync design in Task 4.
 2. Read [first-session-handoff.md](tasks/done/first-session-handoff.md)
 3. Read [00-common-context.md](00-common-context.md)
 4. Read [manual-steps.md](tasks/manual-steps.md)
-5. Start with the next incomplete task from the checklist, currently [03-task-02-prompt-reconstruction.md](tasks/03-task-02-prompt-reconstruction.md)
+5. Start with the next incomplete task from the checklist, currently [04-task-03-runner-spike.md](tasks/04-task-03-runner-spike.md)
 
 ## Completion Criteria For The First Milestone
 

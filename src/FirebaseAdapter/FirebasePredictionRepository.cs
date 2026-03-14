@@ -243,6 +243,87 @@ public class FirebasePredictionRepository : IPredictionRepository
         }
     }
 
+    public async Task<Match?> GetStoredMatchAsync(string homeTeam, string awayTeam, int matchDay, string? model = null, string? communityContext = null, CancellationToken cancellationToken = default)
+    {
+        try
+        {
+            var matchQuery = _firestoreDb.Collection(_matchesCollection)
+                .WhereEqualTo("competition", _competition)
+                .WhereEqualTo("matchday", matchDay)
+                .WhereEqualTo("homeTeam", homeTeam)
+                .WhereEqualTo("awayTeam", awayTeam);
+
+            var matchSnapshot = await matchQuery.GetSnapshotAsync(cancellationToken);
+
+            if (matchSnapshot.Documents.Count > 0)
+            {
+                if (matchSnapshot.Documents.Count > 1)
+                {
+                    _logger.LogWarning("Found {Count} stored match documents for {HomeTeam} vs {AwayTeam} on matchday {Matchday}; selecting deterministically by startsAt", matchSnapshot.Documents.Count, homeTeam, awayTeam, matchDay);
+                }
+
+                return matchSnapshot.Documents
+                    .Select(document => document.ConvertTo<FirestoreMatch>())
+                    .Select(firestoreMatch => new Match(
+                        firestoreMatch.HomeTeam,
+                        firestoreMatch.AwayTeam,
+                        ConvertFromTimestamp(firestoreMatch.StartsAt),
+                        firestoreMatch.Matchday,
+                        firestoreMatch.IsCancelled))
+                    .OrderBy(match => match.StartsAt.ToInstant())
+                    .ThenBy(match => match.IsCancelled)
+                    .First();
+            }
+
+            Query predictionQuery = _firestoreDb.Collection(_predictionsCollection)
+                .WhereEqualTo("competition", _competition)
+                .WhereEqualTo("matchday", matchDay)
+                .WhereEqualTo("homeTeam", homeTeam)
+                .WhereEqualTo("awayTeam", awayTeam);
+
+            if (!string.IsNullOrWhiteSpace(model))
+            {
+                predictionQuery = predictionQuery.WhereEqualTo("model", model);
+            }
+
+            if (!string.IsNullOrWhiteSpace(communityContext))
+            {
+                predictionQuery = predictionQuery.WhereEqualTo("communityContext", communityContext);
+            }
+
+            var predictionSnapshot = await predictionQuery.GetSnapshotAsync(cancellationToken);
+
+            if (predictionSnapshot.Documents.Count == 0)
+            {
+                return null;
+            }
+
+            if (predictionSnapshot.Documents.Count > 1)
+            {
+                _logger.LogWarning("Found {Count} stored prediction documents for {HomeTeam} vs {AwayTeam} on matchday {Matchday}; selecting deterministically by reprediction metadata", predictionSnapshot.Documents.Count, homeTeam, awayTeam, matchDay);
+            }
+
+            var firestorePrediction = predictionSnapshot.Documents
+                .Select(document => document.ConvertTo<FirestoreMatchPrediction>())
+                .OrderByDescending(prediction => prediction.RepredictionIndex)
+                .ThenByDescending(prediction => prediction.CreatedAt.ToDateTimeOffset())
+                .ThenBy(prediction => prediction.StartsAt.ToDateTimeOffset())
+                .ThenBy(prediction => prediction.Id, StringComparer.Ordinal)
+                .First();
+
+            return new Match(
+                firestorePrediction.HomeTeam,
+                firestorePrediction.AwayTeam,
+                ConvertFromTimestamp(firestorePrediction.StartsAt),
+                firestorePrediction.Matchday);
+        }
+        catch (Exception ex)
+        {
+            _logger.LogError(ex, "Failed to get stored match {HomeTeam} vs {AwayTeam} for matchday {Matchday}", homeTeam, awayTeam, matchDay);
+            throw;
+        }
+    }
+
     public async Task<IReadOnlyList<MatchPrediction>> GetMatchDayWithPredictionsAsync(int matchDay, string model, string communityContext, CancellationToken cancellationToken = default)
     {
         try
@@ -429,7 +510,13 @@ public class FirebasePredictionRepository : IPredictionRepository
                 return null;
             }
 
-            var firestoreBonusPrediction = snapshot.Documents.First().ConvertTo<FirestoreBonusPrediction>();
+            var firestoreBonusPrediction = snapshot.Documents
+                .Select(document => document.ConvertTo<FirestoreBonusPrediction>())
+                .OrderByDescending(prediction => prediction.RepredictionIndex)
+                .ThenByDescending(prediction => prediction.CreatedAt.ToDateTimeOffset())
+                .ThenBy(prediction => prediction.Id, StringComparer.Ordinal)
+                .First();
+
             return new BonusPrediction(firestoreBonusPrediction.SelectedOptionIds.ToList());
         }
         catch (Exception ex)
@@ -1067,7 +1154,7 @@ public class FirebasePredictionRepository : IPredictionRepository
                 }
             }
 
-            return models.ToList();
+            return models.OrderBy(model => model, StringComparer.Ordinal).ToList();
         }
         catch (Exception ex)
         {
@@ -1109,7 +1196,7 @@ public class FirebasePredictionRepository : IPredictionRepository
                 }
             }
 
-            return communityContexts.ToList();
+            return communityContexts.OrderBy(context => context, StringComparer.Ordinal).ToList();
         }
         catch (Exception ex)
         {

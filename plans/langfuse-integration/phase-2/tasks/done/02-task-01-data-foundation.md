@@ -96,5 +96,5 @@ For the first match experiment milestone:
 When this task is complete, update:
 
 - [01-phase-2-tracker.md](../../01-phase-2-tracker.md)
-- [03-task-02-prompt-reconstruction.md](../03-task-02-prompt-reconstruction.md) if the export seam affects prompt reconstruction design
+- [03-task-02-prompt-reconstruction.md](03-task-02-prompt-reconstruction.md) if the export seam affects prompt reconstruction design
 - [manual-steps.md](../manual-steps.md) if additional non-code checks become necessary
