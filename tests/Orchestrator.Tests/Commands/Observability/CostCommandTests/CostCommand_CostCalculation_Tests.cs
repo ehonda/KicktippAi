@@ -336,4 +336,35 @@ public class CostCommand_CostCalculation_Tests
         repo.Verify(r => r.GetMatchPredictionCostsByRepredictionIndexAsync(
             "model-b", "context-2", It.IsAny<List<int>?>(), It.IsAny<CancellationToken>()), Times.Once);
     }
+
+    [Test]
+    public async Task Detailed_breakdown_with_verbose_filters_zero_cost_zero_count_rows()
+    {
+        var matchCosts = new Dictionary<int, (double cost, int count)>
+        {
+            { 0, (0.0, 0) },
+            { 1, (0.5, 2) }
+        };
+        var bonusCosts = new Dictionary<int, (double cost, int count)>
+        {
+            { 0, (0.0, 0) },
+            { 1, (0.25, 1) }
+        };
+        var mockRepo = CreateMockPredictionRepositoryForCosts(
+            matchCostsByIndex: matchCosts,
+            bonusCostsByIndex: bonusCosts,
+            availableMatchdays: new List<int> { 1 },
+            availableModels: new List<string> { "gpt-4o" },
+            availableCommunityContexts: new List<string> { "test-community" });
+        var (app, console, _, _, _) = CreateCostCommandApp(mockRepo);
+
+        var exitCode = await app.RunAsync(["cost", "--detailed-breakdown", "--verbose", "--bonus"]);
+        var output = console.Output;
+
+        await Assert.That(exitCode).IsEqualTo(0);
+        await Assert.That(output).Contains("Index 1");
+        await Assert.That(output).Contains("($0.50)");
+        await Assert.That(output).Contains("($0.25)");
+        await Assert.That(output).DoesNotContain("reprediction 0): 0 documents");
+    }
 }

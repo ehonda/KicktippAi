@@ -477,4 +477,247 @@ public class MatchdayCommand_AdditionalCoverage_Tests : MatchdayCommandTests_Bas
         var teamEFLine = lines.FirstOrDefault(l => l.Contains("Team E vs Team F") && l.Contains("Processing:"));
         await Assert.That(teamEFLine).IsNotNull().And.DoesNotContain("CANCELLED");
     }
+
+    [Test]
+    public async Task Cancelled_match_repredict_shows_warning_when_metadata_lookup_fails()
+    {
+        var cancelledMatch = CreateMatch(
+            homeTeam: "FC Bayern München",
+            awayTeam: "Borussia Dortmund",
+            matchday: 16,
+            isCancelled: true);
+        var predictionRepo = CreateMockPredictionRepository(
+            getCancelledMatchPredictionResult: CreatePrediction(),
+            getCancelledMatchRepredictionIndexResult: 0);
+        predictionRepo
+            .Setup(r => r.GetCancelledMatchPredictionMetadataAsync(
+                cancelledMatch.HomeTeam,
+                cancelledMatch.AwayTeam,
+                It.IsAny<string>(),
+                It.IsAny<string>(),
+                It.IsAny<CancellationToken>()))
+            .ThrowsAsync(new InvalidOperationException("Metadata lookup failed"));
+
+        var ctx = CreateMatchdayCommandApp(
+            matchesWithHistory: new List<MatchWithHistory> { CreateMatchWithHistory(match: cancelledMatch) },
+            firebaseServiceFactory: CreateMockFirebaseServiceFactoryFull(
+                predictionRepository: predictionRepo,
+                contextRepository: CreateMockContextRepositoryWithDocuments(CreateBayernVsDortmundContextDocuments())));
+
+        var (exitCode, output) = await RunCommandAsync(
+            ctx.App,
+            ctx.Console,
+            "matchday",
+            "gpt-5",
+            "-c",
+            "test-community",
+            "--repredict",
+            "--verbose");
+
+        await Assert.That(exitCode).IsEqualTo(0);
+        await Assert.That(output).Contains("Failed to check outdated status");
+    }
+
+    [Test]
+    public async Task Cancelled_match_repredict_creates_first_prediction_when_none_exists()
+    {
+        var cancelledMatch = CreateMatch(
+            homeTeam: "FC Bayern München",
+            awayTeam: "Borussia Dortmund",
+            matchday: 16,
+            isCancelled: true);
+        var predictionRepo = CreateMockPredictionRepository(
+            getCancelledMatchRepredictionIndexResult: -1,
+            getCancelledMatchPredictionResult: (Prediction?)null);
+
+        var ctx = CreateMatchdayCommandApp(
+            matchesWithHistory: new List<MatchWithHistory> { CreateMatchWithHistory(match: cancelledMatch) },
+            firebaseServiceFactory: CreateMockFirebaseServiceFactoryFull(
+                predictionRepository: predictionRepo,
+                contextRepository: CreateMockContextRepositoryWithDocuments(CreateBayernVsDortmundContextDocuments())));
+
+        var (exitCode, output) = await RunCommandAsync(ctx.App, ctx.Console, "matchday", "gpt-5", "-c", "test-community", "--repredict");
+
+        await Assert.That(exitCode).IsEqualTo(0);
+        await Assert.That(output).Contains("creating first prediction");
+        predictionRepo.Verify(
+            r => r.GetCancelledMatchRepredictionIndexAsync(
+                cancelledMatch.HomeTeam,
+                cancelledMatch.AwayTeam,
+                "gpt-5",
+                "test-community",
+                It.IsAny<CancellationToken>()),
+            Times.Exactly(2));
+    }
+
+    [Test]
+    public async Task Cancelled_match_repredict_shows_latest_prediction_when_up_to_date()
+    {
+        var cancelledMatch = CreateMatch(
+            homeTeam: "FC Bayern München",
+            awayTeam: "Borussia Dortmund",
+            matchday: 16,
+            isCancelled: true);
+        var existingPrediction = CreatePrediction(homeGoals: 3, awayGoals: 1);
+        var predictionTimestamp = DateTimeOffset.UtcNow;
+        var olderContextTimestamp = predictionTimestamp.AddHours(-1);
+
+        var predictionRepo = CreateMockPredictionRepository(
+            getCancelledMatchPredictionResult: existingPrediction,
+            getCancelledMatchPredictionMetadataResult: new PredictionMetadata(existingPrediction, predictionTimestamp, ["recent-history-fcb.csv"]),
+            getCancelledMatchRepredictionIndexResult: 0);
+
+        var ctx = CreateMatchdayCommandApp(
+            matchesWithHistory: new List<MatchWithHistory> { CreateMatchWithHistory(match: cancelledMatch) },
+            firebaseServiceFactory: CreateMockFirebaseServiceFactoryFull(
+                predictionRepository: predictionRepo,
+                contextRepository: CreateMockContextRepositoryWithDocuments(
+                    CreateBayernVsDortmundContextDocuments(createdAt: olderContextTimestamp))));
+
+        var (exitCode, output) = await RunCommandAsync(ctx.App, ctx.Console, "matchday", "gpt-5", "-c", "test-community", "--repredict");
+
+        await Assert.That(exitCode).IsEqualTo(0);
+        await Assert.That(output).Contains("Latest prediction:");
+        await Assert.That(output).Contains("3:1");
+        predictionRepo.Verify(
+            r => r.GetCancelledMatchPredictionAsync(
+                cancelledMatch.HomeTeam,
+                cancelledMatch.AwayTeam,
+                "gpt-5",
+                "test-community",
+                It.IsAny<CancellationToken>()),
+            Times.Once);
+    }
+
+    [Test]
+    public async Task Cancelled_match_repredict_at_max_uses_cancelled_prediction_lookup()
+    {
+        var cancelledMatch = CreateMatch(
+            homeTeam: "FC Bayern München",
+            awayTeam: "Borussia Dortmund",
+            matchday: 16,
+            isCancelled: true);
+        var existingPrediction = CreatePrediction(homeGoals: 2, awayGoals: 2);
+
+        var predictionRepo = CreateMockPredictionRepository(
+            getCancelledMatchPredictionResult: existingPrediction,
+            getCancelledMatchRepredictionIndexResult: 2);
+
+        var ctx = CreateMatchdayCommandApp(
+            matchesWithHistory: new List<MatchWithHistory> { CreateMatchWithHistory(match: cancelledMatch) },
+            firebaseServiceFactory: CreateMockFirebaseServiceFactoryFull(
+                predictionRepository: predictionRepo,
+                contextRepository: CreateMockContextRepositoryWithDocuments(CreateBayernVsDortmundContextDocuments())));
+
+        var (exitCode, output) = await RunCommandAsync(
+            ctx.App,
+            ctx.Console,
+            "matchday",
+            "gpt-5",
+            "-c",
+            "test-community",
+            "--max-repredictions",
+            "2");
+
+        await Assert.That(exitCode).IsEqualTo(0);
+        await Assert.That(output).Contains("already at max repredictions");
+        predictionRepo.Verify(
+            r => r.GetCancelledMatchPredictionAsync(
+                cancelledMatch.HomeTeam,
+                cancelledMatch.AwayTeam,
+                "gpt-5",
+                "test-community",
+                It.IsAny<CancellationToken>()),
+            Times.Once);
+    }
+
+    [Test]
+    public async Task Cancelled_match_reprediction_save_uses_cancelled_index_lookup()
+    {
+        var cancelledMatch = CreateMatch(
+            homeTeam: "FC Bayern München",
+            awayTeam: "Borussia Dortmund",
+            matchday: 16,
+            isCancelled: true);
+        var existingPrediction = CreatePrediction(homeGoals: 1, awayGoals: 0);
+        var predictionTimestamp = DateTimeOffset.UtcNow.AddHours(-2);
+        var newerContextTimestamp = DateTimeOffset.UtcNow.AddHours(-1);
+
+        var predictionRepo = CreateMockPredictionRepository(
+            getCancelledMatchPredictionResult: existingPrediction,
+            getCancelledMatchPredictionMetadataResult: new PredictionMetadata(existingPrediction, predictionTimestamp, ["recent-history-fcb.csv"]),
+            getCancelledMatchRepredictionIndexResult: 0);
+
+        var ctx = CreateMatchdayCommandApp(
+            matchesWithHistory: new List<MatchWithHistory> { CreateMatchWithHistory(match: cancelledMatch) },
+            firebaseServiceFactory: CreateMockFirebaseServiceFactoryFull(
+                predictionRepository: predictionRepo,
+                contextRepository: CreateMockContextRepositoryWithDocuments(
+                    CreateBayernVsDortmundContextDocuments(createdAt: newerContextTimestamp))));
+
+        var (exitCode, output) = await RunCommandAsync(ctx.App, ctx.Console, "matchday", "gpt-5", "-c", "test-community", "--repredict");
+
+        await Assert.That(exitCode).IsEqualTo(0);
+        await Assert.That(output).Contains("Creating reprediction");
+        predictionRepo.Verify(
+            r => r.GetCancelledMatchRepredictionIndexAsync(
+                cancelledMatch.HomeTeam,
+                cancelledMatch.AwayTeam,
+                "gpt-5",
+                "test-community",
+                It.IsAny<CancellationToken>()),
+            Times.Exactly(2));
+    }
+
+    [Test]
+    public async Task Show_context_documents_reports_additional_lines_for_long_documents()
+    {
+        var longContent = string.Join("\n", Enumerable.Range(1, 20).Select(i => $"Line {i}"));
+        var docs = CreateBayernVsDortmundContextDocuments();
+        docs["bundesliga-standings.csv"] = CreateContextDocument(
+            documentName: "bundesliga-standings.csv",
+            content: longContent);
+
+        var ctx = CreateMatchdayCommandApp(contextDocuments: docs, existingPrediction: (Prediction?)null);
+
+        var (exitCode, output) = await RunCommandAsync(
+            ctx.App,
+            ctx.Console,
+            "matchday",
+            "gpt-5",
+            "-c",
+            "test-community",
+            "--show-context-documents");
+
+        await Assert.That(exitCode).IsEqualTo(0);
+        await Assert.That(output).Contains("10 more lines");
+    }
+
+    [Test]
+    public async Task Verbose_mode_reports_optional_document_lookup_failures()
+    {
+        var docs = CreateBayernVsDortmundContextDocuments();
+        var contextRepository = new Mock<IContextRepository>();
+        contextRepository
+            .Setup(r => r.GetLatestContextDocumentAsync(It.IsAny<string>(), It.IsAny<string>(), It.IsAny<CancellationToken>()))
+            .ReturnsAsync((string documentName, string _, CancellationToken _) =>
+            {
+                if (documentName.EndsWith("-transfers.csv", StringComparison.Ordinal))
+                {
+                    throw new InvalidOperationException("Optional lookup failed");
+                }
+
+                return docs.GetValueOrDefault(documentName);
+            });
+
+        var ctx = CreateMatchdayCommandApp(
+            existingPrediction: (Prediction?)null,
+            firebaseServiceFactory: CreateMockFirebaseServiceFactoryFull(contextRepository: contextRepository));
+
+        var (exitCode, output) = await RunCommandAsync(ctx.App, ctx.Console, "matchday", "gpt-5", "-c", "test-community", "--verbose");
+
+        await Assert.That(exitCode).IsEqualTo(0);
+        await Assert.That(output).Contains("Failed optional");
+        await Assert.That(output).Contains("Optional lookup failed");
+    }
 }
