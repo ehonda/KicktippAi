@@ -266,13 +266,14 @@ public class KicktippClient_PlaceBet_Tests : KicktippClientTests_Base
     [Test]
     public async Task Placing_bet_handles_absolute_form_action_url()
     {
-        // Arrange - form action is an absolute URL
+        // Arrange - form action is an absolute URL on the same test server
+        var absoluteSubmitUrl = $"{ServerUrl.TrimEnd('/')}/submit";
         var html = """
             <!DOCTYPE html>
             <html>
             <body>
             <div id="kicktipp-content">
-                <form id="tippabgabeForm" action="http://example.com/submit">
+                <form id="tippabgabeForm" action="%ABSOLUTE_SUBMIT_URL%">
                     <input type="hidden" name="spieltagIndex" value="1" />
                     <table>
                         <tbody>
@@ -292,27 +293,24 @@ public class KicktippClient_PlaceBet_Tests : KicktippClientTests_Base
             </div>
             </body>
             </html>
-            """;
+            """.Replace("%ABSOLUTE_SUBMIT_URL%", absoluteSubmitUrl);
         StubHtmlResponse("/test-community/tippabgabe", html);
-        // Stub the absolute URL (note: WireMock won't actually route to example.com, 
-        // but we're testing the URL construction logic)
-        Server.Given(WireMock.RequestBuilders.Request.Create()
-                .WithPath("/submit")
-                .UsingPost())
-            .RespondWith(WireMock.ResponseBuilders.Response.Create()
-                .WithStatusCode(200));
+        StubPostResponse("/submit");
         var client = CreateClient();
         var match = CreateTestMatch("Team A", "Team B");
         var prediction = new BetPrediction(2, 1);
 
-        // Act - this should use the absolute URL (http://example.com/submit)
-        // In the test context, the HttpClient's BaseAddress is the WireMock server,
-        // so it won't actually hit example.com
+        // Act - this should use the absolute URL without leaving the WireMock server
         var result = await client.PlaceBetAsync("test-community", match, prediction);
 
-        // Note: The result will be false because http://example.com/submit is external
-        // but this tests the URL handling logic
-        await Assert.That(result).IsFalse();
+        // Assert
+        await Assert.That(result).IsTrue();
+
+        var postRequests = GetRequestsForPath("/submit")
+            .Where(r => r.RequestMessage.Method == "POST")
+            .ToList();
+
+        await Assert.That(postRequests).HasSingleItem();
     }
 
     [Test]

@@ -36,3 +36,13 @@ dotnet run --project tests/FirebaseAdapter.Tests
 # Run with coverage
 .\Generate-CoverageReport.ps1 -Project FirebaseAdapter.Tests
 ```
+
+## Copilot Coding Agent firewall note
+
+The Firestore integration tests use the `google/cloud-sdk:*‑emulators` image through `Testcontainers.Firestore`. During startup, the Google Cloud SDK may probe `metadata.google.internal` to check for GCE metadata-based credentials or project information.
+
+To keep the emulator startup isolated in hardened environments, `FirestoreFixture` sets `CLOUDSDK_CORE_CHECK_GCE_METADATA=false` on the container. If a future SDK or image version still performs blocked lookups, the remaining options are:
+
+- allowlist `metadata.google.internal` for the Copilot Coding Agent
+- move emulator/image setup into repository actions setup steps that run before the firewall is enabled
+- replace the current emulator startup path with a different container/image that does not invoke the Google Cloud SDK startup flow

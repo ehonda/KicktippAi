@@ -98,3 +98,9 @@ dotnet run --project tests/KicktippIntegration.Tests -- --treenode-filter "/*/*/
 # Run tests matching a pattern
 dotnet run --project tests/KicktippIntegration.Tests -- --treenode-filter "/*/*/KicktippClient_PlaceBet*/*"
 ```
+
+## Copilot Coding Agent firewall note
+
+These tests should stay fully self-contained behind WireMock. When a test needs to cover an absolute form action URL, use the active WireMock server URL (for example `ServerUrl + "/submit"`) instead of a placeholder like `http://example.com/submit`.
+
+Using a real external hostname causes the Copilot Coding Agent firewall to flag the test as attempting outbound network access, even if the test still passes locally.
