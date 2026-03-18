@@ -2,7 +2,7 @@
 
 ## Status
 
-Blocked by Task 3
+Ready
 
 ## Objective
 
@@ -31,6 +31,14 @@ The hosted dataset is the substrate for the first real experiment run. This task
 - Results of [02-task-01-data-foundation.md](done/02-task-01-data-foundation.md)
 - Results of [03-task-02-prompt-reconstruction.md](done/03-task-02-prompt-reconstruction.md)
 - Results of [04-task-03-runner-spike.md](04-task-03-runner-spike.md)
+- `src/Orchestrator/Commands/Observability/ExportExperimentItem/`
+- `tools/langfuse-runner-spike/`
+
+## Runner Stack Locked For This Task
+
+- Use JS/TS for the first hosted-dataset sync implementation
+- Reuse the .NET `export-experiment-item` seam as the starting materialization pattern for hosted dataset items
+- Preserve the stable item ID from the exported dataset item when moving from local spike artifacts to hosted dataset records
 
 ## Manual Steps
 
@@ -50,3 +58,5 @@ Use [manual-steps.md](manual-steps.md#task-4--hosted-dataset-sync) during implem
 ## Handoff Notes
 
 Document the final dataset name and sync behavior in [06-task-05-first-experiment.md](06-task-05-first-experiment.md) before handoff.
+
+The first implementation should avoid re-opening the runner-language question unless the local Python environment has been upgraded intentionally and that change is worth the migration cost.

@@ -9,6 +9,7 @@ using Orchestrator.Commands.Operations.Verify;
 using Orchestrator.Commands.Observability.AnalyzeMatch;
 using Orchestrator.Commands.Observability.ContextChanges;
 using Orchestrator.Commands.Observability.Cost;
+using Orchestrator.Commands.Observability.ExportExperimentItem;
 using Orchestrator.Commands.Observability.ReconstructPrompt;
 using Orchestrator.Commands.Utility.UploadKpi;
 using Orchestrator.Commands.Utility.UploadTransfers;
@@ -133,6 +134,11 @@ public class Program
                 .WithDescription("Reconstruct the historical prompt inputs for a stored match prediction")
                 .WithExample("reconstruct-prompt", "o4-mini", "--community-context", "pes-squad", "--home", "VfB Stuttgart", "--away", "RB Leipzig", "--matchday", "26")
                 .WithExample("reconstruct-prompt", "o4-mini", "--community-context", "pes-squad", "--home", "VfB Stuttgart", "--away", "RB Leipzig", "--matchday", "26", "--with-justification");
+
+            config.AddCommand<ExportExperimentItemCommand>("export-experiment-item")
+                .WithDescription("Export a single historical match experiment item for runner testing")
+                .WithExample("export-experiment-item", "o4-mini", "--community-context", "pes-squad", "--home", "VfB Stuttgart", "--away", "RB Leipzig", "--matchday", "26")
+                .WithExample("export-experiment-item", "o4-mini", "--community-context", "pes-squad", "--home", "VfB Stuttgart", "--away", "RB Leipzig", "--matchday", "26", "--output", "artifacts/langfuse-runner-spike/vfb-stuttgart-vs-rb-leipzig.json");
                 
             config.AddCommand<CostCommand>("cost")
                 .WithDescription("Calculate aggregate costs for predictions")

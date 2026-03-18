@@ -12,6 +12,8 @@ Run the first real Bundesliga 2025/2026 match experiment using a hosted Langfuse
 
 This is the first milestone payoff task. It depends on the data contract, prompt reconstruction, runner choice, and hosted dataset all being stable.
 
+The runner choice is now stable for the first milestone: use JS/TS unless a later session deliberately modernizes the local Python environment and decides to migrate.
+
 ## Required Outputs
 
 - A runnable first experiment flow
@@ -33,6 +35,13 @@ This is the first milestone payoff task. It depends on the data contract, prompt
 - Results of [04-task-03-runner-spike.md](04-task-03-runner-spike.md)
 - Results of [05-task-04-dataset-sync.md](05-task-04-dataset-sync.md)
 - [buli-25-26-experiments.md](../buli-25-26-experiments.md)
+- `tools/langfuse-runner-spike/`
+
+## Runner Stack Locked For This Task
+
+- Use the JS/TS Langfuse SDK for the first experiment implementation
+- Reuse the flushing pattern from the Task 3 spike so short-lived local experiment runs reliably deliver traces before process exit
+- Promote the Task 3 local-data flow to hosted-dataset execution rather than rewriting the runner shape from scratch
 
 ## Manual Steps
 
