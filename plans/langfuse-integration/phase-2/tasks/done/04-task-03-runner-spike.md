@@ -27,13 +27,13 @@ The runner decision should be made after the data contract and prompt reconstruc
 
 ## Inputs
 
-- Results of [02-task-01-data-foundation.md](done/02-task-01-data-foundation.md)
-- Results of [03-task-02-prompt-reconstruction.md](done/03-task-02-prompt-reconstruction.md)
-- [src/Orchestrator/Infrastructure/ServiceRegistrationExtensions.cs](src/Orchestrator/Infrastructure/ServiceRegistrationExtensions.cs)
+- Results of [02-task-01-data-foundation.md](02-task-01-data-foundation.md)
+- Results of [03-task-02-prompt-reconstruction.md](03-task-02-prompt-reconstruction.md)
+- [src/Orchestrator/Infrastructure/ServiceRegistrationExtensions.cs](../../../../../src/Orchestrator/Infrastructure/ServiceRegistrationExtensions.cs)
 
 ## Manual Steps
 
-Use [manual-steps.md](manual-steps.md#task-3--runner-spike) during implementation.
+Use [manual-steps.md](../manual-steps.md#task-3--runner-spike) during implementation.
 
 ## Decision Criteria
 
@@ -82,11 +82,11 @@ Use [manual-steps.md](manual-steps.md#task-3--runner-spike) during implementatio
 - Export command output file: `artifacts/langfuse-runner-spike/26-vfb-stuttgart-vs-rb-leipzig-o4-mini.json`
 - Verified trace ID: `17878f3ce43fcfe4be107a9b27919afb`
 - Verified observations on that trace included:
-	- `experiment-item-run`
-	- `predict-match-runner-spike`
+  - `experiment-item-run`
+  - `predict-match-runner-spike`
 - Verified trace payload in Langfuse:
-	- input: `{"homeTeam":"VfB Stuttgart","awayTeam":"RB Leipzig","startsAt":"2026-03-15T19:30:00 UTC+01 (+01)"}`
-	- output: `{"homeGoals":1,"awayGoals":0,"note":"runner-spike echo output"}`
+  - input: `{"homeTeam":"VfB Stuttgart","awayTeam":"RB Leipzig","startsAt":"2026-03-15T19:30:00 UTC+01 (+01)"}`
+  - output: `{"homeGoals":1,"awayGoals":0,"note":"runner-spike echo output"}`
 
 ## Commands Used
 
@@ -110,5 +110,5 @@ dotenvx run -f ..\KicktippAi.Secrets\src\Orchestrator\.env -- npm run --prefix t
 
 ## Handoff Notes
 
-- Task 4 should use the .NET exporter seam as the source for dataset-item materialization and should target the JS/TS Langfuse client for hosted dataset sync unless local Python tooling changes first
-- Task 5 should assume the first runnable experiment flow is JS/TS-based and reuse the runner workspace or its patterns for trace flushing and Langfuse experiment execution
+- [05-task-04-dataset-sync.md](../05-task-04-dataset-sync.md) should use the .NET exporter seam as the source for dataset-item materialization and should target the JS/TS Langfuse client for hosted dataset sync unless local Python tooling changes first
+- [06-task-05-first-experiment.md](../06-task-05-first-experiment.md) should assume the first runnable experiment flow is JS/TS-based and reuse the runner workspace or its patterns for trace flushing and Langfuse experiment execution

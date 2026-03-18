@@ -75,4 +75,4 @@ For each referenced context document:
 
 ## Handoff Notes
 
-If reconstruction changes what the runner needs to consume, update [04-task-03-runner-spike.md](../04-task-03-runner-spike.md) before handing off.
+If reconstruction changes what the runner needs to consume, update [04-task-03-runner-spike.md](04-task-03-runner-spike.md) before handing off.

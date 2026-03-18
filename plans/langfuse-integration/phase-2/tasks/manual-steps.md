@@ -77,7 +77,7 @@ Use this file during implementation, not just for planning.
 
 3. Record the runner decision
 
-- Update [04-task-03-runner-spike.md](04-task-03-runner-spike.md) with the chosen language and the reason
+- Update [04-task-03-runner-spike.md](done/04-task-03-runner-spike.md) with the chosen language and the reason
 - Update downstream task docs so new sessions do not need to repeat the decision
 
 ## Task 4 — Hosted Dataset Sync

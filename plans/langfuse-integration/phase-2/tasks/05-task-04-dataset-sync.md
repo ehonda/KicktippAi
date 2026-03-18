@@ -30,7 +30,7 @@ The hosted dataset is the substrate for the first real experiment run. This task
 
 - Results of [02-task-01-data-foundation.md](done/02-task-01-data-foundation.md)
 - Results of [03-task-02-prompt-reconstruction.md](done/03-task-02-prompt-reconstruction.md)
-- Results of [04-task-03-runner-spike.md](04-task-03-runner-spike.md)
+- Results of [04-task-03-runner-spike.md](done/04-task-03-runner-spike.md)
 - `src/Orchestrator/Commands/Observability/ExportExperimentItem/`
 - `tools/langfuse-runner-spike/`
 
