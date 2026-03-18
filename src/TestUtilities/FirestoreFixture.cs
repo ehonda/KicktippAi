@@ -36,6 +36,7 @@ public sealed class FirestoreFixture : IAsyncInitializer, IAsyncDisposable
     {
         _container = new FirestoreBuilder()
             .WithImage(EmulatorImageTag)
+            .WithEnvironment("CLOUDSDK_CORE_CHECK_GCE_METADATA", "false")
             .Build();
     }
 
