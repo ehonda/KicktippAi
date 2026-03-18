@@ -3,7 +3,8 @@
   "private": true,
   "type": "module",
   "scripts": {
-    "run": "node run-spike.mjs"
+    "run": "node run-spike.mjs",
+    "sync": "node sync-dataset.mjs"
   },
   "dependencies": {
     "@langfuse/client": "^5.0.1",

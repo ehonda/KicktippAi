@@ -9,6 +9,7 @@ using Orchestrator.Commands.Operations.Verify;
 using Orchestrator.Commands.Observability.AnalyzeMatch;
 using Orchestrator.Commands.Observability.ContextChanges;
 using Orchestrator.Commands.Observability.Cost;
+using Orchestrator.Commands.Observability.ExportExperimentDataset;
 using Orchestrator.Commands.Observability.ExportExperimentItem;
 using Orchestrator.Commands.Observability.ReconstructPrompt;
 using Orchestrator.Commands.Utility.UploadKpi;
@@ -139,6 +140,11 @@ public class Program
                 .WithDescription("Export a single historical match experiment item for runner testing")
                 .WithExample("export-experiment-item", "o4-mini", "--community-context", "pes-squad", "--home", "VfB Stuttgart", "--away", "RB Leipzig", "--matchday", "26")
                 .WithExample("export-experiment-item", "o4-mini", "--community-context", "pes-squad", "--home", "VfB Stuttgart", "--away", "RB Leipzig", "--matchday", "26", "--output", "artifacts/langfuse-runner-spike/vfb-stuttgart-vs-rb-leipzig.json");
+
+            config.AddCommand<ExportExperimentDatasetCommand>("export-experiment-dataset")
+                .WithDescription("Export the canonical hosted Langfuse dataset artifact for completed historical matches")
+                .WithExample("export-experiment-dataset", "--community-context", "pes-squad")
+                .WithExample("export-experiment-dataset", "--community-context", "pes-squad", "--matchdays", "1,2,3", "--output", "artifacts/langfuse-dataset/pes-squad-sample.json");
                 
             config.AddCommand<CostCommand>("cost")
                 .WithDescription("Calculate aggregate costs for predictions")

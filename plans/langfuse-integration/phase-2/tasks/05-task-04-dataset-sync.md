@@ -2,27 +2,27 @@
 
 ## Status
 
-Ready
+In progress
 
 ## Objective
 
-Create the hosted Langfuse dataset flow for the first milestone, including stable item IDs, idempotent synchronization, and enough metadata for filtering and reproducibility.
+Create the canonical hosted Langfuse dataset flow for the first milestone, using stable match-centric item IDs, idempotent synchronization, and only the match-centric metadata needed for filtering.
 
 ## Why This Comes Fourth
 
-The hosted dataset is the substrate for the first real experiment run. This task depends on the data contract, reconstruction format, and chosen runner environment being stable.
+The hosted dataset is the substrate for the first real experiment run. This task depends on the canonical match dataset contract, timestamp-based reconstruction rules, and chosen runner environment being stable.
 
 ## Required Outputs
 
 - A hosted dataset naming strategy
-- A deterministic item-ID scheme
+- A deterministic match-centric item-ID scheme
 - An idempotent upload or sync path
 - Verification that synced items are usable for experiment runs in Langfuse
 
 ## Planned Work
 
-1. Define the dataset name and lifecycle for the first milestone
-2. Implement create-or-update behavior for dataset items
+1. Define the canonical hosted dataset contract and lifecycle for the first milestone
+2. Implement create-or-update behavior for hosted match items
 3. Validate the hosted dataset in Langfuse
 4. Record operational notes for re-syncs and incremental updates
 
@@ -31,28 +31,31 @@ The hosted dataset is the substrate for the first real experiment run. This task
 - Results of [02-task-01-data-foundation.md](done/02-task-01-data-foundation.md)
 - Results of [03-task-02-prompt-reconstruction.md](done/03-task-02-prompt-reconstruction.md)
 - Results of [04-task-03-runner-spike.md](done/04-task-03-runner-spike.md)
-- `src/Orchestrator/Commands/Observability/ExportExperimentItem/`
+- `src/Orchestrator/Commands/Observability/ExportExperimentDataset/`
 - `tools/langfuse-runner-spike/`
+- [../dataset-contract-and-reconstruction-spec.md](../dataset-contract-and-reconstruction-spec.md)
 
 ## Runner Stack Locked For This Task
 
 - Use JS/TS for the first hosted-dataset sync implementation
-- Reuse the .NET `export-experiment-item` seam as the starting materialization pattern for hosted dataset items
-- Preserve the stable item ID from the exported dataset item when moving from local spike artifacts to hosted dataset records
+- Reuse the .NET export/materialization seam as the source for canonical hosted dataset items
+- Use persisted Kicktipp match identity (`TippSpielId`) as the basis for hosted item IDs instead of model-specific export IDs
 
 ## Manual Steps
 
 Use [manual-steps.md](manual-steps.md#task-4--hosted-dataset-sync) during implementation.
 
-## Open Questions To Resolve In This Task
+## Decisions Locked In This Task
 
-- Should sampling be handled by the runner over the full hosted dataset, or by creating temporary sampled datasets for the first milestone?
-- What metadata is essential for filtering in the Langfuse UI from day one?
+- Sampling is handled by the runner over the full hosted dataset
+- Hosted dataset items are match-centric, not historical-prediction-centric
+- Hosted dataset metadata is limited to match-centric filtering fields and does not include replay metadata
+- Context reconstruction for later experiments is timestamp-based and documented in [../dataset-contract-and-reconstruction-spec.md](../dataset-contract-and-reconstruction-spec.md)
 
 ## Completion Criteria
 
 - The hosted dataset exists in Langfuse
-- Items are synced idempotently with stable IDs
+- Items are synced idempotently with stable match-centric IDs
 - The dataset is ready for the first experiment task without structural changes
 
 ## Handoff Notes

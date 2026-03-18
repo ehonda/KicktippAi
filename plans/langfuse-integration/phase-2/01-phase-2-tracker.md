@@ -19,7 +19,7 @@ Set up a reproducible Langfuse experiment workflow for KicktippAi that can:
 | 1 | [02-task-01-data-foundation.md](tasks/done/02-task-01-data-foundation.md) | Confirm data sources, freeze dataset contract, design export seam | None | Completed |
 | 2 | [03-task-02-prompt-reconstruction.md](tasks/done/03-task-02-prompt-reconstruction.md) | Resolve exact context versions and reproducible prompt reconstruction | Task 1 | Completed |
 | 3 | [04-task-03-runner-spike.md](tasks/done/04-task-03-runner-spike.md) | Choose Python or JS/TS experiment runner with a narrow spike | Task 2 | Completed |
-| 4 | [05-task-04-dataset-sync.md](tasks/05-task-04-dataset-sync.md) | Create and synchronize the hosted Langfuse dataset | Task 3 | Ready |
+| 4 | [05-task-04-dataset-sync.md](tasks/05-task-04-dataset-sync.md) | Create and synchronize the hosted Langfuse dataset | Task 3 | In progress |
 | 5 | [06-task-05-first-experiment.md](tasks/06-task-05-first-experiment.md) | Run the first sampled Bundesliga experiment with scoring | Tasks 3-4 | Blocked by Task 4 |
 | 6 | [07-task-06-follow-up-evaluation.md](tasks/07-task-06-follow-up-evaluation.md) | Add follow-up metrics, automation, and next experiment layers | Task 5 | Blocked by Task 5 |
 
@@ -42,7 +42,7 @@ Set up a reproducible Langfuse experiment workflow for KicktippAi that can:
 - Task 2 prompt reconstruction is complete and archived in [03-task-02-prompt-reconstruction.md](tasks/done/03-task-02-prompt-reconstruction.md)
 - Task 3 runner spike is complete
 - JS/TS is now the selected first-milestone runner because local Python on this machine is limited to `3.6` and would require machine-level upgrade work before repo implementation could proceed
-- The next open implementation task is [05-task-04-dataset-sync.md](tasks/05-task-04-dataset-sync.md)
+- Task 4 hosted dataset sync is now in progress against the match-centric dataset contract and timestamp-based reconstruction rule documented in [dataset-contract-and-reconstruction-spec.md](dataset-contract-and-reconstruction-spec.md)
 
 ## Cross-Task Risks
 
