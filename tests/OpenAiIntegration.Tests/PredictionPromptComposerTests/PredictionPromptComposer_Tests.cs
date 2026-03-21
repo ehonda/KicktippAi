@@ -54,4 +54,22 @@ public class PredictionPromptComposer_Tests
         await Assert.That(result).IsEqualTo(
             "{\"homeTeam\":\"Team A\",\"awayTeam\":\"Team B\",\"startsAt\":\"2025-10-30T15:30:00 UTC (+00)\"}");
     }
+
+    [Test]
+    public async Task Creating_bonus_question_json_uses_expected_payload_shape()
+    {
+        var bonusQuestion = new BonusQuestion(
+            "Who will score first?",
+            Instant.FromUtc(2025, 10, 30, 15, 30).InUtc(),
+            [
+                new BonusQuestionOption("a", "Team A"),
+                new BonusQuestionOption("b", "Team B")
+            ],
+            1);
+
+        var result = PredictionPromptComposer.CreateBonusQuestionJson(bonusQuestion);
+
+        await Assert.That(result).IsEqualTo(
+            "{\"text\":\"Who will score first?\",\"options\":[{\"id\":\"a\",\"text\":\"Team A\"},{\"id\":\"b\",\"text\":\"Team B\"}],\"maxSelections\":1}");
+    }
 }

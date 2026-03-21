@@ -18,6 +18,7 @@ public sealed class FirestoreFixture : IAsyncInitializer, IAsyncDisposable
     public const string ContextDocumentsParallelKey = "Firestore:ContextDocuments";
     public const string PredictionsParallelKey = "Firestore:Predictions";
     public const string KpiParallelKey = "Firestore:Kpi";
+    public const string MatchOutcomesParallelKey = "Firestore:MatchOutcomes";
     public const string OrchestratorIntegrationParallelKey = "Firestore:OrchestratorIntegration";
 
     private const string ContextDocumentsCollection = "context-documents";
@@ -25,6 +26,7 @@ public sealed class FirestoreFixture : IAsyncInitializer, IAsyncDisposable
     private const string MatchesCollection = "matches";
     private const string BonusPredictionsCollection = "bonus-predictions";
     private const string KpiDocumentsCollection = "kpi-documents";
+    private const string MatchOutcomesCollection = "match-outcomes";
     private const string EmulatorImageTag = "google/cloud-sdk:550.0.0-emulators";
 
     private readonly FirestoreContainer _container;
@@ -72,11 +74,17 @@ public sealed class FirestoreFixture : IAsyncInitializer, IAsyncDisposable
         await ClearCollectionAsync(KpiDocumentsCollection);
     }
 
+    public async Task ClearMatchOutcomesAsync()
+    {
+        await ClearCollectionAsync(MatchOutcomesCollection);
+    }
+
     public async Task ClearOrchestratorIntegrationAsync()
     {
         await Task.WhenAll(
             ClearPredictionsAsync(),
-            ClearContextDocumentsAsync());
+            ClearContextDocumentsAsync(),
+            ClearMatchOutcomesAsync());
     }
 
     private async Task ClearCollectionAsync(string collectionName)
