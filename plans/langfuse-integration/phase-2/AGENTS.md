@@ -21,7 +21,7 @@ When starting a new implementation session for Phase 2, read these files in orde
 - [02-task-01-data-foundation.md](tasks/done/02-task-01-data-foundation.md): Completed Task 1 planning and implementation record
 - [03-task-02-prompt-reconstruction.md](tasks/done/03-task-02-prompt-reconstruction.md): Completed Task 2 prompt reconstruction and export materialization record
 - [04-task-03-runner-spike.md](tasks/done/04-task-03-runner-spike.md): Python vs JS/TS runner spike and decision checkpoint
-- [05-task-04-dataset-sync.md](tasks/05-task-04-dataset-sync.md): Hosted dataset creation and synchronization
+- [05-task-04-dataset-sync.md](tasks/done/05-task-04-dataset-sync.md): Completed hosted dataset creation and synchronization record
 - [06-task-05-first-experiment.md](tasks/06-task-05-first-experiment.md): First sampled Bundesliga match experiment
 - [07-task-06-follow-up-evaluation.md](tasks/07-task-06-follow-up-evaluation.md): Follow-up scoring, automation, and expansion work
 - [manual-steps.md](tasks/manual-steps.md): Manual actions grouped by timing and by task

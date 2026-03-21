@@ -4,7 +4,8 @@
   "type": "module",
   "scripts": {
     "run": "node run-spike.mjs",
-    "sync": "node sync-dataset.mjs"
+    "sync": "node sync-dataset.mjs",
+    "sync:dry-run": "node sync-dataset.mjs --dry-run"
   },
   "dependencies": {
     "@langfuse/client": "^5.0.1",

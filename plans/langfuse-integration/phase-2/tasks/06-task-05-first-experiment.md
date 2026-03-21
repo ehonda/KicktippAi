@@ -2,7 +2,7 @@
 
 ## Status
 
-Blocked by Tasks 3-4
+Ready
 
 ## Objective
 
@@ -35,7 +35,7 @@ The runner choice is now stable for the first milestone: use JS/TS unless a late
 - Results of [02-task-01-data-foundation.md](done/02-task-01-data-foundation.md)
 - Results of [03-task-02-prompt-reconstruction.md](done/03-task-02-prompt-reconstruction.md)
 - Results of [04-task-03-runner-spike.md](done/04-task-03-runner-spike.md)
-- Results of [05-task-04-dataset-sync.md](05-task-04-dataset-sync.md)
+- Results of [05-task-04-dataset-sync.md](done/05-task-04-dataset-sync.md)
 - [buli-25-26-experiments.md](../buli-25-26-experiments.md)
 - [../dataset-contract-and-reconstruction-spec.md](../dataset-contract-and-reconstruction-spec.md)
 - `tools/langfuse-runner-spike/`
@@ -75,5 +75,13 @@ Run-level aggregates should summarize the primary score and the main supporting 
 - The scoring matches manual expectations on checked examples
 
 ## Handoff Notes
+
+Task 4 populated the canonical hosted dataset:
+
+- Dataset name: `match-predictions/bundesliga-2025-26/pes-squad`
+- Current hosted dataset size from the full completed `pes-squad` slice: `235` items as of `2026-03-21`
+- Dataset ID in Langfuse: `cmn0ycdfb0001ad0767gcvfey`
+- Sync behavior: full-scope export from .NET plus JS hosted sync with schema-enforced dataset definition and stable-ID item skipping when canonical content is unchanged
+- Recommended pre-experiment refresh: re-run the full hosted sync first so any newly completed matches are available before sampling
 
 When complete, update [07-task-06-follow-up-evaluation.md](07-task-06-follow-up-evaluation.md) with what should be automated or expanded next.

@@ -110,5 +110,5 @@ dotenvx run -f ..\KicktippAi.Secrets\src\Orchestrator\.env -- npm run --prefix t
 
 ## Handoff Notes
 
-- [05-task-04-dataset-sync.md](../05-task-04-dataset-sync.md) should use the .NET exporter seam as the source for dataset-item materialization and should target the JS/TS Langfuse client for hosted dataset sync unless local Python tooling changes first
+- [05-task-04-dataset-sync.md](05-task-04-dataset-sync.md) should use the .NET exporter seam as the source for dataset-item materialization and should target the JS/TS Langfuse client for hosted dataset sync unless local Python tooling changes first
 - [06-task-05-first-experiment.md](../06-task-05-first-experiment.md) should assume the first runnable experiment flow is JS/TS-based and reuse the runner workspace or its patterns for trace flushing and Langfuse experiment execution
