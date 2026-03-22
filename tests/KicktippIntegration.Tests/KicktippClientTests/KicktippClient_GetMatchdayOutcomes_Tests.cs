@@ -5,6 +5,44 @@ namespace KicktippIntegration.Tests.KicktippClientTests;
 public class KicktippClient_GetMatchdayOutcomes_Tests : KicktippClientTests_Base
 {
     [Test]
+    public async Task Getting_current_tippuebersicht_matchday_extracts_value_from_title()
+    {
+        var html = """
+            <!DOCTYPE html>
+            <html>
+            <body>
+            <div class="prevnextTitle"><a>9. Spieltag</a></div>
+            </body>
+            </html>
+            """;
+        StubHtmlResponse("/test-community/tippuebersicht", html);
+        var client = CreateClient();
+
+        var matchday = await client.GetCurrentTippuebersichtMatchdayAsync("test-community");
+
+        await Assert.That(matchday).IsEqualTo(9);
+    }
+
+    [Test]
+    public async Task Getting_current_tippuebersicht_matchday_uses_hidden_input_as_fallback()
+    {
+        var html = """
+            <!DOCTYPE html>
+            <html>
+            <body>
+            <input name="spieltagIndex" value="12" />
+            </body>
+            </html>
+            """;
+        StubHtmlResponse("/test-community/tippuebersicht", html);
+        var client = CreateClient();
+
+        var matchday = await client.GetCurrentTippuebersichtMatchdayAsync("test-community");
+
+        await Assert.That(matchday).IsEqualTo(12);
+    }
+
+    [Test]
     public async Task Getting_current_tippuebersicht_matchday_returns_default_when_page_is_missing()
     {
         StubNotFound("/test-community/tippuebersicht");
