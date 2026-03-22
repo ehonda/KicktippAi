@@ -5,6 +5,7 @@ using EHonda.KicktippAi.Core;
 using Microsoft.Extensions.Logging;
 using NodaTime;
 using OpenAiIntegration;
+using Orchestrator.Commands.Observability;
 using Orchestrator.Infrastructure.Factories;
 using Spectre.Console;
 using Spectre.Console.Cli;
@@ -49,12 +50,14 @@ public sealed class ExportExperimentItemCommand : AsyncCommand<ExportExperimentI
                 contextRepository,
                 new InstructionsTemplateProvider(PromptsFileProvider.Create()));
 
+            var evaluationTime = EvaluationTimeParser.ParseOrNull(settings.EvaluationTime);
+
             var storedMatch = await predictionRepository.GetStoredMatchAsync(
                 settings.HomeTeam,
                 settings.AwayTeam,
                 settings.Matchday!.Value,
-                settings.Model,
-                settings.CommunityContext);
+                evaluationTime is null ? settings.Model : null,
+                evaluationTime is null ? settings.CommunityContext : null);
 
             if (storedMatch is null)
             {
@@ -63,11 +66,31 @@ public sealed class ExportExperimentItemCommand : AsyncCommand<ExportExperimentI
             }
 
             var promptMatch = RehydrateForPromptOutput(storedMatch);
-            var reconstructedPrompt = await reconstructionService.ReconstructMatchPredictionPromptAsync(
-                promptMatch,
-                settings.Model,
-                settings.CommunityContext,
-                settings.WithJustification);
+            ReconstructedMatchPredictionPrompt? reconstructedPrompt;
+            if (evaluationTime is null)
+            {
+                reconstructedPrompt = await reconstructionService.ReconstructMatchPredictionPromptAsync(
+                    promptMatch,
+                    settings.Model,
+                    settings.CommunityContext,
+                    settings.WithJustification);
+            }
+            else
+            {
+                var selection = MatchContextDocumentCatalog.ForMatch(
+                    promptMatch.HomeTeam,
+                    promptMatch.AwayTeam,
+                    settings.CommunityContext);
+
+                reconstructedPrompt = await reconstructionService.ReconstructMatchPredictionPromptAtTimestampAsync(
+                    promptMatch,
+                    settings.Model,
+                    settings.CommunityContext,
+                    evaluationTime.Value,
+                    selection.RequiredDocumentNames,
+                    selection.OptionalDocumentNames,
+                    settings.WithJustification);
+            }
 
             if (reconstructedPrompt is null)
             {
@@ -105,7 +128,7 @@ public sealed class ExportExperimentItemCommand : AsyncCommand<ExportExperimentI
 
             _console.MarkupLine($"[green]Wrote experiment item:[/] [yellow]{Markup.Escape(outputPath)}[/]");
             _console.MarkupLine($"[blue]Dataset item id:[/] {Markup.Escape(export.DatasetItem.Id)}");
-            _console.MarkupLine($"[blue]Prediction timestamp:[/] {export.DatasetItem.Metadata.PredictionCreatedAt:O}");
+            _console.MarkupLine($"[blue]{(evaluationTime is null ? "Prediction timestamp" : "Reconstruction timestamp")}:[/] {export.DatasetItem.Metadata.PredictionCreatedAt:O}");
             _console.MarkupLine($"[blue]Outcome:[/] {outcome.HomeGoals}:{outcome.AwayGoals} ({outcome.Availability})");
 
             return 0;
@@ -123,6 +146,8 @@ public sealed class ExportExperimentItemCommand : AsyncCommand<ExportExperimentI
         PersistedMatchOutcome outcome)
     {
         using var matchJsonDocument = JsonDocument.Parse(reconstructedPrompt.MatchJson);
+        var tippSpielId = outcome.TippSpielId ?? throw new InvalidOperationException(
+            $"Persisted outcome for {outcome.HomeTeam} vs {outcome.AwayTeam} is missing tippspielId.");
 
         var metadata = new MatchExperimentMetadata(
             reconstructedPrompt.CommunityContext,
@@ -130,9 +155,10 @@ public sealed class ExportExperimentItemCommand : AsyncCommand<ExportExperimentI
             reconstructedPrompt.Match.Matchday,
             reconstructedPrompt.Match.HomeTeam,
             reconstructedPrompt.Match.AwayTeam,
+            tippSpielId,
             reconstructedPrompt.Model,
             reconstructedPrompt.IncludeJustification,
-            reconstructedPrompt.PredictionCreatedAt,
+            reconstructedPrompt.PromptTimestamp,
             reconstructedPrompt.PromptTemplatePath,
             reconstructedPrompt.ContextDocumentNames,
             reconstructedPrompt.ResolvedContextDocuments
@@ -148,7 +174,7 @@ public sealed class ExportExperimentItemCommand : AsyncCommand<ExportExperimentI
 
         return new ExportedExperimentItem(
             new MatchExperimentDatasetItem(
-                BuildItemId(metadata),
+                BuildHostedDatasetItemId(outcome.Competition, outcome.CommunityContext, tippSpielId),
                 matchJsonDocument.RootElement.Clone(),
                 new MatchExperimentExpectedOutput(
                     outcome.HomeGoals!.Value,
@@ -179,17 +205,13 @@ public sealed class ExportExperimentItemCommand : AsyncCommand<ExportExperimentI
         return Path.GetFullPath(Path.Combine("artifacts", "langfuse-runner-spike", fileName));
     }
 
-    private static string BuildItemId(MatchExperimentMetadata metadata)
+    private static string BuildHostedDatasetItemId(string competition, string communityContext, string tippSpielId)
     {
         return string.Join(
             "__",
-            Slugify(metadata.Competition),
-            Slugify(metadata.CommunityContext),
-            $"md{metadata.Matchday:00}",
-            Slugify(metadata.HomeTeam),
-            Slugify(metadata.AwayTeam),
-            Slugify(metadata.Model),
-            metadata.IncludeJustification ? "with-justification" : "without-justification");
+            Slugify(competition),
+            Slugify(communityContext),
+            $"ts{Slugify(tippSpielId)}");
     }
 
     private static string Slugify(string value)

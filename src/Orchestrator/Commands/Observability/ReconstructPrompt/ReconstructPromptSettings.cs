@@ -31,6 +31,10 @@ public class ReconstructPromptSettings : CommandSettings
     [DefaultValue(false)]
     public bool WithJustification { get; set; }
 
+    [CommandOption("--evaluation-time")]
+    [Description("Optional explicit evaluation time in '<local-date-time> <tzdb-zone>' format, for example '2026-03-15T12:00 Europe/Berlin'")]
+    public string? EvaluationTime { get; set; }
+
     public override ValidationResult Validate()
     {
         if (string.IsNullOrWhiteSpace(Model))
@@ -56,6 +60,18 @@ public class ReconstructPromptSettings : CommandSettings
         if (!Matchday.HasValue)
         {
             return ValidationResult.Error("--matchday must be provided");
+        }
+
+        if (!string.IsNullOrWhiteSpace(EvaluationTime))
+        {
+            try
+            {
+                _ = Commands.Observability.EvaluationTimeParser.Parse(EvaluationTime);
+            }
+            catch (ArgumentException ex)
+            {
+                return ValidationResult.Error(ex.Message);
+            }
         }
 
         return ValidationResult.Success();

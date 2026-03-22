@@ -23,6 +23,7 @@ public sealed record MatchExperimentMetadata(
     int Matchday,
     string HomeTeam,
     string AwayTeam,
+    string TippSpielId,
     string Model,
     bool IncludeJustification,
     DateTimeOffset PredictionCreatedAt,
