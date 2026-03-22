@@ -431,4 +431,89 @@ public class FirebasePredictionRepository_Justification_Tests(FirestoreFixture f
         await Assert.That(retrieved.Justification!.ContextSources!.LeastValuable).HasCount().EqualTo(1);
         await Assert.That(retrieved.Justification.ContextSources.LeastValuable.First().DocumentName).IsEqualTo("weather");
     }
+
+    [Test]
+    public async Task Legacy_plain_text_justification_is_returned_as_key_reasoning()
+    {
+        // Arrange
+        var repository = CreateRepository();
+        var match = CreateMatch();
+        var timestamp = Google.Cloud.Firestore.Timestamp.FromDateTimeOffset(match.StartsAt.ToInstant().ToDateTimeOffset());
+        var createdAt = Google.Cloud.Firestore.Timestamp.FromDateTimeOffset(DateTimeOffset.UtcNow);
+
+        await Fixture.Db.Collection("match-predictions")
+            .Document(Guid.NewGuid().ToString())
+            .SetAsync(new Dictionary<string, object?>
+            {
+                ["homeTeam"] = match.HomeTeam,
+                ["awayTeam"] = match.AwayTeam,
+                ["startsAt"] = timestamp,
+                ["matchday"] = match.Matchday,
+                ["homeGoals"] = 2,
+                ["awayGoals"] = 1,
+                ["justification"] = "Legacy free-form explanation",
+                ["createdAt"] = createdAt,
+                ["updatedAt"] = createdAt,
+                ["competition"] = "bundesliga-2025-26",
+                ["model"] = "gpt-4o",
+                ["tokenUsage"] = "100",
+                ["cost"] = 0.01,
+                ["communityContext"] = "test-community",
+                ["contextDocumentNames"] = Array.Empty<string>(),
+                ["repredictionIndex"] = 0
+            });
+
+        // Act
+        var retrieved = await repository.GetPredictionAsync(match, "gpt-4o", "test-community");
+
+        // Assert
+        await Assert.That(retrieved).IsNotNull();
+        await Assert.That(retrieved!.Justification).IsNotNull();
+        await Assert.That(retrieved.Justification!.KeyReasoning).IsEqualTo("Legacy free-form explanation");
+        await Assert.That(retrieved.Justification.ContextSources!.MostValuable).IsEmpty();
+        await Assert.That(retrieved.Justification.Uncertainties).IsEmpty();
+    }
+
+    [Test]
+    public async Task Malformed_structured_justification_falls_back_to_legacy_text()
+    {
+        // Arrange
+        var repository = CreateRepository();
+        var match = CreateMatch();
+        var timestamp = Google.Cloud.Firestore.Timestamp.FromDateTimeOffset(match.StartsAt.ToInstant().ToDateTimeOffset());
+        var createdAt = Google.Cloud.Firestore.Timestamp.FromDateTimeOffset(DateTimeOffset.UtcNow);
+
+        await Fixture.Db.Collection("match-predictions")
+            .Document(Guid.NewGuid().ToString())
+            .SetAsync(new Dictionary<string, object?>
+            {
+                ["homeTeam"] = match.HomeTeam,
+                ["awayTeam"] = match.AwayTeam,
+                ["startsAt"] = timestamp,
+                ["matchday"] = match.Matchday,
+                ["homeGoals"] = 2,
+                ["awayGoals"] = 1,
+                ["justification"] = "{ not-json }",
+                ["createdAt"] = createdAt,
+                ["updatedAt"] = createdAt,
+                ["competition"] = "bundesliga-2025-26",
+                ["model"] = "gpt-4o",
+                ["tokenUsage"] = "100",
+                ["cost"] = 0.01,
+                ["communityContext"] = "test-community",
+                ["contextDocumentNames"] = Array.Empty<string>(),
+                ["repredictionIndex"] = 0
+            });
+
+        // Act
+        var retrieved = await repository.GetPredictionAsync(match, "gpt-4o", "test-community");
+
+        // Assert
+        await Assert.That(retrieved).IsNotNull();
+        await Assert.That(retrieved!.Justification).IsNotNull();
+        await Assert.That(retrieved.Justification!.KeyReasoning).IsEqualTo("{ not-json }");
+        await Assert.That(retrieved.Justification.ContextSources!.MostValuable).IsEmpty();
+        await Assert.That(retrieved.Justification.Uncertainties).IsEmpty();
+    }
+
 }

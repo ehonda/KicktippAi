@@ -180,6 +180,116 @@ public class KicktippClient_PlaceBonusPredictions_Tests : KicktippClientTests_Ba
     }
 
     [Test]
+    public async Task Placing_bonus_predictions_preserves_existing_match_inputs_and_button_submit_values()
+    {
+        var html = """
+            <!DOCTYPE html>
+            <html>
+            <body>
+            <form action="/test-community/tippabgabe">
+                <input type="hidden" name="_charset_" value="UTF-8" />
+                <input type="text" name="matchPrediction[0].home" value="2" />
+                <input type="number" name="matchPrediction[0].away" value="1" />
+                <table id="tippabgabeFragen">
+                    <tbody>
+                        <tr>
+                            <td>Question</td>
+                            <td>Description</td>
+                            <td>
+                                <select name="bonus.field">
+                                    <option value="101">Option 1</option>
+                                    <option value="102">Option 2</option>
+                                </select>
+                            </td>
+                        </tr>
+                    </tbody>
+                </table>
+                <button type="submit" name="savebtn" value="save-now">Save</button>
+            </form>
+            </body>
+            </html>
+            """;
+        StubHtmlResponseWithParams(
+            "/test-community/tippabgabe",
+            html,
+            new Dictionary<string, string> { ["bonus"] = "true" });
+        StubPostResponseWithParams(
+            "/test-community/tippabgabe",
+            new Dictionary<string, string> { ["bonus"] = "true" });
+        StubPostResponse("/test-community/tippabgabe");
+        var client = CreateClient();
+        var predictions = new Dictionary<string, BonusPrediction>
+        {
+            { "bonus.field", new BonusPrediction(["102"]) }
+        };
+
+        var result = await client.PlaceBonusPredictionsAsync("test-community", predictions);
+
+        await Assert.That(result).IsTrue();
+
+        var postRequests = GetRequestsForPath("/test-community/tippabgabe")
+            .Where(r => r.RequestMessage.Method == "POST");
+        var formData = ParseFormData(postRequests.First().RequestMessage.Body);
+
+        await Assert.That(formData["matchPrediction[0].home"]).IsEqualTo("2");
+        await Assert.That(formData["matchPrediction[0].away"]).IsEqualTo("1");
+        await Assert.That(formData["bonus.field"]).IsEqualTo("102");
+        await Assert.That(formData["savebtn"]).IsEqualTo("save-now");
+    }
+
+    [Test]
+    public async Task Placing_bonus_predictions_uses_fallback_submit_and_skips_unknown_options()
+    {
+        var html = """
+            <!DOCTYPE html>
+            <html>
+            <body>
+            <form action="/test-community/tippabgabe">
+                <input type="hidden" name="_charset_" value="UTF-8" />
+                <table id="tippabgabeFragen">
+                    <tbody>
+                        <tr>
+                            <td>Question</td>
+                            <td>Description</td>
+                            <td>
+                                <select name="bonus.field">
+                                    <option value="101">Option 1</option>
+                                </select>
+                            </td>
+                        </tr>
+                    </tbody>
+                </table>
+            </form>
+            </body>
+            </html>
+            """;
+        StubHtmlResponseWithParams(
+            "/test-community/tippabgabe",
+            html,
+            new Dictionary<string, string> { ["bonus"] = "true" });
+        StubPostResponseWithParams(
+            "/test-community/tippabgabe",
+            new Dictionary<string, string> { ["bonus"] = "true" });
+        StubPostResponse("/test-community/tippabgabe");
+        var client = CreateClient();
+        var predictions = new Dictionary<string, BonusPrediction>
+        {
+            { "bonus.field", new BonusPrediction(["999"]) }
+        };
+
+        var result = await client.PlaceBonusPredictionsAsync("test-community", predictions);
+
+        await Assert.That(result).IsTrue();
+
+        var postRequests = GetRequestsForPath("/test-community/tippabgabe")
+            .Where(r => r.RequestMessage.Method == "POST");
+        var formData = ParseFormData(postRequests.First().RequestMessage.Body);
+
+        await Assert.That(formData["submitbutton"]).IsEqualTo("Submit");
+        await Assert.That(formData.ContainsKey("bonus.field")).IsFalse();
+    }
+
+    [Test]
     public async Task Placing_bonus_predictions_with_real_fixture_submits_form_correctly()
     {
         // Arrange - use encrypted real fixture for the ehonda-test-buli community
