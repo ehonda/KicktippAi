@@ -223,4 +223,89 @@ public class KicktippClient_GetMatchdayOutcomes_Tests : KicktippClientTests_Base
         await Assert.That(outcomes[1].HomeTeam).IsEqualTo("Valid A");
         await Assert.That(await client.GetCurrentTippuebersichtMatchdayAsync("test-community")).IsEqualTo(1);
     }
+
+    [Test]
+    public async Task Getting_matchday_outcomes_uses_displayed_matchday_when_page_mismatch_occurs()
+    {
+        var html = """
+            <!DOCTYPE html>
+            <html>
+            <body>
+            <div class="prevnextTitle"><a>5. Spieltag</a></div>
+            <table id="spielplanSpiele">
+                <tbody>
+                    <tr data-url="/test-community/spielinfo?tippspielId=501">
+                        <td>22.08.25 20:30</td>
+                        <td>Mismatch Home</td>
+                        <td>Mismatch Away</td>
+                        <td><span class="kicktipp-heim">1</span><span class="kicktipp-gast">1</span></td>
+                    </tr>
+                </tbody>
+            </table>
+            </body>
+            </html>
+            """;
+        StubHtmlResponseWithParams(
+            "/test-community/tippuebersicht",
+            html,
+            ("spieltagIndex", "7"));
+        var client = CreateClient();
+
+        var first = await client.GetMatchdayOutcomesAsync("test-community", 7);
+        var second = await client.GetMatchdayOutcomesAsync("test-community", 7);
+
+        await Assert.That(first).HasCount().EqualTo(1);
+        await Assert.That(first[0].Matchday).IsEqualTo(5);
+        await Assert.That(first[0].TippSpielId).IsEqualTo("501");
+        await Assert.That(second[0].Matchday).IsEqualTo(5);
+        await Assert.That(GetRequestsForPath("/test-community/tippuebersicht")
+                .Count(entry => entry.RequestMessage.Method == "GET"))
+            .IsEqualTo(1);
+    }
+
+    [Test]
+    public async Task Getting_matchday_outcomes_skips_incomplete_rows_and_allows_missing_tippspiel_id()
+    {
+        var html = """
+            <!DOCTYPE html>
+            <html>
+            <body>
+            <div class="prevnextTitle"><a>6. Spieltag</a></div>
+            <table id="spielplanSpiele">
+                <tbody>
+                    <tr>
+                        <td>22.08.25 20:30</td>
+                        <td>Too Few Cells</td>
+                        <td>Missing Result</td>
+                    </tr>
+                    <tr>
+                        <td>22.08.25 20:30</td>
+                        <td></td>
+                        <td>Blank Home</td>
+                        <td><span class="kicktipp-heim">2</span><span class="kicktipp-gast">0</span></td>
+                    </tr>
+                    <tr>
+                        <td>22.08.25 20:30</td>
+                        <td>Valid Home</td>
+                        <td>Valid Away</td>
+                        <td><span class="kicktipp-heim">3</span><span class="kicktipp-gast">2</span></td>
+                    </tr>
+                </tbody>
+            </table>
+            </body>
+            </html>
+            """;
+        StubHtmlResponseWithParams(
+            "/test-community/tippuebersicht",
+            html,
+            ("spieltagIndex", "6"));
+        var client = CreateClient();
+
+        var outcomes = await client.GetMatchdayOutcomesAsync("test-community", 6);
+
+        await Assert.That(outcomes).HasCount().EqualTo(1);
+        await Assert.That(outcomes[0].HomeTeam).IsEqualTo("Valid Home");
+        await Assert.That(outcomes[0].AwayTeam).IsEqualTo("Valid Away");
+        await Assert.That(outcomes[0].TippSpielId).IsNull();
+    }
 }
