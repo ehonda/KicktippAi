@@ -135,13 +135,13 @@ public class Program
                 .WithDescription("Reconstruct the historical prompt inputs for a stored match prediction")
                 .WithExample("reconstruct-prompt", "o4-mini", "--community-context", "pes-squad", "--home", "VfB Stuttgart", "--away", "RB Leipzig", "--matchday", "26")
                 .WithExample("reconstruct-prompt", "o4-mini", "--community-context", "pes-squad", "--home", "VfB Stuttgart", "--away", "RB Leipzig", "--matchday", "26", "--with-justification")
-                .WithExample("reconstruct-prompt", "o4-mini", "--community-context", "pes-squad", "--home", "VfB Stuttgart", "--away", "RB Leipzig", "--matchday", "26", "--evaluation-time", "\"2026-03-15T12:00 Europe/Berlin\"");
+                .WithExample("reconstruct-prompt", "o4-mini", "--community-context", "pes-squad", "--home", "VfB Stuttgart", "--away", "RB Leipzig", "--matchday", "26", "--evaluation-time", "\"2026-03-15T12:00:00 Europe/Berlin (+01)\"");
 
             config.AddCommand<ExportExperimentItemCommand>("export-experiment-item")
                 .WithDescription("Export a single historical match experiment item for runner testing")
                 .WithExample("export-experiment-item", "o4-mini", "--community-context", "pes-squad", "--home", "VfB Stuttgart", "--away", "RB Leipzig", "--matchday", "26")
                 .WithExample("export-experiment-item", "o4-mini", "--community-context", "pes-squad", "--home", "VfB Stuttgart", "--away", "RB Leipzig", "--matchday", "26", "--output", "artifacts/langfuse-runner-spike/vfb-stuttgart-vs-rb-leipzig.json")
-                .WithExample("export-experiment-item", "o4-mini", "--community-context", "pes-squad", "--home", "VfB Stuttgart", "--away", "RB Leipzig", "--matchday", "26", "--evaluation-time", "\"2026-03-15T12:00 Europe/Berlin\"");
+                .WithExample("export-experiment-item", "o4-mini", "--community-context", "pes-squad", "--home", "VfB Stuttgart", "--away", "RB Leipzig", "--matchday", "26", "--evaluation-time", "\"2026-03-15T12:00:00 Europe/Berlin (+01)\"");
 
             config.AddCommand<ExportExperimentDatasetCommand>("export-experiment-dataset")
                 .WithDescription("Export the canonical hosted Langfuse dataset artifact for completed historical matches")

@@ -11,7 +11,7 @@
         -HomeTeam "VfB Stuttgart" `
         -AwayTeam "RB Leipzig" `
         -Matchday 26 `
-        -EvaluationTime "2026-03-15T12:00 Europe/Berlin" `
+        -EvaluationTime "2026-03-15T12:00:00 Europe/Berlin (+01)" `
         -ReplaceRun
 #>
 param(
@@ -31,7 +31,7 @@ param(
 
     [string[]]$Models = @("o3", "gpt-5-nano"),
 
-    [int]$Repetitions = 17,
+    [int]$Repetitions = 5,
 
     [int]$BatchSize = 8,
 
@@ -94,6 +94,23 @@ function Invoke-DotenvCommand([string]$WorkingDirectory, [string[]]$CommandArgum
     finally {
         Pop-Location
     }
+}
+
+function Convert-RunnerOutputToJson([object[]]$RunnerOutput) {
+    $jsonStartIndex = -1
+
+    for ($index = 0; $index -lt $RunnerOutput.Count; $index++) {
+        if ($RunnerOutput[$index] -eq "{") {
+            $jsonStartIndex = $index
+            break
+        }
+    }
+
+    if ($jsonStartIndex -lt 0) {
+        throw "Runner output did not contain a JSON payload. Output:`n$($RunnerOutput -join [Environment]::NewLine)"
+    }
+
+    return (($RunnerOutput[$jsonStartIndex..($RunnerOutput.Count - 1)]) -join [Environment]::NewLine) | ConvertFrom-Json
 }
 
 $runTimestamp = Get-Date -Format "yyyyMMdd-HHmmss"
@@ -162,12 +179,12 @@ foreach ($model in $Models) {
     Write-Host "Running hosted experiment for model '$model'..."
     $runnerOutput = Invoke-DotenvCommand -WorkingDirectory $runnerDirectory -CommandArguments $runnerArguments
 
-    $summary = $runnerOutput | ConvertFrom-Json
+    $summary = Convert-RunnerOutputToJson -RunnerOutput $runnerOutput
     $summaries += [pscustomobject]@{
         Model = $model
         ArtifactPath = $artifactPath
-        RunName = $summary.runName
-        DatasetRunId = $summary.datasetRunId
+        RunFamilyName = $summary.runFamilyName
+        DatasetRuns = $summary.datasetRuns
         AggregateScores = $summary.aggregateScores
         ExecutionCount = $summary.executionCount
     }

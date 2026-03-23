@@ -20,7 +20,7 @@ Set up a reproducible Langfuse experiment workflow for KicktippAi that can:
 | 2 | [03-task-02-prompt-reconstruction.md](tasks/done/03-task-02-prompt-reconstruction.md) | Resolve exact context versions and reproducible prompt reconstruction | Task 1 | Completed |
 | 3 | [04-task-03-runner-spike.md](tasks/done/04-task-03-runner-spike.md) | Choose Python or JS/TS experiment runner with a narrow spike | Task 2 | Completed |
 | 4 | [05-task-04-dataset-sync.md](tasks/done/05-task-04-dataset-sync.md) | Create and synchronize the hosted Langfuse dataset | Task 3 | Completed |
-| 5 | [06-task-05-first-experiment.md](tasks/06-task-05-first-experiment.md) | Run the first sampled Bundesliga experiment with scoring | Tasks 3-4 | Ready |
+| 5 | [06-task-05-first-experiment.md](tasks/06-task-05-first-experiment.md) | Run the first sampled Bundesliga experiment with scoring | Tasks 3-4 | In progress |
 | 6 | [07-task-06-follow-up-evaluation.md](tasks/07-task-06-follow-up-evaluation.md) | Add follow-up metrics, automation, and next experiment layers | Task 5 | Blocked by Task 5 |
 
 ## Task Checklist
@@ -46,6 +46,8 @@ Set up a reproducible Langfuse experiment workflow for KicktippAi that can:
 - Task 4 implementation includes schema-enforced hosted dataset sync in `tools/langfuse-runner-spike/sync-dataset.mjs`
 - Autonomous verification confirmed the hosted dataset `match-predictions/bundesliga-2025-26/pes-squad` exists in Langfuse with `235` synced items as of `2026-03-21`
 - Manual inspection of the Langfuse API responses also looked good, so Task 5 is now ready to start
+- Task 5 is now in progress with a working single-match experiment wrapper, exact-timestamp export path, per-repetition dataset runs, and API-verified run summaries
+- The current repetition workaround favors visibility over Langfuse-native cross-repetition aggregation; the wrapper computes the per-model overall aggregate scores, but the Langfuse UI currently shows one run per repetition instead of one averaged model run
 
 ## Cross-Task Risks
 
@@ -66,6 +68,14 @@ Later tasks should target the JS/TS runner unless the local Python environment i
 The first experiment should target a hosted Langfuse dataset, not only a local list of items, because dataset runs and comparison views are part of the intended outcome.
 
 This affects dataset sync design in Task 4.
+
+### 4. Repetition Visibility And Aggregation Are In Tension
+
+The current Langfuse setup uses one dataset run per repetition for a dataset item so every repetition stays visible in the UI and via the API.
+
+This works for debugging and trace inspection, but it means Langfuse's built-in run tables do not provide one single averaged run per model across all repetitions.
+
+Later Task 5 or Task 6 work should revisit whether there is a better model for repeated executions per dataset item that preserves both repetition visibility and model-level aggregate comparison inside Langfuse itself.
 
 ## Handoff Rules
 

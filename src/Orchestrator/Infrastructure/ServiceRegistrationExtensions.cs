@@ -18,6 +18,9 @@ namespace Orchestrator.Infrastructure;
 /// </summary>
 public static class ServiceRegistrationExtensions
 {
+    private const string LangfuseIngestionVersionHeaderName = "x-langfuse-ingestion-version";
+    private const string LangfuseIngestionVersionHeaderValue = "4";
+
     /// <summary>
     /// Registers all shared infrastructure services (factories, logging).
     /// </summary>
@@ -87,7 +90,7 @@ public static class ServiceRegistrationExtensions
         _langfuseTracingRegistered = true;
 
         var baseUrl = Environment.GetEnvironmentVariable("LANGFUSE_BASE_URL") ?? "https://cloud.langfuse.com";
-        var authHeader = $"Authorization=Basic {Convert.ToBase64String(Encoding.UTF8.GetBytes($"{publicKey}:{secretKey}"))}";
+        var headers = BuildLangfuseOtlpHeaders(publicKey, secretKey);
 
         // NOTE: Setting options.Endpoint programmatically sets AppendSignalPathToEndpoint = false,
         // so the full URL including /v1/traces must be provided.
@@ -100,10 +103,18 @@ public static class ServiceRegistrationExtensions
                 {
                     options.Endpoint = new Uri($"{baseUrl}/api/public/otel/v1/traces");
                     options.Protocol = OtlpExportProtocol.HttpProtobuf;
-                    options.Headers = authHeader;
+                    options.Headers = headers;
                 }));
 
         return services;
+    }
+
+    internal static string BuildLangfuseOtlpHeaders(string publicKey, string secretKey)
+    {
+        var authorization = Convert.ToBase64String(Encoding.UTF8.GetBytes($"{publicKey}:{secretKey}"));
+        return string.Join(",",
+            $"Authorization=Basic {authorization}",
+            $"{LangfuseIngestionVersionHeaderName}={LangfuseIngestionVersionHeaderValue}");
     }
 
     private static bool _langfuseTracingRegistered;

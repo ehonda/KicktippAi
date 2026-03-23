@@ -53,3 +53,25 @@ As these only matter during the start of the season, we'll postpone it for now. 
 - Shared context and repository findings: [00-common-context.md](00-common-context.md)
 - Master tracker and task order: [01-phase-2-tracker.md](01-phase-2-tracker.md)
 - Manual steps by task and execution point: [manual-steps.md](tasks/manual-steps.md)
+
+## Current Task 5 Setup
+
+- Runner stack for the first milestone is JS/TS with `@langfuse/client`, `@langfuse/tracing`, `@langfuse/otel`, and the OpenAI JS SDK
+- Prompt and context reconstruction stay in `.NET`; the JS runner consumes exported experiment-item JSON files
+- Explicit evaluation-time input now uses NodaTime's invariant `ZonedDateTime` `G` pattern, for example `2026-03-15T12:00:00 Europe/Berlin (+01)`
+- The Langfuse OTEL span processor is configured with `x-langfuse-ingestion-version: 4` to use the faster ingestion path surfaced in the new UI
+- Development runs default to `5` repetitions; the intended fuller milestone run remains `17` repetitions
+- The first repetition is kept serial to warm provider-side prompt caches; later repetitions run in parallel batches, default batch size `8`
+
+## Current Repetition Workaround
+
+- A single Langfuse dataset run with multiple run items for the same dataset item did not give reliable repetition visibility in the current UI/API behavior during local validation
+- The current workaround therefore creates one dataset run per repetition under a shared run-family naming convention
+- This keeps every repetition visible and inspectable from the dataset item runs table and from API responses
+- The wrapper aggregates scores across all repetition-runs for a model and prints that summary after execution
+
+## Known Tradeoff To Revisit
+
+- The per-repetition-run workaround makes Langfuse's built-in run-level averages less useful for model-vs-model comparison across all repetitions
+- For example, comparing `o3` vs `gpt-5-nano` on total average `kicktipp_points` over all repetitions currently relies on the wrapper's aggregate JSON output, not one native Langfuse comparison row per model
+- Future refinement should investigate whether Langfuse supports a better repeated-execution model for one dataset item, or whether we should add a higher-level aggregation layer on our side that writes comparison summaries back into Langfuse in a more queryable way

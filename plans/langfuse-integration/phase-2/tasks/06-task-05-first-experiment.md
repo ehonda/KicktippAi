@@ -2,7 +2,7 @@
 
 ## Status
 
-Ready
+In progress
 
 ## Objective
 
@@ -73,6 +73,25 @@ Run-level aggregates should summarize the primary score and the main supporting 
 - Item-level and run-level scores are visible
 - Reconstruction follows the agreed timestamp-based rule
 - The scoring matches manual expectations on checked examples
+
+## Current Implementation Notes
+
+- Exact-time export and prompt reconstruction are implemented through `.NET` commands that accept NodaTime's invariant `ZonedDateTime` `G` pattern, for example `2026-03-15T12:00:00 Europe/Berlin (+01)`
+- The experiment wrapper lives in `.github/copilot/skills/langfuse-experiment-runner/` and orchestrates export plus JS execution for one or more models
+- The JS runner emits progress output during warm-up and batching, verifies dataset runs via the Langfuse API, and returns per-model aggregate scores plus repetition-level run details
+- The Langfuse OTEL span processor is configured with the `x-langfuse-ingestion-version: 4` header
+
+## Current Repetition Decision
+
+- Repetitions are currently spread across multiple Langfuse dataset runs, one run per repetition, under a shared run-family name
+- This was chosen because local validation showed better repetition visibility in the current Langfuse UI and dataset-item run tables than repeated run items inside one dataset run
+- The serial-first plus batched-later execution strategy remains in place: repetition `1` is serial, later repetitions are batched
+
+## Open Design Question
+
+- The current per-repetition-run workaround weakens Langfuse-native model comparison because the UI averages are per repetition-run instead of per model across all repetitions
+- We can still compare `o3` and `gpt-5-nano` over all repetitions using the wrapper's aggregated scores, but that is a local summary rather than a first-class Langfuse comparison view
+- A follow-up session should evaluate whether there is a better Langfuse data model for repeated executions of one dataset item, or whether we should push additional aggregate comparison records into Langfuse ourselves
 
 ## Handoff Notes
 

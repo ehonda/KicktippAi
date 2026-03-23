@@ -207,6 +207,14 @@ function deriveRunName(explicitRunName, exportedItems, model, repetitions) {
   ].join("__");
 }
 
+function deriveRepetitionRunName(runFamilyName, repetition, totalRepetitions) {
+  if (totalRepetitions === 1) {
+    return runFamilyName;
+  }
+
+  return `${runFamilyName}__rep${String(repetition).padStart(2, "0")}`;
+}
+
 function createRunMetadata(exportedItems, model, repetitions, batchSize) {
   const firstMetadata = exportedItems[0].exportedItem.datasetItem.metadata;
 
@@ -323,6 +331,24 @@ async function deleteExistingRunIfRequested(langfuse, datasetName, runName, repl
   }
 }
 
+async function deleteExistingRunsIfRequested(langfuse, datasetName, runFamilyName, repetitions, replaceRun) {
+  if (!replaceRun) {
+    return [];
+  }
+
+  const deletedRunNames = [];
+
+  for (let repetition = 1; repetition <= repetitions; repetition += 1) {
+    const runName = deriveRepetitionRunName(runFamilyName, repetition, repetitions);
+    const deleted = await deleteExistingRunIfRequested(langfuse, datasetName, runName, true);
+    if (deleted) {
+      deletedRunNames.push(runName);
+    }
+  }
+
+  return deletedRunNames;
+}
+
 function isNotFoundError(error) {
   if (!(error instanceof Error)) {
     return false;
@@ -330,6 +356,10 @@ function isNotFoundError(error) {
 
   const message = error.message.toLowerCase();
   return message.includes("404") || message.includes("not found");
+}
+
+function reportProgress(message) {
+  console.error(`[progress] ${message}`);
 }
 
 async function runPrediction({ openai, model, exportedItem, runName, repetition, totalRepetitions }) {
@@ -510,7 +540,7 @@ async function main() {
   const argumentsResult = readArguments();
   const exportedItems = await loadExportedItems(argumentsResult.inputPaths);
   const datasetName = deriveDatasetName(argumentsResult.datasetName, exportedItems);
-  const runName = deriveRunName(
+  const runFamilyName = deriveRunName(
     argumentsResult.runName,
     exportedItems,
     argumentsResult.model,
@@ -524,7 +554,11 @@ async function main() {
   );
 
   const sdk = new NodeSDK({
-    spanProcessors: [new LangfuseSpanProcessor()]
+    spanProcessors: [new LangfuseSpanProcessor({
+      additionalHeaders: {
+        "x-langfuse-ingestion-version": "4"
+      }
+    })]
   });
 
   sdk.start();
@@ -533,10 +567,11 @@ async function main() {
   const openai = new OpenAI({ apiKey: process.env.OPENAI_API_KEY });
 
   try {
-    const deletedExistingRun = await deleteExistingRunIfRequested(
+    const deletedExistingRuns = await deleteExistingRunsIfRequested(
       langfuse,
       datasetName,
-      runName,
+      runFamilyName,
+      argumentsResult.repetitions,
       argumentsResult.replaceRun
     );
 
@@ -546,25 +581,58 @@ async function main() {
     );
 
     const scoreEntries = [];
-    let datasetRunId;
     const executionSummaries = [];
+    const runsByName = new Map();
+
+    function getRunRecord(repetition) {
+      const runName = deriveRepetitionRunName(runFamilyName, repetition, argumentsResult.repetitions);
+      let runRecord = runsByName.get(runName);
+
+      if (!runRecord) {
+        runRecord = {
+          repetition,
+          runName,
+          datasetRunId: null,
+          scoreEntries: [],
+          executionSummaries: []
+        };
+
+        runsByName.set(runName, runRecord);
+      }
+
+      return runRecord;
+    }
+
+    const totalExecutionCount = warmupExecutions.length + batchedExecutions.length;
+    let completedExecutionCount = 0;
+
+    reportProgress(
+      `Starting experiment family '${runFamilyName}' for model '${argumentsResult.model}' with ${argumentsResult.repetitions} repetition(s), sample size ${exportedItems.length}, batch size ${argumentsResult.batchSize}.`
+    );
 
     // The first repetition for every match stays serial on purpose.
     // These first calls populate provider-side prompt caches for an identical prompt shape,
     // so batching only the later repetitions preserves the user-requested 1 + 2x8 pattern
     // for the first experiment while still keeping the total runtime reasonable.
-    for (const execution of warmupExecutions) {
+    for (let warmupIndex = 0; warmupIndex < warmupExecutions.length; warmupIndex += 1) {
+      const execution = warmupExecutions[warmupIndex];
+      const runRecord = getRunRecord(execution.repetition);
+
+      reportProgress(
+        `Warm-up ${warmupIndex + 1}/${warmupExecutions.length}: repetition ${execution.repetition}/${argumentsResult.repetitions}, item ${completedExecutionCount + 1}/${totalExecutionCount}, run '${runRecord.runName}'.`
+      );
+
       const result = await runPrediction({
         openai,
         model: argumentsResult.model,
         exportedItem: execution.exportedItem,
-        runName,
+        runName: runRecord.runName,
         repetition: execution.repetition,
         totalRepetitions: argumentsResult.repetitions
       });
 
       const datasetRunItem = await langfuse.api.datasetRunItems.create({
-        runName,
+        runName: runRecord.runName,
         runDescription: argumentsResult.runDescription,
         metadata: stableJson(runMetadata),
         datasetItemId: execution.exportedItem.datasetItem.id,
@@ -572,7 +640,7 @@ async function main() {
         traceId: result.traceId
       });
 
-      datasetRunId ??= datasetRunItem.datasetRunId;
+      runRecord.datasetRunId ??= datasetRunItem.datasetRunId;
       const scoreValues = await postItemScores(
         langfuse,
         datasetRunItem.datasetRunId,
@@ -582,31 +650,47 @@ async function main() {
       );
 
       scoreEntries.push(scoreValues);
-      executionSummaries.push({
+      const executionSummary = {
         inputPath: execution.inputPath,
         datasetItemId: execution.exportedItem.datasetItem.id,
         repetition: execution.repetition,
+        runName: runRecord.runName,
         traceId: result.traceId,
         observationId: result.observationId,
         prediction: result.prediction,
         usage: result.usage,
         scores: scoreValues
-      });
+      };
+
+      runRecord.scoreEntries.push(scoreValues);
+      runRecord.executionSummaries.push(executionSummary);
+      executionSummaries.push(executionSummary);
+      completedExecutionCount += 1;
     }
 
-    for (const batch of createBatchChunks(batchedExecutions, argumentsResult.batchSize)) {
+    const batches = createBatchChunks(batchedExecutions, argumentsResult.batchSize);
+    for (let batchIndex = 0; batchIndex < batches.length; batchIndex += 1) {
+      const batch = batches[batchIndex];
+      const batchStart = completedExecutionCount + 1;
+      const batchEnd = completedExecutionCount + batch.length;
+
+      reportProgress(
+        `Batch ${batchIndex + 1}/${batches.length}: executions ${batchStart}-${batchEnd} of ${totalExecutionCount}.`
+      );
+
       const batchResults = await Promise.all(batch.map(async (execution) => {
+        const runRecord = getRunRecord(execution.repetition);
         const result = await runPrediction({
           openai,
           model: argumentsResult.model,
           exportedItem: execution.exportedItem,
-          runName,
+          runName: runRecord.runName,
           repetition: execution.repetition,
           totalRepetitions: argumentsResult.repetitions
         });
 
         const datasetRunItem = await langfuse.api.datasetRunItems.create({
-          runName,
+          runName: runRecord.runName,
           runDescription: argumentsResult.runDescription,
           metadata: stableJson(runMetadata),
           datasetItemId: execution.exportedItem.datasetItem.id,
@@ -626,6 +710,7 @@ async function main() {
           inputPath: execution.inputPath,
           datasetItemId: execution.exportedItem.datasetItem.id,
           repetition: execution.repetition,
+          runName: runRecord.runName,
           traceId: result.traceId,
           observationId: result.observationId,
           prediction: result.prediction,
@@ -636,39 +721,77 @@ async function main() {
       }));
 
       for (const batchResult of batchResults) {
-        datasetRunId ??= batchResult.datasetRunId;
+        const runRecord = runsByName.get(batchResult.runName);
+        runRecord.datasetRunId ??= batchResult.datasetRunId;
         scoreEntries.push(batchResult.scores);
+        runRecord.scoreEntries.push(batchResult.scores);
+        runRecord.executionSummaries.push(batchResult);
         executionSummaries.push(batchResult);
       }
+
+      completedExecutionCount += batchResults.length;
+      reportProgress(
+        `Completed batch ${batchIndex + 1}/${batches.length}: ${completedExecutionCount}/${totalExecutionCount} executions finished.`
+      );
     }
 
-    if (!datasetRunId) {
-      throw new Error("No dataset run id was returned by Langfuse.");
+    if (runsByName.size === 0) {
+      throw new Error("No dataset runs were created.");
     }
 
-    const aggregateScores = await postRunScores(langfuse, datasetRunId, scoreEntries, runMetadata);
-    const datasetRun = await langfuse.api.datasets.getRun(datasetName, runName);
-    const datasetRunItems = await waitForDatasetRunItems(
-      langfuse,
-      datasetRun.datasetId,
-      runName,
-      executionSummaries.length
-    );
+    const datasetRuns = [];
+
+    for (const runRecord of [...runsByName.values()].sort((left, right) => left.repetition - right.repetition)) {
+      if (!runRecord.datasetRunId) {
+        throw new Error(`Dataset run '${runRecord.runName}' did not return a datasetRunId.`);
+      }
+
+      const repetitionRunMetadata = {
+        ...runMetadata,
+        runFamilyName,
+        repetition: runRecord.repetition
+      };
+      const repetitionAggregateScores = await postRunScores(
+        langfuse,
+        runRecord.datasetRunId,
+        runRecord.scoreEntries,
+        repetitionRunMetadata
+      );
+      const datasetRun = await langfuse.api.datasets.getRun(datasetName, runRecord.runName);
+      const datasetRunItems = await waitForDatasetRunItems(
+        langfuse,
+        datasetRun.datasetId,
+        runRecord.runName,
+        exportedItems.length
+      );
+
+      datasetRuns.push({
+        repetition: runRecord.repetition,
+        runName: runRecord.runName,
+        datasetRunId: runRecord.datasetRunId,
+        runItemCount: datasetRunItems.data.length,
+        aggregateScores: repetitionAggregateScores,
+        firstExecution: runRecord.executionSummaries[0] ?? null,
+        lastExecution: runRecord.executionSummaries.at(-1) ?? null
+      });
+    }
+
+    const aggregateScores = summarizeScores(scoreEntries);
 
     console.log(JSON.stringify({
       datasetName,
-      runName,
-      datasetRunId,
+      runFamilyName,
       model: argumentsResult.model,
-      deletedExistingRun,
+      deletedExistingRuns,
       sampleSize: exportedItems.length,
       repetitions: argumentsResult.repetitions,
       batchSize: argumentsResult.batchSize,
       executionCount: executionSummaries.length,
       warmupCount: warmupExecutions.length,
       batchedCount: batchedExecutions.length,
-      runItemCount: datasetRunItems.data.length,
+      runCount: datasetRuns.length,
       aggregateScores,
+      datasetRuns,
       firstExecution: executionSummaries[0] ?? null,
       lastExecution: executionSummaries.at(-1) ?? null
     }, null, 2));

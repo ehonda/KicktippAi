@@ -163,7 +163,7 @@ public class ReconstructPromptCommand_Tests
             "--matchday",
             "7",
             "--evaluation-time",
-            "\"2026-03-15T12:00 Europe/Berlin\"");
+            "\"2026-03-15T12:00:00 Europe/Berlin (+01)\"");
 
         await Assert.That(exitCode).IsEqualTo(0);
         await Assert.That(output).Contains("Reconstruction timestamp:");

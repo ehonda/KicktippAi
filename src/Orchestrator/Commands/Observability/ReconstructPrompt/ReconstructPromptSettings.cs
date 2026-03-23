@@ -32,7 +32,7 @@ public class ReconstructPromptSettings : CommandSettings
     public bool WithJustification { get; set; }
 
     [CommandOption("--evaluation-time")]
-    [Description("Optional explicit evaluation time in '<local-date-time> <tzdb-zone>' format, for example '2026-03-15T12:00 Europe/Berlin'")]
+    [Description("Optional explicit evaluation time in NodaTime invariant ZonedDateTime 'G' format, for example '2026-03-15T12:00:00 Europe/Berlin (+01)'")]
     public string? EvaluationTime { get; set; }
 
     public override ValidationResult Validate()
