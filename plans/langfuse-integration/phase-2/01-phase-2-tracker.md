@@ -38,6 +38,7 @@ Set up a reproducible Langfuse experiment workflow for KicktippAi that can:
 - Shared context consolidated into [00-common-context.md](00-common-context.md)
 - Manual actions consolidated into [manual-steps.md](tasks/manual-steps.md)
 - Domain-specific first-milestone design kept in [buli-25-26-experiments.md](buli-25-26-experiments.md)
+- Task 5 run-design decision is now documented in [first-experiment-run-design.md](first-experiment-run-design.md)
 - Task 1 data-foundation work is complete and archived in [02-task-01-data-foundation.md](tasks/done/02-task-01-data-foundation.md)
 - Task 2 prompt reconstruction is complete and archived in [03-task-02-prompt-reconstruction.md](tasks/done/03-task-02-prompt-reconstruction.md)
 - Task 3 runner spike is complete
@@ -46,8 +47,9 @@ Set up a reproducible Langfuse experiment workflow for KicktippAi that can:
 - Task 4 implementation includes schema-enforced hosted dataset sync in `tools/langfuse-runner-spike/sync-dataset.mjs`
 - Autonomous verification confirmed the hosted dataset `match-predictions/bundesliga-2025-26/pes-squad` exists in Langfuse with `235` synced items as of `2026-03-21`
 - Manual inspection of the Langfuse API responses also looked good, so Task 5 is now ready to start
-- Task 5 is now in progress with a working single-match experiment wrapper, exact-timestamp export path, per-repetition dataset runs, and API-verified run summaries
-- The current repetition workaround favors visibility over Langfuse-native cross-repetition aggregation; the wrapper computes the per-model overall aggregate scores, but the Langfuse UI currently shows one run per repetition instead of one averaged model run
+- Task 5 remains in progress with a working single-match experiment wrapper and exact-timestamp export path
+- The Task 5 design direction is now one dataset run per comparable variant on one fixed slice, with aggregate metrics attached as run-level scores
+- Repetition-family modeling is explicitly deferred; if fixed-repetition experiments become important, use the repetition-expanded shadow-dataset design documented in [first-experiment-run-design.md](first-experiment-run-design.md)
 
 ## Cross-Task Risks
 
@@ -71,11 +73,11 @@ This affects dataset sync design in Task 4.
 
 ### 4. Repetition Visibility And Aggregation Are In Tension
 
-The current Langfuse setup uses one dataset run per repetition for a dataset item so every repetition stays visible in the UI and via the API.
+Langfuse compares dataset runs, not run families.
 
-This works for debugging and trace inspection, but it means Langfuse's built-in run tables do not provide one single averaged run per model across all repetitions.
+Task 5 therefore uses one dataset run per comparable variant on one fixed slice as the primary design.
 
-Later Task 5 or Task 6 work should revisit whether there is a better model for repeated executions per dataset item that preserves both repetition visibility and model-level aggregate comparison inside Langfuse itself.
+If later work needs native repeated-execution averages for a fixed match or fixed slice, the recommended approach is a dedicated repetition-expanded shadow dataset rather than per-repetition primary runs. See [first-experiment-run-design.md](first-experiment-run-design.md).
 
 ## Handoff Rules
 

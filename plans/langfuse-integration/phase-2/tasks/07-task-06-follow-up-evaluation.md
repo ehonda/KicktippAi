@@ -17,9 +17,12 @@ This task intentionally stays broad until the first experiment run proves the ba
 - Add CI-friendly experiment checks or smoke tests
 - Add more aggregate metrics and comparison helpers
 - Expand beyond random samples to other slices and cohorts
+- Add stable benchmark slice datasets for recurring benchmark runs
 - Add historical baseline comparisons against stored predictions
 - Revisit justification-quality evaluation and LLM-as-a-Judge
 - Extend the pattern to bonus prediction experiments later
+
+Do not treat repetition-family aggregation as part of the initial Task 5 deliverable. If later work needs repeated fixed-match or fixed-slice experiments with native Langfuse averages, use the repetition-expanded shadow-dataset design documented in [../first-experiment-run-design.md](../first-experiment-run-design.md).
 
 ## Manual Steps
 

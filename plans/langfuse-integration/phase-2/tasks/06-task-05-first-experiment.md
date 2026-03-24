@@ -36,6 +36,7 @@ The runner choice is now stable for the first milestone: use JS/TS unless a late
 - Results of [03-task-02-prompt-reconstruction.md](done/03-task-02-prompt-reconstruction.md)
 - Results of [04-task-03-runner-spike.md](done/04-task-03-runner-spike.md)
 - Results of [05-task-04-dataset-sync.md](done/05-task-04-dataset-sync.md)
+- [../first-experiment-run-design.md](../first-experiment-run-design.md)
 - [buli-25-26-experiments.md](../buli-25-26-experiments.md)
 - [../dataset-contract-and-reconstruction-spec.md](../dataset-contract-and-reconstruction-spec.md)
 - `tools/langfuse-runner-spike/`
@@ -78,20 +79,21 @@ Run-level aggregates should summarize the primary score and the main supporting 
 
 - Exact-time export and prompt reconstruction are implemented through `.NET` commands that accept NodaTime's invariant `ZonedDateTime` `G` pattern, for example `2026-03-15T12:00:00 Europe/Berlin (+01)`
 - The experiment wrapper lives in `.github/copilot/skills/langfuse-experiment-runner/` and orchestrates export plus JS execution for one or more models
-- The JS runner emits progress output during warm-up and batching, verifies dataset runs via the Langfuse API, and returns per-model aggregate scores plus repetition-level run details
+- The JS runner emits progress output during warm-up and batching, verifies dataset runs via the Langfuse API, and returns aggregate scores plus run details
 - The Langfuse OTEL span processor is configured with the `x-langfuse-ingestion-version: 4` header
 
-## Current Repetition Decision
+## Current Design Decision
 
-- Repetitions are currently spread across multiple Langfuse dataset runs, one run per repetition, under a shared run-family name
-- This was chosen because local validation showed better repetition visibility in the current Langfuse UI and dataset-item run tables than repeated run items inside one dataset run
-- The serial-first plus batched-later execution strategy remains in place: repetition `1` is serial, later repetitions are batched
+- Follow [../first-experiment-run-design.md](../first-experiment-run-design.md) as the source of truth for Task 5 run modeling
+- The primary Task 5 unit is now one dataset run per comparable variant on one fixed slice of hosted dataset items
+- Compared variants must share the same selected dataset items so Langfuse-native compare views and averages stay meaningful
+- Item-level Kicktipp scores stay attached to traces and aggregate metrics should be attached to the dataset run as run-level scores
 
-## Open Design Question
+## Deferred Repetition Work
 
-- The current per-repetition-run workaround weakens Langfuse-native model comparison because the UI averages are per repetition-run instead of per model across all repetitions
-- We can still compare `o3` and `gpt-5-nano` over all repetitions using the wrapper's aggregated scores, but that is a local summary rather than a first-class Langfuse comparison view
-- A follow-up session should evaluate whether there is a better Langfuse data model for repeated executions of one dataset item, or whether we should push additional aggregate comparison records into Langfuse ourselves
+- Repetition-family analysis is not part of the initial Task 5 direction anymore
+- If we later need "`n` repetitions for a fixed match" or "`n` repetitions for a fixed slice" with native Langfuse averages, use the repetition-expanded shadow-dataset approach documented in [../first-experiment-run-design.md](../first-experiment-run-design.md)
+- Any future repetition-family aggregation over multiple dataset runs belongs in Task 6 or later follow-up work
 
 ## Handoff Notes
 

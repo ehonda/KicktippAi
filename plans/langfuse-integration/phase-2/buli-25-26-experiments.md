@@ -60,18 +60,15 @@ As these only matter during the start of the season, we'll postpone it for now. 
 - Prompt and context reconstruction stay in `.NET`; the JS runner consumes exported experiment-item JSON files
 - Explicit evaluation-time input now uses NodaTime's invariant `ZonedDateTime` `G` pattern, for example `2026-03-15T12:00:00 Europe/Berlin (+01)`
 - The Langfuse OTEL span processor is configured with `x-langfuse-ingestion-version: 4` to use the faster ingestion path surfaced in the new UI
-- Development runs default to `5` repetitions; the intended fuller milestone run remains `17` repetitions
-- The first repetition is kept serial to warm provider-side prompt caches; later repetitions run in parallel batches, default batch size `8`
+- See [first-experiment-run-design.md](first-experiment-run-design.md) for the current Task 5 run-model decision
 
-## Current Repetition Workaround
+## Current Task 5 Direction
 
-- A single Langfuse dataset run with multiple run items for the same dataset item did not give reliable repetition visibility in the current UI/API behavior during local validation
-- The current workaround therefore creates one dataset run per repetition under a shared run-family naming convention
-- This keeps every repetition visible and inspectable from the dataset item runs table and from API responses
-- The wrapper aggregates scores across all repetition-runs for a model and prints that summary after execution
+- The first production-like Task 5 experiment should use one dataset run per comparable variant on one fixed slice of the canonical hosted dataset
+- Compared variants should share the same selected item set so Langfuse-native averages and compare views stay meaningful
+- Aggregate Kicktipp metrics belong on the dataset run as run-level scores
 
-## Known Tradeoff To Revisit
+## Repetition-Specific Note
 
-- The per-repetition-run workaround makes Langfuse's built-in run-level averages less useful for model-vs-model comparison across all repetitions
-- For example, comparing `o3` vs `gpt-5-nano` on total average `kicktipp_points` over all repetitions currently relies on the wrapper's aggregate JSON output, not one native Langfuse comparison row per model
-- Future refinement should investigate whether Langfuse supports a better repeated-execution model for one dataset item, or whether we should add a higher-level aggregation layer on our side that writes comparison summaries back into Langfuse in a more queryable way
+- If we later want an experiment that intentionally averages `n` repetitions for a fixed match or fixed slice inside one native Langfuse run comparison, the recommended design is a repetition-expanded shadow dataset as described in [first-experiment-run-design.md](first-experiment-run-design.md)
+- Stable benchmark suites should use frozen benchmark slice datasets rather than ad hoc sampling from the mutable canonical dataset
