@@ -218,4 +218,32 @@ public class PredictionService_PredictBonusQuestionAsync_Tests : PredictionServi
         // Assert
         await Assert.That(prediction).IsNull();
     }
+
+    [Test]
+    public async Task Predicting_bonus_question_with_empty_selection_array_returns_null()
+    {
+        // Arrange
+        var chatClient = CreateMockChatClient("""{"selectedOptionIds": []}""");
+        var service = CreateService(chatClient);
+
+        // Act
+        var prediction = await PredictBonusQuestionAsync(service);
+
+        // Assert
+        await Assert.That(prediction).IsNull();
+    }
+
+    [Test]
+    public async Task Predicting_bonus_question_with_null_json_object_returns_null()
+    {
+        // Arrange
+        var chatClient = CreateMockChatClient("null");
+        var service = CreateService(chatClient);
+
+        // Act
+        var prediction = await PredictBonusQuestionAsync(service);
+
+        // Assert
+        await Assert.That(prediction).IsNull();
+    }
 }
