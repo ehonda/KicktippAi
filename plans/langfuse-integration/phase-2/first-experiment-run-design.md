@@ -12,6 +12,8 @@ It focuses on the question that emerged from the current Task 5 implementation: 
 
 This decision applies to the first sampled match experiment and should also guide nearby follow-up work on model, prompt, and slice comparisons.
 
+For the concrete naming, metadata, and score contract that should guide implementation, see [first-experiment-run-contract.md](first-experiment-run-contract.md).
+
 ## Initial Problem
 
 The current Task 5 implementation spread repetitions across multiple Langfuse dataset runs, one run per repetition, under a shared run-family name.

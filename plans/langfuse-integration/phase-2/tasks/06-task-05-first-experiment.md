@@ -37,6 +37,7 @@ The runner choice is now stable for the first milestone: use JS/TS unless a late
 - Results of [04-task-03-runner-spike.md](done/04-task-03-runner-spike.md)
 - Results of [05-task-04-dataset-sync.md](done/05-task-04-dataset-sync.md)
 - [../first-experiment-run-design.md](../first-experiment-run-design.md)
+- [../first-experiment-run-contract.md](../first-experiment-run-contract.md)
 - [buli-25-26-experiments.md](../buli-25-26-experiments.md)
 - [../dataset-contract-and-reconstruction-spec.md](../dataset-contract-and-reconstruction-spec.md)
 - `tools/langfuse-runner-spike/`
@@ -85,6 +86,7 @@ Run-level aggregates should summarize the primary score and the main supporting 
 ## Current Design Decision
 
 - Follow [../first-experiment-run-design.md](../first-experiment-run-design.md) as the source of truth for Task 5 run modeling
+- Follow [../first-experiment-run-contract.md](../first-experiment-run-contract.md) as the source of truth for Task 5 run naming, metadata, and score identifiers
 - The primary Task 5 unit is now one dataset run per comparable variant on one fixed slice of hosted dataset items
 - Compared variants must share the same selected dataset items so Langfuse-native compare views and averages stay meaningful
 - Item-level Kicktipp scores stay attached to traces and aggregate metrics should be attached to the dataset run as run-level scores
