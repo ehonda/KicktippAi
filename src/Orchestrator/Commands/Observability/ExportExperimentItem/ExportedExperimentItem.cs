@@ -30,14 +30,14 @@ public sealed record MatchExperimentMetadata(
     string PromptTemplatePath,
     IReadOnlyList<string> ContextDocumentNames,
     IReadOnlyList<MatchExperimentResolvedContextDocument> ResolvedContextDocuments,
-    MatchExperimentHistoricalPrediction HistoricalPrediction);
+    MatchExperimentOutcome Outcome);
 
 public sealed record MatchExperimentResolvedContextDocument(
     string DocumentName,
     int Version,
     DateTimeOffset CreatedAt);
 
-public sealed record MatchExperimentHistoricalPrediction(
+public sealed record MatchExperimentOutcome(
     int HomeGoals,
     int AwayGoals);
 

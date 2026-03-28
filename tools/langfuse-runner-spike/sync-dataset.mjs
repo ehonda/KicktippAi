@@ -6,15 +6,15 @@ import { LangfuseClient } from "@langfuse/client";
 const INPUT_SCHEMA = {
   type: "object",
   properties: {
-    awayTeam: {
-      type: "string",
-      minLength: 1,
-      description: "Exact away team name from the persisted match outcome"
-    },
     homeTeam: {
       type: "string",
       minLength: 1,
       description: "Exact home team name from the persisted match outcome"
+    },
+    awayTeam: {
+      type: "string",
+      minLength: 1,
+      description: "Exact away team name from the persisted match outcome"
     },
     startsAt: {
       type: "string",
@@ -22,25 +22,25 @@ const INPUT_SCHEMA = {
       description: "Localized match start timestamp string emitted by the .NET exporter"
     }
   },
-  required: ["awayTeam", "homeTeam", "startsAt"],
+  required: ["homeTeam", "awayTeam", "startsAt"],
   additionalProperties: false
 };
 
 const EXPECTED_OUTPUT_SCHEMA = {
   type: "object",
   properties: {
-    awayGoals: {
-      type: "integer",
-      minimum: 0,
-      description: "Actual away goals scored in the completed match"
-    },
     homeGoals: {
       type: "integer",
       minimum: 0,
       description: "Actual home goals scored in the completed match"
+    },
+    awayGoals: {
+      type: "integer",
+      minimum: 0,
+      description: "Actual away goals scored in the completed match"
     }
   },
-  required: ["awayGoals", "homeGoals"],
+  required: ["homeGoals", "awayGoals"],
   additionalProperties: false
 };
 
@@ -109,7 +109,7 @@ function validateCanonicalInput(input, itemId) {
 
   const keys = Object.keys(input).sort();
   assert(JSON.stringify(keys) === JSON.stringify(["awayTeam", "homeTeam", "startsAt"]),
-    `Dataset item '${itemId}' input must contain exactly awayTeam, homeTeam, and startsAt.`);
+    `Dataset item '${itemId}' input must contain exactly homeTeam, awayTeam, and startsAt.`);
   assert(isNonEmptyString(input.homeTeam), `Dataset item '${itemId}' input.homeTeam must be a non-empty string.`);
   assert(isNonEmptyString(input.awayTeam), `Dataset item '${itemId}' input.awayTeam must be a non-empty string.`);
   assert(isNonEmptyString(input.startsAt), `Dataset item '${itemId}' input.startsAt must be a non-empty string.`);
@@ -120,7 +120,7 @@ function validateCanonicalExpectedOutput(expectedOutput, itemId) {
 
   const keys = Object.keys(expectedOutput).sort();
   assert(JSON.stringify(keys) === JSON.stringify(["awayGoals", "homeGoals"]),
-    `Dataset item '${itemId}' expectedOutput must contain exactly awayGoals and homeGoals.`);
+    `Dataset item '${itemId}' expectedOutput must contain exactly homeGoals and awayGoals.`);
   assert(isNonNegativeInteger(expectedOutput.homeGoals),
     `Dataset item '${itemId}' expectedOutput.homeGoals must be a non-negative integer.`);
   assert(isNonNegativeInteger(expectedOutput.awayGoals),

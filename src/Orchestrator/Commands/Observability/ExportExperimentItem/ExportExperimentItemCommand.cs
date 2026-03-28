@@ -175,7 +175,7 @@ public sealed class ExportExperimentItemCommand : AsyncCommand<ExportExperimentI
                     document.CreatedAt))
                 .ToList()
                 .AsReadOnly(),
-            new MatchExperimentHistoricalPrediction(
+            new MatchExperimentOutcome(
                 outcome.HomeGoals!.Value,
                 outcome.AwayGoals!.Value));
 
