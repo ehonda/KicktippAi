@@ -144,7 +144,7 @@ Initial recommended format:
 
 ### Examples
 
-- `task-5__pes-squad__o3__prompt-v1__random-25-seed-20260324__startsat-minus-7d__2026-03-28t16-42-10z`
+- `task-5__pes-squad__o3__prompt-v1__random-25-seed-20260324__startsat-7d__2026-03-28t16-42-10z`
 - `task-5__pes-squad__gpt-5-nano__prompt-v1__vfb-stuttgart-vs-rb-leipzig-md26__historical-prediction-time__2026-03-28t16-43-55z`
 
 ### Notes
@@ -176,12 +176,15 @@ At least one of these should be present. `promptKey` is the short human-readable
 
 Use one short key in names and a fuller structured payload in metadata.
 
+Initial Task 5 implementation should support only relative policies against `startsAt`, but the metadata shape should leave room for more policy kinds later.
+
 ### Initial policy keys
 
 - `historical-prediction-time`
-- `startsat-minus-7d`
-- `startsat-minus-3d`
-- `startsat-minus-24h`
+- `startsat-7d`
+- `startsat-3d`
+- `startsat-24h`
+- `startsat-12h`
 
 ### Recommended metadata fields
 
@@ -193,11 +196,17 @@ Use one short key in names and a fuller structured payload in metadata.
 
 ```json
 {
-  "kind": "relative-to-match-start",
-  "offset": "P7D",
+  "kind": "relative",
+  "offset": "-12:00:00",
   "reference": "startsAt"
 }
 ```
+
+Key serialization guidance:
+
+- use `startsat-12h` for `startsAt - 12 hours`
+- use `startsat-7d` for `startsAt - 7 days`
+- keep the key scan-friendly and derived from the relative offset rather than from verbose words such as `minus`
 
 ## Run Metadata Contract
 

@@ -5,8 +5,10 @@
   "scripts": {
     "run": "node run-spike.mjs",
     "run:experiment": "node run-spike.mjs",
+    "run:task5-slice": "node run-task5-slice.mjs",
     "sync": "node sync-dataset.mjs",
-    "sync:dry-run": "node sync-dataset.mjs --dry-run"
+    "sync:dry-run": "node sync-dataset.mjs --dry-run",
+    "test": "node --test"
   },
   "dependencies": {
     "@langfuse/client": "^5.0.1",

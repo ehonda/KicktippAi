@@ -51,13 +51,17 @@ public sealed class ExportExperimentItemCommand : AsyncCommand<ExportExperimentI
                 new InstructionsTemplateProvider(PromptsFileProvider.Create()));
 
             var evaluationTime = EvaluationTimeParser.ParseOrNull(settings.EvaluationTime);
+            var evaluationPolicy = EvaluationTimestampPolicyParser.ParseOrNull(
+                settings.EvaluationPolicyKind,
+                settings.EvaluationPolicyOffset);
+            var reconstructAtTimestamp = evaluationTime is not null || evaluationPolicy is not null;
 
             var storedMatch = await predictionRepository.GetStoredMatchAsync(
                 settings.HomeTeam,
                 settings.AwayTeam,
                 settings.Matchday!.Value,
-                evaluationTime is null ? settings.Model : null,
-                evaluationTime is null ? settings.CommunityContext : null);
+                reconstructAtTimestamp ? null : settings.Model,
+                reconstructAtTimestamp ? null : settings.CommunityContext);
 
             if (storedMatch is null)
             {
@@ -66,8 +70,11 @@ public sealed class ExportExperimentItemCommand : AsyncCommand<ExportExperimentI
             }
 
             var promptMatch = RehydrateForPromptOutput(storedMatch);
+            var resolvedEvaluationTime = evaluationTime
+                ?? (evaluationPolicy is null ? null : EvaluationTimestampResolver.Resolve(promptMatch, evaluationPolicy));
+
             ReconstructedMatchPredictionPrompt? reconstructedPrompt;
-            if (evaluationTime is null)
+            if (resolvedEvaluationTime is null)
             {
                 reconstructedPrompt = await reconstructionService.ReconstructMatchPredictionPromptAsync(
                     promptMatch,
@@ -86,7 +93,7 @@ public sealed class ExportExperimentItemCommand : AsyncCommand<ExportExperimentI
                     promptMatch,
                     settings.Model,
                     settings.CommunityContext,
-                    evaluationTime.Value,
+                    resolvedEvaluationTime.Value,
                     selection.RequiredDocumentNames,
                     selection.OptionalDocumentNames,
                     settings.WithJustification);
@@ -128,7 +135,7 @@ public sealed class ExportExperimentItemCommand : AsyncCommand<ExportExperimentI
 
             _console.MarkupLine($"[green]Wrote experiment item:[/] [yellow]{Markup.Escape(outputPath)}[/]");
             _console.MarkupLine($"[blue]Dataset item id:[/] {Markup.Escape(export.DatasetItem.Id)}");
-            _console.MarkupLine($"[blue]{(evaluationTime is null ? "Prediction timestamp" : "Reconstruction timestamp")}:[/] {export.DatasetItem.Metadata.PredictionCreatedAt:O}");
+            _console.MarkupLine($"[blue]{(resolvedEvaluationTime is null ? "Prediction timestamp" : "Reconstruction timestamp")}:[/] {export.DatasetItem.Metadata.PredictionCreatedAt:O}");
             _console.MarkupLine($"[blue]Outcome:[/] {outcome.HomeGoals}:{outcome.AwayGoals} ({outcome.Availability})");
 
             return 0;

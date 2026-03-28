@@ -36,3 +36,10 @@ Use [manual-steps.md](manual-steps.md#task-6--follow-up-evaluation) during imple
 ## Handoff Notes
 
 If this task expands significantly, split it into additional numbered task trackers rather than overloading this file.
+
+## Early Follow-up Inputs From The First Successful Sampled Run
+
+- Add a small helper to persist sampled slice manifests so recurring comparisons can reuse the same selected item list without reseeding from the mutable canonical dataset
+- Consider standardizing Langfuse score configs for `kicktipp_points` and the supporting metrics so dashboard and compare views stay schema-consistent
+- Add a smoke-level wrapper option that executes a tiny sampled slice and only runs the autonomous Langfuse API verification path for faster regression checks
+- Decide whether the current autonomous verification should also query dataset-run specific endpoints, or whether traces plus observations are sufficient until UI evidence is recorded

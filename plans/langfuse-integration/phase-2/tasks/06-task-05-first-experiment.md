@@ -24,11 +24,11 @@ The runner choice is now stable for the first milestone: use JS/TS unless a late
 ## Planned Work
 
 1. Select a sample from the hosted dataset
-2. Choose an evaluation timestamp policy such as `startsAt - 7 days`
+2. Choose an evaluation timestamp policy such as `startsAt - 12 hours`
 3. Reconstruct the required context-document set at that timestamp
 4. Run predictions for the sample
 5. Attach Kicktipp-based scores and supporting diagnostics
-6. Verify trace linkage and dataset-run visibility in Langfuse
+6. Verify trace linkage and dataset-run visibility in Langfuse, first via the Langfuse API skill and then in the UI
 
 ## Inputs
 
@@ -79,9 +79,46 @@ Run-level aggregates should summarize the primary score and the main supporting 
 ## Current Implementation Notes
 
 - Exact-time export and prompt reconstruction are implemented through `.NET` commands that accept NodaTime's invariant `ZonedDateTime` `G` pattern, for example `2026-03-15T12:00:00 Europe/Berlin (+01)`
-- The experiment wrapper lives in `.github/copilot/skills/langfuse-experiment-runner/` and orchestrates export plus JS execution for one or more models
-- The JS runner emits progress output during warm-up and batching, verifies dataset runs via the Langfuse API, and returns aggregate scores plus run details
+- `export-experiment-item` now also supports a relative evaluation policy input, currently limited to `kind=relative` with a NodaTime duration offset against `startsAt`, for example `-12:00:00`
+- The experiment wrapper lives in `.github/copilot/skills/langfuse-experiment-runner/` and now supports both the legacy single-match path and a sampled canonical-dataset slice path
+- The sampled slice JS runner processes items directly in parallel batches instead of using the old warm-up optimization, because prompt caching does not help across heavily varying per-item prompts
+- The wrapper uses the dedicated Langfuse API skill script for autonomous verification of traces and generation observations after the run
 - The Langfuse OTEL span processor is configured with the `x-langfuse-ingestion-version: 4` header
+
+## Current Validation Slice
+
+- Use a random sample of `10` completed matches from the canonical Bundesliga 2025/2026 `pes-squad` dataset
+- Compare `o3` and `gpt-5-nano` on the same sampled slice
+- Process the slice in parallel batches of `10`
+- Default sampled-run policy is `startsAt - 12h`
+
+## Implementation Evidence
+
+- First successful sampled slice run executed on `2026-03-28`
+- Dataset name: `match-predictions/bundesliga-2025-26/pes-squad`
+- Slice key: `random-10-seed-20260328`
+- Selected item hash: `03a3a3e1cf389d10f85222071cd9972d60d0e2af885d42fa34beeaba1aca397f`
+- Evaluation policy key: `startsat-12h`
+- Started at UTC: `2026-03-28T00:19:15Z`
+- Run name (`o3`): `task-5__pes-squad__o3__prompt-v1__random-10-seed-20260328__startsat-12h__2026-03-28t00-19-15z`
+- Dataset run id (`o3`): `45622ba5-4e80-4caf-b174-5e4357afb7f7`
+- Aggregate scores (`o3`): `avg_kicktipp_points=1.2`, `exact_hit_rate=0.1`, `outcome_correct_rate=0.5`, `avg_home_goal_error=0.8`, `avg_away_goal_error=1.0`, `avg_goal_difference_error=1.6`
+- Run name (`gpt-5-nano`): `task-5__pes-squad__gpt-5-nano__prompt-v1__random-10-seed-20260328__startsat-12h__2026-03-28t00-19-15z`
+- Dataset run id (`gpt-5-nano`): `9d5a827e-b013-46f7-899c-ce658d11864c`
+- Aggregate scores (`gpt-5-nano`): `avg_kicktipp_points=1.0`, `exact_hit_rate=0.1`, `outcome_correct_rate=0.4`, `avg_home_goal_error=0.6`, `avg_away_goal_error=1.2`, `avg_goal_difference_error=1.8`
+- Autonomous verification used the dedicated Langfuse API skill script to confirm `10` recent traces for each model under the shared slice tag, confirm the first trace existed, and confirm one generation observation on the checked trace
+- The sampled runs returned `runItemCount=10` for both models, which confirms dataset-run linkage for the selected slice
+
+## Manual Scoring Spot Checks
+
+- Checked item `bundesliga-2025-26__pes-squad__ts1423757125` against the exported expected result and the recorded prediction `1:2`; the emitted score `kicktipp_points=2` and errors `home=1`, `away=1`, `goal_difference=2` are consistent with an outcome-correct but not exact prediction
+- Checked item `bundesliga-2025-26__pes-squad__ts1423757309` against the exported expected result and the recorded prediction `3:1`; the emitted score `kicktipp_points=2` and errors `home=1`, `away=1`, `goal_difference=2` are consistent with an outcome-correct but not exact prediction
+- Checked the first `gpt-5-nano` example for item `bundesliga-2025-26__pes-squad__ts1423757125`; the emitted score matched the same manually derived outcome-correct result
+
+## Remaining Task 5 Closure Work
+
+- Manual Langfuse UI inspection is still pending for final closure
+- Once the UI check is recorded, Task 5 can be reevaluated for completion
 
 ## Current Design Decision
 

@@ -48,6 +48,7 @@ Set up a reproducible Langfuse experiment workflow for KicktippAi that can:
 - Autonomous verification confirmed the hosted dataset `match-predictions/bundesliga-2025-26/pes-squad` exists in Langfuse with `235` synced items as of `2026-03-21`
 - Manual inspection of the Langfuse API responses also looked good, so Task 5 is now ready to start
 - Task 5 remains in progress with a working single-match experiment wrapper and exact-timestamp export path
+- Task 5 now also has a working sampled canonical-dataset slice flow with one dataset run per model on a fixed slice, relative evaluation policy support, and autonomous Langfuse API verification
 - The Task 5 design direction is now one dataset run per comparable variant on one fixed slice, with aggregate metrics attached as run-level scores
 - Repetition-family modeling is explicitly deferred; if fixed-repetition experiments become important, use the repetition-expanded shadow-dataset design documented in [first-experiment-run-design.md](first-experiment-run-design.md)
 
