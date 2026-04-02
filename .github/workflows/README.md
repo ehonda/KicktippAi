@@ -30,11 +30,12 @@ Each community gets its own set of workflows that call the base workflows with s
 
 ### Cost Analysis Workflow
 
-- **`cost-analysis.yml`**: Automated cost analysis for all prediction activities
-  - Runs twice daily (01:30 and 13:30 UTC) - 30 minutes after the last prediction workflows
+- **`cost-analysis.yml`**: Manual cost analysis for all prediction activities
+  - No longer scheduled because it performs many Firestore reads
   - Analyzes costs for all community configurations using a matrix strategy
   - Configurations analyzed: `all.json`, `ehonda-ai-arena.json`, `pes-squad.json`, `schadensfresse.json`
   - Can be manually triggered
+  - Shows a `⚠️` warning before execution because of the Firestore read cost
   - Provides detailed cost breakdown and observability into prediction expenses
 
 ## How It Works

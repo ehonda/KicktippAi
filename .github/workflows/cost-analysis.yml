@@ -1,13 +1,13 @@
 name: 💰 Cost Analysis
 
 on:
-  # Schedule to run 30 minutes after the last prediction workflows
-  schedule:
-    - cron: '30 1 * * *'   # ~02:30 AM Europe/Berlin (01:30 UTC = 02:30 CET, 03:30 CEST) - 30 min after last predictions
-    - cron: '30 13 * * *'  # ~02:30 PM Europe/Berlin (13:30 UTC = 14:30 CET, 15:30 CEST) - 30 min after last predictions
-  
-  # Allow manual triggering
   workflow_dispatch:
+    inputs:
+      acknowledge_high_firestore_reads:
+        description: '⚠️ This workflow performs many Firestore reads and is intentionally manual-only.'
+        required: true
+        default: true
+        type: boolean
 
 env:
   DOTNET_SKIP_FIRST_TIME_EXPERIENCE: true
@@ -32,6 +32,12 @@ jobs:
       fail-fast: false # Continue with other configurations even if one fails
     
     steps:
+      - name: Warn about Firestore reads
+        run: |
+          echo "::warning::This workflow performs many Firestore reads and is intentionally manual-only."
+          echo "## ⚠️ Warning" >> $GITHUB_STEP_SUMMARY
+          echo "This workflow performs many Firestore reads and is intentionally manual-only." >> $GITHUB_STEP_SUMMARY
+
       - name: Checkout repository
         uses: actions/checkout@v4
         
