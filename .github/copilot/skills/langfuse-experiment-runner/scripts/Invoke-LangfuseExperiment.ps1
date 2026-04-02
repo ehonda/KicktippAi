@@ -136,12 +136,12 @@ function Convert-RunnerOutputToJson([object[]]$RunnerOutput) {
 }
 
 function Get-ResolvedBatchSize([string]$Mode) {
-    if ($BatchSize.HasValue) {
-        if ($BatchSize.Value -lt 1) {
+    if ($null -ne $BatchSize) {
+        if ($BatchSize -lt 1) {
             throw "BatchSize must be at least 1."
         }
 
-        return $BatchSize.Value
+        return [int]$BatchSize
     }
 
     if ($Mode -eq "slice") {
@@ -188,6 +188,173 @@ function Get-SelectedItemIdsHash([string[]]$ItemIds) {
     finally {
         $sha.Dispose()
     }
+}
+
+function Get-SliceSourcePoolKey([string]$Matchdays) {
+    if ([string]::IsNullOrWhiteSpace($Matchdays)) {
+        return "all-matchdays"
+    }
+
+    return "matchdays-$(Get-Slug $Matchdays)"
+}
+
+function Get-SliceDirectory([string]$CommunityContext, [string]$SourcePoolKey, [string]$SliceKey) {
+    $communityDirectory = Join-Path $outputDirectoryPath "slices\$(Get-Slug $CommunityContext)"
+    $sourcePoolDirectory = Join-Path $communityDirectory $SourcePoolKey
+    return Join-Path $sourcePoolDirectory $SliceKey
+}
+
+function Get-SliceDatasetName([string]$CanonicalDatasetName, [string]$SourcePoolKey, [string]$SliceKey) {
+    return "$CanonicalDatasetName/slices/$SourcePoolKey/$SliceKey"
+}
+
+function Get-SliceDatasetItemId([string]$CanonicalItemId, [string]$SliceKey) {
+    return "${CanonicalItemId}__slice__${SliceKey}"
+}
+
+function Write-JsonFile([string]$Path, [object]$Value) {
+    $parentDirectory = Split-Path -Parent $Path
+    if (-not [string]::IsNullOrWhiteSpace($parentDirectory)) {
+        New-Item -ItemType Directory -Force -Path $parentDirectory | Out-Null
+    }
+
+    $Value | ConvertTo-Json -Depth 30 | Set-Content -Path $Path -Encoding utf8
+}
+
+function Read-JsonFile([string]$Path) {
+    return Get-Content -Raw $Path | ConvertFrom-Json -Depth 30
+}
+
+function New-SliceBundleArtifacts(
+    [object[]]$SelectedItems,
+    [string]$CanonicalDatasetName,
+    [string]$SliceDatasetName,
+    [string]$SliceKey,
+    [string]$SliceKind,
+    [string]$SampleMethod,
+    [string]$SourcePoolKey,
+    [int]$SampleSeed,
+    [string]$SliceArtifactPath,
+    [string]$SliceManifestPath) {
+
+    $datasetItemIdMap = [ordered]@{}
+    $sliceItems = @()
+    $manifestItems = @()
+
+    foreach ($selectedItem in $SelectedItems) {
+        $canonicalDatasetItemId = [string]$selectedItem.id
+        $sliceDatasetItemId = Get-SliceDatasetItemId -CanonicalItemId $canonicalDatasetItemId -SliceKey $SliceKey
+        $homeTeam = [string]$selectedItem.metadata.homeTeam
+        $awayTeam = [string]$selectedItem.metadata.awayTeam
+        $startsAt = [string]$selectedItem.input.startsAt
+        $score = "$([int]$selectedItem.expectedOutput.homeGoals):$([int]$selectedItem.expectedOutput.awayGoals)"
+        $season = [string]$selectedItem.metadata.season
+
+        $datasetItemIdMap[$canonicalDatasetItemId] = $sliceDatasetItemId
+
+        $sliceItems += [ordered]@{
+            id = $sliceDatasetItemId
+            input = [ordered]@{
+                fixture = "$homeTeam vs $awayTeam"
+                startsAt = $startsAt
+            }
+            expectedOutput = [ordered]@{
+                score = $score
+            }
+            metadata = [ordered]@{
+                competition = [string]$selectedItem.metadata.competition
+                season = $season
+                communityContext = [string]$selectedItem.metadata.communityContext
+                matchday = [int]$selectedItem.metadata.matchday
+                matchdayLabel = [string]$selectedItem.metadata.matchdayLabel
+                homeTeam = $homeTeam
+                awayTeam = $awayTeam
+                tippSpielId = [string]$selectedItem.metadata.tippSpielId
+            }
+        }
+
+        $manifestItems += [ordered]@{
+            canonicalDatasetItemId = $canonicalDatasetItemId
+            sliceDatasetItemId = $sliceDatasetItemId
+            homeTeam = $homeTeam
+            awayTeam = $awayTeam
+            matchday = [int]$selectedItem.metadata.matchday
+            startsAt = $startsAt
+        }
+    }
+
+    $selectedItemIds = @($SelectedItems.id)
+    $selectedItemIdsHash = Get-SelectedItemIdsHash -ItemIds $selectedItemIds
+    $competition = [string]$SelectedItems[0].metadata.competition
+    $season = [string]$SelectedItems[0].metadata.season
+
+    $sliceArtifact = [ordered]@{
+        datasetName = $SliceDatasetName
+        datasetDescription = "Task 5 slice dataset for $($SelectedItems.Count) sampled item(s) on $SliceKey"
+        datasetMetadata = [ordered]@{
+            competition = $competition
+            communityContext = [string]$SelectedItems[0].metadata.communityContext
+            scope = "match-slice"
+            season = $season
+            sliceKey = $SliceKey
+            sliceKind = $SliceKind
+            sampleMethod = $SampleMethod
+            sampleSeed = $SampleSeed
+            sampleSize = $SelectedItems.Count
+            sourceDatasetName = $CanonicalDatasetName
+            sourcePoolKey = $SourcePoolKey
+        }
+        inputSchema = [ordered]@{
+            type = "object"
+            properties = [ordered]@{
+                fixture = [ordered]@{
+                    type = "string"
+                    minLength = 1
+                    description = "Home team vs away team in football display order"
+                }
+                startsAt = [ordered]@{
+                    type = "string"
+                    minLength = 1
+                    description = "Localized match start timestamp string emitted by the .NET exporter"
+                }
+            }
+            required = @("fixture", "startsAt")
+            additionalProperties = $false
+        }
+        expectedOutputSchema = [ordered]@{
+            type = "object"
+            properties = [ordered]@{
+                score = [ordered]@{
+                    type = "string"
+                    minLength = 3
+                    description = "Completed match score in home:away order"
+                }
+            }
+            required = @("score")
+            additionalProperties = $false
+        }
+        items = @($sliceItems)
+    }
+
+    $sliceManifest = [ordered]@{
+        sliceKey = $SliceKey
+        sliceKind = $SliceKind
+        sampleMethod = $SampleMethod
+        sourcePoolKey = $SourcePoolKey
+        canonicalDatasetName = $CanonicalDatasetName
+        sliceDatasetName = $SliceDatasetName
+        competition = $competition
+        season = $season
+        sampleSeed = $SampleSeed
+        sampleSize = $SelectedItems.Count
+        selectedItemIds = @($selectedItemIds)
+        selectedItemIdsHash = $selectedItemIdsHash
+        datasetItemIdMap = $datasetItemIdMap
+        items = @($manifestItems)
+    }
+
+    Write-JsonFile -Path $SliceArtifactPath -Value $sliceArtifact
+    Write-JsonFile -Path $SliceManifestPath -Value $sliceManifest
 }
 
 function Select-RandomDatasetItems([object[]]$Items, [int]$Count, [int]$Seed) {
@@ -368,65 +535,95 @@ function Invoke-LegacySingleMatchFlow {
 
 function Invoke-SampledSliceFlow {
     $resolvedBatchSize = Get-ResolvedBatchSize -Mode "slice"
-    $resolvedSampleSeed = if ($SampleSeed.HasValue) { $SampleSeed.Value } else { [int](Get-Date).ToUniversalTime().ToString("yyyyMMdd") }
+    $resolvedSampleSeed = if ($null -ne $SampleSeed) { [int]$SampleSeed } else { [int](Get-Date).ToUniversalTime().ToString("yyyyMMdd") }
     $evaluationPolicyKey = Get-RelativeEvaluationPolicyKey -Offset $EvaluationPolicyOffset
     $sliceKey = "random-$SampleSize-seed-$resolvedSampleSeed"
+    $sourcePoolKey = Get-SliceSourcePoolKey -Matchdays $Matchdays
     $runTimestamp = Get-Task5RunTimestamp
     $startedAtUtc = Get-StartedAtUtc
+    $sliceDirectory = Get-SliceDirectory -CommunityContext $CommunityContext -SourcePoolKey $sourcePoolKey -SliceKey $sliceKey
+    $sliceArtifactPath = Join-Path $sliceDirectory "slice-dataset.json"
+    $sliceManifestPath = Join-Path $sliceDirectory "slice-manifest.json"
+    $canonicalSourceArtifactPath = Join-Path $sliceDirectory "canonical-source.json"
+    $sliceDatasetName = Get-SliceDatasetName -CanonicalDatasetName $DatasetName -SourcePoolKey $sourcePoolKey -SliceKey $sliceKey
 
-    $datasetArtifactPath = Join-Path $outputDirectoryPath "canonical-$($CommunityContext).json"
-    $exportDatasetArguments = @(
-        "dotnet",
-        "run",
-        "--project",
-        "src/Orchestrator",
-        "--",
-        "export-experiment-dataset",
-        "--community-context",
-        $CommunityContext,
-        "--output",
-        $datasetArtifactPath
-    )
+    if (-not ((Test-Path $sliceArtifactPath) -and (Test-Path $sliceManifestPath))) {
+        New-Item -ItemType Directory -Force -Path $sliceDirectory | Out-Null
 
-    if ($Matchdays) {
-        $exportDatasetArguments += @("--matchdays", $Matchdays)
-    }
-
-    Write-Host "Exporting canonical dataset artifact..."
-    Invoke-DotenvCommand -WorkingDirectory $solutionRoot -CommandArguments $exportDatasetArguments | Out-Null
-
-    if (-not $SkipDatasetRefresh) {
-        Write-Host "Refreshing hosted dataset before sampling..."
-        $syncArguments = @(
-            "node",
-            "sync-dataset.mjs",
-            "--input",
-            $datasetArtifactPath,
-            "--dataset-name",
-            $DatasetName
+        $exportDatasetArguments = @(
+            "dotnet",
+            "run",
+            "--project",
+            "src/Orchestrator",
+            "--",
+            "export-experiment-dataset",
+            "--community-context",
+            $CommunityContext,
+            "--output",
+            $canonicalSourceArtifactPath
         )
-        Invoke-DotenvCommand -WorkingDirectory $runnerDirectory -CommandArguments $syncArguments | Out-Null
+
+        if ($Matchdays) {
+            $exportDatasetArguments += @("--matchdays", $Matchdays)
+        }
+
+        Write-Host "Exporting canonical dataset artifact to seed slice '$sliceKey'..."
+        Invoke-DotenvCommand -WorkingDirectory $solutionRoot -CommandArguments $exportDatasetArguments | Out-Null
+
+        $datasetArtifact = Read-JsonFile -Path $canonicalSourceArtifactPath
+        $availableItems = @($datasetArtifact.items)
+        $selectedItems = Select-RandomDatasetItems -Items $availableItems -Count $SampleSize -Seed $resolvedSampleSeed
+        $selectedItems = @($selectedItems | Sort-Object id)
+
+        Write-Host "Creating reusable slice dataset artifact '$sliceKey'..."
+        New-SliceBundleArtifacts `
+            -SelectedItems $selectedItems `
+            -CanonicalDatasetName $DatasetName `
+            -SliceDatasetName $sliceDatasetName `
+            -SliceKey $sliceKey `
+            -SliceKind $SliceKind `
+            -SampleMethod $SampleMethod `
+            -SourcePoolKey $sourcePoolKey `
+            -SampleSeed $resolvedSampleSeed `
+            -SliceArtifactPath $sliceArtifactPath `
+            -SliceManifestPath $sliceManifestPath
+
+        if (-not $SkipDatasetRefresh) {
+            Write-Host "Syncing hosted slice dataset '$sliceDatasetName'..."
+            $syncArguments = @(
+                "node",
+                "sync-dataset.mjs",
+                "--input",
+                $sliceArtifactPath,
+                "--dataset-name",
+                $sliceDatasetName
+            )
+            Invoke-DotenvCommand -WorkingDirectory $runnerDirectory -CommandArguments $syncArguments | Out-Null
+        }
+    }
+    else {
+        Write-Host "Reusing existing slice dataset artifact '$sliceKey'."
     }
 
-    $datasetArtifact = Get-Content -Raw $datasetArtifactPath | ConvertFrom-Json -Depth 30
-    $availableItems = @($datasetArtifact.items)
-    $selectedItems = Select-RandomDatasetItems -Items $availableItems -Count $SampleSize -Seed $resolvedSampleSeed
-    $selectedItems = @($selectedItems | Sort-Object id)
-    $selectedItemIds = @($selectedItems.id)
-    $selectedItemIdsHash = Get-SelectedItemIdsHash -ItemIds $selectedItemIds
+    $sliceManifest = Read-JsonFile -Path $sliceManifestPath
+
+    $selectedItemIds = @($sliceManifest.selectedItemIds)
+    $selectedItemIdsHash = [string]$sliceManifest.selectedItemIdsHash
 
     $commonRunMetadata = [ordered]@{
         runner = "task-5-first-experiment"
         task = "task-5"
         communityContext = $CommunityContext
-        competition = $selectedItems[0].metadata.competition
-        datasetName = $DatasetName
+        competition = [string]$sliceManifest.competition
+        canonicalDatasetName = [string]$sliceManifest.canonicalDatasetName
+        datasetName = [string]$sliceManifest.sliceDatasetName
         promptKey = $PromptKey
         sliceKind = $SliceKind
         sliceKey = $sliceKey
+        sourcePoolKey = $sourcePoolKey
         selectedItemIdsHash = $selectedItemIdsHash
         selectedItemIdsCount = $selectedItemIds.Count
-        sampleSize = $selectedItems.Count
+        sampleSize = [int]$sliceManifest.sampleSize
         evaluationTimestampPolicyKey = $evaluationPolicyKey
         evaluationTimestampPolicy = [ordered]@{
             kind = $EvaluationPolicyKind
@@ -438,52 +635,60 @@ function Invoke-SampledSliceFlow {
         sampleMethod = $SampleMethod
         includeJustification = [bool]$WithJustification
         promptVersion = $PromptKey
-        sourceDatasetKind = "canonical"
+        sourceDatasetKind = "slice"
+        datasetItemIdMap = $sliceManifest.datasetItemIdMap
     }
 
     $summaries = @()
+    $justificationKey = if ($WithJustification) { "with-justification" } else { "no-justification" }
+
     foreach ($model in $Models) {
         $modelSlug = Get-Slug $model
         $runName = "$RunNamePrefix`__$(Get-Slug $CommunityContext)`__$modelSlug`__$(Get-Slug $PromptKey)`__$sliceKey`__$evaluationPolicyKey`__$runTimestamp"
         $runDescription = "Task 5 slice run for $model on $sliceKey"
-        $modelDirectory = Join-Path $outputDirectoryPath "$sliceKey-$modelSlug"
+        $modelDirectory = Join-Path $sliceDirectory "models\$modelSlug\$justificationKey\$PromptKey\$evaluationPolicyKey"
         New-Item -ItemType Directory -Force -Path $modelDirectory | Out-Null
 
         $inputPaths = @()
-        foreach ($selectedItem in $selectedItems) {
-            $artifactPath = Join-Path $modelDirectory "$($selectedItem.id).json"
+        foreach ($sliceItem in @($sliceManifest.items)) {
+            $artifactPath = Join-Path $modelDirectory "$($sliceItem.canonicalDatasetItemId).json"
             $inputPaths += $artifactPath
 
-            $exportArguments = @(
-                "dotnet",
-                "run",
-                "--project",
-                "src/Orchestrator",
-                "--",
-                "export-experiment-item",
-                $model,
-                "--community-context",
-                $CommunityContext,
-                "--home",
-                $selectedItem.metadata.homeTeam,
-                "--away",
-                $selectedItem.metadata.awayTeam,
-                "--matchday",
-                $selectedItem.metadata.matchday,
-                "--evaluation-policy-kind",
-                $EvaluationPolicyKind,
-                "--evaluation-policy-offset",
-                $EvaluationPolicyOffset,
-                "--output",
-                $artifactPath
-            )
+            if (-not (Test-Path $artifactPath)) {
+                $exportArguments = @(
+                    "dotnet",
+                    "run",
+                    "--project",
+                    "src/Orchestrator",
+                    "--",
+                    "export-experiment-item",
+                    $model,
+                    "--community-context",
+                    $CommunityContext,
+                    "--home",
+                    $sliceItem.homeTeam,
+                    "--away",
+                    $sliceItem.awayTeam,
+                    "--matchday",
+                    $sliceItem.matchday,
+                    "--evaluation-policy-kind",
+                    $EvaluationPolicyKind,
+                    "--evaluation-policy-offset",
+                    $EvaluationPolicyOffset,
+                    "--output",
+                    $artifactPath
+                )
 
-            if ($WithJustification) {
-                $exportArguments += "--with-justification"
+                if ($WithJustification) {
+                    $exportArguments += "--with-justification"
+                }
+
+                Write-Host "Exporting sampled experiment item '$($sliceItem.canonicalDatasetItemId)' for model '$model'..."
+                Invoke-DotenvCommand -WorkingDirectory $solutionRoot -CommandArguments $exportArguments | Out-Null
             }
-
-            Write-Host "Exporting sampled experiment item '$($selectedItem.id)' for model '$model'..."
-            Invoke-DotenvCommand -WorkingDirectory $solutionRoot -CommandArguments $exportArguments | Out-Null
+            else {
+                Write-Host "Reusing sampled experiment item '$($sliceItem.canonicalDatasetItemId)' for model '$model'."
+            }
         }
 
         $runMetadata = [ordered]@{}
@@ -505,7 +710,7 @@ function Invoke-SampledSliceFlow {
             "--model",
             $model,
             "--dataset-name",
-            $DatasetName,
+            $sliceManifest.sliceDatasetName,
             "--run-name",
             $runName,
             "--run-description",
@@ -536,6 +741,7 @@ function Invoke-SampledSliceFlow {
             selectedItemIds = $selectedItemIds
             selectedItemIdsHash = $selectedItemIdsHash
             sliceKey = $sliceKey
+            sourcePoolKey = $sourcePoolKey
             sampleSeed = $resolvedSampleSeed
             evaluationTimestampPolicyKey = $evaluationPolicyKey
             verification = $verification
@@ -545,10 +751,12 @@ function Invoke-SampledSliceFlow {
     return [pscustomobject]@{
         mode = "sampled-slice"
         communityContext = $CommunityContext
-        datasetName = $DatasetName
+        datasetName = $sliceManifest.sliceDatasetName
+        canonicalDatasetName = $sliceManifest.canonicalDatasetName
         sliceKind = $SliceKind
         sliceKey = $sliceKey
-        sampleSize = $selectedItems.Count
+        sourcePoolKey = $sourcePoolKey
+        sampleSize = [int]$sliceManifest.sampleSize
         sampleSeed = $resolvedSampleSeed
         batchSize = $resolvedBatchSize
         evaluationTimestampPolicyKey = $evaluationPolicyKey

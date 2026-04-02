@@ -160,13 +160,22 @@ async function loadRunMetadata(runMetadataFile) {
   return JSON.parse(await readFile(runMetadataFile, "utf8"));
 }
 
-function deriveDatasetName(datasetNameOverride, exportedItems) {
+function deriveDatasetName(datasetNameOverride, runMetadata, exportedItems) {
   if (datasetNameOverride) {
     return datasetNameOverride;
   }
 
+  if (runMetadata?.datasetName) {
+    return runMetadata.datasetName;
+  }
+
   const communityContext = exportedItems[0].exportedItem.datasetItem.metadata.communityContext;
   return `match-predictions/bundesliga-2025-26/${communityContext}`;
+}
+
+function resolveHostedDatasetItemId(exportedItem, runMetadata) {
+  const canonicalDatasetItemId = exportedItem.datasetItem.id;
+  return runMetadata?.datasetItemIdMap?.[canonicalDatasetItemId] ?? canonicalDatasetItemId;
 }
 
 function createMessages(exportedItem) {
@@ -319,7 +328,7 @@ async function runPrediction({ openai, model, exportedItem, runName, runMetadata
   );
 }
 
-async function postItemScores(langfuse, datasetRunId, executionResult, exportedItem) {
+async function postItemScores(langfuse, datasetRunId, hostedDatasetItemId, executionResult, exportedItem) {
   const scoreValues = calculateScores(executionResult.prediction, exportedItem.datasetItem.expectedOutput);
 
   for (const [name, value] of Object.entries(scoreValues)) {
@@ -331,7 +340,8 @@ async function postItemScores(langfuse, datasetRunId, executionResult, exportedI
       comment: `Task 5 slice score for ${exportedItem.datasetItem.metadata.homeTeam} vs ${exportedItem.datasetItem.metadata.awayTeam}`,
       metadata: stableJson({
         datasetRunId,
-        datasetItemId: exportedItem.datasetItem.id,
+        datasetItemId: hostedDatasetItemId,
+        sourceDatasetItemId: exportedItem.datasetItem.id,
         prediction: executionResult.prediction,
         expectedOutput: exportedItem.datasetItem.expectedOutput
       })
@@ -384,8 +394,8 @@ async function waitForDatasetRunItems(langfuse, datasetId, runName, expectedCoun
 async function main() {
   const argumentsResult = readArguments();
   const exportedItems = await loadExportedItems(argumentsResult.inputPaths);
-  const datasetName = deriveDatasetName(argumentsResult.datasetName, exportedItems);
   const runMetadata = await loadRunMetadata(argumentsResult.runMetadataFile);
+  const datasetName = deriveDatasetName(argumentsResult.datasetName, runMetadata, exportedItems);
 
   const sdk = new NodeSDK({
     spanProcessors: [new LangfuseSpanProcessor({
@@ -429,6 +439,7 @@ async function main() {
       );
 
       const batchResults = await Promise.all(batch.map(async (execution) => {
+        const hostedDatasetItemId = resolveHostedDatasetItemId(execution.exportedItem, runMetadata);
         const result = await runPrediction({
           openai,
           model: argumentsResult.model,
@@ -441,7 +452,7 @@ async function main() {
           runName: argumentsResult.runName,
           runDescription: argumentsResult.runDescription,
           metadata: stableJson(runMetadata),
-          datasetItemId: execution.exportedItem.datasetItem.id,
+          datasetItemId: hostedDatasetItemId,
           observationId: result.observationId,
           traceId: result.traceId
         });
@@ -449,13 +460,15 @@ async function main() {
         const scoreValues = await postItemScores(
           langfuse,
           datasetRunItem.datasetRunId,
+          hostedDatasetItemId,
           result,
           execution.exportedItem
         );
 
         return {
           inputPath: execution.inputPath,
-          datasetItemId: execution.exportedItem.datasetItem.id,
+          datasetItemId: hostedDatasetItemId,
+          sourceDatasetItemId: execution.exportedItem.datasetItem.id,
           runName: argumentsResult.runName,
           traceId: result.traceId,
           observationId: result.observationId,

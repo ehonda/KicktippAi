@@ -46,10 +46,13 @@ Set up a reproducible Langfuse experiment workflow for KicktippAi that can:
 - Task 4 hosted dataset sync is complete and archived in [05-task-04-dataset-sync.md](tasks/done/05-task-04-dataset-sync.md)
 - Task 4 implementation includes schema-enforced hosted dataset sync in `tools/langfuse-runner-spike/sync-dataset.mjs`
 - Autonomous verification confirmed the hosted dataset `match-predictions/bundesliga-2025-26/pes-squad` exists in Langfuse with `235` synced items as of `2026-03-21`
-- Manual inspection of the Langfuse API responses also looked good, so Task 5 is now ready to start
 - Task 5 remains in progress with a working single-match experiment wrapper and exact-timestamp export path
-- Task 5 now also has a working sampled canonical-dataset slice flow with one dataset run per model on a fixed slice, relative evaluation policy support, and autonomous Langfuse API verification
+- Task 5 now also has a working reusable slice-dataset flow with one dataset run per model on a fixed slice, relative evaluation policy support, and autonomous Langfuse API verification
+- Task 5 materializes sampled slices as reusable hosted datasets under `match-predictions/bundesliga-2025-26/pes-squad/slices/<sourcePoolKey>/<sliceKey>` and caches per-model exported experiment items under `artifacts/langfuse-runner-spike/runs/slices/`
 - The Task 5 design direction is now one dataset run per comparable variant on one fixed slice, with aggregate metrics attached as run-level scores
+- Task 5 scoring is now simplified to `kicktipp_points` per trace plus `total_kicktipp_points` and `avg_kicktipp_points` per dataset run
+- Langfuse API verification on `2026-04-02` confirmed the newest verification slice emits only the simplified score set at both dataset-run and trace level
+- `GET /api/public/score-configs` returned zero project score configs, so the remaining empty legacy compare-view columns are documented as a Langfuse UI limitation rather than a local runner regression
 - Repetition-family modeling is explicitly deferred; if fixed-repetition experiments become important, use the repetition-expanded shadow-dataset design documented in [first-experiment-run-design.md](first-experiment-run-design.md)
 
 ## Cross-Task Risks
@@ -80,6 +83,12 @@ Task 5 therefore uses one dataset run per comparable variant on one fixed slice 
 
 If later work needs native repeated-execution averages for a fixed match or fixed slice, the recommended approach is a dedicated repetition-expanded shadow dataset rather than per-repetition primary runs. See [first-experiment-run-design.md](first-experiment-run-design.md).
 
+### 5. Compare-View Score Columns Are Not Fully Under Local Control
+
+Task 5 no longer emits the old supporting score names, and the public API currently reports zero project score configs.
+
+If empty legacy score columns still appear in Langfuse compare view, treat that as a Langfuse UI or historical-score visibility issue rather than a reason to reintroduce local supporting metrics.
+
 ## Handoff Rules
 
 - Before starting a task, update its `Status` section from `Ready` or `Blocked` to `In progress`
@@ -103,5 +112,5 @@ The first milestone is complete when all of the following are true:
 - Dataset items have stable IDs, validated structure, and reproducible reconstruction metadata
 - A first sampled experiment run can be executed and appears as a dataset run in Langfuse
 - Trace linkage and scoring are visible in Langfuse
-- Kicktipp points are implemented as the primary experiment metric
-- Supporting metrics are available to diagnose experiment behavior
+- Kicktipp points are implemented as the primary experiment metric at item and run level
+- Reusable slice datasets support repeated comparable runs, and any remaining compare-view score-column noise is documented if it persists

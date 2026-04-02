@@ -44,16 +44,53 @@ const EXPECTED_OUTPUT_SCHEMA = {
   additionalProperties: false
 };
 
-const REQUIRED_METADATA_KEYS = [
-  "awayTeam",
-  "communityContext",
-  "competition",
-  "homeTeam",
-  "matchday",
-  "matchdayLabel",
-  "season",
-  "tippSpielId"
-];
+const METADATA_SCHEMA = {
+  type: "object",
+  properties: {
+    competition: {
+      type: "string",
+      minLength: 1,
+      description: "Competition identifier"
+    },
+    season: {
+      type: "string",
+      minLength: 1,
+      description: "Season label"
+    },
+    communityContext: {
+      type: "string",
+      minLength: 1,
+      description: "Community context slug"
+    },
+    matchday: {
+      type: "integer",
+      minimum: 1,
+      description: "Bundesliga matchday number"
+    },
+    matchdayLabel: {
+      type: "string",
+      minLength: 1,
+      description: "Human-readable matchday label"
+    },
+    homeTeam: {
+      type: "string",
+      minLength: 1,
+      description: "Exact home team name"
+    },
+    awayTeam: {
+      type: "string",
+      minLength: 1,
+      description: "Exact away team name"
+    },
+    tippSpielId: {
+      type: "string",
+      minLength: 1,
+      description: "Kicktipp match identifier"
+    }
+  },
+  required: ["competition", "season", "communityContext", "matchday", "matchdayLabel", "homeTeam", "awayTeam", "tippSpielId"],
+  additionalProperties: false
+};
 
 function readArguments() {
   const args = process.argv.slice(2);
@@ -100,56 +137,90 @@ function isNonEmptyString(value) {
   return typeof value === "string" && value.trim().length > 0;
 }
 
-function isNonNegativeInteger(value) {
-  return Number.isInteger(value) && value >= 0;
-}
+function validateValueAgainstSchema(value, schema, label) {
+  assert(isPlainObject(schema), `${label} schema must be an object.`);
 
-function validateCanonicalInput(input, itemId) {
-  assert(isPlainObject(input), `Dataset item '${itemId}' input must be an object.`);
+  if (schema.type === "object") {
+    assert(isPlainObject(value), `${label} must be an object.`);
 
-  const keys = Object.keys(input).sort();
-  assert(JSON.stringify(keys) === JSON.stringify(["awayTeam", "homeTeam", "startsAt"]),
-    `Dataset item '${itemId}' input must contain exactly homeTeam, awayTeam, and startsAt.`);
-  assert(isNonEmptyString(input.homeTeam), `Dataset item '${itemId}' input.homeTeam must be a non-empty string.`);
-  assert(isNonEmptyString(input.awayTeam), `Dataset item '${itemId}' input.awayTeam must be a non-empty string.`);
-  assert(isNonEmptyString(input.startsAt), `Dataset item '${itemId}' input.startsAt must be a non-empty string.`);
-}
+    const properties = schema.properties ?? {};
+    const required = schema.required ?? [];
+    const actualKeys = Object.keys(value);
+    const allowedKeys = Object.keys(properties);
 
-function validateCanonicalExpectedOutput(expectedOutput, itemId) {
-  assert(isPlainObject(expectedOutput), `Dataset item '${itemId}' expectedOutput must be an object.`);
+    if (schema.additionalProperties === false) {
+      const unexpectedKeys = actualKeys.filter((key) => !allowedKeys.includes(key));
+      assert(unexpectedKeys.length === 0,
+        `${label} must not contain unexpected keys: ${unexpectedKeys.join(", ")}.`);
+    }
 
-  const keys = Object.keys(expectedOutput).sort();
-  assert(JSON.stringify(keys) === JSON.stringify(["awayGoals", "homeGoals"]),
-    `Dataset item '${itemId}' expectedOutput must contain exactly homeGoals and awayGoals.`);
-  assert(isNonNegativeInteger(expectedOutput.homeGoals),
-    `Dataset item '${itemId}' expectedOutput.homeGoals must be a non-negative integer.`);
-  assert(isNonNegativeInteger(expectedOutput.awayGoals),
-    `Dataset item '${itemId}' expectedOutput.awayGoals must be a non-negative integer.`);
-}
+    for (const requiredKey of required) {
+      assert(Object.hasOwn(value, requiredKey), `${label}.${requiredKey} is required.`);
+    }
 
-function validateCanonicalMetadata(metadata, itemId) {
-  assert(isPlainObject(metadata), `Dataset item '${itemId}' metadata must be an object.`);
+    for (const key of actualKeys) {
+      if (properties[key]) {
+        validateValueAgainstSchema(value[key], properties[key], `${label}.${key}`);
+      }
+    }
 
-  const keys = Object.keys(metadata).sort();
-  const expectedKeys = [...REQUIRED_METADATA_KEYS].sort();
-  assert(JSON.stringify(keys) === JSON.stringify(expectedKeys),
-    `Dataset item '${itemId}' metadata must contain exactly ${expectedKeys.join(", ")}.`);
+    return;
+  }
 
-  assert(isNonEmptyString(metadata.competition), `Dataset item '${itemId}' metadata.competition must be a non-empty string.`);
-  assert(isNonEmptyString(metadata.season), `Dataset item '${itemId}' metadata.season must be a non-empty string.`);
-  assert(isNonEmptyString(metadata.communityContext), `Dataset item '${itemId}' metadata.communityContext must be a non-empty string.`);
-  assert(Number.isInteger(metadata.matchday) && metadata.matchday >= 1,
-    `Dataset item '${itemId}' metadata.matchday must be a positive integer.`);
-  assert(isNonEmptyString(metadata.matchdayLabel), `Dataset item '${itemId}' metadata.matchdayLabel must be a non-empty string.`);
-  assert(isNonEmptyString(metadata.homeTeam), `Dataset item '${itemId}' metadata.homeTeam must be a non-empty string.`);
-  assert(isNonEmptyString(metadata.awayTeam), `Dataset item '${itemId}' metadata.awayTeam must be a non-empty string.`);
-  assert(isNonEmptyString(metadata.tippSpielId), `Dataset item '${itemId}' metadata.tippSpielId must be a non-empty string.`);
+  if (schema.type === "string") {
+    assert(isNonEmptyString(value), `${label} must be a non-empty string.`);
+    if (typeof schema.minLength === "number") {
+      assert(value.length >= schema.minLength, `${label} must be at least ${schema.minLength} characters long.`);
+    }
+
+    if (typeof schema.maxLength === "number") {
+      assert(value.length <= schema.maxLength, `${label} must be at most ${schema.maxLength} characters long.`);
+    }
+
+    return;
+  }
+
+  if (schema.type === "integer") {
+    assert(Number.isInteger(value), `${label} must be an integer.`);
+    if (typeof schema.minimum === "number") {
+      assert(value >= schema.minimum, `${label} must be at least ${schema.minimum}.`);
+    }
+
+    if (typeof schema.maximum === "number") {
+      assert(value <= schema.maximum, `${label} must be at most ${schema.maximum}.`);
+    }
+
+    return;
+  }
+
+  if (schema.type === "number") {
+    assert(typeof value === "number", `${label} must be a number.`);
+    if (typeof schema.minimum === "number") {
+      assert(value >= schema.minimum, `${label} must be at least ${schema.minimum}.`);
+    }
+
+    if (typeof schema.maximum === "number") {
+      assert(value <= schema.maximum, `${label} must be at most ${schema.maximum}.`);
+    }
+
+    return;
+  }
+
+  if (schema.type === "boolean") {
+    assert(typeof value === "boolean", `${label} must be a boolean.`);
+    return;
+  }
+
+  throw new Error(`Unsupported schema type '${schema.type}' for ${label}.`);
 }
 
 function validateArtifact(exportArtifact, datasetName) {
   assert(isPlainObject(exportArtifact), "Artifact root must be an object.");
   assert(isNonEmptyString(datasetName), "Dataset name must be a non-empty string.");
   assert(Array.isArray(exportArtifact.items), "Artifact must contain an 'items' array.");
+
+  const inputSchema = exportArtifact.inputSchema ?? INPUT_SCHEMA;
+  const expectedOutputSchema = exportArtifact.expectedOutputSchema ?? EXPECTED_OUTPUT_SCHEMA;
 
   const seenItemIds = new Set();
   for (const item of exportArtifact.items) {
@@ -158,9 +229,9 @@ function validateArtifact(exportArtifact, datasetName) {
     assert(!seenItemIds.has(item.id), `Duplicate dataset item id '${item.id}' found in artifact.`);
     seenItemIds.add(item.id);
 
-    validateCanonicalInput(item.input, item.id);
-    validateCanonicalExpectedOutput(item.expectedOutput, item.id);
-    validateCanonicalMetadata(item.metadata, item.id);
+    validateValueAgainstSchema(item.input, inputSchema, `Dataset item '${item.id}' input`);
+    validateValueAgainstSchema(item.expectedOutput, expectedOutputSchema, `Dataset item '${item.id}' expectedOutput`);
+    validateValueAgainstSchema(item.metadata, METADATA_SCHEMA, `Dataset item '${item.id}' metadata`);
   }
 }
 
@@ -181,23 +252,24 @@ function stableJson(value) {
   return value;
 }
 
-function buildDatasetDefinition(datasetName, items) {
-  const metadata = items[0]?.metadata;
+function buildDatasetDefinition(exportArtifact, datasetName) {
+  const metadata = exportArtifact.items[0]?.metadata;
   const competition = metadata?.competition ?? "bundesliga-2025-26";
   const season = metadata?.season ?? "2025/2026";
   const communityContext = metadata?.communityContext ?? datasetName.split("/").at(-1);
 
   return {
     name: datasetName,
-    description: `Canonical hosted dataset for ${season} ${communityContext} ${competition} match experiments`,
-    metadata: {
+    description: exportArtifact.datasetDescription
+      ?? `Hosted dataset for ${season} ${communityContext} ${competition} match experiments`,
+    metadata: exportArtifact.datasetMetadata ?? {
       competition,
       communityContext,
       scope: "match-centric",
       season
     },
-    inputSchema: INPUT_SCHEMA,
-    expectedOutputSchema: EXPECTED_OUTPUT_SCHEMA
+    inputSchema: exportArtifact.inputSchema ?? INPUT_SCHEMA,
+    expectedOutputSchema: exportArtifact.expectedOutputSchema ?? EXPECTED_OUTPUT_SCHEMA
   };
 }
 
@@ -289,7 +361,7 @@ async function main() {
   validateArtifact(exportArtifact, datasetName);
 
   const langfuse = dryRun ? null : new LangfuseClient();
-  const datasetDefinition = buildDatasetDefinition(datasetName, exportArtifact.items);
+  const datasetDefinition = buildDatasetDefinition(exportArtifact, datasetName);
 
   try {
     const dataset = await upsertDataset(langfuse, datasetDefinition, dryRun);

@@ -30,6 +30,14 @@ export function stableJson(value) {
   return value;
 }
 
+export function deriveSliceDatasetName(canonicalDatasetName, sliceSourceKey, sliceKey) {
+  return `${canonicalDatasetName}/slices/${sliceSourceKey}/${sliceKey}`;
+}
+
+export function buildSliceDatasetItemId(canonicalItemId, sliceKey) {
+  return `${canonicalItemId}__slice__${sliceKey}`;
+}
+
 export function calculateScores(prediction, expectedOutput) {
   const predictedDifference = prediction.homeGoals - prediction.awayGoals;
   const expectedDifference = expectedOutput.homeGoals - expectedOutput.awayGoals;
@@ -52,12 +60,7 @@ export function calculateScores(prediction, expectedOutput) {
   }
 
   return {
-    kicktipp_points: kicktippPoints,
-    exact_hit: exactHit ? 1 : 0,
-    outcome_correct: outcomeCorrect ? 1 : 0,
-    home_goal_error: Math.abs(prediction.homeGoals - expectedOutput.homeGoals),
-    away_goal_error: Math.abs(prediction.awayGoals - expectedOutput.awayGoals),
-    goal_difference_error: Math.abs(predictedDifference - expectedDifference)
+    kicktipp_points: kicktippPoints
   };
 }
 
@@ -72,12 +75,8 @@ export function summarizeScores(scoreEntries) {
   }, {});
 
   return {
-    avg_kicktipp_points: (sums.kicktipp_points ?? 0) / total,
-    exact_hit_rate: (sums.exact_hit ?? 0) / total,
-    outcome_correct_rate: (sums.outcome_correct ?? 0) / total,
-    avg_home_goal_error: (sums.home_goal_error ?? 0) / total,
-    avg_away_goal_error: (sums.away_goal_error ?? 0) / total,
-    avg_goal_difference_error: (sums.goal_difference_error ?? 0) / total
+    total_kicktipp_points: sums.kicktipp_points ?? 0,
+    avg_kicktipp_points: total === 0 ? 0 : (sums.kicktipp_points ?? 0) / total
   };
 }
 
