@@ -12,14 +12,14 @@ This is a workaround for this [issue](https://github.com/microsoft/vscode/issues
 
 ### Invoking Powershell Commands
 
-When invoking Powershell commands via `run_in_terminal`, don't prefix them with `&`, as it breaks auto approval.
+When invoking Powershell commands via `run_in_terminal`, don't prefix them with `&`, and don't quote the script path.
 
 ````powershell
 # ❌ Avoid this:
-& ".github/copilot/skills/langfuse-api/scripts/Query-LangfuseApi.ps1" -Endpoint "scores" -QueryParams @{limit=10; name='avg_kicktipp_points'}
+& .github/copilot/skills/langfuse-api/scripts/Query-LangfuseApi.ps1 -Endpoint "scores" -QueryParams @{limit=10; name='avg_kicktipp_points'}
 
 # ✅ Do this instead:
-".github/copilot/skills/langfuse-api/scripts/Query-LangfuseApi.ps1" -Endpoint "scores" -QueryParams @{limit=10; name='avg_kicktipp_points'}
+.github/copilot/skills/langfuse-api/scripts/Query-LangfuseApi.ps1 -Endpoint "scores" -QueryParams @{limit=10; name='avg_kicktipp_points'}
 ```
 
 ## Gathering Information

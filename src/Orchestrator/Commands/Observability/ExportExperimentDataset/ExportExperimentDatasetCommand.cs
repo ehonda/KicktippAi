@@ -1,10 +1,7 @@
 using System.Globalization;
-using System.Text;
 using System.Text.Json;
 using EHonda.KicktippAi.Core;
 using Microsoft.Extensions.Logging;
-using NodaTime;
-using OpenAiIntegration;
 using Orchestrator.Infrastructure.Factories;
 using Spectre.Console;
 using Spectre.Console.Cli;
@@ -13,8 +10,6 @@ namespace Orchestrator.Commands.Observability.ExportExperimentDataset;
 
 public sealed class ExportExperimentDatasetCommand : AsyncCommand<ExportExperimentDatasetSettings>
 {
-    private const string Season = "2025/2026";
-    private static readonly DateTimeZone BundesligaTimeZone = DateTimeZoneProviders.Tzdb["Europe/Berlin"];
     private static readonly JsonSerializerOptions OutputJsonOptions = new()
     {
         PropertyNamingPolicy = JsonNamingPolicy.CamelCase,
@@ -93,35 +88,7 @@ public sealed class ExportExperimentDatasetCommand : AsyncCommand<ExportExperime
 
     private static HostedMatchExperimentDatasetItem BuildItem(PersistedMatchOutcome outcome)
     {
-        var tippSpielId = outcome.TippSpielId ?? throw new InvalidOperationException(
-            $"Persisted outcome for {outcome.HomeTeam} vs {outcome.AwayTeam} is missing tippspielId.");
-
-        var promptMatch = RehydrateForPromptOutput(outcome);
-        using var matchJsonDocument = JsonDocument.Parse(PredictionPromptComposer.CreateMatchJson(promptMatch));
-
-        return new HostedMatchExperimentDatasetItem(
-            BuildItemId(outcome.Competition, outcome.CommunityContext, tippSpielId),
-            matchJsonDocument.RootElement.Clone(),
-            new HostedMatchExperimentExpectedOutput(
-                outcome.HomeGoals!.Value,
-                outcome.AwayGoals!.Value),
-            new HostedMatchExperimentMetadata(
-                outcome.Competition,
-                Season,
-                outcome.CommunityContext,
-                outcome.Matchday,
-                $"md{outcome.Matchday:00}",
-                outcome.HomeTeam,
-                outcome.AwayTeam,
-                tippSpielId));
-    }
-
-    private static Match RehydrateForPromptOutput(PersistedMatchOutcome outcome)
-    {
-        var instant = outcome.StartsAt.ToInstant();
-        var offset = BundesligaTimeZone.GetUtcOffset(instant);
-        var localizedStartsAt = instant.InZone(DateTimeZone.ForOffset(offset));
-        return new Match(outcome.HomeTeam, outcome.AwayTeam, localizedStartsAt, outcome.Matchday);
+        return ExperimentArtifactSupport.BuildHostedDatasetItem(outcome);
     }
 
     private static IReadOnlyList<int> ParseMatchdays(string? matchdays)
@@ -142,7 +109,7 @@ public sealed class ExportExperimentDatasetCommand : AsyncCommand<ExportExperime
 
     private static string BuildDatasetName(string communityContext)
     {
-        return $"match-predictions/bundesliga-2025-26/{communityContext}";
+        return ExperimentArtifactSupport.BuildCanonicalDatasetName(communityContext);
     }
 
     private static string ResolveOutputPath(ExportExperimentDatasetSettings settings)
@@ -155,44 +122,6 @@ public sealed class ExportExperimentDatasetCommand : AsyncCommand<ExportExperime
         return Path.GetFullPath(Path.Combine(
             "artifacts",
             "langfuse-dataset",
-            $"{Slugify(settings.CommunityContext)}.json"));
-    }
-
-    private static string BuildItemId(string competition, string communityContext, string tippSpielId)
-    {
-        return string.Join(
-            "__",
-            Slugify(competition),
-            Slugify(communityContext),
-            $"ts{Slugify(tippSpielId)}");
-    }
-
-    private static string Slugify(string value)
-    {
-        var normalized = value.Normalize(NormalizationForm.FormD);
-        var builder = new StringBuilder(normalized.Length);
-
-        foreach (var character in normalized)
-        {
-            if (CharUnicodeInfo.GetUnicodeCategory(character) == UnicodeCategory.NonSpacingMark)
-            {
-                continue;
-            }
-
-            if (char.IsLetterOrDigit(character))
-            {
-                builder.Append(char.ToLowerInvariant(character));
-                continue;
-            }
-
-            if (builder.Length == 0 || builder[^1] == '-')
-            {
-                continue;
-            }
-
-            builder.Append('-');
-        }
-
-        return builder.ToString().Trim('-');
+            $"{ExperimentArtifactSupport.Slugify(settings.CommunityContext)}.json"));
     }
 }

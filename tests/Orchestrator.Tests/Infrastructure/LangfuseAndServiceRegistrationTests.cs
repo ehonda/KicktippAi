@@ -6,6 +6,7 @@ using Microsoft.Extensions.FileProviders;
 using Microsoft.Extensions.Hosting;
 using Orchestrator.Infrastructure;
 using Orchestrator.Infrastructure.Factories;
+using Orchestrator.Infrastructure.Langfuse;
 using Orchestrator.Services;
 using OpenAiIntegration;
 
@@ -115,6 +116,8 @@ public class LangfuseAndServiceRegistrationTests
             descriptor.ImplementationType == typeof(ContextProviderFactory))).IsTrue();
         await Assert.That(services.Any(descriptor =>
             descriptor.ServiceType == typeof(MatchOutcomeCollectionService))).IsTrue();
+        await Assert.That(services.Any(descriptor =>
+            descriptor.ServiceType == typeof(ILangfusePublicApiClient))).IsTrue();
     }
 
     [Test]

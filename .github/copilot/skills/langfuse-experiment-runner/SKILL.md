@@ -1,73 +1,83 @@
 ---
 name: langfuse-experiment-runner
-description: Export exact-timestamp experiment items and run hosted Langfuse dataset experiments for one or more models.
+description: Prepare and run Task 5 Langfuse experiments directly through the Orchestrator without the legacy JS runner.
 ---
 
 # Langfuse Experiment Runner
 
-Use this skill to run the Task 5 experiment flow end-to-end.
+Use this skill to run Task 5 experiments end-to-end with dotnet commands only.
 
-Two modes are supported:
+Two preparation modes are supported:
 
-1. Legacy single-match mode: export one exact-timestamp experiment item per model and run the original JS repetition runner
-2. Sampled slice mode: refresh the canonical hosted dataset, select a deterministic slice, export one reconstructed item per selected match and model, execute the Task 5 slice runner, and verify traces via the Langfuse API skill
+1. Fresh sampled slices built from the canonical hosted dataset export
+2. Dedicated repeated single-match datasets for variance checks on one historical match
 
 ## When To Use It
 
-- Run the first milestone experiment for a single match or a small sample
-- Compare multiple models against the same historical evaluation timestamp
-- Re-run the same experiment with `-ReplaceRun` after changing prompts or scoring
+- Compare multiple models against the same fixed Task 5 slice
+- Re-run the same dataset with `--replace-run` after prompt or scoring changes
+- Measure variance on a single match at one exact historical evaluation time
 
-## Sampled Slice Example
+## Fresh Random Slice Workflow
 
-```powershell
-.github/copilot/skills/langfuse-experiment-runner/scripts/Invoke-LangfuseExperiment.ps1 \
-  -SampleCanonicalDataset \
-  -SampleSize 10 \
-  -Models @("o3", "gpt-5-nano") \
-  -BatchSize 10 \
-  -ReplaceRun
-```
-
-## Legacy Single-Match Example
+Export the canonical dataset once:
 
 ```powershell
-.github/copilot/skills/langfuse-experiment-runner/scripts/Invoke-LangfuseExperiment.ps1 \
-  -HomeTeam "VfB Stuttgart" \
-  -AwayTeam "RB Leipzig" \
-  -Matchday 26 \
-  -EvaluationTime "2026-03-15T12:00:00 Europe/Berlin (+01)" \
-  -Models @("o3", "gpt-5-nano") \
-  -Repetitions 5 \
-  -BatchSize 8 \
-  -ReplaceRun
+dotnet run --project src/Orchestrator -- export-experiment-dataset --community-context pes-squad --output artifacts/langfuse-dataset/pes-squad.json
 ```
 
-## Parameters
+Prepare a deterministic slice. Reuse the emitted `sliceArtifactPath` and `sliceManifestPath` from the JSON summary:
 
-- `-SampleCanonicalDataset`: run the sampled Task 5 slice flow against the canonical hosted dataset
-- `-SampleSize`: number of dataset items to sample, defaults to `10`
-- `-SampleSeed`: optional deterministic random seed for slice selection
-- `-EvaluationPolicyKind`: sampled-slice evaluation policy kind, currently `relative`
-- `-EvaluationPolicyOffset`: sampled-slice NodaTime duration offset against `startsAt`, defaults to `-12:00:00`
-- `-PromptKey`: short prompt variant identifier used in run metadata and run names, defaults to `prompt-v1`
-- `-HomeTeam` and `-AwayTeam`: match identity for legacy single-match mode
-- `-Matchday`: historical matchday to reconstruct for legacy single-match mode
-- `-EvaluationTime`: explicit evaluation time in NodaTime's invariant ZonedDateTime `G` pattern for legacy single-match mode, for example `2026-03-15T12:00:00 Europe/Berlin (+01)`
-- `-Models`: models to compare, defaults to `o3` and `gpt-5-nano`
-- `-CommunityContext`: defaults to `pes-squad`
-- `-Repetitions`: defaults to `5` for legacy development runs
-- `-BatchSize`: defaults to `10` for sampled slices and `8` for legacy single-match runs unless overridden
-- `-SkipDatasetRefresh`: skip the canonical dataset refresh step before sampled-slice runs
-- `-SkipLangfuseVerification`: skip the autonomous Langfuse API verification step after sampled-slice runs
-- `-ReplaceRun`: delete any existing dataset run with the same name before execution
+```powershell
+dotnet run --project src/Orchestrator -- prepare-task5-slice --input artifacts/langfuse-dataset/pes-squad.json --sample-size 16 --sample-seed 20260403
+```
+
+Sync the hosted dataset:
+
+```powershell
+dotnet run --project src/Orchestrator -- sync-dataset --input artifacts/langfuse-experiments/slices/pes-squad/all-matchdays/random-16-seed-20260403/slice-dataset.json
+```
+
+Run one model at a time against the same manifest. Build the run name explicitly so comparisons stay easy to read:
+
+```powershell
+$runStamp = (Get-Date).ToUniversalTime().ToString("yyyy-MM-ddTHH-mm-ssZ").ToLowerInvariant()
+dotnet run --project src/Orchestrator -- run-task5-slice o3 --manifest artifacts/langfuse-experiments/slices/pes-squad/all-matchdays/random-16-seed-20260403/slice-manifest.json --run-name "task-5__pes-squad__o3__prompt-v1__random-16-seed-20260403__startsat-12h__$runStamp" --prompt-key prompt-v1 --evaluation-policy-kind relative --evaluation-policy-offset -12:00:00 --batch-size 8 --replace-run
+dotnet run --project src/Orchestrator -- run-task5-slice gpt-5-nano --manifest artifacts/langfuse-experiments/slices/pes-squad/all-matchdays/random-16-seed-20260403/slice-manifest.json --run-name "task-5__pes-squad__gpt-5-nano__prompt-v1__random-16-seed-20260403__startsat-12h__$runStamp" --prompt-key prompt-v1 --evaluation-policy-kind relative --evaluation-policy-offset -12:00:00 --batch-size 8 --replace-run
+```
+
+## Repeated Single-Match Workflow
+
+Prepare the dedicated repeated dataset:
+
+```powershell
+dotnet run --project src/Orchestrator -- prepare-task5-single-match --community-context pes-squad --home "VfB Stuttgart" --away "RB Leipzig" --matchday 26 --sample-size 16
+```
+
+Sync it once:
+
+```powershell
+dotnet run --project src/Orchestrator -- sync-dataset --input artifacts/langfuse-experiments/single-match/pes-squad/md26-vfb-stuttgart-vs-rb-leipzig/repeat-16/slice-dataset.json
+```
+
+Run it with an exact historical evaluation time:
+
+```powershell
+$runStamp = (Get-Date).ToUniversalTime().ToString("yyyy-MM-ddTHH-mm-ssZ").ToLowerInvariant()
+dotnet run --project src/Orchestrator -- run-task5-slice o3 --manifest artifacts/langfuse-experiments/single-match/pes-squad/md26-vfb-stuttgart-vs-rb-leipzig/repeat-16/slice-manifest.json --run-name "task-5__pes-squad__o3__prompt-v1__repeat-16__exact-time__$runStamp" --prompt-key prompt-v1 --evaluation-time "2026-03-15T12:00:00 Europe/Berlin (+01)" --batch-size 8 --replace-run
+```
+
+## Verification
+
+Use the [langfuse-api](../langfuse-api/SKILL.md) skill after a run when you want to inspect traces or observations in detail.
+
+```powershell
+.github/copilot/skills/langfuse-api/scripts/Query-LangfuseApi.ps1 -Endpoint "traces" -QueryParams @{ limit = 20; tags = "slice:random-16-seed-20260403" }
+```
 
 ## Notes
 
-- Sampled slice runs use one dataset run per model on one fixed slice and process the slice directly in parallel batches.
-- Sampled slice runs use the relative evaluation policy path in `.NET`, currently limited to offsets relative to `startsAt`.
-- Legacy single-match mode keeps the original repetition-oriented runner behavior.
-- It uses the exact-timestamp `.NET` export path, so the prompt reflects the chosen historical evaluation instant.
-- The runner sets the OTEL header `x-langfuse-ingestion-version: 4` on the Langfuse span processor so traces show up on the faster ingestion path.
-- Sampled slice runs additionally verify traces and generation observations through the dedicated [langfuse-api](../langfuse-api/SKILL.md) skill script before returning summary output.
-- For deeper post-run inspection, use the existing [langfuse-api](../langfuse-api/SKILL.md) skill.
+- The Orchestrator loads the repository secrets `.env` automatically; `dotenvx` is not required for the dotnet commands.
+- `run-task5-slice` still accepts `--run-metadata-file` for old prepared artifacts, but new runs should prefer direct flags.
+- Sampled slices and repeated single-match datasets both emit reusable `slice-dataset.json` and `slice-manifest.json` artifacts.
+- The run command keeps the OTEL ingestion header `x-langfuse-ingestion-version: 4`, so traces continue to use the faster Langfuse ingestion path.

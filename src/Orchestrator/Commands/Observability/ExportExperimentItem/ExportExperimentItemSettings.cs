@@ -44,7 +44,7 @@ public sealed class ExportExperimentItemSettings : CommandSettings
     public string? EvaluationPolicyOffset { get; set; }
 
     [CommandOption("--output")]
-    [Description("Path to the JSON file to write. Defaults to artifacts/langfuse-runner-spike/<match>.json")]
+    [Description("Path to the JSON file to write. Defaults to artifacts/langfuse-experiments/items/<match>.json")]
     public string? OutputPath { get; set; }
 
     public override ValidationResult Validate()

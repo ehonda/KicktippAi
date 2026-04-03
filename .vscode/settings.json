@@ -4,7 +4,6 @@
         ".github/copilot/skills/submodules-manage/scripts/Manage-Submodules.ps1": true,
         ".github/copilot/skills/submodules-update-tree-document/scripts/Update-TreeDocument.ps1": true,
         ".github/copilot/skills/submodules-display-tree/scripts/Display-Tree.ps1": true,
-        ".\\.github\\copilot\\skills\\dotnet-get-latest-package-version\\scripts\\Get-LatestPackageVersion.ps1": true,
-        ".github/copilot/skills/langfuse-experiment-runner/scripts/Invoke-LangfuseExperiment.ps1": true
+        ".\\.github\\copilot\\skills\\dotnet-get-latest-package-version\\scripts\\Get-LatestPackageVersion.ps1": true
     }
 }

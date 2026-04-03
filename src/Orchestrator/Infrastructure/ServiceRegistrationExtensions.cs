@@ -1,3 +1,4 @@
+using System.Net.Http.Headers;
 using System.Text;
 using EHonda.KicktippAi.Core;
 using Microsoft.Extensions.DependencyInjection;
@@ -9,6 +10,7 @@ using OpenTelemetry.Resources;
 using OpenTelemetry.Trace;
 using OpenAiIntegration;
 using Orchestrator.Infrastructure.Factories;
+using Orchestrator.Infrastructure.Langfuse;
 using Orchestrator.Services;
 
 namespace Orchestrator.Infrastructure;
@@ -40,6 +42,24 @@ public static class ServiceRegistrationExtensions
 
         // Add HTTP client factory for Kicktipp
         services.AddHttpClient();
+
+        if (!services.Any(descriptor => descriptor.ServiceType == typeof(ILangfusePublicApiClient)))
+        {
+            services.AddHttpClient<ILangfusePublicApiClient, LangfusePublicApiClient>((_, client) =>
+            {
+                var baseUrl = (Environment.GetEnvironmentVariable("LANGFUSE_BASE_URL") ?? "https://cloud.langfuse.com").TrimEnd('/');
+                client.BaseAddress = new Uri($"{baseUrl}/api/public/");
+                client.DefaultRequestHeaders.Accept.Add(new MediaTypeWithQualityHeaderValue("application/json"));
+
+                var publicKey = Environment.GetEnvironmentVariable("LANGFUSE_PUBLIC_KEY");
+                var secretKey = Environment.GetEnvironmentVariable("LANGFUSE_SECRET_KEY");
+                if (!string.IsNullOrWhiteSpace(publicKey) && !string.IsNullOrWhiteSpace(secretKey))
+                {
+                    var authorization = Convert.ToBase64String(Encoding.UTF8.GetBytes($"{publicKey}:{secretKey}"));
+                    client.DefaultRequestHeaders.Authorization = new AuthenticationHeaderValue("Basic", authorization);
+                }
+            });
+        }
 
         // Register factories (idempotent)
         services.TryAddSingleton<IFirebaseServiceFactory, FirebaseServiceFactory>();
