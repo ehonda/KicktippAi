@@ -52,7 +52,9 @@ Set up a reproducible Langfuse experiment workflow for KicktippAi that can:
 - The Task 5 design direction is now one dataset run per comparable variant on one fixed slice, with aggregate metrics attached as run-level scores
 - Task 5 scoring is now simplified to `kicktipp_points` per trace plus `total_kicktipp_points` and `avg_kicktipp_points` per dataset run
 - Langfuse API verification on `2026-04-02` confirmed the newest verification slice emits only the simplified score set at both dataset-run and trace level
+- Follow-up verification on `2026-04-04` confirmed the aggregate dataset-run scores are retrievable through `GET /api/public/v2/scores`, while the older `GET /api/public/scores` path still only reflects the trace-level view
 - `GET /api/public/score-configs` returned zero project score configs, so the remaining empty legacy compare-view columns are documented as a Langfuse UI limitation rather than a local runner regression
+- Detailed planning for future statistical evaluation and analysis tooling is now captured in [02-statistical-evaluation-and-analysis-tooling.md](tasks/further-improvement/02-statistical-evaluation-and-analysis-tooling.md)
 - Repetition-family modeling is explicitly deferred; if fixed-repetition experiments become important, use the repetition-expanded shadow-dataset design documented in [first-experiment-run-design.md](first-experiment-run-design.md)
 
 ## Cross-Task Risks
