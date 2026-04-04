@@ -6,6 +6,7 @@ using Microsoft.Extensions.FileProviders;
 using Microsoft.Extensions.Hosting;
 using Orchestrator.Infrastructure;
 using Orchestrator.Infrastructure.Factories;
+using Orchestrator.Infrastructure.Langfuse;
 using Orchestrator.Services;
 using OpenAiIntegration;
 
@@ -115,6 +116,8 @@ public class LangfuseAndServiceRegistrationTests
             descriptor.ImplementationType == typeof(ContextProviderFactory))).IsTrue();
         await Assert.That(services.Any(descriptor =>
             descriptor.ServiceType == typeof(MatchOutcomeCollectionService))).IsTrue();
+        await Assert.That(services.Any(descriptor =>
+            descriptor.ServiceType == typeof(ILangfusePublicApiClient))).IsTrue();
     }
 
     [Test]
@@ -145,6 +148,15 @@ public class LangfuseAndServiceRegistrationTests
 
         await Assert.That(services.Count).IsEqualTo(countAfterFirstRegistration);
         await Assert.That(services.Any(descriptor => descriptor.ServiceType == typeof(IHostedService))).IsTrue();
+    }
+
+    [Test]
+    public async Task BuildLangfuseOtlpHeaders_includes_auth_and_v4_ingestion_header()
+    {
+        var headers = ServiceRegistrationExtensions.BuildLangfuseOtlpHeaders("public-key", "secret-key");
+
+        await Assert.That(headers).Contains("Authorization=Basic ");
+        await Assert.That(headers).Contains("x-langfuse-ingestion-version=4");
     }
 
     [Test]

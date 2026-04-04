@@ -2,6 +2,7 @@ using EHonda.KicktippAi.Core;
 using Microsoft.Extensions.Logging;
 using NodaTime;
 using OpenAiIntegration;
+using Orchestrator.Commands.Observability;
 using Orchestrator.Infrastructure.Factories;
 using Spectre.Console;
 using Spectre.Console.Cli;
@@ -42,7 +43,9 @@ public class ReconstructPromptCommand : AsyncCommand<ReconstructPromptSettings>
                 contextRepository,
                 new InstructionsTemplateProvider(PromptsFileProvider.Create()));
 
-            var match = await ResolveMatchAsync(predictionRepository, settings);
+            var evaluationTime = EvaluationTimeParser.ParseOrNull(settings.EvaluationTime);
+
+            var match = await ResolveMatchAsync(predictionRepository, settings, evaluationTime is not null);
             if (match is null)
             {
                 _console.MarkupLine($"[red]Match not found on matchday {settings.Matchday}:[/] {Markup.Escape(settings.HomeTeam)} vs {Markup.Escape(settings.AwayTeam)}");
@@ -51,11 +54,31 @@ public class ReconstructPromptCommand : AsyncCommand<ReconstructPromptSettings>
 
             match = RehydrateForPromptOutput(match);
 
-            var reconstructedPrompt = await reconstructionService.ReconstructMatchPredictionPromptAsync(
-                match,
-                settings.Model,
-                settings.CommunityContext,
-                settings.WithJustification);
+            ReconstructedMatchPredictionPrompt? reconstructedPrompt;
+            if (evaluationTime is null)
+            {
+                reconstructedPrompt = await reconstructionService.ReconstructMatchPredictionPromptAsync(
+                    match,
+                    settings.Model,
+                    settings.CommunityContext,
+                    settings.WithJustification);
+            }
+            else
+            {
+                var selection = MatchContextDocumentCatalog.ForMatch(
+                    match.HomeTeam,
+                    match.AwayTeam,
+                    settings.CommunityContext);
+
+                reconstructedPrompt = await reconstructionService.ReconstructMatchPredictionPromptAtTimestampAsync(
+                    match,
+                    settings.Model,
+                    settings.CommunityContext,
+                    evaluationTime.Value,
+                    selection.RequiredDocumentNames,
+                    selection.OptionalDocumentNames,
+                    settings.WithJustification);
+            }
 
             if (reconstructedPrompt is null)
             {
@@ -63,7 +86,8 @@ public class ReconstructPromptCommand : AsyncCommand<ReconstructPromptSettings>
                 return 1;
             }
 
-            _console.MarkupLine($"[blue]Prediction timestamp:[/] {reconstructedPrompt.PredictionCreatedAt:O}");
+            var timestampLabel = evaluationTime is null ? "Prediction timestamp" : "Reconstruction timestamp";
+            _console.MarkupLine($"[blue]{timestampLabel}:[/] {reconstructedPrompt.PromptTimestamp:O}");
             _console.MarkupLine($"[blue]Prompt template:[/] {Markup.Escape(reconstructedPrompt.PromptTemplatePath)}");
             _console.MarkupLine($"[blue]Justification variant:[/] {reconstructedPrompt.IncludeJustification}");
             _console.WriteLine();
@@ -91,14 +115,17 @@ public class ReconstructPromptCommand : AsyncCommand<ReconstructPromptSettings>
         }
     }
 
-    private static async Task<Match?> ResolveMatchAsync(IPredictionRepository predictionRepository, ReconstructPromptSettings settings)
+    private static async Task<Match?> ResolveMatchAsync(
+        IPredictionRepository predictionRepository,
+        ReconstructPromptSettings settings,
+        bool allowExactTimestampFallback)
     {
         return await predictionRepository.GetStoredMatchAsync(
             settings.HomeTeam,
             settings.AwayTeam,
             settings.Matchday!.Value,
-            settings.Model,
-            settings.CommunityContext);
+            allowExactTimestampFallback ? null : settings.Model,
+            allowExactTimestampFallback ? null : settings.CommunityContext);
     }
 
     private static Match RehydrateForPromptOutput(Match match)

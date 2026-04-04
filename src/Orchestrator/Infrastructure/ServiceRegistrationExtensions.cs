@@ -1,3 +1,4 @@
+using System.Net.Http.Headers;
 using System.Text;
 using EHonda.KicktippAi.Core;
 using Microsoft.Extensions.DependencyInjection;
@@ -9,6 +10,7 @@ using OpenTelemetry.Resources;
 using OpenTelemetry.Trace;
 using OpenAiIntegration;
 using Orchestrator.Infrastructure.Factories;
+using Orchestrator.Infrastructure.Langfuse;
 using Orchestrator.Services;
 
 namespace Orchestrator.Infrastructure;
@@ -18,6 +20,9 @@ namespace Orchestrator.Infrastructure;
 /// </summary>
 public static class ServiceRegistrationExtensions
 {
+    private const string LangfuseIngestionVersionHeaderName = "x-langfuse-ingestion-version";
+    private const string LangfuseIngestionVersionHeaderValue = "4";
+
     /// <summary>
     /// Registers all shared infrastructure services (factories, logging).
     /// </summary>
@@ -37,6 +42,24 @@ public static class ServiceRegistrationExtensions
 
         // Add HTTP client factory for Kicktipp
         services.AddHttpClient();
+
+        if (!services.Any(descriptor => descriptor.ServiceType == typeof(ILangfusePublicApiClient)))
+        {
+            services.AddHttpClient<ILangfusePublicApiClient, LangfusePublicApiClient>((_, client) =>
+            {
+                var baseUrl = (Environment.GetEnvironmentVariable("LANGFUSE_BASE_URL") ?? "https://cloud.langfuse.com").TrimEnd('/');
+                client.BaseAddress = new Uri($"{baseUrl}/api/public/");
+                client.DefaultRequestHeaders.Accept.Add(new MediaTypeWithQualityHeaderValue("application/json"));
+
+                var publicKey = Environment.GetEnvironmentVariable("LANGFUSE_PUBLIC_KEY");
+                var secretKey = Environment.GetEnvironmentVariable("LANGFUSE_SECRET_KEY");
+                if (!string.IsNullOrWhiteSpace(publicKey) && !string.IsNullOrWhiteSpace(secretKey))
+                {
+                    var authorization = Convert.ToBase64String(Encoding.UTF8.GetBytes($"{publicKey}:{secretKey}"));
+                    client.DefaultRequestHeaders.Authorization = new AuthenticationHeaderValue("Basic", authorization);
+                }
+            });
+        }
 
         // Register factories (idempotent)
         services.TryAddSingleton<IFirebaseServiceFactory, FirebaseServiceFactory>();
@@ -87,7 +110,7 @@ public static class ServiceRegistrationExtensions
         _langfuseTracingRegistered = true;
 
         var baseUrl = Environment.GetEnvironmentVariable("LANGFUSE_BASE_URL") ?? "https://cloud.langfuse.com";
-        var authHeader = $"Authorization=Basic {Convert.ToBase64String(Encoding.UTF8.GetBytes($"{publicKey}:{secretKey}"))}";
+        var headers = BuildLangfuseOtlpHeaders(publicKey, secretKey);
 
         // NOTE: Setting options.Endpoint programmatically sets AppendSignalPathToEndpoint = false,
         // so the full URL including /v1/traces must be provided.
@@ -100,10 +123,18 @@ public static class ServiceRegistrationExtensions
                 {
                     options.Endpoint = new Uri($"{baseUrl}/api/public/otel/v1/traces");
                     options.Protocol = OtlpExportProtocol.HttpProtobuf;
-                    options.Headers = authHeader;
+                    options.Headers = headers;
                 }));
 
         return services;
+    }
+
+    internal static string BuildLangfuseOtlpHeaders(string publicKey, string secretKey)
+    {
+        var authorization = Convert.ToBase64String(Encoding.UTF8.GetBytes($"{publicKey}:{secretKey}"));
+        return string.Join(",",
+            $"Authorization=Basic {authorization}",
+            $"{LangfuseIngestionVersionHeaderName}={LangfuseIngestionVersionHeaderValue}");
     }
 
     private static bool _langfuseTracingRegistered;

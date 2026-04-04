@@ -10,6 +10,18 @@ This is a workaround for this [issue](https://github.com/microsoft/vscode/issues
 
 **CRITICAL**: When using the `run_in_terminal` tool, **ALWAYS USE `"timeout": 0`**. Otherwise, outputs from commands will be silently truncated if they time out, which happens often on our slow local machine.
 
+### Invoking Powershell Commands
+
+When invoking Powershell commands via `run_in_terminal`, don't prefix them with `&`, and don't quote the script path.
+
+````powershell
+# ❌ Avoid this:
+& .github/copilot/skills/langfuse-api/scripts/Query-LangfuseApi.ps1 -Endpoint "scores" -QueryParams @{limit=10; name='avg_kicktipp_points'}
+
+# ✅ Do this instead:
+.github/copilot/skills/langfuse-api/scripts/Query-LangfuseApi.ps1 -Endpoint "scores" -QueryParams @{limit=10; name='avg_kicktipp_points'}
+```
+
 ## Gathering Information
 
 We use different external dependencies, some of which are partially or fully available locally via git submodules. When gathering information like

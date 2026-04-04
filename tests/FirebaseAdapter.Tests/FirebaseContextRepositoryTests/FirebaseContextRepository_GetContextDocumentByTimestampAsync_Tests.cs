@@ -84,6 +84,27 @@ public class FirebaseContextRepository_GetContextDocumentByTimestampAsync_Tests(
         await Assert.That(result).IsNull();
     }
 
+    [Test]
+    public async Task Getting_document_by_timestamp_with_equal_createdAt_prefers_higher_version()
+    {
+        var repository = CreateRepository();
+        var timestamp = new DateTimeOffset(2026, 3, 10, 10, 0, 0, TimeSpan.Zero);
+
+        await repository.SaveContextDocumentAsync("test-document", "version 0 content", "test-community");
+        await repository.SaveContextDocumentAsync("test-document", "version 1 content", "test-community");
+        await SetCreatedAtAsync("test-document", 0, "test-community", timestamp);
+        await SetCreatedAtAsync("test-document", 1, "test-community", timestamp);
+
+        var result = await repository.GetContextDocumentByTimestampAsync(
+            "test-document",
+            timestamp,
+            "test-community");
+
+        await Assert.That(result).IsNotNull()
+            .And.Member(document => document!.Version, version => version.IsEqualTo(1))
+            .And.Member(document => document!.Content, content => content.IsEqualTo("version 1 content"));
+    }
+
     private async Task SetCreatedAtAsync(string documentName, int version, string communityContext, DateTimeOffset createdAt)
     {
         var documentId = $"{documentName}_{communityContext}_{version}";

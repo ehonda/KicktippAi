@@ -110,4 +110,88 @@ public class FirebaseMatchOutcomeRepository_GetIncompleteMatchdaysAsync_Tests(Fi
 
         await Assert.That(incomplete).IsEquivalentTo([2]);
     }
+
+    [Test]
+    public async Task GetIncompleteMatchdaysAsync_returns_missing_and_pending_matchdays_up_to_current_matchday()
+    {
+        var repository = CreateRepository();
+
+        foreach (var matchIndex in Enumerable.Range(1, 9))
+        {
+            await repository.UpsertMatchOutcomeAsync(
+                CreateOutcome(
+                    homeTeam: $"Team {matchIndex}",
+                    awayTeam: $"Opponent {matchIndex}",
+                    matchday: 1,
+                    availability: MatchOutcomeAvailability.Completed,
+                    homeGoals: 1,
+                    awayGoals: 0,
+                    tippSpielId: $"1-Team {matchIndex}-Opponent {matchIndex}"),
+                "community-a");
+        }
+
+        foreach (var matchIndex in Enumerable.Range(1, 8))
+        {
+            await repository.UpsertMatchOutcomeAsync(
+                CreateOutcome(
+                    homeTeam: $"Club {matchIndex}",
+                    awayTeam: $"Rival {matchIndex}",
+                    matchday: 2,
+                    availability: MatchOutcomeAvailability.Completed,
+                    homeGoals: 2,
+                    awayGoals: 1,
+                    tippSpielId: $"2-Club {matchIndex}-Rival {matchIndex}"),
+                "community-a");
+        }
+
+        await repository.UpsertMatchOutcomeAsync(
+            CreateOutcome(
+                homeTeam: "Pending A",
+                awayTeam: "Pending B",
+                matchday: 3,
+                availability: MatchOutcomeAvailability.Pending,
+                homeGoals: null,
+                awayGoals: null,
+                tippSpielId: "3-Pending A-Pending B"),
+            "community-a");
+
+        var incompleteMatchdays = await repository.GetIncompleteMatchdaysAsync("community-a", 4);
+
+        await Assert.That(incompleteMatchdays).IsEquivalentTo([2, 3, 4]);
+    }
+
+    [Test]
+    public async Task GetIncompleteMatchdaysAsync_filters_by_community_and_current_matchday()
+    {
+        var repository = CreateRepository();
+
+        foreach (var matchIndex in Enumerable.Range(1, 9))
+        {
+            await repository.UpsertMatchOutcomeAsync(
+                CreateOutcome(
+                    homeTeam: $"Team {matchIndex}",
+                    awayTeam: $"Opponent {matchIndex}",
+                    matchday: 1,
+                    availability: MatchOutcomeAvailability.Completed,
+                    homeGoals: 1,
+                    awayGoals: 0,
+                    tippSpielId: $"1-Team {matchIndex}-Opponent {matchIndex}"),
+                "community-a");
+
+            await repository.UpsertMatchOutcomeAsync(
+                CreateOutcome(
+                    homeTeam: $"Other {matchIndex}",
+                    awayTeam: $"Else {matchIndex}",
+                    matchday: 2,
+                    availability: MatchOutcomeAvailability.Completed,
+                    homeGoals: 1,
+                    awayGoals: 0,
+                    tippSpielId: $"2-Other {matchIndex}-Else {matchIndex}"),
+                "community-b");
+        }
+
+        var incompleteMatchdays = await repository.GetIncompleteMatchdaysAsync("community-a", 1);
+
+        await Assert.That(incompleteMatchdays).IsEmpty();
+    }
 }

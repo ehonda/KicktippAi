@@ -74,7 +74,7 @@ public class RandomMatchCommand_Telemetry_Tests
 
         await RunCommandAsync(app, console, "random-match", "gpt-4o", "-c", "test-community");
 
-        var rootActivity = capturedActivities.FirstOrDefault(a => a.Parent == null);
+        var rootActivity = capturedActivities.FirstOrDefault(a => a.Parent == null && a.OperationName == "random-match");
         await Assert.That(rootActivity).IsNotNull();
         await Assert.That(rootActivity!.OperationName).IsEqualTo("random-match");
     }
@@ -90,7 +90,7 @@ public class RandomMatchCommand_Telemetry_Tests
         // Use a production community name — RandomMatch should still be "development"
         await RunCommandAsync(app, console, "random-match", "gpt-4o", "-c", "pes-squad");
 
-        var rootActivity = capturedActivities.FirstOrDefault(a => a.Parent == null);
+        var rootActivity = capturedActivities.FirstOrDefault(a => a.Parent == null && a.OperationName == "random-match");
         await Assert.That(rootActivity).IsNotNull();
         await Assert.That(rootActivity!.GetTagItem("langfuse.environment") as string).IsEqualTo("development");
     }
