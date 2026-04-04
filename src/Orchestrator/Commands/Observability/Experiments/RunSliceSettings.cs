@@ -2,16 +2,16 @@ using System.ComponentModel;
 using Spectre.Console;
 using Spectre.Console.Cli;
 
-namespace Orchestrator.Commands.Observability.RunTask5Slice;
+namespace Orchestrator.Commands.Observability.Experiments;
 
-public sealed class RunTask5SliceSettings : CommandSettings
+public abstract class RunExperimentSettingsBase : CommandSettings
 {
     [CommandArgument(0, "<MODEL>")]
-    [Description("The model to execute for the Task 5 slice run")]
+    [Description("The model to execute for the experiment run")]
     public string Model { get; set; } = string.Empty;
 
     [CommandOption("--manifest")]
-    [Description("Path to the slice manifest JSON file")]
+    [Description("Path to the prepared experiment manifest JSON file")]
     public string ManifestPath { get; set; } = string.Empty;
 
     [CommandOption("--run-name")]
@@ -23,7 +23,7 @@ public sealed class RunTask5SliceSettings : CommandSettings
     public string? RunDescription { get; set; }
 
     [CommandOption("--run-metadata-file")]
-    [Description("Optional path to a Task 5 run metadata JSON file. When omitted, metadata is built from the manifest and command flags")]
+    [Description("Optional path to an experiment run metadata JSON file. When omitted, metadata is built from the manifest and command flags")]
     public string? RunMetadataFile { get; set; }
 
     [CommandOption("--prompt-key")]
@@ -52,16 +52,12 @@ public sealed class RunTask5SliceSettings : CommandSettings
     [Description("Optional hosted dataset name override")]
     public string? DatasetName { get; set; }
 
-    [CommandOption("--batch-size")]
-    [Description("Optional batch size override")]
-    public int? BatchSize { get; set; }
-
     [CommandOption("--replace-run")]
     [Description("Delete an existing dataset run with the same name before starting")]
     [DefaultValue(false)]
     public bool ReplaceRun { get; set; }
 
-    public override ValidationResult Validate()
+    protected ValidationResult ValidateCommon()
     {
         if (string.IsNullOrWhiteSpace(Model))
         {
@@ -81,11 +77,6 @@ public sealed class RunTask5SliceSettings : CommandSettings
         if (string.IsNullOrWhiteSpace(PromptKey))
         {
             return ValidationResult.Error("--prompt-key must be a non-empty string");
-        }
-
-        if (BatchSize is < 1)
-        {
-            return ValidationResult.Error("--batch-size must be at least 1 when provided");
         }
 
         var hasEvaluationPolicyKind = !string.IsNullOrWhiteSpace(EvaluationPolicyKind);
@@ -126,5 +117,51 @@ public sealed class RunTask5SliceSettings : CommandSettings
         }
 
         return ValidationResult.Success();
+    }
+
+    private protected PreparedExperimentRunOptions CreateRunOptions(
+        string batchStrategy,
+        int? batchSize = null,
+        int? batchCount = null)
+    {
+        return new PreparedExperimentRunOptions(
+            Model,
+            PromptKey,
+            IncludeJustification,
+            EvaluationTime,
+            EvaluationPolicyKind,
+            EvaluationPolicyOffset,
+            DatasetName,
+            batchStrategy,
+            batchSize,
+            batchCount);
+    }
+}
+
+public sealed class RunSliceSettings : RunExperimentSettingsBase
+{
+    [CommandOption("--batch-size")]
+    [Description("Optional batch size override")]
+    public int? BatchSize { get; set; }
+
+    public override ValidationResult Validate()
+    {
+        var commonValidation = ValidateCommon();
+        if (!commonValidation.Successful)
+        {
+            return commonValidation;
+        }
+
+        if (BatchSize is < 1)
+        {
+            return ValidationResult.Error("--batch-size must be at least 1 when provided");
+        }
+
+        return ValidationResult.Success();
+    }
+
+    internal PreparedExperimentRunOptions ToRunOptions()
+    {
+        return CreateRunOptions("simple-batched", BatchSize);
     }
 }

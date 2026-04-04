@@ -65,12 +65,16 @@ internal static class ExperimentArtifactSupport
         return new Match(match.HomeTeam, match.AwayTeam, localizedStartsAt, match.Matchday, match.IsCancelled);
     }
 
-    public static string BuildCanonicalDatasetName(string communityContext)
+    public static string BuildSourceDatasetName(string communityContext)
     {
         ArgumentException.ThrowIfNullOrWhiteSpace(communityContext);
         return $"match-predictions/bundesliga-2025-26/{communityContext}";
     }
 
+    public static string BuildCanonicalDatasetName(string communityContext)
+    {
+        return BuildSourceDatasetName(communityContext);
+    }
     public static string BuildHostedDatasetItemId(string competition, string communityContext, string tippSpielId)
     {
         return string.Join(
@@ -80,18 +84,18 @@ internal static class ExperimentArtifactSupport
             $"ts{Slugify(tippSpielId)}");
     }
 
-    public static string BuildSliceDatasetItemId(string canonicalItemId, string sliceKey)
+    public static string BuildSliceDatasetItemId(string sourceItemId, string sliceKey)
     {
-        return $"{canonicalItemId}__slice__{sliceKey}";
+        return $"{sourceItemId}__slice__{sliceKey}";
     }
 
     public static string BuildRepeatedSliceDatasetItemId(
-        string canonicalItemId,
+        string sourceItemId,
         string sliceKey,
         int repetitionIndex,
         int totalRepetitions)
     {
-        ArgumentException.ThrowIfNullOrWhiteSpace(canonicalItemId);
+        ArgumentException.ThrowIfNullOrWhiteSpace(sourceItemId);
         ArgumentException.ThrowIfNullOrWhiteSpace(sliceKey);
 
         if (repetitionIndex < 1)
@@ -106,12 +110,17 @@ internal static class ExperimentArtifactSupport
 
         var paddingWidth = Math.Max(2, totalRepetitions.ToString(CultureInfo.InvariantCulture).Length);
         var repetitionToken = repetitionIndex.ToString($"D{paddingWidth}", CultureInfo.InvariantCulture);
-        return $"{canonicalItemId}__single__{sliceKey}__{repetitionToken}";
+        return $"{sourceItemId}__repeated-match__{sliceKey}__{repetitionToken}";
+    }
+
+    public static string BuildRepeatedMatchSourcePoolKey(int matchday, string homeTeam, string awayTeam)
+    {
+        return $"md{matchday:00}-{Slugify(homeTeam)}-vs-{Slugify(awayTeam)}";
     }
 
     public static string BuildSingleMatchSourcePoolKey(int matchday, string homeTeam, string awayTeam)
     {
-        return $"md{matchday:00}-{Slugify(homeTeam)}-vs-{Slugify(awayTeam)}";
+        return BuildRepeatedMatchSourcePoolKey(matchday, homeTeam, awayTeam);
     }
 
     public static string ComputeSelectedItemIdsHash(IEnumerable<string> itemIds)

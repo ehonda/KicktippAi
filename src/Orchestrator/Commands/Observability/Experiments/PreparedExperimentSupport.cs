@@ -1,9 +1,9 @@
 using System.Globalization;
 using EHonda.KicktippAi.Core;
 
-namespace Orchestrator.Commands.Observability.RunTask5Slice;
+namespace Orchestrator.Commands.Observability.Experiments;
 
-internal static class Task5SliceSupport
+internal static class PreparedExperimentSupport
 {
     public static IReadOnlyList<IReadOnlyList<T>> CreateBatchChunks<T>(IReadOnlyList<T> items, int batchSize)
     {
@@ -16,7 +16,47 @@ internal static class Task5SliceSupport
         return chunks;
     }
 
-    public static Task5ItemScores CalculateScores(Prediction prediction, int expectedHomeGoals, int expectedAwayGoals)
+    public static IReadOnlyList<IReadOnlyList<T>> CreateWarmupThenBatchChunks<T>(IReadOnlyList<T> items, int batchCount)
+    {
+        ArgumentNullException.ThrowIfNull(items);
+
+        if (batchCount < 1)
+        {
+            throw new ArgumentOutOfRangeException(nameof(batchCount), batchCount, "Batch count must be at least 1.");
+        }
+
+        if (items.Count == 0)
+        {
+            return [];
+        }
+
+        var chunks = new List<IReadOnlyList<T>>
+        {
+            new List<T> { items[0] }
+        };
+
+        if (items.Count == 1)
+        {
+            return chunks;
+        }
+
+        var remainingItems = items.Skip(1).ToList();
+        var actualBatchCount = Math.Min(batchCount, remainingItems.Count);
+        var baseBatchSize = remainingItems.Count / actualBatchCount;
+        var remainder = remainingItems.Count % actualBatchCount;
+        var startIndex = 0;
+
+        for (var batchIndex = 0; batchIndex < actualBatchCount; batchIndex += 1)
+        {
+            var currentBatchSize = baseBatchSize + (batchIndex < remainder ? 1 : 0);
+            chunks.Add(remainingItems.Skip(startIndex).Take(currentBatchSize).ToList());
+            startIndex += currentBatchSize;
+        }
+
+        return chunks;
+    }
+
+    public static ExperimentItemScores CalculateScores(Prediction prediction, int expectedHomeGoals, int expectedAwayGoals)
     {
         var predictedDifference = prediction.HomeGoals - prediction.AwayGoals;
         var expectedDifference = expectedHomeGoals - expectedAwayGoals;
@@ -41,33 +81,35 @@ internal static class Task5SliceSupport
             kicktippPoints = 2;
         }
 
-        return new Task5ItemScores(kicktippPoints);
+        return new ExperimentItemScores(kicktippPoints);
     }
 
-    public static Task5AggregateScores SummarizeScores(IReadOnlyList<Task5ItemScores> scoreEntries)
+    public static ExperimentAggregateScores SummarizeScores(IReadOnlyList<ExperimentItemScores> scoreEntries)
     {
         var total = scoreEntries.Sum(entry => entry.KicktippPoints);
         var average = scoreEntries.Count == 0 ? 0d : (double)total / scoreEntries.Count;
-        return new Task5AggregateScores(total, average);
+        return new ExperimentAggregateScores(total, average);
     }
 
-    public static Task5RunMetadata BuildRunMetadata(Task5SliceManifest manifest, RunTask5SliceSettings settings)
+    public static PreparedExperimentRunMetadata BuildRunMetadata(
+        PreparedExperimentManifest manifest,
+        PreparedExperimentRunOptions options)
     {
         ArgumentNullException.ThrowIfNull(manifest);
-        ArgumentNullException.ThrowIfNull(settings);
+        ArgumentNullException.ThrowIfNull(options);
 
-        var explicitEvaluationTime = EvaluationTimeParser.ParseOrNull(settings.EvaluationTime);
+        var explicitEvaluationTime = EvaluationTimeParser.ParseOrNull(options.EvaluationTime);
         EvaluationTimestampPolicy? evaluationTimestampPolicy = null;
         string evaluationTimestampPolicyKey;
 
         if (explicitEvaluationTime is null)
         {
-            var kind = string.IsNullOrWhiteSpace(settings.EvaluationPolicyKind)
+            var kind = string.IsNullOrWhiteSpace(options.EvaluationPolicyKind)
                 ? EvaluationTimestampPolicy.RelativeKind
-                : settings.EvaluationPolicyKind;
-            var offset = string.IsNullOrWhiteSpace(settings.EvaluationPolicyOffset)
+                : options.EvaluationPolicyKind;
+            var offset = string.IsNullOrWhiteSpace(options.EvaluationPolicyOffset)
                 ? "-12:00:00"
-                : settings.EvaluationPolicyOffset;
+                : options.EvaluationPolicyOffset;
             evaluationTimestampPolicy = EvaluationTimestampPolicyParser.Parse(kind, offset);
             evaluationTimestampPolicyKey = ExperimentArtifactSupport.BuildRelativeEvaluationPolicyKey(evaluationTimestampPolicy);
         }
@@ -76,15 +118,15 @@ internal static class Task5SliceSupport
             evaluationTimestampPolicyKey = "exact-time";
         }
 
-        return new Task5RunMetadata
+        return new PreparedExperimentRunMetadata
         {
-            Runner = "task-5-first-experiment",
-            TaskName = "task-5",
+            Runner = "match-experiment-runner",
+            TaskType = ResolveTaskType(manifest),
             CommunityContext = ResolveCommunityContext(manifest),
             Competition = manifest.Competition,
-            CanonicalDatasetName = manifest.CanonicalDatasetName,
-            DatasetName = settings.DatasetName ?? manifest.SliceDatasetName,
-            PromptKey = settings.PromptKey,
+            SourceDatasetName = manifest.SourceDatasetName,
+            DatasetName = options.DatasetName ?? manifest.SliceDatasetName,
+            PromptKey = options.PromptKey,
             SliceKind = ResolveSliceKind(manifest),
             SliceKey = manifest.SliceKey,
             SourcePoolKey = manifest.SourcePoolKey,
@@ -99,7 +141,7 @@ internal static class Task5SliceSupport
             EvaluationTimestampPolicyKey = evaluationTimestampPolicyKey,
             EvaluationTimestampPolicy = evaluationTimestampPolicy is null
                 ? null
-                : new Task5EvaluationTimestampPolicyMetadata
+                : new PreparedExperimentEvaluationTimestampPolicyMetadata
                 {
                     Kind = evaluationTimestampPolicy.Kind,
                     Reference = evaluationTimestampPolicy.Reference,
@@ -109,19 +151,21 @@ internal static class Task5SliceSupport
             StartedAtUtc = ExperimentArtifactSupport.FormatStartedAtUtc(DateTimeOffset.UtcNow),
             SampleSeed = manifest.SampleSeed,
             SampleMethod = ResolveSampleMethod(manifest),
-            IncludeJustification = settings.IncludeJustification,
-            PromptVersion = settings.PromptKey,
+            IncludeJustification = options.IncludeJustification,
+            PromptVersion = options.PromptKey,
             SourceDatasetKind = DeriveSourceDatasetKind(manifest),
             DatasetItemIdMap = CreateDatasetItemIdMap(manifest),
-            Model = settings.Model,
-            BatchSize = settings.BatchSize
+            Model = options.Model,
+            BatchStrategy = options.BatchStrategy,
+            BatchSize = options.BatchSize,
+            BatchCount = options.BatchCount
         };
     }
 
-    public static IReadOnlyDictionary<string, string> CreateDatasetItemIdMap(Task5SliceManifest manifest)
+    public static IReadOnlyDictionary<string, string> CreateDatasetItemIdMap(PreparedExperimentManifest manifest)
     {
         var groupedItems = manifest.Items
-            .GroupBy(item => item.CanonicalDatasetItemId, StringComparer.Ordinal)
+                .GroupBy(item => item.SourceDatasetItemId, StringComparer.Ordinal)
             .ToList();
 
         if (groupedItems.Any(group => group.Count() != 1))
@@ -135,14 +179,18 @@ internal static class Task5SliceSupport
             StringComparer.Ordinal);
     }
 
-    public static IReadOnlyList<string> DeriveTraceTags(Task5RunMetadata runMetadata)
+    public static IReadOnlyList<string> DeriveTraceTags(PreparedExperimentRunMetadata runMetadata)
     {
         var tags = new List<string>
         {
-            "task-5",
             "phase-2",
             "experiment"
         };
+
+        if (!string.IsNullOrWhiteSpace(runMetadata.TaskType))
+        {
+            tags.Add($"task:{runMetadata.TaskType}");
+        }
 
         if (!string.IsNullOrWhiteSpace(runMetadata.CommunityContext))
         {
@@ -172,7 +220,7 @@ internal static class Task5SliceSupport
         return tags.Distinct(StringComparer.Ordinal).ToList();
     }
 
-    public static IReadOnlyDictionary<string, string> DerivePropagatedMetadata(Task5RunMetadata runMetadata)
+    public static IReadOnlyDictionary<string, string> DerivePropagatedMetadata(PreparedExperimentRunMetadata runMetadata)
     {
         var metadata = new Dictionary<string, string>(StringComparer.Ordinal);
         AddIfValid(metadata, "communityContext", runMetadata.CommunityContext);
@@ -185,8 +233,19 @@ internal static class Task5SliceSupport
         AddIfValid(metadata, "sliceKind", runMetadata.SliceKind);
         AddIfValid(metadata, "sliceKey", runMetadata.SliceKey);
         AddIfValid(metadata, "startedAtUtc", runMetadata.StartedAtUtc);
-        AddIfValid(metadata, "task", runMetadata.TaskName);
+        AddIfValid(metadata, "task", runMetadata.TaskType);
         return metadata;
+    }
+
+    public static string ResolveTaskType(PreparedExperimentManifest manifest)
+    {
+        var sliceKind = ResolveSliceKind(manifest);
+        return string.Equals(sliceKind, "single-match", StringComparison.OrdinalIgnoreCase)
+            || string.Equals(sliceKind, "repeated-match", StringComparison.OrdinalIgnoreCase)
+            || string.Equals(ResolveSampleMethod(manifest), "repeat-single-match", StringComparison.OrdinalIgnoreCase)
+            || string.Equals(ResolveSampleMethod(manifest), "repeated-match", StringComparison.OrdinalIgnoreCase)
+            ? "repeated-match"
+            : "slice";
     }
 
     public static void ReportProgress(string message)
@@ -202,38 +261,36 @@ internal static class Task5SliceSupport
         }
     }
 
-    private static string DeriveSourceDatasetKind(Task5SliceManifest manifest)
+    private static string DeriveSourceDatasetKind(PreparedExperimentManifest manifest)
     {
-        return string.Equals(ResolveSliceKind(manifest), "single-match", StringComparison.OrdinalIgnoreCase)
-            ? "single-match"
-            : "slice";
+        return ResolveTaskType(manifest);
     }
 
-    private static string ResolveCommunityContext(Task5SliceManifest manifest)
+    private static string ResolveCommunityContext(PreparedExperimentManifest manifest)
     {
         if (!string.IsNullOrWhiteSpace(manifest.CommunityContext))
         {
             return manifest.CommunityContext;
         }
 
-        if (string.IsNullOrWhiteSpace(manifest.CanonicalDatasetName))
+        if (string.IsNullOrWhiteSpace(manifest.SourceDatasetName))
         {
-            throw new InvalidOperationException("Slice manifest must contain communityContext or canonicalDatasetName.");
+            throw new InvalidOperationException("Slice manifest must contain communityContext or sourceDatasetName.");
         }
 
-        return manifest.CanonicalDatasetName
+        return manifest.SourceDatasetName
             .Split('/', StringSplitOptions.RemoveEmptyEntries)
             .Last();
     }
 
-    private static string ResolveSampleMethod(Task5SliceManifest manifest)
+    private static string ResolveSampleMethod(PreparedExperimentManifest manifest)
     {
         return string.IsNullOrWhiteSpace(manifest.SampleMethod)
             ? "random-sample"
             : manifest.SampleMethod;
     }
 
-    private static string ResolveSliceKind(Task5SliceManifest manifest)
+    private static string ResolveSliceKind(PreparedExperimentManifest manifest)
     {
         return string.IsNullOrWhiteSpace(manifest.SliceKind)
             ? "random-sample"

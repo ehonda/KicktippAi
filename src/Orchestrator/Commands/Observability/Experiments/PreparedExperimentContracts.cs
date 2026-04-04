@@ -1,9 +1,9 @@
 using System.Text.Json.Serialization;
 using EHonda.KicktippAi.Core;
 
-namespace Orchestrator.Commands.Observability.RunTask5Slice;
+namespace Orchestrator.Commands.Observability.Experiments;
 
-internal sealed record Task5SliceManifest
+internal sealed record PreparedExperimentManifest
 {
     [JsonPropertyName("sliceKey")]
     public string SliceKey { get; init; } = string.Empty;
@@ -20,8 +20,8 @@ internal sealed record Task5SliceManifest
     [JsonPropertyName("sourcePoolKey")]
     public string SourcePoolKey { get; init; } = string.Empty;
 
-    [JsonPropertyName("canonicalDatasetName")]
-    public string CanonicalDatasetName { get; init; } = string.Empty;
+    [JsonPropertyName("sourceDatasetName")]
+    public string SourceDatasetName { get; init; } = string.Empty;
 
     [JsonPropertyName("sliceDatasetName")]
     public string SliceDatasetName { get; init; } = string.Empty;
@@ -45,13 +45,13 @@ internal sealed record Task5SliceManifest
     public string SelectedItemIdsHash { get; init; } = string.Empty;
 
     [JsonPropertyName("items")]
-    public IReadOnlyList<Task5SliceManifestItem> Items { get; init; } = [];
+    public IReadOnlyList<PreparedExperimentManifestItem> Items { get; init; } = [];
 }
 
-internal sealed record Task5SliceManifestItem
+internal sealed record PreparedExperimentManifestItem
 {
-    [JsonPropertyName("canonicalDatasetItemId")]
-    public string CanonicalDatasetItemId { get; init; } = string.Empty;
+    [JsonPropertyName("sourceDatasetItemId")]
+    public string SourceDatasetItemId { get; init; } = string.Empty;
 
     [JsonPropertyName("sliceDatasetItemId")]
     public string SliceDatasetItemId { get; init; } = string.Empty;
@@ -69,7 +69,7 @@ internal sealed record Task5SliceManifestItem
     public string StartsAt { get; init; } = string.Empty;
 }
 
-internal sealed record Task5EvaluationTimestampPolicyMetadata
+internal sealed record PreparedExperimentEvaluationTimestampPolicyMetadata
 {
     [JsonPropertyName("kind")]
     public string? Kind { get; init; }
@@ -81,13 +81,13 @@ internal sealed record Task5EvaluationTimestampPolicyMetadata
     public string? Offset { get; init; }
 }
 
-internal sealed record Task5RunMetadata
+internal sealed record PreparedExperimentRunMetadata
 {
     [JsonPropertyName("runner")]
     public string? Runner { get; init; }
 
     [JsonPropertyName("task")]
-    public string? TaskName { get; init; }
+    public string? TaskType { get; init; }
 
     [JsonPropertyName("communityContext")]
     public string? CommunityContext { get; init; }
@@ -95,8 +95,8 @@ internal sealed record Task5RunMetadata
     [JsonPropertyName("competition")]
     public string? Competition { get; init; }
 
-    [JsonPropertyName("canonicalDatasetName")]
-    public string? CanonicalDatasetName { get; init; }
+    [JsonPropertyName("sourceDatasetName")]
+    public string? SourceDatasetName { get; init; }
 
     [JsonPropertyName("datasetName")]
     public string? DatasetName { get; init; }
@@ -126,7 +126,7 @@ internal sealed record Task5RunMetadata
     public string? EvaluationTimestampPolicyKey { get; init; }
 
     [JsonPropertyName("evaluationTimestampPolicy")]
-    public Task5EvaluationTimestampPolicyMetadata? EvaluationTimestampPolicy { get; init; }
+    public PreparedExperimentEvaluationTimestampPolicyMetadata? EvaluationTimestampPolicy { get; init; }
 
     [JsonPropertyName("evaluationTime")]
     public string? EvaluationTime { get; init; }
@@ -155,52 +155,70 @@ internal sealed record Task5RunMetadata
     [JsonPropertyName("model")]
     public string? Model { get; init; }
 
+    [JsonPropertyName("batchStrategy")]
+    public string? BatchStrategy { get; init; }
+
     [JsonPropertyName("batchSize")]
     public int? BatchSize { get; init; }
+
+    [JsonPropertyName("batchCount")]
+    public int? BatchCount { get; init; }
 }
 
-internal sealed record Task5ItemScores(
+internal sealed record ExperimentItemScores(
     [property: JsonPropertyName("kicktipp_points")] int KicktippPoints);
 
-internal sealed record Task5AggregateScores(
+internal sealed record ExperimentAggregateScores(
     [property: JsonPropertyName("total_kicktipp_points")] double TotalKicktippPoints,
     [property: JsonPropertyName("avg_kicktipp_points")] double AvgKicktippPoints);
 
-internal sealed record Task5SliceExecutionSummary(
+internal sealed record PreparedExperimentExecutionSummary(
     string DatasetItemId,
     string SourceDatasetItemId,
     string RunName,
     string TraceId,
     Prediction Prediction,
-    Task5ItemScores Scores,
+    ExperimentItemScores Scores,
     IReadOnlyList<string> TraceTags,
-    Task5TokenUsageSummary? Usage = null);
+    PreparedExperimentTokenUsageSummary? Usage = null);
 
-internal sealed record Task5SliceDatasetRunSummary(
+internal sealed record PreparedExperimentDatasetRunSummary(
     int Repetition,
     string RunName,
     string DatasetRunId,
     int RunItemCount,
-    Task5AggregateScores AggregateScores,
-    Task5SliceExecutionSummary? FirstExecution,
-    Task5SliceExecutionSummary? LastExecution);
+    ExperimentAggregateScores AggregateScores,
+    PreparedExperimentExecutionSummary? FirstExecution,
+    PreparedExperimentExecutionSummary? LastExecution);
 
-internal sealed record Task5SliceRunSummary(
+internal sealed record PreparedExperimentRunSummary(
     string DatasetName,
     string RunName,
     string RunFamilyName,
+    string TaskType,
     string Model,
     bool DeletedExistingRun,
     int SampleSize,
-    int BatchSize,
+    string BatchStrategy,
+    int? BatchSize,
+    int? BatchCount,
     int ExecutionCount,
     int RunCount,
-    Task5AggregateScores AggregateScores,
-    IReadOnlyList<Task5SliceDatasetRunSummary> DatasetRuns,
-    Task5SliceExecutionSummary? FirstExecution,
-    Task5SliceExecutionSummary? LastExecution);
+    ExperimentAggregateScores AggregateScores,
+    IReadOnlyList<PreparedExperimentDatasetRunSummary> DatasetRuns,
+    PreparedExperimentExecutionSummary? FirstExecution,
+    PreparedExperimentExecutionSummary? LastExecution);
 
-internal sealed record Task5TokenUsageSummary(
+internal sealed record PreparedExperimentTokenUsageSummary(
     int PromptTokens,
     int CompletionTokens,
     int TotalTokens);
+
+internal sealed record PreparedExperimentExecutionRequest(
+    PreparedExperimentManifest Manifest,
+    PreparedExperimentRunMetadata RunMetadata,
+    string Model,
+    string RunName,
+    string? RunDescription,
+    bool ReplaceRun,
+    IReadOnlyList<IReadOnlyList<PreparedExperimentManifestItem>> Batches);

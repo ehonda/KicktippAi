@@ -1,102 +1,89 @@
 using System.Text.Json;
-using System.Text.Json.Serialization;
 using EHonda.KicktippAi.Core;
 using Microsoft.Extensions.Logging;
+using Orchestrator.Commands.Observability.Experiments;
 using Orchestrator.Commands.Observability.ExportExperimentDataset;
-using Orchestrator.Commands.Observability.RunTask5Slice;
 using Orchestrator.Infrastructure.Factories;
 using Spectre.Console;
 using Spectre.Console.Cli;
 
-namespace Orchestrator.Commands.Observability.PrepareTask5SingleMatch;
+namespace Orchestrator.Commands.Observability.PrepareRepeatedMatch;
 
-public sealed class PrepareTask5SingleMatchCommand : AsyncCommand<PrepareTask5SingleMatchSettings>
+public sealed class PrepareRepeatedMatchCommand : AsyncCommand<PrepareRepeatedMatchSettings>
 {
-    private static readonly JsonSerializerOptions OutputJsonOptions = new(JsonSerializerDefaults.Web)
-    {
-        PropertyNameCaseInsensitive = true,
-        PropertyNamingPolicy = JsonNamingPolicy.CamelCase,
-        WriteIndented = true,
-        DefaultIgnoreCondition = JsonIgnoreCondition.WhenWritingNull
-    };
-
     private readonly IAnsiConsole _console;
     private readonly IFirebaseServiceFactory _firebaseServiceFactory;
-    private readonly ILogger<PrepareTask5SingleMatchCommand> _logger;
+    private readonly ILogger<PrepareRepeatedMatchCommand> _logger;
 
-    public PrepareTask5SingleMatchCommand(
+    public PrepareRepeatedMatchCommand(
         IAnsiConsole console,
         IFirebaseServiceFactory firebaseServiceFactory,
-        ILogger<PrepareTask5SingleMatchCommand> logger)
+        ILogger<PrepareRepeatedMatchCommand> logger)
     {
         _console = console;
         _firebaseServiceFactory = firebaseServiceFactory;
         _logger = logger;
     }
 
-    public override async Task<int> ExecuteAsync(CommandContext context, PrepareTask5SingleMatchSettings settings)
+    public override async Task<int> ExecuteAsync(CommandContext context, PrepareRepeatedMatchSettings settings)
     {
         try
         {
             var cancellationToken = CancellationToken.None;
             var matchOutcomeRepository = _firebaseServiceFactory.CreateMatchOutcomeRepository();
             var outcome = await LoadCompletedOutcomeAsync(matchOutcomeRepository, settings, cancellationToken);
-            var canonicalDatasetName = ExperimentArtifactSupport.BuildCanonicalDatasetName(settings.CommunityContext);
-            var canonicalItem = ExperimentArtifactSupport.BuildHostedDatasetItem(outcome);
+            var sourceDatasetName = ExperimentArtifactSupport.BuildSourceDatasetName(settings.CommunityContext);
+            var sourceItem = ExperimentArtifactSupport.BuildHostedDatasetItem(outcome);
             var sliceKey = string.IsNullOrWhiteSpace(settings.SliceKey)
                 ? $"repeat-{settings.SampleSize}"
                 : settings.SliceKey.Trim();
             var sourcePoolKey = string.IsNullOrWhiteSpace(settings.SourcePoolKey)
-                ? ExperimentArtifactSupport.BuildSingleMatchSourcePoolKey(settings.Matchday!.Value, settings.HomeTeam, settings.AwayTeam)
+                ? ExperimentArtifactSupport.BuildRepeatedMatchSourcePoolKey(settings.Matchday!.Value, settings.HomeTeam, settings.AwayTeam)
                 : settings.SourcePoolKey.Trim();
             var datasetName = settings.DatasetName
-                ?? $"{canonicalDatasetName}/single-match/{sourcePoolKey}/{sliceKey}";
+                ?? $"{sourceDatasetName}/repeated-match/{sourcePoolKey}/{sliceKey}";
             var outputDirectory = ResolveOutputDirectory(settings.OutputDirectory, settings.CommunityContext, sourcePoolKey, sliceKey);
-            var canonicalSourceArtifactPath = Path.Combine(outputDirectory, "canonical-source.json");
             var sliceArtifactPath = Path.Combine(outputDirectory, "slice-dataset.json");
             var sliceManifestPath = Path.Combine(outputDirectory, "slice-manifest.json");
 
             Directory.CreateDirectory(outputDirectory);
 
-            var canonicalSource = new ExportedExperimentDataset(canonicalDatasetName, [canonicalItem]);
-            await WriteJsonFileAsync(canonicalSourceArtifactPath, canonicalSource, cancellationToken);
-
-            var startsAt = GetStartsAt(canonicalItem);
+            var startsAt = GetStartsAt(sourceItem);
             var sourceItems = Enumerable.Range(1, settings.SampleSize)
                 .Select(index =>
                 {
                     var sliceDatasetItemId = ExperimentArtifactSupport.BuildRepeatedSliceDatasetItemId(
-                        canonicalItem.Id,
+                        sourceItem.Id,
                         sliceKey,
                         index,
                         settings.SampleSize);
 
-                    return new Task5SliceSourceItem(
-                        canonicalItem.Id,
+                    return new PreparedExperimentSourceItem(
+                        sourceItem.Id,
                         sliceDatasetItemId,
-                        sliceDatasetItemId,
-                        canonicalItem.Metadata.Competition,
-                        canonicalItem.Metadata.Season,
-                        canonicalItem.Metadata.CommunityContext,
-                        canonicalItem.Metadata.Matchday,
-                        canonicalItem.Metadata.MatchdayLabel,
-                        canonicalItem.Metadata.HomeTeam,
-                        canonicalItem.Metadata.AwayTeam,
+                        sourceItem.Id,
+                        sourceItem.Metadata.Competition,
+                        sourceItem.Metadata.Season,
+                        sourceItem.Metadata.CommunityContext,
+                        sourceItem.Metadata.Matchday,
+                        sourceItem.Metadata.MatchdayLabel,
+                        sourceItem.Metadata.HomeTeam,
+                        sourceItem.Metadata.AwayTeam,
                         startsAt,
-                        canonicalItem.Metadata.TippSpielId,
-                        canonicalItem.ExpectedOutput.HomeGoals,
-                        canonicalItem.ExpectedOutput.AwayGoals);
+                        sourceItem.Metadata.TippSpielId,
+                        sourceItem.ExpectedOutput.HomeGoals,
+                        sourceItem.ExpectedOutput.AwayGoals);
                 })
                 .ToList();
 
-            var bundle = Task5SliceBundleBuilder.Build(
+            var bundle = PreparedExperimentBundleBuilder.Build(
                 sourceItems,
                 settings.CommunityContext,
-                canonicalDatasetName,
+                sourceDatasetName,
                 datasetName,
                 sliceKey,
-                "single-match",
-                "repeat-single-match",
+                "repeated-match",
+                "repeated-match",
                 sourcePoolKey,
                 null);
 
@@ -105,10 +92,10 @@ public sealed class PrepareTask5SingleMatchCommand : AsyncCommand<PrepareTask5Si
 
             var summary = new
             {
-                mode = "single-match",
+                mode = "repeated-match",
                 settings.CommunityContext,
                 datasetName = bundle.Manifest.SliceDatasetName,
-                bundle.Manifest.CanonicalDatasetName,
+                bundle.Manifest.SourceDatasetName,
                 bundle.Manifest.SourcePoolKey,
                 bundle.Manifest.SliceKey,
                 bundle.Manifest.SampleSize,
@@ -118,17 +105,16 @@ public sealed class PrepareTask5SingleMatchCommand : AsyncCommand<PrepareTask5Si
                 bundle.Manifest.SelectedItemIds,
                 bundle.Manifest.SelectedItemIdsHash,
                 outputDirectory,
-                canonicalSourceArtifactPath,
                 sliceArtifactPath,
                 sliceManifestPath
             };
 
-            _console.WriteLine(JsonSerializer.Serialize(summary, OutputJsonOptions));
+            _console.WriteLine(JsonSerializer.Serialize(summary, PreparedExperimentCommandSupport.JsonOptions));
             return 0;
         }
         catch (Exception ex)
         {
-            _logger.LogError(ex, "Error preparing Task 5 repeated single-match dataset");
+            _logger.LogError(ex, "Error preparing repeated-match experiment artifact");
             _console.MarkupLine($"[red]Error:[/] {Markup.Escape(ex.Message)}");
             return 1;
         }
@@ -149,7 +135,7 @@ public sealed class PrepareTask5SingleMatchCommand : AsyncCommand<PrepareTask5Si
 
     private static async Task<PersistedMatchOutcome> LoadCompletedOutcomeAsync(
         IMatchOutcomeRepository matchOutcomeRepository,
-        PrepareTask5SingleMatchSettings settings,
+        PrepareRepeatedMatchSettings settings,
         CancellationToken cancellationToken)
     {
         var outcomes = await matchOutcomeRepository.GetMatchdayOutcomesAsync(
@@ -190,7 +176,7 @@ public sealed class PrepareTask5SingleMatchCommand : AsyncCommand<PrepareTask5Si
         return Path.GetFullPath(Path.Combine(
             "artifacts",
             "langfuse-experiments",
-            "single-match",
+            "repeated-match",
             ExperimentArtifactSupport.Slugify(communityContext),
             sourcePoolKey,
             sliceKey));
@@ -198,6 +184,6 @@ public sealed class PrepareTask5SingleMatchCommand : AsyncCommand<PrepareTask5Si
 
     private static Task WriteJsonFileAsync<T>(string path, T value, CancellationToken cancellationToken)
     {
-        return File.WriteAllTextAsync(path, JsonSerializer.Serialize(value, OutputJsonOptions), cancellationToken);
+        return File.WriteAllTextAsync(path, JsonSerializer.Serialize(value, PreparedExperimentCommandSupport.JsonOptions), cancellationToken);
     }
 }

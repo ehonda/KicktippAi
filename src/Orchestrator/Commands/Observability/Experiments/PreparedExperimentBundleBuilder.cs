@@ -1,9 +1,9 @@
 using System.Text.Json;
 using System.Text.Json.Serialization;
 
-namespace Orchestrator.Commands.Observability.RunTask5Slice;
+namespace Orchestrator.Commands.Observability.Experiments;
 
-internal static class Task5SliceBundleBuilder
+internal static class PreparedExperimentBundleBuilder
 {
     private static readonly JsonSerializerOptions OutputJsonOptions = new(JsonSerializerDefaults.Web)
     {
@@ -49,10 +49,10 @@ internal static class Task5SliceBundleBuilder
         }
         """);
 
-    public static Task5PreparedSliceBundle Build(
-        IReadOnlyList<Task5SliceSourceItem> sourceItems,
+    public static PreparedExperimentBundle Build(
+        IReadOnlyList<PreparedExperimentSourceItem> sourceItems,
         string communityContext,
-        string canonicalDatasetName,
+        string sourceDatasetName,
         string sliceDatasetName,
         string sliceKey,
         string sliceKind,
@@ -66,10 +66,13 @@ internal static class Task5SliceBundleBuilder
         }
 
         var first = sourceItems[0];
-        var selectedItemIds = sourceItems.Select(item => item.SelectedItemId).ToList();
+        var selectedItemIds = sourceItems
+            .Select(item => item.SelectedItemId)
+            .Distinct(StringComparer.Ordinal)
+            .ToList();
         var selectedItemIdsHash = ExperimentArtifactSupport.ComputeSelectedItemIdsHash(selectedItemIds);
 
-        var artifactItems = sourceItems.Select(item => new Task5PreparedSliceDatasetItem(
+        var artifactItems = sourceItems.Select(item => new PreparedExperimentDatasetItem(
                 item.SliceDatasetItemId,
                 JsonSerializer.SerializeToElement(new
                 {
@@ -93,9 +96,9 @@ internal static class Task5SliceBundleBuilder
                 }, OutputJsonOptions)))
             .ToList();
 
-        var manifestItems = sourceItems.Select(item => new Task5SliceManifestItem
+        var manifestItems = sourceItems.Select(item => new PreparedExperimentManifestItem
         {
-            CanonicalDatasetItemId = item.CanonicalDatasetItemId,
+            SourceDatasetItemId = item.SourceDatasetItemId,
             SliceDatasetItemId = item.SliceDatasetItemId,
             HomeTeam = item.HomeTeam,
             AwayTeam = item.AwayTeam,
@@ -107,33 +110,36 @@ internal static class Task5SliceBundleBuilder
         {
             first.Competition,
             communityContext,
-            scope = string.Equals(sliceKind, "single-match", StringComparison.OrdinalIgnoreCase) ? "single-match" : "match-slice",
+            scope = string.Equals(sliceKind, "single-match", StringComparison.OrdinalIgnoreCase)
+                || string.Equals(sliceKind, "repeated-match", StringComparison.OrdinalIgnoreCase)
+                ? "repeated-match"
+                : "match-slice",
             first.Season,
             sliceKey,
             sliceKind,
             sampleMethod,
             sampleSeed,
             sampleSize = sourceItems.Count,
-            sourceDatasetName = canonicalDatasetName,
+            sourceDatasetName,
             sourcePoolKey
         }, OutputJsonOptions);
 
-        var artifact = new Task5PreparedSliceDataset(
+        var artifact = new PreparedExperimentDataset(
             sliceDatasetName,
-            $"Task 5 {sliceKind} dataset for {sourceItems.Count} item(s) on {sliceKey}",
+            $"{sliceKind} dataset for {sourceItems.Count} item(s) on {sliceKey}",
             datasetMetadata,
             InputSchema,
             ExpectedOutputSchema,
             artifactItems);
 
-        var manifest = new Task5SliceManifest
+        var manifest = new PreparedExperimentManifest
         {
             SliceKey = sliceKey,
             SliceKind = sliceKind,
             SampleMethod = sampleMethod,
             CommunityContext = communityContext,
             SourcePoolKey = sourcePoolKey,
-            CanonicalDatasetName = canonicalDatasetName,
+            SourceDatasetName = sourceDatasetName,
             SliceDatasetName = sliceDatasetName,
             Competition = first.Competition,
             Season = first.Season,
@@ -144,7 +150,7 @@ internal static class Task5SliceBundleBuilder
             Items = manifestItems
         };
 
-        return new Task5PreparedSliceBundle(artifact, manifest);
+        return new PreparedExperimentBundle(artifact, manifest);
     }
 
     private static JsonElement ParseJsonElement(string value)
@@ -154,8 +160,8 @@ internal static class Task5SliceBundleBuilder
     }
 }
 
-internal sealed record Task5SliceSourceItem(
-    string CanonicalDatasetItemId,
+internal sealed record PreparedExperimentSourceItem(
+    string SourceDatasetItemId,
     string SliceDatasetItemId,
     string SelectedItemId,
     string Competition,
@@ -170,19 +176,19 @@ internal sealed record Task5SliceSourceItem(
     int ExpectedHomeGoals,
     int ExpectedAwayGoals);
 
-internal sealed record Task5PreparedSliceBundle(
-    Task5PreparedSliceDataset Artifact,
-    Task5SliceManifest Manifest);
+internal sealed record PreparedExperimentBundle(
+    PreparedExperimentDataset Artifact,
+    PreparedExperimentManifest Manifest);
 
-internal sealed record Task5PreparedSliceDataset(
+internal sealed record PreparedExperimentDataset(
     [property: JsonPropertyName("datasetName")] string DatasetName,
     [property: JsonPropertyName("datasetDescription")] string DatasetDescription,
     [property: JsonPropertyName("datasetMetadata")] JsonElement DatasetMetadata,
     [property: JsonPropertyName("inputSchema")] JsonElement InputSchema,
     [property: JsonPropertyName("expectedOutputSchema")] JsonElement ExpectedOutputSchema,
-    [property: JsonPropertyName("items")] IReadOnlyList<Task5PreparedSliceDatasetItem> Items);
+    [property: JsonPropertyName("items")] IReadOnlyList<PreparedExperimentDatasetItem> Items);
 
-internal sealed record Task5PreparedSliceDatasetItem(
+internal sealed record PreparedExperimentDatasetItem(
     [property: JsonPropertyName("id")] string Id,
     [property: JsonPropertyName("input")] JsonElement Input,
     [property: JsonPropertyName("expectedOutput")] JsonElement ExpectedOutput,

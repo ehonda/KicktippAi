@@ -9,12 +9,11 @@ using Orchestrator.Commands.Operations.Verify;
 using Orchestrator.Commands.Observability.AnalyzeMatch;
 using Orchestrator.Commands.Observability.ContextChanges;
 using Orchestrator.Commands.Observability.Cost;
-using Orchestrator.Commands.Observability.ExportExperimentDataset;
+using Orchestrator.Commands.Observability.Experiments;
 using Orchestrator.Commands.Observability.ExportExperimentItem;
-using Orchestrator.Commands.Observability.PrepareTask5SingleMatch;
-using Orchestrator.Commands.Observability.PrepareTask5Slice;
+using Orchestrator.Commands.Observability.PrepareRepeatedMatch;
+using Orchestrator.Commands.Observability.PrepareSlice;
 using Orchestrator.Commands.Observability.ReconstructPrompt;
-using Orchestrator.Commands.Observability.RunTask5Slice;
 using Orchestrator.Commands.Observability.SyncDataset;
 using Orchestrator.Commands.Utility.UploadKpi;
 using Orchestrator.Commands.Utility.UploadTransfers;
@@ -147,30 +146,28 @@ public class Program
                 .WithExample("export-experiment-item", "o4-mini", "--community-context", "pes-squad", "--home", "VfB Stuttgart", "--away", "RB Leipzig", "--matchday", "26", "--output", "artifacts/langfuse-experiments/items/vfb-stuttgart-vs-rb-leipzig.json")
                 .WithExample("export-experiment-item", "o4-mini", "--community-context", "pes-squad", "--home", "VfB Stuttgart", "--away", "RB Leipzig", "--matchday", "26", "--evaluation-time", "\"2026-03-15T12:00:00 Europe/Berlin (+01)\"");
 
-            config.AddCommand<ExportExperimentDatasetCommand>("export-experiment-dataset")
-                .WithDescription("Export the canonical hosted Langfuse dataset artifact for completed historical matches")
-                .WithExample("export-experiment-dataset", "--community-context", "pes-squad")
-                .WithExample("export-experiment-dataset", "--community-context", "pes-squad", "--matchdays", "1,2,3", "--output", "artifacts/langfuse-dataset/pes-squad-sample.json");
+            config.AddCommand<PrepareSliceCommand>("prepare-slice")
+                .WithDescription("Create a reusable sampled slice artifact and manifest directly from completed historical matches")
+                .WithExample("prepare-slice", "--community-context", "pes-squad", "--sample-size", "16", "--sample-seed", "20260403")
+                .WithExample("prepare-slice", "--community-context", "pes-squad", "--matchdays", "26", "--sample-size", "10", "--source-pool-key", "matchdays-26", "--slice-key", "random-10-seed-20251011");
 
-            config.AddCommand<PrepareTask5SliceCommand>("prepare-task5-slice")
-                .WithDescription("Create a reusable Task 5 sampled slice artifact and manifest from a canonical dataset export")
-                .WithExample("prepare-task5-slice", "--input", "artifacts/langfuse-dataset/pes-squad.json", "--sample-size", "16", "--sample-seed", "20260403")
-                .WithExample("prepare-task5-slice", "--input", "artifacts/langfuse-dataset/pes-squad.json", "--sample-size", "10", "--source-pool-key", "matchdays-26", "--slice-key", "random-10-seed-20251011");
-
-            config.AddCommand<PrepareTask5SingleMatchCommand>("prepare-task5-single-match")
-                .WithDescription("Create a repeated single-match dataset and manifest that can be executed via run-task5-slice")
-                .WithExample("prepare-task5-single-match", "--community-context", "pes-squad", "--home", "VfB Stuttgart", "--away", "RB Leipzig", "--matchday", "26", "--sample-size", "16")
-                .WithExample("prepare-task5-single-match", "--community-context", "pes-squad", "--home", "VfB Stuttgart", "--away", "RB Leipzig", "--matchday", "26", "--sample-size", "8", "--slice-key", "repeat-8");
+            config.AddCommand<PrepareRepeatedMatchCommand>("prepare-repeated-match")
+                .WithDescription("Create a repeated-match dataset and manifest for a single historical fixture")
+                .WithExample("prepare-repeated-match", "--community-context", "pes-squad", "--home", "VfB Stuttgart", "--away", "RB Leipzig", "--matchday", "26", "--sample-size", "16")
+                .WithExample("prepare-repeated-match", "--community-context", "pes-squad", "--home", "VfB Stuttgart", "--away", "RB Leipzig", "--matchday", "26", "--sample-size", "8", "--slice-key", "repeat-8");
 
             config.AddCommand<SyncDatasetCommand>("sync-dataset")
                 .WithDescription("Sync an exported hosted experiment dataset artifact to Langfuse via the public API")
-                .WithExample("sync-dataset", "--input", "artifacts/langfuse-dataset/pes-squad.json")
                 .WithExample("sync-dataset", "--input", "artifacts/langfuse-experiments/slices/pes-squad/all-matchdays/random-16-seed-20260403/slice-dataset.json", "--dataset-name", "match-predictions/bundesliga-2025-26/pes-squad/slices/all-matchdays/random-16-seed-20260403");
 
-            config.AddCommand<RunTask5SliceCommand>("run-task5-slice")
-                .WithDescription("Run a Task 5 prepared dataset directly via IPredictionService and the Langfuse public API")
-                .WithExample("run-task5-slice", "gpt-5-nano", "--manifest", "artifacts/langfuse-experiments/slices/pes-squad/all-matchdays/random-16-seed-20260403/slice-manifest.json", "--run-name", "task-5__pes-squad__gpt-5-nano__prompt-v1__random-16-seed-20260403__startsat-12h__2026-04-03t12-00-00z", "--prompt-key", "prompt-v1", "--evaluation-policy-kind", "relative", "--evaluation-policy-offset", "-12:00:00", "--batch-size", "8")
-                .WithExample("run-task5-slice", "o3", "--manifest", "artifacts/langfuse-experiments/single-match/pes-squad/md26-vfb-stuttgart-vs-rb-leipzig/repeat-16/slice-manifest.json", "--run-name", "task-5__pes-squad__o3__prompt-v1__repeat-16__exact-time__2026-03-15t12-00-00z", "--prompt-key", "prompt-v1", "--evaluation-time", "\"2026-03-15T12:00:00 Europe/Berlin (+01)\"", "--batch-size", "8", "--replace-run");
+            config.AddCommand<RunSliceCommand>("run-slice")
+                .WithDescription("Run a prepared slice dataset directly via IPredictionService and the Langfuse public API")
+                .WithExample("run-slice", "gpt-5-nano", "--manifest", "artifacts/langfuse-experiments/slices/pes-squad/all-matchdays/random-16-seed-20260403/slice-manifest.json", "--run-name", "slice__pes-squad__gpt-5-nano__prompt-v1__random-16-seed-20260403__startsat-12h__2026-04-03t12-00-00z", "--prompt-key", "prompt-v1", "--evaluation-policy-kind", "relative", "--evaluation-policy-offset", "-12:00:00", "--batch-size", "8")
+                .WithExample("run-slice", "o3", "--manifest", "artifacts/langfuse-experiments/slices/pes-squad/matchdays-26/random-10-seed-20251011/slice-manifest.json", "--run-name", "slice__pes-squad__o3__prompt-v1__random-10-seed-20251011__exact-time__2026-03-15t12-00-00z", "--prompt-key", "prompt-v1", "--evaluation-time", "\"2026-03-15T12:00:00 Europe/Berlin (+01)\"", "--replace-run");
+
+            config.AddCommand<RunRepeatedMatchCommand>("run-repeated-match")
+                .WithDescription("Run a prepared repeated-match dataset with warmup-plus-batches execution")
+                .WithExample("run-repeated-match", "o3", "--manifest", "artifacts/langfuse-experiments/repeated-match/pes-squad/md26-vfb-stuttgart-vs-rb-leipzig/repeat-16/slice-manifest.json", "--run-name", "repeated-match__pes-squad__o3__prompt-v1__repeat-16__exact-time__2026-03-15t12-00-00z", "--prompt-key", "prompt-v1", "--evaluation-time", "\"2026-03-15T12:00:00 Europe/Berlin (+01)\"", "--batch-count", "3", "--replace-run");
                 
             config.AddCommand<CostCommand>("cost")
                 .WithDescription("Calculate aggregate costs for predictions")

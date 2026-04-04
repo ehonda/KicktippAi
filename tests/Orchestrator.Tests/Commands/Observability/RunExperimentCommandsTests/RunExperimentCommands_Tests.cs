@@ -5,20 +5,20 @@ using Google.Cloud.Firestore;
 using Microsoft.Extensions.DependencyInjection;
 using Moq;
 using OpenAiIntegration;
-using Orchestrator.Commands.Observability.RunTask5Slice;
+using Orchestrator.Commands.Observability.Experiments;
 using Orchestrator.Infrastructure.Factories;
 using Orchestrator.Infrastructure.Langfuse;
 using static Orchestrator.Tests.Infrastructure.OrchestratorTestFactories;
 using Match = EHonda.KicktippAi.Core.Match;
 
-namespace Orchestrator.Tests.Commands.Observability.RunTask5SliceCommandTests;
+namespace Orchestrator.Tests.Commands.Observability.RunExperimentCommandsTests;
 
 [NotInParallel("Telemetry")]
-public class RunTask5SliceCommand_Tests
+public class RunExperimentCommands_Tests
 {
     [Test]
     [NotInParallel("ProcessState")]
-    public async Task Running_command_reconstructs_predicts_and_posts_scores()
+    public async Task Running_run_slice_reconstructs_predicts_and_posts_scores()
     {
         var tempDirectory = Directory.CreateTempSubdirectory();
         var capturedActivities = new List<Activity>();
@@ -27,10 +27,10 @@ public class RunTask5SliceCommand_Tests
         {
             var manifestPath = Path.Combine(tempDirectory.FullName, "slice-manifest.json");
             var runMetadataPath = Path.Combine(tempDirectory.FullName, "run-metadata.json");
-            var runName = "task-5__test-community__gpt-5-nano__prompt-v1__random-1-seed-20251011__startsat-12h__2026-01-10t12-00-00z";
+            var runName = "slice__test-community__gpt-5-nano__prompt-v1__random-1-seed-20251011__startsat-12h__2026-01-10t12-00-00z";
             var datasetName = "match-predictions/bundesliga-2025-26/test-community/slices/all-matchdays/random-1-seed-20251011";
             var sliceDatasetItemId = "bundesliga-2025-26__test-community__ts123__slice__random-1-seed-20251011";
-            var canonicalDatasetItemId = "bundesliga-2025-26__test-community__ts123";
+            var sourceDatasetItemId = "bundesliga-2025-26__test-community__ts123";
 
             await File.WriteAllTextAsync(
                 manifestPath,
@@ -47,13 +47,13 @@ public class RunTask5SliceCommand_Tests
                     season = "2025/2026",
                     sampleSeed = 20251011,
                     sampleSize = 1,
-                    selectedItemIds = new[] { canonicalDatasetItemId },
+                    selectedItemIds = new[] { sourceDatasetItemId },
                     selectedItemIdsHash = "hash-123",
                     items = new[]
                     {
                         new
                         {
-                            canonicalDatasetItemId,
+                            sourceDatasetItemId,
                             sliceDatasetItemId,
                             homeTeam = "FC Bayern München",
                             awayTeam = "RB Leipzig",
@@ -67,11 +67,11 @@ public class RunTask5SliceCommand_Tests
                 runMetadataPath,
                 JsonSerializer.Serialize(new
                 {
-                    runner = "task-5-first-experiment",
-                    task = "task-5",
+                    runner = "match-experiment-runner",
+                    task = "slice",
                     communityContext = "test-community",
                     competition = "bundesliga-2025-26",
-                    canonicalDatasetName = "match-predictions/bundesliga-2025-26/test-community",
+                    sourceDatasetName = "match-predictions/bundesliga-2025-26/test-community",
                     datasetName,
                     promptKey = "prompt-v1",
                     sliceKind = "random-sample",
@@ -95,9 +95,10 @@ public class RunTask5SliceCommand_Tests
                     sourceDatasetKind = "slice",
                     datasetItemIdMap = new Dictionary<string, string>
                     {
-                        [canonicalDatasetItemId] = sliceDatasetItemId
+                        [sourceDatasetItemId] = sliceDatasetItemId
                     },
                     model = "gpt-5-nano",
+                    batchStrategy = "simple-batched",
                     batchSize = 1
                 }));
 
@@ -230,8 +231,8 @@ public class RunTask5SliceCommand_Tests
                     new LangfusePaginationMeta(1, 100, 1, 1)));
 
             using var listener = CreateActivityListener(capturedActivities);
-            var context = CreateCommandApp<RunTask5SliceCommand>(
-                "run-task5-slice",
+            var context = CreateCommandApp<RunSliceCommand>(
+                "run-slice",
                 firebaseServiceFactory: firebaseFactory,
                 configureServices: new Action<IServiceCollection>(services =>
                 {
@@ -242,7 +243,7 @@ public class RunTask5SliceCommand_Tests
             var (exitCode, output) = await RunCommandAsync(
                 context.App,
                 context.Console,
-                "run-task5-slice",
+                "run-slice",
                 "gpt-5-nano",
                 "--manifest",
                 manifestPath,
@@ -255,10 +256,11 @@ public class RunTask5SliceCommand_Tests
 
             await Assert.That(exitCode).IsEqualTo(0);
             await Assert.That(output).Contains("\"executionCount\": 1");
+            await Assert.That(output).Contains("\"taskType\": \"slice\"");
             await Assert.That(output).Contains("\"total_kicktipp_points\": 4");
             await Assert.That(postedScores.Select(score => score.Name).OrderBy(name => name))
                 .IsEquivalentTo(["avg_kicktipp_points", "kicktipp_points", "total_kicktipp_points"]);
-            await Assert.That(capturedActivities.Any(activity => activity.OperationName == "task-5-slice-item")).IsTrue();
+            await Assert.That(capturedActivities.Any(activity => activity.OperationName == "match-experiment-item")).IsTrue();
 
             langfuseClient.Verify(client => client.CreateDatasetRunItemAsync(It.IsAny<LangfuseCreateDatasetRunItemRequest>(), It.IsAny<CancellationToken>()), Times.Once());
             langfuseClient.Verify(client => client.CreateScoreAsync(It.IsAny<LangfuseCreateScoreRequest>(), It.IsAny<CancellationToken>()), Times.Exactly(3));
@@ -271,7 +273,7 @@ public class RunTask5SliceCommand_Tests
 
     [Test]
     [NotInParallel("ProcessState")]
-    public async Task Running_command_without_metadata_file_uses_direct_settings_and_exact_evaluation_time()
+    public async Task Running_run_repeated_match_without_metadata_file_uses_direct_settings_and_exact_evaluation_time()
     {
         var tempDirectory = Directory.CreateTempSubdirectory();
         var capturedActivities = new List<Activity>();
@@ -279,32 +281,32 @@ public class RunTask5SliceCommand_Tests
         try
         {
             var manifestPath = Path.Combine(tempDirectory.FullName, "slice-manifest.json");
-            var runName = "task-5__test-community__gpt-5-nano__prompt-v1__repeat-1__exact-time__2026-03-15t12-00-00z";
-            var datasetName = "match-predictions/bundesliga-2025-26/test-community/single-match/md26-vfb-stuttgart-vs-rb-leipzig/repeat-1";
-            var sliceDatasetItemId = "bundesliga-2025-26__test-community__ts123__single__repeat-1__01";
-            var canonicalDatasetItemId = "bundesliga-2025-26__test-community__ts123";
+            var runName = "repeated-match__test-community__gpt-5-nano__prompt-v1__repeat-1__exact-time__2026-03-15t12-00-00z";
+            var datasetName = "match-predictions/bundesliga-2025-26/test-community/repeated-match/md26-vfb-stuttgart-vs-rb-leipzig/repeat-1";
+            var sliceDatasetItemId = "bundesliga-2025-26__test-community__ts123__repeated-match__repeat-1__01";
+            var sourceDatasetItemId = "bundesliga-2025-26__test-community__ts123";
 
             await File.WriteAllTextAsync(
                 manifestPath,
                 JsonSerializer.Serialize(new
                 {
                     sliceKey = "repeat-1",
-                    sliceKind = "single-match",
-                    sampleMethod = "repeat-single-match",
+                    sliceKind = "repeated-match",
+                    sampleMethod = "repeated-match",
                     communityContext = "test-community",
                     sourcePoolKey = "md26-vfb-stuttgart-vs-rb-leipzig",
-                    canonicalDatasetName = "match-predictions/bundesliga-2025-26/test-community",
+                    sourceDatasetName = "match-predictions/bundesliga-2025-26/test-community",
                     sliceDatasetName = datasetName,
                     competition = "bundesliga-2025-26",
                     season = "2025/2026",
                     sampleSize = 1,
-                    selectedItemIds = new[] { sliceDatasetItemId },
+                    selectedItemIds = new[] { sourceDatasetItemId },
                     selectedItemIdsHash = "hash-456",
                     items = new[]
                     {
                         new
                         {
-                            canonicalDatasetItemId,
+                            sourceDatasetItemId,
                             sliceDatasetItemId,
                             homeTeam = "VfB Stuttgart",
                             awayTeam = "RB Leipzig",
@@ -444,8 +446,8 @@ public class RunTask5SliceCommand_Tests
                     new LangfusePaginationMeta(1, 100, 1, 1)));
 
             using var listener = CreateActivityListener(capturedActivities);
-            var context = CreateCommandApp<RunTask5SliceCommand>(
-                "run-task5-slice",
+            var context = CreateCommandApp<RunRepeatedMatchCommand>(
+                "run-repeated-match",
                 firebaseServiceFactory: firebaseFactory,
                 configureServices: new Action<Microsoft.Extensions.DependencyInjection.IServiceCollection>(services =>
                 {
@@ -456,7 +458,7 @@ public class RunTask5SliceCommand_Tests
             var (exitCode, output) = await RunCommandAsync(
                 context.App,
                 context.Console,
-                "run-task5-slice",
+                "run-repeated-match",
                 "gpt-5-nano",
                 "--manifest",
                 manifestPath,
@@ -466,14 +468,15 @@ public class RunTask5SliceCommand_Tests
                 "prompt-v1",
                 "--evaluation-time",
                 "2026-03-15T12:00:00 Europe/Berlin (+01)",
-                "--batch-size",
+                "--batch-count",
                 "1");
 
             await Assert.That(exitCode).IsEqualTo(0);
             await Assert.That(output).Contains("\"executionCount\": 1");
+            await Assert.That(output).Contains("\"taskType\": \"repeated-match\"");
             await Assert.That(postedScores.Select(score => score.Name).OrderBy(name => name))
                 .IsEquivalentTo(["avg_kicktipp_points", "kicktipp_points", "total_kicktipp_points"]);
-            await Assert.That(capturedActivities.Any(activity => activity.OperationName == "task-5-slice-item")).IsTrue();
+            await Assert.That(capturedActivities.Any(activity => activity.OperationName == "match-experiment-item")).IsTrue();
 
             contextRepository.Verify(repository => repository.GetContextDocumentByTimestampAsync(
                 It.IsAny<string>(),

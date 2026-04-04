@@ -1,16 +1,16 @@
 using System.Text.Json;
 using EHonda.KicktippAi.Core;
 using Moq;
-using Orchestrator.Commands.Observability.PrepareTask5SingleMatch;
+using Orchestrator.Commands.Observability.PrepareRepeatedMatch;
 using Orchestrator.Infrastructure.Factories;
 using static Orchestrator.Tests.Infrastructure.OrchestratorTestFactories;
 
-namespace Orchestrator.Tests.Commands.Observability.PrepareTask5SingleMatchCommandTests;
+namespace Orchestrator.Tests.Commands.Observability.PrepareRepeatedMatchCommandTests;
 
-public class PrepareTask5SingleMatchCommand_Tests
+public class PrepareRepeatedMatchCommand_Tests
 {
     [Test]
-    public async Task Running_command_materializes_repeated_single_match_dataset_and_manifest()
+    public async Task Running_command_materializes_repeated_match_dataset_and_manifest()
     {
         var tempDirectory = Directory.CreateTempSubdirectory();
 
@@ -44,15 +44,15 @@ public class PrepareTask5SingleMatchCommand_Tests
                 .Setup(factory => factory.CreateMatchOutcomeRepository())
                 .Returns(matchOutcomeRepository.Object);
 
-            var outputDirectory = Path.Combine(tempDirectory.FullName, "single-match");
-            var context = CreateCommandApp<PrepareTask5SingleMatchCommand>(
-                "prepare-task5-single-match",
+            var outputDirectory = Path.Combine(tempDirectory.FullName, "repeated-match");
+            var context = CreateCommandApp<PrepareRepeatedMatchCommand>(
+                "prepare-repeated-match",
                 firebaseServiceFactory: firebaseFactory);
 
             var (exitCode, output) = await RunCommandAsync(
                 context.App,
                 context.Console,
-                "prepare-task5-single-match",
+                "prepare-repeated-match",
                 "--community-context",
                 "test-community",
                 "--home",
@@ -67,30 +67,28 @@ public class PrepareTask5SingleMatchCommand_Tests
                 outputDirectory);
 
             await Assert.That(exitCode).IsEqualTo(0);
-            await Assert.That(output).Contains("\"mode\": \"single-match\"");
-            await Assert.That(File.Exists(Path.Combine(outputDirectory, "canonical-source.json"))).IsTrue();
+            await Assert.That(output).Contains("\"mode\": \"repeated-match\"");
+            await Assert.That(File.Exists(Path.Combine(outputDirectory, "canonical-source.json"))).IsFalse();
             await Assert.That(File.Exists(Path.Combine(outputDirectory, "slice-dataset.json"))).IsTrue();
             await Assert.That(File.Exists(Path.Combine(outputDirectory, "slice-manifest.json"))).IsTrue();
 
             using var manifestDocument = JsonDocument.Parse(await File.ReadAllTextAsync(Path.Combine(outputDirectory, "slice-manifest.json")));
             var manifestRoot = manifestDocument.RootElement;
             var manifestItems = manifestRoot.GetProperty("items").EnumerateArray().ToList();
-            var canonicalIds = manifestItems
-                .Select(item => item.GetProperty("canonicalDatasetItemId").GetString())
+            var sourceIds = manifestItems
+                .Select(item => item.GetProperty("sourceDatasetItemId").GetString())
                 .Distinct(StringComparer.Ordinal)
                 .ToList();
             var sliceIds = manifestItems
                 .Select(item => item.GetProperty("sliceDatasetItemId").GetString())
                 .ToList();
 
-            await Assert.That(manifestRoot.GetProperty("sliceKind").GetString()).IsEqualTo("single-match");
-            await Assert.That(manifestRoot.GetProperty("sampleMethod").GetString()).IsEqualTo("repeat-single-match");
+            await Assert.That(manifestRoot.GetProperty("sliceKind").GetString()).IsEqualTo("repeated-match");
+            await Assert.That(manifestRoot.GetProperty("sampleMethod").GetString()).IsEqualTo("repeated-match");
             await Assert.That(manifestItems.Count).IsEqualTo(3);
-            await Assert.That(canonicalIds.Count).IsEqualTo(1);
+            await Assert.That(sourceIds.Count).IsEqualTo(1);
             await Assert.That(sliceIds.Distinct(StringComparer.Ordinal).Count()).IsEqualTo(3);
-
-            using var canonicalSourceDocument = JsonDocument.Parse(await File.ReadAllTextAsync(Path.Combine(outputDirectory, "canonical-source.json")));
-            await Assert.That(canonicalSourceDocument.RootElement.GetProperty("items").GetArrayLength()).IsEqualTo(1);
+            await Assert.That(manifestRoot.GetProperty("selectedItemIds").GetArrayLength()).IsEqualTo(1);
         }
         finally
         {

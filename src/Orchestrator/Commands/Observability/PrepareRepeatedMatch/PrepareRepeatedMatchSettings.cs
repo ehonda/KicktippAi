@@ -2,9 +2,9 @@ using System.ComponentModel;
 using Spectre.Console;
 using Spectre.Console.Cli;
 
-namespace Orchestrator.Commands.Observability.PrepareTask5SingleMatch;
+namespace Orchestrator.Commands.Observability.PrepareRepeatedMatch;
 
-public sealed class PrepareTask5SingleMatchSettings : CommandSettings
+public sealed class PrepareRepeatedMatchSettings : CommandSettings
 {
     [CommandOption("--community-context")]
     [Description("Community context used to load persisted historical outcomes")]
@@ -36,11 +36,11 @@ public sealed class PrepareTask5SingleMatchSettings : CommandSettings
     public string? SourcePoolKey { get; set; }
 
     [CommandOption("--dataset-name")]
-    [Description("Optional hosted dataset name override for the repeated single-match dataset")]
+    [Description("Optional hosted dataset name override for the repeated-match dataset")]
     public string? DatasetName { get; set; }
 
     [CommandOption("--output-directory")]
-    [Description("Optional output directory override. Defaults to artifacts/langfuse-experiments/single-match/<community>/<source-pool-key>/<slice-key>")]
+    [Description("Optional output directory override. Defaults to artifacts/langfuse-experiments/repeated-match/<community>/<source-pool-key>/<slice-key>")]
     public string? OutputDirectory { get; set; }
 
     public override ValidationResult Validate()
