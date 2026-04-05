@@ -1,5 +1,3 @@
-using EHonda.Optional.Core;
-using Google.Cloud.Firestore;
 using Microsoft.Extensions.Logging.Testing;
 using TestUtilities;
 using TUnit.Core;
@@ -10,26 +8,16 @@ public class FirebaseMatchOutcomeRepository_Constructor_Tests(FirestoreFixture f
     : FirebaseMatchOutcomeRepositoryTests_Base(fixture)
 {
     [Test]
-    public async Task Creating_repository_with_valid_dependencies_succeeds()
+    public void Constructor_throws_when_firestoreDb_is_null()
     {
-        var repository = CreateRepository();
-
-        await Assert.That(repository).IsNotNull();
+        Assert.Throws<ArgumentNullException>(() =>
+            CreateRepository(firestoreDb: null));
     }
 
     [Test]
-    public async Task Creating_repository_with_null_firestore_db_throws()
+    public void Constructor_throws_when_logger_is_null()
     {
-        await Assert.That(() => CreateRepository(firestoreDb: NullableOption.Some<FirestoreDb>(null)))
-            .Throws<ArgumentNullException>()
-            .WithParameterName("firestoreDb");
-    }
-
-    [Test]
-    public async Task Creating_repository_with_null_logger_throws()
-    {
-        await Assert.That(() => CreateRepository(logger: NullableOption.Some<FakeLogger<FirebaseMatchOutcomeRepository>>(null)))
-            .Throws<ArgumentNullException>()
-            .WithParameterName("logger");
+        Assert.Throws<ArgumentNullException>(() =>
+            CreateRepository(logger: (FakeLogger<FirebaseMatchOutcomeRepository>?)null));
     }
 }

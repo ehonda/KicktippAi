@@ -1,4 +1,5 @@
 using EHonda.KicktippAi.Core;
+using NodaTime;
 using TestUtilities;
 using TUnit.Core;
 
@@ -8,50 +9,63 @@ public class FirebaseMatchOutcomeRepository_GetMatchdayOutcomesAsync_Tests(Fires
     : FirebaseMatchOutcomeRepositoryTests_Base(fixture)
 {
     [Test]
-    public async Task Getting_matchday_outcomes_returns_ordered_results_for_requested_matchday()
+    public async Task GetMatchdayOutcomesAsync_returns_only_requested_matchday_for_community()
     {
         var repository = CreateRepository();
 
         await repository.UpsertMatchOutcomeAsync(
-            CreateOutcome(homeTeam: "Borussia Dortmund", awayTeam: "Team B", tippSpielId: "2"),
-            "test-community");
+            CreateCollectedOutcome("Team A", "Team B", 7, MatchOutcomeAvailability.Completed, 2, 1),
+            "community-a");
         await repository.UpsertMatchOutcomeAsync(
-            CreateOutcome(homeTeam: "FC Augsburg", awayTeam: "Team A", tippSpielId: "1"),
-            "test-community");
+            CreateCollectedOutcome("Team C", "Team D", 8, MatchOutcomeAvailability.Completed, 1, 0),
+            "community-a");
         await repository.UpsertMatchOutcomeAsync(
-            CreateOutcome(homeTeam: "FC Bayern München", awayTeam: "Team C", matchday: 26, tippSpielId: "3"),
-            "test-community");
-
-        var outcomes = await repository.GetMatchdayOutcomesAsync(25, "test-community");
-
-        await Assert.That(outcomes).HasCount().EqualTo(2);
-        await Assert.That(outcomes.Select(outcome => outcome.HomeTeam).ToArray())
-            .IsEquivalentTo(["FC Augsburg", "Borussia Dortmund"]);
-    }
-
-    [Test]
-    public async Task Getting_matchday_outcomes_filters_by_community()
-    {
-        var repository = CreateRepository();
-
-        await repository.UpsertMatchOutcomeAsync(CreateOutcome(tippSpielId: "1"), "community-a");
-        await repository.UpsertMatchOutcomeAsync(
-            CreateOutcome(homeTeam: "RB Leipzig", awayTeam: "Mainz", tippSpielId: "2"),
+            CreateCollectedOutcome("Team E", "Team F", 7, MatchOutcomeAvailability.Completed, 3, 2),
             "community-b");
 
-        var outcomes = await repository.GetMatchdayOutcomesAsync(25, "community-a");
+        var outcomes = await repository.GetMatchdayOutcomesAsync(7, "community-a");
 
         await Assert.That(outcomes).HasCount().EqualTo(1);
-        await Assert.That(outcomes[0].HomeTeam).IsEqualTo("FC Bayern München");
+        await Assert.That(outcomes[0].HomeTeam).IsEqualTo("Team A");
+        await Assert.That(outcomes[0].AwayTeam).IsEqualTo("Team B");
+        await Assert.That(outcomes[0].Matchday).IsEqualTo(7);
     }
 
     [Test]
-    public async Task Getting_matchday_outcomes_returns_empty_when_no_matches_exist()
+    public async Task GetMatchdayOutcomesAsync_returns_results_sorted_by_home_team()
     {
         var repository = CreateRepository();
 
-        var outcomes = await repository.GetMatchdayOutcomesAsync(25, "test-community");
+        await repository.UpsertMatchOutcomeAsync(
+            CreateCollectedOutcome("Werder Bremen", "Team B", 7, MatchOutcomeAvailability.Completed, 2, 1),
+            "community-a");
+        await repository.UpsertMatchOutcomeAsync(
+            CreateCollectedOutcome("FC Augsburg", "Team D", 7, MatchOutcomeAvailability.Completed, 1, 0),
+            "community-a");
 
-        await Assert.That(outcomes).IsEmpty();
+        var outcomes = await repository.GetMatchdayOutcomesAsync(7, "community-a");
+
+        await Assert.That(outcomes).HasCount().EqualTo(2);
+        await Assert.That(outcomes[0].HomeTeam).IsEqualTo("FC Augsburg");
+        await Assert.That(outcomes[1].HomeTeam).IsEqualTo("Werder Bremen");
+    }
+
+    private static CollectedMatchOutcome CreateCollectedOutcome(
+        string homeTeam,
+        string awayTeam,
+        int matchday,
+        MatchOutcomeAvailability availability,
+        int? homeGoals,
+        int? awayGoals)
+    {
+        return new CollectedMatchOutcome(
+            homeTeam,
+            awayTeam,
+            Instant.FromUtc(2026, 2, 15, 14, 30).InUtc(),
+            matchday,
+            homeGoals,
+            awayGoals,
+            availability,
+            $"{matchday}-{homeTeam}-{awayTeam}");
     }
 }

@@ -5,7 +5,7 @@ using TUnit.Core;
 namespace FirebaseAdapter.Tests.FirebaseMatchOutcomeRepositoryTests;
 
 public class FirebaseMatchOutcomeRepository_UpsertMatchOutcomeAsync_Tests(FirestoreFixture fixture)
-    : FirebaseMatchOutcomeRepositoryTests_Base(fixture)
+    : FirebaseMatchOutcomeRepositoryAdditionalCoverageTests_Base(fixture)
 {
     [Test]
     public async Task Upserting_new_outcome_creates_document()
