@@ -281,7 +281,7 @@ public class PredictionService_PredictMatchAsync_Tests : PredictionServiceTests_
         var capturedActivities = new List<Activity>();
         using var listener = CreateActivityListener(capturedActivities);
         var service = CreateService(CreateMockChatClient("""{"home": 2, "away": 1}"""));
-        var telemetryMetadata = new PredictionTelemetryMetadata("Bayern Munich", "Borussia Dortmund", 3);
+        var telemetryMetadata = new PredictionTelemetryMetadata("Telemetry Home Team", "Telemetry Away Team", 3);
         var match = CreateTestMatch();
         var contextDocuments = CreateTestContextDocuments();
 
@@ -289,16 +289,20 @@ public class PredictionService_PredictMatchAsync_Tests : PredictionServiceTests_
 
         await Assert.That(prediction).IsNotNull();
         var activity = capturedActivities
-            .Last(candidate => candidate.OperationName == "predict-match" &&
-                               candidate.GetTagItem("langfuse.observation.type") != null);
+            .Single(candidate =>
+                candidate.OperationName == "predict-match" &&
+                candidate.GetTagItem("langfuse.observation.type") is not null &&
+                Equals(candidate.GetTagItem("langfuse.observation.metadata.homeTeam"), telemetryMetadata.HomeTeam) &&
+                Equals(candidate.GetTagItem("langfuse.observation.metadata.awayTeam"), telemetryMetadata.AwayTeam) &&
+                Equals(candidate.GetTagItem("langfuse.observation.metadata.repredictionIndex"), "3"));
         await Assert.That(activity.GetTagItem("langfuse.observation.type")).IsEqualTo("generation");
         await Assert.That(activity.GetTagItem("gen_ai.request.model")).IsEqualTo("gpt-5");
         await Assert.That(activity.GetTagItem("langfuse.observation.input")?.ToString()).Contains("\"role\":\"system\"");
         await Assert.That(activity.GetTagItem("langfuse.observation.input")?.ToString()).Contains("\"role\":\"user\"");
         await Assert.That(activity.GetTagItem("langfuse.observation.output")).IsEqualTo("""{"home": 2, "away": 1}""");
         await Assert.That(activity.GetTagItem("langfuse.observation.usage_details")?.ToString()).Contains("\"input\":1000");
-        await Assert.That(activity.GetTagItem("langfuse.observation.metadata.homeTeam")).IsEqualTo("Bayern Munich");
-        await Assert.That(activity.GetTagItem("langfuse.observation.metadata.awayTeam")).IsEqualTo("Borussia Dortmund");
+        await Assert.That(activity.GetTagItem("langfuse.observation.metadata.homeTeam")).IsEqualTo("Telemetry Home Team");
+        await Assert.That(activity.GetTagItem("langfuse.observation.metadata.awayTeam")).IsEqualTo("Telemetry Away Team");
         await Assert.That(activity.GetTagItem("langfuse.observation.metadata.repredictionIndex")).IsEqualTo("3");
     }
 }

@@ -23,7 +23,7 @@ public class ExportExperimentItemCommand_Tests : ExportExperimentItemCommandTest
             using var document = JsonDocument.Parse(json);
 
             await Assert.That(document.RootElement.GetProperty("datasetItem").GetProperty("id").GetString())
-                .Contains("fc-bayern-munchen");
+                .StartsWith("bundesliga-2025-26__test-community__");
             await Assert.That(document.RootElement.GetProperty("runnerPayload").GetProperty("matchJson").GetString())
                 .Contains("\"homeTeam\":\"FC Bayern München\"");
             await Assert.That(document.RootElement.GetProperty("datasetItem").GetProperty("expectedOutput").GetProperty("homeGoals").GetInt32())
