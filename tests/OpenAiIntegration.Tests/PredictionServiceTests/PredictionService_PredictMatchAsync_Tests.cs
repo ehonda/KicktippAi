@@ -292,9 +292,12 @@ public class PredictionService_PredictMatchAsync_Tests : PredictionServiceTests_
             .Single(candidate =>
                 candidate.OperationName == "predict-match" &&
                 candidate.GetTagItem("langfuse.observation.type") is not null &&
-                Equals(candidate.GetTagItem("langfuse.observation.metadata.homeTeam"), telemetryMetadata.HomeTeam) &&
-                Equals(candidate.GetTagItem("langfuse.observation.metadata.awayTeam"), telemetryMetadata.AwayTeam) &&
-                Equals(candidate.GetTagItem("langfuse.observation.metadata.repredictionIndex"), "3"));
+                candidate.GetTagItem("langfuse.observation.metadata.homeTeam") is string homeTeam &&
+                homeTeam == telemetryMetadata.HomeTeam &&
+                candidate.GetTagItem("langfuse.observation.metadata.awayTeam") is string awayTeam &&
+                awayTeam == telemetryMetadata.AwayTeam &&
+                candidate.GetTagItem("langfuse.observation.metadata.repredictionIndex") is string repredictionIndex &&
+                repredictionIndex == "3");
         await Assert.That(activity.GetTagItem("langfuse.observation.type")).IsEqualTo("generation");
         await Assert.That(activity.GetTagItem("gen_ai.request.model")).IsEqualTo("gpt-5");
         await Assert.That(activity.GetTagItem("langfuse.observation.input")?.ToString()).Contains("\"role\":\"system\"");
