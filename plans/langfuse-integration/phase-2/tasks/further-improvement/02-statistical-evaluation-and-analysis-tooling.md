@@ -153,22 +153,16 @@ For fixed-slice comparisons where the same dataset items are scored in each run:
 - For more than two comparable runs on the same slice, use a Friedman test followed by corrected pairwise comparisons
 - Do not treat a plain paired t-test as the default primary test because Kicktipp points are discrete and bounded
 
-## Python Tooling Prerequisites
+## Python Tooling Baseline
 
-The local machine checked in this session is not ready for modern Python work yet.
+A minimal repo-local `uv` scaffold now exists for future statistical tooling.
 
-- `python` and `py` currently resolve to `3.6`
-- `uv` is not installed
-- `winget` is available
+- Repo pin: [`.python-version`](../../../../../.python-version) is set to `3.14`
+- Repo project metadata: [`pyproject.toml`](../../../../../pyproject.toml) defines a minimal `uv` project with `requires-python = ">=3.14,<3.15"`
+- Repo lockfile: [`uv.lock`](../../../../../uv.lock) exists and can be extended in the next tooling session
+- Local environment: `.venv/` is created locally and ignored by Git
 
-When the Python analysis tooling is started in a fresh session, the intended baseline should be:
-
-- Python `3.13`
-- `uv`
-- `langfuse`
-- `pandas`
-- `scipy`
-- `statsmodels`
+See [python-tooling-setup.md](../../statistical-evaluation/python-tooling-setup.md) for the current setup, expected workflow, and next-session commands.
 
 The Python tooling should use the Langfuse Python SDK where it is ergonomic, with direct `v2/scores` HTTP calls as the fallback when score-query behavior is clearer or more complete via the public API.
 

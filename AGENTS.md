@@ -14,7 +14,7 @@ This is a workaround for this [issue](https://github.com/microsoft/vscode/issues
 
 When invoking Powershell commands via `run_in_terminal`, don't prefix them with `&`, and don't quote the script path.
 
-````powershell
+```powershell
 # ❌ Avoid this:
 & .github/copilot/skills/langfuse-api/scripts/Query-LangfuseApi.ps1 -Endpoint "scores" -QueryParams @{limit=10; name='avg_kicktipp_points'}
 
@@ -53,6 +53,10 @@ For Langfuse evaluation and experiment work, prefer the Python SDK first because
 - Keep JS/TS as the fallback when local Python tooling becomes the main source of friction
 - Before starting Phase 2 implementation work, read `plans/langfuse-integration/phase-2/AGENTS.md` and the linked tracker documents there
 - For verified repository-specific Langfuse tracing and filtering behavior, read [docs/langfuse.md](docs/langfuse.md)
+
+## Python Tooling
+
+Use `uv` to manage everything Python-related in this repository, including interpreter selection, virtual environments, dependencies, and repo-local command execution.
 
 ## Running and Filtering Tests
 
