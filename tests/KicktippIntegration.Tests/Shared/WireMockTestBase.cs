@@ -263,6 +263,10 @@ public abstract class WireMockTestBase : IAsyncDisposable
     /// <param name="fixtureName">Name of the fixture file (without .html.enc extension).</param>
     protected void StubWithRealFixture(string path, string community, string fixtureName)
     {
+        TUnit.Core.Skip.Unless(
+            TestEnvironmentHelper.HasFixtureKey(),
+            "Real Kicktipp fixture tests require KICKTIPP_FIXTURE_KEY.");
+
         var htmlContent = FixtureLoader.LoadRealFixture(community, fixtureName);
         StubHtmlResponse(path, htmlContent);
     }
@@ -281,6 +285,10 @@ public abstract class WireMockTestBase : IAsyncDisposable
         string fixtureName,
         params (string key, string value)[] queryParams)
     {
+        TUnit.Core.Skip.Unless(
+            TestEnvironmentHelper.HasFixtureKey(),
+            "Real Kicktipp fixture tests require KICKTIPP_FIXTURE_KEY.");
+
         var htmlContent = FixtureLoader.LoadRealFixture(community, fixtureName);
         StubHtmlResponseWithParams(path, htmlContent, queryParams);
     }
@@ -294,6 +302,10 @@ public abstract class WireMockTestBase : IAsyncDisposable
     /// <returns>The decrypted HTML content.</returns>
     protected static string LoadRealFixtureContent(string community, string fixtureName)
     {
+        TUnit.Core.Skip.Unless(
+            TestEnvironmentHelper.HasFixtureKey(),
+            "Real Kicktipp fixture tests require KICKTIPP_FIXTURE_KEY.");
+
         return FixtureLoader.LoadRealFixture(community, fixtureName);
     }
 

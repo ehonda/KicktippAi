@@ -12,8 +12,8 @@ public class OpenAiPredictor : IPredictor<PredictorContext>
 
     public OpenAiPredictor(ChatClient client, ILogger<OpenAiPredictor> logger)
     {
-        _client = client;
-        _logger = logger;
+        _client = client ?? throw new ArgumentNullException(nameof(client));
+        _logger = logger ?? throw new ArgumentNullException(nameof(logger));
     }
 
     public async Task<Prediction> PredictAsync(Match match, PredictorContext context, CancellationToken cancellationToken = default)

@@ -508,5 +508,118 @@ public class KicktippClient_GetHeadToHead_Tests : KicktippClientTests_Base
         // Assert
         await Assert.That(history).IsNotEmpty();
     }
-}
 
+    [Test]
+    public async Task Getting_detailed_head_to_head_returns_empty_when_history_table_is_missing()
+    {
+        var tippabgabeHtml = """
+            <!DOCTYPE html>
+            <html>
+            <body>
+            <a href="/test-community/spielinfo?tippspielId=1">Tippabgabe mit Spielinfos</a>
+            </body>
+            </html>
+            """;
+        var spielinfoHtml = """
+            <!DOCTYPE html>
+            <html>
+            <body>
+            <table class="tippabgabe">
+                <tbody>
+                    <tr>
+                        <td>22.08.25 20:30</td>
+                        <td>Team Alpha</td>
+                        <td>Team Beta</td>
+                        <td><input type="text" /><input type="text" /></td>
+                    </tr>
+                </tbody>
+            </table>
+            <div class="prevnextNext disabled"><a></a></div>
+            </body>
+            </html>
+            """;
+        StubHtmlResponse("/test-community/tippabgabe", tippabgabeHtml);
+        StubHtmlResponseWithParams("/test-community/spielinfo", spielinfoHtml,
+            ("tippspielId", "1"),
+            ("ansicht", "3"));
+        var client = CreateClient();
+
+        var history = await client.GetHeadToHeadDetailedHistoryAsync("test-community", "Team Alpha", "Team Beta");
+
+        await Assert.That(history).IsEmpty();
+    }
+
+    [Test]
+    public async Task Getting_detailed_head_to_head_handles_blank_and_unknown_annotations()
+    {
+        var tippabgabeHtml = """
+            <!DOCTYPE html>
+            <html>
+            <body>
+            <a href="/test-community/spielinfo?tippspielId=1">Tippabgabe mit Spielinfos</a>
+            </body>
+            </html>
+            """;
+        var spielinfoHtml = """
+            <!DOCTYPE html>
+            <html>
+            <body>
+            <table class="tippabgabe">
+                <tbody>
+                    <tr>
+                        <td>22.08.25 20:30</td>
+                        <td>Team Alpha</td>
+                        <td>Team Beta</td>
+                        <td><input type="text" /><input type="text" /></td>
+                    </tr>
+                </tbody>
+            </table>
+            <table class="spielinfoDirekterVergleich">
+                <tbody>
+                    <tr>
+                        <td>Too Few</td>
+                        <td>Cells</td>
+                    </tr>
+                    <tr>
+                        <td>1.BL</td>
+                        <td>5</td>
+                        <td>01.01.26</td>
+                        <td>Team Alpha</td>
+                        <td>Team Beta</td>
+                        <td>
+                            <span class="kicktipp-heim">2</span>
+                            <span class="kicktipp-gast">1</span>
+                            <span class="kicktipp-zusatz">   </span>
+                        </td>
+                    </tr>
+                    <tr>
+                        <td>DFB</td>
+                        <td>9</td>
+                        <td>02.01.26</td>
+                        <td>Team Alpha</td>
+                        <td>Team Beta</td>
+                        <td>
+                            <span class="kicktipp-heim">0</span>
+                            <span class="kicktipp-gast">0</span>
+                            <span class="kicktipp-zusatz">abg.</span>
+                        </td>
+                    </tr>
+                </tbody>
+            </table>
+            </body>
+            </html>
+            """;
+        StubHtmlResponse("/test-community/tippabgabe", tippabgabeHtml);
+        StubHtmlResponseWithParams("/test-community/spielinfo", spielinfoHtml,
+            ("tippspielId", "1"),
+            ("ansicht", "3"));
+        var client = CreateClient();
+
+        var history = await client.GetHeadToHeadDetailedHistoryAsync("test-community", "Team Alpha", "Team Beta");
+
+        await Assert.That(history).HasCount().EqualTo(2);
+        await Assert.That(history[0].Annotation).IsNull();
+        await Assert.That(history[1].Annotation).IsEqualTo("abg.");
+        await Assert.That(history[1].Score).IsEqualTo("0:0");
+    }
+}

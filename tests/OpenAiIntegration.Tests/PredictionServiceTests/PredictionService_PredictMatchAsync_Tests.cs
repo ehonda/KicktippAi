@@ -1,4 +1,5 @@
 using EHonda.KicktippAi.Core;
+using System.Diagnostics;
 using Microsoft.Extensions.Logging;
 using Moq;
 using OpenAI.Chat;
@@ -17,6 +18,31 @@ namespace OpenAiIntegration.Tests.PredictionServiceTests;
 /// </summary>
 public class PredictionService_PredictMatchAsync_Tests : PredictionServiceTests_Base
 {
+    private static ActivityListener CreateActivityListener(List<Activity> capturedActivities)
+    {
+        var listener = new ActivityListener
+        {
+            ShouldListenTo = source => source.Name == "KicktippAi",
+            Sample = (ref ActivityCreationOptions<ActivityContext> _) => ActivitySamplingResult.AllDataAndRecorded,
+            ActivityStopped = capturedActivities.Add
+        };
+
+        ActivitySource.AddActivityListener(listener);
+        return listener;
+    }
+
+    private static bool IsMatchingPredictMatchActivity(Activity candidate, PredictionTelemetryMetadata telemetryMetadata)
+    {
+        return candidate.OperationName == "predict-match" &&
+               candidate.GetTagItem("langfuse.observation.type") is not null &&
+               candidate.GetTagItem("langfuse.observation.metadata.homeTeam") is string homeTeam &&
+               homeTeam == telemetryMetadata.HomeTeam &&
+               candidate.GetTagItem("langfuse.observation.metadata.awayTeam") is string awayTeam &&
+               awayTeam == telemetryMetadata.AwayTeam &&
+               candidate.GetTagItem("langfuse.observation.metadata.repredictionIndex") is string repredictionIndex &&
+               repredictionIndex == "3";
+    }
+
     /// <summary>
     /// Helper method to call PredictMatchAsync with optional parameters that default to test helpers
     /// </summary>
@@ -202,6 +228,38 @@ public class PredictionService_PredictMatchAsync_Tests : PredictionServiceTests_
     }
 
     [Test]
+    public async Task Predicting_match_with_null_JSON_object_returns_null()
+    {
+        // Arrange
+        var logger = CreateFakeLogger();
+        var chatClient = CreateMockChatClient("null");
+        var service = CreateService(chatClient, logger: logger);
+
+        // Act
+        var prediction = await PredictMatchAsync(service);
+
+        // Assert
+        await Assert.That(prediction).IsNull();
+        await Assert.That(logger).ContainsLog(LogLevel.Error, "Raw model response from OpenAI: null");
+    }
+
+    [Test]
+    public async Task Predicting_match_with_whitespace_response_logs_empty_raw_response_message()
+    {
+        // Arrange
+        var logger = CreateFakeLogger();
+        var chatClient = CreateMockChatClient("   ");
+        var service = CreateService(chatClient, logger: logger);
+
+        // Act
+        var prediction = await PredictMatchAsync(service);
+
+        // Assert
+        await Assert.That(prediction).IsNull();
+        await Assert.That(logger).ContainsLog(LogLevel.Error, "Raw model response from OpenAI was empty or whitespace.");
+    }
+
+    [Test]
     public async Task Predicting_match_uses_shared_prompt_composer_for_system_prompt_and_match_json()
     {
         // Arrange
@@ -227,5 +285,31 @@ public class PredictionService_PredictMatchAsync_Tests : PredictionServiceTests_
 
         await Assert.That(systemMessage.Content[0].Text).IsEqualTo(expectedSystemPrompt);
         await Assert.That(userMessage.Content[0].Text).IsEqualTo(PredictionPromptComposer.CreateMatchJson(match));
+    }
+
+    [Test]
+    public async Task Predicting_match_records_langfuse_generation_activity_tags()
+    {
+        var capturedActivities = new List<Activity>();
+        using var listener = CreateActivityListener(capturedActivities);
+        var service = CreateService(CreateMockChatClient("""{"home": 2, "away": 1}"""));
+        var telemetryMetadata = new PredictionTelemetryMetadata("Telemetry Home Team", "Telemetry Away Team", 3);
+        var match = CreateTestMatch();
+        var contextDocuments = CreateTestContextDocuments();
+
+        var prediction = await service.PredictMatchAsync(match, contextDocuments, telemetryMetadata: telemetryMetadata);
+
+        await Assert.That(prediction).IsNotNull();
+        var activity = capturedActivities
+            .Single(candidate => IsMatchingPredictMatchActivity(candidate, telemetryMetadata));
+        await Assert.That(activity.GetTagItem("langfuse.observation.type")).IsEqualTo("generation");
+        await Assert.That(activity.GetTagItem("gen_ai.request.model")).IsEqualTo("gpt-5");
+        await Assert.That(activity.GetTagItem("langfuse.observation.input")?.ToString()).Contains("\"role\":\"system\"");
+        await Assert.That(activity.GetTagItem("langfuse.observation.input")?.ToString()).Contains("\"role\":\"user\"");
+        await Assert.That(activity.GetTagItem("langfuse.observation.output")).IsEqualTo("""{"home": 2, "away": 1}""");
+        await Assert.That(activity.GetTagItem("langfuse.observation.usage_details")?.ToString()).Contains("\"input\":1000");
+        await Assert.That(activity.GetTagItem("langfuse.observation.metadata.homeTeam")).IsEqualTo("Telemetry Home Team");
+        await Assert.That(activity.GetTagItem("langfuse.observation.metadata.awayTeam")).IsEqualTo("Telemetry Away Team");
+        await Assert.That(activity.GetTagItem("langfuse.observation.metadata.repredictionIndex")).IsEqualTo("3");
     }
 }
