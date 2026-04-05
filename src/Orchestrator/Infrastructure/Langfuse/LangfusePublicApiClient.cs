@@ -52,6 +52,16 @@ public sealed class LangfusePublicApiClient : ILangfusePublicApiClient
         return SendForJsonAsync<LangfuseDatasetRunWithItems>(HttpMethod.Get, path, null, true, cancellationToken);
     }
 
+    public Task<LangfuseTraceWithDetails?> GetTraceAsync(string traceId, CancellationToken cancellationToken = default)
+    {
+        return SendForJsonAsync<LangfuseTraceWithDetails>(
+            HttpMethod.Get,
+            $"traces/{EncodePathSegment(traceId)}",
+            null,
+            true,
+            cancellationToken);
+    }
+
     public async Task<bool> DeleteDatasetRunAsync(string datasetName, string runName, CancellationToken cancellationToken = default)
     {
         var path = $"datasets/{EncodePathSegment(datasetName)}/runs/{EncodePathSegment(runName)}";
@@ -74,6 +84,26 @@ public sealed class LangfusePublicApiClient : ILangfusePublicApiClient
     {
         var path = $"dataset-run-items?datasetId={Uri.EscapeDataString(datasetId)}&runName={Uri.EscapeDataString(runName)}&page={page}&limit={limit}";
         return SendForJsonAsync<LangfusePaginatedResponse<LangfuseDatasetRunItem>>(HttpMethod.Get, path, null, false, cancellationToken)!;
+    }
+
+    public Task<LangfusePaginatedResponse<LangfuseScore>> ListScoresAsync(
+        LangfuseListScoresRequest request,
+        CancellationToken cancellationToken = default)
+    {
+        ArgumentNullException.ThrowIfNull(request);
+
+        var queryParameters = new List<KeyValuePair<string, string?>>
+        {
+            new("page", request.Page.ToString()),
+            new("limit", request.Limit.ToString()),
+            new("fields", request.Fields),
+            new("name", request.Name),
+            new("datasetRunId", request.DatasetRunId),
+            new("traceId", request.TraceId)
+        };
+
+        var path = BuildQueryString("v2/scores", queryParameters);
+        return SendForJsonAsync<LangfusePaginatedResponse<LangfuseScore>>(HttpMethod.Get, path, null, false, cancellationToken)!;
     }
 
     public Task<LangfuseCreateScoreResponse> CreateScoreAsync(LangfuseCreateScoreRequest request, CancellationToken cancellationToken = default)
@@ -135,6 +165,18 @@ public sealed class LangfusePublicApiClient : ILangfusePublicApiClient
     private static string EncodePathSegment(string value)
     {
         return Uri.EscapeDataString(value);
+    }
+
+    private static string BuildQueryString(string relativePath, IEnumerable<KeyValuePair<string, string?>> queryParameters)
+    {
+        var parts = queryParameters
+            .Where(parameter => !string.IsNullOrWhiteSpace(parameter.Value))
+            .Select(parameter => $"{Uri.EscapeDataString(parameter.Key)}={Uri.EscapeDataString(parameter.Value!)}")
+            .ToArray();
+
+        return parts.Length == 0
+            ? relativePath
+            : $"{relativePath}?{string.Join("&", parts)}";
     }
 }
 

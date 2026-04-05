@@ -19,6 +19,8 @@ public interface ILangfusePublicApiClient
 
     Task<LangfuseDatasetRunWithItems?> GetDatasetRunAsync(string datasetName, string runName, CancellationToken cancellationToken = default);
 
+    Task<LangfuseTraceWithDetails?> GetTraceAsync(string traceId, CancellationToken cancellationToken = default);
+
     Task<bool> DeleteDatasetRunAsync(string datasetName, string runName, CancellationToken cancellationToken = default);
 
     Task<LangfusePaginatedResponse<LangfuseDatasetRunItem>> ListDatasetRunItemsAsync(
@@ -26,6 +28,10 @@ public interface ILangfusePublicApiClient
         string runName,
         int page = 1,
         int limit = 100,
+        CancellationToken cancellationToken = default);
+
+    Task<LangfusePaginatedResponse<LangfuseScore>> ListScoresAsync(
+        LangfuseListScoresRequest request,
         CancellationToken cancellationToken = default);
 
     Task<LangfuseCreateScoreResponse> CreateScoreAsync(LangfuseCreateScoreRequest request, CancellationToken cancellationToken = default);

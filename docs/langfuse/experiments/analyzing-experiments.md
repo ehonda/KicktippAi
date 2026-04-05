@@ -2,7 +2,7 @@
 
 ## Current Status
 
-Analysis tooling is not implemented yet as a first-class workflow in the repository.
+Analysis tooling is partially implemented as a first-class workflow in the repository.
 
 What is implemented today is the score production layer:
 
@@ -10,7 +10,11 @@ What is implemented today is the score production layer:
 - dataset-run-level `total_kicktipp_points`
 - dataset-run-level `avg_kicktipp_points`
 
-That means we can already execute comparable experiment runs and inspect the resulting scores in Langfuse, but we do not yet have a dedicated command or report pipeline for statistical comparison.
+What is also implemented now:
+
+- `export-experiment-analysis` to export comparable Langfuse runs into one normalized JSON bundle
+
+That means we can already execute comparable experiment runs, inspect the resulting scores in Langfuse, and export a stable analysis input bundle. The statistical report layer is still pending.
 
 ## What We Do Today
 
@@ -20,12 +24,20 @@ Typical workflow:
 
 1. Run multiple models or prompt variants on the same fixed slice or repeated-match dataset.
 2. Inspect dataset runs, traces, and score distributions in the Langfuse UI.
-3. If needed, query run-level scores through the Langfuse public API.
+3. Export a normalized bundle with `export-experiment-analysis`.
+4. If needed, query run-level scores through the Langfuse public API.
+
+Example export command:
+
+```powershell
+dotnet run --project src/Orchestrator -- export-experiment-analysis --dataset-name match-predictions/bundesliga-2025-26/pes-squad/slices/all-matchdays/random-16-seed-20260403 --run-names "slice__pes-squad__o3__prompt-v1__random-16-seed-20260403__startsat-12h__2026-04-03t12-00-00z,slice__pes-squad__gpt-5-nano__prompt-v1__random-16-seed-20260403__startsat-12h__2026-04-03t12-00-00z"
+```
 
 Important repository-specific notes:
 
 - run-level metrics are retrieved reliably through Langfuse `v2/scores`
 - trace-level score retrieval and metadata filtering have some quirks documented in `docs/langfuse.md`
+- the export command uses dataset run -> dataset run items -> dataset items -> trace detail joins and does not rely on `v2/scores` trace filtering
 
 ## Planned Direction
 
@@ -71,11 +83,11 @@ The analysis plan explicitly does not treat a plain paired t-test as the default
 The current recommendation is:
 
 1. define a shared normalized analysis contract in .NET
-2. export or emit that contract from experiment data
+2. export that contract from Langfuse-backed experiment data via `export-experiment-analysis`
 3. consume that contract from Python for statistics and reporting
 
 That keeps the experiment runner and the analysis layer loosely coupled.
 
 ## Until Then
 
-Until dedicated analysis tooling exists, treat Langfuse as the inspection surface and the source of recorded run scores, but not yet as the place where statistical significance is determined.
+Until the Python report layer exists, treat Langfuse as the inspection surface and source of recorded scores, and treat the exported analysis bundle as the machine-readable input for later statistical comparison.

@@ -10,6 +10,7 @@ using Orchestrator.Commands.Observability.AnalyzeMatch;
 using Orchestrator.Commands.Observability.ContextChanges;
 using Orchestrator.Commands.Observability.Cost;
 using Orchestrator.Commands.Observability.Experiments;
+using Orchestrator.Commands.Observability.ExportExperimentAnalysis;
 using Orchestrator.Commands.Observability.ExportExperimentItem;
 using Orchestrator.Commands.Observability.PrepareRepeatedMatch;
 using Orchestrator.Commands.Observability.PrepareSlice;
@@ -145,6 +146,23 @@ public class Program
                 .WithExample("export-experiment-item", "o4-mini", "--community-context", "pes-squad", "--home", "VfB Stuttgart", "--away", "RB Leipzig", "--matchday", "26")
                 .WithExample("export-experiment-item", "o4-mini", "--community-context", "pes-squad", "--home", "VfB Stuttgart", "--away", "RB Leipzig", "--matchday", "26", "--output", "artifacts/langfuse-experiments/items/vfb-stuttgart-vs-rb-leipzig.json")
                 .WithExample("export-experiment-item", "o4-mini", "--community-context", "pes-squad", "--home", "VfB Stuttgart", "--away", "RB Leipzig", "--matchday", "26", "--evaluation-time", "\"2026-03-15T12:00:00 Europe/Berlin (+01)\"");
+
+            config.AddCommand<ExportExperimentAnalysisCommand>("export-experiment-analysis")
+                .WithDescription("Export a normalized analysis bundle for comparable Langfuse experiment runs")
+                .WithExample(
+                    "export-experiment-analysis",
+                    "--dataset-name",
+                    "match-predictions/bundesliga-2025-26/pes-squad/slices/all-matchdays/random-16-seed-20260403",
+                    "--run-names",
+                    "slice__pes-squad__o3__prompt-v1__random-16-seed-20260403__startsat-12h__2026-04-03t12-00-00z,slice__pes-squad__gpt-5-nano__prompt-v1__random-16-seed-20260403__startsat-12h__2026-04-03t12-00-00z")
+                .WithExample(
+                    "export-experiment-analysis",
+                    "--dataset-name",
+                    "match-predictions/bundesliga-2025-26/pes-squad/repeated-match/md26-vfb-stuttgart-vs-rb-leipzig/repeat-16",
+                    "--run-names",
+                    "repeated-match__pes-squad__o3__prompt-v1__repeat-16__exact-time__2026-03-15t12-00-00z,repeated-match__pes-squad__gpt-5-nano__prompt-v1__repeat-16__exact-time__2026-03-15t12-00-00z",
+                    "--output",
+                    "artifacts/langfuse-experiments/analysis/repeated-match/pes-squad-repeat-16.json");
 
             config.AddCommand<PrepareSliceCommand>("prepare-slice")
                 .WithDescription("Create a reusable sampled slice artifact and manifest directly from completed historical matches")
