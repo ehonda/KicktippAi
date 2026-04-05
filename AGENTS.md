@@ -108,6 +108,21 @@ Filter tests by custom properties using `[PropertyName=Value]`:
 dotnet run -- --treenode-filter "/*/*/*/*[Category=Unit]"
 ```
 
+### Copilot Auto-Approval Workaround for TUnit Filters
+
+When running filtered TUnit commands through Copilot's terminal tool in PowerShell, inline `--treenode-filter "/*/*/.../*"` arguments may fail terminal auto-approval because VS Code sometimes parses the command as having no sub-commands.
+
+This is a Copilot/VS Code parser workaround, not a TUnit requirement. In a normal terminal, the inline form is still fine.
+
+If you want reliable terminal auto-approval in Copilot, put the filter into a variable first:
+
+```powershell
+$filter = '/*/*/MyTestClass/*'
+dotnet run --project tests/Orchestrator.Tests -- --treenode-filter $filter
+```
+
+This variable-based form has been observed to auto-approve reliably, while the inline quoted filter often does not.
+
 ### Listing Available Tests
 
 To see all available tests without running them:
