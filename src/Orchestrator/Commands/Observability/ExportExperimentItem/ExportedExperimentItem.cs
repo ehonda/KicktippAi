@@ -23,21 +23,20 @@ public sealed record MatchExperimentMetadata(
     int Matchday,
     string HomeTeam,
     string AwayTeam,
-    string TippSpielId,
     string Model,
     bool IncludeJustification,
     DateTimeOffset PredictionCreatedAt,
     string PromptTemplatePath,
     IReadOnlyList<string> ContextDocumentNames,
     IReadOnlyList<MatchExperimentResolvedContextDocument> ResolvedContextDocuments,
-    MatchExperimentOutcome Outcome);
+    MatchExperimentHistoricalPrediction HistoricalPrediction);
 
 public sealed record MatchExperimentResolvedContextDocument(
     string DocumentName,
     int Version,
     DateTimeOffset CreatedAt);
 
-public sealed record MatchExperimentOutcome(
+public sealed record MatchExperimentHistoricalPrediction(
     int HomeGoals,
     int AwayGoals);
 

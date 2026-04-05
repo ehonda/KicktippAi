@@ -1,9 +1,10 @@
 using System.Globalization;
+using System.Text;
 using System.Text.Json;
 using EHonda.KicktippAi.Core;
 using Microsoft.Extensions.Logging;
+using NodaTime;
 using OpenAiIntegration;
-using Orchestrator.Commands.Observability;
 using Orchestrator.Infrastructure.Factories;
 using Spectre.Console;
 using Spectre.Console.Cli;
@@ -12,6 +13,7 @@ namespace Orchestrator.Commands.Observability.ExportExperimentItem;
 
 public sealed class ExportExperimentItemCommand : AsyncCommand<ExportExperimentItemSettings>
 {
+    private static readonly DateTimeZone BundesligaTimeZone = DateTimeZoneProviders.Tzdb["Europe/Berlin"];
     private static readonly JsonSerializerOptions OutputJsonOptions = new()
     {
         PropertyNamingPolicy = JsonNamingPolicy.CamelCase,
@@ -47,18 +49,12 @@ public sealed class ExportExperimentItemCommand : AsyncCommand<ExportExperimentI
                 contextRepository,
                 new InstructionsTemplateProvider(PromptsFileProvider.Create()));
 
-            var evaluationTime = EvaluationTimeParser.ParseOrNull(settings.EvaluationTime);
-            var evaluationPolicy = EvaluationTimestampPolicyParser.ParseOrNull(
-                settings.EvaluationPolicyKind,
-                settings.EvaluationPolicyOffset);
-            var reconstructAtTimestamp = evaluationTime is not null || evaluationPolicy is not null;
-
             var storedMatch = await predictionRepository.GetStoredMatchAsync(
                 settings.HomeTeam,
                 settings.AwayTeam,
                 settings.Matchday!.Value,
-                reconstructAtTimestamp ? null : settings.Model,
-                reconstructAtTimestamp ? null : settings.CommunityContext);
+                settings.Model,
+                settings.CommunityContext);
 
             if (storedMatch is null)
             {
@@ -66,35 +62,12 @@ public sealed class ExportExperimentItemCommand : AsyncCommand<ExportExperimentI
                 return 1;
             }
 
-            var promptMatch = ExperimentArtifactSupport.RehydrateForPromptOutput(storedMatch);
-            var resolvedEvaluationTime = evaluationTime
-                ?? (evaluationPolicy is null ? null : EvaluationTimestampResolver.Resolve(promptMatch, evaluationPolicy));
-
-            ReconstructedMatchPredictionPrompt? reconstructedPrompt;
-            if (resolvedEvaluationTime is null)
-            {
-                reconstructedPrompt = await reconstructionService.ReconstructMatchPredictionPromptAsync(
-                    promptMatch,
-                    settings.Model,
-                    settings.CommunityContext,
-                    settings.WithJustification);
-            }
-            else
-            {
-                var selection = MatchContextDocumentCatalog.ForMatch(
-                    promptMatch.HomeTeam,
-                    promptMatch.AwayTeam,
-                    settings.CommunityContext);
-
-                reconstructedPrompt = await reconstructionService.ReconstructMatchPredictionPromptAtTimestampAsync(
-                    promptMatch,
-                    settings.Model,
-                    settings.CommunityContext,
-                    resolvedEvaluationTime.Value,
-                    selection.RequiredDocumentNames,
-                    selection.OptionalDocumentNames,
-                    settings.WithJustification);
-            }
+            var promptMatch = RehydrateForPromptOutput(storedMatch);
+            var reconstructedPrompt = await reconstructionService.ReconstructMatchPredictionPromptAsync(
+                promptMatch,
+                settings.Model,
+                settings.CommunityContext,
+                settings.WithJustification);
 
             if (reconstructedPrompt is null)
             {
@@ -132,7 +105,7 @@ public sealed class ExportExperimentItemCommand : AsyncCommand<ExportExperimentI
 
             _console.MarkupLine($"[green]Wrote experiment item:[/] [yellow]{Markup.Escape(outputPath)}[/]");
             _console.MarkupLine($"[blue]Dataset item id:[/] {Markup.Escape(export.DatasetItem.Id)}");
-            _console.MarkupLine($"[blue]{(resolvedEvaluationTime is null ? "Prediction timestamp" : "Reconstruction timestamp")}:[/] {export.DatasetItem.Metadata.PredictionCreatedAt:O}");
+            _console.MarkupLine($"[blue]Prediction timestamp:[/] {export.DatasetItem.Metadata.PredictionCreatedAt:O}");
             _console.MarkupLine($"[blue]Outcome:[/] {outcome.HomeGoals}:{outcome.AwayGoals} ({outcome.Availability})");
 
             return 0;
@@ -150,8 +123,6 @@ public sealed class ExportExperimentItemCommand : AsyncCommand<ExportExperimentI
         PersistedMatchOutcome outcome)
     {
         using var matchJsonDocument = JsonDocument.Parse(reconstructedPrompt.MatchJson);
-        var tippSpielId = outcome.TippSpielId ?? throw new InvalidOperationException(
-            $"Persisted outcome for {outcome.HomeTeam} vs {outcome.AwayTeam} is missing tippspielId.");
 
         var metadata = new MatchExperimentMetadata(
             reconstructedPrompt.CommunityContext,
@@ -159,10 +130,9 @@ public sealed class ExportExperimentItemCommand : AsyncCommand<ExportExperimentI
             reconstructedPrompt.Match.Matchday,
             reconstructedPrompt.Match.HomeTeam,
             reconstructedPrompt.Match.AwayTeam,
-            tippSpielId,
             reconstructedPrompt.Model,
             reconstructedPrompt.IncludeJustification,
-            reconstructedPrompt.PromptTimestamp,
+            reconstructedPrompt.PredictionCreatedAt,
             reconstructedPrompt.PromptTemplatePath,
             reconstructedPrompt.ContextDocumentNames,
             reconstructedPrompt.ResolvedContextDocuments
@@ -172,13 +142,13 @@ public sealed class ExportExperimentItemCommand : AsyncCommand<ExportExperimentI
                     document.CreatedAt))
                 .ToList()
                 .AsReadOnly(),
-            new MatchExperimentOutcome(
+            new MatchExperimentHistoricalPrediction(
                 outcome.HomeGoals!.Value,
                 outcome.AwayGoals!.Value));
 
         return new ExportedExperimentItem(
             new MatchExperimentDatasetItem(
-                ExperimentArtifactSupport.BuildHostedDatasetItemId(outcome.Competition, outcome.CommunityContext, tippSpielId),
+                BuildItemId(metadata),
                 matchJsonDocument.RootElement.Clone(),
                 new MatchExperimentExpectedOutput(
                     outcome.HomeGoals!.Value,
@@ -190,6 +160,14 @@ public sealed class ExportExperimentItemCommand : AsyncCommand<ExportExperimentI
                 reconstructedPrompt.MatchJson));
     }
 
+    private static Match RehydrateForPromptOutput(Match match)
+    {
+        var instant = match.StartsAt.ToInstant();
+        var offset = BundesligaTimeZone.GetUtcOffset(instant);
+        var localizedStartsAt = instant.InZone(DateTimeZone.ForOffset(offset));
+        return new Match(match.HomeTeam, match.AwayTeam, localizedStartsAt, match.Matchday, match.IsCancelled);
+    }
+
     private static string ResolveOutputPath(ExportExperimentItemSettings settings, MatchExperimentMetadata metadata)
     {
         if (!string.IsNullOrWhiteSpace(settings.OutputPath))
@@ -197,7 +175,49 @@ public sealed class ExportExperimentItemCommand : AsyncCommand<ExportExperimentI
             return Path.GetFullPath(settings.OutputPath);
         }
 
-        var fileName = $"{metadata.Matchday:00}-{ExperimentArtifactSupport.Slugify(metadata.HomeTeam)}-vs-{ExperimentArtifactSupport.Slugify(metadata.AwayTeam)}-{ExperimentArtifactSupport.Slugify(metadata.Model)}.json";
-        return Path.GetFullPath(Path.Combine("artifacts", "langfuse-experiments", "items", fileName));
+        var fileName = $"{metadata.Matchday:00}-{Slugify(metadata.HomeTeam)}-vs-{Slugify(metadata.AwayTeam)}-{Slugify(metadata.Model)}.json";
+        return Path.GetFullPath(Path.Combine("artifacts", "langfuse-runner-spike", fileName));
+    }
+
+    private static string BuildItemId(MatchExperimentMetadata metadata)
+    {
+        return string.Join(
+            "__",
+            Slugify(metadata.Competition),
+            Slugify(metadata.CommunityContext),
+            $"md{metadata.Matchday:00}",
+            Slugify(metadata.HomeTeam),
+            Slugify(metadata.AwayTeam),
+            Slugify(metadata.Model),
+            metadata.IncludeJustification ? "with-justification" : "without-justification");
+    }
+
+    private static string Slugify(string value)
+    {
+        var normalized = value.Normalize(NormalizationForm.FormD);
+        var builder = new StringBuilder(normalized.Length);
+
+        foreach (var character in normalized)
+        {
+            if (CharUnicodeInfo.GetUnicodeCategory(character) == UnicodeCategory.NonSpacingMark)
+            {
+                continue;
+            }
+
+            if (char.IsLetterOrDigit(character))
+            {
+                builder.Append(char.ToLowerInvariant(character));
+                continue;
+            }
+
+            if (builder.Length == 0 || builder[^1] == '-')
+            {
+                continue;
+            }
+
+            builder.Append('-');
+        }
+
+        return builder.ToString().Trim('-');
     }
 }

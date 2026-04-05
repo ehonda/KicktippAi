@@ -1,0 +1,15 @@
+{
+  "name": "kicktippai-langfuse-runner-spike",
+  "private": true,
+  "type": "module",
+  "scripts": {
+    "run": "node run-spike.mjs",
+    "sync": "node sync-dataset.mjs"
+  },
+  "dependencies": {
+    "@langfuse/client": "^5.0.1",
+    "@langfuse/otel": "^5.0.1",
+    "@langfuse/tracing": "^5.0.1",
+    "@opentelemetry/sdk-node": "^0.213.0"
+  }
+}

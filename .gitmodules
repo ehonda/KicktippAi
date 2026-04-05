@@ -22,6 +22,3 @@
 [submodule "external/spectreconsole/spectre.console.cli"]
 	path = external/spectreconsole/spectre.console.cli
 	url = https://github.com/spectreconsole/spectre.console.cli.git
-[submodule "external/nodatime/nodatime"]
-	path = external/nodatime/nodatime
-	url = https://github.com/nodatime/nodatime.git

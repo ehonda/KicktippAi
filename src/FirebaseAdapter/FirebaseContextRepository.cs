@@ -135,24 +135,13 @@ public class FirebaseContextRepository : IContextRepository
     {
         try
         {
-            var query = _firestoreDb.Collection(_contextDocumentsCollection)
-                .WhereEqualTo("documentName", documentName)
-                .WhereEqualTo("communityContext", communityContext)
-                .WhereEqualTo("competition", _competition)
-                .WhereLessThanOrEqualTo("createdAt", Timestamp.FromDateTime(createdAtOrEarlier.UtcDateTime))
-                .OrderByDescending("createdAt")
-                .OrderByDescending("version")
-                .Limit(1);
+            var versions = await GetContextDocumentVersionsAsync(documentName, communityContext, cancellationToken);
 
-            var snapshot = await query.GetSnapshotAsync(cancellationToken);
-
-            if (!snapshot.Documents.Any())
-            {
-                return null;
-            }
-
-            var firestoreDoc = snapshot.Documents.First().ConvertTo<FirestoreContextDocument>();
-            return ConvertToContextDocument(firestoreDoc);
+            return versions
+                .Where(document => document.CreatedAt <= createdAtOrEarlier)
+                .OrderByDescending(document => document.CreatedAt)
+                .ThenByDescending(document => document.Version)
+                .FirstOrDefault();
         }
         catch (Exception ex)
         {

@@ -75,7 +75,6 @@ public class MatchPromptReconstructionService_Tests : PredictionServiceTests_Bas
         await Assert.That(result.SystemPrompt).IsEqualTo(expectedPrompt);
         await Assert.That(result.MatchJson).IsEqualTo(PredictionPromptComposer.CreateMatchJson(match));
         await Assert.That(result.PromptTemplatePath).Contains("match.md");
-        await Assert.That(result.PromptTimestamp).IsEqualTo(predictionCreatedAt);
     }
 
     [Test]
@@ -113,47 +112,5 @@ public class MatchPromptReconstructionService_Tests : PredictionServiceTests_Bas
         await Assert.That(result.SystemPrompt)
             .Contains("provide justification")
             .And.Contains("doc-a");
-    }
-
-    [Test]
-    public async Task Reconstructing_match_prompt_at_explicit_timestamp_uses_required_and_available_optional_documents()
-    {
-        var match = CreateTestMatch();
-        var promptTimestamp = new DateTimeOffset(2026, 3, 15, 12, 0, 0, TimeSpan.FromHours(1));
-        var predictionRepository = new Mock<IPredictionRepository>(MockBehavior.Strict);
-
-        var contextRepository = new Mock<IContextRepository>();
-        contextRepository
-            .Setup(repository => repository.GetContextDocumentByTimestampAsync("doc-a", promptTimestamp, "test-community", It.IsAny<CancellationToken>()))
-            .ReturnsAsync(new ContextDocument("doc-a", "Alpha", 3, promptTimestamp.AddMinutes(-15)));
-        contextRepository
-            .Setup(repository => repository.GetContextDocumentByTimestampAsync("doc-b", promptTimestamp, "test-community", It.IsAny<CancellationToken>()))
-            .ReturnsAsync(new ContextDocument("doc-b", "Bravo", 7, promptTimestamp.AddMinutes(-10)));
-        contextRepository
-            .Setup(repository => repository.GetContextDocumentByTimestampAsync("doc-optional", promptTimestamp, "test-community", It.IsAny<CancellationToken>()))
-            .ReturnsAsync(new ContextDocument("doc-optional", "Optional", 2, promptTimestamp.AddMinutes(-5)));
-        contextRepository
-            .Setup(repository => repository.GetContextDocumentByTimestampAsync("doc-missing", promptTimestamp, "test-community", It.IsAny<CancellationToken>()))
-            .ReturnsAsync((ContextDocument?)null);
-
-        var templateProvider = CreateMockTemplateProvider();
-        var service = new MatchPromptReconstructionService(
-            predictionRepository.Object,
-            contextRepository.Object,
-            templateProvider.Object);
-
-        var result = await service.ReconstructMatchPredictionPromptAtTimestampAsync(
-            match,
-            "gpt-5",
-            "test-community",
-            promptTimestamp,
-            ["doc-a", "doc-b"],
-            ["doc-optional", "doc-missing"]);
-
-        await Assert.That(result.ContextDocumentNames).IsEquivalentTo(["doc-a", "doc-b", "doc-optional"]);
-        await Assert.That(result.ResolvedContextDocuments.Select(document => document.Version).ToArray())
-            .IsEquivalentTo([3, 7, 2]);
-        await Assert.That(result.PromptTimestamp).IsEqualTo(promptTimestamp);
-        await Assert.That(result.SystemPrompt).Contains("Optional");
     }
 }

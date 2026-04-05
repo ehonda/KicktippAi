@@ -65,13 +65,12 @@ public class FirebaseMatchOutcomeRepository : IMatchOutcomeRepository
         CancellationToken cancellationToken = default)
     {
         var query = _firestoreDb.Collection(_matchOutcomesCollection)
-            .WhereEqualTo("communityContext", communityContext)
-            .WhereEqualTo("competition", _competition)
-            .WhereLessThanOrEqualTo("matchday", currentMatchday);
+            .WhereEqualTo("communityContext", communityContext);
 
         var snapshot = await query.GetSnapshotAsync(cancellationToken);
         var groupedOutcomes = snapshot.Documents
             .Select(doc => doc.ConvertTo<FirestoreMatchOutcome>())
+            .Where(outcome => outcome.Competition == _competition && outcome.Matchday <= currentMatchday)
             .GroupBy(outcome => outcome.Matchday)
             .ToDictionary(group => group.Key, group => group.ToList());
 
@@ -102,13 +101,12 @@ public class FirebaseMatchOutcomeRepository : IMatchOutcomeRepository
         CancellationToken cancellationToken = default)
     {
         var query = _firestoreDb.Collection(_matchOutcomesCollection)
-            .WhereEqualTo("communityContext", communityContext)
-            .WhereEqualTo("competition", _competition)
-            .WhereEqualTo("matchday", matchday);
+            .WhereEqualTo("communityContext", communityContext);
 
         var snapshot = await query.GetSnapshotAsync(cancellationToken);
         return snapshot.Documents
             .Select(doc => doc.ConvertTo<FirestoreMatchOutcome>())
+            .Where(outcome => outcome.Competition == _competition && outcome.Matchday == matchday)
             .Select(ConvertToPersistedMatchOutcome)
             .OrderBy(outcome => outcome.HomeTeam)
             .ToList()

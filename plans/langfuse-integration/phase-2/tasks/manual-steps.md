@@ -84,7 +84,6 @@ Use this file during implementation, not just for planning.
 
 1. Inspect the hosted dataset in the Langfuse UI
 
-- Use the Langfuse API skill first for autonomous confirmation of dataset existence, schemas, and representative items before switching to the UI
 - Confirm the dataset exists with the expected name
 - Confirm items are visible and structurally correct
 - Confirm metadata fields are useful for filtering and debugging
@@ -92,7 +91,6 @@ Use this file during implementation, not just for planning.
 2. Validate re-sync behavior manually
 
 - Re-run the sync on a small sample or the same scope
-- Compare the manual observation with the autonomous sync summary so the UI check confirms the same idempotent outcome
 - Confirm that items are updated idempotently rather than duplicated unexpectedly
 
 ## Task 5 — First Experiment

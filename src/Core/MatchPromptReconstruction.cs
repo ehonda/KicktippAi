@@ -17,7 +17,7 @@ public record ReconstructedMatchPredictionPrompt(
     string Model,
     string CommunityContext,
     bool IncludeJustification,
-    DateTimeOffset PromptTimestamp,
+    DateTimeOffset PredictionCreatedAt,
     string PromptTemplatePath,
     string SystemPrompt,
     string MatchJson,
@@ -42,28 +42,6 @@ public interface IMatchPromptReconstructionService
         Match match,
         string model,
         string communityContext,
-        bool includeJustification = false,
-        CancellationToken cancellationToken = default);
-
-    /// <summary>
-    /// Reconstructs the prompt inputs for a match at an explicit evaluation timestamp.
-    /// </summary>
-    /// <param name="match">The match whose prompt should be reconstructed.</param>
-    /// <param name="model">The model whose template should be used.</param>
-    /// <param name="communityContext">The community context used for document resolution.</param>
-    /// <param name="promptTimestamp">The exact timestamp to use when resolving versioned context documents.</param>
-    /// <param name="requiredContextDocumentNames">Context documents that must exist at the supplied timestamp.</param>
-    /// <param name="optionalContextDocumentNames">Context documents that should be included when available.</param>
-    /// <param name="includeJustification">Whether to reconstruct the justification prompt variant.</param>
-    /// <param name="cancellationToken">Cancellation token.</param>
-    /// <returns>The reconstructed prompt inputs.</returns>
-    Task<ReconstructedMatchPredictionPrompt> ReconstructMatchPredictionPromptAtTimestampAsync(
-        Match match,
-        string model,
-        string communityContext,
-        DateTimeOffset promptTimestamp,
-        IReadOnlyList<string> requiredContextDocumentNames,
-        IReadOnlyList<string>? optionalContextDocumentNames = null,
         bool includeJustification = false,
         CancellationToken cancellationToken = default);
 }

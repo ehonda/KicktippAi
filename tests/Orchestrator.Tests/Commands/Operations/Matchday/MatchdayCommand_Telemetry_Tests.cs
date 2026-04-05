@@ -19,7 +19,7 @@ public class MatchdayCommand_Telemetry_Tests : MatchdayCommandTests_Base
 
         await RunCommandAsync(ctx.App, ctx.Console, "matchday", "gpt-4o", "-c", "test-community");
 
-        var rootActivity = capturedActivities.FirstOrDefault(a => a.Parent == null && a.OperationName == "matchday");
+        var rootActivity = capturedActivities.FirstOrDefault(a => a.Parent == null);
         await Assert.That(rootActivity).IsNotNull();
         await Assert.That(rootActivity!.OperationName).IsEqualTo("matchday");
     }
@@ -34,7 +34,7 @@ public class MatchdayCommand_Telemetry_Tests : MatchdayCommandTests_Base
 
         await RunCommandAsync(ctx.App, ctx.Console, "matchday", "gpt-4o", "-c", "pes-squad");
 
-        var rootActivity = capturedActivities.FirstOrDefault(a => a.Parent == null && a.OperationName == "matchday");
+        var rootActivity = capturedActivities.FirstOrDefault(a => a.Parent == null);
         await Assert.That(rootActivity).IsNotNull();
         await Assert.That(rootActivity!.GetTagItem("langfuse.environment") as string).IsEqualTo("production");
     }
@@ -49,7 +49,7 @@ public class MatchdayCommand_Telemetry_Tests : MatchdayCommandTests_Base
 
         await RunCommandAsync(ctx.App, ctx.Console, "matchday", "gpt-4o", "-c", "ehonda-test-buli");
 
-        var rootActivity = capturedActivities.FirstOrDefault(a => a.Parent == null && a.OperationName == "matchday");
+        var rootActivity = capturedActivities.FirstOrDefault(a => a.Parent == null);
         await Assert.That(rootActivity).IsNotNull();
         await Assert.That(rootActivity!.GetTagItem("langfuse.environment") as string).IsEqualTo("development");
     }

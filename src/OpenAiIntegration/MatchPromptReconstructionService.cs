@@ -43,38 +43,28 @@ public sealed class MatchPromptReconstructionService : IMatchPromptReconstructio
             return null;
         }
 
-        return await ReconstructMatchPredictionPromptAtTimestampAsync(
-            match,
-            model,
-            communityContext,
-            predictionMetadata.CreatedAt,
-            predictionMetadata.ContextDocumentNames,
-            includeJustification: includeJustification,
-            cancellationToken: cancellationToken);
-    }
+        var resolvedContextDocuments = new List<ResolvedContextDocumentVersion>();
+        foreach (var documentName in predictionMetadata.ContextDocumentNames)
+        {
+            var contextDocument = await _contextRepository.GetContextDocumentByTimestampAsync(
+                documentName,
+                predictionMetadata.CreatedAt,
+                communityContext,
+                cancellationToken);
 
-    public async Task<ReconstructedMatchPredictionPrompt> ReconstructMatchPredictionPromptAtTimestampAsync(
-        Match match,
-        string model,
-        string communityContext,
-        DateTimeOffset promptTimestamp,
-        IReadOnlyList<string> requiredContextDocumentNames,
-        IReadOnlyList<string>? optionalContextDocumentNames = null,
-        bool includeJustification = false,
-        CancellationToken cancellationToken = default)
-    {
-        ArgumentNullException.ThrowIfNull(match);
-        ArgumentException.ThrowIfNullOrWhiteSpace(model);
-        ArgumentException.ThrowIfNullOrWhiteSpace(communityContext);
-        ArgumentNullException.ThrowIfNull(requiredContextDocumentNames);
+            if (contextDocument is null)
+            {
+                throw new InvalidOperationException(
+                    $"Failed to reconstruct prompt for {match.HomeTeam} vs {match.AwayTeam}: " +
+                    $"document '{documentName}' had no version at or before {predictionMetadata.CreatedAt:O}.");
+            }
 
-        var resolvedContextDocuments = await ResolveContextDocumentsAsync(
-            match,
-            communityContext,
-            promptTimestamp,
-            requiredContextDocumentNames,
-            optionalContextDocumentNames ?? [],
-            cancellationToken);
+            resolvedContextDocuments.Add(new ResolvedContextDocumentVersion(
+                contextDocument.DocumentName,
+                contextDocument.Version,
+                contextDocument.CreatedAt,
+                contextDocument.Content));
+        }
 
         var (template, templatePath) = _templateProvider.LoadMatchTemplate(model, includeJustification);
         var systemPrompt = PredictionPromptComposer.BuildSystemPrompt(
@@ -86,66 +76,11 @@ public sealed class MatchPromptReconstructionService : IMatchPromptReconstructio
             model,
             communityContext,
             includeJustification,
-            promptTimestamp,
+            predictionMetadata.CreatedAt,
             templatePath,
             systemPrompt,
             PredictionPromptComposer.CreateMatchJson(match),
-            resolvedContextDocuments.Select(document => document.DocumentName).ToArray(),
+            predictionMetadata.ContextDocumentNames,
             resolvedContextDocuments);
-    }
-
-    private async Task<IReadOnlyList<ResolvedContextDocumentVersion>> ResolveContextDocumentsAsync(
-        Match match,
-        string communityContext,
-        DateTimeOffset promptTimestamp,
-        IReadOnlyList<string> requiredContextDocumentNames,
-        IReadOnlyList<string> optionalContextDocumentNames,
-        CancellationToken cancellationToken)
-    {
-        var resolvedContextDocuments = new List<ResolvedContextDocumentVersion>();
-
-        foreach (var documentName in requiredContextDocumentNames)
-        {
-            var contextDocument = await _contextRepository.GetContextDocumentByTimestampAsync(
-                documentName,
-                promptTimestamp,
-                communityContext,
-                cancellationToken);
-
-            if (contextDocument is null)
-            {
-                throw new InvalidOperationException(
-                    $"Failed to reconstruct prompt for {match.HomeTeam} vs {match.AwayTeam}: " +
-                    $"document '{documentName}' had no version at or before {promptTimestamp:O}.");
-            }
-
-            resolvedContextDocuments.Add(new ResolvedContextDocumentVersion(
-                contextDocument.DocumentName,
-                contextDocument.Version,
-                contextDocument.CreatedAt,
-                contextDocument.Content));
-        }
-
-        foreach (var documentName in optionalContextDocumentNames)
-        {
-            var contextDocument = await _contextRepository.GetContextDocumentByTimestampAsync(
-                documentName,
-                promptTimestamp,
-                communityContext,
-                cancellationToken);
-
-            if (contextDocument is null)
-            {
-                continue;
-            }
-
-            resolvedContextDocuments.Add(new ResolvedContextDocumentVersion(
-                contextDocument.DocumentName,
-                contextDocument.Version,
-                contextDocument.CreatedAt,
-                contextDocument.Content));
-        }
-
-        return resolvedContextDocuments;
     }
 }

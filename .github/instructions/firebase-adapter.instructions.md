@@ -49,7 +49,6 @@ Each repository's tests belong to a **parallel constraint group** named after th
 | `FirebaseContextRepository` | `Firestore:ContextDocuments` | `context-documents` |
 | `FirebasePredictionRepository` | `Firestore:Predictions` | `match-predictions`, `matches`, `bonus-predictions` |
 | `FirebaseKpiRepository` | `Firestore:Kpi` | `kpi-documents` |
-| `FirebaseMatchOutcomeRepository` | `Firestore:MatchOutcomes` | `match-outcomes` |
 
 Tests with **different keys can run in parallel**. Tests with the **same key run sequentially**.
 
@@ -156,7 +155,6 @@ FirestoreFixture.SharedKey  // "FirestoreEmulator"
 FirestoreFixture.ContextDocumentsParallelKey  // "Firestore:ContextDocuments"
 FirestoreFixture.PredictionsParallelKey       // "Firestore:Predictions"
 FirestoreFixture.KpiParallelKey               // "Firestore:Kpi"
-FirestoreFixture.MatchOutcomesParallelKey     // "Firestore:MatchOutcomes"
 ```
 
 ### Collection-Specific Clear Methods
@@ -172,9 +170,6 @@ await Fixture.ClearPredictionsAsync();
 
 // Clear only kpi-documents collection
 await Fixture.ClearKpiDocumentsAsync();
-
-// Clear only match-outcomes collection
-await Fixture.ClearMatchOutcomesAsync();
 ```
 
 **Always use the collection-specific method** in your `[Before(Test)]` hook to enable parallel execution with other collection groups.
