@@ -183,6 +183,117 @@ public class FirebasePredictionRepository_Match_Tests(FirestoreFixture fixture)
         await Assert.That(storedMatch!.StartsAt.ToInstant()).IsEqualTo(requestedMatch.StartsAt.ToInstant());
     }
 
+    [Test]
+    public async Task GetStoredMatchAsync_prefers_earliest_stored_match_when_duplicates_exist()
+    {
+        var repository = CreateRepository();
+        var earlierStartsAt = Instant.FromUtc(2026, 2, 21, 14, 30).InUtc();
+        var laterStartsAt = Instant.FromUtc(2026, 2, 21, 18, 0).InUtc();
+
+        await Fixture.Db.Collection("matches")
+            .Document("match-later")
+            .SetAsync(new Dictionary<string, object?>
+            {
+                ["homeTeam"] = "Team A",
+                ["awayTeam"] = "Team B",
+                ["startsAt"] = Timestamp.FromDateTimeOffset(laterStartsAt.ToDateTimeOffset()),
+                ["matchday"] = 25,
+                ["competition"] = "bundesliga-2025-26",
+                ["isCancelled"] = false
+            });
+
+        await Fixture.Db.Collection("matches")
+            .Document("match-earlier")
+            .SetAsync(new Dictionary<string, object?>
+            {
+                ["homeTeam"] = "Team A",
+                ["awayTeam"] = "Team B",
+                ["startsAt"] = Timestamp.FromDateTimeOffset(earlierStartsAt.ToDateTimeOffset()),
+                ["matchday"] = 25,
+                ["competition"] = "bundesliga-2025-26",
+                ["isCancelled"] = false
+            });
+
+        var storedMatch = await repository.GetStoredMatchAsync("Team A", "Team B", 25);
+
+        await Assert.That(storedMatch).IsNotNull();
+        await Assert.That(storedMatch!.StartsAt.ToInstant()).IsEqualTo(earlierStartsAt.ToInstant());
+    }
+
+    [Test]
+    public async Task GetStoredMatchAsync_prediction_fallback_prefers_highest_reprediction_then_latest_created_at_then_earliest_start()
+    {
+        var repository = CreateRepository();
+
+        await Fixture.Db.Collection("match-predictions")
+            .Document("prediction-low-index")
+            .SetAsync(new Dictionary<string, object?>
+            {
+                ["homeTeam"] = "Team A",
+                ["awayTeam"] = "Team B",
+                ["startsAt"] = Timestamp.FromDateTimeOffset(Instant.FromUtc(2026, 2, 21, 16, 30).ToDateTimeOffset()),
+                ["matchday"] = 25,
+                ["homeGoals"] = 1,
+                ["awayGoals"] = 0,
+                ["createdAt"] = Timestamp.FromDateTime(DateTime.SpecifyKind(new DateTime(2026, 2, 1, 12, 0, 0), DateTimeKind.Utc)),
+                ["updatedAt"] = Timestamp.FromDateTime(DateTime.SpecifyKind(new DateTime(2026, 2, 1, 12, 0, 0), DateTimeKind.Utc)),
+                ["competition"] = "bundesliga-2025-26",
+                ["model"] = "gpt-4o",
+                ["tokenUsage"] = "100",
+                ["cost"] = 0.01,
+                ["communityContext"] = "test-community",
+                ["contextDocumentNames"] = Array.Empty<string>(),
+                ["repredictionIndex"] = 0
+            });
+
+        await Fixture.Db.Collection("match-predictions")
+            .Document("prediction-higher-index-later-start")
+            .SetAsync(new Dictionary<string, object?>
+            {
+                ["homeTeam"] = "Team A",
+                ["awayTeam"] = "Team B",
+                ["startsAt"] = Timestamp.FromDateTimeOffset(Instant.FromUtc(2026, 2, 21, 18, 30).ToDateTimeOffset()),
+                ["matchday"] = 25,
+                ["homeGoals"] = 2,
+                ["awayGoals"] = 1,
+                ["createdAt"] = Timestamp.FromDateTime(DateTime.SpecifyKind(new DateTime(2026, 2, 2, 12, 0, 0), DateTimeKind.Utc)),
+                ["updatedAt"] = Timestamp.FromDateTime(DateTime.SpecifyKind(new DateTime(2026, 2, 2, 12, 0, 0), DateTimeKind.Utc)),
+                ["competition"] = "bundesliga-2025-26",
+                ["model"] = "gpt-4o",
+                ["tokenUsage"] = "120",
+                ["cost"] = 0.02,
+                ["communityContext"] = "test-community",
+                ["contextDocumentNames"] = Array.Empty<string>(),
+                ["repredictionIndex"] = 1
+            });
+
+        await Fixture.Db.Collection("match-predictions")
+            .Document("prediction-higher-index-earlier-start")
+            .SetAsync(new Dictionary<string, object?>
+            {
+                ["homeTeam"] = "Team A",
+                ["awayTeam"] = "Team B",
+                ["startsAt"] = Timestamp.FromDateTimeOffset(Instant.FromUtc(2026, 2, 21, 14, 30).ToDateTimeOffset()),
+                ["matchday"] = 25,
+                ["homeGoals"] = 3,
+                ["awayGoals"] = 2,
+                ["createdAt"] = Timestamp.FromDateTime(DateTime.SpecifyKind(new DateTime(2026, 2, 2, 12, 0, 0), DateTimeKind.Utc)),
+                ["updatedAt"] = Timestamp.FromDateTime(DateTime.SpecifyKind(new DateTime(2026, 2, 2, 12, 0, 0), DateTimeKind.Utc)),
+                ["competition"] = "bundesliga-2025-26",
+                ["model"] = "gpt-4o",
+                ["tokenUsage"] = "130",
+                ["cost"] = 0.03,
+                ["communityContext"] = "test-community",
+                ["contextDocumentNames"] = Array.Empty<string>(),
+                ["repredictionIndex"] = 1
+            });
+
+        var storedMatch = await repository.GetStoredMatchAsync("Team A", "Team B", 25, "gpt-4o", "test-community");
+
+        await Assert.That(storedMatch).IsNotNull();
+        await Assert.That(storedMatch!.StartsAt.ToInstant()).IsEqualTo(Instant.FromUtc(2026, 2, 21, 14, 30));
+    }
+
     /// <summary>
     /// Verifies that matches with <see cref="DateTimeOffset.MinValue"/> as startsAt can be stored and retrieved.
     /// This edge case can occur when the first match on a matchday is cancelled and there's no previous time to inherit.
