@@ -31,6 +31,18 @@ public class PredictionService_PredictMatchAsync_Tests : PredictionServiceTests_
         return listener;
     }
 
+    private static bool IsMatchingPredictMatchActivity(Activity candidate, PredictionTelemetryMetadata telemetryMetadata)
+    {
+        return candidate.OperationName == "predict-match" &&
+               candidate.GetTagItem("langfuse.observation.type") is not null &&
+               candidate.GetTagItem("langfuse.observation.metadata.homeTeam") is string homeTeam &&
+               homeTeam == telemetryMetadata.HomeTeam &&
+               candidate.GetTagItem("langfuse.observation.metadata.awayTeam") is string awayTeam &&
+               awayTeam == telemetryMetadata.AwayTeam &&
+               candidate.GetTagItem("langfuse.observation.metadata.repredictionIndex") is string repredictionIndex &&
+               repredictionIndex == "3";
+    }
+
     /// <summary>
     /// Helper method to call PredictMatchAsync with optional parameters that default to test helpers
     /// </summary>
@@ -289,15 +301,7 @@ public class PredictionService_PredictMatchAsync_Tests : PredictionServiceTests_
 
         await Assert.That(prediction).IsNotNull();
         var activity = capturedActivities
-            .Single(candidate =>
-                candidate.OperationName == "predict-match" &&
-                candidate.GetTagItem("langfuse.observation.type") is not null &&
-                candidate.GetTagItem("langfuse.observation.metadata.homeTeam") is string homeTeam &&
-                homeTeam == telemetryMetadata.HomeTeam &&
-                candidate.GetTagItem("langfuse.observation.metadata.awayTeam") is string awayTeam &&
-                awayTeam == telemetryMetadata.AwayTeam &&
-                candidate.GetTagItem("langfuse.observation.metadata.repredictionIndex") is string repredictionIndex &&
-                repredictionIndex == "3");
+            .Single(candidate => IsMatchingPredictMatchActivity(candidate, telemetryMetadata));
         await Assert.That(activity.GetTagItem("langfuse.observation.type")).IsEqualTo("generation");
         await Assert.That(activity.GetTagItem("gen_ai.request.model")).IsEqualTo("gpt-5");
         await Assert.That(activity.GetTagItem("langfuse.observation.input")?.ToString()).Contains("\"role\":\"system\"");
