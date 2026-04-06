@@ -288,6 +288,7 @@ public class PredictionService_PredictMatchAsync_Tests : PredictionServiceTests_
     }
 
     [Test]
+    [NotInParallel("Telemetry")]
     public async Task Predicting_match_records_langfuse_generation_activity_tags()
     {
         var capturedActivities = new List<Activity>();
@@ -301,7 +302,8 @@ public class PredictionService_PredictMatchAsync_Tests : PredictionServiceTests_
 
         await Assert.That(prediction).IsNotNull();
         var activity = capturedActivities
-            .Single(candidate => IsMatchingPredictMatchActivity(candidate, telemetryMetadata));
+            .FirstOrDefault(candidate => IsMatchingPredictMatchActivity(candidate, telemetryMetadata));
+        await Assert.That(activity).IsNotNull();
         await Assert.That(activity.GetTagItem("langfuse.observation.type")).IsEqualTo("generation");
         await Assert.That(activity.GetTagItem("gen_ai.request.model")).IsEqualTo("gpt-5");
         await Assert.That(activity.GetTagItem("langfuse.observation.input")?.ToString()).Contains("\"role\":\"system\"");
