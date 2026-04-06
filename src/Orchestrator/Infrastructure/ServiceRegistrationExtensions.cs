@@ -4,6 +4,7 @@ using EHonda.KicktippAi.Core;
 using Microsoft.Extensions.DependencyInjection;
 using Microsoft.Extensions.DependencyInjection.Extensions;
 using Microsoft.Extensions.FileProviders;
+using Microsoft.Extensions.Http.Resilience;
 using Microsoft.Extensions.Logging;
 using OpenTelemetry.Exporter;
 using OpenTelemetry.Resources;
@@ -45,20 +46,7 @@ public static class ServiceRegistrationExtensions
 
         if (!services.Any(descriptor => descriptor.ServiceType == typeof(ILangfusePublicApiClient)))
         {
-            services.AddHttpClient<ILangfusePublicApiClient, LangfusePublicApiClient>((_, client) =>
-            {
-                var baseUrl = (Environment.GetEnvironmentVariable("LANGFUSE_BASE_URL") ?? "https://cloud.langfuse.com").TrimEnd('/');
-                client.BaseAddress = new Uri($"{baseUrl}/api/public/");
-                client.DefaultRequestHeaders.Accept.Add(new MediaTypeWithQualityHeaderValue("application/json"));
-
-                var publicKey = Environment.GetEnvironmentVariable("LANGFUSE_PUBLIC_KEY");
-                var secretKey = Environment.GetEnvironmentVariable("LANGFUSE_SECRET_KEY");
-                if (!string.IsNullOrWhiteSpace(publicKey) && !string.IsNullOrWhiteSpace(secretKey))
-                {
-                    var authorization = Convert.ToBase64String(Encoding.UTF8.GetBytes($"{publicKey}:{secretKey}"));
-                    client.DefaultRequestHeaders.Authorization = new AuthenticationHeaderValue("Basic", authorization);
-                }
-            });
+            services.AddLangfusePublicApiClient();
         }
 
         // Register factories (idempotent)
@@ -72,6 +60,46 @@ public static class ServiceRegistrationExtensions
         services.AddLangfuseTracing();
 
         return services;
+    }
+
+    internal static IHttpClientBuilder AddLangfusePublicApiClient(this IServiceCollection services)
+    {
+        var clientBuilder = services.AddHttpClient<ILangfusePublicApiClient, LangfusePublicApiClient>((_, client) =>
+        {
+            var baseUrl = (Environment.GetEnvironmentVariable("LANGFUSE_BASE_URL") ?? "https://cloud.langfuse.com").TrimEnd('/');
+            client.BaseAddress = new Uri($"{baseUrl}/api/public/");
+            client.Timeout = Timeout.InfiniteTimeSpan;
+            client.DefaultRequestHeaders.Accept.Add(new MediaTypeWithQualityHeaderValue("application/json"));
+
+            var publicKey = Environment.GetEnvironmentVariable("LANGFUSE_PUBLIC_KEY");
+            var secretKey = Environment.GetEnvironmentVariable("LANGFUSE_SECRET_KEY");
+            if (!string.IsNullOrWhiteSpace(publicKey) && !string.IsNullOrWhiteSpace(secretKey))
+            {
+                var authorization = Convert.ToBase64String(Encoding.UTF8.GetBytes($"{publicKey}:{secretKey}"));
+                client.DefaultRequestHeaders.Authorization = new AuthenticationHeaderValue("Basic", authorization);
+            }
+        });
+
+        clientBuilder.AddStandardResilienceHandler().Configure(options =>
+        {
+            options.Retry.DisableForUnsafeHttpMethods();
+            options.Retry.DelayGenerator = static args =>
+            {
+                var response = args.Outcome.Result;
+                if (response is null)
+                {
+                    return new ValueTask<TimeSpan?>((TimeSpan?)null);
+                }
+
+                var retryMetadata = LangfuseRetryAfterUtility.GetRetryAfterMetadata(response.Headers);
+                return new ValueTask<TimeSpan?>(retryMetadata.RetryAfterDelay);
+            };
+            options.AttemptTimeout.Timeout = TimeSpan.FromSeconds(45);
+            options.CircuitBreaker.SamplingDuration = TimeSpan.FromMinutes(2);
+            options.TotalRequestTimeout.Timeout = TimeSpan.FromMinutes(4);
+        });
+
+        return clientBuilder;
     }
 
     /// <summary>

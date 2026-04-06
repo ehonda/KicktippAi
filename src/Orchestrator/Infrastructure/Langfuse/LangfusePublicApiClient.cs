@@ -1,4 +1,5 @@
 using System.Net;
+using System.Net.Http.Headers;
 using System.Net.Http.Json;
 using System.Text.Json;
 using Microsoft.Extensions.Logging;
@@ -147,7 +148,7 @@ public sealed class LangfusePublicApiClient : ILangfusePublicApiClient
         {
             var responseBody = await response.Content.ReadAsStringAsync(cancellationToken);
             _logger.LogError(ex, "Failed to deserialize Langfuse response from {Path}: {Body}", relativePath, responseBody);
-            throw new LangfusePublicApiException(response.StatusCode, relativePath, responseBody, ex);
+            throw new LangfusePublicApiException(response.StatusCode, relativePath, responseBody, innerException: ex);
         }
     }
 
@@ -159,7 +160,14 @@ public sealed class LangfusePublicApiClient : ILangfusePublicApiClient
         }
 
         var body = await response.Content.ReadAsStringAsync(cancellationToken);
-        throw new LangfusePublicApiException(response.StatusCode, response.RequestMessage?.RequestUri?.ToString() ?? string.Empty, body);
+        var retryMetadata = LangfuseRetryAfterUtility.GetRetryAfterMetadata(response.Headers);
+        throw new LangfusePublicApiException(
+            response.StatusCode,
+            response.RequestMessage?.RequestUri?.ToString() ?? string.Empty,
+            body,
+            retryMetadata.RetryAfterHeaderValue,
+            retryMetadata.RetryAfterDelay,
+            retryMetadata.RetryAfterAtUtc);
     }
 
     private static string EncodePathSegment(string value)
@@ -180,14 +188,56 @@ public sealed class LangfusePublicApiClient : ILangfusePublicApiClient
     }
 }
 
+internal static class LangfuseRetryAfterUtility
+{
+    public static LangfuseRetryAfterMetadata GetRetryAfterMetadata(HttpResponseHeaders headers)
+    {
+        var headerValue = headers.TryGetValues("Retry-After", out var values)
+            ? string.Join(", ", values)
+            : null;
+        var retryAfter = headers.RetryAfter;
+
+        if (retryAfter?.Delta is TimeSpan delta)
+        {
+            return new LangfuseRetryAfterMetadata(headerValue, delta < TimeSpan.Zero ? TimeSpan.Zero : delta, null);
+        }
+
+        if (retryAfter?.Date is DateTimeOffset retryAtUtc)
+        {
+            var delay = retryAtUtc - DateTimeOffset.UtcNow;
+            return new LangfuseRetryAfterMetadata(
+                headerValue,
+                delay < TimeSpan.Zero ? TimeSpan.Zero : delay,
+                retryAtUtc);
+        }
+
+        return new LangfuseRetryAfterMetadata(headerValue, null, null);
+    }
+}
+
+internal sealed record LangfuseRetryAfterMetadata(
+    string? RetryAfterHeaderValue,
+    TimeSpan? RetryAfterDelay,
+    DateTimeOffset? RetryAfterAtUtc);
+
 public sealed class LangfusePublicApiException : Exception
 {
-    public LangfusePublicApiException(HttpStatusCode statusCode, string endpoint, string responseBody, Exception? innerException = null)
-        : base($"Langfuse API request failed with status {(int)statusCode} ({statusCode}) for '{endpoint}'. Response: {responseBody}", innerException)
+    public LangfusePublicApiException(
+        HttpStatusCode statusCode,
+        string endpoint,
+        string responseBody,
+        string? retryAfterHeaderValue = null,
+        TimeSpan? retryAfterDelay = null,
+        DateTimeOffset? retryAfterAtUtc = null,
+        Exception? innerException = null)
+        : base(BuildMessage(statusCode, endpoint, responseBody, retryAfterHeaderValue, retryAfterDelay, retryAfterAtUtc), innerException)
     {
         StatusCode = statusCode;
         Endpoint = endpoint;
         ResponseBody = responseBody;
+        RetryAfterHeaderValue = retryAfterHeaderValue;
+        RetryAfterDelay = retryAfterDelay;
+        RetryAfterAtUtc = retryAfterAtUtc;
     }
 
     public HttpStatusCode StatusCode { get; }
@@ -195,4 +245,43 @@ public sealed class LangfusePublicApiException : Exception
     public string Endpoint { get; }
 
     public string ResponseBody { get; }
+
+    public string? RetryAfterHeaderValue { get; }
+
+    public TimeSpan? RetryAfterDelay { get; }
+
+    public DateTimeOffset? RetryAfterAtUtc { get; }
+
+    private static string BuildMessage(
+        HttpStatusCode statusCode,
+        string endpoint,
+        string responseBody,
+        string? retryAfterHeaderValue,
+        TimeSpan? retryAfterDelay,
+        DateTimeOffset? retryAfterAtUtc)
+    {
+        var retryAfterSuffix = string.IsNullOrWhiteSpace(retryAfterHeaderValue)
+            ? string.Empty
+            : $" Retry-After: {retryAfterHeaderValue}.";
+        var retryWindowSuffix = retryAfterDelay is null && retryAfterAtUtc is null
+            ? string.Empty
+            : $" Retry window: {FormatRetryWindow(retryAfterDelay, retryAfterAtUtc)}.";
+
+        return $"Langfuse API request failed with status {(int)statusCode} ({statusCode}) for '{endpoint}'. Response: {responseBody}.{retryAfterSuffix}{retryWindowSuffix}";
+    }
+
+    private static string FormatRetryWindow(TimeSpan? retryAfterDelay, DateTimeOffset? retryAfterAtUtc)
+    {
+        if (retryAfterDelay is { } delay && retryAfterAtUtc is { } retryAtUtc)
+        {
+            return $"wait {delay:c} until {retryAtUtc:O}";
+        }
+
+        if (retryAfterDelay is { } delayOnly)
+        {
+            return $"wait {delayOnly:c}";
+        }
+
+        return $"until {retryAfterAtUtc:O}";
+    }
 }

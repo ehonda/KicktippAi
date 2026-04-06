@@ -1,14 +1,20 @@
 using System.Diagnostics;
+using System.Net;
+using System.Net.Http.Headers;
 using System.Reflection;
 using EHonda.KicktippAi.Core;
 using Microsoft.Extensions.DependencyInjection;
 using Microsoft.Extensions.FileProviders;
 using Microsoft.Extensions.Hosting;
+using Microsoft.Extensions.Logging.Testing;
 using Orchestrator.Infrastructure;
 using Orchestrator.Infrastructure.Factories;
 using Orchestrator.Infrastructure.Langfuse;
 using Orchestrator.Services;
 using OpenAiIntegration;
+using WireMock.RequestBuilders;
+using WireMock.ResponseBuilders;
+using WireMock.Server;
 
 namespace Orchestrator.Tests.Infrastructure;
 
@@ -118,6 +124,98 @@ public class LangfuseAndServiceRegistrationTests
             descriptor.ServiceType == typeof(MatchOutcomeCollectionService))).IsTrue();
         await Assert.That(services.Any(descriptor =>
             descriptor.ServiceType == typeof(ILangfusePublicApiClient))).IsTrue();
+    }
+
+    [Test]
+    public async Task Langfuse_client_registration_retries_safe_get_requests_when_rate_limited()
+    {
+        using var server = WireMockServer.Start();
+        Environment.SetEnvironmentVariable(LangfuseBaseUrlEnvVar, server.Urls[0]);
+
+        server
+            .Given(Request.Create()
+                .WithPath("/api/public/traces/trace-1")
+                .UsingGet())
+            .InScenario("langfuse-trace-retry")
+            .WillSetStateTo("retried")
+            .RespondWith(Response.Create()
+                .WithStatusCode(429)
+                .WithHeader("Content-Type", "application/json")
+                .WithHeader("Retry-After", "0")
+                .WithBody("{\"message\":\"rate limit exceeded\"}"));
+
+        server
+            .Given(Request.Create()
+                .WithPath("/api/public/traces/trace-1")
+                .UsingGet())
+            .InScenario("langfuse-trace-retry")
+            .WhenStateIs("retried")
+            .RespondWith(Response.Create()
+                .WithStatusCode(200)
+                .WithHeader("Content-Type", "application/json")
+                .WithBody(
+                    """
+                    {
+                      "id": "trace-1",
+                      "name": "trace-name",
+                      "metadata": {},
+                      "output": { "homeGoals": 2, "awayGoals": 1 },
+                      "scores": [],
+                      "observations": [],
+                      "tags": []
+                    }
+                    """));
+
+        var services = new ServiceCollection();
+        services.AddLogging();
+        services.AddLangfusePublicApiClient();
+
+        using var provider = services.BuildServiceProvider();
+        var client = provider.GetRequiredService<ILangfusePublicApiClient>();
+
+        var trace = await client.GetTraceAsync("trace-1");
+
+        await Assert.That(trace).IsNotNull();
+        await Assert.That(trace!.Id).IsEqualTo("trace-1");
+        await Assert.That(server.LogEntries.Count).IsEqualTo(2);
+    }
+
+    [Test]
+    public async Task Langfuse_client_errors_include_retry_after_metadata()
+    {
+        using var server = WireMockServer.Start();
+        server
+            .Given(Request.Create()
+                .WithPath("/api/public/traces/trace-1")
+                .UsingGet())
+            .RespondWith(Response.Create()
+                .WithStatusCode(429)
+                .WithHeader("Content-Type", "application/json")
+                .WithHeader("Retry-After", "17")
+                .WithBody("{\"message\":\"rate limit exceeded\"}"));
+
+        using var httpClient = new HttpClient
+        {
+            BaseAddress = new Uri($"{server.Urls[0]}/api/public/")
+        };
+
+        var client = new LangfusePublicApiClient(httpClient, new FakeLogger<LangfusePublicApiClient>());
+
+        LangfusePublicApiException? exception = null;
+
+        try
+        {
+            await client.GetTraceAsync("trace-1");
+        }
+        catch (LangfusePublicApiException ex)
+        {
+            exception = ex;
+        }
+
+        await Assert.That(exception).IsNotNull();
+        await Assert.That(exception!.RetryAfterHeaderValue).IsEqualTo("17");
+        await Assert.That(exception.RetryAfterDelay).IsEqualTo(TimeSpan.FromSeconds(17));
+        await Assert.That(exception.Message).Contains("Retry-After: 17.");
     }
 
     [Test]
