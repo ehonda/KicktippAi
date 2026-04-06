@@ -13,8 +13,9 @@ What is implemented today is the score production layer:
 What is also implemented now:
 
 - `export-experiment-analysis` to export comparable Langfuse runs into one normalized JSON bundle
+- a Python report command to run Wilcoxon/Friedman-based statistical comparisons from that normalized bundle
 
-That means we can already execute comparable experiment runs, inspect the resulting scores in Langfuse, and export a stable analysis input bundle. The statistical report layer is still pending.
+That means we can now execute comparable experiment runs, inspect the resulting scores in Langfuse, export a stable analysis input bundle, and generate a machine-readable JSON report plus a human-readable Markdown summary.
 
 ## What We Do Today
 
@@ -25,12 +26,19 @@ Typical workflow:
 1. Run multiple models or prompt variants on the same fixed slice or repeated-match dataset.
 2. Inspect dataset runs, traces, and score distributions in the Langfuse UI.
 3. Export a normalized bundle with `export-experiment-analysis`.
-4. If needed, query run-level scores through the Langfuse public API.
+4. Generate a statistical report from that bundle with `uv run experiment-analysis-report`.
+5. If needed, query run-level scores through the Langfuse public API.
 
 Example export command:
 
 ```powershell
 dotnet run --project src/Orchestrator -- export-experiment-analysis --dataset-name match-predictions/bundesliga-2025-26/pes-squad/slices/all-matchdays/random-16-seed-20260403 --run-names "slice__pes-squad__o3__prompt-v1__random-16-seed-20260403__startsat-12h__2026-04-03t12-00-00z,slice__pes-squad__gpt-5-nano__prompt-v1__random-16-seed-20260403__startsat-12h__2026-04-03t12-00-00z"
+```
+
+Example report command:
+
+```powershell
+uv run experiment-analysis-report --input artifacts/langfuse-experiments/analysis/match-predictions/bundesliga-2025-26/pes-squad/slices/all-matchdays/random-16-seed-20260403/2026-04-03t12-00-00z.analysis.json
 ```
 
 Important repository-specific notes:
@@ -80,14 +88,30 @@ The analysis plan explicitly does not treat a plain paired t-test as the default
 
 ## Likely Implementation Shape
 
-The current recommendation is:
+The current repository workflow is:
 
 1. define a shared normalized analysis contract in .NET
 2. export that contract from Langfuse-backed experiment data via `export-experiment-analysis`
-3. consume that contract from Python for statistics and reporting
+3. consume that contract from Python via `experiment-analysis-report` for statistics and reporting
 
 That keeps the experiment runner and the analysis layer loosely coupled.
 
-## Until Then
+## Report Outputs
 
-Until the Python report layer exists, treat Langfuse as the inspection surface and source of recorded scores, and treat the exported analysis bundle as the machine-readable input for later statistical comparison.
+The Python report command currently produces:
+
+- a JSON report with ranked runs, pairwise outcome counts, Wilcoxon results, bootstrap confidence intervals, and corrected pairwise comparisons
+- a Markdown summary with the same comparison information in a review-friendly format
+
+Two-run bundles are reported with:
+
+- primary metric deltas
+- paired Wilcoxon signed-rank results
+- effect-size confidence intervals for mean and median paired Kicktipp-point differences
+- per-item win/tie/loss counts
+
+Three-or-more-run bundles are reported with:
+
+- Friedman omnibus test results
+- corrected pairwise Wilcoxon comparisons
+- per-item win/tie/loss counts for each run ordering

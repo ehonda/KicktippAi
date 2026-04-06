@@ -6,6 +6,10 @@
 # dotenv files
 .env
 
+# Python packaging artifacts
+__pycache__/
+*.egg-info/
+
 # User-specific files
 *.rsuser
 *.suo

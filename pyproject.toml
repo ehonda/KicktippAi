@@ -1,6 +1,21 @@
+[build-system]
+requires = ["setuptools>=80"]
+build-backend = "setuptools.build_meta"
+
 [project]
 name = "kicktippai"
 version = "0.1.0"
 description = "Python tooling for Langfuse statistical evaluation and analysis"
 requires-python = ">=3.14,<3.15"
-dependencies = []
+dependencies = [
+    "numpy>=2.4.4",
+    "pandas>=3.0.2",
+    "scipy>=1.17.1",
+    "statsmodels>=0.14.6",
+]
+
+[project.scripts]
+experiment-analysis-report = "tools.experiment_analysis.report:main"
+
+[tool.setuptools.packages.find]
+include = ["tools*"]
