@@ -224,35 +224,75 @@ public class ExportExperimentAnalysisCommand_Tests
                 ],
                 new LangfusePaginationMeta(1, 100, 2, 1)));
         client
-            .Setup(mock => mock.GetDatasetItemAsync(datasetItemId, It.IsAny<CancellationToken>()))
-            .ReturnsAsync(new LangfuseDatasetItem(
-                datasetItemId,
-                datasetId,
-                datasetName,
-                ParseJson("{\"fixture\":\"VfB Stuttgart vs RB Leipzig\",\"startsAt\":\"2026-03-15T15:30:00 Europe/Berlin (+01)\"}"),
-                ParseJson("{\"score\":\"2:1\"}"),
-                ParseJson("{\"competition\":\"bundesliga-2025-26\",\"season\":\"2025/2026\",\"communityContext\":\"test-community\",\"matchday\":26,\"matchdayLabel\":\"md26\",\"homeTeam\":\"VfB Stuttgart\",\"awayTeam\":\"RB Leipzig\",\"tippSpielId\":\"123\",\"startsAt\":\"2026-03-15T15:30:00 Europe/Berlin (+01)\"}"),
-                null));
+            .Setup(mock => mock.ListDatasetItemsAsync(
+                It.Is<LangfuseListDatasetItemsRequest>(request => request.DatasetName == datasetName),
+                It.IsAny<CancellationToken>()))
+            .ReturnsAsync(new LangfusePaginatedResponse<LangfuseDatasetItem>(
+                [new LangfuseDatasetItem(
+                    datasetItemId,
+                    datasetId,
+                    datasetName,
+                    ParseJson("{\"fixture\":\"VfB Stuttgart vs RB Leipzig\",\"startsAt\":\"2026-03-15T15:30:00 Europe/Berlin (+01)\"}"),
+                    ParseJson("{\"score\":\"2:1\"}"),
+                    ParseJson("{\"competition\":\"bundesliga-2025-26\",\"season\":\"2025/2026\",\"communityContext\":\"test-community\",\"matchday\":26,\"matchdayLabel\":\"md26\",\"homeTeam\":\"VfB Stuttgart\",\"awayTeam\":\"RB Leipzig\",\"tippSpielId\":\"123\",\"startsAt\":\"2026-03-15T15:30:00 Europe/Berlin (+01)\"}"),
+                    null)],
+                new LangfusePaginationMeta(1, 100, 1, 1)));
         client
-            .Setup(mock => mock.GetTraceAsync("trace-1", It.IsAny<CancellationToken>()))
-            .ReturnsAsync(new LangfuseTraceWithDetails(
-                "trace-1",
-                null,
-                ParseJson($"{{\"sourceDatasetItemId\":\"{sourceDatasetItemId}\"}}"),
-                ParseJson("{\"homeGoals\":2,\"awayGoals\":1}"),
-                [new LangfuseScore("score-item-1", "kicktipp_points", 4, "trace-1", "observation-1", null, "NUMERIC", "API", default, DateTimeOffset.UtcNow, DateTimeOffset.UtcNow)],
+            .Setup(mock => mock.ListTracesAsync(
+                It.Is<LangfuseListTracesRequest>(request => request.SessionId == runOne && request.Fields == "io"),
+                It.IsAny<CancellationToken>()))
+            .ReturnsAsync(new LangfusePaginatedResponse<LangfuseTraceWithDetails>(
+                [new LangfuseTraceWithDetails(
+                    "trace-1",
+                    null,
+                    ParseJson($"{{\"sourceDatasetItemId\":\"{sourceDatasetItemId}\"}}"),
+                    ParseJson("{\"homeGoals\":2,\"awayGoals\":1}"),
+                    null,
+                    null,
+                    ["experiment"])],
+                new LangfusePaginationMeta(1, 100, 1, 1)));
+        client
+            .Setup(mock => mock.ListTracesAsync(
+                It.Is<LangfuseListTracesRequest>(request => request.SessionId == runTwo && request.Fields == "io"),
+                It.IsAny<CancellationToken>()))
+            .ReturnsAsync(new LangfusePaginatedResponse<LangfuseTraceWithDetails>(
+                [new LangfuseTraceWithDetails(
+                    "trace-2",
+                    null,
+                    ParseJson($"{{\"sourceDatasetItemId\":\"{sourceDatasetItemId}\"}}"),
+                    ParseJson("{\"homeGoals\":1,\"awayGoals\":0}"),
+                    null,
+                    null,
+                    ["experiment"])],
+                new LangfusePaginationMeta(1, 100, 1, 1)));
+        client
+            .Setup(mock => mock.ListObservationsAsync(
+                It.Is<LangfuseListObservationsRequest>(request => request.SessionId == runOne && request.Fields == "basic,io"),
+                It.IsAny<CancellationToken>()))
+            .ReturnsAsync(new LangfuseCursorPaginatedResponse<LangfuseObservationDetail>(
                 [new LangfuseObservationDetail("observation-1", "trace-1", "GENERATION", "predict-match", ParseJson("{\"homeGoals\":2,\"awayGoals\":1}"), default)],
-                ["experiment"]));
+                new LangfuseCursorPaginationMeta(null)));
         client
-            .Setup(mock => mock.GetTraceAsync("trace-2", It.IsAny<CancellationToken>()))
-            .ReturnsAsync(new LangfuseTraceWithDetails(
-                "trace-2",
-                null,
-                ParseJson($"{{\"sourceDatasetItemId\":\"{sourceDatasetItemId}\"}}"),
-                ParseJson("{\"homeGoals\":1,\"awayGoals\":0}"),
-                [new LangfuseScore("score-item-2", "kicktipp_points", 2, "trace-2", "observation-2", null, "NUMERIC", "API", default, DateTimeOffset.UtcNow, DateTimeOffset.UtcNow)],
+            .Setup(mock => mock.ListObservationsAsync(
+                It.Is<LangfuseListObservationsRequest>(request => request.SessionId == runTwo && request.Fields == "basic,io"),
+                It.IsAny<CancellationToken>()))
+            .ReturnsAsync(new LangfuseCursorPaginatedResponse<LangfuseObservationDetail>(
                 [new LangfuseObservationDetail("observation-2", "trace-2", "GENERATION", "predict-match", ParseJson("{\"homeGoals\":1,\"awayGoals\":0}"), default)],
-                ["experiment"]));
+                new LangfuseCursorPaginationMeta(null)));
+        client
+            .Setup(mock => mock.ListScoresAsync(
+                It.Is<LangfuseListScoresRequest>(request => request.Name == "kicktipp_points" && request.Filter!.Contains(datasetRunIdOne, StringComparison.Ordinal)),
+                It.IsAny<CancellationToken>()))
+            .ReturnsAsync(new LangfusePaginatedResponse<LangfuseScore>(
+                [new LangfuseScore("score-item-1", "kicktipp_points", 4, "trace-1", "observation-1", null, "NUMERIC", "API", default, DateTimeOffset.UtcNow, DateTimeOffset.UtcNow)],
+                new LangfusePaginationMeta(1, 100, 1, 1)));
+        client
+            .Setup(mock => mock.ListScoresAsync(
+                It.Is<LangfuseListScoresRequest>(request => request.Name == "kicktipp_points" && request.Filter!.Contains(datasetRunIdTwo, StringComparison.Ordinal)),
+                It.IsAny<CancellationToken>()))
+            .ReturnsAsync(new LangfusePaginatedResponse<LangfuseScore>(
+                [new LangfuseScore("score-item-2", "kicktipp_points", 2, "trace-2", "observation-2", null, "NUMERIC", "API", default, DateTimeOffset.UtcNow, DateTimeOffset.UtcNow)],
+                new LangfusePaginationMeta(1, 100, 1, 1)));
 
         return client;
     }

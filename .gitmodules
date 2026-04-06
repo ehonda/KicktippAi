@@ -25,3 +25,6 @@
 [submodule "external/nodatime/nodatime"]
 	path = external/nodatime/nodatime
 	url = https://github.com/nodatime/nodatime.git
+[submodule "external/ehonda/Pagination"]
+	path = external/ehonda/Pagination
+	url = https://github.com/ehonda/Pagination.git

@@ -1,5 +1,8 @@
 using System.Globalization;
 using System.Text.Json;
+using CursorBasedComposite = EHonda.Pagination.CursorBased.Composite;
+using EHonda.Pagination.OffsetBased;
+using OffsetBasedComposite = EHonda.Pagination.OffsetBased.Composite;
 using Microsoft.Extensions.Logging;
 using Orchestrator.Commands.Observability.Experiments;
 using Orchestrator.Infrastructure.Langfuse;
@@ -32,6 +35,11 @@ public sealed class ExportExperimentAnalysisCommand : AsyncCommand<ExportExperim
             var runNames = settings.GetParsedRunNames();
             var runContexts = new List<RunContext>();
 
+            _logger.LogInformation(
+                "Exporting experiment analysis for dataset {DatasetName} across {RunCount} runs.",
+                settings.DatasetName,
+                runNames.Count);
+
             foreach (var runName in runNames)
             {
                 var datasetRun = await _langfuseClient.GetDatasetRunAsync(settings.DatasetName, runName, cancellationToken)
@@ -48,7 +56,7 @@ public sealed class ExportExperimentAnalysisCommand : AsyncCommand<ExportExperim
 
             ValidateComparableRuns(runContexts);
 
-            var datasetItemsById = await LoadDatasetItemsAsync(runContexts, cancellationToken);
+            var datasetItemsById = await LoadDatasetItemsAsync(settings.DatasetName, runContexts, cancellationToken);
             var tracesById = await LoadTracesAsync(runContexts, cancellationToken);
             var rows = BuildRows(runContexts, datasetItemsById, tracesById);
             var bundle = BuildBundle(settings.DatasetName, runContexts, rows);
@@ -82,19 +90,52 @@ public sealed class ExportExperimentAnalysisCommand : AsyncCommand<ExportExperim
     }
 
     private async Task<Dictionary<string, LangfuseDatasetItem>> LoadDatasetItemsAsync(
+        string datasetName,
         IReadOnlyList<RunContext> runContexts,
         CancellationToken cancellationToken)
     {
+        const int pageSize = 100;
+        var requiredDatasetItemIds = runContexts
+            .SelectMany(context => context.DatasetRunItems.Select(item => item.DatasetItemId))
+            .Distinct(StringComparer.Ordinal)
+            .ToHashSet(StringComparer.Ordinal);
         var result = new Dictionary<string, LangfuseDatasetItem>(StringComparer.Ordinal);
 
-        foreach (var datasetItemId in runContexts
-                     .SelectMany(context => context.DatasetRunItems.Select(item => item.DatasetItemId))
-                     .Distinct(StringComparer.Ordinal))
+        if (requiredDatasetItemIds.Count == 0)
         {
-            var datasetItem = await _langfuseClient.GetDatasetItemAsync(datasetItemId, cancellationToken)
-                ?? throw new InvalidOperationException($"Dataset item '{datasetItemId}' could not be loaded from Langfuse.");
-            result[datasetItemId] = datasetItem;
+            return result;
         }
+
+        await foreach (var datasetItem in EnumerateOffsetPaginatedItemsAsync(
+                           (page, ct) => _langfuseClient.ListDatasetItemsAsync(
+                               new LangfuseListDatasetItemsRequest(DatasetName: datasetName, Page: page, Limit: pageSize),
+                               ct),
+                           cancellationToken))
+        {
+            if (requiredDatasetItemIds.Contains(datasetItem.Id))
+            {
+                result[datasetItem.Id] = datasetItem;
+            }
+
+            if (result.Count == requiredDatasetItemIds.Count)
+            {
+                break;
+            }
+        }
+
+        var missingDatasetItemIds = requiredDatasetItemIds
+            .Except(result.Keys, StringComparer.Ordinal)
+            .ToArray();
+        if (missingDatasetItemIds.Length > 0)
+        {
+            throw new InvalidOperationException(
+                $"Dataset item(s) could not be loaded from Langfuse: {string.Join(", ", missingDatasetItemIds)}.");
+        }
+
+        _logger.LogInformation(
+            "Loaded {Count} dataset items for dataset {DatasetName} via paginated dataset listing.",
+            result.Count,
+            datasetName);
 
         return result;
     }
@@ -105,16 +146,191 @@ public sealed class ExportExperimentAnalysisCommand : AsyncCommand<ExportExperim
     {
         var result = new Dictionary<string, LangfuseTraceWithDetails>(StringComparer.Ordinal);
 
-        foreach (var traceId in runContexts
-                     .SelectMany(context => context.DatasetRunItems.Select(item => item.TraceId))
-                     .Distinct(StringComparer.Ordinal))
+        foreach (var runContext in runContexts)
         {
-            var trace = await _langfuseClient.GetTraceAsync(traceId, cancellationToken)
-                ?? throw new InvalidOperationException($"Trace '{traceId}' could not be loaded from Langfuse.");
-            result[traceId] = trace;
+            var expectedTraceIds = runContext.DatasetRunItems
+                .Select(item => item.TraceId)
+                .ToHashSet(StringComparer.Ordinal);
+            var traces = await ListRunTracesAsync(runContext.DatasetRun.Name, expectedTraceIds, cancellationToken);
+            var observationsByTraceId = await ListRunObservationsAsync(runContext.DatasetRun.Name, expectedTraceIds, cancellationToken);
+            var scoresByTraceId = await ListRunKicktippScoresAsync(runContext.DatasetRun.Id, runContext.DatasetRun.Name, expectedTraceIds, cancellationToken);
+
+            foreach (var traceId in expectedTraceIds)
+            {
+                if (!traces.TryGetValue(traceId, out var trace))
+                {
+                    throw new InvalidOperationException($"Trace '{traceId}' could not be loaded from Langfuse.");
+                }
+
+                result[traceId] = new LangfuseTraceWithDetails(
+                    trace.Id,
+                    trace.Name,
+                    trace.Metadata,
+                    trace.Output,
+                    scoresByTraceId.TryGetValue(traceId, out var scores) ? scores : [],
+                    observationsByTraceId.TryGetValue(traceId, out var observations) ? observations : [],
+                    trace.Tags);
+            }
         }
 
+        _logger.LogInformation(
+            "Loaded {Count} traces for comparable export using per-run session batching.",
+            result.Count);
+
         return result;
+    }
+
+    private async Task<Dictionary<string, LangfuseTraceWithDetails>> ListRunTracesAsync(
+        string runName,
+        IReadOnlySet<string> expectedTraceIds,
+        CancellationToken cancellationToken)
+    {
+        const int pageSize = 100;
+        var result = new Dictionary<string, LangfuseTraceWithDetails>(StringComparer.Ordinal);
+
+        if (expectedTraceIds.Count == 0)
+        {
+            return result;
+        }
+
+        await foreach (var trace in EnumerateOffsetPaginatedItemsAsync(
+                           (page, ct) => _langfuseClient.ListTracesAsync(
+                               new LangfuseListTracesRequest(SessionId: runName, Page: page, Limit: pageSize, Fields: "io"),
+                               ct),
+                           cancellationToken))
+        {
+            if (expectedTraceIds.Contains(trace.Id))
+            {
+                result[trace.Id] = trace;
+            }
+
+            if (result.Count == expectedTraceIds.Count)
+            {
+                break;
+            }
+        }
+
+        _logger.LogInformation(
+            "Loaded {LoadedCount}/{ExpectedCount} trace shells for run {RunName} via sessionId listing.",
+            result.Count,
+            expectedTraceIds.Count,
+            runName);
+
+        return result;
+    }
+
+    private async Task<Dictionary<string, IReadOnlyList<LangfuseObservationDetail>>> ListRunObservationsAsync(
+        string runName,
+        IReadOnlySet<string> expectedTraceIds,
+        CancellationToken cancellationToken)
+    {
+        const int limit = 1000;
+        var observationsByTraceId = new Dictionary<string, List<LangfuseObservationDetail>>(StringComparer.Ordinal);
+
+        if (expectedTraceIds.Count == 0)
+        {
+            return observationsByTraceId.ToDictionary(
+                pair => pair.Key,
+                pair => (IReadOnlyList<LangfuseObservationDetail>)pair.Value,
+                StringComparer.Ordinal);
+        }
+
+        await foreach (var observation in EnumerateCursorPaginatedItemsAsync(
+                           (cursor, ct) => _langfuseClient.ListObservationsAsync(
+                               new LangfuseListObservationsRequest(SessionId: runName, Limit: limit, Cursor: cursor, Fields: "basic,io"),
+                               ct),
+                           cancellationToken))
+        {
+            if (!expectedTraceIds.Contains(observation.TraceId))
+            {
+                continue;
+            }
+
+            if (!observationsByTraceId.TryGetValue(observation.TraceId, out var observations))
+            {
+                observations = [];
+                observationsByTraceId[observation.TraceId] = observations;
+            }
+
+            observations.Add(observation);
+        }
+
+        _logger.LogInformation(
+            "Loaded observations for {TraceCount} traces in run {RunName} via sessionId observation listing.",
+            observationsByTraceId.Count,
+            runName);
+
+        return observationsByTraceId.ToDictionary(
+            pair => pair.Key,
+            pair => (IReadOnlyList<LangfuseObservationDetail>)pair.Value,
+            StringComparer.Ordinal);
+    }
+
+    private async Task<Dictionary<string, IReadOnlyList<LangfuseScore>>> ListRunKicktippScoresAsync(
+        string datasetRunId,
+        string runName,
+        IReadOnlySet<string> expectedTraceIds,
+        CancellationToken cancellationToken)
+    {
+        const int pageSize = 100;
+        var scoresByTraceId = new Dictionary<string, List<LangfuseScore>>(StringComparer.Ordinal);
+        var datasetRunFilter = BuildDatasetRunIdMetadataFilter(datasetRunId);
+
+        if (expectedTraceIds.Count == 0)
+        {
+            return scoresByTraceId.ToDictionary(
+                pair => pair.Key,
+                pair => (IReadOnlyList<LangfuseScore>)pair.Value,
+                StringComparer.Ordinal);
+        }
+
+        await foreach (var score in EnumerateOffsetPaginatedItemsAsync(
+                           (page, ct) => _langfuseClient.ListScoresAsync(
+                               new LangfuseListScoresRequest(Name: "kicktipp_points", Filter: datasetRunFilter, Page: page, Limit: pageSize, Fields: "score"),
+                               ct),
+                           cancellationToken))
+        {
+            if (string.IsNullOrWhiteSpace(score.TraceId) || !expectedTraceIds.Contains(score.TraceId))
+            {
+                continue;
+            }
+
+            if (!scoresByTraceId.TryGetValue(score.TraceId, out var scores))
+            {
+                scores = [];
+                scoresByTraceId[score.TraceId] = scores;
+            }
+
+            scores.Add(score);
+        }
+
+        _logger.LogInformation(
+            "Loaded kicktipp_points scores for {TraceCount} traces in run {RunName} via datasetRunId metadata-filtered score listing.",
+            scoresByTraceId.Count,
+            runName);
+
+        return scoresByTraceId.ToDictionary(
+            pair => pair.Key,
+            pair => (IReadOnlyList<LangfuseScore>)pair.Value,
+            StringComparer.Ordinal);
+    }
+
+    private static string BuildDatasetRunIdMetadataFilter(string datasetRunId)
+    {
+        ArgumentException.ThrowIfNullOrWhiteSpace(datasetRunId);
+
+        return JsonSerializer.Serialize(
+            new[]
+            {
+                new Dictionary<string, string>
+                {
+                    ["type"] = "stringObject",
+                    ["column"] = "metadata",
+                    ["key"] = "datasetRunId",
+                    ["operator"] = "=",
+                    ["value"] = datasetRunId
+                }
+            });
     }
 
     private static PreparedExperimentAnalysisBundle BuildBundle(
@@ -279,24 +495,17 @@ public sealed class ExportExperimentAnalysisCommand : AsyncCommand<ExportExperim
     {
         const int pageSize = 100;
         var items = new List<LangfuseDatasetRunItem>();
-        var page = 1;
 
-        while (true)
+        await foreach (var item in EnumerateOffsetPaginatedItemsAsync(
+                           (page, ct) => _langfuseClient.ListDatasetRunItemsAsync(
+                               datasetRun.DatasetId,
+                               datasetRun.Name,
+                               page,
+                               pageSize,
+                               ct),
+                           cancellationToken))
         {
-            var response = await _langfuseClient.ListDatasetRunItemsAsync(
-                datasetRun.DatasetId,
-                datasetRun.Name,
-                page,
-                pageSize,
-                cancellationToken);
-
-            items.AddRange(response.Data);
-            if (response.Meta.TotalPages <= page || response.Data.Count == 0)
-            {
-                break;
-            }
-
-            page += 1;
+            items.Add(item);
         }
 
         return items;
@@ -309,21 +518,14 @@ public sealed class ExportExperimentAnalysisCommand : AsyncCommand<ExportExperim
     {
         const int pageSize = 100;
         var scores = new List<LangfuseScore>();
-        var page = 1;
 
-        while (true)
+        await foreach (var score in EnumerateOffsetPaginatedItemsAsync(
+                           (page, ct) => _langfuseClient.ListScoresAsync(
+                               new LangfuseListScoresRequest(DatasetRunId: datasetRunId, Page: page, Limit: pageSize),
+                               ct),
+                           cancellationToken))
         {
-            var response = await _langfuseClient.ListScoresAsync(
-                new LangfuseListScoresRequest(DatasetRunId: datasetRunId, Page: page, Limit: pageSize),
-                cancellationToken);
-
-            scores.AddRange(response.Data);
-            if (response.Meta.TotalPages <= page || response.Data.Count == 0)
-            {
-                break;
-            }
-
-            page += 1;
+            scores.Add(score);
         }
 
         var total = scores.FirstOrDefault(score => string.Equals(score.Name, "total_kicktipp_points", StringComparison.Ordinal));
@@ -340,6 +542,37 @@ public sealed class ExportExperimentAnalysisCommand : AsyncCommand<ExportExperim
         }
 
         return new ExperimentAggregateScores(total.Value.Value, average.Value.Value);
+    }
+
+    private IAsyncEnumerable<TItem> EnumerateOffsetPaginatedItemsAsync<TItem>(
+        Func<int, CancellationToken, Task<LangfusePaginatedResponse<TItem>>> pageRetriever,
+        CancellationToken cancellationToken)
+    {
+        var paginationHandler = new OffsetBasedComposite.PaginationHandlerBuilder<LangfusePaginatedResponse<TItem>, TItem>()
+            .WithPageRetriever((previousPage, ct) => pageRetriever(GetNextPageNumber(previousPage), ct))
+            .WithOffsetStateExtractor(static page => new OffsetState<int>(checked(page.Meta.Page * page.Meta.Limit), page.Meta.TotalItems))
+            .WithItemExtractor(static page => page.Data)
+            .Build();
+
+        return paginationHandler.GetAllItemsAsync(cancellationToken);
+    }
+
+    private IAsyncEnumerable<TItem> EnumerateCursorPaginatedItemsAsync<TItem>(
+        Func<string?, CancellationToken, Task<LangfuseCursorPaginatedResponse<TItem>>> pageRetriever,
+        CancellationToken cancellationToken)
+    {
+        var paginationHandler = new CursorBasedComposite.PaginationHandlerBuilder<LangfuseCursorPaginatedResponse<TItem>, TItem>()
+            .WithPageRetriever((previousPage, ct) => pageRetriever(previousPage?.Meta.Cursor, ct))
+            .WithCursorExtractor(static page => page.Meta.Cursor)
+            .WithItemExtractor(static page => page.Data)
+            .Build();
+
+        return paginationHandler.GetAllItemsAsync(cancellationToken);
+    }
+
+    private static int GetNextPageNumber<TItem>(LangfusePaginatedResponse<TItem>? previousPage)
+    {
+        return previousPage is null ? 1 : previousPage.Meta.Page + 1;
     }
 
     private static PreparedExperimentRunMetadata DeserializeRunMetadata(JsonElement metadata, string runName)

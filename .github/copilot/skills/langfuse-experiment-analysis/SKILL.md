@@ -1,6 +1,6 @@
 ---
 name: langfuse-experiment-analysis
-description: Run a Langfuse experiment plus statistical evaluation using the current Orchestrator and Python analysis tooling. Use this to compare models, prompt variants, justification variants, or evaluation settings across slice and repeated-match datasets, export comparable runs, and generate JSON plus Markdown reports.
+description: Run or reuse Langfuse experiments with the current Orchestrator and Python analysis tooling. Use this to compare models, prompt variants, justification variants, or evaluation settings across slice and repeated-match datasets, export comparable runs, and generate JSON, Markdown, and browser-friendly HTML reports.
 ---
 
 # Langfuse Experiment Analysis
@@ -10,7 +10,7 @@ Use this skill to run Langfuse experiments end to end and produce a statistical 
 This skill extends the workflow in [langfuse-experiment-runner](../langfuse-experiment-runner/SKILL.md) with the analysis steps that happen after successful comparable runs:
 
 1. export comparable runs from Langfuse with `export-experiment-analysis`
-2. generate a JSON and Markdown report with `uv run experiment-analysis-report`
+2. generate JSON, Markdown, and default HTML reports with `uv run experiment-analysis-report`
 
 Use [langfuse-api](../langfuse-api/SKILL.md) when you need raw trace or observation inspection during debugging.
 
@@ -21,6 +21,7 @@ This skill handles the current repository task types and their settings:
 1. fixed slice experiments built with `prepare-slice` and executed with `run-slice`
 2. repeated-match experiments built with `prepare-repeated-match` and executed with `run-repeated-match`
 3. already prepared manifests where preparation can be skipped and only sync, run, export, and reporting are needed
+4. existing Langfuse datasets where preparation and sync are already done and the task is only run discovery, export, and reporting
 
 ## Decision Flow
 
@@ -33,6 +34,14 @@ This skill handles the current repository task types and their settings:
 
 - If no prepared manifest exists, run `prepare-slice` or `prepare-repeated-match` first.
 - If `slice-manifest.json` and `slice-dataset.json` already exist, reuse them.
+- If the user gives an existing Langfuse dataset name, do not re-prepare or re-sync unless explicitly asked.
+
+### 2a. If the user already has a Langfuse dataset
+
+- Start from the provided dataset name.
+- If run names are already known, skip directly to export and reporting.
+- If run names are not known, inspect Langfuse and identify the comparable run names before exporting.
+- Treat preparation and sync as complete unless the user explicitly asks to rebuild the dataset.
 
 ### 3. Choose the evaluation mode
 
@@ -121,6 +130,9 @@ This writes:
 
 - `<label>.analysis.report.json`
 - `<label>.analysis.report.md`
+- `experiment-analysis/.../<label>.analysis.report.html` by default for browser viewing and GitHub Pages publishing
+
+Add `--no-html-output` only when you explicitly do not want the browser artifact.
 
 ## Task-Type-Specific Interpretation
 
@@ -151,7 +163,7 @@ Before considering the workflow complete, verify all of the following:
 1. each compared run completed successfully against the intended manifest
 2. all compared runs target the same dataset name and prepared item set
 3. `export-experiment-analysis` succeeded and emitted one bundle file
-4. `uv run experiment-analysis-report` succeeded and emitted both JSON and Markdown outputs
+4. `uv run experiment-analysis-report` succeeded and emitted JSON, Markdown, and HTML outputs unless HTML was intentionally disabled
 5. the report's primary metric matches the task type:
    - `total_kicktipp_points` for `slice`
    - `avg_kicktipp_points` for `repeated-match`
@@ -167,4 +179,4 @@ Before considering the workflow complete, verify all of the following:
 
 - Run a slice experiment for `pes-squad`, compare `o3` vs `gpt-5-nano`, and generate the statistical report.
 - Reuse this repeated-match manifest, run three models at one exact historical evaluation time, export the bundle, and summarize the report.
-- We already have two Langfuse run names for the same dataset. Export them and generate the Wilcoxon report.
+- We already have a Langfuse dataset and two run names. Export them and generate the Wilcoxon report plus the browser artifact.

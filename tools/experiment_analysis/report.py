@@ -1,6 +1,7 @@
 from __future__ import annotations
 
 import argparse
+import html
 import json
 import math
 import warnings
@@ -23,6 +24,7 @@ class AnalysisError(Exception):
 class OutputPaths:
     json_path: Path
     markdown_path: Path
+    html_path: Path | None
 
 
 def parse_args(argv: Sequence[str] | None = None) -> argparse.Namespace:
@@ -37,6 +39,19 @@ def parse_args(argv: Sequence[str] | None = None) -> argparse.Namespace:
     parser.add_argument(
         "--markdown-output",
         help="Optional output path for the human-readable Markdown report. Defaults next to the input bundle.",
+    )
+    html_output_group = parser.add_mutually_exclusive_group()
+    html_output_group.add_argument(
+        "--html-output",
+        help=(
+            "Optional output path for a browser-friendly HTML report. "
+            "Defaults to a stable path under experiment-analysis/."
+        ),
+    )
+    html_output_group.add_argument(
+        "--no-html-output",
+        action="store_true",
+        help="Disable HTML report generation.",
     )
     parser.add_argument(
         "--alpha",
@@ -71,12 +86,36 @@ def parse_args(argv: Sequence[str] | None = None) -> argparse.Namespace:
     return parser.parse_args(argv)
 
 
-def resolve_output_paths(input_path: Path, json_output: str | None, markdown_output: str | None) -> OutputPaths:
+def resolve_output_paths(
+    bundle: dict[str, Any],
+    input_path: Path,
+    json_output: str | None,
+    markdown_output: str | None,
+    html_output: str | None,
+    no_html_output: bool,
+) -> OutputPaths:
     stem = input_path.with_suffix("")
     return OutputPaths(
         json_path=Path(json_output) if json_output else stem.with_name(f"{stem.name}.report.json"),
         markdown_path=Path(markdown_output) if markdown_output else stem.with_name(f"{stem.name}.report.md"),
+        html_path=None
+        if no_html_output
+        else Path(html_output)
+        if html_output
+        else default_html_output_path(bundle, input_path),
     )
+
+
+def default_html_output_path(bundle: dict[str, Any], input_path: Path) -> Path:
+    stem = input_path.with_suffix("")
+    dataset_segments = [segment.strip() for segment in str(bundle["datasetName"]).split("/") if segment.strip()]
+
+    if len(dataset_segments) >= 4 and dataset_segments[0] == "match-predictions":
+        site_segments = [dataset_segments[3], dataset_segments[2], *dataset_segments[4:]]
+    else:
+        site_segments = [str(bundle["taskType"]), *dataset_segments]
+
+    return Path("experiment-analysis", *site_segments, f"{stem.name}.report.html")
 
 
 def load_bundle(path: Path) -> dict[str, Any]:
@@ -552,6 +591,387 @@ def render_markdown(report: dict[str, Any]) -> str:
     return "\n".join(lines) + "\n"
 
 
+def render_html(report: dict[str, Any]) -> str:
+        title = f"Experiment Analysis - {report['datasetName']}"
+        run_rows = "\n".join(
+                render_html_table_row(
+                        [
+                                str(run["rank"]),
+                                str(run["runName"]),
+                                str(run["model"]),
+                                format_number(run["primaryMetricValue"]),
+                        ]
+                )
+                for run in report["runs"]
+        )
+
+        if report["runCount"] == 2:
+                comparison = report["comparison"]
+                wilcoxon = comparison["wilcoxon"]
+                detail_section = f"""
+                <section class=\"panel\">
+                    <div class=\"panel-header\">
+                        <h2>Two-run comparison</h2>
+                        <span class=\"pill {'pill-good' if wilcoxon.get('significant') else 'pill-neutral'}\">{'significant' if wilcoxon.get('significant') else 'not significant'}</span>
+                    </div>
+                    <div class=\"metric-grid\">
+                        {render_metric_card('Better run', comparison['betterRunName'])}
+                        {render_metric_card('Other run', comparison['otherRunName'])}
+                        {render_metric_card(comparison['primaryMetricName'] + ' delta', format_number(comparison['primaryMetricDelta']))}
+                        {render_metric_card('Wilcoxon p-value', format_number(wilcoxon['pValue']))}
+                        {render_metric_card('Mean difference', format_number(comparison['meanDifference']))}
+                        {render_metric_card('Median difference', format_number(comparison['medianDifference']))}
+                        {render_metric_card('Per-item W/T/L', format_outcome_counts(comparison['perItemOutcomeCounts']))}
+                    </div>
+                    <div class=\"panel-subsection\">
+                        <h3>Effect size confidence intervals</h3>
+                        <table>
+                            <thead>
+                                <tr>
+                                    <th>Statistic</th>
+                                    <th>Point estimate</th>
+                                    <th>Low</th>
+                                    <th>High</th>
+                                </tr>
+                            </thead>
+                            <tbody>
+                                {render_html_table_row([
+                                        'Mean difference',
+                                        format_number(comparison['meanDifferenceConfidenceInterval']['pointEstimate']),
+                                        format_number(comparison['meanDifferenceConfidenceInterval']['low']),
+                                        format_number(comparison['meanDifferenceConfidenceInterval']['high']),
+                                ])}
+                                {render_html_table_row([
+                                        'Median difference',
+                                        format_number(comparison['medianDifferenceConfidenceInterval']['pointEstimate']),
+                                        format_number(comparison['medianDifferenceConfidenceInterval']['low']),
+                                        format_number(comparison['medianDifferenceConfidenceInterval']['high']),
+                                ])}
+                            </tbody>
+                        </table>
+                    </div>
+                </section>
+                """
+        else:
+                friedman = report["friedman"]
+                pairwise_rows = "\n".join(
+                        render_html_table_row(
+                                [
+                                        str(comparison["runAName"]),
+                                        str(comparison["runBName"]),
+                                        format_number(comparison["primaryMetricDelta"]),
+                                        format_number(comparison["wilcoxon"]["adjustedPValue"]),
+                                        "yes" if comparison["wilcoxon"].get("significantAfterCorrection") else "no",
+                                        format_outcome_counts(comparison["perItemOutcomeCounts"]),
+                                ]
+                        )
+                        for comparison in report["pairwiseComparisons"]
+                )
+                detail_section = f"""
+                <section class=\"panel\">
+                    <div class=\"panel-header\">
+                        <h2>Multi-run comparison</h2>
+                        <span class=\"pill pill-neutral\">Friedman p-value {format_number(friedman['pValue'])}</span>
+                    </div>
+                    <table>
+                        <thead>
+                            <tr>
+                                <th>Run A</th>
+                                <th>Run B</th>
+                                <th>Primary delta</th>
+                                <th>Adjusted p-value</th>
+                                <th>Significant</th>
+                                <th>Per-item W/T/L</th>
+                            </tr>
+                        </thead>
+                        <tbody>
+                            {pairwise_rows}
+                        </tbody>
+                    </table>
+                </section>
+                """
+
+        return f"""<!DOCTYPE html>
+<html lang=\"en\">
+<head>
+    <meta charset=\"utf-8\">
+    <meta name=\"viewport\" content=\"width=device-width, initial-scale=1\">
+    <title>{escape_html(title)}</title>
+    <style>
+        :root {{
+            --bg: #f4efe6;
+            --panel: rgba(255, 252, 246, 0.94);
+            --panel-strong: #fffaf1;
+            --text: #1e1a16;
+            --muted: #6d6258;
+            --border: rgba(86, 69, 53, 0.16);
+            --accent: #b5532f;
+            --accent-soft: rgba(181, 83, 47, 0.12);
+            --good: #1c7b5b;
+            --good-soft: rgba(28, 123, 91, 0.14);
+            --shadow: 0 24px 70px rgba(70, 45, 26, 0.12);
+        }}
+
+        * {{ box-sizing: border-box; }}
+
+        body {{
+            margin: 0;
+            font-family: "Segoe UI", "Trebuchet MS", sans-serif;
+            color: var(--text);
+            background:
+                radial-gradient(circle at top left, rgba(181, 83, 47, 0.12), transparent 34%),
+                radial-gradient(circle at top right, rgba(28, 123, 91, 0.10), transparent 28%),
+                linear-gradient(180deg, #f7f1e8 0%, var(--bg) 100%);
+        }}
+
+        .page {{
+            max-width: 1160px;
+            margin: 0 auto;
+            padding: 32px 20px 48px;
+        }}
+
+        .hero {{
+            background: linear-gradient(140deg, rgba(255, 250, 241, 0.97), rgba(247, 238, 228, 0.94));
+            border: 1px solid var(--border);
+            border-radius: 28px;
+            padding: 28px;
+            box-shadow: var(--shadow);
+            margin-bottom: 24px;
+        }}
+
+        .eyebrow {{
+            margin: 0 0 8px;
+            color: var(--accent);
+            font-size: 0.78rem;
+            font-weight: 700;
+            letter-spacing: 0.14em;
+            text-transform: uppercase;
+        }}
+
+        h1, h2, h3 {{ margin: 0; }}
+
+        h1 {{
+            font-size: clamp(1.9rem, 4vw, 3.2rem);
+            line-height: 1.05;
+            margin-bottom: 12px;
+        }}
+
+        .hero-meta {{
+            display: flex;
+            flex-wrap: wrap;
+            gap: 10px;
+            margin-top: 16px;
+        }}
+
+        .pill {{
+            display: inline-flex;
+            align-items: center;
+            padding: 6px 10px;
+            border-radius: 999px;
+            background: var(--accent-soft);
+            color: var(--text);
+            font-size: 0.9rem;
+            font-weight: 600;
+        }}
+
+        .pill-good {{
+            background: var(--good-soft);
+            color: var(--good);
+        }}
+
+        .pill-neutral {{
+            background: rgba(52, 68, 84, 0.08);
+            color: #344454;
+        }}
+
+        .panel {{
+            background: var(--panel);
+            border: 1px solid var(--border);
+            border-radius: 24px;
+            padding: 24px;
+            box-shadow: var(--shadow);
+            margin-bottom: 20px;
+        }}
+
+        .panel-header {{
+            display: flex;
+            justify-content: space-between;
+            gap: 12px;
+            align-items: center;
+            margin-bottom: 18px;
+        }}
+
+        .summary-grid,
+        .metric-grid {{
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(180px, 1fr));
+            gap: 14px;
+        }}
+
+        .metric-card {{
+            background: var(--panel-strong);
+            border: 1px solid var(--border);
+            border-radius: 18px;
+            padding: 16px;
+        }}
+
+        .metric-label {{
+            display: block;
+            color: var(--muted);
+            font-size: 0.82rem;
+            text-transform: uppercase;
+            letter-spacing: 0.08em;
+            margin-bottom: 8px;
+        }}
+
+        .metric-value {{
+            font-size: 1.28rem;
+            font-weight: 700;
+            line-height: 1.2;
+            overflow-wrap: anywhere;
+        }}
+
+        .panel-subsection {{
+            margin-top: 22px;
+        }}
+
+        table {{
+            width: 100%;
+            border-collapse: collapse;
+            overflow: hidden;
+            border-radius: 16px;
+            border: 1px solid var(--border);
+            background: var(--panel-strong);
+        }}
+
+        thead {{
+            background: rgba(30, 26, 22, 0.06);
+        }}
+
+        th,
+        td {{
+            padding: 12px 14px;
+            text-align: left;
+            border-bottom: 1px solid var(--border);
+            vertical-align: top;
+        }}
+
+        th {{
+            font-size: 0.83rem;
+            text-transform: uppercase;
+            letter-spacing: 0.06em;
+            color: var(--muted);
+        }}
+
+        tbody tr:last-child td {{
+            border-bottom: none;
+        }}
+
+        .footnote {{
+            margin: 0;
+            color: var(--muted);
+            font-size: 0.95rem;
+            line-height: 1.55;
+        }}
+
+        @media (max-width: 720px) {{
+            .page {{ padding: 20px 14px 32px; }}
+            .hero, .panel {{ padding: 18px; border-radius: 20px; }}
+            .panel-header {{ align-items: flex-start; flex-direction: column; }}
+            table, thead, tbody, tr, th, td {{ display: block; }}
+            thead {{ display: none; }}
+            tr {{ border-bottom: 1px solid var(--border); padding: 10px 0; }}
+            tr:last-child {{ border-bottom: none; }}
+            td {{ border: none; padding: 6px 0; }}
+            td::before {{
+                content: attr(data-label);
+                display: block;
+                color: var(--muted);
+                font-size: 0.76rem;
+                text-transform: uppercase;
+                letter-spacing: 0.08em;
+                margin-bottom: 4px;
+            }}
+        }}
+    </style>
+</head>
+<body>
+    <main class=\"page\">
+        <header class=\"hero\">
+            <p class=\"eyebrow\">KicktippAi experiment analysis</p>
+            <h1>{escape_html(report['datasetName'])}</h1>
+            <div class=\"hero-meta\">
+                <span class=\"pill\">Task: {escape_html(str(report['taskType']))}</span>
+                <span class=\"pill\">Primary metric: {escape_html(str(report['primaryMetricName']))}</span>
+                <span class=\"pill\">Runs: {report['runCount']}</span>
+                <span class=\"pill\">Pairings: {report['pairingCount']}</span>
+            </div>
+        </header>
+
+        <section class=\"panel\">
+            <div class=\"panel-header\">
+                <h2>Summary</h2>
+            </div>
+            <div class=\"summary-grid\">
+                {render_metric_card('Dataset', report['datasetName'])}
+                {render_metric_card('Task type', report['taskType'])}
+                {render_metric_card('Primary metric', report['primaryMetricName'])}
+                {render_metric_card('Alpha', format_number(report['alpha']))}
+            </div>
+        </section>
+
+        <section class=\"panel\">
+            <div class=\"panel-header\">
+                <h2>Run ranking</h2>
+            </div>
+            <table>
+                <thead>
+                    <tr>
+                        <th>Rank</th>
+                        <th>Run</th>
+                        <th>Model</th>
+                        <th>Primary metric</th>
+                    </tr>
+                </thead>
+                <tbody>
+                    {run_rows}
+                </tbody>
+            </table>
+        </section>
+
+        {detail_section}
+
+        <section class=\"panel\">
+            <p class=\"footnote\">Per-item win/tie/loss counts compare paired Kicktipp points for the listed run ordering on each prepared dataset item.</p>
+        </section>
+    </main>
+</body>
+</html>
+"""
+
+
+def render_metric_card(label: str, value: Any) -> str:
+        return (
+                "<article class=\"metric-card\">"
+                f"<span class=\"metric-label\">{escape_html(label)}</span>"
+                f"<span class=\"metric-value\">{escape_html(str(value))}</span>"
+                "</article>"
+        )
+
+
+def render_html_table_row(values: Sequence[Any]) -> str:
+        cells = "".join(f"<td>{escape_html(str(value))}</td>" for value in values)
+        return f"<tr>{cells}</tr>"
+
+
+def format_outcome_counts(counts: dict[str, int]) -> str:
+        return f"{counts['wins']}/{counts['ties']}/{counts['losses']}"
+
+
+def escape_html(value: str) -> str:
+        return html.escape(value, quote=True)
+
+
 def render_table(headers: list[str], rows: list[list[str]]) -> list[str]:
     header_line = "| " + " | ".join(headers) + " |"
     separator_line = "| " + " | ".join(["---"] * len(headers)) + " |"
@@ -571,16 +991,26 @@ def write_outputs(report: dict[str, Any], output_paths: OutputPaths) -> str:
     output_paths.markdown_path.parent.mkdir(parents=True, exist_ok=True)
     output_paths.json_path.write_text(json.dumps(report, indent=2), encoding="utf-8")
     output_paths.markdown_path.write_text(markdown, encoding="utf-8")
+    if output_paths.html_path is not None:
+        output_paths.html_path.parent.mkdir(parents=True, exist_ok=True)
+        output_paths.html_path.write_text(render_html(report), encoding="utf-8")
     return markdown
 
 
 def main(argv: Sequence[str] | None = None) -> int:
     args = parse_args(argv)
     input_path = Path(args.input)
-    output_paths = resolve_output_paths(input_path, args.json_output, args.markdown_output)
 
     try:
         bundle = load_bundle(input_path)
+        output_paths = resolve_output_paths(
+            bundle,
+            input_path,
+            args.json_output,
+            args.markdown_output,
+            args.html_output,
+            args.no_html_output,
+        )
         report = analyze_bundle(
             bundle,
             alpha=args.alpha,
@@ -597,6 +1027,8 @@ def main(argv: Sequence[str] | None = None) -> int:
     print(markdown)
     print(f"JSON report: {output_paths.json_path}")
     print(f"Markdown report: {output_paths.markdown_path}")
+    if output_paths.html_path is not None:
+        print(f"HTML report: {output_paths.html_path}")
     return 0
 
 

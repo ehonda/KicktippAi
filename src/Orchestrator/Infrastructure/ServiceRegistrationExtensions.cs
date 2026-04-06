@@ -64,6 +64,8 @@ public static class ServiceRegistrationExtensions
 
     internal static IHttpClientBuilder AddLangfusePublicApiClient(this IServiceCollection services)
     {
+        services.TryAddTransient<LangfuseRetryLoggingHandler>();
+
         var clientBuilder = services.AddHttpClient<ILangfusePublicApiClient, LangfusePublicApiClient>((_, client) =>
         {
             var baseUrl = (Environment.GetEnvironmentVariable("LANGFUSE_BASE_URL") ?? "https://cloud.langfuse.com").TrimEnd('/');
@@ -98,6 +100,9 @@ public static class ServiceRegistrationExtensions
             options.CircuitBreaker.SamplingDuration = TimeSpan.FromMinutes(2);
             options.TotalRequestTimeout.Timeout = TimeSpan.FromMinutes(4);
         });
+
+        // Keep the retry logging handler inside the resilience pipeline so every attempted request is visible.
+        clientBuilder.AddHttpMessageHandler<LangfuseRetryLoggingHandler>();
 
         return clientBuilder;
     }

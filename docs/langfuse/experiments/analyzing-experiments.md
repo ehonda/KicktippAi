@@ -16,6 +16,7 @@ What is also implemented now:
 - a Python report command to run Wilcoxon/Friedman-based statistical comparisons from that normalized bundle
 
 That means we can now execute comparable experiment runs, inspect the resulting scores in Langfuse, export a stable analysis input bundle, and generate a machine-readable JSON report plus a human-readable Markdown summary.
+We also generate a browser-friendly HTML artifact that is suitable for publication under GitHub Pages.
 
 ## What We Do Today
 
@@ -26,7 +27,7 @@ Typical workflow:
 1. Run multiple models or prompt variants on the same fixed slice or repeated-match dataset.
 2. Inspect dataset runs, traces, and score distributions in the Langfuse UI.
 3. Export a normalized bundle with `export-experiment-analysis`.
-4. Generate a statistical report from that bundle with `uv run experiment-analysis-report`.
+4. Generate JSON, Markdown, and HTML reports from that bundle with `uv run experiment-analysis-report`.
 5. If needed, query run-level scores through the Langfuse public API.
 
 Example export command:
@@ -45,7 +46,9 @@ Important repository-specific notes:
 
 - run-level metrics are retrieved reliably through Langfuse `v2/scores`
 - trace-level score retrieval and metadata filtering have some quirks documented in `docs/langfuse.md`
-- the export command uses dataset run -> dataset run items -> dataset items -> trace detail joins and does not rely on `v2/scores` trace filtering
+- the export command now batches dataset items through `GET /api/public/dataset-items`, batches trace outputs and observations per run via `sessionId = runName`, and batches trace-level `kicktipp_points` scores via a `metadata.datasetRunId` filter instead of calling `GET /api/public/traces/{traceId}` once per trace
+- the Langfuse Python SDK mirrors the public API and does not by itself remove the same rate-limit bucket; with the current batched exporter, switching retrieval into Python is not necessary today
+- for much larger exports than our current comparable experiment sizes, blob-storage export is still the likely next step
 
 ## Planned Direction
 
@@ -102,6 +105,7 @@ The Python report command currently produces:
 
 - a JSON report with ranked runs, pairwise outcome counts, Wilcoxon results, bootstrap confidence intervals, and corrected pairwise comparisons
 - a Markdown summary with the same comparison information in a review-friendly format
+- a standalone HTML report under `experiment-analysis/...` that can be published to GitHub Pages
 
 Two-run bundles are reported with:
 

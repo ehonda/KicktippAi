@@ -37,6 +37,24 @@ public sealed class LangfusePublicApiClient : ILangfusePublicApiClient
         return SendForJsonAsync<LangfuseDatasetItem>(HttpMethod.Get, $"dataset-items/{EncodePathSegment(id)}", null, true, cancellationToken);
     }
 
+    public Task<LangfusePaginatedResponse<LangfuseDatasetItem>> ListDatasetItemsAsync(
+        LangfuseListDatasetItemsRequest request,
+        CancellationToken cancellationToken = default)
+    {
+        ArgumentNullException.ThrowIfNull(request);
+
+        var queryParameters = new List<KeyValuePair<string, string?>>
+        {
+            new("datasetName", request.DatasetName),
+            new("version", request.Version),
+            new("page", request.Page.ToString()),
+            new("limit", request.Limit.ToString())
+        };
+
+        var path = BuildQueryString("dataset-items", queryParameters);
+        return SendForJsonAsync<LangfusePaginatedResponse<LangfuseDatasetItem>>(HttpMethod.Get, path, null, false, cancellationToken)!;
+    }
+
     public Task<LangfuseDatasetItem> CreateDatasetItemAsync(LangfuseCreateDatasetItemRequest request, CancellationToken cancellationToken = default)
     {
         return SendForJsonAsync<LangfuseDatasetItem>(HttpMethod.Post, "dataset-items", request, false, cancellationToken)!;
@@ -61,6 +79,42 @@ public sealed class LangfusePublicApiClient : ILangfusePublicApiClient
             null,
             true,
             cancellationToken);
+    }
+
+    public Task<LangfusePaginatedResponse<LangfuseTraceWithDetails>> ListTracesAsync(
+        LangfuseListTracesRequest request,
+        CancellationToken cancellationToken = default)
+    {
+        ArgumentNullException.ThrowIfNull(request);
+
+        var queryParameters = new List<KeyValuePair<string, string?>>
+        {
+            new("sessionId", request.SessionId),
+            new("page", request.Page.ToString()),
+            new("limit", request.Limit.ToString()),
+            new("fields", request.Fields)
+        };
+
+        var path = BuildQueryString("traces", queryParameters);
+        return SendForJsonAsync<LangfusePaginatedResponse<LangfuseTraceWithDetails>>(HttpMethod.Get, path, null, false, cancellationToken)!;
+    }
+
+    public Task<LangfuseCursorPaginatedResponse<LangfuseObservationDetail>> ListObservationsAsync(
+        LangfuseListObservationsRequest request,
+        CancellationToken cancellationToken = default)
+    {
+        ArgumentNullException.ThrowIfNull(request);
+
+        var queryParameters = new List<KeyValuePair<string, string?>>
+        {
+            new("sessionId", request.SessionId),
+            new("limit", request.Limit.ToString()),
+            new("cursor", request.Cursor),
+            new("fields", request.Fields)
+        };
+
+        var path = BuildQueryString("v2/observations", queryParameters);
+        return SendForJsonAsync<LangfuseCursorPaginatedResponse<LangfuseObservationDetail>>(HttpMethod.Get, path, null, false, cancellationToken)!;
     }
 
     public async Task<bool> DeleteDatasetRunAsync(string datasetName, string runName, CancellationToken cancellationToken = default)
@@ -100,6 +154,8 @@ public sealed class LangfusePublicApiClient : ILangfusePublicApiClient
             new("fields", request.Fields),
             new("name", request.Name),
             new("datasetRunId", request.DatasetRunId),
+            new("sessionId", request.SessionId),
+            new("filter", request.Filter),
             new("traceId", request.TraceId)
         };
 

@@ -42,10 +42,30 @@ public sealed record LangfuseCreateScoreRequest(
 public sealed record LangfuseListScoresRequest(
     string? Name = null,
     string? DatasetRunId = null,
+    string? SessionId = null,
+    string? Filter = null,
     string? TraceId = null,
     int Page = 1,
     int Limit = 100,
     string? Fields = "score");
+
+public sealed record LangfuseListDatasetItemsRequest(
+    string? DatasetName = null,
+    string? Version = null,
+    int Page = 1,
+    int Limit = 100);
+
+public sealed record LangfuseListTracesRequest(
+    string? SessionId = null,
+    int Page = 1,
+    int Limit = 100,
+    string? Fields = null);
+
+public sealed record LangfuseListObservationsRequest(
+    string? SessionId = null,
+    int Limit = 1000,
+    string? Cursor = null,
+    string? Fields = null);
 
 public sealed record LangfuseCreateScoreResponse(
     [property: JsonPropertyName("id")] string Id);
@@ -125,3 +145,10 @@ public sealed record LangfusePaginationMeta(
 public sealed record LangfusePaginatedResponse<T>(
     [property: JsonPropertyName("data")] IReadOnlyList<T> Data,
     [property: JsonPropertyName("meta")] LangfusePaginationMeta Meta);
+
+public sealed record LangfuseCursorPaginationMeta(
+    [property: JsonPropertyName("cursor")] string? Cursor);
+
+public sealed record LangfuseCursorPaginatedResponse<T>(
+    [property: JsonPropertyName("data")] IReadOnlyList<T> Data,
+    [property: JsonPropertyName("meta")] LangfuseCursorPaginationMeta Meta);

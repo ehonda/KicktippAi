@@ -7,7 +7,7 @@
 #   2. define-test-matrix - Discovers test projects dynamically for parallel execution
 #   3. test (matrix)    - Downloads build artifacts and runs each test project in parallel
 #   4. merge-coverage   - Merges coverage reports and generates HTML report
-#   5. deploy-coverage  - Publishes HTML report to GitHub Pages (main branch only)
+#   5. deploy-pages     - Publishes the Pages site with coverage and experiment analysis links (main branch only)
 #
 # Design Decisions:
 #   - Test projects run in parallel jobs for faster feedback as the test suite grows
@@ -211,13 +211,17 @@ jobs:
           path: coverage-report/
           retention-days: 30
           
+      - name: Build Pages site
+        shell: pwsh
+        run: .github/scripts/Build-PagesSite.ps1 -CoverageReportDir coverage-report -ExperimentAnalysisDir experiment-analysis -OutputDir pages-site
+
       - name: Upload Pages artifact
         uses: actions/upload-pages-artifact@v3
         with:
-          path: coverage-report/
+          path: pages-site/
 
-  deploy-coverage:
-    name: Deploy Coverage to GitHub Pages
+  deploy-pages:
+    name: Deploy GitHub Pages
     needs: merge-coverage
     runs-on: ubuntu-latest
     if: github.ref == 'refs/heads/main' && github.event_name == 'push'

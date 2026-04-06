@@ -13,6 +13,10 @@ public interface ILangfusePublicApiClient
 
     Task<LangfuseDatasetItem?> GetDatasetItemAsync(string id, CancellationToken cancellationToken = default);
 
+    Task<LangfusePaginatedResponse<LangfuseDatasetItem>> ListDatasetItemsAsync(
+        LangfuseListDatasetItemsRequest request,
+        CancellationToken cancellationToken = default);
+
     Task<LangfuseDatasetItem> CreateDatasetItemAsync(LangfuseCreateDatasetItemRequest request, CancellationToken cancellationToken = default);
 
     Task<LangfuseDatasetRunItem> CreateDatasetRunItemAsync(LangfuseCreateDatasetRunItemRequest request, CancellationToken cancellationToken = default);
@@ -20,6 +24,14 @@ public interface ILangfusePublicApiClient
     Task<LangfuseDatasetRunWithItems?> GetDatasetRunAsync(string datasetName, string runName, CancellationToken cancellationToken = default);
 
     Task<LangfuseTraceWithDetails?> GetTraceAsync(string traceId, CancellationToken cancellationToken = default);
+
+    Task<LangfusePaginatedResponse<LangfuseTraceWithDetails>> ListTracesAsync(
+        LangfuseListTracesRequest request,
+        CancellationToken cancellationToken = default);
+
+    Task<LangfuseCursorPaginatedResponse<LangfuseObservationDetail>> ListObservationsAsync(
+        LangfuseListObservationsRequest request,
+        CancellationToken cancellationToken = default);
 
     Task<bool> DeleteDatasetRunAsync(string datasetName, string runName, CancellationToken cancellationToken = default);
 

@@ -6,6 +6,7 @@ using EHonda.KicktippAi.Core;
 using Microsoft.Extensions.DependencyInjection;
 using Microsoft.Extensions.FileProviders;
 using Microsoft.Extensions.Hosting;
+using Microsoft.Extensions.Logging;
 using Microsoft.Extensions.Logging.Testing;
 using Orchestrator.Infrastructure;
 using Orchestrator.Infrastructure.Factories;
@@ -178,6 +179,62 @@ public class LangfuseAndServiceRegistrationTests
         await Assert.That(trace).IsNotNull();
         await Assert.That(trace!.Id).IsEqualTo("trace-1");
         await Assert.That(server.LogEntries.Count).IsEqualTo(2);
+    }
+
+    [Test]
+    public async Task Langfuse_client_logs_retryable_responses_inside_the_resilience_pipeline()
+    {
+        using var server = WireMockServer.Start();
+        Environment.SetEnvironmentVariable(LangfuseBaseUrlEnvVar, server.Urls[0]);
+
+        server
+            .Given(Request.Create()
+                .WithPath("/api/public/traces/trace-1")
+                .UsingGet())
+            .InScenario("langfuse-trace-retry-logging")
+            .WillSetStateTo("retried")
+            .RespondWith(Response.Create()
+                .WithStatusCode(429)
+                .WithHeader("Content-Type", "application/json")
+                .WithHeader("Retry-After", "0")
+                .WithBody("{\"message\":\"rate limit exceeded\"}"));
+
+        server
+            .Given(Request.Create()
+                .WithPath("/api/public/traces/trace-1")
+                .UsingGet())
+            .InScenario("langfuse-trace-retry-logging")
+            .WhenStateIs("retried")
+            .RespondWith(Response.Create()
+                .WithStatusCode(200)
+                .WithHeader("Content-Type", "application/json")
+                .WithBody(
+                    """
+                    {
+                      "id": "trace-1",
+                      "name": "trace-name",
+                      "metadata": {},
+                      "output": { "homeGoals": 2, "awayGoals": 1 },
+                      "scores": [],
+                      "observations": [],
+                      "tags": []
+                    }
+                    """));
+
+        var retryLogger = new FakeLogger<LangfuseRetryLoggingHandler>();
+        var services = new ServiceCollection();
+        services.AddLogging();
+        services.AddSingleton<ILogger<LangfuseRetryLoggingHandler>>(_ => retryLogger);
+        services.AddLangfusePublicApiClient();
+
+        using var provider = services.BuildServiceProvider();
+        var client = provider.GetRequiredService<ILangfusePublicApiClient>();
+
+        var trace = await client.GetTraceAsync("trace-1");
+
+        await Assert.That(trace).IsNotNull();
+        await Assert.That(retryLogger.Collector.GetSnapshot().Any(record =>
+            record.Message.Contains("Langfuse request GET /api/public/traces/trace-1 returned 429"))).IsTrue();
     }
 
     [Test]
