@@ -156,6 +156,10 @@ internal static class PreparedExperimentSupport
             SourceDatasetKind = DeriveSourceDatasetKind(manifest),
             DatasetItemIdMap = CreateDatasetItemIdMap(manifest),
             Model = options.Model,
+            ObservationName = "predict-match",
+            RunSubjectKind = "model",
+            RunSubjectId = options.Model,
+            RunSubjectDisplayName = options.Model,
             BatchStrategy = options.BatchStrategy,
             BatchSize = options.BatchSize,
             BatchCount = options.BatchCount
@@ -234,18 +238,38 @@ internal static class PreparedExperimentSupport
         AddIfValid(metadata, "sliceKey", runMetadata.SliceKey);
         AddIfValid(metadata, "startedAtUtc", runMetadata.StartedAtUtc);
         AddIfValid(metadata, "task", runMetadata.TaskType);
+        AddIfValid(metadata, "observationName", runMetadata.ObservationName);
+        AddIfValid(metadata, "runSubjectKind", runMetadata.RunSubjectKind);
+        AddIfValid(metadata, "runSubjectId", runMetadata.RunSubjectId);
+        AddIfValid(metadata, "runSubjectDisplayName", runMetadata.RunSubjectDisplayName);
         return metadata;
     }
 
     public static string ResolveTaskType(PreparedExperimentManifest manifest)
     {
+        if (!string.IsNullOrWhiteSpace(manifest.TaskType))
+        {
+            return manifest.TaskType;
+        }
+
         var sliceKind = ResolveSliceKind(manifest);
-        return string.Equals(sliceKind, "single-match", StringComparison.OrdinalIgnoreCase)
+        var sampleMethod = ResolveSampleMethod(manifest);
+
+        if (string.Equals(sliceKind, "community-to-date", StringComparison.OrdinalIgnoreCase)
+            || string.Equals(sampleMethod, "community-to-date", StringComparison.OrdinalIgnoreCase))
+        {
+            return "community-to-date";
+        }
+
+        if (string.Equals(sliceKind, "single-match", StringComparison.OrdinalIgnoreCase)
             || string.Equals(sliceKind, "repeated-match", StringComparison.OrdinalIgnoreCase)
-            || string.Equals(ResolveSampleMethod(manifest), "repeat-single-match", StringComparison.OrdinalIgnoreCase)
-            || string.Equals(ResolveSampleMethod(manifest), "repeated-match", StringComparison.OrdinalIgnoreCase)
-            ? "repeated-match"
-            : "slice";
+            || string.Equals(sampleMethod, "repeat-single-match", StringComparison.OrdinalIgnoreCase)
+            || string.Equals(sampleMethod, "repeated-match", StringComparison.OrdinalIgnoreCase))
+        {
+            return "repeated-match";
+        }
+
+        return "slice";
     }
 
     public static void ReportProgress(string message)

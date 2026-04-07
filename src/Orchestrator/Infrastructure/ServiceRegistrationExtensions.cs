@@ -1,3 +1,4 @@
+using System.Net;
 using System.Net.Http.Headers;
 using System.Text;
 using EHonda.KicktippAi.Core;
@@ -84,7 +85,29 @@ public static class ServiceRegistrationExtensions
 
         clientBuilder.AddStandardResilienceHandler().Configure(options =>
         {
+            var defaultShouldHandle = options.Retry.ShouldHandle;
             options.Retry.DisableForUnsafeHttpMethods();
+            var safeMethodShouldHandle = options.Retry.ShouldHandle;
+
+            options.Retry.ShouldHandle = async args =>
+            {
+                if (await safeMethodShouldHandle(args).ConfigureAwait(false))
+                {
+                    return true;
+                }
+
+                if (!await defaultShouldHandle(args).ConfigureAwait(false))
+                {
+                    return false;
+                }
+
+                var response = args.Outcome.Result;
+                var request = response?.RequestMessage;
+                return response?.StatusCode == HttpStatusCode.TooManyRequests
+                    && request is not null
+                    && ShouldRetryUnsafeLangfuseRateLimit(request);
+            };
+
             options.Retry.DelayGenerator = static args =>
             {
                 var response = args.Outcome.Result;
@@ -105,6 +128,29 @@ public static class ServiceRegistrationExtensions
         clientBuilder.AddHttpMessageHandler<LangfuseRetryLoggingHandler>();
 
         return clientBuilder;
+    }
+
+    private static bool ShouldRetryUnsafeLangfuseRateLimit(HttpRequestMessage request)
+    {
+        var absolutePath = request.RequestUri?.AbsolutePath ?? string.Empty;
+
+        if (string.Equals(request.Method.Method, HttpMethod.Post.Method, StringComparison.OrdinalIgnoreCase))
+        {
+            return absolutePath.EndsWith("/api/public/scores", StringComparison.OrdinalIgnoreCase)
+                || absolutePath.EndsWith("/scores", StringComparison.OrdinalIgnoreCase)
+                || absolutePath.EndsWith("/api/public/dataset-items", StringComparison.OrdinalIgnoreCase)
+                || absolutePath.EndsWith("/dataset-items", StringComparison.OrdinalIgnoreCase)
+                || absolutePath.EndsWith("/api/public/dataset-run-items", StringComparison.OrdinalIgnoreCase)
+                || absolutePath.EndsWith("/dataset-run-items", StringComparison.OrdinalIgnoreCase);
+        }
+
+        if (string.Equals(request.Method.Method, HttpMethod.Delete.Method, StringComparison.OrdinalIgnoreCase))
+        {
+            return absolutePath.Contains("/api/public/datasets/", StringComparison.OrdinalIgnoreCase)
+                && absolutePath.Contains("/runs/", StringComparison.OrdinalIgnoreCase);
+        }
+
+        return false;
     }
 
     /// <summary>

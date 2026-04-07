@@ -64,6 +64,14 @@ public interface IKicktippClient
     Task<IReadOnlyList<CollectedMatchOutcome>> GetMatchdayOutcomesAsync(string community, int matchday);
 
     /// <summary>
+    /// Gets a community snapshot for one tippuebersicht matchday including outcomes and all visible participant predictions.
+    /// </summary>
+    /// <param name="community">The community name.</param>
+    /// <param name="matchday">The matchday index to load.</param>
+    /// <returns>A snapshot of the requested matchday, including only finished-match prediction entries for participants.</returns>
+    Task<KicktippCommunityMatchdaySnapshot?> GetCommunityMatchdaySnapshotAsync(string community, int matchday);
+
+    /// <summary>
     /// Get home/away specific match history for both teams from a match
     /// </summary>
     /// <param name="community">The community name</param>

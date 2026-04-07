@@ -27,7 +27,10 @@ internal sealed record PreparedExperimentAnalysisRun(
     [property: JsonPropertyName("startedAtUtc")] string? StartedAtUtc,
     [property: JsonPropertyName("aggregateScores")] ExperimentAggregateScores AggregateScores,
     [property: JsonPropertyName("primaryMetricValue")] double PrimaryMetricValue,
-    [property: JsonPropertyName("rowCount")] int RowCount);
+    [property: JsonPropertyName("rowCount")] int RowCount,
+    [property: JsonPropertyName("runSubjectKind")] string? RunSubjectKind = null,
+    [property: JsonPropertyName("runSubjectId")] string? RunSubjectId = null,
+    [property: JsonPropertyName("runSubjectDisplayName")] string? RunSubjectDisplayName = null);
 
 internal sealed record PreparedExperimentAnalysisRow(
     [property: JsonPropertyName("pairingKey")] string PairingKey,
@@ -48,8 +51,12 @@ internal sealed record PreparedExperimentAnalysisRow(
     [property: JsonPropertyName("awayTeam")] string AwayTeam,
     [property: JsonPropertyName("startsAt")] string StartsAt,
     [property: JsonPropertyName("tippSpielId")] string? TippSpielId,
-    [property: JsonPropertyName("predictedHomeGoals")] int PredictedHomeGoals,
-    [property: JsonPropertyName("predictedAwayGoals")] int PredictedAwayGoals,
+    [property: JsonPropertyName("predictedHomeGoals")] int? PredictedHomeGoals,
+    [property: JsonPropertyName("predictedAwayGoals")] int? PredictedAwayGoals,
     [property: JsonPropertyName("expectedHomeGoals")] int ExpectedHomeGoals,
     [property: JsonPropertyName("expectedAwayGoals")] int ExpectedAwayGoals,
-    [property: JsonPropertyName("kicktippPoints")] int KicktippPoints);
+    [property: JsonPropertyName("kicktippPoints")] int KicktippPoints,
+    [property: JsonPropertyName("predictionStatus")] string PredictionStatus = "placed",
+    [property: JsonPropertyName("runSubjectKind")] string? RunSubjectKind = null,
+    [property: JsonPropertyName("runSubjectId")] string? RunSubjectId = null,
+    [property: JsonPropertyName("runSubjectDisplayName")] string? RunSubjectDisplayName = null);

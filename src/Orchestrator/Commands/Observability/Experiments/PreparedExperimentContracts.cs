@@ -5,6 +5,9 @@ namespace Orchestrator.Commands.Observability.Experiments;
 
 internal sealed record PreparedExperimentManifest
 {
+    [JsonPropertyName("task")]
+    public string? TaskType { get; init; }
+
     [JsonPropertyName("sliceKey")]
     public string SliceKey { get; init; } = string.Empty;
 
@@ -44,8 +47,44 @@ internal sealed record PreparedExperimentManifest
     [JsonPropertyName("selectedItemIdsHash")]
     public string SelectedItemIdsHash { get; init; } = string.Empty;
 
+    [JsonPropertyName("cutoffMatchday")]
+    public int? CutoffMatchday { get; init; }
+
+    [JsonPropertyName("participants")]
+    public IReadOnlyList<PreparedExperimentParticipantManifest> Participants { get; init; } = [];
+
     [JsonPropertyName("items")]
     public IReadOnlyList<PreparedExperimentManifestItem> Items { get; init; } = [];
+}
+
+internal sealed record PreparedExperimentParticipantManifest
+{
+    [JsonPropertyName("participantId")]
+    public string ParticipantId { get; init; } = string.Empty;
+
+    [JsonPropertyName("displayName")]
+    public string DisplayName { get; init; } = string.Empty;
+
+    [JsonPropertyName("predictions")]
+    public IReadOnlyList<PreparedExperimentParticipantPrediction> Predictions { get; init; } = [];
+}
+
+internal sealed record PreparedExperimentParticipantPrediction
+{
+    [JsonPropertyName("sourceDatasetItemId")]
+    public string SourceDatasetItemId { get; init; } = string.Empty;
+
+    [JsonPropertyName("status")]
+    public string Status { get; init; } = string.Empty;
+
+    [JsonPropertyName("homeGoals")]
+    public int? HomeGoals { get; init; }
+
+    [JsonPropertyName("awayGoals")]
+    public int? AwayGoals { get; init; }
+
+    [JsonPropertyName("kicktippPoints")]
+    public int KicktippPoints { get; init; }
 }
 
 internal sealed record PreparedExperimentManifestItem
@@ -67,6 +106,9 @@ internal sealed record PreparedExperimentManifestItem
 
     [JsonPropertyName("startsAt")]
     public string StartsAt { get; init; } = string.Empty;
+
+    [JsonPropertyName("tippSpielId")]
+    public string? TippSpielId { get; init; }
 }
 
 internal sealed record PreparedExperimentEvaluationTimestampPolicyMetadata
@@ -155,6 +197,18 @@ internal sealed record PreparedExperimentRunMetadata
     [JsonPropertyName("model")]
     public string? Model { get; init; }
 
+    [JsonPropertyName("observationName")]
+    public string? ObservationName { get; init; }
+
+    [JsonPropertyName("runSubjectKind")]
+    public string? RunSubjectKind { get; init; }
+
+    [JsonPropertyName("runSubjectId")]
+    public string? RunSubjectId { get; init; }
+
+    [JsonPropertyName("runSubjectDisplayName")]
+    public string? RunSubjectDisplayName { get; init; }
+
     [JsonPropertyName("batchStrategy")]
     public string? BatchStrategy { get; init; }
 
@@ -177,10 +231,11 @@ internal sealed record PreparedExperimentExecutionSummary(
     string SourceDatasetItemId,
     string RunName,
     string TraceId,
-    Prediction Prediction,
+    Prediction? Prediction,
     ExperimentItemScores Scores,
     IReadOnlyList<string> TraceTags,
-    PreparedExperimentTokenUsageSummary? Usage = null);
+    PreparedExperimentTokenUsageSummary? Usage = null,
+    string PredictionStatus = "placed");
 
 internal sealed record PreparedExperimentDatasetRunSummary(
     int Repetition,

@@ -238,6 +238,155 @@ public class LangfuseAndServiceRegistrationTests
     }
 
     [Test]
+    public async Task Langfuse_client_retries_rate_limited_score_posts_in_the_resilience_pipeline()
+    {
+        using var server = WireMockServer.Start();
+        Environment.SetEnvironmentVariable(LangfuseBaseUrlEnvVar, server.Urls[0]);
+
+        server
+            .Given(Request.Create()
+                .WithPath("/api/public/scores")
+                .UsingPost())
+            .InScenario("langfuse-score-retry")
+            .WillSetStateTo("retried")
+            .RespondWith(Response.Create()
+                .WithStatusCode(429)
+                .WithHeader("Content-Type", "application/json")
+                .WithHeader("Retry-After", "0")
+                .WithBody("{\"message\":\"rate limit exceeded\"}"));
+
+        server
+            .Given(Request.Create()
+                .WithPath("/api/public/scores")
+                .UsingPost())
+            .InScenario("langfuse-score-retry")
+            .WhenStateIs("retried")
+            .RespondWith(Response.Create()
+                .WithStatusCode(200)
+                .WithHeader("Content-Type", "application/json")
+                .WithBody("{\"id\":\"score-1\"}"));
+
+        var services = new ServiceCollection();
+        services.AddLogging();
+        services.AddLangfusePublicApiClient();
+
+        using var provider = services.BuildServiceProvider();
+        var client = provider.GetRequiredService<ILangfusePublicApiClient>();
+
+        var score = await client.CreateScoreAsync(new LangfuseCreateScoreRequest("kicktipp_points", 4, TraceId: "trace-1"));
+
+        await Assert.That(score.Id).IsEqualTo("score-1");
+        await Assert.That(server.LogEntries.Count).IsEqualTo(2);
+    }
+
+    [Test]
+    public async Task Langfuse_client_retries_rate_limited_dataset_item_posts_in_the_resilience_pipeline()
+    {
+        using var server = WireMockServer.Start();
+        Environment.SetEnvironmentVariable(LangfuseBaseUrlEnvVar, server.Urls[0]);
+
+        server
+            .Given(Request.Create()
+                .WithPath("/api/public/dataset-items")
+                .UsingPost())
+            .InScenario("langfuse-dataset-item-retry")
+            .WillSetStateTo("retried")
+            .RespondWith(Response.Create()
+                .WithStatusCode(429)
+                .WithHeader("Content-Type", "application/json")
+                .WithHeader("Retry-After", "0")
+                .WithBody("{\"message\":\"rate limit exceeded\"}"));
+
+        server
+            .Given(Request.Create()
+                .WithPath("/api/public/dataset-items")
+                .UsingPost())
+            .InScenario("langfuse-dataset-item-retry")
+            .WhenStateIs("retried")
+            .RespondWith(Response.Create()
+                .WithStatusCode(200)
+                .WithHeader("Content-Type", "application/json")
+                .WithBody(
+                    """
+                    {
+                      "id": "dataset-item-1",
+                      "datasetId": "dataset-1",
+                      "datasetName": "dataset-name",
+                      "input": {},
+                      "expectedOutput": {},
+                      "metadata": {},
+                      "status": null
+                    }
+                    """));
+
+        var services = new ServiceCollection();
+        services.AddLogging();
+        services.AddLangfusePublicApiClient();
+
+        using var provider = services.BuildServiceProvider();
+        var client = provider.GetRequiredService<ILangfusePublicApiClient>();
+
+        var datasetItem = await client.CreateDatasetItemAsync(new LangfuseCreateDatasetItemRequest("dataset-item-1", "dataset-name"));
+
+        await Assert.That(datasetItem.Id).IsEqualTo("dataset-item-1");
+        await Assert.That(server.LogEntries.Count).IsEqualTo(2);
+    }
+
+    [Test]
+    public async Task Langfuse_client_retries_rate_limited_dataset_run_item_posts_in_the_resilience_pipeline()
+    {
+        using var server = WireMockServer.Start();
+        Environment.SetEnvironmentVariable(LangfuseBaseUrlEnvVar, server.Urls[0]);
+
+        server
+            .Given(Request.Create()
+                .WithPath("/api/public/dataset-run-items")
+                .UsingPost())
+            .InScenario("langfuse-dataset-run-item-retry")
+            .WillSetStateTo("retried")
+            .RespondWith(Response.Create()
+                .WithStatusCode(429)
+                .WithHeader("Content-Type", "application/json")
+                .WithHeader("Retry-After", "0")
+                .WithBody("{\"message\":\"rate limit exceeded\"}"));
+
+        server
+            .Given(Request.Create()
+                .WithPath("/api/public/dataset-run-items")
+                .UsingPost())
+            .InScenario("langfuse-dataset-run-item-retry")
+            .WhenStateIs("retried")
+            .RespondWith(Response.Create()
+                .WithStatusCode(200)
+                .WithHeader("Content-Type", "application/json")
+                .WithBody(
+                    """
+                    {
+                      "id": "dataset-run-item-1",
+                      "datasetRunId": "dataset-run-1",
+                      "datasetRunName": "run-name",
+                      "datasetItemId": "dataset-item-1",
+                      "traceId": "trace-1",
+                      "observationId": null,
+                      "createdAt": "2026-04-07T00:00:00Z",
+                      "updatedAt": "2026-04-07T00:00:00Z"
+                    }
+                    """));
+
+        var services = new ServiceCollection();
+        services.AddLogging();
+        services.AddLangfusePublicApiClient();
+
+        using var provider = services.BuildServiceProvider();
+        var client = provider.GetRequiredService<ILangfusePublicApiClient>();
+
+        var datasetRunItem = await client.CreateDatasetRunItemAsync(new LangfuseCreateDatasetRunItemRequest("run-name", "dataset-item-1", "trace-1"));
+
+        await Assert.That(datasetRunItem.Id).IsEqualTo("dataset-run-item-1");
+        await Assert.That(server.LogEntries.Count).IsEqualTo(2);
+    }
+
+    [Test]
     public async Task Langfuse_client_errors_include_retry_after_metadata()
     {
         using var server = WireMockServer.Start();

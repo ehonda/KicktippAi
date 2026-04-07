@@ -169,7 +169,8 @@ public static class OrchestratorTestFactories
         Option<bool> placeBonusPredictionsResult = default,
         Option<Dictionary<string, BonusPrediction?>> placedBonusPredictions = default,
         Option<int> currentTippuebersichtMatchday = default,
-        Option<IReadOnlyList<CollectedMatchOutcome>> matchdayOutcomes = default)
+        Option<IReadOnlyList<CollectedMatchOutcome>> matchdayOutcomes = default,
+        NullableOption<KicktippCommunityMatchdaySnapshot> communityMatchdaySnapshot = default)
     {
         var mock = new Mock<IKicktippClient>();
         var matches = matchesWithHistory.Or(() => []);
@@ -180,6 +181,7 @@ public static class OrchestratorTestFactories
         var bonusPredictions = placedBonusPredictions.Or(() => new Dictionary<string, BonusPrediction?>());
         var currentMatchday = currentTippuebersichtMatchday.Or(25);
         var outcomes = matchdayOutcomes.Or(() => []);
+        var snapshot = communityMatchdaySnapshot.Or(() => null);
 
         mock.Setup(c => c.GetMatchesWithHistoryAsync(It.IsAny<string>()))
             .ReturnsAsync(matches);
@@ -189,6 +191,9 @@ public static class OrchestratorTestFactories
 
         mock.Setup(c => c.GetMatchdayOutcomesAsync(It.IsAny<string>(), It.IsAny<int>()))
             .ReturnsAsync(outcomes);
+
+        mock.Setup(c => c.GetCommunityMatchdaySnapshotAsync(It.IsAny<string>(), It.IsAny<int>()))
+            .ReturnsAsync(snapshot);
 
         mock.Setup(c => c.PlaceBetsAsync(It.IsAny<string>(), It.IsAny<Dictionary<Match, BetPrediction>>(), It.IsAny<bool>()))
             .ReturnsAsync(betsResult);

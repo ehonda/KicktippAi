@@ -12,6 +12,7 @@ using Orchestrator.Commands.Observability.Cost;
 using Orchestrator.Commands.Observability.Experiments;
 using Orchestrator.Commands.Observability.ExportExperimentAnalysis;
 using Orchestrator.Commands.Observability.ExportExperimentItem;
+using Orchestrator.Commands.Observability.PrepareCommunityToDate;
 using Orchestrator.Commands.Observability.PrepareRepeatedMatch;
 using Orchestrator.Commands.Observability.PrepareSlice;
 using Orchestrator.Commands.Observability.ReconstructPrompt;
@@ -174,6 +175,11 @@ public class Program
                 .WithExample("prepare-repeated-match", "--community-context", "pes-squad", "--home", "VfB Stuttgart", "--away", "RB Leipzig", "--matchday", "26", "--sample-size", "16")
                 .WithExample("prepare-repeated-match", "--community-context", "pes-squad", "--home", "VfB Stuttgart", "--away", "RB Leipzig", "--matchday", "26", "--sample-size", "8", "--slice-key", "repeat-8");
 
+            config.AddCommand<PrepareCommunityToDateCommand>("prepare-community-to-date")
+                .WithDescription("Create a Kicktipp community-to-date dataset and manifest from finished tippuebersicht predictions")
+                .WithExample("prepare-community-to-date", "--community-context", "ehonda-ai-arena", "--cutoff-matchday", "10")
+                .WithExample("prepare-community-to-date", "--community-context", "ehonda-ai-arena", "--output-directory", "artifacts/langfuse-experiments/community-to-date/ehonda-ai-arena/dev-run");
+
             config.AddCommand<SyncDatasetCommand>("sync-dataset")
                 .WithDescription("Sync an exported hosted experiment dataset artifact to Langfuse via the public API")
                 .WithExample("sync-dataset", "--input", "artifacts/langfuse-experiments/slices/pes-squad/all-matchdays/random-16-seed-20260403/slice-dataset.json", "--dataset-name", "match-predictions/bundesliga-2025-26/pes-squad/slices/all-matchdays/random-16-seed-20260403");
@@ -186,6 +192,11 @@ public class Program
             config.AddCommand<RunRepeatedMatchCommand>("run-repeated-match")
                 .WithDescription("Run a prepared repeated-match dataset with warmup-plus-batches execution")
                 .WithExample("run-repeated-match", "o3", "--manifest", "artifacts/langfuse-experiments/repeated-match/pes-squad/md26-vfb-stuttgart-vs-rb-leipzig/repeat-16/slice-manifest.json", "--run-name", "repeated-match__pes-squad__o3__prompt-v1__repeat-16__exact-time__2026-03-15t12-00-00z", "--prompt-key", "prompt-v1", "--evaluation-time", "\"2026-03-15T12:00:00 Europe/Berlin (+01)\"", "--batch-count", "3", "--replace-run");
+
+            config.AddCommand<RunCommunityToDateCommand>("run-community-to-date")
+                .WithDescription("Run a prepared community-to-date dataset as one Langfuse dataset run per participant")
+                .WithExample("run-community-to-date", "--manifest", "artifacts/langfuse-experiments/community-to-date/ehonda-ai-arena/through-md10/community-to-date-md10/slice-manifest.json", "--participant-limit", "3")
+                .WithExample("run-community-to-date", "--manifest", "artifacts/langfuse-experiments/community-to-date/ehonda-ai-arena/through-md10/community-to-date-md10/slice-manifest.json", "--run-family-name", "community-to-date__ehonda-ai-arena__md10__2026-04-07t12-00-00z", "--replace-runs");
                 
             config.AddCommand<CostCommand>("cost")
                 .WithDescription("Calculate aggregate costs for predictions")

@@ -1,5 +1,6 @@
 using System.Globalization;
 using System.Text.Json;
+using EHonda.KicktippAi.Core;
 using CursorBasedComposite = EHonda.Pagination.CursorBased.Composite;
 using EHonda.Pagination.OffsetBased;
 using OffsetBasedComposite = EHonda.Pagination.OffsetBased.Composite;
@@ -153,7 +154,6 @@ public sealed class ExportExperimentAnalysisCommand : AsyncCommand<ExportExperim
                 .ToHashSet(StringComparer.Ordinal);
             var traces = await ListRunTracesAsync(runContext.DatasetRun.Name, expectedTraceIds, cancellationToken);
             var observationsByTraceId = await ListRunObservationsAsync(runContext.DatasetRun.Name, expectedTraceIds, cancellationToken);
-            var scoresByTraceId = await ListRunKicktippScoresAsync(runContext.DatasetRun.Id, runContext.DatasetRun.Name, expectedTraceIds, cancellationToken);
 
             foreach (var traceId in expectedTraceIds)
             {
@@ -167,7 +167,7 @@ public sealed class ExportExperimentAnalysisCommand : AsyncCommand<ExportExperim
                     trace.Name,
                     trace.Metadata,
                     trace.Output,
-                    scoresByTraceId.TryGetValue(traceId, out var scores) ? scores : [],
+                    [],
                     observationsByTraceId.TryGetValue(traceId, out var observations) ? observations : [],
                     trace.Tags);
             }
@@ -266,73 +266,6 @@ public sealed class ExportExperimentAnalysisCommand : AsyncCommand<ExportExperim
             StringComparer.Ordinal);
     }
 
-    private async Task<Dictionary<string, IReadOnlyList<LangfuseScore>>> ListRunKicktippScoresAsync(
-        string datasetRunId,
-        string runName,
-        IReadOnlySet<string> expectedTraceIds,
-        CancellationToken cancellationToken)
-    {
-        const int pageSize = 100;
-        var scoresByTraceId = new Dictionary<string, List<LangfuseScore>>(StringComparer.Ordinal);
-        var datasetRunFilter = BuildDatasetRunIdMetadataFilter(datasetRunId);
-
-        if (expectedTraceIds.Count == 0)
-        {
-            return scoresByTraceId.ToDictionary(
-                pair => pair.Key,
-                pair => (IReadOnlyList<LangfuseScore>)pair.Value,
-                StringComparer.Ordinal);
-        }
-
-        await foreach (var score in EnumerateOffsetPaginatedItemsAsync(
-                           (page, ct) => _langfuseClient.ListScoresAsync(
-                               new LangfuseListScoresRequest(Name: "kicktipp_points", Filter: datasetRunFilter, Page: page, Limit: pageSize, Fields: "score"),
-                               ct),
-                           cancellationToken))
-        {
-            if (string.IsNullOrWhiteSpace(score.TraceId) || !expectedTraceIds.Contains(score.TraceId))
-            {
-                continue;
-            }
-
-            if (!scoresByTraceId.TryGetValue(score.TraceId, out var scores))
-            {
-                scores = [];
-                scoresByTraceId[score.TraceId] = scores;
-            }
-
-            scores.Add(score);
-        }
-
-        _logger.LogInformation(
-            "Loaded kicktipp_points scores for {TraceCount} traces in run {RunName} via datasetRunId metadata-filtered score listing.",
-            scoresByTraceId.Count,
-            runName);
-
-        return scoresByTraceId.ToDictionary(
-            pair => pair.Key,
-            pair => (IReadOnlyList<LangfuseScore>)pair.Value,
-            StringComparer.Ordinal);
-    }
-
-    private static string BuildDatasetRunIdMetadataFilter(string datasetRunId)
-    {
-        ArgumentException.ThrowIfNullOrWhiteSpace(datasetRunId);
-
-        return JsonSerializer.Serialize(
-            new[]
-            {
-                new Dictionary<string, string>
-                {
-                    ["type"] = "stringObject",
-                    ["column"] = "metadata",
-                    ["key"] = "datasetRunId",
-                    ["operator"] = "=",
-                    ["value"] = datasetRunId
-                }
-            });
-    }
-
     private static PreparedExperimentAnalysisBundle BuildBundle(
         string datasetName,
         IReadOnlyList<RunContext> runContexts,
@@ -344,7 +277,7 @@ public sealed class ExportExperimentAnalysisCommand : AsyncCommand<ExportExperim
                 context.DatasetRun.Name,
                 context.DatasetRun.Id,
                 taskType,
-                context.RunMetadata.Model ?? throw new InvalidOperationException($"Run '{context.DatasetRun.Name}' is missing model metadata."),
+            ResolveRunDisplayName(context.RunMetadata, context.DatasetRun.Name),
                 context.RunMetadata.PromptKey,
                 context.RunMetadata.SliceKind,
                 context.RunMetadata.SliceKey,
@@ -357,7 +290,10 @@ public sealed class ExportExperimentAnalysisCommand : AsyncCommand<ExportExperim
                 context.RunMetadata.StartedAtUtc,
                 context.AggregateScores,
                 ResolvePrimaryMetricValue(taskType, context.AggregateScores),
-                context.DatasetRunItems.Count))
+                context.DatasetRunItems.Count,
+                context.RunMetadata.RunSubjectKind,
+                context.RunMetadata.RunSubjectId,
+                context.RunMetadata.RunSubjectDisplayName))
             .OrderBy(run => run.RunName, StringComparer.Ordinal)
             .ToList();
 
@@ -383,11 +319,11 @@ public sealed class ExportExperimentAnalysisCommand : AsyncCommand<ExportExperim
             {
                 var datasetItem = datasetItemsById[datasetRunItem.DatasetItemId];
                 var trace = tracesById[datasetRunItem.TraceId];
-                var predictionObservation = SelectPredictionObservation(trace);
+                var predictionObservation = SelectPredictionObservation(trace, context.RunMetadata);
                 var prediction = ExtractPrediction(trace.Output, predictionObservation?.Output, context.DatasetRun.Name, datasetRunItem.TraceId);
                 var expectedOutput = ExtractExpectedOutput(datasetItem.ExpectedOutput, context.DatasetRun.Name, datasetRunItem.DatasetItemId);
                 var metadata = ExtractDatasetItemMetadata(datasetItem.Input, datasetItem.Metadata, datasetRunItem.DatasetItemId);
-                var kicktippPoints = ExtractKicktippPoints(trace, context.DatasetRun.Name, datasetRunItem.TraceId);
+                var kicktippPoints = CalculateKicktippPoints(prediction, expectedOutput);
                 var sourceDatasetItemId = ResolveSourceDatasetItemId(
                     context.RunMetadata,
                     datasetRunItem.DatasetItemId,
@@ -399,7 +335,7 @@ public sealed class ExportExperimentAnalysisCommand : AsyncCommand<ExportExperim
                     context.DatasetRun.Id,
                     context.DatasetRun.Name,
                     context.RunMetadata.TaskType ?? throw new InvalidOperationException($"Run '{context.DatasetRun.Name}' is missing task type metadata."),
-                    context.RunMetadata.Model ?? throw new InvalidOperationException($"Run '{context.DatasetRun.Name}' is missing model metadata."),
+                    ResolveRunDisplayName(context.RunMetadata, context.DatasetRun.Name),
                     context.RunMetadata.PromptKey,
                     context.RunMetadata.SliceKind,
                     context.RunMetadata.SliceKey,
@@ -417,7 +353,11 @@ public sealed class ExportExperimentAnalysisCommand : AsyncCommand<ExportExperim
                     prediction.AwayGoals,
                     expectedOutput.HomeGoals,
                     expectedOutput.AwayGoals,
-                    kicktippPoints));
+                    kicktippPoints,
+                    prediction.Status,
+                    context.RunMetadata.RunSubjectKind,
+                    context.RunMetadata.RunSubjectId,
+                    context.RunMetadata.RunSubjectDisplayName));
             }
         }
 
@@ -599,18 +539,18 @@ public sealed class ExportExperimentAnalysisCommand : AsyncCommand<ExportExperim
         string runName,
         string traceId)
     {
-        if (TryExtractScoreline(traceOutput, out var prediction))
+        if (TryExtractPredictionOutput(traceOutput, out var prediction))
         {
             return prediction;
         }
 
-        if (observationOutput is JsonElement candidate && TryExtractScoreline(candidate, out prediction))
+        if (observationOutput is JsonElement candidate && TryExtractPredictionOutput(candidate, out prediction))
         {
             return prediction;
         }
 
         throw new InvalidOperationException(
-            $"Run '{runName}' trace '{traceId}' does not expose a parseable predicted scoreline in trace or observation output.");
+            $"Run '{runName}' trace '{traceId}' does not expose a parseable prediction payload in trace or observation output.");
     }
 
     private static ExpectedOutput ExtractExpectedOutput(JsonElement expectedOutput, string runName, string datasetItemId)
@@ -652,26 +592,36 @@ public sealed class ExportExperimentAnalysisCommand : AsyncCommand<ExportExperim
             GetOptionalStringProperty(metadata, "tippSpielId"));
     }
 
-    private static int ExtractKicktippPoints(LangfuseTraceWithDetails trace, string runName, string traceId)
+    private static int CalculateKicktippPoints(PredictionOutput prediction, ExpectedOutput expectedOutput)
     {
-        var score = (trace.Scores ?? [])
-            .FirstOrDefault(candidate => string.Equals(candidate.Name, "kicktipp_points", StringComparison.Ordinal));
-
-        if (score?.Value is null)
+        if (!string.Equals(prediction.Status, "placed", StringComparison.OrdinalIgnoreCase)
+            || prediction.HomeGoals is not int homeGoals
+            || prediction.AwayGoals is not int awayGoals)
         {
-            throw new InvalidOperationException(
-                $"Run '{runName}' trace '{traceId}' is missing the trace-level kicktipp_points score.");
+            return 0;
         }
 
-        return Convert.ToInt32(Math.Round(score.Value.Value, MidpointRounding.AwayFromZero), CultureInfo.InvariantCulture);
+        return PreparedExperimentSupport.CalculateScores(
+            new Prediction(homeGoals, awayGoals),
+            expectedOutput.HomeGoals,
+            expectedOutput.AwayGoals).KicktippPoints;
     }
 
-    private static LangfuseObservationDetail? SelectPredictionObservation(LangfuseTraceWithDetails trace)
+    private static LangfuseObservationDetail? SelectPredictionObservation(
+        LangfuseTraceWithDetails trace,
+        PreparedExperimentRunMetadata runMetadata)
     {
-        return (trace.Observations ?? [])
-            .FirstOrDefault(observation => string.Equals(observation.Name, "predict-match", StringComparison.OrdinalIgnoreCase))
-            ?? (trace.Observations ?? [])
-                .FirstOrDefault(observation => string.Equals(observation.Type, "GENERATION", StringComparison.OrdinalIgnoreCase));
+        var observations = trace.Observations ?? [];
+        var preferredObservationName = string.IsNullOrWhiteSpace(runMetadata.ObservationName)
+            ? string.Equals(runMetadata.TaskType, "community-to-date", StringComparison.OrdinalIgnoreCase)
+                ? "community-match-prediction"
+                : "predict-match"
+            : runMetadata.ObservationName;
+
+        return observations.FirstOrDefault(observation => string.Equals(observation.Name, preferredObservationName, StringComparison.OrdinalIgnoreCase))
+               ?? observations.FirstOrDefault(observation => string.Equals(observation.Name, "community-match-prediction", StringComparison.OrdinalIgnoreCase))
+               ?? observations.FirstOrDefault(observation => string.Equals(observation.Name, "predict-match", StringComparison.OrdinalIgnoreCase))
+               ?? observations.FirstOrDefault(observation => string.Equals(observation.Type, "GENERATION", StringComparison.OrdinalIgnoreCase));
     }
 
     private static string ResolveSourceDatasetItemId(
@@ -725,16 +675,36 @@ public sealed class ExportExperimentAnalysisCommand : AsyncCommand<ExportExperim
         return false;
     }
 
-    private static bool TryExtractScoreline(JsonElement value, out PredictionOutput prediction)
+    private static bool TryExtractPredictionOutput(JsonElement value, out PredictionOutput prediction)
     {
         if (value.ValueKind == JsonValueKind.Object)
         {
+            if (value.TryGetProperty("status", out var statusProperty)
+                && statusProperty.ValueKind == JsonValueKind.String)
+            {
+                var status = NormalizePredictionStatus(statusProperty.GetString());
+                var hasHomeGoals = TryGetNullableIntProperty(value, "homeGoals", out var parsedHomeGoals);
+                var hasAwayGoals = TryGetNullableIntProperty(value, "awayGoals", out var parsedAwayGoals);
+
+                if (hasHomeGoals && hasAwayGoals)
+                {
+                    prediction = new PredictionOutput(status, parsedHomeGoals, parsedAwayGoals);
+                    return true;
+                }
+
+                if (string.Equals(status, "missed", StringComparison.OrdinalIgnoreCase))
+                {
+                    prediction = new PredictionOutput("missed", null, null);
+                    return true;
+                }
+            }
+
             if (value.TryGetProperty("homeGoals", out var homeGoals)
                 && value.TryGetProperty("awayGoals", out var awayGoals)
                 && homeGoals.TryGetInt32(out var home)
                 && awayGoals.TryGetInt32(out var away))
             {
-                prediction = new PredictionOutput(home, away);
+                prediction = new PredictionOutput("placed", home, away);
                 return true;
             }
         }
@@ -744,7 +714,7 @@ public sealed class ExportExperimentAnalysisCommand : AsyncCommand<ExportExperim
             var raw = value.GetString();
             if (TryParseScoreString(raw, out var parsedScore))
             {
-                prediction = new PredictionOutput(parsedScore.HomeGoals, parsedScore.AwayGoals);
+                prediction = new PredictionOutput("placed", parsedScore.HomeGoals, parsedScore.AwayGoals);
                 return true;
             }
 
@@ -753,7 +723,7 @@ public sealed class ExportExperimentAnalysisCommand : AsyncCommand<ExportExperim
                 try
                 {
                     using var document = JsonDocument.Parse(raw);
-                    if (TryExtractScoreline(document.RootElement, out prediction))
+                    if (TryExtractPredictionOutput(document.RootElement, out prediction))
                     {
                         return true;
                     }
@@ -765,6 +735,28 @@ public sealed class ExportExperimentAnalysisCommand : AsyncCommand<ExportExperim
         }
 
         prediction = default;
+        return false;
+    }
+
+    private static bool TryGetNullableIntProperty(JsonElement value, string propertyName, out int? result)
+    {
+        result = null;
+        if (!value.TryGetProperty(propertyName, out var property))
+        {
+            return false;
+        }
+
+        if (property.ValueKind == JsonValueKind.Null)
+        {
+            return true;
+        }
+
+        if (property.TryGetInt32(out var parsed))
+        {
+            result = parsed;
+            return true;
+        }
+
         return false;
     }
 
@@ -790,6 +782,28 @@ public sealed class ExportExperimentAnalysisCommand : AsyncCommand<ExportExperim
 
         expectedOutput = new ExpectedOutput(homeGoals, awayGoals);
         return true;
+    }
+
+    private static string NormalizePredictionStatus(string? status)
+    {
+        return string.Equals(status, "missed", StringComparison.OrdinalIgnoreCase)
+            ? "missed"
+            : "placed";
+    }
+
+    private static string ResolveRunDisplayName(PreparedExperimentRunMetadata runMetadata, string runName)
+    {
+        if (!string.IsNullOrWhiteSpace(runMetadata.RunSubjectDisplayName))
+        {
+            return runMetadata.RunSubjectDisplayName;
+        }
+
+        if (!string.IsNullOrWhiteSpace(runMetadata.Model))
+        {
+            return runMetadata.Model;
+        }
+
+        throw new InvalidOperationException($"Run '{runName}' is missing comparable display metadata.");
     }
 
     private static string ResolvePrimaryMetricName(string taskType)
@@ -865,7 +879,7 @@ public sealed class ExportExperimentAnalysisCommand : AsyncCommand<ExportExperim
         IReadOnlyList<LangfuseDatasetRunItem> DatasetRunItems,
         ExperimentAggregateScores AggregateScores);
 
-    private readonly record struct PredictionOutput(int HomeGoals, int AwayGoals);
+    private readonly record struct PredictionOutput(string Status, int? HomeGoals, int? AwayGoals);
 
     private readonly record struct ExpectedOutput(int HomeGoals, int AwayGoals);
 

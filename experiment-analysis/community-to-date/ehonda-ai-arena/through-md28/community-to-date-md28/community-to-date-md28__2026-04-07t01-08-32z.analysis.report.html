@@ -1,0 +1,291 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="utf-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1">
+    <title>Experiment Analysis - match-predictions/bundesliga-2025-26/ehonda-ai-arena/community-to-date/through-md28/community-to-date-md28</title>
+    <style>
+        :root {
+            --bg: #f4efe6;
+            --panel: rgba(255, 252, 246, 0.94);
+            --panel-strong: #fffaf1;
+            --text: #1e1a16;
+            --muted: #6d6258;
+            --border: rgba(86, 69, 53, 0.16);
+            --accent: #b5532f;
+            --accent-soft: rgba(181, 83, 47, 0.12);
+            --good: #1c7b5b;
+            --good-soft: rgba(28, 123, 91, 0.14);
+            --shadow: 0 24px 70px rgba(70, 45, 26, 0.12);
+        }
+
+        * { box-sizing: border-box; }
+
+        body {
+            margin: 0;
+            font-family: "Segoe UI", "Trebuchet MS", sans-serif;
+            color: var(--text);
+            background:
+                radial-gradient(circle at top left, rgba(181, 83, 47, 0.12), transparent 34%),
+                radial-gradient(circle at top right, rgba(28, 123, 91, 0.10), transparent 28%),
+                linear-gradient(180deg, #f7f1e8 0%, var(--bg) 100%);
+        }
+
+        .page {
+            max-width: 1160px;
+            margin: 0 auto;
+            padding: 32px 20px 48px;
+        }
+
+        .hero {
+            background: linear-gradient(140deg, rgba(255, 250, 241, 0.97), rgba(247, 238, 228, 0.94));
+            border: 1px solid var(--border);
+            border-radius: 28px;
+            padding: 28px;
+            box-shadow: var(--shadow);
+            margin-bottom: 24px;
+        }
+
+        .eyebrow {
+            margin: 0 0 8px;
+            color: var(--accent);
+            font-size: 0.78rem;
+            font-weight: 700;
+            letter-spacing: 0.14em;
+            text-transform: uppercase;
+        }
+
+        h1, h2, h3 { margin: 0; }
+
+        h1 {
+            font-size: clamp(1.9rem, 4vw, 3.2rem);
+            line-height: 1.05;
+            margin-bottom: 12px;
+        }
+
+        .hero-meta {
+            display: flex;
+            flex-wrap: wrap;
+            gap: 10px;
+            margin-top: 16px;
+        }
+
+        .pill {
+            display: inline-flex;
+            align-items: center;
+            padding: 6px 10px;
+            border-radius: 999px;
+            background: var(--accent-soft);
+            color: var(--text);
+            font-size: 0.9rem;
+            font-weight: 600;
+        }
+
+        .pill-good {
+            background: var(--good-soft);
+            color: var(--good);
+        }
+
+        .pill-neutral {
+            background: rgba(52, 68, 84, 0.08);
+            color: #344454;
+        }
+
+        .panel {
+            background: var(--panel);
+            border: 1px solid var(--border);
+            border-radius: 24px;
+            padding: 24px;
+            box-shadow: var(--shadow);
+            margin-bottom: 20px;
+        }
+
+        .panel-header {
+            display: flex;
+            justify-content: space-between;
+            gap: 12px;
+            align-items: center;
+            margin-bottom: 18px;
+        }
+
+        .summary-grid,
+        .metric-grid {
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(180px, 1fr));
+            gap: 14px;
+        }
+
+        .metric-card {
+            background: var(--panel-strong);
+            border: 1px solid var(--border);
+            border-radius: 18px;
+            padding: 16px;
+        }
+
+        .metric-label {
+            display: block;
+            color: var(--muted);
+            font-size: 0.82rem;
+            text-transform: uppercase;
+            letter-spacing: 0.08em;
+            margin-bottom: 8px;
+        }
+
+        .metric-value {
+            font-size: 1.28rem;
+            font-weight: 700;
+            line-height: 1.2;
+            overflow-wrap: anywhere;
+        }
+
+        .panel-subsection {
+            margin-top: 22px;
+        }
+
+        table {
+            width: 100%;
+            border-collapse: collapse;
+            overflow: hidden;
+            border-radius: 16px;
+            border: 1px solid var(--border);
+            background: var(--panel-strong);
+        }
+
+        thead {
+            background: rgba(30, 26, 22, 0.06);
+        }
+
+        th,
+        td {
+            padding: 12px 14px;
+            text-align: left;
+            border-bottom: 1px solid var(--border);
+            vertical-align: top;
+        }
+
+        th {
+            font-size: 0.83rem;
+            text-transform: uppercase;
+            letter-spacing: 0.06em;
+            color: var(--muted);
+        }
+
+        tbody tr:last-child td {
+            border-bottom: none;
+        }
+
+        .footnote {
+            margin: 0;
+            color: var(--muted);
+            font-size: 0.95rem;
+            line-height: 1.55;
+        }
+
+        @media (max-width: 720px) {
+            .page { padding: 20px 14px 32px; }
+            .hero, .panel { padding: 18px; border-radius: 20px; }
+            .panel-header { align-items: flex-start; flex-direction: column; }
+            table, thead, tbody, tr, th, td { display: block; }
+            thead { display: none; }
+            tr { border-bottom: 1px solid var(--border); padding: 10px 0; }
+            tr:last-child { border-bottom: none; }
+            td { border: none; padding: 6px 0; }
+            td::before {
+                content: attr(data-label);
+                display: block;
+                color: var(--muted);
+                font-size: 0.76rem;
+                text-transform: uppercase;
+                letter-spacing: 0.08em;
+                margin-bottom: 4px;
+            }
+        }
+    </style>
+</head>
+<body>
+    <main class="page">
+        <header class="hero">
+            <p class="eyebrow">KicktippAi experiment analysis</p>
+            <h1>match-predictions/bundesliga-2025-26/ehonda-ai-arena/community-to-date/through-md28/community-to-date-md28</h1>
+            <div class="hero-meta">
+                <span class="pill">Task: community-to-date</span>
+                <span class="pill">Primary metric: total_kicktipp_points</span>
+                <span class="pill">Runs: 5</span>
+                <span class="pill">Pairings: 252</span>
+            </div>
+        </header>
+
+        <section class="panel">
+            <div class="panel-header">
+                <h2>Summary</h2>
+            </div>
+            <div class="summary-grid">
+                <article class="metric-card"><span class="metric-label">Dataset</span><span class="metric-value">match-predictions/bundesliga-2025-26/ehonda-ai-arena/community-to-date/through-md28/community-to-date-md28</span></article>
+                <article class="metric-card"><span class="metric-label">Task type</span><span class="metric-value">community-to-date</span></article>
+                <article class="metric-card"><span class="metric-label">Primary metric</span><span class="metric-value">total_kicktipp_points</span></article>
+                <article class="metric-card"><span class="metric-label">Alpha</span><span class="metric-value">0.0500</span></article>
+            </div>
+        </section>
+
+        <section class="panel">
+            <div class="panel-header">
+                <h2>Run ranking</h2>
+            </div>
+            <table>
+                <thead>
+                    <tr>
+                        <th>Rank</th>
+                        <th>Run</th>
+                        <th>Model</th>
+                        <th>Primary metric</th>
+                    </tr>
+                </thead>
+                <tbody>
+                    <tr><td>1</td><td>community-to-date__ehonda-ai-arena__community-to-date-md28__2026-04-07t01-08-32z__o3-72551660</td><td>o3</td><td>346.0000</td></tr>
+<tr><td>2</td><td>community-to-date__ehonda-ai-arena__community-to-date-md28__2026-04-07t01-08-32z__gpt-5-72551665</td><td>gpt-5</td><td>336.0000</td></tr>
+<tr><td>3</td><td>community-to-date__ehonda-ai-arena__community-to-date-md28__2026-04-07t01-08-32z__gpt-5-nano-72551667</td><td>gpt-5-nano</td><td>331.0000</td></tr>
+<tr><td>4</td><td>community-to-date__ehonda-ai-arena__community-to-date-md28__2026-04-07t01-08-32z__o4-mini-72505513</td><td>o4-mini</td><td>329.0000</td></tr>
+<tr><td>5</td><td>community-to-date__ehonda-ai-arena__community-to-date-md28__2026-04-07t01-08-32z__gpt-5-mini-72795290</td><td>gpt-5-mini</td><td>328.0000</td></tr>
+                </tbody>
+            </table>
+        </section>
+
+        
+                <section class="panel">
+                    <div class="panel-header">
+                        <h2>Multi-run comparison</h2>
+                        <span class="pill pill-neutral">Friedman p-value 0.7401</span>
+                    </div>
+                    <table>
+                        <thead>
+                            <tr>
+                                <th>Run A</th>
+                                <th>Run B</th>
+                                <th>Primary delta</th>
+                                <th>Adjusted p-value</th>
+                                <th>Significant</th>
+                                <th>Per-item W/T/L</th>
+                            </tr>
+                        </thead>
+                        <tbody>
+                            <tr><td>community-to-date__ehonda-ai-arena__community-to-date-md28__2026-04-07t01-08-32z__o3-72551660</td><td>community-to-date__ehonda-ai-arena__community-to-date-md28__2026-04-07t01-08-32z__gpt-5-72551665</td><td>10.0000</td><td>1.0000</td><td>no</td><td>29/199/24</td></tr>
+<tr><td>community-to-date__ehonda-ai-arena__community-to-date-md28__2026-04-07t01-08-32z__o3-72551660</td><td>community-to-date__ehonda-ai-arena__community-to-date-md28__2026-04-07t01-08-32z__gpt-5-nano-72551667</td><td>15.0000</td><td>1.0000</td><td>no</td><td>42/175/35</td></tr>
+<tr><td>community-to-date__ehonda-ai-arena__community-to-date-md28__2026-04-07t01-08-32z__o3-72551660</td><td>community-to-date__ehonda-ai-arena__community-to-date-md28__2026-04-07t01-08-32z__o4-mini-72505513</td><td>17.0000</td><td>1.0000</td><td>no</td><td>33/195/24</td></tr>
+<tr><td>community-to-date__ehonda-ai-arena__community-to-date-md28__2026-04-07t01-08-32z__o3-72551660</td><td>community-to-date__ehonda-ai-arena__community-to-date-md28__2026-04-07t01-08-32z__gpt-5-mini-72795290</td><td>18.0000</td><td>1.0000</td><td>no</td><td>35/191/26</td></tr>
+<tr><td>community-to-date__ehonda-ai-arena__community-to-date-md28__2026-04-07t01-08-32z__gpt-5-72551665</td><td>community-to-date__ehonda-ai-arena__community-to-date-md28__2026-04-07t01-08-32z__gpt-5-nano-72551667</td><td>5.0000</td><td>1.0000</td><td>no</td><td>36/183/33</td></tr>
+<tr><td>community-to-date__ehonda-ai-arena__community-to-date-md28__2026-04-07t01-08-32z__gpt-5-72551665</td><td>community-to-date__ehonda-ai-arena__community-to-date-md28__2026-04-07t01-08-32z__o4-mini-72505513</td><td>7.0000</td><td>1.0000</td><td>no</td><td>28/200/24</td></tr>
+<tr><td>community-to-date__ehonda-ai-arena__community-to-date-md28__2026-04-07t01-08-32z__gpt-5-72551665</td><td>community-to-date__ehonda-ai-arena__community-to-date-md28__2026-04-07t01-08-32z__gpt-5-mini-72795290</td><td>8.0000</td><td>1.0000</td><td>no</td><td>34/191/27</td></tr>
+<tr><td>community-to-date__ehonda-ai-arena__community-to-date-md28__2026-04-07t01-08-32z__gpt-5-nano-72551667</td><td>community-to-date__ehonda-ai-arena__community-to-date-md28__2026-04-07t01-08-32z__o4-mini-72505513</td><td>2.0000</td><td>1.0000</td><td>no</td><td>32/186/34</td></tr>
+<tr><td>community-to-date__ehonda-ai-arena__community-to-date-md28__2026-04-07t01-08-32z__gpt-5-nano-72551667</td><td>community-to-date__ehonda-ai-arena__community-to-date-md28__2026-04-07t01-08-32z__gpt-5-mini-72795290</td><td>3.0000</td><td>1.0000</td><td>no</td><td>36/177/39</td></tr>
+<tr><td>community-to-date__ehonda-ai-arena__community-to-date-md28__2026-04-07t01-08-32z__o4-mini-72505513</td><td>community-to-date__ehonda-ai-arena__community-to-date-md28__2026-04-07t01-08-32z__gpt-5-mini-72795290</td><td>1.0000</td><td>1.0000</td><td>no</td><td>23/205/24</td></tr>
+                        </tbody>
+                    </table>
+                </section>
+                
+
+        <section class="panel">
+            <p class="footnote">Per-item win/tie/loss counts compare paired Kicktipp points for the listed run ordering on each prepared dataset item.</p>
+        </section>
+    </main>
+</body>
+</html>

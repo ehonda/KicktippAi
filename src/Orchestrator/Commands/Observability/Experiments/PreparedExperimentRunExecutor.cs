@@ -1,4 +1,6 @@
 using System.Diagnostics;
+using System.Security.Cryptography;
+using System.Text;
 using System.Text.Json;
 using EHonda.KicktippAi.Core;
 using OpenAiIntegration;
@@ -155,10 +157,154 @@ internal sealed class PreparedExperimentRunExecutor
                 1,
                 request.RunName,
                 datasetRunId,
-                datasetRunItems.Data.Count,
+                datasetRunItems.Meta.TotalItems,
                 aggregateScores,
                 executionSummaries.FirstOrDefault(),
                 executionSummaries.LastOrDefault())],
+            executionSummaries.FirstOrDefault(),
+            executionSummaries.LastOrDefault());
+    }
+
+    public async Task<PreparedExperimentRunSummary> ExecuteCommunityToDateAsync(
+        PreparedExperimentCommunityRunRequest request,
+        CancellationToken cancellationToken)
+    {
+        var manifest = await PreparedExperimentCommandSupport.LoadJsonFileAsync<PreparedExperimentManifest>(
+            request.ManifestPath,
+            cancellationToken);
+        PreparedExperimentCommandSupport.ValidateManifest(manifest);
+        PreparedExperimentCommandSupport.EnsureTaskType(manifest, "community-to-date");
+
+        if (manifest.Participants.Count == 0)
+        {
+            throw new InvalidOperationException("Community-to-date manifests must contain at least one participant.");
+        }
+
+        var datasetName = string.IsNullOrWhiteSpace(request.DatasetName)
+            ? manifest.SliceDatasetName
+            : request.DatasetName.Trim();
+        if (string.IsNullOrWhiteSpace(datasetName))
+        {
+            throw new InvalidOperationException("No dataset name was provided for the community-to-date run.");
+        }
+
+        var startedAtUtc = ExperimentArtifactSupport.FormatStartedAtUtc(DateTimeOffset.UtcNow);
+        var batchSize = request.BatchSize;
+        var participants = SelectParticipants(manifest, request);
+        var runFamilyName = string.IsNullOrWhiteSpace(request.RunFamilyName)
+            ? BuildCommunityRunFamilyName(manifest, startedAtUtc)
+            : request.RunFamilyName.Trim();
+
+        var datasetRunSummaries = new List<PreparedExperimentDatasetRunSummary>();
+        var executionSummaries = new List<PreparedExperimentExecutionSummary>();
+        var scoreEntries = new List<ExperimentItemScores>();
+        var deletedAnyExistingRun = false;
+
+        PreparedExperimentSupport.ReportProgress(
+            $"Starting community-to-date run family '{runFamilyName}' with {participants.Count} participant run(s) and sample size {manifest.Items.Count}.");
+
+        for (var participantIndex = 0; participantIndex < participants.Count; participantIndex += 1)
+        {
+            var participant = participants[participantIndex];
+            var runName = BuildCommunityParticipantRunName(runFamilyName, participant);
+            var runMetadata = BuildCommunityRunMetadata(manifest, participant, datasetName, startedAtUtc, batchSize);
+            var deletedExistingRun = await DeleteExistingRunIfRequestedAsync(
+                datasetName,
+                runName,
+                request.ReplaceRuns,
+                cancellationToken);
+            deletedAnyExistingRun |= deletedExistingRun;
+
+            var traceTags = PreparedExperimentSupport.DeriveTraceTags(runMetadata);
+            var propagatedMetadata = PreparedExperimentSupport.DerivePropagatedMetadata(runMetadata);
+            var runMetadataPayload = JsonSerializer.SerializeToElement(runMetadata, PreparedExperimentCommandSupport.JsonOptions);
+            var predictionsBySourceDatasetItemId = participant.Predictions
+                .GroupBy(prediction => prediction.SourceDatasetItemId, StringComparer.Ordinal)
+                .ToDictionary(group => group.Key, group => group.First(), StringComparer.Ordinal);
+            var batches = PreparedExperimentSupport.CreateBatchChunks(manifest.Items, batchSize);
+            var participantScoreEntries = new List<ExperimentItemScores>();
+            var participantExecutionSummaries = new List<PreparedExperimentExecutionSummary>();
+            string? datasetRunId = null;
+            var completedExecutionCount = 0;
+
+            PreparedExperimentSupport.ReportProgress(
+                $"Participant {participantIndex + 1}/{participants.Count}: starting run '{runName}' for '{participant.DisplayName}' with batch size {batchSize}.");
+
+            for (var batchIndex = 0; batchIndex < batches.Count; batchIndex += 1)
+            {
+                var batch = batches[batchIndex];
+                var batchStart = completedExecutionCount + 1;
+                var batchEnd = completedExecutionCount + batch.Count;
+
+                PreparedExperimentSupport.ReportProgress(
+                    $"Participant {participant.DisplayName}: batch {batchIndex + 1}/{batches.Count}, executions {batchStart}-{batchEnd} of {manifest.Items.Count}.");
+
+                var batchResults = await Task.WhenAll(batch.Select(item => ExecuteCommunityItemAsync(
+                    item,
+                    participant,
+                    predictionsBySourceDatasetItemId,
+                    runName,
+                    request.RunDescription,
+                    datasetName,
+                    runMetadata,
+                    traceTags,
+                    propagatedMetadata,
+                    runMetadataPayload,
+                    cancellationToken)));
+
+                foreach (var batchResult in batchResults)
+                {
+                    datasetRunId ??= batchResult.DatasetRunId;
+                    participantScoreEntries.Add(batchResult.Summary.Scores);
+                    participantExecutionSummaries.Add(batchResult.Summary);
+                }
+
+                completedExecutionCount += batchResults.Length;
+            }
+
+            if (string.IsNullOrWhiteSpace(datasetRunId))
+            {
+                throw new InvalidOperationException($"Dataset run '{runName}' did not return a datasetRunId.");
+            }
+
+            var aggregateScores = await PostRunScoresAsync(datasetRunId, runMetadata, participantScoreEntries, cancellationToken);
+            var datasetRun = await _langfuseClient.GetDatasetRunAsync(datasetName, runName, cancellationToken)
+                ?? throw new InvalidOperationException(
+                    $"Dataset run '{runName}' could not be retrieved from dataset '{datasetName}'.");
+            var datasetRunItems = await WaitForDatasetRunItemsAsync(
+                datasetRun.DatasetId,
+                runName,
+                manifest.Items.Count,
+                cancellationToken);
+
+            datasetRunSummaries.Add(new PreparedExperimentDatasetRunSummary(
+                participantIndex + 1,
+                runName,
+                datasetRunId,
+                datasetRunItems.Meta.TotalItems,
+                aggregateScores,
+                participantExecutionSummaries.FirstOrDefault(),
+                participantExecutionSummaries.LastOrDefault()));
+            executionSummaries.AddRange(participantExecutionSummaries);
+            scoreEntries.AddRange(participantScoreEntries);
+        }
+
+        var overallAggregateScores = PreparedExperimentSupport.SummarizeScores(scoreEntries);
+        return new PreparedExperimentRunSummary(
+            datasetName,
+            runFamilyName,
+            runFamilyName,
+            "community-to-date",
+            "community-predictions",
+            deletedAnyExistingRun,
+            manifest.Items.Count,
+            "simple-batched",
+            batchSize,
+            null,
+            executionSummaries.Count,
+            datasetRunSummaries.Count,
+            overallAggregateScores,
+            datasetRunSummaries,
             executionSummaries.FirstOrDefault(),
             executionSummaries.LastOrDefault());
     }
@@ -270,7 +416,7 @@ internal sealed class PreparedExperimentRunExecutor
             datasetName,
             runMetadata,
             item,
-            outcome,
+            outcome.TippSpielId,
             traceTags,
             propagatedMetadata,
             evaluationTimestamp,
@@ -332,15 +478,6 @@ internal sealed class PreparedExperimentRunExecutor
             cancellationToken);
 
         var itemScores = PreparedExperimentSupport.CalculateScores(prediction, outcome.HomeGoals.Value, outcome.AwayGoals.Value);
-        await PostItemScoresAsync(
-            datasetRunItem.DatasetRunId,
-            item.SliceDatasetItemId,
-            item.SourceDatasetItemId,
-            itemScores,
-            prediction,
-            outcome,
-            traceId,
-            cancellationToken);
 
         return new PreparedExperimentExecutionResult(
             datasetRunItem.DatasetRunId,
@@ -354,37 +491,101 @@ internal sealed class PreparedExperimentRunExecutor
                 traceTags));
     }
 
-    private async Task PostItemScoresAsync(
-        string datasetRunId,
-        string datasetItemId,
-        string sourceDatasetItemId,
-        ExperimentItemScores scores,
-        Prediction prediction,
-        PersistedMatchOutcome outcome,
-        string traceId,
+    private async Task<PreparedExperimentExecutionResult> ExecuteCommunityItemAsync(
+        PreparedExperimentManifestItem item,
+        PreparedExperimentParticipantManifest participant,
+        IReadOnlyDictionary<string, PreparedExperimentParticipantPrediction> predictionsBySourceDatasetItemId,
+        string runName,
+        string? runDescription,
+        string datasetName,
+        PreparedExperimentRunMetadata runMetadata,
+        IReadOnlyList<string> traceTags,
+        IReadOnlyDictionary<string, string> propagatedMetadata,
+        JsonElement runMetadataPayload,
         CancellationToken cancellationToken)
     {
-        var metadata = JsonSerializer.SerializeToElement(new
-        {
-            datasetRunId,
-            datasetItemId,
-            sourceDatasetItemId,
-            prediction,
-            expectedOutput = new
+        var participantPrediction = predictionsBySourceDatasetItemId.TryGetValue(item.SourceDatasetItemId, out var prediction)
+            ? prediction
+            : new PreparedExperimentParticipantPrediction
             {
-                homeGoals = outcome.HomeGoals,
-                awayGoals = outcome.AwayGoals
-            }
-        }, PreparedExperimentCommandSupport.JsonOptions);
+                SourceDatasetItemId = item.SourceDatasetItemId,
+                Status = "missed",
+                KicktippPoints = 0
+            };
 
-        await _langfuseClient.CreateScoreAsync(
-            new LangfuseCreateScoreRequest(
-                "kicktipp_points",
-                scores.KicktippPoints,
-                TraceId: traceId,
-                Comment: $"Experiment score for {outcome.HomeTeam} vs {outcome.AwayTeam}",
-                Metadata: metadata),
+        var traceInput = JsonSerializer.Serialize(new
+        {
+            datasetName,
+            datasetItemId = item.SliceDatasetItemId,
+            sourceDatasetItemId = item.SourceDatasetItemId,
+            runName,
+            task = runMetadata.TaskType,
+            source = "kicktipp-community",
+            participant = new
+            {
+                participant.ParticipantId,
+                participant.DisplayName
+            },
+            match = new
+            {
+                item.HomeTeam,
+                item.AwayTeam,
+                item.Matchday,
+                item.StartsAt,
+                item.TippSpielId
+            }
+        }, TraceJsonOptions);
+        var predictionPayload = CreateCommunityPredictionPayload(participantPrediction);
+
+        using var activity = Telemetry.Source.StartActivity("match-experiment-item");
+        ConfigureTraceContext(
+            activity,
+            runName,
+            datasetName,
+            runMetadata,
+            item,
+            item.TippSpielId,
+            traceTags,
+            propagatedMetadata);
+
+        activity?.SetTag("langfuse.trace.input", traceInput);
+        activity?.SetTag("langfuse.trace.output", predictionPayload.GetRawText());
+
+        using (var observation = Telemetry.Source.StartActivity(runMetadata.ObservationName ?? "community-match-prediction"))
+        {
+            ConfigureCommunityPredictionObservation(observation, participant, participantPrediction, item, predictionPayload);
+        }
+
+        var traceId = activity?.TraceId.ToString();
+        if (string.IsNullOrWhiteSpace(traceId))
+        {
+            throw new InvalidOperationException(
+                $"Trace creation failed for {item.HomeTeam} vs {item.AwayTeam}; no trace id was available.");
+        }
+
+        var datasetRunItem = await _langfuseClient.CreateDatasetRunItemAsync(
+            new LangfuseCreateDatasetRunItemRequest(
+                runName,
+                item.SliceDatasetItemId,
+                traceId,
+                runDescription,
+                runMetadataPayload),
             cancellationToken);
+
+        var itemScores = new ExperimentItemScores(participantPrediction.KicktippPoints);
+
+        return new PreparedExperimentExecutionResult(
+            datasetRunItem.DatasetRunId,
+            new PreparedExperimentExecutionSummary(
+                item.SliceDatasetItemId,
+                item.SourceDatasetItemId,
+                runName,
+                traceId,
+                CreatePredictionOrNull(participantPrediction),
+                itemScores,
+                traceTags,
+                null,
+                participantPrediction.Status));
     }
 
     private async Task<ExperimentAggregateScores> PostRunScoresAsync(
@@ -402,6 +603,7 @@ internal sealed class PreparedExperimentRunExecutor
                 aggregateScores.TotalKicktippPoints,
                 DatasetRunId: datasetRunId,
                 Comment: $"Aggregate score for {runMetadata.SampleSize} item(s)",
+                Id: CreateScoreId("total_kicktipp_points", datasetRunId),
                 Metadata: runMetadataPayload),
             cancellationToken);
 
@@ -411,6 +613,7 @@ internal sealed class PreparedExperimentRunExecutor
                 aggregateScores.AvgKicktippPoints,
                 DatasetRunId: datasetRunId,
                 Comment: $"Aggregate score for {runMetadata.SampleSize} item(s)",
+                Id: CreateScoreId("avg_kicktipp_points", datasetRunId),
                 Metadata: runMetadataPayload),
             cancellationToken);
 
@@ -423,7 +626,7 @@ internal sealed class PreparedExperimentRunExecutor
         int expectedCount,
         CancellationToken cancellationToken)
     {
-        var limit = Math.Max(100, expectedCount);
+        var limit = Math.Min(100, Math.Max(1, expectedCount));
 
         for (var attempt = 0; attempt < 6; attempt += 1)
         {
@@ -434,7 +637,7 @@ internal sealed class PreparedExperimentRunExecutor
                 limit,
                 cancellationToken);
 
-            if (datasetRunItems.Data.Count >= expectedCount)
+            if (datasetRunItems.Meta.TotalItems >= expectedCount)
             {
                 return datasetRunItems;
             }
@@ -493,11 +696,11 @@ internal sealed class PreparedExperimentRunExecutor
         string datasetName,
         PreparedExperimentRunMetadata runMetadata,
         PreparedExperimentManifestItem item,
-        PersistedMatchOutcome outcome,
+        string? tippSpielId,
         IReadOnlyList<string> traceTags,
         IReadOnlyDictionary<string, string> propagatedMetadata,
-        DateTimeOffset evaluationTimestamp,
-        string promptTemplatePath)
+        DateTimeOffset? evaluationTimestamp = null,
+        string? promptTemplatePath = null)
     {
         activity?.SetTag("langfuse.trace.name", runName);
         LangfuseActivityPropagation.SetEnvironment(activity, "development");
@@ -530,13 +733,186 @@ internal sealed class PreparedExperimentRunExecutor
             "teams",
             PredictionTelemetryMetadata.BuildDelimitedFilterValue([item.HomeTeam, item.AwayTeam]),
             propagateToObservations: false);
-        LangfuseActivityPropagation.SetTraceMetadata(
-            activity,
-            "evaluationTimestamp",
-            evaluationTimestamp.ToString("O"),
-            propagateToObservations: false);
-        LangfuseActivityPropagation.SetTraceMetadata(activity, "tippSpielId", outcome.TippSpielId, propagateToObservations: false);
+        if (evaluationTimestamp is not null)
+        {
+            LangfuseActivityPropagation.SetTraceMetadata(
+                activity,
+                "evaluationTimestamp",
+                evaluationTimestamp.Value.ToString("O"),
+                propagateToObservations: false);
+        }
+
+        LangfuseActivityPropagation.SetTraceMetadata(activity, "tippSpielId", tippSpielId, propagateToObservations: false);
         LangfuseActivityPropagation.SetTraceMetadata(activity, "promptTemplatePath", promptTemplatePath, propagateToObservations: false);
+    }
+
+    private static IReadOnlyList<PreparedExperimentParticipantManifest> SelectParticipants(
+        PreparedExperimentManifest manifest,
+        PreparedExperimentCommunityRunRequest request)
+    {
+        var participants = manifest.Participants
+            .OrderBy(participant => participant.DisplayName, StringComparer.OrdinalIgnoreCase)
+            .ThenBy(participant => participant.ParticipantId, StringComparer.Ordinal)
+            .ToList();
+
+        if (request.ParticipantIds.Count > 0)
+        {
+            var filteredParticipants = participants
+                .Where(participant => request.ParticipantIds.Contains(participant.ParticipantId))
+                .ToList();
+            var missingParticipantIds = request.ParticipantIds
+                .Except(filteredParticipants.Select(participant => participant.ParticipantId), StringComparer.Ordinal)
+                .OrderBy(participantId => participantId, StringComparer.Ordinal)
+                .ToList();
+            if (missingParticipantIds.Count > 0)
+            {
+                throw new InvalidOperationException(
+                    $"The community-to-date manifest does not contain participant id(s): {string.Join(", ", missingParticipantIds)}.");
+            }
+
+            participants = filteredParticipants;
+        }
+
+        if (request.ParticipantLimit is not null)
+        {
+            participants = participants.Take(request.ParticipantLimit.Value).ToList();
+        }
+
+        if (participants.Count == 0)
+        {
+            throw new InvalidOperationException("No participants remain after applying the requested community-to-date filters.");
+        }
+
+        return participants;
+    }
+
+    private static PreparedExperimentRunMetadata BuildCommunityRunMetadata(
+        PreparedExperimentManifest manifest,
+        PreparedExperimentParticipantManifest participant,
+        string datasetName,
+        string startedAtUtc,
+        int batchSize)
+    {
+        return new PreparedExperimentRunMetadata
+        {
+            Runner = "community-match-experiment-runner",
+            TaskType = "community-to-date",
+            CommunityContext = manifest.CommunityContext,
+            Competition = manifest.Competition,
+            SourceDatasetName = manifest.SourceDatasetName,
+            DatasetName = datasetName,
+            SliceKind = string.IsNullOrWhiteSpace(manifest.SliceKind)
+                ? "community-to-date"
+                : manifest.SliceKind,
+            SliceKey = manifest.SliceKey,
+            SourcePoolKey = manifest.SourcePoolKey,
+            SelectedItemIdsHash = string.IsNullOrWhiteSpace(manifest.SelectedItemIdsHash)
+                ? ExperimentArtifactSupport.ComputeSelectedItemIdsHash(
+                    manifest.SelectedItemIds.Count > 0
+                        ? manifest.SelectedItemIds
+                        : manifest.Items.Select(item => item.SliceDatasetItemId))
+                : manifest.SelectedItemIdsHash,
+            SelectedItemIdsCount = manifest.SelectedItemIds.Count > 0 ? manifest.SelectedItemIds.Count : manifest.Items.Count,
+            SampleSize = manifest.SampleSize > 0 ? manifest.SampleSize : manifest.Items.Count,
+            StartedAtUtc = startedAtUtc,
+            SampleSeed = manifest.SampleSeed,
+            SampleMethod = string.IsNullOrWhiteSpace(manifest.SampleMethod)
+                ? "community-to-date"
+                : manifest.SampleMethod,
+            IncludeJustification = false,
+            SourceDatasetKind = "community-to-date",
+            DatasetItemIdMap = PreparedExperimentSupport.CreateDatasetItemIdMap(manifest),
+            Model = participant.DisplayName,
+            ObservationName = "community-match-prediction",
+            RunSubjectKind = "participant",
+            RunSubjectId = participant.ParticipantId,
+            RunSubjectDisplayName = participant.DisplayName,
+            BatchStrategy = "simple-batched",
+            BatchSize = batchSize,
+            BatchCount = null
+        };
+    }
+
+    private static string BuildCommunityRunFamilyName(PreparedExperimentManifest manifest, string startedAtUtc)
+    {
+        var communityToken = ExperimentArtifactSupport.Slugify(manifest.CommunityContext);
+        var sliceToken = ExperimentArtifactSupport.Slugify(string.IsNullOrWhiteSpace(manifest.SliceKey) ? "community-to-date" : manifest.SliceKey);
+        return $"community-to-date__{communityToken}__{sliceToken}__{BuildRunTimestampToken(startedAtUtc)}";
+    }
+
+    private static string BuildCommunityParticipantRunName(
+        string runFamilyName,
+        PreparedExperimentParticipantManifest participant)
+    {
+        var participantToken = ExperimentArtifactSupport.Slugify($"{participant.DisplayName}-{participant.ParticipantId}");
+        return $"{runFamilyName}__{participantToken}";
+    }
+
+    private static string BuildRunTimestampToken(string startedAtUtc)
+    {
+        return startedAtUtc.ToLowerInvariant().Replace(':', '-');
+    }
+
+    private static string CreateScoreId(string scoreName, params string?[] components)
+    {
+        var joined = string.Join(
+            "\n",
+            new[] { scoreName }
+                .Concat(components.Where(component => !string.IsNullOrWhiteSpace(component)).Select(component => component!.Trim())));
+        var hash = SHA256.HashData(Encoding.UTF8.GetBytes(joined));
+        return $"exp-score-{Convert.ToHexString(hash).ToLowerInvariant()}";
+    }
+
+    private static JsonElement CreateCommunityPredictionPayload(PreparedExperimentParticipantPrediction prediction)
+    {
+        return JsonSerializer.SerializeToElement(new
+        {
+            status = prediction.Status,
+            homeGoals = prediction.HomeGoals,
+            awayGoals = prediction.AwayGoals,
+            kicktippPoints = prediction.KicktippPoints
+        }, PreparedExperimentCommandSupport.JsonOptions);
+    }
+
+    private static Prediction? CreatePredictionOrNull(PreparedExperimentParticipantPrediction prediction)
+    {
+        return prediction.HomeGoals is int homeGoals && prediction.AwayGoals is int awayGoals
+            ? new Prediction(homeGoals, awayGoals)
+            : null;
+    }
+
+    private static void ConfigureCommunityPredictionObservation(
+        Activity? activity,
+        PreparedExperimentParticipantManifest participant,
+        PreparedExperimentParticipantPrediction prediction,
+        PreparedExperimentManifestItem item,
+        JsonElement predictionPayload)
+    {
+        if (activity is null)
+        {
+            return;
+        }
+
+        activity.SetTag("langfuse.observation.type", "generation");
+        activity.SetTag("gen_ai.request.model", "kicktipp-community");
+        activity.SetTag("langfuse.observation.input", JsonSerializer.Serialize(new
+        {
+            source = "kicktipp-community",
+            participantId = participant.ParticipantId,
+            participantDisplayName = participant.DisplayName,
+            item.SourceDatasetItemId,
+            item.TippSpielId
+        }, TraceJsonOptions));
+        activity.SetTag("langfuse.observation.output", predictionPayload.GetRawText());
+        activity.SetTag("langfuse.observation.metadata.participantId", participant.ParticipantId);
+        activity.SetTag("langfuse.observation.metadata.participantDisplayName", participant.DisplayName);
+        activity.SetTag("langfuse.observation.metadata.predictionStatus", prediction.Status);
+        activity.SetTag("langfuse.observation.metadata.sourceDatasetItemId", item.SourceDatasetItemId);
+
+        if (!string.IsNullOrWhiteSpace(item.TippSpielId))
+        {
+            activity.SetTag("langfuse.observation.metadata.tippSpielId", item.TippSpielId);
+        }
     }
 
     private static string DeriveDatasetName(PreparedExperimentRunMetadata runMetadata, PreparedExperimentManifest manifest)
@@ -579,3 +955,13 @@ internal sealed record PreparedExperimentRunRequest(
     string? RunMetadataFile,
     bool ReplaceRun,
     PreparedExperimentRunOptions Options);
+
+internal sealed record PreparedExperimentCommunityRunRequest(
+    string ManifestPath,
+    string? RunFamilyName,
+    string? RunDescription,
+    string? DatasetName,
+    bool ReplaceRuns,
+    int BatchSize,
+    int? ParticipantLimit,
+    IReadOnlySet<string> ParticipantIds);

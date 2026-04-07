@@ -836,6 +836,44 @@ public class KicktippClient : IKicktippClient, IDisposable
     }
 
     /// <inheritdoc />
+    public async Task<KicktippCommunityMatchdaySnapshot?> GetCommunityMatchdaySnapshotAsync(string community, int matchday)
+    {
+        var cacheKey = $"tippuebersicht_snapshot_{community}_{matchday}";
+        if (_cache.TryGetValue(cacheKey, out KicktippCommunityMatchdaySnapshot? cachedSnapshot))
+        {
+            _logger.LogDebug("Retrieved tippuebersicht snapshot for {Community} matchday {Matchday} from cache", community, matchday);
+            return cachedSnapshot;
+        }
+
+        var document = await GetTippuebersichtDocumentAsync(community, matchday);
+        if (document == null)
+        {
+            return null;
+        }
+
+        var displayedMatchday = ExtractMatchdayFromPage(document);
+        if (displayedMatchday != matchday)
+        {
+            _logger.LogWarning("Requested tippuebersicht snapshot matchday {RequestedMatchday}, but page displayed {DisplayedMatchday}", matchday, displayedMatchday);
+        }
+
+        var outcomes = ParseTippuebersichtMatchdayOutcomes(document, displayedMatchday)
+            .AsReadOnly();
+        var participants = ParseTippuebersichtParticipantSnapshots(document, displayedMatchday, outcomes)
+            .AsReadOnly();
+
+        var snapshot = new KicktippCommunityMatchdaySnapshot(displayedMatchday, outcomes, participants);
+        var cacheOptions = new MemoryCacheEntryOptions
+        {
+            AbsoluteExpirationRelativeToNow = TimeSpan.FromMinutes(10),
+            SlidingExpiration = TimeSpan.FromMinutes(5)
+        };
+
+        _cache.Set(cacheKey, snapshot, cacheOptions);
+        return snapshot;
+    }
+
+    /// <inheritdoc />
     public async Task<(List<MatchResult> homeTeamHomeHistory, List<MatchResult> awayTeamAwayHistory)> GetHomeAwayHistoryAsync(string community, string homeTeam, string awayTeam)
     {
         try
@@ -1642,6 +1680,68 @@ public class KicktippClient : IKicktippClient, IDisposable
         return outcomes;
     }
 
+    private List<KicktippCommunityParticipantSnapshot> ParseTippuebersichtParticipantSnapshots(
+        IDocument document,
+        int matchday,
+        IReadOnlyList<CollectedMatchOutcome> outcomes)
+    {
+        var rankingTable = document.QuerySelector("#ranking");
+        if (rankingTable == null)
+        {
+            _logger.LogWarning("Could not find tippuebersicht ranking table for matchday {Matchday}", matchday);
+            return [];
+        }
+
+        var completedMappings = BuildCompletedRankingEventMappings(rankingTable, outcomes);
+        if (completedMappings.Count == 0)
+        {
+            _logger.LogInformation("No completed ranking event mappings found for matchday {Matchday}", matchday);
+            return [];
+        }
+
+        var participantRows = rankingTable.QuerySelectorAll("tbody tr.teilnehmer");
+        var participants = new List<KicktippCommunityParticipantSnapshot>();
+
+        foreach (var row in participantRows)
+        {
+            try
+            {
+                var participantId = row.GetAttribute("data-teilnehmer-id")?.Trim() ?? string.Empty;
+                var displayName = row.QuerySelector(".mg_name")?.TextContent?.Trim() ?? string.Empty;
+                if (string.IsNullOrWhiteSpace(participantId) || string.IsNullOrWhiteSpace(displayName))
+                {
+                    continue;
+                }
+
+                var predictions = new List<KicktippCommunityMatchPrediction>();
+                foreach (var mapping in completedMappings.OrderBy(candidate => candidate.EventIndex))
+                {
+                    var predictionCell = row.QuerySelector($"td.ereignis{mapping.EventIndex}");
+                    if (predictionCell == null)
+                    {
+                        continue;
+                    }
+
+                    predictions.Add(ParseParticipantPredictionCell(predictionCell, mapping));
+                }
+
+                participants.Add(new KicktippCommunityParticipantSnapshot(
+                    participantId,
+                    displayName,
+                    predictions,
+                    ParseIntegerCell(row.QuerySelector("td.spieltagspunkte")),
+                    ParseIntegerCell(row.QuerySelector("td.gesamtpunkte"))));
+            }
+            catch (Exception ex)
+            {
+                _logger.LogWarning(ex, "Error parsing tippuebersicht participant row for matchday {Matchday}", matchday);
+            }
+        }
+
+        _logger.LogInformation("Parsed {ParticipantCount} tippuebersicht participants for matchday {Matchday}", participants.Count, matchday);
+        return participants;
+    }
+
     private static (int? homeGoals, int? awayGoals, MatchOutcomeAvailability availability) ParseMatchOutcome(IElement resultCell)
     {
         var homeGoalText = resultCell.QuerySelector(".kicktipp-heim")?.TextContent?.Trim();
@@ -1665,6 +1765,135 @@ public class KicktippClient : IKicktippClient, IDisposable
         var match = Regex.Match(dataUrl, @"(?:\?|&)tippspielId=(\d+)");
         return match.Success ? match.Groups[1].Value : null;
     }
+
+    private List<CompletedRankingEventMapping> BuildCompletedRankingEventMappings(
+        IElement rankingTable,
+        IReadOnlyList<CollectedMatchOutcome> outcomes)
+    {
+        var outcomesByTippSpielId = outcomes
+            .Where(outcome => !string.IsNullOrWhiteSpace(outcome.TippSpielId))
+            .ToDictionary(outcome => outcome.TippSpielId!, StringComparer.Ordinal);
+        var outcomesByEventIndex = outcomes
+            .Select((outcome, index) => new { outcome, index })
+            .ToDictionary(pair => pair.index, pair => pair.outcome);
+
+        var mappings = new List<CompletedRankingEventMapping>();
+        foreach (var header in rankingTable.QuerySelectorAll("thead th.ereignis[data-spiel='true']"))
+        {
+            if (!int.TryParse(header.GetAttribute("data-index"), out var eventIndex))
+            {
+                continue;
+            }
+
+            var headerTippSpielId = ExtractTippSpielId(header.QuerySelector("a")?.GetAttribute("href"));
+            CollectedMatchOutcome? mappedOutcome = null;
+
+            if (!string.IsNullOrWhiteSpace(headerTippSpielId)
+                && outcomesByTippSpielId.TryGetValue(headerTippSpielId, out var byTippSpielId))
+            {
+                mappedOutcome = byTippSpielId;
+            }
+            else if (outcomesByEventIndex.TryGetValue(eventIndex, out var byEventIndex))
+            {
+                mappedOutcome = byEventIndex;
+            }
+
+            if (mappedOutcome is null || !mappedOutcome.HasOutcome)
+            {
+                continue;
+            }
+
+            var sourceMatchId = mappedOutcome.TippSpielId
+                ?? string.Join("|", mappedOutcome.Matchday, mappedOutcome.HomeTeam, mappedOutcome.AwayTeam);
+            mappings.Add(new CompletedRankingEventMapping(eventIndex, sourceMatchId, mappedOutcome.TippSpielId));
+        }
+
+        return mappings;
+    }
+
+    private static KicktippCommunityMatchPrediction ParseParticipantPredictionCell(
+        IElement predictionCell,
+        CompletedRankingEventMapping mapping)
+    {
+        var awardedPoints = ParseIntegerCell(predictionCell.QuerySelector("sub.p"));
+        var rawText = ExtractPredictionCellScoreText(predictionCell);
+        if (TryParseBetPrediction(rawText, out var prediction))
+        {
+            return new KicktippCommunityMatchPrediction(
+                mapping.EventIndex,
+                mapping.SourceMatchId,
+                mapping.TippSpielId,
+                KicktippCommunityPredictionStatus.Placed,
+                prediction,
+                awardedPoints);
+        }
+
+        return new KicktippCommunityMatchPrediction(
+            mapping.EventIndex,
+            mapping.SourceMatchId,
+            mapping.TippSpielId,
+            KicktippCommunityPredictionStatus.Missed,
+            null,
+            0);
+    }
+
+    private static string ExtractPredictionCellScoreText(IElement predictionCell)
+    {
+        return string.Concat(predictionCell.ChildNodes.Select(ExtractNodeText)).Trim();
+
+        static string ExtractNodeText(INode node)
+        {
+            if (node is IElement element && element.Matches("sub.p"))
+            {
+                return string.Empty;
+            }
+
+            return node.ChildNodes.Length == 0
+                ? node.TextContent ?? string.Empty
+                : string.Concat(node.ChildNodes.Select(ExtractNodeText));
+        }
+    }
+
+    private static bool TryParseBetPrediction(string? value, out BetPrediction? prediction)
+    {
+        prediction = null;
+        if (string.IsNullOrWhiteSpace(value))
+        {
+            return false;
+        }
+
+        var sanitized = Regex.Replace(value, @"\s+", string.Empty);
+        var match = Regex.Match(sanitized, @"^(\d+):(\d+)$");
+        if (!match.Success)
+        {
+            return false;
+        }
+
+        if (!int.TryParse(match.Groups[1].Value, out var homeGoals)
+            || !int.TryParse(match.Groups[2].Value, out var awayGoals))
+        {
+            return false;
+        }
+
+        prediction = new BetPrediction(homeGoals, awayGoals);
+        return true;
+    }
+
+    private static int ParseIntegerCell(IElement? element)
+    {
+        if (element == null)
+        {
+            return 0;
+        }
+
+        var raw = element.TextContent?.Trim() ?? string.Empty;
+        return int.TryParse(raw, out var value) ? value : 0;
+    }
+
+    private sealed record CompletedRankingEventMapping(
+        int EventIndex,
+        string SourceMatchId,
+        string? TippSpielId);
 
     /// <inheritdoc />
     public async Task<Dictionary<Match, BetPrediction?>> GetPlacedPredictionsAsync(string community)

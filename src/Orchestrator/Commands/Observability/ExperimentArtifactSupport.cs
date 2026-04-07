@@ -49,6 +49,44 @@ internal static class ExperimentArtifactSupport
                 tippSpielId));
     }
 
+    public static HostedMatchExperimentDatasetItem BuildHostedDatasetItem(
+        CollectedMatchOutcome outcome,
+        string communityContext,
+        string competition)
+    {
+        ArgumentNullException.ThrowIfNull(outcome);
+        ArgumentException.ThrowIfNullOrWhiteSpace(communityContext);
+        ArgumentException.ThrowIfNullOrWhiteSpace(competition);
+
+        var tippSpielId = outcome.TippSpielId ?? throw new InvalidOperationException(
+            $"Collected outcome for {outcome.HomeTeam} vs {outcome.AwayTeam} is missing tippspielId.");
+
+        if (!outcome.HasOutcome || outcome.HomeGoals is null || outcome.AwayGoals is null)
+        {
+            throw new InvalidOperationException(
+                $"Collected outcome for {outcome.HomeTeam} vs {outcome.AwayTeam} does not contain a completed score.");
+        }
+
+        var promptMatch = RehydrateForPromptOutput(new Match(outcome.HomeTeam, outcome.AwayTeam, outcome.StartsAt, outcome.Matchday));
+        using var matchJsonDocument = JsonDocument.Parse(PredictionPromptComposer.CreateMatchJson(promptMatch));
+
+        return new HostedMatchExperimentDatasetItem(
+            BuildHostedDatasetItemId(competition, communityContext, tippSpielId),
+            matchJsonDocument.RootElement.Clone(),
+            new HostedMatchExperimentExpectedOutput(
+                outcome.HomeGoals.Value,
+                outcome.AwayGoals.Value),
+            new HostedMatchExperimentMetadata(
+                competition,
+                Season,
+                communityContext,
+                outcome.Matchday,
+                $"md{outcome.Matchday:00}",
+                outcome.HomeTeam,
+                outcome.AwayTeam,
+                tippSpielId));
+    }
+
     public static Match RehydrateForPromptOutput(PersistedMatchOutcome outcome)
     {
         ArgumentNullException.ThrowIfNull(outcome);

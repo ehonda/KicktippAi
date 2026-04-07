@@ -103,7 +103,8 @@ internal static class PreparedExperimentBundleBuilder
             HomeTeam = item.HomeTeam,
             AwayTeam = item.AwayTeam,
             Matchday = item.Matchday,
-            StartsAt = item.StartsAt
+            StartsAt = item.StartsAt,
+            TippSpielId = item.TippSpielId
         }).ToList();
 
         var datasetMetadata = JsonSerializer.SerializeToElement(new
@@ -113,6 +114,9 @@ internal static class PreparedExperimentBundleBuilder
             scope = string.Equals(sliceKind, "single-match", StringComparison.OrdinalIgnoreCase)
                 || string.Equals(sliceKind, "repeated-match", StringComparison.OrdinalIgnoreCase)
                 ? "repeated-match"
+                : string.Equals(sliceKind, "community-to-date", StringComparison.OrdinalIgnoreCase)
+                    || string.Equals(sampleMethod, "community-to-date", StringComparison.OrdinalIgnoreCase)
+                    ? "community-to-date"
                 : "match-slice",
             first.Season,
             sliceKey,

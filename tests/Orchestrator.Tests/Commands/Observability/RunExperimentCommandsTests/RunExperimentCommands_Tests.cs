@@ -259,11 +259,13 @@ public class RunExperimentCommands_Tests
             await Assert.That(output).Contains("\"taskType\": \"slice\"");
             await Assert.That(output).Contains("\"total_kicktipp_points\": 4");
             await Assert.That(postedScores.Select(score => score.Name).OrderBy(name => name))
-                .IsEquivalentTo(["avg_kicktipp_points", "kicktipp_points", "total_kicktipp_points"]);
+                .IsEquivalentTo(["avg_kicktipp_points", "total_kicktipp_points"]);
+            await Assert.That(postedScores.All(score => !string.IsNullOrWhiteSpace(score.Id))).IsTrue();
+            await Assert.That(postedScores.Select(score => score.Id).Distinct(StringComparer.Ordinal).Count()).IsEqualTo(2);
             await Assert.That(capturedActivities.Any(activity => activity.OperationName == "match-experiment-item")).IsTrue();
 
             langfuseClient.Verify(client => client.CreateDatasetRunItemAsync(It.IsAny<LangfuseCreateDatasetRunItemRequest>(), It.IsAny<CancellationToken>()), Times.Once());
-            langfuseClient.Verify(client => client.CreateScoreAsync(It.IsAny<LangfuseCreateScoreRequest>(), It.IsAny<CancellationToken>()), Times.Exactly(3));
+            langfuseClient.Verify(client => client.CreateScoreAsync(It.IsAny<LangfuseCreateScoreRequest>(), It.IsAny<CancellationToken>()), Times.Exactly(2));
         }
         finally
         {
@@ -475,7 +477,7 @@ public class RunExperimentCommands_Tests
             await Assert.That(output).Contains("\"executionCount\": 1");
             await Assert.That(output).Contains("\"taskType\": \"repeated-match\"");
             await Assert.That(postedScores.Select(score => score.Name).OrderBy(name => name))
-                .IsEquivalentTo(["avg_kicktipp_points", "kicktipp_points", "total_kicktipp_points"]);
+                .IsEquivalentTo(["avg_kicktipp_points", "total_kicktipp_points"]);
             await Assert.That(capturedActivities.Any(activity => activity.OperationName == "match-experiment-item")).IsTrue();
 
             contextRepository.Verify(repository => repository.GetContextDocumentByTimestampAsync(
@@ -483,6 +485,215 @@ public class RunExperimentCommands_Tests
                 exactEvaluationTime,
                 "test-community",
                 It.IsAny<CancellationToken>()), Times.AtLeast(selection.RequiredDocumentNames.Count));
+        }
+        finally
+        {
+            tempDirectory.Delete(recursive: true);
+        }
+    }
+
+    [Test]
+    [NotInParallel("ProcessState")]
+    public async Task Running_run_community_to_date_creates_one_dataset_run_per_participant()
+    {
+        var tempDirectory = Directory.CreateTempSubdirectory();
+        var capturedActivities = new List<Activity>();
+
+        try
+        {
+            var manifestPath = Path.Combine(tempDirectory.FullName, "slice-manifest.json");
+            var datasetName = "match-predictions/bundesliga-2025-26/test-community/community-to-date/through-md01/community-to-date-md01";
+            var sliceDatasetItemId = "bundesliga-2025-26__test-community__ts123__slice__community-to-date-md01";
+            var sourceDatasetItemId = "bundesliga-2025-26__test-community__ts123";
+
+            await File.WriteAllTextAsync(
+                manifestPath,
+                JsonSerializer.Serialize(new
+                {
+                    task = "community-to-date",
+                    sliceKey = "community-to-date-md01",
+                    sliceKind = "community-to-date",
+                    sampleMethod = "community-to-date",
+                    communityContext = "test-community",
+                    sourcePoolKey = "through-md01",
+                    sourceDatasetName = "match-predictions/bundesliga-2025-26/test-community",
+                    sliceDatasetName = datasetName,
+                    competition = "bundesliga-2025-26",
+                    season = "2025/2026",
+                    sampleSize = 1,
+                    selectedItemIds = new[] { sourceDatasetItemId },
+                    selectedItemIdsHash = "hash-community-1",
+                    items = new[]
+                    {
+                        new
+                        {
+                            sourceDatasetItemId,
+                            sliceDatasetItemId,
+                            homeTeam = "Team A",
+                            awayTeam = "Team B",
+                            matchday = 1,
+                            startsAt = "2025-08-22T20:30:00 Europe/Berlin (+02)",
+                            tippSpielId = "123"
+                        }
+                    },
+                    participants = new object[]
+                    {
+                        new
+                        {
+                            participantId = "p1",
+                            displayName = "Alice",
+                            predictions = new[]
+                            {
+                                new
+                                {
+                                    sourceDatasetItemId,
+                                    status = "placed",
+                                    homeGoals = 2,
+                                    awayGoals = 1,
+                                    kicktippPoints = 4
+                                }
+                            }
+                        },
+                        new
+                        {
+                            participantId = "p2",
+                            displayName = "Bob",
+                            predictions = new[]
+                            {
+                                new
+                                {
+                                    sourceDatasetItemId,
+                                    status = "missed",
+                                    homeGoals = (int?)null,
+                                    awayGoals = (int?)null,
+                                    kicktippPoints = 0
+                                }
+                            }
+                        }
+                    }
+                }));
+
+            var postedScores = new List<LangfuseCreateScoreRequest>();
+            var openAiServiceFactory = CreateMockOpenAiServiceFactory();
+            var langfuseClient = new Mock<ILangfusePublicApiClient>(MockBehavior.Strict);
+            langfuseClient
+                .Setup(client => client.CreateDatasetRunItemAsync(
+                    It.IsAny<LangfuseCreateDatasetRunItemRequest>(),
+                    It.IsAny<CancellationToken>()))
+                .ReturnsAsync((LangfuseCreateDatasetRunItemRequest request, CancellationToken _) => new LangfuseDatasetRunItem(
+                    $"{request.RunName}-item-1",
+                    request.RunName.Contains("alice", StringComparison.Ordinal) ? "dataset-run-1" : "dataset-run-2",
+                    request.RunName,
+                    request.DatasetItemId,
+                    request.TraceId,
+                    request.ObservationId,
+                    DateTimeOffset.UtcNow,
+                    DateTimeOffset.UtcNow));
+            langfuseClient
+                .Setup(client => client.CreateScoreAsync(
+                    It.IsAny<LangfuseCreateScoreRequest>(),
+                    It.IsAny<CancellationToken>()))
+                .Callback((LangfuseCreateScoreRequest request, CancellationToken _) => postedScores.Add(request))
+                .ReturnsAsync(new LangfuseCreateScoreResponse("score-1"));
+            langfuseClient
+                .Setup(client => client.GetDatasetRunAsync(
+                    datasetName,
+                    It.Is<string>(runName => runName.Contains("alice", StringComparison.Ordinal)),
+                    It.IsAny<CancellationToken>()))
+                .ReturnsAsync((string _, string runName, CancellationToken _) => new LangfuseDatasetRunWithItems(
+                    "dataset-run-1",
+                    runName,
+                    "dataset-1",
+                    datasetName,
+                    null,
+                    default,
+                    []));
+            langfuseClient
+                .Setup(client => client.GetDatasetRunAsync(
+                    datasetName,
+                    It.Is<string>(runName => runName.Contains("bob", StringComparison.Ordinal)),
+                    It.IsAny<CancellationToken>()))
+                .ReturnsAsync((string _, string runName, CancellationToken _) => new LangfuseDatasetRunWithItems(
+                    "dataset-run-2",
+                    runName,
+                    "dataset-1",
+                    datasetName,
+                    null,
+                    default,
+                    []));
+            langfuseClient
+                .Setup(client => client.ListDatasetRunItemsAsync(
+                    "dataset-1",
+                    It.Is<string>(runName => runName.Contains("alice", StringComparison.Ordinal)),
+                    1,
+                    It.IsAny<int>(),
+                    It.IsAny<CancellationToken>()))
+                .ReturnsAsync(new LangfusePaginatedResponse<LangfuseDatasetRunItem>(
+                    [new LangfuseDatasetRunItem(
+                        "dataset-run-item-1",
+                        "dataset-run-1",
+                        "community-to-date__test-community__community-to-date-md01__2026-04-07t12-00-00z__alice-p1",
+                        sliceDatasetItemId,
+                        "trace-alice",
+                        null,
+                        DateTimeOffset.UtcNow,
+                        DateTimeOffset.UtcNow)],
+                    new LangfusePaginationMeta(1, 100, 1, 1)));
+            langfuseClient
+                .Setup(client => client.ListDatasetRunItemsAsync(
+                    "dataset-1",
+                    It.Is<string>(runName => runName.Contains("bob", StringComparison.Ordinal)),
+                    1,
+                    It.IsAny<int>(),
+                    It.IsAny<CancellationToken>()))
+                .ReturnsAsync(new LangfusePaginatedResponse<LangfuseDatasetRunItem>(
+                    [new LangfuseDatasetRunItem(
+                        "dataset-run-item-2",
+                        "dataset-run-2",
+                        "community-to-date__test-community__community-to-date-md01__2026-04-07t12-00-00z__bob-p2",
+                        sliceDatasetItemId,
+                        "trace-bob",
+                        null,
+                        DateTimeOffset.UtcNow,
+                        DateTimeOffset.UtcNow)],
+                    new LangfusePaginationMeta(1, 100, 1, 1)));
+
+            using var listener = CreateActivityListener(capturedActivities);
+            var context = CreateCommandApp<RunCommunityToDateCommand>(
+                "run-community-to-date",
+                configureServices: new Action<IServiceCollection>(services =>
+                {
+                    services.AddSingleton(openAiServiceFactory.Object);
+                    services.AddSingleton(langfuseClient.Object);
+                }));
+
+            var (exitCode, output) = await RunCommandAsync(
+                context.App,
+                context.Console,
+                "run-community-to-date",
+                "--manifest",
+                manifestPath,
+                "--run-family-name",
+                "community-to-date__test-community__community-to-date-md01__2026-04-07t12-00-00z",
+                "--participant-limit",
+                "2",
+                "--batch-size",
+                "1");
+
+            await Assert.That(exitCode).IsEqualTo(0);
+            await Assert.That(output).Contains("\"taskType\": \"community-to-date\"");
+            await Assert.That(output).Contains("\"runCount\": 2");
+            await Assert.That(output).Contains("\"executionCount\": 2");
+            await Assert.That(postedScores.Select(score => score.Name).OrderBy(name => name))
+                .IsEquivalentTo([
+                    "avg_kicktipp_points",
+                    "avg_kicktipp_points",
+                    "total_kicktipp_points",
+                    "total_kicktipp_points"
+                ]);
+            await Assert.That(postedScores.All(score => !string.IsNullOrWhiteSpace(score.Id))).IsTrue();
+            await Assert.That(postedScores.Select(score => score.Id).Distinct(StringComparer.Ordinal).Count()).IsEqualTo(4);
+            await Assert.That(capturedActivities.Any(activity => activity.OperationName == "community-match-prediction")).IsTrue();
         }
         finally
         {

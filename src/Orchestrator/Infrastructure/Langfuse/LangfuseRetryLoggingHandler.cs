@@ -20,7 +20,7 @@ internal sealed class LangfuseRetryLoggingHandler : DelegatingHandler
         {
             var retryMetadata = LangfuseRetryAfterUtility.GetRetryAfterMetadata(response.Headers);
             _logger.LogWarning(
-                "Langfuse request {Method} {Path} returned {StatusCode} ({ReasonPhrase}) and will be handled by the standard resilience pipeline if retryable. Retry-After: {RetryAfterHeaderValue}; RetryDelay: {RetryAfterDelay}; RetryAtUtc: {RetryAfterAtUtc}",
+                "Langfuse request {Method} {Path} returned {StatusCode} ({ReasonPhrase}). Retry-After: {RetryAfterHeaderValue}; RetryDelay: {RetryAfterDelay}; RetryAtUtc: {RetryAfterAtUtc}",
                 request.Method.Method,
                 request.RequestUri?.PathAndQuery ?? string.Empty,
                 (int)response.StatusCode,
