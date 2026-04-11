@@ -39,11 +39,16 @@ public static class PathUtility
     /// Gets the path to the .env file for a specific project relative to the solution root.
     /// </summary>
     /// <param name="projectName">The name of the project (e.g., "Orchestrator").</param>
+    /// <param name="suffix">Optional suffix appended to the .env filename, e.g. ".env.pes-squad".</param>
     /// <returns>The full path to the .env file.</returns>
-    public static string GetEnvFilePath(string projectName)
+    public static string GetEnvFilePath(string projectName, string? suffix = null)
     {
         var solutionRoot = FindSolutionRoot();
-        return Path.Combine(solutionRoot, "..", "KicktippAi.Secrets", "src", projectName, ".env");
+        var envFileName = string.IsNullOrWhiteSpace(suffix)
+            ? ".env"
+            : $".env.{suffix.Trim()}";
+
+        return Path.Combine(solutionRoot, "..", "KicktippAi.Secrets", "src", projectName, envFileName);
     }
 
     /// <summary>

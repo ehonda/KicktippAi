@@ -82,6 +82,8 @@ The application loads credentials in this order:
 2. **`.env` file** at `../KicktippAi.Secrets/src/Orchestrator/.env`
 3. **`firebase.json`** file at `../KicktippAi.Secrets/src/Orchestrator/firebase.json`
 
+For `prepare-community-to-date`, Orchestrator also looks for `../KicktippAi.Secrets/src/Orchestrator/.env.<community-context>` and, when present, uses its `KICKTIPP_USERNAME` and `KICKTIPP_PASSWORD` values for that command.
+
 **Example `.env` file:**
 
 ```env

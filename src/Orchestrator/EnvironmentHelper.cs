@@ -6,6 +6,9 @@ namespace Orchestrator;
 
 public static class EnvironmentHelper
 {
+    private const string KicktippUsernameEnvVar = "KICKTIPP_USERNAME";
+    private const string KicktippPasswordEnvVar = "KICKTIPP_PASSWORD";
+
     public static void LoadEnvironmentVariables(ILogger logger)
     {
         try
@@ -32,6 +35,27 @@ public static class EnvironmentHelper
         {
             logger.LogWarning(ex, "Could not load .env file: {Message}", ex.Message);
         }
+    }
+
+    public static void LoadCommunityKicktippCredentials(ILogger logger, string community)
+    {
+        ArgumentException.ThrowIfNullOrWhiteSpace(community);
+
+        var envPath = PathUtility.GetEnvFilePath("Orchestrator", community.Trim());
+        if (!File.Exists(envPath))
+        {
+            logger.LogWarning(
+                "No community-specific Kicktipp credentials file found at: {EnvPath}. Existing environment variables will be used.",
+                envPath);
+            return;
+        }
+
+        Env.Load(envPath);
+
+        EnsureRequiredEnvironmentVariableIsPresent(KicktippUsernameEnvVar, envPath);
+        EnsureRequiredEnvironmentVariableIsPresent(KicktippPasswordEnvVar, envPath);
+
+        logger.LogInformation("Loaded community-specific Kicktipp credentials from: {EnvPath}", envPath);
     }
 
     private static void LoadFirebaseCredentials(ILogger logger)
@@ -98,6 +122,14 @@ public static class EnvironmentHelper
         catch (Exception ex)
         {
             logger.LogWarning(ex, "Could not load Firebase credentials: {Message}", ex.Message);
+        }
+    }
+
+    private static void EnsureRequiredEnvironmentVariableIsPresent(string variableName, string envPath)
+    {
+        if (string.IsNullOrWhiteSpace(Environment.GetEnvironmentVariable(variableName)))
+        {
+            throw new InvalidOperationException($"{Path.GetFileName(envPath)} must define {variableName}.");
         }
     }
 }

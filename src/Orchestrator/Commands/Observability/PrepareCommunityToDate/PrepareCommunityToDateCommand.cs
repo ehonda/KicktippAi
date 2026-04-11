@@ -33,6 +33,7 @@ public sealed class PrepareCommunityToDateCommand : AsyncCommand<PrepareCommunit
         try
         {
             var cancellationToken = CancellationToken.None;
+            EnvironmentHelper.LoadCommunityKicktippCredentials(_logger, settings.CommunityContext);
             var kicktippClient = _kicktippClientFactory.CreateClient();
             var cutoffMatchday = settings.CutoffMatchday ?? await kicktippClient.GetCurrentTippuebersichtMatchdayAsync(settings.CommunityContext);
             var sourcePoolKey = string.IsNullOrWhiteSpace(settings.SourcePoolKey)

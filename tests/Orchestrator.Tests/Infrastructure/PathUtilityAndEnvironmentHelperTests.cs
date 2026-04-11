@@ -8,6 +8,8 @@ public class PathUtilityAndEnvironmentHelperTests : TempDirectoryTestBase
 {
     private const string FirebaseProjectIdEnvVar = "FIREBASE_PROJECT_ID";
     private const string FirebaseServiceAccountJsonEnvVar = "FIREBASE_SERVICE_ACCOUNT_JSON";
+    private const string KicktippPasswordEnvVar = "KICKTIPP_PASSWORD";
+    private const string KicktippUsernameEnvVar = "KICKTIPP_USERNAME";
     private const string TestEnvVar = "KICKTIPP_AI_TEST_ENV";
 
     private readonly Dictionary<string, string?> _originalEnvironmentVariables = new();
@@ -22,6 +24,8 @@ public class PathUtilityAndEnvironmentHelperTests : TempDirectoryTestBase
 
         RememberEnvironmentVariable(FirebaseProjectIdEnvVar);
         RememberEnvironmentVariable(FirebaseServiceAccountJsonEnvVar);
+        RememberEnvironmentVariable(KicktippPasswordEnvVar);
+        RememberEnvironmentVariable(KicktippUsernameEnvVar);
         RememberEnvironmentVariable(TestEnvVar);
     }
 
@@ -70,11 +74,13 @@ public class PathUtilityAndEnvironmentHelperTests : TempDirectoryTestBase
 
         var instructionsPath = PathUtility.GetInstructionsTemplatePath();
         var envPath = PathUtility.GetEnvFilePath("Orchestrator");
+        var communityEnvPath = PathUtility.GetEnvFilePath("Orchestrator", "pes-squad");
         var firebasePath = PathUtility.GetFirebaseJsonPath();
 
         await Assert.That(instructionsPath).IsEqualTo(
             Path.Combine(solutionRoot, "prompts", "reasoning-models", "predict-one-match", "v0-handcrafted", "instructions_template.md"));
         await Assert.That(Path.GetFullPath(envPath)).IsEqualTo(Path.Combine(secretsRoot, "src", "Orchestrator", ".env"));
+        await Assert.That(Path.GetFullPath(communityEnvPath)).IsEqualTo(Path.Combine(secretsRoot, "src", "Orchestrator", ".env.pes-squad"));
         await Assert.That(Path.GetFullPath(firebasePath)).IsEqualTo(Path.Combine(secretsRoot, "src", "Orchestrator", "firebase.json"));
     }
 
@@ -105,6 +111,28 @@ public class PathUtilityAndEnvironmentHelperTests : TempDirectoryTestBase
         var logMessages = logger.Collector.GetSnapshot().Select(record => record.Message).ToList();
         await Assert.That(logMessages.Any(message => message.Contains("Loaded .env file from:"))).IsTrue();
         await Assert.That(logMessages.Any(message => message.Contains("Loaded Firebase credentials from:"))).IsTrue();
+    }
+
+    [Test]
+    public async Task Loading_community_kicktipp_credentials_overrides_existing_kicktipp_environment_variables()
+    {
+        var (_, secretsRoot) = CreateSolutionAndSecretsDirectories();
+        var orchestratorSecretsDirectory = Path.Combine(secretsRoot, "src", "Orchestrator");
+        Directory.CreateDirectory(orchestratorSecretsDirectory);
+        File.WriteAllText(
+            Path.Combine(orchestratorSecretsDirectory, ".env.pes-squad"),
+            "KICKTIPP_USERNAME=pes-user\nKICKTIPP_PASSWORD=pes-pass");
+
+        Environment.SetEnvironmentVariable(KicktippUsernameEnvVar, "base-user");
+        Environment.SetEnvironmentVariable(KicktippPasswordEnvVar, "base-pass");
+
+        var logger = new FakeLogger<PathUtilityAndEnvironmentHelperTests>();
+
+        EnvironmentHelper.LoadCommunityKicktippCredentials(logger, "pes-squad");
+
+        await Assert.That(Environment.GetEnvironmentVariable(KicktippUsernameEnvVar)).IsEqualTo("pes-user");
+        await Assert.That(Environment.GetEnvironmentVariable(KicktippPasswordEnvVar)).IsEqualTo("pes-pass");
+        await Assert.That(logger.Collector.GetSnapshot().Any(record => record.Message.Contains("Loaded community-specific Kicktipp credentials from:"))).IsTrue();
     }
 
     [Test]
