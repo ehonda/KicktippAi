@@ -36,6 +36,13 @@ public static class ServiceRegistrationExtensions
         // Add logging (idempotent via TryAdd internally)
         services.AddLogging(builder =>
         {
+            builder.AddSimpleConsole(options =>
+            {
+                options.SingleLine = true;
+                options.IncludeScopes = false;
+                options.TimestampFormat = null;
+                options.ColorBehavior = Microsoft.Extensions.Logging.Console.LoggerColorBehavior.Enabled;
+            });
             builder.SetMinimumLevel(LogLevel.Information);
         });
 
@@ -86,6 +93,7 @@ public static class ServiceRegistrationExtensions
         clientBuilder.AddStandardResilienceHandler().Configure(options =>
         {
             var defaultShouldHandle = options.Retry.ShouldHandle;
+            var defaultCircuitBreakerShouldHandle = options.CircuitBreaker.ShouldHandle;
             options.Retry.DisableForUnsafeHttpMethods();
             var safeMethodShouldHandle = options.Retry.ShouldHandle;
 
@@ -118,6 +126,15 @@ public static class ServiceRegistrationExtensions
 
                 var retryMetadata = LangfuseRetryAfterUtility.GetRetryAfterMetadata(response.Headers);
                 return new ValueTask<TimeSpan?>(retryMetadata.RetryAfterDelay);
+            };
+            options.CircuitBreaker.ShouldHandle = async args =>
+            {
+                if (!await defaultCircuitBreakerShouldHandle(args).ConfigureAwait(false))
+                {
+                    return false;
+                }
+
+                return args.Outcome.Result?.StatusCode != HttpStatusCode.TooManyRequests;
             };
             options.AttemptTimeout.Timeout = TimeSpan.FromSeconds(45);
             options.CircuitBreaker.SamplingDuration = TimeSpan.FromMinutes(2);

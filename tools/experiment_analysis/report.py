@@ -564,6 +564,7 @@ def render_markdown(report: dict[str, Any]) -> str:
                     "Run A",
                     "Run B",
                     "Primary Delta",
+                    "Raw p-value",
                     "Adj. p-value",
                     "Significant",
                     "Per-Item W/T/L",
@@ -573,6 +574,7 @@ def render_markdown(report: dict[str, Any]) -> str:
                         comparison["runAName"],
                         comparison["runBName"],
                         format_number(comparison["primaryMetricDelta"]),
+                        format_number(comparison["wilcoxon"]["pValue"]) if comparison["wilcoxon"]["pValue"] is not None else "n/a",
                         format_number(comparison["wilcoxon"]["adjustedPValue"]) if comparison["wilcoxon"]["adjustedPValue"] is not None else "n/a",
                         "yes" if comparison["wilcoxon"].get("significantAfterCorrection") else "no",
                         (
@@ -660,6 +662,7 @@ def render_html(report: dict[str, Any]) -> str:
                                         str(comparison["runAName"]),
                                         str(comparison["runBName"]),
                                         format_number(comparison["primaryMetricDelta"]),
+                                    format_number(comparison["wilcoxon"]["pValue"]),
                                         format_number(comparison["wilcoxon"]["adjustedPValue"]),
                                         "yes" if comparison["wilcoxon"].get("significantAfterCorrection") else "no",
                                         format_outcome_counts(comparison["perItemOutcomeCounts"]),
@@ -679,6 +682,7 @@ def render_html(report: dict[str, Any]) -> str:
                                 <th>Run A</th>
                                 <th>Run B</th>
                                 <th>Primary delta</th>
+                                <th>Raw p-value</th>
                                 <th>Adjusted p-value</th>
                                 <th>Significant</th>
                                 <th>Per-item W/T/L</th>

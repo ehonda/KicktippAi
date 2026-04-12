@@ -1,6 +1,7 @@
 using System.Text.Json;
 using System.Text.Json.Serialization;
 using Microsoft.Extensions.Logging;
+using Orchestrator.Commands.Observability.Experiments;
 using Orchestrator.Infrastructure.Langfuse;
 using Spectre.Console;
 using Spectre.Console.Cli;
@@ -151,18 +152,28 @@ public sealed class SyncDatasetCommand : AsyncCommand<SyncDatasetSettings>
 
             ValidateArtifact(artifact, datasetName);
 
+            PreparedExperimentSupport.ReportProgress(
+                $"Starting dataset sync for '{datasetName}' with {artifact.Items.Count} item(s). Dry run: {settings.DryRun}.");
+
             var datasetDefinition = BuildDatasetDefinition(artifact, datasetName);
             var dataset = settings.DryRun
                 ? CreateDryRunDataset(datasetDefinition)
                 : await CreateOrUpdateDatasetAsync(datasetDefinition, CancellationToken.None);
+
+            PreparedExperimentSupport.ReportProgress(
+                settings.DryRun
+                    ? $"Validated dataset definition for '{datasetName}' in dry-run mode."
+                    : $"Dataset '{datasetName}' is ready with id '{dataset.Id}'.");
 
             var created = 0;
             var updated = 0;
             var unchanged = 0;
             var failures = new List<object>();
 
-            foreach (var item in artifact.Items)
+            for (var itemIndex = 0; itemIndex < artifact.Items.Count; itemIndex += 1)
             {
+                var item = artifact.Items[itemIndex];
+
                 if (settings.DryRun)
                 {
                     created += 1;
@@ -171,6 +182,8 @@ public sealed class SyncDatasetCommand : AsyncCommand<SyncDatasetSettings>
 
                 try
                 {
+                    PreparedExperimentSupport.ReportProgress(
+                        $"Syncing dataset item {itemIndex + 1}/{artifact.Items.Count}: {item.Id}.");
                     var disposition = await SyncDatasetItemAsync(datasetName, item, CancellationToken.None);
                     switch (disposition)
                     {
@@ -187,6 +200,8 @@ public sealed class SyncDatasetCommand : AsyncCommand<SyncDatasetSettings>
                 }
                 catch (Exception ex)
                 {
+                    PreparedExperimentSupport.ReportProgress(
+                        $"Dataset item {itemIndex + 1}/{artifact.Items.Count} failed: {item.Id}. {ex.Message}");
                     failures.Add(new
                     {
                         itemId = item.Id,
@@ -199,6 +214,9 @@ public sealed class SyncDatasetCommand : AsyncCommand<SyncDatasetSettings>
             {
                 throw new InvalidOperationException($"Dataset sync failed for {failures.Count} item(s): {JsonSerializer.Serialize(failures, SerializerOptions)}");
             }
+
+            PreparedExperimentSupport.ReportProgress(
+                $"Completed dataset sync for '{datasetName}': created={created}, updated={updated}, unchanged={unchanged}.");
 
             var summary = new
             {

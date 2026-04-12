@@ -77,7 +77,10 @@ class ExperimentAnalysisReportTests(unittest.TestCase):
             self.assertIn("friedman", report_json)
             self.assertEqual(len(report_json["pairwiseComparisons"]), 3)
             self.assertIn("Pairwise Comparisons", report_markdown)
-            self.assertIn("Multi-run comparison", html_output.read_text(encoding="utf-8"))
+            self.assertIn("Raw p-value", report_markdown)
+            report_html = html_output.read_text(encoding="utf-8")
+            self.assertIn("Multi-run comparison", report_html)
+            self.assertIn("Raw p-value", report_html)
 
     def test_default_html_output_path_targets_experiment_analysis_site_tree(self) -> None:
         fixture = Path("tools/tests/fixtures/two_run_slice_bundle.json")

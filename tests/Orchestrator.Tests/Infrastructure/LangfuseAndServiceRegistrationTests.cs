@@ -13,6 +13,7 @@ using Orchestrator.Infrastructure.Factories;
 using Orchestrator.Infrastructure.Langfuse;
 using Orchestrator.Services;
 using OpenAiIntegration;
+using Polly.CircuitBreaker;
 using WireMock.RequestBuilders;
 using WireMock.ResponseBuilders;
 using WireMock.Server;
@@ -277,6 +278,50 @@ public class LangfuseAndServiceRegistrationTests
 
         await Assert.That(score.Id).IsEqualTo("score-1");
         await Assert.That(server.LogEntries.Count).IsEqualTo(2);
+    }
+
+    [Test]
+    public async Task Langfuse_client_circuit_breaker_does_not_open_for_repeated_rate_limits()
+    {
+        using var server = WireMockServer.Start();
+        Environment.SetEnvironmentVariable(LangfuseBaseUrlEnvVar, server.Urls[0]);
+
+        server
+            .Given(Request.Create()
+                .WithPath("/api/public/traces/trace-rate-limited")
+                .UsingGet())
+            .RespondWith(Response.Create()
+                .WithStatusCode(429)
+                .WithHeader("Content-Type", "application/json")
+                .WithHeader("Retry-After", "0")
+                .WithBody("{\"message\":\"rate limit exceeded\"}"));
+
+        var services = new ServiceCollection();
+        services.AddLogging();
+        services.AddLangfusePublicApiClient();
+
+        using var provider = services.BuildServiceProvider();
+        var client = provider.GetRequiredService<ILangfusePublicApiClient>();
+        BrokenCircuitException? brokenCircuit = null;
+
+        for (var attempt = 0; attempt < 120; attempt += 1)
+        {
+            try
+            {
+                await client.GetTraceAsync("trace-rate-limited");
+            }
+            catch (BrokenCircuitException ex)
+            {
+                brokenCircuit = ex;
+                break;
+            }
+            catch (LangfusePublicApiException)
+            {
+                // Expected while the endpoint keeps returning 429s.
+            }
+        }
+
+        await Assert.That(brokenCircuit).IsNull();
     }
 
     [Test]

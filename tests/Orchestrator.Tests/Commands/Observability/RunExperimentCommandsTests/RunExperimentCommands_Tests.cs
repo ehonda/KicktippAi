@@ -694,6 +694,17 @@ public class RunExperimentCommands_Tests
             await Assert.That(postedScores.All(score => !string.IsNullOrWhiteSpace(score.Id))).IsTrue();
             await Assert.That(postedScores.Select(score => score.Id).Distinct(StringComparer.Ordinal).Count()).IsEqualTo(4);
             await Assert.That(capturedActivities.Any(activity => activity.OperationName == "community-match-prediction")).IsTrue();
+
+            var predictionObservations = capturedActivities
+                .Where(activity => activity.OperationName == "community-match-prediction")
+                .ToList();
+            await Assert.That(predictionObservations.Count).IsEqualTo(2);
+            await Assert.That(predictionObservations.All(activity =>
+                string.Equals(activity.GetTagItem("langfuse.observation.metadata.homeTeam")?.ToString(), "Team A", StringComparison.Ordinal))).IsTrue();
+            await Assert.That(predictionObservations.All(activity =>
+                string.Equals(activity.GetTagItem("langfuse.observation.metadata.awayTeam")?.ToString(), "Team B", StringComparison.Ordinal))).IsTrue();
+            await Assert.That(predictionObservations.All(activity =>
+                string.Equals(activity.GetTagItem("langfuse.observation.metadata.match")?.ToString(), "Team A vs Team B", StringComparison.Ordinal))).IsTrue();
         }
         finally
         {

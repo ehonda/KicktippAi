@@ -35,7 +35,11 @@ public sealed class PrepareCommunityToDateCommand : AsyncCommand<PrepareCommunit
             var cancellationToken = CancellationToken.None;
             EnvironmentHelper.LoadCommunityKicktippCredentials(_logger, settings.CommunityContext);
             var kicktippClient = _kicktippClientFactory.CreateClient();
+            PreparedExperimentSupport.ReportProgress(
+                $"Preparing community-to-date artifact for '{settings.CommunityContext}'.");
             var cutoffMatchday = settings.CutoffMatchday ?? await kicktippClient.GetCurrentTippuebersichtMatchdayAsync(settings.CommunityContext);
+            PreparedExperimentSupport.ReportProgress(
+                $"Using cutoff matchday {cutoffMatchday} for '{settings.CommunityContext}'.");
             var sourcePoolKey = string.IsNullOrWhiteSpace(settings.SourcePoolKey)
                 ? $"through-md{cutoffMatchday:00}"
                 : settings.SourcePoolKey.Trim();
@@ -57,9 +61,13 @@ public sealed class PrepareCommunityToDateCommand : AsyncCommand<PrepareCommunit
 
             for (var matchday = 1; matchday <= cutoffMatchday; matchday += 1)
             {
+                PreparedExperimentSupport.ReportProgress(
+                    $"Fetching Kicktipp community snapshot for matchday {matchday}/{cutoffMatchday}.");
                 var snapshot = await kicktippClient.GetCommunityMatchdaySnapshotAsync(settings.CommunityContext, matchday);
                 if (snapshot is null)
                 {
+                    PreparedExperimentSupport.ReportProgress(
+                        $"No community snapshot was available for matchday {matchday}; skipping.");
                     continue;
                 }
 
@@ -115,6 +123,9 @@ public sealed class PrepareCommunityToDateCommand : AsyncCommand<PrepareCommunit
                         };
                     }
                 }
+
+                PreparedExperimentSupport.ReportProgress(
+                    $"Processed matchday {matchday}/{cutoffMatchday}: {snapshot.Outcomes.Count} outcome candidate(s), {snapshot.Participants.Count} participant(s).");
             }
 
             if (sourceItems.Count == 0)
@@ -156,6 +167,9 @@ public sealed class PrepareCommunityToDateCommand : AsyncCommand<PrepareCommunit
 
             await WriteJsonFileAsync(sliceArtifactPath, bundle.Artifact, cancellationToken);
             await WriteJsonFileAsync(sliceManifestPath, manifest, cancellationToken);
+
+            PreparedExperimentSupport.ReportProgress(
+                $"Prepared community-to-date artifact with {manifest.SampleSize} item(s) and {manifest.Participants.Count} participant(s). Output: {outputDirectory}.");
 
             var summary = new
             {

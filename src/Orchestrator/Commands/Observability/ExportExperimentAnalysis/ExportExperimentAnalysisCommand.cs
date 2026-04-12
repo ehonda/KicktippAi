@@ -36,13 +36,18 @@ public sealed class ExportExperimentAnalysisCommand : AsyncCommand<ExportExperim
             var runNames = settings.GetParsedRunNames();
             var runContexts = new List<RunContext>();
 
+            PreparedExperimentSupport.ReportProgress(
+                $"Exporting experiment analysis for dataset '{settings.DatasetName}' across {runNames.Count} run(s).");
             _logger.LogInformation(
                 "Exporting experiment analysis for dataset {DatasetName} across {RunCount} runs.",
                 settings.DatasetName,
                 runNames.Count);
 
-            foreach (var runName in runNames)
+            for (var runIndex = 0; runIndex < runNames.Count; runIndex += 1)
             {
+                var runName = runNames[runIndex];
+                PreparedExperimentSupport.ReportProgress(
+                    $"Loading run {runIndex + 1}/{runNames.Count}: '{runName}'.");
                 var datasetRun = await _langfuseClient.GetDatasetRunAsync(settings.DatasetName, runName, cancellationToken)
                     ?? throw new InvalidOperationException(
                         $"Dataset run '{runName}' could not be found in dataset '{settings.DatasetName}'.");
@@ -57,8 +62,11 @@ public sealed class ExportExperimentAnalysisCommand : AsyncCommand<ExportExperim
 
             ValidateComparableRuns(runContexts);
 
+            PreparedExperimentSupport.ReportProgress("Loading dataset items for the comparable run set.");
             var datasetItemsById = await LoadDatasetItemsAsync(settings.DatasetName, runContexts, cancellationToken);
+            PreparedExperimentSupport.ReportProgress("Loading traces and observations for the comparable run set.");
             var tracesById = await LoadTracesAsync(runContexts, cancellationToken);
+            PreparedExperimentSupport.ReportProgress("Building normalized analysis rows.");
             var rows = BuildRows(runContexts, datasetItemsById, tracesById);
             var bundle = BuildBundle(settings.DatasetName, runContexts, rows);
 
@@ -68,6 +76,9 @@ public sealed class ExportExperimentAnalysisCommand : AsyncCommand<ExportExperim
                 outputPath,
                 JsonSerializer.Serialize(bundle, PreparedExperimentCommandSupport.JsonOptions),
                 cancellationToken);
+
+            PreparedExperimentSupport.ReportProgress(
+                $"Wrote experiment analysis bundle with {bundle.Rows.Count} row(s) to '{outputPath}'.");
 
             var summary = new
             {

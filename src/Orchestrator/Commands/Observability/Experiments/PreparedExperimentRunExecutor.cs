@@ -642,6 +642,8 @@ internal sealed class PreparedExperimentRunExecutor
                 return datasetRunItems;
             }
 
+            PreparedExperimentSupport.ReportProgress(
+                $"Waiting for Langfuse dataset run items for '{runName}': {datasetRunItems.Meta.TotalItems}/{expectedCount} visible after poll {attempt + 1}/6; retrying in 00:00:02.");
             await Task.Delay(TimeSpan.FromSeconds(2), cancellationToken);
         }
 
@@ -904,6 +906,7 @@ internal sealed class PreparedExperimentRunExecutor
             item.TippSpielId
         }, TraceJsonOptions));
         activity.SetTag("langfuse.observation.output", predictionPayload.GetRawText());
+        new PredictionTelemetryMetadata(item.HomeTeam, item.AwayTeam).ApplyToObservation(activity);
         activity.SetTag("langfuse.observation.metadata.participantId", participant.ParticipantId);
         activity.SetTag("langfuse.observation.metadata.participantDisplayName", participant.DisplayName);
         activity.SetTag("langfuse.observation.metadata.predictionStatus", prediction.Status);
