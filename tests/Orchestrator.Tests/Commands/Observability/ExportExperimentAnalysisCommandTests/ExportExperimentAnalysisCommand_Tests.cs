@@ -10,6 +10,158 @@ namespace Orchestrator.Tests.Commands.Observability.ExportExperimentAnalysisComm
 public class ExportExperimentAnalysisCommand_Tests
 {
     [Test]
+    public async Task Publishing_analysis_bundle_creates_experiments_beta_alias_runs()
+    {
+        var tempDirectory = Directory.CreateTempSubdirectory();
+
+        try
+        {
+            var inputPath = Path.Combine(tempDirectory.FullName, "analysis.json");
+            var datasetName = "match-predictions/bundesliga-2025-26/test-community/slices/all-matchdays/random-1-seed-20260405";
+            var runName = "slice__test-community__gpt-5-nano__prompt-v1__random-1-seed-20260405__startsat-12h__2026-04-05t12-00-00z";
+            var targetRunName = runName + "__experiments-beta";
+            var datasetItemId = "bundesliga-2025-26__test-community__ts123__slice__random-1-seed-20260405";
+            var traceId = "trace-1";
+            var observationId = "observation-1";
+
+            await File.WriteAllTextAsync(
+                inputPath,
+                JsonSerializer.Serialize(new
+                {
+                    datasetName,
+                    taskType = "slice",
+                    primaryMetricName = "total_kicktipp_points",
+                    exportedAtUtc = "2026-04-06T21:56:17Z",
+                    runs = new[]
+                    {
+                        new
+                        {
+                            runName,
+                            datasetRunId = "source-dataset-run-1",
+                            taskType = "slice",
+                            model = "gpt-5-nano",
+                            promptKey = "prompt-v1",
+                            sliceKind = "random-sample",
+                            sliceKey = "random-1-seed-20260405",
+                            sourcePoolKey = "all-matchdays",
+                            selectedItemIdsHash = "hash-123",
+                            selectedItemIdsCount = 1,
+                            sampleSize = 1,
+                            evaluationTimestampPolicyKey = "startsat-12h",
+                            evaluationTime = (string?)null,
+                            startedAtUtc = "2026-04-05T12:00:00Z",
+                            aggregateScores = new
+                            {
+                                total_kicktipp_points = 4,
+                                avg_kicktipp_points = 4
+                            },
+                            primaryMetricValue = 4,
+                            rowCount = 1,
+                            runSubjectKind = "model",
+                            runSubjectId = "gpt-5-nano",
+                            runSubjectDisplayName = "gpt-5-nano"
+                        }
+                    },
+                    rows = new[]
+                    {
+                        new
+                        {
+                            pairingKey = datasetItemId,
+                            datasetRunId = "source-dataset-run-1",
+                            runName,
+                            taskType = "slice",
+                            model = "gpt-5-nano",
+                            promptKey = "prompt-v1",
+                            sliceKind = "random-sample",
+                            sliceKey = "random-1-seed-20260405",
+                            sourcePoolKey = "all-matchdays",
+                            datasetItemId,
+                            sourceDatasetItemId = "bundesliga-2025-26__test-community__ts123",
+                            traceId,
+                            observationId,
+                            matchday = 1,
+                            homeTeam = "Home",
+                            awayTeam = "Away",
+                            startsAt = "2026-01-01T15:30:00 Europe/Berlin (+01)",
+                            tippSpielId = "123",
+                            predictedHomeGoals = 2,
+                            predictedAwayGoals = 1,
+                            expectedHomeGoals = 2,
+                            expectedAwayGoals = 1,
+                            kicktippPoints = 4,
+                            predictionStatus = "placed",
+                            runSubjectKind = "model",
+                            runSubjectId = "gpt-5-nano",
+                            runSubjectDisplayName = "gpt-5-nano"
+                        }
+                    }
+                }));
+
+            var createdItems = new List<LangfuseCreateDatasetRunItemRequest>();
+            var createdScores = new List<LangfuseCreateScoreRequest>();
+            var client = new Mock<ILangfusePublicApiClient>(MockBehavior.Strict);
+            client
+                .Setup(mock => mock.GetDatasetRunAsync(datasetName, targetRunName, It.IsAny<CancellationToken>()))
+                .ReturnsAsync((LangfuseDatasetRunWithItems?)null);
+            client
+                .Setup(mock => mock.CreateDatasetRunItemAsync(
+                    It.IsAny<LangfuseCreateDatasetRunItemRequest>(),
+                    It.IsAny<CancellationToken>()))
+                .Callback((LangfuseCreateDatasetRunItemRequest request, CancellationToken _) => createdItems.Add(request))
+                .ReturnsAsync((LangfuseCreateDatasetRunItemRequest request, CancellationToken _) => new LangfuseDatasetRunItem(
+                    "published-item-1",
+                    "published-dataset-run-1",
+                    request.RunName,
+                    request.DatasetItemId,
+                    request.TraceId,
+                    request.ObservationId,
+                    request.CreatedAt ?? DateTimeOffset.UtcNow,
+                    request.CreatedAt ?? DateTimeOffset.UtcNow));
+            client
+                .Setup(mock => mock.CreateScoreAsync(It.IsAny<LangfuseCreateScoreRequest>(), It.IsAny<CancellationToken>()))
+                .Callback((LangfuseCreateScoreRequest request, CancellationToken _) => createdScores.Add(request))
+                .ReturnsAsync(new LangfuseCreateScoreResponse("score-1"));
+
+            var context = CreateCommandApp<PublishExperimentAnalysisCommand>(
+                "publish-experiment-analysis",
+                configureServices: new Action<IServiceCollection>(services =>
+                {
+                    services.AddSingleton(client.Object);
+                }));
+
+            var (exitCode, output) = await RunCommandAsync(
+                context.App,
+                context.Console,
+                "publish-experiment-analysis",
+                "--input",
+                inputPath);
+
+            await Assert.That(exitCode).IsEqualTo(0);
+            await Assert.That(output).Contains("\"runCount\": 1");
+            await Assert.That(createdItems).HasCount().EqualTo(1);
+            await Assert.That(createdScores.Select(score => score.Name).OrderBy(name => name))
+                .IsEquivalentTo(["avg_kicktipp_points", "total_kicktipp_points"]);
+
+            var request = createdItems.Single();
+            await Assert.That(request.RunName).IsEqualTo(targetRunName);
+            await Assert.That(request.DatasetItemId).IsEqualTo(datasetItemId);
+            await Assert.That(request.TraceId).IsEqualTo(traceId);
+            await Assert.That(request.ObservationId).IsEqualTo(observationId);
+            await Assert.That(request.CreatedAt).IsEqualTo(DateTimeOffset.Parse("2026-04-05T12:00:00Z"));
+
+            var metadata = (JsonElement)request.Metadata!;
+            await Assert.That(metadata.GetProperty("experiment_name").GetString())
+                .IsEqualTo("slice__test-community__random-1-seed-20260405");
+            await Assert.That(metadata.GetProperty("experiment_run_name").GetString()).IsEqualTo(targetRunName);
+            await Assert.That(metadata.GetProperty("sourceRunName").GetString()).IsEqualTo(runName);
+        }
+        finally
+        {
+            tempDirectory.Delete(recursive: true);
+        }
+    }
+
+    [Test]
     public async Task Running_command_exports_comparable_slice_runs_to_a_normalized_bundle()
     {
         var tempDirectory = Directory.CreateTempSubdirectory();

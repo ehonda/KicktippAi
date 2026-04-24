@@ -151,6 +151,25 @@ These scores are created by the application and posted to Langfuse through the p
 
 That means evaluators are currently an application concern, while Langfuse is the system of record for the resulting score values.
 
+## Langfuse Experiment Identity
+
+Langfuse's Experiments Beta UI is driven by SDK-compatible experiment markers in addition to ordinary dataset run identity.
+
+For direct .NET runs, the runner therefore emits:
+
+- trace name `experiment-item-run`
+- environment `sdk-experiment`
+- trace metadata `experiment_name`
+- trace metadata `experiment_run_name`
+- trace metadata `dataset_item_id`
+- dataset run item `observationId`
+- dataset run metadata `experiment_name`
+- dataset run metadata `experiment_run_name`
+
+`experiment_name` is the stable grouping identity for the experiment. For prepared slice and repeated-match runs, it is derived from task type, community, and slice key. For community-to-date runs, it is the run family name.
+
+`experiment_run_name` is the concrete Langfuse dataset run name. Analysis-bundle publishing uses an alias run name with the default suffix `__experiments-beta` so existing dataset runs are not modified.
+
 ## Why This Model
 
 This structure gives us three useful properties:

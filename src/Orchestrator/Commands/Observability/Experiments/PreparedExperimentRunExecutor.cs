@@ -1,6 +1,4 @@
 using System.Diagnostics;
-using System.Security.Cryptography;
-using System.Text;
 using System.Text.Json;
 using EHonda.KicktippAi.Core;
 using OpenAiIntegration;
@@ -75,9 +73,13 @@ internal sealed class PreparedExperimentRunExecutor
             new InstructionsTemplateProvider(PromptsFileProvider.Create()));
 
         var outcomesByKey = await LoadOutcomesAsync(matchOutcomeRepository, communityContext, manifest, cancellationToken);
+        var experimentName = PreparedExperimentSupport.DeriveExperimentName(runMetadata, request.RunName);
         var traceTags = PreparedExperimentSupport.DeriveTraceTags(runMetadata);
         var propagatedMetadata = PreparedExperimentSupport.DerivePropagatedMetadata(runMetadata);
-        var runMetadataPayload = JsonSerializer.SerializeToElement(runMetadata, PreparedExperimentCommandSupport.JsonOptions);
+        var runMetadataPayload = PreparedExperimentSupport.BuildLangfuseExperimentMetadata(
+            runMetadata,
+            experimentName,
+            request.RunName);
         var batches = BuildBatches(manifest.Items, runMetadata, expectedTaskType);
         var scoreEntries = new List<ExperimentItemScores>();
         var executionSummaries = new List<PreparedExperimentExecutionSummary>();
@@ -99,6 +101,7 @@ internal sealed class PreparedExperimentRunExecutor
             var batchResults = await Task.WhenAll(batch.Select(item => ExecuteItemAsync(
                 item,
                 request,
+                experimentName,
                 datasetName,
                 runMetadata,
                 explicitEvaluationTime,
@@ -217,7 +220,11 @@ internal sealed class PreparedExperimentRunExecutor
 
             var traceTags = PreparedExperimentSupport.DeriveTraceTags(runMetadata);
             var propagatedMetadata = PreparedExperimentSupport.DerivePropagatedMetadata(runMetadata);
-            var runMetadataPayload = JsonSerializer.SerializeToElement(runMetadata, PreparedExperimentCommandSupport.JsonOptions);
+            var experimentName = runFamilyName;
+            var runMetadataPayload = PreparedExperimentSupport.BuildLangfuseExperimentMetadata(
+                runMetadata,
+                experimentName,
+                runName);
             var predictionsBySourceDatasetItemId = participant.Predictions
                 .GroupBy(prediction => prediction.SourceDatasetItemId, StringComparer.Ordinal)
                 .ToDictionary(group => group.Key, group => group.First(), StringComparer.Ordinal);
@@ -244,6 +251,7 @@ internal sealed class PreparedExperimentRunExecutor
                     participant,
                     predictionsBySourceDatasetItemId,
                     runName,
+                    experimentName,
                     request.RunDescription,
                     datasetName,
                     runMetadata,
@@ -348,6 +356,7 @@ internal sealed class PreparedExperimentRunExecutor
     private async Task<PreparedExperimentExecutionResult> ExecuteItemAsync(
         PreparedExperimentManifestItem item,
         PreparedExperimentRunRequest request,
+        string experimentName,
         string datasetName,
         PreparedExperimentRunMetadata runMetadata,
         DateTimeOffset? explicitEvaluationTime,
@@ -409,10 +418,12 @@ internal sealed class PreparedExperimentRunExecutor
             AwayTeam: item.AwayTeam,
             RepredictionIndex: 0);
 
-        using var activity = Telemetry.Source.StartActivity("match-experiment-item");
+        using var activity = Telemetry.Source.StartActivity("experiment-item-run");
         ConfigureTraceContext(
             activity,
             request.RunName,
+            experimentName,
+            request.RunDescription,
             datasetName,
             runMetadata,
             item,
@@ -474,8 +485,10 @@ internal sealed class PreparedExperimentRunExecutor
                 item.SliceDatasetItemId,
                 traceId,
                 request.RunDescription,
-                runMetadataPayload),
+                runMetadataPayload,
+                activity?.SpanId.ToString()),
             cancellationToken);
+        SetExperimentRunId(activity, datasetRunItem.DatasetRunId);
 
         var itemScores = PreparedExperimentSupport.CalculateScores(prediction, outcome.HomeGoals.Value, outcome.AwayGoals.Value);
 
@@ -496,6 +509,7 @@ internal sealed class PreparedExperimentRunExecutor
         PreparedExperimentParticipantManifest participant,
         IReadOnlyDictionary<string, PreparedExperimentParticipantPrediction> predictionsBySourceDatasetItemId,
         string runName,
+        string experimentName,
         string? runDescription,
         string datasetName,
         PreparedExperimentRunMetadata runMetadata,
@@ -537,10 +551,12 @@ internal sealed class PreparedExperimentRunExecutor
         }, TraceJsonOptions);
         var predictionPayload = CreateCommunityPredictionPayload(participantPrediction);
 
-        using var activity = Telemetry.Source.StartActivity("match-experiment-item");
+        using var activity = Telemetry.Source.StartActivity("experiment-item-run");
         ConfigureTraceContext(
             activity,
             runName,
+            experimentName,
+            runDescription,
             datasetName,
             runMetadata,
             item,
@@ -569,8 +585,10 @@ internal sealed class PreparedExperimentRunExecutor
                 item.SliceDatasetItemId,
                 traceId,
                 runDescription,
-                runMetadataPayload),
+                runMetadataPayload,
+                activity?.SpanId.ToString()),
             cancellationToken);
+        SetExperimentRunId(activity, datasetRunItem.DatasetRunId);
 
         var itemScores = new ExperimentItemScores(participantPrediction.KicktippPoints);
 
@@ -603,7 +621,7 @@ internal sealed class PreparedExperimentRunExecutor
                 aggregateScores.TotalKicktippPoints,
                 DatasetRunId: datasetRunId,
                 Comment: $"Aggregate score for {runMetadata.SampleSize} item(s)",
-                Id: CreateScoreId("total_kicktipp_points", datasetRunId),
+                Id: PreparedExperimentSupport.CreateScoreId("total_kicktipp_points", datasetRunId),
                 Metadata: runMetadataPayload),
             cancellationToken);
 
@@ -613,7 +631,7 @@ internal sealed class PreparedExperimentRunExecutor
                 aggregateScores.AvgKicktippPoints,
                 DatasetRunId: datasetRunId,
                 Comment: $"Aggregate score for {runMetadata.SampleSize} item(s)",
-                Id: CreateScoreId("avg_kicktipp_points", datasetRunId),
+                Id: PreparedExperimentSupport.CreateScoreId("avg_kicktipp_points", datasetRunId),
                 Metadata: runMetadataPayload),
             cancellationToken);
 
@@ -695,6 +713,8 @@ internal sealed class PreparedExperimentRunExecutor
     private static void ConfigureTraceContext(
         Activity? activity,
         string runName,
+        string experimentName,
+        string? runDescription,
         string datasetName,
         PreparedExperimentRunMetadata runMetadata,
         PreparedExperimentManifestItem item,
@@ -704,18 +724,26 @@ internal sealed class PreparedExperimentRunExecutor
         DateTimeOffset? evaluationTimestamp = null,
         string? promptTemplatePath = null)
     {
-        activity?.SetTag("langfuse.trace.name", runName);
-        LangfuseActivityPropagation.SetEnvironment(activity, "development");
+        activity?.SetTag("langfuse.trace.name", "experiment-item-run");
+        LangfuseActivityPropagation.SetEnvironment(activity, "sdk-experiment");
         LangfuseActivityPropagation.SetSessionId(activity, runName);
         LangfuseActivityPropagation.SetTraceTags(activity, traceTags);
+
+        activity?.SetTag("langfuse.experiment.name", runName);
+        activity?.SetTag("langfuse.experiment.description", runDescription);
+        activity?.SetTag("langfuse.experiment.item.id", item.SliceDatasetItemId);
+        activity?.SetTag("langfuse.experiment.item.root_observation_id", activity.SpanId.ToString());
 
         foreach (var metadata in propagatedMetadata)
         {
             LangfuseActivityPropagation.SetTraceMetadata(activity, metadata.Key, metadata.Value);
         }
 
+        LangfuseActivityPropagation.SetTraceMetadata(activity, "experiment_name", experimentName);
+        LangfuseActivityPropagation.SetTraceMetadata(activity, "experiment_run_name", runName);
         LangfuseActivityPropagation.SetTraceMetadata(activity, "datasetName", datasetName, propagateToObservations: false);
         LangfuseActivityPropagation.SetTraceMetadata(activity, "datasetItemId", item.SliceDatasetItemId, propagateToObservations: false);
+        LangfuseActivityPropagation.SetTraceMetadata(activity, "dataset_item_id", item.SliceDatasetItemId, propagateToObservations: false);
         LangfuseActivityPropagation.SetTraceMetadata(activity, "sourceDatasetItemId", item.SourceDatasetItemId, propagateToObservations: false);
         LangfuseActivityPropagation.SetTraceMetadata(activity, "community", runMetadata.CommunityContext, propagateToObservations: false);
         LangfuseActivityPropagation.SetTraceMetadata(activity, "matchday", item.Matchday.ToString(), propagateToObservations: false);
@@ -746,6 +774,16 @@ internal sealed class PreparedExperimentRunExecutor
 
         LangfuseActivityPropagation.SetTraceMetadata(activity, "tippSpielId", tippSpielId, propagateToObservations: false);
         LangfuseActivityPropagation.SetTraceMetadata(activity, "promptTemplatePath", promptTemplatePath, propagateToObservations: false);
+    }
+
+    private static void SetExperimentRunId(Activity? activity, string datasetRunId)
+    {
+        if (activity is null || string.IsNullOrWhiteSpace(datasetRunId))
+        {
+            return;
+        }
+
+        activity.SetTag("langfuse.experiment.id", datasetRunId);
     }
 
     private static IReadOnlyList<PreparedExperimentParticipantManifest> SelectParticipants(
@@ -853,16 +891,6 @@ internal sealed class PreparedExperimentRunExecutor
     private static string BuildRunTimestampToken(string startedAtUtc)
     {
         return startedAtUtc.ToLowerInvariant().Replace(':', '-');
-    }
-
-    private static string CreateScoreId(string scoreName, params string?[] components)
-    {
-        var joined = string.Join(
-            "\n",
-            new[] { scoreName }
-                .Concat(components.Where(component => !string.IsNullOrWhiteSpace(component)).Select(component => component!.Trim())));
-        var hash = SHA256.HashData(Encoding.UTF8.GetBytes(joined));
-        return $"exp-score-{Convert.ToHexString(hash).ToLowerInvariant()}";
     }
 
     private static JsonElement CreateCommunityPredictionPayload(PreparedExperimentParticipantPrediction prediction)

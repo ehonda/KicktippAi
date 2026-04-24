@@ -1,4 +1,8 @@
 using System.Globalization;
+using System.Security.Cryptography;
+using System.Text;
+using System.Text.Json;
+using System.Text.Json.Nodes;
 using EHonda.KicktippAi.Core;
 
 namespace Orchestrator.Commands.Observability.Experiments;
@@ -89,6 +93,60 @@ internal static class PreparedExperimentSupport
         var total = scoreEntries.Sum(entry => entry.KicktippPoints);
         var average = scoreEntries.Count == 0 ? 0d : (double)total / scoreEntries.Count;
         return new ExperimentAggregateScores(total, average);
+    }
+
+    public static string DeriveExperimentName(PreparedExperimentRunMetadata runMetadata, string runName)
+    {
+        var parts = new[]
+            {
+                runMetadata.TaskType,
+                runMetadata.CommunityContext,
+                runMetadata.SliceKey
+            }
+            .Where(value => !string.IsNullOrWhiteSpace(value))
+            .Select(value => ExperimentArtifactSupport.Slugify(value!))
+            .ToArray();
+
+        return parts.Length >= 2
+            ? string.Join("__", parts)
+            : runName;
+    }
+
+    public static JsonElement BuildLangfuseExperimentMetadata(
+        PreparedExperimentRunMetadata runMetadata,
+        string experimentName,
+        string experimentRunName,
+        IReadOnlyDictionary<string, string?>? extraFields = null)
+    {
+        var node = JsonSerializer.SerializeToNode(runMetadata, PreparedExperimentCommandSupport.JsonOptions)
+                   as JsonObject
+                   ?? new JsonObject();
+
+        node["experiment_name"] = experimentName;
+        node["experiment_run_name"] = experimentRunName;
+
+        if (extraFields is not null)
+        {
+            foreach (var (key, value) in extraFields)
+            {
+                if (!string.IsNullOrWhiteSpace(key) && !string.IsNullOrWhiteSpace(value))
+                {
+                    node[key] = value;
+                }
+            }
+        }
+
+        return JsonSerializer.SerializeToElement(node, PreparedExperimentCommandSupport.JsonOptions);
+    }
+
+    public static string CreateScoreId(string scoreName, params string?[] components)
+    {
+        var joined = string.Join(
+            "\n",
+            new[] { scoreName }
+                .Concat(components.Where(component => !string.IsNullOrWhiteSpace(component)).Select(component => component!.Trim())));
+        var hash = SHA256.HashData(Encoding.UTF8.GetBytes(joined));
+        return $"exp-score-{Convert.ToHexString(hash).ToLowerInvariant()}";
     }
 
     public static PreparedExperimentRunMetadata BuildRunMetadata(

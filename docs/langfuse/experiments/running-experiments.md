@@ -27,6 +27,43 @@ Execution:
 
 - `run-slice`
 - `run-repeated-match`
+- `run-community-to-date`
+
+Publishing existing analysis bundles:
+
+- `publish-experiment-analysis`
+
+## Langfuse Experiments Beta UI
+
+Langfuse's Experiments Beta UI currently expects the same experiment markers emitted by the official SDK experiment runner. Our .NET runner uses the public API directly, so new runs must explicitly mimic those markers instead of only creating dataset run items.
+
+New `run-slice`, `run-repeated-match`, and `run-community-to-date` executions now:
+
+- name item traces `experiment-item-run`
+- set the Langfuse environment to `sdk-experiment`
+- attach trace metadata fields `experiment_name` and `experiment_run_name`
+- attach the same fields to dataset run metadata when creating dataset run items
+- pass the root observation id when linking a trace to the dataset run item
+
+That means newly executed experiments should appear in the Experiments Beta UI after Langfuse ingests the traces and dataset run items. Use the same time-range filter you would use for ordinary traces.
+
+Existing analysis bundles can be published without rerunning predictions. The publisher creates new dataset-run aliases that point at the existing traces and dataset items, adds the SDK-compatible experiment metadata, and posts aggregate run scores. By default, it appends `__experiments-beta` to each source run name so the original dataset runs are left alone.
+
+Use `--dry-run` first if you want to inspect the aliases before writing:
+
+```powershell
+dotnet run --project src/Orchestrator -- publish-experiment-analysis --input artifacts/langfuse-experiments/analysis/task-5/match-predictions/bundesliga-2025-26/pes-squad/slices/all-matchdays/random-16-seed-578661/comparison-2026-04-06t21-56-17z.json --dry-run
+```
+
+Publish the current browser reports shown in the local Experiment Analysis index:
+
+```powershell
+dotnet run --project src/Orchestrator -- publish-experiment-analysis --input artifacts/langfuse-experiments/analysis/verification/ehonda-ai-arena/community-to-date-md28__2026-04-07t01-08-32z.analysis.json --replace-runs
+dotnet run --project src/Orchestrator -- publish-experiment-analysis --input artifacts/langfuse-experiments/analysis/verification/schadensfresse/community-to-date-md29__2026-04-12t00-12-39z.analysis.json --replace-runs
+dotnet run --project src/Orchestrator -- publish-experiment-analysis --input artifacts/langfuse-experiments/analysis/task-5/match-predictions/bundesliga-2025-26/pes-squad/slices/all-matchdays/random-16-seed-578661/comparison-2026-04-06t21-56-17z.json --replace-runs
+```
+
+Use `--experiment-name` if you want to override the derived grouping name. Otherwise the publisher derives stable names such as `community-to-date__ehonda-ai-arena__community-to-date-md28` and `task-5__pes-squad__random-16-seed-578661`.
 
 ## Slice Workflow
 

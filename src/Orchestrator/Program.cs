@@ -165,6 +165,14 @@ public class Program
                     "--output",
                     "artifacts/langfuse-experiments/analysis/repeated-match/pes-squad-repeat-16.json");
 
+            config.AddCommand<PublishExperimentAnalysisCommand>("publish-experiment-analysis")
+                .WithDescription("Publish an existing analysis bundle as Langfuse Experiments Beta-visible run aliases")
+                .WithExample(
+                    "publish-experiment-analysis",
+                    "--input",
+                    "artifacts/langfuse-experiments/analysis/task-5/match-predictions/bundesliga-2025-26/pes-squad/slices/all-matchdays/random-16-seed-578661/comparison-2026-04-06t21-56-17z.json",
+                    "--replace-runs");
+
             config.AddCommand<PrepareSliceCommand>("prepare-slice")
                 .WithDescription("Create a reusable sampled slice artifact and manifest directly from completed historical matches")
                 .WithExample("prepare-slice", "--community-context", "pes-squad", "--sample-size", "16", "--sample-seed", "20260403")

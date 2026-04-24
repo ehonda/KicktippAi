@@ -262,7 +262,7 @@ public class RunExperimentCommands_Tests
                 .IsEquivalentTo(["avg_kicktipp_points", "total_kicktipp_points"]);
             await Assert.That(postedScores.All(score => !string.IsNullOrWhiteSpace(score.Id))).IsTrue();
             await Assert.That(postedScores.Select(score => score.Id).Distinct(StringComparer.Ordinal).Count()).IsEqualTo(2);
-            await Assert.That(capturedActivities.Any(activity => activity.OperationName == "match-experiment-item")).IsTrue();
+            await Assert.That(capturedActivities.Any(activity => activity.OperationName == "experiment-item-run")).IsTrue();
 
             langfuseClient.Verify(client => client.CreateDatasetRunItemAsync(It.IsAny<LangfuseCreateDatasetRunItemRequest>(), It.IsAny<CancellationToken>()), Times.Once());
             langfuseClient.Verify(client => client.CreateScoreAsync(It.IsAny<LangfuseCreateScoreRequest>(), It.IsAny<CancellationToken>()), Times.Exactly(2));
@@ -478,7 +478,7 @@ public class RunExperimentCommands_Tests
             await Assert.That(output).Contains("\"taskType\": \"repeated-match\"");
             await Assert.That(postedScores.Select(score => score.Name).OrderBy(name => name))
                 .IsEquivalentTo(["avg_kicktipp_points", "total_kicktipp_points"]);
-            await Assert.That(capturedActivities.Any(activity => activity.OperationName == "match-experiment-item")).IsTrue();
+            await Assert.That(capturedActivities.Any(activity => activity.OperationName == "experiment-item-run")).IsTrue();
 
             contextRepository.Verify(repository => repository.GetContextDocumentByTimestampAsync(
                 It.IsAny<string>(),

@@ -24,7 +24,8 @@ public sealed record LangfuseCreateDatasetRunItemRequest(
     [property: JsonPropertyName("traceId")] string TraceId,
     [property: JsonPropertyName("runDescription")] string? RunDescription = null,
     [property: JsonPropertyName("metadata")] object? Metadata = null,
-    [property: JsonPropertyName("observationId")] string? ObservationId = null);
+    [property: JsonPropertyName("observationId")] string? ObservationId = null,
+    [property: JsonPropertyName("createdAt")] DateTimeOffset? CreatedAt = null);
 
 public sealed record LangfuseCreateScoreRequest(
     [property: JsonPropertyName("name")] string Name,
