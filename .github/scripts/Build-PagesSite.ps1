@@ -38,6 +38,171 @@ function Copy-DirectoryContents {
     }
 }
 
+function Escape-Html {
+    param([AllowNull()][object]$Value)
+
+    if ($null -eq $Value)
+    {
+        return ""
+    }
+
+    return [System.Net.WebUtility]::HtmlEncode([string]$Value)
+}
+
+function ConvertTo-TitleLabel {
+    param([string]$Value)
+
+    $clean = ($Value -replace "[-_]+", " ").Trim()
+    if ([string]::IsNullOrWhiteSpace($clean))
+    {
+        return ""
+    }
+
+    $textInfo = [System.Globalization.CultureInfo]::InvariantCulture.TextInfo
+    return $textInfo.ToTitleCase($clean.ToLowerInvariant())
+}
+
+function Get-ExperimentReportTypeLabel {
+    param([string]$TypeSegment)
+
+    switch ($TypeSegment)
+    {
+        "community-to-date" { return "Community To Date" }
+        "slices" { return "Slices" }
+        default { return ConvertTo-TitleLabel -Value $TypeSegment }
+    }
+}
+
+function Get-ExperimentReportDisplayName {
+    param([string]$RelativePath)
+
+    $segments = @($RelativePath -split "/")
+    $fileName = $segments[-1]
+    $stem = $fileName -replace "\.report\.html$", "" -replace "\.html$", "" -replace "\.analysis$", ""
+    $lastDirectory = if ($segments.Count -gt 1) { $segments[$segments.Count - 2] } else { "" }
+    $timestampPattern = "\d{4}-\d{2}-\d{2}t\d{2}-\d{2}-\d{2}z"
+    $timestampMatch = [regex]::Match($stem, $timestampPattern)
+
+    if ($stem.Contains("__"))
+    {
+        $parts = @($stem -split "__")
+        $prefix = $parts[0]
+        $suffix = $parts[-1]
+
+        if ($suffix -match "^$timestampPattern$")
+        {
+            $isGenericPrefix = $prefix -eq $lastDirectory -or $prefix -match "^(community-to-date-md\d+|comparison)$"
+            if (-not [string]::IsNullOrWhiteSpace($prefix) -and -not $isGenericPrefix)
+            {
+                return ConvertTo-TitleLabel -Value $prefix
+            }
+
+            return $suffix
+        }
+    }
+
+    $comparisonMatch = [regex]::Match($stem, "^comparison[-_]($timestampPattern)$")
+    if ($comparisonMatch.Success)
+    {
+        return $comparisonMatch.Groups[1].Value
+    }
+
+    if ($timestampMatch.Success)
+    {
+        return $timestampMatch.Value
+    }
+
+    return ConvertTo-TitleLabel -Value $stem
+}
+
+function Get-ExperimentReportContext {
+    param([string]$RelativePath)
+
+    $segments = @($RelativePath -split "/")
+    if ($segments.Count -le 3)
+    {
+        return ""
+    }
+
+    $contextSegments = @($segments[2..($segments.Count - 2)])
+    return $contextSegments -join " / "
+}
+
+function Get-ExperimentReportMetadata {
+    param([string]$RelativePath)
+
+    $segments = @($RelativePath -split "/")
+    $typeKey = if ($segments.Count -gt 0) { $segments[0] } else { "reports" }
+    $community = if ($segments.Count -gt 1) { $segments[1] } else { "general" }
+
+    [pscustomobject]@{
+        RelativePath = $RelativePath
+        TypeKey = $typeKey
+        TypeLabel = Get-ExperimentReportTypeLabel -TypeSegment $typeKey
+        Community = $community
+        DisplayName = Get-ExperimentReportDisplayName -RelativePath $RelativePath
+        Context = Get-ExperimentReportContext -RelativePath $RelativePath
+    }
+}
+
+function New-ExperimentReportTree {
+    param([object[]]$Reports)
+
+    if ($Reports.Count -eq 0)
+    {
+        return "<p class='empty'>No published experiment analysis reports yet.</p>"
+    }
+
+    $sortedReports = @($Reports | Sort-Object TypeLabel, Community, DisplayName, Context)
+    $typeNodes = @($sortedReports | Group-Object TypeLabel | ForEach-Object {
+        $typeName = $_.Name
+        $typeReports = @($_.Group)
+        $communityNodes = @($typeReports | Group-Object Community | ForEach-Object {
+            $communityName = $_.Name
+            $communityReports = @($_.Group | Sort-Object DisplayName, Context)
+            $links = @($communityReports | ForEach-Object {
+                $href = Escape-Html -Value $_.RelativePath
+                $title = Escape-Html -Value $_.DisplayName
+                $context = Escape-Html -Value $_.Context
+                $meta = if ([string]::IsNullOrWhiteSpace($_.Context))
+                {
+                    ""
+                }
+                else
+                {
+                    "<span class='report-meta'>$context</span>"
+                }
+
+                "<a class='report-link' href='$href'><span class='report-title'>$title</span>$meta</a>"
+            })
+            $communityLabel = Escape-Html -Value $communityName
+            $communityCount = $communityReports.Count
+
+@"
+        <details class="tree-group community-group" open>
+          <summary><span>$communityLabel</span><span class="count">$communityCount</span></summary>
+          <div class="tree-children">
+            $($links -join "`n            ")
+          </div>
+        </details>
+"@
+        })
+        $typeLabel = Escape-Html -Value $typeName
+        $typeCount = $typeReports.Count
+
+@"
+      <details class="tree-group" open>
+        <summary><span>$typeLabel</span><span class="count">$typeCount</span></summary>
+        <div class="tree-children">
+          $($communityNodes -join "`n          ")
+        </div>
+      </details>
+"@
+    })
+
+    "<div class='report-tree'>{0}</div>" -f ($typeNodes -join "`n")
+}
+
 function New-ExperimentAnalysisIndex {
     param([string]$ExperimentRoot)
 
@@ -55,13 +220,12 @@ function New-ExperimentAnalysisIndex {
     }
     else
     {
-      $items = @($reportFiles | ForEach-Object {
+        $reportRecords = @($reportFiles | ForEach-Object {
             $relativePath = [System.IO.Path]::GetRelativePath($ExperimentRoot, $_.FullName).Replace("\", "/")
-        $label = $relativePath -replace "\.report\.html$", "" -replace "\.html$", ""
-            "<li><a href='$relativePath'>$label</a></li>"
-      })
+            Get-ExperimentReportMetadata -RelativePath $relativePath
+        })
 
-        "<ul class='link-list'>{0}</ul>" -f ($items -join "`n")
+        New-ExperimentReportTree -Reports $reportRecords
     }
 
     $html = @"
@@ -79,6 +243,7 @@ function New-ExperimentAnalysisIndex {
       --muted: #6d6258;
       --border: rgba(86, 69, 53, 0.16);
       --accent: #b5532f;
+      --accent-soft: rgba(181, 83, 47, 0.12);
     }
 
     body {
@@ -122,13 +287,72 @@ function New-ExperimentAnalysisIndex {
       text-decoration: underline;
     }
 
-    .link-list {
-      margin: 18px 0 0;
-      padding-left: 20px;
+    .report-tree {
+      margin-top: 22px;
+      display: grid;
+      gap: 12px;
     }
 
-    .link-list li + li {
-      margin-top: 10px;
+    .tree-group {
+      border: 1px solid var(--border);
+      border-radius: 16px;
+      background: rgba(255, 250, 241, 0.72);
+      overflow: hidden;
+    }
+
+    .community-group {
+      background: rgba(255, 252, 246, 0.86);
+    }
+
+    summary {
+      cursor: pointer;
+      display: flex;
+      justify-content: space-between;
+      gap: 12px;
+      align-items: center;
+      padding: 12px 14px;
+      font-weight: 700;
+    }
+
+    summary:hover {
+      background: var(--accent-soft);
+    }
+
+    .count {
+      min-width: 1.9rem;
+      border-radius: 999px;
+      padding: 3px 8px;
+      text-align: center;
+      color: var(--accent);
+      background: var(--accent-soft);
+      font-size: 0.82rem;
+    }
+
+    .tree-children {
+      display: grid;
+      gap: 10px;
+      padding: 0 14px 14px;
+    }
+
+    .tree-children .tree-children {
+      padding: 0 0 10px;
+    }
+
+    .report-link {
+      display: grid;
+      gap: 3px;
+      border-left: 3px solid var(--accent);
+      padding: 8px 0 8px 12px;
+    }
+
+    .report-title {
+      font-weight: 700;
+    }
+
+    .report-meta {
+      color: var(--muted);
+      font-size: 0.9rem;
+      font-weight: 400;
     }
 
     .empty {

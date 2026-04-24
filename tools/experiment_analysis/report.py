@@ -523,17 +523,28 @@ def render_markdown(report: dict[str, Any]) -> str:
     lines.append(f"- Runs: {report['runCount']}")
     lines.append(f"- Pairings: {report['pairingCount']}")
     lines.append("")
-    lines.append("## Run Ranking")
+    lines.append("## Community Standings" if is_community_standings_report(report) else "## Run Ranking")
     lines.append("")
-    lines.extend(
-        render_table(
-            ["Rank", "Run", "Model", "Primary Metric"],
-            [
-                [str(run["rank"]), run["runName"], run["model"], format_number(run["primaryMetricValue"])]
-                for run in report["runs"]
-            ],
+    if is_community_standings_report(report):
+        lines.extend(
+            render_table(
+                ["Rank", "Participant", "Kicktipp Points"],
+                [
+                    [str(run["rank"]), run["runDisplayName"], format_kicktipp_points(run["primaryMetricValue"])]
+                    for run in report["runs"]
+                ],
+            )
         )
-    )
+    else:
+        lines.extend(
+            render_table(
+                ["Rank", "Run", "Model", "Primary Metric"],
+                [
+                    [str(run["rank"]), run["runName"], run["model"], format_number(run["primaryMetricValue"])]
+                    for run in report["runs"]
+                ],
+            )
+        )
     lines.append("")
 
     if report["runCount"] == 2:
@@ -625,17 +636,50 @@ def render_markdown(report: dict[str, Any]) -> str:
 
 def render_html(report: dict[str, Any]) -> str:
         title = f"Experiment Analysis - {report['datasetName']}"
-        run_rows = "\n".join(
-                render_html_table_row(
+        if is_community_standings_report(report):
+                ranking_heading = "Community standings"
+                ranking_headers = "\n".join(
                         [
-                                str(run["rank"]),
-                                str(run["runName"]),
-                                str(run["model"]),
-                                format_number(run["primaryMetricValue"]),
+                                "                    <tr>",
+                                "                        <th>Rank</th>",
+                                "                        <th>Participant</th>",
+                                "                        <th>Kicktipp Points</th>",
+                                "                    </tr>",
                         ]
                 )
-                for run in report["runs"]
-        )
+                run_rows = "\n".join(
+                        render_html_table_row(
+                                [
+                                        str(run["rank"]),
+                                        str(run["runDisplayName"]),
+                                        format_kicktipp_points(run["primaryMetricValue"]),
+                                ]
+                        )
+                        for run in report["runs"]
+                )
+        else:
+                ranking_heading = "Run ranking"
+                ranking_headers = "\n".join(
+                        [
+                                "                    <tr>",
+                                "                        <th>Rank</th>",
+                                "                        <th>Run</th>",
+                                "                        <th>Model</th>",
+                                "                        <th>Primary metric</th>",
+                                "                    </tr>",
+                        ]
+                )
+                run_rows = "\n".join(
+                        render_html_table_row(
+                                [
+                                        str(run["rank"]),
+                                        str(run["runName"]),
+                                        str(run["model"]),
+                                        format_number(run["primaryMetricValue"]),
+                                ]
+                        )
+                        for run in report["runs"]
+                )
 
         if report["runCount"] == 2:
                 comparison = report["comparison"]
@@ -1037,16 +1081,11 @@ def render_html(report: dict[str, Any]) -> str:
 
         <section class=\"panel\">
             <div class=\"panel-header\">
-                <h2>Run ranking</h2>
+                <h2>{ranking_heading}</h2>
             </div>
             <table>
                 <thead>
-                    <tr>
-                        <th>Rank</th>
-                        <th>Run</th>
-                        <th>Model</th>
-                        <th>Primary metric</th>
-                    </tr>
+                    {ranking_headers}
                 </thead>
                 <tbody>
                     {run_rows}
@@ -1271,6 +1310,10 @@ def escape_html(value: str) -> str:
         return html.escape(value, quote=True)
 
 
+def is_community_standings_report(report: dict[str, Any]) -> bool:
+        return str(report.get("taskType", "")).lower() == "community-to-date"
+
+
 def render_table(headers: list[str], rows: list[list[str]]) -> list[str]:
     header_line = "| " + " | ".join(headers) + " |"
     separator_line = "| " + " | ".join(["---"] * len(headers)) + " |"
@@ -1282,6 +1325,13 @@ def format_number(value: float | None) -> str:
     if value is None or math.isnan(value):
         return "n/a"
     return f"{value:.4f}"
+
+
+def format_kicktipp_points(value: float | None) -> str:
+    if value is None or math.isnan(value):
+        return "n/a"
+
+    return str(int(value)) if float(value).is_integer() else format_number(value)
 
 
 def write_outputs(report: dict[str, Any], output_paths: OutputPaths) -> str:
