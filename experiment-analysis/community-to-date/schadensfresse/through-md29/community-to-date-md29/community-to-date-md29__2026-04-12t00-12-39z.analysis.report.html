@@ -17,6 +17,10 @@
             --good: #1c7b5b;
             --good-soft: rgba(28, 123, 91, 0.14);
             --good-row: rgba(28, 123, 91, 0.08);
+            --bad: #b33d3d;
+            --bad-soft: rgba(179, 61, 61, 0.14);
+            --bad-row: rgba(179, 61, 61, 0.08);
+            --baseline-row: rgba(181, 83, 47, 0.10);
             --shadow: 0 24px 70px rgba(70, 45, 26, 0.12);
         }
 
@@ -175,6 +179,41 @@
             border-bottom: none;
         }
 
+        .standings-table tbody tr {
+            cursor: pointer;
+            transition: background 120ms ease;
+        }
+
+        .standings-table tbody tr:hover,
+        .standings-table tbody tr:focus-visible {
+            background: rgba(181, 83, 47, 0.08);
+            outline: none;
+        }
+
+        .standings-row-baseline {
+            background: linear-gradient(90deg, var(--baseline-row), rgba(255, 250, 241, 0.88));
+        }
+
+        .standings-row-baseline td:first-child {
+            box-shadow: inset 4px 0 0 var(--accent);
+        }
+
+        .standings-row-better {
+            background: linear-gradient(90deg, var(--good-row), rgba(255, 250, 241, 0.86));
+        }
+
+        .standings-row-better td:first-child {
+            box-shadow: inset 4px 0 0 var(--good);
+        }
+
+        .standings-row-worse {
+            background: linear-gradient(90deg, var(--bad-row), rgba(255, 250, 241, 0.86));
+        }
+
+        .standings-row-worse td:first-child {
+            box-shadow: inset 4px 0 0 var(--bad);
+        }
+
         .sortable-table th {
             padding: 0;
         }
@@ -265,6 +304,37 @@
             color: #344454;
         }
 
+        .pvalue-badge {
+            display: inline-flex;
+            align-items: center;
+            justify-content: center;
+            min-width: 4.4rem;
+            border-radius: 999px;
+            padding: 3px 9px;
+            font-weight: 700;
+            line-height: 1.2;
+        }
+
+        .pvalue-badge-baseline {
+            background: var(--accent-soft);
+            color: var(--accent);
+        }
+
+        .pvalue-badge-better {
+            background: var(--good-soft);
+            color: var(--good);
+        }
+
+        .pvalue-badge-worse {
+            background: var(--bad-soft);
+            color: var(--bad);
+        }
+
+        .pvalue-badge-neutral {
+            background: rgba(52, 68, 84, 0.08);
+            color: #344454;
+        }
+
         .footnote {
             margin: 0;
             color: var(--muted);
@@ -322,20 +392,21 @@
             <div class="panel-header">
                 <h2>Community standings</h2>
             </div>
-            <table>
+            <table class="standings-table" data-standings-table data-default-baseline="community-to-date__schadensfresse__community-to-date-md29__2026-04-12t00-12-39z__e-honda-73245507">
                 <thead>
                                         <tr>
                         <th>Rank</th>
                         <th>Participant</th>
                         <th>Kicktipp Points</th>
+                        <th>p-value vs baseline</th>
                     </tr>
                 </thead>
                 <tbody>
-                    <tr><td>1</td><td>E.Honda</td><td>371</td></tr>
-<tr><td>2</td><td>kicktipp.ai</td><td>358</td></tr>
-<tr><td>3</td><td>Dope</td><td>350</td></tr>
-<tr><td>4</td><td>Moritz</td><td>271</td></tr>
-<tr><td>5</td><td>Kreison</td><td>0</td></tr>
+                    <tr class="standings-row" data-standings-row data-run-name="community-to-date__schadensfresse__community-to-date-md29__2026-04-12t00-12-39z__e-honda-73245507" data-run-display-name="E.Honda" tabindex="0" aria-selected="false"><td>1</td><td>E.Honda</td><td>371</td><td data-standings-pvalue data-label="p-value vs baseline"></td></tr>
+<tr class="standings-row" data-standings-row data-run-name="community-to-date__schadensfresse__community-to-date-md29__2026-04-12t00-12-39z__kicktipp-ai-73245509" data-run-display-name="kicktipp.ai" tabindex="0" aria-selected="false"><td>2</td><td>kicktipp.ai</td><td>358</td><td data-standings-pvalue data-label="p-value vs baseline"></td></tr>
+<tr class="standings-row" data-standings-row data-run-name="community-to-date__schadensfresse__community-to-date-md29__2026-04-12t00-12-39z__dope-73245506" data-run-display-name="Dope" tabindex="0" aria-selected="false"><td>3</td><td>Dope</td><td>350</td><td data-standings-pvalue data-label="p-value vs baseline"></td></tr>
+<tr class="standings-row" data-standings-row data-run-name="community-to-date__schadensfresse__community-to-date-md29__2026-04-12t00-12-39z__moritz-73245508" data-run-display-name="Moritz" tabindex="0" aria-selected="false"><td>4</td><td>Moritz</td><td>271</td><td data-standings-pvalue data-label="p-value vs baseline"></td></tr>
+<tr class="standings-row" data-standings-row data-run-name="community-to-date__schadensfresse__community-to-date-md29__2026-04-12t00-12-39z__kreison-73245505" data-run-display-name="Kreison" tabindex="0" aria-selected="false"><td>5</td><td>Kreison</td><td>0</td><td data-standings-pvalue data-label="p-value vs baseline"></td></tr>
                 </tbody>
             </table>
         </section>
@@ -378,8 +449,14 @@
             <p class="footnote">Per-item win/tie/loss counts compare paired Kicktipp points for the listed run ordering on each prepared dataset item.</p>
         </section>
     </main>
+    <script type="application/json" id="standings-comparison-data">{"community-to-date__schadensfresse__community-to-date-md29__2026-04-12t00-12-39z__dope-73245506":{"community-to-date__schadensfresse__community-to-date-md29__2026-04-12t00-12-39z__dope-73245506":{"displayPValue":"baseline","pValue":null,"significance":"baseline"},"community-to-date__schadensfresse__community-to-date-md29__2026-04-12t00-12-39z__e-honda-73245507":{"displayPValue":"1.0000","pValue":1.0,"significance":"neutral"},"community-to-date__schadensfresse__community-to-date-md29__2026-04-12t00-12-39z__kicktipp-ai-73245509":{"displayPValue":"1.0000","pValue":1.0,"significance":"neutral"},"community-to-date__schadensfresse__community-to-date-md29__2026-04-12t00-12-39z__kreison-73245505":{"displayPValue":"0.0000","pValue":7.676226401123353e-25,"significance":"worse"},"community-to-date__schadensfresse__community-to-date-md29__2026-04-12t00-12-39z__moritz-73245508":{"displayPValue":"0.0072","pValue":0.007164729134146408,"significance":"worse"}},"community-to-date__schadensfresse__community-to-date-md29__2026-04-12t00-12-39z__e-honda-73245507":{"community-to-date__schadensfresse__community-to-date-md29__2026-04-12t00-12-39z__dope-73245506":{"displayPValue":"1.0000","pValue":1.0,"significance":"neutral"},"community-to-date__schadensfresse__community-to-date-md29__2026-04-12t00-12-39z__e-honda-73245507":{"displayPValue":"baseline","pValue":null,"significance":"baseline"},"community-to-date__schadensfresse__community-to-date-md29__2026-04-12t00-12-39z__kicktipp-ai-73245509":{"displayPValue":"1.0000","pValue":1.0,"significance":"neutral"},"community-to-date__schadensfresse__community-to-date-md29__2026-04-12t00-12-39z__kreison-73245505":{"displayPValue":"0.0000","pValue":1.2241689709564432e-24,"significance":"worse"},"community-to-date__schadensfresse__community-to-date-md29__2026-04-12t00-12-39z__moritz-73245508":{"displayPValue":"0.0008","pValue":0.0007563801053479058,"significance":"worse"}},"community-to-date__schadensfresse__community-to-date-md29__2026-04-12t00-12-39z__kicktipp-ai-73245509":{"community-to-date__schadensfresse__community-to-date-md29__2026-04-12t00-12-39z__dope-73245506":{"displayPValue":"1.0000","pValue":1.0,"significance":"neutral"},"community-to-date__schadensfresse__community-to-date-md29__2026-04-12t00-12-39z__e-honda-73245507":{"displayPValue":"1.0000","pValue":1.0,"significance":"neutral"},"community-to-date__schadensfresse__community-to-date-md29__2026-04-12t00-12-39z__kicktipp-ai-73245509":{"displayPValue":"baseline","pValue":null,"significance":"baseline"},"community-to-date__schadensfresse__community-to-date-md29__2026-04-12t00-12-39z__kreison-73245505":{"displayPValue":"0.0000","pValue":1.7568755188301324e-24,"significance":"worse"},"community-to-date__schadensfresse__community-to-date-md29__2026-04-12t00-12-39z__moritz-73245508":{"displayPValue":"0.0055","pValue":0.0055056148245009266,"significance":"worse"}},"community-to-date__schadensfresse__community-to-date-md29__2026-04-12t00-12-39z__kreison-73245505":{"community-to-date__schadensfresse__community-to-date-md29__2026-04-12t00-12-39z__dope-73245506":{"displayPValue":"0.0000","pValue":7.676226401123353e-25,"significance":"better"},"community-to-date__schadensfresse__community-to-date-md29__2026-04-12t00-12-39z__e-honda-73245507":{"displayPValue":"0.0000","pValue":1.2241689709564432e-24,"significance":"better"},"community-to-date__schadensfresse__community-to-date-md29__2026-04-12t00-12-39z__kicktipp-ai-73245509":{"displayPValue":"0.0000","pValue":1.7568755188301324e-24,"significance":"better"},"community-to-date__schadensfresse__community-to-date-md29__2026-04-12t00-12-39z__kreison-73245505":{"displayPValue":"baseline","pValue":null,"significance":"baseline"},"community-to-date__schadensfresse__community-to-date-md29__2026-04-12t00-12-39z__moritz-73245508":{"displayPValue":"0.0000","pValue":1.6059594244172226e-19,"significance":"better"}},"community-to-date__schadensfresse__community-to-date-md29__2026-04-12t00-12-39z__moritz-73245508":{"community-to-date__schadensfresse__community-to-date-md29__2026-04-12t00-12-39z__dope-73245506":{"displayPValue":"0.0072","pValue":0.007164729134146408,"significance":"better"},"community-to-date__schadensfresse__community-to-date-md29__2026-04-12t00-12-39z__e-honda-73245507":{"displayPValue":"0.0008","pValue":0.0007563801053479058,"significance":"better"},"community-to-date__schadensfresse__community-to-date-md29__2026-04-12t00-12-39z__kicktipp-ai-73245509":{"displayPValue":"0.0055","pValue":0.0055056148245009266,"significance":"better"},"community-to-date__schadensfresse__community-to-date-md29__2026-04-12t00-12-39z__kreison-73245505":{"displayPValue":"0.0000","pValue":1.6059594244172226e-19,"significance":"worse"},"community-to-date__schadensfresse__community-to-date-md29__2026-04-12t00-12-39z__moritz-73245508":{"displayPValue":"baseline","pValue":null,"significance":"baseline"}}}</script>
     <script>
         (() => {
+            const comparisonDataElement = document.getElementById("standings-comparison-data");
+            const standingsComparisons = comparisonDataElement
+                ? JSON.parse(comparisonDataElement.textContent || "{}")
+                : {};
+
             const readNumber = (cell) => {
                 const raw = cell?.dataset.sortValue ?? cell?.textContent?.trim() ?? "";
                 const value = Number(raw);
@@ -434,6 +511,52 @@
                 return compareText(leftCell, rightCell, direction);
             };
 
+            const clearStandingsState = (row) => {
+                row.classList.remove("standings-row-baseline", "standings-row-better", "standings-row-worse");
+            };
+
+            const setPValueBadge = (cell, text, state) => {
+                cell.textContent = "";
+                const badge = document.createElement("span");
+                badge.className = `pvalue-badge pvalue-badge-${state}`;
+                badge.textContent = text;
+                cell.appendChild(badge);
+            };
+
+            const selectStandingsBaseline = (table, baselineRunName) => {
+                const rows = Array.from(table.querySelectorAll("[data-standings-row]"));
+                const baselineComparisons = standingsComparisons[baselineRunName] || {};
+
+                rows.forEach((row) => {
+                    const runName = row.dataset.runName;
+                    const pvalueCell = row.querySelector("[data-standings-pvalue]");
+                    const comparison = baselineComparisons[runName];
+                    clearStandingsState(row);
+                    row.setAttribute("aria-selected", runName === baselineRunName ? "true" : "false");
+
+                    if (!pvalueCell) {
+                        return;
+                    }
+
+                    if (runName === baselineRunName) {
+                        row.classList.add("standings-row-baseline");
+                        setPValueBadge(pvalueCell, "baseline", "baseline");
+                        return;
+                    }
+
+                    if (!comparison) {
+                        setPValueBadge(pvalueCell, "n/a", "neutral");
+                        return;
+                    }
+
+                    const state = comparison.significance || "neutral";
+                    if (state === "better" || state === "worse") {
+                        row.classList.add(`standings-row-${state}`);
+                    }
+                    setPValueBadge(pvalueCell, comparison.displayPValue || "n/a", state);
+                });
+            };
+
             document.querySelectorAll("[data-sortable-table]").forEach((table) => {
                 const body = table.querySelector("tbody");
                 const headers = Array.from(table.querySelectorAll("thead th"));
@@ -468,6 +591,26 @@
                         rows.forEach((entry) => body.appendChild(entry.row));
                     });
                 });
+            });
+
+            document.querySelectorAll("[data-standings-table]").forEach((table) => {
+                const rows = Array.from(table.querySelectorAll("[data-standings-row]"));
+                const defaultBaseline = table.dataset.defaultBaseline || rows[0]?.dataset.runName;
+                rows.forEach((row) => {
+                    row.addEventListener("click", () => selectStandingsBaseline(table, row.dataset.runName));
+                    row.addEventListener("keydown", (event) => {
+                        if (event.key !== "Enter" && event.key !== " ") {
+                            return;
+                        }
+
+                        event.preventDefault();
+                        selectStandingsBaseline(table, row.dataset.runName);
+                    });
+                });
+
+                if (defaultBaseline) {
+                    selectStandingsBaseline(table, defaultBaseline);
+                }
             });
         })();
     </script>

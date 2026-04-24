@@ -138,6 +138,15 @@ class ExperimentAnalysisReportTests(unittest.TestCase):
         self.assertEqual(first_comparison["runADisplayName"], "Alice")
         self.assertEqual(first_comparison["runBDisplayName"], "Bob")
         self.assertTrue(first_comparison["wilcoxon"]["significantAfterCorrection"])
+        comparison_matrix = report.build_standings_comparison_matrix(report_json)
+        self.assertEqual(
+            comparison_matrix["community__alice-1"]["community__bob-2"]["significance"],
+            "worse",
+        )
+        self.assertEqual(
+            comparison_matrix["community__bob-2"]["community__alice-1"]["significance"],
+            "better",
+        )
 
         self.assertIn("## Community Standings", report_markdown)
         self.assertIn("| Rank | Participant | Kicktipp Points |", report_markdown)
@@ -146,7 +155,14 @@ class ExperimentAnalysisReportTests(unittest.TestCase):
         self.assertIn("<h2>Community standings</h2>", report_html)
         self.assertIn("<th>Participant</th>", report_html)
         self.assertIn("<th>Kicktipp Points</th>", report_html)
+        self.assertIn("<th>p-value vs baseline</th>", report_html)
         self.assertIn("<td>Alice</td>", report_html)
+        self.assertIn("data-standings-table", report_html)
+        self.assertIn('data-default-baseline="community__alice-1"', report_html)
+        self.assertIn("data-standings-pvalue", report_html)
+        self.assertIn('id="standings-comparison-data"', report_html)
+        self.assertIn("selectStandingsBaseline", report_html)
+        self.assertIn("pvalue-badge-worse", report_html)
         self.assertIn("| Alice | Bob |", report_markdown)
         self.assertNotIn("| community__alice-1 | community__bob-2 |", report_markdown)
         self.assertIn('<td data-label="Run A" data-sort-value="Alice">Alice</td>', report_html)

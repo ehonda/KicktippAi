@@ -638,27 +638,29 @@ def render_html(report: dict[str, Any]) -> str:
         title = f"Experiment Analysis - {report['datasetName']}"
         if is_community_standings_report(report):
                 ranking_heading = "Community standings"
+                default_baseline = str(report["runs"][0]["runName"]) if report["runs"] else ""
+                ranking_table_attributes = (
+                        ' class="standings-table" data-standings-table '
+                        f'data-default-baseline="{escape_html(default_baseline)}"'
+                )
                 ranking_headers = "\n".join(
                         [
                                 "                    <tr>",
                                 "                        <th>Rank</th>",
                                 "                        <th>Participant</th>",
                                 "                        <th>Kicktipp Points</th>",
+                                "                        <th>p-value vs baseline</th>",
                                 "                    </tr>",
                         ]
                 )
                 run_rows = "\n".join(
-                        render_html_table_row(
-                                [
-                                        str(run["rank"]),
-                                        str(run["runDisplayName"]),
-                                        format_kicktipp_points(run["primaryMetricValue"]),
-                                ]
-                        )
+                        render_standings_html_table_row(run)
                         for run in report["runs"]
                 )
+                standings_comparison_json = render_standings_comparison_json(report)
         else:
                 ranking_heading = "Run ranking"
+                ranking_table_attributes = ""
                 ranking_headers = "\n".join(
                         [
                                 "                    <tr>",
@@ -680,6 +682,7 @@ def render_html(report: dict[str, Any]) -> str:
                         )
                         for run in report["runs"]
                 )
+                standings_comparison_json = "{}"
 
         if report["runCount"] == 2:
                 comparison = report["comparison"]
@@ -778,6 +781,10 @@ def render_html(report: dict[str, Any]) -> str:
             --good: #1c7b5b;
             --good-soft: rgba(28, 123, 91, 0.14);
             --good-row: rgba(28, 123, 91, 0.08);
+            --bad: #b33d3d;
+            --bad-soft: rgba(179, 61, 61, 0.14);
+            --bad-row: rgba(179, 61, 61, 0.08);
+            --baseline-row: rgba(181, 83, 47, 0.10);
             --shadow: 0 24px 70px rgba(70, 45, 26, 0.12);
         }}
 
@@ -936,6 +943,41 @@ def render_html(report: dict[str, Any]) -> str:
             border-bottom: none;
         }}
 
+        .standings-table tbody tr {{
+            cursor: pointer;
+            transition: background 120ms ease;
+        }}
+
+        .standings-table tbody tr:hover,
+        .standings-table tbody tr:focus-visible {{
+            background: rgba(181, 83, 47, 0.08);
+            outline: none;
+        }}
+
+        .standings-row-baseline {{
+            background: linear-gradient(90deg, var(--baseline-row), rgba(255, 250, 241, 0.88));
+        }}
+
+        .standings-row-baseline td:first-child {{
+            box-shadow: inset 4px 0 0 var(--accent);
+        }}
+
+        .standings-row-better {{
+            background: linear-gradient(90deg, var(--good-row), rgba(255, 250, 241, 0.86));
+        }}
+
+        .standings-row-better td:first-child {{
+            box-shadow: inset 4px 0 0 var(--good);
+        }}
+
+        .standings-row-worse {{
+            background: linear-gradient(90deg, var(--bad-row), rgba(255, 250, 241, 0.86));
+        }}
+
+        .standings-row-worse td:first-child {{
+            box-shadow: inset 4px 0 0 var(--bad);
+        }}
+
         .sortable-table th {{
             padding: 0;
         }}
@@ -1026,6 +1068,37 @@ def render_html(report: dict[str, Any]) -> str:
             color: #344454;
         }}
 
+        .pvalue-badge {{
+            display: inline-flex;
+            align-items: center;
+            justify-content: center;
+            min-width: 4.4rem;
+            border-radius: 999px;
+            padding: 3px 9px;
+            font-weight: 700;
+            line-height: 1.2;
+        }}
+
+        .pvalue-badge-baseline {{
+            background: var(--accent-soft);
+            color: var(--accent);
+        }}
+
+        .pvalue-badge-better {{
+            background: var(--good-soft);
+            color: var(--good);
+        }}
+
+        .pvalue-badge-worse {{
+            background: var(--bad-soft);
+            color: var(--bad);
+        }}
+
+        .pvalue-badge-neutral {{
+            background: rgba(52, 68, 84, 0.08);
+            color: #344454;
+        }}
+
         .footnote {{
             margin: 0;
             color: var(--muted);
@@ -1083,7 +1156,7 @@ def render_html(report: dict[str, Any]) -> str:
             <div class=\"panel-header\">
                 <h2>{ranking_heading}</h2>
             </div>
-            <table>
+            <table{ranking_table_attributes}>
                 <thead>
                     {ranking_headers}
                 </thead>
@@ -1099,8 +1172,14 @@ def render_html(report: dict[str, Any]) -> str:
             <p class=\"footnote\">Per-item win/tie/loss counts compare paired Kicktipp points for the listed run ordering on each prepared dataset item.</p>
         </section>
     </main>
+    <script type=\"application/json\" id=\"standings-comparison-data\">{standings_comparison_json}</script>
     <script>
         (() => {{
+            const comparisonDataElement = document.getElementById("standings-comparison-data");
+            const standingsComparisons = comparisonDataElement
+                ? JSON.parse(comparisonDataElement.textContent || "{{}}")
+                : {{}};
+
             const readNumber = (cell) => {{
                 const raw = cell?.dataset.sortValue ?? cell?.textContent?.trim() ?? "";
                 const value = Number(raw);
@@ -1155,6 +1234,52 @@ def render_html(report: dict[str, Any]) -> str:
                 return compareText(leftCell, rightCell, direction);
             }};
 
+            const clearStandingsState = (row) => {{
+                row.classList.remove("standings-row-baseline", "standings-row-better", "standings-row-worse");
+            }};
+
+            const setPValueBadge = (cell, text, state) => {{
+                cell.textContent = "";
+                const badge = document.createElement("span");
+                badge.className = `pvalue-badge pvalue-badge-${{state}}`;
+                badge.textContent = text;
+                cell.appendChild(badge);
+            }};
+
+            const selectStandingsBaseline = (table, baselineRunName) => {{
+                const rows = Array.from(table.querySelectorAll("[data-standings-row]"));
+                const baselineComparisons = standingsComparisons[baselineRunName] || {{}};
+
+                rows.forEach((row) => {{
+                    const runName = row.dataset.runName;
+                    const pvalueCell = row.querySelector("[data-standings-pvalue]");
+                    const comparison = baselineComparisons[runName];
+                    clearStandingsState(row);
+                    row.setAttribute("aria-selected", runName === baselineRunName ? "true" : "false");
+
+                    if (!pvalueCell) {{
+                        return;
+                    }}
+
+                    if (runName === baselineRunName) {{
+                        row.classList.add("standings-row-baseline");
+                        setPValueBadge(pvalueCell, "baseline", "baseline");
+                        return;
+                    }}
+
+                    if (!comparison) {{
+                        setPValueBadge(pvalueCell, "n/a", "neutral");
+                        return;
+                    }}
+
+                    const state = comparison.significance || "neutral";
+                    if (state === "better" || state === "worse") {{
+                        row.classList.add(`standings-row-${{state}}`);
+                    }}
+                    setPValueBadge(pvalueCell, comparison.displayPValue || "n/a", state);
+                }});
+            }};
+
             document.querySelectorAll("[data-sortable-table]").forEach((table) => {{
                 const body = table.querySelector("tbody");
                 const headers = Array.from(table.querySelectorAll("thead th"));
@@ -1190,6 +1315,26 @@ def render_html(report: dict[str, Any]) -> str:
                     }});
                 }});
             }});
+
+            document.querySelectorAll("[data-standings-table]").forEach((table) => {{
+                const rows = Array.from(table.querySelectorAll("[data-standings-row]"));
+                const defaultBaseline = table.dataset.defaultBaseline || rows[0]?.dataset.runName;
+                rows.forEach((row) => {{
+                    row.addEventListener("click", () => selectStandingsBaseline(table, row.dataset.runName));
+                    row.addEventListener("keydown", (event) => {{
+                        if (event.key !== "Enter" && event.key !== " ") {{
+                            return;
+                        }}
+
+                        event.preventDefault();
+                        selectStandingsBaseline(table, row.dataset.runName);
+                    }});
+                }});
+
+                if (defaultBaseline) {{
+                    selectStandingsBaseline(table, defaultBaseline);
+                }}
+            }});
         }})();
     </script>
 </body>
@@ -1209,6 +1354,22 @@ def render_metric_card(label: str, value: Any) -> str:
 def render_html_table_row(values: Sequence[Any]) -> str:
         cells = "".join(f"<td>{escape_html(str(value))}</td>" for value in values)
         return f"<tr>{cells}</tr>"
+
+
+def render_standings_html_table_row(run: dict[str, Any]) -> str:
+        cells = [
+                f"<td>{escape_html(str(run['rank']))}</td>",
+                f"<td>{escape_html(str(run['runDisplayName']))}</td>",
+                f"<td>{escape_html(format_kicktipp_points(run['primaryMetricValue']))}</td>",
+                '<td data-standings-pvalue data-label="p-value vs baseline"></td>',
+        ]
+        return (
+                '<tr class="standings-row" data-standings-row '
+                f'data-run-name="{escape_html(str(run["runName"]))}" '
+                f'data-run-display-name="{escape_html(str(run["runDisplayName"]))}" '
+                'tabindex="0" aria-selected="false">'
+                f'{"".join(cells)}</tr>'
+        )
 
 
 def render_sortable_header(label: str, sort_type: str) -> str:
@@ -1308,6 +1469,105 @@ def format_outcome_counts(counts: dict[str, int]) -> str:
 
 def escape_html(value: str) -> str:
         return html.escape(value, quote=True)
+
+
+def render_standings_comparison_json(report: dict[str, Any]) -> str:
+        matrix = build_standings_comparison_matrix(report)
+        return (
+                json.dumps(matrix, separators=(",", ":"), sort_keys=True)
+                .replace("&", "\\u0026")
+                .replace("<", "\\u003c")
+                .replace(">", "\\u003e")
+        )
+
+
+def build_standings_comparison_matrix(report: dict[str, Any]) -> dict[str, dict[str, dict[str, Any]]]:
+        runs = [str(run["runName"]) for run in report["runs"]]
+        matrix: dict[str, dict[str, dict[str, Any]]] = {
+                run_name: {} for run_name in runs
+        }
+
+        for run_name in runs:
+                matrix[run_name][run_name] = {
+                        "displayPValue": "baseline",
+                        "pValue": None,
+                        "significance": "baseline",
+                }
+
+        if report["runCount"] == 2:
+                comparison = report["comparison"]
+                add_standings_comparison(
+                        matrix,
+                        str(comparison["betterRunName"]),
+                        str(comparison["otherRunName"]),
+                        comparison["wilcoxon"].get("pValue"),
+                        bool(comparison["wilcoxon"].get("significant")),
+                        float(comparison["primaryMetricDelta"]),
+                )
+                return matrix
+
+        for comparison in report.get("pairwiseComparisons", []):
+                add_standings_comparison(
+                        matrix,
+                        str(comparison["runAName"]),
+                        str(comparison["runBName"]),
+                        comparison["wilcoxon"].get("adjustedPValue"),
+                        bool(comparison["wilcoxon"].get("significantAfterCorrection")),
+                        float(comparison["primaryMetricDelta"]),
+                )
+
+        return matrix
+
+
+def add_standings_comparison(
+        matrix: dict[str, dict[str, dict[str, Any]]],
+        better_run_name: str,
+        other_run_name: str,
+        pvalue: float | None,
+        significant: bool,
+        better_minus_other_delta: float,
+) -> None:
+        add_directed_standings_comparison(
+                matrix,
+                baseline_run_name=better_run_name,
+                compared_run_name=other_run_name,
+                pvalue=pvalue,
+                significant=significant,
+                compared_minus_baseline_delta=-better_minus_other_delta,
+        )
+        add_directed_standings_comparison(
+                matrix,
+                baseline_run_name=other_run_name,
+                compared_run_name=better_run_name,
+                pvalue=pvalue,
+                significant=significant,
+                compared_minus_baseline_delta=better_minus_other_delta,
+        )
+
+
+def add_directed_standings_comparison(
+        matrix: dict[str, dict[str, dict[str, Any]]],
+        *,
+        baseline_run_name: str,
+        compared_run_name: str,
+        pvalue: float | None,
+        significant: bool,
+        compared_minus_baseline_delta: float,
+) -> None:
+        if baseline_run_name not in matrix or compared_run_name not in matrix:
+                return
+
+        significance = "neutral"
+        if significant and compared_minus_baseline_delta > 0:
+                significance = "better"
+        elif significant and compared_minus_baseline_delta < 0:
+                significance = "worse"
+
+        matrix[baseline_run_name][compared_run_name] = {
+                "displayPValue": format_number(pvalue),
+                "pValue": pvalue,
+                "significance": significance,
+        }
 
 
 def is_community_standings_report(report: dict[str, Any]) -> bool:

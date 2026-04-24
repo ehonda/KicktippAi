@@ -17,6 +17,10 @@
             --good: #1c7b5b;
             --good-soft: rgba(28, 123, 91, 0.14);
             --good-row: rgba(28, 123, 91, 0.08);
+            --bad: #b33d3d;
+            --bad-soft: rgba(179, 61, 61, 0.14);
+            --bad-row: rgba(179, 61, 61, 0.08);
+            --baseline-row: rgba(181, 83, 47, 0.10);
             --shadow: 0 24px 70px rgba(70, 45, 26, 0.12);
         }
 
@@ -175,6 +179,41 @@
             border-bottom: none;
         }
 
+        .standings-table tbody tr {
+            cursor: pointer;
+            transition: background 120ms ease;
+        }
+
+        .standings-table tbody tr:hover,
+        .standings-table tbody tr:focus-visible {
+            background: rgba(181, 83, 47, 0.08);
+            outline: none;
+        }
+
+        .standings-row-baseline {
+            background: linear-gradient(90deg, var(--baseline-row), rgba(255, 250, 241, 0.88));
+        }
+
+        .standings-row-baseline td:first-child {
+            box-shadow: inset 4px 0 0 var(--accent);
+        }
+
+        .standings-row-better {
+            background: linear-gradient(90deg, var(--good-row), rgba(255, 250, 241, 0.86));
+        }
+
+        .standings-row-better td:first-child {
+            box-shadow: inset 4px 0 0 var(--good);
+        }
+
+        .standings-row-worse {
+            background: linear-gradient(90deg, var(--bad-row), rgba(255, 250, 241, 0.86));
+        }
+
+        .standings-row-worse td:first-child {
+            box-shadow: inset 4px 0 0 var(--bad);
+        }
+
         .sortable-table th {
             padding: 0;
         }
@@ -265,6 +304,37 @@
             color: #344454;
         }
 
+        .pvalue-badge {
+            display: inline-flex;
+            align-items: center;
+            justify-content: center;
+            min-width: 4.4rem;
+            border-radius: 999px;
+            padding: 3px 9px;
+            font-weight: 700;
+            line-height: 1.2;
+        }
+
+        .pvalue-badge-baseline {
+            background: var(--accent-soft);
+            color: var(--accent);
+        }
+
+        .pvalue-badge-better {
+            background: var(--good-soft);
+            color: var(--good);
+        }
+
+        .pvalue-badge-worse {
+            background: var(--bad-soft);
+            color: var(--bad);
+        }
+
+        .pvalue-badge-neutral {
+            background: rgba(52, 68, 84, 0.08);
+            color: #344454;
+        }
+
         .footnote {
             margin: 0;
             color: var(--muted);
@@ -322,20 +392,21 @@
             <div class="panel-header">
                 <h2>Community standings</h2>
             </div>
-            <table>
+            <table class="standings-table" data-standings-table data-default-baseline="community-to-date__ehonda-ai-arena__community-to-date-md28__2026-04-07t01-08-32z__o3-72551660">
                 <thead>
                                         <tr>
                         <th>Rank</th>
                         <th>Participant</th>
                         <th>Kicktipp Points</th>
+                        <th>p-value vs baseline</th>
                     </tr>
                 </thead>
                 <tbody>
-                    <tr><td>1</td><td>o3</td><td>346</td></tr>
-<tr><td>2</td><td>gpt-5</td><td>336</td></tr>
-<tr><td>3</td><td>gpt-5-nano</td><td>331</td></tr>
-<tr><td>4</td><td>o4-mini</td><td>329</td></tr>
-<tr><td>5</td><td>gpt-5-mini</td><td>328</td></tr>
+                    <tr class="standings-row" data-standings-row data-run-name="community-to-date__ehonda-ai-arena__community-to-date-md28__2026-04-07t01-08-32z__o3-72551660" data-run-display-name="o3" tabindex="0" aria-selected="false"><td>1</td><td>o3</td><td>346</td><td data-standings-pvalue data-label="p-value vs baseline"></td></tr>
+<tr class="standings-row" data-standings-row data-run-name="community-to-date__ehonda-ai-arena__community-to-date-md28__2026-04-07t01-08-32z__gpt-5-72551665" data-run-display-name="gpt-5" tabindex="0" aria-selected="false"><td>2</td><td>gpt-5</td><td>336</td><td data-standings-pvalue data-label="p-value vs baseline"></td></tr>
+<tr class="standings-row" data-standings-row data-run-name="community-to-date__ehonda-ai-arena__community-to-date-md28__2026-04-07t01-08-32z__gpt-5-nano-72551667" data-run-display-name="gpt-5-nano" tabindex="0" aria-selected="false"><td>3</td><td>gpt-5-nano</td><td>331</td><td data-standings-pvalue data-label="p-value vs baseline"></td></tr>
+<tr class="standings-row" data-standings-row data-run-name="community-to-date__ehonda-ai-arena__community-to-date-md28__2026-04-07t01-08-32z__o4-mini-72505513" data-run-display-name="o4-mini" tabindex="0" aria-selected="false"><td>4</td><td>o4-mini</td><td>329</td><td data-standings-pvalue data-label="p-value vs baseline"></td></tr>
+<tr class="standings-row" data-standings-row data-run-name="community-to-date__ehonda-ai-arena__community-to-date-md28__2026-04-07t01-08-32z__gpt-5-mini-72795290" data-run-display-name="gpt-5-mini" tabindex="0" aria-selected="false"><td>5</td><td>gpt-5-mini</td><td>328</td><td data-standings-pvalue data-label="p-value vs baseline"></td></tr>
                 </tbody>
             </table>
         </section>
@@ -378,8 +449,14 @@
             <p class="footnote">Per-item win/tie/loss counts compare paired Kicktipp points for the listed run ordering on each prepared dataset item.</p>
         </section>
     </main>
+    <script type="application/json" id="standings-comparison-data">{"community-to-date__ehonda-ai-arena__community-to-date-md28__2026-04-07t01-08-32z__gpt-5-72551665":{"community-to-date__ehonda-ai-arena__community-to-date-md28__2026-04-07t01-08-32z__gpt-5-72551665":{"displayPValue":"baseline","pValue":null,"significance":"baseline"},"community-to-date__ehonda-ai-arena__community-to-date-md28__2026-04-07t01-08-32z__gpt-5-mini-72795290":{"displayPValue":"1.0000","pValue":1.0,"significance":"neutral"},"community-to-date__ehonda-ai-arena__community-to-date-md28__2026-04-07t01-08-32z__gpt-5-nano-72551667":{"displayPValue":"1.0000","pValue":1.0,"significance":"neutral"},"community-to-date__ehonda-ai-arena__community-to-date-md28__2026-04-07t01-08-32z__o3-72551660":{"displayPValue":"1.0000","pValue":1.0,"significance":"neutral"},"community-to-date__ehonda-ai-arena__community-to-date-md28__2026-04-07t01-08-32z__o4-mini-72505513":{"displayPValue":"1.0000","pValue":1.0,"significance":"neutral"}},"community-to-date__ehonda-ai-arena__community-to-date-md28__2026-04-07t01-08-32z__gpt-5-mini-72795290":{"community-to-date__ehonda-ai-arena__community-to-date-md28__2026-04-07t01-08-32z__gpt-5-72551665":{"displayPValue":"1.0000","pValue":1.0,"significance":"neutral"},"community-to-date__ehonda-ai-arena__community-to-date-md28__2026-04-07t01-08-32z__gpt-5-mini-72795290":{"displayPValue":"baseline","pValue":null,"significance":"baseline"},"community-to-date__ehonda-ai-arena__community-to-date-md28__2026-04-07t01-08-32z__gpt-5-nano-72551667":{"displayPValue":"1.0000","pValue":1.0,"significance":"neutral"},"community-to-date__ehonda-ai-arena__community-to-date-md28__2026-04-07t01-08-32z__o3-72551660":{"displayPValue":"1.0000","pValue":1.0,"significance":"neutral"},"community-to-date__ehonda-ai-arena__community-to-date-md28__2026-04-07t01-08-32z__o4-mini-72505513":{"displayPValue":"1.0000","pValue":1.0,"significance":"neutral"}},"community-to-date__ehonda-ai-arena__community-to-date-md28__2026-04-07t01-08-32z__gpt-5-nano-72551667":{"community-to-date__ehonda-ai-arena__community-to-date-md28__2026-04-07t01-08-32z__gpt-5-72551665":{"displayPValue":"1.0000","pValue":1.0,"significance":"neutral"},"community-to-date__ehonda-ai-arena__community-to-date-md28__2026-04-07t01-08-32z__gpt-5-mini-72795290":{"displayPValue":"1.0000","pValue":1.0,"significance":"neutral"},"community-to-date__ehonda-ai-arena__community-to-date-md28__2026-04-07t01-08-32z__gpt-5-nano-72551667":{"displayPValue":"baseline","pValue":null,"significance":"baseline"},"community-to-date__ehonda-ai-arena__community-to-date-md28__2026-04-07t01-08-32z__o3-72551660":{"displayPValue":"1.0000","pValue":1.0,"significance":"neutral"},"community-to-date__ehonda-ai-arena__community-to-date-md28__2026-04-07t01-08-32z__o4-mini-72505513":{"displayPValue":"1.0000","pValue":1.0,"significance":"neutral"}},"community-to-date__ehonda-ai-arena__community-to-date-md28__2026-04-07t01-08-32z__o3-72551660":{"community-to-date__ehonda-ai-arena__community-to-date-md28__2026-04-07t01-08-32z__gpt-5-72551665":{"displayPValue":"1.0000","pValue":1.0,"significance":"neutral"},"community-to-date__ehonda-ai-arena__community-to-date-md28__2026-04-07t01-08-32z__gpt-5-mini-72795290":{"displayPValue":"1.0000","pValue":1.0,"significance":"neutral"},"community-to-date__ehonda-ai-arena__community-to-date-md28__2026-04-07t01-08-32z__gpt-5-nano-72551667":{"displayPValue":"1.0000","pValue":1.0,"significance":"neutral"},"community-to-date__ehonda-ai-arena__community-to-date-md28__2026-04-07t01-08-32z__o3-72551660":{"displayPValue":"baseline","pValue":null,"significance":"baseline"},"community-to-date__ehonda-ai-arena__community-to-date-md28__2026-04-07t01-08-32z__o4-mini-72505513":{"displayPValue":"1.0000","pValue":1.0,"significance":"neutral"}},"community-to-date__ehonda-ai-arena__community-to-date-md28__2026-04-07t01-08-32z__o4-mini-72505513":{"community-to-date__ehonda-ai-arena__community-to-date-md28__2026-04-07t01-08-32z__gpt-5-72551665":{"displayPValue":"1.0000","pValue":1.0,"significance":"neutral"},"community-to-date__ehonda-ai-arena__community-to-date-md28__2026-04-07t01-08-32z__gpt-5-mini-72795290":{"displayPValue":"1.0000","pValue":1.0,"significance":"neutral"},"community-to-date__ehonda-ai-arena__community-to-date-md28__2026-04-07t01-08-32z__gpt-5-nano-72551667":{"displayPValue":"1.0000","pValue":1.0,"significance":"neutral"},"community-to-date__ehonda-ai-arena__community-to-date-md28__2026-04-07t01-08-32z__o3-72551660":{"displayPValue":"1.0000","pValue":1.0,"significance":"neutral"},"community-to-date__ehonda-ai-arena__community-to-date-md28__2026-04-07t01-08-32z__o4-mini-72505513":{"displayPValue":"baseline","pValue":null,"significance":"baseline"}}}</script>
     <script>
         (() => {
+            const comparisonDataElement = document.getElementById("standings-comparison-data");
+            const standingsComparisons = comparisonDataElement
+                ? JSON.parse(comparisonDataElement.textContent || "{}")
+                : {};
+
             const readNumber = (cell) => {
                 const raw = cell?.dataset.sortValue ?? cell?.textContent?.trim() ?? "";
                 const value = Number(raw);
@@ -434,6 +511,52 @@
                 return compareText(leftCell, rightCell, direction);
             };
 
+            const clearStandingsState = (row) => {
+                row.classList.remove("standings-row-baseline", "standings-row-better", "standings-row-worse");
+            };
+
+            const setPValueBadge = (cell, text, state) => {
+                cell.textContent = "";
+                const badge = document.createElement("span");
+                badge.className = `pvalue-badge pvalue-badge-${state}`;
+                badge.textContent = text;
+                cell.appendChild(badge);
+            };
+
+            const selectStandingsBaseline = (table, baselineRunName) => {
+                const rows = Array.from(table.querySelectorAll("[data-standings-row]"));
+                const baselineComparisons = standingsComparisons[baselineRunName] || {};
+
+                rows.forEach((row) => {
+                    const runName = row.dataset.runName;
+                    const pvalueCell = row.querySelector("[data-standings-pvalue]");
+                    const comparison = baselineComparisons[runName];
+                    clearStandingsState(row);
+                    row.setAttribute("aria-selected", runName === baselineRunName ? "true" : "false");
+
+                    if (!pvalueCell) {
+                        return;
+                    }
+
+                    if (runName === baselineRunName) {
+                        row.classList.add("standings-row-baseline");
+                        setPValueBadge(pvalueCell, "baseline", "baseline");
+                        return;
+                    }
+
+                    if (!comparison) {
+                        setPValueBadge(pvalueCell, "n/a", "neutral");
+                        return;
+                    }
+
+                    const state = comparison.significance || "neutral";
+                    if (state === "better" || state === "worse") {
+                        row.classList.add(`standings-row-${state}`);
+                    }
+                    setPValueBadge(pvalueCell, comparison.displayPValue || "n/a", state);
+                });
+            };
+
             document.querySelectorAll("[data-sortable-table]").forEach((table) => {
                 const body = table.querySelector("tbody");
                 const headers = Array.from(table.querySelectorAll("thead th"));
@@ -468,6 +591,26 @@
                         rows.forEach((entry) => body.appendChild(entry.row));
                     });
                 });
+            });
+
+            document.querySelectorAll("[data-standings-table]").forEach((table) => {
+                const rows = Array.from(table.querySelectorAll("[data-standings-row]"));
+                const defaultBaseline = table.dataset.defaultBaseline || rows[0]?.dataset.runName;
+                rows.forEach((row) => {
+                    row.addEventListener("click", () => selectStandingsBaseline(table, row.dataset.runName));
+                    row.addEventListener("keydown", (event) => {
+                        if (event.key !== "Enter" && event.key !== " ") {
+                            return;
+                        }
+
+                        event.preventDefault();
+                        selectStandingsBaseline(table, row.dataset.runName);
+                    });
+                });
+
+                if (defaultBaseline) {
+                    selectStandingsBaseline(table, defaultBaseline);
+                }
             });
         })();
     </script>
