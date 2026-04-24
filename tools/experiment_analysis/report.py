@@ -127,6 +127,24 @@ def load_bundle(path: Path) -> dict[str, Any]:
     return bundle
 
 
+def resolve_run_display_name(run: dict[str, Any]) -> str:
+    for field_name in ("runSubjectDisplayName", "model", "runName"):
+        value = normalize_optional_string(run.get(field_name))
+        if value is not None:
+            return value
+    return ""
+
+
+def normalize_optional_string(value: Any) -> str | None:
+    if value is None:
+        return None
+    if isinstance(value, (float, np.floating)) and math.isnan(float(value)):
+        return None
+
+    text = str(value).strip()
+    return text if text else None
+
+
 def analyze_bundle(
     bundle: dict[str, Any],
     *,
@@ -188,10 +206,14 @@ def analyze_bundle(
         {
             "rank": index + 1,
             "runName": str(row["runName"]),
+            "runDisplayName": resolve_run_display_name(row),
             "model": str(row["model"]),
             "promptKey": row.get("promptKey"),
             "sliceKey": row.get("sliceKey"),
             "sliceKind": row.get("sliceKind"),
+            "runSubjectKind": normalize_optional_string(row.get("runSubjectKind")),
+            "runSubjectId": normalize_optional_string(row.get("runSubjectId")),
+            "runSubjectDisplayName": normalize_optional_string(row.get("runSubjectDisplayName")),
             "primaryMetricValue": float(row["primaryMetricValue"]),
             "aggregateScores": row["aggregateScores"],
             "rowCount": int(row.get("rowCount", len(paired_scores))),
@@ -264,6 +286,8 @@ def analyze_two_run_comparison(
     return {
         "betterRunName": better_name,
         "otherRunName": other_name,
+        "betterRunDisplayName": resolve_run_display_name(better_row),
+        "otherRunDisplayName": resolve_run_display_name(other_row),
         "primaryMetricName": primary_metric_name,
         "primaryMetricDelta": float(better_row["primaryMetricValue"] - other_row["primaryMetricValue"]),
         "meanDifference": float(np.mean(differences)),
@@ -322,6 +346,10 @@ def analyze_pairwise_comparisons(
 ) -> list[dict[str, Any]]:
     pairwise_results: list[dict[str, Any]] = []
     ranking_names = [str(run["runName"]) for run in ranking_runs]
+    display_name_by_run = {
+        str(run["runName"]): resolve_run_display_name(run)
+        for run in ranking_runs
+    }
 
     for index, (left_name, right_name) in enumerate(combinations(ranking_names, 2)):
         left_scores = paired_scores[left_name].to_numpy(dtype=float)
@@ -334,6 +362,8 @@ def analyze_pairwise_comparisons(
             {
                 "runAName": left_name,
                 "runBName": right_name,
+                "runADisplayName": display_name_by_run[left_name],
+                "runBDisplayName": display_name_by_run[right_name],
                 "primaryMetricName": primary_metric_name,
                 "primaryMetricDelta": float(left_metric - right_metric),
                 "meanDifference": float(np.mean(differences)),
@@ -571,8 +601,8 @@ def render_markdown(report: dict[str, Any]) -> str:
                 ],
                 [
                     [
-                        comparison["runAName"],
-                        comparison["runBName"],
+                        comparison["runADisplayName"],
+                        comparison["runBDisplayName"],
                         format_number(comparison["primaryMetricDelta"]),
                         format_number(comparison["wilcoxon"]["pValue"]) if comparison["wilcoxon"]["pValue"] is not None else "n/a",
                         format_number(comparison["wilcoxon"]["adjustedPValue"]) if comparison["wilcoxon"]["adjustedPValue"] is not None else "n/a",
@@ -657,17 +687,7 @@ def render_html(report: dict[str, Any]) -> str:
         else:
                 friedman = report["friedman"]
                 pairwise_rows = "\n".join(
-                        render_html_table_row(
-                                [
-                                        str(comparison["runAName"]),
-                                        str(comparison["runBName"]),
-                                        format_number(comparison["primaryMetricDelta"]),
-                                    format_number(comparison["wilcoxon"]["pValue"]),
-                                        format_number(comparison["wilcoxon"]["adjustedPValue"]),
-                                        "yes" if comparison["wilcoxon"].get("significantAfterCorrection") else "no",
-                                        format_outcome_counts(comparison["perItemOutcomeCounts"]),
-                                ]
-                        )
+                        render_pairwise_html_table_row(comparison)
                         for comparison in report["pairwiseComparisons"]
                 )
                 detail_section = f"""
@@ -676,16 +696,16 @@ def render_html(report: dict[str, Any]) -> str:
                         <h2>Multi-run comparison</h2>
                         <span class=\"pill pill-neutral\">Friedman p-value {format_number(friedman['pValue'])}</span>
                     </div>
-                    <table>
+                    <table class=\"sortable-table\" data-sortable-table>
                         <thead>
                             <tr>
-                                <th>Run A</th>
-                                <th>Run B</th>
-                                <th>Primary delta</th>
-                                <th>Raw p-value</th>
-                                <th>Adjusted p-value</th>
-                                <th>Significant</th>
-                                <th>Per-item W/T/L</th>
+                                {render_sortable_header('Run A', 'text')}
+                                {render_sortable_header('Run B', 'text')}
+                                {render_sortable_header('Primary delta', 'number')}
+                                {render_sortable_header('Raw p-value', 'number')}
+                                {render_sortable_header('Adjusted p-value', 'number')}
+                                {render_sortable_header('Significant', 'boolean')}
+                                {render_sortable_header('Per-item W/T/L', 'outcome')}
                             </tr>
                         </thead>
                         <tbody>
@@ -713,6 +733,7 @@ def render_html(report: dict[str, Any]) -> str:
             --accent-soft: rgba(181, 83, 47, 0.12);
             --good: #1c7b5b;
             --good-soft: rgba(28, 123, 91, 0.14);
+            --good-row: rgba(28, 123, 91, 0.08);
             --shadow: 0 24px 70px rgba(70, 45, 26, 0.12);
         }}
 
@@ -871,6 +892,96 @@ def render_html(report: dict[str, Any]) -> str:
             border-bottom: none;
         }}
 
+        .sortable-table th {{
+            padding: 0;
+        }}
+
+        .sort-button {{
+            width: 100%;
+            border: 0;
+            background: transparent;
+            color: inherit;
+            cursor: pointer;
+            display: flex;
+            align-items: center;
+            justify-content: flex-start;
+            gap: 8px;
+            padding: 12px 14px;
+            font: inherit;
+            font-weight: 700;
+            text-align: left;
+            text-transform: inherit;
+            letter-spacing: inherit;
+        }}
+
+        .sort-button:hover,
+        .sort-button:focus-visible {{
+            background: rgba(181, 83, 47, 0.08);
+            outline: none;
+        }}
+
+        .sort-indicator {{
+            position: relative;
+            width: 8px;
+            height: 13px;
+            flex: 0 0 8px;
+        }}
+
+        .sort-indicator::before,
+        .sort-indicator::after {{
+            content: "";
+            position: absolute;
+            left: 0;
+            border-left: 4px solid transparent;
+            border-right: 4px solid transparent;
+            opacity: 0.28;
+        }}
+
+        .sort-indicator::before {{
+            top: 1px;
+            border-bottom: 5px solid currentColor;
+        }}
+
+        .sort-indicator::after {{
+            bottom: 1px;
+            border-top: 5px solid currentColor;
+        }}
+
+        .sortable-table th[aria-sort="ascending"] .sort-indicator::before,
+        .sortable-table th[aria-sort="descending"] .sort-indicator::after {{
+            opacity: 1;
+            color: var(--accent);
+        }}
+
+        .pairwise-row-significant {{
+            background: linear-gradient(90deg, var(--good-row), rgba(255, 250, 241, 0.84));
+        }}
+
+        .pairwise-row-significant td:first-child {{
+            box-shadow: inset 4px 0 0 var(--good);
+        }}
+
+        .significance-badge {{
+            display: inline-flex;
+            align-items: center;
+            justify-content: center;
+            min-width: 2.6rem;
+            border-radius: 999px;
+            padding: 3px 9px;
+            font-weight: 700;
+            line-height: 1.2;
+        }}
+
+        .significance-badge-yes {{
+            background: var(--good-soft);
+            color: var(--good);
+        }}
+
+        .significance-badge-no {{
+            background: rgba(52, 68, 84, 0.08);
+            color: #344454;
+        }}
+
         .footnote {{
             margin: 0;
             color: var(--muted);
@@ -949,6 +1060,99 @@ def render_html(report: dict[str, Any]) -> str:
             <p class=\"footnote\">Per-item win/tie/loss counts compare paired Kicktipp points for the listed run ordering on each prepared dataset item.</p>
         </section>
     </main>
+    <script>
+        (() => {{
+            const readNumber = (cell) => {{
+                const raw = cell?.dataset.sortValue ?? cell?.textContent?.trim() ?? "";
+                const value = Number(raw);
+                return {{ missing: raw === "" || Number.isNaN(value), value }};
+            }};
+
+            const compareNumbers = (leftCell, rightCell, direction) => {{
+                const left = readNumber(leftCell);
+                const right = readNumber(rightCell);
+                if (left.missing && right.missing) {{
+                    return 0;
+                }}
+                if (left.missing) {{
+                    return 1;
+                }}
+                if (right.missing) {{
+                    return -1;
+                }}
+                return direction === "asc" ? left.value - right.value : right.value - left.value;
+            }};
+
+            const compareText = (leftCell, rightCell, direction) => {{
+                const left = (leftCell?.dataset.sortValue ?? leftCell?.textContent ?? "").trim().toLocaleLowerCase();
+                const right = (rightCell?.dataset.sortValue ?? rightCell?.textContent ?? "").trim().toLocaleLowerCase();
+                const result = left.localeCompare(right, undefined, {{ numeric: true, sensitivity: "base" }});
+                return direction === "asc" ? result : -result;
+            }};
+
+            const readOutcome = (cell) => ({{
+                wins: Number(cell?.dataset.sortWins ?? 0),
+                ties: Number(cell?.dataset.sortTies ?? 0),
+                losses: Number(cell?.dataset.sortLosses ?? 0),
+            }});
+
+            const compareOutcome = (leftCell, rightCell, direction) => {{
+                const left = readOutcome(leftCell);
+                const right = readOutcome(rightCell);
+                const result =
+                    left.wins - right.wins ||
+                    left.ties - right.ties ||
+                    left.losses - right.losses;
+                return direction === "asc" ? result : -result;
+            }};
+
+            const compareCells = (leftCell, rightCell, sortType, direction) => {{
+                if (sortType === "number" || sortType === "boolean") {{
+                    return compareNumbers(leftCell, rightCell, direction);
+                }}
+                if (sortType === "outcome") {{
+                    return compareOutcome(leftCell, rightCell, direction);
+                }}
+                return compareText(leftCell, rightCell, direction);
+            }};
+
+            document.querySelectorAll("[data-sortable-table]").forEach((table) => {{
+                const body = table.querySelector("tbody");
+                const headers = Array.from(table.querySelectorAll("thead th"));
+                if (!body) {{
+                    return;
+                }}
+
+                headers.forEach((header, columnIndex) => {{
+                    const button = header.querySelector(".sort-button");
+                    if (!button) {{
+                        return;
+                    }}
+
+                    button.addEventListener("click", () => {{
+                        const direction = header.getAttribute("aria-sort") === "ascending" ? "desc" : "asc";
+                        const sortType = button.dataset.sortType ?? "text";
+                        const rows = Array.from(body.querySelectorAll("tr"))
+                            .map((row, originalIndex) => ({{ row, originalIndex }}));
+
+                        rows.sort((left, right) => {{
+                            const result = compareCells(
+                                left.row.cells[columnIndex],
+                                right.row.cells[columnIndex],
+                                sortType,
+                                direction,
+                            );
+                            return result || left.originalIndex - right.originalIndex;
+                        }});
+
+                        headers.forEach((candidate) => candidate.setAttribute("aria-sort", "none"));
+                        header.setAttribute("aria-sort", direction === "asc" ? "ascending" : "descending");
+                        rows.forEach((entry) => body.appendChild(entry.row));
+                    }});
+                }});
+            }});
+        }})();
+    </script>
 </body>
 </html>
 """
@@ -966,6 +1170,97 @@ def render_metric_card(label: str, value: Any) -> str:
 def render_html_table_row(values: Sequence[Any]) -> str:
         cells = "".join(f"<td>{escape_html(str(value))}</td>" for value in values)
         return f"<tr>{cells}</tr>"
+
+
+def render_sortable_header(label: str, sort_type: str) -> str:
+        return (
+                '<th aria-sort="none">'
+                f'<button class="sort-button" type="button" data-sort-type="{escape_html(sort_type)}">'
+                f"<span>{escape_html(label)}</span>"
+                '<span class="sort-indicator" aria-hidden="true"></span>'
+                "</button>"
+                "</th>"
+        )
+
+
+def render_pairwise_html_table_row(comparison: dict[str, Any]) -> str:
+        significant = bool(comparison["wilcoxon"].get("significantAfterCorrection"))
+        significant_text = "yes" if significant else "no"
+        row_class = "pairwise-row pairwise-row-significant" if significant else "pairwise-row"
+        counts = comparison["perItemOutcomeCounts"]
+        significant_badge = (
+                f'<span class="significance-badge significance-badge-{significant_text}">'
+                f"{significant_text}</span>"
+        )
+
+        cells = [
+                render_html_table_cell(
+                        comparison["runADisplayName"],
+                        label="Run A",
+                        sort_value=comparison["runADisplayName"],
+                ),
+                render_html_table_cell(
+                        comparison["runBDisplayName"],
+                        label="Run B",
+                        sort_value=comparison["runBDisplayName"],
+                ),
+                render_html_table_cell(
+                        format_number(comparison["primaryMetricDelta"]),
+                        label="Primary delta",
+                        sort_value=comparison["primaryMetricDelta"],
+                ),
+                render_html_table_cell(
+                        format_number(comparison["wilcoxon"]["pValue"]),
+                        label="Raw p-value",
+                        sort_value=comparison["wilcoxon"]["pValue"],
+                ),
+                render_html_table_cell(
+                        format_number(comparison["wilcoxon"]["adjustedPValue"]),
+                        label="Adjusted p-value",
+                        sort_value=comparison["wilcoxon"]["adjustedPValue"],
+                ),
+                render_html_table_cell(
+                        significant_text,
+                        label="Significant",
+                        sort_value=1 if significant else 0,
+                        html_value=significant_badge,
+                ),
+                render_html_table_cell(
+                        format_outcome_counts(counts),
+                        label="Per-item W/T/L",
+                        sort_value=format_outcome_counts(counts),
+                        extra_attributes={
+                                "data-sort-wins": counts["wins"],
+                                "data-sort-ties": counts["ties"],
+                                "data-sort-losses": counts["losses"],
+                        },
+                ),
+        ]
+        return f'<tr class="{row_class}">{"".join(cells)}</tr>'
+
+
+def render_html_table_cell(
+        value: Any,
+        *,
+        label: str,
+        sort_value: Any,
+        html_value: str | None = None,
+        extra_attributes: dict[str, Any] | None = None,
+) -> str:
+        attributes: dict[str, Any] = {
+                "data-label": label,
+                "data-sort-value": sort_value,
+        }
+        if extra_attributes is not None:
+                attributes.update(extra_attributes)
+
+        rendered_attributes = " ".join(
+                f'{name}="{escape_html(str(attribute_value))}"'
+                for name, attribute_value in attributes.items()
+                if attribute_value is not None
+        )
+        content = html_value if html_value is not None else escape_html(str(value))
+        return f"<td {rendered_attributes}>{content}</td>"
 
 
 def format_outcome_counts(counts: dict[str, int]) -> str:

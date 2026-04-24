@@ -16,6 +16,7 @@
             --accent-soft: rgba(181, 83, 47, 0.12);
             --good: #1c7b5b;
             --good-soft: rgba(28, 123, 91, 0.14);
+            --good-row: rgba(28, 123, 91, 0.08);
             --shadow: 0 24px 70px rgba(70, 45, 26, 0.12);
         }
 
@@ -174,6 +175,96 @@
             border-bottom: none;
         }
 
+        .sortable-table th {
+            padding: 0;
+        }
+
+        .sort-button {
+            width: 100%;
+            border: 0;
+            background: transparent;
+            color: inherit;
+            cursor: pointer;
+            display: flex;
+            align-items: center;
+            justify-content: flex-start;
+            gap: 8px;
+            padding: 12px 14px;
+            font: inherit;
+            font-weight: 700;
+            text-align: left;
+            text-transform: inherit;
+            letter-spacing: inherit;
+        }
+
+        .sort-button:hover,
+        .sort-button:focus-visible {
+            background: rgba(181, 83, 47, 0.08);
+            outline: none;
+        }
+
+        .sort-indicator {
+            position: relative;
+            width: 8px;
+            height: 13px;
+            flex: 0 0 8px;
+        }
+
+        .sort-indicator::before,
+        .sort-indicator::after {
+            content: "";
+            position: absolute;
+            left: 0;
+            border-left: 4px solid transparent;
+            border-right: 4px solid transparent;
+            opacity: 0.28;
+        }
+
+        .sort-indicator::before {
+            top: 1px;
+            border-bottom: 5px solid currentColor;
+        }
+
+        .sort-indicator::after {
+            bottom: 1px;
+            border-top: 5px solid currentColor;
+        }
+
+        .sortable-table th[aria-sort="ascending"] .sort-indicator::before,
+        .sortable-table th[aria-sort="descending"] .sort-indicator::after {
+            opacity: 1;
+            color: var(--accent);
+        }
+
+        .pairwise-row-significant {
+            background: linear-gradient(90deg, var(--good-row), rgba(255, 250, 241, 0.84));
+        }
+
+        .pairwise-row-significant td:first-child {
+            box-shadow: inset 4px 0 0 var(--good);
+        }
+
+        .significance-badge {
+            display: inline-flex;
+            align-items: center;
+            justify-content: center;
+            min-width: 2.6rem;
+            border-radius: 999px;
+            padding: 3px 9px;
+            font-weight: 700;
+            line-height: 1.2;
+        }
+
+        .significance-badge-yes {
+            background: var(--good-soft);
+            color: var(--good);
+        }
+
+        .significance-badge-no {
+            background: rgba(52, 68, 84, 0.08);
+            color: #344454;
+        }
+
         .footnote {
             margin: 0;
             color: var(--muted);
@@ -256,29 +347,29 @@
                         <h2>Multi-run comparison</h2>
                         <span class="pill pill-neutral">Friedman p-value 0.0000</span>
                     </div>
-                    <table>
+                    <table class="sortable-table" data-sortable-table>
                         <thead>
                             <tr>
-                                <th>Run A</th>
-                                <th>Run B</th>
-                                <th>Primary delta</th>
-                                <th>Raw p-value</th>
-                                <th>Adjusted p-value</th>
-                                <th>Significant</th>
-                                <th>Per-item W/T/L</th>
+                                <th aria-sort="none"><button class="sort-button" type="button" data-sort-type="text"><span>Run A</span><span class="sort-indicator" aria-hidden="true"></span></button></th>
+                                <th aria-sort="none"><button class="sort-button" type="button" data-sort-type="text"><span>Run B</span><span class="sort-indicator" aria-hidden="true"></span></button></th>
+                                <th aria-sort="none"><button class="sort-button" type="button" data-sort-type="number"><span>Primary delta</span><span class="sort-indicator" aria-hidden="true"></span></button></th>
+                                <th aria-sort="none"><button class="sort-button" type="button" data-sort-type="number"><span>Raw p-value</span><span class="sort-indicator" aria-hidden="true"></span></button></th>
+                                <th aria-sort="none"><button class="sort-button" type="button" data-sort-type="number"><span>Adjusted p-value</span><span class="sort-indicator" aria-hidden="true"></span></button></th>
+                                <th aria-sort="none"><button class="sort-button" type="button" data-sort-type="boolean"><span>Significant</span><span class="sort-indicator" aria-hidden="true"></span></button></th>
+                                <th aria-sort="none"><button class="sort-button" type="button" data-sort-type="outcome"><span>Per-item W/T/L</span><span class="sort-indicator" aria-hidden="true"></span></button></th>
                             </tr>
                         </thead>
                         <tbody>
-                            <tr><td>community-to-date__schadensfresse__community-to-date-md29__2026-04-12t00-12-39z__e-honda-73245507</td><td>community-to-date__schadensfresse__community-to-date-md29__2026-04-12t00-12-39z__kicktipp-ai-73245509</td><td>13.0000</td><td>0.5510</td><td>1.0000</td><td>no</td><td>35/194/29</td></tr>
-<tr><td>community-to-date__schadensfresse__community-to-date-md29__2026-04-12t00-12-39z__e-honda-73245507</td><td>community-to-date__schadensfresse__community-to-date-md29__2026-04-12t00-12-39z__dope-73245506</td><td>21.0000</td><td>0.4103</td><td>1.0000</td><td>no</td><td>46/175/37</td></tr>
-<tr><td>community-to-date__schadensfresse__community-to-date-md29__2026-04-12t00-12-39z__e-honda-73245507</td><td>community-to-date__schadensfresse__community-to-date-md29__2026-04-12t00-12-39z__moritz-73245508</td><td>100.0000</td><td>0.0001</td><td>0.0008</td><td>yes</td><td>70/159/29</td></tr>
-<tr><td>community-to-date__schadensfresse__community-to-date-md29__2026-04-12t00-12-39z__e-honda-73245507</td><td>community-to-date__schadensfresse__community-to-date-md29__2026-04-12t00-12-39z__kreison-73245505</td><td>371.0000</td><td>0.0000</td><td>0.0000</td><td>yes</td><td>136/122/0</td></tr>
-<tr><td>community-to-date__schadensfresse__community-to-date-md29__2026-04-12t00-12-39z__kicktipp-ai-73245509</td><td>community-to-date__schadensfresse__community-to-date-md29__2026-04-12t00-12-39z__dope-73245506</td><td>8.0000</td><td>0.7281</td><td>1.0000</td><td>no</td><td>44/171/43</td></tr>
-<tr><td>community-to-date__schadensfresse__community-to-date-md29__2026-04-12t00-12-39z__kicktipp-ai-73245509</td><td>community-to-date__schadensfresse__community-to-date-md29__2026-04-12t00-12-39z__moritz-73245508</td><td>87.0000</td><td>0.0011</td><td>0.0055</td><td>yes</td><td>66/155/37</td></tr>
-<tr><td>community-to-date__schadensfresse__community-to-date-md29__2026-04-12t00-12-39z__kicktipp-ai-73245509</td><td>community-to-date__schadensfresse__community-to-date-md29__2026-04-12t00-12-39z__kreison-73245505</td><td>358.0000</td><td>0.0000</td><td>0.0000</td><td>yes</td><td>133/125/0</td></tr>
-<tr><td>community-to-date__schadensfresse__community-to-date-md29__2026-04-12t00-12-39z__dope-73245506</td><td>community-to-date__schadensfresse__community-to-date-md29__2026-04-12t00-12-39z__moritz-73245508</td><td>79.0000</td><td>0.0018</td><td>0.0072</td><td>yes</td><td>64/160/34</td></tr>
-<tr><td>community-to-date__schadensfresse__community-to-date-md29__2026-04-12t00-12-39z__dope-73245506</td><td>community-to-date__schadensfresse__community-to-date-md29__2026-04-12t00-12-39z__kreison-73245505</td><td>350.0000</td><td>0.0000</td><td>0.0000</td><td>yes</td><td>134/124/0</td></tr>
-<tr><td>community-to-date__schadensfresse__community-to-date-md29__2026-04-12t00-12-39z__moritz-73245508</td><td>community-to-date__schadensfresse__community-to-date-md29__2026-04-12t00-12-39z__kreison-73245505</td><td>271.0000</td><td>0.0000</td><td>0.0000</td><td>yes</td><td>104/154/0</td></tr>
+                            <tr class="pairwise-row"><td data-label="Run A" data-sort-value="E.Honda">E.Honda</td><td data-label="Run B" data-sort-value="kicktipp.ai">kicktipp.ai</td><td data-label="Primary delta" data-sort-value="13.0">13.0000</td><td data-label="Raw p-value" data-sort-value="0.5510362762839514">0.5510</td><td data-label="Adjusted p-value" data-sort-value="1.0">1.0000</td><td data-label="Significant" data-sort-value="0"><span class="significance-badge significance-badge-no">no</span></td><td data-label="Per-item W/T/L" data-sort-value="35/194/29" data-sort-wins="35" data-sort-ties="194" data-sort-losses="29">35/194/29</td></tr>
+<tr class="pairwise-row"><td data-label="Run A" data-sort-value="E.Honda">E.Honda</td><td data-label="Run B" data-sort-value="Dope">Dope</td><td data-label="Primary delta" data-sort-value="21.0">21.0000</td><td data-label="Raw p-value" data-sort-value="0.4102658083843598">0.4103</td><td data-label="Adjusted p-value" data-sort-value="1.0">1.0000</td><td data-label="Significant" data-sort-value="0"><span class="significance-badge significance-badge-no">no</span></td><td data-label="Per-item W/T/L" data-sort-value="46/175/37" data-sort-wins="46" data-sort-ties="175" data-sort-losses="37">46/175/37</td></tr>
+<tr class="pairwise-row pairwise-row-significant"><td data-label="Run A" data-sort-value="E.Honda">E.Honda</td><td data-label="Run B" data-sort-value="Moritz">Moritz</td><td data-label="Primary delta" data-sort-value="100.0">100.0000</td><td data-label="Raw p-value" data-sort-value="0.00012606335089131765">0.0001</td><td data-label="Adjusted p-value" data-sort-value="0.0007563801053479058">0.0008</td><td data-label="Significant" data-sort-value="1"><span class="significance-badge significance-badge-yes">yes</span></td><td data-label="Per-item W/T/L" data-sort-value="70/159/29" data-sort-wins="70" data-sort-ties="159" data-sort-losses="29">70/159/29</td></tr>
+<tr class="pairwise-row pairwise-row-significant"><td data-label="Run A" data-sort-value="E.Honda">E.Honda</td><td data-label="Run B" data-sort-value="Kreison">Kreison</td><td data-label="Primary delta" data-sort-value="371.0">371.0000</td><td data-label="Raw p-value" data-sort-value="1.360187745507159e-25">0.0000</td><td data-label="Adjusted p-value" data-sort-value="1.2241689709564432e-24">0.0000</td><td data-label="Significant" data-sort-value="1"><span class="significance-badge significance-badge-yes">yes</span></td><td data-label="Per-item W/T/L" data-sort-value="136/122/0" data-sort-wins="136" data-sort-ties="122" data-sort-losses="0">136/122/0</td></tr>
+<tr class="pairwise-row"><td data-label="Run A" data-sort-value="kicktipp.ai">kicktipp.ai</td><td data-label="Run B" data-sort-value="Dope">Dope</td><td data-label="Primary delta" data-sort-value="8.0">8.0000</td><td data-label="Raw p-value" data-sort-value="0.7280583809359304">0.7281</td><td data-label="Adjusted p-value" data-sort-value="1.0">1.0000</td><td data-label="Significant" data-sort-value="0"><span class="significance-badge significance-badge-no">no</span></td><td data-label="Per-item W/T/L" data-sort-value="44/171/43" data-sort-wins="44" data-sort-ties="171" data-sort-losses="43">44/171/43</td></tr>
+<tr class="pairwise-row pairwise-row-significant"><td data-label="Run A" data-sort-value="kicktipp.ai">kicktipp.ai</td><td data-label="Run B" data-sort-value="Moritz">Moritz</td><td data-label="Primary delta" data-sort-value="87.0">87.0000</td><td data-label="Raw p-value" data-sort-value="0.0011011229649001853">0.0011</td><td data-label="Adjusted p-value" data-sort-value="0.0055056148245009266">0.0055</td><td data-label="Significant" data-sort-value="1"><span class="significance-badge significance-badge-yes">yes</span></td><td data-label="Per-item W/T/L" data-sort-value="66/155/37" data-sort-wins="66" data-sort-ties="155" data-sort-losses="37">66/155/37</td></tr>
+<tr class="pairwise-row pairwise-row-significant"><td data-label="Run A" data-sort-value="kicktipp.ai">kicktipp.ai</td><td data-label="Run B" data-sort-value="Kreison">Kreison</td><td data-label="Primary delta" data-sort-value="358.0">358.0000</td><td data-label="Raw p-value" data-sort-value="2.1960943985376655e-25">0.0000</td><td data-label="Adjusted p-value" data-sort-value="1.7568755188301324e-24">0.0000</td><td data-label="Significant" data-sort-value="1"><span class="significance-badge significance-badge-yes">yes</span></td><td data-label="Per-item W/T/L" data-sort-value="133/125/0" data-sort-wins="133" data-sort-ties="125" data-sort-losses="0">133/125/0</td></tr>
+<tr class="pairwise-row pairwise-row-significant"><td data-label="Run A" data-sort-value="Dope">Dope</td><td data-label="Run B" data-sort-value="Moritz">Moritz</td><td data-label="Primary delta" data-sort-value="79.0">79.0000</td><td data-label="Raw p-value" data-sort-value="0.001791182283536602">0.0018</td><td data-label="Adjusted p-value" data-sort-value="0.007164729134146408">0.0072</td><td data-label="Significant" data-sort-value="1"><span class="significance-badge significance-badge-yes">yes</span></td><td data-label="Per-item W/T/L" data-sort-value="64/160/34" data-sort-wins="64" data-sort-ties="160" data-sort-losses="34">64/160/34</td></tr>
+<tr class="pairwise-row pairwise-row-significant"><td data-label="Run A" data-sort-value="Dope">Dope</td><td data-label="Run B" data-sort-value="Kreison">Kreison</td><td data-label="Primary delta" data-sort-value="350.0">350.0000</td><td data-label="Raw p-value" data-sort-value="7.676226401123354e-26">0.0000</td><td data-label="Adjusted p-value" data-sort-value="7.676226401123353e-25">0.0000</td><td data-label="Significant" data-sort-value="1"><span class="significance-badge significance-badge-yes">yes</span></td><td data-label="Per-item W/T/L" data-sort-value="134/124/0" data-sort-wins="134" data-sort-ties="124" data-sort-losses="0">134/124/0</td></tr>
+<tr class="pairwise-row pairwise-row-significant"><td data-label="Run A" data-sort-value="Moritz">Moritz</td><td data-label="Run B" data-sort-value="Kreison">Kreison</td><td data-label="Primary delta" data-sort-value="271.0">271.0000</td><td data-label="Raw p-value" data-sort-value="2.294227749167461e-20">0.0000</td><td data-label="Adjusted p-value" data-sort-value="1.6059594244172226e-19">0.0000</td><td data-label="Significant" data-sort-value="1"><span class="significance-badge significance-badge-yes">yes</span></td><td data-label="Per-item W/T/L" data-sort-value="104/154/0" data-sort-wins="104" data-sort-ties="154" data-sort-losses="0">104/154/0</td></tr>
                         </tbody>
                     </table>
                 </section>
@@ -288,5 +379,98 @@
             <p class="footnote">Per-item win/tie/loss counts compare paired Kicktipp points for the listed run ordering on each prepared dataset item.</p>
         </section>
     </main>
+    <script>
+        (() => {
+            const readNumber = (cell) => {
+                const raw = cell?.dataset.sortValue ?? cell?.textContent?.trim() ?? "";
+                const value = Number(raw);
+                return { missing: raw === "" || Number.isNaN(value), value };
+            };
+
+            const compareNumbers = (leftCell, rightCell, direction) => {
+                const left = readNumber(leftCell);
+                const right = readNumber(rightCell);
+                if (left.missing && right.missing) {
+                    return 0;
+                }
+                if (left.missing) {
+                    return 1;
+                }
+                if (right.missing) {
+                    return -1;
+                }
+                return direction === "asc" ? left.value - right.value : right.value - left.value;
+            };
+
+            const compareText = (leftCell, rightCell, direction) => {
+                const left = (leftCell?.dataset.sortValue ?? leftCell?.textContent ?? "").trim().toLocaleLowerCase();
+                const right = (rightCell?.dataset.sortValue ?? rightCell?.textContent ?? "").trim().toLocaleLowerCase();
+                const result = left.localeCompare(right, undefined, { numeric: true, sensitivity: "base" });
+                return direction === "asc" ? result : -result;
+            };
+
+            const readOutcome = (cell) => ({
+                wins: Number(cell?.dataset.sortWins ?? 0),
+                ties: Number(cell?.dataset.sortTies ?? 0),
+                losses: Number(cell?.dataset.sortLosses ?? 0),
+            });
+
+            const compareOutcome = (leftCell, rightCell, direction) => {
+                const left = readOutcome(leftCell);
+                const right = readOutcome(rightCell);
+                const result =
+                    left.wins - right.wins ||
+                    left.ties - right.ties ||
+                    left.losses - right.losses;
+                return direction === "asc" ? result : -result;
+            };
+
+            const compareCells = (leftCell, rightCell, sortType, direction) => {
+                if (sortType === "number" || sortType === "boolean") {
+                    return compareNumbers(leftCell, rightCell, direction);
+                }
+                if (sortType === "outcome") {
+                    return compareOutcome(leftCell, rightCell, direction);
+                }
+                return compareText(leftCell, rightCell, direction);
+            };
+
+            document.querySelectorAll("[data-sortable-table]").forEach((table) => {
+                const body = table.querySelector("tbody");
+                const headers = Array.from(table.querySelectorAll("thead th"));
+                if (!body) {
+                    return;
+                }
+
+                headers.forEach((header, columnIndex) => {
+                    const button = header.querySelector(".sort-button");
+                    if (!button) {
+                        return;
+                    }
+
+                    button.addEventListener("click", () => {
+                        const direction = header.getAttribute("aria-sort") === "ascending" ? "desc" : "asc";
+                        const sortType = button.dataset.sortType ?? "text";
+                        const rows = Array.from(body.querySelectorAll("tr"))
+                            .map((row, originalIndex) => ({ row, originalIndex }));
+
+                        rows.sort((left, right) => {
+                            const result = compareCells(
+                                left.row.cells[columnIndex],
+                                right.row.cells[columnIndex],
+                                sortType,
+                                direction,
+                            );
+                            return result || left.originalIndex - right.originalIndex;
+                        });
+
+                        headers.forEach((candidate) => candidate.setAttribute("aria-sort", "none"));
+                        header.setAttribute("aria-sort", direction === "asc" ? "ascending" : "descending");
+                        rows.forEach((entry) => body.appendChild(entry.row));
+                    });
+                });
+            });
+        })();
+    </script>
 </body>
 </html>

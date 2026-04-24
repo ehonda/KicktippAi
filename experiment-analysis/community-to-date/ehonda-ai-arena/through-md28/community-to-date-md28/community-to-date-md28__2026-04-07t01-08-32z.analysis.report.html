@@ -16,6 +16,7 @@
             --accent-soft: rgba(181, 83, 47, 0.12);
             --good: #1c7b5b;
             --good-soft: rgba(28, 123, 91, 0.14);
+            --good-row: rgba(28, 123, 91, 0.08);
             --shadow: 0 24px 70px rgba(70, 45, 26, 0.12);
         }
 
@@ -174,6 +175,96 @@
             border-bottom: none;
         }
 
+        .sortable-table th {
+            padding: 0;
+        }
+
+        .sort-button {
+            width: 100%;
+            border: 0;
+            background: transparent;
+            color: inherit;
+            cursor: pointer;
+            display: flex;
+            align-items: center;
+            justify-content: flex-start;
+            gap: 8px;
+            padding: 12px 14px;
+            font: inherit;
+            font-weight: 700;
+            text-align: left;
+            text-transform: inherit;
+            letter-spacing: inherit;
+        }
+
+        .sort-button:hover,
+        .sort-button:focus-visible {
+            background: rgba(181, 83, 47, 0.08);
+            outline: none;
+        }
+
+        .sort-indicator {
+            position: relative;
+            width: 8px;
+            height: 13px;
+            flex: 0 0 8px;
+        }
+
+        .sort-indicator::before,
+        .sort-indicator::after {
+            content: "";
+            position: absolute;
+            left: 0;
+            border-left: 4px solid transparent;
+            border-right: 4px solid transparent;
+            opacity: 0.28;
+        }
+
+        .sort-indicator::before {
+            top: 1px;
+            border-bottom: 5px solid currentColor;
+        }
+
+        .sort-indicator::after {
+            bottom: 1px;
+            border-top: 5px solid currentColor;
+        }
+
+        .sortable-table th[aria-sort="ascending"] .sort-indicator::before,
+        .sortable-table th[aria-sort="descending"] .sort-indicator::after {
+            opacity: 1;
+            color: var(--accent);
+        }
+
+        .pairwise-row-significant {
+            background: linear-gradient(90deg, var(--good-row), rgba(255, 250, 241, 0.84));
+        }
+
+        .pairwise-row-significant td:first-child {
+            box-shadow: inset 4px 0 0 var(--good);
+        }
+
+        .significance-badge {
+            display: inline-flex;
+            align-items: center;
+            justify-content: center;
+            min-width: 2.6rem;
+            border-radius: 999px;
+            padding: 3px 9px;
+            font-weight: 700;
+            line-height: 1.2;
+        }
+
+        .significance-badge-yes {
+            background: var(--good-soft);
+            color: var(--good);
+        }
+
+        .significance-badge-no {
+            background: rgba(52, 68, 84, 0.08);
+            color: #344454;
+        }
+
         .footnote {
             margin: 0;
             color: var(--muted);
@@ -256,29 +347,29 @@
                         <h2>Multi-run comparison</h2>
                         <span class="pill pill-neutral">Friedman p-value 0.7401</span>
                     </div>
-                    <table>
+                    <table class="sortable-table" data-sortable-table>
                         <thead>
                             <tr>
-                                <th>Run A</th>
-                                <th>Run B</th>
-                                <th>Primary delta</th>
-                                <th>Raw p-value</th>
-                                <th>Adjusted p-value</th>
-                                <th>Significant</th>
-                                <th>Per-item W/T/L</th>
+                                <th aria-sort="none"><button class="sort-button" type="button" data-sort-type="text"><span>Run A</span><span class="sort-indicator" aria-hidden="true"></span></button></th>
+                                <th aria-sort="none"><button class="sort-button" type="button" data-sort-type="text"><span>Run B</span><span class="sort-indicator" aria-hidden="true"></span></button></th>
+                                <th aria-sort="none"><button class="sort-button" type="button" data-sort-type="number"><span>Primary delta</span><span class="sort-indicator" aria-hidden="true"></span></button></th>
+                                <th aria-sort="none"><button class="sort-button" type="button" data-sort-type="number"><span>Raw p-value</span><span class="sort-indicator" aria-hidden="true"></span></button></th>
+                                <th aria-sort="none"><button class="sort-button" type="button" data-sort-type="number"><span>Adjusted p-value</span><span class="sort-indicator" aria-hidden="true"></span></button></th>
+                                <th aria-sort="none"><button class="sort-button" type="button" data-sort-type="boolean"><span>Significant</span><span class="sort-indicator" aria-hidden="true"></span></button></th>
+                                <th aria-sort="none"><button class="sort-button" type="button" data-sort-type="outcome"><span>Per-item W/T/L</span><span class="sort-indicator" aria-hidden="true"></span></button></th>
                             </tr>
                         </thead>
                         <tbody>
-                            <tr><td>community-to-date__ehonda-ai-arena__community-to-date-md28__2026-04-07t01-08-32z__o3-72551660</td><td>community-to-date__ehonda-ai-arena__community-to-date-md28__2026-04-07t01-08-32z__gpt-5-72551665</td><td>10.0000</td><td>0.7767</td><td>1.0000</td><td>no</td><td>29/199/24</td></tr>
-<tr><td>community-to-date__ehonda-ai-arena__community-to-date-md28__2026-04-07t01-08-32z__o3-72551660</td><td>community-to-date__ehonda-ai-arena__community-to-date-md28__2026-04-07t01-08-32z__gpt-5-nano-72551667</td><td>15.0000</td><td>0.4962</td><td>1.0000</td><td>no</td><td>42/175/35</td></tr>
-<tr><td>community-to-date__ehonda-ai-arena__community-to-date-md28__2026-04-07t01-08-32z__o3-72551660</td><td>community-to-date__ehonda-ai-arena__community-to-date-md28__2026-04-07t01-08-32z__o4-mini-72505513</td><td>17.0000</td><td>0.4686</td><td>1.0000</td><td>no</td><td>33/195/24</td></tr>
-<tr><td>community-to-date__ehonda-ai-arena__community-to-date-md28__2026-04-07t01-08-32z__o3-72551660</td><td>community-to-date__ehonda-ai-arena__community-to-date-md28__2026-04-07t01-08-32z__gpt-5-mini-72795290</td><td>18.0000</td><td>0.4106</td><td>1.0000</td><td>no</td><td>35/191/26</td></tr>
-<tr><td>community-to-date__ehonda-ai-arena__community-to-date-md28__2026-04-07t01-08-32z__gpt-5-72551665</td><td>community-to-date__ehonda-ai-arena__community-to-date-md28__2026-04-07t01-08-32z__gpt-5-nano-72551667</td><td>5.0000</td><td>0.6785</td><td>1.0000</td><td>no</td><td>36/183/33</td></tr>
-<tr><td>community-to-date__ehonda-ai-arena__community-to-date-md28__2026-04-07t01-08-32z__gpt-5-72551665</td><td>community-to-date__ehonda-ai-arena__community-to-date-md28__2026-04-07t01-08-32z__o4-mini-72505513</td><td>7.0000</td><td>0.6530</td><td>1.0000</td><td>no</td><td>28/200/24</td></tr>
-<tr><td>community-to-date__ehonda-ai-arena__community-to-date-md28__2026-04-07t01-08-32z__gpt-5-72551665</td><td>community-to-date__ehonda-ai-arena__community-to-date-md28__2026-04-07t01-08-32z__gpt-5-mini-72795290</td><td>8.0000</td><td>0.7128</td><td>1.0000</td><td>no</td><td>34/191/27</td></tr>
-<tr><td>community-to-date__ehonda-ai-arena__community-to-date-md28__2026-04-07t01-08-32z__gpt-5-nano-72551667</td><td>community-to-date__ehonda-ai-arena__community-to-date-md28__2026-04-07t01-08-32z__o4-mini-72505513</td><td>2.0000</td><td>0.8791</td><td>1.0000</td><td>no</td><td>32/186/34</td></tr>
-<tr><td>community-to-date__ehonda-ai-arena__community-to-date-md28__2026-04-07t01-08-32z__gpt-5-nano-72551667</td><td>community-to-date__ehonda-ai-arena__community-to-date-md28__2026-04-07t01-08-32z__gpt-5-mini-72795290</td><td>3.0000</td><td>0.7823</td><td>1.0000</td><td>no</td><td>36/177/39</td></tr>
-<tr><td>community-to-date__ehonda-ai-arena__community-to-date-md28__2026-04-07t01-08-32z__o4-mini-72505513</td><td>community-to-date__ehonda-ai-arena__community-to-date-md28__2026-04-07t01-08-32z__gpt-5-mini-72795290</td><td>1.0000</td><td>0.9403</td><td>1.0000</td><td>no</td><td>23/205/24</td></tr>
+                            <tr class="pairwise-row"><td data-label="Run A" data-sort-value="o3">o3</td><td data-label="Run B" data-sort-value="gpt-5">gpt-5</td><td data-label="Primary delta" data-sort-value="10.0">10.0000</td><td data-label="Raw p-value" data-sort-value="0.7767259736556178">0.7767</td><td data-label="Adjusted p-value" data-sort-value="1.0">1.0000</td><td data-label="Significant" data-sort-value="0"><span class="significance-badge significance-badge-no">no</span></td><td data-label="Per-item W/T/L" data-sort-value="29/199/24" data-sort-wins="29" data-sort-ties="199" data-sort-losses="24">29/199/24</td></tr>
+<tr class="pairwise-row"><td data-label="Run A" data-sort-value="o3">o3</td><td data-label="Run B" data-sort-value="gpt-5-nano">gpt-5-nano</td><td data-label="Primary delta" data-sort-value="15.0">15.0000</td><td data-label="Raw p-value" data-sort-value="0.4962226464380348">0.4962</td><td data-label="Adjusted p-value" data-sort-value="1.0">1.0000</td><td data-label="Significant" data-sort-value="0"><span class="significance-badge significance-badge-no">no</span></td><td data-label="Per-item W/T/L" data-sort-value="42/175/35" data-sort-wins="42" data-sort-ties="175" data-sort-losses="35">42/175/35</td></tr>
+<tr class="pairwise-row"><td data-label="Run A" data-sort-value="o3">o3</td><td data-label="Run B" data-sort-value="o4-mini">o4-mini</td><td data-label="Primary delta" data-sort-value="17.0">17.0000</td><td data-label="Raw p-value" data-sort-value="0.46860384088739104">0.4686</td><td data-label="Adjusted p-value" data-sort-value="1.0">1.0000</td><td data-label="Significant" data-sort-value="0"><span class="significance-badge significance-badge-no">no</span></td><td data-label="Per-item W/T/L" data-sort-value="33/195/24" data-sort-wins="33" data-sort-ties="195" data-sort-losses="24">33/195/24</td></tr>
+<tr class="pairwise-row"><td data-label="Run A" data-sort-value="o3">o3</td><td data-label="Run B" data-sort-value="gpt-5-mini">gpt-5-mini</td><td data-label="Primary delta" data-sort-value="18.0">18.0000</td><td data-label="Raw p-value" data-sort-value="0.4106375319385177">0.4106</td><td data-label="Adjusted p-value" data-sort-value="1.0">1.0000</td><td data-label="Significant" data-sort-value="0"><span class="significance-badge significance-badge-no">no</span></td><td data-label="Per-item W/T/L" data-sort-value="35/191/26" data-sort-wins="35" data-sort-ties="191" data-sort-losses="26">35/191/26</td></tr>
+<tr class="pairwise-row"><td data-label="Run A" data-sort-value="gpt-5">gpt-5</td><td data-label="Run B" data-sort-value="gpt-5-nano">gpt-5-nano</td><td data-label="Primary delta" data-sort-value="5.0">5.0000</td><td data-label="Raw p-value" data-sort-value="0.6785415851425891">0.6785</td><td data-label="Adjusted p-value" data-sort-value="1.0">1.0000</td><td data-label="Significant" data-sort-value="0"><span class="significance-badge significance-badge-no">no</span></td><td data-label="Per-item W/T/L" data-sort-value="36/183/33" data-sort-wins="36" data-sort-ties="183" data-sort-losses="33">36/183/33</td></tr>
+<tr class="pairwise-row"><td data-label="Run A" data-sort-value="gpt-5">gpt-5</td><td data-label="Run B" data-sort-value="o4-mini">o4-mini</td><td data-label="Primary delta" data-sort-value="7.0">7.0000</td><td data-label="Raw p-value" data-sort-value="0.6529521690386144">0.6530</td><td data-label="Adjusted p-value" data-sort-value="1.0">1.0000</td><td data-label="Significant" data-sort-value="0"><span class="significance-badge significance-badge-no">no</span></td><td data-label="Per-item W/T/L" data-sort-value="28/200/24" data-sort-wins="28" data-sort-ties="200" data-sort-losses="24">28/200/24</td></tr>
+<tr class="pairwise-row"><td data-label="Run A" data-sort-value="gpt-5">gpt-5</td><td data-label="Run B" data-sort-value="gpt-5-mini">gpt-5-mini</td><td data-label="Primary delta" data-sort-value="8.0">8.0000</td><td data-label="Raw p-value" data-sort-value="0.7128470347311906">0.7128</td><td data-label="Adjusted p-value" data-sort-value="1.0">1.0000</td><td data-label="Significant" data-sort-value="0"><span class="significance-badge significance-badge-no">no</span></td><td data-label="Per-item W/T/L" data-sort-value="34/191/27" data-sort-wins="34" data-sort-ties="191" data-sort-losses="27">34/191/27</td></tr>
+<tr class="pairwise-row"><td data-label="Run A" data-sort-value="gpt-5-nano">gpt-5-nano</td><td data-label="Run B" data-sort-value="o4-mini">o4-mini</td><td data-label="Primary delta" data-sort-value="2.0">2.0000</td><td data-label="Raw p-value" data-sort-value="0.8791325746227464">0.8791</td><td data-label="Adjusted p-value" data-sort-value="1.0">1.0000</td><td data-label="Significant" data-sort-value="0"><span class="significance-badge significance-badge-no">no</span></td><td data-label="Per-item W/T/L" data-sort-value="32/186/34" data-sort-wins="32" data-sort-ties="186" data-sort-losses="34">32/186/34</td></tr>
+<tr class="pairwise-row"><td data-label="Run A" data-sort-value="gpt-5-nano">gpt-5-nano</td><td data-label="Run B" data-sort-value="gpt-5-mini">gpt-5-mini</td><td data-label="Primary delta" data-sort-value="3.0">3.0000</td><td data-label="Raw p-value" data-sort-value="0.7823124493927784">0.7823</td><td data-label="Adjusted p-value" data-sort-value="1.0">1.0000</td><td data-label="Significant" data-sort-value="0"><span class="significance-badge significance-badge-no">no</span></td><td data-label="Per-item W/T/L" data-sort-value="36/177/39" data-sort-wins="36" data-sort-ties="177" data-sort-losses="39">36/177/39</td></tr>
+<tr class="pairwise-row"><td data-label="Run A" data-sort-value="o4-mini">o4-mini</td><td data-label="Run B" data-sort-value="gpt-5-mini">gpt-5-mini</td><td data-label="Primary delta" data-sort-value="1.0">1.0000</td><td data-label="Raw p-value" data-sort-value="0.9402784503289788">0.9403</td><td data-label="Adjusted p-value" data-sort-value="1.0">1.0000</td><td data-label="Significant" data-sort-value="0"><span class="significance-badge significance-badge-no">no</span></td><td data-label="Per-item W/T/L" data-sort-value="23/205/24" data-sort-wins="23" data-sort-ties="205" data-sort-losses="24">23/205/24</td></tr>
                         </tbody>
                     </table>
                 </section>
@@ -288,5 +379,98 @@
             <p class="footnote">Per-item win/tie/loss counts compare paired Kicktipp points for the listed run ordering on each prepared dataset item.</p>
         </section>
     </main>
+    <script>
+        (() => {
+            const readNumber = (cell) => {
+                const raw = cell?.dataset.sortValue ?? cell?.textContent?.trim() ?? "";
+                const value = Number(raw);
+                return { missing: raw === "" || Number.isNaN(value), value };
+            };
+
+            const compareNumbers = (leftCell, rightCell, direction) => {
+                const left = readNumber(leftCell);
+                const right = readNumber(rightCell);
+                if (left.missing && right.missing) {
+                    return 0;
+                }
+                if (left.missing) {
+                    return 1;
+                }
+                if (right.missing) {
+                    return -1;
+                }
+                return direction === "asc" ? left.value - right.value : right.value - left.value;
+            };
+
+            const compareText = (leftCell, rightCell, direction) => {
+                const left = (leftCell?.dataset.sortValue ?? leftCell?.textContent ?? "").trim().toLocaleLowerCase();
+                const right = (rightCell?.dataset.sortValue ?? rightCell?.textContent ?? "").trim().toLocaleLowerCase();
+                const result = left.localeCompare(right, undefined, { numeric: true, sensitivity: "base" });
+                return direction === "asc" ? result : -result;
+            };
+
+            const readOutcome = (cell) => ({
+                wins: Number(cell?.dataset.sortWins ?? 0),
+                ties: Number(cell?.dataset.sortTies ?? 0),
+                losses: Number(cell?.dataset.sortLosses ?? 0),
+            });
+
+            const compareOutcome = (leftCell, rightCell, direction) => {
+                const left = readOutcome(leftCell);
+                const right = readOutcome(rightCell);
+                const result =
+                    left.wins - right.wins ||
+                    left.ties - right.ties ||
+                    left.losses - right.losses;
+                return direction === "asc" ? result : -result;
+            };
+
+            const compareCells = (leftCell, rightCell, sortType, direction) => {
+                if (sortType === "number" || sortType === "boolean") {
+                    return compareNumbers(leftCell, rightCell, direction);
+                }
+                if (sortType === "outcome") {
+                    return compareOutcome(leftCell, rightCell, direction);
+                }
+                return compareText(leftCell, rightCell, direction);
+            };
+
+            document.querySelectorAll("[data-sortable-table]").forEach((table) => {
+                const body = table.querySelector("tbody");
+                const headers = Array.from(table.querySelectorAll("thead th"));
+                if (!body) {
+                    return;
+                }
+
+                headers.forEach((header, columnIndex) => {
+                    const button = header.querySelector(".sort-button");
+                    if (!button) {
+                        return;
+                    }
+
+                    button.addEventListener("click", () => {
+                        const direction = header.getAttribute("aria-sort") === "ascending" ? "desc" : "asc";
+                        const sortType = button.dataset.sortType ?? "text";
+                        const rows = Array.from(body.querySelectorAll("tr"))
+                            .map((row, originalIndex) => ({ row, originalIndex }));
+
+                        rows.sort((left, right) => {
+                            const result = compareCells(
+                                left.row.cells[columnIndex],
+                                right.row.cells[columnIndex],
+                                sortType,
+                                direction,
+                            );
+                            return result || left.originalIndex - right.originalIndex;
+                        });
+
+                        headers.forEach((candidate) => candidate.setAttribute("aria-sort", "none"));
+                        header.setAttribute("aria-sort", direction === "asc" ? "ascending" : "descending");
+                        rows.forEach((entry) => body.appendChild(entry.row));
+                    });
+                });
+            });
+        })();
+    </script>
 </body>
 </html>
