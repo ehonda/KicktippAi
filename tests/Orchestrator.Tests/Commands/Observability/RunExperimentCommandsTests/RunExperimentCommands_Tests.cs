@@ -259,13 +259,17 @@ public class RunExperimentCommands_Tests
             await Assert.That(output).Contains("\"taskType\": \"slice\"");
             await Assert.That(output).Contains("\"total_kicktipp_points\": 4");
             await Assert.That(postedScores.Select(score => score.Name).OrderBy(name => name))
-                .IsEquivalentTo(["avg_kicktipp_points", "total_kicktipp_points"]);
+                .IsEquivalentTo(["avg_kicktipp_points", "kicktipp_points", "total_kicktipp_points"]);
             await Assert.That(postedScores.All(score => !string.IsNullOrWhiteSpace(score.Id))).IsTrue();
-            await Assert.That(postedScores.Select(score => score.Id).Distinct(StringComparer.Ordinal).Count()).IsEqualTo(2);
-            await Assert.That(capturedActivities.Any(activity => activity.OperationName == "experiment-item-run")).IsTrue();
+            await Assert.That(postedScores.Select(score => score.Id).Distinct(StringComparer.Ordinal).Count()).IsEqualTo(3);
+            var experimentItemRun = capturedActivities.Single(activity => activity.OperationName == "experiment-item-run");
+            await Assert.That(experimentItemRun.GetTagItem("langfuse.observation.input")?.ToString()).Contains(sliceDatasetItemId);
+            await Assert.That(experimentItemRun.GetTagItem("langfuse.observation.output")?.ToString()).Contains("\"homeGoals\":2");
+            await Assert.That(experimentItemRun.GetTagItem("langfuse.trace.tags")?.ToString()).DoesNotContain("phase-2");
+            await Assert.That(experimentItemRun.GetTagItem("langfuse.trace.tags")?.ToString()).DoesNotContain("experiment");
 
             langfuseClient.Verify(client => client.CreateDatasetRunItemAsync(It.IsAny<LangfuseCreateDatasetRunItemRequest>(), It.IsAny<CancellationToken>()), Times.Once());
-            langfuseClient.Verify(client => client.CreateScoreAsync(It.IsAny<LangfuseCreateScoreRequest>(), It.IsAny<CancellationToken>()), Times.Exactly(2));
+            langfuseClient.Verify(client => client.CreateScoreAsync(It.IsAny<LangfuseCreateScoreRequest>(), It.IsAny<CancellationToken>()), Times.Exactly(3));
         }
         finally
         {
@@ -477,7 +481,7 @@ public class RunExperimentCommands_Tests
             await Assert.That(output).Contains("\"executionCount\": 1");
             await Assert.That(output).Contains("\"taskType\": \"repeated-match\"");
             await Assert.That(postedScores.Select(score => score.Name).OrderBy(name => name))
-                .IsEquivalentTo(["avg_kicktipp_points", "total_kicktipp_points"]);
+                .IsEquivalentTo(["avg_kicktipp_points", "kicktipp_points", "total_kicktipp_points"]);
             await Assert.That(capturedActivities.Any(activity => activity.OperationName == "experiment-item-run")).IsTrue();
 
             contextRepository.Verify(repository => repository.GetContextDocumentByTimestampAsync(
@@ -688,12 +692,15 @@ public class RunExperimentCommands_Tests
                 .IsEquivalentTo([
                     "avg_kicktipp_points",
                     "avg_kicktipp_points",
+                    "kicktipp_points",
+                    "kicktipp_points",
                     "total_kicktipp_points",
                     "total_kicktipp_points"
                 ]);
             await Assert.That(postedScores.All(score => !string.IsNullOrWhiteSpace(score.Id))).IsTrue();
-            await Assert.That(postedScores.Select(score => score.Id).Distinct(StringComparer.Ordinal).Count()).IsEqualTo(4);
+            await Assert.That(postedScores.Select(score => score.Id).Distinct(StringComparer.Ordinal).Count()).IsEqualTo(6);
             await Assert.That(capturedActivities.Any(activity => activity.OperationName == "community-match-prediction")).IsTrue();
+            await Assert.That(postedScores.Where(score => score.Name == "kicktipp_points").All(score => !string.IsNullOrWhiteSpace(score.ObservationId))).IsTrue();
 
             var predictionObservations = capturedActivities
                 .Where(activity => activity.OperationName == "community-match-prediction")

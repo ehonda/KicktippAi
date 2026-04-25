@@ -143,7 +143,7 @@ Scores are intentionally modeled as cross-task outputs rather than task-specific
 
 The currently posted score set is:
 
-- item-level `kicktipp_points`
+- item-level `kicktipp_points` on the linked trace or prediction observation
 - run-level `total_kicktipp_points`
 - run-level `avg_kicktipp_points`
 
@@ -162,13 +162,17 @@ For direct .NET runs, the runner therefore emits:
 - trace metadata `experiment_name`
 - trace metadata `experiment_run_name`
 - trace metadata `dataset_item_id`
+- root observation input/output on `experiment-item-run`
 - dataset run item `observationId`
 - dataset run metadata `experiment_name`
 - dataset run metadata `experiment_run_name`
+- item-level `kicktipp_points` scores linked to the item trace or prediction observation
 
 `experiment_name` is the stable grouping identity for the experiment. For prepared slice and repeated-match runs, it is derived from task type, community, and slice key. For community-to-date runs, it is the run family name.
 
 `experiment_run_name` is the concrete Langfuse dataset run name. Analysis-bundle publishing uses an alias run name with the default suffix `__experiments-beta` so existing dataset runs are not modified.
+
+Experiment trace tags are intentionally domain-specific. Generic tags such as `phase-2` and `experiment` are not emitted by current runners because the `sdk-experiment` environment and experiment metadata already identify these traces for Langfuse.
 
 ## Why This Model
 

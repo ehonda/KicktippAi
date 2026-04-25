@@ -243,11 +243,7 @@ internal static class PreparedExperimentSupport
 
     public static IReadOnlyList<string> DeriveTraceTags(PreparedExperimentRunMetadata runMetadata)
     {
-        var tags = new List<string>
-        {
-            "phase-2",
-            "experiment"
-        };
+        var tags = new List<string>();
 
         if (!string.IsNullOrWhiteSpace(runMetadata.TaskType))
         {

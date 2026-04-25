@@ -452,7 +452,8 @@ internal sealed class PreparedExperimentRunExecutor
             },
             promptTemplatePath = reconstructedPrompt.PromptTemplatePath
         };
-        activity?.SetTag("langfuse.trace.input", JsonSerializer.Serialize(traceInput, TraceJsonOptions));
+        var traceInputJson = JsonSerializer.Serialize(traceInput, TraceJsonOptions);
+        SetTraceAndRootObservationInput(activity, traceInputJson);
 
         var prediction = await predictionService.PredictMatchAsync(
             promptMatch,
@@ -463,14 +464,14 @@ internal sealed class PreparedExperimentRunExecutor
 
         if (prediction is null)
         {
-            activity?.SetTag(
-                "langfuse.trace.output",
+            SetTraceAndRootObservationOutput(
+                activity,
                 JsonSerializer.Serialize(new { error = "Failed to generate prediction" }, TraceJsonOptions));
             throw new InvalidOperationException(
                 $"Failed to generate prediction for {item.HomeTeam} vs {item.AwayTeam} on matchday {item.Matchday}.");
         }
 
-        activity?.SetTag("langfuse.trace.output", JsonSerializer.Serialize(prediction, TraceJsonOptions));
+        SetTraceAndRootObservationOutput(activity, JsonSerializer.Serialize(prediction, TraceJsonOptions));
 
         var traceId = activity?.TraceId.ToString();
         if (string.IsNullOrWhiteSpace(traceId))
@@ -491,6 +492,17 @@ internal sealed class PreparedExperimentRunExecutor
         SetExperimentRunId(activity, datasetRunItem.DatasetRunId);
 
         var itemScores = PreparedExperimentSupport.CalculateScores(prediction, outcome.HomeGoals.Value, outcome.AwayGoals.Value);
+        await PostItemScoreAsync(
+            datasetRunItem.DatasetRunId,
+            datasetName,
+            request.RunName,
+            experimentName,
+            runMetadata,
+            item,
+            traceId,
+            activity?.SpanId.ToString(),
+            itemScores,
+            cancellationToken);
 
         return new PreparedExperimentExecutionResult(
             datasetRunItem.DatasetRunId,
@@ -564,11 +576,13 @@ internal sealed class PreparedExperimentRunExecutor
             traceTags,
             propagatedMetadata);
 
-        activity?.SetTag("langfuse.trace.input", traceInput);
-        activity?.SetTag("langfuse.trace.output", predictionPayload.GetRawText());
+        SetTraceAndRootObservationInput(activity, traceInput);
+        SetTraceAndRootObservationOutput(activity, predictionPayload.GetRawText());
 
+        string? predictionObservationId = null;
         using (var observation = Telemetry.Source.StartActivity(runMetadata.ObservationName ?? "community-match-prediction"))
         {
+            predictionObservationId = observation?.SpanId.ToString();
             ConfigureCommunityPredictionObservation(observation, participant, participantPrediction, item, predictionPayload);
         }
 
@@ -591,6 +605,17 @@ internal sealed class PreparedExperimentRunExecutor
         SetExperimentRunId(activity, datasetRunItem.DatasetRunId);
 
         var itemScores = new ExperimentItemScores(participantPrediction.KicktippPoints);
+        await PostItemScoreAsync(
+            datasetRunItem.DatasetRunId,
+            datasetName,
+            runName,
+            experimentName,
+            runMetadata,
+            item,
+            traceId,
+            predictionObservationId ?? activity?.SpanId.ToString(),
+            itemScores,
+            cancellationToken);
 
         return new PreparedExperimentExecutionResult(
             datasetRunItem.DatasetRunId,
@@ -622,7 +647,8 @@ internal sealed class PreparedExperimentRunExecutor
                 DatasetRunId: datasetRunId,
                 Comment: $"Aggregate score for {runMetadata.SampleSize} item(s)",
                 Id: PreparedExperimentSupport.CreateScoreId("total_kicktipp_points", datasetRunId),
-                Metadata: runMetadataPayload),
+                Metadata: runMetadataPayload,
+                Environment: "sdk-experiment"),
             cancellationToken);
 
         await _langfuseClient.CreateScoreAsync(
@@ -632,10 +658,61 @@ internal sealed class PreparedExperimentRunExecutor
                 DatasetRunId: datasetRunId,
                 Comment: $"Aggregate score for {runMetadata.SampleSize} item(s)",
                 Id: PreparedExperimentSupport.CreateScoreId("avg_kicktipp_points", datasetRunId),
-                Metadata: runMetadataPayload),
+                Metadata: runMetadataPayload,
+                Environment: "sdk-experiment"),
             cancellationToken);
 
         return aggregateScores;
+    }
+
+    private async Task PostItemScoreAsync(
+        string datasetRunId,
+        string datasetName,
+        string runName,
+        string experimentName,
+        PreparedExperimentRunMetadata runMetadata,
+        PreparedExperimentManifestItem item,
+        string traceId,
+        string? observationId,
+        ExperimentItemScores itemScores,
+        CancellationToken cancellationToken)
+    {
+        var metadata = JsonSerializer.SerializeToElement(new
+        {
+            datasetRunId,
+            datasetRunName = runName,
+            datasetName,
+            datasetItemId = item.SliceDatasetItemId,
+            sourceDatasetItemId = item.SourceDatasetItemId,
+            experiment_name = experimentName,
+            experiment_run_name = runName,
+            task = runMetadata.TaskType,
+            runSubjectKind = runMetadata.RunSubjectKind,
+            runSubjectId = runMetadata.RunSubjectId,
+            runSubjectDisplayName = runMetadata.RunSubjectDisplayName,
+            item.HomeTeam,
+            item.AwayTeam,
+            item.Matchday,
+            item.TippSpielId
+        }, PreparedExperimentCommandSupport.JsonOptions);
+
+        await _langfuseClient.CreateScoreAsync(
+            new LangfuseCreateScoreRequest(
+                "kicktipp_points",
+                itemScores.KicktippPoints,
+                TraceId: traceId,
+                ObservationId: string.IsNullOrWhiteSpace(observationId) ? null : observationId,
+                DataType: "NUMERIC",
+                Comment: $"Item score for {item.HomeTeam} vs {item.AwayTeam}",
+                Id: PreparedExperimentSupport.CreateScoreId(
+                    "kicktipp_points",
+                    datasetRunId,
+                    traceId,
+                    observationId,
+                    item.SliceDatasetItemId),
+                Metadata: metadata,
+                Environment: "sdk-experiment"),
+            cancellationToken);
     }
 
     private async Task<LangfusePaginatedResponse<LangfuseDatasetRunItem>> WaitForDatasetRunItemsAsync(
@@ -774,6 +851,28 @@ internal sealed class PreparedExperimentRunExecutor
 
         LangfuseActivityPropagation.SetTraceMetadata(activity, "tippSpielId", tippSpielId, propagateToObservations: false);
         LangfuseActivityPropagation.SetTraceMetadata(activity, "promptTemplatePath", promptTemplatePath, propagateToObservations: false);
+    }
+
+    private static void SetTraceAndRootObservationInput(Activity? activity, string inputJson)
+    {
+        if (activity is null || string.IsNullOrWhiteSpace(inputJson))
+        {
+            return;
+        }
+
+        activity.SetTag("langfuse.trace.input", inputJson);
+        activity.SetTag("langfuse.observation.input", inputJson);
+    }
+
+    private static void SetTraceAndRootObservationOutput(Activity? activity, string outputJson)
+    {
+        if (activity is null || string.IsNullOrWhiteSpace(outputJson))
+        {
+            return;
+        }
+
+        activity.SetTag("langfuse.trace.output", outputJson);
+        activity.SetTag("langfuse.observation.output", outputJson);
     }
 
     private static void SetExperimentRunId(Activity? activity, string datasetRunId)

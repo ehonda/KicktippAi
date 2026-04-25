@@ -43,11 +43,15 @@ New `run-slice`, `run-repeated-match`, and `run-community-to-date` executions no
 - set the Langfuse environment to `sdk-experiment`
 - attach trace metadata fields `experiment_name` and `experiment_run_name`
 - attach the same fields to dataset run metadata when creating dataset run items
+- attach input/output to the root `experiment-item-run` observation, not only to the trace
+- post item-level `kicktipp_points` scores on the item trace or prediction observation
 - pass the root observation id when linking a trace to the dataset run item
 
 That means newly executed experiments should appear in the Experiments Beta UI after Langfuse ingests the traces and dataset run items. Use the same time-range filter you would use for ordinary traces.
 
-Existing analysis bundles can be published without rerunning predictions. The publisher creates new dataset-run aliases that point at the existing traces and dataset items, adds the SDK-compatible experiment metadata, and posts aggregate run scores. By default, it appends `__experiments-beta` to each source run name so the original dataset runs are left alone.
+Existing analysis bundles can be published without rerunning predictions. The publisher creates new dataset-run aliases that point at the existing traces and dataset items, adds SDK-compatible experiment metadata to the alias run, and posts aggregate run scores. By default, it appends `__experiments-beta` to each source run name so the original dataset runs are left alone.
+
+This cannot fully repair older traces that were already ingested with `environment = development`, root observation name `match-experiment-item`, and no `experiment_name` / `experiment_run_name` trace metadata. Langfuse's public API lets us create alias dataset runs, but it does not update existing trace records. Those aliases are still useful for API/reporting workflows, but they may stay hidden in the Experiments Beta UI.
 
 Use `--dry-run` first if you want to inspect the aliases before writing:
 

@@ -6,7 +6,7 @@ Analysis tooling is partially implemented as a first-class workflow in the repos
 
 What is implemented today is the score production layer:
 
-- trace-level `kicktipp_points`
+- item-level `kicktipp_points` linked to the item trace or prediction observation
 - dataset-run-level `total_kicktipp_points`
 - dataset-run-level `avg_kicktipp_points`
 
@@ -46,7 +46,7 @@ Important repository-specific notes:
 
 - run-level metrics are retrieved reliably through Langfuse `v2/scores`
 - trace-level score retrieval and metadata filtering have some quirks documented in `docs/langfuse.md`
-- the export command now batches dataset items through `GET /api/public/dataset-items`, batches trace outputs and observations per run via `sessionId = runName`, and batches trace-level `kicktipp_points` scores via a `metadata.datasetRunId` filter instead of calling `GET /api/public/traces/{traceId}` once per trace
+- the export command now batches dataset items through `GET /api/public/dataset-items`, batches trace outputs and observations per run via `sessionId = runName`, and batches item-level `kicktipp_points` scores via a `metadata.datasetRunId` filter instead of calling `GET /api/public/traces/{traceId}` once per trace
 - the Langfuse Python SDK mirrors the public API and does not by itself remove the same rate-limit bucket; with the current batched exporter, switching retrieval into Python is not necessary today
 - for much larger exports than our current comparable experiment sizes, blob-storage export is still the likely next step
 
