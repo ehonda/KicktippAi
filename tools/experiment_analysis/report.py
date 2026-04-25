@@ -784,7 +784,9 @@ def render_html(report: dict[str, Any]) -> str:
             --bad: #b33d3d;
             --bad-soft: rgba(179, 61, 61, 0.14);
             --bad-row: rgba(179, 61, 61, 0.08);
-            --baseline-row: rgba(181, 83, 47, 0.10);
+            --baseline: #b03a93;
+            --baseline-soft: rgba(176, 58, 147, 0.16);
+            --baseline-row: rgba(176, 58, 147, 0.12);
             --shadow: 0 24px 70px rgba(70, 45, 26, 0.12);
         }}
 
@@ -959,7 +961,7 @@ def render_html(report: dict[str, Any]) -> str:
         }}
 
         .standings-row-baseline td:first-child {{
-            box-shadow: inset 4px 0 0 var(--accent);
+            box-shadow: inset 4px 0 0 var(--baseline);
         }}
 
         .standings-row-better {{
@@ -1080,8 +1082,8 @@ def render_html(report: dict[str, Any]) -> str:
         }}
 
         .pvalue-badge-baseline {{
-            background: var(--accent-soft);
-            color: var(--accent);
+            background: var(--baseline-soft);
+            color: var(--baseline);
         }}
 
         .pvalue-badge-better {{
