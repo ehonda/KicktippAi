@@ -263,7 +263,14 @@ public class ExportExperimentAnalysisCommand_Tests
             await Assert.That(output).Contains("\"primaryMetricName\": \"avg_kicktipp_points\"");
 
             var bundleJson = await File.ReadAllTextAsync(outputPath);
+            using var bundleDocument = JsonDocument.Parse(bundleJson);
+            var bundleRoot = bundleDocument.RootElement;
+            var datasetMetadata = bundleRoot.GetProperty("datasetMetadata");
             await Assert.That(bundleJson).Contains("\"taskType\": \"repeated-match\"");
+            await Assert.That(bundleRoot.GetProperty("datasetDescription").GetString())
+                .IsEqualTo("Stuttgart's 1-0 Matchday 26 win over Leipzig was a close top-four clash where Stuttgart leapfrogged Leipzig.");
+            await Assert.That(datasetMetadata.GetProperty("actualResultDisplay").GetString()).IsEqualTo("VfB Stuttgart 1 - 0 RB Leipzig");
+            await Assert.That(datasetMetadata.GetProperty("repetitionCount").GetInt32()).IsEqualTo(25);
             await Assert.That(bundleJson).Contains($"\"sourceDatasetItemId\": \"{sourceDatasetItemId}\"");
         }
         finally
@@ -290,6 +297,9 @@ public class ExportExperimentAnalysisCommand_Tests
             var datasetRunIdTwo = "dataset-run-2";
 
             var client = new Mock<ILangfusePublicApiClient>(MockBehavior.Strict);
+            client
+                .Setup(mock => mock.GetDatasetAsync(datasetName, It.IsAny<CancellationToken>()))
+                .ReturnsAsync(CreateDataset(datasetName, "community-to-date"));
             client
                 .Setup(mock => mock.GetDatasetRunAsync(datasetName, runOne, It.IsAny<CancellationToken>()))
                 .ReturnsAsync(new LangfuseDatasetRunWithItems(
@@ -499,6 +509,9 @@ public class ExportExperimentAnalysisCommand_Tests
 
         var langfuseClient = new Mock<ILangfusePublicApiClient>(MockBehavior.Strict);
         langfuseClient
+            .Setup(client => client.GetDatasetAsync(datasetName, It.IsAny<CancellationToken>()))
+            .ReturnsAsync(CreateDataset(datasetName, "slice"));
+        langfuseClient
             .Setup(client => client.GetDatasetRunAsync(datasetName, runOne, It.IsAny<CancellationToken>()))
             .ReturnsAsync(CreateDatasetRun(datasetName, runOne, "dataset-1", taskType: "slice", model: "o3", sliceKey: "random-1-seed-20260405", sliceKind: "random-sample"));
         langfuseClient
@@ -557,6 +570,9 @@ public class ExportExperimentAnalysisCommand_Tests
         var datasetRunIdTwo = "dataset-run-2";
 
         var client = new Mock<ILangfusePublicApiClient>(MockBehavior.Strict);
+        client
+            .Setup(mock => mock.GetDatasetAsync(datasetName, It.IsAny<CancellationToken>()))
+            .ReturnsAsync(CreateDataset(datasetName, taskType));
         client
             .Setup(mock => mock.GetDatasetRunAsync(datasetName, runOne, It.IsAny<CancellationToken>()))
             .ReturnsAsync(CreateDatasetRun(datasetName, runOne, datasetId, taskType, "o3", sliceKind == "repeated-match" ? "repeat-2" : "random-1-seed-20260405", sliceKind));
@@ -650,6 +666,33 @@ public class ExportExperimentAnalysisCommand_Tests
                 [new LangfuseObservationDetail("observation-2", "trace-2", "GENERATION", "predict-match", ParseJson("{\"homeGoals\":1,\"awayGoals\":0}"), default)],
                 new LangfuseCursorPaginationMeta(null)));
         return client;
+    }
+
+    private static LangfuseDataset CreateDataset(string datasetName, string taskType)
+    {
+        var description = string.Equals(taskType, "repeated-match", StringComparison.Ordinal)
+            ? "Stuttgart's 1-0 Matchday 26 win over Leipzig was a close top-four clash where Stuttgart leapfrogged Leipzig."
+            : $"{taskType} test dataset";
+        var metadata = string.Equals(taskType, "repeated-match", StringComparison.Ordinal)
+            ? ParseJson("""
+                {
+                  "fixture": "VfB Stuttgart vs RB Leipzig",
+                  "actualResult": "1:0",
+                  "actualResultDisplay": "VfB Stuttgart 1 - 0 RB Leipzig",
+                  "matchday": 26,
+                  "repetitionCount": 25,
+                  "interestingBecause": "Close top-four clash where Stuttgart leapfrogged Leipzig."
+                }
+                """)
+            : ParseJson("""{"communityContext":"test-community","sampleSize":1}""");
+
+        return new LangfuseDataset(
+            "dataset-1",
+            datasetName,
+            description,
+            metadata,
+            default,
+            default);
     }
 
     private static LangfuseDatasetRunWithItems CreateDatasetRun(

@@ -1,4 +1,5 @@
 using System.Text.Json;
+using System.Text.Json.Nodes;
 using System.Text.Json.Serialization;
 
 namespace Orchestrator.Commands.Observability.Experiments;
@@ -58,7 +59,9 @@ internal static class PreparedExperimentBundleBuilder
         string sliceKind,
         string sampleMethod,
         string sourcePoolKey,
-        int? sampleSeed)
+        int? sampleSeed,
+        string? datasetDescription = null,
+        IReadOnlyDictionary<string, object?>? extraDatasetMetadata = null)
     {
         if (sourceItems.Count == 0)
         {
@@ -107,7 +110,7 @@ internal static class PreparedExperimentBundleBuilder
             TippSpielId = item.TippSpielId
         }).ToList();
 
-        var datasetMetadata = JsonSerializer.SerializeToElement(new
+        var datasetMetadataNode = JsonSerializer.SerializeToNode(new
         {
             first.Competition,
             communityContext,
@@ -126,11 +129,15 @@ internal static class PreparedExperimentBundleBuilder
             sampleSize = sourceItems.Count,
             sourceDatasetName,
             sourcePoolKey
-        }, OutputJsonOptions);
+        }, OutputJsonOptions) as JsonObject ?? new JsonObject();
+        AddDatasetMetadata(datasetMetadataNode, extraDatasetMetadata);
+        var datasetMetadata = JsonSerializer.SerializeToElement(datasetMetadataNode, OutputJsonOptions);
 
         var artifact = new PreparedExperimentDataset(
             sliceDatasetName,
-            $"{sliceKind} dataset for {sourceItems.Count} item(s) on {sliceKey}",
+            string.IsNullOrWhiteSpace(datasetDescription)
+                ? $"{sliceKind} dataset for {sourceItems.Count} item(s) on {sliceKey}"
+                : datasetDescription.Trim(),
             datasetMetadata,
             InputSchema,
             ExpectedOutputSchema,
@@ -155,6 +162,24 @@ internal static class PreparedExperimentBundleBuilder
         };
 
         return new PreparedExperimentBundle(artifact, manifest);
+    }
+
+    private static void AddDatasetMetadata(JsonObject datasetMetadata, IReadOnlyDictionary<string, object?>? extraDatasetMetadata)
+    {
+        if (extraDatasetMetadata is null)
+        {
+            return;
+        }
+
+        foreach (var (key, value) in extraDatasetMetadata)
+        {
+            if (string.IsNullOrWhiteSpace(key) || value is null)
+            {
+                continue;
+            }
+
+            datasetMetadata[key] = JsonSerializer.SerializeToNode(value, OutputJsonOptions);
+        }
     }
 
     private static JsonElement ParseJsonElement(string value)

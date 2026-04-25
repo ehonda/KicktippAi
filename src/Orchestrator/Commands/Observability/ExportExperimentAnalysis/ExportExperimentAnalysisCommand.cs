@@ -42,6 +42,8 @@ public sealed class ExportExperimentAnalysisCommand : AsyncCommand<ExportExperim
                 "Exporting experiment analysis for dataset {DatasetName} across {RunCount} runs.",
                 settings.DatasetName,
                 runNames.Count);
+            var dataset = await _langfuseClient.GetDatasetAsync(settings.DatasetName, cancellationToken)
+                          ?? throw new InvalidOperationException($"Dataset '{settings.DatasetName}' could not be found.");
 
             for (var runIndex = 0; runIndex < runNames.Count; runIndex += 1)
             {
@@ -68,7 +70,7 @@ public sealed class ExportExperimentAnalysisCommand : AsyncCommand<ExportExperim
             var tracesById = await LoadTracesAsync(runContexts, cancellationToken);
             PreparedExperimentSupport.ReportProgress("Building normalized analysis rows.");
             var rows = BuildRows(runContexts, datasetItemsById, tracesById);
-            var bundle = BuildBundle(settings.DatasetName, runContexts, rows);
+            var bundle = BuildBundle(settings.DatasetName, dataset, runContexts, rows);
 
             var outputPath = ResolveOutputPath(settings, bundle.TaskType, settings.DatasetName);
             Directory.CreateDirectory(Path.GetDirectoryName(outputPath)!);
@@ -279,6 +281,7 @@ public sealed class ExportExperimentAnalysisCommand : AsyncCommand<ExportExperim
 
     private static PreparedExperimentAnalysisBundle BuildBundle(
         string datasetName,
+        LangfuseDataset dataset,
         IReadOnlyList<RunContext> runContexts,
         IReadOnlyList<PreparedExperimentAnalysisRow> rows)
     {
@@ -313,6 +316,8 @@ public sealed class ExportExperimentAnalysisCommand : AsyncCommand<ExportExperim
             taskType,
             primaryMetricName,
             ExperimentArtifactSupport.FormatStartedAtUtc(DateTimeOffset.UtcNow),
+            dataset.Description,
+            LangfuseJsonUtilities.IsDefined(dataset.Metadata) ? dataset.Metadata : default,
             runSummaries,
             rows);
     }

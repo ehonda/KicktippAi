@@ -1,3 +1,4 @@
+using System.Text.Json;
 using System.Text.Json.Serialization;
 
 namespace Orchestrator.Commands.Observability.Experiments;
@@ -7,6 +8,8 @@ internal sealed record PreparedExperimentAnalysisBundle(
     [property: JsonPropertyName("taskType")] string TaskType,
     [property: JsonPropertyName("primaryMetricName")] string PrimaryMetricName,
     [property: JsonPropertyName("exportedAtUtc")] string ExportedAtUtc,
+    [property: JsonPropertyName("datasetDescription")] string? DatasetDescription,
+    [property: JsonPropertyName("datasetMetadata")] JsonElement DatasetMetadata,
     [property: JsonPropertyName("runs")] IReadOnlyList<PreparedExperimentAnalysisRun> Runs,
     [property: JsonPropertyName("rows")] IReadOnlyList<PreparedExperimentAnalysisRow> Rows);
 

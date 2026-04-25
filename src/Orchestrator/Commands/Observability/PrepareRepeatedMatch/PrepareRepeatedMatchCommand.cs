@@ -42,6 +42,9 @@ public sealed class PrepareRepeatedMatchCommand : AsyncCommand<PrepareRepeatedMa
                 : settings.SourcePoolKey.Trim();
             var datasetName = settings.DatasetName
                 ?? $"{sourceDatasetName}/repeated-match/{sourcePoolKey}/{sliceKey}";
+            var datasetDescription = string.IsNullOrWhiteSpace(settings.DatasetDescription)
+                ? null
+                : settings.DatasetDescription.Trim();
             var outputDirectory = ResolveOutputDirectory(settings.OutputDirectory, settings.CommunityContext, sourcePoolKey, sliceKey);
             var sliceArtifactPath = Path.Combine(outputDirectory, "slice-dataset.json");
             var sliceManifestPath = Path.Combine(outputDirectory, "slice-manifest.json");
@@ -85,7 +88,9 @@ public sealed class PrepareRepeatedMatchCommand : AsyncCommand<PrepareRepeatedMa
                 "repeated-match",
                 "repeated-match",
                 sourcePoolKey,
-                null);
+                null,
+                datasetDescription,
+                BuildRepeatedMatchDatasetMetadata(sourceItem, settings.SampleSize, datasetDescription));
 
             await WriteJsonFileAsync(sliceArtifactPath, bundle.Artifact, cancellationToken);
             await WriteJsonFileAsync(sliceManifestPath, bundle.Manifest, cancellationToken);
@@ -102,6 +107,8 @@ public sealed class PrepareRepeatedMatchCommand : AsyncCommand<PrepareRepeatedMa
                 settings.HomeTeam,
                 settings.AwayTeam,
                 Matchday = settings.Matchday,
+                datasetDescription = bundle.Artifact.DatasetDescription,
+                datasetMetadata = bundle.Artifact.DatasetMetadata,
                 bundle.Manifest.SelectedItemIds,
                 bundle.Manifest.SelectedItemIdsHash,
                 outputDirectory,
@@ -118,6 +125,31 @@ public sealed class PrepareRepeatedMatchCommand : AsyncCommand<PrepareRepeatedMa
             _console.MarkupLine($"[red]Error:[/] {Markup.Escape(ex.Message)}");
             return 1;
         }
+    }
+
+    private static IReadOnlyDictionary<string, object?> BuildRepeatedMatchDatasetMetadata(
+        HostedMatchExperimentDatasetItem sourceItem,
+        int repetitionCount,
+        string? datasetDescription)
+    {
+        var actualResult = $"{sourceItem.ExpectedOutput.HomeGoals}:{sourceItem.ExpectedOutput.AwayGoals}";
+        var actualResultDisplay = $"{sourceItem.Metadata.HomeTeam} {sourceItem.ExpectedOutput.HomeGoals} - {sourceItem.ExpectedOutput.AwayGoals} {sourceItem.Metadata.AwayTeam}";
+        var metadata = new Dictionary<string, object?>
+        {
+            ["fixture"] = $"{sourceItem.Metadata.HomeTeam} vs {sourceItem.Metadata.AwayTeam}",
+            ["actualResult"] = actualResult,
+            ["actualResultDisplay"] = actualResultDisplay,
+            ["matchday"] = sourceItem.Metadata.Matchday,
+            ["repetitionCount"] = repetitionCount
+        };
+
+        if (!string.IsNullOrWhiteSpace(datasetDescription))
+        {
+            metadata["datasetDescription"] = datasetDescription;
+            metadata["interestingBecause"] = datasetDescription;
+        }
+
+        return metadata;
     }
 
     private static string GetStartsAt(HostedMatchExperimentDatasetItem item)

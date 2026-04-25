@@ -228,12 +228,15 @@ def analyze_bundle(
 
     report: dict[str, Any] = {
         "datasetName": bundle["datasetName"],
+        "datasetDescription": normalize_optional_string(bundle.get("datasetDescription")),
+        "datasetMetadata": bundle.get("datasetMetadata") if isinstance(bundle.get("datasetMetadata"), dict) else {},
         "taskType": bundle["taskType"],
         "primaryMetricName": bundle["primaryMetricName"],
         "runCount": len(run_names),
         "pairingCount": int(len(paired_scores)),
         "alpha": alpha,
         "correctionMethod": correction_method,
+        "methodDescription": build_statistical_method_description(len(run_names), correction_method),
         "runs": ranking_records,
     }
 
@@ -515,6 +518,101 @@ def compute_per_item_outcome_counts(left_scores: np.ndarray, right_scores: np.nd
     }
 
 
+def build_statistical_method_description(run_count: int, correction_method: str) -> str:
+    if run_count == 2:
+        return (
+            "Paired Wilcoxon signed-rank test on per-item Kicktipp-point differences; "
+            "bootstrap confidence intervals summarize mean and median paired differences."
+        )
+
+    return (
+        "Friedman test across all paired runs; pairwise Wilcoxon signed-rank tests use "
+        f"{correction_method} correction, with bootstrap confidence intervals for paired differences."
+    )
+
+
+def dataset_metadata_items(report: dict[str, Any]) -> list[tuple[str, str]]:
+    metadata = report.get("datasetMetadata")
+    if not isinstance(metadata, dict):
+        return []
+
+    labels = {
+        "fixture": "Fixture",
+        "actualResult": "Actual Result",
+        "actualResultDisplay": "Actual Result",
+        "matchday": "Matchday",
+        "repetitionCount": "Repetitions",
+        "interestingBecause": "Why Interesting",
+        "datasetDescription": "Description",
+        "competition": "Competition",
+        "communityContext": "Community",
+        "season": "Season",
+        "sliceKey": "Slice",
+        "sliceKind": "Slice Kind",
+        "sampleMethod": "Sample Method",
+        "sampleSize": "Sample Size",
+        "sourcePoolKey": "Source Pool",
+        "sourceDatasetName": "Source Dataset",
+    }
+    preferred_order = [
+        "fixture",
+        "actualResultDisplay",
+        "matchday",
+        "repetitionCount",
+        "interestingBecause",
+        "competition",
+        "communityContext",
+        "season",
+        "sliceKey",
+        "sourcePoolKey",
+        "sampleSize",
+    ]
+    hidden_when_duplicate = {"actualResult", "datasetDescription"}
+    ordered_keys = [
+        key
+        for key in preferred_order
+        if key in metadata and key not in hidden_when_duplicate
+    ]
+    ordered_keys.extend(
+        key
+        for key in sorted(metadata)
+        if key not in ordered_keys and key not in hidden_when_duplicate and metadata.get(key) is not None
+    )
+
+    return [
+        (labels.get(key, humanize_metadata_key(key)), format_metadata_value(metadata[key]))
+        for key in ordered_keys
+        if format_metadata_value(metadata[key])
+    ]
+
+
+def humanize_metadata_key(key: str) -> str:
+    text = key.replace("_", " ").replace("-", " ").strip()
+    if not text:
+        return key
+
+    words: list[str] = []
+    current = text[0]
+    for character in text[1:]:
+        if character.isupper() and current[-1].islower():
+            words.append(current)
+            current = character
+        else:
+            current += character
+    words.append(current)
+    return " ".join(word.capitalize() for word in words)
+
+
+def format_metadata_value(value: Any) -> str:
+    if value is None:
+        return ""
+    if isinstance(value, bool):
+        return "yes" if value else "no"
+    if isinstance(value, (dict, list)):
+        return json.dumps(value, ensure_ascii=False, sort_keys=True)
+    return str(value)
+
+
 def render_markdown(report: dict[str, Any]) -> str:
     lines = ["# Experiment Analysis Report", ""]
     lines.append(f"- Dataset: `{report['datasetName']}`")
@@ -522,6 +620,15 @@ def render_markdown(report: dict[str, Any]) -> str:
     lines.append(f"- Primary Metric: `{report['primaryMetricName']}`")
     lines.append(f"- Runs: {report['runCount']}")
     lines.append(f"- Pairings: {report['pairingCount']}")
+    if report.get("datasetDescription"):
+        lines.append(f"- Dataset Description: {report['datasetDescription']}")
+    lines.append(f"- Method: {report['methodDescription']}")
+    metadata_items = dataset_metadata_items(report)
+    if metadata_items:
+        lines.append("")
+        lines.append("## Dataset Metadata")
+        lines.append("")
+        lines.extend(render_table(["Field", "Value"], [[label, value] for label, value in metadata_items]))
     lines.append("")
     lines.append("## Community Standings" if is_community_standings_report(report) else "## Run Ranking")
     lines.append("")
@@ -540,7 +647,7 @@ def render_markdown(report: dict[str, Any]) -> str:
             render_table(
                 ["Rank", "Run", "Model", "Primary Metric"],
                 [
-                    [str(run["rank"]), run["runName"], run["model"], format_number(run["primaryMetricValue"])]
+                    [str(run["rank"]), run["runDisplayName"], run["model"], format_number(run["primaryMetricValue"])]
                     for run in report["runs"]
                 ],
             )
@@ -552,8 +659,8 @@ def render_markdown(report: dict[str, Any]) -> str:
         wilcoxon = comparison["wilcoxon"]
         lines.append("## Two-Run Comparison")
         lines.append("")
-        lines.append(f"- Better Run: `{comparison['betterRunName']}`")
-        lines.append(f"- Other Run: `{comparison['otherRunName']}`")
+        lines.append(f"- Better Run: `{comparison['betterRunDisplayName']}`")
+        lines.append(f"- Other Run: `{comparison['otherRunDisplayName']}`")
         lines.append(f"- {comparison['primaryMetricName']} Delta: {format_number(comparison['primaryMetricDelta'])}")
         lines.append(f"- Mean Difference: {format_number(comparison['meanDifference'])}")
         lines.append(f"- Median Difference: {format_number(comparison['medianDifference'])}")
@@ -636,6 +743,41 @@ def render_markdown(report: dict[str, Any]) -> str:
 
 def render_html(report: dict[str, Any]) -> str:
         title = f"Experiment Analysis - {report['datasetName']}"
+        metadata_items = dataset_metadata_items(report)
+        dataset_description = report.get("datasetDescription")
+        dataset_description_html = (
+                f'<p class="footnote">{escape_html(str(dataset_description))}</p>'
+                if dataset_description
+                else ""
+        )
+        dataset_metadata_section = ""
+        if metadata_items or dataset_description_html:
+                metadata_rows = "\n".join(
+                        render_html_table_row([label, value])
+                        for label, value in metadata_items
+                )
+                metadata_table = f"""
+                    <table>
+                        <thead>
+                            <tr>
+                                <th>Field</th>
+                                <th>Value</th>
+                            </tr>
+                        </thead>
+                        <tbody>
+                            {metadata_rows}
+                        </tbody>
+                    </table>
+                """ if metadata_items else ""
+                dataset_metadata_section = f"""
+        <section class=\"panel\">
+            <div class=\"panel-header\">
+                <h2>Dataset metadata</h2>
+            </div>
+            {dataset_description_html}
+            {metadata_table}
+        </section>
+                """
         if is_community_standings_report(report):
                 ranking_heading = "Community standings"
                 default_baseline = str(report["runs"][0]["runName"]) if report["runs"] else ""
@@ -675,7 +817,7 @@ def render_html(report: dict[str, Any]) -> str:
                         render_html_table_row(
                                 [
                                         str(run["rank"]),
-                                        str(run["runName"]),
+                                        str(run["runDisplayName"]),
                                         str(run["model"]),
                                         format_number(run["primaryMetricValue"]),
                                 ]
@@ -694,8 +836,8 @@ def render_html(report: dict[str, Any]) -> str:
                         <span class=\"pill {'pill-good' if wilcoxon.get('significant') else 'pill-neutral'}\">{'significant' if wilcoxon.get('significant') else 'not significant'}</span>
                     </div>
                     <div class=\"metric-grid\">
-                        {render_metric_card('Better run', comparison['betterRunName'])}
-                        {render_metric_card('Other run', comparison['otherRunName'])}
+                        {render_metric_card('Better run', comparison['betterRunDisplayName'])}
+                        {render_metric_card('Other run', comparison['otherRunDisplayName'])}
                         {render_metric_card(comparison['primaryMetricName'] + ' delta', format_number(comparison['primaryMetricDelta']))}
                         {render_metric_card('Wilcoxon p-value', format_number(wilcoxon['pValue']))}
                         {render_metric_card('Mean difference', format_number(comparison['meanDifference']))}
@@ -1152,7 +1294,12 @@ def render_html(report: dict[str, Any]) -> str:
                 {render_metric_card('Primary metric', report['primaryMetricName'])}
                 {render_metric_card('Alpha', format_number(report['alpha']))}
             </div>
+            <div class=\"panel-subsection\">
+                <p class=\"footnote\">{escape_html(str(report['methodDescription']))}</p>
+            </div>
         </section>
+
+        {dataset_metadata_section}
 
         <section class=\"panel\">
             <div class=\"panel-header\">
@@ -1597,15 +1744,20 @@ def format_kicktipp_points(value: float | None) -> str:
 
 
 def write_outputs(report: dict[str, Any], output_paths: OutputPaths) -> str:
-    markdown = render_markdown(report)
+    markdown = strip_trailing_whitespace(render_markdown(report))
     output_paths.json_path.parent.mkdir(parents=True, exist_ok=True)
     output_paths.markdown_path.parent.mkdir(parents=True, exist_ok=True)
     output_paths.json_path.write_text(json.dumps(report, indent=2), encoding="utf-8")
     output_paths.markdown_path.write_text(markdown, encoding="utf-8")
     if output_paths.html_path is not None:
         output_paths.html_path.parent.mkdir(parents=True, exist_ok=True)
-        output_paths.html_path.write_text(render_html(report), encoding="utf-8")
+        output_paths.html_path.write_text(strip_trailing_whitespace(render_html(report)), encoding="utf-8")
     return markdown
+
+
+def strip_trailing_whitespace(value: str) -> str:
+    suffix = "\n" if value.endswith("\n") else ""
+    return "\n".join(line.rstrip() for line in value.splitlines()) + suffix
 
 
 def main(argv: Sequence[str] | None = None) -> int:

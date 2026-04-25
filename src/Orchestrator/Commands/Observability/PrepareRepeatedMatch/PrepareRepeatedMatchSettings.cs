@@ -39,6 +39,10 @@ public sealed class PrepareRepeatedMatchSettings : CommandSettings
     [Description("Optional hosted dataset name override for the repeated-match dataset")]
     public string? DatasetName { get; set; }
 
+    [CommandOption("--dataset-description")]
+    [Description("Optional short note describing why this repeated-match dataset is interesting")]
+    public string? DatasetDescription { get; set; }
+
     [CommandOption("--output-directory")]
     [Description("Optional output directory override. Defaults to artifacts/langfuse-experiments/repeated-match/<community>/<source-pool-key>/<slice-key>")]
     public string? OutputDirectory { get; set; }

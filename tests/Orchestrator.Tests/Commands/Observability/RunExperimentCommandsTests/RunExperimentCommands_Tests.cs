@@ -17,6 +17,20 @@ namespace Orchestrator.Tests.Commands.Observability.RunExperimentCommandsTests;
 public class RunExperimentCommands_Tests
 {
     [Test]
+    public async Task Warmup_then_batch_chunks_with_twenty_five_items_and_three_batches_runs_warmup_then_three_equal_batches()
+    {
+        var items = Enumerable.Range(1, 25).ToArray();
+
+        var chunks = PreparedExperimentSupport.CreateWarmupThenBatchChunks(items, 3);
+
+        await Assert.That(chunks.Select(chunk => chunk.Count).ToArray()).IsEquivalentTo([1, 8, 8, 8]);
+        await Assert.That(chunks[0]).IsEquivalentTo([1]);
+        await Assert.That(chunks[1]).IsEquivalentTo([2, 3, 4, 5, 6, 7, 8, 9]);
+        await Assert.That(chunks[2]).IsEquivalentTo([10, 11, 12, 13, 14, 15, 16, 17]);
+        await Assert.That(chunks[3]).IsEquivalentTo([18, 19, 20, 21, 22, 23, 24, 25]);
+    }
+
+    [Test]
     [NotInParallel("ProcessState")]
     public async Task Running_run_slice_reconstructs_predicts_and_posts_scores()
     {

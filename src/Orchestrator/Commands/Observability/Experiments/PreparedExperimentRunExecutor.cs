@@ -66,7 +66,9 @@ internal sealed class PreparedExperimentRunExecutor
         var predictionRepository = _firebaseServiceFactory.CreatePredictionRepository();
         var contextRepository = _firebaseServiceFactory.CreateContextRepository();
         var matchOutcomeRepository = _firebaseServiceFactory.CreateMatchOutcomeRepository();
-        var predictionService = _openAiServiceFactory.CreatePredictionService(request.Options.Model);
+        var predictionService = _openAiServiceFactory.CreatePredictionService(
+            request.Options.Model,
+            PredictionServiceOptions.FlexProcessingWithStandardFallback);
         var reconstructionService = new MatchPromptReconstructionService(
             predictionRepository,
             contextRepository,
@@ -79,7 +81,11 @@ internal sealed class PreparedExperimentRunExecutor
         var runMetadataPayload = PreparedExperimentSupport.BuildLangfuseExperimentMetadata(
             runMetadata,
             experimentName,
-            request.RunName);
+            request.RunName,
+            new Dictionary<string, string?>
+            {
+                ["openaiServiceTierStrategy"] = "flex-first-standard-fallback"
+            });
         var batches = BuildBatches(manifest.Items, runMetadata, expectedTaskType);
         var scoreEntries = new List<ExperimentItemScores>();
         var executionSummaries = new List<PreparedExperimentExecutionSummary>();

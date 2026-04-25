@@ -31,8 +31,8 @@ public class PrepareRepeatedMatchCommand_Tests
                         "RB Leipzig",
                         NodaTime.Instant.FromUtc(2026, 3, 15, 14, 30).InUtc(),
                         26,
-                        2,
                         1,
+                        0,
                         MatchOutcomeAvailability.Completed,
                         "123",
                         new DateTimeOffset(2026, 3, 15, 16, 0, 0, TimeSpan.Zero),
@@ -63,11 +63,14 @@ public class PrepareRepeatedMatchCommand_Tests
                 "26",
                 "--sample-size",
                 "3",
+                "--dataset-description",
+                "Stuttgart's 1-0 Matchday 26 win over Leipzig was a close top-four clash where Stuttgart leapfrogged Leipzig.",
                 "--output-directory",
                 outputDirectory);
 
             await Assert.That(exitCode).IsEqualTo(0);
             await Assert.That(output).Contains("\"mode\": \"repeated-match\"");
+            await Assert.That(output).Contains("\"datasetDescription\"");
             await Assert.That(File.Exists(Path.Combine(outputDirectory, "canonical-source.json"))).IsFalse();
             await Assert.That(File.Exists(Path.Combine(outputDirectory, "slice-dataset.json"))).IsTrue();
             await Assert.That(File.Exists(Path.Combine(outputDirectory, "slice-manifest.json"))).IsTrue();
@@ -89,6 +92,19 @@ public class PrepareRepeatedMatchCommand_Tests
             await Assert.That(sourceIds.Count).IsEqualTo(1);
             await Assert.That(sliceIds.Distinct(StringComparer.Ordinal).Count()).IsEqualTo(3);
             await Assert.That(manifestRoot.GetProperty("selectedItemIds").GetArrayLength()).IsEqualTo(1);
+
+            using var datasetDocument = JsonDocument.Parse(await File.ReadAllTextAsync(Path.Combine(outputDirectory, "slice-dataset.json")));
+            var datasetRoot = datasetDocument.RootElement;
+            var metadata = datasetRoot.GetProperty("datasetMetadata");
+            await Assert.That(datasetRoot.GetProperty("datasetDescription").GetString())
+                .IsEqualTo("Stuttgart's 1-0 Matchday 26 win over Leipzig was a close top-four clash where Stuttgart leapfrogged Leipzig.");
+            await Assert.That(metadata.GetProperty("fixture").GetString()).IsEqualTo("VfB Stuttgart vs RB Leipzig");
+            await Assert.That(metadata.GetProperty("actualResult").GetString()).IsEqualTo("1:0");
+            await Assert.That(metadata.GetProperty("actualResultDisplay").GetString()).IsEqualTo("VfB Stuttgart 1 - 0 RB Leipzig");
+            await Assert.That(metadata.GetProperty("matchday").GetInt32()).IsEqualTo(26);
+            await Assert.That(metadata.GetProperty("repetitionCount").GetInt32()).IsEqualTo(3);
+            await Assert.That(metadata.GetProperty("interestingBecause").GetString())
+                .IsEqualTo("Stuttgart's 1-0 Matchday 26 win over Leipzig was a close top-four clash where Stuttgart leapfrogged Leipzig.");
         }
         finally
         {

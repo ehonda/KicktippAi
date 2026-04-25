@@ -1,4 +1,6 @@
 using System.Collections.Generic;
+using System.ClientModel;
+using System.ClientModel.Primitives;
 using System.Diagnostics;
 using System.Linq;
 using System.Text.Json;
@@ -6,6 +8,8 @@ using System.Text.Json.Serialization;
 using EHonda.KicktippAi.Core;
 using Microsoft.Extensions.Logging;
 using OpenAI.Chat;
+using Polly;
+using Polly.Retry;
 
 namespace OpenAiIntegration;
 
@@ -14,11 +18,17 @@ namespace OpenAiIntegration;
 /// </summary>
 public class PredictionService : IPredictionService
 {
+    private static readonly JsonSerializerOptions ProtocolJsonOptions = new(JsonSerializerDefaults.Web)
+    {
+        DefaultIgnoreCondition = JsonIgnoreCondition.WhenWritingNull
+    };
+
     private readonly ChatClient _chatClient;
     private readonly ILogger<PredictionService> _logger;
     private readonly ICostCalculationService _costCalculationService;
     private readonly ITokenUsageTracker _tokenUsageTracker;
     private readonly IInstructionsTemplateProvider _templateProvider;
+    private readonly PredictionServiceOptions _options;
     private readonly string _model;
     private readonly string _instructionsTemplate;
     private readonly string _instructionsTemplateWithJustification;
@@ -33,13 +43,15 @@ public class PredictionService : IPredictionService
         ICostCalculationService costCalculationService,
         ITokenUsageTracker tokenUsageTracker,
         IInstructionsTemplateProvider templateProvider,
-        string model)
+        string model,
+        PredictionServiceOptions? options = null)
     {
         _chatClient = chatClient ?? throw new ArgumentNullException(nameof(chatClient));
         _logger = logger ?? throw new ArgumentNullException(nameof(logger));
         _costCalculationService = costCalculationService ?? throw new ArgumentNullException(nameof(costCalculationService));
         _tokenUsageTracker = tokenUsageTracker ?? throw new ArgumentNullException(nameof(tokenUsageTracker));
         _templateProvider = templateProvider ?? throw new ArgumentNullException(nameof(templateProvider));
+        _options = options ?? PredictionServiceOptions.Default;
         _model = model ?? throw new ArgumentNullException(nameof(model));
         
         var (matchTemplate, matchPath) = _templateProvider.LoadMatchTemplate(_model, includeJustification: false);
@@ -89,20 +101,10 @@ public class PredictionService : IPredictionService
             using var activity = Telemetry.Source.StartActivity("predict-match");
 
             // Call OpenAI with structured output format
-            var response = await _chatClient.CompleteChatAsync(
-                messages,
-                new ChatCompletionOptions
-                {
-                    MaxOutputTokenCount = 10_000, // Safeguard against high costs
-                    ResponseFormat = ChatResponseFormat.CreateJsonSchemaFormat(
-                        jsonSchemaFormatName: "match_prediction",
-                        jsonSchema: BinaryData.FromBytes(BuildPredictionJsonSchema(includeJustification)),
-                        jsonSchemaIsStrict: true)
-                },
-                cancellationToken);
+            var completion = await CompleteMatchChatAsync(messages, includeJustification, cancellationToken);
 
             // Parse the structured response
-            var predictionJson = response.Value.Content[0].Text;
+            var predictionJson = completion.PredictionJson;
             _logger.LogDebug("Received prediction JSON: {PredictionJson}", predictionJson);
 
             var prediction = ParsePrediction(predictionJson);
@@ -111,12 +113,12 @@ public class PredictionService : IPredictionService
                 prediction.HomeGoals, prediction.AwayGoals, match.HomeTeam, match.AwayTeam);
 
             // Log token usage and cost breakdown
-            var usage = response.Value.Usage;
+            var usage = completion.Usage;
             _logger.LogDebug("Token usage - Input: {InputTokens}, Output: {OutputTokens}, Total: {TotalTokens}",
                 usage.InputTokenCount, usage.OutputTokenCount, usage.TotalTokenCount);
 
             // Set Langfuse generation attributes on the activity
-            SetLangfuseGenerationAttributes(activity, messages, predictionJson, usage, telemetryMetadata);
+            SetLangfuseGenerationAttributes(activity, messages, predictionJson, usage, telemetryMetadata, completion.ExecutionTelemetry);
 
             // Add usage to tracker
             _tokenUsageTracker.AddUsage(_model, usage);
@@ -134,6 +136,202 @@ public class PredictionService : IPredictionService
             
             return null;
         }
+    }
+
+    private async Task<MatchCompletionResult> CompleteMatchChatAsync(
+        List<ChatMessage> messages,
+        bool includeJustification,
+        CancellationToken cancellationToken)
+    {
+        if (!_options.UseFlexProcessingWithStandardFallback)
+        {
+            var response = await _chatClient.CompleteChatAsync(
+                messages,
+                CreateMatchCompletionOptions(includeJustification),
+                cancellationToken);
+
+            return new MatchCompletionResult(
+                response.Value.Content[0].Text,
+                response.Value.Usage,
+                null);
+        }
+
+        string? requestedServiceTier = "flex";
+        var usedFallback = false;
+        var pipeline = new ResiliencePipelineBuilder<MatchCompletionResult>()
+            .AddRetry(new RetryStrategyOptions<MatchCompletionResult>
+            {
+                MaxRetryAttempts = 1,
+                Delay = TimeSpan.Zero,
+                ShouldHandle = args => ValueTask.FromResult(IsFlexCapacityFailure(args.Outcome.Exception, args.Context.CancellationToken)),
+                OnRetry = args =>
+                {
+                    usedFallback = true;
+                    requestedServiceTier = null;
+                    _logger.LogWarning(
+                        args.Outcome.Exception,
+                        "OpenAI flex processing failed with a capacity-style failure; retrying prediction with standard processing.");
+                    return default;
+                }
+            })
+            .Build();
+
+        var result = await pipeline.ExecuteAsync(
+            async ct =>
+            {
+                var completion = await CompleteProtocolMatchChatAsync(
+                    messages,
+                    includeJustification,
+                    requestedServiceTier,
+                    ct);
+
+                var finalServiceTier = string.IsNullOrWhiteSpace(completion.FinalServiceTier)
+                    ? requestedServiceTier ?? "standard"
+                    : completion.FinalServiceTier;
+
+                return completion with
+                {
+                    ExecutionTelemetry = new PredictionExecutionTelemetry(
+                        "flex-first-standard-fallback",
+                        usedFallback ? "standard" : "flex",
+                        finalServiceTier,
+                        usedFallback)
+                };
+            },
+            cancellationToken);
+
+        return result;
+    }
+
+    private static ChatCompletionOptions CreateMatchCompletionOptions(bool includeJustification)
+    {
+        return new ChatCompletionOptions
+        {
+            MaxOutputTokenCount = 10_000, // Safeguard against high costs
+            ResponseFormat = ChatResponseFormat.CreateJsonSchemaFormat(
+                jsonSchemaFormatName: "match_prediction",
+                jsonSchema: BinaryData.FromBytes(BuildPredictionJsonSchema(includeJustification)),
+                jsonSchemaIsStrict: true)
+        };
+    }
+
+    private async Task<MatchCompletionResult> CompleteProtocolMatchChatAsync(
+        IReadOnlyList<ChatMessage> messages,
+        bool includeJustification,
+        string? serviceTier,
+        CancellationToken cancellationToken)
+    {
+        var requestPayload = CreateProtocolMatchRequestPayload(messages, includeJustification, serviceTier);
+        using var content = BinaryContent.Create(BinaryData.FromBytes(JsonSerializer.SerializeToUtf8Bytes(requestPayload, ProtocolJsonOptions)));
+        var response = await _chatClient.CompleteChatAsync(
+            content,
+            new RequestOptions { CancellationToken = cancellationToken });
+
+        var protocolResponse = ParseProtocolChatCompletionResponse(response.GetRawResponse().Content);
+        var predictionJson = protocolResponse.Choices.FirstOrDefault()?.Message?.Content;
+        if (string.IsNullOrWhiteSpace(predictionJson))
+        {
+            throw new InvalidOperationException("OpenAI chat completion response did not contain message content.");
+        }
+
+        var usage = protocolResponse.Usage?.ToChatTokenUsage()
+                    ?? throw new InvalidOperationException("OpenAI chat completion response did not contain token usage.");
+
+        return new MatchCompletionResult(
+            predictionJson!,
+            usage,
+            new PredictionExecutionTelemetry(
+                "flex-first-standard-fallback",
+                serviceTier ?? "standard",
+                protocolResponse.ServiceTier ?? serviceTier ?? "standard",
+                FallbackUsed: serviceTier is null),
+            protocolResponse.ServiceTier);
+    }
+
+    private object CreateProtocolMatchRequestPayload(
+        IReadOnlyList<ChatMessage> messages,
+        bool includeJustification,
+        string? serviceTier)
+    {
+        var schema = JsonSerializer.Deserialize<JsonElement>(BuildPredictionJsonSchema(includeJustification));
+
+        return new
+        {
+            model = _model,
+            messages = messages.Select(CreateProtocolMessage).ToArray(),
+            max_completion_tokens = 10_000,
+            response_format = new
+            {
+                type = "json_schema",
+                json_schema = new
+                {
+                    name = "match_prediction",
+                    schema,
+                    strict = true
+                }
+            },
+            service_tier = serviceTier
+        };
+    }
+
+    private static object CreateProtocolMessage(ChatMessage message)
+    {
+        return message switch
+        {
+            SystemChatMessage system => new { role = "system", content = system.Content[0].Text },
+            UserChatMessage user => new { role = "user", content = user.Content[0].Text },
+            _ => throw new InvalidOperationException($"Unsupported chat message type '{message.GetType().Name}'.")
+        };
+    }
+
+    private static ProtocolChatCompletionResponse ParseProtocolChatCompletionResponse(BinaryData content)
+    {
+        return JsonSerializer.Deserialize<ProtocolChatCompletionResponse>(content, ProtocolJsonOptions)
+               ?? throw new InvalidOperationException("OpenAI chat completion response could not be deserialized.");
+    }
+
+    private static bool IsFlexCapacityFailure(Exception? exception, CancellationToken cancellationToken)
+    {
+        if (exception is null)
+        {
+            return false;
+        }
+
+        if (cancellationToken.IsCancellationRequested)
+        {
+            return false;
+        }
+
+        return exception switch
+        {
+            ClientResultException { Status: 408 } => true,
+            ClientResultException { Status: 429 } clientException => IsFlexResourceUnavailableFailure(clientException),
+            TimeoutException => true,
+            TaskCanceledException => true,
+            _ => false
+        };
+    }
+
+    private static bool IsFlexResourceUnavailableFailure(ClientResultException exception)
+    {
+        var rawResponse = exception.GetRawResponse();
+        return ContainsFlexResourceUnavailableMarker(exception.Message)
+               || ContainsFlexResourceUnavailableMarker(rawResponse?.ReasonPhrase)
+               || ContainsFlexResourceUnavailableMarker(rawResponse?.Content.ToString());
+    }
+
+    private static bool ContainsFlexResourceUnavailableMarker(string? text)
+    {
+        if (string.IsNullOrWhiteSpace(text))
+        {
+            return false;
+        }
+
+        return text.Contains("resource_unavailable", StringComparison.OrdinalIgnoreCase)
+               || text.Contains("resource unavailable", StringComparison.OrdinalIgnoreCase)
+               || text.Contains("resources unavailable", StringComparison.OrdinalIgnoreCase)
+               || text.Contains("insufficient resources", StringComparison.OrdinalIgnoreCase)
+               || text.Contains("capacity", StringComparison.OrdinalIgnoreCase);
     }
 
     public async Task<BonusPrediction?> PredictBonusQuestionAsync(
@@ -639,13 +837,24 @@ public class PredictionService : IPredictionService
         List<ChatMessage> messages,
         string responseJson,
         ChatTokenUsage usage,
-        PredictionTelemetryMetadata? telemetryMetadata)
+        PredictionTelemetryMetadata? telemetryMetadata,
+        PredictionExecutionTelemetry? executionTelemetry = null)
     {
         if (activity is null)
             return;
 
         activity.SetTag("langfuse.observation.type", "generation");
         activity.SetTag("gen_ai.request.model", _model);
+
+        if (executionTelemetry is not null)
+        {
+            activity.SetTag("gen_ai.request.service_tier", executionTelemetry.RequestedServiceTier);
+            activity.SetTag("gen_ai.response.service_tier", executionTelemetry.FinalServiceTier);
+            activity.SetTag("langfuse.observation.metadata.openaiExecutionStrategy", executionTelemetry.Strategy);
+            activity.SetTag("langfuse.observation.metadata.openaiRequestedServiceTier", executionTelemetry.RequestedServiceTier);
+            activity.SetTag("langfuse.observation.metadata.openaiFinalServiceTier", executionTelemetry.FinalServiceTier);
+            activity.SetTag("langfuse.observation.metadata.openaiServiceTierFallbackUsed", executionTelemetry.FallbackUsed.ToString());
+        }
 
         // Serialize messages as input (system prompt + user message)
         var inputMessages = messages.Select(m => new
@@ -681,5 +890,86 @@ public class PredictionService : IPredictionService
         // model name and usage_details using its maintained pricing tables, which are more up-to-date
         // than the prices kept in this repository. Explicitly ingesting cost_details would override
         // that inference (ingested values take priority over inferred ones).
+    }
+
+    private sealed record MatchCompletionResult(
+        string PredictionJson,
+        ChatTokenUsage Usage,
+        PredictionExecutionTelemetry? ExecutionTelemetry,
+        string? FinalServiceTier = null);
+
+    private sealed record PredictionExecutionTelemetry(
+        string Strategy,
+        string RequestedServiceTier,
+        string FinalServiceTier,
+        bool FallbackUsed);
+
+    private sealed class ProtocolChatCompletionResponse
+    {
+        [JsonPropertyName("choices")]
+        public ProtocolChatCompletionChoice[] Choices { get; set; } = [];
+
+        [JsonPropertyName("usage")]
+        public ProtocolChatCompletionUsage? Usage { get; set; }
+
+        [JsonPropertyName("service_tier")]
+        public string? ServiceTier { get; set; }
+    }
+
+    private sealed class ProtocolChatCompletionChoice
+    {
+        [JsonPropertyName("message")]
+        public ProtocolChatCompletionMessage? Message { get; set; }
+    }
+
+    private sealed class ProtocolChatCompletionMessage
+    {
+        [JsonPropertyName("content")]
+        public string? Content { get; set; }
+    }
+
+    private sealed class ProtocolChatCompletionUsage
+    {
+        [JsonPropertyName("prompt_tokens")]
+        public int PromptTokens { get; set; }
+
+        [JsonPropertyName("completion_tokens")]
+        public int CompletionTokens { get; set; }
+
+        [JsonPropertyName("prompt_tokens_details")]
+        public ProtocolPromptTokenDetails? PromptTokenDetails { get; set; }
+
+        [JsonPropertyName("completion_tokens_details")]
+        public ProtocolCompletionTokenDetails? CompletionTokenDetails { get; set; }
+
+        public ChatTokenUsage ToChatTokenUsage()
+        {
+            var cachedTokenCount = PromptTokenDetails?.CachedTokens ?? 0;
+            var reasoningTokenCount = CompletionTokenDetails?.ReasoningTokens ?? 0;
+            var inputDetails = cachedTokenCount > 0
+                ? OpenAIChatModelFactory.ChatInputTokenUsageDetails(cachedTokenCount: cachedTokenCount)
+                : null;
+            var outputDetails = reasoningTokenCount > 0
+                ? OpenAIChatModelFactory.ChatOutputTokenUsageDetails(reasoningTokenCount: reasoningTokenCount)
+                : null;
+
+            return OpenAIChatModelFactory.ChatTokenUsage(
+                inputTokenCount: PromptTokens,
+                outputTokenCount: CompletionTokens,
+                inputTokenDetails: inputDetails,
+                outputTokenDetails: outputDetails);
+        }
+    }
+
+    private sealed class ProtocolPromptTokenDetails
+    {
+        [JsonPropertyName("cached_tokens")]
+        public int CachedTokens { get; set; }
+    }
+
+    private sealed class ProtocolCompletionTokenDetails
+    {
+        [JsonPropertyName("reasoning_tokens")]
+        public int ReasoningTokens { get; set; }
     }
 }

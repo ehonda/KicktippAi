@@ -1,5 +1,7 @@
 using EHonda.KicktippAi.Core;
 using System.Diagnostics;
+using System.Text;
+using System.Text.Json;
 using Microsoft.Extensions.Logging;
 using Moq;
 using OpenAI.Chat;
@@ -41,6 +43,94 @@ public class PredictionService_PredictMatchAsync_Tests : PredictionServiceTests_
                awayTeam == telemetryMetadata.AwayTeam &&
                candidate.GetTagItem("langfuse.observation.metadata.repredictionIndex") is string repredictionIndex &&
                repredictionIndex == "3";
+    }
+
+    private static ChatClient CreateProtocolChatClient(
+        List<string?> requestedServiceTiers,
+        Exception? firstException = null,
+        string responseServiceTier = "standard")
+    {
+        var mockClient = new Mock<ChatClient>();
+        var callCount = 0;
+
+        mockClient
+            .Setup(client => client.CompleteChatAsync(
+                It.IsAny<BinaryContent>(),
+                It.IsAny<RequestOptions>()))
+            .Returns<BinaryContent, RequestOptions>((content, _) =>
+            {
+                callCount += 1;
+                requestedServiceTiers.Add(ExtractServiceTier(content));
+                if (callCount == 1 && firstException is not null)
+                {
+                    return Task.FromException<ClientResult>(firstException);
+                }
+
+                return Task.FromResult(CreateProtocolClientResult(responseServiceTier));
+            });
+
+        return mockClient.Object;
+    }
+
+    private static string? ExtractServiceTier(BinaryContent content)
+    {
+        using var stream = new MemoryStream();
+        content.WriteTo(stream, CancellationToken.None);
+        var json = Encoding.UTF8.GetString(stream.ToArray());
+        using var document = JsonDocument.Parse(json);
+        return document.RootElement.TryGetProperty("service_tier", out var serviceTier)
+               && serviceTier.ValueKind == JsonValueKind.String
+            ? serviceTier.GetString()
+            : null;
+    }
+
+    private static ClientResult CreateProtocolClientResult(string serviceTier)
+    {
+        var response = new Mock<PipelineResponse>();
+        response.SetupGet(candidate => candidate.Status).Returns(200);
+        response.SetupGet(candidate => candidate.Content).Returns(BinaryData.FromString($$"""
+            {
+              "id": "chatcmpl-test",
+              "object": "chat.completion",
+              "created": 1760000000,
+              "model": "gpt-5",
+              "service_tier": "{{serviceTier}}",
+              "choices": [
+                {
+                  "index": 0,
+                  "message": {
+                    "role": "assistant",
+                    "content": "{\"home\": 2, \"away\": 1}"
+                  },
+                  "finish_reason": "stop"
+                }
+              ],
+              "usage": {
+                "prompt_tokens": 1000,
+                "completion_tokens": 50,
+                "total_tokens": 1050,
+                "prompt_tokens_details": {
+                  "cached_tokens": 250
+                },
+                "completion_tokens_details": {
+                  "reasoning_tokens": 7
+                }
+              }
+            }
+            """));
+        return ClientResult.FromResponse(response.Object);
+    }
+
+    private static ClientResultException CreateClientResultException(
+        int status,
+        string reasonPhrase = "Resource Unavailable",
+        string body = """{"error":{"code":"resource_unavailable","message":"capacity unavailable"}}""")
+    {
+        var response = new Mock<PipelineResponse>();
+        response.SetupGet(candidate => candidate.Status).Returns(status);
+        response.SetupGet(candidate => candidate.ReasonPhrase).Returns(reasonPhrase);
+        response.SetupGet(candidate => candidate.Content).Returns(BinaryData.FromString(body));
+        return new ClientResultException("OpenAI request failed", response.Object, null);
     }
 
     /// <summary>
@@ -225,6 +315,88 @@ public class PredictionService_PredictMatchAsync_Tests : PredictionServiceTests_
 
         // Assert
         await Assert.That(prediction).IsNull();
+    }
+
+    [Test]
+    [NotInParallel("Telemetry")]
+    public async Task Predicting_match_with_flex_processing_retries_standard_after_capacity_failure()
+    {
+        // Arrange
+        var requestedServiceTiers = new List<string?>();
+        var chatClient = CreateProtocolChatClient(
+            requestedServiceTiers,
+            firstException: CreateClientResultException(429));
+        var service = CreateService(
+            chatClient,
+            options: NullableOption.Some(PredictionServiceOptions.FlexProcessingWithStandardFallback));
+        var capturedActivities = new List<Activity>();
+        using var listener = CreateActivityListener(capturedActivities);
+
+        // Act
+        var prediction = await PredictMatchAsync(service);
+
+        // Assert
+        await Assert.That(prediction).IsEquivalentTo(new Prediction(2, 1, null));
+        await Assert.That(requestedServiceTiers.Count).IsEqualTo(2);
+        await Assert.That(requestedServiceTiers[0]).IsEqualTo("flex");
+        await Assert.That(requestedServiceTiers[1]).IsNull();
+
+        var activity = capturedActivities.Single(candidate => candidate.OperationName == "predict-match");
+        await Assert.That(activity.GetTagItem("langfuse.observation.metadata.openaiExecutionStrategy"))
+            .IsEqualTo("flex-first-standard-fallback");
+        await Assert.That(activity.GetTagItem("langfuse.observation.metadata.openaiRequestedServiceTier"))
+            .IsEqualTo("standard");
+        await Assert.That(activity.GetTagItem("langfuse.observation.metadata.openaiFinalServiceTier"))
+            .IsEqualTo("standard");
+        await Assert.That(activity.GetTagItem("langfuse.observation.metadata.openaiServiceTierFallbackUsed"))
+            .IsEqualTo("True");
+        await Assert.That(activity.GetTagItem("langfuse.observation.usage_details")?.ToString())
+            .Contains("\"cache_read_input_tokens\":250");
+    }
+
+    [Test]
+    public async Task Predicting_match_with_flex_processing_does_not_retry_non_capacity_failure()
+    {
+        // Arrange
+        var requestedServiceTiers = new List<string?>();
+        var chatClient = CreateProtocolChatClient(
+            requestedServiceTiers,
+            firstException: CreateClientResultException(400));
+        var service = CreateService(
+            chatClient,
+            options: NullableOption.Some(PredictionServiceOptions.FlexProcessingWithStandardFallback));
+
+        // Act
+        var prediction = await PredictMatchAsync(service);
+
+        // Assert
+        await Assert.That(prediction).IsNull();
+        await Assert.That(requestedServiceTiers.Count).IsEqualTo(1);
+        await Assert.That(requestedServiceTiers[0]).IsEqualTo("flex");
+    }
+
+    [Test]
+    public async Task Predicting_match_with_flex_processing_does_not_retry_plain_rate_limit()
+    {
+        // Arrange
+        var requestedServiceTiers = new List<string?>();
+        var chatClient = CreateProtocolChatClient(
+            requestedServiceTiers,
+            firstException: CreateClientResultException(
+                429,
+                reasonPhrase: "Too Many Requests",
+                body: """{"error":{"code":"rate_limit_exceeded","message":"rate limit exceeded"}}"""));
+        var service = CreateService(
+            chatClient,
+            options: NullableOption.Some(PredictionServiceOptions.FlexProcessingWithStandardFallback));
+
+        // Act
+        var prediction = await PredictMatchAsync(service);
+
+        // Assert
+        await Assert.That(prediction).IsNull();
+        await Assert.That(requestedServiceTiers.Count).IsEqualTo(1);
+        await Assert.That(requestedServiceTiers[0]).IsEqualTo("flex");
     }
 
     [Test]

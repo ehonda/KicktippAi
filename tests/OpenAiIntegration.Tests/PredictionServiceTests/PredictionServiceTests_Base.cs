@@ -27,7 +27,8 @@ public abstract class PredictionServiceTests_Base
         NullableOption<ICostCalculationService> costCalculationService = default,
         NullableOption<ITokenUsageTracker> tokenUsageTracker = default,
         NullableOption<IInstructionsTemplateProvider> templateProvider = default,
-        NullableOption<string> model = default)
+        NullableOption<string> model = default,
+        NullableOption<PredictionServiceOptions> options = default)
     {
         var actualChatClient = chatClient.Or(() =>
         {
@@ -39,6 +40,7 @@ public abstract class PredictionServiceTests_Base
         var actualTokenTracker = tokenUsageTracker.Or(() => CreateMockTokenUsageTracker().Object);
         var actualTemplateProvider = templateProvider.Or(() => CreateMockTemplateProvider().Object);
         var actualModel = model.Or("gpt-5");
+        var actualOptions = options.Or(PredictionServiceOptions.Default);
 
         return new PredictionService(
             actualChatClient!,
@@ -46,7 +48,8 @@ public abstract class PredictionServiceTests_Base
             actualCostService!,
             actualTokenTracker!,
             actualTemplateProvider!,
-            actualModel!);
+            actualModel!,
+            actualOptions!);
     }
 
     /// <summary>

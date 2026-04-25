@@ -33,12 +33,20 @@ public sealed class OpenAiServiceFactory : IOpenAiServiceFactory
     /// <inheritdoc />
     public IPredictionService CreatePredictionService(string model)
     {
+        return CreatePredictionService(model, PredictionServiceOptions.Default);
+    }
+
+    /// <inheritdoc />
+    public IPredictionService CreatePredictionService(string model, PredictionServiceOptions options)
+    {
         ArgumentException.ThrowIfNullOrWhiteSpace(model);
+        ArgumentNullException.ThrowIfNull(options);
 
         var apiKey = _apiKey.Value;
+        var cacheKey = $"{model}|flexFallback={options.UseFlexProcessingWithStandardFallback}";
 
         // Cache key includes model to handle different configurations
-        return _predictionServiceCache.GetOrAdd(model, _ =>
+        return _predictionServiceCache.GetOrAdd(cacheKey, _ =>
         {
             var logger = _loggerFactory.CreateLogger<PredictionService>();
             var chatClient = new ChatClient(model, apiKey);
@@ -49,7 +57,8 @@ public sealed class OpenAiServiceFactory : IOpenAiServiceFactory
                 GetOrCreateCostCalculationService(),
                 GetTokenUsageTracker(),
                 GetOrCreateInstructionsTemplateProvider(),
-                model);
+                model,
+                options);
         });
     }
 

@@ -104,8 +104,10 @@ That keeps the experiment runner and the analysis layer loosely coupled.
 The Python report command currently produces:
 
 - a JSON report with ranked runs, pairwise outcome counts, Wilcoxon results, bootstrap confidence intervals, and corrected pairwise comparisons
-- a Markdown summary with the same comparison information in a review-friendly format
+- a Markdown summary with the same comparison information in a review-friendly format, including dataset description and metadata when present
 - a standalone HTML report under `experiment-analysis/...` that can be published to GitHub Pages
+
+Reports display model/run subjects with short display names such as `o3` and `gpt-5-nano` when available instead of using long experiment run-name slugs as primary labels.
 
 Two-run bundles are reported with:
 

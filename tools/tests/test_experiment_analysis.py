@@ -41,10 +41,97 @@ class ExperimentAnalysisReportTests(unittest.TestCase):
 
             self.assertEqual(report_json["primaryMetricName"], "total_kicktipp_points")
             self.assertEqual(report_json["comparison"]["betterRunName"], "slice__test-community__o3")
+            self.assertEqual(report_json["comparison"]["betterRunDisplayName"], "o3")
             self.assertEqual(report_json["comparison"]["perItemOutcomeCounts"], {"wins": 2, "ties": 2, "losses": 0})
             self.assertIn("Per-Item Win/Tie/Loss Counts", report_markdown)
+            self.assertIn("| 1 | o3 | o3 | 10.0000 |", report_markdown)
             self.assertIn("Two-run comparison", report_html)
-            self.assertIn("slice__test-community__o3", report_html)
+            self.assertIn("<td>o3</td>", report_html)
+            self.assertNotIn("<td>slice__test-community__o3</td>", report_html)
+
+    def test_repeated_match_report_displays_metadata_methods_short_labels_and_badges(self) -> None:
+        bundle = {
+            "datasetName": (
+                "match-predictions/bundesliga-2025-26/pes-squad/repeated-match/"
+                "md26-vfb-stuttgart-vs-rb-leipzig/repeat-25"
+            ),
+            "datasetDescription": (
+                "Stuttgart's 1-0 Matchday 26 win over Leipzig was a close top-four clash "
+                "where Stuttgart leapfrogged Leipzig."
+            ),
+            "datasetMetadata": {
+                "fixture": "VfB Stuttgart vs RB Leipzig",
+                "actualResult": "1:0",
+                "actualResultDisplay": "VfB Stuttgart 1 - 0 RB Leipzig",
+                "matchday": 26,
+                "repetitionCount": 25,
+                "interestingBecause": "Close top-four clash where Stuttgart leapfrogged Leipzig.",
+            },
+            "taskType": "repeated-match",
+            "primaryMetricName": "avg_kicktipp_points",
+            "runs": [
+                {
+                    "runName": "repeated-match__pes-squad__o3__prompt-v1__repeat-25__exact-time__2026-03-15t12-00-00z",
+                    "model": "o3",
+                    "runSubjectDisplayName": "o3",
+                    "primaryMetricValue": 2.5,
+                    "aggregateScores": {"total_kicktipp_points": 10.0, "avg_kicktipp_points": 2.5},
+                },
+                {
+                    "runName": "repeated-match__pes-squad__gpt-5-nano__prompt-v1__repeat-25__exact-time__2026-03-15t12-00-00z",
+                    "model": "gpt-5-nano",
+                    "runSubjectDisplayName": "gpt-5-nano",
+                    "primaryMetricValue": 1.0,
+                    "aggregateScores": {"total_kicktipp_points": 4.0, "avg_kicktipp_points": 1.0},
+                },
+            ],
+            "rows": [
+                {
+                    "pairingKey": f"repeat-{index}",
+                    "runName": run_name,
+                    "kicktippPoints": points,
+                }
+                for index, (o3_points, nano_points) in enumerate([(4, 2), (2, 2), (0, 0), (4, 0)], start=1)
+                for run_name, points in [
+                    (
+                        "repeated-match__pes-squad__o3__prompt-v1__repeat-25__exact-time__2026-03-15t12-00-00z",
+                        o3_points,
+                    ),
+                    (
+                        "repeated-match__pes-squad__gpt-5-nano__prompt-v1__repeat-25__exact-time__2026-03-15t12-00-00z",
+                        nano_points,
+                    ),
+                ]
+            ],
+        }
+
+        report_json = report.analyze_bundle(
+            bundle,
+            alpha=0.05,
+            correction_method="holm",
+            bootstrap_resamples=100,
+            confidence_level=0.95,
+            random_seed=20260406,
+        )
+        report_markdown = report.render_markdown(report_json)
+        report_html = report.render_html(report_json)
+
+        self.assertEqual(report_json["datasetMetadata"]["fixture"], "VfB Stuttgart vs RB Leipzig")
+        self.assertIn("## Dataset Metadata", report_markdown)
+        self.assertIn("| Fixture | VfB Stuttgart vs RB Leipzig |", report_markdown)
+        self.assertIn("| Actual Result | VfB Stuttgart 1 - 0 RB Leipzig |", report_markdown)
+        self.assertIn("| Repetitions | 25 |", report_markdown)
+        self.assertIn("Paired Wilcoxon signed-rank test", report_markdown)
+        self.assertIn("Wilcoxon p-value", report_markdown)
+        self.assertIn("Effect Size Confidence Intervals", report_markdown)
+        self.assertIn("- Better Run: `o3`", report_markdown)
+        self.assertIn("- Other Run: `gpt-5-nano`", report_markdown)
+        self.assertNotIn("repeated-match__pes-squad__o3__prompt-v1", report_markdown)
+        self.assertIn("<h2>Dataset metadata</h2>", report_html)
+        self.assertIn("VfB Stuttgart 1 - 0 RB Leipzig", report_html)
+        self.assertIn("Two-run comparison", report_html)
+        self.assertIn("pill-", report_html)
+        self.assertNotIn("<td>repeated-match__pes-squad__o3__prompt-v1", report_html)
 
     def test_three_run_bundle_produces_friedman_and_pairwise_comparisons(self) -> None:
         fixture = Path("tools/tests/fixtures/three_run_repeated_match_bundle.json")

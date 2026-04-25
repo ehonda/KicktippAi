@@ -377,6 +377,8 @@ public static class OrchestratorTestFactories
 
         mockFactory.Setup(f => f.CreatePredictionService(It.IsAny<string>()))
             .Returns(mockPredictionService.Object);
+        mockFactory.Setup(f => f.CreatePredictionService(It.IsAny<string>(), It.IsAny<PredictionServiceOptions>()))
+            .Returns(mockPredictionService.Object);
         mockFactory.Setup(f => f.GetTokenUsageTracker())
             .Returns(mockTracker.Object);
 

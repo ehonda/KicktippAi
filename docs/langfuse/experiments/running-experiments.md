@@ -96,31 +96,31 @@ $runStamp = (Get-Date).ToUniversalTime().ToString("yyyy-MM-ddTHH-mm-ssZ").ToLowe
 dotnet run --project src/Orchestrator -- run-slice gpt-5-nano --manifest artifacts/langfuse-experiments/verification/pes-squad-slice/slice-manifest.json --run-name "slice__pes-squad__gpt-5-nano__random-1-seed-20260405__exact-time__$runStamp" --prompt-key prompt-v1 --evaluation-time "2026-03-14T12:00:00 Europe/Berlin (+01)" --batch-size 1 --replace-run
 ```
 
-This exact workflow was verified successfully on `2026-04-05`.
+A 25-repetition `o3` vs `gpt-5-nano` repeated-match workflow with `--batch-count 3` was verified successfully on `2026-04-26`.
 
 ## Repeated-Match Workflow
 
 ### 1. Prepare a repeated-match dataset
 
-Use `sample-size > 1` if you want the warmup plus batches behavior to actually exercise more than one execution.
+Use `sample-size > 1` if you want the warmup plus batches behavior to actually exercise more than one execution. Add `--dataset-description` when the repeated fixture needs context in exported reports.
 
 ```powershell
-dotnet run --project src/Orchestrator -- prepare-repeated-match --community-context pes-squad --home "VfB Stuttgart" --away "RB Leipzig" --matchday 26 --sample-size 2 --output-directory artifacts/langfuse-experiments/verification/pes-squad-repeated-match
+dotnet run --project src/Orchestrator -- prepare-repeated-match --community-context pes-squad --home "VfB Stuttgart" --away "RB Leipzig" --matchday 26 --sample-size 25 --dataset-description "Stuttgart's 1-0 Matchday 26 win over Leipzig was a close top-four clash where Stuttgart leapfrogged Leipzig."
 ```
 
 ### 2. Sync the dataset
 
 ```powershell
-dotnet run --project src/Orchestrator -- sync-dataset --input artifacts/langfuse-experiments/verification/pes-squad-repeated-match/slice-dataset.json
+dotnet run --project src/Orchestrator -- sync-dataset --input artifacts/langfuse-experiments/repeated-match/pes-squad/md26-vfb-stuttgart-vs-rb-leipzig/repeat-25/slice-dataset.json
 ```
 
 ### 3. Run the repeated-match experiment
 
-Example using `gpt-5-nano` and one warmup plus one additional batch:
+Example using `gpt-5-nano` with one warmup plus three follow-up batches. With 25 repetitions, `--batch-count 3` runs the first prediction alone, then distributes the remaining 24 predictions as three batches of eight.
 
 ```powershell
 $runStamp = (Get-Date).ToUniversalTime().ToString("yyyy-MM-ddTHH-mm-ssZ").ToLowerInvariant()
-dotnet run --project src/Orchestrator -- run-repeated-match gpt-5-nano --manifest artifacts/langfuse-experiments/verification/pes-squad-repeated-match/slice-manifest.json --run-name "repeated-match__pes-squad__gpt-5-nano__repeat-2__exact-time__$runStamp" --prompt-key prompt-v1 --evaluation-time "2026-03-15T12:00:00 Europe/Berlin (+01)" --batch-count 1 --replace-run
+dotnet run --project src/Orchestrator -- run-repeated-match gpt-5-nano --manifest artifacts/langfuse-experiments/repeated-match/pes-squad/md26-vfb-stuttgart-vs-rb-leipzig/repeat-25/slice-manifest.json --run-name "repeated-match__pes-squad__gpt-5-nano__prompt-v1__repeat-25__exact-time__$runStamp" --prompt-key prompt-v1 --evaluation-time "2026-03-15T12:00:00 Europe/Berlin (+01)" --batch-count 3 --replace-run
 ```
 
 This exact workflow was verified successfully on `2026-04-05`.

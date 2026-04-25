@@ -40,6 +40,7 @@ Properties:
 - all prepared items map back to the same historical source match
 - prepared item ids are unique per repetition
 - batching uses a warmup plus batches strategy controlled by `batchCount`
+- the prepared dataset can carry a short `datasetDescription` plus metadata such as fixture, matchday, actual result, repetition count, and why the fixture is interesting
 
 ## Identity Model
 
@@ -132,10 +133,13 @@ Important fields include:
 - `batchStrategy`
 - `batchSize`
 - `batchCount`
+- `openaiServiceTierStrategy`
 
 `slice` runs use `batchStrategy = simple-batched`.
 
 `repeated-match` runs use `batchStrategy = warmup-plus-batches`.
+
+Prepared model runs use OpenAI flex processing first and fall back to standard processing for flex capacity-style failures. The run metadata records this as `openaiServiceTierStrategy = flex-first-standard-fallback`, and prediction telemetry records the requested/final service tier when available.
 
 ## Score Model
 

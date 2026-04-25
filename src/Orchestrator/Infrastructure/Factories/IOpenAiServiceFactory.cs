@@ -23,6 +23,14 @@ public interface IOpenAiServiceFactory
     IPredictionService CreatePredictionService(string model);
 
     /// <summary>
+    /// Creates a prediction service configured with the specified model and execution options.
+    /// </summary>
+    /// <param name="model">The model to use for predictions.</param>
+    /// <param name="options">Execution options for prediction calls.</param>
+    /// <returns>A configured prediction service instance.</returns>
+    IPredictionService CreatePredictionService(string model, PredictionServiceOptions options);
+
+    /// <summary>
     /// Creates or retrieves the shared token usage tracker.
     /// </summary>
     /// <returns>The token usage tracker instance.</returns>
