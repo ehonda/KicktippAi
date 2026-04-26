@@ -201,6 +201,7 @@ public sealed class PublishExperimentAnalysisCommand : AsyncCommand<PublishExper
             Competition = TryResolveCompetition(bundle.DatasetName),
             DatasetName = bundle.DatasetName,
             PromptKey = run.PromptKey,
+            ReasoningEffort = run.ReasoningEffort,
             SliceKind = run.SliceKind,
             SliceKey = run.SliceKey,
             SourcePoolKey = run.SourcePoolKey,

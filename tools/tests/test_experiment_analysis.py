@@ -49,6 +49,54 @@ class ExperimentAnalysisReportTests(unittest.TestCase):
             self.assertIn("<td>o3</td>", report_html)
             self.assertNotIn("<td>slice__test-community__o3</td>", report_html)
 
+    def test_reasoning_effort_is_displayed_next_to_model_when_no_subject_label_exists(self) -> None:
+        bundle = {
+            "datasetName": (
+                "match-predictions/bundesliga-2025-26/pes-squad/repeated-match/"
+                "md26-vfb-stuttgart-vs-rb-leipzig/repeat-2"
+            ),
+            "taskType": "repeated-match",
+            "primaryMetricName": "avg_kicktipp_points",
+            "runs": [
+                {
+                    "runName": "gpt-55-none",
+                    "model": "gpt-5.5",
+                    "reasoningEffort": "none",
+                    "primaryMetricValue": 2.0,
+                    "aggregateScores": {"total_kicktipp_points": 4.0, "avg_kicktipp_points": 2.0},
+                },
+                {
+                    "runName": "gpt-55-xhigh",
+                    "model": "gpt-5.5",
+                    "reasoningEffort": "xhigh",
+                    "primaryMetricValue": 1.0,
+                    "aggregateScores": {"total_kicktipp_points": 2.0, "avg_kicktipp_points": 1.0},
+                },
+            ],
+            "rows": [
+                {"pairingKey": "repeat-1", "runName": "gpt-55-none", "kicktippPoints": 2},
+                {"pairingKey": "repeat-1", "runName": "gpt-55-xhigh", "kicktippPoints": 1},
+                {"pairingKey": "repeat-2", "runName": "gpt-55-none", "kicktippPoints": 2},
+                {"pairingKey": "repeat-2", "runName": "gpt-55-xhigh", "kicktippPoints": 1},
+            ],
+        }
+
+        report_json = report.analyze_bundle(
+            bundle,
+            alpha=0.05,
+            correction_method="holm",
+            bootstrap_resamples=100,
+            confidence_level=0.95,
+            random_seed=20260406,
+        )
+        report_markdown = report.render_markdown(report_json)
+        report_html = report.render_html(report_json)
+
+        self.assertEqual(report_json["comparison"]["betterRunDisplayName"], "gpt-5.5 (none)")
+        self.assertEqual(report_json["comparison"]["otherRunDisplayName"], "gpt-5.5 (xhigh)")
+        self.assertIn("gpt-5.5 (none)", report_markdown)
+        self.assertIn("gpt-5.5 (xhigh)", report_html)
+
     def test_repeated_match_report_displays_metadata_methods_short_labels_and_badges(self) -> None:
         bundle = {
             "datasetName": (

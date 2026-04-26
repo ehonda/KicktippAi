@@ -67,6 +67,50 @@ public class RunExperimentCommands_Tests
     }
 
     [Test]
+    public async Task Run_experiment_settings_accept_and_normalize_reasoning_effort_values()
+    {
+        var noneSettings = new RunRepeatedMatchSettings
+        {
+            Model = "gpt-5.5",
+            ManifestPath = "slice-manifest.json",
+            RunName = "run-name",
+            ReasoningEffort = "None"
+        };
+        var xhighSettings = new RunRepeatedMatchSettings
+        {
+            Model = "gpt-5.5",
+            ManifestPath = "slice-manifest.json",
+            RunName = "run-name",
+            ReasoningEffort = " XHIGH "
+        };
+
+        var noneResult = noneSettings.Validate();
+        var xhighResult = xhighSettings.Validate();
+
+        await Assert.That(noneResult.Successful).IsTrue();
+        await Assert.That(xhighResult.Successful).IsTrue();
+        await Assert.That(noneSettings.ReasoningEffort).IsEqualTo("none");
+        await Assert.That(xhighSettings.ReasoningEffort).IsEqualTo("xhigh");
+    }
+
+    [Test]
+    public async Task Run_experiment_settings_reject_invalid_reasoning_effort_values()
+    {
+        var settings = new RunRepeatedMatchSettings
+        {
+            Model = "gpt-5.5",
+            ManifestPath = "slice-manifest.json",
+            RunName = "run-name",
+            ReasoningEffort = "maximum"
+        };
+
+        var result = settings.Validate();
+
+        await Assert.That(result.Successful).IsFalse();
+        await Assert.That(result.Message).Contains("--reasoning-effort must be one of");
+    }
+
+    [Test]
     public async Task Langfuse_prompt_run_options_flow_into_experiment_metadata_tags_and_propagated_metadata()
     {
         var manifest = new PreparedExperimentManifest
@@ -108,7 +152,8 @@ public class RunExperimentCommands_Tests
             7,
             "warmup-plus-batches",
             null,
-            3);
+            3,
+            "xhigh");
 
         var metadata = PreparedExperimentSupport.BuildRunMetadata(manifest, options);
         var tags = PreparedExperimentSupport.DeriveTraceTags(metadata);
@@ -118,12 +163,17 @@ public class RunExperimentCommands_Tests
         await Assert.That(metadata.LangfusePromptName).IsEqualTo("kicktippai/predict-one-match-o3-poc");
         await Assert.That(metadata.LangfusePromptLabel).IsEqualTo("poc");
         await Assert.That(metadata.LangfusePromptVersion).IsEqualTo(7);
+        await Assert.That(metadata.ReasoningEffort).IsEqualTo("xhigh");
+        await Assert.That(metadata.RunSubjectId).IsEqualTo("gpt-5.5:reasoning-effort:xhigh");
+        await Assert.That(metadata.RunSubjectDisplayName).IsEqualTo("gpt-5.5 (xhigh)");
         await Assert.That(tags).Contains("prompt-source:langfuse");
         await Assert.That(tags).Contains("langfuse-prompt:kicktippai/predict-one-match-o3-poc");
         await Assert.That(tags).Contains("langfuse-prompt-label:poc");
         await Assert.That(tags).Contains("langfuse-prompt-version:7");
+        await Assert.That(tags).Contains("reasoning-effort:xhigh");
         await Assert.That(propagatedMetadata["promptSource"]).IsEqualTo("langfuse");
         await Assert.That(propagatedMetadata["langfusePromptVersion"]).IsEqualTo("7");
+        await Assert.That(propagatedMetadata["reasoningEffort"]).IsEqualTo("xhigh");
     }
 
     [Test]

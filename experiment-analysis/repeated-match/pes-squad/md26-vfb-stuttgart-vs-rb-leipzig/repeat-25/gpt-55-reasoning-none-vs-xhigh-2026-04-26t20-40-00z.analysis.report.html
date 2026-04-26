@@ -1,0 +1,1039 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="utf-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1">
+    <title>Experiment Analysis - match-predictions/bundesliga-2025-26/pes-squad/repeated-match/md26-vfb-stuttgart-vs-rb-leipzig/repeat-25</title>
+    <style>
+        :root {
+            --bg: #f4efe6;
+            --panel: rgba(255, 252, 246, 0.94);
+            --panel-strong: #fffaf1;
+            --text: #1e1a16;
+            --muted: #6d6258;
+            --border: rgba(86, 69, 53, 0.16);
+            --accent: #b5532f;
+            --accent-soft: rgba(181, 83, 47, 0.12);
+            --good: #1c7b5b;
+            --good-soft: rgba(28, 123, 91, 0.14);
+            --good-row: rgba(28, 123, 91, 0.08);
+            --bad: #b33d3d;
+            --bad-soft: rgba(179, 61, 61, 0.14);
+            --bad-row: rgba(179, 61, 61, 0.08);
+            --baseline: #b03a93;
+            --baseline-soft: rgba(176, 58, 147, 0.16);
+            --baseline-row: rgba(176, 58, 147, 0.12);
+            --shadow: 0 24px 70px rgba(70, 45, 26, 0.12);
+        }
+
+        * { box-sizing: border-box; }
+
+        body {
+            margin: 0;
+            font-family: "Segoe UI", "Trebuchet MS", sans-serif;
+            color: var(--text);
+            background:
+                radial-gradient(circle at top left, rgba(181, 83, 47, 0.12), transparent 34%),
+                radial-gradient(circle at top right, rgba(28, 123, 91, 0.10), transparent 28%),
+                linear-gradient(180deg, #f7f1e8 0%, var(--bg) 100%);
+        }
+
+        .page {
+            max-width: 1160px;
+            margin: 0 auto;
+            padding: 32px 20px 48px;
+        }
+
+        .hero {
+            background: linear-gradient(140deg, rgba(255, 250, 241, 0.97), rgba(247, 238, 228, 0.94));
+            border: 1px solid var(--border);
+            border-radius: 28px;
+            padding: 28px;
+            box-shadow: var(--shadow);
+            margin-bottom: 24px;
+        }
+
+        .eyebrow {
+            margin: 0 0 8px;
+            color: var(--accent);
+            font-size: 0.78rem;
+            font-weight: 700;
+            letter-spacing: 0.14em;
+            text-transform: uppercase;
+        }
+
+        h1, h2, h3 { margin: 0; }
+
+        h1 {
+            font-size: clamp(1.9rem, 4vw, 3.2rem);
+            line-height: 1.05;
+            margin-bottom: 12px;
+        }
+
+        .hero-meta {
+            display: flex;
+            flex-wrap: wrap;
+            gap: 10px;
+            margin-top: 16px;
+        }
+
+        .pill {
+            display: inline-flex;
+            align-items: center;
+            padding: 6px 10px;
+            border-radius: 999px;
+            background: var(--accent-soft);
+            color: var(--text);
+            font-size: 0.9rem;
+            font-weight: 600;
+        }
+
+        .pill-good {
+            background: var(--good-soft);
+            color: var(--good);
+        }
+
+        .pill-neutral {
+            background: rgba(52, 68, 84, 0.08);
+            color: #344454;
+        }
+
+        .panel {
+            background: var(--panel);
+            border: 1px solid var(--border);
+            border-radius: 24px;
+            padding: 24px;
+            box-shadow: var(--shadow);
+            margin-bottom: 20px;
+        }
+
+        .panel-header {
+            display: flex;
+            justify-content: space-between;
+            gap: 12px;
+            align-items: center;
+            margin-bottom: 18px;
+        }
+
+        .at-a-glance-panel {
+            border-color: rgba(28, 123, 91, 0.24);
+        }
+
+        .glance-grid {
+            display: grid;
+            grid-template-columns: minmax(260px, 1fr) minmax(320px, 1.35fr);
+            gap: 16px;
+            align-items: stretch;
+        }
+
+        .glance-card {
+            background: var(--panel-strong);
+            border: 1px solid var(--border);
+            border-radius: 18px;
+            padding: 18px;
+            min-width: 0;
+        }
+
+        .glance-label {
+            display: block;
+            color: var(--muted);
+            font-size: 0.78rem;
+            font-weight: 700;
+            text-transform: uppercase;
+            letter-spacing: 0.08em;
+            margin-bottom: 8px;
+        }
+
+        .match-fixture {
+            font-size: 1.45rem;
+            line-height: 1.15;
+            overflow-wrap: anywhere;
+        }
+
+        .match-meta {
+            display: flex;
+            flex-wrap: wrap;
+            gap: 8px;
+            margin: 14px 0;
+        }
+
+        .meta-chip {
+            border: 1px solid var(--border);
+            border-radius: 999px;
+            color: var(--muted);
+            display: inline-flex;
+            font-size: 0.84rem;
+            font-weight: 600;
+            padding: 5px 9px;
+        }
+
+        .actual-result {
+            margin-top: 12px;
+        }
+
+        .actual-result-value {
+            display: block;
+            font-size: 1.22rem;
+            font-weight: 800;
+            line-height: 1.2;
+            overflow-wrap: anywhere;
+        }
+
+        .head-to-head-card {
+            display: flex;
+            flex-direction: column;
+            gap: 14px;
+        }
+
+        .head-to-head-topline {
+            display: flex;
+            align-items: center;
+            justify-content: space-between;
+            gap: 12px;
+        }
+
+        .pvalue-summary {
+            border-radius: 12px;
+            padding: 8px 10px;
+            text-align: right;
+        }
+
+        .pvalue-summary strong {
+            display: block;
+            font-size: 1.05rem;
+        }
+
+        .head-to-head-models {
+            display: grid;
+            grid-template-columns: repeat(2, minmax(0, 1fr));
+            gap: 12px;
+        }
+
+        .model-result {
+            border: 1px solid var(--border);
+            border-radius: 14px;
+            padding: 14px;
+            min-width: 0;
+            background: rgba(255, 255, 255, 0.45);
+        }
+
+        .model-name {
+            font-size: 1.14rem;
+            font-weight: 800;
+            line-height: 1.15;
+            overflow-wrap: anywhere;
+        }
+
+        .model-points {
+            display: block;
+            font-size: 1.8rem;
+            font-weight: 800;
+            line-height: 1;
+            margin-top: 10px;
+        }
+
+        .model-subtext {
+            display: block;
+            color: var(--muted);
+            font-size: 0.84rem;
+            font-weight: 700;
+            margin-top: 4px;
+            text-transform: uppercase;
+            letter-spacing: 0.06em;
+        }
+
+        .head-to-head-neutral {
+            color: #53606c;
+        }
+
+        .head-to-head-neutral .model-result {
+            background: rgba(52, 68, 84, 0.06);
+            color: #53606c;
+        }
+
+        .model-winner {
+            background: var(--good-soft);
+            border-color: rgba(28, 123, 91, 0.36);
+        }
+
+        .model-winner .model-name,
+        .model-winner .model-points,
+        .model-winner .model-subtext {
+            color: var(--good);
+        }
+
+        .model-loser {
+            background: var(--bad-soft);
+            border-color: rgba(179, 61, 61, 0.36);
+        }
+
+        .model-loser .model-name,
+        .model-loser .model-points,
+        .model-loser .model-subtext {
+            color: var(--bad);
+        }
+
+        .prediction-section {
+            margin-top: 18px;
+        }
+
+        .prediction-section h3 {
+            font-size: 1.05rem;
+            margin-bottom: 12px;
+        }
+
+        .histogram-grid {
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(260px, 1fr));
+            gap: 14px;
+        }
+
+        .histogram-card {
+            background: rgba(255, 250, 241, 0.76);
+            border: 1px solid var(--border);
+            border-radius: 16px;
+            padding: 14px;
+            min-width: 0;
+        }
+
+        .histogram-title {
+            display: flex;
+            justify-content: space-between;
+            gap: 10px;
+            margin-bottom: 10px;
+            font-weight: 800;
+        }
+
+        .histogram-total {
+            color: var(--muted);
+            flex: 0 0 auto;
+            font-weight: 700;
+        }
+
+        .histogram-row {
+            display: grid;
+            grid-template-columns: 3.4rem minmax(90px, 1fr) 2.2rem;
+            gap: 10px;
+            align-items: center;
+            min-height: 26px;
+        }
+
+        .histogram-score,
+        .histogram-count {
+            font-variant-numeric: tabular-nums;
+            font-weight: 700;
+        }
+
+        .histogram-count {
+            text-align: right;
+        }
+
+        .histogram-track {
+            height: 10px;
+            overflow: hidden;
+            border-radius: 999px;
+            background: rgba(30, 26, 22, 0.08);
+        }
+
+        .histogram-bar {
+            display: block;
+            height: 100%;
+            min-width: 6px;
+            border-radius: inherit;
+            background: linear-gradient(90deg, var(--accent), var(--good));
+        }
+
+        .collapsible-panel {
+            padding: 0;
+            overflow: hidden;
+        }
+
+        .collapsible-summary {
+            align-items: center;
+            cursor: pointer;
+            display: flex;
+            justify-content: space-between;
+            gap: 12px;
+            list-style: none;
+            padding: 22px 24px;
+        }
+
+        .collapsible-summary::-webkit-details-marker {
+            display: none;
+        }
+
+        .collapsible-summary::after {
+            align-items: center;
+            background: rgba(52, 68, 84, 0.08);
+            border-radius: 999px;
+            content: "+";
+            display: inline-flex;
+            flex: 0 0 30px;
+            font-size: 1.2rem;
+            font-weight: 800;
+            height: 30px;
+            justify-content: center;
+            line-height: 1;
+            width: 30px;
+        }
+
+        .collapsible-panel[open] .collapsible-summary::after {
+            content: "-";
+        }
+
+        .collapsible-body {
+            padding: 0 24px 24px;
+        }
+
+        .summary-grid,
+        .metric-grid {
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(180px, 1fr));
+            gap: 14px;
+        }
+
+        .metric-card {
+            background: var(--panel-strong);
+            border: 1px solid var(--border);
+            border-radius: 18px;
+            padding: 16px;
+        }
+
+        .metric-label {
+            display: block;
+            color: var(--muted);
+            font-size: 0.82rem;
+            text-transform: uppercase;
+            letter-spacing: 0.08em;
+            margin-bottom: 8px;
+        }
+
+        .metric-value {
+            font-size: 1.28rem;
+            font-weight: 700;
+            line-height: 1.2;
+            overflow-wrap: anywhere;
+        }
+
+        .panel-subsection {
+            margin-top: 22px;
+        }
+
+        table {
+            width: 100%;
+            border-collapse: collapse;
+            overflow: hidden;
+            border-radius: 16px;
+            border: 1px solid var(--border);
+            background: var(--panel-strong);
+        }
+
+        thead {
+            background: rgba(30, 26, 22, 0.06);
+        }
+
+        th,
+        td {
+            padding: 12px 14px;
+            text-align: left;
+            border-bottom: 1px solid var(--border);
+            vertical-align: top;
+        }
+
+        th {
+            font-size: 0.83rem;
+            text-transform: uppercase;
+            letter-spacing: 0.06em;
+            color: var(--muted);
+        }
+
+        tbody tr:last-child td {
+            border-bottom: none;
+        }
+
+        .standings-table tbody tr {
+            cursor: pointer;
+            transition: background 120ms ease;
+        }
+
+        .standings-table tbody tr:hover,
+        .standings-table tbody tr:focus-visible {
+            background: rgba(181, 83, 47, 0.08);
+            outline: none;
+        }
+
+        .standings-row-baseline {
+            background: linear-gradient(90deg, var(--baseline-row), rgba(255, 250, 241, 0.88));
+        }
+
+        .standings-row-baseline td:first-child {
+            box-shadow: inset 4px 0 0 var(--baseline);
+        }
+
+        .standings-row-better {
+            background: linear-gradient(90deg, var(--good-row), rgba(255, 250, 241, 0.86));
+        }
+
+        .standings-row-better td:first-child {
+            box-shadow: inset 4px 0 0 var(--good);
+        }
+
+        .standings-row-worse {
+            background: linear-gradient(90deg, var(--bad-row), rgba(255, 250, 241, 0.86));
+        }
+
+        .standings-row-worse td:first-child {
+            box-shadow: inset 4px 0 0 var(--bad);
+        }
+
+        .sortable-table th {
+            padding: 0;
+        }
+
+        .sort-button {
+            width: 100%;
+            border: 0;
+            background: transparent;
+            color: inherit;
+            cursor: pointer;
+            display: flex;
+            align-items: center;
+            justify-content: flex-start;
+            gap: 8px;
+            padding: 12px 14px;
+            font: inherit;
+            font-weight: 700;
+            text-align: left;
+            text-transform: inherit;
+            letter-spacing: inherit;
+        }
+
+        .sort-button:hover,
+        .sort-button:focus-visible {
+            background: rgba(181, 83, 47, 0.08);
+            outline: none;
+        }
+
+        .sort-indicator {
+            position: relative;
+            width: 8px;
+            height: 13px;
+            flex: 0 0 8px;
+        }
+
+        .sort-indicator::before,
+        .sort-indicator::after {
+            content: "";
+            position: absolute;
+            left: 0;
+            border-left: 4px solid transparent;
+            border-right: 4px solid transparent;
+            opacity: 0.28;
+        }
+
+        .sort-indicator::before {
+            top: 1px;
+            border-bottom: 5px solid currentColor;
+        }
+
+        .sort-indicator::after {
+            bottom: 1px;
+            border-top: 5px solid currentColor;
+        }
+
+        .sortable-table th[aria-sort="ascending"] .sort-indicator::before,
+        .sortable-table th[aria-sort="descending"] .sort-indicator::after {
+            opacity: 1;
+            color: var(--accent);
+        }
+
+        .pairwise-row-significant {
+            background: linear-gradient(90deg, var(--good-row), rgba(255, 250, 241, 0.84));
+        }
+
+        .pairwise-row-significant td:first-child {
+            box-shadow: inset 4px 0 0 var(--good);
+        }
+
+        .significance-badge {
+            display: inline-flex;
+            align-items: center;
+            justify-content: center;
+            min-width: 2.6rem;
+            border-radius: 999px;
+            padding: 3px 9px;
+            font-weight: 700;
+            line-height: 1.2;
+        }
+
+        .significance-badge-yes {
+            background: var(--good-soft);
+            color: var(--good);
+        }
+
+        .significance-badge-no {
+            background: rgba(52, 68, 84, 0.08);
+            color: #344454;
+        }
+
+        .pvalue-badge {
+            display: inline-flex;
+            align-items: center;
+            justify-content: center;
+            min-width: 4.4rem;
+            border-radius: 999px;
+            padding: 3px 9px;
+            font-weight: 700;
+            line-height: 1.2;
+        }
+
+        .pvalue-badge-baseline {
+            background: var(--baseline-soft);
+            color: var(--baseline);
+        }
+
+        .pvalue-badge-better {
+            background: var(--good-soft);
+            color: var(--good);
+        }
+
+        .pvalue-badge-worse {
+            background: var(--bad-soft);
+            color: var(--bad);
+        }
+
+        .pvalue-badge-neutral {
+            background: rgba(52, 68, 84, 0.08);
+            color: #344454;
+        }
+
+        .footnote {
+            margin: 0;
+            color: var(--muted);
+            font-size: 0.95rem;
+            line-height: 1.55;
+        }
+
+        @media (max-width: 720px) {
+            .page { padding: 20px 14px 32px; }
+            .hero, .panel { padding: 18px; border-radius: 20px; }
+            .collapsible-panel { padding: 0; }
+            .collapsible-summary { padding: 18px; }
+            .collapsible-body { padding: 0 18px 18px; }
+            .panel-header { align-items: flex-start; flex-direction: column; }
+            .glance-grid, .head-to-head-models { grid-template-columns: 1fr; }
+            .head-to-head-topline { align-items: flex-start; flex-direction: column; }
+            .pvalue-summary { text-align: left; }
+            table, thead, tbody, tr, th, td { display: block; }
+            thead { display: none; }
+            tr { border-bottom: 1px solid var(--border); padding: 10px 0; }
+            tr:last-child { border-bottom: none; }
+            td { border: none; padding: 6px 0; }
+            td::before {
+                content: attr(data-label);
+                display: block;
+                color: var(--muted);
+                font-size: 0.76rem;
+                text-transform: uppercase;
+                letter-spacing: 0.08em;
+                margin-bottom: 4px;
+            }
+        }
+    </style>
+</head>
+<body>
+    <main class="page">
+        <header class="hero">
+            <p class="eyebrow">KicktippAi experiment analysis</p>
+            <h1>match-predictions/bundesliga-2025-26/pes-squad/repeated-match/md26-vfb-stuttgart-vs-rb-leipzig/repeat-25</h1>
+            <div class="hero-meta">
+                <span class="pill">Task: repeated-match</span>
+                <span class="pill">Primary metric: avg_kicktipp_points</span>
+                <span class="pill">Runs: 2</span>
+                <span class="pill">Pairings: 25</span>
+            </div>
+        </header>
+
+
+        <section class="panel at-a-glance-panel">
+            <div class="panel-header">
+                <h2>At a glance</h2>
+                <span class="pill pill-neutral">not significant · p-value 0.1573</span>
+            </div>
+            <div class="glance-grid">
+                <article class="glance-card match-card">
+                    <span class="glance-label">Match to predict</span>
+                    <h3 class="match-fixture">VfB Stuttgart vs RB Leipzig</h3>
+                    <div class="match-meta"><span class="meta-chip">Matchday 26</span><span class="meta-chip">2026-03-15T19:30:00 UTC+01 (+01)</span></div>
+                    <div class="actual-result">
+                        <span class="glance-label">Actual outcome</span>
+                        <span class="actual-result-value">VfB Stuttgart 1 - 0 RB Leipzig</span>
+                    </div>
+                </article>
+
+
+                <article class="glance-card head-to-head-card head-to-head-neutral">
+                    <div class="head-to-head-topline">
+                        <div>
+                            <span class="glance-label">Compact head to head</span>
+                            <h3>Not significant</h3>
+                        </div>
+                        <div class="pvalue-summary">
+                            <span class="glance-label">p-value</span>
+                            <strong>0.1573</strong>
+                        </div>
+                    </div>
+                    <div class="head-to-head-models">
+
+                        <div class="model-result model-neutral">
+                            <div class="model-name">gpt-5.5 (xhigh)</div>
+                            <span class="model-points">3.0000</span>
+                            <span class="model-subtext">avg points</span>
+                        </div>
+
+
+                        <div class="model-result model-neutral">
+                            <div class="model-name">gpt-5.5 (none)</div>
+                            <span class="model-points">2.7600</span>
+                            <span class="model-subtext">avg points</span>
+                        </div>
+
+                    </div>
+                </article>
+        </div>
+
+            <div class="prediction-section">
+                <h3>Prediction distribution</h3>
+                <div class="histogram-grid">
+
+                    <article class="histogram-card">
+                        <div class="histogram-title">
+                            <span>gpt-5.5 (xhigh)</span>
+                            <span class="histogram-total">n=25</span>
+                        </div>
+
+                        <div class="histogram-row">
+                            <span class="histogram-score">2:1</span>
+                            <span class="histogram-track" aria-hidden="true">
+                                <span class="histogram-bar" style="width: 100%"></span>
+                            </span>
+                            <span class="histogram-count">25</span>
+                        </div>
+
+                    </article>
+
+
+                    <article class="histogram-card">
+                        <div class="histogram-title">
+                            <span>gpt-5.5 (none)</span>
+                            <span class="histogram-total">n=25</span>
+                        </div>
+
+                        <div class="histogram-row">
+                            <span class="histogram-score">2:1</span>
+                            <span class="histogram-track" aria-hidden="true">
+                                <span class="histogram-bar" style="width: 92%"></span>
+                            </span>
+                            <span class="histogram-count">23</span>
+                        </div>
+
+
+                        <div class="histogram-row">
+                            <span class="histogram-score">2:2</span>
+                            <span class="histogram-track" aria-hidden="true">
+                                <span class="histogram-bar" style="width: 8%"></span>
+                            </span>
+                            <span class="histogram-count">2</span>
+                        </div>
+
+                    </article>
+
+                </div>
+            </div>
+
+        </section>
+
+
+
+        <details class="panel collapsible-panel">
+            <summary class="collapsible-summary">
+                <h2>Summary</h2>
+            </summary>
+            <div class="collapsible-body">
+                <div class="summary-grid">
+                    <article class="metric-card"><span class="metric-label">Dataset</span><span class="metric-value">match-predictions/bundesliga-2025-26/pes-squad/repeated-match/md26-vfb-stuttgart-vs-rb-leipzig/repeat-25</span></article>
+                    <article class="metric-card"><span class="metric-label">Task type</span><span class="metric-value">repeated-match</span></article>
+                    <article class="metric-card"><span class="metric-label">Primary metric</span><span class="metric-value">avg_kicktipp_points</span></article>
+                    <article class="metric-card"><span class="metric-label">Alpha</span><span class="metric-value">0.0500</span></article>
+                </div>
+                <div class="panel-subsection">
+                    <p class="footnote">Paired Wilcoxon signed-rank test on per-item Kicktipp-point differences; bootstrap confidence intervals summarize mean and median paired differences.</p>
+                </div>
+            </div>
+        </details>
+
+
+
+        <details class="panel collapsible-panel">
+            <summary class="collapsible-summary">
+                <h2>Dataset metadata</h2>
+            </summary>
+            <div class="collapsible-body">
+                <p class="footnote">Stuttgart&#x27;s 1-0 Matchday 26 win over Leipzig was a close top-four clash where Stuttgart leapfrogged Leipzig.</p>
+
+                    <table>
+                        <thead>
+                            <tr>
+                                <th>Field</th>
+                                <th>Value</th>
+                            </tr>
+                        </thead>
+                        <tbody>
+                            <tr><td>Fixture</td><td>VfB Stuttgart vs RB Leipzig</td></tr>
+<tr><td>Actual Result</td><td>VfB Stuttgart 1 - 0 RB Leipzig</td></tr>
+<tr><td>Matchday</td><td>26</td></tr>
+<tr><td>Repetitions</td><td>25</td></tr>
+<tr><td>Why Interesting</td><td>Stuttgart&#x27;s 1-0 Matchday 26 win over Leipzig was a close top-four clash where Stuttgart leapfrogged Leipzig.</td></tr>
+<tr><td>Competition</td><td>bundesliga-2025-26</td></tr>
+<tr><td>Community</td><td>pes-squad</td></tr>
+<tr><td>Season</td><td>2025/2026</td></tr>
+<tr><td>Slice</td><td>repeat-25</td></tr>
+<tr><td>Source Pool</td><td>md26-vfb-stuttgart-vs-rb-leipzig</td></tr>
+<tr><td>Sample Size</td><td>25</td></tr>
+<tr><td>Sample Method</td><td>repeated-match</td></tr>
+<tr><td>Scope</td><td>repeated-match</td></tr>
+<tr><td>Slice Kind</td><td>repeated-match</td></tr>
+<tr><td>Source Dataset</td><td>match-predictions/bundesliga-2025-26/pes-squad</td></tr>
+                        </tbody>
+                    </table>
+
+            </div>
+        </details>
+
+
+        <section class="panel">
+            <div class="panel-header">
+                <h2>Run ranking</h2>
+            </div>
+            <table>
+                <thead>
+                                        <tr>
+                        <th>Rank</th>
+                        <th>Run</th>
+                        <th>Model</th>
+                        <th>Primary metric</th>
+                    </tr>
+                </thead>
+                <tbody>
+                    <tr><td>1</td><td>gpt-5.5 (xhigh)</td><td>gpt-5.5 (xhigh)</td><td>3.0000</td></tr>
+<tr><td>2</td><td>gpt-5.5 (none)</td><td>gpt-5.5 (none)</td><td>2.7600</td></tr>
+                </tbody>
+            </table>
+        </section>
+
+
+                <section class="panel">
+                    <div class="panel-header">
+                        <h2>Two-run comparison</h2>
+                        <span class="pill pill-neutral">not significant</span>
+                    </div>
+                    <div class="metric-grid">
+                        <article class="metric-card"><span class="metric-label">Better run</span><span class="metric-value">gpt-5.5 (xhigh)</span></article>
+                        <article class="metric-card"><span class="metric-label">Other run</span><span class="metric-value">gpt-5.5 (none)</span></article>
+                        <article class="metric-card"><span class="metric-label">avg_kicktipp_points delta</span><span class="metric-value">0.2400</span></article>
+                        <article class="metric-card"><span class="metric-label">Wilcoxon p-value</span><span class="metric-value">0.1573</span></article>
+                        <article class="metric-card"><span class="metric-label">Mean difference</span><span class="metric-value">0.2400</span></article>
+                        <article class="metric-card"><span class="metric-label">Median difference</span><span class="metric-value">0.0000</span></article>
+                        <article class="metric-card"><span class="metric-label">Per-item W/T/L</span><span class="metric-value">2/23/0</span></article>
+                    </div>
+                    <div class="panel-subsection">
+                        <h3>Effect size confidence intervals</h3>
+                        <table>
+                            <thead>
+                                <tr>
+                                    <th>Statistic</th>
+                                    <th>Point estimate</th>
+                                    <th>Low</th>
+                                    <th>High</th>
+                                </tr>
+                            </thead>
+                            <tbody>
+                                <tr><td>Mean difference</td><td>0.2400</td><td>-0.1200</td><td>0.4800</td></tr>
+                                <tr><td>Median difference</td><td>0.0000</td><td>0.0000</td><td>0.0000</td></tr>
+                            </tbody>
+                        </table>
+                    </div>
+                </section>
+
+
+        <section class="panel">
+            <p class="footnote">Per-item win/tie/loss counts compare paired Kicktipp points for the listed run ordering on each prepared dataset item.</p>
+        </section>
+    </main>
+    <script type="application/json" id="standings-comparison-data">{}</script>
+    <script>
+        (() => {
+            const comparisonDataElement = document.getElementById("standings-comparison-data");
+            const standingsComparisons = comparisonDataElement
+                ? JSON.parse(comparisonDataElement.textContent || "{}")
+                : {};
+
+            const readNumber = (cell) => {
+                const raw = cell?.dataset.sortValue ?? cell?.textContent?.trim() ?? "";
+                const value = Number(raw);
+                return { missing: raw === "" || Number.isNaN(value), value };
+            };
+
+            const compareNumbers = (leftCell, rightCell, direction) => {
+                const left = readNumber(leftCell);
+                const right = readNumber(rightCell);
+                if (left.missing && right.missing) {
+                    return 0;
+                }
+                if (left.missing) {
+                    return 1;
+                }
+                if (right.missing) {
+                    return -1;
+                }
+                return direction === "asc" ? left.value - right.value : right.value - left.value;
+            };
+
+            const compareText = (leftCell, rightCell, direction) => {
+                const left = (leftCell?.dataset.sortValue ?? leftCell?.textContent ?? "").trim().toLocaleLowerCase();
+                const right = (rightCell?.dataset.sortValue ?? rightCell?.textContent ?? "").trim().toLocaleLowerCase();
+                const result = left.localeCompare(right, undefined, { numeric: true, sensitivity: "base" });
+                return direction === "asc" ? result : -result;
+            };
+
+            const readOutcome = (cell) => ({
+                wins: Number(cell?.dataset.sortWins ?? 0),
+                ties: Number(cell?.dataset.sortTies ?? 0),
+                losses: Number(cell?.dataset.sortLosses ?? 0),
+            });
+
+            const compareOutcome = (leftCell, rightCell, direction) => {
+                const left = readOutcome(leftCell);
+                const right = readOutcome(rightCell);
+                const result =
+                    left.wins - right.wins ||
+                    left.ties - right.ties ||
+                    left.losses - right.losses;
+                return direction === "asc" ? result : -result;
+            };
+
+            const compareCells = (leftCell, rightCell, sortType, direction) => {
+                if (sortType === "number" || sortType === "boolean") {
+                    return compareNumbers(leftCell, rightCell, direction);
+                }
+                if (sortType === "outcome") {
+                    return compareOutcome(leftCell, rightCell, direction);
+                }
+                return compareText(leftCell, rightCell, direction);
+            };
+
+            const clearStandingsState = (row) => {
+                row.classList.remove("standings-row-baseline", "standings-row-better", "standings-row-worse");
+            };
+
+            const setPValueBadge = (cell, text, state) => {
+                cell.textContent = "";
+                const badge = document.createElement("span");
+                badge.className = `pvalue-badge pvalue-badge-${state}`;
+                badge.textContent = text;
+                cell.appendChild(badge);
+            };
+
+            const selectStandingsBaseline = (table, baselineRunName) => {
+                const rows = Array.from(table.querySelectorAll("[data-standings-row]"));
+                const baselineComparisons = standingsComparisons[baselineRunName] || {};
+
+                rows.forEach((row) => {
+                    const runName = row.dataset.runName;
+                    const pvalueCell = row.querySelector("[data-standings-pvalue]");
+                    const comparison = baselineComparisons[runName];
+                    clearStandingsState(row);
+                    row.setAttribute("aria-selected", runName === baselineRunName ? "true" : "false");
+
+                    if (!pvalueCell) {
+                        return;
+                    }
+
+                    if (runName === baselineRunName) {
+                        row.classList.add("standings-row-baseline");
+                        setPValueBadge(pvalueCell, "baseline", "baseline");
+                        return;
+                    }
+
+                    if (!comparison) {
+                        setPValueBadge(pvalueCell, "n/a", "neutral");
+                        return;
+                    }
+
+                    const state = comparison.significance || "neutral";
+                    if (state === "better" || state === "worse") {
+                        row.classList.add(`standings-row-${state}`);
+                    }
+                    setPValueBadge(pvalueCell, comparison.displayPValue || "n/a", state);
+                });
+            };
+
+            document.querySelectorAll("[data-sortable-table]").forEach((table) => {
+                const body = table.querySelector("tbody");
+                const headers = Array.from(table.querySelectorAll("thead th"));
+                if (!body) {
+                    return;
+                }
+
+                headers.forEach((header, columnIndex) => {
+                    const button = header.querySelector(".sort-button");
+                    if (!button) {
+                        return;
+                    }
+
+                    button.addEventListener("click", () => {
+                        const direction = header.getAttribute("aria-sort") === "ascending" ? "desc" : "asc";
+                        const sortType = button.dataset.sortType ?? "text";
+                        const rows = Array.from(body.querySelectorAll("tr"))
+                            .map((row, originalIndex) => ({ row, originalIndex }));
+
+                        rows.sort((left, right) => {
+                            const result = compareCells(
+                                left.row.cells[columnIndex],
+                                right.row.cells[columnIndex],
+                                sortType,
+                                direction,
+                            );
+                            return result || left.originalIndex - right.originalIndex;
+                        });
+
+                        headers.forEach((candidate) => candidate.setAttribute("aria-sort", "none"));
+                        header.setAttribute("aria-sort", direction === "asc" ? "ascending" : "descending");
+                        rows.forEach((entry) => body.appendChild(entry.row));
+                    });
+                });
+            });
+
+            document.querySelectorAll("[data-standings-table]").forEach((table) => {
+                const rows = Array.from(table.querySelectorAll("[data-standings-row]"));
+                const defaultBaseline = table.dataset.defaultBaseline || rows[0]?.dataset.runName;
+                rows.forEach((row) => {
+                    row.addEventListener("click", () => selectStandingsBaseline(table, row.dataset.runName));
+                    row.addEventListener("keydown", (event) => {
+                        if (event.key !== "Enter" && event.key !== " ") {
+                            return;
+                        }
+
+                        event.preventDefault();
+                        selectStandingsBaseline(table, row.dataset.runName);
+                    });
+                });
+
+                if (defaultBaseline) {
+                    selectStandingsBaseline(table, defaultBaseline);
+                }
+            });
+        })();
+    </script>
+</body>
+</html>

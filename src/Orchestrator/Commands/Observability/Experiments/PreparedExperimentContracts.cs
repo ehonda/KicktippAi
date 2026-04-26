@@ -158,6 +158,9 @@ internal sealed record PreparedExperimentRunMetadata
     [JsonPropertyName("langfusePromptVersion")]
     public int? LangfusePromptVersion { get; init; }
 
+    [JsonPropertyName("reasoningEffort")]
+    public string? ReasoningEffort { get; init; }
+
     [JsonPropertyName("sliceKind")]
     public string? SliceKind { get; init; }
 

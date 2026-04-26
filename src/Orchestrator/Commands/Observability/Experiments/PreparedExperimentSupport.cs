@@ -176,6 +176,14 @@ internal static class PreparedExperimentSupport
             evaluationTimestampPolicyKey = "exact-time";
         }
 
+        var normalizedReasoningEffort = string.IsNullOrWhiteSpace(options.ReasoningEffort)
+            ? null
+            : options.ReasoningEffort.Trim().ToLowerInvariant();
+        var runSubjectDisplayName = BuildRunSubjectDisplayName(options.Model, normalizedReasoningEffort);
+        var runSubjectId = normalizedReasoningEffort is null
+            ? options.Model
+            : $"{options.Model}:reasoning-effort:{normalizedReasoningEffort}";
+
         return new PreparedExperimentRunMetadata
         {
             Runner = "match-experiment-runner",
@@ -189,6 +197,7 @@ internal static class PreparedExperimentSupport
             LangfusePromptName = options.LangfusePromptName,
             LangfusePromptLabel = options.LangfusePromptLabel,
             LangfusePromptVersion = options.LangfusePromptVersion,
+            ReasoningEffort = normalizedReasoningEffort,
             SliceKind = ResolveSliceKind(manifest),
             SliceKey = manifest.SliceKey,
             SourcePoolKey = manifest.SourcePoolKey,
@@ -220,8 +229,8 @@ internal static class PreparedExperimentSupport
             Model = options.Model,
             ObservationName = "predict-match",
             RunSubjectKind = "model",
-            RunSubjectId = options.Model,
-            RunSubjectDisplayName = options.Model,
+            RunSubjectId = runSubjectId,
+            RunSubjectDisplayName = runSubjectDisplayName,
             BatchStrategy = options.BatchStrategy,
             BatchSize = options.BatchSize,
             BatchCount = options.BatchCount
@@ -299,6 +308,11 @@ internal static class PreparedExperimentSupport
             tags.Add($"langfuse-prompt-version:{runMetadata.LangfusePromptVersion}");
         }
 
+        if (!string.IsNullOrWhiteSpace(runMetadata.ReasoningEffort))
+        {
+            tags.Add($"reasoning-effort:{runMetadata.ReasoningEffort}");
+        }
+
         return tags.Distinct(StringComparer.Ordinal).ToList();
     }
 
@@ -314,6 +328,7 @@ internal static class PreparedExperimentSupport
         AddIfValid(metadata, "langfusePromptName", runMetadata.LangfusePromptName);
         AddIfValid(metadata, "langfusePromptLabel", runMetadata.LangfusePromptLabel);
         AddIfValid(metadata, "langfusePromptVersion", runMetadata.LangfusePromptVersion?.ToString(CultureInfo.InvariantCulture));
+        AddIfValid(metadata, "reasoningEffort", runMetadata.ReasoningEffort);
         AddIfValid(metadata, "sampleMethod", runMetadata.SampleMethod);
         AddIfValid(metadata, "selectedItemIdsHash", runMetadata.SelectedItemIdsHash);
         AddIfValid(metadata, "sliceKind", runMetadata.SliceKind);
@@ -325,6 +340,13 @@ internal static class PreparedExperimentSupport
         AddIfValid(metadata, "runSubjectId", runMetadata.RunSubjectId);
         AddIfValid(metadata, "runSubjectDisplayName", runMetadata.RunSubjectDisplayName);
         return metadata;
+    }
+
+    public static string BuildRunSubjectDisplayName(string model, string? reasoningEffort)
+    {
+        return string.IsNullOrWhiteSpace(reasoningEffort)
+            ? model
+            : $"{model} ({reasoningEffort.Trim().ToLowerInvariant()})";
     }
 
     public static string ResolveTaskType(PreparedExperimentManifest manifest)

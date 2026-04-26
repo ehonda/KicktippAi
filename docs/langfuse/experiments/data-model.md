@@ -130,6 +130,7 @@ Important fields include:
 - `sourceDatasetKind`
 - `datasetItemIdMap`
 - `model`
+- `reasoningEffort` when an experiment explicitly sets OpenAI reasoning effort
 - `batchStrategy`
 - `batchSize`
 - `batchCount`
@@ -139,7 +140,7 @@ Important fields include:
 
 `repeated-match` runs use `batchStrategy = warmup-plus-batches`.
 
-Prepared model runs use OpenAI flex processing first and fall back to standard processing for flex capacity-style failures. The run metadata records this as `openaiServiceTierStrategy = flex-first-standard-fallback`, and prediction telemetry records the requested/final service tier when available.
+Prepared model runs use OpenAI flex processing first and fall back to standard processing for flex capacity-style failures. The run metadata records this as `openaiServiceTierStrategy = flex-first-standard-fallback`, and prediction telemetry records the requested/final service tier when available. Reasoning effort is opt-in for experiment runs; when omitted, `reasoning_effort` is not sent to OpenAI.
 
 ## Score Model
 

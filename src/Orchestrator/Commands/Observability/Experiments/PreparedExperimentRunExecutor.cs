@@ -77,7 +77,8 @@ internal sealed class PreparedExperimentRunExecutor
 
         var predictionServiceOptions = PredictionServiceOptions.FlexProcessingWithStandardFallback with
         {
-            LangfusePromptTraceMetadata = promptRoute.TraceMetadata
+            LangfusePromptTraceMetadata = promptRoute.TraceMetadata,
+            ReasoningEffort = runMetadata.ReasoningEffort
         };
         var predictionService = promptRoute.TemplateProvider is null
             ? _openAiServiceFactory.CreatePredictionService(
@@ -102,7 +103,8 @@ internal sealed class PreparedExperimentRunExecutor
             request.RunName,
             new Dictionary<string, string?>
             {
-                ["openaiServiceTierStrategy"] = "flex-first-standard-fallback"
+                ["openaiServiceTierStrategy"] = "flex-first-standard-fallback",
+                ["openaiReasoningEffort"] = runMetadata.ReasoningEffort
             });
         var batches = BuildBatches(manifest.Items, runMetadata, expectedTaskType);
         var scoreEntries = new List<ExperimentItemScores>();
@@ -515,6 +517,7 @@ internal sealed class PreparedExperimentRunExecutor
             runName = request.RunName,
             task = runMetadata.TaskType,
             model = request.Options.Model,
+            reasoningEffort = runMetadata.ReasoningEffort,
             includeJustification = runMetadata.IncludeJustification,
             evaluationTimestamp,
             match = new
@@ -764,6 +767,7 @@ internal sealed class PreparedExperimentRunExecutor
             runSubjectKind = runMetadata.RunSubjectKind,
             runSubjectId = runMetadata.RunSubjectId,
             runSubjectDisplayName = runMetadata.RunSubjectDisplayName,
+            reasoningEffort = runMetadata.ReasoningEffort,
             item.HomeTeam,
             item.AwayTeam,
             item.Matchday,

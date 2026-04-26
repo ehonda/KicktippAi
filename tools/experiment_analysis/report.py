@@ -128,7 +128,16 @@ def load_bundle(path: Path) -> dict[str, Any]:
 
 
 def resolve_run_display_name(run: dict[str, Any]) -> str:
-    for field_name in ("runSubjectDisplayName", "model", "runName"):
+    run_subject_display_name = normalize_optional_string(run.get("runSubjectDisplayName"))
+    if run_subject_display_name is not None:
+        return run_subject_display_name
+
+    model = normalize_optional_string(run.get("model"))
+    reasoning_effort = normalize_optional_string(run.get("reasoningEffort"))
+    if model is not None:
+        return f"{model} ({reasoning_effort})" if reasoning_effort is not None else model
+
+    for field_name in ("runName",):
         value = normalize_optional_string(run.get(field_name))
         if value is not None:
             return value
@@ -209,6 +218,7 @@ def analyze_bundle(
             "runDisplayName": resolve_run_display_name(row),
             "model": str(row["model"]),
             "promptKey": row.get("promptKey"),
+            "reasoningEffort": normalize_optional_string(row.get("reasoningEffort")),
             "sliceKey": row.get("sliceKey"),
             "sliceKind": row.get("sliceKind"),
             "runSubjectKind": normalize_optional_string(row.get("runSubjectKind")),

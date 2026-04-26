@@ -2,7 +2,8 @@ namespace OpenAiIntegration;
 
 public sealed record PredictionServiceOptions(
     bool UseFlexProcessingWithStandardFallback = false,
-    LangfusePromptTraceMetadata? LangfusePromptTraceMetadata = null)
+    LangfusePromptTraceMetadata? LangfusePromptTraceMetadata = null,
+    string? ReasoningEffort = null)
 {
     public static PredictionServiceOptions Default { get; } = new();
 

@@ -47,6 +47,8 @@ public class PredictionService_PredictMatchAsync_Tests : PredictionServiceTests_
 
     private static ChatClient CreateProtocolChatClient(
         List<string?> requestedServiceTiers,
+        List<string?>? requestedReasoningEfforts = null,
+        List<string>? requestPayloads = null,
         Exception? firstException = null,
         string responseServiceTier = "standard")
     {
@@ -60,7 +62,10 @@ public class PredictionService_PredictMatchAsync_Tests : PredictionServiceTests_
             .Returns<BinaryContent, RequestOptions>((content, _) =>
             {
                 callCount += 1;
-                requestedServiceTiers.Add(ExtractServiceTier(content));
+                var payloadJson = ReadPayloadJson(content);
+                requestPayloads?.Add(payloadJson);
+                requestedServiceTiers.Add(ExtractStringProperty(payloadJson, "service_tier"));
+                requestedReasoningEfforts?.Add(ExtractStringProperty(payloadJson, "reasoning_effort"));
                 if (callCount == 1 && firstException is not null)
                 {
                     return Task.FromException<ClientResult>(firstException);
@@ -72,15 +77,19 @@ public class PredictionService_PredictMatchAsync_Tests : PredictionServiceTests_
         return mockClient.Object;
     }
 
-    private static string? ExtractServiceTier(BinaryContent content)
+    private static string ReadPayloadJson(BinaryContent content)
     {
         using var stream = new MemoryStream();
         content.WriteTo(stream, CancellationToken.None);
-        var json = Encoding.UTF8.GetString(stream.ToArray());
+        return Encoding.UTF8.GetString(stream.ToArray());
+    }
+
+    private static string? ExtractStringProperty(string json, string propertyName)
+    {
         using var document = JsonDocument.Parse(json);
-        return document.RootElement.TryGetProperty("service_tier", out var serviceTier)
-               && serviceTier.ValueKind == JsonValueKind.String
-            ? serviceTier.GetString()
+        return document.RootElement.TryGetProperty(propertyName, out var property)
+               && property.ValueKind == JsonValueKind.String
+            ? property.GetString()
             : null;
     }
 
@@ -323,8 +332,12 @@ public class PredictionService_PredictMatchAsync_Tests : PredictionServiceTests_
     {
         // Arrange
         var requestedServiceTiers = new List<string?>();
+        var requestedReasoningEfforts = new List<string?>();
+        var requestPayloads = new List<string>();
         var chatClient = CreateProtocolChatClient(
             requestedServiceTiers,
+            requestedReasoningEfforts,
+            requestPayloads,
             firstException: CreateClientResultException(429));
         var service = CreateService(
             chatClient,
@@ -340,6 +353,10 @@ public class PredictionService_PredictMatchAsync_Tests : PredictionServiceTests_
         await Assert.That(requestedServiceTiers.Count).IsEqualTo(2);
         await Assert.That(requestedServiceTiers[0]).IsEqualTo("flex");
         await Assert.That(requestedServiceTiers[1]).IsNull();
+        await Assert.That(requestedReasoningEfforts.Count).IsEqualTo(2);
+        await Assert.That(requestedReasoningEfforts[0]).IsNull();
+        await Assert.That(requestedReasoningEfforts[1]).IsNull();
+        await Assert.That(requestPayloads.All(payload => !payload.Contains("reasoning_effort"))).IsTrue();
 
         var activity = capturedActivities.Single(candidate => candidate.OperationName == "predict-match");
         await Assert.That(activity.GetTagItem("langfuse.observation.metadata.openaiExecutionStrategy"))
@@ -352,6 +369,70 @@ public class PredictionService_PredictMatchAsync_Tests : PredictionServiceTests_
             .IsEqualTo("True");
         await Assert.That(activity.GetTagItem("langfuse.observation.usage_details")?.ToString())
             .Contains("\"cache_read_input_tokens\":250");
+    }
+
+    [Test]
+    [NotInParallel("Telemetry")]
+    public async Task Predicting_match_with_reasoning_effort_sends_effort_and_records_langfuse_metadata()
+    {
+        // Arrange
+        var requestedServiceTiers = new List<string?>();
+        var requestedReasoningEfforts = new List<string?>();
+        var chatClient = CreateProtocolChatClient(
+            requestedServiceTiers,
+            requestedReasoningEfforts);
+        var service = CreateService(
+            chatClient,
+            options: NullableOption.Some(PredictionServiceOptions.FlexProcessingWithStandardFallback with
+            {
+                ReasoningEffort = "xhigh"
+            }));
+        var capturedActivities = new List<Activity>();
+        using var listener = CreateActivityListener(capturedActivities);
+
+        // Act
+        var prediction = await PredictMatchAsync(service);
+
+        // Assert
+        await Assert.That(prediction).IsEquivalentTo(new Prediction(2, 1, null));
+        await Assert.That(requestedServiceTiers.Count).IsEqualTo(1);
+        await Assert.That(requestedServiceTiers[0]).IsEqualTo("flex");
+        await Assert.That(requestedReasoningEfforts.Count).IsEqualTo(1);
+        await Assert.That(requestedReasoningEfforts[0]).IsEqualTo("xhigh");
+
+        var activity = capturedActivities.Single(candidate => candidate.OperationName == "predict-match");
+        await Assert.That(activity.GetTagItem("gen_ai.request.reasoning_effort")).IsEqualTo("xhigh");
+        await Assert.That(activity.GetTagItem("langfuse.observation.metadata.openaiReasoningEffort")).IsEqualTo("xhigh");
+    }
+
+    [Test]
+    public async Task Predicting_match_with_reasoning_effort_preserves_effort_on_standard_fallback()
+    {
+        // Arrange
+        var requestedServiceTiers = new List<string?>();
+        var requestedReasoningEfforts = new List<string?>();
+        var chatClient = CreateProtocolChatClient(
+            requestedServiceTiers,
+            requestedReasoningEfforts,
+            firstException: CreateClientResultException(429));
+        var service = CreateService(
+            chatClient,
+            options: NullableOption.Some(PredictionServiceOptions.FlexProcessingWithStandardFallback with
+            {
+                ReasoningEffort = "none"
+            }));
+
+        // Act
+        var prediction = await PredictMatchAsync(service);
+
+        // Assert
+        await Assert.That(prediction).IsEquivalentTo(new Prediction(2, 1, null));
+        await Assert.That(requestedServiceTiers.Count).IsEqualTo(2);
+        await Assert.That(requestedServiceTiers[0]).IsEqualTo("flex");
+        await Assert.That(requestedServiceTiers[1]).IsNull();
+        await Assert.That(requestedReasoningEfforts.Count).IsEqualTo(2);
+        await Assert.That(requestedReasoningEfforts[0]).IsEqualTo("none");
+        await Assert.That(requestedReasoningEfforts[1]).IsEqualTo("none");
     }
 
     [Test]

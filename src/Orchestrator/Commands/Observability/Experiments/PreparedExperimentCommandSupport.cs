@@ -18,7 +18,8 @@ internal sealed record PreparedExperimentRunOptions(
     int? LangfusePromptVersion,
     string BatchStrategy,
     int? BatchSize = null,
-    int? BatchCount = null);
+    int? BatchCount = null,
+    string? ReasoningEffort = null);
 
 internal static class PreparedExperimentCommandSupport
 {
@@ -50,6 +51,18 @@ internal static class PreparedExperimentCommandSupport
                 $"Run metadata model '{runMetadata.Model}' does not match requested model '{options.Model}'.");
         }
 
+        var normalizedReasoningEffort = string.IsNullOrWhiteSpace(runMetadata.ReasoningEffort)
+            ? options.ReasoningEffort
+            : runMetadata.ReasoningEffort.Trim().ToLowerInvariant();
+        var runSubjectId = string.IsNullOrWhiteSpace(runMetadata.RunSubjectId)
+            ? string.IsNullOrWhiteSpace(normalizedReasoningEffort)
+                ? options.Model
+                : $"{options.Model}:reasoning-effort:{normalizedReasoningEffort}"
+            : runMetadata.RunSubjectId;
+        var runSubjectDisplayName = string.IsNullOrWhiteSpace(runMetadata.RunSubjectDisplayName)
+            ? PreparedExperimentSupport.BuildRunSubjectDisplayName(options.Model, normalizedReasoningEffort)
+            : runMetadata.RunSubjectDisplayName;
+
         return runMetadata with
         {
             Runner = string.IsNullOrWhiteSpace(runMetadata.Runner) ? "match-experiment-runner" : runMetadata.Runner,
@@ -72,6 +85,7 @@ internal static class PreparedExperimentCommandSupport
             LangfusePromptName = string.IsNullOrWhiteSpace(runMetadata.LangfusePromptName) ? options.LangfusePromptName : runMetadata.LangfusePromptName,
             LangfusePromptLabel = string.IsNullOrWhiteSpace(runMetadata.LangfusePromptLabel) ? options.LangfusePromptLabel : runMetadata.LangfusePromptLabel,
             LangfusePromptVersion = runMetadata.LangfusePromptVersion ?? options.LangfusePromptVersion,
+            ReasoningEffort = normalizedReasoningEffort,
             SliceKind = string.IsNullOrWhiteSpace(runMetadata.SliceKind) ? manifest.SliceKind : runMetadata.SliceKind,
             SliceKey = string.IsNullOrWhiteSpace(runMetadata.SliceKey) ? manifest.SliceKey : runMetadata.SliceKey,
             SourcePoolKey = string.IsNullOrWhiteSpace(runMetadata.SourcePoolKey) ? manifest.SourcePoolKey : runMetadata.SourcePoolKey,
@@ -100,7 +114,9 @@ internal static class PreparedExperimentCommandSupport
                 : PreparedExperimentSupport.CreateDatasetItemIdMap(manifest),
             BatchStrategy = string.IsNullOrWhiteSpace(runMetadata.BatchStrategy) ? options.BatchStrategy : runMetadata.BatchStrategy,
             BatchSize = options.BatchSize ?? runMetadata.BatchSize,
-            BatchCount = options.BatchCount ?? runMetadata.BatchCount
+            BatchCount = options.BatchCount ?? runMetadata.BatchCount,
+            RunSubjectId = runSubjectId,
+            RunSubjectDisplayName = runSubjectDisplayName
         };
     }
 

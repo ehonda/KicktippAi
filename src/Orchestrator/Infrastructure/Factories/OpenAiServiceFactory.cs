@@ -43,7 +43,10 @@ public sealed class OpenAiServiceFactory : IOpenAiServiceFactory
         ArgumentNullException.ThrowIfNull(options);
 
         var apiKey = _apiKey.Value;
-        var cacheKey = $"{model}|flexFallback={options.UseFlexProcessingWithStandardFallback}";
+        var reasoningEffort = string.IsNullOrWhiteSpace(options.ReasoningEffort)
+            ? string.Empty
+            : options.ReasoningEffort.Trim().ToLowerInvariant();
+        var cacheKey = $"{model}|flexFallback={options.UseFlexProcessingWithStandardFallback}|reasoningEffort={reasoningEffort}";
 
         // Cache key includes model to handle different configurations
         return _predictionServiceCache.GetOrAdd(cacheKey, _ =>

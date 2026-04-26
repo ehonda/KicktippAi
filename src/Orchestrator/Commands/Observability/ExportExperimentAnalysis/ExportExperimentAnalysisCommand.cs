@@ -293,6 +293,7 @@ public sealed class ExportExperimentAnalysisCommand : AsyncCommand<ExportExperim
                 taskType,
             ResolveRunDisplayName(context.RunMetadata, context.DatasetRun.Name),
                 context.RunMetadata.PromptKey,
+                context.RunMetadata.ReasoningEffort,
                 context.RunMetadata.SliceKind,
                 context.RunMetadata.SliceKey,
                 context.RunMetadata.SourcePoolKey,
@@ -353,6 +354,7 @@ public sealed class ExportExperimentAnalysisCommand : AsyncCommand<ExportExperim
                     context.RunMetadata.TaskType ?? throw new InvalidOperationException($"Run '{context.DatasetRun.Name}' is missing task type metadata."),
                     ResolveRunDisplayName(context.RunMetadata, context.DatasetRun.Name),
                     context.RunMetadata.PromptKey,
+                    context.RunMetadata.ReasoningEffort,
                     context.RunMetadata.SliceKind,
                     context.RunMetadata.SliceKey,
                     context.RunMetadata.SourcePoolKey,
@@ -816,7 +818,9 @@ public sealed class ExportExperimentAnalysisCommand : AsyncCommand<ExportExperim
 
         if (!string.IsNullOrWhiteSpace(runMetadata.Model))
         {
-            return runMetadata.Model;
+            return PreparedExperimentSupport.BuildRunSubjectDisplayName(
+                runMetadata.Model,
+                runMetadata.ReasoningEffort);
         }
 
         throw new InvalidOperationException($"Run '{runName}' is missing comparable display metadata.");

@@ -138,6 +138,16 @@ public class PredictionService : IPredictionService
     {
         if (!_options.UseFlexProcessingWithStandardFallback)
         {
+            if (!string.IsNullOrWhiteSpace(_options.ReasoningEffort))
+            {
+                return await CompleteProtocolMatchChatAsync(
+                    messages,
+                    includeJustification,
+                    serviceTier: null,
+                    _options.ReasoningEffort,
+                    cancellationToken);
+            }
+
             var response = await _chatClient.CompleteChatAsync(
                 messages,
                 CreateMatchCompletionOptions(includeJustification),
@@ -176,6 +186,7 @@ public class PredictionService : IPredictionService
                     messages,
                     includeJustification,
                     requestedServiceTier,
+                    _options.ReasoningEffort,
                     ct);
 
                 var finalServiceTier = string.IsNullOrWhiteSpace(completion.FinalServiceTier)
@@ -212,9 +223,10 @@ public class PredictionService : IPredictionService
         IReadOnlyList<ChatMessage> messages,
         bool includeJustification,
         string? serviceTier,
+        string? reasoningEffort,
         CancellationToken cancellationToken)
     {
-        var requestPayload = CreateProtocolMatchRequestPayload(messages, includeJustification, serviceTier);
+        var requestPayload = CreateProtocolMatchRequestPayload(messages, includeJustification, serviceTier, reasoningEffort);
         using var content = BinaryContent.Create(BinaryData.FromBytes(JsonSerializer.SerializeToUtf8Bytes(requestPayload, ProtocolJsonOptions)));
         var response = await _chatClient.CompleteChatAsync(
             content,
@@ -233,20 +245,20 @@ public class PredictionService : IPredictionService
         return new MatchCompletionResult(
             predictionJson!,
             usage,
-            new PredictionExecutionTelemetry(
-                "flex-first-standard-fallback",
-                serviceTier ?? "standard",
-                protocolResponse.ServiceTier ?? serviceTier ?? "standard",
-                FallbackUsed: serviceTier is null),
+            null,
             protocolResponse.ServiceTier);
     }
 
     private object CreateProtocolMatchRequestPayload(
         IReadOnlyList<ChatMessage> messages,
         bool includeJustification,
-        string? serviceTier)
+        string? serviceTier,
+        string? reasoningEffort)
     {
         var schema = JsonSerializer.Deserialize<JsonElement>(BuildPredictionJsonSchema(includeJustification));
+        var normalizedReasoningEffort = string.IsNullOrWhiteSpace(reasoningEffort)
+            ? null
+            : reasoningEffort.Trim().ToLowerInvariant();
 
         return new
         {
@@ -263,7 +275,8 @@ public class PredictionService : IPredictionService
                     strict = true
                 }
             },
-            service_tier = serviceTier
+            service_tier = serviceTier,
+            reasoning_effort = normalizedReasoningEffort
         };
     }
 
@@ -847,6 +860,13 @@ public class PredictionService : IPredictionService
         {
             activity.SetTag("langfuse.observation.prompt.name", promptTraceMetadata.Name);
             activity.SetTag("langfuse.observation.prompt.version", promptTraceMetadata.Version);
+        }
+
+        if (!string.IsNullOrWhiteSpace(_options.ReasoningEffort))
+        {
+            var reasoningEffort = _options.ReasoningEffort.Trim().ToLowerInvariant();
+            activity.SetTag("gen_ai.request.reasoning_effort", reasoningEffort);
+            activity.SetTag("langfuse.observation.metadata.openaiReasoningEffort", reasoningEffort);
         }
 
         if (executionTelemetry is not null)

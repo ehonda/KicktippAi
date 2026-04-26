@@ -6,6 +6,16 @@ namespace Orchestrator.Commands.Observability.Experiments;
 
 public abstract class RunExperimentSettingsBase : CommandSettings
 {
+    private static readonly HashSet<string> AllowedReasoningEfforts = new(StringComparer.Ordinal)
+    {
+        "none",
+        "minimal",
+        "low",
+        "medium",
+        "high",
+        "xhigh"
+    };
+
     [CommandArgument(0, "<MODEL>")]
     [Description("The model to execute for the experiment run")]
     public string Model { get; set; } = string.Empty;
@@ -48,6 +58,10 @@ public abstract class RunExperimentSettingsBase : CommandSettings
     [CommandOption("--langfuse-prompt-version")]
     [Description("Optional Langfuse hosted prompt version when --prompt-source langfuse is used")]
     public int? LangfusePromptVersion { get; set; }
+
+    [CommandOption("--reasoning-effort")]
+    [Description("Optional OpenAI reasoning effort for experiment predictions: none, minimal, low, medium, high, or xhigh")]
+    public string? ReasoningEffort { get; set; }
 
     [CommandOption("--include-justification")]
     [Description("Use the justification prompt variant when reconstructing historical prompts")]
@@ -95,6 +109,17 @@ public abstract class RunExperimentSettingsBase : CommandSettings
         if (string.IsNullOrWhiteSpace(PromptKey))
         {
             return ValidationResult.Error("--prompt-key must be a non-empty string");
+        }
+
+        if (!string.IsNullOrWhiteSpace(ReasoningEffort))
+        {
+            var normalizedReasoningEffort = ReasoningEffort.Trim().ToLowerInvariant();
+            if (!AllowedReasoningEfforts.Contains(normalizedReasoningEffort))
+            {
+                return ValidationResult.Error("--reasoning-effort must be one of: none, minimal, low, medium, high, xhigh");
+            }
+
+            ReasoningEffort = normalizedReasoningEffort;
         }
 
         var normalizedPromptSource = PromptSource.Trim().ToLowerInvariant();
@@ -189,7 +214,8 @@ public abstract class RunExperimentSettingsBase : CommandSettings
             langfusePromptVersion,
             batchStrategy,
             batchSize,
-            batchCount);
+            batchCount,
+            ReasoningEffort);
     }
 }
 
