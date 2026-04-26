@@ -282,7 +282,29 @@ def analyze_bundle(
             random_seed=random_seed,
         )
 
+    report["reportTitle"] = build_report_title(report)
     return report
+
+
+def build_report_title(report: dict[str, Any]) -> str:
+    if int(report.get("runCount", 0)) == 2 and isinstance(report.get("comparison"), dict):
+        comparison = report["comparison"]
+        better_run = normalize_optional_string(comparison.get("betterRunDisplayName"))
+        other_run = normalize_optional_string(comparison.get("otherRunDisplayName"))
+        if better_run is not None and other_run is not None:
+            return f"{better_run} vs {other_run}"
+
+    runs = report.get("runs")
+    if isinstance(runs, list) and 2 <= len(runs) <= 3:
+        display_names = [
+            normalize_optional_string(run.get("runDisplayName"))
+            for run in runs
+            if isinstance(run, dict)
+        ]
+        if all(display_names):
+            return " vs ".join(str(name) for name in display_names)
+
+    return str(report["datasetName"])
 
 
 def analyze_two_run_comparison(
@@ -904,7 +926,8 @@ def render_markdown(report: dict[str, Any]) -> str:
 
 
 def render_html(report: dict[str, Any]) -> str:
-        title = f"Experiment Analysis - {report['datasetName']}"
+        report_title = normalize_optional_string(report.get("reportTitle")) or str(report["datasetName"])
+        document_title = f"{report_title} - Experiment Analysis"
         at_a_glance_section = render_at_a_glance_section(report)
         metadata_items = dataset_metadata_items(report)
         dataset_description = report.get("datasetDescription")
@@ -1092,7 +1115,8 @@ def render_html(report: dict[str, Any]) -> str:
 <head>
     <meta charset=\"utf-8\">
     <meta name=\"viewport\" content=\"width=device-width, initial-scale=1\">
-    <title>{escape_html(title)}</title>
+    <meta name=\"kicktippai-report-title\" content=\"{escape_html(report_title)}\">
+    <title>{escape_html(document_title)}</title>
     <style>
         :root {{
             --bg: #f4efe6;
@@ -1734,7 +1758,8 @@ def render_html(report: dict[str, Any]) -> str:
     <main class=\"page\">
         <header class=\"hero\">
             <p class=\"eyebrow\">KicktippAi experiment analysis</p>
-            <h1>{escape_html(report['datasetName'])}</h1>
+            <h1>{escape_html(report_title)}</h1>
+            <p class=\"footnote\">{escape_html(report['datasetName'])}</p>
             <div class=\"hero-meta\">
                 <span class=\"pill\">Task: {escape_html(str(report['taskType']))}</span>
                 <span class=\"pill\">Primary metric: {escape_html(str(report['primaryMetricName']))}</span>

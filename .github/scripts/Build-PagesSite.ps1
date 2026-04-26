@@ -74,7 +74,16 @@ function Get-ExperimentReportTypeLabel {
 }
 
 function Get-ExperimentReportDisplayName {
-    param([string]$RelativePath)
+    param(
+        [string]$RelativePath,
+        [string]$FullPath = ""
+    )
+
+    $htmlDisplayName = Get-ExperimentReportDisplayNameFromHtml -Path $FullPath
+    if (-not [string]::IsNullOrWhiteSpace($htmlDisplayName))
+    {
+        return $htmlDisplayName
+    }
 
     $segments = @($RelativePath -split "/")
     $fileName = $segments[-1]
@@ -115,6 +124,41 @@ function Get-ExperimentReportDisplayName {
     return ConvertTo-TitleLabel -Value $stem
 }
 
+function Get-ExperimentReportDisplayNameFromHtml {
+    param([string]$Path)
+
+    if ([string]::IsNullOrWhiteSpace($Path) -or -not (Test-Path -Path $Path))
+    {
+        return ""
+    }
+
+    $content = Get-Content -Path $Path -Raw -Encoding utf8
+    $metaMatch = [regex]::Match(
+        $content,
+        '<meta\s+name="kicktippai-report-title"\s+content="(?<title>[^"]+)"',
+        [System.Text.RegularExpressions.RegexOptions]::IgnoreCase)
+    if ($metaMatch.Success)
+    {
+        return [System.Net.WebUtility]::HtmlDecode($metaMatch.Groups["title"].Value).Trim()
+    }
+
+    $modelMatches = [regex]::Matches(
+        $content,
+        '<div\s+class="model-name">(?<name>.*?)</div>',
+        [System.Text.RegularExpressions.RegexOptions]::IgnoreCase)
+    $modelNames = @($modelMatches |
+        ForEach-Object { [System.Net.WebUtility]::HtmlDecode($_.Groups["name"].Value).Trim() } |
+        Where-Object { -not [string]::IsNullOrWhiteSpace($_) } |
+        Select-Object -Unique -First 3)
+
+    if ($modelNames.Count -ge 2)
+    {
+        return $modelNames -join " vs "
+    }
+
+    return ""
+}
+
 function Get-ExperimentReportContext {
     param([string]$RelativePath)
 
@@ -129,7 +173,10 @@ function Get-ExperimentReportContext {
 }
 
 function Get-ExperimentReportMetadata {
-    param([string]$RelativePath)
+    param(
+        [string]$RelativePath,
+        [string]$FullPath = ""
+    )
 
     $segments = @($RelativePath -split "/")
     $typeKey = if ($segments.Count -gt 0) { $segments[0] } else { "reports" }
@@ -140,7 +187,7 @@ function Get-ExperimentReportMetadata {
         TypeKey = $typeKey
         TypeLabel = Get-ExperimentReportTypeLabel -TypeSegment $typeKey
         Community = $community
-        DisplayName = Get-ExperimentReportDisplayName -RelativePath $RelativePath
+        DisplayName = Get-ExperimentReportDisplayName -RelativePath $RelativePath -FullPath $FullPath
         Context = Get-ExperimentReportContext -RelativePath $RelativePath
     }
 }
@@ -222,7 +269,7 @@ function New-ExperimentAnalysisIndex {
     {
         $reportRecords = @($reportFiles | ForEach-Object {
             $relativePath = [System.IO.Path]::GetRelativePath($ExperimentRoot, $_.FullName).Replace("\", "/")
-            Get-ExperimentReportMetadata -RelativePath $relativePath
+            Get-ExperimentReportMetadata -RelativePath $relativePath -FullPath $_.FullName
         })
 
         New-ExperimentReportTree -Reports $reportRecords

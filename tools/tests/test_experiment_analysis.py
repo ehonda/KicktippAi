@@ -92,10 +92,16 @@ class ExperimentAnalysisReportTests(unittest.TestCase):
         report_markdown = report.render_markdown(report_json)
         report_html = report.render_html(report_json)
 
+        self.assertEqual(report_json["reportTitle"], "gpt-5.5 (none) vs gpt-5.5 (xhigh)")
         self.assertEqual(report_json["comparison"]["betterRunDisplayName"], "gpt-5.5 (none)")
         self.assertEqual(report_json["comparison"]["otherRunDisplayName"], "gpt-5.5 (xhigh)")
         self.assertIn("gpt-5.5 (none)", report_markdown)
         self.assertIn("gpt-5.5 (xhigh)", report_html)
+        self.assertIn(
+            '<meta name="kicktippai-report-title" content="gpt-5.5 (none) vs gpt-5.5 (xhigh)">',
+            report_html,
+        )
+        self.assertIn("<h1>gpt-5.5 (none) vs gpt-5.5 (xhigh)</h1>", report_html)
 
     def test_repeated_match_report_displays_metadata_methods_short_labels_and_badges(self) -> None:
         bundle = {
