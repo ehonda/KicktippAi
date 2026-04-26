@@ -1,0 +1,4 @@
+interface:
+  display_name: "Langfuse Experiments"
+  short_description: "Run and publish Langfuse experiments"
+  default_prompt: "Use $langfuse-experiments to run a KicktippAi Langfuse experiment, publish the comparison page, and push it."
