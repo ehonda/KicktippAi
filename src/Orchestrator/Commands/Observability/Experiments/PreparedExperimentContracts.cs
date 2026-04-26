@@ -146,6 +146,18 @@ internal sealed record PreparedExperimentRunMetadata
     [JsonPropertyName("promptKey")]
     public string? PromptKey { get; init; }
 
+    [JsonPropertyName("promptSource")]
+    public string? PromptSource { get; init; }
+
+    [JsonPropertyName("langfusePromptName")]
+    public string? LangfusePromptName { get; init; }
+
+    [JsonPropertyName("langfusePromptLabel")]
+    public string? LangfusePromptLabel { get; init; }
+
+    [JsonPropertyName("langfusePromptVersion")]
+    public int? LangfusePromptVersion { get; init; }
+
     [JsonPropertyName("sliceKind")]
     public string? SliceKind { get; init; }
 

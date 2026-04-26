@@ -125,6 +125,29 @@ dotnet run --project src/Orchestrator -- run-repeated-match gpt-5-nano --manifes
 
 This exact workflow was verified successfully on `2026-04-05`.
 
+### Langfuse hosted prompt POC
+
+The hosted-prompt route is opt-in for experiment runs. Production and local experiment runs keep using file-based prompts unless `--prompt-source langfuse` is passed.
+
+The POC prompt is a Langfuse text prompt named `kicktippai/predict-one-match-o3-poc`, labeled `poc`, created from `prompts/o3/match.md` with the context section replaced by `{{context_documents}}`.
+
+Use a one-item preflight before spending the full 25-run comparison:
+
+```powershell
+$runStamp = (Get-Date).ToUniversalTime().ToString("yyyy-MM-ddTHH-mm-ssZ").ToLowerInvariant()
+dotnet run --project src/Orchestrator -- prepare-repeated-match --community-context pes-squad --home "VfB Stuttgart" --away "RB Leipzig" --matchday 26 --sample-size 1 --slice-key repeat-1-langfuse-poc
+dotnet run --project src/Orchestrator -- sync-dataset --input artifacts/langfuse-experiments/repeated-match/pes-squad/md26-vfb-stuttgart-vs-rb-leipzig/repeat-1-langfuse-poc/slice-dataset.json
+dotnet run --project src/Orchestrator -- run-repeated-match gpt-5.5 --manifest artifacts/langfuse-experiments/repeated-match/pes-squad/md26-vfb-stuttgart-vs-rb-leipzig/repeat-1-langfuse-poc/slice-manifest.json --run-name "repeated-match__pes-squad__gpt-5.5__langfuse-o3-poc__repeat-1__exact-time__$runStamp" --prompt-key langfuse-o3-poc --prompt-source langfuse --langfuse-prompt-name kicktippai/predict-one-match-o3-poc --langfuse-prompt-label poc --evaluation-time "2026-03-15T12:00:00 Europe/Berlin (+01)" --batch-count 1 --replace-run
+```
+
+Then run the comparable 25x experiment against the shared `repeat-25` manifest:
+
+```powershell
+$runStamp = (Get-Date).ToUniversalTime().ToString("yyyy-MM-ddTHH-mm-ssZ").ToLowerInvariant()
+dotnet run --project src/Orchestrator -- run-repeated-match o3 --manifest artifacts/langfuse-experiments/repeated-match/pes-squad/md26-vfb-stuttgart-vs-rb-leipzig/repeat-25/slice-manifest.json --run-name "repeated-match__pes-squad__o3__prompt-v1__repeat-25__exact-time__$runStamp" --prompt-key prompt-v1 --evaluation-time "2026-03-15T12:00:00 Europe/Berlin (+01)" --batch-count 3 --replace-run
+dotnet run --project src/Orchestrator -- run-repeated-match gpt-5.5 --manifest artifacts/langfuse-experiments/repeated-match/pes-squad/md26-vfb-stuttgart-vs-rb-leipzig/repeat-25/slice-manifest.json --run-name "repeated-match__pes-squad__gpt-5.5__langfuse-o3-poc__repeat-25__exact-time__$runStamp" --prompt-key langfuse-o3-poc --prompt-source langfuse --langfuse-prompt-name kicktippai/predict-one-match-o3-poc --langfuse-prompt-label poc --evaluation-time "2026-03-15T12:00:00 Europe/Berlin (+01)" --batch-count 3 --replace-run
+```
+
 ## Choosing Evaluation Time
 
 There are two supported execution modes:

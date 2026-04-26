@@ -486,4 +486,26 @@ public class PredictionService_PredictMatchAsync_Tests : PredictionServiceTests_
         await Assert.That(activity.GetTagItem("langfuse.observation.metadata.awayTeam")).IsEqualTo("Telemetry Away Team");
         await Assert.That(activity.GetTagItem("langfuse.observation.metadata.repredictionIndex")).IsEqualTo("3");
     }
+
+    [Test]
+    [NotInParallel("Telemetry")]
+    public async Task Predicting_match_records_langfuse_prompt_link_tags_when_prompt_metadata_is_configured()
+    {
+        var capturedActivities = new List<Activity>();
+        using var listener = CreateActivityListener(capturedActivities);
+        var service = CreateService(
+            CreateMockChatClient("""{"home": 2, "away": 1}"""),
+            options: NullableOption.Some(new PredictionServiceOptions(
+                LangfusePromptTraceMetadata: new LangfusePromptTraceMetadata(
+                    "kicktippai/predict-one-match-o3-poc",
+                    7))));
+
+        var prediction = await PredictMatchAsync(service);
+
+        await Assert.That(prediction).IsNotNull();
+        var activity = capturedActivities.Single(candidate => candidate.OperationName == "predict-match");
+        await Assert.That(activity.GetTagItem("langfuse.observation.prompt.name"))
+            .IsEqualTo("kicktippai/predict-one-match-o3-poc");
+        await Assert.That(activity.GetTagItem("langfuse.observation.prompt.version")).IsEqualTo(7);
+    }
 }

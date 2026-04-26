@@ -30,12 +30,9 @@ public class PredictionService : IPredictionService
     private readonly IInstructionsTemplateProvider _templateProvider;
     private readonly PredictionServiceOptions _options;
     private readonly string _model;
-    private readonly string _instructionsTemplate;
-    private readonly string _instructionsTemplateWithJustification;
-    private readonly string _bonusInstructionsTemplate;
-    private readonly string _matchPromptPath;
-    private readonly string _matchPromptPathWithJustification;
-    private readonly string _bonusPromptPath;
+    private readonly Lazy<(string Template, string Path)> _instructionsTemplate;
+    private readonly Lazy<(string Template, string Path)> _instructionsTemplateWithJustification;
+    private readonly Lazy<(string Template, string Path)> _bonusInstructionsTemplate;
 
     public PredictionService(
         ChatClient chatClient, 
@@ -53,17 +50,13 @@ public class PredictionService : IPredictionService
         _templateProvider = templateProvider ?? throw new ArgumentNullException(nameof(templateProvider));
         _options = options ?? PredictionServiceOptions.Default;
         _model = model ?? throw new ArgumentNullException(nameof(model));
-        
-        var (matchTemplate, matchPath) = _templateProvider.LoadMatchTemplate(_model, includeJustification: false);
-        var (matchJustificationTemplate, matchJustificationPath) = _templateProvider.LoadMatchTemplate(_model, includeJustification: true);
-        var (bonusTemplate, bonusPath) = _templateProvider.LoadBonusTemplate(_model);
-        
-        _instructionsTemplate = matchTemplate;
-        _instructionsTemplateWithJustification = matchJustificationTemplate;
-        _bonusInstructionsTemplate = bonusTemplate;
-        _matchPromptPath = matchPath;
-        _matchPromptPathWithJustification = matchJustificationPath;
-        _bonusPromptPath = bonusPath;
+
+        _instructionsTemplate = new Lazy<(string Template, string Path)>(
+            () => _templateProvider.LoadMatchTemplate(_model, includeJustification: false));
+        _instructionsTemplateWithJustification = new Lazy<(string Template, string Path)>(
+            () => _templateProvider.LoadMatchTemplate(_model, includeJustification: true));
+        _bonusInstructionsTemplate = new Lazy<(string Template, string Path)>(
+            () => _templateProvider.LoadBonusTemplate(_model));
     }
 
     public async Task<Prediction?> PredictMatchAsync(
@@ -420,8 +413,8 @@ public class PredictionService : IPredictionService
     private string BuildInstructions(IEnumerable<DocumentContext> contextDocuments, bool includeJustification)
     {
         var template = includeJustification
-            ? _instructionsTemplateWithJustification
-            : _instructionsTemplate;
+            ? _instructionsTemplateWithJustification.Value.Template
+            : _instructionsTemplate.Value.Template;
 
         var contextList = contextDocuments.ToList();
         if (contextList.Any())
@@ -641,7 +634,7 @@ public class PredictionService : IPredictionService
     private string BuildBonusInstructions(IEnumerable<DocumentContext> contextDocuments)
     {
         // Use the pre-loaded bonus instructions template
-        var bonusInstructionsTemplate = _bonusInstructionsTemplate;
+        var bonusInstructionsTemplate = _bonusInstructionsTemplate.Value.Template;
         
         var contextList = contextDocuments.ToList();
         if (contextList.Any())
@@ -745,13 +738,18 @@ public class PredictionService : IPredictionService
     /// Gets the file path of the match prediction prompt being used by this service
     /// </summary>
     /// <returns>The absolute file path to the match prompt file</returns>
-    public string GetMatchPromptPath(bool includeJustification = false) => includeJustification ? _matchPromptPathWithJustification : _matchPromptPath;
+    public string GetMatchPromptPath(bool includeJustification = false)
+    {
+        return includeJustification
+            ? _instructionsTemplateWithJustification.Value.Path
+            : _instructionsTemplate.Value.Path;
+    }
 
     /// <summary>
     /// Gets the file path of the bonus question prediction prompt being used by this service
     /// </summary>
     /// <returns>The absolute file path to the bonus prompt file</returns>
-    public string GetBonusPromptPath() => _bonusPromptPath;
+    public string GetBonusPromptPath() => _bonusInstructionsTemplate.Value.Path;
 
     /// <summary>
     /// Internal class for deserializing the structured prediction response
@@ -845,6 +843,11 @@ public class PredictionService : IPredictionService
 
         activity.SetTag("langfuse.observation.type", "generation");
         activity.SetTag("gen_ai.request.model", _model);
+        if (_options.LangfusePromptTraceMetadata is { } promptTraceMetadata)
+        {
+            activity.SetTag("langfuse.observation.prompt.name", promptTraceMetadata.Name);
+            activity.SetTag("langfuse.observation.prompt.version", promptTraceMetadata.Version);
+        }
 
         if (executionTelemetry is not null)
         {

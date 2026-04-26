@@ -66,13 +66,31 @@ internal sealed class PreparedExperimentRunExecutor
         var predictionRepository = _firebaseServiceFactory.CreatePredictionRepository();
         var contextRepository = _firebaseServiceFactory.CreateContextRepository();
         var matchOutcomeRepository = _firebaseServiceFactory.CreateMatchOutcomeRepository();
-        var predictionService = _openAiServiceFactory.CreatePredictionService(
-            request.Options.Model,
-            PredictionServiceOptions.FlexProcessingWithStandardFallback);
+        var promptRoute = await ResolvePromptRouteAsync(runMetadata, cancellationToken);
+        if (promptRoute.TraceMetadata is { } promptTraceMetadata)
+        {
+            runMetadata = runMetadata with
+            {
+                LangfusePromptVersion = promptTraceMetadata.Version
+            };
+        }
+
+        var predictionServiceOptions = PredictionServiceOptions.FlexProcessingWithStandardFallback with
+        {
+            LangfusePromptTraceMetadata = promptRoute.TraceMetadata
+        };
+        var predictionService = promptRoute.TemplateProvider is null
+            ? _openAiServiceFactory.CreatePredictionService(
+                request.Options.Model,
+                predictionServiceOptions)
+            : _openAiServiceFactory.CreatePredictionService(
+                request.Options.Model,
+                predictionServiceOptions,
+                promptRoute.TemplateProvider);
         var reconstructionService = new MatchPromptReconstructionService(
             predictionRepository,
             contextRepository,
-            new InstructionsTemplateProvider(PromptsFileProvider.Create()));
+            promptRoute.TemplateProvider ?? new InstructionsTemplateProvider(PromptsFileProvider.Create()));
 
         var outcomesByKey = await LoadOutcomesAsync(matchOutcomeRepository, communityContext, manifest, cancellationToken);
         var experimentName = PreparedExperimentSupport.DeriveExperimentName(runMetadata, request.RunName);
@@ -331,6 +349,56 @@ internal sealed class PreparedExperimentRunExecutor
         return string.Equals(expectedTaskType, "repeated-match", StringComparison.OrdinalIgnoreCase)
             ? PreparedExperimentSupport.CreateWarmupThenBatchChunks(items, runMetadata.BatchCount ?? 3)
             : PreparedExperimentSupport.CreateBatchChunks(items, runMetadata.BatchSize ?? 10);
+    }
+
+    private async Task<ExperimentPromptRoute> ResolvePromptRouteAsync(
+        PreparedExperimentRunMetadata runMetadata,
+        CancellationToken cancellationToken)
+    {
+        var promptSource = string.IsNullOrWhiteSpace(runMetadata.PromptSource)
+            ? "local"
+            : runMetadata.PromptSource.Trim().ToLowerInvariant();
+
+        if (promptSource == "local")
+        {
+            return new ExperimentPromptRoute(null, null);
+        }
+
+        if (promptSource != "langfuse")
+        {
+            throw new InvalidOperationException($"Unsupported prompt source '{runMetadata.PromptSource}'.");
+        }
+
+        if (runMetadata.IncludeJustification)
+        {
+            throw new InvalidOperationException(
+                "The Langfuse prompt source POC only supports match prompts without justification.");
+        }
+
+        if (string.IsNullOrWhiteSpace(runMetadata.LangfusePromptName))
+        {
+            throw new InvalidOperationException("Run metadata must contain langfusePromptName when promptSource is langfuse.");
+        }
+
+        var prompt = await _langfuseClient.GetPromptAsync(
+                         runMetadata.LangfusePromptName,
+                         runMetadata.LangfusePromptLabel,
+                         runMetadata.LangfusePromptVersion,
+                         cancellationToken)
+                     ?? throw new FileNotFoundException(
+                         $"Langfuse prompt '{runMetadata.LangfusePromptName}' was not found.");
+
+        _ = prompt.GetTextPrompt();
+        var templateProvider = new LangfuseTextPromptTemplateProvider(
+            _langfuseClient,
+            runMetadata.LangfusePromptName,
+            runMetadata.LangfusePromptLabel,
+            runMetadata.LangfusePromptVersion,
+            prompt);
+
+        return new ExperimentPromptRoute(
+            templateProvider,
+            new LangfusePromptTraceMetadata(prompt.Name, prompt.Version));
     }
 
     private static PreparedExperimentRunMetadata ApplyBatchingDefaults(
@@ -1082,6 +1150,10 @@ internal sealed class PreparedExperimentRunExecutor
     private sealed record PreparedExperimentExecutionResult(
         string DatasetRunId,
         PreparedExperimentExecutionSummary Summary);
+
+    private sealed record ExperimentPromptRoute(
+        IInstructionsTemplateProvider? TemplateProvider,
+        LangfusePromptTraceMetadata? TraceMetadata);
 }
 
 internal sealed record PreparedExperimentRunRequest(

@@ -8,6 +8,7 @@ using Microsoft.Extensions.FileProviders;
 using Microsoft.Extensions.Hosting;
 using Microsoft.Extensions.Logging;
 using Microsoft.Extensions.Logging.Testing;
+using Moq;
 using Orchestrator.Infrastructure;
 using Orchestrator.Infrastructure.Factories;
 using Orchestrator.Infrastructure.Langfuse;
@@ -467,6 +468,80 @@ public class LangfuseAndServiceRegistrationTests
         await Assert.That(exception!.RetryAfterHeaderValue).IsEqualTo("17");
         await Assert.That(exception.RetryAfterDelay).IsEqualTo(TimeSpan.FromSeconds(17));
         await Assert.That(exception.Message).Contains("Retry-After: 17.");
+    }
+
+    [Test]
+    public async Task Langfuse_client_gets_text_prompt_with_label_and_version_query_parameters()
+    {
+        using var server = WireMockServer.Start();
+        server
+            .Given(Request.Create()
+                .WithPath("/api/public/v2/prompts/kicktippai/predict-one-match-o3-poc")
+                .WithParam("label", "poc")
+                .WithParam("version", "7")
+                .UsingGet())
+            .RespondWith(Response.Create()
+                .WithStatusCode(200)
+                .WithHeader("Content-Type", "application/json")
+                .WithBody(
+                    """
+                    {
+                      "name": "kicktippai/predict-one-match-o3-poc",
+                      "version": 7,
+                      "type": "text",
+                      "prompt": "Hello {{context_documents}}",
+                      "labels": ["poc"],
+                      "tags": ["kicktippai"],
+                      "config": {}
+                    }
+                    """));
+
+        using var httpClient = new HttpClient
+        {
+            BaseAddress = new Uri($"{server.Urls[0]}/api/public/")
+        };
+
+        var client = new LangfusePublicApiClient(httpClient, new FakeLogger<LangfusePublicApiClient>());
+
+        var prompt = await client.GetPromptAsync("kicktippai/predict-one-match-o3-poc", "poc", 7);
+
+        await Assert.That(prompt).IsNotNull();
+        await Assert.That(prompt!.Name).IsEqualTo("kicktippai/predict-one-match-o3-poc");
+        await Assert.That(prompt.Version).IsEqualTo(7);
+        await Assert.That(prompt.GetTextPrompt()).IsEqualTo("Hello {{context_documents}}");
+    }
+
+    [Test]
+    public async Task Langfuse_text_prompt_template_provider_returns_match_template_and_prompt_path()
+    {
+        var prompt = new LangfusePrompt(
+            "kicktippai/predict-one-match-o3-poc",
+            7,
+            "text",
+            System.Text.Json.JsonSerializer.SerializeToElement("Hello {{context_documents}}"),
+            ["poc"],
+            ["kicktippai"],
+            System.Text.Json.JsonSerializer.SerializeToElement(new { }));
+        var client = new Mock<ILangfusePublicApiClient>(MockBehavior.Strict);
+        client
+            .Setup(langfuseClient => langfuseClient.GetPromptAsync(
+                "kicktippai/predict-one-match-o3-poc",
+                "poc",
+                null,
+                It.IsAny<CancellationToken>()))
+            .ReturnsAsync(prompt);
+        var provider = new LangfuseTextPromptTemplateProvider(
+            client.Object,
+            "kicktippai/predict-one-match-o3-poc",
+            "poc",
+            null);
+
+        var (template, path) = provider.LoadMatchTemplate("gpt-5.5", includeJustification: false);
+
+        await Assert.That(template).IsEqualTo("Hello {{context_documents}}");
+        await Assert.That(path).Contains("langfuse://prompts/");
+        await Assert.That(path).Contains("/versions/7");
+        client.VerifyAll();
     }
 
     [Test]

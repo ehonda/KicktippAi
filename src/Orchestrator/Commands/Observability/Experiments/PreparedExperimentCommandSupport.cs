@@ -12,6 +12,10 @@ internal sealed record PreparedExperimentRunOptions(
     string? EvaluationPolicyKind,
     string? EvaluationPolicyOffset,
     string? DatasetName,
+    string PromptSource,
+    string? LangfusePromptName,
+    string? LangfusePromptLabel,
+    int? LangfusePromptVersion,
     string BatchStrategy,
     int? BatchSize = null,
     int? BatchCount = null);
@@ -64,6 +68,10 @@ internal static class PreparedExperimentCommandSupport
                 ? options.DatasetName ?? manifest.SliceDatasetName
                 : runMetadata.DatasetName,
             PromptKey = string.IsNullOrWhiteSpace(runMetadata.PromptKey) ? options.PromptKey : runMetadata.PromptKey,
+            PromptSource = string.IsNullOrWhiteSpace(runMetadata.PromptSource) ? options.PromptSource : runMetadata.PromptSource,
+            LangfusePromptName = string.IsNullOrWhiteSpace(runMetadata.LangfusePromptName) ? options.LangfusePromptName : runMetadata.LangfusePromptName,
+            LangfusePromptLabel = string.IsNullOrWhiteSpace(runMetadata.LangfusePromptLabel) ? options.LangfusePromptLabel : runMetadata.LangfusePromptLabel,
+            LangfusePromptVersion = runMetadata.LangfusePromptVersion ?? options.LangfusePromptVersion,
             SliceKind = string.IsNullOrWhiteSpace(runMetadata.SliceKind) ? manifest.SliceKind : runMetadata.SliceKind,
             SliceKey = string.IsNullOrWhiteSpace(runMetadata.SliceKey) ? manifest.SliceKey : runMetadata.SliceKey,
             SourcePoolKey = string.IsNullOrWhiteSpace(runMetadata.SourcePoolKey) ? manifest.SourcePoolKey : runMetadata.SourcePoolKey,

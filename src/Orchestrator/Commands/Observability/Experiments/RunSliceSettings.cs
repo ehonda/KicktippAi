@@ -31,6 +31,24 @@ public abstract class RunExperimentSettingsBase : CommandSettings
     [DefaultValue("prompt-v1")]
     public string PromptKey { get; set; } = "prompt-v1";
 
+    [CommandOption("--prompt-source")]
+    [Description("Prompt source for experiment predictions: local or langfuse")]
+    [DefaultValue("local")]
+    public string PromptSource { get; set; } = "local";
+
+    [CommandOption("--langfuse-prompt-name")]
+    [Description("Langfuse hosted prompt name when --prompt-source langfuse is used")]
+    public string? LangfusePromptName { get; set; }
+
+    [CommandOption("--langfuse-prompt-label")]
+    [Description("Langfuse hosted prompt label when --prompt-source langfuse is used")]
+    [DefaultValue("production")]
+    public string? LangfusePromptLabel { get; set; } = "production";
+
+    [CommandOption("--langfuse-prompt-version")]
+    [Description("Optional Langfuse hosted prompt version when --prompt-source langfuse is used")]
+    public int? LangfusePromptVersion { get; set; }
+
     [CommandOption("--include-justification")]
     [Description("Use the justification prompt variant when reconstructing historical prompts")]
     [DefaultValue(false)]
@@ -79,6 +97,34 @@ public abstract class RunExperimentSettingsBase : CommandSettings
             return ValidationResult.Error("--prompt-key must be a non-empty string");
         }
 
+        var normalizedPromptSource = PromptSource.Trim().ToLowerInvariant();
+        if (normalizedPromptSource is not ("local" or "langfuse"))
+        {
+            return ValidationResult.Error("--prompt-source must be either 'local' or 'langfuse'");
+        }
+
+        if (normalizedPromptSource == "langfuse")
+        {
+            if (IncludeJustification)
+            {
+                return ValidationResult.Error("--prompt-source langfuse does not support --include-justification in this POC");
+            }
+
+            if (string.IsNullOrWhiteSpace(LangfusePromptName))
+            {
+                return ValidationResult.Error("--langfuse-prompt-name is required when --prompt-source langfuse is used");
+            }
+
+            if (LangfusePromptVersion is < 1)
+            {
+                return ValidationResult.Error("--langfuse-prompt-version must be at least 1 when provided");
+            }
+        }
+        else if (!string.IsNullOrWhiteSpace(LangfusePromptName) || LangfusePromptVersion is not null)
+        {
+            return ValidationResult.Error("Langfuse prompt options require --prompt-source langfuse");
+        }
+
         var hasEvaluationPolicyKind = !string.IsNullOrWhiteSpace(EvaluationPolicyKind);
         var hasEvaluationPolicyOffset = !string.IsNullOrWhiteSpace(EvaluationPolicyOffset);
 
@@ -124,6 +170,11 @@ public abstract class RunExperimentSettingsBase : CommandSettings
         int? batchSize = null,
         int? batchCount = null)
     {
+        var normalizedPromptSource = PromptSource.Trim().ToLowerInvariant();
+        var langfusePromptName = normalizedPromptSource == "langfuse" ? LangfusePromptName : null;
+        var langfusePromptLabel = normalizedPromptSource == "langfuse" ? LangfusePromptLabel : null;
+        var langfusePromptVersion = normalizedPromptSource == "langfuse" ? LangfusePromptVersion : null;
+
         return new PreparedExperimentRunOptions(
             Model,
             PromptKey,
@@ -132,6 +183,10 @@ public abstract class RunExperimentSettingsBase : CommandSettings
             EvaluationPolicyKind,
             EvaluationPolicyOffset,
             DatasetName,
+            normalizedPromptSource,
+            langfusePromptName,
+            langfusePromptLabel,
+            langfusePromptVersion,
             batchStrategy,
             batchSize,
             batchCount);

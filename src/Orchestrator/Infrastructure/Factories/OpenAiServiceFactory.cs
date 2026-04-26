@@ -48,18 +48,25 @@ public sealed class OpenAiServiceFactory : IOpenAiServiceFactory
         // Cache key includes model to handle different configurations
         return _predictionServiceCache.GetOrAdd(cacheKey, _ =>
         {
-            var logger = _loggerFactory.CreateLogger<PredictionService>();
-            var chatClient = new ChatClient(model, apiKey);
-
-            return new PredictionService(
-                chatClient,
-                logger,
-                GetOrCreateCostCalculationService(),
-                GetTokenUsageTracker(),
-                GetOrCreateInstructionsTemplateProvider(),
+            return CreatePredictionServiceCore(
                 model,
-                options);
+                options,
+                GetOrCreateInstructionsTemplateProvider(),
+                apiKey);
         });
+    }
+
+    /// <inheritdoc />
+    public IPredictionService CreatePredictionService(
+        string model,
+        PredictionServiceOptions options,
+        IInstructionsTemplateProvider templateProvider)
+    {
+        ArgumentException.ThrowIfNullOrWhiteSpace(model);
+        ArgumentNullException.ThrowIfNull(options);
+        ArgumentNullException.ThrowIfNull(templateProvider);
+
+        return CreatePredictionServiceCore(model, options, templateProvider, _apiKey.Value);
     }
 
     /// <inheritdoc />
@@ -115,5 +122,24 @@ public sealed class OpenAiServiceFactory : IOpenAiServiceFactory
         }
 
         return _instructionsTemplateProvider;
+    }
+
+    private IPredictionService CreatePredictionServiceCore(
+        string model,
+        PredictionServiceOptions options,
+        IInstructionsTemplateProvider templateProvider,
+        string apiKey)
+    {
+        var logger = _loggerFactory.CreateLogger<PredictionService>();
+        var chatClient = new ChatClient(model, apiKey);
+
+        return new PredictionService(
+            chatClient,
+            logger,
+            GetOrCreateCostCalculationService(),
+            GetTokenUsageTracker(),
+            templateProvider,
+            model,
+            options);
     }
 }

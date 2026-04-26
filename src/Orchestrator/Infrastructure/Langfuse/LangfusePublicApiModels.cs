@@ -71,6 +71,29 @@ public sealed record LangfuseListObservationsRequest(
 public sealed record LangfuseCreateScoreResponse(
     [property: JsonPropertyName("id")] string Id);
 
+public sealed record LangfusePrompt(
+    [property: JsonPropertyName("name")] string Name,
+    [property: JsonPropertyName("version")] int Version,
+    [property: JsonPropertyName("type")] string? Type,
+    [property: JsonPropertyName("prompt")] JsonElement Prompt,
+    [property: JsonPropertyName("labels")] IReadOnlyList<string>? Labels,
+    [property: JsonPropertyName("tags")] IReadOnlyList<string>? Tags,
+    [property: JsonPropertyName("config")] JsonElement Config)
+{
+    public string GetTextPrompt()
+    {
+        if (Prompt.ValueKind != JsonValueKind.String)
+        {
+            throw new InvalidOperationException(
+                $"Langfuse prompt '{Name}' version {Version} is not a text prompt.");
+        }
+
+        return Prompt.GetString()
+               ?? throw new InvalidOperationException(
+                   $"Langfuse prompt '{Name}' version {Version} contains an empty prompt value.");
+    }
+}
+
 public sealed record LangfuseDataset(
     [property: JsonPropertyName("id")] string Id,
     [property: JsonPropertyName("name")] string Name,

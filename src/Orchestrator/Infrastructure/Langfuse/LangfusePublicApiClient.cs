@@ -27,6 +27,23 @@ public sealed class LangfusePublicApiClient : ILangfusePublicApiClient
         return SendForJsonAsync<LangfuseDataset>(HttpMethod.Get, $"datasets/{EncodePathSegment(datasetName)}", null, true, cancellationToken);
     }
 
+    public Task<LangfusePrompt?> GetPromptAsync(
+        string promptName,
+        string? label = null,
+        int? version = null,
+        CancellationToken cancellationToken = default)
+    {
+        ArgumentException.ThrowIfNullOrWhiteSpace(promptName);
+
+        var queryParameters = new List<KeyValuePair<string, string?>>
+        {
+            new("label", label),
+            new("version", version?.ToString(System.Globalization.CultureInfo.InvariantCulture))
+        };
+        var path = BuildQueryString($"v2/prompts/{EncodePathSegment(promptName)}", queryParameters);
+        return SendForJsonAsync<LangfusePrompt>(HttpMethod.Get, path, null, true, cancellationToken);
+    }
+
     public Task<LangfuseDataset> CreateDatasetAsync(LangfuseCreateDatasetRequest request, CancellationToken cancellationToken = default)
     {
         return SendForJsonAsync<LangfuseDataset>(HttpMethod.Post, "datasets", request, false, cancellationToken)!;

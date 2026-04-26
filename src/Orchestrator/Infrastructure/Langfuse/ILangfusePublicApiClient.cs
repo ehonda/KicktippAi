@@ -9,6 +9,12 @@ public interface ILangfusePublicApiClient
 {
     Task<LangfuseDataset?> GetDatasetAsync(string datasetName, CancellationToken cancellationToken = default);
 
+    Task<LangfusePrompt?> GetPromptAsync(
+        string promptName,
+        string? label = null,
+        int? version = null,
+        CancellationToken cancellationToken = default);
+
     Task<LangfuseDataset> CreateDatasetAsync(LangfuseCreateDatasetRequest request, CancellationToken cancellationToken = default);
 
     Task<LangfuseDatasetItem?> GetDatasetItemAsync(string id, CancellationToken cancellationToken = default);

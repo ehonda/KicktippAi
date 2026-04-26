@@ -41,6 +41,36 @@ public class PredictionPromptComposer_Tests
     }
 
     [Test]
+    public async Task Building_system_prompt_replaces_context_documents_placeholder()
+    {
+        var result = PredictionPromptComposer.BuildSystemPrompt(
+            "template\n\n{{context_documents}}",
+            [
+                new DocumentContext("Doc A", "Alpha")
+            ]);
+
+        var expected = """
+            template
+
+            ---
+            Doc A
+
+            Alpha
+            ---
+            """.Replace("\r\n", "\n");
+
+        await Assert.That(result).IsEqualTo(expected);
+    }
+
+    [Test]
+    public async Task Building_system_prompt_replaces_context_documents_placeholder_with_empty_string_when_no_context_exists()
+    {
+        var result = PredictionPromptComposer.BuildSystemPrompt("template:{{context_documents}}", []);
+
+        await Assert.That(result).IsEqualTo("template:");
+    }
+
+    [Test]
     public async Task Creating_match_json_uses_expected_payload_shape()
     {
         var match = new Match(

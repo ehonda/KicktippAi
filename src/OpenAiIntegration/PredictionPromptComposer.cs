@@ -1,3 +1,4 @@
+using System.Text;
 using System.Text.Json;
 using EHonda.KicktippAi.Core;
 
@@ -8,24 +9,53 @@ namespace OpenAiIntegration;
 /// </summary>
 public static class PredictionPromptComposer
 {
+    private const string ContextDocumentsPlaceholder = "{{context_documents}}";
+
     public static string BuildSystemPrompt(string template, IEnumerable<DocumentContext> contextDocuments)
     {
         var contextList = contextDocuments.ToList();
-        if (!contextList.Any())
+        if (template.Contains(ContextDocumentsPlaceholder, StringComparison.Ordinal))
+        {
+            return template.Replace(
+                ContextDocumentsPlaceholder,
+                BuildContextDocumentsSection(contextList, includeLeadingNewLine: false),
+                StringComparison.Ordinal);
+        }
+
+        if (contextList.Count == 0)
         {
             return template;
         }
 
-        var contextSection = "\n";
-        foreach (var doc in contextList)
+        return template + BuildContextDocumentsSection(contextList, includeLeadingNewLine: true);
+    }
+
+    private static string BuildContextDocumentsSection(
+        IReadOnlyList<DocumentContext> contextDocuments,
+        bool includeLeadingNewLine)
+    {
+        if (contextDocuments.Count == 0)
         {
-            contextSection += "---\n";
-            contextSection += $"{doc.Name}\n\n";
-            contextSection += $"{doc.Content}\n";
+            return string.Empty;
         }
 
-        contextSection += "---";
-        return template + contextSection;
+        var contextSection = new StringBuilder();
+        if (includeLeadingNewLine)
+        {
+            contextSection.Append('\n');
+        }
+
+        foreach (var doc in contextDocuments)
+        {
+            contextSection.Append("---\n");
+            contextSection.Append(doc.Name);
+            contextSection.Append("\n\n");
+            contextSection.Append(doc.Content);
+            contextSection.Append('\n');
+        }
+
+        contextSection.Append("---");
+        return contextSection.ToString();
     }
 
     public static string CreateMatchJson(Match match)

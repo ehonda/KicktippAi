@@ -185,6 +185,10 @@ internal static class PreparedExperimentSupport
             SourceDatasetName = manifest.SourceDatasetName,
             DatasetName = options.DatasetName ?? manifest.SliceDatasetName,
             PromptKey = options.PromptKey,
+            PromptSource = options.PromptSource,
+            LangfusePromptName = options.LangfusePromptName,
+            LangfusePromptLabel = options.LangfusePromptLabel,
+            LangfusePromptVersion = options.LangfusePromptVersion,
             SliceKind = ResolveSliceKind(manifest),
             SliceKey = manifest.SliceKey,
             SourcePoolKey = manifest.SourcePoolKey,
@@ -275,6 +279,26 @@ internal static class PreparedExperimentSupport
             tags.Add($"prompt:{runMetadata.PromptKey}");
         }
 
+        if (!string.IsNullOrWhiteSpace(runMetadata.PromptSource))
+        {
+            tags.Add($"prompt-source:{runMetadata.PromptSource}");
+        }
+
+        if (!string.IsNullOrWhiteSpace(runMetadata.LangfusePromptName))
+        {
+            tags.Add($"langfuse-prompt:{runMetadata.LangfusePromptName}");
+        }
+
+        if (!string.IsNullOrWhiteSpace(runMetadata.LangfusePromptLabel))
+        {
+            tags.Add($"langfuse-prompt-label:{runMetadata.LangfusePromptLabel}");
+        }
+
+        if (runMetadata.LangfusePromptVersion is not null)
+        {
+            tags.Add($"langfuse-prompt-version:{runMetadata.LangfusePromptVersion}");
+        }
+
         return tags.Distinct(StringComparer.Ordinal).ToList();
     }
 
@@ -286,6 +310,10 @@ internal static class PreparedExperimentSupport
         AddIfValid(metadata, "evaluationTimestampPolicyKey", runMetadata.EvaluationTimestampPolicyKey);
         AddIfValid(metadata, "model", runMetadata.Model);
         AddIfValid(metadata, "promptKey", runMetadata.PromptKey);
+        AddIfValid(metadata, "promptSource", runMetadata.PromptSource);
+        AddIfValid(metadata, "langfusePromptName", runMetadata.LangfusePromptName);
+        AddIfValid(metadata, "langfusePromptLabel", runMetadata.LangfusePromptLabel);
+        AddIfValid(metadata, "langfusePromptVersion", runMetadata.LangfusePromptVersion?.ToString(CultureInfo.InvariantCulture));
         AddIfValid(metadata, "sampleMethod", runMetadata.SampleMethod);
         AddIfValid(metadata, "selectedItemIdsHash", runMetadata.SelectedItemIdsHash);
         AddIfValid(metadata, "sliceKind", runMetadata.SliceKind);

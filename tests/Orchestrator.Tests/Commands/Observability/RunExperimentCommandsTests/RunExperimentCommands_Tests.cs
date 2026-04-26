@@ -31,6 +31,102 @@ public class RunExperimentCommands_Tests
     }
 
     [Test]
+    public async Task Run_experiment_settings_require_langfuse_prompt_name_for_langfuse_prompt_source()
+    {
+        var settings = new RunRepeatedMatchSettings
+        {
+            Model = "gpt-5.5",
+            ManifestPath = "slice-manifest.json",
+            RunName = "run-name",
+            PromptSource = "langfuse"
+        };
+
+        var result = settings.Validate();
+
+        await Assert.That(result.Successful).IsFalse();
+        await Assert.That(result.Message).Contains("--langfuse-prompt-name is required");
+    }
+
+    [Test]
+    public async Task Run_experiment_settings_reject_langfuse_prompt_source_with_justification()
+    {
+        var settings = new RunRepeatedMatchSettings
+        {
+            Model = "gpt-5.5",
+            ManifestPath = "slice-manifest.json",
+            RunName = "run-name",
+            PromptSource = "langfuse",
+            LangfusePromptName = "kicktippai/predict-one-match-o3-poc",
+            IncludeJustification = true
+        };
+
+        var result = settings.Validate();
+
+        await Assert.That(result.Successful).IsFalse();
+        await Assert.That(result.Message).Contains("does not support --include-justification");
+    }
+
+    [Test]
+    public async Task Langfuse_prompt_run_options_flow_into_experiment_metadata_tags_and_propagated_metadata()
+    {
+        var manifest = new PreparedExperimentManifest
+        {
+            SliceKey = "repeat-25",
+            SliceKind = "repeated-match",
+            SampleMethod = "repeated-match",
+            CommunityContext = "pes-squad",
+            SourcePoolKey = "md26-vfb-stuttgart-vs-rb-leipzig",
+            SourceDatasetName = "match-predictions/bundesliga-2025-26/pes-squad",
+            SliceDatasetName = "match-predictions/bundesliga-2025-26/pes-squad/repeated-match/md26-vfb-stuttgart-vs-rb-leipzig/repeat-25",
+            Competition = "bundesliga-2025-26",
+            Season = "2025/2026",
+            SampleSize = 25,
+            Items =
+            [
+                new PreparedExperimentManifestItem
+                {
+                    SourceDatasetItemId = "source-item",
+                    SliceDatasetItemId = "slice-item",
+                    HomeTeam = "VfB Stuttgart",
+                    AwayTeam = "RB Leipzig",
+                    Matchday = 26,
+                    StartsAt = "2026-03-15T15:30:00 Europe/Berlin (+01)"
+                }
+            ]
+        };
+        var options = new PreparedExperimentRunOptions(
+            "gpt-5.5",
+            "langfuse-o3-poc",
+            false,
+            "2026-03-15T12:00:00 Europe/Berlin (+01)",
+            null,
+            null,
+            null,
+            "langfuse",
+            "kicktippai/predict-one-match-o3-poc",
+            "poc",
+            7,
+            "warmup-plus-batches",
+            null,
+            3);
+
+        var metadata = PreparedExperimentSupport.BuildRunMetadata(manifest, options);
+        var tags = PreparedExperimentSupport.DeriveTraceTags(metadata);
+        var propagatedMetadata = PreparedExperimentSupport.DerivePropagatedMetadata(metadata);
+
+        await Assert.That(metadata.PromptSource).IsEqualTo("langfuse");
+        await Assert.That(metadata.LangfusePromptName).IsEqualTo("kicktippai/predict-one-match-o3-poc");
+        await Assert.That(metadata.LangfusePromptLabel).IsEqualTo("poc");
+        await Assert.That(metadata.LangfusePromptVersion).IsEqualTo(7);
+        await Assert.That(tags).Contains("prompt-source:langfuse");
+        await Assert.That(tags).Contains("langfuse-prompt:kicktippai/predict-one-match-o3-poc");
+        await Assert.That(tags).Contains("langfuse-prompt-label:poc");
+        await Assert.That(tags).Contains("langfuse-prompt-version:7");
+        await Assert.That(propagatedMetadata["promptSource"]).IsEqualTo("langfuse");
+        await Assert.That(propagatedMetadata["langfusePromptVersion"]).IsEqualTo("7");
+    }
+
+    [Test]
     [NotInParallel("ProcessState")]
     public async Task Running_run_slice_reconstructs_predicts_and_posts_scores()
     {
