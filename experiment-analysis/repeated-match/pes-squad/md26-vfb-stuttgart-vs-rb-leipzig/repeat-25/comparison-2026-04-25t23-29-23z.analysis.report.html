@@ -115,6 +115,276 @@
             margin-bottom: 18px;
         }
 
+        .at-a-glance-panel {
+            border-color: rgba(28, 123, 91, 0.24);
+        }
+
+        .glance-grid {
+            display: grid;
+            grid-template-columns: minmax(260px, 1fr) minmax(320px, 1.35fr);
+            gap: 16px;
+            align-items: stretch;
+        }
+
+        .glance-card {
+            background: var(--panel-strong);
+            border: 1px solid var(--border);
+            border-radius: 18px;
+            padding: 18px;
+            min-width: 0;
+        }
+
+        .glance-label {
+            display: block;
+            color: var(--muted);
+            font-size: 0.78rem;
+            font-weight: 700;
+            text-transform: uppercase;
+            letter-spacing: 0.08em;
+            margin-bottom: 8px;
+        }
+
+        .match-fixture {
+            font-size: 1.45rem;
+            line-height: 1.15;
+            overflow-wrap: anywhere;
+        }
+
+        .match-meta {
+            display: flex;
+            flex-wrap: wrap;
+            gap: 8px;
+            margin: 14px 0;
+        }
+
+        .meta-chip {
+            border: 1px solid var(--border);
+            border-radius: 999px;
+            color: var(--muted);
+            display: inline-flex;
+            font-size: 0.84rem;
+            font-weight: 600;
+            padding: 5px 9px;
+        }
+
+        .actual-result {
+            margin-top: 12px;
+        }
+
+        .actual-result-value {
+            display: block;
+            font-size: 1.22rem;
+            font-weight: 800;
+            line-height: 1.2;
+            overflow-wrap: anywhere;
+        }
+
+        .head-to-head-card {
+            display: flex;
+            flex-direction: column;
+            gap: 14px;
+        }
+
+        .head-to-head-topline {
+            display: flex;
+            align-items: center;
+            justify-content: space-between;
+            gap: 12px;
+        }
+
+        .pvalue-summary {
+            border-radius: 12px;
+            padding: 8px 10px;
+            text-align: right;
+        }
+
+        .pvalue-summary strong {
+            display: block;
+            font-size: 1.05rem;
+        }
+
+        .head-to-head-models {
+            display: grid;
+            grid-template-columns: repeat(2, minmax(0, 1fr));
+            gap: 12px;
+        }
+
+        .model-result {
+            border: 1px solid var(--border);
+            border-radius: 14px;
+            padding: 14px;
+            min-width: 0;
+            background: rgba(255, 255, 255, 0.45);
+        }
+
+        .model-name {
+            font-size: 1.14rem;
+            font-weight: 800;
+            line-height: 1.15;
+            overflow-wrap: anywhere;
+        }
+
+        .model-points {
+            display: block;
+            font-size: 1.8rem;
+            font-weight: 800;
+            line-height: 1;
+            margin-top: 10px;
+        }
+
+        .model-subtext {
+            display: block;
+            color: var(--muted);
+            font-size: 0.84rem;
+            font-weight: 700;
+            margin-top: 4px;
+            text-transform: uppercase;
+            letter-spacing: 0.06em;
+        }
+
+        .head-to-head-neutral {
+            color: #53606c;
+        }
+
+        .head-to-head-neutral .model-result {
+            background: rgba(52, 68, 84, 0.06);
+            color: #53606c;
+        }
+
+        .model-winner {
+            background: var(--good-soft);
+            border-color: rgba(28, 123, 91, 0.36);
+        }
+
+        .model-winner .model-name,
+        .model-winner .model-points,
+        .model-winner .model-subtext {
+            color: var(--good);
+        }
+
+        .model-loser {
+            background: var(--bad-soft);
+            border-color: rgba(179, 61, 61, 0.36);
+        }
+
+        .model-loser .model-name,
+        .model-loser .model-points,
+        .model-loser .model-subtext {
+            color: var(--bad);
+        }
+
+        .prediction-section {
+            margin-top: 18px;
+        }
+
+        .prediction-section h3 {
+            font-size: 1.05rem;
+            margin-bottom: 12px;
+        }
+
+        .histogram-grid {
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(260px, 1fr));
+            gap: 14px;
+        }
+
+        .histogram-card {
+            background: rgba(255, 250, 241, 0.76);
+            border: 1px solid var(--border);
+            border-radius: 16px;
+            padding: 14px;
+            min-width: 0;
+        }
+
+        .histogram-title {
+            display: flex;
+            justify-content: space-between;
+            gap: 10px;
+            margin-bottom: 10px;
+            font-weight: 800;
+        }
+
+        .histogram-total {
+            color: var(--muted);
+            flex: 0 0 auto;
+            font-weight: 700;
+        }
+
+        .histogram-row {
+            display: grid;
+            grid-template-columns: 3.4rem minmax(90px, 1fr) 2.2rem;
+            gap: 10px;
+            align-items: center;
+            min-height: 26px;
+        }
+
+        .histogram-score,
+        .histogram-count {
+            font-variant-numeric: tabular-nums;
+            font-weight: 700;
+        }
+
+        .histogram-count {
+            text-align: right;
+        }
+
+        .histogram-track {
+            height: 10px;
+            overflow: hidden;
+            border-radius: 999px;
+            background: rgba(30, 26, 22, 0.08);
+        }
+
+        .histogram-bar {
+            display: block;
+            height: 100%;
+            min-width: 6px;
+            border-radius: inherit;
+            background: linear-gradient(90deg, var(--accent), var(--good));
+        }
+
+        .collapsible-panel {
+            padding: 0;
+            overflow: hidden;
+        }
+
+        .collapsible-summary {
+            align-items: center;
+            cursor: pointer;
+            display: flex;
+            justify-content: space-between;
+            gap: 12px;
+            list-style: none;
+            padding: 22px 24px;
+        }
+
+        .collapsible-summary::-webkit-details-marker {
+            display: none;
+        }
+
+        .collapsible-summary::after {
+            align-items: center;
+            background: rgba(52, 68, 84, 0.08);
+            border-radius: 999px;
+            content: "+";
+            display: inline-flex;
+            flex: 0 0 30px;
+            font-size: 1.2rem;
+            font-weight: 800;
+            height: 30px;
+            justify-content: center;
+            line-height: 1;
+            width: 30px;
+        }
+
+        .collapsible-panel[open] .collapsible-summary::after {
+            content: "-";
+        }
+
+        .collapsible-body {
+            padding: 0 24px 24px;
+        }
+
         .summary-grid,
         .metric-grid {
             display: grid;
@@ -347,7 +617,13 @@
         @media (max-width: 720px) {
             .page { padding: 20px 14px 32px; }
             .hero, .panel { padding: 18px; border-radius: 20px; }
+            .collapsible-panel { padding: 0; }
+            .collapsible-summary { padding: 18px; }
+            .collapsible-body { padding: 0 18px 18px; }
             .panel-header { align-items: flex-start; flex-direction: column; }
+            .glance-grid, .head-to-head-models { grid-template-columns: 1fr; }
+            .head-to-head-topline { align-items: flex-start; flex-direction: column; }
+            .pvalue-summary { text-align: left; }
             table, thead, tbody, tr, th, td { display: block; }
             thead { display: none; }
             tr { border-bottom: 1px solid var(--border); padding: 10px 0; }
@@ -378,27 +654,168 @@
             </div>
         </header>
 
-        <section class="panel">
+
+        <section class="panel at-a-glance-panel">
             <div class="panel-header">
-                <h2>Summary</h2>
+                <h2>At a glance</h2>
+                <span class="pill pill-good">significant · p-value 0.0002</span>
             </div>
-            <div class="summary-grid">
-                <article class="metric-card"><span class="metric-label">Dataset</span><span class="metric-value">match-predictions/bundesliga-2025-26/pes-squad/repeated-match/md26-vfb-stuttgart-vs-rb-leipzig/repeat-25</span></article>
-                <article class="metric-card"><span class="metric-label">Task type</span><span class="metric-value">repeated-match</span></article>
-                <article class="metric-card"><span class="metric-label">Primary metric</span><span class="metric-value">avg_kicktipp_points</span></article>
-                <article class="metric-card"><span class="metric-label">Alpha</span><span class="metric-value">0.0500</span></article>
+            <div class="glance-grid">
+                <article class="glance-card match-card">
+                    <span class="glance-label">Match to predict</span>
+                    <h3 class="match-fixture">VfB Stuttgart vs RB Leipzig</h3>
+                    <div class="match-meta"><span class="meta-chip">Matchday 26</span><span class="meta-chip">2026-03-15T19:30:00 UTC+01 (+01)</span></div>
+                    <div class="actual-result">
+                        <span class="glance-label">Actual outcome</span>
+                        <span class="actual-result-value">VfB Stuttgart 1 - 0 RB Leipzig</span>
+                    </div>
+                </article>
+
+
+                <article class="glance-card head-to-head-card head-to-head-significant">
+                    <div class="head-to-head-topline">
+                        <div>
+                            <span class="glance-label">Compact head to head</span>
+                            <h3>Significant</h3>
+                        </div>
+                        <div class="pvalue-summary">
+                            <span class="glance-label">p-value</span>
+                            <strong>0.0002</strong>
+                        </div>
+                    </div>
+                    <div class="head-to-head-models">
+
+                        <div class="model-result model-winner">
+                            <div class="model-name">o3</div>
+                            <span class="model-points">2.2800</span>
+                            <span class="model-subtext">avg points</span>
+                        </div>
+
+
+                        <div class="model-result model-loser">
+                            <div class="model-name">gpt-5-nano</div>
+                            <span class="model-points">0.6000</span>
+                            <span class="model-subtext">avg points</span>
+                        </div>
+
+                    </div>
+                </article>
+        </div>
+
+            <div class="prediction-section">
+                <h3>Prediction distribution</h3>
+                <div class="histogram-grid">
+
+                    <article class="histogram-card">
+                        <div class="histogram-title">
+                            <span>o3</span>
+                            <span class="histogram-total">n=25</span>
+                        </div>
+
+                        <div class="histogram-row">
+                            <span class="histogram-score">2:1</span>
+                            <span class="histogram-track" aria-hidden="true">
+                                <span class="histogram-bar" style="width: 100%"></span>
+                            </span>
+                            <span class="histogram-count">19</span>
+                        </div>
+
+
+                        <div class="histogram-row">
+                            <span class="histogram-score">2:2</span>
+                            <span class="histogram-track" aria-hidden="true">
+                                <span class="histogram-bar" style="width: 21%"></span>
+                            </span>
+                            <span class="histogram-count">4</span>
+                        </div>
+
+
+                        <div class="histogram-row">
+                            <span class="histogram-score">1:2</span>
+                            <span class="histogram-track" aria-hidden="true">
+                                <span class="histogram-bar" style="width: 11%"></span>
+                            </span>
+                            <span class="histogram-count">2</span>
+                        </div>
+
+                    </article>
+
+
+                    <article class="histogram-card">
+                        <div class="histogram-title">
+                            <span>gpt-5-nano</span>
+                            <span class="histogram-total">n=25</span>
+                        </div>
+
+                        <div class="histogram-row">
+                            <span class="histogram-score">1:2</span>
+                            <span class="histogram-track" aria-hidden="true">
+                                <span class="histogram-bar" style="width: 79%"></span>
+                            </span>
+                            <span class="histogram-count">15</span>
+                        </div>
+
+
+                        <div class="histogram-row">
+                            <span class="histogram-score">2:1</span>
+                            <span class="histogram-track" aria-hidden="true">
+                                <span class="histogram-bar" style="width: 26%"></span>
+                            </span>
+                            <span class="histogram-count">5</span>
+                        </div>
+
+
+                        <div class="histogram-row">
+                            <span class="histogram-score">1:1</span>
+                            <span class="histogram-track" aria-hidden="true">
+                                <span class="histogram-bar" style="width: 16%"></span>
+                            </span>
+                            <span class="histogram-count">3</span>
+                        </div>
+
+
+                        <div class="histogram-row">
+                            <span class="histogram-score">2:2</span>
+                            <span class="histogram-track" aria-hidden="true">
+                                <span class="histogram-bar" style="width: 11%"></span>
+                            </span>
+                            <span class="histogram-count">2</span>
+                        </div>
+
+                    </article>
+
+                </div>
             </div>
-            <div class="panel-subsection">
-                <p class="footnote">Paired Wilcoxon signed-rank test on per-item Kicktipp-point differences; bootstrap confidence intervals summarize mean and median paired differences.</p>
-            </div>
+
         </section>
 
 
-        <section class="panel">
-            <div class="panel-header">
-                <h2>Dataset metadata</h2>
+
+        <details class="panel collapsible-panel">
+            <summary class="collapsible-summary">
+                <h2>Summary</h2>
+            </summary>
+            <div class="collapsible-body">
+                <div class="summary-grid">
+                    <article class="metric-card"><span class="metric-label">Dataset</span><span class="metric-value">match-predictions/bundesliga-2025-26/pes-squad/repeated-match/md26-vfb-stuttgart-vs-rb-leipzig/repeat-25</span></article>
+                    <article class="metric-card"><span class="metric-label">Task type</span><span class="metric-value">repeated-match</span></article>
+                    <article class="metric-card"><span class="metric-label">Primary metric</span><span class="metric-value">avg_kicktipp_points</span></article>
+                    <article class="metric-card"><span class="metric-label">Alpha</span><span class="metric-value">0.0500</span></article>
+                </div>
+                <div class="panel-subsection">
+                    <p class="footnote">Paired Wilcoxon signed-rank test on per-item Kicktipp-point differences; bootstrap confidence intervals summarize mean and median paired differences.</p>
+                </div>
             </div>
-            <p class="footnote">Stuttgart&#x27;s 1-0 Matchday 26 win over Leipzig was a close top-four clash where Stuttgart leapfrogged Leipzig.</p>
+        </details>
+
+
+
+        <details class="panel collapsible-panel">
+            <summary class="collapsible-summary">
+                <h2>Dataset metadata</h2>
+            </summary>
+            <div class="collapsible-body">
+                <p class="footnote">Stuttgart&#x27;s 1-0 Matchday 26 win over Leipzig was a close top-four clash where Stuttgart leapfrogged Leipzig.</p>
 
                     <table>
                         <thead>
@@ -426,7 +843,8 @@
                         </tbody>
                     </table>
 
-        </section>
+            </div>
+        </details>
 
 
         <section class="panel">

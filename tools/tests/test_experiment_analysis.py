@@ -90,16 +90,38 @@ class ExperimentAnalysisReportTests(unittest.TestCase):
                     "pairingKey": f"repeat-{index}",
                     "runName": run_name,
                     "kicktippPoints": points,
+                    "homeTeam": "VfB Stuttgart",
+                    "awayTeam": "RB Leipzig",
+                    "startsAt": "2026-03-15T19:30:00 Europe/Berlin (+01)",
+                    "matchday": 26,
+                    "predictedHomeGoals": predicted_home_goals,
+                    "predictedAwayGoals": predicted_away_goals,
+                    "expectedHomeGoals": 1,
+                    "expectedAwayGoals": 0,
                 }
-                for index, (o3_points, nano_points) in enumerate([(4, 2), (2, 2), (0, 0), (4, 0)], start=1)
-                for run_name, points in [
+                for index, (o3_points, nano_points, o3_prediction, nano_prediction) in enumerate(
+                    [
+                        (4, 0, (1, 0), (1, 2)),
+                        (3, 0, (1, 0), (1, 2)),
+                        (2, 0, (1, 0), (1, 2)),
+                        (4, 0, (1, 0), (1, 2)),
+                        (3, 0, (1, 0), (1, 2)),
+                        (2, 0, (1, 0), (0, 1)),
+                        (4, 0, (2, 1), (0, 1)),
+                        (3, 0, (2, 1), (0, 1)),
+                    ],
+                    start=1,
+                )
+                for run_name, points, (predicted_home_goals, predicted_away_goals) in [
                     (
                         "repeated-match__pes-squad__o3__prompt-v1__repeat-25__exact-time__2026-03-15t12-00-00z",
                         o3_points,
+                        o3_prediction,
                     ),
                     (
                         "repeated-match__pes-squad__gpt-5-nano__prompt-v1__repeat-25__exact-time__2026-03-15t12-00-00z",
                         nano_points,
+                        nano_prediction,
                     ),
                 ]
             ],
@@ -117,6 +139,10 @@ class ExperimentAnalysisReportTests(unittest.TestCase):
         report_html = report.render_html(report_json)
 
         self.assertEqual(report_json["datasetMetadata"]["fixture"], "VfB Stuttgart vs RB Leipzig")
+        self.assertEqual(report_json["matchSummary"]["fixture"], "VfB Stuttgart vs RB Leipzig")
+        self.assertEqual(report_json["matchSummary"]["actualResultDisplay"], "VfB Stuttgart 1 - 0 RB Leipzig")
+        self.assertEqual(report_json["predictionDistributions"][0]["scoreCounts"][0]["score"], "1:0")
+        self.assertEqual(report_json["predictionDistributions"][0]["scoreCounts"][0]["count"], 6)
         self.assertIn("## Dataset Metadata", report_markdown)
         self.assertIn("| Fixture | VfB Stuttgart vs RB Leipzig |", report_markdown)
         self.assertIn("| Actual Result | VfB Stuttgart 1 - 0 RB Leipzig |", report_markdown)
@@ -127,6 +153,13 @@ class ExperimentAnalysisReportTests(unittest.TestCase):
         self.assertIn("- Better Run: `o3`", report_markdown)
         self.assertIn("- Other Run: `gpt-5-nano`", report_markdown)
         self.assertNotIn("repeated-match__pes-squad__o3__prompt-v1", report_markdown)
+        self.assertIn("<h2>At a glance</h2>", report_html)
+        self.assertIn("Match to predict", report_html)
+        self.assertIn("Compact head to head", report_html)
+        self.assertIn("Prediction distribution", report_html)
+        self.assertIn("model-winner", report_html)
+        self.assertIn("model-loser", report_html)
+        self.assertIn('<details class="panel collapsible-panel">', report_html)
         self.assertIn("<h2>Dataset metadata</h2>", report_html)
         self.assertIn("VfB Stuttgart 1 - 0 RB Leipzig", report_html)
         self.assertIn("Two-run comparison", report_html)

@@ -240,6 +240,14 @@ def analyze_bundle(
         "runs": ranking_records,
     }
 
+    match_summary = build_match_summary(rows_df, report["datasetMetadata"])
+    if match_summary is not None:
+        report["matchSummary"] = match_summary
+
+    prediction_distributions = build_prediction_distributions(rows_df, ranking_records)
+    if prediction_distributions:
+        report["predictionDistributions"] = prediction_distributions
+
     if len(run_names) == 2:
         report["comparison"] = analyze_two_run_comparison(
             ranking_input_records,
@@ -531,6 +539,150 @@ def build_statistical_method_description(run_count: int, correction_method: str)
     )
 
 
+def build_match_summary(rows_df: pd.DataFrame, metadata: dict[str, Any]) -> dict[str, str] | None:
+    home_teams = unique_column_strings(rows_df, "homeTeam")
+    away_teams = unique_column_strings(rows_df, "awayTeam")
+    expected_home_goals = unique_column_ints(rows_df, "expectedHomeGoals")
+    expected_away_goals = unique_column_ints(rows_df, "expectedAwayGoals")
+
+    fixture = normalize_optional_string(metadata.get("fixture"))
+    if fixture is None and len(home_teams) == 1 and len(away_teams) == 1:
+        fixture = f"{home_teams[0]} vs {away_teams[0]}"
+
+    actual_result = normalize_optional_string(metadata.get("actualResult"))
+    if actual_result is None and len(expected_home_goals) == 1 and len(expected_away_goals) == 1:
+        actual_result = f"{expected_home_goals[0]}:{expected_away_goals[0]}"
+
+    actual_result_display = normalize_optional_string(metadata.get("actualResultDisplay"))
+    if actual_result_display is None and actual_result is not None:
+        if len(home_teams) == 1 and len(away_teams) == 1 and len(expected_home_goals) == 1 and len(expected_away_goals) == 1:
+            actual_result_display = (
+                f"{home_teams[0]} {expected_home_goals[0]} - {expected_away_goals[0]} {away_teams[0]}"
+            )
+        else:
+            actual_result_display = actual_result
+
+    matchday = normalize_optional_string(metadata.get("matchday"))
+    if matchday is None:
+        matchdays = unique_column_strings(rows_df, "matchday")
+        matchday = matchdays[0] if len(matchdays) == 1 else None
+
+    starts_at_values = unique_column_strings(rows_df, "startsAt")
+    starts_at = starts_at_values[0] if len(starts_at_values) == 1 else None
+
+    summary = {
+        "fixture": fixture,
+        "actualResult": actual_result,
+        "actualResultDisplay": actual_result_display,
+        "matchday": matchday,
+        "startsAt": starts_at,
+    }
+    populated_summary = {
+        key: value
+        for key, value in summary.items()
+        if value is not None
+    }
+    return populated_summary or None
+
+
+def build_prediction_distributions(
+    rows_df: pd.DataFrame,
+    ranking_records: list[dict[str, Any]],
+) -> list[dict[str, Any]]:
+    required_columns = {"runName", "predictedHomeGoals", "predictedAwayGoals"}
+    if required_columns.difference(rows_df.columns):
+        return []
+
+    distributions: list[dict[str, Any]] = []
+    rows_by_run = {
+        str(run_name): run_rows
+        for run_name, run_rows in rows_df.groupby("runName", sort=False)
+    }
+
+    for run in ranking_records:
+        run_name = str(run["runName"])
+        run_rows = rows_by_run.get(run_name)
+        if run_rows is None:
+            continue
+
+        counts_by_score: dict[tuple[int, int], int] = {}
+        for row in run_rows.to_dict(orient="records"):
+            home_goals = normalize_optional_int(row.get("predictedHomeGoals"))
+            away_goals = normalize_optional_int(row.get("predictedAwayGoals"))
+            if home_goals is None or away_goals is None:
+                continue
+
+            key = (home_goals, away_goals)
+            counts_by_score[key] = counts_by_score.get(key, 0) + 1
+
+        total_count = sum(counts_by_score.values())
+        if total_count == 0:
+            continue
+
+        score_counts = [
+            {
+                "score": f"{home_goals}:{away_goals}",
+                "homeGoals": home_goals,
+                "awayGoals": away_goals,
+                "count": count,
+                "share": count / total_count,
+            }
+            for (home_goals, away_goals), count in counts_by_score.items()
+        ]
+        score_counts.sort(key=lambda item: (-int(item["count"]), int(item["homeGoals"]), int(item["awayGoals"])))
+        distributions.append(
+            {
+                "runName": run_name,
+                "runDisplayName": run["runDisplayName"],
+                "model": run["model"],
+                "totalCount": total_count,
+                "scoreCounts": score_counts,
+            }
+        )
+
+    return distributions
+
+
+def unique_column_strings(rows_df: pd.DataFrame, column_name: str) -> list[str]:
+    if column_name not in rows_df.columns:
+        return []
+
+    values: list[str] = []
+    for raw_value in rows_df[column_name].tolist():
+        value = normalize_optional_string(raw_value)
+        if value is not None and value not in values:
+            values.append(value)
+    return values
+
+
+def unique_column_ints(rows_df: pd.DataFrame, column_name: str) -> list[int]:
+    if column_name not in rows_df.columns:
+        return []
+
+    values: list[int] = []
+    for raw_value in rows_df[column_name].tolist():
+        value = normalize_optional_int(raw_value)
+        if value is not None and value not in values:
+            values.append(value)
+    return values
+
+
+def normalize_optional_int(value: Any) -> int | None:
+    if value is None:
+        return None
+    if isinstance(value, (float, np.floating)) and math.isnan(float(value)):
+        return None
+
+    try:
+        number = float(value)
+    except (TypeError, ValueError):
+        return None
+
+    if math.isnan(number) or not number.is_integer():
+        return None
+    return int(number)
+
+
 def dataset_metadata_items(report: dict[str, Any]) -> list[tuple[str, str]]:
     metadata = report.get("datasetMetadata")
     if not isinstance(metadata, dict):
@@ -743,6 +895,7 @@ def render_markdown(report: dict[str, Any]) -> str:
 
 def render_html(report: dict[str, Any]) -> str:
         title = f"Experiment Analysis - {report['datasetName']}"
+        at_a_glance_section = render_at_a_glance_section(report)
         metadata_items = dataset_metadata_items(report)
         dataset_description = report.get("datasetDescription")
         dataset_description_html = (
@@ -770,14 +923,34 @@ def render_html(report: dict[str, Any]) -> str:
                     </table>
                 """ if metadata_items else ""
                 dataset_metadata_section = f"""
-        <section class=\"panel\">
-            <div class=\"panel-header\">
+        <details class=\"panel collapsible-panel\">
+            <summary class=\"collapsible-summary\">
                 <h2>Dataset metadata</h2>
+            </summary>
+            <div class=\"collapsible-body\">
+                {dataset_description_html}
+                {metadata_table}
             </div>
-            {dataset_description_html}
-            {metadata_table}
-        </section>
+        </details>
                 """
+        summary_section = f"""
+        <details class=\"panel collapsible-panel\">
+            <summary class=\"collapsible-summary\">
+                <h2>Summary</h2>
+            </summary>
+            <div class=\"collapsible-body\">
+                <div class=\"summary-grid\">
+                    {render_metric_card('Dataset', report['datasetName'])}
+                    {render_metric_card('Task type', report['taskType'])}
+                    {render_metric_card('Primary metric', report['primaryMetricName'])}
+                    {render_metric_card('Alpha', format_number(report['alpha']))}
+                </div>
+                <div class=\"panel-subsection\">
+                    <p class=\"footnote\">{escape_html(str(report['methodDescription']))}</p>
+                </div>
+            </div>
+        </details>
+        """
         if is_community_standings_report(report):
                 ranking_heading = "Community standings"
                 default_baseline = str(report["runs"][0]["runName"]) if report["runs"] else ""
@@ -1021,6 +1194,276 @@ def render_html(report: dict[str, Any]) -> str:
             margin-bottom: 18px;
         }}
 
+        .at-a-glance-panel {{
+            border-color: rgba(28, 123, 91, 0.24);
+        }}
+
+        .glance-grid {{
+            display: grid;
+            grid-template-columns: minmax(260px, 1fr) minmax(320px, 1.35fr);
+            gap: 16px;
+            align-items: stretch;
+        }}
+
+        .glance-card {{
+            background: var(--panel-strong);
+            border: 1px solid var(--border);
+            border-radius: 18px;
+            padding: 18px;
+            min-width: 0;
+        }}
+
+        .glance-label {{
+            display: block;
+            color: var(--muted);
+            font-size: 0.78rem;
+            font-weight: 700;
+            text-transform: uppercase;
+            letter-spacing: 0.08em;
+            margin-bottom: 8px;
+        }}
+
+        .match-fixture {{
+            font-size: 1.45rem;
+            line-height: 1.15;
+            overflow-wrap: anywhere;
+        }}
+
+        .match-meta {{
+            display: flex;
+            flex-wrap: wrap;
+            gap: 8px;
+            margin: 14px 0;
+        }}
+
+        .meta-chip {{
+            border: 1px solid var(--border);
+            border-radius: 999px;
+            color: var(--muted);
+            display: inline-flex;
+            font-size: 0.84rem;
+            font-weight: 600;
+            padding: 5px 9px;
+        }}
+
+        .actual-result {{
+            margin-top: 12px;
+        }}
+
+        .actual-result-value {{
+            display: block;
+            font-size: 1.22rem;
+            font-weight: 800;
+            line-height: 1.2;
+            overflow-wrap: anywhere;
+        }}
+
+        .head-to-head-card {{
+            display: flex;
+            flex-direction: column;
+            gap: 14px;
+        }}
+
+        .head-to-head-topline {{
+            display: flex;
+            align-items: center;
+            justify-content: space-between;
+            gap: 12px;
+        }}
+
+        .pvalue-summary {{
+            border-radius: 12px;
+            padding: 8px 10px;
+            text-align: right;
+        }}
+
+        .pvalue-summary strong {{
+            display: block;
+            font-size: 1.05rem;
+        }}
+
+        .head-to-head-models {{
+            display: grid;
+            grid-template-columns: repeat(2, minmax(0, 1fr));
+            gap: 12px;
+        }}
+
+        .model-result {{
+            border: 1px solid var(--border);
+            border-radius: 14px;
+            padding: 14px;
+            min-width: 0;
+            background: rgba(255, 255, 255, 0.45);
+        }}
+
+        .model-name {{
+            font-size: 1.14rem;
+            font-weight: 800;
+            line-height: 1.15;
+            overflow-wrap: anywhere;
+        }}
+
+        .model-points {{
+            display: block;
+            font-size: 1.8rem;
+            font-weight: 800;
+            line-height: 1;
+            margin-top: 10px;
+        }}
+
+        .model-subtext {{
+            display: block;
+            color: var(--muted);
+            font-size: 0.84rem;
+            font-weight: 700;
+            margin-top: 4px;
+            text-transform: uppercase;
+            letter-spacing: 0.06em;
+        }}
+
+        .head-to-head-neutral {{
+            color: #53606c;
+        }}
+
+        .head-to-head-neutral .model-result {{
+            background: rgba(52, 68, 84, 0.06);
+            color: #53606c;
+        }}
+
+        .model-winner {{
+            background: var(--good-soft);
+            border-color: rgba(28, 123, 91, 0.36);
+        }}
+
+        .model-winner .model-name,
+        .model-winner .model-points,
+        .model-winner .model-subtext {{
+            color: var(--good);
+        }}
+
+        .model-loser {{
+            background: var(--bad-soft);
+            border-color: rgba(179, 61, 61, 0.36);
+        }}
+
+        .model-loser .model-name,
+        .model-loser .model-points,
+        .model-loser .model-subtext {{
+            color: var(--bad);
+        }}
+
+        .prediction-section {{
+            margin-top: 18px;
+        }}
+
+        .prediction-section h3 {{
+            font-size: 1.05rem;
+            margin-bottom: 12px;
+        }}
+
+        .histogram-grid {{
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(260px, 1fr));
+            gap: 14px;
+        }}
+
+        .histogram-card {{
+            background: rgba(255, 250, 241, 0.76);
+            border: 1px solid var(--border);
+            border-radius: 16px;
+            padding: 14px;
+            min-width: 0;
+        }}
+
+        .histogram-title {{
+            display: flex;
+            justify-content: space-between;
+            gap: 10px;
+            margin-bottom: 10px;
+            font-weight: 800;
+        }}
+
+        .histogram-total {{
+            color: var(--muted);
+            flex: 0 0 auto;
+            font-weight: 700;
+        }}
+
+        .histogram-row {{
+            display: grid;
+            grid-template-columns: 3.4rem minmax(90px, 1fr) 2.2rem;
+            gap: 10px;
+            align-items: center;
+            min-height: 26px;
+        }}
+
+        .histogram-score,
+        .histogram-count {{
+            font-variant-numeric: tabular-nums;
+            font-weight: 700;
+        }}
+
+        .histogram-count {{
+            text-align: right;
+        }}
+
+        .histogram-track {{
+            height: 10px;
+            overflow: hidden;
+            border-radius: 999px;
+            background: rgba(30, 26, 22, 0.08);
+        }}
+
+        .histogram-bar {{
+            display: block;
+            height: 100%;
+            min-width: 6px;
+            border-radius: inherit;
+            background: linear-gradient(90deg, var(--accent), var(--good));
+        }}
+
+        .collapsible-panel {{
+            padding: 0;
+            overflow: hidden;
+        }}
+
+        .collapsible-summary {{
+            align-items: center;
+            cursor: pointer;
+            display: flex;
+            justify-content: space-between;
+            gap: 12px;
+            list-style: none;
+            padding: 22px 24px;
+        }}
+
+        .collapsible-summary::-webkit-details-marker {{
+            display: none;
+        }}
+
+        .collapsible-summary::after {{
+            align-items: center;
+            background: rgba(52, 68, 84, 0.08);
+            border-radius: 999px;
+            content: "+";
+            display: inline-flex;
+            flex: 0 0 30px;
+            font-size: 1.2rem;
+            font-weight: 800;
+            height: 30px;
+            justify-content: center;
+            line-height: 1;
+            width: 30px;
+        }}
+
+        .collapsible-panel[open] .collapsible-summary::after {{
+            content: "-";
+        }}
+
+        .collapsible-body {{
+            padding: 0 24px 24px;
+        }}
+
         .summary-grid,
         .metric-grid {{
             display: grid;
@@ -1253,7 +1696,13 @@ def render_html(report: dict[str, Any]) -> str:
         @media (max-width: 720px) {{
             .page {{ padding: 20px 14px 32px; }}
             .hero, .panel {{ padding: 18px; border-radius: 20px; }}
+            .collapsible-panel {{ padding: 0; }}
+            .collapsible-summary {{ padding: 18px; }}
+            .collapsible-body {{ padding: 0 18px 18px; }}
             .panel-header {{ align-items: flex-start; flex-direction: column; }}
+            .glance-grid, .head-to-head-models {{ grid-template-columns: 1fr; }}
+            .head-to-head-topline {{ align-items: flex-start; flex-direction: column; }}
+            .pvalue-summary {{ text-align: left; }}
             table, thead, tbody, tr, th, td {{ display: block; }}
             thead {{ display: none; }}
             tr {{ border-bottom: 1px solid var(--border); padding: 10px 0; }}
@@ -1284,20 +1733,9 @@ def render_html(report: dict[str, Any]) -> str:
             </div>
         </header>
 
-        <section class=\"panel\">
-            <div class=\"panel-header\">
-                <h2>Summary</h2>
-            </div>
-            <div class=\"summary-grid\">
-                {render_metric_card('Dataset', report['datasetName'])}
-                {render_metric_card('Task type', report['taskType'])}
-                {render_metric_card('Primary metric', report['primaryMetricName'])}
-                {render_metric_card('Alpha', format_number(report['alpha']))}
-            </div>
-            <div class=\"panel-subsection\">
-                <p class=\"footnote\">{escape_html(str(report['methodDescription']))}</p>
-            </div>
-        </section>
+        {at_a_glance_section}
+
+        {summary_section}
 
         {dataset_metadata_section}
 
@@ -1489,6 +1927,218 @@ def render_html(report: dict[str, Any]) -> str:
 </body>
 </html>
 """
+
+
+def render_at_a_glance_section(report: dict[str, Any]) -> str:
+        match_card = render_match_card(report.get("matchSummary"))
+        head_to_head_card = render_compact_head_to_head_card(report)
+        prediction_distribution_section = render_prediction_distribution_section(
+                report.get("predictionDistributions", [])
+        )
+        if not match_card and not head_to_head_card and not prediction_distribution_section:
+                return ""
+
+        header_badge = ""
+        if report.get("runCount") == 2:
+                wilcoxon = report["comparison"]["wilcoxon"]
+                is_significant = bool(wilcoxon.get("significant"))
+                header_badge = (
+                        f'<span class="pill {"pill-good" if is_significant else "pill-neutral"}">'
+                        f'{"significant" if is_significant else "not significant"}'
+                        f" · p-value {format_number(wilcoxon.get('pValue'))}</span>"
+                )
+
+        glance_cards = "\n".join(card for card in [match_card, head_to_head_card] if card)
+        glance_grid = f'<div class="glance-grid">{glance_cards}</div>' if glance_cards else ""
+
+        return f"""
+        <section class=\"panel at-a-glance-panel\">
+            <div class=\"panel-header\">
+                <h2>At a glance</h2>
+                {header_badge}
+            </div>
+            {glance_grid}
+            {prediction_distribution_section}
+        </section>
+        """
+
+
+def render_match_card(match_summary: Any) -> str:
+        if not isinstance(match_summary, dict):
+                return ""
+
+        fixture = normalize_optional_string(match_summary.get("fixture"))
+        actual_result = normalize_optional_string(match_summary.get("actualResultDisplay"))
+        if actual_result is None:
+                actual_result = normalize_optional_string(match_summary.get("actualResult"))
+        matchday = normalize_optional_string(match_summary.get("matchday"))
+        starts_at = normalize_optional_string(match_summary.get("startsAt"))
+        if fixture is None and actual_result is None and matchday is None and starts_at is None:
+                return ""
+
+        meta_chips = []
+        if matchday is not None:
+                meta_chips.append(f'<span class="meta-chip">Matchday {escape_html(matchday)}</span>')
+        if starts_at is not None:
+                meta_chips.append(f'<span class="meta-chip">{escape_html(starts_at)}</span>')
+        meta_html = f'<div class="match-meta">{"".join(meta_chips)}</div>' if meta_chips else ""
+
+        return f"""
+                <article class=\"glance-card match-card\">
+                    <span class=\"glance-label\">Match to predict</span>
+                    <h3 class=\"match-fixture\">{escape_html(fixture or "n/a")}</h3>
+                    {meta_html}
+                    <div class=\"actual-result\">
+                        <span class=\"glance-label\">Actual outcome</span>
+                        <span class=\"actual-result-value\">{escape_html(actual_result or "n/a")}</span>
+                    </div>
+                </article>
+        """
+
+
+def render_compact_head_to_head_card(report: dict[str, Any]) -> str:
+        if report.get("runCount") != 2:
+                return ""
+
+        comparison = report["comparison"]
+        wilcoxon = comparison["wilcoxon"]
+        is_significant = bool(wilcoxon.get("significant"))
+        runs_by_name = {
+                str(run["runName"]): run
+                for run in report["runs"]
+        }
+        better_run = runs_by_name.get(str(comparison["betterRunName"]))
+        other_run = runs_by_name.get(str(comparison["otherRunName"]))
+        if better_run is None or other_run is None:
+                return ""
+
+        state_class = "head-to-head-significant" if is_significant else "head-to-head-neutral"
+        status_text = "Significant" if is_significant else "Not significant"
+        model_cards = "\n".join(
+                [
+                        render_head_to_head_model_card(
+                                better_run,
+                                report,
+                                "model-winner" if is_significant else "model-neutral",
+                        ),
+                        render_head_to_head_model_card(
+                                other_run,
+                                report,
+                                "model-loser" if is_significant else "model-neutral",
+                        ),
+                ]
+        )
+
+        return f"""
+                <article class=\"glance-card head-to-head-card {state_class}\">
+                    <div class=\"head-to-head-topline\">
+                        <div>
+                            <span class=\"glance-label\">Compact head to head</span>
+                            <h3>{escape_html(status_text)}</h3>
+                        </div>
+                        <div class=\"pvalue-summary\">
+                            <span class=\"glance-label\">p-value</span>
+                            <strong>{escape_html(format_number(wilcoxon.get("pValue")))}</strong>
+                        </div>
+                    </div>
+                    <div class=\"head-to-head-models\">
+                        {model_cards}
+                    </div>
+                </article>
+        """
+
+
+def render_head_to_head_model_card(run: dict[str, Any], report: dict[str, Any], state_class: str) -> str:
+        average_points = resolve_average_points(run, report)
+        return f"""
+                        <div class=\"model-result {state_class}\">
+                            <div class=\"model-name\">{escape_html(str(run["runDisplayName"]))}</div>
+                            <span class=\"model-points\">{escape_html(format_number(average_points))}</span>
+                            <span class=\"model-subtext\">avg points</span>
+                        </div>
+        """
+
+
+def resolve_average_points(run: dict[str, Any], report: dict[str, Any]) -> float | None:
+        aggregate_scores = run.get("aggregateScores")
+        if isinstance(aggregate_scores, dict):
+                average_points = normalize_optional_float(aggregate_scores.get("avg_kicktipp_points"))
+                if average_points is not None:
+                        return average_points
+
+                total_points = normalize_optional_float(aggregate_scores.get("total_kicktipp_points"))
+                pairing_count = normalize_optional_float(report.get("pairingCount"))
+                if total_points is not None and pairing_count is not None and pairing_count > 0:
+                        return total_points / pairing_count
+
+        if report.get("primaryMetricName") == "avg_kicktipp_points":
+                return normalize_optional_float(run.get("primaryMetricValue"))
+        return None
+
+
+def normalize_optional_float(value: Any) -> float | None:
+        if value is None:
+                return None
+        try:
+                number = float(value)
+        except (TypeError, ValueError):
+                return None
+        if math.isnan(number):
+                return None
+        return number
+
+
+def render_prediction_distribution_section(distributions: Any) -> str:
+        if not isinstance(distributions, list) or not distributions:
+                return ""
+
+        max_count = max(
+                int(score_count["count"])
+                for distribution in distributions
+                for score_count in distribution.get("scoreCounts", [])
+        )
+        histogram_cards = "\n".join(
+                render_prediction_histogram_card(distribution, max_count)
+                for distribution in distributions
+        )
+        return f"""
+            <div class=\"prediction-section\">
+                <h3>Prediction distribution</h3>
+                <div class=\"histogram-grid\">
+                    {histogram_cards}
+                </div>
+            </div>
+        """
+
+
+def render_prediction_histogram_card(distribution: dict[str, Any], max_count: int) -> str:
+        rows = "\n".join(
+                render_prediction_histogram_row(score_count, max_count)
+                for score_count in distribution.get("scoreCounts", [])
+        )
+        return f"""
+                    <article class=\"histogram-card\">
+                        <div class=\"histogram-title\">
+                            <span>{escape_html(str(distribution["runDisplayName"]))}</span>
+                            <span class=\"histogram-total\">n={escape_html(str(distribution["totalCount"]))}</span>
+                        </div>
+                        {rows}
+                    </article>
+        """
+
+
+def render_prediction_histogram_row(score_count: dict[str, Any], max_count: int) -> str:
+        count = int(score_count["count"])
+        width = 100 if max_count <= 0 else max(6, round(count / max_count * 100))
+        return f"""
+                        <div class=\"histogram-row\">
+                            <span class=\"histogram-score\">{escape_html(str(score_count["score"]))}</span>
+                            <span class=\"histogram-track\" aria-hidden=\"true\">
+                                <span class=\"histogram-bar\" style=\"width: {width}%\"></span>
+                            </span>
+                            <span class=\"histogram-count\">{count}</span>
+                        </div>
+        """
 
 
 def render_metric_card(label: str, value: Any) -> str:
