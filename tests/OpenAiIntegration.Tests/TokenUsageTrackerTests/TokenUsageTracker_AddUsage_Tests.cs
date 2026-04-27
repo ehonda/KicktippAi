@@ -147,6 +147,27 @@ public class TokenUsageTracker_AddUsage_Tests : TokenUsageTrackerTests_Base
     }
 
     [Test]
+    public async Task AddUsage_with_service_tier_uses_tier_aware_cost_calculation()
+    {
+        // Arrange
+        var costServiceMock = CreateMockCostCalculationService();
+        var usage = OpenAITestHelpers.CreateChatTokenUsage(inputTokens: 1000, outputTokens: 500);
+        costServiceMock
+            .Setup(x => x.CalculateCost("gpt-5.5", usage, "flex"))
+            .Returns(2.50m);
+        var tracker = CreateTracker(costCalculationService: Option.Some(costServiceMock.Object));
+
+        // Act
+        tracker.AddUsage("gpt-5.5", usage, "flex");
+
+        // Assert
+        await Assert.That(tracker.GetTotalCost()).IsEqualTo(2.50m);
+        costServiceMock.Verify(
+            x => x.CalculateCost("gpt-5.5", usage, "flex"),
+            Times.Once);
+    }
+
+    [Test]
     public async Task AddUsage_handles_null_cost_from_service()
     {
         // Arrange

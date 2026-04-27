@@ -15,6 +15,14 @@ public interface ITokenUsageTracker
     void AddUsage(string model, ChatTokenUsage usage);
 
     /// <summary>
+    /// Add token usage from a chat completion to the tracker with an optional final service tier.
+    /// </summary>
+    /// <param name="model">The model used for the completion</param>
+    /// <param name="usage">Token usage details from the completion</param>
+    /// <param name="serviceTier">The final OpenAI service tier used for billing, if known</param>
+    void AddUsage(string model, ChatTokenUsage usage, string? serviceTier);
+
+    /// <summary>
     /// Get a compact summary of total usage and cost
     /// Format: "uncached / cached / output-reasoning / output-rest / $cost"
     /// </summary>

@@ -36,6 +36,11 @@ public class TokenUsageTracker : ITokenUsageTracker
 
     public void AddUsage(string model, ChatTokenUsage usage)
     {
+        AddUsage(model, usage, serviceTier: null);
+    }
+
+    public void AddUsage(string model, ChatTokenUsage usage, string? serviceTier)
+    {
         lock (_lock)
         {
             // Store last usage for individual reporting
@@ -60,7 +65,9 @@ public class TokenUsageTracker : ITokenUsageTracker
             _totalOutputTokens += regularOutputTokens;
 
             // Calculate cost for this usage
-            var costForThisUsage = _costCalculationService.CalculateCost(model, usage) ?? 0m;
+            var costForThisUsage = string.IsNullOrWhiteSpace(serviceTier)
+                ? _costCalculationService.CalculateCost(model, usage) ?? 0m
+                : _costCalculationService.CalculateCost(model, usage, serviceTier) ?? 0m;
             _lastCost = costForThisUsage;
             _totalCost += costForThisUsage;
             

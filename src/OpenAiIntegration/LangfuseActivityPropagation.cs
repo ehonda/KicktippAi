@@ -32,6 +32,31 @@ public static class LangfuseActivityPropagation
         SetTagAndBaggage(activity, "langfuse.trace.tags", serializedTags);
     }
 
+    public static void SetExperimentName(Activity? activity, string? experimentName)
+    {
+        SetTagAndBaggage(activity, "langfuse.experiment.name", experimentName);
+    }
+
+    public static void SetExperimentDescription(Activity? activity, string? description)
+    {
+        SetTagAndBaggage(activity, "langfuse.experiment.description", description);
+    }
+
+    public static void SetExperimentItemId(Activity? activity, string? itemId)
+    {
+        SetTagAndBaggage(activity, "langfuse.experiment.item.id", itemId);
+    }
+
+    public static void SetExperimentItemRootObservationId(Activity? activity, string? rootObservationId)
+    {
+        SetTagAndBaggage(activity, "langfuse.experiment.item.root_observation_id", rootObservationId);
+    }
+
+    public static void SetExperimentRunId(Activity? activity, string? datasetRunId)
+    {
+        SetTagAndBaggage(activity, "langfuse.experiment.id", datasetRunId);
+    }
+
     public static void SetTraceMetadata(Activity? activity, string metadataKey, string? value, bool propagateToObservations = true)
     {
         if (activity is null || string.IsNullOrWhiteSpace(metadataKey) || string.IsNullOrWhiteSpace(value))

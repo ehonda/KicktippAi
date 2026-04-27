@@ -15,6 +15,14 @@ public interface ICostCalculationService
     void LogCostBreakdown(string model, ChatTokenUsage usage);
 
     /// <summary>
+    /// Calculates and logs the cost breakdown for an OpenAI chat completion under an optional service tier.
+    /// </summary>
+    /// <param name="model">The model used for the completion</param>
+    /// <param name="usage">The token usage information from the response</param>
+    /// <param name="serviceTier">The final OpenAI service tier used for billing, if known</param>
+    void LogCostBreakdown(string model, ChatTokenUsage usage, string? serviceTier);
+
+    /// <summary>
     /// Calculates the cost for a specific model and usage
     /// </summary>
     /// <param name="model">The model to calculate costs for</param>
@@ -23,12 +31,30 @@ public interface ICostCalculationService
     decimal? CalculateCost(string model, ChatTokenUsage usage);
 
     /// <summary>
+    /// Calculates the cost for a specific model, usage, and optional service tier.
+    /// </summary>
+    /// <param name="model">The model to calculate costs for</param>
+    /// <param name="usage">The token usage information</param>
+    /// <param name="serviceTier">The final OpenAI service tier used for billing, if known</param>
+    /// <returns>The calculated cost, or null if pricing is not available for the model</returns>
+    decimal? CalculateCost(string model, ChatTokenUsage usage, string? serviceTier);
+
+    /// <summary>
     /// Calculates a detailed cost breakdown for a specific model and usage.
     /// </summary>
     /// <param name="model">The model to calculate costs for</param>
     /// <param name="usage">The token usage information</param>
     /// <returns>A <see cref="CostBreakdown"/> with per-component costs, or null if pricing is not available for the model</returns>
     CostBreakdown? CalculateCostBreakdown(string model, ChatTokenUsage usage);
+
+    /// <summary>
+    /// Calculates a detailed cost breakdown for a specific model, usage, and optional service tier.
+    /// </summary>
+    /// <param name="model">The model to calculate costs for</param>
+    /// <param name="usage">The token usage information</param>
+    /// <param name="serviceTier">The final OpenAI service tier used for billing, if known</param>
+    /// <returns>A <see cref="CostBreakdown"/> with per-component costs, or null if pricing is not available for the model</returns>
+    CostBreakdown? CalculateCostBreakdown(string model, ChatTokenUsage usage, string? serviceTier);
 }
 
 /// <summary>

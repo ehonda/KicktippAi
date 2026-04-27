@@ -373,6 +373,60 @@ public class PredictionService_PredictMatchAsync_Tests : PredictionServiceTests_
 
     [Test]
     [NotInParallel("Telemetry")]
+    public async Task Predicting_match_with_flex_processing_records_explicit_langfuse_cost_details()
+    {
+        // Arrange
+        var requestedServiceTiers = new List<string?>();
+        var chatClient = CreateProtocolChatClient(
+            requestedServiceTiers,
+            responseServiceTier: "flex");
+        var costCalculationService = CreateMockCostCalculationService();
+        costCalculationService
+            .Setup(service => service.CalculateCostBreakdown(
+                "gpt-5",
+                It.Is<ChatTokenUsage>(usage =>
+                    usage.InputTokenCount == 1000 &&
+                    usage.OutputTokenCount == 50 &&
+                    usage.InputTokenDetails!.CachedTokenCount == 250),
+                "flex"))
+            .Returns(new CostBreakdown(0.001m, 0.0001m, 0.002m, 0.0031m));
+        var tokenUsageTracker = CreateMockTokenUsageTracker();
+        var service = CreateService(
+            chatClient,
+            costCalculationService: NullableOption.Some(costCalculationService.Object),
+            tokenUsageTracker: NullableOption.Some(tokenUsageTracker.Object),
+            options: NullableOption.Some(PredictionServiceOptions.FlexProcessingWithStandardFallback));
+        var capturedActivities = new List<Activity>();
+        using var listener = CreateActivityListener(capturedActivities);
+
+        // Act
+        var prediction = await PredictMatchAsync(service);
+
+        // Assert
+        await Assert.That(prediction).IsEquivalentTo(new Prediction(2, 1, null));
+        var activity = capturedActivities.Single(candidate => candidate.OperationName == "predict-match");
+        await Assert.That(activity.GetTagItem("langfuse.observation.usage_details")?.ToString())
+            .Contains("\"total\":1050");
+        await Assert.That(activity.GetTagItem("langfuse.observation.cost_details")?.ToString())
+            .Contains("\"total\":0.0031");
+        await Assert.That(activity.GetTagItem("langfuse.observation.cost_details")?.ToString())
+            .Contains("\"cache_read_input_tokens\":0.0001");
+        tokenUsageTracker.Verify(
+            tracker => tracker.AddUsage(
+                "gpt-5",
+                It.Is<ChatTokenUsage>(usage => usage.InputTokenCount == 1000 && usage.OutputTokenCount == 50),
+                "flex"),
+            Times.Once);
+        costCalculationService.Verify(
+            service => service.LogCostBreakdown(
+                "gpt-5",
+                It.Is<ChatTokenUsage>(usage => usage.InputTokenCount == 1000 && usage.OutputTokenCount == 50),
+                "flex"),
+            Times.Once);
+    }
+
+    [Test]
+    [NotInParallel("Telemetry")]
     public async Task Predicting_match_with_reasoning_effort_sends_effort_and_records_langfuse_metadata()
     {
         // Arrange
@@ -563,6 +617,8 @@ public class PredictionService_PredictMatchAsync_Tests : PredictionServiceTests_
         await Assert.That(activity.GetTagItem("langfuse.observation.input")?.ToString()).Contains("\"role\":\"user\"");
         await Assert.That(activity.GetTagItem("langfuse.observation.output")).IsEqualTo("""{"home": 2, "away": 1}""");
         await Assert.That(activity.GetTagItem("langfuse.observation.usage_details")?.ToString()).Contains("\"input\":1000");
+        await Assert.That(activity.GetTagItem("langfuse.observation.usage_details")?.ToString()).Contains("\"total\":1050");
+        await Assert.That(activity.GetTagItem("langfuse.observation.cost_details")).IsNull();
         await Assert.That(activity.GetTagItem("langfuse.observation.metadata.homeTeam")).IsEqualTo("Telemetry Home Team");
         await Assert.That(activity.GetTagItem("langfuse.observation.metadata.awayTeam")).IsEqualTo("Telemetry Away Team");
         await Assert.That(activity.GetTagItem("langfuse.observation.metadata.repredictionIndex")).IsEqualTo("3");

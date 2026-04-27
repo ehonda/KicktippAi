@@ -125,7 +125,64 @@ public class CostCalculationService_CalculateCost_Tests : CostCalculationService
     }
 
     [Test]
+    public async Task CalculateCost_with_gpt_5_5_standard_pricing_returns_correct_cost()
+    {
+        // Arrange
+        var usage = OpenAITestHelpers.CreateChatTokenUsage(
+            inputTokens: 1_000_000,
+            outputTokens: 500_000,
+            cachedInputTokens: 0);
+
+        // Act
+        var cost = Service.CalculateCost("gpt-5.5", usage);
+
+        // Assert
+        // gpt-5.5: $5.00/1M input, $30.00/1M output.
+        await Assert.That(cost).IsNotNull();
+        await Assert.That(cost!.Value).IsEqualTo(20.00m);
+    }
+
+    [Test]
+    public async Task CalculateCost_with_flex_service_tier_applies_batch_discount()
+    {
+        // Arrange
+        var usage = OpenAITestHelpers.CreateChatTokenUsage(
+            inputTokens: 1_000_000,
+            outputTokens: 500_000,
+            cachedInputTokens: 0);
+
+        // Act
+        var cost = Service.CalculateCost("gpt-5.5", usage, "flex");
+
+        // Assert
+        await Assert.That(cost).IsNotNull();
+        await Assert.That(cost!.Value).IsEqualTo(10.00m);
+    }
+
+    [Test]
+    public async Task CalculateCostBreakdown_with_cached_input_and_flex_service_tier_discounts_each_component()
+    {
+        // Arrange
+        var usage = OpenAITestHelpers.CreateChatTokenUsage(
+            inputTokens: 1_000_000,
+            outputTokens: 500_000,
+            cachedInputTokens: 600_000);
+
+        // Act
+        var breakdown = Service.CalculateCostBreakdown("gpt-5.5", usage, "flex");
+
+        // Assert
+        await Assert.That(breakdown).IsNotNull();
+        await Assert.That(breakdown!.Input).IsEqualTo(1.00m);
+        await Assert.That(breakdown.CachedInput).IsEqualTo(0.15m);
+        await Assert.That(breakdown.Output).IsEqualTo(7.50m);
+        await Assert.That(breakdown.Total).IsEqualTo(8.65m);
+    }
+
+    [Test]
     [Arguments("gpt-5-nano", 0.05, 0.40, 0.005)]
+    [Arguments("gpt-5.4", 2.50, 15.00, 0.25)]
+    [Arguments("gpt-5.4-mini", 0.75, 4.50, 0.075)]
     [Arguments("o4-mini", 1.10, 4.40, 0.275)]
     [Arguments("gpt-4.1", 2.00, 8.00, 0.50)]
     public async Task CalculateCost_with_various_models_calculates_correctly(

@@ -335,14 +335,29 @@ public class RunExperimentCommands_Tests
             var predictionService = CreateMockPredictionService(
                 predictMatchResult: new Prediction(2, 1),
                 matchPromptPath: "prompts/gpt-5/match.md");
+            predictionService
+                .Setup(service => service.PredictMatchAsync(
+                    It.IsAny<Match>(),
+                    It.IsAny<IEnumerable<DocumentContext>>(),
+                    It.IsAny<bool>(),
+                    It.IsAny<PredictionTelemetryMetadata?>(),
+                    It.IsAny<CancellationToken>()))
+                .ReturnsAsync(() =>
+                {
+                    using var childActivity = Telemetry.Source.StartActivity("predict-match");
+                    childActivity?.SetTag("langfuse.observation.type", "generation");
+                    return new Prediction(2, 1);
+                });
             var openAiServiceFactory = CreateMockOpenAiServiceFactory(predictionService: predictionService);
 
             var postedScores = new List<LangfuseCreateScoreRequest>();
+            var createdDatasetRunItems = new List<LangfuseCreateDatasetRunItemRequest>();
             var langfuseClient = new Mock<ILangfusePublicApiClient>(MockBehavior.Strict);
             langfuseClient
                 .Setup(client => client.CreateDatasetRunItemAsync(
                     It.IsAny<LangfuseCreateDatasetRunItemRequest>(),
                     It.IsAny<CancellationToken>()))
+                .Callback((LangfuseCreateDatasetRunItemRequest request, CancellationToken _) => createdDatasetRunItems.Add(request))
                 .ReturnsAsync((LangfuseCreateDatasetRunItemRequest request, CancellationToken _) => new LangfuseDatasetRunItem(
                     "dataset-run-item-1",
                     "dataset-run-1",
@@ -427,6 +442,11 @@ public class RunExperimentCommands_Tests
             await Assert.That(experimentItemRun.GetTagItem("langfuse.observation.output")?.ToString()).Contains("\"homeGoals\":2");
             await Assert.That(experimentItemRun.GetTagItem("langfuse.trace.tags")?.ToString()).DoesNotContain("phase-2");
             await Assert.That(experimentItemRun.GetTagItem("langfuse.trace.tags")?.ToString()).DoesNotContain("experiment");
+            await Assert.That(experimentItemRun.GetTagItem("langfuse.experiment.id")).IsEqualTo("dataset-run-1");
+            await Assert.That(createdDatasetRunItems.Single().ObservationId).IsEqualTo(experimentItemRun.SpanId.ToString());
+            var predictMatchActivity = capturedActivities.Single(activity => activity.OperationName == "predict-match");
+            await Assert.That(predictMatchActivity.GetBaggageItem("langfuse.experiment.id")).IsEqualTo("dataset-run-1");
+            await Assert.That(predictMatchActivity.GetBaggageItem("langfuse.experiment.item.id")).IsEqualTo(sliceDatasetItemId);
 
             langfuseClient.Verify(client => client.CreateDatasetRunItemAsync(It.IsAny<LangfuseCreateDatasetRunItemRequest>(), It.IsAny<CancellationToken>()), Times.Once());
             langfuseClient.Verify(client => client.CreateScoreAsync(It.IsAny<LangfuseCreateScoreRequest>(), It.IsAny<CancellationToken>()), Times.Exactly(3));

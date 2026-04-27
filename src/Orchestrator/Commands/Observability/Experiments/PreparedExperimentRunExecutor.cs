@@ -532,24 +532,6 @@ internal sealed class PreparedExperimentRunExecutor
         var traceInputJson = JsonSerializer.Serialize(traceInput, TraceJsonOptions);
         SetTraceAndRootObservationInput(activity, traceInputJson);
 
-        var prediction = await predictionService.PredictMatchAsync(
-            promptMatch,
-            contextDocuments,
-            runMetadata.IncludeJustification,
-            telemetryMetadata,
-            cancellationToken);
-
-        if (prediction is null)
-        {
-            SetTraceAndRootObservationOutput(
-                activity,
-                JsonSerializer.Serialize(new { error = "Failed to generate prediction" }, TraceJsonOptions));
-            throw new InvalidOperationException(
-                $"Failed to generate prediction for {item.HomeTeam} vs {item.AwayTeam} on matchday {item.Matchday}.");
-        }
-
-        SetTraceAndRootObservationOutput(activity, JsonSerializer.Serialize(prediction, TraceJsonOptions));
-
         var traceId = activity?.TraceId.ToString();
         if (string.IsNullOrWhiteSpace(traceId))
         {
@@ -567,6 +549,24 @@ internal sealed class PreparedExperimentRunExecutor
                 activity?.SpanId.ToString()),
             cancellationToken);
         SetExperimentRunId(activity, datasetRunItem.DatasetRunId);
+
+        var prediction = await predictionService.PredictMatchAsync(
+            promptMatch,
+            contextDocuments,
+            runMetadata.IncludeJustification,
+            telemetryMetadata,
+            cancellationToken);
+
+        if (prediction is null)
+        {
+            SetTraceAndRootObservationOutput(
+                activity,
+                JsonSerializer.Serialize(new { error = "Failed to generate prediction" }, TraceJsonOptions));
+            throw new InvalidOperationException(
+                $"Failed to generate prediction for {item.HomeTeam} vs {item.AwayTeam} on matchday {item.Matchday}.");
+        }
+
+        SetTraceAndRootObservationOutput(activity, JsonSerializer.Serialize(prediction, TraceJsonOptions));
 
         var itemScores = PreparedExperimentSupport.CalculateScores(prediction, outcome.HomeGoals.Value, outcome.AwayGoals.Value);
         await PostItemScoreAsync(
@@ -656,13 +656,6 @@ internal sealed class PreparedExperimentRunExecutor
         SetTraceAndRootObservationInput(activity, traceInput);
         SetTraceAndRootObservationOutput(activity, predictionPayload.GetRawText());
 
-        string? predictionObservationId = null;
-        using (var observation = Telemetry.Source.StartActivity(runMetadata.ObservationName ?? "community-match-prediction"))
-        {
-            predictionObservationId = observation?.SpanId.ToString();
-            ConfigureCommunityPredictionObservation(observation, participant, participantPrediction, item, predictionPayload);
-        }
-
         var traceId = activity?.TraceId.ToString();
         if (string.IsNullOrWhiteSpace(traceId))
         {
@@ -680,6 +673,13 @@ internal sealed class PreparedExperimentRunExecutor
                 activity?.SpanId.ToString()),
             cancellationToken);
         SetExperimentRunId(activity, datasetRunItem.DatasetRunId);
+
+        string? predictionObservationId = null;
+        using (var observation = Telemetry.Source.StartActivity(runMetadata.ObservationName ?? "community-match-prediction"))
+        {
+            predictionObservationId = observation?.SpanId.ToString();
+            ConfigureCommunityPredictionObservation(observation, participant, participantPrediction, item, predictionPayload);
+        }
 
         var itemScores = new ExperimentItemScores(participantPrediction.KicktippPoints);
         await PostItemScoreAsync(
@@ -884,10 +884,10 @@ internal sealed class PreparedExperimentRunExecutor
         LangfuseActivityPropagation.SetSessionId(activity, runName);
         LangfuseActivityPropagation.SetTraceTags(activity, traceTags);
 
-        activity?.SetTag("langfuse.experiment.name", runName);
-        activity?.SetTag("langfuse.experiment.description", runDescription);
-        activity?.SetTag("langfuse.experiment.item.id", item.SliceDatasetItemId);
-        activity?.SetTag("langfuse.experiment.item.root_observation_id", activity.SpanId.ToString());
+        LangfuseActivityPropagation.SetExperimentName(activity, runName);
+        LangfuseActivityPropagation.SetExperimentDescription(activity, runDescription);
+        LangfuseActivityPropagation.SetExperimentItemId(activity, item.SliceDatasetItemId);
+        LangfuseActivityPropagation.SetExperimentItemRootObservationId(activity, activity?.SpanId.ToString());
 
         foreach (var metadata in propagatedMetadata)
         {
@@ -960,7 +960,7 @@ internal sealed class PreparedExperimentRunExecutor
             return;
         }
 
-        activity.SetTag("langfuse.experiment.id", datasetRunId);
+        LangfuseActivityPropagation.SetExperimentRunId(activity, datasetRunId);
     }
 
     private static IReadOnlyList<PreparedExperimentParticipantManifest> SelectParticipants(

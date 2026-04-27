@@ -1,4 +1,3 @@
-using System.Globalization;
 using Microsoft.Extensions.Logging;
 using OpenAI.Chat;
 
@@ -9,6 +8,8 @@ namespace OpenAiIntegration;
 /// </summary>
 public class CostCalculationService : ICostCalculationService
 {
+    private const decimal FlexPriceMultiplier = 0.5m;
+
     private readonly ILogger<CostCalculationService> _logger;
 
     public CostCalculationService(ILogger<CostCalculationService> logger)
@@ -18,8 +19,15 @@ public class CostCalculationService : ICostCalculationService
 
     public void LogCostBreakdown(string model, ChatTokenUsage usage)
     {
+        LogCostBreakdown(model, usage, serviceTier: null);
+    }
+
+    public void LogCostBreakdown(string model, ChatTokenUsage usage, string? serviceTier)
+    {
         if (ModelPricingData.Pricing.TryGetValue(model, out var pricing))
         {
+            pricing = ApplyServiceTier(pricing, serviceTier);
+
             // Get exact token counts from usage details
             var cachedInputTokens = usage.InputTokenDetails?.CachedTokenCount ?? 0;
             var uncachedInputTokens = usage.InputTokenCount - cachedInputTokens;
@@ -63,13 +71,25 @@ public class CostCalculationService : ICostCalculationService
 
     public decimal? CalculateCost(string model, ChatTokenUsage usage)
     {
-        return CalculateCostBreakdown(model, usage)?.Total;
+        return CalculateCost(model, usage, serviceTier: null);
+    }
+
+    public decimal? CalculateCost(string model, ChatTokenUsage usage, string? serviceTier)
+    {
+        return CalculateCostBreakdown(model, usage, serviceTier)?.Total;
     }
 
     public CostBreakdown? CalculateCostBreakdown(string model, ChatTokenUsage usage)
     {
+        return CalculateCostBreakdown(model, usage, serviceTier: null);
+    }
+
+    public CostBreakdown? CalculateCostBreakdown(string model, ChatTokenUsage usage, string? serviceTier)
+    {
         if (ModelPricingData.Pricing.TryGetValue(model, out var pricing))
         {
+            pricing = ApplyServiceTier(pricing, serviceTier);
+
             // Get exact token counts from usage details
             var cachedInputTokens = usage.InputTokenDetails?.CachedTokenCount ?? 0;
             var uncachedInputTokens = usage.InputTokenCount - cachedInputTokens;
@@ -87,6 +107,19 @@ public class CostCalculationService : ICostCalculationService
 
         return null;
     }
+
+    private static ModelPricing ApplyServiceTier(ModelPricing pricing, string? serviceTier)
+    {
+        if (!string.Equals(serviceTier?.Trim(), "flex", StringComparison.OrdinalIgnoreCase))
+        {
+            return pricing;
+        }
+
+        return new ModelPricing(
+            pricing.InputPrice * FlexPriceMultiplier,
+            pricing.OutputPrice * FlexPriceMultiplier,
+            pricing.CachedInputPrice * FlexPriceMultiplier);
+    }
 }
 
 /// <summary>
@@ -102,6 +135,9 @@ internal static class ModelPricingData
         ["gpt-4.5-preview"] = new(75.00m, 150.00m, 37.50m),
         ["gpt-4o"] = new(2.50m, 10.00m, 1.25m),
         ["gpt-4o-mini"] = new(0.15m, 0.60m, 0.075m),
+        ["gpt-5.5"] = new(5.00m, 30.00m, 0.50m),
+        ["gpt-5.4"] = new(2.50m, 15.00m, 0.25m),
+        ["gpt-5.4-mini"] = new(0.75m, 4.50m, 0.075m),
         ["gpt-5"] = new(1.25m, 10.00m, 0.125m),
         ["gpt-5-mini"] = new(0.25m, 2.00m, 0.025m),
         ["gpt-5-nano"] = new(0.05m, 0.40m, 0.005m),

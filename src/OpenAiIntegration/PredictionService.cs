@@ -114,10 +114,24 @@ public class PredictionService : IPredictionService
             SetLangfuseGenerationAttributes(activity, messages, predictionJson, usage, telemetryMetadata, completion.ExecutionTelemetry);
 
             // Add usage to tracker
-            _tokenUsageTracker.AddUsage(_model, usage);
+            if (completion.ExecutionTelemetry is null)
+            {
+                _tokenUsageTracker.AddUsage(_model, usage);
+            }
+            else
+            {
+                _tokenUsageTracker.AddUsage(_model, usage, completion.ExecutionTelemetry.FinalServiceTier);
+            }
 
             // Calculate and log costs
-            _costCalculationService.LogCostBreakdown(_model, usage);
+            if (completion.ExecutionTelemetry is null)
+            {
+                _costCalculationService.LogCostBreakdown(_model, usage);
+            }
+            else
+            {
+                _costCalculationService.LogCostBreakdown(_model, usage, completion.ExecutionTelemetry.FinalServiceTier);
+            }
 
             return prediction;
         }
@@ -905,14 +919,23 @@ public class PredictionService : IPredictionService
             input = usage.InputTokenCount,
             output = usage.OutputTokenCount,
             cache_read_input_tokens = usage.InputTokenDetails?.CachedTokenCount ?? 0,
-            reasoning_tokens = usage.OutputTokenDetails?.ReasoningTokenCount ?? 0
+            reasoning_tokens = usage.OutputTokenDetails?.ReasoningTokenCount ?? 0,
+            total = usage.InputTokenCount + usage.OutputTokenCount
         };
         activity.SetTag("langfuse.observation.usage_details", JsonSerializer.Serialize(usageDetails));
 
-        // Cost details are intentionally omitted here: Langfuse automatically infers costs from the
-        // model name and usage_details using its maintained pricing tables, which are more up-to-date
-        // than the prices kept in this repository. Explicitly ingesting cost_details would override
-        // that inference (ingested values take priority over inferred ones).
+        if (executionTelemetry is not null &&
+            _costCalculationService.CalculateCostBreakdown(_model, usage, executionTelemetry.FinalServiceTier) is { } costBreakdown)
+        {
+            var costDetails = new
+            {
+                input = costBreakdown.Input,
+                cache_read_input_tokens = costBreakdown.CachedInput,
+                output = costBreakdown.Output,
+                total = costBreakdown.Total
+            };
+            activity.SetTag("langfuse.observation.cost_details", JsonSerializer.Serialize(costDetails));
+        }
     }
 
     private sealed record MatchCompletionResult(
