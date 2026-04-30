@@ -54,8 +54,8 @@ If the run generates predictions into storage, prefer the verbose production-cos
 dotnet run --project src/Orchestrator -- matchday gpt-5-nano --community ehonda-test-buli --verbose --estimated-costs o3
 ```
 
-Query recent Langfuse traces via the local skill script:
+Query recent Langfuse traces via the official CLI:
 
 ```powershell
-.github/copilot/skills/langfuse-api/scripts/Query-LangfuseApi.ps1 -Endpoint "traces" -QueryParams @{limit=10}
+langfuse --env ..\KicktippAi.Secrets\src\Orchestrator\.env api traces list --limit 10 --json
 ```

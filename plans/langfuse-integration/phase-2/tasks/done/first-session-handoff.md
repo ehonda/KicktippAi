@@ -94,7 +94,7 @@ dotnet run --project src/Orchestrator -- matchday gpt-5-nano --community ehonda-
 Inspect recent Langfuse traces:
 
 ```powershell
-.github/copilot/skills/langfuse-api/scripts/Query-LangfuseApi.ps1 -Endpoint "traces" -QueryParams @{limit=10}
+langfuse --env ..\KicktippAi.Secrets\src\Orchestrator\.env api traces list --limit 10 --json
 ```
 
 ## Session Boundary Guidance

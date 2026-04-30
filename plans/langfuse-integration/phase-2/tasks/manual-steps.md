@@ -84,7 +84,7 @@ Use this file during implementation, not just for planning.
 
 1. Inspect the hosted dataset in the Langfuse UI
 
-- Use the Langfuse API skill first for autonomous confirmation of dataset existence, schemas, and representative items before switching to the UI
+- Use the official `$langfuse` skill and `langfuse-cli` first for autonomous confirmation of dataset existence, schemas, and representative items before switching to the UI
 - Confirm the dataset exists with the expected name
 - Confirm items are visible and structurally correct
 - Confirm metadata fields are useful for filtering and debugging

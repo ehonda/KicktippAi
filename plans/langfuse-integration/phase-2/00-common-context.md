@@ -83,7 +83,7 @@ dotnet run --project src/Orchestrator -- random-match gpt-5-nano --community eho
 Useful Langfuse inspection command:
 
 ```powershell
-.github/copilot/skills/langfuse-api/scripts/Query-LangfuseApi.ps1 -Endpoint "traces" -QueryParams @{limit=10}
+langfuse --env ..\KicktippAi.Secrets\src\Orchestrator\.env api traces list --limit 10 --json
 ```
 
 ## Handoff Expectations

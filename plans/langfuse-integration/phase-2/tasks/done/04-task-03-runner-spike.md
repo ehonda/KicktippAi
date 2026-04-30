@@ -102,10 +102,10 @@ dotnet run --project src/Orchestrator -- export-experiment-item o4-mini --commun
 dotenvx run -f ..\KicktippAi.Secrets\src\Orchestrator\.env -- npm run --prefix tools/langfuse-runner-spike run -- --input "C:\Users\dennis\source\repos\ehonda\KicktippAi\artifacts\langfuse-runner-spike\26-vfb-stuttgart-vs-rb-leipzig-o4-mini.json"
 ```
 
-3. Verify the trace through the existing API helper
+3. Verify the trace through the Langfuse CLI
 
 ```powershell
-.github/copilot/skills/langfuse-api/scripts/Query-LangfuseApi.ps1 -Endpoint "traces/17878f3ce43fcfe4be107a9b27919afb"
+langfuse --env ..\KicktippAi.Secrets\src\Orchestrator\.env api traces get 17878f3ce43fcfe4be107a9b27919afb --json
 ```
 
 ## Handoff Notes

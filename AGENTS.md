@@ -16,10 +16,10 @@ When invoking Powershell commands via `run_in_terminal`, don't prefix them with 
 
 ```powershell
 # ❌ Avoid this:
-& .github/copilot/skills/langfuse-api/scripts/Query-LangfuseApi.ps1 -Endpoint "scores" -QueryParams @{limit=10; name='avg_kicktipp_points'}
+& .github/copilot/skills/submodules-display-tree/scripts/Display-Tree.ps1 -Format tree -Depth 2
 
 # ✅ Do this instead:
-.github/copilot/skills/langfuse-api/scripts/Query-LangfuseApi.ps1 -Endpoint "scores" -QueryParams @{limit=10; name='avg_kicktipp_points'}
+.github/copilot/skills/submodules-display-tree/scripts/Display-Tree.ps1 -Format tree -Depth 2
 ```
 
 ## Gathering Information
@@ -46,7 +46,13 @@ search it in the following places, in that order:
 
 When you encounter a dependency that is not available locally, and which has a chance of being consulted multiple times, use the `submodules-manage` skill to add it or part of it as a git submodule. This will make it available locally for future reference and easy agentic access.
 
+## Langfuse Agent Tooling
+
+@agent-files/langfuse-agent-tooling.md
+
 ## Langfuse Experiments
+
+For current Langfuse docs, generic API access, prompt management, SDK guidance, and prompt migration, use the official global `$langfuse` skill and the global Langfuse tooling described above.
 
 For Langfuse evaluation and experiment work, prefer the Python SDK first because Langfuse's experiment runner, examples, and evaluation integrations are strongest there.
 

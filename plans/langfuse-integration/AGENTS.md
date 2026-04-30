@@ -14,14 +14,14 @@ dotnet run --project src/Orchestrator -- random-match gpt-5-nano --community eho
 
 ## Querying the Langfuse API
 
-Use the `langfuse-api` skill to inspect traces and observations via the Langfuse REST API (e.g., for debugging):
+Use the official global `$langfuse` skill and `langfuse-cli` to inspect traces, observations, datasets, scores, and other Langfuse resources. Prefer the external secrets file instead of copying keys into the checkout.
 
 ```powershell
 # List recent traces
-.github/copilot/skills/langfuse-api/scripts/Query-LangfuseApi.ps1 -Endpoint "traces" -QueryParams @{limit=10}
+langfuse --env ..\KicktippAi.Secrets\src\Orchestrator\.env api traces list --limit 10 --json
 
 # Get a specific trace
-.github/copilot/skills/langfuse-api/scripts/Query-LangfuseApi.ps1 -Endpoint "traces/<traceId>"
+langfuse --env ..\KicktippAi.Secrets\src\Orchestrator\.env api traces get <traceId> --json
 ```
 
-See the full skill definition at [.github/copilot/skills/langfuse-api/SKILL.md](../../../../.github/copilot/skills/langfuse-api/SKILL.md) for all supported endpoints and parameters.
+If the CLI is not installed globally, use `npx langfuse-cli` with the same arguments. Use `langfuse api __schema` and `langfuse api <resource> --help` to discover the current command surface.

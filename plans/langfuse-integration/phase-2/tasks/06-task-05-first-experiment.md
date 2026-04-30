@@ -29,7 +29,7 @@ The runner choice is now stable for the first milestone: use JS/TS unless a late
 3. Reconstruct the required context-document set at that timestamp
 4. Run predictions for the sample
 5. Attach Kicktipp-based item-level and run-level scores
-6. Verify trace linkage, dataset-run visibility, and compare-view behavior in Langfuse, first via the Langfuse API skill and then in the UI
+6. Verify trace linkage, dataset-run visibility, and compare-view behavior in Langfuse, first via the official `$langfuse` skill and `langfuse-cli`, then in the UI
 
 ## Inputs
 
@@ -77,13 +77,13 @@ Run-level aggregate scores:
 
 - Exact-time export and prompt reconstruction are implemented through `.NET` commands that accept NodaTime's invariant `ZonedDateTime` `G` pattern, for example `2026-03-15T12:00:00 Europe/Berlin (+01)`
 - `export-experiment-item` now also supports a relative evaluation policy input, currently limited to `kind=relative` with a NodaTime duration offset against `startsAt`, for example `-12:00:00`
-- The experiment wrapper lives in `.github/copilot/skills/langfuse-experiment-runner/` and now supports both the legacy single-match path and a sampled reusable-slice path
+- The experiment workflow is now documented in `.agents/skills/langfuse-experiments/` and supports slice, repeated-match, and community-to-date runs.
 - The sampled slice JS runner processes items directly in parallel batches instead of using the old warm-up optimization, because prompt caching does not help across heavily varying per-item prompts
 - Sampled slices are now materialized once as local bundle artifacts and as hosted Langfuse slice datasets under `match-predictions/bundesliga-2025-26/pes-squad/slices/<sourcePoolKey>/<sliceKey>`
 - Repeated runs of the same slice reuse `slice-dataset.json`, `slice-manifest.json`, and per-model exported experiment items instead of resampling or re-exporting everything
 - Slice datasets intentionally expose `fixture` and `score` fields so Langfuse compare views show football data in home-first order without the earlier home/away confusion
 - The Task 5 runners now emit only `kicktipp_points` on traces and only `total_kicktipp_points` plus `avg_kicktipp_points` on dataset runs
-- The wrapper uses the dedicated Langfuse API skill script for autonomous verification of traces and generation observations after the run
+- Autonomous verification of traces and generation observations after a run should use the official `$langfuse` skill and `langfuse-cli`
 - The Langfuse OTEL span processor is configured with the `x-langfuse-ingestion-version: 4` header
 - Live API verification on `2026-04-02` confirmed the newest slice run no longer emits the legacy supporting score names; remaining empty legacy columns in compare view look like Langfuse-side UI behavior rather than current runner output
 
