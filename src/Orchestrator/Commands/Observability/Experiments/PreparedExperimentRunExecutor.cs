@@ -509,28 +509,11 @@ internal sealed class PreparedExperimentRunExecutor
             evaluationTimestamp,
             predictionService.GetMatchPromptPath(runMetadata.IncludeJustification));
 
-        var traceInput = new
-        {
-            datasetName,
-            datasetItemId = item.SliceDatasetItemId,
-            sourceDatasetItemId = item.SourceDatasetItemId,
-            runName = request.RunName,
-            task = runMetadata.TaskType,
-            model = request.Options.Model,
-            reasoningEffort = runMetadata.ReasoningEffort,
-            includeJustification = runMetadata.IncludeJustification,
-            evaluationTimestamp,
-            match = new
-            {
-                item.HomeTeam,
-                item.AwayTeam,
-                item.Matchday,
-                startsAt = item.StartsAt
-            },
-            promptTemplatePath = reconstructedPrompt.PromptTemplatePath
-        };
-        var traceInputJson = JsonSerializer.Serialize(traceInput, TraceJsonOptions);
-        SetTraceAndRootObservationInput(activity, traceInputJson);
+        SetExperimentItemMetadata(activity, CreateExperimentItemMetadataJson(item));
+        SetExperimentItemExpectedOutput(
+            activity,
+            CreateExperimentItemExpectedOutputJson(outcome.HomeGoals.Value, outcome.AwayGoals.Value));
+        SetTraceAndRootObservationInput(activity, CreateExperimentItemInputJson(item));
 
         var traceId = activity?.TraceId.ToString();
         if (string.IsNullOrWhiteSpace(traceId))
@@ -616,28 +599,6 @@ internal sealed class PreparedExperimentRunExecutor
                 KicktippPoints = 0
             };
 
-        var traceInput = JsonSerializer.Serialize(new
-        {
-            datasetName,
-            datasetItemId = item.SliceDatasetItemId,
-            sourceDatasetItemId = item.SourceDatasetItemId,
-            runName,
-            task = runMetadata.TaskType,
-            source = "kicktipp-community",
-            participant = new
-            {
-                participant.ParticipantId,
-                participant.DisplayName
-            },
-            match = new
-            {
-                item.HomeTeam,
-                item.AwayTeam,
-                item.Matchday,
-                item.StartsAt,
-                item.TippSpielId
-            }
-        }, TraceJsonOptions);
         var predictionPayload = CreateCommunityPredictionPayload(participantPrediction);
 
         using var activity = Telemetry.Source.StartActivity("experiment-item-run");
@@ -653,7 +614,8 @@ internal sealed class PreparedExperimentRunExecutor
             traceTags,
             propagatedMetadata);
 
-        SetTraceAndRootObservationInput(activity, traceInput);
+        SetExperimentItemMetadata(activity, CreateExperimentItemMetadataJson(item));
+        SetTraceAndRootObservationInput(activity, CreateExperimentItemInputJson(item));
         SetTraceAndRootObservationOutput(activity, predictionPayload.GetRawText());
 
         var traceId = activity?.TraceId.ToString();
@@ -942,6 +904,26 @@ internal sealed class PreparedExperimentRunExecutor
         activity.SetTag("langfuse.observation.input", inputJson);
     }
 
+    private static void SetExperimentItemExpectedOutput(Activity? activity, string expectedOutputJson)
+    {
+        if (activity is null || string.IsNullOrWhiteSpace(expectedOutputJson))
+        {
+            return;
+        }
+
+        activity.SetTag("langfuse.experiment.item.expected_output", expectedOutputJson);
+    }
+
+    private static void SetExperimentItemMetadata(Activity? activity, string metadataJson)
+    {
+        if (activity is null || string.IsNullOrWhiteSpace(metadataJson))
+        {
+            return;
+        }
+
+        activity.SetTag("langfuse.experiment.item.metadata", metadataJson);
+    }
+
     private static void SetTraceAndRootObservationOutput(Activity? activity, string outputJson)
     {
         if (activity is null || string.IsNullOrWhiteSpace(outputJson))
@@ -961,6 +943,36 @@ internal sealed class PreparedExperimentRunExecutor
         }
 
         LangfuseActivityPropagation.SetExperimentRunId(activity, datasetRunId);
+    }
+
+    private static string CreateExperimentItemInputJson(PreparedExperimentManifestItem item)
+    {
+        return JsonSerializer.Serialize(new
+        {
+            fixture = $"{item.HomeTeam} vs {item.AwayTeam}",
+            item.StartsAt
+        }, TraceJsonOptions);
+    }
+
+    private static string CreateExperimentItemExpectedOutputJson(int homeGoals, int awayGoals)
+    {
+        return JsonSerializer.Serialize(new
+        {
+            score = $"{homeGoals}:{awayGoals}"
+        }, TraceJsonOptions);
+    }
+
+    private static string CreateExperimentItemMetadataJson(PreparedExperimentManifestItem item)
+    {
+        return JsonSerializer.Serialize(new
+        {
+            item.SourceDatasetItemId,
+            item.SliceDatasetItemId,
+            item.HomeTeam,
+            item.AwayTeam,
+            item.Matchday,
+            item.TippSpielId
+        }, TraceJsonOptions);
     }
 
     private static IReadOnlyList<PreparedExperimentParticipantManifest> SelectParticipants(

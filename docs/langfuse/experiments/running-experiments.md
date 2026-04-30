@@ -43,7 +43,8 @@ New `run-slice`, `run-repeated-match`, and `run-community-to-date` executions no
 - set the Langfuse environment to `sdk-experiment`
 - attach trace metadata fields `experiment_name` and `experiment_run_name`
 - attach the same fields to dataset run metadata when creating dataset run items
-- attach input/output to the root `experiment-item-run` observation, not only to the trace
+- attach the compact dataset-item input to the root `experiment-item-run` observation, not only to the trace, so the Experiments Beta results table shows the fixture instead of runner internals
+- attach `langfuse.experiment.item.expected_output` to the root item span so the Experiments Beta expected-output column shows the actual scoreline
 - post item-level `kicktipp_points` scores on the item trace or prediction observation
 - pass the root observation id when linking a trace to the dataset run item
 

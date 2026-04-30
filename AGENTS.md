@@ -50,6 +50,8 @@ When you encounter a dependency that is not available locally, and which has a c
 
 @agent-files/langfuse-agent-tooling.md
 
+Use the installed `langfuse` CLI entrypoint for Langfuse API work. Do not use `npx langfuse-cli` for routine agent workflows with repository secrets; install or update the global `langfuse-cli` package only when the `langfuse` command is missing or stale.
+
 ## Langfuse Experiments
 
 The initial Langfuse integration is complete. Treat the active repository docs as the source of truth, and treat the old phase trackers as historical design context.

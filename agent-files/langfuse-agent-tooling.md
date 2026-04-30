@@ -12,10 +12,9 @@ npx skills add langfuse/skills --skill "langfuse"
 
 For agent-specific installs, add `--agent "<agent-id>"`. Cursor users can alternatively install the Langfuse Cursor plugin, which includes the skill.
 
-2. Use the Langfuse CLI for generic API access. Running through `npx` is fine; install globally if you use it often:
+2. Use the globally installed Langfuse CLI for generic API access. The npm package is `langfuse-cli`, but the installed command is `langfuse`. Prefer this installed command for agent workflows instead of `npx`, especially when loading the external secrets file.
 
 ```powershell
-npx langfuse-cli api __schema
 npm i -g langfuse-cli
 langfuse api __schema
 ```
@@ -25,6 +24,8 @@ For this repo, prefer the external secrets file instead of copying keys into the
 ```powershell
 langfuse --env ..\KicktippAi.Secrets\src\Orchestrator\.env api traces list --limit 10 --json
 ```
+
+If `langfuse` is missing or stale, install or update it with `npm i -g langfuse-cli` after the user approves the global install. Avoid `npx langfuse-cli ...` for routine work because it fetches executable package code at runtime and can create unnecessary credential-exposure risk when paired with `--env`.
 
 For agents that cannot load installed skills directly, `langfuse get-skill` can print the current official Langfuse skill for temporary context injection.
 
@@ -59,7 +60,7 @@ The authenticated MCP server currently focuses on prompt management. It exposes 
 ## Usage In This Repo
 
 - Use the official `$langfuse` skill for current Langfuse docs, SDK/API guidance, prompt migration, and generic Langfuse API work.
-- Use `langfuse-cli` for direct traces, observations, datasets, scores, sessions, and prompt API calls. Start with `langfuse api __schema` and `langfuse api <resource> --help` because resource names can change with the bundled API spec.
+- Use the installed `langfuse` command for direct traces, observations, datasets, scores, sessions, and prompt API calls. Start with `langfuse api __schema` and `langfuse api <resource> --help` because resource names can change with the bundled API spec.
 - Use the public Docs MCP server for current documentation lookup when the agent supports MCP.
 - Use the authenticated MCP server for hosted prompt discovery, creation, and label promotion. Use the CLI for Langfuse resources that the MCP server does not expose yet.
 - Keep secrets outside the repository. Do not commit MCP config files that contain authorization headers.

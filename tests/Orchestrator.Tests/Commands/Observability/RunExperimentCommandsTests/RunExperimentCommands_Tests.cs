@@ -438,7 +438,15 @@ public class RunExperimentCommands_Tests
             await Assert.That(postedScores.All(score => !string.IsNullOrWhiteSpace(score.Id))).IsTrue();
             await Assert.That(postedScores.Select(score => score.Id).Distinct(StringComparer.Ordinal).Count()).IsEqualTo(3);
             var experimentItemRun = capturedActivities.Single(activity => activity.OperationName == "experiment-item-run");
-            await Assert.That(experimentItemRun.GetTagItem("langfuse.observation.input")?.ToString()).Contains(sliceDatasetItemId);
+            var experimentItemInput = experimentItemRun.GetTagItem("langfuse.observation.input")?.ToString();
+            await Assert.That(experimentItemInput).Contains("RB Leipzig");
+            await Assert.That(experimentItemInput).Contains("2025-10-30T15:30:00 Europe/Berlin");
+            await Assert.That(experimentItemInput).DoesNotContain("datasetName");
+            await Assert.That(experimentItemRun.GetTagItem("langfuse.trace.input")?.ToString()).IsEqualTo(experimentItemInput);
+            await Assert.That(experimentItemRun.GetTagItem("langfuse.experiment.item.expected_output")?.ToString())
+                .IsEqualTo("{\"score\":\"2:1\"}");
+            await Assert.That(experimentItemRun.GetTagItem("langfuse.experiment.item.metadata")?.ToString())
+                .Contains(sliceDatasetItemId);
             await Assert.That(experimentItemRun.GetTagItem("langfuse.observation.output")?.ToString()).Contains("\"homeGoals\":2");
             await Assert.That(experimentItemRun.GetTagItem("langfuse.trace.tags")?.ToString()).DoesNotContain("phase-2");
             await Assert.That(experimentItemRun.GetTagItem("langfuse.trace.tags")?.ToString()).DoesNotContain("experiment");
@@ -662,7 +670,13 @@ public class RunExperimentCommands_Tests
             await Assert.That(output).Contains("\"taskType\": \"repeated-match\"");
             await Assert.That(postedScores.Select(score => score.Name).OrderBy(name => name))
                 .IsEquivalentTo(["avg_kicktipp_points", "kicktipp_points", "total_kicktipp_points"]);
-            await Assert.That(capturedActivities.Any(activity => activity.OperationName == "experiment-item-run")).IsTrue();
+            var experimentItemRun = capturedActivities.Single(activity => activity.OperationName == "experiment-item-run");
+            await Assert.That(experimentItemRun.GetTagItem("langfuse.observation.input")?.ToString())
+                .Contains("VfB Stuttgart vs RB Leipzig");
+            await Assert.That(experimentItemRun.GetTagItem("langfuse.observation.input")?.ToString())
+                .DoesNotContain("datasetName");
+            await Assert.That(experimentItemRun.GetTagItem("langfuse.experiment.item.expected_output")?.ToString())
+                .IsEqualTo("{\"score\":\"2:1\"}");
 
             contextRepository.Verify(repository => repository.GetContextDocumentByTimestampAsync(
                 It.IsAny<string>(),
@@ -881,6 +895,21 @@ public class RunExperimentCommands_Tests
             await Assert.That(postedScores.Select(score => score.Id).Distinct(StringComparer.Ordinal).Count()).IsEqualTo(6);
             await Assert.That(capturedActivities.Any(activity => activity.OperationName == "community-match-prediction")).IsTrue();
             await Assert.That(postedScores.Where(score => score.Name == "kicktipp_points").All(score => !string.IsNullOrWhiteSpace(score.ObservationId))).IsTrue();
+
+            var experimentItemRuns = capturedActivities
+                .Where(activity => activity.OperationName == "experiment-item-run")
+                .ToList();
+            await Assert.That(experimentItemRuns.Count).IsEqualTo(2);
+            await Assert.That(experimentItemRuns.All(activity =>
+            {
+                var input = activity.GetTagItem("langfuse.observation.input")?.ToString();
+                return input is not null && input.Contains("Team A vs Team B", StringComparison.Ordinal);
+            })).IsTrue();
+            await Assert.That(experimentItemRuns.All(activity =>
+            {
+                var input = activity.GetTagItem("langfuse.observation.input")?.ToString();
+                return input is not null && !input.Contains("datasetName", StringComparison.Ordinal);
+            })).IsTrue();
 
             var predictionObservations = capturedActivities
                 .Where(activity => activity.OperationName == "community-match-prediction")

@@ -167,7 +167,9 @@ For direct .NET runs, the runner therefore emits:
 - trace metadata `experiment_name`
 - trace metadata `experiment_run_name`
 - trace metadata `dataset_item_id`
-- root observation input/output on `experiment-item-run`
+- compact root observation input/output on `experiment-item-run`
+- root span attribute `langfuse.experiment.item.expected_output`
+- root span attribute `langfuse.experiment.item.metadata`
 - dataset run item `observationId`
 - dataset run metadata `experiment_name`
 - dataset run metadata `experiment_run_name`

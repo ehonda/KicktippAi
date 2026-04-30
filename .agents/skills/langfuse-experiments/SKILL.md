@@ -13,7 +13,7 @@ Before running or publishing anything:
 
 - Read `AGENTS.md`, `docs/langfuse.md`, `docs/langfuse/experiments/running-experiments.md`, and `docs/langfuse/experiments/analyzing-experiments.md`.
 - Read `plans/langfuse-integration/phase-2/AGENTS.md` and linked trackers only when the request changes experiment behavior or needs historical implementation/design context.
-- Use the official `$langfuse` skill and `langfuse-cli` for generic Langfuse API inspection, docs lookup, SDK guidance, and prompt management. Keep this skill focused on KicktippAi-specific experiment orchestration and reporting.
+- Use the official `$langfuse` skill and the installed `langfuse` command for generic Langfuse API inspection, docs lookup, SDK guidance, and prompt management. Keep this skill focused on KicktippAi-specific experiment orchestration and reporting.
 - Prefer the repository's Orchestrator and Python tooling over direct ad hoc Langfuse API scripting.
 - Run commands from the repository root so Orchestrator can auto-load the external secrets directory.
 - Run every `dotnet` command outside the sandbox. Use `uv` for Python commands.
