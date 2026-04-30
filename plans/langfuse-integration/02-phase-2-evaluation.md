@@ -1,54 +1,37 @@
-# Phase 2 — Evaluation & Experiments
+# Phase 2 - Evaluation & Experiments
 
-> **Status**: Future — to be started after Phase 1 is complete and validated.
+> **Status**: Complete for the initial Langfuse integration.
 
-Detailed planning, task tracking, shared context, and Phase 2-specific manual steps now live under [phase-2](phase-2).
+This file is now a completion summary. The detailed planning, task tracking, and handoff notes under [phase-2](phase-2) are retained as historical implementation records.
+
+For current experiment usage, read [docs/langfuse/experiments](../../docs/langfuse/experiments).
 
 ## Objective
 
-Use Langfuse's evaluation features to systematically measure prediction quality across models and prompts, replacing ad-hoc analysis with persistent, visual experiment tracking.
+Use Langfuse evaluation features to systematically measure prediction quality across models, prompts, and evaluation-time strategies, replacing ad-hoc analysis with persistent experiment data and reproducible reports.
 
-## Motivation
+## Completed Initial Integration
 
-- The project already has `analyze-match` CLI commands that compare prediction distributions, but results are ephemeral (console output only).
-- Firebase stores historical predictions and actual match outcomes — this data can seed Langfuse datasets for repeatable experiments.
-- Langfuse supports LLM-as-a-Judge evaluators, which could automatically score predictions.
+The initial repository workflow now supports:
 
-## Planned Approach
+- preparing historical football prediction datasets for repeatable experiments
+- synchronizing prepared datasets to hosted Langfuse datasets
+- running comparable experiment variants against fixed prepared datasets
+- emitting SDK-compatible experiment markers for Langfuse Experiments Beta
+- scoring predictions with Kicktipp points at item and aggregate run level
+- exporting comparable Langfuse-backed runs into a normalized analysis bundle
+- generating JSON, Markdown, and HTML statistical reports with repo-local Python tooling
+- publishing browser-friendly experiment analysis pages through the repository's Pages workflow
 
-### 1. Create Datasets from Historical Data
+## Current Source Of Truth
 
-- Export past matches (with actual outcomes) and their predictions from Firebase
-- Upload as Langfuse datasets via the [REST API](https://langfuse.com/docs/api-and-data-platform/features/public-api) (`POST /api/public/datasets`)
-- Each dataset item: input = match-to-predict payload, expected output = actual match result, metadata = prompt reconstruction and filtering context
+- [docs/langfuse/experiments/README.md](../../docs/langfuse/experiments/README.md) explains how to discover the current command surface.
+- [docs/langfuse/experiments/data-model.md](../../docs/langfuse/experiments/data-model.md) documents the active experiment data model.
+- [docs/langfuse/experiments/running-experiments.md](../../docs/langfuse/experiments/running-experiments.md) documents current run workflows.
+- [docs/langfuse/experiments/analyzing-experiments.md](../../docs/langfuse/experiments/analyzing-experiments.md) documents current analysis and reporting.
 
-### 2. Run Experiments
+## Historical Notes
 
-- For each model/prompt combination, run predictions against the dataset
-- Log each prediction as a Langfuse trace linked to the dataset item
-- Langfuse's experiment UI shows side-by-side comparison of runs
+The Phase 2 task trackers still contain useful context about why the current workflow looks the way it does, including the hosted dataset decision, scoring model, experiment identity markers, analysis contract, and older Langfuse UI/API quirks.
 
-### 3. Scoring
-
-- **Exact match score**: Did the prediction match the actual result exactly?
-- **Outcome accuracy**: Did the prediction get the match outcome correct (home win / draw / away win)?
-- **Goal difference accuracy**: How close was the predicted goal difference?
-- **LLM-as-a-Judge** (optional): Use a model to evaluate prediction justifications for reasoning quality
-
-### 4. Integration with Traces
-
-- Link Phase 1 production traces to evaluation scores so the Langfuse dashboard shows quality trends alongside cost and usage data
-
-## Prerequisites
-
-- Phase 1 complete (traces flowing to Langfuse)
-- Langfuse REST API access (uses same credentials)
-- Historical prediction data accessible from Firebase
-
-## Open Questions
-
-- How far back should historical data go for the initial dataset?
-- What scoring dimensions matter most for prompt iteration decisions?
-- Should evaluation run as a CLI command or a separate tool?
-
-These questions are now broken down into implementation tasks in [phase-2/01-phase-2-tracker.md](phase-2/01-phase-2-tracker.md).
+Use those trackers for design archaeology or behavior changes. Do not treat incomplete task statuses in the old trackers as the default guide for running today's experiments.

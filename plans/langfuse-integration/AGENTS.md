@@ -1,8 +1,14 @@
 # Langfuse Integration — Agent Context
 
-This directory contains plans and tracking documents for the **multi-phase Langfuse integration** currently in progress. See [implementation-status.md](implementation-status.md) for the current state of each phase.
+This directory contains historical plans and tracking documents for the multi-phase Langfuse integration. The initial integration is complete; see [implementation-status.md](implementation-status.md) for the completion summary.
 
-When working on Phase 2, start with [phase-2/AGENTS.md](phase-2/AGENTS.md). That document explains the local document structure, the handoff flow, and which task tracker to pick up next.
+For current usage, start with the active docs instead:
+
+- [docs/langfuse.md](../../docs/langfuse.md) for repository-specific tracing and filtering behavior
+- [docs/langfuse/experiments](../../docs/langfuse/experiments) for experiment workflows
+- [agent-files/langfuse-agent-tooling.md](../../agent-files/langfuse-agent-tooling.md) for global agent/CLI/MCP setup
+
+Use [phase-2/AGENTS.md](phase-2/AGENTS.md) only when researching historical Phase 2 decisions or intentionally changing experiment behavior.
 
 ## Creating Test Traces
 

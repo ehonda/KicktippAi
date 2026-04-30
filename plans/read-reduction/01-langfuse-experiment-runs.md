@@ -1,5 +1,7 @@
 # Langfuse Experiment Run Read Reduction
 
+> **Historical note**: This document reflects an earlier experiment export path and is retained as design history. The current active workflow is documented under [docs/langfuse/experiments](../../docs/langfuse/experiments). Revalidate the assumptions here against current Orchestrator commands before using it as implementation guidance.
+
 This document focuses on the experiment and dataset-export path because it is the most likely next area to tackle after the repository query fixes.
 
 ## Analysis

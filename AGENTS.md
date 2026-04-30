@@ -52,13 +52,15 @@ When you encounter a dependency that is not available locally, and which has a c
 
 ## Langfuse Experiments
 
-For current Langfuse docs, generic API access, prompt management, SDK guidance, and prompt migration, use the official global `$langfuse` skill and the global Langfuse tooling described above.
+The initial Langfuse integration is complete. Treat the active repository docs as the source of truth, and treat the old phase trackers as historical design context.
 
-For Langfuse evaluation and experiment work, prefer the Python SDK first because Langfuse's experiment runner, examples, and evaluation integrations are strongest there.
+- For current Langfuse docs, generic API access, prompt management, SDK guidance, and prompt migration, use the official global `$langfuse` skill and the global Langfuse tooling described above.
+- For verified repository-specific Langfuse tracing and filtering behavior, read [docs/langfuse.md](docs/langfuse.md).
+- For active experiment preparation, execution, analysis, and publishing workflows, read [docs/langfuse/experiments](docs/langfuse/experiments).
+- Use `.agents/skills/langfuse-experiments/` for KicktippAi-specific experiment orchestration, statistical report generation, Pages verification, and commit/push workflow.
+- Read `plans/langfuse-integration/phase-2/AGENTS.md` and linked trackers only when researching historical implementation decisions or changing experiment behavior.
 
-- Keep JS/TS as the fallback when local Python tooling becomes the main source of friction
-- Before starting Phase 2 implementation work, read `plans/langfuse-integration/phase-2/AGENTS.md` and the linked tracker documents there
-- For verified repository-specific Langfuse tracing and filtering behavior, read [docs/langfuse.md](docs/langfuse.md)
+The hosted Langfuse prompt route is still a POC and remains opt-in for experiment runs. Production and default local experiment runs keep using file-based prompts.
 
 ## Python Tooling
 
