@@ -22,6 +22,8 @@ namespace Orchestrator.Infrastructure;
 /// </summary>
 public static class ServiceRegistrationExtensions
 {
+    public const string OpenAiHttpClientName = "openai";
+
     private const string LangfuseIngestionVersionHeaderName = "x-langfuse-ingestion-version";
     private const string LangfuseIngestionVersionHeaderValue = "4";
 
@@ -51,6 +53,7 @@ public static class ServiceRegistrationExtensions
 
         // Add HTTP client factory for Kicktipp
         services.AddHttpClient();
+        services.AddOpenAiHttpClientIfMissing();
 
         if (!services.Any(descriptor => descriptor.ServiceType == typeof(ILangfusePublicApiClient)))
         {
@@ -66,6 +69,46 @@ public static class ServiceRegistrationExtensions
 
         // Register Langfuse/OTel tracing (no-op if credentials are absent)
         services.AddLangfuseTracing();
+
+        return services;
+    }
+
+    private static IServiceCollection AddOpenAiHttpClientIfMissing(this IServiceCollection services)
+    {
+        if (services.Any(descriptor => descriptor.ServiceType == typeof(OpenAiHttpClientRegistrationMarker)))
+        {
+            return services;
+        }
+
+        services.TryAddSingleton<OpenAiHttpClientRegistrationMarker>();
+
+        var clientBuilder = services.AddHttpClient(OpenAiHttpClientName, client =>
+        {
+            // OpenAI timeout ownership stays in OpenAIClientOptions.NetworkTimeout and
+            // the .NET HTTP resilience pipeline. Keeping HttpClient.Timeout infinite
+            // avoids a third timeout source racing those mechanisms.
+            client.Timeout = Timeout.InfiniteTimeSpan;
+        });
+
+        clientBuilder.AddStandardResilienceHandler().Configure(options =>
+        {
+            var defaultCircuitBreakerShouldHandle = options.CircuitBreaker.ShouldHandle;
+
+            options.Retry.DisableForUnsafeHttpMethods();
+            options.CircuitBreaker.ShouldHandle = async args =>
+            {
+                if (!await defaultCircuitBreakerShouldHandle(args).ConfigureAwait(false))
+                {
+                    return false;
+                }
+
+                return args.Outcome.Result?.StatusCode is not HttpStatusCode.RequestTimeout
+                    and not HttpStatusCode.TooManyRequests;
+            };
+            options.AttemptTimeout.Timeout = TimeSpan.FromMinutes(15);
+            options.CircuitBreaker.SamplingDuration = TimeSpan.FromMinutes(30);
+            options.TotalRequestTimeout.Timeout = TimeSpan.FromMinutes(15);
+        });
 
         return services;
     }
@@ -234,6 +277,10 @@ public static class ServiceRegistrationExtensions
     }
 
     private static bool _langfuseTracingRegistered;
+
+    private sealed class OpenAiHttpClientRegistrationMarker
+    {
+    }
 
     /// <summary>
     /// Registers services specific to the ListKpiCommand.

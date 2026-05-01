@@ -230,7 +230,10 @@ public class PredictionService_PredictMatchAsync_Tests : PredictionServiceTests_
 
         // Assert
         tokenUsageTracker.Verify(
-            t => t.AddUsage("gpt-5", usage),
+            t => t.AddUsage(
+                "gpt-5",
+                It.Is<ChatTokenUsage>(actual => actual.InputTokenCount == 1000 && actual.OutputTokenCount == 50),
+                "flex"),
             Times.Once);
     }
 
@@ -248,7 +251,10 @@ public class PredictionService_PredictMatchAsync_Tests : PredictionServiceTests_
 
         // Assert
         costCalculationService.Verify(
-            c => c.LogCostBreakdown("gpt-5", usage),
+            c => c.LogCostBreakdown(
+                "gpt-5",
+                It.Is<ChatTokenUsage>(actual => actual.InputTokenCount == 1000 && actual.OutputTokenCount == 50),
+                "flex"),
             Times.Once);
     }
 
@@ -324,6 +330,49 @@ public class PredictionService_PredictMatchAsync_Tests : PredictionServiceTests_
 
         // Assert
         await Assert.That(prediction).IsNull();
+    }
+
+    [Test]
+    [NotInParallel("Telemetry")]
+    public async Task Predicting_match_with_default_options_uses_flex_processing()
+    {
+        // Arrange
+        var requestedServiceTiers = new List<string?>();
+        var chatClient = CreateProtocolChatClient(requestedServiceTiers, responseServiceTier: "flex");
+        var service = CreateService(chatClient);
+
+        // Act
+        var prediction = await PredictMatchAsync(service);
+
+        // Assert
+        await Assert.That(prediction).IsEquivalentTo(new Prediction(2, 1, null));
+        await Assert.That(requestedServiceTiers.Count).IsEqualTo(1);
+        await Assert.That(requestedServiceTiers[0]).IsEqualTo("flex");
+    }
+
+    [Test]
+    public async Task Predicting_match_with_standard_processing_option_disables_flex_processing()
+    {
+        // Arrange
+        var usage = OpenAITestHelpers.CreateChatTokenUsage(1000, 50);
+        var chatClient = CreateMockChatClient("""{"home": 2, "away": 1}""", usage);
+        var tokenUsageTracker = CreateMockTokenUsageTracker();
+        var service = CreateService(
+            chatClient,
+            tokenUsageTracker: NullableOption.Some(tokenUsageTracker.Object),
+            options: NullableOption.Some(PredictionServiceOptions.StandardProcessing));
+
+        // Act
+        var prediction = await PredictMatchAsync(service);
+
+        // Assert
+        await Assert.That(prediction).IsEquivalentTo(new Prediction(2, 1, null));
+        tokenUsageTracker.Verify(
+            tracker => tracker.AddUsage("gpt-5", usage),
+            Times.Once);
+        tokenUsageTracker.Verify(
+            tracker => tracker.AddUsage("gpt-5", It.IsAny<ChatTokenUsage>(), It.IsAny<string?>()),
+            Times.Never);
     }
 
     [Test]

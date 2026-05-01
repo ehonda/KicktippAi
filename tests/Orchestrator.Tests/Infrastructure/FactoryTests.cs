@@ -57,12 +57,17 @@ public class FactoryTests
 
         var first = sut.CreatePredictionService("gpt-5-nano");
         var second = sut.CreatePredictionService("gpt-5-nano");
+        var explicitDefault = sut.CreatePredictionService("gpt-5-nano", PredictionServiceOptions.Default);
+        var standardProcessing = sut.CreatePredictionService("gpt-5-nano", PredictionServiceOptions.StandardProcessing);
         var differentModel = sut.CreatePredictionService("o4-mini");
         var tracker1 = sut.GetTokenUsageTracker();
         var tracker2 = sut.GetTokenUsageTracker();
 
         await Assert.That(first).IsTypeOf<PredictionService>();
         await Assert.That(second).IsSameReferenceAs(first);
+        await Assert.That(explicitDefault).IsSameReferenceAs(first);
+        await Assert.That(standardProcessing).IsTypeOf<PredictionService>();
+        await Assert.That(standardProcessing).IsNotSameReferenceAs(first);
         await Assert.That(differentModel).IsTypeOf<PredictionService>();
         await Assert.That(differentModel).IsNotSameReferenceAs(first);
         await Assert.That(tracker2).IsSameReferenceAs(tracker1);

@@ -21,9 +21,41 @@ public static class ServiceCollectionExtensions
     /// <param name="model">The OpenAI model to use (defaults to gpt-4o-mini)</param>
     /// <returns>The service collection for chaining</returns>
     public static IServiceCollection AddOpenAiPredictor(
-        this IServiceCollection services, 
-        string apiKey, 
+        this IServiceCollection services,
+        string apiKey,
         string model = "gpt-4o-mini")
+    {
+        return services.AddOpenAiPredictor(apiKey, model, options: null);
+    }
+
+    /// <summary>
+    /// Adds OpenAI predictor services to the service collection
+    /// </summary>
+    /// <param name="services">The service collection</param>
+    /// <param name="apiKey">The OpenAI API key</param>
+    /// <param name="options">The prediction service options</param>
+    /// <returns>The service collection for chaining</returns>
+    public static IServiceCollection AddOpenAiPredictor(
+        this IServiceCollection services,
+        string apiKey,
+        PredictionServiceOptions? options)
+    {
+        return services.AddOpenAiPredictor(apiKey, "gpt-4o-mini", options);
+    }
+
+    /// <summary>
+    /// Adds OpenAI predictor services to the service collection
+    /// </summary>
+    /// <param name="services">The service collection</param>
+    /// <param name="apiKey">The OpenAI API key</param>
+    /// <param name="model">The OpenAI model to use</param>
+    /// <param name="options">The prediction service options</param>
+    /// <returns>The service collection for chaining</returns>
+    public static IServiceCollection AddOpenAiPredictor(
+        this IServiceCollection services,
+        string apiKey,
+        string model,
+        PredictionServiceOptions? options)
     {
         if (string.IsNullOrWhiteSpace(apiKey))
         {
@@ -67,7 +99,8 @@ public static class ServiceCollectionExtensions
                 serviceProvider.GetRequiredService<ICostCalculationService>(),
                 serviceProvider.GetRequiredService<ITokenUsageTracker>(),
                 serviceProvider.GetRequiredService<IInstructionsTemplateProvider>(),
-                model));
+                model,
+                options));
 
         return services;
     }
@@ -82,10 +115,25 @@ public static class ServiceCollectionExtensions
         this IServiceCollection services,
         IConfiguration configuration)
     {
-        var apiKey = configuration["OPENAI_API_KEY"] ?? 
+        return services.AddOpenAiPredictor(configuration, options: null);
+    }
+
+    /// <summary>
+    /// Adds OpenAI predictor services to the service collection using configuration
+    /// </summary>
+    /// <param name="services">The service collection</param>
+    /// <param name="configuration">The configuration containing OpenAI settings</param>
+    /// <param name="options">The prediction service options</param>
+    /// <returns>The service collection for chaining</returns>
+    public static IServiceCollection AddOpenAiPredictor(
+        this IServiceCollection services,
+        IConfiguration configuration,
+        PredictionServiceOptions? options)
+    {
+        var apiKey = configuration["OPENAI_API_KEY"] ??
                     Environment.GetEnvironmentVariable("OPENAI_API_KEY");
         var model = configuration["OPENAI_MODEL"] ?? "gpt-4o-mini";
 
-        return services.AddOpenAiPredictor(apiKey!, model);
+        return services.AddOpenAiPredictor(apiKey!, model, options);
     }
 }

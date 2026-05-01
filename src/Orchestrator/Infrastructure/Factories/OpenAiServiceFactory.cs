@@ -1,8 +1,13 @@
 using System.Collections.Concurrent;
+using System.ClientModel;
+using System.ClientModel.Primitives;
+using System.Net.Http;
 using EHonda.KicktippAi.Core;
 using Microsoft.Extensions.Logging;
+using OpenAI;
 using OpenAI.Chat;
 using OpenAiIntegration;
+using Orchestrator.Infrastructure;
 
 namespace Orchestrator.Infrastructure.Factories;
 
@@ -16,7 +21,10 @@ namespace Orchestrator.Infrastructure.Factories;
 /// </remarks>
 public sealed class OpenAiServiceFactory : IOpenAiServiceFactory
 {
+    private static readonly TimeSpan OpenAiNetworkTimeout = TimeSpan.FromMinutes(15);
+
     private readonly ILoggerFactory _loggerFactory;
+    private readonly IHttpClientFactory? _httpClientFactory;
     private readonly Lazy<string> _apiKey;
     private readonly ConcurrentDictionary<string, IPredictionService> _predictionServiceCache = new();
     private ITokenUsageTracker? _tokenUsageTracker;
@@ -24,9 +32,10 @@ public sealed class OpenAiServiceFactory : IOpenAiServiceFactory
     private IInstructionsTemplateProvider? _instructionsTemplateProvider;
     private readonly object _lock = new();
 
-    public OpenAiServiceFactory(ILoggerFactory loggerFactory)
+    public OpenAiServiceFactory(ILoggerFactory loggerFactory, IHttpClientFactory? httpClientFactory = null)
     {
         _loggerFactory = loggerFactory;
+        _httpClientFactory = httpClientFactory;
         _apiKey = new Lazy<string>(GetApiKeyFromEnvironment);
     }
 
@@ -46,7 +55,7 @@ public sealed class OpenAiServiceFactory : IOpenAiServiceFactory
         var reasoningEffort = string.IsNullOrWhiteSpace(options.ReasoningEffort)
             ? string.Empty
             : options.ReasoningEffort.Trim().ToLowerInvariant();
-        var cacheKey = $"{model}|flexFallback={options.UseFlexProcessingWithStandardFallback}|reasoningEffort={reasoningEffort}";
+        var cacheKey = $"{model}|disableFlex={options.DisableFlexProcessing}|reasoningEffort={reasoningEffort}";
 
         // Cache key includes model to handle different configurations
         return _predictionServiceCache.GetOrAdd(cacheKey, _ =>
@@ -134,7 +143,7 @@ public sealed class OpenAiServiceFactory : IOpenAiServiceFactory
         string apiKey)
     {
         var logger = _loggerFactory.CreateLogger<PredictionService>();
-        var chatClient = new ChatClient(model, apiKey);
+        var chatClient = new ChatClient(model, new ApiKeyCredential(apiKey), CreateOpenAiClientOptions());
 
         return new PredictionService(
             chatClient,
@@ -144,5 +153,25 @@ public sealed class OpenAiServiceFactory : IOpenAiServiceFactory
             templateProvider,
             model,
             options);
+    }
+
+    private OpenAIClientOptions CreateOpenAiClientOptions()
+    {
+        var options = new OpenAIClientOptions
+        {
+            // OpenAI recommends allowing long-running model requests up to 15 minutes.
+            // This timeout belongs to the OpenAI client pipeline, while HttpClient.Timeout
+            // stays infinite so it does not race the .NET HTTP resilience handler.
+            NetworkTimeout = OpenAiNetworkTimeout,
+            RetryPolicy = new ClientRetryPolicy(maxRetries: 0)
+        };
+
+        if (_httpClientFactory is not null)
+        {
+            options.Transport = new HttpClientPipelineTransport(
+                _httpClientFactory.CreateClient(ServiceRegistrationExtensions.OpenAiHttpClientName));
+        }
+
+        return options;
     }
 }

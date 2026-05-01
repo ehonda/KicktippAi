@@ -1,5 +1,6 @@
 using System.Diagnostics;
 using System.Net;
+using System.Net.Http;
 using System.Net.Http.Headers;
 using System.Reflection;
 using EHonda.KicktippAi.Core;
@@ -181,6 +182,72 @@ public class LangfuseAndServiceRegistrationTests
         await Assert.That(trace).IsNotNull();
         await Assert.That(trace!.Id).IsEqualTo("trace-1");
         await Assert.That(server.LogEntries.Count).IsEqualTo(2);
+    }
+
+    [Test]
+    public async Task OpenAi_http_client_does_not_retry_completion_posts_in_the_resilience_pipeline()
+    {
+        using var server = WireMockServer.Start();
+        server
+            .Given(Request.Create()
+                .WithPath("/v1/chat/completions")
+                .UsingPost())
+            .RespondWith(Response.Create()
+                .WithStatusCode(429)
+                .WithHeader("Content-Type", "application/json")
+                .WithBody("""{"error":{"code":"resource_unavailable","message":"capacity unavailable"}}"""));
+
+        var services = new ServiceCollection();
+        services.AddOrchestratorInfrastructure();
+
+        using var provider = services.BuildServiceProvider();
+        var httpClientFactory = provider.GetRequiredService<IHttpClientFactory>();
+        using var httpClient = httpClientFactory.CreateClient(ServiceRegistrationExtensions.OpenAiHttpClientName);
+        httpClient.BaseAddress = new Uri(server.Urls[0]);
+
+        using var response = await httpClient.PostAsync("v1/chat/completions", new StringContent("{}"));
+
+        await Assert.That(response.StatusCode).IsEqualTo(HttpStatusCode.TooManyRequests);
+        await Assert.That(server.LogEntries.Count).IsEqualTo(1);
+    }
+
+    [Test]
+    public async Task OpenAi_http_client_circuit_breaker_does_not_open_for_repeated_rate_limits()
+    {
+        using var server = WireMockServer.Start();
+        server
+            .Given(Request.Create()
+                .WithPath("/v1/chat/completions")
+                .UsingPost())
+            .RespondWith(Response.Create()
+                .WithStatusCode(429)
+                .WithHeader("Content-Type", "application/json")
+                .WithBody("""{"error":{"code":"resource_unavailable","message":"capacity unavailable"}}"""));
+
+        var services = new ServiceCollection();
+        services.AddOrchestratorInfrastructure();
+
+        using var provider = services.BuildServiceProvider();
+        var httpClientFactory = provider.GetRequiredService<IHttpClientFactory>();
+        using var httpClient = httpClientFactory.CreateClient(ServiceRegistrationExtensions.OpenAiHttpClientName);
+        httpClient.BaseAddress = new Uri(server.Urls[0]);
+        BrokenCircuitException? brokenCircuit = null;
+
+        for (var attempt = 0; attempt < 120; attempt += 1)
+        {
+            try
+            {
+                using var response = await httpClient.PostAsync("v1/chat/completions", new StringContent("{}"));
+                await Assert.That(response.StatusCode).IsEqualTo(HttpStatusCode.TooManyRequests);
+            }
+            catch (BrokenCircuitException ex)
+            {
+                brokenCircuit = ex;
+                break;
+            }
+        }
+
+        await Assert.That(brokenCircuit).IsNull();
     }
 
     [Test]

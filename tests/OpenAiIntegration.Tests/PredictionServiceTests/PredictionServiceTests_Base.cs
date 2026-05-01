@@ -5,6 +5,8 @@ using NodaTime;
 using OpenAI.Chat;
 using System.ClientModel;
 using System.ClientModel.Primitives;
+using System.Text;
+using System.Text.Json;
 using EHonda.KicktippAi.Core;
 using TestUtilities;
 using TUnit.Core;
@@ -206,7 +208,7 @@ public abstract class PredictionServiceTests_Base
         // Create the mock ChatClient and mock ClientResult
         var mockClient = new Mock<ChatClient>();
         var mockResult = new Mock<ClientResult<ChatCompletion>>(null!, Mock.Of<PipelineResponse>());
-        
+
         // Create the ChatCompletion using the model factory
         var completion = OpenAIChatModelFactory.ChatCompletion(
             id: "test-completion-id",
@@ -234,7 +236,12 @@ public abstract class PredictionServiceTests_Base
                 It.IsAny<ChatCompletionOptions>(),
                 It.IsAny<CancellationToken>()))
             .ReturnsAsync(mockResult.Object);
-        
+
+        mockClient.Setup(client => client.CompleteChatAsync(
+                It.IsAny<BinaryContent>(),
+                It.IsAny<RequestOptions>()))
+            .ReturnsAsync(CreateProtocolCompletionResult(actualResponseJson, actualUsage));
+
         return mockClient.Object;
     }
 
@@ -273,6 +280,13 @@ public abstract class PredictionServiceTests_Base
                 captureMessages(messages.ToList()))
             .ReturnsAsync(mockResult.Object);
 
+        mockClient.Setup(client => client.CompleteChatAsync(
+                It.IsAny<BinaryContent>(),
+                It.IsAny<RequestOptions>()))
+            .Callback<BinaryContent, RequestOptions>((content, _) =>
+                captureMessages(ReadProtocolMessages(content)))
+            .ReturnsAsync(CreateProtocolCompletionResult(actualResponseJson, actualUsage));
+
         mockClient.Setup(client => client.CompleteChat(
                 It.IsAny<IEnumerable<ChatMessage>>(),
                 It.IsAny<ChatCompletionOptions>(),
@@ -288,19 +302,92 @@ public abstract class PredictionServiceTests_Base
     protected static ChatClient CreateThrowingMockChatClient(Exception exception)
     {
         var mockClient = new Mock<ChatClient>();
-        
+
         mockClient.Setup(client => client.CompleteChat(
                 It.IsAny<IEnumerable<ChatMessage>>(),
                 It.IsAny<ChatCompletionOptions>(),
                 It.IsAny<CancellationToken>()))
             .Throws(exception);
-        
+
         mockClient.Setup(client => client.CompleteChatAsync(
                 It.IsAny<IEnumerable<ChatMessage>>(),
                 It.IsAny<ChatCompletionOptions>(),
                 It.IsAny<CancellationToken>()))
             .ThrowsAsync(exception);
-        
+
+        mockClient.Setup(client => client.CompleteChatAsync(
+                It.IsAny<BinaryContent>(),
+                It.IsAny<RequestOptions>()))
+            .ThrowsAsync(exception);
+
         return mockClient.Object;
+    }
+
+    private static ClientResult CreateProtocolCompletionResult(
+        string responseJson,
+        ChatTokenUsage usage,
+        string serviceTier = "flex")
+    {
+        var response = new Mock<PipelineResponse>();
+        response.SetupGet(candidate => candidate.Status).Returns(200);
+        response.SetupGet(candidate => candidate.Content).Returns(BinaryData.FromString(JsonSerializer.Serialize(new
+        {
+            id = "chatcmpl-test",
+            @object = "chat.completion",
+            created = 1760000000,
+            model = "gpt-5",
+            service_tier = serviceTier,
+            choices = new[]
+            {
+                new
+                {
+                    index = 0,
+                    message = new
+                    {
+                        role = "assistant",
+                        content = responseJson
+                    },
+                    finish_reason = "stop"
+                }
+            },
+            usage = new
+            {
+                prompt_tokens = usage.InputTokenCount,
+                completion_tokens = usage.OutputTokenCount,
+                total_tokens = usage.TotalTokenCount,
+                prompt_tokens_details = new
+                {
+                    cached_tokens = usage.InputTokenDetails?.CachedTokenCount ?? 0
+                },
+                completion_tokens_details = new
+                {
+                    reasoning_tokens = usage.OutputTokenDetails?.ReasoningTokenCount ?? 0
+                }
+            }
+        })));
+
+        return ClientResult.FromResponse(response.Object);
+    }
+
+    private static IReadOnlyList<ChatMessage> ReadProtocolMessages(BinaryContent content)
+    {
+        using var stream = new MemoryStream();
+        content.WriteTo(stream, CancellationToken.None);
+        using var document = JsonDocument.Parse(Encoding.UTF8.GetString(stream.ToArray()));
+        var messages = new List<ChatMessage>();
+
+        foreach (var message in document.RootElement.GetProperty("messages").EnumerateArray())
+        {
+            var role = message.GetProperty("role").GetString();
+            var text = message.GetProperty("content").GetString() ?? string.Empty;
+            messages.Add(role switch
+            {
+                "system" => new SystemChatMessage(text),
+                "user" => new UserChatMessage(text),
+                _ => throw new InvalidOperationException($"Unsupported protocol message role '{role}'.")
+            });
+        }
+
+        return messages;
     }
 }
