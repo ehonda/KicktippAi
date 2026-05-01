@@ -148,7 +148,7 @@ jobs:
             "dotnet run --project tests/${{ matrix.project }} --configuration Release --no-build"
             
       - name: Upload coverage artifact
-        uses: actions/upload-artifact@v4
+        uses: actions/upload-artifact@v7
         with:
           name: coverage-${{ matrix.project }}
           path: coverage/${{ matrix.project }}.cobertura.xml
@@ -198,14 +198,14 @@ jobs:
         run: .github/scripts/Apply-CoverageMobileStyles.ps1 -ReportDir coverage-report
           
       - name: Upload merged coverage
-        uses: actions/upload-artifact@v4
+        uses: actions/upload-artifact@v7
         with:
           name: coverage-merged
           path: coverage/merged.cobertura.xml
           retention-days: 30
           
       - name: Upload HTML report artifact
-        uses: actions/upload-artifact@v4
+        uses: actions/upload-artifact@v7
         with:
           name: coverage-report
           path: coverage-report/
