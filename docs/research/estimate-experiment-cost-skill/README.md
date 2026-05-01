@@ -37,11 +37,11 @@ Every experiment document must include:
 
 | Sequence | Experiment | Status | Purpose |
 | --- | --- | --- | --- |
-| 001 | [Cost Data Discovery](001-cost-data-discovery.md) | Placeholder | Temporary placeholder from initial scaffolding. The user will replace it shortly with the intended first experiment. |
+| 001 | [Slice vs Repeated-Match Token Usage](001-slice-vs-repeated-token-usage.md) | Completed | Compared `o3` medium token usage between a 10-item random slice and a 10-item measured repeated-match sample after the `2025-12-01` cutoff. |
 
 ## Current Estimator Shape
 
-The estimator is intentionally provisional until the first user-specified experiment is complete.
+The estimator is still provisional and should be revised as each user-specified sub experiment adds evidence.
 
 Expected inputs:
 
@@ -57,7 +57,7 @@ Expected inputs:
 Expected evidence sources:
 
 - existing `artifacts/langfuse-experiments` analysis bundles when available
-- Langfuse traces, observations, dataset runs, and scores
+- Langfuse traces, observations, dataset runs, and scores; trace details currently expose `predict-match` `usageDetails` and `costDetails`
 - Orchestrator command output and generated manifests
 - official model pricing data, recorded with source and date
 
@@ -69,11 +69,17 @@ Expected output:
 - observed comparable runs used as evidence
 - recommended cheapest next validation step
 
+Current finding from experiment 001:
+
+- Repeated-match runs can expose meaningful input-cache behavior, but a single repeated fixture is not enough to estimate slice input-token usage because input tokens are fixture/context specific.
+- In Sub Experiment A (`o3`, medium effort, `N = 10` measured per group), output tokens and total tokens did not differ significantly between the random slice and repeated-match sample, while total input tokens did differ because the repeated fixture had a shorter prompt than the slice average.
+- For cost estimates, keep total input tokens, cached input tokens, uncached input tokens, output tokens, reasoning tokens, and service tier separate. Cached input behavior should be estimated from repeated-match batch shape, while total input prompt length should be checked against fixture-level prompt/context size.
+
 ## Open Questions
 
-- Which Langfuse API resources expose the most reliable token and cost fields for this project?
-- Do exported experiment analysis bundles currently include enough usage data, or do they need to be extended?
+- Can exported experiment analysis bundles be extended to include normalized usage data so agents do not need one trace-detail API call per item?
 - How much variance exists between repeated predictions for the same fixture and prompt?
+- How many random repeated fixtures are needed before repeated-match usage is representative of slice input-token distributions?
 - Does reasoning effort materially change token usage in a predictable way for our prompts?
 - Can prompt reconstruction estimate input tokens accurately enough without calling a model?
 - How should the skill treat cached input tokens, retries, and failed item runs?

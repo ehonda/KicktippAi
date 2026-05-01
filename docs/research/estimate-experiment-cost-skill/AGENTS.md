@@ -28,6 +28,8 @@ These instructions apply to `docs/research/estimate-experiment-cost-skill`.
 - Read `docs/langfuse/experiments/` before preparing, syncing, running, exporting, or analyzing experiment runs.
 - Run every `dotnet` command outside the sandbox, as required by the root instructions.
 - Use `uv` for Python commands.
+- When a repeated-match experiment needs a random fixture after a cutoff and `prepare-repeated-match` does not support the random/cutoff selection directly, first prepare a one-item random slice with the required cutoff and seed, then use that selected fixture for `prepare-repeated-match`.
+- When comparing repeated-match usage against slice usage, prepare `N + 1` repeated-match items so the first item can act as warmup. Exclude repeated dataset item `__01` from measured token statistics and record the warmup separately.
 
 Prefer data sources in this order:
 
