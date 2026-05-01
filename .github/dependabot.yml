@@ -6,12 +6,9 @@ updates:
       interval: "daily"
     open-pull-requests-limit: 10
     groups:
-      non-major-dependencies:
+      nuget-dependencies:
         patterns:
           - "*"
-        update-types:
-          - "minor"
-          - "patch"
 
   - package-ecosystem: "github-actions"
     directory: "/"
@@ -19,9 +16,6 @@ updates:
       interval: "daily"
     open-pull-requests-limit: 5
     groups:
-      non-major-actions:
+      github-actions-dependencies:
         patterns:
           - "*"
-        update-types:
-          - "minor"
-          - "patch"
