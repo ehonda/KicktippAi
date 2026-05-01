@@ -80,6 +80,12 @@ This creates `slice-dataset.json` and `slice-manifest.json`.
 dotnet run --project src/Orchestrator -- prepare-slice --community-context pes-squad --matchdays 26 --sample-size 1 --sample-seed 20260405 --output-directory artifacts/langfuse-experiments/verification/pes-squad-slice
 ```
 
+Use `--starts-after` when you want the random slice to exclude older completed matches, for example to avoid fixtures that may fall before a model's knowledge cutoff. The flag uses the same NodaTime invariant `ZonedDateTime` `G` format as `--evaluation-time`, and only matches with `startsAt` strictly after the supplied timestamp are eligible.
+
+```powershell
+dotnet run --project src/Orchestrator -- prepare-slice --community-context pes-squad --sample-size 10 --sample-seed 20260403 --starts-after "2026-01-01T00:00:00 Europe/Berlin (+01)"
+```
+
 ### 2. Sync the dataset
 
 ```powershell

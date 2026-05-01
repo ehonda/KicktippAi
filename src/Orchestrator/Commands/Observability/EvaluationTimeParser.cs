@@ -38,7 +38,17 @@ internal static class EvaluationTimeParser
         }
     }
 
-    private static string Normalize(string value)
+    public static string? NormalizeOrNull(string? value)
+    {
+        if (string.IsNullOrWhiteSpace(value))
+        {
+            return null;
+        }
+
+        return Normalize(value);
+    }
+
+    public static string Normalize(string value)
     {
         value = value.Trim();
         if (value.Length >= 2 && value[0] == '"' && value[^1] == '"')

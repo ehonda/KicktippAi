@@ -2,6 +2,7 @@ using System.Globalization;
 using System.Text.Json;
 using EHonda.KicktippAi.Core;
 using Microsoft.Extensions.Logging;
+using NodaTime;
 using Orchestrator.Commands.Observability.Experiments;
 using Orchestrator.Commands.Observability.ExportExperimentDataset;
 using Orchestrator.Infrastructure.Factories;
@@ -33,10 +34,13 @@ public sealed class PrepareSliceCommand : AsyncCommand<PrepareSliceSettings>
             var cancellationToken = CancellationToken.None;
             var matchOutcomeRepository = _firebaseServiceFactory.CreateMatchOutcomeRepository();
             var matchdays = ParseMatchdays(settings.Matchdays);
+            var startsAfter = EvaluationTimeParser.ParseOrNull(settings.StartsAfter);
+            var normalizedStartsAfter = EvaluationTimeParser.NormalizeOrNull(settings.StartsAfter);
             var availableItems = await LoadSourceItemsAsync(
                 matchOutcomeRepository,
                 settings.CommunityContext,
                 matchdays,
+                startsAfter,
                 cancellationToken);
 
             if (availableItems.Count == 0)
@@ -51,7 +55,7 @@ public sealed class PrepareSliceCommand : AsyncCommand<PrepareSliceSettings>
                 ? $"random-{settings.SampleSize}-seed-{sampleSeed}"
                 : settings.SliceKey.Trim();
             var sourcePoolKey = string.IsNullOrWhiteSpace(settings.SourcePoolKey)
-                ? BuildDefaultSourcePoolKey(matchdays)
+                ? BuildDefaultSourcePoolKey(matchdays, startsAfter)
                 : settings.SourcePoolKey.Trim();
             var selectedItems = SelectRandomItems(availableItems, settings.SampleSize, sampleSeed)
                 .OrderBy(item => item.SourceDatasetItemId, StringComparer.Ordinal)
@@ -79,26 +83,32 @@ public sealed class PrepareSliceCommand : AsyncCommand<PrepareSliceSettings>
                 settings.SliceKind.Trim(),
                 settings.SampleMethod.Trim(),
                 sourcePoolKey,
-                sampleSeed);
+                sampleSeed,
+                extraDatasetMetadata: BuildSliceDatasetMetadata(normalizedStartsAfter));
+            var manifest = bundle.Manifest with
+            {
+                StartsAfter = normalizedStartsAfter
+            };
 
             await WriteJsonFileAsync(sliceArtifactPath, bundle.Artifact, cancellationToken);
-            await WriteJsonFileAsync(sliceManifestPath, bundle.Manifest, cancellationToken);
+            await WriteJsonFileAsync(sliceManifestPath, manifest, cancellationToken);
 
             var summary = new
             {
                 mode = "slice",
                 sourceDatasetName,
-                datasetName = bundle.Manifest.SliceDatasetName,
-                bundle.Manifest.CommunityContext,
-                bundle.Manifest.SourcePoolKey,
-                bundle.Manifest.SliceKey,
-                bundle.Manifest.SliceKind,
-                bundle.Manifest.SampleMethod,
-                bundle.Manifest.SampleSize,
-                bundle.Manifest.SampleSeed,
+                datasetName = manifest.SliceDatasetName,
+                manifest.CommunityContext,
+                manifest.SourcePoolKey,
+                manifest.SliceKey,
+                manifest.SliceKind,
+                manifest.SampleMethod,
+                manifest.SampleSize,
+                manifest.SampleSeed,
                 matchdays,
-                bundle.Manifest.SelectedItemIds,
-                bundle.Manifest.SelectedItemIdsHash,
+                manifest.StartsAfter,
+                manifest.SelectedItemIds,
+                manifest.SelectedItemIdsHash,
                 outputDirectory,
                 sliceArtifactPath,
                 sliceManifestPath
@@ -119,9 +129,13 @@ public sealed class PrepareSliceCommand : AsyncCommand<PrepareSliceSettings>
         IMatchOutcomeRepository matchOutcomeRepository,
         string communityContext,
         IReadOnlyList<int> matchdays,
+        DateTimeOffset? startsAfter,
         CancellationToken cancellationToken)
     {
         var sourceItems = new List<PreparedExperimentSourceItem>();
+        var startsAfterInstant = startsAfter is null
+            ? (Instant?)null
+            : Instant.FromDateTimeOffset(startsAfter.Value);
 
         foreach (var matchday in matchdays)
         {
@@ -129,6 +143,11 @@ public sealed class PrepareSliceCommand : AsyncCommand<PrepareSliceSettings>
             foreach (var outcome in outcomes)
             {
                 if (!outcome.HasOutcome || outcome.HomeGoals is null || outcome.AwayGoals is null)
+                {
+                    continue;
+                }
+
+                if (startsAfterInstant is not null && outcome.StartsAt.ToInstant() <= startsAfterInstant.Value)
                 {
                     continue;
                 }
@@ -208,11 +227,35 @@ public sealed class PrepareSliceCommand : AsyncCommand<PrepareSliceSettings>
             .AsReadOnly();
     }
 
-    private static string BuildDefaultSourcePoolKey(IReadOnlyList<int> matchdays)
+    private static string BuildDefaultSourcePoolKey(IReadOnlyList<int> matchdays, DateTimeOffset? startsAfter)
     {
-        return matchdays.SequenceEqual(Enumerable.Range(1, 34))
+        var baseKey = matchdays.SequenceEqual(Enumerable.Range(1, 34))
             ? "all-matchdays"
             : $"matchdays-{string.Join('-', matchdays)}";
+
+        if (startsAfter is null)
+        {
+            return baseKey;
+        }
+
+        var utcToken = startsAfter.Value
+            .ToUniversalTime()
+            .ToString("yyyyMMdd't'HHmmss'z'", CultureInfo.InvariantCulture)
+            .ToLowerInvariant();
+        return $"{baseKey}-after-{utcToken}";
+    }
+
+    private static IReadOnlyDictionary<string, object?>? BuildSliceDatasetMetadata(string? startsAfter)
+    {
+        if (string.IsNullOrWhiteSpace(startsAfter))
+        {
+            return null;
+        }
+
+        return new Dictionary<string, object?>
+        {
+            ["startsAfter"] = startsAfter
+        };
     }
 
     private static string ResolveOutputDirectory(

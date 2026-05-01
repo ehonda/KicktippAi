@@ -50,6 +50,9 @@ internal sealed record PreparedExperimentManifest
     [JsonPropertyName("cutoffMatchday")]
     public int? CutoffMatchday { get; init; }
 
+    [JsonPropertyName("startsAfter")]
+    public string? StartsAfter { get; init; }
+
     [JsonPropertyName("participants")]
     public IReadOnlyList<PreparedExperimentParticipantManifest> Participants { get; init; } = [];
 

@@ -78,6 +78,7 @@ The manifest carries the structural experiment contract:
 - `season`
 - `sampleSeed`
 - `sampleSize`
+- `startsAfter` when a slice was prepared with a start-time cutoff
 - `selectedItemIds`
 - `selectedItemIdsHash`
 - `items`

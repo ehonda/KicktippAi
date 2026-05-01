@@ -23,6 +23,10 @@ public sealed class PrepareSliceSettings : CommandSettings
     [Description("Optional deterministic seed for random slice selection. Defaults to the current UTC date in yyyyMMdd format")]
     public int? SampleSeed { get; set; }
 
+    [CommandOption("--starts-after")]
+    [Description("Optional match start cutoff in NodaTime invariant ZonedDateTime 'G' format. Only matches strictly after this timestamp are eligible.")]
+    public string? StartsAfter { get; set; }
+
     [CommandOption("--slice-key")]
     [Description("Optional slice key override. Defaults to random-<sample-size>-seed-<sample-seed>")]
     public string? SliceKey { get; set; }
@@ -69,6 +73,18 @@ public sealed class PrepareSliceSettings : CommandSettings
         if (string.IsNullOrWhiteSpace(SampleMethod))
         {
             return ValidationResult.Error("--sample-method must be a non-empty string");
+        }
+
+        if (!string.IsNullOrWhiteSpace(StartsAfter))
+        {
+            try
+            {
+                _ = EvaluationTimeParser.Parse(StartsAfter);
+            }
+            catch (ArgumentException ex)
+            {
+                return ValidationResult.Error(ex.Message);
+            }
         }
 
         if (string.IsNullOrWhiteSpace(Matchdays))

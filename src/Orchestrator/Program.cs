@@ -176,7 +176,8 @@ public class Program
             config.AddCommand<PrepareSliceCommand>("prepare-slice")
                 .WithDescription("Create a reusable sampled slice artifact and manifest directly from completed historical matches")
                 .WithExample("prepare-slice", "--community-context", "pes-squad", "--sample-size", "16", "--sample-seed", "20260403")
-                .WithExample("prepare-slice", "--community-context", "pes-squad", "--matchdays", "26", "--sample-size", "10", "--source-pool-key", "matchdays-26", "--slice-key", "random-10-seed-20251011");
+                .WithExample("prepare-slice", "--community-context", "pes-squad", "--matchdays", "26", "--sample-size", "10", "--source-pool-key", "matchdays-26", "--slice-key", "random-10-seed-20251011")
+                .WithExample("prepare-slice", "--community-context", "pes-squad", "--sample-size", "10", "--starts-after", "\"2026-01-01T00:00:00 Europe/Berlin (+01)\"", "--sample-seed", "20260403");
 
             config.AddCommand<PrepareRepeatedMatchCommand>("prepare-repeated-match")
                 .WithDescription("Create a repeated-match dataset and manifest for a single historical fixture")
