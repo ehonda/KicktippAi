@@ -216,7 +216,7 @@ jobs:
         run: .github/scripts/Build-PagesSite.ps1 -CoverageReportDir coverage-report -ExperimentAnalysisDir experiment-analysis -OutputDir pages-site
 
       - name: Upload Pages artifact
-        uses: actions/upload-pages-artifact@v3
+        uses: actions/upload-pages-artifact@v5
         with:
           path: pages-site/
 
