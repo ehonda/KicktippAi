@@ -1,0 +1,50 @@
+<Project>
+
+  <PropertyGroup>
+    <ManagePackageVersionsCentrally>true</ManagePackageVersionsCentrally>
+  </PropertyGroup>
+
+  <ItemGroup>
+    <PackageVersion Include="AngleSharp" Version="1.1.2" />
+    <PackageVersion Include="CsvHelper" Version="33.0.1" />
+    <PackageVersion Include="DotNetEnv" Version="3.1.1" />
+    <PackageVersion Include="EHonda.Optional.Core" Version="3.0.0" />
+    <PackageVersion Include="EHonda.Pagination.CursorBased" Version="2.0.1" />
+    <PackageVersion Include="EHonda.Pagination.OffsetBased" Version="2.0.1" />
+    <PackageVersion Include="Google.Cloud.Firestore" Version="3.12.0" />
+    <PackageVersion Include="Grpc.Core" Version="2.46.6" />
+    <PackageVersion Include="Microsoft.Extensions.Caching.Memory" Version="10.0.3" />
+    <PackageVersion Include="Microsoft.Extensions.Configuration" Version="10.0.3" />
+    <PackageVersion Include="Microsoft.Extensions.Configuration.Abstractions" Version="10.0.3" />
+    <PackageVersion Include="Microsoft.Extensions.Configuration.EnvironmentVariables" Version="10.0.3" />
+    <PackageVersion Include="Microsoft.Extensions.Configuration.Json" Version="10.0.3" />
+    <PackageVersion Include="Microsoft.Extensions.DependencyInjection" Version="10.0.3" />
+    <PackageVersion Include="Microsoft.Extensions.DependencyInjection.Abstractions" Version="10.0.3" />
+    <PackageVersion Include="Microsoft.Extensions.Diagnostics.Testing" Version="9.10.0" />
+    <PackageVersion Include="Microsoft.Extensions.FileProviders.Abstractions" Version="10.0.3" />
+    <PackageVersion Include="Microsoft.Extensions.FileProviders.Physical" Version="10.0.3" />
+    <PackageVersion Include="Microsoft.Extensions.Hosting" Version="10.0.3" />
+    <PackageVersion Include="Microsoft.Extensions.Http" Version="10.0.3" />
+    <PackageVersion Include="Microsoft.Extensions.Http.Resilience" Version="10.1.0" />
+    <PackageVersion Include="Microsoft.Extensions.Logging" Version="10.0.3" />
+    <PackageVersion Include="Microsoft.Extensions.Logging.Abstractions" Version="10.0.3" />
+    <PackageVersion Include="Microsoft.Extensions.Logging.Console" Version="10.0.3" />
+    <PackageVersion Include="Microsoft.Extensions.Options" Version="10.0.3" />
+    <PackageVersion Include="Microsoft.Extensions.Options.ConfigurationExtensions" Version="10.0.3" />
+    <PackageVersion Include="Microsoft.Testing.Extensions.TrxReport" Version="2.0.2" />
+    <PackageVersion Include="Moq" Version="4.20.72" />
+    <PackageVersion Include="NodaTime" Version="3.2.2" />
+    <PackageVersion Include="OpenAI" Version="2.10.0" />
+    <PackageVersion Include="OpenTelemetry" Version="1.15.0" />
+    <PackageVersion Include="OpenTelemetry.Exporter.OpenTelemetryProtocol" Version="1.15.0" />
+    <PackageVersion Include="OpenTelemetry.Extensions.Hosting" Version="1.15.0" />
+    <PackageVersion Include="Polly.Core" Version="8.4.2" />
+    <PackageVersion Include="Spectre.Console.Cli" Version="0.49.0" />
+    <PackageVersion Include="Spectre.Console.Testing" Version="0.49.0" />
+    <PackageVersion Include="System.Linq.Async" Version="6.0.3" />
+    <PackageVersion Include="Testcontainers.Firestore" Version="4.9.0" />
+    <PackageVersion Include="TUnit" Version="1.2.11" />
+    <PackageVersion Include="WireMock.Net" Version="1.21.0" />
+  </ItemGroup>
+
+</Project>
