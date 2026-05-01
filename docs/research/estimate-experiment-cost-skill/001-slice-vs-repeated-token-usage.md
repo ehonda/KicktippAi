@@ -20,6 +20,8 @@ Dataset construction:
 - Repeated-match fixture: selected through a one-item random slice from the same cutoff pool and seed because `prepare-repeated-match` does not support random selection directly.
 - Repeated-match dataset: 11 materialized repetitions of the selected fixture, with item `__01` treated as warmup and excluded from the measured repeated-match statistics.
 
+Workflow correction after review: because this research question is about total input/output token counts rather than cached-vs-uncached input or monetary cost, future sub experiments should prepare exactly `N` repeated-match items and include all `N` items in the token-count comparison. The extra warmup item in this run was unnecessary for the primary total-token question. It does not affect the total-input conclusion because every repeated-match observation, including the warmup, had `3269` total input tokens.
+
 Random repeated fixture:
 
 - `Werder Bremen vs RB Leipzig`, matchday 28
@@ -108,11 +110,11 @@ Answer for Sub Experiment A:
 
 Implication for the future estimator:
 
-Repeated-match runs are useful for observing output-token and cache behavior for a model configuration, but a single repeated fixture should not be used as the only estimate for slice input-token usage. Input tokens are dominated by fixture-specific prompt context. If repeated-match datasets are used as a cheap proxy, the workflow needs either several randomly selected repeated fixtures or a representativeness check against reconstructed prompt/input lengths.
+Repeated-match runs are useful for observing output-token behavior for a model configuration, but a single repeated fixture should not be used as the only estimate for slice input-token usage. Input tokens are dominated by fixture-specific prompt context. If repeated-match datasets are used as a cheap proxy, the workflow needs either several randomly selected repeated fixtures or a representativeness check against reconstructed prompt/input lengths.
 
 ## Further Research Directions
 
 - Wait for the user to choose the next model/reasoning-effort sub experiment.
 - To separate fixture effects from dataset-type effects, run repeated-match samples for several randomly selected fixtures and compare the fixture-level input lengths to the slice distribution.
 - Extend the Orchestrator export or report tooling to include normalized usage details so future research does not need one trace-detail API call per item.
-- Track cache-hit position and batch shape explicitly; in this run, only 5 of the 10 post-warmup repeated observations had non-zero cached input tokens.
+- Use exactly `N` repeated-match items for future total-token comparisons unless the user explicitly asks to study cached-input or monetary-cost behavior.

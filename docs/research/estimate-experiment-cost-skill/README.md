@@ -71,9 +71,9 @@ Expected output:
 
 Current finding from experiment 001:
 
-- Repeated-match runs can expose meaningful input-cache behavior, but a single repeated fixture is not enough to estimate slice input-token usage because input tokens are fixture/context specific.
+- A single repeated fixture is not enough to estimate slice input-token usage because total input tokens are fixture/context specific.
 - In Sub Experiment A (`o3`, medium effort, `N = 10` measured per group), output tokens and total tokens did not differ significantly between the random slice and repeated-match sample, while total input tokens did differ because the repeated fixture had a shorter prompt than the slice average.
-- For cost estimates, keep total input tokens, cached input tokens, uncached input tokens, output tokens, reasoning tokens, and service tier separate. Cached input behavior should be estimated from repeated-match batch shape, while total input prompt length should be checked against fixture-level prompt/context size.
+- For token-count comparisons, use exactly `N` repeated-match items and compare total input/output token fields. Keep cached-input and uncached-input fields separate only when the research question includes cost or cache behavior.
 
 ## Open Questions
 

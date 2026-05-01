@@ -29,7 +29,7 @@ These instructions apply to `docs/research/estimate-experiment-cost-skill`.
 - Run every `dotnet` command outside the sandbox, as required by the root instructions.
 - Use `uv` for Python commands.
 - When a repeated-match experiment needs a random fixture after a cutoff and `prepare-repeated-match` does not support the random/cutoff selection directly, first prepare a one-item random slice with the required cutoff and seed, then use that selected fixture for `prepare-repeated-match`.
-- When comparing repeated-match usage against slice usage, prepare `N + 1` repeated-match items so the first item can act as warmup. Exclude repeated dataset item `__01` from measured token statistics and record the warmup separately.
+- When comparing total input, output, or total token counts between repeated-match and slice usage, prepare exactly `N` repeated-match items. Do not add or exclude a warmup item unless the user explicitly makes cached-input behavior, uncached-input behavior, or monetary cost part of the research question.
 
 Prefer data sources in this order:
 
