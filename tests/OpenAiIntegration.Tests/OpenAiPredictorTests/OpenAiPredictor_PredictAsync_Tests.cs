@@ -1,7 +1,7 @@
 using Microsoft.Extensions.Logging;
 using Microsoft.Extensions.Logging.Testing;
 using Moq;
-using OpenAI.Chat;
+using OpenAI.Responses;
 using TestUtilities.FakeLoggerAssertions;
 using TUnit.Core;
 
@@ -85,10 +85,11 @@ public class OpenAiPredictor_PredictAsync_Tests : OpenAiPredictorTests_Base
     public async Task Predicting_with_client_exception_returns_fallback_prediction_and_logs_error()
     {
         var logger = new FakeLogger<OpenAiPredictor>();
-        var mockClient = new Mock<ChatClient>();
-        mockClient.Setup(client => client.CompleteChatAsync(
-                It.IsAny<IEnumerable<ChatMessage>>(),
-                It.IsAny<ChatCompletionOptions>(),
+        var mockClient = new Mock<ResponsesClient>("test-api-key");
+        mockClient.Setup(client => client.CreateResponseAsync(
+                It.IsAny<string>(),
+                It.IsAny<string>(),
+                It.IsAny<string?>(),
                 It.IsAny<CancellationToken>()))
             .ThrowsAsync(new InvalidOperationException("boom"));
 
@@ -107,16 +108,14 @@ public class OpenAiPredictor_PredictAsync_Tests : OpenAiPredictorTests_Base
     [Test]
     public async Task Predicting_builds_prompt_with_match_details()
     {
-        IReadOnlyList<ChatMessage> capturedMessages = [];
+        string capturedPrompt = string.Empty;
         var predictor = CreatePredictor(
-            chatClient: CreateMockChatClientWithCapture(messages => capturedMessages = messages));
+            chatClient: CreateMockChatClientWithCapture(prompt => capturedPrompt = prompt));
 
         await predictor.PredictAsync(CreateTestMatch(), CreateTestContext());
 
-        await Assert.That(capturedMessages.Count).IsEqualTo(1);
-        var prompt = ((UserChatMessage)capturedMessages[0]).Content[0].Text;
-        await Assert.That(prompt).Contains("FC Bayern München vs Borussia Dortmund");
-        await Assert.That(prompt).Contains("2025-03-15 14:30");
-        await Assert.That(prompt).Contains("HOME_GOALS-AWAY_GOALS");
+        await Assert.That(capturedPrompt).Contains("FC Bayern München vs Borussia Dortmund");
+        await Assert.That(capturedPrompt).Contains("2025-03-15 14:30");
+        await Assert.That(capturedPrompt).Contains("HOME_GOALS-AWAY_GOALS");
     }
 }

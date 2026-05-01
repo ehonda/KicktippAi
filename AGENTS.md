@@ -2,6 +2,8 @@
 
 This document contains context relevant when working on tasks in this repository.
 
+@AUTO-REVIEW.md
+
 ## GitHub Copilot Configuration
 
 ### Workaround for truncated output when using the `run_in_terminal` tool

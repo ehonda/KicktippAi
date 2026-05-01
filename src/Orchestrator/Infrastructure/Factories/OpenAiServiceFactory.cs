@@ -5,7 +5,7 @@ using System.Net.Http;
 using EHonda.KicktippAi.Core;
 using Microsoft.Extensions.Logging;
 using OpenAI;
-using OpenAI.Chat;
+using OpenAI.Responses;
 using OpenAiIntegration;
 using Orchestrator.Infrastructure;
 
@@ -143,10 +143,10 @@ public sealed class OpenAiServiceFactory : IOpenAiServiceFactory
         string apiKey)
     {
         var logger = _loggerFactory.CreateLogger<PredictionService>();
-        var chatClient = new ChatClient(model, new ApiKeyCredential(apiKey), CreateOpenAiClientOptions());
+        var responsesClient = new ResponsesClient(new ApiKeyCredential(apiKey), CreateOpenAiClientOptions());
 
         return new PredictionService(
-            chatClient,
+            responsesClient,
             logger,
             GetOrCreateCostCalculationService(),
             GetTokenUsageTracker(),

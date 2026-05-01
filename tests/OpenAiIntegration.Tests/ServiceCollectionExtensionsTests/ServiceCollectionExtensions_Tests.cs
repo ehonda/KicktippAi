@@ -3,7 +3,7 @@ using Microsoft.Extensions.Configuration;
 using Microsoft.Extensions.DependencyInjection;
 using Microsoft.Extensions.FileProviders;
 using Moq;
-using OpenAI.Chat;
+using OpenAI.Responses;
 using TUnit.Core;
 
 namespace OpenAiIntegration.Tests.ServiceCollectionExtensionsTests;
@@ -35,7 +35,7 @@ public class ServiceCollectionExtensions_Tests
         var result = services.AddOpenAiPredictor("test-api-key", "gpt-5-mini");
 
         await Assert.That(result).IsEqualTo(services);
-        await Assert.That(services.FirstOrDefault(descriptor => descriptor.ServiceType == typeof(ChatClient)))
+        await Assert.That(services.FirstOrDefault(descriptor => descriptor.ServiceType == typeof(ResponsesClient)))
             .IsNotNull()
             .And.Member(descriptor => descriptor!.Lifetime, lifetime => lifetime.IsEqualTo(ServiceLifetime.Singleton));
         await Assert.That(services.FirstOrDefault(descriptor => descriptor.ServiceType == typeof(PredictorContext)))
@@ -88,7 +88,7 @@ public class ServiceCollectionExtensions_Tests
         services.AddOpenAiPredictor(configuration.Object);
         var provider = services.BuildServiceProvider();
 
-        await Assert.That(provider.GetRequiredService<ChatClient>()).IsNotNull();
+        await Assert.That(provider.GetRequiredService<ResponsesClient>()).IsNotNull();
         await Assert.That(provider.GetRequiredService<IPredictionService>()).IsNotNull();
     }
 
@@ -108,7 +108,7 @@ public class ServiceCollectionExtensions_Tests
             services.AddOpenAiPredictor(configuration.Object);
             var provider = services.BuildServiceProvider();
 
-            await Assert.That(provider.GetRequiredService<ChatClient>()).IsNotNull();
+            await Assert.That(provider.GetRequiredService<ResponsesClient>()).IsNotNull();
             await Assert.That(provider.GetRequiredService<IPredictionService>()).IsNotNull();
         }
         finally

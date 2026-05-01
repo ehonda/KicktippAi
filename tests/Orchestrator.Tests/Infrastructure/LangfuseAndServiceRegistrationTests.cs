@@ -190,7 +190,7 @@ public class LangfuseAndServiceRegistrationTests
         using var server = WireMockServer.Start();
         server
             .Given(Request.Create()
-                .WithPath("/v1/chat/completions")
+                .WithPath("/v1/responses")
                 .UsingPost())
             .RespondWith(Response.Create()
                 .WithStatusCode(429)
@@ -205,7 +205,7 @@ public class LangfuseAndServiceRegistrationTests
         using var httpClient = httpClientFactory.CreateClient(ServiceRegistrationExtensions.OpenAiHttpClientName);
         httpClient.BaseAddress = new Uri(server.Urls[0]);
 
-        using var response = await httpClient.PostAsync("v1/chat/completions", new StringContent("{}"));
+        using var response = await httpClient.PostAsync("v1/responses", new StringContent("{}"));
 
         await Assert.That(response.StatusCode).IsEqualTo(HttpStatusCode.TooManyRequests);
         await Assert.That(server.LogEntries.Count).IsEqualTo(1);
@@ -217,7 +217,7 @@ public class LangfuseAndServiceRegistrationTests
         using var server = WireMockServer.Start();
         server
             .Given(Request.Create()
-                .WithPath("/v1/chat/completions")
+                .WithPath("/v1/responses")
                 .UsingPost())
             .RespondWith(Response.Create()
                 .WithStatusCode(429)
@@ -237,7 +237,7 @@ public class LangfuseAndServiceRegistrationTests
         {
             try
             {
-                using var response = await httpClient.PostAsync("v1/chat/completions", new StringContent("{}"));
+                using var response = await httpClient.PostAsync("v1/responses", new StringContent("{}"));
                 await Assert.That(response.StatusCode).IsEqualTo(HttpStatusCode.TooManyRequests);
             }
             catch (BrokenCircuitException ex)

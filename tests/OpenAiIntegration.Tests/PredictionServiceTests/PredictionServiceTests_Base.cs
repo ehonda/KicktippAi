@@ -1,16 +1,17 @@
-using Microsoft.Extensions.Logging;
-using Microsoft.Extensions.Logging.Testing;
-using Moq;
-using NodaTime;
-using OpenAI.Chat;
 using System.ClientModel;
 using System.ClientModel.Primitives;
 using System.Text;
 using System.Text.Json;
 using EHonda.KicktippAi.Core;
+using EHonda.Optional.Core;
+using Microsoft.Extensions.Logging;
+using Microsoft.Extensions.Logging.Testing;
+using Moq;
+using NodaTime;
+using OpenAI.Chat;
+using OpenAI.Responses;
 using TestUtilities;
 using TUnit.Core;
-using EHonda.Optional.Core;
 using Match = EHonda.KicktippAi.Core.Match;
 
 namespace OpenAiIntegration.Tests.PredictionServiceTests;
@@ -24,7 +25,7 @@ public abstract class PredictionServiceTests_Base
     /// Factory method to create a PredictionService instance using the configured dependencies
     /// </summary>
     protected static PredictionService CreateService(
-        NullableOption<ChatClient> chatClient = default,
+        NullableOption<ResponsesClient> chatClient = default,
         NullableOption<FakeLogger<PredictionService>> logger = default,
         NullableOption<ICostCalculationService> costCalculationService = default,
         NullableOption<ITokenUsageTracker> tokenUsageTracker = default,
@@ -32,7 +33,7 @@ public abstract class PredictionServiceTests_Base
         NullableOption<string> model = default,
         NullableOption<PredictionServiceOptions> options = default)
     {
-        var actualChatClient = chatClient.Or(() =>
+        var actualResponsesClient = chatClient.Or(() =>
         {
             return CreateMockChatClient();
         });
@@ -45,7 +46,7 @@ public abstract class PredictionServiceTests_Base
         var actualOptions = options.Or(PredictionServiceOptions.Default);
 
         return new PredictionService(
-            actualChatClient!,
+            actualResponsesClient!,
             actualLogger!,
             actualCostService!,
             actualTokenTracker!,
@@ -127,9 +128,199 @@ public abstract class PredictionServiceTests_Base
     protected static Mock<IInstructionsTemplateProvider> CreateMockTemplateProvider(string model = "gpt-5")
     {
         var mock = new Mock<IInstructionsTemplateProvider>();
-        
-        // Map the model to the prompt model (same logic as GetPromptModelForModel)
-        var promptModel = model switch
+
+        var matchTemplate = "You are a football prediction expert. Predict the match outcome.";
+        var matchJustificationTemplate = "You are a football prediction expert. Predict the match outcome and provide justification.";
+        var bonusTemplate = "You are a football prediction expert. Answer the bonus question.";
+
+        mock.Setup(p => p.LoadMatchTemplate(It.IsAny<string>(), false))
+            .Returns((string m, bool _) =>
+            {
+                var pm = GetPromptModelForTest(m);
+                return (matchTemplate, $"/prompts/{pm}/match.md");
+            });
+
+        mock.Setup(p => p.LoadMatchTemplate(It.IsAny<string>(), true))
+            .Returns((string m, bool _) =>
+            {
+                var pm = GetPromptModelForTest(m);
+                return (matchJustificationTemplate, $"/prompts/{pm}/match.justification.md");
+            });
+
+        mock.Setup(p => p.LoadBonusTemplate(It.IsAny<string>()))
+            .Returns((string m) =>
+            {
+                var pm = GetPromptModelForTest(m);
+                return (bonusTemplate, $"/prompts/{pm}/bonus.md");
+            });
+
+        return mock;
+    }
+
+    /// <summary>
+    /// Creates a mock ResponsesClient with a configured response.
+    /// </summary>
+    protected static ResponsesClient CreateMockChatClient(
+        Option<string> responseJson = default,
+        Option<ChatTokenUsage> usage = default)
+    {
+        var actualResponseJson = responseJson.Or("""{"home": 2, "away": 1}""");
+        var actualUsage = usage.Or(() => OpenAITestHelpers.CreateChatTokenUsage(1000, 50));
+
+        var mockClient = new Mock<ResponsesClient>("test-api-key");
+        var mockResult = CreateResponseClientResult(actualResponseJson, actualUsage, serviceTier: "flex");
+
+        mockClient.Setup(client => client.CreateResponseAsync(
+                It.IsAny<CreateResponseOptions>(),
+                It.IsAny<CancellationToken>()))
+            .ReturnsAsync(mockResult);
+
+        return mockClient.Object;
+    }
+
+    /// <summary>
+    /// Creates a mock ResponsesClient and captures the response input messages passed to the async API.
+    /// </summary>
+    protected static ResponsesClient CreateMockChatClientWithCapture(
+        Action<IReadOnlyList<ChatMessage>> captureMessages,
+        Option<string> responseJson = default,
+        Option<ChatTokenUsage> usage = default)
+    {
+        var actualResponseJson = responseJson.Or("""{"home": 2, "away": 1}""");
+        var actualUsage = usage.Or(() => OpenAITestHelpers.CreateChatTokenUsage(1000, 50));
+
+        var mockClient = new Mock<ResponsesClient>("test-api-key");
+        var mockResult = CreateResponseClientResult(actualResponseJson, actualUsage, serviceTier: "flex");
+
+        mockClient.Setup(client => client.CreateResponseAsync(
+                It.IsAny<CreateResponseOptions>(),
+                It.IsAny<CancellationToken>()))
+            .Callback<CreateResponseOptions, CancellationToken>((options, _) =>
+                captureMessages(ReadResponseMessages(options)))
+            .ReturnsAsync(mockResult);
+
+        return mockClient.Object;
+    }
+
+    /// <summary>
+    /// Creates a mock ResponsesClient that throws an exception when called.
+    /// </summary>
+    protected static ResponsesClient CreateThrowingMockChatClient(Exception exception)
+    {
+        var mockClient = new Mock<ResponsesClient>("test-api-key");
+
+        mockClient.Setup(client => client.CreateResponseAsync(
+                It.IsAny<CreateResponseOptions>(),
+                It.IsAny<CancellationToken>()))
+            .ThrowsAsync(exception);
+
+        return mockClient.Object;
+    }
+
+    protected static ClientResult<ResponseResult> CreateResponseClientResult(
+        string responseJson,
+        ChatTokenUsage usage,
+        string? serviceTier = "flex")
+    {
+        var response = new Mock<PipelineResponse>();
+        response.SetupGet(candidate => candidate.Status).Returns(200);
+
+        var mockResult = new Mock<ClientResult<ResponseResult>>(null!, response.Object);
+        var result = CreateResponseResult(responseJson, usage, serviceTier);
+
+        mockResult.SetupGet(candidate => candidate.Value).Returns(result);
+        return mockResult.Object;
+    }
+
+    private static ResponseResult CreateResponseResult(
+        string responseJson,
+        ChatTokenUsage usage,
+        string? serviceTier)
+    {
+        var responseText = JsonSerializer.Serialize(responseJson);
+        var serviceTierJson = string.IsNullOrWhiteSpace(serviceTier)
+            ? string.Empty
+            : $",{Environment.NewLine}  \"service_tier\": {JsonSerializer.Serialize(serviceTier)}";
+        var responseContent = BinaryData.FromString($$"""
+            {
+              "id": "resp-test",
+              "object": "response",
+              "created_at": 1760000000,
+              "status": "completed",
+              "model": "gpt-5"{{serviceTierJson}},
+              "output": [
+                {
+                  "id": "msg-test",
+                  "type": "message",
+                  "role": "assistant",
+                  "status": "completed",
+                  "content": [
+                    {
+                      "type": "output_text",
+                      "text": {{responseText}},
+                      "annotations": []
+                    }
+                  ]
+                }
+              ],
+              "usage": {
+                "input_tokens": {{usage.InputTokenCount}},
+                "input_tokens_details": {
+                  "cached_tokens": {{usage.InputTokenDetails?.CachedTokenCount ?? 0}}
+                },
+                "output_tokens": {{usage.OutputTokenCount}},
+                "output_tokens_details": {
+                  "reasoning_tokens": {{usage.OutputTokenDetails?.ReasoningTokenCount ?? 0}}
+                },
+                "total_tokens": {{usage.TotalTokenCount}}
+              }
+            }
+            """);
+
+        return ModelReaderWriter.Read<ResponseResult>(responseContent, ModelReaderWriterOptions.Json)!;
+    }
+
+    protected static string ReadPayloadJson(CreateResponseOptions options)
+    {
+        using var content = (BinaryContent)options;
+        using var stream = new MemoryStream();
+        content.WriteTo(stream, CancellationToken.None);
+        return Encoding.UTF8.GetString(stream.ToArray());
+    }
+
+    protected static string? ExtractStringProperty(string json, string propertyName)
+    {
+        using var document = JsonDocument.Parse(json);
+        return document.RootElement.TryGetProperty(propertyName, out var property)
+               && property.ValueKind == JsonValueKind.String
+            ? property.GetString()
+            : null;
+    }
+
+    protected static IReadOnlyList<ChatMessage> ReadResponseMessages(CreateResponseOptions options)
+    {
+        var payloadJson = ReadPayloadJson(options);
+        using var document = JsonDocument.Parse(payloadJson);
+        var messages = new List<ChatMessage>();
+
+        foreach (var message in document.RootElement.GetProperty("input").EnumerateArray())
+        {
+            var role = message.GetProperty("role").GetString();
+            var text = ReadResponseMessageText(message);
+            messages.Add(role switch
+            {
+                "system" => new SystemChatMessage(text),
+                "user" => new UserChatMessage(text),
+                _ => throw new InvalidOperationException($"Unsupported response message role '{role}'.")
+            });
+        }
+
+        return messages;
+    }
+
+    private static string GetPromptModelForTest(string model)
+    {
+        return model switch
         {
             "o3" => "o3",
             "gpt-5" => "gpt-5",
@@ -138,256 +329,24 @@ public abstract class PredictionServiceTests_Base
             "gpt-5-nano" => "gpt-5",
             _ => model
         };
-        
-        var matchTemplate = "You are a football prediction expert. Predict the match outcome.";
-        var matchPath = $"/prompts/{promptModel}/match.md";
-        var matchJustificationTemplate = "You are a football prediction expert. Predict the match outcome and provide justification.";
-        var matchJustificationPath = $"/prompts/{promptModel}/match.justification.md";
-        var bonusTemplate = "You are a football prediction expert. Answer the bonus question.";
-        var bonusPath = $"/prompts/{promptModel}/bonus.md";
-        
-        // Set up the mock to handle any model by applying the mapping
-        mock.Setup(p => p.LoadMatchTemplate(It.IsAny<string>(), false))
-            .Returns((string m, bool _) =>
-            {
-                var pm = m switch
-                {
-                    "o3" => "o3",
-                    "gpt-5" => "gpt-5",
-                    "o4-mini" => "o3",
-                    "gpt-5-mini" => "gpt-5",
-                    "gpt-5-nano" => "gpt-5",
-                    _ => m
-                };
-                return (matchTemplate, $"/prompts/{pm}/match.md");
-            });
-        
-        mock.Setup(p => p.LoadMatchTemplate(It.IsAny<string>(), true))
-            .Returns((string m, bool _) =>
-            {
-                var pm = m switch
-                {
-                    "o3" => "o3",
-                    "gpt-5" => "gpt-5",
-                    "o4-mini" => "o3",
-                    "gpt-5-mini" => "gpt-5",
-                    "gpt-5-nano" => "gpt-5",
-                    _ => m
-                };
-                return (matchJustificationTemplate, $"/prompts/{pm}/match.justification.md");
-            });
-        
-        mock.Setup(p => p.LoadBonusTemplate(It.IsAny<string>()))
-            .Returns((string m) =>
-            {
-                var pm = m switch
-                {
-                    "o3" => "o3",
-                    "gpt-5" => "gpt-5",
-                    "o4-mini" => "o3",
-                    "gpt-5-mini" => "gpt-5",
-                    "gpt-5-nano" => "gpt-5",
-                    _ => m
-                };
-                return (bonusTemplate, $"/prompts/{pm}/bonus.md");
-            });
-        
-        return mock;
     }
 
-    /// <summary>
-    /// Creates a mock ChatClient with a configured response
-    /// </summary>
-    protected static ChatClient CreateMockChatClient(
-        Option<string> responseJson = default,
-        Option<ChatTokenUsage> usage = default)
+    private static string ReadResponseMessageText(JsonElement message)
     {
-        var actualResponseJson = responseJson.Or("""{"home": 2, "away": 1}""");
-        var actualUsage = usage.Or(() => OpenAITestHelpers.CreateChatTokenUsage(1000, 50));
-
-        // Create the mock ChatClient and mock ClientResult
-        var mockClient = new Mock<ChatClient>();
-        var mockResult = new Mock<ClientResult<ChatCompletion>>(null!, Mock.Of<PipelineResponse>());
-
-        // Create the ChatCompletion using the model factory
-        var completion = OpenAIChatModelFactory.ChatCompletion(
-            id: "test-completion-id",
-            model: "gpt-5",
-            createdAt: DateTimeOffset.UtcNow,
-            finishReason: ChatFinishReason.Stop,
-            role: ChatMessageRole.Assistant,
-            content: [ChatMessageContentPart.CreateTextPart(actualResponseJson)],
-            usage: actualUsage);
-        
-        // Set up the mock result to return the completion
-        mockResult
-            .SetupGet(result => result.Value)
-            .Returns(completion);
-        
-        // Set up both sync and async methods
-        mockClient.Setup(client => client.CompleteChat(
-                It.IsAny<IEnumerable<ChatMessage>>(),
-                It.IsAny<ChatCompletionOptions>(),
-                It.IsAny<CancellationToken>()))
-            .Returns(mockResult.Object);
-        
-        mockClient.Setup(client => client.CompleteChatAsync(
-                It.IsAny<IEnumerable<ChatMessage>>(),
-                It.IsAny<ChatCompletionOptions>(),
-                It.IsAny<CancellationToken>()))
-            .ReturnsAsync(mockResult.Object);
-
-        mockClient.Setup(client => client.CompleteChatAsync(
-                It.IsAny<BinaryContent>(),
-                It.IsAny<RequestOptions>()))
-            .ReturnsAsync(CreateProtocolCompletionResult(actualResponseJson, actualUsage));
-
-        return mockClient.Object;
-    }
-
-    /// <summary>
-    /// Creates a mock ChatClient and captures the chat messages passed to the async API.
-    /// </summary>
-    protected static ChatClient CreateMockChatClientWithCapture(
-        Action<IReadOnlyList<ChatMessage>> captureMessages,
-        Option<string> responseJson = default,
-        Option<ChatTokenUsage> usage = default)
-    {
-        var actualResponseJson = responseJson.Or("""{"home": 2, "away": 1}""");
-        var actualUsage = usage.Or(() => OpenAITestHelpers.CreateChatTokenUsage(1000, 50));
-
-        var mockClient = new Mock<ChatClient>();
-        var mockResult = new Mock<ClientResult<ChatCompletion>>(null!, Mock.Of<PipelineResponse>());
-
-        var completion = OpenAIChatModelFactory.ChatCompletion(
-            id: "test-completion-id",
-            model: "gpt-5",
-            createdAt: DateTimeOffset.UtcNow,
-            finishReason: ChatFinishReason.Stop,
-            role: ChatMessageRole.Assistant,
-            content: [ChatMessageContentPart.CreateTextPart(actualResponseJson)],
-            usage: actualUsage);
-
-        mockResult
-            .SetupGet(result => result.Value)
-            .Returns(completion);
-
-        mockClient.Setup(client => client.CompleteChatAsync(
-                It.IsAny<IEnumerable<ChatMessage>>(),
-                It.IsAny<ChatCompletionOptions>(),
-                It.IsAny<CancellationToken>()))
-            .Callback<IEnumerable<ChatMessage>, ChatCompletionOptions, CancellationToken>((messages, _, _) =>
-                captureMessages(messages.ToList()))
-            .ReturnsAsync(mockResult.Object);
-
-        mockClient.Setup(client => client.CompleteChatAsync(
-                It.IsAny<BinaryContent>(),
-                It.IsAny<RequestOptions>()))
-            .Callback<BinaryContent, RequestOptions>((content, _) =>
-                captureMessages(ReadProtocolMessages(content)))
-            .ReturnsAsync(CreateProtocolCompletionResult(actualResponseJson, actualUsage));
-
-        mockClient.Setup(client => client.CompleteChat(
-                It.IsAny<IEnumerable<ChatMessage>>(),
-                It.IsAny<ChatCompletionOptions>(),
-                It.IsAny<CancellationToken>()))
-            .Returns(mockResult.Object);
-
-        return mockClient.Object;
-    }
-
-    /// <summary>
-    /// Creates a mock ChatClient that throws an exception when called
-    /// </summary>
-    protected static ChatClient CreateThrowingMockChatClient(Exception exception)
-    {
-        var mockClient = new Mock<ChatClient>();
-
-        mockClient.Setup(client => client.CompleteChat(
-                It.IsAny<IEnumerable<ChatMessage>>(),
-                It.IsAny<ChatCompletionOptions>(),
-                It.IsAny<CancellationToken>()))
-            .Throws(exception);
-
-        mockClient.Setup(client => client.CompleteChatAsync(
-                It.IsAny<IEnumerable<ChatMessage>>(),
-                It.IsAny<ChatCompletionOptions>(),
-                It.IsAny<CancellationToken>()))
-            .ThrowsAsync(exception);
-
-        mockClient.Setup(client => client.CompleteChatAsync(
-                It.IsAny<BinaryContent>(),
-                It.IsAny<RequestOptions>()))
-            .ThrowsAsync(exception);
-
-        return mockClient.Object;
-    }
-
-    private static ClientResult CreateProtocolCompletionResult(
-        string responseJson,
-        ChatTokenUsage usage,
-        string serviceTier = "flex")
-    {
-        var response = new Mock<PipelineResponse>();
-        response.SetupGet(candidate => candidate.Status).Returns(200);
-        response.SetupGet(candidate => candidate.Content).Returns(BinaryData.FromString(JsonSerializer.Serialize(new
+        var content = message.GetProperty("content");
+        if (content.ValueKind == JsonValueKind.String)
         {
-            id = "chatcmpl-test",
-            @object = "chat.completion",
-            created = 1760000000,
-            model = "gpt-5",
-            service_tier = serviceTier,
-            choices = new[]
-            {
-                new
-                {
-                    index = 0,
-                    message = new
-                    {
-                        role = "assistant",
-                        content = responseJson
-                    },
-                    finish_reason = "stop"
-                }
-            },
-            usage = new
-            {
-                prompt_tokens = usage.InputTokenCount,
-                completion_tokens = usage.OutputTokenCount,
-                total_tokens = usage.TotalTokenCount,
-                prompt_tokens_details = new
-                {
-                    cached_tokens = usage.InputTokenDetails?.CachedTokenCount ?? 0
-                },
-                completion_tokens_details = new
-                {
-                    reasoning_tokens = usage.OutputTokenDetails?.ReasoningTokenCount ?? 0
-                }
-            }
-        })));
-
-        return ClientResult.FromResponse(response.Object);
-    }
-
-    private static IReadOnlyList<ChatMessage> ReadProtocolMessages(BinaryContent content)
-    {
-        using var stream = new MemoryStream();
-        content.WriteTo(stream, CancellationToken.None);
-        using var document = JsonDocument.Parse(Encoding.UTF8.GetString(stream.ToArray()));
-        var messages = new List<ChatMessage>();
-
-        foreach (var message in document.RootElement.GetProperty("messages").EnumerateArray())
-        {
-            var role = message.GetProperty("role").GetString();
-            var text = message.GetProperty("content").GetString() ?? string.Empty;
-            messages.Add(role switch
-            {
-                "system" => new SystemChatMessage(text),
-                "user" => new UserChatMessage(text),
-                _ => throw new InvalidOperationException($"Unsupported protocol message role '{role}'.")
-            });
+            return content.GetString() ?? string.Empty;
         }
 
-        return messages;
+        foreach (var part in content.EnumerateArray())
+        {
+            if (part.TryGetProperty("text", out var textProperty))
+            {
+                return textProperty.GetString() ?? string.Empty;
+            }
+        }
+
+        return string.Empty;
     }
 }

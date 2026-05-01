@@ -1,10 +1,13 @@
+using System.ClientModel;
+using System.ClientModel.Primitives;
 using EHonda.KicktippAi.Core;
 using Microsoft.Extensions.DependencyInjection;
 using Microsoft.Extensions.DependencyInjection.Extensions;
 using Microsoft.Extensions.Configuration;
 using Microsoft.Extensions.FileProviders;
 using Microsoft.Extensions.Logging;
-using OpenAI.Chat;
+using OpenAI;
+using OpenAI.Responses;
 
 namespace OpenAiIntegration;
 
@@ -13,6 +16,8 @@ namespace OpenAiIntegration;
 /// </summary>
 public static class ServiceCollectionExtensions
 {
+    private static readonly TimeSpan OpenAiNetworkTimeout = TimeSpan.FromMinutes(15);
+
     /// <summary>
     /// Adds OpenAI predictor services to the service collection
     /// </summary>
@@ -62,17 +67,27 @@ public static class ServiceCollectionExtensions
             throw new ArgumentException("OpenAI API key cannot be null or empty", nameof(apiKey));
         }
 
-        // Register the ChatClient as a singleton
-        services.TryAddSingleton<ChatClient>(serviceProvider =>
+        // Register the ResponsesClient as a singleton
+        services.TryAddSingleton<ResponsesClient>(serviceProvider =>
         {
-            return new ChatClient(model, apiKey);
+            return new ResponsesClient(
+                new ApiKeyCredential(apiKey),
+                new OpenAIClientOptions
+                {
+                    NetworkTimeout = OpenAiNetworkTimeout,
+                    RetryPolicy = new ClientRetryPolicy(maxRetries: 0)
+                });
         });
 
         // Register the predictor context
         services.TryAddScoped<PredictorContext>(_ => PredictorContext.CreateBasic());
 
         // Register the predictor implementation
-        services.TryAddScoped<IPredictor<PredictorContext>, OpenAiPredictor>();
+        services.TryAddScoped<IPredictor<PredictorContext>>(serviceProvider =>
+            new OpenAiPredictor(
+                serviceProvider.GetRequiredService<ResponsesClient>(),
+                serviceProvider.GetRequiredService<ILogger<OpenAiPredictor>>(),
+                model));
 
         // Register the cost calculation service
         services.TryAddScoped<ICostCalculationService, CostCalculationService>();
@@ -94,7 +109,7 @@ public static class ServiceCollectionExtensions
         // Register the prediction service with model parameter
         services.TryAddScoped<IPredictionService>(serviceProvider =>
             new PredictionService(
-                serviceProvider.GetRequiredService<ChatClient>(),
+                serviceProvider.GetRequiredService<ResponsesClient>(),
                 serviceProvider.GetRequiredService<ILogger<PredictionService>>(),
                 serviceProvider.GetRequiredService<ICostCalculationService>(),
                 serviceProvider.GetRequiredService<ITokenUsageTracker>(),

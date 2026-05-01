@@ -1,19 +1,21 @@
 using System.ClientModel;
 using EHonda.KicktippAi.Core;
 using Microsoft.Extensions.Logging;
-using OpenAI.Chat;
+using OpenAI.Responses;
 
 namespace OpenAiIntegration;
 
 public class OpenAiPredictor : IPredictor<PredictorContext>
 {
-    private readonly ChatClient _client;
+    private readonly ResponsesClient _client;
     private readonly ILogger<OpenAiPredictor> _logger;
+    private readonly string _model;
 
-    public OpenAiPredictor(ChatClient client, ILogger<OpenAiPredictor> logger)
+    public OpenAiPredictor(ResponsesClient client, ILogger<OpenAiPredictor> logger, string model = "gpt-4o-mini")
     {
         _client = client ?? throw new ArgumentNullException(nameof(client));
         _logger = logger ?? throw new ArgumentNullException(nameof(logger));
+        _model = model ?? throw new ArgumentNullException(nameof(model));
     }
 
     public async Task<Prediction> PredictAsync(Match match, PredictorContext context, CancellationToken cancellationToken = default)
@@ -26,12 +28,7 @@ public class OpenAiPredictor : IPredictor<PredictorContext>
             var prompt = GeneratePrompt(match, context);
             _logger.LogDebug("Generated prompt: {Prompt}", prompt);
 
-            var messages = new List<ChatMessage>
-            {
-                new UserChatMessage(prompt)
-            };
-
-            var response = await _client.CompleteChatAsync(messages, cancellationToken: cancellationToken);
+            var response = await _client.CreateResponseAsync(_model, prompt, cancellationToken: cancellationToken);
             _logger.LogDebug("Received response from OpenAI");
 
             var prediction = ParsePrediction(response);
@@ -73,17 +70,17 @@ Your prediction:";
         return prompt;
     }
 
-    private Prediction ParsePrediction(ClientResult<ChatCompletion>? response)
+    private Prediction ParsePrediction(ClientResult<ResponseResult>? response)
     {
         try
         {
-            if (response?.Value?.Content == null || !response.Value.Content.Any())
+            if (response?.Value is null)
             {
                 _logger.LogWarning("No content in OpenAI response, using fallback prediction");
                 return new Prediction(1, 1);
             }
 
-            var content = response.Value.Content[0].Text?.Trim();
+            var content = response.Value.GetOutputText()?.Trim();
             if (string.IsNullOrEmpty(content))
             {
                 _logger.LogWarning("Empty content in OpenAI response, using fallback prediction");

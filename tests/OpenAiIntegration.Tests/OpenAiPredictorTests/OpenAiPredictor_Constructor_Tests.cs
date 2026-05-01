@@ -1,6 +1,6 @@
 using EHonda.Optional.Core;
 using Microsoft.Extensions.Logging.Testing;
-using OpenAI.Chat;
+using OpenAI.Responses;
 using TUnit.Core;
 
 namespace OpenAiIntegration.Tests.OpenAiPredictorTests;
@@ -18,7 +18,7 @@ public class OpenAiPredictor_Constructor_Tests : OpenAiPredictorTests_Base
     [Test]
     public async Task Creating_predictor_with_null_client_throws()
     {
-        await Assert.That(() => CreatePredictor(chatClient: NullableOption.Some<ChatClient>(null)))
+        await Assert.That(() => CreatePredictor(chatClient: NullableOption.Some<ResponsesClient>(null)))
             .Throws<ArgumentNullException>()
             .WithParameterName("client");
     }

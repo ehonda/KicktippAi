@@ -4,7 +4,7 @@ using Microsoft.Extensions.Logging.Testing;
 using Moq;
 using TUnit.Core;
 using EHonda.Optional.Core;
-using OpenAI.Chat;
+using OpenAI.Responses;
 using EHonda.KicktippAi.Core;
 
 namespace OpenAiIntegration.Tests.PredictionServiceTests;
@@ -15,12 +15,12 @@ namespace OpenAiIntegration.Tests.PredictionServiceTests;
 public class PredictionService_Constructor_Tests : PredictionServiceTests_Base
 {
     [Test]
-    public async Task Creating_service_with_null_chatClient_throws_ArgumentNullException()
+    public async Task Creating_service_with_null_responsesClient_throws_ArgumentNullException()
     {
         // Act & Assert
-        await Assert.That(() => CreateService(NullableOption.Some<ChatClient>(null)))
+        await Assert.That(() => CreateService(NullableOption.Some<ResponsesClient>(null)))
             .Throws<ArgumentNullException>()
-            .WithParameterName("chatClient");
+            .WithParameterName("responsesClient");
     }
 
     [Test]

@@ -128,13 +128,13 @@ This exact workflow was verified successfully on `2026-04-05`.
 
 ### Reasoning effort experiments
 
-`run-slice` and `run-repeated-match` can optionally pass OpenAI `reasoning_effort` through the raw Chat Completions request path:
+`run-slice` and `run-repeated-match` can optionally pass OpenAI reasoning effort through the Responses API request:
 
 ```powershell
 dotnet run --project src/Orchestrator -- run-repeated-match gpt-5.5 --manifest artifacts/langfuse-experiments/repeated-match/pes-squad/md26-vfb-stuttgart-vs-rb-leipzig/repeat-25/slice-manifest.json --run-name "repeated-match__pes-squad__gpt-5.5__langfuse-o3-poc__reasoning-none__repeat-25__exact-time__$runStamp" --prompt-key langfuse-o3-poc --prompt-source langfuse --langfuse-prompt-name kicktippai/predict-one-match-o3-poc --langfuse-prompt-label poc --reasoning-effort none --evaluation-time "2026-03-15T12:00:00 Europe/Berlin (+01)" --batch-count 3 --replace-run
 ```
 
-When `--reasoning-effort` is omitted, the request omits `reasoning_effort` so production and default experiment behavior keep using OpenAI's model default. Supported values are `none`, `minimal`, `low`, `medium`, `high`, and `xhigh`. Explicit-effort analysis labels include the effort next to the model name, for example `gpt-5.5 (none)`.
+When `--reasoning-effort` is omitted, the request omits Responses reasoning options so production and default experiment behavior keep using OpenAI's model default. Supported values are `none`, `minimal`, `low`, `medium`, `high`, and `xhigh`. Explicit-effort analysis labels include the effort next to the model name, for example `gpt-5.5 (none)`.
 
 ### Langfuse hosted prompt POC
 

@@ -5,6 +5,7 @@ using System.Text.Json;
 using Microsoft.Extensions.Logging;
 using Moq;
 using OpenAI.Chat;
+using OpenAI.Responses;
 using System.ClientModel;
 using System.ClientModel.Primitives;
 using TestUtilities;
@@ -45,89 +46,49 @@ public class PredictionService_PredictMatchAsync_Tests : PredictionServiceTests_
                repredictionIndex == "3";
     }
 
-    private static ChatClient CreateProtocolChatClient(
+    private static ResponsesClient CreateProtocolChatClient(
         List<string?> requestedServiceTiers,
         List<string?>? requestedReasoningEfforts = null,
         List<string>? requestPayloads = null,
         Exception? firstException = null,
         string responseServiceTier = "standard")
     {
-        var mockClient = new Mock<ChatClient>();
+        var mockClient = new Mock<ResponsesClient>("test-api-key");
         var callCount = 0;
 
         mockClient
-            .Setup(client => client.CompleteChatAsync(
-                It.IsAny<BinaryContent>(),
-                It.IsAny<RequestOptions>()))
-            .Returns<BinaryContent, RequestOptions>((content, _) =>
+            .Setup(client => client.CreateResponseAsync(
+                It.IsAny<CreateResponseOptions>(),
+                It.IsAny<CancellationToken>()))
+            .Returns<CreateResponseOptions, CancellationToken>((options, _) =>
             {
                 callCount += 1;
-                var payloadJson = ReadPayloadJson(content);
+                var payloadJson = ReadPayloadJson(options);
                 requestPayloads?.Add(payloadJson);
                 requestedServiceTiers.Add(ExtractStringProperty(payloadJson, "service_tier"));
-                requestedReasoningEfforts?.Add(ExtractStringProperty(payloadJson, "reasoning_effort"));
+                requestedReasoningEfforts?.Add(ExtractReasoningEffort(payloadJson));
                 if (callCount == 1 && firstException is not null)
                 {
-                    return Task.FromException<ClientResult>(firstException);
+                    return Task.FromException<ClientResult<ResponseResult>>(firstException);
                 }
 
-                return Task.FromResult(CreateProtocolClientResult(responseServiceTier));
+                return Task.FromResult(CreateResponseClientResult(
+                    """{"home": 2, "away": 1}""",
+                    OpenAITestHelpers.CreateChatTokenUsage(1000, 50, cachedInputTokens: 250, outputReasoningTokens: 7),
+                    responseServiceTier));
             });
 
         return mockClient.Object;
     }
 
-    private static string ReadPayloadJson(BinaryContent content)
-    {
-        using var stream = new MemoryStream();
-        content.WriteTo(stream, CancellationToken.None);
-        return Encoding.UTF8.GetString(stream.ToArray());
-    }
-
-    private static string? ExtractStringProperty(string json, string propertyName)
+    private static string? ExtractReasoningEffort(string json)
     {
         using var document = JsonDocument.Parse(json);
-        return document.RootElement.TryGetProperty(propertyName, out var property)
-               && property.ValueKind == JsonValueKind.String
-            ? property.GetString()
+        return document.RootElement.TryGetProperty("reasoning", out var reasoning)
+               && reasoning.TryGetProperty("effort", out var effort)
+               && effort.ValueKind == JsonValueKind.String
+            ? effort.GetString()
             : null;
-    }
-
-    private static ClientResult CreateProtocolClientResult(string serviceTier)
-    {
-        var response = new Mock<PipelineResponse>();
-        response.SetupGet(candidate => candidate.Status).Returns(200);
-        response.SetupGet(candidate => candidate.Content).Returns(BinaryData.FromString($$"""
-            {
-              "id": "chatcmpl-test",
-              "object": "chat.completion",
-              "created": 1760000000,
-              "model": "gpt-5",
-              "service_tier": "{{serviceTier}}",
-              "choices": [
-                {
-                  "index": 0,
-                  "message": {
-                    "role": "assistant",
-                    "content": "{\"home\": 2, \"away\": 1}"
-                  },
-                  "finish_reason": "stop"
-                }
-              ],
-              "usage": {
-                "prompt_tokens": 1000,
-                "completion_tokens": 50,
-                "total_tokens": 1050,
-                "prompt_tokens_details": {
-                  "cached_tokens": 250
-                },
-                "completion_tokens_details": {
-                  "reasoning_tokens": 7
-                }
-              }
-            }
-            """));
-        return ClientResult.FromResponse(response.Object);
     }
 
     private static ClientResultException CreateClientResultException(
@@ -351,6 +312,44 @@ public class PredictionService_PredictMatchAsync_Tests : PredictionServiceTests_
     }
 
     [Test]
+    public async Task Predicting_match_sends_responses_request_with_strict_structured_output()
+    {
+        // Arrange
+        var requestedServiceTiers = new List<string?>();
+        var requestPayloads = new List<string>();
+        var chatClient = CreateProtocolChatClient(
+            requestedServiceTiers,
+            requestPayloads: requestPayloads,
+            responseServiceTier: "flex");
+        var service = CreateService(chatClient);
+
+        // Act
+        var prediction = await PredictMatchAsync(service, includeJustification: true);
+
+        // Assert
+        await Assert.That(prediction).IsEquivalentTo(new Prediction(2, 1, null));
+        await Assert.That(requestPayloads).HasSingleItem();
+
+        using var document = JsonDocument.Parse(requestPayloads.Single());
+        var root = document.RootElement;
+        await Assert.That(root.GetProperty("model").GetString()).IsEqualTo("gpt-5");
+        await Assert.That(root.GetProperty("max_output_tokens").GetInt32()).IsEqualTo(10_000);
+        await Assert.That(root.GetProperty("service_tier").GetString()).IsEqualTo("flex");
+
+        var input = root.GetProperty("input").EnumerateArray().ToArray();
+        await Assert.That(input.Length).IsEqualTo(2);
+        await Assert.That(input[0].GetProperty("role").GetString()).IsEqualTo("system");
+        await Assert.That(input[1].GetProperty("role").GetString()).IsEqualTo("user");
+
+        var format = root.GetProperty("text").GetProperty("format");
+        await Assert.That(format.GetProperty("type").GetString()).IsEqualTo("json_schema");
+        await Assert.That(format.GetProperty("name").GetString()).IsEqualTo("match_prediction");
+        await Assert.That(format.GetProperty("strict").GetBoolean()).IsTrue();
+        await Assert.That(format.GetProperty("schema").GetProperty("required").EnumerateArray().Select(item => item.GetString()))
+            .Contains("justification");
+    }
+
+    [Test]
     public async Task Predicting_match_with_standard_processing_option_disables_flex_processing()
     {
         // Arrange
@@ -368,7 +367,9 @@ public class PredictionService_PredictMatchAsync_Tests : PredictionServiceTests_
         // Assert
         await Assert.That(prediction).IsEquivalentTo(new Prediction(2, 1, null));
         tokenUsageTracker.Verify(
-            tracker => tracker.AddUsage("gpt-5", usage),
+            tracker => tracker.AddUsage(
+                "gpt-5",
+                It.Is<ChatTokenUsage>(actual => actual.InputTokenCount == 1000 && actual.OutputTokenCount == 50)),
             Times.Once);
         tokenUsageTracker.Verify(
             tracker => tracker.AddUsage("gpt-5", It.IsAny<ChatTokenUsage>(), It.IsAny<string?>()),
@@ -405,7 +406,7 @@ public class PredictionService_PredictMatchAsync_Tests : PredictionServiceTests_
         await Assert.That(requestedReasoningEfforts.Count).IsEqualTo(2);
         await Assert.That(requestedReasoningEfforts[0]).IsNull();
         await Assert.That(requestedReasoningEfforts[1]).IsNull();
-        await Assert.That(requestPayloads.All(payload => !payload.Contains("reasoning_effort"))).IsTrue();
+        await Assert.That(requestPayloads.All(payload => !payload.Contains("\"reasoning\""))).IsTrue();
 
         var activity = capturedActivities.Single(candidate => candidate.OperationName == "predict-match");
         await Assert.That(activity.GetTagItem("langfuse.observation.metadata.openaiExecutionStrategy"))

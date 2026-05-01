@@ -2,6 +2,7 @@ using EHonda.KicktippAi.Core;
 using Microsoft.Extensions.Logging;
 using Moq;
 using OpenAI.Chat;
+using OpenAI.Responses;
 using System.ClientModel;
 using System.ClientModel.Primitives;
 using System.Diagnostics;
@@ -51,85 +52,35 @@ public class PredictionService_PredictBonusQuestionAsync_Tests : PredictionServi
         return listener;
     }
 
-    private static ChatClient CreateProtocolBonusChatClient(
+    private static ResponsesClient CreateProtocolBonusChatClient(
         List<string?> requestedServiceTiers,
         Exception? firstException = null,
         string responseServiceTier = "flex")
     {
-        var mockClient = new Mock<ChatClient>();
+        var mockClient = new Mock<ResponsesClient>("test-api-key");
         var callCount = 0;
 
         mockClient
-            .Setup(client => client.CompleteChatAsync(
-                It.IsAny<BinaryContent>(),
-                It.IsAny<RequestOptions>()))
-            .Returns<BinaryContent, RequestOptions>((content, _) =>
+            .Setup(client => client.CreateResponseAsync(
+                It.IsAny<CreateResponseOptions>(),
+                It.IsAny<CancellationToken>()))
+            .Returns<CreateResponseOptions, CancellationToken>((options, _) =>
             {
                 callCount += 1;
-                var payloadJson = ReadPayloadJson(content);
+                var payloadJson = ReadPayloadJson(options);
                 requestedServiceTiers.Add(ExtractStringProperty(payloadJson, "service_tier"));
                 if (callCount == 1 && firstException is not null)
                 {
-                    return Task.FromException<ClientResult>(firstException);
+                    return Task.FromException<ClientResult<ResponseResult>>(firstException);
                 }
 
-                return Task.FromResult(CreateProtocolClientResult(responseServiceTier));
+                return Task.FromResult(CreateResponseClientResult(
+                    """{"selectedOptionIds":["opt1"]}""",
+                    OpenAITestHelpers.CreateChatTokenUsage(800, 30, cachedInputTokens: 125, outputReasoningTokens: 4),
+                    responseServiceTier));
             });
 
         return mockClient.Object;
-    }
-
-    private static string ReadPayloadJson(BinaryContent content)
-    {
-        using var stream = new MemoryStream();
-        content.WriteTo(stream, CancellationToken.None);
-        return Encoding.UTF8.GetString(stream.ToArray());
-    }
-
-    private static string? ExtractStringProperty(string json, string propertyName)
-    {
-        using var document = JsonDocument.Parse(json);
-        return document.RootElement.TryGetProperty(propertyName, out var property)
-               && property.ValueKind == JsonValueKind.String
-            ? property.GetString()
-            : null;
-    }
-
-    private static ClientResult CreateProtocolClientResult(string serviceTier)
-    {
-        var response = new Mock<PipelineResponse>();
-        response.SetupGet(candidate => candidate.Status).Returns(200);
-        response.SetupGet(candidate => candidate.Content).Returns(BinaryData.FromString($$"""
-            {
-              "id": "chatcmpl-test",
-              "object": "chat.completion",
-              "created": 1760000000,
-              "model": "gpt-5",
-              "service_tier": "{{serviceTier}}",
-              "choices": [
-                {
-                  "index": 0,
-                  "message": {
-                    "role": "assistant",
-                    "content": "{\"selectedOptionIds\":[\"opt1\"]}"
-                  },
-                  "finish_reason": "stop"
-                }
-              ],
-              "usage": {
-                "prompt_tokens": 800,
-                "completion_tokens": 30,
-                "total_tokens": 830,
-                "prompt_tokens_details": {
-                  "cached_tokens": 125
-                },
-                "completion_tokens_details": {
-                  "reasoning_tokens": 4
-                }
-              }
-            }
-            """));
-        return ClientResult.FromResponse(response.Object);
     }
 
     private static ClientResultException CreateClientResultException(
@@ -326,7 +277,9 @@ public class PredictionService_PredictBonusQuestionAsync_Tests : PredictionServi
         // Assert
         await Assert.That(prediction).IsEquivalentTo(new BonusPrediction(["opt1"]));
         tokenUsageTracker.Verify(
-            tracker => tracker.AddUsage("gpt-5", usage),
+            tracker => tracker.AddUsage(
+                "gpt-5",
+                It.Is<ChatTokenUsage>(actual => actual.InputTokenCount == 800 && actual.OutputTokenCount == 30)),
             Times.Once);
         tokenUsageTracker.Verify(
             tracker => tracker.AddUsage("gpt-5", It.IsAny<ChatTokenUsage>(), It.IsAny<string?>()),
