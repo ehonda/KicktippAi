@@ -16,6 +16,7 @@
     <PackageReference Include="EHonda.Optional.Core" />
     <PackageReference Include="NodaTime" />
     <PackageReference Include="OpenAI" />
+  <PackageReference Include="System.Linq.Async" />
     <PackageReference Include="Testcontainers.Firestore" />
     <PackageReference Include="TUnit" />
   </ItemGroup>
