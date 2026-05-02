@@ -37,7 +37,7 @@ Every experiment document must include:
 
 | Sequence | Experiment | Status | Purpose |
 | --- | --- | --- | --- |
-| 001 | [Slice vs Repeated-Match Token Usage](001-slice-vs-repeated-token-usage.md) | Completed | Compared `o3` medium token usage between a 10-item random slice and a 10-item measured repeated-match sample after the `2025-12-01` cutoff. |
+| 001 | [Slice vs Repeated-Match Token Usage](001-slice-vs-repeated-token-usage.md) | Completed through Sub Experiment B | Compared `o3` medium token usage between random slices and repeated-match samples after the `2025-12-01` cutoff. Sub Experiment B used a 20-item slice against 5 random repeated fixtures of size 4. |
 
 ## Current Estimator Shape
 
@@ -57,7 +57,7 @@ Expected inputs:
 Expected evidence sources:
 
 - existing `artifacts/langfuse-experiments` analysis bundles when available
-- Langfuse traces, observations, dataset runs, and scores; trace details currently expose `predict-match` `usageDetails` and `costDetails`
+- Langfuse traces, observations, dataset runs, and scores; batched v2 observation queries expose `predict-match` `usageDetails` and `costDetails`
 - Orchestrator command output and generated manifests
 - official model pricing data, recorded with source and date
 
@@ -73,13 +73,15 @@ Current finding from experiment 001:
 
 - A single repeated fixture is not enough to estimate slice input-token usage because total input tokens are fixture/context specific.
 - In Sub Experiment A (`o3`, medium effort, `N = 10` measured per group), output tokens and total tokens did not differ significantly between the random slice and repeated-match sample, while total input tokens did differ because the repeated fixture had a shorter prompt than the slice average.
-- For token-count comparisons, use exactly `N` repeated-match items and compare total input/output token fields. Keep cached-input and uncached-input fields separate only when the research question includes cost or cache behavior.
+- In Sub Experiment B (`o3`, medium effort, `N = 20` per group), a 20-item random slice was compared with 20 repeated-match observations from 5 random repeated fixtures of size 4. Neither total input tokens (`p = 0.100263`) nor total output tokens (`p = 0.524548`) differed significantly.
+- For total input/output token-count estimates, prefer a reference design of `M` random repeated-match fixtures of size `S`, with `N = M * S`, rather than one repeated fixture. Keep cached-input and uncached-input fields separate only when the research question includes cost or cache behavior.
+- Use the reproducible [analyze_token_usage.py](analyze_token_usage.py) script for usage pulls and analysis. It uses batched Langfuse v2 observation queries by default, matching the Orchestrator exporter's per-run batching pattern.
 
 ## Open Questions
 
-- Can exported experiment analysis bundles be extended to include normalized usage data so agents do not need one trace-detail API call per item?
+- Can exported experiment analysis bundles be extended to include normalized usage data so agents do not need a separate usage extraction step?
 - How much variance exists between repeated predictions for the same fixture and prompt?
-- How many random repeated fixtures are needed before repeated-match usage is representative of slice input-token distributions?
+- How large should `M` and `S` be before repeated-match usage is representative enough for each model and reasoning effort?
 - Does reasoning effort materially change token usage in a predictable way for our prompts?
 - Can prompt reconstruction estimate input tokens accurately enough without calling a model?
 - How should the skill treat cached input tokens, retries, and failed item runs?

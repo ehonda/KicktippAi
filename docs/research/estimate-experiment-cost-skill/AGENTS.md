@@ -30,6 +30,8 @@ These instructions apply to `docs/research/estimate-experiment-cost-skill`.
 - Use `uv` for Python commands.
 - When a repeated-match experiment needs a random fixture after a cutoff and `prepare-repeated-match` does not support the random/cutoff selection directly, first prepare a one-item random slice with the required cutoff and seed, then use that selected fixture for `prepare-repeated-match`.
 - When comparing total input, output, or total token counts between repeated-match and slice usage, prepare exactly `N` repeated-match items. Do not add or exclude a warmup item unless the user explicitly makes cached-input behavior, uncached-input behavior, or monetary cost part of the research question.
+- For total input/output token estimate reference datasets, prefer `M` randomly selected repeated fixtures of size `S` over one repeated fixture, with `N = M * S` total observations. Keep the fixture-selection pool aligned with the slice pool, including the same cutoff date.
+- For usage extraction, prefer [analyze_token_usage.py](analyze_token_usage.py) or an Orchestrator export path that batches Langfuse observations by run/session. Avoid one `GET /api/public/traces/{traceId}` detail call per item unless the batched observations endpoint lacks a field the experiment truly needs.
 
 Prefer data sources in this order:
 
