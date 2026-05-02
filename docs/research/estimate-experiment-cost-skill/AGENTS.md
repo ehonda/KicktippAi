@@ -8,6 +8,8 @@ These instructions apply to `docs/research/estimate-experiment-cost-skill`.
 - Keep the experiment log in [README.md](README.md) synchronized with the actual files in this folder.
 - Use explicit sequence numbers in experiment filenames: `NNN-short-slug.md`.
 - Never renumber completed experiments. Add the next file using one more than the current maximum sequence number.
+- Treat user-specified "sub experiments" as separate numbered experiments unless the user explicitly asks for multiple runs to live in one document. Do not keep appending independent experiments to an earlier experiment document.
+- Shared methodology may live in support documents such as `token-usage-methodology.md`, but each numbered experiment document must still include its own `Methodology` section with experiment-specific settings and a link to the shared method.
 - Every experiment document must include `Research Question`, `Methodology`, `Outcome`, and `Further Research Directions`.
 - When an experiment changes the research workflow, update this `AGENTS.md` in the same change.
 - When an experiment changes the provisional estimator, update the `Current Estimator Shape` section in [README.md](README.md).

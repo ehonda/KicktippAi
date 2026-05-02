@@ -33,15 +33,18 @@ Every experiment document must include:
 - Outcome
 - Further Research Directions
 
+Shared methods that apply across several experiments can live in support documents such as [token-usage-methodology.md](token-usage-methodology.md). Each numbered experiment should still include its own methodology section with the run-specific design, parameters, and links to any shared method it uses.
+
 ## Experiment Log
 
 | Sequence | Experiment | Status | Purpose |
 | --- | --- | --- | --- |
-| 001 | [Slice vs Repeated-Match Token Usage](001-slice-vs-repeated-token-usage.md) | Completed through Sub Experiment B | Compared `o3` medium token usage between random slices and repeated-match samples after the `2025-12-01` cutoff. Sub Experiment B used a 20-item slice against 5 random repeated fixtures of size 4. |
+| 001 | [Slice vs Single Repeated-Match Token Usage](001-slice-vs-repeated-token-usage.md) | Completed | Compared `o3` medium token usage between a 10-item random slice and 10 measured repetitions from one random fixture after the `2025-12-01` cutoff. |
+| 002 | [Slice vs Multi-Fixture Repeated-Match Token Usage](002-slice-vs-multi-fixture-repeated-token-usage.md) | Completed | Compared `o3` medium token usage between a 20-item random slice and 20 repeated-match observations from 5 random repeated fixtures of size 4 after the `2025-12-01` cutoff. |
 
 ## Current Estimator Shape
 
-The estimator is still provisional and should be revised as each user-specified sub experiment adds evidence.
+The estimator is still provisional and should be revised as each user-specified experiment adds evidence.
 
 Expected inputs:
 
@@ -69,11 +72,11 @@ Expected output:
 - observed comparable runs used as evidence
 - recommended cheapest next validation step
 
-Current finding from experiment 001:
+Current finding from experiments 001 and 002:
 
 - A single repeated fixture is not enough to estimate slice input-token usage because total input tokens are fixture/context specific.
-- In Sub Experiment A (`o3`, medium effort, `N = 10` measured per group), output tokens and total tokens did not differ significantly between the random slice and repeated-match sample, while total input tokens did differ because the repeated fixture had a shorter prompt than the slice average.
-- In Sub Experiment B (`o3`, medium effort, `N = 20` per group), a 20-item random slice was compared with 20 repeated-match observations from 5 random repeated fixtures of size 4. Neither total input tokens (`p = 0.100263`) nor total output tokens (`p = 0.524548`) differed significantly.
+- In experiment 001 (`o3`, medium effort, `N = 10` measured per group), output tokens and total tokens did not differ significantly between the random slice and repeated-match sample, while total input tokens did differ because the repeated fixture had a shorter prompt than the slice average.
+- In experiment 002 (`o3`, medium effort, `N = 20` per group), a 20-item random slice was compared with 20 repeated-match observations from 5 random repeated fixtures of size 4. Neither total input tokens (`p = 0.100263`) nor total output tokens (`p = 0.524548`) differed significantly.
 - For total input/output token-count estimates, prefer a reference design of `M` random repeated-match fixtures of size `S`, with `N = M * S`, rather than one repeated fixture. Keep cached-input and uncached-input fields separate only when the research question includes cost or cache behavior.
 - Use the reproducible [analyze_token_usage.py](analyze_token_usage.py) script for usage pulls and analysis. It uses batched Langfuse v2 observation queries by default, matching the Orchestrator exporter's per-run batching pattern.
 
