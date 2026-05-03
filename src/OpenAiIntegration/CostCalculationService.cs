@@ -123,8 +123,12 @@ public class CostCalculationService : ICostCalculationService
 }
 
 /// <summary>
-/// Static pricing data for OpenAI models - matches the structure from PromptSampleTests
+/// Static short-context standard pricing data for OpenAI models.
 /// </summary>
+/// <remarks>
+/// Source: <see href="https://developers.openai.com/api/docs/pricing.md">OpenAI API pricing</see>.
+/// Flex processing applies the same short-context rates as Batch pricing for supported models.
+/// </remarks>
 internal static class ModelPricingData
 {
     public static readonly Dictionary<string, ModelPricing> Pricing = new()
@@ -138,6 +142,7 @@ internal static class ModelPricingData
         ["gpt-5.5"] = new(5.00m, 30.00m, 0.50m),
         ["gpt-5.4"] = new(2.50m, 15.00m, 0.25m),
         ["gpt-5.4-mini"] = new(0.75m, 4.50m, 0.075m),
+        ["gpt-5.4-nano"] = new(0.20m, 1.25m, 0.02m),
         ["gpt-5"] = new(1.25m, 10.00m, 0.125m),
         ["gpt-5-mini"] = new(0.25m, 2.00m, 0.025m),
         ["gpt-5-nano"] = new(0.05m, 0.40m, 0.005m),

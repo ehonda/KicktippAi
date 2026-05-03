@@ -198,6 +198,7 @@ internal static class PreparedExperimentSupport
             LangfusePromptLabel = options.LangfusePromptLabel,
             LangfusePromptVersion = options.LangfusePromptVersion,
             ReasoningEffort = normalizedReasoningEffort,
+            MaxOutputTokenCount = options.MaxOutputTokenCount,
             SliceKind = ResolveSliceKind(manifest),
             SliceKey = manifest.SliceKey,
             SourcePoolKey = manifest.SourcePoolKey,
@@ -313,6 +314,11 @@ internal static class PreparedExperimentSupport
             tags.Add($"reasoning-effort:{runMetadata.ReasoningEffort}");
         }
 
+        if (runMetadata.MaxOutputTokenCount is not null)
+        {
+            tags.Add($"max-output-tokens:{runMetadata.MaxOutputTokenCount}");
+        }
+
         return tags.Distinct(StringComparer.Ordinal).ToList();
     }
 
@@ -329,6 +335,7 @@ internal static class PreparedExperimentSupport
         AddIfValid(metadata, "langfusePromptLabel", runMetadata.LangfusePromptLabel);
         AddIfValid(metadata, "langfusePromptVersion", runMetadata.LangfusePromptVersion?.ToString(CultureInfo.InvariantCulture));
         AddIfValid(metadata, "reasoningEffort", runMetadata.ReasoningEffort);
+        AddIfValid(metadata, "maxOutputTokens", runMetadata.MaxOutputTokenCount?.ToString(CultureInfo.InvariantCulture));
         AddIfValid(metadata, "sampleMethod", runMetadata.SampleMethod);
         AddIfValid(metadata, "selectedItemIdsHash", runMetadata.SelectedItemIdsHash);
         AddIfValid(metadata, "sliceKind", runMetadata.SliceKind);

@@ -19,7 +19,8 @@ internal sealed record PreparedExperimentRunOptions(
     string BatchStrategy,
     int? BatchSize = null,
     int? BatchCount = null,
-    string? ReasoningEffort = null);
+    string? ReasoningEffort = null,
+    int? MaxOutputTokenCount = null);
 
 internal static class PreparedExperimentCommandSupport
 {
@@ -86,6 +87,7 @@ internal static class PreparedExperimentCommandSupport
             LangfusePromptLabel = string.IsNullOrWhiteSpace(runMetadata.LangfusePromptLabel) ? options.LangfusePromptLabel : runMetadata.LangfusePromptLabel,
             LangfusePromptVersion = runMetadata.LangfusePromptVersion ?? options.LangfusePromptVersion,
             ReasoningEffort = normalizedReasoningEffort,
+            MaxOutputTokenCount = options.MaxOutputTokenCount ?? runMetadata.MaxOutputTokenCount,
             SliceKind = string.IsNullOrWhiteSpace(runMetadata.SliceKind) ? manifest.SliceKind : runMetadata.SliceKind,
             SliceKey = string.IsNullOrWhiteSpace(runMetadata.SliceKey) ? manifest.SliceKey : runMetadata.SliceKey,
             SourcePoolKey = string.IsNullOrWhiteSpace(runMetadata.SourcePoolKey) ? manifest.SourcePoolKey : runMetadata.SourcePoolKey,

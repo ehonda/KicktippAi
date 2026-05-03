@@ -78,7 +78,9 @@ internal sealed class PreparedExperimentRunExecutor
         var predictionServiceOptions = PredictionServiceOptions.FlexProcessingWithStandardFallback with
         {
             LangfusePromptTraceMetadata = promptRoute.TraceMetadata,
-            ReasoningEffort = runMetadata.ReasoningEffort
+            ReasoningEffort = runMetadata.ReasoningEffort,
+            MaxOutputTokenCount = runMetadata.MaxOutputTokenCount
+                                  ?? PredictionServiceOptions.FlexProcessingWithStandardFallback.MaxOutputTokenCount
         };
         var predictionService = promptRoute.TemplateProvider is null
             ? _openAiServiceFactory.CreatePredictionService(

@@ -111,6 +111,23 @@ public class RunExperimentCommands_Tests
     }
 
     [Test]
+    public async Task Run_experiment_settings_reject_invalid_max_output_token_count()
+    {
+        var settings = new RunRepeatedMatchSettings
+        {
+            Model = "gpt-5.4-nano",
+            ManifestPath = "slice-manifest.json",
+            RunName = "run-name",
+            MaxOutputTokenCount = 0
+        };
+
+        var result = settings.Validate();
+
+        await Assert.That(result.Successful).IsFalse();
+        await Assert.That(result.Message).Contains("--max-output-tokens must be at least 1");
+    }
+
+    [Test]
     public async Task Langfuse_prompt_run_options_flow_into_experiment_metadata_tags_and_propagated_metadata()
     {
         var manifest = new PreparedExperimentManifest
@@ -153,7 +170,8 @@ public class RunExperimentCommands_Tests
             "warmup-plus-batches",
             null,
             3,
-            "xhigh");
+            "xhigh",
+            20_000);
 
         var metadata = PreparedExperimentSupport.BuildRunMetadata(manifest, options);
         var tags = PreparedExperimentSupport.DeriveTraceTags(metadata);
@@ -164,6 +182,7 @@ public class RunExperimentCommands_Tests
         await Assert.That(metadata.LangfusePromptLabel).IsEqualTo("poc");
         await Assert.That(metadata.LangfusePromptVersion).IsEqualTo(7);
         await Assert.That(metadata.ReasoningEffort).IsEqualTo("xhigh");
+        await Assert.That(metadata.MaxOutputTokenCount).IsEqualTo(20_000);
         await Assert.That(metadata.RunSubjectId).IsEqualTo("gpt-5.5:reasoning-effort:xhigh");
         await Assert.That(metadata.RunSubjectDisplayName).IsEqualTo("gpt-5.5 (xhigh)");
         await Assert.That(tags).Contains("prompt-source:langfuse");
@@ -171,9 +190,11 @@ public class RunExperimentCommands_Tests
         await Assert.That(tags).Contains("langfuse-prompt-label:poc");
         await Assert.That(tags).Contains("langfuse-prompt-version:7");
         await Assert.That(tags).Contains("reasoning-effort:xhigh");
+        await Assert.That(tags).Contains("max-output-tokens:20000");
         await Assert.That(propagatedMetadata["promptSource"]).IsEqualTo("langfuse");
         await Assert.That(propagatedMetadata["langfusePromptVersion"]).IsEqualTo("7");
         await Assert.That(propagatedMetadata["reasoningEffort"]).IsEqualTo("xhigh");
+        await Assert.That(propagatedMetadata["maxOutputTokens"]).IsEqualTo("20000");
     }
 
     [Test]

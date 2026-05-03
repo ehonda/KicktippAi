@@ -164,6 +164,9 @@ internal sealed record PreparedExperimentRunMetadata
     [JsonPropertyName("reasoningEffort")]
     public string? ReasoningEffort { get; init; }
 
+    [JsonPropertyName("maxOutputTokens")]
+    public int? MaxOutputTokenCount { get; init; }
+
     [JsonPropertyName("sliceKind")]
     public string? SliceKind { get; init; }
 

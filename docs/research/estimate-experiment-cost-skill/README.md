@@ -41,6 +41,7 @@ Shared methods that apply across several experiments can live in support documen
 | --- | --- | --- | --- |
 | 001 | [Slice vs Single Repeated-Match Token Usage](001-slice-vs-repeated-token-usage.md) | Completed | Compared `o3` medium token usage between a 10-item random slice and 10 measured repetitions from one random fixture after the `2025-12-01` cutoff. |
 | 002 | [Slice vs Multi-Fixture Repeated-Match Token Usage](002-slice-vs-multi-fixture-repeated-token-usage.md) | Completed | Compared `o3` medium token usage between a 20-item random slice and 20 repeated-match observations from 5 random repeated fixtures of size 4 after the `2025-12-01` cutoff. |
+| 003 | [Slice vs Multi-Fixture Token Usage Across Model Configs](003-slice-vs-multi-fixture-token-usage-model-configs.md) | Completed | Repeated the 20-item slice vs 5-by-4 repeated-fixture token comparison for `gpt-5.4-nano` xhigh and `gpt-5.5` none with hosted prompt `langfuse-o3-poc`. |
 
 ## Current Estimator Shape
 
@@ -77,8 +78,10 @@ Current finding from experiments 001 and 002:
 - A single repeated fixture is not enough to estimate slice input-token usage because total input tokens are fixture/context specific.
 - In experiment 001 (`o3`, medium effort, `N = 10` measured per group), output tokens and total tokens did not differ significantly between the random slice and repeated-match sample, while total input tokens did differ because the repeated fixture had a shorter prompt than the slice average.
 - In experiment 002 (`o3`, medium effort, `N = 20` per group), a 20-item random slice was compared with 20 repeated-match observations from 5 random repeated fixtures of size 4. Neither total input tokens (`p = 0.100263`) nor total output tokens (`p = 0.524548`) differed significantly.
+- In experiment 003 (`gpt-5.4-nano` xhigh and `gpt-5.5` none, hosted prompt `langfuse-o3-poc`, `N = 20` per group), the same 5-by-4 repeated-fixture design again showed no significant slice-vs-repeated differences for input, output, reasoning, or total token counts.
 - For total input/output token-count estimates, prefer a reference design of `M` random repeated-match fixtures of size `S`, with `N = M * S`, rather than one repeated fixture. Keep cached-input and uncached-input fields separate only when the research question includes cost or cache behavior.
 - Use the reproducible [analyze_token_usage.py](analyze_token_usage.py) script for usage pulls and analysis. It uses batched Langfuse v2 observation queries by default, matching the Orchestrator exporter's per-run batching pattern.
+- For reasoning-heavy configs, preflight the intended prompt and reasoning effort before the full run and set an explicit output-token cap when needed. In experiment 003, `gpt-5.4-nano` xhigh needed `--max-output-tokens 40000`; lower caps produced `OpenAI response did not contain output text`.
 
 ## Open Questions
 

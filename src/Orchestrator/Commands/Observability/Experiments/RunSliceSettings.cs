@@ -63,6 +63,10 @@ public abstract class RunExperimentSettingsBase : CommandSettings
     [Description("Optional OpenAI reasoning effort for experiment predictions: none, minimal, low, medium, high, or xhigh")]
     public string? ReasoningEffort { get; set; }
 
+    [CommandOption("--max-output-tokens")]
+    [Description("Maximum OpenAI output tokens per prediction. Defaults to 10000")]
+    public int? MaxOutputTokenCount { get; set; }
+
     [CommandOption("--include-justification")]
     [Description("Use the justification prompt variant when reconstructing historical prompts")]
     [DefaultValue(false)]
@@ -120,6 +124,11 @@ public abstract class RunExperimentSettingsBase : CommandSettings
             }
 
             ReasoningEffort = normalizedReasoningEffort;
+        }
+
+        if (MaxOutputTokenCount is < 1)
+        {
+            return ValidationResult.Error("--max-output-tokens must be at least 1 when provided");
         }
 
         var normalizedPromptSource = PromptSource.Trim().ToLowerInvariant();
@@ -215,7 +224,8 @@ public abstract class RunExperimentSettingsBase : CommandSettings
             batchStrategy,
             batchSize,
             batchCount,
-            ReasoningEffort);
+            ReasoningEffort,
+            MaxOutputTokenCount);
     }
 }
 

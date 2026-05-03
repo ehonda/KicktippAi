@@ -290,7 +290,7 @@ public class PredictionService : IPredictionService
         var options = new CreateResponseOptions
         {
             Model = _model,
-            MaxOutputTokenCount = 10_000, // Safeguard against high costs
+            MaxOutputTokenCount = _options.MaxOutputTokenCount, // Safeguard against high costs
             TextOptions = new ResponseTextOptions
             {
                 TextFormat = ResponseTextFormat.CreateJsonSchemaFormat(

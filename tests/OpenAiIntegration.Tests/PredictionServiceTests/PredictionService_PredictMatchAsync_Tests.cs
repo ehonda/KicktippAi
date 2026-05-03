@@ -350,6 +350,33 @@ public class PredictionService_PredictMatchAsync_Tests : PredictionServiceTests_
     }
 
     [Test]
+    public async Task Predicting_match_with_custom_max_output_token_count_sends_request_limit()
+    {
+        // Arrange
+        var requestedServiceTiers = new List<string?>();
+        var requestPayloads = new List<string>();
+        var chatClient = CreateProtocolChatClient(
+            requestedServiceTiers,
+            requestPayloads: requestPayloads);
+        var service = CreateService(
+            chatClient,
+            options: NullableOption.Some(PredictionServiceOptions.FlexProcessingWithStandardFallback with
+            {
+                MaxOutputTokenCount = 20_000
+            }));
+
+        // Act
+        var prediction = await PredictMatchAsync(service);
+
+        // Assert
+        await Assert.That(prediction).IsEquivalentTo(new Prediction(2, 1, null));
+        await Assert.That(requestPayloads).HasSingleItem();
+
+        using var document = JsonDocument.Parse(requestPayloads.Single());
+        await Assert.That(document.RootElement.GetProperty("max_output_tokens").GetInt32()).IsEqualTo(20_000);
+    }
+
+    [Test]
     public async Task Predicting_match_with_standard_processing_option_disables_flex_processing()
     {
         // Arrange

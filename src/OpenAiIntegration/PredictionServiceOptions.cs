@@ -3,7 +3,8 @@ namespace OpenAiIntegration;
 public sealed record PredictionServiceOptions(
     bool DisableFlexProcessing = false,
     LangfusePromptTraceMetadata? LangfusePromptTraceMetadata = null,
-    string? ReasoningEffort = null)
+    string? ReasoningEffort = null,
+    int MaxOutputTokenCount = 10_000)
 {
     public static PredictionServiceOptions Default { get; } = new();
 
