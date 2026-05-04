@@ -45,12 +45,14 @@ Report the estimate with the row used, observed sample size, max output token ca
 
 Use this gate before any base estimate or actionable estimate for `high` or `xhigh` reasoning when no exact table row exists for the intended model, reasoning effort, prompt route, and max output token cap.
 
+Use a short Langfuse run description for scanability in the Experiments UI: `<model> <reasoning-effort>, preflight`. Keep the long run name unchanged for stable identity and usage collection.
+
 1. State the expected one-item preflight spend and get confirmation unless the user has already authorized that exact preflight.
 2. Use the intended model, prompt source/key, reasoning effort, evaluation policy, service tier default, and a one-item dataset. Reuse the hosted-prompt POC one-item manifest when it matches the planned prompt route:
 
 ```powershell
 dotnet run --project src/Orchestrator -- sync-dataset --input artifacts/langfuse-experiments/repeated-match/pes-squad/md26-vfb-stuttgart-vs-rb-leipzig/repeat-1-langfuse-poc/slice-dataset.json
-dotnet run --project src/Orchestrator -- run-repeated-match gpt-5.5 --manifest artifacts/langfuse-experiments/repeated-match/pes-squad/md26-vfb-stuttgart-vs-rb-leipzig/repeat-1-langfuse-poc/slice-manifest.json --run-name "preflight__pes-squad__gpt-5.5__langfuse-o3-poc__reasoning-xhigh__maxout-40000__repeat-1__exact-time__RUN_STAMP" --prompt-key langfuse-o3-poc --prompt-source langfuse --langfuse-prompt-name kicktippai/predict-one-match-o3-poc --langfuse-prompt-label poc --reasoning-effort xhigh --max-output-tokens 40000 --evaluation-time "2026-03-15T12:00:00 Europe/Berlin (+01)" --batch-count 1 --replace-run
+dotnet run --project src/Orchestrator -- run-repeated-match gpt-5.5 --manifest artifacts/langfuse-experiments/repeated-match/pes-squad/md26-vfb-stuttgart-vs-rb-leipzig/repeat-1-langfuse-poc/slice-manifest.json --run-name "preflight__pes-squad__gpt-5.5__langfuse-o3-poc__reasoning-xhigh__maxout-40000__repeat-1__exact-time__RUN_STAMP" --run-description "gpt-5.5 xhigh, preflight" --prompt-key langfuse-o3-poc --prompt-source langfuse --langfuse-prompt-name kicktippai/predict-one-match-o3-poc --langfuse-prompt-label poc --reasoning-effort xhigh --max-output-tokens 40000 --evaluation-time "2026-03-15T12:00:00 Europe/Berlin (+01)" --batch-count 1 --replace-run
 ```
 
 3. Start with `--max-output-tokens 10000` only when no table row or prior preflight evidence indicates a higher cap. If prior evidence for the prompt route needed a higher cap, include that cap in the first preflight command and run name.
@@ -77,7 +79,7 @@ dotnet run --project src/Orchestrator -- prepare-slice --community-context pes-s
 
 4. Read the selector manifest and prepare one repeated-match dataset for each selected fixture with `--sample-size 4`. Use clear slice keys such as `cost-estimate-<model>-<effort>-fixture-01`.
 5. Sync all five repeated-match datasets.
-6. Run the five repeated-match datasets in parallel. Each run must use `--batch-count 1`, the intended model, reasoning effort, prompt route, evaluation policy, and flex processing default. Use one shared UTC run stamp for the family.
+6. Run the five repeated-match datasets in parallel with the `Start-Job` pattern in the cookbook below. Do not chain the five `dotnet run` commands with `;`; that is sequential. Each run must use `--batch-count 1`, the intended model, reasoning effort, prompt route, evaluation policy, and flex processing default. Use one shared UTC run stamp for the family.
 7. Start with the default `--max-output-tokens` value of `10000` unless the table or prior preflight evidence already requires a higher cap. If any run item fails because the response hit the output cap, emits `OpenAI response did not contain output text`, or records `outputTokens >= maxOutputTokens`, increase the cap and rerun the complete 5-by-4 base estimate. Keep increasing and rerunning the complete sample until no item hits the cap.
 8. Gather compact `predict-match` usage with the bundled script:
 
@@ -92,10 +94,13 @@ uv --cache-dir .uv-cache run python .agents/skills/estimate-experiment-cost-skil
 ```
 
 10. Insert the emitted Markdown row into [references/base-estimate-table.md](references/base-estimate-table.md) and add source details to [references/seed-evidence.md](references/seed-evidence.md) or a new directly linked reference when the row needs long run-name evidence.
+11. If [references/base-estimate-table.md](references/base-estimate-table.md) changed, commit and push the table plus any directly supporting reference files before reporting the workflow complete. Do not stop with an uncommitted table change.
 
 ## 5-by-4 Base Estimate Cookbook
 
 Use this concrete pattern for step 4 of the base estimate method. Do not search historical research for prior artifact layouts.
+
+Use short Langfuse run descriptions for scanability in the Experiments UI: `<model> <reasoning-effort>, base estimate (N/5)`. Keep the long run names unchanged for stable identity, grouping, and usage collection.
 
 Read fixture coordinates from the selector manifest's `items` array. Use `homeTeam`, `awayTeam`, and `matchday`; `selectedItemIds` alone is not enough to prepare repeated-match datasets.
 
@@ -124,16 +129,104 @@ dotnet run --project src/Orchestrator -- sync-dataset --input PATH_TO_FIXTURE_04
 dotnet run --project src/Orchestrator -- sync-dataset --input PATH_TO_FIXTURE_05_SLICE_DATASET_JSON
 ```
 
-Run the five repeated-match manifests as one run family. Use one shared UTC run stamp and one run name per fixture. Use `--evaluation-policy-kind relative --evaluation-policy-offset -12:00:00` for the default slice-like policy, or the intended exact `--evaluation-time` when the planned estimate requires exact-time execution.
+Run the five repeated-match manifests as one run family. Use one shared UTC run stamp and one run name per fixture. Start all five jobs before waiting for any of them. Use `--evaluation-policy-kind relative --evaluation-policy-offset -12:00:00` for the default slice-like policy, or the intended exact `--evaluation-time` when the planned estimate requires exact-time execution.
 
 ```powershell
 $runStamp = (Get-Date).ToUniversalTime().ToString("yyyy-MM-ddTHH-mm-ssZ").ToLowerInvariant()
-dotnet run --project src/Orchestrator -- run-repeated-match MODEL --manifest PATH_TO_FIXTURE_01_SLICE_MANIFEST_JSON --run-name "repeated-match__pes-squad__MODEL__PROMPT_ROUTE_TAG__reasoning-EFFORT__MAXOUT_TAG__repeat-4-seed-SEED-fixture-01__startsat-12h__$runStamp" --prompt-key PROMPT_KEY PROMPT_SOURCE_FLAGS --reasoning-effort EFFORT MAX_OUTPUT_FLAGS --evaluation-policy-kind relative --evaluation-policy-offset -12:00:00 --batch-count 1 --replace-run
+$runs = @(
+  @{
+    Fixture = "01"
+    Manifest = "PATH_TO_FIXTURE_01_SLICE_MANIFEST_JSON"
+    RunName = "repeated-match__pes-squad__MODEL__PROMPT_ROUTE_TAG__reasoning-EFFORT__MAXOUT_TAG__repeat-4-seed-SEED-fixture-01__startsat-12h__$runStamp"
+    Description = "MODEL EFFORT, base estimate (1/5)"
+  },
+  @{
+    Fixture = "02"
+    Manifest = "PATH_TO_FIXTURE_02_SLICE_MANIFEST_JSON"
+    RunName = "repeated-match__pes-squad__MODEL__PROMPT_ROUTE_TAG__reasoning-EFFORT__MAXOUT_TAG__repeat-4-seed-SEED-fixture-02__startsat-12h__$runStamp"
+    Description = "MODEL EFFORT, base estimate (2/5)"
+  },
+  @{
+    Fixture = "03"
+    Manifest = "PATH_TO_FIXTURE_03_SLICE_MANIFEST_JSON"
+    RunName = "repeated-match__pes-squad__MODEL__PROMPT_ROUTE_TAG__reasoning-EFFORT__MAXOUT_TAG__repeat-4-seed-SEED-fixture-03__startsat-12h__$runStamp"
+    Description = "MODEL EFFORT, base estimate (3/5)"
+  },
+  @{
+    Fixture = "04"
+    Manifest = "PATH_TO_FIXTURE_04_SLICE_MANIFEST_JSON"
+    RunName = "repeated-match__pes-squad__MODEL__PROMPT_ROUTE_TAG__reasoning-EFFORT__MAXOUT_TAG__repeat-4-seed-SEED-fixture-04__startsat-12h__$runStamp"
+    Description = "MODEL EFFORT, base estimate (4/5)"
+  },
+  @{
+    Fixture = "05"
+    Manifest = "PATH_TO_FIXTURE_05_SLICE_MANIFEST_JSON"
+    RunName = "repeated-match__pes-squad__MODEL__PROMPT_ROUTE_TAG__reasoning-EFFORT__MAXOUT_TAG__repeat-4-seed-SEED-fixture-05__startsat-12h__$runStamp"
+    Description = "MODEL EFFORT, base estimate (5/5)"
+  }
+)
+
+$jobs = foreach ($run in $runs) {
+  Start-Job -Name $run.Fixture -ArgumentList $run.Manifest, $run.RunName, $run.Description -ScriptBlock {
+    param([string] $manifest, [string] $runName, [string] $runDescription)
+
+    $ErrorActionPreference = "Stop"
+    $PSNativeCommandUseErrorActionPreference = $true
+
+    dotnet run --project src/Orchestrator -- run-repeated-match MODEL --manifest $manifest --run-name $runName --run-description $runDescription --prompt-key PROMPT_KEY PROMPT_SOURCE_FLAGS --reasoning-effort EFFORT MAX_OUTPUT_FLAGS --evaluation-policy-kind relative --evaluation-policy-offset -12:00:00 --batch-count 1 --replace-run
+    if ($LASTEXITCODE -ne 0) {
+      throw "run-repeated-match failed for $runName with exit code $LASTEXITCODE"
+    }
+  }
+}
+
+$jobs | Wait-Job
+$jobs | Receive-Job
+$failedJobs = $jobs | Where-Object { $_.State -ne "Completed" }
+if ($failedJobs) {
+  throw "One or more repeated-match jobs failed: $($failedJobs.Name -join ', ')"
+}
+$jobs | Remove-Job
+Write-Output "RUN_STAMP=$runStamp"
 ```
 
-Repeat the run command for fixtures `02` through `05`, changing only the manifest path and fixture token in the run name. Include `MAXOUT_TAG` and `MAX_OUTPUT_FLAGS` only when the cap is above the default 10000, for example `maxout-40000` and `--max-output-tokens 40000`. For Langfuse hosted prompt runs, `PROMPT_SOURCE_FLAGS` is usually `--prompt-source langfuse --langfuse-prompt-name kicktippai/predict-one-match-o3-poc --langfuse-prompt-label poc`; for local prompt runs, omit those hosted-prompt flags.
+Replace fixtures `01` through `05` with the emitted manifest paths, matching run names, and matching run descriptions. Include `MAXOUT_TAG` and `MAX_OUTPUT_FLAGS` only when the cap is above the default 10000, for example `maxout-40000` and `--max-output-tokens 40000`. For Langfuse hosted prompt runs, `PROMPT_SOURCE_FLAGS` is usually `--prompt-source langfuse --langfuse-prompt-name kicktippai/predict-one-match-o3-poc --langfuse-prompt-label poc`; for local prompt runs, omit those hosted-prompt flags.
 
 Collect usage with exactly the five run names and `--expect repeated-measured=20`. If the collector finds fewer or more observations, fix the run set before calculating a table row.
+
+## Reference Table Commit And Push
+
+Use this closeout every time [references/base-estimate-table.md](references/base-estimate-table.md) is modified. Include any directly supporting reference files changed for the same row, such as `preflight-evidence.md`, `seed-evidence.md`, or a run-family evidence note. Do not stage generated experiment artifacts, `C:\tmp` files, or unrelated workspace changes.
+
+Inspect and stage only the intended reference files:
+
+```powershell
+git diff -- .agents/skills/estimate-experiment-cost-skill/references
+git status --short --branch
+$filesToCommit = @(
+  ".agents/skills/estimate-experiment-cost-skill/references/base-estimate-table.md"
+  # Add every changed supporting reference file here, for example:
+  # ".agents/skills/estimate-experiment-cost-skill/references/preflight-evidence.md"
+  # ".agents/skills/estimate-experiment-cost-skill/references/seed-evidence.md"
+)
+git add -- $filesToCommit
+git commit -m "Update experiment cost estimates"
+```
+
+Before requesting approval for push, record the exact target:
+
+```powershell
+git branch --show-current
+git remote -v
+git status --short --branch
+git log -1 --oneline
+```
+
+Push with an explicit remote and branch, using the current branch from `git branch --show-current`:
+
+```powershell
+git push origin CURRENT_BRANCH
+```
 
 ## Output Token Caps
 
@@ -149,3 +242,4 @@ Collect usage with exactly the five run names and `--expect repeated-measured=20
 - Verify the estimate uses `N` match predictions, not batches or fixtures.
 - Verify the table costs were emitted by `scripts/experiment_cost_estimator.py`.
 - Inspect the diff before staging or committing any table or skill change.
+- Verify every `base-estimate-table.md` change was committed and pushed with its supporting reference files before final response.

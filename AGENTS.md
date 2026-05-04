@@ -24,6 +24,12 @@ When invoking Powershell commands via `run_in_terminal`, don't prefix them with 
 .github/copilot/skills/submodules-display-tree/scripts/Display-Tree.ps1 -Format tree -Depth 2
 ```
 
+### Running Parallel Powershell Work
+
+When a workflow says to run independent commands in parallel, do not place the commands on one line separated by `;`. Semicolon-chained Powershell commands run sequentially. Use `Start-Job` or separate terminal tasks to launch all commands first, then wait for all of them with `Wait-Job`, collect output with `Receive-Job`, and fail the workflow if any job failed.
+
+For Langfuse experiment run families, create one shared `$runStamp` before launching jobs, pass that stamp into every job's run name, and start all jobs before waiting for any one of them.
+
 ## Gathering Information
 
 We use different external dependencies, some of which are partially or fully available locally via git submodules. When gathering information like
@@ -77,6 +83,14 @@ uv --cache-dir .uv-cache run ...
 ```
 
 The default Windows uv cache under `%LOCALAPPDATA%` can be blocked by sandbox permissions. The `.uv-cache/` directory is ignored by git. If a `uv` command still fails due to permissions, needs network access, or needs unrestricted external secrets access, rerun that same command outside the sandbox with approval.
+
+When validating Codex skills with the global `skill-creator` validator, use `uv --with PyYAML` because the ambient Python environment often does not have the `yaml` module installed:
+
+```powershell
+uv --cache-dir .uv-cache run --with PyYAML python C:\Users\dennis\.codex\skills\.system\skill-creator\scripts\quick_validate.py path\to\skill-folder
+```
+
+If this command fails because `PyYAML` needs to be fetched and sandbox networking blocks PyPI, rerun the same command outside the sandbox with approval.
 
 ## Running and Filtering Tests
 
