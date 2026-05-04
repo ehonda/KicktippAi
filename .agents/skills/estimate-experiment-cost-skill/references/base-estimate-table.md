@@ -13,6 +13,7 @@ The initial rows use `2025-11-29` as the stored model knowledge cutoff date beca
 | `o3` | `medium` | local `prompt-v1` | `2025-11-29` | `2025-12-01T00:00:00 Europe/Berlin (+01)` | 10000 | 20 | 67580 | 0.067580000000 | 35288 | 0.141152000000 | 0.208732000000 | 0.010436600000 | Initial seed evidence: `o3-medium-2026-05-01t22-14-04z`. |
 | `gpt-5.4-nano` | `xhigh` | Langfuse `langfuse-o3-poc` (`kicktippai/predict-one-match-o3-poc`, label `poc`) | `2025-11-29` | `2025-12-01T00:00:00 Europe/Berlin (+01)` | 40000 | 20 | 67580 | 0.006758000000 | 340638 | 0.212898750000 | 0.219656750000 | 0.010982837500 | Initial seed evidence: `gpt-5.4-nano-xhigh-2026-05-03t22-42-35z`; default 10000 and 20000 caps were insufficient before the completed `maxout-40000` run. |
 | `gpt-5.5` | `none` | Langfuse `langfuse-o3-poc` (`kicktippai/predict-one-match-o3-poc`, label `poc`) | `2025-11-29` | `2025-12-01T00:00:00 Europe/Berlin (+01)` | 10000 | 20 | 67580 | 0.168950000000 | 340 | 0.005100000000 | 0.174050000000 | 0.008702500000 | Initial seed evidence: `gpt-5.5-none-2026-05-03t22-42-35z`. |
+| `gpt-5.5` | `xhigh` | Langfuse `langfuse-o3-poc` (`kicktippai/predict-one-match-o3-poc`, label `poc`) | `2025-11-29` | `2025-12-01T00:00:00 Europe/Berlin (+01)` | 40000 | 20 | 66560 | 0.166400000000 | 115130 | 1.726950000000 | 1.893350000000 | 0.094667500000 | Base estimate evidence: [gpt-5.5-xhigh-base-estimate-2026-05-04.md](gpt-5.5-xhigh-base-estimate-2026-05-04.md). |
 
 ## Maintenance
 
