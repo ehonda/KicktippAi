@@ -70,6 +70,14 @@ The hosted Langfuse prompt route is still a POC and remains opt-in for experimen
 
 Use `uv` to manage everything Python-related in this repository, including interpreter selection, virtual environments, dependencies, and repo-local command execution.
 
+When running `uv` from Codex, prefer the repo-local cache form:
+
+```powershell
+uv --cache-dir .uv-cache run ...
+```
+
+The default Windows uv cache under `%LOCALAPPDATA%` can be blocked by sandbox permissions. The `.uv-cache/` directory is ignored by git. If a `uv` command still fails due to permissions, needs network access, or needs unrestricted external secrets access, rerun that same command outside the sandbox with approval.
+
 ## Running and Filtering Tests
 
 This project uses TUnit for testing, which has some differences compared to more common frameworks like xUnit or NUnit. They are documented in the following sections.

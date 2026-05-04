@@ -1,0 +1,9 @@
+# Preflight Evidence
+
+Updated: 2026-05-04
+
+Use this file for one-item high-reasoning cap and cost probes. These rows are not valid base estimate rows and must not be inserted into `base-estimate-table.md`; use them to choose the first output-token cap and to estimate the expected spend before running a 5-by-4 base estimate.
+
+| Model | Reasoning effort | Prompt route | Run name | Fixture / evaluation | Max output tokens | Input tokens | Output tokens | Reasoning tokens | Service tier | Observed cost (USD) | Cap outcome | Notes |
+| --- | --- | --- | --- | --- | ---: | ---: | ---: | ---: | --- | ---: | --- | --- |
+| `gpt-5.5` | `xhigh` | Langfuse `langfuse-o3-poc` (`kicktippai/predict-one-match-o3-poc`, label `poc`) | `preflight__pes-squad__gpt-5.5__langfuse-o3-poc__reasoning-xhigh__maxout-40000__repeat-1__exact-time__2026-05-04t21-10-03z` | VfB Stuttgart vs RB Leipzig, `2026-03-15T12:00:00 Europe/Berlin (+01)` | 40000 | 3260 | 5715 | 5696 | flex | 0.093875 | succeeded; no cap pressure | Compact usage: `C:\tmp\kicktippai-gpt55-xhigh-preflight-20260504-usage.json`; 20-observation data-gathering point estimate from this one item is `$1.877500000000`. |
