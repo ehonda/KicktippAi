@@ -2,6 +2,12 @@
 
 These instructions apply to `docs/research/estimate-experiment-cost-skill`.
 
+## Status
+
+This research folder is done and historical. The active project-scoped skill lives at `.agents/skills/estimate-experiment-cost-skill/`. Prefer updating the skill, its bundled scripts, and its references for operational estimator changes.
+
+The remaining instructions apply only if a user explicitly reopens this research thread or asks for a new numbered follow-up experiment in this folder.
+
 ## Keep Documents Synchronized
 
 - Read [README.md](README.md) and all existing `NNN-*.md` experiment documents before adding or updating an experiment.
@@ -12,7 +18,7 @@ These instructions apply to `docs/research/estimate-experiment-cost-skill`.
 - Shared methodology may live in support documents such as `token-usage-methodology.md`, but each numbered experiment document must still include its own `Methodology` section with experiment-specific settings and a link to the shared method.
 - Every experiment document must include `Research Question`, `Methodology`, `Outcome`, and `Further Research Directions`.
 - When an experiment changes the research workflow, update this `AGENTS.md` in the same change.
-- When an experiment changes the provisional estimator, update the `Current Estimator Shape` section in [README.md](README.md).
+- When an experiment changes estimator behavior, update the active skill and the `Final Estimator Shape` section in [README.md](README.md).
 
 ## Roles And Autonomy
 
@@ -35,7 +41,7 @@ These instructions apply to `docs/research/estimate-experiment-cost-skill`.
 - When a repeated-match experiment needs a random fixture after a cutoff and `prepare-repeated-match` does not support the random/cutoff selection directly, first prepare a one-item random slice with the required cutoff and seed, then use that selected fixture for `prepare-repeated-match`.
 - When comparing total input, output, or total token counts between repeated-match and slice usage, prepare exactly `N` repeated-match items. Do not add or exclude a warmup item unless the user explicitly makes cached-input behavior, uncached-input behavior, or monetary cost part of the research question.
 - For total input/output token estimate reference datasets, prefer `M` randomly selected repeated fixtures of size `S` over one repeated fixture, with `N = M * S` total observations. Keep the fixture-selection pool aligned with the slice pool, including the same cutoff date. Use `--batch-count 1` for repeated-match token-correspondence runs unless cache behavior is the research question.
-- For usage extraction, prefer [analyze_token_usage.py](analyze_token_usage.py) or an Orchestrator export path that batches Langfuse observations by run/session. Avoid one `GET /api/public/traces/{traceId}` detail call per item unless the batched observations endpoint lacks a field the experiment truly needs.
+- For usage extraction, prefer the active skill script at `.agents/skills/estimate-experiment-cost-skill/scripts/experiment_cost_estimator.py` or an Orchestrator export path that batches Langfuse observations by run/session. Avoid one `GET /api/public/traces/{traceId}` detail call per item unless the batched observations endpoint lacks a field the experiment truly needs.
 
 Prefer data sources in this order:
 

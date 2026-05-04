@@ -1,0 +1,4 @@
+interface:
+  display_name: "Experiment Cost Estimator"
+  short_description: "Estimate KicktippAi experiment costs"
+  default_prompt: "Use $estimate-experiment-cost-skill to estimate a KicktippAi experiment cost and update the observed estimate table when needed."
