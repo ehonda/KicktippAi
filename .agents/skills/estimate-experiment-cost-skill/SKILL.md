@@ -18,6 +18,7 @@ Before estimating or running a base estimate:
 - Read [references/preflight-evidence.md](references/preflight-evidence.md) when checking prior high-reasoning output-cap evidence.
 - Read [references/seed-evidence.md](references/seed-evidence.md) only when checking the initial seeded rows.
 - Use `.agents/skills/langfuse-experiments/` for experiment preparation, execution, export, commit, and push workflow details.
+- Do not use `docs/research/estimate-experiment-cost-skill/` for routine cost-estimate execution. Treat historical research as design context only when changing this skill or investigating why the workflow exists.
 - Use the official `$langfuse` skill or the installed `langfuse` command for Langfuse API inspection.
 - Run commands from the repository root so Orchestrator can auto-load external secrets.
 - Run every `dotnet` and `git` command outside the sandbox, as required by the repository root instructions. Use `uv` for Python commands.
@@ -91,6 +92,48 @@ uv --cache-dir .uv-cache run python .agents/skills/estimate-experiment-cost-skil
 ```
 
 10. Insert the emitted Markdown row into [references/base-estimate-table.md](references/base-estimate-table.md) and add source details to [references/seed-evidence.md](references/seed-evidence.md) or a new directly linked reference when the row needs long run-name evidence.
+
+## 5-by-4 Base Estimate Cookbook
+
+Use this concrete pattern for step 4 of the base estimate method. Do not search historical research for prior artifact layouts.
+
+Read fixture coordinates from the selector manifest's `items` array. Use `homeTeam`, `awayTeam`, and `matchday`; `selectedItemIds` alone is not enough to prepare repeated-match datasets.
+
+```powershell
+$selectorManifest = "artifacts/langfuse-experiments/slices/pes-squad/all-matchdays-after-20251130t230000z/random-5-seed-20260503-cost-estimate/slice-manifest.json"
+$selector = Get-Content $selectorManifest -Raw | ConvertFrom-Json
+$seed = $selector.sampleSeed
+$fixtureIndex = 0
+
+$selector.items | ForEach-Object {
+  $fixtureIndex += 1
+  $fixtureToken = "fixture-{0:00}" -f $fixtureIndex
+  $sliceKey = "repeat-4-seed-$seed-$fixtureToken"
+
+  dotnet run --project src/Orchestrator -- prepare-repeated-match --community-context $selector.communityContext --home "$($_.homeTeam)" --away "$($_.awayTeam)" --matchday $_.matchday --sample-size 4 --slice-key $sliceKey --dataset-description "Cost estimate 5-by-4 base sample from selector $($selector.sliceKey), $fixtureToken."
+}
+```
+
+For each successful `prepare-repeated-match` command, record the emitted `sliceArtifactPath`, `sliceManifestPath`, `sourcePoolKey`, and `sliceKey`. Sync exactly those five emitted datasets:
+
+```powershell
+dotnet run --project src/Orchestrator -- sync-dataset --input PATH_TO_FIXTURE_01_SLICE_DATASET_JSON
+dotnet run --project src/Orchestrator -- sync-dataset --input PATH_TO_FIXTURE_02_SLICE_DATASET_JSON
+dotnet run --project src/Orchestrator -- sync-dataset --input PATH_TO_FIXTURE_03_SLICE_DATASET_JSON
+dotnet run --project src/Orchestrator -- sync-dataset --input PATH_TO_FIXTURE_04_SLICE_DATASET_JSON
+dotnet run --project src/Orchestrator -- sync-dataset --input PATH_TO_FIXTURE_05_SLICE_DATASET_JSON
+```
+
+Run the five repeated-match manifests as one run family. Use one shared UTC run stamp and one run name per fixture. Use `--evaluation-policy-kind relative --evaluation-policy-offset -12:00:00` for the default slice-like policy, or the intended exact `--evaluation-time` when the planned estimate requires exact-time execution.
+
+```powershell
+$runStamp = (Get-Date).ToUniversalTime().ToString("yyyy-MM-ddTHH-mm-ssZ").ToLowerInvariant()
+dotnet run --project src/Orchestrator -- run-repeated-match MODEL --manifest PATH_TO_FIXTURE_01_SLICE_MANIFEST_JSON --run-name "repeated-match__pes-squad__MODEL__PROMPT_ROUTE_TAG__reasoning-EFFORT__MAXOUT_TAG__repeat-4-seed-SEED-fixture-01__startsat-12h__$runStamp" --prompt-key PROMPT_KEY PROMPT_SOURCE_FLAGS --reasoning-effort EFFORT MAX_OUTPUT_FLAGS --evaluation-policy-kind relative --evaluation-policy-offset -12:00:00 --batch-count 1 --replace-run
+```
+
+Repeat the run command for fixtures `02` through `05`, changing only the manifest path and fixture token in the run name. Include `MAXOUT_TAG` and `MAX_OUTPUT_FLAGS` only when the cap is above the default 10000, for example `maxout-40000` and `--max-output-tokens 40000`. For Langfuse hosted prompt runs, `PROMPT_SOURCE_FLAGS` is usually `--prompt-source langfuse --langfuse-prompt-name kicktippai/predict-one-match-o3-poc --langfuse-prompt-label poc`; for local prompt runs, omit those hosted-prompt flags.
+
+Collect usage with exactly the five run names and `--expect repeated-measured=20`. If the collector finds fewer or more observations, fix the run set before calculating a table row.
 
 ## Output Token Caps
 
