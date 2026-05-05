@@ -1,17 +1,19 @@
 ---
 name: langfuse-experiments
-description: Run KicktippAi Langfuse experiments end to end. Use when preparing, syncing, or running slice, repeated-match, or community-to-date experiment datasets; exporting comparable runs; generating JSON, Markdown, and HTML comparison reports; publishing browser-friendly GitHub Pages experiment analysis pages; verifying the Pages index; and committing plus pushing the resulting tracked files.
+description: Run KicktippAi Langfuse experiments end to end. Use when preparing, syncing, or running slice, repeated-match, or community-to-date experiment datasets; exporting comparable runs; generating JSON, Markdown, and HTML comparison reports; publishing browser-friendly GitHub Pages experiment analysis pages; documenting experiment design and results under docs/experiments; verifying the Pages index; and committing plus pushing the resulting tracked files.
 ---
 
 # Langfuse Experiments
 
-Use this skill to run KicktippAi Langfuse experiments, produce statistical comparison reports, publish browser-friendly report pages through the repository's GitHub Pages workflow, and commit plus push the tracked results.
+Use this skill to run KicktippAi Langfuse experiments, produce statistical comparison reports, create companion long-form experiment writeups under `docs/experiments`, publish browser-friendly report pages through the repository's GitHub Pages workflow, and commit plus push the tracked results.
 
 ## Grounding
 
 Before running or publishing anything:
 
 - Read `AGENTS.md`, `docs/langfuse.md`, `docs/langfuse/experiments/running-experiments.md`, and `docs/langfuse/experiments/analyzing-experiments.md`.
+- Keep workflow and tooling guidance under `docs/langfuse/experiments`, and keep experiment-specific narrative writeups under `docs/experiments`.
+- When extending an existing investigation or publishing a new result, inspect a nearby `docs/experiments/*.md` file and follow that level of detail.
 - Read `plans/langfuse-integration/phase-2/AGENTS.md` and linked trackers only when the request changes experiment behavior or needs historical implementation/design context.
 - Use the official `$langfuse` skill and the installed `langfuse` command for generic Langfuse API inspection, docs lookup, SDK guidance, and prompt management. Keep this skill focused on KicktippAi-specific experiment orchestration and reporting.
 - Prefer the repository's Orchestrator and Python tooling over direct ad hoc Langfuse API scripting.
@@ -69,6 +71,21 @@ uv run experiment-analysis-report --input artifacts/langfuse-experiments/analysi
 
 Keep HTML enabled by default. The command writes report JSON and Markdown next to the analysis bundle, and writes the browser report under `experiment-analysis/...`. Use that `experiment-analysis/.../*.report.html` path as the tracked GitHub Pages artifact.
 
+## Document The Experiment
+
+For any experiment that is being shared, used for a decision, or committed with a Pages artifact, create or update a companion writeup under `docs/experiments/<descriptive-slug>.md`. Use existing files in that folder as the pattern.
+
+Cover at least:
+
+- the question, hypothesis, or product decision being tested
+- the dataset or slice identity, selection rules, sample size, seeds, and evaluation policy
+- the compared variants and the single intended comparison axis that changed
+- the primary results, uncertainty or statistical interpretation, and practical significance
+- the decision or recommendation, limitations, and the next step if the result is inconclusive
+- the exact tracked `experiment-analysis/.../*.report.html` path and a repo-relative link to that report
+
+Back-linking from the published artifact needs special handling. `.github/scripts/Build-PagesSite.ps1` publishes `experiment-analysis/` into the Pages output, but it does not publish `docs/experiments/`. Do not add a broken Pages-relative link from the generated HTML report to `docs/experiments/...`. When the published artifact needs to link back to the long-form writeup, use the canonical GitHub URL for the committed `docs/experiments/...` file after the target remote and branch are known, or extend the publishing surface as part of the task.
+
 Publish analysis bundles back into Langfuse Experiments Beta only when requested or when repairing beta UI visibility:
 
 ```powershell
@@ -90,16 +107,18 @@ Then confirm `artifacts/pages-site-check/experiment-analysis/index.html` exists 
 Select-String -Path artifacts/pages-site-check/experiment-analysis/index.html -Pattern "new-report-file-name"
 ```
 
-Do not commit `artifacts/pages-site-check`, `artifacts/langfuse-experiments`, `coverage-report`, or `pages-site`. Commit tracked browser reports under `experiment-analysis/` and the skill files only.
+If you added a link from the published artifact or related published surface back to `docs/experiments/...`, verify that it resolves to the committed GitHub URL rather than to a broken Pages-relative path.
+
+Do not commit `artifacts/pages-site-check`, `artifacts/langfuse-experiments`, `coverage-report`, or `pages-site`. Commit tracked browser reports under `experiment-analysis/`, companion writeups under `docs/experiments/`, and the skill files only.
 
 ## Commit And Push
 
 Before staging, inspect the diff and status. Stage only intended tracked deliverables:
 
 ```powershell
-git diff -- .agents/skills/langfuse-experiments experiment-analysis
+git diff -- .agents/skills/langfuse-experiments docs/experiments experiment-analysis
 git status --short --branch
-git add .agents/skills/langfuse-experiments experiment-analysis
+git add .agents/skills/langfuse-experiments docs/experiments experiment-analysis
 git commit -m "Add Langfuse experiments skill"
 ```
 
@@ -121,5 +140,7 @@ Push with an explicit remote and branch, for example `git push origin main`, and
 - Verify all compared runs completed successfully against the same dataset and prepared item set.
 - Verify `export-experiment-analysis` emitted one bundle with at least two unique run names.
 - Verify `uv run experiment-analysis-report` emitted JSON, Markdown, and HTML unless HTML was intentionally disabled.
+- Verify any committed or published experiment result has a companion `docs/experiments/...` writeup that captures the design, results, interpretation, and the final report path.
+- Verify any link from the published artifact back to the long-form writeup uses a valid GitHub URL or another actually published surface, not a relative `docs/experiments/...` Pages path.
 - Verify the report primary metric matches the task type: `total_kicktipp_points` for `slice` and `community-to-date`, `avg_kicktipp_points` for `repeated-match`.
 - Verify the generated Pages index links the new report before pushing to `main`, because CI deploys GitHub Pages from pushes to `main`.
