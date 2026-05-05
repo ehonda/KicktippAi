@@ -19,6 +19,9 @@ namespace OpenAiIntegration;
 /// </summary>
 public class PredictionService : IPredictionService
 {
+    private const int TransientOpenAiMaxRetryAttempts = 3;
+    private static readonly TimeSpan TransientOpenAiRetryDelay = TimeSpan.FromSeconds(2);
+
     private readonly ResponsesClient _responsesClient;
     private readonly ILogger<PredictionService> _logger;
     private readonly ICostCalculationService _costCalculationService;
@@ -229,7 +232,7 @@ public class PredictionService : IPredictionService
         CreateResponseOptions options,
         CancellationToken cancellationToken)
     {
-        var response = await _responsesClient.CreateResponseAsync(options, cancellationToken);
+        var response = await CreateResponseWithTransientRetryAsync(options, cancellationToken);
         var responseResult = response.Value;
         var predictionJson = responseResult.GetOutputText();
         if (predictionJson is null)
@@ -250,6 +253,36 @@ public class PredictionService : IPredictionService
             usage,
             null,
             NormalizeResponseServiceTier(responseResult.ServiceTier));
+    }
+
+    private async Task<ClientResult<ResponseResult>> CreateResponseWithTransientRetryAsync(
+        CreateResponseOptions options,
+        CancellationToken cancellationToken)
+    {
+        var pipeline = new ResiliencePipelineBuilder<ClientResult<ResponseResult>>()
+            .AddRetry(new RetryStrategyOptions<ClientResult<ResponseResult>>
+            {
+                MaxRetryAttempts = TransientOpenAiMaxRetryAttempts,
+                Delay = TransientOpenAiRetryDelay,
+                BackoffType = DelayBackoffType.Exponential,
+                UseJitter = true,
+                ShouldHandle = args => ValueTask.FromResult(
+                    IsTransientOpenAiServerFailure(args.Outcome.Exception, args.Context.CancellationToken)),
+                OnRetry = args =>
+                {
+                    _logger.LogWarning(
+                        args.Outcome.Exception,
+                        "OpenAI request failed with a transient server error; retrying prediction request ({RetryAttempt}/{MaxRetryAttempts}).",
+                        args.AttemptNumber + 1,
+                        TransientOpenAiMaxRetryAttempts);
+                    return default;
+                }
+            })
+            .Build();
+
+        return await pipeline.ExecuteAsync(
+            async ct => await _responsesClient.CreateResponseAsync(options, ct),
+            cancellationToken);
     }
 
     private CreateResponseOptions CreateMatchResponseOptions(
@@ -375,6 +408,16 @@ public class PredictionService : IPredictionService
             TaskCanceledException => true,
             _ => false
         };
+    }
+
+    private static bool IsTransientOpenAiServerFailure(Exception? exception, CancellationToken cancellationToken)
+    {
+        if (exception is null || cancellationToken.IsCancellationRequested)
+        {
+            return false;
+        }
+
+        return exception is ClientResultException { Status: >= 500 and <= 599 };
     }
 
     private static bool IsFlexResourceUnavailableFailure(ClientResultException exception)

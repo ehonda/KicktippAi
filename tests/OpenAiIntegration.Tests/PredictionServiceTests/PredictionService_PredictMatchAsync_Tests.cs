@@ -449,6 +449,32 @@ public class PredictionService_PredictMatchAsync_Tests : PredictionServiceTests_
     }
 
     [Test]
+    public async Task Predicting_match_retries_transient_openai_server_error_without_switching_service_tier()
+    {
+        // Arrange
+        var requestedServiceTiers = new List<string?>();
+        var chatClient = CreateProtocolChatClient(
+            requestedServiceTiers,
+            firstException: CreateClientResultException(
+                500,
+                reasonPhrase: "server_error",
+                body: """{"error":{"code":"server_error","message":"An error occurred while processing your request."}}"""),
+            responseServiceTier: "flex");
+        var service = CreateService(
+            chatClient,
+            options: NullableOption.Some(PredictionServiceOptions.FlexProcessingWithStandardFallback));
+
+        // Act
+        var prediction = await PredictMatchAsync(service);
+
+        // Assert
+        await Assert.That(prediction).IsEquivalentTo(new Prediction(2, 1, null));
+        await Assert.That(requestedServiceTiers.Count).IsEqualTo(2);
+        await Assert.That(requestedServiceTiers[0]).IsEqualTo("flex");
+        await Assert.That(requestedServiceTiers[1]).IsEqualTo("flex");
+    }
+
+    [Test]
     [NotInParallel("Telemetry")]
     public async Task Predicting_match_with_flex_processing_records_explicit_langfuse_cost_details()
     {
