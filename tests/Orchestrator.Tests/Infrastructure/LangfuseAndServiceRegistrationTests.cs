@@ -92,17 +92,27 @@ public class LangfuseAndServiceRegistrationTests
     [Test]
     public async Task Processor_clears_trace_metadata_only_for_root_activities()
     {
-        using var root = new Activity("root").Start();
-        LangfuseActivityPropagation.SetTraceMetadata(root, "match_id", "123");
+        var originalCurrent = Activity.Current;
+        Activity.Current = null;
 
-        using var child = new Activity("child").SetParentId(root.Id!).Start();
-        var processor = new LangfuseBaggageSpanProcessor();
+        try
+        {
+            using var root = new Activity("root").Start();
+            LangfuseActivityPropagation.SetTraceMetadata(root, "match_id", "123");
 
-        processor.OnEnd(child);
-        await Assert.That(LangfuseActivityPropagation.GetObservationMetadata(root).Any()).IsTrue();
+            using var child = new Activity("child").SetParentId(root.Id!).Start();
+            var processor = new LangfuseBaggageSpanProcessor();
 
-        processor.OnEnd(root);
-        await Assert.That(LangfuseActivityPropagation.GetObservationMetadata(root).Any()).IsFalse();
+            processor.OnEnd(child);
+            await Assert.That(LangfuseActivityPropagation.GetObservationMetadata(root).Any()).IsTrue();
+
+            processor.OnEnd(root);
+            await Assert.That(LangfuseActivityPropagation.GetObservationMetadata(root).Any()).IsFalse();
+        }
+        finally
+        {
+            Activity.Current = originalCurrent;
+        }
     }
 
     [Test]

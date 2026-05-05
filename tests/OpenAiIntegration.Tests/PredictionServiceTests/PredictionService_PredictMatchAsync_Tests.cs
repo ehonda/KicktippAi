@@ -435,7 +435,9 @@ public class PredictionService_PredictMatchAsync_Tests : PredictionServiceTests_
         await Assert.That(requestedReasoningEfforts[1]).IsNull();
         await Assert.That(requestPayloads.All(payload => !payload.Contains("\"reasoning\""))).IsTrue();
 
-        var activity = capturedActivities.Single(candidate => candidate.OperationName == "predict-match");
+        var activity = capturedActivities.Last(candidate =>
+            candidate.OperationName == "predict-match" &&
+            candidate.GetTagItem("langfuse.observation.type") is not null);
         await Assert.That(activity.GetTagItem("langfuse.observation.metadata.openaiExecutionStrategy"))
             .IsEqualTo("flex-first-standard-fallback");
         await Assert.That(activity.GetTagItem("langfuse.observation.metadata.openaiRequestedServiceTier"))
@@ -507,7 +509,9 @@ public class PredictionService_PredictMatchAsync_Tests : PredictionServiceTests_
 
         // Assert
         await Assert.That(prediction).IsEquivalentTo(new Prediction(2, 1, null));
-        var activity = capturedActivities.Single(candidate => candidate.OperationName == "predict-match");
+        var activity = capturedActivities.Last(candidate =>
+            candidate.OperationName == "predict-match" &&
+            candidate.GetTagItem("langfuse.observation.type") is not null);
         await Assert.That(activity.GetTagItem("langfuse.observation.usage_details")?.ToString())
             .Contains("\"total\":1050");
         await Assert.That(activity.GetTagItem("langfuse.observation.cost_details")?.ToString())
@@ -557,7 +561,9 @@ public class PredictionService_PredictMatchAsync_Tests : PredictionServiceTests_
         await Assert.That(requestedReasoningEfforts.Count).IsEqualTo(1);
         await Assert.That(requestedReasoningEfforts[0]).IsEqualTo("xhigh");
 
-        var activity = capturedActivities.Single(candidate => candidate.OperationName == "predict-match");
+        var activity = capturedActivities.Last(candidate =>
+            candidate.OperationName == "predict-match" &&
+            candidate.GetTagItem("langfuse.observation.type") is not null);
         await Assert.That(activity.GetTagItem("gen_ai.request.reasoning_effort")).IsEqualTo("xhigh");
         await Assert.That(activity.GetTagItem("langfuse.observation.metadata.openaiReasoningEffort")).IsEqualTo("xhigh");
     }
@@ -743,7 +749,9 @@ public class PredictionService_PredictMatchAsync_Tests : PredictionServiceTests_
         var prediction = await PredictMatchAsync(service);
 
         await Assert.That(prediction).IsNotNull();
-        var activity = capturedActivities.Single(candidate => candidate.OperationName == "predict-match");
+        var activity = capturedActivities.Last(candidate =>
+            candidate.OperationName == "predict-match" &&
+            candidate.GetTagItem("langfuse.observation.type") is not null);
         await Assert.That(activity.GetTagItem("langfuse.observation.prompt.name"))
             .IsEqualTo("kicktippai/predict-one-match-o3-poc");
         await Assert.That(activity.GetTagItem("langfuse.observation.prompt.version")).IsEqualTo(7);
