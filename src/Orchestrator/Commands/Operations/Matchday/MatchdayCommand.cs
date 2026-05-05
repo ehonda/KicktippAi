@@ -37,7 +37,7 @@ public class MatchdayCommand : AsyncCommand<BaseSettings>
         _logger = logger;
     }
 
-    public override async Task<int> ExecuteAsync(CommandContext context, BaseSettings settings)
+    protected override async Task<int> ExecuteAsync(CommandContext context, BaseSettings settings, CancellationToken cancellationToken)
     {
         
         try

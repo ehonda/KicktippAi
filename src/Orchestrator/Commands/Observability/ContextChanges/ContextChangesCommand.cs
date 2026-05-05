@@ -25,7 +25,7 @@ public class ContextChangesCommand : AsyncCommand<ContextChangesSettings>
         _logger = logger;
     }
 
-    public override async Task<int> ExecuteAsync(CommandContext context, ContextChangesSettings settings)
+    protected override async Task<int> ExecuteAsync(CommandContext context, ContextChangesSettings settings, CancellationToken cancellationToken)
     {
         
         try

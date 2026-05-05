@@ -28,11 +28,10 @@ public sealed class ExportExperimentAnalysisCommand : AsyncCommand<ExportExperim
         _logger = logger;
     }
 
-    public override async Task<int> ExecuteAsync(CommandContext context, ExportExperimentAnalysisSettings settings)
+    protected override async Task<int> ExecuteAsync(CommandContext context, ExportExperimentAnalysisSettings settings, CancellationToken cancellationToken)
     {
         try
         {
-            var cancellationToken = CancellationToken.None;
             var runNames = settings.GetParsedRunNames();
             var runContexts = new List<RunContext>();
 

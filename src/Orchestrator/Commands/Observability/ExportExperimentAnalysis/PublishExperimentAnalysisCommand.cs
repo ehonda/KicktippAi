@@ -24,11 +24,10 @@ public sealed class PublishExperimentAnalysisCommand : AsyncCommand<PublishExper
         _logger = logger;
     }
 
-    public override async Task<int> ExecuteAsync(CommandContext context, PublishExperimentAnalysisSettings settings)
+    protected override async Task<int> ExecuteAsync(CommandContext context, PublishExperimentAnalysisSettings settings, CancellationToken cancellationToken)
     {
         try
         {
-            var cancellationToken = CancellationToken.None;
             var bundle = await PreparedExperimentCommandSupport.LoadJsonFileAsync<PreparedExperimentAnalysisBundle>(
                 settings.InputPath,
                 cancellationToken);

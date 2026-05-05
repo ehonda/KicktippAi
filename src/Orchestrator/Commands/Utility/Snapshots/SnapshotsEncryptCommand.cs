@@ -18,7 +18,7 @@ public class SnapshotsEncryptCommand : AsyncCommand<SnapshotsEncryptSettings>
         _logger = logger;
     }
 
-    public override async Task<int> ExecuteAsync(CommandContext context, SnapshotsEncryptSettings settings)
+    protected override async Task<int> ExecuteAsync(CommandContext context, SnapshotsEncryptSettings settings, CancellationToken cancellationToken)
     {
 
         try

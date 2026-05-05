@@ -27,11 +27,10 @@ public sealed class PrepareSliceCommand : AsyncCommand<PrepareSliceSettings>
         _logger = logger;
     }
 
-    public override async Task<int> ExecuteAsync(CommandContext context, PrepareSliceSettings settings)
+    protected override async Task<int> ExecuteAsync(CommandContext context, PrepareSliceSettings settings, CancellationToken cancellationToken)
     {
         try
         {
-            var cancellationToken = CancellationToken.None;
             var matchOutcomeRepository = _firebaseServiceFactory.CreateMatchOutcomeRepository();
             var matchdays = ParseMatchdays(settings.Matchdays);
             var startsAfter = EvaluationTimeParser.ParseOrNull(settings.StartsAfter);

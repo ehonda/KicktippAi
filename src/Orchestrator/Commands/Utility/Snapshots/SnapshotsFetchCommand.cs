@@ -24,7 +24,7 @@ public class SnapshotsFetchCommand : AsyncCommand<SnapshotsFetchSettings>
         _logger = logger;
     }
 
-    public override async Task<int> ExecuteAsync(CommandContext context, SnapshotsFetchSettings settings)
+    protected override async Task<int> ExecuteAsync(CommandContext context, SnapshotsFetchSettings settings, CancellationToken cancellationToken)
     {
 
         try

@@ -36,7 +36,7 @@ public class RandomMatchCommand : AsyncCommand<RandomMatchSettings>
         _logger = logger;
     }
 
-    public override async Task<int> ExecuteAsync(CommandContext context, RandomMatchSettings settings)
+    protected override async Task<int> ExecuteAsync(CommandContext context, RandomMatchSettings settings, CancellationToken cancellationToken)
     {
         try
         {

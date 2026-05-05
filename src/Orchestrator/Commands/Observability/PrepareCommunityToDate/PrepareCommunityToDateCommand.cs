@@ -28,11 +28,10 @@ public sealed class PrepareCommunityToDateCommand : AsyncCommand<PrepareCommunit
         _logger = logger;
     }
 
-    public override async Task<int> ExecuteAsync(CommandContext context, PrepareCommunityToDateSettings settings)
+    protected override async Task<int> ExecuteAsync(CommandContext context, PrepareCommunityToDateSettings settings, CancellationToken cancellationToken)
     {
         try
         {
-            var cancellationToken = CancellationToken.None;
             EnvironmentHelper.LoadCommunityKicktippCredentials(_logger, settings.CommunityContext);
             var kicktippClient = _kicktippClientFactory.CreateClient();
             PreparedExperimentSupport.ReportProgress(

@@ -25,11 +25,10 @@ public sealed class PrepareRepeatedMatchCommand : AsyncCommand<PrepareRepeatedMa
         _logger = logger;
     }
 
-    public override async Task<int> ExecuteAsync(CommandContext context, PrepareRepeatedMatchSettings settings)
+    protected override async Task<int> ExecuteAsync(CommandContext context, PrepareRepeatedMatchSettings settings, CancellationToken cancellationToken)
     {
         try
         {
-            var cancellationToken = CancellationToken.None;
             var matchOutcomeRepository = _firebaseServiceFactory.CreateMatchOutcomeRepository();
             var outcome = await LoadCompletedOutcomeAsync(matchOutcomeRepository, settings, cancellationToken);
             var sourceDatasetName = ExperimentArtifactSupport.BuildSourceDatasetName(settings.CommunityContext);

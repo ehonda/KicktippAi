@@ -29,7 +29,7 @@ public class UploadTransfersCommand : AsyncCommand<UploadTransfersSettings>
         _logger = logger;
     }
 
-    public override async Task<int> ExecuteAsync(CommandContext context, UploadTransfersSettings settings)
+    protected override async Task<int> ExecuteAsync(CommandContext context, UploadTransfersSettings settings, CancellationToken cancellationToken)
     {
 
         try

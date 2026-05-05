@@ -32,7 +32,7 @@ public sealed class ExportExperimentItemCommand : AsyncCommand<ExportExperimentI
         _logger = logger;
     }
 
-    public override async Task<int> ExecuteAsync(CommandContext context, ExportExperimentItemSettings settings)
+    protected override async Task<int> ExecuteAsync(CommandContext context, ExportExperimentItemSettings settings, CancellationToken cancellationToken)
     {
         try
         {

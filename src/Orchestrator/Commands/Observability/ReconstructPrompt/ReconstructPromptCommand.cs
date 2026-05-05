@@ -30,7 +30,7 @@ public class ReconstructPromptCommand : AsyncCommand<ReconstructPromptSettings>
         _logger = logger;
     }
 
-    public override async Task<int> ExecuteAsync(CommandContext context, ReconstructPromptSettings settings)
+    protected override async Task<int> ExecuteAsync(CommandContext context, ReconstructPromptSettings settings, CancellationToken cancellationToken)
     {
         try
         {
