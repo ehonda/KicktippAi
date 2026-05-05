@@ -1,6 +1,6 @@
 # Seed Evidence
 
-This file preserves the initial base estimate evidence used to seed [base-estimate-table.md](base-estimate-table.md). The rows are based on the same 5-random-fixture by 4-repetition design used by the skill's base estimate method.
+This file preserves the initial base estimate evidence used to seed [base-estimates.json](base-estimates.json). The rows are based on the same 5-random-fixture by 4-repetition design used by the skill's base estimate method.
 
 All rows:
 

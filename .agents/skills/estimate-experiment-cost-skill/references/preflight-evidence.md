@@ -2,7 +2,7 @@
 
 Updated: 2026-05-05
 
-Use this file for one-item high-reasoning cap and cost probes. These rows are not valid base estimate rows and must not be inserted into `base-estimate-table.md`; use them to choose the first output-token cap and to estimate the expected spend before running a 5-by-4 base estimate.
+Use this file for one-item high-reasoning cap and cost probes. These rows are not valid base estimate rows and must not be inserted into `base-estimates.json`; use them to choose the first output-token cap and to estimate the expected spend before running a 5-by-4 base estimate.
 
 | Model | Reasoning effort | Prompt route | Run name | Fixture / evaluation | Max output tokens | Input tokens | Output tokens | Reasoning tokens | Service tier | Observed cost (USD) | Cap outcome | Notes |
 | --- | --- | --- | --- | --- | ---: | ---: | ---: | ---: | --- | ---: | --- | --- |

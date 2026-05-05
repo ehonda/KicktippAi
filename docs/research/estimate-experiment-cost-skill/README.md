@@ -62,7 +62,7 @@ Final scope:
 
 Final evidence sources:
 
-- `.agents/skills/estimate-experiment-cost-skill/references/base-estimate-table.md`
+- `.agents/skills/estimate-experiment-cost-skill/references/base-estimates.json`
 - `.agents/skills/estimate-experiment-cost-skill/references/seed-evidence.md`
 - compact usage from the skill-local `scripts/experiment_cost_estimator.py`
 - model pricing from `src/OpenAiIntegration/CostCalculationService.cs`
@@ -71,7 +71,7 @@ Final output:
 
 - estimated total cost
 - average cost per match prediction used
-- table row and qualifiers used
+- JSON row and qualifiers used
 - confidence notes when the planned run differs from the evidence row
 
 Final findings from experiments 001 through 003:

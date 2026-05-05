@@ -9,10 +9,8 @@ from __future__ import annotations
 
 import argparse
 import base64
-import csv
 import email.utils
 import json
-import os
 import re
 import sys
 import time
@@ -27,7 +25,12 @@ from urllib.request import Request, urlopen
 
 
 DEFAULT_PRICING_SOURCE = Path("src/OpenAiIntegration/CostCalculationService.cs")
+DEFAULT_BASE_ESTIMATES_SOURCE = Path(
+    ".agents/skills/estimate-experiment-cost-skill/references/base-estimates.json"
+)
 FLEX_PRICE_MULTIPLIER = Decimal("0.5")
+DEFAULT_COLLECT_WAIT_TIMEOUT_SECONDS = 900.0
+DEFAULT_COLLECT_WAIT_INTERVAL_SECONDS = 30.0
 
 
 @dataclass(frozen=True)
@@ -71,57 +74,70 @@ def main() -> int:
         default=8,
         help="Maximum retries for transient Langfuse API failures.",
     )
+    collect.add_argument(
+        "--wait-timeout-seconds",
+        type=float,
+        default=DEFAULT_COLLECT_WAIT_TIMEOUT_SECONDS,
+        help="Maximum time to wait for expected Langfuse observations to appear.",
+    )
+    collect.add_argument(
+        "--wait-interval-seconds",
+        type=float,
+        default=DEFAULT_COLLECT_WAIT_INTERVAL_SECONDS,
+        help="Polling interval while waiting for expected Langfuse observations.",
+    )
+    collect.add_argument(
+        "--no-wait-for-expectations",
+        action="store_true",
+        help="Validate expectations once instead of polling for Langfuse ingestion.",
+    )
 
     base_row = subparsers.add_parser(
-        "base-row", help="Calculate a base estimate table row from compact usage."
+        "base-row", help="Calculate a base estimate row from compact usage."
     )
-    base_row.add_argument("--input", required=True, help="Compact usage JSON input.")
-    base_row.add_argument("--group", default="repeated-measured")
-    base_row.add_argument("--expect-count", type=int, default=20)
-    base_row.add_argument("--model", required=True)
-    base_row.add_argument("--reasoning-effort", required=True)
-    base_row.add_argument("--prompt-route", required=True)
-    base_row.add_argument("--model-knowledge-cutoff", required=True)
-    base_row.add_argument("--sampling-cutoff", required=True)
-    base_row.add_argument("--max-output-tokens", type=int, required=True)
-    base_row.add_argument("--source", required=True)
-    base_row.add_argument(
-        "--pricing-source",
-        default=str(DEFAULT_PRICING_SOURCE),
-        help="C# pricing source to read model prices from.",
-    )
-    base_row.add_argument(
-        "--service-tier",
-        choices=("flex", "standard"),
-        default="flex",
-        help="Pricing tier to use for the estimate.",
-    )
+    add_base_row_arguments(base_row)
     base_row.add_argument("--report-json", help="Optional machine-readable report.")
 
+    upsert_row = subparsers.add_parser(
+        "upsert-row",
+        help="Calculate and upsert an authoritative JSON base estimate row.",
+    )
+    add_base_row_arguments(upsert_row)
+    upsert_row.add_argument(
+        "--store",
+        default=str(DEFAULT_BASE_ESTIMATES_SOURCE),
+        help="JSON base estimate store to update.",
+    )
+    upsert_row.add_argument(
+        "--replace",
+        action="store_true",
+        help="Replace an existing row for the same model and reasoning effort.",
+    )
+
     estimate = subparsers.add_parser(
-        "estimate", help="Estimate an experiment total from the base table."
+        "estimate", help="Estimate experiment totals from the JSON base estimate store."
     )
-    estimate.add_argument("--count", type=int, required=True)
     estimate.add_argument(
-        "--table",
-        default=".agents/skills/estimate-experiment-cost-skill/references/base-estimate-table.md",
-        help="Markdown base estimate table.",
+        "--counts",
+        help="Comma-separated match prediction counts, for example 20,60,100.",
     )
-    estimate.add_argument("--model", help="Model name for table lookup.")
-    estimate.add_argument("--reasoning-effort", help="Reasoning effort for table lookup.")
     estimate.add_argument(
-        "--max-output-tokens",
+        "--count",
+        action="append",
         type=int,
-        help="Optional max output token qualifier for table lookup.",
+        default=[],
+        help=argparse.SUPPRESS,
     )
     estimate.add_argument(
-        "--prompt-route-contains",
-        help="Optional prompt-route substring qualifier for table lookup.",
+        "--store",
+        default=str(DEFAULT_BASE_ESTIMATES_SOURCE),
+        help="JSON base estimate store.",
     )
+    estimate.add_argument("--model", required=True, help="Model name for JSON lookup.")
     estimate.add_argument(
-        "--average-cost-per-match",
-        type=Decimal,
-        help="Use this average instead of looking up a table row.",
+        "--reasoning-effort",
+        required=True,
+        help="Reasoning effort for JSON lookup.",
     )
     estimate.add_argument("--report-json", help="Optional machine-readable report.")
 
@@ -135,25 +151,99 @@ def main() -> int:
         report = calculate_base_row(args)
         emit_base_row(report)
         if args.report_json:
-            write_json(Path(args.report_json), report)
+            try_write_optional_json(Path(args.report_json), report)
+        return 0
+    if args.command == "upsert-row":
+        report = calculate_base_row(args)
+        action = upsert_base_estimate(
+            Path(args.store), report, replace_existing=args.replace
+        )
+        print(
+            f"{action.capitalize()} base estimate row for "
+            f"{report['model']} {report['reasoningEffort']} in {args.store}."
+        )
+        emit_base_estimate_summary(report)
         return 0
     if args.command == "estimate":
         report = calculate_estimate(args)
         emit_estimate(report)
         if args.report_json:
-            write_json(Path(args.report_json), report)
+            try_write_optional_json(Path(args.report_json), report)
         return 0
 
     raise AssertionError(f"Unhandled command {args.command!r}.")
+
+
+def add_base_row_arguments(command: argparse.ArgumentParser) -> None:
+    command.add_argument("--input", required=True, help="Compact usage JSON input.")
+    command.add_argument("--group", default="repeated-measured")
+    command.add_argument("--expect-count", type=int, default=20)
+    command.add_argument("--model", required=True)
+    command.add_argument("--reasoning-effort", required=True)
+    command.add_argument("--prompt-route", required=True)
+    command.add_argument("--model-knowledge-cutoff", required=True)
+    command.add_argument("--sampling-cutoff", required=True)
+    command.add_argument("--max-output-tokens", type=int, required=True)
+    command.add_argument("--source", required=True)
+    command.add_argument(
+        "--pricing-source",
+        default=str(DEFAULT_PRICING_SOURCE),
+        help="C# pricing source to read model prices from.",
+    )
+    command.add_argument(
+        "--service-tier",
+        choices=("flex", "standard"),
+        default="flex",
+        help="Pricing tier to use for the estimate.",
+    )
 
 
 def collect_records(args: argparse.Namespace) -> list[dict[str, Any]]:
     if not args.group:
         raise SystemExit("--group is required.")
 
+    env_values = load_env_file(Path(args.env))
+    expected_counts = parse_expectations(args.expect)
+    deadline = time.monotonic() + max(args.wait_timeout_seconds, 0.0)
+
+    while True:
+        records = collect_records_once(args, env_values)
+        sort_records(records)
+
+        if not expected_counts:
+            return records
+
+        status = expectation_status_text(records, expected_counts)
+        if expectations_met(records, expected_counts):
+            print(f"Langfuse expectation counts satisfied: {status}.")
+            return records
+
+        if args.no_wait_for_expectations:
+            validate_expectations(records, args.expect)
+            return records
+
+        remaining = deadline - time.monotonic()
+        if remaining <= 0:
+            raise SystemExit(
+                "Expected observations were not visible in Langfuse before timeout: "
+                f"{status}. Treat this as an ingestion timeout, not prediction failure, "
+                "unless Orchestrator logs show failed items or cap exhaustion."
+            )
+
+        sleep_seconds = min(max(args.wait_interval_seconds, 0.0), remaining)
+        print(
+            "Langfuse ingestion pending: "
+            f"{status}. Waiting {sleep_seconds:.1f}s before polling again."
+        )
+        if sleep_seconds > 0:
+            time.sleep(sleep_seconds)
+
+
+def collect_records_once(
+    args: argparse.Namespace, env_values: dict[str, str]
+) -> list[dict[str, Any]]:
     records: list[dict[str, Any]] = []
     seen_trace_ids: set[str] = set()
-    env_values = load_env_file(Path(args.env))
 
     for group_arg in args.group:
         group, run_name = parse_pair(group_arg)
@@ -169,7 +259,6 @@ def collect_records(args: argparse.Namespace) -> list[dict[str, Any]]:
             time.sleep(args.langfuse_sleep_seconds)
 
     sort_records(records)
-    validate_expectations(records, args.expect)
     return records
 
 
@@ -362,14 +451,40 @@ def sort_records(records: list[dict[str, Any]]) -> None:
 
 
 def validate_expectations(records: list[dict[str, Any]], expectations: list[str]) -> None:
-    for expectation in expectations:
-        group, count_text = parse_pair(expectation)
-        expected = int(count_text)
+    for group, expected in parse_expectations(expectations).items():
         actual = len(filter_group(records, group))
         if actual != expected:
             raise SystemExit(
                 f"Expected {expected} records for group '{group}', found {actual}."
             )
+
+
+def parse_expectations(expectations: list[str]) -> dict[str, int]:
+    parsed: dict[str, int] = {}
+    for expectation in expectations:
+        group, count_text = parse_pair(expectation)
+        expected = int(count_text)
+        if expected < 0:
+            raise SystemExit(f"Expected count must be non-negative, got {expected}.")
+        parsed[group] = expected
+    return parsed
+
+
+def expectations_met(records: list[dict[str, Any]], expected_counts: dict[str, int]) -> bool:
+    return all(
+        len(filter_group(records, group)) == expected
+        for group, expected in expected_counts.items()
+    )
+
+
+def expectation_status_text(
+    records: list[dict[str, Any]], expected_counts: dict[str, int]
+) -> str:
+    statuses = []
+    for group, expected in expected_counts.items():
+        actual = len(filter_group(records, group))
+        statuses.append(f"{group}={actual}/{expected}")
+    return ", ".join(statuses)
 
 
 def calculate_base_row(args: argparse.Namespace) -> dict[str, Any]:
@@ -477,140 +592,176 @@ def cost_for_tokens(tokens: int, price_per_million: Decimal) -> Decimal:
 
 
 def emit_base_row(report: dict[str, Any]) -> None:
-    print("Base estimate table row:")
+    print("Base estimate row:")
+    emit_base_estimate_summary(report)
     print()
-    print(
-        "| Model | Reasoning effort | Prompt route | Model knowledge cutoff date | "
-        "Sampling cutoff used | Max output tokens | Base sample observations | "
-        "Total input tokens | Estimated uncached input cost (USD) | "
-        "Total output tokens | Estimated output cost (USD) | "
-        "Estimated total cost (USD) | Average cost per match prediction (USD) | Source |"
-    )
-    print(
-        "| --- | --- | --- | --- | --- | ---: | ---: | ---: | ---: | "
-        "---: | ---: | ---: | ---: | --- |"
-    )
-    print(markdown_row(report))
-
-
-def markdown_row(report: dict[str, Any]) -> str:
-    values = [
-        code(report["model"]),
-        code(report["reasoningEffort"]),
-        report["promptRoute"],
-        code(report["modelKnowledgeCutoffDate"]),
-        code(report["samplingCutoffUsed"]),
-        str(report["maxOutputTokens"]),
-        str(report["baseSampleObservations"]),
-        str(report["totalInputTokens"]),
-        report["estimatedUncachedInputCostUsd"],
-        str(report["totalOutputTokens"]),
-        report["estimatedOutputCostUsd"],
-        report["estimatedTotalCostUsd"],
-        report["averageCostPerMatchPredictionUsd"],
-        report["source"],
-    ]
-    return "| " + " | ".join(values) + " |"
+    print("JSON payload:")
+    print(json.dumps(report, indent=2, ensure_ascii=True))
 
 
 def calculate_estimate(args: argparse.Namespace) -> dict[str, Any]:
-    if args.count < 1:
-        raise SystemExit("--count must be at least 1.")
+    counts = parse_counts(args)
+    for count in counts:
+        if count < 1:
+            raise SystemExit("Every count must be at least 1.")
 
-    if args.average_cost_per_match is not None:
-        average = args.average_cost_per_match
-        row = None
-    else:
-        if not args.model or not args.reasoning_effort:
-            raise SystemExit(
-                "--model and --reasoning-effort are required unless --average-cost-per-match is provided."
-            )
-        row = lookup_table_row(
-            Path(args.table),
-            args.model,
-            args.reasoning_effort,
-            args.max_output_tokens,
-            args.prompt_route_contains,
+    store = load_base_estimate_store(Path(args.store))
+    row = lookup_base_estimate_row(
+        store["baseEstimates"], args.model, args.reasoning_effort
+    )
+    average = Decimal(row["averageCostPerMatchPredictionUsd"])
+    estimates = []
+    for count in counts:
+        total = average * Decimal(count)
+        estimates.append(
+            {
+                "matchPredictionCount": count,
+                "averageCostPerMatchPredictionUsd": money_text(average),
+                "estimatedTotalCostUsd": money_text(total),
+            }
         )
-        average = Decimal(row["Average cost per match prediction (USD)"])
 
-    total = average * Decimal(args.count)
-    report = {
-        "matchPredictionCount": args.count,
+    return {
+        "model": args.model,
+        "reasoningEffort": args.reasoning_effort,
+        "counts": counts,
         "averageCostPerMatchPredictionUsd": money_text(average),
-        "estimatedTotalCostUsd": money_text(total),
+        "baseEstimate": row,
+        "estimates": estimates,
     }
-    if row:
-        report["tableRow"] = row
-    return report
 
 
-def lookup_table_row(
-    path: Path,
-    model: str,
-    reasoning_effort: str,
-    max_output_tokens: int | None,
-    prompt_route_contains: str | None,
-) -> dict[str, str]:
-    rows = read_markdown_table(path)
+def parse_counts(args: argparse.Namespace) -> list[int]:
+    values: list[str] = []
+    if args.counts:
+        values.extend(part.strip() for part in args.counts.split(","))
+    values.extend(str(count) for count in args.count)
+    try:
+        counts = [int(value) for value in values if value]
+    except ValueError as ex:
+        raise SystemExit("--counts must contain integers, for example 20,60,100.") from ex
+    if not counts:
+        raise SystemExit("--counts is required, for example --counts 20,60,100.")
+    return counts
+
+
+def load_base_estimate_store(path: Path) -> dict[str, Any]:
+    store = load_json(path)
+    if not isinstance(store, dict):
+        raise RuntimeError(f"Expected JSON object in {path}.")
+    if store.get("schemaVersion") != 1:
+        raise RuntimeError(f"Unsupported base estimate schemaVersion in {path}.")
+    rows = store.get("baseEstimates")
+    if not isinstance(rows, list):
+        raise RuntimeError(f"Expected baseEstimates array in {path}.")
+    return store
+
+
+def lookup_base_estimate_row(
+    rows: list[dict[str, Any]], model: str, reasoning_effort: str
+) -> dict[str, Any]:
     matches = [
         row
         for row in rows
-        if clean_cell(row.get("Model", "")) == model
-        and clean_cell(row.get("Reasoning effort", "")) == reasoning_effort
+        if row.get("model") == model and row.get("reasoningEffort") == reasoning_effort
     ]
-    if max_output_tokens is not None:
-        matches = [
-            row
-            for row in matches
-            if int(clean_cell(row.get("Max output tokens", "0"))) == max_output_tokens
-        ]
-    if prompt_route_contains:
-        matches = [
-            row
-            for row in matches
-            if prompt_route_contains.lower() in clean_cell(row.get("Prompt route", "")).lower()
-        ]
-
     if not matches:
-        raise SystemExit("No matching base estimate table row found.")
+        raise SystemExit(
+            "No matching base estimate JSON row found for "
+            f"model={model!r}, reasoningEffort={reasoning_effort!r}."
+        )
     if len(matches) > 1:
         raise SystemExit(
-            "More than one matching table row found; add prompt route or max-output qualifier."
+            "More than one matching base estimate JSON row found for "
+            f"model={model!r}, reasoningEffort={reasoning_effort!r}. "
+            "This estimator does not guess between prompt route or max-output "
+            "qualifiers; add explicit qualifier support before estimating."
         )
     return matches[0]
 
 
-def read_markdown_table(path: Path) -> list[dict[str, str]]:
-    table_lines = [
-        line
-        for line in path.read_text(encoding="utf-8").splitlines()
-        if line.startswith("| ")
+def upsert_base_estimate(
+    path: Path, row: dict[str, Any], replace_existing: bool
+) -> str:
+    if path.exists():
+        store = load_base_estimate_store(path)
+    else:
+        store = {"schemaVersion": 1, "updatedAt": today_text(), "baseEstimates": []}
+
+    rows = store["baseEstimates"]
+    matches = [
+        index
+        for index, existing in enumerate(rows)
+        if existing.get("model") == row["model"]
+        and existing.get("reasoningEffort") == row["reasoningEffort"]
     ]
-    if len(table_lines) < 3:
-        raise RuntimeError(f"No markdown table found in {path}.")
-    header = split_markdown_row(table_lines[0])
-    rows = []
-    for line in table_lines[2:]:
-        cells = split_markdown_row(line)
-        if len(cells) == len(header):
-            rows.append(dict(zip(header, cells)))
-    return rows
+    if len(matches) > 1:
+        raise SystemExit(
+            "More than one existing row matches "
+            f"model={row['model']!r}, reasoningEffort={row['reasoningEffort']!r}."
+        )
+
+    if not matches:
+        rows.append(row)
+        action = "added"
+    else:
+        index = matches[0]
+        if rows[index] == row:
+            return "unchanged"
+        if not replace_existing:
+            raise SystemExit(
+                "An existing base estimate row differs for "
+                f"model={row['model']!r}, reasoningEffort={row['reasoningEffort']!r}. "
+                "Re-run with --replace to update it."
+            )
+        rows[index] = row
+        action = "replaced"
+
+    store["updatedAt"] = today_text()
+    write_json(path, store)
+    return action
 
 
-def split_markdown_row(line: str) -> list[str]:
-    cells = next(csv.reader([line.strip().strip("|")], delimiter="|", skipinitialspace=True))
-    return [cell.strip() for cell in cells]
-
-
-def clean_cell(value: str) -> str:
-    return value.strip().strip("`").strip()
+def emit_base_estimate_summary(report: dict[str, Any]) -> None:
+    print(
+        "Base estimate: "
+        f"model={report['model']}, "
+        f"reasoningEffort={report['reasoningEffort']}, "
+        f"sample={report['baseSampleObservations']}, "
+        f"maxOutputTokens={report['maxOutputTokens']}, "
+        f"averageCostPerMatch=${report['averageCostPerMatchPredictionUsd']}"
+    )
+    print(
+        "Source: "
+        f"{report['source']} "
+        f"(knowledge cutoff {report['modelKnowledgeCutoffDate']}, "
+        f"sampling cutoff {report['samplingCutoffUsed']})"
+    )
 
 
 def emit_estimate(report: dict[str, Any]) -> None:
-    print(f"Match predictions: {report['matchPredictionCount']}")
-    print(f"Average cost per match prediction: ${report['averageCostPerMatchPredictionUsd']}")
-    print(f"Estimated total cost: ${report['estimatedTotalCostUsd']}")
+    row = report["baseEstimate"]
+    print("Base estimate source:")
+    print(
+        f"Model: {row['model']} | Reasoning effort: {row['reasoningEffort']} | "
+        f"Average cost per match prediction: "
+        f"${row['averageCostPerMatchPredictionUsd']}"
+    )
+    print(
+        f"Sample: {row['baseSampleObservations']} | "
+        f"Max output tokens: {row['maxOutputTokens']} | "
+        f"Model knowledge cutoff: {row['modelKnowledgeCutoffDate']} | "
+        f"Sampling cutoff: {row['samplingCutoffUsed']}"
+    )
+    print(f"Prompt route: {row['promptRoute']}")
+    print(f"Source: {row['source']}")
+    print()
+    print("Estimates:")
+    for estimate in report["estimates"]:
+        print(
+            f"N={estimate['matchPredictionCount']}: "
+            f"${estimate['estimatedTotalCostUsd']}"
+        )
 
 
 def filter_group(records: list[dict[str, Any]], group: str) -> list[dict[str, Any]]:
@@ -630,10 +781,6 @@ def parse_pair(value: str) -> tuple[str, str]:
     if not key or not parsed_value:
         raise SystemExit(f"Expected KEY=VALUE, got '{value}'.")
     return key, parsed_value
-
-
-def code(value: Any) -> str:
-    return f"`{value}`"
 
 
 def money_text(value: Decimal) -> str:
@@ -656,6 +803,20 @@ def write_json(path: Path, payload: Any) -> None:
     with path.open("w", encoding="utf-8", newline="\n") as stream:
         json.dump(payload, stream, indent=2, ensure_ascii=True)
         stream.write("\n")
+
+
+def try_write_optional_json(path: Path, payload: Any) -> None:
+    try:
+        write_json(path, payload)
+    except OSError as ex:
+        print(
+            f"WARNING: optional --report-json output could not be written to {path}: {ex}",
+            file=sys.stderr,
+        )
+
+
+def today_text() -> str:
+    return datetime.now(timezone.utc).date().isoformat()
 
 
 if __name__ == "__main__":
