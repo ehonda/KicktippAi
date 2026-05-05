@@ -18,6 +18,25 @@ public class LoggingAndTypeInfrastructureTests
     }
 
     [Test]
+    [Arguments("run-slice")]
+    [Arguments("run-repeated-match")]
+    [Arguments("run-community-to-date")]
+    public async Task GetMinimumLevelForCommandLine_uses_warning_for_experiment_run_commands(string commandName)
+    {
+        var minimumLevel = LoggingConfiguration.GetMinimumLevelForCommandLine([commandName]);
+
+        await Assert.That(minimumLevel).IsEqualTo(LogLevel.Warning);
+    }
+
+    [Test]
+    public async Task GetMinimumLevelForCommandLine_keeps_information_for_non_experiment_run_commands()
+    {
+        var minimumLevel = LoggingConfiguration.GetMinimumLevelForCommandLine(["matchday"]);
+
+        await Assert.That(minimumLevel).IsEqualTo(LogLevel.Information);
+    }
+
+    [Test]
     public async Task TypeResolver_constructor_throws_for_null_dependencies()
     {
         await Assert.That(() => new TypeResolver(null!, []))

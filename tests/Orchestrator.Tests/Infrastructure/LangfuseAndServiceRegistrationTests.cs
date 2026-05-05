@@ -9,6 +9,7 @@ using Microsoft.Extensions.FileProviders;
 using Microsoft.Extensions.Hosting;
 using Microsoft.Extensions.Logging;
 using Microsoft.Extensions.Logging.Testing;
+using Microsoft.Extensions.Options;
 using Moq;
 using Orchestrator.Infrastructure;
 using Orchestrator.Infrastructure.Factories;
@@ -669,6 +670,19 @@ public class LangfuseAndServiceRegistrationTests
             descriptor.ServiceType == typeof(IFirebaseServiceFactory))).IsTrue();
         await Assert.That(services.Any(descriptor =>
             descriptor.ServiceType == typeof(IContextProviderFactory))).IsTrue();
+    }
+
+    [Test]
+    public async Task AddAllCommandServices_uses_supplied_minimum_log_level()
+    {
+        var services = new ServiceCollection();
+
+        services.AddAllCommandServices(LogLevel.Warning);
+
+        using var provider = services.BuildServiceProvider();
+        var loggerFilterOptions = provider.GetRequiredService<IOptions<LoggerFilterOptions>>().Value;
+
+        await Assert.That(loggerFilterOptions.MinLevel).IsEqualTo(LogLevel.Warning);
     }
 
     private void RememberEnvironmentVariable(string name)

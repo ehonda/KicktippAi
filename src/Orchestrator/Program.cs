@@ -29,8 +29,10 @@ public class Program
 {
     public static async Task<int> Main(string[] args)
     {
+        var minimumLogLevel = LoggingConfiguration.GetMinimumLevelForCommandLine(args);
+
         // Load environment variables once at startup
-        var startupLogger = LoggingConfiguration.CreateLogger<Program>();
+        var startupLogger = LoggingConfiguration.CreateLogger<Program>(minimumLogLevel);
         EnvironmentHelper.LoadEnvironmentVariables(startupLogger);
         
         // Dependency Injection setup follows Spectre.Console.Cli patterns:
@@ -42,7 +44,7 @@ public class Program
         services.AddSingleton<IAnsiConsole>(AnsiConsole.Console);
         
         // Register all command services (factories and shared infrastructure)
-        services.AddAllCommandServices();
+        services.AddAllCommandServices(minimumLogLevel);
         
         var registrar = new TypeRegistrar(services);
         var app = new CommandApp(registrar);

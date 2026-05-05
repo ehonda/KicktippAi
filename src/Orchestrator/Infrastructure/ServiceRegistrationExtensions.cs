@@ -33,7 +33,9 @@ public static class ServiceRegistrationExtensions
     /// <remarks>
     /// This method is idempotent - calling it multiple times has no additional effect.
     /// </remarks>
-    public static IServiceCollection AddOrchestratorInfrastructure(this IServiceCollection services)
+    public static IServiceCollection AddOrchestratorInfrastructure(
+        this IServiceCollection services,
+        LogLevel minimumLogLevel = LogLevel.Information)
     {
         // Add logging (idempotent via TryAdd internally)
         services.AddLogging(builder =>
@@ -45,7 +47,7 @@ public static class ServiceRegistrationExtensions
                 options.TimestampFormat = null;
                 options.ColorBehavior = Microsoft.Extensions.Logging.Console.LoggerColorBehavior.Enabled;
             });
-            builder.SetMinimumLevel(LogLevel.Information);
+            builder.SetMinimumLevel(minimumLogLevel);
         });
 
         // Add memory cache for Kicktipp client
@@ -288,9 +290,11 @@ public static class ServiceRegistrationExtensions
     /// <remarks>
     /// This method is idempotent and ensures infrastructure is registered.
     /// </remarks>
-    public static IServiceCollection AddListKpiCommandServices(this IServiceCollection services)
+    public static IServiceCollection AddListKpiCommandServices(
+        this IServiceCollection services,
+        LogLevel minimumLogLevel = LogLevel.Information)
     {
-        services.AddOrchestratorInfrastructure();
+        services.AddOrchestratorInfrastructure(minimumLogLevel);
 
         // ListKpiCommand only needs Firebase factory (uses IKpiRepository)
         // No command-specific keyed services needed - factory pattern handles runtime config
@@ -314,9 +318,11 @@ public static class ServiceRegistrationExtensions
     /// <remarks>
     /// This method is idempotent and ensures infrastructure is registered.
     /// </remarks>
-    public static IServiceCollection AddUploadKpiCommandServices(this IServiceCollection services)
+    public static IServiceCollection AddUploadKpiCommandServices(
+        this IServiceCollection services,
+        LogLevel minimumLogLevel = LogLevel.Information)
     {
-        services.AddOrchestratorInfrastructure();
+        services.AddOrchestratorInfrastructure(minimumLogLevel);
 
         // UploadKpiCommand only needs Firebase factory (uses IKpiRepository)
         // Register keyed file provider for KPI documents directory
@@ -333,9 +339,11 @@ public static class ServiceRegistrationExtensions
     /// <remarks>
     /// This method is idempotent and ensures infrastructure is registered.
     /// </remarks>
-    public static IServiceCollection AddCostCommandServices(this IServiceCollection services)
+    public static IServiceCollection AddCostCommandServices(
+        this IServiceCollection services,
+        LogLevel minimumLogLevel = LogLevel.Information)
     {
-        services.AddOrchestratorInfrastructure();
+        services.AddOrchestratorInfrastructure(minimumLogLevel);
 
         // CostCommand needs Firebase factory (uses IPredictionRepository, FirestoreDb)
         // No command-specific keyed services needed - factory pattern handles runtime config
@@ -349,9 +357,11 @@ public static class ServiceRegistrationExtensions
     /// <remarks>
     /// This method is idempotent and ensures infrastructure is registered.
     /// </remarks>
-    public static IServiceCollection AddMatchdayCommandServices(this IServiceCollection services)
+    public static IServiceCollection AddMatchdayCommandServices(
+        this IServiceCollection services,
+        LogLevel minimumLogLevel = LogLevel.Information)
     {
-        services.AddOrchestratorInfrastructure();
+        services.AddOrchestratorInfrastructure(minimumLogLevel);
 
         // MatchdayCommand needs all factories:
         // - Firebase (IPredictionRepository, IContextRepository)
@@ -368,9 +378,11 @@ public static class ServiceRegistrationExtensions
     /// <remarks>
     /// This method is idempotent and ensures infrastructure is registered.
     /// </remarks>
-    public static IServiceCollection AddRandomMatchCommandServices(this IServiceCollection services)
+    public static IServiceCollection AddRandomMatchCommandServices(
+        this IServiceCollection services,
+        LogLevel minimumLogLevel = LogLevel.Information)
     {
-        services.AddOrchestratorInfrastructure();
+        services.AddOrchestratorInfrastructure(minimumLogLevel);
 
         // RandomMatchCommand needs the same factories as MatchdayCommand:
         // - Firebase (IPredictionRepository, IContextRepository)
@@ -386,9 +398,11 @@ public static class ServiceRegistrationExtensions
     /// <remarks>
     /// This method is idempotent and ensures infrastructure is registered.
     /// </remarks>
-    public static IServiceCollection AddBonusCommandServices(this IServiceCollection services)
+    public static IServiceCollection AddBonusCommandServices(
+        this IServiceCollection services,
+        LogLevel minimumLogLevel = LogLevel.Information)
     {
-        services.AddOrchestratorInfrastructure();
+        services.AddOrchestratorInfrastructure(minimumLogLevel);
 
         // BonusCommand needs all factories:
         // - Firebase (IPredictionRepository, IKpiRepository)
@@ -401,9 +415,11 @@ public static class ServiceRegistrationExtensions
     /// <summary>
     /// Registers services specific to the VerifyMatchdayCommand.
     /// </summary>
-    public static IServiceCollection AddVerifyMatchdayCommandServices(this IServiceCollection services)
+    public static IServiceCollection AddVerifyMatchdayCommandServices(
+        this IServiceCollection services,
+        LogLevel minimumLogLevel = LogLevel.Information)
     {
-        services.AddOrchestratorInfrastructure();
+        services.AddOrchestratorInfrastructure(minimumLogLevel);
 
         // VerifyMatchdayCommand needs:
         // - Firebase (IPredictionRepository, IContextRepository)
@@ -415,9 +431,11 @@ public static class ServiceRegistrationExtensions
     /// <summary>
     /// Registers services specific to the VerifyBonusCommand.
     /// </summary>
-    public static IServiceCollection AddVerifyBonusCommandServices(this IServiceCollection services)
+    public static IServiceCollection AddVerifyBonusCommandServices(
+        this IServiceCollection services,
+        LogLevel minimumLogLevel = LogLevel.Information)
     {
-        services.AddOrchestratorInfrastructure();
+        services.AddOrchestratorInfrastructure(minimumLogLevel);
 
         // VerifyBonusCommand needs:
         // - Firebase (IPredictionRepository, IKpiRepository)
@@ -429,9 +447,11 @@ public static class ServiceRegistrationExtensions
     /// <summary>
     /// Registers services specific to the CollectContextKicktippCommand.
     /// </summary>
-    public static IServiceCollection AddCollectContextKicktippCommandServices(this IServiceCollection services)
+    public static IServiceCollection AddCollectContextKicktippCommandServices(
+        this IServiceCollection services,
+        LogLevel minimumLogLevel = LogLevel.Information)
     {
-        services.AddOrchestratorInfrastructure();
+        services.AddOrchestratorInfrastructure(minimumLogLevel);
 
         // CollectContextKicktippCommand needs:
         // - Firebase (IContextRepository, IMatchOutcomeRepository)
@@ -443,9 +463,11 @@ public static class ServiceRegistrationExtensions
     /// <summary>
     /// Registers services specific to the ContextChangesCommand.
     /// </summary>
-    public static IServiceCollection AddContextChangesCommandServices(this IServiceCollection services)
+    public static IServiceCollection AddContextChangesCommandServices(
+        this IServiceCollection services,
+        LogLevel minimumLogLevel = LogLevel.Information)
     {
-        services.AddOrchestratorInfrastructure();
+        services.AddOrchestratorInfrastructure(minimumLogLevel);
 
         // ContextChangesCommand only needs Firebase (IContextRepository)
 
@@ -455,9 +477,11 @@ public static class ServiceRegistrationExtensions
     /// <summary>
     /// Registers services specific to the UploadTransfersCommand.
     /// </summary>
-    public static IServiceCollection AddUploadTransfersCommandServices(this IServiceCollection services)
+    public static IServiceCollection AddUploadTransfersCommandServices(
+        this IServiceCollection services,
+        LogLevel minimumLogLevel = LogLevel.Information)
     {
-        services.AddOrchestratorInfrastructure();
+        services.AddOrchestratorInfrastructure(minimumLogLevel);
 
         // UploadTransfersCommand needs Firebase (IContextRepository)
         // Register keyed file provider for transfers documents directory
@@ -471,9 +495,11 @@ public static class ServiceRegistrationExtensions
     /// <summary>
     /// Registers services specific to the AnalyzeMatchDetailedCommand.
     /// </summary>
-    public static IServiceCollection AddAnalyzeMatchDetailedCommandServices(this IServiceCollection services)
+    public static IServiceCollection AddAnalyzeMatchDetailedCommandServices(
+        this IServiceCollection services,
+        LogLevel minimumLogLevel = LogLevel.Information)
     {
-        services.AddOrchestratorInfrastructure();
+        services.AddOrchestratorInfrastructure(minimumLogLevel);
 
         // AnalyzeMatchDetailedCommand needs:
         // - Firebase (IContextRepository)
@@ -485,9 +511,11 @@ public static class ServiceRegistrationExtensions
     /// <summary>
     /// Registers services specific to the AnalyzeMatchComparisonCommand.
     /// </summary>
-    public static IServiceCollection AddAnalyzeMatchComparisonCommandServices(this IServiceCollection services)
+    public static IServiceCollection AddAnalyzeMatchComparisonCommandServices(
+        this IServiceCollection services,
+        LogLevel minimumLogLevel = LogLevel.Information)
     {
-        services.AddOrchestratorInfrastructure();
+        services.AddOrchestratorInfrastructure(minimumLogLevel);
 
         // AnalyzeMatchComparisonCommand needs:
         // - Firebase (IContextRepository)
@@ -499,25 +527,27 @@ public static class ServiceRegistrationExtensions
     /// <summary>
     /// Registers all command services. Useful for production setup.
     /// </summary>
-    public static IServiceCollection AddAllCommandServices(this IServiceCollection services)
+    public static IServiceCollection AddAllCommandServices(
+        this IServiceCollection services,
+        LogLevel minimumLogLevel = LogLevel.Information)
     {
         // Infrastructure is added by each command method, but we call it first for clarity
-        services.AddOrchestratorInfrastructure();
+        services.AddOrchestratorInfrastructure(minimumLogLevel);
 
         // Register all command-specific services
-        services.AddListKpiCommandServices();
-        services.AddUploadKpiCommandServices();
-        services.AddCostCommandServices();
-        services.AddMatchdayCommandServices();
-        services.AddRandomMatchCommandServices();
-        services.AddBonusCommandServices();
-        services.AddVerifyMatchdayCommandServices();
-        services.AddVerifyBonusCommandServices();
-        services.AddCollectContextKicktippCommandServices();
-        services.AddContextChangesCommandServices();
-        services.AddUploadTransfersCommandServices();
-        services.AddAnalyzeMatchDetailedCommandServices();
-        services.AddAnalyzeMatchComparisonCommandServices();
+        services.AddListKpiCommandServices(minimumLogLevel);
+        services.AddUploadKpiCommandServices(minimumLogLevel);
+        services.AddCostCommandServices(minimumLogLevel);
+        services.AddMatchdayCommandServices(minimumLogLevel);
+        services.AddRandomMatchCommandServices(minimumLogLevel);
+        services.AddBonusCommandServices(minimumLogLevel);
+        services.AddVerifyMatchdayCommandServices(minimumLogLevel);
+        services.AddVerifyBonusCommandServices(minimumLogLevel);
+        services.AddCollectContextKicktippCommandServices(minimumLogLevel);
+        services.AddContextChangesCommandServices(minimumLogLevel);
+        services.AddUploadTransfersCommandServices(minimumLogLevel);
+        services.AddAnalyzeMatchDetailedCommandServices(minimumLogLevel);
+        services.AddAnalyzeMatchComparisonCommandServices(minimumLogLevel);
 
         return services;
     }

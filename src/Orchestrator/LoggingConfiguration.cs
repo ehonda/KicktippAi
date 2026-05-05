@@ -5,7 +5,23 @@ namespace Orchestrator;
 
 public static class LoggingConfiguration
 {
-    public static ILogger<T> CreateLogger<T>()
+    private static readonly HashSet<string> QuietExperimentRunCommands = new(StringComparer.OrdinalIgnoreCase)
+    {
+        "run-slice",
+        "run-repeated-match",
+        "run-community-to-date"
+    };
+
+    public static LogLevel GetMinimumLevelForCommandLine(IEnumerable<string> args)
+    {
+        ArgumentNullException.ThrowIfNull(args);
+
+        return args.Any(QuietExperimentRunCommands.Contains)
+            ? LogLevel.Warning
+            : LogLevel.Information;
+    }
+
+    public static ILogger<T> CreateLogger<T>(LogLevel minimumLevel = LogLevel.Information)
     {
         var serviceCollection = new ServiceCollection();
         serviceCollection.AddLogging(builder => 
@@ -16,7 +32,7 @@ public static class LoggingConfiguration
                 options.TimestampFormat = null;
                 options.ColorBehavior = Microsoft.Extensions.Logging.Console.LoggerColorBehavior.Enabled;
             })
-            .SetMinimumLevel(LogLevel.Information)); // Show info level for .env loading feedback
+            .SetMinimumLevel(minimumLevel));
         
         var serviceProvider = serviceCollection.BuildServiceProvider();
         return serviceProvider.GetRequiredService<ILogger<T>>();

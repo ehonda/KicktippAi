@@ -29,6 +29,8 @@ Execution:
 - `run-repeated-match`
 - `run-community-to-date`
 
+Experiment run commands keep console output compact by default: progress remains visible through `[progress]` lines, while structured logging is limited to warnings and errors.
+
 Publishing existing analysis bundles:
 
 - `publish-experiment-analysis`
