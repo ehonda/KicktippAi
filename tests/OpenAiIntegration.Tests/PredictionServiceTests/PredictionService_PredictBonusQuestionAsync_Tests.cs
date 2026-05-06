@@ -318,7 +318,8 @@ public class PredictionService_PredictBonusQuestionAsync_Tests : PredictionServi
         await Assert.That(prediction).IsEquivalentTo(new BonusPrediction(["opt1"]));
         var activity = capturedActivities.Last(candidate =>
             candidate.OperationName == "predict-bonus" &&
-            candidate.GetTagItem("langfuse.observation.type") is not null);
+            candidate.GetTagItem("langfuse.observation.metadata.openaiExecutionStrategy") is not null &&
+            candidate.GetTagItem("langfuse.observation.cost_details") is not null);
         await Assert.That(activity.GetTagItem("langfuse.observation.metadata.openaiExecutionStrategy"))
             .IsEqualTo("flex-first-standard-fallback");
         await Assert.That(activity.GetTagItem("langfuse.observation.metadata.openaiRequestedServiceTier"))
