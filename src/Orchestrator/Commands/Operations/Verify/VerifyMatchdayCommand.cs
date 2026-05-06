@@ -26,7 +26,7 @@ public class VerifyMatchdayCommand : AsyncCommand<VerifySettings>
         _logger = logger;
     }
 
-    public override async Task<int> ExecuteAsync(CommandContext context, VerifySettings settings)
+    protected override async Task<int> ExecuteAsync(CommandContext context, VerifySettings settings, CancellationToken cancellationToken)
     {
         
         try

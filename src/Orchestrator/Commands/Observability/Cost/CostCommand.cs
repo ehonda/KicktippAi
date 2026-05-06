@@ -24,7 +24,7 @@ public class CostCommand : AsyncCommand<CostSettings>
         _logger = logger;
     }
 
-    public override async Task<int> ExecuteAsync(CommandContext context, CostSettings settings)
+    protected override async Task<int> ExecuteAsync(CommandContext context, CostSettings settings, CancellationToken cancellationToken)
     {
         
         try

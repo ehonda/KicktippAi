@@ -32,7 +32,7 @@ public class AnalyzeMatchComparisonCommand : AsyncCommand<AnalyzeMatchComparison
         _openAiServiceFactory = openAiServiceFactory;
     }
 
-    public override async Task<int> ExecuteAsync(CommandContext context, AnalyzeMatchComparisonSettings settings)
+    protected override async Task<int> ExecuteAsync(CommandContext context, AnalyzeMatchComparisonSettings settings, CancellationToken cancellationToken)
     {
         var loggerFactory = AnalyzeMatchCommandHelpers.CreateLoggerFactory(settings.Debug);
         var logger = loggerFactory.CreateLogger<AnalyzeMatchComparisonCommand>();

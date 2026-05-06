@@ -35,7 +35,7 @@ public class CollectContextKicktippCommand : AsyncCommand<CollectContextKicktipp
         _logger = logger;
     }
 
-    public override async Task<int> ExecuteAsync(CommandContext context, CollectContextKicktippSettings settings)
+    protected override async Task<int> ExecuteAsync(CommandContext context, CollectContextKicktippSettings settings, CancellationToken cancellationToken)
     {
         
         try

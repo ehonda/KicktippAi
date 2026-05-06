@@ -22,7 +22,7 @@ public class ListKpiCommand : AsyncCommand<ListKpiSettings>
         _logger = logger;
     }
 
-    public override async Task<int> ExecuteAsync(CommandContext context, ListKpiSettings settings)
+    protected override async Task<int> ExecuteAsync(CommandContext context, ListKpiSettings settings, CancellationToken cancellationToken)
     {
         
         try

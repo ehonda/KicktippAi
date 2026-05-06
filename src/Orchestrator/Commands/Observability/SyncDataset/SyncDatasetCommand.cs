@@ -139,11 +139,11 @@ public sealed class SyncDatasetCommand : AsyncCommand<SyncDatasetSettings>
         _logger = logger;
     }
 
-    public override async Task<int> ExecuteAsync(CommandContext context, SyncDatasetSettings settings)
+    protected override async Task<int> ExecuteAsync(CommandContext context, SyncDatasetSettings settings, CancellationToken cancellationToken)
     {
         try
         {
-            var artifact = await LoadArtifactAsync(settings.InputPath, CancellationToken.None);
+            var artifact = await LoadArtifactAsync(settings.InputPath, cancellationToken);
             var datasetName = settings.DatasetName ?? artifact.DatasetName;
             if (string.IsNullOrWhiteSpace(datasetName))
             {
@@ -158,7 +158,7 @@ public sealed class SyncDatasetCommand : AsyncCommand<SyncDatasetSettings>
             var datasetDefinition = BuildDatasetDefinition(artifact, datasetName);
             var dataset = settings.DryRun
                 ? CreateDryRunDataset(datasetDefinition)
-                : await CreateOrUpdateDatasetAsync(datasetDefinition, CancellationToken.None);
+                : await CreateOrUpdateDatasetAsync(datasetDefinition, cancellationToken);
 
             PreparedExperimentSupport.ReportProgress(
                 settings.DryRun
@@ -184,7 +184,7 @@ public sealed class SyncDatasetCommand : AsyncCommand<SyncDatasetSettings>
                 {
                     PreparedExperimentSupport.ReportProgress(
                         $"Syncing dataset item {itemIndex + 1}/{artifact.Items.Count}: {item.Id}.");
-                    var disposition = await SyncDatasetItemAsync(datasetName, item, CancellationToken.None);
+                    var disposition = await SyncDatasetItemAsync(datasetName, item, cancellationToken);
                     switch (disposition)
                     {
                         case SyncDisposition.Created:

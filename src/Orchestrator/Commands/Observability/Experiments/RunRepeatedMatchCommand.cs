@@ -25,7 +25,7 @@ public sealed class RunRepeatedMatchCommand : AsyncCommand<RunRepeatedMatchSetti
         _logger = logger;
     }
 
-    public override async Task<int> ExecuteAsync(CommandContext context, RunRepeatedMatchSettings settings)
+    protected override async Task<int> ExecuteAsync(CommandContext context, RunRepeatedMatchSettings settings, CancellationToken cancellationToken)
     {
         try
         {
@@ -38,7 +38,7 @@ public sealed class RunRepeatedMatchCommand : AsyncCommand<RunRepeatedMatchSetti
                     settings.RunMetadataFile,
                     settings.ReplaceRun,
                     settings.ToRunOptions()),
-                CancellationToken.None);
+                cancellationToken);
 
             _console.WriteLine(JsonSerializer.Serialize(summary, PreparedExperimentCommandSupport.JsonOptions));
             return 0;

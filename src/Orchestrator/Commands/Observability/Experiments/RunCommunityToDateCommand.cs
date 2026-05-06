@@ -25,7 +25,7 @@ public sealed class RunCommunityToDateCommand : AsyncCommand<RunCommunityToDateS
         _logger = logger;
     }
 
-    public override async Task<int> ExecuteAsync(CommandContext context, RunCommunityToDateSettings settings)
+    protected override async Task<int> ExecuteAsync(CommandContext context, RunCommunityToDateSettings settings, CancellationToken cancellationToken)
     {
         try
         {
@@ -39,7 +39,7 @@ public sealed class RunCommunityToDateCommand : AsyncCommand<RunCommunityToDateS
                     settings.BatchSize,
                     settings.ParticipantLimit,
                     settings.GetParticipantIdFilter()),
-                CancellationToken.None);
+                cancellationToken);
 
             _console.WriteLine(JsonSerializer.Serialize(summary, PreparedExperimentCommandSupport.JsonOptions));
             return 0;
