@@ -417,7 +417,7 @@ public class PredictionService_PredictMatchAsync_Tests : PredictionServiceTests_
         await Assert.That(prediction).IsEquivalentTo(new Prediction(2, 1, null));
         await Assert.That(requestedServiceTiers.Count).IsEqualTo(2);
         await Assert.That(requestedServiceTiers[0]).IsEqualTo("flex");
-        await Assert.That(requestedServiceTiers[1]).IsNull();
+        await Assert.That(requestedServiceTiers[1]).IsEqualTo("default");
         await Assert.That(requestedReasoningEfforts.Count).IsEqualTo(2);
         await Assert.That(requestedReasoningEfforts[0]).IsNull();
         await Assert.That(requestedReasoningEfforts[1]).IsNull();
@@ -432,7 +432,7 @@ public class PredictionService_PredictMatchAsync_Tests : PredictionServiceTests_
         await Assert.That(activity.GetTagItem("langfuse.observation.metadata.openaiExecutionStrategy"))
             .IsEqualTo("flex-first-standard-fallback");
         await Assert.That(activity.GetTagItem("langfuse.observation.metadata.openaiRequestedServiceTier"))
-            .IsEqualTo("standard");
+            .IsEqualTo("default");
         await Assert.That(activity.GetTagItem("langfuse.observation.metadata.openaiFinalServiceTier"))
             .IsEqualTo("standard");
         await Assert.That(activity.GetTagItem("langfuse.observation.metadata.openaiServiceTierFallbackUsed"))
@@ -586,7 +586,7 @@ public class PredictionService_PredictMatchAsync_Tests : PredictionServiceTests_
         await Assert.That(prediction).IsEquivalentTo(new Prediction(2, 1, null));
         await Assert.That(requestedServiceTiers.Count).IsEqualTo(2);
         await Assert.That(requestedServiceTiers[0]).IsEqualTo("flex");
-        await Assert.That(requestedServiceTiers[1]).IsNull();
+        await Assert.That(requestedServiceTiers[1]).IsEqualTo("default");
         await Assert.That(requestedReasoningEfforts.Count).IsEqualTo(2);
         await Assert.That(requestedReasoningEfforts[0]).IsEqualTo("none");
         await Assert.That(requestedReasoningEfforts[1]).IsEqualTo("none");
@@ -614,14 +614,13 @@ public class PredictionService_PredictMatchAsync_Tests : PredictionServiceTests_
     }
 
     [Test]
-    public async Task Predicting_match_retries_plain_rate_limit_without_switching_service_tier()
+    public async Task Predicting_match_retries_plain_rate_limit_with_default_processing_after_flex_failure()
     {
         // Arrange
         var requestedServiceTiers = new List<string?>();
         var chatClient = CreateProtocolChatClient(
             requestedServiceTiers,
-            firstException: CreateRateLimitExceededException(),
-            responseServiceTier: "flex");
+            firstException: CreateRateLimitExceededException());
         var service = CreateService(
             chatClient,
             options: NullableOption.Some(PredictionServiceOptions.FlexProcessingWithStandardFallback));
@@ -633,7 +632,7 @@ public class PredictionService_PredictMatchAsync_Tests : PredictionServiceTests_
         await Assert.That(prediction).IsEquivalentTo(new Prediction(2, 1, null));
         await Assert.That(requestedServiceTiers.Count).IsEqualTo(2);
         await Assert.That(requestedServiceTiers[0]).IsEqualTo("flex");
-        await Assert.That(requestedServiceTiers[1]).IsEqualTo("flex");
+        await Assert.That(requestedServiceTiers[1]).IsEqualTo("default");
     }
 
     [Test]
@@ -643,7 +642,7 @@ public class PredictionService_PredictMatchAsync_Tests : PredictionServiceTests_
         var requestedServiceTiers = new List<string?>();
         var chatClient = CreateProtocolChatClient(
             requestedServiceTiers,
-            exceptions: Enumerable.Range(0, 9)
+            exceptions: Enumerable.Range(0, 10)
                 .Select(_ => CreateRateLimitExceededException())
                 .ToArray(),
             responseServiceTier: "flex");
@@ -656,8 +655,9 @@ public class PredictionService_PredictMatchAsync_Tests : PredictionServiceTests_
 
         // Assert
         await Assert.That(prediction).IsNull();
-        await Assert.That(requestedServiceTiers.Count).IsEqualTo(9);
-        await Assert.That(requestedServiceTiers.All(serviceTier => serviceTier == "flex")).IsTrue();
+        await Assert.That(requestedServiceTiers.Count).IsEqualTo(10);
+        await Assert.That(requestedServiceTiers[0]).IsEqualTo("flex");
+        await Assert.That(requestedServiceTiers.Skip(1).All(serviceTier => serviceTier == "default")).IsTrue();
     }
 
     [Test]

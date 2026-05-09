@@ -24,6 +24,8 @@ public class PredictionService : IPredictionService
 {
     private const int TransientOpenAiMaxRetryAttempts = 3;
     private const int RateLimitedOpenAiMaxRetryAttempts = 8;
+    private const string FlexServiceTier = "flex";
+    private const string DefaultServiceTier = "default";
     private static readonly TimeSpan TransientOpenAiRetryDelay = TimeSpan.FromSeconds(2);
     private static readonly TimeSpan RateLimitedOpenAiRetryBaseDelay = TimeSpan.FromSeconds(2);
     private static readonly TimeSpan RateLimitedOpenAiRetryMaxDelay = TimeSpan.FromMinutes(2);
@@ -162,6 +164,7 @@ public class PredictionService : IPredictionService
                     includeJustification,
                     serviceTier,
                     _options.ReasoningEffort),
+                serviceTier,
                 ct),
             cancellationToken);
     }
@@ -178,6 +181,7 @@ public class PredictionService : IPredictionService
                     bonusQuestion,
                     serviceTier,
                     _options.ReasoningEffort),
+                serviceTier,
                 ct),
             cancellationToken);
     }
@@ -191,21 +195,30 @@ public class PredictionService : IPredictionService
             return await completeResponseAsync(null, cancellationToken);
         }
 
-        string? requestedServiceTier = "flex";
+        string? requestedServiceTier = FlexServiceTier;
         var usedFallback = false;
         var pipeline = new ResiliencePipelineBuilder<OpenAiResponseResult>()
+            // OpenAI documents that Flex processing can return 429 Resource Unavailable
+            // when resources are insufficient, and recommends retrying with standard
+            // processing when occasional higher cost is acceptable:
+            // https://developers.openai.com/api/docs/guides/flex-processing
+            // The Responses API reference documents service_tier=default as standard
+            // pricing/performance, so flex 429 retries switch to that tier:
+            // https://platform.openai.com/docs/api-reference/responses/create
             .AddRetry(new RetryStrategyOptions<OpenAiResponseResult>
             {
                 MaxRetryAttempts = 1,
                 Delay = TimeSpan.Zero,
-                ShouldHandle = args => ValueTask.FromResult(IsFlexCapacityFailure(args.Outcome.Exception, args.Context.CancellationToken)),
+                ShouldHandle = args => ValueTask.FromResult(
+                    IsFlexProcessingRequest(requestedServiceTier) &&
+                    IsFlexFallbackFailure(args.Outcome.Exception, args.Context.CancellationToken)),
                 OnRetry = args =>
                 {
                     usedFallback = true;
-                    requestedServiceTier = null;
+                    requestedServiceTier = DefaultServiceTier;
                     _logger.LogWarning(
                         args.Outcome.Exception,
-                        "OpenAI flex processing failed with a capacity-style failure; retrying prediction with standard processing.");
+                        "OpenAI flex processing failed with a retryable failure; retrying prediction with default processing.");
                     return default;
                 }
             })
@@ -224,7 +237,7 @@ public class PredictionService : IPredictionService
                 {
                     ExecutionTelemetry = new PredictionExecutionTelemetry(
                         "flex-first-standard-fallback",
-                        usedFallback ? "standard" : "flex",
+                        usedFallback ? DefaultServiceTier : FlexServiceTier,
                         finalServiceTier,
                         usedFallback)
                 };
@@ -236,9 +249,10 @@ public class PredictionService : IPredictionService
 
     private async Task<OpenAiResponseResult> CompleteResponseAsync(
         CreateResponseOptions options,
+        string? serviceTier,
         CancellationToken cancellationToken)
     {
-        var response = await CreateResponseWithTransientRetryAsync(options, cancellationToken);
+        var response = await CreateResponseWithTransientRetryAsync(options, serviceTier, cancellationToken);
         var responseResult = response.Value;
         var predictionJson = responseResult.GetOutputText();
         if (predictionJson is null)
@@ -263,6 +277,7 @@ public class PredictionService : IPredictionService
 
     private async Task<ClientResult<ResponseResult>> CreateResponseWithTransientRetryAsync(
         CreateResponseOptions options,
+        string? requestedServiceTier,
         CancellationToken cancellationToken)
     {
         var pipeline = new ResiliencePipelineBuilder<ClientResult<ResponseResult>>()
@@ -279,6 +294,7 @@ public class PredictionService : IPredictionService
                 DelayGenerator = args => new ValueTask<TimeSpan?>(
                     ResolveOpenAiRateLimitDelay(args.Outcome.Exception, args.AttemptNumber)),
                 ShouldHandle = args => ValueTask.FromResult(
+                    !IsFlexProcessingRequest(requestedServiceTier) &&
                     IsRetryableOpenAiRateLimitFailure(args.Outcome.Exception, args.Context.CancellationToken)),
                 OnRetry = args =>
                 {
@@ -418,7 +434,15 @@ public class PredictionService : IPredictionService
         };
     }
 
-    private static bool IsFlexCapacityFailure(Exception? exception, CancellationToken cancellationToken)
+    private static bool IsFlexProcessingRequest(string? requestedServiceTier)
+    {
+        return string.Equals(
+            NormalizeServiceTier(requestedServiceTier),
+            FlexServiceTier,
+            StringComparison.OrdinalIgnoreCase);
+    }
+
+    private static bool IsFlexFallbackFailure(Exception? exception, CancellationToken cancellationToken)
     {
         if (exception is null)
         {
@@ -433,7 +457,8 @@ public class PredictionService : IPredictionService
         return exception switch
         {
             ClientResultException { Status: 408 } => true,
-            ClientResultException { Status: 429 } clientException => IsFlexResourceUnavailableFailure(clientException),
+            ClientResultException { Status: 429 } clientException => IsFlexResourceUnavailableFailure(clientException)
+                || IsRetryableOpenAiRateLimitFailure(clientException, cancellationToken),
             TimeoutRejectedException => true,
             TimeoutException => true,
             TaskCanceledException => true,

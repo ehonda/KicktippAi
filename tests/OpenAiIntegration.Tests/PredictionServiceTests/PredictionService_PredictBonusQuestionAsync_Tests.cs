@@ -221,18 +221,18 @@ public class PredictionService_PredictBonusQuestionAsync_Tests : PredictionServi
         await Assert.That(prediction).IsEquivalentTo(new BonusPrediction(["opt1"]));
         await Assert.That(requestedServiceTiers.Count).IsEqualTo(2);
         await Assert.That(requestedServiceTiers[0]).IsEqualTo("flex");
-        await Assert.That(requestedServiceTiers[1]).IsNull();
+        await Assert.That(requestedServiceTiers[1]).IsEqualTo("default");
     }
 
     [Test]
-    public async Task Predicting_bonus_question_retries_plain_rate_limit_without_switching_service_tier()
+    public async Task Predicting_bonus_question_retries_plain_rate_limit_with_default_processing_after_flex_failure()
     {
         // Arrange
         var requestedServiceTiers = new List<string?>();
         var chatClient = CreateProtocolBonusChatClient(
             requestedServiceTiers,
             firstException: CreateRateLimitExceededException(),
-            responseServiceTier: "flex");
+            responseServiceTier: "standard");
         var service = CreateService(chatClient);
 
         // Act
@@ -242,7 +242,7 @@ public class PredictionService_PredictBonusQuestionAsync_Tests : PredictionServi
         await Assert.That(prediction).IsEquivalentTo(new BonusPrediction(["opt1"]));
         await Assert.That(requestedServiceTiers.Count).IsEqualTo(2);
         await Assert.That(requestedServiceTiers[0]).IsEqualTo("flex");
-        await Assert.That(requestedServiceTiers[1]).IsEqualTo("flex");
+        await Assert.That(requestedServiceTiers[1]).IsEqualTo("default");
     }
 
     [Test]

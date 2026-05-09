@@ -192,9 +192,12 @@ def add_base_row_arguments(command: argparse.ArgumentParser) -> None:
     )
     command.add_argument(
         "--service-tier",
-        choices=("flex", "standard"),
+        choices=("flex", "standard", "observed"),
         default="flex",
-        help="Pricing tier to use for the estimate.",
+        help=(
+            "Pricing tier to use for the estimate. Use observed when flex-first "
+            "runs may include non-flex retry fallbacks."
+        ),
     )
 
 
@@ -394,6 +397,13 @@ def extract_usage_record(measured_group: str, run_name: str, observation: dict[s
     reasoning_tokens = int(usage.get("reasoning_tokens", 0))
     total_tokens = int(usage.get("total", input_tokens + output_tokens))
 
+    final_service_tier = metadata.get("openaiFinalServiceTier") or model_parameters.get(
+        "service_tier"
+    )
+    requested_service_tier = metadata.get(
+        "openaiRequestedServiceTier"
+    ) or model_parameters.get("service_tier")
+
     return {
         "datasetType": dataset_type_for_group(measured_group),
         "measuredGroup": measured_group,
@@ -416,13 +426,25 @@ def extract_usage_record(measured_group: str, run_name: str, observation: dict[s
         "reasoningEffort": metadata.get("openaiReasoningEffort")
         or metadata.get("reasoningEffort")
         or model_parameters.get("reasoning_effort"),
-        "serviceTier": model_parameters.get("service_tier")
-        or metadata.get("openaiFinalServiceTier"),
+        "requestedServiceTier": requested_service_tier,
+        "serviceTier": final_service_tier,
+        "openaiExecutionStrategy": metadata.get("openaiExecutionStrategy"),
+        "serviceTierFallbackUsed": parse_bool(
+            metadata.get("openaiServiceTierFallbackUsed")
+        ),
     }
 
 
 def nested_metadata(observation: dict[str, Any], key: str) -> Any:
     return (observation.get("metadata") or {}).get(key)
+
+
+def parse_bool(value: Any) -> bool:
+    if isinstance(value, bool):
+        return value
+    if value is None:
+        return False
+    return str(value).strip().lower() == "true"
 
 
 def dataset_type_for_group(measured_group: str) -> str:
@@ -494,15 +516,12 @@ def calculate_base_row(args: argparse.Namespace) -> dict[str, Any]:
             f"Expected {args.expect_count} records for group '{args.group}', found {len(records)}."
         )
 
+    service_tier_counts = count_service_tiers(records)
     non_flex = [
         record
         for record in records
-        if str(record.get("serviceTier", "")).strip().lower() != "flex"
+        if normalized_service_tier(record.get("serviceTier")) != "flex"
     ]
-    if args.service_tier == "flex" and non_flex:
-        raise SystemExit(
-            f"Expected all records to use flex service tier; found {len(non_flex)} non-flex record(s)."
-        )
 
     cap_hits = [
         record
@@ -515,12 +534,6 @@ def calculate_base_row(args: argparse.Namespace) -> dict[str, Any]:
         )
 
     pricing = load_pricing(Path(args.pricing_source))[args.model]
-    input_price = pricing.input_price
-    output_price = pricing.output_price
-    if args.service_tier == "flex":
-        input_price *= FLEX_PRICE_MULTIPLIER
-        output_price *= FLEX_PRICE_MULTIPLIER
-
     total_input_tokens = sum(int(record.get("inputTokens", 0)) for record in records)
     total_output_tokens = sum(int(record.get("outputTokens", 0)) for record in records)
     total_cached_input_tokens = sum(
@@ -534,10 +547,20 @@ def calculate_base_row(args: argparse.Namespace) -> dict[str, Any]:
         for record in records
     )
 
-    input_cost = cost_for_tokens(total_input_tokens, input_price)
-    output_cost = cost_for_tokens(total_output_tokens, output_price)
+    input_cost = sum_input_cost(records, pricing, args.service_tier)
+    output_cost = sum_output_cost(records, pricing, args.service_tier)
     total_cost = input_cost + output_cost
     average_cost = total_cost / Decimal(len(records))
+    non_flex_retry_count = sum(
+        1
+        for record in records
+        if normalized_service_tier(record.get("serviceTier")) != "flex"
+        and parse_bool(record.get("serviceTierFallbackUsed"))
+    )
+    fallback_used_count = sum(
+        1 for record in records if parse_bool(record.get("serviceTierFallbackUsed"))
+    )
+    observed_flex_count = service_tier_counts.get("flex", 0)
 
     return {
         "model": args.model,
@@ -548,10 +571,28 @@ def calculate_base_row(args: argparse.Namespace) -> dict[str, Any]:
         "maxOutputTokens": args.max_output_tokens,
         "baseSampleObservations": len(records),
         "serviceTier": args.service_tier,
+        "observedServiceTierCounts": service_tier_counts,
+        "observedFlexRequestCount": observed_flex_count,
+        "nonFlexRequestCount": len(non_flex),
+        "nonFlexRequestRate": rate_text(len(non_flex), len(records)),
+        "nonFlexRequestPercent": percent_text(len(non_flex), len(records)),
+        "nonFlexRetryCount": non_flex_retry_count,
+        "nonFlexRetryRate": rate_text(non_flex_retry_count, len(records)),
+        "nonFlexRetryPercent": percent_text(non_flex_retry_count, len(records)),
+        "serviceTierFallbackUsedCount": fallback_used_count,
+        "serviceTierFallbackUsedRate": rate_text(fallback_used_count, len(records)),
+        "serviceTierFallbackUsedPercent": percent_text(
+            fallback_used_count,
+            len(records),
+        ),
         "standardInputPricePerMillionUsd": decimal_text(pricing.input_price),
         "standardOutputPricePerMillionUsd": decimal_text(pricing.output_price),
-        "effectiveInputPricePerMillionUsd": decimal_text(input_price),
-        "effectiveOutputPricePerMillionUsd": decimal_text(output_price),
+        "effectiveInputPricePerMillionUsd": decimal_or_text(
+            effective_input_price_for_summary(pricing, args.service_tier)
+        ),
+        "effectiveOutputPricePerMillionUsd": decimal_or_text(
+            effective_output_price_for_summary(pricing, args.service_tier)
+        ),
         "totalInputTokens": total_input_tokens,
         "totalCachedInputTokensObserved": total_cached_input_tokens,
         "totalOutputTokens": total_output_tokens,
@@ -563,6 +604,77 @@ def calculate_base_row(args: argparse.Namespace) -> dict[str, Any]:
         "observedLangfuseCostTotalUsd": money_text(observed_total_cost),
         "source": args.source,
     }
+
+
+def count_service_tiers(records: list[dict[str, Any]]) -> dict[str, int]:
+    counts: dict[str, int] = {}
+    for record in records:
+        tier = normalized_service_tier(record.get("serviceTier"))
+        counts[tier] = counts.get(tier, 0) + 1
+    return dict(sorted(counts.items()))
+
+
+def normalized_service_tier(value: Any) -> str:
+    text = "" if value is None else str(value).strip().lower()
+    return text or "standard"
+
+
+def sum_input_cost(
+    records: list[dict[str, Any]], pricing: ModelPricing, service_tier: str
+) -> Decimal:
+    return sum(
+        cost_for_tokens(
+            int(record.get("inputTokens", 0)),
+            input_price_for_tier(pricing, pricing_tier_for_record(record, service_tier)),
+        )
+        for record in records
+    )
+
+
+def sum_output_cost(
+    records: list[dict[str, Any]], pricing: ModelPricing, service_tier: str
+) -> Decimal:
+    return sum(
+        cost_for_tokens(
+            int(record.get("outputTokens", 0)),
+            output_price_for_tier(pricing, pricing_tier_for_record(record, service_tier)),
+        )
+        for record in records
+    )
+
+
+def pricing_tier_for_record(record: dict[str, Any], service_tier: str) -> str:
+    if service_tier != "observed":
+        return service_tier
+    return normalized_service_tier(record.get("serviceTier"))
+
+
+def input_price_for_tier(pricing: ModelPricing, service_tier: str) -> Decimal:
+    if service_tier == "flex":
+        return pricing.input_price * FLEX_PRICE_MULTIPLIER
+    return pricing.input_price
+
+
+def output_price_for_tier(pricing: ModelPricing, service_tier: str) -> Decimal:
+    if service_tier == "flex":
+        return pricing.output_price * FLEX_PRICE_MULTIPLIER
+    return pricing.output_price
+
+
+def effective_input_price_for_summary(
+    pricing: ModelPricing, service_tier: str
+) -> Decimal | str:
+    if service_tier == "observed":
+        return "observed"
+    return input_price_for_tier(pricing, service_tier)
+
+
+def effective_output_price_for_summary(
+    pricing: ModelPricing, service_tier: str
+) -> Decimal | str:
+    if service_tier == "observed":
+        return "observed"
+    return output_price_for_tier(pricing, service_tier)
 
 
 def load_pricing(path: Path) -> dict[str, ModelPricing]:
@@ -728,9 +840,19 @@ def emit_base_estimate_summary(report: dict[str, Any]) -> None:
         f"model={report['model']}, "
         f"reasoningEffort={report['reasoningEffort']}, "
         f"sample={report['baseSampleObservations']}, "
+        f"serviceTier={report['serviceTier']}, "
         f"maxOutputTokens={report['maxOutputTokens']}, "
         f"averageCostPerMatch=${report['averageCostPerMatchPredictionUsd']}"
     )
+    if "nonFlexRetryCount" in report:
+        print(
+            "Service tiers: "
+            f"observed={report.get('observedServiceTierCounts', {})}, "
+            f"nonFlexRequests={report.get('nonFlexRequestCount', 0)} "
+            f"({report.get('nonFlexRequestPercent', '0%')}), "
+            f"nonFlexRetryRequests={report.get('nonFlexRetryCount', 0)} "
+            f"({report.get('nonFlexRetryPercent', '0%')})"
+        )
     print(
         "Source: "
         f"{report['source']} "
@@ -749,10 +871,18 @@ def emit_estimate(report: dict[str, Any]) -> None:
     )
     print(
         f"Sample: {row['baseSampleObservations']} | "
+        f"Service tier: {row.get('serviceTier', 'unknown')} | "
         f"Max output tokens: {row['maxOutputTokens']} | "
         f"Model knowledge cutoff: {row['modelKnowledgeCutoffDate']} | "
         f"Sampling cutoff: {row['samplingCutoffUsed']}"
     )
+    if "nonFlexRetryCount" in row:
+        print(
+            "Observed service tiers: "
+            f"{row.get('observedServiceTierCounts', {})} | "
+            f"Non-flex retry requests: {row.get('nonFlexRetryCount', 0)} "
+            f"({row.get('nonFlexRetryPercent', '0%')})"
+        )
     print(f"Prompt route: {row['promptRoute']}")
     print(f"Source: {row['source']}")
     print()
@@ -789,8 +919,37 @@ def money_text(value: Decimal) -> str:
     )
 
 
+def rate_text(numerator: int, denominator: int) -> str:
+    if denominator <= 0:
+        return "0"
+    return format(
+        (Decimal(numerator) / Decimal(denominator)).quantize(
+            Decimal("0.0001"),
+            rounding=ROUND_HALF_UP,
+        ),
+        "f",
+    )
+
+
+def percent_text(numerator: int, denominator: int) -> str:
+    if denominator <= 0:
+        return "0.00%"
+    percent = (Decimal(numerator) / Decimal(denominator)) * Decimal("100")
+    return (
+        format(
+            percent.quantize(Decimal("0.01"), rounding=ROUND_HALF_UP),
+            "f",
+        )
+        + "%"
+    )
+
+
 def decimal_text(value: Decimal) -> str:
     return format(value.normalize(), "f")
+
+
+def decimal_or_text(value: Decimal | str) -> str:
+    return value if isinstance(value, str) else decimal_text(value)
 
 
 def load_json(path: Path) -> Any:

@@ -91,7 +91,7 @@ dotnet run --project src/Orchestrator -- prepare-slice --community-context pes-s
 uv --cache-dir .uv-cache run python .agents/skills/estimate-experiment-cost-skill/scripts/experiment_cost_estimator.py collect --env ..\KicktippAi.Secrets\src\Orchestrator\.env --group "repeated-measured=RUN_NAME_1" --group "repeated-measured=RUN_NAME_2" --group "repeated-measured=RUN_NAME_3" --group "repeated-measured=RUN_NAME_4" --group "repeated-measured=RUN_NAME_5" --expect repeated-measured=20 --output C:\tmp\kicktippai-cost-estimate-usage.json
 ```
 
-10. Persist the row with `upsert-row`. The command validates 20 observations, flex tier, uncached input pricing, and no output-cap hits before writing JSON:
+10. Persist the row with `upsert-row`. Keep the default `--service-tier flex` assumption for base estimates, even if the observed run had non-flex retry fallbacks; the extrapolated experiment may not see the same 429 rate. The row still stores `observedServiceTierCounts`, `nonFlexRetryCount`, and retry rates as context. Use `--service-tier observed` only for an explicit what-this-run-actually-cost mode. The command validates 20 observations, uncached input pricing, and no output-cap hits before writing JSON:
 
 ```powershell
 uv --cache-dir .uv-cache run python .agents/skills/estimate-experiment-cost-skill/scripts/experiment_cost_estimator.py upsert-row --input C:\tmp\kicktippai-cost-estimate-usage.json --model o3 --reasoning-effort medium --prompt-route "local prompt-v1" --model-knowledge-cutoff 2025-11-29 --sampling-cutoff "2025-12-01T00:00:00 Europe/Berlin (+01)" --max-output-tokens 10000 --source "base-estimate run family 2026-05-04"
@@ -104,7 +104,7 @@ Use `--replace` only when intentionally updating an existing row for the same mo
 - Treat `10000` as the default cap because `PredictionServiceOptions` uses `MaxOutputTokenCount = 10_000`.
 - Include an explicit `--max-output-tokens` flag and run-name tag whenever a higher cap is needed.
 - For reasoning-heavy configs, use the preflight to choose the first non-default cap, then still validate the full 20-item base sample.
-- Never update JSON from a base estimate with missing observations, failed items, non-flex service tier, or output-cap hits.
+- Never update JSON from a base estimate with missing observations, failed items, or output-cap hits. Review non-flex service-tier observations as fallback/context data, not as a reason to automatically extrapolate the same 429 rate.
 
 ## Closeout
 
@@ -131,4 +131,5 @@ git push origin CURRENT_BRANCH
 - Verify the sampling cutoff equals the stored model knowledge cutoff date plus two days.
 - Verify estimates use `N` match predictions, not batches or fixtures.
 - Verify all reported estimate totals come from `experiment_cost_estimator.py estimate`.
+- Verify mixed-tier rows report `observedServiceTierCounts` and `nonFlexRetryCount`.
 - Inspect the diff before staging, committing, or pushing.
