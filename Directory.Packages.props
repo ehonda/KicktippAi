@@ -2,6 +2,19 @@
 
   <PropertyGroup>
     <ManagePackageVersionsCentrally>true</ManagePackageVersionsCentrally>
+    <!--
+      Keep centrally managed versions authoritative for transitive dependencies.
+      Without CPM transitive pinning, Dependabot's NuGet updater can create noisy
+      PRs that pin transitive packages by adding direct PackageReference entries
+      to projects that do not use those packages directly.
+
+      Sources:
+      - https://learn.microsoft.com/en-us/nuget/consume-packages/central-package-management#transitive-pinning
+      - https://github.com/dependabot/dependabot-core/issues/10459
+      - https://github.com/dependabot/dependabot-core/issues/11292
+      - https://github.com/dependabot/dependabot-core/pull/10449
+    -->
+    <CentralPackageTransitivePinningEnabled>true</CentralPackageTransitivePinningEnabled>
   </PropertyGroup>
 
   <ItemGroup>
