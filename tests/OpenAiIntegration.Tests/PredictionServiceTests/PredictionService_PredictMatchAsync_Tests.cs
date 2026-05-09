@@ -643,7 +643,7 @@ public class PredictionService_PredictMatchAsync_Tests : PredictionServiceTests_
         var requestedServiceTiers = new List<string?>();
         var chatClient = CreateProtocolChatClient(
             requestedServiceTiers,
-            exceptions: Enumerable.Range(0, 6)
+            exceptions: Enumerable.Range(0, 9)
                 .Select(_ => CreateRateLimitExceededException())
                 .ToArray(),
             responseServiceTier: "flex");
@@ -656,7 +656,7 @@ public class PredictionService_PredictMatchAsync_Tests : PredictionServiceTests_
 
         // Assert
         await Assert.That(prediction).IsNull();
-        await Assert.That(requestedServiceTiers.Count).IsEqualTo(6);
+        await Assert.That(requestedServiceTiers.Count).IsEqualTo(9);
         await Assert.That(requestedServiceTiers.All(serviceTier => serviceTier == "flex")).IsTrue();
     }
 

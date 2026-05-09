@@ -23,10 +23,10 @@ namespace OpenAiIntegration;
 public class PredictionService : IPredictionService
 {
     private const int TransientOpenAiMaxRetryAttempts = 3;
-    private const int RateLimitedOpenAiMaxRetryAttempts = 5;
+    private const int RateLimitedOpenAiMaxRetryAttempts = 8;
     private static readonly TimeSpan TransientOpenAiRetryDelay = TimeSpan.FromSeconds(2);
     private static readonly TimeSpan RateLimitedOpenAiRetryBaseDelay = TimeSpan.FromSeconds(2);
-    private static readonly TimeSpan RateLimitedOpenAiRetryMaxDelay = TimeSpan.FromSeconds(30);
+    private static readonly TimeSpan RateLimitedOpenAiRetryMaxDelay = TimeSpan.FromMinutes(2);
 
     private readonly ResponsesClient _responsesClient;
     private readonly ILogger<PredictionService> _logger;
@@ -284,9 +284,10 @@ public class PredictionService : IPredictionService
                 {
                     _logger.LogWarning(
                         args.Outcome.Exception,
-                        "OpenAI request hit a rate limit; retrying prediction request ({RetryAttempt}/{MaxRetryAttempts}).",
+                        "OpenAI request hit a rate limit; retrying prediction request ({RetryAttempt}/{MaxRetryAttempts}) after {RetryDelay}.",
                         args.AttemptNumber + 1,
-                        RateLimitedOpenAiMaxRetryAttempts);
+                        RateLimitedOpenAiMaxRetryAttempts,
+                        args.RetryDelay);
                     return default;
                 }
             })
