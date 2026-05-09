@@ -7,7 +7,6 @@ using Moq;
 using OpenAI.Chat;
 using OpenAI.Responses;
 using System.ClientModel;
-using System.ClientModel.Primitives;
 using TestUtilities;
 using TestUtilities.FakeLoggerAssertions;
 using EHonda.Optional.Core;
@@ -51,10 +50,12 @@ public class PredictionService_PredictMatchAsync_Tests : PredictionServiceTests_
         List<string?>? requestedReasoningEfforts = null,
         List<string>? requestPayloads = null,
         Exception? firstException = null,
+        IReadOnlyList<Exception>? exceptions = null,
         string responseServiceTier = "standard")
     {
         var mockClient = new Mock<ResponsesClient>("test-api-key");
-        var callCount = 0;
+        var queuedExceptions = exceptions ?? (firstException is null ? [] : [firstException]);
+        var exceptionQueue = new Queue<Exception>(queuedExceptions);
 
         mockClient
             .Setup(client => client.CreateResponseAsync(
@@ -62,14 +63,13 @@ public class PredictionService_PredictMatchAsync_Tests : PredictionServiceTests_
                 It.IsAny<CancellationToken>()))
             .Returns<CreateResponseOptions, CancellationToken>((options, _) =>
             {
-                callCount += 1;
                 var payloadJson = ReadPayloadJson(options);
                 requestPayloads?.Add(payloadJson);
                 requestedServiceTiers.Add(ExtractStringProperty(payloadJson, "service_tier"));
                 requestedReasoningEfforts?.Add(ExtractReasoningEffort(payloadJson));
-                if (callCount == 1 && firstException is not null)
+                if (exceptionQueue.Count > 0)
                 {
-                    return Task.FromException<ClientResult<ResponseResult>>(firstException);
+                    return Task.FromException<ClientResult<ResponseResult>>(exceptionQueue.Dequeue());
                 }
 
                 return Task.FromResult(CreateResponseClientResult(
@@ -89,18 +89,6 @@ public class PredictionService_PredictMatchAsync_Tests : PredictionServiceTests_
                && effort.ValueKind == JsonValueKind.String
             ? effort.GetString()
             : null;
-    }
-
-    private static ClientResultException CreateClientResultException(
-        int status,
-        string reasonPhrase = "Resource Unavailable",
-        string body = """{"error":{"code":"resource_unavailable","message":"capacity unavailable"}}""")
-    {
-        var response = new Mock<PipelineResponse>();
-        response.SetupGet(candidate => candidate.Status).Returns(status);
-        response.SetupGet(candidate => candidate.ReasonPhrase).Returns(reasonPhrase);
-        response.SetupGet(candidate => candidate.Content).Returns(BinaryData.FromString(body));
-        return new ClientResultException("OpenAI request failed", response.Object, null);
     }
 
     /// <summary>
@@ -626,7 +614,54 @@ public class PredictionService_PredictMatchAsync_Tests : PredictionServiceTests_
     }
 
     [Test]
-    public async Task Predicting_match_with_flex_processing_does_not_retry_plain_rate_limit()
+    public async Task Predicting_match_retries_plain_rate_limit_without_switching_service_tier()
+    {
+        // Arrange
+        var requestedServiceTiers = new List<string?>();
+        var chatClient = CreateProtocolChatClient(
+            requestedServiceTiers,
+            firstException: CreateRateLimitExceededException(),
+            responseServiceTier: "flex");
+        var service = CreateService(
+            chatClient,
+            options: NullableOption.Some(PredictionServiceOptions.FlexProcessingWithStandardFallback));
+
+        // Act
+        var prediction = await PredictMatchAsync(service);
+
+        // Assert
+        await Assert.That(prediction).IsEquivalentTo(new Prediction(2, 1, null));
+        await Assert.That(requestedServiceTiers.Count).IsEqualTo(2);
+        await Assert.That(requestedServiceTiers[0]).IsEqualTo("flex");
+        await Assert.That(requestedServiceTiers[1]).IsEqualTo("flex");
+    }
+
+    [Test]
+    public async Task Predicting_match_stops_retrying_rate_limit_after_max_attempts()
+    {
+        // Arrange
+        var requestedServiceTiers = new List<string?>();
+        var chatClient = CreateProtocolChatClient(
+            requestedServiceTiers,
+            exceptions: Enumerable.Range(0, 6)
+                .Select(_ => CreateRateLimitExceededException())
+                .ToArray(),
+            responseServiceTier: "flex");
+        var service = CreateService(
+            chatClient,
+            options: NullableOption.Some(PredictionServiceOptions.FlexProcessingWithStandardFallback));
+
+        // Act
+        var prediction = await PredictMatchAsync(service);
+
+        // Assert
+        await Assert.That(prediction).IsNull();
+        await Assert.That(requestedServiceTiers.Count).IsEqualTo(6);
+        await Assert.That(requestedServiceTiers.All(serviceTier => serviceTier == "flex")).IsTrue();
+    }
+
+    [Test]
+    public async Task Predicting_match_does_not_retry_insufficient_quota_rate_limit()
     {
         // Arrange
         var requestedServiceTiers = new List<string?>();
@@ -635,7 +670,7 @@ public class PredictionService_PredictMatchAsync_Tests : PredictionServiceTests_
             firstException: CreateClientResultException(
                 429,
                 reasonPhrase: "Too Many Requests",
-                body: """{"error":{"code":"rate_limit_exceeded","message":"rate limit exceeded"}}"""));
+                body: """{"error":{"code":"insufficient_quota","message":"You exceeded your current quota, please check your plan and billing details."}}"""));
         var service = CreateService(
             chatClient,
             options: NullableOption.Some(PredictionServiceOptions.FlexProcessingWithStandardFallback));

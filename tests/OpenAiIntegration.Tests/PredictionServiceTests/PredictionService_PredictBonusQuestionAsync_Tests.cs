@@ -4,7 +4,6 @@ using Moq;
 using OpenAI.Chat;
 using OpenAI.Responses;
 using System.ClientModel;
-using System.ClientModel.Primitives;
 using System.Diagnostics;
 using System.Text;
 using System.Text.Json;
@@ -81,18 +80,6 @@ public class PredictionService_PredictBonusQuestionAsync_Tests : PredictionServi
             });
 
         return mockClient.Object;
-    }
-
-    private static ClientResultException CreateClientResultException(
-        int status,
-        string reasonPhrase = "Resource Unavailable",
-        string body = """{"error":{"code":"resource_unavailable","message":"capacity unavailable"}}""")
-    {
-        var response = new Mock<PipelineResponse>();
-        response.SetupGet(candidate => candidate.Status).Returns(status);
-        response.SetupGet(candidate => candidate.ReasonPhrase).Returns(reasonPhrase);
-        response.SetupGet(candidate => candidate.Content).Returns(BinaryData.FromString(body));
-        return new ClientResultException("OpenAI request failed", response.Object, null);
     }
 
     [Test]
@@ -238,7 +225,28 @@ public class PredictionService_PredictBonusQuestionAsync_Tests : PredictionServi
     }
 
     [Test]
-    public async Task Predicting_bonus_question_with_flex_processing_does_not_retry_plain_rate_limit()
+    public async Task Predicting_bonus_question_retries_plain_rate_limit_without_switching_service_tier()
+    {
+        // Arrange
+        var requestedServiceTiers = new List<string?>();
+        var chatClient = CreateProtocolBonusChatClient(
+            requestedServiceTiers,
+            firstException: CreateRateLimitExceededException(),
+            responseServiceTier: "flex");
+        var service = CreateService(chatClient);
+
+        // Act
+        var prediction = await PredictBonusQuestionAsync(service);
+
+        // Assert
+        await Assert.That(prediction).IsEquivalentTo(new BonusPrediction(["opt1"]));
+        await Assert.That(requestedServiceTiers.Count).IsEqualTo(2);
+        await Assert.That(requestedServiceTiers[0]).IsEqualTo("flex");
+        await Assert.That(requestedServiceTiers[1]).IsEqualTo("flex");
+    }
+
+    [Test]
+    public async Task Predicting_bonus_question_does_not_retry_insufficient_quota_rate_limit()
     {
         // Arrange
         var requestedServiceTiers = new List<string?>();
@@ -247,7 +255,7 @@ public class PredictionService_PredictBonusQuestionAsync_Tests : PredictionServi
             firstException: CreateClientResultException(
                 429,
                 reasonPhrase: "Too Many Requests",
-                body: """{"error":{"code":"rate_limit_exceeded","message":"rate limit exceeded"}}"""));
+                body: """{"error":{"code":"insufficient_quota","message":"You exceeded your current quota, please check your plan and billing details."}}"""));
         var service = CreateService(chatClient);
 
         // Act

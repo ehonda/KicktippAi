@@ -1,9 +1,12 @@
 using System.Collections.Generic;
 using System.ClientModel;
+using System.ClientModel.Primitives;
 using System.Diagnostics;
+using System.Globalization;
 using System.Linq;
 using System.Text.Json;
 using System.Text.Json.Serialization;
+using System.Text.RegularExpressions;
 using EHonda.KicktippAi.Core;
 using Microsoft.Extensions.Logging;
 using OpenAI.Chat;
@@ -20,7 +23,10 @@ namespace OpenAiIntegration;
 public class PredictionService : IPredictionService
 {
     private const int TransientOpenAiMaxRetryAttempts = 3;
+    private const int RateLimitedOpenAiMaxRetryAttempts = 5;
     private static readonly TimeSpan TransientOpenAiRetryDelay = TimeSpan.FromSeconds(2);
+    private static readonly TimeSpan RateLimitedOpenAiRetryBaseDelay = TimeSpan.FromSeconds(2);
+    private static readonly TimeSpan RateLimitedOpenAiRetryMaxDelay = TimeSpan.FromSeconds(30);
 
     private readonly ResponsesClient _responsesClient;
     private readonly ILogger<PredictionService> _logger;
@@ -59,7 +65,7 @@ public class PredictionService : IPredictionService
     }
 
     public async Task<Prediction?> PredictMatchAsync(
-        Match match, 
+        EHonda.KicktippAi.Core.Match match,
         IEnumerable<DocumentContext> contextDocuments, 
         bool includeJustification = false,
         PredictionTelemetryMetadata? telemetryMetadata = null,
@@ -260,6 +266,30 @@ public class PredictionService : IPredictionService
         CancellationToken cancellationToken)
     {
         var pipeline = new ResiliencePipelineBuilder<ClientResult<ResponseResult>>()
+            // OpenAI documents 429 rate-limit errors as pacing problems and recommends bounded
+            // random exponential backoff. It also documents x-ratelimit-* response headers
+            // for reset timing:
+            // https://platform.openai.com/docs/guides/rate-limits
+            // https://platform.openai.com/docs/guides/error-codes
+            // https://platform.openai.com/docs/api-reference
+            // These references document x-ratelimit-* reset headers, not Retry-After.
+            .AddRetry(new RetryStrategyOptions<ClientResult<ResponseResult>>
+            {
+                MaxRetryAttempts = RateLimitedOpenAiMaxRetryAttempts,
+                DelayGenerator = args => new ValueTask<TimeSpan?>(
+                    ResolveOpenAiRateLimitDelay(args.Outcome.Exception, args.AttemptNumber)),
+                ShouldHandle = args => ValueTask.FromResult(
+                    IsRetryableOpenAiRateLimitFailure(args.Outcome.Exception, args.Context.CancellationToken)),
+                OnRetry = args =>
+                {
+                    _logger.LogWarning(
+                        args.Outcome.Exception,
+                        "OpenAI request hit a rate limit; retrying prediction request ({RetryAttempt}/{MaxRetryAttempts}).",
+                        args.AttemptNumber + 1,
+                        RateLimitedOpenAiMaxRetryAttempts);
+                    return default;
+                }
+            })
             .AddRetry(new RetryStrategyOptions<ClientResult<ResponseResult>>
             {
                 MaxRetryAttempts = TransientOpenAiMaxRetryAttempts,
@@ -420,6 +450,152 @@ public class PredictionService : IPredictionService
         return exception is ClientResultException { Status: >= 500 and <= 599 };
     }
 
+    private static bool IsRetryableOpenAiRateLimitFailure(Exception? exception, CancellationToken cancellationToken)
+    {
+        if (exception is not ClientResultException { Status: 429 } clientException ||
+            cancellationToken.IsCancellationRequested)
+        {
+            return false;
+        }
+
+        return !IsFlexResourceUnavailableFailure(clientException)
+               && !ContainsQuotaExhaustedMarker(clientException.Message)
+               && !ContainsQuotaExhaustedMarker(clientException.GetRawResponse()?.ReasonPhrase)
+               && !ContainsQuotaExhaustedMarker(clientException.GetRawResponse()?.Content.ToString());
+    }
+
+    private static TimeSpan ResolveOpenAiRateLimitDelay(Exception? exception, int attemptNumber)
+    {
+        if (exception is ClientResultException clientException &&
+            TryGetOpenAiRateLimitResetDelay(clientException.GetRawResponse(), out var resetDelay))
+        {
+            return ClampOpenAiRateLimitDelay(resetDelay);
+        }
+
+        var cappedExponentialMilliseconds = Math.Min(
+            RateLimitedOpenAiRetryMaxDelay.TotalMilliseconds,
+            RateLimitedOpenAiRetryBaseDelay.TotalMilliseconds * Math.Pow(2, Math.Max(0, attemptNumber)));
+        var jitterFloorMilliseconds = cappedExponentialMilliseconds / 2;
+        var jitteredMilliseconds = jitterFloorMilliseconds + Random.Shared.NextDouble() * jitterFloorMilliseconds;
+
+        return ClampOpenAiRateLimitDelay(TimeSpan.FromMilliseconds(jitteredMilliseconds));
+    }
+
+    private static bool TryGetOpenAiRateLimitResetDelay(PipelineResponse? response, out TimeSpan delay)
+    {
+        delay = default;
+        if (response is null)
+        {
+            return false;
+        }
+
+        var exhaustedDelays = new List<TimeSpan>();
+        var availableDelays = new List<TimeSpan>();
+
+        AddRateLimitResetDelay(response, "requests", exhaustedDelays, availableDelays);
+        AddRateLimitResetDelay(response, "tokens", exhaustedDelays, availableDelays);
+
+        if (exhaustedDelays.Count > 0)
+        {
+            delay = exhaustedDelays.Max();
+            return true;
+        }
+
+        if (availableDelays.Count > 0)
+        {
+            delay = availableDelays.Max();
+            return true;
+        }
+
+        return false;
+    }
+
+    private static void AddRateLimitResetDelay(
+        PipelineResponse response,
+        string dimension,
+        List<TimeSpan> exhaustedDelays,
+        List<TimeSpan> availableDelays)
+    {
+        if (!TryGetOpenAiRateLimitHeader(response, $"x-ratelimit-reset-{dimension}", out var resetText) ||
+            !TryParseOpenAiRateLimitReset(resetText, out var resetDelay))
+        {
+            return;
+        }
+
+        if (TryGetOpenAiRateLimitHeader(response, $"x-ratelimit-remaining-{dimension}", out var remainingText) &&
+            decimal.TryParse(remainingText, NumberStyles.Number, CultureInfo.InvariantCulture, out var remaining) &&
+            remaining <= 0)
+        {
+            exhaustedDelays.Add(resetDelay);
+            return;
+        }
+
+        availableDelays.Add(resetDelay);
+    }
+
+    private static bool TryGetOpenAiRateLimitHeader(PipelineResponse response, string name, out string value)
+    {
+        if (response.Headers is not null && response.Headers.TryGetValue(name, out var headerValue))
+        {
+            value = headerValue ?? string.Empty;
+            return true;
+        }
+
+        value = string.Empty;
+        return false;
+    }
+
+    private static bool TryParseOpenAiRateLimitReset(string text, out TimeSpan delay)
+    {
+        delay = default;
+        if (string.IsNullOrWhiteSpace(text))
+        {
+            return false;
+        }
+
+        var matches = Regex.Matches(
+            text.Trim(),
+            @"(?<value>\d+(?:\.\d+)?)(?<unit>ms|s|m|h)",
+            RegexOptions.IgnoreCase | RegexOptions.CultureInvariant);
+        if (matches.Count == 0)
+        {
+            return false;
+        }
+
+        var totalMilliseconds = 0.0;
+        foreach (System.Text.RegularExpressions.Match match in matches)
+        {
+            if (!double.TryParse(match.Groups["value"].Value, NumberStyles.Float, CultureInfo.InvariantCulture, out var value))
+            {
+                return false;
+            }
+
+            totalMilliseconds += match.Groups["unit"].Value.ToLowerInvariant() switch
+            {
+                "ms" => value,
+                "s" => value * 1_000,
+                "m" => value * 60_000,
+                "h" => value * 3_600_000,
+                _ => 0
+            };
+        }
+
+        delay = TimeSpan.FromMilliseconds(Math.Max(0, totalMilliseconds));
+        return true;
+    }
+
+    private static TimeSpan ClampOpenAiRateLimitDelay(TimeSpan delay)
+    {
+        if (delay < TimeSpan.Zero)
+        {
+            return TimeSpan.Zero;
+        }
+
+        return delay > RateLimitedOpenAiRetryMaxDelay
+            ? RateLimitedOpenAiRetryMaxDelay
+            : delay;
+    }
+
     private static bool IsFlexResourceUnavailableFailure(ClientResultException exception)
     {
         var rawResponse = exception.GetRawResponse();
@@ -440,6 +616,18 @@ public class PredictionService : IPredictionService
                || text.Contains("resources unavailable", StringComparison.OrdinalIgnoreCase)
                || text.Contains("insufficient resources", StringComparison.OrdinalIgnoreCase)
                || text.Contains("capacity", StringComparison.OrdinalIgnoreCase);
+    }
+
+    private static bool ContainsQuotaExhaustedMarker(string? text)
+    {
+        if (string.IsNullOrWhiteSpace(text))
+        {
+            return false;
+        }
+
+        return text.Contains("insufficient_quota", StringComparison.OrdinalIgnoreCase)
+               || text.Contains("exceeded your current quota", StringComparison.OrdinalIgnoreCase)
+               || text.Contains("check your plan and billing", StringComparison.OrdinalIgnoreCase);
     }
 
     public async Task<BonusPrediction?> PredictBonusQuestionAsync(

@@ -217,6 +217,29 @@ public abstract class PredictionServiceTests_Base
         return mockClient.Object;
     }
 
+    protected static ClientResultException CreateClientResultException(
+        int status,
+        string reasonPhrase = "Resource Unavailable",
+        string body = """{"error":{"code":"resource_unavailable","message":"capacity unavailable"}}""",
+        IReadOnlyDictionary<string, string>? headers = null)
+    {
+        var response = new TestPipelineResponse(status, reasonPhrase, body, headers);
+        return new ClientResultException("OpenAI request failed", response, null);
+    }
+
+    protected static ClientResultException CreateRateLimitExceededException()
+    {
+        return CreateClientResultException(
+            429,
+            reasonPhrase: "Too Many Requests",
+            body: """{"error":{"code":"rate_limit_exceeded","message":"rate limit exceeded"}}""",
+            headers: new Dictionary<string, string>
+            {
+                ["x-ratelimit-remaining-requests"] = "0",
+                ["x-ratelimit-reset-requests"] = "0ms"
+            });
+    }
+
     protected static ClientResult<ResponseResult> CreateResponseClientResult(
         string responseJson,
         ChatTokenUsage usage,
@@ -348,5 +371,80 @@ public abstract class PredictionServiceTests_Base
         }
 
         return string.Empty;
+    }
+
+    private sealed class TestPipelineResponse : PipelineResponse
+    {
+        private readonly PipelineResponseHeaders _headers;
+
+        public TestPipelineResponse(
+            int status,
+            string reasonPhrase,
+            string body,
+            IReadOnlyDictionary<string, string>? headers)
+        {
+            Status = status;
+            ReasonPhrase = reasonPhrase;
+            Content = BinaryData.FromString(body);
+            ContentStream = new MemoryStream(Content.ToArray());
+            _headers = new TestPipelineResponseHeaders(headers ?? new Dictionary<string, string>());
+        }
+
+        public override int Status { get; }
+
+        public override string ReasonPhrase { get; }
+
+        public override BinaryData Content { get; }
+
+        public override Stream? ContentStream { get; set; }
+
+        protected override PipelineResponseHeaders HeadersCore => _headers;
+
+        public override BinaryData BufferContent(CancellationToken cancellationToken)
+        {
+            return Content;
+        }
+
+        public override ValueTask<BinaryData> BufferContentAsync(CancellationToken cancellationToken)
+        {
+            return ValueTask.FromResult(Content);
+        }
+
+        public override void Dispose()
+        {
+            ContentStream?.Dispose();
+        }
+    }
+
+    private sealed class TestPipelineResponseHeaders : PipelineResponseHeaders
+    {
+        private readonly Dictionary<string, string> _headers;
+
+        public TestPipelineResponseHeaders(IReadOnlyDictionary<string, string> headers)
+        {
+            _headers = new Dictionary<string, string>(headers, StringComparer.OrdinalIgnoreCase);
+        }
+
+        public override bool TryGetValue(string name, out string value)
+        {
+            return _headers.TryGetValue(name, out value!);
+        }
+
+        public override bool TryGetValues(string name, out IEnumerable<string> values)
+        {
+            if (_headers.TryGetValue(name, out var value))
+            {
+                values = [value];
+                return true;
+            }
+
+            values = [];
+            return false;
+        }
+
+        public override IEnumerator<KeyValuePair<string, string>> GetEnumerator()
+        {
+            return _headers.GetEnumerator();
+        }
     }
 }
