@@ -42,7 +42,7 @@ public class PredictionService_PredictMatchAsync_Tests : PredictionServiceTests_
                candidate.GetTagItem("langfuse.observation.metadata.awayTeam") is string awayTeam &&
                awayTeam == telemetryMetadata.AwayTeam &&
                candidate.GetTagItem("langfuse.observation.metadata.repredictionIndex") is string repredictionIndex &&
-               repredictionIndex == "3";
+               repredictionIndex == telemetryMetadata.RepredictionIndex?.ToString();
     }
 
     private static ResponsesClient CreateProtocolChatClient(
@@ -407,11 +407,18 @@ public class PredictionService_PredictMatchAsync_Tests : PredictionServiceTests_
         var service = CreateService(
             chatClient,
             options: NullableOption.Some(PredictionServiceOptions.FlexProcessingWithStandardFallback));
+        var telemetryMetadata = new PredictionTelemetryMetadata(
+            "Fallback Telemetry Home Team",
+            "Fallback Telemetry Away Team",
+            7);
         var capturedActivities = new List<Activity>();
         using var listener = CreateActivityListener(capturedActivities);
 
         // Act
-        var prediction = await PredictMatchAsync(service);
+        var prediction = await service.PredictMatchAsync(
+            CreateTestMatch(),
+            CreateTestContextDocuments(),
+            telemetryMetadata: telemetryMetadata);
 
         // Assert
         await Assert.That(prediction).IsEquivalentTo(new Prediction(2, 1, null));
@@ -423,12 +430,13 @@ public class PredictionService_PredictMatchAsync_Tests : PredictionServiceTests_
         await Assert.That(requestedReasoningEfforts[1]).IsNull();
         await Assert.That(requestPayloads.All(payload => !payload.Contains("\"reasoning\""))).IsTrue();
 
-        var activity = capturedActivities.Single(candidate =>
-            candidate.OperationName == "predict-match" &&
+        var activity = capturedActivities.FirstOrDefault(candidate =>
+            IsMatchingPredictMatchActivity(candidate, telemetryMetadata) &&
             string.Equals(
                 candidate.GetTagItem("langfuse.observation.metadata.openaiServiceTierFallbackUsed")?.ToString(),
                 bool.TrueString,
                 StringComparison.Ordinal));
+        await Assert.That(activity).IsNotNull();
         await Assert.That(activity.GetTagItem("langfuse.observation.metadata.openaiExecutionStrategy"))
             .IsEqualTo("flex-first-standard-fallback");
         await Assert.That(activity.GetTagItem("langfuse.observation.metadata.openaiRequestedServiceTier"))
