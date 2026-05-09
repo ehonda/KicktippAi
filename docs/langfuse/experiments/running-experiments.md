@@ -5,8 +5,16 @@
 The active workflow is:
 
 1. Prepare a hosted dataset artifact and manifest.
-2. Sync the hosted dataset artifact to Langfuse.
+2. Sync the hosted dataset artifact to Langfuse only when creating that dataset initially.
 3. Execute the prepared manifest with one of the run commands.
+
+If the dataset already exists in Langfuse, assume it has not changed and skip resync by default to save execution time.
+
+Resync only when one of these is true:
+
+- you are uploading the dataset for the first time
+- you explicitly changed the prepared dataset artifact or dataset name
+- the run fails with errors that suggest missing, renamed, or stale dataset items or dataset metadata
 
 For local verification and development runs, prefer `gpt-5-nano` to keep cost low.
 
@@ -90,7 +98,9 @@ Use `--starts-after` when you want the random slice to exclude older completed m
 dotnet run --project src/Orchestrator -- prepare-slice --community-context pes-squad --sample-size 10 --sample-seed 20260403 --starts-after "2026-01-01T00:00:00 Europe/Berlin (+01)"
 ```
 
-### 2. Sync the dataset
+### 2. Sync the slice dataset once
+
+Run this when you first create the hosted dataset in Langfuse. For later reruns against the same prepared artifact, skip this step unless you explicitly changed the dataset or the run errors suggest dataset drift.
 
 ```powershell
 dotnet run --project src/Orchestrator -- sync-dataset --input artifacts/langfuse-experiments/verification/pes-squad-slice/slice-dataset.json
@@ -119,7 +129,9 @@ Use `sample-size > 1` if you want the warmup plus batches behavior to actually e
 dotnet run --project src/Orchestrator -- prepare-repeated-match --community-context pes-squad --home "VfB Stuttgart" --away "RB Leipzig" --matchday 26 --sample-size 25 --dataset-description "Stuttgart's 1-0 Matchday 26 win over Leipzig was a close top-four clash where Stuttgart leapfrogged Leipzig."
 ```
 
-### 2. Sync the dataset
+### 2. Sync the repeated-match dataset once
+
+Run this when you first create the hosted dataset in Langfuse. For later reruns against the same prepared artifact, skip this step unless you explicitly changed the dataset or the run errors suggest dataset drift.
 
 ```powershell
 dotnet run --project src/Orchestrator -- sync-dataset --input artifacts/langfuse-experiments/repeated-match/pes-squad/md26-vfb-stuttgart-vs-rb-leipzig/repeat-25/slice-dataset.json
@@ -216,3 +228,13 @@ Use `reconstruct-prompt` with the intended `--evaluation-time` before running th
 ```powershell
 dotnet run --project src/Orchestrator -- reconstruct-prompt gpt-5-nano --community-context pes-squad --home "VfB Stuttgart" --away "RB Leipzig" --matchday 26 --evaluation-time "2026-03-15T12:00:00 Europe/Berlin (+01)"
 ```
+
+### Dataset sync errors
+
+If a rerun fails with errors that suggest the hosted dataset no longer matches the prepared manifest, for example missing dataset items, renamed dataset items, or a dataset-name mismatch, resync the prepared artifact and rerun:
+
+```powershell
+dotnet run --project src/Orchestrator -- sync-dataset --input artifacts/langfuse-experiments/.../slice-dataset.json
+```
+
+This should be an exception path rather than the default because skipping unnecessary resyncs saves execution time.

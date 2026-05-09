@@ -23,7 +23,9 @@ Before running or publishing anything:
 ## Decision Flow
 
 - If the user provides an existing Langfuse dataset name and run names, skip preparation, sync, and execution; export and report those runs.
-- If the user provides a prepared `slice-dataset.json` and `slice-manifest.json`, sync if needed, then run variants against the same manifest.
+- If the user provides a prepared `slice-dataset.json` and `slice-manifest.json`, sync only when the dataset is being created in Langfuse for the first time, or when the user explicitly says the dataset changed.
+- If the prepared dataset already exists in Langfuse, assume it was not modified and skip resync by default to save execution time.
+- If a run fails with errors that suggest missing, renamed, or drifted dataset items or dataset names, resync the dataset artifact and retry.
 - Choose `slice` for fixed historical match samples, `repeated-match` for variance on one fixture, and `community-to-date` for participant-backed Kicktipp snapshots through a cutoff matchday.
 - Keep all settings fixed except the intended comparison axis, such as model, prompt key, hosted prompt, reasoning effort, justification setting, or evaluation policy.
 - Use one shared UTC `$runStamp` for all related run names. Prefer `gpt-5-nano` for cheap verification unless the user specified models.
@@ -38,7 +40,7 @@ dotnet run --project src/Orchestrator -- prepare-repeated-match --community-cont
 dotnet run --project src/Orchestrator -- prepare-community-to-date --community-context schadensfresse --cutoff-matchday 10
 ```
 
-Sync the prepared hosted dataset:
+Sync the prepared hosted dataset only when you are creating it in Langfuse for the first time, or when explicit changes or run-time errors indicate the hosted dataset may be stale. Skip resync by default to save execution time:
 
 ```powershell
 dotnet run --project src/Orchestrator -- sync-dataset --input path/to/slice-dataset.json
