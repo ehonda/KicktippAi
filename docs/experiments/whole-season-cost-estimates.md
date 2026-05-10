@@ -6,6 +6,12 @@ This estimate projects match prediction cost for two full competitions and three
 model configurations. Bonus question cost is excluded because it is negligible
 relative to full-season match prediction cost.
 
+Important pricing assumption: these estimates assume every match prediction is
+billed at OpenAI `flex` pricing. Production is expected to use flex from here
+on out. Actual spend can be higher if flex requests occasionally fall back to
+standard processing after flex-capacity failures, but that share is expected to
+stay low.
+
 The dollar values below were regenerated immediately before this document was
 written with `experiment_cost_estimator.py estimate`. No Firebase `cost` query
 was rerun for this estimate; the Bundesliga reprediction evidence reuses the
@@ -46,6 +52,10 @@ changes.
 
 ## Cost Estimates
 
+These are flex-pricing estimates for all match predictions. They are not
+historical production spend totals from the Firebase `cost` command, especially
+for predictions that were generated before production moved to flex.
+
 | Competition | Model config | Base row prompt route | Max output tokens | Cost without repredictions | Cost with repredictions |
 | --- | --- | --- | ---: | ---: | ---: |
 | Bundesliga 2025/26 | `gpt-5.5 xhigh` | Langfuse `langfuse-o3-poc` | 40000 | `$28.968255000000` | `$46.671077500000` |
@@ -57,7 +67,9 @@ changes.
 
 All base rows use service tier `flex`, treat input tokens as uncached for the
 estimate, and use model knowledge cutoff `2025-11-29` with sampling cutoff
-`2025-12-01T00:00:00 Europe/Berlin (+01)`.
+`2025-12-01T00:00:00 Europe/Berlin (+01)`. If a future run observes non-flex
+fallbacks, estimate the standard-tier share separately instead of silently
+mixing it into these all-flex totals.
 
 ## Estimator Commands
 
