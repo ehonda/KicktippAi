@@ -1,6 +1,6 @@
 {
   "schemaVersion": 1,
-  "updatedAt": "2026-05-05",
+  "updatedAt": "2026-05-10",
   "baseEstimates": [
     {
       "model": "o3",
@@ -86,6 +86,43 @@
       "estimatedTotalCostUsd": "1.893350000000",
       "averageCostPerMatchPredictionUsd": "0.094667500000",
       "source": "Base estimate evidence: [gpt-5.5-xhigh-base-estimate-2026-05-04.md](gpt-5.5-xhigh-base-estimate-2026-05-04.md)."
+    },
+    {
+      "model": "gpt-5.5",
+      "reasoningEffort": "low",
+      "promptRoute": "Langfuse langfuse-o3-poc (kicktippai/predict-one-match-o3-poc, label poc)",
+      "modelKnowledgeCutoffDate": "2025-11-29",
+      "samplingCutoffUsed": "2025-12-01T00:00:00 Europe/Berlin (+01)",
+      "maxOutputTokens": 10000,
+      "baseSampleObservations": 20,
+      "serviceTier": "flex",
+      "observedServiceTierCounts": {
+        "flex": 20
+      },
+      "observedFlexRequestCount": 20,
+      "nonFlexRequestCount": 0,
+      "nonFlexRequestRate": "0.0000",
+      "nonFlexRequestPercent": "0.00%",
+      "nonFlexRetryCount": 0,
+      "nonFlexRetryRate": "0.0000",
+      "nonFlexRetryPercent": "0.00%",
+      "serviceTierFallbackUsedCount": 0,
+      "serviceTierFallbackUsedRate": "0.0000",
+      "serviceTierFallbackUsedPercent": "0.00%",
+      "standardInputPricePerMillionUsd": "5",
+      "standardOutputPricePerMillionUsd": "30",
+      "effectiveInputPricePerMillionUsd": "2.5",
+      "effectiveOutputPricePerMillionUsd": "15",
+      "totalInputTokens": 66560,
+      "totalCachedInputTokensObserved": 40960,
+      "totalOutputTokens": 4475,
+      "totalReasoningTokens": 4095,
+      "estimatedUncachedInputCostUsd": "0.166400000000",
+      "estimatedOutputCostUsd": "0.067125000000",
+      "estimatedTotalCostUsd": "0.233525000000",
+      "averageCostPerMatchPredictionUsd": "0.011676250000",
+      "observedLangfuseCostTotalUsd": "0.141365000000",
+      "source": "Base estimate run family 2026-05-10t07-59-36z; retry policy commit 035422a."
     }
   ]
 }
