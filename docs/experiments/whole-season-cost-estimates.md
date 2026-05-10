@@ -2,9 +2,10 @@
 
 Updated: 2026-05-11
 
-This estimate projects match prediction cost for two full competitions and three
-model configurations. Bonus question cost is excluded because it is negligible
-relative to full-season match prediction cost.
+This estimate projects match prediction cost for two full competitions, all
+`gpt-5.5` reasoning efforts, and two comparison configurations. Bonus question
+cost is excluded because it is negligible relative to full-season match
+prediction cost.
 
 Important pricing assumption: these estimates assume every match prediction is
 billed at OpenAI `flex` pricing. Production is expected to use flex from here
@@ -58,9 +59,17 @@ for predictions that were generated before production moved to flex.
 
 | Competition | Model config | Base row prompt route | Max output tokens | Cost without repredictions | Cost with repredictions |
 | --- | --- | --- | ---: | ---: | ---: |
+| Bundesliga 2025/26 | `gpt-5.5 none` | Langfuse `langfuse-o3-poc` | 10000 | `$2.662965000000` | `$4.290332500000` |
+| Bundesliga 2025/26 | `gpt-5.5 low` | Langfuse `langfuse-o3-poc` | 10000 | `$3.572932500000` | `$5.756391250000` |
+| Bundesliga 2025/26 | `gpt-5.5 medium` | Langfuse `langfuse-o3-poc` | 10000 | `$5.194120500000` | `$8.368305250000` |
+| Bundesliga 2025/26 | `gpt-5.5 high` | Langfuse `langfuse-o3-poc` | 10000 | `$16.355623500000` | `$26.350726750000` |
 | Bundesliga 2025/26 | `gpt-5.5 xhigh` | Langfuse `langfuse-o3-poc` | 40000 | `$28.968255000000` | `$46.671077500000` |
 | Bundesliga 2025/26 | `gpt-5.4-nano xhigh` | Langfuse `langfuse-o3-poc` | 40000 | `$3.360748275000` | `$5.414538887500` |
 | Bundesliga 2025/26 | `o3 medium` | local `prompt-v1` | 10000 | `$3.193599600000` | `$5.145243800000` |
+| FIFA World Cup 2026 | `gpt-5.5 none` | Langfuse `langfuse-o3-poc` | 10000 | `$0.905060000000` | `$0.905060000000` |
+| FIFA World Cup 2026 | `gpt-5.5 low` | Langfuse `langfuse-o3-poc` | 10000 | `$1.214330000000` | `$1.214330000000` |
+| FIFA World Cup 2026 | `gpt-5.5 medium` | Langfuse `langfuse-o3-poc` | 10000 | `$1.765322000000` | `$1.765322000000` |
+| FIFA World Cup 2026 | `gpt-5.5 high` | Langfuse `langfuse-o3-poc` | 10000 | `$5.558774000000` | `$5.558774000000` |
 | FIFA World Cup 2026 | `gpt-5.5 xhigh` | Langfuse `langfuse-o3-poc` | 40000 | `$9.845420000000` | `$9.845420000000` |
 | FIFA World Cup 2026 | `gpt-5.4-nano xhigh` | Langfuse `langfuse-o3-poc` | 40000 | `$1.142215100000` | `$1.142215100000` |
 | FIFA World Cup 2026 | `o3 medium` | local `prompt-v1` | 10000 | `$1.085406400000` | `$1.085406400000` |
@@ -71,7 +80,78 @@ estimate, and use model knowledge cutoff `2025-11-29` with sampling cutoff
 fallbacks, estimate the standard-tier share separately instead of silently
 mixing it into these all-flex totals.
 
+New base estimate rows generated for this update:
+
+- `gpt-5.5 medium`: 20 observations from run family
+  `2026-05-10t22-57-59z`, average `$0.016974250000` per match prediction,
+  observed service tiers `{'flex': 20}`, no non-flex fallback.
+- `gpt-5.5 high`: preflight
+  `preflight__pes-squad__gpt-5.5__langfuse-o3-poc__reasoning-high__repeat-1__exact-time__2026-05-10t22-56-09z`
+  succeeded at the default `10000` output-token cap; 20-observation run family
+  `2026-05-10t23-02-30z` averaged `$0.053449750000` per match prediction,
+  observed service tiers `{'flex': 20}`, no non-flex fallback.
+
 ## Estimator Commands
+
+`gpt-5.5 none`:
+
+```powershell
+uv --cache-dir .uv-cache run python .agents/skills/estimate-experiment-cost-skill/scripts/experiment_cost_estimator.py estimate --counts 104,306,493 --model gpt-5.5 --reasoning-effort none
+```
+
+Fresh output summary:
+
+```text
+Average cost per match prediction: $0.008702500000
+N=104: $0.905060000000
+N=306: $2.662965000000
+N=493: $4.290332500000
+```
+
+`gpt-5.5 low`:
+
+```powershell
+uv --cache-dir .uv-cache run python .agents/skills/estimate-experiment-cost-skill/scripts/experiment_cost_estimator.py estimate --counts 104,306,493 --model gpt-5.5 --reasoning-effort low
+```
+
+Fresh output summary:
+
+```text
+Average cost per match prediction: $0.011676250000
+N=104: $1.214330000000
+N=306: $3.572932500000
+N=493: $5.756391250000
+```
+
+`gpt-5.5 medium`:
+
+```powershell
+uv --cache-dir .uv-cache run python .agents/skills/estimate-experiment-cost-skill/scripts/experiment_cost_estimator.py estimate --counts 104,306,493 --model gpt-5.5 --reasoning-effort medium
+```
+
+Fresh output summary:
+
+```text
+Average cost per match prediction: $0.016974250000
+N=104: $1.765322000000
+N=306: $5.194120500000
+N=493: $8.368305250000
+```
+
+`gpt-5.5 high`:
+
+```powershell
+uv --cache-dir .uv-cache run python .agents/skills/estimate-experiment-cost-skill/scripts/experiment_cost_estimator.py estimate --counts 104,306,493 --model gpt-5.5 --reasoning-effort high
+```
+
+Fresh output summary:
+
+```text
+Average cost per match prediction: $0.053449750000
+N=104: $5.558774000000
+N=306: $16.355623500000
+N=493: $26.350726750000
+```
 
 `gpt-5.5 xhigh`:
 
