@@ -1,0 +1,4 @@
+interface:
+  display_name: "Whole Season Estimates"
+  short_description: "Estimate full-season prediction costs"
+  default_prompt: "Use $whole-season-estimates to estimate KicktippAi whole-season prediction costs from official match counts, cached reprediction evidence, and estimator output."

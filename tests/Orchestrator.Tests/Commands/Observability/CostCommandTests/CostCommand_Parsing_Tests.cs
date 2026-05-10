@@ -26,7 +26,7 @@ public class CostCommand_Parsing_Tests
 
         // Assert
         await Assert.That(exitCode).IsEqualTo(0);
-        await Assert.That(output).Contains("all (3 found)");
+        await Assert.That(output).Contains("all (unfiltered; no matchday discovery)");
     }
 
     [Test]
@@ -71,7 +71,7 @@ public class CostCommand_Parsing_Tests
 
         // Assert
         await Assert.That(exitCode).IsEqualTo(0);
-        await Assert.That(output).Contains("all (5 found)");
+        await Assert.That(output).Contains("all (unfiltered; no matchday discovery)");
     }
 
     [Test]

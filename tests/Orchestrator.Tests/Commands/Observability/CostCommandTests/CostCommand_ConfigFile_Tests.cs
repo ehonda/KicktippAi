@@ -2,6 +2,7 @@ using EHonda.KicktippAi.Core;
 using Microsoft.Extensions.Logging.Testing;
 using Moq;
 using Orchestrator.Commands.Observability.Cost;
+using System.Text.Json;
 using static Orchestrator.Tests.Infrastructure.OrchestratorTestFactories;
 
 namespace Orchestrator.Tests.Commands.Observability.CostCommandTests;
@@ -170,8 +171,8 @@ public class CostCommand_ConfigFile_Tests : CostCommandTests_Base
         // Assert
         await Assert.That(exitCode).IsEqualTo(0);
         await Assert.That(output).Contains("All mode enabled");
-        // All matchdays, models, and contexts should be used
-        await Assert.That(output).Contains("all (5 found)");  // matchdays
+        // All matchdays should stay unfiltered to avoid an unnecessary Firestore discovery query.
+        await Assert.That(output).Contains("all (unfiltered; no matchday discovery)");
         await Assert.That(output).Contains("all (2 found)");  // models
     }
 
@@ -200,8 +201,8 @@ public class CostCommand_ConfigFile_Tests : CostCommandTests_Base
         // Assert
         await Assert.That(exitCode).IsEqualTo(0);
         await Assert.That(output).Contains("All mode enabled");
-        // All matchdays, models, and contexts should be used
-        await Assert.That(output).Contains("all (5 found)");  // matchdays
+        // All matchdays should stay unfiltered to avoid an unnecessary Firestore discovery query.
+        await Assert.That(output).Contains("all (unfiltered; no matchday discovery)");
         await Assert.That(output).Contains("all (2 found)");  // models
     }
 
@@ -517,5 +518,66 @@ public class CostCommand_ConfigFile_Tests : CostCommandTests_Base
         var hasOverrideLog = logger.Collector.GetSnapshot().Any(log => 
             log.Message.Contains("CLI override: DetailedBreakdown"));
         await Assert.That(hasOverrideLog).IsTrue();
+    }
+
+    [Test]
+    public async Task Output_json_writes_machine_readable_cost_report()
+    {
+        var matchCosts = new Dictionary<int, (double cost, int count)>
+        {
+            { 0, (1.0, 5) },
+            { 1, (0.5, 2) }
+        };
+        var mockRepo = CreateMockPredictionRepositoryForCosts(
+            matchCostsByIndex: matchCosts,
+            availableModels: new List<string> { "gpt-4o" },
+            availableCommunityContexts: new List<string> { "test-community" });
+        var (app, console, _, _, _) = CreateCostCommandApp(mockRepo);
+        var outputPath = Path.Combine(TestDirectory, "cost-report.json");
+
+        var exitCode = await app.RunAsync([
+            "cost",
+            "--models", "gpt-4o",
+            "--community-contexts", "test-community",
+            "--output-json", outputPath
+        ]);
+
+        await Assert.That(exitCode).IsEqualTo(0);
+        await Assert.That(console.Output).Contains("Cost JSON written");
+        await Assert.That(File.Exists(outputPath)).IsTrue();
+
+        using var document = JsonDocument.Parse(await File.ReadAllTextAsync(outputPath));
+        var root = document.RootElement;
+        await Assert.That(root.GetProperty("filters").GetProperty("models")[0].GetString()).IsEqualTo("gpt-4o");
+        await Assert.That(root.GetProperty("filters").GetProperty("communityContexts")[0].GetString()).IsEqualTo("test-community");
+        await Assert.That(root.GetProperty("rows").GetArrayLength()).IsEqualTo(2);
+        await Assert.That(root.GetProperty("total").GetProperty("matchPredictionCount").GetInt32()).IsEqualTo(7);
+        await Assert.That(root.GetProperty("total").GetProperty("count").GetInt32()).IsEqualTo(7);
+    }
+
+    [Test]
+    public async Task Config_file_output_json_is_used_when_cli_does_not_override()
+    {
+        var mockRepo = CreateMockPredictionRepositoryForCosts(
+            matchCostsByIndex: new Dictionary<int, (double cost, int count)>
+            {
+                { 0, (0.25, 1) }
+            },
+            availableModels: new List<string> { "gpt-4o" },
+            availableCommunityContexts: new List<string> { "test-community" });
+        var (app, _, _, _, _) = CreateCostCommandApp(mockRepo);
+        var outputPath = Path.Combine(TestDirectory, "configured-report.json");
+        var config = new CostConfiguration
+        {
+            Models = "gpt-4o",
+            CommunityContexts = "test-community",
+            OutputJson = outputPath
+        };
+        var configPath = CreateConfigFile(config);
+
+        var exitCode = await app.RunAsync(["cost", "--file", configPath]);
+
+        await Assert.That(exitCode).IsEqualTo(0);
+        await Assert.That(File.Exists(outputPath)).IsTrue();
     }
 }

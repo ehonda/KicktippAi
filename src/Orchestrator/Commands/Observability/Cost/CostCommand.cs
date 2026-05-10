@@ -3,6 +3,7 @@ using Spectre.Console.Cli;
 using Spectre.Console;
 using System.Globalization;
 using System.Text.Json;
+using System.Text.Json.Serialization;
 using EHonda.KicktippAi.Core;
 using Orchestrator.Infrastructure.Factories;
 
@@ -10,6 +11,14 @@ namespace Orchestrator.Commands.Observability.Cost;
 
 public class CostCommand : AsyncCommand<CostSettings>
 {
+    private const int FirestoreInFilterLimit = 30;
+
+    private static readonly JsonSerializerOptions OutputJsonOptions = new(JsonSerializerDefaults.Web)
+    {
+        WriteIndented = true,
+        DefaultIgnoreCondition = JsonIgnoreCondition.WhenWritingNull
+    };
+
     private readonly IAnsiConsole _console;
     private readonly IFirebaseServiceFactory _firebaseServiceFactory;
     private readonly ILogger<CostCommand> _logger;
@@ -59,12 +68,12 @@ public class CostCommand : AsyncCommand<CostSettings>
             // Get available models and community contexts if not specified
             var availableModels = models ?? await predictionRepository.GetAvailableModelsAsync();
             var availableCommunityContexts = communityContexts ?? await predictionRepository.GetAvailableCommunityContextsAsync();
-            var availableMatchdays = matchdays ?? await predictionRepository.GetAvailableMatchdaysAsync();
+            var queryMatchdays = matchdays;
             
             if (settings.Verbose)
             {
                 _console.MarkupLine($"[dim]Filters:[/]");
-                _console.MarkupLine($"[dim]  Matchdays: {(matchdays?.Any() == true ? string.Join(", ", matchdays) : $"all ({availableMatchdays.Count} found)")}[/]");
+                _console.MarkupLine($"[dim]  Matchdays: {FormatMatchdayFilter(queryMatchdays)}[/]");
                 _console.MarkupLine($"[dim]  Models: {(models?.Any() == true ? string.Join(", ", models) : $"all ({availableModels.Count} found)")}[/]");
                 _console.MarkupLine($"[dim]  Community Contexts: {(communityContexts?.Any() == true ? string.Join(", ", communityContexts) : $"all ({availableCommunityContexts.Count} found)")}[/]");
                 _console.MarkupLine($"[dim]  Include Bonus: {settings.Bonus || settings.All}[/]");
@@ -78,11 +87,11 @@ public class CostCommand : AsyncCommand<CostSettings>
             var bonusPredictionCount = 0;
 
             // Structure to store detailed breakdown data with reprediction index support
-            var detailedData = new List<(string CommunityContext, string Model, string Category, int RepredictionIndex, int Count, double Cost)>();
+            var costRows = new List<CostReportRow>();
             
-            _console.Status()
+            await _console.Status()
                 .Spinner(Spinner.Known.Dots)
-                .Start("Calculating costs...", ctx =>
+                .StartAsync("Calculating costs...", async ctx =>
                 {
                     foreach (var model in availableModels)
                     {
@@ -96,7 +105,12 @@ public class CostCommand : AsyncCommand<CostSettings>
                             }
                             
                             // Get match prediction costs by reprediction index
-                            var matchCostsByIndex = predictionRepository.GetMatchPredictionCostsByRepredictionIndexAsync(model, communityContext, availableMatchdays).Result;
+                            var matchCostsByIndex = await GetMatchCostsByRepredictionIndexAsync(
+                                predictionRepository,
+                                model,
+                                communityContext,
+                                queryMatchdays,
+                                cancellationToken);
                             
                             foreach (var kvp in matchCostsByIndex)
                             {
@@ -107,9 +121,9 @@ public class CostCommand : AsyncCommand<CostSettings>
                                 matchPredictionCount += count;
 
                                 // Store detailed data for breakdown
-                                if (settings.DetailedBreakdown && (cost > 0 || count > 0))
+                                if (cost > 0 || count > 0)
                                 {
-                                    detailedData.Add((communityContext, model, "Match", repredictionIndex, count, cost));
+                                    costRows.Add(new CostReportRow(communityContext, model, "Match", repredictionIndex, count, cost));
                                 }
                                 
                                 if (settings.Verbose && (cost > 0 || count > 0))
@@ -121,7 +135,10 @@ public class CostCommand : AsyncCommand<CostSettings>
                             // Get bonus prediction costs if requested or if all mode is enabled
                             if (settings.Bonus || settings.All)
                             {
-                                var bonusCostsByIndex = predictionRepository.GetBonusPredictionCostsByRepredictionIndexAsync(model, communityContext).Result;
+                                var bonusCostsByIndex = await predictionRepository.GetBonusPredictionCostsByRepredictionIndexAsync(
+                                    model,
+                                    communityContext,
+                                    cancellationToken);
                                 
                                 foreach (var kvp in bonusCostsByIndex)
                                 {
@@ -132,9 +149,9 @@ public class CostCommand : AsyncCommand<CostSettings>
                                     bonusPredictionCount += count;
 
                                     // Store detailed data for breakdown
-                                    if (settings.DetailedBreakdown && (cost > 0 || count > 0))
+                                    if (cost > 0 || count > 0)
                                     {
-                                        detailedData.Add((communityContext, model, "Bonus", repredictionIndex, count, cost));
+                                        costRows.Add(new CostReportRow(communityContext, model, "Bonus", repredictionIndex, count, cost));
                                     }
                                     
                                     if (settings.Verbose && (cost > 0 || count > 0))
@@ -166,7 +183,7 @@ public class CostCommand : AsyncCommand<CostSettings>
                 table.AddColumn("Total Cost (USD)", col => col.RightAligned());
                 
                 // Group data by community context, model, and category to aggregate reprediction indices
-                var groupedData = detailedData
+                var groupedData = costRows
                     .GroupBy(d => new { d.CommunityContext, d.Model, d.Category })
                     .Select(g => new
                     {
@@ -228,15 +245,15 @@ public class CostCommand : AsyncCommand<CostSettings>
                 }
                 
                 // Add total row
-                if (detailedData.Any())
+                if (costRows.Any())
                 {
                     // Calculate totals by reprediction index
-                    var totalIndex0Count = detailedData.Where(x => x.RepredictionIndex == 0).Sum(x => x.Count);
-                    var totalIndex0Cost = detailedData.Where(x => x.RepredictionIndex == 0).Sum(x => x.Cost);
-                    var totalIndex1Count = detailedData.Where(x => x.RepredictionIndex == 1).Sum(x => x.Count);
-                    var totalIndex1Cost = detailedData.Where(x => x.RepredictionIndex == 1).Sum(x => x.Cost);
-                    var totalIndex2PlusCount = detailedData.Where(x => x.RepredictionIndex >= 2).Sum(x => x.Count);
-                    var totalIndex2PlusCost = detailedData.Where(x => x.RepredictionIndex >= 2).Sum(x => x.Cost);
+                    var totalIndex0Count = costRows.Where(x => x.RepredictionIndex == 0).Sum(x => x.Count);
+                    var totalIndex0Cost = costRows.Where(x => x.RepredictionIndex == 0).Sum(x => x.Cost);
+                    var totalIndex1Count = costRows.Where(x => x.RepredictionIndex == 1).Sum(x => x.Count);
+                    var totalIndex1Cost = costRows.Where(x => x.RepredictionIndex == 1).Sum(x => x.Cost);
+                    var totalIndex2PlusCount = costRows.Where(x => x.RepredictionIndex >= 2).Sum(x => x.Count);
+                    var totalIndex2PlusCost = costRows.Where(x => x.RepredictionIndex >= 2).Sum(x => x.Cost);
                     
                     var totalIndex0Text = totalIndex0Count > 0 ? $"{totalIndex0Count} (${totalIndex0Cost.ToString("F2", CultureInfo.InvariantCulture)})" : "-";
                     var totalIndex1Text = totalIndex1Count > 0 ? $"{totalIndex1Count} (${totalIndex1Cost.ToString("F2", CultureInfo.InvariantCulture)})" : "-";
@@ -303,6 +320,23 @@ public class CostCommand : AsyncCommand<CostSettings>
             }
             
             _console.Write(table);
+
+            if (!string.IsNullOrWhiteSpace(settings.OutputJson))
+            {
+                var report = CreateReport(
+                    settings,
+                    queryMatchdays,
+                    models,
+                    communityContexts,
+                    costRows,
+                    matchPredictionCount,
+                    matchPredictionCost,
+                    bonusPredictionCount,
+                    bonusPredictionCost,
+                    totalCost);
+                await WriteJsonReportAsync(settings.OutputJson, report, cancellationToken);
+                _console.MarkupLine($"[green]✓ Cost JSON written to[/] [yellow]{Path.GetFullPath(settings.OutputJson)}[/]");
+            }
             
             _console.MarkupLine($"[green]✓ Cost calculation completed[/]");
             
@@ -335,6 +369,125 @@ public class CostCommand : AsyncCommand<CostSettings>
         {
             throw new ArgumentException($"Invalid matchday format: {settings.Matchdays}. Use comma-separated numbers (e.g., '1,2,3') or 'all'.");
         }
+    }
+
+    private static string FormatMatchdayFilter(List<int>? matchdays)
+    {
+        if (matchdays is null)
+        {
+            return "all (unfiltered; no matchday discovery)";
+        }
+
+        return matchdays.Count == 0
+            ? "none"
+            : string.Join(", ", matchdays);
+    }
+
+    private static async Task<Dictionary<int, (double cost, int count)>> GetMatchCostsByRepredictionIndexAsync(
+        IPredictionRepository predictionRepository,
+        string model,
+        string communityContext,
+        List<int>? matchdays,
+        CancellationToken cancellationToken)
+    {
+        if (matchdays is { Count: 0 })
+        {
+            return [];
+        }
+
+        if (matchdays is null || matchdays.Count <= FirestoreInFilterLimit)
+        {
+            return await predictionRepository.GetMatchPredictionCostsByRepredictionIndexAsync(
+                model,
+                communityContext,
+                matchdays,
+                cancellationToken);
+        }
+
+        var aggregate = new Dictionary<int, (double cost, int count)>();
+
+        foreach (var chunk in matchdays.Chunk(FirestoreInFilterLimit))
+        {
+            var chunkCosts = await predictionRepository.GetMatchPredictionCostsByRepredictionIndexAsync(
+                model,
+                communityContext,
+                chunk.ToList(),
+                cancellationToken);
+
+            foreach (var kvp in chunkCosts)
+            {
+                var (existingCost, existingCount) = aggregate.GetValueOrDefault(kvp.Key);
+                var (chunkCost, chunkCount) = kvp.Value;
+                aggregate[kvp.Key] = (existingCost + chunkCost, existingCount + chunkCount);
+            }
+        }
+
+        return aggregate;
+    }
+
+    private static CostReport CreateReport(
+        CostSettings settings,
+        List<int>? matchdays,
+        List<string>? models,
+        List<string>? communityContexts,
+        IReadOnlyList<CostReportRow> rows,
+        int matchPredictionCount,
+        double matchPredictionCost,
+        int bonusPredictionCount,
+        double bonusPredictionCost,
+        double totalCost)
+    {
+        var categoryTotals = rows
+            .GroupBy(row => new { row.Category, row.RepredictionIndex })
+            .Select(group => new CostReportCategoryTotal(
+                group.Key.Category,
+                group.Key.RepredictionIndex,
+                group.Sum(row => row.Count),
+                group.Sum(row => row.Cost)))
+            .OrderBy(total => total.Category, StringComparer.Ordinal)
+            .ThenBy(total => total.RepredictionIndex)
+            .ToList();
+
+        return new CostReport(
+            new CostReportFilters(
+                matchdays,
+                models,
+                communityContexts,
+                settings.Bonus || settings.All,
+                settings.All),
+            rows
+                .OrderBy(row => row.CommunityContext, StringComparer.Ordinal)
+                .ThenBy(row => row.Model, StringComparer.Ordinal)
+                .ThenBy(row => row.Category, StringComparer.Ordinal)
+                .ThenBy(row => row.RepredictionIndex)
+                .ToList(),
+            categoryTotals,
+            new CostReportTotal(
+                matchPredictionCount,
+                matchPredictionCost,
+                bonusPredictionCount,
+                bonusPredictionCost,
+                matchPredictionCount + bonusPredictionCount,
+                totalCost));
+    }
+
+    private static async Task WriteJsonReportAsync(
+        string outputPath,
+        CostReport report,
+        CancellationToken cancellationToken)
+    {
+        var resolvedPath = Path.GetFullPath(outputPath);
+        var directory = Path.GetDirectoryName(resolvedPath);
+
+        if (!string.IsNullOrWhiteSpace(directory))
+        {
+            Directory.CreateDirectory(directory);
+        }
+
+        await File.WriteAllTextAsync(
+            resolvedPath,
+            JsonSerializer.Serialize(report, OutputJsonOptions),
+            cancellationToken);
     }
     
     private List<string>? ParseModels(CostSettings settings)
@@ -438,6 +591,9 @@ public class CostCommand : AsyncCommand<CostSettings>
         if (fileConfig.DetailedBreakdown.HasValue)
             mergedSettings.DetailedBreakdown = fileConfig.DetailedBreakdown.Value;
 
+        if (!string.IsNullOrWhiteSpace(fileConfig.OutputJson))
+            mergedSettings.OutputJson = fileConfig.OutputJson;
+
         // Override with CLI settings (non-default values)
         if (!string.IsNullOrWhiteSpace(cliSettings.Matchdays))
         {
@@ -486,9 +642,51 @@ public class CostCommand : AsyncCommand<CostSettings>
                 _logger.LogInformation("CLI override: DetailedBreakdown = {Value}", cliSettings.DetailedBreakdown);
         }
 
+        if (!string.IsNullOrWhiteSpace(cliSettings.OutputJson))
+        {
+            mergedSettings.OutputJson = cliSettings.OutputJson;
+            if (mergedSettings.Verbose)
+                _logger.LogInformation("CLI override: OutputJson = {Value}", cliSettings.OutputJson);
+        }
+
         // Always preserve the ConfigFile setting
         mergedSettings.ConfigFile = cliSettings.ConfigFile;
 
         return mergedSettings;
     }
+
+    private sealed record CostReport(
+        CostReportFilters Filters,
+        IReadOnlyList<CostReportRow> Rows,
+        IReadOnlyList<CostReportCategoryTotal> CategoryTotals,
+        CostReportTotal Total);
+
+    private sealed record CostReportFilters(
+        IReadOnlyList<int>? Matchdays,
+        IReadOnlyList<string>? Models,
+        IReadOnlyList<string>? CommunityContexts,
+        bool IncludeBonus,
+        bool All);
+
+    private sealed record CostReportRow(
+        string CommunityContext,
+        string Model,
+        string Category,
+        int RepredictionIndex,
+        int Count,
+        double Cost);
+
+    private sealed record CostReportCategoryTotal(
+        string Category,
+        int RepredictionIndex,
+        int Count,
+        double Cost);
+
+    private sealed record CostReportTotal(
+        int MatchPredictionCount,
+        double MatchPredictionCost,
+        int BonusPredictionCount,
+        double BonusPredictionCost,
+        int Count,
+        double Cost);
 }

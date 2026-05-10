@@ -338,6 +338,78 @@ public class CostCommand_CostCalculation_Tests
     }
 
     [Test]
+    public async Task Calculating_costs_without_matchday_filter_passes_null_and_skips_matchday_discovery()
+    {
+        var mockRepo = CreateMockPredictionRepositoryForCosts(
+            availableMatchdays: new List<int> { 1, 2, 3 },
+            matchCostsByIndex: new Dictionary<int, (double cost, int count)>
+            {
+                { 0, (1.0, 5) }
+            });
+        var (app, console, _, repo, _) = CreateCostCommandApp(mockRepo);
+
+        var exitCode = await app.RunAsync([
+            "cost",
+            "--models", "gpt-4o",
+            "--community-contexts", "test-community",
+            "--verbose"
+        ]);
+        var output = console.Output;
+
+        await Assert.That(exitCode).IsEqualTo(0);
+        await Assert.That(output).Contains("Matchdays: all (unfiltered; no matchday discovery)");
+        repo.Verify(r => r.GetAvailableMatchdaysAsync(It.IsAny<CancellationToken>()), Times.Never);
+        repo.Verify(r => r.GetMatchPredictionCostsByRepredictionIndexAsync(
+            "gpt-4o",
+            "test-community",
+            null,
+            It.IsAny<CancellationToken>()), Times.Once);
+    }
+
+    [Test]
+    public async Task Calculating_costs_chunks_explicit_matchday_filters_above_firestore_in_limit()
+    {
+        var matchdays = Enumerable.Range(1, 31).ToList();
+        var mockRepo = new Mock<IPredictionRepository>();
+        mockRepo.Setup(r => r.GetMatchPredictionCostsByRepredictionIndexAsync(
+                It.IsAny<string>(),
+                It.IsAny<string>(),
+                It.IsAny<List<int>?>(),
+                It.IsAny<CancellationToken>()))
+            .Returns<string, string, List<int>?, CancellationToken>((_, _, filteredMatchdays, _) =>
+            {
+                var count = filteredMatchdays?.Count ?? 0;
+                return Task.FromResult(new Dictionary<int, (double cost, int count)>
+                {
+                    { 0, (count, count) }
+                });
+            });
+        var (app, console, _, repo, _) = CreateCostCommandApp(mockRepo);
+
+        var exitCode = await app.RunAsync([
+            "cost",
+            "--models", "gpt-4o",
+            "--community-contexts", "test-community",
+            "--matchdays", string.Join(",", matchdays)
+        ]);
+        var output = console.Output;
+
+        await Assert.That(exitCode).IsEqualTo(0);
+        await Assert.That(output).Contains("31");
+        await Assert.That(output).Contains("$31.0000");
+        repo.Verify(r => r.GetMatchPredictionCostsByRepredictionIndexAsync(
+            "gpt-4o",
+            "test-community",
+            It.Is<List<int>?>(values => values != null && values.Count == 30 && values.First() == 1 && values.Last() == 30),
+            It.IsAny<CancellationToken>()), Times.Once);
+        repo.Verify(r => r.GetMatchPredictionCostsByRepredictionIndexAsync(
+            "gpt-4o",
+            "test-community",
+            It.Is<List<int>?>(values => values != null && values.Count == 1 && values[0] == 31),
+            It.IsAny<CancellationToken>()), Times.Once);
+    }
+
+    [Test]
     public async Task Detailed_breakdown_with_verbose_filters_zero_cost_zero_count_rows()
     {
         var matchCosts = new Dictionary<int, (double cost, int count)>

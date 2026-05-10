@@ -26,6 +26,9 @@ public class CostConfiguration
 
     [JsonPropertyName("detailedBreakdown")]
     public bool? DetailedBreakdown { get; set; }
+
+    [JsonPropertyName("outputJson")]
+    public string? OutputJson { get; set; }
 }
 
 public class CostSettings : CommandSettings
@@ -65,4 +68,8 @@ public class CostSettings : CommandSettings
     [CommandOption("--file")]
     [Description("Load configuration from a JSON file (absolute or relative path)")]
     public string? ConfigFile { get; set; }
+
+    [CommandOption("--output-json")]
+    [Description("Write machine-readable cost counts and totals to a JSON file")]
+    public string? OutputJson { get; set; }
 }
