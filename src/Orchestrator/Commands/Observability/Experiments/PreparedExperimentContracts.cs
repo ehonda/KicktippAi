@@ -41,6 +41,12 @@ internal sealed record PreparedExperimentManifest
     [JsonPropertyName("sampleSize")]
     public int SampleSize { get; init; }
 
+    [JsonPropertyName("matchCount")]
+    public int? MatchCount { get; init; }
+
+    [JsonPropertyName("repetitions")]
+    public int? Repetitions { get; init; }
+
     [JsonPropertyName("selectedItemIds")]
     public IReadOnlyList<string> SelectedItemIds { get; init; } = [];
 
@@ -112,6 +118,12 @@ internal sealed record PreparedExperimentManifestItem
 
     [JsonPropertyName("tippSpielId")]
     public string? TippSpielId { get; init; }
+
+    [JsonPropertyName("fixtureIndex")]
+    public int? FixtureIndex { get; init; }
+
+    [JsonPropertyName("repetitionIndex")]
+    public int? RepetitionIndex { get; init; }
 }
 
 internal sealed record PreparedExperimentEvaluationTimestampPolicyMetadata
@@ -185,6 +197,12 @@ internal sealed record PreparedExperimentRunMetadata
     [JsonPropertyName("sampleSize")]
     public int SampleSize { get; init; }
 
+    [JsonPropertyName("matchCount")]
+    public int? MatchCount { get; init; }
+
+    [JsonPropertyName("repetitions")]
+    public int? Repetitions { get; init; }
+
     [JsonPropertyName("evaluationTimestampPolicyKey")]
     public string? EvaluationTimestampPolicyKey { get; init; }
 
@@ -238,6 +256,9 @@ internal sealed record PreparedExperimentRunMetadata
 
     [JsonPropertyName("batchCount")]
     public int? BatchCount { get; init; }
+
+    [JsonPropertyName("parallelism")]
+    public int? Parallelism { get; init; }
 }
 
 internal sealed record ExperimentItemScores(
@@ -256,7 +277,9 @@ internal sealed record PreparedExperimentExecutionSummary(
     ExperimentItemScores Scores,
     IReadOnlyList<string> TraceTags,
     PreparedExperimentTokenUsageSummary? Usage = null,
-    string PredictionStatus = "placed");
+    string PredictionStatus = "placed",
+    int? FixtureIndex = null,
+    int? RepetitionIndex = null);
 
 internal sealed record PreparedExperimentDatasetRunSummary(
     int Repetition,
@@ -278,6 +301,7 @@ internal sealed record PreparedExperimentRunSummary(
     string BatchStrategy,
     int? BatchSize,
     int? BatchCount,
+    int? Parallelism,
     int ExecutionCount,
     int RunCount,
     ExperimentAggregateScores AggregateScores,

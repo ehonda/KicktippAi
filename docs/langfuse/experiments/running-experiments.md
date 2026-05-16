@@ -26,6 +26,7 @@ Preparation:
 
 - `prepare-slice`
 - `prepare-repeated-match`
+- `prepare-repeated-match-slice`
 
 Upload:
 
@@ -35,6 +36,7 @@ Execution:
 
 - `run-slice`
 - `run-repeated-match`
+- `run-repeated-match-slice`
 - `run-community-to-date`
 
 Experiment run commands keep console output compact by default: progress remains visible through `[progress]` lines, while structured logging is limited to warnings and errors.
@@ -47,7 +49,7 @@ Publishing existing analysis bundles:
 
 Langfuse's Experiments Beta UI currently expects the same experiment markers emitted by the official SDK experiment runner. Our .NET runner uses the public API directly, so new runs must explicitly mimic those markers instead of only creating dataset run items.
 
-New `run-slice`, `run-repeated-match`, and `run-community-to-date` executions now:
+New `run-slice`, `run-repeated-match`, `run-repeated-match-slice`, and `run-community-to-date` executions now:
 
 - name item traces `experiment-item-run`
 - set the Langfuse environment to `sdk-experiment`
@@ -148,9 +150,38 @@ dotnet run --project src/Orchestrator -- run-repeated-match gpt-5-nano --manifes
 
 This exact workflow was verified successfully on `2026-04-05`.
 
+## Repeated-Match Slice Workflow
+
+Use this when you want repeated predictions over multiple random fixtures. The prepared dataset contains `match-count * repetitions` items, but execution still uses repeated-match warmup behavior per fixture.
+
+### 1. Prepare a repeated-match slice dataset
+
+```powershell
+dotnet run --project src/Orchestrator -- prepare-repeated-match-slice --community-context pes-squad --match-count 15 --repetitions 10 --sample-seed 20260517 --starts-after "2025-12-01T00:00:00 Europe/Berlin (+01)"
+```
+
+The default output path is `artifacts/langfuse-experiments/repeated-match-slices/<community>/<source-pool-key>/<slice-key>`.
+
+### 2. Sync the repeated-match slice dataset once
+
+```powershell
+dotnet run --project src/Orchestrator -- sync-dataset --input artifacts/langfuse-experiments/repeated-match-slices/pes-squad/all-matchdays-after-20251130t230000z/random-15x10-seed-20260517/slice-dataset.json
+```
+
+### 3. Run the repeated-match slice experiment
+
+`--batch-count` controls the post-warmup batches inside each fixture workflow. `--parallelism` controls how many fixture workflows run at once and defaults to `5`.
+
+```powershell
+$runStamp = (Get-Date).ToUniversalTime().ToString("yyyy-MM-ddTHH-mm-ssZ").ToLowerInvariant()
+dotnet run --project src/Orchestrator -- run-repeated-match-slice gpt-5.4-nano --manifest artifacts/langfuse-experiments/repeated-match-slices/pes-squad/all-matchdays-after-20251130t230000z/random-15x10-seed-20260517/slice-manifest.json --run-name "repeated-match-slice__pes-squad__gpt-5.4-nano__prompt-v1__reasoning-none__random-15x10-seed-20260517__startsat-12h__$runStamp" --prompt-key prompt-v1 --reasoning-effort none --evaluation-policy-kind relative --evaluation-policy-offset -12:00:00 --batch-count 3 --parallelism 5 --replace-run
+```
+
+If a run hits OpenAI rate limits or flex-capacity failures, retry the same manifest and run settings with lower parallelism, first `--parallelism 3` and then `--parallelism 1`.
+
 ### Reasoning effort experiments
 
-`run-slice` and `run-repeated-match` can optionally pass OpenAI reasoning effort through the Responses API request:
+`run-slice`, `run-repeated-match`, and `run-repeated-match-slice` can optionally pass OpenAI reasoning effort through the Responses API request:
 
 ```powershell
 dotnet run --project src/Orchestrator -- run-repeated-match gpt-5.5 --manifest artifacts/langfuse-experiments/repeated-match/pes-squad/md26-vfb-stuttgart-vs-rb-leipzig/repeat-25/slice-manifest.json --run-name "repeated-match__pes-squad__gpt-5.5__langfuse-o3-poc__reasoning-none__repeat-25__exact-time__$runStamp" --prompt-key langfuse-o3-poc --prompt-source langfuse --langfuse-prompt-name kicktippai/predict-one-match-o3-poc --langfuse-prompt-label poc --reasoning-effort none --evaluation-time "2026-03-15T12:00:00 Europe/Berlin (+01)" --batch-count 3 --replace-run
@@ -205,11 +236,19 @@ Relative policy is useful for systematic comparisons, for example a fixed `-12:0
 - runs the first execution as warmup
 - distributes the remaining executions across the requested number of follow-up batches
 
+`run-repeated-match-slice`:
+
+- uses `--batch-count` inside each selected fixture workflow
+- runs the first repetition for each fixture as warmup
+- distributes the remaining repetitions for that fixture across the requested number of follow-up batches
+- uses `--parallelism` to limit concurrent fixture workflows, defaulting to `5`
+- should be retried with `--parallelism 3` and then `--parallelism 1` if rate limits or flex-capacity failures appear
+
 ## Re-running Experiments
 
 Use `--replace-run` when you want to reuse the same Langfuse run name after changing prompt or evaluation settings.
 
-Both run commands also still support `--run-metadata-file` for compatibility with older prepared artifacts, but new runs should prefer direct CLI flags.
+Run commands also still support `--run-metadata-file` for compatibility with older prepared artifacts, but new runs should prefer direct CLI flags.
 
 ## Troubleshooting
 

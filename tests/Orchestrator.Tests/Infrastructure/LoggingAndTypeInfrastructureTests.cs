@@ -20,6 +20,7 @@ public class LoggingAndTypeInfrastructureTests
     [Test]
     [Arguments("run-slice")]
     [Arguments("run-repeated-match")]
+    [Arguments("run-repeated-match-slice")]
     [Arguments("run-community-to-date")]
     public async Task GetMinimumLevelForCommandLine_uses_warning_for_experiment_run_commands(string commandName)
     {

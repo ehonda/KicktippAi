@@ -154,6 +154,38 @@ def normalize_optional_string(value: Any) -> str | None:
     return text if text else None
 
 
+def is_repeated_match_slice_task(bundle: dict[str, Any]) -> bool:
+    return str(bundle.get("taskType", "")).strip().lower() == "repeated-match-slice"
+
+
+def build_repeated_match_slice_comparison_rows(rows_df: pd.DataFrame) -> pd.DataFrame:
+    required_fields = {"runName", "kicktippPoints", "repetitionIndex"}
+    missing_fields = sorted(required_fields.difference(rows_df.columns))
+    if missing_fields:
+        raise AnalysisError(
+            "Repeated-match-slice bundle rows are missing required field(s): "
+            + ", ".join(missing_fields)
+        )
+
+    working_df = rows_df.copy()
+    working_df["_repetitionIndex"] = working_df["repetitionIndex"].map(normalize_optional_int)
+    if working_df["_repetitionIndex"].isnull().any():
+        missing_rows = working_df.loc[working_df["_repetitionIndex"].isnull(), ["runName"]]
+        missing_runs = sorted({str(row.runName) for row in missing_rows.itertuples(index=False)})
+        raise AnalysisError(
+            "Repeated-match-slice analysis requires repetitionIndex on every row. "
+            "Missing in run(s): " + ", ".join(missing_runs)
+        )
+
+    grouped_df = (
+        working_df.groupby(["runName", "_repetitionIndex"], as_index=False)["kicktippPoints"]
+        .sum()
+        .rename(columns={"_repetitionIndex": "repetitionIndex"})
+    )
+    grouped_df["pairingKey"] = grouped_df["repetitionIndex"].map(lambda value: f"repetition-{int(value):02d}")
+    return grouped_df[["pairingKey", "runName", "kicktippPoints", "repetitionIndex"]]
+
+
 def analyze_bundle(
     bundle: dict[str, Any],
     *,
@@ -163,7 +195,8 @@ def analyze_bundle(
     confidence_level: float,
     random_seed: int,
 ) -> dict[str, Any]:
-    rows_df = pd.DataFrame(bundle["rows"])
+    raw_rows_df = pd.DataFrame(bundle["rows"])
+    rows_df = build_repeated_match_slice_comparison_rows(raw_rows_df) if is_repeated_match_slice_task(bundle) else raw_rows_df
     runs_df = pd.DataFrame(bundle["runs"])
     run_input_records = runs_df.to_dict(orient="records")
 
@@ -250,11 +283,11 @@ def analyze_bundle(
         "runs": ranking_records,
     }
 
-    match_summary = build_match_summary(rows_df, report["datasetMetadata"])
+    match_summary = build_match_summary(raw_rows_df, report["datasetMetadata"])
     if match_summary is not None:
         report["matchSummary"] = match_summary
 
-    prediction_distributions = build_prediction_distributions(rows_df, ranking_records)
+    prediction_distributions = build_prediction_distributions(raw_rows_df, ranking_records)
     if prediction_distributions:
         report["predictionDistributions"] = prediction_distributions
 
@@ -735,6 +768,9 @@ def dataset_metadata_items(report: dict[str, Any]) -> list[tuple[str, str]]:
         "sliceKind": "Slice Kind",
         "sampleMethod": "Sample Method",
         "sampleSize": "Sample Size",
+        "matchCount": "Matches",
+        "repetitions": "Repetitions",
+        "predictionCount": "Predictions",
         "sourcePoolKey": "Source Pool",
         "sourceDatasetName": "Source Dataset",
     }
@@ -749,6 +785,9 @@ def dataset_metadata_items(report: dict[str, Any]) -> list[tuple[str, str]]:
         "season",
         "sliceKey",
         "sourcePoolKey",
+        "matchCount",
+        "repetitions",
+        "predictionCount",
         "sampleSize",
     ]
     hidden_when_duplicate = {"actualResult", "datasetDescription"}

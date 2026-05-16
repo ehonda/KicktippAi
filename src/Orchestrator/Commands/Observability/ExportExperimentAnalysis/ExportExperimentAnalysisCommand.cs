@@ -299,6 +299,9 @@ public sealed class ExportExperimentAnalysisCommand : AsyncCommand<ExportExperim
                 context.RunMetadata.SelectedItemIdsHash,
                 context.RunMetadata.SelectedItemIdsCount,
                 context.RunMetadata.SampleSize,
+                context.RunMetadata.MatchCount,
+                context.RunMetadata.Repetitions,
+                context.RunMetadata.Parallelism,
                 context.RunMetadata.EvaluationTimestampPolicyKey,
                 context.RunMetadata.EvaluationTime,
                 context.RunMetadata.StartedAtUtc,
@@ -374,7 +377,9 @@ public sealed class ExportExperimentAnalysisCommand : AsyncCommand<ExportExperim
                     prediction.Status,
                     context.RunMetadata.RunSubjectKind,
                     context.RunMetadata.RunSubjectId,
-                    context.RunMetadata.RunSubjectDisplayName));
+                    context.RunMetadata.RunSubjectDisplayName,
+                    metadata.FixtureIndex,
+                    metadata.RepetitionIndex));
             }
         }
 
@@ -606,7 +611,9 @@ public sealed class ExportExperimentAnalysisCommand : AsyncCommand<ExportExperim
             GetRequiredStringProperty(metadata, "awayTeam", datasetItemId),
             GetRequiredIntProperty(metadata, "matchday", datasetItemId),
             GetRequiredStringProperty(input, "startsAt", datasetItemId),
-            GetOptionalStringProperty(metadata, "tippSpielId"));
+            GetOptionalStringProperty(metadata, "tippSpielId"),
+            GetOptionalIntProperty(metadata, "fixtureIndex"),
+            GetOptionalIntProperty(metadata, "repetitionIndex"));
     }
 
     private static int CalculateKicktippPoints(PredictionOutput prediction, ExpectedOutput expectedOutput)
@@ -674,6 +681,13 @@ public sealed class ExportExperimentAnalysisCommand : AsyncCommand<ExportExperim
 
     private static bool TryDeriveSourceDatasetItemId(string datasetItemId, out string sourceDatasetItemId)
     {
+        var repeatedMatchSliceIndex = datasetItemId.IndexOf("__repeated-match-slice__", StringComparison.Ordinal);
+        if (repeatedMatchSliceIndex >= 0)
+        {
+            sourceDatasetItemId = datasetItemId[..repeatedMatchSliceIndex];
+            return true;
+        }
+
         var repeatedMatchIndex = datasetItemId.IndexOf("__repeated-match__", StringComparison.Ordinal);
         if (repeatedMatchIndex >= 0)
         {
@@ -827,16 +841,22 @@ public sealed class ExportExperimentAnalysisCommand : AsyncCommand<ExportExperim
 
     private static string ResolvePrimaryMetricName(string taskType)
     {
-        return string.Equals(taskType, "repeated-match", StringComparison.OrdinalIgnoreCase)
+        return IsAveragePrimaryMetricTask(taskType)
             ? "avg_kicktipp_points"
             : "total_kicktipp_points";
     }
 
     private static double ResolvePrimaryMetricValue(string taskType, ExperimentAggregateScores aggregateScores)
     {
-        return string.Equals(taskType, "repeated-match", StringComparison.OrdinalIgnoreCase)
+        return IsAveragePrimaryMetricTask(taskType)
             ? aggregateScores.AvgKicktippPoints
             : aggregateScores.TotalKicktippPoints;
+    }
+
+    private static bool IsAveragePrimaryMetricTask(string taskType)
+    {
+        return string.Equals(taskType, "repeated-match", StringComparison.OrdinalIgnoreCase)
+               || string.Equals(taskType, "repeated-match-slice", StringComparison.OrdinalIgnoreCase);
     }
 
     private static string ResolveOutputPath(
@@ -892,6 +912,15 @@ public sealed class ExportExperimentAnalysisCommand : AsyncCommand<ExportExperim
             : null;
     }
 
+    private static int? GetOptionalIntProperty(JsonElement metadata, string propertyName)
+    {
+        return metadata.ValueKind == JsonValueKind.Object
+               && metadata.TryGetProperty(propertyName, out var property)
+               && property.TryGetInt32(out var value)
+            ? value
+            : null;
+    }
+
     private sealed record RunContext(
         LangfuseDatasetRunWithItems DatasetRun,
         PreparedExperimentRunMetadata RunMetadata,
@@ -907,5 +936,7 @@ public sealed class ExportExperimentAnalysisCommand : AsyncCommand<ExportExperim
         string AwayTeam,
         int Matchday,
         string StartsAt,
-        string? TippSpielId);
+        string? TippSpielId,
+        int? FixtureIndex,
+        int? RepetitionIndex);
 }

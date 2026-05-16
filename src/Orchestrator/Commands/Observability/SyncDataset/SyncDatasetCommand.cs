@@ -109,6 +109,16 @@ public sealed class SyncDatasetCommand : AsyncCommand<SyncDatasetSettings>
               "type": "string",
               "minLength": 1,
               "description": "Kicktipp match identifier"
+            },
+            "fixtureIndex": {
+              "type": "integer",
+              "minimum": 1,
+              "description": "One-based fixture index for repeated-match-slice datasets"
+            },
+            "repetitionIndex": {
+              "type": "integer",
+              "minimum": 1,
+              "description": "One-based repetition index for repeated-match-slice datasets"
             }
           },
           "required": [

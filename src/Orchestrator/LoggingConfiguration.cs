@@ -9,6 +9,7 @@ public static class LoggingConfiguration
     {
         "run-slice",
         "run-repeated-match",
+        "run-repeated-match-slice",
         "run-community-to-date"
     };
 

@@ -1,0 +1,338 @@
+using System.Globalization;
+using System.Text.Json;
+using EHonda.KicktippAi.Core;
+using Microsoft.Extensions.Logging;
+using NodaTime;
+using Orchestrator.Commands.Observability.Experiments;
+using Orchestrator.Commands.Observability.ExportExperimentDataset;
+using Orchestrator.Infrastructure.Factories;
+using Spectre.Console;
+using Spectre.Console.Cli;
+
+namespace Orchestrator.Commands.Observability.PrepareRepeatedMatchSlice;
+
+public sealed class PrepareRepeatedMatchSliceCommand : AsyncCommand<PrepareRepeatedMatchSliceSettings>
+{
+    private readonly IAnsiConsole _console;
+    private readonly IFirebaseServiceFactory _firebaseServiceFactory;
+    private readonly ILogger<PrepareRepeatedMatchSliceCommand> _logger;
+
+    public PrepareRepeatedMatchSliceCommand(
+        IAnsiConsole console,
+        IFirebaseServiceFactory firebaseServiceFactory,
+        ILogger<PrepareRepeatedMatchSliceCommand> logger)
+    {
+        _console = console;
+        _firebaseServiceFactory = firebaseServiceFactory;
+        _logger = logger;
+    }
+
+    protected override async Task<int> ExecuteAsync(
+        CommandContext context,
+        PrepareRepeatedMatchSliceSettings settings,
+        CancellationToken cancellationToken)
+    {
+        try
+        {
+            var matchOutcomeRepository = _firebaseServiceFactory.CreateMatchOutcomeRepository();
+            var matchdays = ParseMatchdays(settings.Matchdays);
+            var startsAfter = EvaluationTimeParser.ParseOrNull(settings.StartsAfter);
+            var normalizedStartsAfter = EvaluationTimeParser.NormalizeOrNull(settings.StartsAfter);
+            var availableItems = await LoadSourceItemsAsync(
+                matchOutcomeRepository,
+                settings.CommunityContext,
+                matchdays,
+                startsAfter,
+                cancellationToken);
+
+            if (availableItems.Count == 0)
+            {
+                throw new InvalidOperationException("No completed historical matches were found for the requested repeated-match slice scope.");
+            }
+
+            var sampleSeed = settings.SampleSeed ?? int.Parse(
+                DateTimeOffset.UtcNow.ToString("yyyyMMdd", CultureInfo.InvariantCulture),
+                CultureInfo.InvariantCulture);
+            var sliceKey = string.IsNullOrWhiteSpace(settings.SliceKey)
+                ? $"random-{settings.MatchCount}x{settings.Repetitions}-seed-{sampleSeed}"
+                : settings.SliceKey.Trim();
+            var sourcePoolKey = string.IsNullOrWhiteSpace(settings.SourcePoolKey)
+                ? BuildDefaultSourcePoolKey(matchdays, startsAfter)
+                : settings.SourcePoolKey.Trim();
+            var selectedItems = SelectRandomItems(availableItems, settings.MatchCount, sampleSeed)
+                .OrderBy(item => item.SourceDatasetItemId, StringComparer.Ordinal)
+                .ToList();
+            var repeatedItems = ExpandRepeatedItems(selectedItems, sliceKey, settings.Repetitions);
+
+            var sourceDatasetName = ExperimentArtifactSupport.BuildSourceDatasetName(settings.CommunityContext);
+            var sliceDatasetName = settings.DatasetName
+                ?? $"{sourceDatasetName}/repeated-match-slices/{sourcePoolKey}/{sliceKey}";
+            var datasetDescription = string.IsNullOrWhiteSpace(settings.DatasetDescription)
+                ? null
+                : settings.DatasetDescription.Trim();
+            var outputDirectory = ResolveOutputDirectory(settings.OutputDirectory, settings.CommunityContext, sourcePoolKey, sliceKey);
+            var sliceArtifactPath = Path.Combine(outputDirectory, "slice-dataset.json");
+            var sliceManifestPath = Path.Combine(outputDirectory, "slice-manifest.json");
+
+            Directory.CreateDirectory(outputDirectory);
+
+            var bundle = PreparedExperimentBundleBuilder.Build(
+                repeatedItems,
+                settings.CommunityContext,
+                sourceDatasetName,
+                sliceDatasetName,
+                sliceKey,
+                "repeated-match-slice",
+                "repeated-match-slice",
+                sourcePoolKey,
+                sampleSeed,
+                datasetDescription,
+                BuildDatasetMetadata(settings.MatchCount, settings.Repetitions, normalizedStartsAfter, datasetDescription),
+                settings.MatchCount,
+                settings.Repetitions);
+            var manifest = bundle.Manifest with
+            {
+                TaskType = "repeated-match-slice",
+                StartsAfter = normalizedStartsAfter
+            };
+
+            await WriteJsonFileAsync(sliceArtifactPath, bundle.Artifact, cancellationToken);
+            await WriteJsonFileAsync(sliceManifestPath, manifest, cancellationToken);
+
+            var summary = new
+            {
+                mode = "repeated-match-slice",
+                sourceDatasetName,
+                datasetName = manifest.SliceDatasetName,
+                manifest.CommunityContext,
+                manifest.SourcePoolKey,
+                manifest.SliceKey,
+                manifest.SliceKind,
+                manifest.SampleMethod,
+                settings.MatchCount,
+                settings.Repetitions,
+                manifest.SampleSize,
+                manifest.SampleSeed,
+                matchdays,
+                manifest.StartsAfter,
+                datasetDescription = bundle.Artifact.DatasetDescription,
+                datasetMetadata = bundle.Artifact.DatasetMetadata,
+                manifest.SelectedItemIds,
+                manifest.SelectedItemIdsHash,
+                outputDirectory,
+                sliceArtifactPath,
+                sliceManifestPath
+            };
+
+            _console.WriteLine(JsonSerializer.Serialize(summary, PreparedExperimentCommandSupport.JsonOptions));
+            return 0;
+        }
+        catch (Exception ex)
+        {
+            _logger.LogError(ex, "Error preparing repeated-match-slice experiment artifact");
+            _console.MarkupLine($"[red]Error:[/] {Markup.Escape(ex.Message)}");
+            return 1;
+        }
+    }
+
+    private static async Task<IReadOnlyList<PreparedExperimentSourceItem>> LoadSourceItemsAsync(
+        IMatchOutcomeRepository matchOutcomeRepository,
+        string communityContext,
+        IReadOnlyList<int> matchdays,
+        DateTimeOffset? startsAfter,
+        CancellationToken cancellationToken)
+    {
+        var sourceItems = new List<PreparedExperimentSourceItem>();
+        var startsAfterInstant = startsAfter is null
+            ? (Instant?)null
+            : Instant.FromDateTimeOffset(startsAfter.Value);
+
+        foreach (var matchday in matchdays)
+        {
+            var outcomes = await matchOutcomeRepository.GetMatchdayOutcomesAsync(matchday, communityContext, cancellationToken);
+            foreach (var outcome in outcomes)
+            {
+                if (!outcome.HasOutcome || outcome.HomeGoals is null || outcome.AwayGoals is null)
+                {
+                    continue;
+                }
+
+                if (startsAfterInstant is not null && outcome.StartsAt.ToInstant() <= startsAfterInstant.Value)
+                {
+                    continue;
+                }
+
+                var datasetItem = ExperimentArtifactSupport.BuildHostedDatasetItem(outcome);
+                sourceItems.Add(new PreparedExperimentSourceItem(
+                    datasetItem.Id,
+                    datasetItem.Id,
+                    datasetItem.Id,
+                    datasetItem.Metadata.Competition,
+                    datasetItem.Metadata.Season,
+                    datasetItem.Metadata.CommunityContext,
+                    datasetItem.Metadata.Matchday,
+                    datasetItem.Metadata.MatchdayLabel,
+                    datasetItem.Metadata.HomeTeam,
+                    datasetItem.Metadata.AwayTeam,
+                    GetStartsAt(datasetItem),
+                    datasetItem.Metadata.TippSpielId,
+                    datasetItem.ExpectedOutput.HomeGoals,
+                    datasetItem.ExpectedOutput.AwayGoals));
+            }
+        }
+
+        return sourceItems
+            .OrderBy(item => item.SourceDatasetItemId, StringComparer.Ordinal)
+            .ToList();
+    }
+
+    private static IReadOnlyList<PreparedExperimentSourceItem> ExpandRepeatedItems(
+        IReadOnlyList<PreparedExperimentSourceItem> selectedItems,
+        string sliceKey,
+        int repetitions)
+    {
+        var repeatedItems = new List<PreparedExperimentSourceItem>(selectedItems.Count * repetitions);
+        for (var fixtureIndex = 1; fixtureIndex <= selectedItems.Count; fixtureIndex += 1)
+        {
+            var selectedItem = selectedItems[fixtureIndex - 1];
+            for (var repetitionIndex = 1; repetitionIndex <= repetitions; repetitionIndex += 1)
+            {
+                var sliceDatasetItemId = ExperimentArtifactSupport.BuildRepeatedMatchSliceDatasetItemId(
+                    selectedItem.SourceDatasetItemId,
+                    sliceKey,
+                    fixtureIndex,
+                    selectedItems.Count,
+                    repetitionIndex,
+                    repetitions);
+                repeatedItems.Add(selectedItem with
+                {
+                    SliceDatasetItemId = sliceDatasetItemId,
+                    FixtureIndex = fixtureIndex,
+                    RepetitionIndex = repetitionIndex
+                });
+            }
+        }
+
+        return repeatedItems;
+    }
+
+    private static string GetStartsAt(HostedMatchExperimentDatasetItem item)
+    {
+        if (item.Input.ValueKind != JsonValueKind.Object
+            || !item.Input.TryGetProperty("startsAt", out var startsAt)
+            || startsAt.ValueKind != JsonValueKind.String
+            || string.IsNullOrWhiteSpace(startsAt.GetString()))
+        {
+            throw new InvalidOperationException($"Dataset item '{item.Id}' is missing input.startsAt.");
+        }
+
+        return startsAt.GetString()!;
+    }
+
+    private static IReadOnlyList<PreparedExperimentSourceItem> SelectRandomItems(
+        IReadOnlyList<PreparedExperimentSourceItem> items,
+        int count,
+        int seed)
+    {
+        if (items.Count < count)
+        {
+            throw new InvalidOperationException(
+                $"Requested match count {count} exceeds available dataset item count {items.Count}.");
+        }
+
+        var buffer = items.ToList();
+        var random = new Random(seed);
+        for (var index = buffer.Count - 1; index > 0; index -= 1)
+        {
+            var swapIndex = random.Next(index + 1);
+            (buffer[index], buffer[swapIndex]) = (buffer[swapIndex], buffer[index]);
+        }
+
+        return buffer.Take(count).ToList();
+    }
+
+    private static IReadOnlyList<int> ParseMatchdays(string? matchdays)
+    {
+        if (string.IsNullOrWhiteSpace(matchdays))
+        {
+            return Enumerable.Range(1, 34).ToList().AsReadOnly();
+        }
+
+        return matchdays
+            .Split(',', StringSplitOptions.RemoveEmptyEntries | StringSplitOptions.TrimEntries)
+            .Select(segment => int.Parse(segment, CultureInfo.InvariantCulture))
+            .Distinct()
+            .OrderBy(matchday => matchday)
+            .ToList()
+            .AsReadOnly();
+    }
+
+    private static string BuildDefaultSourcePoolKey(IReadOnlyList<int> matchdays, DateTimeOffset? startsAfter)
+    {
+        var baseKey = matchdays.SequenceEqual(Enumerable.Range(1, 34))
+            ? "all-matchdays"
+            : $"matchdays-{string.Join('-', matchdays)}";
+
+        if (startsAfter is null)
+        {
+            return baseKey;
+        }
+
+        var utcToken = startsAfter.Value
+            .ToUniversalTime()
+            .ToString("yyyyMMdd't'HHmmss'z'", CultureInfo.InvariantCulture)
+            .ToLowerInvariant();
+        return $"{baseKey}-after-{utcToken}";
+    }
+
+    private static IReadOnlyDictionary<string, object?> BuildDatasetMetadata(
+        int matchCount,
+        int repetitions,
+        string? startsAfter,
+        string? datasetDescription)
+    {
+        var metadata = new Dictionary<string, object?>
+        {
+            ["matchCount"] = matchCount,
+            ["repetitions"] = repetitions,
+            ["predictionCount"] = matchCount * repetitions
+        };
+
+        if (!string.IsNullOrWhiteSpace(startsAfter))
+        {
+            metadata["startsAfter"] = startsAfter;
+        }
+
+        if (!string.IsNullOrWhiteSpace(datasetDescription))
+        {
+            metadata["datasetDescription"] = datasetDescription;
+        }
+
+        return metadata;
+    }
+
+    private static string ResolveOutputDirectory(
+        string? outputDirectoryOverride,
+        string communityContext,
+        string sourcePoolKey,
+        string sliceKey)
+    {
+        if (!string.IsNullOrWhiteSpace(outputDirectoryOverride))
+        {
+            return Path.GetFullPath(outputDirectoryOverride);
+        }
+
+        return Path.GetFullPath(Path.Combine(
+            "artifacts",
+            "langfuse-experiments",
+            "repeated-match-slices",
+            ExperimentArtifactSupport.Slugify(communityContext),
+            sourcePoolKey,
+            sliceKey));
+    }
+
+    private static Task WriteJsonFileAsync<T>(string path, T value, CancellationToken cancellationToken)
+    {
+        return File.WriteAllTextAsync(path, JsonSerializer.Serialize(value, PreparedExperimentCommandSupport.JsonOptions), cancellationToken);
+    }
+}

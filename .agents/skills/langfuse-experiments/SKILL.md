@@ -1,6 +1,6 @@
 ---
 name: langfuse-experiments
-description: Run KicktippAi Langfuse experiments end to end. Use when preparing, syncing, or running slice, repeated-match, or community-to-date experiment datasets; exporting comparable runs; generating JSON, Markdown, and HTML comparison reports; publishing browser-friendly GitHub Pages experiment analysis pages; documenting experiment design and results under docs/experiments; verifying the Pages index; and committing plus pushing the resulting tracked files.
+description: Run KicktippAi Langfuse experiments end to end. Use when preparing, syncing, or running slice, repeated-match, repeated-match-slice, or community-to-date experiment datasets; exporting comparable runs; generating JSON, Markdown, and HTML comparison reports; publishing browser-friendly GitHub Pages experiment analysis pages; documenting experiment design and results under docs/experiments; verifying the Pages index; and committing plus pushing the resulting tracked files.
 ---
 
 # Langfuse Experiments
@@ -26,7 +26,7 @@ Before running or publishing anything:
 - If the user provides a prepared `slice-dataset.json` and `slice-manifest.json`, sync only when the dataset is being created in Langfuse for the first time, or when the user explicitly says the dataset changed.
 - If the prepared dataset already exists in Langfuse, assume it was not modified and skip resync by default to save execution time.
 - If a run fails with errors that suggest missing, renamed, or drifted dataset items or dataset names, resync the dataset artifact and retry.
-- Choose `slice` for fixed historical match samples, `repeated-match` for variance on one fixture, and `community-to-date` for participant-backed Kicktipp snapshots through a cutoff matchday.
+- Choose `slice` for fixed historical match samples, `repeated-match` for variance on one fixture, `repeated-match-slice` for repeated predictions over multiple sampled fixtures, and `community-to-date` for participant-backed Kicktipp snapshots through a cutoff matchday.
 - Keep all settings fixed except the intended comparison axis, such as model, prompt key, hosted prompt, reasoning effort, justification setting, or evaluation policy.
 - Use one shared UTC `$runStamp` for all related run names. Prefer `gpt-5-nano` for cheap verification unless the user specified models.
 
@@ -37,6 +37,7 @@ Prepare a dataset only when needed:
 ```powershell
 dotnet run --project src/Orchestrator -- prepare-slice --community-context pes-squad --sample-size 16 --sample-seed 20260403
 dotnet run --project src/Orchestrator -- prepare-repeated-match --community-context pes-squad --home "VfB Stuttgart" --away "RB Leipzig" --matchday 26 --sample-size 25 --dataset-description "Short report context."
+dotnet run --project src/Orchestrator -- prepare-repeated-match-slice --community-context pes-squad --match-count 15 --repetitions 10 --sample-seed 20260517
 dotnet run --project src/Orchestrator -- prepare-community-to-date --community-context schadensfresse --cutoff-matchday 10
 ```
 
@@ -52,8 +53,11 @@ Run each comparable variant against the same manifest:
 $runStamp = (Get-Date).ToUniversalTime().ToString("yyyy-MM-ddTHH-mm-ssZ").ToLowerInvariant()
 dotnet run --project src/Orchestrator -- run-slice o3 --manifest path/to/slice-manifest.json --run-name "slice__pes-squad__o3__prompt-v1__random-16-seed-20260403__startsat-12h__$runStamp" --prompt-key prompt-v1 --evaluation-policy-kind relative --evaluation-policy-offset -12:00:00 --batch-size 8 --replace-run
 dotnet run --project src/Orchestrator -- run-repeated-match gpt-5-nano --manifest path/to/slice-manifest.json --run-name "repeated-match__pes-squad__gpt-5-nano__prompt-v1__repeat-25__exact-time__$runStamp" --prompt-key prompt-v1 --evaluation-time "2026-03-15T12:00:00 Europe/Berlin (+01)" --batch-count 3 --replace-run
+dotnet run --project src/Orchestrator -- run-repeated-match-slice gpt-5.4-nano --manifest path/to/slice-manifest.json --run-name "repeated-match-slice__pes-squad__gpt-5.4-nano__prompt-v1__random-15x10-seed-20260517__startsat-12h__$runStamp" --prompt-key prompt-v1 --evaluation-policy-kind relative --evaluation-policy-offset -12:00:00 --batch-count 3 --parallelism 5 --replace-run
 dotnet run --project src/Orchestrator -- run-community-to-date --manifest path/to/slice-manifest.json --run-family-name "community-to-date__schadensfresse__md10__$runStamp" --replace-runs
 ```
+
+For `run-repeated-match-slice`, `--parallelism` defaults to `5`. If a live run hits rate limits or flex-capacity failures, retry with `--parallelism 3`, then `--parallelism 1`.
 
 Use `reconstruct-prompt` with the intended `--evaluation-time` before expensive exact-time runs when historical context coverage is uncertain.
 
@@ -144,5 +148,5 @@ Push with an explicit remote and branch, for example `git push origin main`, and
 - Verify `uv run experiment-analysis-report` emitted JSON, Markdown, and HTML unless HTML was intentionally disabled.
 - Verify any committed or published experiment result has a companion `docs/experiments/...` writeup that captures the design, results, interpretation, and the final report path.
 - Verify any link from the published artifact back to the long-form writeup uses a valid GitHub URL or another actually published surface, not a relative `docs/experiments/...` Pages path.
-- Verify the report primary metric matches the task type: `total_kicktipp_points` for `slice` and `community-to-date`, `avg_kicktipp_points` for `repeated-match`.
+- Verify the report primary metric matches the task type: `total_kicktipp_points` for `slice` and `community-to-date`, `avg_kicktipp_points` for `repeated-match` and `repeated-match-slice`.
 - Verify the generated Pages index links the new report before pushing to `main`, because CI deploys GitHub Pages from pushes to `main`.

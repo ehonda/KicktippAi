@@ -280,6 +280,70 @@ public class ExportExperimentAnalysisCommand_Tests
     }
 
     [Test]
+    public async Task Running_command_exports_repeated_match_slice_runs_with_average_primary_metric_and_group_metadata()
+    {
+        var tempDirectory = Directory.CreateTempSubdirectory();
+
+        try
+        {
+            var outputPath = Path.Combine(tempDirectory.FullName, "analysis.json");
+            var datasetName = "match-predictions/bundesliga-2025-26/test-community/repeated-match-slices/all-matchdays/random-2x2-seed-42";
+            var runOne = "repeated-match-slice__test-community__o3__prompt-v1__random-2x2-seed-42__startsat-12h__2026-05-17t12-00-00z";
+            var runTwo = "repeated-match-slice__test-community__gpt-5-nano__prompt-v1__random-2x2-seed-42__startsat-12h__2026-05-17t12-00-00z";
+            var sourceDatasetItemId = "bundesliga-2025-26__test-community__ts123";
+            var datasetItemId = $"{sourceDatasetItemId}__repeated-match-slice__random-2x2-seed-42__m01__01";
+
+            var langfuseClient = CreateMockLangfuseClientForComparableRuns(
+                datasetName,
+                runOne,
+                runTwo,
+                datasetItemId,
+                sourceDatasetItemId,
+                sliceKind: "repeated-match-slice",
+                taskType: "repeated-match-slice");
+
+            var context = CreateCommandApp<ExportExperimentAnalysisCommand>(
+                "export-experiment-analysis",
+                configureServices: new Action<IServiceCollection>(services =>
+                {
+                    services.AddSingleton(langfuseClient.Object);
+                }));
+
+            var (exitCode, output) = await RunCommandAsync(
+                context.App,
+                context.Console,
+                "export-experiment-analysis",
+                "--dataset-name",
+                datasetName,
+                "--run-names",
+                $"{runOne},{runTwo}",
+                "--output",
+                outputPath);
+
+            await Assert.That(exitCode).IsEqualTo(0);
+            await Assert.That(output).Contains("\"primaryMetricName\": \"avg_kicktipp_points\"");
+
+            var bundleJson = await File.ReadAllTextAsync(outputPath);
+            using var bundleDocument = JsonDocument.Parse(bundleJson);
+            var bundleRoot = bundleDocument.RootElement;
+            var firstRun = bundleRoot.GetProperty("runs").EnumerateArray().First();
+            var firstRow = bundleRoot.GetProperty("rows").EnumerateArray().First();
+
+            await Assert.That(bundleRoot.GetProperty("taskType").GetString()).IsEqualTo("repeated-match-slice");
+            await Assert.That(firstRun.GetProperty("matchCount").GetInt32()).IsEqualTo(2);
+            await Assert.That(firstRun.GetProperty("repetitions").GetInt32()).IsEqualTo(2);
+            await Assert.That(firstRun.GetProperty("parallelism").GetInt32()).IsEqualTo(5);
+            await Assert.That(firstRow.GetProperty("sourceDatasetItemId").GetString()).IsEqualTo(sourceDatasetItemId);
+            await Assert.That(firstRow.GetProperty("fixtureIndex").GetInt32()).IsEqualTo(1);
+            await Assert.That(firstRow.GetProperty("repetitionIndex").GetInt32()).IsEqualTo(1);
+        }
+        finally
+        {
+            tempDirectory.Delete(recursive: true);
+        }
+    }
+
+    [Test]
     public async Task Running_command_exports_community_to_date_runs_with_missed_predictions()
     {
         var tempDirectory = Directory.CreateTempSubdirectory();
@@ -575,10 +639,10 @@ public class ExportExperimentAnalysisCommand_Tests
             .ReturnsAsync(CreateDataset(datasetName, taskType));
         client
             .Setup(mock => mock.GetDatasetRunAsync(datasetName, runOne, It.IsAny<CancellationToken>()))
-            .ReturnsAsync(CreateDatasetRun(datasetName, runOne, datasetId, taskType, "o3", sliceKind == "repeated-match" ? "repeat-2" : "random-1-seed-20260405", sliceKind));
+            .ReturnsAsync(CreateDatasetRun(datasetName, runOne, datasetId, taskType, "o3", ResolveTestSliceKey(taskType, sliceKind), sliceKind));
         client
             .Setup(mock => mock.GetDatasetRunAsync(datasetName, runTwo, It.IsAny<CancellationToken>()))
-            .ReturnsAsync(CreateDatasetRun(datasetName, runTwo, datasetId, taskType, "gpt-5-nano", sliceKind == "repeated-match" ? "repeat-2" : "random-1-seed-20260405", sliceKind));
+            .ReturnsAsync(CreateDatasetRun(datasetName, runTwo, datasetId, taskType, "gpt-5-nano", ResolveTestSliceKey(taskType, sliceKind), sliceKind));
         client
             .Setup(mock => mock.ListDatasetRunItemsAsync(datasetId, runOne, 1, It.IsAny<int>(), It.IsAny<CancellationToken>()))
             .ReturnsAsync(new LangfusePaginatedResponse<LangfuseDatasetRunItem>(
@@ -620,7 +684,7 @@ public class ExportExperimentAnalysisCommand_Tests
                     datasetName,
                     ParseJson("{\"fixture\":\"VfB Stuttgart vs RB Leipzig\",\"startsAt\":\"2026-03-15T15:30:00 Europe/Berlin (+01)\"}"),
                     ParseJson("{\"score\":\"2:1\"}"),
-                    ParseJson("{\"competition\":\"bundesliga-2025-26\",\"season\":\"2025/2026\",\"communityContext\":\"test-community\",\"matchday\":26,\"matchdayLabel\":\"md26\",\"homeTeam\":\"VfB Stuttgart\",\"awayTeam\":\"RB Leipzig\",\"tippSpielId\":\"123\",\"startsAt\":\"2026-03-15T15:30:00 Europe/Berlin (+01)\"}"),
+                    ParseJson("{\"competition\":\"bundesliga-2025-26\",\"season\":\"2025/2026\",\"communityContext\":\"test-community\",\"matchday\":26,\"matchdayLabel\":\"md26\",\"homeTeam\":\"VfB Stuttgart\",\"awayTeam\":\"RB Leipzig\",\"tippSpielId\":\"123\",\"startsAt\":\"2026-03-15T15:30:00 Europe/Berlin (+01)\",\"fixtureIndex\":1,\"repetitionIndex\":1}"),
                     null)],
                 new LangfusePaginationMeta(1, 100, 1, 1)));
         client
@@ -695,6 +759,18 @@ public class ExportExperimentAnalysisCommand_Tests
             default);
     }
 
+    private static string ResolveTestSliceKey(string taskType, string sliceKind)
+    {
+        if (string.Equals(taskType, "repeated-match-slice", StringComparison.Ordinal))
+        {
+            return "random-2x2-seed-42";
+        }
+
+        return string.Equals(sliceKind, "repeated-match", StringComparison.Ordinal)
+            ? "repeat-2"
+            : "random-1-seed-20260405";
+    }
+
     private static LangfuseDatasetRunWithItems CreateDatasetRun(
         string datasetName,
         string runName,
@@ -704,8 +780,10 @@ public class ExportExperimentAnalysisCommand_Tests
         string sliceKey,
         string sliceKind)
     {
-        var sampleMethod = string.Equals(sliceKind, "repeated-match", StringComparison.Ordinal)
-            ? "repeated-match"
+        var usesWarmupBatches = string.Equals(taskType, "repeated-match", StringComparison.Ordinal)
+            || string.Equals(taskType, "repeated-match-slice", StringComparison.Ordinal);
+        var sampleMethod = usesWarmupBatches
+            ? taskType
             : "random-sample";
         var datasetItemIdMap = string.Equals(taskType, "slice", StringComparison.Ordinal)
             ? new Dictionary<string, string>
@@ -713,7 +791,7 @@ public class ExportExperimentAnalysisCommand_Tests
                 ["bundesliga-2025-26__test-community__ts123"] = "bundesliga-2025-26__test-community__ts123__slice__random-1-seed-20260405"
             }
             : new Dictionary<string, string>();
-        var batchStrategy = string.Equals(taskType, "repeated-match", StringComparison.Ordinal)
+        var batchStrategy = usesWarmupBatches
             ? "warmup-plus-batches"
             : "simple-batched";
 
@@ -737,7 +815,9 @@ public class ExportExperimentAnalysisCommand_Tests
                 sourcePoolKey = "all-matchdays",
                 selectedItemIdsHash = "hash-123",
                 selectedItemIdsCount = 1,
-                sampleSize = 1,
+                sampleSize = string.Equals(taskType, "repeated-match-slice", StringComparison.Ordinal) ? 4 : 1,
+                matchCount = string.Equals(taskType, "repeated-match-slice", StringComparison.Ordinal) ? 2 : (int?)null,
+                repetitions = string.Equals(taskType, "repeated-match-slice", StringComparison.Ordinal) ? 2 : (int?)null,
                 evaluationTimestampPolicyKey = "startsat-12h",
                 startedAtUtc = "2026-04-05T12:00:00Z",
                 sampleSeed = 20260405,
@@ -748,7 +828,9 @@ public class ExportExperimentAnalysisCommand_Tests
                 datasetItemIdMap,
                 model,
                 batchStrategy,
-                batchSize = 1
+                batchSize = usesWarmupBatches ? null : (int?)1,
+                batchCount = usesWarmupBatches ? 1 : (int?)null,
+                parallelism = string.Equals(taskType, "repeated-match-slice", StringComparison.Ordinal) ? 5 : (int?)null
             }),
             []);
     }

@@ -31,6 +31,84 @@ public class RunExperimentCommands_Tests
     }
 
     [Test]
+    public async Task Repeated_match_slice_batches_keep_per_fixture_warmup_batches_and_limit_parallel_workflows()
+    {
+        var items = Enumerable.Range(1, 3)
+            .SelectMany(fixtureIndex => Enumerable.Range(1, 3).Select(repetitionIndex => new PreparedExperimentManifestItem
+            {
+                SourceDatasetItemId = $"source-{fixtureIndex}",
+                SliceDatasetItemId = $"source-{fixtureIndex}__repeated-match-slice__random-3x3__m{fixtureIndex:00}__{repetitionIndex:00}",
+                HomeTeam = $"Home {fixtureIndex}",
+                AwayTeam = $"Away {fixtureIndex}",
+                Matchday = fixtureIndex,
+                StartsAt = "2026-03-15T15:30:00 Europe/Berlin (+01)",
+                FixtureIndex = fixtureIndex,
+                RepetitionIndex = repetitionIndex
+            }))
+            .ToList();
+
+        var batches = PreparedExperimentRunExecutor.CreateRepeatedMatchSliceBatches(
+            items,
+            batchCount: 2,
+            parallelism: 2);
+
+        await Assert.That(batches.Select(batch => batch.Count).ToArray()).IsEquivalentTo([2, 2, 2, 1, 1, 1]);
+        await Assert.That(batches[0].Select(item => item.FixtureIndex.GetValueOrDefault()).ToArray()).IsEquivalentTo([1, 2]);
+        await Assert.That(batches[0].All(item => item.RepetitionIndex == 1)).IsTrue();
+        await Assert.That(batches[1].Select(item => item.RepetitionIndex.GetValueOrDefault()).ToArray()).IsEquivalentTo([2, 2]);
+        await Assert.That(batches[2].Select(item => item.RepetitionIndex.GetValueOrDefault()).ToArray()).IsEquivalentTo([3, 3]);
+        await Assert.That(batches[3].Single().FixtureIndex).IsEqualTo(3);
+        await Assert.That(batches[3].Single().RepetitionIndex).IsEqualTo(1);
+    }
+
+    [Test]
+    public async Task Repeated_match_slice_score_summary_averages_totals_by_repetition()
+    {
+        var summaries = new[]
+        {
+            CreateExecutionSummary("fixture-1", 1, 1, 4),
+            CreateExecutionSummary("fixture-2", 2, 1, 2),
+            CreateExecutionSummary("fixture-1", 1, 2, 0),
+            CreateExecutionSummary("fixture-2", 2, 2, 2)
+        };
+
+        var scores = PreparedExperimentSupport.SummarizeExecutionScores(
+            summaries,
+            "repeated-match-slice");
+
+        await Assert.That(scores.TotalKicktippPoints).IsEqualTo(8);
+        await Assert.That(scores.AvgKicktippPoints).IsEqualTo(4);
+    }
+
+    [Test]
+    public async Task Run_repeated_match_slice_settings_default_parallelism_to_five_and_validate_bounds()
+    {
+        var settings = new RunRepeatedMatchSliceSettings
+        {
+            Model = "gpt-5.4-nano",
+            ManifestPath = "slice-manifest.json",
+            RunName = "run-name"
+        };
+        var invalidSettings = new RunRepeatedMatchSliceSettings
+        {
+            Model = "gpt-5.4-nano",
+            ManifestPath = "slice-manifest.json",
+            RunName = "run-name",
+            Parallelism = 0
+        };
+
+        var result = settings.Validate();
+        var invalidResult = invalidSettings.Validate();
+        var options = settings.ToRunOptions();
+
+        await Assert.That(result.Successful).IsTrue();
+        await Assert.That(options.BatchCount).IsEqualTo(3);
+        await Assert.That(options.Parallelism).IsEqualTo(5);
+        await Assert.That(invalidResult.Successful).IsFalse();
+        await Assert.That(invalidResult.Message).Contains("--parallelism must be at least 1");
+    }
+
+    [Test]
     public async Task Run_experiment_settings_require_langfuse_prompt_name_for_langfuse_prompt_source()
     {
         var settings = new RunRepeatedMatchSettings
@@ -45,6 +123,26 @@ public class RunExperimentCommands_Tests
 
         await Assert.That(result.Successful).IsFalse();
         await Assert.That(result.Message).Contains("--langfuse-prompt-name is required");
+    }
+
+    private static PreparedExperimentExecutionSummary CreateExecutionSummary(
+        string sourceDatasetItemId,
+        int fixtureIndex,
+        int repetitionIndex,
+        int kicktippPoints)
+    {
+        return new PreparedExperimentExecutionSummary(
+            $"{sourceDatasetItemId}__repeated-match-slice__slice__m{fixtureIndex:00}__{repetitionIndex:00}",
+            sourceDatasetItemId,
+            "run-name",
+            $"trace-{fixtureIndex}-{repetitionIndex}",
+            null,
+            new ExperimentItemScores(kicktippPoints),
+            [],
+            null,
+            "placed",
+            fixtureIndex,
+            repetitionIndex);
     }
 
     [Test]

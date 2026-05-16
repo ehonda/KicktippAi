@@ -26,6 +26,9 @@ internal sealed record PreparedExperimentAnalysisRun(
     [property: JsonPropertyName("selectedItemIdsHash")] string? SelectedItemIdsHash,
     [property: JsonPropertyName("selectedItemIdsCount")] int SelectedItemIdsCount,
     [property: JsonPropertyName("sampleSize")] int SampleSize,
+    [property: JsonPropertyName("matchCount")] int? MatchCount,
+    [property: JsonPropertyName("repetitions")] int? Repetitions,
+    [property: JsonPropertyName("parallelism")] int? Parallelism,
     [property: JsonPropertyName("evaluationTimestampPolicyKey")] string? EvaluationTimestampPolicyKey,
     [property: JsonPropertyName("evaluationTime")] string? EvaluationTime,
     [property: JsonPropertyName("startedAtUtc")] string? StartedAtUtc,
@@ -64,4 +67,6 @@ internal sealed record PreparedExperimentAnalysisRow(
     [property: JsonPropertyName("predictionStatus")] string PredictionStatus = "placed",
     [property: JsonPropertyName("runSubjectKind")] string? RunSubjectKind = null,
     [property: JsonPropertyName("runSubjectId")] string? RunSubjectId = null,
-    [property: JsonPropertyName("runSubjectDisplayName")] string? RunSubjectDisplayName = null);
+    [property: JsonPropertyName("runSubjectDisplayName")] string? RunSubjectDisplayName = null,
+    [property: JsonPropertyName("fixtureIndex")] int? FixtureIndex = null,
+    [property: JsonPropertyName("repetitionIndex")] int? RepetitionIndex = null);

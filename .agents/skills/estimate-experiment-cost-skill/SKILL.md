@@ -1,11 +1,11 @@
 ---
 name: estimate-experiment-cost-skill
-description: Estimate KicktippAi Langfuse experiment costs before running slice or repeated-match experiments. Use when Codex needs to project spend from stored JSON base estimates, collect compact Langfuse usage, run high-reasoning preflights, choose output token caps, calculate or upsert 5-by-4 base estimate rows, or maintain the project-scoped experiment cost estimate store.
+description: Estimate KicktippAi Langfuse experiment costs before running slice, repeated-match, or repeated-match-slice experiments. Use when Codex needs to project spend from stored JSON base estimates, collect compact Langfuse usage, run high-reasoning preflights, choose output token caps, calculate or upsert 5-by-4 base estimate rows, or maintain the project-scoped experiment cost estimate store.
 ---
 
 # Estimate Experiment Cost
 
-Use this skill to estimate KicktippAi `slice` and `repeated-match` experiment costs. Do not use it for `community-to-date`; that mode replays prediction history and does not currently generate model predictions during experiment runs.
+Use this skill to estimate KicktippAi `slice`, `repeated-match`, and `repeated-match-slice` experiment costs. Do not use it for `community-to-date`; that mode replays prediction history and does not currently generate model predictions during experiment runs.
 
 Treat every input token as uncached for estimates, even when the observed Langfuse calls had cache hits.
 
@@ -36,7 +36,7 @@ Before estimating or running a base estimate:
 
 ## Estimate Workflow
 
-1. Normalize the planned experiment size to match predictions `N`. For `slice` and `repeated-match`, this is usually the item count.
+1. Normalize the planned experiment size to match predictions `N`. For `slice`, `repeated-match`, and `repeated-match-slice`, this is usually the item count.
 2. Identify the model, reasoning effort, prompt route, evaluation policy, and max output token cap.
 3. Estimate one or more counts directly from JSON:
 
@@ -74,21 +74,21 @@ Use this method only after stating the expected spend and getting user confirmat
 
 1. Determine the model knowledge cutoff date. If it is not specified by the user and is not already known from JSON or project docs, ask instead of guessing.
 2. Add a two-day safety margin to the model knowledge cutoff date. Use that date as `prepare-slice --starts-after` at local midnight in NodaTime invariant `ZonedDateTime` format, for example `2025-12-01T00:00:00 Europe/Berlin (+01)`. Store the original model knowledge cutoff date in JSON.
-3. Select five random fixtures from the eligible pool with a recorded seed:
+3. Prepare one repeated-match-slice base dataset with five random fixtures and four repetitions each:
 
 ```powershell
-dotnet run --project src/Orchestrator -- prepare-slice --community-context pes-squad --sample-size 5 --sample-seed 20260503 --starts-after "2025-12-01T00:00:00 Europe/Berlin (+01)" --slice-key random-5-seed-20260503-cost-estimate
+dotnet run --project src/Orchestrator -- prepare-repeated-match-slice --community-context pes-squad --match-count 5 --repetitions 4 --sample-seed 20260503 --starts-after "2025-12-01T00:00:00 Europe/Berlin (+01)" --slice-key random-5x4-seed-20260503-cost-estimate
 ```
 
-4. Read the selector manifest's `items` array. Use `homeTeam`, `awayTeam`, and `matchday` to prepare one repeated-match dataset per fixture with `--sample-size 4`.
-5. Sync exactly those five emitted repeated-match datasets.
-6. Run the five repeated-match manifests in parallel with PowerShell `Start-Job`. Use one shared UTC run stamp, `--batch-count 1`, the intended model, reasoning effort, prompt route, evaluation policy, flex processing default, and `--replace-run`.
+4. Sync the emitted repeated-match-slice dataset once.
+5. Run the repeated-match-slice manifest with one shared UTC run stamp, `--batch-count 1`, `--parallelism 5`, the intended model, reasoning effort, prompt route, evaluation policy, flex processing default, and `--replace-run`.
+6. If the run hits rate limits or flex-capacity failures, retry the same manifest and settings with `--parallelism 3`, then `--parallelism 1`.
 7. Use `--evaluation-policy-kind relative --evaluation-policy-offset -12:00:00` for the default slice-like policy, or the intended exact `--evaluation-time` when the planned estimate requires exact-time execution.
 8. Start with the default `--max-output-tokens 10000` unless JSON or prior preflight evidence requires a higher cap. If any run item fails because of cap exhaustion, no output text, or `outputTokens >= maxOutputTokens`, increase the cap and rerun the complete 5-by-4 base estimate.
-9. Collect compact usage with all five run names and the default ingestion wait:
+9. Collect compact usage with the run name and the default ingestion wait:
 
 ```powershell
-uv --cache-dir .uv-cache run python .agents/skills/estimate-experiment-cost-skill/scripts/experiment_cost_estimator.py collect --env ..\KicktippAi.Secrets\src\Orchestrator\.env --group "repeated-measured=RUN_NAME_1" --group "repeated-measured=RUN_NAME_2" --group "repeated-measured=RUN_NAME_3" --group "repeated-measured=RUN_NAME_4" --group "repeated-measured=RUN_NAME_5" --expect repeated-measured=20 --output C:\tmp\kicktippai-cost-estimate-usage.json
+uv --cache-dir .uv-cache run python .agents/skills/estimate-experiment-cost-skill/scripts/experiment_cost_estimator.py collect --env ..\KicktippAi.Secrets\src\Orchestrator\.env --group "repeated-match-slice-measured=RUN_NAME" --expect repeated-match-slice-measured=20 --output C:\tmp\kicktippai-cost-estimate-usage.json
 ```
 
 10. Persist the row with `upsert-row`. Keep the default `--service-tier flex` assumption for base estimates, even if the observed run had non-flex retry fallbacks; the extrapolated experiment may not see the same 429 rate. The row still stores `observedServiceTierCounts`, `nonFlexRetryCount`, and retry rates as context. Use `--service-tier observed` only for an explicit what-this-run-actually-cost mode. The command validates 20 observations, uncached input pricing, and no output-cap hits before writing JSON:
@@ -127,7 +127,7 @@ git push origin CURRENT_BRANCH
 
 ## Quality Checks
 
-- Verify each stored row is based on five randomly selected repeated-match fixtures with four repetitions each.
+- Verify each stored row is based on five randomly selected fixtures with four repetitions each, preferably through one repeated-match-slice run.
 - Verify the sampling cutoff equals the stored model knowledge cutoff date plus two days.
 - Verify estimates use `N` match predictions, not batches or fixtures.
 - Verify all reported estimate totals come from `experiment_cost_estimator.py estimate`.

@@ -20,7 +20,8 @@ internal sealed record PreparedExperimentRunOptions(
     int? BatchSize = null,
     int? BatchCount = null,
     string? ReasoningEffort = null,
-    int? MaxOutputTokenCount = null);
+    int? MaxOutputTokenCount = null,
+    int? Parallelism = null);
 
 internal static class PreparedExperimentCommandSupport
 {
@@ -103,6 +104,8 @@ internal static class PreparedExperimentCommandSupport
                     : manifest.SelectedItemIdsHash
                 : runMetadata.SelectedItemIdsHash,
             SampleSize = runMetadata.SampleSize > 0 ? runMetadata.SampleSize : manifest.SampleSize > 0 ? manifest.SampleSize : manifest.Items.Count,
+            MatchCount = runMetadata.MatchCount ?? manifest.MatchCount,
+            Repetitions = runMetadata.Repetitions ?? manifest.Repetitions,
             SampleSeed = runMetadata.SampleSeed ?? manifest.SampleSeed,
             SampleMethod = string.IsNullOrWhiteSpace(runMetadata.SampleMethod) ? manifest.SampleMethod : runMetadata.SampleMethod,
             PromptVersion = string.IsNullOrWhiteSpace(runMetadata.PromptVersion)
@@ -117,6 +120,7 @@ internal static class PreparedExperimentCommandSupport
             BatchStrategy = string.IsNullOrWhiteSpace(runMetadata.BatchStrategy) ? options.BatchStrategy : runMetadata.BatchStrategy,
             BatchSize = options.BatchSize ?? runMetadata.BatchSize,
             BatchCount = options.BatchCount ?? runMetadata.BatchCount,
+            Parallelism = options.Parallelism ?? runMetadata.Parallelism,
             RunSubjectId = runSubjectId,
             RunSubjectDisplayName = runSubjectDisplayName
         };

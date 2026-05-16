@@ -448,6 +448,10 @@ def parse_bool(value: Any) -> bool:
 
 
 def dataset_type_for_group(measured_group: str) -> str:
+    if measured_group.startswith("repeated-match-slice") or measured_group.startswith(
+        "repeated-slice"
+    ):
+        return "repeated-match-slice"
     if measured_group.startswith("slice"):
         return "slice"
     if measured_group.startswith("repeated"):

@@ -220,6 +220,79 @@ class ExperimentAnalysisReportTests(unittest.TestCase):
         self.assertIn("pill-", report_html)
         self.assertNotIn("<td>repeated-match__pes-squad__o3__prompt-v1", report_html)
 
+    def test_repeated_match_slice_groups_rows_by_repetition_totals(self) -> None:
+        run_a = "repeated-match-slice__test-community__a"
+        run_b = "repeated-match-slice__test-community__b"
+        bundle = {
+            "datasetName": (
+                "match-predictions/bundesliga-2025-26/test-community/repeated-match-slices/"
+                "all-matchdays/random-2x2-seed-42"
+            ),
+            "datasetMetadata": {
+                "matchCount": 2,
+                "repetitions": 2,
+                "predictionCount": 4,
+            },
+            "taskType": "repeated-match-slice",
+            "primaryMetricName": "avg_kicktipp_points",
+            "runs": [
+                {
+                    "runName": run_a,
+                    "model": "model-a",
+                    "runSubjectDisplayName": "Model A",
+                    "primaryMetricValue": 4.0,
+                    "aggregateScores": {"total_kicktipp_points": 8.0, "avg_kicktipp_points": 4.0},
+                },
+                {
+                    "runName": run_b,
+                    "model": "model-b",
+                    "runSubjectDisplayName": "Model B",
+                    "primaryMetricValue": 3.0,
+                    "aggregateScores": {"total_kicktipp_points": 6.0, "avg_kicktipp_points": 3.0},
+                },
+            ],
+            "rows": [
+                {
+                    "pairingKey": f"{run_name}-fixture-{fixture_index}-rep-{repetition_index}",
+                    "runName": run_name,
+                    "kicktippPoints": points,
+                    "fixtureIndex": fixture_index,
+                    "repetitionIndex": repetition_index,
+                    "homeTeam": f"Home {fixture_index}",
+                    "awayTeam": f"Away {fixture_index}",
+                    "startsAt": "2026-03-15T15:30:00 Europe/Berlin (+01)",
+                    "matchday": fixture_index,
+                    "predictedHomeGoals": 1,
+                    "predictedAwayGoals": 0,
+                    "expectedHomeGoals": 1,
+                    "expectedAwayGoals": 0,
+                }
+                for run_name, scores in [
+                    (run_a, {(1, 1): 4, (2, 1): 0, (1, 2): 2, (2, 2): 2}),
+                    (run_b, {(1, 1): 2, (2, 1): 0, (1, 2): 4, (2, 2): 0}),
+                ]
+                for (fixture_index, repetition_index), points in scores.items()
+            ],
+        }
+
+        report_json = report.analyze_bundle(
+            bundle,
+            alpha=0.05,
+            correction_method="holm",
+            bootstrap_resamples=100,
+            confidence_level=0.95,
+            random_seed=20260406,
+        )
+        report_markdown = report.render_markdown(report_json)
+
+        self.assertEqual(report_json["primaryMetricName"], "avg_kicktipp_points")
+        self.assertEqual(report_json["pairingCount"], 2)
+        self.assertEqual(report_json["comparison"]["betterRunName"], run_a)
+        self.assertEqual(report_json["comparison"]["perItemOutcomeCounts"], {"wins": 1, "ties": 1, "losses": 0})
+        self.assertIn("| Matches | 2 |", report_markdown)
+        self.assertIn("| Repetitions | 2 |", report_markdown)
+        self.assertIn("| Predictions | 4 |", report_markdown)
+
     def test_three_run_bundle_produces_friedman_and_pairwise_comparisons(self) -> None:
         fixture = Path("tools/tests/fixtures/three_run_repeated_match_bundle.json")
         with tempfile.TemporaryDirectory() as temp_directory:

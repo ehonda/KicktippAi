@@ -61,7 +61,9 @@ internal static class PreparedExperimentBundleBuilder
         string sourcePoolKey,
         int? sampleSeed,
         string? datasetDescription = null,
-        IReadOnlyDictionary<string, object?>? extraDatasetMetadata = null)
+        IReadOnlyDictionary<string, object?>? extraDatasetMetadata = null,
+        int? matchCount = null,
+        int? repetitions = null)
     {
         if (sourceItems.Count == 0)
         {
@@ -95,7 +97,9 @@ internal static class PreparedExperimentBundleBuilder
                     item.MatchdayLabel,
                     item.HomeTeam,
                     item.AwayTeam,
-                    item.TippSpielId
+                    item.TippSpielId,
+                    item.FixtureIndex,
+                    item.RepetitionIndex
                 }, OutputJsonOptions)))
             .ToList();
 
@@ -107,7 +111,9 @@ internal static class PreparedExperimentBundleBuilder
             AwayTeam = item.AwayTeam,
             Matchday = item.Matchday,
             StartsAt = item.StartsAt,
-            TippSpielId = item.TippSpielId
+            TippSpielId = item.TippSpielId,
+            FixtureIndex = item.FixtureIndex,
+            RepetitionIndex = item.RepetitionIndex
         }).ToList();
 
         var datasetMetadataNode = JsonSerializer.SerializeToNode(new
@@ -117,6 +123,9 @@ internal static class PreparedExperimentBundleBuilder
             scope = string.Equals(sliceKind, "single-match", StringComparison.OrdinalIgnoreCase)
                 || string.Equals(sliceKind, "repeated-match", StringComparison.OrdinalIgnoreCase)
                 ? "repeated-match"
+                : string.Equals(sliceKind, "repeated-match-slice", StringComparison.OrdinalIgnoreCase)
+                    || string.Equals(sampleMethod, "repeated-match-slice", StringComparison.OrdinalIgnoreCase)
+                    ? "repeated-match-slice"
                 : string.Equals(sliceKind, "community-to-date", StringComparison.OrdinalIgnoreCase)
                     || string.Equals(sampleMethod, "community-to-date", StringComparison.OrdinalIgnoreCase)
                     ? "community-to-date"
@@ -127,6 +136,8 @@ internal static class PreparedExperimentBundleBuilder
             sampleMethod,
             sampleSeed,
             sampleSize = sourceItems.Count,
+            matchCount,
+            repetitions,
             sourceDatasetName,
             sourcePoolKey
         }, OutputJsonOptions) as JsonObject ?? new JsonObject();
@@ -156,6 +167,8 @@ internal static class PreparedExperimentBundleBuilder
             Season = first.Season,
             SampleSeed = sampleSeed,
             SampleSize = sourceItems.Count,
+            MatchCount = matchCount,
+            Repetitions = repetitions,
             SelectedItemIds = selectedItemIds,
             SelectedItemIdsHash = selectedItemIdsHash,
             Items = manifestItems
@@ -203,7 +216,9 @@ internal sealed record PreparedExperimentSourceItem(
     string StartsAt,
     string TippSpielId,
     int ExpectedHomeGoals,
-    int ExpectedAwayGoals);
+    int ExpectedAwayGoals,
+    int? FixtureIndex = null,
+    int? RepetitionIndex = null);
 
 internal sealed record PreparedExperimentBundle(
     PreparedExperimentDataset Artifact,

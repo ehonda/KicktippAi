@@ -1,0 +1,105 @@
+using System.ComponentModel;
+using Spectre.Console;
+using Spectre.Console.Cli;
+
+namespace Orchestrator.Commands.Observability.PrepareRepeatedMatchSlice;
+
+public sealed class PrepareRepeatedMatchSliceSettings : CommandSettings
+{
+    [CommandOption("--community-context")]
+    [Description("Community context used to scope persisted historical match outcomes")]
+    public string CommunityContext { get; set; } = string.Empty;
+
+    [CommandOption("--matchdays")]
+    [Description("Optional comma-separated list of matchdays to sample from. Defaults to all Bundesliga matchdays.")]
+    public string? Matchdays { get; set; }
+
+    [CommandOption("--match-count")]
+    [Description("Number of distinct fixtures to sample")]
+    [DefaultValue(5)]
+    public int MatchCount { get; set; } = 5;
+
+    [CommandOption("--repetitions")]
+    [Description("Number of repeated predictions to materialize per selected fixture")]
+    [DefaultValue(4)]
+    public int Repetitions { get; set; } = 4;
+
+    [CommandOption("--sample-seed")]
+    [Description("Optional deterministic seed for random fixture selection. Defaults to the current UTC date in yyyyMMdd format")]
+    public int? SampleSeed { get; set; }
+
+    [CommandOption("--starts-after")]
+    [Description("Optional match start cutoff in NodaTime invariant ZonedDateTime 'G' format. Only matches strictly after this timestamp are eligible.")]
+    public string? StartsAfter { get; set; }
+
+    [CommandOption("--slice-key")]
+    [Description("Optional slice key override. Defaults to random-<match-count>x<repetitions>-seed-<sample-seed>")]
+    public string? SliceKey { get; set; }
+
+    [CommandOption("--source-pool-key")]
+    [Description("Optional source pool identifier used in dataset names and output paths. Defaults to all-matchdays")]
+    public string? SourcePoolKey { get; set; }
+
+    [CommandOption("--dataset-name")]
+    [Description("Optional hosted dataset name override for the prepared repeated-match slice")]
+    public string? DatasetName { get; set; }
+
+    [CommandOption("--dataset-description")]
+    [Description("Optional short note describing this repeated-match slice dataset")]
+    public string? DatasetDescription { get; set; }
+
+    [CommandOption("--output-directory")]
+    [Description("Optional output directory override. Defaults to artifacts/langfuse-experiments/repeated-match-slices/<community>/<source-pool-key>/<slice-key>")]
+    public string? OutputDirectory { get; set; }
+
+    public override ValidationResult Validate()
+    {
+        if (string.IsNullOrWhiteSpace(CommunityContext))
+        {
+            return ValidationResult.Error("--community-context is required");
+        }
+
+        if (MatchCount < 1)
+        {
+            return ValidationResult.Error("--match-count must be at least 1");
+        }
+
+        if (Repetitions < 1)
+        {
+            return ValidationResult.Error("--repetitions must be at least 1");
+        }
+
+        if (!string.IsNullOrWhiteSpace(StartsAfter))
+        {
+            try
+            {
+                _ = EvaluationTimeParser.Parse(StartsAfter);
+            }
+            catch (ArgumentException ex)
+            {
+                return ValidationResult.Error(ex.Message);
+            }
+        }
+
+        if (string.IsNullOrWhiteSpace(Matchdays))
+        {
+            return ValidationResult.Success();
+        }
+
+        var segments = Matchdays.Split(',', StringSplitOptions.RemoveEmptyEntries | StringSplitOptions.TrimEntries);
+        if (segments.Length == 0)
+        {
+            return ValidationResult.Error("--matchdays must contain at least one matchday number when provided");
+        }
+
+        foreach (var segment in segments)
+        {
+            if (!int.TryParse(segment, out var matchday) || matchday is < 1 or > 34)
+            {
+                return ValidationResult.Error($"Invalid matchday '{segment}'. Expected an integer between 1 and 34.");
+            }
+        }
+
+        return ValidationResult.Success();
+    }
+}

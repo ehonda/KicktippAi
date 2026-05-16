@@ -14,6 +14,7 @@ using Orchestrator.Commands.Observability.ExportExperimentAnalysis;
 using Orchestrator.Commands.Observability.ExportExperimentItem;
 using Orchestrator.Commands.Observability.PrepareCommunityToDate;
 using Orchestrator.Commands.Observability.PrepareRepeatedMatch;
+using Orchestrator.Commands.Observability.PrepareRepeatedMatchSlice;
 using Orchestrator.Commands.Observability.PrepareSlice;
 using Orchestrator.Commands.Observability.ReconstructPrompt;
 using Orchestrator.Commands.Observability.SyncDataset;
@@ -186,6 +187,11 @@ public class Program
                 .WithExample("prepare-repeated-match", "--community-context", "pes-squad", "--home", "VfB Stuttgart", "--away", "RB Leipzig", "--matchday", "26", "--sample-size", "16")
                 .WithExample("prepare-repeated-match", "--community-context", "pes-squad", "--home", "VfB Stuttgart", "--away", "RB Leipzig", "--matchday", "26", "--sample-size", "8", "--slice-key", "repeat-8");
 
+            config.AddCommand<PrepareRepeatedMatchSliceCommand>("prepare-repeated-match-slice")
+                .WithDescription("Create a repeated-match slice dataset and manifest from random historical fixtures")
+                .WithExample("prepare-repeated-match-slice", "--community-context", "pes-squad", "--match-count", "15", "--repetitions", "10", "--sample-seed", "20260517")
+                .WithExample("prepare-repeated-match-slice", "--community-context", "pes-squad", "--matchdays", "1,2,3", "--match-count", "5", "--repetitions", "4", "--starts-after", "\"2025-12-01T00:00:00 Europe/Berlin (+01)\"");
+
             config.AddCommand<PrepareCommunityToDateCommand>("prepare-community-to-date")
                 .WithDescription("Create a Kicktipp community-to-date dataset and manifest from finished tippuebersicht predictions")
                 .WithExample("prepare-community-to-date", "--community-context", "ehonda-ai-arena", "--cutoff-matchday", "10")
@@ -203,6 +209,10 @@ public class Program
             config.AddCommand<RunRepeatedMatchCommand>("run-repeated-match")
                 .WithDescription("Run a prepared repeated-match dataset with warmup-plus-batches execution")
                 .WithExample("run-repeated-match", "o3", "--manifest", "artifacts/langfuse-experiments/repeated-match/pes-squad/md26-vfb-stuttgart-vs-rb-leipzig/repeat-16/slice-manifest.json", "--run-name", "repeated-match__pes-squad__o3__prompt-v1__repeat-16__exact-time__2026-03-15t12-00-00z", "--prompt-key", "prompt-v1", "--evaluation-time", "\"2026-03-15T12:00:00 Europe/Berlin (+01)\"", "--batch-count", "3", "--replace-run");
+
+            config.AddCommand<RunRepeatedMatchSliceCommand>("run-repeated-match-slice")
+                .WithDescription("Run a prepared repeated-match slice dataset with per-fixture warmup-plus-batches execution")
+                .WithExample("run-repeated-match-slice", "gpt-5.4-nano", "--manifest", "artifacts/langfuse-experiments/repeated-match-slices/pes-squad/all-matchdays/random-15x10-seed-20260517/slice-manifest.json", "--run-name", "repeated-match-slice__pes-squad__gpt-5.4-nano__prompt-v1__random-15x10-seed-20260517__startsat-12h__2026-05-17t12-00-00z", "--prompt-key", "prompt-v1", "--evaluation-policy-kind", "relative", "--evaluation-policy-offset", "-12:00:00", "--batch-count", "3", "--parallelism", "5", "--replace-run");
 
             config.AddCommand<RunCommunityToDateCommand>("run-community-to-date")
                 .WithDescription("Run a prepared community-to-date dataset as one Langfuse dataset run per participant")

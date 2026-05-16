@@ -109,7 +109,6 @@ internal sealed class PreparedExperimentRunExecutor
                 ["openaiReasoningEffort"] = runMetadata.ReasoningEffort
             });
         var batches = BuildBatches(manifest.Items, runMetadata, expectedTaskType);
-        var scoreEntries = new List<ExperimentItemScores>();
         var executionSummaries = new List<PreparedExperimentExecutionSummary>();
         string? datasetRunId = null;
         var completedExecutionCount = 0;
@@ -146,7 +145,6 @@ internal sealed class PreparedExperimentRunExecutor
             foreach (var batchResult in batchResults)
             {
                 datasetRunId ??= batchResult.DatasetRunId;
-                scoreEntries.Add(batchResult.Summary.Scores);
                 executionSummaries.Add(batchResult.Summary);
             }
 
@@ -160,7 +158,7 @@ internal sealed class PreparedExperimentRunExecutor
             throw new InvalidOperationException($"Dataset run '{request.RunName}' did not return a datasetRunId.");
         }
 
-        var aggregateScores = await PostRunScoresAsync(datasetRunId, runMetadata, scoreEntries, cancellationToken);
+        var aggregateScores = await PostRunScoresAsync(datasetRunId, runMetadata, executionSummaries, cancellationToken);
         var datasetRun = await _langfuseClient.GetDatasetRunAsync(datasetName, request.RunName, cancellationToken)
             ?? throw new InvalidOperationException(
                 $"Dataset run '{request.RunName}' could not be retrieved from dataset '{datasetName}'.");
@@ -181,6 +179,7 @@ internal sealed class PreparedExperimentRunExecutor
             runMetadata.BatchStrategy ?? expectedTaskType,
             runMetadata.BatchSize,
             runMetadata.BatchCount,
+            runMetadata.Parallelism,
             executionSummaries.Count,
             1,
             aggregateScores,
@@ -303,7 +302,7 @@ internal sealed class PreparedExperimentRunExecutor
                 throw new InvalidOperationException($"Dataset run '{runName}' did not return a datasetRunId.");
             }
 
-            var aggregateScores = await PostRunScoresAsync(datasetRunId, runMetadata, participantScoreEntries, cancellationToken);
+            var aggregateScores = await PostRunScoresAsync(datasetRunId, runMetadata, participantExecutionSummaries, cancellationToken);
             var datasetRun = await _langfuseClient.GetDatasetRunAsync(datasetName, runName, cancellationToken)
                 ?? throw new InvalidOperationException(
                     $"Dataset run '{runName}' could not be retrieved from dataset '{datasetName}'.");
@@ -337,6 +336,7 @@ internal sealed class PreparedExperimentRunExecutor
             "simple-batched",
             batchSize,
             null,
+            null,
             executionSummaries.Count,
             datasetRunSummaries.Count,
             overallAggregateScores,
@@ -350,9 +350,64 @@ internal sealed class PreparedExperimentRunExecutor
         PreparedExperimentRunMetadata runMetadata,
         string expectedTaskType)
     {
-        return string.Equals(expectedTaskType, "repeated-match", StringComparison.OrdinalIgnoreCase)
+        if (string.Equals(expectedTaskType, "repeated-match-slice", StringComparison.OrdinalIgnoreCase))
+        {
+            return CreateRepeatedMatchSliceBatches(
+                items,
+                runMetadata.BatchCount ?? 3,
+                runMetadata.Parallelism ?? 5);
+        }
+
+        return IsWarmupBatchTask(expectedTaskType)
             ? PreparedExperimentSupport.CreateWarmupThenBatchChunks(items, runMetadata.BatchCount ?? 3)
             : PreparedExperimentSupport.CreateBatchChunks(items, runMetadata.BatchSize ?? 10);
+    }
+
+    internal static IReadOnlyList<IReadOnlyList<PreparedExperimentManifestItem>> CreateRepeatedMatchSliceBatches(
+        IReadOnlyList<PreparedExperimentManifestItem> items,
+        int batchCount,
+        int parallelism)
+    {
+        if (parallelism < 1)
+        {
+            throw new ArgumentOutOfRangeException(nameof(parallelism), parallelism, "Parallelism must be at least 1.");
+        }
+
+        var fixtureWorkflows = items
+            .GroupBy(item => item.SourceDatasetItemId, StringComparer.Ordinal)
+            .OrderBy(group => group.Min(item => item.FixtureIndex ?? int.MaxValue))
+            .ThenBy(group => group.Key, StringComparer.Ordinal)
+            .Select(group =>
+                PreparedExperimentSupport.CreateWarmupThenBatchChunks(
+                    group
+                        .OrderBy(item => item.RepetitionIndex ?? int.MaxValue)
+                        .ThenBy(item => item.SliceDatasetItemId, StringComparer.Ordinal)
+                        .ToList(),
+                    batchCount))
+            .ToList();
+
+        var batches = new List<IReadOnlyList<PreparedExperimentManifestItem>>();
+        for (var workflowStart = 0; workflowStart < fixtureWorkflows.Count; workflowStart += parallelism)
+        {
+            var workflowGroup = fixtureWorkflows
+                .Skip(workflowStart)
+                .Take(parallelism)
+                .ToList();
+            var maxWorkflowBatchCount = workflowGroup.Max(workflow => workflow.Count);
+            for (var workflowBatchIndex = 0; workflowBatchIndex < maxWorkflowBatchCount; workflowBatchIndex += 1)
+            {
+                var batch = workflowGroup
+                    .Where(workflow => workflowBatchIndex < workflow.Count)
+                    .SelectMany(workflow => workflow[workflowBatchIndex])
+                    .ToList();
+                if (batch.Count > 0)
+                {
+                    batches.Add(batch);
+                }
+            }
+        }
+
+        return batches;
     }
 
     private async Task<ExperimentPromptRoute> ResolvePromptRouteAsync(
@@ -409,7 +464,7 @@ internal sealed class PreparedExperimentRunExecutor
         PreparedExperimentRunMetadata runMetadata,
         string expectedTaskType)
     {
-        if (string.Equals(expectedTaskType, "repeated-match", StringComparison.OrdinalIgnoreCase))
+        if (IsWarmupBatchTask(expectedTaskType))
         {
             return runMetadata with
             {
@@ -417,7 +472,10 @@ internal sealed class PreparedExperimentRunExecutor
                     ? "warmup-plus-batches"
                     : runMetadata.BatchStrategy,
                 BatchCount = runMetadata.BatchCount ?? 3,
-                BatchSize = null
+                BatchSize = null,
+                Parallelism = string.Equals(expectedTaskType, "repeated-match-slice", StringComparison.OrdinalIgnoreCase)
+                    ? runMetadata.Parallelism ?? 5
+                    : runMetadata.Parallelism
             };
         }
 
@@ -427,7 +485,8 @@ internal sealed class PreparedExperimentRunExecutor
                 ? "simple-batched"
                 : runMetadata.BatchStrategy,
             BatchSize = runMetadata.BatchSize ?? 10,
-            BatchCount = null
+            BatchCount = null,
+            Parallelism = null
         };
     }
 
@@ -575,7 +634,11 @@ internal sealed class PreparedExperimentRunExecutor
                 traceId,
                 prediction,
                 itemScores,
-                traceTags));
+                traceTags,
+                null,
+                "placed",
+                item.FixtureIndex,
+                item.RepetitionIndex));
     }
 
     private async Task<PreparedExperimentExecutionResult> ExecuteCommunityItemAsync(
@@ -669,16 +732,20 @@ internal sealed class PreparedExperimentRunExecutor
                 itemScores,
                 traceTags,
                 null,
-                participantPrediction.Status));
+                participantPrediction.Status,
+                item.FixtureIndex,
+                item.RepetitionIndex));
     }
 
     private async Task<ExperimentAggregateScores> PostRunScoresAsync(
         string datasetRunId,
         PreparedExperimentRunMetadata runMetadata,
-        IReadOnlyList<ExperimentItemScores> scoreEntries,
+        IReadOnlyList<PreparedExperimentExecutionSummary> executionSummaries,
         CancellationToken cancellationToken)
     {
-        var aggregateScores = PreparedExperimentSupport.SummarizeScores(scoreEntries);
+        var aggregateScores = PreparedExperimentSupport.SummarizeExecutionScores(
+            executionSummaries,
+            runMetadata.TaskType);
         var runMetadataPayload = JsonSerializer.SerializeToElement(runMetadata, PreparedExperimentCommandSupport.JsonOptions);
 
         await _langfuseClient.CreateScoreAsync(
@@ -735,7 +802,9 @@ internal sealed class PreparedExperimentRunExecutor
             item.HomeTeam,
             item.AwayTeam,
             item.Matchday,
-            item.TippSpielId
+            item.TippSpielId,
+            item.FixtureIndex,
+            item.RepetitionIndex
         }, PreparedExperimentCommandSupport.JsonOptions);
 
         await _langfuseClient.CreateScoreAsync(
@@ -973,7 +1042,9 @@ internal sealed class PreparedExperimentRunExecutor
             item.HomeTeam,
             item.AwayTeam,
             item.Matchday,
-            item.TippSpielId
+            item.TippSpielId,
+            item.FixtureIndex,
+            item.RepetitionIndex
         }, TraceJsonOptions);
     }
 
@@ -1158,8 +1229,19 @@ internal sealed class PreparedExperimentRunExecutor
         return string.Join("|", matchday, homeTeam.Trim(), awayTeam.Trim());
     }
 
+    private static bool IsWarmupBatchTask(string taskType)
+    {
+        return string.Equals(taskType, "repeated-match", StringComparison.OrdinalIgnoreCase)
+            || string.Equals(taskType, "repeated-match-slice", StringComparison.OrdinalIgnoreCase);
+    }
+
     private static string DescribeBatching(PreparedExperimentRunMetadata runMetadata, int batchTotal)
     {
+        if (string.Equals(runMetadata.TaskType, "repeated-match-slice", StringComparison.OrdinalIgnoreCase))
+        {
+            return $"parallelism {runMetadata.Parallelism ?? 5}, warmup plus {Math.Max(0, runMetadata.BatchCount ?? 3)} additional batch(es) per fixture";
+        }
+
         return string.Equals(runMetadata.TaskType, "repeated-match", StringComparison.OrdinalIgnoreCase)
             ? $"warmup plus {Math.Max(0, batchTotal - 1)} additional batch(es)"
             : $"batch size {runMetadata.BatchSize}";

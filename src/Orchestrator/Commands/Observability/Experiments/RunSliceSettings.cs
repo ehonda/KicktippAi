@@ -202,7 +202,8 @@ public abstract class RunExperimentSettingsBase : CommandSettings
     private protected PreparedExperimentRunOptions CreateRunOptions(
         string batchStrategy,
         int? batchSize = null,
-        int? batchCount = null)
+        int? batchCount = null,
+        int? parallelism = null)
     {
         var normalizedPromptSource = PromptSource.Trim().ToLowerInvariant();
         var langfusePromptName = normalizedPromptSource == "langfuse" ? LangfusePromptName : null;
@@ -225,7 +226,8 @@ public abstract class RunExperimentSettingsBase : CommandSettings
             batchSize,
             batchCount,
             ReasoningEffort,
-            MaxOutputTokenCount);
+            MaxOutputTokenCount,
+            parallelism);
     }
 }
 

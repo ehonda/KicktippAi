@@ -95,6 +95,39 @@ internal static class PreparedExperimentSupport
         return new ExperimentAggregateScores(total, average);
     }
 
+    public static ExperimentAggregateScores SummarizeExecutionScores(
+        IReadOnlyList<PreparedExperimentExecutionSummary> executionSummaries,
+        string? taskType)
+    {
+        var total = executionSummaries.Sum(summary => summary.Scores.KicktippPoints);
+        if (!string.Equals(taskType, "repeated-match-slice", StringComparison.OrdinalIgnoreCase))
+        {
+            var average = executionSummaries.Count == 0 ? 0d : (double)total / executionSummaries.Count;
+            return new ExperimentAggregateScores(total, average);
+        }
+
+        var indexedSummaries = executionSummaries
+            .Select(summary => new
+            {
+                Summary = summary,
+                RepetitionIndex = summary.RepetitionIndex ?? TryParseRepeatedMatchSliceRepetition(summary.DatasetItemId)
+            })
+            .ToList();
+
+        if (indexedSummaries.Count == 0 || indexedSummaries.Any(summary => summary.RepetitionIndex is null))
+        {
+            throw new InvalidOperationException(
+                "Repeated-match-slice scoring requires a repetition index on each execution summary.");
+        }
+
+        var repetitionTotals = indexedSummaries
+            .GroupBy(summary => summary.RepetitionIndex!.Value)
+            .Select(group => group.Sum(summary => summary.Summary.Scores.KicktippPoints))
+            .ToList();
+
+        return new ExperimentAggregateScores(total, repetitionTotals.Average());
+    }
+
     public static string DeriveExperimentName(PreparedExperimentRunMetadata runMetadata, string runName)
     {
         var parts = new[]
@@ -210,6 +243,8 @@ internal static class PreparedExperimentSupport
                 : manifest.SelectedItemIdsHash,
             SelectedItemIdsCount = manifest.SelectedItemIds.Count > 0 ? manifest.SelectedItemIds.Count : manifest.Items.Count,
             SampleSize = manifest.SampleSize > 0 ? manifest.SampleSize : manifest.Items.Count,
+            MatchCount = manifest.MatchCount,
+            Repetitions = manifest.Repetitions,
             EvaluationTimestampPolicyKey = evaluationTimestampPolicyKey,
             EvaluationTimestampPolicy = evaluationTimestampPolicy is null
                 ? null
@@ -234,7 +269,8 @@ internal static class PreparedExperimentSupport
             RunSubjectDisplayName = runSubjectDisplayName,
             BatchStrategy = options.BatchStrategy,
             BatchSize = options.BatchSize,
-            BatchCount = options.BatchCount
+            BatchCount = options.BatchCount,
+            Parallelism = options.Parallelism
         };
     }
 
@@ -282,6 +318,16 @@ internal static class PreparedExperimentSupport
         if (!string.IsNullOrWhiteSpace(runMetadata.SliceKind))
         {
             tags.Add($"slice-kind:{runMetadata.SliceKind}");
+        }
+
+        if (runMetadata.MatchCount is int matchCount)
+        {
+            tags.Add($"match-count:{matchCount.ToString(CultureInfo.InvariantCulture)}");
+        }
+
+        if (runMetadata.Repetitions is int repetitions)
+        {
+            tags.Add($"repetitions:{repetitions.ToString(CultureInfo.InvariantCulture)}");
         }
 
         if (!string.IsNullOrWhiteSpace(runMetadata.PromptKey))
@@ -337,6 +383,9 @@ internal static class PreparedExperimentSupport
         AddIfValid(metadata, "reasoningEffort", runMetadata.ReasoningEffort);
         AddIfValid(metadata, "maxOutputTokens", runMetadata.MaxOutputTokenCount?.ToString(CultureInfo.InvariantCulture));
         AddIfValid(metadata, "sampleMethod", runMetadata.SampleMethod);
+        AddIfValid(metadata, "matchCount", runMetadata.MatchCount?.ToString(CultureInfo.InvariantCulture));
+        AddIfValid(metadata, "repetitions", runMetadata.Repetitions?.ToString(CultureInfo.InvariantCulture));
+        AddIfValid(metadata, "parallelism", runMetadata.Parallelism?.ToString(CultureInfo.InvariantCulture));
         AddIfValid(metadata, "selectedItemIdsHash", runMetadata.SelectedItemIdsHash);
         AddIfValid(metadata, "sliceKind", runMetadata.SliceKind);
         AddIfValid(metadata, "sliceKey", runMetadata.SliceKey);
@@ -370,6 +419,12 @@ internal static class PreparedExperimentSupport
             || string.Equals(sampleMethod, "community-to-date", StringComparison.OrdinalIgnoreCase))
         {
             return "community-to-date";
+        }
+
+        if (string.Equals(sliceKind, "repeated-match-slice", StringComparison.OrdinalIgnoreCase)
+            || string.Equals(sampleMethod, "repeated-match-slice", StringComparison.OrdinalIgnoreCase))
+        {
+            return "repeated-match-slice";
         }
 
         if (string.Equals(sliceKind, "single-match", StringComparison.OrdinalIgnoreCase)
@@ -430,5 +485,28 @@ internal static class PreparedExperimentSupport
         return string.IsNullOrWhiteSpace(manifest.SliceKind)
             ? "random-sample"
             : manifest.SliceKind;
+    }
+
+    private static int? TryParseRepeatedMatchSliceRepetition(string datasetItemId)
+    {
+        var markerIndex = datasetItemId.IndexOf("__repeated-match-slice__", StringComparison.Ordinal);
+        if (markerIndex < 0)
+        {
+            return null;
+        }
+
+        var lastSeparatorIndex = datasetItemId.LastIndexOf("__", StringComparison.Ordinal);
+        if (lastSeparatorIndex < 0 || lastSeparatorIndex + 2 >= datasetItemId.Length)
+        {
+            return null;
+        }
+
+        return int.TryParse(
+            datasetItemId[(lastSeparatorIndex + 2)..],
+            NumberStyles.Integer,
+            CultureInfo.InvariantCulture,
+            out var repetitionIndex)
+            ? repetitionIndex
+            : null;
     }
 }

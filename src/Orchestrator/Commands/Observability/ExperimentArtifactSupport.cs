@@ -151,6 +151,44 @@ internal static class ExperimentArtifactSupport
         return $"{sourceItemId}__repeated-match__{sliceKey}__{repetitionToken}";
     }
 
+    public static string BuildRepeatedMatchSliceDatasetItemId(
+        string sourceItemId,
+        string sliceKey,
+        int fixtureIndex,
+        int totalFixtures,
+        int repetitionIndex,
+        int totalRepetitions)
+    {
+        ArgumentException.ThrowIfNullOrWhiteSpace(sourceItemId);
+        ArgumentException.ThrowIfNullOrWhiteSpace(sliceKey);
+
+        if (fixtureIndex < 1)
+        {
+            throw new ArgumentOutOfRangeException(nameof(fixtureIndex), fixtureIndex, "Fixture index must be at least 1.");
+        }
+
+        if (totalFixtures < 1)
+        {
+            throw new ArgumentOutOfRangeException(nameof(totalFixtures), totalFixtures, "Total fixtures must be at least 1.");
+        }
+
+        if (repetitionIndex < 1)
+        {
+            throw new ArgumentOutOfRangeException(nameof(repetitionIndex), repetitionIndex, "Repetition index must be at least 1.");
+        }
+
+        if (totalRepetitions < 1)
+        {
+            throw new ArgumentOutOfRangeException(nameof(totalRepetitions), totalRepetitions, "Total repetitions must be at least 1.");
+        }
+
+        var fixturePaddingWidth = Math.Max(2, totalFixtures.ToString(CultureInfo.InvariantCulture).Length);
+        var repetitionPaddingWidth = Math.Max(2, totalRepetitions.ToString(CultureInfo.InvariantCulture).Length);
+        var fixtureToken = fixtureIndex.ToString($"D{fixturePaddingWidth}", CultureInfo.InvariantCulture);
+        var repetitionToken = repetitionIndex.ToString($"D{repetitionPaddingWidth}", CultureInfo.InvariantCulture);
+        return $"{sourceItemId}__repeated-match-slice__{sliceKey}__m{fixtureToken}__{repetitionToken}";
+    }
+
     public static string BuildRepeatedMatchSourcePoolKey(int matchday, string homeTeam, string awayTeam)
     {
         return $"md{matchday:00}-{Slugify(homeTeam)}-vs-{Slugify(awayTeam)}";

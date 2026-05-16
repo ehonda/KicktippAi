@@ -15,7 +15,7 @@ The source dataset is still represented in manifests and run metadata as `source
 
 ## Dataset Types
 
-Two prepared dataset types are supported.
+Three prepared dataset types are supported.
 
 ### `slice`
 
@@ -42,6 +42,20 @@ Properties:
 - batching uses a warmup plus batches strategy controlled by `batchCount`
 - the prepared dataset can carry a short `datasetDescription` plus metadata such as fixture, matchday, actual result, repetition count, and why the fixture is interesting
 
+### `repeated-match-slice`
+
+A `repeated-match-slice` dataset samples several historical fixtures and repeats each selected fixture.
+
+Use it when you want repeated predictions across more than one match while still getting cache-friendly repeated-match execution.
+
+Properties:
+
+- `matchCount` distinct source fixtures are selected from the same historical pool as ordinary slices
+- each source fixture is repeated `repetitions` times, producing `matchCount * repetitions` prepared items
+- each item records `fixtureIndex` and `repetitionIndex`
+- batching runs each fixture as a repeated-match workflow: first repetition warmup, remaining repetitions split by `batchCount`
+- `parallelism` limits how many fixture workflows run concurrently and defaults to `5`
+
 ## Identity Model
 
 Each prepared dataset keeps both source-level and prepared-level identifiers.
@@ -53,6 +67,8 @@ For `slice`, a source match usually appears once in a prepared dataset.
 
 For `repeated-match`, the same `sourceDatasetItemId` appears multiple times with different `sliceDatasetItemId` values.
 
+For `repeated-match-slice`, several `sourceDatasetItemId` values appear, and each source id appears once per `repetitionIndex`.
+
 The manifest also stores:
 
 - `selectedItemIds`: deduplicated list of source item ids selected into the prepared dataset
@@ -60,7 +76,7 @@ The manifest also stores:
 
 ## Prepared Artifacts
 
-Both preparation commands emit the same two artifact files:
+Preparation commands emit the same two artifact files:
 
 - `slice-dataset.json`: hosted dataset artifact that can be uploaded to Langfuse
 - `slice-manifest.json`: execution manifest consumed by the run commands
@@ -78,6 +94,8 @@ The manifest carries the structural experiment contract:
 - `season`
 - `sampleSeed`
 - `sampleSize`
+- `matchCount` for repeated-match-slice datasets
+- `repetitions` for repeated-match and repeated-match-slice datasets
 - `startsAfter` when a slice was prepared with a start-time cutoff
 - `selectedItemIds`
 - `selectedItemIdsHash`
@@ -91,6 +109,8 @@ Each manifest item carries:
 - `awayTeam`
 - `matchday`
 - `startsAt`
+- `fixtureIndex` for repeated-match-slice datasets
+- `repetitionIndex` for repeated-match-slice datasets
 
 ## Task Types
 
@@ -98,6 +118,7 @@ Prepared dataset type and task type intentionally align.
 
 - `slice` dataset -> `slice` task
 - `repeated-match` dataset -> `repeated-match` task
+- `repeated-match-slice` dataset -> `repeated-match-slice` task
 
 That task type is propagated into run metadata and trace tags so downstream inspection and future analysis tooling can treat scoring as a cross-task concern.
 
@@ -120,6 +141,8 @@ Important fields include:
 - `selectedItemIdsHash`
 - `selectedItemIdsCount`
 - `sampleSize`
+- `matchCount`
+- `repetitions`
 - `evaluationTimestampPolicyKey`
 - `evaluationTimestampPolicy`
 - `evaluationTime`
@@ -135,11 +158,14 @@ Important fields include:
 - `batchStrategy`
 - `batchSize`
 - `batchCount`
+- `parallelism`
 - `openaiServiceTierStrategy`
 
 `slice` runs use `batchStrategy = simple-batched`.
 
 `repeated-match` runs use `batchStrategy = warmup-plus-batches`.
+
+`repeated-match-slice` runs also use `batchStrategy = warmup-plus-batches`, plus `parallelism` to limit concurrent fixture workflows. The default is `5`.
 
 Prepared model runs use OpenAI flex processing first and fall back to standard processing for flex capacity-style failures. The run metadata records this as `openaiServiceTierStrategy = flex-first-standard-fallback`, and prediction telemetry records the requested/final service tier when available. Reasoning effort is opt-in for experiment runs; when omitted, Responses reasoning options are not sent to OpenAI.
 
@@ -154,6 +180,10 @@ The currently posted score set is:
 - run-level `avg_kicktipp_points`
 
 These scores are created by the application and posted to Langfuse through the public API.
+
+For `slice` and `community-to-date`, `avg_kicktipp_points` is the ordinary per-item average. For `repeated-match`, it is the average across repetitions of one fixture. For `repeated-match-slice`, it is the average over repetition totals:
+
+`mean_i(score(match_1_i) + score(match_2_i) + ... + score(match_m_i))`
 
 That means evaluators are currently an application concern, while Langfuse is the system of record for the resulting score values.
 
@@ -176,7 +206,7 @@ For direct .NET runs, the runner therefore emits:
 - dataset run metadata `experiment_run_name`
 - item-level `kicktipp_points` scores linked to the item trace or prediction observation
 
-`experiment_name` is the stable grouping identity for the experiment. For prepared slice and repeated-match runs, it is derived from task type, community, and slice key. For community-to-date runs, it is the run family name.
+`experiment_name` is the stable grouping identity for the experiment. For prepared slice, repeated-match, and repeated-match-slice runs, it is derived from task type, community, and slice key. For community-to-date runs, it is the run family name.
 
 `experiment_run_name` is the concrete Langfuse dataset run name. Analysis-bundle publishing uses an alias run name with the default suffix `__experiments-beta` so existing dataset runs are not modified.
 
@@ -188,4 +218,5 @@ This structure gives us three useful properties:
 
 - fixed-slice comparisons stay easy because the selected source item set is explicit and stable
 - repeated-match variance checks reuse the same scoring and trace model as slice runs
-- future analysis tooling can operate on a shared contract without caring whether the run came from `slice` or `repeated-match`
+- repeated-match-slice runs reduce experiment cost while comparing across multiple fixtures
+- future analysis tooling can operate on a shared contract without caring whether the run came from `slice`, `repeated-match`, or `repeated-match-slice`

@@ -1,6 +1,6 @@
 {
   "schemaVersion": 1,
-  "updatedAt": "2026-05-10",
+  "updatedAt": "2026-05-16",
   "baseEstimates": [
     {
       "model": "o3",
@@ -197,6 +197,43 @@
       "averageCostPerMatchPredictionUsd": "0.053449750000",
       "observedLangfuseCostTotalUsd": "0.970499000000",
       "source": "Base estimate run family 2026-05-10t23-02-30z; whole-season gpt-5.5 high estimate."
+    },
+    {
+      "model": "gpt-5.4-nano",
+      "reasoningEffort": "none",
+      "promptRoute": "Langfuse langfuse-o3-poc (kicktippai/predict-one-match-o3-poc, label poc)",
+      "modelKnowledgeCutoffDate": "2025-11-29",
+      "samplingCutoffUsed": "2025-12-01T00:00:00 Europe/Berlin (+01)",
+      "maxOutputTokens": 10000,
+      "baseSampleObservations": 20,
+      "serviceTier": "flex",
+      "observedServiceTierCounts": {
+        "flex": 20
+      },
+      "observedFlexRequestCount": 20,
+      "nonFlexRequestCount": 0,
+      "nonFlexRequestRate": "0.0000",
+      "nonFlexRequestPercent": "0.00%",
+      "nonFlexRetryCount": 0,
+      "nonFlexRetryRate": "0.0000",
+      "nonFlexRetryPercent": "0.00%",
+      "serviceTierFallbackUsedCount": 0,
+      "serviceTierFallbackUsedRate": "0.0000",
+      "serviceTierFallbackUsedPercent": "0.00%",
+      "standardInputPricePerMillionUsd": "0.2",
+      "standardOutputPricePerMillionUsd": "1.25",
+      "effectiveInputPricePerMillionUsd": "0.1",
+      "effectiveOutputPricePerMillionUsd": "0.625",
+      "totalInputTokens": 69636,
+      "totalCachedInputTokensObserved": 42240,
+      "totalOutputTokens": 340,
+      "totalReasoningTokens": 0,
+      "estimatedUncachedInputCostUsd": "0.006963600000",
+      "estimatedOutputCostUsd": "0.000212500000",
+      "estimatedTotalCostUsd": "0.007176100000",
+      "averageCostPerMatchPredictionUsd": "0.000358805000",
+      "observedLangfuseCostTotalUsd": "0.003374500000",
+      "source": "Repeated-match-slice base estimate run 2026-05-17; gpt-5.4-nano none."
     }
   ]
 }

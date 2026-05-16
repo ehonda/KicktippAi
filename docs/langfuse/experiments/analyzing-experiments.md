@@ -24,7 +24,7 @@ Today, experiment analysis is a manual or semi-manual process.
 
 Typical workflow:
 
-1. Run multiple models or prompt variants on the same fixed slice or repeated-match dataset.
+1. Run multiple models or prompt variants on the same fixed slice, repeated-match, or repeated-match-slice dataset.
 2. Inspect dataset runs, traces, and score distributions in the Langfuse UI.
 3. Export a normalized bundle with `export-experiment-analysis`.
 4. Generate JSON, Markdown, and HTML reports from that bundle with `uv run experiment-analysis-report`.
@@ -47,6 +47,7 @@ Important repository-specific notes:
 - run-level metrics are retrieved reliably through Langfuse `v2/scores`
 - trace-level score retrieval and metadata filtering have some quirks documented in `docs/langfuse.md`
 - the export command now batches dataset items through `GET /api/public/dataset-items`, batches trace outputs and observations per run via `sessionId = runName`, and batches item-level `kicktipp_points` scores via a `metadata.datasetRunId` filter instead of calling `GET /api/public/traces/{traceId}` once per trace
+- repeated-match-slice exports keep raw item rows, but the Python report compares repetition-total rows so `avg_kicktipp_points` is the primary metric
 - the Langfuse Python SDK mirrors the public API and does not by itself remove the same rate-limit bucket; with the current batched exporter, switching retrieval into Python is not necessary today
 - for much larger exports than our current comparable experiment sizes, blob-storage export is still the likely next step
 
@@ -87,6 +88,8 @@ For fixed-slice comparisons, the planned default methods are:
 - effect sizes alongside significance results
 - Friedman test plus corrected pairwise comparisons for more than two comparable runs
 
+For `repeated-match-slice`, the paired unit is one repetition index across all selected fixtures. Each row compared by the statistical tests is the total Kicktipp points for repetition `i`, summed over every selected match.
+
 The analysis plan explicitly does not treat a plain paired t-test as the default because Kicktipp points are discrete and bounded.
 
 ## Likely Implementation Shape
@@ -115,6 +118,8 @@ Two-run bundles are reported with:
 - paired Wilcoxon signed-rank results
 - effect-size confidence intervals for mean and median paired Kicktipp-point differences
 - per-item win/tie/loss counts
+
+For `repeated-match-slice`, these two-run counts are repetition-total win/tie/loss counts rather than individual fixture-item counts.
 
 Three-or-more-run bundles are reported with:
 

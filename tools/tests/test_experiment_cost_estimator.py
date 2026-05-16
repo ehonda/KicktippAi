@@ -77,6 +77,24 @@ class ExperimentCostEstimatorTests(unittest.TestCase):
         self.assertEqual(report["estimatedTotalCostUsd"], "0.012000000000")
         self.assertEqual(report["averageCostPerMatchPredictionUsd"], "0.006000000000")
 
+    def test_repeated_match_slice_groups_are_recognized_without_confusing_repeated_match(self) -> None:
+        estimator = load_estimator_module()
+
+        self.assertEqual(
+            estimator.dataset_type_for_group("repeated-match-slice-measured"),
+            "repeated-match-slice",
+        )
+        self.assertEqual(
+            estimator.dataset_type_for_group("repeated-slice-measured"),
+            "repeated-match-slice",
+        )
+        self.assertEqual(
+            estimator.parse_repetition(
+                "bundesliga-2025-26__test-community__ts123__repeated-match-slice__random-2x3-seed-42__m01__03"
+            ),
+            3,
+        )
+
 
 if __name__ == "__main__":
     unittest.main()
