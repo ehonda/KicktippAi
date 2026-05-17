@@ -256,6 +256,7 @@ class ExperimentAnalysisReportTests(unittest.TestCase):
                     "pairingKey": f"{run_name}-fixture-{fixture_index}-rep-{repetition_index}",
                     "runName": run_name,
                     "kicktippPoints": points,
+                    "sourceDatasetItemId": f"bundesliga-2025-26__test-community__fixture-{fixture_index}",
                     "fixtureIndex": fixture_index,
                     "repetitionIndex": repetition_index,
                     "homeTeam": f"Home {fixture_index}",
@@ -284,14 +285,129 @@ class ExperimentAnalysisReportTests(unittest.TestCase):
             random_seed=20260406,
         )
         report_markdown = report.render_markdown(report_json)
+        report_html = report.render_html(report_json)
 
         self.assertEqual(report_json["primaryMetricName"], "avg_kicktipp_points")
         self.assertEqual(report_json["pairingCount"], 2)
         self.assertEqual(report_json["comparison"]["betterRunName"], run_a)
         self.assertEqual(report_json["comparison"]["perItemOutcomeCounts"], {"wins": 1, "ties": 1, "losses": 0})
+        self.assertEqual(len(report_json["matchBreakdown"]), 2)
+        self.assertEqual(report_json["matchBreakdown"][0]["fixture"], "Home 1 vs Away 1")
+        self.assertEqual(report_json["matchBreakdown"][0]["actualResultDisplay"], "Home 1 1 - 0 Away 1")
+        self.assertEqual(report_json["matchBreakdown"][0]["runs"][0]["predictionCount"], 2)
+        self.assertEqual(report_json["matchBreakdown"][0]["runs"][0]["averageKicktippPoints"], 3.0)
+        self.assertEqual(report_json["matchBreakdown"][0]["runs"][0]["scoreCounts"][0]["score"], "1:0")
+        self.assertEqual(report_json["matchBreakdown"][0]["runs"][0]["scoreCounts"][0]["count"], 2)
         self.assertIn("| Matches | 2 |", report_markdown)
         self.assertIn("| Repetitions | 2 |", report_markdown)
         self.assertIn("| Predictions | 4 |", report_markdown)
+        self.assertIn('<details class="panel collapsible-panel matches-panel">', report_html)
+        self.assertIn("<h2>Matches</h2>", report_html)
+        self.assertIn("2 fixtures", report_html)
+        self.assertIn("Individual matches do not run significance tests", report_html)
+        self.assertIn("Home 1 1 - 0 Away 1", report_html)
+        self.assertIn("Source item: bundesliga-2025-26__test-community__fixture-1", report_html)
+        self.assertIn("Model A", report_html)
+
+    def test_repeated_match_slice_match_breakdown_supports_multi_run_html(self) -> None:
+        run_a = "repeated-match-slice__test-community__a"
+        run_b = "repeated-match-slice__test-community__b"
+        run_c = "repeated-match-slice__test-community__c"
+        run_names = [run_a, run_b, run_c]
+        display_names = {
+            run_a: "Model A",
+            run_b: "Model B",
+            run_c: "Model C",
+        }
+        score_by_run_fixture_repetition = {
+            run_a: {
+                (1, 1): (4, (1, 0)),
+                (1, 2): (2, (2, 1)),
+                (1, 3): (4, (1, 0)),
+                (2, 1): (0, (0, 1)),
+                (2, 2): (2, (1, 1)),
+                (2, 3): (2, (1, 2)),
+            },
+            run_b: {
+                (1, 1): (2, (1, 1)),
+                (1, 2): (2, (1, 1)),
+                (1, 3): (2, (1, 1)),
+                (2, 1): (1, (0, 2)),
+                (2, 2): (1, (0, 2)),
+                (2, 3): (1, (0, 2)),
+            },
+            run_c: {
+                (1, 1): (1, (0, 0)),
+                (1, 2): (1, (0, 0)),
+                (1, 3): (1, (0, 0)),
+                (2, 1): (1, (1, 3)),
+                (2, 2): (1, (1, 3)),
+                (2, 3): (1, (1, 3)),
+            },
+        }
+        bundle = {
+            "datasetName": (
+                "match-predictions/bundesliga-2025-26/test-community/repeated-match-slices/"
+                "all-matchdays/random-2x3-seed-42"
+            ),
+            "datasetMetadata": {
+                "matchCount": 2,
+                "repetitions": 3,
+                "predictionCount": 6,
+            },
+            "taskType": "repeated-match-slice",
+            "primaryMetricName": "avg_kicktipp_points",
+            "runs": [
+                {
+                    "runName": run_name,
+                    "model": display_names[run_name].lower().replace(" ", "-"),
+                    "runSubjectDisplayName": display_names[run_name],
+                    "primaryMetricValue": 4.0 - run_index,
+                    "aggregateScores": {"total_kicktipp_points": 12.0 - run_index, "avg_kicktipp_points": 4.0 - run_index},
+                }
+                for run_index, run_name in enumerate(run_names)
+            ],
+            "rows": [
+                {
+                    "pairingKey": f"{run_name}-fixture-{fixture_index}-rep-{repetition_index}",
+                    "runName": run_name,
+                    "kicktippPoints": points,
+                    "sourceDatasetItemId": f"bundesliga-2025-26__test-community__fixture-{fixture_index}",
+                    "fixtureIndex": fixture_index,
+                    "repetitionIndex": repetition_index,
+                    "homeTeam": f"Home {fixture_index}",
+                    "awayTeam": f"Away {fixture_index}",
+                    "startsAt": "2026-03-15T15:30:00 Europe/Berlin (+01)",
+                    "matchday": fixture_index,
+                    "predictedHomeGoals": predicted_home_goals,
+                    "predictedAwayGoals": predicted_away_goals,
+                    "expectedHomeGoals": 1,
+                    "expectedAwayGoals": 0,
+                }
+                for run_name, scores in score_by_run_fixture_repetition.items()
+                for (fixture_index, repetition_index), (points, (predicted_home_goals, predicted_away_goals)) in scores.items()
+            ],
+        }
+
+        report_json = report.analyze_bundle(
+            bundle,
+            alpha=0.05,
+            correction_method="holm",
+            bootstrap_resamples=100,
+            confidence_level=0.95,
+            random_seed=20260406,
+        )
+        report_html = report.render_html(report_json)
+
+        self.assertEqual(report_json["runCount"], 3)
+        self.assertEqual(len(report_json["matchBreakdown"]), 2)
+        self.assertEqual(len(report_json["matchBreakdown"][0]["runs"]), 3)
+        self.assertEqual(report_json["matchBreakdown"][0]["runs"][2]["runDisplayName"], "Model C")
+        self.assertIn("Multi-run comparison", report_html)
+        self.assertIn('<details class="panel collapsible-panel matches-panel">', report_html)
+        self.assertIn("2 fixtures", report_html)
+        self.assertIn("Model C", report_html)
+        self.assertIn("Home 2 1 - 0 Away 2", report_html)
 
     def test_three_run_bundle_produces_friedman_and_pairwise_comparisons(self) -> None:
         fixture = Path("tools/tests/fixtures/three_run_repeated_match_bundle.json")

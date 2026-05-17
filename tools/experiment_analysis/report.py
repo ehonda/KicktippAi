@@ -291,6 +291,10 @@ def analyze_bundle(
     if prediction_distributions:
         report["predictionDistributions"] = prediction_distributions
 
+    match_breakdown = build_match_breakdown(raw_rows_df, ranking_records, report["taskType"])
+    if match_breakdown:
+        report["matchBreakdown"] = match_breakdown
+
     if len(run_names) == 2:
         report["comparison"] = analyze_two_run_comparison(
             ranking_input_records,
@@ -670,31 +674,11 @@ def build_prediction_distributions(
         if run_rows is None:
             continue
 
-        counts_by_score: dict[tuple[int, int], int] = {}
-        for row in run_rows.to_dict(orient="records"):
-            home_goals = normalize_optional_int(row.get("predictedHomeGoals"))
-            away_goals = normalize_optional_int(row.get("predictedAwayGoals"))
-            if home_goals is None or away_goals is None:
-                continue
-
-            key = (home_goals, away_goals)
-            counts_by_score[key] = counts_by_score.get(key, 0) + 1
-
-        total_count = sum(counts_by_score.values())
+        score_counts = build_score_counts(run_rows)
+        total_count = sum(int(score_count["count"]) for score_count in score_counts)
         if total_count == 0:
             continue
 
-        score_counts = [
-            {
-                "score": f"{home_goals}:{away_goals}",
-                "homeGoals": home_goals,
-                "awayGoals": away_goals,
-                "count": count,
-                "share": count / total_count,
-            }
-            for (home_goals, away_goals), count in counts_by_score.items()
-        ]
-        score_counts.sort(key=lambda item: (-int(item["count"]), int(item["homeGoals"]), int(item["awayGoals"])))
         distributions.append(
             {
                 "runName": run_name,
@@ -706,6 +690,181 @@ def build_prediction_distributions(
         )
 
     return distributions
+
+
+def build_match_breakdown(
+    rows_df: pd.DataFrame,
+    ranking_records: list[dict[str, Any]],
+    task_type: str,
+) -> list[dict[str, Any]]:
+    if str(task_type).strip().lower() != "repeated-match-slice":
+        return []
+
+    required_columns = {"runName", "sourceDatasetItemId"}
+    if required_columns.difference(rows_df.columns):
+        return []
+
+    matches: list[dict[str, Any]] = []
+    for source_item_id, match_rows in rows_df.groupby("sourceDatasetItemId", sort=False):
+        source_dataset_item_id = normalize_optional_string(source_item_id)
+        if source_dataset_item_id is None:
+            continue
+
+        match_record = build_match_breakdown_record(
+            source_dataset_item_id,
+            match_rows,
+            ranking_records,
+        )
+        if match_record is not None:
+            matches.append(match_record)
+
+    matches.sort(
+        key=lambda match: (
+            normalize_optional_int(match.get("fixtureIndex")) is None,
+            normalize_optional_int(match.get("fixtureIndex")) or 0,
+            normalize_optional_int(match.get("matchday")) or 0,
+            str(match.get("fixture", "")),
+            str(match.get("sourceDatasetItemId", "")),
+        )
+    )
+    return matches
+
+
+def build_match_breakdown_record(
+    source_dataset_item_id: str,
+    match_rows: pd.DataFrame,
+    ranking_records: list[dict[str, Any]],
+) -> dict[str, Any] | None:
+    home_team = first_optional_string(match_rows, "homeTeam")
+    away_team = first_optional_string(match_rows, "awayTeam")
+    fixture = f"{home_team} vs {away_team}" if home_team is not None and away_team is not None else None
+    fixture_index = first_optional_int(match_rows, "fixtureIndex")
+    matchday = first_optional_int(match_rows, "matchday")
+    starts_at = first_optional_string(match_rows, "startsAt")
+    expected_home_goals = first_optional_int(match_rows, "expectedHomeGoals")
+    expected_away_goals = first_optional_int(match_rows, "expectedAwayGoals")
+    actual_result = (
+        f"{expected_home_goals}:{expected_away_goals}"
+        if expected_home_goals is not None and expected_away_goals is not None
+        else None
+    )
+    actual_result_display = None
+    if (
+        home_team is not None
+        and away_team is not None
+        and expected_home_goals is not None
+        and expected_away_goals is not None
+    ):
+        actual_result_display = f"{home_team} {expected_home_goals} - {expected_away_goals} {away_team}"
+
+    run_summaries = build_match_run_summaries(match_rows, ranking_records)
+    if not run_summaries:
+        return None
+
+    record: dict[str, Any] = {
+        "sourceDatasetItemId": source_dataset_item_id,
+        "runs": run_summaries,
+    }
+    optional_fields = {
+        "fixtureIndex": fixture_index,
+        "fixture": fixture,
+        "homeTeam": home_team,
+        "awayTeam": away_team,
+        "matchday": matchday,
+        "startsAt": starts_at,
+        "actualResult": actual_result,
+        "actualResultDisplay": actual_result_display,
+    }
+    record.update(
+        {
+            key: value
+            for key, value in optional_fields.items()
+            if value is not None
+        }
+    )
+    return record
+
+
+def build_match_run_summaries(
+    match_rows: pd.DataFrame,
+    ranking_records: list[dict[str, Any]],
+) -> list[dict[str, Any]]:
+    rows_by_run = {
+        str(run_name): run_rows
+        for run_name, run_rows in match_rows.groupby("runName", sort=False)
+    }
+
+    run_summaries: list[dict[str, Any]] = []
+    for run in ranking_records:
+        run_name = str(run["runName"])
+        run_rows = rows_by_run.get(run_name)
+        if run_rows is None:
+            continue
+
+        score_counts = build_score_counts(run_rows)
+        point_values = (
+            [normalize_optional_float(value) for value in run_rows["kicktippPoints"].tolist()]
+            if "kicktippPoints" in run_rows.columns
+            else []
+        )
+        points = [float(point_value) for point_value in point_values if point_value is not None]
+        average_points = float(np.mean(points)) if points else None
+
+        run_summaries.append(
+            {
+                "runName": run_name,
+                "runDisplayName": run["runDisplayName"],
+                "model": run["model"],
+                "predictionCount": int(len(run_rows)),
+                "averageKicktippPoints": average_points,
+                "scoreCounts": score_counts,
+            }
+        )
+
+    return run_summaries
+
+
+def build_score_counts(rows_df: pd.DataFrame) -> list[dict[str, Any]]:
+    required_columns = {"predictedHomeGoals", "predictedAwayGoals"}
+    if required_columns.difference(rows_df.columns):
+        return []
+
+    counts_by_score: dict[tuple[int, int], int] = {}
+    for row in rows_df.to_dict(orient="records"):
+        home_goals = normalize_optional_int(row.get("predictedHomeGoals"))
+        away_goals = normalize_optional_int(row.get("predictedAwayGoals"))
+        if home_goals is None or away_goals is None:
+            continue
+
+        key = (home_goals, away_goals)
+        counts_by_score[key] = counts_by_score.get(key, 0) + 1
+
+    total_count = sum(counts_by_score.values())
+    if total_count == 0:
+        return []
+
+    score_counts = [
+        {
+            "score": f"{home_goals}:{away_goals}",
+            "homeGoals": home_goals,
+            "awayGoals": away_goals,
+            "count": count,
+            "share": count / total_count,
+        }
+        for (home_goals, away_goals), count in counts_by_score.items()
+    ]
+    score_counts.sort(key=lambda item: (-int(item["count"]), int(item["homeGoals"]), int(item["awayGoals"])))
+    return score_counts
+
+
+def first_optional_string(rows_df: pd.DataFrame, column_name: str) -> str | None:
+    values = unique_column_strings(rows_df, column_name)
+    return values[0] if values else None
+
+
+def first_optional_int(rows_df: pd.DataFrame, column_name: str) -> int | None:
+    values = unique_column_ints(rows_df, column_name)
+    return values[0] if values else None
 
 
 def unique_column_strings(rows_df: pd.DataFrame, column_name: str) -> list[str]:
@@ -968,6 +1127,7 @@ def render_html(report: dict[str, Any]) -> str:
         report_title = normalize_optional_string(report.get("reportTitle")) or str(report["datasetName"])
         document_title = f"{report_title} - Experiment Analysis"
         at_a_glance_section = render_at_a_glance_section(report)
+        matches_section = render_match_breakdown_section(report.get("matchBreakdown"))
         metadata_items = dataset_metadata_items(report)
         dataset_description = report.get("datasetDescription")
         dataset_description_html = (
@@ -1495,6 +1655,73 @@ def render_html(report: dict[str, Any]) -> str:
             background: linear-gradient(90deg, var(--accent), var(--good));
         }}
 
+        .collapsible-kicker {{
+            color: var(--muted);
+            font-size: 0.9rem;
+            font-weight: 700;
+            margin-left: auto;
+        }}
+
+        .matches-grid {{
+            display: grid;
+            gap: 16px;
+        }}
+
+        .match-breakdown-card {{
+            background: var(--panel-strong);
+            border: 1px solid var(--border);
+            border-radius: 18px;
+            padding: 18px;
+            min-width: 0;
+        }}
+
+        .match-breakdown-header {{
+            display: grid;
+            grid-template-columns: minmax(0, 1fr) minmax(150px, auto);
+            gap: 14px;
+            align-items: start;
+            margin-bottom: 16px;
+        }}
+
+        .match-source {{
+            margin-top: 10px;
+            overflow-wrap: anywhere;
+        }}
+
+        .match-run-grid {{
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(240px, 1fr));
+            gap: 14px;
+        }}
+
+        .match-run-summary {{
+            border-top: 1px solid var(--border);
+            padding-top: 14px;
+            min-width: 0;
+        }}
+
+        .match-run-points {{
+            display: flex;
+            align-items: baseline;
+            gap: 8px;
+            margin: 8px 0 10px;
+        }}
+
+        .match-points-value {{
+            color: var(--good);
+            font-size: 1.45rem;
+            font-weight: 800;
+            line-height: 1;
+        }}
+
+        .match-points-label {{
+            color: var(--muted);
+            font-size: 0.78rem;
+            font-weight: 700;
+            letter-spacing: 0.06em;
+            text-transform: uppercase;
+        }}
+
         .collapsible-panel {{
             padding: 0;
             overflow: hidden;
@@ -1775,6 +2002,8 @@ def render_html(report: dict[str, Any]) -> str:
             .panel-header {{ align-items: flex-start; flex-direction: column; }}
             .glance-grid, .head-to-head-models {{ grid-template-columns: 1fr; }}
             .head-to-head-topline {{ align-items: flex-start; flex-direction: column; }}
+            .collapsible-kicker {{ margin-left: 0; }}
+            .match-breakdown-header {{ grid-template-columns: 1fr; }}
             .pvalue-summary {{ text-align: left; }}
             table, thead, tbody, tr, th, td {{ display: block; }}
             thead {{ display: none; }}
@@ -1808,6 +2037,8 @@ def render_html(report: dict[str, Any]) -> str:
         </header>
 
         {at_a_glance_section}
+
+        {matches_section}
 
         {summary_section}
 
@@ -2034,6 +2265,128 @@ def render_at_a_glance_section(report: dict[str, Any]) -> str:
             {glance_grid}
             {prediction_distribution_section}
         </section>
+        """
+
+
+def render_match_breakdown_section(match_breakdown: Any) -> str:
+        if not isinstance(match_breakdown, list) or not match_breakdown:
+                return ""
+
+        match_cards = "\n".join(
+                render_match_breakdown_card(match)
+                for match in match_breakdown
+                if isinstance(match, dict)
+        )
+        if not match_cards:
+                return ""
+
+        match_count = len(match_breakdown)
+        return f"""
+        <details class=\"panel collapsible-panel matches-panel\">
+            <summary class=\"collapsible-summary\">
+                <h2>Matches</h2>
+                <span class=\"collapsible-kicker\">{match_count} fixture{'s' if match_count != 1 else ''}</span>
+            </summary>
+            <div class=\"collapsible-body\">
+                <p class=\"footnote\">Per-match averages and scoreline distributions are descriptive. Individual matches do not run significance tests.</p>
+                <div class=\"matches-grid panel-subsection\">
+                    {match_cards}
+                </div>
+            </div>
+        </details>
+        """
+
+
+def render_match_breakdown_card(match: dict[str, Any]) -> str:
+        fixture = normalize_optional_string(match.get("fixture")) or "n/a"
+        fixture_index = normalize_optional_int(match.get("fixtureIndex"))
+        match_label = f"Match {fixture_index}" if fixture_index is not None else "Match"
+        matchday = normalize_optional_string(match.get("matchday"))
+        starts_at = normalize_optional_string(match.get("startsAt"))
+        source_item_id = normalize_optional_string(match.get("sourceDatasetItemId"))
+        actual_result = normalize_optional_string(match.get("actualResultDisplay"))
+        if actual_result is None:
+                actual_result = normalize_optional_string(match.get("actualResult"))
+
+        meta_chips = []
+        if matchday is not None:
+                meta_chips.append(f'<span class="meta-chip">Matchday {escape_html(matchday)}</span>')
+        if starts_at is not None:
+                meta_chips.append(f'<span class="meta-chip">{escape_html(starts_at)}</span>')
+        meta_html = f'<div class="match-meta">{"".join(meta_chips)}</div>' if meta_chips else ""
+        source_html = (
+                f'<p class="footnote match-source">Source item: {escape_html(source_item_id)}</p>'
+                if source_item_id is not None
+                else ""
+        )
+
+        runs = match.get("runs")
+        run_summaries = runs if isinstance(runs, list) else []
+        max_count = max(
+                [
+                        int(score_count["count"])
+                        for run_summary in run_summaries
+                        if isinstance(run_summary, dict)
+                        for score_count in run_summary.get("scoreCounts", [])
+                        if isinstance(score_count, dict)
+                ],
+                default=0,
+        )
+        run_summary_html = "\n".join(
+                render_match_run_summary(run_summary, max_count)
+                for run_summary in run_summaries
+                if isinstance(run_summary, dict)
+        )
+
+        return f"""
+                    <article class=\"match-breakdown-card\">
+                        <div class=\"match-breakdown-header\">
+                            <div>
+                                <span class=\"glance-label\">{escape_html(match_label)}</span>
+                                <h3 class=\"match-fixture\">{escape_html(fixture)}</h3>
+                                {meta_html}
+                                {source_html}
+                            </div>
+                            <div class=\"actual-result\">
+                                <span class=\"glance-label\">Actual outcome</span>
+                                <span class=\"actual-result-value\">{escape_html(actual_result or "n/a")}</span>
+                            </div>
+                        </div>
+                        <div class=\"match-run-grid\">
+                            {run_summary_html}
+                        </div>
+                    </article>
+        """
+
+
+def render_match_run_summary(run_summary: dict[str, Any], max_count: int) -> str:
+        score_counts = run_summary.get("scoreCounts")
+        score_count_rows = ""
+        if isinstance(score_counts, list) and score_counts:
+                score_count_rows = "\n".join(
+                        render_prediction_histogram_row(score_count, max_count)
+                        for score_count in score_counts
+                        if isinstance(score_count, dict)
+                )
+        else:
+                score_count_rows = '<p class="footnote">No scoreline predictions available.</p>'
+
+        prediction_count = normalize_optional_int(run_summary.get("predictionCount"))
+        prediction_count_text = f"n={prediction_count}" if prediction_count is not None else "n/a"
+        average_points = normalize_optional_float(run_summary.get("averageKicktippPoints"))
+
+        return f"""
+                            <div class=\"match-run-summary\">
+                                <div class=\"histogram-title\">
+                                    <span>{escape_html(str(run_summary.get("runDisplayName", "n/a")))}</span>
+                                    <span class=\"histogram-total\">{escape_html(prediction_count_text)}</span>
+                                </div>
+                                <div class=\"match-run-points\">
+                                    <span class=\"match-points-value\">{escape_html(format_number(average_points))}</span>
+                                    <span class=\"match-points-label\">avg points</span>
+                                </div>
+                                {score_count_rows}
+                            </div>
         """
 
 
