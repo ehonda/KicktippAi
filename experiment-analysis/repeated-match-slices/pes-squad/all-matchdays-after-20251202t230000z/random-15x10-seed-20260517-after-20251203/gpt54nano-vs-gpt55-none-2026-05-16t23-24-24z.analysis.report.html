@@ -69,6 +69,7 @@
             font-size: clamp(1.9rem, 4vw, 3.2rem);
             line-height: 1.05;
             margin-bottom: 12px;
+            overflow-wrap: anywhere;
         }
 
         .hero-meta {
@@ -81,6 +82,8 @@
         .pill {
             display: inline-flex;
             align-items: center;
+            max-width: 100%;
+            overflow-wrap: anywhere;
             padding: 6px 10px;
             border-radius: 999px;
             background: var(--accent-soft);
@@ -341,7 +344,7 @@
             height: 100%;
             min-width: 6px;
             border-radius: inherit;
-            background: linear-gradient(90deg, var(--accent), var(--good));
+            background: linear-gradient(90deg, #aeb7c5, #40546f);
         }
 
         .collapsible-kicker {
@@ -365,22 +368,26 @@
         }
 
         .match-breakdown-header {
-            display: grid;
-            grid-template-columns: minmax(0, 1fr) minmax(150px, auto);
-            gap: 14px;
-            align-items: start;
             margin-bottom: 16px;
-        }
-
-        .match-source {
-            margin-top: 10px;
-            overflow-wrap: anywhere;
         }
 
         .match-run-grid {
             display: grid;
             grid-template-columns: repeat(auto-fit, minmax(240px, 1fr));
             gap: 14px;
+        }
+
+        .match-title {
+            align-items: baseline;
+            display: flex;
+            flex-wrap: wrap;
+            gap: 0.36em;
+        }
+
+        .match-title-score {
+            color: #6a7178;
+            font-weight: 900;
+            white-space: nowrap;
         }
 
         .match-run-summary {
@@ -397,10 +404,33 @@
         }
 
         .match-points-value {
-            color: var(--good);
             font-size: 1.45rem;
             font-weight: 800;
             line-height: 1;
+        }
+
+        .score-color-0 {
+            color: #5f6470;
+        }
+
+        .score-color-1 {
+            color: #526f90;
+        }
+
+        .score-color-2 {
+            color: #315d9c;
+        }
+
+        .score-color-3 {
+            color: #7a5600;
+        }
+
+        .score-color-4 {
+            color: #257042;
+        }
+
+        .score-color-neutral {
+            color: #5f6470;
         }
 
         .match-points-label {
@@ -409,6 +439,53 @@
             font-weight: 700;
             letter-spacing: 0.06em;
             text-transform: uppercase;
+        }
+
+        .histogram-row-with-points {
+            grid-template-columns: 3.4rem 3rem minmax(90px, 1fr) 2.2rem;
+        }
+
+        .points-badge {
+            align-items: center;
+            border-radius: 999px;
+            display: inline-flex;
+            font-size: 0.74rem;
+            font-weight: 800;
+            justify-content: center;
+            justify-self: end;
+            line-height: 1;
+            min-width: 2.45rem;
+            padding: 4px 7px;
+        }
+
+        .points-badge-0 {
+            background: #ece9e3;
+            color: #5f6470;
+        }
+
+        .points-badge-1 {
+            background: #e4edf8;
+            color: #526f90;
+        }
+
+        .points-badge-2 {
+            background: #e4efff;
+            color: #315d9c;
+        }
+
+        .points-badge-3 {
+            background: #f6e8bd;
+            color: #7a5600;
+        }
+
+        .points-badge-4 {
+            background: #dcefd8;
+            color: #257042;
+        }
+
+        .points-badge-neutral {
+            background: #ece9e3;
+            color: #5f6470;
         }
 
         .collapsible-panel {
@@ -680,6 +757,7 @@
             color: var(--muted);
             font-size: 0.95rem;
             line-height: 1.55;
+            overflow-wrap: anywhere;
         }
 
         @media (max-width: 720px) {
@@ -692,7 +770,26 @@
             .glance-grid, .head-to-head-models { grid-template-columns: 1fr; }
             .head-to-head-topline { align-items: flex-start; flex-direction: column; }
             .collapsible-kicker { margin-left: 0; }
-            .match-breakdown-header { grid-template-columns: 1fr; }
+            .histogram-grid,
+            .match-run-grid {
+                grid-template-columns: minmax(0, 1fr);
+            }
+            .histogram-title {
+                align-items: flex-start;
+                flex-direction: column;
+                gap: 3px;
+            }
+            .histogram-row {
+                gap: 6px;
+                grid-template-columns: 2.6rem minmax(52px, 1fr) 1.7rem;
+            }
+            .histogram-row-with-points {
+                grid-template-columns: 2.6rem 2.45rem minmax(52px, 1fr) 1.7rem;
+            }
+            .points-badge {
+                min-width: 2.1rem;
+                padding: 4px 5px;
+            }
             .pvalue-summary { text-align: left; }
             table, thead, tbody, tr, th, td { display: block; }
             thead { display: none; }
@@ -774,6 +871,7 @@
 
                         <div class="histogram-row">
                             <span class="histogram-score">2:1</span>
+
                             <span class="histogram-track" aria-hidden="true">
                                 <span class="histogram-bar" style="width: 93%"></span>
                             </span>
@@ -783,6 +881,7 @@
 
                         <div class="histogram-row">
                             <span class="histogram-score">1:1</span>
+
                             <span class="histogram-track" aria-hidden="true">
                                 <span class="histogram-bar" style="width: 65%"></span>
                             </span>
@@ -792,6 +891,7 @@
 
                         <div class="histogram-row">
                             <span class="histogram-score">1:2</span>
+
                             <span class="histogram-track" aria-hidden="true">
                                 <span class="histogram-bar" style="width: 51%"></span>
                             </span>
@@ -801,6 +901,7 @@
 
                         <div class="histogram-row">
                             <span class="histogram-score">1:3</span>
+
                             <span class="histogram-track" aria-hidden="true">
                                 <span class="histogram-bar" style="width: 21%"></span>
                             </span>
@@ -810,6 +911,7 @@
 
                         <div class="histogram-row">
                             <span class="histogram-score">0:2</span>
+
                             <span class="histogram-track" aria-hidden="true">
                                 <span class="histogram-bar" style="width: 12%"></span>
                             </span>
@@ -819,6 +921,7 @@
 
                         <div class="histogram-row">
                             <span class="histogram-score">2:0</span>
+
                             <span class="histogram-track" aria-hidden="true">
                                 <span class="histogram-bar" style="width: 9%"></span>
                             </span>
@@ -828,6 +931,7 @@
 
                         <div class="histogram-row">
                             <span class="histogram-score">1:0</span>
+
                             <span class="histogram-track" aria-hidden="true">
                                 <span class="histogram-bar" style="width: 6%"></span>
                             </span>
@@ -837,6 +941,7 @@
 
                         <div class="histogram-row">
                             <span class="histogram-score">1:4</span>
+
                             <span class="histogram-track" aria-hidden="true">
                                 <span class="histogram-bar" style="width: 6%"></span>
                             </span>
@@ -846,6 +951,7 @@
 
                         <div class="histogram-row">
                             <span class="histogram-score">3:1</span>
+
                             <span class="histogram-track" aria-hidden="true">
                                 <span class="histogram-bar" style="width: 6%"></span>
                             </span>
@@ -863,6 +969,7 @@
 
                         <div class="histogram-row">
                             <span class="histogram-score">1:1</span>
+
                             <span class="histogram-track" aria-hidden="true">
                                 <span class="histogram-bar" style="width: 100%"></span>
                             </span>
@@ -872,6 +979,7 @@
 
                         <div class="histogram-row">
                             <span class="histogram-score">2:1</span>
+
                             <span class="histogram-track" aria-hidden="true">
                                 <span class="histogram-bar" style="width: 98%"></span>
                             </span>
@@ -881,6 +989,7 @@
 
                         <div class="histogram-row">
                             <span class="histogram-score">1:2</span>
+
                             <span class="histogram-track" aria-hidden="true">
                                 <span class="histogram-bar" style="width: 32%"></span>
                             </span>
@@ -890,6 +999,7 @@
 
                         <div class="histogram-row">
                             <span class="histogram-score">1:3</span>
+
                             <span class="histogram-track" aria-hidden="true">
                                 <span class="histogram-bar" style="width: 23%"></span>
                             </span>
@@ -899,6 +1009,7 @@
 
                         <div class="histogram-row">
                             <span class="histogram-score">2:0</span>
+
                             <span class="histogram-track" aria-hidden="true">
                                 <span class="histogram-bar" style="width: 7%"></span>
                             </span>
@@ -908,6 +1019,7 @@
 
                         <div class="histogram-row">
                             <span class="histogram-score">1:4</span>
+
                             <span class="histogram-track" aria-hidden="true">
                                 <span class="histogram-bar" style="width: 6%"></span>
                             </span>
@@ -934,16 +1046,9 @@
 
                     <article class="match-breakdown-card">
                         <div class="match-breakdown-header">
-                            <div>
-                                <span class="glance-label">Match 1</span>
-                                <h3 class="match-fixture">1. FC Heidenheim 1846 vs FC Bayern München</h3>
-                                <div class="match-meta"><span class="meta-chip">Matchday 15</span><span class="meta-chip">2025-12-21T17:30:00 UTC+01 (+01)</span></div>
-                                <p class="footnote match-source">Source item: bundesliga-2025-26__pes-squad__ts1423757158</p>
-                            </div>
-                            <div class="actual-result">
-                                <span class="glance-label">Actual outcome</span>
-                                <span class="actual-result-value">1. FC Heidenheim 1846 0 - 4 FC Bayern München</span>
-                            </div>
+                            <span class="glance-label">Match 1</span>
+                            <h3 class="match-fixture match-title"><span>1. FC Heidenheim 1846</span><span class="match-title-score">0:4</span><span>FC Bayern München</span></h3>
+                            <div class="match-meta"><span class="meta-chip">Matchday 15</span><span class="meta-chip">2025-12-21T17:30:00 UTC+01 (+01)</span></div>
                         </div>
                         <div class="match-run-grid">
 
@@ -953,12 +1058,13 @@
                                     <span class="histogram-total">n=10</span>
                                 </div>
                                 <div class="match-run-points">
-                                    <span class="match-points-value">2.0000</span>
+                                    <span class="match-points-value score-color-2">2.0000</span>
                                     <span class="match-points-label">avg points</span>
                                 </div>
 
-                        <div class="histogram-row">
+                        <div class="histogram-row histogram-row-with-points">
                             <span class="histogram-score">1:3</span>
+                            <span class="points-badge points-badge-2" title="Kicktipp points for this scoreline">2pt</span>
                             <span class="histogram-track" aria-hidden="true">
                                 <span class="histogram-bar" style="width: 100%"></span>
                             </span>
@@ -966,8 +1072,9 @@
                         </div>
 
 
-                        <div class="histogram-row">
+                        <div class="histogram-row histogram-row-with-points">
                             <span class="histogram-score">1:4</span>
+                            <span class="points-badge points-badge-2" title="Kicktipp points for this scoreline">2pt</span>
                             <span class="histogram-track" aria-hidden="true">
                                 <span class="histogram-bar" style="width: 25%"></span>
                             </span>
@@ -983,12 +1090,13 @@
                                     <span class="histogram-total">n=10</span>
                                 </div>
                                 <div class="match-run-points">
-                                    <span class="match-points-value">2.0000</span>
+                                    <span class="match-points-value score-color-2">2.0000</span>
                                     <span class="match-points-label">avg points</span>
                                 </div>
 
-                        <div class="histogram-row">
+                        <div class="histogram-row histogram-row-with-points">
                             <span class="histogram-score">1:3</span>
+                            <span class="points-badge points-badge-2" title="Kicktipp points for this scoreline">2pt</span>
                             <span class="histogram-track" aria-hidden="true">
                                 <span class="histogram-bar" style="width: 100%"></span>
                             </span>
@@ -996,8 +1104,9 @@
                         </div>
 
 
-                        <div class="histogram-row">
+                        <div class="histogram-row histogram-row-with-points">
                             <span class="histogram-score">1:4</span>
+                            <span class="points-badge points-badge-2" title="Kicktipp points for this scoreline">2pt</span>
                             <span class="histogram-track" aria-hidden="true">
                                 <span class="histogram-bar" style="width: 25%"></span>
                             </span>
@@ -1012,16 +1121,9 @@
 
                     <article class="match-breakdown-card">
                         <div class="match-breakdown-header">
-                            <div>
-                                <span class="glance-label">Match 2</span>
-                                <h3 class="match-fixture">Borussia Dortmund vs 1899 Hoffenheim</h3>
-                                <div class="match-meta"><span class="meta-chip">Matchday 13</span><span class="meta-chip">2025-12-07T17:30:00 UTC+01 (+01)</span></div>
-                                <p class="footnote match-source">Source item: bundesliga-2025-26__pes-squad__ts1423757171</p>
-                            </div>
-                            <div class="actual-result">
-                                <span class="glance-label">Actual outcome</span>
-                                <span class="actual-result-value">Borussia Dortmund 2 - 0 1899 Hoffenheim</span>
-                            </div>
+                            <span class="glance-label">Match 2</span>
+                            <h3 class="match-fixture match-title"><span>Borussia Dortmund</span><span class="match-title-score">2:0</span><span>1899 Hoffenheim</span></h3>
+                            <div class="match-meta"><span class="meta-chip">Matchday 13</span><span class="meta-chip">2025-12-07T17:30:00 UTC+01 (+01)</span></div>
                         </div>
                         <div class="match-run-grid">
 
@@ -1031,12 +1133,13 @@
                                     <span class="histogram-total">n=10</span>
                                 </div>
                                 <div class="match-run-points">
-                                    <span class="match-points-value">2.1000</span>
+                                    <span class="match-points-value score-color-2">2.1000</span>
                                     <span class="match-points-label">avg points</span>
                                 </div>
 
-                        <div class="histogram-row">
+                        <div class="histogram-row histogram-row-with-points">
                             <span class="histogram-score">2:1</span>
+                            <span class="points-badge points-badge-2" title="Kicktipp points for this scoreline">2pt</span>
                             <span class="histogram-track" aria-hidden="true">
                                 <span class="histogram-bar" style="width: 90%"></span>
                             </span>
@@ -1044,8 +1147,9 @@
                         </div>
 
 
-                        <div class="histogram-row">
+                        <div class="histogram-row histogram-row-with-points">
                             <span class="histogram-score">3:1</span>
+                            <span class="points-badge points-badge-3" title="Kicktipp points for this scoreline">3pt</span>
                             <span class="histogram-track" aria-hidden="true">
                                 <span class="histogram-bar" style="width: 10%"></span>
                             </span>
@@ -1061,12 +1165,13 @@
                                     <span class="histogram-total">n=10</span>
                                 </div>
                                 <div class="match-run-points">
-                                    <span class="match-points-value">2.0000</span>
+                                    <span class="match-points-value score-color-2">2.0000</span>
                                     <span class="match-points-label">avg points</span>
                                 </div>
 
-                        <div class="histogram-row">
+                        <div class="histogram-row histogram-row-with-points">
                             <span class="histogram-score">2:1</span>
+                            <span class="points-badge points-badge-2" title="Kicktipp points for this scoreline">2pt</span>
                             <span class="histogram-track" aria-hidden="true">
                                 <span class="histogram-bar" style="width: 100%"></span>
                             </span>
@@ -1081,16 +1186,9 @@
 
                     <article class="match-breakdown-card">
                         <div class="match-breakdown-header">
-                            <div>
-                                <span class="glance-label">Match 3</span>
-                                <h3 class="match-fixture">VfL Wolfsburg vs 1. FC Union Berlin</h3>
-                                <div class="match-meta"><span class="meta-chip">Matchday 13</span><span class="meta-chip">2025-12-06T15:30:00 UTC+01 (+01)</span></div>
-                                <p class="footnote match-source">Source item: bundesliga-2025-26__pes-squad__ts1423757174</p>
-                            </div>
-                            <div class="actual-result">
-                                <span class="glance-label">Actual outcome</span>
-                                <span class="actual-result-value">VfL Wolfsburg 3 - 1 1. FC Union Berlin</span>
-                            </div>
+                            <span class="glance-label">Match 3</span>
+                            <h3 class="match-fixture match-title"><span>VfL Wolfsburg</span><span class="match-title-score">3:1</span><span>1. FC Union Berlin</span></h3>
+                            <div class="match-meta"><span class="meta-chip">Matchday 13</span><span class="meta-chip">2025-12-06T15:30:00 UTC+01 (+01)</span></div>
                         </div>
                         <div class="match-run-grid">
 
@@ -1100,12 +1198,13 @@
                                     <span class="histogram-total">n=10</span>
                                 </div>
                                 <div class="match-run-points">
-                                    <span class="match-points-value">0.0000</span>
+                                    <span class="match-points-value score-color-0">0.0000</span>
                                     <span class="match-points-label">avg points</span>
                                 </div>
 
-                        <div class="histogram-row">
+                        <div class="histogram-row histogram-row-with-points">
                             <span class="histogram-score">1:1</span>
+                            <span class="points-badge points-badge-0" title="Kicktipp points for this scoreline">0pt</span>
                             <span class="histogram-track" aria-hidden="true">
                                 <span class="histogram-bar" style="width: 100%"></span>
                             </span>
@@ -1121,12 +1220,13 @@
                                     <span class="histogram-total">n=10</span>
                                 </div>
                                 <div class="match-run-points">
-                                    <span class="match-points-value">0.0000</span>
+                                    <span class="match-points-value score-color-0">0.0000</span>
                                     <span class="match-points-label">avg points</span>
                                 </div>
 
-                        <div class="histogram-row">
+                        <div class="histogram-row histogram-row-with-points">
                             <span class="histogram-score">1:1</span>
+                            <span class="points-badge points-badge-0" title="Kicktipp points for this scoreline">0pt</span>
                             <span class="histogram-track" aria-hidden="true">
                                 <span class="histogram-bar" style="width: 100%"></span>
                             </span>
@@ -1141,16 +1241,9 @@
 
                     <article class="match-breakdown-card">
                         <div class="match-breakdown-header">
-                            <div>
-                                <span class="glance-label">Match 4</span>
-                                <h3 class="match-fixture">FC Augsburg vs Bayer 04 Leverkusen</h3>
-                                <div class="match-meta"><span class="meta-chip">Matchday 13</span><span class="meta-chip">2025-12-06T15:30:00 UTC+01 (+01)</span></div>
-                                <p class="footnote match-source">Source item: bundesliga-2025-26__pes-squad__ts1423757181</p>
-                            </div>
-                            <div class="actual-result">
-                                <span class="glance-label">Actual outcome</span>
-                                <span class="actual-result-value">FC Augsburg 2 - 0 Bayer 04 Leverkusen</span>
-                            </div>
+                            <span class="glance-label">Match 4</span>
+                            <h3 class="match-fixture match-title"><span>FC Augsburg</span><span class="match-title-score">2:0</span><span>Bayer 04 Leverkusen</span></h3>
+                            <div class="match-meta"><span class="meta-chip">Matchday 13</span><span class="meta-chip">2025-12-06T15:30:00 UTC+01 (+01)</span></div>
                         </div>
                         <div class="match-run-grid">
 
@@ -1160,12 +1253,13 @@
                                     <span class="histogram-total">n=10</span>
                                 </div>
                                 <div class="match-run-points">
-                                    <span class="match-points-value">0.0000</span>
+                                    <span class="match-points-value score-color-0">0.0000</span>
                                     <span class="match-points-label">avg points</span>
                                 </div>
 
-                        <div class="histogram-row">
+                        <div class="histogram-row histogram-row-with-points">
                             <span class="histogram-score">0:2</span>
+                            <span class="points-badge points-badge-0" title="Kicktipp points for this scoreline">0pt</span>
                             <span class="histogram-track" aria-hidden="true">
                                 <span class="histogram-bar" style="width: 100%"></span>
                             </span>
@@ -1173,8 +1267,9 @@
                         </div>
 
 
-                        <div class="histogram-row">
+                        <div class="histogram-row histogram-row-with-points">
                             <span class="histogram-score">1:3</span>
+                            <span class="points-badge points-badge-0" title="Kicktipp points for this scoreline">0pt</span>
                             <span class="histogram-track" aria-hidden="true">
                                 <span class="histogram-bar" style="width: 60%"></span>
                             </span>
@@ -1182,8 +1277,9 @@
                         </div>
 
 
-                        <div class="histogram-row">
+                        <div class="histogram-row histogram-row-with-points">
                             <span class="histogram-score">1:2</span>
+                            <span class="points-badge points-badge-0" title="Kicktipp points for this scoreline">0pt</span>
                             <span class="histogram-track" aria-hidden="true">
                                 <span class="histogram-bar" style="width: 40%"></span>
                             </span>
@@ -1199,12 +1295,13 @@
                                     <span class="histogram-total">n=10</span>
                                 </div>
                                 <div class="match-run-points">
-                                    <span class="match-points-value">0.0000</span>
+                                    <span class="match-points-value score-color-0">0.0000</span>
                                     <span class="match-points-label">avg points</span>
                                 </div>
 
-                        <div class="histogram-row">
+                        <div class="histogram-row histogram-row-with-points">
                             <span class="histogram-score">1:2</span>
+                            <span class="points-badge points-badge-0" title="Kicktipp points for this scoreline">0pt</span>
                             <span class="histogram-track" aria-hidden="true">
                                 <span class="histogram-bar" style="width: 100%"></span>
                             </span>
@@ -1212,8 +1309,9 @@
                         </div>
 
 
-                        <div class="histogram-row">
+                        <div class="histogram-row histogram-row-with-points">
                             <span class="histogram-score">1:3</span>
+                            <span class="points-badge points-badge-0" title="Kicktipp points for this scoreline">0pt</span>
                             <span class="histogram-track" aria-hidden="true">
                                 <span class="histogram-bar" style="width: 100%"></span>
                             </span>
@@ -1228,16 +1326,9 @@
 
                     <article class="match-breakdown-card">
                         <div class="match-breakdown-header">
-                            <div>
-                                <span class="glance-label">Match 5</span>
-                                <h3 class="match-fixture">FC St. Pauli vs RB Leipzig</h3>
-                                <div class="match-meta"><span class="meta-chip">Matchday 16</span><span class="meta-chip">2026-01-27T20:30:00 UTC+01 (+01)</span></div>
-                                <p class="footnote match-source">Source item: bundesliga-2025-26__pes-squad__ts1423757203</p>
-                            </div>
-                            <div class="actual-result">
-                                <span class="glance-label">Actual outcome</span>
-                                <span class="actual-result-value">FC St. Pauli 1 - 1 RB Leipzig</span>
-                            </div>
+                            <span class="glance-label">Match 5</span>
+                            <h3 class="match-fixture match-title"><span>FC St. Pauli</span><span class="match-title-score">1:1</span><span>RB Leipzig</span></h3>
+                            <div class="match-meta"><span class="meta-chip">Matchday 16</span><span class="meta-chip">2026-01-27T20:30:00 UTC+01 (+01)</span></div>
                         </div>
                         <div class="match-run-grid">
 
@@ -1247,12 +1338,13 @@
                                     <span class="histogram-total">n=10</span>
                                 </div>
                                 <div class="match-run-points">
-                                    <span class="match-points-value">0.0000</span>
+                                    <span class="match-points-value score-color-0">0.0000</span>
                                     <span class="match-points-label">avg points</span>
                                 </div>
 
-                        <div class="histogram-row">
+                        <div class="histogram-row histogram-row-with-points">
                             <span class="histogram-score">1:2</span>
+                            <span class="points-badge points-badge-0" title="Kicktipp points for this scoreline">0pt</span>
                             <span class="histogram-track" aria-hidden="true">
                                 <span class="histogram-bar" style="width: 70%"></span>
                             </span>
@@ -1260,8 +1352,9 @@
                         </div>
 
 
-                        <div class="histogram-row">
+                        <div class="histogram-row histogram-row-with-points">
                             <span class="histogram-score">0:2</span>
+                            <span class="points-badge points-badge-0" title="Kicktipp points for this scoreline">0pt</span>
                             <span class="histogram-track" aria-hidden="true">
                                 <span class="histogram-bar" style="width: 20%"></span>
                             </span>
@@ -1269,8 +1362,9 @@
                         </div>
 
 
-                        <div class="histogram-row">
+                        <div class="histogram-row histogram-row-with-points">
                             <span class="histogram-score">1:3</span>
+                            <span class="points-badge points-badge-0" title="Kicktipp points for this scoreline">0pt</span>
                             <span class="histogram-track" aria-hidden="true">
                                 <span class="histogram-bar" style="width: 10%"></span>
                             </span>
@@ -1286,12 +1380,13 @@
                                     <span class="histogram-total">n=10</span>
                                 </div>
                                 <div class="match-run-points">
-                                    <span class="match-points-value">0.0000</span>
+                                    <span class="match-points-value score-color-0">0.0000</span>
                                     <span class="match-points-label">avg points</span>
                                 </div>
 
-                        <div class="histogram-row">
+                        <div class="histogram-row histogram-row-with-points">
                             <span class="histogram-score">1:2</span>
+                            <span class="points-badge points-badge-0" title="Kicktipp points for this scoreline">0pt</span>
                             <span class="histogram-track" aria-hidden="true">
                                 <span class="histogram-bar" style="width: 100%"></span>
                             </span>
@@ -1306,16 +1401,9 @@
 
                     <article class="match-breakdown-card">
                         <div class="match-breakdown-header">
-                            <div>
-                                <span class="glance-label">Match 6</span>
-                                <h3 class="match-fixture">1. FC Heidenheim 1846 vs 1. FC Köln</h3>
-                                <div class="match-meta"><span class="meta-chip">Matchday 16</span><span class="meta-chip">2026-01-10T15:30:00 UTC+01 (+01)</span></div>
-                                <p class="footnote match-source">Source item: bundesliga-2025-26__pes-squad__ts1423757214</p>
-                            </div>
-                            <div class="actual-result">
-                                <span class="glance-label">Actual outcome</span>
-                                <span class="actual-result-value">1. FC Heidenheim 1846 2 - 2 1. FC Köln</span>
-                            </div>
+                            <span class="glance-label">Match 6</span>
+                            <h3 class="match-fixture match-title"><span>1. FC Heidenheim 1846</span><span class="match-title-score">2:2</span><span>1. FC Köln</span></h3>
+                            <div class="match-meta"><span class="meta-chip">Matchday 16</span><span class="meta-chip">2026-01-10T15:30:00 UTC+01 (+01)</span></div>
                         </div>
                         <div class="match-run-grid">
 
@@ -1325,12 +1413,13 @@
                                     <span class="histogram-total">n=10</span>
                                 </div>
                                 <div class="match-run-points">
-                                    <span class="match-points-value">2.0000</span>
+                                    <span class="match-points-value score-color-2">2.0000</span>
                                     <span class="match-points-label">avg points</span>
                                 </div>
 
-                        <div class="histogram-row">
+                        <div class="histogram-row histogram-row-with-points">
                             <span class="histogram-score">1:1</span>
+                            <span class="points-badge points-badge-2" title="Kicktipp points for this scoreline">2pt</span>
                             <span class="histogram-track" aria-hidden="true">
                                 <span class="histogram-bar" style="width: 100%"></span>
                             </span>
@@ -1346,12 +1435,13 @@
                                     <span class="histogram-total">n=10</span>
                                 </div>
                                 <div class="match-run-points">
-                                    <span class="match-points-value">2.0000</span>
+                                    <span class="match-points-value score-color-2">2.0000</span>
                                     <span class="match-points-label">avg points</span>
                                 </div>
 
-                        <div class="histogram-row">
+                        <div class="histogram-row histogram-row-with-points">
                             <span class="histogram-score">1:1</span>
+                            <span class="points-badge points-badge-2" title="Kicktipp points for this scoreline">2pt</span>
                             <span class="histogram-track" aria-hidden="true">
                                 <span class="histogram-bar" style="width: 100%"></span>
                             </span>
@@ -1366,16 +1456,9 @@
 
                     <article class="match-breakdown-card">
                         <div class="match-breakdown-header">
-                            <div>
-                                <span class="glance-label">Match 7</span>
-                                <h3 class="match-fixture">VfB Stuttgart vs SC Freiburg</h3>
-                                <div class="match-meta"><span class="meta-chip">Matchday 20</span><span class="meta-chip">2026-02-01T15:30:00 UTC+01 (+01)</span></div>
-                                <p class="footnote match-source">Source item: bundesliga-2025-26__pes-squad__ts1423757232</p>
-                            </div>
-                            <div class="actual-result">
-                                <span class="glance-label">Actual outcome</span>
-                                <span class="actual-result-value">VfB Stuttgart 1 - 0 SC Freiburg</span>
-                            </div>
+                            <span class="glance-label">Match 7</span>
+                            <h3 class="match-fixture match-title"><span>VfB Stuttgart</span><span class="match-title-score">1:0</span><span>SC Freiburg</span></h3>
+                            <div class="match-meta"><span class="meta-chip">Matchday 20</span><span class="meta-chip">2026-02-01T15:30:00 UTC+01 (+01)</span></div>
                         </div>
                         <div class="match-run-grid">
 
@@ -1385,12 +1468,13 @@
                                     <span class="histogram-total">n=10</span>
                                 </div>
                                 <div class="match-run-points">
-                                    <span class="match-points-value">3.0000</span>
+                                    <span class="match-points-value score-color-3">3.0000</span>
                                     <span class="match-points-label">avg points</span>
                                 </div>
 
-                        <div class="histogram-row">
+                        <div class="histogram-row histogram-row-with-points">
                             <span class="histogram-score">2:1</span>
+                            <span class="points-badge points-badge-3" title="Kicktipp points for this scoreline">3pt</span>
                             <span class="histogram-track" aria-hidden="true">
                                 <span class="histogram-bar" style="width: 100%"></span>
                             </span>
@@ -1406,12 +1490,13 @@
                                     <span class="histogram-total">n=10</span>
                                 </div>
                                 <div class="match-run-points">
-                                    <span class="match-points-value">3.0000</span>
+                                    <span class="match-points-value score-color-3">3.0000</span>
                                     <span class="match-points-label">avg points</span>
                                 </div>
 
-                        <div class="histogram-row">
+                        <div class="histogram-row histogram-row-with-points">
                             <span class="histogram-score">2:1</span>
+                            <span class="points-badge points-badge-3" title="Kicktipp points for this scoreline">3pt</span>
                             <span class="histogram-track" aria-hidden="true">
                                 <span class="histogram-bar" style="width: 100%"></span>
                             </span>
@@ -1426,16 +1511,9 @@
 
                     <article class="match-breakdown-card">
                         <div class="match-breakdown-header">
-                            <div>
-                                <span class="glance-label">Match 8</span>
-                                <h3 class="match-fixture">RB Leipzig vs FSV Mainz 05</h3>
-                                <div class="match-meta"><span class="meta-chip">Matchday 20</span><span class="meta-chip">2026-01-31T15:30:00 UTC+01 (+01)</span></div>
-                                <p class="footnote match-source">Source item: bundesliga-2025-26__pes-squad__ts1423757239</p>
-                            </div>
-                            <div class="actual-result">
-                                <span class="glance-label">Actual outcome</span>
-                                <span class="actual-result-value">RB Leipzig 1 - 2 FSV Mainz 05</span>
-                            </div>
+                            <span class="glance-label">Match 8</span>
+                            <h3 class="match-fixture match-title"><span>RB Leipzig</span><span class="match-title-score">1:2</span><span>FSV Mainz 05</span></h3>
+                            <div class="match-meta"><span class="meta-chip">Matchday 20</span><span class="meta-chip">2026-01-31T15:30:00 UTC+01 (+01)</span></div>
                         </div>
                         <div class="match-run-grid">
 
@@ -1445,12 +1523,13 @@
                                     <span class="histogram-total">n=10</span>
                                 </div>
                                 <div class="match-run-points">
-                                    <span class="match-points-value">0.0000</span>
+                                    <span class="match-points-value score-color-0">0.0000</span>
                                     <span class="match-points-label">avg points</span>
                                 </div>
 
-                        <div class="histogram-row">
+                        <div class="histogram-row histogram-row-with-points">
                             <span class="histogram-score">2:0</span>
+                            <span class="points-badge points-badge-0" title="Kicktipp points for this scoreline">0pt</span>
                             <span class="histogram-track" aria-hidden="true">
                                 <span class="histogram-bar" style="width: 50%"></span>
                             </span>
@@ -1458,8 +1537,9 @@
                         </div>
 
 
-                        <div class="histogram-row">
+                        <div class="histogram-row histogram-row-with-points">
                             <span class="histogram-score">2:1</span>
+                            <span class="points-badge points-badge-0" title="Kicktipp points for this scoreline">0pt</span>
                             <span class="histogram-track" aria-hidden="true">
                                 <span class="histogram-bar" style="width: 40%"></span>
                             </span>
@@ -1467,8 +1547,9 @@
                         </div>
 
 
-                        <div class="histogram-row">
+                        <div class="histogram-row histogram-row-with-points">
                             <span class="histogram-score">3:1</span>
+                            <span class="points-badge points-badge-0" title="Kicktipp points for this scoreline">0pt</span>
                             <span class="histogram-track" aria-hidden="true">
                                 <span class="histogram-bar" style="width: 10%"></span>
                             </span>
@@ -1484,12 +1565,13 @@
                                     <span class="histogram-total">n=10</span>
                                 </div>
                                 <div class="match-run-points">
-                                    <span class="match-points-value">0.0000</span>
+                                    <span class="match-points-value score-color-0">0.0000</span>
                                     <span class="match-points-label">avg points</span>
                                 </div>
 
-                        <div class="histogram-row">
+                        <div class="histogram-row histogram-row-with-points">
                             <span class="histogram-score">2:1</span>
+                            <span class="points-badge points-badge-0" title="Kicktipp points for this scoreline">0pt</span>
                             <span class="histogram-track" aria-hidden="true">
                                 <span class="histogram-bar" style="width: 100%"></span>
                             </span>
@@ -1504,16 +1586,9 @@
 
                     <article class="match-breakdown-card">
                         <div class="match-breakdown-header">
-                            <div>
-                                <span class="glance-label">Match 9</span>
-                                <h3 class="match-fixture">SC Freiburg vs Bayer 04 Leverkusen</h3>
-                                <div class="match-meta"><span class="meta-chip">Matchday 25</span><span class="meta-chip">2026-03-07T15:30:00 UTC+01 (+01)</span></div>
-                                <p class="footnote match-source">Source item: bundesliga-2025-26__pes-squad__ts1423757256</p>
-                            </div>
-                            <div class="actual-result">
-                                <span class="glance-label">Actual outcome</span>
-                                <span class="actual-result-value">SC Freiburg 3 - 3 Bayer 04 Leverkusen</span>
-                            </div>
+                            <span class="glance-label">Match 9</span>
+                            <h3 class="match-fixture match-title"><span>SC Freiburg</span><span class="match-title-score">3:3</span><span>Bayer 04 Leverkusen</span></h3>
+                            <div class="match-meta"><span class="meta-chip">Matchday 25</span><span class="meta-chip">2026-03-07T15:30:00 UTC+01 (+01)</span></div>
                         </div>
                         <div class="match-run-grid">
 
@@ -1523,12 +1598,13 @@
                                     <span class="histogram-total">n=10</span>
                                 </div>
                                 <div class="match-run-points">
-                                    <span class="match-points-value">0.0000</span>
+                                    <span class="match-points-value score-color-0">0.0000</span>
                                     <span class="match-points-label">avg points</span>
                                 </div>
 
-                        <div class="histogram-row">
+                        <div class="histogram-row histogram-row-with-points">
                             <span class="histogram-score">1:2</span>
+                            <span class="points-badge points-badge-0" title="Kicktipp points for this scoreline">0pt</span>
                             <span class="histogram-track" aria-hidden="true">
                                 <span class="histogram-bar" style="width: 100%"></span>
                             </span>
@@ -1544,12 +1620,13 @@
                                     <span class="histogram-total">n=10</span>
                                 </div>
                                 <div class="match-run-points">
-                                    <span class="match-points-value">2.0000</span>
+                                    <span class="match-points-value score-color-2">2.0000</span>
                                     <span class="match-points-label">avg points</span>
                                 </div>
 
-                        <div class="histogram-row">
+                        <div class="histogram-row histogram-row-with-points">
                             <span class="histogram-score">1:1</span>
+                            <span class="points-badge points-badge-2" title="Kicktipp points for this scoreline">2pt</span>
                             <span class="histogram-track" aria-hidden="true">
                                 <span class="histogram-bar" style="width: 100%"></span>
                             </span>
@@ -1564,16 +1641,9 @@
 
                     <article class="match-breakdown-card">
                         <div class="match-breakdown-header">
-                            <div>
-                                <span class="glance-label">Match 10</span>
-                                <h3 class="match-fixture">Hamburger SV vs RB Leipzig</h3>
-                                <div class="match-meta"><span class="meta-chip">Matchday 24</span><span class="meta-chip">2026-03-01T19:30:00 UTC+01 (+01)</span></div>
-                                <p class="footnote match-source">Source item: bundesliga-2025-26__pes-squad__ts1423757259</p>
-                            </div>
-                            <div class="actual-result">
-                                <span class="glance-label">Actual outcome</span>
-                                <span class="actual-result-value">Hamburger SV 1 - 2 RB Leipzig</span>
-                            </div>
+                            <span class="glance-label">Match 10</span>
+                            <h3 class="match-fixture match-title"><span>Hamburger SV</span><span class="match-title-score">1:2</span><span>RB Leipzig</span></h3>
+                            <div class="match-meta"><span class="meta-chip">Matchday 24</span><span class="meta-chip">2026-03-01T19:30:00 UTC+01 (+01)</span></div>
                         </div>
                         <div class="match-run-grid">
 
@@ -1583,12 +1653,13 @@
                                     <span class="histogram-total">n=10</span>
                                 </div>
                                 <div class="match-run-points">
-                                    <span class="match-points-value">4.0000</span>
+                                    <span class="match-points-value score-color-4">4.0000</span>
                                     <span class="match-points-label">avg points</span>
                                 </div>
 
-                        <div class="histogram-row">
+                        <div class="histogram-row histogram-row-with-points">
                             <span class="histogram-score">1:2</span>
+                            <span class="points-badge points-badge-4" title="Kicktipp points for this scoreline">4pt</span>
                             <span class="histogram-track" aria-hidden="true">
                                 <span class="histogram-bar" style="width: 100%"></span>
                             </span>
@@ -1604,12 +1675,13 @@
                                     <span class="histogram-total">n=10</span>
                                 </div>
                                 <div class="match-run-points">
-                                    <span class="match-points-value">1.2000</span>
+                                    <span class="match-points-value score-color-1">1.2000</span>
                                     <span class="match-points-label">avg points</span>
                                 </div>
 
-                        <div class="histogram-row">
+                        <div class="histogram-row histogram-row-with-points">
                             <span class="histogram-score">1:1</span>
+                            <span class="points-badge points-badge-0" title="Kicktipp points for this scoreline">0pt</span>
                             <span class="histogram-track" aria-hidden="true">
                                 <span class="histogram-bar" style="width: 70%"></span>
                             </span>
@@ -1617,8 +1689,9 @@
                         </div>
 
 
-                        <div class="histogram-row">
+                        <div class="histogram-row histogram-row-with-points">
                             <span class="histogram-score">1:2</span>
+                            <span class="points-badge points-badge-4" title="Kicktipp points for this scoreline">4pt</span>
                             <span class="histogram-track" aria-hidden="true">
                                 <span class="histogram-bar" style="width: 30%"></span>
                             </span>
@@ -1633,16 +1706,9 @@
 
                     <article class="match-breakdown-card">
                         <div class="match-breakdown-header">
-                            <div>
-                                <span class="glance-label">Match 11</span>
-                                <h3 class="match-fixture">VfB Stuttgart vs Hamburger SV</h3>
-                                <div class="match-meta"><span class="meta-chip">Matchday 29</span><span class="meta-chip">2026-04-12T18:30:00 UTC+02 (+02)</span></div>
-                                <p class="footnote match-source">Source item: bundesliga-2025-26__pes-squad__ts1423757285</p>
-                            </div>
-                            <div class="actual-result">
-                                <span class="glance-label">Actual outcome</span>
-                                <span class="actual-result-value">VfB Stuttgart 4 - 0 Hamburger SV</span>
-                            </div>
+                            <span class="glance-label">Match 11</span>
+                            <h3 class="match-fixture match-title"><span>VfB Stuttgart</span><span class="match-title-score">4:0</span><span>Hamburger SV</span></h3>
+                            <div class="match-meta"><span class="meta-chip">Matchday 29</span><span class="meta-chip">2026-04-12T18:30:00 UTC+02 (+02)</span></div>
                         </div>
                         <div class="match-run-grid">
 
@@ -1652,12 +1718,13 @@
                                     <span class="histogram-total">n=10</span>
                                 </div>
                                 <div class="match-run-points">
-                                    <span class="match-points-value">2.0000</span>
+                                    <span class="match-points-value score-color-2">2.0000</span>
                                     <span class="match-points-label">avg points</span>
                                 </div>
 
-                        <div class="histogram-row">
+                        <div class="histogram-row histogram-row-with-points">
                             <span class="histogram-score">2:1</span>
+                            <span class="points-badge points-badge-2" title="Kicktipp points for this scoreline">2pt</span>
                             <span class="histogram-track" aria-hidden="true">
                                 <span class="histogram-bar" style="width: 100%"></span>
                             </span>
@@ -1673,12 +1740,13 @@
                                     <span class="histogram-total">n=10</span>
                                 </div>
                                 <div class="match-run-points">
-                                    <span class="match-points-value">2.0000</span>
+                                    <span class="match-points-value score-color-2">2.0000</span>
                                     <span class="match-points-label">avg points</span>
                                 </div>
 
-                        <div class="histogram-row">
+                        <div class="histogram-row histogram-row-with-points">
                             <span class="histogram-score">2:1</span>
+                            <span class="points-badge points-badge-2" title="Kicktipp points for this scoreline">2pt</span>
                             <span class="histogram-track" aria-hidden="true">
                                 <span class="histogram-bar" style="width: 100%"></span>
                             </span>
@@ -1693,16 +1761,9 @@
 
                     <article class="match-breakdown-card">
                         <div class="match-breakdown-header">
-                            <div>
-                                <span class="glance-label">Match 12</span>
-                                <h3 class="match-fixture">Bayer 04 Leverkusen vs VfL Wolfsburg</h3>
-                                <div class="match-meta"><span class="meta-chip">Matchday 28</span><span class="meta-chip">2026-04-04T16:30:00 UTC+02 (+02)</span></div>
-                                <p class="footnote match-source">Source item: bundesliga-2025-26__pes-squad__ts1423757294</p>
-                            </div>
-                            <div class="actual-result">
-                                <span class="glance-label">Actual outcome</span>
-                                <span class="actual-result-value">Bayer 04 Leverkusen 6 - 3 VfL Wolfsburg</span>
-                            </div>
+                            <span class="glance-label">Match 12</span>
+                            <h3 class="match-fixture match-title"><span>Bayer 04 Leverkusen</span><span class="match-title-score">6:3</span><span>VfL Wolfsburg</span></h3>
+                            <div class="match-meta"><span class="meta-chip">Matchday 28</span><span class="meta-chip">2026-04-04T16:30:00 UTC+02 (+02)</span></div>
                         </div>
                         <div class="match-run-grid">
 
@@ -1712,12 +1773,13 @@
                                     <span class="histogram-total">n=10</span>
                                 </div>
                                 <div class="match-run-points">
-                                    <span class="match-points-value">2.0000</span>
+                                    <span class="match-points-value score-color-2">2.0000</span>
                                     <span class="match-points-label">avg points</span>
                                 </div>
 
-                        <div class="histogram-row">
+                        <div class="histogram-row histogram-row-with-points">
                             <span class="histogram-score">2:1</span>
+                            <span class="points-badge points-badge-2" title="Kicktipp points for this scoreline">2pt</span>
                             <span class="histogram-track" aria-hidden="true">
                                 <span class="histogram-bar" style="width: 100%"></span>
                             </span>
@@ -1733,12 +1795,13 @@
                                     <span class="histogram-total">n=10</span>
                                 </div>
                                 <div class="match-run-points">
-                                    <span class="match-points-value">2.0000</span>
+                                    <span class="match-points-value score-color-2">2.0000</span>
                                     <span class="match-points-label">avg points</span>
                                 </div>
 
-                        <div class="histogram-row">
+                        <div class="histogram-row histogram-row-with-points">
                             <span class="histogram-score">2:1</span>
+                            <span class="points-badge points-badge-2" title="Kicktipp points for this scoreline">2pt</span>
                             <span class="histogram-track" aria-hidden="true">
                                 <span class="histogram-bar" style="width: 70%"></span>
                             </span>
@@ -1746,8 +1809,9 @@
                         </div>
 
 
-                        <div class="histogram-row">
+                        <div class="histogram-row histogram-row-with-points">
                             <span class="histogram-score">2:0</span>
+                            <span class="points-badge points-badge-2" title="Kicktipp points for this scoreline">2pt</span>
                             <span class="histogram-track" aria-hidden="true">
                                 <span class="histogram-bar" style="width: 30%"></span>
                             </span>
@@ -1762,16 +1826,9 @@
 
                     <article class="match-breakdown-card">
                         <div class="match-breakdown-header">
-                            <div>
-                                <span class="glance-label">Match 13</span>
-                                <h3 class="match-fixture">Bor. Mönchengladbach vs 1. FC Heidenheim 1846</h3>
-                                <div class="match-meta"><span class="meta-chip">Matchday 28</span><span class="meta-chip">2026-04-04T16:30:00 UTC+02 (+02)</span></div>
-                                <p class="footnote match-source">Source item: bundesliga-2025-26__pes-squad__ts1423757295</p>
-                            </div>
-                            <div class="actual-result">
-                                <span class="glance-label">Actual outcome</span>
-                                <span class="actual-result-value">Bor. Mönchengladbach 2 - 2 1. FC Heidenheim 1846</span>
-                            </div>
+                            <span class="glance-label">Match 13</span>
+                            <h3 class="match-fixture match-title"><span>Bor. Mönchengladbach</span><span class="match-title-score">2:2</span><span>1. FC Heidenheim 1846</span></h3>
+                            <div class="match-meta"><span class="meta-chip">Matchday 28</span><span class="meta-chip">2026-04-04T16:30:00 UTC+02 (+02)</span></div>
                         </div>
                         <div class="match-run-grid">
 
@@ -1781,12 +1838,13 @@
                                     <span class="histogram-total">n=10</span>
                                 </div>
                                 <div class="match-run-points">
-                                    <span class="match-points-value">0.6000</span>
+                                    <span class="match-points-value score-color-1">0.6000</span>
                                     <span class="match-points-label">avg points</span>
                                 </div>
 
-                        <div class="histogram-row">
+                        <div class="histogram-row histogram-row-with-points">
                             <span class="histogram-score">2:1</span>
+                            <span class="points-badge points-badge-0" title="Kicktipp points for this scoreline">0pt</span>
                             <span class="histogram-track" aria-hidden="true">
                                 <span class="histogram-bar" style="width: 78%"></span>
                             </span>
@@ -1794,8 +1852,9 @@
                         </div>
 
 
-                        <div class="histogram-row">
+                        <div class="histogram-row histogram-row-with-points">
                             <span class="histogram-score">1:1</span>
+                            <span class="points-badge points-badge-2" title="Kicktipp points for this scoreline">2pt</span>
                             <span class="histogram-track" aria-hidden="true">
                                 <span class="histogram-bar" style="width: 33%"></span>
                             </span>
@@ -1811,12 +1870,13 @@
                                     <span class="histogram-total">n=10</span>
                                 </div>
                                 <div class="match-run-points">
-                                    <span class="match-points-value">0.0000</span>
+                                    <span class="match-points-value score-color-0">0.0000</span>
                                     <span class="match-points-label">avg points</span>
                                 </div>
 
-                        <div class="histogram-row">
+                        <div class="histogram-row histogram-row-with-points">
                             <span class="histogram-score">2:1</span>
+                            <span class="points-badge points-badge-0" title="Kicktipp points for this scoreline">0pt</span>
                             <span class="histogram-track" aria-hidden="true">
                                 <span class="histogram-bar" style="width: 100%"></span>
                             </span>
@@ -1824,8 +1884,9 @@
                         </div>
 
 
-                        <div class="histogram-row">
+                        <div class="histogram-row histogram-row-with-points">
                             <span class="histogram-score">2:0</span>
+                            <span class="points-badge points-badge-0" title="Kicktipp points for this scoreline">0pt</span>
                             <span class="histogram-track" aria-hidden="true">
                                 <span class="histogram-bar" style="width: 11%"></span>
                             </span>
@@ -1840,16 +1901,9 @@
 
                     <article class="match-breakdown-card">
                         <div class="match-breakdown-header">
-                            <div>
-                                <span class="glance-label">Match 14</span>
-                                <h3 class="match-fixture">Bor. Mönchengladbach vs FC St. Pauli</h3>
-                                <div class="match-meta"><span class="meta-chip">Matchday 26</span><span class="meta-chip">2026-03-13T20:30:00 UTC+01 (+01)</span></div>
-                                <p class="footnote match-source">Source item: bundesliga-2025-26__pes-squad__ts1423757307</p>
-                            </div>
-                            <div class="actual-result">
-                                <span class="glance-label">Actual outcome</span>
-                                <span class="actual-result-value">Bor. Mönchengladbach 2 - 0 FC St. Pauli</span>
-                            </div>
+                            <span class="glance-label">Match 14</span>
+                            <h3 class="match-fixture match-title"><span>Bor. Mönchengladbach</span><span class="match-title-score">2:0</span><span>FC St. Pauli</span></h3>
+                            <div class="match-meta"><span class="meta-chip">Matchday 26</span><span class="meta-chip">2026-03-13T20:30:00 UTC+01 (+01)</span></div>
                         </div>
                         <div class="match-run-grid">
 
@@ -1859,12 +1913,13 @@
                                     <span class="histogram-total">n=10</span>
                                 </div>
                                 <div class="match-run-points">
-                                    <span class="match-points-value">1.2000</span>
+                                    <span class="match-points-value score-color-1">1.2000</span>
                                     <span class="match-points-label">avg points</span>
                                 </div>
 
-                        <div class="histogram-row">
+                        <div class="histogram-row histogram-row-with-points">
                             <span class="histogram-score">1:1</span>
+                            <span class="points-badge points-badge-0" title="Kicktipp points for this scoreline">0pt</span>
                             <span class="histogram-track" aria-hidden="true">
                                 <span class="histogram-bar" style="width: 40%"></span>
                             </span>
@@ -1872,8 +1927,9 @@
                         </div>
 
 
-                        <div class="histogram-row">
+                        <div class="histogram-row histogram-row-with-points">
                             <span class="histogram-score">1:0</span>
+                            <span class="points-badge points-badge-2" title="Kicktipp points for this scoreline">2pt</span>
                             <span class="histogram-track" aria-hidden="true">
                                 <span class="histogram-bar" style="width: 30%"></span>
                             </span>
@@ -1881,8 +1937,9 @@
                         </div>
 
 
-                        <div class="histogram-row">
+                        <div class="histogram-row histogram-row-with-points">
                             <span class="histogram-score">2:1</span>
+                            <span class="points-badge points-badge-2" title="Kicktipp points for this scoreline">2pt</span>
                             <span class="histogram-track" aria-hidden="true">
                                 <span class="histogram-bar" style="width: 30%"></span>
                             </span>
@@ -1898,12 +1955,13 @@
                                     <span class="histogram-total">n=10</span>
                                 </div>
                                 <div class="match-run-points">
-                                    <span class="match-points-value">0.0000</span>
+                                    <span class="match-points-value score-color-0">0.0000</span>
                                     <span class="match-points-label">avg points</span>
                                 </div>
 
-                        <div class="histogram-row">
+                        <div class="histogram-row histogram-row-with-points">
                             <span class="histogram-score">1:1</span>
+                            <span class="points-badge points-badge-0" title="Kicktipp points for this scoreline">0pt</span>
                             <span class="histogram-track" aria-hidden="true">
                                 <span class="histogram-bar" style="width: 100%"></span>
                             </span>
@@ -1918,16 +1976,9 @@
 
                     <article class="match-breakdown-card">
                         <div class="match-breakdown-header">
-                            <div>
-                                <span class="glance-label">Match 15</span>
-                                <h3 class="match-fixture">FC St. Pauli vs FSV Mainz 05</h3>
-                                <div class="match-meta"><span class="meta-chip">Matchday 32</span><span class="meta-chip">2026-05-03T16:30:00 UTC+02 (+02)</span></div>
-                                <p class="footnote match-source">Source item: bundesliga-2025-26__pes-squad__ts1423757315</p>
-                            </div>
-                            <div class="actual-result">
-                                <span class="glance-label">Actual outcome</span>
-                                <span class="actual-result-value">FC St. Pauli 1 - 2 FSV Mainz 05</span>
-                            </div>
+                            <span class="glance-label">Match 15</span>
+                            <h3 class="match-fixture match-title"><span>FC St. Pauli</span><span class="match-title-score">1:2</span><span>FSV Mainz 05</span></h3>
+                            <div class="match-meta"><span class="meta-chip">Matchday 32</span><span class="meta-chip">2026-05-03T16:30:00 UTC+02 (+02)</span></div>
                         </div>
                         <div class="match-run-grid">
 
@@ -1937,12 +1988,13 @@
                                     <span class="histogram-total">n=10</span>
                                 </div>
                                 <div class="match-run-points">
-                                    <span class="match-points-value">0.0000</span>
+                                    <span class="match-points-value score-color-0">0.0000</span>
                                     <span class="match-points-label">avg points</span>
                                 </div>
 
-                        <div class="histogram-row">
+                        <div class="histogram-row histogram-row-with-points">
                             <span class="histogram-score">1:1</span>
+                            <span class="points-badge points-badge-0" title="Kicktipp points for this scoreline">0pt</span>
                             <span class="histogram-track" aria-hidden="true">
                                 <span class="histogram-bar" style="width: 100%"></span>
                             </span>
@@ -1958,12 +2010,13 @@
                                     <span class="histogram-total">n=10</span>
                                 </div>
                                 <div class="match-run-points">
-                                    <span class="match-points-value">0.0000</span>
+                                    <span class="match-points-value score-color-0">0.0000</span>
                                     <span class="match-points-label">avg points</span>
                                 </div>
 
-                        <div class="histogram-row">
+                        <div class="histogram-row histogram-row-with-points">
                             <span class="histogram-score">1:1</span>
+                            <span class="points-badge points-badge-0" title="Kicktipp points for this scoreline">0pt</span>
                             <span class="histogram-track" aria-hidden="true">
                                 <span class="histogram-bar" style="width: 100%"></span>
                             </span>

@@ -674,7 +674,7 @@ def build_prediction_distributions(
         if run_rows is None:
             continue
 
-        score_counts = build_score_counts(run_rows)
+        score_counts = build_score_counts(run_rows, include_points=False)
         total_count = sum(int(score_count["count"]) for score_count in score_counts)
         if total_count == 0:
             continue
@@ -801,7 +801,7 @@ def build_match_run_summaries(
         if run_rows is None:
             continue
 
-        score_counts = build_score_counts(run_rows)
+        score_counts = build_score_counts(run_rows, include_points=True)
         point_values = (
             [normalize_optional_float(value) for value in run_rows["kicktippPoints"].tolist()]
             if "kicktippPoints" in run_rows.columns
@@ -824,12 +824,13 @@ def build_match_run_summaries(
     return run_summaries
 
 
-def build_score_counts(rows_df: pd.DataFrame) -> list[dict[str, Any]]:
+def build_score_counts(rows_df: pd.DataFrame, *, include_points: bool) -> list[dict[str, Any]]:
     required_columns = {"predictedHomeGoals", "predictedAwayGoals"}
     if required_columns.difference(rows_df.columns):
         return []
 
     counts_by_score: dict[tuple[int, int], int] = {}
+    points_by_score: dict[tuple[int, int], list[float]] = {}
     for row in rows_df.to_dict(orient="records"):
         home_goals = normalize_optional_int(row.get("predictedHomeGoals"))
         away_goals = normalize_optional_int(row.get("predictedAwayGoals"))
@@ -838,21 +839,33 @@ def build_score_counts(rows_df: pd.DataFrame) -> list[dict[str, Any]]:
 
         key = (home_goals, away_goals)
         counts_by_score[key] = counts_by_score.get(key, 0) + 1
+        if include_points:
+            kicktipp_points = normalize_optional_float(row.get("kicktippPoints"))
+            if kicktipp_points is not None:
+                points_by_score.setdefault(key, []).append(kicktipp_points)
 
     total_count = sum(counts_by_score.values())
     if total_count == 0:
         return []
 
-    score_counts = [
-        {
+    score_counts: list[dict[str, Any]] = []
+    for (home_goals, away_goals), count in counts_by_score.items():
+        score_count: dict[str, Any] = {
             "score": f"{home_goals}:{away_goals}",
             "homeGoals": home_goals,
             "awayGoals": away_goals,
             "count": count,
             "share": count / total_count,
         }
-        for (home_goals, away_goals), count in counts_by_score.items()
-    ]
+        if include_points:
+            point_values = points_by_score.get((home_goals, away_goals), [])
+            unique_points = sorted(set(point_values))
+            if len(unique_points) == 1:
+                score_count["kicktippPoints"] = unique_points[0]
+            elif point_values:
+                score_count["averageKicktippPoints"] = float(np.mean(point_values))
+        score_counts.append(score_count)
+
     score_counts.sort(key=lambda item: (-int(item["count"]), int(item["homeGoals"]), int(item["awayGoals"])))
     return score_counts
 
@@ -1380,6 +1393,7 @@ def render_html(report: dict[str, Any]) -> str:
             font-size: clamp(1.9rem, 4vw, 3.2rem);
             line-height: 1.05;
             margin-bottom: 12px;
+            overflow-wrap: anywhere;
         }}
 
         .hero-meta {{
@@ -1392,6 +1406,8 @@ def render_html(report: dict[str, Any]) -> str:
         .pill {{
             display: inline-flex;
             align-items: center;
+            max-width: 100%;
+            overflow-wrap: anywhere;
             padding: 6px 10px;
             border-radius: 999px;
             background: var(--accent-soft);
@@ -1652,7 +1668,7 @@ def render_html(report: dict[str, Any]) -> str:
             height: 100%;
             min-width: 6px;
             border-radius: inherit;
-            background: linear-gradient(90deg, var(--accent), var(--good));
+            background: linear-gradient(90deg, #aeb7c5, #40546f);
         }}
 
         .collapsible-kicker {{
@@ -1676,22 +1692,26 @@ def render_html(report: dict[str, Any]) -> str:
         }}
 
         .match-breakdown-header {{
-            display: grid;
-            grid-template-columns: minmax(0, 1fr) minmax(150px, auto);
-            gap: 14px;
-            align-items: start;
             margin-bottom: 16px;
-        }}
-
-        .match-source {{
-            margin-top: 10px;
-            overflow-wrap: anywhere;
         }}
 
         .match-run-grid {{
             display: grid;
             grid-template-columns: repeat(auto-fit, minmax(240px, 1fr));
             gap: 14px;
+        }}
+
+        .match-title {{
+            align-items: baseline;
+            display: flex;
+            flex-wrap: wrap;
+            gap: 0.36em;
+        }}
+
+        .match-title-score {{
+            color: #6a7178;
+            font-weight: 900;
+            white-space: nowrap;
         }}
 
         .match-run-summary {{
@@ -1708,10 +1728,33 @@ def render_html(report: dict[str, Any]) -> str:
         }}
 
         .match-points-value {{
-            color: var(--good);
             font-size: 1.45rem;
             font-weight: 800;
             line-height: 1;
+        }}
+
+        .score-color-0 {{
+            color: #5f6470;
+        }}
+
+        .score-color-1 {{
+            color: #526f90;
+        }}
+
+        .score-color-2 {{
+            color: #315d9c;
+        }}
+
+        .score-color-3 {{
+            color: #7a5600;
+        }}
+
+        .score-color-4 {{
+            color: #257042;
+        }}
+
+        .score-color-neutral {{
+            color: #5f6470;
         }}
 
         .match-points-label {{
@@ -1720,6 +1763,53 @@ def render_html(report: dict[str, Any]) -> str:
             font-weight: 700;
             letter-spacing: 0.06em;
             text-transform: uppercase;
+        }}
+
+        .histogram-row-with-points {{
+            grid-template-columns: 3.4rem 3rem minmax(90px, 1fr) 2.2rem;
+        }}
+
+        .points-badge {{
+            align-items: center;
+            border-radius: 999px;
+            display: inline-flex;
+            font-size: 0.74rem;
+            font-weight: 800;
+            justify-content: center;
+            justify-self: end;
+            line-height: 1;
+            min-width: 2.45rem;
+            padding: 4px 7px;
+        }}
+
+        .points-badge-0 {{
+            background: #ece9e3;
+            color: #5f6470;
+        }}
+
+        .points-badge-1 {{
+            background: #e4edf8;
+            color: #526f90;
+        }}
+
+        .points-badge-2 {{
+            background: #e4efff;
+            color: #315d9c;
+        }}
+
+        .points-badge-3 {{
+            background: #f6e8bd;
+            color: #7a5600;
+        }}
+
+        .points-badge-4 {{
+            background: #dcefd8;
+            color: #257042;
+        }}
+
+        .points-badge-neutral {{
+            background: #ece9e3;
+            color: #5f6470;
         }}
 
         .collapsible-panel {{
@@ -1991,6 +2081,7 @@ def render_html(report: dict[str, Any]) -> str:
             color: var(--muted);
             font-size: 0.95rem;
             line-height: 1.55;
+            overflow-wrap: anywhere;
         }}
 
         @media (max-width: 720px) {{
@@ -2003,7 +2094,26 @@ def render_html(report: dict[str, Any]) -> str:
             .glance-grid, .head-to-head-models {{ grid-template-columns: 1fr; }}
             .head-to-head-topline {{ align-items: flex-start; flex-direction: column; }}
             .collapsible-kicker {{ margin-left: 0; }}
-            .match-breakdown-header {{ grid-template-columns: 1fr; }}
+            .histogram-grid,
+            .match-run-grid {{
+                grid-template-columns: minmax(0, 1fr);
+            }}
+            .histogram-title {{
+                align-items: flex-start;
+                flex-direction: column;
+                gap: 3px;
+            }}
+            .histogram-row {{
+                gap: 6px;
+                grid-template-columns: 2.6rem minmax(52px, 1fr) 1.7rem;
+            }}
+            .histogram-row-with-points {{
+                grid-template-columns: 2.6rem 2.45rem minmax(52px, 1fr) 1.7rem;
+            }}
+            .points-badge {{
+                min-width: 2.1rem;
+                padding: 4px 5px;
+            }}
             .pvalue-summary {{ text-align: left; }}
             table, thead, tbody, tr, th, td {{ display: block; }}
             thead {{ display: none; }}
@@ -2299,14 +2409,16 @@ def render_match_breakdown_section(match_breakdown: Any) -> str:
 
 def render_match_breakdown_card(match: dict[str, Any]) -> str:
         fixture = normalize_optional_string(match.get("fixture")) or "n/a"
+        home_team = normalize_optional_string(match.get("homeTeam"))
+        away_team = normalize_optional_string(match.get("awayTeam"))
         fixture_index = normalize_optional_int(match.get("fixtureIndex"))
         match_label = f"Match {fixture_index}" if fixture_index is not None else "Match"
         matchday = normalize_optional_string(match.get("matchday"))
         starts_at = normalize_optional_string(match.get("startsAt"))
-        source_item_id = normalize_optional_string(match.get("sourceDatasetItemId"))
-        actual_result = normalize_optional_string(match.get("actualResultDisplay"))
+        actual_result = normalize_optional_string(match.get("actualResult"))
+        actual_result_display = normalize_optional_string(match.get("actualResultDisplay"))
         if actual_result is None:
-                actual_result = normalize_optional_string(match.get("actualResult"))
+                actual_result = actual_result_display
 
         meta_chips = []
         if matchday is not None:
@@ -2314,11 +2426,7 @@ def render_match_breakdown_card(match: dict[str, Any]) -> str:
         if starts_at is not None:
                 meta_chips.append(f'<span class="meta-chip">{escape_html(starts_at)}</span>')
         meta_html = f'<div class="match-meta">{"".join(meta_chips)}</div>' if meta_chips else ""
-        source_html = (
-                f'<p class="footnote match-source">Source item: {escape_html(source_item_id)}</p>'
-                if source_item_id is not None
-                else ""
-        )
+        match_title_html = render_match_title(fixture, home_team, away_team, actual_result)
 
         runs = match.get("runs")
         run_summaries = runs if isinstance(runs, list) else []
@@ -2341,16 +2449,9 @@ def render_match_breakdown_card(match: dict[str, Any]) -> str:
         return f"""
                     <article class=\"match-breakdown-card\">
                         <div class=\"match-breakdown-header\">
-                            <div>
-                                <span class=\"glance-label\">{escape_html(match_label)}</span>
-                                <h3 class=\"match-fixture\">{escape_html(fixture)}</h3>
-                                {meta_html}
-                                {source_html}
-                            </div>
-                            <div class=\"actual-result\">
-                                <span class=\"glance-label\">Actual outcome</span>
-                                <span class=\"actual-result-value\">{escape_html(actual_result or "n/a")}</span>
-                            </div>
+                            <span class=\"glance-label\">{escape_html(match_label)}</span>
+                            <h3 class=\"match-fixture match-title\">{match_title_html}</h3>
+                            {meta_html}
                         </div>
                         <div class=\"match-run-grid\">
                             {run_summary_html}
@@ -2359,12 +2460,29 @@ def render_match_breakdown_card(match: dict[str, Any]) -> str:
         """
 
 
+def render_match_title(fixture: str, home_team: str | None, away_team: str | None, actual_result: str | None) -> str:
+        if home_team is not None and away_team is not None and actual_result is not None:
+                return (
+                        f'<span>{escape_html(home_team)}</span>'
+                        f'<span class="match-title-score">{escape_html(actual_result)}</span>'
+                        f'<span>{escape_html(away_team)}</span>'
+                )
+
+        if actual_result is not None:
+                return (
+                        f'<span>{escape_html(fixture)}</span>'
+                        f'<span class="match-title-score">{escape_html(actual_result)}</span>'
+                )
+
+        return f"<span>{escape_html(fixture)}</span>"
+
+
 def render_match_run_summary(run_summary: dict[str, Any], max_count: int) -> str:
         score_counts = run_summary.get("scoreCounts")
         score_count_rows = ""
         if isinstance(score_counts, list) and score_counts:
                 score_count_rows = "\n".join(
-                        render_prediction_histogram_row(score_count, max_count)
+                        render_prediction_histogram_row(score_count, max_count, show_points=True)
                         for score_count in score_counts
                         if isinstance(score_count, dict)
                 )
@@ -2374,6 +2492,7 @@ def render_match_run_summary(run_summary: dict[str, Any], max_count: int) -> str
         prediction_count = normalize_optional_int(run_summary.get("predictionCount"))
         prediction_count_text = f"n={prediction_count}" if prediction_count is not None else "n/a"
         average_points = normalize_optional_float(run_summary.get("averageKicktippPoints"))
+        average_points_class = score_color_class_for_value(average_points)
 
         return f"""
                             <div class=\"match-run-summary\">
@@ -2382,7 +2501,7 @@ def render_match_run_summary(run_summary: dict[str, Any], max_count: int) -> str
                                     <span class=\"histogram-total\">{escape_html(prediction_count_text)}</span>
                                 </div>
                                 <div class=\"match-run-points\">
-                                    <span class=\"match-points-value\">{escape_html(format_number(average_points))}</span>
+                                    <span class=\"match-points-value {average_points_class}\">{escape_html(format_number(average_points))}</span>
                                     <span class=\"match-points-label\">avg points</span>
                                 </div>
                                 {score_count_rows}
@@ -2554,18 +2673,55 @@ def render_prediction_histogram_card(distribution: dict[str, Any], max_count: in
         """
 
 
-def render_prediction_histogram_row(score_count: dict[str, Any], max_count: int) -> str:
+def render_prediction_histogram_row(score_count: dict[str, Any], max_count: int, *, show_points: bool = False) -> str:
         count = int(score_count["count"])
         width = 100 if max_count <= 0 else max(6, round(count / max_count * 100))
+        row_class = "histogram-row histogram-row-with-points" if show_points else "histogram-row"
+        points_badge = render_points_badge(score_count) if show_points else ""
         return f"""
-                        <div class=\"histogram-row\">
+                        <div class=\"{row_class}\">
                             <span class=\"histogram-score\">{escape_html(str(score_count["score"]))}</span>
+                            {points_badge}
                             <span class=\"histogram-track\" aria-hidden=\"true\">
                                 <span class=\"histogram-bar\" style=\"width: {width}%\"></span>
                             </span>
                             <span class=\"histogram-count\">{count}</span>
                         </div>
         """
+
+
+def render_points_badge(score_count: dict[str, Any]) -> str:
+        point_value = normalize_optional_float(score_count.get("kicktippPoints"))
+        if point_value is None:
+                point_value = normalize_optional_float(score_count.get("averageKicktippPoints"))
+        if point_value is None:
+                return '<span class="points-badge points-badge-neutral">n/a</span>'
+
+        point_int = score_bucket_for_value(point_value)
+        point_class = f"points-badge-{point_int}" if point_int in {0, 1, 2, 3, 4} else "points-badge-neutral"
+        label = format_points_badge_value(point_value)
+        title = "Kicktipp points for this scoreline"
+        return (
+                f'<span class="points-badge {point_class}" title="{escape_html(title)}">'
+                f"{escape_html(label)}pt</span>"
+        )
+
+
+def score_color_class_for_value(value: float | None) -> str:
+        score_bucket = score_bucket_for_value(value)
+        return f"score-color-{score_bucket}" if score_bucket in {0, 1, 2, 3, 4} else "score-color-neutral"
+
+
+def score_bucket_for_value(value: float | None) -> int | None:
+        if value is None or math.isnan(value):
+                return None
+        return max(0, min(4, int(round(float(value)))))
+
+
+def format_points_badge_value(value: float | None) -> str:
+        if value is None or math.isnan(value):
+                return "n/a"
+        return str(int(value)) if float(value).is_integer() else f"{value:.1f}"
 
 
 def render_metric_card(label: str, value: Any) -> str:

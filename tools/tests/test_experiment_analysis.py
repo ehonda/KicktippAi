@@ -298,6 +298,7 @@ class ExperimentAnalysisReportTests(unittest.TestCase):
         self.assertEqual(report_json["matchBreakdown"][0]["runs"][0]["averageKicktippPoints"], 3.0)
         self.assertEqual(report_json["matchBreakdown"][0]["runs"][0]["scoreCounts"][0]["score"], "1:0")
         self.assertEqual(report_json["matchBreakdown"][0]["runs"][0]["scoreCounts"][0]["count"], 2)
+        self.assertEqual(report_json["matchBreakdown"][0]["runs"][0]["scoreCounts"][0]["averageKicktippPoints"], 3.0)
         self.assertIn("| Matches | 2 |", report_markdown)
         self.assertIn("| Repetitions | 2 |", report_markdown)
         self.assertIn("| Predictions | 4 |", report_markdown)
@@ -305,8 +306,16 @@ class ExperimentAnalysisReportTests(unittest.TestCase):
         self.assertIn("<h2>Matches</h2>", report_html)
         self.assertIn("2 fixtures", report_html)
         self.assertIn("Individual matches do not run significance tests", report_html)
-        self.assertIn("Home 1 1 - 0 Away 1", report_html)
-        self.assertIn("Source item: bundesliga-2025-26__test-community__fixture-1", report_html)
+        self.assertIn('<h3 class="match-fixture match-title">', report_html)
+        self.assertIn('<span>Home 1</span><span class="match-title-score">1:0</span><span>Away 1</span>', report_html)
+        self.assertNotIn("Source item:", report_html)
+        self.assertIn("points-badge points-badge-3", report_html)
+        self.assertIn("score-color-3", report_html)
+        self.assertIn("background: linear-gradient(90deg, #aeb7c5, #40546f);", report_html)
+        self.assertIn("background: #e4efff;", report_html)
+        self.assertIn("background: #f6e8bd;", report_html)
+        self.assertIn("background: #dcefd8;", report_html)
+        self.assertIn(">3pt</span>", report_html)
         self.assertIn("Model A", report_html)
 
     def test_repeated_match_slice_match_breakdown_supports_multi_run_html(self) -> None:
@@ -407,7 +416,8 @@ class ExperimentAnalysisReportTests(unittest.TestCase):
         self.assertIn('<details class="panel collapsible-panel matches-panel">', report_html)
         self.assertIn("2 fixtures", report_html)
         self.assertIn("Model C", report_html)
-        self.assertIn("Home 2 1 - 0 Away 2", report_html)
+        self.assertIn('<span>Home 2</span><span class="match-title-score">1:0</span><span>Away 2</span>', report_html)
+        self.assertIn("points-badge", report_html)
 
     def test_three_run_bundle_produces_friedman_and_pairwise_comparisons(self) -> None:
         fixture = Path("tools/tests/fixtures/three_run_repeated_match_bundle.json")
