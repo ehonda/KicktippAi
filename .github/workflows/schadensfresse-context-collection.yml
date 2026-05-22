@@ -1,13 +1,17 @@
 name: schadensfresse ⚽ Context Collection
 
 on:
+  # 🚫 Deactivated: The most recent active competition for this workflow,
+  # 🚫 Bundesliga 2025 / 2026, has concluded.
+  # Keep an inert trigger so the workflow file remains valid while disabled.
+  workflow_call:
   # Schedule to run every 12 hours starting at 00:00 UTC
-  schedule:
-    - cron: '0 0 * * *'   # 00:00 UTC (01:00 CET, 02:00 CEST)
-    - cron: '0 12 * * *'  # 12:00 UTC (13:00 CET, 14:00 CEST)
-  
+  # schedule:
+  #   - cron: '0 0 * * *'   # 00:00 UTC (01:00 CET, 02:00 CEST)
+  #   - cron: '0 12 * * *'  # 12:00 UTC (13:00 CET, 14:00 CEST)
+  #
   # Allow manual triggering
-  workflow_dispatch:
+  # workflow_dispatch:
 
 jobs:
   call-base-workflow:

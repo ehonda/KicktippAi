@@ -1,25 +1,29 @@
 name: pes-squad ⚽ Bonus
 
 on:
+  # 🚫 Deactivated: The most recent active competition for this workflow,
+  # 🚫 Bundesliga 2025 / 2026, has concluded.
+  # Keep an inert trigger so the workflow file remains valid while disabled.
+  workflow_call:
   # Schedule to run twice daily 30 minutes after context collection
   # Note: GitHub Actions cron runs in UTC only, so these times approximate Europe/Berlin
-  schedule:
-    - cron: '30 0 * * *'   # ~01:30 AM Europe/Berlin (00:30 UTC = 01:30 CET, 02:30 CEST) - 30 min after context collection
-    - cron: '30 12 * * *'  # ~01:30 PM Europe/Berlin (12:30 UTC = 13:30 CET, 14:30 CEST) - 30 min after context collection
-  
+  # schedule:
+  #   - cron: '30 0 * * *'   # ~01:30 AM Europe/Berlin (00:30 UTC = 01:30 CET, 02:30 CEST) - 30 min after context collection
+  #   - cron: '30 12 * * *'  # ~01:30 PM Europe/Berlin (12:30 UTC = 13:30 CET, 14:30 CEST) - 30 min after context collection
+  #
   # Allow manual triggering
-  workflow_dispatch:
-    inputs:
-      force_prediction:
-        description: 'Force prediction even if verify passes'
-        required: false
-        default: false
-        type: boolean
-      max_repredictions:
-        description: 'Maximum number of repredictions allowed (0-based index)'
-        required: false
-        default: 2
-        type: number
+  # workflow_dispatch:
+  #   inputs:
+  #     force_prediction:
+  #       description: 'Force prediction even if verify passes'
+  #       required: false
+  #       default: false
+  #       type: boolean
+  #     max_repredictions:
+  #       description: 'Maximum number of repredictions allowed (0-based index)'
+  #       required: false
+  #       default: 2
+  #       type: number
 
 jobs:
   call-base-workflow:
