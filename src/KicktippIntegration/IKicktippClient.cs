@@ -49,6 +49,14 @@ public interface IKicktippClient
     Task<List<MatchWithHistory>> GetMatchesWithHistoryAsync(string community);
 
     /// <summary>
+    /// Get matches with detailed information including recent history for both teams for a specific matchday.
+    /// </summary>
+    /// <param name="community">The community name</param>
+    /// <param name="matchday">The matchday index to load.</param>
+    /// <returns>List of matches with their recent history context</returns>
+    Task<List<MatchWithHistory>> GetMatchesWithHistoryAsync(string community, int matchday);
+
+    /// <summary>
     /// Gets the currently displayed matchday index from the community's tippuebersicht page.
     /// </summary>
     /// <param name="community">The community name.</param>

@@ -24,12 +24,15 @@ public interface IContextProviderFactory
     /// <param name="kicktippClient">The Kicktipp client to use for fetching data.</param>
     /// <param name="community">The Kicktipp community name.</param>
     /// <param name="communityContext">The community context identifier (defaults to community if not specified).</param>
+    /// <param name="competition">The competition identifier.</param>
+    /// <param name="matchday">Optional matchday index to load history from.</param>
     /// <returns>A configured <see cref="IKicktippContextProvider"/> instance.</returns>
     IKicktippContextProvider CreateKicktippContextProvider(
         KicktippIntegration.IKicktippClient kicktippClient,
         string community,
         string? communityContext = null,
-        string? competition = null);
+        string? competition = null,
+        int? matchday = null);
 
     /// <summary>
     /// Creates a KPI context provider for bonus predictions.

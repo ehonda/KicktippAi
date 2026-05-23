@@ -675,10 +675,23 @@ public class KicktippClient : IKicktippClient, IDisposable
     }
 
     /// <inheritdoc />
-    public async Task<List<MatchWithHistory>> GetMatchesWithHistoryAsync(string community)
+    public Task<List<MatchWithHistory>> GetMatchesWithHistoryAsync(string community)
+    {
+        return GetMatchesWithHistoryAsync(community, null);
+    }
+
+    /// <inheritdoc />
+    public Task<List<MatchWithHistory>> GetMatchesWithHistoryAsync(string community, int matchday)
+    {
+        return GetMatchesWithHistoryAsync(community, (int?)matchday);
+    }
+
+    private async Task<List<MatchWithHistory>> GetMatchesWithHistoryAsync(string community, int? matchday)
     {
         // Create cache key based on community
-        var cacheKey = $"matches_history_{community}";
+        var cacheKey = matchday.HasValue
+            ? $"matches_history_{community}_{matchday.Value}"
+            : $"matches_history_{community}";
         
         // Try to get from cache first
         if (_cache.TryGetValue(cacheKey, out List<MatchWithHistory>? cachedMatches))
@@ -692,7 +705,9 @@ public class KicktippClient : IKicktippClient, IDisposable
             var matches = new List<MatchWithHistory>();
             
             // First, get the tippabgabe page to find the link to spielinfos
-            var tippabgabeUrl = $"{community}/tippabgabe";
+            var tippabgabeUrl = matchday.HasValue
+                ? $"{community}/tippabgabe?spieltagIndex={matchday.Value}"
+                : $"{community}/tippabgabe";
             var response = await _httpClient.GetAsync(tippabgabeUrl);
             
             if (!response.IsSuccessStatusCode)
@@ -707,6 +722,10 @@ public class KicktippClient : IKicktippClient, IDisposable
             // Extract matchday from the tippabgabe page
             var currentMatchday = ExtractMatchdayFromPage(document);
             _logger.LogDebug("Extracted matchday for history extraction: {Matchday}", currentMatchday);
+            if (matchday.HasValue && currentMatchday != matchday.Value)
+            {
+                _logger.LogWarning("Requested history matchday {RequestedMatchday}, but page displayed {DisplayedMatchday}", matchday.Value, currentMatchday);
+            }
 
             // Find the "Tippabgabe mit Spielinfos" link
             var spielinfoLink = document.QuerySelector("a[href*='spielinfo']");

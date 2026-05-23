@@ -103,55 +103,78 @@ public class CollectContextKicktippCommand : AsyncCommand<CollectContextKicktipp
         var kicktippClient = _kicktippClientFactory.CreateClient();
         var contextRepository = _firebaseServiceFactory.CreateContextRepository(repositoryCompetition);
         
-        // Create context provider using factory
-        var contextProvider = _contextProviderFactory.CreateKicktippContextProvider(
-            kicktippClient, settings.CommunityContext, settings.CommunityContext, repositoryCompetition);
-        
         _console.MarkupLine($"[blue]Using community context:[/] [yellow]{settings.CommunityContext}[/]");
         _console.MarkupLine($"[blue]Using competition:[/] [yellow]{competition}[/]");
-        _console.MarkupLine("[blue]Getting current matchday matches...[/]");
-        
-        // Step 1: Get current matchday matches
-        var matchesWithHistory = await kicktippClient.GetMatchesWithHistoryAsync(settings.CommunityContext);
-        
-        if (!matchesWithHistory.Any())
-        {
-            _console.MarkupLine("[yellow]No matches found for current matchday[/]");
-            return;
-        }
-        
-        _console.MarkupLine($"[green]Found {matchesWithHistory.Count} matches for current matchday[/]");
-        
-        // Step 2: Collect all unique context documents for all matches
+
+        var requestedMatchdays = ParseMatchdays(settings.Matchdays);
+        var targetMatchdays = requestedMatchdays.Count > 0
+            ? requestedMatchdays.Select<int, int?>(matchday => matchday).ToList()
+            : new List<int?> { null };
+
+        // Collect all unique context documents for all matches
         var allContextDocuments = new Dictionary<string, string>(); // documentName -> content
-        
-        foreach (var matchWithHistory in matchesWithHistory)
+
+        foreach (var targetMatchday in targetMatchdays)
         {
-            var match = matchWithHistory.Match;
-            _console.MarkupLine($"[cyan]Collecting context for:[/] {match.HomeTeam} vs {match.AwayTeam}");
-            
-            try
+            var matchdayLabel = targetMatchday.HasValue ? $"matchday {targetMatchday.Value}" : "current matchday";
+
+            // Create context provider using factory
+            var contextProvider = _contextProviderFactory.CreateKicktippContextProvider(
+                kicktippClient,
+                settings.CommunityContext,
+                settings.CommunityContext,
+                repositoryCompetition,
+                targetMatchday);
+
+            _console.MarkupLine($"[blue]Getting {matchdayLabel} matches...[/]");
+
+            // Step 1: Get target matchday matches
+            var matchesWithHistory = targetMatchday.HasValue
+                ? await kicktippClient.GetMatchesWithHistoryAsync(settings.CommunityContext, targetMatchday.Value)
+                : await kicktippClient.GetMatchesWithHistoryAsync(settings.CommunityContext);
+
+            if (!matchesWithHistory.Any())
             {
-                // Get context for this specific match
-                await foreach (var contextDoc in contextProvider.GetMatchContextAsync(match.HomeTeam, match.AwayTeam))
+                _console.MarkupLine($"[yellow]No matches found for {matchdayLabel}[/]");
+                continue;
+            }
+
+            _console.MarkupLine($"[green]Found {matchesWithHistory.Count} matches for {matchdayLabel}[/]");
+
+            // Step 2: Collect all unique context documents for all matches
+            foreach (var matchWithHistory in matchesWithHistory)
+            {
+                var match = matchWithHistory.Match;
+                _console.MarkupLine($"[cyan]Collecting context for:[/] {match.HomeTeam} vs {match.AwayTeam}");
+
+                try
                 {
-                    // Use the document name as key to avoid duplicates
-                    if (!allContextDocuments.ContainsKey(contextDoc.Name))
+                    // Get context for this specific match
+                    await foreach (var contextDoc in contextProvider.GetMatchContextAsync(match.HomeTeam, match.AwayTeam))
                     {
-                        allContextDocuments[contextDoc.Name] = contextDoc.Content;
-                        
-                        if (settings.Verbose)
+                        // Use the document name as key to avoid duplicates
+                        if (!allContextDocuments.ContainsKey(contextDoc.Name))
                         {
-                            _console.MarkupLine($"[dim]  Collected context document: {contextDoc.Name}[/]");
+                            allContextDocuments[contextDoc.Name] = contextDoc.Content;
+
+                            if (settings.Verbose)
+                            {
+                                _console.MarkupLine($"[dim]  Collected context document: {contextDoc.Name}[/]");
+                            }
                         }
                     }
                 }
+                catch (Exception ex)
+                {
+                    _logger.LogError(ex, "Failed to collect context for match {HomeTeam} vs {AwayTeam}", match.HomeTeam, match.AwayTeam);
+                    _console.MarkupLine($"[red]  ✗ Failed to collect context: {ex.Message}[/]");
+                }
             }
-            catch (Exception ex)
-            {
-                _logger.LogError(ex, "Failed to collect context for match {HomeTeam} vs {AwayTeam}", match.HomeTeam, match.AwayTeam);
-                _console.MarkupLine($"[red]  ✗ Failed to collect context: {ex.Message}[/]");
-            }
+        }
+
+        if (!allContextDocuments.Any())
+        {
+            return;
         }
         
         _console.MarkupLine($"[green]Collected {allContextDocuments.Count} unique context documents[/]");
@@ -234,6 +257,30 @@ public class CollectContextKicktippCommand : AsyncCommand<CollectContextKicktipp
         return documentName.StartsWith("recent-history-", StringComparison.OrdinalIgnoreCase) ||
                documentName.StartsWith("home-history-", StringComparison.OrdinalIgnoreCase) ||
                documentName.StartsWith("away-history-", StringComparison.OrdinalIgnoreCase);
+    }
+
+    private static IReadOnlyList<int> ParseMatchdays(string? matchdays)
+    {
+        if (string.IsNullOrWhiteSpace(matchdays))
+        {
+            return [];
+        }
+
+        var result = new List<int>();
+        foreach (var token in matchdays.Split(',', StringSplitOptions.RemoveEmptyEntries | StringSplitOptions.TrimEntries))
+        {
+            if (!int.TryParse(token, out var matchday) || matchday <= 0)
+            {
+                throw new ArgumentException($"Invalid matchday '{token}'. Use positive integers separated by commas.");
+            }
+
+            if (!result.Contains(matchday))
+            {
+                result.Add(matchday);
+            }
+        }
+
+        return result;
     }
 
     private void PrintOutcomeCollectionSummary(MatchOutcomeCollectionResult result, CollectContextKicktippSettings settings)

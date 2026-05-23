@@ -88,6 +88,35 @@ public class KicktippClient_GetMatchesWithHistory_Tests : KicktippClientTests_Ba
     }
 
     [Test]
+    public async Task Getting_matches_with_history_for_matchday_fetches_matchday_tippabgabe_page()
+    {
+        // Arrange - set up matchday-specific tippabgabe with spielinfo link
+        var tippabgabeHtml = """
+            <!DOCTYPE html>
+            <html>
+            <body>
+                <div class="prevnextTitle"><a>2. Spieltag</a></div>
+                <a href="/test-community/spielinfo?tippspielId=1">Tippabgabe mit Spielinfos</a>
+            </body>
+            </html>
+            """;
+        StubHtmlResponseWithParams(
+            "/test-community/tippabgabe",
+            tippabgabeHtml,
+            ("spieltagIndex", "2"));
+        StubWithSyntheticFixture("/test-community/spielinfo", "test-community", "spielinfo-last");
+
+        var client = CreateClient();
+
+        // Act
+        var matches = await client.GetMatchesWithHistoryAsync("test-community", 2);
+
+        // Assert
+        await Assert.That(matches).HasCount().EqualTo(1);
+        await Assert.That(matches[0].Match.Matchday).IsEqualTo(2);
+    }
+
+    [Test]
     public async Task Getting_matches_with_history_extracts_team_history()
     {
         // Arrange

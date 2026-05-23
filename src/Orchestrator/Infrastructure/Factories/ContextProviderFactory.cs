@@ -34,14 +34,16 @@ public sealed class ContextProviderFactory : IContextProviderFactory
         IKicktippClient kicktippClient,
         string community,
         string? communityContext = null,
-        string? competition = null)
+        string? competition = null,
+        int? matchday = null)
     {
         return new KicktippContextProvider(
             kicktippClient,
             CommunityRulesFileProvider,
             community,
             communityContext,
-            competition);
+            competition,
+            matchday);
     }
 
     /// <inheritdoc />

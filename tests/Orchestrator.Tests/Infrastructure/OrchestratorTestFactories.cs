@@ -186,6 +186,9 @@ public static class OrchestratorTestFactories
         mock.Setup(c => c.GetMatchesWithHistoryAsync(It.IsAny<string>()))
             .ReturnsAsync(matches);
 
+        mock.Setup(c => c.GetMatchesWithHistoryAsync(It.IsAny<string>(), It.IsAny<int>()))
+            .ReturnsAsync(matches);
+
         mock.Setup(c => c.GetCurrentTippuebersichtMatchdayAsync(It.IsAny<string>()))
             .ReturnsAsync(currentMatchday);
 
@@ -407,7 +410,8 @@ public static class OrchestratorTestFactories
                 It.IsAny<IKicktippClient>(),
                 It.IsAny<string>(),
                 It.IsAny<string?>(),
-                It.IsAny<string?>()))
+                It.IsAny<string?>(),
+                It.IsAny<int?>()))
             .Returns(mockProvider.Object);
 
         mockFactory.Setup(f => f.CreateKpiContextProvider(It.IsAny<string?>()))

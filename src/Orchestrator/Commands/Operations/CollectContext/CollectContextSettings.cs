@@ -31,6 +31,10 @@ public class CollectContextKicktippSettings : CollectContextSettings
     [Description("Competition identifier (defaults from community context, e.g., fifa-world-cup-2026 for ehonda-dev-wm26)")]
     public string? Competition { get; set; }
 
+    [CommandOption("--matchdays")]
+    [Description("Comma-separated Kicktipp matchday indexes to collect instead of only the current matchday")]
+    public string? Matchdays { get; set; }
+
     [CommandOption("--verbose")]
     [Description("Enable verbose output")]
     public bool Verbose { get; set; }

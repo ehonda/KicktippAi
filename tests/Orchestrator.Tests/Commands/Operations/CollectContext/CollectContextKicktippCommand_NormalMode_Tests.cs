@@ -157,4 +157,50 @@ public class CollectContextKicktippCommand_NormalMode_Tests : CollectContextKick
         await Assert.That(output).Contains("Skipped:");
         await Assert.That(output).Contains("(unchanged)");
     }
+
+    [Test]
+    public async Task Running_command_with_matchdays_collects_each_requested_matchday()
+    {
+        var ctx = CreateCollectContextCommandApp();
+
+        var (exitCode, output) = await RunCommandAsync(
+            ctx.App,
+            ctx.Console,
+            "collect-context-kicktipp",
+            "--community-context",
+            "test-community",
+            "--matchdays",
+            "2,3");
+
+        await Assert.That(exitCode).IsEqualTo(0);
+        await Assert.That(output).Contains("Getting matchday 2 matches");
+        await Assert.That(output).Contains("Getting matchday 3 matches");
+
+        ctx.KicktippClient.Verify(
+            c => c.GetMatchesWithHistoryAsync("test-community", 2),
+            Times.Once);
+        ctx.KicktippClient.Verify(
+            c => c.GetMatchesWithHistoryAsync("test-community", 3),
+            Times.Once);
+        ctx.KicktippClient.Verify(
+            c => c.GetMatchesWithHistoryAsync("test-community"),
+            Times.Never);
+
+        ctx.ContextProviderFactory.Verify(
+            f => f.CreateKicktippContextProvider(
+                ctx.KicktippClient.Object,
+                "test-community",
+                "test-community",
+                (string?)null,
+                2),
+            Times.Once);
+        ctx.ContextProviderFactory.Verify(
+            f => f.CreateKicktippContextProvider(
+                ctx.KicktippClient.Object,
+                "test-community",
+                "test-community",
+                (string?)null,
+                3),
+            Times.Once);
+    }
 }

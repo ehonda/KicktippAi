@@ -13,6 +13,7 @@ public class KicktippContextProvider : IKicktippContextProvider
     private readonly string _community;
     private readonly string _communityContext;
     private readonly string _competition;
+    private readonly int? _matchday;
     private readonly Lazy<Task<IReadOnlyDictionary<string, List<MatchResult>>>> _teamHistoryLazy;
     private readonly Lazy<Task<IReadOnlyDictionary<string, (List<MatchResult> homeHistory, List<MatchResult> awayHistory)>>> _homeAwayHistoryLazy;
     private readonly Lazy<Task<IReadOnlyDictionary<string, List<HeadToHeadResult>>>> _detailedHeadToHeadHistoryLazy;
@@ -22,13 +23,15 @@ public class KicktippContextProvider : IKicktippContextProvider
         IFileProvider communityRulesFileProvider,
         string community,
         string? communityContext = null,
-        string? competition = null)
+        string? competition = null,
+        int? matchday = null)
     {
         _kicktippClient = kicktippClient ?? throw new ArgumentNullException(nameof(kicktippClient));
         _communityRulesFileProvider = communityRulesFileProvider ?? throw new ArgumentNullException(nameof(communityRulesFileProvider));
         _community = community ?? throw new ArgumentNullException(nameof(community));
         _communityContext = communityContext ?? community;
         _competition = competition ?? CompetitionIds.Bundesliga2025_26;
+        _matchday = matchday;
         _teamHistoryLazy = new Lazy<Task<IReadOnlyDictionary<string, List<MatchResult>>>>(LoadTeamHistoryAsync);
         _homeAwayHistoryLazy = new Lazy<Task<IReadOnlyDictionary<string, (List<MatchResult> homeHistory, List<MatchResult> awayHistory)>>>(LoadHomeAwayHistoryAsync);
         _detailedHeadToHeadHistoryLazy = new Lazy<Task<IReadOnlyDictionary<string, List<HeadToHeadResult>>>>(LoadDetailedHeadToHeadHistoryAsync);
@@ -36,7 +39,7 @@ public class KicktippContextProvider : IKicktippContextProvider
 
     private async Task<IReadOnlyDictionary<string, List<MatchResult>>> LoadTeamHistoryAsync()
     {
-        var matchesWithHistory = await _kicktippClient.GetMatchesWithHistoryAsync(_community);
+        var matchesWithHistory = await GetMatchesWithHistoryAsync();
         var teamHistory = new Dictionary<string, List<MatchResult>>();
 
         foreach (var matchWithHistory in matchesWithHistory)
@@ -50,7 +53,7 @@ public class KicktippContextProvider : IKicktippContextProvider
     
     private async Task<IReadOnlyDictionary<string, (List<MatchResult> homeHistory, List<MatchResult> awayHistory)>> LoadHomeAwayHistoryAsync()
     {
-        var matchesWithHistory = await _kicktippClient.GetMatchesWithHistoryAsync(_community);
+        var matchesWithHistory = await GetMatchesWithHistoryAsync();
         var homeAwayHistory = new Dictionary<string, (List<MatchResult> homeHistory, List<MatchResult> awayHistory)>();
 
         foreach (var matchWithHistory in matchesWithHistory)
@@ -68,7 +71,7 @@ public class KicktippContextProvider : IKicktippContextProvider
 
     private async Task<IReadOnlyDictionary<string, List<HeadToHeadResult>>> LoadDetailedHeadToHeadHistoryAsync()
     {
-        var matchesWithHistory = await _kicktippClient.GetMatchesWithHistoryAsync(_community);
+        var matchesWithHistory = await GetMatchesWithHistoryAsync();
         var detailedHeadToHeadHistory = new Dictionary<string, List<HeadToHeadResult>>();
 
         foreach (var matchWithHistory in matchesWithHistory)
@@ -82,6 +85,13 @@ public class KicktippContextProvider : IKicktippContextProvider
         }
 
         return detailedHeadToHeadHistory;
+    }
+
+    private Task<List<MatchWithHistory>> GetMatchesWithHistoryAsync()
+    {
+        return _matchday.HasValue
+            ? _kicktippClient.GetMatchesWithHistoryAsync(_community, _matchday.Value)
+            : _kicktippClient.GetMatchesWithHistoryAsync(_community);
     }
     
     public async IAsyncEnumerable<DocumentContext> GetContextAsync([EnumeratorCancellation] CancellationToken cancellationToken = default)
