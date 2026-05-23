@@ -55,4 +55,11 @@ public class CompetitionResolverTests
 
         await Assert.That(model).IsEqualTo(PredictionServiceCommandSupport.WorldCupDefaultModel);
     }
+
+    [Test]
+    public async Task Recognizes_only_supported_development_communities_for_dev_shortcuts()
+    {
+        await Assert.That(CompetitionResolver.IsDevCommunity("ehonda-dev-wm26")).IsTrue();
+        await Assert.That(CompetitionResolver.IsDevCommunity("pes-squad")).IsFalse();
+    }
 }

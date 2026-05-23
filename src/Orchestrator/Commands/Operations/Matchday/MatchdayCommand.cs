@@ -43,6 +43,11 @@ public class MatchdayCommand : AsyncCommand<BaseSettings>
 
     protected override async Task<int> ExecuteAsync(CommandContext context, BaseSettings settings, CancellationToken cancellationToken)
     {
+        return await ExecuteWithSettingsAsync(settings, cancellationToken);
+    }
+
+    internal async Task<int> ExecuteWithSettingsAsync(BaseSettings settings, CancellationToken cancellationToken = default)
+    {
         
         try
         {

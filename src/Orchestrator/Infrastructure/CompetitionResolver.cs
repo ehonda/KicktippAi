@@ -11,6 +11,8 @@ public sealed record CompetitionRuntimeMetadata(
 
 public static class CompetitionResolver
 {
+    private static readonly string[] KnownDevCommunities = ["ehonda-dev-wm26"];
+
     public const string LocalPromptSource = "local";
     public const string LangfusePromptSource = "langfuse";
     public const string WorldCupMatchPromptName = "kicktippai/wm26/predict-one-match";
@@ -80,8 +82,16 @@ public static class CompetitionResolver
         return string.Equals(competition, CompetitionIds.FifaWorldCup2026, StringComparison.OrdinalIgnoreCase);
     }
 
+    public static IReadOnlyList<string> SupportedDevCommunities => KnownDevCommunities;
+
+    public static bool IsDevCommunity(string? value)
+    {
+        return !string.IsNullOrWhiteSpace(value)
+               && KnownDevCommunities.Contains(value.Trim(), StringComparer.OrdinalIgnoreCase);
+    }
+
     private static bool IsWorldCupCommunity(string? value)
     {
-        return string.Equals(value, "ehonda-dev-wm26", StringComparison.OrdinalIgnoreCase);
+        return IsDevCommunity(value);
     }
 }

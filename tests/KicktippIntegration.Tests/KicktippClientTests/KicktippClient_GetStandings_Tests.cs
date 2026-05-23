@@ -97,6 +97,27 @@ public class KicktippClient_GetStandings_Tests : KicktippClientTests_Base
     }
 
     [Test]
+    public async Task Getting_standings_with_world_cup_real_fixture_returns_clean_group_labels()
+    {
+        const string community = "ehonda-dev-wm26";
+        StubWithRealFixture(community, "tabellen");
+        var client = CreateClient();
+
+        var standings = await client.GetStandingsAsync(community);
+
+        await Assert.That(standings).HasCount().EqualTo(48);
+        await Assert.That(standings.Select(s => s.Group).Distinct()).HasCount().EqualTo(12);
+        foreach (var standing in standings)
+        {
+            await Assert.That(standing.TeamName).IsNotEmpty();
+            await Assert.That(standing.Group).IsNotNull();
+            await Assert.That(standing.Group!).StartsWith("Gruppe ");
+            await Assert.That(standing.Group!).DoesNotContain("Sp");
+            await Assert.That(standing.Group!).DoesNotContain("000000");
+        }
+    }
+
+    [Test]
     public async Task Getting_standings_skips_rows_with_unparseable_numeric_values()
     {
         // Arrange - table with some rows having non-numeric values
@@ -333,5 +354,38 @@ public class KicktippClient_GetStandings_Tests : KicktippClientTests_Base
         await Assert.That(standings.Where(standing => standing.Group == "Gruppe A")).HasCount().EqualTo(2);
         await Assert.That(standings.Where(standing => standing.Group == "Gruppe B")).HasCount().EqualTo(2);
         await Assert.That(standings.Single(standing => standing.TeamName == "Brazil").GoalsFor).IsEqualTo(3);
+    }
+
+    [Test]
+    public async Task Getting_standings_uses_clean_group_heading_when_previous_sibling_contains_prior_table()
+    {
+        var html = """
+            <!DOCTYPE html>
+            <html>
+            <body>
+            <div>
+                <h2>Gruppe A</h2>
+                <table class="sporttabelle">
+                    <tbody>
+                        <tr><td>1.</td><td><a>Mexico</a></td><td>0</td><td>0</td><td>0:0</td><td>0</td><td>0</td><td>0</td><td>0</td></tr>
+                    </tbody>
+                </table>
+                <h2>Gruppe B</h2>
+            </div>
+            <table class="sporttabelle">
+                <tbody>
+                    <tr><td>1.</td><td><a>Brazil</a></td><td>0</td><td>0</td><td>0:0</td><td>0</td><td>0</td><td>0</td><td>0</td></tr>
+                </tbody>
+            </table>
+            </body>
+            </html>
+            """;
+        StubHtmlResponse("/test-community/tabellen", html);
+        var client = CreateClient();
+
+        var standings = await client.GetStandingsAsync("test-community");
+
+        await Assert.That(standings).HasCount().EqualTo(2);
+        await Assert.That(standings.Single(standing => standing.TeamName == "Brazil").Group).IsEqualTo("Gruppe B");
     }
 }

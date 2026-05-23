@@ -1,6 +1,7 @@
 using Microsoft.Extensions.DependencyInjection;
 using Spectre.Console;
 using Spectre.Console.Cli;
+using Orchestrator.Commands.Operations.Dev;
 using Orchestrator.Commands.Operations.Matchday;
 using Orchestrator.Commands.Operations.RandomMatch;
 using Orchestrator.Commands.Operations.Bonus;
@@ -59,6 +60,10 @@ public class Program
                 .WithDescription("Generate predictions for the current matchday")
                 .WithExample("matchday", "gpt-4o-2024-08-06", "--community", "ehonda-test-buli");
 
+            config.AddCommand<MatchdayDevCommand>("matchday-dev")
+                .WithDescription("Generate and post matchday predictions using guarded development-community defaults")
+                .WithExample("matchday-dev", "--community", "ehonda-dev-wm26");
+
             config.AddCommand<RandomMatchCommand>("random-match")
                 .WithDescription("Generate a prediction for a random match from the current matchday (useful for testing)")
                 .WithExample("random-match", "gpt-5-nano", "--community", "ehonda-test-buli");
@@ -105,6 +110,10 @@ public class Program
             config.AddCommand<BonusCommand>("bonus")
                 .WithDescription("Generate bonus predictions")
                 .WithExample("bonus", "gpt-4o-2024-08-06", "--community", "ehonda-test-buli");
+
+            config.AddCommand<BonusDevCommand>("bonus-dev")
+                .WithDescription("Generate and post bonus predictions using guarded development-community defaults")
+                .WithExample("bonus-dev", "--community", "ehonda-dev-wm26");
                 
             config.AddBranch<CollectContextSettings>("collect-context", collectContext =>
             {

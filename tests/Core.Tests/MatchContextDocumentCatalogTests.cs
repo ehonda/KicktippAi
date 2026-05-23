@@ -5,7 +5,7 @@ namespace Core.Tests;
 public class MatchContextDocumentCatalogTests
 {
     [Test]
-    public async Task World_cup_competition_uses_world_cup_standings_document()
+    public async Task World_cup_competition_uses_world_cup_match_context_documents()
     {
         var selection = MatchContextDocumentCatalog.ForMatch(
             "Germany",
@@ -13,10 +13,45 @@ public class MatchContextDocumentCatalogTests
             "ehonda-dev-wm26",
             CompetitionIds.FifaWorldCup2026);
 
+        await Assert.That(selection.RequiredDocumentNames).IsEquivalentTo(
+            [
+                "fifa-world-cup-2026-standings.csv",
+                "community-rules-ehonda-dev-wm26.md",
+                "recent-history-germany.csv",
+                "recent-history-cote-d-ivoire.csv"
+            ]);
+        await Assert.That(selection.OptionalDocumentNames).IsEmpty();
+    }
+
+    [Test]
+    public async Task World_cup_community_context_uses_standings_and_community_rules()
+    {
+        var selection = MatchContextDocumentCatalog.ForCommunity(
+            "ehonda-dev-wm26",
+            CompetitionIds.FifaWorldCup2026);
+
+        await Assert.That(selection.RequiredDocumentNames).IsEquivalentTo(
+            [
+                "fifa-world-cup-2026-standings.csv",
+                "community-rules-ehonda-dev-wm26.md"
+            ]);
+        await Assert.That(selection.OptionalDocumentNames).IsEmpty();
+    }
+
+    [Test]
+    public async Task World_cup_standings_document_uses_world_cup_file_name()
+    {
+        var selection = MatchContextDocumentCatalog.ForMatch(
+            "Germany",
+            "Cote d'Ivoire",
+            "other-wm-community",
+            CompetitionIds.FifaWorldCup2026);
+
         await Assert.That(selection.RequiredDocumentNames).Contains("fifa-world-cup-2026-standings.csv");
         await Assert.That(selection.RequiredDocumentNames).Contains("recent-history-germany.csv");
         await Assert.That(selection.RequiredDocumentNames).Contains("recent-history-cote-d-ivoire.csv");
-        await Assert.That(selection.OptionalDocumentNames).Contains("germany-transfers.csv");
+        await Assert.That(selection.RequiredDocumentNames).DoesNotContain("head-to-head-germany-vs-cote-d-ivoire.csv");
+        await Assert.That(selection.OptionalDocumentNames).IsEmpty();
     }
 
     [Test]

@@ -86,10 +86,18 @@ public class KicktippContextProvider : IKicktippContextProvider
     
     public async IAsyncEnumerable<DocumentContext> GetContextAsync([EnumeratorCancellation] CancellationToken cancellationToken = default)
     {
-        yield return await CurrentStandings();
-        
-        // Provide community scoring rules
-        yield return await CommunityScoringRules();
+        var selection = MatchContextDocumentCatalog.ForCommunity(_communityContext, _competition);
+        foreach (var documentName in selection.RequiredDocumentNames)
+        {
+            if (documentName == MatchContextDocumentCatalog.GetStandingsDocumentName(_competition))
+            {
+                yield return await CurrentStandings();
+            }
+            else if (documentName == $"community-rules-{_communityContext}.md")
+            {
+                yield return await CommunityScoringRules();
+            }
+        }
     }
     
     /// <summary>
@@ -100,21 +108,41 @@ public class KicktippContextProvider : IKicktippContextProvider
     /// <returns>An enumerable of context documents for both teams.</returns>
     public async IAsyncEnumerable<DocumentContext> GetMatchContextAsync(string homeTeam, string awayTeam, [EnumeratorCancellation] CancellationToken cancellationToken = default)
     {
-        yield return await CurrentStandings();
-        
-        // Provide community scoring rules
-        yield return await CommunityScoringRules();
-        
-        // Provide recent history for both teams (Position 1 - already implemented)
-        yield return await RecentHistory(homeTeam);
-        yield return await RecentHistory(awayTeam);
+        var selection = MatchContextDocumentCatalog.ForMatch(homeTeam, awayTeam, _communityContext, _competition);
+        var homeAbbreviation = MatchContextDocumentCatalog.GetTeamAbbreviation(homeTeam);
+        var awayAbbreviation = MatchContextDocumentCatalog.GetTeamAbbreviation(awayTeam);
 
-        // Provide home/away specific history for both teams (Position 2)
-        yield return await HomeHistory(homeTeam, awayTeam);
-        yield return await AwayHistory(homeTeam, awayTeam);
-
-        // Provide head-to-head history between the teams (Position 3)
-        yield return await HeadToHeadHistory(homeTeam, awayTeam);
+        foreach (var documentName in selection.RequiredDocumentNames)
+        {
+            if (documentName == MatchContextDocumentCatalog.GetStandingsDocumentName(_competition))
+            {
+                yield return await CurrentStandings();
+            }
+            else if (documentName == $"community-rules-{_communityContext}.md")
+            {
+                yield return await CommunityScoringRules();
+            }
+            else if (documentName == $"recent-history-{homeAbbreviation}.csv")
+            {
+                yield return await RecentHistory(homeTeam);
+            }
+            else if (documentName == $"recent-history-{awayAbbreviation}.csv")
+            {
+                yield return await RecentHistory(awayTeam);
+            }
+            else if (documentName == $"home-history-{homeAbbreviation}.csv")
+            {
+                yield return await HomeHistory(homeTeam, awayTeam);
+            }
+            else if (documentName == $"away-history-{awayAbbreviation}.csv")
+            {
+                yield return await AwayHistory(homeTeam, awayTeam);
+            }
+            else if (documentName == $"head-to-head-{homeAbbreviation}-vs-{awayAbbreviation}.csv")
+            {
+                yield return await HeadToHeadHistory(homeTeam, awayTeam);
+            }
+        }
     }
     
     /// <summary>
@@ -123,13 +151,18 @@ public class KicktippContextProvider : IKicktippContextProvider
     /// <returns>An enumerable of context documents relevant for bonus questions.</returns>
     public async IAsyncEnumerable<DocumentContext> GetBonusQuestionContextAsync([EnumeratorCancellation] CancellationToken cancellationToken = default)
     {
-        yield return await CurrentStandings();
-        
-        // Provide community scoring rules
-        yield return await CommunityScoringRules();
-        
-        // For bonus questions, we could add historical season data, transfer information, etc.
-        // For now, we'll use the standings as the primary context
+        var selection = MatchContextDocumentCatalog.ForCommunity(_communityContext, _competition);
+        foreach (var documentName in selection.RequiredDocumentNames)
+        {
+            if (documentName == MatchContextDocumentCatalog.GetStandingsDocumentName(_competition))
+            {
+                yield return await CurrentStandings();
+            }
+            else if (documentName == $"community-rules-{_communityContext}.md")
+            {
+                yield return await CommunityScoringRules();
+            }
+        }
     }
     
     /// <summary>

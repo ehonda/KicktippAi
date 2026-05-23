@@ -7,9 +7,11 @@ using Microsoft.Extensions.Logging.Testing;
 using Moq;
 using NodaTime;
 using OpenAiIntegration;
+using Orchestrator.Commands.Operations.Dev;
 using Orchestrator.Commands.Operations.Matchday;
 using Orchestrator.Infrastructure;
 using Orchestrator.Infrastructure.Factories;
+using Orchestrator.Infrastructure.Langfuse;
 using Spectre.Console;
 using Spectre.Console.Cli;
 using Spectre.Console.Testing;
@@ -114,6 +116,7 @@ public abstract class MatchdayCommandTests_Base
         services.AddSingleton(mockKicktippFactory.Object);
         services.AddSingleton(mockOpenAiFactory.Object);
         services.AddSingleton(mockContextProviderFactory.Object);
+        services.AddSingleton(Mock.Of<ILangfusePublicApiClient>());
         services.AddSingleton<ILogger<MatchdayCommand>>(new FakeLogger<MatchdayCommand>());
 
         var registrar = new TypeRegistrar(services);
@@ -122,6 +125,7 @@ public abstract class MatchdayCommandTests_Base
         {
             config.Settings.Console = testConsole;
             config.AddCommand<MatchdayCommand>("matchday");
+            config.AddCommand<MatchdayDevCommand>("matchday-dev");
         });
 
         return new MatchdayCommandTestContext(

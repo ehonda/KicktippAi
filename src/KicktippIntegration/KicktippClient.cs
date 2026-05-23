@@ -1575,33 +1575,121 @@ public class KicktippClient : IKicktippClient, IDisposable
 
     private static string? ExtractStandingsGroupName(IElement standingsTable)
     {
-        var caption = NormalizeWhitespace(standingsTable.QuerySelector("caption")?.TextContent);
+        var caption = ExtractGroupLabel(standingsTable.QuerySelector("caption")?.TextContent);
         if (!string.IsNullOrWhiteSpace(caption))
         {
             return caption;
         }
 
-        for (var sibling = standingsTable.PreviousElementSibling; sibling is not null; sibling = sibling.PreviousElementSibling)
+        foreach (var headerCell in standingsTable.QuerySelectorAll("thead th, tr th"))
         {
-            var text = NormalizeWhitespace(sibling.TextContent);
-            if (string.IsNullOrWhiteSpace(text))
+            var headerLabel = ExtractGroupLabel(headerCell.TextContent);
+            if (!string.IsNullOrWhiteSpace(headerLabel))
             {
-                continue;
+                return headerLabel;
+            }
+        }
+
+        for (var current = standingsTable; current is not null; current = current.ParentElement)
+        {
+            var labelFromPreviousSibling = ExtractGroupLabelFromPreviousSiblings(current);
+            if (!string.IsNullOrWhiteSpace(labelFromPreviousSibling))
+            {
+                return labelFromPreviousSibling;
             }
 
-            if (Regex.IsMatch(text, @"\b(Gruppe|Group)\b", System.Text.RegularExpressions.RegexOptions.IgnoreCase))
+            if (current != standingsTable && ContainsOnlyCurrentStandingsTable(current, standingsTable))
             {
-                return text;
+                var labelFromWrapper = ExtractGroupLabel(current.TextContent);
+                if (!string.IsNullOrWhiteSpace(labelFromWrapper))
+                {
+                    return labelFromWrapper;
+                }
             }
 
-            var tagName = sibling.TagName.ToUpperInvariant();
-            if (tagName is "H1" or "H2" or "H3" or "H4" or "H5" or "H6")
+            if (current.TagName.Equals("BODY", StringComparison.OrdinalIgnoreCase))
             {
-                return text;
+                break;
             }
         }
 
         return null;
+    }
+
+    private static string? ExtractGroupLabelFromPreviousSiblings(IElement element)
+    {
+        for (var sibling = element.PreviousElementSibling; sibling is not null; sibling = sibling.PreviousElementSibling)
+        {
+            if (IsStandingsTableContainer(sibling))
+            {
+                foreach (var previousHeading in sibling.QuerySelectorAll("h1,h2,h3,h4,h5,h6").Reverse())
+                {
+                    var headingLabel = ExtractGroupLabel(previousHeading.TextContent);
+                    if (!string.IsNullOrWhiteSpace(headingLabel))
+                    {
+                        return headingLabel;
+                    }
+                }
+
+                break;
+            }
+
+            var heading = IsHeading(sibling)
+                ? sibling
+                : sibling.QuerySelector("h1,h2,h3,h4,h5,h6");
+            var label = ExtractGroupLabel(heading?.TextContent);
+            if (!string.IsNullOrWhiteSpace(label))
+            {
+                return label;
+            }
+
+            label = ExtractGroupLabel(sibling.TextContent);
+            if (!string.IsNullOrWhiteSpace(label))
+            {
+                return label;
+            }
+        }
+
+        return null;
+    }
+
+    private static bool ContainsOnlyCurrentStandingsTable(IElement candidate, IElement standingsTable)
+    {
+        var nestedStandingsTables = candidate.QuerySelectorAll("table.sporttabelle");
+        return nestedStandingsTables.Length == 1 && ReferenceEquals(nestedStandingsTables[0], standingsTable);
+    }
+
+    private static bool IsStandingsTableContainer(IElement element)
+    {
+        return element.Matches("table.sporttabelle") || element.QuerySelector("table.sporttabelle") is not null;
+    }
+
+    private static bool IsHeading(IElement element)
+    {
+        return element.TagName.ToUpperInvariant() is "H1" or "H2" or "H3" or "H4" or "H5" or "H6";
+    }
+
+    private static string? ExtractGroupLabel(string? text)
+    {
+        var normalized = NormalizeWhitespace(text);
+        if (string.IsNullOrWhiteSpace(normalized))
+        {
+            return null;
+        }
+
+        var match = Regex.Match(
+            normalized,
+            @"\b(?<prefix>Gruppe|Group)\s+(?<group>[A-Z])",
+            System.Text.RegularExpressions.RegexOptions.IgnoreCase);
+        if (!match.Success)
+        {
+            return null;
+        }
+
+        var prefix = match.Groups["prefix"].Value.Equals("group", StringComparison.OrdinalIgnoreCase)
+            ? "Group"
+            : "Gruppe";
+        return $"{prefix} {match.Groups["group"].Value.ToUpperInvariant()}";
     }
 
     private static string NormalizeWhitespace(string? value)

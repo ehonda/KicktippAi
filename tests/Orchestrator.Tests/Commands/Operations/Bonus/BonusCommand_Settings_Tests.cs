@@ -1,3 +1,6 @@
+using EHonda.KicktippAi.Core;
+using Moq;
+using OpenAiIntegration;
 using static Orchestrator.Tests.Infrastructure.OrchestratorTestFactories;
 
 namespace Orchestrator.Tests.Commands.Operations.Bonus;
@@ -238,5 +241,68 @@ public class BonusCommand_Settings_Tests : BonusCommandTests_Base
         // Assert
         await Assert.That(exitCode).IsEqualTo(1);
         await Assert.That(output).Contains("--max-repredictions must be 0 or greater");
+    }
+
+    [Test]
+    public async Task Running_bonus_dev_for_supported_dev_community_uses_override_defaults()
+    {
+        // Arrange
+        var context = CreateBonusCommandApp();
+
+        // Act
+        var exitCode = await context.App.RunAsync(["bonus-dev", "-c", "ehonda-dev-wm26"]);
+        var output = context.Console.Output;
+
+        // Assert
+        await Assert.That(exitCode).IsEqualTo(0);
+        await Assert.That(output).Contains("bonus-dev dev preset enabled");
+        await Assert.That(output).Contains("Override mode enabled");
+        await Assert.That(output).Contains("Override database mode enabled");
+        await Assert.That(output).Contains("fifa-world-cup-2026");
+
+        context.OpenAiServiceFactory.Verify(
+            factory => factory.CreatePredictionService(
+                "gpt-5-nano",
+                It.Is<PredictionServiceOptions>(options => options.ReasoningEffort == "minimal"),
+                It.IsAny<IInstructionsTemplateProvider>()),
+            Times.Once);
+
+        context.PredictionRepository.Verify(
+            repository => repository.SaveBonusPredictionAsync(
+                It.IsAny<BonusQuestion>(),
+                It.IsAny<BonusPrediction>(),
+                "gpt-5-nano",
+                It.IsAny<string>(),
+                It.IsAny<double>(),
+                "ehonda-dev-wm26",
+                It.IsAny<IEnumerable<string>>(),
+                true,
+                It.IsAny<CancellationToken>()),
+            Times.Once);
+
+        context.KicktippClient.Verify(
+            client => client.PlaceBonusPredictionsAsync(
+                "ehonda-dev-wm26",
+                It.IsAny<Dictionary<string, BonusPrediction>>(),
+                true),
+            Times.Once);
+    }
+
+    [Test]
+    public async Task Running_bonus_dev_for_non_dev_community_returns_error_without_running_workflow()
+    {
+        // Arrange
+        var context = CreateBonusCommandApp();
+
+        // Act
+        var exitCode = await context.App.RunAsync(["bonus-dev", "-c", "pes-squad"]);
+        var output = context.Console.Output;
+
+        // Assert
+        await Assert.That(exitCode).IsEqualTo(1);
+        await Assert.That(output).Contains("only available for supported development communities");
+        await Assert.That(output).Contains("ehonda-dev-wm26");
+
+        context.KicktippClientFactory.Verify(factory => factory.CreateClient(), Times.Never);
     }
 }

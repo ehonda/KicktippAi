@@ -1,6 +1,8 @@
 using TUnit.Core;
 using TUnit.Assertions.Enums;
 using TestUtilities.StringAssertions;
+using EHonda.KicktippAi.Core;
+using Moq;
 
 namespace ContextProviders.Kicktipp.Tests.KicktippContextProviderTests;
 
@@ -85,5 +87,35 @@ public class KicktippContextProvider_GetMatchContextAsync_Tests : KicktippContex
 
             """;
         await Assert.That(h2hContext.Content).IsEqualToWithNormalizedLineEndings(expectedCsv);
+    }
+
+    [Test]
+    public async Task Getting_world_cup_match_context_returns_configured_documents_only()
+    {
+        var client = CreateMockKicktippClient();
+        var rulesFileProvider = CreateMockCommunityRulesFileProvider(
+            EHonda.Optional.Core.Option.Some(new Dictionary<string, string>
+            {
+                ["ehonda-dev-wm26.md"] = TestCommunityRulesContent
+            }));
+        var provider = CreateProvider(
+            kicktippClient: EHonda.Optional.Core.Option.Some(client.Object),
+            communityRulesFileProvider: EHonda.Optional.Core.Option.Some(rulesFileProvider.Object),
+            community: EHonda.Optional.Core.Option.Some("ehonda-dev-wm26"),
+            communityContext: EHonda.Optional.Core.Option.Some("ehonda-dev-wm26"),
+            competition: EHonda.Optional.Core.Option.Some(CompetitionIds.FifaWorldCup2026));
+
+        var contexts = await ToListAsync(provider.GetMatchContextAsync("Germany", "Cote d'Ivoire"));
+
+        await Assert.That(contexts.Select(c => c.Name)).IsEquivalentTo(
+            [
+                "fifa-world-cup-2026-standings.csv",
+                "community-rules-ehonda-dev-wm26.md",
+                "recent-history-germany.csv",
+                "recent-history-cote-d-ivoire.csv"
+            ],
+            CollectionOrdering.Matching);
+        client.Verify(c => c.GetHomeAwayHistoryAsync(It.IsAny<string>(), It.IsAny<string>(), It.IsAny<string>()), Times.Never);
+        client.Verify(c => c.GetHeadToHeadDetailedHistoryAsync(It.IsAny<string>(), It.IsAny<string>(), It.IsAny<string>()), Times.Never);
     }
 }

@@ -9,6 +9,33 @@ public sealed record MatchContextDocumentSelection(
 
 public static class MatchContextDocumentCatalog
 {
+    private sealed record MatchContextDocumentPolicy(
+        bool IncludeCommunityRules,
+        bool IncludeRecentHistory,
+        bool IncludeHomeAwayHistory,
+        bool IncludeHeadToHead,
+        bool IncludeTransfers);
+
+    private static readonly MatchContextDocumentPolicy BundesligaPolicy = new(
+        IncludeCommunityRules: true,
+        IncludeRecentHistory: true,
+        IncludeHomeAwayHistory: true,
+        IncludeHeadToHead: true,
+        IncludeTransfers: true);
+
+    private static readonly MatchContextDocumentPolicy WorldCup2026Policy = new(
+        IncludeCommunityRules: true,
+        IncludeRecentHistory: true,
+        IncludeHomeAwayHistory: false,
+        IncludeHeadToHead: false,
+        IncludeTransfers: false);
+
+    private static readonly IReadOnlyDictionary<string, MatchContextDocumentPolicy> CommunityPolicies =
+        new Dictionary<string, MatchContextDocumentPolicy>(StringComparer.OrdinalIgnoreCase)
+        {
+            ["ehonda-dev-wm26"] = WorldCup2026Policy
+        };
+
     private static readonly IReadOnlyDictionary<string, string> TeamAbbreviations =
         new Dictionary<string, string>(StringComparer.OrdinalIgnoreCase)
         {
@@ -45,21 +72,58 @@ public static class MatchContextDocumentCatalog
         var homeAbbreviation = GetTeamAbbreviation(homeTeam);
         var awayAbbreviation = GetTeamAbbreviation(awayTeam);
         var standingsDocumentName = GetStandingsDocumentName(competition);
+        var policy = ResolvePolicy(communityContext, competition);
 
-        return new MatchContextDocumentSelection(
-            [
-                standingsDocumentName,
-                $"community-rules-{communityContext}.md",
-                $"recent-history-{homeAbbreviation}.csv",
-                $"recent-history-{awayAbbreviation}.csv",
-                $"home-history-{homeAbbreviation}.csv",
-                $"away-history-{awayAbbreviation}.csv",
-                $"head-to-head-{homeAbbreviation}-vs-{awayAbbreviation}.csv"
-            ],
-            [
+        var requiredDocuments = new List<string> { standingsDocumentName };
+        if (policy.IncludeCommunityRules)
+        {
+            requiredDocuments.Add($"community-rules-{communityContext}.md");
+        }
+
+        if (policy.IncludeRecentHistory)
+        {
+            requiredDocuments.Add($"recent-history-{homeAbbreviation}.csv");
+            requiredDocuments.Add($"recent-history-{awayAbbreviation}.csv");
+        }
+
+        if (policy.IncludeHomeAwayHistory)
+        {
+            requiredDocuments.Add($"home-history-{homeAbbreviation}.csv");
+            requiredDocuments.Add($"away-history-{awayAbbreviation}.csv");
+        }
+
+        if (policy.IncludeHeadToHead)
+        {
+            requiredDocuments.Add($"head-to-head-{homeAbbreviation}-vs-{awayAbbreviation}.csv");
+        }
+
+        var optionalDocuments = policy.IncludeTransfers
+            ? new List<string>
+            {
                 $"{homeAbbreviation}-transfers.csv",
                 $"{awayAbbreviation}-transfers.csv"
-            ]);
+            }
+            : [];
+
+        return new MatchContextDocumentSelection(requiredDocuments, optionalDocuments);
+    }
+
+    public static MatchContextDocumentSelection ForCommunity(
+        string communityContext,
+        string? competition = null)
+    {
+        ArgumentException.ThrowIfNullOrWhiteSpace(communityContext);
+
+        var standingsDocumentName = GetStandingsDocumentName(competition);
+        var policy = ResolvePolicy(communityContext, competition);
+        var requiredDocuments = new List<string> { standingsDocumentName };
+
+        if (policy.IncludeCommunityRules)
+        {
+            requiredDocuments.Add($"community-rules-{communityContext}.md");
+        }
+
+        return new MatchContextDocumentSelection(requiredDocuments, []);
     }
 
     public static string GetStandingsDocumentName(string? competition = null)
@@ -87,6 +151,18 @@ public static class MatchContextDocumentCatalog
         }
 
         return SlugifyTeamName(teamName);
+    }
+
+    private static MatchContextDocumentPolicy ResolvePolicy(string communityContext, string? competition)
+    {
+        if (CommunityPolicies.TryGetValue(communityContext, out var communityPolicy))
+        {
+            return communityPolicy;
+        }
+
+        return string.Equals(competition, CompetitionIds.FifaWorldCup2026, StringComparison.OrdinalIgnoreCase)
+            ? WorldCup2026Policy
+            : BundesligaPolicy;
     }
 
     private static string SlugifyTeamName(string teamName)

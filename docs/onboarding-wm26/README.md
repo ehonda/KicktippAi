@@ -33,19 +33,34 @@ The fallback path should almost never run. Langfuse prompt fetching already has 
 
 Hosted WM match prompts with justification are intentionally out of scope for v1. A WM hosted run with `--with-justification` fails clearly until a hosted justification prompt exists.
 
+## Context Documents
+
+WM26 match predictions require:
+
+- `fifa-world-cup-2026-standings.csv`
+- `community-rules-ehonda-dev-wm26.md`
+- `recent-history-{home-national-team}.csv`
+- `recent-history-{away-national-team}.csv`
+
+There are no optional WM26 context documents in the first pass. Home/away history and head-to-head history are intentionally omitted for national teams. Community-specific knobs, including this required/optional document policy, are documented in `docs/design/community-configuration.md`.
+
 ## Manual Commands
+
+The guarded development shortcuts post to Kicktipp and overwrite existing database predictions. They are only available for supported development communities such as `ehonda-dev-wm26`; normal `matchday` and `bonus` commands still keep `--override-kicktipp` and `--override-database` off by default.
 
 Matchday:
 
 ```powershell
-dotnet run --project src/Orchestrator -- matchday -c ehonda-dev-wm26 --dry-run --verbose
+dotnet run --project src/Orchestrator -- matchday-dev -c ehonda-dev-wm26
 ```
 
 Bonus:
 
 ```powershell
-dotnet run --project src/Orchestrator -- bonus -c ehonda-dev-wm26 --dry-run --verbose
+dotnet run --project src/Orchestrator -- bonus-dev -c ehonda-dev-wm26
 ```
+
+For ad hoc dry-runs or non-default combinations, use the normal commands and pass the flags explicitly.
 
 Verification:
 
