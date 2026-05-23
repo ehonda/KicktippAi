@@ -56,10 +56,12 @@ public abstract class FirebaseContextRepositoryTests_Base(FirestoreFixture fixtu
     /// <returns>A configured FirebaseContextRepository instance.</returns>
     protected FirebaseContextRepository CreateRepository(
         NullableOption<FirestoreDb> firestoreDb = default,
-        NullableOption<FakeLogger<FirebaseContextRepository>> logger = default)
+        NullableOption<FakeLogger<FirebaseContextRepository>> logger = default,
+        NullableOption<string> competition = default)
     {
         var actualDb = firestoreDb.Or(() => Fixture.Db);
         var actualLogger = logger.Or(() => new FakeLogger<FirebaseContextRepository>());
-        return new FirebaseContextRepository(actualDb!, actualLogger!);
+        var actualCompetition = competition.Or(() => null);
+        return new FirebaseContextRepository(actualDb!, actualLogger!, actualCompetition);
     }
 }

@@ -15,12 +15,17 @@ public class FirebaseMatchOutcomeRepository : IMatchOutcomeRepository
     private readonly string _matchOutcomesCollection;
     private readonly string _competition;
 
-    public FirebaseMatchOutcomeRepository(FirestoreDb firestoreDb, ILogger<FirebaseMatchOutcomeRepository> logger)
+    public FirebaseMatchOutcomeRepository(
+        FirestoreDb firestoreDb,
+        ILogger<FirebaseMatchOutcomeRepository> logger,
+        string? competition = null)
     {
         _firestoreDb = firestoreDb ?? throw new ArgumentNullException(nameof(firestoreDb));
         _logger = logger ?? throw new ArgumentNullException(nameof(logger));
         _matchOutcomesCollection = "match-outcomes";
-        _competition = "bundesliga-2025-26";
+        _competition = string.IsNullOrWhiteSpace(competition)
+            ? CompetitionIds.Bundesliga2025_26
+            : competition.Trim();
     }
 
     public async Task<MatchOutcomeUpsertResult> UpsertMatchOutcomeAsync(
@@ -28,7 +33,7 @@ public class FirebaseMatchOutcomeRepository : IMatchOutcomeRepository
         string communityContext,
         CancellationToken cancellationToken = default)
     {
-        var documentId = BuildDocumentId(outcome);
+        var documentId = BuildDocumentId(outcome, communityContext);
         var docRef = _firestoreDb.Collection(_matchOutcomesCollection).Document(documentId);
         var snapshot = await docRef.GetSnapshotAsync(cancellationToken);
         var now = Timestamp.GetCurrentTimestamp();
@@ -84,8 +89,11 @@ public class FirebaseMatchOutcomeRepository : IMatchOutcomeRepository
                 continue;
             }
 
-            var isComplete = outcomes.Count >= ExpectedMatchesPerMatchday &&
-                             outcomes.All(outcome => string.Equals(outcome.Availability, nameof(MatchOutcomeAvailability.Completed), StringComparison.Ordinal));
+            var isComplete = string.Equals(_competition, CompetitionIds.Bundesliga2025_26, StringComparison.OrdinalIgnoreCase)
+                ? outcomes.Count >= ExpectedMatchesPerMatchday &&
+                  outcomes.All(outcome => string.Equals(outcome.Availability, nameof(MatchOutcomeAvailability.Completed), StringComparison.Ordinal))
+                : outcomes.Count > 0 &&
+                  outcomes.All(outcome => string.Equals(outcome.Availability, nameof(MatchOutcomeAvailability.Completed), StringComparison.Ordinal));
 
             if (!isComplete)
             {
@@ -166,10 +174,14 @@ public class FirebaseMatchOutcomeRepository : IMatchOutcomeRepository
             firestoreOutcome.UpdatedAt.ToDateTimeOffset());
     }
 
-    private static string BuildDocumentId(CollectedMatchOutcome outcome)
+    private string BuildDocumentId(CollectedMatchOutcome outcome, string communityContext)
     {
-        return outcome.TippSpielId ?? throw new InvalidOperationException(
+        var tippSpielId = outcome.TippSpielId ?? throw new InvalidOperationException(
             $"Cannot persist match outcome for {outcome.HomeTeam} vs {outcome.AwayTeam} on matchday {outcome.Matchday} because tippspielId is missing.");
+
+        return string.Equals(_competition, CompetitionIds.Bundesliga2025_26, StringComparison.OrdinalIgnoreCase)
+            ? tippSpielId
+            : $"{_competition}_{communityContext}_{tippSpielId}";
     }
 
     private static Timestamp ConvertToTimestamp(ZonedDateTime zonedDateTime)

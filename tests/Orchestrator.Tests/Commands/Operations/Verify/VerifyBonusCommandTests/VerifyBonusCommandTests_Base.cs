@@ -91,20 +91,20 @@ public abstract class VerifyBonusCommandTests_Base
 
             if (predictionRepositoryReturnsNull.Or(false))
             {
-                factory.Setup(f => f.CreatePredictionRepository()).Returns((IPredictionRepository)null!);
+                factory.Setup(f => f.CreatePredictionRepository((string?)null)).Returns((IPredictionRepository)null!);
             }
             else
             {
-                factory.Setup(f => f.CreatePredictionRepository()).Returns(mockPredictionRepository.Object);
+                factory.Setup(f => f.CreatePredictionRepository((string?)null)).Returns(mockPredictionRepository.Object);
             }
 
             if (kpiRepositoryReturnsNull.Or(false))
             {
-                factory.Setup(f => f.CreateKpiRepository()).Returns((IKpiRepository)null!);
+                factory.Setup(f => f.CreateKpiRepository((string?)null)).Returns((IKpiRepository)null!);
             }
             else
             {
-                factory.Setup(f => f.CreateKpiRepository()).Returns(mockKpiRepository.Object);
+                factory.Setup(f => f.CreateKpiRepository((string?)null)).Returns(mockKpiRepository.Object);
             }
 
             return factory;

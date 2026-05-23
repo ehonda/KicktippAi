@@ -33,14 +33,16 @@ public abstract class KicktippContextProviderTests_Base
         NullableOption<IKicktippClient> kicktippClient = default,
         NullableOption<IFileProvider> communityRulesFileProvider = default,
         NullableOption<string> community = default,
-        NullableOption<string> communityContext = default)
+        NullableOption<string> communityContext = default,
+        NullableOption<string> competition = default)
     {
         var actualKicktippClient = kicktippClient.Or(() => CreateMockKicktippClient().Object);
         var actualCommunityRulesFileProvider = communityRulesFileProvider.Or(() => CreateMockCommunityRulesFileProvider().Object);
         var actualCommunity = community.Or(TestCommunity);
         var actualCommunityContext = communityContext.Or(TestCommunity);
+        var actualCompetition = competition.Or(() => null);
 
-        return new KicktippContextProvider(actualKicktippClient!, actualCommunityRulesFileProvider!, actualCommunity!, actualCommunityContext);
+        return new KicktippContextProvider(actualKicktippClient!, actualCommunityRulesFileProvider!, actualCommunity!, actualCommunityContext, actualCompetition);
     }
     
     protected static Mock<IFileProvider> CreateMockCommunityRulesFileProvider(

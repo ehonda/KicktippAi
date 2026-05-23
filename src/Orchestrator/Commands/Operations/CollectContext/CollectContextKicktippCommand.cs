@@ -2,6 +2,7 @@ using Microsoft.Extensions.Logging;
 using Spectre.Console.Cli;
 using Spectre.Console;
 using EHonda.KicktippAi.Core;
+using Orchestrator.Infrastructure;
 using Orchestrator.Infrastructure.Factories;
 using Orchestrator.Services;
 
@@ -79,9 +80,13 @@ public class CollectContextKicktippCommand : AsyncCommand<CollectContextKicktipp
 
     private async Task ExecuteKicktippContextCollection(CollectContextKicktippSettings settings)
     {
+        var competition = CompetitionResolver.ResolveCompetition(settings.Competition, settings.CommunityContext, settings.CommunityContext);
+        var repositoryCompetition = CompetitionResolver.ToRepositoryCompetitionArgument(competition);
+
         var outcomeCollectionResult = await _matchOutcomeCollectionService.CollectAsync(
             settings.CommunityContext,
-            settings.DryRun);
+            settings.DryRun,
+            repositoryCompetition);
 
         PrintOutcomeCollectionSummary(outcomeCollectionResult, settings);
 
@@ -96,13 +101,14 @@ public class CollectContextKicktippCommand : AsyncCommand<CollectContextKicktipp
 
         // Create services using factories (factories handle env var loading)
         var kicktippClient = _kicktippClientFactory.CreateClient();
-        var contextRepository = _firebaseServiceFactory.CreateContextRepository();
+        var contextRepository = _firebaseServiceFactory.CreateContextRepository(repositoryCompetition);
         
         // Create context provider using factory
         var contextProvider = _contextProviderFactory.CreateKicktippContextProvider(
-            kicktippClient, settings.CommunityContext, settings.CommunityContext);
+            kicktippClient, settings.CommunityContext, settings.CommunityContext, repositoryCompetition);
         
         _console.MarkupLine($"[blue]Using community context:[/] [yellow]{settings.CommunityContext}[/]");
+        _console.MarkupLine($"[blue]Using competition:[/] [yellow]{competition}[/]");
         _console.MarkupLine("[blue]Getting current matchday matches...[/]");
         
         // Step 1: Get current matchday matches

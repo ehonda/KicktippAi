@@ -16,11 +16,13 @@ public class FirebaseKpiRepository : IKpiRepository
 
     private const string KpiCollectionName = "kpi-documents";
 
-    public FirebaseKpiRepository(FirestoreDb firestoreDb, ILogger<FirebaseKpiRepository> logger, string competition = "bundesliga-2025-26")
+    public FirebaseKpiRepository(FirestoreDb firestoreDb, ILogger<FirebaseKpiRepository> logger, string? competition = null)
     {
         _firestoreDb = firestoreDb;
         _logger = logger;
-        _competition = competition;
+        _competition = string.IsNullOrWhiteSpace(competition)
+            ? CompetitionIds.Bundesliga2025_26
+            : competition.Trim();
     }
 
     /// <summary>
@@ -66,8 +68,7 @@ public class FirebaseKpiRepository : IKpiRepository
                 _logger.LogDebug("Creating first version (0) for new KPI document: {DocumentName}", documentName);
             }
             
-            // Create versioned document ID: "{documentName}_{communityContext}_{version}"
-            var versionedDocumentId = $"{documentName}_{communityContext}_{version}";
+            var versionedDocumentId = BuildDocumentId(documentName, communityContext, version);
             var docRef = _firestoreDb.Collection(KpiCollectionName).Document(versionedDocumentId);
             
             var firestoreKpiDocument = new FirestoreKpiDocument
@@ -135,7 +136,7 @@ public class FirebaseKpiRepository : IKpiRepository
     {
         try
         {
-            var versionedDocumentId = $"{documentName}_{communityContext}_{version}";
+            var versionedDocumentId = BuildDocumentId(documentName, communityContext, version);
             var docRef = _firestoreDb.Collection(KpiCollectionName).Document(versionedDocumentId);
             var snapshot = await docRef.GetSnapshotAsync(cancellationToken);
 
@@ -284,5 +285,12 @@ public class FirebaseKpiRepository : IKpiRepository
                 documentName, communityContext);
             throw;
         }
+    }
+
+    private string BuildDocumentId(string documentName, string communityContext, int version)
+    {
+        return string.Equals(_competition, CompetitionIds.Bundesliga2025_26, StringComparison.OrdinalIgnoreCase)
+            ? $"{documentName}_{communityContext}_{version}"
+            : $"{_competition}_{documentName}_{communityContext}_{version}";
     }
 }

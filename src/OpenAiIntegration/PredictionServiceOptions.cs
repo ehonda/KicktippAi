@@ -13,4 +13,4 @@ public sealed record PredictionServiceOptions(
     public static PredictionServiceOptions FlexProcessingWithStandardFallback { get; } = Default;
 }
 
-public sealed record LangfusePromptTraceMetadata(string Name, int Version);
+public sealed record LangfusePromptTraceMetadata(string Name, int Version, bool IsFallback = false);

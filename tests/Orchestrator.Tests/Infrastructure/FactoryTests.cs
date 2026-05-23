@@ -104,7 +104,7 @@ public class FactoryTests
     {
         var kpiRepository = new Mock<IKpiRepository>();
         var firebaseFactory = new Mock<IFirebaseServiceFactory>();
-        firebaseFactory.Setup(factory => factory.CreateKpiRepository()).Returns(kpiRepository.Object);
+        firebaseFactory.Setup(factory => factory.CreateKpiRepository((string?)null)).Returns(kpiRepository.Object);
 
         var sut = new ContextProviderFactory(
             firebaseFactory.Object,
@@ -118,7 +118,7 @@ public class FactoryTests
         await Assert.That(kicktippContextProvider).IsTypeOf<KicktippContextProvider>();
         await Assert.That(kpiContextProvider).IsTypeOf<FirebaseKpiContextProvider>();
         await Assert.That(sut.CommunityRulesFileProvider).IsSameReferenceAs(sut.CommunityRulesFileProvider);
-        firebaseFactory.Verify(factory => factory.CreateKpiRepository(), Times.Once);
+        firebaseFactory.Verify(factory => factory.CreateKpiRepository((string?)null), Times.Once);
     }
 
     [Test]

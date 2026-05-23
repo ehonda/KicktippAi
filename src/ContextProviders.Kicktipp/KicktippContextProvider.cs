@@ -1,5 +1,4 @@
 using System.Runtime.CompilerServices;
-using System.Text;
 using ContextProviders.Kicktipp.Csv;
 using EHonda.KicktippAi.Core;
 using KicktippIntegration;
@@ -13,6 +12,7 @@ public class KicktippContextProvider : IKicktippContextProvider
     private readonly IFileProvider _communityRulesFileProvider;
     private readonly string _community;
     private readonly string _communityContext;
+    private readonly string _competition;
     private readonly Lazy<Task<IReadOnlyDictionary<string, List<MatchResult>>>> _teamHistoryLazy;
     private readonly Lazy<Task<IReadOnlyDictionary<string, (List<MatchResult> homeHistory, List<MatchResult> awayHistory)>>> _homeAwayHistoryLazy;
     private readonly Lazy<Task<IReadOnlyDictionary<string, List<HeadToHeadResult>>>> _detailedHeadToHeadHistoryLazy;
@@ -21,12 +21,14 @@ public class KicktippContextProvider : IKicktippContextProvider
         IKicktippClient kicktippClient,
         IFileProvider communityRulesFileProvider,
         string community,
-        string? communityContext = null)
+        string? communityContext = null,
+        string? competition = null)
     {
         _kicktippClient = kicktippClient ?? throw new ArgumentNullException(nameof(kicktippClient));
         _communityRulesFileProvider = communityRulesFileProvider ?? throw new ArgumentNullException(nameof(communityRulesFileProvider));
         _community = community ?? throw new ArgumentNullException(nameof(community));
         _communityContext = communityContext ?? community;
+        _competition = competition ?? CompetitionIds.Bundesliga2025_26;
         _teamHistoryLazy = new Lazy<Task<IReadOnlyDictionary<string, List<MatchResult>>>>(LoadTeamHistoryAsync);
         _homeAwayHistoryLazy = new Lazy<Task<IReadOnlyDictionary<string, (List<MatchResult> homeHistory, List<MatchResult> awayHistory)>>>(LoadHomeAwayHistoryAsync);
         _detailedHeadToHeadHistoryLazy = new Lazy<Task<IReadOnlyDictionary<string, List<HeadToHeadResult>>>>(LoadDetailedHeadToHeadHistoryAsync);
@@ -84,8 +86,7 @@ public class KicktippContextProvider : IKicktippContextProvider
     
     public async IAsyncEnumerable<DocumentContext> GetContextAsync([EnumeratorCancellation] CancellationToken cancellationToken = default)
     {
-        // Provide current Bundesliga standings
-        yield return await CurrentBundesligaStandings();
+        yield return await CurrentStandings();
         
         // Provide community scoring rules
         yield return await CommunityScoringRules();
@@ -99,8 +100,7 @@ public class KicktippContextProvider : IKicktippContextProvider
     /// <returns>An enumerable of context documents for both teams.</returns>
     public async IAsyncEnumerable<DocumentContext> GetMatchContextAsync(string homeTeam, string awayTeam, [EnumeratorCancellation] CancellationToken cancellationToken = default)
     {
-        // Provide current Bundesliga standings
-        yield return await CurrentBundesligaStandings();
+        yield return await CurrentStandings();
         
         // Provide community scoring rules
         yield return await CommunityScoringRules();
@@ -123,8 +123,7 @@ public class KicktippContextProvider : IKicktippContextProvider
     /// <returns>An enumerable of context documents relevant for bonus questions.</returns>
     public async IAsyncEnumerable<DocumentContext> GetBonusQuestionContextAsync([EnumeratorCancellation] CancellationToken cancellationToken = default)
     {
-        // Provide current Bundesliga standings
-        yield return await CurrentBundesligaStandings();
+        yield return await CurrentStandings();
         
         // Provide community scoring rules
         yield return await CommunityScoringRules();
@@ -134,14 +133,24 @@ public class KicktippContextProvider : IKicktippContextProvider
     }
     
     /// <summary>
+    /// Gets the current competition standings as context.
+    /// </summary>
+    /// <returns>A document context containing the current standings.</returns>
+    public async Task<DocumentContext> CurrentStandings()
+    {
+        var standings = await _kicktippClient.GetStandingsAsync(_community);
+
+        return standings.ToCsvDocumentContext<TeamStanding, TeamStandingCsvMap>(
+            MatchContextDocumentCatalog.GetStandingsDocumentBaseName(_competition));
+    }
+
+    /// <summary>
     /// Gets the current Bundesliga standings as context.
     /// </summary>
     /// <returns>A document context containing the current standings.</returns>
-    public async Task<DocumentContext> CurrentBundesligaStandings()
+    public Task<DocumentContext> CurrentBundesligaStandings()
     {
-        var standings = await _kicktippClient.GetStandingsAsync(_community);
-        
-        return standings.ToCsvDocumentContext<TeamStanding, TeamStandingCsvMap>("bundesliga-standings");
+        return CurrentStandings();
     }
     
     /// <summary>
@@ -154,7 +163,7 @@ public class KicktippContextProvider : IKicktippContextProvider
         var teamHistory = await _teamHistoryLazy.Value;
         var matchResults = teamHistory.TryGetValue(teamName, out var results) ? results : new List<MatchResult>();
         
-        var teamAbbreviation = GetTeamAbbreviation(teamName);
+        var teamAbbreviation = MatchContextDocumentCatalog.GetTeamAbbreviation(teamName);
         
         return matchResults.ToCsvDocumentContext<MatchResult, MatchResultCsvMap>($"recent-history-{teamAbbreviation}");
     }
@@ -174,7 +183,7 @@ public class KicktippContextProvider : IKicktippContextProvider
             ? history 
             : (new List<MatchResult>(), new List<MatchResult>());
         
-        var homeAbbreviation = GetTeamAbbreviation(homeTeam);
+        var homeAbbreviation = MatchContextDocumentCatalog.GetTeamAbbreviation(homeTeam);
         
         return homeTeamHistory.ToCsvDocumentContext<MatchResult, MatchResultCsvMap>($"home-history-{homeAbbreviation}");
     }
@@ -188,7 +197,7 @@ public class KicktippContextProvider : IKicktippContextProvider
             ? history 
             : (new List<MatchResult>(), new List<MatchResult>());
         
-        var awayAbbreviation = GetTeamAbbreviation(awayTeam);
+        var awayAbbreviation = MatchContextDocumentCatalog.GetTeamAbbreviation(awayTeam);
         
         return awayTeamHistory.ToCsvDocumentContext<MatchResult, MatchResultCsvMap>($"away-history-{awayAbbreviation}");
     }
@@ -208,8 +217,8 @@ public class KicktippContextProvider : IKicktippContextProvider
             ? cachedHistory 
             : new List<HeadToHeadResult>();
         
-        var homeAbbreviation = GetTeamAbbreviation(homeTeam);
-        var awayAbbreviation = GetTeamAbbreviation(awayTeam);
+        var homeAbbreviation = MatchContextDocumentCatalog.GetTeamAbbreviation(homeTeam);
+        var awayAbbreviation = MatchContextDocumentCatalog.GetTeamAbbreviation(awayTeam);
         
         return history.ToCsvDocumentContext<HeadToHeadResult, HeadToHeadResultCsvMap>(
             $"head-to-head-{homeAbbreviation}-vs-{awayAbbreviation}");
@@ -247,53 +256,5 @@ public class KicktippContextProvider : IKicktippContextProvider
         await using var stream = fileInfo.CreateReadStream();
         using var reader = new StreamReader(stream);
         return await reader.ReadToEndAsync();
-    }
-    
-    /// <summary>
-    /// Gets a team abbreviation for file naming.
-    /// </summary>
-    private string GetTeamAbbreviation(string teamName)
-    {
-        // Current season team abbreviations (2025-26 Bundesliga participants)
-        var abbreviations = new Dictionary<string, string>(StringComparer.OrdinalIgnoreCase)
-        {
-            { "1. FC Heidenheim 1846", "fch" },
-            { "1. FC Köln", "fck" },
-            { "1. FC Union Berlin", "fcu" },
-            { "1899 Hoffenheim", "tsg" },
-            { "Bayer 04 Leverkusen", "b04" },
-            { "Bor. Mönchengladbach", "bmg" },
-            { "Borussia Dortmund", "bvb" },
-            { "Eintracht Frankfurt", "sge" },
-            { "FC Augsburg", "fca" },
-            { "FC Bayern München", "fcb" },
-            { "FC St. Pauli", "fcs" },
-            { "FSV Mainz 05", "m05" },
-            { "Hamburger SV", "hsv" },
-            { "RB Leipzig", "rbl" },
-            { "SC Freiburg", "scf" },
-            { "VfB Stuttgart", "vfb" },
-            { "VfL Wolfsburg", "wob" },
-            { "Werder Bremen", "svw" }
-        };
-        
-        if (abbreviations.TryGetValue(teamName, out var abbreviation))
-        {
-            return abbreviation;
-        }
-        
-        // Fallback: create abbreviation from team name
-        var words = teamName.Split(' ', StringSplitOptions.RemoveEmptyEntries);
-        var abbr = new StringBuilder();
-        
-        foreach (var word in words.Take(3)) // Take up to 3 words
-        {
-            if (word.Length > 0 && char.IsLetter(word[0]))
-            {
-                abbr.Append(char.ToLowerInvariant(word[0]));
-            }
-        }
-        
-        return abbr.Length > 0 ? abbr.ToString() : "unknown";
     }
 }

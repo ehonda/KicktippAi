@@ -43,8 +43,8 @@ public class ReconstructPromptCommand_Tests
             .ReturnsAsync(new ContextDocument("doc-a", "Alpha", 3, new DateTimeOffset(2026, 3, 10, 11, 30, 0, TimeSpan.Zero)));
 
         var firebaseFactory = new Mock<IFirebaseServiceFactory>();
-        firebaseFactory.Setup(factory => factory.CreatePredictionRepository()).Returns(predictionRepository.Object);
-        firebaseFactory.Setup(factory => factory.CreateContextRepository()).Returns(contextRepository.Object);
+        firebaseFactory.Setup(factory => factory.CreatePredictionRepository((string?)null)).Returns(predictionRepository.Object);
+        firebaseFactory.Setup(factory => factory.CreateContextRepository((string?)null)).Returns(contextRepository.Object);
         firebaseFactory.SetupGet(factory => factory.FirestoreDb).Returns((FirestoreDb)null!);
 
         var context = CreateCommandApp<ReconstructPromptCommand>(
@@ -81,8 +81,8 @@ public class ReconstructPromptCommand_Tests
             .ReturnsAsync((Match?)null);
 
         var firebaseFactory = new Mock<IFirebaseServiceFactory>();
-        firebaseFactory.Setup(factory => factory.CreatePredictionRepository()).Returns(predictionRepository.Object);
-        firebaseFactory.Setup(factory => factory.CreateContextRepository()).Returns(new Mock<IContextRepository>().Object);
+        firebaseFactory.Setup(factory => factory.CreatePredictionRepository((string?)null)).Returns(predictionRepository.Object);
+        firebaseFactory.Setup(factory => factory.CreateContextRepository((string?)null)).Returns(new Mock<IContextRepository>().Object);
         firebaseFactory.SetupGet(factory => factory.FirestoreDb).Returns((FirestoreDb)null!);
 
         var context = CreateCommandApp<ReconstructPromptCommand>(
@@ -141,8 +141,8 @@ public class ReconstructPromptCommand_Tests
         }
 
         var firebaseFactory = new Mock<IFirebaseServiceFactory>();
-        firebaseFactory.Setup(factory => factory.CreatePredictionRepository()).Returns(predictionRepository.Object);
-        firebaseFactory.Setup(factory => factory.CreateContextRepository()).Returns(contextRepository.Object);
+        firebaseFactory.Setup(factory => factory.CreatePredictionRepository((string?)null)).Returns(predictionRepository.Object);
+        firebaseFactory.Setup(factory => factory.CreateContextRepository((string?)null)).Returns(contextRepository.Object);
         firebaseFactory.SetupGet(factory => factory.FirestoreDb).Returns((FirestoreDb)null!);
 
         var context = CreateCommandApp<ReconstructPromptCommand>(

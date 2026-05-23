@@ -20,5 +20,6 @@ public sealed class TeamStandingCsvMap : ClassMap<TeamStanding>
         Map(m => m.Wins).Index(7).Name("Wins");
         Map(m => m.Draws).Index(8).Name("Draws");
         Map(m => m.Losses).Index(9).Name("Losses");
+        Map(m => m.Group).Index(10).Name("Group").Optional();
     }
 }

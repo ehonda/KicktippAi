@@ -8,6 +8,7 @@ using Orchestrator.Commands.Operations.Matchday;
 using Orchestrator.Commands.Shared;
 using Orchestrator.Infrastructure;
 using Orchestrator.Infrastructure.Factories;
+using Orchestrator.Infrastructure.Langfuse;
 
 namespace Orchestrator.Commands.Operations.Bonus;
 
@@ -19,6 +20,7 @@ public class BonusCommand : AsyncCommand<BaseSettings>
     private readonly IOpenAiServiceFactory _openAiServiceFactory;
     private readonly IContextProviderFactory _contextProviderFactory;
     private readonly ILogger<BonusCommand> _logger;
+    private readonly ILangfusePublicApiClient? _langfuseClient;
 
     public BonusCommand(
         IAnsiConsole console,
@@ -26,7 +28,8 @@ public class BonusCommand : AsyncCommand<BaseSettings>
         IKicktippClientFactory kicktippClientFactory,
         IOpenAiServiceFactory openAiServiceFactory,
         IContextProviderFactory contextProviderFactory,
-        ILogger<BonusCommand> logger)
+        ILogger<BonusCommand> logger,
+        ILangfusePublicApiClient? langfuseClient = null)
     {
         _console = console;
         _firebaseServiceFactory = firebaseServiceFactory;
@@ -34,6 +37,7 @@ public class BonusCommand : AsyncCommand<BaseSettings>
         _openAiServiceFactory = openAiServiceFactory;
         _contextProviderFactory = contextProviderFactory;
         _logger = logger;
+        _langfuseClient = langfuseClient;
     }
 
     protected override async Task<int> ExecuteAsync(CommandContext context, BaseSettings settings, CancellationToken cancellationToken)
@@ -41,7 +45,8 @@ public class BonusCommand : AsyncCommand<BaseSettings>
         
         try
         {
-            _console.MarkupLine($"[green]Bonus command initialized with model:[/] [yellow]{settings.Model}[/]");
+            var initialModel = string.IsNullOrWhiteSpace(settings.Model) ? "(competition default)" : settings.Model;
+            _console.MarkupLine($"[green]Bonus command initialized with model:[/] [yellow]{initialModel}[/]");
             
             if (settings.Verbose)
             {
@@ -126,21 +131,39 @@ public class BonusCommand : AsyncCommand<BaseSettings>
         var environment = ProductionCommunities.Contains(settings.Community) ? "production" : "development";
         LangfuseActivityPropagation.SetEnvironment(activity, environment);
 
+        string communityContext = settings.CommunityContext ?? settings.Community;
+        var competition = CompetitionResolver.ResolveCompetition(settings.Competition, settings.Community, communityContext);
+        var model = PredictionServiceCommandSupport.ResolveModel(settings.Model, competition);
+        var repositoryCompetition = CompetitionResolver.ToRepositoryCompetitionArgument(competition);
+
         // Set Langfuse trace-level attributes
         var sessionId = $"bonus-{settings.Community}";
-        var traceTags = new[] { settings.Community, settings.Model };
+        var traceTags = new[] { settings.Community, model, competition };
         LangfuseActivityPropagation.SetSessionId(activity, sessionId);
         LangfuseActivityPropagation.SetTraceTags(activity, traceTags);
         LangfuseActivityPropagation.SetTraceMetadata(activity, "community", settings.Community);
-        LangfuseActivityPropagation.SetTraceMetadata(activity, "kicktipp-season", KicktippSeasonMetadata.Current);
-        LangfuseActivityPropagation.SetTraceMetadata(activity, "model", settings.Model);
+        LangfuseActivityPropagation.SetTraceMetadata(activity, "competition", competition);
+        LangfuseActivityPropagation.SetTraceMetadata(activity, "model", model);
         LangfuseActivityPropagation.SetTraceMetadata(activity, "repredictMode", settings.IsRepredictMode ? "true" : "false");
 
         // Note: trace input is set after bonus questions are fetched
 
         // Create services using factories
         var kicktippClient = _kicktippClientFactory.CreateClient();
-        var predictionService = _openAiServiceFactory.CreatePredictionService(settings.Model);
+        var predictionService = PredictionServiceCommandSupport.CreatePredictionService(
+            _openAiServiceFactory,
+            _langfuseClient,
+            _console,
+            model,
+            competition,
+            settings.Community,
+            communityContext,
+            settings.PromptSource,
+            settings.LangfusePromptName,
+            settings.LangfusePromptLabel,
+            settings.LangfusePromptVersion,
+            settings.ReasoningEffort,
+            bonusPrompt: true);
         
         // Log the prompt paths being used
         if (settings.Verbose)
@@ -149,23 +172,22 @@ public class BonusCommand : AsyncCommand<BaseSettings>
         }
         
         // Create KPI Context Provider for bonus predictions using factory
-        var kpiContextProvider = _contextProviderFactory.CreateKpiContextProvider();
+        var kpiContextProvider = _contextProviderFactory.CreateKpiContextProvider(repositoryCompetition);
         
         var tokenUsageTracker = _openAiServiceFactory.GetTokenUsageTracker();
         
         // Create prediction repository
-        var predictionRepository = _firebaseServiceFactory.CreatePredictionRepository();
+        var predictionRepository = _firebaseServiceFactory.CreatePredictionRepository(repositoryCompetition);
         var databaseEnabled = true;
         
         // Reset token usage tracker for this workflow
         tokenUsageTracker.Reset();
         
-        // Determine community context (use explicit setting or fall back to community name)
-        string communityContext = settings.CommunityContext ?? settings.Community;
         LangfuseActivityPropagation.SetTraceMetadata(activity, "communityContext", communityContext);
         
         _console.MarkupLine($"[blue]Using community:[/] [yellow]{settings.Community}[/]");
         _console.MarkupLine($"[blue]Using community context:[/] [yellow]{communityContext}[/]");
+        _console.MarkupLine($"[blue]Using competition:[/] [yellow]{competition}[/]");
         _console.MarkupLine("[blue]Getting open bonus questions from Kicktipp...[/]");
         
         // Step 1: Get open bonus questions from Kicktipp
@@ -183,7 +205,8 @@ public class BonusCommand : AsyncCommand<BaseSettings>
         var traceInput = new
         {
             community = settings.Community,
-            model = settings.Model,
+            model,
+            competition,
             questions = bonusQuestions.Select(q => q.Text).ToArray()
         };
         activity?.SetTag("langfuse.trace.input", JsonSerializer.Serialize(traceInput));
@@ -212,7 +235,7 @@ public class BonusCommand : AsyncCommand<BaseSettings>
                 if (databaseEnabled && !settings.OverrideDatabase && !settings.IsRepredictMode)
                 {
                     // Look for prediction by question text, model, and community context
-                    prediction = await predictionRepository!.GetBonusPredictionByTextAsync(question.Text, settings.Model, communityContext);
+                    prediction = await predictionRepository!.GetBonusPredictionByTextAsync(question.Text, model, communityContext);
                     if (prediction != null)
                     {
                         fromDatabase = true;
@@ -233,7 +256,7 @@ public class BonusCommand : AsyncCommand<BaseSettings>
                 // Handle reprediction logic
                 if (settings.IsRepredictMode && databaseEnabled)
                 {
-                    var currentRepredictionIndex = await predictionRepository!.GetBonusRepredictionIndexAsync(question.Text, settings.Model, communityContext);
+                    var currentRepredictionIndex = await predictionRepository!.GetBonusRepredictionIndexAsync(question.Text, model, communityContext);
                     
                     if (currentRepredictionIndex == -1)
                     {
@@ -260,7 +283,7 @@ public class BonusCommand : AsyncCommand<BaseSettings>
                             _console.MarkupLine($"[yellow]  ✗ Skipped - already at max repredictions ({currentRepredictionIndex}/{maxAllowed})[/]");
                             
                             // Get the latest prediction for display purposes
-                            prediction = await predictionRepository!.GetBonusPredictionByTextAsync(question.Text, settings.Model, communityContext);
+                            prediction = await predictionRepository!.GetBonusPredictionByTextAsync(question.Text, model, communityContext);
                             if (prediction != null)
                             {
                                 fromDatabase = true;
@@ -333,13 +356,13 @@ public class BonusCommand : AsyncCommand<BaseSettings>
                                 if (settings.IsRepredictMode)
                                 {
                                     // Save as reprediction with specific index
-                                    var currentIndex = await predictionRepository!.GetBonusRepredictionIndexAsync(question.Text, settings.Model, communityContext);
+                                    var currentIndex = await predictionRepository!.GetBonusRepredictionIndexAsync(question.Text, model, communityContext);
                                     var nextIndex = currentIndex == -1 ? 0 : currentIndex + 1;
                                     
                                     await predictionRepository!.SaveBonusRepredictionAsync(
                                         question, 
                                         prediction, 
-                                        settings.Model, 
+                                        model,
                                         tokenUsageJson, 
                                         cost, 
                                         communityContext,
@@ -357,7 +380,7 @@ public class BonusCommand : AsyncCommand<BaseSettings>
                                     await predictionRepository!.SaveBonusPredictionAsync(
                                         question, 
                                         prediction, 
-                                        settings.Model, 
+                                        model,
                                         tokenUsageJson, 
                                         cost, 
                                         communityContext,

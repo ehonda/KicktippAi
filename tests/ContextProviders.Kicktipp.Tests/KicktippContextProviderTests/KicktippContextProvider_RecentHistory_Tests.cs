@@ -53,7 +53,7 @@ public class KicktippContextProvider_RecentHistory_Tests : KicktippContextProvid
         var context = await provider.RecentHistory("Unknown Team FC");
 
         // Assert
-        await Assert.That(context.Name).IsEqualTo("recent-history-utf.csv"); // Unknown Team FC → utf
+        await Assert.That(context.Name).IsEqualTo("recent-history-unknown-team-fc.csv");
         var expectedCsv = """
             Competition,Home_Team,Away_Team,Score,Annotation
 

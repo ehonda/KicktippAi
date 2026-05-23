@@ -87,7 +87,7 @@ public abstract class StaleMetadataRepredictionIntegrationTests_Base(FirestoreFi
 
         var openAiFactory = new Mock<IOpenAiServiceFactory>();
         openAiFactory
-            .Setup(factory => factory.CreatePredictionService(Model))
+            .Setup(factory => factory.CreatePredictionService(Model, It.IsAny<PredictionServiceOptions>()))
             .Returns(predictionService.Object);
         openAiFactory
             .Setup(factory => factory.GetTokenUsageTracker())
@@ -122,10 +122,11 @@ public abstract class StaleMetadataRepredictionIntegrationTests_Base(FirestoreFi
             .Setup(factory => factory.CreateKicktippContextProvider(
                 It.IsAny<IKicktippClient>(),
                 It.IsAny<string>(),
+                It.IsAny<string?>(),
                 It.IsAny<string?>()))
             .Returns(kicktippContextProvider.Object);
         contextProviderFactory
-            .Setup(factory => factory.CreateKpiContextProvider())
+            .Setup(factory => factory.CreateKpiContextProvider((string?)null))
             .Returns(kpiContextProvider.Object);
 
         return contextProviderFactory;

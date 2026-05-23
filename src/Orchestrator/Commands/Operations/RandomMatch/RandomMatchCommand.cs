@@ -8,6 +8,7 @@ using EHonda.KicktippAi.Core;
 using Orchestrator.Commands.Shared;
 using Orchestrator.Infrastructure;
 using Orchestrator.Infrastructure.Factories;
+using Orchestrator.Infrastructure.Langfuse;
 
 namespace Orchestrator.Commands.Operations.RandomMatch;
 
@@ -19,6 +20,7 @@ public class RandomMatchCommand : AsyncCommand<RandomMatchSettings>
     private readonly IOpenAiServiceFactory _openAiServiceFactory;
     private readonly IContextProviderFactory _contextProviderFactory;
     private readonly ILogger<RandomMatchCommand> _logger;
+    private readonly ILangfusePublicApiClient? _langfuseClient;
 
     public RandomMatchCommand(
         IAnsiConsole console,
@@ -26,7 +28,8 @@ public class RandomMatchCommand : AsyncCommand<RandomMatchSettings>
         IKicktippClientFactory kicktippClientFactory,
         IOpenAiServiceFactory openAiServiceFactory,
         IContextProviderFactory contextProviderFactory,
-        ILogger<RandomMatchCommand> logger)
+        ILogger<RandomMatchCommand> logger,
+        ILangfusePublicApiClient? langfuseClient = null)
     {
         _console = console;
         _firebaseServiceFactory = firebaseServiceFactory;
@@ -34,13 +37,15 @@ public class RandomMatchCommand : AsyncCommand<RandomMatchSettings>
         _openAiServiceFactory = openAiServiceFactory;
         _contextProviderFactory = contextProviderFactory;
         _logger = logger;
+        _langfuseClient = langfuseClient;
     }
 
     protected override async Task<int> ExecuteAsync(CommandContext context, RandomMatchSettings settings, CancellationToken cancellationToken)
     {
         try
         {
-            _console.MarkupLine($"[green]Random match command initialized with model:[/] [yellow]{settings.Model}[/]");
+            var initialModel = string.IsNullOrWhiteSpace(settings.Model) ? "(competition default)" : settings.Model;
+            _console.MarkupLine($"[green]Random match command initialized with model:[/] [yellow]{initialModel}[/]");
 
             if (settings.WithJustification)
             {
@@ -67,25 +72,56 @@ public class RandomMatchCommand : AsyncCommand<RandomMatchSettings>
         // RandomMatch is always a development trace
         LangfuseActivityPropagation.SetEnvironment(activity, "development");
 
+        var communityContext = settings.CommunityContext ?? settings.Community;
+        var competition = CompetitionResolver.ResolveCompetition(settings.Competition, settings.Community, communityContext);
+        var model = PredictionServiceCommandSupport.ResolveModel(settings.Model, competition);
+        var repositoryCompetition = CompetitionResolver.ToRepositoryCompetitionArgument(competition);
+
+        if (settings.WithJustification && PredictionServiceCommandSupport.UsesLangfusePromptSource(
+                competition,
+                settings.Community,
+                communityContext,
+                settings.PromptSource,
+                bonusPrompt: false))
+        {
+            throw new NotSupportedException(
+                "WM 2026 hosted match prompts with justification are not supported yet. Use local prompts or omit --with-justification.");
+        }
+
         // Create services using factories
         var kicktippClient = _kicktippClientFactory.CreateClient();
-        var predictionService = _openAiServiceFactory.CreatePredictionService(settings.Model);
+        var predictionService = PredictionServiceCommandSupport.CreatePredictionService(
+            _openAiServiceFactory,
+            _langfuseClient,
+            _console,
+            model,
+            competition,
+            settings.Community,
+            communityContext,
+            settings.PromptSource,
+            settings.LangfusePromptName,
+            settings.LangfusePromptLabel,
+            settings.LangfusePromptVersion,
+            settings.ReasoningEffort,
+            bonusPrompt: false);
 
         // Create context provider using factory (community is used as context)
         var contextProvider = _contextProviderFactory.CreateKicktippContextProvider(
-            kicktippClient, settings.Community, settings.Community);
+            kicktippClient, settings.Community, communityContext, repositoryCompetition);
 
         var tokenUsageTracker = _openAiServiceFactory.GetTokenUsageTracker();
 
         _console.MarkupLine($"[dim]Match prompt:[/] [blue]{predictionService.GetMatchPromptPath(settings.WithJustification)}[/]");
 
         // Create context repository for hybrid context lookup
-        var contextRepository = _firebaseServiceFactory.CreateContextRepository();
+        var contextRepository = _firebaseServiceFactory.CreateContextRepository(repositoryCompetition);
 
         // Reset token usage tracker for this workflow
         tokenUsageTracker.Reset();
 
         _console.MarkupLine($"[blue]Using community:[/] [yellow]{settings.Community}[/]");
+        _console.MarkupLine($"[blue]Using community context:[/] [yellow]{communityContext}[/]");
+        _console.MarkupLine($"[blue]Using competition:[/] [yellow]{competition}[/]");
         _console.MarkupLine("[blue]Getting current matchday matches...[/]");
 
         // Step 1: Get current matchday matches
@@ -108,13 +144,14 @@ public class RandomMatchCommand : AsyncCommand<RandomMatchSettings>
         // Set Langfuse trace-level attributes
         var matchday = match.Matchday;
         var sessionId = $"random-match-{matchday}-{settings.Community}";
-        var traceTags = new[] { settings.Community, settings.Model, "random-match" };
+        var traceTags = new[] { settings.Community, model, competition, "random-match" };
         LangfuseActivityPropagation.SetSessionId(activity, sessionId);
         LangfuseActivityPropagation.SetTraceTags(activity, traceTags);
         LangfuseActivityPropagation.SetTraceMetadata(activity, "community", settings.Community);
-        LangfuseActivityPropagation.SetTraceMetadata(activity, "kicktipp-season", KicktippSeasonMetadata.Current);
+        LangfuseActivityPropagation.SetTraceMetadata(activity, "communityContext", communityContext);
+        LangfuseActivityPropagation.SetTraceMetadata(activity, "competition", competition);
         LangfuseActivityPropagation.SetTraceMetadata(activity, "matchday", matchday.ToString());
-        LangfuseActivityPropagation.SetTraceMetadata(activity, "model", settings.Model);
+        LangfuseActivityPropagation.SetTraceMetadata(activity, "model", model);
         LangfuseActivityPropagation.SetTraceMetadata(activity, "homeTeams", PredictionTelemetryMetadata.BuildDelimitedFilterValue(new[] { match.HomeTeam }), propagateToObservations: false);
         LangfuseActivityPropagation.SetTraceMetadata(activity, "awayTeams", PredictionTelemetryMetadata.BuildDelimitedFilterValue(new[] { match.AwayTeam }), propagateToObservations: false);
         LangfuseActivityPropagation.SetTraceMetadata(activity, "teams", PredictionTelemetryMetadata.BuildDelimitedFilterValue(new[] { match.HomeTeam, match.AwayTeam }), propagateToObservations: false);
@@ -125,7 +162,8 @@ public class RandomMatchCommand : AsyncCommand<RandomMatchSettings>
         {
             community = settings.Community,
             matchday,
-            model = settings.Model,
+            model,
+            competition,
             match = $"{match.HomeTeam} vs {match.AwayTeam}"
         };
         activity?.SetTag("langfuse.trace.input", JsonSerializer.Serialize(traceInput));
@@ -147,7 +185,8 @@ public class RandomMatchCommand : AsyncCommand<RandomMatchSettings>
             contextProvider,
             match.HomeTeam,
             match.AwayTeam,
-            settings.Community);
+            communityContext,
+            competition);
 
         _console.MarkupLine($"[dim]    Using {contextDocuments.Count} context documents[/]");
 
@@ -190,34 +229,17 @@ public class RandomMatchCommand : AsyncCommand<RandomMatchSettings>
         IContextRepository contextRepository,
         string homeTeam,
         string awayTeam,
-        string communityContext)
+        string communityContext,
+        string competition)
     {
         var contextDocuments = new Dictionary<string, DocumentContext>();
-        var homeAbbreviation = GetTeamAbbreviation(homeTeam);
-        var awayAbbreviation = GetTeamAbbreviation(awayTeam);
+        var selection = MatchContextDocumentCatalog.ForMatch(homeTeam, awayTeam, communityContext, competition);
 
-        var requiredDocuments = new[]
-        {
-            "bundesliga-standings.csv",
-            $"community-rules-{communityContext}.md",
-            $"recent-history-{homeAbbreviation}.csv",
-            $"recent-history-{awayAbbreviation}.csv",
-            $"home-history-{homeAbbreviation}.csv",
-            $"away-history-{awayAbbreviation}.csv",
-            $"head-to-head-{homeAbbreviation}-vs-{awayAbbreviation}.csv"
-        };
-
-        var optionalDocuments = new[]
-        {
-            $"{homeAbbreviation}-transfers.csv",
-            $"{awayAbbreviation}-transfers.csv"
-        };
-
-        _console.MarkupLine($"[dim]    Looking for {requiredDocuments.Length} specific context documents in database[/]");
+        _console.MarkupLine($"[dim]    Looking for {selection.RequiredDocumentNames.Count} specific context documents in database[/]");
 
         try
         {
-            foreach (var documentName in requiredDocuments)
+            foreach (var documentName in selection.RequiredDocumentNames)
             {
                 var contextDoc = await contextRepository.GetLatestContextDocumentAsync(documentName, communityContext);
                 if (contextDoc != null)
@@ -231,7 +253,7 @@ public class RandomMatchCommand : AsyncCommand<RandomMatchSettings>
                 }
             }
 
-            foreach (var documentName in optionalDocuments)
+            foreach (var documentName in selection.OptionalDocumentNames)
             {
                 try
                 {
@@ -268,30 +290,23 @@ public class RandomMatchCommand : AsyncCommand<RandomMatchSettings>
         IKicktippContextProvider contextProvider,
         string homeTeam,
         string awayTeam,
-        string communityContext)
+        string communityContext,
+        string competition)
     {
         var contextDocuments = new List<DocumentContext>();
         var databaseContexts = await GetMatchContextDocumentsAsync(
             contextRepository,
             homeTeam,
             awayTeam,
-            communityContext);
+            communityContext,
+            competition);
 
-        var homeAbbreviation = GetTeamAbbreviation(homeTeam);
-        var awayAbbreviation = GetTeamAbbreviation(awayTeam);
-        var requiredDocuments = new[]
-        {
-            "bundesliga-standings.csv",
-            $"community-rules-{communityContext}.md",
-            $"recent-history-{homeAbbreviation}.csv",
-            $"recent-history-{awayAbbreviation}.csv",
-            $"home-history-{homeAbbreviation}.csv",
-            $"away-history-{awayAbbreviation}.csv",
-            $"head-to-head-{homeAbbreviation}-vs-{awayAbbreviation}.csv"
-        };
+        var requiredDocuments = MatchContextDocumentCatalog
+            .ForMatch(homeTeam, awayTeam, communityContext, competition)
+            .RequiredDocumentNames;
 
         int requiredPresent = requiredDocuments.Count(d => databaseContexts.ContainsKey(d));
-        int requiredTotal = requiredDocuments.Length;
+        int requiredTotal = requiredDocuments.Count;
 
         if (requiredPresent == requiredTotal)
         {
@@ -317,52 +332,6 @@ public class RandomMatchCommand : AsyncCommand<RandomMatchSettings>
         }
 
         return contextDocuments;
-    }
-
-    /// <summary>
-    /// Gets a team abbreviation for file naming.
-    /// </summary>
-    private static string GetTeamAbbreviation(string teamName)
-    {
-        var abbreviations = new Dictionary<string, string>(StringComparer.OrdinalIgnoreCase)
-        {
-            { "1. FC Heidenheim 1846", "fch" },
-            { "1. FC Köln", "fck" },
-            { "1. FC Union Berlin", "fcu" },
-            { "1899 Hoffenheim", "tsg" },
-            { "Bayer 04 Leverkusen", "b04" },
-            { "Bor. Mönchengladbach", "bmg" },
-            { "Borussia Dortmund", "bvb" },
-            { "Eintracht Frankfurt", "sge" },
-            { "FC Augsburg", "fca" },
-            { "FC Bayern München", "fcb" },
-            { "FC St. Pauli", "fcs" },
-            { "FSV Mainz 05", "m05" },
-            { "Hamburger SV", "hsv" },
-            { "RB Leipzig", "rbl" },
-            { "SC Freiburg", "scf" },
-            { "VfB Stuttgart", "vfb" },
-            { "VfL Wolfsburg", "wob" },
-            { "Werder Bremen", "svw" }
-        };
-
-        if (abbreviations.TryGetValue(teamName, out var abbreviation))
-        {
-            return abbreviation;
-        }
-
-        var words = teamName.Split(' ', StringSplitOptions.RemoveEmptyEntries);
-        var abbr = new System.Text.StringBuilder();
-
-        foreach (var word in words.Take(3))
-        {
-            if (word.Length > 0 && char.IsLetter(word[0]))
-            {
-                abbr.Append(char.ToLowerInvariant(word[0]));
-            }
-        }
-
-        return abbr.Length > 0 ? abbr.ToString() : "unknown";
     }
 
     private void WriteJustificationIfNeeded(Prediction? prediction, bool includeJustification, bool fromDatabase = false)

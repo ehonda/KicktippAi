@@ -1,4 +1,5 @@
 using System.Net;
+using System.Globalization;
 using Regex = System.Text.RegularExpressions.Regex;
 using AngleSharp;
 using AngleSharp.Dom;
@@ -17,6 +18,8 @@ namespace KicktippIntegration;
 /// </summary>
 public class KicktippClient : IKicktippClient, IDisposable
 {
+    private static readonly DateTimeZone BerlinTimeZone = DateTimeZoneProviders.Tzdb["Europe/Berlin"];
+
     private readonly HttpClient _httpClient;
     private readonly ILogger<KicktippClient> _logger;
     private readonly IBrowsingContext _browsingContext;
@@ -562,82 +565,92 @@ public class KicktippClient : IKicktippClient, IDisposable
 
             var standings = new List<TeamStanding>();
             
-            // Find the standings table
-            var standingsTable = document.QuerySelector("table.sporttabelle tbody");
-            if (standingsTable == null)
+            // Tournament pages can render one table per group; league pages render a single table.
+            var standingsTables = document.QuerySelectorAll("table.sporttabelle");
+            if (standingsTables.Length == 0)
             {
                 _logger.LogWarning("Could not find standings table");
                 return standings;
             }
-            
-            var rows = standingsTable.QuerySelectorAll("tr");
-            _logger.LogDebug("Found {RowCount} team rows in standings table", rows.Length);
-            
-            foreach (var row in rows)
+
+            foreach (var standingsTable in standingsTables)
             {
-                try
+                var groupName = ExtractStandingsGroupName(standingsTable);
+                var tableBody = standingsTable.QuerySelector("tbody") ?? standingsTable;
+                var rows = tableBody.QuerySelectorAll("tr");
+                _logger.LogDebug("Found {RowCount} team rows in standings table for group {Group}", rows.Length, groupName ?? "(none)");
+
+                foreach (var row in rows)
                 {
-                    var cells = row.QuerySelectorAll("td");
-                    if (cells.Length >= 9) // Need at least 9 columns for all data
+                    try
                     {
-                        // Extract data from table cells
-                        var positionText = cells[0].TextContent?.Trim().TrimEnd('.') ?? "";
-                        var teamNameElement = cells[1].QuerySelector("div");
-                        var teamName = teamNameElement?.TextContent?.Trim() ?? "";
-                        var gamesPlayedText = cells[2].TextContent?.Trim() ?? "";
-                        var pointsText = cells[3].TextContent?.Trim() ?? "";
-                        var goalsText = cells[4].TextContent?.Trim() ?? "";
-                        var goalDifferenceText = cells[5].TextContent?.Trim() ?? "";
-                        var winsText = cells[6].TextContent?.Trim() ?? "";
-                        var drawsText = cells[7].TextContent?.Trim() ?? "";
-                        var lossesText = cells[8].TextContent?.Trim() ?? "";
-                        
-                        // Parse numeric values
-                        if (int.TryParse(positionText, out var position) &&
-                            int.TryParse(gamesPlayedText, out var gamesPlayed) &&
-                            int.TryParse(pointsText, out var points) &&
-                            int.TryParse(goalDifferenceText, out var goalDifference) &&
-                            int.TryParse(winsText, out var wins) &&
-                            int.TryParse(drawsText, out var draws) &&
-                            int.TryParse(lossesText, out var losses))
+                        var cells = row.QuerySelectorAll("td");
+                        if (cells.Length >= 9) // Need at least 9 columns for all data
                         {
-                            // Parse goals (format: "15:8")
-                            var goalsParts = goalsText.Split(':');
-                            var goalsFor = 0;
-                            var goalsAgainst = 0;
-                            
-                            if (goalsParts.Length == 2)
+                            // Extract data from table cells
+                            var positionText = cells[0].TextContent?.Trim().TrimEnd('.') ?? "";
+                            var teamNameElement = cells[1].QuerySelector("div") ?? cells[1].QuerySelector("a");
+                            var teamName = teamNameElement?.TextContent?.Trim() ?? cells[1].TextContent?.Trim() ?? "";
+                            var gamesPlayedText = cells[2].TextContent?.Trim() ?? "";
+                            var pointsText = cells[3].TextContent?.Trim() ?? "";
+                            var goalsText = cells[4].TextContent?.Trim() ?? "";
+                            var goalDifferenceText = cells[5].TextContent?.Trim() ?? "";
+                            var winsText = cells[6].TextContent?.Trim() ?? "";
+                            var drawsText = cells[7].TextContent?.Trim() ?? "";
+                            var lossesText = cells[8].TextContent?.Trim() ?? "";
+
+                            // Parse numeric values
+                            if (int.TryParse(positionText, out var position) &&
+                                int.TryParse(gamesPlayedText, out var gamesPlayed) &&
+                                int.TryParse(pointsText, out var points) &&
+                                int.TryParse(goalDifferenceText, out var goalDifference) &&
+                                int.TryParse(winsText, out var wins) &&
+                                int.TryParse(drawsText, out var draws) &&
+                                int.TryParse(lossesText, out var losses))
                             {
-                                int.TryParse(goalsParts[0], out goalsFor);
-                                int.TryParse(goalsParts[1], out goalsAgainst);
+                                // Parse goals (format: "15:8")
+                                var goalsParts = goalsText.Split(':');
+                                var goalsFor = 0;
+                                var goalsAgainst = 0;
+
+                                if (goalsParts.Length == 2)
+                                {
+                                    int.TryParse(goalsParts[0], out goalsFor);
+                                    int.TryParse(goalsParts[1], out goalsAgainst);
+                                }
+
+                                var teamStanding = new TeamStanding(
+                                    position,
+                                    teamName,
+                                    gamesPlayed,
+                                    points,
+                                    goalsFor,
+                                    goalsAgainst,
+                                    goalDifference,
+                                    wins,
+                                    draws,
+                                    losses,
+                                    groupName);
+
+                                standings.Add(teamStanding);
+                                _logger.LogDebug(
+                                    "Parsed team standing: {Position}. {TeamName} - {Points} points (group {Group})",
+                                    position,
+                                    teamName,
+                                    points,
+                                    groupName ?? "(none)");
                             }
-                            
-                            var teamStanding = new TeamStanding(
-                                position,
-                                teamName,
-                                gamesPlayed,
-                                points,
-                                goalsFor,
-                                goalsAgainst,
-                                goalDifference,
-                                wins,
-                                draws,
-                                losses);
-                            
-                            standings.Add(teamStanding);
-                            _logger.LogDebug("Parsed team standing: {Position}. {TeamName} - {Points} points", 
-                                position, teamName, points);
-                        }
-                        else
-                        {
-                            _logger.LogWarning("Failed to parse numeric values for team row");
+                            else
+                            {
+                                _logger.LogWarning("Failed to parse numeric values for team row");
+                            }
                         }
                     }
-                }
-                catch (Exception ex)
-                {
-                    _logger.LogWarning(ex, "Error parsing standings row");
-                    continue;
+                    catch (Exception ex)
+                    {
+                        _logger.LogWarning(ex, "Error parsing standings row");
+                        continue;
+                    }
                 }
             }
 
@@ -1537,15 +1550,14 @@ public class KicktippClient : IKicktippClient, IDisposable
                 return DateTimeOffset.MinValue.ToZonedDateTime();
             }
 
-            // Expected format: "22.08.25 20:30"
+            // Expected formats: "22.08.25 20:30" and "22.08.2026 20:30".
             _logger.LogDebug("Attempting to parse time: '{TimeText}'", timeText);
-            if (DateTime.TryParseExact(timeText, "dd.MM.yy HH:mm", null, System.Globalization.DateTimeStyles.None, out var dateTime))
+            var formats = new[] { "dd.MM.yy HH:mm", "dd.MM.yyyy HH:mm" };
+            if (DateTime.TryParseExact(timeText, formats, CultureInfo.InvariantCulture, DateTimeStyles.None, out var dateTime))
             {
                 _logger.LogDebug("Successfully parsed time: {DateTime}", dateTime);
-                // Convert to DateTimeOffset and then to ZonedDateTime
-                // Assume Central European Time (Germany)
-                var dateTimeOffset = new DateTimeOffset(dateTime, TimeSpan.FromHours(1)); // CET offset
-                return dateTimeOffset.ToZonedDateTime();
+                var localDateTime = LocalDateTime.FromDateTime(DateTime.SpecifyKind(dateTime, DateTimeKind.Unspecified));
+                return BerlinTimeZone.AtLeniently(localDateTime);
             }
             
             // Fallback to MinValue if parsing fails - ensures database key consistency
@@ -1559,6 +1571,44 @@ public class KicktippClient : IKicktippClient, IDisposable
             _logger.LogError(ex, "Error parsing match time '{TimeText}'", timeText);
             return DateTimeOffset.MinValue.ToZonedDateTime();
         }
+    }
+
+    private static string? ExtractStandingsGroupName(IElement standingsTable)
+    {
+        var caption = NormalizeWhitespace(standingsTable.QuerySelector("caption")?.TextContent);
+        if (!string.IsNullOrWhiteSpace(caption))
+        {
+            return caption;
+        }
+
+        for (var sibling = standingsTable.PreviousElementSibling; sibling is not null; sibling = sibling.PreviousElementSibling)
+        {
+            var text = NormalizeWhitespace(sibling.TextContent);
+            if (string.IsNullOrWhiteSpace(text))
+            {
+                continue;
+            }
+
+            if (Regex.IsMatch(text, @"\b(Gruppe|Group)\b", System.Text.RegularExpressions.RegexOptions.IgnoreCase))
+            {
+                return text;
+            }
+
+            var tagName = sibling.TagName.ToUpperInvariant();
+            if (tagName is "H1" or "H2" or "H3" or "H4" or "H5" or "H6")
+            {
+                return text;
+            }
+        }
+
+        return null;
+    }
+
+    private static string NormalizeWhitespace(string? value)
+    {
+        return string.IsNullOrWhiteSpace(value)
+            ? string.Empty
+            : Regex.Replace(value.Trim(), @"\s+", " ");
     }
 
     /// <summary>
@@ -2041,29 +2091,45 @@ public class KicktippClient : IKicktippClient, IDisposable
     {
         try
         {
-            // Try to extract from the navigation title (e.g., "1. Spieltag")
-            var titleElement = document.QuerySelector(".prevnextTitle a");
-            if (titleElement != null)
+            // Hidden fields are the most stable source across league and tournament pages.
+            foreach (var input in document.QuerySelectorAll("input"))
             {
-                var titleText = titleElement.TextContent?.Trim();
-                if (!string.IsNullOrEmpty(titleText))
+                var name = input.GetAttribute("name") ?? string.Empty;
+                var value = input.GetAttribute("value") ?? string.Empty;
+                if (name.Contains("spieltag", StringComparison.OrdinalIgnoreCase) &&
+                    TryParsePositiveInteger(value, out var matchdayFromHiddenInput))
                 {
-                    // Extract number from text like "1. Spieltag"
-                    var match = System.Text.RegularExpressions.Regex.Match(titleText, @"(\d+)\.\s*Spieltag");
-                    if (match.Success && int.TryParse(match.Groups[1].Value, out var matchday))
-                    {
-                        _logger.LogDebug("Extracted matchday from title: {Matchday}", matchday);
-                        return matchday;
-                    }
+                    _logger.LogDebug("Extracted matchday from hidden input {InputName}: {Matchday}", name, matchdayFromHiddenInput);
+                    return matchdayFromHiddenInput;
                 }
             }
 
-            // Fallback: try to extract from hidden input
-            var spieltagInput = document.QuerySelector("input[name='spieltagIndex']") as IHtmlInputElement;
-            if (spieltagInput?.Value != null && int.TryParse(spieltagInput.Value, out var matchdayFromInput))
+            foreach (var select in document.QuerySelectorAll("select"))
             {
-                _logger.LogDebug("Extracted matchday from hidden input: {Matchday}", matchdayFromInput);
-                return matchdayFromInput;
+                var name = select.GetAttribute("name") ?? string.Empty;
+                if (!name.Contains("spieltag", StringComparison.OrdinalIgnoreCase))
+                {
+                    continue;
+                }
+
+                var selectedRoundOption = select.QuerySelector("option[selected]");
+                var selectedRoundValue = selectedRoundOption?.GetAttribute("value");
+                if (TryParsePositiveInteger(selectedRoundValue, out var matchdayFromSelectedOption))
+                {
+                    _logger.LogDebug("Extracted matchday from selected round option: {Matchday}", matchdayFromSelectedOption);
+                    return matchdayFromSelectedOption;
+                }
+            }
+
+            // Fallback: extract any numeric round marker from common navigation elements.
+            foreach (var element in document.QuerySelectorAll(".prevnextTitle a, .prevnextTitle, .pagination .active, .pagination .selected, .nav .active, .active"))
+            {
+                var text = NormalizeWhitespace(element.TextContent);
+                if (TryExtractFirstPositiveInteger(text, out var matchdayFromNavigation))
+                {
+                    _logger.LogDebug("Extracted matchday from navigation text '{NavigationText}': {Matchday}", text, matchdayFromNavigation);
+                    return matchdayFromNavigation;
+                }
             }
 
             _logger.LogWarning("Could not extract matchday from page, defaulting to 1");
@@ -2074,6 +2140,23 @@ public class KicktippClient : IKicktippClient, IDisposable
             _logger.LogError(ex, "Error extracting matchday from page, defaulting to 1");
             return 1;
         }
+    }
+
+    private static bool TryExtractFirstPositiveInteger(string? text, out int value)
+    {
+        value = 0;
+        if (string.IsNullOrWhiteSpace(text))
+        {
+            return false;
+        }
+
+        var match = Regex.Match(text, @"\b(\d+)\b");
+        return match.Success && TryParsePositiveInteger(match.Groups[1].Value, out value);
+    }
+
+    private static bool TryParsePositiveInteger(string? text, out int value)
+    {
+        return int.TryParse(text, NumberStyles.Integer, CultureInfo.InvariantCulture, out value) && value > 0;
     }
 
     /// <inheritdoc />

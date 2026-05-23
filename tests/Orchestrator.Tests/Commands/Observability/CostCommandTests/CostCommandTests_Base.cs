@@ -34,7 +34,7 @@ public static class CostCommandTestFactories
         var testConsole = new TestConsole();
         var mockPredictionRepo = predictionRepository.Or(() => CreateMockPredictionRepositoryForCosts());
         var mockFirebaseFactory = new Mock<IFirebaseServiceFactory>();
-        mockFirebaseFactory.Setup(f => f.CreatePredictionRepository()).Returns(mockPredictionRepo.Object);
+        mockFirebaseFactory.Setup(f => f.CreatePredictionRepository((string?)null)).Returns(mockPredictionRepo.Object);
         var fakeLogger = logger.Or(() => new FakeLogger<CostCommand>());
 
         var services = new ServiceCollection();

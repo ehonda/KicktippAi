@@ -28,6 +28,12 @@ public interface IKicktippContextProvider : IContextProvider<DocumentContext>
         CancellationToken cancellationToken = default);
 
     /// <summary>
+    /// Gets the current competition standings as context.
+    /// </summary>
+    /// <returns>A document context containing the current standings.</returns>
+    Task<DocumentContext> CurrentStandings();
+
+    /// <summary>
     /// Gets the current Bundesliga standings as context.
     /// </summary>
     /// <returns>A document context containing the current standings.</returns>

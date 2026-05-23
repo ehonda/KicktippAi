@@ -33,19 +33,21 @@ public sealed class ContextProviderFactory : IContextProviderFactory
     public IKicktippContextProvider CreateKicktippContextProvider(
         IKicktippClient kicktippClient,
         string community,
-        string? communityContext = null)
+        string? communityContext = null,
+        string? competition = null)
     {
         return new KicktippContextProvider(
             kicktippClient,
             CommunityRulesFileProvider,
             community,
-            communityContext);
+            communityContext,
+            competition);
     }
 
     /// <inheritdoc />
-    public IKpiContextProvider CreateKpiContextProvider()
+    public IKpiContextProvider CreateKpiContextProvider(string? competition = null)
     {
-        var kpiRepository = _firebaseServiceFactory.CreateKpiRepository();
+        var kpiRepository = _firebaseServiceFactory.CreateKpiRepository(competition);
         return new FirebaseKpiContextProvider(kpiRepository, _kpiContextProviderLogger);
     }
 }

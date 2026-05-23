@@ -62,7 +62,7 @@ public class AnalyzeMatchDetailedCommand_ErrorHandling_Tests : AnalyzeMatchTests
     public async Task Context_repository_null_shows_warning_and_continues()
     {
         var mockFirebaseFactory = new Mock<IFirebaseServiceFactory>();
-        mockFirebaseFactory.Setup(f => f.CreateContextRepository()).Returns((IContextRepository?)null!);
+        mockFirebaseFactory.Setup(f => f.CreateContextRepository((string?)null)).Returns((IContextRepository?)null!);
         var context = CreateDetailedCommandApp(firebaseServiceFactory: mockFirebaseFactory);
         var (exitCode, output) = await RunDetailedAsync(context, "--runs", "1", "--no-live-estimates");
 

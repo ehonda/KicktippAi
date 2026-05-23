@@ -13,6 +13,10 @@ public class UploadKpiSettings : CommandSettings
     [Description("The community context to use (e.g., ehonda-test-buli)")]
     public required string CommunityContext { get; set; }
 
+    [CommandOption("--competition")]
+    [Description("Competition identifier (defaults from community context, e.g., fifa-world-cup-2026 for ehonda-dev-wm26)")]
+    public string? Competition { get; set; }
+
     [CommandOption("-v|--verbose")]
     [Description("Enable verbose output to show detailed information")]
     [DefaultValue(false)]

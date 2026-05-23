@@ -2,6 +2,7 @@ using EHonda.KicktippAi.Core;
 using Microsoft.Extensions.Logging;
 using Spectre.Console.Cli;
 using Spectre.Console;
+using Orchestrator.Infrastructure;
 using Orchestrator.Infrastructure.Factories;
 
 namespace Orchestrator.Commands.Utility.ListKpi;
@@ -28,6 +29,9 @@ public class ListKpiCommand : AsyncCommand<ListKpiSettings>
         try
         {
             _console.MarkupLine($"[green]List KPI command initialized for community context:[/] [yellow]{settings.CommunityContext}[/]");
+            var competition = CompetitionResolver.ResolveCompetition(settings.Competition, settings.CommunityContext, settings.CommunityContext);
+            var repositoryCompetition = CompetitionResolver.ToRepositoryCompetitionArgument(competition);
+            _console.MarkupLine($"[blue]Using competition:[/] [yellow]{competition}[/]");
             
             if (settings.Verbose)
             {
@@ -35,7 +39,7 @@ public class ListKpiCommand : AsyncCommand<ListKpiSettings>
             }
             
             // Create Firebase services using factory (factory handles env var loading)
-            var kpiRepository = _firebaseServiceFactory.CreateKpiRepository();
+            var kpiRepository = _firebaseServiceFactory.CreateKpiRepository(repositoryCompetition);
             
             var table = new Table();
             table.AddColumn("Document Name");

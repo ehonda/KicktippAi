@@ -124,7 +124,7 @@ public static class OrchestratorTestFactories
         var mockFactory = new Mock<IFirebaseServiceFactory>();
         var mockRepo = kpiRepository.Or(() => new Mock<IKpiRepository>());
 
-        mockFactory.Setup(f => f.CreateKpiRepository()).Returns(mockRepo.Object);
+        mockFactory.Setup(f => f.CreateKpiRepository((string?)null)).Returns(mockRepo.Object);
 
         return mockFactory;
     }
@@ -406,10 +406,11 @@ public static class OrchestratorTestFactories
         mockFactory.Setup(f => f.CreateKicktippContextProvider(
                 It.IsAny<IKicktippClient>(),
                 It.IsAny<string>(),
+                It.IsAny<string?>(),
                 It.IsAny<string?>()))
             .Returns(mockProvider.Object);
 
-        mockFactory.Setup(f => f.CreateKpiContextProvider())
+        mockFactory.Setup(f => f.CreateKpiContextProvider((string?)null))
             .Returns(mockKpiProvider.Object);
 
         return mockFactory;
@@ -770,10 +771,10 @@ public static class OrchestratorTestFactories
         var mockContextRepo = contextRepository.Or(() => CreateMockContextRepository());
         var mockMatchOutcomeRepo = matchOutcomeRepository.Or(() => CreateMockMatchOutcomeRepository());
 
-        mockFactory.Setup(f => f.CreateKpiRepository()).Returns(mockKpiRepo.Object);
-        mockFactory.Setup(f => f.CreatePredictionRepository()).Returns(mockPredictionRepo.Object);
-        mockFactory.Setup(f => f.CreateContextRepository()).Returns(mockContextRepo.Object);
-        mockFactory.Setup(f => f.CreateMatchOutcomeRepository()).Returns(mockMatchOutcomeRepo.Object);
+        mockFactory.Setup(f => f.CreateKpiRepository((string?)null)).Returns(mockKpiRepo.Object);
+        mockFactory.Setup(f => f.CreatePredictionRepository((string?)null)).Returns(mockPredictionRepo.Object);
+        mockFactory.Setup(f => f.CreateContextRepository((string?)null)).Returns(mockContextRepo.Object);
+        mockFactory.Setup(f => f.CreateMatchOutcomeRepository((string?)null)).Returns(mockMatchOutcomeRepo.Object);
 
         return mockFactory;
     }

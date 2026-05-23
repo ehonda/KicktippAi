@@ -21,23 +21,23 @@ public interface IFirebaseServiceFactory
     /// Creates a prediction repository instance.
     /// </summary>
     /// <returns>A prediction repository instance.</returns>
-    IPredictionRepository CreatePredictionRepository();
+    IPredictionRepository CreatePredictionRepository(string? competition = null);
 
     /// <summary>
     /// Creates a KPI repository instance.
     /// </summary>
     /// <returns>A KPI repository instance.</returns>
-    IKpiRepository CreateKpiRepository();
+    IKpiRepository CreateKpiRepository(string? competition = null);
 
     /// <summary>
     /// Creates a context repository instance.
     /// </summary>
     /// <returns>A context repository instance.</returns>
-    IContextRepository CreateContextRepository();
+    IContextRepository CreateContextRepository(string? competition = null);
 
     /// <summary>
     /// Creates a match outcome repository instance.
     /// </summary>
     /// <returns>A match outcome repository instance.</returns>
-    IMatchOutcomeRepository CreateMatchOutcomeRepository();
+    IMatchOutcomeRepository CreateMatchOutcomeRepository(string? competition = null);
 }

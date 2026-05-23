@@ -32,10 +32,10 @@ public class KicktippContextProvider_GetContextAsync_Tests : KicktippContextProv
 
         // Assert - verify CSV header and structure
         var expectedCsv = """
-            Position,Team,Games,Points,Goal_Ratio,Goals_For,Goals_Against,Wins,Draws,Losses
-            1,FC Bayern München,10,25,30:10,30,10,8,1,1
-            2,Borussia Dortmund,10,22,28:12,28,12,7,1,2
-            3,RB Leipzig,10,20,22:14,22,14,6,2,2
+            Position,Team,Games,Points,Goal_Ratio,Goals_For,Goals_Against,Wins,Draws,Losses,Group
+            1,FC Bayern München,10,25,30:10,30,10,8,1,1,
+            2,Borussia Dortmund,10,22,28:12,28,12,7,1,2,
+            3,RB Leipzig,10,20,22:14,22,14,6,2,2,
 
             """;
         await Assert.That(standingsContext.Content).IsEqualToWithNormalizedLineEndings(expectedCsv);

@@ -1,4 +1,5 @@
 using System.Text;
+using System.Text.RegularExpressions;
 
 namespace EHonda.KicktippAi.Core;
 
@@ -31,7 +32,11 @@ public static class MatchContextDocumentCatalog
             { "Werder Bremen", "svw" }
         };
 
-    public static MatchContextDocumentSelection ForMatch(string homeTeam, string awayTeam, string communityContext)
+    public static MatchContextDocumentSelection ForMatch(
+        string homeTeam,
+        string awayTeam,
+        string communityContext,
+        string? competition = null)
     {
         ArgumentException.ThrowIfNullOrWhiteSpace(homeTeam);
         ArgumentException.ThrowIfNullOrWhiteSpace(awayTeam);
@@ -39,10 +44,11 @@ public static class MatchContextDocumentCatalog
 
         var homeAbbreviation = GetTeamAbbreviation(homeTeam);
         var awayAbbreviation = GetTeamAbbreviation(awayTeam);
+        var standingsDocumentName = GetStandingsDocumentName(competition);
 
         return new MatchContextDocumentSelection(
             [
-                "bundesliga-standings.csv",
+                standingsDocumentName,
                 $"community-rules-{communityContext}.md",
                 $"recent-history-{homeAbbreviation}.csv",
                 $"recent-history-{awayAbbreviation}.csv",
@@ -56,6 +62,21 @@ public static class MatchContextDocumentCatalog
             ]);
     }
 
+    public static string GetStandingsDocumentName(string? competition = null)
+    {
+        return string.Equals(competition, CompetitionIds.FifaWorldCup2026, StringComparison.OrdinalIgnoreCase)
+            ? "fifa-world-cup-2026-standings.csv"
+            : "bundesliga-standings.csv";
+    }
+
+    public static string GetStandingsDocumentBaseName(string? competition = null)
+    {
+        var documentName = GetStandingsDocumentName(competition);
+        return documentName.EndsWith(".csv", StringComparison.OrdinalIgnoreCase)
+            ? documentName[..^4]
+            : documentName;
+    }
+
     public static string GetTeamAbbreviation(string teamName)
     {
         ArgumentException.ThrowIfNullOrWhiteSpace(teamName);
@@ -65,17 +86,33 @@ public static class MatchContextDocumentCatalog
             return abbreviation;
         }
 
-        var words = teamName.Split(' ', StringSplitOptions.RemoveEmptyEntries);
+        return SlugifyTeamName(teamName);
+    }
+
+    private static string SlugifyTeamName(string teamName)
+    {
+        var normalized = teamName.Normalize(NormalizationForm.FormD);
         var builder = new StringBuilder();
 
-        foreach (var word in words.Take(3))
+        foreach (var character in normalized)
         {
-            if (word.Length > 0 && char.IsLetter(word[0]))
+            var category = System.Globalization.CharUnicodeInfo.GetUnicodeCategory(character);
+            if (category == System.Globalization.UnicodeCategory.NonSpacingMark)
             {
-                builder.Append(char.ToLowerInvariant(word[0]));
+                continue;
+            }
+
+            if (char.IsLetterOrDigit(character))
+            {
+                builder.Append(char.ToLowerInvariant(character));
+            }
+            else if (builder.Length > 0 && builder[^1] != '-')
+            {
+                builder.Append('-');
             }
         }
 
-        return builder.Length > 0 ? builder.ToString() : "unknown";
+        var slug = Regex.Replace(builder.ToString().Trim('-'), "-{2,}", "-");
+        return string.IsNullOrWhiteSpace(slug) ? "unknown" : slug;
     }
 }

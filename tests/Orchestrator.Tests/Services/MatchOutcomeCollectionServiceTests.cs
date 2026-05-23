@@ -85,7 +85,7 @@ public class MatchOutcomeCollectionServiceTests
 
         var service = CreateService(client, outcomeRepository);
 
-        var result = await service.CollectAsync(communityContext, dryRun: false, cancellationToken);
+        var result = await service.CollectAsync(communityContext, dryRun: false, cancellationToken: cancellationToken);
 
         await Assert.That(result.MatchdaySummaries).HasCount().EqualTo(2);
 
@@ -146,7 +146,7 @@ public class MatchOutcomeCollectionServiceTests
         kicktippClientFactory.Setup(f => f.CreateClient()).Returns(client.Object);
 
         var firebaseServiceFactory = new Mock<IFirebaseServiceFactory>();
-        firebaseServiceFactory.Setup(f => f.CreateMatchOutcomeRepository()).Returns(outcomeRepository.Object);
+        firebaseServiceFactory.Setup(f => f.CreateMatchOutcomeRepository((string?)null)).Returns(outcomeRepository.Object);
 
         return new MatchOutcomeCollectionService(
             firebaseServiceFactory.Object,

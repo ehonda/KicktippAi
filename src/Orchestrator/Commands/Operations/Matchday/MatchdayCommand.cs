@@ -9,6 +9,7 @@ using EHonda.KicktippAi.Core;
 using Orchestrator.Commands.Shared;
 using Orchestrator.Infrastructure;
 using Orchestrator.Infrastructure.Factories;
+using Orchestrator.Infrastructure.Langfuse;
 
 namespace Orchestrator.Commands.Operations.Matchday;
 
@@ -20,6 +21,7 @@ public class MatchdayCommand : AsyncCommand<BaseSettings>
     private readonly IOpenAiServiceFactory _openAiServiceFactory;
     private readonly IContextProviderFactory _contextProviderFactory;
     private readonly ILogger<MatchdayCommand> _logger;
+    private readonly ILangfusePublicApiClient? _langfuseClient;
 
     public MatchdayCommand(
         IAnsiConsole console,
@@ -27,7 +29,8 @@ public class MatchdayCommand : AsyncCommand<BaseSettings>
         IKicktippClientFactory kicktippClientFactory,
         IOpenAiServiceFactory openAiServiceFactory,
         IContextProviderFactory contextProviderFactory,
-        ILogger<MatchdayCommand> logger)
+        ILogger<MatchdayCommand> logger,
+        ILangfusePublicApiClient? langfuseClient = null)
     {
         _console = console;
         _firebaseServiceFactory = firebaseServiceFactory;
@@ -35,6 +38,7 @@ public class MatchdayCommand : AsyncCommand<BaseSettings>
         _openAiServiceFactory = openAiServiceFactory;
         _contextProviderFactory = contextProviderFactory;
         _logger = logger;
+        _langfuseClient = langfuseClient;
     }
 
     protected override async Task<int> ExecuteAsync(CommandContext context, BaseSettings settings, CancellationToken cancellationToken)
@@ -42,7 +46,8 @@ public class MatchdayCommand : AsyncCommand<BaseSettings>
         
         try
         {
-            _console.MarkupLine($"[green]Matchday command initialized with model:[/] [yellow]{settings.Model}[/]");
+            var initialModel = string.IsNullOrWhiteSpace(settings.Model) ? "(competition default)" : settings.Model;
+            _console.MarkupLine($"[green]Matchday command initialized with model:[/] [yellow]{initialModel}[/]");
             
             if (settings.Verbose)
             {
@@ -138,14 +143,42 @@ public class MatchdayCommand : AsyncCommand<BaseSettings>
         var environment = ProductionCommunities.Contains(settings.Community) ? "production" : "development";
         LangfuseActivityPropagation.SetEnvironment(activity, environment);
 
+        string communityContext = settings.CommunityContext ?? settings.Community;
+        var competition = CompetitionResolver.ResolveCompetition(settings.Competition, settings.Community, communityContext);
+        var model = PredictionServiceCommandSupport.ResolveModel(settings.Model, competition);
+        var repositoryCompetition = CompetitionResolver.ToRepositoryCompetitionArgument(competition);
+
+        if (settings.WithJustification && PredictionServiceCommandSupport.UsesLangfusePromptSource(
+                competition,
+                settings.Community,
+                communityContext,
+                settings.PromptSource,
+                bonusPrompt: false))
+        {
+            throw new NotSupportedException(
+                "WM 2026 hosted match prompts with justification are not supported yet. Use local prompts or omit --with-justification.");
+        }
+
         // Create services using factories
         var kicktippClient = _kicktippClientFactory.CreateClient();
-        var predictionService = _openAiServiceFactory.CreatePredictionService(settings.Model);
+        var predictionService = PredictionServiceCommandSupport.CreatePredictionService(
+            _openAiServiceFactory,
+            _langfuseClient,
+            _console,
+            model,
+            competition,
+            settings.Community,
+            communityContext,
+            settings.PromptSource,
+            settings.LangfusePromptName,
+            settings.LangfusePromptLabel,
+            settings.LangfusePromptVersion,
+            settings.ReasoningEffort,
+            bonusPrompt: false);
         
         // Create context provider using factory
-        string communityContext = settings.CommunityContext ?? settings.Community;
         var contextProvider = _contextProviderFactory.CreateKicktippContextProvider(
-            kicktippClient, settings.Community, communityContext);
+            kicktippClient, settings.Community, communityContext, repositoryCompetition);
         
         var tokenUsageTracker = _openAiServiceFactory.GetTokenUsageTracker();
         
@@ -156,8 +189,8 @@ public class MatchdayCommand : AsyncCommand<BaseSettings>
         }
         
         // Create repositories
-        var predictionRepository = _firebaseServiceFactory.CreatePredictionRepository();
-        var contextRepository = _firebaseServiceFactory.CreateContextRepository();
+        var predictionRepository = _firebaseServiceFactory.CreatePredictionRepository(repositoryCompetition);
+        var contextRepository = _firebaseServiceFactory.CreateContextRepository(repositoryCompetition);
         var databaseEnabled = true;
         
         // Reset token usage tracker for this workflow
@@ -165,6 +198,7 @@ public class MatchdayCommand : AsyncCommand<BaseSettings>
         
         _console.MarkupLine($"[blue]Using community:[/] [yellow]{settings.Community}[/]");
         _console.MarkupLine($"[blue]Using community context:[/] [yellow]{communityContext}[/]");
+        _console.MarkupLine($"[blue]Using competition:[/] [yellow]{competition}[/]");
         _console.MarkupLine("[blue]Getting current matchday matches...[/]");
         
         // Step 1: Get current matchday via GetMatchesWithHistoryAsync
@@ -179,14 +213,14 @@ public class MatchdayCommand : AsyncCommand<BaseSettings>
         // Set Langfuse trace-level attributes now that we know the matchday
         var matchday = matchesWithHistory.First().Match.Matchday;
         var sessionId = $"matchday-{matchday}-{settings.Community}";
-        var traceTags = new[] { settings.Community, settings.Model };
+        var traceTags = new[] { settings.Community, model, competition };
         LangfuseActivityPropagation.SetSessionId(activity, sessionId);
         LangfuseActivityPropagation.SetTraceTags(activity, traceTags);
         LangfuseActivityPropagation.SetTraceMetadata(activity, "community", settings.Community);
         LangfuseActivityPropagation.SetTraceMetadata(activity, "communityContext", communityContext);
-        LangfuseActivityPropagation.SetTraceMetadata(activity, "kicktipp-season", KicktippSeasonMetadata.Current);
+        LangfuseActivityPropagation.SetTraceMetadata(activity, "competition", competition);
         LangfuseActivityPropagation.SetTraceMetadata(activity, "matchday", matchday.ToString());
-        LangfuseActivityPropagation.SetTraceMetadata(activity, "model", settings.Model);
+        LangfuseActivityPropagation.SetTraceMetadata(activity, "model", model);
         LangfuseActivityPropagation.SetTraceMetadata(activity, "homeTeams", PredictionTelemetryMetadata.BuildDelimitedFilterValue(matchesWithHistory.Select(m => m.Match.HomeTeam)), propagateToObservations: false);
         LangfuseActivityPropagation.SetTraceMetadata(activity, "awayTeams", PredictionTelemetryMetadata.BuildDelimitedFilterValue(matchesWithHistory.Select(m => m.Match.AwayTeam)), propagateToObservations: false);
         LangfuseActivityPropagation.SetTraceMetadata(activity, "teams", PredictionTelemetryMetadata.BuildDelimitedFilterValue(matchesWithHistory.SelectMany(m => new[] { m.Match.HomeTeam, m.Match.AwayTeam })), propagateToObservations: false);
@@ -197,7 +231,8 @@ public class MatchdayCommand : AsyncCommand<BaseSettings>
         {
             community = settings.Community,
             matchday,
-            model = settings.Model,
+            model,
+            competition,
             matches = matchesWithHistory.Select(m => $"{m.Match.HomeTeam} vs {m.Match.AwayTeam}").ToArray()
         };
         activity?.SetTag("langfuse.trace.input", JsonSerializer.Serialize(traceInput));
@@ -241,11 +276,11 @@ public class MatchdayCommand : AsyncCommand<BaseSettings>
                     if (match.IsCancelled)
                     {
                         prediction = await predictionRepository!.GetCancelledMatchPredictionAsync(
-                            match.HomeTeam, match.AwayTeam, settings.Model, communityContext);
+                            match.HomeTeam, match.AwayTeam, model, communityContext);
                     }
                     else
                     {
-                        prediction = await predictionRepository!.GetPredictionAsync(match, settings.Model, communityContext);
+                        prediction = await predictionRepository!.GetPredictionAsync(match, model, communityContext);
                     }
                     
                     if (prediction != null)
@@ -271,11 +306,11 @@ public class MatchdayCommand : AsyncCommand<BaseSettings>
                     if (match.IsCancelled)
                     {
                         currentRepredictionIndex = await predictionRepository!.GetCancelledMatchRepredictionIndexAsync(
-                            match.HomeTeam, match.AwayTeam, settings.Model, communityContext);
+                            match.HomeTeam, match.AwayTeam, model, communityContext);
                     }
                     else
                     {
-                        currentRepredictionIndex = await predictionRepository!.GetMatchRepredictionIndexAsync(match, settings.Model, communityContext);
+                        currentRepredictionIndex = await predictionRepository!.GetMatchRepredictionIndexAsync(match, model, communityContext);
                     }
                     
                     if (currentRepredictionIndex == -1)
@@ -294,7 +329,7 @@ public class MatchdayCommand : AsyncCommand<BaseSettings>
                         if (nextIndex <= maxAllowed)
                         {
                             // Before repredicting, check if the current prediction is actually outdated
-                            var isOutdated = await CheckPredictionOutdated(predictionRepository!, contextRepository, match, settings.Model, communityContext, settings.Verbose);
+                            var isOutdated = await CheckPredictionOutdated(predictionRepository!, contextRepository, match, model, communityContext, competition, settings.Verbose);
                             
                             if (isOutdated)
                             {
@@ -312,11 +347,11 @@ public class MatchdayCommand : AsyncCommand<BaseSettings>
                                 if (match.IsCancelled)
                                 {
                                     prediction = await predictionRepository!.GetCancelledMatchPredictionAsync(
-                                        match.HomeTeam, match.AwayTeam, settings.Model, communityContext);
+                                        match.HomeTeam, match.AwayTeam, model, communityContext);
                                 }
                                 else
                                 {
-                                    prediction = await predictionRepository!.GetPredictionAsync(match, settings.Model, communityContext);
+                                    prediction = await predictionRepository!.GetPredictionAsync(match, model, communityContext);
                                 }
                                 
                                 if (prediction != null)
@@ -340,11 +375,11 @@ public class MatchdayCommand : AsyncCommand<BaseSettings>
                             if (match.IsCancelled)
                             {
                                 prediction = await predictionRepository!.GetCancelledMatchPredictionAsync(
-                                    match.HomeTeam, match.AwayTeam, settings.Model, communityContext);
+                                    match.HomeTeam, match.AwayTeam, model, communityContext);
                             }
                             else
                             {
-                                prediction = await predictionRepository!.GetPredictionAsync(match, settings.Model, communityContext);
+                                prediction = await predictionRepository!.GetPredictionAsync(match, model, communityContext);
                             }
                             
                             if (prediction != null)
@@ -372,6 +407,7 @@ public class MatchdayCommand : AsyncCommand<BaseSettings>
                         match.HomeTeam, 
                         match.AwayTeam, 
                         communityContext, 
+                        competition,
                         settings.Verbose);
                     
                     if (settings.Verbose)
@@ -450,18 +486,18 @@ public class MatchdayCommand : AsyncCommand<BaseSettings>
                                     if (match.IsCancelled)
                                     {
                                         currentIndex = await predictionRepository!.GetCancelledMatchRepredictionIndexAsync(
-                                            match.HomeTeam, match.AwayTeam, settings.Model, communityContext);
+                                            match.HomeTeam, match.AwayTeam, model, communityContext);
                                     }
                                     else
                                     {
-                                        currentIndex = await predictionRepository!.GetMatchRepredictionIndexAsync(match, settings.Model, communityContext);
+                                        currentIndex = await predictionRepository!.GetMatchRepredictionIndexAsync(match, model, communityContext);
                                     }
                                     var nextIndex = currentIndex == -1 ? 0 : currentIndex + 1;
                                     
                                     await predictionRepository!.SaveRepredictionAsync(
                                         match, 
                                         prediction, 
-                                        settings.Model, 
+                                        model,
                                         tokenUsageJson, 
                                         cost, 
                                         communityContext,
@@ -479,7 +515,7 @@ public class MatchdayCommand : AsyncCommand<BaseSettings>
                                     await predictionRepository!.SavePredictionAsync(
                                         match, 
                                         prediction, 
-                                        settings.Model, 
+                                        model,
                                         tokenUsageJson, 
                                         cost, 
                                         communityContext,
@@ -592,40 +628,21 @@ public class MatchdayCommand : AsyncCommand<BaseSettings>
         string homeTeam,
         string awayTeam,
         string communityContext, 
+        string competition,
         bool verbose = false)
     {
         var contextDocuments = new Dictionary<string, DocumentContext>();
-        var homeAbbreviation = GetTeamAbbreviation(homeTeam);
-        var awayAbbreviation = GetTeamAbbreviation(awayTeam);
-        
-        // Define the 7 specific document names needed for a match (required core set)
-        var requiredDocuments = new[]
-        {
-            "bundesliga-standings.csv",
-            $"community-rules-{communityContext}.md",
-            $"recent-history-{homeAbbreviation}.csv",
-            $"recent-history-{awayAbbreviation}.csv",
-            $"home-history-{homeAbbreviation}.csv",
-            $"away-history-{awayAbbreviation}.csv",
-            $"head-to-head-{homeAbbreviation}-vs-{awayAbbreviation}.csv"
-        };
-
-        // Optional transfers documents (do not affect required count). Naming: <abbr>-transfers.csv
-        var optionalDocuments = new[]
-        {
-            $"{homeAbbreviation}-transfers.csv",
-            $"{awayAbbreviation}-transfers.csv"
-        };
+        var selection = MatchContextDocumentCatalog.ForMatch(homeTeam, awayTeam, communityContext, competition);
         
         if (verbose)
         {
-            _console.MarkupLine($"[dim]    Looking for {requiredDocuments.Length} specific context documents in database[/]");
+            _console.MarkupLine($"[dim]    Looking for {selection.RequiredDocumentNames.Count} specific context documents in database[/]");
         }
         
         try
         {
             // Retrieve each required document
-            foreach (var documentName in requiredDocuments)
+            foreach (var documentName in selection.RequiredDocumentNames)
             {
                 var contextDoc = await contextRepository.GetLatestContextDocumentAsync(documentName, communityContext);
                 if (contextDoc != null)
@@ -647,7 +664,7 @@ public class MatchdayCommand : AsyncCommand<BaseSettings>
             }
 
             // Retrieve optional transfers documents (best-effort)
-            foreach (var documentName in optionalDocuments)
+            foreach (var documentName in selection.OptionalDocumentNames)
             {
                 try
                 {
@@ -692,6 +709,7 @@ public class MatchdayCommand : AsyncCommand<BaseSettings>
         string homeTeam,
         string awayTeam,
         string communityContext,
+        string competition,
         bool verbose = false)
     {
         var contextDocuments = new List<DocumentContext>();
@@ -701,24 +719,15 @@ public class MatchdayCommand : AsyncCommand<BaseSettings>
             homeTeam,
             awayTeam,
             communityContext,
+            competition,
             verbose);
 
-        // Reconstruct required document names (must match logic in GetMatchContextDocumentsAsync)
-        var homeAbbreviation = GetTeamAbbreviation(homeTeam);
-        var awayAbbreviation = GetTeamAbbreviation(awayTeam);
-        var requiredDocuments = new[]
-        {
-            "bundesliga-standings.csv",
-            $"community-rules-{communityContext}.md",
-            $"recent-history-{homeAbbreviation}.csv",
-            $"recent-history-{awayAbbreviation}.csv",
-            $"home-history-{homeAbbreviation}.csv",
-            $"away-history-{awayAbbreviation}.csv",
-            $"head-to-head-{homeAbbreviation}-vs-{awayAbbreviation}.csv"
-        };
+        var requiredDocuments = MatchContextDocumentCatalog
+            .ForMatch(homeTeam, awayTeam, communityContext, competition)
+            .RequiredDocumentNames;
 
         int requiredPresent = requiredDocuments.Count(d => databaseContexts.ContainsKey(d));
-        int requiredTotal = requiredDocuments.Length;
+        int requiredTotal = requiredDocuments.Count;
 
         if (requiredPresent == requiredTotal)
         {
@@ -756,55 +765,7 @@ public class MatchdayCommand : AsyncCommand<BaseSettings>
         return contextDocuments;
     }
     
-    /// <summary>
-    /// Gets a team abbreviation for file naming.
-    /// </summary>
-    private static string GetTeamAbbreviation(string teamName)
-    {
-        // Current season team abbreviations (2025-26 Bundesliga participants)
-        var abbreviations = new Dictionary<string, string>(StringComparer.OrdinalIgnoreCase)
-        {
-            { "1. FC Heidenheim 1846", "fch" },
-            { "1. FC Köln", "fck" },
-            { "1. FC Union Berlin", "fcu" },
-            { "1899 Hoffenheim", "tsg" },
-            { "Bayer 04 Leverkusen", "b04" },
-            { "Bor. Mönchengladbach", "bmg" },
-            { "Borussia Dortmund", "bvb" },
-            { "Eintracht Frankfurt", "sge" },
-            { "FC Augsburg", "fca" },
-            { "FC Bayern München", "fcb" },
-            { "FC St. Pauli", "fcs" },
-            { "FSV Mainz 05", "m05" },
-            { "Hamburger SV", "hsv" },
-            { "RB Leipzig", "rbl" },
-            { "SC Freiburg", "scf" },
-            { "VfB Stuttgart", "vfb" },
-            { "VfL Wolfsburg", "wob" },
-            { "Werder Bremen", "svw" }
-        };
-        
-        if (abbreviations.TryGetValue(teamName, out var abbreviation))
-        {
-            return abbreviation;
-        }
-        
-        // Fallback: create abbreviation from team name
-        var words = teamName.Split(' ', StringSplitOptions.RemoveEmptyEntries);
-        var abbr = new System.Text.StringBuilder();
-        
-        foreach (var word in words.Take(3)) // Take up to 3 words
-        {
-            if (word.Length > 0 && char.IsLetter(word[0]))
-            {
-                abbr.Append(char.ToLowerInvariant(word[0]));
-            }
-        }
-        
-        return abbr.Length > 0 ? abbr.ToString() : "unknown";
-    }
-    
-    private async Task<bool> CheckPredictionOutdated(IPredictionRepository predictionRepository, IContextRepository contextRepository, Match match, string model, string communityContext, bool verbose)
+    private async Task<bool> CheckPredictionOutdated(IPredictionRepository predictionRepository, IContextRepository contextRepository, Match match, string model, string communityContext, string competition, bool verbose)
     {
         try
         {
@@ -839,8 +800,8 @@ public class MatchdayCommand : AsyncCommand<BaseSettings>
                 // to get the actual document name stored in the repository
                 var actualDocumentName = StripDisplaySuffix(documentName);
                 
-                // Skip bundesliga-standings.csv from outdated check to reduce unnecessary repredictions
-                if (actualDocumentName.Equals("bundesliga-standings.csv", StringComparison.OrdinalIgnoreCase))
+                var standingsDocumentName = MatchContextDocumentCatalog.GetStandingsDocumentName(competition);
+                if (actualDocumentName.Equals(standingsDocumentName, StringComparison.OrdinalIgnoreCase))
                 {
                     if (verbose)
                     {

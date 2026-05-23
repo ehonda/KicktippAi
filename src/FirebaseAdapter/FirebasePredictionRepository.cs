@@ -28,7 +28,10 @@ public class FirebasePredictionRepository : IPredictionRepository
     private readonly string _bonusPredictionsCollection;
     private readonly string _competition;
 
-    public FirebasePredictionRepository(FirestoreDb firestoreDb, ILogger<FirebasePredictionRepository> logger)
+    public FirebasePredictionRepository(
+        FirestoreDb firestoreDb,
+        ILogger<FirebasePredictionRepository> logger,
+        string? competition = null)
     {
         _firestoreDb = firestoreDb ?? throw new ArgumentNullException(nameof(firestoreDb));
         _logger = logger ?? throw new ArgumentNullException(nameof(logger));
@@ -37,7 +40,9 @@ public class FirebasePredictionRepository : IPredictionRepository
         _predictionsCollection = "match-predictions";
         _matchesCollection = "matches";
         _bonusPredictionsCollection = "bonus-predictions";
-        _competition = "bundesliga-2025-26"; // Remove community suffix
+        _competition = string.IsNullOrWhiteSpace(competition)
+            ? CompetitionIds.Bundesliga2025_26
+            : competition.Trim();
         
         _logger.LogInformation("Firebase repository initialized");
     }

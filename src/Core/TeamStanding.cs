@@ -13,7 +13,8 @@ public record TeamStanding(
     int GoalDifference,
     int Wins,
     int Draws,
-    int Losses)
+    int Losses,
+    string? Group = null)
 {
     /// <summary>
     /// Goals formatted as "for:against" (e.g., "15:8")

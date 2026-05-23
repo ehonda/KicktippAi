@@ -16,13 +16,18 @@ public class FirebaseContextRepository : IContextRepository
     private readonly string _contextDocumentsCollection;
     private readonly string _competition;
 
-    public FirebaseContextRepository(FirestoreDb firestoreDb, ILogger<FirebaseContextRepository> logger)
+    public FirebaseContextRepository(
+        FirestoreDb firestoreDb,
+        ILogger<FirebaseContextRepository> logger,
+        string? competition = null)
     {
         _firestoreDb = firestoreDb ?? throw new ArgumentNullException(nameof(firestoreDb));
         _logger = logger ?? throw new ArgumentNullException(nameof(logger));
         
         _contextDocumentsCollection = "context-documents";
-        _competition = "bundesliga-2025-26";
+        _competition = string.IsNullOrWhiteSpace(competition)
+            ? CompetitionIds.Bundesliga2025_26
+            : competition.Trim();
         
         _logger.LogInformation("Firebase context repository initialized");
     }
@@ -45,7 +50,7 @@ public class FirebaseContextRepository : IContextRepository
             var nextVersion = latestDocument?.Version + 1 ?? 0;
             
             var now = Timestamp.GetCurrentTimestamp();
-            var documentId = $"{documentName}_{communityContext}_{nextVersion}";
+            var documentId = BuildDocumentId(documentName, communityContext, nextVersion);
             
             var firestoreDocument = new FirestoreContextDocument
             {
@@ -107,7 +112,7 @@ public class FirebaseContextRepository : IContextRepository
     {
         try
         {
-            var documentId = $"{documentName}_{communityContext}_{version}";
+            var documentId = BuildDocumentId(documentName, communityContext, version);
             var docRef = _firestoreDb.Collection(_contextDocumentsCollection).Document(documentId);
             var snapshot = await docRef.GetSnapshotAsync(cancellationToken);
             
@@ -225,7 +230,7 @@ public class FirebaseContextRepository : IContextRepository
     {
         try
         {
-            var documentId = $"{documentName}_{communityContext}_{version}";
+            var documentId = BuildDocumentId(documentName, communityContext, version);
             var docRef = _firestoreDb.Collection(_contextDocumentsCollection).Document(documentId);
             
             // Check if document exists
@@ -264,5 +269,12 @@ public class FirebaseContextRepository : IContextRepository
             firestoreDoc.Content,
             firestoreDoc.Version,
             firestoreDoc.CreatedAt.ToDateTimeOffset());
+    }
+
+    private string BuildDocumentId(string documentName, string communityContext, int version)
+    {
+        return string.Equals(_competition, CompetitionIds.Bundesliga2025_26, StringComparison.OrdinalIgnoreCase)
+            ? $"{documentName}_{communityContext}_{version}"
+            : $"{_competition}_{documentName}_{communityContext}_{version}";
     }
 }

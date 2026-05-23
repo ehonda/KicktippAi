@@ -1173,10 +1173,29 @@ public class PredictionService : IPredictionService
 
         activity.SetTag("langfuse.observation.type", "generation");
         activity.SetTag("gen_ai.request.model", _model);
-        if (_options.LangfusePromptTraceMetadata is { } promptTraceMetadata)
+        var providerPromptMetadata = (_templateProvider as IPromptTemplateTelemetryMetadataProvider)
+            ?.GetPromptTemplateTelemetryMetadata();
+
+        if (providerPromptMetadata?.LangfusePromptName is { } providerPromptName &&
+            providerPromptMetadata.LangfusePromptVersion is { } providerPromptVersion)
+        {
+            activity.SetTag("langfuse.observation.prompt.name", providerPromptName);
+            activity.SetTag("langfuse.observation.prompt.version", providerPromptVersion);
+        }
+        else if (_options.LangfusePromptTraceMetadata is { } promptTraceMetadata)
         {
             activity.SetTag("langfuse.observation.prompt.name", promptTraceMetadata.Name);
             activity.SetTag("langfuse.observation.prompt.version", promptTraceMetadata.Version);
+        }
+
+        if (providerPromptMetadata is not null)
+        {
+            activity.SetTag("langfuse.observation.metadata.langfusePromptFallback", providerPromptMetadata.IsFallback);
+            activity.SetTag("langfuse.observation.metadata.promptTemplatePath", providerPromptMetadata.PromptPath);
+        }
+        else if (_options.LangfusePromptTraceMetadata is { IsFallback: true })
+        {
+            activity.SetTag("langfuse.observation.metadata.langfusePromptFallback", true);
         }
 
         if (!string.IsNullOrWhiteSpace(_options.ReasoningEffort))

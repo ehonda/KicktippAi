@@ -3,6 +3,8 @@ using Microsoft.Extensions.Logging;
 using Spectre.Console.Cli;
 using Spectre.Console;
 using KicktippIntegration;
+using Orchestrator.Commands.Shared;
+using Orchestrator.Infrastructure;
 using Orchestrator.Infrastructure.Factories;
 
 namespace Orchestrator.Commands.Operations.Verify;
@@ -69,9 +71,13 @@ public class VerifyMatchdayCommand : AsyncCommand<VerifySettings>
     private async Task<bool> ExecuteVerificationWorkflow(VerifySettings settings)
     {
         var kicktippClient = _kicktippClientFactory.CreateClient();
-        
+        string communityContext = settings.CommunityContext ?? settings.Community;
+        var competition = CompetitionResolver.ResolveCompetition(settings.Competition, settings.Community, communityContext);
+        var model = PredictionServiceCommandSupport.ResolveModel(settings.Model, competition);
+        var repositoryCompetition = CompetitionResolver.ToRepositoryCompetitionArgument(competition);
+
         // Try to get the prediction repository (may be null if Firebase is not configured)
-        var predictionRepository = _firebaseServiceFactory.CreatePredictionRepository();
+        var predictionRepository = _firebaseServiceFactory.CreatePredictionRepository(repositoryCompetition);
         if (predictionRepository == null)
         {
             _console.MarkupLine("[red]Error: Database not configured. Cannot verify predictions without database access.[/]");
@@ -80,7 +86,7 @@ public class VerifyMatchdayCommand : AsyncCommand<VerifySettings>
         }
         
         // Get context repository for outdated checks (may be null if Firebase is not configured)
-        var contextRepository = _firebaseServiceFactory.CreateContextRepository();
+        var contextRepository = _firebaseServiceFactory.CreateContextRepository(repositoryCompetition);
         if (settings.CheckOutdated && contextRepository == null)
         {
             _console.MarkupLine("[red]Error: Database not configured. Cannot check outdated predictions without database access.[/]");
@@ -88,11 +94,9 @@ public class VerifyMatchdayCommand : AsyncCommand<VerifySettings>
             return true; // Consider this a failure
         }
         
-        // Determine community context (use explicit setting or fall back to community name)
-        string communityContext = settings.CommunityContext ?? settings.Community;
-        
         _console.MarkupLine($"[blue]Using community:[/] [yellow]{settings.Community}[/]");
         _console.MarkupLine($"[blue]Using community context:[/] [yellow]{communityContext}[/]");
+        _console.MarkupLine($"[blue]Using competition:[/] [yellow]{competition}[/]");
         _console.MarkupLine("[blue]Getting placed predictions from Kicktipp...[/]");
         
         // Step 1: Get placed predictions from Kicktipp
@@ -132,7 +136,7 @@ public class VerifyMatchdayCommand : AsyncCommand<VerifySettings>
                         _console.MarkupLine($"[dim]  Looking up (cancelled match, team-names-only): {match.HomeTeam} vs {match.AwayTeam}[/]");
                     }
                     databasePrediction = await predictionRepository.GetCancelledMatchPredictionAsync(
-                        match.HomeTeam, match.AwayTeam, settings.Model, communityContext);
+                        match.HomeTeam, match.AwayTeam, model, communityContext);
                 }
                 else
                 {
@@ -140,7 +144,7 @@ public class VerifyMatchdayCommand : AsyncCommand<VerifySettings>
                     {
                         _console.MarkupLine($"[dim]  Looking up: {match.HomeTeam} vs {match.AwayTeam} at {match.StartsAt}[/]");
                     }
-                    databasePrediction = await predictionRepository.GetPredictionAsync(match, settings.Model, communityContext);
+                    databasePrediction = await predictionRepository.GetPredictionAsync(match, model, communityContext);
                 }
                 
                 if (kicktippPrediction != null)
@@ -165,7 +169,7 @@ public class VerifyMatchdayCommand : AsyncCommand<VerifySettings>
                 var isOutdated = false;
                 if (settings.CheckOutdated && contextRepository != null && databasePrediction != null)
                 {
-                    isOutdated = await CheckPredictionOutdated(predictionRepository, contextRepository, match, settings.Model, communityContext, settings.Verbose);
+                    isOutdated = await CheckPredictionOutdated(predictionRepository, contextRepository, match, model, communityContext, competition, settings.Verbose);
                 }
                 
                 // Compare predictions
@@ -280,7 +284,7 @@ public class VerifyMatchdayCommand : AsyncCommand<VerifySettings>
                kicktippPrediction.AwayGoals == databasePrediction.AwayGoals;
     }
     
-    private async Task<bool> CheckPredictionOutdated(IPredictionRepository predictionRepository, IContextRepository contextRepository, Match match, string model, string communityContext, bool verbose)
+    private async Task<bool> CheckPredictionOutdated(IPredictionRepository predictionRepository, IContextRepository contextRepository, Match match, string model, string communityContext, string competition, bool verbose)
     {
         try
         {
@@ -315,8 +319,8 @@ public class VerifyMatchdayCommand : AsyncCommand<VerifySettings>
                 // to get the actual document name stored in the repository
                 var actualDocumentName = StripDisplaySuffix(documentName);
                 
-                // Skip bundesliga-standings.csv from outdated check to reduce unnecessary repredictions
-                if (actualDocumentName.Equals("bundesliga-standings.csv", StringComparison.OrdinalIgnoreCase))
+                var standingsDocumentName = MatchContextDocumentCatalog.GetStandingsDocumentName(competition);
+                if (actualDocumentName.Equals(standingsDocumentName, StringComparison.OrdinalIgnoreCase))
                 {
                     if (verbose)
                     {

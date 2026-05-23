@@ -138,6 +138,8 @@ public class MatchdayCommand_ErrorHandling_Tests : MatchdayCommandTests_Base
 
         await RunCommandAsync(ctx.App, ctx.Console, "matchday", "custom-model-name", "-c", "test-community");
 
-        ctx.OpenAiServiceFactory.Verify(f => f.CreatePredictionService("custom-model-name"), Times.Once);
+        ctx.OpenAiServiceFactory.Verify(f => f.CreatePredictionService(
+            "custom-model-name",
+            It.IsAny<PredictionServiceOptions>()), Times.Once);
     }
 }

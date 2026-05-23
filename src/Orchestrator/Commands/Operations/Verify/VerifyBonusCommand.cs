@@ -3,6 +3,8 @@ using Microsoft.Extensions.Logging;
 using Spectre.Console.Cli;
 using Spectre.Console;
 using KicktippIntegration;
+using Orchestrator.Commands.Shared;
+using Orchestrator.Infrastructure;
 using Orchestrator.Infrastructure.Factories;
 
 namespace Orchestrator.Commands.Operations.Verify;
@@ -69,9 +71,13 @@ public class VerifyBonusCommand : AsyncCommand<VerifySettings>
     private async Task<bool> ExecuteVerificationWorkflow(VerifySettings settings)
     {
         var kicktippClient = _kicktippClientFactory.CreateClient();
-        
+        string communityContext = settings.CommunityContext ?? settings.Community;
+        var competition = CompetitionResolver.ResolveCompetition(settings.Competition, settings.Community, communityContext);
+        var model = PredictionServiceCommandSupport.ResolveModel(settings.Model, competition);
+        var repositoryCompetition = CompetitionResolver.ToRepositoryCompetitionArgument(competition);
+
         // Try to get the prediction repository (may be null if Firebase is not configured)
-        var predictionRepository = _firebaseServiceFactory.CreatePredictionRepository();
+        var predictionRepository = _firebaseServiceFactory.CreatePredictionRepository(repositoryCompetition);
         if (predictionRepository == null)
         {
             _console.MarkupLine("[red]Error: Database not configured. Cannot verify predictions without database access.[/]");
@@ -80,13 +86,11 @@ public class VerifyBonusCommand : AsyncCommand<VerifySettings>
         }
         
         // Get KPI repository for outdated checks (required for bonus predictions)
-        var kpiRepository = _firebaseServiceFactory.CreateKpiRepository();
-        
-        // Determine community context (use explicit setting or fall back to community name)
-        string communityContext = settings.CommunityContext ?? settings.Community;
+        var kpiRepository = _firebaseServiceFactory.CreateKpiRepository(repositoryCompetition);
         
         _console.MarkupLine($"[blue]Using community:[/] [yellow]{settings.Community}[/]");
         _console.MarkupLine($"[blue]Using community context:[/] [yellow]{communityContext}[/]");
+        _console.MarkupLine($"[blue]Using competition:[/] [yellow]{competition}[/]");
         _console.MarkupLine("[blue]Getting open bonus questions from Kicktipp...[/]");
         
         // Step 1: Get open bonus questions from Kicktipp
@@ -125,7 +129,7 @@ public class VerifyBonusCommand : AsyncCommand<VerifySettings>
                     _console.MarkupLine($"[dim]  Looking up: {Markup.Escape(question.Text)}[/]");
                 }
                 
-                var databasePrediction = await predictionRepository.GetBonusPredictionByTextAsync(question.Text, settings.Model, communityContext);
+                var databasePrediction = await predictionRepository.GetBonusPredictionByTextAsync(question.Text, model, communityContext);
                 var kicktippPrediction = placedPredictions.GetValueOrDefault(question.FormFieldName ?? question.Text);
                 
                 if (databasePrediction != null)
@@ -142,7 +146,7 @@ public class VerifyBonusCommand : AsyncCommand<VerifySettings>
                     var isOutdated = false;
                     if (settings.CheckOutdated)
                     {
-                        isOutdated = await CheckBonusPredictionOutdated(predictionRepository, kpiRepository, question.Text, settings.Model, settings.Community, settings.Verbose);
+                        isOutdated = await CheckBonusPredictionOutdated(predictionRepository, kpiRepository, question.Text, model, communityContext, settings.Verbose);
                     }
                     
                     // Consider prediction valid if it passes validation, matches Kicktipp, and is not outdated

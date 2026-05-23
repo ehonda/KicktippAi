@@ -87,6 +87,75 @@ public class KicktippClient_GetOpenPredictions_Tests : KicktippClientTests_Base
     }
 
     [Test]
+    public async Task Getting_open_predictions_extracts_round_from_hidden_field_before_navigation_label()
+    {
+        var html = """
+            <!DOCTYPE html>
+            <html>
+            <body>
+            <input type="hidden" name="spieltagIndex" value="37" />
+            <div class="prevnextTitle"><a>Achtelfinale</a></div>
+            <table id="tippabgabeSpiele">
+                <tbody>
+                    <tr>
+                        <td>20.06.2026 21:00</td>
+                        <td>Germany</td>
+                        <td>Brazil</td>
+                        <td>
+                            <input type="text" name="heim" />
+                            <input type="text" name="gast" />
+                        </td>
+                    </tr>
+                </tbody>
+            </table>
+            </body>
+            </html>
+            """;
+        StubHtmlResponse("/test-community/tippabgabe", html);
+        var client = CreateClient();
+
+        var matches = await client.GetOpenPredictionsAsync("test-community");
+
+        await Assert.That(matches).HasCount().EqualTo(1);
+        await Assert.That(matches[0].Matchday).IsEqualTo(37);
+    }
+
+    [Test]
+    public async Task Getting_open_predictions_parses_berlin_summer_time_dates()
+    {
+        var html = """
+            <!DOCTYPE html>
+            <html>
+            <body>
+            <div class="prevnextTitle"><a>3</a></div>
+            <table id="tippabgabeSpiele">
+                <tbody>
+                    <tr>
+                        <td>20.06.2026 21:00</td>
+                        <td>Germany</td>
+                        <td>Brazil</td>
+                        <td>
+                            <input type="text" name="heim" />
+                            <input type="text" name="gast" />
+                        </td>
+                    </tr>
+                </tbody>
+            </table>
+            </body>
+            </html>
+            """;
+        StubHtmlResponse("/test-community/tippabgabe", html);
+        var client = CreateClient();
+
+        var matches = await client.GetOpenPredictionsAsync("test-community");
+
+        await Assert.That(matches).HasCount().EqualTo(1);
+        await Assert.That(matches[0].StartsAt.Zone.Id).IsEqualTo("Europe/Berlin");
+        await Assert.That(matches[0].StartsAt.Offset.ToString()).IsEqualTo("+02");
+        await Assert.That(matches[0].StartsAt.Hour).IsEqualTo(21);
+    }
+
+    [Test]
     public async Task Getting_open_predictions_handles_rows_without_betting_inputs()
     {
         // Arrange - HTML with rows that have too few cells or no betting inputs

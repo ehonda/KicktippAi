@@ -1,3 +1,5 @@
+using EHonda.KicktippAi.Core;
+
 namespace Orchestrator.Infrastructure;
 
 /// <summary>
@@ -5,6 +7,5 @@ namespace Orchestrator.Infrastructure;
 /// </summary>
 public static class KicktippSeasonMetadata
 {
-    // TODO: Replace this fallback once we support communities that are not using 1. Bundesliga 2025/26.
-    public const string Current = "bundesliga-2025-2026";
+    public const string Current = CompetitionIds.Bundesliga2025_26;
 }

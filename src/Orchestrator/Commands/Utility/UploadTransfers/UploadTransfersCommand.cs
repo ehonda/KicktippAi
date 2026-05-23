@@ -37,6 +37,9 @@ public class UploadTransfersCommand : AsyncCommand<UploadTransfersSettings>
             var docName = $"{settings.TeamAbbreviation.ToLowerInvariant()}-transfers.csv";
             _console.MarkupLine($"[green]Upload Transfers command initialized for document:[/] [yellow]{docName}[/]");
             _console.MarkupLine($"[blue]Using community context:[/] [yellow]{settings.CommunityContext}[/]");
+            var competition = CompetitionResolver.ResolveCompetition(settings.Competition, settings.CommunityContext, settings.CommunityContext);
+            var repositoryCompetition = CompetitionResolver.ToRepositoryCompetitionArgument(competition);
+            _console.MarkupLine($"[blue]Using competition:[/] [yellow]{competition}[/]");
             if (settings.Verbose) _console.MarkupLine("[dim]Verbose mode enabled[/]");
 
             // JSON file path produced by Create-TransfersDocument.ps1 firebase mode
@@ -66,7 +69,7 @@ public class UploadTransfersCommand : AsyncCommand<UploadTransfersSettings>
             }
 
             // Create Firebase services using factory (factory handles env var loading)
-            var contextRepo = _firebaseServiceFactory.CreateContextRepository();
+            var contextRepo = _firebaseServiceFactory.CreateContextRepository(repositoryCompetition);
             var existing = await contextRepo.GetLatestContextDocumentAsync(transfersDoc.DocumentName, transfersDoc.CommunityContext);
             if (existing != null)
             {

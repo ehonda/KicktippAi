@@ -27,6 +27,10 @@ public class CollectContextKicktippSettings : CollectContextSettings
     [Description("The community context (rules/scoring) to use")]
     public string CommunityContext { get; set; } = string.Empty;
 
+    [CommandOption("--competition")]
+    [Description("Competition identifier (defaults from community context, e.g., fifa-world-cup-2026 for ehonda-dev-wm26)")]
+    public string? Competition { get; set; }
+
     [CommandOption("--verbose")]
     [Description("Enable verbose output")]
     public bool Verbose { get; set; }

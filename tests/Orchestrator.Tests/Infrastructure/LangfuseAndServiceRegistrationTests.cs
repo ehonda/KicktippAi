@@ -3,6 +3,7 @@ using System.Net;
 using System.Net.Http;
 using System.Net.Http.Headers;
 using System.Reflection;
+using System.Text.Json;
 using EHonda.KicktippAi.Core;
 using Microsoft.Extensions.DependencyInjection;
 using Microsoft.Extensions.FileProviders;
@@ -193,6 +194,121 @@ public class LangfuseAndServiceRegistrationTests
         await Assert.That(trace).IsNotNull();
         await Assert.That(trace!.Id).IsEqualTo("trace-1");
         await Assert.That(server.LogEntries.Count).IsEqualTo(2);
+    }
+
+    [Test]
+    public async Task Langfuse_text_prompt_provider_uses_hosted_prompt_and_records_prompt_metadata()
+    {
+        var prompt = CreateTextPrompt(
+            "kicktippai/wm26/predict-one-match",
+            7,
+            "Hosted WM prompt\n\n{{context_documents}}");
+        var langfuseClient = new Mock<ILangfusePublicApiClient>();
+        langfuseClient
+            .Setup(client => client.GetPromptAsync(
+                "kicktippai/wm26/predict-one-match",
+                "latest",
+                null,
+                It.IsAny<CancellationToken>()))
+            .ReturnsAsync(prompt);
+
+        var provider = new LangfuseTextPromptTemplateProvider(
+            langfuseClient.Object,
+            "kicktippai/wm26/predict-one-match",
+            "latest",
+            version: null);
+
+        var (template, path) = provider.LoadMatchTemplate("gpt-5-nano", includeJustification: false);
+        var metadata = provider.GetPromptTemplateTelemetryMetadata();
+
+        await Assert.That(template).Contains("Hosted WM prompt");
+        await Assert.That(path).IsEqualTo("langfuse://prompts/kicktippai%2Fwm26%2Fpredict-one-match/versions/7?label=latest");
+        await Assert.That(metadata).IsNotNull();
+        await Assert.That(metadata!.LangfusePromptName).IsEqualTo("kicktippai/wm26/predict-one-match");
+        await Assert.That(metadata.LangfusePromptVersion).IsEqualTo(7);
+        await Assert.That(metadata.IsFallback).IsFalse();
+    }
+
+    [Test]
+    public async Task Langfuse_text_prompt_provider_falls_back_to_local_wm_match_prompt_when_fetch_returns_missing()
+    {
+        var warnings = new List<string>();
+        var langfuseClient = new Mock<ILangfusePublicApiClient>();
+        langfuseClient
+            .Setup(client => client.GetPromptAsync(
+                "kicktippai/wm26/predict-one-match",
+                "latest",
+                null,
+                It.IsAny<CancellationToken>()))
+            .ReturnsAsync((LangfusePrompt?)null);
+
+        var provider = new LangfuseTextPromptTemplateProvider(
+            langfuseClient.Object,
+            "kicktippai/wm26/predict-one-match",
+            "latest",
+            version: null,
+            promptKind: LangfusePromptKind.Match,
+            fallbackTemplateProvider: new InstructionsTemplateProvider(PromptsFileProvider.Create()),
+            fallbackModel: "wm26",
+            fallbackWarning: warnings.Add);
+
+        var (template, path) = provider.LoadMatchTemplate("gpt-5-nano", includeJustification: false);
+        var metadata = provider.GetPromptTemplateTelemetryMetadata();
+
+        await Assert.That(path.Replace('\\', '/')).Contains("prompts/wm26/match.md");
+        await Assert.That(template).Contains("FIFA World Cup 2026");
+        await Assert.That(template).Contains("{{context_documents}}");
+        await Assert.That(warnings).HasCount().EqualTo(1);
+        await Assert.That(metadata).IsNotNull();
+        await Assert.That(metadata!.LangfusePromptName).IsEqualTo("kicktippai/wm26/predict-one-match");
+        await Assert.That(metadata.LangfusePromptVersion).IsNull();
+        await Assert.That(metadata.IsFallback).IsTrue();
+    }
+
+    [Test]
+    public async Task Langfuse_text_prompt_provider_falls_back_to_local_wm_bonus_prompt_when_fetch_fails()
+    {
+        var langfuseClient = new Mock<ILangfusePublicApiClient>();
+        langfuseClient
+            .Setup(client => client.GetPromptAsync(
+                "kicktippai/wm26/predict-bonus",
+                "latest",
+                null,
+                It.IsAny<CancellationToken>()))
+            .ThrowsAsync(new HttpRequestException("network unavailable"));
+
+        var provider = new LangfuseTextPromptTemplateProvider(
+            langfuseClient.Object,
+            "kicktippai/wm26/predict-bonus",
+            "latest",
+            version: null,
+            promptKind: LangfusePromptKind.Bonus,
+            fallbackTemplateProvider: new InstructionsTemplateProvider(PromptsFileProvider.Create()),
+            fallbackModel: "wm26");
+
+        var (template, path) = provider.LoadBonusTemplate("gpt-5-nano");
+        var metadata = provider.GetPromptTemplateTelemetryMetadata();
+
+        await Assert.That(path.Replace('\\', '/')).Contains("prompts/wm26/bonus.md");
+        await Assert.That(template).Contains("FIFA World Cup 2026 bonus question");
+        await Assert.That(metadata).IsNotNull();
+        await Assert.That(metadata!.IsFallback).IsTrue();
+    }
+
+    [Test]
+    public async Task Langfuse_text_prompt_provider_rejects_hosted_match_justification_for_world_cup_v1()
+    {
+        var langfuseClient = new Mock<ILangfusePublicApiClient>();
+        var provider = new LangfuseTextPromptTemplateProvider(
+            langfuseClient.Object,
+            "kicktippai/wm26/predict-one-match",
+            "latest",
+            version: null,
+            preloadedPrompt: CreateTextPrompt("kicktippai/wm26/predict-one-match", 1, "prompt"));
+
+        await Assert.That(() => provider.LoadMatchTemplate("gpt-5-nano", includeJustification: true))
+            .Throws<NotSupportedException>()
+            .WithMessageContaining("justification");
     }
 
     [Test]
@@ -693,6 +809,21 @@ public class LangfuseAndServiceRegistrationTests
         var loggerFilterOptions = provider.GetRequiredService<IOptions<LoggerFilterOptions>>().Value;
 
         await Assert.That(loggerFilterOptions.MinLevel).IsEqualTo(LogLevel.Warning);
+    }
+
+    private static LangfusePrompt CreateTextPrompt(string name, int version, string text)
+    {
+        using var promptDocument = JsonDocument.Parse(JsonSerializer.Serialize(text));
+        using var configDocument = JsonDocument.Parse("{}");
+
+        return new LangfusePrompt(
+            name,
+            version,
+            "text",
+            promptDocument.RootElement.Clone(),
+            Labels: ["latest"],
+            Tags: [],
+            configDocument.RootElement.Clone());
     }
 
     private void RememberEnvironmentVariable(string name)

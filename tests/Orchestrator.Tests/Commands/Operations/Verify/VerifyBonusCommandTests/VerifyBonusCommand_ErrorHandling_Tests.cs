@@ -138,8 +138,8 @@ public class VerifyBonusCommand_ErrorHandling_Tests : VerifyBonusCommandTests_Ba
             .ThrowsAsync(new InvalidOperationException("KPI lookup failed"));
 
         var mockFirebaseFactory = new Mock<IFirebaseServiceFactory>();
-        mockFirebaseFactory.Setup(f => f.CreatePredictionRepository()).Returns(mockPredictionRepo.Object);
-        mockFirebaseFactory.Setup(f => f.CreateKpiRepository()).Returns(mockKpiRepo.Object);
+        mockFirebaseFactory.Setup(f => f.CreatePredictionRepository((string?)null)).Returns(mockPredictionRepo.Object);
+        mockFirebaseFactory.Setup(f => f.CreateKpiRepository((string?)null)).Returns(mockKpiRepo.Object);
 
         var mockKicktippClient = CreateMockKicktippClient(
             openBonusQuestions: new List<BonusQuestion> { question },

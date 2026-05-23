@@ -41,7 +41,7 @@ public class PrepareRepeatedMatchCommand_Tests
 
             var firebaseFactory = new Mock<IFirebaseServiceFactory>();
             firebaseFactory
-                .Setup(factory => factory.CreateMatchOutcomeRepository())
+                .Setup(factory => factory.CreateMatchOutcomeRepository((string?)null))
                 .Returns(matchOutcomeRepository.Object);
 
             var outputDirectory = Path.Combine(tempDirectory.FullName, "repeated-match");

@@ -291,4 +291,47 @@ public class KicktippClient_GetStandings_Tests : KicktippClientTests_Base
         await Assert.That(standings[0].GoalsFor).IsEqualTo(0);
         await Assert.That(standings[0].GoalsAgainst).IsEqualTo(0);
     }
+
+    [Test]
+    public async Task Getting_standings_parses_grouped_tournament_tables()
+    {
+        var html = """
+            <!DOCTYPE html>
+            <html>
+            <body>
+            <h2>Gruppe A</h2>
+            <table class="sporttabelle">
+                <tbody>
+                    <tr>
+                        <td>1.</td><td><a>Germany</a></td><td>2</td><td>6</td><td>5:1</td><td>4</td><td>2</td><td>0</td><td>0</td>
+                    </tr>
+                    <tr>
+                        <td>2.</td><td><a>Mexico</a></td><td>2</td><td>3</td><td>2:2</td><td>0</td><td>1</td><td>0</td><td>1</td>
+                    </tr>
+                </tbody>
+            </table>
+            <h2>Gruppe B</h2>
+            <table class="sporttabelle">
+                <tbody>
+                    <tr>
+                        <td>1.</td><td><a>Brazil</a></td><td>2</td><td>4</td><td>3:1</td><td>2</td><td>1</td><td>1</td><td>0</td>
+                    </tr>
+                    <tr>
+                        <td>2.</td><td><a>Japan</a></td><td>2</td><td>2</td><td>1:1</td><td>0</td><td>0</td><td>2</td><td>0</td>
+                    </tr>
+                </tbody>
+            </table>
+            </body>
+            </html>
+            """;
+        StubHtmlResponse("/test-community/tabellen", html);
+        var client = CreateClient();
+
+        var standings = await client.GetStandingsAsync("test-community");
+
+        await Assert.That(standings).HasCount().EqualTo(4);
+        await Assert.That(standings.Where(standing => standing.Group == "Gruppe A")).HasCount().EqualTo(2);
+        await Assert.That(standings.Where(standing => standing.Group == "Gruppe B")).HasCount().EqualTo(2);
+        await Assert.That(standings.Single(standing => standing.TeamName == "Brazil").GoalsFor).IsEqualTo(3);
+    }
 }

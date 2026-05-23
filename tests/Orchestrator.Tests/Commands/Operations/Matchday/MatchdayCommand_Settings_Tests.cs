@@ -142,6 +142,23 @@ public class MatchdayCommand_Settings_Tests : MatchdayCommandTests_Base
     }
 
     [Test]
+    public async Task Running_world_cup_hosted_match_prompt_with_justification_returns_clear_error()
+    {
+        var ctx = CreateMatchdayCommandApp();
+
+        var (exitCode, output) = await RunCommandAsync(
+            ctx.App,
+            ctx.Console,
+            "matchday",
+            "-c",
+            "ehonda-dev-wm26",
+            "--with-justification");
+
+        await Assert.That(exitCode).IsEqualTo(1);
+        await Assert.That(output).Contains("hosted match prompts with justification are not supported yet");
+    }
+
+    [Test]
     public async Task Running_command_with_override_database_and_repredict_returns_error()
     {
         var ctx = CreateMatchdayCommandApp();

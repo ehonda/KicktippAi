@@ -90,20 +90,20 @@ public abstract class VerifyMatchdayCommandTests_Base
 
             if (predictionRepositoryReturnsNull.Or(false))
             {
-                factory.Setup(f => f.CreatePredictionRepository()).Returns((IPredictionRepository)null!);
+                factory.Setup(f => f.CreatePredictionRepository((string?)null)).Returns((IPredictionRepository)null!);
             }
             else
             {
-                factory.Setup(f => f.CreatePredictionRepository()).Returns(mockPredictionRepository.Object);
+                factory.Setup(f => f.CreatePredictionRepository((string?)null)).Returns(mockPredictionRepository.Object);
             }
 
             if (contextRepositoryReturnsNull.Or(false))
             {
-                factory.Setup(f => f.CreateContextRepository()).Returns((IContextRepository)null!);
+                factory.Setup(f => f.CreateContextRepository((string?)null)).Returns((IContextRepository)null!);
             }
             else
             {
-                factory.Setup(f => f.CreateContextRepository()).Returns(mockContextRepository.Object);
+                factory.Setup(f => f.CreateContextRepository((string?)null)).Returns(mockContextRepository.Object);
             }
 
             return factory;
