@@ -197,7 +197,10 @@ public static class HistoryCsvUtility
         var dateMap = dateMapEntries
             .Where(entry => string.Equals(entry.DocumentName, documentName, StringComparison.OrdinalIgnoreCase))
             .GroupBy(CreateDateMapKey, StringComparer.OrdinalIgnoreCase)
-            .ToDictionary(group => group.Key, group => group.First(), StringComparer.OrdinalIgnoreCase);
+            .ToDictionary(
+                group => group.Key,
+                group => new Queue<HistoryDateMapEntry>(group),
+                StringComparer.OrdinalIgnoreCase);
 
         var missingEntries = new List<HistoryDateMapEntry>();
         var rows = new List<HistoryDateMapEntry>();
@@ -230,14 +233,16 @@ public static class HistoryCsvUtility
                     VerifiedAt: "",
                     Notes: "");
 
-                if (!dateMap.TryGetValue(CreateDateMapKey(row), out var dateMapEntry) ||
-                    !IsExactDate(dateMapEntry.PlayedAt))
+                if (!dateMap.TryGetValue(CreateDateMapKey(row), out var dateMapEntriesForRow) ||
+                    dateMapEntriesForRow.Count == 0 ||
+                    !IsExactDate(dateMapEntriesForRow.Peek().PlayedAt))
                 {
-                    missingEntries.Add(dateMapEntry ?? row);
+                    missingEntries.Add(dateMapEntriesForRow is { Count: > 0 } ? dateMapEntriesForRow.Peek() : row);
                     rows.Add(row);
                     continue;
                 }
 
+                var dateMapEntry = dateMapEntriesForRow.Dequeue();
                 rows.Add(row with { PlayedAt = dateMapEntry.PlayedAt.Trim() });
             }
         }

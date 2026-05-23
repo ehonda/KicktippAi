@@ -215,6 +215,45 @@ public class HistoryCsvUtilityTests
     }
 
     [Test]
+    public async Task Applying_date_map_uses_duplicate_entries_in_row_order()
+    {
+        var csvContent = "Competition,Home_Team,Away_Team,Score,Annotation\nCopAm,Argentina,Canada,2:0,\nCopAm,Argentina,Canada,2:0,";
+        var dateMap = new[]
+        {
+            new HistoryDateMapEntry(
+                "recent-history-canada.csv",
+                "CopAm",
+                "Argentina",
+                "Canada",
+                "2:0",
+                "",
+                "2024-07-09",
+                "CONMEBOL",
+                "https://example.test/semifinal",
+                "2026-05-24",
+                ""),
+            new HistoryDateMapEntry(
+                "recent-history-canada.csv",
+                "CopAm",
+                "Argentina",
+                "Canada",
+                "2:0",
+                "",
+                "2024-06-20",
+                "CONMEBOL",
+                "https://example.test/group",
+                "2026-05-24",
+                "")
+        };
+
+        var result = HistoryCsvUtility.ApplyDateMap("recent-history-canada.csv", csvContent, dateMap);
+
+        await Assert.That(result.MissingEntries).IsEmpty();
+        await Assert.That(result.Content).IsEqualToWithNormalizedLineEndings(
+            "Competition,Data_Collected_At,Home_Team,Away_Team,Score,Annotation\r\nCopAm,2024-07-09,Argentina,Canada,2:0,\r\nCopAm,2024-06-20,Argentina,Canada,2:0,\r\n");
+    }
+
+    [Test]
     public async Task Applying_date_map_reports_missing_entries_when_played_at_is_absent()
     {
         var csvContent = "Competition,Home_Team,Away_Team,Score,Annotation\nKL-WM,Germany,Slovakia,6:0,";
@@ -236,7 +275,7 @@ public class HistoryCsvUtilityTests
 
         var result = HistoryCsvUtility.ApplyDateMap("recent-history-germany.csv", csvContent, dateMap);
 
-        await Assert.That(result.MissingEntries).HasCount().EqualTo(1);
+        await Assert.That(result.MissingEntries.Count).IsEqualTo(1);
         await Assert.That(result.Content).IsEqualTo(csvContent);
     }
 }

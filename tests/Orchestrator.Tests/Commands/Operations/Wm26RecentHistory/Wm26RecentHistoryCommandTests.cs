@@ -48,6 +48,40 @@ public class Wm26RecentHistoryCommandTests
     }
 
     [Test]
+    public async Task Export_date_map_preserves_duplicate_existing_entries_in_row_order()
+    {
+        var outputPath = CreateTempDateMap("""
+            DocumentName,Competition,Home_Team,Away_Team,Score,Annotation,Played_At,Source_Name,Source_Url,Verified_At,Notes
+            recent-history-canada.csv,CopAm,Argentina,Canada,2:0,,2024-07-09,CONMEBOL,https://example.test/semifinal,2026-05-24,
+            recent-history-canada.csv,CopAm,Argentina,Canada,2:0,,2024-06-20,CONMEBOL,https://example.test/group,2026-05-24,
+            """);
+        var contextRepository = CreateRepository(
+            new Dictionary<string, ContextDocument>
+            {
+                ["recent-history-canada.csv"] = CreateContextDocument(
+                    documentName: "recent-history-canada.csv",
+                    content: "Competition,Home_Team,Away_Team,Score,Annotation\nCopAm,Argentina,Canada,2:0,\nCopAm,Argentina,Canada,2:0,")
+            });
+        var ctx = CreateApp(contextRepository);
+
+        var (exitCode, _) = await RunCommandAsync(
+            ctx,
+            "export-date-map",
+            "--community-context",
+            "ehonda-dev-wm26",
+            "--competition",
+            CompetitionIds.FifaWorldCup2026,
+            "--output",
+            outputPath);
+
+        await Assert.That(exitCode).IsEqualTo(0);
+        var entries = HistoryCsvUtility.ReadDateMapEntries(await File.ReadAllTextAsync(outputPath));
+        await Assert.That(entries.Count).IsEqualTo(2);
+        await Assert.That(entries[0].PlayedAt).IsEqualTo("2024-07-09");
+        await Assert.That(entries[1].PlayedAt).IsEqualTo("2024-06-20");
+    }
+
+    [Test]
     public async Task Apply_date_map_dry_run_does_not_save_documents()
     {
         var inputPath = CreateTempDateMap("""

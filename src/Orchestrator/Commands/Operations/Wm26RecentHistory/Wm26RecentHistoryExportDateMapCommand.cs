@@ -43,8 +43,12 @@ public sealed class Wm26RecentHistoryExportDateMapCommand
             var existingEntries = await ReadExistingEntries(settings.Output, cancellationToken);
             var existingByKey = existingEntries
                 .GroupBy(CreateDateMapKey, StringComparer.OrdinalIgnoreCase)
-                .ToDictionary(group => group.Key, group => group.First(), StringComparer.OrdinalIgnoreCase);
+                .ToDictionary(
+                    group => group.Key,
+                    group => new Queue<HistoryDateMapEntry>(group),
+                    StringComparer.OrdinalIgnoreCase);
             var exportedEntries = new List<HistoryDateMapEntry>();
+            var preservedCount = 0;
 
             var documentNames = await contextRepository.GetContextDocumentNamesAsync(
                 settings.CommunityContext,
@@ -74,16 +78,27 @@ public sealed class Wm26RecentHistoryExportDateMapCommand
                 var documentEntries = HistoryCsvUtility.ExtractDateMapEntries(documentName, document.Content);
                 foreach (var entry in documentEntries)
                 {
-                    exportedEntries.Add(existingByKey.TryGetValue(CreateDateMapKey(entry), out var existing)
-                        ? entry with
+                    if (existingByKey.TryGetValue(CreateDateMapKey(entry), out var existingEntriesForRow) &&
+                        existingEntriesForRow.TryDequeue(out var existing))
+                    {
+                        exportedEntries.Add(entry with
                         {
                             PlayedAt = existing.PlayedAt,
                             SourceName = existing.SourceName,
                             SourceUrl = existing.SourceUrl,
                             VerifiedAt = existing.VerifiedAt,
                             Notes = existing.Notes
+                        });
+
+                        if (!string.IsNullOrWhiteSpace(existing.PlayedAt))
+                        {
+                            preservedCount++;
                         }
-                        : entry);
+                    }
+                    else
+                    {
+                        exportedEntries.Add(entry);
+                    }
                 }
 
                 if (settings.Verbose)
@@ -103,9 +118,6 @@ public sealed class Wm26RecentHistoryExportDateMapCommand
                 HistoryCsvUtility.WriteDateMapEntries(exportedEntries),
                 cancellationToken);
 
-            var preservedCount = exportedEntries.Count(entry =>
-                existingByKey.TryGetValue(CreateDateMapKey(entry), out var existing) &&
-                !string.IsNullOrWhiteSpace(existing.PlayedAt));
             _console.MarkupLine($"[green]Exported {exportedEntries.Count} date-map row(s) to {settings.Output}[/]");
             _console.MarkupLine($"[dim]Preserved {preservedCount} existing played date(s)[/]");
 
