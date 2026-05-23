@@ -44,6 +44,34 @@ WM26 match predictions require:
 
 There are no optional WM26 context documents in the first pass. Home/away history and head-to-head history are intentionally omitted for national teams. Community-specific knobs, including this required/optional document policy, are documented in `docs/design/community-configuration.md`.
 
+## Recent History Played Dates
+
+Recent-history rows for national teams can describe matches played years before they are collected from Kicktipp. For WM26, `Data_Collected_At` must therefore contain the exact played date, not a first-collection marker.
+
+The canonical played-date source is:
+
+```text
+docs/onboarding-wm26/recent-history-match-dates.csv
+```
+
+First-time dev setup:
+
+```powershell
+dotnet run --project src/Orchestrator -- collect-context kicktipp --community-context ehonda-dev-wm26 --competition fifa-world-cup-2026
+dotnet run --project src/Orchestrator -- wm26-recent-history export-date-map --community-context ehonda-dev-wm26 --competition fifa-world-cup-2026 --output docs/onboarding-wm26/recent-history-match-dates.csv
+```
+
+Fill missing `Played_At` values in the date map once, using official sources first: FIFA Match Centre, confederation or national federation pages, then reputable result pages if needed. Keep `Source_Name`, `Source_Url`, and `Verified_At` populated for reviewed rows.
+
+Apply the canonical map back to Firestore:
+
+```powershell
+dotnet run --project src/Orchestrator -- wm26-recent-history apply-date-map --community-context ehonda-dev-wm26 --competition fifa-world-cup-2026 --input docs/onboarding-wm26/recent-history-match-dates.csv --dry-run
+dotnet run --project src/Orchestrator -- wm26-recent-history apply-date-map --community-context ehonda-dev-wm26 --competition fifa-world-cup-2026 --input docs/onboarding-wm26/recent-history-match-dates.csv
+```
+
+For future WM26 communities, collect that community's context documents first, then run `apply-date-map` with the same canonical CSV. Do not repeat web lookup unless the command reports rows that are genuinely missing from the map.
+
 ## Manual Commands
 
 The guarded development shortcuts post to Kicktipp and overwrite existing database predictions. They are only available for supported development communities such as `ehonda-dev-wm26`; normal `matchday` and `bonus` commands still keep `--override-kicktipp` and `--override-database` off by default.

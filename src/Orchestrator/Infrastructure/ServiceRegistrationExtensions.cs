@@ -461,6 +461,20 @@ public static class ServiceRegistrationExtensions
     }
 
     /// <summary>
+    /// Registers services specific to WM26 recent-history date-map commands.
+    /// </summary>
+    public static IServiceCollection AddWm26RecentHistoryCommandServices(
+        this IServiceCollection services,
+        LogLevel minimumLogLevel = LogLevel.Information)
+    {
+        services.AddOrchestratorInfrastructure(minimumLogLevel);
+
+        // WM26 recent-history commands need Firebase (IContextRepository).
+
+        return services;
+    }
+
+    /// <summary>
     /// Registers services specific to the ContextChangesCommand.
     /// </summary>
     public static IServiceCollection AddContextChangesCommandServices(
@@ -544,6 +558,7 @@ public static class ServiceRegistrationExtensions
         services.AddVerifyMatchdayCommandServices(minimumLogLevel);
         services.AddVerifyBonusCommandServices(minimumLogLevel);
         services.AddCollectContextKicktippCommandServices(minimumLogLevel);
+        services.AddWm26RecentHistoryCommandServices(minimumLogLevel);
         services.AddContextChangesCommandServices(minimumLogLevel);
         services.AddUploadTransfersCommandServices(minimumLogLevel);
         services.AddAnalyzeMatchDetailedCommandServices(minimumLogLevel);

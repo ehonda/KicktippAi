@@ -159,4 +159,84 @@ public class HistoryCsvUtilityTests
         await Assert.That(result).Contains("2025-01-10"); // New date for different score
         await Assert.That(result).DoesNotContain("2025-01-01"); // Old date not present
     }
+
+    [Test]
+    public async Task Applying_date_map_adds_data_collected_at_with_played_at_dates()
+    {
+        var csvContent = "Competition,Home_Team,Away_Team,Score,Annotation\nKL-WM,Germany,Slovakia,6:0,";
+        var dateMap = new[]
+        {
+            new HistoryDateMapEntry(
+                "recent-history-germany.csv",
+                "KL-WM",
+                "Germany",
+                "Slovakia",
+                "6:0",
+                "",
+                "2025-11-17",
+                "DFB",
+                "https://example.test/match",
+                "2026-05-23",
+                "")
+        };
+
+        var result = HistoryCsvUtility.ApplyDateMap("recent-history-germany.csv", csvContent, dateMap);
+
+        await Assert.That(result.MissingEntries).IsEmpty();
+        await Assert.That(result.Content).IsEqualToWithNormalizedLineEndings(
+            "Competition,Data_Collected_At,Home_Team,Away_Team,Score,Annotation\r\nKL-WM,2025-11-17,Germany,Slovakia,6:0,\r\n");
+    }
+
+    [Test]
+    public async Task Applying_date_map_overwrites_existing_data_collected_at_values()
+    {
+        var csvContent = "Competition,Data_Collected_At,Home_Team,Away_Team,Score,Annotation\nKL-WM,2026-05-23,Germany,Slovakia,6:0,";
+        var dateMap = new[]
+        {
+            new HistoryDateMapEntry(
+                "recent-history-germany.csv",
+                "KL-WM",
+                "Germany",
+                "Slovakia",
+                "6:0",
+                "",
+                "2025-11-17",
+                "DFB",
+                "https://example.test/match",
+                "2026-05-23",
+                "")
+        };
+
+        var result = HistoryCsvUtility.ApplyDateMap("recent-history-germany.csv", csvContent, dateMap);
+
+        await Assert.That(result.MissingEntries).IsEmpty();
+        await Assert.That(result.Content).Contains("2025-11-17");
+        await Assert.That(result.Content).DoesNotContain("2026-05-23");
+    }
+
+    [Test]
+    public async Task Applying_date_map_reports_missing_entries_when_played_at_is_absent()
+    {
+        var csvContent = "Competition,Home_Team,Away_Team,Score,Annotation\nKL-WM,Germany,Slovakia,6:0,";
+        var dateMap = new[]
+        {
+            new HistoryDateMapEntry(
+                "recent-history-germany.csv",
+                "KL-WM",
+                "Germany",
+                "Slovakia",
+                "6:0",
+                "",
+                "",
+                "",
+                "",
+                "",
+                "")
+        };
+
+        var result = HistoryCsvUtility.ApplyDateMap("recent-history-germany.csv", csvContent, dateMap);
+
+        await Assert.That(result.MissingEntries).HasCount().EqualTo(1);
+        await Assert.That(result.Content).IsEqualTo(csvContent);
+    }
 }

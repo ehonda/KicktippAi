@@ -6,6 +6,7 @@ using Orchestrator.Commands.Operations.Matchday;
 using Orchestrator.Commands.Operations.RandomMatch;
 using Orchestrator.Commands.Operations.Bonus;
 using Orchestrator.Commands.Operations.CollectContext;
+using Orchestrator.Commands.Operations.Wm26RecentHistory;
 using Orchestrator.Commands.Operations.Verify;
 using Orchestrator.Commands.Observability.AnalyzeMatch;
 using Orchestrator.Commands.Observability.ContextChanges;
@@ -122,7 +123,35 @@ public class Program
                     .WithDescription("Collect context from Kicktipp")
                     .WithExample("collect-context", "kicktipp", "--community", "ehonda-test-buli", "--community-context", "ehonda-test-buli", "--dry-run");
             });
-                
+
+            config.AddBranch<Wm26RecentHistorySettings>("wm26-recent-history", wm26RecentHistory =>
+            {
+                wm26RecentHistory.SetDescription("Export and apply exact played dates for WM26 recent-history context documents");
+                wm26RecentHistory.AddCommand<Wm26RecentHistoryExportDateMapCommand>("export-date-map")
+                    .WithDescription("Export recent-history rows to the canonical WM26 played-date map")
+                    .WithExample(
+                        "wm26-recent-history",
+                        "export-date-map",
+                        "--community-context",
+                        "ehonda-dev-wm26",
+                        "--competition",
+                        "fifa-world-cup-2026",
+                        "--output",
+                        "docs/onboarding-wm26/recent-history-match-dates.csv");
+                wm26RecentHistory.AddCommand<Wm26RecentHistoryApplyDateMapCommand>("apply-date-map")
+                    .WithDescription("Apply the canonical WM26 played-date map to recent-history documents")
+                    .WithExample(
+                        "wm26-recent-history",
+                        "apply-date-map",
+                        "--community-context",
+                        "ehonda-dev-wm26",
+                        "--competition",
+                        "fifa-world-cup-2026",
+                        "--input",
+                        "docs/onboarding-wm26/recent-history-match-dates.csv",
+                        "--dry-run");
+            });
+
             config.AddCommand<VerifyMatchdayCommand>("verify")
                 .WithDescription("Verify that database predictions have been successfully posted to Kicktipp")
                 .WithExample("verify", "--community", "ehonda-test-buli");
