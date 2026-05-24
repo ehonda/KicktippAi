@@ -10,6 +10,8 @@ namespace FirebaseAdapter;
 /// </summary>
 public class FirebaseKpiContextProvider : IKpiContextProvider
 {
+    private const string FifaRankingsDocumentName = "fifa-rankings";
+
     private readonly IKpiRepository _kpiRepository;
     private readonly ILogger<FirebaseKpiContextProvider> _logger;
 
@@ -85,8 +87,7 @@ public class FirebaseKpiContextProvider : IKpiContextProvider
         // Always include team data for all bonus questions
         await foreach (var context in GetContextAsync(communityContext, cancellationToken))
         {
-            // Filter for team-data document
-            if (context.Name.Contains("team-data", StringComparison.OrdinalIgnoreCase))
+            if (IsAlwaysIncludedBonusDocument(context.Name))
             {
                 yield return context;
             }
@@ -105,6 +106,12 @@ public class FirebaseKpiContextProvider : IKpiContextProvider
                 yield return context;
             }
         }
+    }
+
+    private static bool IsAlwaysIncludedBonusDocument(string documentName)
+    {
+        return documentName.Contains("team-data", StringComparison.OrdinalIgnoreCase) ||
+               string.Equals(documentName, FifaRankingsDocumentName, StringComparison.OrdinalIgnoreCase);
     }
 
     /// <summary>

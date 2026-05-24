@@ -41,8 +41,16 @@ WM26 match predictions require:
 - `community-rules-ehonda-dev-wm26.md`
 - `recent-history-{home-national-team}.csv`
 - `recent-history-{away-national-team}.csv`
+- `fifa-ranking-{home-national-team}.csv`
+- `fifa-ranking-{away-national-team}.csv`
 
 There are no optional WM26 context documents in the first pass. Home/away history and head-to-head history are intentionally omitted for national teams. Community-specific knobs, including this required/optional document policy, are documented in `docs/design/community-configuration.md`.
+
+The checked-in WM26 ranking files live in `docs/onboarding-wm26/` and use the same slug conventions as the recent-history documents, for example `fifa-ranking-deutschland.csv` and `fifa-ranking-elfenbeinkuste.csv`.
+
+WM26 bonus predictions use the aggregate KPI document `fifa-rankings`. The canonical checked-in source is `docs/onboarding-wm26/fifa-rankings.csv`, and the upload artifact is `kpi-documents/output/ehonda-dev-wm26/fifa-rankings.json`.
+
+The `ELO` column stores the FIFA ranking points from the men's FIFA ranking table dated 1 April 2026.
 
 ## Recent History Played Dates
 

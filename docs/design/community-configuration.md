@@ -38,18 +38,32 @@ Bundesliga keeps the legacy policy:
 
 WM26 starts with a smaller national-team policy:
 
-- Required: `fifa-world-cup-2026-standings.csv`, community rules, recent history for both teams.
+- Required: `fifa-world-cup-2026-standings.csv`, community rules, recent history for both teams, and `fifa-ranking-{team-slug}.csv` for both teams.
 - Optional: none.
 - Home/away history is omitted because national-team fixtures are not home/away in the same way.
 - Head-to-head is omitted because national-team pairings are usually too sparse to be useful.
+- The checked-in WM26 ranking files live under `docs/onboarding-wm26/` and use the same slug conventions as the recent-history document names.
 
 Tune this when a community should add or remove required/optional context documents. The console warning that reports `found X/Y required context documents` is driven by this catalog.
+
+## Bonus KPI Documents
+
+Location: `src/FirebaseAdapter/FirebaseKpiContextProvider.cs`
+
+Bonus predictions use KPI documents instead of `MatchContextDocumentCatalog`.
+
+- Existing generic bonus behavior still auto-includes `team-data` when present.
+- WM26 bonus predictions also auto-include the KPI document `fifa-rankings` when present.
+- The checked-in source for that document is `docs/onboarding-wm26/fifa-rankings.csv`.
+- The upload artifact is `kpi-documents/output/ehonda-dev-wm26/fifa-rankings.json`, whose `content` field contains CSV text.
 
 ## Context Document Generation
 
 Location: `src/ContextProviders.Kicktipp/KicktippContextProvider.cs`
 
 The provider uses `MatchContextDocumentCatalog` to decide which documents to generate on demand. Keep this aligned by adding new document generation methods here only after adding the document names to the catalog.
+
+For WM26, recent history and standings still come from the existing data sources, while `fifa-ranking-{team-slug}.csv` is loaded from the checked-in files under `docs/onboarding-wm26/`.
 
 ## Team Naming
 

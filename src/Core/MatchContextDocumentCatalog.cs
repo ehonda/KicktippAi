@@ -12,6 +12,7 @@ public static class MatchContextDocumentCatalog
     private sealed record MatchContextDocumentPolicy(
         bool IncludeCommunityRules,
         bool IncludeRecentHistory,
+        bool IncludeFifaRankings,
         bool IncludeHomeAwayHistory,
         bool IncludeHeadToHead,
         bool IncludeTransfers);
@@ -19,6 +20,7 @@ public static class MatchContextDocumentCatalog
     private static readonly MatchContextDocumentPolicy BundesligaPolicy = new(
         IncludeCommunityRules: true,
         IncludeRecentHistory: true,
+        IncludeFifaRankings: false,
         IncludeHomeAwayHistory: true,
         IncludeHeadToHead: true,
         IncludeTransfers: true);
@@ -26,6 +28,7 @@ public static class MatchContextDocumentCatalog
     private static readonly MatchContextDocumentPolicy WorldCup2026Policy = new(
         IncludeCommunityRules: true,
         IncludeRecentHistory: true,
+        IncludeFifaRankings: true,
         IncludeHomeAwayHistory: false,
         IncludeHeadToHead: false,
         IncludeTransfers: false);
@@ -86,6 +89,12 @@ public static class MatchContextDocumentCatalog
             requiredDocuments.Add($"recent-history-{awayAbbreviation}.csv");
         }
 
+        if (policy.IncludeFifaRankings)
+        {
+            requiredDocuments.Add(GetFifaRankingDocumentName(homeTeam));
+            requiredDocuments.Add(GetFifaRankingDocumentName(awayTeam));
+        }
+
         if (policy.IncludeHomeAwayHistory)
         {
             requiredDocuments.Add($"home-history-{homeAbbreviation}.csv");
@@ -139,6 +148,13 @@ public static class MatchContextDocumentCatalog
         return documentName.EndsWith(".csv", StringComparison.OrdinalIgnoreCase)
             ? documentName[..^4]
             : documentName;
+    }
+
+    public static string GetFifaRankingDocumentName(string teamName)
+    {
+        ArgumentException.ThrowIfNullOrWhiteSpace(teamName);
+
+        return $"fifa-ranking-{GetTeamAbbreviation(teamName)}.csv";
     }
 
     public static string GetTeamAbbreviation(string teamName)

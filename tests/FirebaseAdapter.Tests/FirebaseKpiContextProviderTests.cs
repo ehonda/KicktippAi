@@ -125,6 +125,32 @@ public class FirebaseKpiContextProviderTests
     }
 
     [Test]
+    public async Task GetBonusQuestionContextAsync_includes_fifa_rankings_for_any_question()
+    {
+        // Arrange
+        var mockRepo = new Mock<IKpiRepository>();
+        mockRepo.Setup(r => r.GetAllKpiDocumentsAsync("test-community", It.IsAny<CancellationToken>()))
+            .ReturnsAsync(new List<KpiDocument>
+            {
+                new("fifa-rankings", "Team,Rank,ELO\nMarokko,8,1755.87", "desc", 0, DateTimeOffset.UtcNow),
+                new("manager-data", "manager content", "desc", 0, DateTimeOffset.UtcNow)
+            });
+
+        var provider = CreateProvider(mockRepo);
+
+        // Act
+        var contexts = new List<DocumentContext>();
+        await foreach (var context in provider.GetBonusQuestionContextAsync("some random question", "test-community"))
+        {
+            contexts.Add(context);
+        }
+
+        // Assert
+        await Assert.That(contexts).IsEquivalentTo(
+            [new DocumentContext("fifa-rankings", "Team,Rank,ELO\nMarokko,8,1755.87")]);
+    }
+
+    [Test]
     public async Task GetBonusQuestionContextAsync_includes_manager_data_for_trainer_question()
     {
         // Arrange
