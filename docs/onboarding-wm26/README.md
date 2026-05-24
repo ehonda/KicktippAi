@@ -52,6 +52,8 @@ WM26 bonus predictions use the aggregate KPI document `fifa-rankings`. The canon
 
 The `ELO` column stores the FIFA ranking points from the men's FIFA ranking table dated 1 April 2026.
 
+Programmatic refresh research for these files is documented in [fifa-ranking-refresh.md](fifa-ranking-refresh.md).
+
 ## Recent History Played Dates
 
 Recent-history rows for national teams can describe matches played years before they are collected from Kicktipp. For WM26, `Data_Collected_At` must therefore contain the exact played date, not a first-collection marker.
