@@ -38,7 +38,11 @@ public class CollectContextKicktippCommand : AsyncCommand<CollectContextKicktipp
 
     protected override async Task<int> ExecuteAsync(CommandContext context, CollectContextKicktippSettings settings, CancellationToken cancellationToken)
     {
-        
+        return await ExecuteWithSettingsAsync(settings, cancellationToken);
+    }
+
+    internal async Task<int> ExecuteWithSettingsAsync(CollectContextKicktippSettings settings, CancellationToken cancellationToken = default)
+    {
         try
         {
             // Validate settings
@@ -66,7 +70,7 @@ public class CollectContextKicktippCommand : AsyncCommand<CollectContextKicktipp
             }
             
             // Execute the context collection workflow
-            await ExecuteKicktippContextCollection(settings);
+            await ExecuteKicktippContextCollection(settings, cancellationToken);
             
             return 0;
         }
@@ -78,7 +82,7 @@ public class CollectContextKicktippCommand : AsyncCommand<CollectContextKicktipp
         }
     }
 
-    private async Task ExecuteKicktippContextCollection(CollectContextKicktippSettings settings)
+    private async Task ExecuteKicktippContextCollection(CollectContextKicktippSettings settings, CancellationToken cancellationToken)
     {
         var competition = CompetitionResolver.ResolveCompetition(settings.Competition, settings.CommunityContext, settings.CommunityContext);
         var repositoryCompetition = CompetitionResolver.ToRepositoryCompetitionArgument(competition);
@@ -86,7 +90,8 @@ public class CollectContextKicktippCommand : AsyncCommand<CollectContextKicktipp
         var outcomeCollectionResult = await _matchOutcomeCollectionService.CollectAsync(
             settings.CommunityContext,
             settings.DryRun,
-            repositoryCompetition);
+            repositoryCompetition,
+            cancellationToken);
 
         PrintOutcomeCollectionSummary(outcomeCollectionResult, settings);
 

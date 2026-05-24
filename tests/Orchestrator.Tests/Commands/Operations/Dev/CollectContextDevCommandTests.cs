@@ -1,0 +1,178 @@
+using EHonda.KicktippAi.Core;
+using KicktippIntegration;
+using Microsoft.Extensions.DependencyInjection;
+using Microsoft.Extensions.Logging;
+using Microsoft.Extensions.Logging.Testing;
+using Moq;
+using Orchestrator.Commands.Operations.CollectContext;
+using Orchestrator.Commands.Operations.Dev;
+using Orchestrator.Infrastructure.Factories;
+using Orchestrator.Services;
+using Spectre.Console;
+using static Orchestrator.Tests.Infrastructure.OrchestratorTestFactories;
+using static TestUtilities.CoreTestFactories;
+
+namespace Orchestrator.Tests.Commands.Operations.Dev;
+
+public class CollectContextDevCommandTests
+{
+    [Test]
+    public async Task Running_collect_context_dev_rejects_non_dev_communities()
+    {
+        var testContext = CreateCollectContextDevCommandApp();
+
+        var (exitCode, output) = await RunCommandAsync(
+            testContext.App,
+            testContext.Console,
+            "collect-context-dev",
+            "--community",
+            "ehonda-test-buli");
+
+        await Assert.That(exitCode).IsEqualTo(1);
+        await Assert.That(output).Contains("only available");
+        testContext.KicktippClientFactory.Verify(f => f.CreateClient(), Times.Never);
+        testContext.FirebaseServiceFactory.Verify(f => f.CreateContextRepository(It.IsAny<string?>()), Times.Never);
+        testContext.FirebaseServiceFactory.Verify(f => f.CreateKpiRepository(It.IsAny<string?>()), Times.Never);
+    }
+
+    [Test]
+    public async Task Running_collect_context_dev_for_wm26_calls_kicktipp_and_fifa_collection_paths()
+    {
+        var testContext = CreateCollectContextDevCommandApp();
+
+        var (exitCode, output) = await RunCommandAsync(
+            testContext.App,
+            testContext.Console,
+            "collect-context-dev",
+            "--community",
+            "ehonda-dev-wm26",
+            "--verbose");
+
+        await Assert.That(exitCode).IsEqualTo(0);
+        await Assert.That(output).Contains("Collect-context kicktipp command initialized");
+        await Assert.That(output).Contains("Collect-context fifa command initialized");
+
+        testContext.ContextRepository.Verify(
+            r => r.SaveContextDocumentAsync(
+                "kicktipp-doc.csv",
+                "kicktipp content",
+                "ehonda-dev-wm26",
+                It.IsAny<CancellationToken>()),
+            Times.Once);
+        testContext.ContextRepository.Verify(
+            r => r.SaveContextDocumentAsync(
+                "fifa-ranking-mexiko.csv",
+                It.Is<string>(content => content.Contains("Data_Collected_At")),
+                "ehonda-dev-wm26",
+                It.IsAny<CancellationToken>()),
+            Times.Once);
+        testContext.KpiRepository.Verify(
+            r => r.SaveKpiDocumentAsync(
+                "fifa-rankings",
+                It.Is<string>(content => content.Contains("Data_Collected_At")),
+                It.IsAny<string>(),
+                "ehonda-dev-wm26",
+                It.IsAny<CancellationToken>()),
+            Times.Once);
+        testContext.FirebaseServiceFactory.Verify(
+            f => f.CreateContextRepository(CompetitionIds.FifaWorldCup2026),
+            Times.AtLeast(2));
+        testContext.FirebaseServiceFactory.Verify(
+            f => f.CreateKpiRepository(CompetitionIds.FifaWorldCup2026),
+            Times.Once);
+    }
+
+    [Test]
+    public async Task Running_collect_context_dev_for_wm26_passes_matchdays_and_dry_run_to_kicktipp_collection()
+    {
+        var testContext = CreateCollectContextDevCommandApp();
+
+        var (exitCode, output) = await RunCommandAsync(
+            testContext.App,
+            testContext.Console,
+            "collect-context-dev",
+            "--community",
+            "ehonda-dev-wm26",
+            "--matchdays",
+            "2,3",
+            "--dry-run",
+            "--verbose");
+
+        await Assert.That(exitCode).IsEqualTo(0);
+        await Assert.That(output).Contains("Dry run mode enabled");
+        await Assert.That(output).Contains("Getting matchday 2 matches");
+        await Assert.That(output).Contains("Getting matchday 3 matches");
+
+        testContext.KicktippClient.Verify(
+            c => c.GetMatchesWithHistoryAsync("ehonda-dev-wm26", 2),
+            Times.Once);
+        testContext.KicktippClient.Verify(
+            c => c.GetMatchesWithHistoryAsync("ehonda-dev-wm26", 3),
+            Times.Once);
+        testContext.ContextRepository.Verify(
+            r => r.SaveContextDocumentAsync(
+                It.IsAny<string>(),
+                It.IsAny<string>(),
+                It.IsAny<string>(),
+                It.IsAny<CancellationToken>()),
+            Times.Never);
+        testContext.KpiRepository.Verify(
+            r => r.SaveKpiDocumentAsync(
+                It.IsAny<string>(),
+                It.IsAny<string>(),
+                It.IsAny<string>(),
+                It.IsAny<string>(),
+                It.IsAny<CancellationToken>()),
+            Times.Never);
+    }
+
+    private static CollectContextDevCommandTestContext CreateCollectContextDevCommandApp()
+    {
+        var contextRepository = CreateMockContextRepositoryForUpload(savedVersion: 1);
+        var kpiRepository = CreateMockKpiRepositoryForUpload(savedVersion: 0);
+        var matchOutcomeRepository = CreateMockMatchOutcomeRepository();
+        var firebaseFactory = CreateMockFirebaseServiceFactoryFull(
+            kpiRepository: kpiRepository,
+            contextRepository: contextRepository,
+            matchOutcomeRepository: matchOutcomeRepository);
+
+        var match = CreateMatch(homeTeam: "Mexiko", awayTeam: "Sudafrika", matchday: 1);
+        var kicktippClient = CreateMockKicktippClient(
+            matchesWithHistory: new List<MatchWithHistory> { CreateMatchWithHistory(match: match) });
+        var kicktippClientFactory = CreateMockKicktippClientFactory(kicktippClient);
+        var contextProvider = CreateMockKicktippContextProvider(
+            matchContextDocuments: new List<DocumentContext> { new("kicktipp-doc.csv", "kicktipp content") });
+        var contextProviderFactory = CreateMockContextProviderFactory(contextProvider);
+
+        var (app, console) = CreateCommandApp<CollectContextDevCommand>(
+            "collect-context-dev",
+            firebaseServiceFactory: firebaseFactory,
+            configureServices: new Action<IServiceCollection>(services =>
+            {
+                services.AddSingleton(kicktippClientFactory.Object);
+                services.AddSingleton(contextProviderFactory.Object);
+                services.AddSingleton<ILogger<MatchOutcomeCollectionService>>(new FakeLogger<MatchOutcomeCollectionService>());
+                services.AddSingleton<MatchOutcomeCollectionService>();
+                services.AddSingleton<ILogger<CollectContextKicktippCommand>>(new FakeLogger<CollectContextKicktippCommand>());
+                services.AddSingleton<ILogger<CollectContextFifaCommand>>(new FakeLogger<CollectContextFifaCommand>());
+            }));
+
+        return new CollectContextDevCommandTestContext(
+            app,
+            console,
+            firebaseFactory,
+            kicktippClientFactory,
+            kicktippClient,
+            contextRepository,
+            kpiRepository);
+    }
+
+    private sealed record CollectContextDevCommandTestContext(
+        Spectre.Console.Cli.CommandApp App,
+        Spectre.Console.Testing.TestConsole Console,
+        Mock<IFirebaseServiceFactory> FirebaseServiceFactory,
+        Mock<IKicktippClientFactory> KicktippClientFactory,
+        Mock<IKicktippClient> KicktippClient,
+        Mock<IContextRepository> ContextRepository,
+        Mock<IKpiRepository> KpiRepository);
+}

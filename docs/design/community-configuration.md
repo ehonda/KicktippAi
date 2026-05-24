@@ -21,7 +21,7 @@ Locations:
 - `src/Orchestrator/Infrastructure/CompetitionResolver.cs`
 - `src/Orchestrator/Commands/Operations/Dev/`
 
-`matchday-dev` and `bonus-dev` are guarded shortcuts for development communities. They set `--override-database` and `--override-kicktipp` for end-to-end manual verification while leaving the normal `matchday` and `bonus` commands conservative by default.
+`matchday-dev` and `bonus-dev` are guarded shortcuts for development communities. They set `--override-database` and `--override-kicktipp` for end-to-end manual verification while leaving the normal `matchday` and `bonus` commands conservative by default. `collect-context-dev` is the matching guarded context seed path; it collects Kicktipp context and then uploads the WM26 FIFA ranking context/KPI documents.
 
 Only communities listed in `CompetitionResolver.SupportedDevCommunities` may use these shortcuts. Add a community there only when overwriting database and Kicktipp predictions is expected for that community.
 
@@ -42,7 +42,7 @@ WM26 starts with a smaller national-team policy:
 - Optional: none.
 - Home/away history is omitted because national-team fixtures are not home/away in the same way.
 - Head-to-head is omitted because national-team pairings are usually too sparse to be useful.
-- The checked-in WM26 ranking files live under `docs/onboarding-wm26/` and use the same slug conventions as the recent-history document names.
+- The checked-in WM26 ranking files live under `data/wm26/context-documents/` and use the same slug conventions as the recent-history document names.
 
 Tune this when a community should add or remove required/optional context documents. The console warning that reports `found X/Y required context documents` is driven by this catalog.
 
@@ -54,8 +54,8 @@ Bonus predictions use KPI documents instead of `MatchContextDocumentCatalog`.
 
 - Existing generic bonus behavior still auto-includes `team-data` when present.
 - WM26 bonus predictions also auto-include the KPI document `fifa-rankings` when present.
-- The checked-in source for that document is `docs/onboarding-wm26/fifa-rankings.csv`.
-- The upload artifact is `kpi-documents/output/ehonda-dev-wm26/fifa-rankings.json`, whose `content` field contains CSV text.
+- The checked-in source for that document is `data/wm26/kpi-documents/fifa-rankings.csv`.
+- Upload or update it with `collect-context fifa` or the combined `collect-context-dev` shortcut.
 
 ## Context Document Generation
 
@@ -63,7 +63,7 @@ Location: `src/ContextProviders.Kicktipp/KicktippContextProvider.cs`
 
 The provider uses `MatchContextDocumentCatalog` to decide which documents to generate on demand. Keep this aligned by adding new document generation methods here only after adding the document names to the catalog.
 
-For WM26, recent history and standings still come from the existing data sources, while `fifa-ranking-{team-slug}.csv` is loaded from the checked-in files under `docs/onboarding-wm26/`.
+For WM26, recent history and standings still come from the existing data sources, while `fifa-ranking-{team-slug}.csv` is loaded from the checked-in files under `data/wm26/context-documents/` for local generation and uploaded to Firestore with `collect-context fifa` for production prediction context.
 
 ## Team Naming
 

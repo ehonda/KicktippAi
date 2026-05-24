@@ -461,6 +461,34 @@ public static class ServiceRegistrationExtensions
     }
 
     /// <summary>
+    /// Registers services specific to the CollectContextFifaCommand.
+    /// </summary>
+    public static IServiceCollection AddCollectContextFifaCommandServices(
+        this IServiceCollection services,
+        LogLevel minimumLogLevel = LogLevel.Information)
+    {
+        services.AddOrchestratorInfrastructure(minimumLogLevel);
+
+        // CollectContextFifaCommand needs Firebase (IContextRepository, IKpiRepository).
+
+        return services;
+    }
+
+    /// <summary>
+    /// Registers services specific to the CollectContextDevCommand.
+    /// </summary>
+    public static IServiceCollection AddCollectContextDevCommandServices(
+        this IServiceCollection services,
+        LogLevel minimumLogLevel = LogLevel.Information)
+    {
+        services.AddOrchestratorInfrastructure(minimumLogLevel);
+
+        // CollectContextDevCommand composes the Kicktipp and FIFA collection paths.
+
+        return services;
+    }
+
+    /// <summary>
     /// Registers services specific to WM26 recent-history date-map commands.
     /// </summary>
     public static IServiceCollection AddWm26RecentHistoryCommandServices(
@@ -558,6 +586,8 @@ public static class ServiceRegistrationExtensions
         services.AddVerifyMatchdayCommandServices(minimumLogLevel);
         services.AddVerifyBonusCommandServices(minimumLogLevel);
         services.AddCollectContextKicktippCommandServices(minimumLogLevel);
+        services.AddCollectContextFifaCommandServices(minimumLogLevel);
+        services.AddCollectContextDevCommandServices(minimumLogLevel);
         services.AddWm26RecentHistoryCommandServices(minimumLogLevel);
         services.AddContextChangesCommandServices(minimumLogLevel);
         services.AddUploadTransfersCommandServices(minimumLogLevel);

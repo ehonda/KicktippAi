@@ -17,8 +17,8 @@ public abstract class KicktippContextProviderTests_Base
     protected const string TestCommunity = "ehonda-test-buli";
     protected const string TestHomeTeam = "FC Bayern München";
     protected const string TestAwayTeam = "Borussia Dortmund";
-    protected const string TestGermanyFifaRankingContent = "Team,Rank,ELO\nGermany,10,1730.37\n";
-    protected const string TestCoteDIvoireFifaRankingContent = "Team,Rank,ELO\nCote d'Ivoire,41,1487.27\n";
+    protected const string TestGermanyFifaRankingContent = "team,Data_Collected_At,rank,ELO\nGermany,2026-05-24,10,1730.37\n";
+    protected const string TestCoteDIvoireFifaRankingContent = "team,Data_Collected_At,rank,ELO\nCote d'Ivoire,2026-05-24,41,1487.27\n";
     
     protected const string TestCommunityRulesContent = """
         # Kicktipp Community Scoring Rules

@@ -4,12 +4,12 @@ using Microsoft.Extensions.FileProviders;
 namespace ContextProviders.Kicktipp;
 
 /// <summary>
-/// Factory for creating an <see cref="IFileProvider"/> rooted at the WM26 onboarding context directory.
+/// Factory for creating an <see cref="IFileProvider"/> rooted at the WM26 context documents directory.
 /// </summary>
 public static class WorldCup2026ContextDocumentsFileProvider
 {
     /// <summary>
-    /// Creates a file provider rooted at docs/onboarding-wm26.
+    /// Creates a file provider rooted at data/wm26/context-documents.
     /// </summary>
-    public static IFileProvider Create() => SolutionRelativeFileProvider.Create("docs/onboarding-wm26");
+    public static IFileProvider Create() => SolutionRelativeFileProvider.Create("data/wm26/context-documents");
 }

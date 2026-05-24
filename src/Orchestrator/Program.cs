@@ -65,6 +65,10 @@ public class Program
                 .WithDescription("Generate and post matchday predictions using guarded development-community defaults")
                 .WithExample("matchday-dev", "--community", "ehonda-dev-wm26");
 
+            config.AddCommand<CollectContextDevCommand>("collect-context-dev")
+                .WithDescription("Collect Kicktipp and FIFA ranking context using guarded development-community defaults")
+                .WithExample("collect-context-dev", "--community", "ehonda-dev-wm26", "--verbose");
+
             config.AddCommand<RandomMatchCommand>("random-match")
                 .WithDescription("Generate a prediction for a random match from the current matchday (useful for testing)")
                 .WithExample("random-match", "gpt-5-nano", "--community", "ehonda-test-buli");
@@ -121,7 +125,10 @@ public class Program
                 collectContext.SetDescription("Collect context documents and store them in database");
                 collectContext.AddCommand<CollectContextKicktippCommand>("kicktipp")
                     .WithDescription("Collect context from Kicktipp")
-                    .WithExample("collect-context", "kicktipp", "--community", "ehonda-test-buli", "--community-context", "ehonda-test-buli", "--dry-run");
+                    .WithExample("collect-context", "kicktipp", "--community-context", "ehonda-test-buli", "--dry-run");
+                collectContext.AddCommand<CollectContextFifaCommand>("fifa")
+                    .WithDescription("Upload WM26 FIFA ranking context and KPI documents")
+                    .WithExample("collect-context", "fifa", "--community-context", "ehonda-dev-wm26", "--dry-run");
             });
 
             config.AddBranch<Wm26RecentHistorySettings>("wm26-recent-history", wm26RecentHistory =>
@@ -137,7 +144,7 @@ public class Program
                         "--competition",
                         "fifa-world-cup-2026",
                         "--output",
-                        "docs/onboarding-wm26/recent-history-match-dates.csv");
+                        "data/wm26/recent-history/recent-history-match-dates.csv");
                 wm26RecentHistory.AddCommand<Wm26RecentHistoryApplyDateMapCommand>("apply-date-map")
                     .WithDescription("Apply the canonical WM26 played-date map to recent-history documents")
                     .WithExample(
@@ -148,7 +155,7 @@ public class Program
                         "--competition",
                         "fifa-world-cup-2026",
                         "--input",
-                        "docs/onboarding-wm26/recent-history-match-dates.csv",
+                        "data/wm26/recent-history/recent-history-match-dates.csv",
                         "--dry-run");
             });
 

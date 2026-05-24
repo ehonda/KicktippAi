@@ -21,7 +21,7 @@ public sealed class Wm26RecentHistoryExportDateMapSettings : Wm26RecentHistorySe
 
     [CommandOption("-o|--output <OUTPUT>")]
     [Description("Canonical date map CSV path")]
-    public string Output { get; set; } = "docs/onboarding-wm26/recent-history-match-dates.csv";
+    public string Output { get; set; } = "data/wm26/recent-history/recent-history-match-dates.csv";
 
     [CommandOption("--verbose")]
     [Description("Enable verbose output")]
@@ -47,7 +47,7 @@ public sealed class Wm26RecentHistoryApplyDateMapSettings : Wm26RecentHistorySet
 
     [CommandOption("-i|--input <INPUT>")]
     [Description("Canonical date map CSV path")]
-    public string Input { get; set; } = "docs/onboarding-wm26/recent-history-match-dates.csv";
+    public string Input { get; set; } = "data/wm26/recent-history/recent-history-match-dates.csv";
 
     [CommandOption("--dry-run")]
     [Description("Show what would be saved without writing Firestore documents")]

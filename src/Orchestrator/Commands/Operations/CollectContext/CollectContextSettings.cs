@@ -39,3 +39,29 @@ public class CollectContextKicktippSettings : CollectContextSettings
     [Description("Enable verbose output")]
     public bool Verbose { get; set; }
 }
+
+/// <summary>
+/// Settings for the collect-context fifa subcommand.
+/// </summary>
+public class CollectContextFifaSettings : CollectContextSettings
+{
+    [CommandOption("--community-context")]
+    [Description("The community context to upload FIFA ranking context for")]
+    public string CommunityContext { get; set; } = string.Empty;
+
+    [CommandOption("--competition")]
+    [Description("Competition identifier (defaults from community context, e.g., fifa-world-cup-2026 for ehonda-dev-wm26)")]
+    public string? Competition { get; set; }
+
+    [CommandOption("--source-root")]
+    [Description("Root directory containing WM26 context-documents and kpi-documents subfolders")]
+    public string SourceRoot { get; set; } = CollectContextFifaCommand.DefaultSourceRoot;
+
+    [CommandOption("--dry-run")]
+    [Description("Show what would be saved without actually saving to database")]
+    public bool DryRun { get; set; }
+
+    [CommandOption("--verbose")]
+    [Description("Enable verbose output")]
+    public bool Verbose { get; set; }
+}

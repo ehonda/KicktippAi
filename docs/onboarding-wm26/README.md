@@ -1,4 +1,4 @@
-# FIFA World Cup 2026 Manual Onboarding
+# FIFA World Cup 2026 Onboarding
 
 This first pass supports manual participation for the development community `ehonda-dev-wm26` and competition `fifa-world-cup-2026`.
 
@@ -46,13 +46,19 @@ WM26 match predictions require:
 
 There are no optional WM26 context documents in the first pass. Home/away history and head-to-head history are intentionally omitted for national teams. Community-specific knobs, including this required/optional document policy, are documented in `docs/design/community-configuration.md`.
 
-The checked-in WM26 ranking files live in `docs/onboarding-wm26/` and use the same slug conventions as the recent-history documents, for example `fifa-ranking-deutschland.csv` and `fifa-ranking-elfenbeinkuste.csv`.
+The checked-in WM26 ranking files live in `data/wm26/context-documents/` and use the same slug conventions as the recent-history documents, for example `fifa-ranking-deutschland.csv` and `fifa-ranking-elfenbeinkuste.csv`.
 
-WM26 bonus predictions use the aggregate KPI document `fifa-rankings`. The canonical checked-in source is `docs/onboarding-wm26/fifa-rankings.csv`, and the upload artifact is `kpi-documents/output/ehonda-dev-wm26/fifa-rankings.json`.
+WM26 bonus predictions use the aggregate KPI document `fifa-rankings`. The canonical checked-in source is `data/wm26/kpi-documents/fifa-rankings.csv`.
 
-The `ELO` column stores the FIFA ranking points from the men's FIFA ranking table dated 1 April 2026.
+The `ELO` column stores the FIFA ranking points from the men's FIFA ranking table. The current tracked files were collected on `2026-05-24`, recorded in the `Data_Collected_At` column.
 
-Programmatic refresh research for these files is documented in [fifa-ranking-refresh.md](fifa-ranking-refresh.md).
+Regular FIFA ranking refresh automation is planned shortly. The current change clears the prerequisite that rankings are stored in Firestore instead of only being available as checked-in local files.
+
+Upload the ranking context and KPI documents with:
+
+```powershell
+dotnet run --project src/Orchestrator -- collect-context fifa --community-context ehonda-dev-wm26
+```
 
 ## Recent History Played Dates
 
@@ -61,14 +67,14 @@ Recent-history rows for national teams can describe matches played years before 
 The canonical played-date source is:
 
 ```text
-docs/onboarding-wm26/recent-history-match-dates.csv
+data/wm26/recent-history/recent-history-match-dates.csv
 ```
 
 First-time dev setup:
 
 ```powershell
-dotnet run --project src/Orchestrator -- collect-context kicktipp --community-context ehonda-dev-wm26 --competition fifa-world-cup-2026
-dotnet run --project src/Orchestrator -- wm26-recent-history export-date-map --community-context ehonda-dev-wm26 --competition fifa-world-cup-2026 --output docs/onboarding-wm26/recent-history-match-dates.csv
+dotnet run --project src/Orchestrator -- collect-context-dev -c ehonda-dev-wm26 --verbose
+dotnet run --project src/Orchestrator -- wm26-recent-history export-date-map --community-context ehonda-dev-wm26 --competition fifa-world-cup-2026 --output data/wm26/recent-history/recent-history-match-dates.csv
 ```
 
 Fill missing `Played_At` values in the date map once, using official sources first: FIFA Match Centre, confederation or national federation pages, then reputable result pages if needed. Keep `Source_Name`, `Source_Url`, and `Verified_At` populated for reviewed rows.
@@ -76,8 +82,8 @@ Fill missing `Played_At` values in the date map once, using official sources fir
 Apply the canonical map back to Firestore:
 
 ```powershell
-dotnet run --project src/Orchestrator -- wm26-recent-history apply-date-map --community-context ehonda-dev-wm26 --competition fifa-world-cup-2026 --input docs/onboarding-wm26/recent-history-match-dates.csv --dry-run
-dotnet run --project src/Orchestrator -- wm26-recent-history apply-date-map --community-context ehonda-dev-wm26 --competition fifa-world-cup-2026 --input docs/onboarding-wm26/recent-history-match-dates.csv
+dotnet run --project src/Orchestrator -- wm26-recent-history apply-date-map --community-context ehonda-dev-wm26 --competition fifa-world-cup-2026 --input data/wm26/recent-history/recent-history-match-dates.csv --dry-run
+dotnet run --project src/Orchestrator -- wm26-recent-history apply-date-map --community-context ehonda-dev-wm26 --competition fifa-world-cup-2026 --input data/wm26/recent-history/recent-history-match-dates.csv
 ```
 
 For future WM26 communities, collect that community's context documents first, then run `apply-date-map` with the same canonical CSV. Do not repeat web lookup unless the command reports rows that are genuinely missing from the map.
@@ -110,7 +116,14 @@ dotnet run --project src/Orchestrator -- verify bonus -c ehonda-dev-wm26
 Context and outcomes:
 
 ```powershell
-dotnet run --project src/Orchestrator -- collect-context kicktipp --community-context ehonda-dev-wm26
+dotnet run --project src/Orchestrator -- collect-context-dev -c ehonda-dev-wm26 --verbose
+```
+
+For production or one-off context uploads, run the individual paths explicitly:
+
+```powershell
+dotnet run --project src/Orchestrator -- collect-context kicktipp --community-context ehonda-dev-wm26 --competition fifa-world-cup-2026
+dotnet run --project src/Orchestrator -- collect-context fifa --community-context ehonda-dev-wm26 --competition fifa-world-cup-2026
 ```
 
 Every command also accepts `--competition fifa-world-cup-2026` for explicit runs or local experiments.
@@ -137,3 +150,4 @@ Do not commit raw `kicktipp-snapshots` HTML. If credentials or `KICKTIPP_FIXTURE
 - Decide production community naming and rollout timing.
 - Add hosted WM justification prompts if we want justification mode.
 - Add monitoring dashboards/alerts specific to WM prompt fallback and WM competition metadata.
+- Implement the planned regular FIFA ranking refresh automation.

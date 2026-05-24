@@ -4,24 +4,24 @@ This note records the source inspection done while investigating how to refresh 
 
 ## Current Repository Shape
 
-The checked-in ranking source files live in this directory:
+The checked-in ranking source files live under `data/wm26`:
 
-- `fifa-rankings.csv`: aggregate KPI document source for WM26 bonus predictions.
-- `fifa-ranking-{team-slug}.csv`: one-row match-context documents for individual teams.
+- `data/wm26/kpi-documents/fifa-rankings.csv`: aggregate KPI document source for WM26 bonus predictions.
+- `data/wm26/context-documents/fifa-ranking-{team-slug}.csv`: one-row match-context documents for individual teams.
 
 Both formats currently use:
 
 ```csv
-team,rank,ELO
-Deutschland,10,1730.37
+team,Data_Collected_At,rank,ELO
+Deutschland,2026-05-24,10,1730.37
 ```
 
-`ELO` is a historical column name in this project. It stores FIFA men's ranking points, not Elo ratings. The current files were generated from the FIFA men's ranking published on 1 April 2026.
+`ELO` is a historical column name in this project. It stores FIFA men's ranking points, not Elo ratings. The current files were collected on `2026-05-24` from the FIFA men's ranking published on 1 April 2026.
 
-The generated upload artifact for the aggregate KPI document is:
+Firestore upload is handled by:
 
-```text
-kpi-documents/output/ehonda-dev-wm26/fifa-rankings.json
+```powershell
+dotnet run --project src/Orchestrator -- collect-context fifa --community-context ehonda-dev-wm26
 ```
 
 ## Page Behavior
@@ -204,10 +204,10 @@ For the planned full workflow:
 3. Fetch the full ranking rows from `fifarankings/rankings/rankingsbyschedule`.
 4. Build a dictionary by `IdCountry`.
 5. For every mapped WM26 team, require a ranking row. Fail clearly if any team is missing.
-6. Write `docs/onboarding-wm26/fifa-rankings.csv` with `team,rank,ELO`, ordered by rank unless the future workflow chooses a different canonical order.
-7. Write each `docs/onboarding-wm26/fifa-ranking-{team-slug}.csv` with the same header and one row.
-8. Regenerate `kpi-documents/output/ehonda-dev-wm26/fifa-rankings.json` from the aggregate CSV if the workflow owns KPI upload artifacts.
-9. Record the schedule ID and `PublicationDateUTC` in the command output so a reviewer can verify which official ranking was used.
+6. Write `data/wm26/kpi-documents/fifa-rankings.csv` with `team,Data_Collected_At,rank,ELO`, ordered by rank unless the future workflow chooses a different canonical order.
+7. Write each `data/wm26/context-documents/fifa-ranking-{team-slug}.csv` with the same header and one row.
+8. Run `collect-context fifa` to upload the per-team context documents and aggregate KPI document.
+9. Record the schedule ID, `PublicationDateUTC`, and collection date in the command output so a reviewer can verify which official ranking was used.
 
 Recommended validation:
 
