@@ -4,6 +4,51 @@ This first pass supports manual participation for the development community `eho
 
 No scheduled GitHub Actions workflow is enabled yet.
 
+## Planned GitHub Actions Cadence
+
+Once the first WM26 communities and model-specific workflows are onboarded, use a three-window daily cadence during the tournament window. The current plan is based on the official FIFA World Cup 26 match schedule PDF dated 2026-04-10, which lists all kickoff times in Eastern Time and is marked subject to change. Re-check the official schedule before enabling the workflows.
+
+Context collection:
+
+```yaml
+schedule:
+  - cron: '47 23,6,11 * * *'
+```
+
+Main matchday prediction communities:
+
+```yaml
+schedule:
+  - cron: '37 0,7,12 * * *'
+```
+
+Slower or secondary model/community workflows:
+
+```yaml
+schedule:
+  - cron: '7 1,8,13 * * *'
+```
+
+Bonus prediction workflows, if enabled on the same cadence:
+
+```yaml
+schedule:
+  - cron: '47 0,7,12 * * *'
+```
+
+GitHub Actions cron runs in UTC. During WM26, Germany is expected to be on CEST, so these correspond approximately to:
+
+| Workflow type | UTC times | Europe/Berlin times |
+| --- | --- | --- |
+| Context collection | 23:47, 06:47, 11:47 | 01:47, 08:47, 13:47 |
+| Main matchday predictions | 00:37, 07:37, 12:37 | 02:37, 09:37, 14:37 |
+| Slower/secondary predictions | 01:07, 08:07, 13:07 | 03:07, 10:07, 15:07 |
+| Bonus predictions | 00:47, 07:47, 12:47 | 02:47, 09:47, 14:47 |
+
+The offsets preserve the Bundesliga dependency pattern: collect context first, then run the primary prediction workflows, then run slower or secondary model workflows after the shared data has had time to land. The non-zero minute values also avoid top-of-hour scheduled workflow congestion.
+
+WM26 needs a third daily window because many North American kickoffs are late in UTC/Berlin time. The `00:37 UTC` prediction window gives a retry opportunity before late matches, `07:37 UTC` refreshes after overnight results and context updates, and `12:37 UTC` provides another attempt before the earliest remaining kickoff blocks. This gives at least two scheduled prediction tries for upcoming matches in normal tournament flow, including a useful pair of post-group-stage attempts before the first Round of 32 match on 2026-06-28.
+
 ## Defaults
 
 `ehonda-dev-wm26` resolves to `fifa-world-cup-2026`. Existing communities default to `bundesliga-2025-26` and keep their legacy Firestore document IDs.
@@ -150,7 +195,7 @@ Do not commit raw `kicktipp-snapshots` HTML. If credentials or `KICKTIPP_FIXTURE
 
 ## Follow-Ups
 
-- Enable scheduled workflows after the manual dev path has been exercised.
+- Enable the planned scheduled workflow cadence after the first WM26 communities and models are onboarded.
 - Decide production community naming and rollout timing.
 - Add hosted WM justification prompts if we want justification mode.
 - Add monitoring dashboards/alerts specific to WM prompt fallback and WM competition metadata.
