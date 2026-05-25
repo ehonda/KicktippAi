@@ -44,6 +44,18 @@ search it in the following places, in that order:
 2. GitHub via MCP
 3. Web search
 
+## CSV Context Documents
+
+When creating or updating CSV context documents that may appear in prompts or Langfuse trace views, match the rendering style used by the FIFA ranking docs:
+
+- The first byte of the content should be the first header character; do not add leading blank lines.
+- The header row and first data row must be separated by exactly one line terminator.
+- Use one record per line and keep rows in deterministic order.
+- End every CSV content string with a final trailing line terminator.
+- Prefer CRLF line endings for generated CSV context stored in Firestore, matching the currently cleanly rendered ranking documents.
+- Use empty fields for genuinely blank values. Use an explicit sentinel such as `N/A` for unavailable supplemental values where an empty field would be ambiguous; do not use `0` to mean unknown.
+- For large integer money-like values, use readable thousands separators that do not conflict with the CSV delimiter, for example `15.000.000` for EUR values.
+
 ## Git Submodules
 
 ### Submodule Tree
