@@ -1,4 +1,4 @@
 interface:
   display_name: "WM26 Onboarding"
-  short_description: "Onboard World Cup communities"
+  short_description: "Onboard WM26 communities with mandatory lineup context."
   default_prompt: "Use $wm26-onboarding to prepare and validate a FIFA World Cup 2026 Kicktipp community."

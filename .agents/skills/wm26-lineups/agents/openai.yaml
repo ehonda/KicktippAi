@@ -1,0 +1,4 @@
+interface:
+  display_name: "WM26 Lineups"
+  short_description: "Generate, enrich, upload, or copy WM26 lineup context documents."
+  default_prompt: "Generate or copy WM26 lineup context documents for a community."

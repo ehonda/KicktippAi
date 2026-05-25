@@ -502,6 +502,10 @@ kicktipp-snapshots
 kpi-documents
 recent-events
 transfers-documents
-.agents/skills/wm26-lineups/
+.agents/skills/wm26-lineups/artifacts/
+.agents/skills/wm26-lineups/private/
+.agents/skills/wm26-lineups/**/*.duckdb
+.agents/skills/wm26-lineups/**/*.duckdb.wal
+.agents/skills/wm26-lineups/**/dataset-cache/
 
 .debug_assets
