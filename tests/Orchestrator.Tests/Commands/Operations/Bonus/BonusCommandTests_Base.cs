@@ -94,7 +94,8 @@ public abstract class BonusCommandTests_Base
         var mockTokenUsageTracker = CreateMockTokenUsageTracker();
 
         var mockKpiContextProvider = CreateMockKpiContextProvider(
-            bonusQuestionContextDocuments: kpiDocs);
+            bonusQuestionContextDocuments: kpiDocs,
+            contextDocuments: kpiDocs);
 
         // Use provided factory mocks or build from internal mocks
         var mockFirebaseFactory = firebaseServiceFactory.Or(() =>

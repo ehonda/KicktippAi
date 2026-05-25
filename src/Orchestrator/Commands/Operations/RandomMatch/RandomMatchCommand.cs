@@ -331,7 +331,33 @@ public class RandomMatchCommand : AsyncCommand<RandomMatchSettings>
             _console.MarkupLine($"[yellow]    Using {contextDocuments.Count} merged context documents (database + on-demand) [/]");
         }
 
+        if (CompetitionResolver.IsWorldCupCompetition(competition))
+        {
+            EnsureWorldCupRequiredContextPresent(contextDocuments, requiredDocuments);
+        }
+
         return contextDocuments;
+    }
+
+    private static void EnsureWorldCupRequiredContextPresent(
+        IReadOnlyList<DocumentContext> contextDocuments,
+        IReadOnlyList<string> requiredDocuments)
+    {
+        var presentDocumentNames = new HashSet<string>(
+            contextDocuments.Select(document => document.Name),
+            StringComparer.OrdinalIgnoreCase);
+        var missingDocumentNames = requiredDocuments
+            .Where(documentName => !presentDocumentNames.Contains(documentName))
+            .ToList();
+
+        if (missingDocumentNames.Count == 0)
+        {
+            return;
+        }
+
+        throw new InvalidOperationException(
+            "Missing required WM26 context documents after database and on-demand fallback: " +
+            $"{string.Join(", ", missingDocumentNames)}. Run collect-context fifa for this community context.");
     }
 
     private void WriteJustificationIfNeeded(Prediction? prediction, bool includeJustification, bool fromDatabase = false)

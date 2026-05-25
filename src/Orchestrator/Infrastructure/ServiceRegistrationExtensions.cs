@@ -11,6 +11,7 @@ using OpenTelemetry.Exporter;
 using OpenTelemetry.Resources;
 using OpenTelemetry.Trace;
 using OpenAiIntegration;
+using Orchestrator.Commands.Operations.CollectContext;
 using Orchestrator.Infrastructure.Factories;
 using Orchestrator.Infrastructure.Langfuse;
 using Orchestrator.Services;
@@ -26,6 +27,7 @@ public static class ServiceRegistrationExtensions
 
     private const string LangfuseIngestionVersionHeaderName = "x-langfuse-ingestion-version";
     private const string LangfuseIngestionVersionHeaderValue = "4";
+    private static readonly Uri FifaApiBaseAddress = new("https://api.fifa.com/api/v3/");
 
     /// <summary>
     /// Registers all shared infrastructure services (factories, logging).
@@ -428,6 +430,25 @@ public static class ServiceRegistrationExtensions
         return services;
     }
 
+    private static IServiceCollection AddFifaRankingSourceServicesIfMissing(this IServiceCollection services)
+    {
+        services.TryAddTransient<IFifaRankingSource, FifaRankingSource>();
+
+        if (services.Any(descriptor => descriptor.ServiceType == typeof(IFifaRankingApiClient)))
+        {
+            return services;
+        }
+
+        services.AddHttpClient<IFifaRankingApiClient, FifaRankingApiClient>(client =>
+        {
+            client.BaseAddress = FifaApiBaseAddress;
+            client.Timeout = Timeout.InfiniteTimeSpan;
+            client.DefaultRequestHeaders.Accept.Add(new MediaTypeWithQualityHeaderValue("application/json"));
+        });
+
+        return services;
+    }
+
     /// <summary>
     /// Registers services specific to the VerifyBonusCommand.
     /// </summary>
@@ -469,7 +490,10 @@ public static class ServiceRegistrationExtensions
     {
         services.AddOrchestratorInfrastructure(minimumLogLevel);
 
-        // CollectContextFifaCommand needs Firebase (IContextRepository, IKpiRepository).
+        services.AddFifaRankingSourceServicesIfMissing();
+
+        // CollectContextFifaCommand needs Firebase (IContextRepository, IKpiRepository)
+        // and the public FIFA rankings API.
 
         return services;
     }
@@ -482,6 +506,7 @@ public static class ServiceRegistrationExtensions
         LogLevel minimumLogLevel = LogLevel.Information)
     {
         services.AddOrchestratorInfrastructure(minimumLogLevel);
+        services.AddFifaRankingSourceServicesIfMissing();
 
         // CollectContextDevCommand composes the Kicktipp and FIFA collection paths.
 

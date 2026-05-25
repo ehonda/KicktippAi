@@ -1,22 +1,19 @@
 # FIFA Ranking Refresh Research
 
-This note records the source inspection done while investigating how to refresh the WM26 FIFA ranking CSVs without manual browser copy/paste. It is intentionally detailed so the full updater can be planned without rediscovering the FIFA page behavior.
+This note records the source inspection behind the live WM26 FIFA ranking collection path. It is intentionally detailed so future maintenance does not need to rediscover the FIFA page behavior.
 
 ## Current Repository Shape
 
-The checked-in ranking source files live under `data/wm26`:
+Ranking source files are no longer checked in. `collect-context fifa` fetches live FIFA rankings, validates the WM26 team mapping, and upserts Firestore documents directly.
 
-- `data/wm26/kpi-documents/fifa-rankings.csv`: aggregate KPI document source for WM26 bonus predictions.
-- `data/wm26/context-documents/fifa-ranking-{team-slug}.csv`: one-row match-context documents for individual teams.
-
-Both formats currently use:
+Both generated formats use:
 
 ```csv
-team,Data_Collected_At,rank,ELO
-Deutschland,2026-05-24,10,1730.37
+Rank,Team,ELO,Data_Collected_At
+10,Deutschland,1730.37,2026-05-25
 ```
 
-`ELO` is a historical column name in this project. It stores FIFA men's ranking points, not Elo ratings. The current files were collected on `2026-05-24` from the FIFA men's ranking published on 1 April 2026.
+`ELO` is a historical column name in this project. It stores FIFA men's ranking points, not Elo ratings. `Data_Collected_At` is the UTC date when `collect-context fifa` ran.
 
 Firestore upload is handled by:
 
@@ -151,14 +148,14 @@ Representative fields:
 }
 ```
 
-Fields needed for the current CSVs:
+Fields needed for the generated CSVs:
 
 - `TeamName[0].Description`: localized display name. Use only after applying project-specific overrides.
 - `IdCountry`: stable FIFA country code. Use this as the lookup key.
 - `Rank`: FIFA rank.
 - `TotalPoints`: ranking points. Round to two decimals using invariant culture and a dot decimal separator.
 
-The first rows matched the checked-in aggregate CSV:
+The first rows from the 1 April 2026 ranking matched the earlier checked-in aggregate CSV:
 
 | Team | Rank | Rounded TotalPoints |
 | --- | ---: | ---: |
@@ -175,7 +172,7 @@ The first rows matched the checked-in aggregate CSV:
 
 ## Naming and Matching Gotchas
 
-Do not match teams only by display name. The current checked-in CSV uses some preferred names that differ from FIFA's German API labels.
+Do not match teams only by display name. The project uses some preferred names that differ from FIFA's German API labels.
 
 Known differences from the 1 April 2026 data:
 
@@ -187,27 +184,27 @@ Known differences from the 1 April 2026 data:
 | `KSA` | `Saudiarabien` | `Saudi-Arabien` |
 | `BIH` | `Bosnien und Herzegowina` | `Bosnien-Herzegowina` |
 
-The full updater should carry an explicit WM26 team mapping keyed by `IdCountry`, with at least:
+The implementation carries an explicit WM26 team mapping keyed by `IdCountry`, with:
 
 - FIFA `IdCountry`.
 - Project display name for CSV content.
 - Project file slug for `fifa-ranking-{team-slug}.csv`.
 
-The current ranking CSVs do not store `IdCountry`, so the updater should not rely on round-tripping existing CSV rows by name alone.
+The generated ranking CSVs do not store `IdCountry`, so future changes should continue to resolve rows from the explicit mapping rather than by display name alone.
 
-## Proposed Refresh Algorithm
+## Implemented Collection Algorithm
 
-For the planned full workflow:
+The live `collect-context fifa` workflow:
 
 1. Load a WM26 team mapping keyed by FIFA `IdCountry`.
 2. Fetch the latest approved men's football schedule from the `fifarankings/rankingschedules/all` endpoint.
 3. Fetch the full ranking rows from `fifarankings/rankings/rankingsbyschedule`.
 4. Build a dictionary by `IdCountry`.
 5. For every mapped WM26 team, require a ranking row. Fail clearly if any team is missing.
-6. Write `data/wm26/kpi-documents/fifa-rankings.csv` with `team,Data_Collected_At,rank,ELO`, ordered by rank unless the future workflow chooses a different canonical order.
-7. Write each `data/wm26/context-documents/fifa-ranking-{team-slug}.csv` with the same header and one row.
-8. Run `collect-context fifa` to upload the per-team context documents and aggregate KPI document.
-9. Record the schedule ID, `PublicationDateUTC`, and collection date in the command output so a reviewer can verify which official ranking was used.
+6. Generate the `fifa-rankings` KPI CSV with `Rank,Team,ELO,Data_Collected_At`, ordered by rank, for the 48 mapped WM26 teams.
+7. Generate each `fifa-ranking-{team-slug}.csv` context payload with the same header and one row.
+8. Upsert the per-team context documents and aggregate KPI document to Firestore.
+9. Record the schedule ID, `PublicationDateUTC`, collection date, source row count, and mapped team count in command output so a reviewer can verify which official ranking was used.
 
 Recommended validation:
 
@@ -217,9 +214,9 @@ Recommended validation:
 - Assert all generated points have exactly two decimals and use `.` as the decimal separator.
 - Compare the top ten against the source response during tests or dry-run output.
 
-## Open Implementation Questions
+## Implementation Decisions
 
-- Where should the explicit WM26 `IdCountry` to project-name/slug mapping live: code, JSON, or CSV?
-- Should the generated aggregate file include all 211 FIFA teams or only the current WM26 team set? The current checked-in aggregate has 48 rows.
-- Should KPI JSON regeneration and Firebase upload be part of the same command, or a separate explicit step?
-- Should the updater keep historical ranking snapshots, or only replace the current files?
+- The explicit WM26 `IdCountry` to project-name/slug mapping lives in code next to the collection command.
+- The aggregate KPI document includes only the 48 mapped WM26 teams, not the full FIFA table.
+- Fetching, CSV generation, validation, and Firestore upsert are one `collect-context fifa` workflow.
+- Historical snapshots are represented by Firestore document versions, not checked-in CSV files.

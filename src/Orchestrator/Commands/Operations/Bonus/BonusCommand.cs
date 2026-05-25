@@ -14,6 +14,8 @@ namespace Orchestrator.Commands.Operations.Bonus;
 
 public class BonusCommand : AsyncCommand<BaseSettings>
 {
+    private const string FifaRankingsDocumentName = "fifa-rankings";
+
     private readonly IAnsiConsole _console;
     private readonly IFirebaseServiceFactory _firebaseServiceFactory;
     private readonly IKicktippClientFactory _kicktippClientFactory;
@@ -178,6 +180,10 @@ public class BonusCommand : AsyncCommand<BaseSettings>
         
         // Create KPI Context Provider for bonus predictions using factory
         var kpiContextProvider = _contextProviderFactory.CreateKpiContextProvider(repositoryCompetition);
+        if (CompetitionResolver.IsWorldCupCompetition(competition))
+        {
+            await EnsureWorldCupRankingKpiPresentAsync(kpiContextProvider, communityContext);
+        }
         
         var tokenUsageTracker = _openAiServiceFactory.GetTokenUsageTracker();
         
@@ -486,5 +492,22 @@ public class BonusCommand : AsyncCommand<BaseSettings>
             ? tokenUsageTracker.GetCompactSummaryWithEstimatedCosts(settings.EstimatedCostsModel)
             : tokenUsageTracker.GetCompactSummary();
         _console.MarkupLine($"[dim]Token usage (uncached/cached/reasoning/output/$cost): {summary}[/]");
+    }
+
+    private static async Task EnsureWorldCupRankingKpiPresentAsync(
+        IKpiContextProvider kpiContextProvider,
+        string communityContext)
+    {
+        await foreach (var context in kpiContextProvider.GetContextAsync(communityContext))
+        {
+            if (string.Equals(context.Name, FifaRankingsDocumentName, StringComparison.OrdinalIgnoreCase))
+            {
+                return;
+            }
+        }
+
+        throw new InvalidOperationException(
+            "Missing required WM26 KPI context document 'fifa-rankings'. " +
+            "Run collect-context fifa for this community context.");
     }
 }

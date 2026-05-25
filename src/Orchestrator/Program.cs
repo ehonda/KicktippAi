@@ -127,7 +127,7 @@ public class Program
                     .WithDescription("Collect context from Kicktipp")
                     .WithExample("collect-context", "kicktipp", "--community-context", "ehonda-test-buli", "--dry-run");
                 collectContext.AddCommand<CollectContextFifaCommand>("fifa")
-                    .WithDescription("Upload WM26 FIFA ranking context and KPI documents")
+                    .WithDescription("Fetch and upload WM26 FIFA ranking context and KPI documents")
                     .WithExample("collect-context", "fifa", "--community-context", "ehonda-dev-wm26", "--dry-run");
             });
 

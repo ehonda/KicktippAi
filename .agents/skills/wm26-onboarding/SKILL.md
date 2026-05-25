@@ -22,7 +22,7 @@ This skill coordinates the operational workflow for FIFA World Cup 2026 Kicktipp
 dotnet run --project src/Orchestrator -- collect-context-dev -c ehonda-dev-wm26 --verbose
 ```
 
-Use `--matchdays`, `--dry-run`, and `--verbose` as needed. The command collects Kicktipp context and uploads WM26 FIFA ranking context/KPI documents from `data/wm26`.
+Use `--matchdays`, `--dry-run`, and `--verbose` as needed. The command collects Kicktipp context, fetches live WM26 FIFA rankings, and uploads ranking context/KPI documents to Firestore.
 
 3. For non-dev or explicit workflows, run the two collection paths separately.
 
@@ -49,7 +49,7 @@ dotnet run --project src/Orchestrator -- bonus-dev -c ehonda-dev-wm26 --verbose
 Acceptance checks:
 - `matchday-dev` finds all required context documents in Firestore with no on-demand fallback warning.
 - `bonus-dev` includes KPI context document `fifa-rankings`.
-- Langfuse traces show hosted prompts, `langfusePromptFallback=false`, `openaiReasoningEffort=minimal`, and ranking context containing `Data_Collected_At`.
+- Langfuse traces show hosted prompts, `langfusePromptFallback=false`, `openaiReasoningEffort=minimal`, and ranking context containing `Rank,Team,ELO,Data_Collected_At`.
 
 6. Inspect Langfuse traces with the repository Langfuse workflow.
    - Use the global `langfuse` skill and installed `langfuse` CLI.
@@ -63,9 +63,9 @@ Acceptance checks:
 
 ## Data Locations
 
-- Per-team FIFA ranking context CSVs: `data/wm26/context-documents/fifa-ranking-*.csv`
-- Aggregate FIFA ranking KPI CSV: `data/wm26/kpi-documents/fifa-rankings.csv`
+- Per-team FIFA ranking context documents: generated live by `collect-context fifa` as `fifa-ranking-*.csv` Firestore documents
+- Aggregate FIFA ranking KPI document: generated live by `collect-context fifa` as Firestore KPI document `fifa-rankings`
 - Recent-history played-date map: `data/wm26/recent-history/recent-history-match-dates.csv`
 - Workflow documentation: `docs/onboarding-wm26/README.md`
 
-FIFA ranking CSVs must use `team,Data_Collected_At,rank,ELO` and must not contain empty `Data_Collected_At` values. The current checked-in ranking data was collected on `2026-05-24`; regular refresh automation is planned shortly.
+FIFA ranking CSV payloads must use `Rank,Team,ELO,Data_Collected_At`, format points with two decimal places, and must not contain empty `Data_Collected_At` values.

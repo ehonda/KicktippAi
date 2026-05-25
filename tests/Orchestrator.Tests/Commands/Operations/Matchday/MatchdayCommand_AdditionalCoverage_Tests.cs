@@ -410,6 +410,35 @@ public class MatchdayCommand_AdditionalCoverage_Tests : MatchdayCommandTests_Bas
     }
 
     [Test]
+    public async Task World_cup_fallback_reports_missing_fifa_ranking_documents_without_predicting()
+    {
+        var partialDocs = new Dictionary<string, ContextDocument>
+        {
+            ["fifa-world-cup-2026-standings.csv"] = CreateContextDocument("fifa-world-cup-2026-standings.csv", "standings"),
+            ["community-rules-ehonda-dev-wm26.md"] = CreateContextDocument("community-rules-ehonda-dev-wm26.md", "rules"),
+            ["recent-history-fcb.csv"] = CreateContextDocument("recent-history-fcb.csv", "recent fcb"),
+            ["recent-history-bvb.csv"] = CreateContextDocument("recent-history-bvb.csv", "recent bvb")
+        };
+        var mockFirebaseFactory = CreateMockFirebaseServiceFactoryFull(
+            contextRepository: CreateMockContextRepositoryWithDocuments(partialDocs));
+        var ctx = CreateMatchdayCommandApp(firebaseServiceFactory: mockFirebaseFactory);
+
+        var (exitCode, output) = await RunCommandAsync(ctx.App, ctx.Console, "matchday", "gpt-5-nano", "-c", "ehonda-dev-wm26");
+
+        await Assert.That(exitCode).IsEqualTo(0);
+        await Assert.That(output).Contains("Missing required WM26 context documents");
+        await Assert.That(output).Contains("fifa-ranking-fcb.csv");
+        ctx.PredictionService.Verify(
+            service => service.PredictMatchAsync(
+                It.IsAny<Match>(),
+                It.IsAny<IEnumerable<DocumentContext>>(),
+                It.IsAny<bool>(),
+                It.IsAny<OpenAiIntegration.PredictionTelemetryMetadata?>(),
+                It.IsAny<CancellationToken>()),
+            Times.Never);
+    }
+
+    [Test]
     public async Task Cancelled_match_processing_text_includes_cancelled_indicator()
     {
         // Arrange

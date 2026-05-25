@@ -247,7 +247,13 @@ public class BonusCommand_Settings_Tests : BonusCommandTests_Base
     public async Task Running_bonus_dev_for_supported_dev_community_uses_override_defaults()
     {
         // Arrange
-        var context = CreateBonusCommandApp();
+        var context = CreateBonusCommandApp(
+            kpiContextDocuments: new List<DocumentContext>
+            {
+                new DocumentContext(
+                    "fifa-rankings",
+                    "Rank,Team,ELO,Data_Collected_At\n8,Marokko,1755.87,2026-05-25")
+            });
 
         // Act
         var exitCode = await context.App.RunAsync(["bonus-dev", "-c", "ehonda-dev-wm26"]);

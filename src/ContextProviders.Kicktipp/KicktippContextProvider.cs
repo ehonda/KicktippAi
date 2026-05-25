@@ -10,7 +10,6 @@ public class KicktippContextProvider : IKicktippContextProvider
 {
     private readonly IKicktippClient _kicktippClient;
     private readonly IFileProvider _communityRulesFileProvider;
-    private readonly IFileProvider _worldCupContextDocumentsFileProvider;
     private readonly string _community;
     private readonly string _communityContext;
     private readonly string _competition;
@@ -25,12 +24,10 @@ public class KicktippContextProvider : IKicktippContextProvider
         string community,
         string? communityContext = null,
         string? competition = null,
-        int? matchday = null,
-        IFileProvider? worldCupContextDocumentsFileProvider = null)
+        int? matchday = null)
     {
         _kicktippClient = kicktippClient ?? throw new ArgumentNullException(nameof(kicktippClient));
         _communityRulesFileProvider = communityRulesFileProvider ?? throw new ArgumentNullException(nameof(communityRulesFileProvider));
-        _worldCupContextDocumentsFileProvider = worldCupContextDocumentsFileProvider ?? WorldCup2026ContextDocumentsFileProvider.Create();
         _community = community ?? throw new ArgumentNullException(nameof(community));
         _communityContext = communityContext ?? community;
         _competition = competition ?? CompetitionIds.Bundesliga2025_26;
@@ -142,14 +139,6 @@ public class KicktippContextProvider : IKicktippContextProvider
             else if (documentName == $"recent-history-{awayAbbreviation}.csv")
             {
                 yield return await RecentHistory(awayTeam);
-            }
-            else if (documentName == MatchContextDocumentCatalog.GetFifaRankingDocumentName(homeTeam))
-            {
-                yield return await FifaRanking(homeTeam);
-            }
-            else if (documentName == MatchContextDocumentCatalog.GetFifaRankingDocumentName(awayTeam))
-            {
-                yield return await FifaRanking(awayTeam);
             }
             else if (documentName == $"home-history-{homeAbbreviation}.csv")
             {
@@ -300,21 +289,6 @@ public class KicktippContextProvider : IKicktippContextProvider
             Content: content);
     }
 
-    private async Task<DocumentContext> FifaRanking(string teamName)
-    {
-        var documentName = MatchContextDocumentCatalog.GetFifaRankingDocumentName(teamName);
-        var fileInfo = _worldCupContextDocumentsFileProvider.GetFileInfo(documentName);
-
-        if (!fileInfo.Exists)
-        {
-            throw new FileNotFoundException(
-                $"WM26 FIFA ranking file not found: {documentName}. Expected checked-in file for team '{teamName}'.");
-        }
-
-        var content = await ReadFileContentAsync(fileInfo);
-        return new DocumentContext(documentName, content);
-    }
-    
     /// <summary>
     /// Reads the content from a file info asynchronously.
     /// </summary>

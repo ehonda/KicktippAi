@@ -21,6 +21,7 @@ public sealed class CollectContextDevCommand : AsyncCommand<CollectContextDevSet
         IKicktippClientFactory kicktippClientFactory,
         IContextProviderFactory contextProviderFactory,
         MatchOutcomeCollectionService matchOutcomeCollectionService,
+        IFifaRankingSource fifaRankingSource,
         ILogger<CollectContextKicktippCommand> kicktippLogger,
         ILogger<CollectContextFifaCommand> fifaLogger)
     {
@@ -35,6 +36,7 @@ public sealed class CollectContextDevCommand : AsyncCommand<CollectContextDevSet
         _fifaCommand = new CollectContextFifaCommand(
             console,
             firebaseServiceFactory,
+            fifaRankingSource,
             fifaLogger);
     }
 
@@ -83,7 +85,6 @@ public sealed class CollectContextDevCommand : AsyncCommand<CollectContextDevSet
             {
                 CommunityContext = communityContext,
                 Competition = competition,
-                SourceRoot = CollectContextFifaCommand.DefaultSourceRoot,
                 DryRun = settings.DryRun,
                 Verbose = settings.Verbose
             },

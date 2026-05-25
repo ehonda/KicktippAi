@@ -1,5 +1,5 @@
 using EHonda.KicktippAi.Core;
-using EHonda.Optional.Core;
+using Microsoft.Extensions.DependencyInjection;
 using Moq;
 using Orchestrator.Commands.Operations.CollectContext;
 using static Orchestrator.Tests.Infrastructure.OrchestratorTestFactories;
@@ -11,244 +11,187 @@ public class CollectContextFifaCommandTests
     [Test]
     public async Task Running_command_uploads_per_team_ranking_context_documents_and_kpi_document()
     {
-        var sourceRoot = CreateTempFifaSourceRoot();
-        try
-        {
-            var contextRepository = CreateMockContextRepositoryForUpload(savedVersion: 1);
-            var kpiRepository = CreateMockKpiRepositoryForUpload(savedVersion: 0);
-            var firebaseFactory = CreateMockFirebaseServiceFactoryFull(
-                kpiRepository: kpiRepository,
-                contextRepository: contextRepository);
-            var (app, console) = CreateCommandApp<CollectContextFifaCommand>(
-                "collect-context-fifa",
-                firebaseServiceFactory: firebaseFactory);
+        var contextRepository = CreateMockContextRepositoryForUpload(savedVersion: 1);
+        var kpiRepository = CreateMockKpiRepositoryForUpload(savedVersion: 0);
+        var firebaseFactory = CreateMockFirebaseServiceFactoryFull(
+            kpiRepository: kpiRepository,
+            contextRepository: contextRepository);
+        var fifaRankingSource = CreateMockFifaRankingSource();
+        var (app, console) = CreateCommandApp<CollectContextFifaCommand>(
+            "collect-context-fifa",
+            firebaseServiceFactory: firebaseFactory,
+            configureServices: new Action<IServiceCollection>(services => services.AddSingleton(fifaRankingSource.Object)));
 
-            var (exitCode, output) = await RunCommandAsync(
-                app,
-                console,
-                "collect-context-fifa",
-                "--community-context",
+        var (exitCode, output) = await RunCommandAsync(
+            app,
+            console,
+            "collect-context-fifa",
+            "--community-context",
+            "ehonda-dev-wm26");
+
+        await Assert.That(exitCode).IsEqualTo(0);
+        await Assert.That(output).Contains("FIFA ranking context collection completed");
+        await Assert.That(output).Contains("FRS_Male_Football_20260119");
+        await Assert.That(output).Contains("Mapped WM26 teams");
+
+        contextRepository.Verify(
+            r => r.SaveContextDocumentAsync(
+                "fifa-ranking-mexiko.csv",
+                It.Is<string>(content => content.Contains("Rank,Team,ELO,Data_Collected_At") &&
+                                         content.Contains("15,Mexiko,1681.03,2026-05-25")),
                 "ehonda-dev-wm26",
-                "--source-root",
-                sourceRoot);
-
-            await Assert.That(exitCode).IsEqualTo(0);
-            await Assert.That(output).Contains("FIFA ranking context collection completed");
-
-            contextRepository.Verify(
-                r => r.SaveContextDocumentAsync(
-                    "fifa-ranking-mexiko.csv",
-                    It.Is<string>(content => content.Contains("Mexiko,2026-05-24,15,1681.03")),
-                    "ehonda-dev-wm26",
-                    It.IsAny<CancellationToken>()),
-                Times.Once);
-            contextRepository.Verify(
-                r => r.SaveContextDocumentAsync(
-                    "fifa-ranking-sudafrika.csv",
-                    It.Is<string>(content => content.Contains("Sudafrika,2026-05-24,56,1412.69")),
-                    "ehonda-dev-wm26",
-                    It.IsAny<CancellationToken>()),
-                Times.Once);
-            kpiRepository.Verify(
-                r => r.SaveKpiDocumentAsync(
-                    "fifa-rankings",
-                    It.Is<string>(content => content.Contains("Mexiko,2026-05-24,15,1681.03")),
-                    It.Is<string>(description => description.Contains("WM26 FIFA rankings")),
-                    "ehonda-dev-wm26",
-                    It.IsAny<CancellationToken>()),
-                Times.Once);
-        }
-        finally
-        {
-            DeleteTempDirectory(sourceRoot);
-        }
+                It.IsAny<CancellationToken>()),
+            Times.Once);
+        contextRepository.Verify(
+            r => r.SaveContextDocumentAsync(
+                "fifa-ranking-sudafrika.csv",
+                It.Is<string>(content => content.Contains("60,Südafrika,1429.73,2026-05-25")),
+                "ehonda-dev-wm26",
+                It.IsAny<CancellationToken>()),
+            Times.Once);
+        kpiRepository.Verify(
+            r => r.SaveKpiDocumentAsync(
+                "fifa-rankings",
+                It.Is<string>(content => content.Contains("Rank,Team,ELO,Data_Collected_At") &&
+                                         content.Contains("15,Mexiko,1681.03,2026-05-25")),
+                It.Is<string>(description => description.Contains("WM26 FIFA rankings")),
+                "ehonda-dev-wm26",
+                It.IsAny<CancellationToken>()),
+            Times.Once);
     }
 
     [Test]
-    public async Task Running_command_with_dry_run_performs_no_firestore_writes()
+    public async Task Running_command_with_dry_run_fetches_live_source_but_performs_no_firestore_writes()
     {
-        var sourceRoot = CreateTempFifaSourceRoot();
-        try
-        {
-            var contextRepository = CreateMockContextRepositoryForUpload(savedVersion: 1);
-            var kpiRepository = CreateMockKpiRepositoryForUpload(savedVersion: 0);
-            var firebaseFactory = CreateMockFirebaseServiceFactoryFull(
-                kpiRepository: kpiRepository,
-                contextRepository: contextRepository);
-            var (app, console) = CreateCommandApp<CollectContextFifaCommand>(
-                "collect-context-fifa",
-                firebaseServiceFactory: firebaseFactory);
+        var contextRepository = CreateMockContextRepositoryForUpload(savedVersion: 1);
+        var kpiRepository = CreateMockKpiRepositoryForUpload(savedVersion: 0);
+        var firebaseFactory = CreateMockFirebaseServiceFactoryFull(
+            kpiRepository: kpiRepository,
+            contextRepository: contextRepository);
+        var fifaRankingSource = CreateMockFifaRankingSource();
+        var (app, console) = CreateCommandApp<CollectContextFifaCommand>(
+            "collect-context-fifa",
+            firebaseServiceFactory: firebaseFactory,
+            configureServices: new Action<IServiceCollection>(services => services.AddSingleton(fifaRankingSource.Object)));
 
-            var (exitCode, output) = await RunCommandAsync(
-                app,
-                console,
-                "collect-context-fifa",
-                "--community-context",
-                "ehonda-dev-wm26",
-                "--source-root",
-                sourceRoot,
-                "--dry-run");
+        var (exitCode, output) = await RunCommandAsync(
+            app,
+            console,
+            "collect-context-fifa",
+            "--community-context",
+            "ehonda-dev-wm26",
+            "--dry-run");
 
-            await Assert.That(exitCode).IsEqualTo(0);
-            await Assert.That(output).Contains("Dry run completed");
+        await Assert.That(exitCode).IsEqualTo(0);
+        await Assert.That(output).Contains("Dry run completed");
 
-            contextRepository.Verify(
-                r => r.SaveContextDocumentAsync(
-                    It.IsAny<string>(),
-                    It.IsAny<string>(),
-                    It.IsAny<string>(),
-                    It.IsAny<CancellationToken>()),
-                Times.Never);
-            kpiRepository.Verify(
-                r => r.SaveKpiDocumentAsync(
-                    It.IsAny<string>(),
-                    It.IsAny<string>(),
-                    It.IsAny<string>(),
-                    It.IsAny<string>(),
-                    It.IsAny<CancellationToken>()),
-                Times.Never);
-        }
-        finally
-        {
-            DeleteTempDirectory(sourceRoot);
-        }
+        fifaRankingSource.Verify(
+            source => source.CollectLatestAsync(It.IsAny<DateOnly>(), It.IsAny<CancellationToken>()),
+            Times.Once);
+        contextRepository.Verify(
+            r => r.SaveContextDocumentAsync(
+                It.IsAny<string>(),
+                It.IsAny<string>(),
+                It.IsAny<string>(),
+                It.IsAny<CancellationToken>()),
+            Times.Never);
+        kpiRepository.Verify(
+            r => r.SaveKpiDocumentAsync(
+                It.IsAny<string>(),
+                It.IsAny<string>(),
+                It.IsAny<string>(),
+                It.IsAny<string>(),
+                It.IsAny<CancellationToken>()),
+            Times.Never);
     }
 
     [Test]
     public async Task Running_command_uses_fifa_world_cup_repository_scoping_for_wm26_context()
     {
-        var sourceRoot = CreateTempFifaSourceRoot();
-        try
-        {
-            var firebaseFactory = CreateMockFirebaseServiceFactoryFull(
-                kpiRepository: CreateMockKpiRepositoryForUpload(savedVersion: 0),
-                contextRepository: CreateMockContextRepositoryForUpload(savedVersion: 1));
-            var (app, console) = CreateCommandApp<CollectContextFifaCommand>(
-                "collect-context-fifa",
-                firebaseServiceFactory: firebaseFactory);
+        var firebaseFactory = CreateMockFirebaseServiceFactoryFull(
+            kpiRepository: CreateMockKpiRepositoryForUpload(savedVersion: 0),
+            contextRepository: CreateMockContextRepositoryForUpload(savedVersion: 1));
+        var (app, console) = CreateCommandApp<CollectContextFifaCommand>(
+            "collect-context-fifa",
+            firebaseServiceFactory: firebaseFactory,
+            configureServices: new Action<IServiceCollection>(services => services.AddSingleton(CreateMockFifaRankingSource().Object)));
 
-            var (exitCode, _) = await RunCommandAsync(
-                app,
-                console,
-                "collect-context-fifa",
-                "--community-context",
-                "ehonda-dev-wm26",
-                "--source-root",
-                sourceRoot);
+        var (exitCode, _) = await RunCommandAsync(
+            app,
+            console,
+            "collect-context-fifa",
+            "--community-context",
+            "ehonda-dev-wm26");
 
-            await Assert.That(exitCode).IsEqualTo(0);
-            firebaseFactory.Verify(
-                f => f.CreateContextRepository(CompetitionIds.FifaWorldCup2026),
-                Times.Once);
-            firebaseFactory.Verify(
-                f => f.CreateKpiRepository(CompetitionIds.FifaWorldCup2026),
-                Times.Once);
-        }
-        finally
-        {
-            DeleteTempDirectory(sourceRoot);
-        }
+        await Assert.That(exitCode).IsEqualTo(0);
+        firebaseFactory.Verify(
+            f => f.CreateContextRepository(CompetitionIds.FifaWorldCup2026),
+            Times.Once);
+        firebaseFactory.Verify(
+            f => f.CreateKpiRepository(CompetitionIds.FifaWorldCup2026),
+            Times.Once);
     }
 
     [Test]
-    public async Task Running_command_fails_before_writing_when_data_collected_at_header_is_missing()
+    public async Task Running_command_fails_before_writing_when_live_source_validation_fails()
     {
-        var sourceRoot = CreateTempFifaSourceRoot(
-            contextContent: "team,rank,ELO\nMexiko,15,1681.03\n");
-        try
-        {
-            var contextRepository = CreateMockContextRepositoryForUpload(savedVersion: 1);
-            var kpiRepository = CreateMockKpiRepositoryForUpload(savedVersion: 0);
-            var firebaseFactory = CreateMockFirebaseServiceFactoryFull(
-                kpiRepository: kpiRepository,
-                contextRepository: contextRepository);
-            var (app, console) = CreateCommandApp<CollectContextFifaCommand>(
-                "collect-context-fifa",
-                firebaseServiceFactory: firebaseFactory);
+        var contextRepository = CreateMockContextRepositoryForUpload(savedVersion: 1);
+        var kpiRepository = CreateMockKpiRepositoryForUpload(savedVersion: 0);
+        var firebaseFactory = CreateMockFirebaseServiceFactoryFull(
+            kpiRepository: kpiRepository,
+            contextRepository: contextRepository);
+        var fifaRankingSource = new Mock<IFifaRankingSource>();
+        fifaRankingSource
+            .Setup(source => source.CollectLatestAsync(It.IsAny<DateOnly>(), It.IsAny<CancellationToken>()))
+            .ThrowsAsync(new InvalidOperationException("FIFA ranking response is missing WM26 teams: MEX (Mexiko)."));
+        var (app, console) = CreateCommandApp<CollectContextFifaCommand>(
+            "collect-context-fifa",
+            firebaseServiceFactory: firebaseFactory,
+            configureServices: new Action<IServiceCollection>(services => services.AddSingleton(fifaRankingSource.Object)));
 
-            var (exitCode, output) = await RunCommandAsync(
-                app,
-                console,
-                "collect-context-fifa",
-                "--community-context",
-                "ehonda-dev-wm26",
-                "--source-root",
-                sourceRoot);
+        var (exitCode, output) = await RunCommandAsync(
+            app,
+            console,
+            "collect-context-fifa",
+            "--community-context",
+            "ehonda-dev-wm26");
 
-            await Assert.That(exitCode).IsEqualTo(1);
-            await Assert.That(output).Contains("Data_Collected_At");
-            VerifyNoWrites(contextRepository, kpiRepository);
-        }
-        finally
-        {
-            DeleteTempDirectory(sourceRoot);
-        }
+        await Assert.That(exitCode).IsEqualTo(1);
+        await Assert.That(output).Contains("missing WM26 teams");
+        VerifyNoWrites(contextRepository, kpiRepository);
     }
 
-    [Test]
-    public async Task Running_command_fails_before_writing_when_data_collected_at_is_empty()
+    private static Mock<IFifaRankingSource> CreateMockFifaRankingSource()
     {
-        var sourceRoot = CreateTempFifaSourceRoot(
-            contextContent: "team,Data_Collected_At,rank,ELO\nMexiko,,15,1681.03\n");
-        try
-        {
-            var contextRepository = CreateMockContextRepositoryForUpload(savedVersion: 1);
-            var kpiRepository = CreateMockKpiRepositoryForUpload(savedVersion: 0);
-            var firebaseFactory = CreateMockFirebaseServiceFactoryFull(
-                kpiRepository: kpiRepository,
-                contextRepository: contextRepository);
-            var (app, console) = CreateCommandApp<CollectContextFifaCommand>(
-                "collect-context-fifa",
-                firebaseServiceFactory: firebaseFactory);
-
-            var (exitCode, output) = await RunCommandAsync(
-                app,
-                console,
-                "collect-context-fifa",
-                "--community-context",
-                "ehonda-dev-wm26",
-                "--source-root",
-                sourceRoot);
-
-            await Assert.That(exitCode).IsEqualTo(1);
-            await Assert.That(output).Contains("empty Data_Collected_At");
-            VerifyNoWrites(contextRepository, kpiRepository);
-        }
-        finally
-        {
-            DeleteTempDirectory(sourceRoot);
-        }
+        var mock = new Mock<IFifaRankingSource>();
+        mock
+            .Setup(source => source.CollectLatestAsync(It.IsAny<DateOnly>(), It.IsAny<CancellationToken>()))
+            .ReturnsAsync(CreateFifaRankingCollection());
+        return mock;
     }
 
-    private static string CreateTempFifaSourceRoot(
-        Option<string> contextContent = default,
-        Option<string> kpiContent = default)
+    private static FifaRankingCollection CreateFifaRankingCollection()
     {
-        var root = Path.Combine(Path.GetTempPath(), "KicktippAiTests", Guid.NewGuid().ToString("N"));
-        var contextDirectory = Path.Combine(root, "context-documents");
-        var kpiDirectory = Path.Combine(root, "kpi-documents");
-        Directory.CreateDirectory(contextDirectory);
-        Directory.CreateDirectory(kpiDirectory);
-
-        var actualContextContent = contextContent.Or("team,Data_Collected_At,rank,ELO\nMexiko,2026-05-24,15,1681.03\n");
-        var actualKpiContent = kpiContent.Or(
-            "team,Data_Collected_At,rank,ELO\nMexiko,2026-05-24,15,1681.03\nSudafrika,2026-05-24,56,1412.69\n");
-
-        File.WriteAllText(Path.Combine(contextDirectory, "fifa-ranking-mexiko.csv"), actualContextContent);
-        File.WriteAllText(
-            Path.Combine(contextDirectory, "fifa-ranking-sudafrika.csv"),
-            "team,Data_Collected_At,rank,ELO\nSudafrika,2026-05-24,56,1412.69\n");
-        File.WriteAllText(Path.Combine(kpiDirectory, "fifa-rankings.csv"), actualKpiContent);
-
-        return root;
-    }
-
-    private static void DeleteTempDirectory(string path)
-    {
-        if (Directory.Exists(path))
-        {
-            Directory.Delete(path, recursive: true);
-        }
+        return new FifaRankingCollection(
+            "FRS_Male_Football_20260119",
+            new DateTimeOffset(2026, 4, 1, 11, 55, 29, TimeSpan.Zero),
+            new DateOnly(2026, 5, 25),
+            211,
+            [
+                new(
+                    "fifa-ranking-mexiko.csv",
+                    "Rank,Team,ELO,Data_Collected_At\n15,Mexiko,1681.03,2026-05-25\n",
+                    "Mexiko",
+                    15,
+                    1681.03m),
+                new(
+                    "fifa-ranking-sudafrika.csv",
+                    "Rank,Team,ELO,Data_Collected_At\n60,Südafrika,1429.73,2026-05-25\n",
+                    "Südafrika",
+                    60,
+                    1429.73m)
+            ],
+            "Rank,Team,ELO,Data_Collected_At\n15,Mexiko,1681.03,2026-05-25\n60,Südafrika,1429.73,2026-05-25\n");
     }
 
     private static void VerifyNoWrites(

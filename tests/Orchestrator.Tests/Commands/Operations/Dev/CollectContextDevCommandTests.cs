@@ -143,6 +143,23 @@ public class CollectContextDevCommandTests
         var contextProvider = CreateMockKicktippContextProvider(
             matchContextDocuments: new List<DocumentContext> { new("kicktipp-doc.csv", "kicktipp content") });
         var contextProviderFactory = CreateMockContextProviderFactory(contextProvider);
+        var fifaRankingSource = new Mock<IFifaRankingSource>();
+        fifaRankingSource
+            .Setup(source => source.CollectLatestAsync(It.IsAny<DateOnly>(), It.IsAny<CancellationToken>()))
+            .ReturnsAsync(new FifaRankingCollection(
+                "FRS_Male_Football_20260119",
+                new DateTimeOffset(2026, 4, 1, 11, 55, 29, TimeSpan.Zero),
+                new DateOnly(2026, 5, 25),
+                211,
+                [
+                    new(
+                        "fifa-ranking-mexiko.csv",
+                        "Rank,Team,ELO,Data_Collected_At\n15,Mexiko,1681.03,2026-05-25\n",
+                        "Mexiko",
+                        15,
+                        1681.03m)
+                ],
+                "Rank,Team,ELO,Data_Collected_At\n15,Mexiko,1681.03,2026-05-25\n"));
 
         var (app, console) = CreateCommandApp<CollectContextDevCommand>(
             "collect-context-dev",
@@ -151,6 +168,7 @@ public class CollectContextDevCommandTests
             {
                 services.AddSingleton(kicktippClientFactory.Object);
                 services.AddSingleton(contextProviderFactory.Object);
+                services.AddSingleton(fifaRankingSource.Object);
                 services.AddSingleton<ILogger<MatchOutcomeCollectionService>>(new FakeLogger<MatchOutcomeCollectionService>());
                 services.AddSingleton<MatchOutcomeCollectionService>();
                 services.AddSingleton<ILogger<CollectContextKicktippCommand>>(new FakeLogger<CollectContextKicktippCommand>());

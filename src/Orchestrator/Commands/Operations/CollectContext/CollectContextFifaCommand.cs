@@ -12,28 +12,23 @@ namespace Orchestrator.Commands.Operations.CollectContext;
 /// </summary>
 public sealed class CollectContextFifaCommand : AsyncCommand<CollectContextFifaSettings>
 {
-    public const string DefaultSourceRoot = "data/wm26";
-
-    private const string ContextDocumentsSubdirectory = "context-documents";
-    private const string KpiDocumentsSubdirectory = "kpi-documents";
-    private const string RankingFilePattern = "fifa-ranking-*.csv";
     private const string FifaRankingsDocumentName = "fifa-rankings";
-    private const string FifaRankingsFileName = "fifa-rankings.csv";
     private const string FifaRankingsDescription = "WM26 FIFA rankings for all participants, used as KPI context for bonus predictions.";
-
-    private static readonly string[] ExpectedRankingHeader = ["team", HistoryCsvUtility.DataCollectedAtColumnName, "rank", "ELO"];
 
     private readonly IAnsiConsole _console;
     private readonly IFirebaseServiceFactory _firebaseServiceFactory;
+    private readonly IFifaRankingSource _fifaRankingSource;
     private readonly ILogger<CollectContextFifaCommand> _logger;
 
     public CollectContextFifaCommand(
         IAnsiConsole console,
         IFirebaseServiceFactory firebaseServiceFactory,
+        IFifaRankingSource fifaRankingSource,
         ILogger<CollectContextFifaCommand> logger)
     {
         _console = console;
         _firebaseServiceFactory = firebaseServiceFactory;
+        _fifaRankingSource = fifaRankingSource;
         _logger = logger;
     }
 
@@ -60,15 +55,11 @@ public sealed class CollectContextFifaCommand : AsyncCommand<CollectContextFifaS
             var communityContext = settings.CommunityContext.Trim();
             var competition = CompetitionResolver.ResolveCompetition(settings.Competition, communityContext, communityContext);
             var repositoryCompetition = CompetitionResolver.ToRepositoryCompetitionArgument(competition);
-            var sourceRoot = ResolveSourceRoot(settings.SourceRoot);
-            var contextDirectory = Path.Combine(sourceRoot, ContextDocumentsSubdirectory);
-            var kpiDirectory = Path.Combine(sourceRoot, KpiDocumentsSubdirectory);
-            var kpiFilePath = Path.Combine(kpiDirectory, FifaRankingsFileName);
+            var collectionDate = DateOnly.FromDateTime(DateTime.UtcNow);
 
             _console.MarkupLine("[green]Collect-context fifa command initialized[/]");
             _console.MarkupLine($"[blue]Using community context:[/] [yellow]{Markup.Escape(communityContext)}[/]");
             _console.MarkupLine($"[blue]Using competition:[/] [yellow]{Markup.Escape(competition)}[/]");
-            _console.MarkupLine($"[blue]Using source root:[/] [yellow]{Markup.Escape(sourceRoot)}[/]");
 
             if (settings.Verbose)
             {
@@ -80,37 +71,22 @@ public sealed class CollectContextFifaCommand : AsyncCommand<CollectContextFifaS
                 _console.MarkupLine("[magenta]Dry run mode enabled - no changes will be made to database[/]");
             }
 
-            var source = await LoadAndValidateSourceAsync(contextDirectory, kpiFilePath, cancellationToken);
-            if (source.Errors.Count > 0)
-            {
-                _console.MarkupLine("[red]FIFA ranking source validation failed:[/]");
-                foreach (var error in source.Errors.Take(20))
-                {
-                    _console.MarkupLine($"[red]  - {Markup.Escape(error)}[/]");
-                }
-
-                if (source.Errors.Count > 20)
-                {
-                    _console.MarkupLine($"[red]  - ...and {source.Errors.Count - 20} more errors[/]");
-                }
-
-                return 1;
-            }
-
-            if (settings.Verbose)
-            {
-                _console.MarkupLine($"[dim]Validated {source.RankingFiles.Count} per-team ranking files[/]");
-            }
+            var source = await _fifaRankingSource.CollectLatestAsync(collectionDate, cancellationToken);
+            _console.MarkupLine($"[blue]Using FIFA ranking schedule:[/] [yellow]{Markup.Escape(source.ScheduleId)}[/]");
+            _console.MarkupLine($"[blue]FIFA ranking published at:[/] [yellow]{source.PublicationDateUtc:O}[/]");
+            _console.MarkupLine($"[blue]Collection date:[/] [yellow]{source.CollectionDate:yyyy-MM-dd}[/]");
+            _console.MarkupLine($"[blue]Source ranking rows:[/] [yellow]{source.SourceRowCount}[/]");
+            _console.MarkupLine($"[blue]Mapped WM26 teams:[/] [yellow]{source.MappedTeamCount}[/]");
 
             if (settings.DryRun)
             {
-                foreach (var rankingFile in source.RankingFiles)
+                foreach (var rankingFile in source.ContextDocuments)
                 {
                     _console.MarkupLine($"[magenta]  Dry run - would save context document:[/] {Markup.Escape(rankingFile.DocumentName)}");
                 }
 
                 _console.MarkupLine($"[magenta]  Dry run - would save KPI document:[/] {FifaRankingsDocumentName}");
-                _console.MarkupLine($"[magenta]✓ Dry run completed - would have processed {source.RankingFiles.Count} context documents and 1 KPI document[/]");
+                _console.MarkupLine($"[magenta]✓ Dry run completed - would have processed {source.ContextDocuments.Count} context documents and 1 KPI document[/]");
                 return 0;
             }
 
@@ -120,7 +96,7 @@ public sealed class CollectContextFifaCommand : AsyncCommand<CollectContextFifaS
             var savedContextCount = 0;
             var skippedContextCount = 0;
 
-            foreach (var rankingFile in source.RankingFiles)
+            foreach (var rankingFile in source.ContextDocuments)
             {
                 var savedVersion = await contextRepository.SaveContextDocumentAsync(
                     rankingFile.DocumentName,
@@ -175,132 +151,4 @@ public sealed class CollectContextFifaCommand : AsyncCommand<CollectContextFifaS
             return 1;
         }
     }
-
-    private static string ResolveSourceRoot(string sourceRoot)
-    {
-        var trimmedSourceRoot = string.IsNullOrWhiteSpace(sourceRoot)
-            ? DefaultSourceRoot
-            : sourceRoot.Trim();
-
-        var fullPath = Path.IsPathRooted(trimmedSourceRoot)
-            ? trimmedSourceRoot
-            : Path.Combine(SolutionPathUtility.FindSolutionRoot(), trimmedSourceRoot);
-
-        return Path.GetFullPath(fullPath);
-    }
-
-    private static async Task<FifaRankingSource> LoadAndValidateSourceAsync(
-        string contextDirectory,
-        string kpiFilePath,
-        CancellationToken cancellationToken)
-    {
-        var errors = new List<string>();
-        var rankingFiles = new List<FifaRankingSourceFile>();
-
-        if (!Directory.Exists(contextDirectory))
-        {
-            errors.Add($"Context documents directory not found: {contextDirectory}");
-        }
-        else
-        {
-            var filePaths = Directory
-                .GetFiles(contextDirectory, RankingFilePattern, SearchOption.TopDirectoryOnly)
-                .OrderBy(path => path, StringComparer.OrdinalIgnoreCase)
-                .ToList();
-
-            if (filePaths.Count == 0)
-            {
-                errors.Add($"No ranking CSVs found in {contextDirectory} matching {RankingFilePattern}");
-            }
-
-            foreach (var filePath in filePaths)
-            {
-                var content = await File.ReadAllTextAsync(filePath, cancellationToken);
-                errors.AddRange(ValidateRankingCsv(filePath, content));
-                rankingFiles.Add(new FifaRankingSourceFile(Path.GetFileName(filePath), content));
-            }
-        }
-
-        var kpiContent = string.Empty;
-        if (!File.Exists(kpiFilePath))
-        {
-            errors.Add($"KPI rankings CSV not found: {kpiFilePath}");
-        }
-        else
-        {
-            kpiContent = await File.ReadAllTextAsync(kpiFilePath, cancellationToken);
-            errors.AddRange(ValidateRankingCsv(kpiFilePath, kpiContent));
-        }
-
-        return new FifaRankingSource(rankingFiles, kpiContent, errors);
-    }
-
-    private static IEnumerable<string> ValidateRankingCsv(string filePath, string content)
-    {
-        var errors = new List<string>();
-        using var reader = new StringReader(content);
-
-        var header = reader.ReadLine();
-        if (header is null)
-        {
-            errors.Add($"{filePath}: file is empty");
-            return errors;
-        }
-
-        var headerColumns = SplitCsvLine(header);
-        if (headerColumns.Length > 0)
-        {
-            headerColumns[0] = headerColumns[0].TrimStart('\uFEFF');
-        }
-
-        if (!headerColumns.SequenceEqual(ExpectedRankingHeader, StringComparer.Ordinal))
-        {
-            errors.Add($"{filePath}: expected header {string.Join(",", ExpectedRankingHeader)}");
-            return errors;
-        }
-
-        var lineNumber = 1;
-        var dataRowCount = 0;
-        string? line;
-        while ((line = reader.ReadLine()) is not null)
-        {
-            lineNumber++;
-            if (string.IsNullOrWhiteSpace(line))
-            {
-                continue;
-            }
-
-            dataRowCount++;
-            var fields = SplitCsvLine(line);
-            if (fields.Length < ExpectedRankingHeader.Length)
-            {
-                errors.Add($"{filePath}: row {lineNumber} has fewer columns than expected");
-                continue;
-            }
-
-            if (string.IsNullOrWhiteSpace(fields[1]))
-            {
-                errors.Add($"{filePath}: row {lineNumber} has empty {HistoryCsvUtility.DataCollectedAtColumnName}");
-            }
-        }
-
-        if (dataRowCount == 0)
-        {
-            errors.Add($"{filePath}: file has no ranking rows");
-        }
-
-        return errors;
-    }
-
-    private static string[] SplitCsvLine(string line)
-    {
-        return line.TrimEnd('\r').Split(',');
-    }
-
-    private sealed record FifaRankingSource(
-        IReadOnlyList<FifaRankingSourceFile> RankingFiles,
-        string KpiContent,
-        IReadOnlyList<string> Errors);
-
-    private sealed record FifaRankingSourceFile(string DocumentName, string Content);
 }

@@ -33,6 +33,25 @@ public class BonusCommand_ErrorHandling_Tests : BonusCommandTests_Base
     }
 
     [Test]
+    public async Task Running_world_cup_command_fails_before_prediction_when_fifa_rankings_kpi_is_missing()
+    {
+        var context = CreateBonusCommandApp(kpiContextDocuments: new List<DocumentContext>());
+
+        var exitCode = await context.App.RunAsync(["bonus", "test-model", "--community", "ehonda-dev-wm26"]);
+        var output = context.Console.Output;
+
+        await Assert.That(exitCode).IsEqualTo(1);
+        await Assert.That(output).Contains("Missing required WM26 KPI context document");
+        context.PredictionService.Verify(
+            service => service.PredictBonusQuestionAsync(
+                It.IsAny<BonusQuestion>(),
+                It.IsAny<IEnumerable<DocumentContext>>(),
+                It.IsAny<OpenAiIntegration.PredictionTelemetryMetadata?>(),
+                It.IsAny<CancellationToken>()),
+            Times.Never);
+    }
+
+    [Test]
     public async Task Running_command_handles_prediction_service_exception()
     {
         // Arrange

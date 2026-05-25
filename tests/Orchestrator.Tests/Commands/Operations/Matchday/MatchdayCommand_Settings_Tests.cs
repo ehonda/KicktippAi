@@ -225,7 +225,15 @@ public class MatchdayCommand_Settings_Tests : MatchdayCommandTests_Base
     [Test]
     public async Task Running_matchday_dev_for_supported_dev_community_uses_override_defaults()
     {
-        var ctx = CreateMatchdayCommandApp();
+        var ctx = CreateMatchdayCommandApp(contextDocuments: new Dictionary<string, ContextDocument>
+        {
+            ["fifa-world-cup-2026-standings.csv"] = CreateContextDocument("fifa-world-cup-2026-standings.csv", "standings"),
+            ["community-rules-ehonda-dev-wm26.md"] = CreateContextDocument("community-rules-ehonda-dev-wm26.md", "rules"),
+            ["recent-history-fcb.csv"] = CreateContextDocument("recent-history-fcb.csv", "recent fcb"),
+            ["recent-history-bvb.csv"] = CreateContextDocument("recent-history-bvb.csv", "recent bvb"),
+            ["fifa-ranking-fcb.csv"] = CreateContextDocument("fifa-ranking-fcb.csv", "Rank,Team,ELO,Data_Collected_At\n10,FC Bayern München,1730.37,2026-05-25"),
+            ["fifa-ranking-bvb.csv"] = CreateContextDocument("fifa-ranking-bvb.csv", "Rank,Team,ELO,Data_Collected_At\n11,Borussia Dortmund,1717.07,2026-05-25")
+        });
 
         var (exitCode, output) = await RunCommandAsync(ctx.App, ctx.Console, "matchday-dev", "-c", "ehonda-dev-wm26");
 

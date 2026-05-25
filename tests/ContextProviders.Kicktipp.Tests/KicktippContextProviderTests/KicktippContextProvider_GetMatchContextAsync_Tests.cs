@@ -90,7 +90,7 @@ public class KicktippContextProvider_GetMatchContextAsync_Tests : KicktippContex
     }
 
     [Test]
-    public async Task Getting_world_cup_match_context_returns_configured_documents_only()
+    public async Task Getting_world_cup_match_context_returns_on_demand_documents_only()
     {
         var client = CreateMockKicktippClient();
         var rulesFileProvider = CreateMockCommunityRulesFileProvider(
@@ -98,11 +98,9 @@ public class KicktippContextProvider_GetMatchContextAsync_Tests : KicktippContex
             {
                 ["ehonda-dev-wm26.md"] = TestCommunityRulesContent
             }));
-        var worldCupContextDocumentsFileProvider = CreateMockWorldCupContextDocumentsFileProvider();
         var provider = CreateProvider(
             kicktippClient: EHonda.Optional.Core.Option.Some(client.Object),
             communityRulesFileProvider: EHonda.Optional.Core.Option.Some(rulesFileProvider.Object),
-            worldCupContextDocumentsFileProvider: EHonda.Optional.Core.Option.Some(worldCupContextDocumentsFileProvider.Object),
             community: EHonda.Optional.Core.Option.Some("ehonda-dev-wm26"),
             communityContext: EHonda.Optional.Core.Option.Some("ehonda-dev-wm26"),
             competition: EHonda.Optional.Core.Option.Some(CompetitionIds.FifaWorldCup2026));
@@ -114,36 +112,10 @@ public class KicktippContextProvider_GetMatchContextAsync_Tests : KicktippContex
                 "fifa-world-cup-2026-standings.csv",
                 "community-rules-ehonda-dev-wm26.md",
                 "recent-history-germany.csv",
-                "recent-history-cote-d-ivoire.csv",
-                "fifa-ranking-germany.csv",
-                "fifa-ranking-cote-d-ivoire.csv"
+                "recent-history-cote-d-ivoire.csv"
             ],
             CollectionOrdering.Matching);
         client.Verify(c => c.GetHomeAwayHistoryAsync(It.IsAny<string>(), It.IsAny<string>(), It.IsAny<string>()), Times.Never);
         client.Verify(c => c.GetHeadToHeadDetailedHistoryAsync(It.IsAny<string>(), It.IsAny<string>(), It.IsAny<string>()), Times.Never);
-    }
-
-    [Test]
-    public async Task Getting_world_cup_match_context_reads_fifa_ranking_csv_from_static_files()
-    {
-        var rulesFileProvider = CreateMockCommunityRulesFileProvider(
-            EHonda.Optional.Core.Option.Some(new Dictionary<string, string>
-            {
-                ["ehonda-dev-wm26.md"] = TestCommunityRulesContent
-            }));
-        var worldCupContextDocumentsFileProvider = CreateMockWorldCupContextDocumentsFileProvider();
-        var provider = CreateProvider(
-            communityRulesFileProvider: EHonda.Optional.Core.Option.Some(rulesFileProvider.Object),
-            worldCupContextDocumentsFileProvider: EHonda.Optional.Core.Option.Some(worldCupContextDocumentsFileProvider.Object),
-            community: EHonda.Optional.Core.Option.Some("ehonda-dev-wm26"),
-            communityContext: EHonda.Optional.Core.Option.Some("ehonda-dev-wm26"),
-            competition: EHonda.Optional.Core.Option.Some(CompetitionIds.FifaWorldCup2026));
-
-        var contexts = await ToListAsync(provider.GetMatchContextAsync("Germany", "Cote d'Ivoire"));
-        var germanyRanking = contexts.Single(context => context.Name == "fifa-ranking-germany.csv");
-        var coteDIvoireRanking = contexts.Single(context => context.Name == "fifa-ranking-cote-d-ivoire.csv");
-
-        await Assert.That(germanyRanking.Content).IsEqualToWithNormalizedLineEndings(TestGermanyFifaRankingContent);
-        await Assert.That(coteDIvoireRanking.Content).IsEqualToWithNormalizedLineEndings(TestCoteDIvoireFifaRankingContent);
     }
 }

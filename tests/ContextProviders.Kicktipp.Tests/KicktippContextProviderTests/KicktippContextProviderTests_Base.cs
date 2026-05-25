@@ -17,8 +17,6 @@ public abstract class KicktippContextProviderTests_Base
     protected const string TestCommunity = "ehonda-test-buli";
     protected const string TestHomeTeam = "FC Bayern München";
     protected const string TestAwayTeam = "Borussia Dortmund";
-    protected const string TestGermanyFifaRankingContent = "team,Data_Collected_At,rank,ELO\nGermany,2026-05-24,10,1730.37\n";
-    protected const string TestCoteDIvoireFifaRankingContent = "team,Data_Collected_At,rank,ELO\nCote d'Ivoire,2026-05-24,41,1487.27\n";
     
     protected const string TestCommunityRulesContent = """
         # Kicktipp Community Scoring Rules
@@ -34,14 +32,12 @@ public abstract class KicktippContextProviderTests_Base
     protected static KicktippContextProvider CreateProvider(
         NullableOption<IKicktippClient> kicktippClient = default,
         NullableOption<IFileProvider> communityRulesFileProvider = default,
-        NullableOption<IFileProvider> worldCupContextDocumentsFileProvider = default,
         NullableOption<string> community = default,
         NullableOption<string> communityContext = default,
         NullableOption<string> competition = default)
     {
         var actualKicktippClient = kicktippClient.Or(() => CreateMockKicktippClient().Object);
         var actualCommunityRulesFileProvider = communityRulesFileProvider.Or(() => CreateMockCommunityRulesFileProvider().Object);
-        var actualWorldCupContextDocumentsFileProvider = worldCupContextDocumentsFileProvider.Or(() => CreateMockWorldCupContextDocumentsFileProvider().Object);
         var actualCommunity = community.Or(TestCommunity);
         var actualCommunityContext = communityContext.Or(TestCommunity);
         var actualCompetition = competition.Or(() => null);
@@ -51,8 +47,7 @@ public abstract class KicktippContextProviderTests_Base
             actualCommunityRulesFileProvider!,
             actualCommunity!,
             actualCommunityContext,
-            actualCompetition,
-            worldCupContextDocumentsFileProvider: actualWorldCupContextDocumentsFileProvider!);
+            actualCompetition);
     }
     
     protected static Mock<IFileProvider> CreateMockCommunityRulesFileProvider(
@@ -63,18 +58,6 @@ public abstract class KicktippContextProviderTests_Base
             [$"{TestCommunity}.md"] = TestCommunityRulesContent
         });
         
-        return MockFileProviderHelpers.CreateMockFileProvider(actualFileContents);
-    }
-
-    protected static Mock<IFileProvider> CreateMockWorldCupContextDocumentsFileProvider(
-        Option<Dictionary<string, string>> fileContents = default)
-    {
-        var actualFileContents = fileContents.Or(() => new Dictionary<string, string>
-        {
-            ["fifa-ranking-germany.csv"] = TestGermanyFifaRankingContent,
-            ["fifa-ranking-cote-d-ivoire.csv"] = TestCoteDIvoireFifaRankingContent
-        });
-
         return MockFileProviderHelpers.CreateMockFileProvider(actualFileContents);
     }
 
