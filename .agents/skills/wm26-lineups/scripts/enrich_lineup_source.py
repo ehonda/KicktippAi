@@ -20,7 +20,6 @@ OUTPUT_COLUMNS = [
     "Team_Slug",
     "Team",
     "Data_Collected_At",
-    "Squad_Status",
     "Role",
     "Name",
     "Age",
@@ -31,7 +30,6 @@ REQUIRED_SEED_COLUMNS = [
     "Team_Slug",
     "Team",
     "Data_Collected_At",
-    "Squad_Status",
     "Role",
     "Name",
     "Transfermarkt_National_Team_Id",
@@ -59,14 +57,14 @@ def main(argv: Sequence[str] | None = None) -> int:
     parser.add_argument("--input", required=True, help="Seed CSV path")
     parser.add_argument("--duckdb", required=True, help="Local transfermarkt-datasets DuckDB path")
     parser.add_argument("--output", required=True, help="Enriched source CSV output path")
-    parser.add_argument("--status", choices=sorted(VALID_STATUSES), help="Expected Squad_Status for every row")
+    parser.add_argument("--status", choices=sorted(VALID_STATUSES), help="Workflow source status label")
     args = parser.parse_args(argv)
 
     seed_path = Path(args.input)
     duckdb_path = Path(args.duckdb)
     output_path = Path(args.output)
 
-    rows = read_seed_rows(seed_path, args.status)
+    rows = read_seed_rows(seed_path)
     if not duckdb_path.exists():
         raise SystemExit(f"DuckDB database not found: {duckdb_path}")
 
@@ -78,7 +76,7 @@ def main(argv: Sequence[str] | None = None) -> int:
     return 0
 
 
-def read_seed_rows(input_path: Path, expected_status: str | None) -> list[dict[str, str]]:
+def read_seed_rows(input_path: Path) -> list[dict[str, str]]:
     if not input_path.exists():
         raise SystemExit(f"Seed CSV not found: {input_path}")
 
@@ -94,7 +92,7 @@ def read_seed_rows(input_path: Path, expected_status: str | None) -> list[dict[s
             normalized = {column: (row.get(column) or "").strip() for column in REQUIRED_SEED_COLUMNS}
             for column in OPTIONAL_SEED_COLUMNS:
                 normalized[column] = (row.get(column) or "").strip()
-            validate_seed_row(normalized, expected_status, line_number)
+            validate_seed_row(normalized, line_number)
             rows.append(normalized)
 
     if not rows:
@@ -103,18 +101,10 @@ def read_seed_rows(input_path: Path, expected_status: str | None) -> list[dict[s
     return rows
 
 
-def validate_seed_row(row: dict[str, str], expected_status: str | None, line_number: int) -> None:
-    for column in ["Team_Slug", "Team", "Data_Collected_At", "Squad_Status", "Role"]:
+def validate_seed_row(row: dict[str, str], line_number: int) -> None:
+    for column in ["Team_Slug", "Team", "Data_Collected_At", "Role"]:
         if not row[column]:
             raise SystemExit(f"Line {line_number}: missing {column}")
-
-    status = row["Squad_Status"].lower()
-    if status not in VALID_STATUSES:
-        raise SystemExit(f"Line {line_number}: unsupported Squad_Status {row['Squad_Status']!r}")
-    if expected_status is not None and status != expected_status:
-        raise SystemExit(
-            f"Line {line_number}: Squad_Status is {row['Squad_Status']!r}, expected {expected_status!r}"
-        )
 
     if row["Role"] not in VALID_ROLES:
         raise SystemExit(f"Line {line_number}: unsupported Role {row['Role']!r}")
@@ -153,7 +143,6 @@ def enrich_player_row(connection: duckdb.DuckDBPyConnection, row: dict[str, str]
         "Team_Slug": row["Team_Slug"],
         "Team": row["Team"],
         "Data_Collected_At": row["Data_Collected_At"],
-        "Squad_Status": row["Squad_Status"].lower(),
         "Role": "Player",
         "Name": row["Name"] or player.name,
         "Age": row["Age"] or calculate_age(player.date_of_birth, collected_at),
@@ -174,7 +163,6 @@ def enrich_coach_row(connection: duckdb.DuckDBPyConnection, row: dict[str, str])
         "Team_Slug": row["Team_Slug"],
         "Team": row["Team"],
         "Data_Collected_At": row["Data_Collected_At"],
-        "Squad_Status": row["Squad_Status"].lower(),
         "Role": "Coach",
         "Name": coach_name,
         "Age": row["Age"],

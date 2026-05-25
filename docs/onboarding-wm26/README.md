@@ -99,6 +99,10 @@ WM26 bonus predictions use the aggregate KPI document `fifa-rankings`, generated
 
 Lineup context is also mandatory for WM26. Generate, upload, or copy per-team `lineup-*` context documents and the aggregate `lineups` KPI document with `$wm26-lineups` before running `matchday-dev` or `bonus-dev`. Official FIFA lineup/squad material is the membership source once available; `dcaribou/transfermarkt-datasets` is the only supplemental source for coach, age, position, and market-value data.
 
+Lineup CSV payloads use `Team,Data_Collected_At,Role,Name,Age,Position,Market_Value_EUR`. The workflow still takes a `--status provisional|official` flag for payload descriptions and operator output, but that status is not included in prompt context.
+
+FIFA final squad lists are expected on 2 June 2026, when FIFA announces the submitted final 26-player lists. Until then, generate with `--status provisional`. Once those final FIFA squad lists are available, set up refreshed full-squad `lineup-*` context documents and the `lineups` KPI document with `$wm26-lineups` using `--status official`; WM26 context should contain full squads, not only match starters. See [lineup-source-status.md](lineup-source-status.md) for the current source state.
+
 Collecting live FIFA rankings is required context setup for every WM26 community. The guarded `collect-context-dev` path includes this step automatically after Kicktipp context collection.
 
 Upload the ranking context and KPI documents with:

@@ -13,6 +13,10 @@ Do not run `matchday-dev` until the required `lineup-*` context documents exist 
 
 Use official FIFA lineup or squad material for official membership once available. Use `dcaribou/transfermarkt-datasets` as the only supplemental source for coach, age, position, and market-value data. Use the upstream CC0 DuckDB database from an ignored local path; do not commit the database, source CSVs, generated payloads, or source notes.
 
+Lineup CSV payloads must use `Team,Data_Collected_At,Role,Name,Age,Position,Market_Value_EUR`. The `$wm26-lineups` workflow status remains a command flag and payload-description detail; it must not be written into prompt context as a CSV column.
+
+FIFA final squad lists are expected on 2 June 2026, when FIFA announces the submitted final 26-player lists. Treat earlier squad announcements as provisional. Once the final FIFA squad lists are available, set up refreshed full-squad `lineup-*` context documents and the `lineups` KPI document with `$wm26-lineups` using `--status official`. This workflow keeps full squads in context, not only match starters.
+
 Do not scrape websites for supplemental lineup values in this context.
 
 ## Verification Workflow

@@ -35,6 +35,8 @@ dotnet run --project src/Orchestrator -- collect-context fifa --community-contex
 
 Every WM26 community needs per-team `lineup-*` context documents and the aggregate `lineups` KPI document before prediction validation. Use official FIFA lineup/squad material for membership once available, and use the CC0 `dcaribou/transfermarkt-datasets` DuckDB database as the only supplemental source.
 
+FIFA final squad lists are expected on 2 June 2026, when FIFA announces the submitted final 26-player lists. Treat earlier squad announcements as provisional. Once those final FIFA squad lists are available, regenerate, enrich, and upload/copy the full-squad `lineup-*` context documents and `lineups` KPI document with `$wm26-lineups` using `--status official`. Keep full squads in context; do not switch this workflow to match-starter-only lineups.
+
 Do not run `matchday-dev` until every match team has its required `lineup-{team}.csv` context document. Do not run `bonus-dev` until the `lineups` KPI document exists.
 
 5. Apply the canonical recent-history date map.
@@ -55,7 +57,7 @@ dotnet run --project src/Orchestrator -- bonus-dev -c ehonda-dev-wm26 --verbose
 Acceptance checks:
 - `matchday-dev` finds all required context documents in Firestore with no on-demand fallback warning, including the two participating teams' `lineup-*` docs.
 - `bonus-dev` includes KPI context document `fifa-rankings` and includes `lineups` only for the exact top-scorer-team question.
-- Langfuse traces show hosted prompts, `langfusePromptFallback=false`, `openaiReasoningEffort=minimal`, ranking context containing `Rank,Team,ELO,Data_Collected_At`, and lineup context containing `Team,Data_Collected_At,Squad_Status,Role,Name,Age,Position,Market_Value_EUR`.
+- Langfuse traces show hosted prompts, `langfusePromptFallback=false`, `openaiReasoningEffort=minimal`, ranking context containing `Rank,Team,ELO,Data_Collected_At`, and lineup context containing `Team,Data_Collected_At,Role,Name,Age,Position,Market_Value_EUR`.
 
 7. Inspect Langfuse traces with the repository Langfuse workflow.
    - Use the global `langfuse` skill and installed `langfuse` CLI.
@@ -78,4 +80,4 @@ Acceptance checks:
 
 FIFA ranking CSV payloads must use `Rank,Team,ELO,Data_Collected_At`, format points with two decimal places, and must not contain empty `Data_Collected_At` values.
 
-Lineup CSV payloads must use `Team,Data_Collected_At,Squad_Status,Role,Name,Age,Position,Market_Value_EUR`, must include coaches, must use `N/A` instead of `0` for unavailable player market values, and must leave coach market values empty.
+Lineup CSV payloads must use `Team,Data_Collected_At,Role,Name,Age,Position,Market_Value_EUR`, must include coaches, must use `N/A` instead of `0` for unavailable player market values, and must leave coach market values empty.

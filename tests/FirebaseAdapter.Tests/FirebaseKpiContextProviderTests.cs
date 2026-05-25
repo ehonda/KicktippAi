@@ -14,9 +14,9 @@ public class FirebaseKpiContextProviderTests
 {
     private const string TopScorerTeamQuestion = "Welche Mannschaft stellt den Spieler mit den meisten Toren?";
     private const string FictionalLineupsContent =
-        "Team,Data_Collected_At,Squad_Status,Role,Name,Age,Position,Market_Value_EUR\n" +
-        "Exampleland,2026-05-25,provisional,Player,Alex Example,24,Forward,1000000\n" +
-        "Exampleland,2026-05-25,provisional,Coach,Casey Sample,51,Coach,";
+        "Team,Data_Collected_At,Role,Name,Age,Position,Market_Value_EUR\n" +
+        "Exampleland,2026-05-25,Player,Alex Example,24,Forward,1000000\n" +
+        "Exampleland,2026-05-25,Coach,Casey Sample,51,Coach,";
 
     /// <summary>
     /// Creates a FirebaseKpiContextProvider instance with optional dependency overrides.

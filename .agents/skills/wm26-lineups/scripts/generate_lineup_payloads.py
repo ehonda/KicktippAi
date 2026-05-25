@@ -15,7 +15,6 @@ from typing import Iterable, Sequence
 OUTPUT_COLUMNS = [
     "Team",
     "Data_Collected_At",
-    "Squad_Status",
     "Role",
     "Name",
     "Age",
@@ -37,7 +36,7 @@ def main(argv: Sequence[str] | None = None) -> int:
     args = parser.parse_args(argv)
 
     input_path = Path(args.input)
-    rows = read_rows(input_path, args.status)
+    rows = read_rows(input_path)
     grouped = group_by_slug(rows)
     validate_coaches(grouped)
 
@@ -79,7 +78,7 @@ def main(argv: Sequence[str] | None = None) -> int:
     return 0
 
 
-def read_rows(input_path: Path, expected_status: str) -> list[dict[str, str]]:
+def read_rows(input_path: Path) -> list[dict[str, str]]:
     if not input_path.exists():
         raise SystemExit(f"Input CSV not found: {input_path}")
 
@@ -92,7 +91,7 @@ def read_rows(input_path: Path, expected_status: str) -> list[dict[str, str]]:
         rows = []
         for line_number, row in enumerate(reader, start=2):
             normalized = {column: (row.get(column) or "").strip() for column in SOURCE_COLUMNS}
-            validate_row(normalized, expected_status, line_number)
+            validate_row(normalized, line_number)
             rows.append(normalized)
 
     if not rows:
@@ -101,21 +100,12 @@ def read_rows(input_path: Path, expected_status: str) -> list[dict[str, str]]:
     return rows
 
 
-def validate_row(row: dict[str, str], expected_status: str, line_number: int) -> None:
+def validate_row(row: dict[str, str], line_number: int) -> None:
     for column in SOURCE_COLUMNS:
         if row["Role"] == "Coach" and column in {"Age", "Market_Value_EUR"}:
             continue
         if not row[column]:
             raise SystemExit(f"Line {line_number}: missing {column}")
-
-    status = row["Squad_Status"].lower()
-    if status != expected_status:
-        raise SystemExit(
-            f"Line {line_number}: Squad_Status is {row['Squad_Status']!r}, expected {expected_status!r}"
-        )
-
-    if status not in VALID_STATUSES:
-        raise SystemExit(f"Line {line_number}: unsupported Squad_Status {row['Squad_Status']!r}")
 
     if row["Role"] not in VALID_ROLES:
         raise SystemExit(f"Line {line_number}: unsupported Role {row['Role']!r}")

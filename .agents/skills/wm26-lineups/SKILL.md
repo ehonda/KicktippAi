@@ -10,15 +10,15 @@ description: Generate, enrich, upload, or copy FIFA World Cup 2026 lineup contex
 - Keep source notes, seed CSVs, local DuckDB files, and generated artifacts under ignored paths such as `.agents/skills/wm26-lineups/private/` or `.agents/skills/wm26-lineups/artifacts/`.
 - Do not commit source CSVs, downloaded DuckDB databases, generated JSON payloads, or source notes.
 - Use official FIFA final squad/lineup material once available. Until then, use provisional squad material.
+- FIFA final squad lists are expected on 2 June 2026, when FIFA announces the submitted final 26-player lists. Once available, regenerate full-squad context with `--status official`; do not reduce context to match starters only.
 - Use `dcaribou/transfermarkt-datasets` as the only supplemental source for coach, age, position, and market-value data. Use its CC0 DuckDB database artifact; do not scrape websites for supplemental values.
 - Always include coaches as `Role=Coach`.
 - Use only this output CSV schema:
-  `Team,Data_Collected_At,Squad_Status,Role,Name,Age,Position,Market_Value_EUR`
+  `Team,Data_Collected_At,Role,Name,Age,Position,Market_Value_EUR`
 - Do not include source URLs, Transfermarkt IDs, or helper columns in generated context/KPI CSV content.
 - Render CSV content with exactly one header row, one record per line, CRLF line endings, and a final trailing line ending.
 - Render player `Market_Value_EUR` values with dot thousands separators, for example `15.000.000`.
 - Use `N/A` for unavailable player market values, never `0`; leave coach market values empty.
-- `Squad_Status` must be exactly `provisional` or `official`.
 - `Role` must be exactly `Player` or `Coach`.
 - After every run, print exactly one clear final status line:
   `Lineup source status: provisional`
@@ -39,7 +39,7 @@ Use this when FIFA/provisional lineup membership needs supplemental values from 
    - Recommended database URL from upstream README: `https://pub-e682421888d945d684bcae8890b0ec20.r2.dev/data/transfermarkt-datasets.duckdb`
 
 2. Prepare a seed CSV with FIFA/provisional membership:
-   `Team_Slug,Team,Data_Collected_At,Squad_Status,Role,Name,Transfermarkt_National_Team_Id,Transfermarkt_Player_Id`
+   `Team_Slug,Team,Data_Collected_At,Role,Name,Transfermarkt_National_Team_Id,Transfermarkt_Player_Id`
 
    Prefer `Transfermarkt_Player_Id` for each player. If it is blank, the enrichment script matches by normalized `Name` within `current_national_team_id`; missing or ambiguous matches are hard failures.
 
@@ -63,7 +63,7 @@ Use this when enriched lineup source material should become Firestore context.
    `.agents/skills/wm26-lineups/private/input/lineups.csv`
 
    The source CSV must contain the output schema plus one grouping column:
-   `Team_Slug,Team,Data_Collected_At,Squad_Status,Role,Name,Age,Position,Market_Value_EUR`
+   `Team_Slug,Team,Data_Collected_At,Role,Name,Age,Position,Market_Value_EUR`
 
    `Team_Slug` becomes the Firestore context document suffix, for example `lineup-germany.csv`.
 
@@ -110,7 +110,7 @@ dotnet run --project src\Orchestrator -- copy-firestore-context `
   --kpi-document lineups
 ```
 
-The command copies latest `lineup-*` context docs and the `lineups` KPI doc, validates that all copied CSV rows have a single consistent `Squad_Status`, and prints the final lineup source status. Treat missing source docs, missing KPI docs, or mixed statuses as hard failures.
+The command copies latest `lineup-*` context docs and the `lineups` KPI doc. Treat missing source docs or missing KPI docs as hard failures.
 
 For planning without writes, add `--dry-run`.
 

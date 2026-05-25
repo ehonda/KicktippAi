@@ -114,7 +114,7 @@ class GenerateLineupPayloadsTests(unittest.TestCase):
             )
 
             with self.assertRaises(SystemExit) as context:
-                generate.read_rows(source, "provisional")
+                generate.read_rows(source)
 
             self.assertIn("Market_Value_EUR must use N/A instead of 0", str(context.exception))
 
@@ -154,7 +154,8 @@ class GenerateLineupPayloadsTests(unittest.TestCase):
             self.assertTrue(content.endswith("\r\n"))
             self.assertIn("15.000.000", content)
             self.assertIn("N/A", content)
-            self.assertIn("Exampleland,2026-05-25,provisional,Coach,Coach One,,Coach,", content)
+            self.assertIn("Exampleland,2026-05-25,Coach,Coach One,,Coach,", content)
+            self.assertNotIn("Squad_Status", content)
             self.assertNotIn("Transfermarkt_Player_Id", content)
 
 
@@ -211,7 +212,6 @@ def seed_row(
         "Team_Slug": "exampleland",
         "Team": "Exampleland",
         "Data_Collected_At": "2026-05-25",
-        "Squad_Status": "provisional",
         "Role": role,
         "Name": name,
         "Transfermarkt_National_Team_Id": national_team_id,
@@ -228,7 +228,6 @@ def generator_row(role: str, name: str, age: str, position: str, market_value: s
         "Team_Slug": "exampleland",
         "Team": "Exampleland",
         "Data_Collected_At": "2026-05-25",
-        "Squad_Status": "provisional",
         "Role": role,
         "Name": name,
         "Age": age,

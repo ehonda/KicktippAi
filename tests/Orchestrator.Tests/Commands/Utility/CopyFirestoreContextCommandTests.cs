@@ -16,19 +16,14 @@ namespace Orchestrator.Tests.Commands.Utility;
 public class CopyFirestoreContextCommandTests
 {
     private const string ExamplelandLineup =
-        "Team,Data_Collected_At,Squad_Status,Role,Name,Age,Position,Market_Value_EUR\n" +
-        "Exampleland,2026-05-25,provisional,Player,Alex Example,24,Forward,1000000\n" +
-        "Exampleland,2026-05-25,provisional,Coach,Casey Sample,51,Coach,";
+        "Team,Data_Collected_At,Role,Name,Age,Position,Market_Value_EUR\n" +
+        "Exampleland,2026-05-25,Player,Alex Example,24,Forward,1000000\n" +
+        "Exampleland,2026-05-25,Coach,Casey Sample,51,Coach,";
 
     private const string SampleIslesLineup =
-        "Team,Data_Collected_At,Squad_Status,Role,Name,Age,Position,Market_Value_EUR\n" +
-        "Sample Isles,2026-05-25,provisional,Player,Jordan Sample,26,Midfielder,800000\n" +
-        "Sample Isles,2026-05-25,provisional,Coach,Riley Fiction,48,Coach,";
-
-    private const string OfficialLineup =
-        "Team,Data_Collected_At,Squad_Status,Role,Name,Age,Position,Market_Value_EUR\n" +
-        "Exampleland,2026-05-25,official,Player,Alex Example,24,Forward,1000000\n" +
-        "Exampleland,2026-05-25,official,Coach,Casey Sample,51,Coach,";
+        "Team,Data_Collected_At,Role,Name,Age,Position,Market_Value_EUR\n" +
+        "Sample Isles,2026-05-25,Player,Jordan Sample,26,Midfielder,800000\n" +
+        "Sample Isles,2026-05-25,Coach,Riley Fiction,48,Coach,";
 
     private static (CommandApp App, TestConsole Console, Mock<IContextRepository> ContextRepository, Mock<IKpiRepository> KpiRepository)
         CreateCopyCommandApp(Mock<IContextRepository> contextRepository, Mock<IKpiRepository> kpiRepository)
@@ -65,8 +60,6 @@ public class CopyFirestoreContextCommandTests
 
         await Assert.That(exitCode).IsEqualTo(0);
         await Assert.That(console.Output).Contains("Copied 2 context document(s) and 1 KPI document(s)");
-        await Assert.That(console.Output).Contains("Lineup source status:");
-        await Assert.That(console.Output).Contains("provisional");
         contextRepository.Verify(r => r.SaveContextDocumentAsync(
             It.Is<string>(name => name.StartsWith("lineup-", StringComparison.Ordinal)),
             It.IsAny<string>(),
@@ -123,35 +116,6 @@ public class CopyFirestoreContextCommandTests
         await Assert.That(exitCode).IsEqualTo(1);
         await Assert.That(console.Output).Contains("No source context documents found");
         await Assert.That(console.Output).Contains("Missing source KPI document: lineups");
-        contextRepository.Verify(r => r.SaveContextDocumentAsync(
-            It.IsAny<string>(),
-            It.IsAny<string>(),
-            It.IsAny<string>(),
-            It.IsAny<CancellationToken>()), Times.Never);
-        kpiRepository.Verify(r => r.SaveKpiDocumentAsync(
-            It.IsAny<string>(),
-            It.IsAny<string>(),
-            It.IsAny<string>(),
-            It.IsAny<string>(),
-            It.IsAny<CancellationToken>()), Times.Never);
-    }
-
-    [Test]
-    public async Task Mixed_lineup_status_fails_without_writes()
-    {
-        var contextDocuments = new Dictionary<string, ContextDocument>
-        {
-            ["lineup-exampleland.csv"] = CreateContextDocument("lineup-exampleland.csv", ExamplelandLineup),
-            ["lineup-sample-isles.csv"] = CreateContextDocument("lineup-sample-isles.csv", OfficialLineup)
-        };
-        var contextRepository = CreateContextRepository(contextDocuments);
-        var kpiRepository = CreateLineupsKpiRepository(ExamplelandLineup);
-        var (app, console, _, _) = CreateCopyCommandApp(contextRepository, kpiRepository);
-
-        var exitCode = await RunLineupCopyAsync(app);
-
-        await Assert.That(exitCode).IsEqualTo(1);
-        await Assert.That(console.Output).Contains("Mixed Squad_Status values");
         contextRepository.Verify(r => r.SaveContextDocumentAsync(
             It.IsAny<string>(),
             It.IsAny<string>(),

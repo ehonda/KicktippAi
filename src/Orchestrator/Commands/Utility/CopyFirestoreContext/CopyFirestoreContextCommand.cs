@@ -1,4 +1,3 @@
-using System.Text;
 using EHonda.KicktippAi.Core;
 using Microsoft.Extensions.Logging;
 using Orchestrator.Infrastructure;
@@ -10,10 +9,6 @@ namespace Orchestrator.Commands.Utility.CopyFirestoreContext;
 
 public sealed class CopyFirestoreContextCommand : AsyncCommand<CopyFirestoreContextSettings>
 {
-    private const string LineupPrefix = "lineup-";
-    private const string LineupsKpiDocumentName = "lineups";
-    private const string SquadStatusColumn = "Squad_Status";
-
     private readonly IAnsiConsole _console;
     private readonly IFirebaseServiceFactory _firebaseServiceFactory;
     private readonly ILogger<CopyFirestoreContextCommand> _logger;
@@ -75,13 +70,6 @@ public sealed class CopyFirestoreContextCommand : AsyncCommand<CopyFirestoreCont
                 return 1;
             }
 
-            var lineupStatus = ValidateLineupStatusIfNeeded(prefixes, kpiDocumentNames, sourceContextDocuments.Documents, sourceKpiDocuments.Documents);
-            if (lineupStatus.ValidationError is not null)
-            {
-                _console.MarkupLine($"[red]{lineupStatus.ValidationError}[/]");
-                return 1;
-            }
-
             if (settings.Verbose)
             {
                 foreach (var document in sourceContextDocuments.Documents)
@@ -98,7 +86,6 @@ public sealed class CopyFirestoreContextCommand : AsyncCommand<CopyFirestoreCont
             if (settings.DryRun)
             {
                 _console.MarkupLine($"[magenta]Would copy {sourceContextDocuments.Documents.Count} context document(s) and {sourceKpiDocuments.Documents.Count} KPI document(s)[/]");
-                PrintLineupStatus(lineupStatus.Status);
                 return 0;
             }
 
@@ -140,7 +127,6 @@ public sealed class CopyFirestoreContextCommand : AsyncCommand<CopyFirestoreCont
                 _console.MarkupLine($"[dim]Unchanged context document(s): {unchangedContextCount}[/]");
             }
 
-            PrintLineupStatus(lineupStatus.Status);
             return 0;
         }
         catch (Exception ex)
@@ -226,161 +212,11 @@ public sealed class CopyFirestoreContextCommand : AsyncCommand<CopyFirestoreCont
         return new KpiLoadResult(documents, missingMessages);
     }
 
-    private static LineupStatusValidationResult ValidateLineupStatusIfNeeded(
-        IReadOnlyList<string> prefixes,
-        IReadOnlyList<string> kpiDocumentNames,
-        IReadOnlyList<ContextDocument> contextDocuments,
-        IReadOnlyList<KpiDocument> kpiDocuments)
-    {
-        var shouldValidate = prefixes.Any(prefix => string.Equals(prefix, LineupPrefix, StringComparison.OrdinalIgnoreCase))
-                             || kpiDocumentNames.Any(name => string.Equals(name, LineupsKpiDocumentName, StringComparison.OrdinalIgnoreCase));
-        if (!shouldValidate)
-        {
-            return new LineupStatusValidationResult(null, null);
-        }
-
-        var statuses = new HashSet<string>(StringComparer.OrdinalIgnoreCase);
-        foreach (var document in contextDocuments)
-        {
-            var result = ExtractSquadStatuses(document.Content);
-            if (result.Error is not null)
-            {
-                return new LineupStatusValidationResult(null, $"{document.DocumentName}: {result.Error}");
-            }
-
-            foreach (var status in result.Statuses)
-            {
-                statuses.Add(status);
-            }
-        }
-
-        foreach (var document in kpiDocuments.Where(document =>
-                     string.Equals(document.DocumentName, LineupsKpiDocumentName, StringComparison.OrdinalIgnoreCase)))
-        {
-            var result = ExtractSquadStatuses(document.Content);
-            if (result.Error is not null)
-            {
-                return new LineupStatusValidationResult(null, $"{document.DocumentName}: {result.Error}");
-            }
-
-            foreach (var status in result.Statuses)
-            {
-                statuses.Add(status);
-            }
-        }
-
-        if (statuses.Count == 0)
-        {
-            return new LineupStatusValidationResult(null, "No Squad_Status values found in copied lineup documents");
-        }
-
-        if (statuses.Count > 1)
-        {
-            return new LineupStatusValidationResult(null, $"Mixed Squad_Status values found in copied lineup documents: {string.Join(", ", statuses.OrderBy(status => status, StringComparer.OrdinalIgnoreCase))}");
-        }
-
-        var statusValue = statuses.Single().ToLowerInvariant();
-        if (statusValue is not "provisional" and not "official")
-        {
-            return new LineupStatusValidationResult(null, $"Unsupported Squad_Status value '{statusValue}' in copied lineup documents");
-        }
-
-        return new LineupStatusValidationResult(statusValue, null);
-    }
-
-    private static SquadStatusExtractionResult ExtractSquadStatuses(string content)
-    {
-        using var reader = new StringReader(content);
-        var headerLine = reader.ReadLine();
-        if (string.IsNullOrWhiteSpace(headerLine))
-        {
-            return new SquadStatusExtractionResult([], "CSV content is empty");
-        }
-
-        var header = ParseCsvLine(headerLine);
-        var statusIndex = header.FindIndex(column => string.Equals(column, SquadStatusColumn, StringComparison.OrdinalIgnoreCase));
-        if (statusIndex < 0)
-        {
-            return new SquadStatusExtractionResult([], $"CSV header is missing {SquadStatusColumnForMessage()}");
-        }
-
-        var statuses = new List<string>();
-        string? line;
-        var lineNumber = 1;
-        while ((line = reader.ReadLine()) is not null)
-        {
-            lineNumber++;
-            if (string.IsNullOrWhiteSpace(line))
-            {
-                continue;
-            }
-
-            var fields = ParseCsvLine(line);
-            if (statusIndex >= fields.Count || string.IsNullOrWhiteSpace(fields[statusIndex]))
-            {
-                return new SquadStatusExtractionResult([], $"Missing {SquadStatusColumnForMessage()} value at line {lineNumber}");
-            }
-
-            statuses.Add(fields[statusIndex].Trim());
-        }
-
-        return new SquadStatusExtractionResult(statuses, null);
-    }
-
-    private static List<string> ParseCsvLine(string line)
-    {
-        var fields = new List<string>();
-        var builder = new StringBuilder();
-        var inQuotes = false;
-
-        for (var i = 0; i < line.Length; i++)
-        {
-            var current = line[i];
-            if (current == '"')
-            {
-                if (inQuotes && i + 1 < line.Length && line[i + 1] == '"')
-                {
-                    builder.Append('"');
-                    i++;
-                }
-                else
-                {
-                    inQuotes = !inQuotes;
-                }
-            }
-            else if (current == ',' && !inQuotes)
-            {
-                fields.Add(builder.ToString());
-                builder.Clear();
-            }
-            else
-            {
-                builder.Append(current);
-            }
-        }
-
-        fields.Add(builder.ToString());
-        return fields;
-    }
-
     private static IReadOnlyList<string> SplitCsvOption(string? value)
     {
         return string.IsNullOrWhiteSpace(value)
             ? []
             : value.Split(',', StringSplitOptions.TrimEntries | StringSplitOptions.RemoveEmptyEntries);
-    }
-
-    private void PrintLineupStatus(string? status)
-    {
-        if (!string.IsNullOrWhiteSpace(status))
-        {
-            _console.MarkupLine($"[green]Lineup source status:[/] {status}");
-        }
-    }
-
-    private static string SquadStatusColumnForMessage()
-    {
-        return SquadStatusColumn;
     }
 
     private sealed record ContextLoadResult(
@@ -390,12 +226,4 @@ public sealed class CopyFirestoreContextCommand : AsyncCommand<CopyFirestoreCont
     private sealed record KpiLoadResult(
         IReadOnlyList<KpiDocument> Documents,
         IReadOnlyList<string> MissingMessages);
-
-    private sealed record LineupStatusValidationResult(
-        string? Status,
-        string? ValidationError);
-
-    private sealed record SquadStatusExtractionResult(
-        IReadOnlyList<string> Statuses,
-        string? Error);
 }
