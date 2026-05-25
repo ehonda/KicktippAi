@@ -20,7 +20,9 @@ public class MatchContextDocumentCatalogTests
                 "recent-history-germany.csv",
                 "recent-history-cote-d-ivoire.csv",
                 "fifa-ranking-germany.csv",
-                "fifa-ranking-cote-d-ivoire.csv"
+                "fifa-ranking-cote-d-ivoire.csv",
+                "lineup-germany.csv",
+                "lineup-cote-d-ivoire.csv"
             ]);
         await Assert.That(selection.OptionalDocumentNames).IsEmpty();
     }
@@ -54,6 +56,8 @@ public class MatchContextDocumentCatalogTests
         await Assert.That(selection.RequiredDocumentNames).Contains("recent-history-cote-d-ivoire.csv");
         await Assert.That(selection.RequiredDocumentNames).Contains("fifa-ranking-germany.csv");
         await Assert.That(selection.RequiredDocumentNames).Contains("fifa-ranking-cote-d-ivoire.csv");
+        await Assert.That(selection.RequiredDocumentNames).Contains("lineup-germany.csv");
+        await Assert.That(selection.RequiredDocumentNames).Contains("lineup-cote-d-ivoire.csv");
         await Assert.That(selection.RequiredDocumentNames).DoesNotContain("head-to-head-germany-vs-cote-d-ivoire.csv");
         await Assert.That(selection.OptionalDocumentNames).IsEmpty();
     }

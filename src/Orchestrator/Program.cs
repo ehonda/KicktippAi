@@ -21,7 +21,9 @@ using Orchestrator.Commands.Observability.PrepareSlice;
 using Orchestrator.Commands.Observability.ReconstructPrompt;
 using Orchestrator.Commands.Observability.SyncDataset;
 using Orchestrator.Commands.Utility.UploadKpi;
+using Orchestrator.Commands.Utility.UploadContext;
 using Orchestrator.Commands.Utility.UploadTransfers;
+using Orchestrator.Commands.Utility.CopyFirestoreContext;
 using Orchestrator.Commands.Utility.ListKpi;
 using Orchestrator.Commands.Utility.Snapshots;
 using Orchestrator.Infrastructure;
@@ -170,7 +172,26 @@ public class Program
             config.AddCommand<UploadKpiCommand>("upload-kpi")
                 .WithDescription("Upload a KPI context document to Firebase")
                 .WithExample("upload-kpi", "team-data", "--community", "ehonda-test-buli");
-            
+
+            config.AddCommand<UploadContextCommand>("upload-context")
+                .WithDescription("Upload a generic context document JSON to Firebase")
+                .WithExample("upload-context", "--input", "lineup-exampleland.csv.json", "--competition", "fifa-world-cup-2026");
+
+            config.AddCommand<CopyFirestoreContextCommand>("copy-firestore-context")
+                .WithDescription("Copy Firestore context and KPI documents between community contexts")
+                .WithExample(
+                    "copy-firestore-context",
+                    "--source-community-context",
+                    "ehonda-dev-wm26",
+                    "--target-community-context",
+                    "new-wm26-community",
+                    "--competition",
+                    "fifa-world-cup-2026",
+                    "--context-prefix",
+                    "lineup-",
+                    "--kpi-document",
+                    "lineups");
+
             config.AddCommand<UploadTransfersCommand>("upload-transfers")
                 .WithDescription("Upload a transfers context document to Firebase (team transfers CSV)")
                 .WithExample("upload-transfers", "fcb", "--community-context", "ehonda-test-buli");

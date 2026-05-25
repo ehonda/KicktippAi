@@ -12,6 +12,12 @@ namespace FirebaseAdapter.Tests;
 /// </summary>
 public class FirebaseKpiContextProviderTests
 {
+    private const string TopScorerTeamQuestion = "Welche Mannschaft stellt den Spieler mit den meisten Toren?";
+    private const string FictionalLineupsContent =
+        "Team,Data_Collected_At,Squad_Status,Role,Name,Age,Position,Market_Value_EUR\n" +
+        "Exampleland,2026-05-25,provisional,Player,Alex Example,24,Forward,1000000\n" +
+        "Exampleland,2026-05-25,provisional,Coach,Casey Sample,51,Coach,";
+
     /// <summary>
     /// Creates a FirebaseKpiContextProvider instance with optional dependency overrides.
     /// </summary>
@@ -148,6 +154,61 @@ public class FirebaseKpiContextProviderTests
         // Assert
         await Assert.That(contexts).IsEquivalentTo(
             [new DocumentContext("fifa-rankings", "Rank,Team,ELO,Data_Collected_At\n8,Marokko,1755.87,2026-05-25")]);
+    }
+
+    [Test]
+    public async Task GetBonusQuestionContextAsync_includes_lineups_for_exact_top_scorer_team_question()
+    {
+        // Arrange
+        var mockRepo = new Mock<IKpiRepository>();
+        mockRepo.Setup(r => r.GetAllKpiDocumentsAsync("test-community", It.IsAny<CancellationToken>()))
+            .ReturnsAsync(new List<KpiDocument>
+            {
+                new("team-data", "team content", "desc", 0, DateTimeOffset.UtcNow),
+                new("lineups", FictionalLineupsContent, "desc", 0, DateTimeOffset.UtcNow),
+                new("manager-data", "manager content", "desc", 0, DateTimeOffset.UtcNow)
+            });
+
+        var provider = CreateProvider(mockRepo);
+
+        // Act
+        var contexts = new List<DocumentContext>();
+        await foreach (var context in provider.GetBonusQuestionContextAsync(TopScorerTeamQuestion, "test-community"))
+        {
+            contexts.Add(context);
+        }
+
+        // Assert
+        await Assert.That(contexts).IsEquivalentTo(
+            [
+                new DocumentContext("team-data", "team content"),
+                new DocumentContext("lineups", FictionalLineupsContent)
+            ]);
+    }
+
+    [Test]
+    public async Task GetBonusQuestionContextAsync_excludes_lineups_for_non_exact_top_scorer_team_question()
+    {
+        // Arrange
+        var mockRepo = new Mock<IKpiRepository>();
+        mockRepo.Setup(r => r.GetAllKpiDocumentsAsync("test-community", It.IsAny<CancellationToken>()))
+            .ReturnsAsync(new List<KpiDocument>
+            {
+                new("team-data", "team content", "desc", 0, DateTimeOffset.UtcNow),
+                new("lineups", FictionalLineupsContent, "desc", 0, DateTimeOffset.UtcNow)
+            });
+
+        var provider = CreateProvider(mockRepo);
+
+        // Act
+        var contexts = new List<DocumentContext>();
+        await foreach (var context in provider.GetBonusQuestionContextAsync($"{TopScorerTeamQuestion} ", "test-community"))
+        {
+            contexts.Add(context);
+        }
+
+        // Assert
+        await Assert.That(contexts).IsEquivalentTo([new DocumentContext("team-data", "team content")]);
     }
 
     [Test]

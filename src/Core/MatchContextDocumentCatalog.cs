@@ -13,6 +13,7 @@ public static class MatchContextDocumentCatalog
         bool IncludeCommunityRules,
         bool IncludeRecentHistory,
         bool IncludeFifaRankings,
+        bool IncludeLineups,
         bool IncludeHomeAwayHistory,
         bool IncludeHeadToHead,
         bool IncludeTransfers);
@@ -21,6 +22,7 @@ public static class MatchContextDocumentCatalog
         IncludeCommunityRules: true,
         IncludeRecentHistory: true,
         IncludeFifaRankings: false,
+        IncludeLineups: false,
         IncludeHomeAwayHistory: true,
         IncludeHeadToHead: true,
         IncludeTransfers: true);
@@ -29,6 +31,7 @@ public static class MatchContextDocumentCatalog
         IncludeCommunityRules: true,
         IncludeRecentHistory: true,
         IncludeFifaRankings: true,
+        IncludeLineups: true,
         IncludeHomeAwayHistory: false,
         IncludeHeadToHead: false,
         IncludeTransfers: false);
@@ -95,6 +98,12 @@ public static class MatchContextDocumentCatalog
             requiredDocuments.Add(GetFifaRankingDocumentName(awayTeam));
         }
 
+        if (policy.IncludeLineups)
+        {
+            requiredDocuments.Add(GetLineupDocumentName(homeTeam));
+            requiredDocuments.Add(GetLineupDocumentName(awayTeam));
+        }
+
         if (policy.IncludeHomeAwayHistory)
         {
             requiredDocuments.Add($"home-history-{homeAbbreviation}.csv");
@@ -155,6 +164,13 @@ public static class MatchContextDocumentCatalog
         ArgumentException.ThrowIfNullOrWhiteSpace(teamName);
 
         return $"fifa-ranking-{GetTeamAbbreviation(teamName)}.csv";
+    }
+
+    public static string GetLineupDocumentName(string teamName)
+    {
+        ArgumentException.ThrowIfNullOrWhiteSpace(teamName);
+
+        return $"lineup-{GetTeamAbbreviation(teamName)}.csv";
     }
 
     public static string GetTeamAbbreviation(string teamName)

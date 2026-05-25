@@ -232,7 +232,9 @@ public class MatchdayCommand_Settings_Tests : MatchdayCommandTests_Base
             ["recent-history-fcb.csv"] = CreateContextDocument("recent-history-fcb.csv", "recent fcb"),
             ["recent-history-bvb.csv"] = CreateContextDocument("recent-history-bvb.csv", "recent bvb"),
             ["fifa-ranking-fcb.csv"] = CreateContextDocument("fifa-ranking-fcb.csv", "Rank,Team,ELO,Data_Collected_At\n10,FC Bayern München,1730.37,2026-05-25"),
-            ["fifa-ranking-bvb.csv"] = CreateContextDocument("fifa-ranking-bvb.csv", "Rank,Team,ELO,Data_Collected_At\n11,Borussia Dortmund,1717.07,2026-05-25")
+            ["fifa-ranking-bvb.csv"] = CreateContextDocument("fifa-ranking-bvb.csv", "Rank,Team,ELO,Data_Collected_At\n11,Borussia Dortmund,1717.07,2026-05-25"),
+            ["lineup-fcb.csv"] = CreateContextDocument("lineup-fcb.csv", "Team,Data_Collected_At,Squad_Status,Role,Name,Age,Position,Market_Value_EUR\nMock Home,2026-05-25,provisional,Player,Home Example,24,Forward,1000000\nMock Home,2026-05-25,provisional,Coach,Home Coach,51,Coach,"),
+            ["lineup-bvb.csv"] = CreateContextDocument("lineup-bvb.csv", "Team,Data_Collected_At,Squad_Status,Role,Name,Age,Position,Market_Value_EUR\nMock Away,2026-05-25,provisional,Player,Away Example,25,Forward,900000\nMock Away,2026-05-25,provisional,Coach,Away Coach,52,Coach,")
         });
 
         var (exitCode, output) = await RunCommandAsync(ctx.App, ctx.Console, "matchday-dev", "-c", "ehonda-dev-wm26");

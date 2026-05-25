@@ -560,6 +560,34 @@ public static class ServiceRegistrationExtensions
     }
 
     /// <summary>
+    /// Registers services specific to the UploadContextCommand.
+    /// </summary>
+    public static IServiceCollection AddUploadContextCommandServices(
+        this IServiceCollection services,
+        LogLevel minimumLogLevel = LogLevel.Information)
+    {
+        services.AddOrchestratorInfrastructure(minimumLogLevel);
+
+        // UploadContextCommand needs Firebase (IContextRepository).
+
+        return services;
+    }
+
+    /// <summary>
+    /// Registers services specific to the CopyFirestoreContextCommand.
+    /// </summary>
+    public static IServiceCollection AddCopyFirestoreContextCommandServices(
+        this IServiceCollection services,
+        LogLevel minimumLogLevel = LogLevel.Information)
+    {
+        services.AddOrchestratorInfrastructure(minimumLogLevel);
+
+        // CopyFirestoreContextCommand needs Firebase (IContextRepository, IKpiRepository).
+
+        return services;
+    }
+
+    /// <summary>
     /// Registers services specific to the AnalyzeMatchDetailedCommand.
     /// </summary>
     public static IServiceCollection AddAnalyzeMatchDetailedCommandServices(
@@ -616,6 +644,8 @@ public static class ServiceRegistrationExtensions
         services.AddWm26RecentHistoryCommandServices(minimumLogLevel);
         services.AddContextChangesCommandServices(minimumLogLevel);
         services.AddUploadTransfersCommandServices(minimumLogLevel);
+        services.AddUploadContextCommandServices(minimumLogLevel);
+        services.AddCopyFirestoreContextCommandServices(minimumLogLevel);
         services.AddAnalyzeMatchDetailedCommandServices(minimumLogLevel);
         services.AddAnalyzeMatchComparisonCommandServices(minimumLogLevel);
 

@@ -11,6 +11,8 @@ namespace FirebaseAdapter;
 public class FirebaseKpiContextProvider : IKpiContextProvider
 {
     private const string FifaRankingsDocumentName = "fifa-rankings";
+    private const string LineupsDocumentName = "lineups";
+    private const string TopScorerTeamQuestion = "Welche Mannschaft stellt den Spieler mit den meisten Toren?";
 
     private readonly IKpiRepository _kpiRepository;
     private readonly ILogger<FirebaseKpiContextProvider> _logger;
@@ -91,7 +93,13 @@ public class FirebaseKpiContextProvider : IKpiContextProvider
             {
                 yield return context;
             }
-            
+            else if (IsTopScorerTeamQuestion(questionText) &&
+                     string.Equals(context.Name, LineupsDocumentName, StringComparison.OrdinalIgnoreCase))
+            {
+                _logger.LogDebug("Detected WM26 top scorer team question, including lineups data");
+                yield return context;
+            }
+
             // For trainer/manager change questions, also include manager data
             else if (IsTrainerChangeQuestion(questionText) && context.Name.Contains("manager-data", StringComparison.OrdinalIgnoreCase))
             {
@@ -112,6 +120,11 @@ public class FirebaseKpiContextProvider : IKpiContextProvider
     {
         return documentName.Contains("team-data", StringComparison.OrdinalIgnoreCase) ||
                string.Equals(documentName, FifaRankingsDocumentName, StringComparison.OrdinalIgnoreCase);
+    }
+
+    private static bool IsTopScorerTeamQuestion(string questionText)
+    {
+        return string.Equals(questionText, TopScorerTeamQuestion, StringComparison.Ordinal);
     }
 
     /// <summary>
