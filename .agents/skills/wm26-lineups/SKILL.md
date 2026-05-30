@@ -42,6 +42,8 @@ Use this when FIFA/provisional lineup membership needs supplemental values from 
 2. Prepare a seed CSV with FIFA/provisional membership:
    `Team_Slug,Team,Data_Collected_At,Role,Name,Transfermarkt_National_Team_Id,Transfermarkt_Player_Id`
 
+   For the FIFA tracker JSON extraction and repeatable seed-generation process, see `references/fifa-squad-seed-generation.md`.
+
    The seed may also include optional `Age`, `Position`, and `Market_Value_EUR` columns. Prefer `Transfermarkt_Player_Id` for each player. If it is blank, the enrichment script matches by normalized `Name` within `current_national_team_id`.
 
    Use `--allow-missing-players` for provisional FIFA/federation roster rows that cannot be resolved in the local DuckDB snapshot. The row is kept with `N/A` supplemental values where needed, and the generated report calls out the missing fields.

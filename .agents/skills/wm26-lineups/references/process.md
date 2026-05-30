@@ -8,6 +8,7 @@ Recommended private source workflow:
 2. Prepare a seed CSV with FIFA/provisional membership and, where possible, explicit Transfermarkt IDs:
    `Team_Slug,Team,Data_Collected_At,Role,Name,Transfermarkt_National_Team_Id,Transfermarkt_Player_Id`.
    Optional `Age`, `Position`, and `Market_Value_EUR` columns may be included. For provisional roster rows that cannot be resolved in the DuckDB snapshot, run with `--allow-missing-players` so the row is kept with `N/A` supplemental values.
+   The repeatable FIFA tracker JSON extraction and seed-generation details are documented in `fifa-squad-seed-generation.md`.
 3. Run `scripts/enrich_lineup_source.py` to fill `Age`, `Position`, and `Market_Value_EUR` from the DuckDB `players` and `national_teams` tables.
 4. Review any missing or ambiguous player matches. Prefer adding `Transfermarkt_Player_Id` to the seed CSV over loosening name matching.
 5. Use deterministic team slugs that match KicktippAi context document naming and `references/wm26-teams.csv`.
