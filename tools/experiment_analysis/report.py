@@ -158,6 +158,18 @@ def is_repeated_match_slice_task(bundle: dict[str, Any]) -> bool:
     return str(bundle.get("taskType", "")).strip().lower() == "repeated-match-slice"
 
 
+def is_single_run_report(report: dict[str, Any]) -> bool:
+    return int(report.get("runCount", 0)) == 1
+
+
+def is_knowledge_cutoff_single_run_followup(report: dict[str, Any]) -> bool:
+    if not is_single_run_report(report):
+        return False
+    if str(report.get("taskType", "")).strip().lower() != "repeated-match":
+        return False
+    return "knowledge-cutoff" in str(report.get("datasetName", "")).strip().lower()
+
+
 def build_repeated_match_slice_comparison_rows(rows_df: pd.DataFrame) -> pd.DataFrame:
     required_fields = {"runName", "kicktippPoints", "repetitionIndex"}
     missing_fields = sorted(required_fields.difference(rows_df.columns))
@@ -251,9 +263,17 @@ def analyze_bundle(
             "runDisplayName": resolve_run_display_name(row),
             "model": str(row["model"]),
             "promptKey": row.get("promptKey"),
+            "promptSource": normalize_optional_string(row.get("promptSource")),
+            "langfusePromptName": normalize_optional_string(row.get("langfusePromptName")),
+            "langfusePromptLabel": normalize_optional_string(row.get("langfusePromptLabel")),
+            "langfusePromptVersion": normalize_optional_int(row.get("langfusePromptVersion")),
             "reasoningEffort": normalize_optional_string(row.get("reasoningEffort")),
+            "maxOutputTokens": normalize_optional_int(row.get("maxOutputTokens")),
             "sliceKey": row.get("sliceKey"),
             "sliceKind": row.get("sliceKind"),
+            "selectedItemIdsHash": normalize_optional_string(row.get("selectedItemIdsHash")),
+            "evaluationTime": normalize_optional_string(row.get("evaluationTime")),
+            "batchCount": normalize_optional_int(row.get("batchCount")),
             "runSubjectKind": normalize_optional_string(row.get("runSubjectKind")),
             "runSubjectId": normalize_optional_string(row.get("runSubjectId")),
             "runSubjectDisplayName": normalize_optional_string(row.get("runSubjectDisplayName")),
@@ -295,7 +315,13 @@ def analyze_bundle(
     if match_breakdown:
         report["matchBreakdown"] = match_breakdown
 
-    if len(run_names) == 2:
+    if len(run_names) == 1:
+        report["singleRunSummary"] = build_single_run_summary(
+            raw_rows_df,
+            ranking_records[0],
+            report.get("matchSummary"),
+        )
+    elif len(run_names) == 2:
         report["comparison"] = analyze_two_run_comparison(
             ranking_input_records,
             paired_scores,
@@ -324,6 +350,15 @@ def analyze_bundle(
 
 
 def build_report_title(report: dict[str, Any]) -> str:
+    if int(report.get("runCount", 0)) == 1:
+        runs = report.get("runs")
+        if isinstance(runs, list) and runs:
+            display_name = normalize_optional_string(runs[0].get("runDisplayName"))
+            if display_name is not None:
+                if is_knowledge_cutoff_single_run_followup(report):
+                    return f"{display_name} {report.get('pairingCount', 0)}x knowledge cutoff follow-up"
+                return f"{display_name} single-run follow-up"
+
     if int(report.get("runCount", 0)) == 2 and isinstance(report.get("comparison"), dict):
         comparison = report["comparison"]
         better_run = normalize_optional_string(comparison.get("betterRunDisplayName"))
@@ -596,6 +631,9 @@ def compute_per_item_outcome_counts(left_scores: np.ndarray, right_scores: np.nd
 
 
 def build_statistical_method_description(run_count: int, correction_method: str) -> str:
+    if run_count == 1:
+        return "Descriptive single-run summary; no between-run significance test applies."
+
     if run_count == 2:
         return (
             "Paired Wilcoxon signed-rank test on per-item Kicktipp-point differences; "
@@ -606,6 +644,94 @@ def build_statistical_method_description(run_count: int, correction_method: str)
         "Friedman test across all paired runs; pairwise Wilcoxon signed-rank tests use "
         f"{correction_method} correction, with bootstrap confidence intervals for paired differences."
     )
+
+
+def build_single_run_summary(
+    rows_df: pd.DataFrame,
+    run_record: dict[str, Any],
+    match_summary: Any,
+) -> dict[str, Any]:
+    total_count = int(len(rows_df))
+    exact_prediction_count = 0
+    if {
+        "predictedHomeGoals",
+        "predictedAwayGoals",
+        "expectedHomeGoals",
+        "expectedAwayGoals",
+    }.issubset(rows_df.columns):
+        exact_prediction_count = int(
+            (
+                rows_df["predictedHomeGoals"].eq(rows_df["expectedHomeGoals"])
+                & rows_df["predictedAwayGoals"].eq(rows_df["expectedAwayGoals"])
+            ).sum()
+        )
+
+    total_points = None
+    average_points = None
+    aggregate_scores = run_record.get("aggregateScores")
+    if isinstance(aggregate_scores, dict):
+        total_points = normalize_optional_float(aggregate_scores.get("total_kicktipp_points"))
+        average_points = normalize_optional_float(aggregate_scores.get("avg_kicktipp_points"))
+
+    actual_result = None
+    if isinstance(match_summary, dict):
+        actual_result = normalize_optional_string(match_summary.get("actualResult"))
+        if actual_result is None:
+            actual_result = normalize_optional_string(match_summary.get("actualResultDisplay"))
+
+    return {
+        "runDisplayName": run_record.get("runDisplayName"),
+        "predictionCount": total_count,
+        "exactPredictionCount": exact_prediction_count,
+        "exactPredictionShare": (exact_prediction_count / total_count) if total_count else 0.0,
+        "actualResult": actual_result,
+        "totalKicktippPoints": total_points,
+        "averageKicktippPoints": average_points,
+        "runMetadata": build_single_run_metadata(run_record, total_count),
+    }
+
+
+def build_single_run_metadata(run_record: dict[str, Any], total_count: int) -> list[tuple[str, str]]:
+    metadata_rows: list[tuple[str, str]] = []
+
+    run_name = normalize_optional_string(run_record.get("runName"))
+    if run_name is not None:
+        metadata_rows.append(("Run", run_name))
+
+    prompt_key = normalize_optional_string(run_record.get("promptKey"))
+    prompt_source = normalize_optional_string(run_record.get("promptSource"))
+    langfuse_prompt_name = normalize_optional_string(run_record.get("langfusePromptName"))
+    langfuse_prompt_label = normalize_optional_string(run_record.get("langfusePromptLabel"))
+    if prompt_key is not None:
+        prompt_parts = [prompt_key]
+        if prompt_source == "langfuse" and langfuse_prompt_name is not None:
+            prompt_parts.append(langfuse_prompt_name)
+        if langfuse_prompt_label is not None:
+            prompt_parts.append(f"label {langfuse_prompt_label}")
+        metadata_rows.append(("Prompt", " / ".join(prompt_parts[:2]) + (f", {prompt_parts[2]}" if len(prompt_parts) > 2 else "")))
+
+    reasoning_effort = normalize_optional_string(run_record.get("reasoningEffort"))
+    if reasoning_effort is not None:
+        metadata_rows.append(("Reasoning effort", reasoning_effort))
+
+    max_output_tokens = normalize_optional_int(run_record.get("maxOutputTokens"))
+    if max_output_tokens is not None:
+        metadata_rows.append(("Max output tokens", format_integer(max_output_tokens)))
+
+    batch_count = normalize_optional_int(run_record.get("batchCount"))
+    if batch_count is not None:
+        metadata_rows.append(("Batch count", str(batch_count)))
+
+    evaluation_time = normalize_optional_string(run_record.get("evaluationTime"))
+    if evaluation_time is not None:
+        metadata_rows.append(("Evaluation time", evaluation_time))
+
+    selected_item_ids_hash = normalize_optional_string(run_record.get("selectedItemIdsHash"))
+    if selected_item_ids_hash is not None:
+        metadata_rows.append(("Selected item hash", selected_item_ids_hash))
+
+    metadata_rows.append(("Verified observations", f"{total_count} / {total_count}"))
+    return metadata_rows
 
 
 def build_match_summary(rows_df: pd.DataFrame, metadata: dict[str, Any]) -> dict[str, str] | None:
@@ -1049,7 +1175,30 @@ def render_markdown(report: dict[str, Any]) -> str:
         )
     lines.append("")
 
-    if report["runCount"] == 2:
+    if report["runCount"] == 1:
+        single_run_summary = report.get("singleRunSummary", {})
+        lines.append("## Single-Run Follow-Up")
+        lines.append("")
+        lines.append(f"- Predictions: {single_run_summary.get('predictionCount', report['pairingCount'])}")
+        lines.append(f"- Exact actual-score predictions: {single_run_summary.get('exactPredictionCount', 0)}")
+        lines.append(
+            f"- Exact actual-score share: {format_percentage(single_run_summary.get('exactPredictionShare'))}"
+        )
+        if single_run_summary.get("totalKicktippPoints") is not None:
+            lines.append(
+                f"- Total Kicktipp points: {format_kicktipp_points(single_run_summary.get('totalKicktippPoints'))}"
+            )
+        if single_run_summary.get("averageKicktippPoints") is not None:
+            lines.append(
+                f"- Average points: {format_number(single_run_summary.get('averageKicktippPoints'))}"
+            )
+        metadata_rows = single_run_summary.get("runMetadata")
+        if isinstance(metadata_rows, list) and metadata_rows:
+            lines.append("")
+            lines.append("## Run Metadata")
+            lines.append("")
+            lines.extend(render_table(["Field", "Value"], metadata_rows))
+    elif report["runCount"] == 2:
         comparison = report["comparison"]
         wilcoxon = comparison["wilcoxon"]
         lines.append("## Two-Run Comparison")
@@ -1137,6 +1286,9 @@ def render_markdown(report: dict[str, Any]) -> str:
 
 
 def render_html(report: dict[str, Any]) -> str:
+        if report["runCount"] == 1 and str(report.get("taskType", "")).strip().lower() == "repeated-match":
+                return render_single_run_repeated_match_html(report)
+
         report_title = normalize_optional_string(report.get("reportTitle")) or str(report["datasetName"])
         document_title = f"{report_title} - Experiment Analysis"
         at_a_glance_section = render_at_a_glance_section(report)
@@ -2344,6 +2496,398 @@ def render_html(report: dict[str, Any]) -> str:
 """
 
 
+def render_single_run_repeated_match_html(report: dict[str, Any]) -> str:
+        report_title = normalize_optional_string(report.get("reportTitle")) or str(report["datasetName"])
+        document_title = f"{report_title} - Experiment Analysis"
+        match_summary = report.get("matchSummary") if isinstance(report.get("matchSummary"), dict) else {}
+        single_run_summary = report.get("singleRunSummary") if isinstance(report.get("singleRunSummary"), dict) else {}
+        prediction_count = int(single_run_summary.get("predictionCount", report.get("pairingCount", 0)))
+        exact_prediction_count = int(single_run_summary.get("exactPredictionCount", 0))
+        exact_prediction_share = normalize_optional_float(single_run_summary.get("exactPredictionShare")) or 0.0
+        exact_result = normalize_optional_string(single_run_summary.get("actualResult")) or "exact score"
+        exact_heading = f"Exact {exact_result} Signal" if ":" in exact_result else "Exact Score Signal"
+        exact_metric_label = f"{exact_result} predictions" if ":" in exact_result else "Exact-score predictions"
+        total_points = format_kicktipp_points(single_run_summary.get("totalKicktippPoints"))
+        average_points = format_number(single_run_summary.get("averageKicktippPoints"))
+        prediction_distribution_panel = render_single_run_prediction_distribution_panel(
+                report.get("predictionDistributions", [])
+        )
+        metadata_rows = single_run_summary.get("runMetadata")
+        run_metadata_section = render_single_run_run_metadata_section(metadata_rows)
+        related_analysis_section = render_single_run_related_analysis_section(report)
+        why_separate_text = (
+                "The existing report is a paired 25x comparison. This 100x run uses the same source match, "
+                "prompt route, and evaluation time, but a different repeated-match dataset size, so it is "
+                "published as a linked single-run follow-up instead of being folded into the paired statistical report."
+                if is_knowledge_cutoff_single_run_followup(report)
+                else "This run is published as a standalone repeated-match follow-up because it summarizes one "
+                "configuration on one repeated fixture rather than a paired comparison."
+        )
+
+        fixture = normalize_optional_string(match_summary.get("fixture")) or "n/a"
+        actual_result_display = normalize_optional_string(match_summary.get("actualResultDisplay")) or "n/a"
+        matchday = normalize_optional_string(match_summary.get("matchday"))
+        starts_at = normalize_optional_string(match_summary.get("startsAt"))
+        meta_chips = []
+        if matchday is not None:
+                meta_chips.append(f'<span class="meta-chip">Matchday {escape_html(matchday)}</span>')
+        if starts_at is not None:
+                meta_chips.append(f'<span class="meta-chip">{escape_html(starts_at)}</span>')
+        meta_html = f'<div class="match-meta">{"".join(meta_chips)}</div>' if meta_chips else ""
+
+        return f"""<!DOCTYPE html>
+<html lang=\"en\">
+<head>
+    <meta charset=\"utf-8\">
+    <meta name=\"viewport\" content=\"width=device-width, initial-scale=1\">
+    <meta name=\"kicktippai-report-title\" content=\"{escape_html(report_title)}\">
+    <title>{escape_html(document_title)}</title>
+    <style>
+        :root {{
+            --bg: #f4efe6;
+            --panel: rgba(255, 252, 246, 0.94);
+            --panel-strong: #fffaf1;
+            --text: #1e1a16;
+            --muted: #6d6258;
+            --border: rgba(86, 69, 53, 0.16);
+            --accent: #b5532f;
+            --accent-soft: rgba(181, 83, 47, 0.12);
+            --good: #1c7b5b;
+            --good-soft: rgba(28, 123, 91, 0.14);
+            --shadow: 0 24px 70px rgba(70, 45, 26, 0.12);
+        }}
+        * {{ box-sizing: border-box; }}
+        body {{
+            margin: 0;
+            font-family: "Segoe UI", "Trebuchet MS", sans-serif;
+            color: var(--text);
+            background:
+                radial-gradient(circle at top left, rgba(181, 83, 47, 0.12), transparent 34%),
+                radial-gradient(circle at top right, rgba(28, 123, 91, 0.10), transparent 28%),
+                linear-gradient(180deg, #f7f1e8 0%, var(--bg) 100%);
+        }}
+        .page {{
+            max-width: 1160px;
+            margin: 0 auto;
+            padding: 32px 20px 48px;
+        }}
+        .hero, .panel {{
+            background: linear-gradient(140deg, rgba(255, 250, 241, 0.97), rgba(247, 238, 228, 0.94));
+            border: 1px solid var(--border);
+            border-radius: 28px;
+            padding: 28px;
+            box-shadow: var(--shadow);
+            margin-bottom: 24px;
+        }}
+        .eyebrow {{
+            margin: 0 0 8px;
+            color: var(--accent);
+            font-size: 0.78rem;
+            font-weight: 700;
+            letter-spacing: 0.14em;
+            text-transform: uppercase;
+        }}
+        h1, h2, h3 {{ margin: 0; }}
+        h1 {{
+            font-size: clamp(1.9rem, 4vw, 3.2rem);
+            line-height: 1.05;
+            margin-bottom: 12px;
+            overflow-wrap: anywhere;
+        }}
+        .footnote {{
+            margin: 0;
+            color: var(--muted);
+            font-size: 0.95rem;
+            line-height: 1.55;
+            overflow-wrap: anywhere;
+        }}
+        .hero-meta, .match-meta {{
+            display: flex;
+            flex-wrap: wrap;
+            gap: 10px;
+            margin-top: 16px;
+        }}
+        .pill, .meta-chip {{
+            display: inline-flex;
+            align-items: center;
+            padding: 6px 10px;
+            border-radius: 999px;
+            border: 1px solid var(--border);
+            background: var(--accent-soft);
+            color: var(--text);
+            font-size: 0.9rem;
+            font-weight: 600;
+        }}
+        .pill-good {{
+            background: var(--good-soft);
+            color: var(--good);
+            border-color: rgba(28, 123, 91, 0.24);
+        }}
+        .glance-grid, .metric-grid, .histogram-grid {{
+            display: grid;
+            gap: 16px;
+        }}
+        .glance-grid {{
+            grid-template-columns: minmax(260px, 1fr) minmax(320px, 1.35fr);
+            align-items: stretch;
+        }}
+        .metric-grid {{
+            grid-template-columns: repeat(auto-fit, minmax(180px, 1fr));
+        }}
+        .histogram-grid {{
+            grid-template-columns: repeat(auto-fit, minmax(260px, 1fr));
+        }}
+        .glance-card, .metric-card, .histogram-card {{
+            background: var(--panel-strong);
+            border: 1px solid var(--border);
+            border-radius: 18px;
+            padding: 18px;
+            min-width: 0;
+        }}
+        .glance-label, .metric-label {{
+            display: block;
+            color: var(--muted);
+            font-size: 0.78rem;
+            font-weight: 700;
+            text-transform: uppercase;
+            letter-spacing: 0.08em;
+            margin-bottom: 8px;
+        }}
+        .match-fixture {{
+            font-size: 1.45rem;
+            line-height: 1.15;
+            overflow-wrap: anywhere;
+        }}
+        .actual-result-value {{
+            display: block;
+            font-size: 1.22rem;
+            font-weight: 800;
+            line-height: 1.2;
+            overflow-wrap: anywhere;
+        }}
+        .metric-value {{
+            font-size: 1.28rem;
+            font-weight: 700;
+            line-height: 1.2;
+            overflow-wrap: anywhere;
+        }}
+        .metric-value-large {{
+            font-size: 1.9rem;
+            color: var(--good);
+        }}
+        .histogram-title {{
+            display: flex;
+            justify-content: space-between;
+            gap: 10px;
+            margin-bottom: 10px;
+            font-weight: 800;
+        }}
+        .histogram-total {{
+            color: var(--muted);
+            flex: 0 0 auto;
+            font-weight: 700;
+        }}
+        .histogram-row {{
+            display: grid;
+            grid-template-columns: 3.4rem minmax(90px, 1fr) 2.2rem;
+            gap: 10px;
+            align-items: center;
+            min-height: 26px;
+        }}
+        .histogram-score, .histogram-count {{
+            font-variant-numeric: tabular-nums;
+            font-weight: 700;
+        }}
+        .histogram-count {{
+            text-align: right;
+        }}
+        .histogram-track {{
+            height: 10px;
+            overflow: hidden;
+            border-radius: 999px;
+            background: rgba(30, 26, 22, 0.08);
+        }}
+        .histogram-bar {{
+            display: block;
+            height: 100%;
+            min-width: 6px;
+            border-radius: inherit;
+            background: linear-gradient(90deg, #aeb7c5, #40546f);
+        }}
+        table {{
+            width: 100%;
+            border-collapse: collapse;
+            overflow: hidden;
+            border-radius: 16px;
+            border: 1px solid var(--border);
+            background: var(--panel-strong);
+        }}
+        thead {{
+            background: rgba(30, 26, 22, 0.06);
+        }}
+        th, td {{
+            padding: 12px 14px;
+            text-align: left;
+            border-bottom: 1px solid var(--border);
+            vertical-align: top;
+        }}
+        th {{
+            font-size: 0.83rem;
+            text-transform: uppercase;
+            letter-spacing: 0.06em;
+            color: var(--muted);
+        }}
+        tbody tr:last-child td {{
+            border-bottom: none;
+        }}
+        @media (max-width: 720px) {{
+            .page {{ padding: 20px 14px 32px; }}
+            .hero, .panel {{ padding: 18px; border-radius: 20px; }}
+            .glance-grid, .metric-grid, .histogram-grid {{ grid-template-columns: 1fr; }}
+            table, thead, tbody, tr, th, td {{ display: block; }}
+            thead {{ display: none; }}
+            tr {{ border-bottom: 1px solid var(--border); padding: 10px 0; }}
+            tr:last-child {{ border-bottom: none; }}
+            td {{ border: none; padding: 6px 0; }}
+            td::before {{
+                content: attr(data-label);
+                display: block;
+                color: var(--muted);
+                font-size: 0.76rem;
+                text-transform: uppercase;
+                letter-spacing: 0.08em;
+                margin-bottom: 4px;
+            }}
+        }}
+    </style>
+</head>
+<body>
+    <main class=\"page\">
+        <header class=\"hero\">
+            <p class=\"eyebrow\">KicktippAi experiment analysis</p>
+            <h1>{escape_html(report_title)}</h1>
+            <p class=\"footnote\">{escape_html(report['datasetName'])}</p>
+            <div class=\"hero-meta\">
+                <span class=\"pill\">Task: {escape_html(str(report['taskType']))}</span>
+                <span class=\"pill\">Single-run follow-up</span>
+                <span class=\"pill\">Predictions: {prediction_count}</span>
+                <span class=\"pill pill-good\">Exact {escape_html(exact_result)}: {escape_html(format_percentage(exact_prediction_share))}</span>
+            </div>
+        </header>
+
+        <section class=\"panel\">
+            <div class=\"glance-grid\">
+                <article class=\"glance-card\">
+                    <span class=\"glance-label\">Match to predict</span>
+                    <h2 class=\"match-fixture\">{escape_html(fixture)}</h2>
+                    {meta_html}
+                    <span class=\"glance-label\">Actual outcome</span>
+                    <span class=\"actual-result-value\">{escape_html(actual_result_display)}</span>
+                </article>
+                <article class=\"glance-card\">
+                    <span class=\"glance-label\">Why this page is separate</span>
+                    <p class=\"footnote\">{escape_html(why_separate_text)}</p>
+                </article>
+            </div>
+        </section>
+
+        <section class=\"panel\">
+            <h2>{escape_html(exact_heading)}</h2>
+            <div class=\"metric-grid\">
+                <article class=\"metric-card\">
+                    <span class=\"metric-label\">{escape_html(exact_metric_label)}</span>
+                    <span class=\"metric-value metric-value-large\">{exact_prediction_count} / {prediction_count}</span>
+                </article>
+                <article class=\"metric-card\">
+                    <span class=\"metric-label\">Share</span>
+                    <span class=\"metric-value\">{escape_html(format_percentage(exact_prediction_share))}</span>
+                </article>
+                <article class=\"metric-card\">
+                    <span class=\"metric-label\">Total Kicktipp points</span>
+                    <span class=\"metric-value\">{escape_html(total_points)}</span>
+                </article>
+                <article class=\"metric-card\">
+                    <span class=\"metric-label\">Average points</span>
+                    <span class=\"metric-value\">{escape_html(average_points)}</span>
+                </article>
+            </div>
+        </section>
+
+        {prediction_distribution_panel}
+        {run_metadata_section}
+        {related_analysis_section}
+    </main>
+</body>
+</html>
+"""
+
+
+def render_single_run_prediction_distribution_panel(distributions: Any) -> str:
+        if not isinstance(distributions, list) or not distributions:
+                return ""
+
+        max_count = max(
+                int(score_count["count"])
+                for distribution in distributions
+                for score_count in distribution.get("scoreCounts", [])
+        )
+        histogram_cards = "\n".join(
+                render_prediction_histogram_card(distribution, max_count)
+                for distribution in distributions
+        )
+        return f"""
+        <section class=\"panel\">
+            <h2>Prediction Distribution</h2>
+            <div class=\"histogram-grid\">
+                {histogram_cards}
+            </div>
+        </section>
+        """
+
+
+def render_single_run_run_metadata_section(metadata_rows: Any) -> str:
+        if not isinstance(metadata_rows, list) or not metadata_rows:
+                return ""
+
+        rows_html = "\n".join(
+                f'<tr><td data-label="Field">{escape_html(str(label))}</td><td data-label="Value">{escape_html(str(value))}</td></tr>'
+                for label, value in metadata_rows
+        )
+        return f"""
+        <section class=\"panel\">
+            <h2>Run Metadata</h2>
+            <table>
+                <thead>
+                    <tr>
+                        <th>Field</th>
+                        <th>Value</th>
+                    </tr>
+                </thead>
+                <tbody>
+                    {rows_html}
+                </tbody>
+            </table>
+        </section>
+        """
+
+
+def render_single_run_related_analysis_section(report: dict[str, Any]) -> str:
+        dataset_name = str(report.get("datasetName", ""))
+        if dataset_name != (
+                "match-predictions/bundesliga-2025-26/pes-squad/repeated-match/"
+                "md01-fc-bayern-munchen-vs-rb-leipzig/repeat-100-knowledge-cutoff-bayern-rbl-md1"
+        ):
+                return ""
+
+        return """
+        <section class=\"panel\">
+            <h2>Related Analysis</h2>
+            <p class=\"footnote\">The companion narrative markdown covers the 25x comparison and this 100x follow-up: <a href=\"https://github.com/ehonda/KicktippAi/blob/main/docs/experiments/knowledge-cutoff-bayern-rbl-repeated-match.md\">knowledge-cutoff-bayern-rbl-repeated-match.md</a>.</p>
+            <p class=\"footnote\">The paired 25x comparison remains available at <a href=\"../repeat-25-knowledge-cutoff-bayern-rbl-md1/2026-05-05t23-01-38z.analysis.report.html\">2026-05-05t23-01-38z.analysis.report.html</a>.</p>
+        </section>
+        """
+
+
 def render_at_a_glance_section(report: dict[str, Any]) -> str:
         match_card = render_match_card(report.get("matchSummary"))
         head_to_head_card = render_compact_head_to_head_card(report)
@@ -2967,6 +3511,18 @@ def format_number(value: float | None) -> str:
     if value is None or math.isnan(value):
         return "n/a"
     return f"{value:.4f}"
+
+
+def format_integer(value: int | None) -> str:
+    if value is None:
+        return "n/a"
+    return f"{value:,}"
+
+
+def format_percentage(value: float | None) -> str:
+    if value is None or math.isnan(value):
+        return "n/a"
+    return f"{value * 100:.1f}%"
 
 
 def format_kicktipp_points(value: float | None) -> str:

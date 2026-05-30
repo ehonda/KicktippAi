@@ -290,9 +290,14 @@ public sealed class ExportExperimentAnalysisCommand : AsyncCommand<ExportExperim
                 context.DatasetRun.Name,
                 context.DatasetRun.Id,
                 taskType,
-            ResolveRunDisplayName(context.RunMetadata, context.DatasetRun.Name),
+                ResolveRunDisplayName(context.RunMetadata, context.DatasetRun.Name),
                 context.RunMetadata.PromptKey,
+                context.RunMetadata.PromptSource,
+                context.RunMetadata.LangfusePromptName,
+                context.RunMetadata.LangfusePromptLabel,
+                context.RunMetadata.LangfusePromptVersion,
                 context.RunMetadata.ReasoningEffort,
+                context.RunMetadata.MaxOutputTokenCount,
                 context.RunMetadata.SliceKind,
                 context.RunMetadata.SliceKey,
                 context.RunMetadata.SourcePoolKey,
@@ -305,6 +310,9 @@ public sealed class ExportExperimentAnalysisCommand : AsyncCommand<ExportExperim
                 context.RunMetadata.EvaluationTimestampPolicyKey,
                 context.RunMetadata.EvaluationTime,
                 context.RunMetadata.StartedAtUtc,
+                context.RunMetadata.BatchStrategy,
+                context.RunMetadata.BatchSize,
+                context.RunMetadata.BatchCount,
                 context.AggregateScores,
                 ResolvePrimaryMetricValue(taskType, context.AggregateScores),
                 context.DatasetRunItems.Count,
@@ -388,9 +396,9 @@ public sealed class ExportExperimentAnalysisCommand : AsyncCommand<ExportExperim
 
     private static void ValidateComparableRuns(IReadOnlyList<RunContext> runContexts)
     {
-        if (runContexts.Count < 2)
+        if (runContexts.Count < 1)
         {
-            throw new InvalidOperationException("At least two runs are required to export a comparable analysis bundle.");
+            throw new InvalidOperationException("At least one run is required to export an experiment analysis bundle.");
         }
 
         var baseline = runContexts[0];

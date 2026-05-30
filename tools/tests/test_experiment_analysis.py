@@ -220,6 +220,94 @@ class ExperimentAnalysisReportTests(unittest.TestCase):
         self.assertIn("pill-", report_html)
         self.assertNotIn("<td>repeated-match__pes-squad__o3__prompt-v1", report_html)
 
+    def test_single_run_knowledge_cutoff_follow_up_renders_exact_score_signal(self) -> None:
+        run_name = (
+            "repeated-match__pes-squad__o3__langfuse-o3-poc__reasoning-medium__"
+            "repeat-100-knowledge-cutoff-bayern-rbl-md1__exact-time__2026-05-30t20-25-39z"
+        )
+        bundle = {
+            "datasetName": (
+                "match-predictions/bundesliga-2025-26/pes-squad/repeated-match/"
+                "md01-fc-bayern-munchen-vs-rb-leipzig/repeat-100-knowledge-cutoff-bayern-rbl-md1"
+            ),
+            "datasetMetadata": {
+                "fixture": "FC Bayern München vs RB Leipzig",
+                "actualResult": "6:0",
+                "actualResultDisplay": "FC Bayern München 6 - 0 RB Leipzig",
+                "matchday": 1,
+                "repetitionCount": 100,
+            },
+            "taskType": "repeated-match",
+            "primaryMetricName": "avg_kicktipp_points",
+            "runs": [
+                {
+                    "runName": run_name,
+                    "model": "o3",
+                    "promptKey": "langfuse-o3-poc",
+                    "promptSource": "langfuse",
+                    "langfusePromptName": "kicktippai/predict-one-match-o3-poc",
+                    "langfusePromptLabel": "poc",
+                    "reasoningEffort": "medium",
+                    "maxOutputTokens": 10000,
+                    "selectedItemIdsHash": "hash-123",
+                    "batchCount": 9,
+                    "evaluationTime": "2025-08-22T12:00:00 Europe/Berlin (+02)",
+                    "primaryMetricValue": 3.0,
+                    "aggregateScores": {"total_kicktipp_points": 6.0, "avg_kicktipp_points": 3.0},
+                }
+            ],
+            "rows": [
+                {
+                    "pairingKey": "repeat-1",
+                    "runName": run_name,
+                    "kicktippPoints": 4,
+                    "homeTeam": "FC Bayern München",
+                    "awayTeam": "RB Leipzig",
+                    "startsAt": "2025-08-22T21:30:00 Europe/Berlin (+02)",
+                    "matchday": 1,
+                    "predictedHomeGoals": 6,
+                    "predictedAwayGoals": 0,
+                    "expectedHomeGoals": 6,
+                    "expectedAwayGoals": 0,
+                },
+                {
+                    "pairingKey": "repeat-2",
+                    "runName": run_name,
+                    "kicktippPoints": 2,
+                    "homeTeam": "FC Bayern München",
+                    "awayTeam": "RB Leipzig",
+                    "startsAt": "2025-08-22T21:30:00 Europe/Berlin (+02)",
+                    "matchday": 1,
+                    "predictedHomeGoals": 3,
+                    "predictedAwayGoals": 1,
+                    "expectedHomeGoals": 6,
+                    "expectedAwayGoals": 0,
+                },
+            ],
+        }
+
+        report_json = report.analyze_bundle(
+            bundle,
+            alpha=0.05,
+            correction_method="holm",
+            bootstrap_resamples=100,
+            confidence_level=0.95,
+            random_seed=20260406,
+        )
+        report_html = report.render_html(report_json)
+
+        self.assertEqual(report_json["reportTitle"], "o3 (medium) 2x knowledge cutoff follow-up")
+        self.assertEqual(report_json["singleRunSummary"]["exactPredictionCount"], 1)
+        self.assertEqual(report_json["singleRunSummary"]["predictionCount"], 2)
+        self.assertIn("Single-run follow-up", report_html)
+        self.assertIn("Exact 6:0 Signal", report_html)
+        self.assertIn("6:0 predictions", report_html)
+        self.assertIn("1 / 2", report_html)
+        self.assertIn("FC Bayern München 6 - 0 RB Leipzig", report_html)
+        self.assertIn("Prediction Distribution", report_html)
+        self.assertIn("Run Metadata", report_html)
+        self.assertIn("kicktippai/predict-one-match-o3-poc", report_html)
+
     def test_repeated_match_slice_groups_rows_by_repetition_totals(self) -> None:
         run_a = "repeated-match-slice__test-community__a"
         run_b = "repeated-match-slice__test-community__b"

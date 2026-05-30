@@ -1,0 +1,355 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="utf-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1">
+    <meta name="kicktippai-report-title" content="o3 (medium) 100x knowledge cutoff follow-up">
+    <title>o3 (medium) 100x knowledge cutoff follow-up - Experiment Analysis</title>
+    <style>
+        :root {
+            --bg: #f4efe6;
+            --panel: rgba(255, 252, 246, 0.94);
+            --panel-strong: #fffaf1;
+            --text: #1e1a16;
+            --muted: #6d6258;
+            --border: rgba(86, 69, 53, 0.16);
+            --accent: #b5532f;
+            --accent-soft: rgba(181, 83, 47, 0.12);
+            --good: #1c7b5b;
+            --good-soft: rgba(28, 123, 91, 0.14);
+            --shadow: 0 24px 70px rgba(70, 45, 26, 0.12);
+        }
+        * { box-sizing: border-box; }
+        body {
+            margin: 0;
+            font-family: "Segoe UI", "Trebuchet MS", sans-serif;
+            color: var(--text);
+            background:
+                radial-gradient(circle at top left, rgba(181, 83, 47, 0.12), transparent 34%),
+                radial-gradient(circle at top right, rgba(28, 123, 91, 0.10), transparent 28%),
+                linear-gradient(180deg, #f7f1e8 0%, var(--bg) 100%);
+        }
+        .page {
+            max-width: 1160px;
+            margin: 0 auto;
+            padding: 32px 20px 48px;
+        }
+        .hero, .panel {
+            background: linear-gradient(140deg, rgba(255, 250, 241, 0.97), rgba(247, 238, 228, 0.94));
+            border: 1px solid var(--border);
+            border-radius: 28px;
+            padding: 28px;
+            box-shadow: var(--shadow);
+            margin-bottom: 24px;
+        }
+        .eyebrow {
+            margin: 0 0 8px;
+            color: var(--accent);
+            font-size: 0.78rem;
+            font-weight: 700;
+            letter-spacing: 0.14em;
+            text-transform: uppercase;
+        }
+        h1, h2, h3 { margin: 0; }
+        h1 {
+            font-size: clamp(1.9rem, 4vw, 3.2rem);
+            line-height: 1.05;
+            margin-bottom: 12px;
+            overflow-wrap: anywhere;
+        }
+        .footnote {
+            margin: 0;
+            color: var(--muted);
+            font-size: 0.95rem;
+            line-height: 1.55;
+            overflow-wrap: anywhere;
+        }
+        .hero-meta, .match-meta {
+            display: flex;
+            flex-wrap: wrap;
+            gap: 10px;
+            margin-top: 16px;
+        }
+        .pill, .meta-chip {
+            display: inline-flex;
+            align-items: center;
+            padding: 6px 10px;
+            border-radius: 999px;
+            border: 1px solid var(--border);
+            background: var(--accent-soft);
+            color: var(--text);
+            font-size: 0.9rem;
+            font-weight: 600;
+        }
+        .pill-good {
+            background: var(--good-soft);
+            color: var(--good);
+            border-color: rgba(28, 123, 91, 0.24);
+        }
+        .glance-grid, .metric-grid, .histogram-grid {
+            display: grid;
+            gap: 16px;
+        }
+        .glance-grid {
+            grid-template-columns: minmax(260px, 1fr) minmax(320px, 1.35fr);
+            align-items: stretch;
+        }
+        .metric-grid {
+            grid-template-columns: repeat(auto-fit, minmax(180px, 1fr));
+        }
+        .histogram-grid {
+            grid-template-columns: repeat(auto-fit, minmax(260px, 1fr));
+        }
+        .glance-card, .metric-card, .histogram-card {
+            background: var(--panel-strong);
+            border: 1px solid var(--border);
+            border-radius: 18px;
+            padding: 18px;
+            min-width: 0;
+        }
+        .glance-label, .metric-label {
+            display: block;
+            color: var(--muted);
+            font-size: 0.78rem;
+            font-weight: 700;
+            text-transform: uppercase;
+            letter-spacing: 0.08em;
+            margin-bottom: 8px;
+        }
+        .match-fixture {
+            font-size: 1.45rem;
+            line-height: 1.15;
+            overflow-wrap: anywhere;
+        }
+        .actual-result-value {
+            display: block;
+            font-size: 1.22rem;
+            font-weight: 800;
+            line-height: 1.2;
+            overflow-wrap: anywhere;
+        }
+        .metric-value {
+            font-size: 1.28rem;
+            font-weight: 700;
+            line-height: 1.2;
+            overflow-wrap: anywhere;
+        }
+        .metric-value-large {
+            font-size: 1.9rem;
+            color: var(--good);
+        }
+        .histogram-title {
+            display: flex;
+            justify-content: space-between;
+            gap: 10px;
+            margin-bottom: 10px;
+            font-weight: 800;
+        }
+        .histogram-total {
+            color: var(--muted);
+            flex: 0 0 auto;
+            font-weight: 700;
+        }
+        .histogram-row {
+            display: grid;
+            grid-template-columns: 3.4rem minmax(90px, 1fr) 2.2rem;
+            gap: 10px;
+            align-items: center;
+            min-height: 26px;
+        }
+        .histogram-score, .histogram-count {
+            font-variant-numeric: tabular-nums;
+            font-weight: 700;
+        }
+        .histogram-count {
+            text-align: right;
+        }
+        .histogram-track {
+            height: 10px;
+            overflow: hidden;
+            border-radius: 999px;
+            background: rgba(30, 26, 22, 0.08);
+        }
+        .histogram-bar {
+            display: block;
+            height: 100%;
+            min-width: 6px;
+            border-radius: inherit;
+            background: linear-gradient(90deg, #aeb7c5, #40546f);
+        }
+        table {
+            width: 100%;
+            border-collapse: collapse;
+            overflow: hidden;
+            border-radius: 16px;
+            border: 1px solid var(--border);
+            background: var(--panel-strong);
+        }
+        thead {
+            background: rgba(30, 26, 22, 0.06);
+        }
+        th, td {
+            padding: 12px 14px;
+            text-align: left;
+            border-bottom: 1px solid var(--border);
+            vertical-align: top;
+        }
+        th {
+            font-size: 0.83rem;
+            text-transform: uppercase;
+            letter-spacing: 0.06em;
+            color: var(--muted);
+        }
+        tbody tr:last-child td {
+            border-bottom: none;
+        }
+        @media (max-width: 720px) {
+            .page { padding: 20px 14px 32px; }
+            .hero, .panel { padding: 18px; border-radius: 20px; }
+            .glance-grid, .metric-grid, .histogram-grid { grid-template-columns: 1fr; }
+            table, thead, tbody, tr, th, td { display: block; }
+            thead { display: none; }
+            tr { border-bottom: 1px solid var(--border); padding: 10px 0; }
+            tr:last-child { border-bottom: none; }
+            td { border: none; padding: 6px 0; }
+            td::before {
+                content: attr(data-label);
+                display: block;
+                color: var(--muted);
+                font-size: 0.76rem;
+                text-transform: uppercase;
+                letter-spacing: 0.08em;
+                margin-bottom: 4px;
+            }
+        }
+    </style>
+</head>
+<body>
+    <main class="page">
+        <header class="hero">
+            <p class="eyebrow">KicktippAi experiment analysis</p>
+            <h1>o3 (medium) 100x knowledge cutoff follow-up</h1>
+            <p class="footnote">match-predictions/bundesliga-2025-26/pes-squad/repeated-match/md01-fc-bayern-munchen-vs-rb-leipzig/repeat-100-knowledge-cutoff-bayern-rbl-md1</p>
+            <div class="hero-meta">
+                <span class="pill">Task: repeated-match</span>
+                <span class="pill">Single-run follow-up</span>
+                <span class="pill">Predictions: 100</span>
+                <span class="pill pill-good">Exact 6:0: 0.0%</span>
+            </div>
+        </header>
+
+        <section class="panel">
+            <div class="glance-grid">
+                <article class="glance-card">
+                    <span class="glance-label">Match to predict</span>
+                    <h2 class="match-fixture">FC Bayern München vs RB Leipzig</h2>
+                    <div class="match-meta"><span class="meta-chip">Matchday 1</span><span class="meta-chip">2025-08-22T21:30:00 UTC+02 (+02)</span></div>
+                    <span class="glance-label">Actual outcome</span>
+                    <span class="actual-result-value">FC Bayern München 6 - 0 RB Leipzig</span>
+                </article>
+                <article class="glance-card">
+                    <span class="glance-label">Why this page is separate</span>
+                    <p class="footnote">The existing report is a paired 25x comparison. This 100x run uses the same source match, prompt route, and evaluation time, but a different repeated-match dataset size, so it is published as a linked single-run follow-up instead of being folded into the paired statistical report.</p>
+                </article>
+            </div>
+        </section>
+
+        <section class="panel">
+            <h2>Exact 6:0 Signal</h2>
+            <div class="metric-grid">
+                <article class="metric-card">
+                    <span class="metric-label">6:0 predictions</span>
+                    <span class="metric-value metric-value-large">0 / 100</span>
+                </article>
+                <article class="metric-card">
+                    <span class="metric-label">Share</span>
+                    <span class="metric-value">0.0%</span>
+                </article>
+                <article class="metric-card">
+                    <span class="metric-label">Total Kicktipp points</span>
+                    <span class="metric-value">200</span>
+                </article>
+                <article class="metric-card">
+                    <span class="metric-label">Average points</span>
+                    <span class="metric-value">2.0000</span>
+                </article>
+            </div>
+        </section>
+
+
+        <section class="panel">
+            <h2>Prediction Distribution</h2>
+            <div class="histogram-grid">
+
+                    <article class="histogram-card">
+                        <div class="histogram-title">
+                            <span>o3 (medium)</span>
+                            <span class="histogram-total">n=100</span>
+                        </div>
+
+                        <div class="histogram-row">
+                            <span class="histogram-score">3:1</span>
+
+                            <span class="histogram-track" aria-hidden="true">
+                                <span class="histogram-bar" style="width: 100%"></span>
+                            </span>
+                            <span class="histogram-count">77</span>
+                        </div>
+
+
+                        <div class="histogram-row">
+                            <span class="histogram-score">2:1</span>
+
+                            <span class="histogram-track" aria-hidden="true">
+                                <span class="histogram-bar" style="width: 25%"></span>
+                            </span>
+                            <span class="histogram-count">19</span>
+                        </div>
+
+
+                        <div class="histogram-row">
+                            <span class="histogram-score">3:2</span>
+
+                            <span class="histogram-track" aria-hidden="true">
+                                <span class="histogram-bar" style="width: 6%"></span>
+                            </span>
+                            <span class="histogram-count">4</span>
+                        </div>
+
+                    </article>
+
+            </div>
+        </section>
+
+
+        <section class="panel">
+            <h2>Run Metadata</h2>
+            <table>
+                <thead>
+                    <tr>
+                        <th>Field</th>
+                        <th>Value</th>
+                    </tr>
+                </thead>
+                <tbody>
+                    <tr><td data-label="Field">Run</td><td data-label="Value">repeated-match__pes-squad__o3__langfuse-o3-poc__reasoning-medium__repeat-100-knowledge-cutoff-bayern-rbl-md1__exact-time__2026-05-30t20-25-39z</td></tr>
+<tr><td data-label="Field">Prompt</td><td data-label="Value">langfuse-o3-poc / kicktippai/predict-one-match-o3-poc, label poc</td></tr>
+<tr><td data-label="Field">Reasoning effort</td><td data-label="Value">medium</td></tr>
+<tr><td data-label="Field">Batch count</td><td data-label="Value">9</td></tr>
+<tr><td data-label="Field">Evaluation time</td><td data-label="Value">2025-08-22T12:00:00.0000000+02:00</td></tr>
+<tr><td data-label="Field">Selected item hash</td><td data-label="Value">86fe3b148f4df8862ca2594deb2edb00925d1e2d8be8bb56a8c600ccf4c176af</td></tr>
+<tr><td data-label="Field">Verified observations</td><td data-label="Value">100 / 100</td></tr>
+                </tbody>
+            </table>
+        </section>
+
+
+        <section class="panel">
+            <h2>Related Analysis</h2>
+            <p class="footnote">The companion narrative markdown covers the 25x comparison and this 100x follow-up: <a href="https://github.com/ehonda/KicktippAi/blob/main/docs/experiments/knowledge-cutoff-bayern-rbl-repeated-match.md">knowledge-cutoff-bayern-rbl-repeated-match.md</a>.</p>
+            <p class="footnote">The paired 25x comparison remains available at <a href="../repeat-25-knowledge-cutoff-bayern-rbl-md1/2026-05-05t23-01-38z.analysis.report.html">2026-05-05t23-01-38z.analysis.report.html</a>.</p>
+        </section>
+
+    </main>
+</body>
+</html>

@@ -280,6 +280,152 @@ public class ExportExperimentAnalysisCommand_Tests
     }
 
     [Test]
+    public async Task Running_command_exports_single_repeated_match_run_for_follow_up_reports()
+    {
+        var tempDirectory = Directory.CreateTempSubdirectory();
+
+        try
+        {
+            var outputPath = Path.Combine(tempDirectory.FullName, "analysis.json");
+            var datasetName = "match-predictions/bundesliga-2025-26/test-community/repeated-match/md26-vfb-stuttgart-vs-rb-leipzig/repeat-100";
+            var runName = "repeated-match__test-community__o3__langfuse-o3-poc__reasoning-medium__repeat-100__exact-time__2026-03-15t12-00-00z";
+            var datasetItemId = "bundesliga-2025-26__test-community__ts123__repeated-match__repeat-100__001";
+            var sourceDatasetItemId = "bundesliga-2025-26__test-community__ts123";
+            var datasetId = "dataset-1";
+            var datasetRunId = "dataset-run-1";
+
+            var client = new Mock<ILangfusePublicApiClient>(MockBehavior.Strict);
+            client
+                .Setup(mock => mock.GetDatasetAsync(datasetName, It.IsAny<CancellationToken>()))
+                .ReturnsAsync(CreateDataset(datasetName, "repeated-match"));
+            client
+                .Setup(mock => mock.GetDatasetRunAsync(datasetName, runName, It.IsAny<CancellationToken>()))
+                .ReturnsAsync(new LangfuseDatasetRunWithItems(
+                    datasetRunId,
+                    runName,
+                    datasetId,
+                    datasetName,
+                    null,
+                    ToJsonElement(new
+                    {
+                        runner = "match-experiment-runner",
+                        task = "repeated-match",
+                        communityContext = "test-community",
+                        competition = "bundesliga-2025-26",
+                        sourceDatasetName = "match-predictions/bundesliga-2025-26/test-community",
+                        datasetName,
+                        promptKey = "langfuse-o3-poc",
+                        promptSource = "langfuse",
+                        langfusePromptName = "kicktippai/predict-one-match-o3-poc",
+                        langfusePromptLabel = "poc",
+                        langfusePromptVersion = 1,
+                        reasoningEffort = "medium",
+                        maxOutputTokens = 10000,
+                        sliceKind = "repeated-match",
+                        sliceKey = "repeat-100",
+                        sourcePoolKey = "md26-vfb-stuttgart-vs-rb-leipzig",
+                        selectedItemIdsHash = "hash-123",
+                        selectedItemIdsCount = 1,
+                        sampleSize = 100,
+                        evaluationTime = "2026-03-15T12:00:00 Europe/Berlin (+01)",
+                        startedAtUtc = "2026-03-15T12:00:00Z",
+                        sampleMethod = "repeated-match",
+                        includeJustification = false,
+                        promptVersion = "prompt-v1",
+                        sourceDatasetKind = "repeated-match",
+                        datasetItemIdMap = new Dictionary<string, string>(),
+                        model = "o3",
+                        batchStrategy = "warmup-plus-batches",
+                        batchCount = 9
+                    }),
+                    []));
+            client
+                .Setup(mock => mock.ListDatasetRunItemsAsync(datasetId, runName, 1, It.IsAny<int>(), It.IsAny<CancellationToken>()))
+                .ReturnsAsync(new LangfusePaginatedResponse<LangfuseDatasetRunItem>(
+                    [CreateDatasetRunItem(runName, datasetRunId, datasetItemId, "trace-1")],
+                    new LangfusePaginationMeta(1, 100, 1, 1)));
+            client
+                .Setup(mock => mock.ListScoresAsync(
+                    It.Is<LangfuseListScoresRequest>(request => request.DatasetRunId == datasetRunId),
+                    It.IsAny<CancellationToken>()))
+                .ReturnsAsync(new LangfusePaginatedResponse<LangfuseScore>(
+                    [
+                        new LangfuseScore("score-total-1", "total_kicktipp_points", 4, null, null, datasetRunId, "NUMERIC", "API", default, DateTimeOffset.UtcNow, DateTimeOffset.UtcNow),
+                        new LangfuseScore("score-avg-1", "avg_kicktipp_points", 4, null, null, datasetRunId, "NUMERIC", "API", default, DateTimeOffset.UtcNow, DateTimeOffset.UtcNow)
+                    ],
+                    new LangfusePaginationMeta(1, 100, 2, 1)));
+            client
+                .Setup(mock => mock.ListDatasetItemsAsync(
+                    It.Is<LangfuseListDatasetItemsRequest>(request => request.DatasetName == datasetName),
+                    It.IsAny<CancellationToken>()))
+                .ReturnsAsync(new LangfusePaginatedResponse<LangfuseDatasetItem>(
+                    [new LangfuseDatasetItem(
+                        datasetItemId,
+                        datasetId,
+                        datasetName,
+                        ParseJson("{\"fixture\":\"VfB Stuttgart vs RB Leipzig\",\"startsAt\":\"2026-03-15T15:30:00 Europe/Berlin (+01)\"}"),
+                        ParseJson("{\"score\":\"2:1\"}"),
+                        ParseJson("{\"competition\":\"bundesliga-2025-26\",\"season\":\"2025/2026\",\"communityContext\":\"test-community\",\"matchday\":26,\"matchdayLabel\":\"md26\",\"homeTeam\":\"VfB Stuttgart\",\"awayTeam\":\"RB Leipzig\",\"tippSpielId\":\"123\",\"startsAt\":\"2026-03-15T15:30:00 Europe/Berlin (+01)\"}"),
+                        null)],
+                    new LangfusePaginationMeta(1, 100, 1, 1)));
+            client
+                .Setup(mock => mock.ListTracesAsync(
+                    It.Is<LangfuseListTracesRequest>(request => request.SessionId == runName && request.Fields == "io"),
+                    It.IsAny<CancellationToken>()))
+                .ReturnsAsync(new LangfusePaginatedResponse<LangfuseTraceWithDetails>(
+                    [new LangfuseTraceWithDetails(
+                        "trace-1",
+                        null,
+                        ParseJson($"{{\"sourceDatasetItemId\":\"{sourceDatasetItemId}\"}}"),
+                        ParseJson("{\"homeGoals\":2,\"awayGoals\":1}"),
+                        null,
+                        null,
+                        ["experiment"])],
+                    new LangfusePaginationMeta(1, 100, 1, 1)));
+            client
+                .Setup(mock => mock.ListObservationsAsync(
+                    It.Is<LangfuseListObservationsRequest>(request => request.SessionId == runName && request.Fields == "basic,io"),
+                    It.IsAny<CancellationToken>()))
+                .ReturnsAsync(new LangfuseCursorPaginatedResponse<LangfuseObservationDetail>(
+                    [new LangfuseObservationDetail("observation-1", "trace-1", "GENERATION", "predict-match", ParseJson("{\"homeGoals\":2,\"awayGoals\":1}"), default)],
+                    new LangfuseCursorPaginationMeta(null)));
+
+            var context = CreateCommandApp<ExportExperimentAnalysisCommand>(
+                "export-experiment-analysis",
+                configureServices: new Action<IServiceCollection>(services =>
+                {
+                    services.AddSingleton(client.Object);
+                }));
+
+            var (exitCode, output) = await RunCommandAsync(
+                context.App,
+                context.Console,
+                "export-experiment-analysis",
+                "--dataset-name",
+                datasetName,
+                "--run-names",
+                runName,
+                "--output",
+                outputPath);
+
+            await Assert.That(exitCode).IsEqualTo(0);
+            await Assert.That(output).Contains("\"runCount\": 1");
+
+            var bundleJson = await File.ReadAllTextAsync(outputPath);
+            await Assert.That(bundleJson).Contains("\"taskType\": \"repeated-match\"");
+            await Assert.That(bundleJson).Contains("\"primaryMetricName\": \"avg_kicktipp_points\"");
+            await Assert.That(bundleJson).Contains("\"promptSource\": \"langfuse\"");
+            await Assert.That(bundleJson).Contains("\"langfusePromptName\": \"kicktippai/predict-one-match-o3-poc\"");
+            await Assert.That(bundleJson).Contains("\"maxOutputTokens\": 10000");
+            await Assert.That(bundleJson).Contains("\"batchCount\": 9");
+        }
+        finally
+        {
+            tempDirectory.Delete(recursive: true);
+        }
+    }
+
+    [Test]
     public async Task Running_command_exports_repeated_match_slice_runs_with_average_primary_metric_and_group_metadata()
     {
         var tempDirectory = Directory.CreateTempSubdirectory();

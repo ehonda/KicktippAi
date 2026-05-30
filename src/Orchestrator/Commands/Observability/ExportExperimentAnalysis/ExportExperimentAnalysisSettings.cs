@@ -26,9 +26,9 @@ public sealed class ExportExperimentAnalysisSettings : CommandSettings
         }
 
         var runNames = GetParsedRunNames();
-        if (runNames.Count < 2)
+        if (runNames.Count < 1)
         {
-            return ValidationResult.Error("--run-names must contain at least two unique run names");
+            return ValidationResult.Error("--run-names must contain at least one unique run name");
         }
 
         return ValidationResult.Success();
