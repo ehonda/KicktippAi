@@ -357,7 +357,7 @@ public class RandomMatchCommand : AsyncCommand<RandomMatchSettings>
 
         throw new InvalidOperationException(
             "Missing required WM26 context documents after database and on-demand fallback: " +
-            $"{string.Join(", ", missingDocumentNames)}. Seed FIFA rankings with collect-context fifa and lineups with the wm26-lineups skill.");
+            $"{string.Join(", ", missingDocumentNames)}. Seed FIFA rankings with collect-context fifa and lineups with collect-context lineups.");
     }
 
     private void WriteJustificationIfNeeded(Prediction? prediction, bool includeJustification, bool fromDatabase = false)

@@ -793,7 +793,7 @@ public class MatchdayCommand : AsyncCommand<BaseSettings>
 
         throw new InvalidOperationException(
             "Missing required WM26 context documents after database and on-demand fallback: " +
-            $"{string.Join(", ", missingDocumentNames)}. Seed FIFA rankings with collect-context fifa and lineups with the wm26-lineups skill.");
+            $"{string.Join(", ", missingDocumentNames)}. Seed FIFA rankings with collect-context fifa and lineups with collect-context lineups.");
     }
     
     private async Task<bool> CheckPredictionOutdated(IPredictionRepository predictionRepository, IContextRepository contextRepository, Match match, string model, string communityContext, string competition, bool verbose)

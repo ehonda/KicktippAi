@@ -10,6 +10,8 @@
 
   <ItemGroup>
     <PackageReference Include="DotNetEnv" />
+    <PackageReference Include="CsvHelper" />
+    <PackageReference Include="DuckDB.NET.Data.Full" />
     <PackageReference Include="EHonda.Pagination.CursorBased" />
     <PackageReference Include="EHonda.Pagination.OffsetBased" />
     <PackageReference Include="Microsoft.Extensions.Configuration" />

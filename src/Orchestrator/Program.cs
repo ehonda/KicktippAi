@@ -68,7 +68,7 @@ public class Program
                 .WithExample("matchday-dev", "--community", "ehonda-dev-wm26");
 
             config.AddCommand<CollectContextDevCommand>("collect-context-dev")
-                .WithDescription("Collect Kicktipp and FIFA ranking context using guarded development-community defaults")
+                .WithDescription("Collect Kicktipp, FIFA ranking, and lineup context using guarded development-community defaults")
                 .WithExample("collect-context-dev", "--community", "ehonda-dev-wm26", "--verbose");
 
             config.AddCommand<RandomMatchCommand>("random-match")
@@ -131,6 +131,9 @@ public class Program
                 collectContext.AddCommand<CollectContextFifaCommand>("fifa")
                     .WithDescription("Fetch and upload WM26 FIFA ranking context and KPI documents")
                     .WithExample("collect-context", "fifa", "--community-context", "ehonda-dev-wm26", "--dry-run");
+                collectContext.AddCommand<CollectContextLineupsCommand>("lineups")
+                    .WithDescription("Refresh and upload WM26 lineup context and KPI documents")
+                    .WithExample("collect-context", "lineups", "--community-context", "ehonda-dev-wm26", "--dry-run");
             });
 
             config.AddBranch<Wm26RecentHistorySettings>("wm26-recent-history", wm26RecentHistory =>

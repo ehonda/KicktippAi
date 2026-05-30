@@ -8,6 +8,21 @@ on:
         description: 'Community context (rules/scoring) to use for context collection'
         required: true
         type: string
+      competition:
+        description: 'Competition identifier for context collection'
+        required: false
+        type: string
+        default: ''
+      include_fifa_rankings:
+        description: 'Whether to collect WM26 FIFA ranking context after Kicktipp context'
+        required: false
+        type: boolean
+        default: false
+      include_lineups:
+        description: 'Whether to collect WM26 lineup context after Kicktipp context'
+        required: false
+        type: boolean
+        default: false
       trigger_type:
         description: 'How this workflow was triggered (scheduled, manual)'
         required: true
@@ -52,13 +67,59 @@ jobs:
         
       - name: Run context collection
         run: |
-          dotnet run --project src/Orchestrator/Orchestrator.csproj --configuration Release -- \
-            collect-context kicktipp \
-            --community-context "${{ inputs.community_context }}" \
+          args=(
+            collect-context kicktipp
+            --community-context "${{ inputs.community_context }}"
             --verbose
+          )
+
+          if [ -n "${{ inputs.competition }}" ]; then
+            args+=(--competition "${{ inputs.competition }}")
+          fi
+
+          dotnet run --project src/Orchestrator/Orchestrator.csproj --configuration Release -- \
+            "${args[@]}"
         env:
           KICKTIPP_USERNAME: ${{ secrets.kicktipp_username }}
           KICKTIPP_PASSWORD: ${{ secrets.kicktipp_password }}
+          FIREBASE_PROJECT_ID: ${{ secrets.firebase_project_id }}
+          FIREBASE_SERVICE_ACCOUNT_JSON: ${{ secrets.firebase_service_account_json }}
+
+      - name: Run WM26 FIFA ranking collection
+        if: ${{ inputs.include_fifa_rankings }}
+        run: |
+          args=(
+            collect-context fifa
+            --community-context "${{ inputs.community_context }}"
+            --verbose
+          )
+
+          if [ -n "${{ inputs.competition }}" ]; then
+            args+=(--competition "${{ inputs.competition }}")
+          fi
+
+          dotnet run --project src/Orchestrator/Orchestrator.csproj --configuration Release -- \
+            "${args[@]}"
+        env:
+          FIREBASE_PROJECT_ID: ${{ secrets.firebase_project_id }}
+          FIREBASE_SERVICE_ACCOUNT_JSON: ${{ secrets.firebase_service_account_json }}
+
+      - name: Run WM26 lineup collection
+        if: ${{ inputs.include_lineups }}
+        run: |
+          args=(
+            collect-context lineups
+            --community-context "${{ inputs.community_context }}"
+            --verbose
+          )
+
+          if [ -n "${{ inputs.competition }}" ]; then
+            args+=(--competition "${{ inputs.competition }}")
+          fi
+
+          dotnet run --project src/Orchestrator/Orchestrator.csproj --configuration Release -- \
+            "${args[@]}"
+        env:
           FIREBASE_PROJECT_ID: ${{ secrets.firebase_project_id }}
           FIREBASE_SERVICE_ACCOUNT_JSON: ${{ secrets.firebase_service_account_json }}
         
@@ -67,6 +128,9 @@ jobs:
         run: |
           echo "## Context Collection Summary" >> $GITHUB_STEP_SUMMARY
           echo "- **Community Context**: ${{ inputs.community_context }}" >> $GITHUB_STEP_SUMMARY
+          echo "- **Competition**: ${{ inputs.competition || 'default' }}" >> $GITHUB_STEP_SUMMARY
+          echo "- **FIFA Rankings**: ${{ inputs.include_fifa_rankings }}" >> $GITHUB_STEP_SUMMARY
+          echo "- **Lineups**: ${{ inputs.include_lineups }}" >> $GITHUB_STEP_SUMMARY
           echo "- **Trigger**: ${{ inputs.trigger_type }}" >> $GITHUB_STEP_SUMMARY
           echo "- **Timestamp**: $(date -u)" >> $GITHUB_STEP_SUMMARY
           echo "- **Status**: ${{ job.status }}" >> $GITHUB_STEP_SUMMARY

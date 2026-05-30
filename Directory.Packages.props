@@ -21,6 +21,7 @@
     <PackageVersion Include="AngleSharp" Version="1.4.0" />
     <PackageVersion Include="CsvHelper" Version="33.1.0" />
     <PackageVersion Include="DotNetEnv" Version="3.2.0" />
+    <PackageVersion Include="DuckDB.NET.Data.Full" Version="1.5.3" />
     <PackageVersion Include="EHonda.Optional.Core" Version="3.0.0" />
     <PackageVersion Include="EHonda.Pagination.CursorBased" Version="2.0.1" />
     <PackageVersion Include="EHonda.Pagination.OffsetBased" Version="2.0.1" />

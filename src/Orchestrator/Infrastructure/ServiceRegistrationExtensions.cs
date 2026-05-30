@@ -449,6 +449,18 @@ public static class ServiceRegistrationExtensions
         return services;
     }
 
+    private static IServiceCollection AddWm26LineupSourceServicesIfMissing(this IServiceCollection services)
+    {
+        services.TryAddTransient<IWm26LineupSource, Wm26LineupSource>();
+
+        if (!services.Any(descriptor => descriptor.ServiceType == typeof(IWm26TransfermarktDuckDbProvider)))
+        {
+            services.AddHttpClient<IWm26TransfermarktDuckDbProvider, Wm26TransfermarktDuckDbProvider>();
+        }
+
+        return services;
+    }
+
     /// <summary>
     /// Registers services specific to the VerifyBonusCommand.
     /// </summary>
@@ -499,6 +511,22 @@ public static class ServiceRegistrationExtensions
     }
 
     /// <summary>
+    /// Registers services specific to the CollectContextLineupsCommand.
+    /// </summary>
+    public static IServiceCollection AddCollectContextLineupsCommandServices(
+        this IServiceCollection services,
+        LogLevel minimumLogLevel = LogLevel.Information)
+    {
+        services.AddOrchestratorInfrastructure(minimumLogLevel);
+        services.AddWm26LineupSourceServicesIfMissing();
+
+        // CollectContextLineupsCommand needs Firebase (IContextRepository, IKpiRepository)
+        // and the Transfermarkt DuckDB snapshot.
+
+        return services;
+    }
+
+    /// <summary>
     /// Registers services specific to the CollectContextDevCommand.
     /// </summary>
     public static IServiceCollection AddCollectContextDevCommandServices(
@@ -507,8 +535,9 @@ public static class ServiceRegistrationExtensions
     {
         services.AddOrchestratorInfrastructure(minimumLogLevel);
         services.AddFifaRankingSourceServicesIfMissing();
+        services.AddWm26LineupSourceServicesIfMissing();
 
-        // CollectContextDevCommand composes the Kicktipp and FIFA collection paths.
+        // CollectContextDevCommand composes the Kicktipp, FIFA, and lineup collection paths.
 
         return services;
     }
@@ -640,6 +669,7 @@ public static class ServiceRegistrationExtensions
         services.AddVerifyBonusCommandServices(minimumLogLevel);
         services.AddCollectContextKicktippCommandServices(minimumLogLevel);
         services.AddCollectContextFifaCommandServices(minimumLogLevel);
+        services.AddCollectContextLineupsCommandServices(minimumLogLevel);
         services.AddCollectContextDevCommandServices(minimumLogLevel);
         services.AddWm26RecentHistoryCommandServices(minimumLogLevel);
         services.AddContextChangesCommandServices(minimumLogLevel);

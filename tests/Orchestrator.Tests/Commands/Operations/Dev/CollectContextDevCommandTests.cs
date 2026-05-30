@@ -36,7 +36,7 @@ public class CollectContextDevCommandTests
     }
 
     [Test]
-    public async Task Running_collect_context_dev_for_wm26_calls_kicktipp_and_fifa_collection_paths()
+    public async Task Running_collect_context_dev_for_wm26_calls_kicktipp_fifa_and_lineup_collection_paths()
     {
         var testContext = CreateCollectContextDevCommandApp();
 
@@ -51,6 +51,7 @@ public class CollectContextDevCommandTests
         await Assert.That(exitCode).IsEqualTo(0);
         await Assert.That(output).Contains("Collect-context kicktipp command initialized");
         await Assert.That(output).Contains("Collect-context fifa command initialized");
+        await Assert.That(output).Contains("Collect-context lineups command initialized");
 
         testContext.ContextRepository.Verify(
             r => r.SaveContextDocumentAsync(
@@ -74,12 +75,27 @@ public class CollectContextDevCommandTests
                 "ehonda-dev-wm26",
                 It.IsAny<CancellationToken>()),
             Times.Once);
+        testContext.ContextRepository.Verify(
+            r => r.SaveContextDocumentAsync(
+                "lineup-mexiko.csv",
+                It.Is<string>(content => content.Contains("Team,Data_Collected_At,Role,Name,Age,Position,Market_Value_EUR")),
+                "ehonda-dev-wm26",
+                It.IsAny<CancellationToken>()),
+            Times.Once);
+        testContext.KpiRepository.Verify(
+            r => r.SaveKpiDocumentAsync(
+                "lineups",
+                It.Is<string>(content => content.Contains("Player One")),
+                It.IsAny<string>(),
+                "ehonda-dev-wm26",
+                It.IsAny<CancellationToken>()),
+            Times.Once);
         testContext.FirebaseServiceFactory.Verify(
             f => f.CreateContextRepository(CompetitionIds.FifaWorldCup2026),
-            Times.AtLeast(2));
+            Times.AtLeast(3));
         testContext.FirebaseServiceFactory.Verify(
             f => f.CreateKpiRepository(CompetitionIds.FifaWorldCup2026),
-            Times.Once);
+            Times.Exactly(2));
     }
 
     [Test]
@@ -160,6 +176,26 @@ public class CollectContextDevCommandTests
                         1681.03m)
                 ],
                 "Rank,Team,ELO,Data_Collected_At\n15,Mexiko,1681.03,2026-05-25\n"));
+        var lineupSource = new Mock<IWm26LineupSource>();
+        lineupSource
+            .Setup(source => source.CollectAsync(It.IsAny<Wm26LineupSourceRequest>(), It.IsAny<CancellationToken>()))
+            .ReturnsAsync(new Wm26LineupCollection(
+                "seed.csv",
+                "teams.csv",
+                "transfermarkt-datasets.duckdb",
+                2,
+                2,
+                [
+                    new(
+                        "lineup-mexiko.csv",
+                        "Team,Data_Collected_At,Role,Name,Age,Position,Market_Value_EUR\r\nMexiko,2026-05-25,Player,Player One,25,Forward,1.000.000\r\n",
+                        "Mexiko",
+                        1,
+                        false)
+                ],
+                "Team,Data_Collected_At,Role,Name,Age,Position,Market_Value_EUR\r\nMexiko,2026-05-25,Player,Player One,25,Forward,1.000.000\r\n",
+                [],
+                []));
 
         var (app, console) = CreateCommandApp<CollectContextDevCommand>(
             "collect-context-dev",
@@ -169,10 +205,12 @@ public class CollectContextDevCommandTests
                 services.AddSingleton(kicktippClientFactory.Object);
                 services.AddSingleton(contextProviderFactory.Object);
                 services.AddSingleton(fifaRankingSource.Object);
+                services.AddSingleton(lineupSource.Object);
                 services.AddSingleton<ILogger<MatchOutcomeCollectionService>>(new FakeLogger<MatchOutcomeCollectionService>());
                 services.AddSingleton<MatchOutcomeCollectionService>();
                 services.AddSingleton<ILogger<CollectContextKicktippCommand>>(new FakeLogger<CollectContextKicktippCommand>());
                 services.AddSingleton<ILogger<CollectContextFifaCommand>>(new FakeLogger<CollectContextFifaCommand>());
+                services.AddSingleton<ILogger<CollectContextLineupsCommand>>(new FakeLogger<CollectContextLineupsCommand>());
             }));
 
         return new CollectContextDevCommandTestContext(

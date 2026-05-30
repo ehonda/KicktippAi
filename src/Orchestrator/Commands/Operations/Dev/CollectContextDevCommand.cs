@@ -14,6 +14,7 @@ public sealed class CollectContextDevCommand : AsyncCommand<CollectContextDevSet
     private readonly IAnsiConsole _console;
     private readonly CollectContextKicktippCommand _kicktippCommand;
     private readonly CollectContextFifaCommand _fifaCommand;
+    private readonly CollectContextLineupsCommand _lineupsCommand;
 
     public CollectContextDevCommand(
         IAnsiConsole console,
@@ -22,8 +23,10 @@ public sealed class CollectContextDevCommand : AsyncCommand<CollectContextDevSet
         IContextProviderFactory contextProviderFactory,
         MatchOutcomeCollectionService matchOutcomeCollectionService,
         IFifaRankingSource fifaRankingSource,
+        IWm26LineupSource lineupSource,
         ILogger<CollectContextKicktippCommand> kicktippLogger,
-        ILogger<CollectContextFifaCommand> fifaLogger)
+        ILogger<CollectContextFifaCommand> fifaLogger,
+        ILogger<CollectContextLineupsCommand> lineupsLogger)
     {
         _console = console;
         _kicktippCommand = new CollectContextKicktippCommand(
@@ -38,6 +41,11 @@ public sealed class CollectContextDevCommand : AsyncCommand<CollectContextDevSet
             firebaseServiceFactory,
             fifaRankingSource,
             fifaLogger);
+        _lineupsCommand = new CollectContextLineupsCommand(
+            console,
+            firebaseServiceFactory,
+            lineupSource,
+            lineupsLogger);
     }
 
     protected override async Task<int> ExecuteAsync(
@@ -80,8 +88,23 @@ public sealed class CollectContextDevCommand : AsyncCommand<CollectContextDevSet
             return kicktippExitCode;
         }
 
-        return await _fifaCommand.ExecuteWithSettingsAsync(
+        var fifaExitCode = await _fifaCommand.ExecuteWithSettingsAsync(
             new CollectContextFifaSettings
+            {
+                CommunityContext = communityContext,
+                Competition = competition,
+                DryRun = settings.DryRun,
+                Verbose = settings.Verbose
+            },
+            cancellationToken);
+
+        if (fifaExitCode != 0)
+        {
+            return fifaExitCode;
+        }
+
+        return await _lineupsCommand.ExecuteWithSettingsAsync(
+            new CollectContextLineupsSettings
             {
                 CommunityContext = communityContext,
                 Competition = competition,

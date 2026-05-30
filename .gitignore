@@ -507,5 +507,9 @@ transfers-documents
 .agents/skills/wm26-lineups/**/*.duckdb
 .agents/skills/wm26-lineups/**/*.duckdb.wal
 .agents/skills/wm26-lineups/**/dataset-cache/
+data/wm26/lineups/private/
+data/wm26/lineups/**/*.duckdb
+data/wm26/lineups/**/*.duckdb.wal
+data/wm26/lineups/**/dataset-cache/
 
 .debug_assets

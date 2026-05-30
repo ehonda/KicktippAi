@@ -22,24 +22,29 @@ This skill coordinates the operational workflow for FIFA World Cup 2026 Kicktipp
 dotnet run --project src/Orchestrator -- collect-context-dev -c ehonda-dev-wm26 --verbose
 ```
 
-Use `--matchdays`, `--dry-run`, and `--verbose` as needed. The command collects Kicktipp context, fetches live WM26 FIFA rankings, and uploads ranking context/KPI documents to Firestore.
+Use `--matchdays`, `--dry-run`, and `--verbose` as needed. The command collects Kicktipp context, fetches live WM26 FIFA rankings, refreshes WM26 lineup context from the tracked seed and current Transfermarkt DuckDB snapshot, and uploads the required context/KPI documents to Firestore.
 
-3. For non-dev or explicit workflows, run the two collection paths separately.
+3. For non-dev or explicit workflows, run the three collection paths separately.
 
 ```powershell
 dotnet run --project src/Orchestrator -- collect-context kicktipp --community-context <community-context> --competition fifa-world-cup-2026
 dotnet run --project src/Orchestrator -- collect-context fifa --community-context <community-context> --competition fifa-world-cup-2026
+dotnet run --project src/Orchestrator -- collect-context lineups --community-context <community-context> --competition fifa-world-cup-2026
 ```
 
-4. Generate, upload, or copy mandatory lineup documents with `$wm26-lineups`.
+4. Confirm scheduled context collection is activated before prediction workflows for every new WM26 community.
 
-Every WM26 community needs per-team `lineup-*` context documents and the aggregate `lineups` KPI document before prediction validation. Use official FIFA lineup/squad material for membership once available, and use the CC0 `dcaribou/transfermarkt-datasets` DuckDB database as the only supplemental source.
+The community context workflow must run Kicktipp context collection, `collect-context fifa`, and `collect-context lineups` with `--competition fifa-world-cup-2026`. Do not enable scheduled matchday or bonus prediction workflows for a new WM26 community until this context workflow exists and has run successfully.
 
-FIFA final squad lists are expected on 2 June 2026, when FIFA announces the submitted final 26-player lists. Treat earlier squad announcements as provisional. Once those final FIFA squad lists are available, regenerate, enrich, and upload/copy the full-squad `lineup-*` context documents and `lineups` KPI document with `$wm26-lineups` using `--status official`. Keep full squads in context; do not switch this workflow to match-starter-only lineups.
+5. Refresh mandatory lineup documents with `collect-context lineups`.
+
+Every WM26 community needs per-team `lineup-*` context documents and the aggregate `lineups` KPI document before prediction validation. Use official FIFA lineup/squad material for membership once available, and use the CC0 `dcaribou/transfermarkt-datasets` DuckDB database as the only supplemental source. The command downloads the latest upstream DuckDB snapshot by default; use `--duckdb-path` only for local/offline runs.
+
+FIFA final squad lists are expected on 2 June 2026, when FIFA announces the submitted final 26-player lists. Treat earlier squad announcements as provisional. Once those final FIFA squad lists are available, update `data/wm26/lineups/lineups-seed.csv` to official full-squad membership and refresh the full-squad `lineup-*` context documents plus `lineups` KPI document with `collect-context lineups`. Keep full squads in context; do not switch this workflow to match-starter-only lineups.
 
 Do not run `matchday-dev` until every match team has its required `lineup-{team}.csv` context document. Do not run `bonus-dev` until the `lineups` KPI document exists.
 
-5. Apply the canonical recent-history date map.
+6. Apply the canonical recent-history date map.
 
 ```powershell
 dotnet run --project src/Orchestrator -- wm26-recent-history apply-date-map --community-context <community-context> --competition fifa-world-cup-2026 --input data/wm26/recent-history/recent-history-match-dates.csv
@@ -47,7 +52,7 @@ dotnet run --project src/Orchestrator -- wm26-recent-history apply-date-map --co
 
 Run with `--dry-run` first when changing the map.
 
-6. Validate predictions.
+7. Validate predictions.
 
 ```powershell
 dotnet run --project src/Orchestrator -- matchday-dev -c ehonda-dev-wm26 --verbose
@@ -59,11 +64,11 @@ Acceptance checks:
 - `bonus-dev` includes KPI context document `fifa-rankings` and includes `lineups` only for the exact top-scorer-team question.
 - Langfuse traces show hosted prompts, `langfusePromptFallback=false`, `openaiReasoningEffort=minimal`, ranking context containing `Rank,Team,ELO,Data_Collected_At`, and lineup context containing `Team,Data_Collected_At,Role,Name,Age,Position,Market_Value_EUR`.
 
-7. Inspect Langfuse traces with the repository Langfuse workflow.
+8. Inspect Langfuse traces with the repository Langfuse workflow.
    - Use the global `langfuse` skill and installed `langfuse` CLI.
    - Prefer filtering by `environment=development`, the WM26 community tag, and trace/observation names `matchday`, `bonus`, `predict-match`, or `predict-bonus`.
 
-8. Close out.
+9. Close out.
    - Run focused tests for the changed command/provider areas.
    - Inspect `git diff` and `git status`.
    - Commit the intended changes.
@@ -73,8 +78,9 @@ Acceptance checks:
 
 - Per-team FIFA ranking context documents: generated live by `collect-context fifa` as `fifa-ranking-*.csv` Firestore documents
 - Aggregate FIFA ranking KPI document: generated live by `collect-context fifa` as Firestore KPI document `fifa-rankings`
-- Per-team lineup context documents: generated or copied with `$wm26-lineups` as `lineup-*.csv` Firestore documents
-- Aggregate lineup KPI document: generated or copied with `$wm26-lineups` as Firestore KPI document `lineups`
+- Per-team lineup context documents: generated with `collect-context lineups` as `lineup-*.csv` Firestore documents
+- Aggregate lineup KPI document: generated with `collect-context lineups` as Firestore KPI document `lineups`
+- Tracked lineup seed and team manifest: `data/wm26/lineups/`
 - Recent-history played-date map: `data/wm26/recent-history/recent-history-match-dates.csv`
 - Workflow documentation: `docs/onboarding-wm26/README.md`
 

@@ -1,22 +1,22 @@
 # FIFA Squad Seed Generation
 
-This note documents the repeatable process used on 2026-05-30 to generate the private WM26 preliminary lineup seed. Use the same process once FIFA publishes the final squad lists, switching the workflow status from `provisional` to `official`.
+This note documents the repeatable process used on 2026-05-30 to generate the WM26 preliminary lineup seed. Use the same extraction process once FIFA publishes the final squad lists, then replace the tracked seed with official full-squad membership.
 
-The output of this process is an ignored private seed CSV:
+The output of this process is the tracked seed CSV:
 
 ```text
-.agents/skills/wm26-lineups/private/input/lineups-seed.csv
+data/wm26/lineups/lineups-seed.csv
 ```
 
-Do not commit generated seed CSVs, enriched source CSVs, source JSON, downloaded DuckDB files, or generated payloads. Commit only reusable workflow documentation, scripts, tests, and tracked reference data such as `references/wm26-teams.csv`.
+Do not commit source JSON, downloaded DuckDB files, generated payloads, or private source notes. Commit the reviewed seed CSV and tracked reference data such as `data/wm26/lineups/wm26-teams.csv`.
 
 ## Inputs
 
-- Tracked WM26 participant manifest: `references/wm26-teams.csv`
+- Tracked WM26 participant manifest: `data/wm26/lineups/wm26-teams.csv`
 - FIFA squad tracker page:
   `https://www.fifa.com/en/tournaments/mens/worldcup/canadamexicousa2026/articles/all-world-cup-squad-announcements`
-- Local Transfermarkt DuckDB snapshot:
-  `.agents/skills/wm26-lineups/private/data/transfermarkt-datasets.duckdb`
+- Local Transfermarkt DuckDB snapshot, when running offline:
+  `data/wm26/lineups/private/data/transfermarkt-datasets.duckdb`
 - Optional previous seed, for coach names, national-team IDs, player IDs, and spelling fixes.
 
 ## FIFA JSON Endpoints
@@ -69,7 +69,7 @@ Fetch that endpoint from the same base URL to get article rich text containing t
    - `fifa.com/en/articles/...` -> `https://www.fifa.com/en/articles/...`
    - `https://www.fifa.com/en/...` -> page JSON endpoint using `/pages/en/...`
 
-7. Keep only teams that map to `references/wm26-teams.csv`. Teams not in the tracker, teams with only too-broad prelists, and teams with train-on groups remain absent from the seed; the generator will create header-only context docs from the manifest.
+7. Keep only teams that map to `data/wm26/lineups/wm26-teams.csv`. Teams not in the tracker, teams with only too-broad prelists, and teams with train-on groups remain absent from the seed; `collect-context lineups` will create header-only context docs from the manifest.
 
 ## Roster Extraction
 
@@ -120,7 +120,7 @@ Age,Position,Market_Value_EUR
 
 Recommended row rules:
 
-- Order teams by `references/wm26-teams.csv`.
+- Order teams by `data/wm26/lineups/wm26-teams.csv`.
 - Use the tracked German project team name from the manifest in `Team`.
 - Use the collection date in `Data_Collected_At`.
 - Add one coach row per team with `Role=Coach`.
@@ -172,48 +172,34 @@ Common manual fixes are spelling and transliteration differences, for example:
 
 ## Enrich And Generate
 
-For preliminary runs:
+After updating the tracked seed, run the native collection command:
 
 ```powershell
-uv --cache-dir .uv-cache run python .agents\skills\wm26-lineups\scripts\enrich_lineup_source.py `
-  --input .agents\skills\wm26-lineups\private\input\lineups-seed.csv `
-  --duckdb .agents\skills\wm26-lineups\private\data\transfermarkt-datasets.duckdb `
-  --output .agents\skills\wm26-lineups\private\input\lineups.csv `
-  --status provisional `
-  --allow-missing-players
+dotnet run --project src/Orchestrator -- collect-context lineups --community-context ehonda-dev-wm26 --competition fifa-world-cup-2026 --verbose
 ```
 
-For final squad runs, use the same command with `--status official`. Keep `--allow-missing-players`; final FIFA roster membership should remain present even when the DuckDB snapshot lacks supplemental values.
-
-Then generate payloads for all 48 teams:
+For local/offline verification with an existing DuckDB snapshot:
 
 ```powershell
-uv --cache-dir .uv-cache run python .agents\skills\wm26-lineups\scripts\generate_lineup_payloads.py `
-  --input .agents\skills\wm26-lineups\private\input\lineups.csv `
-  --community-context ehonda-dev-wm26 `
-  --status provisional `
-  --output-root .agents\skills\wm26-lineups\artifacts `
-  --kpi-output-root kpi-documents\output `
-  --teams .agents\skills\wm26-lineups\references\wm26-teams.csv
+dotnet run --project src/Orchestrator -- collect-context lineups --community-context ehonda-dev-wm26 --competition fifa-world-cup-2026 --duckdb-path data/wm26/lineups/private/data/transfermarkt-datasets.duckdb --dry-run --verbose
 ```
 
-For final squad runs, change the generator status to `official`.
+Final FIFA roster membership should remain present even when the DuckDB snapshot lacks supplemental values; those fields stay as `N/A`.
 
 Review these reports:
 
 - `Header-only lineup context payloads`: should shrink as usable squad lists become available and should be zero after all final squads are processed.
 - `Missing lineup source data`: expected when DuckDB lacks a supplemental value; fix easy ID/spelling misses, then keep true gaps as `N/A`.
-- `Lineup source status`: must match the intended run status.
+- Source state in `docs/onboarding-wm26/lineup-source-status.md` must match the tracked seed.
 
 ## Final Squad Refresh Checklist
 
-1. Refresh or verify the local DuckDB snapshot.
+1. Refresh or verify the local DuckDB snapshot, or let `collect-context lineups` download it.
 2. Re-run tracker extraction after FIFA publishes final lists.
 3. Confirm every manifest team has a final squad article or equivalent official FIFA final-list source.
 4. Regenerate `private/input/lineups-seed.csv` with final roster rows.
 5. Exclude reserve, standby, replacement-watch, and training-only groups unless FIFA explicitly includes them in the final submitted squad.
-6. Enrich with `--status official --allow-missing-players`.
-7. Generate with `--status official --teams references/wm26-teams.csv`.
+6. Commit the official full-squad seed to `data/wm26/lineups/lineups-seed.csv`.
+7. Run `collect-context lineups --competition fifa-world-cup-2026`.
 8. Confirm the header-only report is empty.
-9. Upload per-team context docs and the aggregate `lineups` KPI document.
-10. Validate `matchday-dev`, `bonus-dev`, and Langfuse traces per `SKILL.md`.
+9. Validate `matchday-dev`, `bonus-dev`, and Langfuse traces per the WM26 onboarding docs.

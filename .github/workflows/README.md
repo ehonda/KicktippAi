@@ -55,8 +55,9 @@ Context collection workflows gather and store contextual data for multiple commu
 
 1. **Environment Setup**: Configure Kicktipp and Firebase credentials
 2. **Context Gathering**: Collect match context from all current matchday matches
-3. **Database Storage**: Store context documents in Firebase with version control
-4. **Duplicate Detection**: Skip unchanged context to avoid redundant storage
+3. **Competition Extras**: Optional WM26 collection runs `collect-context fifa` and `collect-context lineups`
+4. **Database Storage**: Store context documents in Firebase with version control
+5. **Duplicate Detection**: Skip unchanged context to avoid redundant storage
 
 ## Community Configuration
 
@@ -65,6 +66,8 @@ Each community workflow is configured with direct parameters:
 - **`community`**: Kicktipp community name
 - **`model`**: OpenAI model to use for predictions (o4-mini, o1)
 - **`community_context`**: Community context when generating predictions (or using stored ones from the database)
+- **`competition`**: Optional competition identifier for context collection
+- **`include_fifa_rankings` / `include_lineups`**: Enable WM26 context extras for World Cup communities
 
 ## Example Communities
 
@@ -276,6 +279,11 @@ dotnet run --project src/Orchestrator/Orchestrator.csproj -- collect-context kic
 dotnet run --project src/Orchestrator/Orchestrator.csproj -- collect-context kicktipp --community-context pes-squad --verbose
 
 dotnet run --project src/Orchestrator/Orchestrator.csproj -- collect-context kicktipp --community-context schadensfresse --verbose
+
+# Test WM26 context extras
+dotnet run --project src/Orchestrator/Orchestrator.csproj -- collect-context fifa --community-context ehonda-dev-wm26 --competition fifa-world-cup-2026 --dry-run --verbose
+
+dotnet run --project src/Orchestrator/Orchestrator.csproj -- collect-context lineups --community-context ehonda-dev-wm26 --competition fifa-world-cup-2026 --dry-run --verbose
 ```
 
 ### Cost Analysis Testing

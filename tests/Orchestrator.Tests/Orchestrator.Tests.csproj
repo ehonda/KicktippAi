@@ -35,6 +35,9 @@
         
         <!-- Environment loading (same as Orchestrator) -->
         <PackageReference Include="DotNetEnv" />
+
+        <!-- DuckDB test fixture setup for WM26 lineup source tests -->
+        <PackageReference Include="DuckDB.NET.Data.Full" />
     </ItemGroup>
 
     <ItemGroup>
