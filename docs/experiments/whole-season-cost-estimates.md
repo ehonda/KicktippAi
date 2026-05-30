@@ -22,18 +22,18 @@ already collected `pes-squad` / `o3` counts.
 
 WM26 model onboarding coverage is tracked in
 [model-config-onboarding.md](../onboarding-wm26/model-config-onboarding.md).
-As of 2026-05-31, the manual WM26 testing default
+As of 2026-05-31, the manual WM26 dev/testing fallback
 `gpt-5-nano` / `minimal` is onboarded but not estimated here because the
-estimator has no matching base row yet. The checked command was:
+estimator has no matching base row yet. This fallback is not the WM26
+production configuration, which is still TBD. The checked command was:
 
 ```powershell
 uv --cache-dir .uv-cache run python .agents/skills/estimate-experiment-cost-skill/scripts/experiment_cost_estimator.py estimate --counts 104 --model gpt-5-nano --reasoning-effort minimal
 ```
 
-It reported no matching base estimate JSON row. Create and persist that row
+It reported no matching base estimate JSON row. Create and persist base rows
 through the `estimate-experiment-cost-skill` workflow before recording a
-full-competition dollar estimate for this configuration or activating scheduled
-WM26 prediction workflows.
+full-competition dollar estimate for any scheduled WM26 model configuration.
 
 ## Match Counts And Repredictions
 

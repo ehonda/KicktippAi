@@ -14,6 +14,8 @@ This skill coordinates the operational workflow for FIFA World Cup 2026 Kicktipp
 1. Confirm the target community and competition.
    - Dev communities must be listed in `CompetitionResolver.SupportedDevCommunities`.
    - WM26 communities should resolve to `fifa-world-cup-2026`.
+   - Treat the omitted-model fallback `gpt-5-nano` with `minimal` reasoning as a low-cost dev/test default only. It is not the WM26 production model configuration.
+   - Production or scheduled prediction workflows must pass an explicit model and reasoning effort once the production configuration is selected. If the reusable workflow does not expose a reasoning-effort input yet, add that workflow support before production activation.
    - Run `dotnet` and `git` commands outside the sandbox in this repository.
 
 2. Seed context for a supported dev community.
@@ -85,8 +87,22 @@ Acceptance checks:
 11. Close out.
    - Run focused tests for the changed command/provider areas.
    - Inspect `git diff` and `git status`.
+   - Include a "Manual follow-ups" section in the final response for work that cannot be completed autonomously.
    - Commit the intended changes.
    - Before pushing, verify branch, remotes, status, and latest commit, then push explicitly with `git push origin <branch>`.
+
+## Manual Follow-Up Output
+
+After autonomous onboarding, include a concise manual follow-up section in the final response. Mark each item as done, not needed, or still required. At minimum, cover:
+
+- GitHub Actions secrets and variables: per-community Kicktipp username/password secrets used by the workflow files, `FIREBASE_PROJECT_ID`, `FIREBASE_SERVICE_ACCOUNT_JSON`, `OPENAI_API_KEY`, `LANGFUSE_SECRET_KEY`, and repository variable `LANGFUSE_PUBLIC_KEY`.
+- GitHub workflow activation: whether workflows are manual-only/testing, schedules are still disabled, or schedules are ready to enable. Do not activate scheduled prediction workflows until the context workflow has run successfully.
+- Workflow model wiring: whether each prediction workflow passes the selected model and reasoning effort explicitly instead of relying on the WM26 omitted-argument fallback.
+- Production model decision: the chosen production model, reasoning effort, prompt route, and estimate status. If production is still TBD, say so plainly and do not imply that `gpt-5-nano` / `minimal` is production-ready.
+- Cost estimate coverage: exact `docs/experiments/whole-season-cost-estimates.md` entry or missing estimate/base-row work for every scheduled model configuration.
+- Kicktipp and Firebase access: whether the posting account can access the target community and whether Firestore context/KPI writes were validated.
+- Langfuse prompt/tracing setup: hosted prompt names/labels, fallback status, trace environment expectation, and whether Langfuse keys are configured for workflows.
+- First-run checklist: manually trigger the context workflow, inspect ranking/lineup documents, then manually trigger prediction workflows before enabling cron schedules.
 
 ## Data Locations
 

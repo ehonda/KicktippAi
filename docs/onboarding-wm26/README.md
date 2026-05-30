@@ -54,21 +54,27 @@ The offsets preserve the Bundesliga dependency pattern: collect context first, t
 
 WM26 needs a third daily window because many North American kickoffs are late in UTC/Berlin time. The `00:37 UTC` prediction window gives a retry opportunity before late matches, `07:37 UTC` refreshes after overnight results and context updates, and `12:37 UTC` provides another attempt before the earliest remaining kickoff blocks. This gives at least two scheduled prediction tries for upcoming matches in normal tournament flow, including a useful pair of post-group-stage attempts before the first Round of 32 match on 2026-06-28.
 
-## Defaults
+## Dev And Production Model Defaults
 
 `ehonda-dev-wm26` resolves to `fifa-world-cup-2026`. Existing communities default to `bundesliga-2025-26` and keep their legacy Firestore document IDs.
 
-For WM 2026 manual prediction commands:
+For WM26 dev work and low-cost manual testing, commands that omit the model use:
 
 - prompt source: `langfuse`
 - prompt label: `latest`
-- model: `gpt-5-nano` when the model argument is omitted
-- reasoning effort: `minimal` unless explicitly overridden
+- model: `gpt-5-nano`
+- reasoning effort: `minimal`
 
-The default `gpt-5-nano` / `minimal` configuration does not yet have a stored
-full-competition estimate row. Before activating schedules for that
-configuration, generate and document the estimate through the
-`estimate-experiment-cost-skill` workflow and update
+This is a dev/test fallback, not the WM26 production configuration. Production
+or scheduled prediction workflows must pass the selected production model and
+reasoning effort explicitly. If the reusable prediction workflows do not yet
+expose a reasoning-effort input, add that support before production activation.
+The production configuration is still TBD.
+
+The dev/test `gpt-5-nano` / `minimal` fallback does not yet have a stored
+full-competition estimate row. Before activating schedules for any
+configuration, generate and document the selected configuration's estimate
+through the `estimate-experiment-cost-skill` workflow and update
 `docs/experiments/whole-season-cost-estimates.md`.
 
 ## Prompts
@@ -210,10 +216,35 @@ tests/KicktippIntegration.Tests/Fixtures/Html/Real/ehonda-dev-wm26/*.html.enc
 
 Do not commit raw `kicktipp-snapshots` HTML. If credentials or `KICKTIPP_FIXTURE_KEY` are missing, fix that locally before collecting snapshots.
 
+## Manual Follow-Ups After Onboarding
+
+After autonomous onboarding, report any manual items still required before the
+workflow can be trusted or scheduled:
+
+- Configure GitHub Actions secrets for each WM26 community workflow:
+  per-community Kicktipp username/password secrets, `FIREBASE_PROJECT_ID`,
+  `FIREBASE_SERVICE_ACCOUNT_JSON`, `OPENAI_API_KEY`, and
+  `LANGFUSE_SECRET_KEY`.
+- Configure repository variable `LANGFUSE_PUBLIC_KEY` if it is not already set.
+- Select and document the WM26 production model configuration; do not use the
+  `gpt-5-nano` / `minimal` dev fallback as the production assumption.
+- Ensure prediction workflows pass the selected model and reasoning effort
+  explicitly; add reusable workflow support for reasoning effort before
+  production activation if needed.
+- Add the full-competition cost estimate for every scheduled model
+  configuration.
+- Manually trigger context collection once and verify Kicktipp, FIFA ranking,
+  lineup, and KPI Firestore documents before prediction workflow testing.
+- Manually trigger matchday and bonus workflows once before enabling cron
+  schedules.
+- When production workflows are activated, update the hard-coded production
+  community lists described in `.github/workflows/AGENTS.md` so Langfuse trace
+  environments are correct.
+
 ## Follow-Ups
 
 - Enable the planned scheduled workflow cadence after the first WM26 communities and models are onboarded.
-- Fill the missing full-competition estimate for the `gpt-5-nano` / `minimal` WM26 default before scheduled activation.
+- Select the WM26 production model configuration and document its full-competition estimate before scheduled activation.
 - For each new WM26 community, activate scheduled context collection before prediction workflows; the context workflow must run Kicktipp, FIFA ranking, and lineup collection for the community.
 - Replace `data/wm26/lineups/lineups-seed.csv` with official full FIFA final squad rows once available around 2026-06-02.
 - Decide production community naming and rollout timing.

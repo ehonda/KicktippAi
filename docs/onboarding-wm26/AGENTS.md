@@ -37,10 +37,25 @@ When onboarding or changing a WM26 model configuration, update
 effort, prompt route, where the configuration is wired, workflow activation
 status, and full-competition estimate status.
 
+Do not describe `gpt-5-nano` / `minimal` as the production default. It is only
+the dev/test fallback for omitted-model manual runs. Production workflows must
+pass an explicit model and reasoning effort after the production configuration
+is selected. If the reusable prediction workflow does not expose
+reasoning-effort input yet, add that support before production activation.
+
 If the exact model and reasoning effort are not documented in
 `../experiments/whole-season-cost-estimates.md`, use the project
 `estimate-experiment-cost-skill` workflow before scheduled activation. Do not
 hand-calculate missing dollar estimates.
+
+## Manual Follow-Up Reporting
+
+When autonomous onboarding finishes, include a manual follow-up section in the
+final response. Call out GitHub Actions secrets and variables, scheduled
+workflow activation status, production model decision status, cost estimate
+coverage, explicit model/reasoning workflow wiring, Kicktipp/Firebase access
+validation, Langfuse key and prompt setup, and the first manual workflow trigger
+sequence.
 
 ## Verification Workflow
 
@@ -58,6 +73,6 @@ Use `$langfuse` and the installed `langfuse` CLI to inspect the resulting develo
 - matchday traces include only the two participating teams' `lineup-*` docs
 - bonus traces include `lineups` only for `Welche Mannschaft stellt den Spieler mit den meisten Toren?`
 - hosted prompt fallback is false
-- WM26 default reasoning effort is present
+- WM26 dev/test fallback reasoning effort is present for dev shortcut traces
 
 If verification cannot be completed, record the exact skipped command and blocker in the final response.
