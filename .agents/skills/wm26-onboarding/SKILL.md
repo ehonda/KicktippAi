@@ -1,13 +1,13 @@
 ---
 name: wm26-onboarding
-description: Onboard KicktippAi FIFA World Cup 2026 communities end to end. Use when preparing WM26 community context, generating and uploading mandatory lineup documents, seeding Firestore context/KPI documents, applying the recent-history played-date map, validating matchday-dev or bonus-dev, inspecting Langfuse traces, or committing and pushing WM26 onboarding changes.
+description: Onboard KicktippAi FIFA World Cup 2026 communities end to end. Use when preparing WM26 community context, generating and uploading mandatory lineup documents, seeding Firestore context/KPI documents, applying the recent-history played-date map, documenting onboarded model configurations and season-cost estimate coverage, validating matchday-dev or bonus-dev, inspecting Langfuse traces, or committing and pushing WM26 onboarding changes.
 ---
 
 # WM26 Onboarding
 
 ## Overview
 
-This skill coordinates the operational workflow for FIFA World Cup 2026 KicktippAi communities. It keeps the checked-in WM26 data, mandatory lineup documents, Firestore context documents, dev prediction validation, Langfuse trace review, and closeout steps aligned.
+This skill coordinates the operational workflow for FIFA World Cup 2026 KicktippAi communities. It keeps the checked-in WM26 data, mandatory lineup documents, Firestore context documents, onboarded model configuration docs, full-competition estimate coverage, dev prediction validation, Langfuse trace review, and closeout steps aligned.
 
 ## Workflow
 
@@ -32,11 +32,25 @@ dotnet run --project src/Orchestrator -- collect-context fifa --community-contex
 dotnet run --project src/Orchestrator -- collect-context lineups --community-context <community-context> --competition fifa-world-cup-2026
 ```
 
-4. Confirm scheduled context collection is activated before prediction workflows for every new WM26 community.
+4. Record the workflow activation plan.
 
-The community context workflow must run Kicktipp context collection, `collect-context fifa`, and `collect-context lineups` with `--competition fifa-world-cup-2026`. Do not enable scheduled matchday or bonus prediction workflows for a new WM26 community until this context workflow exists and has run successfully.
+For testing-only onboarding, leave GitHub Actions schedules inactive and record that status in `docs/onboarding-wm26/model-config-onboarding.md`. Before enabling scheduled matchday or bonus prediction workflows for a new WM26 community, activate and successfully run the scheduled context workflow first. The community context workflow must run Kicktipp context collection, `collect-context fifa`, and `collect-context lineups` with `--competition fifa-world-cup-2026`.
 
-5. Refresh mandatory lineup documents with `collect-context lineups`.
+5. Document onboarded model configurations.
+
+Update `docs/onboarding-wm26/model-config-onboarding.md` for every effective WM26 configuration. Record the community, competition, model, reasoning effort, prompt source, prompt name, prompt label or version policy, fallback prompt route, where the configuration is wired, workflow files if present, activation status, and season-cost estimate status. Treat code defaults, manual dev shortcuts, and scheduled workflow files as separate onboarding locations when they differ.
+
+6. Ensure full-competition match prediction costs are documented.
+
+Use the `whole-season-estimates` skill and the `estimate-experiment-cost-skill` workflow for each onboarded model configuration. Check `docs/experiments/whole-season-cost-estimates.md` for an exact model and reasoning-effort entry before activation. For WM26, estimate `104` match predictions and assume no repredictions unless stronger evidence is documented; bonus-question cost remains excluded unless the user explicitly asks to estimate it. Run estimates only through:
+
+```powershell
+uv --cache-dir .uv-cache run python .agents/skills/estimate-experiment-cost-skill/scripts/experiment_cost_estimator.py estimate --counts 104 --model <model> --reasoning-effort <effort>
+```
+
+If the estimator reports no matching base row, do not invent or hand-calculate a cost. Follow the `estimate-experiment-cost-skill` base-estimate workflow, including confirmation before any spend, persist the row with `upsert-row`, rerun `estimate`, and document the exact command, row details, assumptions, and output in `docs/experiments/whole-season-cost-estimates.md`. Cross-link the result from `docs/onboarding-wm26/model-config-onboarding.md`.
+
+7. Refresh mandatory lineup documents with `collect-context lineups`.
 
 Every WM26 community needs per-team `lineup-*` context documents and the aggregate `lineups` KPI document before prediction validation. Use official FIFA lineup/squad material for membership once available, and use the CC0 `dcaribou/transfermarkt-datasets` DuckDB database as the only supplemental source. The command downloads the latest upstream DuckDB snapshot by default; use `--duckdb-path` only for local/offline runs.
 
@@ -44,7 +58,7 @@ FIFA final squad lists are expected on 2 June 2026, when FIFA announces the subm
 
 Do not run `matchday-dev` until every match team has its required `lineup-{team}.csv` context document. Do not run `bonus-dev` until the `lineups` KPI document exists.
 
-6. Apply the canonical recent-history date map.
+8. Apply the canonical recent-history date map.
 
 ```powershell
 dotnet run --project src/Orchestrator -- wm26-recent-history apply-date-map --community-context <community-context> --competition fifa-world-cup-2026 --input data/wm26/recent-history/recent-history-match-dates.csv
@@ -52,7 +66,7 @@ dotnet run --project src/Orchestrator -- wm26-recent-history apply-date-map --co
 
 Run with `--dry-run` first when changing the map.
 
-7. Validate predictions.
+9. Validate predictions.
 
 ```powershell
 dotnet run --project src/Orchestrator -- matchday-dev -c ehonda-dev-wm26 --verbose
@@ -64,11 +78,11 @@ Acceptance checks:
 - `bonus-dev` includes KPI context document `fifa-rankings` and includes `lineups` only for the exact top-scorer-team question.
 - Langfuse traces show hosted prompts, `langfusePromptFallback=false`, `openaiReasoningEffort=minimal`, ranking context containing `Rank,Team,ELO,Data_Collected_At`, and lineup context containing `Team,Data_Collected_At,Role,Name,Age,Position,Market_Value_EUR`.
 
-8. Inspect Langfuse traces with the repository Langfuse workflow.
+10. Inspect Langfuse traces with the repository Langfuse workflow.
    - Use the global `langfuse` skill and installed `langfuse` CLI.
    - Prefer filtering by `environment=development`, the WM26 community tag, and trace/observation names `matchday`, `bonus`, `predict-match`, or `predict-bonus`.
 
-9. Close out.
+11. Close out.
    - Run focused tests for the changed command/provider areas.
    - Inspect `git diff` and `git status`.
    - Commit the intended changes.
@@ -83,6 +97,8 @@ Acceptance checks:
 - Tracked lineup seed and team manifest: `data/wm26/lineups/`
 - Recent-history played-date map: `data/wm26/recent-history/recent-history-match-dates.csv`
 - Workflow documentation: `docs/onboarding-wm26/README.md`
+- Model configuration onboarding ledger: `docs/onboarding-wm26/model-config-onboarding.md`
+- Full-competition cost estimates: `docs/experiments/whole-season-cost-estimates.md`
 
 FIFA ranking CSV payloads must use `Rank,Team,ELO,Data_Collected_At`, format points with two decimal places, and must not contain empty `Data_Collected_At` values.
 

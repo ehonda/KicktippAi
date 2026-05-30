@@ -1,6 +1,8 @@
 # Whole-Season Cost Estimates
 
-Updated: 2026-05-11
+Last estimate refresh: 2026-05-11
+
+Coverage note added: 2026-05-31
 
 This estimate projects match prediction cost for two full competitions, all
 `gpt-5.5` reasoning efforts, and two comparison configurations. Bonus question
@@ -17,6 +19,21 @@ The dollar values below were regenerated immediately before this document was
 written with `experiment_cost_estimator.py estimate`. No Firebase `cost` query
 was rerun for this estimate; the Bundesliga reprediction evidence reuses the
 already collected `pes-squad` / `o3` counts.
+
+WM26 model onboarding coverage is tracked in
+[model-config-onboarding.md](../onboarding-wm26/model-config-onboarding.md).
+As of 2026-05-31, the manual WM26 testing default
+`gpt-5-nano` / `minimal` is onboarded but not estimated here because the
+estimator has no matching base row yet. The checked command was:
+
+```powershell
+uv --cache-dir .uv-cache run python .agents/skills/estimate-experiment-cost-skill/scripts/experiment_cost_estimator.py estimate --counts 104 --model gpt-5-nano --reasoning-effort minimal
+```
+
+It reported no matching base estimate JSON row. Create and persist that row
+through the `estimate-experiment-cost-skill` workflow before recording a
+full-competition dollar estimate for this configuration or activating scheduled
+WM26 prediction workflows.
 
 ## Match Counts And Repredictions
 

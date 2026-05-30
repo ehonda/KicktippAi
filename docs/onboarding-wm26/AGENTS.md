@@ -21,7 +21,26 @@ Do not scrape websites for supplemental lineup values in this context.
 
 ## Workflow Activation
 
-For every new WM26 community, activate its scheduled context collection workflow before enabling prediction workflows. That context workflow must run Kicktipp context collection, `collect-context fifa`, and `collect-context lineups` for the community with `--competition fifa-world-cup-2026`.
+For testing-only onboarding, leave GitHub Actions schedules inactive and record
+that status in `model-config-onboarding.md`.
+
+For every new WM26 community, activate its scheduled context collection
+workflow before enabling scheduled prediction workflows. That context workflow
+must run Kicktipp context collection, `collect-context fifa`, and
+`collect-context lineups` for the community with
+`--competition fifa-world-cup-2026`.
+
+## Model Configuration Ledger
+
+When onboarding or changing a WM26 model configuration, update
+`model-config-onboarding.md` with the community, competition, model, reasoning
+effort, prompt route, where the configuration is wired, workflow activation
+status, and full-competition estimate status.
+
+If the exact model and reasoning effort are not documented in
+`../experiments/whole-season-cost-estimates.md`, use the project
+`estimate-experiment-cost-skill` workflow before scheduled activation. Do not
+hand-calculate missing dollar estimates.
 
 ## Verification Workflow
 

@@ -4,6 +4,11 @@ This first pass supports manual participation for the development community `eho
 
 No scheduled GitHub Actions workflow is enabled yet.
 
+Model configuration onboarding status is tracked in
+[model-config-onboarding.md](model-config-onboarding.md). Keep that ledger
+current while testing manual communities, and use it as the reference before
+bulk workflow activation.
+
 ## Planned GitHub Actions Cadence
 
 Once the first WM26 communities and model-specific workflows are onboarded, use a three-window daily cadence during the tournament window. The current plan is based on the official FIFA World Cup 26 match schedule PDF dated 2026-04-10, which lists all kickoff times in Eastern Time and is marked subject to change. Re-check the official schedule before enabling the workflows.
@@ -59,6 +64,12 @@ For WM 2026 manual prediction commands:
 - prompt label: `latest`
 - model: `gpt-5-nano` when the model argument is omitted
 - reasoning effort: `minimal` unless explicitly overridden
+
+The default `gpt-5-nano` / `minimal` configuration does not yet have a stored
+full-competition estimate row. Before activating schedules for that
+configuration, generate and document the estimate through the
+`estimate-experiment-cost-skill` workflow and update
+`docs/experiments/whole-season-cost-estimates.md`.
 
 ## Prompts
 
@@ -202,6 +213,7 @@ Do not commit raw `kicktipp-snapshots` HTML. If credentials or `KICKTIPP_FIXTURE
 ## Follow-Ups
 
 - Enable the planned scheduled workflow cadence after the first WM26 communities and models are onboarded.
+- Fill the missing full-competition estimate for the `gpt-5-nano` / `minimal` WM26 default before scheduled activation.
 - For each new WM26 community, activate scheduled context collection before prediction workflows; the context workflow must run Kicktipp, FIFA ranking, and lineup collection for the community.
 - Replace `data/wm26/lineups/lineups-seed.csv` with official full FIFA final squad rows once available around 2026-06-02.
 - Decide production community naming and rollout timing.
