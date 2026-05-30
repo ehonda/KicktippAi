@@ -76,6 +76,40 @@ class EnrichLineupSourceTests(unittest.TestCase):
 
             self.assertIn("was not found", str(context.exception))
 
+    def test_can_keep_missing_player_with_na_supplemental_values(self) -> None:
+        with tempfile.TemporaryDirectory() as temp:
+            paths = TestPaths(Path(temp))
+            create_duckdb(paths.database)
+            write_seed(
+                paths.seed,
+                [
+                    seed_row(
+                        name="Official Roster Player",
+                        national_team_id="100",
+                        position="Attack",
+                    )
+                ],
+                include_optional=True,
+            )
+
+            enrich.main(
+                [
+                    "--input",
+                    str(paths.seed),
+                    "--duckdb",
+                    str(paths.database),
+                    "--output",
+                    str(paths.output),
+                    "--allow-missing-players",
+                ]
+            )
+
+            rows = read_csv(paths.output)
+            self.assertEqual("Official Roster Player", rows[0]["Name"])
+            self.assertEqual("N/A", rows[0]["Age"])
+            self.assertEqual("Attack", rows[0]["Position"])
+            self.assertEqual("N/A", rows[0]["Market_Value_EUR"])
+
     def test_fails_when_name_match_is_ambiguous(self) -> None:
         with tempfile.TemporaryDirectory() as temp:
             paths = TestPaths(Path(temp))
@@ -144,6 +178,8 @@ class GenerateLineupPayloadsTests(unittest.TestCase):
                     str(root / "artifacts"),
                     "--kpi-output-root",
                     str(root / "kpi"),
+                    "--teams",
+                    "",
                 ]
             )
 
@@ -157,6 +193,47 @@ class GenerateLineupPayloadsTests(unittest.TestCase):
             self.assertIn("Exampleland,2026-05-25,Coach,Coach One,,Coach,", content)
             self.assertNotIn("Squad_Status", content)
             self.assertNotIn("Transfermarkt_Player_Id", content)
+
+    def test_generates_header_only_payloads_for_manifest_teams_without_source_rows(self) -> None:
+        with tempfile.TemporaryDirectory() as temp:
+            root = Path(temp)
+            source = root / "lineups.csv"
+            teams = root / "teams.csv"
+            write_generator_source(
+                source,
+                [
+                    generator_row(role="Coach", name="Coach One", age="", position="Coach", market_value=""),
+                    generator_row(role="Player", name="Player One", age="N/A", position="N/A", market_value="N/A"),
+                ],
+            )
+            write_csv(
+                teams,
+                ["Team_Slug", "Team"],
+                [{"Team_Slug": "missingland", "Team": "Missingland"}],
+            )
+
+            generate.main(
+                [
+                    "--input",
+                    str(source),
+                    "--community-context",
+                    "ehonda-dev-wm26",
+                    "--status",
+                    "provisional",
+                    "--output-root",
+                    str(root / "artifacts"),
+                    "--kpi-output-root",
+                    str(root / "kpi"),
+                    "--teams",
+                    str(teams),
+                ]
+            )
+
+            payload_path = root / "artifacts" / "context-documents" / "ehonda-dev-wm26" / "lineup-missingland.csv.json"
+            payload = json.loads(payload_path.read_text(encoding="utf-8"))
+
+            self.assertEqual("lineup-missingland.csv", payload["documentName"])
+            self.assertEqual("Team,Data_Collected_At,Role,Name,Age,Position,Market_Value_EUR\r\n", payload["content"])
 
 
 class TestPaths:
@@ -207,6 +284,9 @@ def seed_row(
     name: str = "Player Ten",
     national_team_id: str = "",
     player_id: str = "",
+    age: str = "",
+    position: str = "",
+    market_value: str = "",
 ) -> dict[str, str]:
     return {
         "Team_Slug": "exampleland",
@@ -216,11 +296,17 @@ def seed_row(
         "Name": name,
         "Transfermarkt_National_Team_Id": national_team_id,
         "Transfermarkt_Player_Id": player_id,
+        "Age": age,
+        "Position": position,
+        "Market_Value_EUR": market_value,
     }
 
 
-def write_seed(path: Path, rows: list[dict[str, str]]) -> None:
-    write_csv(path, enrich.REQUIRED_SEED_COLUMNS, rows)
+def write_seed(path: Path, rows: list[dict[str, str]], include_optional: bool = False) -> None:
+    fieldnames = list(enrich.REQUIRED_SEED_COLUMNS)
+    if include_optional:
+        fieldnames += enrich.OPTIONAL_SEED_COLUMNS
+    write_csv(path, fieldnames, [{field: row.get(field, "") for field in fieldnames} for row in rows])
 
 
 def generator_row(role: str, name: str, age: str, position: str, market_value: str) -> dict[str, str]:

@@ -7,12 +7,14 @@ Recommended private source workflow:
 1. Download the upstream DuckDB database to an ignored path such as `.agents/skills/wm26-lineups/private/data/transfermarkt-datasets.duckdb`.
 2. Prepare a seed CSV with FIFA/provisional membership and, where possible, explicit Transfermarkt IDs:
    `Team_Slug,Team,Data_Collected_At,Role,Name,Transfermarkt_National_Team_Id,Transfermarkt_Player_Id`.
+   Optional `Age`, `Position`, and `Market_Value_EUR` columns may be included. For provisional roster rows that cannot be resolved in the DuckDB snapshot, run with `--allow-missing-players` so the row is kept with `N/A` supplemental values.
 3. Run `scripts/enrich_lineup_source.py` to fill `Age`, `Position`, and `Market_Value_EUR` from the DuckDB `players` and `national_teams` tables.
 4. Review any missing or ambiguous player matches. Prefer adding `Transfermarkt_Player_Id` to the seed CSV over loosening name matching.
-5. Use deterministic team slugs that match KicktippAi context document naming, for example `germany` -> `lineup-germany.csv`.
+5. Use deterministic team slugs that match KicktippAi context document naming and `references/wm26-teams.csv`.
 6. Run generate mode with `--status provisional` until official squads are published.
-7. Read the `Missing lineup source data` report. Keep `N/A` only when the upstream dataset lacks a player market value; do not use `0` for unknown values.
-8. Regenerate and upload with `--status official` after official FIFA final squads are available.
+7. Run generate mode with the `references/wm26-teams.csv` manifest. Teams without usable squad rows must still get header-only `lineup-*` payloads so WM26 matchday context checks do not fail because a document is absent.
+8. Read the `Header-only lineup context payloads` and `Missing lineup source data` reports. Keep `N/A` only when the upstream dataset lacks a supplemental value; do not use `0` for unknown market values.
+9. Regenerate and upload with `--status official` after official FIFA final squads are available.
 
 Generated lineup CSV context must use exactly:
 `Team,Data_Collected_At,Role,Name,Age,Position,Market_Value_EUR`.

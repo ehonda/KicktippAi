@@ -16,9 +16,10 @@ description: Generate, enrich, upload, or copy FIFA World Cup 2026 lineup contex
 - Use only this output CSV schema:
   `Team,Data_Collected_At,Role,Name,Age,Position,Market_Value_EUR`
 - Do not include source URLs, Transfermarkt IDs, or helper columns in generated context/KPI CSV content.
+- Generate per-team lineup payloads for every WM26 participant in `references/wm26-teams.csv`. If no usable provisional or official squad is available for a team, emit a header-only `lineup-{team}.csv` context payload rather than omitting the document.
 - Render CSV content with exactly one header row, one record per line, CRLF line endings, and a final trailing line ending.
 - Render player `Market_Value_EUR` values with dot thousands separators, for example `15.000.000`.
-- Use `N/A` for unavailable player market values, never `0`; leave coach market values empty.
+- Use `N/A` for unavailable player age, position, or market values, never `0` for market values; leave coach market values empty.
 - `Role` must be exactly `Player` or `Coach`.
 - After every run, print exactly one clear final status line:
   `Lineup source status: provisional`
@@ -41,7 +42,9 @@ Use this when FIFA/provisional lineup membership needs supplemental values from 
 2. Prepare a seed CSV with FIFA/provisional membership:
    `Team_Slug,Team,Data_Collected_At,Role,Name,Transfermarkt_National_Team_Id,Transfermarkt_Player_Id`
 
-   Prefer `Transfermarkt_Player_Id` for each player. If it is blank, the enrichment script matches by normalized `Name` within `current_national_team_id`; missing or ambiguous matches are hard failures.
+   The seed may also include optional `Age`, `Position`, and `Market_Value_EUR` columns. Prefer `Transfermarkt_Player_Id` for each player. If it is blank, the enrichment script matches by normalized `Name` within `current_national_team_id`.
+
+   Use `--allow-missing-players` for provisional FIFA/federation roster rows that cannot be resolved in the local DuckDB snapshot. The row is kept with `N/A` supplemental values where needed, and the generated report calls out the missing fields.
 
 3. Enrich the seed CSV:
 
@@ -50,7 +53,8 @@ Use this when FIFA/provisional lineup membership needs supplemental values from 
      --input .agents\skills\wm26-lineups\private\input\lineups-seed.csv `
      --duckdb .agents\skills\wm26-lineups\private\data\transfermarkt-datasets.duckdb `
      --output .agents\skills\wm26-lineups\private\input\lineups.csv `
-     --status provisional
+     --status provisional `
+     --allow-missing-players
    ```
 
 4. Review all failures. Add explicit `Transfermarkt_Player_Id` values to the seed CSV instead of loosening name matching.
@@ -75,7 +79,8 @@ Use this when enriched lineup source material should become Firestore context.
      --community-context ehonda-dev-wm26 `
      --status provisional `
      --output-root .agents\skills\wm26-lineups\artifacts `
-     --kpi-output-root kpi-documents\output
+     --kpi-output-root kpi-documents\output `
+     --teams .agents\skills\wm26-lineups\references\wm26-teams.csv
    ```
 
 3. Upload each per-team context JSON:
@@ -93,7 +98,7 @@ Use this when enriched lineup source material should become Firestore context.
    dotnet run --project src\Orchestrator -- upload-kpi lineups -c ehonda-dev-wm26 --competition fifa-world-cup-2026
    ```
 
-5. Review the `Missing lineup source data` report. Keep `N/A` only when the CC0 dataset has no player market value.
+5. Review the `Header-only lineup context payloads` and `Missing lineup source data` reports. Header-only payloads are acceptable for teams without usable provisional or official squads; fill them once a narrower public squad exists. Keep `N/A` only when the CC0 dataset has no supplemental value for an otherwise official/provisional roster row.
 
 ## Copy Mode
 

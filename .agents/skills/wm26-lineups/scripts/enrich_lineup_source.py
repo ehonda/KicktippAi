@@ -38,6 +38,7 @@ REQUIRED_SEED_COLUMNS = [
 OPTIONAL_SEED_COLUMNS = ["Age", "Position", "Market_Value_EUR"]
 VALID_STATUSES = {"provisional", "official"}
 VALID_ROLES = {"Player", "Coach"}
+MISSING_VALUE = "N/A"
 
 
 @dataclass(frozen=True)
@@ -58,6 +59,11 @@ def main(argv: Sequence[str] | None = None) -> int:
     parser.add_argument("--duckdb", required=True, help="Local transfermarkt-datasets DuckDB path")
     parser.add_argument("--output", required=True, help="Enriched source CSV output path")
     parser.add_argument("--status", choices=sorted(VALID_STATUSES), help="Workflow source status label")
+    parser.add_argument(
+        "--allow-missing-players",
+        action="store_true",
+        help="Keep FIFA/provisional roster rows with N/A supplemental values when the DuckDB snapshot cannot resolve them.",
+    )
     args = parser.parse_args(argv)
 
     seed_path = Path(args.input)
@@ -69,7 +75,7 @@ def main(argv: Sequence[str] | None = None) -> int:
         raise SystemExit(f"DuckDB database not found: {duckdb_path}")
 
     with duckdb.connect(str(duckdb_path), read_only=True) as connection:
-        enriched = enrich_rows(connection, rows)
+        enriched = enrich_rows(connection, rows, allow_missing_players=args.allow_missing_players)
 
     write_rows(output_path, enriched)
     print(f"Wrote {len(enriched)} enriched lineup row(s): {output_path}")
@@ -112,11 +118,22 @@ def validate_seed_row(row: dict[str, str], line_number: int) -> None:
     if row["Role"] == "Player" and not row["Name"] and not row["Transfermarkt_Player_Id"]:
         raise SystemExit(f"Line {line_number}: Player row needs Name or Transfermarkt_Player_Id")
 
-    if row["Age"] and not row["Age"].isdigit():
-        raise SystemExit(f"Line {line_number}: Age must be numeric when provided")
+    if row["Age"] and row["Age"].upper() != MISSING_VALUE and not row["Age"].isdigit():
+        raise SystemExit(f"Line {line_number}: Age must be numeric or N/A when provided")
+
+    market_value = row["Market_Value_EUR"]
+    normalized_market_value = market_value.replace(".", "")
+    if market_value and market_value.upper() != MISSING_VALUE and not normalized_market_value.isdigit():
+        raise SystemExit(f"Line {line_number}: Market_Value_EUR must be numeric or N/A when provided")
+    if row["Role"] == "Player" and normalized_market_value == "0":
+        raise SystemExit(f"Line {line_number}: Market_Value_EUR must use N/A instead of 0 when unavailable")
 
 
-def enrich_rows(connection: duckdb.DuckDBPyConnection, rows: Iterable[dict[str, str]]) -> list[dict[str, str]]:
+def enrich_rows(
+    connection: duckdb.DuckDBPyConnection,
+    rows: Iterable[dict[str, str]],
+    allow_missing_players: bool = False,
+) -> list[dict[str, str]]:
     errors: list[str] = []
     enriched: list[dict[str, str]] = []
 
@@ -125,7 +142,7 @@ def enrich_rows(connection: duckdb.DuckDBPyConnection, rows: Iterable[dict[str, 
             if row["Role"] == "Coach":
                 enriched.append(enrich_coach_row(connection, row))
             else:
-                enriched.append(enrich_player_row(connection, row))
+                enriched.append(enrich_player_row(connection, row, allow_missing_players))
         except ValueError as ex:
             errors.append(f"Line {line_offset}: {ex}")
 
@@ -135,9 +152,28 @@ def enrich_rows(connection: duckdb.DuckDBPyConnection, rows: Iterable[dict[str, 
     return enriched
 
 
-def enrich_player_row(connection: duckdb.DuckDBPyConnection, row: dict[str, str]) -> dict[str, str]:
-    player = resolve_player(connection, row)
+def enrich_player_row(
+    connection: duckdb.DuckDBPyConnection,
+    row: dict[str, str],
+    allow_missing_players: bool = False,
+) -> dict[str, str]:
+    try:
+        player = resolve_player(connection, row)
+    except ValueError:
+        if not allow_missing_players:
+            raise
+        return enrich_missing_player_row(row)
+
     collected_at = parse_collection_date(row["Data_Collected_At"])
+    age = provided_value(row["Age"]) or calculate_age_or_missing(
+        player.date_of_birth,
+        collected_at,
+        allow_missing_players,
+    )
+    market_value = provided_value(row["Market_Value_EUR"]) or format_market_value_or_missing(
+        player.market_value_in_eur,
+        allow_missing_players,
+    )
 
     return {
         "Team_Slug": row["Team_Slug"],
@@ -145,9 +181,25 @@ def enrich_player_row(connection: duckdb.DuckDBPyConnection, row: dict[str, str]
         "Data_Collected_At": row["Data_Collected_At"],
         "Role": "Player",
         "Name": row["Name"] or player.name,
-        "Age": row["Age"] or calculate_age(player.date_of_birth, collected_at),
-        "Position": row["Position"] or player.position,
-        "Market_Value_EUR": row["Market_Value_EUR"] or format_market_value(player.market_value_in_eur),
+        "Age": age,
+        "Position": player.position or provided_value(row["Position"]) or MISSING_VALUE,
+        "Market_Value_EUR": market_value,
+    }
+
+
+def enrich_missing_player_row(row: dict[str, str]) -> dict[str, str]:
+    if not row["Name"]:
+        raise ValueError("Unresolved player row needs Name when --allow-missing-players is used")
+
+    return {
+        "Team_Slug": row["Team_Slug"],
+        "Team": row["Team"],
+        "Data_Collected_At": row["Data_Collected_At"],
+        "Role": "Player",
+        "Name": row["Name"],
+        "Age": provided_value(row["Age"]) or MISSING_VALUE,
+        "Position": provided_value(row["Position"]) or MISSING_VALUE,
+        "Market_Value_EUR": provided_value(row["Market_Value_EUR"]) or MISSING_VALUE,
     }
 
 
@@ -294,14 +346,36 @@ def calculate_age(date_of_birth: object, collected_at: date) -> str:
 
 def format_market_value(value: object) -> str:
     if value is None or value == "":
-        return "N/A"
+        return MISSING_VALUE
 
     try:
         market_value = int(value)
     except (TypeError, ValueError) as ex:
         raise ValueError(f"matched player has unsupported market_value_in_eur {value!r}") from ex
 
-    return "N/A" if market_value == 0 else str(market_value)
+    return MISSING_VALUE if market_value == 0 else str(market_value)
+
+
+def calculate_age_or_missing(date_of_birth: object, collected_at: date, allow_missing: bool) -> str:
+    try:
+        return calculate_age(date_of_birth, collected_at)
+    except ValueError:
+        if allow_missing:
+            return MISSING_VALUE
+        raise
+
+
+def format_market_value_or_missing(value: object, allow_missing: bool) -> str:
+    try:
+        return format_market_value(value)
+    except ValueError:
+        if allow_missing:
+            return MISSING_VALUE
+        raise
+
+
+def provided_value(value: str) -> str:
+    return "" if not value or value.upper() == MISSING_VALUE else value
 
 
 def normalize_name(value: str) -> str:
