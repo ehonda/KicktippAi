@@ -17,7 +17,7 @@ git config --global --add safe.directory C:/path/to/your/KicktippAi-clone
 
 3. Restart Codex after changing [`.codex/config.toml`](../../.codex/config.toml), because the repo-local env setup is applied when the session starts.
 
-The repo [AGENTS.md](../../AGENTS.md) intentionally stays minimal and only keeps the `.tmp/` scratch-state note that may matter during agent work.
+The repo [AGENTS.md](../../AGENTS.md) keeps the agent-relevant search-scope guidance and `.tmp/` scratch-state note, while the one-time clone setup details stay here.
 
 ## Resolved Issues
 
@@ -71,11 +71,32 @@ Important assumptions:
 
 We added `.tmp/` to [`.gitignore`](../../.gitignore) so the repo-local `dotnet` and NuGet scratch directories stay out of version control.
 
+### 4. Broad searches now skip dependency submodules by default
+
+The earlier problem was that broad `rg` and `rg --files` searches pulled dependency mirrors from `external/` into first-pass results, which inflated transcript size and made narrowing slower.
+
+We replaced that with two repo-local changes:
+
+- a repo-root [`.ignore`](../../.ignore) that excludes `external/` from broad ripgrep searches
+- updated search guidance in [AGENTS.md](../../AGENTS.md) that keeps first-pass searches in repo-owned paths and only searches a relevant submodule when the task is dependency-specific
+
+The ignore rule is intentionally small:
+
+```text
+external/
+```
+
+Effect:
+
+- broad `rg` and `rg --files` searches no longer surface dependency mirrors by default
+- dependency lookups still work by targeting the relevant submodule path directly
+- when file discovery inside an ignored submodule is needed, use `rg --no-ignore --files external/<owner>/<repo>`
+
 ## Instruction Changes
 
 The higher-level Codex instructions should no longer say to always run `git` or `dotnet` outside the sandbox for this repo.
 
-The repo guidance in [AGENTS.md](../../AGENTS.md) now stays intentionally minimal and only keeps the agent-relevant `.tmp/` scratch-state note.
+The repo guidance in [AGENTS.md](../../AGENTS.md) now keeps the agent-relevant search-scope guidance and `.tmp/` scratch-state note.
 
 Fresh-clone and one-time setup details stay here instead:
 
@@ -89,9 +110,26 @@ These changes should reduce:
 
 - approval-review fork traffic caused by routine `git` and `dotnet` commands
 - extra transcript growth from approval prompts and review payloads
+- extra transcript growth from broad first-pass searches that include dependency mirrors
 - friction from repo-local `.dotnet` or user-profile cache issues during sandboxed `dotnet` runs
 
-`git push` was intentionally left as an observed behavior rather than being pre-optimized here. If it still needs escalation in practice, we can document that separately after seeing real runs.
+## Current Push Behavior
+
+As of `2026-05-31`, sandboxed remote Git access is still blocked in this environment.
+
+We tested:
+
+```powershell
+git ls-remote --heads origin
+```
+
+and it failed with a connection error to `github.com:443`.
+
+Effect:
+
+- the `safe.directory` fix from issue 1 removed the dubious-ownership workaround for routine local `git` commands
+- `git push` still needs escalation here because sandbox network access is blocked
+- the global push approval workflow is therefore still relevant for now
 
 ## Related Analysis
 

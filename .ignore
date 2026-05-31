@@ -1,0 +1,2 @@
+# Keep dependency mirrors out of broad first-pass searches.
+external/

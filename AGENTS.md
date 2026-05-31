@@ -32,7 +32,15 @@ For Langfuse experiment run families, create one shared `$runStamp` before launc
 
 ## Gathering Information
 
-We use different external dependencies, some of which are partially or fully available locally via git submodules. When gathering information like
+We use different external dependencies, some of which are partially or fully available locally via git submodules.
+
+For routine repository searches, start with repo-owned paths such as `src`, `tests`, `.github`, `.agents`, and only add `docs` when the task needs them.
+
+The repo-root `.ignore` intentionally excludes `external/` from broad `rg` and `rg --files` searches so dependency mirrors do not pollute first-pass results.
+
+Search `external/` only when the task is clearly dependency-specific or when repo-local code points to a dependency. When a submodule is relevant, search the narrowest submodule path directly, for example `rg -n "ChatClient" external/openai/openai-dotnet`. Use `--no-ignore` when you need file discovery inside an ignored tree, for example `rg --no-ignore --files external/openai/openai-dotnet`.
+
+When gathering dependency information like
 
 - Code
 - Documentation
@@ -40,7 +48,7 @@ We use different external dependencies, some of which are partially or fully ava
 
 search it in the following places, in that order:
 
-1. Local git submodules (See [Submodule Tree](#submodule-tree))
+1. The relevant local git submodule (See [Submodule Tree](#submodule-tree))
 2. GitHub via MCP
 3. Web search
 
