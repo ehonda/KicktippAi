@@ -104,20 +104,12 @@ uv --cache-dir .uv-cache run --with PyYAML python C:\Users\dennis\.codex\skills\
 
 If this command fails because `PyYAML` needs to be fetched and sandbox networking blocks PyPI, rerun the same command outside the sandbox with approval.
 
-## Codex Sandbox Setup
+## Codex Sandbox State
 
-This repo includes [`.codex/config.toml`](.codex/config.toml), which redirects `dotnet` CLI and NuGet writable state into repo-relative paths under `.tmp/`.
+This repo uses [`.codex/config.toml`](.codex/config.toml) to redirect `dotnet` CLI and NuGet writable state into `.tmp/`.
 
-- Start Codex from the repo root so the relative paths resolve correctly.
-- Restart Codex after changing `.codex/config.toml`; the repo-local env setup is applied when the session starts.
-- The `.tmp/` directory is ignored by git and is safe for sandbox-local tool state.
-- `git` can run inside the sandbox after a one-time trust setup:
-
-```powershell
-git config --global --add safe.directory C:/Users/dennis/source/repos/ehonda/KicktippAi
-```
-
-If you clone the repo to a different path, rerun the same command with that clone path.
+- `.tmp/` is ignored by git and is safe for sandbox-local tool state.
+- Fresh-clone setup and one-time trust steps are documented in [docs/codex/efficient-usage.md](docs/codex/efficient-usage.md).
 
 ## Running and Filtering Tests
 

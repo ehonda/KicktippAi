@@ -4,6 +4,21 @@
 
 This note documents the fixes we applied after the `Update prediction identity` session analysis so future Codex work in `KicktippAi` stays inside the sandbox more often and triggers less approval-review overhead.
 
+## Fresh Clone Setup
+
+On a fresh clone, do this once before relying on sandboxed `git` and `dotnet` workflows in Codex:
+
+1. Start Codex from the repo root so the relative paths in [`.codex/config.toml`](../../.codex/config.toml) resolve into the repo's `.tmp/` directory.
+2. Trust the clone path for Git:
+
+```powershell
+git config --global --add safe.directory C:/path/to/your/KicktippAi-clone
+```
+
+3. Restart Codex after changing [`.codex/config.toml`](../../.codex/config.toml), because the repo-local env setup is applied when the session starts.
+
+The repo [AGENTS.md](../../AGENTS.md) intentionally stays minimal and only keeps the `.tmp/` scratch-state note that may matter during agent work.
+
 ## Resolved Issues
 
 ### 1. Sandbox `git` no longer needs a forced escalation workaround
@@ -47,7 +62,7 @@ Effect:
 - We avoid writes to user-profile locations such as `%USERPROFILE%\\.dotnet` and `%USERPROFILE%\\.nuget`, which were the problematic paths in the sandbox.
 - The config is clone-portable because it uses relative paths.
 
-Important assumption:
+Important assumptions:
 
 - Start Codex from the repo root. These relative paths are intended to resolve from the root session working directory.
 - Restart Codex after changing `.codex/config.toml`. The repo-local env setup is applied when the session starts.
@@ -60,7 +75,9 @@ We added `.tmp/` to [`.gitignore`](../../.gitignore) so the repo-local `dotnet` 
 
 The higher-level Codex instructions should no longer say to always run `git` or `dotnet` outside the sandbox for this repo.
 
-The repo guidance in [AGENTS.md](../../AGENTS.md) now documents the new setup instead:
+The repo guidance in [AGENTS.md](../../AGENTS.md) now stays intentionally minimal and only keeps the agent-relevant `.tmp/` scratch-state note.
+
+Fresh-clone and one-time setup details stay here instead:
 
 - use the repo-local Codex config for `dotnet`
 - trust the repo once for sandboxed `git`
