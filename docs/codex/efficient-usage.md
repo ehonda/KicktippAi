@@ -2,7 +2,7 @@
 
 ## Purpose
 
-This note documents the fixes we applied after the `Update prediction identity` session analysis so future Codex work in `KicktippAi` stays inside the sandbox more often and triggers less approval-review overhead.
+This note documents the workflow changes we applied after the `Update prediction identity` session analysis so future Codex work in `KicktippAi` stays inside the sandbox where it works well, while the commands that still misbehave are clearly called out.
 
 ## Fresh Clone Setup
 
@@ -19,9 +19,9 @@ git config --global --add safe.directory C:/path/to/your/KicktippAi-clone
 
 The repo [AGENTS.md](../../AGENTS.md) keeps the agent-relevant search-scope guidance and `.tmp/` scratch-state note, while the one-time clone setup details stay here.
 
-## Resolved Issues
+## Current Status
 
-### 1. Sandbox `git` no longer needs a forced escalation workaround
+### 1. Git trust is fixed, but mutating `git` commands still need escalation
 
 The earlier workaround was to run all `git` commands outside the sandbox because sandboxed runs could hit Git's dubious-ownership protection.
 
@@ -33,11 +33,21 @@ git config --global --add safe.directory C:/Users/dennis/source/repos/ehonda/Kic
 
 Effect:
 
-- Routine `git` commands such as `status`, `diff`, `log`, `add`, and `commit` can run inside the sandbox again.
-- We no longer need a standing instruction that forces every `git` command outside the sandbox.
+- Routine read-only `git` commands such as `status`, `diff`, and `log` can run inside the sandbox again without hitting dubious-ownership errors.
 - If the repo is cloned to a different path, rerun the same command with that clone path.
 
-### 2. Sandbox `dotnet` now uses repo-local writable paths
+Follow-up attempt on `2026-06-01`:
+
+- We tried a repo-local Codex permission profile that reopened `.git` for writes and allowed GitHub network access.
+- After restarting Codex, `git add .codex/config.toml` still failed with `Unable to create '.git/index.lock': Permission denied`.
+- Sandboxed `git ls-remote origin` succeeded, but `git push --dry-run origin main` still hung long enough to be abandoned as unreliable.
+
+Current working guidance:
+
+- Keep using the sandbox for routine read-only `git` commands.
+- Run `git add`, `git commit`, and `git push` outside the sandbox in this repo for now.
+
+### 2. Sandbox `dotnet` uses repo-local writable paths
 
 The earlier workaround was to run all `dotnet` commands outside the sandbox because sandboxed runs could not reliably use the default user-profile locations for CLI and NuGet writable state.
 
@@ -67,11 +77,11 @@ Important assumptions:
 - Start Codex from the repo root. These relative paths are intended to resolve from the root session working directory.
 - Restart Codex after changing `.codex/config.toml`. The repo-local env setup is applied when the session starts.
 
-### 3. Repo-local scratch state is now explicitly ignored
+### 3. Repo-local scratch state is explicitly ignored
 
 We added `.tmp/` to [`.gitignore`](../../.gitignore) so the repo-local `dotnet` and NuGet scratch directories stay out of version control.
 
-### 4. Broad searches now skip dependency submodules by default
+### 4. Broad searches skip dependency submodules by default
 
 The earlier problem was that broad `rg` and `rg --files` searches pulled dependency mirrors from `external/` into first-pass results, which inflated transcript size and made narrowing slower.
 
@@ -94,9 +104,9 @@ Effect:
 
 ## Instruction Changes
 
-The higher-level Codex instructions should no longer say to always run `git` or `dotnet` outside the sandbox for this repo.
+The higher-level Codex instructions should not say to always run `dotnet` outside the sandbox for this repo.
 
-The repo guidance in [AGENTS.md](../../AGENTS.md) now keeps the agent-relevant search-scope guidance and `.tmp/` scratch-state note.
+The repo guidance in [AGENTS.md](../../AGENTS.md) now keeps the agent-relevant search-scope guidance, `.tmp/` scratch-state note, and the current exception for mutating `git` commands.
 
 Fresh-clone and one-time setup details stay here instead:
 
@@ -108,28 +118,22 @@ Fresh-clone and one-time setup details stay here instead:
 
 These changes should reduce:
 
-- approval-review fork traffic caused by routine `git` and `dotnet` commands
+- approval-review fork traffic caused by routine read-only `git` and `dotnet` commands
 - extra transcript growth from approval prompts and review payloads
 - extra transcript growth from broad first-pass searches that include dependency mirrors
 - friction from repo-local `.dotnet` or user-profile cache issues during sandboxed `dotnet` runs
 
-## Current Push Behavior
+## Current Git Limitation
 
-As of `2026-05-31`, sandboxed remote Git access is still blocked in this environment.
+As of `2026-06-01`, the attempted sandbox Git follow-up is still not good enough to rely on:
 
-We tested:
+- `.git/index.lock` creation still fails for `git add`
+- `git push --dry-run origin main` still did not complete reliably in the sandbox
 
-```powershell
-git ls-remote --heads origin
-```
+The practical outcome is unchanged for mutating Git operations:
 
-and it failed with a connection error to `github.com:443`.
-
-Effect:
-
-- the `safe.directory` fix from issue 1 removed the dubious-ownership workaround for routine local `git` commands
-- `git push` still needs escalation here because sandbox network access is blocked
-- the global push approval workflow is therefore still relevant for now
+- use the sandbox for read-only `git` work
+- run `git add`, `git commit`, and `git push` outside the sandbox with approval
 
 ## Related Analysis
 

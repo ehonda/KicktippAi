@@ -236,3 +236,18 @@ When we analyze the next session, the key questions should be:
 The session felt expensive for good reasons. The strongest evidence points to review-path overhead plus broad/noisy search behavior, not just to the fact that the task touched many files.
 
 If we fix the approval pattern and narrow search scope first, that should give the cleanest before/after comparison on a future session.
+
+## 2026-06-01 Follow-Up
+
+We tried a repo-local Codex permission-profile change to see whether the remaining Git escalation pain could be removed as well.
+
+Observed result after a full Codex restart:
+
+- `git add .codex/config.toml` still failed in the sandbox with `Unable to create '.git/index.lock': Permission denied`.
+- `git ls-remote origin` started working in the sandbox.
+- `git push --dry-run origin main` still did not complete reliably enough to adopt.
+
+Practical conclusion:
+
+- The earlier `safe.directory` change still helps with routine read-only `git` commands.
+- The attempted `.git` write and push-network sandbox changes were not good enough to replace the existing outside-sandbox workflow for `git add`, `git commit`, and `git push`.
