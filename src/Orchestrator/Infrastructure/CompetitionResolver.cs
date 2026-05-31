@@ -12,6 +12,7 @@ public sealed record CompetitionRuntimeMetadata(
 public static class CompetitionResolver
 {
     private static readonly string[] KnownDevCommunities = ["ehonda-dev-wm26"];
+    private static readonly string[] KnownWorldCupCommunities = ["ehonda-dev-wm26", "rabetrabauken2026"];
 
     public const string LocalPromptSource = "local";
     public const string LangfusePromptSource = "langfuse";
@@ -92,6 +93,7 @@ public static class CompetitionResolver
 
     private static bool IsWorldCupCommunity(string? value)
     {
-        return IsDevCommunity(value);
+        return !string.IsNullOrWhiteSpace(value)
+               && KnownWorldCupCommunities.Contains(value.Trim(), StringComparer.OrdinalIgnoreCase);
     }
 }

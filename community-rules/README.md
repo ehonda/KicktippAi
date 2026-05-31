@@ -25,8 +25,9 @@ To add rules for a new community:
 
 - `default.md` - Standard Kicktipp scoring rules
 - `ehonda-test-buli.md` - Test community rules
-- `ehonda-ai-arena.md` - AI arena community rules  
+- `ehonda-ai-arena.md` - AI arena community rules
 - `pes-squad.md` - PES squad community with modified scoring
+- `rabetrabauken2026.md` - WM26 reference community rules
 
 ## Example Usage
 

@@ -9,6 +9,30 @@ Model configuration onboarding status is tracked in
 current while testing manual communities, and use it as the reference before
 bulk workflow activation.
 
+## Reference And Secondary Communities
+
+`rabetrabauken2026` is the WM26 reference production community context. It
+resolves to `fifa-world-cup-2026` and has a manual-only context collection
+workflow at `.github/workflows/rabetrabauken2026-context-collection.yml`. That
+workflow collects Kicktipp context plus WM26 FIFA ranking and lineup context for
+the reference community.
+
+`ehonda-ai-arena` is planned as a secondary posting community for the selected
+WM26 production model. Once the production model and reasoning effort are
+chosen, run the `rabetrabauken2026` prediction workflow first and schedule the
+matching `ehonda-ai-arena` workflow later with:
+
+```yaml
+community: "ehonda-ai-arena"
+community_context: "rabetrabauken2026"
+```
+
+This keeps the existing Bundesliga copy pattern: the later secondary workflow
+finds the already-stored prediction by model configuration and reference
+community context, then posts it to its own Kicktipp community. Do not create or
+activate model-specific WM26 prediction workflows until the production model
+configuration is selected and the full-competition estimate is documented.
+
 ## Planned GitHub Actions Cadence
 
 Once the first WM26 communities and model-specific workflows are onboarded, use a three-window daily cadence during the tournament window. The current plan is based on the official FIFA World Cup 26 match schedule PDF dated 2026-04-10, which lists all kickoff times in Eastern Time and is marked subject to change. Re-check the official schedule before enabling the workflows.

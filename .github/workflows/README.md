@@ -27,6 +27,9 @@ Each community gets its own set of workflows that call the base workflows with s
 - **`schadensfresse-context-collection.yml`**: Automated context collection for schadensfresse community
   - Runs every 12 hours (00:00 and 12:00 UTC)
   - Can be manually triggered
+- **`rabetrabauken2026-context-collection.yml`**: Manual WM26 reference context collection
+  - Runs Kicktipp, FIFA ranking, and lineup context collection for `fifa-world-cup-2026`
+  - Has no schedule until the reference context run is validated and WM26 prediction workflows are selected
 
 ### Cost Analysis Workflow
 
@@ -69,6 +72,12 @@ Each community workflow is configured with direct parameters:
 - **`community_context`**: Community context when generating predictions (or using stored ones from the database)
 - **`competition`**: Optional competition identifier for context collection
 - **`include_fifa_rankings` / `include_lineups`**: Enable WM26 context extras for World Cup communities
+
+For WM26 secondary communities, keep `community` as the posting target and set
+`community_context` to the reference community. The planned `ehonda-ai-arena`
+WM26 prediction workflow should run later than the matching `rabetrabauken2026`
+reference workflow and use `community_context: "rabetrabauken2026"` so it posts
+the stored reference prediction rather than creating a separate model run.
 
 ## Example Communities
 
@@ -114,6 +123,8 @@ Examples:
 - `PES_SQUAD_KICKTIPP_PASSWORD`: Kicktipp password for pes-squad context collection
 - `SCHADENSFRESSE_KICKTIPP_USERNAME`: Kicktipp username for schadensfresse context collection
 - `SCHADENSFRESSE_KICKTIPP_PASSWORD`: Kicktipp password for schadensfresse context collection
+- `RABETRABAUKEN2026_KICKTIPP_USERNAME`: Kicktipp username for rabetrabauken2026 WM26 context collection
+- `RABETRABAUKEN2026_KICKTIPP_PASSWORD`: Kicktipp password for rabetrabauken2026 WM26 context collection
 - `FIREBASE_PROJECT_ID`: Same Firebase project ID (shared with predictions)
 - `FIREBASE_SERVICE_ACCOUNT_JSON`: Same Firebase service account (shared with predictions)
 

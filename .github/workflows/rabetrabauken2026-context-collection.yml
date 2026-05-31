@@ -1,0 +1,22 @@
+name: rabetrabauken2026 WM26 Context Collection
+
+on:
+  # Manual-only until the WM26 production model configuration is selected and
+  # the first context run has been validated.
+  workflow_dispatch:
+
+jobs:
+  call-base-workflow:
+    name: Context Collection - rabetrabauken2026
+    uses: ./.github/workflows/base-context-collection.yml
+    with:
+      community_context: "rabetrabauken2026"
+      competition: "fifa-world-cup-2026"
+      include_fifa_rankings: true
+      include_lineups: true
+      trigger_type: "manual"
+    secrets:
+      kicktipp_username: ${{ secrets.RABETRABAUKEN2026_KICKTIPP_USERNAME }}
+      kicktipp_password: ${{ secrets.RABETRABAUKEN2026_KICKTIPP_PASSWORD }}
+      firebase_project_id: ${{ secrets.FIREBASE_PROJECT_ID }}
+      firebase_service_account_json: ${{ secrets.FIREBASE_SERVICE_ACCOUNT_JSON }}

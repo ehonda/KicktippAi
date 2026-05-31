@@ -8,6 +8,12 @@ Bundesliga 2025 / 2026, has concluded. The files remain in place for future
 reuse, so their presence alone should not be treated as evidence that the
 corresponding automations are currently active.
 
+`rabetrabauken2026-context-collection.yml` is a manual-only WM26 reference
+context workflow. It does not invoke `matchday` or `bonus`, so it does not make
+`rabetrabauken2026` a production prediction community for Langfuse environment
+tagging. Update the lists below only when model-specific WM26 prediction
+workflows are added.
+
 ## Production Communities and Langfuse Environments
 
 Each command (`matchday`, `bonus`) determines its Langfuse trace environment (`production` vs `development`) based on whether the `community` parameter matches a **production community**. A community is a production community for a given command if there is a workflow in `.github/workflows/` that targets that community and invokes that command.

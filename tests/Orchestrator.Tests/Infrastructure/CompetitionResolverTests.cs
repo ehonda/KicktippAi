@@ -18,6 +18,21 @@ public class CompetitionResolverTests
     }
 
     [Test]
+    [Arguments("rabetrabauken2026", null)]
+    [Arguments(null, "rabetrabauken2026")]
+    public async Task Resolves_reference_world_cup_community_or_context_to_world_cup_competition(
+        string? community,
+        string? communityContext)
+    {
+        var competition = CompetitionResolver.ResolveCompetition(
+            competition: null,
+            community: community,
+            communityContext: communityContext);
+
+        await Assert.That(competition).IsEqualTo(CompetitionIds.FifaWorldCup2026);
+    }
+
+    [Test]
     public async Task Defaults_existing_communities_to_bundesliga()
     {
         var competition = CompetitionResolver.ResolveCompetition(
@@ -59,6 +74,7 @@ public class CompetitionResolverTests
     public async Task Recognizes_only_supported_development_communities_for_dev_shortcuts()
     {
         await Assert.That(CompetitionResolver.IsDevCommunity("ehonda-dev-wm26")).IsTrue();
+        await Assert.That(CompetitionResolver.IsDevCommunity("rabetrabauken2026")).IsFalse();
         await Assert.That(CompetitionResolver.IsDevCommunity("pes-squad")).IsFalse();
     }
 }
