@@ -49,7 +49,7 @@ public class CostCommand_Parsing_Tests
         
         // Verify the repository was called with the filtered matchdays
         repo.Verify(r => r.GetMatchPredictionCostsByRepredictionIndexAsync(
-            It.IsAny<string>(),
+            It.IsAny<PredictionModelConfig>(),
             It.IsAny<string>(),
             It.Is<List<int>?>(m => m != null && m.Contains(1) && m.Contains(2) && m.Count == 2),
             It.IsAny<CancellationToken>()), Times.AtLeastOnce);
@@ -108,16 +108,16 @@ public class CostCommand_Parsing_Tests
 
         // Assert
         await Assert.That(exitCode).IsEqualTo(0);
-        await Assert.That(output).Contains("Models: gpt-4o, o1-mini");
+        await Assert.That(output).Contains("Model Configs: gpt-4o, o1-mini");
         
         // Verify queries were made for the specified models
         repo.Verify(r => r.GetMatchPredictionCostsByRepredictionIndexAsync(
-            "gpt-4o",
+            It.Is<PredictionModelConfig>(config => config.Model == "gpt-4o" && config.ReasoningEffort == null),
             It.IsAny<string>(),
             It.IsAny<List<int>?>(),
             It.IsAny<CancellationToken>()), Times.AtLeastOnce);
         repo.Verify(r => r.GetMatchPredictionCostsByRepredictionIndexAsync(
-            "o1-mini",
+            It.Is<PredictionModelConfig>(config => config.Model == "o1-mini" && config.ReasoningEffort == null),
             It.IsAny<string>(),
             It.IsAny<List<int>?>(),
             It.IsAny<CancellationToken>()), Times.AtLeastOnce);
@@ -162,12 +162,12 @@ public class CostCommand_Parsing_Tests
         
         // Verify queries were made for the specified contexts
         repo.Verify(r => r.GetMatchPredictionCostsByRepredictionIndexAsync(
-            It.IsAny<string>(),
+            It.IsAny<PredictionModelConfig>(),
             "test-community",
             It.IsAny<List<int>?>(),
             It.IsAny<CancellationToken>()), Times.AtLeastOnce);
         repo.Verify(r => r.GetMatchPredictionCostsByRepredictionIndexAsync(
-            It.IsAny<string>(),
+            It.IsAny<PredictionModelConfig>(),
             "prod-community",
             It.IsAny<List<int>?>(),
             It.IsAny<CancellationToken>()), Times.AtLeastOnce);

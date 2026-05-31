@@ -63,10 +63,11 @@ public class CostCommand : AsyncCommand<CostSettings>
             // Parse filter parameters
             var matchdays = ParseMatchdays(settings);
             var models = ParseModels(settings);
+            var reasoningEfforts = ParseReasoningEfforts(settings);
             var communityContexts = ParseCommunityContexts(settings);
             
-            // Get available models and community contexts if not specified
-            var availableModels = models ?? await predictionRepository.GetAvailableModelsAsync();
+            // Get available model configurations and community contexts if not specified
+            var availableModelConfigs = await ResolveModelConfigsAsync(predictionRepository, models, reasoningEfforts, cancellationToken);
             var availableCommunityContexts = communityContexts ?? await predictionRepository.GetAvailableCommunityContextsAsync();
             var queryMatchdays = matchdays;
             
@@ -74,7 +75,7 @@ public class CostCommand : AsyncCommand<CostSettings>
             {
                 _console.MarkupLine($"[dim]Filters:[/]");
                 _console.MarkupLine($"[dim]  Matchdays: {FormatMatchdayFilter(queryMatchdays)}[/]");
-                _console.MarkupLine($"[dim]  Models: {(models?.Any() == true ? string.Join(", ", models) : $"all ({availableModels.Count} found)")}[/]");
+                _console.MarkupLine($"[dim]  Model Configs: {(models?.Any() == true || reasoningEfforts?.Any() == true ? string.Join(", ", availableModelConfigs.Select(config => config.DisplayName)) : $"all ({availableModelConfigs.Count} found)")}[/]");
                 _console.MarkupLine($"[dim]  Community Contexts: {(communityContexts?.Any() == true ? string.Join(", ", communityContexts) : $"all ({availableCommunityContexts.Count} found)")}[/]");
                 _console.MarkupLine($"[dim]  Include Bonus: {settings.Bonus || settings.All}[/]");
             }
@@ -93,21 +94,21 @@ public class CostCommand : AsyncCommand<CostSettings>
                 .Spinner(Spinner.Known.Dots)
                 .StartAsync("Calculating costs...", async ctx =>
                 {
-                    foreach (var model in availableModels)
+                    foreach (var modelConfig in availableModelConfigs)
                     {
                         foreach (var communityContext in availableCommunityContexts)
                         {
-                            ctx.Status($"Processing {model} - {communityContext}...");
+                            ctx.Status($"Processing {modelConfig.DisplayName} - {communityContext}...");
                             
                             if (settings.Verbose)
                             {
-                                _console.MarkupLine($"[dim]  Processing model: {model}, community context: {communityContext}[/]");
+                                _console.MarkupLine($"[dim]  Processing model config: {modelConfig.DisplayName}, community context: {communityContext}[/]");
                             }
                             
                             // Get match prediction costs by reprediction index
                             var matchCostsByIndex = await GetMatchCostsByRepredictionIndexAsync(
                                 predictionRepository,
-                                model,
+                                modelConfig,
                                 communityContext,
                                 queryMatchdays,
                                 cancellationToken);
@@ -123,7 +124,7 @@ public class CostCommand : AsyncCommand<CostSettings>
                                 // Store detailed data for breakdown
                                 if (cost > 0 || count > 0)
                                 {
-                                    costRows.Add(new CostReportRow(communityContext, model, "Match", repredictionIndex, count, cost));
+                                    costRows.Add(new CostReportRow(communityContext, modelConfig.Model, modelConfig.ReasoningEffort, modelConfig.IdentityKey, modelConfig.DisplayName, "Match", repredictionIndex, count, cost));
                                 }
                                 
                                 if (settings.Verbose && (cost > 0 || count > 0))
@@ -136,7 +137,7 @@ public class CostCommand : AsyncCommand<CostSettings>
                             if (settings.Bonus || settings.All)
                             {
                                 var bonusCostsByIndex = await predictionRepository.GetBonusPredictionCostsByRepredictionIndexAsync(
-                                    model,
+                                    modelConfig,
                                     communityContext,
                                     cancellationToken);
                                 
@@ -151,7 +152,7 @@ public class CostCommand : AsyncCommand<CostSettings>
                                     // Store detailed data for breakdown
                                     if (cost > 0 || count > 0)
                                     {
-                                        costRows.Add(new CostReportRow(communityContext, model, "Bonus", repredictionIndex, count, cost));
+                                        costRows.Add(new CostReportRow(communityContext, modelConfig.Model, modelConfig.ReasoningEffort, modelConfig.IdentityKey, modelConfig.DisplayName, "Bonus", repredictionIndex, count, cost));
                                     }
                                     
                                     if (settings.Verbose && (cost > 0 || count > 0))
@@ -184,11 +185,13 @@ public class CostCommand : AsyncCommand<CostSettings>
                 
                 // Group data by community context, model, and category to aggregate reprediction indices
                 var groupedData = costRows
-                    .GroupBy(d => new { d.CommunityContext, d.Model, d.Category })
+                    .GroupBy(d => new { d.CommunityContext, d.Model, d.ReasoningEffort, d.Category })
                     .Select(g => new
                     {
                         g.Key.CommunityContext,
                         g.Key.Model,
+                        ReasoningEffort = g.Key.ReasoningEffort ?? "model-default",
+                        ModelConfigDisplayName = PredictionModelConfig.Create(g.Key.Model, g.Key.ReasoningEffort).DisplayName,
                         g.Key.Category,
                         Index0Count = g.Where(x => x.RepredictionIndex == 0).Sum(x => x.Count),
                         Index0Cost = g.Where(x => x.RepredictionIndex == 0).Sum(x => x.Cost),
@@ -201,6 +204,7 @@ public class CostCommand : AsyncCommand<CostSettings>
                     })
                     .OrderBy(g => g.CommunityContext)
                     .ThenBy(g => g.Model)
+                    .ThenBy(g => g.ReasoningEffort)
                     .ThenBy(g => g.Category)
                     .ToList();
                 
@@ -219,7 +223,7 @@ public class CostCommand : AsyncCommand<CostSettings>
                         // Even rows - normal styling
                         table.AddRow(
                             data.CommunityContext,
-                            data.Model,
+                            data.ModelConfigDisplayName,
                             data.Category,
                             index0Text,
                             index1Text,
@@ -233,7 +237,7 @@ public class CostCommand : AsyncCommand<CostSettings>
                         // Odd rows - subtle blue tint for visual differentiation
                         table.AddRow(
                             $"[blue]{data.CommunityContext}[/]",
-                            $"[blue]{data.Model}[/]",
+                            $"[blue]{data.ModelConfigDisplayName}[/]",
                             $"[blue]{data.Category}[/]",
                             $"[blue]{index0Text}[/]",
                             $"[blue]{index1Text}[/]",
@@ -327,6 +331,7 @@ public class CostCommand : AsyncCommand<CostSettings>
                     settings,
                     queryMatchdays,
                     models,
+                    reasoningEfforts,
                     communityContexts,
                     costRows,
                     matchPredictionCount,
@@ -385,7 +390,7 @@ public class CostCommand : AsyncCommand<CostSettings>
 
     private static async Task<Dictionary<int, (double cost, int count)>> GetMatchCostsByRepredictionIndexAsync(
         IPredictionRepository predictionRepository,
-        string model,
+        PredictionModelConfig modelConfig,
         string communityContext,
         List<int>? matchdays,
         CancellationToken cancellationToken)
@@ -398,7 +403,7 @@ public class CostCommand : AsyncCommand<CostSettings>
         if (matchdays is null || matchdays.Count <= FirestoreInFilterLimit)
         {
             return await predictionRepository.GetMatchPredictionCostsByRepredictionIndexAsync(
-                model,
+                modelConfig,
                 communityContext,
                 matchdays,
                 cancellationToken);
@@ -409,7 +414,7 @@ public class CostCommand : AsyncCommand<CostSettings>
         foreach (var chunk in matchdays.Chunk(FirestoreInFilterLimit))
         {
             var chunkCosts = await predictionRepository.GetMatchPredictionCostsByRepredictionIndexAsync(
-                model,
+                modelConfig,
                 communityContext,
                 chunk.ToList(),
                 cancellationToken);
@@ -429,6 +434,7 @@ public class CostCommand : AsyncCommand<CostSettings>
         CostSettings settings,
         List<int>? matchdays,
         List<string>? models,
+        List<string?>? reasoningEfforts,
         List<string>? communityContexts,
         IReadOnlyList<CostReportRow> rows,
         int matchPredictionCount,
@@ -452,12 +458,14 @@ public class CostCommand : AsyncCommand<CostSettings>
             new CostReportFilters(
                 matchdays,
                 models,
+                reasoningEfforts,
                 communityContexts,
                 settings.Bonus || settings.All,
                 settings.All),
             rows
                 .OrderBy(row => row.CommunityContext, StringComparer.Ordinal)
                 .ThenBy(row => row.Model, StringComparer.Ordinal)
+                .ThenBy(row => row.ReasoningEffort ?? string.Empty, StringComparer.Ordinal)
                 .ThenBy(row => row.Category, StringComparer.Ordinal)
                 .ThenBy(row => row.RepredictionIndex)
                 .ToList(),
@@ -502,6 +510,66 @@ public class CostCommand : AsyncCommand<CostSettings>
             .Split(',', StringSplitOptions.RemoveEmptyEntries)
             .Select(m => m.Trim())
             .Where(m => !string.IsNullOrWhiteSpace(m))
+            .ToList();
+    }
+
+    private static List<string?>? ParseReasoningEfforts(CostSettings settings)
+    {
+        if (settings.All || string.IsNullOrWhiteSpace(settings.ReasoningEfforts))
+        {
+            return null;
+        }
+
+        if (settings.ReasoningEfforts.Trim().Equals("all", StringComparison.OrdinalIgnoreCase))
+        {
+            return null;
+        }
+
+        var efforts = new List<string?>();
+        foreach (var segment in settings.ReasoningEfforts.Split(',', StringSplitOptions.RemoveEmptyEntries))
+        {
+            var trimmed = segment.Trim();
+            if (trimmed.Equals("model-default", StringComparison.OrdinalIgnoreCase))
+            {
+                efforts.Add(null);
+                continue;
+            }
+
+            if (!PredictionModelConfig.IsValidReasoningEffort(trimmed))
+            {
+                throw new ArgumentException("--reasoning-efforts must contain only: model-default, none, minimal, low, medium, high, xhigh, or all");
+            }
+
+            efforts.Add(PredictionModelConfig.NormalizeReasoningEffort(trimmed));
+        }
+
+        return efforts.Distinct().ToList();
+    }
+
+    private static async Task<List<PredictionModelConfig>> ResolveModelConfigsAsync(
+        IPredictionRepository predictionRepository,
+        List<string>? models,
+        List<string?>? reasoningEfforts,
+        CancellationToken cancellationToken)
+    {
+        var availableModelConfigs = await predictionRepository.GetAvailableModelConfigsAsync(cancellationToken);
+
+        var filtered = availableModelConfigs.AsEnumerable();
+        if (models is not null)
+        {
+            var requestedModels = models.ToHashSet(StringComparer.Ordinal);
+            filtered = filtered.Where(config => requestedModels.Contains(config.Model));
+        }
+
+        if (reasoningEfforts is not null)
+        {
+            var requestedEfforts = reasoningEfforts.ToHashSet(StringComparer.Ordinal);
+            filtered = filtered.Where(config => requestedEfforts.Contains(config.ReasoningEffort));
+        }
+
+        return filtered
+            .OrderBy(config => config.Model, StringComparer.Ordinal)
+            .ThenBy(config => config.ReasoningEffort ?? string.Empty, StringComparer.Ordinal)
             .ToList();
     }
     
@@ -578,6 +646,9 @@ public class CostCommand : AsyncCommand<CostSettings>
         
         if (!string.IsNullOrWhiteSpace(fileConfig.Models))
             mergedSettings.Models = fileConfig.Models;
+
+        if (!string.IsNullOrWhiteSpace(fileConfig.ReasoningEfforts))
+            mergedSettings.ReasoningEfforts = fileConfig.ReasoningEfforts;
         
         if (!string.IsNullOrWhiteSpace(fileConfig.CommunityContexts))
             mergedSettings.CommunityContexts = fileConfig.CommunityContexts;
@@ -614,6 +685,13 @@ public class CostCommand : AsyncCommand<CostSettings>
             mergedSettings.Models = cliSettings.Models;
             if (mergedSettings.Verbose)
                 _logger.LogInformation("CLI override: Models = {Value}", cliSettings.Models);
+        }
+
+        if (!string.IsNullOrWhiteSpace(cliSettings.ReasoningEfforts))
+        {
+            mergedSettings.ReasoningEfforts = cliSettings.ReasoningEfforts;
+            if (mergedSettings.Verbose)
+                _logger.LogInformation("CLI override: ReasoningEfforts = {Value}", cliSettings.ReasoningEfforts);
         }
         
         if (!string.IsNullOrWhiteSpace(cliSettings.CommunityContexts))
@@ -664,6 +742,7 @@ public class CostCommand : AsyncCommand<CostSettings>
     private sealed record CostReportFilters(
         IReadOnlyList<int>? Matchdays,
         IReadOnlyList<string>? Models,
+        IReadOnlyList<string?>? ReasoningEfforts,
         IReadOnlyList<string>? CommunityContexts,
         bool IncludeBonus,
         bool All);
@@ -671,6 +750,9 @@ public class CostCommand : AsyncCommand<CostSettings>
     private sealed record CostReportRow(
         string CommunityContext,
         string Model,
+        string? ReasoningEffort,
+        string ModelConfigKey,
+        string ModelConfigDisplayName,
         string Category,
         int RepredictionIndex,
         int Count,

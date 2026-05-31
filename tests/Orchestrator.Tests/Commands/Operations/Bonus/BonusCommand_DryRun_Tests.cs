@@ -25,7 +25,7 @@ public class BonusCommand_DryRun_Tests : BonusCommandTests_Base
         context.PredictionRepository.Verify(r => r.SaveBonusPredictionAsync(
             It.IsAny<BonusQuestion>(),
             It.IsAny<BonusPrediction>(),
-            It.IsAny<string>(),
+            It.IsAny<PredictionModelConfig>(),
             It.IsAny<string>(),
             It.IsAny<double>(),
             It.IsAny<string>(),

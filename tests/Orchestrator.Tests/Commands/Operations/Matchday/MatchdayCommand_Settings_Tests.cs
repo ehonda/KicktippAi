@@ -13,6 +13,17 @@ namespace Orchestrator.Tests.Commands.Operations.Matchday;
 public class MatchdayCommand_Settings_Tests : MatchdayCommandTests_Base
 {
     [Test]
+    public async Task Model_argument_is_required()
+    {
+        var ctx = CreateMatchdayCommandApp();
+
+        var (exitCode, output) = await RunCommandAsync(ctx.App, ctx.Console, "matchday", "-c", "test-community");
+
+        await Assert.That(exitCode).IsNotEqualTo(0);
+        await Assert.That(output).Contains("MODEL");
+    }
+
+    [Test]
     public async Task Running_command_displays_model_name()
     {
         var ctx = CreateMatchdayCommandApp();
@@ -155,6 +166,7 @@ public class MatchdayCommand_Settings_Tests : MatchdayCommandTests_Base
             ctx.App,
             ctx.Console,
             "matchday",
+            "gpt-5-nano",
             "-c",
             "ehonda-dev-wm26",
             "--with-justification");
@@ -256,7 +268,9 @@ public class MatchdayCommand_Settings_Tests : MatchdayCommandTests_Base
             repository => repository.SavePredictionAsync(
                 It.IsAny<Match>(),
                 It.IsAny<Prediction>(),
-                "gpt-5-nano",
+                It.Is<PredictionModelConfig>(config =>
+                    config.Model == "gpt-5-nano" &&
+                    config.ReasoningEffort == "minimal"),
                 It.IsAny<string>(),
                 It.IsAny<double>(),
                 "ehonda-dev-wm26",

@@ -44,8 +44,9 @@ public class ReconstructPromptCommand : AsyncCommand<ReconstructPromptSettings>
                 new InstructionsTemplateProvider(PromptsFileProvider.Create()));
 
             var evaluationTime = EvaluationTimeParser.ParseOrNull(settings.EvaluationTime);
+            var modelConfig = PredictionModelConfig.Create(settings.Model, settings.ReasoningEffort);
 
-            var match = await ResolveMatchAsync(predictionRepository, settings, evaluationTime is not null);
+            var match = await ResolveMatchAsync(predictionRepository, settings, modelConfig, evaluationTime is not null);
             if (match is null)
             {
                 _console.MarkupLine($"[red]Match not found on matchday {settings.Matchday}:[/] {Markup.Escape(settings.HomeTeam)} vs {Markup.Escape(settings.AwayTeam)}");
@@ -59,7 +60,7 @@ public class ReconstructPromptCommand : AsyncCommand<ReconstructPromptSettings>
             {
                 reconstructedPrompt = await reconstructionService.ReconstructMatchPredictionPromptAsync(
                     match,
-                    settings.Model,
+                    modelConfig,
                     settings.CommunityContext,
                     settings.WithJustification);
             }
@@ -118,13 +119,14 @@ public class ReconstructPromptCommand : AsyncCommand<ReconstructPromptSettings>
     private static async Task<Match?> ResolveMatchAsync(
         IPredictionRepository predictionRepository,
         ReconstructPromptSettings settings,
+        PredictionModelConfig modelConfig,
         bool allowExactTimestampFallback)
     {
         return await predictionRepository.GetStoredMatchAsync(
             settings.HomeTeam,
             settings.AwayTeam,
             settings.Matchday!.Value,
-            allowExactTimestampFallback ? null : settings.Model,
+            allowExactTimestampFallback ? null : modelConfig,
             allowExactTimestampFallback ? null : settings.CommunityContext);
     }
 

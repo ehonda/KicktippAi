@@ -524,7 +524,7 @@ internal sealed class PreparedExperimentRunExecutor
             item.HomeTeam,
             item.AwayTeam,
             item.Matchday,
-            null,
+            (PredictionModelConfig?)null,
             null,
             cancellationToken);
 

@@ -22,7 +22,7 @@ public class MatchdayCommand_Modes_Tests : MatchdayCommandTests_Base
 
         ctx.PredictionRepository.Verify(
             r => r.SavePredictionAsync(
-                It.IsAny<Match>(), It.IsAny<Prediction>(), It.IsAny<string>(), It.IsAny<string>(),
+                It.IsAny<Match>(), It.IsAny<Prediction>(), It.IsAny<PredictionModelConfig>(), It.IsAny<string>(),
                 It.IsAny<double>(), It.IsAny<string>(), It.IsAny<IEnumerable<string>>(), It.IsAny<bool>(), It.IsAny<CancellationToken>()),
             Times.Never);
     }
@@ -128,7 +128,7 @@ public class MatchdayCommand_Modes_Tests : MatchdayCommandTests_Base
 
         ctx.PredictionRepository.Verify(
             r => r.SavePredictionAsync(
-                It.IsAny<Match>(), It.IsAny<Prediction>(), It.IsAny<string>(), It.IsAny<string>(),
+                It.IsAny<Match>(), It.IsAny<Prediction>(), It.IsAny<PredictionModelConfig>(), It.IsAny<string>(),
                 It.IsAny<double>(), It.IsAny<string>(), It.IsAny<IEnumerable<string>>(), It.IsAny<bool>(), It.IsAny<CancellationToken>()),
             Times.Once);
     }

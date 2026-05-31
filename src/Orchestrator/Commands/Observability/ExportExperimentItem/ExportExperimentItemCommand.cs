@@ -52,12 +52,13 @@ public sealed class ExportExperimentItemCommand : AsyncCommand<ExportExperimentI
                 settings.EvaluationPolicyKind,
                 settings.EvaluationPolicyOffset);
             var reconstructAtTimestamp = evaluationTime is not null || evaluationPolicy is not null;
+            var modelConfig = PredictionModelConfig.Create(settings.Model, settings.ReasoningEffort);
 
             var storedMatch = await predictionRepository.GetStoredMatchAsync(
                 settings.HomeTeam,
                 settings.AwayTeam,
                 settings.Matchday!.Value,
-                reconstructAtTimestamp ? null : settings.Model,
+                reconstructAtTimestamp ? null : modelConfig,
                 reconstructAtTimestamp ? null : settings.CommunityContext);
 
             if (storedMatch is null)
@@ -75,7 +76,7 @@ public sealed class ExportExperimentItemCommand : AsyncCommand<ExportExperimentI
             {
                 reconstructedPrompt = await reconstructionService.ReconstructMatchPredictionPromptAsync(
                     promptMatch,
-                    settings.Model,
+                    modelConfig,
                     settings.CommunityContext,
                     settings.WithJustification);
             }

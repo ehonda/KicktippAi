@@ -58,10 +58,10 @@ public class VerifyBonusCommand_ErrorHandling_Tests : VerifyBonusCommandTests_Ba
 
         var mockPredictionRepo = new Mock<IPredictionRepository>();
         mockPredictionRepo.Setup(r => r.GetBonusPredictionByTextAsync(
-                "Question 1", It.IsAny<string>(), It.IsAny<string>(), It.IsAny<CancellationToken>()))
+                "Question 1", It.IsAny<PredictionModelConfig>(), It.IsAny<string>(), It.IsAny<CancellationToken>()))
             .ThrowsAsync(new InvalidOperationException("Database error"));
         mockPredictionRepo.Setup(r => r.GetBonusPredictionByTextAsync(
-                "Question 2", It.IsAny<string>(), It.IsAny<string>(), It.IsAny<CancellationToken>()))
+                "Question 2", It.IsAny<PredictionModelConfig>(), It.IsAny<string>(), It.IsAny<CancellationToken>()))
             .ReturnsAsync(databasePrediction);
 
         var mockFirebaseFactory = CreateMockFirebaseServiceFactoryFull(predictionRepository: mockPredictionRepo);
@@ -96,7 +96,7 @@ public class VerifyBonusCommand_ErrorHandling_Tests : VerifyBonusCommandTests_Ba
 
         var mockPredictionRepo = new Mock<IPredictionRepository>();
         mockPredictionRepo.Setup(r => r.GetBonusPredictionByTextAsync(
-                It.IsAny<string>(), It.IsAny<string>(), It.IsAny<string>(), It.IsAny<CancellationToken>()))
+                It.IsAny<string>(), It.IsAny<PredictionModelConfig>(), It.IsAny<string>(), It.IsAny<CancellationToken>()))
             .ThrowsAsync(new InvalidOperationException("Database error"));
 
         var mockFirebaseFactory = CreateMockFirebaseServiceFactoryFull(predictionRepository: mockPredictionRepo);

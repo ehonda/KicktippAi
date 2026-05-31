@@ -15,6 +15,9 @@ public class CostConfiguration
     [JsonPropertyName("models")]
     public string? Models { get; set; }
 
+    [JsonPropertyName("reasoningEfforts")]
+    public string? ReasoningEfforts { get; set; }
+
     [JsonPropertyName("communityContexts")]
     public string? CommunityContexts { get; set; }
 
@@ -45,6 +48,10 @@ public class CostSettings : CommandSettings
     [CommandOption("--models")]
     [Description("Comma-separated list of AI models to include in calculation (e.g., 'gpt-4o,o1-mini' or 'all' for all models)")]
     public string? Models { get; set; }
+
+    [CommandOption("--reasoning-efforts")]
+    [Description("Comma-separated list of reasoning efforts to include (none, minimal, low, medium, high, xhigh, or model-default). Use 'all' for all stored configs.")]
+    public string? ReasoningEfforts { get; set; }
 
     [CommandOption("--community-contexts")]
     [Description("Comma-separated list of community contexts to include (e.g., 'ehonda-test-buli,ehonda-test-buli-2' or 'all' for all contexts)")]

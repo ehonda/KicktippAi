@@ -21,6 +21,7 @@ public interface IPredictionRepository
     /// <param name="cancellationToken">Cancellation token.</param>
     /// <returns>A task representing the asynchronous operation.</returns>
     Task SavePredictionAsync(Match match, Prediction prediction, string model, string tokenUsage, double cost, string communityContext, IEnumerable<string> contextDocumentNames, bool overrideCreatedAt = false, CancellationToken cancellationToken = default);
+    Task SavePredictionAsync(Match match, Prediction prediction, PredictionModelConfig modelConfig, string tokenUsage, double cost, string communityContext, IEnumerable<string> contextDocumentNames, bool overrideCreatedAt = false, CancellationToken cancellationToken = default);
 
     /// <summary>
     /// Retrieves a prediction for a specific match using the specified model and community context.
@@ -31,6 +32,7 @@ public interface IPredictionRepository
     /// <param name="cancellationToken">Cancellation token.</param>
     /// <returns>The prediction if found, otherwise null.</returns>
     Task<Prediction?> GetPredictionAsync(Match match, string model, string communityContext, CancellationToken cancellationToken = default);
+    Task<Prediction?> GetPredictionAsync(Match match, PredictionModelConfig modelConfig, string communityContext, CancellationToken cancellationToken = default);
 
     /// <summary>
     /// Retrieves full prediction metadata for a specific match using the specified model and community context.
@@ -42,6 +44,7 @@ public interface IPredictionRepository
     /// <param name="cancellationToken">Cancellation token.</param>
     /// <returns>The prediction metadata if found, otherwise null.</returns>
     Task<PredictionMetadata?> GetPredictionMetadataAsync(Match match, string model, string communityContext, CancellationToken cancellationToken = default);
+    Task<PredictionMetadata?> GetPredictionMetadataAsync(Match match, PredictionModelConfig modelConfig, string communityContext, CancellationToken cancellationToken = default);
 
     /// <summary>
     /// Retrieves a prediction for a specific match by team names, start time, model, and community context.
@@ -54,6 +57,7 @@ public interface IPredictionRepository
     /// <param name="cancellationToken">Cancellation token.</param>
     /// <returns>The prediction if found, otherwise null.</returns>
     Task<Prediction?> GetPredictionAsync(string homeTeam, string awayTeam, ZonedDateTime startsAt, string model, string communityContext, CancellationToken cancellationToken = default);
+    Task<Prediction?> GetPredictionAsync(string homeTeam, string awayTeam, ZonedDateTime startsAt, PredictionModelConfig modelConfig, string communityContext, CancellationToken cancellationToken = default);
 
     /// <summary>
     /// Retrieves all matches for a specific match day.
@@ -74,6 +78,7 @@ public interface IPredictionRepository
     /// <param name="cancellationToken">Cancellation token.</param>
     /// <returns>The stored match if found, otherwise null.</returns>
     Task<Match?> GetStoredMatchAsync(string homeTeam, string awayTeam, int matchDay, string? model = null, string? communityContext = null, CancellationToken cancellationToken = default);
+    Task<Match?> GetStoredMatchAsync(string homeTeam, string awayTeam, int matchDay, PredictionModelConfig? modelConfig, string? communityContext = null, CancellationToken cancellationToken = default);
 
     /// <summary>
     /// Retrieves all matches with their predictions for a specific match day using the specified model and community context.
@@ -84,6 +89,7 @@ public interface IPredictionRepository
     /// <param name="cancellationToken">Cancellation token.</param>
     /// <returns>A collection of matches with their predictions (if any) for the specified match day.</returns>
     Task<IReadOnlyList<MatchPrediction>> GetMatchDayWithPredictionsAsync(int matchDay, string model, string communityContext, CancellationToken cancellationToken = default);
+    Task<IReadOnlyList<MatchPrediction>> GetMatchDayWithPredictionsAsync(int matchDay, PredictionModelConfig modelConfig, string communityContext, CancellationToken cancellationToken = default);
 
     /// <summary>
     /// Retrieves all predictions made with the specified model and community context.
@@ -93,6 +99,7 @@ public interface IPredictionRepository
     /// <param name="cancellationToken">Cancellation token.</param>
     /// <returns>A collection of all match predictions for the specified model and community context.</returns>
     Task<IReadOnlyList<MatchPrediction>> GetAllPredictionsAsync(string model, string communityContext, CancellationToken cancellationToken = default);
+    Task<IReadOnlyList<MatchPrediction>> GetAllPredictionsAsync(PredictionModelConfig modelConfig, string communityContext, CancellationToken cancellationToken = default);
 
     /// <summary>
     /// Checks if a prediction exists for a specific match using the specified model and community context.
@@ -103,6 +110,7 @@ public interface IPredictionRepository
     /// <param name="cancellationToken">Cancellation token.</param>
     /// <returns>True if a prediction exists, otherwise false.</returns>
     Task<bool> HasPredictionAsync(Match match, string model, string communityContext, CancellationToken cancellationToken = default);
+    Task<bool> HasPredictionAsync(Match match, PredictionModelConfig modelConfig, string communityContext, CancellationToken cancellationToken = default);
 
     /// <summary>
     /// Saves a bonus prediction for a specific question.
@@ -117,6 +125,7 @@ public interface IPredictionRepository
     /// <param name="cancellationToken">Cancellation token.</param>
     /// <returns>A task representing the asynchronous operation.</returns>
     Task SaveBonusPredictionAsync(BonusQuestion bonusQuestion, BonusPrediction bonusPrediction, string model, string tokenUsage, double cost, string communityContext, IEnumerable<string> contextDocumentNames, bool overrideCreatedAt = false, CancellationToken cancellationToken = default);
+    Task SaveBonusPredictionAsync(BonusQuestion bonusQuestion, BonusPrediction bonusPrediction, PredictionModelConfig modelConfig, string tokenUsage, double cost, string communityContext, IEnumerable<string> contextDocumentNames, bool overrideCreatedAt = false, CancellationToken cancellationToken = default);
 
     /// <summary>
     /// Retrieves a bonus prediction for a specific question using the specified model and community context.
@@ -127,6 +136,7 @@ public interface IPredictionRepository
     /// <param name="cancellationToken">Cancellation token.</param>
     /// <returns>The bonus prediction if found, otherwise null.</returns>
     Task<BonusPrediction?> GetBonusPredictionAsync(string questionId, string model, string communityContext, CancellationToken cancellationToken = default);
+    Task<BonusPrediction?> GetBonusPredictionAsync(string questionId, PredictionModelConfig modelConfig, string communityContext, CancellationToken cancellationToken = default);
 
     /// <summary>
     /// Retrieves a bonus prediction by question text and community context.
@@ -138,6 +148,7 @@ public interface IPredictionRepository
     /// <param name="cancellationToken">Cancellation token.</param>
     /// <returns>The bonus prediction if found, otherwise null.</returns>
     Task<BonusPrediction?> GetBonusPredictionByTextAsync(string questionText, string model, string communityContext, CancellationToken cancellationToken = default);
+    Task<BonusPrediction?> GetBonusPredictionByTextAsync(string questionText, PredictionModelConfig modelConfig, string communityContext, CancellationToken cancellationToken = default);
 
     /// <summary>
     /// Retrieves full bonus prediction metadata by question text and community context.
@@ -149,6 +160,7 @@ public interface IPredictionRepository
     /// <param name="cancellationToken">Cancellation token.</param>
     /// <returns>The bonus prediction metadata if found, otherwise null.</returns>
     Task<BonusPredictionMetadata?> GetBonusPredictionMetadataByTextAsync(string questionText, string model, string communityContext, CancellationToken cancellationToken = default);
+    Task<BonusPredictionMetadata?> GetBonusPredictionMetadataByTextAsync(string questionText, PredictionModelConfig modelConfig, string communityContext, CancellationToken cancellationToken = default);
 
     /// <summary>
     /// Retrieves all bonus predictions made with the specified model and community context.
@@ -158,6 +170,7 @@ public interface IPredictionRepository
     /// <param name="cancellationToken">Cancellation token.</param>
     /// <returns>A collection of all bonus predictions for the specified model and community context.</returns>
     Task<IReadOnlyList<BonusPrediction>> GetAllBonusPredictionsAsync(string model, string communityContext, CancellationToken cancellationToken = default);
+    Task<IReadOnlyList<BonusPrediction>> GetAllBonusPredictionsAsync(PredictionModelConfig modelConfig, string communityContext, CancellationToken cancellationToken = default);
 
     /// <summary>
     /// Checks if a bonus prediction exists for a specific question using the specified model and community context.
@@ -168,6 +181,7 @@ public interface IPredictionRepository
     /// <param name="cancellationToken">Cancellation token.</param>
     /// <returns>True if a bonus prediction exists, otherwise false.</returns>
     Task<bool> HasBonusPredictionAsync(string questionId, string model, string communityContext, CancellationToken cancellationToken = default);
+    Task<bool> HasBonusPredictionAsync(string questionId, PredictionModelConfig modelConfig, string communityContext, CancellationToken cancellationToken = default);
 
     /// <summary>
     /// Gets the current reprediction index for a specific match using the specified model and community context.
@@ -178,6 +192,7 @@ public interface IPredictionRepository
     /// <param name="cancellationToken">Cancellation token.</param>
     /// <returns>The current reprediction index, or -1 if no prediction exists.</returns>
     Task<int> GetMatchRepredictionIndexAsync(Match match, string model, string communityContext, CancellationToken cancellationToken = default);
+    Task<int> GetMatchRepredictionIndexAsync(Match match, PredictionModelConfig modelConfig, string communityContext, CancellationToken cancellationToken = default);
 
     // ============================================================================
     // CANCELLED MATCH LOOKUPS (Team Names Only - No startsAt Constraint)
@@ -228,6 +243,7 @@ public interface IPredictionRepository
     /// <param name="cancellationToken">Cancellation token.</param>
     /// <returns>The most recent prediction if found, otherwise null.</returns>
     Task<Prediction?> GetCancelledMatchPredictionAsync(string homeTeam, string awayTeam, string model, string communityContext, CancellationToken cancellationToken = default);
+    Task<Prediction?> GetCancelledMatchPredictionAsync(string homeTeam, string awayTeam, PredictionModelConfig modelConfig, string communityContext, CancellationToken cancellationToken = default);
 
     /// <summary>
     /// Retrieves prediction metadata for a cancelled match by team names only (ignoring startsAt).
@@ -244,6 +260,7 @@ public interface IPredictionRepository
     /// <param name="cancellationToken">Cancellation token.</param>
     /// <returns>The most recent prediction metadata if found, otherwise null.</returns>
     Task<PredictionMetadata?> GetCancelledMatchPredictionMetadataAsync(string homeTeam, string awayTeam, string model, string communityContext, CancellationToken cancellationToken = default);
+    Task<PredictionMetadata?> GetCancelledMatchPredictionMetadataAsync(string homeTeam, string awayTeam, PredictionModelConfig modelConfig, string communityContext, CancellationToken cancellationToken = default);
 
     /// <summary>
     /// Gets the reprediction index for a cancelled match by team names only (ignoring startsAt).
@@ -260,6 +277,7 @@ public interface IPredictionRepository
     /// <param name="cancellationToken">Cancellation token.</param>
     /// <returns>The current reprediction index, or -1 if no prediction exists.</returns>
     Task<int> GetCancelledMatchRepredictionIndexAsync(string homeTeam, string awayTeam, string model, string communityContext, CancellationToken cancellationToken = default);
+    Task<int> GetCancelledMatchRepredictionIndexAsync(string homeTeam, string awayTeam, PredictionModelConfig modelConfig, string communityContext, CancellationToken cancellationToken = default);
 
     /// <summary>
     /// Gets the current reprediction index for a specific bonus question using the specified model and community context.
@@ -270,6 +288,7 @@ public interface IPredictionRepository
     /// <param name="cancellationToken">Cancellation token.</param>
     /// <returns>The current reprediction index, or -1 if no prediction exists.</returns>
     Task<int> GetBonusRepredictionIndexAsync(string questionText, string model, string communityContext, CancellationToken cancellationToken = default);
+    Task<int> GetBonusRepredictionIndexAsync(string questionText, PredictionModelConfig modelConfig, string communityContext, CancellationToken cancellationToken = default);
 
     /// <summary>
     /// Saves a repredicted match prediction with the next reprediction index.
@@ -285,6 +304,7 @@ public interface IPredictionRepository
     /// <param name="cancellationToken">Cancellation token.</param>
     /// <returns>A task representing the asynchronous operation.</returns>
     Task SaveRepredictionAsync(Match match, Prediction prediction, string model, string tokenUsage, double cost, string communityContext, IEnumerable<string> contextDocumentNames, int repredictionIndex, CancellationToken cancellationToken = default);
+    Task SaveRepredictionAsync(Match match, Prediction prediction, PredictionModelConfig modelConfig, string tokenUsage, double cost, string communityContext, IEnumerable<string> contextDocumentNames, int repredictionIndex, CancellationToken cancellationToken = default);
 
     /// <summary>
     /// Saves a repredicted bonus prediction with the next reprediction index.
@@ -300,6 +320,7 @@ public interface IPredictionRepository
     /// <param name="cancellationToken">Cancellation token.</param>
     /// <returns>A task representing the asynchronous operation.</returns>
     Task SaveBonusRepredictionAsync(BonusQuestion bonusQuestion, BonusPrediction bonusPrediction, string model, string tokenUsage, double cost, string communityContext, IEnumerable<string> contextDocumentNames, int repredictionIndex, CancellationToken cancellationToken = default);
+    Task SaveBonusRepredictionAsync(BonusQuestion bonusQuestion, BonusPrediction bonusPrediction, PredictionModelConfig modelConfig, string tokenUsage, double cost, string communityContext, IEnumerable<string> contextDocumentNames, int repredictionIndex, CancellationToken cancellationToken = default);
 
     /// <summary>
     /// Get match prediction costs and counts grouped by reprediction index for cost analysis.
@@ -311,6 +332,7 @@ public interface IPredictionRepository
     /// <param name="cancellationToken">Cancellation token.</param>
     /// <returns>Dictionary mapping reprediction index to (cost, count) tuple.</returns>
     Task<Dictionary<int, (double cost, int count)>> GetMatchPredictionCostsByRepredictionIndexAsync(string model, string communityContext, List<int>? matchdays = null, CancellationToken cancellationToken = default);
+    Task<Dictionary<int, (double cost, int count)>> GetMatchPredictionCostsByRepredictionIndexAsync(PredictionModelConfig modelConfig, string communityContext, List<int>? matchdays = null, CancellationToken cancellationToken = default);
 
     /// <summary>
     /// Get bonus prediction costs and counts grouped by reprediction index for cost analysis.
@@ -321,6 +343,7 @@ public interface IPredictionRepository
     /// <param name="cancellationToken">Cancellation token.</param>
     /// <returns>Dictionary mapping reprediction index to (cost, count) tuple.</returns>
     Task<Dictionary<int, (double cost, int count)>> GetBonusPredictionCostsByRepredictionIndexAsync(string model, string communityContext, CancellationToken cancellationToken = default);
+    Task<Dictionary<int, (double cost, int count)>> GetBonusPredictionCostsByRepredictionIndexAsync(PredictionModelConfig modelConfig, string communityContext, CancellationToken cancellationToken = default);
 
     /// <summary>
     /// Gets all unique matchdays that have predictions stored.
@@ -337,6 +360,7 @@ public interface IPredictionRepository
     /// <param name="cancellationToken">Cancellation token.</param>
     /// <returns>A list of model names.</returns>
     Task<List<string>> GetAvailableModelsAsync(CancellationToken cancellationToken = default);
+    Task<List<PredictionModelConfig>> GetAvailableModelConfigsAsync(CancellationToken cancellationToken = default);
 
     /// <summary>
     /// Gets all unique community contexts that have predictions stored.

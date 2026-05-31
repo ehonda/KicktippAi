@@ -73,7 +73,7 @@ public class VerifyBonusCommand : AsyncCommand<VerifySettings>
         var kicktippClient = _kicktippClientFactory.CreateClient();
         string communityContext = settings.CommunityContext ?? settings.Community;
         var competition = CompetitionResolver.ResolveCompetition(settings.Competition, settings.Community, communityContext);
-        var model = PredictionServiceCommandSupport.ResolveModel(settings.Model, competition);
+        var modelConfig = PredictionServiceCommandSupport.CreateModelConfig(settings.Model, settings.ReasoningEffort);
         var repositoryCompetition = CompetitionResolver.ToRepositoryCompetitionArgument(competition);
 
         // Try to get the prediction repository (may be null if Firebase is not configured)
@@ -91,6 +91,7 @@ public class VerifyBonusCommand : AsyncCommand<VerifySettings>
         _console.MarkupLine($"[blue]Using community:[/] [yellow]{settings.Community}[/]");
         _console.MarkupLine($"[blue]Using community context:[/] [yellow]{communityContext}[/]");
         _console.MarkupLine($"[blue]Using competition:[/] [yellow]{competition}[/]");
+        _console.MarkupLine($"[blue]Using model config:[/] [yellow]{modelConfig.DisplayName}[/]");
         _console.MarkupLine("[blue]Getting open bonus questions from Kicktipp...[/]");
         
         // Step 1: Get open bonus questions from Kicktipp
@@ -129,7 +130,7 @@ public class VerifyBonusCommand : AsyncCommand<VerifySettings>
                     _console.MarkupLine($"[dim]  Looking up: {Markup.Escape(question.Text)}[/]");
                 }
                 
-                var databasePrediction = await predictionRepository.GetBonusPredictionByTextAsync(question.Text, model, communityContext);
+                var databasePrediction = await predictionRepository.GetBonusPredictionByTextAsync(question.Text, modelConfig, communityContext);
                 var kicktippPrediction = placedPredictions.GetValueOrDefault(question.FormFieldName ?? question.Text);
                 
                 if (databasePrediction != null)
@@ -146,7 +147,7 @@ public class VerifyBonusCommand : AsyncCommand<VerifySettings>
                     var isOutdated = false;
                     if (settings.CheckOutdated)
                     {
-                        isOutdated = await CheckBonusPredictionOutdated(predictionRepository, kpiRepository, question.Text, model, communityContext, settings.Verbose);
+                        isOutdated = await CheckBonusPredictionOutdated(predictionRepository, kpiRepository, question.Text, modelConfig, communityContext, settings.Verbose);
                     }
                     
                     // Consider prediction valid if it passes validation, matches Kicktipp, and is not outdated
@@ -310,7 +311,7 @@ public class VerifyBonusCommand : AsyncCommand<VerifySettings>
         IPredictionRepository predictionRepository,
         IKpiRepository kpiRepository,
         string questionText,
-        string model,
+        PredictionModelConfig modelConfig,
         string communityContext,
         bool verbose)
     {
@@ -318,7 +319,7 @@ public class VerifyBonusCommand : AsyncCommand<VerifySettings>
         {
             // Get prediction metadata (includes creation timestamp and context document names)
             var predictionMetadata = await predictionRepository.GetBonusPredictionMetadataByTextAsync(
-                questionText, model, communityContext);
+                questionText, modelConfig, communityContext);
             
             if (predictionMetadata == null)
             {

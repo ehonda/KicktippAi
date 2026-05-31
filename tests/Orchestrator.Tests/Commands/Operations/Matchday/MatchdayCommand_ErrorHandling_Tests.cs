@@ -95,7 +95,7 @@ public class MatchdayCommand_ErrorHandling_Tests : MatchdayCommandTests_Base
         var mockPredictionRepo = CreateMockPredictionRepository();
         mockPredictionRepo
             .Setup(r => r.SavePredictionAsync(
-                It.IsAny<Match>(), It.IsAny<Prediction>(), It.IsAny<string>(), It.IsAny<string>(),
+                It.IsAny<Match>(), It.IsAny<Prediction>(), It.IsAny<PredictionModelConfig>(), It.IsAny<string>(),
                 It.IsAny<double>(), It.IsAny<string>(), It.IsAny<IEnumerable<string>>(), It.IsAny<bool>(), It.IsAny<CancellationToken>()))
             .ThrowsAsync(new InvalidOperationException("Database connection failed"));
 

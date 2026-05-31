@@ -498,9 +498,23 @@ public static class OrchestratorTestFactories
                 It.IsAny<CancellationToken>()))
             .ReturnsAsync(getPredictionResult.Or((Prediction?)null));
 
+        mock.Setup(r => r.GetPredictionAsync(
+                It.IsAny<Match>(),
+                It.IsAny<PredictionModelConfig>(),
+                It.IsAny<string>(),
+                It.IsAny<CancellationToken>()))
+            .ReturnsAsync(getPredictionResult.Or((Prediction?)null));
+
         mock.Setup(r => r.GetPredictionMetadataAsync(
                 It.IsAny<Match>(),
                 It.IsAny<string>(),
+                It.IsAny<string>(),
+                It.IsAny<CancellationToken>()))
+            .ReturnsAsync(getPredictionMetadataResult.Or((PredictionMetadata?)null));
+
+        mock.Setup(r => r.GetPredictionMetadataAsync(
+                It.IsAny<Match>(),
+                It.IsAny<PredictionModelConfig>(),
                 It.IsAny<string>(),
                 It.IsAny<CancellationToken>()))
             .ReturnsAsync(getPredictionMetadataResult.Or((PredictionMetadata?)null));
@@ -512,10 +526,29 @@ public static class OrchestratorTestFactories
                 It.IsAny<CancellationToken>()))
             .ReturnsAsync(getRepredictionIndexResult.Or(-1));
 
+        mock.Setup(r => r.GetMatchRepredictionIndexAsync(
+                It.IsAny<Match>(),
+                It.IsAny<PredictionModelConfig>(),
+                It.IsAny<string>(),
+                It.IsAny<CancellationToken>()))
+            .ReturnsAsync(getRepredictionIndexResult.Or(-1));
+
         mock.Setup(r => r.SavePredictionAsync(
                 It.IsAny<Match>(),
                 It.IsAny<Prediction>(),
                 It.IsAny<string>(),
+                It.IsAny<string>(),
+                It.IsAny<double>(),
+                It.IsAny<string>(),
+                It.IsAny<IEnumerable<string>>(),
+                It.IsAny<bool>(),
+                It.IsAny<CancellationToken>()))
+            .Returns(Task.CompletedTask);
+
+        mock.Setup(r => r.SavePredictionAsync(
+                It.IsAny<Match>(),
+                It.IsAny<Prediction>(),
+                It.IsAny<PredictionModelConfig>(),
                 It.IsAny<string>(),
                 It.IsAny<double>(),
                 It.IsAny<string>(),
@@ -536,10 +569,29 @@ public static class OrchestratorTestFactories
                 It.IsAny<CancellationToken>()))
             .Returns(Task.CompletedTask);
 
+        mock.Setup(r => r.SaveRepredictionAsync(
+                It.IsAny<Match>(),
+                It.IsAny<Prediction>(),
+                It.IsAny<PredictionModelConfig>(),
+                It.IsAny<string>(),
+                It.IsAny<double>(),
+                It.IsAny<string>(),
+                It.IsAny<IEnumerable<string>>(),
+                It.IsAny<int>(),
+                It.IsAny<CancellationToken>()))
+            .Returns(Task.CompletedTask);
+
         // Bonus prediction methods
         mock.Setup(r => r.GetBonusPredictionByTextAsync(
                 It.IsAny<string>(),
                 It.IsAny<string>(),
+                It.IsAny<string>(),
+                It.IsAny<CancellationToken>()))
+            .ReturnsAsync(getBonusPredictionByTextResult.Or((BonusPrediction?)null));
+
+        mock.Setup(r => r.GetBonusPredictionByTextAsync(
+                It.IsAny<string>(),
+                It.IsAny<PredictionModelConfig>(),
                 It.IsAny<string>(),
                 It.IsAny<CancellationToken>()))
             .ReturnsAsync(getBonusPredictionByTextResult.Or((BonusPrediction?)null));
@@ -551,9 +603,23 @@ public static class OrchestratorTestFactories
                 It.IsAny<CancellationToken>()))
             .ReturnsAsync(getBonusPredictionMetadataByTextResult.Or((BonusPredictionMetadata?)null));
 
+        mock.Setup(r => r.GetBonusPredictionMetadataByTextAsync(
+                It.IsAny<string>(),
+                It.IsAny<PredictionModelConfig>(),
+                It.IsAny<string>(),
+                It.IsAny<CancellationToken>()))
+            .ReturnsAsync(getBonusPredictionMetadataByTextResult.Or((BonusPredictionMetadata?)null));
+
         mock.Setup(r => r.GetBonusRepredictionIndexAsync(
                 It.IsAny<string>(),
                 It.IsAny<string>(),
+                It.IsAny<string>(),
+                It.IsAny<CancellationToken>()))
+            .ReturnsAsync(getBonusRepredictionIndexResult.Or(-1));
+
+        mock.Setup(r => r.GetBonusRepredictionIndexAsync(
+                It.IsAny<string>(),
+                It.IsAny<PredictionModelConfig>(),
                 It.IsAny<string>(),
                 It.IsAny<CancellationToken>()))
             .ReturnsAsync(getBonusRepredictionIndexResult.Or(-1));
@@ -567,6 +633,14 @@ public static class OrchestratorTestFactories
                 It.IsAny<CancellationToken>()))
             .ReturnsAsync(getCancelledMatchPredictionResult.Or((Prediction?)null));
 
+        mock.Setup(r => r.GetCancelledMatchPredictionAsync(
+                It.IsAny<string>(),
+                It.IsAny<string>(),
+                It.IsAny<PredictionModelConfig>(),
+                It.IsAny<string>(),
+                It.IsAny<CancellationToken>()))
+            .ReturnsAsync(getCancelledMatchPredictionResult.Or((Prediction?)null));
+
         mock.Setup(r => r.GetCancelledMatchPredictionMetadataAsync(
                 It.IsAny<string>(),
                 It.IsAny<string>(),
@@ -575,10 +649,26 @@ public static class OrchestratorTestFactories
                 It.IsAny<CancellationToken>()))
             .ReturnsAsync(getCancelledMatchPredictionMetadataResult.Or((PredictionMetadata?)null));
 
+        mock.Setup(r => r.GetCancelledMatchPredictionMetadataAsync(
+                It.IsAny<string>(),
+                It.IsAny<string>(),
+                It.IsAny<PredictionModelConfig>(),
+                It.IsAny<string>(),
+                It.IsAny<CancellationToken>()))
+            .ReturnsAsync(getCancelledMatchPredictionMetadataResult.Or((PredictionMetadata?)null));
+
         mock.Setup(r => r.GetCancelledMatchRepredictionIndexAsync(
                 It.IsAny<string>(),
                 It.IsAny<string>(),
                 It.IsAny<string>(),
+                It.IsAny<string>(),
+                It.IsAny<CancellationToken>()))
+            .ReturnsAsync(getCancelledMatchRepredictionIndexResult.Or(-1));
+
+        mock.Setup(r => r.GetCancelledMatchRepredictionIndexAsync(
+                It.IsAny<string>(),
+                It.IsAny<string>(),
+                It.IsAny<PredictionModelConfig>(),
                 It.IsAny<string>(),
                 It.IsAny<CancellationToken>()))
             .ReturnsAsync(getCancelledMatchRepredictionIndexResult.Or(-1));
@@ -601,6 +691,23 @@ public static class OrchestratorTestFactories
                 })
             .Returns(Task.CompletedTask);
 
+        mock.Setup(r => r.SaveBonusPredictionAsync(
+                It.IsAny<BonusQuestion>(),
+                It.IsAny<BonusPrediction>(),
+                It.IsAny<PredictionModelConfig>(),
+                It.IsAny<string>(),
+                It.IsAny<double>(),
+                It.IsAny<string>(),
+                It.IsAny<IEnumerable<string>>(),
+                It.IsAny<bool>(),
+                It.IsAny<CancellationToken>()))
+            .Callback<BonusQuestion, BonusPrediction, PredictionModelConfig, string, double, string, IEnumerable<string>, bool, CancellationToken>(
+                (_, _, _, _, _, _, contextDocumentNames, _, _) =>
+                {
+                    _ = contextDocumentNames.ToList();
+                })
+            .Returns(Task.CompletedTask);
+
         mock.Setup(r => r.SaveBonusRepredictionAsync(
                 It.IsAny<BonusQuestion>(),
                 It.IsAny<BonusPrediction>(),
@@ -615,6 +722,23 @@ public static class OrchestratorTestFactories
                 (_, _, _, _, _, _, contextDocumentNames, _, _) =>
                 {
                     // Force enumeration of the context document names to exercise the Select lambda
+                    _ = contextDocumentNames.ToList();
+                })
+            .Returns(Task.CompletedTask);
+
+        mock.Setup(r => r.SaveBonusRepredictionAsync(
+                It.IsAny<BonusQuestion>(),
+                It.IsAny<BonusPrediction>(),
+                It.IsAny<PredictionModelConfig>(),
+                It.IsAny<string>(),
+                It.IsAny<double>(),
+                It.IsAny<string>(),
+                It.IsAny<IEnumerable<string>>(),
+                It.IsAny<int>(),
+                It.IsAny<CancellationToken>()))
+            .Callback<BonusQuestion, BonusPrediction, PredictionModelConfig, string, double, string, IEnumerable<string>, int, CancellationToken>(
+                (_, _, _, _, _, _, contextDocumentNames, _, _) =>
+                {
                     _ = contextDocumentNames.ToList();
                 })
             .Returns(Task.CompletedTask);
@@ -635,17 +759,30 @@ public static class OrchestratorTestFactories
         Option<Dictionary<int, (double cost, int count)>> bonusCostsByIndex = default,
         Option<List<string>> availableModels = default,
         Option<List<string>> availableCommunityContexts = default,
-        Option<List<int>> availableMatchdays = default)
+        Option<List<int>> availableMatchdays = default,
+        Option<List<PredictionModelConfig>> availableModelConfigs = default)
     {
         var mock = new Mock<IPredictionRepository>();
         var matchCosts = matchCostsByIndex.Or(() => new Dictionary<int, (double cost, int count)>());
         var bonusCosts = bonusCostsByIndex.Or(() => new Dictionary<int, (double cost, int count)>());
-        var models = availableModels.Or(() => []);
+        var modelConfigs = availableModelConfigs.Or(() =>
+            availableModels
+                .Or(() => [])
+                .Select(model => PredictionModelConfig.Create(model))
+                .ToList());
+        var models = availableModels.Or(() => modelConfigs.Select(config => config.Model).Distinct(StringComparer.Ordinal).ToList());
         var contexts = availableCommunityContexts.Or(() => []);
         var matchdays = availableMatchdays.Or(() => []);
 
         mock.Setup(r => r.GetMatchPredictionCostsByRepredictionIndexAsync(
                 It.IsAny<string>(),
+                It.IsAny<string>(),
+                It.IsAny<List<int>?>(),
+                It.IsAny<CancellationToken>()))
+            .ReturnsAsync(matchCosts);
+
+        mock.Setup(r => r.GetMatchPredictionCostsByRepredictionIndexAsync(
+                It.IsAny<PredictionModelConfig>(),
                 It.IsAny<string>(),
                 It.IsAny<List<int>?>(),
                 It.IsAny<CancellationToken>()))
@@ -657,8 +794,17 @@ public static class OrchestratorTestFactories
                 It.IsAny<CancellationToken>()))
             .ReturnsAsync(bonusCosts);
 
+        mock.Setup(r => r.GetBonusPredictionCostsByRepredictionIndexAsync(
+                It.IsAny<PredictionModelConfig>(),
+                It.IsAny<string>(),
+                It.IsAny<CancellationToken>()))
+            .ReturnsAsync(bonusCosts);
+
         mock.Setup(r => r.GetAvailableModelsAsync(It.IsAny<CancellationToken>()))
             .ReturnsAsync(models);
+
+        mock.Setup(r => r.GetAvailableModelConfigsAsync(It.IsAny<CancellationToken>()))
+            .ReturnsAsync(modelConfigs);
 
         mock.Setup(r => r.GetAvailableCommunityContextsAsync(It.IsAny<CancellationToken>()))
             .ReturnsAsync(contexts);

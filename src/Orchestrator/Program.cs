@@ -39,26 +39,26 @@ public class Program
         // Load environment variables once at startup
         var startupLogger = LoggingConfiguration.CreateLogger<Program>(minimumLogLevel);
         EnvironmentHelper.LoadEnvironmentVariables(startupLogger);
-        
+
         // Dependency Injection setup follows Spectre.Console.Cli patterns:
         // - Tutorial: https://github.com/spectreconsole/website/blob/main/Spectre.Docs/Content/cli/tutorials/dependency-injection-in-cli-apps.md
         // - Testing: https://github.com/spectreconsole/website/blob/main/Spectre.Docs/Content/cli/how-to/testing-command-line-applications.md
         var services = new ServiceCollection();
-        
+
         // Register IAnsiConsole for dependency injection into commands
         services.AddSingleton<IAnsiConsole>(AnsiConsole.Console);
-        
+
         // Register all command services (factories and shared infrastructure)
         services.AddAllCommandServices(minimumLogLevel);
-        
+
         var registrar = new TypeRegistrar(services);
         var app = new CommandApp(registrar);
-        
+
         app.Configure(config =>
         {
             config.SetApplicationName("Orchestrator");
             config.SetApplicationVersion("1.0.0");
-            
+
             config.AddCommand<MatchdayCommand>("matchday")
                 .WithDescription("Generate predictions for the current matchday")
                 .WithExample("matchday", "gpt-4o-2024-08-06", "--community", "ehonda-test-buli");
@@ -113,7 +113,7 @@ public class Program
                         "--runs",
                         "5");
             });
-                
+
             config.AddCommand<BonusCommand>("bonus")
                 .WithDescription("Generate bonus predictions")
                 .WithExample("bonus", "gpt-4o-2024-08-06", "--community", "ehonda-test-buli");
@@ -121,7 +121,7 @@ public class Program
             config.AddCommand<BonusDevCommand>("bonus-dev")
                 .WithDescription("Generate and post bonus predictions using guarded development-community defaults")
                 .WithExample("bonus-dev", "--community", "ehonda-dev-wm26");
-                
+
             config.AddBranch<CollectContextSettings>("collect-context", collectContext =>
             {
                 collectContext.SetDescription("Collect context documents and store them in database");
@@ -166,12 +166,12 @@ public class Program
 
             config.AddCommand<VerifyMatchdayCommand>("verify")
                 .WithDescription("Verify that database predictions have been successfully posted to Kicktipp")
-                .WithExample("verify", "--community", "ehonda-test-buli");
-                
+                .WithExample("verify", "gpt-4o-2024-08-06", "--community", "ehonda-test-buli");
+
             config.AddCommand<VerifyBonusCommand>("verify-bonus")
                 .WithDescription("Verify that database bonus predictions are valid and complete")
-                .WithExample("verify-bonus", "--community", "ehonda-test-buli");
-                
+                .WithExample("verify-bonus", "gpt-4o-2024-08-06", "--community", "ehonda-test-buli");
+
             config.AddCommand<UploadKpiCommand>("upload-kpi")
                 .WithDescription("Upload a KPI context document to Firebase")
                 .WithExample("upload-kpi", "team-data", "--community", "ehonda-test-buli");
@@ -198,11 +198,11 @@ public class Program
             config.AddCommand<UploadTransfersCommand>("upload-transfers")
                 .WithDescription("Upload a transfers context document to Firebase (team transfers CSV)")
                 .WithExample("upload-transfers", "fcb", "--community-context", "ehonda-test-buli");
-                
+
             config.AddCommand<ListKpiCommand>("list-kpi")
                 .WithDescription("List KPI context documents from Firebase")
                 .WithExample("list-kpi", "--community", "ehonda-test-buli");
-                
+
             config.AddCommand<ContextChangesCommand>("context-changes")
                 .WithDescription("Show changes between latest and previous versions of context documents")
                 .WithExample("context-changes", "--community-context", "ehonda-test-buli", "--count", "5")
@@ -287,27 +287,27 @@ public class Program
                 .WithDescription("Run a prepared community-to-date dataset as one Langfuse dataset run per participant")
                 .WithExample("run-community-to-date", "--manifest", "artifacts/langfuse-experiments/community-to-date/ehonda-ai-arena/through-md10/community-to-date-md10/slice-manifest.json", "--participant-limit", "3")
                 .WithExample("run-community-to-date", "--manifest", "artifacts/langfuse-experiments/community-to-date/ehonda-ai-arena/through-md10/community-to-date-md10/slice-manifest.json", "--run-family-name", "community-to-date__ehonda-ai-arena__md10__2026-04-07t12-00-00z", "--replace-runs");
-                
+
             config.AddCommand<CostCommand>("cost")
                 .WithDescription("Calculate aggregate costs for predictions")
                 .WithExample("cost", "--all")
                 .WithExample("cost", "--matchdays", "1,2,3")
                 .WithExample("cost", "--models", "gpt-4o,o1-mini", "--bonus");
-                
+
             config.AddBranch("snapshots", snapshots =>
             {
                 snapshots.SetDescription("Generate and encrypt HTML snapshots from Kicktipp for test fixtures");
-                
+
                 snapshots.AddCommand<SnapshotsFetchCommand>("fetch")
                     .WithDescription("Fetch HTML snapshots from Kicktipp")
                     .WithExample("snapshots", "fetch", "--community", "ehonda-test-buli")
                     .WithExample("snapshots", "fetch", "--community", "ehonda-test-buli", "--output", "my-snapshots");
-                    
+
                 snapshots.AddCommand<SnapshotsEncryptCommand>("encrypt")
                     .WithDescription("Encrypt HTML snapshots for safe committing")
                     .WithExample("snapshots", "encrypt")
                     .WithExample("snapshots", "encrypt", "--input", "my-snapshots", "--output", "tests/KicktippIntegration.Tests/Fixtures/Html");
-                    
+
                 snapshots.AddCommand<SnapshotsAllCommand>("all")
                     .WithDescription("Fetch and encrypt snapshots in one step")
                     .WithExample("snapshots", "all", "--community", "ehonda-test-buli")

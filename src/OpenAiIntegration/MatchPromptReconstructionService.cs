@@ -28,13 +28,28 @@ public sealed class MatchPromptReconstructionService : IMatchPromptReconstructio
         bool includeJustification = false,
         CancellationToken cancellationToken = default)
     {
+        return await ReconstructMatchPredictionPromptAsync(
+            match,
+            PredictionModelConfig.Create(model),
+            communityContext,
+            includeJustification,
+            cancellationToken);
+    }
+
+    public async Task<ReconstructedMatchPredictionPrompt?> ReconstructMatchPredictionPromptAsync(
+        Match match,
+        PredictionModelConfig modelConfig,
+        string communityContext,
+        bool includeJustification = false,
+        CancellationToken cancellationToken = default)
+    {
         ArgumentNullException.ThrowIfNull(match);
-        ArgumentException.ThrowIfNullOrWhiteSpace(model);
+        ArgumentNullException.ThrowIfNull(modelConfig);
         ArgumentException.ThrowIfNullOrWhiteSpace(communityContext);
 
         var predictionMetadata = await _predictionRepository.GetPredictionMetadataAsync(
             match,
-            model,
+            modelConfig,
             communityContext,
             cancellationToken);
 
@@ -45,7 +60,7 @@ public sealed class MatchPromptReconstructionService : IMatchPromptReconstructio
 
         return await ReconstructMatchPredictionPromptAtTimestampAsync(
             match,
-            model,
+            modelConfig.Model,
             communityContext,
             predictionMetadata.CreatedAt,
             predictionMetadata.ContextDocumentNames,

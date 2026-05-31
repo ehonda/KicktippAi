@@ -17,7 +17,7 @@ public class MatchdayCommand_RepredictMode_Tests : MatchdayCommandTests_Base
     {
         var predictionRepo = CreateMockPredictionRepository(getPredictionResult: (Prediction?)null);
         predictionRepo
-            .Setup(r => r.GetMatchRepredictionIndexAsync(It.IsAny<Match>(), It.IsAny<string>(), It.IsAny<string>(), It.IsAny<CancellationToken>()))
+            .Setup(r => r.GetMatchRepredictionIndexAsync(It.IsAny<Match>(), It.IsAny<PredictionModelConfig>(), It.IsAny<string>(), It.IsAny<CancellationToken>()))
             .ReturnsAsync(-1);
 
         var ctx = CreateMatchdayCommandApp(
@@ -39,10 +39,10 @@ public class MatchdayCommand_RepredictMode_Tests : MatchdayCommandTests_Base
 
         var predictionRepo = CreateMockPredictionRepository(getPredictionResult: existingPrediction);
         predictionRepo
-            .Setup(r => r.GetMatchRepredictionIndexAsync(It.IsAny<Match>(), It.IsAny<string>(), It.IsAny<string>(), It.IsAny<CancellationToken>()))
+            .Setup(r => r.GetMatchRepredictionIndexAsync(It.IsAny<Match>(), It.IsAny<PredictionModelConfig>(), It.IsAny<string>(), It.IsAny<CancellationToken>()))
             .ReturnsAsync(0);
         predictionRepo
-            .Setup(r => r.GetPredictionMetadataAsync(It.IsAny<Match>(), It.IsAny<string>(), It.IsAny<string>(), It.IsAny<CancellationToken>()))
+            .Setup(r => r.GetPredictionMetadataAsync(It.IsAny<Match>(), It.IsAny<PredictionModelConfig>(), It.IsAny<string>(), It.IsAny<CancellationToken>()))
             .ReturnsAsync(new PredictionMetadata(existingPrediction, predictionTimestamp, ["bundesliga-standings.csv", "recent-history-fcb.csv"]));
 
         var contextDocs = CreateBayernVsDortmundContextDocuments(createdAt: contextTimestamp);
@@ -70,10 +70,10 @@ public class MatchdayCommand_RepredictMode_Tests : MatchdayCommandTests_Base
 
         var predictionRepo = CreateMockPredictionRepository(getPredictionResult: existingPrediction);
         predictionRepo
-            .Setup(r => r.GetMatchRepredictionIndexAsync(It.IsAny<Match>(), It.IsAny<string>(), It.IsAny<string>(), It.IsAny<CancellationToken>()))
+            .Setup(r => r.GetMatchRepredictionIndexAsync(It.IsAny<Match>(), It.IsAny<PredictionModelConfig>(), It.IsAny<string>(), It.IsAny<CancellationToken>()))
             .ReturnsAsync(0);
         predictionRepo
-            .Setup(r => r.GetPredictionMetadataAsync(It.IsAny<Match>(), It.IsAny<string>(), It.IsAny<string>(), It.IsAny<CancellationToken>()))
+            .Setup(r => r.GetPredictionMetadataAsync(It.IsAny<Match>(), It.IsAny<PredictionModelConfig>(), It.IsAny<string>(), It.IsAny<CancellationToken>()))
             .ReturnsAsync(new PredictionMetadata(existingPrediction, predictionTimestamp, ["bundesliga-standings.csv", "recent-history-fcb.csv"]));
 
         var contextDocs = CreateBayernVsDortmundContextDocuments(createdAt: contextTimestamp);
@@ -101,10 +101,10 @@ public class MatchdayCommand_RepredictMode_Tests : MatchdayCommandTests_Base
 
         var predictionRepo = CreateMockPredictionRepository(getPredictionResult: existingPrediction);
         predictionRepo
-            .Setup(r => r.GetMatchRepredictionIndexAsync(It.IsAny<Match>(), It.IsAny<string>(), It.IsAny<string>(), It.IsAny<CancellationToken>()))
+            .Setup(r => r.GetMatchRepredictionIndexAsync(It.IsAny<Match>(), It.IsAny<PredictionModelConfig>(), It.IsAny<string>(), It.IsAny<CancellationToken>()))
             .ReturnsAsync(0);
         predictionRepo
-            .Setup(r => r.GetPredictionMetadataAsync(It.IsAny<Match>(), It.IsAny<string>(), It.IsAny<string>(), It.IsAny<CancellationToken>()))
+            .Setup(r => r.GetPredictionMetadataAsync(It.IsAny<Match>(), It.IsAny<PredictionModelConfig>(), It.IsAny<string>(), It.IsAny<CancellationToken>()))
             .ReturnsAsync(new PredictionMetadata(existingPrediction, predictionTimestamp, ["bundesliga-standings.csv"]));
 
         var contextDocs = CreateBayernVsDortmundContextDocuments(createdAt: contextTimestamp);
@@ -130,7 +130,7 @@ public class MatchdayCommand_RepredictMode_Tests : MatchdayCommandTests_Base
 
         var predictionRepo = CreateMockPredictionRepository(getPredictionResult: existingPrediction);
         predictionRepo
-            .Setup(r => r.GetMatchRepredictionIndexAsync(It.IsAny<Match>(), It.IsAny<string>(), It.IsAny<string>(), It.IsAny<CancellationToken>()))
+            .Setup(r => r.GetMatchRepredictionIndexAsync(It.IsAny<Match>(), It.IsAny<PredictionModelConfig>(), It.IsAny<string>(), It.IsAny<CancellationToken>()))
             .ReturnsAsync(2);
 
         var ctx = CreateMatchdayCommandApp(
@@ -153,10 +153,10 @@ public class MatchdayCommand_RepredictMode_Tests : MatchdayCommandTests_Base
 
         var predictionRepo = CreateMockPredictionRepository(getPredictionResult: existingPrediction);
         predictionRepo
-            .Setup(r => r.GetMatchRepredictionIndexAsync(It.IsAny<Match>(), It.IsAny<string>(), It.IsAny<string>(), It.IsAny<CancellationToken>()))
+            .Setup(r => r.GetMatchRepredictionIndexAsync(It.IsAny<Match>(), It.IsAny<PredictionModelConfig>(), It.IsAny<string>(), It.IsAny<CancellationToken>()))
             .ReturnsAsync(1);
         predictionRepo
-            .Setup(r => r.GetPredictionMetadataAsync(It.IsAny<Match>(), It.IsAny<string>(), It.IsAny<string>(), It.IsAny<CancellationToken>()))
+            .Setup(r => r.GetPredictionMetadataAsync(It.IsAny<Match>(), It.IsAny<PredictionModelConfig>(), It.IsAny<string>(), It.IsAny<CancellationToken>()))
             .ReturnsAsync(new PredictionMetadata(existingPrediction, predictionTimestamp, ["recent-history-fcb.csv"]));
 
         var contextDocs = CreateBayernVsDortmundContextDocuments(createdAt: contextTimestamp);
@@ -183,7 +183,7 @@ public class MatchdayCommand_RepredictMode_Tests : MatchdayCommandTests_Base
 
         var predictionRepo = CreateMockPredictionRepository(getPredictionResult: existingPrediction);
         predictionRepo
-            .Setup(r => r.GetMatchRepredictionIndexAsync(It.IsAny<Match>(), It.IsAny<string>(), It.IsAny<string>(), It.IsAny<CancellationToken>()))
+            .Setup(r => r.GetMatchRepredictionIndexAsync(It.IsAny<Match>(), It.IsAny<PredictionModelConfig>(), It.IsAny<string>(), It.IsAny<CancellationToken>()))
             .ReturnsAsync(0);
 
         var ctx = CreateMatchdayCommandApp(
@@ -205,10 +205,10 @@ public class MatchdayCommand_RepredictMode_Tests : MatchdayCommandTests_Base
 
         var predictionRepo = CreateMockPredictionRepository(getPredictionResult: existingPrediction);
         predictionRepo
-            .Setup(r => r.GetMatchRepredictionIndexAsync(It.IsAny<Match>(), It.IsAny<string>(), It.IsAny<string>(), It.IsAny<CancellationToken>()))
+            .Setup(r => r.GetMatchRepredictionIndexAsync(It.IsAny<Match>(), It.IsAny<PredictionModelConfig>(), It.IsAny<string>(), It.IsAny<CancellationToken>()))
             .ReturnsAsync(1);
         predictionRepo
-            .Setup(r => r.GetPredictionMetadataAsync(It.IsAny<Match>(), It.IsAny<string>(), It.IsAny<string>(), It.IsAny<CancellationToken>()))
+            .Setup(r => r.GetPredictionMetadataAsync(It.IsAny<Match>(), It.IsAny<PredictionModelConfig>(), It.IsAny<string>(), It.IsAny<CancellationToken>()))
             .ReturnsAsync(new PredictionMetadata(existingPrediction, predictionTimestamp, ["recent-history-fcb.csv"]));
 
         var contextDocs = CreateBayernVsDortmundContextDocuments(createdAt: contextTimestamp);
@@ -224,7 +224,7 @@ public class MatchdayCommand_RepredictMode_Tests : MatchdayCommandTests_Base
 
         predictionRepo.Verify(
             r => r.SaveRepredictionAsync(
-                It.IsAny<Match>(), It.IsAny<Prediction>(), It.IsAny<string>(), It.IsAny<string>(),
+                It.IsAny<Match>(), It.IsAny<Prediction>(), It.IsAny<PredictionModelConfig>(), It.IsAny<string>(),
                 It.IsAny<double>(), It.IsAny<string>(), It.IsAny<IEnumerable<string>>(), 2, It.IsAny<CancellationToken>()),
             Times.Once);
     }
@@ -238,10 +238,10 @@ public class MatchdayCommand_RepredictMode_Tests : MatchdayCommandTests_Base
 
         var predictionRepo = CreateMockPredictionRepository(getPredictionResult: existingPrediction);
         predictionRepo
-            .Setup(r => r.GetMatchRepredictionIndexAsync(It.IsAny<Match>(), It.IsAny<string>(), It.IsAny<string>(), It.IsAny<CancellationToken>()))
+            .Setup(r => r.GetMatchRepredictionIndexAsync(It.IsAny<Match>(), It.IsAny<PredictionModelConfig>(), It.IsAny<string>(), It.IsAny<CancellationToken>()))
             .ReturnsAsync(0);
         predictionRepo
-            .Setup(r => r.GetPredictionMetadataAsync(It.IsAny<Match>(), It.IsAny<string>(), It.IsAny<string>(), It.IsAny<CancellationToken>()))
+            .Setup(r => r.GetPredictionMetadataAsync(It.IsAny<Match>(), It.IsAny<PredictionModelConfig>(), It.IsAny<string>(), It.IsAny<CancellationToken>()))
             .ReturnsAsync(new PredictionMetadata(existingPrediction, predictionTimestamp, ["recent-history-fcb.csv"]));
 
         var contextDocs = CreateBayernVsDortmundContextDocuments(createdAt: contextTimestamp);

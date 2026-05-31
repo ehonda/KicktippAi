@@ -1,12 +1,14 @@
 using System.ComponentModel;
+using EHonda.KicktippAi.Core;
+using Spectre.Console;
 using Spectre.Console.Cli;
 
 namespace Orchestrator.Commands.Operations.Verify;
 
 public class VerifySettings : CommandSettings
 {
-    [CommandArgument(0, "[MODEL]")]
-    [Description("The OpenAI model to verify predictions for (defaults to gpt-5-nano for FIFA World Cup 2026 communities)")]
+    [CommandArgument(0, "<MODEL>")]
+    [Description("The OpenAI model to verify predictions for")]
     public string? Model { get; set; }
 
     [CommandOption("-c|--community")]
@@ -20,6 +22,10 @@ public class VerifySettings : CommandSettings
     [CommandOption("--competition")]
     [Description("Competition identifier (defaults from community, e.g., fifa-world-cup-2026 for ehonda-dev-wm26)")]
     public string? Competition { get; set; }
+
+    [CommandOption("--reasoning-effort")]
+    [Description("Optional OpenAI reasoning effort (none, minimal, low, medium, high, xhigh)")]
+    public string? ReasoningEffort { get; set; }
 
     [CommandOption("-v|--verbose")]
     [Description("Enable verbose output to show detailed information")]
@@ -40,4 +46,19 @@ public class VerifySettings : CommandSettings
     [Description("Check if predictions are outdated based on context document changes")]
     [DefaultValue(false)]
     public bool CheckOutdated { get; set; }
+
+    public override ValidationResult Validate()
+    {
+        if (string.IsNullOrWhiteSpace(Model))
+        {
+            return ValidationResult.Error("MODEL is required");
+        }
+
+        if (!PredictionModelConfig.IsValidReasoningEffort(ReasoningEffort))
+        {
+            return ValidationResult.Error("--reasoning-effort must be one of: none, minimal, low, medium, high, xhigh");
+        }
+
+        return ValidationResult.Success();
+    }
 }

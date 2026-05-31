@@ -14,7 +14,7 @@ This skill coordinates the operational workflow for FIFA World Cup 2026 Kicktipp
 1. Confirm the target community and competition.
    - Dev communities must be listed in `CompetitionResolver.SupportedDevCommunities`.
    - WM26 communities should resolve to `fifa-world-cup-2026`.
-   - Treat the omitted-model fallback `gpt-5-nano` with `minimal` reasoning as a low-cost dev/test default only. It is not the WM26 production model configuration.
+   - Treat the `matchday-dev` and `bonus-dev` defaults, `gpt-5-nano` with `minimal` reasoning, as low-cost dev/test defaults only. They are not the WM26 production model configuration.
    - Production or scheduled prediction workflows must pass an explicit model and reasoning effort once the production configuration is selected. Use the prediction workflow `reasoning_effort` input for that wiring.
    - Run `dotnet` and `git` commands outside the sandbox in this repository.
 
@@ -97,7 +97,7 @@ After autonomous onboarding, include a concise manual follow-up section in the f
 
 - GitHub Actions secrets and variables: per-community Kicktipp username/password secrets used by the workflow files, `FIREBASE_PROJECT_ID`, `FIREBASE_SERVICE_ACCOUNT_JSON`, `OPENAI_API_KEY`, `LANGFUSE_SECRET_KEY`, and repository variable `LANGFUSE_PUBLIC_KEY`.
 - GitHub workflow activation: whether workflows are manual-only/testing, schedules are still disabled, or schedules are ready to enable. Do not activate scheduled prediction workflows until the context workflow has run successfully.
-- Workflow model wiring: whether each prediction workflow passes the selected model and `reasoning_effort` input explicitly instead of relying on the WM26 omitted-argument fallback.
+- Workflow model wiring: whether each prediction workflow passes the selected model and `reasoning_effort` input explicitly; only `matchday-dev` and `bonus-dev` may rely on the guarded WM26 dev defaults.
 - Production model decision: the chosen production model, reasoning effort, prompt route, and estimate status. If production is still TBD, say so plainly and do not imply that `gpt-5-nano` / `minimal` is production-ready.
 - Cost estimate coverage: exact `docs/experiments/whole-season-cost-estimates.md` entry or missing estimate/base-row work for every scheduled model configuration.
 - Kicktipp and Firebase access: whether the posting account can access the target community and whether Firestore context/KPI writes were validated.

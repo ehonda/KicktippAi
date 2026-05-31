@@ -38,7 +38,7 @@ public class CostCommand_ConfigFile_Tests : CostCommandTests_Base
         // Assert
         await Assert.That(exitCode).IsEqualTo(0);
         await Assert.That(output).Contains("Matchdays: 1, 2");
-        await Assert.That(output).Contains("Models: gpt-4o");
+        await Assert.That(output).Contains("Model Configs: gpt-4o");
         await Assert.That(output).Contains("Community Contexts: test-community");
     }
 
@@ -109,7 +109,7 @@ public class CostCommand_ConfigFile_Tests : CostCommandTests_Base
         await Assert.That(exitCode).IsEqualTo(0);
         await Assert.That(output).Contains("Matchdays: 3, 4, 5");
         // Other file settings should still apply
-        await Assert.That(output).Contains("Models: gpt-4o");
+        await Assert.That(output).Contains("Model Configs: gpt-4o");
         await Assert.That(output).Contains("Community Contexts: test-community");
     }
 
@@ -140,7 +140,7 @@ public class CostCommand_ConfigFile_Tests : CostCommandTests_Base
         // Assert
         await Assert.That(exitCode).IsEqualTo(0);
         await Assert.That(output).Contains("Matchdays: 1, 2, 3");
-        await Assert.That(output).Contains("Models: o1-mini");
+        await Assert.That(output).Contains("Model Configs: o1-mini");
         await Assert.That(output).Contains("Community Contexts: prod-community");
         await Assert.That(output).Contains("Include Bonus: True");
     }
@@ -553,6 +553,53 @@ public class CostCommand_ConfigFile_Tests : CostCommandTests_Base
         await Assert.That(root.GetProperty("rows").GetArrayLength()).IsEqualTo(2);
         await Assert.That(root.GetProperty("total").GetProperty("matchPredictionCount").GetInt32()).IsEqualTo(7);
         await Assert.That(root.GetProperty("total").GetProperty("count").GetInt32()).IsEqualTo(7);
+    }
+
+    [Test]
+    public async Task Output_json_groups_rows_by_model_and_reasoning_effort()
+    {
+        var matchCosts = new Dictionary<int, (double cost, int count)>
+        {
+            { 0, (1.0, 5) }
+        };
+        var mockRepo = CreateMockPredictionRepositoryForCosts(
+            matchCostsByIndex: matchCosts,
+            availableModelConfigs: new List<PredictionModelConfig>
+            {
+                PredictionModelConfig.Create("gpt-5-nano", "minimal"),
+                PredictionModelConfig.Create("gpt-5-nano", "high")
+            },
+            availableCommunityContexts: new List<string> { "test-community" });
+        var (app, console, _, _, _) = CreateCostCommandApp(mockRepo);
+        var outputPath = Path.Combine(TestDirectory, "cost-report-by-effort.json");
+
+        var exitCode = await app.RunAsync([
+            "cost",
+            "--models", "gpt-5-nano",
+            "--reasoning-efforts", "minimal,high",
+            "--community-contexts", "test-community",
+            "--detailed-breakdown",
+            "--output-json", outputPath
+        ]);
+
+        await Assert.That(exitCode).IsEqualTo(0);
+        await Assert.That(console.Output).Contains("minimal").And.Contains("high");
+
+        using var document = JsonDocument.Parse(await File.ReadAllTextAsync(outputPath));
+        var root = document.RootElement;
+        await Assert.That(root.GetProperty("filters").GetProperty("reasoningEfforts")[0].GetString()).IsEqualTo("minimal");
+        await Assert.That(root.GetProperty("filters").GetProperty("reasoningEfforts")[1].GetString()).IsEqualTo("high");
+        await Assert.That(root.GetProperty("rows").GetArrayLength()).IsEqualTo(2);
+
+        var rows = root.GetProperty("rows").EnumerateArray().ToList();
+        await Assert.That(rows.Select(row => row.GetProperty("modelConfigKey").GetString()!).ToArray()).IsEquivalentTo([
+            "gpt-5-nano:reasoning-effort:high",
+            "gpt-5-nano:reasoning-effort:minimal"
+        ]);
+        await Assert.That(rows.Select(row => row.GetProperty("reasoningEffort").GetString()!).ToArray()).IsEquivalentTo([
+            "high",
+            "minimal"
+        ]);
     }
 
     [Test]

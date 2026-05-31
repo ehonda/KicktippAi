@@ -1,4 +1,5 @@
 using System.ComponentModel;
+using EHonda.KicktippAi.Core;
 using Spectre.Console;
 using Spectre.Console.Cli;
 
@@ -30,6 +31,10 @@ public class ReconstructPromptSettings : CommandSettings
     [Description("Reconstruct the justification prompt variant")]
     [DefaultValue(false)]
     public bool WithJustification { get; set; }
+
+    [CommandOption("--reasoning-effort")]
+    [Description("Optional OpenAI reasoning effort used for the stored prediction (none, minimal, low, medium, high, xhigh)")]
+    public string? ReasoningEffort { get; set; }
 
     [CommandOption("--evaluation-time")]
     [Description("Optional explicit evaluation time in NodaTime invariant ZonedDateTime 'G' format, for example '2026-03-15T12:00:00 Europe/Berlin (+01)'")]
@@ -72,6 +77,11 @@ public class ReconstructPromptSettings : CommandSettings
             {
                 return ValidationResult.Error(ex.Message);
             }
+        }
+
+        if (!PredictionModelConfig.IsValidReasoningEffort(ReasoningEffort))
+        {
+            return ValidationResult.Error("--reasoning-effort must be one of: none, minimal, low, medium, high, xhigh");
         }
 
         return ValidationResult.Success();

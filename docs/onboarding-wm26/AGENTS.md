@@ -38,10 +38,10 @@ effort, prompt route, where the configuration is wired, workflow activation
 status, and full-competition estimate status.
 
 Do not describe `gpt-5-nano` / `minimal` as the production default. It is only
-the dev/test fallback for omitted-model manual runs. Production workflows must
-pass an explicit model and reasoning effort after the production configuration
-is selected. Use the reusable prediction workflow `reasoning_effort` input for
-that wiring.
+the guarded `matchday-dev` and `bonus-dev` dev/test default. Production
+workflows must pass an explicit model and reasoning effort after the production
+configuration is selected. Use the reusable prediction workflow
+`reasoning_effort` input for that wiring.
 
 If the exact model and reasoning effort are not documented in
 `../experiments/whole-season-cost-estimates.md`, use the project
@@ -73,6 +73,6 @@ Use `$langfuse` and the installed `langfuse` CLI to inspect the resulting develo
 - matchday traces include only the two participating teams' `lineup-*` docs
 - bonus traces include `lineups` only for `Welche Mannschaft stellt den Spieler mit den meisten Toren?`
 - hosted prompt fallback is false
-- WM26 dev/test fallback reasoning effort is present for dev shortcut traces
+- WM26 dev/test default reasoning effort is present for dev shortcut traces
 
 If verification cannot be completed, record the exact skipped command and blocker in the final response.

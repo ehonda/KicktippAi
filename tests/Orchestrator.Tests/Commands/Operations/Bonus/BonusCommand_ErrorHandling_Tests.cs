@@ -127,7 +127,7 @@ public class BonusCommand_ErrorHandling_Tests : BonusCommandTests_Base
         mockPredictionRepository.Setup(r => r.SaveBonusPredictionAsync(
                 It.IsAny<BonusQuestion>(),
                 It.IsAny<BonusPrediction>(),
-                It.IsAny<string>(),
+                It.IsAny<PredictionModelConfig>(),
                 It.IsAny<string>(),
                 It.IsAny<double>(),
                 It.IsAny<string>(),
@@ -184,7 +184,7 @@ public class BonusCommand_ErrorHandling_Tests : BonusCommandTests_Base
         var mockPredictionRepository = CreateMockPredictionRepository();
         mockPredictionRepository.Setup(r => r.GetBonusPredictionByTextAsync(
                 It.IsAny<string>(),
-                It.IsAny<string>(),
+                It.IsAny<PredictionModelConfig>(),
                 It.IsAny<string>(),
                 It.IsAny<CancellationToken>()))
             .ThrowsAsync(new InvalidOperationException("Database read failed"));

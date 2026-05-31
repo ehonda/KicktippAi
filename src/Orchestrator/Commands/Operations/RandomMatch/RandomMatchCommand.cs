@@ -74,7 +74,8 @@ public class RandomMatchCommand : AsyncCommand<RandomMatchSettings>
 
         var communityContext = settings.CommunityContext ?? settings.Community;
         var competition = CompetitionResolver.ResolveCompetition(settings.Competition, settings.Community, communityContext);
-        var model = PredictionServiceCommandSupport.ResolveModel(settings.Model, competition);
+        var modelConfig = PredictionServiceCommandSupport.CreateModelConfig(settings.Model, settings.ReasoningEffort);
+        var model = modelConfig.Model;
         var repositoryCompetition = CompetitionResolver.ToRepositoryCompetitionArgument(competition);
 
         if (settings.WithJustification && PredictionServiceCommandSupport.UsesLangfusePromptSource(
@@ -102,7 +103,7 @@ public class RandomMatchCommand : AsyncCommand<RandomMatchSettings>
             settings.LangfusePromptName,
             settings.LangfusePromptLabel,
             settings.LangfusePromptVersion,
-            settings.ReasoningEffort,
+            modelConfig.ReasoningEffort,
             bonusPrompt: false);
 
         // Create context provider using factory (community is used as context)

@@ -18,7 +18,7 @@ public class MatchdayCommand_AdditionalCoverage_Tests : MatchdayCommandTests_Bas
     {
         var mockPredictionRepository = CreateMockPredictionRepository(getPredictionResult: CreatePrediction(), getRepredictionIndexResult: 0);
         mockPredictionRepository
-            .Setup(r => r.GetPredictionMetadataAsync(It.IsAny<Match>(), It.IsAny<string>(), It.IsAny<string>(), It.IsAny<CancellationToken>()))
+            .Setup(r => r.GetPredictionMetadataAsync(It.IsAny<Match>(), It.IsAny<PredictionModelConfig>(), It.IsAny<string>(), It.IsAny<CancellationToken>()))
             .ReturnsAsync((PredictionMetadata?)null);
 
         var mockFirebaseFactory = CreateMockFirebaseServiceFactoryFull(
@@ -38,7 +38,7 @@ public class MatchdayCommand_AdditionalCoverage_Tests : MatchdayCommandTests_Bas
     {
         var mockPredictionRepository = CreateMockPredictionRepository(getPredictionResult: CreatePrediction(), getRepredictionIndexResult: 0);
         mockPredictionRepository
-            .Setup(r => r.GetPredictionMetadataAsync(It.IsAny<Match>(), It.IsAny<string>(), It.IsAny<string>(), It.IsAny<CancellationToken>()))
+            .Setup(r => r.GetPredictionMetadataAsync(It.IsAny<Match>(), It.IsAny<PredictionModelConfig>(), It.IsAny<string>(), It.IsAny<CancellationToken>()))
             .ReturnsAsync(new PredictionMetadata(CreatePrediction(), DateTimeOffset.UtcNow.AddHours(-1), new List<string>()));
 
         var mockFirebaseFactory = CreateMockFirebaseServiceFactoryFull(
@@ -61,7 +61,7 @@ public class MatchdayCommand_AdditionalCoverage_Tests : MatchdayCommandTests_Bas
 
         var mockPredictionRepository = CreateMockPredictionRepository(getPredictionResult: CreatePrediction(), getRepredictionIndexResult: 0);
         mockPredictionRepository
-            .Setup(r => r.GetPredictionMetadataAsync(It.IsAny<Match>(), It.IsAny<string>(), It.IsAny<string>(), It.IsAny<CancellationToken>()))
+            .Setup(r => r.GetPredictionMetadataAsync(It.IsAny<Match>(), It.IsAny<PredictionModelConfig>(), It.IsAny<string>(), It.IsAny<CancellationToken>()))
             .ReturnsAsync(new PredictionMetadata(CreatePrediction(), predictionCreatedAt, new List<string> { "recent-history-fcb.csv" }));
 
         var contextDocs = new Dictionary<string, ContextDocument>
@@ -93,7 +93,7 @@ public class MatchdayCommand_AdditionalCoverage_Tests : MatchdayCommandTests_Bas
 
         var mockPredictionRepository = CreateMockPredictionRepository(getPredictionResult: CreatePrediction(), getRepredictionIndexResult: 0);
         mockPredictionRepository
-            .Setup(r => r.GetPredictionMetadataAsync(It.IsAny<Match>(), It.IsAny<string>(), It.IsAny<string>(), It.IsAny<CancellationToken>()))
+            .Setup(r => r.GetPredictionMetadataAsync(It.IsAny<Match>(), It.IsAny<PredictionModelConfig>(), It.IsAny<string>(), It.IsAny<CancellationToken>()))
             .ReturnsAsync(new PredictionMetadata(CreatePrediction(), predictionCreatedAt, new List<string> { "recent-history-fcb.csv", "recent-history-bvb.csv" }));
 
         var mockFirebaseFactory = CreateMockFirebaseServiceFactoryFull(
@@ -113,7 +113,7 @@ public class MatchdayCommand_AdditionalCoverage_Tests : MatchdayCommandTests_Bas
     {
         var mockPredictionRepository = CreateMockPredictionRepository(getPredictionResult: CreatePrediction(), getRepredictionIndexResult: 0);
         mockPredictionRepository
-            .Setup(r => r.GetPredictionMetadataAsync(It.IsAny<Match>(), It.IsAny<string>(), It.IsAny<string>(), It.IsAny<CancellationToken>()))
+            .Setup(r => r.GetPredictionMetadataAsync(It.IsAny<Match>(), It.IsAny<PredictionModelConfig>(), It.IsAny<string>(), It.IsAny<CancellationToken>()))
             .ThrowsAsync(new InvalidOperationException("Database error"));
 
         var mockFirebaseFactory = CreateMockFirebaseServiceFactoryFull(
@@ -135,7 +135,7 @@ public class MatchdayCommand_AdditionalCoverage_Tests : MatchdayCommandTests_Bas
 
         var mockPredictionRepository = CreateMockPredictionRepository(getPredictionResult: CreatePrediction(), getRepredictionIndexResult: 0);
         mockPredictionRepository
-            .Setup(r => r.GetPredictionMetadataAsync(It.IsAny<Match>(), It.IsAny<string>(), It.IsAny<string>(), It.IsAny<CancellationToken>()))
+            .Setup(r => r.GetPredictionMetadataAsync(It.IsAny<Match>(), It.IsAny<PredictionModelConfig>(), It.IsAny<string>(), It.IsAny<CancellationToken>()))
             .ReturnsAsync(new PredictionMetadata(CreatePrediction(), predictionCreatedAt, new List<string> { "non-existent-document.csv" }));
 
         var mockContextRepository = new Mock<IContextRepository>();
@@ -164,7 +164,7 @@ public class MatchdayCommand_AdditionalCoverage_Tests : MatchdayCommandTests_Bas
 
         var mockPredictionRepository = CreateMockPredictionRepository(getPredictionResult: CreatePrediction(), getRepredictionIndexResult: 0);
         mockPredictionRepository
-            .Setup(r => r.GetPredictionMetadataAsync(It.IsAny<Match>(), It.IsAny<string>(), It.IsAny<string>(), It.IsAny<CancellationToken>()))
+            .Setup(r => r.GetPredictionMetadataAsync(It.IsAny<Match>(), It.IsAny<PredictionModelConfig>(), It.IsAny<string>(), It.IsAny<CancellationToken>()))
             .ReturnsAsync(new PredictionMetadata(CreatePrediction(), predictionCreatedAt, new List<string> { "bundesliga-standings.csv" }));
 
         var contextDocs = new Dictionary<string, ContextDocument>
@@ -293,7 +293,7 @@ public class MatchdayCommand_AdditionalCoverage_Tests : MatchdayCommandTests_Bas
 
         var mockPredictionRepository = CreateMockPredictionRepository(getPredictionResult: CreatePrediction(), getRepredictionIndexResult: 0);
         mockPredictionRepository
-            .Setup(r => r.GetPredictionMetadataAsync(It.IsAny<Match>(), It.IsAny<string>(), It.IsAny<string>(), It.IsAny<CancellationToken>()))
+            .Setup(r => r.GetPredictionMetadataAsync(It.IsAny<Match>(), It.IsAny<PredictionModelConfig>(), It.IsAny<string>(), It.IsAny<CancellationToken>()))
             .ReturnsAsync(new PredictionMetadata(CreatePrediction(), predictionCreatedAt, new List<string> { "recent-history-fcb.csv (kpi-context)" }));
 
         var mockFirebaseFactory = CreateMockFirebaseServiceFactoryFull(
@@ -522,7 +522,7 @@ public class MatchdayCommand_AdditionalCoverage_Tests : MatchdayCommandTests_Bas
             .Setup(r => r.GetCancelledMatchPredictionMetadataAsync(
                 cancelledMatch.HomeTeam,
                 cancelledMatch.AwayTeam,
-                It.IsAny<string>(),
+                It.IsAny<PredictionModelConfig>(),
                 It.IsAny<string>(),
                 It.IsAny<CancellationToken>()))
             .ThrowsAsync(new InvalidOperationException("Metadata lookup failed"));
@@ -573,7 +573,7 @@ public class MatchdayCommand_AdditionalCoverage_Tests : MatchdayCommandTests_Bas
             r => r.GetCancelledMatchRepredictionIndexAsync(
                 cancelledMatch.HomeTeam,
                 cancelledMatch.AwayTeam,
-                "gpt-5",
+                It.Is<PredictionModelConfig>(config => config.Model == "gpt-5" && config.ReasoningEffort == null),
                 "test-community",
                 It.IsAny<CancellationToken>()),
             Times.Exactly(2));
@@ -612,7 +612,7 @@ public class MatchdayCommand_AdditionalCoverage_Tests : MatchdayCommandTests_Bas
             r => r.GetCancelledMatchPredictionAsync(
                 cancelledMatch.HomeTeam,
                 cancelledMatch.AwayTeam,
-                "gpt-5",
+                It.Is<PredictionModelConfig>(config => config.Model == "gpt-5" && config.ReasoningEffort == null),
                 "test-community",
                 It.IsAny<CancellationToken>()),
             Times.Once);
@@ -654,7 +654,7 @@ public class MatchdayCommand_AdditionalCoverage_Tests : MatchdayCommandTests_Bas
             r => r.GetCancelledMatchPredictionAsync(
                 cancelledMatch.HomeTeam,
                 cancelledMatch.AwayTeam,
-                "gpt-5",
+                It.Is<PredictionModelConfig>(config => config.Model == "gpt-5" && config.ReasoningEffort == null),
                 "test-community",
                 It.IsAny<CancellationToken>()),
             Times.Once);
@@ -692,7 +692,7 @@ public class MatchdayCommand_AdditionalCoverage_Tests : MatchdayCommandTests_Bas
             r => r.GetCancelledMatchRepredictionIndexAsync(
                 cancelledMatch.HomeTeam,
                 cancelledMatch.AwayTeam,
-                "gpt-5",
+                It.Is<PredictionModelConfig>(config => config.Model == "gpt-5" && config.ReasoningEffort == null),
                 "test-community",
                 It.IsAny<CancellationToken>()),
             Times.Exactly(2));

@@ -138,10 +138,10 @@ public class VerifyMatchdayCommand_Comparison_Tests : VerifyMatchdayCommandTests
         // Set up mock to return different predictions for different matches
         var mockPredictionRepo = CreateMockPredictionRepository();
         mockPredictionRepo.Setup(r => r.GetPredictionAsync(
-                match1, It.IsAny<string>(), It.IsAny<string>(), It.IsAny<CancellationToken>()))
+                match1, It.IsAny<PredictionModelConfig>(), It.IsAny<string>(), It.IsAny<CancellationToken>()))
             .ReturnsAsync(CreatePrediction(homeGoals: 2, awayGoals: 1));
         mockPredictionRepo.Setup(r => r.GetPredictionAsync(
-                match2, It.IsAny<string>(), It.IsAny<string>(), It.IsAny<CancellationToken>()))
+                match2, It.IsAny<PredictionModelConfig>(), It.IsAny<string>(), It.IsAny<CancellationToken>()))
             .ReturnsAsync((EHonda.KicktippAi.Core.Prediction?)null);
 
         var mockFirebaseFactory = CreateMockFirebaseServiceFactoryFull(predictionRepository: mockPredictionRepo);

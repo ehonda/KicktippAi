@@ -68,7 +68,7 @@ public class CostCommand_CostCalculation_Tests
         
         // Verify bonus costs were queried
         repo.Verify(r => r.GetBonusPredictionCostsByRepredictionIndexAsync(
-            It.IsAny<string>(),
+            It.IsAny<PredictionModelConfig>(),
             It.IsAny<string>(),
             It.IsAny<CancellationToken>()), Times.AtLeastOnce);
     }
@@ -272,7 +272,7 @@ public class CostCommand_CostCalculation_Tests
         
         // Verify bonus costs were NOT queried
         repo.Verify(r => r.GetBonusPredictionCostsByRepredictionIndexAsync(
-            It.IsAny<string>(),
+            It.IsAny<PredictionModelConfig>(),
             It.IsAny<string>(),
             It.IsAny<CancellationToken>()), Times.Never);
     }
@@ -328,13 +328,13 @@ public class CostCommand_CostCalculation_Tests
         
         // Verify all 4 combinations were queried (2 models × 2 contexts)
         repo.Verify(r => r.GetMatchPredictionCostsByRepredictionIndexAsync(
-            "model-a", "context-1", It.IsAny<List<int>?>(), It.IsAny<CancellationToken>()), Times.Once);
+            It.Is<PredictionModelConfig>(config => config.Model == "model-a" && config.ReasoningEffort == null), "context-1", It.IsAny<List<int>?>(), It.IsAny<CancellationToken>()), Times.Once);
         repo.Verify(r => r.GetMatchPredictionCostsByRepredictionIndexAsync(
-            "model-a", "context-2", It.IsAny<List<int>?>(), It.IsAny<CancellationToken>()), Times.Once);
+            It.Is<PredictionModelConfig>(config => config.Model == "model-a" && config.ReasoningEffort == null), "context-2", It.IsAny<List<int>?>(), It.IsAny<CancellationToken>()), Times.Once);
         repo.Verify(r => r.GetMatchPredictionCostsByRepredictionIndexAsync(
-            "model-b", "context-1", It.IsAny<List<int>?>(), It.IsAny<CancellationToken>()), Times.Once);
+            It.Is<PredictionModelConfig>(config => config.Model == "model-b" && config.ReasoningEffort == null), "context-1", It.IsAny<List<int>?>(), It.IsAny<CancellationToken>()), Times.Once);
         repo.Verify(r => r.GetMatchPredictionCostsByRepredictionIndexAsync(
-            "model-b", "context-2", It.IsAny<List<int>?>(), It.IsAny<CancellationToken>()), Times.Once);
+            It.Is<PredictionModelConfig>(config => config.Model == "model-b" && config.ReasoningEffort == null), "context-2", It.IsAny<List<int>?>(), It.IsAny<CancellationToken>()), Times.Once);
     }
 
     [Test]
@@ -342,6 +342,8 @@ public class CostCommand_CostCalculation_Tests
     {
         var mockRepo = CreateMockPredictionRepositoryForCosts(
             availableMatchdays: new List<int> { 1, 2, 3 },
+            availableModels: new List<string> { "gpt-4o" },
+            availableCommunityContexts: new List<string> { "test-community" },
             matchCostsByIndex: new Dictionary<int, (double cost, int count)>
             {
                 { 0, (1.0, 5) }
@@ -360,7 +362,7 @@ public class CostCommand_CostCalculation_Tests
         await Assert.That(output).Contains("Matchdays: all (unfiltered; no matchday discovery)");
         repo.Verify(r => r.GetAvailableMatchdaysAsync(It.IsAny<CancellationToken>()), Times.Never);
         repo.Verify(r => r.GetMatchPredictionCostsByRepredictionIndexAsync(
-            "gpt-4o",
+            It.Is<PredictionModelConfig>(config => config.Model == "gpt-4o" && config.ReasoningEffort == null),
             "test-community",
             null,
             It.IsAny<CancellationToken>()), Times.Once);
@@ -371,12 +373,16 @@ public class CostCommand_CostCalculation_Tests
     {
         var matchdays = Enumerable.Range(1, 31).ToList();
         var mockRepo = new Mock<IPredictionRepository>();
+        mockRepo.Setup(r => r.GetAvailableModelConfigsAsync(It.IsAny<CancellationToken>()))
+            .ReturnsAsync(new List<PredictionModelConfig> { PredictionModelConfig.Create("gpt-4o") });
+        mockRepo.Setup(r => r.GetAvailableCommunityContextsAsync(It.IsAny<CancellationToken>()))
+            .ReturnsAsync(new List<string> { "test-community" });
         mockRepo.Setup(r => r.GetMatchPredictionCostsByRepredictionIndexAsync(
-                It.IsAny<string>(),
+                It.IsAny<PredictionModelConfig>(),
                 It.IsAny<string>(),
                 It.IsAny<List<int>?>(),
                 It.IsAny<CancellationToken>()))
-            .Returns<string, string, List<int>?, CancellationToken>((_, _, filteredMatchdays, _) =>
+            .Returns<PredictionModelConfig, string, List<int>?, CancellationToken>((_, _, filteredMatchdays, _) =>
             {
                 var count = filteredMatchdays?.Count ?? 0;
                 return Task.FromResult(new Dictionary<int, (double cost, int count)>
@@ -398,12 +404,12 @@ public class CostCommand_CostCalculation_Tests
         await Assert.That(output).Contains("31");
         await Assert.That(output).Contains("$31.0000");
         repo.Verify(r => r.GetMatchPredictionCostsByRepredictionIndexAsync(
-            "gpt-4o",
+            It.Is<PredictionModelConfig>(config => config.Model == "gpt-4o" && config.ReasoningEffort == null),
             "test-community",
             It.Is<List<int>?>(values => values != null && values.Count == 30 && values.First() == 1 && values.Last() == 30),
             It.IsAny<CancellationToken>()), Times.Once);
         repo.Verify(r => r.GetMatchPredictionCostsByRepredictionIndexAsync(
-            "gpt-4o",
+            It.Is<PredictionModelConfig>(config => config.Model == "gpt-4o" && config.ReasoningEffort == null),
             "test-community",
             It.Is<List<int>?>(values => values != null && values.Count == 1 && values[0] == 31),
             It.IsAny<CancellationToken>()), Times.Once);

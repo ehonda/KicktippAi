@@ -47,13 +47,12 @@ public class CompetitionResolverTests
     }
 
     [Test]
-    public async Task World_cup_model_defaults_to_gpt_5_nano()
+    public async Task Missing_model_is_rejected_for_standard_commands()
     {
-        var model = PredictionServiceCommandSupport.ResolveModel(
-            model: null,
-            CompetitionIds.FifaWorldCup2026);
+        var exception = Assert.Throws<ArgumentException>(() =>
+            PredictionServiceCommandSupport.ResolveModel(model: null));
 
-        await Assert.That(model).IsEqualTo(PredictionServiceCommandSupport.WorldCupDefaultModel);
+        await Assert.That(exception.Message).Contains("MODEL is required");
     }
 
     [Test]

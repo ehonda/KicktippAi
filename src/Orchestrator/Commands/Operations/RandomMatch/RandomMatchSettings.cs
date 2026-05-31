@@ -1,4 +1,6 @@
 using System.ComponentModel;
+using EHonda.KicktippAi.Core;
+using Spectre.Console;
 using Spectre.Console.Cli;
 
 #pragma warning disable CA1822 // these properties follow the Spectre.Console.Cli CommandSettings pattern
@@ -7,8 +9,8 @@ namespace Orchestrator.Commands.Operations.RandomMatch;
 
 public class RandomMatchSettings : CommandSettings
 {
-    [CommandArgument(0, "[MODEL]")]
-    [Description("The OpenAI model to use for prediction (defaults to gpt-5-nano for FIFA World Cup 2026 communities)")]
+    [CommandArgument(0, "<MODEL>")]
+    [Description("The OpenAI model to use for prediction")]
     public string? Model { get; set; }
 
     [CommandOption("-c|--community")]
@@ -47,4 +49,19 @@ public class RandomMatchSettings : CommandSettings
     [Description("Include model justification text alongside predictions")]
     [DefaultValue(false)]
     public bool WithJustification { get; set; }
+
+    public override ValidationResult Validate()
+    {
+        if (string.IsNullOrWhiteSpace(Model))
+        {
+            return ValidationResult.Error("MODEL is required");
+        }
+
+        if (!PredictionModelConfig.IsValidReasoningEffort(ReasoningEffort))
+        {
+            return ValidationResult.Error("--reasoning-effort must be one of: none, minimal, low, medium, high, xhigh");
+        }
+
+        return ValidationResult.Success();
+    }
 }

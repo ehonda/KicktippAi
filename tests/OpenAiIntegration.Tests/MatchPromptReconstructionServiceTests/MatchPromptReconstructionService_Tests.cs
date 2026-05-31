@@ -35,7 +35,13 @@ public class MatchPromptReconstructionService_Tests : PredictionServiceTests_Bas
         var predictionCreatedAt = new DateTimeOffset(2026, 3, 10, 12, 0, 0, TimeSpan.Zero);
         var predictionRepository = new Mock<IPredictionRepository>();
         predictionRepository
-            .Setup(repository => repository.GetPredictionMetadataAsync(match, "gpt-5", "test-community", It.IsAny<CancellationToken>()))
+            .Setup(repository => repository.GetPredictionMetadataAsync(
+                match,
+                It.Is<PredictionModelConfig>(config =>
+                    config.Model == "gpt-5" &&
+                    config.ReasoningEffort == null),
+                "test-community",
+                It.IsAny<CancellationToken>()))
             .ReturnsAsync(new PredictionMetadata(
                 new Prediction(2, 1),
                 predictionCreatedAt,
@@ -85,7 +91,13 @@ public class MatchPromptReconstructionService_Tests : PredictionServiceTests_Bas
         var predictionCreatedAt = new DateTimeOffset(2026, 3, 10, 12, 0, 0, TimeSpan.Zero);
         var predictionRepository = new Mock<IPredictionRepository>();
         predictionRepository
-            .Setup(repository => repository.GetPredictionMetadataAsync(match, "gpt-5", "test-community", It.IsAny<CancellationToken>()))
+            .Setup(repository => repository.GetPredictionMetadataAsync(
+                match,
+                It.Is<PredictionModelConfig>(config =>
+                    config.Model == "gpt-5" &&
+                    config.ReasoningEffort == null),
+                "test-community",
+                It.IsAny<CancellationToken>()))
             .ReturnsAsync(new PredictionMetadata(
                 new Prediction(2, 1),
                 predictionCreatedAt,

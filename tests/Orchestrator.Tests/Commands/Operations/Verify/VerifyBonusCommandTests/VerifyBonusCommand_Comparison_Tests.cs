@@ -124,11 +124,11 @@ public class VerifyBonusCommand_Comparison_Tests : VerifyBonusCommandTests_Base
 
         // Setup prediction repository to return different results per question
         var mockPredictionRepo = CreateMockPredictionRepository();
-        mockPredictionRepo.Setup(r => r.GetBonusPredictionByTextAsync("Question 1", It.IsAny<string>(), It.IsAny<string>(), It.IsAny<CancellationToken>()))
+        mockPredictionRepo.Setup(r => r.GetBonusPredictionByTextAsync("Question 1", It.IsAny<PredictionModelConfig>(), It.IsAny<string>(), It.IsAny<CancellationToken>()))
             .ReturnsAsync(databasePrediction);
-        mockPredictionRepo.Setup(r => r.GetBonusPredictionByTextAsync("Question 2", It.IsAny<string>(), It.IsAny<string>(), It.IsAny<CancellationToken>()))
+        mockPredictionRepo.Setup(r => r.GetBonusPredictionByTextAsync("Question 2", It.IsAny<PredictionModelConfig>(), It.IsAny<string>(), It.IsAny<CancellationToken>()))
             .ReturnsAsync(databasePrediction);
-        mockPredictionRepo.Setup(r => r.GetBonusPredictionByTextAsync("Question 3", It.IsAny<string>(), It.IsAny<string>(), It.IsAny<CancellationToken>()))
+        mockPredictionRepo.Setup(r => r.GetBonusPredictionByTextAsync("Question 3", It.IsAny<PredictionModelConfig>(), It.IsAny<string>(), It.IsAny<CancellationToken>()))
             .ReturnsAsync((BonusPrediction?)null); // No database prediction
 
         var mockFirebaseFactory = CreateMockFirebaseServiceFactoryFull(predictionRepository: mockPredictionRepo);

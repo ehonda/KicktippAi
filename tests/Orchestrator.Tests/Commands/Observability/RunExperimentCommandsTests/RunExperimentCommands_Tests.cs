@@ -392,7 +392,7 @@ public class RunExperimentCommands_Tests
                     "FC Bayern München",
                     "RB Leipzig",
                     7,
-                    null,
+                    (PredictionModelConfig?)null,
                     null,
                     It.IsAny<CancellationToken>()))
                 .ReturnsAsync(match);
@@ -642,7 +642,7 @@ public class RunExperimentCommands_Tests
                     "VfB Stuttgart",
                     "RB Leipzig",
                     26,
-                    null,
+                    (PredictionModelConfig?)null,
                     null,
                     It.IsAny<CancellationToken>()))
                 .ReturnsAsync(match);

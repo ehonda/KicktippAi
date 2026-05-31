@@ -90,7 +90,7 @@ public abstract class ExportExperimentItemCommandTests_Base
                     HomeTeam,
                     AwayTeam,
                     Matchday,
-                    Model,
+                    It.Is<PredictionModelConfig>(config => config.Model == Model && config.ReasoningEffort == null),
                     CommunityContext,
                     It.IsAny<CancellationToken>()))
                 .ThrowsAsync(storedMatchException);
@@ -101,7 +101,7 @@ public abstract class ExportExperimentItemCommandTests_Base
                     HomeTeam,
                     AwayTeam,
                     Matchday,
-                    Model,
+                    It.Is<PredictionModelConfig>(config => config.Model == Model && config.ReasoningEffort == null),
                     CommunityContext,
                     It.IsAny<CancellationToken>()))
                 .ReturnsAsync(storedMatch);

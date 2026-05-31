@@ -58,20 +58,21 @@ WM26 needs a third daily window because many North American kickoffs are late in
 
 `ehonda-dev-wm26` resolves to `fifa-world-cup-2026`. Existing communities default to `bundesliga-2025-26` and keep their legacy Firestore document IDs.
 
-For WM26 dev work and low-cost manual testing, commands that omit the model use:
+For WM26 dev work and low-cost manual testing, the guarded `matchday-dev` and
+`bonus-dev` commands use:
 
 - prompt source: `langfuse`
 - prompt label: `latest`
 - model: `gpt-5-nano`
 - reasoning effort: `minimal`
 
-This is a dev/test fallback, not the WM26 production configuration. Production
-or scheduled prediction workflows must pass the selected production model and
-reasoning effort explicitly. Use the reusable prediction workflow
+These are dev/test command defaults, not the WM26 production configuration.
+Production or scheduled prediction workflows must pass the selected production
+model and reasoning effort explicitly. Use the reusable prediction workflow
 `reasoning_effort` input for that wiring.
 The production configuration is still TBD.
 
-The dev/test `gpt-5-nano` / `minimal` fallback does not yet have a stored
+The dev/test `gpt-5-nano` / `minimal` model configuration does not yet have a stored
 full-competition estimate row. Before activating schedules for any
 configuration, generate and document the selected configuration's estimate
 through the `estimate-experiment-cost-skill` workflow and update
@@ -180,8 +181,8 @@ For ad hoc dry-runs or non-default combinations, use the normal commands and pas
 Verification:
 
 ```powershell
-dotnet run --project src/Orchestrator -- verify matchday -c ehonda-dev-wm26
-dotnet run --project src/Orchestrator -- verify bonus -c ehonda-dev-wm26
+dotnet run --project src/Orchestrator -- verify gpt-5-nano -c ehonda-dev-wm26 --reasoning-effort minimal
+dotnet run --project src/Orchestrator -- verify-bonus gpt-5-nano -c ehonda-dev-wm26 --reasoning-effort minimal
 ```
 
 Context and outcomes:
@@ -227,7 +228,7 @@ workflow can be trusted or scheduled:
   `LANGFUSE_SECRET_KEY`.
 - Configure repository variable `LANGFUSE_PUBLIC_KEY` if it is not already set.
 - Select and document the WM26 production model configuration; do not use the
-  `gpt-5-nano` / `minimal` dev fallback as the production assumption.
+  `gpt-5-nano` / `minimal` dev command defaults as the production assumption.
 - Ensure prediction workflows pass the selected model and reasoning effort
   explicitly through the `reasoning_effort` input.
 - Add the full-competition cost estimate for every scheduled model

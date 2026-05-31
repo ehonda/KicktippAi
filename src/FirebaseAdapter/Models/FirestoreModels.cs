@@ -84,6 +84,18 @@ public class FirestoreMatchPrediction
     public string Model { get; set; } = string.Empty;
 
     /// <summary>
+    /// Stable identity key for the model configuration used to generate this prediction.
+    /// </summary>
+    [FirestoreProperty("modelConfigKey")]
+    public string? ModelConfigKey { get; set; }
+
+    /// <summary>
+    /// Optional OpenAI reasoning effort used to generate this prediction.
+    /// </summary>
+    [FirestoreProperty("reasoningEffort")]
+    public string? ReasoningEffort { get; set; }
+
+    /// <summary>
     /// JSON string containing the token usage object from the API (e.g., completion_tokens, prompt_tokens, total_tokens).
     /// </summary>
     [FirestoreProperty("tokenUsage")]
@@ -221,6 +233,18 @@ public class FirestoreBonusPrediction
     /// </summary>
     [FirestoreProperty("model")]
     public string Model { get; set; } = string.Empty;
+
+    /// <summary>
+    /// Stable identity key for the model configuration used to generate this prediction.
+    /// </summary>
+    [FirestoreProperty("modelConfigKey")]
+    public string? ModelConfigKey { get; set; }
+
+    /// <summary>
+    /// Optional OpenAI reasoning effort used to generate this prediction.
+    /// </summary>
+    [FirestoreProperty("reasoningEffort")]
+    public string? ReasoningEffort { get; set; }
 
     /// <summary>
     /// JSON string containing the token usage object from the API (e.g., completion_tokens, prompt_tokens, total_tokens).

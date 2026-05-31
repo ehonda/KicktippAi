@@ -73,7 +73,7 @@ public class VerifyMatchdayCommand : AsyncCommand<VerifySettings>
         var kicktippClient = _kicktippClientFactory.CreateClient();
         string communityContext = settings.CommunityContext ?? settings.Community;
         var competition = CompetitionResolver.ResolveCompetition(settings.Competition, settings.Community, communityContext);
-        var model = PredictionServiceCommandSupport.ResolveModel(settings.Model, competition);
+        var modelConfig = PredictionServiceCommandSupport.CreateModelConfig(settings.Model, settings.ReasoningEffort);
         var repositoryCompetition = CompetitionResolver.ToRepositoryCompetitionArgument(competition);
 
         // Try to get the prediction repository (may be null if Firebase is not configured)
@@ -97,6 +97,7 @@ public class VerifyMatchdayCommand : AsyncCommand<VerifySettings>
         _console.MarkupLine($"[blue]Using community:[/] [yellow]{settings.Community}[/]");
         _console.MarkupLine($"[blue]Using community context:[/] [yellow]{communityContext}[/]");
         _console.MarkupLine($"[blue]Using competition:[/] [yellow]{competition}[/]");
+        _console.MarkupLine($"[blue]Using model config:[/] [yellow]{modelConfig.DisplayName}[/]");
         _console.MarkupLine("[blue]Getting placed predictions from Kicktipp...[/]");
         
         // Step 1: Get placed predictions from Kicktipp
@@ -136,7 +137,7 @@ public class VerifyMatchdayCommand : AsyncCommand<VerifySettings>
                         _console.MarkupLine($"[dim]  Looking up (cancelled match, team-names-only): {match.HomeTeam} vs {match.AwayTeam}[/]");
                     }
                     databasePrediction = await predictionRepository.GetCancelledMatchPredictionAsync(
-                        match.HomeTeam, match.AwayTeam, model, communityContext);
+                        match.HomeTeam, match.AwayTeam, modelConfig, communityContext);
                 }
                 else
                 {
@@ -144,7 +145,7 @@ public class VerifyMatchdayCommand : AsyncCommand<VerifySettings>
                     {
                         _console.MarkupLine($"[dim]  Looking up: {match.HomeTeam} vs {match.AwayTeam} at {match.StartsAt}[/]");
                     }
-                    databasePrediction = await predictionRepository.GetPredictionAsync(match, model, communityContext);
+                    databasePrediction = await predictionRepository.GetPredictionAsync(match, modelConfig, communityContext);
                 }
                 
                 if (kicktippPrediction != null)
@@ -169,7 +170,7 @@ public class VerifyMatchdayCommand : AsyncCommand<VerifySettings>
                 var isOutdated = false;
                 if (settings.CheckOutdated && contextRepository != null && databasePrediction != null)
                 {
-                    isOutdated = await CheckPredictionOutdated(predictionRepository, contextRepository, match, model, communityContext, competition, settings.Verbose);
+                    isOutdated = await CheckPredictionOutdated(predictionRepository, contextRepository, match, modelConfig, communityContext, competition, settings.Verbose);
                 }
                 
                 // Compare predictions
@@ -284,7 +285,7 @@ public class VerifyMatchdayCommand : AsyncCommand<VerifySettings>
                kicktippPrediction.AwayGoals == databasePrediction.AwayGoals;
     }
     
-    private async Task<bool> CheckPredictionOutdated(IPredictionRepository predictionRepository, IContextRepository contextRepository, Match match, string model, string communityContext, string competition, bool verbose)
+    private async Task<bool> CheckPredictionOutdated(IPredictionRepository predictionRepository, IContextRepository contextRepository, Match match, PredictionModelConfig modelConfig, string communityContext, string competition, bool verbose)
     {
         try
         {
@@ -294,11 +295,11 @@ public class VerifyMatchdayCommand : AsyncCommand<VerifySettings>
             if (match.IsCancelled)
             {
                 predictionMetadata = await predictionRepository.GetCancelledMatchPredictionMetadataAsync(
-                    match.HomeTeam, match.AwayTeam, model, communityContext);
+                    match.HomeTeam, match.AwayTeam, modelConfig, communityContext);
             }
             else
             {
-                predictionMetadata = await predictionRepository.GetPredictionMetadataAsync(match, model, communityContext);
+                predictionMetadata = await predictionRepository.GetPredictionMetadataAsync(match, modelConfig, communityContext);
             }
             
             if (predictionMetadata == null || !predictionMetadata.ContextDocumentNames.Any())

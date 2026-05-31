@@ -36,7 +36,7 @@ Ensure these files exist in your repository:
 #### Option B: Local Test
 ```bash
 # Test locally with environment variables set
-dotnet run --project src/Orchestrator/Orchestrator.csproj -- verify --init-matchday --agent
+dotnet run --project src/Orchestrator/Orchestrator.csproj -- verify o4-mini --init-matchday --agent
 ```
 
 ## 📅 Schedule Details
@@ -98,7 +98,7 @@ If the automation fails, you can run predictions manually:
 dotnet run --project src/Orchestrator/Orchestrator.csproj -- matchday o4-mini --override-kicktipp --verbose
 
 # Verify they were posted correctly
-dotnet run --project src/Orchestrator/Orchestrator.csproj -- verify --agent
+dotnet run --project src/Orchestrator/Orchestrator.csproj -- verify o4-mini --agent
 ```
 
 ## 🎯 Customization

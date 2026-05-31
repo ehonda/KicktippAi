@@ -82,7 +82,7 @@ public class CostCommand_Output_Tests
         await Assert.That(output).Contains("Verbose mode enabled");
         await Assert.That(output).Contains("Filters:");
         await Assert.That(output).Contains("Matchdays:");
-        await Assert.That(output).Contains("Models:");
+        await Assert.That(output).Contains("Model Configs:");
         await Assert.That(output).Contains("Community Contexts:");
         await Assert.That(output).Contains("Include Bonus:");
     }
@@ -108,7 +108,7 @@ public class CostCommand_Output_Tests
 
         // Assert
         await Assert.That(exitCode).IsEqualTo(0);
-        await Assert.That(output).Contains("Processing model: gpt-4o");
+        await Assert.That(output).Contains("Processing model config: gpt-4o");
         await Assert.That(output).Contains("test-community");
         await Assert.That(output).Contains("Match predictions");
         await Assert.That(output).Contains("documents");

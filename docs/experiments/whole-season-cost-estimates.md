@@ -22,9 +22,9 @@ already collected `pes-squad` / `o3` counts.
 
 WM26 model onboarding coverage is tracked in
 [model-config-onboarding.md](../onboarding-wm26/model-config-onboarding.md).
-As of 2026-05-31, the manual WM26 dev/testing fallback
+As of 2026-05-31, the manual WM26 dev/testing shortcut configuration
 `gpt-5-nano` / `minimal` is onboarded but not estimated here because the
-estimator has no matching base row yet. This fallback is not the WM26
+estimator has no matching base row yet. This configuration is not the WM26
 production configuration, which is still TBD. The checked command was:
 
 ```powershell

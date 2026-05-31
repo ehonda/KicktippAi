@@ -87,13 +87,18 @@ jobs:
           echo "Model: ${{ inputs.model }}"
           echo "Reasoning Effort: ${{ inputs.reasoning_effort || 'model default' }}"
           echo "Community Context: ${{ inputs.community_context }}"
-          dotnet run --project src/Orchestrator --configuration Release -- verify "${{ inputs.model }}" --community "${{ inputs.community }}" --community-context "${{ inputs.community_context }}" --init-matchday --check-outdated --agent --verbose
+          VERIFY_FLAGS=()
+          if [ -n "$REASONING_EFFORT" ]; then
+            VERIFY_FLAGS+=(--reasoning-effort "$REASONING_EFFORT")
+          fi
+          dotnet run --project src/Orchestrator --configuration Release -- verify "${{ inputs.model }}" --community "${{ inputs.community }}" --community-context "${{ inputs.community_context }}" --init-matchday --check-outdated --agent --verbose "${VERIFY_FLAGS[@]}"
         env:
           KICKTIPP_USERNAME: ${{ secrets.kicktipp_username }}
           KICKTIPP_PASSWORD: ${{ secrets.kicktipp_password }}
           FIREBASE_PROJECT_ID: ${{ secrets.firebase_project_id }}
           FIREBASE_SERVICE_ACCOUNT_JSON: ${{ secrets.firebase_service_account_json }}
           OPENAI_API_KEY: ${{ secrets.openai_api_key }}
+          REASONING_EFFORT: ${{ inputs.reasoning_effort }}
           
       - name: Generate and post predictions
         id: generate
@@ -141,13 +146,18 @@ jobs:
         if: steps.verify.outcome == 'failure' || inputs.force_prediction == true
         run: |
           echo "✅ Running final verification to confirm predictions were posted successfully..."
-          dotnet run --project src/Orchestrator --configuration Release -- verify "${{ inputs.model }}" --community "${{ inputs.community }}" --community-context "${{ inputs.community_context }}" --agent --verbose
+          VERIFY_FLAGS=()
+          if [ -n "$REASONING_EFFORT" ]; then
+            VERIFY_FLAGS+=(--reasoning-effort "$REASONING_EFFORT")
+          fi
+          dotnet run --project src/Orchestrator --configuration Release -- verify "${{ inputs.model }}" --community "${{ inputs.community }}" --community-context "${{ inputs.community_context }}" --agent --verbose "${VERIFY_FLAGS[@]}"
         env:
           KICKTIPP_USERNAME: ${{ secrets.kicktipp_username }}
           KICKTIPP_PASSWORD: ${{ secrets.kicktipp_password }}
           FIREBASE_PROJECT_ID: ${{ secrets.firebase_project_id }}
           FIREBASE_SERVICE_ACCOUNT_JSON: ${{ secrets.firebase_service_account_json }}
           OPENAI_API_KEY: ${{ secrets.openai_api_key }}
+          REASONING_EFFORT: ${{ inputs.reasoning_effort }}
           
       - name: Success notification
         if: steps.verify.outcome == 'success' && inputs.force_prediction == false

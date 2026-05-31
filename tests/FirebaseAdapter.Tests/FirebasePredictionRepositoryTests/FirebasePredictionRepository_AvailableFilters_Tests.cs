@@ -1,5 +1,6 @@
 using TestUtilities;
 using TUnit.Core;
+using EHonda.KicktippAi.Core;
 using static TestUtilities.CoreTestFactories;
 
 namespace FirebaseAdapter.Tests.FirebasePredictionRepositoryTests;
@@ -165,6 +166,51 @@ public class FirebasePredictionRepository_AvailableFilters_Tests(FirestoreFixtur
         // Assert
         await Assert.That(models).HasCount().EqualTo(1);
         await Assert.That(models).Contains("gpt-4o");
+    }
+
+    [Test]
+    public async Task GetAvailableModelConfigsAsync_returns_unique_model_reasoning_effort_configs()
+    {
+        // Arrange
+        var repository = CreateRepository();
+        var minimalConfig = PredictionModelConfig.Create("gpt-5-nano", "minimal");
+        var highConfig = PredictionModelConfig.Create("gpt-5-nano", "high");
+
+        await repository.SavePredictionAsync(
+            CreateMatch(homeTeam: "Team A", awayTeam: "Team B"),
+            CreatePrediction(),
+            minimalConfig,
+            tokenUsage: "100",
+            cost: 0.01,
+            communityContext: "test-community",
+            contextDocumentNames: []);
+
+        await repository.SaveBonusPredictionAsync(
+            CreateBonusQuestion(text: "Question 1"),
+            CreateBonusPrediction(),
+            highConfig,
+            tokenUsage: "100",
+            cost: 0.01,
+            communityContext: "test-community",
+            contextDocumentNames: []);
+
+        await repository.SavePredictionAsync(
+            CreateMatch(homeTeam: "Team C", awayTeam: "Team D"),
+            CreatePrediction(),
+            minimalConfig,
+            tokenUsage: "100",
+            cost: 0.01,
+            communityContext: "test-community",
+            contextDocumentNames: []);
+
+        // Act
+        var configs = await repository.GetAvailableModelConfigsAsync();
+
+        // Assert
+        await Assert.That(configs.Select(config => config.IdentityKey)).IsEquivalentTo([
+            "gpt-5-nano:reasoning-effort:minimal",
+            "gpt-5-nano:reasoning-effort:high"
+        ]);
     }
 
     // --- GetAvailableCommunityContextsAsync ---

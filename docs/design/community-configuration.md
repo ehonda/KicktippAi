@@ -10,15 +10,15 @@ This maps Kicktipp communities to competition IDs and manual-run defaults. Curre
 
 - Existing Bundesliga communities default to `bundesliga-2025-26`.
 - `ehonda-dev-wm26` resolves to `fifa-world-cup-2026`.
-- When a WM26 command omits the model, the dev/test fallback is `gpt-5-nano` with `reasoning-effort minimal`, Langfuse prompt source, and label `latest`.
+- The guarded WM26 `matchday-dev` and `bonus-dev` commands use `gpt-5-nano` with `reasoning-effort minimal`, Langfuse prompt source, and label `latest`.
 
-The omitted-model fallback exists for low-cost development and manual testing.
-It is not the WM26 production configuration. Production or scheduled workflows
-must pass an explicit model and reasoning effort once the production
+Those dev command defaults exist for low-cost development and manual testing.
+They are not the WM26 production configuration. Production or scheduled
+workflows must pass an explicit model and reasoning effort once the production
 configuration is selected through the reusable prediction workflow
 `reasoning_effort` input.
 
-Tune this when a new community needs a different competition, dev/test fallback,
+Tune this when a new community needs a different competition, dev/test default,
 prompt source, prompt name, or prompt label.
 
 ## Development Shortcuts

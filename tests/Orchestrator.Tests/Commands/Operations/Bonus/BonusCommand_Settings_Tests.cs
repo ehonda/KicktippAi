@@ -11,6 +11,18 @@ namespace Orchestrator.Tests.Commands.Operations.Bonus;
 public class BonusCommand_Settings_Tests : BonusCommandTests_Base
 {
     [Test]
+    public async Task Model_argument_is_required()
+    {
+        var context = CreateBonusCommandApp();
+
+        var exitCode = await context.App.RunAsync(["bonus", "--community", "test"]);
+        var output = context.Console.Output;
+
+        await Assert.That(exitCode).IsNotEqualTo(0);
+        await Assert.That(output).Contains("MODEL");
+    }
+
+    [Test]
     public async Task Running_command_displays_model_name()
     {
         // Arrange
@@ -277,7 +289,9 @@ public class BonusCommand_Settings_Tests : BonusCommandTests_Base
             repository => repository.SaveBonusPredictionAsync(
                 It.IsAny<BonusQuestion>(),
                 It.IsAny<BonusPrediction>(),
-                "gpt-5-nano",
+                It.Is<PredictionModelConfig>(config =>
+                    config.Model == "gpt-5-nano" &&
+                    config.ReasoningEffort == "minimal"),
                 It.IsAny<string>(),
                 It.IsAny<double>(),
                 "ehonda-dev-wm26",

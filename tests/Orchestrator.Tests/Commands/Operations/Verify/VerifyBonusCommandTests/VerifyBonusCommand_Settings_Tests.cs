@@ -51,7 +51,9 @@ public class VerifyBonusCommand_Settings_Tests : VerifyBonusCommandTests_Base
         // Assert - prediction lookup uses community as context
         ctx.PredictionRepository.Verify(r => r.GetBonusPredictionByTextAsync(
             It.IsAny<string>(),
-            "gpt-4o",
+            It.Is<PredictionModelConfig>(config =>
+                config.Model == "gpt-4o" &&
+                config.ReasoningEffort == null),
             "my-community",
             It.IsAny<CancellationToken>()), Times.Once);
     }
@@ -69,7 +71,9 @@ public class VerifyBonusCommand_Settings_Tests : VerifyBonusCommandTests_Base
         // Assert - prediction lookup uses explicit community context
         ctx.PredictionRepository.Verify(r => r.GetBonusPredictionByTextAsync(
             It.IsAny<string>(),
-            "gpt-4o",
+            It.Is<PredictionModelConfig>(config =>
+                config.Model == "gpt-4o" &&
+                config.ReasoningEffort == null),
             "different-context",
             It.IsAny<CancellationToken>()), Times.Once);
     }
@@ -87,7 +91,30 @@ public class VerifyBonusCommand_Settings_Tests : VerifyBonusCommandTests_Base
         // Assert
         ctx.PredictionRepository.Verify(r => r.GetBonusPredictionByTextAsync(
             It.IsAny<string>(),
-            "o4-mini",
+            It.Is<PredictionModelConfig>(config =>
+                config.Model == "o4-mini" &&
+                config.ReasoningEffort == null),
+            It.IsAny<string>(),
+            It.IsAny<CancellationToken>()), Times.Once);
+    }
+
+    [Test]
+    public async Task Reasoning_effort_is_passed_to_prediction_repository()
+    {
+        // Arrange
+        var question = CreateTestBonusQuestion(formFieldName: "bonus_q1");
+        var ctx = CreateVerifyBonusCommandApp(bonusQuestions: new List<BonusQuestion> { question });
+
+        // Act
+        await RunCommandAsync(ctx.App, ctx.Console, "verify-bonus", "gpt-5-nano", "-c", "test", "--reasoning-effort", "Minimal");
+
+        // Assert
+        ctx.PredictionRepository.Verify(r => r.GetBonusPredictionByTextAsync(
+            It.IsAny<string>(),
+            It.Is<PredictionModelConfig>(config =>
+                config.Model == "gpt-5-nano" &&
+                config.ReasoningEffort == "minimal" &&
+                config.IdentityKey == "gpt-5-nano:reasoning-effort:minimal"),
             It.IsAny<string>(),
             It.IsAny<CancellationToken>()), Times.Once);
     }

@@ -1,4 +1,5 @@
 using Orchestrator.Commands.Operations.Matchday;
+using Orchestrator.Commands.Shared;
 using Orchestrator.Infrastructure;
 using Spectre.Console;
 
@@ -29,6 +30,8 @@ internal static class DevParticipationCommandSupport
 
         baseSettings = new BaseSettings
         {
+            Model = PredictionServiceCommandSupport.WorldCupDevDefaultModel,
+            ReasoningEffort = PredictionServiceCommandSupport.WorldCupDevDefaultReasoningEffort,
             Community = community,
             CommunityContext = string.IsNullOrWhiteSpace(settings.CommunityContext)
                 ? null

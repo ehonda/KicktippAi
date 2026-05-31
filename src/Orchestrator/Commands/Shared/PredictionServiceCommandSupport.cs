@@ -1,3 +1,4 @@
+using EHonda.KicktippAi.Core;
 using OpenAiIntegration;
 using Orchestrator.Infrastructure;
 using Orchestrator.Infrastructure.Factories;
@@ -8,8 +9,8 @@ namespace Orchestrator.Commands.Shared;
 
 internal static class PredictionServiceCommandSupport
 {
-    public const string WorldCupDefaultModel = "gpt-5-nano";
-    public const string WorldCupDefaultReasoningEffort = "minimal";
+    public const string WorldCupDevDefaultModel = "gpt-5-nano";
+    public const string WorldCupDevDefaultReasoningEffort = "minimal";
 
     public static IPredictionService CreatePredictionService(
         IOpenAiServiceFactory openAiServiceFactory,
@@ -38,9 +39,6 @@ internal static class PredictionServiceCommandSupport
         var options = PredictionServiceOptions.FlexProcessingWithStandardFallback with
         {
             ReasoningEffort = NormalizeReasoningEffort(reasoningEffort)
-                              ?? (CompetitionResolver.IsWorldCupCompetition(metadata.Competition)
-                                  ? WorldCupDefaultReasoningEffort
-                                  : null)
         };
 
         if (!string.Equals(metadata.PromptSource, CompetitionResolver.LangfusePromptSource, StringComparison.OrdinalIgnoreCase))
@@ -97,23 +95,21 @@ internal static class PredictionServiceCommandSupport
 
     public static string? NormalizeReasoningEffort(string? reasoningEffort)
     {
-        return string.IsNullOrWhiteSpace(reasoningEffort)
-            ? null
-            : reasoningEffort.Trim().ToLowerInvariant();
+        return PredictionModelConfig.NormalizeReasoningEffort(reasoningEffort);
     }
 
-    public static string ResolveModel(string? model, string competition)
+    public static PredictionModelConfig CreateModelConfig(string? model, string? reasoningEffort)
+    {
+        return PredictionModelConfig.Create(ResolveModel(model), reasoningEffort);
+    }
+
+    public static string ResolveModel(string? model)
     {
         if (!string.IsNullOrWhiteSpace(model))
         {
             return model.Trim();
         }
 
-        if (CompetitionResolver.IsWorldCupCompetition(competition))
-        {
-            return WorldCupDefaultModel;
-        }
-
-        throw new InvalidOperationException("MODEL is required unless the competition has a configured default model.");
+        throw new ArgumentException("MODEL is required.", nameof(model));
     }
 }

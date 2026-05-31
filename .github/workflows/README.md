@@ -76,13 +76,13 @@ Each community workflow is configured with direct parameters:
 
 - **Matchday**: Runs twice daily (midnight and noon Europe/Berlin)
 - **Bonus**: Runs daily at 6 PM Europe/Berlin
-- **Default Model**: o4-mini (testing/development)
+- **Configured Model**: o4-mini (testing/development)
 
 ### Production Community
 
 - **Matchday**: Runs twice daily (6:30 AM and 6:30 PM Europe/Berlin)
 - **Bonus**: Runs weekly on Sunday evening
-- **Default Model**: o1 (production quality)
+- **Configured Model**: o1 (production quality)
 
 ## Required Secrets
 
@@ -260,13 +260,13 @@ To test the commands locally before relying on the automated workflow:
 
 ```bash
 # Test verification
-dotnet run --project src/Orchestrator/Orchestrator.csproj -- verify --init-matchday --agent
+dotnet run --project src/Orchestrator/Orchestrator.csproj -- verify o4-mini --init-matchday --agent
 
 # Test prediction generation
 dotnet run --project src/Orchestrator/Orchestrator.csproj -- matchday o4-mini --override-kicktipp --verbose --agent
 
 # Test final verification
-dotnet run --project src/Orchestrator/Orchestrator.csproj -- verify --agent
+dotnet run --project src/Orchestrator/Orchestrator.csproj -- verify o4-mini --agent
 ```
 
 ### Context Collection Testing

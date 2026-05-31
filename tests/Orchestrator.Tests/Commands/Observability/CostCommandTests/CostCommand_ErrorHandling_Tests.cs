@@ -17,7 +17,7 @@ public class CostCommand_ErrorHandling_Tests
     {
         // Arrange
         var mockRepo = new Mock<IPredictionRepository>();
-        mockRepo.Setup(r => r.GetAvailableModelsAsync(It.IsAny<CancellationToken>()))
+        mockRepo.Setup(r => r.GetAvailableModelConfigsAsync(It.IsAny<CancellationToken>()))
             .ThrowsAsync(new InvalidOperationException("Firestore connection failed"));
         var (app, console, _, _, _) = CreateCostCommandApp(mockRepo);
 
@@ -35,7 +35,7 @@ public class CostCommand_ErrorHandling_Tests
     {
         // Arrange
         var mockRepo = new Mock<IPredictionRepository>();
-        mockRepo.Setup(r => r.GetAvailableModelsAsync(It.IsAny<CancellationToken>()))
+        mockRepo.Setup(r => r.GetAvailableModelConfigsAsync(It.IsAny<CancellationToken>()))
             .ThrowsAsync(new InvalidOperationException("Database error"));
         var logger = new FakeLogger<CostCommand>();
         var (app, console, _, _, _) = CreateCostCommandApp(mockRepo, logger);
@@ -58,14 +58,14 @@ public class CostCommand_ErrorHandling_Tests
     {
         // Arrange
         var mockRepo = new Mock<IPredictionRepository>();
-        mockRepo.Setup(r => r.GetAvailableModelsAsync(It.IsAny<CancellationToken>()))
-            .ReturnsAsync(new List<string> { "gpt-4o" });
+        mockRepo.Setup(r => r.GetAvailableModelConfigsAsync(It.IsAny<CancellationToken>()))
+            .ReturnsAsync(new List<PredictionModelConfig> { PredictionModelConfig.Create("gpt-4o") });
         mockRepo.Setup(r => r.GetAvailableCommunityContextsAsync(It.IsAny<CancellationToken>()))
             .ReturnsAsync(new List<string> { "test-community" });
         mockRepo.Setup(r => r.GetAvailableMatchdaysAsync(It.IsAny<CancellationToken>()))
             .ReturnsAsync(new List<int> { 1 });
         mockRepo.Setup(r => r.GetMatchPredictionCostsByRepredictionIndexAsync(
-                It.IsAny<string>(),
+                It.IsAny<PredictionModelConfig>(),
                 It.IsAny<string>(),
                 It.IsAny<List<int>?>(),
                 It.IsAny<CancellationToken>()))
@@ -86,7 +86,7 @@ public class CostCommand_ErrorHandling_Tests
     {
         // Arrange
         var mockRepo = new Mock<IPredictionRepository>();
-        mockRepo.Setup(r => r.GetAvailableModelsAsync(It.IsAny<CancellationToken>()))
+        mockRepo.Setup(r => r.GetAvailableModelConfigsAsync(It.IsAny<CancellationToken>()))
             .ThrowsAsync(new InvalidOperationException("Specific error message for testing"));
         var (app, console, _, _, _) = CreateCostCommandApp(mockRepo);
 
@@ -164,20 +164,20 @@ public class CostCommand_ErrorHandling_Tests
             { 0, (1.0, 5) }
         };
         var mockRepo = new Mock<IPredictionRepository>();
-        mockRepo.Setup(r => r.GetAvailableModelsAsync(It.IsAny<CancellationToken>()))
-            .ReturnsAsync(new List<string> { "gpt-4o" });
+        mockRepo.Setup(r => r.GetAvailableModelConfigsAsync(It.IsAny<CancellationToken>()))
+            .ReturnsAsync(new List<PredictionModelConfig> { PredictionModelConfig.Create("gpt-4o") });
         mockRepo.Setup(r => r.GetAvailableCommunityContextsAsync(It.IsAny<CancellationToken>()))
             .ReturnsAsync(new List<string> { "test-community" });
         mockRepo.Setup(r => r.GetAvailableMatchdaysAsync(It.IsAny<CancellationToken>()))
             .ReturnsAsync(new List<int> { 1 });
         mockRepo.Setup(r => r.GetMatchPredictionCostsByRepredictionIndexAsync(
-                It.IsAny<string>(),
+                It.IsAny<PredictionModelConfig>(),
                 It.IsAny<string>(),
                 It.IsAny<List<int>?>(),
                 It.IsAny<CancellationToken>()))
             .ReturnsAsync(matchCosts);
         mockRepo.Setup(r => r.GetBonusPredictionCostsByRepredictionIndexAsync(
-                It.IsAny<string>(),
+                It.IsAny<PredictionModelConfig>(),
                 It.IsAny<string>(),
                 It.IsAny<CancellationToken>()))
             .ThrowsAsync(new InvalidOperationException("Bonus query failed"));
@@ -197,7 +197,7 @@ public class CostCommand_ErrorHandling_Tests
     {
         // Arrange
         var mockRepo = new Mock<IPredictionRepository>();
-        mockRepo.Setup(r => r.GetAvailableModelsAsync(It.IsAny<CancellationToken>()))
+        mockRepo.Setup(r => r.GetAvailableModelConfigsAsync(It.IsAny<CancellationToken>()))
             .ThrowsAsync(new TimeoutException("Connection timed out"));
         var (app, console, _, _, _) = CreateCostCommandApp(mockRepo);
 

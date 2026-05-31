@@ -101,7 +101,9 @@ public class BonusCommand_NormalMode_Tests : BonusCommandTests_Base
         context.PredictionRepository.Verify(r => r.SaveBonusPredictionAsync(
             It.IsAny<BonusQuestion>(),
             It.IsAny<BonusPrediction>(),
-            "test-model",
+            It.Is<PredictionModelConfig>(config =>
+                config.Model == "test-model" &&
+                config.ReasoningEffort == null),
             It.IsAny<string>(),
             It.IsAny<double>(),
             "test",
@@ -225,7 +227,7 @@ public class BonusCommand_NormalMode_Tests : BonusCommandTests_Base
         context.PredictionRepository.Verify(r => r.SaveBonusPredictionAsync(
             It.IsAny<BonusQuestion>(),
             It.IsAny<BonusPrediction>(),
-            It.IsAny<string>(),
+            It.IsAny<PredictionModelConfig>(),
             It.IsAny<string>(),
             It.IsAny<double>(),
             It.IsAny<string>(),
@@ -370,7 +372,7 @@ public class BonusCommand_NormalMode_Tests : BonusCommandTests_Base
         context.PredictionRepository.Verify(r => r.SaveBonusPredictionAsync(
             It.IsAny<BonusQuestion>(),
             It.IsAny<BonusPrediction>(),
-            It.IsAny<string>(),
+            It.IsAny<PredictionModelConfig>(),
             It.IsAny<string>(),
             It.IsAny<double>(),
             It.IsAny<string>(),

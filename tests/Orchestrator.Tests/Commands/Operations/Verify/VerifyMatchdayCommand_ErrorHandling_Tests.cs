@@ -84,10 +84,10 @@ public class VerifyMatchdayCommand_ErrorHandling_Tests : VerifyMatchdayCommandTe
 
         var mockPredictionRepo = new Mock<IPredictionRepository>();
         mockPredictionRepo.Setup(r => r.GetPredictionAsync(
-                match1, It.IsAny<string>(), It.IsAny<string>(), It.IsAny<CancellationToken>()))
+                match1, It.IsAny<PredictionModelConfig>(), It.IsAny<string>(), It.IsAny<CancellationToken>()))
             .ThrowsAsync(new InvalidOperationException("Database error"));
         mockPredictionRepo.Setup(r => r.GetPredictionAsync(
-                match2, It.IsAny<string>(), It.IsAny<string>(), It.IsAny<CancellationToken>()))
+                match2, It.IsAny<PredictionModelConfig>(), It.IsAny<string>(), It.IsAny<CancellationToken>()))
             .ReturnsAsync(CreatePrediction(homeGoals: 1, awayGoals: 0));
 
         var mockFirebaseFactory = CreateMockFirebaseServiceFactoryFull(predictionRepository: mockPredictionRepo);
@@ -121,7 +121,7 @@ public class VerifyMatchdayCommand_ErrorHandling_Tests : VerifyMatchdayCommandTe
 
         var mockPredictionRepo = new Mock<IPredictionRepository>();
         mockPredictionRepo.Setup(r => r.GetPredictionAsync(
-                It.IsAny<Match>(), It.IsAny<string>(), It.IsAny<string>(), It.IsAny<CancellationToken>()))
+                It.IsAny<Match>(), It.IsAny<PredictionModelConfig>(), It.IsAny<string>(), It.IsAny<CancellationToken>()))
             .ThrowsAsync(new InvalidOperationException("Database error"));
 
         var mockFirebaseFactory = CreateMockFirebaseServiceFactoryFull(predictionRepository: mockPredictionRepo);

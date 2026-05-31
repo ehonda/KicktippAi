@@ -1,12 +1,14 @@
 using System.ComponentModel;
+using EHonda.KicktippAi.Core;
+using Spectre.Console;
 using Spectre.Console.Cli;
 
 namespace Orchestrator.Commands.Operations.Matchday;
 
 public class BaseSettings : CommandSettings
 {
-    [CommandArgument(0, "[MODEL]")]
-    [Description("The OpenAI model to use for prediction (defaults to gpt-5-nano for FIFA World Cup 2026 communities)")]
+    [CommandArgument(0, "<MODEL>")]
+    [Description("The OpenAI model to use for prediction")]
     public string? Model { get; set; }
 
     [CommandOption("-c|--community")]
@@ -93,4 +95,19 @@ public class BaseSettings : CommandSettings
     /// Gets whether reprediction mode is enabled (either explicitly via --repredict or implicitly via --max-repredictions).
     /// </summary>
     public bool IsRepredictMode => Repredict || MaxRepredictions.HasValue;
+
+    public override ValidationResult Validate()
+    {
+        if (string.IsNullOrWhiteSpace(Model))
+        {
+            return ValidationResult.Error("MODEL is required");
+        }
+
+        if (!PredictionModelConfig.IsValidReasoningEffort(ReasoningEffort))
+        {
+            return ValidationResult.Error("--reasoning-effort must be one of: none, minimal, low, medium, high, xhigh");
+        }
+
+        return ValidationResult.Success();
+    }
 }

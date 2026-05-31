@@ -16,7 +16,13 @@ public class ReconstructPromptCommand_Tests
         var match = new Match("Team A", "Team B", NodaTime.Instant.FromUtc(2025, 10, 30, 15, 30).InUtc(), 7);
         var predictionRepository = new Mock<IPredictionRepository>();
         predictionRepository
-            .Setup(repository => repository.GetStoredMatchAsync("Team A", "Team B", 7, "gpt-5", "test-community", It.IsAny<CancellationToken>()))
+            .Setup(repository => repository.GetStoredMatchAsync(
+                "Team A",
+                "Team B",
+                7,
+                It.Is<PredictionModelConfig>(config => config.Model == "gpt-5" && config.ReasoningEffort == null),
+                "test-community",
+                It.IsAny<CancellationToken>()))
             .ReturnsAsync(match);
         predictionRepository
             .Setup(repository => repository.GetPredictionMetadataAsync(
@@ -25,7 +31,7 @@ public class ReconstructPromptCommand_Tests
                     candidate.AwayTeam == match.AwayTeam &&
                     candidate.Matchday == match.Matchday &&
                     candidate.StartsAt.ToInstant() == match.StartsAt.ToInstant()),
-                "gpt-5",
+                It.Is<PredictionModelConfig>(config => config.Model == "gpt-5" && config.ReasoningEffort == null),
                 "test-community",
                 It.IsAny<CancellationToken>()))
             .ReturnsAsync(new PredictionMetadata(
@@ -77,7 +83,13 @@ public class ReconstructPromptCommand_Tests
     {
         var predictionRepository = new Mock<IPredictionRepository>();
         predictionRepository
-            .Setup(repository => repository.GetStoredMatchAsync("Team A", "Team B", 7, "gpt-5", "test-community", It.IsAny<CancellationToken>()))
+            .Setup(repository => repository.GetStoredMatchAsync(
+                "Team A",
+                "Team B",
+                7,
+                It.Is<PredictionModelConfig>(config => config.Model == "gpt-5" && config.ReasoningEffort == null),
+                "test-community",
+                It.IsAny<CancellationToken>()))
             .ReturnsAsync((Match?)null);
 
         var firebaseFactory = new Mock<IFirebaseServiceFactory>();
@@ -113,7 +125,7 @@ public class ReconstructPromptCommand_Tests
         var match = new Match("Team A", "Team B", NodaTime.Instant.FromUtc(2025, 10, 30, 15, 30).InUtc(), 7);
         var predictionRepository = new Mock<IPredictionRepository>(MockBehavior.Strict);
         predictionRepository
-            .Setup(repository => repository.GetStoredMatchAsync("Team A", "Team B", 7, null, null, It.IsAny<CancellationToken>()))
+            .Setup(repository => repository.GetStoredMatchAsync("Team A", "Team B", 7, (PredictionModelConfig?)null, null, It.IsAny<CancellationToken>()))
             .ReturnsAsync(match);
 
         var exactTimestamp = new DateTimeOffset(2026, 3, 15, 12, 0, 0, TimeSpan.FromHours(1));

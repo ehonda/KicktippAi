@@ -1,7 +1,9 @@
 using KicktippIntegration;
 using Moq;
+using EHonda.KicktippAi.Core;
 using static Orchestrator.Tests.Infrastructure.OrchestratorTestFactories;
 using static TestUtilities.CoreTestFactories;
+using Match = EHonda.KicktippAi.Core.Match;
 
 namespace Orchestrator.Tests.Commands.Operations.Verify;
 
@@ -137,10 +139,37 @@ public class VerifyMatchdayCommand_Settings_Tests : VerifyMatchdayCommandTests_B
 
         // Assert - verify the model was passed to the repository
         ctx.PredictionRepository.Verify(r => r.GetPredictionAsync(
-            It.IsAny<EHonda.KicktippAi.Core.Match>(),
-            "custom-model-name",
+            It.IsAny<Match>(),
+            It.Is<PredictionModelConfig>(config =>
+                config.Model == "custom-model-name" &&
+                config.ReasoningEffort == null),
             It.IsAny<string>(),
             It.IsAny<CancellationToken>()), 
+            Moq.Times.AtLeastOnce());
+    }
+
+    [Test]
+    public async Task Reasoning_effort_is_used_for_database_lookup()
+    {
+        // Arrange
+        var match = CreateTestMatch();
+        var ctx = CreateVerifyMatchdayCommandApp(
+            placedPredictions: CreatePlacedPredictions(match, CreateBetPrediction()),
+            databasePrediction: CreatePrediction());
+
+        // Act
+        await Orchestrator.Tests.Infrastructure.OrchestratorTestFactories
+            .RunCommandAsync(ctx.App, ctx.Console, "verify-matchday", "gpt-5-nano", "-c", "test", "--reasoning-effort", "HIGH");
+
+        // Assert
+        ctx.PredictionRepository.Verify(r => r.GetPredictionAsync(
+            It.IsAny<Match>(),
+            It.Is<PredictionModelConfig>(config =>
+                config.Model == "gpt-5-nano" &&
+                config.ReasoningEffort == "high" &&
+                config.IdentityKey == "gpt-5-nano:reasoning-effort:high"),
+            It.IsAny<string>(),
+            It.IsAny<CancellationToken>()),
             Moq.Times.AtLeastOnce());
     }
 }

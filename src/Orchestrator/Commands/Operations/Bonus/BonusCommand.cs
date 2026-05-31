@@ -140,7 +140,8 @@ public class BonusCommand : AsyncCommand<BaseSettings>
 
         string communityContext = settings.CommunityContext ?? settings.Community;
         var competition = CompetitionResolver.ResolveCompetition(settings.Competition, settings.Community, communityContext);
-        var model = PredictionServiceCommandSupport.ResolveModel(settings.Model, competition);
+        var modelConfig = PredictionServiceCommandSupport.CreateModelConfig(settings.Model, settings.ReasoningEffort);
+        var model = modelConfig.Model;
         var repositoryCompetition = CompetitionResolver.ToRepositoryCompetitionArgument(competition);
 
         // Set Langfuse trace-level attributes
@@ -151,6 +152,10 @@ public class BonusCommand : AsyncCommand<BaseSettings>
         LangfuseActivityPropagation.SetTraceMetadata(activity, "community", settings.Community);
         LangfuseActivityPropagation.SetTraceMetadata(activity, "competition", competition);
         LangfuseActivityPropagation.SetTraceMetadata(activity, "model", model);
+        if (modelConfig.ReasoningEffort is not null)
+        {
+            LangfuseActivityPropagation.SetTraceMetadata(activity, "reasoningEffort", modelConfig.ReasoningEffort);
+        }
         LangfuseActivityPropagation.SetTraceMetadata(activity, "repredictMode", settings.IsRepredictMode ? "true" : "false");
 
         // Note: trace input is set after bonus questions are fetched
@@ -169,7 +174,7 @@ public class BonusCommand : AsyncCommand<BaseSettings>
             settings.LangfusePromptName,
             settings.LangfusePromptLabel,
             settings.LangfusePromptVersion,
-            settings.ReasoningEffort,
+            modelConfig.ReasoningEffort,
             bonusPrompt: true);
         
         // Log the prompt paths being used
@@ -246,7 +251,7 @@ public class BonusCommand : AsyncCommand<BaseSettings>
                 if (databaseEnabled && !settings.OverrideDatabase && !settings.IsRepredictMode)
                 {
                     // Look for prediction by question text, model, and community context
-                    prediction = await predictionRepository!.GetBonusPredictionByTextAsync(question.Text, model, communityContext);
+                    prediction = await predictionRepository!.GetBonusPredictionByTextAsync(question.Text, modelConfig, communityContext);
                     if (prediction != null)
                     {
                         fromDatabase = true;
@@ -267,7 +272,7 @@ public class BonusCommand : AsyncCommand<BaseSettings>
                 // Handle reprediction logic
                 if (settings.IsRepredictMode && databaseEnabled)
                 {
-                    var currentRepredictionIndex = await predictionRepository!.GetBonusRepredictionIndexAsync(question.Text, model, communityContext);
+                    var currentRepredictionIndex = await predictionRepository!.GetBonusRepredictionIndexAsync(question.Text, modelConfig, communityContext);
                     
                     if (currentRepredictionIndex == -1)
                     {
@@ -294,7 +299,7 @@ public class BonusCommand : AsyncCommand<BaseSettings>
                             _console.MarkupLine($"[yellow]  ✗ Skipped - already at max repredictions ({currentRepredictionIndex}/{maxAllowed})[/]");
                             
                             // Get the latest prediction for display purposes
-                            prediction = await predictionRepository!.GetBonusPredictionByTextAsync(question.Text, model, communityContext);
+                            prediction = await predictionRepository!.GetBonusPredictionByTextAsync(question.Text, modelConfig, communityContext);
                             if (prediction != null)
                             {
                                 fromDatabase = true;
@@ -367,13 +372,13 @@ public class BonusCommand : AsyncCommand<BaseSettings>
                                 if (settings.IsRepredictMode)
                                 {
                                     // Save as reprediction with specific index
-                                    var currentIndex = await predictionRepository!.GetBonusRepredictionIndexAsync(question.Text, model, communityContext);
+                                    var currentIndex = await predictionRepository!.GetBonusRepredictionIndexAsync(question.Text, modelConfig, communityContext);
                                     var nextIndex = currentIndex == -1 ? 0 : currentIndex + 1;
                                     
                                     await predictionRepository!.SaveBonusRepredictionAsync(
                                         question, 
                                         prediction, 
-                                        model,
+                                        modelConfig,
                                         tokenUsageJson, 
                                         cost, 
                                         communityContext,
@@ -391,7 +396,7 @@ public class BonusCommand : AsyncCommand<BaseSettings>
                                     await predictionRepository!.SaveBonusPredictionAsync(
                                         question, 
                                         prediction, 
-                                        model,
+                                        modelConfig,
                                         tokenUsageJson, 
                                         cost, 
                                         communityContext,
