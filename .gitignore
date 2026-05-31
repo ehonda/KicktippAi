@@ -9,6 +9,7 @@
 # Python packaging artifacts
 __pycache__/
 *.egg-info/
+.tmp/
 .uv-cache/
 
 # User-specific files
