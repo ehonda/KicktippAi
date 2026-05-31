@@ -12,6 +12,11 @@ on:
         description: 'OpenAI model to use for predictions'
         required: true
         type: string
+      reasoning_effort:
+        description: 'Optional OpenAI reasoning effort to use for predictions'
+        required: false
+        type: string
+        default: ''
       community_context:
         description: 'Community context when generating predictions (or using stored ones from the database)'
         required: true
@@ -80,6 +85,7 @@ jobs:
           echo "🔍 Verifying current matchday predictions..."
           echo "Community: ${{ inputs.community }}"
           echo "Model: ${{ inputs.model }}"
+          echo "Reasoning Effort: ${{ inputs.reasoning_effort || 'model default' }}"
           echo "Community Context: ${{ inputs.community_context }}"
           dotnet run --project src/Orchestrator --configuration Release -- verify "${{ inputs.model }}" --community "${{ inputs.community }}" --community-context "${{ inputs.community_context }}" --init-matchday --check-outdated --agent --verbose
         env:
@@ -96,29 +102,38 @@ jobs:
           echo "🤖 Generating predictions with model: ${{ inputs.model }}"
           echo "Community: ${{ inputs.community }}"
           echo "Community Context: ${{ inputs.community_context }}"
+          echo "Reasoning Effort: ${REASONING_EFFORT:-model default}"
           echo "Max Repredictions: ${{ inputs.max_repredictions }}"
           if [ "${{ steps.verify.outcome }}" = "failure" ]; then
             echo "📝 Predictions needed - verify command indicated missing or mismatched predictions"
           else
             echo "🔄 Force prediction enabled - running regardless of verify result"
           fi
-          
+
+          PREDICTION_FLAGS=()
+
           # Use reprediction logic with max repredictions limit unless force prediction is enabled
           if [ "${{ inputs.force_prediction }}" = "true" ]; then
-            PREDICTION_FLAGS="--override-database"
+            PREDICTION_FLAGS+=(--override-database)
             echo "💾 Using --override-database flag to force regeneration of predictions"
           else
-            PREDICTION_FLAGS="--max-repredictions ${{ inputs.max_repredictions }}"
+            PREDICTION_FLAGS+=(--max-repredictions "${{ inputs.max_repredictions }}")
             echo "🔄 Using reprediction logic with max repredictions: ${{ inputs.max_repredictions }}"
           fi
-          
-          dotnet run --project src/Orchestrator --configuration Release -- matchday "${{ inputs.model }}" --community "${{ inputs.community }}" --community-context "${{ inputs.community_context }}" --override-kicktipp --verbose --agent $PREDICTION_FLAGS
+
+          if [ -n "$REASONING_EFFORT" ]; then
+            PREDICTION_FLAGS+=(--reasoning-effort "$REASONING_EFFORT")
+            echo "🧠 Using reasoning effort: $REASONING_EFFORT"
+          fi
+
+          dotnet run --project src/Orchestrator --configuration Release -- matchday "${{ inputs.model }}" --community "${{ inputs.community }}" --community-context "${{ inputs.community_context }}" --override-kicktipp --verbose --agent "${PREDICTION_FLAGS[@]}"
         env:
           KICKTIPP_USERNAME: ${{ secrets.kicktipp_username }}
           KICKTIPP_PASSWORD: ${{ secrets.kicktipp_password }}
           FIREBASE_PROJECT_ID: ${{ secrets.firebase_project_id }}
           FIREBASE_SERVICE_ACCOUNT_JSON: ${{ secrets.firebase_service_account_json }}
           OPENAI_API_KEY: ${{ secrets.openai_api_key }}
+          REASONING_EFFORT: ${{ inputs.reasoning_effort }}
           LANGFUSE_PUBLIC_KEY: ${{ vars.LANGFUSE_PUBLIC_KEY }}
           LANGFUSE_SECRET_KEY: ${{ secrets.langfuse_secret_key }}
           
@@ -145,6 +160,7 @@ jobs:
           echo "## Matchday Predictions Summary" >> $GITHUB_STEP_SUMMARY
           echo "- **Community**: ${{ inputs.community }}" >> $GITHUB_STEP_SUMMARY
           echo "- **Model**: ${{ inputs.model }}" >> $GITHUB_STEP_SUMMARY
+          echo "- **Reasoning Effort**: ${{ inputs.reasoning_effort || 'model default' }}" >> $GITHUB_STEP_SUMMARY
           echo "- **Community Context**: ${{ inputs.community_context }}" >> $GITHUB_STEP_SUMMARY
           echo "- **Max Repredictions**: ${{ inputs.max_repredictions }}" >> $GITHUB_STEP_SUMMARY
           echo "- **Trigger**: ${{ inputs.trigger_type }}" >> $GITHUB_STEP_SUMMARY

@@ -40,8 +40,8 @@ status, and full-competition estimate status.
 Do not describe `gpt-5-nano` / `minimal` as the production default. It is only
 the dev/test fallback for omitted-model manual runs. Production workflows must
 pass an explicit model and reasoning effort after the production configuration
-is selected. If the reusable prediction workflow does not expose
-reasoning-effort input yet, add that support before production activation.
+is selected. Use the reusable prediction workflow `reasoning_effort` input for
+that wiring.
 
 If the exact model and reasoning effort are not documented in
 `../experiments/whole-season-cost-estimates.md`, use the project

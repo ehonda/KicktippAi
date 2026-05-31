@@ -23,6 +23,7 @@ jobs:
     with:
       community: "ehonda-ai-arena"
       model: "o3"
+      reasoning_effort: ""
       community_context: "pes-squad"
       trigger_type: ${{ github.event_name == 'schedule' && 'scheduled' || 'manual' }}
       force_prediction: false

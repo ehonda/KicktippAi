@@ -32,6 +32,7 @@ jobs:
     with:
       community: "schadensfresse"
       model: "o3"
+      reasoning_effort: ""
       community_context: "schadensfresse"
       trigger_type: ${{ github.event_name == 'schedule' && 'scheduled' || 'manual' }}
       force_prediction: ${{ github.event.inputs.force_prediction == 'true' }}

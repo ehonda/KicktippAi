@@ -65,6 +65,7 @@ Each community workflow is configured with direct parameters:
 
 - **`community`**: Kicktipp community name
 - **`model`**: OpenAI model to use for predictions (o4-mini, o1)
+- **`reasoning_effort`**: Optional OpenAI reasoning effort for prediction generation. Leave empty for the model default, or set `none`, `minimal`, `low`, `medium`, `high`, or `xhigh`.
 - **`community_context`**: Community context when generating predictions (or using stored ones from the database)
 - **`competition`**: Optional competition identifier for context collection
 - **`include_fifa_rankings` / `include_lineups`**: Enable WM26 context extras for World Cup communities
@@ -131,7 +132,7 @@ To add support for a new community:
 3. **Customize configuration**:
    - Set appropriate schedule (cron expressions)
    - Configure community name and context
-   - Choose default models
+   - Choose model and reasoning effort
    - Set manual trigger defaults
 
 ### Example Community Workflow Template
@@ -157,6 +158,7 @@ jobs:
     with:
       community: "my-kicktipp-community"
       model: "o4-mini"
+      reasoning_effort: ""
       community_context: "my-context"
       trigger_type: ${{ github.event_name == 'schedule' && 'scheduled' || 'manual' }}
       force_prediction: ${{ github.event.inputs.force_prediction == 'true' }}
@@ -174,7 +176,7 @@ Each community workflow can be manually triggered from the GitHub Actions tab wi
 
 - **Force Prediction**: Override the verification check and generate predictions regardless
 
-The model used for predictions is fixed per community workflow (no override option).
+The model and reasoning effort used for predictions are fixed per community workflow (no override option).
 
 ## Migration from Old System
 
@@ -184,7 +186,7 @@ The previous staging/production environment system has been replaced with this m
 - **Community-Specific**: Each community now has its own workflow with individual scheduling
 - **Simplified Configuration**: Direct input parameters instead of JSON configuration
 - **Individual Credentials**: Each community uses its own Kicktipp credentials
-- **Fixed Models**: Models are defined per community workflow (no runtime overrides)
+- **Fixed Models**: Models and reasoning efforts are defined per community workflow (no runtime overrides)
 
 ## Timezone Considerations
 

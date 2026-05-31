@@ -32,6 +32,7 @@ jobs:
     with:
       community: "pes-squad"
       model: "o3"
+      reasoning_effort: ""
       community_context: "pes-squad"
       trigger_type: ${{ github.event_name == 'schedule' && 'scheduled' || 'manual' }}
       force_prediction: ${{ github.event.inputs.force_prediction == 'true' }}

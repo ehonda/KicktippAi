@@ -36,8 +36,7 @@ schedules.
 - Document where the configuration is wired: code defaults, workflow files,
   manual command docs, or community-specific configuration.
 - Verify scheduled prediction workflows pass both the selected model and
-  reasoning effort explicitly. Add reusable workflow support for
-  reasoning-effort input before production activation if needed.
+  `reasoning_effort` input explicitly.
 - Check [whole-season-cost-estimates.md](../experiments/whole-season-cost-estimates.md)
   for the same model and reasoning effort. If it is absent, run the
   `estimate-experiment-cost-skill` workflow before activation.

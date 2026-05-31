@@ -67,8 +67,8 @@ For WM26 dev work and low-cost manual testing, commands that omit the model use:
 
 This is a dev/test fallback, not the WM26 production configuration. Production
 or scheduled prediction workflows must pass the selected production model and
-reasoning effort explicitly. If the reusable prediction workflows do not yet
-expose a reasoning-effort input, add that support before production activation.
+reasoning effort explicitly. Use the reusable prediction workflow
+`reasoning_effort` input for that wiring.
 The production configuration is still TBD.
 
 The dev/test `gpt-5-nano` / `minimal` fallback does not yet have a stored
@@ -229,8 +229,7 @@ workflow can be trusted or scheduled:
 - Select and document the WM26 production model configuration; do not use the
   `gpt-5-nano` / `minimal` dev fallback as the production assumption.
 - Ensure prediction workflows pass the selected model and reasoning effort
-  explicitly; add reusable workflow support for reasoning effort before
-  production activation if needed.
+  explicitly through the `reasoning_effort` input.
 - Add the full-competition cost estimate for every scheduled model
   configuration.
 - Manually trigger context collection once and verify Kicktipp, FIFA ranking,

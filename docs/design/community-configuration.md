@@ -15,8 +15,8 @@ This maps Kicktipp communities to competition IDs and manual-run defaults. Curre
 The omitted-model fallback exists for low-cost development and manual testing.
 It is not the WM26 production configuration. Production or scheduled workflows
 must pass an explicit model and reasoning effort once the production
-configuration is selected. If reusable workflows do not expose reasoning effort
-yet, add that wiring before production activation.
+configuration is selected through the reusable prediction workflow
+`reasoning_effort` input.
 
 Tune this when a new community needs a different competition, dev/test fallback,
 prompt source, prompt name, or prompt label.
