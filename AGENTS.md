@@ -4,27 +4,7 @@ This document contains context relevant when working on tasks in this repository
 
 @AUTO-REVIEW.md
 
-## GitHub Copilot Configuration
-
-### Workaround for truncated output when using the `run_in_terminal` tool
-
-This is a workaround for this [issue](https://github.com/microsoft/vscode/issues/299486).
-
-**CRITICAL**: When using the `run_in_terminal` tool, **ALWAYS USE `"timeout": 0`**. Otherwise, outputs from commands will be silently truncated if they time out, which happens often on our slow local machine.
-
-### Invoking Powershell Commands
-
-When invoking Powershell commands via `run_in_terminal`, don't prefix them with `&`, and don't quote the script path.
-
-```powershell
-# ❌ Avoid this:
-& .github/copilot/skills/submodules-display-tree/scripts/Display-Tree.ps1 -Format tree -Depth 2
-
-# ✅ Do this instead:
-.github/copilot/skills/submodules-display-tree/scripts/Display-Tree.ps1 -Format tree -Depth 2
-```
-
-### Running Parallel Powershell Work
+## Running Parallel Powershell Work
 
 When a workflow says to run independent commands in parallel, do not place the commands on one line separated by `;`. Semicolon-chained Powershell commands run sequentially. Use `Start-Job` or separate terminal tasks to launch all commands first, then wait for all of them with `Wait-Job`, collect output with `Receive-Job`, and fail the workflow if any job failed.
 
