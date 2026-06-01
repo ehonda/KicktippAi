@@ -1,0 +1,497 @@
+{
+  "datasetName": "match-predictions/bundesliga-2025-26/pes-squad/repeated-match-slices/all-matchdays-after-20251130t230000z/random-5x4-seed-20260517-gpt-54nano-none-cost-estimate",
+  "datasetDescription": "repeated-match-slice dataset for 20 item(s) on random-5x4-seed-20260517-gpt-54nano-none-cost-estimate",
+  "datasetMetadata": {
+    "competition": "bundesliga-2025-26",
+    "communityContext": "pes-squad",
+    "scope": "repeated-match-slice",
+    "season": "2025/2026",
+    "sliceKey": "random-5x4-seed-20260517-gpt-54nano-none-cost-estimate",
+    "sliceKind": "repeated-match-slice",
+    "sampleMethod": "repeated-match-slice",
+    "sampleSeed": 20260517,
+    "sampleSize": 20,
+    "matchCount": 5,
+    "repetitions": 4,
+    "sourceDatasetName": "match-predictions/bundesliga-2025-26/pes-squad",
+    "sourcePoolKey": "all-matchdays-after-20251130t230000z",
+    "predictionCount": 20,
+    "startsAfter": "2025-12-01T00:00:00 Europe/Berlin (\u002B01)"
+  },
+  "inputSchema": {
+    "type": "object",
+    "properties": {
+      "fixture": {
+        "type": "string",
+        "minLength": 1,
+        "description": "Home team vs away team in football display order"
+      },
+      "startsAt": {
+        "type": "string",
+        "minLength": 1,
+        "description": "Localized match start timestamp string emitted by the .NET exporter"
+      }
+    },
+    "required": [
+      "fixture",
+      "startsAt"
+    ],
+    "additionalProperties": false
+  },
+  "expectedOutputSchema": {
+    "type": "object",
+    "properties": {
+      "score": {
+        "type": "string",
+        "minLength": 3,
+        "description": "Completed match score in home:away order"
+      }
+    },
+    "required": [
+      "score"
+    ],
+    "additionalProperties": false
+  },
+  "items": [
+    {
+      "id": "bundesliga-2025-26__pes-squad__ts1423757181__repeated-match-slice__random-5x4-seed-20260517-gpt-54nano-none-cost-estimate__m01__01",
+      "input": {
+        "fixture": "FC Augsburg vs Bayer 04 Leverkusen",
+        "startsAt": "2025-12-06T15:30:00 UTC\u002B01 (\u002B01)"
+      },
+      "expectedOutput": {
+        "score": "2:0"
+      },
+      "metadata": {
+        "competition": "bundesliga-2025-26",
+        "season": "2025/2026",
+        "communityContext": "pes-squad",
+        "matchday": 13,
+        "matchdayLabel": "md13",
+        "homeTeam": "FC Augsburg",
+        "awayTeam": "Bayer 04 Leverkusen",
+        "tippSpielId": "1423757181",
+        "fixtureIndex": 1,
+        "repetitionIndex": 1
+      }
+    },
+    {
+      "id": "bundesliga-2025-26__pes-squad__ts1423757181__repeated-match-slice__random-5x4-seed-20260517-gpt-54nano-none-cost-estimate__m01__02",
+      "input": {
+        "fixture": "FC Augsburg vs Bayer 04 Leverkusen",
+        "startsAt": "2025-12-06T15:30:00 UTC\u002B01 (\u002B01)"
+      },
+      "expectedOutput": {
+        "score": "2:0"
+      },
+      "metadata": {
+        "competition": "bundesliga-2025-26",
+        "season": "2025/2026",
+        "communityContext": "pes-squad",
+        "matchday": 13,
+        "matchdayLabel": "md13",
+        "homeTeam": "FC Augsburg",
+        "awayTeam": "Bayer 04 Leverkusen",
+        "tippSpielId": "1423757181",
+        "fixtureIndex": 1,
+        "repetitionIndex": 2
+      }
+    },
+    {
+      "id": "bundesliga-2025-26__pes-squad__ts1423757181__repeated-match-slice__random-5x4-seed-20260517-gpt-54nano-none-cost-estimate__m01__03",
+      "input": {
+        "fixture": "FC Augsburg vs Bayer 04 Leverkusen",
+        "startsAt": "2025-12-06T15:30:00 UTC\u002B01 (\u002B01)"
+      },
+      "expectedOutput": {
+        "score": "2:0"
+      },
+      "metadata": {
+        "competition": "bundesliga-2025-26",
+        "season": "2025/2026",
+        "communityContext": "pes-squad",
+        "matchday": 13,
+        "matchdayLabel": "md13",
+        "homeTeam": "FC Augsburg",
+        "awayTeam": "Bayer 04 Leverkusen",
+        "tippSpielId": "1423757181",
+        "fixtureIndex": 1,
+        "repetitionIndex": 3
+      }
+    },
+    {
+      "id": "bundesliga-2025-26__pes-squad__ts1423757181__repeated-match-slice__random-5x4-seed-20260517-gpt-54nano-none-cost-estimate__m01__04",
+      "input": {
+        "fixture": "FC Augsburg vs Bayer 04 Leverkusen",
+        "startsAt": "2025-12-06T15:30:00 UTC\u002B01 (\u002B01)"
+      },
+      "expectedOutput": {
+        "score": "2:0"
+      },
+      "metadata": {
+        "competition": "bundesliga-2025-26",
+        "season": "2025/2026",
+        "communityContext": "pes-squad",
+        "matchday": 13,
+        "matchdayLabel": "md13",
+        "homeTeam": "FC Augsburg",
+        "awayTeam": "Bayer 04 Leverkusen",
+        "tippSpielId": "1423757181",
+        "fixtureIndex": 1,
+        "repetitionIndex": 4
+      }
+    },
+    {
+      "id": "bundesliga-2025-26__pes-squad__ts1423757239__repeated-match-slice__random-5x4-seed-20260517-gpt-54nano-none-cost-estimate__m02__01",
+      "input": {
+        "fixture": "RB Leipzig vs FSV Mainz 05",
+        "startsAt": "2026-01-31T15:30:00 UTC\u002B01 (\u002B01)"
+      },
+      "expectedOutput": {
+        "score": "1:2"
+      },
+      "metadata": {
+        "competition": "bundesliga-2025-26",
+        "season": "2025/2026",
+        "communityContext": "pes-squad",
+        "matchday": 20,
+        "matchdayLabel": "md20",
+        "homeTeam": "RB Leipzig",
+        "awayTeam": "FSV Mainz 05",
+        "tippSpielId": "1423757239",
+        "fixtureIndex": 2,
+        "repetitionIndex": 1
+      }
+    },
+    {
+      "id": "bundesliga-2025-26__pes-squad__ts1423757239__repeated-match-slice__random-5x4-seed-20260517-gpt-54nano-none-cost-estimate__m02__02",
+      "input": {
+        "fixture": "RB Leipzig vs FSV Mainz 05",
+        "startsAt": "2026-01-31T15:30:00 UTC\u002B01 (\u002B01)"
+      },
+      "expectedOutput": {
+        "score": "1:2"
+      },
+      "metadata": {
+        "competition": "bundesliga-2025-26",
+        "season": "2025/2026",
+        "communityContext": "pes-squad",
+        "matchday": 20,
+        "matchdayLabel": "md20",
+        "homeTeam": "RB Leipzig",
+        "awayTeam": "FSV Mainz 05",
+        "tippSpielId": "1423757239",
+        "fixtureIndex": 2,
+        "repetitionIndex": 2
+      }
+    },
+    {
+      "id": "bundesliga-2025-26__pes-squad__ts1423757239__repeated-match-slice__random-5x4-seed-20260517-gpt-54nano-none-cost-estimate__m02__03",
+      "input": {
+        "fixture": "RB Leipzig vs FSV Mainz 05",
+        "startsAt": "2026-01-31T15:30:00 UTC\u002B01 (\u002B01)"
+      },
+      "expectedOutput": {
+        "score": "1:2"
+      },
+      "metadata": {
+        "competition": "bundesliga-2025-26",
+        "season": "2025/2026",
+        "communityContext": "pes-squad",
+        "matchday": 20,
+        "matchdayLabel": "md20",
+        "homeTeam": "RB Leipzig",
+        "awayTeam": "FSV Mainz 05",
+        "tippSpielId": "1423757239",
+        "fixtureIndex": 2,
+        "repetitionIndex": 3
+      }
+    },
+    {
+      "id": "bundesliga-2025-26__pes-squad__ts1423757239__repeated-match-slice__random-5x4-seed-20260517-gpt-54nano-none-cost-estimate__m02__04",
+      "input": {
+        "fixture": "RB Leipzig vs FSV Mainz 05",
+        "startsAt": "2026-01-31T15:30:00 UTC\u002B01 (\u002B01)"
+      },
+      "expectedOutput": {
+        "score": "1:2"
+      },
+      "metadata": {
+        "competition": "bundesliga-2025-26",
+        "season": "2025/2026",
+        "communityContext": "pes-squad",
+        "matchday": 20,
+        "matchdayLabel": "md20",
+        "homeTeam": "RB Leipzig",
+        "awayTeam": "FSV Mainz 05",
+        "tippSpielId": "1423757239",
+        "fixtureIndex": 2,
+        "repetitionIndex": 4
+      }
+    },
+    {
+      "id": "bundesliga-2025-26__pes-squad__ts1423757259__repeated-match-slice__random-5x4-seed-20260517-gpt-54nano-none-cost-estimate__m03__01",
+      "input": {
+        "fixture": "Hamburger SV vs RB Leipzig",
+        "startsAt": "2026-03-01T19:30:00 UTC\u002B01 (\u002B01)"
+      },
+      "expectedOutput": {
+        "score": "1:2"
+      },
+      "metadata": {
+        "competition": "bundesliga-2025-26",
+        "season": "2025/2026",
+        "communityContext": "pes-squad",
+        "matchday": 24,
+        "matchdayLabel": "md24",
+        "homeTeam": "Hamburger SV",
+        "awayTeam": "RB Leipzig",
+        "tippSpielId": "1423757259",
+        "fixtureIndex": 3,
+        "repetitionIndex": 1
+      }
+    },
+    {
+      "id": "bundesliga-2025-26__pes-squad__ts1423757259__repeated-match-slice__random-5x4-seed-20260517-gpt-54nano-none-cost-estimate__m03__02",
+      "input": {
+        "fixture": "Hamburger SV vs RB Leipzig",
+        "startsAt": "2026-03-01T19:30:00 UTC\u002B01 (\u002B01)"
+      },
+      "expectedOutput": {
+        "score": "1:2"
+      },
+      "metadata": {
+        "competition": "bundesliga-2025-26",
+        "season": "2025/2026",
+        "communityContext": "pes-squad",
+        "matchday": 24,
+        "matchdayLabel": "md24",
+        "homeTeam": "Hamburger SV",
+        "awayTeam": "RB Leipzig",
+        "tippSpielId": "1423757259",
+        "fixtureIndex": 3,
+        "repetitionIndex": 2
+      }
+    },
+    {
+      "id": "bundesliga-2025-26__pes-squad__ts1423757259__repeated-match-slice__random-5x4-seed-20260517-gpt-54nano-none-cost-estimate__m03__03",
+      "input": {
+        "fixture": "Hamburger SV vs RB Leipzig",
+        "startsAt": "2026-03-01T19:30:00 UTC\u002B01 (\u002B01)"
+      },
+      "expectedOutput": {
+        "score": "1:2"
+      },
+      "metadata": {
+        "competition": "bundesliga-2025-26",
+        "season": "2025/2026",
+        "communityContext": "pes-squad",
+        "matchday": 24,
+        "matchdayLabel": "md24",
+        "homeTeam": "Hamburger SV",
+        "awayTeam": "RB Leipzig",
+        "tippSpielId": "1423757259",
+        "fixtureIndex": 3,
+        "repetitionIndex": 3
+      }
+    },
+    {
+      "id": "bundesliga-2025-26__pes-squad__ts1423757259__repeated-match-slice__random-5x4-seed-20260517-gpt-54nano-none-cost-estimate__m03__04",
+      "input": {
+        "fixture": "Hamburger SV vs RB Leipzig",
+        "startsAt": "2026-03-01T19:30:00 UTC\u002B01 (\u002B01)"
+      },
+      "expectedOutput": {
+        "score": "1:2"
+      },
+      "metadata": {
+        "competition": "bundesliga-2025-26",
+        "season": "2025/2026",
+        "communityContext": "pes-squad",
+        "matchday": 24,
+        "matchdayLabel": "md24",
+        "homeTeam": "Hamburger SV",
+        "awayTeam": "RB Leipzig",
+        "tippSpielId": "1423757259",
+        "fixtureIndex": 3,
+        "repetitionIndex": 4
+      }
+    },
+    {
+      "id": "bundesliga-2025-26__pes-squad__ts1423757295__repeated-match-slice__random-5x4-seed-20260517-gpt-54nano-none-cost-estimate__m04__01",
+      "input": {
+        "fixture": "Bor. M\u00F6nchengladbach vs 1. FC Heidenheim 1846",
+        "startsAt": "2026-04-04T16:30:00 UTC\u002B02 (\u002B02)"
+      },
+      "expectedOutput": {
+        "score": "2:2"
+      },
+      "metadata": {
+        "competition": "bundesliga-2025-26",
+        "season": "2025/2026",
+        "communityContext": "pes-squad",
+        "matchday": 28,
+        "matchdayLabel": "md28",
+        "homeTeam": "Bor. M\u00F6nchengladbach",
+        "awayTeam": "1. FC Heidenheim 1846",
+        "tippSpielId": "1423757295",
+        "fixtureIndex": 4,
+        "repetitionIndex": 1
+      }
+    },
+    {
+      "id": "bundesliga-2025-26__pes-squad__ts1423757295__repeated-match-slice__random-5x4-seed-20260517-gpt-54nano-none-cost-estimate__m04__02",
+      "input": {
+        "fixture": "Bor. M\u00F6nchengladbach vs 1. FC Heidenheim 1846",
+        "startsAt": "2026-04-04T16:30:00 UTC\u002B02 (\u002B02)"
+      },
+      "expectedOutput": {
+        "score": "2:2"
+      },
+      "metadata": {
+        "competition": "bundesliga-2025-26",
+        "season": "2025/2026",
+        "communityContext": "pes-squad",
+        "matchday": 28,
+        "matchdayLabel": "md28",
+        "homeTeam": "Bor. M\u00F6nchengladbach",
+        "awayTeam": "1. FC Heidenheim 1846",
+        "tippSpielId": "1423757295",
+        "fixtureIndex": 4,
+        "repetitionIndex": 2
+      }
+    },
+    {
+      "id": "bundesliga-2025-26__pes-squad__ts1423757295__repeated-match-slice__random-5x4-seed-20260517-gpt-54nano-none-cost-estimate__m04__03",
+      "input": {
+        "fixture": "Bor. M\u00F6nchengladbach vs 1. FC Heidenheim 1846",
+        "startsAt": "2026-04-04T16:30:00 UTC\u002B02 (\u002B02)"
+      },
+      "expectedOutput": {
+        "score": "2:2"
+      },
+      "metadata": {
+        "competition": "bundesliga-2025-26",
+        "season": "2025/2026",
+        "communityContext": "pes-squad",
+        "matchday": 28,
+        "matchdayLabel": "md28",
+        "homeTeam": "Bor. M\u00F6nchengladbach",
+        "awayTeam": "1. FC Heidenheim 1846",
+        "tippSpielId": "1423757295",
+        "fixtureIndex": 4,
+        "repetitionIndex": 3
+      }
+    },
+    {
+      "id": "bundesliga-2025-26__pes-squad__ts1423757295__repeated-match-slice__random-5x4-seed-20260517-gpt-54nano-none-cost-estimate__m04__04",
+      "input": {
+        "fixture": "Bor. M\u00F6nchengladbach vs 1. FC Heidenheim 1846",
+        "startsAt": "2026-04-04T16:30:00 UTC\u002B02 (\u002B02)"
+      },
+      "expectedOutput": {
+        "score": "2:2"
+      },
+      "metadata": {
+        "competition": "bundesliga-2025-26",
+        "season": "2025/2026",
+        "communityContext": "pes-squad",
+        "matchday": 28,
+        "matchdayLabel": "md28",
+        "homeTeam": "Bor. M\u00F6nchengladbach",
+        "awayTeam": "1. FC Heidenheim 1846",
+        "tippSpielId": "1423757295",
+        "fixtureIndex": 4,
+        "repetitionIndex": 4
+      }
+    },
+    {
+      "id": "bundesliga-2025-26__pes-squad__ts1423757315__repeated-match-slice__random-5x4-seed-20260517-gpt-54nano-none-cost-estimate__m05__01",
+      "input": {
+        "fixture": "FC St. Pauli vs FSV Mainz 05",
+        "startsAt": "2026-05-03T16:30:00 UTC\u002B02 (\u002B02)"
+      },
+      "expectedOutput": {
+        "score": "1:2"
+      },
+      "metadata": {
+        "competition": "bundesliga-2025-26",
+        "season": "2025/2026",
+        "communityContext": "pes-squad",
+        "matchday": 32,
+        "matchdayLabel": "md32",
+        "homeTeam": "FC St. Pauli",
+        "awayTeam": "FSV Mainz 05",
+        "tippSpielId": "1423757315",
+        "fixtureIndex": 5,
+        "repetitionIndex": 1
+      }
+    },
+    {
+      "id": "bundesliga-2025-26__pes-squad__ts1423757315__repeated-match-slice__random-5x4-seed-20260517-gpt-54nano-none-cost-estimate__m05__02",
+      "input": {
+        "fixture": "FC St. Pauli vs FSV Mainz 05",
+        "startsAt": "2026-05-03T16:30:00 UTC\u002B02 (\u002B02)"
+      },
+      "expectedOutput": {
+        "score": "1:2"
+      },
+      "metadata": {
+        "competition": "bundesliga-2025-26",
+        "season": "2025/2026",
+        "communityContext": "pes-squad",
+        "matchday": 32,
+        "matchdayLabel": "md32",
+        "homeTeam": "FC St. Pauli",
+        "awayTeam": "FSV Mainz 05",
+        "tippSpielId": "1423757315",
+        "fixtureIndex": 5,
+        "repetitionIndex": 2
+      }
+    },
+    {
+      "id": "bundesliga-2025-26__pes-squad__ts1423757315__repeated-match-slice__random-5x4-seed-20260517-gpt-54nano-none-cost-estimate__m05__03",
+      "input": {
+        "fixture": "FC St. Pauli vs FSV Mainz 05",
+        "startsAt": "2026-05-03T16:30:00 UTC\u002B02 (\u002B02)"
+      },
+      "expectedOutput": {
+        "score": "1:2"
+      },
+      "metadata": {
+        "competition": "bundesliga-2025-26",
+        "season": "2025/2026",
+        "communityContext": "pes-squad",
+        "matchday": 32,
+        "matchdayLabel": "md32",
+        "homeTeam": "FC St. Pauli",
+        "awayTeam": "FSV Mainz 05",
+        "tippSpielId": "1423757315",
+        "fixtureIndex": 5,
+        "repetitionIndex": 3
+      }
+    },
+    {
+      "id": "bundesliga-2025-26__pes-squad__ts1423757315__repeated-match-slice__random-5x4-seed-20260517-gpt-54nano-none-cost-estimate__m05__04",
+      "input": {
+        "fixture": "FC St. Pauli vs FSV Mainz 05",
+        "startsAt": "2026-05-03T16:30:00 UTC\u002B02 (\u002B02)"
+      },
+      "expectedOutput": {
+        "score": "1:2"
+      },
+      "metadata": {
+        "competition": "bundesliga-2025-26",
+        "season": "2025/2026",
+        "communityContext": "pes-squad",
+        "matchday": 32,
+        "matchdayLabel": "md32",
+        "homeTeam": "FC St. Pauli",
+        "awayTeam": "FSV Mainz 05",
+        "tippSpielId": "1423757315",
+        "fixtureIndex": 5,
+        "repetitionIndex": 4
+      }
+    }
+  ]
+}

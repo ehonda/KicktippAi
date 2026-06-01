@@ -1,0 +1,2059 @@
+{
+  "datasetName": "match-predictions/bundesliga-2025-26/pes-squad/repeated-match/md01-fc-bayern-munchen-vs-rb-leipzig/repeat-100-knowledge-cutoff-bayern-rbl-md1",
+  "datasetDescription": "Bundesliga 2025/26 opening match, FC Bayern M\u00FCnchen vs RB Leipzig on matchday 1, ended 6:0. 100x repeated-match dataset for probing whether gpt-5.5 low reproduces the exact known outcome.",
+  "datasetMetadata": {
+    "competition": "bundesliga-2025-26",
+    "communityContext": "pes-squad",
+    "scope": "repeated-match",
+    "season": "2025/2026",
+    "sliceKey": "repeat-100-knowledge-cutoff-bayern-rbl-md1",
+    "sliceKind": "repeated-match",
+    "sampleMethod": "repeated-match",
+    "sampleSize": 100,
+    "sourceDatasetName": "match-predictions/bundesliga-2025-26/pes-squad",
+    "sourcePoolKey": "md01-fc-bayern-munchen-vs-rb-leipzig",
+    "fixture": "FC Bayern M\u00FCnchen vs RB Leipzig",
+    "actualResult": "6:0",
+    "actualResultDisplay": "FC Bayern M\u00FCnchen 6 - 0 RB Leipzig",
+    "matchday": 1,
+    "repetitionCount": 100,
+    "datasetDescription": "Bundesliga 2025/26 opening match, FC Bayern M\u00FCnchen vs RB Leipzig on matchday 1, ended 6:0. 100x repeated-match dataset for probing whether gpt-5.5 low reproduces the exact known outcome.",
+    "interestingBecause": "Bundesliga 2025/26 opening match, FC Bayern M\u00FCnchen vs RB Leipzig on matchday 1, ended 6:0. 100x repeated-match dataset for probing whether gpt-5.5 low reproduces the exact known outcome."
+  },
+  "inputSchema": {
+    "type": "object",
+    "properties": {
+      "fixture": {
+        "type": "string",
+        "minLength": 1,
+        "description": "Home team vs away team in football display order"
+      },
+      "startsAt": {
+        "type": "string",
+        "minLength": 1,
+        "description": "Localized match start timestamp string emitted by the .NET exporter"
+      }
+    },
+    "required": [
+      "fixture",
+      "startsAt"
+    ],
+    "additionalProperties": false
+  },
+  "expectedOutputSchema": {
+    "type": "object",
+    "properties": {
+      "score": {
+        "type": "string",
+        "minLength": 3,
+        "description": "Completed match score in home:away order"
+      }
+    },
+    "required": [
+      "score"
+    ],
+    "additionalProperties": false
+  },
+  "items": [
+    {
+      "id": "bundesliga-2025-26__pes-squad__ts1423757142__repeated-match__repeat-100-knowledge-cutoff-bayern-rbl-md1__001",
+      "input": {
+        "fixture": "FC Bayern M\u00FCnchen vs RB Leipzig",
+        "startsAt": "2025-08-22T21:30:00 UTC\u002B02 (\u002B02)"
+      },
+      "expectedOutput": {
+        "score": "6:0"
+      },
+      "metadata": {
+        "competition": "bundesliga-2025-26",
+        "season": "2025/2026",
+        "communityContext": "pes-squad",
+        "matchday": 1,
+        "matchdayLabel": "md01",
+        "homeTeam": "FC Bayern M\u00FCnchen",
+        "awayTeam": "RB Leipzig",
+        "tippSpielId": "1423757142"
+      }
+    },
+    {
+      "id": "bundesliga-2025-26__pes-squad__ts1423757142__repeated-match__repeat-100-knowledge-cutoff-bayern-rbl-md1__002",
+      "input": {
+        "fixture": "FC Bayern M\u00FCnchen vs RB Leipzig",
+        "startsAt": "2025-08-22T21:30:00 UTC\u002B02 (\u002B02)"
+      },
+      "expectedOutput": {
+        "score": "6:0"
+      },
+      "metadata": {
+        "competition": "bundesliga-2025-26",
+        "season": "2025/2026",
+        "communityContext": "pes-squad",
+        "matchday": 1,
+        "matchdayLabel": "md01",
+        "homeTeam": "FC Bayern M\u00FCnchen",
+        "awayTeam": "RB Leipzig",
+        "tippSpielId": "1423757142"
+      }
+    },
+    {
+      "id": "bundesliga-2025-26__pes-squad__ts1423757142__repeated-match__repeat-100-knowledge-cutoff-bayern-rbl-md1__003",
+      "input": {
+        "fixture": "FC Bayern M\u00FCnchen vs RB Leipzig",
+        "startsAt": "2025-08-22T21:30:00 UTC\u002B02 (\u002B02)"
+      },
+      "expectedOutput": {
+        "score": "6:0"
+      },
+      "metadata": {
+        "competition": "bundesliga-2025-26",
+        "season": "2025/2026",
+        "communityContext": "pes-squad",
+        "matchday": 1,
+        "matchdayLabel": "md01",
+        "homeTeam": "FC Bayern M\u00FCnchen",
+        "awayTeam": "RB Leipzig",
+        "tippSpielId": "1423757142"
+      }
+    },
+    {
+      "id": "bundesliga-2025-26__pes-squad__ts1423757142__repeated-match__repeat-100-knowledge-cutoff-bayern-rbl-md1__004",
+      "input": {
+        "fixture": "FC Bayern M\u00FCnchen vs RB Leipzig",
+        "startsAt": "2025-08-22T21:30:00 UTC\u002B02 (\u002B02)"
+      },
+      "expectedOutput": {
+        "score": "6:0"
+      },
+      "metadata": {
+        "competition": "bundesliga-2025-26",
+        "season": "2025/2026",
+        "communityContext": "pes-squad",
+        "matchday": 1,
+        "matchdayLabel": "md01",
+        "homeTeam": "FC Bayern M\u00FCnchen",
+        "awayTeam": "RB Leipzig",
+        "tippSpielId": "1423757142"
+      }
+    },
+    {
+      "id": "bundesliga-2025-26__pes-squad__ts1423757142__repeated-match__repeat-100-knowledge-cutoff-bayern-rbl-md1__005",
+      "input": {
+        "fixture": "FC Bayern M\u00FCnchen vs RB Leipzig",
+        "startsAt": "2025-08-22T21:30:00 UTC\u002B02 (\u002B02)"
+      },
+      "expectedOutput": {
+        "score": "6:0"
+      },
+      "metadata": {
+        "competition": "bundesliga-2025-26",
+        "season": "2025/2026",
+        "communityContext": "pes-squad",
+        "matchday": 1,
+        "matchdayLabel": "md01",
+        "homeTeam": "FC Bayern M\u00FCnchen",
+        "awayTeam": "RB Leipzig",
+        "tippSpielId": "1423757142"
+      }
+    },
+    {
+      "id": "bundesliga-2025-26__pes-squad__ts1423757142__repeated-match__repeat-100-knowledge-cutoff-bayern-rbl-md1__006",
+      "input": {
+        "fixture": "FC Bayern M\u00FCnchen vs RB Leipzig",
+        "startsAt": "2025-08-22T21:30:00 UTC\u002B02 (\u002B02)"
+      },
+      "expectedOutput": {
+        "score": "6:0"
+      },
+      "metadata": {
+        "competition": "bundesliga-2025-26",
+        "season": "2025/2026",
+        "communityContext": "pes-squad",
+        "matchday": 1,
+        "matchdayLabel": "md01",
+        "homeTeam": "FC Bayern M\u00FCnchen",
+        "awayTeam": "RB Leipzig",
+        "tippSpielId": "1423757142"
+      }
+    },
+    {
+      "id": "bundesliga-2025-26__pes-squad__ts1423757142__repeated-match__repeat-100-knowledge-cutoff-bayern-rbl-md1__007",
+      "input": {
+        "fixture": "FC Bayern M\u00FCnchen vs RB Leipzig",
+        "startsAt": "2025-08-22T21:30:00 UTC\u002B02 (\u002B02)"
+      },
+      "expectedOutput": {
+        "score": "6:0"
+      },
+      "metadata": {
+        "competition": "bundesliga-2025-26",
+        "season": "2025/2026",
+        "communityContext": "pes-squad",
+        "matchday": 1,
+        "matchdayLabel": "md01",
+        "homeTeam": "FC Bayern M\u00FCnchen",
+        "awayTeam": "RB Leipzig",
+        "tippSpielId": "1423757142"
+      }
+    },
+    {
+      "id": "bundesliga-2025-26__pes-squad__ts1423757142__repeated-match__repeat-100-knowledge-cutoff-bayern-rbl-md1__008",
+      "input": {
+        "fixture": "FC Bayern M\u00FCnchen vs RB Leipzig",
+        "startsAt": "2025-08-22T21:30:00 UTC\u002B02 (\u002B02)"
+      },
+      "expectedOutput": {
+        "score": "6:0"
+      },
+      "metadata": {
+        "competition": "bundesliga-2025-26",
+        "season": "2025/2026",
+        "communityContext": "pes-squad",
+        "matchday": 1,
+        "matchdayLabel": "md01",
+        "homeTeam": "FC Bayern M\u00FCnchen",
+        "awayTeam": "RB Leipzig",
+        "tippSpielId": "1423757142"
+      }
+    },
+    {
+      "id": "bundesliga-2025-26__pes-squad__ts1423757142__repeated-match__repeat-100-knowledge-cutoff-bayern-rbl-md1__009",
+      "input": {
+        "fixture": "FC Bayern M\u00FCnchen vs RB Leipzig",
+        "startsAt": "2025-08-22T21:30:00 UTC\u002B02 (\u002B02)"
+      },
+      "expectedOutput": {
+        "score": "6:0"
+      },
+      "metadata": {
+        "competition": "bundesliga-2025-26",
+        "season": "2025/2026",
+        "communityContext": "pes-squad",
+        "matchday": 1,
+        "matchdayLabel": "md01",
+        "homeTeam": "FC Bayern M\u00FCnchen",
+        "awayTeam": "RB Leipzig",
+        "tippSpielId": "1423757142"
+      }
+    },
+    {
+      "id": "bundesliga-2025-26__pes-squad__ts1423757142__repeated-match__repeat-100-knowledge-cutoff-bayern-rbl-md1__010",
+      "input": {
+        "fixture": "FC Bayern M\u00FCnchen vs RB Leipzig",
+        "startsAt": "2025-08-22T21:30:00 UTC\u002B02 (\u002B02)"
+      },
+      "expectedOutput": {
+        "score": "6:0"
+      },
+      "metadata": {
+        "competition": "bundesliga-2025-26",
+        "season": "2025/2026",
+        "communityContext": "pes-squad",
+        "matchday": 1,
+        "matchdayLabel": "md01",
+        "homeTeam": "FC Bayern M\u00FCnchen",
+        "awayTeam": "RB Leipzig",
+        "tippSpielId": "1423757142"
+      }
+    },
+    {
+      "id": "bundesliga-2025-26__pes-squad__ts1423757142__repeated-match__repeat-100-knowledge-cutoff-bayern-rbl-md1__011",
+      "input": {
+        "fixture": "FC Bayern M\u00FCnchen vs RB Leipzig",
+        "startsAt": "2025-08-22T21:30:00 UTC\u002B02 (\u002B02)"
+      },
+      "expectedOutput": {
+        "score": "6:0"
+      },
+      "metadata": {
+        "competition": "bundesliga-2025-26",
+        "season": "2025/2026",
+        "communityContext": "pes-squad",
+        "matchday": 1,
+        "matchdayLabel": "md01",
+        "homeTeam": "FC Bayern M\u00FCnchen",
+        "awayTeam": "RB Leipzig",
+        "tippSpielId": "1423757142"
+      }
+    },
+    {
+      "id": "bundesliga-2025-26__pes-squad__ts1423757142__repeated-match__repeat-100-knowledge-cutoff-bayern-rbl-md1__012",
+      "input": {
+        "fixture": "FC Bayern M\u00FCnchen vs RB Leipzig",
+        "startsAt": "2025-08-22T21:30:00 UTC\u002B02 (\u002B02)"
+      },
+      "expectedOutput": {
+        "score": "6:0"
+      },
+      "metadata": {
+        "competition": "bundesliga-2025-26",
+        "season": "2025/2026",
+        "communityContext": "pes-squad",
+        "matchday": 1,
+        "matchdayLabel": "md01",
+        "homeTeam": "FC Bayern M\u00FCnchen",
+        "awayTeam": "RB Leipzig",
+        "tippSpielId": "1423757142"
+      }
+    },
+    {
+      "id": "bundesliga-2025-26__pes-squad__ts1423757142__repeated-match__repeat-100-knowledge-cutoff-bayern-rbl-md1__013",
+      "input": {
+        "fixture": "FC Bayern M\u00FCnchen vs RB Leipzig",
+        "startsAt": "2025-08-22T21:30:00 UTC\u002B02 (\u002B02)"
+      },
+      "expectedOutput": {
+        "score": "6:0"
+      },
+      "metadata": {
+        "competition": "bundesliga-2025-26",
+        "season": "2025/2026",
+        "communityContext": "pes-squad",
+        "matchday": 1,
+        "matchdayLabel": "md01",
+        "homeTeam": "FC Bayern M\u00FCnchen",
+        "awayTeam": "RB Leipzig",
+        "tippSpielId": "1423757142"
+      }
+    },
+    {
+      "id": "bundesliga-2025-26__pes-squad__ts1423757142__repeated-match__repeat-100-knowledge-cutoff-bayern-rbl-md1__014",
+      "input": {
+        "fixture": "FC Bayern M\u00FCnchen vs RB Leipzig",
+        "startsAt": "2025-08-22T21:30:00 UTC\u002B02 (\u002B02)"
+      },
+      "expectedOutput": {
+        "score": "6:0"
+      },
+      "metadata": {
+        "competition": "bundesliga-2025-26",
+        "season": "2025/2026",
+        "communityContext": "pes-squad",
+        "matchday": 1,
+        "matchdayLabel": "md01",
+        "homeTeam": "FC Bayern M\u00FCnchen",
+        "awayTeam": "RB Leipzig",
+        "tippSpielId": "1423757142"
+      }
+    },
+    {
+      "id": "bundesliga-2025-26__pes-squad__ts1423757142__repeated-match__repeat-100-knowledge-cutoff-bayern-rbl-md1__015",
+      "input": {
+        "fixture": "FC Bayern M\u00FCnchen vs RB Leipzig",
+        "startsAt": "2025-08-22T21:30:00 UTC\u002B02 (\u002B02)"
+      },
+      "expectedOutput": {
+        "score": "6:0"
+      },
+      "metadata": {
+        "competition": "bundesliga-2025-26",
+        "season": "2025/2026",
+        "communityContext": "pes-squad",
+        "matchday": 1,
+        "matchdayLabel": "md01",
+        "homeTeam": "FC Bayern M\u00FCnchen",
+        "awayTeam": "RB Leipzig",
+        "tippSpielId": "1423757142"
+      }
+    },
+    {
+      "id": "bundesliga-2025-26__pes-squad__ts1423757142__repeated-match__repeat-100-knowledge-cutoff-bayern-rbl-md1__016",
+      "input": {
+        "fixture": "FC Bayern M\u00FCnchen vs RB Leipzig",
+        "startsAt": "2025-08-22T21:30:00 UTC\u002B02 (\u002B02)"
+      },
+      "expectedOutput": {
+        "score": "6:0"
+      },
+      "metadata": {
+        "competition": "bundesliga-2025-26",
+        "season": "2025/2026",
+        "communityContext": "pes-squad",
+        "matchday": 1,
+        "matchdayLabel": "md01",
+        "homeTeam": "FC Bayern M\u00FCnchen",
+        "awayTeam": "RB Leipzig",
+        "tippSpielId": "1423757142"
+      }
+    },
+    {
+      "id": "bundesliga-2025-26__pes-squad__ts1423757142__repeated-match__repeat-100-knowledge-cutoff-bayern-rbl-md1__017",
+      "input": {
+        "fixture": "FC Bayern M\u00FCnchen vs RB Leipzig",
+        "startsAt": "2025-08-22T21:30:00 UTC\u002B02 (\u002B02)"
+      },
+      "expectedOutput": {
+        "score": "6:0"
+      },
+      "metadata": {
+        "competition": "bundesliga-2025-26",
+        "season": "2025/2026",
+        "communityContext": "pes-squad",
+        "matchday": 1,
+        "matchdayLabel": "md01",
+        "homeTeam": "FC Bayern M\u00FCnchen",
+        "awayTeam": "RB Leipzig",
+        "tippSpielId": "1423757142"
+      }
+    },
+    {
+      "id": "bundesliga-2025-26__pes-squad__ts1423757142__repeated-match__repeat-100-knowledge-cutoff-bayern-rbl-md1__018",
+      "input": {
+        "fixture": "FC Bayern M\u00FCnchen vs RB Leipzig",
+        "startsAt": "2025-08-22T21:30:00 UTC\u002B02 (\u002B02)"
+      },
+      "expectedOutput": {
+        "score": "6:0"
+      },
+      "metadata": {
+        "competition": "bundesliga-2025-26",
+        "season": "2025/2026",
+        "communityContext": "pes-squad",
+        "matchday": 1,
+        "matchdayLabel": "md01",
+        "homeTeam": "FC Bayern M\u00FCnchen",
+        "awayTeam": "RB Leipzig",
+        "tippSpielId": "1423757142"
+      }
+    },
+    {
+      "id": "bundesliga-2025-26__pes-squad__ts1423757142__repeated-match__repeat-100-knowledge-cutoff-bayern-rbl-md1__019",
+      "input": {
+        "fixture": "FC Bayern M\u00FCnchen vs RB Leipzig",
+        "startsAt": "2025-08-22T21:30:00 UTC\u002B02 (\u002B02)"
+      },
+      "expectedOutput": {
+        "score": "6:0"
+      },
+      "metadata": {
+        "competition": "bundesliga-2025-26",
+        "season": "2025/2026",
+        "communityContext": "pes-squad",
+        "matchday": 1,
+        "matchdayLabel": "md01",
+        "homeTeam": "FC Bayern M\u00FCnchen",
+        "awayTeam": "RB Leipzig",
+        "tippSpielId": "1423757142"
+      }
+    },
+    {
+      "id": "bundesliga-2025-26__pes-squad__ts1423757142__repeated-match__repeat-100-knowledge-cutoff-bayern-rbl-md1__020",
+      "input": {
+        "fixture": "FC Bayern M\u00FCnchen vs RB Leipzig",
+        "startsAt": "2025-08-22T21:30:00 UTC\u002B02 (\u002B02)"
+      },
+      "expectedOutput": {
+        "score": "6:0"
+      },
+      "metadata": {
+        "competition": "bundesliga-2025-26",
+        "season": "2025/2026",
+        "communityContext": "pes-squad",
+        "matchday": 1,
+        "matchdayLabel": "md01",
+        "homeTeam": "FC Bayern M\u00FCnchen",
+        "awayTeam": "RB Leipzig",
+        "tippSpielId": "1423757142"
+      }
+    },
+    {
+      "id": "bundesliga-2025-26__pes-squad__ts1423757142__repeated-match__repeat-100-knowledge-cutoff-bayern-rbl-md1__021",
+      "input": {
+        "fixture": "FC Bayern M\u00FCnchen vs RB Leipzig",
+        "startsAt": "2025-08-22T21:30:00 UTC\u002B02 (\u002B02)"
+      },
+      "expectedOutput": {
+        "score": "6:0"
+      },
+      "metadata": {
+        "competition": "bundesliga-2025-26",
+        "season": "2025/2026",
+        "communityContext": "pes-squad",
+        "matchday": 1,
+        "matchdayLabel": "md01",
+        "homeTeam": "FC Bayern M\u00FCnchen",
+        "awayTeam": "RB Leipzig",
+        "tippSpielId": "1423757142"
+      }
+    },
+    {
+      "id": "bundesliga-2025-26__pes-squad__ts1423757142__repeated-match__repeat-100-knowledge-cutoff-bayern-rbl-md1__022",
+      "input": {
+        "fixture": "FC Bayern M\u00FCnchen vs RB Leipzig",
+        "startsAt": "2025-08-22T21:30:00 UTC\u002B02 (\u002B02)"
+      },
+      "expectedOutput": {
+        "score": "6:0"
+      },
+      "metadata": {
+        "competition": "bundesliga-2025-26",
+        "season": "2025/2026",
+        "communityContext": "pes-squad",
+        "matchday": 1,
+        "matchdayLabel": "md01",
+        "homeTeam": "FC Bayern M\u00FCnchen",
+        "awayTeam": "RB Leipzig",
+        "tippSpielId": "1423757142"
+      }
+    },
+    {
+      "id": "bundesliga-2025-26__pes-squad__ts1423757142__repeated-match__repeat-100-knowledge-cutoff-bayern-rbl-md1__023",
+      "input": {
+        "fixture": "FC Bayern M\u00FCnchen vs RB Leipzig",
+        "startsAt": "2025-08-22T21:30:00 UTC\u002B02 (\u002B02)"
+      },
+      "expectedOutput": {
+        "score": "6:0"
+      },
+      "metadata": {
+        "competition": "bundesliga-2025-26",
+        "season": "2025/2026",
+        "communityContext": "pes-squad",
+        "matchday": 1,
+        "matchdayLabel": "md01",
+        "homeTeam": "FC Bayern M\u00FCnchen",
+        "awayTeam": "RB Leipzig",
+        "tippSpielId": "1423757142"
+      }
+    },
+    {
+      "id": "bundesliga-2025-26__pes-squad__ts1423757142__repeated-match__repeat-100-knowledge-cutoff-bayern-rbl-md1__024",
+      "input": {
+        "fixture": "FC Bayern M\u00FCnchen vs RB Leipzig",
+        "startsAt": "2025-08-22T21:30:00 UTC\u002B02 (\u002B02)"
+      },
+      "expectedOutput": {
+        "score": "6:0"
+      },
+      "metadata": {
+        "competition": "bundesliga-2025-26",
+        "season": "2025/2026",
+        "communityContext": "pes-squad",
+        "matchday": 1,
+        "matchdayLabel": "md01",
+        "homeTeam": "FC Bayern M\u00FCnchen",
+        "awayTeam": "RB Leipzig",
+        "tippSpielId": "1423757142"
+      }
+    },
+    {
+      "id": "bundesliga-2025-26__pes-squad__ts1423757142__repeated-match__repeat-100-knowledge-cutoff-bayern-rbl-md1__025",
+      "input": {
+        "fixture": "FC Bayern M\u00FCnchen vs RB Leipzig",
+        "startsAt": "2025-08-22T21:30:00 UTC\u002B02 (\u002B02)"
+      },
+      "expectedOutput": {
+        "score": "6:0"
+      },
+      "metadata": {
+        "competition": "bundesliga-2025-26",
+        "season": "2025/2026",
+        "communityContext": "pes-squad",
+        "matchday": 1,
+        "matchdayLabel": "md01",
+        "homeTeam": "FC Bayern M\u00FCnchen",
+        "awayTeam": "RB Leipzig",
+        "tippSpielId": "1423757142"
+      }
+    },
+    {
+      "id": "bundesliga-2025-26__pes-squad__ts1423757142__repeated-match__repeat-100-knowledge-cutoff-bayern-rbl-md1__026",
+      "input": {
+        "fixture": "FC Bayern M\u00FCnchen vs RB Leipzig",
+        "startsAt": "2025-08-22T21:30:00 UTC\u002B02 (\u002B02)"
+      },
+      "expectedOutput": {
+        "score": "6:0"
+      },
+      "metadata": {
+        "competition": "bundesliga-2025-26",
+        "season": "2025/2026",
+        "communityContext": "pes-squad",
+        "matchday": 1,
+        "matchdayLabel": "md01",
+        "homeTeam": "FC Bayern M\u00FCnchen",
+        "awayTeam": "RB Leipzig",
+        "tippSpielId": "1423757142"
+      }
+    },
+    {
+      "id": "bundesliga-2025-26__pes-squad__ts1423757142__repeated-match__repeat-100-knowledge-cutoff-bayern-rbl-md1__027",
+      "input": {
+        "fixture": "FC Bayern M\u00FCnchen vs RB Leipzig",
+        "startsAt": "2025-08-22T21:30:00 UTC\u002B02 (\u002B02)"
+      },
+      "expectedOutput": {
+        "score": "6:0"
+      },
+      "metadata": {
+        "competition": "bundesliga-2025-26",
+        "season": "2025/2026",
+        "communityContext": "pes-squad",
+        "matchday": 1,
+        "matchdayLabel": "md01",
+        "homeTeam": "FC Bayern M\u00FCnchen",
+        "awayTeam": "RB Leipzig",
+        "tippSpielId": "1423757142"
+      }
+    },
+    {
+      "id": "bundesliga-2025-26__pes-squad__ts1423757142__repeated-match__repeat-100-knowledge-cutoff-bayern-rbl-md1__028",
+      "input": {
+        "fixture": "FC Bayern M\u00FCnchen vs RB Leipzig",
+        "startsAt": "2025-08-22T21:30:00 UTC\u002B02 (\u002B02)"
+      },
+      "expectedOutput": {
+        "score": "6:0"
+      },
+      "metadata": {
+        "competition": "bundesliga-2025-26",
+        "season": "2025/2026",
+        "communityContext": "pes-squad",
+        "matchday": 1,
+        "matchdayLabel": "md01",
+        "homeTeam": "FC Bayern M\u00FCnchen",
+        "awayTeam": "RB Leipzig",
+        "tippSpielId": "1423757142"
+      }
+    },
+    {
+      "id": "bundesliga-2025-26__pes-squad__ts1423757142__repeated-match__repeat-100-knowledge-cutoff-bayern-rbl-md1__029",
+      "input": {
+        "fixture": "FC Bayern M\u00FCnchen vs RB Leipzig",
+        "startsAt": "2025-08-22T21:30:00 UTC\u002B02 (\u002B02)"
+      },
+      "expectedOutput": {
+        "score": "6:0"
+      },
+      "metadata": {
+        "competition": "bundesliga-2025-26",
+        "season": "2025/2026",
+        "communityContext": "pes-squad",
+        "matchday": 1,
+        "matchdayLabel": "md01",
+        "homeTeam": "FC Bayern M\u00FCnchen",
+        "awayTeam": "RB Leipzig",
+        "tippSpielId": "1423757142"
+      }
+    },
+    {
+      "id": "bundesliga-2025-26__pes-squad__ts1423757142__repeated-match__repeat-100-knowledge-cutoff-bayern-rbl-md1__030",
+      "input": {
+        "fixture": "FC Bayern M\u00FCnchen vs RB Leipzig",
+        "startsAt": "2025-08-22T21:30:00 UTC\u002B02 (\u002B02)"
+      },
+      "expectedOutput": {
+        "score": "6:0"
+      },
+      "metadata": {
+        "competition": "bundesliga-2025-26",
+        "season": "2025/2026",
+        "communityContext": "pes-squad",
+        "matchday": 1,
+        "matchdayLabel": "md01",
+        "homeTeam": "FC Bayern M\u00FCnchen",
+        "awayTeam": "RB Leipzig",
+        "tippSpielId": "1423757142"
+      }
+    },
+    {
+      "id": "bundesliga-2025-26__pes-squad__ts1423757142__repeated-match__repeat-100-knowledge-cutoff-bayern-rbl-md1__031",
+      "input": {
+        "fixture": "FC Bayern M\u00FCnchen vs RB Leipzig",
+        "startsAt": "2025-08-22T21:30:00 UTC\u002B02 (\u002B02)"
+      },
+      "expectedOutput": {
+        "score": "6:0"
+      },
+      "metadata": {
+        "competition": "bundesliga-2025-26",
+        "season": "2025/2026",
+        "communityContext": "pes-squad",
+        "matchday": 1,
+        "matchdayLabel": "md01",
+        "homeTeam": "FC Bayern M\u00FCnchen",
+        "awayTeam": "RB Leipzig",
+        "tippSpielId": "1423757142"
+      }
+    },
+    {
+      "id": "bundesliga-2025-26__pes-squad__ts1423757142__repeated-match__repeat-100-knowledge-cutoff-bayern-rbl-md1__032",
+      "input": {
+        "fixture": "FC Bayern M\u00FCnchen vs RB Leipzig",
+        "startsAt": "2025-08-22T21:30:00 UTC\u002B02 (\u002B02)"
+      },
+      "expectedOutput": {
+        "score": "6:0"
+      },
+      "metadata": {
+        "competition": "bundesliga-2025-26",
+        "season": "2025/2026",
+        "communityContext": "pes-squad",
+        "matchday": 1,
+        "matchdayLabel": "md01",
+        "homeTeam": "FC Bayern M\u00FCnchen",
+        "awayTeam": "RB Leipzig",
+        "tippSpielId": "1423757142"
+      }
+    },
+    {
+      "id": "bundesliga-2025-26__pes-squad__ts1423757142__repeated-match__repeat-100-knowledge-cutoff-bayern-rbl-md1__033",
+      "input": {
+        "fixture": "FC Bayern M\u00FCnchen vs RB Leipzig",
+        "startsAt": "2025-08-22T21:30:00 UTC\u002B02 (\u002B02)"
+      },
+      "expectedOutput": {
+        "score": "6:0"
+      },
+      "metadata": {
+        "competition": "bundesliga-2025-26",
+        "season": "2025/2026",
+        "communityContext": "pes-squad",
+        "matchday": 1,
+        "matchdayLabel": "md01",
+        "homeTeam": "FC Bayern M\u00FCnchen",
+        "awayTeam": "RB Leipzig",
+        "tippSpielId": "1423757142"
+      }
+    },
+    {
+      "id": "bundesliga-2025-26__pes-squad__ts1423757142__repeated-match__repeat-100-knowledge-cutoff-bayern-rbl-md1__034",
+      "input": {
+        "fixture": "FC Bayern M\u00FCnchen vs RB Leipzig",
+        "startsAt": "2025-08-22T21:30:00 UTC\u002B02 (\u002B02)"
+      },
+      "expectedOutput": {
+        "score": "6:0"
+      },
+      "metadata": {
+        "competition": "bundesliga-2025-26",
+        "season": "2025/2026",
+        "communityContext": "pes-squad",
+        "matchday": 1,
+        "matchdayLabel": "md01",
+        "homeTeam": "FC Bayern M\u00FCnchen",
+        "awayTeam": "RB Leipzig",
+        "tippSpielId": "1423757142"
+      }
+    },
+    {
+      "id": "bundesliga-2025-26__pes-squad__ts1423757142__repeated-match__repeat-100-knowledge-cutoff-bayern-rbl-md1__035",
+      "input": {
+        "fixture": "FC Bayern M\u00FCnchen vs RB Leipzig",
+        "startsAt": "2025-08-22T21:30:00 UTC\u002B02 (\u002B02)"
+      },
+      "expectedOutput": {
+        "score": "6:0"
+      },
+      "metadata": {
+        "competition": "bundesliga-2025-26",
+        "season": "2025/2026",
+        "communityContext": "pes-squad",
+        "matchday": 1,
+        "matchdayLabel": "md01",
+        "homeTeam": "FC Bayern M\u00FCnchen",
+        "awayTeam": "RB Leipzig",
+        "tippSpielId": "1423757142"
+      }
+    },
+    {
+      "id": "bundesliga-2025-26__pes-squad__ts1423757142__repeated-match__repeat-100-knowledge-cutoff-bayern-rbl-md1__036",
+      "input": {
+        "fixture": "FC Bayern M\u00FCnchen vs RB Leipzig",
+        "startsAt": "2025-08-22T21:30:00 UTC\u002B02 (\u002B02)"
+      },
+      "expectedOutput": {
+        "score": "6:0"
+      },
+      "metadata": {
+        "competition": "bundesliga-2025-26",
+        "season": "2025/2026",
+        "communityContext": "pes-squad",
+        "matchday": 1,
+        "matchdayLabel": "md01",
+        "homeTeam": "FC Bayern M\u00FCnchen",
+        "awayTeam": "RB Leipzig",
+        "tippSpielId": "1423757142"
+      }
+    },
+    {
+      "id": "bundesliga-2025-26__pes-squad__ts1423757142__repeated-match__repeat-100-knowledge-cutoff-bayern-rbl-md1__037",
+      "input": {
+        "fixture": "FC Bayern M\u00FCnchen vs RB Leipzig",
+        "startsAt": "2025-08-22T21:30:00 UTC\u002B02 (\u002B02)"
+      },
+      "expectedOutput": {
+        "score": "6:0"
+      },
+      "metadata": {
+        "competition": "bundesliga-2025-26",
+        "season": "2025/2026",
+        "communityContext": "pes-squad",
+        "matchday": 1,
+        "matchdayLabel": "md01",
+        "homeTeam": "FC Bayern M\u00FCnchen",
+        "awayTeam": "RB Leipzig",
+        "tippSpielId": "1423757142"
+      }
+    },
+    {
+      "id": "bundesliga-2025-26__pes-squad__ts1423757142__repeated-match__repeat-100-knowledge-cutoff-bayern-rbl-md1__038",
+      "input": {
+        "fixture": "FC Bayern M\u00FCnchen vs RB Leipzig",
+        "startsAt": "2025-08-22T21:30:00 UTC\u002B02 (\u002B02)"
+      },
+      "expectedOutput": {
+        "score": "6:0"
+      },
+      "metadata": {
+        "competition": "bundesliga-2025-26",
+        "season": "2025/2026",
+        "communityContext": "pes-squad",
+        "matchday": 1,
+        "matchdayLabel": "md01",
+        "homeTeam": "FC Bayern M\u00FCnchen",
+        "awayTeam": "RB Leipzig",
+        "tippSpielId": "1423757142"
+      }
+    },
+    {
+      "id": "bundesliga-2025-26__pes-squad__ts1423757142__repeated-match__repeat-100-knowledge-cutoff-bayern-rbl-md1__039",
+      "input": {
+        "fixture": "FC Bayern M\u00FCnchen vs RB Leipzig",
+        "startsAt": "2025-08-22T21:30:00 UTC\u002B02 (\u002B02)"
+      },
+      "expectedOutput": {
+        "score": "6:0"
+      },
+      "metadata": {
+        "competition": "bundesliga-2025-26",
+        "season": "2025/2026",
+        "communityContext": "pes-squad",
+        "matchday": 1,
+        "matchdayLabel": "md01",
+        "homeTeam": "FC Bayern M\u00FCnchen",
+        "awayTeam": "RB Leipzig",
+        "tippSpielId": "1423757142"
+      }
+    },
+    {
+      "id": "bundesliga-2025-26__pes-squad__ts1423757142__repeated-match__repeat-100-knowledge-cutoff-bayern-rbl-md1__040",
+      "input": {
+        "fixture": "FC Bayern M\u00FCnchen vs RB Leipzig",
+        "startsAt": "2025-08-22T21:30:00 UTC\u002B02 (\u002B02)"
+      },
+      "expectedOutput": {
+        "score": "6:0"
+      },
+      "metadata": {
+        "competition": "bundesliga-2025-26",
+        "season": "2025/2026",
+        "communityContext": "pes-squad",
+        "matchday": 1,
+        "matchdayLabel": "md01",
+        "homeTeam": "FC Bayern M\u00FCnchen",
+        "awayTeam": "RB Leipzig",
+        "tippSpielId": "1423757142"
+      }
+    },
+    {
+      "id": "bundesliga-2025-26__pes-squad__ts1423757142__repeated-match__repeat-100-knowledge-cutoff-bayern-rbl-md1__041",
+      "input": {
+        "fixture": "FC Bayern M\u00FCnchen vs RB Leipzig",
+        "startsAt": "2025-08-22T21:30:00 UTC\u002B02 (\u002B02)"
+      },
+      "expectedOutput": {
+        "score": "6:0"
+      },
+      "metadata": {
+        "competition": "bundesliga-2025-26",
+        "season": "2025/2026",
+        "communityContext": "pes-squad",
+        "matchday": 1,
+        "matchdayLabel": "md01",
+        "homeTeam": "FC Bayern M\u00FCnchen",
+        "awayTeam": "RB Leipzig",
+        "tippSpielId": "1423757142"
+      }
+    },
+    {
+      "id": "bundesliga-2025-26__pes-squad__ts1423757142__repeated-match__repeat-100-knowledge-cutoff-bayern-rbl-md1__042",
+      "input": {
+        "fixture": "FC Bayern M\u00FCnchen vs RB Leipzig",
+        "startsAt": "2025-08-22T21:30:00 UTC\u002B02 (\u002B02)"
+      },
+      "expectedOutput": {
+        "score": "6:0"
+      },
+      "metadata": {
+        "competition": "bundesliga-2025-26",
+        "season": "2025/2026",
+        "communityContext": "pes-squad",
+        "matchday": 1,
+        "matchdayLabel": "md01",
+        "homeTeam": "FC Bayern M\u00FCnchen",
+        "awayTeam": "RB Leipzig",
+        "tippSpielId": "1423757142"
+      }
+    },
+    {
+      "id": "bundesliga-2025-26__pes-squad__ts1423757142__repeated-match__repeat-100-knowledge-cutoff-bayern-rbl-md1__043",
+      "input": {
+        "fixture": "FC Bayern M\u00FCnchen vs RB Leipzig",
+        "startsAt": "2025-08-22T21:30:00 UTC\u002B02 (\u002B02)"
+      },
+      "expectedOutput": {
+        "score": "6:0"
+      },
+      "metadata": {
+        "competition": "bundesliga-2025-26",
+        "season": "2025/2026",
+        "communityContext": "pes-squad",
+        "matchday": 1,
+        "matchdayLabel": "md01",
+        "homeTeam": "FC Bayern M\u00FCnchen",
+        "awayTeam": "RB Leipzig",
+        "tippSpielId": "1423757142"
+      }
+    },
+    {
+      "id": "bundesliga-2025-26__pes-squad__ts1423757142__repeated-match__repeat-100-knowledge-cutoff-bayern-rbl-md1__044",
+      "input": {
+        "fixture": "FC Bayern M\u00FCnchen vs RB Leipzig",
+        "startsAt": "2025-08-22T21:30:00 UTC\u002B02 (\u002B02)"
+      },
+      "expectedOutput": {
+        "score": "6:0"
+      },
+      "metadata": {
+        "competition": "bundesliga-2025-26",
+        "season": "2025/2026",
+        "communityContext": "pes-squad",
+        "matchday": 1,
+        "matchdayLabel": "md01",
+        "homeTeam": "FC Bayern M\u00FCnchen",
+        "awayTeam": "RB Leipzig",
+        "tippSpielId": "1423757142"
+      }
+    },
+    {
+      "id": "bundesliga-2025-26__pes-squad__ts1423757142__repeated-match__repeat-100-knowledge-cutoff-bayern-rbl-md1__045",
+      "input": {
+        "fixture": "FC Bayern M\u00FCnchen vs RB Leipzig",
+        "startsAt": "2025-08-22T21:30:00 UTC\u002B02 (\u002B02)"
+      },
+      "expectedOutput": {
+        "score": "6:0"
+      },
+      "metadata": {
+        "competition": "bundesliga-2025-26",
+        "season": "2025/2026",
+        "communityContext": "pes-squad",
+        "matchday": 1,
+        "matchdayLabel": "md01",
+        "homeTeam": "FC Bayern M\u00FCnchen",
+        "awayTeam": "RB Leipzig",
+        "tippSpielId": "1423757142"
+      }
+    },
+    {
+      "id": "bundesliga-2025-26__pes-squad__ts1423757142__repeated-match__repeat-100-knowledge-cutoff-bayern-rbl-md1__046",
+      "input": {
+        "fixture": "FC Bayern M\u00FCnchen vs RB Leipzig",
+        "startsAt": "2025-08-22T21:30:00 UTC\u002B02 (\u002B02)"
+      },
+      "expectedOutput": {
+        "score": "6:0"
+      },
+      "metadata": {
+        "competition": "bundesliga-2025-26",
+        "season": "2025/2026",
+        "communityContext": "pes-squad",
+        "matchday": 1,
+        "matchdayLabel": "md01",
+        "homeTeam": "FC Bayern M\u00FCnchen",
+        "awayTeam": "RB Leipzig",
+        "tippSpielId": "1423757142"
+      }
+    },
+    {
+      "id": "bundesliga-2025-26__pes-squad__ts1423757142__repeated-match__repeat-100-knowledge-cutoff-bayern-rbl-md1__047",
+      "input": {
+        "fixture": "FC Bayern M\u00FCnchen vs RB Leipzig",
+        "startsAt": "2025-08-22T21:30:00 UTC\u002B02 (\u002B02)"
+      },
+      "expectedOutput": {
+        "score": "6:0"
+      },
+      "metadata": {
+        "competition": "bundesliga-2025-26",
+        "season": "2025/2026",
+        "communityContext": "pes-squad",
+        "matchday": 1,
+        "matchdayLabel": "md01",
+        "homeTeam": "FC Bayern M\u00FCnchen",
+        "awayTeam": "RB Leipzig",
+        "tippSpielId": "1423757142"
+      }
+    },
+    {
+      "id": "bundesliga-2025-26__pes-squad__ts1423757142__repeated-match__repeat-100-knowledge-cutoff-bayern-rbl-md1__048",
+      "input": {
+        "fixture": "FC Bayern M\u00FCnchen vs RB Leipzig",
+        "startsAt": "2025-08-22T21:30:00 UTC\u002B02 (\u002B02)"
+      },
+      "expectedOutput": {
+        "score": "6:0"
+      },
+      "metadata": {
+        "competition": "bundesliga-2025-26",
+        "season": "2025/2026",
+        "communityContext": "pes-squad",
+        "matchday": 1,
+        "matchdayLabel": "md01",
+        "homeTeam": "FC Bayern M\u00FCnchen",
+        "awayTeam": "RB Leipzig",
+        "tippSpielId": "1423757142"
+      }
+    },
+    {
+      "id": "bundesliga-2025-26__pes-squad__ts1423757142__repeated-match__repeat-100-knowledge-cutoff-bayern-rbl-md1__049",
+      "input": {
+        "fixture": "FC Bayern M\u00FCnchen vs RB Leipzig",
+        "startsAt": "2025-08-22T21:30:00 UTC\u002B02 (\u002B02)"
+      },
+      "expectedOutput": {
+        "score": "6:0"
+      },
+      "metadata": {
+        "competition": "bundesliga-2025-26",
+        "season": "2025/2026",
+        "communityContext": "pes-squad",
+        "matchday": 1,
+        "matchdayLabel": "md01",
+        "homeTeam": "FC Bayern M\u00FCnchen",
+        "awayTeam": "RB Leipzig",
+        "tippSpielId": "1423757142"
+      }
+    },
+    {
+      "id": "bundesliga-2025-26__pes-squad__ts1423757142__repeated-match__repeat-100-knowledge-cutoff-bayern-rbl-md1__050",
+      "input": {
+        "fixture": "FC Bayern M\u00FCnchen vs RB Leipzig",
+        "startsAt": "2025-08-22T21:30:00 UTC\u002B02 (\u002B02)"
+      },
+      "expectedOutput": {
+        "score": "6:0"
+      },
+      "metadata": {
+        "competition": "bundesliga-2025-26",
+        "season": "2025/2026",
+        "communityContext": "pes-squad",
+        "matchday": 1,
+        "matchdayLabel": "md01",
+        "homeTeam": "FC Bayern M\u00FCnchen",
+        "awayTeam": "RB Leipzig",
+        "tippSpielId": "1423757142"
+      }
+    },
+    {
+      "id": "bundesliga-2025-26__pes-squad__ts1423757142__repeated-match__repeat-100-knowledge-cutoff-bayern-rbl-md1__051",
+      "input": {
+        "fixture": "FC Bayern M\u00FCnchen vs RB Leipzig",
+        "startsAt": "2025-08-22T21:30:00 UTC\u002B02 (\u002B02)"
+      },
+      "expectedOutput": {
+        "score": "6:0"
+      },
+      "metadata": {
+        "competition": "bundesliga-2025-26",
+        "season": "2025/2026",
+        "communityContext": "pes-squad",
+        "matchday": 1,
+        "matchdayLabel": "md01",
+        "homeTeam": "FC Bayern M\u00FCnchen",
+        "awayTeam": "RB Leipzig",
+        "tippSpielId": "1423757142"
+      }
+    },
+    {
+      "id": "bundesliga-2025-26__pes-squad__ts1423757142__repeated-match__repeat-100-knowledge-cutoff-bayern-rbl-md1__052",
+      "input": {
+        "fixture": "FC Bayern M\u00FCnchen vs RB Leipzig",
+        "startsAt": "2025-08-22T21:30:00 UTC\u002B02 (\u002B02)"
+      },
+      "expectedOutput": {
+        "score": "6:0"
+      },
+      "metadata": {
+        "competition": "bundesliga-2025-26",
+        "season": "2025/2026",
+        "communityContext": "pes-squad",
+        "matchday": 1,
+        "matchdayLabel": "md01",
+        "homeTeam": "FC Bayern M\u00FCnchen",
+        "awayTeam": "RB Leipzig",
+        "tippSpielId": "1423757142"
+      }
+    },
+    {
+      "id": "bundesliga-2025-26__pes-squad__ts1423757142__repeated-match__repeat-100-knowledge-cutoff-bayern-rbl-md1__053",
+      "input": {
+        "fixture": "FC Bayern M\u00FCnchen vs RB Leipzig",
+        "startsAt": "2025-08-22T21:30:00 UTC\u002B02 (\u002B02)"
+      },
+      "expectedOutput": {
+        "score": "6:0"
+      },
+      "metadata": {
+        "competition": "bundesliga-2025-26",
+        "season": "2025/2026",
+        "communityContext": "pes-squad",
+        "matchday": 1,
+        "matchdayLabel": "md01",
+        "homeTeam": "FC Bayern M\u00FCnchen",
+        "awayTeam": "RB Leipzig",
+        "tippSpielId": "1423757142"
+      }
+    },
+    {
+      "id": "bundesliga-2025-26__pes-squad__ts1423757142__repeated-match__repeat-100-knowledge-cutoff-bayern-rbl-md1__054",
+      "input": {
+        "fixture": "FC Bayern M\u00FCnchen vs RB Leipzig",
+        "startsAt": "2025-08-22T21:30:00 UTC\u002B02 (\u002B02)"
+      },
+      "expectedOutput": {
+        "score": "6:0"
+      },
+      "metadata": {
+        "competition": "bundesliga-2025-26",
+        "season": "2025/2026",
+        "communityContext": "pes-squad",
+        "matchday": 1,
+        "matchdayLabel": "md01",
+        "homeTeam": "FC Bayern M\u00FCnchen",
+        "awayTeam": "RB Leipzig",
+        "tippSpielId": "1423757142"
+      }
+    },
+    {
+      "id": "bundesliga-2025-26__pes-squad__ts1423757142__repeated-match__repeat-100-knowledge-cutoff-bayern-rbl-md1__055",
+      "input": {
+        "fixture": "FC Bayern M\u00FCnchen vs RB Leipzig",
+        "startsAt": "2025-08-22T21:30:00 UTC\u002B02 (\u002B02)"
+      },
+      "expectedOutput": {
+        "score": "6:0"
+      },
+      "metadata": {
+        "competition": "bundesliga-2025-26",
+        "season": "2025/2026",
+        "communityContext": "pes-squad",
+        "matchday": 1,
+        "matchdayLabel": "md01",
+        "homeTeam": "FC Bayern M\u00FCnchen",
+        "awayTeam": "RB Leipzig",
+        "tippSpielId": "1423757142"
+      }
+    },
+    {
+      "id": "bundesliga-2025-26__pes-squad__ts1423757142__repeated-match__repeat-100-knowledge-cutoff-bayern-rbl-md1__056",
+      "input": {
+        "fixture": "FC Bayern M\u00FCnchen vs RB Leipzig",
+        "startsAt": "2025-08-22T21:30:00 UTC\u002B02 (\u002B02)"
+      },
+      "expectedOutput": {
+        "score": "6:0"
+      },
+      "metadata": {
+        "competition": "bundesliga-2025-26",
+        "season": "2025/2026",
+        "communityContext": "pes-squad",
+        "matchday": 1,
+        "matchdayLabel": "md01",
+        "homeTeam": "FC Bayern M\u00FCnchen",
+        "awayTeam": "RB Leipzig",
+        "tippSpielId": "1423757142"
+      }
+    },
+    {
+      "id": "bundesliga-2025-26__pes-squad__ts1423757142__repeated-match__repeat-100-knowledge-cutoff-bayern-rbl-md1__057",
+      "input": {
+        "fixture": "FC Bayern M\u00FCnchen vs RB Leipzig",
+        "startsAt": "2025-08-22T21:30:00 UTC\u002B02 (\u002B02)"
+      },
+      "expectedOutput": {
+        "score": "6:0"
+      },
+      "metadata": {
+        "competition": "bundesliga-2025-26",
+        "season": "2025/2026",
+        "communityContext": "pes-squad",
+        "matchday": 1,
+        "matchdayLabel": "md01",
+        "homeTeam": "FC Bayern M\u00FCnchen",
+        "awayTeam": "RB Leipzig",
+        "tippSpielId": "1423757142"
+      }
+    },
+    {
+      "id": "bundesliga-2025-26__pes-squad__ts1423757142__repeated-match__repeat-100-knowledge-cutoff-bayern-rbl-md1__058",
+      "input": {
+        "fixture": "FC Bayern M\u00FCnchen vs RB Leipzig",
+        "startsAt": "2025-08-22T21:30:00 UTC\u002B02 (\u002B02)"
+      },
+      "expectedOutput": {
+        "score": "6:0"
+      },
+      "metadata": {
+        "competition": "bundesliga-2025-26",
+        "season": "2025/2026",
+        "communityContext": "pes-squad",
+        "matchday": 1,
+        "matchdayLabel": "md01",
+        "homeTeam": "FC Bayern M\u00FCnchen",
+        "awayTeam": "RB Leipzig",
+        "tippSpielId": "1423757142"
+      }
+    },
+    {
+      "id": "bundesliga-2025-26__pes-squad__ts1423757142__repeated-match__repeat-100-knowledge-cutoff-bayern-rbl-md1__059",
+      "input": {
+        "fixture": "FC Bayern M\u00FCnchen vs RB Leipzig",
+        "startsAt": "2025-08-22T21:30:00 UTC\u002B02 (\u002B02)"
+      },
+      "expectedOutput": {
+        "score": "6:0"
+      },
+      "metadata": {
+        "competition": "bundesliga-2025-26",
+        "season": "2025/2026",
+        "communityContext": "pes-squad",
+        "matchday": 1,
+        "matchdayLabel": "md01",
+        "homeTeam": "FC Bayern M\u00FCnchen",
+        "awayTeam": "RB Leipzig",
+        "tippSpielId": "1423757142"
+      }
+    },
+    {
+      "id": "bundesliga-2025-26__pes-squad__ts1423757142__repeated-match__repeat-100-knowledge-cutoff-bayern-rbl-md1__060",
+      "input": {
+        "fixture": "FC Bayern M\u00FCnchen vs RB Leipzig",
+        "startsAt": "2025-08-22T21:30:00 UTC\u002B02 (\u002B02)"
+      },
+      "expectedOutput": {
+        "score": "6:0"
+      },
+      "metadata": {
+        "competition": "bundesliga-2025-26",
+        "season": "2025/2026",
+        "communityContext": "pes-squad",
+        "matchday": 1,
+        "matchdayLabel": "md01",
+        "homeTeam": "FC Bayern M\u00FCnchen",
+        "awayTeam": "RB Leipzig",
+        "tippSpielId": "1423757142"
+      }
+    },
+    {
+      "id": "bundesliga-2025-26__pes-squad__ts1423757142__repeated-match__repeat-100-knowledge-cutoff-bayern-rbl-md1__061",
+      "input": {
+        "fixture": "FC Bayern M\u00FCnchen vs RB Leipzig",
+        "startsAt": "2025-08-22T21:30:00 UTC\u002B02 (\u002B02)"
+      },
+      "expectedOutput": {
+        "score": "6:0"
+      },
+      "metadata": {
+        "competition": "bundesliga-2025-26",
+        "season": "2025/2026",
+        "communityContext": "pes-squad",
+        "matchday": 1,
+        "matchdayLabel": "md01",
+        "homeTeam": "FC Bayern M\u00FCnchen",
+        "awayTeam": "RB Leipzig",
+        "tippSpielId": "1423757142"
+      }
+    },
+    {
+      "id": "bundesliga-2025-26__pes-squad__ts1423757142__repeated-match__repeat-100-knowledge-cutoff-bayern-rbl-md1__062",
+      "input": {
+        "fixture": "FC Bayern M\u00FCnchen vs RB Leipzig",
+        "startsAt": "2025-08-22T21:30:00 UTC\u002B02 (\u002B02)"
+      },
+      "expectedOutput": {
+        "score": "6:0"
+      },
+      "metadata": {
+        "competition": "bundesliga-2025-26",
+        "season": "2025/2026",
+        "communityContext": "pes-squad",
+        "matchday": 1,
+        "matchdayLabel": "md01",
+        "homeTeam": "FC Bayern M\u00FCnchen",
+        "awayTeam": "RB Leipzig",
+        "tippSpielId": "1423757142"
+      }
+    },
+    {
+      "id": "bundesliga-2025-26__pes-squad__ts1423757142__repeated-match__repeat-100-knowledge-cutoff-bayern-rbl-md1__063",
+      "input": {
+        "fixture": "FC Bayern M\u00FCnchen vs RB Leipzig",
+        "startsAt": "2025-08-22T21:30:00 UTC\u002B02 (\u002B02)"
+      },
+      "expectedOutput": {
+        "score": "6:0"
+      },
+      "metadata": {
+        "competition": "bundesliga-2025-26",
+        "season": "2025/2026",
+        "communityContext": "pes-squad",
+        "matchday": 1,
+        "matchdayLabel": "md01",
+        "homeTeam": "FC Bayern M\u00FCnchen",
+        "awayTeam": "RB Leipzig",
+        "tippSpielId": "1423757142"
+      }
+    },
+    {
+      "id": "bundesliga-2025-26__pes-squad__ts1423757142__repeated-match__repeat-100-knowledge-cutoff-bayern-rbl-md1__064",
+      "input": {
+        "fixture": "FC Bayern M\u00FCnchen vs RB Leipzig",
+        "startsAt": "2025-08-22T21:30:00 UTC\u002B02 (\u002B02)"
+      },
+      "expectedOutput": {
+        "score": "6:0"
+      },
+      "metadata": {
+        "competition": "bundesliga-2025-26",
+        "season": "2025/2026",
+        "communityContext": "pes-squad",
+        "matchday": 1,
+        "matchdayLabel": "md01",
+        "homeTeam": "FC Bayern M\u00FCnchen",
+        "awayTeam": "RB Leipzig",
+        "tippSpielId": "1423757142"
+      }
+    },
+    {
+      "id": "bundesliga-2025-26__pes-squad__ts1423757142__repeated-match__repeat-100-knowledge-cutoff-bayern-rbl-md1__065",
+      "input": {
+        "fixture": "FC Bayern M\u00FCnchen vs RB Leipzig",
+        "startsAt": "2025-08-22T21:30:00 UTC\u002B02 (\u002B02)"
+      },
+      "expectedOutput": {
+        "score": "6:0"
+      },
+      "metadata": {
+        "competition": "bundesliga-2025-26",
+        "season": "2025/2026",
+        "communityContext": "pes-squad",
+        "matchday": 1,
+        "matchdayLabel": "md01",
+        "homeTeam": "FC Bayern M\u00FCnchen",
+        "awayTeam": "RB Leipzig",
+        "tippSpielId": "1423757142"
+      }
+    },
+    {
+      "id": "bundesliga-2025-26__pes-squad__ts1423757142__repeated-match__repeat-100-knowledge-cutoff-bayern-rbl-md1__066",
+      "input": {
+        "fixture": "FC Bayern M\u00FCnchen vs RB Leipzig",
+        "startsAt": "2025-08-22T21:30:00 UTC\u002B02 (\u002B02)"
+      },
+      "expectedOutput": {
+        "score": "6:0"
+      },
+      "metadata": {
+        "competition": "bundesliga-2025-26",
+        "season": "2025/2026",
+        "communityContext": "pes-squad",
+        "matchday": 1,
+        "matchdayLabel": "md01",
+        "homeTeam": "FC Bayern M\u00FCnchen",
+        "awayTeam": "RB Leipzig",
+        "tippSpielId": "1423757142"
+      }
+    },
+    {
+      "id": "bundesliga-2025-26__pes-squad__ts1423757142__repeated-match__repeat-100-knowledge-cutoff-bayern-rbl-md1__067",
+      "input": {
+        "fixture": "FC Bayern M\u00FCnchen vs RB Leipzig",
+        "startsAt": "2025-08-22T21:30:00 UTC\u002B02 (\u002B02)"
+      },
+      "expectedOutput": {
+        "score": "6:0"
+      },
+      "metadata": {
+        "competition": "bundesliga-2025-26",
+        "season": "2025/2026",
+        "communityContext": "pes-squad",
+        "matchday": 1,
+        "matchdayLabel": "md01",
+        "homeTeam": "FC Bayern M\u00FCnchen",
+        "awayTeam": "RB Leipzig",
+        "tippSpielId": "1423757142"
+      }
+    },
+    {
+      "id": "bundesliga-2025-26__pes-squad__ts1423757142__repeated-match__repeat-100-knowledge-cutoff-bayern-rbl-md1__068",
+      "input": {
+        "fixture": "FC Bayern M\u00FCnchen vs RB Leipzig",
+        "startsAt": "2025-08-22T21:30:00 UTC\u002B02 (\u002B02)"
+      },
+      "expectedOutput": {
+        "score": "6:0"
+      },
+      "metadata": {
+        "competition": "bundesliga-2025-26",
+        "season": "2025/2026",
+        "communityContext": "pes-squad",
+        "matchday": 1,
+        "matchdayLabel": "md01",
+        "homeTeam": "FC Bayern M\u00FCnchen",
+        "awayTeam": "RB Leipzig",
+        "tippSpielId": "1423757142"
+      }
+    },
+    {
+      "id": "bundesliga-2025-26__pes-squad__ts1423757142__repeated-match__repeat-100-knowledge-cutoff-bayern-rbl-md1__069",
+      "input": {
+        "fixture": "FC Bayern M\u00FCnchen vs RB Leipzig",
+        "startsAt": "2025-08-22T21:30:00 UTC\u002B02 (\u002B02)"
+      },
+      "expectedOutput": {
+        "score": "6:0"
+      },
+      "metadata": {
+        "competition": "bundesliga-2025-26",
+        "season": "2025/2026",
+        "communityContext": "pes-squad",
+        "matchday": 1,
+        "matchdayLabel": "md01",
+        "homeTeam": "FC Bayern M\u00FCnchen",
+        "awayTeam": "RB Leipzig",
+        "tippSpielId": "1423757142"
+      }
+    },
+    {
+      "id": "bundesliga-2025-26__pes-squad__ts1423757142__repeated-match__repeat-100-knowledge-cutoff-bayern-rbl-md1__070",
+      "input": {
+        "fixture": "FC Bayern M\u00FCnchen vs RB Leipzig",
+        "startsAt": "2025-08-22T21:30:00 UTC\u002B02 (\u002B02)"
+      },
+      "expectedOutput": {
+        "score": "6:0"
+      },
+      "metadata": {
+        "competition": "bundesliga-2025-26",
+        "season": "2025/2026",
+        "communityContext": "pes-squad",
+        "matchday": 1,
+        "matchdayLabel": "md01",
+        "homeTeam": "FC Bayern M\u00FCnchen",
+        "awayTeam": "RB Leipzig",
+        "tippSpielId": "1423757142"
+      }
+    },
+    {
+      "id": "bundesliga-2025-26__pes-squad__ts1423757142__repeated-match__repeat-100-knowledge-cutoff-bayern-rbl-md1__071",
+      "input": {
+        "fixture": "FC Bayern M\u00FCnchen vs RB Leipzig",
+        "startsAt": "2025-08-22T21:30:00 UTC\u002B02 (\u002B02)"
+      },
+      "expectedOutput": {
+        "score": "6:0"
+      },
+      "metadata": {
+        "competition": "bundesliga-2025-26",
+        "season": "2025/2026",
+        "communityContext": "pes-squad",
+        "matchday": 1,
+        "matchdayLabel": "md01",
+        "homeTeam": "FC Bayern M\u00FCnchen",
+        "awayTeam": "RB Leipzig",
+        "tippSpielId": "1423757142"
+      }
+    },
+    {
+      "id": "bundesliga-2025-26__pes-squad__ts1423757142__repeated-match__repeat-100-knowledge-cutoff-bayern-rbl-md1__072",
+      "input": {
+        "fixture": "FC Bayern M\u00FCnchen vs RB Leipzig",
+        "startsAt": "2025-08-22T21:30:00 UTC\u002B02 (\u002B02)"
+      },
+      "expectedOutput": {
+        "score": "6:0"
+      },
+      "metadata": {
+        "competition": "bundesliga-2025-26",
+        "season": "2025/2026",
+        "communityContext": "pes-squad",
+        "matchday": 1,
+        "matchdayLabel": "md01",
+        "homeTeam": "FC Bayern M\u00FCnchen",
+        "awayTeam": "RB Leipzig",
+        "tippSpielId": "1423757142"
+      }
+    },
+    {
+      "id": "bundesliga-2025-26__pes-squad__ts1423757142__repeated-match__repeat-100-knowledge-cutoff-bayern-rbl-md1__073",
+      "input": {
+        "fixture": "FC Bayern M\u00FCnchen vs RB Leipzig",
+        "startsAt": "2025-08-22T21:30:00 UTC\u002B02 (\u002B02)"
+      },
+      "expectedOutput": {
+        "score": "6:0"
+      },
+      "metadata": {
+        "competition": "bundesliga-2025-26",
+        "season": "2025/2026",
+        "communityContext": "pes-squad",
+        "matchday": 1,
+        "matchdayLabel": "md01",
+        "homeTeam": "FC Bayern M\u00FCnchen",
+        "awayTeam": "RB Leipzig",
+        "tippSpielId": "1423757142"
+      }
+    },
+    {
+      "id": "bundesliga-2025-26__pes-squad__ts1423757142__repeated-match__repeat-100-knowledge-cutoff-bayern-rbl-md1__074",
+      "input": {
+        "fixture": "FC Bayern M\u00FCnchen vs RB Leipzig",
+        "startsAt": "2025-08-22T21:30:00 UTC\u002B02 (\u002B02)"
+      },
+      "expectedOutput": {
+        "score": "6:0"
+      },
+      "metadata": {
+        "competition": "bundesliga-2025-26",
+        "season": "2025/2026",
+        "communityContext": "pes-squad",
+        "matchday": 1,
+        "matchdayLabel": "md01",
+        "homeTeam": "FC Bayern M\u00FCnchen",
+        "awayTeam": "RB Leipzig",
+        "tippSpielId": "1423757142"
+      }
+    },
+    {
+      "id": "bundesliga-2025-26__pes-squad__ts1423757142__repeated-match__repeat-100-knowledge-cutoff-bayern-rbl-md1__075",
+      "input": {
+        "fixture": "FC Bayern M\u00FCnchen vs RB Leipzig",
+        "startsAt": "2025-08-22T21:30:00 UTC\u002B02 (\u002B02)"
+      },
+      "expectedOutput": {
+        "score": "6:0"
+      },
+      "metadata": {
+        "competition": "bundesliga-2025-26",
+        "season": "2025/2026",
+        "communityContext": "pes-squad",
+        "matchday": 1,
+        "matchdayLabel": "md01",
+        "homeTeam": "FC Bayern M\u00FCnchen",
+        "awayTeam": "RB Leipzig",
+        "tippSpielId": "1423757142"
+      }
+    },
+    {
+      "id": "bundesliga-2025-26__pes-squad__ts1423757142__repeated-match__repeat-100-knowledge-cutoff-bayern-rbl-md1__076",
+      "input": {
+        "fixture": "FC Bayern M\u00FCnchen vs RB Leipzig",
+        "startsAt": "2025-08-22T21:30:00 UTC\u002B02 (\u002B02)"
+      },
+      "expectedOutput": {
+        "score": "6:0"
+      },
+      "metadata": {
+        "competition": "bundesliga-2025-26",
+        "season": "2025/2026",
+        "communityContext": "pes-squad",
+        "matchday": 1,
+        "matchdayLabel": "md01",
+        "homeTeam": "FC Bayern M\u00FCnchen",
+        "awayTeam": "RB Leipzig",
+        "tippSpielId": "1423757142"
+      }
+    },
+    {
+      "id": "bundesliga-2025-26__pes-squad__ts1423757142__repeated-match__repeat-100-knowledge-cutoff-bayern-rbl-md1__077",
+      "input": {
+        "fixture": "FC Bayern M\u00FCnchen vs RB Leipzig",
+        "startsAt": "2025-08-22T21:30:00 UTC\u002B02 (\u002B02)"
+      },
+      "expectedOutput": {
+        "score": "6:0"
+      },
+      "metadata": {
+        "competition": "bundesliga-2025-26",
+        "season": "2025/2026",
+        "communityContext": "pes-squad",
+        "matchday": 1,
+        "matchdayLabel": "md01",
+        "homeTeam": "FC Bayern M\u00FCnchen",
+        "awayTeam": "RB Leipzig",
+        "tippSpielId": "1423757142"
+      }
+    },
+    {
+      "id": "bundesliga-2025-26__pes-squad__ts1423757142__repeated-match__repeat-100-knowledge-cutoff-bayern-rbl-md1__078",
+      "input": {
+        "fixture": "FC Bayern M\u00FCnchen vs RB Leipzig",
+        "startsAt": "2025-08-22T21:30:00 UTC\u002B02 (\u002B02)"
+      },
+      "expectedOutput": {
+        "score": "6:0"
+      },
+      "metadata": {
+        "competition": "bundesliga-2025-26",
+        "season": "2025/2026",
+        "communityContext": "pes-squad",
+        "matchday": 1,
+        "matchdayLabel": "md01",
+        "homeTeam": "FC Bayern M\u00FCnchen",
+        "awayTeam": "RB Leipzig",
+        "tippSpielId": "1423757142"
+      }
+    },
+    {
+      "id": "bundesliga-2025-26__pes-squad__ts1423757142__repeated-match__repeat-100-knowledge-cutoff-bayern-rbl-md1__079",
+      "input": {
+        "fixture": "FC Bayern M\u00FCnchen vs RB Leipzig",
+        "startsAt": "2025-08-22T21:30:00 UTC\u002B02 (\u002B02)"
+      },
+      "expectedOutput": {
+        "score": "6:0"
+      },
+      "metadata": {
+        "competition": "bundesliga-2025-26",
+        "season": "2025/2026",
+        "communityContext": "pes-squad",
+        "matchday": 1,
+        "matchdayLabel": "md01",
+        "homeTeam": "FC Bayern M\u00FCnchen",
+        "awayTeam": "RB Leipzig",
+        "tippSpielId": "1423757142"
+      }
+    },
+    {
+      "id": "bundesliga-2025-26__pes-squad__ts1423757142__repeated-match__repeat-100-knowledge-cutoff-bayern-rbl-md1__080",
+      "input": {
+        "fixture": "FC Bayern M\u00FCnchen vs RB Leipzig",
+        "startsAt": "2025-08-22T21:30:00 UTC\u002B02 (\u002B02)"
+      },
+      "expectedOutput": {
+        "score": "6:0"
+      },
+      "metadata": {
+        "competition": "bundesliga-2025-26",
+        "season": "2025/2026",
+        "communityContext": "pes-squad",
+        "matchday": 1,
+        "matchdayLabel": "md01",
+        "homeTeam": "FC Bayern M\u00FCnchen",
+        "awayTeam": "RB Leipzig",
+        "tippSpielId": "1423757142"
+      }
+    },
+    {
+      "id": "bundesliga-2025-26__pes-squad__ts1423757142__repeated-match__repeat-100-knowledge-cutoff-bayern-rbl-md1__081",
+      "input": {
+        "fixture": "FC Bayern M\u00FCnchen vs RB Leipzig",
+        "startsAt": "2025-08-22T21:30:00 UTC\u002B02 (\u002B02)"
+      },
+      "expectedOutput": {
+        "score": "6:0"
+      },
+      "metadata": {
+        "competition": "bundesliga-2025-26",
+        "season": "2025/2026",
+        "communityContext": "pes-squad",
+        "matchday": 1,
+        "matchdayLabel": "md01",
+        "homeTeam": "FC Bayern M\u00FCnchen",
+        "awayTeam": "RB Leipzig",
+        "tippSpielId": "1423757142"
+      }
+    },
+    {
+      "id": "bundesliga-2025-26__pes-squad__ts1423757142__repeated-match__repeat-100-knowledge-cutoff-bayern-rbl-md1__082",
+      "input": {
+        "fixture": "FC Bayern M\u00FCnchen vs RB Leipzig",
+        "startsAt": "2025-08-22T21:30:00 UTC\u002B02 (\u002B02)"
+      },
+      "expectedOutput": {
+        "score": "6:0"
+      },
+      "metadata": {
+        "competition": "bundesliga-2025-26",
+        "season": "2025/2026",
+        "communityContext": "pes-squad",
+        "matchday": 1,
+        "matchdayLabel": "md01",
+        "homeTeam": "FC Bayern M\u00FCnchen",
+        "awayTeam": "RB Leipzig",
+        "tippSpielId": "1423757142"
+      }
+    },
+    {
+      "id": "bundesliga-2025-26__pes-squad__ts1423757142__repeated-match__repeat-100-knowledge-cutoff-bayern-rbl-md1__083",
+      "input": {
+        "fixture": "FC Bayern M\u00FCnchen vs RB Leipzig",
+        "startsAt": "2025-08-22T21:30:00 UTC\u002B02 (\u002B02)"
+      },
+      "expectedOutput": {
+        "score": "6:0"
+      },
+      "metadata": {
+        "competition": "bundesliga-2025-26",
+        "season": "2025/2026",
+        "communityContext": "pes-squad",
+        "matchday": 1,
+        "matchdayLabel": "md01",
+        "homeTeam": "FC Bayern M\u00FCnchen",
+        "awayTeam": "RB Leipzig",
+        "tippSpielId": "1423757142"
+      }
+    },
+    {
+      "id": "bundesliga-2025-26__pes-squad__ts1423757142__repeated-match__repeat-100-knowledge-cutoff-bayern-rbl-md1__084",
+      "input": {
+        "fixture": "FC Bayern M\u00FCnchen vs RB Leipzig",
+        "startsAt": "2025-08-22T21:30:00 UTC\u002B02 (\u002B02)"
+      },
+      "expectedOutput": {
+        "score": "6:0"
+      },
+      "metadata": {
+        "competition": "bundesliga-2025-26",
+        "season": "2025/2026",
+        "communityContext": "pes-squad",
+        "matchday": 1,
+        "matchdayLabel": "md01",
+        "homeTeam": "FC Bayern M\u00FCnchen",
+        "awayTeam": "RB Leipzig",
+        "tippSpielId": "1423757142"
+      }
+    },
+    {
+      "id": "bundesliga-2025-26__pes-squad__ts1423757142__repeated-match__repeat-100-knowledge-cutoff-bayern-rbl-md1__085",
+      "input": {
+        "fixture": "FC Bayern M\u00FCnchen vs RB Leipzig",
+        "startsAt": "2025-08-22T21:30:00 UTC\u002B02 (\u002B02)"
+      },
+      "expectedOutput": {
+        "score": "6:0"
+      },
+      "metadata": {
+        "competition": "bundesliga-2025-26",
+        "season": "2025/2026",
+        "communityContext": "pes-squad",
+        "matchday": 1,
+        "matchdayLabel": "md01",
+        "homeTeam": "FC Bayern M\u00FCnchen",
+        "awayTeam": "RB Leipzig",
+        "tippSpielId": "1423757142"
+      }
+    },
+    {
+      "id": "bundesliga-2025-26__pes-squad__ts1423757142__repeated-match__repeat-100-knowledge-cutoff-bayern-rbl-md1__086",
+      "input": {
+        "fixture": "FC Bayern M\u00FCnchen vs RB Leipzig",
+        "startsAt": "2025-08-22T21:30:00 UTC\u002B02 (\u002B02)"
+      },
+      "expectedOutput": {
+        "score": "6:0"
+      },
+      "metadata": {
+        "competition": "bundesliga-2025-26",
+        "season": "2025/2026",
+        "communityContext": "pes-squad",
+        "matchday": 1,
+        "matchdayLabel": "md01",
+        "homeTeam": "FC Bayern M\u00FCnchen",
+        "awayTeam": "RB Leipzig",
+        "tippSpielId": "1423757142"
+      }
+    },
+    {
+      "id": "bundesliga-2025-26__pes-squad__ts1423757142__repeated-match__repeat-100-knowledge-cutoff-bayern-rbl-md1__087",
+      "input": {
+        "fixture": "FC Bayern M\u00FCnchen vs RB Leipzig",
+        "startsAt": "2025-08-22T21:30:00 UTC\u002B02 (\u002B02)"
+      },
+      "expectedOutput": {
+        "score": "6:0"
+      },
+      "metadata": {
+        "competition": "bundesliga-2025-26",
+        "season": "2025/2026",
+        "communityContext": "pes-squad",
+        "matchday": 1,
+        "matchdayLabel": "md01",
+        "homeTeam": "FC Bayern M\u00FCnchen",
+        "awayTeam": "RB Leipzig",
+        "tippSpielId": "1423757142"
+      }
+    },
+    {
+      "id": "bundesliga-2025-26__pes-squad__ts1423757142__repeated-match__repeat-100-knowledge-cutoff-bayern-rbl-md1__088",
+      "input": {
+        "fixture": "FC Bayern M\u00FCnchen vs RB Leipzig",
+        "startsAt": "2025-08-22T21:30:00 UTC\u002B02 (\u002B02)"
+      },
+      "expectedOutput": {
+        "score": "6:0"
+      },
+      "metadata": {
+        "competition": "bundesliga-2025-26",
+        "season": "2025/2026",
+        "communityContext": "pes-squad",
+        "matchday": 1,
+        "matchdayLabel": "md01",
+        "homeTeam": "FC Bayern M\u00FCnchen",
+        "awayTeam": "RB Leipzig",
+        "tippSpielId": "1423757142"
+      }
+    },
+    {
+      "id": "bundesliga-2025-26__pes-squad__ts1423757142__repeated-match__repeat-100-knowledge-cutoff-bayern-rbl-md1__089",
+      "input": {
+        "fixture": "FC Bayern M\u00FCnchen vs RB Leipzig",
+        "startsAt": "2025-08-22T21:30:00 UTC\u002B02 (\u002B02)"
+      },
+      "expectedOutput": {
+        "score": "6:0"
+      },
+      "metadata": {
+        "competition": "bundesliga-2025-26",
+        "season": "2025/2026",
+        "communityContext": "pes-squad",
+        "matchday": 1,
+        "matchdayLabel": "md01",
+        "homeTeam": "FC Bayern M\u00FCnchen",
+        "awayTeam": "RB Leipzig",
+        "tippSpielId": "1423757142"
+      }
+    },
+    {
+      "id": "bundesliga-2025-26__pes-squad__ts1423757142__repeated-match__repeat-100-knowledge-cutoff-bayern-rbl-md1__090",
+      "input": {
+        "fixture": "FC Bayern M\u00FCnchen vs RB Leipzig",
+        "startsAt": "2025-08-22T21:30:00 UTC\u002B02 (\u002B02)"
+      },
+      "expectedOutput": {
+        "score": "6:0"
+      },
+      "metadata": {
+        "competition": "bundesliga-2025-26",
+        "season": "2025/2026",
+        "communityContext": "pes-squad",
+        "matchday": 1,
+        "matchdayLabel": "md01",
+        "homeTeam": "FC Bayern M\u00FCnchen",
+        "awayTeam": "RB Leipzig",
+        "tippSpielId": "1423757142"
+      }
+    },
+    {
+      "id": "bundesliga-2025-26__pes-squad__ts1423757142__repeated-match__repeat-100-knowledge-cutoff-bayern-rbl-md1__091",
+      "input": {
+        "fixture": "FC Bayern M\u00FCnchen vs RB Leipzig",
+        "startsAt": "2025-08-22T21:30:00 UTC\u002B02 (\u002B02)"
+      },
+      "expectedOutput": {
+        "score": "6:0"
+      },
+      "metadata": {
+        "competition": "bundesliga-2025-26",
+        "season": "2025/2026",
+        "communityContext": "pes-squad",
+        "matchday": 1,
+        "matchdayLabel": "md01",
+        "homeTeam": "FC Bayern M\u00FCnchen",
+        "awayTeam": "RB Leipzig",
+        "tippSpielId": "1423757142"
+      }
+    },
+    {
+      "id": "bundesliga-2025-26__pes-squad__ts1423757142__repeated-match__repeat-100-knowledge-cutoff-bayern-rbl-md1__092",
+      "input": {
+        "fixture": "FC Bayern M\u00FCnchen vs RB Leipzig",
+        "startsAt": "2025-08-22T21:30:00 UTC\u002B02 (\u002B02)"
+      },
+      "expectedOutput": {
+        "score": "6:0"
+      },
+      "metadata": {
+        "competition": "bundesliga-2025-26",
+        "season": "2025/2026",
+        "communityContext": "pes-squad",
+        "matchday": 1,
+        "matchdayLabel": "md01",
+        "homeTeam": "FC Bayern M\u00FCnchen",
+        "awayTeam": "RB Leipzig",
+        "tippSpielId": "1423757142"
+      }
+    },
+    {
+      "id": "bundesliga-2025-26__pes-squad__ts1423757142__repeated-match__repeat-100-knowledge-cutoff-bayern-rbl-md1__093",
+      "input": {
+        "fixture": "FC Bayern M\u00FCnchen vs RB Leipzig",
+        "startsAt": "2025-08-22T21:30:00 UTC\u002B02 (\u002B02)"
+      },
+      "expectedOutput": {
+        "score": "6:0"
+      },
+      "metadata": {
+        "competition": "bundesliga-2025-26",
+        "season": "2025/2026",
+        "communityContext": "pes-squad",
+        "matchday": 1,
+        "matchdayLabel": "md01",
+        "homeTeam": "FC Bayern M\u00FCnchen",
+        "awayTeam": "RB Leipzig",
+        "tippSpielId": "1423757142"
+      }
+    },
+    {
+      "id": "bundesliga-2025-26__pes-squad__ts1423757142__repeated-match__repeat-100-knowledge-cutoff-bayern-rbl-md1__094",
+      "input": {
+        "fixture": "FC Bayern M\u00FCnchen vs RB Leipzig",
+        "startsAt": "2025-08-22T21:30:00 UTC\u002B02 (\u002B02)"
+      },
+      "expectedOutput": {
+        "score": "6:0"
+      },
+      "metadata": {
+        "competition": "bundesliga-2025-26",
+        "season": "2025/2026",
+        "communityContext": "pes-squad",
+        "matchday": 1,
+        "matchdayLabel": "md01",
+        "homeTeam": "FC Bayern M\u00FCnchen",
+        "awayTeam": "RB Leipzig",
+        "tippSpielId": "1423757142"
+      }
+    },
+    {
+      "id": "bundesliga-2025-26__pes-squad__ts1423757142__repeated-match__repeat-100-knowledge-cutoff-bayern-rbl-md1__095",
+      "input": {
+        "fixture": "FC Bayern M\u00FCnchen vs RB Leipzig",
+        "startsAt": "2025-08-22T21:30:00 UTC\u002B02 (\u002B02)"
+      },
+      "expectedOutput": {
+        "score": "6:0"
+      },
+      "metadata": {
+        "competition": "bundesliga-2025-26",
+        "season": "2025/2026",
+        "communityContext": "pes-squad",
+        "matchday": 1,
+        "matchdayLabel": "md01",
+        "homeTeam": "FC Bayern M\u00FCnchen",
+        "awayTeam": "RB Leipzig",
+        "tippSpielId": "1423757142"
+      }
+    },
+    {
+      "id": "bundesliga-2025-26__pes-squad__ts1423757142__repeated-match__repeat-100-knowledge-cutoff-bayern-rbl-md1__096",
+      "input": {
+        "fixture": "FC Bayern M\u00FCnchen vs RB Leipzig",
+        "startsAt": "2025-08-22T21:30:00 UTC\u002B02 (\u002B02)"
+      },
+      "expectedOutput": {
+        "score": "6:0"
+      },
+      "metadata": {
+        "competition": "bundesliga-2025-26",
+        "season": "2025/2026",
+        "communityContext": "pes-squad",
+        "matchday": 1,
+        "matchdayLabel": "md01",
+        "homeTeam": "FC Bayern M\u00FCnchen",
+        "awayTeam": "RB Leipzig",
+        "tippSpielId": "1423757142"
+      }
+    },
+    {
+      "id": "bundesliga-2025-26__pes-squad__ts1423757142__repeated-match__repeat-100-knowledge-cutoff-bayern-rbl-md1__097",
+      "input": {
+        "fixture": "FC Bayern M\u00FCnchen vs RB Leipzig",
+        "startsAt": "2025-08-22T21:30:00 UTC\u002B02 (\u002B02)"
+      },
+      "expectedOutput": {
+        "score": "6:0"
+      },
+      "metadata": {
+        "competition": "bundesliga-2025-26",
+        "season": "2025/2026",
+        "communityContext": "pes-squad",
+        "matchday": 1,
+        "matchdayLabel": "md01",
+        "homeTeam": "FC Bayern M\u00FCnchen",
+        "awayTeam": "RB Leipzig",
+        "tippSpielId": "1423757142"
+      }
+    },
+    {
+      "id": "bundesliga-2025-26__pes-squad__ts1423757142__repeated-match__repeat-100-knowledge-cutoff-bayern-rbl-md1__098",
+      "input": {
+        "fixture": "FC Bayern M\u00FCnchen vs RB Leipzig",
+        "startsAt": "2025-08-22T21:30:00 UTC\u002B02 (\u002B02)"
+      },
+      "expectedOutput": {
+        "score": "6:0"
+      },
+      "metadata": {
+        "competition": "bundesliga-2025-26",
+        "season": "2025/2026",
+        "communityContext": "pes-squad",
+        "matchday": 1,
+        "matchdayLabel": "md01",
+        "homeTeam": "FC Bayern M\u00FCnchen",
+        "awayTeam": "RB Leipzig",
+        "tippSpielId": "1423757142"
+      }
+    },
+    {
+      "id": "bundesliga-2025-26__pes-squad__ts1423757142__repeated-match__repeat-100-knowledge-cutoff-bayern-rbl-md1__099",
+      "input": {
+        "fixture": "FC Bayern M\u00FCnchen vs RB Leipzig",
+        "startsAt": "2025-08-22T21:30:00 UTC\u002B02 (\u002B02)"
+      },
+      "expectedOutput": {
+        "score": "6:0"
+      },
+      "metadata": {
+        "competition": "bundesliga-2025-26",
+        "season": "2025/2026",
+        "communityContext": "pes-squad",
+        "matchday": 1,
+        "matchdayLabel": "md01",
+        "homeTeam": "FC Bayern M\u00FCnchen",
+        "awayTeam": "RB Leipzig",
+        "tippSpielId": "1423757142"
+      }
+    },
+    {
+      "id": "bundesliga-2025-26__pes-squad__ts1423757142__repeated-match__repeat-100-knowledge-cutoff-bayern-rbl-md1__100",
+      "input": {
+        "fixture": "FC Bayern M\u00FCnchen vs RB Leipzig",
+        "startsAt": "2025-08-22T21:30:00 UTC\u002B02 (\u002B02)"
+      },
+      "expectedOutput": {
+        "score": "6:0"
+      },
+      "metadata": {
+        "competition": "bundesliga-2025-26",
+        "season": "2025/2026",
+        "communityContext": "pes-squad",
+        "matchday": 1,
+        "matchdayLabel": "md01",
+        "homeTeam": "FC Bayern M\u00FCnchen",
+        "awayTeam": "RB Leipzig",
+        "tippSpielId": "1423757142"
+      }
+    }
+  ]
+}

@@ -1,0 +1,420 @@
+{
+  "sliceKey": "random-40-seed-20260505-prod-plus-o3-effort",
+  "sliceKind": "random-sample",
+  "sampleMethod": "random-sample",
+  "communityContext": "pes-squad",
+  "sourcePoolKey": "all-matchdays-after-20251130t230000z",
+  "sourceDatasetName": "match-predictions/bundesliga-2025-26/pes-squad",
+  "sliceDatasetName": "match-predictions/bundesliga-2025-26/pes-squad/slices/all-matchdays-after-20251130t230000z/random-40-seed-20260505-prod-plus-o3-effort",
+  "competition": "bundesliga-2025-26",
+  "season": "2025/2026",
+  "sampleSeed": 20260505,
+  "sampleSize": 40,
+  "selectedItemIds": [
+    "bundesliga-2025-26__pes-squad__ts1423757152",
+    "bundesliga-2025-26__pes-squad__ts1423757160",
+    "bundesliga-2025-26__pes-squad__ts1423757163",
+    "bundesliga-2025-26__pes-squad__ts1423757167",
+    "bundesliga-2025-26__pes-squad__ts1423757181",
+    "bundesliga-2025-26__pes-squad__ts1423757188",
+    "bundesliga-2025-26__pes-squad__ts1423757189",
+    "bundesliga-2025-26__pes-squad__ts1423757202",
+    "bundesliga-2025-26__pes-squad__ts1423757203",
+    "bundesliga-2025-26__pes-squad__ts1423757217",
+    "bundesliga-2025-26__pes-squad__ts1423757219",
+    "bundesliga-2025-26__pes-squad__ts1423757226",
+    "bundesliga-2025-26__pes-squad__ts1423757239",
+    "bundesliga-2025-26__pes-squad__ts1423757247",
+    "bundesliga-2025-26__pes-squad__ts1423757248",
+    "bundesliga-2025-26__pes-squad__ts1423757251",
+    "bundesliga-2025-26__pes-squad__ts1423757254",
+    "bundesliga-2025-26__pes-squad__ts1423757255",
+    "bundesliga-2025-26__pes-squad__ts1423757259",
+    "bundesliga-2025-26__pes-squad__ts1423757267",
+    "bundesliga-2025-26__pes-squad__ts1423757268",
+    "bundesliga-2025-26__pes-squad__ts1423757269",
+    "bundesliga-2025-26__pes-squad__ts1423757271",
+    "bundesliga-2025-26__pes-squad__ts1423757274",
+    "bundesliga-2025-26__pes-squad__ts1423757277",
+    "bundesliga-2025-26__pes-squad__ts1423757279",
+    "bundesliga-2025-26__pes-squad__ts1423757284",
+    "bundesliga-2025-26__pes-squad__ts1423757286",
+    "bundesliga-2025-26__pes-squad__ts1423757291",
+    "bundesliga-2025-26__pes-squad__ts1423757293",
+    "bundesliga-2025-26__pes-squad__ts1423757294",
+    "bundesliga-2025-26__pes-squad__ts1423757311",
+    "bundesliga-2025-26__pes-squad__ts1423757315",
+    "bundesliga-2025-26__pes-squad__ts1423757320",
+    "bundesliga-2025-26__pes-squad__ts1423757324",
+    "bundesliga-2025-26__pes-squad__ts1423757327",
+    "bundesliga-2025-26__pes-squad__ts1423757330",
+    "bundesliga-2025-26__pes-squad__ts1423757332",
+    "bundesliga-2025-26__pes-squad__ts1423757335",
+    "bundesliga-2025-26__pes-squad__ts1423757337"
+  ],
+  "selectedItemIdsHash": "7a4f98114e1b81ec999d50f5250903fca14dc2995d9d5961b29e5278e9c0c6a8",
+  "startsAfter": "2025-12-01T00:00:00 Europe/Berlin (\u002B01)",
+  "participants": [],
+  "items": [
+    {
+      "sourceDatasetItemId": "bundesliga-2025-26__pes-squad__ts1423757152",
+      "sliceDatasetItemId": "bundesliga-2025-26__pes-squad__ts1423757152__slice__random-40-seed-20260505-prod-plus-o3-effort",
+      "homeTeam": "1. FC K\u00F6ln",
+      "awayTeam": "1. FC Union Berlin",
+      "matchday": 15,
+      "startsAt": "2025-12-20T15:30:00 UTC\u002B01 (\u002B01)",
+      "tippSpielId": "1423757152"
+    },
+    {
+      "sourceDatasetItemId": "bundesliga-2025-26__pes-squad__ts1423757160",
+      "sliceDatasetItemId": "bundesliga-2025-26__pes-squad__ts1423757160__slice__random-40-seed-20260505-prod-plus-o3-effort",
+      "homeTeam": "1899 Hoffenheim",
+      "awayTeam": "Hamburger SV",
+      "matchday": 14,
+      "startsAt": "2025-12-13T15:30:00 UTC\u002B01 (\u002B01)",
+      "tippSpielId": "1423757160"
+    },
+    {
+      "sourceDatasetItemId": "bundesliga-2025-26__pes-squad__ts1423757163",
+      "sliceDatasetItemId": "bundesliga-2025-26__pes-squad__ts1423757163__slice__random-40-seed-20260505-prod-plus-o3-effort",
+      "homeTeam": "Bayer 04 Leverkusen",
+      "awayTeam": "1. FC K\u00F6ln",
+      "matchday": 14,
+      "startsAt": "2025-12-13T18:30:00 UTC\u002B01 (\u002B01)",
+      "tippSpielId": "1423757163"
+    },
+    {
+      "sourceDatasetItemId": "bundesliga-2025-26__pes-squad__ts1423757167",
+      "sliceDatasetItemId": "bundesliga-2025-26__pes-squad__ts1423757167__slice__random-40-seed-20260505-prod-plus-o3-effort",
+      "homeTeam": "SC Freiburg",
+      "awayTeam": "Borussia Dortmund",
+      "matchday": 14,
+      "startsAt": "2025-12-14T15:30:00 UTC\u002B01 (\u002B01)",
+      "tippSpielId": "1423757167"
+    },
+    {
+      "sourceDatasetItemId": "bundesliga-2025-26__pes-squad__ts1423757181",
+      "sliceDatasetItemId": "bundesliga-2025-26__pes-squad__ts1423757181__slice__random-40-seed-20260505-prod-plus-o3-effort",
+      "homeTeam": "FC Augsburg",
+      "awayTeam": "Bayer 04 Leverkusen",
+      "matchday": 13,
+      "startsAt": "2025-12-06T15:30:00 UTC\u002B01 (\u002B01)",
+      "tippSpielId": "1423757181"
+    },
+    {
+      "sourceDatasetItemId": "bundesliga-2025-26__pes-squad__ts1423757188",
+      "sliceDatasetItemId": "bundesliga-2025-26__pes-squad__ts1423757188__slice__random-40-seed-20260505-prod-plus-o3-effort",
+      "homeTeam": "1. FC Heidenheim 1846",
+      "awayTeam": "RB Leipzig",
+      "matchday": 19,
+      "startsAt": "2026-01-24T15:30:00 UTC\u002B01 (\u002B01)",
+      "tippSpielId": "1423757188"
+    },
+    {
+      "sourceDatasetItemId": "bundesliga-2025-26__pes-squad__ts1423757189",
+      "sliceDatasetItemId": "bundesliga-2025-26__pes-squad__ts1423757189__slice__random-40-seed-20260505-prod-plus-o3-effort",
+      "homeTeam": "FSV Mainz 05",
+      "awayTeam": "VfL Wolfsburg",
+      "matchday": 19,
+      "startsAt": "2026-01-24T15:30:00 UTC\u002B01 (\u002B01)",
+      "tippSpielId": "1423757189"
+    },
+    {
+      "sourceDatasetItemId": "bundesliga-2025-26__pes-squad__ts1423757202",
+      "sliceDatasetItemId": "bundesliga-2025-26__pes-squad__ts1423757202__slice__random-40-seed-20260505-prod-plus-o3-effort",
+      "homeTeam": "Werder Bremen",
+      "awayTeam": "1899 Hoffenheim",
+      "matchday": 16,
+      "startsAt": "2026-01-27T20:30:00 UTC\u002B01 (\u002B01)",
+      "tippSpielId": "1423757202"
+    },
+    {
+      "sourceDatasetItemId": "bundesliga-2025-26__pes-squad__ts1423757203",
+      "sliceDatasetItemId": "bundesliga-2025-26__pes-squad__ts1423757203__slice__random-40-seed-20260505-prod-plus-o3-effort",
+      "homeTeam": "FC St. Pauli",
+      "awayTeam": "RB Leipzig",
+      "matchday": 16,
+      "startsAt": "2026-01-27T20:30:00 UTC\u002B01 (\u002B01)",
+      "tippSpielId": "1423757203"
+    },
+    {
+      "sourceDatasetItemId": "bundesliga-2025-26__pes-squad__ts1423757217",
+      "sliceDatasetItemId": "bundesliga-2025-26__pes-squad__ts1423757217__slice__random-40-seed-20260505-prod-plus-o3-effort",
+      "homeTeam": "Eintracht Frankfurt",
+      "awayTeam": "Bor. M\u00F6nchengladbach",
+      "matchday": 22,
+      "startsAt": "2026-02-14T15:30:00 UTC\u002B01 (\u002B01)",
+      "tippSpielId": "1423757217"
+    },
+    {
+      "sourceDatasetItemId": "bundesliga-2025-26__pes-squad__ts1423757219",
+      "sliceDatasetItemId": "bundesliga-2025-26__pes-squad__ts1423757219__slice__random-40-seed-20260505-prod-plus-o3-effort",
+      "homeTeam": "Bayer 04 Leverkusen",
+      "awayTeam": "FC St. Pauli",
+      "matchday": 22,
+      "startsAt": "2026-02-14T15:30:00 UTC\u002B01 (\u002B01)",
+      "tippSpielId": "1423757219"
+    },
+    {
+      "sourceDatasetItemId": "bundesliga-2025-26__pes-squad__ts1423757226",
+      "sliceDatasetItemId": "bundesliga-2025-26__pes-squad__ts1423757226__slice__random-40-seed-20260505-prod-plus-o3-effort",
+      "homeTeam": "SC Freiburg",
+      "awayTeam": "Werder Bremen",
+      "matchday": 21,
+      "startsAt": "2026-02-07T15:30:00 UTC\u002B01 (\u002B01)",
+      "tippSpielId": "1423757226"
+    },
+    {
+      "sourceDatasetItemId": "bundesliga-2025-26__pes-squad__ts1423757239",
+      "sliceDatasetItemId": "bundesliga-2025-26__pes-squad__ts1423757239__slice__random-40-seed-20260505-prod-plus-o3-effort",
+      "homeTeam": "RB Leipzig",
+      "awayTeam": "FSV Mainz 05",
+      "matchday": 20,
+      "startsAt": "2026-01-31T15:30:00 UTC\u002B01 (\u002B01)",
+      "tippSpielId": "1423757239"
+    },
+    {
+      "sourceDatasetItemId": "bundesliga-2025-26__pes-squad__ts1423757247",
+      "sliceDatasetItemId": "bundesliga-2025-26__pes-squad__ts1423757247__slice__random-40-seed-20260505-prod-plus-o3-effort",
+      "homeTeam": "FC Bayern M\u00FCnchen",
+      "awayTeam": "FC Augsburg",
+      "matchday": 19,
+      "startsAt": "2026-01-24T15:30:00 UTC\u002B01 (\u002B01)",
+      "tippSpielId": "1423757247"
+    },
+    {
+      "sourceDatasetItemId": "bundesliga-2025-26__pes-squad__ts1423757248",
+      "sliceDatasetItemId": "bundesliga-2025-26__pes-squad__ts1423757248__slice__random-40-seed-20260505-prod-plus-o3-effort",
+      "homeTeam": "Hamburger SV",
+      "awayTeam": "1. FC K\u00F6ln",
+      "matchday": 26,
+      "startsAt": "2026-03-14T18:30:00 UTC\u002B01 (\u002B01)",
+      "tippSpielId": "1423757248"
+    },
+    {
+      "sourceDatasetItemId": "bundesliga-2025-26__pes-squad__ts1423757251",
+      "sliceDatasetItemId": "bundesliga-2025-26__pes-squad__ts1423757251__slice__random-40-seed-20260505-prod-plus-o3-effort",
+      "homeTeam": "RB Leipzig",
+      "awayTeam": "FC Augsburg",
+      "matchday": 25,
+      "startsAt": "2026-03-07T15:30:00 UTC\u002B01 (\u002B01)",
+      "tippSpielId": "1423757251"
+    },
+    {
+      "sourceDatasetItemId": "bundesliga-2025-26__pes-squad__ts1423757254",
+      "sliceDatasetItemId": "bundesliga-2025-26__pes-squad__ts1423757254__slice__random-40-seed-20260505-prod-plus-o3-effort",
+      "homeTeam": "VfB Stuttgart",
+      "awayTeam": "RB Leipzig",
+      "matchday": 26,
+      "startsAt": "2026-03-15T19:30:00 UTC\u002B01 (\u002B01)",
+      "tippSpielId": "1423757254"
+    },
+    {
+      "sourceDatasetItemId": "bundesliga-2025-26__pes-squad__ts1423757255",
+      "sliceDatasetItemId": "bundesliga-2025-26__pes-squad__ts1423757255__slice__random-40-seed-20260505-prod-plus-o3-effort",
+      "homeTeam": "SC Freiburg",
+      "awayTeam": "1. FC Union Berlin",
+      "matchday": 26,
+      "startsAt": "2026-03-15T17:30:00 UTC\u002B01 (\u002B01)",
+      "tippSpielId": "1423757255"
+    },
+    {
+      "sourceDatasetItemId": "bundesliga-2025-26__pes-squad__ts1423757259",
+      "sliceDatasetItemId": "bundesliga-2025-26__pes-squad__ts1423757259__slice__random-40-seed-20260505-prod-plus-o3-effort",
+      "homeTeam": "Hamburger SV",
+      "awayTeam": "RB Leipzig",
+      "matchday": 24,
+      "startsAt": "2026-03-01T19:30:00 UTC\u002B01 (\u002B01)",
+      "tippSpielId": "1423757259"
+    },
+    {
+      "sourceDatasetItemId": "bundesliga-2025-26__pes-squad__ts1423757267",
+      "sliceDatasetItemId": "bundesliga-2025-26__pes-squad__ts1423757267__slice__random-40-seed-20260505-prod-plus-o3-effort",
+      "homeTeam": "1. FC Union Berlin",
+      "awayTeam": "Bayer 04 Leverkusen",
+      "matchday": 23,
+      "startsAt": "2026-02-21T15:30:00 UTC\u002B01 (\u002B01)",
+      "tippSpielId": "1423757267"
+    },
+    {
+      "sourceDatasetItemId": "bundesliga-2025-26__pes-squad__ts1423757268",
+      "sliceDatasetItemId": "bundesliga-2025-26__pes-squad__ts1423757268__slice__random-40-seed-20260505-prod-plus-o3-effort",
+      "homeTeam": "Bor. M\u00F6nchengladbach",
+      "awayTeam": "1. FC Union Berlin",
+      "matchday": 24,
+      "startsAt": "2026-02-28T15:30:00 UTC\u002B01 (\u002B01)",
+      "tippSpielId": "1423757268"
+    },
+    {
+      "sourceDatasetItemId": "bundesliga-2025-26__pes-squad__ts1423757269",
+      "sliceDatasetItemId": "bundesliga-2025-26__pes-squad__ts1423757269__slice__random-40-seed-20260505-prod-plus-o3-effort",
+      "homeTeam": "Borussia Dortmund",
+      "awayTeam": "FC Bayern M\u00FCnchen",
+      "matchday": 24,
+      "startsAt": "2026-02-28T18:30:00 UTC\u002B01 (\u002B01)",
+      "tippSpielId": "1423757269"
+    },
+    {
+      "sourceDatasetItemId": "bundesliga-2025-26__pes-squad__ts1423757271",
+      "sliceDatasetItemId": "bundesliga-2025-26__pes-squad__ts1423757271__slice__random-40-seed-20260505-prod-plus-o3-effort",
+      "homeTeam": "Bayer 04 Leverkusen",
+      "awayTeam": "FSV Mainz 05",
+      "matchday": 24,
+      "startsAt": "2026-02-28T15:30:00 UTC\u002B01 (\u002B01)",
+      "tippSpielId": "1423757271"
+    },
+    {
+      "sourceDatasetItemId": "bundesliga-2025-26__pes-squad__ts1423757274",
+      "sliceDatasetItemId": "bundesliga-2025-26__pes-squad__ts1423757274__slice__random-40-seed-20260505-prod-plus-o3-effort",
+      "homeTeam": "SC Freiburg",
+      "awayTeam": "Bor. M\u00F6nchengladbach",
+      "matchday": 23,
+      "startsAt": "2026-02-22T15:30:00 UTC\u002B01 (\u002B01)",
+      "tippSpielId": "1423757274"
+    },
+    {
+      "sourceDatasetItemId": "bundesliga-2025-26__pes-squad__ts1423757277",
+      "sliceDatasetItemId": "bundesliga-2025-26__pes-squad__ts1423757277__slice__random-40-seed-20260505-prod-plus-o3-effort",
+      "homeTeam": "RB Leipzig",
+      "awayTeam": "Borussia Dortmund",
+      "matchday": 23,
+      "startsAt": "2026-02-21T18:30:00 UTC\u002B01 (\u002B01)",
+      "tippSpielId": "1423757277"
+    },
+    {
+      "sourceDatasetItemId": "bundesliga-2025-26__pes-squad__ts1423757279",
+      "sliceDatasetItemId": "bundesliga-2025-26__pes-squad__ts1423757279__slice__random-40-seed-20260505-prod-plus-o3-effort",
+      "homeTeam": "1. FC Heidenheim 1846",
+      "awayTeam": "VfB Stuttgart",
+      "matchday": 23,
+      "startsAt": "2026-02-22T19:30:00 UTC\u002B01 (\u002B01)",
+      "tippSpielId": "1423757279"
+    },
+    {
+      "sourceDatasetItemId": "bundesliga-2025-26__pes-squad__ts1423757284",
+      "sliceDatasetItemId": "bundesliga-2025-26__pes-squad__ts1423757284__slice__random-40-seed-20260505-prod-plus-o3-effort",
+      "homeTeam": "FC Bayern M\u00FCnchen",
+      "awayTeam": "VfB Stuttgart",
+      "matchday": 30,
+      "startsAt": "2026-04-19T18:30:00 UTC\u002B02 (\u002B02)",
+      "tippSpielId": "1423757284"
+    },
+    {
+      "sourceDatasetItemId": "bundesliga-2025-26__pes-squad__ts1423757286",
+      "sliceDatasetItemId": "bundesliga-2025-26__pes-squad__ts1423757286__slice__random-40-seed-20260505-prod-plus-o3-effort",
+      "homeTeam": "VfL Wolfsburg",
+      "awayTeam": "Eintracht Frankfurt",
+      "matchday": 29,
+      "startsAt": "2026-04-11T16:30:00 UTC\u002B02 (\u002B02)",
+      "tippSpielId": "1423757286"
+    },
+    {
+      "sourceDatasetItemId": "bundesliga-2025-26__pes-squad__ts1423757291",
+      "sliceDatasetItemId": "bundesliga-2025-26__pes-squad__ts1423757291__slice__random-40-seed-20260505-prod-plus-o3-effort",
+      "homeTeam": "Hamburger SV",
+      "awayTeam": "FC Augsburg",
+      "matchday": 28,
+      "startsAt": "2026-04-04T16:30:00 UTC\u002B02 (\u002B02)",
+      "tippSpielId": "1423757291"
+    },
+    {
+      "sourceDatasetItemId": "bundesliga-2025-26__pes-squad__ts1423757293",
+      "sliceDatasetItemId": "bundesliga-2025-26__pes-squad__ts1423757293__slice__random-40-seed-20260505-prod-plus-o3-effort",
+      "homeTeam": "FC Augsburg",
+      "awayTeam": "1899 Hoffenheim",
+      "matchday": 29,
+      "startsAt": "2026-04-10T21:30:00 UTC\u002B02 (\u002B02)",
+      "tippSpielId": "1423757293"
+    },
+    {
+      "sourceDatasetItemId": "bundesliga-2025-26__pes-squad__ts1423757294",
+      "sliceDatasetItemId": "bundesliga-2025-26__pes-squad__ts1423757294__slice__random-40-seed-20260505-prod-plus-o3-effort",
+      "homeTeam": "Bayer 04 Leverkusen",
+      "awayTeam": "VfL Wolfsburg",
+      "matchday": 28,
+      "startsAt": "2026-04-04T16:30:00 UTC\u002B02 (\u002B02)",
+      "tippSpielId": "1423757294"
+    },
+    {
+      "sourceDatasetItemId": "bundesliga-2025-26__pes-squad__ts1423757311",
+      "sliceDatasetItemId": "bundesliga-2025-26__pes-squad__ts1423757311__slice__random-40-seed-20260505-prod-plus-o3-effort",
+      "homeTeam": "FC Augsburg",
+      "awayTeam": "VfB Stuttgart",
+      "matchday": 27,
+      "startsAt": "2026-03-22T19:30:00 UTC\u002B01 (\u002B01)",
+      "tippSpielId": "1423757311"
+    },
+    {
+      "sourceDatasetItemId": "bundesliga-2025-26__pes-squad__ts1423757315",
+      "sliceDatasetItemId": "bundesliga-2025-26__pes-squad__ts1423757315__slice__random-40-seed-20260505-prod-plus-o3-effort",
+      "homeTeam": "FC St. Pauli",
+      "awayTeam": "FSV Mainz 05",
+      "matchday": 32,
+      "startsAt": "2026-05-03T16:30:00 UTC\u002B02 (\u002B02)",
+      "tippSpielId": "1423757315"
+    },
+    {
+      "sourceDatasetItemId": "bundesliga-2025-26__pes-squad__ts1423757320",
+      "sliceDatasetItemId": "bundesliga-2025-26__pes-squad__ts1423757320__slice__random-40-seed-20260505-prod-plus-o3-effort",
+      "homeTeam": "Eintracht Frankfurt",
+      "awayTeam": "Hamburger SV",
+      "matchday": 32,
+      "startsAt": "2026-05-02T16:30:00 UTC\u002B02 (\u002B02)",
+      "tippSpielId": "1423757320"
+    },
+    {
+      "sourceDatasetItemId": "bundesliga-2025-26__pes-squad__ts1423757324",
+      "sliceDatasetItemId": "bundesliga-2025-26__pes-squad__ts1423757324__slice__random-40-seed-20260505-prod-plus-o3-effort",
+      "homeTeam": "1. FC Union Berlin",
+      "awayTeam": "1. FC K\u00F6ln",
+      "matchday": 32,
+      "startsAt": "2026-05-02T16:30:00 UTC\u002B02 (\u002B02)",
+      "tippSpielId": "1423757324"
+    },
+    {
+      "sourceDatasetItemId": "bundesliga-2025-26__pes-squad__ts1423757327",
+      "sliceDatasetItemId": "bundesliga-2025-26__pes-squad__ts1423757327__slice__random-40-seed-20260505-prod-plus-o3-effort",
+      "homeTeam": "Bor. M\u00F6nchengladbach",
+      "awayTeam": "Borussia Dortmund",
+      "matchday": 32,
+      "startsAt": "2026-05-03T18:40:00 UTC\u002B02 (\u002B02)",
+      "tippSpielId": "1423757327"
+    },
+    {
+      "sourceDatasetItemId": "bundesliga-2025-26__pes-squad__ts1423757330",
+      "sliceDatasetItemId": "bundesliga-2025-26__pes-squad__ts1423757330__slice__random-40-seed-20260505-prod-plus-o3-effort",
+      "homeTeam": "VfB Stuttgart",
+      "awayTeam": "Werder Bremen",
+      "matchday": 31,
+      "startsAt": "2026-04-26T16:30:00 UTC\u002B02 (\u002B02)",
+      "tippSpielId": "1423757330"
+    },
+    {
+      "sourceDatasetItemId": "bundesliga-2025-26__pes-squad__ts1423757332",
+      "sliceDatasetItemId": "bundesliga-2025-26__pes-squad__ts1423757332__slice__random-40-seed-20260505-prod-plus-o3-effort",
+      "homeTeam": "RB Leipzig",
+      "awayTeam": "1. FC Union Berlin",
+      "matchday": 31,
+      "startsAt": "2026-04-24T21:30:00 UTC\u002B02 (\u002B02)",
+      "tippSpielId": "1423757332"
+    },
+    {
+      "sourceDatasetItemId": "bundesliga-2025-26__pes-squad__ts1423757335",
+      "sliceDatasetItemId": "bundesliga-2025-26__pes-squad__ts1423757335__slice__random-40-seed-20260505-prod-plus-o3-effort",
+      "homeTeam": "Borussia Dortmund",
+      "awayTeam": "SC Freiburg",
+      "matchday": 31,
+      "startsAt": "2026-04-26T18:30:00 UTC\u002B02 (\u002B02)",
+      "tippSpielId": "1423757335"
+    },
+    {
+      "sourceDatasetItemId": "bundesliga-2025-26__pes-squad__ts1423757337",
+      "sliceDatasetItemId": "bundesliga-2025-26__pes-squad__ts1423757337__slice__random-40-seed-20260505-prod-plus-o3-effort",
+      "homeTeam": "Bor. M\u00F6nchengladbach",
+      "awayTeam": "FSV Mainz 05",
+      "matchday": 30,
+      "startsAt": "2026-04-19T20:30:00 UTC\u002B02 (\u002B02)",
+      "tippSpielId": "1423757337"
+    }
+  ]
+}

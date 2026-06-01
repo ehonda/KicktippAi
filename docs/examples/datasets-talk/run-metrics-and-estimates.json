@@ -1,0 +1,394 @@
+{
+  "slice": {
+    "datasetName": "match-predictions/bundesliga-2025-26/pes-squad/slices/all-matchdays-after-20251130t230000z/random-40-seed-20260505-prod-plus-o3-effort",
+    "runs": [
+      {
+        "runName": "slice__pes-squad__o3__prompt-v1__reasoning-high__maxout-20000__random-40-seed-20260505-prod-plus-o3-effort__startsat-12h__2026-05-04t22-49-35z",
+        "model": "o3",
+        "reasoningEffort": "high",
+        "sampleSize": 40,
+        "matchCount": null,
+        "repetitions": null,
+        "batchCount": null,
+        "batchSize": 20,
+        "parallelism": null,
+        "maxOutputTokens": 20000,
+        "promptKey": "prompt-v1",
+        "estimateCommand": "uv --cache-dir .uv-cache run python .agents/skills/estimate-experiment-cost-skill/scripts/experiment_cost_estimator.py estimate --counts 40 --model o3 --reasoning-effort high",
+        "estimatedTotalCostUsd": "0.961284000000",
+        "estimatedAverageCostPerPredictionUsd": "0.024032100000",
+        "estimateBaseSource": "Base estimate evidence: [o3-high-base-estimate-2026-05-05.md](o3-high-base-estimate-2026-05-05.md).",
+        "metrics": {
+          "observationCount": 40,
+          "inputTokens": 200456,
+          "uncachedInputTokens": 162568,
+          "cachedInputTokens": 37888,
+          "outputTokens": 189339,
+          "totalTokens": 351907,
+          "totalCostUsd": 0.891508,
+          "avgLatencyMs": 71229.3,
+          "p50LatencyMs": 29203.5,
+          "p95LatencyMs": 403687.7,
+          "avgTimeToFirstTokenMs": null
+        },
+        "reportPaths": [
+          "experiment-analysis/slices/pes-squad/all-matchdays-after-20251130t230000z/random-40-seed-20260505-prod-plus-o3-effort/random-40-seed-20260505-prod-plus-o3-effort-2026-05-04t22-49-35z.analysis.report.html"
+        ],
+        "reportUrls": [
+          "https://ehonda.github.io/KicktippAi/experiment-analysis/slices/pes-squad/all-matchdays-after-20251130t230000z/random-40-seed-20260505-prod-plus-o3-effort/random-40-seed-20260505-prod-plus-o3-effort-2026-05-04t22-49-35z.analysis.report.html"
+        ]
+      },
+      {
+        "runName": "slice__pes-squad__o3__prompt-v1__reasoning-medium__maxout-20000__random-40-seed-20260505-prod-plus-o3-effort__startsat-12h__2026-05-04t22-49-35z",
+        "model": "o3",
+        "reasoningEffort": "medium",
+        "sampleSize": 40,
+        "matchCount": null,
+        "repetitions": null,
+        "batchCount": null,
+        "batchSize": 10,
+        "parallelism": null,
+        "maxOutputTokens": 20000,
+        "promptKey": "prompt-v1",
+        "estimateCommand": "uv --cache-dir .uv-cache run python .agents/skills/estimate-experiment-cost-skill/scripts/experiment_cost_estimator.py estimate --counts 20,40,100,150 --model o3 --reasoning-effort medium",
+        "estimatedTotalCostUsd": "0.417464000000",
+        "estimatedAverageCostPerPredictionUsd": "0.010436600000",
+        "estimateBaseSource": "Initial seed evidence: `o3-medium-2026-05-01t22-14-04z`.",
+        "metrics": {
+          "observationCount": 53,
+          "inputTokens": 186373,
+          "uncachedInputTokens": 180741,
+          "cachedInputTokens": 5632,
+          "outputTokens": 100635,
+          "totalTokens": 281376,
+          "totalCostUsd": 0.579057,
+          "avgLatencyMs": 14436.5,
+          "p50LatencyMs": 12115.0,
+          "p95LatencyMs": 29304.8,
+          "avgTimeToFirstTokenMs": null
+        },
+        "reportPaths": [
+          "experiment-analysis/slices/pes-squad/all-matchdays-after-20251130t230000z/random-40-seed-20260505-prod-plus-o3-effort/random-40-seed-20260505-prod-plus-o3-effort-2026-05-04t22-49-35z.analysis.report.html"
+        ],
+        "reportUrls": [
+          "https://ehonda.github.io/KicktippAi/experiment-analysis/slices/pes-squad/all-matchdays-after-20251130t230000z/random-40-seed-20260505-prod-plus-o3-effort/random-40-seed-20260505-prod-plus-o3-effort-2026-05-04t22-49-35z.analysis.report.html"
+        ]
+      }
+    ]
+  },
+  "repeated-match": {
+    "datasetName": "match-predictions/bundesliga-2025-26/pes-squad/repeated-match/md01-fc-bayern-munchen-vs-rb-leipzig/repeat-100-knowledge-cutoff-bayern-rbl-md1",
+    "runs": [
+      {
+        "runName": "repeated-match__pes-squad__o3__langfuse-o3-poc__reasoning-medium__repeat-100-knowledge-cutoff-bayern-rbl-md1__exact-time__2026-05-30t20-25-39z",
+        "model": "o3",
+        "reasoningEffort": "medium",
+        "sampleSize": 100,
+        "matchCount": null,
+        "repetitions": null,
+        "batchCount": 9,
+        "batchSize": null,
+        "parallelism": null,
+        "maxOutputTokens": null,
+        "promptKey": "langfuse-o3-poc",
+        "estimateCommand": "uv --cache-dir .uv-cache run python .agents/skills/estimate-experiment-cost-skill/scripts/experiment_cost_estimator.py estimate --counts 20,40,100,150 --model o3 --reasoning-effort medium",
+        "estimatedTotalCostUsd": "1.043660000000",
+        "estimatedAverageCostPerPredictionUsd": "0.010436600000",
+        "estimateBaseSource": "Initial seed evidence: `o3-medium-2026-05-01t22-14-04z`.",
+        "metrics": {
+          "observationCount": 100,
+          "inputTokens": 413244,
+          "uncachedInputTokens": 247100,
+          "cachedInputTokens": 166144,
+          "outputTokens": 135550,
+          "totalTokens": 382650,
+          "totalCostUsd": 0.664692,
+          "avgLatencyMs": 9930.0,
+          "p50LatencyMs": 8755.5,
+          "p95LatencyMs": 20220.1,
+          "avgTimeToFirstTokenMs": null
+        },
+        "reportPaths": [
+          "experiment-analysis/repeated-match/pes-squad/md01-fc-bayern-munchen-vs-rb-leipzig/repeat-100-knowledge-cutoff-bayern-rbl-md1/2026-05-30t20-25-39z.analysis.report.html"
+        ],
+        "reportUrls": [
+          "https://ehonda.github.io/KicktippAi/experiment-analysis/repeated-match/pes-squad/md01-fc-bayern-munchen-vs-rb-leipzig/repeat-100-knowledge-cutoff-bayern-rbl-md1/2026-05-30t20-25-39z.analysis.report.html"
+        ]
+      },
+      {
+        "runName": "repeated-match__pes-squad__gpt-5.5__langfuse-o3-poc__reasoning-low__repeat-100-knowledge-cutoff-bayern-rbl-md1__exact-time__2026-05-10t08-43-34z",
+        "model": "gpt-5.5",
+        "reasoningEffort": "low",
+        "sampleSize": 100,
+        "matchCount": null,
+        "repetitions": null,
+        "batchCount": 10,
+        "batchSize": null,
+        "parallelism": null,
+        "maxOutputTokens": 10000,
+        "promptKey": "langfuse-o3-poc",
+        "estimateCommand": "uv --cache-dir .uv-cache run python .agents/skills/estimate-experiment-cost-skill/scripts/experiment_cost_estimator.py estimate --counts 100 --model gpt-5.5 --reasoning-effort low",
+        "estimatedTotalCostUsd": "1.167625000000",
+        "estimatedAverageCostPerPredictionUsd": "0.011676250000",
+        "estimateBaseSource": "Base estimate run family 2026-05-10t07-59-36z; retry policy commit 035422a.",
+        "metrics": {
+          "observationCount": 100,
+          "inputTokens": 468284,
+          "uncachedInputTokens": 247100,
+          "cachedInputTokens": 221184,
+          "outputTokens": 15952,
+          "totalTokens": 263052,
+          "totalCostUsd": 0.359366,
+          "avgLatencyMs": 3660.6,
+          "p50LatencyMs": 3319.5,
+          "p95LatencyMs": 5871.0,
+          "avgTimeToFirstTokenMs": null
+        },
+        "reportPaths": [
+          "experiment-analysis/repeated-match/pes-squad/md01-fc-bayern-munchen-vs-rb-leipzig/repeat-100-knowledge-cutoff-bayern-rbl-md1/2026-05-10t08-43-34z.analysis.report.html"
+        ],
+        "reportUrls": [
+          "https://ehonda.github.io/KicktippAi/experiment-analysis/repeated-match/pes-squad/md01-fc-bayern-munchen-vs-rb-leipzig/repeat-100-knowledge-cutoff-bayern-rbl-md1/2026-05-10t08-43-34z.analysis.report.html"
+        ]
+      }
+    ]
+  },
+  "repeated-match-slice": {
+    "datasetName": "match-predictions/bundesliga-2025-26/pes-squad/repeated-match-slices/all-matchdays-after-20251202t230000z/random-15x10-seed-20260517-after-20251203",
+    "runs": [
+      {
+        "runName": "repeated-match-slice__pes-squad__gpt-5.5__langfuse-o3-poc__reasoning-high__random-15x10-seed-20260517-after-20251203__startsat-12h__2026-05-18t22-28-33z",
+        "model": "gpt-5.5",
+        "reasoningEffort": "high",
+        "sampleSize": 150,
+        "matchCount": 15,
+        "repetitions": 10,
+        "batchCount": 3,
+        "batchSize": null,
+        "parallelism": 1,
+        "maxOutputTokens": null,
+        "promptKey": "langfuse-o3-poc",
+        "estimateCommand": "uv --cache-dir .uv-cache run python .agents/skills/estimate-experiment-cost-skill/scripts/experiment_cost_estimator.py estimate --counts 150 --model gpt-5.5 --reasoning-effort high",
+        "estimatedTotalCostUsd": "8.017462500000",
+        "estimatedAverageCostPerPredictionUsd": "0.053449750000",
+        "estimateBaseSource": "Base estimate run family 2026-05-10t23-02-30z; whole-season gpt-5.5 high estimate.",
+        "metrics": {
+          "observationCount": 150,
+          "inputTokens": 893542,
+          "uncachedInputTokens": 516710,
+          "cachedInputTokens": 376832,
+          "outputTokens": 498521,
+          "totalTokens": 1015231,
+          "totalCostUsd": 15.4524585,
+          "avgLatencyMs": 61057.5,
+          "p50LatencyMs": 56620.0,
+          "p95LatencyMs": 118637.6,
+          "avgTimeToFirstTokenMs": null
+        },
+        "reportPaths": [
+          "experiment-analysis/repeated-match-slices/pes-squad/all-matchdays-after-20251202t230000z/random-15x10-seed-20260517-after-20251203/gpt55-medium-vs-gpt55-high-2026-05-18t22-28-33z.analysis.report.html",
+          "experiment-analysis/repeated-match-slices/pes-squad/all-matchdays-after-20251202t230000z/random-15x10-seed-20260517-after-20251203/o3-medium-vs-gpt55-high-2026-05-18t22-28-33z.analysis.report.html",
+          "experiment-analysis/repeated-match-slices/pes-squad/all-matchdays-after-20251202t230000z/random-15x10-seed-20260517-after-20251203/all-runs-2026-05-18t22-28-33z.analysis.report.html"
+        ],
+        "reportUrls": [
+          "https://ehonda.github.io/KicktippAi/experiment-analysis/repeated-match-slices/pes-squad/all-matchdays-after-20251202t230000z/random-15x10-seed-20260517-after-20251203/gpt55-medium-vs-gpt55-high-2026-05-18t22-28-33z.analysis.report.html",
+          "https://ehonda.github.io/KicktippAi/experiment-analysis/repeated-match-slices/pes-squad/all-matchdays-after-20251202t230000z/random-15x10-seed-20260517-after-20251203/o3-medium-vs-gpt55-high-2026-05-18t22-28-33z.analysis.report.html",
+          "https://ehonda.github.io/KicktippAi/experiment-analysis/repeated-match-slices/pes-squad/all-matchdays-after-20251202t230000z/random-15x10-seed-20260517-after-20251203/all-runs-2026-05-18t22-28-33z.analysis.report.html"
+        ]
+      },
+      {
+        "runName": "repeated-match-slice__pes-squad__gpt-5.5__langfuse-o3-poc__reasoning-medium__random-15x10-seed-20260517-after-20251203__startsat-12h__2026-05-16t23-55-32z",
+        "model": "gpt-5.5",
+        "reasoningEffort": "medium",
+        "sampleSize": 150,
+        "matchCount": 15,
+        "repetitions": 10,
+        "batchCount": 3,
+        "batchSize": null,
+        "parallelism": 1,
+        "maxOutputTokens": null,
+        "promptKey": "langfuse-o3-poc",
+        "estimateCommand": "uv --cache-dir .uv-cache run python .agents/skills/estimate-experiment-cost-skill/scripts/experiment_cost_estimator.py estimate --counts 150 --model gpt-5.5 --reasoning-effort medium",
+        "estimatedTotalCostUsd": "2.546137500000",
+        "estimatedAverageCostPerPredictionUsd": "0.016974250000",
+        "estimateBaseSource": "Base estimate run family 2026-05-10t22-57-59z; whole-season gpt-5.5 medium estimate.",
+        "metrics": {
+          "observationCount": 150,
+          "inputTokens": 927590,
+          "uncachedInputTokens": 516710,
+          "cachedInputTokens": 410880,
+          "outputTokens": 80930,
+          "totalTokens": 597640,
+          "totalCostUsd": 1.581245,
+          "avgLatencyMs": 9313.9,
+          "p50LatencyMs": 8846.0,
+          "p95LatencyMs": 14957.9,
+          "avgTimeToFirstTokenMs": null
+        },
+        "reportPaths": [
+          "experiment-analysis/repeated-match-slices/pes-squad/all-matchdays-after-20251202t230000z/random-15x10-seed-20260517-after-20251203/gpt55-medium-vs-o3-medium-2026-05-16t23-55-32z.analysis.report.html",
+          "experiment-analysis/repeated-match-slices/pes-squad/all-matchdays-after-20251202t230000z/random-15x10-seed-20260517-after-20251203/gpt55-medium-vs-gpt55-high-2026-05-18t22-28-33z.analysis.report.html",
+          "experiment-analysis/repeated-match-slices/pes-squad/all-matchdays-after-20251202t230000z/random-15x10-seed-20260517-after-20251203/all-runs-2026-05-18t22-28-33z.analysis.report.html"
+        ],
+        "reportUrls": [
+          "https://ehonda.github.io/KicktippAi/experiment-analysis/repeated-match-slices/pes-squad/all-matchdays-after-20251202t230000z/random-15x10-seed-20260517-after-20251203/gpt55-medium-vs-o3-medium-2026-05-16t23-55-32z.analysis.report.html",
+          "https://ehonda.github.io/KicktippAi/experiment-analysis/repeated-match-slices/pes-squad/all-matchdays-after-20251202t230000z/random-15x10-seed-20260517-after-20251203/gpt55-medium-vs-gpt55-high-2026-05-18t22-28-33z.analysis.report.html",
+          "https://ehonda.github.io/KicktippAi/experiment-analysis/repeated-match-slices/pes-squad/all-matchdays-after-20251202t230000z/random-15x10-seed-20260517-after-20251203/all-runs-2026-05-18t22-28-33z.analysis.report.html"
+        ]
+      },
+      {
+        "runName": "repeated-match-slice__pes-squad__o3__langfuse-o3-poc__reasoning-medium__random-15x10-seed-20260517-after-20251203__startsat-12h__2026-05-16t23-55-32z",
+        "model": "o3",
+        "reasoningEffort": "medium",
+        "sampleSize": 150,
+        "matchCount": 15,
+        "repetitions": 10,
+        "batchCount": 3,
+        "batchSize": null,
+        "parallelism": 3,
+        "maxOutputTokens": null,
+        "promptKey": "langfuse-o3-poc",
+        "estimateCommand": "uv --cache-dir .uv-cache run python .agents/skills/estimate-experiment-cost-skill/scripts/experiment_cost_estimator.py estimate --counts 20,40,100,150 --model o3 --reasoning-effort medium",
+        "estimatedTotalCostUsd": "1.565490000000",
+        "estimatedAverageCostPerPredictionUsd": "0.010436600000",
+        "estimateBaseSource": "Initial seed evidence: `o3-medium-2026-05-01t22-14-04z`.",
+        "metrics": {
+          "observationCount": 150,
+          "inputTokens": 628198,
+          "uncachedInputTokens": 516710,
+          "cachedInputTokens": 111488,
+          "outputTokens": 316388,
+          "totalTokens": 833098,
+          "totalCostUsd": 1.698646,
+          "avgLatencyMs": 13205.5,
+          "p50LatencyMs": 11371.0,
+          "p95LatencyMs": 27096.7,
+          "avgTimeToFirstTokenMs": null
+        },
+        "reportPaths": [
+          "experiment-analysis/repeated-match-slices/pes-squad/all-matchdays-after-20251202t230000z/random-15x10-seed-20260517-after-20251203/gpt55-medium-vs-o3-medium-2026-05-16t23-55-32z.analysis.report.html",
+          "experiment-analysis/repeated-match-slices/pes-squad/all-matchdays-after-20251202t230000z/random-15x10-seed-20260517-after-20251203/o3-medium-vs-gpt55-high-2026-05-18t22-28-33z.analysis.report.html",
+          "experiment-analysis/repeated-match-slices/pes-squad/all-matchdays-after-20251202t230000z/random-15x10-seed-20260517-after-20251203/all-runs-2026-05-18t22-28-33z.analysis.report.html"
+        ],
+        "reportUrls": [
+          "https://ehonda.github.io/KicktippAi/experiment-analysis/repeated-match-slices/pes-squad/all-matchdays-after-20251202t230000z/random-15x10-seed-20260517-after-20251203/gpt55-medium-vs-o3-medium-2026-05-16t23-55-32z.analysis.report.html",
+          "https://ehonda.github.io/KicktippAi/experiment-analysis/repeated-match-slices/pes-squad/all-matchdays-after-20251202t230000z/random-15x10-seed-20260517-after-20251203/o3-medium-vs-gpt55-high-2026-05-18t22-28-33z.analysis.report.html",
+          "https://ehonda.github.io/KicktippAi/experiment-analysis/repeated-match-slices/pes-squad/all-matchdays-after-20251202t230000z/random-15x10-seed-20260517-after-20251203/all-runs-2026-05-18t22-28-33z.analysis.report.html"
+        ]
+      },
+      {
+        "runName": "repeated-match-slice__pes-squad__gpt-5.5__langfuse-o3-poc__reasoning-none__random-15x10-seed-20260517-after-20251203__startsat-12h__2026-05-16t23-24-24z",
+        "model": "gpt-5.5",
+        "reasoningEffort": "none",
+        "sampleSize": 150,
+        "matchCount": 15,
+        "repetitions": 10,
+        "batchCount": 3,
+        "batchSize": null,
+        "parallelism": 3,
+        "maxOutputTokens": null,
+        "promptKey": "langfuse-o3-poc",
+        "estimateCommand": "uv --cache-dir .uv-cache run python .agents/skills/estimate-experiment-cost-skill/scripts/experiment_cost_estimator.py estimate --counts 150 --model gpt-5.5 --reasoning-effort none",
+        "estimatedTotalCostUsd": "1.305375000000",
+        "estimatedAverageCostPerPredictionUsd": "0.008702500000",
+        "estimateBaseSource": "Initial seed evidence: `gpt-5.5-none-2026-05-03t22-42-35z`.",
+        "metrics": {
+          "observationCount": 150,
+          "inputTokens": 921446,
+          "uncachedInputTokens": 516710,
+          "cachedInputTokens": 404736,
+          "outputTokens": 2550,
+          "totalTokens": 519260,
+          "totalCostUsd": 0.419369,
+          "avgLatencyMs": 1443.3,
+          "p50LatencyMs": 1189.0,
+          "p95LatencyMs": 2843.7,
+          "avgTimeToFirstTokenMs": null
+        },
+        "reportPaths": [
+          "experiment-analysis/repeated-match-slices/pes-squad/all-matchdays-after-20251202t230000z/random-15x10-seed-20260517-after-20251203/gpt54nano-vs-gpt55-none-2026-05-16t23-24-24z.analysis.report.html",
+          "experiment-analysis/repeated-match-slices/pes-squad/all-matchdays-after-20251202t230000z/random-15x10-seed-20260517-after-20251203/all-runs-2026-05-18t22-28-33z.analysis.report.html"
+        ],
+        "reportUrls": [
+          "https://ehonda.github.io/KicktippAi/experiment-analysis/repeated-match-slices/pes-squad/all-matchdays-after-20251202t230000z/random-15x10-seed-20260517-after-20251203/gpt54nano-vs-gpt55-none-2026-05-16t23-24-24z.analysis.report.html",
+          "https://ehonda.github.io/KicktippAi/experiment-analysis/repeated-match-slices/pes-squad/all-matchdays-after-20251202t230000z/random-15x10-seed-20260517-after-20251203/all-runs-2026-05-18t22-28-33z.analysis.report.html"
+        ]
+      },
+      {
+        "runName": "repeated-match-slice__pes-squad__gpt-5.4-nano__langfuse-o3-poc__reasoning-none__random-15x10-seed-20260517-after-20251203__startsat-12h__2026-05-16t23-24-24z",
+        "model": "gpt-5.4-nano",
+        "reasoningEffort": "none",
+        "sampleSize": 150,
+        "matchCount": 15,
+        "repetitions": 10,
+        "batchCount": 3,
+        "batchSize": null,
+        "parallelism": 3,
+        "maxOutputTokens": null,
+        "promptKey": "langfuse-o3-poc",
+        "estimateCommand": "uv --cache-dir .uv-cache run python .agents/skills/estimate-experiment-cost-skill/scripts/experiment_cost_estimator.py estimate --counts 20,150 --model gpt-5.4-nano --reasoning-effort none",
+        "estimatedTotalCostUsd": "0.053820750000",
+        "estimatedAverageCostPerPredictionUsd": "0.000358805000",
+        "estimateBaseSource": "Repeated-match-slice base estimate run 2026-05-17; gpt-5.4-nano none.",
+        "metrics": {
+          "observationCount": 150,
+          "inputTokens": 891238,
+          "uncachedInputTokens": 516710,
+          "cachedInputTokens": 374528,
+          "outputTokens": 2550,
+          "totalTokens": 519260,
+          "totalCostUsd": 0.01955723,
+          "avgLatencyMs": 1257.5,
+          "p50LatencyMs": 1115.5,
+          "p95LatencyMs": 2144.5,
+          "avgTimeToFirstTokenMs": null
+        },
+        "reportPaths": [
+          "experiment-analysis/repeated-match-slices/pes-squad/all-matchdays-after-20251202t230000z/random-15x10-seed-20260517-after-20251203/gpt54nano-vs-gpt55-none-2026-05-16t23-24-24z.analysis.report.html",
+          "experiment-analysis/repeated-match-slices/pes-squad/all-matchdays-after-20251202t230000z/random-15x10-seed-20260517-after-20251203/all-runs-2026-05-18t22-28-33z.analysis.report.html"
+        ],
+        "reportUrls": [
+          "https://ehonda.github.io/KicktippAi/experiment-analysis/repeated-match-slices/pes-squad/all-matchdays-after-20251202t230000z/random-15x10-seed-20260517-after-20251203/gpt54nano-vs-gpt55-none-2026-05-16t23-24-24z.analysis.report.html",
+          "https://ehonda.github.io/KicktippAi/experiment-analysis/repeated-match-slices/pes-squad/all-matchdays-after-20251202t230000z/random-15x10-seed-20260517-after-20251203/all-runs-2026-05-18t22-28-33z.analysis.report.html"
+        ]
+      }
+    ]
+  },
+  "cost-estimate-repeated-match-slice": {
+    "datasetName": "match-predictions/bundesliga-2025-26/pes-squad/repeated-match-slices/all-matchdays-after-20251130t230000z/random-5x4-seed-20260517-gpt-54nano-none-cost-estimate",
+    "runs": [
+      {
+        "runName": "repeated-match-slice__pes-squad__gpt-5.4-nano__langfuse-o3-poc__reasoning-none__random-5x4-seed-20260517-gpt-54nano-none-cost-estimate__startsat-12h__2026-05-17t000000z",
+        "model": "gpt-5.4-nano",
+        "reasoningEffort": "none",
+        "sampleSize": 20,
+        "matchCount": 5,
+        "repetitions": 4,
+        "batchCount": 1,
+        "batchSize": null,
+        "parallelism": 5,
+        "maxOutputTokens": null,
+        "promptKey": "langfuse-o3-poc",
+        "estimateCommand": "uv --cache-dir .uv-cache run python .agents/skills/estimate-experiment-cost-skill/scripts/experiment_cost_estimator.py estimate --counts 20,150 --model gpt-5.4-nano --reasoning-effort none",
+        "estimatedTotalCostUsd": "0.007176100000",
+        "estimatedAverageCostPerPredictionUsd": "0.000358805000",
+        "estimateBaseSource": "Repeated-match-slice base estimate run 2026-05-17; gpt-5.4-nano none.",
+        "metrics": {
+          "observationCount": 20,
+          "inputTokens": 111876,
+          "uncachedInputTokens": 69636,
+          "cachedInputTokens": 42240,
+          "outputTokens": 340,
+          "totalTokens": 69976,
+          "totalCostUsd": 0.0033745,
+          "avgLatencyMs": 2241.7,
+          "p50LatencyMs": 1610.5,
+          "p95LatencyMs": 3576.0,
+          "avgTimeToFirstTokenMs": null
+        },
+        "reportPaths": [],
+        "reportUrls": []
+      }
+    ]
+  }
+}

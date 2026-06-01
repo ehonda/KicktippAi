@@ -1,0 +1,919 @@
+{
+  "sliceKey": "repeat-100-knowledge-cutoff-bayern-rbl-md1",
+  "sliceKind": "repeated-match",
+  "sampleMethod": "repeated-match",
+  "communityContext": "pes-squad",
+  "sourcePoolKey": "md01-fc-bayern-munchen-vs-rb-leipzig",
+  "sourceDatasetName": "match-predictions/bundesliga-2025-26/pes-squad",
+  "sliceDatasetName": "match-predictions/bundesliga-2025-26/pes-squad/repeated-match/md01-fc-bayern-munchen-vs-rb-leipzig/repeat-100-knowledge-cutoff-bayern-rbl-md1",
+  "competition": "bundesliga-2025-26",
+  "season": "2025/2026",
+  "sampleSize": 100,
+  "selectedItemIds": [
+    "bundesliga-2025-26__pes-squad__ts1423757142"
+  ],
+  "selectedItemIdsHash": "86fe3b148f4df8862ca2594deb2edb00925d1e2d8be8bb56a8c600ccf4c176af",
+  "participants": [],
+  "items": [
+    {
+      "sourceDatasetItemId": "bundesliga-2025-26__pes-squad__ts1423757142",
+      "sliceDatasetItemId": "bundesliga-2025-26__pes-squad__ts1423757142__repeated-match__repeat-100-knowledge-cutoff-bayern-rbl-md1__001",
+      "homeTeam": "FC Bayern M\u00FCnchen",
+      "awayTeam": "RB Leipzig",
+      "matchday": 1,
+      "startsAt": "2025-08-22T21:30:00 UTC\u002B02 (\u002B02)",
+      "tippSpielId": "1423757142"
+    },
+    {
+      "sourceDatasetItemId": "bundesliga-2025-26__pes-squad__ts1423757142",
+      "sliceDatasetItemId": "bundesliga-2025-26__pes-squad__ts1423757142__repeated-match__repeat-100-knowledge-cutoff-bayern-rbl-md1__002",
+      "homeTeam": "FC Bayern M\u00FCnchen",
+      "awayTeam": "RB Leipzig",
+      "matchday": 1,
+      "startsAt": "2025-08-22T21:30:00 UTC\u002B02 (\u002B02)",
+      "tippSpielId": "1423757142"
+    },
+    {
+      "sourceDatasetItemId": "bundesliga-2025-26__pes-squad__ts1423757142",
+      "sliceDatasetItemId": "bundesliga-2025-26__pes-squad__ts1423757142__repeated-match__repeat-100-knowledge-cutoff-bayern-rbl-md1__003",
+      "homeTeam": "FC Bayern M\u00FCnchen",
+      "awayTeam": "RB Leipzig",
+      "matchday": 1,
+      "startsAt": "2025-08-22T21:30:00 UTC\u002B02 (\u002B02)",
+      "tippSpielId": "1423757142"
+    },
+    {
+      "sourceDatasetItemId": "bundesliga-2025-26__pes-squad__ts1423757142",
+      "sliceDatasetItemId": "bundesliga-2025-26__pes-squad__ts1423757142__repeated-match__repeat-100-knowledge-cutoff-bayern-rbl-md1__004",
+      "homeTeam": "FC Bayern M\u00FCnchen",
+      "awayTeam": "RB Leipzig",
+      "matchday": 1,
+      "startsAt": "2025-08-22T21:30:00 UTC\u002B02 (\u002B02)",
+      "tippSpielId": "1423757142"
+    },
+    {
+      "sourceDatasetItemId": "bundesliga-2025-26__pes-squad__ts1423757142",
+      "sliceDatasetItemId": "bundesliga-2025-26__pes-squad__ts1423757142__repeated-match__repeat-100-knowledge-cutoff-bayern-rbl-md1__005",
+      "homeTeam": "FC Bayern M\u00FCnchen",
+      "awayTeam": "RB Leipzig",
+      "matchday": 1,
+      "startsAt": "2025-08-22T21:30:00 UTC\u002B02 (\u002B02)",
+      "tippSpielId": "1423757142"
+    },
+    {
+      "sourceDatasetItemId": "bundesliga-2025-26__pes-squad__ts1423757142",
+      "sliceDatasetItemId": "bundesliga-2025-26__pes-squad__ts1423757142__repeated-match__repeat-100-knowledge-cutoff-bayern-rbl-md1__006",
+      "homeTeam": "FC Bayern M\u00FCnchen",
+      "awayTeam": "RB Leipzig",
+      "matchday": 1,
+      "startsAt": "2025-08-22T21:30:00 UTC\u002B02 (\u002B02)",
+      "tippSpielId": "1423757142"
+    },
+    {
+      "sourceDatasetItemId": "bundesliga-2025-26__pes-squad__ts1423757142",
+      "sliceDatasetItemId": "bundesliga-2025-26__pes-squad__ts1423757142__repeated-match__repeat-100-knowledge-cutoff-bayern-rbl-md1__007",
+      "homeTeam": "FC Bayern M\u00FCnchen",
+      "awayTeam": "RB Leipzig",
+      "matchday": 1,
+      "startsAt": "2025-08-22T21:30:00 UTC\u002B02 (\u002B02)",
+      "tippSpielId": "1423757142"
+    },
+    {
+      "sourceDatasetItemId": "bundesliga-2025-26__pes-squad__ts1423757142",
+      "sliceDatasetItemId": "bundesliga-2025-26__pes-squad__ts1423757142__repeated-match__repeat-100-knowledge-cutoff-bayern-rbl-md1__008",
+      "homeTeam": "FC Bayern M\u00FCnchen",
+      "awayTeam": "RB Leipzig",
+      "matchday": 1,
+      "startsAt": "2025-08-22T21:30:00 UTC\u002B02 (\u002B02)",
+      "tippSpielId": "1423757142"
+    },
+    {
+      "sourceDatasetItemId": "bundesliga-2025-26__pes-squad__ts1423757142",
+      "sliceDatasetItemId": "bundesliga-2025-26__pes-squad__ts1423757142__repeated-match__repeat-100-knowledge-cutoff-bayern-rbl-md1__009",
+      "homeTeam": "FC Bayern M\u00FCnchen",
+      "awayTeam": "RB Leipzig",
+      "matchday": 1,
+      "startsAt": "2025-08-22T21:30:00 UTC\u002B02 (\u002B02)",
+      "tippSpielId": "1423757142"
+    },
+    {
+      "sourceDatasetItemId": "bundesliga-2025-26__pes-squad__ts1423757142",
+      "sliceDatasetItemId": "bundesliga-2025-26__pes-squad__ts1423757142__repeated-match__repeat-100-knowledge-cutoff-bayern-rbl-md1__010",
+      "homeTeam": "FC Bayern M\u00FCnchen",
+      "awayTeam": "RB Leipzig",
+      "matchday": 1,
+      "startsAt": "2025-08-22T21:30:00 UTC\u002B02 (\u002B02)",
+      "tippSpielId": "1423757142"
+    },
+    {
+      "sourceDatasetItemId": "bundesliga-2025-26__pes-squad__ts1423757142",
+      "sliceDatasetItemId": "bundesliga-2025-26__pes-squad__ts1423757142__repeated-match__repeat-100-knowledge-cutoff-bayern-rbl-md1__011",
+      "homeTeam": "FC Bayern M\u00FCnchen",
+      "awayTeam": "RB Leipzig",
+      "matchday": 1,
+      "startsAt": "2025-08-22T21:30:00 UTC\u002B02 (\u002B02)",
+      "tippSpielId": "1423757142"
+    },
+    {
+      "sourceDatasetItemId": "bundesliga-2025-26__pes-squad__ts1423757142",
+      "sliceDatasetItemId": "bundesliga-2025-26__pes-squad__ts1423757142__repeated-match__repeat-100-knowledge-cutoff-bayern-rbl-md1__012",
+      "homeTeam": "FC Bayern M\u00FCnchen",
+      "awayTeam": "RB Leipzig",
+      "matchday": 1,
+      "startsAt": "2025-08-22T21:30:00 UTC\u002B02 (\u002B02)",
+      "tippSpielId": "1423757142"
+    },
+    {
+      "sourceDatasetItemId": "bundesliga-2025-26__pes-squad__ts1423757142",
+      "sliceDatasetItemId": "bundesliga-2025-26__pes-squad__ts1423757142__repeated-match__repeat-100-knowledge-cutoff-bayern-rbl-md1__013",
+      "homeTeam": "FC Bayern M\u00FCnchen",
+      "awayTeam": "RB Leipzig",
+      "matchday": 1,
+      "startsAt": "2025-08-22T21:30:00 UTC\u002B02 (\u002B02)",
+      "tippSpielId": "1423757142"
+    },
+    {
+      "sourceDatasetItemId": "bundesliga-2025-26__pes-squad__ts1423757142",
+      "sliceDatasetItemId": "bundesliga-2025-26__pes-squad__ts1423757142__repeated-match__repeat-100-knowledge-cutoff-bayern-rbl-md1__014",
+      "homeTeam": "FC Bayern M\u00FCnchen",
+      "awayTeam": "RB Leipzig",
+      "matchday": 1,
+      "startsAt": "2025-08-22T21:30:00 UTC\u002B02 (\u002B02)",
+      "tippSpielId": "1423757142"
+    },
+    {
+      "sourceDatasetItemId": "bundesliga-2025-26__pes-squad__ts1423757142",
+      "sliceDatasetItemId": "bundesliga-2025-26__pes-squad__ts1423757142__repeated-match__repeat-100-knowledge-cutoff-bayern-rbl-md1__015",
+      "homeTeam": "FC Bayern M\u00FCnchen",
+      "awayTeam": "RB Leipzig",
+      "matchday": 1,
+      "startsAt": "2025-08-22T21:30:00 UTC\u002B02 (\u002B02)",
+      "tippSpielId": "1423757142"
+    },
+    {
+      "sourceDatasetItemId": "bundesliga-2025-26__pes-squad__ts1423757142",
+      "sliceDatasetItemId": "bundesliga-2025-26__pes-squad__ts1423757142__repeated-match__repeat-100-knowledge-cutoff-bayern-rbl-md1__016",
+      "homeTeam": "FC Bayern M\u00FCnchen",
+      "awayTeam": "RB Leipzig",
+      "matchday": 1,
+      "startsAt": "2025-08-22T21:30:00 UTC\u002B02 (\u002B02)",
+      "tippSpielId": "1423757142"
+    },
+    {
+      "sourceDatasetItemId": "bundesliga-2025-26__pes-squad__ts1423757142",
+      "sliceDatasetItemId": "bundesliga-2025-26__pes-squad__ts1423757142__repeated-match__repeat-100-knowledge-cutoff-bayern-rbl-md1__017",
+      "homeTeam": "FC Bayern M\u00FCnchen",
+      "awayTeam": "RB Leipzig",
+      "matchday": 1,
+      "startsAt": "2025-08-22T21:30:00 UTC\u002B02 (\u002B02)",
+      "tippSpielId": "1423757142"
+    },
+    {
+      "sourceDatasetItemId": "bundesliga-2025-26__pes-squad__ts1423757142",
+      "sliceDatasetItemId": "bundesliga-2025-26__pes-squad__ts1423757142__repeated-match__repeat-100-knowledge-cutoff-bayern-rbl-md1__018",
+      "homeTeam": "FC Bayern M\u00FCnchen",
+      "awayTeam": "RB Leipzig",
+      "matchday": 1,
+      "startsAt": "2025-08-22T21:30:00 UTC\u002B02 (\u002B02)",
+      "tippSpielId": "1423757142"
+    },
+    {
+      "sourceDatasetItemId": "bundesliga-2025-26__pes-squad__ts1423757142",
+      "sliceDatasetItemId": "bundesliga-2025-26__pes-squad__ts1423757142__repeated-match__repeat-100-knowledge-cutoff-bayern-rbl-md1__019",
+      "homeTeam": "FC Bayern M\u00FCnchen",
+      "awayTeam": "RB Leipzig",
+      "matchday": 1,
+      "startsAt": "2025-08-22T21:30:00 UTC\u002B02 (\u002B02)",
+      "tippSpielId": "1423757142"
+    },
+    {
+      "sourceDatasetItemId": "bundesliga-2025-26__pes-squad__ts1423757142",
+      "sliceDatasetItemId": "bundesliga-2025-26__pes-squad__ts1423757142__repeated-match__repeat-100-knowledge-cutoff-bayern-rbl-md1__020",
+      "homeTeam": "FC Bayern M\u00FCnchen",
+      "awayTeam": "RB Leipzig",
+      "matchday": 1,
+      "startsAt": "2025-08-22T21:30:00 UTC\u002B02 (\u002B02)",
+      "tippSpielId": "1423757142"
+    },
+    {
+      "sourceDatasetItemId": "bundesliga-2025-26__pes-squad__ts1423757142",
+      "sliceDatasetItemId": "bundesliga-2025-26__pes-squad__ts1423757142__repeated-match__repeat-100-knowledge-cutoff-bayern-rbl-md1__021",
+      "homeTeam": "FC Bayern M\u00FCnchen",
+      "awayTeam": "RB Leipzig",
+      "matchday": 1,
+      "startsAt": "2025-08-22T21:30:00 UTC\u002B02 (\u002B02)",
+      "tippSpielId": "1423757142"
+    },
+    {
+      "sourceDatasetItemId": "bundesliga-2025-26__pes-squad__ts1423757142",
+      "sliceDatasetItemId": "bundesliga-2025-26__pes-squad__ts1423757142__repeated-match__repeat-100-knowledge-cutoff-bayern-rbl-md1__022",
+      "homeTeam": "FC Bayern M\u00FCnchen",
+      "awayTeam": "RB Leipzig",
+      "matchday": 1,
+      "startsAt": "2025-08-22T21:30:00 UTC\u002B02 (\u002B02)",
+      "tippSpielId": "1423757142"
+    },
+    {
+      "sourceDatasetItemId": "bundesliga-2025-26__pes-squad__ts1423757142",
+      "sliceDatasetItemId": "bundesliga-2025-26__pes-squad__ts1423757142__repeated-match__repeat-100-knowledge-cutoff-bayern-rbl-md1__023",
+      "homeTeam": "FC Bayern M\u00FCnchen",
+      "awayTeam": "RB Leipzig",
+      "matchday": 1,
+      "startsAt": "2025-08-22T21:30:00 UTC\u002B02 (\u002B02)",
+      "tippSpielId": "1423757142"
+    },
+    {
+      "sourceDatasetItemId": "bundesliga-2025-26__pes-squad__ts1423757142",
+      "sliceDatasetItemId": "bundesliga-2025-26__pes-squad__ts1423757142__repeated-match__repeat-100-knowledge-cutoff-bayern-rbl-md1__024",
+      "homeTeam": "FC Bayern M\u00FCnchen",
+      "awayTeam": "RB Leipzig",
+      "matchday": 1,
+      "startsAt": "2025-08-22T21:30:00 UTC\u002B02 (\u002B02)",
+      "tippSpielId": "1423757142"
+    },
+    {
+      "sourceDatasetItemId": "bundesliga-2025-26__pes-squad__ts1423757142",
+      "sliceDatasetItemId": "bundesliga-2025-26__pes-squad__ts1423757142__repeated-match__repeat-100-knowledge-cutoff-bayern-rbl-md1__025",
+      "homeTeam": "FC Bayern M\u00FCnchen",
+      "awayTeam": "RB Leipzig",
+      "matchday": 1,
+      "startsAt": "2025-08-22T21:30:00 UTC\u002B02 (\u002B02)",
+      "tippSpielId": "1423757142"
+    },
+    {
+      "sourceDatasetItemId": "bundesliga-2025-26__pes-squad__ts1423757142",
+      "sliceDatasetItemId": "bundesliga-2025-26__pes-squad__ts1423757142__repeated-match__repeat-100-knowledge-cutoff-bayern-rbl-md1__026",
+      "homeTeam": "FC Bayern M\u00FCnchen",
+      "awayTeam": "RB Leipzig",
+      "matchday": 1,
+      "startsAt": "2025-08-22T21:30:00 UTC\u002B02 (\u002B02)",
+      "tippSpielId": "1423757142"
+    },
+    {
+      "sourceDatasetItemId": "bundesliga-2025-26__pes-squad__ts1423757142",
+      "sliceDatasetItemId": "bundesliga-2025-26__pes-squad__ts1423757142__repeated-match__repeat-100-knowledge-cutoff-bayern-rbl-md1__027",
+      "homeTeam": "FC Bayern M\u00FCnchen",
+      "awayTeam": "RB Leipzig",
+      "matchday": 1,
+      "startsAt": "2025-08-22T21:30:00 UTC\u002B02 (\u002B02)",
+      "tippSpielId": "1423757142"
+    },
+    {
+      "sourceDatasetItemId": "bundesliga-2025-26__pes-squad__ts1423757142",
+      "sliceDatasetItemId": "bundesliga-2025-26__pes-squad__ts1423757142__repeated-match__repeat-100-knowledge-cutoff-bayern-rbl-md1__028",
+      "homeTeam": "FC Bayern M\u00FCnchen",
+      "awayTeam": "RB Leipzig",
+      "matchday": 1,
+      "startsAt": "2025-08-22T21:30:00 UTC\u002B02 (\u002B02)",
+      "tippSpielId": "1423757142"
+    },
+    {
+      "sourceDatasetItemId": "bundesliga-2025-26__pes-squad__ts1423757142",
+      "sliceDatasetItemId": "bundesliga-2025-26__pes-squad__ts1423757142__repeated-match__repeat-100-knowledge-cutoff-bayern-rbl-md1__029",
+      "homeTeam": "FC Bayern M\u00FCnchen",
+      "awayTeam": "RB Leipzig",
+      "matchday": 1,
+      "startsAt": "2025-08-22T21:30:00 UTC\u002B02 (\u002B02)",
+      "tippSpielId": "1423757142"
+    },
+    {
+      "sourceDatasetItemId": "bundesliga-2025-26__pes-squad__ts1423757142",
+      "sliceDatasetItemId": "bundesliga-2025-26__pes-squad__ts1423757142__repeated-match__repeat-100-knowledge-cutoff-bayern-rbl-md1__030",
+      "homeTeam": "FC Bayern M\u00FCnchen",
+      "awayTeam": "RB Leipzig",
+      "matchday": 1,
+      "startsAt": "2025-08-22T21:30:00 UTC\u002B02 (\u002B02)",
+      "tippSpielId": "1423757142"
+    },
+    {
+      "sourceDatasetItemId": "bundesliga-2025-26__pes-squad__ts1423757142",
+      "sliceDatasetItemId": "bundesliga-2025-26__pes-squad__ts1423757142__repeated-match__repeat-100-knowledge-cutoff-bayern-rbl-md1__031",
+      "homeTeam": "FC Bayern M\u00FCnchen",
+      "awayTeam": "RB Leipzig",
+      "matchday": 1,
+      "startsAt": "2025-08-22T21:30:00 UTC\u002B02 (\u002B02)",
+      "tippSpielId": "1423757142"
+    },
+    {
+      "sourceDatasetItemId": "bundesliga-2025-26__pes-squad__ts1423757142",
+      "sliceDatasetItemId": "bundesliga-2025-26__pes-squad__ts1423757142__repeated-match__repeat-100-knowledge-cutoff-bayern-rbl-md1__032",
+      "homeTeam": "FC Bayern M\u00FCnchen",
+      "awayTeam": "RB Leipzig",
+      "matchday": 1,
+      "startsAt": "2025-08-22T21:30:00 UTC\u002B02 (\u002B02)",
+      "tippSpielId": "1423757142"
+    },
+    {
+      "sourceDatasetItemId": "bundesliga-2025-26__pes-squad__ts1423757142",
+      "sliceDatasetItemId": "bundesliga-2025-26__pes-squad__ts1423757142__repeated-match__repeat-100-knowledge-cutoff-bayern-rbl-md1__033",
+      "homeTeam": "FC Bayern M\u00FCnchen",
+      "awayTeam": "RB Leipzig",
+      "matchday": 1,
+      "startsAt": "2025-08-22T21:30:00 UTC\u002B02 (\u002B02)",
+      "tippSpielId": "1423757142"
+    },
+    {
+      "sourceDatasetItemId": "bundesliga-2025-26__pes-squad__ts1423757142",
+      "sliceDatasetItemId": "bundesliga-2025-26__pes-squad__ts1423757142__repeated-match__repeat-100-knowledge-cutoff-bayern-rbl-md1__034",
+      "homeTeam": "FC Bayern M\u00FCnchen",
+      "awayTeam": "RB Leipzig",
+      "matchday": 1,
+      "startsAt": "2025-08-22T21:30:00 UTC\u002B02 (\u002B02)",
+      "tippSpielId": "1423757142"
+    },
+    {
+      "sourceDatasetItemId": "bundesliga-2025-26__pes-squad__ts1423757142",
+      "sliceDatasetItemId": "bundesliga-2025-26__pes-squad__ts1423757142__repeated-match__repeat-100-knowledge-cutoff-bayern-rbl-md1__035",
+      "homeTeam": "FC Bayern M\u00FCnchen",
+      "awayTeam": "RB Leipzig",
+      "matchday": 1,
+      "startsAt": "2025-08-22T21:30:00 UTC\u002B02 (\u002B02)",
+      "tippSpielId": "1423757142"
+    },
+    {
+      "sourceDatasetItemId": "bundesliga-2025-26__pes-squad__ts1423757142",
+      "sliceDatasetItemId": "bundesliga-2025-26__pes-squad__ts1423757142__repeated-match__repeat-100-knowledge-cutoff-bayern-rbl-md1__036",
+      "homeTeam": "FC Bayern M\u00FCnchen",
+      "awayTeam": "RB Leipzig",
+      "matchday": 1,
+      "startsAt": "2025-08-22T21:30:00 UTC\u002B02 (\u002B02)",
+      "tippSpielId": "1423757142"
+    },
+    {
+      "sourceDatasetItemId": "bundesliga-2025-26__pes-squad__ts1423757142",
+      "sliceDatasetItemId": "bundesliga-2025-26__pes-squad__ts1423757142__repeated-match__repeat-100-knowledge-cutoff-bayern-rbl-md1__037",
+      "homeTeam": "FC Bayern M\u00FCnchen",
+      "awayTeam": "RB Leipzig",
+      "matchday": 1,
+      "startsAt": "2025-08-22T21:30:00 UTC\u002B02 (\u002B02)",
+      "tippSpielId": "1423757142"
+    },
+    {
+      "sourceDatasetItemId": "bundesliga-2025-26__pes-squad__ts1423757142",
+      "sliceDatasetItemId": "bundesliga-2025-26__pes-squad__ts1423757142__repeated-match__repeat-100-knowledge-cutoff-bayern-rbl-md1__038",
+      "homeTeam": "FC Bayern M\u00FCnchen",
+      "awayTeam": "RB Leipzig",
+      "matchday": 1,
+      "startsAt": "2025-08-22T21:30:00 UTC\u002B02 (\u002B02)",
+      "tippSpielId": "1423757142"
+    },
+    {
+      "sourceDatasetItemId": "bundesliga-2025-26__pes-squad__ts1423757142",
+      "sliceDatasetItemId": "bundesliga-2025-26__pes-squad__ts1423757142__repeated-match__repeat-100-knowledge-cutoff-bayern-rbl-md1__039",
+      "homeTeam": "FC Bayern M\u00FCnchen",
+      "awayTeam": "RB Leipzig",
+      "matchday": 1,
+      "startsAt": "2025-08-22T21:30:00 UTC\u002B02 (\u002B02)",
+      "tippSpielId": "1423757142"
+    },
+    {
+      "sourceDatasetItemId": "bundesliga-2025-26__pes-squad__ts1423757142",
+      "sliceDatasetItemId": "bundesliga-2025-26__pes-squad__ts1423757142__repeated-match__repeat-100-knowledge-cutoff-bayern-rbl-md1__040",
+      "homeTeam": "FC Bayern M\u00FCnchen",
+      "awayTeam": "RB Leipzig",
+      "matchday": 1,
+      "startsAt": "2025-08-22T21:30:00 UTC\u002B02 (\u002B02)",
+      "tippSpielId": "1423757142"
+    },
+    {
+      "sourceDatasetItemId": "bundesliga-2025-26__pes-squad__ts1423757142",
+      "sliceDatasetItemId": "bundesliga-2025-26__pes-squad__ts1423757142__repeated-match__repeat-100-knowledge-cutoff-bayern-rbl-md1__041",
+      "homeTeam": "FC Bayern M\u00FCnchen",
+      "awayTeam": "RB Leipzig",
+      "matchday": 1,
+      "startsAt": "2025-08-22T21:30:00 UTC\u002B02 (\u002B02)",
+      "tippSpielId": "1423757142"
+    },
+    {
+      "sourceDatasetItemId": "bundesliga-2025-26__pes-squad__ts1423757142",
+      "sliceDatasetItemId": "bundesliga-2025-26__pes-squad__ts1423757142__repeated-match__repeat-100-knowledge-cutoff-bayern-rbl-md1__042",
+      "homeTeam": "FC Bayern M\u00FCnchen",
+      "awayTeam": "RB Leipzig",
+      "matchday": 1,
+      "startsAt": "2025-08-22T21:30:00 UTC\u002B02 (\u002B02)",
+      "tippSpielId": "1423757142"
+    },
+    {
+      "sourceDatasetItemId": "bundesliga-2025-26__pes-squad__ts1423757142",
+      "sliceDatasetItemId": "bundesliga-2025-26__pes-squad__ts1423757142__repeated-match__repeat-100-knowledge-cutoff-bayern-rbl-md1__043",
+      "homeTeam": "FC Bayern M\u00FCnchen",
+      "awayTeam": "RB Leipzig",
+      "matchday": 1,
+      "startsAt": "2025-08-22T21:30:00 UTC\u002B02 (\u002B02)",
+      "tippSpielId": "1423757142"
+    },
+    {
+      "sourceDatasetItemId": "bundesliga-2025-26__pes-squad__ts1423757142",
+      "sliceDatasetItemId": "bundesliga-2025-26__pes-squad__ts1423757142__repeated-match__repeat-100-knowledge-cutoff-bayern-rbl-md1__044",
+      "homeTeam": "FC Bayern M\u00FCnchen",
+      "awayTeam": "RB Leipzig",
+      "matchday": 1,
+      "startsAt": "2025-08-22T21:30:00 UTC\u002B02 (\u002B02)",
+      "tippSpielId": "1423757142"
+    },
+    {
+      "sourceDatasetItemId": "bundesliga-2025-26__pes-squad__ts1423757142",
+      "sliceDatasetItemId": "bundesliga-2025-26__pes-squad__ts1423757142__repeated-match__repeat-100-knowledge-cutoff-bayern-rbl-md1__045",
+      "homeTeam": "FC Bayern M\u00FCnchen",
+      "awayTeam": "RB Leipzig",
+      "matchday": 1,
+      "startsAt": "2025-08-22T21:30:00 UTC\u002B02 (\u002B02)",
+      "tippSpielId": "1423757142"
+    },
+    {
+      "sourceDatasetItemId": "bundesliga-2025-26__pes-squad__ts1423757142",
+      "sliceDatasetItemId": "bundesliga-2025-26__pes-squad__ts1423757142__repeated-match__repeat-100-knowledge-cutoff-bayern-rbl-md1__046",
+      "homeTeam": "FC Bayern M\u00FCnchen",
+      "awayTeam": "RB Leipzig",
+      "matchday": 1,
+      "startsAt": "2025-08-22T21:30:00 UTC\u002B02 (\u002B02)",
+      "tippSpielId": "1423757142"
+    },
+    {
+      "sourceDatasetItemId": "bundesliga-2025-26__pes-squad__ts1423757142",
+      "sliceDatasetItemId": "bundesliga-2025-26__pes-squad__ts1423757142__repeated-match__repeat-100-knowledge-cutoff-bayern-rbl-md1__047",
+      "homeTeam": "FC Bayern M\u00FCnchen",
+      "awayTeam": "RB Leipzig",
+      "matchday": 1,
+      "startsAt": "2025-08-22T21:30:00 UTC\u002B02 (\u002B02)",
+      "tippSpielId": "1423757142"
+    },
+    {
+      "sourceDatasetItemId": "bundesliga-2025-26__pes-squad__ts1423757142",
+      "sliceDatasetItemId": "bundesliga-2025-26__pes-squad__ts1423757142__repeated-match__repeat-100-knowledge-cutoff-bayern-rbl-md1__048",
+      "homeTeam": "FC Bayern M\u00FCnchen",
+      "awayTeam": "RB Leipzig",
+      "matchday": 1,
+      "startsAt": "2025-08-22T21:30:00 UTC\u002B02 (\u002B02)",
+      "tippSpielId": "1423757142"
+    },
+    {
+      "sourceDatasetItemId": "bundesliga-2025-26__pes-squad__ts1423757142",
+      "sliceDatasetItemId": "bundesliga-2025-26__pes-squad__ts1423757142__repeated-match__repeat-100-knowledge-cutoff-bayern-rbl-md1__049",
+      "homeTeam": "FC Bayern M\u00FCnchen",
+      "awayTeam": "RB Leipzig",
+      "matchday": 1,
+      "startsAt": "2025-08-22T21:30:00 UTC\u002B02 (\u002B02)",
+      "tippSpielId": "1423757142"
+    },
+    {
+      "sourceDatasetItemId": "bundesliga-2025-26__pes-squad__ts1423757142",
+      "sliceDatasetItemId": "bundesliga-2025-26__pes-squad__ts1423757142__repeated-match__repeat-100-knowledge-cutoff-bayern-rbl-md1__050",
+      "homeTeam": "FC Bayern M\u00FCnchen",
+      "awayTeam": "RB Leipzig",
+      "matchday": 1,
+      "startsAt": "2025-08-22T21:30:00 UTC\u002B02 (\u002B02)",
+      "tippSpielId": "1423757142"
+    },
+    {
+      "sourceDatasetItemId": "bundesliga-2025-26__pes-squad__ts1423757142",
+      "sliceDatasetItemId": "bundesliga-2025-26__pes-squad__ts1423757142__repeated-match__repeat-100-knowledge-cutoff-bayern-rbl-md1__051",
+      "homeTeam": "FC Bayern M\u00FCnchen",
+      "awayTeam": "RB Leipzig",
+      "matchday": 1,
+      "startsAt": "2025-08-22T21:30:00 UTC\u002B02 (\u002B02)",
+      "tippSpielId": "1423757142"
+    },
+    {
+      "sourceDatasetItemId": "bundesliga-2025-26__pes-squad__ts1423757142",
+      "sliceDatasetItemId": "bundesliga-2025-26__pes-squad__ts1423757142__repeated-match__repeat-100-knowledge-cutoff-bayern-rbl-md1__052",
+      "homeTeam": "FC Bayern M\u00FCnchen",
+      "awayTeam": "RB Leipzig",
+      "matchday": 1,
+      "startsAt": "2025-08-22T21:30:00 UTC\u002B02 (\u002B02)",
+      "tippSpielId": "1423757142"
+    },
+    {
+      "sourceDatasetItemId": "bundesliga-2025-26__pes-squad__ts1423757142",
+      "sliceDatasetItemId": "bundesliga-2025-26__pes-squad__ts1423757142__repeated-match__repeat-100-knowledge-cutoff-bayern-rbl-md1__053",
+      "homeTeam": "FC Bayern M\u00FCnchen",
+      "awayTeam": "RB Leipzig",
+      "matchday": 1,
+      "startsAt": "2025-08-22T21:30:00 UTC\u002B02 (\u002B02)",
+      "tippSpielId": "1423757142"
+    },
+    {
+      "sourceDatasetItemId": "bundesliga-2025-26__pes-squad__ts1423757142",
+      "sliceDatasetItemId": "bundesliga-2025-26__pes-squad__ts1423757142__repeated-match__repeat-100-knowledge-cutoff-bayern-rbl-md1__054",
+      "homeTeam": "FC Bayern M\u00FCnchen",
+      "awayTeam": "RB Leipzig",
+      "matchday": 1,
+      "startsAt": "2025-08-22T21:30:00 UTC\u002B02 (\u002B02)",
+      "tippSpielId": "1423757142"
+    },
+    {
+      "sourceDatasetItemId": "bundesliga-2025-26__pes-squad__ts1423757142",
+      "sliceDatasetItemId": "bundesliga-2025-26__pes-squad__ts1423757142__repeated-match__repeat-100-knowledge-cutoff-bayern-rbl-md1__055",
+      "homeTeam": "FC Bayern M\u00FCnchen",
+      "awayTeam": "RB Leipzig",
+      "matchday": 1,
+      "startsAt": "2025-08-22T21:30:00 UTC\u002B02 (\u002B02)",
+      "tippSpielId": "1423757142"
+    },
+    {
+      "sourceDatasetItemId": "bundesliga-2025-26__pes-squad__ts1423757142",
+      "sliceDatasetItemId": "bundesliga-2025-26__pes-squad__ts1423757142__repeated-match__repeat-100-knowledge-cutoff-bayern-rbl-md1__056",
+      "homeTeam": "FC Bayern M\u00FCnchen",
+      "awayTeam": "RB Leipzig",
+      "matchday": 1,
+      "startsAt": "2025-08-22T21:30:00 UTC\u002B02 (\u002B02)",
+      "tippSpielId": "1423757142"
+    },
+    {
+      "sourceDatasetItemId": "bundesliga-2025-26__pes-squad__ts1423757142",
+      "sliceDatasetItemId": "bundesliga-2025-26__pes-squad__ts1423757142__repeated-match__repeat-100-knowledge-cutoff-bayern-rbl-md1__057",
+      "homeTeam": "FC Bayern M\u00FCnchen",
+      "awayTeam": "RB Leipzig",
+      "matchday": 1,
+      "startsAt": "2025-08-22T21:30:00 UTC\u002B02 (\u002B02)",
+      "tippSpielId": "1423757142"
+    },
+    {
+      "sourceDatasetItemId": "bundesliga-2025-26__pes-squad__ts1423757142",
+      "sliceDatasetItemId": "bundesliga-2025-26__pes-squad__ts1423757142__repeated-match__repeat-100-knowledge-cutoff-bayern-rbl-md1__058",
+      "homeTeam": "FC Bayern M\u00FCnchen",
+      "awayTeam": "RB Leipzig",
+      "matchday": 1,
+      "startsAt": "2025-08-22T21:30:00 UTC\u002B02 (\u002B02)",
+      "tippSpielId": "1423757142"
+    },
+    {
+      "sourceDatasetItemId": "bundesliga-2025-26__pes-squad__ts1423757142",
+      "sliceDatasetItemId": "bundesliga-2025-26__pes-squad__ts1423757142__repeated-match__repeat-100-knowledge-cutoff-bayern-rbl-md1__059",
+      "homeTeam": "FC Bayern M\u00FCnchen",
+      "awayTeam": "RB Leipzig",
+      "matchday": 1,
+      "startsAt": "2025-08-22T21:30:00 UTC\u002B02 (\u002B02)",
+      "tippSpielId": "1423757142"
+    },
+    {
+      "sourceDatasetItemId": "bundesliga-2025-26__pes-squad__ts1423757142",
+      "sliceDatasetItemId": "bundesliga-2025-26__pes-squad__ts1423757142__repeated-match__repeat-100-knowledge-cutoff-bayern-rbl-md1__060",
+      "homeTeam": "FC Bayern M\u00FCnchen",
+      "awayTeam": "RB Leipzig",
+      "matchday": 1,
+      "startsAt": "2025-08-22T21:30:00 UTC\u002B02 (\u002B02)",
+      "tippSpielId": "1423757142"
+    },
+    {
+      "sourceDatasetItemId": "bundesliga-2025-26__pes-squad__ts1423757142",
+      "sliceDatasetItemId": "bundesliga-2025-26__pes-squad__ts1423757142__repeated-match__repeat-100-knowledge-cutoff-bayern-rbl-md1__061",
+      "homeTeam": "FC Bayern M\u00FCnchen",
+      "awayTeam": "RB Leipzig",
+      "matchday": 1,
+      "startsAt": "2025-08-22T21:30:00 UTC\u002B02 (\u002B02)",
+      "tippSpielId": "1423757142"
+    },
+    {
+      "sourceDatasetItemId": "bundesliga-2025-26__pes-squad__ts1423757142",
+      "sliceDatasetItemId": "bundesliga-2025-26__pes-squad__ts1423757142__repeated-match__repeat-100-knowledge-cutoff-bayern-rbl-md1__062",
+      "homeTeam": "FC Bayern M\u00FCnchen",
+      "awayTeam": "RB Leipzig",
+      "matchday": 1,
+      "startsAt": "2025-08-22T21:30:00 UTC\u002B02 (\u002B02)",
+      "tippSpielId": "1423757142"
+    },
+    {
+      "sourceDatasetItemId": "bundesliga-2025-26__pes-squad__ts1423757142",
+      "sliceDatasetItemId": "bundesliga-2025-26__pes-squad__ts1423757142__repeated-match__repeat-100-knowledge-cutoff-bayern-rbl-md1__063",
+      "homeTeam": "FC Bayern M\u00FCnchen",
+      "awayTeam": "RB Leipzig",
+      "matchday": 1,
+      "startsAt": "2025-08-22T21:30:00 UTC\u002B02 (\u002B02)",
+      "tippSpielId": "1423757142"
+    },
+    {
+      "sourceDatasetItemId": "bundesliga-2025-26__pes-squad__ts1423757142",
+      "sliceDatasetItemId": "bundesliga-2025-26__pes-squad__ts1423757142__repeated-match__repeat-100-knowledge-cutoff-bayern-rbl-md1__064",
+      "homeTeam": "FC Bayern M\u00FCnchen",
+      "awayTeam": "RB Leipzig",
+      "matchday": 1,
+      "startsAt": "2025-08-22T21:30:00 UTC\u002B02 (\u002B02)",
+      "tippSpielId": "1423757142"
+    },
+    {
+      "sourceDatasetItemId": "bundesliga-2025-26__pes-squad__ts1423757142",
+      "sliceDatasetItemId": "bundesliga-2025-26__pes-squad__ts1423757142__repeated-match__repeat-100-knowledge-cutoff-bayern-rbl-md1__065",
+      "homeTeam": "FC Bayern M\u00FCnchen",
+      "awayTeam": "RB Leipzig",
+      "matchday": 1,
+      "startsAt": "2025-08-22T21:30:00 UTC\u002B02 (\u002B02)",
+      "tippSpielId": "1423757142"
+    },
+    {
+      "sourceDatasetItemId": "bundesliga-2025-26__pes-squad__ts1423757142",
+      "sliceDatasetItemId": "bundesliga-2025-26__pes-squad__ts1423757142__repeated-match__repeat-100-knowledge-cutoff-bayern-rbl-md1__066",
+      "homeTeam": "FC Bayern M\u00FCnchen",
+      "awayTeam": "RB Leipzig",
+      "matchday": 1,
+      "startsAt": "2025-08-22T21:30:00 UTC\u002B02 (\u002B02)",
+      "tippSpielId": "1423757142"
+    },
+    {
+      "sourceDatasetItemId": "bundesliga-2025-26__pes-squad__ts1423757142",
+      "sliceDatasetItemId": "bundesliga-2025-26__pes-squad__ts1423757142__repeated-match__repeat-100-knowledge-cutoff-bayern-rbl-md1__067",
+      "homeTeam": "FC Bayern M\u00FCnchen",
+      "awayTeam": "RB Leipzig",
+      "matchday": 1,
+      "startsAt": "2025-08-22T21:30:00 UTC\u002B02 (\u002B02)",
+      "tippSpielId": "1423757142"
+    },
+    {
+      "sourceDatasetItemId": "bundesliga-2025-26__pes-squad__ts1423757142",
+      "sliceDatasetItemId": "bundesliga-2025-26__pes-squad__ts1423757142__repeated-match__repeat-100-knowledge-cutoff-bayern-rbl-md1__068",
+      "homeTeam": "FC Bayern M\u00FCnchen",
+      "awayTeam": "RB Leipzig",
+      "matchday": 1,
+      "startsAt": "2025-08-22T21:30:00 UTC\u002B02 (\u002B02)",
+      "tippSpielId": "1423757142"
+    },
+    {
+      "sourceDatasetItemId": "bundesliga-2025-26__pes-squad__ts1423757142",
+      "sliceDatasetItemId": "bundesliga-2025-26__pes-squad__ts1423757142__repeated-match__repeat-100-knowledge-cutoff-bayern-rbl-md1__069",
+      "homeTeam": "FC Bayern M\u00FCnchen",
+      "awayTeam": "RB Leipzig",
+      "matchday": 1,
+      "startsAt": "2025-08-22T21:30:00 UTC\u002B02 (\u002B02)",
+      "tippSpielId": "1423757142"
+    },
+    {
+      "sourceDatasetItemId": "bundesliga-2025-26__pes-squad__ts1423757142",
+      "sliceDatasetItemId": "bundesliga-2025-26__pes-squad__ts1423757142__repeated-match__repeat-100-knowledge-cutoff-bayern-rbl-md1__070",
+      "homeTeam": "FC Bayern M\u00FCnchen",
+      "awayTeam": "RB Leipzig",
+      "matchday": 1,
+      "startsAt": "2025-08-22T21:30:00 UTC\u002B02 (\u002B02)",
+      "tippSpielId": "1423757142"
+    },
+    {
+      "sourceDatasetItemId": "bundesliga-2025-26__pes-squad__ts1423757142",
+      "sliceDatasetItemId": "bundesliga-2025-26__pes-squad__ts1423757142__repeated-match__repeat-100-knowledge-cutoff-bayern-rbl-md1__071",
+      "homeTeam": "FC Bayern M\u00FCnchen",
+      "awayTeam": "RB Leipzig",
+      "matchday": 1,
+      "startsAt": "2025-08-22T21:30:00 UTC\u002B02 (\u002B02)",
+      "tippSpielId": "1423757142"
+    },
+    {
+      "sourceDatasetItemId": "bundesliga-2025-26__pes-squad__ts1423757142",
+      "sliceDatasetItemId": "bundesliga-2025-26__pes-squad__ts1423757142__repeated-match__repeat-100-knowledge-cutoff-bayern-rbl-md1__072",
+      "homeTeam": "FC Bayern M\u00FCnchen",
+      "awayTeam": "RB Leipzig",
+      "matchday": 1,
+      "startsAt": "2025-08-22T21:30:00 UTC\u002B02 (\u002B02)",
+      "tippSpielId": "1423757142"
+    },
+    {
+      "sourceDatasetItemId": "bundesliga-2025-26__pes-squad__ts1423757142",
+      "sliceDatasetItemId": "bundesliga-2025-26__pes-squad__ts1423757142__repeated-match__repeat-100-knowledge-cutoff-bayern-rbl-md1__073",
+      "homeTeam": "FC Bayern M\u00FCnchen",
+      "awayTeam": "RB Leipzig",
+      "matchday": 1,
+      "startsAt": "2025-08-22T21:30:00 UTC\u002B02 (\u002B02)",
+      "tippSpielId": "1423757142"
+    },
+    {
+      "sourceDatasetItemId": "bundesliga-2025-26__pes-squad__ts1423757142",
+      "sliceDatasetItemId": "bundesliga-2025-26__pes-squad__ts1423757142__repeated-match__repeat-100-knowledge-cutoff-bayern-rbl-md1__074",
+      "homeTeam": "FC Bayern M\u00FCnchen",
+      "awayTeam": "RB Leipzig",
+      "matchday": 1,
+      "startsAt": "2025-08-22T21:30:00 UTC\u002B02 (\u002B02)",
+      "tippSpielId": "1423757142"
+    },
+    {
+      "sourceDatasetItemId": "bundesliga-2025-26__pes-squad__ts1423757142",
+      "sliceDatasetItemId": "bundesliga-2025-26__pes-squad__ts1423757142__repeated-match__repeat-100-knowledge-cutoff-bayern-rbl-md1__075",
+      "homeTeam": "FC Bayern M\u00FCnchen",
+      "awayTeam": "RB Leipzig",
+      "matchday": 1,
+      "startsAt": "2025-08-22T21:30:00 UTC\u002B02 (\u002B02)",
+      "tippSpielId": "1423757142"
+    },
+    {
+      "sourceDatasetItemId": "bundesliga-2025-26__pes-squad__ts1423757142",
+      "sliceDatasetItemId": "bundesliga-2025-26__pes-squad__ts1423757142__repeated-match__repeat-100-knowledge-cutoff-bayern-rbl-md1__076",
+      "homeTeam": "FC Bayern M\u00FCnchen",
+      "awayTeam": "RB Leipzig",
+      "matchday": 1,
+      "startsAt": "2025-08-22T21:30:00 UTC\u002B02 (\u002B02)",
+      "tippSpielId": "1423757142"
+    },
+    {
+      "sourceDatasetItemId": "bundesliga-2025-26__pes-squad__ts1423757142",
+      "sliceDatasetItemId": "bundesliga-2025-26__pes-squad__ts1423757142__repeated-match__repeat-100-knowledge-cutoff-bayern-rbl-md1__077",
+      "homeTeam": "FC Bayern M\u00FCnchen",
+      "awayTeam": "RB Leipzig",
+      "matchday": 1,
+      "startsAt": "2025-08-22T21:30:00 UTC\u002B02 (\u002B02)",
+      "tippSpielId": "1423757142"
+    },
+    {
+      "sourceDatasetItemId": "bundesliga-2025-26__pes-squad__ts1423757142",
+      "sliceDatasetItemId": "bundesliga-2025-26__pes-squad__ts1423757142__repeated-match__repeat-100-knowledge-cutoff-bayern-rbl-md1__078",
+      "homeTeam": "FC Bayern M\u00FCnchen",
+      "awayTeam": "RB Leipzig",
+      "matchday": 1,
+      "startsAt": "2025-08-22T21:30:00 UTC\u002B02 (\u002B02)",
+      "tippSpielId": "1423757142"
+    },
+    {
+      "sourceDatasetItemId": "bundesliga-2025-26__pes-squad__ts1423757142",
+      "sliceDatasetItemId": "bundesliga-2025-26__pes-squad__ts1423757142__repeated-match__repeat-100-knowledge-cutoff-bayern-rbl-md1__079",
+      "homeTeam": "FC Bayern M\u00FCnchen",
+      "awayTeam": "RB Leipzig",
+      "matchday": 1,
+      "startsAt": "2025-08-22T21:30:00 UTC\u002B02 (\u002B02)",
+      "tippSpielId": "1423757142"
+    },
+    {
+      "sourceDatasetItemId": "bundesliga-2025-26__pes-squad__ts1423757142",
+      "sliceDatasetItemId": "bundesliga-2025-26__pes-squad__ts1423757142__repeated-match__repeat-100-knowledge-cutoff-bayern-rbl-md1__080",
+      "homeTeam": "FC Bayern M\u00FCnchen",
+      "awayTeam": "RB Leipzig",
+      "matchday": 1,
+      "startsAt": "2025-08-22T21:30:00 UTC\u002B02 (\u002B02)",
+      "tippSpielId": "1423757142"
+    },
+    {
+      "sourceDatasetItemId": "bundesliga-2025-26__pes-squad__ts1423757142",
+      "sliceDatasetItemId": "bundesliga-2025-26__pes-squad__ts1423757142__repeated-match__repeat-100-knowledge-cutoff-bayern-rbl-md1__081",
+      "homeTeam": "FC Bayern M\u00FCnchen",
+      "awayTeam": "RB Leipzig",
+      "matchday": 1,
+      "startsAt": "2025-08-22T21:30:00 UTC\u002B02 (\u002B02)",
+      "tippSpielId": "1423757142"
+    },
+    {
+      "sourceDatasetItemId": "bundesliga-2025-26__pes-squad__ts1423757142",
+      "sliceDatasetItemId": "bundesliga-2025-26__pes-squad__ts1423757142__repeated-match__repeat-100-knowledge-cutoff-bayern-rbl-md1__082",
+      "homeTeam": "FC Bayern M\u00FCnchen",
+      "awayTeam": "RB Leipzig",
+      "matchday": 1,
+      "startsAt": "2025-08-22T21:30:00 UTC\u002B02 (\u002B02)",
+      "tippSpielId": "1423757142"
+    },
+    {
+      "sourceDatasetItemId": "bundesliga-2025-26__pes-squad__ts1423757142",
+      "sliceDatasetItemId": "bundesliga-2025-26__pes-squad__ts1423757142__repeated-match__repeat-100-knowledge-cutoff-bayern-rbl-md1__083",
+      "homeTeam": "FC Bayern M\u00FCnchen",
+      "awayTeam": "RB Leipzig",
+      "matchday": 1,
+      "startsAt": "2025-08-22T21:30:00 UTC\u002B02 (\u002B02)",
+      "tippSpielId": "1423757142"
+    },
+    {
+      "sourceDatasetItemId": "bundesliga-2025-26__pes-squad__ts1423757142",
+      "sliceDatasetItemId": "bundesliga-2025-26__pes-squad__ts1423757142__repeated-match__repeat-100-knowledge-cutoff-bayern-rbl-md1__084",
+      "homeTeam": "FC Bayern M\u00FCnchen",
+      "awayTeam": "RB Leipzig",
+      "matchday": 1,
+      "startsAt": "2025-08-22T21:30:00 UTC\u002B02 (\u002B02)",
+      "tippSpielId": "1423757142"
+    },
+    {
+      "sourceDatasetItemId": "bundesliga-2025-26__pes-squad__ts1423757142",
+      "sliceDatasetItemId": "bundesliga-2025-26__pes-squad__ts1423757142__repeated-match__repeat-100-knowledge-cutoff-bayern-rbl-md1__085",
+      "homeTeam": "FC Bayern M\u00FCnchen",
+      "awayTeam": "RB Leipzig",
+      "matchday": 1,
+      "startsAt": "2025-08-22T21:30:00 UTC\u002B02 (\u002B02)",
+      "tippSpielId": "1423757142"
+    },
+    {
+      "sourceDatasetItemId": "bundesliga-2025-26__pes-squad__ts1423757142",
+      "sliceDatasetItemId": "bundesliga-2025-26__pes-squad__ts1423757142__repeated-match__repeat-100-knowledge-cutoff-bayern-rbl-md1__086",
+      "homeTeam": "FC Bayern M\u00FCnchen",
+      "awayTeam": "RB Leipzig",
+      "matchday": 1,
+      "startsAt": "2025-08-22T21:30:00 UTC\u002B02 (\u002B02)",
+      "tippSpielId": "1423757142"
+    },
+    {
+      "sourceDatasetItemId": "bundesliga-2025-26__pes-squad__ts1423757142",
+      "sliceDatasetItemId": "bundesliga-2025-26__pes-squad__ts1423757142__repeated-match__repeat-100-knowledge-cutoff-bayern-rbl-md1__087",
+      "homeTeam": "FC Bayern M\u00FCnchen",
+      "awayTeam": "RB Leipzig",
+      "matchday": 1,
+      "startsAt": "2025-08-22T21:30:00 UTC\u002B02 (\u002B02)",
+      "tippSpielId": "1423757142"
+    },
+    {
+      "sourceDatasetItemId": "bundesliga-2025-26__pes-squad__ts1423757142",
+      "sliceDatasetItemId": "bundesliga-2025-26__pes-squad__ts1423757142__repeated-match__repeat-100-knowledge-cutoff-bayern-rbl-md1__088",
+      "homeTeam": "FC Bayern M\u00FCnchen",
+      "awayTeam": "RB Leipzig",
+      "matchday": 1,
+      "startsAt": "2025-08-22T21:30:00 UTC\u002B02 (\u002B02)",
+      "tippSpielId": "1423757142"
+    },
+    {
+      "sourceDatasetItemId": "bundesliga-2025-26__pes-squad__ts1423757142",
+      "sliceDatasetItemId": "bundesliga-2025-26__pes-squad__ts1423757142__repeated-match__repeat-100-knowledge-cutoff-bayern-rbl-md1__089",
+      "homeTeam": "FC Bayern M\u00FCnchen",
+      "awayTeam": "RB Leipzig",
+      "matchday": 1,
+      "startsAt": "2025-08-22T21:30:00 UTC\u002B02 (\u002B02)",
+      "tippSpielId": "1423757142"
+    },
+    {
+      "sourceDatasetItemId": "bundesliga-2025-26__pes-squad__ts1423757142",
+      "sliceDatasetItemId": "bundesliga-2025-26__pes-squad__ts1423757142__repeated-match__repeat-100-knowledge-cutoff-bayern-rbl-md1__090",
+      "homeTeam": "FC Bayern M\u00FCnchen",
+      "awayTeam": "RB Leipzig",
+      "matchday": 1,
+      "startsAt": "2025-08-22T21:30:00 UTC\u002B02 (\u002B02)",
+      "tippSpielId": "1423757142"
+    },
+    {
+      "sourceDatasetItemId": "bundesliga-2025-26__pes-squad__ts1423757142",
+      "sliceDatasetItemId": "bundesliga-2025-26__pes-squad__ts1423757142__repeated-match__repeat-100-knowledge-cutoff-bayern-rbl-md1__091",
+      "homeTeam": "FC Bayern M\u00FCnchen",
+      "awayTeam": "RB Leipzig",
+      "matchday": 1,
+      "startsAt": "2025-08-22T21:30:00 UTC\u002B02 (\u002B02)",
+      "tippSpielId": "1423757142"
+    },
+    {
+      "sourceDatasetItemId": "bundesliga-2025-26__pes-squad__ts1423757142",
+      "sliceDatasetItemId": "bundesliga-2025-26__pes-squad__ts1423757142__repeated-match__repeat-100-knowledge-cutoff-bayern-rbl-md1__092",
+      "homeTeam": "FC Bayern M\u00FCnchen",
+      "awayTeam": "RB Leipzig",
+      "matchday": 1,
+      "startsAt": "2025-08-22T21:30:00 UTC\u002B02 (\u002B02)",
+      "tippSpielId": "1423757142"
+    },
+    {
+      "sourceDatasetItemId": "bundesliga-2025-26__pes-squad__ts1423757142",
+      "sliceDatasetItemId": "bundesliga-2025-26__pes-squad__ts1423757142__repeated-match__repeat-100-knowledge-cutoff-bayern-rbl-md1__093",
+      "homeTeam": "FC Bayern M\u00FCnchen",
+      "awayTeam": "RB Leipzig",
+      "matchday": 1,
+      "startsAt": "2025-08-22T21:30:00 UTC\u002B02 (\u002B02)",
+      "tippSpielId": "1423757142"
+    },
+    {
+      "sourceDatasetItemId": "bundesliga-2025-26__pes-squad__ts1423757142",
+      "sliceDatasetItemId": "bundesliga-2025-26__pes-squad__ts1423757142__repeated-match__repeat-100-knowledge-cutoff-bayern-rbl-md1__094",
+      "homeTeam": "FC Bayern M\u00FCnchen",
+      "awayTeam": "RB Leipzig",
+      "matchday": 1,
+      "startsAt": "2025-08-22T21:30:00 UTC\u002B02 (\u002B02)",
+      "tippSpielId": "1423757142"
+    },
+    {
+      "sourceDatasetItemId": "bundesliga-2025-26__pes-squad__ts1423757142",
+      "sliceDatasetItemId": "bundesliga-2025-26__pes-squad__ts1423757142__repeated-match__repeat-100-knowledge-cutoff-bayern-rbl-md1__095",
+      "homeTeam": "FC Bayern M\u00FCnchen",
+      "awayTeam": "RB Leipzig",
+      "matchday": 1,
+      "startsAt": "2025-08-22T21:30:00 UTC\u002B02 (\u002B02)",
+      "tippSpielId": "1423757142"
+    },
+    {
+      "sourceDatasetItemId": "bundesliga-2025-26__pes-squad__ts1423757142",
+      "sliceDatasetItemId": "bundesliga-2025-26__pes-squad__ts1423757142__repeated-match__repeat-100-knowledge-cutoff-bayern-rbl-md1__096",
+      "homeTeam": "FC Bayern M\u00FCnchen",
+      "awayTeam": "RB Leipzig",
+      "matchday": 1,
+      "startsAt": "2025-08-22T21:30:00 UTC\u002B02 (\u002B02)",
+      "tippSpielId": "1423757142"
+    },
+    {
+      "sourceDatasetItemId": "bundesliga-2025-26__pes-squad__ts1423757142",
+      "sliceDatasetItemId": "bundesliga-2025-26__pes-squad__ts1423757142__repeated-match__repeat-100-knowledge-cutoff-bayern-rbl-md1__097",
+      "homeTeam": "FC Bayern M\u00FCnchen",
+      "awayTeam": "RB Leipzig",
+      "matchday": 1,
+      "startsAt": "2025-08-22T21:30:00 UTC\u002B02 (\u002B02)",
+      "tippSpielId": "1423757142"
+    },
+    {
+      "sourceDatasetItemId": "bundesliga-2025-26__pes-squad__ts1423757142",
+      "sliceDatasetItemId": "bundesliga-2025-26__pes-squad__ts1423757142__repeated-match__repeat-100-knowledge-cutoff-bayern-rbl-md1__098",
+      "homeTeam": "FC Bayern M\u00FCnchen",
+      "awayTeam": "RB Leipzig",
+      "matchday": 1,
+      "startsAt": "2025-08-22T21:30:00 UTC\u002B02 (\u002B02)",
+      "tippSpielId": "1423757142"
+    },
+    {
+      "sourceDatasetItemId": "bundesliga-2025-26__pes-squad__ts1423757142",
+      "sliceDatasetItemId": "bundesliga-2025-26__pes-squad__ts1423757142__repeated-match__repeat-100-knowledge-cutoff-bayern-rbl-md1__099",
+      "homeTeam": "FC Bayern M\u00FCnchen",
+      "awayTeam": "RB Leipzig",
+      "matchday": 1,
+      "startsAt": "2025-08-22T21:30:00 UTC\u002B02 (\u002B02)",
+      "tippSpielId": "1423757142"
+    },
+    {
+      "sourceDatasetItemId": "bundesliga-2025-26__pes-squad__ts1423757142",
+      "sliceDatasetItemId": "bundesliga-2025-26__pes-squad__ts1423757142__repeated-match__repeat-100-knowledge-cutoff-bayern-rbl-md1__100",
+      "homeTeam": "FC Bayern M\u00FCnchen",
+      "awayTeam": "RB Leipzig",
+      "matchday": 1,
+      "startsAt": "2025-08-22T21:30:00 UTC\u002B02 (\u002B02)",
+      "tippSpielId": "1423757142"
+    }
+  ]
+}
