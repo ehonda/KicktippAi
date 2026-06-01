@@ -8,20 +8,21 @@ This note documents the workflow changes we applied after the `Update prediction
 
 On a fresh clone, do this once before relying on sandboxed `git` and `dotnet` workflows in Codex:
 
-1. Start Codex from the repo root so the relative paths in [`.codex/config.toml`](../../.codex/config.toml) resolve into the repo's `.tmp/` directory.
-2. Trust the clone path for Git:
+1. Trust the clone path for Git:
 
 ```powershell
 git config --global --add safe.directory C:/path/to/your/KicktippAi-clone
 ```
 
-3. Restart Codex after changing [`.codex/config.toml`](../../.codex/config.toml), because the repo-local env setup is applied when the session starts.
+2. If your local Codex sandbox is allowed to write to the default Windows user directories, put the machine-specific `dotnet` and NuGet path overrides into your user-level `~/.codex/config.toml`.
 
-The repo [AGENTS.md](../../AGENTS.md) keeps the agent-relevant search-scope guidance and `.tmp/` scratch-state note, while the one-time clone setup details stay here.
+3. Restart Codex after changing either `~/.codex/config.toml` or [`.codex/config.toml`](../../.codex/config.toml), because the env setup is applied when the session starts.
+
+The repo [AGENTS.md](../../AGENTS.md) keeps the agent-relevant search-scope guidance, `.tmp/` scratch-state note, and current Git guidance, while the one-time clone setup details stay here.
 
 ## Native Windows Sandbox Mode
 
-The repo-local [`.codex/config.toml`](../../.codex/config.toml) in this repo only redirects `dotnet` and NuGet writable state into `.tmp/`. It does not choose the native Windows sandbox backend.
+The repo-local [`.codex/config.toml`](../../.codex/config.toml) in this repo only carries machine-agnostic `dotnet` flags. It does not choose the native Windows sandbox backend, and it does not contain machine-local absolute paths.
 
 That backend is a user-level Codex setting in `~/.codex/config.toml`:
 
@@ -65,19 +66,29 @@ Current working guidance:
 - Keep using the sandbox for routine read-only `git` commands.
 - Run `git add`, `git commit`, and `git push` outside the sandbox in this repo for now.
 
-### 2. Sandbox `dotnet` uses repo-local writable paths
+### 2. Sandbox `dotnet` uses user-level absolute paths to the default Windows directories
 
 The earlier workaround was to run all `dotnet` commands outside the sandbox because sandboxed runs could not reliably use the default user-profile locations for CLI and NuGet writable state.
 
-We replaced that with a repo-local Codex config in [`.codex/config.toml`](../../.codex/config.toml):
+We first replaced that with repo-local relative paths under `.tmp/`, but that caused two follow-up problems on this machine:
+
+- some runs still tripped over relative-path handling
+- the repo-local NuGet cache duplicated the normal machine-wide package store and wasted disk space
+
+The current approach is:
+
+- keep only machine-agnostic `dotnet` flags in the repo-local [`.codex/config.toml`](../../.codex/config.toml)
+- put machine-specific absolute path overrides into the user-level `~/.codex/config.toml`
+
+Example user-level setup:
 
 ```toml
 [shell_environment_policy.set]
-DOTNET_CLI_HOME = ".tmp/dotnet-cli-home"
-NUGET_PACKAGES = ".tmp/nuget/packages"
-NUGET_HTTP_CACHE_PATH = ".tmp/nuget/v3-cache"
-NUGET_PLUGINS_CACHE_PATH = ".tmp/nuget/plugins-cache"
-NUGET_SCRATCH = ".tmp/nuget/scratch"
+DOTNET_CLI_HOME = "C:\\Users\\<user>"
+NUGET_PACKAGES = "C:\\Users\\<user>\\.nuget\\packages"
+NUGET_HTTP_CACHE_PATH = "C:\\Users\\<user>\\AppData\\Local\\NuGet\\v3-cache"
+NUGET_PLUGINS_CACHE_PATH = "C:\\Users\\<user>\\AppData\\Local\\NuGet\\plugins-cache"
+NUGET_SCRATCH = "C:\\Users\\<user>\\AppData\\Local\\Temp\\NuGetScratch"
 DOTNET_NOLOGO = "1"
 DOTNET_CLI_TELEMETRY_OPTOUT = "1"
 DOTNET_CLI_WORKLOAD_UPDATE_NOTIFY_DISABLE = "1"
@@ -86,18 +97,19 @@ DOTNET_GENERATE_ASPNET_CERTIFICATE = "0"
 
 Effect:
 
-- `dotnet` and NuGet write their temporary and cache state under `.tmp/` in the repo.
-- We avoid writes to user-profile locations such as `%USERPROFILE%\\.dotnet` and `%USERPROFILE%\\.nuget`, which were the problematic paths in the sandbox.
-- The config is clone-portable because it uses relative paths.
+- `dotnet` and NuGet use the normal absolute Windows user directories instead of a duplicate repo-local cache.
+- The machine-specific absolute paths stay out of the committed repo.
+- The setup depends on the local Codex sandbox being allowed to write to those user directories.
 
 Important assumptions:
 
-- Start Codex from the repo root. These relative paths are intended to resolve from the root session working directory.
-- Restart Codex after changing `.codex/config.toml`. The repo-local env setup is applied when the session starts.
+- Restart Codex after changing `~/.codex/config.toml`. The user-level env setup is applied when the session starts.
+- Keep machine-specific absolute paths out of committed repo files.
+- If the sandbox can no longer write to the default user directories, this setup will stop working and you will need either a sandbox permission change or a different writable path strategy.
 
 ### 3. Repo-local scratch state is explicitly ignored
 
-We added `.tmp/` to [`.gitignore`](../../.gitignore) so the repo-local `dotnet` and NuGet scratch directories stay out of version control.
+We added `.tmp/` to [`.gitignore`](../../.gitignore) so ad-hoc repo-local scratch state stays out of version control.
 
 ### 4. Broad searches skip dependency submodules by default
 
@@ -128,7 +140,7 @@ The repo guidance in [AGENTS.md](../../AGENTS.md) now keeps the agent-relevant s
 
 Fresh-clone and one-time setup details stay here instead:
 
-- use the repo-local Codex config for `dotnet`
+- use the user-level Codex config for machine-specific `dotnet` and NuGet paths
 - trust the repo once for sandboxed `git`
 - rerun the `safe.directory` command if the clone path changes
 

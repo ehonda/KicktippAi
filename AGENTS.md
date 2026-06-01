@@ -94,9 +94,10 @@ If this command fails because `PyYAML` needs to be fetched and sandbox networkin
 
 ## Codex Sandbox State
 
-This repo uses [`.codex/config.toml`](.codex/config.toml) to redirect `dotnet` CLI and NuGet writable state into `.tmp/`.
+This repo uses [`.codex/config.toml`](.codex/config.toml) only for machine-agnostic `dotnet` CLI flags.
 
-- `.tmp/` is ignored by git and is safe for sandbox-local tool state.
+- `.tmp/` is ignored by git and is safe for repo-local scratch state when a task needs it.
+- Machine-specific `dotnet` and NuGet path overrides belong in the user-level Codex config, not in committed repo files. See [docs/codex/efficient-usage.md](docs/codex/efficient-usage.md).
 - Routine read-only `git` commands such as `status`, `diff`, and `log` can run in the sandbox, but `git add`, `git commit`, and `git push` should still be run outside the sandbox in this repo for now.
 - Fresh-clone setup and one-time trust steps are documented in [docs/codex/efficient-usage.md](docs/codex/efficient-usage.md).
 
