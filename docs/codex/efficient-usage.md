@@ -19,6 +19,24 @@ git config --global --add safe.directory C:/path/to/your/KicktippAi-clone
 
 The repo [AGENTS.md](../../AGENTS.md) keeps the agent-relevant search-scope guidance and `.tmp/` scratch-state note, while the one-time clone setup details stay here.
 
+## Native Windows Sandbox Mode
+
+The repo-local [`.codex/config.toml`](../../.codex/config.toml) in this repo only redirects `dotnet` and NuGet writable state into `.tmp/`. It does not choose the native Windows sandbox backend.
+
+That backend is a user-level Codex setting in `~/.codex/config.toml`:
+
+```toml
+[windows]
+sandbox = "elevated" # or "unelevated"
+```
+
+Important distinction:
+
+- `elevated` is the preferred native Windows sandbox, but it depends on administrator-approved local setup.
+- `unelevated` is the documented fallback when the elevated setup path is blocked or broken in the local environment.
+
+If Codex starts showing Windows "modify the system" prompts for routine sandboxed commands, or even simple read-only commands fail with `CreateProcessWithLogonW failed: 1326`, check the user-level setting first. In that situation, switching the user-level mode to `unelevated` and restarting Codex restores the older no-admin-prompt fallback behavior on this machine.
+
 ## Current Status
 
 ### 1. Git trust is fixed, but mutating `git` commands still need escalation
