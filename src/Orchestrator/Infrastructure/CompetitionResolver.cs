@@ -12,7 +12,7 @@ public sealed record CompetitionRuntimeMetadata(
 public static class CompetitionResolver
 {
     private static readonly string[] KnownDevCommunities = ["ehonda-dev-wm26"];
-    private static readonly string[] KnownWorldCupCommunities = ["ehonda-dev-wm26", "rabetrabauken2026"];
+    private static readonly string[] KnownWorldCupCommunities = ["ehonda-dev-wm26", "rabetrabauken2026", "ehonda-ai-arena"];
 
     public const string LocalPromptSource = "local";
     public const string LangfusePromptSource = "langfuse";

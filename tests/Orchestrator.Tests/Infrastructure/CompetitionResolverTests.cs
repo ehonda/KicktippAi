@@ -20,7 +20,9 @@ public class CompetitionResolverTests
     [Test]
     [Arguments("rabetrabauken2026", null)]
     [Arguments(null, "rabetrabauken2026")]
-    public async Task Resolves_reference_world_cup_community_or_context_to_world_cup_competition(
+    [Arguments("ehonda-ai-arena", null)]
+    [Arguments(null, "ehonda-ai-arena")]
+    public async Task Resolves_world_cup_community_or_context_to_world_cup_competition(
         string? community,
         string? communityContext)
     {

@@ -2,7 +2,7 @@
 
 Last estimate refresh: 2026-05-11
 
-Coverage note added: 2026-05-31
+Coverage note updated: 2026-06-02
 
 This estimate projects match prediction cost for two full competitions, all
 `gpt-5.5` reasoning efforts, and two comparison configurations. Bonus question
@@ -22,9 +22,10 @@ already collected `pes-squad` / `o3` counts.
 
 WM26 model onboarding coverage is tracked in
 [model-config-onboarding.md](../onboarding-wm26/model-config-onboarding.md).
-As of 2026-05-31, the manual WM26 dev/testing shortcut configuration
-`gpt-5-nano` / `minimal` is onboarded but not estimated here because the
-estimator has no matching base row yet. This configuration is not the WM26
+As of 2026-06-02, the manual WM26 dev/testing shortcut configuration and the
+preliminary manual `ehonda-ai-arena` workflow configuration both use
+`gpt-5-nano` / `minimal`, but this configuration is not estimated here because
+the estimator has no matching base row yet. This configuration is not the WM26
 production configuration, which is still TBD. The checked command was:
 
 ```powershell

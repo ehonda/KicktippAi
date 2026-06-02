@@ -1,8 +1,15 @@
 # FIFA World Cup 2026 Onboarding
 
-This first pass supports manual participation for the development community `ehonda-dev-wm26` and competition `fifa-world-cup-2026`.
+This first pass supports manual participation for the development community
+`ehonda-dev-wm26` and competition `fifa-world-cup-2026`.
 
-No scheduled GitHub Actions workflow is enabled yet.
+No scheduled GitHub Actions workflow is enabled yet. The
+`ehonda-ai-arena` `gpt-5-nano` / `minimal` workflows are preliminary
+manual-dispatch test entrypoints only.
+
+The tracked provisional lineup seed remains acceptable for this preliminary
+onboarding test. Replace it with official final FIFA squad membership once final
+lists are available and before scheduled production activation.
 
 Model configuration onboarding status is tracked in
 [model-config-onboarding.md](model-config-onboarding.md). Keep that ledger
@@ -18,9 +25,9 @@ workflow collects Kicktipp context plus WM26 FIFA ranking and lineup context for
 the reference community.
 
 `ehonda-ai-arena` is planned as a secondary posting community for the selected
-WM26 production model. Once the production model and reasoning effort are
-chosen, run the `rabetrabauken2026` prediction workflow first and schedule the
-matching `ehonda-ai-arena` workflow later with:
+WM26 production model. The preliminary `gpt-5-nano` / `minimal` workflows follow
+the same shape for manual onboarding tests: post to `ehonda-ai-arena`, but use
+the `rabetrabauken2026` reference context with:
 
 ```yaml
 community: "ehonda-ai-arena"
@@ -32,6 +39,9 @@ finds the already-stored prediction by model configuration and reference
 community context, then posts it to its own Kicktipp community. Do not create or
 activate model-specific WM26 prediction workflows until the production model
 configuration is selected and the full-competition estimate is documented.
+The current `ehonda-ai-arena` `gpt-5-nano` / `minimal` workflows are an
+exception for preliminary manual testing; their cron schedules stay disabled and
+the missing base estimate row is tracked in the model configuration ledger.
 
 ## Planned GitHub Actions Cadence
 

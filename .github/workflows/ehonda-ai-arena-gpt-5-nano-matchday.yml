@@ -1,29 +1,27 @@
 name: ehonda-ai-arena ⚽ gpt-5-nano ⚽ Matchday
 
 on:
-  # 🚫 Deactivated: The most recent active competition for this workflow,
-  # 🚫 Bundesliga 2025 / 2026, has concluded.
-  # Keep an inert trigger so the workflow file remains valid while disabled.
+  # Preliminary WM26 onboarding: manual-only while provisional lineup context is
+  # accepted for testing and schedules remain disabled.
   workflow_call:
-  # Schedule to run twice daily one hour after context collection
-  # Note: GitHub Actions cron runs in UTC only, so these times approximate Europe/Berlin
+  # Planned WM26 cadence after context, reference prediction, and posting checks pass.
+  # Note: GitHub Actions cron runs in UTC only.
   # schedule:
-  #   - cron: '0 1 * * *'    # ~02:00 AM Europe/Berlin (01:00 UTC = 02:00 CET, 03:00 CEST) - 1 hour after context collection
-  #   - cron: '0 13 * * *'   # ~02:00 PM Europe/Berlin (13:00 UTC = 14:00 CET, 15:00 CEST) - 1 hour after context collection
+  #   - cron: '7 1,8,13 * * *'
   #
   # Allow manual triggering
-  # workflow_dispatch:
-  #   inputs:
-  #     force_prediction:
-  #       description: 'Force prediction even if verify passes'
-  #       required: false
-  #       default: false
-  #       type: boolean
-  #     max_repredictions:
-  #       description: 'Maximum number of repredictions allowed (0-based index)'
-  #       required: false
-  #       default: 2
-  #       type: number
+  workflow_dispatch:
+    inputs:
+      force_prediction:
+        description: 'Force prediction even if verify passes'
+        required: false
+        default: false
+        type: boolean
+      max_repredictions:
+        description: 'Maximum number of repredictions allowed (0-based index)'
+        required: false
+        default: 2
+        type: number
 
 jobs:
   call-base-workflow:
@@ -32,8 +30,8 @@ jobs:
     with:
       community: "ehonda-ai-arena"
       model: "gpt-5-nano"
-      reasoning_effort: ""
-      community_context: "pes-squad"
+      reasoning_effort: "minimal"
+      community_context: "rabetrabauken2026"
       trigger_type: ${{ github.event_name == 'schedule' && 'scheduled' || 'manual' }}
       force_prediction: ${{ github.event.inputs.force_prediction == 'true' }}
       max_repredictions: ${{ github.event.inputs.max_repredictions == '' && 2 || fromJSON(github.event.inputs.max_repredictions) }}

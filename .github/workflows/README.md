@@ -74,10 +74,13 @@ Each community workflow is configured with direct parameters:
 - **`include_fifa_rankings` / `include_lineups`**: Enable WM26 context extras for World Cup communities
 
 For WM26 secondary communities, keep `community` as the posting target and set
-`community_context` to the reference community. The planned `ehonda-ai-arena`
-WM26 prediction workflow should run later than the matching `rabetrabauken2026`
-reference workflow and use `community_context: "rabetrabauken2026"` so it posts
-the stored reference prediction rather than creating a separate model run.
+`community_context` to the reference community. The preliminary
+`ehonda-ai-arena` `gpt-5-nano` / `minimal` WM26 workflows are manual-only
+testing entries and use `community_context: "rabetrabauken2026"`. They should
+run later than the matching `rabetrabauken2026` reference prediction path so the
+secondary workflow can post the stored reference prediction rather than create a
+separate model run. Keep their cron schedules disabled until context, reference
+prediction, posting, and cost-estimate checks pass.
 
 ## Example Communities
 

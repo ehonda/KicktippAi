@@ -11,6 +11,7 @@ This maps Kicktipp communities to competition IDs and manual-run defaults. Curre
 - Existing Bundesliga communities default to `bundesliga-2025-26`.
 - `ehonda-dev-wm26` resolves to `fifa-world-cup-2026`.
 - `rabetrabauken2026` resolves to `fifa-world-cup-2026` as the WM26 reference production community context.
+- `ehonda-ai-arena` resolves to `fifa-world-cup-2026` as a WM26 secondary posting community.
 - The guarded WM26 `matchday-dev` and `bonus-dev` commands use `gpt-5-nano` with `reasoning-effort minimal`, Langfuse prompt source, and label `latest`.
 
 Those dev command defaults exist for low-cost development and manual testing.
