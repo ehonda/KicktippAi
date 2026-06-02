@@ -82,6 +82,12 @@ secondary workflow can post the stored reference prediction rather than create a
 separate model run. Keep their cron schedules disabled until context, reference
 prediction, posting, and cost-estimate checks pass.
 
+For model-specific posting identities, include the reasoning effort in the
+secret name whenever the workflow pins one. The preliminary
+`ehonda-ai-arena` `gpt-5-nano` / `minimal` workflows use
+`EHONDA_AI_ARENA_GPT_5_NANO_MINIMAL_KICKTIPP_USERNAME` and
+`EHONDA_AI_ARENA_GPT_5_NANO_MINIMAL_KICKTIPP_PASSWORD`.
+
 ## Example Communities
 
 ### Test Community
@@ -119,6 +125,11 @@ Examples:
 - `FIREBASE_PROJECT_ID`: Your Firebase project ID
 - `FIREBASE_SERVICE_ACCOUNT_JSON`: Firebase service account JSON key
 - `OPENAI_API_KEY`: OpenAI API key for prediction generation
+
+### WM26 Preliminary Prediction Secrets
+
+- `EHONDA_AI_ARENA_GPT_5_NANO_MINIMAL_KICKTIPP_USERNAME`: Kicktipp username for the preliminary ehonda-ai-arena WM26 gpt-5-nano/minimal posting workflow
+- `EHONDA_AI_ARENA_GPT_5_NANO_MINIMAL_KICKTIPP_PASSWORD`: Kicktipp password for the preliminary ehonda-ai-arena WM26 gpt-5-nano/minimal posting workflow
 
 ### Context Collection Secrets
 

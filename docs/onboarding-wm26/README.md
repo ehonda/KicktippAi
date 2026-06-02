@@ -261,6 +261,9 @@ workflow can be trusted or scheduled:
   per-community Kicktipp username/password secrets, `FIREBASE_PROJECT_ID`,
   `FIREBASE_SERVICE_ACCOUNT_JSON`, `OPENAI_API_KEY`, and
   `LANGFUSE_SECRET_KEY`.
+  For the preliminary `ehonda-ai-arena` `gpt-5-nano` / `minimal` workflows,
+  use `EHONDA_AI_ARENA_GPT_5_NANO_MINIMAL_KICKTIPP_USERNAME` and
+  `EHONDA_AI_ARENA_GPT_5_NANO_MINIMAL_KICKTIPP_PASSWORD`.
 - Configure repository variable `LANGFUSE_PUBLIC_KEY` if it is not already set.
 - Select and document the WM26 production model configuration; do not use the
   `gpt-5-nano` / `minimal` dev command defaults as the production assumption.
