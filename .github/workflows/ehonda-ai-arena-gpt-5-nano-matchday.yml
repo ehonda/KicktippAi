@@ -4,7 +4,7 @@ on:
   # Preliminary WM26 onboarding: manual-only while provisional lineup context is
   # accepted for testing and schedules remain disabled.
   workflow_call:
-  # Planned WM26 cadence after context, reference prediction, and posting checks pass.
+  # Planned WM26 cadence after context and posting checks pass.
   # Note: GitHub Actions cron runs in UTC only.
   # schedule:
   #   - cron: '7 1,8,13 * * *'
@@ -31,7 +31,7 @@ jobs:
       community: "ehonda-ai-arena"
       model: "gpt-5-nano"
       reasoning_effort: "minimal"
-      community_context: "rabetrabauken2026"
+      community_context: "ehonda-ai-arena"
       trigger_type: ${{ github.event_name == 'schedule' && 'scheduled' || 'manual' }}
       force_prediction: ${{ github.event.inputs.force_prediction == 'true' }}
       max_repredictions: ${{ github.event.inputs.max_repredictions == '' && 2 || fromJSON(github.event.inputs.max_repredictions) }}

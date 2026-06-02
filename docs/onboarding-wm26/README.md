@@ -25,20 +25,21 @@ workflow collects Kicktipp context plus WM26 FIFA ranking and lineup context for
 the reference community.
 
 `ehonda-ai-arena` is planned as a secondary posting community for the selected
-WM26 production model. The preliminary `gpt-5-nano` / `minimal` workflows follow
-the same shape for manual onboarding tests: post to `ehonda-ai-arena`, but use
-the `rabetrabauken2026` reference context with:
+WM26 production model. The preliminary `gpt-5-nano` / `minimal` workflows are
+self-contained manual onboarding tests: collect and use `ehonda-ai-arena`
+context directly with:
 
 ```yaml
 community: "ehonda-ai-arena"
-community_context: "rabetrabauken2026"
+community_context: "ehonda-ai-arena"
 ```
 
-This keeps the existing Bundesliga copy pattern: the later secondary workflow
-finds the already-stored prediction by model configuration and reference
-community context, then posts it to its own Kicktipp community. Do not create or
-activate model-specific WM26 prediction workflows until the production model
-configuration is selected and the full-competition estimate is documented.
+This keeps the preliminary test independent of `rabetrabauken2026` credentials.
+The later secondary workflow can still follow the existing Bundesliga copy
+pattern: find the already-stored prediction by model configuration and reference
+community context, then post it to its own Kicktipp community. Do not create or
+activate scheduled model-specific WM26 prediction workflows until the production
+model configuration is selected and the full-competition estimate is documented.
 The current `ehonda-ai-arena` `gpt-5-nano` / `minimal` workflows are an
 exception for preliminary manual testing; their cron schedules stay disabled and
 the preliminary full-competition estimate is tracked in the model configuration
@@ -263,7 +264,9 @@ workflow can be trusted or scheduled:
   `LANGFUSE_SECRET_KEY`.
   For the preliminary `ehonda-ai-arena` `gpt-5-nano` / `minimal` workflows,
   use `EHONDA_AI_ARENA_GPT_5_NANO_MINIMAL_KICKTIPP_USERNAME` and
-  `EHONDA_AI_ARENA_GPT_5_NANO_MINIMAL_KICKTIPP_PASSWORD`.
+  `EHONDA_AI_ARENA_GPT_5_NANO_MINIMAL_KICKTIPP_PASSWORD`; the matching
+  `ehonda-ai-arena` context collection workflow uses the same Kicktipp
+  credentials for this preliminary self-contained test.
 - Configure repository variable `LANGFUSE_PUBLIC_KEY` if it is not already set.
 - Select and document the WM26 production model configuration; do not use the
   `gpt-5-nano` / `minimal` dev command defaults as the production assumption.

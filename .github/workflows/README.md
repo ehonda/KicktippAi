@@ -30,6 +30,9 @@ Each community gets its own set of workflows that call the base workflows with s
 - **`rabetrabauken2026-context-collection.yml`**: Manual WM26 reference context collection
   - Runs Kicktipp, FIFA ranking, and lineup context collection for `fifa-world-cup-2026`
   - Has no schedule until the reference context run is validated and WM26 prediction workflows are selected
+- **`ehonda-ai-arena-context-collection.yml`**: Manual WM26 preliminary context collection
+  - Runs Kicktipp, FIFA ranking, and lineup context collection for `ehonda-ai-arena`
+  - Uses the preliminary `gpt-5-nano` / `minimal` posting credentials until a production model setup is selected
 
 ### Cost Analysis Workflow
 
@@ -73,14 +76,17 @@ Each community workflow is configured with direct parameters:
 - **`competition`**: Optional competition identifier for context collection
 - **`include_fifa_rankings` / `include_lineups`**: Enable WM26 context extras for World Cup communities
 
-For WM26 secondary communities, keep `community` as the posting target and set
-`community_context` to the reference community. The preliminary
-`ehonda-ai-arena` `gpt-5-nano` / `minimal` WM26 workflows are manual-only
-testing entries and use `community_context: "rabetrabauken2026"`. They should
-run later than the matching `rabetrabauken2026` reference prediction path so the
-secondary workflow can post the stored reference prediction rather than create a
-separate model run. Keep their cron schedules disabled until context, reference
-prediction, posting, and cost-estimate checks pass.
+For self-contained WM26 workflow tests, keep `community` and
+`community_context` aligned. The preliminary `ehonda-ai-arena` `gpt-5-nano` /
+`minimal` WM26 workflows are manual-only testing entries and use
+`community_context: "ehonda-ai-arena"`. Keep their cron schedules disabled
+until context, posting, and cost-estimate checks pass.
+
+For later WM26 secondary-community copy posting, keep `community` as the posting
+target and set `community_context` to the selected reference community. That
+path should run after the matching reference prediction path so the secondary
+workflow can post the stored reference prediction rather than create a separate
+model run.
 
 For model-specific posting identities, include the reasoning effort in the
 secret name whenever the workflow pins one. The preliminary

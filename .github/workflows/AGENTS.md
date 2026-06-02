@@ -10,7 +10,11 @@ corresponding automations are currently active.
 
 `ehonda-ai-arena-gpt-5-nano-matchday.yml` and
 `ehonda-ai-arena-gpt-5-nano-bonus.yml` are preliminary manual-only WM26 testing
-entrypoints. Their cron schedules remain disabled.
+entrypoints. Their cron schedules remain disabled. For this preliminary
+self-contained test path, they use `community_context: "ehonda-ai-arena"`.
+
+`ehonda-ai-arena-context-collection.yml` is the matching manual-only WM26
+context workflow for that preliminary self-contained test path.
 
 `rabetrabauken2026-context-collection.yml` is a manual-only WM26 reference
 context workflow. It does not invoke `matchday` or `bonus`, so it does not make
