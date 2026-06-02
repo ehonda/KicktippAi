@@ -19,6 +19,7 @@ namespace Integration.Tests.Commands.Operations.StaleMetadataRepredictionIntegra
 [NotInParallel(FirestoreFixture.OrchestratorIntegrationParallelKey)]
 public abstract class StaleMetadataRepredictionIntegrationTests_Base(FirestoreFixture fixture)
 {
+    protected const string Competition = CompetitionIds.Bundesliga2025_26;
     protected const string Community = "ehonda-ai-arena";
     protected const string Model = "o4-mini";
 

@@ -86,6 +86,8 @@ public class StaleMetadataRepredictionIntegrationTests : StaleMetadataRepredicti
             Model,
             "-c",
             Community,
+            "--competition",
+            Competition,
             "--check-outdated");
 
         await Assert.That(verifyExitCode).IsEqualTo(0);
@@ -102,6 +104,8 @@ public class StaleMetadataRepredictionIntegrationTests : StaleMetadataRepredicti
             Model,
             "-c",
             Community,
+            "--competition",
+            Competition,
             "--repredict");
 
         await Assert.That(matchdayExitCode).IsEqualTo(0);
