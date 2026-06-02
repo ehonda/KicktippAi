@@ -67,6 +67,47 @@ public class Wm26LineupSourceTests
     }
 
     [Test]
+    public async Task CollectAsync_keeps_missing_player_without_optional_seed_values()
+    {
+        await WithFixtureAsync(async fixture =>
+        {
+            WriteSeed(
+                fixture.Seed,
+                [
+                    SeedRow(role: "Coach", name: "Coach One", nationalTeamId: "100"),
+                    SeedRow(name: "Official Roster Player", nationalTeamId: "100")
+                ]);
+
+            var collection = await fixture.Source.CollectAsync(fixture.Request);
+            var content = GetDocument(collection, "lineup-exampleland.csv").Content;
+
+            await Assert.That(content).Contains("Official Roster Player,N/A,N/A,N/A");
+            await Assert.That(collection.MissingSourceData.Single().Fields)
+                .IsEquivalentTo(["Age", "Position", "Market_Value_EUR"]);
+        });
+    }
+
+    [Test]
+    public async Task CollectAsync_keeps_player_when_explicit_transfermarkt_id_is_not_found()
+    {
+        await WithFixtureAsync(async fixture =>
+        {
+            WriteSeed(
+                fixture.Seed,
+                [
+                    SeedRow(role: "Coach", name: "Coach One", nationalTeamId: "100"),
+                    SeedRow(name: "Official Roster Player", playerId: "999999")
+                ]);
+
+            var collection = await fixture.Source.CollectAsync(fixture.Request);
+            var content = GetDocument(collection, "lineup-exampleland.csv").Content;
+
+            await Assert.That(content).Contains("Official Roster Player,N/A,N/A,N/A");
+            await Assert.That(collection.EnrichedRowCount).IsEqualTo(2);
+        });
+    }
+
+    [Test]
     public async Task CollectAsync_fails_when_name_match_is_ambiguous()
     {
         await WithFixtureAsync(async fixture =>
