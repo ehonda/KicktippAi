@@ -14,15 +14,11 @@ On a fresh clone, do this once before relying on sandboxed `git` and `dotnet` wo
 git config --global --add safe.directory C:/path/to/your/KicktippAi-clone
 ```
 
-2. If your local Codex sandbox is allowed to write to the default Windows user directories, put the machine-specific `dotnet` and NuGet path overrides into your user-level `~/.codex/config.toml`.
-
-3. Restart Codex after changing either `~/.codex/config.toml` or [`.codex/config.toml`](../../.codex/config.toml), because the env setup is applied when the session starts.
-
-The repo [AGENTS.md](../../AGENTS.md) keeps the agent-relevant search-scope guidance, `.tmp/` scratch-state note, and current Git guidance, while the one-time clone setup details stay here.
+The repo [AGENTS.md](../../AGENTS.md) keeps the agent-relevant search-scope guidance, current sandbox notes, and Git guidance, while the one-time clone setup details stay here.
 
 ## Native Windows Sandbox Mode
 
-The repo-local [`.codex/config.toml`](../../.codex/config.toml) in this repo only carries machine-agnostic `dotnet` flags. It does not choose the native Windows sandbox backend, and it does not contain machine-local absolute paths.
+The repo-local [`.codex/config.toml`](../../.codex/config.toml) in this repo does not choose the native Windows sandbox backend.
 
 That backend is a user-level Codex setting in `~/.codex/config.toml`:
 
@@ -66,52 +62,59 @@ Current working guidance:
 - Keep using the sandbox for routine read-only `git` commands.
 - Run `git add`, `git commit`, and `git push` outside the sandbox in this repo for now.
 
-### 2. Sandbox `dotnet` uses user-level absolute paths to the default Windows directories
+Why we are not retrying this casually:
+
+- The one-time `safe.directory` setup was worth keeping because it fixed routine read-only `git` commands.
+- The follow-up attempt to reopen `.git` for writes and allow GitHub network access was not reliable enough to replace the outside-sandbox workflow.
+- On native Windows `unelevated` sandbox mode, the repo-local permission-profile experiment also reintroduced permission-prompt friction, so it made the fallback workflow worse instead of better.
+- If mutating sandboxed `git` is ever revisited, only retry it with a clearly different platform/runtime setup, for example a working `elevated` sandbox path or WSL, and revalidate `git add`, `git commit`, and `git push` explicitly.
+
+### 2. `dotnet` currently runs outside the sandbox
 
 The earlier workaround was to run all `dotnet` commands outside the sandbox because sandboxed runs could not reliably use the default user-profile locations for CLI and NuGet writable state.
 
-We first replaced that with repo-local relative paths under `.tmp/`, but that caused two follow-up problems on this machine:
+We tried two sandboxed `dotnet` variants:
 
-- some runs still tripped over relative-path handling
-- the repo-local NuGet cache duplicated the normal machine-wide package store and wasted disk space
+- repo-local relative paths under `.tmp/`
+- user-level absolute paths to the default Windows user directories
 
-The current approach is:
+Neither variant is part of the current workflow anymore. The path-override experiments were rolled back, and this repo no longer sets `dotnet` or NuGet path environment variables through Codex config.
 
-- keep only machine-agnostic `dotnet` flags in the repo-local [`.codex/config.toml`](../../.codex/config.toml)
-- put machine-specific absolute path overrides into the user-level `~/.codex/config.toml`
+Current working guidance:
 
-Example user-level setup:
-
-```toml
-[shell_environment_policy.set]
-DOTNET_CLI_HOME = "C:\\Users\\<user>"
-NUGET_PACKAGES = "C:\\Users\\<user>\\.nuget\\packages"
-NUGET_HTTP_CACHE_PATH = "C:\\Users\\<user>\\AppData\\Local\\NuGet\\v3-cache"
-NUGET_PLUGINS_CACHE_PATH = "C:\\Users\\<user>\\AppData\\Local\\NuGet\\plugins-cache"
-NUGET_SCRATCH = "C:\\Users\\<user>\\AppData\\Local\\Temp\\NuGetScratch"
-DOTNET_NOLOGO = "1"
-DOTNET_CLI_TELEMETRY_OPTOUT = "1"
-DOTNET_CLI_WORKLOAD_UPDATE_NOTIFY_DISABLE = "1"
-DOTNET_GENERATE_ASPNET_CERTIFICATE = "0"
-```
-
-Effect:
-
-- `dotnet` and NuGet use the normal absolute Windows user directories instead of a duplicate repo-local cache.
-- The machine-specific absolute paths stay out of the committed repo.
-- The setup depends on the local Codex sandbox being allowed to write to those user directories.
+- run `dotnet` commands outside the sandbox in this repo
+- do not rely on repo-local or user-level Codex env overrides for `dotnet` here
 
 Important assumptions:
 
-- Restart Codex after changing `~/.codex/config.toml`. The user-level env setup is applied when the session starts.
-- Keep machine-specific absolute paths out of committed repo files.
-- If the sandbox can no longer write to the default user directories, this setup will stop working and you will need either a sandbox permission change or a different writable path strategy.
+- if a future `dotnet` sandbox optimization is retried, treat it as an experiment until the full repo build is revalidated
+- keep machine-specific path overrides out of committed repo files unless they are intentionally being tested and documented
 
-### 3. Repo-local scratch state is explicitly ignored
+Why we are not retrying this casually:
+
+- The repo-local relative-path variant under `.tmp/` did not stay boring. It added duplicate cache state, created path-handling confusion, and complicated debugging.
+- The user-level absolute-path variant looked better for individual `dotnet` commands, but the overall workflow became harder to trust and reason about on this machine.
+- After reverting all `dotnet` env overrides and going back to outside-sandbox `dotnet`, the repo's normal root-level `dotnet restore` plus `dotnet build --no-restore --configuration Release` flow worked again.
+- Because build reliability matters more than shaving approval overhead, do not retry sandboxed `dotnet` here unless you are prepared to revalidate the full root-level build flow and accept rollback work if it regresses.
+
+### 3. Failed Optimization Summary
+
+Two Codex sandbox optimizations were explored and then intentionally abandoned:
+
+1. Mutating `git` in the sandbox via repo-local permission profiles.
+2. `dotnet` in the sandbox via repo-local or user-level path env overrides.
+
+Shared lesson:
+
+- a small local command success was not enough proof
+- the repo's real workflow had to be revalidated end to end
+- when the optimization made the machine-specific behavior harder to trust, rollback was the right outcome
+
+### 4. Repo-local scratch state is explicitly ignored
 
 We added `.tmp/` to [`.gitignore`](../../.gitignore) so ad-hoc repo-local scratch state stays out of version control.
 
-### 4. Broad searches skip dependency submodules by default
+### 5. Broad searches skip dependency submodules by default
 
 The earlier problem was that broad `rg` and `rg --files` searches pulled dependency mirrors from `external/` into first-pass results, which inflated transcript size and made narrowing slower.
 
@@ -134,13 +137,12 @@ Effect:
 
 ## Instruction Changes
 
-The higher-level Codex instructions should not say to always run `dotnet` outside the sandbox for this repo.
+The higher-level Codex instructions should say to run `dotnet` outside the sandbox for this repo.
 
 The repo guidance in [AGENTS.md](../../AGENTS.md) now keeps the agent-relevant search-scope guidance, `.tmp/` scratch-state note, and the current exception for mutating `git` commands.
 
 Fresh-clone and one-time setup details stay here instead:
 
-- use the user-level Codex config for machine-specific `dotnet` and NuGet paths
 - trust the repo once for sandboxed `git`
 - rerun the `safe.directory` command if the clone path changes
 
@@ -148,10 +150,14 @@ Fresh-clone and one-time setup details stay here instead:
 
 These changes should reduce:
 
-- approval-review fork traffic caused by routine read-only `git` and `dotnet` commands
+- approval-review fork traffic caused by routine read-only `git` commands
 - extra transcript growth from approval prompts and review payloads
 - extra transcript growth from broad first-pass searches that include dependency mirrors
-- friction from repo-local `.dotnet` or user-profile cache issues during sandboxed `dotnet` runs
+- friction from partially working `dotnet` sandbox path experiments
+
+Tradeoff:
+
+- `dotnet` commands keep their outside-sandbox approval overhead for now, but the workflow is simpler and less likely to hide machine-specific failures
 
 ## Current Git Limitation
 
