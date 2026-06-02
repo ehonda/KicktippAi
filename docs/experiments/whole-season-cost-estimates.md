@@ -1,13 +1,13 @@
 # Whole-Season Cost Estimates
 
-Last estimate refresh: 2026-05-11
+Last estimate refresh: 2026-06-02
 
 Coverage note updated: 2026-06-02
 
 This estimate projects match prediction cost for two full competitions, all
-`gpt-5.5` reasoning efforts, and two comparison configurations. Bonus question
-cost is excluded because it is negligible relative to full-season match
-prediction cost.
+`gpt-5.5` reasoning efforts, two comparison configurations, and the preliminary
+WM26 `gpt-5-nano` / `minimal` onboarding configuration. Bonus question cost is
+excluded because it is negligible relative to full-season match prediction cost.
 
 Important pricing assumption: these estimates assume every match prediction is
 billed at OpenAI `flex` pricing. Production is expected to use flex from here
@@ -15,26 +15,30 @@ on out. Actual spend can be higher if flex requests occasionally fall back to
 standard processing after flex-capacity failures, but that share is expected to
 stay low.
 
-The dollar values below were regenerated immediately before this document was
-written with `experiment_cost_estimator.py estimate`. No Firebase `cost` query
-was rerun for this estimate; the Bundesliga reprediction evidence reuses the
-already collected `pes-squad` / `o3` counts.
+The new `gpt-5-nano minimal` WM26 value was regenerated immediately before the
+2026-06-02 update with `experiment_cost_estimator.py estimate`. The other
+values remain from the 2026-05-11 refresh. No Firebase `cost` query was rerun
+for this estimate; the Bundesliga reprediction evidence reuses the already
+collected `pes-squad` / `o3` counts.
 
 WM26 model onboarding coverage is tracked in
 [model-config-onboarding.md](../onboarding-wm26/model-config-onboarding.md).
 As of 2026-06-02, the manual WM26 dev/testing shortcut configuration and the
 preliminary manual `ehonda-ai-arena` workflow configuration both use
-`gpt-5-nano` / `minimal`, but this configuration is not estimated here because
-the estimator has no matching base row yet. This configuration is not the WM26
-production configuration, which is still TBD. The checked command was:
+`gpt-5-nano` / `minimal`. This configuration now has a preliminary estimate
+based on the hosted WM match prompt `kicktippai/wm26/predict-one-match`, label
+`latest`, version `2`. A Langfuse lookup on 2026-06-02 found no `production`
+label for that prompt, so `latest` remains the configured WM hosted route for
+this estimate. This configuration is not the WM26 production configuration,
+which is still TBD. The estimator command was:
 
 ```powershell
 uv --cache-dir .uv-cache run python .agents/skills/estimate-experiment-cost-skill/scripts/experiment_cost_estimator.py estimate --counts 104 --model gpt-5-nano --reasoning-effort minimal
 ```
 
-It reported no matching base estimate JSON row. Create and persist base rows
-through the `estimate-experiment-cost-skill` workflow before recording a
-full-competition dollar estimate for any scheduled WM26 model configuration.
+It reported `N=104: $0.008894080000`. Create and persist base rows through the
+`estimate-experiment-cost-skill` workflow before recording a full-competition
+dollar estimate for any additional scheduled WM26 model configuration.
 
 ## Match Counts And Repredictions
 
@@ -84,6 +88,7 @@ for predictions that were generated before production moved to flex.
 | Bundesliga 2025/26 | `gpt-5.5 xhigh` | Langfuse `langfuse-o3-poc` | 40000 | `$28.968255000000` | `$46.671077500000` |
 | Bundesliga 2025/26 | `gpt-5.4-nano xhigh` | Langfuse `langfuse-o3-poc` | 40000 | `$3.360748275000` | `$5.414538887500` |
 | Bundesliga 2025/26 | `o3 medium` | local `prompt-v1` | 10000 | `$3.193599600000` | `$5.145243800000` |
+| FIFA World Cup 2026 | `gpt-5-nano minimal` | Langfuse `wm26-hosted-latest` | 10000 | `$0.008894080000` | `$0.008894080000` |
 | FIFA World Cup 2026 | `gpt-5.5 none` | Langfuse `langfuse-o3-poc` | 10000 | `$0.905060000000` | `$0.905060000000` |
 | FIFA World Cup 2026 | `gpt-5.5 low` | Langfuse `langfuse-o3-poc` | 10000 | `$1.214330000000` | `$1.214330000000` |
 | FIFA World Cup 2026 | `gpt-5.5 medium` | Langfuse `langfuse-o3-poc` | 10000 | `$1.765322000000` | `$1.765322000000` |
@@ -92,13 +97,24 @@ for predictions that were generated before production moved to flex.
 | FIFA World Cup 2026 | `gpt-5.4-nano xhigh` | Langfuse `langfuse-o3-poc` | 40000 | `$1.142215100000` | `$1.142215100000` |
 | FIFA World Cup 2026 | `o3 medium` | local `prompt-v1` | 10000 | `$1.085406400000` | `$1.085406400000` |
 
-All base rows use service tier `flex`, treat input tokens as uncached for the
-estimate, and use model knowledge cutoff `2025-11-29` with sampling cutoff
-`2025-12-01T00:00:00 Europe/Berlin (+01)`. If a future run observes non-flex
+All base rows use service tier `flex` and treat input tokens as uncached for the
+estimate. The existing `gpt-5.5`, `gpt-5.4-nano`, and `o3` rows use model
+knowledge cutoff `2025-11-29` with sampling cutoff
+`2025-12-01T00:00:00 Europe/Berlin (+01)`. The new `gpt-5-nano minimal` row
+uses model knowledge cutoff `2024-05-31` with sampling cutoff
+`2024-06-02T00:00:00 Europe/Berlin (+02)`. If a future run observes non-flex
 fallbacks, estimate the standard-tier share separately instead of silently
 mixing it into these all-flex totals.
 
-New base estimate rows generated for this update:
+Base estimate rows noted in this document:
+
+- `gpt-5-nano minimal`: 20 observations from repeated-match-slice run family
+  `2026-06-02t22-02-53z`, hosted WM prompt
+  `kicktippai/wm26/predict-one-match` label `latest` version `2`, average
+  `$0.000085520000` per match prediction, observed service tiers
+  `{'flex': 20}`, no non-flex fallback. The sample uses historical `pes-squad`
+  fixtures for scored estimates, so only the prompt route matches the WM26
+  runtime configuration.
 
 - `gpt-5.5 medium`: 20 observations from run family
   `2026-05-10t22-57-59z`, average `$0.016974250000` per match prediction,
@@ -110,6 +126,19 @@ New base estimate rows generated for this update:
   observed service tiers `{'flex': 20}`, no non-flex fallback.
 
 ## Estimator Commands
+
+`gpt-5-nano minimal`:
+
+```powershell
+uv --cache-dir .uv-cache run python .agents/skills/estimate-experiment-cost-skill/scripts/experiment_cost_estimator.py estimate --counts 104 --model gpt-5-nano --reasoning-effort minimal
+```
+
+Fresh output summary:
+
+```text
+Average cost per match prediction: $0.000085520000
+N=104: $0.008894080000
+```
 
 `gpt-5.5 none`:
 

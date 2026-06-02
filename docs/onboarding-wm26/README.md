@@ -41,7 +41,8 @@ activate model-specific WM26 prediction workflows until the production model
 configuration is selected and the full-competition estimate is documented.
 The current `ehonda-ai-arena` `gpt-5-nano` / `minimal` workflows are an
 exception for preliminary manual testing; their cron schedules stay disabled and
-the missing base estimate row is tracked in the model configuration ledger.
+the preliminary full-competition estimate is tracked in the model configuration
+ledger.
 
 ## Planned GitHub Actions Cadence
 
@@ -106,11 +107,11 @@ model and reasoning effort explicitly. Use the reusable prediction workflow
 `reasoning_effort` input for that wiring.
 The production configuration is still TBD.
 
-The dev/test `gpt-5-nano` / `minimal` model configuration does not yet have a stored
-full-competition estimate row. Before activating schedules for any
-configuration, generate and document the selected configuration's estimate
-through the `estimate-experiment-cost-skill` workflow and update
-`docs/experiments/whole-season-cost-estimates.md`.
+The dev/test `gpt-5-nano` / `minimal` model configuration has a preliminary
+full-competition estimate row in `docs/experiments/whole-season-cost-estimates.md`.
+Before activating schedules for any selected production configuration, generate
+and document that configuration's estimate through the
+`estimate-experiment-cost-skill` workflow.
 
 ## Prompts
 

@@ -1,6 +1,6 @@
 {
   "schemaVersion": 1,
-  "updatedAt": "2026-05-16",
+  "updatedAt": "2026-06-02",
   "baseEstimates": [
     {
       "model": "o3",
@@ -234,6 +234,43 @@
       "averageCostPerMatchPredictionUsd": "0.000358805000",
       "observedLangfuseCostTotalUsd": "0.003374500000",
       "source": "Repeated-match-slice base estimate run 2026-05-17; gpt-5.4-nano none."
+    },
+    {
+      "model": "gpt-5-nano",
+      "reasoningEffort": "minimal",
+      "promptRoute": "Langfuse wm26-hosted-latest (kicktippai/wm26/predict-one-match, label latest, version 2)",
+      "modelKnowledgeCutoffDate": "2024-05-31",
+      "samplingCutoffUsed": "2024-06-02T00:00:00 Europe/Berlin (+02)",
+      "maxOutputTokens": 10000,
+      "baseSampleObservations": 20,
+      "serviceTier": "flex",
+      "observedServiceTierCounts": {
+        "flex": 20
+      },
+      "observedFlexRequestCount": 20,
+      "nonFlexRequestCount": 0,
+      "nonFlexRequestRate": "0.0000",
+      "nonFlexRequestPercent": "0.00%",
+      "nonFlexRetryCount": 0,
+      "nonFlexRetryRate": "0.0000",
+      "nonFlexRetryPercent": "0.00%",
+      "serviceTierFallbackUsedCount": 0,
+      "serviceTierFallbackUsedRate": "0.0000",
+      "serviceTierFallbackUsedPercent": "0.00%",
+      "standardInputPricePerMillionUsd": "0.05",
+      "standardOutputPricePerMillionUsd": "0.4",
+      "effectiveInputPricePerMillionUsd": "0.025",
+      "effectiveOutputPricePerMillionUsd": "0.2",
+      "totalInputTokens": 63456,
+      "totalCachedInputTokensObserved": 42624,
+      "totalOutputTokens": 620,
+      "totalReasoningTokens": 0,
+      "estimatedUncachedInputCostUsd": "0.001586400000",
+      "estimatedOutputCostUsd": "0.000124000000",
+      "estimatedTotalCostUsd": "0.001710400000",
+      "averageCostPerMatchPredictionUsd": "0.000085520000",
+      "observedLangfuseCostTotalUsd": "0.000751360000",
+      "source": "Base estimate run family 2026-06-02t22-02-53z; WM26 hosted latest prompt preliminary onboarding estimate using historical pes-squad repeated-match-slice fixtures."
     }
   ]
 }
