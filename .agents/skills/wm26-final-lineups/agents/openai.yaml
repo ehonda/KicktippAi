@@ -1,0 +1,4 @@
+interface:
+  display_name: "WM26 Final Lineups"
+  short_description: "Refresh WM26 final FIFA lineup context."
+  default_prompt: "Use $wm26-final-lineups to check official FIFA final squads and refresh WM26 lineup context."
