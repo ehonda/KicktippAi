@@ -13,11 +13,108 @@ Do not commit source JSON, downloaded DuckDB files, generated payloads, or priva
 ## Inputs
 
 - Tracked WM26 participant manifest: `data/wm26/lineups/wm26-teams.csv`
+- FIFA final squad-list PDF, for the 2026 final refresh:
+  `https://fdp.fifa.org/assetspublic/ce281/pdf/SquadLists-English.pdf`
 - FIFA squad tracker page:
   `https://www.fifa.com/en/tournaments/mens/worldcup/canadamexicousa2026/articles/all-world-cup-squad-announcements`
 - Local Transfermarkt DuckDB snapshot, when running offline:
   `data/wm26/lineups/private/data/transfermarkt-datasets.duckdb`
 - Optional previous seed, for coach names, national-team IDs, player IDs, and spelling fixes.
+
+## Final Squad PDF Extraction
+
+The 2026-06-03 final refresh used FIFA's official final squad-list PDF because the team `/squad` data endpoint still returned labels and page metadata instead of player records. For future tournaments, first check the direct team `/squad` endpoint described in `.agents/skills/wm26-final-lineups/SKILL.md`; use this PDF workflow when the official PDF is the most complete machine-readable final source.
+
+Keep all downloaded source files and generated previews in ignored scratch space such as `.tmp/`. Commit only the reviewed seed CSV and documentation.
+
+1. Download the official PDF into ignored scratch space:
+
+   ```powershell
+   New-Item -ItemType Directory -Force -Path .tmp
+   Invoke-WebRequest `
+     -Uri https://fdp.fifa.org/assetspublic/ce281/pdf/SquadLists-English.pdf `
+     -OutFile .tmp\wm26-squad-lists-english.pdf
+   ```
+
+2. Extract layout-preserved text with `pdftotext -layout`.
+
+   The script parses the fixed-width table shape from this text output. Plain text extraction without `-layout` loses too much column structure.
+
+   ```powershell
+   pdftotext -layout `
+     .tmp\wm26-squad-lists-english.pdf `
+     .tmp\wm26-squad-lists-english.txt
+   ```
+
+   `pdftotext` may print a MiKTeX/logging warning on Windows while still producing the text file. Verify the text file exists and has all expected pages before continuing.
+
+3. Preserve the previous seed before overwriting the tracked seed.
+
+   If the working tree still has the previous committed seed, export it from `HEAD` into ignored scratch:
+
+   ```powershell
+   git show HEAD:data/wm26/lineups/lineups-seed.csv `
+     | Set-Content -Path .tmp\lineups-seed-old-head.csv -Encoding utf8
+   ```
+
+4. Generate a preview seed from the extracted text.
+
+   The reusable helper lives at `docs/onboarding-wm26/lineups/scripts/fifa_final_squad_pdf_to_seed.py`. It has built-in WM26 FIFA-label mappings and the small PDF text-extraction fixes used in the 2026-06-03 refresh. For a future EURO or World Cup, either supply a custom `--team-map` CSV with `Fifa_Team_Label,Team_Slug,Transfermarkt_National_Team_Id` columns or update the built-in mapping.
+
+   ```powershell
+   uv --cache-dir .uv-cache run python `
+     docs\onboarding-wm26\lineups\scripts\fifa_final_squad_pdf_to_seed.py `
+     --pdf-text .tmp\wm26-squad-lists-english.txt `
+     --manifest data\wm26\lineups\wm26-teams.csv `
+     --previous-seed .tmp\lineups-seed-old-head.csv `
+     --duckdb-path data\wm26\lineups\private\data\transfermarkt-datasets.duckdb `
+     --collected-at 2026-06-03 `
+     --output .tmp\lineups-seed-final-preview.csv
+   ```
+
+   If the ambient Python environment lacks `duckdb`, run the same command with `uv --cache-dir .uv-cache run --with duckdb python ...`.
+
+5. Review the generator report.
+
+   The 2026-06-03 run produced:
+
+   ```text
+   rows=1296 coaches=48 players=1248
+   team_ids=43/48
+   ```
+
+   `unmatched` means the official FIFA roster row is present but no supplemental Transfermarkt player ID was found. Do not remove the FIFA row because of supplemental gaps. Review fuzzy matches and PDF name fixes manually, especially ligature extraction cases such as `Ra k` -> `Rafik` and `Al e` -> `Alfie`.
+
+6. Validate the preview CSV shape before copying it over the tracked seed:
+
+   ```powershell
+   @'
+   import csv
+   from collections import Counter
+   from pathlib import Path
+
+   path = Path(".tmp/lineups-seed-final-preview.csv")
+   rows = list(csv.DictReader(path.open(encoding="utf-8-sig", newline="")))
+   counts = Counter(row["Team_Slug"] for row in rows)
+   print("rows", len(rows))
+   print("coaches", sum(row["Role"] == "Coach" for row in rows))
+   print("players", sum(row["Role"] == "Player" for row in rows))
+   print("bad_counts", {slug: count for slug, count in counts.items() if count != 27})
+   print("dates", sorted({row["Data_Collected_At"] for row in rows}))
+   print("first_header_byte_ok", path.read_bytes()[:1] == b"T")
+   print("trailing_newline_ok", path.read_bytes().endswith(b"\n"))
+   '@ | python -
+   ```
+
+7. Promote the reviewed preview:
+
+   ```powershell
+   Copy-Item `
+     -Path .tmp\lineups-seed-final-preview.csv `
+     -Destination data\wm26\lineups\lineups-seed.csv
+   ```
+
+8. Run the normal lineup validation and upload workflow in [Enrich And Generate](#enrich-and-generate).
 
 ## FIFA JSON Endpoints
 
@@ -195,7 +292,7 @@ Review these reports:
 ## Final Squad Refresh Checklist
 
 1. Refresh or verify the local DuckDB snapshot, or let `collect-context lineups` download it.
-2. Re-run tracker extraction after FIFA publishes final lists.
+2. Re-run tracker extraction or the final squad PDF extraction after FIFA publishes final lists.
 3. Confirm every manifest team has a final squad article or equivalent official FIFA final-list source.
 4. Regenerate `private/input/lineups-seed.csv` with final roster rows.
 5. Exclude reserve, standby, replacement-watch, and training-only groups unless FIFA explicitly includes them in the final submitted squad.
