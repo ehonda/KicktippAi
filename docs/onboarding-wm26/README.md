@@ -35,11 +35,16 @@ community_context: "ehonda-ai-arena"
 ```
 
 This keeps the preliminary test independent of `rabetrabauken2026` credentials.
-The later secondary workflow can still follow the existing Bundesliga copy
-pattern: find the already-stored prediction by model configuration and reference
-community context, then post it to its own Kicktipp community. Do not create or
-activate scheduled model-specific WM26 prediction workflows until the production
-model configuration is selected and the full-competition estimate is documented.
+The later secondary copy-posting workflow is scoped only to the yet-undetermined
+`rabetrabauken2026` WM26 production model: the primary prediction workflow must
+first run against `rabetrabauken2026`, and the matching `ehonda-ai-arena`
+workflow may then post that stored prediction with
+`community_context: "rabetrabauken2026"`. Do not apply that copy-from-primary pattern to
+preliminary tests, dev shortcuts, or unrelated WM26 model configurations.
+
+Do not create or activate scheduled model-specific WM26 prediction workflows
+until the production model configuration is selected and the full-competition
+estimate is documented.
 The current `ehonda-ai-arena` `gpt-5-nano` / `minimal` workflows are an
 exception for preliminary manual testing; their cron schedules stay disabled and
 the preliminary full-competition estimate is tracked in the model configuration

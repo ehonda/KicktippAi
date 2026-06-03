@@ -21,6 +21,14 @@ context workflow. It does not invoke `matchday` or `bonus`, so it does not make
 `rabetrabauken2026` a production prediction community for Langfuse environment
 tagging.
 
+The WM26 secondary copy-from-primary pattern is reserved only for the
+yet-undetermined `rabetrabauken2026` production model path: a primary
+`rabetrabauken2026` prediction workflow must run first, and the matching
+`ehonda-ai-arena` workflow may then post the stored prediction with
+`community_context: "rabetrabauken2026"`. Do not apply that pattern to
+preliminary `ehonda-ai-arena` tests, dev shortcuts, or unrelated WM26 model
+experiments.
+
 ## Production Communities and Langfuse Environments
 
 Each command (`matchday`, `bonus`) determines its Langfuse trace environment (`production` vs `development`) based on whether the `community` parameter matches a **production community**. A community is a production community for a given command if there is a workflow in `.github/workflows/` that targets that community and invokes that command.

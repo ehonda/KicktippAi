@@ -30,7 +30,7 @@ is present in [whole-season-cost-estimates.md](../experiments/whole-season-cost-
 | --- | --- | --- | --- | --- | --- | --- |
 | `ehonda-dev-wm26` dev/testing shortcuts | `fifa-world-cup-2026` | `gpt-5-nano` with `minimal` reasoning | Langfuse `kicktippai/wm26/predict-one-match` and `kicktippai/wm26/predict-bonus`, label `latest`; fallback model `wm26` | Guarded `matchday-dev` and `bonus-dev` defaults in `src/Orchestrator/Commands/Operations/Dev/DevParticipationCommandSupport.cs` and prompt defaults in `src/Orchestrator/Infrastructure/CompetitionResolver.cs`; docs in `docs/onboarding-wm26/README.md` | Manual dev commands only; no GitHub Actions schedule activated; not a production config | Documented preliminary match estimate: `N=104: $0.008894080000` in [whole-season-cost-estimates.md](../experiments/whole-season-cost-estimates.md). Base row uses hosted WM prompt label `latest` version `2` and historical `pes-squad` repeated-match-slice fixtures. |
 | `ehonda-ai-arena` preliminary self-contained workflow test | `fifa-world-cup-2026` | `gpt-5-nano` with `minimal` reasoning | Langfuse `kicktippai/wm26/predict-one-match` and `kicktippai/wm26/predict-bonus`, label `latest`; fallback model `wm26` | `.github/workflows/ehonda-ai-arena-context-collection.yml` collects `community_context: "ehonda-ai-arena"`; `.github/workflows/ehonda-ai-arena-gpt-5-nano-matchday.yml` and `.github/workflows/ehonda-ai-arena-gpt-5-nano-bonus.yml` pass `model: "gpt-5-nano"`, `reasoning_effort: "minimal"`, and `community_context: "ehonda-ai-arena"`; posting credentials use `EHONDA_AI_ARENA_GPT_5_NANO_MINIMAL_KICKTIPP_USERNAME` / `EHONDA_AI_ARENA_GPT_5_NANO_MINIMAL_KICKTIPP_PASSWORD`; `src/Orchestrator/Infrastructure/CompetitionResolver.cs` resolves `ehonda-ai-arena` to WM26; provisional lineup seed stays in use until official final squads are available | Manual dispatch enabled for preliminary testing; cron schedules remain disabled; run and validate `ehonda-ai-arena` context first; not a production config | Documented preliminary match estimate: `N=104: $0.008894080000` in [whole-season-cost-estimates.md](../experiments/whole-season-cost-estimates.md). The estimate is suitable for onboarding workflow testing, not a production model decision. |
-| WM26 production predictions: `rabetrabauken2026` reference, `ehonda-ai-arena` secondary copy-posting target | `fifa-world-cup-2026` | TBD; must be selected separately from the preliminary testing fallback | TBD | Reference context collection is wired in `.github/workflows/rabetrabauken2026-context-collection.yml`; production model-specific matchday/bonus workflows are intentionally not activated yet | Context workflow is manual-only; production prediction schedules are not activated | Missing until production model and reasoning effort are selected. |
+| WM26 production predictions: `rabetrabauken2026` primary/reference model, `ehonda-ai-arena` secondary copy-posting target | `fifa-world-cup-2026` | TBD; must be selected separately from the preliminary testing fallback | TBD | Reference context collection is wired in `.github/workflows/rabetrabauken2026-context-collection.yml`; production model-specific matchday/bonus workflows are intentionally not activated yet. The copy-from-primary pattern is valid only for the selected `rabetrabauken2026` production model and its matching `ehonda-ai-arena` posting workflow. | Context workflow is manual-only; production prediction schedules are not activated | Missing until production model and reasoning effort are selected. |
 
 No WM26 production prediction workflow is currently activated. The preliminary
 `ehonda-ai-arena` `gpt-5-nano` / `minimal` workflows are manual-only testing
@@ -41,9 +41,18 @@ For the planned secondary-community copy pattern, the selected production model
 must run first against `rabetrabauken2026`. The matching `ehonda-ai-arena`
 workflow must run later with the same model configuration and
 `community_context: rabetrabauken2026`, so it reuses the stored reference
-prediction before posting to `ehonda-ai-arena`.
+prediction before posting to `ehonda-ai-arena`. This rule applies only to the
+yet-undetermined `rabetrabauken2026` production model path. Preliminary
+`ehonda-ai-arena` workflows, dev shortcuts, and any unrelated WM26 model tests
+must keep `community_context` aligned with their own collected context unless a
+new row here explicitly documents a copy-posting production setup.
 
 ## 2026-06-02 Preliminary Validation
+
+The `rabetrabauken2026` checks below are historical context for the
+not-yet-selected production copy-posting path. They are not a reusable setup for
+the preliminary `ehonda-ai-arena` `gpt-5-nano` / `minimal` test, which now uses
+self-contained `ehonda-ai-arena` context.
 
 - `collect-context kicktipp --community-context rabetrabauken2026 --competition fifa-world-cup-2026 --verbose` authenticated and collected matchday 1 outcome rows, but the Kicktipp submission page exposed no current match table, so no standings, rules, or recent-history context documents were uploaded.
 - `collect-context fifa --community-context rabetrabauken2026 --competition fifa-world-cup-2026 --verbose` uploaded 48 per-team ranking documents and KPI document `fifa-rankings`.

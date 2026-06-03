@@ -82,11 +82,14 @@ For self-contained WM26 workflow tests, keep `community` and
 `community_context: "ehonda-ai-arena"`. Keep their cron schedules disabled
 until context, posting, and cost-estimate checks pass.
 
-For later WM26 secondary-community copy posting, keep `community` as the posting
-target and set `community_context` to the selected reference community. That
-path should run after the matching reference prediction path so the secondary
-workflow can post the stored reference prediction rather than create a separate
-model run.
+For WM26, secondary-community copy posting is allowed only for the
+yet-undetermined `rabetrabauken2026` production model path. In that specific
+case, keep `community` as the posting target, set `community_context` to
+`rabetrabauken2026`, and run the workflow after the matching primary
+`rabetrabauken2026` prediction path so the secondary workflow can post the
+stored reference prediction rather than create a separate model run. Do not use
+this pattern for preliminary `ehonda-ai-arena` tests, dev shortcuts, or other
+WM26 model experiments.
 
 For model-specific posting identities, include the reasoning effort in the
 secret name whenever the workflow pins one. The preliminary
