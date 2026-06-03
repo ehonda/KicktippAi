@@ -15,7 +15,7 @@ Use official FIFA lineup or squad material for official membership once availabl
 
 Lineup CSV payloads must use `Team,Data_Collected_At,Role,Name,Age,Position,Market_Value_EUR`. Provisional vs official source state is documented, not passed as a command flag, and must not be written into prompt context as a CSV column.
 
-FIFA final squad lists are expected on 2 June 2026, when FIFA announces the submitted final 26-player lists. Treat earlier squad announcements as provisional. Once the final FIFA squad lists are available, update `data/wm26/lineups/lineups-seed.csv` to official full-squad membership and refresh `lineup-*` context documents plus the `lineups` KPI document with `collect-context lineups`. This workflow keeps full squads in context, not only match starters.
+FIFA published the final 26-player squad lists on 2026-06-03 after the 2026-06-02 team submission deadline. The tracked seed now uses official full-squad membership. Refresh `lineup-*` context documents plus the `lineups` KPI document with `collect-context lineups` whenever onboarding or refreshing a WM26 community. This workflow keeps full squads in context, not only match starters.
 
 Do not scrape websites for supplemental lineup values in this context.
 

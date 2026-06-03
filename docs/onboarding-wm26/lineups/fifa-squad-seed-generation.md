@@ -1,6 +1,6 @@
 # FIFA Squad Seed Generation
 
-This note documents the repeatable process used on 2026-05-30 to generate the WM26 preliminary lineup seed. Use the same extraction process once FIFA publishes the final squad lists, then replace the tracked seed with official full-squad membership.
+This note documents the repeatable process used on 2026-05-30 to generate the WM26 preliminary lineup seed. The tracked seed was replaced on 2026-06-03 with official full-squad membership from FIFA's final squad-list PDF. Keep the tracker extraction notes below for future article-based refreshes or for investigating source-history differences.
 
 The output of this process is the tracked seed CSV:
 

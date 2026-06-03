@@ -1,12 +1,12 @@
 # WM26 Lineup Source Status
 
-Status as of 2026-05-30.
+Status as of 2026-06-03.
 
-The current WM26 lineup seed is a tracked provisional seed at `data/wm26/lineups/lineups-seed.csv`. It contains the public FIFA squad-tracker roster rows that were available on 2026-05-30, not only the first matchday teams.
+The current WM26 lineup seed at `data/wm26/lineups/lineups-seed.csv` uses FIFA's official final 26-player squad-list source. It has 1,296 rows: 48 coach rows and 1,248 player rows across all 48 teams in `data/wm26/lineups/wm26-teams.csv`.
 
 The supplemental database is the CC0 `dcaribou/transfermarkt-datasets` DuckDB snapshot. `collect-context lineups` downloads the upstream snapshot into `data/wm26/lineups/private/data/transfermarkt-datasets.duckdb` by default; keep local DuckDB files ignored.
 
-`collect-context lineups` uses the tracked participant manifest `data/wm26/lineups/wm26-teams.csv` during generation. The manifest makes the command emit all 48 per-team `lineup-*` context documents. Teams without usable provisional or official squad rows get header-only CSV content for now, so WM26 `matchday`/`matchday-dev` context checks do not fail because a lineup document is absent.
+`collect-context lineups` uses the tracked participant manifest `data/wm26/lineups/wm26-teams.csv` during generation. The current final seed has source rows for every manifest team, so generated WM26 lineup context should not contain header-only per-team documents.
 
 Generated prompt context must use:
 
@@ -16,27 +16,23 @@ Team,Data_Collected_At,Role,Name,Age,Position,Market_Value_EUR
 
 Source status is documentation-only. `collect-context lineups` has no `--status` flag, and provisional vs official state is not included in the CSV content shown to the model.
 
-## Official Squad Timing
+## Official Final Source
 
-FIFA says all squads are provisional until the final 26-player lists are announced by FIFA after team submission on 2026-06-02. Until then, treat the tracked seed as provisional. Once FIFA publishes the final lists, replace `data/wm26/lineups/lineups-seed.csv` with official full-squad rows and refresh every WM26 community with `collect-context lineups`.
+FIFA published the confirmed 2026 final squad lists on 2026-06-03 after the team submission deadline on 2026-06-02. The tracked seed was refreshed from the official FIFA final squad-list PDF, not from preliminary squad articles.
 
-Primary trackers:
+Official sources:
 
+- FIFA confirmed squads announcement: https://www.fifa.com/en/articles/fifa-world-cup-2026-squads-confirmed
+- FIFA final squad-list PDF: https://fdp.fifa.org/assetspublic/ce281/pdf/SquadLists-English.pdf
 - FIFA squad timing: https://www.fifa.com/en/tournaments/mens/worldcup/canadamexicousa2026/articles/squad-lists-number-date
-- FIFA squad announcement tracker: https://www.fifa.com/en/articles/all-world-cup-squad-announcements
 
-## Current Provisional Source State
+The FIFA team `/squad` page shape was checked first. The page exposes an `EntireSquad` `entryEndpoint`, but the fetched data endpoint still returned labels and page metadata rather than roster player records, so the official PDF was used as the membership source.
 
-The regenerated private seed has 1,181 rows: 42 coach rows and 1,139 player rows across 42 teams. It accepts narrow preliminary lists above 26 players when FIFA has published them. Croatia's standby list and Côte d'Ivoire's reserves were excluded. Sweden's FIFA article says 26 players but listed 25 names at collection time, so the seed keeps the 25 listed names.
+## Current Final Source State
 
 | Source state | Teams |
 | --- | --- |
-| FIFA squad rows included | Argentina, Austria, Belgium, Bosnia-Herzegovina, Brazil, Cabo Verde, Canada, Colombia, Congo DR, Côte d'Ivoire, Croatia, Curaçao, Czechia, Egypt, England, France, Germany, Ghana, Haiti, IR Iran, Iraq, Japan, Jordan, Korea Republic, Morocco, Netherlands, New Zealand, Norway, Panama, Portugal, Qatar, Saudi Arabia, Scotland, Senegal, South Africa, Spain, Sweden, Switzerland, Tunisia, Türkiye, USA, Uzbekistan |
-| Header-only generated docs | Algeria, Australia, Ecuador, Mexico, Paraguay, Uruguay |
+| Official FIFA final squad rows included | Algeria, Argentina, Australia, Austria, Belgium, Bosnia-Herzegovina, Brazil, Cabo Verde, Canada, Colombia, Congo DR, Côte d'Ivoire, Croatia, Curaçao, Czechia, Ecuador, Egypt, England, France, Germany, Ghana, Haiti, IR Iran, Iraq, Japan, Jordan, Korea Republic, Mexico, Morocco, Netherlands, New Zealand, Norway, Panama, Paraguay, Portugal, Qatar, Saudi Arabia, Scotland, Senegal, South Africa, Spain, Sweden, Switzerland, Tunisia, Türkiye, Uruguay, USA, Uzbekistan |
+| Header-only generated docs | None |
 
-Useful direct source pages from this pass:
-
-- FIFA squad tracker: https://www.fifa.com/en/tournaments/mens/worldcup/canadamexicousa2026/articles/all-world-cup-squad-announcements
-- FIFA squad timing: https://www.fifa.com/en/tournaments/mens/worldcup/canadamexicousa2026/articles/squad-lists-number-date
-- Australia train-on squad: https://www.fifa.com/en/tournaments/mens/worldcup/articles/australia-name-train-on-squad
-- Mexico 55-player prelist: https://www.fifa.com/es/tournaments/mens/worldcup/canadamexicousa2026/articles/mexico-prelista-55-jugadores-mundial-2026
+The local Transfermarkt snapshot does not currently include national-team rows for Curaçao, Congo DR, Côte d'Ivoire, Haiti, or Cabo Verde. Their official FIFA roster membership is still present in the seed; unresolved supplemental fields are expected to remain `N/A` after context generation unless future DuckDB snapshots add those teams or player rows.

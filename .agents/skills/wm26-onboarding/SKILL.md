@@ -60,7 +60,7 @@ If the estimator reports no matching base row, do not invent or hand-calculate a
 
 Every WM26 community needs per-team `lineup-*` context documents and the aggregate `lineups` KPI document before prediction validation. Use official FIFA lineup/squad material for membership once available, and use the CC0 `dcaribou/transfermarkt-datasets` DuckDB database as the only supplemental source. The command downloads the latest upstream DuckDB snapshot by default; use `--duckdb-path` only for local/offline runs.
 
-FIFA final squad lists are expected on 2 June 2026, when FIFA announces the submitted final 26-player lists. Treat earlier squad announcements as provisional. Once those final FIFA squad lists are available, update `data/wm26/lineups/lineups-seed.csv` to official full-squad membership and refresh the full-squad `lineup-*` context documents plus `lineups` KPI document with `collect-context lineups`. Keep full squads in context; do not switch this workflow to match-starter-only lineups.
+FIFA published the final 26-player squad lists on 2026-06-03 after the 2026-06-02 team submission deadline. The tracked seed now uses official full-squad membership. Refresh the full-squad `lineup-*` context documents plus `lineups` KPI document with `collect-context lineups` whenever onboarding or refreshing a WM26 community. Keep full squads in context; do not switch this workflow to match-starter-only lineups.
 
 Do not run `matchday-dev` until every match team has its required `lineup-{team}.csv` context document. Do not run `bonus-dev` until the `lineups` KPI document exists.
 
