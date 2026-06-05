@@ -34,9 +34,29 @@ dotnet run --project src/Orchestrator -- collect-context fifa --community-contex
 dotnet run --project src/Orchestrator -- collect-context lineups --community-context <community-context> --competition fifa-world-cup-2026
 ```
 
-4. Record the workflow activation plan.
+4. Create and record the workflow activation plan.
 
-For testing-only onboarding, leave GitHub Actions schedules inactive and record that status in `docs/onboarding-wm26/model-config-onboarding.md`. Before enabling scheduled matchday or bonus prediction workflows for a new WM26 community, activate and successfully run the scheduled context workflow first. The community context workflow must run Kicktipp context collection, `collect-context fifa`, and `collect-context lineups` with `--competition fifa-world-cup-2026`.
+For every GitHub Actions-backed WM26 configuration, create all required
+workflow entrypoints together: context collection, matchday predictions, and
+bonus predictions. Use WM26-specific filenames such as
+`wm26-<community>-context-collection.yml` and
+`wm26-<community>-<model>-<reasoning-effort>-matchday.yml`, and include a
+`🏆` marker in each workflow `name:` so WM26 workflows are visually distinct in
+the GitHub Actions UI. Do not reuse ambiguous Bundesliga-era workflow names for
+new WM26 configurations.
+
+Every WM26 workflow entrypoint should keep `workflow_dispatch` enabled for
+manual validation. If scheduled activation is not requested yet, keep cron
+schedules inactive and record that status in
+`docs/onboarding-wm26/model-config-onboarding.md`. If scheduled activation is
+requested, use the planned WM26 cadence: context collection at
+`47 23,6,11 * * *`, main matchday predictions at `37 0,7,12 * * *`, slower or
+secondary copy-posting predictions at `7 1,8,13 * * *`, and bonus predictions
+at `47 0,7,12 * * *`. Before enabling scheduled matchday or bonus prediction
+workflows for a new WM26 community, activate and successfully run the matching
+context workflow first. The community context workflow must run Kicktipp context
+collection, `collect-context fifa`, and `collect-context lineups` with
+`--competition fifa-world-cup-2026`.
 
 5. Document onboarded model configurations.
 
@@ -101,7 +121,7 @@ Acceptance checks:
 After autonomous onboarding, include a concise manual follow-up section in the final response. Mark each item as done, not needed, or still required. At minimum, cover:
 
 - GitHub Actions secrets and variables: per-community Kicktipp username/password secrets used by the workflow files, `FIREBASE_PROJECT_ID`, `FIREBASE_SERVICE_ACCOUNT_JSON`, `OPENAI_API_KEY`, `LANGFUSE_SECRET_KEY`, and repository variable `LANGFUSE_PUBLIC_KEY`.
-- GitHub workflow activation: whether workflows are manual-only/testing, schedules are still disabled, or schedules are ready to enable. Do not activate scheduled prediction workflows until the context workflow has run successfully.
+- GitHub workflow activation: whether workflows are manual-only/testing, schedules are active, schedules are still disabled, or schedules are ready to enable. Do not activate scheduled prediction workflows until the context workflow has run successfully.
 - Workflow model wiring: whether each prediction workflow passes the selected model and `reasoning_effort` input explicitly; only `matchday-dev` and `bonus-dev` may rely on the guarded WM26 dev defaults.
 - Production model decision: the chosen production model, reasoning effort, prompt route, and estimate status. If production is still TBD, say so plainly and do not imply that `gpt-5-nano` / `minimal` is production-ready.
 - Cost estimate coverage: exact `docs/experiments/whole-season-cost-estimates.md` entry or missing estimate/base-row work for every scheduled model configuration.

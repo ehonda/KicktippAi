@@ -1,8 +1,11 @@
-name: ehonda-ai-arena WM26 Context Collection
+name: 🏆 WM26 ehonda-ai-arena 🏆 Context Collection
 
 on:
-  # Preliminary WM26 onboarding: manual-only while provisional lineup context is
-  # accepted for testing and schedules remain disabled.
+  workflow_call:
+  # WM26 cadence: refresh before each prediction window.
+  # GitHub Actions cron runs in UTC only.
+  schedule:
+    - cron: '47 23,6,11 * * *'
   workflow_dispatch:
 
 jobs:
@@ -14,7 +17,7 @@ jobs:
       competition: "fifa-world-cup-2026"
       include_fifa_rankings: true
       include_lineups: true
-      trigger_type: "manual"
+      trigger_type: ${{ github.event_name == 'schedule' && 'scheduled' || 'manual' }}
     secrets:
       kicktipp_username: ${{ secrets.EHONDA_AI_ARENA_GPT_5_NANO_MINIMAL_KICKTIPP_USERNAME }}
       kicktipp_password: ${{ secrets.EHONDA_AI_ARENA_GPT_5_NANO_MINIMAL_KICKTIPP_PASSWORD }}

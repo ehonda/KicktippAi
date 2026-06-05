@@ -1,11 +1,10 @@
 # WM26 Model Configuration Onboarding
 
-Updated: 2026-06-02
+Updated: 2026-06-05
 
 This ledger tracks which FIFA World Cup 2026 model configurations are
 onboarded, where they are wired, and whether their full-competition match
-prediction costs are documented. Scheduled activation is intentionally pending
-while testing starts.
+prediction costs are documented.
 
 The guarded `matchday-dev` and `bonus-dev` `gpt-5-nano` / `minimal` defaults
 are for dev work and low-cost manual testing only. They are not the WM26
@@ -29,13 +28,13 @@ is present in [whole-season-cost-estimates.md](../experiments/whole-season-cost-
 | Community / use | Competition | Model config | Prompt route | Where onboarded | Workflow status | Full-competition estimate |
 | --- | --- | --- | --- | --- | --- | --- |
 | `ehonda-dev-wm26` dev/testing shortcuts | `fifa-world-cup-2026` | `gpt-5-nano` with `minimal` reasoning | Langfuse `kicktippai/wm26/predict-one-match` and `kicktippai/wm26/predict-bonus`, label `latest`; fallback model `wm26` | Guarded `matchday-dev` and `bonus-dev` defaults in `src/Orchestrator/Commands/Operations/Dev/DevParticipationCommandSupport.cs` and prompt defaults in `src/Orchestrator/Infrastructure/CompetitionResolver.cs`; docs in `docs/onboarding-wm26/README.md` | Manual dev commands only; no GitHub Actions schedule activated; not a production config | Documented preliminary match estimate: `N=104: $0.008894080000` in [whole-season-cost-estimates.md](../experiments/whole-season-cost-estimates.md). Base row uses hosted WM prompt label `latest` version `2` and historical `pes-squad` repeated-match-slice fixtures. |
-| `ehonda-ai-arena` preliminary self-contained workflow test | `fifa-world-cup-2026` | `gpt-5-nano` with `minimal` reasoning | Langfuse `kicktippai/wm26/predict-one-match` and `kicktippai/wm26/predict-bonus`, label `latest`; fallback model `wm26` | `.github/workflows/ehonda-ai-arena-context-collection.yml` collects `community_context: "ehonda-ai-arena"`; `.github/workflows/ehonda-ai-arena-gpt-5-nano-matchday.yml` and `.github/workflows/ehonda-ai-arena-gpt-5-nano-bonus.yml` pass `model: "gpt-5-nano"`, `reasoning_effort: "minimal"`, and `community_context: "ehonda-ai-arena"`; posting credentials use `EHONDA_AI_ARENA_GPT_5_NANO_MINIMAL_KICKTIPP_USERNAME` / `EHONDA_AI_ARENA_GPT_5_NANO_MINIMAL_KICKTIPP_PASSWORD`; `src/Orchestrator/Infrastructure/CompetitionResolver.cs` resolves `ehonda-ai-arena` to WM26; lineup seed now uses FIFA's official final squads | Manual dispatch enabled for preliminary testing; cron schedules remain disabled; run and validate `ehonda-ai-arena` context first; not a production config | Documented preliminary match estimate: `N=104: $0.008894080000` in [whole-season-cost-estimates.md](../experiments/whole-season-cost-estimates.md). The estimate is suitable for onboarding workflow testing, not a production model decision. |
+| `ehonda-ai-arena` preliminary self-contained workflow test | `fifa-world-cup-2026` | `gpt-5-nano` with `minimal` reasoning | Langfuse `kicktippai/wm26/predict-one-match` and `kicktippai/wm26/predict-bonus`, label `latest`; fallback model `wm26` | `.github/workflows/wm26-ehonda-ai-arena-context-collection.yml` collects `community_context: "ehonda-ai-arena"`; `.github/workflows/wm26-ehonda-ai-arena-gpt-5-nano-minimal-matchday.yml` and `.github/workflows/wm26-ehonda-ai-arena-gpt-5-nano-minimal-bonus.yml` pass `model: "gpt-5-nano"`, `reasoning_effort: "minimal"`, and `community_context: "ehonda-ai-arena"`; posting credentials use `EHONDA_AI_ARENA_GPT_5_NANO_MINIMAL_KICKTIPP_USERNAME` / `EHONDA_AI_ARENA_GPT_5_NANO_MINIMAL_KICKTIPP_PASSWORD`; `src/Orchestrator/Infrastructure/CompetitionResolver.cs` resolves `ehonda-ai-arena` to WM26; lineup seed now uses FIFA's official final squads | Manual dispatch and scheduled cadence enabled for preliminary onboarding: context at `47 23,6,11 * * *`, matchday at `37 0,7,12 * * *`, bonus at `47 0,7,12 * * *`; not a production config | Documented preliminary match estimate: `N=104: $0.008894080000` in [whole-season-cost-estimates.md](../experiments/whole-season-cost-estimates.md). The estimate is suitable for onboarding workflow testing, not a production model decision. |
 | WM26 production predictions: `rabetrabauken2026` primary/reference model, `ehonda-ai-arena` secondary copy-posting target | `fifa-world-cup-2026` | TBD; must be selected separately from the preliminary testing fallback | TBD | Reference context collection is wired in `.github/workflows/rabetrabauken2026-context-collection.yml`; production model-specific matchday/bonus workflows are intentionally not activated yet. The copy-from-primary pattern is valid only for the selected `rabetrabauken2026` production model and its matching `ehonda-ai-arena` posting workflow. | Context workflow is manual-only; production prediction schedules are not activated | Missing until production model and reasoning effort are selected. |
 
 No WM26 production prediction workflow is currently activated. The preliminary
-`ehonda-ai-arena` `gpt-5-nano` / `minimal` workflows are manual-only testing
-entrypoints. When adding bulk activation workflows, list every community/model
-pair here before enabling schedules.
+`ehonda-ai-arena` `gpt-5-nano` / `minimal` workflows are scheduled onboarding
+entrypoints, not the production model decision. When adding bulk activation
+workflows, list every community/model pair here before enabling schedules.
 
 For the planned secondary-community copy pattern, the selected production model
 must run first against `rabetrabauken2026`. The matching `ehonda-ai-arena`
@@ -84,6 +83,7 @@ self-contained `ehonda-ai-arena` context.
   for the same model and reasoning effort. If it is absent, run the
   `estimate-experiment-cost-skill` workflow before activation.
 - Keep context collection scheduled before prediction workflows. During
-  testing-only onboarding, leave schedules inactive and record that status here.
+  testing-only onboarding, either leave schedules inactive or record the exact
+  scheduled onboarding cadence here.
 - Once schedules are activated, update this ledger with the workflow file paths
   and activation date.

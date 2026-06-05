@@ -1,11 +1,11 @@
 # FIFA World Cup 2026 Onboarding
 
-This first pass supports manual participation for the development community
+This first pass supports onboarding for the development community
 `ehonda-dev-wm26` and competition `fifa-world-cup-2026`.
 
-No scheduled GitHub Actions workflow is enabled yet. The
-`ehonda-ai-arena` `gpt-5-nano` / `minimal` workflows are preliminary
-manual-dispatch test entrypoints only.
+The `ehonda-ai-arena` `gpt-5-nano` / `minimal` GitHub Actions workflows are
+preliminary WM26 onboarding entrypoints with manual dispatch and the planned
+WM26 cadence enabled. They are not the final WM26 production model decision.
 
 The tracked lineup seed now uses FIFA's official final 26-player squad
 membership for all 48 teams. Refresh lineup context for each WM26 community
@@ -39,20 +39,25 @@ The later secondary copy-posting workflow is scoped only to the yet-undetermined
 `rabetrabauken2026` WM26 production model: the primary prediction workflow must
 first run against `rabetrabauken2026`, and the matching `ehonda-ai-arena`
 workflow may then post that stored prediction with
-`community_context: "rabetrabauken2026"`. Do not apply that copy-from-primary pattern to
-preliminary tests, dev shortcuts, or unrelated WM26 model configurations.
+`community_context: "rabetrabauken2026"`. Do not apply that copy-from-primary
+pattern to preliminary tests, dev shortcuts, or unrelated WM26 model
+configurations.
 
-Do not create or activate scheduled model-specific WM26 prediction workflows
-until the production model configuration is selected and the full-competition
-estimate is documented.
+Do not create or activate scheduled model-specific WM26 production prediction
+workflows until the production model configuration is selected and the
+full-competition estimate is documented.
 The current `ehonda-ai-arena` `gpt-5-nano` / `minimal` workflows are an
-exception for preliminary manual testing; their cron schedules stay disabled and
-the preliminary full-competition estimate is tracked in the model configuration
-ledger.
+exception for preliminary onboarding; their schedules use the planned WM26
+cadence and the preliminary full-competition estimate is tracked in the model
+configuration ledger.
 
 ## Planned GitHub Actions Cadence
 
 Once the first WM26 communities and model-specific workflows are onboarded, use a three-window daily cadence during the tournament window. The current plan is based on the official FIFA World Cup 26 match schedule PDF dated 2026-04-10, which lists all kickoff times in Eastern Time and is marked subject to change. Re-check the official schedule before enabling the workflows.
+
+WM26 GitHub Actions workflow display names should include `🏆`, and new WM26
+workflow filenames should use a `wm26-` prefix so they are visually and
+operationally separate from legacy Bundesliga workflow files.
 
 Context collection:
 

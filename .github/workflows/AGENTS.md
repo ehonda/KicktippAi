@@ -8,12 +8,13 @@ Bundesliga 2025 / 2026, has concluded. The files remain in place for future
 reuse, so their presence alone should not be treated as evidence that the
 corresponding automations are currently active.
 
-`ehonda-ai-arena-gpt-5-nano-matchday.yml` and
-`ehonda-ai-arena-gpt-5-nano-bonus.yml` are preliminary manual-only WM26 testing
-entrypoints. Their cron schedules remain disabled. For this preliminary
-self-contained test path, they use `community_context: "ehonda-ai-arena"`.
+`wm26-ehonda-ai-arena-gpt-5-nano-minimal-matchday.yml` and
+`wm26-ehonda-ai-arena-gpt-5-nano-minimal-bonus.yml` are preliminary scheduled
+WM26 onboarding entrypoints. For this self-contained path, they use
+`community_context: "ehonda-ai-arena"` and display `🏆` in the GitHub Actions
+UI.
 
-`ehonda-ai-arena-context-collection.yml` is the matching manual-only WM26
+`wm26-ehonda-ai-arena-context-collection.yml` is the matching scheduled WM26
 context workflow for that preliminary self-contained test path.
 
 `rabetrabauken2026-context-collection.yml` is a manual-only WM26 reference
@@ -37,7 +38,7 @@ Each command (`matchday`, `bonus`) determines its Langfuse trace environment (`p
 
 #### Matchday Command
 
-Derived from workflows: `pes-squad-matchday.yml`, `schadensfresse-matchday.yml`, `ehonda-ai-arena-*-matchday.yml`
+Derived from workflows: `pes-squad-matchday.yml`, `schadensfresse-matchday.yml`, and the active `ehonda-ai-arena` matchday entrypoints including `wm26-ehonda-ai-arena-*-matchday.yml`
 
 - `pes-squad`
 - `schadensfresse`
@@ -45,7 +46,7 @@ Derived from workflows: `pes-squad-matchday.yml`, `schadensfresse-matchday.yml`,
 
 #### Bonus Command
 
-Derived from workflows: `pes-squad-bonus.yml`, `schadensfresse-bonus.yml`, `ehonda-ai-arena-*-bonus.yml`
+Derived from workflows: `pes-squad-bonus.yml`, `schadensfresse-bonus.yml`, and the active `ehonda-ai-arena` bonus entrypoints including `wm26-ehonda-ai-arena-*-bonus.yml`
 
 - `pes-squad`
 - `schadensfresse`

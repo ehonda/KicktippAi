@@ -30,9 +30,26 @@ Each community gets its own set of workflows that call the base workflows with s
 - **`rabetrabauken2026-context-collection.yml`**: Manual WM26 reference context collection
   - Runs Kicktipp, FIFA ranking, and lineup context collection for `fifa-world-cup-2026`
   - Has no schedule until the reference context run is validated and WM26 prediction workflows are selected
-- **`ehonda-ai-arena-context-collection.yml`**: Manual WM26 preliminary context collection
+- **`wm26-ehonda-ai-arena-context-collection.yml`**: Scheduled WM26 preliminary context collection
   - Runs Kicktipp, FIFA ranking, and lineup context collection for `ehonda-ai-arena`
+  - Uses the WM26 context cadence: 23:47, 06:47, and 11:47 UTC
   - Uses the preliminary `gpt-5-nano` / `minimal` posting credentials until a production model setup is selected
+
+### WM26 Prediction Workflows
+
+- **`wm26-ehonda-ai-arena-gpt-5-nano-minimal-matchday.yml`**: Scheduled WM26 preliminary matchday predictions
+  - Uses `gpt-5-nano` with `reasoning_effort: "minimal"`
+  - Uses `community_context: "ehonda-ai-arena"` for the self-contained onboarding path
+  - Uses the WM26 main matchday cadence: 00:37, 07:37, and 12:37 UTC
+- **`wm26-ehonda-ai-arena-gpt-5-nano-minimal-bonus.yml`**: Scheduled WM26 preliminary bonus predictions
+  - Uses `gpt-5-nano` with `reasoning_effort: "minimal"`
+  - Uses `community_context: "ehonda-ai-arena"` for the self-contained onboarding path
+  - Uses the WM26 bonus cadence: 00:47, 07:47, and 12:47 UTC
+
+WM26 workflow display names should include `🏆` so they are easy to distinguish
+from Bundesliga workflows in the GitHub Actions UI. New WM26 workflow filenames
+should use a `wm26-` prefix instead of reusing Bundesliga-era community/model
+filenames.
 
 ### Cost Analysis Workflow
 
@@ -78,9 +95,8 @@ Each community workflow is configured with direct parameters:
 
 For self-contained WM26 workflow tests, keep `community` and
 `community_context` aligned. The preliminary `ehonda-ai-arena` `gpt-5-nano` /
-`minimal` WM26 workflows are manual-only testing entries and use
-`community_context: "ehonda-ai-arena"`. Keep their cron schedules disabled
-until context, posting, and cost-estimate checks pass.
+`minimal` WM26 workflows use `community_context: "ehonda-ai-arena"` and the
+planned WM26 context, matchday, and bonus schedules.
 
 For WM26, secondary-community copy posting is allowed only for the
 yet-undetermined `rabetrabauken2026` production model path. In that specific
