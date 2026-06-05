@@ -104,6 +104,7 @@ public class RandomMatchCommand : AsyncCommand<RandomMatchSettings>
             settings.LangfusePromptLabel,
             settings.LangfusePromptVersion,
             modelConfig.ReasoningEffort,
+            maxOutputTokenCount: null,
             bonusPrompt: false);
 
         // Create context provider using factory (community is used as context)

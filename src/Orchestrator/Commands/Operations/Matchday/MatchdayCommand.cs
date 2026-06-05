@@ -180,6 +180,7 @@ public class MatchdayCommand : AsyncCommand<BaseSettings>
             settings.LangfusePromptLabel,
             settings.LangfusePromptVersion,
             modelConfig.ReasoningEffort,
+            settings.MaxOutputTokenCount,
             bonusPrompt: false);
         
         // Create context provider using factory

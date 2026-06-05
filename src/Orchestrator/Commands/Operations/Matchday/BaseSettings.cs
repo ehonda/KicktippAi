@@ -27,6 +27,10 @@ public class BaseSettings : CommandSettings
     [Description("Optional OpenAI reasoning effort (none, minimal, low, medium, high, xhigh)")]
     public string? ReasoningEffort { get; set; }
 
+    [CommandOption("--max-output-tokens")]
+    [Description("Optional maximum output token cap for prediction generation")]
+    public int? MaxOutputTokenCount { get; set; }
+
     [CommandOption("--prompt-source")]
     [Description("Prompt source to use: local or langfuse")]
     public string? PromptSource { get; set; }
@@ -106,6 +110,11 @@ public class BaseSettings : CommandSettings
         if (!PredictionModelConfig.IsValidReasoningEffort(ReasoningEffort))
         {
             return ValidationResult.Error("--reasoning-effort must be one of: none, minimal, low, medium, high, xhigh");
+        }
+
+        if (MaxOutputTokenCount is < 1)
+        {
+            return ValidationResult.Error("--max-output-tokens must be at least 1 when provided");
         }
 
         return ValidationResult.Success();

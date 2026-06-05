@@ -209,6 +209,17 @@ public class MatchdayCommand_Settings_Tests : MatchdayCommandTests_Base
     }
 
     [Test]
+    public async Task Running_command_with_zero_max_output_tokens_returns_error()
+    {
+        var ctx = CreateMatchdayCommandApp();
+
+        var (exitCode, output) = await RunCommandAsync(ctx.App, ctx.Console, "matchday", "gpt-4o", "-c", "test-community", "--max-output-tokens", "0");
+
+        await Assert.That(exitCode).IsNotEqualTo(0);
+        await Assert.That(output).Contains("--max-output-tokens must be at least 1");
+    }
+
+    [Test]
     public async Task Running_command_displays_community_name()
     {
         var ctx = CreateMatchdayCommandApp();
@@ -232,6 +243,28 @@ public class MatchdayCommand_Settings_Tests : MatchdayCommandTests_Base
         await Assert.That(output).Contains("my-community");
         await Assert.That(output).Contains("Using community context:");
         await Assert.That(output).Contains("shared-context");
+    }
+
+    [Test]
+    public async Task Running_command_with_max_output_tokens_passes_cap_to_prediction_service()
+    {
+        var ctx = CreateMatchdayCommandApp(existingPrediction: (Prediction?)null);
+
+        await RunCommandAsync(
+            ctx.App,
+            ctx.Console,
+            "matchday",
+            "custom-model-name",
+            "-c",
+            "test-community",
+            "--max-output-tokens",
+            "40000");
+
+        ctx.OpenAiServiceFactory.Verify(
+            factory => factory.CreatePredictionService(
+                "custom-model-name",
+                It.Is<PredictionServiceOptions>(options => options.MaxOutputTokenCount == 40_000)),
+            Times.Once);
     }
 
     [Test]

@@ -39,12 +39,38 @@ Each community gets its own set of workflows that call the base workflows with s
 
 - **`wm26-ehonda-ai-arena-gpt-5-nano-minimal-matchday.yml`**: Scheduled WM26 preliminary matchday predictions
   - Uses `gpt-5-nano` with `reasoning_effort: "minimal"`
+  - Pins `max_output_tokens: 10000`
   - Uses `community_context: "ehonda-ai-arena"` for the self-contained onboarding path
   - Uses the WM26 main matchday cadence: 00:37, 07:37, and 12:37 UTC
 - **`wm26-ehonda-ai-arena-gpt-5-nano-minimal-bonus.yml`**: Scheduled WM26 preliminary bonus predictions
   - Uses `gpt-5-nano` with `reasoning_effort: "minimal"`
+  - Pins `max_output_tokens: 10000`
   - Uses `community_context: "ehonda-ai-arena"` for the self-contained onboarding path
   - Uses the WM26 bonus cadence: 00:47, 07:47, and 12:47 UTC
+- **`wm26-ehonda-ai-arena-gpt-5-5-none-matchday.yml`**: Manual-only WM26 onboarding matchday test
+  - Uses `gpt-5.5` with `reasoning_effort: "none"`
+  - Pins `max_output_tokens: 10000`
+  - Uses `community_context: "ehonda-ai-arena"` for the self-contained onboarding path
+- **`wm26-ehonda-ai-arena-gpt-5-5-none-bonus.yml`**: Manual-only WM26 onboarding bonus test
+  - Uses `gpt-5.5` with `reasoning_effort: "none"`
+  - Pins `max_output_tokens: 10000`
+  - Uses `community_context: "ehonda-ai-arena"` for the self-contained onboarding path
+- **`wm26-ehonda-ai-arena-gpt-5-5-xhigh-matchday.yml`**: Manual-only WM26 onboarding matchday test
+  - Uses `gpt-5.5` with `reasoning_effort: "xhigh"`
+  - Pins `max_output_tokens: 40000` to match the documented xhigh estimate assumptions
+  - Uses `community_context: "ehonda-ai-arena"` for the self-contained onboarding path
+- **`wm26-ehonda-ai-arena-gpt-5-5-xhigh-bonus.yml`**: Manual-only WM26 onboarding bonus test
+  - Uses `gpt-5.5` with `reasoning_effort: "xhigh"`
+  - Pins `max_output_tokens: 40000` to match the documented xhigh estimate assumptions
+  - Uses `community_context: "ehonda-ai-arena"` for the self-contained onboarding path
+- **`wm26-ehonda-ai-arena-gpt-5-4-nano-none-matchday.yml`**: Manual-only WM26 onboarding matchday test
+  - Uses `gpt-5.4-nano` with `reasoning_effort: "none"`
+  - Pins `max_output_tokens: 10000`
+  - Uses `community_context: "ehonda-ai-arena"` for the self-contained onboarding path
+- **`wm26-ehonda-ai-arena-gpt-5-4-nano-none-bonus.yml`**: Manual-only WM26 onboarding bonus test
+  - Uses `gpt-5.4-nano` with `reasoning_effort: "none"`
+  - Pins `max_output_tokens: 10000`
+  - Uses `community_context: "ehonda-ai-arena"` for the self-contained onboarding path
 
 WM26 workflow display names should include `🏆` so they are easy to distinguish
 from Bundesliga workflows in the GitHub Actions UI. New WM26 workflow filenames
@@ -89,6 +115,7 @@ Each community workflow is configured with direct parameters:
 - **`community`**: Kicktipp community name
 - **`model`**: OpenAI model to use for predictions (o4-mini, o1)
 - **`reasoning_effort`**: Optional OpenAI reasoning effort for prediction generation. Leave empty for the model default, or set `none`, `minimal`, `low`, `medium`, `high`, or `xhigh`.
+- **`max_output_tokens`**: Optional maximum output token cap for prediction generation. Use `0` to keep the command default (`10000`).
 - **`community_context`**: Community context when generating predictions (or using stored ones from the database)
 - **`competition`**: Optional competition identifier for context collection
 - **`include_fifa_rankings` / `include_lineups`**: Enable WM26 context extras for World Cup communities
@@ -97,6 +124,9 @@ For self-contained WM26 workflow tests, keep `community` and
 `community_context` aligned. The preliminary `ehonda-ai-arena` `gpt-5-nano` /
 `minimal` WM26 workflows use `community_context: "ehonda-ai-arena"` and the
 planned WM26 context, matchday, and bonus schedules.
+The additional `ehonda-ai-arena` `gpt-5.5 none`, `gpt-5.5 xhigh`, and
+`gpt-5.4-nano none` workflows keep the same self-contained context alignment
+but stay manual-only because they are not the selected WM26 production model.
 
 For WM26, secondary-community copy posting is allowed only for the
 yet-undetermined `rabetrabauken2026` production model path. In that specific
@@ -112,6 +142,13 @@ secret name whenever the workflow pins one. The preliminary
 `ehonda-ai-arena` `gpt-5-nano` / `minimal` workflows use
 `EHONDA_AI_ARENA_GPT_5_NANO_MINIMAL_KICKTIPP_USERNAME` and
 `EHONDA_AI_ARENA_GPT_5_NANO_MINIMAL_KICKTIPP_PASSWORD`.
+The additional manual-only WM26 workflows use
+`EHONDA_AI_ARENA_GPT_5_5_NONE_KICKTIPP_USERNAME` /
+`EHONDA_AI_ARENA_GPT_5_5_NONE_KICKTIPP_PASSWORD`,
+`EHONDA_AI_ARENA_GPT_5_5_XHIGH_KICKTIPP_USERNAME` /
+`EHONDA_AI_ARENA_GPT_5_5_XHIGH_KICKTIPP_PASSWORD`, and
+`EHONDA_AI_ARENA_GPT_5_4_NANO_NONE_KICKTIPP_USERNAME` /
+`EHONDA_AI_ARENA_GPT_5_4_NANO_NONE_KICKTIPP_PASSWORD`.
 
 ## Example Communities
 
@@ -155,6 +192,12 @@ Examples:
 
 - `EHONDA_AI_ARENA_GPT_5_NANO_MINIMAL_KICKTIPP_USERNAME`: Kicktipp username for the preliminary ehonda-ai-arena WM26 gpt-5-nano/minimal posting workflow
 - `EHONDA_AI_ARENA_GPT_5_NANO_MINIMAL_KICKTIPP_PASSWORD`: Kicktipp password for the preliminary ehonda-ai-arena WM26 gpt-5-nano/minimal posting workflow
+- `EHONDA_AI_ARENA_GPT_5_5_NONE_KICKTIPP_USERNAME`: Kicktipp username for the manual-only ehonda-ai-arena WM26 gpt-5.5/none posting workflows
+- `EHONDA_AI_ARENA_GPT_5_5_NONE_KICKTIPP_PASSWORD`: Kicktipp password for the manual-only ehonda-ai-arena WM26 gpt-5.5/none posting workflows
+- `EHONDA_AI_ARENA_GPT_5_5_XHIGH_KICKTIPP_USERNAME`: Kicktipp username for the manual-only ehonda-ai-arena WM26 gpt-5.5/xhigh posting workflows
+- `EHONDA_AI_ARENA_GPT_5_5_XHIGH_KICKTIPP_PASSWORD`: Kicktipp password for the manual-only ehonda-ai-arena WM26 gpt-5.5/xhigh posting workflows
+- `EHONDA_AI_ARENA_GPT_5_4_NANO_NONE_KICKTIPP_USERNAME`: Kicktipp username for the manual-only ehonda-ai-arena WM26 gpt-5.4-nano/none posting workflows
+- `EHONDA_AI_ARENA_GPT_5_4_NANO_NONE_KICKTIPP_PASSWORD`: Kicktipp password for the manual-only ehonda-ai-arena WM26 gpt-5.4-nano/none posting workflows
 
 ### Context Collection Secrets
 

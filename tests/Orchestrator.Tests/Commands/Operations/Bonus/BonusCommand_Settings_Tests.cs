@@ -256,6 +256,32 @@ public class BonusCommand_Settings_Tests : BonusCommandTests_Base
     }
 
     [Test]
+    public async Task Running_command_with_zero_max_output_tokens_returns_error()
+    {
+        var context = CreateBonusCommandApp();
+
+        var exitCode = await context.App.RunAsync(["bonus", "test-model", "--community", "test", "--max-output-tokens", "0"]);
+        var output = context.Console.Output;
+
+        await Assert.That(exitCode).IsEqualTo(1);
+        await Assert.That(output).Contains("--max-output-tokens must be at least 1");
+    }
+
+    [Test]
+    public async Task Running_command_with_max_output_tokens_passes_cap_to_prediction_service()
+    {
+        var context = CreateBonusCommandApp();
+
+        await context.App.RunAsync(["bonus", "test-model", "--community", "test", "--max-output-tokens", "40000"]);
+
+        context.OpenAiServiceFactory.Verify(
+            factory => factory.CreatePredictionService(
+                "test-model",
+                It.Is<PredictionServiceOptions>(options => options.MaxOutputTokenCount == 40_000)),
+            Times.Once);
+    }
+
+    [Test]
     public async Task Running_bonus_dev_for_supported_dev_community_uses_override_defaults()
     {
         // Arrange

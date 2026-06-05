@@ -2,7 +2,7 @@
 
 ## Workflow Activation Status
 
-As of 2026-06-02, most season-specific community entrypoint workflows in this
+As of 2026-06-06, most season-specific community entrypoint workflows in this
 directory are deactivated because the most recent active competition,
 Bundesliga 2025 / 2026, has concluded. The files remain in place for future
 reuse, so their presence alone should not be treated as evidence that the
@@ -13,6 +13,17 @@ corresponding automations are currently active.
 WM26 onboarding entrypoints. For this self-contained path, they use
 `community_context: "ehonda-ai-arena"` and display `🏆` in the GitHub Actions
 UI.
+
+`wm26-ehonda-ai-arena-gpt-5-5-none-matchday.yml`,
+`wm26-ehonda-ai-arena-gpt-5-5-none-bonus.yml`,
+`wm26-ehonda-ai-arena-gpt-5-5-xhigh-matchday.yml`,
+`wm26-ehonda-ai-arena-gpt-5-5-xhigh-bonus.yml`,
+`wm26-ehonda-ai-arena-gpt-5-4-nano-none-matchday.yml`, and
+`wm26-ehonda-ai-arena-gpt-5-4-nano-none-bonus.yml` are additional manual-only
+WM26 onboarding test entrypoints. They keep
+`community_context: "ehonda-ai-arena"` aligned with the shared self-contained
+context workflow, and the `gpt-5.5 xhigh` pair explicitly passes
+`max_output_tokens: 40000`.
 
 `wm26-ehonda-ai-arena-context-collection.yml` is the matching scheduled WM26
 context workflow for that preliminary self-contained test path.

@@ -175,6 +175,7 @@ public class BonusCommand : AsyncCommand<BaseSettings>
             settings.LangfusePromptLabel,
             settings.LangfusePromptVersion,
             modelConfig.ReasoningEffort,
+            settings.MaxOutputTokenCount,
             bonusPrompt: true);
         
         // Log the prompt paths being used

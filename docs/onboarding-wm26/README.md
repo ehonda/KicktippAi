@@ -6,6 +6,10 @@ This first pass supports onboarding for the development community
 The `ehonda-ai-arena` `gpt-5-nano` / `minimal` GitHub Actions workflows are
 preliminary WM26 onboarding entrypoints with manual dispatch and the planned
 WM26 cadence enabled. They are not the final WM26 production model decision.
+Additional self-contained `ehonda-ai-arena` WM26 onboarding workflows now exist
+for `gpt-5.5` with `none`, `gpt-5.5` with `xhigh`, and `gpt-5.4-nano` with
+`none`. These three non-production test configurations keep schedules disabled
+and use manual dispatch only.
 
 The tracked lineup seed now uses FIFA's official final 26-player squad
 membership for all 48 teams. Refresh lineup context for each WM26 community
@@ -50,6 +54,13 @@ The current `ehonda-ai-arena` `gpt-5-nano` / `minimal` workflows are an
 exception for preliminary onboarding; their schedules use the planned WM26
 cadence and the preliminary full-competition estimate is tracked in the model
 configuration ledger.
+The additional `gpt-5.5 none`, `gpt-5.5 xhigh`, and `gpt-5.4-nano none`
+`ehonda-ai-arena` workflows are testing-only onboarding entrypoints. They stay
+manual-only, keep `community_context: "ehonda-ai-arena"`, and rely on the
+shared `wm26-ehonda-ai-arena-context-collection.yml` workflow for self-contained
+context refreshes. The `gpt-5.5 xhigh` pair explicitly passes
+`max_output_tokens: 40000`; the other self-contained WM26 `ehonda-ai-arena`
+prediction workflows pin `10000`.
 
 ## Planned GitHub Actions Cadence
 
@@ -277,6 +288,13 @@ workflow can be trusted or scheduled:
   `EHONDA_AI_ARENA_GPT_5_NANO_MINIMAL_KICKTIPP_PASSWORD`; the matching
   `ehonda-ai-arena` context collection workflow uses the same Kicktipp
   credentials for this preliminary self-contained test.
+  Additional self-contained `ehonda-ai-arena` test workflows use
+  `EHONDA_AI_ARENA_GPT_5_5_NONE_KICKTIPP_USERNAME` /
+  `EHONDA_AI_ARENA_GPT_5_5_NONE_KICKTIPP_PASSWORD`,
+  `EHONDA_AI_ARENA_GPT_5_5_XHIGH_KICKTIPP_USERNAME` /
+  `EHONDA_AI_ARENA_GPT_5_5_XHIGH_KICKTIPP_PASSWORD`, and
+  `EHONDA_AI_ARENA_GPT_5_4_NANO_NONE_KICKTIPP_USERNAME` /
+  `EHONDA_AI_ARENA_GPT_5_4_NANO_NONE_KICKTIPP_PASSWORD`.
 - Configure repository variable `LANGFUSE_PUBLIC_KEY` if it is not already set.
 - Select and document the WM26 production model configuration; do not use the
   `gpt-5-nano` / `minimal` dev command defaults as the production assumption.

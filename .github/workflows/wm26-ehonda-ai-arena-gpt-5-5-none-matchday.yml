@@ -1,11 +1,9 @@
-name: 🏆 WM26 ehonda-ai-arena 🏆 gpt-5-nano minimal 🏆 Bonus
+name: 🏆 WM26 ehonda-ai-arena 🏆 gpt-5.5 none 🏆 Matchday
 
 on:
   workflow_call:
-  # WM26 bonus cadence.
-  # GitHub Actions cron runs in UTC only.
-  schedule:
-    - cron: '47 0,7,12 * * *'
+  # Manual-only WM26 onboarding test workflow.
+  # Scheduled activation is intentionally disabled for this non-production model config.
   workflow_dispatch:
     inputs:
       force_prediction:
@@ -21,20 +19,20 @@ on:
 
 jobs:
   call-base-workflow:
-    name: Run Bonus Predictions
-    uses: ./.github/workflows/base-bonus-predictions.yml
+    name: Run Matchday Predictions
+    uses: ./.github/workflows/base-matchday-predictions.yml
     with:
       community: "ehonda-ai-arena"
-      model: "gpt-5-nano"
-      reasoning_effort: "minimal"
+      model: "gpt-5.5"
+      reasoning_effort: "none"
       max_output_tokens: 10000
       community_context: "ehonda-ai-arena"
       trigger_type: ${{ github.event_name == 'schedule' && 'scheduled' || 'manual' }}
       force_prediction: ${{ github.event.inputs.force_prediction == 'true' }}
       max_repredictions: ${{ fromJSON(github.event.inputs.max_repredictions || '2') }}
     secrets:
-      kicktipp_username: ${{ secrets.EHONDA_AI_ARENA_GPT_5_NANO_MINIMAL_KICKTIPP_USERNAME }}
-      kicktipp_password: ${{ secrets.EHONDA_AI_ARENA_GPT_5_NANO_MINIMAL_KICKTIPP_PASSWORD }}
+      kicktipp_username: ${{ secrets.EHONDA_AI_ARENA_GPT_5_5_NONE_KICKTIPP_USERNAME }}
+      kicktipp_password: ${{ secrets.EHONDA_AI_ARENA_GPT_5_5_NONE_KICKTIPP_PASSWORD }}
       firebase_project_id: ${{ secrets.FIREBASE_PROJECT_ID }}
       firebase_service_account_json: ${{ secrets.FIREBASE_SERVICE_ACCOUNT_JSON }}
       openai_api_key: ${{ secrets.OPENAI_API_KEY }}

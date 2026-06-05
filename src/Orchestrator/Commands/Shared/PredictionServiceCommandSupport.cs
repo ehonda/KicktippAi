@@ -25,6 +25,7 @@ internal static class PredictionServiceCommandSupport
         string? langfusePromptLabel,
         int? langfusePromptVersion,
         string? reasoningEffort,
+        int? maxOutputTokenCount,
         bool bonusPrompt)
     {
         var metadata = CompetitionResolver.ResolveRuntimeMetadata(
@@ -38,7 +39,8 @@ internal static class PredictionServiceCommandSupport
 
         var options = PredictionServiceOptions.FlexProcessingWithStandardFallback with
         {
-            ReasoningEffort = NormalizeReasoningEffort(reasoningEffort)
+            ReasoningEffort = NormalizeReasoningEffort(reasoningEffort),
+            MaxOutputTokenCount = maxOutputTokenCount ?? PredictionServiceOptions.FlexProcessingWithStandardFallback.MaxOutputTokenCount
         };
 
         if (!string.Equals(metadata.PromptSource, CompetitionResolver.LangfusePromptSource, StringComparison.OrdinalIgnoreCase))

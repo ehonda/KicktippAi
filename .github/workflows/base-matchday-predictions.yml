@@ -17,6 +17,11 @@ on:
         required: false
         type: string
         default: ''
+      max_output_tokens:
+        description: 'Optional maximum output token cap for prediction generation; use 0 to keep the command default'
+        required: false
+        type: number
+        default: 0
       community_context:
         description: 'Community context when generating predictions (or using stored ones from the database)'
         required: true
@@ -86,6 +91,11 @@ jobs:
           echo "Community: ${{ inputs.community }}"
           echo "Model: ${{ inputs.model }}"
           echo "Reasoning Effort: ${{ inputs.reasoning_effort || 'model default' }}"
+          if [ "${{ inputs.max_output_tokens }}" -gt 0 ]; then
+            echo "Max Output Tokens: ${{ inputs.max_output_tokens }}"
+          else
+            echo "Max Output Tokens: workflow default"
+          fi
           echo "Community Context: ${{ inputs.community_context }}"
           VERIFY_FLAGS=()
           if [ -n "$REASONING_EFFORT" ]; then
@@ -131,6 +141,11 @@ jobs:
             echo "🧠 Using reasoning effort: $REASONING_EFFORT"
           fi
 
+          if [ "${{ inputs.max_output_tokens }}" -gt 0 ]; then
+            PREDICTION_FLAGS+=(--max-output-tokens "${{ inputs.max_output_tokens }}")
+            echo "📏 Using max output tokens: ${{ inputs.max_output_tokens }}"
+          fi
+
           dotnet run --project src/Orchestrator --configuration Release -- matchday "${{ inputs.model }}" --community "${{ inputs.community }}" --community-context "${{ inputs.community_context }}" --override-kicktipp --verbose --agent "${PREDICTION_FLAGS[@]}"
         env:
           KICKTIPP_USERNAME: ${{ secrets.kicktipp_username }}
@@ -171,6 +186,11 @@ jobs:
           echo "- **Community**: ${{ inputs.community }}" >> $GITHUB_STEP_SUMMARY
           echo "- **Model**: ${{ inputs.model }}" >> $GITHUB_STEP_SUMMARY
           echo "- **Reasoning Effort**: ${{ inputs.reasoning_effort || 'model default' }}" >> $GITHUB_STEP_SUMMARY
+          if [ "${{ inputs.max_output_tokens }}" -gt 0 ]; then
+            echo "- **Max Output Tokens**: ${{ inputs.max_output_tokens }}" >> $GITHUB_STEP_SUMMARY
+          else
+            echo "- **Max Output Tokens**: workflow default (10000)" >> $GITHUB_STEP_SUMMARY
+          fi
           echo "- **Community Context**: ${{ inputs.community_context }}" >> $GITHUB_STEP_SUMMARY
           echo "- **Max Repredictions**: ${{ inputs.max_repredictions }}" >> $GITHUB_STEP_SUMMARY
           echo "- **Trigger**: ${{ inputs.trigger_type }}" >> $GITHUB_STEP_SUMMARY
