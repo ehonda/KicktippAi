@@ -11,6 +11,7 @@ Recommended private source workflow:
 2. Keep deterministic team slugs that match KicktippAi context document naming and `data/wm26/lineups/wm26-teams.csv`.
 3. Run `collect-context lineups`. The command fills `Age`, `Position`, and `Market_Value_EUR` from the DuckDB `players` and `national_teams` tables, preserves unresolved roster rows with `N/A`, emits all manifest teams, and uploads Firestore context/KPI documents.
 4. Review the `Header-only lineup context payloads` and `Missing lineup source data` reports. Keep `N/A` only when the upstream dataset lacks a supplemental value; do not use `0` for unknown market values.
+   Manual DuckDB candidate research can use the tracked helper script `scripts/transfermarkt_duckdb_player_lookup.py` in this folder. The current dated audit of unresolved WM26 DuckDB gaps is `transfermarkt-gap-audit-2026-06-06.md`.
 5. When FIFA publishes a new official squad-list revision, update the tracked seed and run `collect-context lineups` again for affected communities. This is a seed update task, not part of regular scheduled context collection.
 
 Generated lineup CSV context must use exactly:

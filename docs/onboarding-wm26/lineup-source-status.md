@@ -36,3 +36,5 @@ The FIFA team `/squad` page shape was checked first. The page exposes an `Entire
 | Header-only generated docs | None |
 
 The local Transfermarkt snapshot does not currently include national-team rows for Curaçao, Congo DR, Côte d'Ivoire, Haiti, or Cabo Verde. Their official FIFA roster membership is still present in the seed; unresolved supplemental fields are expected to remain `N/A` after context generation unless future DuckDB snapshots add those teams or player rows.
+
+The remaining post-backfill WM26 DuckDB audit is documented in `lineups/transfermarkt-gap-audit-2026-06-06.md`. As of 2026-06-06, that audit still leaves 71 blank player ids and 8 market-value-only supplemental gaps in the local snapshot.
