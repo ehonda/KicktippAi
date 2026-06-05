@@ -88,6 +88,11 @@ The hosted comparison pages are generated at:
 
 `experiment-analysis/repeated-match-slices/pes-squad/all-matchdays-after-20251202t230000z/random-15x10-seed-20260517-after-20251203/all-runs-2026-05-18t22-28-33z.analysis.report.html`
 
+A newer expanded all-models page for the same dataset now also includes
+`o3 low` and `o3 high`:
+
+`experiment-analysis/repeated-match-slices/pes-squad/all-matchdays-after-20251202t230000z/random-15x10-seed-20260517-after-20251203/all-runs-2026-06-05t21-31-30z.analysis.report.html`
+
 Repo-relative links:
 
 [gpt-5.5 medium vs gpt-5.5 high repeated-match-slice report](../../experiment-analysis/repeated-match-slices/pes-squad/all-matchdays-after-20251202t230000z/random-15x10-seed-20260517-after-20251203/gpt55-medium-vs-gpt55-high-2026-05-18t22-28-33z.analysis.report.html)
@@ -95,3 +100,5 @@ Repo-relative links:
 [o3 medium vs gpt-5.5 high repeated-match-slice report](../../experiment-analysis/repeated-match-slices/pes-squad/all-matchdays-after-20251202t230000z/random-15x10-seed-20260517-after-20251203/o3-medium-vs-gpt55-high-2026-05-18t22-28-33z.analysis.report.html)
 
 [all 150-item repeated-match-slice runs report](../../experiment-analysis/repeated-match-slices/pes-squad/all-matchdays-after-20251202t230000z/random-15x10-seed-20260517-after-20251203/all-runs-2026-05-18t22-28-33z.analysis.report.html)
+
+[expanded all 150-item repeated-match-slice runs report including o3 low/high](../../experiment-analysis/repeated-match-slices/pes-squad/all-matchdays-after-20251202t230000z/random-15x10-seed-20260517-after-20251203/all-runs-2026-06-05t21-31-30z.analysis.report.html)

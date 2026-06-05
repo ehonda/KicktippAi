@@ -112,3 +112,12 @@ The hosted comparison page is generated at:
 
 Repo-relative link:
 [o3 low vs medium vs high repeated-match-slice report](../../experiment-analysis/repeated-match-slices/pes-squad/all-matchdays-after-20251202t230000z/random-15x10-seed-20260517-after-20251203/o3-low-medium-high-2026-06-05t21-31-30z.analysis.report.html)
+
+The expanded all-models page for this same dataset, now including `gpt-5.4-nano
+(none)`, `gpt-5.5 (none)`, `gpt-5.5 (medium)`, `gpt-5.5 (high)`, `o3 (low)`,
+`o3 (medium)`, and `o3 (high)`, is generated at:
+
+`experiment-analysis/repeated-match-slices/pes-squad/all-matchdays-after-20251202t230000z/random-15x10-seed-20260517-after-20251203/all-runs-2026-06-05t21-31-30z.analysis.report.html`
+
+Repo-relative link:
+[all 150-item repeated-match-slice runs report with all seven configs](../../experiment-analysis/repeated-match-slices/pes-squad/all-matchdays-after-20251202t230000z/random-15x10-seed-20260517-after-20251203/all-runs-2026-06-05t21-31-30z.analysis.report.html)
