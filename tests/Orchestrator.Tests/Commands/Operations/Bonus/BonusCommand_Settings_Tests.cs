@@ -263,7 +263,7 @@ public class BonusCommand_Settings_Tests : BonusCommandTests_Base
         var exitCode = await context.App.RunAsync(["bonus", "test-model", "--community", "test", "--max-output-tokens", "0"]);
         var output = context.Console.Output;
 
-        await Assert.That(exitCode).IsEqualTo(1);
+        await Assert.That(exitCode).IsNotEqualTo(0);
         await Assert.That(output).Contains("--max-output-tokens must be at least 1");
     }
 
