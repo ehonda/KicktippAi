@@ -5,7 +5,7 @@ Last estimate refresh: 2026-06-06
 Coverage note updated: 2026-06-06
 
 This estimate projects match prediction cost for two full competitions, all
-`gpt-5.5` reasoning efforts, three comparison configurations, and the current
+`gpt-5.5` reasoning efforts, four comparison configurations, and the current
 WM26 onboarding configurations for `gpt-5-nano` / `minimal`, `gpt-5.5` /
 `none`, `gpt-5.5` / `xhigh`, and `gpt-5.4-nano` / `none`. Bonus question cost
 is excluded because it is negligible relative to full-season match prediction
@@ -17,12 +17,12 @@ on out. Actual spend can be higher if flex requests occasionally fall back to
 standard processing after flex-capacity failures, but that share is expected to
 stay low.
 
-The `gpt-5-nano minimal`, `gpt-5.5 none`, `gpt-5.5 xhigh`, and
-`gpt-5.4-nano none` WM26 values were rerun immediately before the 2026-06-06
-update with `experiment_cost_estimator.py estimate`. The other values remain
-from the 2026-05-11 and 2026-06-02 refreshes. No Firebase `cost` query was
-rerun for this estimate; the Bundesliga reprediction evidence reuses the
-already collected `pes-squad` / `o3` counts.
+The `gpt-5-nano minimal`, `gpt-5.5 none`, `gpt-5.5 xhigh`,
+`gpt-5.4-nano none`, `o3 medium`, and `o3 high` values were rerun during the
+2026-06-06 refresh with `experiment_cost_estimator.py estimate`. The other
+values remain from the 2026-05-11 and 2026-06-02 refreshes. No Firebase
+`cost` query was rerun for this estimate; the Bundesliga reprediction evidence
+reuses the already collected `pes-squad` / `o3` counts.
 
 WM26 model onboarding coverage is tracked in
 [model-config-onboarding.md](../onboarding-wm26/model-config-onboarding.md).
@@ -38,17 +38,21 @@ tests are now onboarded for `gpt-5.5 none`, `gpt-5.5 xhigh`, and
 generic `langfuse-o3-poc` base prompt route rather than WM-hosted base samples,
 so treat them as provisional WM26 onboarding estimates for testing-only
 workflows rather than a final production-model decision. The hosted WM26
-production model is still TBD. The `gpt-5-nano minimal` estimator command was:
+production model is still TBD. The `o3 medium` and `o3 high` rows below are
+generic comparison estimates from local `prompt-v1` base rows rather than
+WM-hosted base samples, so treat them as model-tradeoff planning numbers, not
+as WM26 onboarding coverage. The `gpt-5-nano minimal` estimator command was:
 
 ```powershell
 uv --cache-dir .uv-cache run python .agents/skills/estimate-experiment-cost-skill/scripts/experiment_cost_estimator.py estimate --counts 104 --model gpt-5-nano --reasoning-effort minimal
 ```
 
 It reported `N=104: $0.008894080000`. The `gpt-5.5 none`,
-`gpt-5.5 xhigh`, and `gpt-5.4-nano none` values were refreshed with the exact
-commands recorded below. Create and persist WM-hosted base rows through the
-`estimate-experiment-cost-skill` workflow before treating any additional
-scheduled WM26 model configuration as production-grade estimate coverage.
+`gpt-5.5 xhigh`, `gpt-5.4-nano none`, `o3 medium`, and `o3 high` values were
+refreshed with the exact commands recorded below. Create and persist WM-hosted
+base rows through the `estimate-experiment-cost-skill` workflow before
+treating any additional scheduled WM26 model configuration as production-grade
+estimate coverage.
 
 ## Match Counts And Repredictions
 
@@ -99,6 +103,7 @@ for predictions that were generated before production moved to flex.
 | Bundesliga 2025/26 | `gpt-5.4-nano none` | Langfuse `langfuse-o3-poc` | 10000 | `$0.109794330000` | `$0.176890865000` |
 | Bundesliga 2025/26 | `gpt-5.4-nano xhigh` | Langfuse `langfuse-o3-poc` | 40000 | `$3.360748275000` | `$5.414538887500` |
 | Bundesliga 2025/26 | `o3 medium` | local `prompt-v1` | 10000 | `$3.193599600000` | `$5.145243800000` |
+| Bundesliga 2025/26 | `o3 high` | local `prompt-v1` | 10000 | `$7.353822600000` | `$11.847825300000` |
 | FIFA World Cup 2026 | `gpt-5-nano minimal` | Langfuse `wm26-hosted-latest` | 10000 | `$0.008894080000` | `$0.008894080000` |
 | FIFA World Cup 2026 | `gpt-5.5 none` | Langfuse `langfuse-o3-poc` | 10000 | `$0.905060000000` | `$0.905060000000` |
 | FIFA World Cup 2026 | `gpt-5.5 low` | Langfuse `langfuse-o3-poc` | 10000 | `$1.214330000000` | `$1.214330000000` |
@@ -108,6 +113,7 @@ for predictions that were generated before production moved to flex.
 | FIFA World Cup 2026 | `gpt-5.4-nano none` | Langfuse `langfuse-o3-poc` | 10000 | `$0.037315720000` | `$0.037315720000` |
 | FIFA World Cup 2026 | `gpt-5.4-nano xhigh` | Langfuse `langfuse-o3-poc` | 40000 | `$1.142215100000` | `$1.142215100000` |
 | FIFA World Cup 2026 | `o3 medium` | local `prompt-v1` | 10000 | `$1.085406400000` | `$1.085406400000` |
+| FIFA World Cup 2026 | `o3 high` | local `prompt-v1` | 10000 | `$2.499338400000` | `$2.499338400000` |
 
 All base rows use service tier `flex` and treat input tokens as uncached for the
 estimate. The existing `gpt-5.5`, `gpt-5.4-nano`, and `o3` rows use model
@@ -140,6 +146,16 @@ Base estimate rows noted in this document:
   `2026-05-17`, average `$0.000358805000` per match prediction, observed
   service tiers `{'flex': 20}`, no non-flex fallback, prompt route
   `langfuse-o3-poc`, max output tokens `10000`.
+- `o3 medium`: 20 observations from seed evidence
+  `o3-medium-2026-05-01t22-14-04z`, average `$0.010436600000` per match
+  prediction, service tier `flex`, prompt route local `prompt-v1`, max output
+  tokens `10000`.
+- `o3 high`: preflight
+  `preflight__pes-squad__o3__prompt-v1__reasoning-high__repeat-1-o3-high-preflight__exact-time__2026-05-04t22-16-09z`
+  succeeded at the default `10000` output-token cap; 20-observation base
+  estimate evidence `o3-high-base-estimate-2026-05-05.md` averaged
+  `$0.024032100000` per match prediction, service tier `flex`, prompt route
+  local `prompt-v1`, max output tokens `10000`.
 - `gpt-5.5 medium`: 20 observations from run family
   `2026-05-10t22-57-59z`, average `$0.016974250000` per match prediction,
   observed service tiers `{'flex': 20}`, no non-flex fallback.
@@ -282,6 +298,21 @@ Average cost per match prediction: $0.010436600000
 N=104: $1.085406400000
 N=306: $3.193599600000
 N=493: $5.145243800000
+```
+
+`o3 high`:
+
+```powershell
+uv --cache-dir .uv-cache run python .agents/skills/estimate-experiment-cost-skill/scripts/experiment_cost_estimator.py estimate --counts 104,306,493 --model o3 --reasoning-effort high
+```
+
+Fresh output summary:
+
+```text
+Average cost per match prediction: $0.024032100000
+N=104: $2.499338400000
+N=306: $7.353822600000
+N=493: $11.847825300000
 ```
 
 ## Firestore Read Notes
