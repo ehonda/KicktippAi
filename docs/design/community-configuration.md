@@ -11,15 +11,18 @@ This maps Kicktipp communities to competition IDs and manual-run defaults. Curre
 - Existing Bundesliga communities default to `bundesliga-2025-26`.
 - `ehonda-dev-wm26` resolves to `fifa-world-cup-2026`.
 - `rabetrabauken2026` resolves to `fifa-world-cup-2026` as the WM26 reference production community context.
-- `ehonda-ai-arena` resolves to `fifa-world-cup-2026` as a WM26 community. Its preliminary `gpt-5-nano` / `minimal` workflows are self-contained tests that use `community_context: ehonda-ai-arena`.
-- The WM26 secondary copy-posting pattern is restricted to the yet-undetermined `rabetrabauken2026` production model path. Only that future matching `ehonda-ai-arena` workflow should point `community_context` at `rabetrabauken2026`.
+- `ehonda-ai-arena` resolves to `fifa-world-cup-2026` as a WM26 community. Its scheduled `gpt-5-nano` / `minimal` workflows and manual-only comparison workflows are self-contained and use `community_context: ehonda-ai-arena`.
+- The selected WM26 secondary copy-posting pattern is restricted to the `o3 high` production workflows. Only the matching `ehonda-ai-arena` `o3 high` workflows should point `community_context` at `rabetrabauken2026`.
 - The guarded WM26 `matchday-dev` and `bonus-dev` commands use `gpt-5-nano` with `reasoning-effort minimal`, Langfuse prompt source, and label `latest`.
 
 Those dev command defaults exist for low-cost development and manual testing.
 They are not the WM26 production configuration. Production or scheduled
-workflows must pass an explicit model and reasoning effort once the production
-configuration is selected through the reusable prediction workflow
-`reasoning_effort` input.
+workflows must pass an explicit model and reasoning effort through the reusable
+prediction workflow inputs. The selected WM26 production path does this with
+`model: "o3"`, `reasoning_effort: "high"`, and
+`max_output_tokens: 40000`; the manual-only `o3 medium` comparison workflows
+keep `community_context: "ehonda-ai-arena"` aligned with their self-contained
+context path.
 
 Tune this when a new community needs a different competition, dev/test default,
 prompt source, prompt name, or prompt label.

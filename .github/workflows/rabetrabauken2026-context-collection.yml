@@ -1,8 +1,11 @@
 name: 🏆 WM26 rabetrabauken2026 🏆 Context Collection
 
 on:
-  # Manual-only until the WM26 production model configuration is selected and
-  # the first context run has been validated.
+  workflow_call:
+  # Selected WM26 production reference context workflow.
+  # GitHub Actions cron runs in UTC only.
+  schedule:
+    - cron: '47 23,6,11 * * *'
   workflow_dispatch:
 
 jobs:
@@ -14,7 +17,7 @@ jobs:
       competition: "fifa-world-cup-2026"
       include_fifa_rankings: true
       include_lineups: true
-      trigger_type: "manual"
+      trigger_type: ${{ github.event_name == 'schedule' && 'scheduled' || 'manual' }}
     secrets:
       kicktipp_username: ${{ secrets.RABETRABAUKEN2026_KICKTIPP_USERNAME }}
       kicktipp_password: ${{ secrets.RABETRABAUKEN2026_KICKTIPP_PASSWORD }}

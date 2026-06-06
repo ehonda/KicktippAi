@@ -136,7 +136,8 @@ public class MatchdayCommand : AsyncCommand<BaseSettings>
     {
         "schadensfresse",
         "pes-squad",
-        "ehonda-ai-arena"
+        "ehonda-ai-arena",
+        "rabetrabauken2026"
     };
 
     private async Task ExecuteMatchdayWorkflow(BaseSettings settings)

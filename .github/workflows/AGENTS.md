@@ -9,10 +9,22 @@ reuse, so their presence alone should not be treated as evidence that the
 corresponding automations are currently active.
 
 `wm26-ehonda-ai-arena-gpt-5-nano-minimal-matchday.yml` and
-`wm26-ehonda-ai-arena-gpt-5-nano-minimal-bonus.yml` are preliminary scheduled
-WM26 onboarding entrypoints. For this self-contained path, they use
+`wm26-ehonda-ai-arena-gpt-5-nano-minimal-bonus.yml` are scheduled
+WM26 self-contained entrypoints. For this path, they use
 `community_context: "ehonda-ai-arena"` and display `🏆` in the GitHub Actions
 UI.
+
+`wm26-rabetrabauken2026-o3-high-matchday.yml` and
+`wm26-rabetrabauken2026-o3-high-bonus.yml` are the selected scheduled WM26
+primary production workflows. They target `rabetrabauken2026`, use
+`community_context: "rabetrabauken2026"`, and pin
+`max_output_tokens: 40000`.
+
+`wm26-ehonda-ai-arena-o3-high-matchday.yml` and
+`wm26-ehonda-ai-arena-o3-high-bonus.yml` are the selected scheduled WM26
+secondary copy-posting workflows. They target `ehonda-ai-arena`, reuse
+`community_context: "rabetrabauken2026"`, and pin
+`max_output_tokens: 40000`.
 
 `wm26-ehonda-ai-arena-gpt-5-5-none-matchday.yml`,
 `wm26-ehonda-ai-arena-gpt-5-5-none-bonus.yml`,
@@ -25,21 +37,24 @@ WM26 onboarding test entrypoints. They keep
 context workflow, and the `gpt-5.5 xhigh` pair explicitly passes
 `max_output_tokens: 40000`.
 
+`wm26-ehonda-ai-arena-o3-medium-matchday.yml` and
+`wm26-ehonda-ai-arena-o3-medium-bonus.yml` are additional manual-only WM26
+self-contained comparison entrypoints. They also keep
+`community_context: "ehonda-ai-arena"` aligned with the shared self-contained
+context workflow.
+
 `wm26-ehonda-ai-arena-context-collection.yml` is the matching scheduled WM26
-context workflow for that preliminary self-contained test path.
+context workflow for the self-contained `ehonda-ai-arena` path.
 
-`rabetrabauken2026-context-collection.yml` is a manual-only WM26 reference
-context workflow. It does not invoke `matchday` or `bonus`, so it does not make
-`rabetrabauken2026` a production prediction community for Langfuse environment
-tagging.
+`rabetrabauken2026-context-collection.yml` is the scheduled WM26 reference
+context workflow for the selected production path.
 
-The WM26 secondary copy-from-primary pattern is reserved only for the
-yet-undetermined `rabetrabauken2026` production model path: a primary
-`rabetrabauken2026` prediction workflow must run first, and the matching
-`ehonda-ai-arena` workflow may then post the stored prediction with
-`community_context: "rabetrabauken2026"`. Do not apply that pattern to
-preliminary `ehonda-ai-arena` tests, dev shortcuts, or unrelated WM26 model
-experiments.
+The WM26 secondary copy-from-primary pattern is selected only for `o3 high`: a
+primary `rabetrabauken2026` prediction workflow must run first, and the
+matching `ehonda-ai-arena` workflow may then post the stored prediction with
+`community_context: "rabetrabauken2026"`. Do not apply that pattern to the
+self-contained `gpt-5-nano minimal` path, `o3 medium`, dev shortcuts, or
+unrelated WM26 model experiments.
 
 ## Production Communities and Langfuse Environments
 
@@ -49,18 +64,20 @@ Each command (`matchday`, `bonus`) determines its Langfuse trace environment (`p
 
 #### Matchday Command
 
-Derived from workflows: `pes-squad-matchday.yml`, `schadensfresse-matchday.yml`, and the active `ehonda-ai-arena` matchday entrypoints including `wm26-ehonda-ai-arena-*-matchday.yml`
+Derived from workflows: `pes-squad-matchday.yml`, `schadensfresse-matchday.yml`, `wm26-rabetrabauken2026-o3-high-matchday.yml`, and the active `ehonda-ai-arena` matchday entrypoints including `wm26-ehonda-ai-arena-*-matchday.yml`
 
 - `pes-squad`
 - `schadensfresse`
+- `rabetrabauken2026`
 - `ehonda-ai-arena`
 
 #### Bonus Command
 
-Derived from workflows: `pes-squad-bonus.yml`, `schadensfresse-bonus.yml`, and the active `ehonda-ai-arena` bonus entrypoints including `wm26-ehonda-ai-arena-*-bonus.yml`
+Derived from workflows: `pes-squad-bonus.yml`, `schadensfresse-bonus.yml`, `wm26-rabetrabauken2026-o3-high-bonus.yml`, and the active `ehonda-ai-arena` bonus entrypoints including `wm26-ehonda-ai-arena-*-bonus.yml`
 
 - `pes-squad`
 - `schadensfresse`
+- `rabetrabauken2026`
 - `ehonda-ai-arena`
 
 ### Keeping Code in Sync

@@ -1,0 +1,41 @@
+name: 🏆 WM26 ehonda-ai-arena 🏆 o3 high 🏆 Matchday
+
+on:
+  workflow_call:
+  # WM26 slower secondary copy-posting cadence.
+  # GitHub Actions cron runs in UTC only.
+  schedule:
+    - cron: '7 1,8,13 * * *'
+  workflow_dispatch:
+    inputs:
+      force_prediction:
+        description: 'Force prediction even if verify passes'
+        required: false
+        default: false
+        type: boolean
+      max_repredictions:
+        description: 'Maximum number of repredictions allowed (0-based index)'
+        required: false
+        default: 2
+        type: number
+
+jobs:
+  call-base-workflow:
+    name: Run Matchday Predictions
+    uses: ./.github/workflows/base-matchday-predictions.yml
+    with:
+      community: "ehonda-ai-arena"
+      model: "o3"
+      reasoning_effort: "high"
+      max_output_tokens: 40000
+      community_context: "rabetrabauken2026"
+      trigger_type: ${{ github.event_name == 'schedule' && 'scheduled' || 'manual' }}
+      force_prediction: ${{ github.event.inputs.force_prediction == 'true' }}
+      max_repredictions: ${{ fromJSON(github.event.inputs.max_repredictions || '2') }}
+    secrets:
+      kicktipp_username: ${{ secrets.EHONDA_AI_ARENA_O3_HIGH_KICKTIPP_USERNAME }}
+      kicktipp_password: ${{ secrets.EHONDA_AI_ARENA_O3_HIGH_KICKTIPP_PASSWORD }}
+      firebase_project_id: ${{ secrets.FIREBASE_PROJECT_ID }}
+      firebase_service_account_json: ${{ secrets.FIREBASE_SERVICE_ACCOUNT_JSON }}
+      openai_api_key: ${{ secrets.OPENAI_API_KEY }}
+      langfuse_secret_key: ${{ secrets.LANGFUSE_SECRET_KEY }}

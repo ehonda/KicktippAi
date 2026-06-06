@@ -7,9 +7,9 @@ Coverage note updated: 2026-06-06
 This estimate projects match prediction cost for two full competitions, all
 `gpt-5.5` reasoning efforts, four comparison configurations, and the current
 WM26 onboarding configurations for `gpt-5-nano` / `minimal`, `gpt-5.5` /
-`none`, `gpt-5.5` / `xhigh`, and `gpt-5.4-nano` / `none`. Bonus question cost
-is excluded because it is negligible relative to full-season match prediction
-cost.
+`none`, `gpt-5.5` / `xhigh`, `gpt-5.4-nano` / `none`, `o3` / `medium`, and
+`o3` / `high`. Bonus question cost is excluded because it is negligible
+relative to full-season match prediction cost.
 
 Important pricing assumption: these estimates assume every match prediction is
 billed at OpenAI `flex` pricing. Production is expected to use flex from here
@@ -27,21 +27,28 @@ reuses the already collected `pes-squad` / `o3` counts.
 WM26 model onboarding coverage is tracked in
 [model-config-onboarding.md](../onboarding-wm26/model-config-onboarding.md).
 As of 2026-06-06, the manual WM26 dev/testing shortcut configuration and the
-preliminary scheduled `ehonda-ai-arena` workflow configuration still use
+scheduled self-contained `ehonda-ai-arena` workflow configuration still use
 `gpt-5-nano` / `minimal`. That configuration has a preliminary estimate based
 on the hosted WM match prompt `kicktippai/wm26/predict-one-match`, label
 `latest`, version `2`. A Langfuse lookup on 2026-06-02 found no `production`
 label for that prompt, so `latest` remains the configured WM hosted route for
-this estimate. Additional self-contained manual-only `ehonda-ai-arena` workflow
-tests are now onboarded for `gpt-5.5 none`, `gpt-5.5 xhigh`, and
-`gpt-5.4-nano none`. Their exact model/reasoning rows currently reuse the
-generic `langfuse-o3-poc` base prompt route rather than WM-hosted base samples,
-so treat them as provisional WM26 onboarding estimates for testing-only
-workflows rather than a final production-model decision. The hosted WM26
-production model is still TBD. The `o3 medium` and `o3 high` rows below are
-generic comparison estimates from local `prompt-v1` base rows rather than
-WM-hosted base samples, so treat them as model-tradeoff planning numbers, not
-as WM26 onboarding coverage. The `gpt-5-nano minimal` estimator command was:
+this estimate. The selected WM26 production path is now `o3 high` with
+`max_output_tokens: 40000`, using `rabetrabauken2026` as the primary reference
+community and `ehonda-ai-arena` as the secondary copy-posting target. The
+scheduled self-contained `ehonda-ai-arena` `gpt-5-nano minimal` workflows
+remain active alongside that production path, and additional self-contained
+manual-only `ehonda-ai-arena` workflow tests are onboarded for `gpt-5.5 none`,
+`gpt-5.5 xhigh`, `gpt-5.4-nano none`, and `o3 medium`. The `gpt-5.5 none`,
+`gpt-5.5 xhigh`, and `gpt-5.4-nano none` rows currently reuse the generic
+`langfuse-o3-poc` base prompt route rather than WM-hosted base samples, so
+treat them as provisional WM26 onboarding estimates for comparison workflows.
+The `o3 medium` and `o3 high` rows below are still generic comparison
+estimates from local `prompt-v1` base rows at `10000` max output tokens rather
+than WM-hosted cap-matched base samples, so treat them as WM26 planning
+coverage, not exact runtime-cost proof for the live `o3 high` / `40000`
+production workflows. In the table below, the `Max output tokens` column for
+`o3 medium` and `o3 high` reflects the current estimate evidence, not the live
+WM26 workflow cap. The `gpt-5-nano minimal` estimator command was:
 
 ```powershell
 uv --cache-dir .uv-cache run python .agents/skills/estimate-experiment-cost-skill/scripts/experiment_cost_estimator.py estimate --counts 104 --model gpt-5-nano --reasoning-effort minimal

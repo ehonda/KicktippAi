@@ -41,6 +41,21 @@ public class BonusCommand_Telemetry_Tests : BonusCommandTests_Base
 
     [Test]
     [NotInParallel("Telemetry")]
+    public async Task Rabetrabauken2026_sets_environment_to_production()
+    {
+        var capturedActivities = new List<Activity>();
+        using var listener = CreateActivityListener(capturedActivities);
+        var ctx = CreateBonusCommandApp();
+
+        await RunCommandAsync(ctx.App, ctx.Console, "bonus", "gpt-4o", "-c", "rabetrabauken2026");
+
+        var rootActivity = capturedActivities.LastOrDefault(a => a.OperationName == "bonus");
+        await Assert.That(rootActivity).IsNotNull();
+        await Assert.That(rootActivity!.GetTagItem("langfuse.environment") as string).IsEqualTo("production");
+    }
+
+    [Test]
+    [NotInParallel("Telemetry")]
     public async Task Non_production_community_sets_environment_to_development()
     {
         var capturedActivities = new List<Activity>();

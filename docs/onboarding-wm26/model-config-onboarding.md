@@ -9,17 +9,21 @@ prediction costs are documented.
 The guarded `matchday-dev` and `bonus-dev` `gpt-5-nano` / `minimal` defaults
 are for dev work and low-cost manual testing only. They are not the WM26
 production model configuration.
-Production is still TBD and must be added here explicitly before scheduled
-prediction workflows are activated.
-The `ehonda-ai-arena` `gpt-5-nano` / `minimal` entry below is a preliminary
-manual workflow onboarding test. It is not the WM26 production model decision.
-The `ehonda-ai-arena` `gpt-5.5` / `none`, `gpt-5.5` / `xhigh`, and
-`gpt-5.4-nano` / `none` entries below are additional self-contained manual-only
-onboarding tests. They are not the WM26 production model decision.
+The selected WM26 production path is `o3` with `reasoning_effort: "high"` and
+`max_output_tokens: 40000`, using `rabetrabauken2026` as the primary reference
+community and `ehonda-ai-arena` as the secondary copy-posting target.
+The scheduled self-contained `ehonda-ai-arena` `gpt-5-nano` / `minimal`
+entrypoint remains active alongside that production path because it uses
+`community_context: "ehonda-ai-arena"` and its own model-specific Kicktipp
+posting credentials.
+The `ehonda-ai-arena` `gpt-5.5` / `none`, `gpt-5.5` / `xhigh`,
+`gpt-5.4-nano` / `none`, and `o3` / `medium` entries below are additional
+self-contained manual-only onboarding comparisons. They are not the selected
+WM26 production configuration.
 Langfuse prompt lookup on 2026-06-02 resolved
 `kicktippai/wm26/predict-one-match` label `latest` to version `2`; label
 `production` was not present, so `latest` is the configured hosted WM route for
-the preliminary estimate.
+this ledger.
 
 Use one row per effective model configuration: model, reasoning effort, prompt
 route, prompt label/version policy, community, and workflow status. Before
@@ -31,28 +35,29 @@ is present in [whole-season-cost-estimates.md](../experiments/whole-season-cost-
 | Community / use | Competition | Model config | Prompt route | Where onboarded | Workflow status | Full-competition estimate |
 | --- | --- | --- | --- | --- | --- | --- |
 | `ehonda-dev-wm26` dev/testing shortcuts | `fifa-world-cup-2026` | `gpt-5-nano` with `minimal` reasoning | Langfuse `kicktippai/wm26/predict-one-match` and `kicktippai/wm26/predict-bonus`, label `latest`; fallback model `wm26` | Guarded `matchday-dev` and `bonus-dev` defaults in `src/Orchestrator/Commands/Operations/Dev/DevParticipationCommandSupport.cs` and prompt defaults in `src/Orchestrator/Infrastructure/CompetitionResolver.cs`; docs in `docs/onboarding-wm26/README.md` | Manual dev commands only; no GitHub Actions schedule activated; not a production config | Documented preliminary match estimate: `N=104: $0.008894080000` in [whole-season-cost-estimates.md](../experiments/whole-season-cost-estimates.md). Base row uses hosted WM prompt label `latest` version `2` and historical `pes-squad` repeated-match-slice fixtures. |
-| `ehonda-ai-arena` preliminary self-contained workflow test | `fifa-world-cup-2026` | `gpt-5-nano` with `minimal` reasoning | Langfuse `kicktippai/wm26/predict-one-match` and `kicktippai/wm26/predict-bonus`, label `latest`; fallback model `wm26` | `.github/workflows/wm26-ehonda-ai-arena-context-collection.yml` collects `community_context: "ehonda-ai-arena"`; `.github/workflows/wm26-ehonda-ai-arena-gpt-5-nano-minimal-matchday.yml` and `.github/workflows/wm26-ehonda-ai-arena-gpt-5-nano-minimal-bonus.yml` pass `model: "gpt-5-nano"`, `reasoning_effort: "minimal"`, and `community_context: "ehonda-ai-arena"`; posting credentials use `EHONDA_AI_ARENA_GPT_5_NANO_MINIMAL_KICKTIPP_USERNAME` / `EHONDA_AI_ARENA_GPT_5_NANO_MINIMAL_KICKTIPP_PASSWORD`; `src/Orchestrator/Infrastructure/CompetitionResolver.cs` resolves `ehonda-ai-arena` to WM26; lineup seed now uses FIFA's official final squads | Manual dispatch and scheduled cadence enabled for preliminary onboarding: context at `47 23,6,11 * * *`, matchday at `37 0,7,12 * * *`, bonus at `47 0,7,12 * * *`; not a production config | Documented preliminary match estimate: `N=104: $0.008894080000` in [whole-season-cost-estimates.md](../experiments/whole-season-cost-estimates.md). The estimate is suitable for onboarding workflow testing, not a production model decision. |
+| `ehonda-ai-arena` scheduled self-contained workflow path | `fifa-world-cup-2026` | `gpt-5-nano` with `minimal` reasoning | Langfuse `kicktippai/wm26/predict-one-match` and `kicktippai/wm26/predict-bonus`, label `latest`; fallback model `wm26` | `.github/workflows/wm26-ehonda-ai-arena-context-collection.yml` collects `community_context: "ehonda-ai-arena"`; `.github/workflows/wm26-ehonda-ai-arena-gpt-5-nano-minimal-matchday.yml` and `.github/workflows/wm26-ehonda-ai-arena-gpt-5-nano-minimal-bonus.yml` pass `model: "gpt-5-nano"`, `reasoning_effort: "minimal"`, `max_output_tokens: 10000`, and `community_context: "ehonda-ai-arena"`; posting credentials use `EHONDA_AI_ARENA_GPT_5_NANO_MINIMAL_KICKTIPP_USERNAME` / `EHONDA_AI_ARENA_GPT_5_NANO_MINIMAL_KICKTIPP_PASSWORD`; `src/Orchestrator/Infrastructure/CompetitionResolver.cs` resolves `ehonda-ai-arena` to WM26; lineup seed now uses FIFA's official final squads | Manual dispatch and scheduled cadence enabled for the self-contained onboarding path: context at `47 23,6,11 * * *`, matchday at `37 0,7,12 * * *`, bonus at `47 0,7,12 * * *`; remains active alongside `o3 high`; not the selected production config | Documented preliminary match estimate: `N=104: $0.008894080000` in [whole-season-cost-estimates.md](../experiments/whole-season-cost-estimates.md). The estimate is suitable for onboarding workflow testing and low-cost monitoring, not as the selected production model decision. |
 | `ehonda-ai-arena` self-contained workflow test | `fifa-world-cup-2026` | `gpt-5.5` with `none` reasoning | Langfuse `kicktippai/wm26/predict-one-match` and `kicktippai/wm26/predict-bonus`, label `latest`; fallback model `wm26` | Shared self-contained context workflow `.github/workflows/wm26-ehonda-ai-arena-context-collection.yml`; `.github/workflows/wm26-ehonda-ai-arena-gpt-5-5-none-matchday.yml` and `.github/workflows/wm26-ehonda-ai-arena-gpt-5-5-none-bonus.yml` pass `model: "gpt-5.5"`, `reasoning_effort: "none"`, `max_output_tokens: 10000`, and `community_context: "ehonda-ai-arena"`; posting credentials use `EHONDA_AI_ARENA_GPT_5_5_NONE_KICKTIPP_USERNAME` / `EHONDA_AI_ARENA_GPT_5_5_NONE_KICKTIPP_PASSWORD` | Manual dispatch only; no prediction schedule activated; shared `wm26-ehonda-ai-arena-context-collection.yml` remains the self-contained context source; not a production config | Documented provisional match estimate: `N=104: $0.905060000000` in [whole-season-cost-estimates.md](../experiments/whole-season-cost-estimates.md). The exact model/reasoning row exists, but its current base estimate uses the generic `langfuse-o3-poc` prompt route at `10000` max output tokens rather than a WM-hosted base sample. Suitable for testing-only onboarding, not a production model decision. |
 | `ehonda-ai-arena` self-contained workflow test | `fifa-world-cup-2026` | `gpt-5.5` with `xhigh` reasoning | Langfuse `kicktippai/wm26/predict-one-match` and `kicktippai/wm26/predict-bonus`, label `latest`; fallback model `wm26` | Shared self-contained context workflow `.github/workflows/wm26-ehonda-ai-arena-context-collection.yml`; `.github/workflows/wm26-ehonda-ai-arena-gpt-5-5-xhigh-matchday.yml` and `.github/workflows/wm26-ehonda-ai-arena-gpt-5-5-xhigh-bonus.yml` pass `model: "gpt-5.5"`, `reasoning_effort: "xhigh"`, `max_output_tokens: 40000`, and `community_context: "ehonda-ai-arena"`; posting credentials use `EHONDA_AI_ARENA_GPT_5_5_XHIGH_KICKTIPP_USERNAME` / `EHONDA_AI_ARENA_GPT_5_5_XHIGH_KICKTIPP_PASSWORD` | Manual dispatch only; no prediction schedule activated; shared `wm26-ehonda-ai-arena-context-collection.yml` remains the self-contained context source; not a production config | Documented provisional match estimate: `N=104: $9.845420000000` in [whole-season-cost-estimates.md](../experiments/whole-season-cost-estimates.md). The exact model/reasoning row exists, and this workflow now passes the required non-default `max_output_tokens: 40000`; the current base estimate still uses the generic `langfuse-o3-poc` prompt route rather than a WM-hosted base sample. Suitable for testing-only onboarding, not a production model decision. |
 | `ehonda-ai-arena` self-contained workflow test | `fifa-world-cup-2026` | `gpt-5.4-nano` with `none` reasoning | Langfuse `kicktippai/wm26/predict-one-match` and `kicktippai/wm26/predict-bonus`, label `latest`; fallback model `wm26` | Shared self-contained context workflow `.github/workflows/wm26-ehonda-ai-arena-context-collection.yml`; `.github/workflows/wm26-ehonda-ai-arena-gpt-5-4-nano-none-matchday.yml` and `.github/workflows/wm26-ehonda-ai-arena-gpt-5-4-nano-none-bonus.yml` pass `model: "gpt-5.4-nano"`, `reasoning_effort: "none"`, `max_output_tokens: 10000`, and `community_context: "ehonda-ai-arena"`; posting credentials use `EHONDA_AI_ARENA_GPT_5_4_NANO_NONE_KICKTIPP_USERNAME` / `EHONDA_AI_ARENA_GPT_5_4_NANO_NONE_KICKTIPP_PASSWORD` | Manual dispatch only; no prediction schedule activated; shared `wm26-ehonda-ai-arena-context-collection.yml` remains the self-contained context source; not a production config | Documented provisional match estimate: `N=104: $0.037315720000` in [whole-season-cost-estimates.md](../experiments/whole-season-cost-estimates.md). The exact model/reasoning row exists, but its current base estimate uses the generic `langfuse-o3-poc` prompt route at `10000` max output tokens rather than a WM-hosted base sample. Suitable for testing-only onboarding, not a production model decision. |
-| WM26 production predictions: `rabetrabauken2026` primary/reference model, `ehonda-ai-arena` secondary copy-posting target | `fifa-world-cup-2026` | TBD; must be selected separately from the preliminary testing fallback | TBD | Reference context collection is wired in `.github/workflows/rabetrabauken2026-context-collection.yml`; production model-specific matchday/bonus workflows are intentionally not activated yet. The copy-from-primary pattern is valid only for the selected `rabetrabauken2026` production model and its matching `ehonda-ai-arena` posting workflow. | Context workflow is manual-only; production prediction schedules are not activated | Missing until production model and reasoning effort are selected. |
+| `ehonda-ai-arena` self-contained workflow comparison | `fifa-world-cup-2026` | `o3` with `medium` reasoning | Langfuse `kicktippai/wm26/predict-one-match` and `kicktippai/wm26/predict-bonus`, label `latest`; fallback model `wm26` | Shared self-contained context workflow `.github/workflows/wm26-ehonda-ai-arena-context-collection.yml`; `.github/workflows/wm26-ehonda-ai-arena-o3-medium-matchday.yml` and `.github/workflows/wm26-ehonda-ai-arena-o3-medium-bonus.yml` pass `model: "o3"`, `reasoning_effort: "medium"`, `max_output_tokens: 10000`, and `community_context: "ehonda-ai-arena"`; posting credentials use `EHONDA_AI_ARENA_O3_MEDIUM_KICKTIPP_USERNAME` / `EHONDA_AI_ARENA_O3_MEDIUM_KICKTIPP_PASSWORD` | Manual dispatch only; no prediction schedule activated; shared `wm26-ehonda-ai-arena-context-collection.yml` remains the self-contained context source; not a production config | Documented provisional match estimate: `N=104: $1.085406400000` in [whole-season-cost-estimates.md](../experiments/whole-season-cost-estimates.md). The exact model/reasoning row exists, but its current base estimate reuses generic local `prompt-v1` evidence at `10000` max output tokens rather than a WM-hosted base sample. Suitable for comparison planning, not exact runtime-cost coverage. |
+| WM26 production predictions: `rabetrabauken2026` primary/reference model, `ehonda-ai-arena` secondary copy-posting target | `fifa-world-cup-2026` | `o3` with `high` reasoning | Langfuse `kicktippai/wm26/predict-one-match` and `kicktippai/wm26/predict-bonus`, label `latest`; fallback model `wm26` | Scheduled reference context workflow `.github/workflows/rabetrabauken2026-context-collection.yml`; primary `.github/workflows/wm26-rabetrabauken2026-o3-high-matchday.yml` and `.github/workflows/wm26-rabetrabauken2026-o3-high-bonus.yml` pass `model: "o3"`, `reasoning_effort: "high"`, `max_output_tokens: 40000`, and `community_context: "rabetrabauken2026"` with `RABETRABAUKEN2026_O3_HIGH_KICKTIPP_USERNAME` / `RABETRABAUKEN2026_O3_HIGH_KICKTIPP_PASSWORD`; secondary `.github/workflows/wm26-ehonda-ai-arena-o3-high-matchday.yml` and `.github/workflows/wm26-ehonda-ai-arena-o3-high-bonus.yml` use the same model/reasoning/cap with `community: "ehonda-ai-arena"` and `community_context: "rabetrabauken2026"` plus `EHONDA_AI_ARENA_O3_HIGH_KICKTIPP_USERNAME` / `EHONDA_AI_ARENA_O3_HIGH_KICKTIPP_PASSWORD` | Scheduled and manual dispatch enabled: reference context at `47 23,6,11 * * *`, primary matchday at `37 0,7,12 * * *`, primary bonus at `47 0,7,12 * * *`, and secondary copy-posting matchday plus bonus at `7 1,8,13 * * *` | Documented provisional match estimate: `N=104: $2.499338400000` in [whole-season-cost-estimates.md](../experiments/whole-season-cost-estimates.md). The selected workflow cap is `40000`, but the current estimate row still reuses generic local `prompt-v1` evidence at `10000` max output tokens, so treat it as planning coverage rather than exact WM-hosted cap-matched proof. |
 
-No WM26 production prediction workflow is currently activated. The preliminary
-`ehonda-ai-arena` `gpt-5-nano` / `minimal` workflows are scheduled onboarding
-entrypoints, and the `gpt-5.5 none`, `gpt-5.5 xhigh`, and `gpt-5.4-nano none`
-workflows are manual-only onboarding entrypoints. None of them is the WM26
-production model decision. When adding bulk activation workflows, list every
-community/model pair here before enabling schedules.
+WM26 production prediction workflows are now onboarded for `o3 high`. The
+scheduled self-contained `ehonda-ai-arena` `gpt-5-nano` / `minimal` workflows
+remain active alongside them because they use a separate posting identity and
+keep `community_context: "ehonda-ai-arena"`. The `gpt-5.5 none`,
+`gpt-5.5 xhigh`, `gpt-5.4-nano none`, and `o3 medium` workflows remain
+manual-only comparison entrypoints. This onboarding wave is otherwise finished
+for now.
 
-For the planned secondary-community copy pattern, the selected production model
-must run first against `rabetrabauken2026`. The matching `ehonda-ai-arena`
-workflow must run later with the same model configuration and
-`community_context: rabetrabauken2026`, so it reuses the stored reference
-prediction before posting to `ehonda-ai-arena`. This rule applies only to the
-yet-undetermined `rabetrabauken2026` production model path. Preliminary
-`ehonda-ai-arena` workflows, dev shortcuts, and any unrelated WM26 model tests
-must keep `community_context` aligned with their own collected context unless a
-new row here explicitly documents a copy-posting production setup.
+For the selected secondary-community copy pattern, only `o3 high` uses
+`community_context: "rabetrabauken2026"`. Its primary `rabetrabauken2026`
+workflow must run first, and the matching `ehonda-ai-arena` workflow must run
+later with the same model configuration so it reuses the stored reference
+prediction before posting to `ehonda-ai-arena`. Self-contained
+`ehonda-ai-arena` workflows, dev shortcuts, and unrelated WM26 model tests must
+keep `community_context` aligned with their own collected context unless a new
+row here explicitly documents a copy-posting setup.
 
 ## 2026-06-03 Final Lineup Refresh Validation
 
@@ -66,10 +71,11 @@ snapshot for supplemental data.
 
 ## 2026-06-02 Preliminary Validation
 
-The `rabetrabauken2026` checks below are historical context for the
-not-yet-selected production copy-posting path. They are not a reusable setup for
-the preliminary `ehonda-ai-arena` `gpt-5-nano` / `minimal` test, which now uses
-self-contained `ehonda-ai-arena` context.
+The `rabetrabauken2026` checks below are historical context collected before
+the selected `o3 high` production copy-posting workflows were added. They are
+not a reusable setup for the scheduled self-contained `ehonda-ai-arena`
+`gpt-5-nano` / `minimal` path, which uses self-contained `ehonda-ai-arena`
+context.
 
 - `collect-context kicktipp --community-context rabetrabauken2026 --competition fifa-world-cup-2026 --verbose` authenticated and collected matchday 1 outcome rows, but the Kicktipp submission page exposed no current match table, so no standings, rules, or recent-history context documents were uploaded.
 - `collect-context fifa --community-context rabetrabauken2026 --competition fifa-world-cup-2026 --verbose` uploaded 48 per-team ranking documents and KPI document `fifa-rankings`.
@@ -89,6 +95,8 @@ self-contained `ehonda-ai-arena` context.
   `reasoning_effort` input explicitly.
 - When a configuration requires a non-default output cap, pass
   `max_output_tokens` explicitly in the workflow file.
+- Confirm the model-specific Kicktipp posting identity has manual membership in
+  every target community before trusting scheduled runs.
 - Check [whole-season-cost-estimates.md](../experiments/whole-season-cost-estimates.md)
   for the same model and reasoning effort. If it is absent, run the
   `estimate-experiment-cost-skill` workflow before activation.

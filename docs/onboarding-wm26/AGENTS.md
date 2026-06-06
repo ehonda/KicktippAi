@@ -21,14 +21,18 @@ Do not scrape websites for supplemental lineup values in this context.
 
 ## Workflow Activation
 
-For testing-only onboarding, leave GitHub Actions schedules inactive and record
-that status in `model-config-onboarding.md`.
-
 For every new WM26 community, activate its scheduled context collection
 workflow before enabling scheduled prediction workflows. That context workflow
 must run Kicktipp context collection, `collect-context fifa`, and
 `collect-context lineups` for the community with
 `--competition fifa-world-cup-2026`.
+
+As of 2026-06-06, the selected scheduled WM26 production path is `o3 high`
+with `rabetrabauken2026` as the primary community and `ehonda-ai-arena` as the
+secondary copy-posting target. The scheduled self-contained
+`ehonda-ai-arena` `gpt-5-nano` / `minimal` path remains active alongside it.
+Other WM26 comparison workflows stay manual-only unless the ledger says
+otherwise.
 
 ## Model Configuration Ledger
 
@@ -39,9 +43,9 @@ status, and full-competition estimate status.
 
 Do not describe `gpt-5-nano` / `minimal` as the production default. It is only
 the guarded `matchday-dev` and `bonus-dev` dev/test default. Production
-workflows must pass an explicit model and reasoning effort after the production
-configuration is selected. Use the reusable prediction workflow
-`reasoning_effort` input for that wiring.
+workflows must pass an explicit model and reasoning effort. The selected WM26
+production workflows do this with `o3`, `high`, and `max_output_tokens: 40000`.
+Use the reusable prediction workflow `reasoning_effort` input for that wiring.
 
 If the exact model and reasoning effort are not documented in
 `../experiments/whole-season-cost-estimates.md`, use the project
@@ -52,10 +56,10 @@ hand-calculate missing dollar estimates.
 
 When autonomous onboarding finishes, include a manual follow-up section in the
 final response. Call out GitHub Actions secrets and variables, scheduled
-workflow activation status, production model decision status, cost estimate
-coverage, explicit model/reasoning workflow wiring, Kicktipp/Firebase access
-validation, Langfuse key and prompt setup, and the first manual workflow trigger
-sequence.
+workflow activation status, the active production-versus-self-contained model
+split, cost estimate coverage, explicit model/reasoning workflow wiring,
+Kicktipp/Firebase access validation, Langfuse key and prompt setup, and the
+first manual workflow trigger sequence.
 
 ## Verification Workflow
 

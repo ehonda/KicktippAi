@@ -1,0 +1,41 @@
+name: 🏆 WM26 rabetrabauken2026 🏆 o3 high 🏆 Bonus
+
+on:
+  workflow_call:
+  # Selected WM26 production primary bonus cadence.
+  # GitHub Actions cron runs in UTC only.
+  schedule:
+    - cron: '47 0,7,12 * * *'
+  workflow_dispatch:
+    inputs:
+      force_prediction:
+        description: 'Force prediction even if verify passes'
+        required: false
+        default: false
+        type: boolean
+      max_repredictions:
+        description: 'Maximum number of repredictions allowed (0-based index)'
+        required: false
+        default: 2
+        type: number
+
+jobs:
+  call-base-workflow:
+    name: Run Bonus Predictions
+    uses: ./.github/workflows/base-bonus-predictions.yml
+    with:
+      community: "rabetrabauken2026"
+      model: "o3"
+      reasoning_effort: "high"
+      max_output_tokens: 40000
+      community_context: "rabetrabauken2026"
+      trigger_type: ${{ github.event_name == 'schedule' && 'scheduled' || 'manual' }}
+      force_prediction: ${{ github.event.inputs.force_prediction == 'true' }}
+      max_repredictions: ${{ fromJSON(github.event.inputs.max_repredictions || '2') }}
+    secrets:
+      kicktipp_username: ${{ secrets.RABETRABAUKEN2026_O3_HIGH_KICKTIPP_USERNAME }}
+      kicktipp_password: ${{ secrets.RABETRABAUKEN2026_O3_HIGH_KICKTIPP_PASSWORD }}
+      firebase_project_id: ${{ secrets.FIREBASE_PROJECT_ID }}
+      firebase_service_account_json: ${{ secrets.FIREBASE_SERVICE_ACCOUNT_JSON }}
+      openai_api_key: ${{ secrets.OPENAI_API_KEY }}
+      langfuse_secret_key: ${{ secrets.LANGFUSE_SECRET_KEY }}
