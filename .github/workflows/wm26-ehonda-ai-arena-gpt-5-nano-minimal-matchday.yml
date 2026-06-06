@@ -4,8 +4,8 @@ on:
   workflow_call:
   # WM26 main matchday cadence.
   # GitHub Actions cron runs in UTC only.
-  schedule:
-    - cron: '37 0,7,12 * * *'
+  # schedule:
+  #   - cron: '37 0,7,12 * * *'
   workflow_dispatch:
     inputs:
       force_prediction:

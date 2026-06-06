@@ -4,8 +4,8 @@ on:
   workflow_call:
   # WM26 cadence: refresh before each prediction window.
   # GitHub Actions cron runs in UTC only.
-  schedule:
-    - cron: '47 23,6,11 * * *'
+  # schedule:
+  #   - cron: '47 23,6,11 * * *'
   workflow_dispatch:
 
 jobs:
