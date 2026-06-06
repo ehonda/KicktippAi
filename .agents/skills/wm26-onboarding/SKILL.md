@@ -90,7 +90,14 @@ Do not run `matchday-dev` until every match team has its required `lineup-{team}
 dotnet run --project src/Orchestrator -- wm26-recent-history apply-date-map --community-context <community-context> --competition fifa-world-cup-2026 --input data/wm26/recent-history/recent-history-match-dates.csv
 ```
 
-Run with `--dry-run` first when changing the map.
+Run with `--dry-run` first when changing the map. Use strict mode for manual
+pre-WM26 map validation and repairs. GitHub Actions WM26 context workflows use
+the guarded form below so tournament rows keep standard collection-date
+semantics and do not consume older map entries for the same matchup key:
+
+```powershell
+dotnet run --project src/Orchestrator -- wm26-recent-history apply-date-map --community-context <community-context> --competition fifa-world-cup-2026 --input data/wm26/recent-history/recent-history-match-dates.csv --apply-known-only --preserve-collected-on-or-after 2026-06-11
+```
 
 10. Validate predictions.
 

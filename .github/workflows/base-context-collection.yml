@@ -85,6 +85,21 @@ jobs:
           FIREBASE_PROJECT_ID: ${{ secrets.firebase_project_id }}
           FIREBASE_SERVICE_ACCOUNT_JSON: ${{ secrets.firebase_service_account_json }}
 
+      - name: Run WM26 recent-history date map
+        if: ${{ inputs.competition == 'fifa-world-cup-2026' }}
+        run: |
+          dotnet run --project src/Orchestrator/Orchestrator.csproj --configuration Release -- \
+            wm26-recent-history apply-date-map \
+            --community-context "${{ inputs.community_context }}" \
+            --competition "${{ inputs.competition }}" \
+            --input data/wm26/recent-history/recent-history-match-dates.csv \
+            --apply-known-only \
+            --preserve-collected-on-or-after 2026-06-11 \
+            --verbose
+        env:
+          FIREBASE_PROJECT_ID: ${{ secrets.firebase_project_id }}
+          FIREBASE_SERVICE_ACCOUNT_JSON: ${{ secrets.firebase_service_account_json }}
+
       - name: Run WM26 FIFA ranking collection
         if: ${{ inputs.include_fifa_rankings }}
         run: |
@@ -129,6 +144,7 @@ jobs:
           echo "## Context Collection Summary" >> $GITHUB_STEP_SUMMARY
           echo "- **Community Context**: ${{ inputs.community_context }}" >> $GITHUB_STEP_SUMMARY
           echo "- **Competition**: ${{ inputs.competition || 'default' }}" >> $GITHUB_STEP_SUMMARY
+          echo "- **Recent-history date map**: ${{ inputs.competition == 'fifa-world-cup-2026' }}" >> $GITHUB_STEP_SUMMARY
           echo "- **FIFA Rankings**: ${{ inputs.include_fifa_rankings }}" >> $GITHUB_STEP_SUMMARY
           echo "- **Lineups**: ${{ inputs.include_lineups }}" >> $GITHUB_STEP_SUMMARY
           echo "- **Trigger**: ${{ inputs.trigger_type }}" >> $GITHUB_STEP_SUMMARY

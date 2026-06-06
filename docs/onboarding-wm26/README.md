@@ -206,7 +206,7 @@ Lineup CSV payloads use `Team,Data_Collected_At,Role,Name,Age,Position,Market_Va
 
 FIFA published the final 26-player squad lists on 2026-06-03 after the 2026-06-02 team submission deadline. The checked-in seed now uses full-squad official FIFA membership; refresh `lineup-*` context documents and the `lineups` KPI document with `collect-context lineups` for each WM26 community. WM26 context should contain full squads, not only match starters. See [lineup-source-status.md](lineup-source-status.md) for the current source state.
 
-Collecting live FIFA rankings and lineups is required context setup for every WM26 community. The guarded `collect-context-dev` path includes both steps automatically after Kicktipp context collection.
+Collecting live FIFA rankings and lineups is required context setup for every WM26 community. The guarded `collect-context-dev` path includes both steps automatically after Kicktipp context collection. GitHub Actions WM26 context workflows also apply the known recent-history played-date map after Kicktipp collection, preserving tournament rows collected on or after 2026-06-11.
 
 Upload the ranking context and KPI documents with:
 
@@ -217,7 +217,7 @@ dotnet run --project src/Orchestrator -- collect-context lineups --community-con
 
 ## Recent History Played Dates
 
-Recent-history rows for national teams can describe matches played years before they are collected from Kicktipp. For WM26, `Data_Collected_At` must therefore contain the exact played date, not a first-collection marker.
+Recent-history rows for national teams can describe matches played years before they are collected from Kicktipp. For pre-WM26 history rows, `Data_Collected_At` must therefore contain the exact played date, not a first-collection marker. Rows added during the WM26 tournament keep the standard Kicktipp collection date.
 
 The canonical played-date source is:
 
@@ -241,7 +241,15 @@ dotnet run --project src/Orchestrator -- wm26-recent-history apply-date-map --co
 dotnet run --project src/Orchestrator -- wm26-recent-history apply-date-map --community-context ehonda-dev-wm26 --competition fifa-world-cup-2026 --input data/wm26/recent-history/recent-history-match-dates.csv
 ```
 
-For future WM26 communities, collect that community's context documents first, then run `apply-date-map` with the same canonical CSV. Do not repeat web lookup unless the command reports rows that are genuinely missing from the map.
+Strict mode is for manual map validation and fails when a target row is not covered by an exact `Played_At` value. Automated WM26 context workflows use guarded mode instead:
+
+```powershell
+dotnet run --project src/Orchestrator -- wm26-recent-history apply-date-map --community-context rabetrabauken2026 --competition fifa-world-cup-2026 --input data/wm26/recent-history/recent-history-match-dates.csv --apply-known-only --preserve-collected-on-or-after 2026-06-11
+```
+
+Guarded mode applies known pre-WM26 dates, preserves unmapped rows, and preserves any row whose existing `Data_Collected_At` is on or after 2026-06-11 before matching date-map entries. This prevents a WM26 tournament row from consuming or being overwritten by an older map entry for the same teams, score, and competition label.
+
+For future WM26 communities, collect that community's context documents first, then run `apply-date-map` with the same canonical CSV. Do not repeat web lookup unless strict mode reports genuinely missing pre-WM26 rows that should be curated into the map.
 
 ## Manual Commands
 
@@ -349,7 +357,7 @@ workflow can be trusted or scheduled:
 
 ## Follow-Ups
 
-- For each new WM26 community, activate scheduled context collection before prediction workflows; the context workflow must run Kicktipp, FIFA ranking, and lineup collection for the community.
+- For each new WM26 community, activate scheduled context collection before prediction workflows; the context workflow must run Kicktipp collection, the guarded recent-history date-map step, FIFA ranking collection, and lineup collection for the community.
 - Refresh `collect-context lineups` for each WM26 community after the official final seed update.
 - If a last-minute WM26 model or community is added, record it in `model-config-onboarding.md` and update the cost-estimate coverage before enabling any schedule.
 - Add hosted WM justification prompts if we want justification mode.

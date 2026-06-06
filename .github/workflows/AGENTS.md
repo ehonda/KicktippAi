@@ -49,6 +49,12 @@ context workflow for the self-contained `ehonda-ai-arena` path.
 `rabetrabauken2026-context-collection.yml` is the scheduled WM26 reference
 context workflow for the selected production path.
 
+WM26 context workflows call the reusable base context workflow, which applies
+the recent-history date map in guarded mode after Kicktipp collection. Keep
+`--apply-known-only --preserve-collected-on-or-after 2026-06-11` on that step
+so newly collected tournament rows are preserved and cannot consume older
+pre-WM26 map entries with the same matchup key.
+
 The WM26 secondary copy-from-primary pattern is selected only for `o3 high`: a
 primary `rabetrabauken2026` prediction workflow must run first, and the
 matching `ehonda-ai-arena` workflow may then post the stored prediction with

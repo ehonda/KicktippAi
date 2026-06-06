@@ -1,3 +1,4 @@
+using System.Globalization;
 using EHonda.KicktippAi.Core;
 using Microsoft.Extensions.Logging;
 using Orchestrator.Infrastructure;
@@ -50,9 +51,20 @@ public sealed class Wm26RecentHistoryApplyDateMapCommand
                 communityContext: settings.CommunityContext);
             var repositoryCompetition = CompetitionResolver.ToRepositoryCompetitionArgument(competition);
             var contextRepository = _firebaseServiceFactory.CreateContextRepository(repositoryCompetition);
+            var applyOptions = CreateApplyOptions(settings);
 
             _console.MarkupLine($"[green]Applying WM26 recent-history date map for:[/] [yellow]{settings.CommunityContext}[/]");
             _console.MarkupLine($"[blue]Using competition:[/] [yellow]{competition}[/]");
+            if (settings.ApplyKnownOnly)
+            {
+                _console.MarkupLine("[blue]Apply-known-only mode enabled - unmapped rows will be preserved[/]");
+                if (applyOptions.PreserveCollectedOnOrAfter.HasValue)
+                {
+                    _console.MarkupLine(
+                        $"[blue]Preserving rows collected on or after:[/] [yellow]{applyOptions.PreserveCollectedOnOrAfter.Value:yyyy-MM-dd}[/]");
+                }
+            }
+
             if (settings.DryRun)
             {
                 _console.MarkupLine("[magenta]Dry run mode enabled - no Firestore documents will be written[/]");
@@ -69,7 +81,7 @@ public sealed class Wm26RecentHistoryApplyDateMapCommand
             if (historyDocumentNames.Count == 0)
             {
                 _console.MarkupLine("[yellow]No recent-history documents found[/]");
-                return 1;
+                return settings.ApplyKnownOnly ? 0 : 1;
             }
 
             var plannedUpdates = new List<PlannedUpdate>();
@@ -86,7 +98,7 @@ public sealed class Wm26RecentHistoryApplyDateMapCommand
                     continue;
                 }
 
-                var result = HistoryCsvUtility.ApplyDateMap(documentName, document.Content, dateMapEntries);
+                var result = HistoryCsvUtility.ApplyDateMap(documentName, document.Content, dateMapEntries, applyOptions);
                 if (result.MissingEntries.Count > 0)
                 {
                     missingEntries.AddRange(result.MissingEntries);
@@ -96,7 +108,10 @@ public sealed class Wm26RecentHistoryApplyDateMapCommand
 
                 if (settings.Verbose)
                 {
-                    _console.MarkupLine($"[dim]  Checked {documentName}: {result.RowCount} row(s)[/]");
+                    _console.MarkupLine(
+                        $"[dim]  Checked {documentName}: {result.RowCount} row(s), " +
+                        $"{result.UpdatedRowCount} updated, {result.PreservedRowCount} preserved, " +
+                        $"{result.SkippedRowCount} skipped[/]");
                 }
             }
 
@@ -167,6 +182,22 @@ public sealed class Wm26RecentHistoryApplyDateMapCommand
             _console.MarkupLine($"[red]Error:[/] {ex.Message}");
             return 1;
         }
+    }
+
+    private static HistoryDateMapApplyOptions CreateApplyOptions(Wm26RecentHistoryApplyDateMapSettings settings)
+    {
+        DateOnly? preserveCollectedOnOrAfter = null;
+        if (!string.IsNullOrWhiteSpace(settings.PreserveCollectedOnOrAfter))
+        {
+            preserveCollectedOnOrAfter = DateOnly.ParseExact(
+                settings.PreserveCollectedOnOrAfter.Trim(),
+                "yyyy-MM-dd",
+                CultureInfo.InvariantCulture);
+        }
+
+        return new HistoryDateMapApplyOptions(
+            settings.ApplyKnownOnly,
+            preserveCollectedOnOrAfter);
     }
 
     private void PrintMissingEntries(IReadOnlyList<HistoryDateMapEntry> missingEntries)

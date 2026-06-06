@@ -30,6 +30,12 @@ route, prompt label/version policy, community, and workflow status. Before
 activating a scheduled prediction workflow, make sure the matching cost estimate
 is present in [whole-season-cost-estimates.md](../experiments/whole-season-cost-estimates.md).
 
+WM26 context workflows now apply the canonical recent-history date map in
+guarded mode after Kicktipp context collection. The guarded step applies known
+pre-WM26 played dates, preserves unmapped rows, and preserves rows whose
+existing `Data_Collected_At` is on or after 2026-06-11 so tournament rows keep
+standard collection-date semantics.
+
 ## Current WM26 Configurations
 
 | Community / use | Competition | Model config | Prompt route | Where onboarded | Workflow status | Full-competition estimate |
@@ -58,6 +64,12 @@ prediction before posting to `ehonda-ai-arena`. Self-contained
 `ehonda-ai-arena` workflows, dev shortcuts, and unrelated WM26 model tests must
 keep `community_context` aligned with their own collected context unless a new
 row here explicitly documents a copy-posting setup.
+
+## 2026-06-06 Recent-History Date Repair
+
+- `wm26-recent-history apply-date-map --community-context ehonda-ai-arena --competition fifa-world-cup-2026 --input data/wm26/recent-history/recent-history-match-dates.csv --dry-run --verbose` found 16 recent-history documents with complete strict map coverage.
+- The same command without `--dry-run` saved corrected `ehonda-ai-arena` versions for those 16 documents. A follow-up strict dry-run reported `0` documents would be saved and `16` unchanged.
+- `rabetrabauken2026` had no WM26 recent-history context documents to repair. Strict mode reported `No recent-history documents found`; guarded workflow mode with `--apply-known-only --preserve-collected-on-or-after 2026-06-11 --dry-run --verbose` exited successfully with the same no-doc status.
 
 ## 2026-06-03 Final Lineup Refresh Validation
 
@@ -103,5 +115,7 @@ context.
 - Keep context collection scheduled before prediction workflows. During
   testing-only onboarding, either leave schedules inactive or record the exact
   scheduled onboarding cadence here.
+- Verify WM26 context workflows apply the guarded recent-history date map after
+  Kicktipp collection and before prediction workflows rely on refreshed context.
 - Once schedules are activated, update this ledger with the workflow file paths
   and activation date.

@@ -195,6 +195,175 @@ public class Wm26RecentHistoryCommandTests
     }
 
     [Test]
+    public async Task Apply_date_map_known_only_updates_mapped_rows_and_preserves_unmapped_rows()
+    {
+        var inputPath = CreateTempDateMap("""
+            DocumentName,Competition,Home_Team,Away_Team,Score,Annotation,Played_At,Source_Name,Source_Url,Verified_At,Notes
+            recent-history-germany.csv,KL-WM,Germany,Slovakia,6:0,,2025-11-17,DFB,https://example.test,2026-05-23,
+            """);
+        var contextRepository = CreateRepository(
+            new Dictionary<string, ContextDocument>
+            {
+                ["recent-history-germany.csv"] = CreateContextDocument(
+                    documentName: "recent-history-germany.csv",
+                    content:
+                        "Competition,Data_Collected_At,Home_Team,Away_Team,Score,Annotation\n" +
+                        "KL-WM,2026-06-03,Germany,Slovakia,6:0,\n" +
+                        "WM,2026-06-03,Germany,Unmapped Team,1:1,")
+            });
+        var ctx = CreateApp(contextRepository);
+
+        var (exitCode, output) = await RunCommandAsync(
+            ctx,
+            "apply-date-map",
+            "--community-context",
+            "ehonda-dev-wm26",
+            "--competition",
+            CompetitionIds.FifaWorldCup2026,
+            "--input",
+            inputPath,
+            "--apply-known-only",
+            "--verbose");
+
+        await Assert.That(exitCode).IsEqualTo(0);
+        await Assert.That(output).Contains("1 updated").And.Contains("skipped");
+        contextRepository.Verify(
+            r => r.SaveContextDocumentAsync(
+                "recent-history-germany.csv",
+                It.Is<string>(content =>
+                    content.Contains("KL-WM,2025-11-17,Germany,Slovakia,6:0,") &&
+                    content.Contains("WM,2026-06-03,Germany,Unmapped Team,1:1,")),
+                "ehonda-dev-wm26",
+                It.IsAny<CancellationToken>()),
+            Times.Once);
+    }
+
+    [Test]
+    public async Task Apply_date_map_known_only_preserves_invalid_map_dates()
+    {
+        var inputPath = CreateTempDateMap("""
+            DocumentName,Competition,Home_Team,Away_Team,Score,Annotation,Played_At,Source_Name,Source_Url,Verified_At,Notes
+            recent-history-germany.csv,KL-WM,Germany,Slovakia,6:0,,,
+            """);
+        var contextRepository = CreateRepository(
+            new Dictionary<string, ContextDocument>
+            {
+                ["recent-history-germany.csv"] = CreateContextDocument(
+                    documentName: "recent-history-germany.csv",
+                    content:
+                        "Competition,Data_Collected_At,Home_Team,Away_Team,Score,Annotation\n" +
+                        "KL-WM,2026-06-03,Germany,Slovakia,6:0,")
+            });
+        var ctx = CreateApp(contextRepository);
+
+        var (exitCode, output) = await RunCommandAsync(
+            ctx,
+            "apply-date-map",
+            "--community-context",
+            "ehonda-dev-wm26",
+            "--competition",
+            CompetitionIds.FifaWorldCup2026,
+            "--input",
+            inputPath,
+            "--apply-known-only",
+            "--verbose");
+
+        await Assert.That(exitCode).IsEqualTo(0);
+        await Assert.That(output).Contains("0 updated").And.Contains("skipped");
+        contextRepository.Verify(
+            r => r.SaveContextDocumentAsync(
+                "recent-history-germany.csv",
+                It.Is<string>(content => content.Contains("KL-WM,2026-06-03,Germany,Slovakia,6:0,")),
+                "ehonda-dev-wm26",
+                It.IsAny<CancellationToken>()),
+            Times.Once);
+    }
+
+    [Test]
+    public async Task Apply_date_map_known_only_succeeds_when_no_recent_history_documents_exist()
+    {
+        var inputPath = CreateTempDateMap("""
+            DocumentName,Competition,Home_Team,Away_Team,Score,Annotation,Played_At,Source_Name,Source_Url,Verified_At,Notes
+            recent-history-germany.csv,KL-WM,Germany,Slovakia,6:0,,2025-11-17,DFB,https://example.test,2026-05-23,
+            """);
+        var contextRepository = CreateRepository(
+            new Dictionary<string, ContextDocument>
+            {
+                ["fifa-world-cup-2026-standings.csv"] = CreateContextDocument(
+                    documentName: "fifa-world-cup-2026-standings.csv",
+                    content: "Position,Team,Points\n1,Germany,3")
+            });
+        var ctx = CreateApp(contextRepository);
+
+        var (exitCode, output) = await RunCommandAsync(
+            ctx,
+            "apply-date-map",
+            "--community-context",
+            "ehonda-dev-wm26",
+            "--competition",
+            CompetitionIds.FifaWorldCup2026,
+            "--input",
+            inputPath,
+            "--apply-known-only");
+
+        await Assert.That(exitCode).IsEqualTo(0);
+        await Assert.That(output).Contains("No recent-history documents found");
+        contextRepository.Verify(
+            r => r.SaveContextDocumentAsync(
+                It.IsAny<string>(),
+                It.IsAny<string>(),
+                It.IsAny<string>(),
+                It.IsAny<CancellationToken>()),
+            Times.Never);
+    }
+
+    [Test]
+    public async Task Apply_date_map_known_only_preserves_cutoff_rows_without_consuming_map_entries()
+    {
+        var inputPath = CreateTempDateMap("""
+            DocumentName,Competition,Home_Team,Away_Team,Score,Annotation,Played_At,Source_Name,Source_Url,Verified_At,Notes
+            recent-history-mexiko.csv,WM,Mexiko,Südafrika,1:1,,2010-06-11,FIFA,https://example.test,2026-05-23,
+            """);
+        var contextRepository = CreateRepository(
+            new Dictionary<string, ContextDocument>
+            {
+                ["recent-history-mexiko.csv"] = CreateContextDocument(
+                    documentName: "recent-history-mexiko.csv",
+                    content:
+                        "Competition,Data_Collected_At,Home_Team,Away_Team,Score,Annotation\n" +
+                        "WM,2026-06-11,Mexiko,Südafrika,1:1,\n" +
+                        "WM,2026-06-03,Mexiko,Südafrika,1:1,")
+            });
+        var ctx = CreateApp(contextRepository);
+
+        var (exitCode, output) = await RunCommandAsync(
+            ctx,
+            "apply-date-map",
+            "--community-context",
+            "ehonda-dev-wm26",
+            "--competition",
+            CompetitionIds.FifaWorldCup2026,
+            "--input",
+            inputPath,
+            "--apply-known-only",
+            "--preserve-collected-on-or-after",
+            "2026-06-11",
+            "--verbose");
+
+        await Assert.That(exitCode).IsEqualTo(0);
+        await Assert.That(output).Contains("1 updated").And.Contains("1 preserved");
+        contextRepository.Verify(
+            r => r.SaveContextDocumentAsync(
+                "recent-history-mexiko.csv",
+                It.Is<string>(content =>
+                    content.Contains("WM,2026-06-11,Mexiko,Südafrika,1:1,") &&
+                    content.Contains("WM,2010-06-11,Mexiko,Südafrika,1:1,")),
+                "ehonda-dev-wm26",
+                It.IsAny<CancellationToken>()),
+            Times.Once);
+    }
+
+    [Test]
     public async Task Commands_scope_context_repository_to_world_cup_competition()
     {
         var inputPath = CreateTempDateMap("""

@@ -28,11 +28,11 @@ Each community gets its own set of workflows that call the base workflows with s
   - Runs every 12 hours (00:00 and 12:00 UTC)
   - Can be manually triggered
 - **`rabetrabauken2026-context-collection.yml`**: Scheduled WM26 reference production context collection
-  - Runs Kicktipp, FIFA ranking, and lineup context collection for `fifa-world-cup-2026`
+  - Runs Kicktipp collection, guarded recent-history date-map application, FIFA ranking, and lineup context collection for `fifa-world-cup-2026`
   - Uses the WM26 context cadence: 23:47, 06:47, and 11:47 UTC
   - Feeds the selected `o3 high` primary and secondary production workflows
 - **`wm26-ehonda-ai-arena-context-collection.yml`**: Scheduled WM26 self-contained context collection
-  - Runs Kicktipp, FIFA ranking, and lineup context collection for `ehonda-ai-arena`
+  - Runs Kicktipp collection, guarded recent-history date-map application, FIFA ranking, and lineup context collection for `ehonda-ai-arena`
   - Uses the WM26 context cadence: 23:47, 06:47, and 11:47 UTC
   - Feeds the self-contained `ehonda-ai-arena` WM26 workflows such as `gpt-5-nano minimal`
 
@@ -138,7 +138,7 @@ Context collection workflows gather and store contextual data for multiple commu
 
 1. **Environment Setup**: Configure Kicktipp and Firebase credentials
 2. **Context Gathering**: Collect match context from all current matchday matches
-3. **Competition Extras**: Optional WM26 collection runs `collect-context fifa` and `collect-context lineups`
+3. **Competition Extras**: WM26 collection applies known pre-tournament recent-history dates, then optional WM26 collection runs `collect-context fifa` and `collect-context lineups`
 4. **Database Storage**: Store context documents in Firebase with version control
 5. **Duplicate Detection**: Skip unchanged context to avoid redundant storage
 
@@ -152,7 +152,7 @@ Each community workflow is configured with direct parameters:
 - **`max_output_tokens`**: Optional maximum output token cap for prediction generation. Use `0` to keep the command default (`10000`).
 - **`community_context`**: Community context when generating predictions (or using stored ones from the database)
 - **`competition`**: Optional competition identifier for context collection
-- **`include_fifa_rankings` / `include_lineups`**: Enable WM26 context extras for World Cup communities
+- **`include_fifa_rankings` / `include_lineups`**: Enable WM26 ranking and lineup context extras for World Cup communities. WM26 recent-history date-map application is automatic when `competition` is `fifa-world-cup-2026`.
 
 For self-contained WM26 workflow tests and comparisons, keep `community` and
 `community_context` aligned. The scheduled `ehonda-ai-arena` `gpt-5-nano` /
@@ -424,6 +424,8 @@ dotnet run --project src/Orchestrator/Orchestrator.csproj -- collect-context kic
 dotnet run --project src/Orchestrator/Orchestrator.csproj -- collect-context kicktipp --community-context schadensfresse --verbose
 
 # Test WM26 context extras
+dotnet run --project src/Orchestrator/Orchestrator.csproj -- wm26-recent-history apply-date-map --community-context ehonda-dev-wm26 --competition fifa-world-cup-2026 --input data/wm26/recent-history/recent-history-match-dates.csv --apply-known-only --preserve-collected-on-or-after 2026-06-11 --dry-run --verbose
+
 dotnet run --project src/Orchestrator/Orchestrator.csproj -- collect-context fifa --community-context ehonda-dev-wm26 --competition fifa-world-cup-2026 --dry-run --verbose
 
 dotnet run --project src/Orchestrator/Orchestrator.csproj -- collect-context lineups --community-context ehonda-dev-wm26 --competition fifa-world-cup-2026 --dry-run --verbose
