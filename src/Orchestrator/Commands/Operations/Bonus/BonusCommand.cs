@@ -194,8 +194,9 @@ public class BonusCommand : AsyncCommand<BaseSettings>
         
         var tokenUsageTracker = _openAiServiceFactory.GetTokenUsageTracker();
         
-        // Create prediction repository
+        // Create repositories
         var predictionRepository = _firebaseServiceFactory.CreatePredictionRepository(repositoryCompetition);
+        var kpiRepository = _firebaseServiceFactory.CreateKpiRepository(repositoryCompetition);
         var databaseEnabled = true;
         
         // Reset token usage tracker for this workflow
@@ -291,9 +292,38 @@ public class BonusCommand : AsyncCommand<BaseSettings>
                         
                         if (nextIndex <= maxAllowed)
                         {
-                            shouldPredict = true;
-                            predictionRepredictionIndex = nextIndex;
-                            _console.MarkupLine($"[yellow]  → Creating reprediction {nextIndex} (current: {currentRepredictionIndex}, max: {maxAllowed})...[/]");
+                            var isOutdated = await CheckBonusPredictionOutdated(
+                                predictionRepository!,
+                                kpiRepository,
+                                question.Text,
+                                modelConfig,
+                                communityContext,
+                                settings.Verbose);
+
+                            if (isOutdated)
+                            {
+                                shouldPredict = true;
+                                predictionRepredictionIndex = nextIndex;
+                                _console.MarkupLine($"[yellow]  → Creating reprediction {nextIndex} (current: {currentRepredictionIndex}, max: {maxAllowed}) - prediction is outdated[/]");
+                            }
+                            else
+                            {
+                                traceRepredictionIndices.Add(currentRepredictionIndex.ToString());
+                                _console.MarkupLine($"[green]  ✓ Skipped reprediction - current prediction is up-to-date[/]");
+
+                                prediction = await predictionRepository!.GetBonusPredictionByTextAsync(question.Text, modelConfig, communityContext);
+                                if (prediction != null)
+                                {
+                                    fromDatabase = true;
+                                    if (!settings.Agent)
+                                    {
+                                        var optionTexts = question.Options
+                                            .Where(o => prediction.SelectedOptionIds.Contains(o.Id))
+                                            .Select(o => o.Text);
+                                        _console.MarkupLine($"[green]  ✓ Latest prediction:[/] {string.Join(", ", optionTexts)} [dim](reprediction {currentRepredictionIndex})[/]");
+                                    }
+                                }
+                            }
                         }
                         else
                         {
@@ -516,5 +546,64 @@ public class BonusCommand : AsyncCommand<BaseSettings>
         throw new InvalidOperationException(
             "Missing required WM26 KPI context document 'fifa-rankings'. " +
             "Run collect-context fifa for this community context.");
+    }
+
+    private async Task<bool> CheckBonusPredictionOutdated(
+        IPredictionRepository predictionRepository,
+        IKpiRepository kpiRepository,
+        string questionText,
+        PredictionModelConfig modelConfig,
+        string communityContext,
+        bool verbose)
+    {
+        try
+        {
+            var predictionMetadata = await predictionRepository.GetBonusPredictionMetadataByTextAsync(
+                questionText, modelConfig, communityContext);
+
+            if (predictionMetadata == null)
+            {
+                return false;
+            }
+
+            foreach (var contextDocumentName in predictionMetadata.ContextDocumentNames)
+            {
+                var kpiDocument = await kpiRepository.GetKpiDocumentAsync(contextDocumentName, communityContext);
+                if (kpiDocument != null)
+                {
+                    if (kpiDocument.CreatedAt > predictionMetadata.CreatedAt)
+                    {
+                        if (verbose)
+                        {
+                            _console.MarkupLine($"[yellow]KPI document '{contextDocumentName}' updated after prediction was created[/]");
+                            _console.MarkupLine($"  [dim]Prediction created:[/] {predictionMetadata.CreatedAt:yyyy-MM-dd HH:mm:ss} UTC");
+                            _console.MarkupLine($"  [dim]KPI document created:[/] {kpiDocument.CreatedAt:yyyy-MM-dd HH:mm:ss} UTC");
+                        }
+
+                        return true;
+                    }
+
+                    if (verbose)
+                    {
+                        _console.MarkupLine($"[dim]KPI document '{contextDocumentName}' found, version {kpiDocument.Version} is latest[/]");
+                    }
+                }
+                else if (verbose)
+                {
+                    _console.MarkupLine($"[yellow]Warning: KPI document '{contextDocumentName}' not found[/]");
+                }
+            }
+
+            return false;
+        }
+        catch (Exception ex)
+        {
+            if (verbose)
+            {
+                _console.MarkupLine($"[yellow]Warning: Could not check if prediction is outdated: {ex.Message}[/]");
+            }
+
+            return false;
+        }
     }
 }

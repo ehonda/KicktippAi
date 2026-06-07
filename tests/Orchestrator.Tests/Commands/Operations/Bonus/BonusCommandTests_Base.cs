@@ -50,10 +50,12 @@ public abstract class BonusCommandTests_Base
     /// <param name="console">Optional TestConsole. Defaults to a new TestConsole.</param>
     /// <param name="openBonusQuestions">Bonus questions returned by the Kicktipp client.</param>
     /// <param name="existingBonusPrediction">Prediction returned by GetBonusPredictionByTextAsync (null = no existing).</param>
+    /// <param name="existingBonusPredictionMetadata">Metadata returned by GetBonusPredictionMetadataByTextAsync (null = no metadata).</param>
     /// <param name="predictionResult">Prediction returned by PredictBonusQuestionAsync.</param>
     /// <param name="placeBonusPredictionsResult">Result of PlaceBonusPredictionsAsync. Defaults to true.</param>
     /// <param name="kpiContextDocuments">Documents returned by GetBonusQuestionContextAsync. Defaults to empty.</param>
     /// <param name="bonusRepredictionIndex">Result of GetBonusRepredictionIndexAsync. Defaults to -1.</param>
+    /// <param name="kpiRepository">Pre-configured KPI repository mock.</param>
     /// <param name="firebaseServiceFactory">Pre-configured mock (overrides domain params).</param>
     /// <param name="kicktippClientFactory">Pre-configured mock (overrides domain params).</param>
     /// <param name="openAiServiceFactory">Pre-configured mock (overrides domain params).</param>
@@ -64,10 +66,12 @@ public abstract class BonusCommandTests_Base
         // Domain-level parameters for simple test scenarios
         Option<List<BonusQuestion>> openBonusQuestions = default,
         NullableOption<BonusPrediction> existingBonusPrediction = default,
+        NullableOption<BonusPredictionMetadata> existingBonusPredictionMetadata = default,
         NullableOption<BonusPrediction> predictionResult = default,
         Option<bool> placeBonusPredictionsResult = default,
         Option<List<DocumentContext>> kpiContextDocuments = default,
         Option<int> bonusRepredictionIndex = default,
+        Option<Mock<IKpiRepository>> kpiRepository = default,
         // Factory-level parameters for advanced scenarios
         Option<Mock<IFirebaseServiceFactory>> firebaseServiceFactory = default,
         Option<Mock<IKicktippClientFactory>> kicktippClientFactory = default,
@@ -86,7 +90,9 @@ public abstract class BonusCommandTests_Base
 
         var mockPredictionRepository = CreateMockPredictionRepository(
             getBonusPredictionByTextResult: existingBonusPrediction,
-            getBonusRepredictionIndexResult: bonusRepredictionIndex.Or(-1));
+            getBonusRepredictionIndexResult: bonusRepredictionIndex.Or(-1),
+            getBonusPredictionMetadataByTextResult: existingBonusPredictionMetadata);
+        var mockKpiRepository = kpiRepository.Or(() => new Mock<IKpiRepository>());
 
         var mockPredictionService = CreateMockPredictionService(
             predictBonusResult: predictionResult.Or(() => CreateBonusPrediction()));
@@ -100,6 +106,7 @@ public abstract class BonusCommandTests_Base
         // Use provided factory mocks or build from internal mocks
         var mockFirebaseFactory = firebaseServiceFactory.Or(() =>
             CreateMockFirebaseServiceFactoryFull(
+                kpiRepository: mockKpiRepository,
                 predictionRepository: mockPredictionRepository));
 
         var mockKicktippFactory = kicktippClientFactory.Or(() =>
