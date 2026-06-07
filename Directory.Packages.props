@@ -57,8 +57,8 @@
     <PackageVersion Include="Spectre.Console.Testing" Version="0.55.2" />
     <PackageVersion Include="System.Linq.Async" Version="7.0.1" />
     <PackageVersion Include="Testcontainers.Firestore" Version="4.12.0" />
-    <PackageVersion Include="TUnit" Version="1.48.6" />
-    <PackageVersion Include="WireMock.Net" Version="2.7.0" />
+    <PackageVersion Include="TUnit" Version="1.49.0" />
+    <PackageVersion Include="WireMock.Net" Version="2.9.0" />
   </ItemGroup>
 
 </Project>
