@@ -2,8 +2,10 @@ name: 🏆 WM26 ehonda-ai-arena 🏆 gpt-5.5 none 🏆 Bonus
 
 on:
   workflow_call:
-  # Manual-only WM26 onboarding test workflow.
-  # Scheduled activation is intentionally disabled for this non-production model config.
+  # WM26 bonus cadence for this self-contained onboarding workflow.
+  # GitHub Actions cron runs in UTC only.
+  schedule:
+    - cron: '47 0,7,12 * * *'
   workflow_dispatch:
     inputs:
       force_prediction:

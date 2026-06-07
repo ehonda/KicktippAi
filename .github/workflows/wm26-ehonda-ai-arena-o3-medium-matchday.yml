@@ -2,7 +2,10 @@ name: 🏆 WM26 ehonda-ai-arena 🏆 o3 medium 🏆 Matchday
 
 on:
   workflow_call:
-  # Manual-only WM26 self-contained comparison workflow.
+  # WM26 main matchday cadence for this self-contained comparison workflow.
+  # GitHub Actions cron runs in UTC only.
+  schedule:
+    - cron: '37 0,7,12 * * *'
   workflow_dispatch:
     inputs:
       force_prediction:

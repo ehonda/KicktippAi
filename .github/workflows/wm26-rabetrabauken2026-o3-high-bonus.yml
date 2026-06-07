@@ -4,8 +4,8 @@ on:
   workflow_call:
   # Selected WM26 production primary bonus cadence.
   # GitHub Actions cron runs in UTC only.
-  # schedule:
-  #   - cron: '47 0,7,12 * * *'
+  schedule:
+    - cron: '47 0,7,12 * * *'
   workflow_dispatch:
     inputs:
       force_prediction:

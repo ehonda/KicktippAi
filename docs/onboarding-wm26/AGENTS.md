@@ -30,9 +30,11 @@ must run Kicktipp context collection, `collect-context fifa`, and
 As of 2026-06-06, the selected scheduled WM26 production path is `o3 high`
 with `rabetrabauken2026` as the primary community and `ehonda-ai-arena` as the
 secondary copy-posting target. The scheduled self-contained
-`ehonda-ai-arena` `gpt-5-nano` / `minimal` path remains active alongside it.
-Other WM26 comparison workflows stay manual-only unless the ledger says
-otherwise.
+`ehonda-ai-arena` workflows remain active alongside it, including
+`gpt-5-nano` / `minimal`, `gpt-5.5` / `none`, `gpt-5.5` / `xhigh`,
+`gpt-5.4-nano` / `none`, and `o3` / `medium`. Only the `o3 high`
+copy-posting pair uses the slower secondary cadence; the self-contained
+workflows stay on the main matchday or bonus cadences.
 
 ## Model Configuration Ledger
 

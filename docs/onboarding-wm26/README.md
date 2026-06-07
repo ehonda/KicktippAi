@@ -10,13 +10,14 @@ The selected WM26 production configuration is `o3` with
 against `rabetrabauken2026`, with matching secondary copy-posting workflows for
 `ehonda-ai-arena` that reuse `community_context: "rabetrabauken2026"`.
 
-The scheduled self-contained `ehonda-ai-arena` `gpt-5-nano` / `minimal`
-workflows remain active. They do not conflict with the `o3 high` production
-path because they keep `community_context: "ehonda-ai-arena"` and use their own
-model-specific Kicktipp posting credentials. Additional self-contained
-comparison workflows now exist for `gpt-5.5` with `none`, `gpt-5.5` with
-`xhigh`, `gpt-5.4-nano` with `none`, and `o3` with `medium`; these stay
-manual-only.
+The scheduled self-contained `ehonda-ai-arena` workflows remain active. They do
+not conflict with the `o3 high` production path because they keep
+`community_context: "ehonda-ai-arena"` and use their own model-specific
+Kicktipp posting credentials. In addition to `gpt-5-nano` / `minimal`, the
+self-contained comparison workflows for `gpt-5.5` with `none`, `gpt-5.5` with
+`xhigh`, `gpt-5.4-nano` with `none`, and `o3` with `medium` are now scheduled
+as well. They remain comparison or onboarding routes, not the selected
+production configuration.
 
 The tracked lineup seed now uses FIFA's official final 26-player squad
 membership for all 48 teams. Refresh lineup context for each WM26 community
@@ -25,7 +26,7 @@ before scheduled production activation.
 Model configuration onboarding status is tracked in
 [model-config-onboarding.md](model-config-onboarding.md). Keep that ledger
 current for any last-minute additions, and use it as the reference before
-activating any new schedules beyond the currently selected WM26 set.
+changing any WM26 schedule or model assignment.
 
 ## Reference And Secondary Communities
 
@@ -36,8 +37,9 @@ That workflow collects Kicktipp context plus WM26 FIFA ranking and lineup
 context for the reference community.
 
 `ehonda-ai-arena` now serves two distinct WM26 roles. The scheduled
-`gpt-5-nano` / `minimal` workflows are self-contained and collect plus use
-`ehonda-ai-arena` context directly with:
+self-contained WM26 workflows, including `gpt-5-nano` / `minimal`,
+`gpt-5.5` / `none`, `gpt-5.5` / `xhigh`, `gpt-5.4-nano` / `none`, and
+`o3` / `medium`, collect plus use `ehonda-ai-arena` context directly with:
 
 ```yaml
 community: "ehonda-ai-arena"
@@ -61,11 +63,11 @@ tests unless the model configuration ledger is updated first.
 
 The additional `gpt-5.5 none`, `gpt-5.5 xhigh`, `gpt-5.4-nano none`, and
 `o3 medium` `ehonda-ai-arena` workflows are self-contained comparison
-entrypoints. They stay manual-only, keep
-`community_context: "ehonda-ai-arena"`, and rely on the shared
-`wm26-ehonda-ai-arena-context-collection.yml` workflow for self-contained
-context refreshes. The `o3 high` production pair and the `gpt-5.5 xhigh` pair
-explicitly pass `max_output_tokens: 40000`; the other self-contained WM26
+entrypoints. They keep `community_context: "ehonda-ai-arena"`, rely on the
+shared `wm26-ehonda-ai-arena-context-collection.yml` workflow for
+self-contained context refreshes, and use the main WM26 matchday cadence plus
+the WM26 bonus cadence. The `o3 high` production pair and the `gpt-5.5 xhigh`
+pair explicitly pass `max_output_tokens: 40000`; the other self-contained WM26
 prediction workflows pin `10000`.
 
 ## Planned GitHub Actions Cadence
@@ -123,16 +125,15 @@ WM26 needs a third daily window because many North American kickoffs are late in
 
 Currently active WM26 schedules use that cadence as follows:
 
-- `rabetrabauken2026-context-collection.yml`: context collection cadence
-- `wm26-rabetrabauken2026-o3-high-matchday.yml`: main matchday cadence
-- `wm26-rabetrabauken2026-o3-high-bonus.yml`: bonus cadence
+- `rabetrabauken2026-context-collection.yml` and `wm26-ehonda-ai-arena-context-collection.yml`: context collection cadence
+- `wm26-rabetrabauken2026-o3-high-matchday.yml`, `wm26-ehonda-ai-arena-gpt-5-nano-minimal-matchday.yml`, `wm26-ehonda-ai-arena-gpt-5-5-none-matchday.yml`, `wm26-ehonda-ai-arena-gpt-5-5-xhigh-matchday.yml`, `wm26-ehonda-ai-arena-gpt-5-4-nano-none-matchday.yml`, and `wm26-ehonda-ai-arena-o3-medium-matchday.yml`: main matchday cadence
+- `wm26-rabetrabauken2026-o3-high-bonus.yml`, `wm26-ehonda-ai-arena-gpt-5-nano-minimal-bonus.yml`, `wm26-ehonda-ai-arena-gpt-5-5-none-bonus.yml`, `wm26-ehonda-ai-arena-gpt-5-5-xhigh-bonus.yml`, `wm26-ehonda-ai-arena-gpt-5-4-nano-none-bonus.yml`, and `wm26-ehonda-ai-arena-o3-medium-bonus.yml`: bonus cadence
 - `wm26-ehonda-ai-arena-o3-high-matchday.yml` and `wm26-ehonda-ai-arena-o3-high-bonus.yml`: slower secondary cadence
-- `wm26-ehonda-ai-arena-gpt-5-nano-minimal-matchday.yml`: main matchday cadence
-- `wm26-ehonda-ai-arena-gpt-5-nano-minimal-bonus.yml`: bonus cadence
 
-The scheduled `gpt-5-nano minimal` and `o3 high` paths can coexist because
-they use different model configurations, different model-specific Kicktipp
-posting credentials, and different `community_context` values.
+The scheduled self-contained `ehonda-ai-arena` workflows and the scheduled
+`o3 high` copy-posting path can coexist because they use different model
+configurations, different model-specific Kicktipp posting credentials, and
+different `community_context` values.
 
 ## Dev And Production Model Defaults
 
@@ -151,14 +152,13 @@ Production and scheduled prediction workflows must pass their explicit model and
 reasoning inputs. The selected WM26 production workflows do this with
 `model: "o3"`, `reasoning_effort: "high"`, and
 `max_output_tokens: 40000`. The scheduled self-contained
-`ehonda-ai-arena` `gpt-5-nano` / `minimal` path remains active as an
-independent onboarding and comparison route, and the self-contained
-`ehonda-ai-arena` `o3 medium` pair stays manual-only.
+`ehonda-ai-arena` workflows remain active as independent onboarding and
+comparison routes.
 
 The dev/test `gpt-5-nano` / `minimal` model configuration has a documented
 full-competition estimate row in
 `docs/experiments/whole-season-cost-estimates.md`. The selected `o3 high`
-production path and the manual-only `o3 medium` comparison path are also
+production path and the scheduled self-contained comparison paths are also
 documented there, but their current estimates still reuse generic base evidence
 rather than exact WM-hosted cap-matched runs, so treat them as planning
 coverage rather than final runtime-cost proof.
@@ -206,7 +206,7 @@ Lineup CSV payloads use `Team,Data_Collected_At,Role,Name,Age,Position,Market_Va
 
 FIFA published the final 26-player squad lists on 2026-06-03 after the 2026-06-02 team submission deadline. The checked-in seed now uses full-squad official FIFA membership; refresh `lineup-*` context documents and the `lineups` KPI document with `collect-context lineups` for each WM26 community. WM26 context should contain full squads, not only match starters. See [lineup-source-status.md](lineup-source-status.md) for the current source state.
 
-Collecting live FIFA rankings and lineups is required context setup for every WM26 community. The guarded `collect-context-dev` path includes both steps automatically after Kicktipp context collection. GitHub Actions WM26 context workflows also apply the known recent-history played-date map after Kicktipp collection, producing prompt-facing recent-history CSVs with `Played_At` while preserving tournament rows dated on or after 2026-06-11.
+Collecting live FIFA rankings and lineups is required context setup for every WM26 community. The guarded `collect-context-dev` path applies the known recent-history played-date map after Kicktipp collection, producing prompt-facing recent-history CSVs with `Played_At` while preserving tournament rows dated on or after 2026-06-11; it then refreshes FIFA rankings and lineups automatically. GitHub Actions WM26 context workflows run the same guarded played-date map step after Kicktipp collection.
 
 Upload the ranking context and KPI documents with:
 
@@ -231,6 +231,8 @@ First-time dev setup:
 dotnet run --project src/Orchestrator -- collect-context-dev -c ehonda-dev-wm26 --verbose
 dotnet run --project src/Orchestrator -- wm26-recent-history export-date-map --community-context ehonda-dev-wm26 --competition fifa-world-cup-2026 --output data/wm26/recent-history/recent-history-match-dates.csv
 ```
+
+The normal `collect-context-dev` refresh path already applies the guarded canonical map after Kicktipp collection. Use the explicit `wm26-recent-history apply-date-map` commands below for strict validation, one-off repairs, or non-dev WM26 communities.
 
 Fill missing `Played_At` values in the date map once, using official sources first: FIFA Match Centre, confederation or national federation pages, then reputable result pages if needed. Keep `Source_Name`, `Source_Url`, and `Verified_At` populated for reviewed rows.
 
@@ -349,8 +351,9 @@ workflow can be trusted or scheduled:
   scheduled production predictions.
 - Manually trigger the selected `o3 high` matchday and bonus workflows once per
   posting community after secrets and community membership are in place.
-- Manually trigger the self-contained `o3 medium` comparison workflows once if
-  that comparison path is needed.
+- Manually trigger the newly scheduled self-contained `ehonda-ai-arena`
+  comparison workflows once after secrets and community membership are in
+  place if you want a pre-cron smoke test for each posting identity.
 - If we later want tighter WM26 cost evidence, collect WM-hosted cap-matched
   base rows for `o3 high` with `40000` and `o3 medium` before treating their
   current planning estimates as exact runtime-cost coverage.

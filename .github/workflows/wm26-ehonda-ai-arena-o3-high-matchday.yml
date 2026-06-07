@@ -4,8 +4,8 @@ on:
   workflow_call:
   # WM26 slower secondary copy-posting cadence.
   # GitHub Actions cron runs in UTC only.
-  # schedule:
-  #   - cron: '7 1,8,13 * * *'
+  schedule:
+    - cron: '7 1,8,13 * * *'
   workflow_dispatch:
     inputs:
       force_prediction:
