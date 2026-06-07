@@ -60,6 +60,16 @@ public interface IPredictionRepository
     Task<Prediction?> GetPredictionAsync(string homeTeam, string awayTeam, ZonedDateTime startsAt, PredictionModelConfig modelConfig, string communityContext, CancellationToken cancellationToken = default);
 
     /// <summary>
+    /// Retrieves the latest predicted match for a team pairing using database-side filtering.
+    /// </summary>
+    /// <param name="homeTeam">The home team name.</param>
+    /// <param name="awayTeam">The away team name.</param>
+    /// <param name="communityContext">The community context used for the prediction.</param>
+    /// <param name="cancellationToken">Cancellation token.</param>
+    /// <returns>The latest predicted match by start time if found, otherwise null.</returns>
+    Task<Match?> GetLatestPredictedMatchByTeamsAsync(string homeTeam, string awayTeam, string communityContext, CancellationToken cancellationToken = default);
+
+    /// <summary>
     /// Retrieves all matches for a specific match day.
     /// </summary>
     /// <param name="matchDay">The match day number (1-34 for Bundesliga).</param>

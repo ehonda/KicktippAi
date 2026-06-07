@@ -16,17 +16,39 @@ public sealed record HistoryDateMapEntry(
     string VerifiedAt,
     string Notes);
 
-public sealed record HistoryDateMapApplyResult(
-    string Content,
-    int RowCount,
-    int UpdatedRowCount,
-    IReadOnlyList<HistoryDateMapEntry> MissingEntries,
-    int PreservedRowCount = 0,
-    int SkippedRowCount = 0);
+public sealed record HistoryDateMapApplyResult
+{
+    public HistoryDateMapApplyResult(
+        string Content,
+        int RowCount,
+        int UpdatedRowCount,
+        IReadOnlyList<HistoryDateMapEntry> MissingEntries,
+        int PreservedRowCount = 0,
+        int SkippedRowCount = 0,
+        IReadOnlyList<HistoryDateMapEntry>? MissingPredictionEntries = null)
+    {
+        this.Content = Content;
+        this.RowCount = RowCount;
+        this.UpdatedRowCount = UpdatedRowCount;
+        this.MissingEntries = MissingEntries;
+        this.PreservedRowCount = PreservedRowCount;
+        this.SkippedRowCount = SkippedRowCount;
+        this.MissingPredictionEntries = MissingPredictionEntries ?? Array.Empty<HistoryDateMapEntry>();
+    }
+
+    public string Content { get; init; }
+    public int RowCount { get; init; }
+    public int UpdatedRowCount { get; init; }
+    public IReadOnlyList<HistoryDateMapEntry> MissingEntries { get; init; }
+    public int PreservedRowCount { get; init; }
+    public int SkippedRowCount { get; init; }
+    public IReadOnlyList<HistoryDateMapEntry> MissingPredictionEntries { get; init; }
+}
 
 public sealed record HistoryDateMapApplyOptions(
     bool ApplyKnownOnly = false,
-    DateOnly? PreserveCollectedOnOrAfter = null)
+    DateOnly? PreserveCollectedOnOrAfter = null,
+    IReadOnlyList<HistoryDateMapEntry>? PredictionDateEntries = null)
 {
     public static HistoryDateMapApplyOptions Strict { get; } = new();
 }
@@ -53,6 +75,19 @@ public static class HistoryCsvUtility
         "Verified_At",
         "Notes"
     ];
+
+    private static readonly string[] PlayedAtTimestampFormats =
+    [
+        "yyyy-MM-dd'T'HH:mm:sszzz",
+        "yyyy-MM-dd'T'HH:mm:ss.FFFFFFFzzz"
+    ];
+
+    private enum ExistingDateTreatment
+    {
+        None,
+        ReplaceFromPrediction,
+        PreserveExistingTimestamp
+    }
 
     /// <summary>
     /// Adds or updates the Data_Collected_At column in a history CSV document.
@@ -199,6 +234,54 @@ public static class HistoryCsvUtility
         return entries.AsReadOnly();
     }
 
+    public static IReadOnlyList<HistoryDateMapEntry> ExtractRowsRequiringPredictionPlayedAt(
+        string documentName,
+        string csvContent,
+        DateOnly preserveCollectedOnOrAfter)
+    {
+        var entries = new List<HistoryDateMapEntry>();
+        if (string.IsNullOrWhiteSpace(csvContent))
+        {
+            return entries.AsReadOnly();
+        }
+
+        using var reader = new StringReader(csvContent);
+        using var csv = new CsvReader(reader, CultureInfo.InvariantCulture);
+
+        try
+        {
+            csv.Read();
+            csv.ReadHeader();
+
+            while (csv.Read())
+            {
+                var row = new HistoryDateMapEntry(
+                    documentName,
+                    GetOptionalField(csv, "Competition"),
+                    GetOptionalField(csv, "Home_Team"),
+                    GetOptionalField(csv, "Away_Team"),
+                    GetOptionalField(csv, "Score"),
+                    GetOptionalField(csv, "Annotation"),
+                    PlayedAt: GetHistoryDateField(csv),
+                    SourceName: "",
+                    SourceUrl: "",
+                    VerifiedAt: "",
+                    Notes: "");
+
+                if (GetExistingDateTreatment(row.PlayedAt, preserveCollectedOnOrAfter) == ExistingDateTreatment.ReplaceFromPrediction)
+                {
+                    entries.Add(row);
+                }
+            }
+        }
+        catch (Exception)
+        {
+            return Array.Empty<HistoryDateMapEntry>();
+        }
+
+        return entries.AsReadOnly();
+    }
+
     public static HistoryDateMapApplyResult ApplyDateMap(
         string documentName,
         string csvContent,
@@ -214,8 +297,16 @@ public static class HistoryCsvUtility
                 group => group.Key,
                 group => new Queue<HistoryDateMapEntry>(group),
                 StringComparer.OrdinalIgnoreCase);
+        var predictionDateMap = (options.PredictionDateEntries ?? Array.Empty<HistoryDateMapEntry>())
+            .Where(entry => string.Equals(entry.DocumentName, documentName, StringComparison.OrdinalIgnoreCase))
+            .GroupBy(CreateDateMapKey, StringComparer.OrdinalIgnoreCase)
+            .ToDictionary(
+                group => group.Key,
+                group => group.Last().PlayedAt.Trim(),
+                StringComparer.OrdinalIgnoreCase);
 
         var missingEntries = new List<HistoryDateMapEntry>();
+        var missingPredictionEntries = new List<HistoryDateMapEntry>();
         var rows = new List<HistoryDateMapEntry>();
         var updatedRowCount = 0;
         var preservedRowCount = 0;
@@ -249,11 +340,37 @@ public static class HistoryCsvUtility
                     VerifiedAt: "",
                     Notes: "");
 
-                if (ShouldPreserveExistingDate(row.PlayedAt, options.PreserveCollectedOnOrAfter))
+                if (options.PreserveCollectedOnOrAfter.HasValue)
                 {
-                    preservedRowCount++;
-                    rows.Add(row);
-                    continue;
+                    var existingDateTreatment = GetExistingDateTreatment(
+                        row.PlayedAt,
+                        options.PreserveCollectedOnOrAfter.Value);
+
+                    if (existingDateTreatment == ExistingDateTreatment.PreserveExistingTimestamp)
+                    {
+                        preservedRowCount++;
+                        rows.Add(row);
+                        continue;
+                    }
+
+                    if (existingDateTreatment == ExistingDateTreatment.ReplaceFromPrediction)
+                    {
+                        if (predictionDateMap.TryGetValue(CreateDateMapKey(row), out var predictedPlayedAt) &&
+                            IsExactTimestamp(predictedPlayedAt))
+                        {
+                            rows.Add(row with { PlayedAt = predictedPlayedAt });
+                            if (!string.Equals(row.PlayedAt, predictedPlayedAt, StringComparison.Ordinal))
+                            {
+                                updatedRowCount++;
+                            }
+
+                            continue;
+                        }
+
+                        missingPredictionEntries.Add(row);
+                        rows.Add(row);
+                        continue;
+                    }
                 }
 
                 if (!dateMap.TryGetValue(CreateDateMapKey(row), out var dateMapEntriesForRow) ||
@@ -302,9 +419,14 @@ public static class HistoryCsvUtility
             return new HistoryDateMapApplyResult(csvContent, RowCount: 0, UpdatedRowCount: 0, missingEntries);
         }
 
-        if (missingEntries.Count > 0)
+        if (missingEntries.Count > 0 || missingPredictionEntries.Count > 0)
         {
-            return new HistoryDateMapApplyResult(csvContent, rows.Count, UpdatedRowCount: 0, missingEntries);
+            return new HistoryDateMapApplyResult(
+                csvContent,
+                rows.Count,
+                UpdatedRowCount: 0,
+                missingEntries,
+                MissingPredictionEntries: missingPredictionEntries);
         }
 
         using var writer = new StringWriter();
@@ -335,7 +457,8 @@ public static class HistoryCsvUtility
             updatedRowCount,
             missingEntries,
             preservedRowCount,
-            skippedRowCount);
+            skippedRowCount,
+            missingPredictionEntries);
     }
 
     /// <summary>
@@ -533,24 +656,58 @@ public static class HistoryCsvUtility
             out _);
     }
 
-    private static bool ShouldPreserveExistingDate(string value, DateOnly? preserveCollectedOnOrAfter)
+    private static bool IsExactTimestamp(string value)
     {
-        if (!preserveCollectedOnOrAfter.HasValue)
+        return DateTimeOffset.TryParseExact(
+            value.Trim(),
+            PlayedAtTimestampFormats,
+            CultureInfo.InvariantCulture,
+            DateTimeStyles.None,
+            out _);
+    }
+
+    private static ExistingDateTreatment GetExistingDateTreatment(string value, DateOnly preserveCollectedOnOrAfter)
+    {
+        if (TryParseExactDate(value, out var collectedAt))
         {
-            return false;
+            return collectedAt >= preserveCollectedOnOrAfter
+                ? ExistingDateTreatment.ReplaceFromPrediction
+                : ExistingDateTreatment.None;
         }
 
-        if (!DateOnly.TryParseExact(
+        if (TryParseExactTimestampDate(value, out var playedAtDate) && playedAtDate >= preserveCollectedOnOrAfter)
+        {
+            return ExistingDateTreatment.PreserveExistingTimestamp;
+        }
+
+        return ExistingDateTreatment.None;
+    }
+
+    private static bool TryParseExactDate(string value, out DateOnly date)
+    {
+        return DateOnly.TryParseExact(
+            value.Trim(),
+            "yyyy-MM-dd",
+            CultureInfo.InvariantCulture,
+            DateTimeStyles.None,
+            out date);
+    }
+
+    private static bool TryParseExactTimestampDate(string value, out DateOnly date)
+    {
+        if (DateTimeOffset.TryParseExact(
                 value.Trim(),
-                "yyyy-MM-dd",
+                PlayedAtTimestampFormats,
                 CultureInfo.InvariantCulture,
                 DateTimeStyles.None,
-                out var collectedAt))
+                out var timestamp))
         {
-            return false;
+            date = DateOnly.FromDateTime(timestamp.DateTime);
+            return true;
         }
 
-        return collectedAt >= preserveCollectedOnOrAfter.Value;
+        date = default;
+        return false;
     }
 
     private static string GetHistoryDateField(CsvReader csv)

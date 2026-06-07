@@ -69,6 +69,7 @@ public static class ServiceRegistrationExtensions
         services.TryAddSingleton<IKicktippClientFactory, KicktippClientFactory>();
         services.TryAddSingleton<IOpenAiServiceFactory, OpenAiServiceFactory>();
         services.TryAddSingleton<IContextProviderFactory, ContextProviderFactory>();
+        services.TryAddSingleton<TimeProvider>(TimeProvider.System);
         services.TryAddTransient<MatchOutcomeCollectionService>();
 
         // Register Langfuse/OTel tracing (no-op if credentials are absent)

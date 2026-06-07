@@ -162,6 +162,20 @@ public class Program
                         "--input",
                         "data/wm26/recent-history/recent-history-match-dates.csv",
                         "--dry-run");
+                wm26RecentHistory.AddCommand<Wm26RecentHistoryProbePredictionLookupCommand>("probe-prediction-lookup")
+                    .WithDescription("Probe the DB-side latest predicted-match lookup used for WM26 tournament Played_At timestamps")
+                    .WithExample(
+                        "wm26-recent-history",
+                        "probe-prediction-lookup",
+                        "--community-context",
+                        "ehonda-dev-wm26",
+                        "--competition",
+                        "fifa-world-cup-2026",
+                        "--home-team",
+                        "Mexiko",
+                        "--away-team",
+                        "Südafrika",
+                        "--verbose");
             });
 
             config.AddCommand<VerifyMatchdayCommand>("verify")

@@ -269,6 +269,154 @@ public class HistoryCsvUtilityTests
     }
 
     [Test]
+    public async Task Applying_date_map_replaces_cutoff_collection_date_with_prediction_timestamp()
+    {
+        var csvContent = "Competition,Data_Collected_At,Home_Team,Away_Team,Score,Annotation\nWM,2026-06-11,Mexiko,Südafrika,1:1,";
+        var dateMap = new[]
+        {
+            new HistoryDateMapEntry(
+                "recent-history-mexiko.csv",
+                "WM",
+                "Mexiko",
+                "Südafrika",
+                "1:1",
+                "",
+                "2010-06-11",
+                "FIFA",
+                "https://example.test/match",
+                "2026-05-23",
+                "")
+        };
+        var predictionEntries = new[]
+        {
+            new HistoryDateMapEntry(
+                "recent-history-mexiko.csv",
+                "WM",
+                "Mexiko",
+                "Südafrika",
+                "1:1",
+                "",
+                "2026-06-11T21:00:00+02:00",
+                "",
+                "",
+                "",
+                "")
+        };
+
+        var result = HistoryCsvUtility.ApplyDateMap(
+            "recent-history-mexiko.csv",
+            csvContent,
+            dateMap,
+            new HistoryDateMapApplyOptions(
+                ApplyKnownOnly: true,
+                PreserveCollectedOnOrAfter: new DateOnly(2026, 6, 11),
+                PredictionDateEntries: predictionEntries));
+
+        await Assert.That(result.MissingPredictionEntries).IsEmpty();
+        await Assert.That(result.UpdatedRowCount).IsEqualTo(1);
+        await Assert.That(result.Content).IsEqualToWithNormalizedLineEndings(
+            "Competition,Played_At,Home_Team,Away_Team,Score,Annotation\r\nWM,2026-06-11T21:00:00+02:00,Mexiko,Südafrika,1:1,\r\n");
+    }
+
+    [Test]
+    public async Task Applying_date_map_reports_missing_prediction_for_cutoff_collection_date()
+    {
+        var csvContent = "Competition,Data_Collected_At,Home_Team,Away_Team,Score,Annotation\nWM,2026-06-11,Mexiko,Südafrika,1:1,";
+        var dateMap = new[]
+        {
+            new HistoryDateMapEntry(
+                "recent-history-mexiko.csv",
+                "WM",
+                "Mexiko",
+                "Südafrika",
+                "1:1",
+                "",
+                "2010-06-11",
+                "FIFA",
+                "https://example.test/match",
+                "2026-05-23",
+                "")
+        };
+
+        var result = HistoryCsvUtility.ApplyDateMap(
+            "recent-history-mexiko.csv",
+            csvContent,
+            dateMap,
+            new HistoryDateMapApplyOptions(
+                ApplyKnownOnly: true,
+                PreserveCollectedOnOrAfter: new DateOnly(2026, 6, 11)));
+
+        await Assert.That(result.MissingPredictionEntries.Count).IsEqualTo(1);
+        await Assert.That(result.Content).IsEqualTo(csvContent);
+    }
+
+    [Test]
+    public async Task Applying_date_map_preserves_existing_cutoff_timestamp()
+    {
+        var csvContent = "Competition,Played_At,Home_Team,Away_Team,Score,Annotation\nWM,2026-06-11T21:00:00+02:00,Mexiko,Südafrika,1:1,";
+        var dateMap = new[]
+        {
+            new HistoryDateMapEntry(
+                "recent-history-mexiko.csv",
+                "WM",
+                "Mexiko",
+                "Südafrika",
+                "1:1",
+                "",
+                "2010-06-11",
+                "FIFA",
+                "https://example.test/match",
+                "2026-05-23",
+                "")
+        };
+
+        var result = HistoryCsvUtility.ApplyDateMap(
+            "recent-history-mexiko.csv",
+            csvContent,
+            dateMap,
+            new HistoryDateMapApplyOptions(
+                ApplyKnownOnly: true,
+                PreserveCollectedOnOrAfter: new DateOnly(2026, 6, 11)));
+
+        await Assert.That(result.MissingPredictionEntries).IsEmpty();
+        await Assert.That(result.PreservedRowCount).IsEqualTo(1);
+        await Assert.That(result.Content).IsEqualToWithNormalizedLineEndings(
+            "Competition,Played_At,Home_Team,Away_Team,Score,Annotation\r\nWM,2026-06-11T21:00:00+02:00,Mexiko,Südafrika,1:1,\r\n");
+    }
+
+    [Test]
+    public async Task Applying_date_map_uses_canonical_map_for_pre_cutoff_rows()
+    {
+        var csvContent = "Competition,Data_Collected_At,Home_Team,Away_Team,Score,Annotation\nWM,2026-06-10,Mexiko,Südafrika,1:1,";
+        var dateMap = new[]
+        {
+            new HistoryDateMapEntry(
+                "recent-history-mexiko.csv",
+                "WM",
+                "Mexiko",
+                "Südafrika",
+                "1:1",
+                "",
+                "2010-06-11",
+                "FIFA",
+                "https://example.test/match",
+                "2026-05-23",
+                "")
+        };
+
+        var result = HistoryCsvUtility.ApplyDateMap(
+            "recent-history-mexiko.csv",
+            csvContent,
+            dateMap,
+            new HistoryDateMapApplyOptions(
+                ApplyKnownOnly: true,
+                PreserveCollectedOnOrAfter: new DateOnly(2026, 6, 11)));
+
+        await Assert.That(result.MissingPredictionEntries).IsEmpty();
+        await Assert.That(result.Content).Contains("WM,2010-06-11,Mexiko,Südafrika,1:1,");
+    }
+
+    [Test]
     public async Task Applying_date_map_reports_missing_entries_when_played_at_is_absent()
     {
         var csvContent = "Competition,Home_Team,Away_Team,Score,Annotation\nKL-WM,Germany,Slovakia,6:0,";

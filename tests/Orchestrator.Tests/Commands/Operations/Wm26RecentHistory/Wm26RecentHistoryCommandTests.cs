@@ -3,6 +3,7 @@ using Microsoft.Extensions.DependencyInjection;
 using Microsoft.Extensions.Logging;
 using Microsoft.Extensions.Logging.Testing;
 using Moq;
+using NodaTime;
 using Orchestrator.Commands.Operations.Wm26RecentHistory;
 using Orchestrator.Infrastructure;
 using Orchestrator.Infrastructure.Factories;
@@ -10,6 +11,7 @@ using Spectre.Console;
 using Spectre.Console.Cli;
 using Spectre.Console.Testing;
 using static Orchestrator.Tests.Infrastructure.OrchestratorTestFactories;
+using Match = EHonda.KicktippAi.Core.Match;
 
 namespace Orchestrator.Tests.Commands.Operations.Wm26RecentHistory;
 
@@ -340,7 +342,13 @@ public class Wm26RecentHistoryCommandTests
                         "WM,2026-06-11,Mexiko,Südafrika,1:1,\n" +
                         "WM,2026-06-03,Mexiko,Südafrika,1:1,")
             });
-        var ctx = CreateApp(contextRepository);
+        var predictionRepository = CreateMockPredictionRepository(
+            getLatestPredictedMatchByTeamsResult: new Match(
+                "Mexiko",
+                "Südafrika",
+                Instant.FromUtc(2026, 6, 11, 19, 0).InUtc(),
+                1));
+        var ctx = CreateApp(contextRepository, predictionRepository);
 
         var (exitCode, output) = await RunCommandAsync(
             ctx,
@@ -357,18 +365,121 @@ public class Wm26RecentHistoryCommandTests
             "--verbose");
 
         await Assert.That(exitCode).IsEqualTo(0);
-        await Assert.That(output).Contains("1 updated").And.Contains("1 preserved");
+        await Assert.That(output).Contains("2 updated").And.Contains("0 preserved");
         contextRepository.Verify(
             r => r.SaveContextDocumentAsync(
                 "recent-history-mexiko.csv",
                 It.Is<string>(content =>
                     content.Contains("Played_At") &&
                     !content.Contains("Data_Collected_At") &&
-                    content.Contains("WM,2026-06-11,Mexiko,Südafrika,1:1,") &&
+                    content.Contains("WM,2026-06-11T21:00:00+02:00,Mexiko,Südafrika,1:1,") &&
                     content.Contains("WM,2010-06-11,Mexiko,Südafrika,1:1,")),
                 "ehonda-dev-wm26",
                 It.IsAny<CancellationToken>()),
             Times.Once);
+        predictionRepository.Verify(
+            r => r.GetLatestPredictedMatchByTeamsAsync(
+                "Mexiko",
+                "Südafrika",
+                "ehonda-dev-wm26",
+                It.IsAny<CancellationToken>()),
+            Times.Once);
+    }
+
+    [Test]
+    public async Task Apply_date_map_known_only_fails_when_cutoff_row_has_no_prediction()
+    {
+        var inputPath = CreateTempDateMap("""
+            DocumentName,Competition,Home_Team,Away_Team,Score,Annotation,Played_At,Source_Name,Source_Url,Verified_At,Notes
+            recent-history-mexiko.csv,WM,Mexiko,Südafrika,1:1,,2010-06-11,FIFA,https://example.test,2026-05-23,
+            """);
+        var contextRepository = CreateRepository(
+            new Dictionary<string, ContextDocument>
+            {
+                ["recent-history-mexiko.csv"] = CreateContextDocument(
+                    documentName: "recent-history-mexiko.csv",
+                    content:
+                        "Competition,Data_Collected_At,Home_Team,Away_Team,Score,Annotation\n" +
+                        "WM,2026-06-11,Mexiko,Südafrika,1:1,")
+            });
+        var predictionRepository = CreateMockPredictionRepository();
+        var ctx = CreateApp(contextRepository, predictionRepository);
+
+        var (exitCode, output) = await RunCommandAsync(
+            ctx,
+            "apply-date-map",
+            "--community-context",
+            "ehonda-dev-wm26",
+            "--competition",
+            CompetitionIds.FifaWorldCup2026,
+            "--input",
+            inputPath,
+            "--apply-known-only",
+            "--preserve-collected-on-or-after",
+            "2026-06-11",
+            "--verbose");
+
+        await Assert.That(exitCode).IsEqualTo(1);
+        await Assert.That(output).Contains("Missing stored predictions");
+        contextRepository.Verify(
+            r => r.SaveContextDocumentAsync(
+                It.IsAny<string>(),
+                It.IsAny<string>(),
+                It.IsAny<string>(),
+                It.IsAny<CancellationToken>()),
+            Times.Never);
+    }
+
+    [Test]
+    public async Task Apply_date_map_known_only_preserves_existing_cutoff_timestamp_on_repeat_runs()
+    {
+        var inputPath = CreateTempDateMap("""
+            DocumentName,Competition,Home_Team,Away_Team,Score,Annotation,Played_At,Source_Name,Source_Url,Verified_At,Notes
+            recent-history-mexiko.csv,WM,Mexiko,Südafrika,1:1,,2010-06-11,FIFA,https://example.test,2026-05-23,
+            """);
+        var content =
+            "Competition,Played_At,Home_Team,Away_Team,Score,Annotation\r\n" +
+            "WM,2026-06-11T21:00:00+02:00,Mexiko,Südafrika,1:1,\r\n";
+        var contextRepository = CreateRepository(
+            new Dictionary<string, ContextDocument>
+            {
+                ["recent-history-mexiko.csv"] = CreateContextDocument(
+                    documentName: "recent-history-mexiko.csv",
+                    content: content)
+            });
+        var predictionRepository = CreateMockPredictionRepository();
+        var ctx = CreateApp(contextRepository, predictionRepository);
+
+        var (exitCode, output) = await RunCommandAsync(
+            ctx,
+            "apply-date-map",
+            "--community-context",
+            "ehonda-dev-wm26",
+            "--competition",
+            CompetitionIds.FifaWorldCup2026,
+            "--input",
+            inputPath,
+            "--apply-known-only",
+            "--preserve-collected-on-or-after",
+            "2026-06-11",
+            "--verbose");
+
+        await Assert.That(exitCode).IsEqualTo(0);
+        await Assert.That(output).Contains("1 preserved");
+        contextRepository.Verify(
+            r => r.SaveContextDocumentAsync(
+                It.IsAny<string>(),
+                It.IsAny<string>(),
+                It.IsAny<string>(),
+                It.IsAny<CancellationToken>()),
+            Times.Never);
+        predictionRepository.Verify(
+            r => r.GetLatestPredictedMatchByTeamsAsync(
+                It.IsAny<string>(),
+                It.IsAny<string>(),
+                It.IsAny<string>(),
+                It.IsAny<CancellationToken>()),
+            Times.Never);
     }
 
     [Test]
@@ -403,16 +514,52 @@ public class Wm26RecentHistoryCommandTests
             Times.Once);
     }
 
-    private static Wm26RecentHistoryCommandTestContext CreateApp(Mock<IContextRepository> contextRepository)
+    [Test]
+    public async Task Probe_prediction_lookup_scopes_repository_to_world_cup_competition()
+    {
+        var predictionRepository = CreateMockPredictionRepository(
+            getLatestPredictedMatchByTeamsResult: new Match(
+                "Mexiko",
+                "Südafrika",
+                Instant.FromUtc(2026, 6, 11, 19, 0).InUtc(),
+                1));
+        var ctx = CreateApp(CreateRepository([]), predictionRepository);
+
+        var (exitCode, output) = await RunCommandAsync(
+            ctx,
+            "probe-prediction-lookup",
+            "--community-context",
+            "ehonda-dev-wm26",
+            "--competition",
+            CompetitionIds.FifaWorldCup2026,
+            "--home-team",
+            "Mexiko",
+            "--away-team",
+            "Südafrika",
+            "--verbose");
+
+        await Assert.That(exitCode).IsEqualTo(0);
+        await Assert.That(output).Contains("Found latest predicted match").And.Contains("2026-06-11T21:00:00+02:00");
+        ctx.FirebaseServiceFactory.Verify(
+            f => f.CreatePredictionRepository(CompetitionIds.FifaWorldCup2026),
+            Times.Once);
+    }
+
+    private static Wm26RecentHistoryCommandTestContext CreateApp(
+        Mock<IContextRepository> contextRepository,
+        Mock<IPredictionRepository>? predictionRepository = null)
     {
         var testConsole = new TestConsole();
-        var firebaseServiceFactory = CreateMockFirebaseServiceFactoryFull(contextRepository: contextRepository);
+        var firebaseServiceFactory = CreateMockFirebaseServiceFactoryFull(
+            contextRepository: contextRepository,
+            predictionRepository: predictionRepository ?? CreateMockPredictionRepository());
 
         var services = new ServiceCollection();
         services.AddSingleton<IAnsiConsole>(testConsole);
         services.AddSingleton(firebaseServiceFactory.Object);
         services.AddSingleton<ILogger<Wm26RecentHistoryExportDateMapCommand>>(new FakeLogger<Wm26RecentHistoryExportDateMapCommand>());
         services.AddSingleton<ILogger<Wm26RecentHistoryApplyDateMapCommand>>(new FakeLogger<Wm26RecentHistoryApplyDateMapCommand>());
+        services.AddSingleton<ILogger<Wm26RecentHistoryProbePredictionLookupCommand>>(new FakeLogger<Wm26RecentHistoryProbePredictionLookupCommand>());
 
         var registrar = new TypeRegistrar(services);
         var app = new CommandApp(registrar);
@@ -421,6 +568,7 @@ public class Wm26RecentHistoryCommandTests
             config.Settings.Console = testConsole;
             config.AddCommand<Wm26RecentHistoryExportDateMapCommand>("export-date-map");
             config.AddCommand<Wm26RecentHistoryApplyDateMapCommand>("apply-date-map");
+            config.AddCommand<Wm26RecentHistoryProbePredictionLookupCommand>("probe-prediction-lookup");
         });
 
         return new Wm26RecentHistoryCommandTestContext(app, testConsole, firebaseServiceFactory);

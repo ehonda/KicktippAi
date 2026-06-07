@@ -206,7 +206,7 @@ Lineup CSV payloads use `Team,Data_Collected_At,Role,Name,Age,Position,Market_Va
 
 FIFA published the final 26-player squad lists on 2026-06-03 after the 2026-06-02 team submission deadline. The checked-in seed now uses full-squad official FIFA membership; refresh `lineup-*` context documents and the `lineups` KPI document with `collect-context lineups` for each WM26 community. WM26 context should contain full squads, not only match starters. See [lineup-source-status.md](lineup-source-status.md) for the current source state.
 
-Collecting live FIFA rankings and lineups is required context setup for every WM26 community. The guarded `collect-context-dev` path applies the known recent-history played-date map after Kicktipp collection, producing prompt-facing recent-history CSVs with `Played_At` while preserving tournament rows dated on or after 2026-06-11; it then refreshes FIFA rankings and lineups automatically. GitHub Actions WM26 context workflows run the same guarded played-date map step after Kicktipp collection.
+Collecting live FIFA rankings and lineups is required context setup for every WM26 community. The guarded `collect-context-dev` path applies the known recent-history played-date map after Kicktipp collection, producing prompt-facing recent-history CSVs with `Played_At`. Date-only tournament rows collected on or after 2026-06-11 are resolved from stored match predictions to the exact Berlin-local kickoff timestamp, for example `2026-06-11T21:00:00+02:00`; existing exact timestamps are preserved on repeat runs. It then refreshes FIFA rankings and lineups automatically. GitHub Actions WM26 context workflows run the same guarded played-date map step after Kicktipp collection.
 
 Upload the ranking context and KPI documents with:
 
@@ -217,7 +217,7 @@ dotnet run --project src/Orchestrator -- collect-context lineups --community-con
 
 ## Recent History Played Dates
 
-Recent-history rows for national teams can describe matches played years before they are collected from Kicktipp. Prompt-facing WM26 recent-history CSVs use `Competition,Played_At,Home_Team,Away_Team,Score,Annotation`. For pre-WM26 history rows, `Played_At` must contain the exact played date, not a first-collection marker. Rows added during the WM26 tournament keep the standard Kicktipp collection-date semantics in `Played_At` unless manually curated later.
+Recent-history rows for national teams can describe matches played years before they are collected from Kicktipp. Prompt-facing WM26 recent-history CSVs use `Competition,Played_At,Home_Team,Away_Team,Score,Annotation`. For pre-WM26 history rows, `Played_At` must contain the exact played date, not a first-collection marker. Rows added during the WM26 tournament are predicted before they become recent-history context, so date-only collection markers on or after 2026-06-11 are replaced with the latest stored prediction kickoff timestamp for that home/away matchup and community context.
 
 The canonical played-date source is:
 
@@ -249,7 +249,13 @@ Strict mode is for manual map validation and fails when a target row is not cove
 dotnet run --project src/Orchestrator -- wm26-recent-history apply-date-map --community-context rabetrabauken2026 --competition fifa-world-cup-2026 --input data/wm26/recent-history/recent-history-match-dates.csv --apply-known-only --preserve-collected-on-or-after 2026-06-11
 ```
 
-Guarded mode applies known pre-WM26 dates, preserves unmapped rows, and preserves any row whose existing `Played_At` or legacy `Data_Collected_At` is on or after 2026-06-11 before matching date-map entries. This prevents a WM26 tournament row from consuming or being overwritten by an older map entry for the same teams, score, and competition label.
+Guarded mode applies known pre-WM26 dates, preserves unmapped rows, and treats date-only `Played_At` or legacy `Data_Collected_At` values on or after 2026-06-11 as tournament collection markers. Those rows are replaced from the latest stored prediction for the same community and home/away teams, while existing exact timestamp values on or after the cutoff are preserved. This prevents a WM26 tournament row from consuming or being overwritten by an older map entry for the same teams, score, and competition label.
+
+Guarded mode fails before saving any documents when a tournament row collected on or after 2026-06-11 has no matching stored prediction. Use the read-only probe to validate the Firestore query and required composite index against the real project before relying on a new environment:
+
+```powershell
+dotnet run --project src/Orchestrator -- wm26-recent-history probe-prediction-lookup --community-context ehonda-dev-wm26 --competition fifa-world-cup-2026 --home-team Mexiko --away-team Südafrika --verbose
+```
 
 For future WM26 communities, collect that community's context documents first, then run `apply-date-map` with the same canonical CSV. Do not repeat web lookup unless strict mode reports genuinely missing pre-WM26 rows that should be curated into the map.
 

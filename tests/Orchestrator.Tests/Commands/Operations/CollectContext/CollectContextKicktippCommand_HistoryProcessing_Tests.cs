@@ -30,6 +30,28 @@ public class CollectContextKicktippCommand_HistoryProcessing_Tests : CollectCont
     }
 
     [Test]
+    public async Task Running_command_uses_injected_time_provider_for_data_collected_at()
+    {
+        var docs = new List<DocumentContext>
+        {
+            new("recent-history-fcb.csv", "Competition,Home_Team,Away_Team,Score,Annotation\nBundesliga,Bayern,Leipzig,2-1,")
+        };
+        var ctx = CreateCollectContextCommandApp(
+            contextDocuments: docs,
+            timeProvider: new FixedTimeProvider(new DateTimeOffset(2026, 6, 11, 12, 0, 0, TimeSpan.Zero)));
+
+        await RunCommandAsync(ctx.App, ctx.Console, "collect-context-kicktipp", "--community-context", "test-community");
+
+        ctx.ContextRepository.Verify(
+            r => r.SaveContextDocumentAsync(
+                "recent-history-fcb.csv",
+                It.Is<string>(content => content.Contains("Bundesliga,2026-06-11,Bayern,Leipzig,2-1,")),
+                "test-community",
+                It.IsAny<CancellationToken>()),
+            Times.Once);
+    }
+
+    [Test]
     public async Task Running_command_adds_data_collected_at_for_home_history_documents()
     {
         var docs = new List<DocumentContext>
@@ -169,5 +191,15 @@ public class CollectContextKicktippCommand_HistoryProcessing_Tests : CollectCont
                 "test-community",
                 It.IsAny<CancellationToken>()),
             Times.Once);
+    }
+
+    private sealed class FixedTimeProvider(DateTimeOffset utcNow) : TimeProvider
+    {
+        public override DateTimeOffset GetUtcNow()
+        {
+            return utcNow.ToUniversalTime();
+        }
+
+        public override TimeZoneInfo LocalTimeZone => TimeZoneInfo.Utc;
     }
 }

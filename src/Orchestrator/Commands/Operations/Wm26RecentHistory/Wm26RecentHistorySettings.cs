@@ -94,3 +94,46 @@ public sealed class Wm26RecentHistoryApplyDateMapSettings : Wm26RecentHistorySet
         return ValidationResult.Success();
     }
 }
+
+public sealed class Wm26RecentHistoryProbePredictionLookupSettings : Wm26RecentHistorySettings
+{
+    [CommandOption("-c|--community-context <COMMUNITY_CONTEXT>")]
+    [Description("The community context whose match predictions should be queried")]
+    public string CommunityContext { get; set; } = string.Empty;
+
+    [CommandOption("--competition <COMPETITION>")]
+    [Description("Competition identifier")]
+    public string Competition { get; set; } = CompetitionIds.FifaWorldCup2026;
+
+    [CommandOption("--home-team <HOME_TEAM>")]
+    [Description("Home team name to query exactly")]
+    public string HomeTeam { get; set; } = string.Empty;
+
+    [CommandOption("--away-team <AWAY_TEAM>")]
+    [Description("Away team name to query exactly")]
+    public string AwayTeam { get; set; } = string.Empty;
+
+    [CommandOption("--verbose")]
+    [Description("Enable verbose output")]
+    public bool Verbose { get; set; }
+
+    public override ValidationResult Validate()
+    {
+        if (string.IsNullOrWhiteSpace(CommunityContext))
+        {
+            return ValidationResult.Error("--community-context is required");
+        }
+
+        if (string.IsNullOrWhiteSpace(HomeTeam))
+        {
+            return ValidationResult.Error("--home-team is required");
+        }
+
+        if (string.IsNullOrWhiteSpace(AwayTeam))
+        {
+            return ValidationResult.Error("--away-team is required");
+        }
+
+        return ValidationResult.Success();
+    }
+}

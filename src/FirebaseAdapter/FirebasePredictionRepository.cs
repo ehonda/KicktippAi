@@ -291,6 +291,59 @@ public class FirebasePredictionRepository : IPredictionRepository
         }
     }
 
+    public async Task<Match?> GetLatestPredictedMatchByTeamsAsync(
+        string homeTeam,
+        string awayTeam,
+        string communityContext,
+        CancellationToken cancellationToken = default)
+    {
+        try
+        {
+            var normalizedHomeTeam = homeTeam.Trim();
+            var normalizedAwayTeam = awayTeam.Trim();
+            var normalizedCommunityContext = communityContext.Trim();
+
+            var query = _firestoreDb.Collection(_predictionsCollection)
+                .WhereEqualTo("competition", _competition)
+                .WhereEqualTo("communityContext", normalizedCommunityContext)
+                .WhereEqualTo("homeTeam", normalizedHomeTeam)
+                .WhereEqualTo("awayTeam", normalizedAwayTeam)
+                .OrderByDescending("startsAt")
+                .Limit(1);
+
+            var snapshot = await query.GetSnapshotAsync(cancellationToken);
+            var firestorePrediction = snapshot.Documents
+                .FirstOrDefault()
+                ?.ConvertTo<FirestoreMatchPrediction>();
+
+            if (firestorePrediction is null)
+            {
+                _logger.LogDebug(
+                    "No predicted match found for {HomeTeam} vs {AwayTeam} in community context {CommunityContext}",
+                    normalizedHomeTeam,
+                    normalizedAwayTeam,
+                    normalizedCommunityContext);
+                return null;
+            }
+
+            return new Match(
+                firestorePrediction.HomeTeam,
+                firestorePrediction.AwayTeam,
+                ConvertFromTimestamp(firestorePrediction.StartsAt),
+                firestorePrediction.Matchday);
+        }
+        catch (Exception ex)
+        {
+            _logger.LogError(
+                ex,
+                "Failed to get latest predicted match for {HomeTeam} vs {AwayTeam} in community context {CommunityContext}",
+                homeTeam,
+                awayTeam,
+                communityContext);
+            throw;
+        }
+    }
+
     public Task<PredictionMetadata?> GetPredictionMetadataAsync(Match match, string model, string communityContext, CancellationToken cancellationToken = default)
     {
         return GetPredictionMetadataAsync(match, PredictionModelConfig.Create(model), communityContext, cancellationToken);

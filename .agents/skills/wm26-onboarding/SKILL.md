@@ -93,11 +93,21 @@ dotnet run --project src/Orchestrator -- wm26-recent-history apply-date-map --co
 Run with `--dry-run` first when changing the map. Use strict mode for manual
 pre-WM26 map validation and repairs. GitHub Actions WM26 context workflows use
 the guarded form below so recent-history context is written with `Played_At`,
-tournament rows keep standard collection-date semantics, and tournament rows
-do not consume older map entries for the same matchup key:
+date-only tournament rows collected on or after `2026-06-11` are resolved from
+stored match predictions to exact Berlin-local kickoff timestamps, and
+tournament rows do not consume older map entries for the same matchup key:
 
 ```powershell
 dotnet run --project src/Orchestrator -- wm26-recent-history apply-date-map --community-context <community-context> --competition fifa-world-cup-2026 --input data/wm26/recent-history/recent-history-match-dates.csv --apply-known-only --preserve-collected-on-or-after 2026-06-11
+```
+
+The guarded form fails before saving documents when a cutoff tournament row has
+no stored prediction. Use the read-only probe against the real Firestore project
+to validate the lookup and required composite index before relying on a new
+environment:
+
+```powershell
+dotnet run --project src/Orchestrator -- wm26-recent-history probe-prediction-lookup --community-context ehonda-dev-wm26 --competition fifa-world-cup-2026 --home-team Mexiko --away-team Südafrika --verbose
 ```
 
 10. Validate predictions.
@@ -149,7 +159,7 @@ After autonomous onboarding, include a concise manual follow-up section in the f
 - Model configuration onboarding ledger: `docs/onboarding-wm26/model-config-onboarding.md`
 - Full-competition cost estimates: `docs/experiments/whole-season-cost-estimates.md`
 
-WM26 recent-history CSV payloads must use `Competition,Played_At,Home_Team,Away_Team,Score,Annotation` after the date-map step. The date-map apply command must still read legacy `Data_Collected_At` so existing Firestore documents can be repaired in place.
+WM26 recent-history CSV payloads must use `Competition,Played_At,Home_Team,Away_Team,Score,Annotation` after the date-map step. The date-map apply command must still read legacy `Data_Collected_At` so existing Firestore documents can be repaired in place. For rows collected on or after `2026-06-11`, guarded mode uses stored match predictions for exact tournament kickoff timestamps and preserves existing exact timestamps on repeat runs.
 
 FIFA ranking CSV payloads must use `Rank,Team,ELO,Data_Collected_At`, format points with two decimal places, and must not contain empty `Data_Collected_At` values.
 

@@ -26,6 +26,7 @@ public sealed class CollectContextDevCommand : AsyncCommand<CollectContextDevSet
         MatchOutcomeCollectionService matchOutcomeCollectionService,
         IFifaRankingSource fifaRankingSource,
         IWm26LineupSource lineupSource,
+        TimeProvider timeProvider,
         ILogger<CollectContextKicktippCommand> kicktippLogger,
         ILogger<CollectContextFifaCommand> fifaLogger,
         ILogger<CollectContextLineupsCommand> lineupsLogger,
@@ -38,6 +39,7 @@ public sealed class CollectContextDevCommand : AsyncCommand<CollectContextDevSet
             kicktippClientFactory,
             contextProviderFactory,
             matchOutcomeCollectionService,
+            timeProvider,
             kicktippLogger);
         _fifaCommand = new CollectContextFifaCommand(
             console,

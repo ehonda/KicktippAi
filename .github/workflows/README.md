@@ -146,7 +146,7 @@ Context collection workflows gather and store contextual data for multiple commu
 
 1. **Environment Setup**: Configure Kicktipp and Firebase credentials
 2. **Context Gathering**: Collect match context from all current matchday matches
-3. **Competition Extras**: WM26 collection applies known pre-tournament recent-history dates, then optional WM26 collection runs `collect-context fifa` and `collect-context lineups`
+3. **Competition Extras**: WM26 collection applies known pre-tournament recent-history dates, resolves tournament recent-history rows from stored prediction kickoff timestamps, then optional WM26 collection runs `collect-context fifa` and `collect-context lineups`
 4. **Database Storage**: Store context documents in Firebase with version control
 5. **Duplicate Detection**: Skip unchanged context to avoid redundant storage
 
@@ -430,6 +430,8 @@ dotnet run --project src/Orchestrator/Orchestrator.csproj -- collect-context kic
 
 # Test WM26 context extras
 dotnet run --project src/Orchestrator/Orchestrator.csproj -- wm26-recent-history apply-date-map --community-context ehonda-dev-wm26 --competition fifa-world-cup-2026 --input data/wm26/recent-history/recent-history-match-dates.csv --apply-known-only --preserve-collected-on-or-after 2026-06-11 --dry-run --verbose
+
+dotnet run --project src/Orchestrator/Orchestrator.csproj -- wm26-recent-history probe-prediction-lookup --community-context ehonda-dev-wm26 --competition fifa-world-cup-2026 --home-team Mexiko --away-team Südafrika --verbose
 
 dotnet run --project src/Orchestrator/Orchestrator.csproj -- collect-context fifa --community-context ehonda-dev-wm26 --competition fifa-world-cup-2026 --dry-run --verbose
 

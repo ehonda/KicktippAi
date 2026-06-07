@@ -232,6 +232,7 @@ public class CollectContextDevCommandTests
                 services.AddSingleton(contextProviderFactory.Object);
                 services.AddSingleton(fifaRankingSource.Object);
                 services.AddSingleton(lineupSource.Object);
+                services.AddSingleton(TimeProvider.System);
                 services.AddSingleton<ILogger<MatchOutcomeCollectionService>>(new FakeLogger<MatchOutcomeCollectionService>());
                 services.AddSingleton<MatchOutcomeCollectionService>();
                 services.AddSingleton<ILogger<CollectContextKicktippCommand>>(new FakeLogger<CollectContextKicktippCommand>());

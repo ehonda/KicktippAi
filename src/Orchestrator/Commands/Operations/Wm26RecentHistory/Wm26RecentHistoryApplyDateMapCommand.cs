@@ -1,6 +1,7 @@
 using System.Globalization;
 using EHonda.KicktippAi.Core;
 using Microsoft.Extensions.Logging;
+using NodaTime;
 using Orchestrator.Infrastructure;
 using Orchestrator.Infrastructure.Factories;
 using Spectre.Console;
@@ -11,6 +12,8 @@ namespace Orchestrator.Commands.Operations.Wm26RecentHistory;
 public sealed class Wm26RecentHistoryApplyDateMapCommand
     : AsyncCommand<Wm26RecentHistoryApplyDateMapSettings>
 {
+    private static readonly DateTimeZone BerlinTimeZone = DateTimeZoneProviders.Tzdb["Europe/Berlin"];
+
     private readonly IAnsiConsole _console;
     private readonly IFirebaseServiceFactory _firebaseServiceFactory;
     private readonly ILogger<Wm26RecentHistoryApplyDateMapCommand> _logger;
@@ -59,6 +62,10 @@ public sealed class Wm26RecentHistoryApplyDateMapCommand
             var repositoryCompetition = CompetitionResolver.ToRepositoryCompetitionArgument(competition);
             var contextRepository = _firebaseServiceFactory.CreateContextRepository(repositoryCompetition);
             var applyOptions = CreateApplyOptions(settings);
+            var predictionRepository = settings.ApplyKnownOnly && applyOptions.PreserveCollectedOnOrAfter.HasValue
+                ? _firebaseServiceFactory.CreatePredictionRepository(repositoryCompetition)
+                : null;
+            var predictionLookupCache = new Dictionary<PredictionLookupKey, Match?>();
 
             _console.MarkupLine($"[green]Applying WM26 recent-history date map for:[/] [yellow]{settings.CommunityContext}[/]");
             _console.MarkupLine($"[blue]Using competition:[/] [yellow]{competition}[/]");
@@ -68,7 +75,7 @@ public sealed class Wm26RecentHistoryApplyDateMapCommand
                 if (applyOptions.PreserveCollectedOnOrAfter.HasValue)
                 {
                     _console.MarkupLine(
-                        $"[blue]Preserving rows dated on or after:[/] [yellow]{applyOptions.PreserveCollectedOnOrAfter.Value:yyyy-MM-dd}[/]");
+                        $"[blue]Resolving date-only rows dated on or after from stored predictions:[/] [yellow]{applyOptions.PreserveCollectedOnOrAfter.Value:yyyy-MM-dd}[/]");
                 }
             }
 
@@ -93,6 +100,7 @@ public sealed class Wm26RecentHistoryApplyDateMapCommand
 
             var plannedUpdates = new List<PlannedUpdate>();
             var missingEntries = new List<HistoryDateMapEntry>();
+            var missingPredictionEntries = new List<HistoryDateMapEntry>();
 
             foreach (var documentName in historyDocumentNames)
             {
@@ -105,10 +113,24 @@ public sealed class Wm26RecentHistoryApplyDateMapCommand
                     continue;
                 }
 
-                var result = HistoryCsvUtility.ApplyDateMap(documentName, document.Content, dateMapEntries, applyOptions);
+                var predictionDateEntries = await BuildPredictionDateEntriesAsync(
+                    documentName,
+                    document.Content,
+                    applyOptions,
+                    predictionRepository,
+                    settings.CommunityContext,
+                    predictionLookupCache,
+                    cancellationToken);
+                var documentApplyOptions = applyOptions with { PredictionDateEntries = predictionDateEntries };
+                var result = HistoryCsvUtility.ApplyDateMap(documentName, document.Content, dateMapEntries, documentApplyOptions);
                 if (result.MissingEntries.Count > 0)
                 {
                     missingEntries.AddRange(result.MissingEntries);
+                }
+
+                if (result.MissingPredictionEntries.Count > 0)
+                {
+                    missingPredictionEntries.AddRange(result.MissingPredictionEntries);
                 }
 
                 plannedUpdates.Add(new PlannedUpdate(documentName, document, result));
@@ -125,6 +147,12 @@ public sealed class Wm26RecentHistoryApplyDateMapCommand
             if (missingEntries.Count > 0)
             {
                 PrintMissingEntries(missingEntries);
+                return 1;
+            }
+
+            if (missingPredictionEntries.Count > 0)
+            {
+                PrintMissingPredictionEntries(missingPredictionEntries);
                 return 1;
             }
 
@@ -207,6 +235,64 @@ public sealed class Wm26RecentHistoryApplyDateMapCommand
             preserveCollectedOnOrAfter);
     }
 
+    private async Task<IReadOnlyList<HistoryDateMapEntry>> BuildPredictionDateEntriesAsync(
+        string documentName,
+        string content,
+        HistoryDateMapApplyOptions applyOptions,
+        IPredictionRepository? predictionRepository,
+        string communityContext,
+        Dictionary<PredictionLookupKey, Match?> predictionLookupCache,
+        CancellationToken cancellationToken)
+    {
+        if (!applyOptions.PreserveCollectedOnOrAfter.HasValue || predictionRepository is null)
+        {
+            return Array.Empty<HistoryDateMapEntry>();
+        }
+
+        var rows = HistoryCsvUtility.ExtractRowsRequiringPredictionPlayedAt(
+            documentName,
+            content,
+            applyOptions.PreserveCollectedOnOrAfter.Value);
+        if (rows.Count == 0)
+        {
+            return Array.Empty<HistoryDateMapEntry>();
+        }
+
+        var entries = new List<HistoryDateMapEntry>();
+        foreach (var row in rows)
+        {
+            var lookupKey = new PredictionLookupKey(row.HomeTeam.Trim(), row.AwayTeam.Trim());
+            if (!predictionLookupCache.TryGetValue(lookupKey, out var match))
+            {
+                match = await predictionRepository.GetLatestPredictedMatchByTeamsAsync(
+                    row.HomeTeam,
+                    row.AwayTeam,
+                    communityContext,
+                    cancellationToken);
+                predictionLookupCache[lookupKey] = match;
+            }
+
+            if (match is null)
+            {
+                continue;
+            }
+
+            entries.Add(row with { PlayedAt = FormatPlayedAt(match.StartsAt) });
+        }
+
+        return entries;
+    }
+
+    private static string FormatPlayedAt(ZonedDateTime startsAt)
+    {
+        var local = startsAt.WithZone(BerlinTimeZone);
+        var dateTimeOffset = new DateTimeOffset(
+            local.LocalDateTime.ToDateTimeUnspecified(),
+            local.Offset.ToTimeSpan());
+
+        return dateTimeOffset.ToString("yyyy-MM-dd'T'HH:mm:sszzz", CultureInfo.InvariantCulture);
+    }
+
     private void PrintMissingEntries(IReadOnlyList<HistoryDateMapEntry> missingEntries)
     {
         _console.MarkupLine($"[red]Date map is missing exact Played_At values for {missingEntries.Count} row(s)[/]");
@@ -225,6 +311,24 @@ public sealed class Wm26RecentHistoryApplyDateMapCommand
         }
     }
 
+    private void PrintMissingPredictionEntries(IReadOnlyList<HistoryDateMapEntry> missingEntries)
+    {
+        _console.MarkupLine($"[red]Missing stored predictions for {missingEntries.Count} tournament recent-history row(s)[/]");
+
+        foreach (var entry in missingEntries.Take(20))
+        {
+            _console.MarkupLine(
+                "[red]  Missing prediction:[/] " +
+                $"{entry.DocumentName} | {entry.Competition} | {entry.HomeTeam} vs {entry.AwayTeam} | " +
+                $"{entry.Score} | {entry.Annotation} | collected {entry.PlayedAt}");
+        }
+
+        if (missingEntries.Count > 20)
+        {
+            _console.MarkupLine($"[dim]  ... and {missingEntries.Count - 20} more[/]");
+        }
+    }
+
     private static bool IsRecentHistoryDocument(string documentName)
     {
         return documentName.StartsWith("recent-history-", StringComparison.OrdinalIgnoreCase)
@@ -235,4 +339,6 @@ public sealed class Wm26RecentHistoryApplyDateMapCommand
         string DocumentName,
         ContextDocument Document,
         HistoryDateMapApplyResult Result);
+
+    private sealed record PredictionLookupKey(string HomeTeam, string AwayTeam);
 }

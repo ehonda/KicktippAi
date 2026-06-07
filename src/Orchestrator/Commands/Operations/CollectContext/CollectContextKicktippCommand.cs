@@ -1,3 +1,4 @@
+using System.Globalization;
 using Microsoft.Extensions.Logging;
 using Spectre.Console.Cli;
 using Spectre.Console;
@@ -18,6 +19,7 @@ public class CollectContextKicktippCommand : AsyncCommand<CollectContextKicktipp
     private readonly IKicktippClientFactory _kicktippClientFactory;
     private readonly IContextProviderFactory _contextProviderFactory;
     private readonly MatchOutcomeCollectionService _matchOutcomeCollectionService;
+    private readonly TimeProvider _timeProvider;
     private readonly ILogger<CollectContextKicktippCommand> _logger;
 
     public CollectContextKicktippCommand(
@@ -26,6 +28,7 @@ public class CollectContextKicktippCommand : AsyncCommand<CollectContextKicktipp
         IKicktippClientFactory kicktippClientFactory,
         IContextProviderFactory contextProviderFactory,
         MatchOutcomeCollectionService matchOutcomeCollectionService,
+        TimeProvider timeProvider,
         ILogger<CollectContextKicktippCommand> logger)
     {
         _console = console;
@@ -33,6 +36,7 @@ public class CollectContextKicktippCommand : AsyncCommand<CollectContextKicktipp
         _kicktippClientFactory = kicktippClientFactory;
         _contextProviderFactory = contextProviderFactory;
         _matchOutcomeCollectionService = matchOutcomeCollectionService;
+        _timeProvider = timeProvider;
         _logger = logger;
     }
 
@@ -187,7 +191,8 @@ public class CollectContextKicktippCommand : AsyncCommand<CollectContextKicktipp
         // Step 3: Save context documents to database
         var savedCount = 0;
         var skippedCount = 0;
-        var currentDate = DateTime.Now.ToString("yyyy-MM-dd");
+        var currentDate = DateOnly.FromDateTime(_timeProvider.GetLocalNow().DateTime)
+            .ToString("yyyy-MM-dd", CultureInfo.InvariantCulture);
         
         foreach (var (documentName, content) in allContextDocuments)
         {

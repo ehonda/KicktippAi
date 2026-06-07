@@ -140,6 +140,90 @@ public class FirebasePredictionRepository_Match_Tests(FirestoreFixture fixture)
     }
 
     [Test]
+    public async Task GetLatestPredictedMatchByTeamsAsync_returns_latest_match_by_starts_at()
+    {
+        var repository = CreateRepository();
+        var earlierMatch = CreateMatch(
+            homeTeam: "Mexiko",
+            awayTeam: "Südafrika",
+            startsAt: Instant.FromUtc(2026, 6, 11, 19, 0).InUtc(),
+            matchday: 1);
+        var laterMatch = CreateMatch(
+            homeTeam: "Mexiko",
+            awayTeam: "Südafrika",
+            startsAt: Instant.FromUtc(2026, 7, 8, 19, 0).InUtc(),
+            matchday: 7);
+
+        await repository.SavePredictionAsync(
+            earlierMatch,
+            CreatePrediction(),
+            model: "gpt-5-nano",
+            tokenUsage: "100",
+            cost: 0.01,
+            communityContext: "ehonda-dev-wm26",
+            contextDocumentNames: []);
+        await repository.SavePredictionAsync(
+            laterMatch,
+            CreatePrediction(),
+            model: "o3",
+            tokenUsage: "100",
+            cost: 0.01,
+            communityContext: "ehonda-dev-wm26",
+            contextDocumentNames: []);
+
+        var match = await repository.GetLatestPredictedMatchByTeamsAsync(
+            "Mexiko",
+            "Südafrika",
+            "ehonda-dev-wm26");
+
+        await Assert.That(match).IsNotNull();
+        await Assert.That(match!.StartsAt.ToInstant()).IsEqualTo(laterMatch.StartsAt.ToInstant());
+        await Assert.That(match.Matchday).IsEqualTo(7);
+    }
+
+    [Test]
+    public async Task GetLatestPredictedMatchByTeamsAsync_filters_by_community_context_in_firestore_query()
+    {
+        var repository = CreateRepository();
+        var targetCommunityMatch = CreateMatch(
+            homeTeam: "Mexiko",
+            awayTeam: "Südafrika",
+            startsAt: Instant.FromUtc(2026, 6, 11, 19, 0).InUtc(),
+            matchday: 1);
+        var otherCommunityLaterMatch = CreateMatch(
+            homeTeam: "Mexiko",
+            awayTeam: "Südafrika",
+            startsAt: Instant.FromUtc(2026, 7, 8, 19, 0).InUtc(),
+            matchday: 7);
+
+        await repository.SavePredictionAsync(
+            targetCommunityMatch,
+            CreatePrediction(),
+            model: "gpt-5-nano",
+            tokenUsage: "100",
+            cost: 0.01,
+            communityContext: "ehonda-dev-wm26",
+            contextDocumentNames: []);
+        await repository.SavePredictionAsync(
+            otherCommunityLaterMatch,
+            CreatePrediction(),
+            model: "o3",
+            tokenUsage: "100",
+            cost: 0.01,
+            communityContext: "other-wm26-community",
+            contextDocumentNames: []);
+
+        var match = await repository.GetLatestPredictedMatchByTeamsAsync(
+            "Mexiko",
+            "Südafrika",
+            "ehonda-dev-wm26");
+
+        await Assert.That(match).IsNotNull();
+        await Assert.That(match!.StartsAt.ToInstant()).IsEqualTo(targetCommunityMatch.StartsAt.ToInstant());
+        await Assert.That(match.Matchday).IsEqualTo(1);
+    }
+
+    [Test]
     public async Task GetStoredMatchAsync_prediction_fallback_uses_requested_model_and_community_deterministically()
     {
         var repository = CreateRepository();

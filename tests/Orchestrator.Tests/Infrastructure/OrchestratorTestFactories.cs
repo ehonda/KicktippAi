@@ -478,6 +478,7 @@ public static class OrchestratorTestFactories
     /// <param name="getCancelledMatchPredictionMetadataResult">Result of GetCancelledMatchPredictionMetadataAsync. Defaults to null.</param>
     /// <param name="getCancelledMatchRepredictionIndexResult">Result of GetCancelledMatchRepredictionIndexAsync. Defaults to -1.</param>
     /// <param name="getBonusPredictionMetadataByTextResult">Result of GetBonusPredictionMetadataByTextAsync. Defaults to null.</param>
+    /// <param name="getLatestPredictedMatchByTeamsResult">Result of GetLatestPredictedMatchByTeamsAsync. Defaults to null.</param>
     public static Mock<IPredictionRepository> CreateMockPredictionRepository(
         NullableOption<Prediction> getPredictionResult = default,
         NullableOption<PredictionMetadata> getPredictionMetadataResult = default,
@@ -487,7 +488,8 @@ public static class OrchestratorTestFactories
         NullableOption<Prediction> getCancelledMatchPredictionResult = default,
         NullableOption<PredictionMetadata> getCancelledMatchPredictionMetadataResult = default,
         Option<int> getCancelledMatchRepredictionIndexResult = default,
-        NullableOption<BonusPredictionMetadata> getBonusPredictionMetadataByTextResult = default)
+        NullableOption<BonusPredictionMetadata> getBonusPredictionMetadataByTextResult = default,
+        NullableOption<Match> getLatestPredictedMatchByTeamsResult = default)
     {
         var mock = new Mock<IPredictionRepository>();
 
@@ -518,6 +520,13 @@ public static class OrchestratorTestFactories
                 It.IsAny<string>(),
                 It.IsAny<CancellationToken>()))
             .ReturnsAsync(getPredictionMetadataResult.Or((PredictionMetadata?)null));
+
+        mock.Setup(r => r.GetLatestPredictedMatchByTeamsAsync(
+                It.IsAny<string>(),
+                It.IsAny<string>(),
+                It.IsAny<string>(),
+                It.IsAny<CancellationToken>()))
+            .ReturnsAsync(getLatestPredictedMatchByTeamsResult.Or((Match?)null));
 
         mock.Setup(r => r.GetMatchRepredictionIndexAsync(
                 It.IsAny<Match>(),

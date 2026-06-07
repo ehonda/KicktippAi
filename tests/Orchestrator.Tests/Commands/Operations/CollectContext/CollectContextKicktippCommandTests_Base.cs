@@ -66,7 +66,8 @@ public abstract class CollectContextKicktippCommandTests_Base
         // Factory-level parameters for advanced scenarios
         Option<Mock<IFirebaseServiceFactory>> firebaseServiceFactory = default,
         Option<Mock<IKicktippClientFactory>> kicktippClientFactory = default,
-        Option<Mock<IContextProviderFactory>> contextProviderFactory = default)
+        Option<Mock<IContextProviderFactory>> contextProviderFactory = default,
+        Option<TimeProvider> timeProvider = default)
     {
         var testConsole = console.Or(() => new TestConsole());
 
@@ -100,6 +101,7 @@ public abstract class CollectContextKicktippCommandTests_Base
         services.AddSingleton(mockContextProviderFactory.Object);
         services.AddSingleton<ILogger<MatchOutcomeCollectionService>>(new FakeLogger<MatchOutcomeCollectionService>());
         services.AddSingleton<MatchOutcomeCollectionService>();
+        services.AddSingleton(timeProvider.Or(TimeProvider.System));
         services.AddSingleton<ILogger<CollectContextKicktippCommand>>(new FakeLogger<CollectContextKicktippCommand>());
 
         var registrar = new TypeRegistrar(services);
