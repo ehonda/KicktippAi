@@ -24,7 +24,7 @@ This skill coordinates the operational workflow for FIFA World Cup 2026 Kicktipp
 dotnet run --project src/Orchestrator -- collect-context-dev -c ehonda-dev-wm26 --verbose
 ```
 
-Use `--matchdays`, `--dry-run`, and `--verbose` as needed. The command collects Kicktipp context, fetches live WM26 FIFA rankings, refreshes WM26 lineup context from the tracked seed and current Transfermarkt DuckDB snapshot, and uploads the required context/KPI documents to Firestore.
+Use `--matchdays`, `--dry-run`, and `--verbose` as needed. The command collects Kicktipp context, applies the guarded WM26 recent-history played-date map, fetches live WM26 FIFA rankings, refreshes WM26 lineup context from the tracked seed and current Transfermarkt DuckDB snapshot, and uploads the required context/KPI documents to Firestore.
 
 3. For non-dev or explicit workflows, run the three collection paths separately.
 

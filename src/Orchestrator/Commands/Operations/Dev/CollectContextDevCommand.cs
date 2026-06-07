@@ -1,6 +1,7 @@
 using ContextProviders.Kicktipp;
 using Microsoft.Extensions.Logging;
 using Orchestrator.Commands.Operations.CollectContext;
+using Orchestrator.Commands.Operations.Wm26RecentHistory;
 using Orchestrator.Infrastructure;
 using Orchestrator.Infrastructure.Factories;
 using Orchestrator.Services;
@@ -15,6 +16,7 @@ public sealed class CollectContextDevCommand : AsyncCommand<CollectContextDevSet
     private readonly CollectContextKicktippCommand _kicktippCommand;
     private readonly CollectContextFifaCommand _fifaCommand;
     private readonly CollectContextLineupsCommand _lineupsCommand;
+    private readonly Wm26RecentHistoryApplyDateMapCommand _recentHistoryDateMapCommand;
 
     public CollectContextDevCommand(
         IAnsiConsole console,
@@ -26,7 +28,8 @@ public sealed class CollectContextDevCommand : AsyncCommand<CollectContextDevSet
         IWm26LineupSource lineupSource,
         ILogger<CollectContextKicktippCommand> kicktippLogger,
         ILogger<CollectContextFifaCommand> fifaLogger,
-        ILogger<CollectContextLineupsCommand> lineupsLogger)
+        ILogger<CollectContextLineupsCommand> lineupsLogger,
+        ILogger<Wm26RecentHistoryApplyDateMapCommand> recentHistoryDateMapLogger)
     {
         _console = console;
         _kicktippCommand = new CollectContextKicktippCommand(
@@ -46,6 +49,10 @@ public sealed class CollectContextDevCommand : AsyncCommand<CollectContextDevSet
             firebaseServiceFactory,
             lineupSource,
             lineupsLogger);
+        _recentHistoryDateMapCommand = new Wm26RecentHistoryApplyDateMapCommand(
+            console,
+            firebaseServiceFactory,
+            recentHistoryDateMapLogger);
     }
 
     protected override async Task<int> ExecuteAsync(
@@ -68,6 +75,10 @@ public sealed class CollectContextDevCommand : AsyncCommand<CollectContextDevSet
         var competition = string.IsNullOrWhiteSpace(settings.Competition)
             ? null
             : settings.Competition.Trim();
+        var resolvedCompetition = CompetitionResolver.ResolveCompetition(
+            competition,
+            community,
+            communityContext);
 
         _console.MarkupLine(
             $"[yellow]collect-context-dev dev preset enabled - will update WM26 context for {Markup.Escape(community)}[/]");
@@ -76,7 +87,7 @@ public sealed class CollectContextDevCommand : AsyncCommand<CollectContextDevSet
             new CollectContextKicktippSettings
             {
                 CommunityContext = communityContext,
-                Competition = competition,
+                Competition = resolvedCompetition,
                 Matchdays = settings.Matchdays,
                 DryRun = settings.DryRun,
                 Verbose = settings.Verbose
@@ -88,11 +99,32 @@ public sealed class CollectContextDevCommand : AsyncCommand<CollectContextDevSet
             return kicktippExitCode;
         }
 
+        if (CompetitionResolver.IsWorldCupCompetition(resolvedCompetition))
+        {
+            var dateMapExitCode = await _recentHistoryDateMapCommand.ExecuteWithSettingsAsync(
+                new Wm26RecentHistoryApplyDateMapSettings
+                {
+                    CommunityContext = communityContext,
+                    Competition = resolvedCompetition,
+                    Input = settings.RecentHistoryDateMap,
+                    ApplyKnownOnly = true,
+                    PreserveCollectedOnOrAfter = "2026-06-11",
+                    DryRun = settings.DryRun,
+                    Verbose = settings.Verbose
+                },
+                cancellationToken);
+
+            if (dateMapExitCode != 0)
+            {
+                return dateMapExitCode;
+            }
+        }
+
         var fifaExitCode = await _fifaCommand.ExecuteWithSettingsAsync(
             new CollectContextFifaSettings
             {
                 CommunityContext = communityContext,
-                Competition = competition,
+                Competition = resolvedCompetition,
                 DryRun = settings.DryRun,
                 Verbose = settings.Verbose
             },
@@ -107,7 +139,7 @@ public sealed class CollectContextDevCommand : AsyncCommand<CollectContextDevSet
             new CollectContextLineupsSettings
             {
                 CommunityContext = communityContext,
-                Competition = competition,
+                Competition = resolvedCompetition,
                 DryRun = settings.DryRun,
                 Verbose = settings.Verbose
             },

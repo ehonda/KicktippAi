@@ -6,6 +6,7 @@ using Microsoft.Extensions.Logging.Testing;
 using Moq;
 using Orchestrator.Commands.Operations.CollectContext;
 using Orchestrator.Commands.Operations.Dev;
+using Orchestrator.Commands.Operations.Wm26RecentHistory;
 using Orchestrator.Infrastructure.Factories;
 using Orchestrator.Services;
 using Spectre.Console;
@@ -36,9 +37,10 @@ public class CollectContextDevCommandTests
     }
 
     [Test]
-    public async Task Running_collect_context_dev_for_wm26_calls_kicktipp_fifa_and_lineup_collection_paths()
+    public async Task Running_collect_context_dev_for_wm26_calls_kicktipp_date_map_fifa_and_lineup_collection_paths()
     {
         var testContext = CreateCollectContextDevCommandApp();
+        var dateMapPath = CreateTempDateMap();
 
         var (exitCode, output) = await RunCommandAsync(
             testContext.App,
@@ -46,17 +48,33 @@ public class CollectContextDevCommandTests
             "collect-context-dev",
             "--community",
             "ehonda-dev-wm26",
+            "--recent-history-date-map",
+            dateMapPath,
             "--verbose");
 
         await Assert.That(exitCode).IsEqualTo(0);
         await Assert.That(output).Contains("Collect-context kicktipp command initialized");
+        await Assert.That(output).Contains("Applying WM26 recent-history date map");
         await Assert.That(output).Contains("Collect-context fifa command initialized");
         await Assert.That(output).Contains("Collect-context lineups command initialized");
 
         testContext.ContextRepository.Verify(
             r => r.SaveContextDocumentAsync(
-                "kicktipp-doc.csv",
-                "kicktipp content",
+                "recent-history-kanada.csv",
+                It.Is<string>(content =>
+                    content.Contains("Data_Collected_At") &&
+                    content.Contains("CopAm,202") &&
+                    content.Contains("Kanada,Chile,0:0")),
+                "ehonda-dev-wm26",
+                It.IsAny<CancellationToken>()),
+            Times.Once);
+        testContext.ContextRepository.Verify(
+            r => r.SaveContextDocumentAsync(
+                "recent-history-kanada.csv",
+                It.Is<string>(content =>
+                    content.Contains("Competition,Played_At,Home_Team,Away_Team,Score,Annotation") &&
+                    !content.Contains("Data_Collected_At") &&
+                    content.Contains("CopAm,2024-06-29,Kanada,Chile,0:0,")),
                 "ehonda-dev-wm26",
                 It.IsAny<CancellationToken>()),
             Times.Once);
@@ -92,7 +110,7 @@ public class CollectContextDevCommandTests
             Times.Once);
         testContext.FirebaseServiceFactory.Verify(
             f => f.CreateContextRepository(CompetitionIds.FifaWorldCup2026),
-            Times.AtLeast(3));
+            Times.AtLeast(4));
         testContext.FirebaseServiceFactory.Verify(
             f => f.CreateKpiRepository(CompetitionIds.FifaWorldCup2026),
             Times.Exactly(2));
@@ -102,6 +120,7 @@ public class CollectContextDevCommandTests
     public async Task Running_collect_context_dev_for_wm26_passes_matchdays_and_dry_run_to_kicktipp_collection()
     {
         var testContext = CreateCollectContextDevCommandApp();
+        var dateMapPath = CreateTempDateMap();
 
         var (exitCode, output) = await RunCommandAsync(
             testContext.App,
@@ -111,6 +130,8 @@ public class CollectContextDevCommandTests
             "ehonda-dev-wm26",
             "--matchdays",
             "2,3",
+            "--recent-history-date-map",
+            dateMapPath,
             "--dry-run",
             "--verbose");
 
@@ -144,7 +165,7 @@ public class CollectContextDevCommandTests
 
     private static CollectContextDevCommandTestContext CreateCollectContextDevCommandApp()
     {
-        var contextRepository = CreateMockContextRepositoryForUpload(savedVersion: 1);
+        var contextRepository = CreateInMemoryContextRepository();
         var kpiRepository = CreateMockKpiRepositoryForUpload(savedVersion: 0);
         var matchOutcomeRepository = CreateMockMatchOutcomeRepository();
         var firebaseFactory = CreateMockFirebaseServiceFactoryFull(
@@ -157,7 +178,12 @@ public class CollectContextDevCommandTests
             matchesWithHistory: new List<MatchWithHistory> { CreateMatchWithHistory(match: match) });
         var kicktippClientFactory = CreateMockKicktippClientFactory(kicktippClient);
         var contextProvider = CreateMockKicktippContextProvider(
-            matchContextDocuments: new List<DocumentContext> { new("kicktipp-doc.csv", "kicktipp content") });
+            matchContextDocuments: new List<DocumentContext>
+            {
+                new(
+                    "recent-history-kanada.csv",
+                    "Competition,Home_Team,Away_Team,Score,Annotation\nCopAm,Kanada,Chile,0:0,")
+            });
         var contextProviderFactory = CreateMockContextProviderFactory(contextProvider);
         var fifaRankingSource = new Mock<IFifaRankingSource>();
         fifaRankingSource
@@ -211,6 +237,7 @@ public class CollectContextDevCommandTests
                 services.AddSingleton<ILogger<CollectContextKicktippCommand>>(new FakeLogger<CollectContextKicktippCommand>());
                 services.AddSingleton<ILogger<CollectContextFifaCommand>>(new FakeLogger<CollectContextFifaCommand>());
                 services.AddSingleton<ILogger<CollectContextLineupsCommand>>(new FakeLogger<CollectContextLineupsCommand>());
+                services.AddSingleton<ILogger<Wm26RecentHistoryApplyDateMapCommand>>(new FakeLogger<Wm26RecentHistoryApplyDateMapCommand>());
             }));
 
         return new CollectContextDevCommandTestContext(
@@ -221,6 +248,63 @@ public class CollectContextDevCommandTests
             kicktippClient,
             contextRepository,
             kpiRepository);
+    }
+
+    private static Mock<IContextRepository> CreateInMemoryContextRepository()
+    {
+        var documents = new Dictionary<string, ContextDocument>(StringComparer.OrdinalIgnoreCase);
+        var versions = new Dictionary<string, int>(StringComparer.OrdinalIgnoreCase);
+        var mock = new Mock<IContextRepository>();
+
+        mock.Setup(r => r.GetContextDocumentNamesAsync(
+                It.IsAny<string>(),
+                It.IsAny<CancellationToken>()))
+            .ReturnsAsync(() => documents.Keys.ToList());
+
+        mock.Setup(r => r.GetLatestContextDocumentAsync(
+                It.IsAny<string>(),
+                It.IsAny<string>(),
+                It.IsAny<CancellationToken>()))
+            .ReturnsAsync((string documentName, string _, CancellationToken _) =>
+                documents.TryGetValue(documentName, out var document) ? document : null);
+
+        mock.Setup(r => r.SaveContextDocumentAsync(
+                It.IsAny<string>(),
+                It.IsAny<string>(),
+                It.IsAny<string>(),
+                It.IsAny<CancellationToken>()))
+            .ReturnsAsync((string documentName, string content, string _, CancellationToken _) =>
+            {
+                var version = versions.TryGetValue(documentName, out var currentVersion)
+                    ? currentVersion + 1
+                    : 1;
+                versions[documentName] = version;
+                documents[documentName] = new ContextDocument(
+                    documentName,
+                    content,
+                    version,
+                    DateTimeOffset.UtcNow);
+                return version;
+            });
+
+        return mock;
+    }
+
+    private static string CreateTempDateMap()
+    {
+        var path = Path.Combine(
+            Path.GetTempPath(),
+            "KicktippAi",
+            "collect-context-dev-tests",
+            $"{Guid.NewGuid():N}.csv");
+        Directory.CreateDirectory(Path.GetDirectoryName(path)!);
+        File.WriteAllText(
+            path,
+            """
+            DocumentName,Competition,Home_Team,Away_Team,Score,Annotation,Played_At,Source_Name,Source_Url,Verified_At,Notes
+            recent-history-kanada.csv,CopAm,Kanada,Chile,0:0,,2024-06-29,Test,https://example.test,2026-06-07,
+            """.Replace("\r\n", "\n"));
+        return path;
     }
 
     private sealed record CollectContextDevCommandTestContext(

@@ -30,6 +30,13 @@ public sealed class Wm26RecentHistoryApplyDateMapCommand
         Wm26RecentHistoryApplyDateMapSettings settings,
         CancellationToken cancellationToken)
     {
+        return await ExecuteWithSettingsAsync(settings, cancellationToken);
+    }
+
+    internal async Task<int> ExecuteWithSettingsAsync(
+        Wm26RecentHistoryApplyDateMapSettings settings,
+        CancellationToken cancellationToken = default)
+    {
         try
         {
             if (!File.Exists(settings.Input))
