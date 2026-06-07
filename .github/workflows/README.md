@@ -177,8 +177,8 @@ secret name whenever the workflow pins one. The preliminary
 `EHONDA_AI_ARENA_GPT_5_NANO_MINIMAL_KICKTIPP_USERNAME` and
 `EHONDA_AI_ARENA_GPT_5_NANO_MINIMAL_KICKTIPP_PASSWORD`.
 The selected WM26 `o3 high` production workflows use
-`RABETRABAUKEN2026_O3_HIGH_KICKTIPP_USERNAME` /
-`RABETRABAUKEN2026_O3_HIGH_KICKTIPP_PASSWORD` for the primary community and
+`RABETRABAUKEN2026_KICKTIPP_USERNAME` /
+`RABETRABAUKEN2026_KICKTIPP_PASSWORD` for the primary community and
 `EHONDA_AI_ARENA_O3_HIGH_KICKTIPP_USERNAME` /
 `EHONDA_AI_ARENA_O3_HIGH_KICKTIPP_PASSWORD` for the secondary copy-posting
 community.
@@ -232,8 +232,6 @@ Examples:
 
 ### WM26 Model-Specific Prediction Secrets
 
-- `RABETRABAUKEN2026_O3_HIGH_KICKTIPP_USERNAME`: Kicktipp username for the scheduled rabetrabauken2026 WM26 o3/high primary production workflows
-- `RABETRABAUKEN2026_O3_HIGH_KICKTIPP_PASSWORD`: Kicktipp password for the scheduled rabetrabauken2026 WM26 o3/high primary production workflows
 - `EHONDA_AI_ARENA_O3_HIGH_KICKTIPP_USERNAME`: Kicktipp username for the scheduled ehonda-ai-arena WM26 o3/high secondary copy-posting workflows
 - `EHONDA_AI_ARENA_O3_HIGH_KICKTIPP_PASSWORD`: Kicktipp password for the scheduled ehonda-ai-arena WM26 o3/high secondary copy-posting workflows
 - `EHONDA_AI_ARENA_GPT_5_NANO_MINIMAL_KICKTIPP_USERNAME`: Kicktipp username for the scheduled ehonda-ai-arena WM26 gpt-5-nano/minimal self-contained posting workflows
@@ -253,8 +251,8 @@ Examples:
 - `PES_SQUAD_KICKTIPP_PASSWORD`: Kicktipp password for pes-squad context collection
 - `SCHADENSFRESSE_KICKTIPP_USERNAME`: Kicktipp username for schadensfresse context collection
 - `SCHADENSFRESSE_KICKTIPP_PASSWORD`: Kicktipp password for schadensfresse context collection
-- `RABETRABAUKEN2026_KICKTIPP_USERNAME`: Kicktipp username for rabetrabauken2026 WM26 context collection
-- `RABETRABAUKEN2026_KICKTIPP_PASSWORD`: Kicktipp password for rabetrabauken2026 WM26 context collection
+- `RABETRABAUKEN2026_KICKTIPP_USERNAME`: Kicktipp username for rabetrabauken2026 WM26 context collection and o3/high primary production workflows
+- `RABETRABAUKEN2026_KICKTIPP_PASSWORD`: Kicktipp password for rabetrabauken2026 WM26 context collection and o3/high primary production workflows
 - `FIREBASE_PROJECT_ID`: Same Firebase project ID (shared with predictions)
 - `FIREBASE_SERVICE_ACCOUNT_JSON`: Same Firebase service account (shared with predictions)
 

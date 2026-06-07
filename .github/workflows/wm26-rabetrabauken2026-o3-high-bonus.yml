@@ -33,8 +33,8 @@ jobs:
       force_prediction: ${{ github.event.inputs.force_prediction == 'true' }}
       max_repredictions: ${{ fromJSON(github.event.inputs.max_repredictions || '2') }}
     secrets:
-      kicktipp_username: ${{ secrets.RABETRABAUKEN2026_O3_HIGH_KICKTIPP_USERNAME }}
-      kicktipp_password: ${{ secrets.RABETRABAUKEN2026_O3_HIGH_KICKTIPP_PASSWORD }}
+      kicktipp_username: ${{ secrets.RABETRABAUKEN2026_KICKTIPP_USERNAME }}
+      kicktipp_password: ${{ secrets.RABETRABAUKEN2026_KICKTIPP_PASSWORD }}
       firebase_project_id: ${{ secrets.FIREBASE_PROJECT_ID }}
       firebase_service_account_json: ${{ secrets.FIREBASE_SERVICE_ACCOUNT_JSON }}
       openai_api_key: ${{ secrets.OPENAI_API_KEY }}

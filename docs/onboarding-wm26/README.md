@@ -325,8 +325,8 @@ workflow can be trusted or scheduled:
   `ehonda-ai-arena` context collection workflow uses the same Kicktipp
   credentials for this preliminary self-contained test.
   The selected `rabetrabauken2026` `o3 high` production workflows use
-  `RABETRABAUKEN2026_O3_HIGH_KICKTIPP_USERNAME` /
-  `RABETRABAUKEN2026_O3_HIGH_KICKTIPP_PASSWORD`, and the matching
+  `RABETRABAUKEN2026_KICKTIPP_USERNAME` /
+  `RABETRABAUKEN2026_KICKTIPP_PASSWORD`, and the matching
   `ehonda-ai-arena` `o3 high` copy-posting workflows use
   `EHONDA_AI_ARENA_O3_HIGH_KICKTIPP_USERNAME` /
   `EHONDA_AI_ARENA_O3_HIGH_KICKTIPP_PASSWORD`.
