@@ -59,7 +59,7 @@ public sealed class Wm26RecentHistoryApplyDateMapSettings : Wm26RecentHistorySet
     public bool ApplyKnownOnly { get; set; }
 
     [CommandOption("--preserve-collected-on-or-after <DATE>")]
-    [Description("When applying known rows only, preserve rows whose Data_Collected_At is on or after this YYYY-MM-DD date")]
+    [Description("When applying known rows only, preserve rows whose Played_At or legacy Data_Collected_At is on or after this YYYY-MM-DD date")]
     public string? PreserveCollectedOnOrAfter { get; set; }
 
     [CommandOption("--verbose")]

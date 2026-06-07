@@ -61,7 +61,7 @@ public sealed class Wm26RecentHistoryApplyDateMapCommand
                 if (applyOptions.PreserveCollectedOnOrAfter.HasValue)
                 {
                     _console.MarkupLine(
-                        $"[blue]Preserving rows collected on or after:[/] [yellow]{applyOptions.PreserveCollectedOnOrAfter.Value:yyyy-MM-dd}[/]");
+                        $"[blue]Preserving rows dated on or after:[/] [yellow]{applyOptions.PreserveCollectedOnOrAfter.Value:yyyy-MM-dd}[/]");
                 }
             }
 

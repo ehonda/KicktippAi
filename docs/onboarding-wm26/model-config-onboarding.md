@@ -1,6 +1,6 @@
 # WM26 Model Configuration Onboarding
 
-Updated: 2026-06-06
+Updated: 2026-06-07
 
 This ledger tracks which FIFA World Cup 2026 model configurations are
 onboarded, where they are wired, and whether their full-competition match
@@ -31,9 +31,10 @@ activating a scheduled prediction workflow, make sure the matching cost estimate
 is present in [whole-season-cost-estimates.md](../experiments/whole-season-cost-estimates.md).
 
 WM26 context workflows now apply the canonical recent-history date map in
-guarded mode after Kicktipp context collection. The guarded step applies known
-pre-WM26 played dates, preserves unmapped rows, and preserves rows whose
-existing `Data_Collected_At` is on or after 2026-06-11 so tournament rows keep
+guarded mode after Kicktipp context collection. The guarded step produces
+recent-history CSVs with `Played_At`, applies known pre-WM26 played dates,
+preserves unmapped rows, and preserves rows whose existing `Played_At` or
+legacy `Data_Collected_At` is on or after 2026-06-11 so tournament rows keep
 standard collection-date semantics.
 
 ## Current WM26 Configurations
@@ -64,6 +65,14 @@ prediction before posting to `ehonda-ai-arena`. Self-contained
 `ehonda-ai-arena` workflows, dev shortcuts, and unrelated WM26 model tests must
 keep `community_context` aligned with their own collected context unless a new
 row here explicitly documents a copy-posting setup.
+
+## 2026-06-07 Recent-History Played_At Header Repair
+
+- `wm26-recent-history apply-date-map --community-context ehonda-dev-wm26 --competition fifa-world-cup-2026 --input data/wm26/recent-history/recent-history-match-dates.csv --dry-run --verbose` found 48 recent-history documents with complete strict map coverage. The dry-run would save all 48 documents because the prompt-facing header needed to migrate from legacy `Data_Collected_At` to `Played_At`; `recent-history-kanada.csv` also had one played-date value correction.
+- The same `ehonda-dev-wm26` command without `--dry-run` saved 48 migrated documents. A follow-up strict dry-run reported `0` documents would be saved and `48` unchanged.
+- `wm26-recent-history apply-date-map --community-context ehonda-ai-arena --competition fifa-world-cup-2026 --input data/wm26/recent-history/recent-history-match-dates.csv --dry-run --verbose` found 16 recent-history documents with complete strict map coverage. The dry-run would save all 16 documents for the same `Played_At` header migration.
+- The same `ehonda-ai-arena` command without `--dry-run` saved 16 migrated documents. A follow-up strict dry-run reported `0` documents would be saved and `16` unchanged.
+- `rabetrabauken2026` still had no WM26 recent-history context documents. Guarded workflow mode with `--apply-known-only --preserve-collected-on-or-after 2026-06-11 --dry-run --verbose` exited successfully with `No recent-history documents found`.
 
 ## 2026-06-06 Recent-History Date Repair
 

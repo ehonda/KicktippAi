@@ -92,8 +92,9 @@ dotnet run --project src/Orchestrator -- wm26-recent-history apply-date-map --co
 
 Run with `--dry-run` first when changing the map. Use strict mode for manual
 pre-WM26 map validation and repairs. GitHub Actions WM26 context workflows use
-the guarded form below so tournament rows keep standard collection-date
-semantics and do not consume older map entries for the same matchup key:
+the guarded form below so recent-history context is written with `Played_At`,
+tournament rows keep standard collection-date semantics, and tournament rows
+do not consume older map entries for the same matchup key:
 
 ```powershell
 dotnet run --project src/Orchestrator -- wm26-recent-history apply-date-map --community-context <community-context> --competition fifa-world-cup-2026 --input data/wm26/recent-history/recent-history-match-dates.csv --apply-known-only --preserve-collected-on-or-after 2026-06-11
@@ -147,6 +148,8 @@ After autonomous onboarding, include a concise manual follow-up section in the f
 - Workflow documentation: `docs/onboarding-wm26/README.md`
 - Model configuration onboarding ledger: `docs/onboarding-wm26/model-config-onboarding.md`
 - Full-competition cost estimates: `docs/experiments/whole-season-cost-estimates.md`
+
+WM26 recent-history CSV payloads must use `Competition,Played_At,Home_Team,Away_Team,Score,Annotation` after the date-map step. The date-map apply command must still read legacy `Data_Collected_At` so existing Firestore documents can be repaired in place.
 
 FIFA ranking CSV payloads must use `Rank,Team,ELO,Data_Collected_At`, format points with two decimal places, and must not contain empty `Data_Collected_At` values.
 

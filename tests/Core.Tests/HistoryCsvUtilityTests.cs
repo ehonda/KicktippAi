@@ -46,6 +46,19 @@ public class HistoryCsvUtilityTests
     }
 
     [Test]
+    public async Task Adding_data_collected_at_preserves_existing_played_at_dates_from_previous_version()
+    {
+        var previousCsvContent = "Competition,Played_At,Home_Team,Away_Team,Score,Annotation\nBundesliga,2025-01-01,Bayern,Leipzig,2-1,";
+        var csvContent = "Competition,Home_Team,Away_Team,Score,Annotation\nBundesliga,Bayern,Leipzig,2-1,\nBundesliga,Bayern,Mainz,3-0,";
+        var collectedDate = "2025-01-10";
+
+        var result = HistoryCsvUtility.AddDataCollectedAtColumn(csvContent, previousCsvContent, collectedDate);
+
+        await Assert.That(result).Contains("2025-01-01");
+        await Assert.That(result).Contains("2025-01-10");
+    }
+
+    [Test]
     public async Task Adding_data_collected_at_handles_multiple_rows()
     {
         var csvContent = "Competition,Home_Team,Away_Team,Score,Annotation\nBundesliga,Bayern,Leipzig,2-1,\nBundesliga,Dortmund,Mainz,3-0,\nBundesliga,Bremen,Hamburg,1-1,";
@@ -161,7 +174,7 @@ public class HistoryCsvUtilityTests
     }
 
     [Test]
-    public async Task Applying_date_map_adds_data_collected_at_with_played_at_dates()
+    public async Task Applying_date_map_writes_played_at_with_played_dates()
     {
         var csvContent = "Competition,Home_Team,Away_Team,Score,Annotation\nKL-WM,Germany,Slovakia,6:0,";
         var dateMap = new[]
@@ -184,11 +197,11 @@ public class HistoryCsvUtilityTests
 
         await Assert.That(result.MissingEntries).IsEmpty();
         await Assert.That(result.Content).IsEqualToWithNormalizedLineEndings(
-            "Competition,Data_Collected_At,Home_Team,Away_Team,Score,Annotation\r\nKL-WM,2025-11-17,Germany,Slovakia,6:0,\r\n");
+            "Competition,Played_At,Home_Team,Away_Team,Score,Annotation\r\nKL-WM,2025-11-17,Germany,Slovakia,6:0,\r\n");
     }
 
     [Test]
-    public async Task Applying_date_map_overwrites_existing_data_collected_at_values()
+    public async Task Applying_date_map_migrates_existing_data_collected_at_values_to_played_at()
     {
         var csvContent = "Competition,Data_Collected_At,Home_Team,Away_Team,Score,Annotation\nKL-WM,2026-05-23,Germany,Slovakia,6:0,";
         var dateMap = new[]
@@ -210,6 +223,8 @@ public class HistoryCsvUtilityTests
         var result = HistoryCsvUtility.ApplyDateMap("recent-history-germany.csv", csvContent, dateMap);
 
         await Assert.That(result.MissingEntries).IsEmpty();
+        await Assert.That(result.Content).Contains("Played_At");
+        await Assert.That(result.Content).DoesNotContain("Data_Collected_At");
         await Assert.That(result.Content).Contains("2025-11-17");
         await Assert.That(result.Content).DoesNotContain("2026-05-23");
     }
@@ -250,7 +265,7 @@ public class HistoryCsvUtilityTests
 
         await Assert.That(result.MissingEntries).IsEmpty();
         await Assert.That(result.Content).IsEqualToWithNormalizedLineEndings(
-            "Competition,Data_Collected_At,Home_Team,Away_Team,Score,Annotation\r\nCopAm,2024-07-09,Argentina,Canada,2:0,\r\nCopAm,2024-06-20,Argentina,Canada,2:0,\r\n");
+            "Competition,Played_At,Home_Team,Away_Team,Score,Annotation\r\nCopAm,2024-07-09,Argentina,Canada,2:0,\r\nCopAm,2024-06-20,Argentina,Canada,2:0,\r\n");
     }
 
     [Test]

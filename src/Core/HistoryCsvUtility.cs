@@ -32,11 +32,12 @@ public sealed record HistoryDateMapApplyOptions(
 }
 
 /// <summary>
-/// Utility class for handling Data_Collected_At column in history CSV documents.
+/// Utility class for handling date columns in history CSV documents.
 /// </summary>
 public static class HistoryCsvUtility
 {
     public const string DataCollectedAtColumnName = "Data_Collected_At";
+    public const string PlayedAtColumnName = "Played_At";
 
     private static readonly string[] DateMapHeaders =
     [
@@ -46,7 +47,7 @@ public static class HistoryCsvUtility
         "Away_Team",
         "Score",
         "Annotation",
-        "Played_At",
+        PlayedAtColumnName,
         "Source_Name",
         "Source_Url",
         "Verified_At",
@@ -62,8 +63,8 @@ public static class HistoryCsvUtility
     /// <returns>The updated CSV content with Data_Collected_At column.</returns>
     public static string AddDataCollectedAtColumn(string csvContent, string? previousCsvContent, string collectedDate)
     {
-        // Check if the CSV already has Data_Collected_At column
-        if (HasDataCollectedAtColumn(csvContent))
+        // Check if the CSV already has a history date column.
+        if (HasHistoryDateColumn(csvContent))
         {
             return csvContent; // Already has the column
         }
@@ -105,7 +106,7 @@ public static class HistoryCsvUtility
                     GetOptionalField(csv, "Away_Team"),
                     GetOptionalField(csv, "Score"),
                     GetOptionalField(csv, "Annotation"),
-                    GetOptionalField(csv, "Played_At"),
+                    GetOptionalField(csv, PlayedAtColumnName),
                     GetOptionalField(csv, "Source_Name"),
                     GetOptionalField(csv, "Source_Url"),
                     GetOptionalField(csv, "Verified_At"),
@@ -173,7 +174,7 @@ public static class HistoryCsvUtility
             while (csv.Read())
             {
                 var playedAt = includeExistingDataCollectedAt
-                    ? GetOptionalField(csv, DataCollectedAtColumnName)
+                    ? GetHistoryDateField(csv)
                     : "";
 
                 entries.Add(new HistoryDateMapEntry(
@@ -242,7 +243,7 @@ public static class HistoryCsvUtility
                     GetOptionalField(csv, "Away_Team"),
                     GetOptionalField(csv, "Score"),
                     GetOptionalField(csv, "Annotation"),
-                    PlayedAt: GetOptionalField(csv, DataCollectedAtColumnName),
+                    PlayedAt: GetHistoryDateField(csv),
                     SourceName: "",
                     SourceUrl: "",
                     VerifiedAt: "",
@@ -310,7 +311,7 @@ public static class HistoryCsvUtility
         using var csvWriter = new CsvWriter(writer, CultureInfo.InvariantCulture);
 
         csvWriter.WriteField("Competition");
-        csvWriter.WriteField(DataCollectedAtColumnName);
+        csvWriter.WriteField(PlayedAtColumnName);
         csvWriter.WriteField("Home_Team");
         csvWriter.WriteField("Away_Team");
         csvWriter.WriteField("Score");
@@ -338,22 +339,23 @@ public static class HistoryCsvUtility
     }
 
     /// <summary>
-    /// Checks if the CSV content already has a Data_Collected_At column.
+    /// Checks if the CSV content already has a recognized history date column.
     /// </summary>
-    private static bool HasDataCollectedAtColumn(string csvContent)
+    private static bool HasHistoryDateColumn(string csvContent)
     {
         var lines = csvContent.Split('\n', StringSplitOptions.RemoveEmptyEntries);
         if (lines.Length == 0)
         {
             return false;
         }
-        
+
         var header = lines[0];
-        return header.Contains(DataCollectedAtColumnName, StringComparison.OrdinalIgnoreCase);
+        return header.Contains(DataCollectedAtColumnName, StringComparison.OrdinalIgnoreCase)
+               || header.Contains(PlayedAtColumnName, StringComparison.OrdinalIgnoreCase);
     }
     
     /// <summary>
-    /// Extracts matches from CSV content without Data_Collected_At.
+    /// Extracts matches from CSV content without a history date column.
     /// </summary>
     private static HashSet<string> ExtractMatches(string csvContent)
     {
@@ -388,13 +390,13 @@ public static class HistoryCsvUtility
     }
     
     /// <summary>
-    /// Extracts matches with their collection dates from CSV content that has Data_Collected_At.
+    /// Extracts matches with their collection dates from CSV content that has a history date column.
     /// </summary>
     private static Dictionary<string, string> ExtractMatchesWithCollectionDates(string csvContent)
     {
         var matches = new Dictionary<string, string>();
         
-        if (!HasDataCollectedAtColumn(csvContent))
+        if (!HasHistoryDateColumn(csvContent))
         {
             return matches;
         }
@@ -410,14 +412,14 @@ public static class HistoryCsvUtility
             while (csv.Read())
             {
                 var competition = csv.GetField("Competition") ?? "";
-                var dataCollectedAt = csv.GetField(DataCollectedAtColumnName) ?? "";
+                var historyDate = GetHistoryDateField(csv);
                 var homeTeam = csv.GetField("Home_Team") ?? "";
                 var awayTeam = csv.GetField("Away_Team") ?? "";
                 var score = csv.GetField("Score") ?? "";
                 var annotation = (csv.TryGetField<string>("Annotation", out var ann) ? ann : null) ?? "";
                 
                 var matchKey = CreateMatchKey(competition, homeTeam, awayTeam, score, annotation);
-                matches[matchKey] = dataCollectedAt;
+                matches[matchKey] = historyDate;
             }
         }
         catch (Exception)
@@ -549,6 +551,14 @@ public static class HistoryCsvUtility
         }
 
         return collectedAt >= preserveCollectedOnOrAfter.Value;
+    }
+
+    private static string GetHistoryDateField(CsvReader csv)
+    {
+        var playedAt = GetOptionalField(csv, PlayedAtColumnName);
+        return string.IsNullOrWhiteSpace(playedAt)
+            ? GetOptionalField(csv, DataCollectedAtColumnName)
+            : playedAt;
     }
 
     private static string GetOptionalField(CsvReader csv, string fieldName)

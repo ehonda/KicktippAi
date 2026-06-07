@@ -150,7 +150,8 @@ public class Wm26RecentHistoryCommandTests
             r => r.SaveContextDocumentAsync(
                 "recent-history-germany.csv",
                 It.Is<string>(content =>
-                    content.Contains("Data_Collected_At") &&
+                    content.Contains("Played_At") &&
+                    !content.Contains("Data_Collected_At") &&
                     content.Contains("2025-11-17")),
                 "ehonda-dev-wm26",
                 It.IsAny<CancellationToken>()),
@@ -231,6 +232,8 @@ public class Wm26RecentHistoryCommandTests
             r => r.SaveContextDocumentAsync(
                 "recent-history-germany.csv",
                 It.Is<string>(content =>
+                    content.Contains("Played_At") &&
+                    !content.Contains("Data_Collected_At") &&
                     content.Contains("KL-WM,2025-11-17,Germany,Slovakia,6:0,") &&
                     content.Contains("WM,2026-06-03,Germany,Unmapped Team,1:1,")),
                 "ehonda-dev-wm26",
@@ -273,7 +276,10 @@ public class Wm26RecentHistoryCommandTests
         contextRepository.Verify(
             r => r.SaveContextDocumentAsync(
                 "recent-history-germany.csv",
-                It.Is<string>(content => content.Contains("KL-WM,2026-06-03,Germany,Slovakia,6:0,")),
+                It.Is<string>(content =>
+                    content.Contains("Played_At") &&
+                    !content.Contains("Data_Collected_At") &&
+                    content.Contains("KL-WM,2026-06-03,Germany,Slovakia,6:0,")),
                 "ehonda-dev-wm26",
                 It.IsAny<CancellationToken>()),
             Times.Once);
@@ -356,6 +362,8 @@ public class Wm26RecentHistoryCommandTests
             r => r.SaveContextDocumentAsync(
                 "recent-history-mexiko.csv",
                 It.Is<string>(content =>
+                    content.Contains("Played_At") &&
+                    !content.Contains("Data_Collected_At") &&
                     content.Contains("WM,2026-06-11,Mexiko,Südafrika,1:1,") &&
                     content.Contains("WM,2010-06-11,Mexiko,Südafrika,1:1,")),
                 "ehonda-dev-wm26",
