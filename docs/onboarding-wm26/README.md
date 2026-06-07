@@ -100,7 +100,7 @@ Slower or secondary model/community workflows:
 
 ```yaml
 schedule:
-  - cron: '7 1,8,13 * * *'
+  - cron: '47 1,8,13 * * *'
 ```
 
 Bonus prediction workflows, if enabled on the same cadence:
@@ -116,10 +116,10 @@ GitHub Actions cron runs in UTC. During WM26, Germany is expected to be on CEST,
 | --- | --- | --- |
 | Context collection | 23:47, 06:47, 11:47 | 01:47, 08:47, 13:47 |
 | Main matchday predictions | 00:37, 07:37, 12:37 | 02:37, 09:37, 14:37 |
-| Slower/secondary predictions | 01:07, 08:07, 13:07 | 03:07, 10:07, 15:07 |
+| Slower/secondary predictions | 01:47, 08:47, 13:47 | 03:47, 10:47, 15:47 |
 | Bonus predictions | 00:47, 07:47, 12:47 | 02:47, 09:47, 14:47 |
 
-The offsets preserve the Bundesliga dependency pattern: collect context first, then run the primary prediction workflows, then run slower or secondary model workflows after the shared data has had time to land. The non-zero minute values also avoid top-of-hour scheduled workflow congestion.
+The offsets preserve the Bundesliga dependency pattern: collect context first, then run the primary prediction workflows, then run slower or secondary model workflows after the shared data has had time to land. The secondary slot is intentionally at least 60 minutes after both primary WM26 prediction windows so stored reference predictions have more headroom to finish even if GitHub Actions flex introduces delays. The non-zero minute values also avoid top-of-hour scheduled workflow congestion.
 
 WM26 needs a third daily window because many North American kickoffs are late in UTC/Berlin time. The `00:37 UTC` prediction window gives a retry opportunity before late matches, `07:37 UTC` refreshes after overnight results and context updates, and `12:37 UTC` provides another attempt before the earliest remaining kickoff blocks. This gives at least two scheduled prediction tries for upcoming matches in normal tournament flow, including a useful pair of post-group-stage attempts before the first Round of 32 match on 2026-06-28.
 

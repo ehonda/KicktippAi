@@ -52,12 +52,12 @@ Each community gets its own set of workflows that call the base workflows with s
   - Uses `o3` with `reasoning_effort: "high"`
   - Pins `max_output_tokens: 40000`
   - Uses `community_context: "rabetrabauken2026"` so it reuses the stored primary prediction
-  - Uses the slower secondary cadence: 01:07, 08:07, and 13:07 UTC
+  - Uses the slower secondary cadence: 01:47, 08:47, and 13:47 UTC
 - **`wm26-ehonda-ai-arena-o3-high-bonus.yml`**: Scheduled WM26 secondary production bonus copy-posting
   - Uses `o3` with `reasoning_effort: "high"`
   - Pins `max_output_tokens: 40000`
   - Uses `community_context: "rabetrabauken2026"` so it reuses the stored primary prediction
-  - Uses the slower secondary cadence: 01:07, 08:07, and 13:07 UTC
+  - Uses the slower secondary cadence: 01:47, 08:47, and 13:47 UTC
 - **`wm26-ehonda-ai-arena-gpt-5-nano-minimal-matchday.yml`**: Scheduled WM26 self-contained matchday predictions
   - Uses `gpt-5-nano` with `reasoning_effort: "minimal"`
   - Pins `max_output_tokens: 10000`
