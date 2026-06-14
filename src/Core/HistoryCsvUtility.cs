@@ -113,7 +113,24 @@ public static class HistoryCsvUtility
         var currentMatches = ExtractMatches(csvContent);
         
         // Build the new CSV with Data_Collected_At column
-        return BuildCsvWithDataCollectedAt(csvContent, currentMatches, previousMatches, collectedDate);
+        var updatedCsvContent = BuildCsvWithDataCollectedAt(csvContent, currentMatches, previousMatches, collectedDate);
+
+        // When the previous version already used Played_At and the rebuilt rows plus dates
+        // are otherwise identical, keep the previous payload unchanged to avoid transient
+        // version churn in WM26 collect-context -> date-map workflows.
+        if (HasPlayedAtColumn(previousCsvContent))
+        {
+            var playedAtVariant = ReplaceDataCollectedAtHeaderWithPlayedAt(updatedCsvContent);
+            if (string.Equals(
+                    NormalizeLineEndings(playedAtVariant),
+                    NormalizeLineEndings(previousCsvContent!),
+                    StringComparison.Ordinal))
+            {
+                return previousCsvContent;
+            }
+        }
+
+        return updatedCsvContent;
     }
 
     public static IReadOnlyList<HistoryDateMapEntry> ReadDateMapEntries(string csvContent)
@@ -492,6 +509,37 @@ public static class HistoryCsvUtility
         var header = lines[0];
         return header.Contains(DataCollectedAtColumnName, StringComparison.OrdinalIgnoreCase)
                || header.Contains(PlayedAtColumnName, StringComparison.OrdinalIgnoreCase);
+    }
+
+    private static bool HasPlayedAtColumn(string? csvContent)
+    {
+        if (string.IsNullOrWhiteSpace(csvContent))
+        {
+            return false;
+        }
+
+        var lines = csvContent.Split('\n', StringSplitOptions.RemoveEmptyEntries);
+        if (lines.Length == 0)
+        {
+            return false;
+        }
+
+        return lines[0].Contains(PlayedAtColumnName, StringComparison.OrdinalIgnoreCase);
+    }
+
+    private static string ReplaceDataCollectedAtHeaderWithPlayedAt(string csvContent)
+    {
+        return csvContent.Replace(
+            DataCollectedAtColumnName,
+            PlayedAtColumnName,
+            StringComparison.Ordinal);
+    }
+
+    private static string NormalizeLineEndings(string value)
+    {
+        return value
+            .Replace("\r\n", "\n", StringComparison.Ordinal)
+            .Replace("\r", "\n", StringComparison.Ordinal);
     }
     
     /// <summary>

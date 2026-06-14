@@ -334,6 +334,26 @@ public class VerifyMatchdayCommand : AsyncCommand<VerifySettings>
                 
                 if (latestContextDocument != null && latestContextDocument.CreatedAt > predictionMetadata.CreatedAt)
                 {
+                    var predictionTimeContextDocument = await contextRepository.GetContextDocumentByTimestampAsync(
+                        actualDocumentName,
+                        predictionMetadata.CreatedAt,
+                        communityContext);
+
+                    if (predictionTimeContextDocument != null &&
+                        string.Equals(
+                            predictionTimeContextDocument.Content,
+                            latestContextDocument.Content,
+                            StringComparison.Ordinal))
+                    {
+                        if (verbose)
+                        {
+                            _console.MarkupLine(
+                                $"[dim]  Context document '{actualDocumentName}' has newer versions after the prediction, but the latest content matches the prediction-time version[/]");
+                        }
+
+                        continue;
+                    }
+
                     if (verbose)
                     {
                         _console.MarkupLine($"[dim]  Context document '{actualDocumentName}' (stored as '{documentName}') updated after prediction (document: {latestContextDocument.CreatedAt}, prediction: {predictionMetadata.CreatedAt})[/]");

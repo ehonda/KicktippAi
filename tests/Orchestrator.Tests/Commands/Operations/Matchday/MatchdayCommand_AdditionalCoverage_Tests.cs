@@ -87,6 +87,62 @@ public class MatchdayCommand_AdditionalCoverage_Tests : MatchdayCommandTests_Bas
     }
 
     [Test]
+    public async Task Reprediction_skips_when_latest_context_matches_prediction_time_version()
+    {
+        var predictionCreatedAt = DateTimeOffset.UtcNow.AddHours(-2);
+        var latestContextCreatedAt = DateTimeOffset.UtcNow.AddHours(-1);
+        const string sharedContent = "Competition,Played_At,Home_Team,Away_Team,Score,Annotation\r\nWM,2026-06-11,Mexiko,Suedafrika,2:1,\r\n";
+
+        var mockPredictionRepository = CreateMockPredictionRepository(getPredictionResult: CreatePrediction(), getRepredictionIndexResult: 0);
+        mockPredictionRepository
+            .Setup(r => r.GetPredictionMetadataAsync(It.IsAny<Match>(), It.IsAny<PredictionModelConfig>(), It.IsAny<string>(), It.IsAny<CancellationToken>()))
+            .ReturnsAsync(new PredictionMetadata(CreatePrediction(), predictionCreatedAt, new List<string> { "recent-history-fcb.csv" }));
+
+        var contextDocs = CreateBayernVsDortmundContextDocuments(createdAt: predictionCreatedAt.AddHours(-3));
+        contextDocs["recent-history-fcb.csv"] = CreateContextDocument(
+            documentName: "recent-history-fcb.csv",
+            content: sharedContent,
+            createdAt: latestContextCreatedAt);
+
+        var mockContextRepository = CreateMockContextRepositoryWithDocuments(contextDocs);
+        mockContextRepository
+            .Setup(r => r.GetContextDocumentByTimestampAsync(
+                "recent-history-fcb.csv",
+                predictionCreatedAt,
+                "test-community",
+                It.IsAny<CancellationToken>()))
+            .ReturnsAsync(CreateContextDocument(
+                documentName: "recent-history-fcb.csv",
+                content: sharedContent,
+                version: 3,
+                createdAt: predictionCreatedAt.AddMinutes(-5)));
+
+        var mockFirebaseFactory = CreateMockFirebaseServiceFactoryFull(
+            predictionRepository: mockPredictionRepository,
+            contextRepository: mockContextRepository);
+
+        var ctx = CreateMatchdayCommandApp(firebaseServiceFactory: mockFirebaseFactory);
+
+        var (exitCode, output) = await RunCommandAsync(ctx.App, ctx.Console, "matchday", "gpt-4o", "-c", "test-community", "--repredict", "--verbose");
+
+        await Assert.That(exitCode).IsEqualTo(0);
+        await Assert.That(output).Contains("matches the prediction-time version");
+        await Assert.That(output).Contains("up-to-date");
+        mockPredictionRepository.Verify(
+            r => r.SaveRepredictionAsync(
+                It.IsAny<Match>(),
+                It.IsAny<Prediction>(),
+                It.IsAny<PredictionModelConfig>(),
+                It.IsAny<string>(),
+                It.IsAny<double>(),
+                It.IsAny<string>(),
+                It.IsAny<IEnumerable<string>>(),
+                It.IsAny<int>(),
+                It.IsAny<CancellationToken>()),
+            Times.Never);
+    }
+
+    [Test]
     public async Task Reprediction_verbose_mode_shows_context_document_checking_info()
     {
         var predictionCreatedAt = DateTimeOffset.UtcNow.AddHours(-1);

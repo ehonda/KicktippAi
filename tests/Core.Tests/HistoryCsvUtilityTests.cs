@@ -59,6 +59,20 @@ public class HistoryCsvUtilityTests
     }
 
     [Test]
+    public async Task Adding_data_collected_at_keeps_previous_played_at_payload_when_rows_are_unchanged()
+    {
+        var previousCsvContent =
+            "Competition,Played_At,Home_Team,Away_Team,Score,Annotation\r\n" +
+            "WM,2026-06-11T21:00:00+02:00,Mexiko,Südafrika,1:1,\r\n";
+        var csvContent = "Competition,Home_Team,Away_Team,Score,Annotation\nWM,Mexiko,Südafrika,1:1,";
+        var collectedDate = "2026-06-12";
+
+        var result = HistoryCsvUtility.AddDataCollectedAtColumn(csvContent, previousCsvContent, collectedDate);
+
+        await Assert.That(result).IsEqualTo(previousCsvContent);
+    }
+
+    [Test]
     public async Task Adding_data_collected_at_handles_multiple_rows()
     {
         var csvContent = "Competition,Home_Team,Away_Team,Score,Annotation\nBundesliga,Bayern,Leipzig,2-1,\nBundesliga,Dortmund,Mainz,3-0,\nBundesliga,Bremen,Hamburg,1-1,";

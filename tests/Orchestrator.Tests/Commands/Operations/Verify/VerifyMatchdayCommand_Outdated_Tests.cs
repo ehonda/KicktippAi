@@ -152,6 +152,61 @@ public class VerifyMatchdayCommand_Outdated_Tests : VerifyMatchdayCommandTests_B
     }
 
     [Test]
+    public async Task Prediction_with_reverted_latest_context_content_is_not_outdated()
+    {
+        // Arrange
+        var match = CreateTestMatch();
+        var predictionCreatedAt = new DateTimeOffset(2025, 1, 10, 10, 0, 0, TimeSpan.Zero);
+        var latestContextCreatedAt = new DateTimeOffset(2025, 1, 10, 12, 0, 0, TimeSpan.Zero);
+        const string sharedContent = "Competition,Played_At,Home_Team,Away_Team,Score,Annotation\r\nWM,2026-06-11,Mexiko,Suedafrika,2:1,\r\n";
+
+        var metadata = CreatePredictionMetadata(
+            createdAt: predictionCreatedAt,
+            contextDocumentNames: new List<string> { "recent-history-fcb.csv" });
+
+        var contextDocs = new Dictionary<string, ContextDocument>
+        {
+            ["recent-history-fcb.csv"] = CreateContextDocument(
+                documentName: "recent-history-fcb.csv",
+                content: sharedContent,
+                createdAt: latestContextCreatedAt)
+        };
+
+        var mockPredictionRepository = CreateMockPredictionRepository(
+            getPredictionResult: CreatePrediction(homeGoals: 2, awayGoals: 1),
+            getPredictionMetadataResult: metadata);
+
+        var mockContextRepository = CreateMockContextRepositoryWithDocuments(contextDocs);
+        mockContextRepository
+            .Setup(r => r.GetContextDocumentByTimestampAsync(
+                "recent-history-fcb.csv",
+                predictionCreatedAt,
+                "test",
+                It.IsAny<CancellationToken>()))
+            .ReturnsAsync(CreateContextDocument(
+                documentName: "recent-history-fcb.csv",
+                content: sharedContent,
+                version: 3,
+                createdAt: predictionCreatedAt.AddMinutes(-5)));
+
+        var mockFirebaseFactory = CreateMockFirebaseServiceFactoryFull(
+            predictionRepository: mockPredictionRepository,
+            contextRepository: mockContextRepository);
+
+        var ctx = CreateVerifyMatchdayCommandApp(
+            placedPredictions: CreatePlacedPredictions(match, CreateBetPrediction(homeGoals: 2, awayGoals: 1)),
+            firebaseServiceFactory: mockFirebaseFactory);
+
+        // Act
+        var (exitCode, output) = await RunCommandAsync(ctx.App, ctx.Console, "verify-matchday", "gpt-4o", "-c", "test", "--check-outdated", "-v");
+
+        // Assert
+        await Assert.That(exitCode).IsEqualTo(0);
+        await Assert.That(output).Contains("matches the prediction-time version");
+        await Assert.That(output).Contains("verification successful");
+    }
+
+    [Test]
     public async Task Verbose_mode_shows_context_document_update_timestamps_when_outdated()
     {
         // Arrange
