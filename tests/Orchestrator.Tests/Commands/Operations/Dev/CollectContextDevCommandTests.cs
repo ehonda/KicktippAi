@@ -4,6 +4,7 @@ using Microsoft.Extensions.DependencyInjection;
 using Microsoft.Extensions.Logging;
 using Microsoft.Extensions.Logging.Testing;
 using Moq;
+using NodaTime;
 using Orchestrator.Commands.Operations.CollectContext;
 using Orchestrator.Commands.Operations.Dev;
 using Orchestrator.Commands.Operations.Wm26RecentHistory;
@@ -74,7 +75,7 @@ public class CollectContextDevCommandTests
                 It.Is<string>(content =>
                     content.Contains("Competition,Played_At,Home_Team,Away_Team,Score,Annotation") &&
                     !content.Contains("Data_Collected_At") &&
-                    content.Contains("CopAm,2024-06-29,Kanada,Chile,0:0,")),
+                    content.Contains("CopAm,2024-06-29T20:00:00+02:00,Kanada,Chile,0:0,")),
                 "ehonda-dev-wm26",
                 It.IsAny<CancellationToken>()),
             Times.Once);
@@ -168,8 +169,14 @@ public class CollectContextDevCommandTests
         var contextRepository = CreateInMemoryContextRepository();
         var kpiRepository = CreateMockKpiRepositoryForUpload(savedVersion: 0);
         var matchOutcomeRepository = CreateMockMatchOutcomeRepository();
+        var predictionRepository = CreateMockPredictionRepository(
+            getLatestPredictedMatchByTeamsResult: CreateMatch(
+                homeTeam: "Kanada",
+                awayTeam: "Chile",
+                startsAt: Instant.FromUtc(2024, 6, 29, 18, 0).InUtc()));
         var firebaseFactory = CreateMockFirebaseServiceFactoryFull(
             kpiRepository: kpiRepository,
+            predictionRepository: predictionRepository,
             contextRepository: contextRepository,
             matchOutcomeRepository: matchOutcomeRepository);
 

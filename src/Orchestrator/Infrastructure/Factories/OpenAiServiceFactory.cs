@@ -4,7 +4,6 @@ using System.ClientModel.Primitives;
 using System.Net.Http;
 using EHonda.KicktippAi.Core;
 using Microsoft.Extensions.Logging;
-using OpenAI;
 using OpenAI.Responses;
 using OpenAiIntegration;
 using Orchestrator.Infrastructure;
@@ -143,7 +142,7 @@ public sealed class OpenAiServiceFactory : IOpenAiServiceFactory
         string apiKey)
     {
         var logger = _loggerFactory.CreateLogger<PredictionService>();
-        var responsesClient = new ResponsesClient(new ApiKeyCredential(apiKey), CreateOpenAiClientOptions());
+        var responsesClient = new ResponsesClient(new ApiKeyCredential(apiKey), CreateResponsesClientOptions());
 
         return new PredictionService(
             responsesClient,
@@ -155,9 +154,9 @@ public sealed class OpenAiServiceFactory : IOpenAiServiceFactory
             options);
     }
 
-    private OpenAIClientOptions CreateOpenAiClientOptions()
+    private ResponsesClientOptions CreateResponsesClientOptions()
     {
-        var options = new OpenAIClientOptions
+        var options = new ResponsesClientOptions
         {
             // OpenAI recommends allowing long-running model requests up to 15 minutes.
             // This timeout belongs to the OpenAI client pipeline, while HttpClient.Timeout

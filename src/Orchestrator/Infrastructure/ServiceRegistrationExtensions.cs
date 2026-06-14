@@ -89,7 +89,7 @@ public static class ServiceRegistrationExtensions
 
         var clientBuilder = services.AddHttpClient(OpenAiHttpClientName, client =>
         {
-            // OpenAI timeout ownership stays in OpenAIClientOptions.NetworkTimeout and
+            // OpenAI timeout ownership stays in ResponsesClientOptions.NetworkTimeout and
             // the .NET HTTP resilience pipeline. Keeping HttpClient.Timeout infinite
             // avoids a third timeout source racing those mechanisms.
             client.Timeout = Timeout.InfiniteTimeSpan;
