@@ -6,7 +6,6 @@ using Microsoft.Extensions.DependencyInjection.Extensions;
 using Microsoft.Extensions.Configuration;
 using Microsoft.Extensions.FileProviders;
 using Microsoft.Extensions.Logging;
-using OpenAI;
 using OpenAI.Responses;
 
 namespace OpenAiIntegration;
@@ -72,7 +71,7 @@ public static class ServiceCollectionExtensions
         {
             return new ResponsesClient(
                 new ApiKeyCredential(apiKey),
-                new OpenAIClientOptions
+                new ResponsesClientOptions
                 {
                     NetworkTimeout = OpenAiNetworkTimeout,
                     RetryPolicy = new ClientRetryPolicy(maxRetries: 0)
