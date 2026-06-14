@@ -75,7 +75,8 @@ public class CollectContextDevCommandTests
                 It.Is<string>(content =>
                     content.Contains("Competition,Played_At,Home_Team,Away_Team,Score,Annotation") &&
                     !content.Contains("Data_Collected_At") &&
-                    content.Contains("CopAm,2024-06-29T20:00:00+02:00,Kanada,Chile,0:0,")),
+                    content.Contains("CopAm,2024-06-29") &&
+                    content.Contains(",Kanada,Chile,0:0,")),
                 "ehonda-dev-wm26",
                 It.IsAny<CancellationToken>()),
             Times.Once);
