@@ -50,6 +50,7 @@ public sealed class CollectContextDevCommand : AsyncCommand<CollectContextDevSet
             console,
             firebaseServiceFactory,
             lineupSource,
+            timeProvider,
             lineupsLogger);
         _recentHistoryDateMapCommand = new Wm26RecentHistoryApplyDateMapCommand(
             console,
