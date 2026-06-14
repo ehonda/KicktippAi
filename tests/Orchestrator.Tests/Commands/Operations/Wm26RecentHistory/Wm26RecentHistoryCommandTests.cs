@@ -431,6 +431,60 @@ public class Wm26RecentHistoryCommandTests
     }
 
     [Test]
+    public async Task Apply_date_map_known_only_uses_map_for_post_cutoff_non_wm_rows()
+    {
+        var inputPath = CreateTempDateMap("""
+            DocumentName,Competition,Home_Team,Away_Team,Score,Annotation,Played_At,Source_Name,Source_Url,Verified_At,Notes
+            recent-history-agypten.csv,AfCup,Ägypten,Nigeria,2:4,nach Elfmeterschießen,2026-01-17,Sportsgambler,https://example.test,2026-05-24,
+            """);
+        var contextRepository = CreateRepository(
+            new Dictionary<string, ContextDocument>
+            {
+                ["recent-history-agypten.csv"] = CreateContextDocument(
+                    documentName: "recent-history-agypten.csv",
+                    content:
+                        "Competition,Data_Collected_At,Home_Team,Away_Team,Score,Annotation\n" +
+                        "AfCup,2026-06-14,Ägypten,Nigeria,2:4,nach Elfmeterschießen")
+            });
+        var predictionRepository = CreateMockPredictionRepository();
+        var ctx = CreateApp(contextRepository, predictionRepository);
+
+        var (exitCode, output) = await RunCommandAsync(
+            ctx,
+            "apply-date-map",
+            "--community-context",
+            "ehonda-dev-wm26",
+            "--competition",
+            CompetitionIds.FifaWorldCup2026,
+            "--input",
+            inputPath,
+            "--apply-known-only",
+            "--preserve-collected-on-or-after",
+            "2026-06-11",
+            "--verbose");
+
+        await Assert.That(exitCode).IsEqualTo(0);
+        await Assert.That(output).Contains("1 updated");
+        contextRepository.Verify(
+            r => r.SaveContextDocumentAsync(
+                "recent-history-agypten.csv",
+                It.Is<string>(content =>
+                    content.Contains("Played_At") &&
+                    !content.Contains("Data_Collected_At") &&
+                    content.Contains("AfCup,2026-01-17,Ägypten,Nigeria,2:4,nach Elfmeterschießen")),
+                "ehonda-dev-wm26",
+                It.IsAny<CancellationToken>()),
+            Times.Once);
+        predictionRepository.Verify(
+            r => r.GetLatestPredictedMatchByTeamsAsync(
+                It.IsAny<string>(),
+                It.IsAny<string>(),
+                It.IsAny<string>(),
+                It.IsAny<CancellationToken>()),
+            Times.Never);
+    }
+
+    [Test]
     public async Task Apply_date_map_known_only_preserves_existing_cutoff_timestamp_on_repeat_runs()
     {
         var inputPath = CreateTempDateMap("""

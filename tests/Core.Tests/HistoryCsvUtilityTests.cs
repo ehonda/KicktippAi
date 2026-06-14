@@ -417,6 +417,40 @@ public class HistoryCsvUtilityTests
     }
 
     [Test]
+    public async Task Applying_date_map_uses_canonical_map_for_post_cutoff_non_wm_rows()
+    {
+        var csvContent = "Competition,Data_Collected_At,Home_Team,Away_Team,Score,Annotation\nAfCup,2026-06-14,Ägypten,Nigeria,2:4,nach Elfmeterschießen";
+        var dateMap = new[]
+        {
+            new HistoryDateMapEntry(
+                "recent-history-agypten.csv",
+                "AfCup",
+                "Ägypten",
+                "Nigeria",
+                "2:4",
+                "nach Elfmeterschießen",
+                "2026-01-17",
+                "Sportsgambler",
+                "https://example.test/match",
+                "2026-05-24",
+                "")
+        };
+
+        var result = HistoryCsvUtility.ApplyDateMap(
+            "recent-history-agypten.csv",
+            csvContent,
+            dateMap,
+            new HistoryDateMapApplyOptions(
+                ApplyKnownOnly: true,
+                PreserveCollectedOnOrAfter: new DateOnly(2026, 6, 11)));
+
+        await Assert.That(result.MissingPredictionEntries).IsEmpty();
+        await Assert.That(result.UpdatedRowCount).IsEqualTo(1);
+        await Assert.That(result.Content).IsEqualToWithNormalizedLineEndings(
+            "Competition,Played_At,Home_Team,Away_Team,Score,Annotation\r\nAfCup,2026-01-17,Ägypten,Nigeria,2:4,nach Elfmeterschießen\r\n");
+    }
+
+    [Test]
     public async Task Applying_date_map_reports_missing_entries_when_played_at_is_absent()
     {
         var csvContent = "Competition,Home_Team,Away_Team,Score,Annotation\nKL-WM,Germany,Slovakia,6:0,";

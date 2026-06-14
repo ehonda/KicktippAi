@@ -268,7 +268,8 @@ public static class HistoryCsvUtility
                     VerifiedAt: "",
                     Notes: "");
 
-                if (GetExistingDateTreatment(row.PlayedAt, preserveCollectedOnOrAfter) == ExistingDateTreatment.ReplaceFromPrediction)
+                if (IsWorldCupTournamentRow(row) &&
+                    GetExistingDateTreatment(row.PlayedAt, preserveCollectedOnOrAfter) == ExistingDateTreatment.ReplaceFromPrediction)
                 {
                     entries.Add(row);
                 }
@@ -353,7 +354,8 @@ public static class HistoryCsvUtility
                         continue;
                     }
 
-                    if (existingDateTreatment == ExistingDateTreatment.ReplaceFromPrediction)
+                    if (IsWorldCupTournamentRow(row) &&
+                        existingDateTreatment == ExistingDateTreatment.ReplaceFromPrediction)
                     {
                         if (predictionDateMap.TryGetValue(CreateDateMapKey(row), out var predictedPlayedAt) &&
                             IsExactTimestamp(predictedPlayedAt))
@@ -639,6 +641,14 @@ public static class HistoryCsvUtility
             NormalizeKeyPart(entry.AwayTeam),
             NormalizeKeyPart(entry.Score),
             NormalizeKeyPart(entry.Annotation));
+    }
+
+    private static bool IsWorldCupTournamentRow(HistoryDateMapEntry entry)
+    {
+        return string.Equals(
+            NormalizeKeyPart(entry.Competition),
+            "WM",
+            StringComparison.OrdinalIgnoreCase);
     }
 
     private static string NormalizeKeyPart(string? value)

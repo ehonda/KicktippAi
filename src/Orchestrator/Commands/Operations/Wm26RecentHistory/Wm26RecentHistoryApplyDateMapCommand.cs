@@ -75,7 +75,7 @@ public sealed class Wm26RecentHistoryApplyDateMapCommand
                 if (applyOptions.PreserveCollectedOnOrAfter.HasValue)
                 {
                     _console.MarkupLine(
-                        $"[blue]Resolving date-only rows dated on or after from stored predictions:[/] [yellow]{applyOptions.PreserveCollectedOnOrAfter.Value:yyyy-MM-dd}[/]");
+                        $"[blue]Resolving WM tournament date-only rows dated on or after from stored predictions:[/] [yellow]{applyOptions.PreserveCollectedOnOrAfter.Value:yyyy-MM-dd}[/]");
                 }
             }
 
