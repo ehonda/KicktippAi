@@ -387,11 +387,11 @@ public class Wm26RecentHistoryCommandTests
     }
 
     [Test]
-    public async Task Apply_date_map_known_only_fails_when_cutoff_row_has_no_prediction()
+    public async Task Apply_date_map_known_only_fails_when_unmapped_cutoff_row_has_no_prediction()
     {
         var inputPath = CreateTempDateMap("""
             DocumentName,Competition,Home_Team,Away_Team,Score,Annotation,Played_At,Source_Name,Source_Url,Verified_At,Notes
-            recent-history-mexiko.csv,WM,Mexiko,Südafrika,1:1,,2010-06-11,FIFA,https://example.test,2026-05-23,
+            recent-history-mexiko.csv,WM,Deutschland,Frankreich,0:2,,2025-06-08,FIFA,https://example.test,2026-05-23,
             """);
         var contextRepository = CreateRepository(
             new Dictionary<string, ContextDocument>
@@ -482,6 +482,60 @@ public class Wm26RecentHistoryCommandTests
                 It.IsAny<string>(),
                 It.IsAny<CancellationToken>()),
             Times.Never);
+    }
+
+    [Test]
+    public async Task Apply_date_map_known_only_uses_map_for_historical_wm_rows_when_prediction_is_missing()
+    {
+        var inputPath = CreateTempDateMap("""
+            DocumentName,Competition,Home_Team,Away_Team,Score,Annotation,Played_At,Source_Name,Source_Url,Verified_At,Notes
+            recent-history-neuseeland.csv,WM,Paraguay,Neuseeland,0:0,,2010-06-24,Docsports,https://example.test,2026-05-24,
+            """);
+        var contextRepository = CreateRepository(
+            new Dictionary<string, ContextDocument>
+            {
+                ["recent-history-neuseeland.csv"] = CreateContextDocument(
+                    documentName: "recent-history-neuseeland.csv",
+                    content:
+                        "Competition,Data_Collected_At,Home_Team,Away_Team,Score,Annotation\n" +
+                        "WM,2026-06-14,Paraguay,Neuseeland,0:0,")
+            });
+        var predictionRepository = CreateMockPredictionRepository();
+        var ctx = CreateApp(contextRepository, predictionRepository);
+
+        var (exitCode, output) = await RunCommandAsync(
+            ctx,
+            "apply-date-map",
+            "--community-context",
+            "ehonda-dev-wm26",
+            "--competition",
+            CompetitionIds.FifaWorldCup2026,
+            "--input",
+            inputPath,
+            "--apply-known-only",
+            "--preserve-collected-on-or-after",
+            "2026-06-11",
+            "--verbose");
+
+        await Assert.That(exitCode).IsEqualTo(0);
+        await Assert.That(output).Contains("1 updated");
+        contextRepository.Verify(
+            r => r.SaveContextDocumentAsync(
+                "recent-history-neuseeland.csv",
+                It.Is<string>(content =>
+                    content.Contains("Played_At") &&
+                    !content.Contains("Data_Collected_At") &&
+                    content.Contains("WM,2010-06-24,Paraguay,Neuseeland,0:0,")),
+                "ehonda-dev-wm26",
+                It.IsAny<CancellationToken>()),
+            Times.Once);
+        predictionRepository.Verify(
+            r => r.GetLatestPredictedMatchByTeamsAsync(
+                "Paraguay",
+                "Neuseeland",
+                "ehonda-dev-wm26",
+                It.IsAny<CancellationToken>()),
+            Times.Once);
     }
 
     [Test]

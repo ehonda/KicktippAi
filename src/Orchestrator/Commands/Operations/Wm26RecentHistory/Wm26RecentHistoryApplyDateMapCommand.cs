@@ -313,7 +313,7 @@ public sealed class Wm26RecentHistoryApplyDateMapCommand
 
     private void PrintMissingPredictionEntries(IReadOnlyList<HistoryDateMapEntry> missingEntries)
     {
-        _console.MarkupLine($"[red]Missing stored predictions for {missingEntries.Count} tournament recent-history row(s)[/]");
+        _console.MarkupLine($"[red]Missing stored predictions for {missingEntries.Count} unmapped WM tournament recent-history row(s)[/]");
 
         foreach (var entry in missingEntries.Take(20))
         {

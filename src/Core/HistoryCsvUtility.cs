@@ -369,6 +369,21 @@ public static class HistoryCsvUtility
                             continue;
                         }
 
+                        if (dateMap.TryGetValue(CreateDateMapKey(row), out var predictionFallbackEntries) &&
+                            predictionFallbackEntries.Count > 0 &&
+                            IsExactDate(predictionFallbackEntries.Peek().PlayedAt))
+                        {
+                            var fallbackDateMapEntry = predictionFallbackEntries.Dequeue();
+                            var fallbackPlayedAt = fallbackDateMapEntry.PlayedAt.Trim();
+                            rows.Add(row with { PlayedAt = fallbackPlayedAt });
+                            if (!string.Equals(row.PlayedAt, fallbackPlayedAt, StringComparison.Ordinal))
+                            {
+                                updatedRowCount++;
+                            }
+
+                            continue;
+                        }
+
                         missingPredictionEntries.Add(row);
                         rows.Add(row);
                         continue;

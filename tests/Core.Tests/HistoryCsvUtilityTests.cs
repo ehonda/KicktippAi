@@ -319,7 +319,7 @@ public class HistoryCsvUtilityTests
     }
 
     [Test]
-    public async Task Applying_date_map_reports_missing_prediction_for_cutoff_collection_date()
+    public async Task Applying_date_map_reports_missing_prediction_for_unmapped_cutoff_collection_date()
     {
         var csvContent = "Competition,Data_Collected_At,Home_Team,Away_Team,Score,Annotation\nWM,2026-06-11,Mexiko,Südafrika,1:1,";
         var dateMap = new[]
@@ -327,11 +327,11 @@ public class HistoryCsvUtilityTests
             new HistoryDateMapEntry(
                 "recent-history-mexiko.csv",
                 "WM",
-                "Mexiko",
-                "Südafrika",
-                "1:1",
+                "Deutschland",
+                "Frankreich",
+                "0:2",
                 "",
-                "2010-06-11",
+                "2025-06-08",
                 "FIFA",
                 "https://example.test/match",
                 "2026-05-23",
@@ -448,6 +448,40 @@ public class HistoryCsvUtilityTests
         await Assert.That(result.UpdatedRowCount).IsEqualTo(1);
         await Assert.That(result.Content).IsEqualToWithNormalizedLineEndings(
             "Competition,Played_At,Home_Team,Away_Team,Score,Annotation\r\nAfCup,2026-01-17,Ägypten,Nigeria,2:4,nach Elfmeterschießen\r\n");
+    }
+
+    [Test]
+    public async Task Applying_date_map_uses_canonical_map_for_post_cutoff_historical_wm_rows_without_prediction()
+    {
+        var csvContent = "Competition,Data_Collected_At,Home_Team,Away_Team,Score,Annotation\nWM,2026-06-14,Paraguay,Neuseeland,0:0,";
+        var dateMap = new[]
+        {
+            new HistoryDateMapEntry(
+                "recent-history-neuseeland.csv",
+                "WM",
+                "Paraguay",
+                "Neuseeland",
+                "0:0",
+                "",
+                "2010-06-24",
+                "Docsports",
+                "https://example.test/match",
+                "2026-05-24",
+                "")
+        };
+
+        var result = HistoryCsvUtility.ApplyDateMap(
+            "recent-history-neuseeland.csv",
+            csvContent,
+            dateMap,
+            new HistoryDateMapApplyOptions(
+                ApplyKnownOnly: true,
+                PreserveCollectedOnOrAfter: new DateOnly(2026, 6, 11)));
+
+        await Assert.That(result.MissingPredictionEntries).IsEmpty();
+        await Assert.That(result.UpdatedRowCount).IsEqualTo(1);
+        await Assert.That(result.Content).IsEqualToWithNormalizedLineEndings(
+            "Competition,Played_At,Home_Team,Away_Team,Score,Annotation\r\nWM,2010-06-24,Paraguay,Neuseeland,0:0,\r\n");
     }
 
     [Test]
