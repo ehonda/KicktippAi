@@ -8,6 +8,12 @@ Bundesliga 2025 / 2026, has concluded. The files remain in place for future
 reuse, so their presence alone should not be treated as evidence that the
 corresponding automations are currently active.
 
+As of 2026-06-15, all WM26 bonus entrypoint workflows are also deactivated:
+their `schedule` and `workflow_dispatch` triggers are commented out because the
+tournament has started, bonus predictions are locked in, and further runs are
+just no-op runner time plus a few database lookups. The files keep
+`workflow_call` only so they remain valid for future reuse.
+
 `wm26-ehonda-ai-arena-gpt-5-nano-minimal-matchday.yml`,
 `wm26-ehonda-ai-arena-gpt-5-nano-minimal-bonus.yml`,
 `wm26-ehonda-ai-arena-gpt-5-5-none-matchday.yml`,
@@ -17,21 +23,24 @@ corresponding automations are currently active.
 `wm26-ehonda-ai-arena-gpt-5-4-nano-none-matchday.yml`,
 `wm26-ehonda-ai-arena-gpt-5-4-nano-none-bonus.yml`,
 `wm26-ehonda-ai-arena-o3-medium-matchday.yml`, and
-`wm26-ehonda-ai-arena-o3-medium-bonus.yml` are scheduled WM26 self-contained
-entrypoints. They use `community_context: "ehonda-ai-arena"`, display `🏆` in
-the GitHub Actions UI, and use the WM26 main matchday cadence or WM26 bonus
-cadence according to workflow type.
+`wm26-ehonda-ai-arena-o3-medium-bonus.yml` are WM26 self-contained entrypoints.
+Their matchday variants remain scheduled, while their bonus variants are
+deactivated after the tournament start. They use
+`community_context: "ehonda-ai-arena"` and display `🏆` in the GitHub Actions
+UI.
 
 `wm26-rabetrabauken2026-o3-high-matchday.yml` and
-`wm26-rabetrabauken2026-o3-high-bonus.yml` are the selected scheduled WM26
-primary production workflows. They target `rabetrabauken2026`, use
-`community_context: "rabetrabauken2026"`, and pin
+`wm26-rabetrabauken2026-o3-high-bonus.yml` are the selected WM26 primary
+production workflows. Their matchday variant remains scheduled, while the bonus
+variant is deactivated after the tournament start. They target
+`rabetrabauken2026`, use `community_context: "rabetrabauken2026"`, and pin
 `max_output_tokens: 40000`.
 
 `wm26-ehonda-ai-arena-o3-high-matchday.yml` and
-`wm26-ehonda-ai-arena-o3-high-bonus.yml` are the selected scheduled WM26
-secondary copy-posting workflows. They target `ehonda-ai-arena`, reuse
-`community_context: "rabetrabauken2026"`, and pin
+`wm26-ehonda-ai-arena-o3-high-bonus.yml` are the selected WM26 secondary
+copy-posting workflows. Their matchday variant remains scheduled, while the
+bonus variant is deactivated after the tournament start. They target
+`ehonda-ai-arena`, reuse `community_context: "rabetrabauken2026"`, and pin
 `max_output_tokens: 40000`.
 
 The additional self-contained onboarding and comparison entrypoints keep

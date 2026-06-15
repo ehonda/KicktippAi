@@ -1,23 +1,26 @@
 name: 🏆 WM26 ehonda-ai-arena 🏆 gpt-5-nano minimal 🏆 Bonus
 
 on:
+  # 🚫 Deactivated: WM26 bonus predictions are locked in now that the tournament has started.
+  # Keep an inert trigger so the workflow file remains valid while disabled.
   workflow_call:
-  # WM26 bonus cadence.
-  # GitHub Actions cron runs in UTC only.
-  schedule:
-    - cron: '47 0,7,12 * * *'
-  workflow_dispatch:
-    inputs:
-      force_prediction:
-        description: 'Force prediction even if verify passes'
-        required: false
-        default: false
-        type: boolean
-      max_repredictions:
-        description: 'Maximum number of repredictions allowed (0-based index)'
-        required: false
-        default: 2
-        type: number
+  # WM26 bonus runs are no longer needed and only burn runner time plus a few database lookups.
+  # schedule:
+  #   - cron: '47 0,7,12 * * *'
+  #
+  # Manual triggering is also disabled because WM26 bonus predictions are already locked in.
+  # workflow_dispatch:
+  #   inputs:
+  #     force_prediction:
+  #       description: 'Force prediction even if verify passes'
+  #       required: false
+  #       default: false
+  #       type: boolean
+  #     max_repredictions:
+  #       description: 'Maximum number of repredictions allowed (0-based index)'
+  #       required: false
+  #       default: 2
+  #       type: number
 
 jobs:
   call-base-workflow:

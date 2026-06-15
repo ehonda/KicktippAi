@@ -38,76 +38,81 @@ Each community gets its own set of workflows that call the base workflows with s
 
 ### WM26 Prediction Workflows
 
+As of 2026-06-15, all WM26 bonus entrypoint workflows have their `schedule` and
+`workflow_dispatch` triggers commented out. Once the tournament started, bonus
+predictions became locked in, so those runs were just burning runner time plus
+a few database lookups.
+
 - **`wm26-rabetrabauken2026-o3-high-matchday.yml`**: Scheduled WM26 primary production matchday predictions
   - Uses `o3` with `reasoning_effort: "high"`
   - Pins `max_output_tokens: 40000`
   - Uses `community_context: "rabetrabauken2026"`
   - Uses the WM26 main matchday cadence: 00:37, 07:37, and 12:37 UTC
-- **`wm26-rabetrabauken2026-o3-high-bonus.yml`**: Scheduled WM26 primary production bonus predictions
+- **`wm26-rabetrabauken2026-o3-high-bonus.yml`**: Deactivated WM26 primary production bonus predictions
   - Uses `o3` with `reasoning_effort: "high"`
   - Pins `max_output_tokens: 40000`
   - Uses `community_context: "rabetrabauken2026"`
-  - Uses the WM26 bonus cadence: 00:47, 07:47, and 12:47 UTC
+  - Keeps the old WM26 bonus cadence commented out for future reuse
 - **`wm26-ehonda-ai-arena-o3-high-matchday.yml`**: Scheduled WM26 secondary production matchday copy-posting
   - Uses `o3` with `reasoning_effort: "high"`
   - Pins `max_output_tokens: 40000`
   - Uses `community_context: "rabetrabauken2026"` so it reuses the stored primary prediction
   - Uses the slower secondary cadence: 01:47, 08:47, and 13:47 UTC
-- **`wm26-ehonda-ai-arena-o3-high-bonus.yml`**: Scheduled WM26 secondary production bonus copy-posting
+- **`wm26-ehonda-ai-arena-o3-high-bonus.yml`**: Deactivated WM26 secondary production bonus copy-posting
   - Uses `o3` with `reasoning_effort: "high"`
   - Pins `max_output_tokens: 40000`
   - Uses `community_context: "rabetrabauken2026"` so it reuses the stored primary prediction
-  - Uses the slower secondary cadence: 01:47, 08:47, and 13:47 UTC
+  - Keeps the slower secondary cadence commented out for future reuse
 - **`wm26-ehonda-ai-arena-gpt-5-nano-minimal-matchday.yml`**: Scheduled WM26 self-contained matchday predictions
   - Uses `gpt-5-nano` with `reasoning_effort: "minimal"`
   - Pins `max_output_tokens: 10000`
   - Uses `community_context: "ehonda-ai-arena"` for the self-contained onboarding path
   - Uses the WM26 main matchday cadence: 00:37, 07:37, and 12:37 UTC
-- **`wm26-ehonda-ai-arena-gpt-5-nano-minimal-bonus.yml`**: Scheduled WM26 self-contained bonus predictions
+- **`wm26-ehonda-ai-arena-gpt-5-nano-minimal-bonus.yml`**: Deactivated WM26 self-contained bonus predictions
   - Uses `gpt-5-nano` with `reasoning_effort: "minimal"`
   - Pins `max_output_tokens: 10000`
   - Uses `community_context: "ehonda-ai-arena"` for the self-contained onboarding path
-  - Uses the WM26 bonus cadence: 00:47, 07:47, and 12:47 UTC
+  - Keeps the WM26 bonus cadence commented out for future reuse
 - **`wm26-ehonda-ai-arena-o3-medium-matchday.yml`**: Scheduled WM26 self-contained matchday comparison
   - Uses `o3` with `reasoning_effort: "medium"`
   - Pins `max_output_tokens: 10000`
   - Uses `community_context: "ehonda-ai-arena"` for the self-contained comparison path
   - Uses the WM26 main matchday cadence: 00:37, 07:37, and 12:37 UTC
-- **`wm26-ehonda-ai-arena-o3-medium-bonus.yml`**: Scheduled WM26 self-contained bonus comparison
+- **`wm26-ehonda-ai-arena-o3-medium-bonus.yml`**: Deactivated WM26 self-contained bonus comparison
   - Uses `o3` with `reasoning_effort: "medium"`
   - Pins `max_output_tokens: 10000`
   - Uses `community_context: "ehonda-ai-arena"` for the self-contained comparison path
-  - Uses the WM26 bonus cadence: 00:47, 07:47, and 12:47 UTC
+  - Keeps the WM26 bonus cadence commented out for future reuse
 - **`wm26-ehonda-ai-arena-gpt-5-5-none-matchday.yml`**: Scheduled WM26 onboarding matchday test
   - Uses `gpt-5.5` with `reasoning_effort: "none"`
   - Pins `max_output_tokens: 10000`
   - Uses `community_context: "ehonda-ai-arena"` for the self-contained onboarding path
   - Uses the WM26 main matchday cadence: 00:37, 07:37, and 12:37 UTC
-- **`wm26-ehonda-ai-arena-gpt-5-5-none-bonus.yml`**: Scheduled WM26 onboarding bonus test
+- **`wm26-ehonda-ai-arena-gpt-5-5-none-bonus.yml`**: Deactivated WM26 onboarding bonus test
   - Uses `gpt-5.5` with `reasoning_effort: "none"`
   - Pins `max_output_tokens: 10000`
   - Uses `community_context: "ehonda-ai-arena"` for the self-contained onboarding path
-  - Uses the WM26 bonus cadence: 00:47, 07:47, and 12:47 UTC
+  - Keeps the WM26 bonus cadence commented out for future reuse
 - **`wm26-ehonda-ai-arena-gpt-5-5-xhigh-matchday.yml`**: Scheduled WM26 onboarding matchday test
   - Uses `gpt-5.5` with `reasoning_effort: "xhigh"`
   - Pins `max_output_tokens: 40000` to match the documented xhigh estimate assumptions
   - Uses `community_context: "ehonda-ai-arena"` for the self-contained onboarding path
   - Uses the WM26 main matchday cadence: 00:37, 07:37, and 12:37 UTC
-- **`wm26-ehonda-ai-arena-gpt-5-5-xhigh-bonus.yml`**: Scheduled WM26 onboarding bonus test
+- **`wm26-ehonda-ai-arena-gpt-5-5-xhigh-bonus.yml`**: Deactivated WM26 onboarding bonus test
   - Uses `gpt-5.5` with `reasoning_effort: "xhigh"`
   - Pins `max_output_tokens: 40000` to match the documented xhigh estimate assumptions
   - Uses `community_context: "ehonda-ai-arena"` for the self-contained onboarding path
-  - Uses the WM26 bonus cadence: 00:47, 07:47, and 12:47 UTC
+  - Keeps the WM26 bonus cadence commented out for future reuse
 - **`wm26-ehonda-ai-arena-gpt-5-4-nano-none-matchday.yml`**: Scheduled WM26 onboarding matchday test
   - Uses `gpt-5.4-nano` with `reasoning_effort: "none"`
   - Pins `max_output_tokens: 10000`
   - Uses `community_context: "ehonda-ai-arena"` for the self-contained onboarding path
   - Uses the WM26 main matchday cadence: 00:37, 07:37, and 12:37 UTC
-- **`wm26-ehonda-ai-arena-gpt-5-4-nano-none-bonus.yml`**: Scheduled WM26 onboarding bonus test
+- **`wm26-ehonda-ai-arena-gpt-5-4-nano-none-bonus.yml`**: Deactivated WM26 onboarding bonus test
   - Uses `gpt-5.4-nano` with `reasoning_effort: "none"`
   - Pins `max_output_tokens: 10000`
   - Uses `community_context: "ehonda-ai-arena"` for the self-contained onboarding path
-  - Uses the WM26 bonus cadence: 00:47, 07:47, and 12:47 UTC
+  - Keeps the WM26 bonus cadence commented out for future reuse
 
 WM26 workflow display names should include `🏆` so they are easy to distinguish
 from Bundesliga workflows in the GitHub Actions UI. New WM26 workflow filenames
