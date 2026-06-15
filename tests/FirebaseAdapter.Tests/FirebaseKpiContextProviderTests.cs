@@ -138,7 +138,7 @@ public class FirebaseKpiContextProviderTests
         mockRepo.Setup(r => r.GetAllKpiDocumentsAsync("test-community", It.IsAny<CancellationToken>()))
             .ReturnsAsync(new List<KpiDocument>
             {
-                new("fifa-rankings", "Rank,Team,ELO,Data_Collected_At\n8,Marokko,1755.87,2026-05-25", "desc", 0, DateTimeOffset.UtcNow),
+                new("fifa-rankings", "Rank,Team,ELO,Published_At\n8,Marokko,1755.87,2026-05-25T10:00:00.0000000+00:00", "desc", 0, DateTimeOffset.UtcNow),
                 new("manager-data", "manager content", "desc", 0, DateTimeOffset.UtcNow)
             });
 
@@ -153,7 +153,7 @@ public class FirebaseKpiContextProviderTests
 
         // Assert
         await Assert.That(contexts).IsEquivalentTo(
-            [new DocumentContext("fifa-rankings", "Rank,Team,ELO,Data_Collected_At\n8,Marokko,1755.87,2026-05-25")]);
+            [new DocumentContext("fifa-rankings", "Rank,Team,ELO,Published_At\n8,Marokko,1755.87,2026-05-25T10:00:00.0000000+00:00")]);
     }
 
     [Test]

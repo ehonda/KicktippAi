@@ -83,14 +83,14 @@ public class CollectContextDevCommandTests
         testContext.ContextRepository.Verify(
             r => r.SaveContextDocumentAsync(
                 "fifa-ranking-mexiko.csv",
-                It.Is<string>(content => content.Contains("Data_Collected_At")),
+                It.Is<string>(content => content.Contains("Published_At")),
                 "ehonda-dev-wm26",
                 It.IsAny<CancellationToken>()),
             Times.Once);
         testContext.KpiRepository.Verify(
             r => r.SaveKpiDocumentAsync(
                 "fifa-rankings",
-                It.Is<string>(content => content.Contains("Data_Collected_At")),
+                It.Is<string>(content => content.Contains("Published_At")),
                 It.IsAny<string>(),
                 "ehonda-dev-wm26",
                 It.IsAny<CancellationToken>()),
@@ -204,12 +204,12 @@ public class CollectContextDevCommandTests
                 [
                     new(
                         "fifa-ranking-mexiko.csv",
-                        "Rank,Team,ELO,Data_Collected_At\n15,Mexiko,1681.03,2026-05-25\n",
+                        "Rank,Team,ELO,Published_At\n15,Mexiko,1681.03,2026-04-01T11:55:29.0000000+00:00\n",
                         "Mexiko",
                         15,
                         1681.03m)
                 ],
-                "Rank,Team,ELO,Data_Collected_At\n15,Mexiko,1681.03,2026-05-25\n"));
+                "Rank,Team,ELO,Published_At\n15,Mexiko,1681.03,2026-04-01T11:55:29.0000000+00:00\n"));
         var lineupSource = new Mock<IWm26LineupSource>();
         lineupSource
             .Setup(source => source.CollectAsync(It.IsAny<Wm26LineupSourceRequest>(), It.IsAny<CancellationToken>()))

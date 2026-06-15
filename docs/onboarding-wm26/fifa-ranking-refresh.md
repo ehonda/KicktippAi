@@ -9,7 +9,7 @@ Ranking source files are no longer checked in. `collect-context fifa` fetches li
 Both generated formats use:
 
 ```csv
-Rank,Team,ELO,Data_Collected_At
+Rank,Team,ELO,Published_At
 10,Deutschland,1730.37,2026-05-25
 ```
 
@@ -201,7 +201,7 @@ The live `collect-context fifa` workflow:
 3. Fetch the full ranking rows from `fifarankings/rankings/rankingsbyschedule`.
 4. Build a dictionary by `IdCountry`.
 5. For every mapped WM26 team, require a ranking row. Fail clearly if any team is missing.
-6. Generate the `fifa-rankings` KPI CSV with `Rank,Team,ELO,Data_Collected_At`, ordered by rank, for the 48 mapped WM26 teams.
+6. Generate the `fifa-rankings` KPI CSV with `Rank,Team,ELO,Published_At`, ordered by rank, for the 48 mapped WM26 teams.
 7. Generate each `fifa-ranking-{team-slug}.csv` context payload with the same header and one row.
 8. Upsert the per-team context documents and aggregate KPI document to Firestore.
 9. Record the schedule ID, `PublicationDateUTC`, collection date, source row count, and mapped team count in command output so a reviewer can verify which official ranking was used.

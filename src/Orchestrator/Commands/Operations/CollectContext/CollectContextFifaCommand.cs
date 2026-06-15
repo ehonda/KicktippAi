@@ -98,9 +98,16 @@ public sealed class CollectContextFifaCommand : AsyncCommand<CollectContextFifaS
 
             foreach (var rankingFile in source.ContextDocuments)
             {
+                var existingContextDocument = await contextRepository.GetLatestContextDocumentAsync(
+                    rankingFile.DocumentName,
+                    communityContext,
+                    cancellationToken);
+                var contentToSave = FifaRankingCsvUtility.PreserveExistingContentWhenRankingUnchanged(
+                    rankingFile.Content,
+                    existingContextDocument?.Content);
                 var savedVersion = await contextRepository.SaveContextDocumentAsync(
                     rankingFile.DocumentName,
-                    rankingFile.Content,
+                    contentToSave,
                     communityContext,
                     cancellationToken);
 
@@ -126,14 +133,18 @@ public sealed class CollectContextFifaCommand : AsyncCommand<CollectContextFifaS
                 FifaRankingsDocumentName,
                 communityContext,
                 cancellationToken);
+            var kpiContentToSave = FifaRankingCsvUtility.PreserveExistingContentWhenRankingUnchanged(
+                source.KpiContent,
+                existingKpiDocument?.Content);
             var savedKpiVersion = await kpiRepository.SaveKpiDocumentAsync(
                 FifaRankingsDocumentName,
-                source.KpiContent,
+                kpiContentToSave,
                 FifaRankingsDescription,
                 communityContext,
                 cancellationToken);
 
-            var kpiChanged = existingKpiDocument is null || !string.Equals(existingKpiDocument.Content, source.KpiContent, StringComparison.Ordinal);
+            var kpiChanged = existingKpiDocument is null ||
+                             !string.Equals(existingKpiDocument.Content, kpiContentToSave, StringComparison.Ordinal);
 
             _console.MarkupLine("[green]✓ FIFA ranking context collection completed![/]");
             _console.MarkupLine($"[green]  Saved: {savedContextCount} context documents[/]");

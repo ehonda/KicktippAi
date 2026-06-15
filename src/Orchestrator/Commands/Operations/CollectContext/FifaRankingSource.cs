@@ -2,6 +2,7 @@ using System.Globalization;
 using System.Net.Http.Json;
 using System.Text;
 using System.Text.Json;
+using CsvHelper;
 using EHonda.KicktippAi.Core;
 using Microsoft.Extensions.Logging;
 
@@ -101,7 +102,7 @@ internal sealed class FifaRankingSource : IFifaRankingSource
         }
 
         var rowsByCountry = BuildRankingRowLookup(rows);
-        var rankingEntries = BuildRankingEntries(rowsByCountry, collectionDate);
+        var rankingEntries = BuildRankingEntries(rowsByCountry, latestSchedule.PublicationDateUtc);
         var contextDocuments = rankingEntries
             .OrderBy(entry => entry.Team.Slug, StringComparer.OrdinalIgnoreCase)
             .Select(entry => new FifaRankingDocument(
@@ -188,7 +189,7 @@ internal sealed class FifaRankingSource : IFifaRankingSource
 
     private static IReadOnlyList<FifaRankingEntry> BuildRankingEntries(
         IReadOnlyDictionary<string, FifaRankingRowDto> rowsByCountry,
-        DateOnly collectionDate)
+        DateTimeOffset publicationDateUtc)
     {
         var entries = new List<FifaRankingEntry>();
         var missingTeamCodes = new List<string>();
@@ -212,7 +213,7 @@ internal sealed class FifaRankingSource : IFifaRankingSource
                 team,
                 row.Rank.Value,
                 decimal.Round(row.TotalPoints.Value, 2, MidpointRounding.AwayFromZero),
-                collectionDate));
+                publicationDateUtc));
         }
 
         if (missingTeamCodes.Count > 0)
@@ -233,7 +234,7 @@ internal sealed class FifaRankingSource : IFifaRankingSource
     private static string WriteRankingCsv(IEnumerable<FifaRankingEntry> entries)
     {
         var builder = new StringBuilder();
-        builder.AppendLine("Rank,Team,ELO,Data_Collected_At");
+        builder.AppendLine($"Rank,Team,ELO,{FifaRankingCsvUtility.PublishedAtColumnName}");
 
         foreach (var entry in entries)
         {
@@ -243,7 +244,7 @@ internal sealed class FifaRankingSource : IFifaRankingSource
             builder.Append(',');
             AppendCsvField(builder, entry.Points.ToString("0.00", CultureInfo.InvariantCulture));
             builder.Append(',');
-            AppendCsvField(builder, entry.CollectionDate.ToString("yyyy-MM-dd", CultureInfo.InvariantCulture));
+            AppendCsvField(builder, entry.PublishedAt.ToString("O", CultureInfo.InvariantCulture));
             builder.AppendLine();
         }
 
@@ -271,7 +272,111 @@ internal sealed class FifaRankingSource : IFifaRankingSource
         Wm26FifaTeam Team,
         int Rank,
         decimal Points,
-        DateOnly CollectionDate);
+        DateTimeOffset PublishedAt);
+}
+
+internal static class FifaRankingCsvUtility
+{
+    internal const string PublishedAtColumnName = "Published_At";
+
+    internal static string PreserveExistingContentWhenRankingUnchanged(string newContent, string? existingContent)
+    {
+        if (string.IsNullOrWhiteSpace(existingContent))
+        {
+            return newContent;
+        }
+
+        if (!TryParseRows(newContent, requirePublishedAtHeader: true, out var newRows) ||
+            !TryParseRows(existingContent, requirePublishedAtHeader: true, out var existingRows))
+        {
+            return newContent;
+        }
+
+        if (newRows.Count != existingRows.Count)
+        {
+            return newContent;
+        }
+
+        var existingByTeam = existingRows.ToDictionary(row => row.Team, StringComparer.Ordinal);
+        foreach (var newRow in newRows)
+        {
+            if (!existingByTeam.TryGetValue(newRow.Team, out var existingRow) ||
+                existingRow.Rank != newRow.Rank ||
+                existingRow.Elo != newRow.Elo)
+            {
+                return newContent;
+            }
+        }
+
+        return existingContent;
+    }
+
+    private static bool TryParseRows(
+        string content,
+        bool requirePublishedAtHeader,
+        out IReadOnlyList<FifaRankingCsvRow> rows)
+    {
+        rows = [];
+
+        if (string.IsNullOrWhiteSpace(content))
+        {
+            return false;
+        }
+
+        try
+        {
+            using var reader = new StringReader(content);
+            using var csv = new CsvReader(reader, CultureInfo.InvariantCulture);
+
+            if (!csv.Read())
+            {
+                return false;
+            }
+
+            csv.ReadHeader();
+            var header = csv.HeaderRecord ?? [];
+
+            if (!header.Contains("Rank", StringComparer.Ordinal) ||
+                !header.Contains("Team", StringComparer.Ordinal) ||
+                !header.Contains("ELO", StringComparer.Ordinal) ||
+                (requirePublishedAtHeader && !header.Contains(PublishedAtColumnName, StringComparer.Ordinal)))
+            {
+                return false;
+            }
+
+            var parsedRows = new List<FifaRankingCsvRow>();
+            while (csv.Read())
+            {
+                var team = csv.GetField("Team");
+                var rankText = csv.GetField("Rank");
+                var eloText = csv.GetField("ELO");
+
+                if (string.IsNullOrWhiteSpace(team) &&
+                    string.IsNullOrWhiteSpace(rankText) &&
+                    string.IsNullOrWhiteSpace(eloText))
+                {
+                    continue;
+                }
+
+                if (!int.TryParse(rankText, NumberStyles.Integer, CultureInfo.InvariantCulture, out var rank) ||
+                    !decimal.TryParse(eloText, NumberStyles.Number, CultureInfo.InvariantCulture, out var elo))
+                {
+                    return false;
+                }
+
+                parsedRows.Add(new FifaRankingCsvRow(team ?? string.Empty, rank, elo));
+            }
+
+            rows = parsedRows;
+            return true;
+        }
+        catch
+        {
+            return false;
+        }
+    }
+
+    private sealed record FifaRankingCsvRow(string Team, int Rank, decimal Elo);
 }
 
 internal sealed class FifaRankingApiClient : IFifaRankingApiClient

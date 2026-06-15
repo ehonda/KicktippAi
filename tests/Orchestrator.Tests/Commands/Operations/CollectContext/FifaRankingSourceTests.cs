@@ -48,13 +48,13 @@ public class FifaRankingSourceTests
         await Assert.That(result.PublicationDateUtc).IsEqualTo(new DateTimeOffset(2026, 4, 1, 11, 55, 29, 435, TimeSpan.Zero));
         await Assert.That(result.SourceRowCount).IsEqualTo(200);
         await Assert.That(result.MappedTeamCount).IsEqualTo(48);
-        await Assert.That(result.KpiContent).StartsWith("Rank,Team,ELO,Data_Collected_At");
-        await Assert.That(result.KpiContent).Contains("15,Mexiko,1681.03,2026-05-25");
-        await Assert.That(result.KpiContent).Contains("60,Südafrika,1429.73,2026-05-25");
+        await Assert.That(result.KpiContent).StartsWith("Rank,Team,ELO,Published_At");
+        await Assert.That(result.KpiContent).Contains("15,Mexiko,1681.03,2026-04-01T11:55:29.4350000+00:00");
+        await Assert.That(result.KpiContent).Contains("60,Südafrika,1429.73,2026-04-01T11:55:29.4350000+00:00");
 
         var mexicoDocument = result.ContextDocuments.Single(document => document.DocumentName == "fifa-ranking-mexiko.csv");
         await Assert.That(mexicoDocument.Content)
-            .IsEqualTo($"Rank,Team,ELO,Data_Collected_At{Environment.NewLine}15,Mexiko,1681.03,2026-05-25{Environment.NewLine}");
+            .IsEqualTo($"Rank,Team,ELO,Published_At{Environment.NewLine}15,Mexiko,1681.03,2026-04-01T11:55:29.4350000+00:00{Environment.NewLine}");
     }
 
     [Test]
@@ -113,6 +113,39 @@ public class FifaRankingSourceTests
 
         await Assert.That(exception).IsNotNull();
         await Assert.That(exception!.Message).Contains("No approved FIFA ranking schedule");
+    }
+
+    [Test]
+    public async Task PreserveExistingContentWhenRankingUnchanged_reuses_existing_published_at_payload()
+    {
+        const string existingContent = "Rank,Team,ELO,Published_At\n15,Mexiko,1681.03,2026-04-01T11:55:29.4350000+00:00\n";
+        const string newContent = "Rank,Team,ELO,Published_At\n15,Mexiko,1681.03,2026-06-11T10:00:59.6360000+00:00\n";
+
+        var result = FifaRankingCsvUtility.PreserveExistingContentWhenRankingUnchanged(newContent, existingContent);
+
+        await Assert.That(result).IsEqualTo(existingContent);
+    }
+
+    [Test]
+    public async Task PreserveExistingContentWhenRankingUnchanged_does_not_reuse_legacy_data_collected_at_payload()
+    {
+        const string existingContent = "Rank,Team,ELO,Data_Collected_At\n15,Mexiko,1681.03,2026-05-25\n";
+        const string newContent = "Rank,Team,ELO,Published_At\n15,Mexiko,1681.03,2026-06-11T10:00:59.6360000+00:00\n";
+
+        var result = FifaRankingCsvUtility.PreserveExistingContentWhenRankingUnchanged(newContent, existingContent);
+
+        await Assert.That(result).IsEqualTo(newContent);
+    }
+
+    [Test]
+    public async Task PreserveExistingContentWhenRankingUnchanged_does_not_reuse_payload_when_elo_changes()
+    {
+        const string existingContent = "Rank,Team,ELO,Published_At\n15,Mexiko,1681.03,2026-04-01T11:55:29.4350000+00:00\n";
+        const string newContent = "Rank,Team,ELO,Published_At\n15,Mexiko,1681.04,2026-06-11T10:00:59.6360000+00:00\n";
+
+        var result = FifaRankingCsvUtility.PreserveExistingContentWhenRankingUnchanged(newContent, existingContent);
+
+        await Assert.That(result).IsEqualTo(newContent);
     }
 
     private static IReadOnlyList<FifaRankingRowDto> CreateRankingRows(string? omitCountryCode = null)

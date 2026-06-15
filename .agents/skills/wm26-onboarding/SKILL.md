@@ -120,7 +120,7 @@ dotnet run --project src/Orchestrator -- bonus-dev -c ehonda-dev-wm26 --verbose
 Acceptance checks:
 - `matchday-dev` finds all required context documents in Firestore with no on-demand fallback warning, including the two participating teams' `lineup-*` docs.
 - `bonus-dev` includes KPI context document `fifa-rankings` and includes `lineups` only for the exact top-scorer-team question.
-- Langfuse traces show hosted prompts, `langfusePromptFallback=false`, `openaiReasoningEffort=minimal`, ranking context containing `Rank,Team,ELO,Data_Collected_At`, and lineup context containing `Team,Data_Collected_At,Role,Name,Age,Position,Market_Value_EUR`.
+- Langfuse traces show hosted prompts, `langfusePromptFallback=false`, `openaiReasoningEffort=minimal`, ranking context containing `Rank,Team,ELO,Published_At`, and lineup context containing `Team,Data_Collected_At,Role,Name,Age,Position,Market_Value_EUR`.
 
 11. Inspect Langfuse traces with the repository Langfuse workflow.
    - Use the global `langfuse` skill and installed `langfuse` CLI.
@@ -161,6 +161,6 @@ After autonomous onboarding, include a concise manual follow-up section in the f
 
 WM26 recent-history CSV payloads must use `Competition,Played_At,Home_Team,Away_Team,Score,Annotation` after the date-map step. The date-map apply command must still read legacy `Data_Collected_At` so existing Firestore documents can be repaired in place. For rows collected on or after `2026-06-11`, guarded mode uses stored match predictions for exact tournament kickoff timestamps and preserves existing exact timestamps on repeat runs.
 
-FIFA ranking CSV payloads must use `Rank,Team,ELO,Data_Collected_At`, format points with two decimal places, and must not contain empty `Data_Collected_At` values.
+FIFA ranking CSV payloads must use `Rank,Team,ELO,Published_At`, format points with two decimal places, and must use the stable FIFA ranking publication timestamp in ISO-8601 offset form.
 
 Lineup CSV payloads must use `Team,Data_Collected_At,Role,Name,Age,Position,Market_Value_EUR`, must include coaches, must use `N/A` instead of `0` for unavailable player market values, and must leave coach market values empty.
