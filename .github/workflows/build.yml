@@ -43,7 +43,7 @@ jobs:
     
     steps:
       - name: Checkout repository
-        uses: actions/checkout@v6
+        uses: actions/checkout@v7
         
       - name: Setup .NET
         uses: actions/setup-dotnet@v5
@@ -73,7 +73,7 @@ jobs:
     
     steps:
       - name: Checkout repository
-        uses: actions/checkout@v6
+        uses: actions/checkout@v7
         
       # Discovers test projects by finding directories under tests/ that contain
       # a .csproj file matching the directory name (convention-based discovery)
@@ -103,7 +103,7 @@ jobs:
     
     steps:
       - name: Checkout repository
-        uses: actions/checkout@v6
+        uses: actions/checkout@v7
         
       - name: Setup .NET
         uses: actions/setup-dotnet@v5
@@ -165,7 +165,7 @@ jobs:
     
     steps:
       - name: Checkout repository
-        uses: actions/checkout@v6
+        uses: actions/checkout@v7
         
       - name: Setup .NET
         uses: actions/setup-dotnet@v5
