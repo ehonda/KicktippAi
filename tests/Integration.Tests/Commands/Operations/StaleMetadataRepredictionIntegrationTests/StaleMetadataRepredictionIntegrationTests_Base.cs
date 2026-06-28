@@ -50,7 +50,18 @@ public abstract class StaleMetadataRepredictionIntegrationTests_Base(FirestoreFi
                 [match] = new BetPrediction(latestPrediction.HomeGoals, latestPrediction.AwayGoals)
             });
         kicktippClient
+            .Setup(client => client.GetPlacedPredictionsAsync(Community, Competition))
+            .ReturnsAsync(new Dictionary<Match, BetPrediction?>
+            {
+                [match] = new BetPrediction(latestPrediction.HomeGoals, latestPrediction.AwayGoals)
+            });
+        kicktippClient
             .Setup(client => client.GetMatchesWithHistoryAsync(Community))
+            .ReturnsAsync([
+                CreateMatchWithHistory(match: match)
+            ]);
+        kicktippClient
+            .Setup(client => client.GetMatchesWithHistoryAsync(Community, Competition))
             .ReturnsAsync([
                 CreateMatchWithHistory(match: match)
             ]);
