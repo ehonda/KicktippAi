@@ -4,19 +4,16 @@ This directory contains community-specific scoring rules used by the KicktippAi 
 
 ## How it Works
 
-The `KicktippContextProvider` loads community-specific scoring rules based on the `community-context` parameter:
-
-1. First, it tries to load a file named `{community-context}.md`
-2. If that doesn't exist, it falls back to `default.md`
-3. If that doesn't exist, it uses built-in fallback content
+The `KicktippContextProvider` loads community-specific scoring rules based on the `community-context` parameter. Normal matches use `{community-context}.md`; knockout-stage matches use `{community-context}-knockout.md` instead. A missing selected rules file is an error.
 
 ## Adding New Community Rules
 
 To add rules for a new community:
 
 1. Create a new markdown file named `{community-name}.md`
-2. Follow the format shown in the existing files
-3. Include at least:
+2. For a competition with knockout-stage result accumulation, also create `{community-name}-knockout.md`
+3. Follow the format shown in the existing files
+4. Include at least:
    - A scoring system table
    - Explanation of tendency, goal difference, and exact result
    - Examples

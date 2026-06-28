@@ -1,6 +1,6 @@
 # WM26 Model Configuration Onboarding
 
-Updated: 2026-06-07
+Updated: 2026-06-28
 
 This ledger tracks which FIFA World Cup 2026 model configurations are
 onboarded, where they are wired, and whether their full-competition match
@@ -24,11 +24,34 @@ Langfuse prompt lookup on 2026-06-02 resolved
 `kicktippai/wm26/predict-one-match` label `latest` to version `2`; label
 `production` was not present, so `latest` is the configured hosted WM route for
 this ledger.
+On 2026-06-28, `latest` was promoted to version `3`, adding the nested WM26
+knockout-stage match input and the
+`finalScoreIncludingExtraTimeAndPenaltyShootout` result basis. The version `2`
+references in historical validation and cost evidence below remain unchanged.
 
 Use one row per effective model configuration: model, reasoning effort, prompt
 route, prompt label/version policy, community, and workflow status. Before
 activating a scheduled prediction workflow, make sure the matching cost estimate
 is present in [whole-season-cost-estimates.md](../experiments/whole-season-cost-estimates.md).
+
+## 2026-06-28 Knockout-Stage Context Validation
+
+- Langfuse prompt `kicktippai/wm26/predict-one-match` version `3` was
+  published under `latest`; readback confirmed the nested
+  `competitionSpecificData` input and
+  `finalScoreIncludingExtraTimeAndPenaltyShootout` result basis.
+- The three knockout scoring-rule documents for `ehonda-dev-wm26`,
+  `ehonda-ai-arena`, and `rabetrabauken2026` passed
+  `upload-context --dry-run` and were created in Firestore as version `0`.
+- A live dry run against future Kicktipp matchday `11` parsed all 16
+  `Sechzehntelfinale` matches and selected
+  `community-rules-ehonda-dev-wm26-knockout.md` instead of the normal rules
+  document.
+- At 01:37 Europe/Berlin, the default `tippabgabe` page still showed
+  group-stage matchday `10`. The low-cost non-posting dev prediction and its
+  Langfuse trace inspection therefore remain gated on the default page
+  switching to `Sechzehntelfinale`; no production prediction was triggered
+  manually.
 
 WM26 context refresh paths now apply the canonical recent-history date map in
 guarded mode after Kicktipp context collection. This includes GitHub Actions

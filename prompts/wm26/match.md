@@ -16,6 +16,14 @@ The match will be provided as a minified JSON object:
 {"homeTeam":"string","awayTeam":"string","startsAt":"string"}
 ```
 
+For knockout-stage matches, the object additionally contains competition-specific data:
+
+```json
+{"homeTeam":"string","awayTeam":"string","startsAt":"string","competitionSpecificData":{"competition":"fifa-world-cup-2026","isKnockoutStage":true,"stage":"roundOf32","kicktippRoundName":"Sechzehntelfinale","resultBasis":"finalScoreIncludingExtraTimeAndPenaltyShootout"}}
+```
+
+When `resultBasis` is `finalScoreIncludingExtraTimeAndPenaltyShootout`, predict the final score as Kicktipp will evaluate it, using the corresponding community scoring-rules document. The final evaluated score includes goals from regulation, extra time, and—if played—the penalty shootout.
+
 Example:
 
 ```json

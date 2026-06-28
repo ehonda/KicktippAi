@@ -139,8 +139,8 @@ public class CollectContextKicktippCommand : AsyncCommand<CollectContextKicktipp
 
             // Step 1: Get target matchday matches
             var matchesWithHistory = targetMatchday.HasValue
-                ? await kicktippClient.GetMatchesWithHistoryAsync(settings.CommunityContext, targetMatchday.Value)
-                : await kicktippClient.GetMatchesWithHistoryAsync(settings.CommunityContext);
+                ? await kicktippClient.GetMatchesWithHistoryAsync(settings.CommunityContext, targetMatchday.Value, competition)
+                : await kicktippClient.GetMatchesWithHistoryAsync(settings.CommunityContext, competition);
 
             if (!matchesWithHistory.Any())
             {
@@ -159,7 +159,10 @@ public class CollectContextKicktippCommand : AsyncCommand<CollectContextKicktipp
                 try
                 {
                     // Get context for this specific match
-                    await foreach (var contextDoc in contextProvider.GetMatchContextAsync(match.HomeTeam, match.AwayTeam))
+                    var matchContext = match.CompetitionSpecificData is FifaWorldCup2026MatchData
+                        ? contextProvider.GetMatchContextAsync(match)
+                        : contextProvider.GetMatchContextAsync(match.HomeTeam, match.AwayTeam);
+                    await foreach (var contextDoc in matchContext)
                     {
                         // Use the document name as key to avoid duplicates
                         if (!allContextDocuments.ContainsKey(contextDoc.Name))

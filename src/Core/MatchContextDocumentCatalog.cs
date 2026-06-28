@@ -71,6 +71,36 @@ public static class MatchContextDocumentCatalog
         string communityContext,
         string? competition = null)
     {
+        return ForMatch(
+            homeTeam,
+            awayTeam,
+            communityContext,
+            competition,
+            useKnockoutScoringRules: false);
+    }
+
+    public static MatchContextDocumentSelection ForMatch(
+        Match match,
+        string communityContext,
+        string? competition = null)
+    {
+        ArgumentNullException.ThrowIfNull(match);
+
+        return ForMatch(
+            match.HomeTeam,
+            match.AwayTeam,
+            communityContext,
+            competition,
+            useKnockoutScoringRules: match.CompetitionSpecificData is FifaWorldCup2026MatchData);
+    }
+
+    private static MatchContextDocumentSelection ForMatch(
+        string homeTeam,
+        string awayTeam,
+        string communityContext,
+        string? competition,
+        bool useKnockoutScoringRules)
+    {
         ArgumentException.ThrowIfNullOrWhiteSpace(homeTeam);
         ArgumentException.ThrowIfNullOrWhiteSpace(awayTeam);
         ArgumentException.ThrowIfNullOrWhiteSpace(communityContext);
@@ -83,7 +113,9 @@ public static class MatchContextDocumentCatalog
         var requiredDocuments = new List<string> { standingsDocumentName };
         if (policy.IncludeCommunityRules)
         {
-            requiredDocuments.Add($"community-rules-{communityContext}.md");
+            requiredDocuments.Add(useKnockoutScoringRules
+                ? $"community-rules-{communityContext}-knockout.md"
+                : $"community-rules-{communityContext}.md");
         }
 
         if (policy.IncludeRecentHistory)

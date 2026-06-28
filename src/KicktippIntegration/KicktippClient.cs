@@ -36,7 +36,17 @@ public class KicktippClient : IKicktippClient, IDisposable
     }
 
     /// <inheritdoc />
-    public async Task<List<Match>> GetOpenPredictionsAsync(string community)
+    public Task<List<Match>> GetOpenPredictionsAsync(string community)
+    {
+        return GetOpenPredictionsInternalAsync(community, competition: null);
+    }
+
+    public Task<List<Match>> GetOpenPredictionsAsync(string community, string competition)
+    {
+        return GetOpenPredictionsInternalAsync(community, competition);
+    }
+
+    private async Task<List<Match>> GetOpenPredictionsInternalAsync(string community, string? competition)
     {
         try
         {
@@ -57,6 +67,8 @@ public class KicktippClient : IKicktippClient, IDisposable
             // Extract matchday from the page
             var currentMatchday = ExtractMatchdayFromPage(document);
             _logger.LogDebug("Extracted matchday: {Matchday}", currentMatchday);
+            var kicktippRoundName = ExtractKicktippRoundName(document);
+            ValidateWorldCupKnockoutMarkers(document, competition, kicktippRoundName);
             
             // Parse matches from the tippabgabe table
             var matchTable = document.QuerySelector("#tippabgabeSpiele tbody");
@@ -131,7 +143,15 @@ public class KicktippClient : IKicktippClient, IDisposable
                             // Format appears to be "08.07.25 21:00"
                             var startsAt = ParseMatchDateTime(timeText);
                             
-                            matches.Add(new Match(homeTeam, awayTeam, startsAt, currentMatchday, isCancelled));
+                            matches.Add(CreateMatch(
+                                homeTeam,
+                                awayTeam,
+                                startsAt,
+                                currentMatchday,
+                                isCancelled,
+                                competition,
+                                kicktippRoundName,
+                                row));
                         }
                     }
                 }
@@ -677,21 +697,37 @@ public class KicktippClient : IKicktippClient, IDisposable
     /// <inheritdoc />
     public Task<List<MatchWithHistory>> GetMatchesWithHistoryAsync(string community)
     {
-        return GetMatchesWithHistoryAsync(community, null);
+        return GetMatchesWithHistoryInternalAsync(community, matchday: null, competition: null);
+    }
+
+    /// <inheritdoc />
+    public Task<List<MatchWithHistory>> GetMatchesWithHistoryAsync(string community, string competition)
+    {
+        return GetMatchesWithHistoryInternalAsync(community, matchday: null, competition);
     }
 
     /// <inheritdoc />
     public Task<List<MatchWithHistory>> GetMatchesWithHistoryAsync(string community, int matchday)
     {
-        return GetMatchesWithHistoryAsync(community, (int?)matchday);
+        return GetMatchesWithHistoryInternalAsync(community, matchday, competition: null);
     }
 
-    private async Task<List<MatchWithHistory>> GetMatchesWithHistoryAsync(string community, int? matchday)
+    /// <inheritdoc />
+    public Task<List<MatchWithHistory>> GetMatchesWithHistoryAsync(string community, int matchday, string competition)
+    {
+        return GetMatchesWithHistoryInternalAsync(community, matchday, competition);
+    }
+
+    private async Task<List<MatchWithHistory>> GetMatchesWithHistoryInternalAsync(
+        string community,
+        int? matchday,
+        string? competition)
     {
         // Create cache key based on community
+        var competitionCacheKey = string.IsNullOrWhiteSpace(competition) ? "generic" : competition;
         var cacheKey = matchday.HasValue
-            ? $"matches_history_{community}_{matchday.Value}"
-            : $"matches_history_{community}";
+            ? $"matches_history_{community}_{competitionCacheKey}_{matchday.Value}"
+            : $"matches_history_{community}_{competitionCacheKey}";
         
         // Try to get from cache first
         if (_cache.TryGetValue(cacheKey, out List<MatchWithHistory>? cachedMatches))
@@ -722,6 +758,8 @@ public class KicktippClient : IKicktippClient, IDisposable
             // Extract matchday from the tippabgabe page
             var currentMatchday = ExtractMatchdayFromPage(document);
             _logger.LogDebug("Extracted matchday for history extraction: {Matchday}", currentMatchday);
+            var kicktippRoundName = ExtractKicktippRoundName(document);
+            ValidateWorldCupKnockoutMarkers(document, competition, kicktippRoundName);
             if (matchday.HasValue && currentMatchday != matchday.Value)
             {
                 _logger.LogWarning("Requested history matchday {RequestedMatchday}, but page displayed {DisplayedMatchday}", matchday.Value, currentMatchday);
@@ -769,7 +807,11 @@ public class KicktippClient : IKicktippClient, IDisposable
                     var spielinfoDocument = await _browsingContext.OpenAsync(req => req.Content(spielinfoContent));
 
                     // Extract match information
-                    var matchWithHistory = ExtractMatchWithHistoryFromSpielinfoPage(spielinfoDocument, currentMatchday);
+                    var matchWithHistory = ExtractMatchWithHistoryFromSpielinfoPage(
+                        spielinfoDocument,
+                        currentMatchday,
+                        competition,
+                        kicktippRoundName);
                     if (matchWithHistory != null)
                     {
                         matches.Add(matchWithHistory);
@@ -1240,7 +1282,11 @@ public class KicktippClient : IKicktippClient, IDisposable
         }
     }
 
-    private MatchWithHistory? ExtractMatchWithHistoryFromSpielinfoPage(IDocument document, int matchday)
+    private MatchWithHistory? ExtractMatchWithHistoryFromSpielinfoPage(
+        IDocument document,
+        int matchday,
+        string? competition,
+        string? kicktippRoundName)
     {
         try
         {
@@ -1315,7 +1361,15 @@ public class KicktippClient : IKicktippClient, IDisposable
             }
 
             var startsAt = ParseMatchDateTime(timeText);
-            var match = new Match(homeTeam, awayTeam, startsAt, matchday, isCancelled);
+            var match = CreateMatch(
+                homeTeam,
+                awayTeam,
+                startsAt,
+                matchday,
+                isCancelled,
+                competition,
+                kicktippRoundName,
+                matchRow);
 
             // Extract home team history
             var homeTeamHistory = ExtractTeamHistory(document, "spielinfoHeim");
@@ -2053,7 +2107,19 @@ public class KicktippClient : IKicktippClient, IDisposable
         string? TippSpielId);
 
     /// <inheritdoc />
-    public async Task<Dictionary<Match, BetPrediction?>> GetPlacedPredictionsAsync(string community)
+    public Task<Dictionary<Match, BetPrediction?>> GetPlacedPredictionsAsync(string community)
+    {
+        return GetPlacedPredictionsInternalAsync(community, competition: null);
+    }
+
+    public Task<Dictionary<Match, BetPrediction?>> GetPlacedPredictionsAsync(string community, string competition)
+    {
+        return GetPlacedPredictionsInternalAsync(community, competition);
+    }
+
+    private async Task<Dictionary<Match, BetPrediction?>> GetPlacedPredictionsInternalAsync(
+        string community,
+        string? competition)
     {
         try
         {
@@ -2074,6 +2140,8 @@ public class KicktippClient : IKicktippClient, IDisposable
             // Extract matchday from the page
             var currentMatchday = ExtractMatchdayFromPage(document);
             _logger.LogDebug("Extracted matchday for placed predictions: {Matchday}", currentMatchday);
+            var kicktippRoundName = ExtractKicktippRoundName(document);
+            ValidateWorldCupKnockoutMarkers(document, competition, kicktippRoundName);
             
             // Parse matches from the tippabgabe table
             var matchTable = document.QuerySelector("#tippabgabeSpiele tbody");
@@ -2148,7 +2216,15 @@ public class KicktippClient : IKicktippClient, IDisposable
                             
                             // Parse the date/time
                             var startsAt = ParseMatchDateTime(timeText);
-                            var match = new Match(homeTeam, awayTeam, startsAt, currentMatchday, isCancelled);
+                            var match = CreateMatch(
+                                homeTeam,
+                                awayTeam,
+                                startsAt,
+                                currentMatchday,
+                                isCancelled,
+                                competition,
+                                kicktippRoundName,
+                                row);
                             
                             // Check if predictions are placed (inputs have values)
                             var homeValue = homeInput?.Value?.Trim();
@@ -2192,6 +2268,114 @@ public class KicktippClient : IKicktippClient, IDisposable
             _logger.LogError(ex, "Exception in GetPlacedPredictionsAsync");
             return new Dictionary<Match, BetPrediction?>();
         }
+    }
+
+    private static string? ExtractKicktippRoundName(IDocument document)
+    {
+        var roundElement = document.QuerySelector(
+            ".spieltagsauswahl .prevnextTitle a, .spieltagsauswahl .prevnextTitle");
+
+        var roundName = NormalizeWhitespace(roundElement?.TextContent);
+        return string.IsNullOrWhiteSpace(roundName) ? null : roundName;
+    }
+
+    private static void ValidateWorldCupKnockoutMarkers(
+        IDocument document,
+        string? competition,
+        string? kicktippRoundName)
+    {
+        if (!string.Equals(competition, CompetitionIds.FifaWorldCup2026, StringComparison.OrdinalIgnoreCase) ||
+            !TryMapWorldCupKnockoutStage(kicktippRoundName, out _))
+        {
+            return;
+        }
+
+        foreach (var row in document.QuerySelectorAll("#tippabgabeSpiele tbody tr"))
+        {
+            var cells = row.QuerySelectorAll("td");
+            if (cells.Length < 4 ||
+                string.IsNullOrWhiteSpace(cells[1].TextContent) ||
+                string.IsNullOrWhiteSpace(cells[2].TextContent))
+            {
+                continue;
+            }
+
+            if (!HasPenaltyShootoutMarker(row))
+            {
+                throw new InvalidOperationException(
+                    $"WM26 knockout round '{kicktippRoundName}' contains a match without the required n.E. scoring marker.");
+            }
+        }
+    }
+
+    private static Match CreateMatch(
+        string homeTeam,
+        string awayTeam,
+        ZonedDateTime startsAt,
+        int matchday,
+        bool isCancelled,
+        string? competition,
+        string? kicktippRoundName,
+        IElement matchRow)
+    {
+        var match = new Match(homeTeam, awayTeam, startsAt, matchday, isCancelled);
+        if (!string.Equals(competition, CompetitionIds.FifaWorldCup2026, StringComparison.OrdinalIgnoreCase))
+        {
+            return match;
+        }
+
+        var hasPenaltyShootoutMarker = HasPenaltyShootoutMarker(matchRow);
+        var hasKnownKnockoutStage = TryMapWorldCupKnockoutStage(kicktippRoundName, out var stage);
+        if (hasKnownKnockoutStage && !hasPenaltyShootoutMarker)
+        {
+            throw new InvalidOperationException(
+                $"WM26 knockout round '{kicktippRoundName}' is missing the required n.E. scoring marker for {homeTeam} vs {awayTeam}.");
+        }
+
+        if (!hasPenaltyShootoutMarker)
+        {
+            return match;
+        }
+
+        return match with
+        {
+            CompetitionSpecificData = new FifaWorldCup2026MatchData(
+                kicktippRoundName,
+                hasKnownKnockoutStage ? stage : FifaWorldCup2026KnockoutStage.Unknown,
+                FifaWorldCup2026ResultBasis.FinalScoreIncludingExtraTimeAndPenaltyShootout)
+        };
+    }
+
+    private static bool HasPenaltyShootoutMarker(IElement matchRow)
+    {
+        var marker = NormalizeWhitespace(
+            matchRow.QuerySelector(".kicktipp-spielabschnitt-markierung")?.TextContent);
+        return string.Equals(marker, "n.E.", StringComparison.OrdinalIgnoreCase);
+    }
+
+    private static bool TryMapWorldCupKnockoutStage(
+        string? kicktippRoundName,
+        out FifaWorldCup2026KnockoutStage stage)
+    {
+        stage = kicktippRoundName?.Trim() switch
+        {
+            string value when value.Equals("Sechzehntelfinale", StringComparison.OrdinalIgnoreCase) =>
+                FifaWorldCup2026KnockoutStage.RoundOf32,
+            string value when value.Equals("Achtelfinale", StringComparison.OrdinalIgnoreCase) =>
+                FifaWorldCup2026KnockoutStage.RoundOf16,
+            string value when value.Equals("Viertelfinale", StringComparison.OrdinalIgnoreCase) =>
+                FifaWorldCup2026KnockoutStage.Quarterfinal,
+            string value when value.Equals("Halbfinale", StringComparison.OrdinalIgnoreCase) =>
+                FifaWorldCup2026KnockoutStage.Semifinal,
+            string value when value.Equals("Spiel um Platz 3", StringComparison.OrdinalIgnoreCase) ||
+                              value.Equals("Spiel um den 3. Platz", StringComparison.OrdinalIgnoreCase) =>
+                FifaWorldCup2026KnockoutStage.ThirdPlacePlayoff,
+            string value when value.Equals("Finale", StringComparison.OrdinalIgnoreCase) =>
+                FifaWorldCup2026KnockoutStage.Final,
+            _ => FifaWorldCup2026KnockoutStage.Unknown
+        };
+
+        return stage != FifaWorldCup2026KnockoutStage.Unknown;
     }
 
     private int ExtractMatchdayFromPage(IDocument document)

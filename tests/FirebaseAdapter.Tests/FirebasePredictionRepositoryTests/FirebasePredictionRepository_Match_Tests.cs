@@ -31,6 +31,53 @@ public class FirebasePredictionRepository_Match_Tests(FirestoreFixture fixture)
     }
 
     [Test]
+    public async Task StoreMatchAsync_round_trips_world_cup_knockout_data()
+    {
+        var repository = CreateRepository(
+            competition: EHonda.Optional.Core.Option.Some(CompetitionIds.FifaWorldCup2026));
+        var match = CreateMatch(matchday: 37) with
+        {
+            CompetitionSpecificData = new FifaWorldCup2026MatchData(
+                "Sechzehntelfinale",
+                FifaWorldCup2026KnockoutStage.RoundOf32,
+                FifaWorldCup2026ResultBasis.FinalScoreIncludingExtraTimeAndPenaltyShootout)
+        };
+
+        await repository.StoreMatchAsync(match);
+        var storedMatch = (await repository.GetMatchDayAsync(37)).Single();
+
+        var data = storedMatch.CompetitionSpecificData as FifaWorldCup2026MatchData;
+        await Assert.That(data).IsNotNull();
+        await Assert.That(data!.Competition).IsEqualTo(CompetitionIds.FifaWorldCup2026);
+        await Assert.That(data.KicktippRoundName).IsEqualTo("Sechzehntelfinale");
+        await Assert.That(data.Stage).IsEqualTo(FifaWorldCup2026KnockoutStage.RoundOf32);
+        await Assert.That(data.ResultBasis)
+            .IsEqualTo(FifaWorldCup2026ResultBasis.FinalScoreIncludingExtraTimeAndPenaltyShootout);
+    }
+
+    [Test]
+    public async Task GetMatchDayAsync_reads_legacy_match_without_competition_specific_data()
+    {
+        var repository = CreateRepository();
+        await Fixture.Db.Collection("matches").Document("legacy-match").SetAsync(
+            new Dictionary<string, object>
+            {
+                ["homeTeam"] = "Legacy Home",
+                ["awayTeam"] = "Legacy Away",
+                ["startsAt"] = Timestamp.FromDateTimeOffset(
+                    Instant.FromUtc(2026, 6, 1, 12, 0).ToDateTimeOffset()),
+                ["matchday"] = 12,
+                ["competition"] = CompetitionIds.Bundesliga2025_26,
+                ["isCancelled"] = false
+            });
+
+        var storedMatch = (await repository.GetMatchDayAsync(12)).Single();
+
+        await Assert.That(storedMatch.HomeTeam).IsEqualTo("Legacy Home");
+        await Assert.That(storedMatch.CompetitionSpecificData).IsNull();
+    }
+
+    [Test]
     public async Task GetMatchDayAsync_returns_empty_list_when_no_matches_exist()
     {
         // Arrange

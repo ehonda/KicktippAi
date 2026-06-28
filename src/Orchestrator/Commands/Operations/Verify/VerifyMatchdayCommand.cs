@@ -101,7 +101,7 @@ public class VerifyMatchdayCommand : AsyncCommand<VerifySettings>
         _console.MarkupLine("[blue]Getting placed predictions from Kicktipp...[/]");
         
         // Step 1: Get placed predictions from Kicktipp
-        var placedPredictions = await kicktippClient.GetPlacedPredictionsAsync(settings.Community);
+        var placedPredictions = await kicktippClient.GetPlacedPredictionsAsync(settings.Community, competition);
         
         if (!placedPredictions.Any())
         {

@@ -86,6 +86,27 @@ public class PredictionPromptComposer_Tests
     }
 
     [Test]
+    public async Task Creating_world_cup_knockout_match_json_includes_nested_competition_data()
+    {
+        var match = new Match(
+            "South Africa",
+            "Canada",
+            Instant.FromUtc(2026, 6, 28, 19, 0).InUtc(),
+            37)
+        {
+            CompetitionSpecificData = new FifaWorldCup2026MatchData(
+                "Sechzehntelfinale",
+                FifaWorldCup2026KnockoutStage.RoundOf32,
+                FifaWorldCup2026ResultBasis.FinalScoreIncludingExtraTimeAndPenaltyShootout)
+        };
+
+        var result = PredictionPromptComposer.CreateMatchJson(match);
+
+        await Assert.That(result).IsEqualTo(
+            "{\"homeTeam\":\"South Africa\",\"awayTeam\":\"Canada\",\"startsAt\":\"2026-06-28T19:00:00 UTC (+00)\",\"competitionSpecificData\":{\"competition\":\"fifa-world-cup-2026\",\"isKnockoutStage\":true,\"stage\":\"roundOf32\",\"kicktippRoundName\":\"Sechzehntelfinale\",\"resultBasis\":\"finalScoreIncludingExtraTimeAndPenaltyShootout\"}}");
+    }
+
+    [Test]
     public async Task Creating_bonus_question_json_uses_expected_payload_shape()
     {
         var bonusQuestion = new BonusQuestion(

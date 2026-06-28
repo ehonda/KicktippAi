@@ -20,6 +20,13 @@ public interface IKicktippContextProvider : IContextProvider<DocumentContext>
         CancellationToken cancellationToken = default);
 
     /// <summary>
+    /// Gets context for a match, including competition-specific rule selection.
+    /// </summary>
+    IAsyncEnumerable<DocumentContext> GetMatchContextAsync(
+        Match match,
+        CancellationToken cancellationToken = default);
+
+    /// <summary>
     /// Gets context for bonus questions.
     /// </summary>
     /// <param name="cancellationToken">Cancellation token.</param>
@@ -44,6 +51,11 @@ public interface IKicktippContextProvider : IContextProvider<DocumentContext>
     /// </summary>
     /// <returns>A document context containing the scoring rules.</returns>
     Task<DocumentContext> CommunityScoringRules();
+
+    /// <summary>
+    /// Gets the community scoring rules used for knockout matches.
+    /// </summary>
+    Task<DocumentContext> CommunityKnockoutScoringRules();
 
     /// <summary>
     /// Gets recent match history for a specific team.

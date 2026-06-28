@@ -100,7 +100,10 @@ internal static class ExperimentArtifactSupport
         var instant = match.StartsAt.ToInstant();
         var offset = BundesligaTimeZone.GetUtcOffset(instant);
         var localizedStartsAt = instant.InZone(DateTimeZone.ForOffset(offset));
-        return new Match(match.HomeTeam, match.AwayTeam, localizedStartsAt, match.Matchday, match.IsCancelled);
+        return new Match(match.HomeTeam, match.AwayTeam, localizedStartsAt, match.Matchday, match.IsCancelled)
+        {
+            CompetitionSpecificData = match.CompetitionSpecificData
+        };
     }
 
     public static string BuildSourceDatasetName(string communityContext)

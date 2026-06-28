@@ -58,10 +58,12 @@ public abstract class FirebasePredictionRepositoryTests_Base(FirestoreFixture fi
     /// <returns>A configured FirebasePredictionRepository instance.</returns>
     protected FirebasePredictionRepository CreateRepository(
         NullableOption<FirestoreDb> firestoreDb = default,
-        NullableOption<FakeLogger<FirebasePredictionRepository>> logger = default)
+        NullableOption<FakeLogger<FirebasePredictionRepository>> logger = default,
+        NullableOption<string> competition = default)
     {
         var actualDb = firestoreDb.Or(() => Fixture.Db);
         var actualLogger = logger.Or(() => new FakeLogger<FirebasePredictionRepository>());
-        return new FirebasePredictionRepository(actualDb!, actualLogger!);
+        var actualCompetition = competition.Or(() => null);
+        return new FirebasePredictionRepository(actualDb!, actualLogger!, actualCompetition);
     }
 }

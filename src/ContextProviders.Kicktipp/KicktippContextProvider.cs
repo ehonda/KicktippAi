@@ -90,8 +90,8 @@ public class KicktippContextProvider : IKicktippContextProvider
     private Task<List<MatchWithHistory>> GetMatchesWithHistoryAsync()
     {
         return _matchday.HasValue
-            ? _kicktippClient.GetMatchesWithHistoryAsync(_community, _matchday.Value)
-            : _kicktippClient.GetMatchesWithHistoryAsync(_community);
+            ? _kicktippClient.GetMatchesWithHistoryAsync(_community, _matchday.Value, _competition)
+            : _kicktippClient.GetMatchesWithHistoryAsync(_community, _competition);
     }
     
     public async IAsyncEnumerable<DocumentContext> GetContextAsync([EnumeratorCancellation] CancellationToken cancellationToken = default)
@@ -116,9 +116,31 @@ public class KicktippContextProvider : IKicktippContextProvider
     /// <param name="homeTeam">The home team name.</param>
     /// <param name="awayTeam">The away team name.</param>
     /// <returns>An enumerable of context documents for both teams.</returns>
-    public async IAsyncEnumerable<DocumentContext> GetMatchContextAsync(string homeTeam, string awayTeam, [EnumeratorCancellation] CancellationToken cancellationToken = default)
+    public IAsyncEnumerable<DocumentContext> GetMatchContextAsync(
+        string homeTeam,
+        string awayTeam,
+        CancellationToken cancellationToken = default)
     {
-        var selection = MatchContextDocumentCatalog.ForMatch(homeTeam, awayTeam, _communityContext, _competition);
+        return GetMatchContextCoreAsync(null, homeTeam, awayTeam, cancellationToken);
+    }
+
+    public IAsyncEnumerable<DocumentContext> GetMatchContextAsync(
+        Match match,
+        CancellationToken cancellationToken = default)
+    {
+        ArgumentNullException.ThrowIfNull(match);
+        return GetMatchContextCoreAsync(match, match.HomeTeam, match.AwayTeam, cancellationToken);
+    }
+
+    private async IAsyncEnumerable<DocumentContext> GetMatchContextCoreAsync(
+        Match? match,
+        string homeTeam,
+        string awayTeam,
+        [EnumeratorCancellation] CancellationToken cancellationToken = default)
+    {
+        var selection = match is null
+            ? MatchContextDocumentCatalog.ForMatch(homeTeam, awayTeam, _communityContext, _competition)
+            : MatchContextDocumentCatalog.ForMatch(match, _communityContext, _competition);
         var homeAbbreviation = MatchContextDocumentCatalog.GetTeamAbbreviation(homeTeam);
         var awayAbbreviation = MatchContextDocumentCatalog.GetTeamAbbreviation(awayTeam);
 
@@ -131,6 +153,10 @@ public class KicktippContextProvider : IKicktippContextProvider
             else if (documentName == $"community-rules-{_communityContext}.md")
             {
                 yield return await CommunityScoringRules();
+            }
+            else if (documentName == $"community-rules-{_communityContext}-knockout.md")
+            {
+                yield return await CommunityKnockoutScoringRules();
             }
             else if (documentName == $"recent-history-{homeAbbreviation}.csv")
             {
@@ -274,7 +300,20 @@ public class KicktippContextProvider : IKicktippContextProvider
     /// <exception cref="FileNotFoundException">Thrown when the community-specific scoring rules file is not found.</exception>
     public async Task<DocumentContext> CommunityScoringRules()
     {
-        var filePath = $"{_communityContext}.md";
+        return await LoadCommunityScoringRules(
+            $"{_communityContext}.md",
+            $"community-rules-{_communityContext}.md");
+    }
+
+    public async Task<DocumentContext> CommunityKnockoutScoringRules()
+    {
+        return await LoadCommunityScoringRules(
+            $"{_communityContext}-knockout.md",
+            $"community-rules-{_communityContext}-knockout.md");
+    }
+
+    private async Task<DocumentContext> LoadCommunityScoringRules(string filePath, string documentName)
+    {
         var fileInfo = _communityRulesFileProvider.GetFileInfo(filePath);
         
         if (!fileInfo.Exists)
@@ -285,7 +324,7 @@ public class KicktippContextProvider : IKicktippContextProvider
         
         var content = await ReadFileContentAsync(fileInfo);
         return new DocumentContext(
-            Name: $"community-rules-{_communityContext}.md",
+            Name: documentName,
             Content: content);
     }
 

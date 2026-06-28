@@ -80,6 +80,12 @@ public abstract class KicktippContextProviderTests_Base
         mock.Setup(c => c.GetMatchesWithHistoryAsync(It.IsAny<string>(), It.IsAny<int>()))
             .ReturnsAsync(matchesWithHistory.Or(CreateTestMatchesWithHistory));
 
+        mock.Setup(c => c.GetMatchesWithHistoryAsync(It.IsAny<string>(), It.IsAny<string>()))
+            .ReturnsAsync(matchesWithHistory.Or(CreateTestMatchesWithHistory));
+
+        mock.Setup(c => c.GetMatchesWithHistoryAsync(It.IsAny<string>(), It.IsAny<int>(), It.IsAny<string>()))
+            .ReturnsAsync(matchesWithHistory.Or(CreateTestMatchesWithHistory));
+
         mock.Setup(c => c.GetHomeAwayHistoryAsync(It.IsAny<string>(), It.IsAny<string>(), It.IsAny<string>()))
             .ReturnsAsync(homeAwayHistory.Or(() => (CreateTestMatchResults("HomeHistory"), CreateTestMatchResults("AwayHistory"))));
 

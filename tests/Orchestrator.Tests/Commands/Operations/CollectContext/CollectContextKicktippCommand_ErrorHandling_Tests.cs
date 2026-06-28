@@ -18,7 +18,7 @@ public class CollectContextKicktippCommand_ErrorHandling_Tests : CollectContextK
     {
         var mockKicktippClient = new Mock<IKicktippClient>();
         mockKicktippClient
-            .Setup(c => c.GetMatchesWithHistoryAsync(It.IsAny<string>()))
+            .Setup(c => c.GetMatchesWithHistoryAsync(It.IsAny<string>(), It.IsAny<string>()))
             .ThrowsAsync(new InvalidOperationException("Network error"));
 
         var ctx = CreateCollectContextCommandApp(kicktippClientFactory: CreateMockKicktippClientFactory(mockKicktippClient));

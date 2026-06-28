@@ -4,6 +4,8 @@ using TestUtilities.StringAssertions;
 using EHonda.KicktippAi.Core;
 using Moq;
 
+using Match = EHonda.KicktippAi.Core.Match;
+
 namespace ContextProviders.Kicktipp.Tests.KicktippContextProviderTests;
 
 public class KicktippContextProvider_GetMatchContextAsync_Tests : KicktippContextProviderTests_Base
@@ -117,5 +119,40 @@ public class KicktippContextProvider_GetMatchContextAsync_Tests : KicktippContex
             CollectionOrdering.Matching);
         client.Verify(c => c.GetHomeAwayHistoryAsync(It.IsAny<string>(), It.IsAny<string>(), It.IsAny<string>()), Times.Never);
         client.Verify(c => c.GetHeadToHeadDetailedHistoryAsync(It.IsAny<string>(), It.IsAny<string>(), It.IsAny<string>()), Times.Never);
+    }
+
+    [Test]
+    public async Task Getting_world_cup_knockout_context_replaces_normal_rules_document()
+    {
+        const string knockoutRules = "finalScoreIncludingExtraTimeAndPenaltyShootout";
+        var client = CreateMockKicktippClient();
+        var rulesFileProvider = CreateMockCommunityRulesFileProvider(
+            EHonda.Optional.Core.Option.Some(new Dictionary<string, string>
+            {
+                ["ehonda-dev-wm26.md"] = TestCommunityRulesContent,
+                ["ehonda-dev-wm26-knockout.md"] = knockoutRules
+            }));
+        var provider = CreateProvider(
+            kicktippClient: EHonda.Optional.Core.Option.Some(client.Object),
+            communityRulesFileProvider: EHonda.Optional.Core.Option.Some(rulesFileProvider.Object),
+            community: EHonda.Optional.Core.Option.Some("ehonda-dev-wm26"),
+            communityContext: EHonda.Optional.Core.Option.Some("ehonda-dev-wm26"),
+            competition: EHonda.Optional.Core.Option.Some(CompetitionIds.FifaWorldCup2026));
+        var match = new Match("Germany", "Brazil", default, 37)
+        {
+            CompetitionSpecificData = new FifaWorldCup2026MatchData(
+                "Sechzehntelfinale",
+                FifaWorldCup2026KnockoutStage.RoundOf32,
+                FifaWorldCup2026ResultBasis.FinalScoreIncludingExtraTimeAndPenaltyShootout)
+        };
+
+        var contexts = await ToListAsync(provider.GetMatchContextAsync(match));
+
+        await Assert.That(contexts.Select(context => context.Name))
+            .Contains("community-rules-ehonda-dev-wm26-knockout.md");
+        await Assert.That(contexts.Select(context => context.Name))
+            .DoesNotContain("community-rules-ehonda-dev-wm26.md");
+        await Assert.That(contexts.Single(context => context.Name.EndsWith("-knockout.md")).Content)
+            .IsEqualTo(knockoutRules);
     }
 }

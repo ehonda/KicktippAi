@@ -36,7 +36,9 @@ public class VerifyMatchdayCommand_Settings_Tests : VerifyMatchdayCommandTests_B
         await RunCommandAsync(ctx.App, ctx.Console, "verify-matchday", "gpt-4o", "-c", "my-test-community");
 
         // Assert - verify the community was passed to the kicktipp client
-        ctx.KicktippClient.Verify(c => c.GetPlacedPredictionsAsync("my-test-community"), Times.Once());
+        ctx.KicktippClient.Verify(
+            c => c.GetPlacedPredictionsAsync("my-test-community", CompetitionIds.Bundesliga2025_26),
+            Times.Once());
     }
 
     [Test]

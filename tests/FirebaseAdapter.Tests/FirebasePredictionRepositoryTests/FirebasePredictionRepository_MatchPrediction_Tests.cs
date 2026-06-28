@@ -1,5 +1,6 @@
 using TestUtilities;
 using TUnit.Core;
+using EHonda.KicktippAi.Core;
 using static TestUtilities.CoreTestFactories;
 
 namespace FirebaseAdapter.Tests.FirebasePredictionRepositoryTests;
@@ -35,6 +36,47 @@ public class FirebasePredictionRepository_MatchPrediction_Tests(FirestoreFixture
 
         // Assert
         await Assert.That(retrieved).IsEqualTo(prediction);
+    }
+
+    [Test]
+    public async Task Saving_world_cup_prediction_persists_match_data_without_changing_prediction_identity()
+    {
+        var repository = CreateRepository(
+            competition: EHonda.Optional.Core.Option.Some(CompetitionIds.FifaWorldCup2026));
+        var identityOnlyMatch = CreateMatch(matchday: 37);
+        var knockoutMatch = identityOnlyMatch with
+        {
+            CompetitionSpecificData = new FifaWorldCup2026MatchData(
+                "Sechzehntelfinale",
+                FifaWorldCup2026KnockoutStage.RoundOf32,
+                FifaWorldCup2026ResultBasis.FinalScoreIncludingExtraTimeAndPenaltyShootout)
+        };
+        var prediction = CreatePrediction(homeGoals: 2, awayGoals: 1);
+
+        await repository.SavePredictionAsync(
+            knockoutMatch,
+            prediction,
+            model: "gpt-5-nano",
+            tokenUsage: "100",
+            cost: 0.01,
+            communityContext: "ehonda-dev-wm26",
+            contextDocumentNames: []);
+
+        var retrievedPrediction = await repository.GetPredictionAsync(
+            identityOnlyMatch,
+            model: "gpt-5-nano",
+            communityContext: "ehonda-dev-wm26");
+        var storedMatch = await repository.GetStoredMatchAsync(
+            knockoutMatch.HomeTeam,
+            knockoutMatch.AwayTeam,
+            knockoutMatch.Matchday,
+            model: "gpt-5-nano",
+            communityContext: "ehonda-dev-wm26");
+
+        await Assert.That(retrievedPrediction).IsEqualTo(prediction);
+        var data = storedMatch!.CompetitionSpecificData as FifaWorldCup2026MatchData;
+        await Assert.That(data).IsNotNull();
+        await Assert.That(data!.Stage).IsEqualTo(FifaWorldCup2026KnockoutStage.RoundOf32);
     }
 
     [Test]

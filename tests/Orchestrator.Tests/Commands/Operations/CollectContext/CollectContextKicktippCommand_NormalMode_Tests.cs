@@ -177,13 +177,13 @@ public class CollectContextKicktippCommand_NormalMode_Tests : CollectContextKick
         await Assert.That(output).Contains("Getting matchday 3 matches");
 
         ctx.KicktippClient.Verify(
-            c => c.GetMatchesWithHistoryAsync("test-community", 2),
+            c => c.GetMatchesWithHistoryAsync("test-community", 2, CompetitionIds.Bundesliga2025_26),
             Times.Once);
         ctx.KicktippClient.Verify(
-            c => c.GetMatchesWithHistoryAsync("test-community", 3),
+            c => c.GetMatchesWithHistoryAsync("test-community", 3, CompetitionIds.Bundesliga2025_26),
             Times.Once);
         ctx.KicktippClient.Verify(
-            c => c.GetMatchesWithHistoryAsync("test-community"),
+            c => c.GetMatchesWithHistoryAsync("test-community", CompetitionIds.Bundesliga2025_26),
             Times.Never);
 
         ctx.ContextProviderFactory.Verify(

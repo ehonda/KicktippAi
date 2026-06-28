@@ -98,7 +98,7 @@ public class KicktippContextProvider_HeadToHeadHistory_Tests : KicktippContextPr
     {
         // Arrange
         var mockClient = new Mock<IKicktippClient>();
-        mockClient.Setup(c => c.GetMatchesWithHistoryAsync(It.IsAny<string>()))
+        mockClient.Setup(c => c.GetMatchesWithHistoryAsync(It.IsAny<string>(), It.IsAny<string>()))
             .ReturnsAsync(CreateTestMatchesWithHistory());
         mockClient.Setup(c => c.GetHeadToHeadDetailedHistoryAsync(It.IsAny<string>(), It.IsAny<string>(), It.IsAny<string>()))
             .ThrowsAsync(new InvalidOperationException("Test exception"));

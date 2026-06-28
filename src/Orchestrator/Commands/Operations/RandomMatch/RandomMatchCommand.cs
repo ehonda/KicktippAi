@@ -127,7 +127,7 @@ public class RandomMatchCommand : AsyncCommand<RandomMatchSettings>
         _console.MarkupLine("[blue]Getting current matchday matches...[/]");
 
         // Step 1: Get current matchday matches
-        var matchesWithHistory = await kicktippClient.GetMatchesWithHistoryAsync(settings.Community);
+        var matchesWithHistory = await kicktippClient.GetMatchesWithHistoryAsync(settings.Community, competition);
 
         if (!matchesWithHistory.Any())
         {
@@ -185,8 +185,7 @@ public class RandomMatchCommand : AsyncCommand<RandomMatchSettings>
         var contextDocuments = await GetHybridContextAsync(
             contextRepository,
             contextProvider,
-            match.HomeTeam,
-            match.AwayTeam,
+            match,
             communityContext,
             competition);
 
@@ -229,13 +228,12 @@ public class RandomMatchCommand : AsyncCommand<RandomMatchSettings>
     /// </summary>
     private async Task<Dictionary<string, DocumentContext>> GetMatchContextDocumentsAsync(
         IContextRepository contextRepository,
-        string homeTeam,
-        string awayTeam,
+        Match match,
         string communityContext,
         string competition)
     {
         var contextDocuments = new Dictionary<string, DocumentContext>();
-        var selection = MatchContextDocumentCatalog.ForMatch(homeTeam, awayTeam, communityContext, competition);
+        var selection = MatchContextDocumentCatalog.ForMatch(match, communityContext, competition);
 
         _console.MarkupLine($"[dim]    Looking for {selection.RequiredDocumentNames.Count} specific context documents in database[/]");
 
@@ -290,21 +288,19 @@ public class RandomMatchCommand : AsyncCommand<RandomMatchSettings>
     private async Task<List<DocumentContext>> GetHybridContextAsync(
         IContextRepository contextRepository,
         IKicktippContextProvider contextProvider,
-        string homeTeam,
-        string awayTeam,
+        Match match,
         string communityContext,
         string competition)
     {
         var contextDocuments = new List<DocumentContext>();
         var databaseContexts = await GetMatchContextDocumentsAsync(
             contextRepository,
-            homeTeam,
-            awayTeam,
+            match,
             communityContext,
             competition);
 
         var requiredDocuments = MatchContextDocumentCatalog
-            .ForMatch(homeTeam, awayTeam, communityContext, competition)
+            .ForMatch(match, communityContext, competition)
             .RequiredDocumentNames;
 
         int requiredPresent = requiredDocuments.Count(d => databaseContexts.ContainsKey(d));
@@ -322,7 +318,10 @@ public class RandomMatchCommand : AsyncCommand<RandomMatchSettings>
             contextDocuments.AddRange(databaseContexts.Values);
 
             var existingNames = new HashSet<string>(contextDocuments.Select(c => c.Name), StringComparer.OrdinalIgnoreCase);
-            await foreach (var context in contextProvider.GetMatchContextAsync(homeTeam, awayTeam))
+            var matchContext = match.CompetitionSpecificData is FifaWorldCup2026MatchData
+                ? contextProvider.GetMatchContextAsync(match)
+                : contextProvider.GetMatchContextAsync(match.HomeTeam, match.AwayTeam);
+            await foreach (var context in matchContext)
             {
                 if (existingNames.Add(context.Name))
                 {

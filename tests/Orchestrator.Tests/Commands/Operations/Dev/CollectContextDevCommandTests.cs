@@ -143,10 +143,10 @@ public class CollectContextDevCommandTests
         await Assert.That(output).Contains("Getting matchday 3 matches");
 
         testContext.KicktippClient.Verify(
-            c => c.GetMatchesWithHistoryAsync("ehonda-dev-wm26", 2),
+            c => c.GetMatchesWithHistoryAsync("ehonda-dev-wm26", 2, CompetitionIds.FifaWorldCup2026),
             Times.Once);
         testContext.KicktippClient.Verify(
-            c => c.GetMatchesWithHistoryAsync("ehonda-dev-wm26", 3),
+            c => c.GetMatchesWithHistoryAsync("ehonda-dev-wm26", 3, CompetitionIds.FifaWorldCup2026),
             Times.Once);
         testContext.ContextRepository.Verify(
             r => r.SaveContextDocumentAsync(

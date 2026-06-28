@@ -28,6 +28,28 @@ public class MatchContextDocumentCatalogTests
     }
 
     [Test]
+    public async Task World_cup_knockout_match_replaces_normal_rules_with_knockout_rules()
+    {
+        var match = new Match("Germany", "Brazil", default, 37)
+        {
+            CompetitionSpecificData = new FifaWorldCup2026MatchData(
+                "Sechzehntelfinale",
+                FifaWorldCup2026KnockoutStage.RoundOf32,
+                FifaWorldCup2026ResultBasis.FinalScoreIncludingExtraTimeAndPenaltyShootout)
+        };
+
+        var selection = MatchContextDocumentCatalog.ForMatch(
+            match,
+            "ehonda-dev-wm26",
+            CompetitionIds.FifaWorldCup2026);
+
+        await Assert.That(selection.RequiredDocumentNames)
+            .Contains("community-rules-ehonda-dev-wm26-knockout.md");
+        await Assert.That(selection.RequiredDocumentNames)
+            .DoesNotContain("community-rules-ehonda-dev-wm26.md");
+    }
+
+    [Test]
     public async Task World_cup_community_context_uses_standings_and_community_rules()
     {
         var selection = MatchContextDocumentCatalog.ForCommunity(

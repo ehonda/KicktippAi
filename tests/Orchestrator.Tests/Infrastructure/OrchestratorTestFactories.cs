@@ -189,6 +189,12 @@ public static class OrchestratorTestFactories
         mock.Setup(c => c.GetMatchesWithHistoryAsync(It.IsAny<string>(), It.IsAny<int>()))
             .ReturnsAsync(matches);
 
+        mock.Setup(c => c.GetMatchesWithHistoryAsync(It.IsAny<string>(), It.IsAny<string>()))
+            .ReturnsAsync(matches);
+
+        mock.Setup(c => c.GetMatchesWithHistoryAsync(It.IsAny<string>(), It.IsAny<int>(), It.IsAny<string>()))
+            .ReturnsAsync(matches);
+
         mock.Setup(c => c.GetCurrentTippuebersichtMatchdayAsync(It.IsAny<string>()))
             .ReturnsAsync(currentMatchday);
 
@@ -202,6 +208,9 @@ public static class OrchestratorTestFactories
             .ReturnsAsync(betsResult);
 
         mock.Setup(c => c.GetPlacedPredictionsAsync(It.IsAny<string>()))
+            .ReturnsAsync(predictions);
+
+        mock.Setup(c => c.GetPlacedPredictionsAsync(It.IsAny<string>(), It.IsAny<string>()))
             .ReturnsAsync(predictions);
 
         mock.Setup(c => c.GetOpenBonusQuestionsAsync(It.IsAny<string>()))

@@ -36,4 +36,10 @@ public record Match(
     string AwayTeam,
     ZonedDateTime StartsAt,
     int Matchday,
-    bool IsCancelled = false);
+    bool IsCancelled = false)
+{
+    /// <summary>
+    /// Optional data whose meaning is scoped to a specific competition.
+    /// </summary>
+    public CompetitionSpecificMatchData? CompetitionSpecificData { get; init; }
+}

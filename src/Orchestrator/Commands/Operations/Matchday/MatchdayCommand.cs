@@ -210,7 +210,7 @@ public class MatchdayCommand : AsyncCommand<BaseSettings>
         _console.MarkupLine("[blue]Getting current matchday matches...[/]");
         
         // Step 1: Get current matchday via GetMatchesWithHistoryAsync
-        var matchesWithHistory = await kicktippClient.GetMatchesWithHistoryAsync(settings.Community);
+        var matchesWithHistory = await kicktippClient.GetMatchesWithHistoryAsync(settings.Community, competition);
         
         if (!matchesWithHistory.Any())
         {
@@ -416,8 +416,7 @@ public class MatchdayCommand : AsyncCommand<BaseSettings>
                     var contextDocuments = await GetHybridContextAsync(
                         contextRepository, 
                         contextProvider, 
-                        match.HomeTeam, 
-                        match.AwayTeam, 
+                        match,
                         communityContext, 
                         competition,
                         settings.Verbose);
@@ -637,14 +636,13 @@ public class MatchdayCommand : AsyncCommand<BaseSettings>
     /// </summary>
     private async Task<Dictionary<string, DocumentContext>> GetMatchContextDocumentsAsync(
         IContextRepository contextRepository, 
-        string homeTeam,
-        string awayTeam,
+        Match match,
         string communityContext, 
         string competition,
         bool verbose = false)
     {
         var contextDocuments = new Dictionary<string, DocumentContext>();
-        var selection = MatchContextDocumentCatalog.ForMatch(homeTeam, awayTeam, communityContext, competition);
+        var selection = MatchContextDocumentCatalog.ForMatch(match, communityContext, competition);
         
         if (verbose)
         {
@@ -718,8 +716,7 @@ public class MatchdayCommand : AsyncCommand<BaseSettings>
     private async Task<List<DocumentContext>> GetHybridContextAsync(
         IContextRepository contextRepository,
         IKicktippContextProvider contextProvider,
-        string homeTeam,
-        string awayTeam,
+        Match match,
         string communityContext,
         string competition,
         bool verbose = false)
@@ -728,14 +725,13 @@ public class MatchdayCommand : AsyncCommand<BaseSettings>
         // Step 1: Retrieve any database documents (required + optional)
         var databaseContexts = await GetMatchContextDocumentsAsync(
             contextRepository,
-            homeTeam,
-            awayTeam,
+            match,
             communityContext,
             competition,
             verbose);
 
         var requiredDocuments = MatchContextDocumentCatalog
-            .ForMatch(homeTeam, awayTeam, communityContext, competition)
+            .ForMatch(match, communityContext, competition)
             .RequiredDocumentNames;
 
         int requiredPresent = requiredDocuments.Count(d => databaseContexts.ContainsKey(d));
@@ -760,7 +756,10 @@ public class MatchdayCommand : AsyncCommand<BaseSettings>
 
             // Add on-demand docs, skipping duplicates by name
             var existingNames = new HashSet<string>(contextDocuments.Select(c => c.Name), StringComparer.OrdinalIgnoreCase);
-            await foreach (var context in contextProvider.GetMatchContextAsync(homeTeam, awayTeam))
+            var matchContext = match.CompetitionSpecificData is FifaWorldCup2026MatchData
+                ? contextProvider.GetMatchContextAsync(match)
+                : contextProvider.GetMatchContextAsync(match.HomeTeam, match.AwayTeam);
+            await foreach (var context in matchContext)
             {
                 if (existingNames.Add(context.Name))
                 {

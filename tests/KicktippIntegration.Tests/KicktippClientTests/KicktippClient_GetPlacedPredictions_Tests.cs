@@ -1,3 +1,5 @@
+using EHonda.KicktippAi.Core;
+
 namespace KicktippIntegration.Tests.KicktippClientTests;
 
 /// <summary>
@@ -5,6 +7,31 @@ namespace KicktippIntegration.Tests.KicktippClientTests;
 /// </summary>
 public class KicktippClient_GetPlacedPredictions_Tests : KicktippClientTests_Base
 {
+    [Test]
+    public async Task Getting_world_cup_placed_predictions_includes_knockout_data()
+    {
+        var html = """
+            <!DOCTYPE html><html><body>
+            <input type="hidden" name="spieltagIndex" value="37" />
+            <div class="spieltagsauswahl"><div class="prevnextTitle"><a>Sechzehntelfinale</a></div></div>
+            <table id="tippabgabeSpiele"><tbody><tr>
+                <td>28.06.26 21:00</td><td>South Africa</td><td>Canada</td><td>
+                    <span class="kicktipp-spielabschnitt-markierung">n.E.</span>
+                    <input type="text" name="heim" value="2" /><input type="text" name="gast" value="1" />
+                </td>
+            </tr></tbody></table>
+            </body></html>
+            """;
+        StubHtmlResponse("/test-community/tippabgabe", html);
+        var client = CreateClient();
+
+        var predictions = await client.GetPlacedPredictionsAsync("test-community", CompetitionIds.FifaWorldCup2026);
+
+        var data = predictions.Keys.Single().CompetitionSpecificData as FifaWorldCup2026MatchData;
+        await Assert.That(data).IsNotNull();
+        await Assert.That(data!.Stage).IsEqualTo(FifaWorldCup2026KnockoutStage.RoundOf32);
+    }
+
     [Test]
     public async Task Getting_placed_predictions_returns_empty_dictionary_on_404()
     {

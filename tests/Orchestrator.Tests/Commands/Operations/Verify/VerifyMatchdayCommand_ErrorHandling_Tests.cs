@@ -60,7 +60,7 @@ public class VerifyMatchdayCommand_ErrorHandling_Tests : VerifyMatchdayCommandTe
     {
         // Arrange
         var mockKicktippClient = new Mock<IKicktippClient>();
-        mockKicktippClient.Setup(c => c.GetPlacedPredictionsAsync(It.IsAny<string>()))
+        mockKicktippClient.Setup(c => c.GetPlacedPredictionsAsync(It.IsAny<string>(), It.IsAny<string>()))
             .ThrowsAsync(new InvalidOperationException("Connection failed"));
 
         var mockKicktippFactory = CreateMockKicktippClientFactory(mockKicktippClient);

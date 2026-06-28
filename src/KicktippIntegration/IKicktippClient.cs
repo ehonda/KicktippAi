@@ -16,6 +16,11 @@ public interface IKicktippClient
     Task<List<Match>> GetOpenPredictionsAsync(string community);
 
     /// <summary>
+    /// Get open predictions and enrich matches with data for the resolved competition.
+    /// </summary>
+    Task<List<Match>> GetOpenPredictionsAsync(string community, string competition);
+
+    /// <summary>
     /// Place a bet for a specific match in a community
     /// </summary>
     /// <param name="community">The community name</param>
@@ -49,12 +54,22 @@ public interface IKicktippClient
     Task<List<MatchWithHistory>> GetMatchesWithHistoryAsync(string community);
 
     /// <summary>
+    /// Get matches with history and enrich them with data for the resolved competition.
+    /// </summary>
+    Task<List<MatchWithHistory>> GetMatchesWithHistoryAsync(string community, string competition);
+
+    /// <summary>
     /// Get matches with detailed information including recent history for both teams for a specific matchday.
     /// </summary>
     /// <param name="community">The community name</param>
     /// <param name="matchday">The matchday index to load.</param>
     /// <returns>List of matches with their recent history context</returns>
     Task<List<MatchWithHistory>> GetMatchesWithHistoryAsync(string community, int matchday);
+
+    /// <summary>
+    /// Get matches with history for a matchday and enrich them with data for the resolved competition.
+    /// </summary>
+    Task<List<MatchWithHistory>> GetMatchesWithHistoryAsync(string community, int matchday, string competition);
 
     /// <summary>
     /// Gets the currently displayed matchday index from the community's tippuebersicht page.
@@ -112,6 +127,11 @@ public interface IKicktippClient
     /// <param name="community">The community name</param>
     /// <returns>Dictionary of matches and their placed predictions</returns>
     Task<Dictionary<Match, BetPrediction?>> GetPlacedPredictionsAsync(string community);
+
+    /// <summary>
+    /// Get placed predictions and enrich matches with data for the resolved competition.
+    /// </summary>
+    Task<Dictionary<Match, BetPrediction?>> GetPlacedPredictionsAsync(string community, string competition);
 
     /// <summary>
     /// Get open bonus questions for a specific community

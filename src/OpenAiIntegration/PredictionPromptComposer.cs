@@ -60,12 +60,29 @@ public static class PredictionPromptComposer
 
     public static string CreateMatchJson(Match match)
     {
-        return JsonSerializer.Serialize(new
-        {
-            homeTeam = match.HomeTeam,
-            awayTeam = match.AwayTeam,
-            startsAt = match.StartsAt.ToString()
-        }, new JsonSerializerOptions
+        object payload = match.CompetitionSpecificData is FifaWorldCup2026MatchData worldCupData
+            ? new
+            {
+                homeTeam = match.HomeTeam,
+                awayTeam = match.AwayTeam,
+                startsAt = match.StartsAt.ToString(),
+                competitionSpecificData = new
+                {
+                    competition = worldCupData.Competition,
+                    isKnockoutStage = worldCupData.IsKnockoutStage,
+                    stage = worldCupData.Stage.ToValue(),
+                    kicktippRoundName = worldCupData.KicktippRoundName,
+                    resultBasis = FifaWorldCup2026MatchDataValues.FinalScoreIncludingExtraTimeAndPenaltyShootout
+                }
+            }
+            : new
+            {
+                homeTeam = match.HomeTeam,
+                awayTeam = match.AwayTeam,
+                startsAt = match.StartsAt.ToString()
+            };
+
+        return JsonSerializer.Serialize(payload, new JsonSerializerOptions
         {
             Encoder = System.Text.Encodings.Web.JavaScriptEncoder.UnsafeRelaxedJsonEscaping
         });

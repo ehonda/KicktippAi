@@ -206,6 +206,7 @@ public class FirebasePredictionRepository : IPredictionRepository
                 AwayTeam = match.AwayTeam,
                 StartsAt = ConvertToTimestamp(match.StartsAt),
                 Matchday = match.Matchday,
+                CompetitionSpecificData = ToFirestoreCompetitionSpecificData(match.CompetitionSpecificData),
                 HomeGoals = prediction.HomeGoals,
                 AwayGoals = prediction.AwayGoals,
                 Justification = SerializeJustification(prediction.Justification),
@@ -326,11 +327,7 @@ public class FirebasePredictionRepository : IPredictionRepository
                 return null;
             }
 
-            return new Match(
-                firestorePrediction.HomeTeam,
-                firestorePrediction.AwayTeam,
-                ConvertFromTimestamp(firestorePrediction.StartsAt),
-                firestorePrediction.Matchday);
+            return ToMatch(firestorePrediction);
         }
         catch (Exception ex)
         {
@@ -404,12 +401,7 @@ public class FirebasePredictionRepository : IPredictionRepository
 
             var matches = snapshot.Documents
                 .Select(doc => doc.ConvertTo<FirestoreMatch>())
-                .Select(fm => new Match(
-                    fm.HomeTeam,
-                    fm.AwayTeam,
-                    ConvertFromTimestamp(fm.StartsAt),
-                    fm.Matchday,
-                    fm.IsCancelled))
+                .Select(ToMatch)
                 .ToList();
 
             return matches.AsReadOnly();
@@ -450,12 +442,7 @@ public class FirebasePredictionRepository : IPredictionRepository
 
                 return matchSnapshot.Documents
                     .Select(document => document.ConvertTo<FirestoreMatch>())
-                    .Select(firestoreMatch => new Match(
-                        firestoreMatch.HomeTeam,
-                        firestoreMatch.AwayTeam,
-                        ConvertFromTimestamp(firestoreMatch.StartsAt),
-                        firestoreMatch.Matchday,
-                        firestoreMatch.IsCancelled))
+                    .Select(ToMatch)
                     .OrderBy(match => match.StartsAt.ToInstant())
                     .ThenBy(match => match.IsCancelled)
                     .First();
@@ -515,11 +502,7 @@ public class FirebasePredictionRepository : IPredictionRepository
                 .Select(candidate => candidate.Prediction)
                 .First();
 
-            return new Match(
-                firestorePrediction.HomeTeam,
-                firestorePrediction.AwayTeam,
-                ConvertFromTimestamp(firestorePrediction.StartsAt),
-                firestorePrediction.Matchday);
+            return ToMatch(firestorePrediction);
         }
         catch (Exception ex)
         {
@@ -579,7 +562,7 @@ public class FirebasePredictionRepository : IPredictionRepository
                 .Select(doc => doc.ConvertTo<FirestoreMatchPrediction>())
                 .Where(fp => GetConfigMatchKind(fp, modelConfig) != PredictionConfigMatchKind.None)
                 .Select(fp => new MatchPrediction(
-                    new Match(fp.HomeTeam, fp.AwayTeam, ConvertFromTimestamp(fp.StartsAt), fp.Matchday),
+                    ToMatch(fp),
                     new Prediction(
                         fp.HomeGoals,
                         fp.AwayGoals,
@@ -946,7 +929,8 @@ public class FirebasePredictionRepository : IPredictionRepository
                 StartsAt = ConvertToTimestamp(match.StartsAt),
                 Matchday = match.Matchday,
                 Competition = _competition,
-                IsCancelled = match.IsCancelled
+                IsCancelled = match.IsCancelled,
+                CompetitionSpecificData = ToFirestoreCompetitionSpecificData(match.CompetitionSpecificData)
             };
 
             await _firestoreDb.Collection(_matchesCollection)
@@ -968,6 +952,72 @@ public class FirebasePredictionRepository : IPredictionRepository
     {
         var instant = zonedDateTime.ToInstant();
         return Timestamp.FromDateTimeOffset(instant.ToDateTimeOffset());
+    }
+
+    private static Match ToMatch(FirestoreMatchPrediction firestorePrediction)
+    {
+        return new Match(
+            firestorePrediction.HomeTeam,
+            firestorePrediction.AwayTeam,
+            ConvertFromTimestamp(firestorePrediction.StartsAt),
+            firestorePrediction.Matchday)
+        {
+            CompetitionSpecificData = FromFirestoreCompetitionSpecificData(
+                firestorePrediction.CompetitionSpecificData)
+        };
+    }
+
+    private static Match ToMatch(FirestoreMatch firestoreMatch)
+    {
+        return new Match(
+            firestoreMatch.HomeTeam,
+            firestoreMatch.AwayTeam,
+            ConvertFromTimestamp(firestoreMatch.StartsAt),
+            firestoreMatch.Matchday,
+            firestoreMatch.IsCancelled)
+        {
+            CompetitionSpecificData = FromFirestoreCompetitionSpecificData(
+                firestoreMatch.CompetitionSpecificData)
+        };
+    }
+
+    private static FirestoreCompetitionSpecificMatchData? ToFirestoreCompetitionSpecificData(
+        CompetitionSpecificMatchData? competitionSpecificData)
+    {
+        return competitionSpecificData is FifaWorldCup2026MatchData worldCupData
+            ? new FirestoreCompetitionSpecificMatchData
+            {
+                Type = "fifaWorldCup2026",
+                Competition = worldCupData.Competition,
+                KicktippRoundName = worldCupData.KicktippRoundName,
+                Stage = worldCupData.Stage.ToValue(),
+                ResultBasis = FifaWorldCup2026MatchDataValues.FinalScoreIncludingExtraTimeAndPenaltyShootout
+            }
+            : null;
+    }
+
+    private static CompetitionSpecificMatchData? FromFirestoreCompetitionSpecificData(
+        FirestoreCompetitionSpecificMatchData? firestoreData)
+    {
+        if (firestoreData is null ||
+            !string.Equals(firestoreData.Type, "fifaWorldCup2026", StringComparison.Ordinal) ||
+            !string.Equals(
+                firestoreData.Competition,
+                CompetitionIds.FifaWorldCup2026,
+                StringComparison.OrdinalIgnoreCase) ||
+            !string.Equals(
+                firestoreData.ResultBasis,
+                FifaWorldCup2026MatchDataValues.FinalScoreIncludingExtraTimeAndPenaltyShootout,
+                StringComparison.Ordinal) ||
+            !FifaWorldCup2026MatchDataValues.TryParseStage(firestoreData.Stage, out var stage))
+        {
+            return null;
+        }
+
+        return new FifaWorldCup2026MatchData(
+            firestoreData.KicktippRoundName,
+            stage,
+            FifaWorldCup2026ResultBasis.FinalScoreIncludingExtraTimeAndPenaltyShootout);
     }
 
     private static ZonedDateTime ConvertFromTimestamp(Timestamp timestamp)
@@ -1233,6 +1283,7 @@ public class FirebasePredictionRepository : IPredictionRepository
                 AwayTeam = match.AwayTeam,
                 StartsAt = ConvertToTimestamp(match.StartsAt),
                 Matchday = match.Matchday,
+                CompetitionSpecificData = ToFirestoreCompetitionSpecificData(match.CompetitionSpecificData),
                 HomeGoals = prediction.HomeGoals,
                 AwayGoals = prediction.AwayGoals,
                 Justification = SerializeJustification(prediction.Justification),

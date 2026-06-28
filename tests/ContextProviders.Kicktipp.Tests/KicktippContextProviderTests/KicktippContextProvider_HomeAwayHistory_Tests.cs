@@ -189,7 +189,7 @@ public class KicktippContextProvider_HomeAwayHistory_Tests : KicktippContextProv
     {
         // Arrange
         var mockClient = new Mock<IKicktippClient>();
-        mockClient.Setup(c => c.GetMatchesWithHistoryAsync(It.IsAny<string>()))
+        mockClient.Setup(c => c.GetMatchesWithHistoryAsync(It.IsAny<string>(), It.IsAny<string>()))
             .ReturnsAsync(CreateTestMatchesWithHistory());
         mockClient.Setup(c => c.GetHomeAwayHistoryAsync(It.IsAny<string>(), It.IsAny<string>(), It.IsAny<string>()))
             .ThrowsAsync(new InvalidOperationException("Test exception"));
@@ -206,7 +206,7 @@ public class KicktippContextProvider_HomeAwayHistory_Tests : KicktippContextProv
     {
         // Arrange
         var mockClient = new Mock<IKicktippClient>();
-        mockClient.Setup(c => c.GetMatchesWithHistoryAsync(It.IsAny<string>()))
+        mockClient.Setup(c => c.GetMatchesWithHistoryAsync(It.IsAny<string>(), It.IsAny<string>()))
             .ReturnsAsync(CreateTestMatchesWithHistory());
         mockClient.Setup(c => c.GetHomeAwayHistoryAsync(It.IsAny<string>(), It.IsAny<string>(), It.IsAny<string>()))
             .ThrowsAsync(new InvalidOperationException("Test exception"));

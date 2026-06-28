@@ -1,4 +1,5 @@
 using Microsoft.Extensions.Caching.Memory;
+using EHonda.KicktippAi.Core;
 
 namespace KicktippIntegration.Tests.KicktippClientTests;
 
@@ -7,6 +8,46 @@ namespace KicktippIntegration.Tests.KicktippClientTests;
 /// </summary>
 public class KicktippClient_GetMatchesWithHistory_Tests : KicktippClientTests_Base
 {
+    [Test]
+    public async Task Getting_world_cup_match_history_includes_equivalent_knockout_data()
+    {
+        var tippabgabeHtml = """
+            <!DOCTYPE html><html><body>
+            <input type="hidden" name="spieltagIndex" value="37" />
+            <div class="spieltagsauswahl"><div class="prevnextTitle"><a>Sechzehntelfinale</a></div></div>
+            <table id="tippabgabeSpiele"><tbody><tr>
+                <td>28.06.26 21:00</td><td>South Africa</td><td>Canada</td><td>
+                    <span class="kicktipp-spielabschnitt-markierung">n.E.</span>
+                    <input type="text" /><input type="text" />
+                </td>
+            </tr></tbody></table>
+            <a href="/test-community/spielinfo?tippspielId=1">Tippabgabe mit Spielinfos</a>
+            </body></html>
+            """;
+        var spielinfoHtml = """
+            <!DOCTYPE html><html><body>
+            <table class="tippabgabe"><tbody><tr>
+                <td>28.06.26 21:00</td><td>South Africa</td><td>Canada</td><td>
+                    <span class="kicktipp-spielabschnitt-markierung">n.E.</span>
+                    <input type="text" /><input type="text" />
+                </td>
+            </tr></tbody></table>
+            <div class="prevnextNext disabled"><a></a></div>
+            </body></html>
+            """;
+        StubHtmlResponse("/test-community/tippabgabe", tippabgabeHtml);
+        StubHtmlResponse("/test-community/spielinfo", spielinfoHtml);
+        var client = CreateClient();
+
+        var matches = await client.GetMatchesWithHistoryAsync("test-community", CompetitionIds.FifaWorldCup2026);
+
+        await Assert.That(matches).HasCount().EqualTo(1);
+        var data = matches[0].Match.CompetitionSpecificData as FifaWorldCup2026MatchData;
+        await Assert.That(data).IsNotNull();
+        await Assert.That(data!.Stage).IsEqualTo(FifaWorldCup2026KnockoutStage.RoundOf32);
+        await Assert.That(data.KicktippRoundName).IsEqualTo("Sechzehntelfinale");
+    }
+
     [Test]
     public async Task Getting_matches_with_history_returns_empty_list_on_tippabgabe_404()
     {

@@ -1,3 +1,5 @@
+using EHonda.KicktippAi.Core;
+
 namespace KicktippIntegration.Tests.KicktippClientTests;
 
 /// <summary>
@@ -419,5 +421,86 @@ public class KicktippClient_GetOpenPredictions_Tests : KicktippClientTests_Base
         await Assert.That(cancelledMatch2.StartsAt.Hour).IsEqualTo(18);
         await Assert.That(cancelledMatch2.StartsAt.Minute).IsEqualTo(30);
         await Assert.That(cancelledMatch2.IsCancelled).IsTrue();
+    }
+
+    [Test]
+    [Arguments("Sechzehntelfinale", FifaWorldCup2026KnockoutStage.RoundOf32)]
+    [Arguments("Achtelfinale", FifaWorldCup2026KnockoutStage.RoundOf16)]
+    [Arguments("Viertelfinale", FifaWorldCup2026KnockoutStage.Quarterfinal)]
+    [Arguments("Halbfinale", FifaWorldCup2026KnockoutStage.Semifinal)]
+    [Arguments("Spiel um Platz 3", FifaWorldCup2026KnockoutStage.ThirdPlacePlayoff)]
+    [Arguments("Spiel um den 3. Platz", FifaWorldCup2026KnockoutStage.ThirdPlacePlayoff)]
+    [Arguments("Finale", FifaWorldCup2026KnockoutStage.Final)]
+    public async Task Getting_world_cup_open_predictions_maps_knockout_round(
+        string kicktippRoundName,
+        FifaWorldCup2026KnockoutStage expectedStage)
+    {
+        StubHtmlResponse("/test-community/tippabgabe", CreateKnockoutTippabgabe(kicktippRoundName, includeMarker: true));
+        var client = CreateClient();
+
+        var matches = await client.GetOpenPredictionsAsync("test-community", CompetitionIds.FifaWorldCup2026);
+
+        await Assert.That(matches).HasCount().EqualTo(1);
+        var data = matches[0].CompetitionSpecificData as FifaWorldCup2026MatchData;
+        await Assert.That(data).IsNotNull();
+        await Assert.That(data!.KicktippRoundName).IsEqualTo(kicktippRoundName);
+        await Assert.That(data.Stage).IsEqualTo(expectedStage);
+        await Assert.That(data.ResultBasis)
+            .IsEqualTo(FifaWorldCup2026ResultBasis.FinalScoreIncludingExtraTimeAndPenaltyShootout);
+    }
+
+    [Test]
+    public async Task Getting_world_cup_open_predictions_allows_unknown_round_with_penalty_marker()
+    {
+        StubHtmlResponse("/test-community/tippabgabe", CreateKnockoutTippabgabe("Neue K.-o.-Runde", includeMarker: true));
+        var client = CreateClient();
+
+        var matches = await client.GetOpenPredictionsAsync("test-community", CompetitionIds.FifaWorldCup2026);
+
+        var data = matches.Single().CompetitionSpecificData as FifaWorldCup2026MatchData;
+        await Assert.That(data).IsNotNull();
+        await Assert.That(data!.KicktippRoundName).IsEqualTo("Neue K.-o.-Runde");
+        await Assert.That(data.Stage).IsEqualTo(FifaWorldCup2026KnockoutStage.Unknown);
+    }
+
+    [Test]
+    public async Task Getting_world_cup_open_predictions_fails_closed_when_known_round_lacks_penalty_marker()
+    {
+        StubHtmlResponse("/test-community/tippabgabe", CreateKnockoutTippabgabe("Sechzehntelfinale", includeMarker: false));
+        var client = CreateClient();
+
+        var matches = await client.GetOpenPredictionsAsync("test-community", CompetitionIds.FifaWorldCup2026);
+
+        await Assert.That(matches).IsEmpty();
+    }
+
+    [Test]
+    public async Task Getting_generic_open_predictions_does_not_add_world_cup_data()
+    {
+        StubHtmlResponse("/test-community/tippabgabe", CreateKnockoutTippabgabe("Sechzehntelfinale", includeMarker: true));
+        var client = CreateClient();
+
+        var matches = await client.GetOpenPredictionsAsync("test-community");
+
+        await Assert.That(matches.Single().CompetitionSpecificData).IsNull();
+    }
+
+    private static string CreateKnockoutTippabgabe(string roundName, bool includeMarker)
+    {
+        var marker = includeMarker
+            ? "<span class=\"kicktipp-spielabschnitt-markierung\">n.E.</span>"
+            : string.Empty;
+
+        return $$"""
+            <!DOCTYPE html>
+            <html><body>
+            <input type="hidden" name="spieltagIndex" value="37" />
+            <div class="spieltagsauswahl"><div class="prevnextTitle"><a>{{roundName}}</a></div></div>
+            <table id="tippabgabeSpiele"><tbody><tr>
+                <td>28.06.26 21:00</td><td>South Africa</td><td>Canada</td>
+                <td>{{marker}}<input type="text" name="heim" /><input type="text" name="gast" /></td>
+            </tr></tbody></table>
+            </body></html>
+            """;
     }
 }

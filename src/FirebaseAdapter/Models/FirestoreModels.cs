@@ -41,6 +41,9 @@ public class FirestoreMatchPrediction
     [FirestoreProperty("matchday")]
     public int Matchday { get; set; }
 
+    [FirestoreProperty("competitionSpecificData")]
+    public FirestoreCompetitionSpecificMatchData? CompetitionSpecificData { get; set; }
+
     /// <summary>
     /// Predicted home team goals.
     /// </summary>
@@ -178,6 +181,28 @@ public class FirestoreMatch
     /// </summary>
     [FirestoreProperty("isCancelled")]
     public bool IsCancelled { get; set; } = false;
+
+    [FirestoreProperty("competitionSpecificData")]
+    public FirestoreCompetitionSpecificMatchData? CompetitionSpecificData { get; set; }
+}
+
+[FirestoreData]
+public class FirestoreCompetitionSpecificMatchData
+{
+    [FirestoreProperty("type")]
+    public string Type { get; set; } = string.Empty;
+
+    [FirestoreProperty("competition")]
+    public string Competition { get; set; } = string.Empty;
+
+    [FirestoreProperty("kicktippRoundName")]
+    public string? KicktippRoundName { get; set; }
+
+    [FirestoreProperty("stage")]
+    public string Stage { get; set; } = string.Empty;
+
+    [FirestoreProperty("resultBasis")]
+    public string ResultBasis { get; set; } = string.Empty;
 }
 
 /// <summary>
