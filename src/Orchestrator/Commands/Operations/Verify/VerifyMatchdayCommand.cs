@@ -30,34 +30,34 @@ public class VerifyMatchdayCommand : AsyncCommand<VerifySettings>
 
     protected override async Task<int> ExecuteAsync(CommandContext context, VerifySettings settings, CancellationToken cancellationToken)
     {
-        
+
         try
         {
             _console.MarkupLine($"[green]Verify matchday command initialized[/]");
-            
+
             if (settings.Verbose)
             {
                 _console.MarkupLine("[dim]Verbose mode enabled[/]");
             }
-            
+
             if (settings.Agent)
             {
                 _console.MarkupLine("[blue]Agent mode enabled - prediction details will be hidden[/]");
             }
-            
+
             if (settings.InitMatchday)
             {
                 _console.MarkupLine("[cyan]Init matchday mode enabled - will return error if no predictions exist[/]");
             }
-            
+
             if (settings.CheckOutdated)
             {
                 _console.MarkupLine("[cyan]Outdated check enabled - predictions will be checked against latest context documents[/]");
             }
-            
+
             // Execute the verification workflow
             var hasDiscrepancies = await ExecuteVerificationWorkflow(settings);
-            
+
             return hasDiscrepancies ? 1 : 0;
         }
         catch (Exception ex)
@@ -67,7 +67,7 @@ public class VerifyMatchdayCommand : AsyncCommand<VerifySettings>
             return 1;
         }
     }
-    
+
     private async Task<bool> ExecuteVerificationWorkflow(VerifySettings settings)
     {
         var kicktippClient = _kicktippClientFactory.CreateClient();
@@ -84,7 +84,7 @@ public class VerifyMatchdayCommand : AsyncCommand<VerifySettings>
             _console.MarkupLine("[yellow]Hint: Set FIREBASE_PROJECT_ID and FIREBASE_SERVICE_ACCOUNT_JSON environment variables[/]");
             return true; // Consider this a failure
         }
-        
+
         // Get context repository for outdated checks (may be null if Firebase is not configured)
         var contextRepository = _firebaseServiceFactory.CreateContextRepository(repositoryCompetition);
         if (settings.CheckOutdated && contextRepository == null)
@@ -93,41 +93,41 @@ public class VerifyMatchdayCommand : AsyncCommand<VerifySettings>
             _console.MarkupLine("[yellow]Hint: Set FIREBASE_PROJECT_ID and FIREBASE_SERVICE_ACCOUNT_JSON environment variables[/]");
             return true; // Consider this a failure
         }
-        
+
         _console.MarkupLine($"[blue]Using community:[/] [yellow]{settings.Community}[/]");
         _console.MarkupLine($"[blue]Using community context:[/] [yellow]{communityContext}[/]");
         _console.MarkupLine($"[blue]Using competition:[/] [yellow]{competition}[/]");
         _console.MarkupLine($"[blue]Using model config:[/] [yellow]{modelConfig.DisplayName}[/]");
         _console.MarkupLine("[blue]Getting placed predictions from Kicktipp...[/]");
-        
+
         // Step 1: Get placed predictions from Kicktipp
         var placedPredictions = await kicktippClient.GetPlacedPredictionsAsync(settings.Community, competition);
-        
+
         if (!placedPredictions.Any())
         {
             _console.MarkupLine("[yellow]No matches found on Kicktipp[/]");
             return false;
         }
-        
+
         _console.MarkupLine($"[green]Found {placedPredictions.Count} matches on Kicktipp[/]");
-        
+
         _console.MarkupLine("[blue]Retrieving predictions from database...[/]");
-        
+
         var hasDiscrepancies = false;
         var totalMatches = 0;
         var matchesWithPlacedPredictions = 0;
         var matchesWithDatabasePredictions = 0;
         var matchingPredictions = 0;
-        
+
         // Step 2: For each match, compare with database predictions
         foreach (var (match, kicktippPrediction) in placedPredictions)
         {
             totalMatches++;
-            
+
             try
             {
                 Prediction? databasePrediction;
-                
+
                 // For cancelled matches, use team-names-only lookup to handle startsAt inconsistencies
                 // See IPredictionRepository.cs for detailed documentation on this edge case
                 if (match.IsCancelled)
@@ -147,12 +147,12 @@ public class VerifyMatchdayCommand : AsyncCommand<VerifySettings>
                     }
                     databasePrediction = await predictionRepository.GetPredictionAsync(match, modelConfig, communityContext);
                 }
-                
+
                 if (kicktippPrediction != null)
                 {
                     matchesWithPlacedPredictions++;
                 }
-                
+
                 if (databasePrediction != null)
                 {
                     matchesWithDatabasePredictions++;
@@ -165,24 +165,28 @@ public class VerifyMatchdayCommand : AsyncCommand<VerifySettings>
                 {
                     _console.MarkupLine($"[dim]  No database prediction found[/]");
                 }
-                
+
                 // Check if prediction is outdated (if enabled and context repository is available)
                 var isOutdated = false;
                 if (settings.CheckOutdated && contextRepository != null && databasePrediction != null)
                 {
                     isOutdated = await CheckPredictionOutdated(predictionRepository, contextRepository, match, modelConfig, communityContext, competition, settings.Verbose);
                 }
-                
+
+                var predictionValidation = databasePrediction != null
+                    ? MatchPredictionValidator.Validate(match, databasePrediction)
+                    : MatchPredictionValidationResult.Valid;
+                var isInvalidPrediction = databasePrediction != null && !predictionValidation.IsValid;
+
                 // Compare predictions
                 var isMatchingPrediction = ComparePredictions(kicktippPrediction, databasePrediction);
-                
-                // Consider prediction invalid if it's outdated or mismatched
-                var isValidPrediction = isMatchingPrediction && !isOutdated;
-                
+
+                var isValidPrediction = !isInvalidPrediction && isMatchingPrediction && !isOutdated;
+
                 if (isValidPrediction)
                 {
                     matchingPredictions++;
-                    
+
                     if (settings.Verbose)
                     {
                         if (settings.Agent)
@@ -199,24 +203,33 @@ public class VerifyMatchdayCommand : AsyncCommand<VerifySettings>
                 else
                 {
                     hasDiscrepancies = true;
-                    
+
                     if (settings.Agent)
                     {
-                        var reason = isOutdated ? "outdated" : "mismatch";
+                        var reason = isInvalidPrediction ? "invalid prediction" : isOutdated ? "outdated" : "mismatch";
                         _console.MarkupLine($"[red]✗ {match.HomeTeam} vs {match.AwayTeam}[/] [dim]({reason})[/]");
                     }
                     else
                     {
                         var kicktippText = kicktippPrediction?.ToString() ?? "no prediction";
                         var databaseText = databasePrediction != null ? $"{databasePrediction.HomeGoals}:{databasePrediction.AwayGoals}" : "no prediction";
-                        
-                        _console.MarkupLine($"[red]✗ {match.HomeTeam} vs {match.AwayTeam}:[/]");
-                        _console.MarkupLine($"  [yellow]Kicktipp:[/] {kicktippText}");
-                        _console.MarkupLine($"  [yellow]Database:[/] {databaseText}");
-                        
-                        if (isOutdated)
+
+                        if (isInvalidPrediction)
                         {
-                            _console.MarkupLine($"  [yellow]Status:[/] Outdated (context updated after prediction)");
+                            _console.MarkupLine($"[red]✗ {match.HomeTeam} vs {match.AwayTeam}:[/] {databaseText} [dim](invalid prediction)[/]");
+                            _console.MarkupLine($"  [yellow]Kicktipp:[/] {kicktippText}");
+                            _console.MarkupLine($"  [yellow]Reason:[/] {MatchPredictionValidator.DescribeFailure(predictionValidation.ReasonCode)}");
+                        }
+                        else
+                        {
+                            _console.MarkupLine($"[red]✗ {match.HomeTeam} vs {match.AwayTeam}:[/]");
+                            _console.MarkupLine($"  [yellow]Kicktipp:[/] {kicktippText}");
+                            _console.MarkupLine($"  [yellow]Database:[/] {databaseText}");
+
+                            if (isOutdated)
+                            {
+                                _console.MarkupLine($"  [yellow]Status:[/] Outdated (context updated after prediction)");
+                            }
                         }
                     }
                 }
@@ -225,7 +238,7 @@ public class VerifyMatchdayCommand : AsyncCommand<VerifySettings>
             {
                 hasDiscrepancies = true;
                 _logger.LogError(ex, "Error verifying prediction for {Match}", $"{match.HomeTeam} vs {match.AwayTeam}");
-                
+
                 if (settings.Agent)
                 {
                     _console.MarkupLine($"[red]✗ {match.HomeTeam} vs {match.AwayTeam}[/] [dim](error)[/]");
@@ -236,7 +249,7 @@ public class VerifyMatchdayCommand : AsyncCommand<VerifySettings>
                 }
             }
         }
-        
+
         // Step 3: Display summary
         _console.WriteLine();
         _console.MarkupLine("[bold]Verification Summary:[/]");
@@ -244,7 +257,7 @@ public class VerifyMatchdayCommand : AsyncCommand<VerifySettings>
         _console.MarkupLine($"  Matches with Kicktipp predictions: {matchesWithPlacedPredictions}");
         _console.MarkupLine($"  Matches with database predictions: {matchesWithDatabasePredictions}");
         _console.MarkupLine($"  Matching predictions: {matchingPredictions}");
-        
+
         // Check for init-matchday mode first
         if (settings.InitMatchday && matchesWithDatabasePredictions == 0)
         {
@@ -252,7 +265,7 @@ public class VerifyMatchdayCommand : AsyncCommand<VerifySettings>
             _console.MarkupLine("[red]Returning error to trigger initial prediction workflow[/]");
             return true; // Return error to trigger workflow
         }
-        
+
         if (hasDiscrepancies)
         {
             _console.MarkupLine($"[red]  Discrepancies found: {totalMatches - matchingPredictions}[/]");
@@ -262,10 +275,10 @@ public class VerifyMatchdayCommand : AsyncCommand<VerifySettings>
         {
             _console.MarkupLine("[green]  All predictions match - verification successful[/]");
         }
-        
+
         return hasDiscrepancies;
     }
-    
+
     private static bool ComparePredictions(BetPrediction? kicktippPrediction, Prediction? databasePrediction)
     {
         // Both null - match
@@ -273,18 +286,18 @@ public class VerifyMatchdayCommand : AsyncCommand<VerifySettings>
         {
             return true;
         }
-        
+
         // One null, other not - mismatch
         if (kicktippPrediction == null || databasePrediction == null)
         {
             return false;
         }
-        
+
         // Both have values - compare
         return kicktippPrediction.HomeGoals == databasePrediction.HomeGoals &&
                kicktippPrediction.AwayGoals == databasePrediction.AwayGoals;
     }
-    
+
     private async Task<bool> CheckPredictionOutdated(IPredictionRepository predictionRepository, IContextRepository contextRepository, Match match, PredictionModelConfig modelConfig, string communityContext, string competition, bool verbose)
     {
         try
@@ -301,25 +314,25 @@ public class VerifyMatchdayCommand : AsyncCommand<VerifySettings>
             {
                 predictionMetadata = await predictionRepository.GetPredictionMetadataAsync(match, modelConfig, communityContext);
             }
-            
+
             if (predictionMetadata == null || !predictionMetadata.ContextDocumentNames.Any())
             {
                 // If no context documents were used, prediction can't be outdated based on context changes
                 return false;
             }
-            
+
             if (verbose)
             {
                 _console.MarkupLine($"[dim]  Checking {predictionMetadata.ContextDocumentNames.Count} context documents for updates[/]");
             }
-            
+
             // Check if any context document has been updated after the prediction was created
             foreach (var documentName in predictionMetadata.ContextDocumentNames)
             {
                 // Strip any display suffix (e.g., " (kpi-context)") from the context document name
                 // to get the actual document name stored in the repository
                 var actualDocumentName = StripDisplaySuffix(documentName);
-                
+
                 var standingsDocumentName = MatchContextDocumentCatalog.GetStandingsDocumentName(competition);
                 if (actualDocumentName.Equals(standingsDocumentName, StringComparison.OrdinalIgnoreCase))
                 {
@@ -329,9 +342,9 @@ public class VerifyMatchdayCommand : AsyncCommand<VerifySettings>
                     }
                     continue;
                 }
-                
+
                 var latestContextDocument = await contextRepository.GetLatestContextDocumentAsync(actualDocumentName, communityContext);
-                
+
                 if (latestContextDocument != null && latestContextDocument.CreatedAt > predictionMetadata.CreatedAt)
                 {
                     var predictionTimeContextDocument = await contextRepository.GetContextDocumentByTimestampAsync(
@@ -365,7 +378,7 @@ public class VerifyMatchdayCommand : AsyncCommand<VerifySettings>
                     _console.MarkupLine($"[yellow]  Warning: Context document '{actualDocumentName}' not found in repository[/]");
                 }
             }
-            
+
             return false; // Prediction is up-to-date
         }
         catch (Exception ex)
@@ -378,7 +391,7 @@ public class VerifyMatchdayCommand : AsyncCommand<VerifySettings>
             return false;
         }
     }
-    
+
     /// <summary>
     /// Strips display suffixes like " (kpi-context)" from context document names
     /// to get the actual document name used in the repository.

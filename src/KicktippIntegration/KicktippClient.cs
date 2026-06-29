@@ -35,6 +35,53 @@ public class KicktippClient : IKicktippClient, IDisposable
         _browsingContext = BrowsingContext.New(config);
     }
 
+    private async Task<bool> IsKnownDrawNotAllowedSubmissionFailureAsync(
+        HttpResponseMessage submitResponse,
+        string htmlContent)
+    {
+        if (HasDrawNotAllowedQueryFlag(submitResponse.RequestMessage?.RequestUri))
+        {
+            _logger.LogWarning(
+                "Detected Kicktipp draw-not-allowed query flag after submit at {ResponseUri}",
+                submitResponse.RequestMessage?.RequestUri);
+            return true;
+        }
+
+        if (await HasDrawNotAllowedBannerAsync(htmlContent))
+        {
+            _logger.LogWarning("Detected Kicktipp draw-not-allowed rejection banner after submit.");
+            return true;
+        }
+
+        return false;
+    }
+
+    private async Task<bool> HasDrawNotAllowedBannerAsync(string htmlContent)
+    {
+        if (string.IsNullOrWhiteSpace(htmlContent) ||
+            !htmlContent.Contains("messagebox errors", StringComparison.OrdinalIgnoreCase))
+        {
+            return false;
+        }
+
+        var document = await _browsingContext.OpenAsync(req => req.Content(htmlContent));
+        var errorMessage = document.QuerySelector(".messagebox.errors .message");
+        if (errorMessage == null)
+        {
+            return false;
+        }
+
+        var normalizedText = NormalizeWhitespace(errorMessage.TextContent);
+        return normalizedText.Contains("Nicht alle gesendeten Tipps waren korrekt.", StringComparison.OrdinalIgnoreCase) &&
+               normalizedText.Contains("Mindestens ein Spiel wurde Unentschieden getippt", StringComparison.OrdinalIgnoreCase) &&
+               normalizedText.Contains("nicht möglich", StringComparison.OrdinalIgnoreCase);
+    }
+
+    private static bool HasDrawNotAllowedQueryFlag(Uri? responseUri)
+    {
+        return responseUri != null &&
+               responseUri.Query.Contains("unentschiedenNichtMoeglich=true", StringComparison.OrdinalIgnoreCase);
+    }
     /// <inheritdoc />
     public Task<List<Match>> GetOpenPredictionsAsync(string community)
     {
@@ -537,17 +584,22 @@ public class KicktippClient : IKicktippClient, IDisposable
             
             var formContent = new FormUrlEncodedContent(formData);
             var submitResponse = await _httpClient.PostAsync(formActionUrl, formContent);
+            var submitContent = await submitResponse.Content.ReadAsStringAsync();
             
-            if (submitResponse.IsSuccessStatusCode)
-            {
-                _logger.LogInformation("✓ Successfully submitted {BetsPlaced} bets!", betsPlaced);
-                return true;
-            }
-            else
+            if (!submitResponse.IsSuccessStatusCode)
             {
                 _logger.LogError("✗ Failed to submit bets. Status: {StatusCode}", submitResponse.StatusCode);
                 return false;
             }
+
+            if (await IsKnownDrawNotAllowedSubmissionFailureAsync(submitResponse, submitContent))
+            {
+                _logger.LogWarning("Known Kicktipp draw-not-allowed rejection detected after bet submit. Valid rows may already be stored.");
+                return false;
+            }
+
+            _logger.LogInformation("✓ Successfully submitted {BetsPlaced} bets!", betsPlaced);
+            return true;
         }
         catch (Exception ex)
         {

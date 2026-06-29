@@ -48,32 +48,32 @@ public class MatchdayCommand : AsyncCommand<BaseSettings>
 
     internal async Task<int> ExecuteWithSettingsAsync(BaseSettings settings, CancellationToken cancellationToken = default)
     {
-        
+
         try
         {
             var initialModel = string.IsNullOrWhiteSpace(settings.Model) ? "(competition default)" : settings.Model;
             _console.MarkupLine($"[green]Matchday command initialized with model:[/] [yellow]{initialModel}[/]");
-            
+
             if (settings.Verbose)
             {
                 _console.MarkupLine("[dim]Verbose mode enabled[/]");
             }
-            
+
             if (settings.OverrideKicktipp)
             {
                 _console.MarkupLine("[yellow]Override mode enabled - will override existing Kicktipp predictions[/]");
             }
-            
+
             if (settings.OverrideDatabase)
             {
                 _console.MarkupLine("[yellow]Override database mode enabled - will override existing database predictions[/]");
             }
-            
+
             if (settings.Agent)
             {
                 _console.MarkupLine("[blue]Agent mode enabled - prediction details will be hidden[/]");
             }
-            
+
             if (settings.DryRun)
             {
                 _console.MarkupLine("[magenta]Dry run mode enabled - no changes will be made to database or Kicktipp[/]");
@@ -113,11 +113,9 @@ public class MatchdayCommand : AsyncCommand<BaseSettings>
                 var maxValue = settings.MaxRepredictions ?? int.MaxValue;
                 _console.MarkupLine($"[yellow]Reprediction mode enabled - max repredictions: {(settings.MaxRepredictions?.ToString() ?? "unlimited")}[/]");
             }
-            
+
             // Execute the matchday workflow
-            await ExecuteMatchdayWorkflow(settings);
-            
-            return 0;
+            return await ExecuteMatchdayWorkflow(settings);
         }
         catch (Exception ex)
         {
@@ -126,7 +124,7 @@ public class MatchdayCommand : AsyncCommand<BaseSettings>
             return 1;
         }
     }
-    
+
     /// <summary>
     /// Communities that have production workflows invoking the matchday command.
     /// Update this set when adding or removing community matchday workflows in .github/workflows/.
@@ -140,7 +138,8 @@ public class MatchdayCommand : AsyncCommand<BaseSettings>
         "rabetrabauken2026"
     };
 
-    private async Task ExecuteMatchdayWorkflow(BaseSettings settings)
+
+    private async Task<int> ExecuteMatchdayWorkflow(BaseSettings settings)
     {
         // Start root OTel activity for Langfuse trace
         using var activity = Telemetry.Source.StartActivity("matchday");
@@ -183,39 +182,39 @@ public class MatchdayCommand : AsyncCommand<BaseSettings>
             modelConfig.ReasoningEffort,
             settings.MaxOutputTokenCount,
             bonusPrompt: false);
-        
+
         // Create context provider using factory
         var contextProvider = _contextProviderFactory.CreateKicktippContextProvider(
             kicktippClient, settings.Community, communityContext, repositoryCompetition);
-        
+
         var tokenUsageTracker = _openAiServiceFactory.GetTokenUsageTracker();
-        
+
         // Log the prompt paths being used
         if (settings.Verbose)
         {
             _console.MarkupLine($"[dim]Match prompt:[/] [blue]{predictionService.GetMatchPromptPath(settings.WithJustification)}[/]");
         }
-        
+
         // Create repositories
         var predictionRepository = _firebaseServiceFactory.CreatePredictionRepository(repositoryCompetition);
         var contextRepository = _firebaseServiceFactory.CreateContextRepository(repositoryCompetition);
         var databaseEnabled = true;
-        
+
         // Reset token usage tracker for this workflow
         tokenUsageTracker.Reset();
-        
+
         _console.MarkupLine($"[blue]Using community:[/] [yellow]{settings.Community}[/]");
         _console.MarkupLine($"[blue]Using community context:[/] [yellow]{communityContext}[/]");
         _console.MarkupLine($"[blue]Using competition:[/] [yellow]{competition}[/]");
         _console.MarkupLine("[blue]Getting current matchday matches...[/]");
-        
+
         // Step 1: Get current matchday via GetMatchesWithHistoryAsync
         var matchesWithHistory = await kicktippClient.GetMatchesWithHistoryAsync(settings.Community, competition);
-        
+
         if (!matchesWithHistory.Any())
         {
             _console.MarkupLine("[yellow]No matches found for current matchday[/]");
-            return;
+            return 0;
         }
 
         // Set Langfuse trace-level attributes now that we know the matchday
@@ -248,59 +247,71 @@ public class MatchdayCommand : AsyncCommand<BaseSettings>
             matches = matchesWithHistory.Select(m => $"{m.Match.HomeTeam} vs {m.Match.AwayTeam}").ToArray()
         };
         activity?.SetTag("langfuse.trace.input", JsonSerializer.Serialize(traceInput));
-        
+
         _console.MarkupLine($"[green]Found {matchesWithHistory.Count} matches for current matchday[/]");
-        
+
         if (databaseEnabled)
         {
             _console.MarkupLine("[blue]Database enabled - checking for existing predictions...[/]");
         }
-        
+
         var predictions = new Dictionary<Match, BetPrediction>();
+        var blockedMatches = new List<BlockedMatch>();
         var traceRepredictionIndices = new HashSet<string>(StringComparer.Ordinal);
-        
+
         // Step 2: For each match, check database first, then predict if needed
         foreach (var matchWithHistory in matchesWithHistory)
         {
             var match = matchWithHistory.Match;
-            
+
             // Log warning for cancelled matches - they have inherited times which may affect database operations
             if (match.IsCancelled)
             {
                 _console.MarkupLine($"[yellow]  ⚠ {match.HomeTeam} vs {match.AwayTeam} is cancelled (Abgesagt). " +
                     $"Processing with inherited time - prediction may need re-evaluation when rescheduled.[/]");
             }
-            
+
             _console.MarkupLine($"[cyan]Processing:[/] {match.HomeTeam} vs {match.AwayTeam}{(match.IsCancelled ? " [yellow](CANCELLED)[/]" : "")}");
-            
+
             try
             {
                 Prediction? prediction = null;
                 bool fromDatabase = false;
                 bool shouldPredict = false;
                 int? predictionRepredictionIndex = settings.IsRepredictMode ? null : 0;
-                
+
                 // Check if we have an existing prediction in the database
                 if (databaseEnabled && !settings.OverrideDatabase && !settings.IsRepredictMode)
                 {
-                    // For cancelled matches, use team-names-only lookup to handle startsAt inconsistencies
-                    // See IPredictionRepository.cs for detailed documentation on this edge case
-                    if (match.IsCancelled)
-                    {
-                        prediction = await predictionRepository!.GetCancelledMatchPredictionAsync(
-                            match.HomeTeam, match.AwayTeam, modelConfig, communityContext);
-                    }
-                    else
-                    {
-                        prediction = await predictionRepository!.GetPredictionAsync(match, modelConfig, communityContext);
-                    }
-                    
+                    prediction = await GetStoredPredictionAsync(predictionRepository!, match, modelConfig, communityContext);
+
                     if (prediction != null)
                     {
+                        var storedValidation = MatchPredictionValidator.Validate(match, prediction);
+                        if (!storedValidation.IsValid)
+                        {
+                            BlockMatch(
+                                blockedMatches,
+                                match,
+                                "invalid_stored_prediction",
+                                $"Stored prediction {FormatPrediction(prediction)} is invalid: {FormatValidationFailure(storedValidation)}");
+
+                            if (settings.Agent)
+                            {
+                                _console.MarkupLine("[yellow]  ✗ Blocked - stored prediction is invalid for submission[/]");
+                            }
+                            else
+                            {
+                                _console.MarkupLine($"[yellow]  ✗ Blocked - stored prediction {FormatPrediction(prediction)} is invalid for submission ({FormatValidationFailure(storedValidation)})[/]");
+                            }
+
+                            continue;
+                        }
+
                         fromDatabase = true;
                         if (settings.Agent)
                         {
-                            _console.MarkupLine($"[green]  ✓ Found existing prediction[/] [dim](from database)[/]");
+                            _console.MarkupLine("[green]  ✓ Found existing prediction[/] [dim](from database)[/]");
                         }
                         else
                         {
@@ -309,66 +320,109 @@ public class MatchdayCommand : AsyncCommand<BaseSettings>
                         }
                     }
                 }
-                
+
                 // Handle reprediction logic
                 if (settings.IsRepredictMode && databaseEnabled)
                 {
-                    // For cancelled matches, use team-names-only lookup to handle startsAt inconsistencies
-                    int currentRepredictionIndex;
-                    if (match.IsCancelled)
-                    {
-                        currentRepredictionIndex = await predictionRepository!.GetCancelledMatchRepredictionIndexAsync(
-                            match.HomeTeam, match.AwayTeam, modelConfig, communityContext);
-                    }
-                    else
-                    {
-                        currentRepredictionIndex = await predictionRepository!.GetMatchRepredictionIndexAsync(match, modelConfig, communityContext);
-                    }
-                    
+                    var currentRepredictionIndex = await GetStoredRepredictionIndexAsync(
+                        predictionRepository!,
+                        match,
+                        modelConfig,
+                        communityContext);
+
                     if (currentRepredictionIndex == -1)
                     {
                         // No prediction exists yet - create first prediction
                         shouldPredict = true;
                         predictionRepredictionIndex = 0;
-                        _console.MarkupLine($"[yellow]  → No existing prediction found, creating first prediction...[/]");
+                        _console.MarkupLine("[yellow]  → No existing prediction found, creating first prediction...[/]");
                     }
                     else
                     {
-                        // Check if we can create another reprediction
                         var maxAllowed = settings.MaxRepredictions ?? int.MaxValue;
                         var nextIndex = currentRepredictionIndex + 1;
-                        
-                        if (nextIndex <= maxAllowed)
+                        prediction = await GetStoredPredictionAsync(predictionRepository!, match, modelConfig, communityContext);
+
+                        if (prediction == null)
                         {
-                            // Before repredicting, check if the current prediction is actually outdated
-                            var isOutdated = await CheckPredictionOutdated(predictionRepository!, contextRepository, match, modelConfig, communityContext, competition, settings.Verbose);
-                            
-                            if (isOutdated)
+                            if (nextIndex <= maxAllowed)
                             {
                                 shouldPredict = true;
                                 predictionRepredictionIndex = nextIndex;
-                                _console.MarkupLine($"[yellow]  → Creating reprediction {nextIndex} (current: {currentRepredictionIndex}, max: {maxAllowed}) - prediction is outdated[/]");
+                                _console.MarkupLine($"[yellow]  → Current prediction record missing, creating reprediction {nextIndex} (current: {currentRepredictionIndex}, max: {maxAllowed})[/]");
                             }
                             else
                             {
                                 traceRepredictionIndices.Add(currentRepredictionIndex.ToString());
-                                _console.MarkupLine($"[green]  ✓ Skipped reprediction - current prediction is up-to-date[/]");
-                                
-                                // Get the latest prediction for display purposes
-                                // For cancelled matches, use team-names-only lookup
-                                if (match.IsCancelled)
+                                BlockMatch(
+                                    blockedMatches,
+                                    match,
+                                    "max_repredictions_reached",
+                                    $"Prediction record missing while already at max repredictions ({currentRepredictionIndex}/{maxAllowed})");
+                                _console.MarkupLine($"[yellow]  ✗ Blocked - prediction record missing and already at max repredictions ({currentRepredictionIndex}/{maxAllowed})[/]");
+                                continue;
+                            }
+                        }
+                        else
+                        {
+                            var storedValidation = MatchPredictionValidator.Validate(match, prediction);
+                            if (!storedValidation.IsValid)
+                            {
+                                if (nextIndex <= maxAllowed)
                                 {
-                                    prediction = await predictionRepository!.GetCancelledMatchPredictionAsync(
-                                        match.HomeTeam, match.AwayTeam, modelConfig, communityContext);
+                                    shouldPredict = true;
+                                    predictionRepredictionIndex = nextIndex;
+
+                                    if (settings.Agent)
+                                    {
+                                        _console.MarkupLine($"[yellow]  → Current prediction is invalid, creating reprediction {nextIndex} (current: {currentRepredictionIndex}, max: {maxAllowed})[/]");
+                                    }
+                                    else
+                                    {
+                                        _console.MarkupLine($"[yellow]  → Current prediction {FormatPrediction(prediction)} is invalid ({FormatValidationFailure(storedValidation)}); creating reprediction {nextIndex} (current: {currentRepredictionIndex}, max: {maxAllowed})[/]");
+                                    }
+
+                                    prediction = null;
                                 }
                                 else
                                 {
-                                    prediction = await predictionRepository!.GetPredictionAsync(match, modelConfig, communityContext);
+                                    traceRepredictionIndices.Add(currentRepredictionIndex.ToString());
+                                    BlockMatch(
+                                        blockedMatches,
+                                        match,
+                                        "max_repredictions_reached",
+                                        $"Stored prediction {FormatPrediction(prediction)} is invalid and already at max repredictions ({currentRepredictionIndex}/{maxAllowed})");
+
+                                    if (settings.Agent)
+                                    {
+                                        _console.MarkupLine($"[yellow]  ✗ Blocked - stored prediction is invalid and already at max repredictions ({currentRepredictionIndex}/{maxAllowed})[/]");
+                                    }
+                                    else
+                                    {
+                                        _console.MarkupLine($"[yellow]  ✗ Blocked - stored prediction {FormatPrediction(prediction)} is invalid and already at max repredictions ({currentRepredictionIndex}/{maxAllowed})[/]");
+                                    }
+
+                                    continue;
                                 }
-                                
-                                if (prediction != null)
+                            }
+                            else if (nextIndex <= maxAllowed)
+                            {
+                                // Before repredicting, check if the current prediction is actually outdated
+                                var isOutdated = await CheckPredictionOutdated(predictionRepository!, contextRepository, match, modelConfig, communityContext, competition, settings.Verbose);
+
+                                if (isOutdated)
                                 {
+                                    shouldPredict = true;
+                                    predictionRepredictionIndex = nextIndex;
+                                    prediction = null;
+                                    _console.MarkupLine($"[yellow]  → Creating reprediction {nextIndex} (current: {currentRepredictionIndex}, max: {maxAllowed}) - prediction is outdated[/]");
+                                }
+                                else
+                                {
+                                    traceRepredictionIndices.Add(currentRepredictionIndex.ToString());
                                     fromDatabase = true;
+                                    _console.MarkupLine("[green]  ✓ Skipped reprediction - current prediction is up-to-date[/]");
+
                                     if (!settings.Agent)
                                     {
                                         _console.MarkupLine($"[green]  ✓ Latest prediction:[/] {prediction.HomeGoals}:{prediction.AwayGoals} [dim](reprediction {currentRepredictionIndex})[/]");
@@ -376,27 +430,12 @@ public class MatchdayCommand : AsyncCommand<BaseSettings>
                                     }
                                 }
                             }
-                        }
-                        else
-                        {
-                            traceRepredictionIndices.Add(currentRepredictionIndex.ToString());
-                            _console.MarkupLine($"[yellow]  ✗ Skipped - already at max repredictions ({currentRepredictionIndex}/{maxAllowed})[/]");
-                            
-                            // Get the latest prediction for display purposes
-                            // For cancelled matches, use team-names-only lookup
-                            if (match.IsCancelled)
-                            {
-                                prediction = await predictionRepository!.GetCancelledMatchPredictionAsync(
-                                    match.HomeTeam, match.AwayTeam, modelConfig, communityContext);
-                            }
                             else
                             {
-                                prediction = await predictionRepository!.GetPredictionAsync(match, modelConfig, communityContext);
-                            }
-                            
-                            if (prediction != null)
-                            {
+                                traceRepredictionIndices.Add(currentRepredictionIndex.ToString());
                                 fromDatabase = true;
+                                _console.MarkupLine($"[yellow]  ✗ Skipped - already at max repredictions ({currentRepredictionIndex}/{maxAllowed})[/]");
+
                                 if (!settings.Agent)
                                 {
                                     _console.MarkupLine($"[green]  ✓ Latest prediction:[/] {prediction.HomeGoals}:{prediction.AwayGoals} [dim](reprediction {currentRepredictionIndex})[/]");
@@ -406,26 +445,26 @@ public class MatchdayCommand : AsyncCommand<BaseSettings>
                         }
                     }
                 }
-                
+
                 // If no existing prediction (normal mode) or we need to predict (reprediction mode), generate a new one
                 if (prediction == null || shouldPredict)
                 {
-                    _console.MarkupLine($"[yellow]  → Generating new prediction...[/]");
-                    
+                    _console.MarkupLine("[yellow]  → Generating new prediction...[/]");
+
                     // Step 3: Get context using hybrid approach (database first, fallback to on-demand)
                     var contextDocuments = await GetHybridContextAsync(
-                        contextRepository, 
-                        contextProvider, 
+                        contextRepository,
+                        contextProvider,
                         match,
-                        communityContext, 
+                        communityContext,
                         competition,
                         settings.Verbose);
-                    
+
                     if (settings.Verbose)
                     {
                         _console.MarkupLine($"[dim]    Using {contextDocuments.Count} context documents[/]");
                     }
-                    
+
                     // Show context documents if requested
                     if (settings.ShowContextDocuments)
                     {
@@ -433,27 +472,27 @@ public class MatchdayCommand : AsyncCommand<BaseSettings>
                         foreach (var doc in contextDocuments)
                         {
                             _console.MarkupLine($"[dim]    📄 {doc.Name}[/]");
-                            
+
                             // Show first few lines and total line count for readability
                             var lines = doc.Content.Split('\n');
                             var previewLines = lines.Take(10).ToArray();
                             var hasMore = lines.Length > 10;
-                            
+
                             foreach (var line in previewLines)
                             {
                                 _console.MarkupLine($"[grey]      {line.EscapeMarkup()}[/]");
                             }
-                            
+
                             if (hasMore)
                             {
                                 _console.MarkupLine($"[dim]      ... ({lines.Length - 10} more lines) ...[/]");
                             }
-                            
+
                             _console.MarkupLine($"[dim]      (Total: {lines.Length} lines, {doc.Content.Length} characters)[/]");
                             _console.WriteLine();
                         }
                     }
-                    
+
                     var telemetryMetadata = new PredictionTelemetryMetadata(
                         HomeTeam: match.HomeTeam,
                         AwayTeam: match.AwayTeam,
@@ -461,7 +500,7 @@ public class MatchdayCommand : AsyncCommand<BaseSettings>
 
                     // Predict the match
                     prediction = await predictionService.PredictMatchAsync(match, contextDocuments, settings.WithJustification, telemetryMetadata);
-                    
+
                     if (prediction != null)
                     {
                         if (predictionRepredictionIndex.HasValue)
@@ -471,73 +510,88 @@ public class MatchdayCommand : AsyncCommand<BaseSettings>
 
                         if (settings.Agent)
                         {
-                            _console.MarkupLine($"[green]  ✓ Generated prediction[/]");
+                            _console.MarkupLine("[green]  ✓ Generated prediction[/]");
                         }
                         else
                         {
                             _console.MarkupLine($"[green]  ✓ Generated prediction:[/] {prediction.HomeGoals}:{prediction.AwayGoals}");
                             WriteJustificationIfNeeded(prediction, settings.WithJustification);
                         }
-                        
+
+                        var generatedValidation = MatchPredictionValidator.Validate(match, prediction);
+                        if (!generatedValidation.IsValid)
+                        {
+                            if (databaseEnabled && settings.IsRepredictMode)
+                            {
+                                if (settings.DryRun)
+                                {
+                                    if (settings.Verbose)
+                                    {
+                                        _console.MarkupLine("[dim]    (Dry run - skipped reprediction save for invalid prediction)[/]");
+                                    }
+                                }
+                                else
+                                {
+                                    try
+                                    {
+                                        await SaveMatchPredictionAsync(
+                                            predictionRepository!,
+                                            match,
+                                            prediction,
+                                            modelConfig,
+                                            communityContext,
+                                            contextDocuments,
+                                            settings,
+                                            tokenUsageTracker);
+                                    }
+                                    catch (Exception ex)
+                                    {
+                                        _logger.LogError(ex, "Failed to save invalid reprediction attempt for match {Match}", match);
+                                        _console.MarkupLine($"[red]    ✗ Failed to save invalid reprediction attempt to database: {ex.Message}[/]");
+                                    }
+                                }
+                            }
+
+                            BlockMatch(
+                                blockedMatches,
+                                match,
+                                "invalid_generated_prediction",
+                                $"Generated prediction {FormatPrediction(prediction)} is invalid: {FormatValidationFailure(generatedValidation)}");
+
+                            if (settings.Agent)
+                            {
+                                _console.MarkupLine("[yellow]  ✗ Blocked - generated prediction is invalid for submission[/]");
+                            }
+                            else
+                            {
+                                _console.MarkupLine($"[yellow]  ✗ Blocked - generated prediction {FormatPrediction(prediction)} is invalid for submission ({FormatValidationFailure(generatedValidation)})[/]");
+                            }
+
+                            if (settings.Verbose)
+                            {
+                                var matchUsage = !string.IsNullOrEmpty(settings.EstimatedCostsModel)
+                                    ? tokenUsageTracker.GetLastUsageCompactSummaryWithEstimatedCosts(settings.EstimatedCostsModel)
+                                    : tokenUsageTracker.GetLastUsageCompactSummary();
+                                _console.MarkupLine($"[dim]    Token usage: {matchUsage}[/]");
+                            }
+
+                            continue;
+                        }
+
                         // Save to database immediately if enabled
                         if (databaseEnabled && !settings.DryRun)
                         {
                             try
                             {
-                                // Get token usage and cost information
-                                var cost = (double)tokenUsageTracker.GetLastCost(); // Get the cost for this individual match
-                                // Use the new GetLastUsageJson method to get full JSON
-                                var tokenUsageJson = tokenUsageTracker.GetLastUsageJson() ?? "{}";
-                                
-                                if (settings.IsRepredictMode)
-                                {
-                                    // Save as reprediction with specific index
-                                    // For cancelled matches, use team-names-only lookup for the current index
-                                    int currentIndex;
-                                    if (match.IsCancelled)
-                                    {
-                                        currentIndex = await predictionRepository!.GetCancelledMatchRepredictionIndexAsync(
-                                            match.HomeTeam, match.AwayTeam, modelConfig, communityContext);
-                                    }
-                                    else
-                                    {
-                                        currentIndex = await predictionRepository!.GetMatchRepredictionIndexAsync(match, modelConfig, communityContext);
-                                    }
-                                    var nextIndex = currentIndex == -1 ? 0 : currentIndex + 1;
-                                    
-                                    await predictionRepository!.SaveRepredictionAsync(
-                                        match, 
-                                        prediction, 
-                                        modelConfig,
-                                        tokenUsageJson, 
-                                        cost, 
-                                        communityContext,
-                                        contextDocuments.Select(d => d.Name),
-                                        nextIndex);
-                                        
-                                    if (settings.Verbose)
-                                    {
-                                        _console.MarkupLine($"[dim]    ✓ Saved as reprediction {nextIndex} to database[/]");
-                                    }
-                                }
-                                else
-                                {
-                                    // Save normally (override or new prediction)
-                                    await predictionRepository!.SavePredictionAsync(
-                                        match, 
-                                        prediction, 
-                                        modelConfig,
-                                        tokenUsageJson, 
-                                        cost, 
-                                        communityContext,
-                                        contextDocuments.Select(d => d.Name),
-                                        overrideCreatedAt: settings.OverrideDatabase);
-                                        
-                                    if (settings.Verbose)
-                                    {
-                                        _console.MarkupLine($"[dim]    ✓ Saved to database[/]");
-                                    }
-                                }
+                                await SaveMatchPredictionAsync(
+                                    predictionRepository!,
+                                    match,
+                                    prediction,
+                                    modelConfig,
+                                    communityContext,
+                                    contextDocuments,
+                                    settings,
+                                    tokenUsageTracker);
                             }
                             catch (Exception ex)
                             {
@@ -547,9 +601,9 @@ public class MatchdayCommand : AsyncCommand<BaseSettings>
                         }
                         else if (databaseEnabled && settings.DryRun && settings.Verbose)
                         {
-                            _console.MarkupLine($"[dim]    (Dry run - skipped database save)[/]");
+                            _console.MarkupLine("[dim]    (Dry run - skipped database save)[/]");
                         }
-                        
+
                         // Show individual match token usage in verbose mode
                         if (settings.Verbose)
                         {
@@ -561,18 +615,18 @@ public class MatchdayCommand : AsyncCommand<BaseSettings>
                     }
                     else
                     {
-                        _console.MarkupLine($"[red]  ✗ Failed to generate prediction[/]");
+                        _console.MarkupLine("[red]  ✗ Failed to generate prediction[/]");
                         continue;
                     }
                 }
-                
+
                 // Convert to BetPrediction for Kicktipp
                 var betPrediction = new BetPrediction(prediction.HomeGoals, prediction.AwayGoals);
                 predictions[match] = betPrediction;
-                
-                if (!fromDatabase && settings.Verbose)
+
+                if (!fromDatabase && settings.Verbose && !settings.DryRun)
                 {
-                    _console.MarkupLine($"[dim]    Already saved to database[/]");
+                    _console.MarkupLine("[dim]    Already saved to database[/]");
                 }
             }
             catch (Exception ex)
@@ -587,12 +641,28 @@ public class MatchdayCommand : AsyncCommand<BaseSettings>
             LangfuseActivityPropagation.SetTraceMetadata(activity, "repredictionIndices", PredictionTelemetryMetadata.BuildDelimitedFilterValue(traceRepredictionIndices), propagateToObservations: false);
             LangfuseActivityPropagation.SetTraceMetadata(activity, "hasRepredictions", traceRepredictionIndices.Any(index => index != "0") ? "true" : "false", propagateToObservations: false);
         }
-        
+
         if (!predictions.Any())
         {
+            if (blockedMatches.Count > 0)
+            {
+                WriteBlockedMatchSummary(blockedMatches);
+                _console.MarkupLine("[red]No valid predictions available, nothing to place[/]");
+                activity?.SetTag("langfuse.trace.output", JsonSerializer.Serialize(new
+                {
+                    error = "No valid predictions available",
+                    blockedMatches = blockedMatches.Select(blockedMatch => new
+                    {
+                        match = $"{blockedMatch.Match.HomeTeam} vs {blockedMatch.Match.AwayTeam}",
+                        reason = blockedMatch.ReasonCode
+                    }).ToArray()
+                }));
+                return 1;
+            }
+
             _console.MarkupLine("[yellow]No predictions available, nothing to place[/]");
             activity?.SetTag("langfuse.trace.output", JsonSerializer.Serialize(new { error = "No predictions available" }));
-            return;
+            return 0;
         }
 
         // Set trace output with all predictions
@@ -602,19 +672,20 @@ public class MatchdayCommand : AsyncCommand<BaseSettings>
             prediction = $"{p.Value.HomeGoals}:{p.Value.AwayGoals}"
         }).ToArray();
         activity?.SetTag("langfuse.trace.output", JsonSerializer.Serialize(traceOutput));
-        
+
         // Step 4: Place all predictions using PlaceBetsAsync
         _console.MarkupLine($"[blue]Placing {predictions.Count} predictions to Kicktipp...[/]");
-        
+
+        var submitSuccess = true;
         if (settings.DryRun)
         {
             _console.MarkupLine($"[magenta]✓ Dry run mode - would have placed {predictions.Count} predictions (no actual changes made)[/]");
         }
         else
         {
-            var success = await kicktippClient.PlaceBetsAsync(settings.Community, predictions, overrideBets: settings.OverrideKicktipp);
-            
-            if (success)
+            submitSuccess = await kicktippClient.PlaceBetsAsync(settings.Community, predictions, overrideBets: settings.OverrideKicktipp);
+
+            if (submitSuccess)
             {
                 _console.MarkupLine($"[green]✓ Successfully placed all {predictions.Count} predictions![/]");
             }
@@ -623,32 +694,43 @@ public class MatchdayCommand : AsyncCommand<BaseSettings>
                 _console.MarkupLine("[red]✗ Failed to place some or all predictions[/]");
             }
         }
-        
+
+        if (blockedMatches.Count > 0)
+        {
+            WriteBlockedMatchSummary(blockedMatches);
+        }
+
+        if (blockedMatches.Count > 0 && submitSuccess)
+        {
+            _console.MarkupLine("[yellow]Matchday completed with blocked matches - only the valid subset was submitted[/]");
+        }
+
         // Display token usage summary
         var summary = !string.IsNullOrEmpty(settings.EstimatedCostsModel)
             ? tokenUsageTracker.GetCompactSummaryWithEstimatedCosts(settings.EstimatedCostsModel)
             : tokenUsageTracker.GetCompactSummary();
         _console.MarkupLine($"[dim]Token usage (uncached/cached/reasoning/output/$cost): {summary}[/]");
+
+        return blockedMatches.Count > 0 || !submitSuccess ? 1 : 0;
     }
-    
     /// <summary>
     /// Retrieves all available context documents from the database for the given community context.
     /// </summary>
     private async Task<Dictionary<string, DocumentContext>> GetMatchContextDocumentsAsync(
-        IContextRepository contextRepository, 
+        IContextRepository contextRepository,
         Match match,
-        string communityContext, 
+        string communityContext,
         string competition,
         bool verbose = false)
     {
         var contextDocuments = new Dictionary<string, DocumentContext>();
         var selection = MatchContextDocumentCatalog.ForMatch(match, communityContext, competition);
-        
+
         if (verbose)
         {
             _console.MarkupLine($"[dim]    Looking for {selection.RequiredDocumentNames.Count} specific context documents in database[/]");
         }
-        
+
         try
         {
             // Retrieve each required document
@@ -658,7 +740,7 @@ public class MatchdayCommand : AsyncCommand<BaseSettings>
                 if (contextDoc != null)
                 {
                     contextDocuments[documentName] = new DocumentContext(contextDoc.DocumentName, contextDoc.Content);
-                    
+
                     if (verbose)
                     {
                         _console.MarkupLine($"[dim]      ✓ Retrieved {documentName} (version {contextDoc.Version})[/]");
@@ -681,7 +763,7 @@ public class MatchdayCommand : AsyncCommand<BaseSettings>
                     var contextDoc = await contextRepository.GetLatestContextDocumentAsync(documentName, communityContext);
                     if (contextDoc != null)
                     {
-                        // Display name suffix to distinguish optional docs in prediction metadata (helps debug) 
+                        // Display name suffix to distinguish optional docs in prediction metadata (helps debug)
                         contextDocuments[documentName] = new DocumentContext(contextDoc.DocumentName, contextDoc.Content);
                         if (verbose)
                         {
@@ -706,10 +788,10 @@ public class MatchdayCommand : AsyncCommand<BaseSettings>
         {
             _console.MarkupLine($"[red]    Warning: Failed to retrieve context from database: {ex.Message}[/]");
         }
-        
+
         return contextDocuments;
     }
-    
+
     /// <summary>
     /// Gets context documents using database first, falling back to on-demand context provider if needed.
     /// </summary>
@@ -801,7 +883,7 @@ public class MatchdayCommand : AsyncCommand<BaseSettings>
             "Missing required WM26 context documents after database and on-demand fallback: " +
             $"{string.Join(", ", missingDocumentNames)}. Seed FIFA rankings with collect-context fifa and lineups with collect-context lineups.");
     }
-    
+
     private async Task<bool> CheckPredictionOutdated(IPredictionRepository predictionRepository, IContextRepository contextRepository, Match match, PredictionModelConfig modelConfig, string communityContext, string competition, bool verbose)
     {
         try
@@ -818,25 +900,25 @@ public class MatchdayCommand : AsyncCommand<BaseSettings>
             {
                 predictionMetadata = await predictionRepository.GetPredictionMetadataAsync(match, modelConfig, communityContext);
             }
-            
+
             if (predictionMetadata == null || !predictionMetadata.ContextDocumentNames.Any())
             {
                 // If no context documents were used, prediction can't be outdated based on context changes
                 return false;
             }
-            
+
             if (verbose)
             {
                 _console.MarkupLine($"[dim]  Checking {predictionMetadata.ContextDocumentNames.Count} context documents for updates[/]");
             }
-            
+
             // Check if any context document has been updated after the prediction was created
             foreach (var documentName in predictionMetadata.ContextDocumentNames)
             {
                 // Strip any display suffix (e.g., " (kpi-context)") from the context document name
                 // to get the actual document name stored in the repository
                 var actualDocumentName = StripDisplaySuffix(documentName);
-                
+
                 var standingsDocumentName = MatchContextDocumentCatalog.GetStandingsDocumentName(competition);
                 if (actualDocumentName.Equals(standingsDocumentName, StringComparison.OrdinalIgnoreCase))
                 {
@@ -846,9 +928,9 @@ public class MatchdayCommand : AsyncCommand<BaseSettings>
                     }
                     continue;
                 }
-                
+
                 var latestContextDocument = await contextRepository.GetLatestContextDocumentAsync(actualDocumentName, communityContext);
-                
+
                 if (latestContextDocument != null && latestContextDocument.CreatedAt > predictionMetadata.CreatedAt)
                 {
                     var predictionTimeContextDocument = await contextRepository.GetContextDocumentByTimestampAsync(
@@ -882,7 +964,7 @@ public class MatchdayCommand : AsyncCommand<BaseSettings>
                     _console.MarkupLine($"[yellow]  Warning: Context document '{actualDocumentName}' not found in repository[/]");
                 }
             }
-            
+
             return false; // Prediction is up-to-date
         }
         catch (Exception ex)
@@ -895,7 +977,130 @@ public class MatchdayCommand : AsyncCommand<BaseSettings>
             return false;
         }
     }
-    
+
+    private async Task<Prediction?> GetStoredPredictionAsync(
+        IPredictionRepository predictionRepository,
+        Match match,
+        PredictionModelConfig modelConfig,
+        string communityContext)
+    {
+        if (match.IsCancelled)
+        {
+            return await predictionRepository.GetCancelledMatchPredictionAsync(
+                match.HomeTeam,
+                match.AwayTeam,
+                modelConfig,
+                communityContext);
+        }
+
+        return await predictionRepository.GetPredictionAsync(match, modelConfig, communityContext);
+    }
+
+    private async Task<int> GetStoredRepredictionIndexAsync(
+        IPredictionRepository predictionRepository,
+        Match match,
+        PredictionModelConfig modelConfig,
+        string communityContext)
+    {
+        if (match.IsCancelled)
+        {
+            return await predictionRepository.GetCancelledMatchRepredictionIndexAsync(
+                match.HomeTeam,
+                match.AwayTeam,
+                modelConfig,
+                communityContext);
+        }
+
+        return await predictionRepository.GetMatchRepredictionIndexAsync(match, modelConfig, communityContext);
+    }
+
+    private async Task SaveMatchPredictionAsync(
+        IPredictionRepository predictionRepository,
+        Match match,
+        Prediction prediction,
+        PredictionModelConfig modelConfig,
+        string communityContext,
+        IReadOnlyCollection<DocumentContext> contextDocuments,
+        BaseSettings settings,
+        ITokenUsageTracker tokenUsageTracker)
+    {
+        var cost = (double)tokenUsageTracker.GetLastCost();
+        var tokenUsageJson = tokenUsageTracker.GetLastUsageJson() ?? "{}";
+
+        if (settings.IsRepredictMode)
+        {
+            var currentIndex = await GetStoredRepredictionIndexAsync(
+                predictionRepository,
+                match,
+                modelConfig,
+                communityContext);
+            var nextIndex = currentIndex == -1 ? 0 : currentIndex + 1;
+
+            await predictionRepository.SaveRepredictionAsync(
+                match,
+                prediction,
+                modelConfig,
+                tokenUsageJson,
+                cost,
+                communityContext,
+                contextDocuments.Select(document => document.Name),
+                nextIndex);
+
+            if (settings.Verbose)
+            {
+                _console.MarkupLine($"[dim]    ✓ Saved as reprediction {nextIndex} to database[/]");
+            }
+
+            return;
+        }
+
+        await predictionRepository.SavePredictionAsync(
+            match,
+            prediction,
+            modelConfig,
+            tokenUsageJson,
+            cost,
+            communityContext,
+            contextDocuments.Select(document => document.Name),
+            overrideCreatedAt: settings.OverrideDatabase);
+
+        if (settings.Verbose)
+        {
+            _console.MarkupLine("[dim]    ✓ Saved to database[/]");
+        }
+    }
+
+    private void BlockMatch(
+        List<BlockedMatch> blockedMatches,
+        Match match,
+        string reasonCode,
+        string detail)
+    {
+        blockedMatches.Add(new BlockedMatch(match, reasonCode, detail));
+        _logger.LogWarning("Blocked match {Match} ({ReasonCode}): {Detail}", match, reasonCode, detail);
+    }
+
+    private void WriteBlockedMatchSummary(IReadOnlyList<BlockedMatch> blockedMatches)
+    {
+        _console.MarkupLine($"[yellow]Blocked matches: {blockedMatches.Count}[/]");
+        foreach (var blockedMatch in blockedMatches)
+        {
+            _console.MarkupLine($"[yellow]  - {blockedMatch.Match.HomeTeam} vs {blockedMatch.Match.AwayTeam}: {blockedMatch.ReasonCode}[/]");
+        }
+    }
+
+    private static string FormatPrediction(Prediction prediction)
+    {
+        return $"{prediction.HomeGoals}:{prediction.AwayGoals}";
+    }
+
+    private static string FormatValidationFailure(MatchPredictionValidationResult validation)
+    {
+        return $"{MatchPredictionValidator.DescribeFailure(validation.ReasonCode)} ({validation.ReasonCode})";
+    }
+
+    private sealed record BlockedMatch(Match Match, string ReasonCode, string Detail);
+
     private void WriteJustificationIfNeeded(Prediction? prediction, bool includeJustification, bool fromDatabase = false)
     {
         if (!includeJustification || prediction == null)
