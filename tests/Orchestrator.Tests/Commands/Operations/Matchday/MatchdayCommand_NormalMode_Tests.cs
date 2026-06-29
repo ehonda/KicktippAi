@@ -217,7 +217,7 @@ public class MatchdayCommand_NormalMode_Tests : MatchdayCommandTests_Base
 
         var (exitCode, output) = await RunCommandAsync(ctx.App, ctx.Console, "matchday", "gpt-4o", "-c", "test-community");
 
-        await Assert.That(exitCode).IsEqualTo(0);
+        await Assert.That(exitCode).IsEqualTo(1);
         await Assert.That(output).Contains("Failed to place");
     }
 
