@@ -25,7 +25,7 @@
     <PackageVersion Include="EHonda.Optional.Core" Version="3.0.0" />
     <PackageVersion Include="EHonda.Pagination.CursorBased" Version="2.0.1" />
     <PackageVersion Include="EHonda.Pagination.OffsetBased" Version="2.0.1" />
-    <PackageVersion Include="Google.Cloud.Firestore" Version="4.2.0" />
+    <PackageVersion Include="Google.Cloud.Firestore" Version="4.3.0" />
     <PackageVersion Include="Grpc.Core" Version="2.46.6" />
     <PackageVersion Include="Microsoft.Extensions.Caching.Memory" Version="10.0.9" />
     <PackageVersion Include="Microsoft.Extensions.Configuration" Version="10.0.9" />
@@ -54,10 +54,10 @@
     <PackageVersion Include="OpenTelemetry.Extensions.Hosting" Version="1.16.0" />
     <PackageVersion Include="Polly.Core" Version="8.7.0" />
     <PackageVersion Include="Spectre.Console.Cli" Version="0.55.0" />
-    <PackageVersion Include="Spectre.Console.Testing" Version="0.57.0" />
+    <PackageVersion Include="Spectre.Console.Testing" Version="0.57.1" />
     <PackageVersion Include="System.Linq.Async" Version="7.0.1" />
     <PackageVersion Include="Testcontainers.Firestore" Version="4.12.0" />
-    <PackageVersion Include="TUnit" Version="1.55.2" />
+    <PackageVersion Include="TUnit" Version="1.57.14" />
     <PackageVersion Include="WireMock.Net" Version="2.11.0" />
   </ItemGroup>
 
