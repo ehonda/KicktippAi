@@ -464,14 +464,19 @@ public class KicktippClient_GetOpenPredictions_Tests : KicktippClientTests_Base
     }
 
     [Test]
-    public async Task Getting_world_cup_open_predictions_fails_closed_when_known_round_lacks_penalty_marker()
+    public async Task Getting_world_cup_open_predictions_uses_known_round_without_penalty_marker()
     {
         StubHtmlResponse("/test-community/tippabgabe", CreateKnockoutTippabgabe("Sechzehntelfinale", includeMarker: false));
         var client = CreateClient();
 
         var matches = await client.GetOpenPredictionsAsync("test-community", CompetitionIds.FifaWorldCup2026);
 
-        await Assert.That(matches).IsEmpty();
+        await Assert.That(matches).HasCount().EqualTo(1);
+        var data = matches.Single().CompetitionSpecificData as FifaWorldCup2026MatchData;
+        await Assert.That(data).IsNotNull();
+        await Assert.That(data!.Stage).IsEqualTo(FifaWorldCup2026KnockoutStage.RoundOf32);
+        await Assert.That(data.ResultBasis)
+            .IsEqualTo(FifaWorldCup2026ResultBasis.FinalScoreIncludingExtraTimeAndPenaltyShootout);
     }
 
     [Test]

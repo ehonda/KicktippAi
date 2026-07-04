@@ -33,6 +33,42 @@ public class KicktippClient_GetPlacedPredictions_Tests : KicktippClientTests_Bas
     }
 
     [Test]
+    public async Task Getting_world_cup_placed_predictions_ignores_finished_rows_without_penalty_marker()
+    {
+        var html = """
+            <!DOCTYPE html><html><body>
+            <input type="hidden" name="spieltagIndex" value="37" />
+            <div class="spieltagsauswahl"><div class="prevnextTitle"><a>Sechzehntelfinale</a></div></div>
+            <table id="tippabgabeSpiele"><tbody>
+                <tr>
+                    <td>28.06.26 21:00</td><td>South Africa</td><td>Canada</td><td>0:1</td>
+                </tr>
+                <tr>
+                    <td>02.07.26 02:00</td><td>USA</td><td>Bosnia-Herzegovina</td><td>
+                        <input type="text" name="heim" value="3" /><input type="text" name="gast" value="1" />
+                    </td>
+                </tr>
+            </tbody></table>
+            </body></html>
+            """;
+        StubHtmlResponse("/test-community/tippabgabe", html);
+        var client = CreateClient();
+
+        var predictions = await client.GetPlacedPredictionsAsync("test-community", CompetitionIds.FifaWorldCup2026);
+
+        await Assert.That(predictions).HasCount().EqualTo(1);
+        var match = predictions.Keys.Single();
+        var prediction = predictions[match];
+        await Assert.That(prediction).IsNotNull();
+        await Assert.That(prediction!.HomeGoals).IsEqualTo(3);
+        await Assert.That(prediction.AwayGoals).IsEqualTo(1);
+        var data = match.CompetitionSpecificData as FifaWorldCup2026MatchData;
+        await Assert.That(data).IsNotNull();
+        await Assert.That(data!.Stage).IsEqualTo(FifaWorldCup2026KnockoutStage.RoundOf32);
+        await Assert.That(data.ResultBasis)
+            .IsEqualTo(FifaWorldCup2026ResultBasis.FinalScoreIncludingExtraTimeAndPenaltyShootout);
+    }
+    [Test]
     public async Task Getting_placed_predictions_returns_empty_dictionary_on_404()
     {
         // Arrange

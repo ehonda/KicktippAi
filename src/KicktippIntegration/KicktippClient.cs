@@ -115,7 +115,6 @@ public class KicktippClient : IKicktippClient, IDisposable
             var currentMatchday = ExtractMatchdayFromPage(document);
             _logger.LogDebug("Extracted matchday: {Matchday}", currentMatchday);
             var kicktippRoundName = ExtractKicktippRoundName(document);
-            ValidateWorldCupKnockoutMarkers(document, competition, kicktippRoundName);
             
             // Parse matches from the tippabgabe table
             var matchTable = document.QuerySelector("#tippabgabeSpiele tbody");
@@ -811,7 +810,6 @@ public class KicktippClient : IKicktippClient, IDisposable
             var currentMatchday = ExtractMatchdayFromPage(document);
             _logger.LogDebug("Extracted matchday for history extraction: {Matchday}", currentMatchday);
             var kicktippRoundName = ExtractKicktippRoundName(document);
-            ValidateWorldCupKnockoutMarkers(document, competition, kicktippRoundName);
             if (matchday.HasValue && currentMatchday != matchday.Value)
             {
                 _logger.LogWarning("Requested history matchday {RequestedMatchday}, but page displayed {DisplayedMatchday}", matchday.Value, currentMatchday);
@@ -2193,7 +2191,6 @@ public class KicktippClient : IKicktippClient, IDisposable
             var currentMatchday = ExtractMatchdayFromPage(document);
             _logger.LogDebug("Extracted matchday for placed predictions: {Matchday}", currentMatchday);
             var kicktippRoundName = ExtractKicktippRoundName(document);
-            ValidateWorldCupKnockoutMarkers(document, competition, kicktippRoundName);
             
             // Parse matches from the tippabgabe table
             var matchTable = document.QuerySelector("#tippabgabeSpiele tbody");
@@ -2331,34 +2328,6 @@ public class KicktippClient : IKicktippClient, IDisposable
         return string.IsNullOrWhiteSpace(roundName) ? null : roundName;
     }
 
-    private static void ValidateWorldCupKnockoutMarkers(
-        IDocument document,
-        string? competition,
-        string? kicktippRoundName)
-    {
-        if (!string.Equals(competition, CompetitionIds.FifaWorldCup2026, StringComparison.OrdinalIgnoreCase) ||
-            !TryMapWorldCupKnockoutStage(kicktippRoundName, out _))
-        {
-            return;
-        }
-
-        foreach (var row in document.QuerySelectorAll("#tippabgabeSpiele tbody tr"))
-        {
-            var cells = row.QuerySelectorAll("td");
-            if (cells.Length < 4 ||
-                string.IsNullOrWhiteSpace(cells[1].TextContent) ||
-                string.IsNullOrWhiteSpace(cells[2].TextContent))
-            {
-                continue;
-            }
-
-            if (!HasPenaltyShootoutMarker(row))
-            {
-                throw new InvalidOperationException(
-                    $"WM26 knockout round '{kicktippRoundName}' contains a match without the required n.E. scoring marker.");
-            }
-        }
-    }
 
     private static Match CreateMatch(
         string homeTeam,
@@ -2377,11 +2346,15 @@ public class KicktippClient : IKicktippClient, IDisposable
         }
 
         var hasPenaltyShootoutMarker = HasPenaltyShootoutMarker(matchRow);
-        var hasKnownKnockoutStage = TryMapWorldCupKnockoutStage(kicktippRoundName, out var stage);
-        if (hasKnownKnockoutStage && !hasPenaltyShootoutMarker)
+        if (TryMapWorldCupKnockoutStage(kicktippRoundName, out var stage))
         {
-            throw new InvalidOperationException(
-                $"WM26 knockout round '{kicktippRoundName}' is missing the required n.E. scoring marker for {homeTeam} vs {awayTeam}.");
+            return match with
+            {
+                CompetitionSpecificData = new FifaWorldCup2026MatchData(
+                    kicktippRoundName,
+                    stage,
+                    FifaWorldCup2026ResultBasis.FinalScoreIncludingExtraTimeAndPenaltyShootout)
+            };
         }
 
         if (!hasPenaltyShootoutMarker)
@@ -2393,7 +2366,7 @@ public class KicktippClient : IKicktippClient, IDisposable
         {
             CompetitionSpecificData = new FifaWorldCup2026MatchData(
                 kicktippRoundName,
-                hasKnownKnockoutStage ? stage : FifaWorldCup2026KnockoutStage.Unknown,
+                FifaWorldCup2026KnockoutStage.Unknown,
                 FifaWorldCup2026ResultBasis.FinalScoreIncludingExtraTimeAndPenaltyShootout)
         };
     }
