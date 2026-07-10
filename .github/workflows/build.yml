@@ -43,7 +43,7 @@ jobs:
     
     steps:
       - name: Checkout repository
-        uses: actions/checkout@v6
+        uses: actions/checkout@v7
         
       - name: Setup .NET
         uses: actions/setup-dotnet@v5
@@ -58,7 +58,7 @@ jobs:
         
       # Cache the build output so test jobs don't need to rebuild
       - name: Cache build artifacts
-        uses: actions/cache/save@v5
+        uses: actions/cache/save@v6
         with:
           path: |
             **/bin/Release
@@ -73,7 +73,7 @@ jobs:
     
     steps:
       - name: Checkout repository
-        uses: actions/checkout@v6
+        uses: actions/checkout@v7
         
       # Discovers test projects by finding directories under tests/ that contain
       # a .csproj file matching the directory name (convention-based discovery)
@@ -103,7 +103,7 @@ jobs:
     
     steps:
       - name: Checkout repository
-        uses: actions/checkout@v6
+        uses: actions/checkout@v7
         
       - name: Setup .NET
         uses: actions/setup-dotnet@v5
@@ -127,7 +127,7 @@ jobs:
         
       # Restore cached build artifacts from the build job
       - name: Restore build artifacts
-        uses: actions/cache/restore@v5
+        uses: actions/cache/restore@v6
         with:
           path: |
             **/bin/Release
@@ -165,7 +165,7 @@ jobs:
     
     steps:
       - name: Checkout repository
-        uses: actions/checkout@v6
+        uses: actions/checkout@v7
         
       - name: Setup .NET
         uses: actions/setup-dotnet@v5
