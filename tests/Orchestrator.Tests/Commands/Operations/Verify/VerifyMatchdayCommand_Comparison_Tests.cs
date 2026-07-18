@@ -33,7 +33,7 @@ public class VerifyMatchdayCommand_Comparison_Tests : VerifyMatchdayCommandTests
     }
 
     [Test]
-    public async Task Both_null_predictions_counts_as_match()
+    public async Task Both_null_predictions_returns_error()
     {
         // Arrange
         var match = CreateTestMatch();
@@ -46,8 +46,40 @@ public class VerifyMatchdayCommand_Comparison_Tests : VerifyMatchdayCommandTests
         var (exitCode, output) = await RunCommandAsync(ctx.App, ctx.Console, "verify-matchday", "gpt-4o", "-c", "test-community");
 
         // Assert
-        await Assert.That(exitCode).IsEqualTo(0);
-        await Assert.That(output).Contains("All predictions match");
+        await Assert.That(exitCode).IsEqualTo(1);
+        await Assert.That(output).Contains("Verification failed - predictions do not match");
+    }
+
+    [Test]
+    public async Task One_matching_prediction_and_one_missing_on_both_sides_returns_error()
+    {
+        var completeMatch = CreateTestMatch(homeTeam: "Spain", awayTeam: "Argentina");
+        var missingMatch = CreateTestMatch(homeTeam: "France", awayTeam: "England");
+
+        var mockPredictionRepo = CreateMockPredictionRepository();
+        mockPredictionRepo.Setup(r => r.GetPredictionAsync(
+                completeMatch, It.IsAny<PredictionModelConfig>(), It.IsAny<string>(), It.IsAny<CancellationToken>()))
+            .ReturnsAsync(CreatePrediction(homeGoals: 2, awayGoals: 1));
+        mockPredictionRepo.Setup(r => r.GetPredictionAsync(
+                missingMatch, It.IsAny<PredictionModelConfig>(), It.IsAny<string>(), It.IsAny<CancellationToken>()))
+            .ReturnsAsync((Prediction?)null);
+
+        var placedPredictions = CreatePlacedPredictions(
+            (completeMatch, CreateBetPrediction(homeGoals: 2, awayGoals: 1)),
+            (missingMatch, (BetPrediction?)null));
+        var mockKicktippClient = CreateMockKicktippClient(placedPredictions: placedPredictions);
+        var ctx = CreateVerifyMatchdayCommandApp(
+            firebaseServiceFactory: CreateMockFirebaseServiceFactoryFull(predictionRepository: mockPredictionRepo),
+            kicktippClientFactory: CreateMockKicktippClientFactory(mockKicktippClient));
+
+        var (exitCode, output) = await RunCommandAsync(
+            ctx.App, ctx.Console, "verify-matchday", "gpt-4o", "-c", "test-community");
+
+        await Assert.That(exitCode).IsEqualTo(1);
+        await Assert.That(output).Contains("Total matches: 2");
+        await Assert.That(output).Contains("Matches with Kicktipp predictions: 1");
+        await Assert.That(output).Contains("Matches with database predictions: 1");
+        await Assert.That(output).Contains("Matching predictions: 1");
     }
 
     [Test]

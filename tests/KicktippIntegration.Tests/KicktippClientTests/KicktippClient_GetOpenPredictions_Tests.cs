@@ -480,6 +480,38 @@ public class KicktippClient_GetOpenPredictions_Tests : KicktippClientTests_Base
     }
 
     [Test]
+    public async Task Getting_world_cup_open_predictions_distinguishes_matches_in_shared_finale_round()
+    {
+        var html = """
+            <!DOCTYPE html><html><body>
+            <input type="hidden" name="spieltagIndex" value="15" />
+            <div class="spieltagsauswahl"><div class="prevnextTitle"><a>Finale</a></div></div>
+            <table id="tippabgabeSpiele"><tbody>
+                <tr><td>18.07.26 23:00</td><td>France</td><td>England</td><td>
+                    <span class="kicktipp-spielabschnitt-markierung">n.E.</span>
+                    <input type="text" /><input type="text" />
+                </td></tr>
+                <tr><td>19.07.26 21:00</td><td>Spain</td><td>Argentina</td><td>
+                    <span class="kicktipp-spielabschnitt-markierung">n.E.</span>
+                    <input type="text" /><input type="text" />
+                </td></tr>
+            </tbody></table>
+            </body></html>
+            """;
+        StubHtmlResponse("/test-community/tippabgabe", html);
+        var client = CreateClient();
+
+        var matches = await client.GetOpenPredictionsAsync("test-community", CompetitionIds.FifaWorldCup2026);
+
+        var thirdPlaceData = matches.Single(match => match.HomeTeam == "France").CompetitionSpecificData
+            as FifaWorldCup2026MatchData;
+        var finalData = matches.Single(match => match.HomeTeam == "Spain").CompetitionSpecificData
+            as FifaWorldCup2026MatchData;
+        await Assert.That(thirdPlaceData!.Stage).IsEqualTo(FifaWorldCup2026KnockoutStage.ThirdPlacePlayoff);
+        await Assert.That(finalData!.Stage).IsEqualTo(FifaWorldCup2026KnockoutStage.Final);
+    }
+
+    [Test]
     public async Task Getting_generic_open_predictions_does_not_add_world_cup_data()
     {
         StubHtmlResponse("/test-community/tippabgabe", CreateKnockoutTippabgabe("Sechzehntelfinale", includeMarker: true));

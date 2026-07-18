@@ -93,6 +93,57 @@ public class KicktippClient_GetMatchesWithHistory_Tests : KicktippClientTests_Ba
         await Assert.That(data.ResultBasis)
             .IsEqualTo(FifaWorldCup2026ResultBasis.FinalScoreIncludingExtraTimeAndPenaltyShootout);
     }
+
+    [Test]
+    public async Task Getting_world_cup_match_history_distinguishes_matches_in_shared_finale_round()
+    {
+        var tippabgabeHtml = """
+            <!DOCTYPE html><html><body>
+            <input type="hidden" name="spieltagIndex" value="15" />
+            <div class="spieltagsauswahl"><div class="prevnextTitle"><a>Finale</a></div></div>
+            <a href="/test-community/spielinfo?tippspielId=1">Tippabgabe mit Spielinfos</a>
+            </body></html>
+            """;
+        var thirdPlaceHtml = """
+            <!DOCTYPE html><html><body>
+            <table class="tippabgabe"><tbody><tr>
+                <td>18.07.26 23:00</td><td>France</td><td>England</td><td>
+                    <span class="kicktipp-spielabschnitt-markierung">n.E.</span>
+                    <input type="text" /><input type="text" />
+                </td>
+            </tr></tbody></table>
+            <div class="prevnextNext"><a href="/test-community/spielinfo?tippspielId=2">Next</a></div>
+            </body></html>
+            """;
+        var finalHtml = """
+            <!DOCTYPE html><html><body>
+            <table class="tippabgabe"><tbody><tr>
+                <td>19.07.26 21:00</td><td>Spain</td><td>Argentina</td><td>
+                    <span class="kicktipp-spielabschnitt-markierung">n.E.</span>
+                    <input type="text" /><input type="text" />
+                </td>
+            </tr></tbody></table>
+            <div class="prevnextNext disabled"><a></a></div>
+            </body></html>
+            """;
+        StubHtmlResponse("/test-community/tippabgabe", tippabgabeHtml);
+        StubHtmlResponseWithParams(
+            "/test-community/spielinfo", thirdPlaceHtml, ("tippspielId", "1"));
+        StubHtmlResponseWithParams(
+            "/test-community/spielinfo", finalHtml, ("tippspielId", "2"));
+        var client = CreateClient();
+
+        var matches = await client.GetMatchesWithHistoryAsync(
+            "test-community", CompetitionIds.FifaWorldCup2026);
+
+        var thirdPlaceData = matches.Single(item => item.Match.HomeTeam == "France")
+            .Match.CompetitionSpecificData as FifaWorldCup2026MatchData;
+        var finalData = matches.Single(item => item.Match.HomeTeam == "Spain")
+            .Match.CompetitionSpecificData as FifaWorldCup2026MatchData;
+        await Assert.That(thirdPlaceData!.Stage).IsEqualTo(FifaWorldCup2026KnockoutStage.ThirdPlacePlayoff);
+        await Assert.That(finalData!.Stage).IsEqualTo(FifaWorldCup2026KnockoutStage.Final);
+    }
+
     [Test]
     public async Task Getting_matches_with_history_returns_empty_list_on_tippabgabe_404()
     {

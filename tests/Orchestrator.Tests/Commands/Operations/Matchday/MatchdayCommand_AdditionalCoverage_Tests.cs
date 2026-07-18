@@ -481,9 +481,10 @@ public class MatchdayCommand_AdditionalCoverage_Tests : MatchdayCommandTests_Bas
 
         var (exitCode, output) = await RunCommandAsync(ctx.App, ctx.Console, "matchday", "gpt-5-nano", "-c", "ehonda-dev-wm26");
 
-        await Assert.That(exitCode).IsEqualTo(0);
+        await Assert.That(exitCode).IsEqualTo(1);
         await Assert.That(output).Contains("Missing required WM26 context documents");
         await Assert.That(output).Contains("fifa-ranking-fcb.csv");
+        await Assert.That(output).Contains("match_processing_error");
         ctx.PredictionService.Verify(
             service => service.PredictMatchAsync(
                 It.IsAny<Match>(),

@@ -615,6 +615,11 @@ public class MatchdayCommand : AsyncCommand<BaseSettings>
                     }
                     else
                     {
+                        BlockMatch(
+                            blockedMatches,
+                            match,
+                            "prediction_generation_failed",
+                            "Prediction service returned no prediction");
                         _console.MarkupLine("[red]  ✗ Failed to generate prediction[/]");
                         continue;
                     }
@@ -631,6 +636,11 @@ public class MatchdayCommand : AsyncCommand<BaseSettings>
             }
             catch (Exception ex)
             {
+                BlockMatch(
+                    blockedMatches,
+                    match,
+                    "match_processing_error",
+                    ex.Message);
                 _logger.LogError(ex, "Error processing match {Match}", match);
                 _console.MarkupLine($"[red]  ✗ Error processing match: {ex.Message}[/]");
             }

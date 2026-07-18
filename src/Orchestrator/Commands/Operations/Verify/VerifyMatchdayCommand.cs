@@ -281,10 +281,11 @@ public class VerifyMatchdayCommand : AsyncCommand<VerifySettings>
 
     private static bool ComparePredictions(BetPrediction? kicktippPrediction, Prediction? databasePrediction)
     {
-        // Both null - match
+        // Every match returned by Kicktipp is open for predictions. Missing on both sides means
+        // prediction generation never completed, so verification must trigger the workflow again.
         if (kicktippPrediction == null && databasePrediction == null)
         {
-            return true;
+            return false;
         }
 
         // One null, other not - mismatch

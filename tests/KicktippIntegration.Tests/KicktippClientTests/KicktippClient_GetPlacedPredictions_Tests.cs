@@ -68,6 +68,40 @@ public class KicktippClient_GetPlacedPredictions_Tests : KicktippClientTests_Bas
         await Assert.That(data.ResultBasis)
             .IsEqualTo(FifaWorldCup2026ResultBasis.FinalScoreIncludingExtraTimeAndPenaltyShootout);
     }
+
+    [Test]
+    public async Task Getting_world_cup_placed_predictions_distinguishes_matches_in_shared_finale_round()
+    {
+        var html = """
+            <!DOCTYPE html><html><body>
+            <input type="hidden" name="spieltagIndex" value="15" />
+            <div class="spieltagsauswahl"><div class="prevnextTitle"><a>Finale</a></div></div>
+            <table id="tippabgabeSpiele"><tbody>
+                <tr><td>18.07.26 23:00</td><td>France</td><td>England</td><td>
+                    <span class="kicktipp-spielabschnitt-markierung">n.E.</span>
+                    <input type="text" value="" /><input type="text" value="" />
+                </td></tr>
+                <tr><td>19.07.26 21:00</td><td>Spain</td><td>Argentina</td><td>
+                    <span class="kicktipp-spielabschnitt-markierung">n.E.</span>
+                    <input type="text" value="2" /><input type="text" value="1" />
+                </td></tr>
+            </tbody></table>
+            </body></html>
+            """;
+        StubHtmlResponse("/test-community/tippabgabe", html);
+        var client = CreateClient();
+
+        var predictions = await client.GetPlacedPredictionsAsync(
+            "test-community", CompetitionIds.FifaWorldCup2026);
+
+        var thirdPlaceData = predictions.Keys.Single(match => match.HomeTeam == "France").CompetitionSpecificData
+            as FifaWorldCup2026MatchData;
+        var finalData = predictions.Keys.Single(match => match.HomeTeam == "Spain").CompetitionSpecificData
+            as FifaWorldCup2026MatchData;
+        await Assert.That(thirdPlaceData!.Stage).IsEqualTo(FifaWorldCup2026KnockoutStage.ThirdPlacePlayoff);
+        await Assert.That(finalData!.Stage).IsEqualTo(FifaWorldCup2026KnockoutStage.Final);
+    }
+
     [Test]
     public async Task Getting_placed_predictions_returns_empty_dictionary_on_404()
     {

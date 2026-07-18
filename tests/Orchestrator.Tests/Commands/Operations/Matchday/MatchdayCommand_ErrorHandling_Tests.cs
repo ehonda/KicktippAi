@@ -57,9 +57,10 @@ public class MatchdayCommand_ErrorHandling_Tests : MatchdayCommandTests_Base
 
         var (exitCode, output) = await RunCommandAsync(ctx.App, ctx.Console, "matchday", "gpt-4o", "-c", "test-community");
 
-        await Assert.That(exitCode).IsEqualTo(0);
+        await Assert.That(exitCode).IsEqualTo(1);
         await Assert.That(output).Contains("Error processing match:");
         await Assert.That(output).Contains("API error");
+        await Assert.That(output).Contains("match_processing_error");
     }
 
     [Test]
@@ -80,13 +81,22 @@ public class MatchdayCommand_ErrorHandling_Tests : MatchdayCommandTests_Base
             .Setup(s => s.GetMatchPromptPath(It.IsAny<bool>()))
             .Returns("prompts/test.md");
 
-        var ctx = CreateMatchdayCommandApp(openAiServiceFactory: CreateMockOpenAiServiceFactory(predictionService: mockPredictionService));
+        var matches = new List<MatchWithHistory>
+        {
+            CreateBayernVsDortmundMatchWithHistory(matchday: 25),
+            CreateBayernVsDortmundMatchWithHistory(matchday: 26)
+        };
+        var ctx = CreateMatchdayCommandApp(
+            matchesWithHistory: matches,
+            openAiServiceFactory: CreateMockOpenAiServiceFactory(predictionService: mockPredictionService));
 
         var (exitCode, output) = await RunCommandAsync(ctx.App, ctx.Console, "matchday", "gpt-4o", "-c", "test-community");
 
-        await Assert.That(exitCode).IsEqualTo(0);
+        await Assert.That(exitCode).IsEqualTo(1);
         await Assert.That(output).Contains("Error processing match:");
         await Assert.That(output).Contains("First match failed");
+        await Assert.That(output).Contains("Successfully placed all 1 predictions");
+        await Assert.That(output).Contains("Matchday completed with blocked matches");
     }
 
     [Test]

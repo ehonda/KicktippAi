@@ -208,6 +208,8 @@ public class KicktippClient : IKicktippClient, IDisposable
                 }
             }
 
+            matches = NormalizeWorldCupFinalRoundMatches(matches);
+
             _logger.LogInformation("Successfully parsed {MatchCount} open matches", matches.Count);
             return matches;
         }
@@ -891,6 +893,8 @@ public class KicktippClient : IKicktippClient, IDisposable
                     break;
                 }
             }
+
+            matches = NormalizeWorldCupFinalRoundMatches(matches);
 
             _logger.LogInformation("Successfully extracted {MatchCount} matches with history", matches.Count);
             
@@ -2308,7 +2312,9 @@ public class KicktippClient : IKicktippClient, IDisposable
                 }
             }
 
-            _logger.LogInformation("Successfully parsed {MatchCount} matches with {PlacedCount} placed predictions", 
+            placedPredictions = NormalizeWorldCupFinalRoundMatches(placedPredictions);
+
+            _logger.LogInformation("Successfully parsed {MatchCount} matches with {PlacedCount} placed predictions",
                 placedPredictions.Count, placedPredictions.Values.Count(p => p != null));
             return placedPredictions;
         }
@@ -2326,6 +2332,63 @@ public class KicktippClient : IKicktippClient, IDisposable
 
         var roundName = NormalizeWhitespace(roundElement?.TextContent);
         return string.IsNullOrWhiteSpace(roundName) ? null : roundName;
+    }
+
+    private static List<Match> NormalizeWorldCupFinalRoundMatches(List<Match> matches)
+    {
+        var finalRoundMatches = matches
+            .Select((match, index) => new { Match = match, Index = index })
+            .Where(item => item.Match.CompetitionSpecificData is FifaWorldCup2026MatchData
+            {
+                Stage: FifaWorldCup2026KnockoutStage.Final,
+                KicktippRoundName: not null
+            } data && data.KicktippRoundName.Equals("Finale", StringComparison.OrdinalIgnoreCase))
+            .ToList();
+
+        // Kicktipp groups the third-place playoff and final under the shared round name "Finale".
+        // When both are present, the earlier match is the third-place playoff.
+        if (finalRoundMatches.Count != 2)
+        {
+            return matches;
+        }
+
+        var thirdPlaceMatch = finalRoundMatches
+            .OrderBy(item => item.Match.StartsAt.ToInstant())
+            .ThenBy(item => item.Index)
+            .First();
+        var worldCupData = (FifaWorldCup2026MatchData)thirdPlaceMatch.Match.CompetitionSpecificData!;
+
+        var normalizedMatches = matches.ToList();
+        normalizedMatches[thirdPlaceMatch.Index] = thirdPlaceMatch.Match with
+        {
+            CompetitionSpecificData = worldCupData with
+            {
+                Stage = FifaWorldCup2026KnockoutStage.ThirdPlacePlayoff
+            }
+        };
+
+        return normalizedMatches;
+    }
+
+    private static List<MatchWithHistory> NormalizeWorldCupFinalRoundMatches(List<MatchWithHistory> matches)
+    {
+        var normalizedMatches = NormalizeWorldCupFinalRoundMatches(matches.Select(item => item.Match).ToList());
+        return matches
+            .Select((item, index) => item with { Match = normalizedMatches[index] })
+            .ToList();
+    }
+
+    private static Dictionary<Match, BetPrediction?> NormalizeWorldCupFinalRoundMatches(
+        Dictionary<Match, BetPrediction?> predictions)
+    {
+        var entries = predictions.ToList();
+        var normalizedMatches = NormalizeWorldCupFinalRoundMatches(entries.Select(entry => entry.Key).ToList());
+
+        return entries
+            .Select((entry, index) => new { Match = normalizedMatches[index], Prediction = entry.Value })
+            .ToDictionary(
+                entry => entry.Match,
+                entry => entry.Prediction);
     }
 
 
