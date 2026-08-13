@@ -1,0 +1,35 @@
+# Bundesliga 2026/27 planning instructions
+
+These instructions apply to every file and implementation task under this directory.
+
+## Read order
+
+1. Read this file.
+2. Read [README.md](README.md) for task order and dependencies.
+3. Read the task being implemented and every linked prerequisite ADR.
+4. Consult the readiness research only for background; accepted ADRs in this directory supersede research proposals.
+
+## Architecture decision records
+
+- Record every durable planning or implementation decision as an ADR under `decisions/`.
+- Create or update the ADR in the same change that makes the decision concrete. Do not leave a decision only in chat, a pull request, a task checkbox, or code comments.
+- Use [0000-template.md](decisions/0000-template.md). Number ADRs sequentially and use a short kebab-case title.
+- ADR status must be `Proposed`, `Accepted`, or `Superseded`. An accepted ADR is immutable apart from spelling or link corrections; replace it with a new ADR and mark the old one superseded when the decision changes.
+- Record context, the decision, considered alternatives, consequences, and affected tasks. Link the ADR from each affected task and from the decision index in [README.md](README.md).
+- Decisions that always require an ADR include competition/default behavior, storage identity, provider/source and reuse terms, prompt route, model configuration, context document contracts, community scope, refresh cadence, schedule activation, and launch-gate changes.
+- If implementation exposes an unrecorded choice, pause that part of the task, add an ADR, and then continue. Do not silently inherit a Bundesliga 2025/26 or WM26 choice.
+
+## Fixed scope
+
+- `bundesliga-2026-27` is the only live Bundesliga season supported by this plan.
+- Do not add compatibility work for Bundesliga 2025/26 workflows, prompts, defaults, or implicit document IDs. Existing historical data and experiment artifacts need not be migrated or deleted.
+- Transfer documents are not part of the Bundesliga 2026/27 match or bonus context contract. Club Elo rankings, current rosters, and squad summaries supersede them.
+- Transfermarkt/DuckDB data may still enrich authoritative roster membership. That enrichment does not justify creating transfer documents.
+- A future historical experiment must provide its competition, prompt, and context contract explicitly; it is outside this plan.
+
+## Task records
+
+- Keep each task's status, checklist, validation evidence, and ADR links current while implementing it.
+- Do not mark a task complete until every completion criterion and listed automated check passes, or a linked ADR explicitly changes the criterion.
+- Add newly discovered work as a small task with dependencies instead of expanding an existing task without bound.
+- The final execution step for every implementation task is to verify the exact Git target, commit the scoped changes intentionally, and push the explicit remote/branch according to the repository-level instructions.

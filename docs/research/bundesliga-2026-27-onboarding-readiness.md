@@ -4,6 +4,13 @@ Status: research and implementation proposal
 Date: 2026-08-13  
 Scope: repository changes and operating procedure needed to run KicktippAi agents for the 2026/27 Bundesliga season
 
+## Planning decisions recorded after the research
+
+The implementation plan in [`plans/bundesliga-2026-27`](../../plans/bundesliga-2026-27/README.md) records two accepted decisions that supersede parts of the original proposal below:
+
+- Bundesliga 2026/27 is the only live Bundesliga season in scope. The implementation does not need to preserve 2025/26 workflows, prompt routing, defaults, or implicit storage behavior. Existing historical data may remain, and a future historical experiment can provide its own explicit setup.
+- Transfer documents will not be kept. Club Elo rankings, current rosters, and squad summaries supersede them in match and bonus context. Transfermarkt/DuckDB remains usable as roster enrichment, not as a transfer-document source.
+
 ## Executive summary
 
 KicktippAi can be prepared for Bundesliga 2026/27 without redesigning the prediction pipeline, but it is not currently safe to point the old Bundesliga workflows at the new season. The repository still treats `bundesliga-2025-26` as the default Bundesliga competition, the local Bundesliga prompts name the 2025/26 season, the old community workflows are disabled, and one match-completion rule recognizes only the old competition ID.
@@ -35,7 +42,7 @@ These names should not be copied directly into code as the final identifiers. Th
 
 ## What is reusable now
 
-The ordinary Bundesliga match context already has the right conceptual shape in [`MatchContextDocumentCatalog`](../../src/Core/MatchContextDocumentCatalog.cs): standings, rules, recent team history, home/away history, and head-to-head history are required; transfer documents are optional. These are still useful and should remain. Unlike World Cup prediction, Bundesliga should retain the home/away and head-to-head context.
+The ordinary Bundesliga match context already has useful standings, rules, recent team history, home/away history, and head-to-head history in [`MatchContextDocumentCatalog`](../../src/Core/MatchContextDocumentCatalog.cs). These should remain. The optional transfer-document branch should be removed and superseded by required Club Elo and roster documents. Unlike World Cup prediction, Bundesliga should retain the home/away and head-to-head context.
 
 The storage layer is also largely ready for a new season. Repository document IDs are legacy/unscoped only for `bundesliga-2025-26`; an explicit `bundesliga-2026-27` argument will create competition-scoped documents. That is desirable because it prevents the new season from silently reusing 2025/26 matches, contexts, predictions, or KPIs.
 
@@ -57,15 +64,15 @@ The existing whole-season analysis also provides an initial budget frame: a Bund
 
 [`CompetitionIds`](../../src/Core/CompetitionIds.cs) contains `bundesliga-2025-26` and `fifa-world-cup-2026`, but no 2026/27 ID. [`CompetitionResolver`](../../src/Orchestrator/Infrastructure/CompetitionResolver.cs) consequently defaults every non-WM26 community to 2025/26. The new constant should be `bundesliga-2026-27`, and every new workflow should pass it explicitly even after the default is advanced.
 
-The existing legacy mapping must remain unchanged: `bundesliga-2025-26` may still map to the historical unprefixed document scheme, whereas `bundesliga-2026-27` must remain explicit. This preserves reproducibility of old data while isolating the new season.
+The implementation does not need to preserve the `bundesliga-2025-26` unprefixed mapping as a live path. `bundesliga-2026-27` must always use explicit competition-scoped identity. Existing historical data does not need to be migrated or deleted.
 
-A wider search finds additional 2025/26 fallbacks in the Firebase repository constructors/factory, [`KicktippContextProvider`](../../src/ContextProviders.Kicktipp/KicktippContextProvider.cs), and [`KicktippSeasonMetadata`](../../src/Orchestrator/Infrastructure/KicktippSeasonMetadata.cs). Production composition should stop relying on these optional defaults and propagate the resolved competition explicitly. Do not mechanically replace every literal: the defaults in [`FirestoreModels`](../../src/FirebaseAdapter/Models/FirestoreModels.cs) may be intentional compatibility behavior for legacy documents that lack a competition field, and the observability examples/datasets are historical 2025/26 artifacts. Classify each occurrence as current default, legacy-read compatibility, or historical fixture and add tests around that distinction.
+A wider search finds additional 2025/26 fallbacks in the Firebase repository constructors/factory, [`KicktippContextProvider`](../../src/ContextProviders.Kicktipp/KicktippContextProvider.cs), and [`KicktippSeasonMetadata`](../../src/Orchestrator/Infrastructure/KicktippSeasonMetadata.cs). Production composition should stop relying on these optional defaults and propagate the resolved competition explicitly. Do not mechanically rewrite immutable historical evidence, but do remove live fallbacks. Historical observability fixtures may remain when they test generic parsing; preserving old runtime behavior is not an acceptance criterion.
 
-[`FirebaseMatchOutcomeRepository`](../../src/FirebaseAdapter/FirebaseMatchOutcomeRepository.cs) applies the “nine completed matches” rule only when the competition equals `Bundesliga2025_26`. A new Bundesliga competition would therefore consider a partially populated matchday complete as soon as all records currently present are complete. Replace the single-ID comparison with competition metadata or an `IsBundesliga`/expected-match-count rule that covers both seasons.
+[`FirebaseMatchOutcomeRepository`](../../src/FirebaseAdapter/FirebaseMatchOutcomeRepository.cs) applies the “nine completed matches” rule only when the competition equals `Bundesliga2025_26`. A new Bundesliga competition would therefore consider a partially populated matchday complete as soon as all records currently present are complete. Replace the single-ID comparison with expected-match-count metadata for the 2026/27 profile; preserving the old season's runtime branch is not required.
 
 ### Prompts and model configuration
 
-The local Bundesliga prompts in [`prompts/o3`](../../prompts/o3) and [`prompts/gpt-5`](../../prompts/gpt-5) name the 2025/26 season. They must not be used unchanged. Prefer a versioned 2026/27 prompt or a competition-aware prompt route, rather than overwriting paths needed to reproduce old experiments. The production workflow must record an exact model and reasoning level; a floating or implicit default is insufficient for cost tracking and trace diagnosis.
+The local Bundesliga prompts in [`prompts/o3`](../../prompts/o3) and [`prompts/gpt-5`](../../prompts/gpt-5) name the 2025/26 season. They must not be used unchanged. Select an explicit 2026/27 prompt route; preserving a live 2025/26 prompt path is not required. A future historical experiment can provide its own prompt explicitly. The production workflow must record an exact model and reasoning level; a floating or implicit default is insufficient for cost tracking and trace diagnosis.
 
 WM26 gets special hosted-prompt behavior from the resolver. Bundesliga currently uses the local route. Either is workable, but the choice should be explicit and tested before onboarding communities.
 
@@ -146,7 +153,7 @@ Team,Data_Collected_At,Role,Name,Age,Position,Market_Value_EUR
 
 Name these documents `roster-{slug}.csv`, with an aggregate `team-rosters` KPI document. Keep the WM26 `lineup-*` contract intact for historical behavior. Add a compact derived `team-squad-summary` KPI with team, coach, squad size, valued-player count, total and median market value, average age, and collection date. The summary is more appropriate than all full rosters for broad bonus questions.
 
-The existing transfer table can later generate the optional `{team}-transfers.csv` documents, provided direction, season, loan returns, future-effective dates, and unknown fees are represented correctly. It is useful P1 automation, not a roster substitute or launch blocker.
+Do not generate `{team}-transfers.csv` documents. The roster documents and squad summary are the source of current membership and composition context, while Club Elo supplies the independent strength signal. The transfer table may be queried only when it helps enrich or review roster membership; it is not a prompt-document contract.
 
 ## Recommended Bundesliga context profile
 
@@ -160,14 +167,14 @@ For a match between two Bundesliga teams, require:
 - one Club Elo snapshot per team;
 - one current roster document per team.
 
-Keep transfer documents optional initially. At the beginning of the season, when standings contain little or no signal, Elo and roster context are especially important.
+Exclude transfer documents. At the beginning of the season, when standings contain little or no signal, Elo and roster context provide the intended replacement signal.
 
 For bonus questions, choose from aggregate documents by question type:
 
 - champion, relegation, and placement questions: `club-elo-rankings`, standings when meaningful, `team-squad-summary`, and relevant team/manager data;
 - top scorer: compact summary plus targeted rosters, not necessarily all rosters for every other question;
 - coach questions: refreshed manager data with a collected-at date;
-- transfer questions: aggregate transfer data only after its completeness checks pass.
+- questions about squad changes: current roster and squad-summary data; do not add a separate aggregate transfer document.
 
 The document catalog should express this policy instead of hiding it in prompt text or provider conditionals.
 
@@ -194,7 +201,7 @@ The Bundesliga 2026/27 profile should specify:
 
 - `competition = bundesliga-2026-27`;
 - 18 teams, 34 matchdays, nine matches per matchday, 306 matches total;
-- Kicktipp, Club Elo, and roster collectors; transfer collection optional;
+- Kicktipp, Club Elo, and roster collectors; no transfer-document collector;
 - no FIFA collector, no final-national-squad logic, no WM26 played-date map, and no knockout-stage behavior;
 - Bundesliga home/away/head-to-head context enabled;
 - the 2026/27 prompt/model ledger and whole-season cost estimate;
@@ -206,20 +213,19 @@ The WM26 skill can remain as a thin specialized entry point for final FIFA squad
 
 ### P0: required before the first production prediction
 
-1. **Add competition metadata.** Introduce `Bundesliga2026_27`, update current/default resolution deliberately, pass the ID explicitly everywhere, classify remaining 2025/26 fallbacks as legacy or historical, and add expected match count and season dates as metadata rather than scattered comparisons.
-2. **Fix completion semantics.** Make all Bundesliga seasons require nine completed matches before a matchday is complete.
+1. **Add competition metadata.** Introduce `Bundesliga2026_27`, make it the live Bundesliga default, pass the ID explicitly everywhere, remove live 2025/26 fallbacks, and add expected match count and season dates as metadata rather than scattered comparisons. Immutable historical evidence may remain, but old runtime compatibility is not required.
+2. **Fix completion semantics.** Make the 2026/27 Bundesliga profile require nine completed matches before a matchday is complete.
 3. **Create the team manifest.** Record all 18 exact Kicktipp names and mappings for slugs, official sources, Club Elo, and Transfermarkt. Test uniqueness and total coverage.
 4. **Version the prompts and model configuration.** Add/select Bundesliga 2026/27 match and bonus prompts and record the exact production model plus reasoning level.
 5. **Generalize roster collection.** Retain the seed-plus-enrichment architecture, create an authoritative 18-team roster seed, emit `roster-*`, `team-rosters`, and `team-squad-summary`, and enforce coverage reporting.
 6. **Add Club Elo collection.** Map all 18 teams, capture a source-dated snapshot, emit per-team and aggregate documents, and preserve last-known-good data on partial upstream failure.
-7. **Make context profiles explicit.** Update the catalog, KPI routing, development collection, and base context workflow so Bundesliga selects its own collectors and document policy.
+7. **Make context profiles explicit and retire transfers.** Update the catalog, KPI routing, development collection, and base context workflow so Bundesliga selects its own collectors and document policy; remove transfer-document selection/upload paths.
 8. **Create community workflows.** Add the explicit competition to the context/matchday/bonus triad for every chosen community. Keep schedules disabled for the first run.
 9. **Seed and validate.** Collect rules and season data into the new Firestore partition; verify no 2025/26 or WM26 fallback; run one development matchday and bonus cycle; inspect traces and rendered CSV documents.
 10. **Activate safely.** Run production workflows manually once, confirm Kicktipp writes and model/cost metadata, then enable schedules before the first prediction cutoff.
 
 ### P1: valuable after launch safety is established
 
-- derive transfer context from DuckDB with transfer-window semantics and completeness checks;
 - replace or refresh manual `team-data` and manager-data artifacts;
 - add question-aware KPI selection to control roster token cost;
 - make the generic onboarding skill and competition profiles first-class repository tooling;
@@ -237,6 +243,7 @@ The implementation is ready only when all of the following are true:
 - the roster quality report covers all 18 clubs and clearly reports every unmatched enrichment row;
 - Club Elo collection rejects partial mappings and retains the previous complete snapshot;
 - a match trace contains standings, rules, histories, both Elo rows, and both roster documents;
+- no live match, bonus, upload, or workflow path selects or creates transfer documents;
 - bonus traces receive only the aggregate/targeted context appropriate to each question;
 - every generated CSV starts with its header, has deterministic rows, CRLF line endings, and a final line terminator;
 - the selected prompt says 2026/27 and the trace records the intended model and reasoning level;
@@ -250,6 +257,7 @@ The implementation is ready only when all of the following are true:
 |---|---|
 | Competition identity/defaults | [`CompetitionIds.cs`](../../src/Core/CompetitionIds.cs), [`CompetitionResolver.cs`](../../src/Orchestrator/Infrastructure/CompetitionResolver.cs), [`KicktippSeasonMetadata.cs`](../../src/Orchestrator/Infrastructure/KicktippSeasonMetadata.cs), Firebase factories/repository constructors, and [`KicktippContextProvider.cs`](../../src/ContextProviders.Kicktipp/KicktippContextProvider.cs) |
 | Context policy and team aliases | [`MatchContextDocumentCatalog.cs`](../../src/Core/MatchContextDocumentCatalog.cs), new Bundesliga manifest under `data/` |
+| Transfer-document retirement | [`MatchContextDocumentCatalog.cs`](../../src/Core/MatchContextDocumentCatalog.cs), transfer upload utility/registration, and transfer-specific retrieval tests |
 | Roster collector | Generalize [`CollectContextLineupsCommand.cs`](../../src/Orchestrator/Commands/Operations/CollectContext/CollectContextLineupsCommand.cs) and [`Wm26LineupSource.cs`](../../src/Orchestrator/Commands/Operations/CollectContext/Wm26LineupSource.cs), while preserving WM26 entry points |
 | Club strength collector | New provider/command beside [`FifaRankingSource.cs`](../../src/Orchestrator/Commands/Operations/CollectContext/FifaRankingSource.cs) and [`CollectContextFifaCommand.cs`](../../src/Orchestrator/Commands/Operations/CollectContext/CollectContextFifaCommand.cs) |
 | Development orchestration | [`CollectContextDevCommand.cs`](../../src/Orchestrator/Commands/Operations/Dev/CollectContextDevCommand.cs) |
