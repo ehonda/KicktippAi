@@ -2,11 +2,7 @@ name: 🏆 WM26 ehonda-ai-arena 🏆 Context Collection
 
 on:
   workflow_call:
-  # WM26 cadence: refresh before each prediction window.
-  # GitHub Actions cron runs in UTC only.
-  schedule:
-    - cron: '47 23,6,11 * * *'
-  workflow_dispatch:
+  # Deactivated after the 2026 World Cup; retain workflow_call for reuse.
 
 jobs:
   call-base-workflow:

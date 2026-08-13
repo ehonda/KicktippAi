@@ -2,22 +2,7 @@ name: 🏆 WM26 ehonda-ai-arena 🏆 o3 high 🏆 Matchday
 
 on:
   workflow_call:
-  # WM26 slower secondary copy-posting cadence.
-  # GitHub Actions cron runs in UTC only.
-  schedule:
-    - cron: '47 1,8,13 * * *'
-  workflow_dispatch:
-    inputs:
-      force_prediction:
-        description: 'Force prediction even if verify passes'
-        required: false
-        default: false
-        type: boolean
-      max_repredictions:
-        description: 'Maximum number of repredictions allowed (0-based index)'
-        required: false
-        default: 2
-        type: number
+  # Deactivated after the 2026 World Cup; retain workflow_call for reuse.
 
 jobs:
   call-base-workflow:

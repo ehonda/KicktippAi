@@ -2,22 +2,7 @@ name: 🏆 WM26 ehonda-ai-arena 🏆 gpt-5.5 none 🏆 Matchday
 
 on:
   workflow_call:
-  # WM26 main matchday cadence for this self-contained onboarding workflow.
-  # GitHub Actions cron runs in UTC only.
-  schedule:
-    - cron: '37 0,7,12 * * *'
-  workflow_dispatch:
-    inputs:
-      force_prediction:
-        description: 'Force prediction even if verify passes'
-        required: false
-        default: false
-        type: boolean
-      max_repredictions:
-        description: 'Maximum number of repredictions allowed (0-based index)'
-        required: false
-        default: 2
-        type: number
+  # Deactivated after the 2026 World Cup; retain workflow_call for reuse.
 
 jobs:
   call-base-workflow:
