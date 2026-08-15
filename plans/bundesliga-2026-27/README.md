@@ -4,6 +4,8 @@ This directory decomposes the P0 and P1 proposals in [the readiness research](..
 
 P0 ends with a manually verified production run and deliberately enabled schedules. P1 improves maintainability, freshness, context efficiency, experiment tooling, and cost evidence after launch safety is established.
 
+The draft [execution strategy](execution-strategy.md) describes the proposed gated orchestration, conservative worktree parallelism, Git integration options, ChatGPT Pro usage discipline, and the decision/manual-step register that must be resolved before implementation orchestration begins.
+
 ## Accepted direction
 
 - Bundesliga 2026/27 is the only live Bundesliga runtime target in scope. We are not preserving 2025/26 workflows, prompt routes, defaults, or implicit storage behavior.
