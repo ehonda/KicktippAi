@@ -1,8 +1,8 @@
-# P0-16 — Add Bundesliga support to reusable workflows
+# P0-18 — Add Bundesliga support to reusable workflows
 
 - Status: Not started
 - Priority: P0
-- Depends on: [P0-14](p0-14-profile-driven-collection.md), [P0-15](p0-15-community-scope.md)
+- Depends on: [P0-14](p0-14-profile-driven-collection.md), [P0-17](p0-17-community-scope.md)
 
 ## Outcome
 

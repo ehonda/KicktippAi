@@ -2,7 +2,7 @@
 
 - Status: Not started
 - Priority: P1
-- Depends on: [P1-02](p1-02-question-aware-context.md), [P1-04](p1-04-club-elo-refresh.md), [P1-05](p1-05-roster-refresh.md)
+- Depends on: [P0-16](p0-16-question-aware-bonus-context.md), [P1-04](p1-04-club-elo-refresh.md), [P1-05](p1-05-roster-refresh.md)
 
 ## Outcome
 

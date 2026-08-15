@@ -1,12 +1,13 @@
-# P1-02 — Add question-aware context budgeting
+# P0-16 — Add question-aware bonus context budgeting
 
 - Status: Not started
-- Priority: P1
-- Depends on: [P0-13](p0-13-bonus-context-baseline.md), [P0-19](p0-19-production-activation.md)
+- Priority: P0
+- Depends on: [P0-13](p0-13-bonus-context-baseline.md), [P0-15](p0-15-context-document-hygiene.md)
+- Decision: [ADR-0007](../decisions/0007-require-context-hygiene-before-launch.md)
 
 ## Outcome
 
-Bonus context selection is explicit by question category, explainable in traces, and bounded so full roster data is loaded only when it adds signal.
+Before the one-time pre-season bonus predictions are generated, bonus context selection is explicit by question category, explainable in traces, and bounded so full roster data is loaded only when it adds signal.
 
 ## Work items
 
@@ -28,3 +29,4 @@ Bonus context selection is explicit by question category, explainable in traces,
 - Every supported category has deterministic tests and trace-visible routing.
 - Unknown questions remain useful without loading all rosters.
 - The fixed-set context footprint is no larger than P0 without an accepted quality reason.
+- This task is complete before any production bonus workflow can run.

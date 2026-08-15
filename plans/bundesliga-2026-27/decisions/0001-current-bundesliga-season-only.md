@@ -33,7 +33,7 @@ A future historical experiment must explicitly provide its competition, prompt, 
 - [P0-01](../tasks/p0-01-current-competition.md)
 - [P0-02](../tasks/p0-02-competition-scoped-storage.md)
 - [P0-05](../tasks/p0-05-prompt-route.md)
-- [P0-17](../tasks/p0-17-community-workflow-triad.md)
+- [P0-19](../tasks/p0-19-community-workflow-triad.md)
 - [P1-06](../tasks/p1-06-observability-datasets.md)
 
 ## Supersedes

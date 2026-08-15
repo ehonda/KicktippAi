@@ -24,8 +24,16 @@ These instructions apply to every file and implementation task under this direct
 - `bundesliga-2026-27` is the only live Bundesliga season supported by this plan.
 - Do not add compatibility work for Bundesliga 2025/26 workflows, prompts, defaults, or implicit document IDs. Existing historical data and experiment artifacts need not be migrated or deleted.
 - Transfer documents are not part of the Bundesliga 2026/27 match or bonus context contract. Club Elo rankings, current rosters, and squad summaries supersede them.
-- Transfermarkt/DuckDB data may still enrich authoritative roster membership. That enrichment does not justify creating transfer documents.
+- DuckDB is the primary roster-membership source per club only when it explicitly represents 2026/27 and passes the gates in [ADR-0003](decisions/0003-duckdb-primary-rosters-with-fallback.md). Otherwise use the complete source-dated fallback or last-known-good membership. DuckDB also provides safe enrichment; this does not justify creating transfer documents.
 - A future historical experiment must provide its competition, prompt, and context contract explicitly; it is outside this plan.
+
+## Validation and activation safety
+
+- Agents may autonomously write to `ehonda-dev-buli-2627` using only `gpt-5.6-luna` with `none` reasoning and a pinned output cap. Treat this as plumbing validation, never as prediction-quality evidence.
+- After its configured participant and credentials are available, the same Luna/none path may be validated in `ehonda-ai-arena` through local CLI, `workflow_dispatch`, and an arena-only schedule. Inspect Kicktipp writes, Firestore state, Langfuse traces, and workflow ordering at each stage.
+- Never promote the validation model to production. The project owner controls the final model/prompt/cost decision, Club Elo unattended-network decision, and final schedule activation.
+- Load community-specific sibling `.env.<community>` credentials for local writes without printing values or replacing the base development `.env`.
+- Production bonus and match predictions for `pes-squad`, `schadensfresse`, and `ehonda-ai-arena` remain manual-only until P0-21 passes. See [ADR-0005](decisions/0005-launch-community-and-prediction-topology.md) and [ADR-0006](decisions/0006-stage-validation-with-a-cheap-test-model.md).
 
 ## Task records
 

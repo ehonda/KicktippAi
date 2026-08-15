@@ -2,7 +2,7 @@
 
 - Status: Not started
 - Priority: P1
-- Depends on: [P0-12](p0-12-match-context-and-transfer-retirement.md), [P0-19](p0-19-production-activation.md)
+- Depends on: [P0-12](p0-12-match-context-and-transfer-retirement.md), [P0-21](p0-21-production-activation.md)
 - Decision: [ADR-0001](../decisions/0001-current-bundesliga-season-only.md)
 
 ## Outcome

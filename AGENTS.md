@@ -70,7 +70,15 @@ The initial Langfuse integration is complete. Treat the active repository docs a
 - Use `.agents/skills/langfuse-experiments/` for KicktippAi-specific experiment orchestration, statistical report generation, Pages verification, and commit/push workflow.
 - Read `plans/langfuse-integration/phase-2/AGENTS.md` and linked trackers only when researching historical implementation decisions or changing experiment behavior.
 
-The hosted Langfuse prompt route is still a POC and remains opt-in for experiment runs. Production and default local experiment runs keep using file-based prompts.
+Hosted Langfuse prompts are an established runtime path, not merely a POC. WM26 used hosted prompts as primary with checked-in files as the outage/first-fetch fallback, and Bundesliga 2026/27 follows the same pattern. Competition configuration and its accepted ADR determine the prompt names and labels; scheduled production must use an explicitly promoted version rather than a floating `latest` label.
+
+## Prediction Validation Safety
+
+- Agents may autonomously write test predictions to `ehonda-dev-buli-2627` only with `gpt-5.6-luna`, reasoning effort `none`, and an explicitly pinned output cap. Prediction quality is irrelevant in this community; use it only to validate plumbing.
+- The same Luna/none participant in `ehonda-ai-arena` is authorized for the Bundesliga validation ladder: local CLI, `workflow_dispatch`, then an arena-only schedule with result, Firestore, Langfuse, and ordering inspection.
+- Never silently promote the Luna/none validation configuration to production. The project owner selects and approves the final production model, reasoning effort, output cap, prompt versions, cost ceiling, and arena challenger matrix.
+- For local community writes, load the matching sibling `.env.<community>` credentials where available. Do not swap or overwrite the base development `.env`, and never print secret values while inspecting configuration.
+- Final production schedules remain disabled until the Bundesliga activation task's manual evidence and owner-controlled decisions pass. See [the Bundesliga execution strategy](plans/bundesliga-2026-27/execution-strategy.md), [ADR-0005](plans/bundesliga-2026-27/decisions/0005-launch-community-and-prediction-topology.md), and [ADR-0006](plans/bundesliga-2026-27/decisions/0006-stage-validation-with-a-cheap-test-model.md).
 
 ## Python Tooling
 

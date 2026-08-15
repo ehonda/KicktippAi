@@ -3,7 +3,7 @@
 - Status: Not started
 - Priority: P0
 - Depends on: [P0-04](p0-04-team-manifest.md)
-- Decision: [ADR-0002](../decisions/0002-supersede-transfer-documents.md)
+- Decision: [ADR-0003](../decisions/0003-duckdb-primary-rosters-with-fallback.md)
 
 ## Outcome
 
@@ -11,13 +11,14 @@ Roster membership, enrichment, per-team documents, aggregate documents, summarie
 
 ## Work items
 
-- [ ] Define the authoritative membership seed schema, including team slug, role, player/coach name, stable IDs when known, source URL, and membership-as-of date.
+- [ ] Define the complete fallback membership-seed schema, including team slug, role, player/coach name, stable IDs when known, source URL, and membership-as-of date.
 - [ ] Lock the per-team `roster-{slug}.csv` header and sort order.
 - [ ] Lock the `team-rosters` aggregate and compact `team-squad-summary` schemas.
 - [ ] Define `N/A` handling for missing supplemental enrichment and forbid `0` as an unknown value.
-- [ ] Define quality gates: 18 teams, unique member identity within a team, plausible squad counts, one coach policy, unmatched enrichment reporting, and no missing authoritative membership.
+- [ ] Define per-club DuckDB takeover gates: explicit 2026/27 season identity, manifest identity, unique member identity, plausible squad counts, coach policy, completeness, and actionable enrichment diagnostics.
+- [ ] Define deterministic per-club source selection and provenance between DuckDB, fallback seed, and last-known-good membership.
 - [ ] Define freshness, last-known-good, and atomic publication behavior.
-- [ ] Record source/reuse and automatic-versus-reviewed membership decisions in ADRs.
+- [ ] Implement the automatic-versus-fallback decision from ADR-0003 without requiring routine human roster approval.
 - [ ] Add contract fixtures/tests before implementing the collector.
 
 ## Validation

@@ -1,29 +1,30 @@
-# P1-05 — Review and publish roster membership changes
+# P1-05 — Refresh quality-gated DuckDB roster membership
 
 - Status: Not started
 - Priority: P1
-- Depends on: [P0-19](p0-19-production-activation.md)
+- Depends on: [P0-21](p0-21-production-activation.md)
+- Decision: [ADR-0003](../decisions/0003-duckdb-primary-rosters-with-fallback.md)
 
 ## Outcome
 
-Roster changes are detected, reviewed, and published without treating an enrichment database as membership truth.
+Roster changes are detected and published from current-season DuckDB membership per club when strict quality gates pass, while fallback or last-known-good membership remains active for incomplete clubs.
 
 ## Work items
 
-- [ ] Choose transfer-window and in-season review cadence, source process, approvers, and emergency-change behavior; record them in an ADR.
-- [ ] Build a deterministic diff between the checked-in authoritative seed and newly proposed membership.
+- [ ] Choose transfer-window and in-season refresh cadence, source process, alert ownership, and emergency-change behavior; record them in an ADR.
+- [ ] Build a deterministic per-club diff between fallback/last-known-good membership and proposed DuckDB membership.
 - [ ] Classify additions, departures, team changes, coach changes, source changes, and enrichment-only changes.
-- [ ] Require human approval for membership changes unless an ADR accepts a source for automatic publication.
-- [ ] Re-run all 18-team quality gates and publish roster documents atomically after acceptance.
-- [ ] Keep DuckDB enrichment refresh separable from membership edits.
+- [ ] Automatically accept a club only when DuckDB explicitly represents 2026/27 and passes identity, plausible-count, duplicate, coach, and completeness gates.
+- [ ] Reject suspicious or partial club changes, retain last-known-good membership, and emit an actionable alert rather than silently publishing.
+- [ ] Re-run all 18-team quality gates and publish the complete document set atomically after per-club source selection.
 - [ ] Add tests for loans, duplicate membership, renamed players, unmatched IDs, coach changes, and rejected diffs.
 
 ## Validation
 
-- Exercise one synthetic membership addition, departure, and enrichment-only update through dry-run/review/publish.
+- Exercise one synthetic membership addition, departure, automatic valid takeover, rejected partial update, and enrichment-only update through dry-run/publish.
 - Confirm rejected changes leave the last-known-good documents active.
 
 ## Complete when
 
-- Every membership change has a reviewed diff and updated provenance.
-- Scheduled or automated enrichment cannot silently move a player between clubs.
+- Every membership change has a deterministic diff and updated provenance.
+- A valid current-season DuckDB club can take over automatically; an invalid club cannot displace fallback or last-known-good membership.

@@ -3,7 +3,7 @@
 - Status: Not started
 - Priority: P0
 - Depends on: [P0-09](p0-09-roster-collector.md), [P0-11](p0-11-club-elo-collector.md)
-- Decision: [ADR-0002](../decisions/0002-supersede-transfer-documents.md)
+- Decisions: [ADR-0003](../decisions/0003-duckdb-primary-rosters-with-fallback.md), [ADR-0007](../decisions/0007-require-context-hygiene-before-launch.md)
 
 ## Outcome
 

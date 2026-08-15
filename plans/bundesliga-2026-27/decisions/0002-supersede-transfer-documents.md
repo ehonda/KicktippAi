@@ -1,6 +1,6 @@
 # ADR-0002: Supersede transfer documents with Elo and roster context
 
-- Status: Accepted
+- Status: Superseded
 - Date: 2026-08-13
 
 ## Context
@@ -40,3 +40,5 @@ Existing historical transfer documents in Firestore do not need to be deleted. A
 ## Supersedes
 
 The optional transfer-document and P1 transfer-automation recommendations in the readiness research.
+
+Superseded by [ADR-0003](0003-duckdb-primary-rosters-with-fallback.md), which retains transfer-document retirement while replacing the roster-source policy.
