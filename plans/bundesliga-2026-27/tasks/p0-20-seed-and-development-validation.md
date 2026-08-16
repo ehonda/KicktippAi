@@ -3,7 +3,7 @@
 - Status: Not started
 - Priority: P0
 - Depends on: P0-02 through P0-18 and the Luna/none development/arena entrypoints copied from P0-19; final production P0-19 copies may remain gated on P0-06
-- Decision: [ADR-0006](../decisions/0006-stage-validation-with-a-cheap-test-model.md)
+- Decisions: [ADR-0006](../decisions/0006-stage-validation-with-a-cheap-test-model.md), [ADR-0012](../decisions/0012-competition-aware-matchday-completion.md)
 
 ## Outcome
 

@@ -40,9 +40,10 @@ public class MatchOutcomeCollectionService
         string competition,
         CancellationToken cancellationToken = default)
     {
-        var kicktippClient = _kicktippClientFactory.CreateClient();
         ArgumentException.ThrowIfNullOrWhiteSpace(competition);
-        var matchOutcomeRepository = _firebaseServiceFactory.CreateMatchOutcomeRepository(competition);
+        var completionPolicy = CompetitionMatchdayCompletionPolicies.Get(competition);
+        var kicktippClient = _kicktippClientFactory.CreateClient();
+        var matchOutcomeRepository = _firebaseServiceFactory.CreateMatchOutcomeRepository(completionPolicy.Competition);
 
         var currentMatchday = await kicktippClient.GetCurrentTippuebersichtMatchdayAsync(communityContext);
         var incompleteMatchdays = await matchOutcomeRepository.GetIncompleteMatchdaysAsync(

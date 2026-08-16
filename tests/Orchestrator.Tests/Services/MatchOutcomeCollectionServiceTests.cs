@@ -148,6 +148,28 @@ public class MatchOutcomeCollectionServiceTests
             Times.Never);
     }
 
+    [Test]
+    public async Task Unknown_competition_fails_before_creating_clients_or_repositories()
+    {
+        var kicktippClientFactory = new Mock<IKicktippClientFactory>();
+        var firebaseServiceFactory = new Mock<IFirebaseServiceFactory>();
+        var service = new MatchOutcomeCollectionService(
+            firebaseServiceFactory.Object,
+            kicktippClientFactory.Object,
+            new FakeLogger<MatchOutcomeCollectionService>());
+
+        await Assert.That(async () => await service.CollectAsync(
+                "test-community",
+                dryRun: true,
+                competition: "unknown-competition"))
+            .Throws<NotSupportedException>();
+
+        kicktippClientFactory.Verify(factory => factory.CreateClient(), Times.Never);
+        firebaseServiceFactory.Verify(
+            factory => factory.CreateMatchOutcomeRepository(It.IsAny<string>()),
+            Times.Never);
+    }
+
     private static MatchOutcomeCollectionService CreateService(
         Mock<IKicktippClient> client,
         Mock<IMatchOutcomeRepository> outcomeRepository)

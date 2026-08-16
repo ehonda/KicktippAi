@@ -12,10 +12,8 @@ public class FirebaseMatchOutcomeRepository_GetIncompleteMatchdaysAsync_Tests(Fi
     [Test]
     public async Task GetIncompleteMatchdaysAsync_returns_missing_and_pending_matchdays_up_to_current_matchday()
     {
-        // P0-03 will extend the fixed nine-match contract to Bundesliga 2026/27.
-        // Keep this existing completion test on the competition for which that contract currently exists.
         var repository = CreateRepository(
-            competition: NullableOption.Some(CompetitionIds.Bundesliga2025_26));
+            competition: NullableOption.Some(CompetitionIds.Bundesliga2026_27));
 
         foreach (var matchIndex in Enumerable.Range(1, 9))
         {

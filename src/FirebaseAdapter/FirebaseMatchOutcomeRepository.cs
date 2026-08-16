@@ -8,12 +8,11 @@ namespace FirebaseAdapter;
 
 public class FirebaseMatchOutcomeRepository : IMatchOutcomeRepository
 {
-    private const int ExpectedMatchesPerMatchday = 9;
-
     private readonly FirestoreDb _firestoreDb;
     private readonly ILogger<FirebaseMatchOutcomeRepository> _logger;
     private readonly string _matchOutcomesCollection;
     private readonly string _competition;
+    private readonly CompetitionMatchdayCompletionPolicy _matchdayCompletionPolicy;
 
     public FirebaseMatchOutcomeRepository(
         FirestoreDb firestoreDb,
@@ -25,6 +24,7 @@ public class FirebaseMatchOutcomeRepository : IMatchOutcomeRepository
         _matchOutcomesCollection = "match-outcomes";
         ArgumentException.ThrowIfNullOrWhiteSpace(competition);
         _competition = competition.Trim();
+        _matchdayCompletionPolicy = CompetitionMatchdayCompletionPolicies.Get(_competition);
     }
 
     public async Task<MatchOutcomeUpsertResult> UpsertMatchOutcomeAsync(
@@ -88,11 +88,10 @@ public class FirebaseMatchOutcomeRepository : IMatchOutcomeRepository
                 continue;
             }
 
-            var isComplete = string.Equals(_competition, CompetitionIds.Bundesliga2025_26, StringComparison.OrdinalIgnoreCase)
-                ? outcomes.Count >= ExpectedMatchesPerMatchday &&
-                  outcomes.All(outcome => string.Equals(outcome.Availability, nameof(MatchOutcomeAvailability.Completed), StringComparison.Ordinal))
-                : outcomes.Count > 0 &&
-                  outcomes.All(outcome => string.Equals(outcome.Availability, nameof(MatchOutcomeAvailability.Completed), StringComparison.Ordinal));
+            var isComplete = _matchdayCompletionPolicy.IsComplete(outcomes.Select(outcome =>
+                new MatchdayCompletionFixture(
+                    outcome.TippSpielId,
+                    ParseAvailabilityOrPending(outcome.Availability))));
 
             if (!isComplete)
             {
@@ -120,6 +119,13 @@ public class FirebaseMatchOutcomeRepository : IMatchOutcomeRepository
             .OrderBy(outcome => outcome.HomeTeam)
             .ToList()
             .AsReadOnly();
+    }
+
+    private static MatchOutcomeAvailability ParseAvailabilityOrPending(string availability)
+    {
+        return Enum.TryParse<MatchOutcomeAvailability>(availability, ignoreCase: false, out var parsed)
+            ? parsed
+            : MatchOutcomeAvailability.Pending;
     }
 
     private static bool NeedsUpdate(FirestoreMatchOutcome existing, CollectedMatchOutcome outcome)

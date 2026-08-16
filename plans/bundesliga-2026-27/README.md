@@ -86,3 +86,4 @@ P0 is complete only when:
 - [ADR-0009: Use bounded orchestration and hybrid Git integration](decisions/0009-bounded-orchestration-and-hybrid-git.md)
 - [ADR-0010: Use a season-scoped strict team identity manifest](decisions/0010-season-scoped-team-identity-manifest.md)
 - [ADR-0011: Fix roster snapshots and atomic publication](decisions/0011-roster-snapshot-and-publication-contract.md)
+- [ADR-0012: Make matchday completion competition aware](decisions/0012-competition-aware-matchday-completion.md)

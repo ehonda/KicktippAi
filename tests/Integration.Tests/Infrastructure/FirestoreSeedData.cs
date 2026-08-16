@@ -7,7 +7,7 @@ namespace Integration.Tests.Infrastructure;
 
 internal static class FirestoreSeedData
 {
-    private const string Competition = "bundesliga-2025-26";
+    private const string Competition = CompetitionIds.Bundesliga2026_27;
 
     public static async Task SeedMatchPredictionAsync(
         FirestoreDb firestoreDb,
