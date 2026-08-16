@@ -82,6 +82,14 @@ The repository currently builds/tests PRs and pushes to `main`; native auto-merg
 - Keep real-write evidence in P0-20 and P0-21 rather than scattering it across provider implementation tasks.
 - Preserve historical partitions. Any proposed remote deletion requires an explicit dry-run inventory and separate authorization.
 
+### CI reconciliation loop
+
+- After every push and at every wave gate, assign one dedicated read-only CI reconciliation agent. It may inspect GitHub state and logs but must not push, rerun, cancel, approve, or otherwise mutate CI state.
+- Record the exact local and remote head SHA, workflow run ID and status/conclusion, and every relevant job ID, name, status/conclusion, and URL in the active task or wave evidence. Reconcile the run's head SHA with the pushed commit before treating a result as current.
+- Route a trivial in-scope failure, such as formatting or a deterministic test correction that does not change an accepted contract, immediately back to the current sole writer. After the fix is pushed, repeat the read-only reconciliation loop against the new head.
+- For a nontrivial, cross-task, flaky, infrastructure, or policy-sensitive failure, the reconciliation agent reports the evidence and the orchestrator creates or links a durable work item with the failing head/run/job evidence, owner, scope, and dependencies. Keep independent work moving when its gates do not depend on that failure; do not silently broaden the active task.
+- A wave gate remains closed until every required check for its exact head succeeds or a linked accepted decision explicitly changes the gate.
+
 ## Resolved decisions
 
 | Area | Accepted direction |
