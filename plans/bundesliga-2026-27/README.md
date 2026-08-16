@@ -47,6 +47,10 @@ P0-01 and P0-04 can begin independently. After P0-01, storage, completion, and p
 
 For P0-19, copy the template once per community matrix row that needs an entrypoint so each workflow triad can be implemented and reviewed independently.
 
+## Handoffs
+
+- [`buli-2627-p0-foundations-green-2026-08-16`](handoffs/buli-2627-p0-foundations-green-2026-08-16.md) — clean, green pause after the foundation contracts, Club Elo seed, roster membership seed, and P0-22 planning; intended resume after the 2026-08-20 allowance reset.
+
 ## P1 tasks
 
 P1-01 and P1-02 were promoted to P0-15 and P0-16 because both affect predictions that exist only at or before go-live. Numbering of the remaining P1 tasks stays stable.
