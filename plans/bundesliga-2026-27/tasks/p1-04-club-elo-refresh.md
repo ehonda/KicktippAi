@@ -3,6 +3,7 @@
 - Status: Not started
 - Priority: P1
 - Depends on: [P0-21](p0-21-production-activation.md)
+- Decisions: [ADR-0013](../decisions/0013-club-elo-snapshot-and-freshness-contract.md)
 
 ## Outcome
 
@@ -10,7 +11,7 @@ Club strength snapshots refresh unattended at an accepted cadence without publis
 
 ## Work items
 
-- [ ] Use launch evidence to choose cadence, maximum source age, retry behavior, and alert ownership; record them in an ADR.
+- [ ] Use launch evidence to choose cadence, seed/last-known-good age warnings, retry behavior, and alert ownership; preserve ADR-0013's seven-day maximum age for network candidates and record the remaining choices in an ADR.
 - [ ] Add an Elo-only refresh entry point or profile mode so roster/Kicktipp work is not repeated unnecessarily.
 - [ ] Gate publication on 18 mapped clubs, one coherent source date, and a strictly useful version change.
 - [ ] Preserve last-known-good context and surface stale-age warnings before prediction cutoff.

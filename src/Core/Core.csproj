@@ -16,6 +16,9 @@
     </ItemGroup>
 
     <ItemGroup>
+      <EmbeddedResource Include="..\..\data\bundesliga-2026-27\club-elo-launch-seed.csv">
+        <LogicalName>EHonda.KicktippAi.Core.Data.Bundesliga2026_27ClubEloLaunchSeed.csv</LogicalName>
+      </EmbeddedResource>
       <EmbeddedResource Include="..\..\data\bundesliga-2026-27\team-manifest.csv">
         <LogicalName>EHonda.KicktippAi.Core.Data.Bundesliga2026_27TeamManifest.csv</LogicalName>
       </EmbeddedResource>
