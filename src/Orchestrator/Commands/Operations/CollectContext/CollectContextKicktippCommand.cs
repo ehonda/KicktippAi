@@ -89,12 +89,10 @@ public class CollectContextKicktippCommand : AsyncCommand<CollectContextKicktipp
     private async Task ExecuteKicktippContextCollection(CollectContextKicktippSettings settings, CancellationToken cancellationToken)
     {
         var competition = CompetitionResolver.ResolveCompetition(settings.Competition, settings.CommunityContext, settings.CommunityContext);
-        var repositoryCompetition = CompetitionResolver.ToRepositoryCompetitionArgument(competition);
-
         var outcomeCollectionResult = await _matchOutcomeCollectionService.CollectAsync(
             settings.CommunityContext,
             settings.DryRun,
-            repositoryCompetition,
+            competition,
             cancellationToken);
 
         PrintOutcomeCollectionSummary(outcomeCollectionResult, settings);
@@ -110,7 +108,7 @@ public class CollectContextKicktippCommand : AsyncCommand<CollectContextKicktipp
 
         // Create services using factories (factories handle env var loading)
         var kicktippClient = _kicktippClientFactory.CreateClient();
-        var contextRepository = _firebaseServiceFactory.CreateContextRepository(repositoryCompetition);
+        var contextRepository = _firebaseServiceFactory.CreateContextRepository(competition);
         
         _console.MarkupLine($"[blue]Using community context:[/] [yellow]{settings.CommunityContext}[/]");
         _console.MarkupLine($"[blue]Using competition:[/] [yellow]{competition}[/]");
@@ -131,8 +129,8 @@ public class CollectContextKicktippCommand : AsyncCommand<CollectContextKicktipp
             var contextProvider = _contextProviderFactory.CreateKicktippContextProvider(
                 kicktippClient,
                 settings.CommunityContext,
+                competition,
                 settings.CommunityContext,
-                repositoryCompetition,
                 targetMatchday);
 
             _console.MarkupLine($"[blue]Getting {matchdayLabel} matches...[/]");

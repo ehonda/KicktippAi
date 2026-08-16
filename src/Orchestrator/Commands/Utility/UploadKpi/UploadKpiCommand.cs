@@ -36,7 +36,6 @@ public class UploadKpiCommand : AsyncCommand<UploadKpiSettings>
             _console.MarkupLine($"[green]Upload KPI command initialized for document:[/] [yellow]{settings.DocumentName}[/]");
             _console.MarkupLine($"[blue]Using community context:[/] [yellow]{settings.CommunityContext}[/]");
             var competition = CompetitionResolver.ResolveCompetition(settings.Competition, settings.CommunityContext, settings.CommunityContext);
-            var repositoryCompetition = CompetitionResolver.ToRepositoryCompetitionArgument(competition);
             _console.MarkupLine($"[blue]Using competition:[/] [yellow]{competition}[/]");
             
             if (settings.Verbose)
@@ -77,7 +76,7 @@ public class UploadKpiCommand : AsyncCommand<UploadKpiSettings>
             }
             
             // Create Firebase services using factory (factory handles env var loading)
-            var kpiRepository = _firebaseServiceFactory.CreateKpiRepository(repositoryCompetition);
+            var kpiRepository = _firebaseServiceFactory.CreateKpiRepository(competition);
             
             // Check if document already exists for this community context
             var existingDocument = await kpiRepository.GetKpiDocumentAsync(kpiDocument.DocumentName, kpiDocument.CommunityContext);

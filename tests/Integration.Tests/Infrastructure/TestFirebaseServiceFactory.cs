@@ -10,22 +10,22 @@ internal sealed class TestFirebaseServiceFactory(FirestoreDb firestoreDb) : IFir
 {
     public FirestoreDb FirestoreDb { get; } = firestoreDb;
 
-    public IPredictionRepository CreatePredictionRepository(string? competition = null)
+    public IPredictionRepository CreatePredictionRepository(string competition)
     {
         return new FirebasePredictionRepository(FirestoreDb, new FakeLogger<FirebasePredictionRepository>(), competition);
     }
 
-    public IKpiRepository CreateKpiRepository(string? competition = null)
+    public IKpiRepository CreateKpiRepository(string competition)
     {
         return new FirebaseKpiRepository(FirestoreDb, new FakeLogger<FirebaseKpiRepository>(), competition);
     }
 
-    public IContextRepository CreateContextRepository(string? competition = null)
+    public IContextRepository CreateContextRepository(string competition)
     {
         return new FirebaseContextRepository(FirestoreDb, new FakeLogger<FirebaseContextRepository>(), competition);
     }
 
-    public IMatchOutcomeRepository CreateMatchOutcomeRepository(string? competition = null)
+    public IMatchOutcomeRepository CreateMatchOutcomeRepository(string competition)
     {
         return new FirebaseMatchOutcomeRepository(FirestoreDb, new FakeLogger<FirebaseMatchOutcomeRepository>(), competition);
     }

@@ -10,7 +10,9 @@ This document explains how to configure and use the Firebase adapter with depend
 var builder = WebApplication.CreateBuilder(args);
 
 // Add Firebase services using configuration
-builder.Services.AddFirebaseDatabase(builder.Configuration);
+builder.Services.AddFirebaseDatabase(
+    builder.Configuration,
+    CompetitionIds.Bundesliga2026_27);
 
 var app = builder.Build();
 ```
@@ -30,7 +32,8 @@ var app = builder.Build();
 ```csharp
 services.AddFirebaseDatabaseWithFile(
     projectId: "your-firebase-project-id",
-    serviceAccountPath: "/path/to/service-account-key.json"
+    serviceAccountPath: "/path/to/service-account-key.json",
+    competition: CompetitionIds.Bundesliga2026_27
 );
 ```
 
@@ -38,15 +41,16 @@ services.AddFirebaseDatabaseWithFile(
 
 ```csharp
 services.AddFirebaseDatabase(
-    projectId: "your-firebase-project-id", 
-    serviceAccountJson: jsonContent
+    projectId: "your-firebase-project-id",
+    serviceAccountJson: jsonContent,
+    competition: CompetitionIds.Bundesliga2026_27
 );
 ```
 
 ### 4. Manual Configuration
 
 ```csharp
-services.AddFirebaseDatabase(options =>
+services.AddFirebaseDatabase(CompetitionIds.Bundesliga2026_27, options =>
 {
     options.ProjectId = "your-firebase-project-id";
     options.ServiceAccountJson = jsonContent;
@@ -66,6 +70,8 @@ services.AddFirebaseDatabase(options =>
 | `ServiceAccountPath` | `string` | Path to service account JSON file | ✅* |
 
 *Either `ServiceAccountJson` OR `ServiceAccountPath` must be provided.
+
+The competition argument is also required. It is trimmed and must not be blank; it scopes every repository registered by the extension method.
 
 ### Environment Variables
 

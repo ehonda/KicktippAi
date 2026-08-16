@@ -143,8 +143,6 @@ public class BonusCommand : AsyncCommand<BaseSettings>
         var competition = CompetitionResolver.ResolveCompetition(settings.Competition, settings.Community, communityContext);
         var modelConfig = PredictionServiceCommandSupport.CreateModelConfig(settings.Model, settings.ReasoningEffort);
         var model = modelConfig.Model;
-        var repositoryCompetition = CompetitionResolver.ToRepositoryCompetitionArgument(competition);
-
         // Set Langfuse trace-level attributes
         var sessionId = $"bonus-{settings.Community}";
         var traceTags = new[] { settings.Community, model, competition };
@@ -186,7 +184,7 @@ public class BonusCommand : AsyncCommand<BaseSettings>
         }
         
         // Create KPI Context Provider for bonus predictions using factory
-        var kpiContextProvider = _contextProviderFactory.CreateKpiContextProvider(repositoryCompetition);
+        var kpiContextProvider = _contextProviderFactory.CreateKpiContextProvider(competition);
         if (CompetitionResolver.IsWorldCupCompetition(competition))
         {
             await EnsureWorldCupRankingKpiPresentAsync(kpiContextProvider, communityContext);
@@ -195,8 +193,8 @@ public class BonusCommand : AsyncCommand<BaseSettings>
         var tokenUsageTracker = _openAiServiceFactory.GetTokenUsageTracker();
         
         // Create repositories
-        var predictionRepository = _firebaseServiceFactory.CreatePredictionRepository(repositoryCompetition);
-        var kpiRepository = _firebaseServiceFactory.CreateKpiRepository(repositoryCompetition);
+        var predictionRepository = _firebaseServiceFactory.CreatePredictionRepository(competition);
+        var kpiRepository = _firebaseServiceFactory.CreateKpiRepository(competition);
         var databaseEnabled = true;
         
         // Reset token usage tracker for this workflow

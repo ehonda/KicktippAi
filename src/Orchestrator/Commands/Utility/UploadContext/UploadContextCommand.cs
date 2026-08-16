@@ -58,7 +58,6 @@ public sealed class UploadContextCommand : AsyncCommand<UploadContextSettings>
             var competition = CompetitionResolver.ResolveCompetition(
                 settings.Competition,
                 communityContext: document.CommunityContext);
-            var repositoryCompetition = CompetitionResolver.ToRepositoryCompetitionArgument(competition);
 
             _console.MarkupLine($"[green]Upload context command initialized for document:[/] [yellow]{document.DocumentName}[/]");
             _console.MarkupLine($"[blue]Using community context:[/] [yellow]{document.CommunityContext}[/]");
@@ -78,7 +77,7 @@ public sealed class UploadContextCommand : AsyncCommand<UploadContextSettings>
                 return 0;
             }
 
-            var contextRepository = _firebaseServiceFactory.CreateContextRepository(repositoryCompetition);
+            var contextRepository = _firebaseServiceFactory.CreateContextRepository(competition);
             var existingDocument = await contextRepository.GetLatestContextDocumentAsync(
                 document.DocumentName,
                 document.CommunityContext,

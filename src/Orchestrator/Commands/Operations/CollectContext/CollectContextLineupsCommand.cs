@@ -71,7 +71,6 @@ public sealed class CollectContextLineupsCommand : AsyncCommand<CollectContextLi
 
             var communityContext = settings.CommunityContext.Trim();
             var competition = CompetitionResolver.ResolveCompetition(settings.Competition, communityContext, communityContext);
-            var repositoryCompetition = CompetitionResolver.ToRepositoryCompetitionArgument(competition);
 
             _console.MarkupLine("[green]Collect-context lineups command initialized[/]");
             _console.MarkupLine($"[blue]Using community context:[/] [yellow]{Markup.Escape(communityContext)}[/]");
@@ -101,7 +100,7 @@ public sealed class CollectContextLineupsCommand : AsyncCommand<CollectContextLi
             PrintHeaderOnlyReport(source);
             PrintMissingSourceDataReport(source);
 
-            var contextRepository = _firebaseServiceFactory.CreateContextRepository(repositoryCompetition);
+            var contextRepository = _firebaseServiceFactory.CreateContextRepository(competition);
             var collectionDate = DateOnly.FromDateTime(_timeProvider.GetUtcNow().UtcDateTime);
             var freshenedSource = await ApplyFreshnessDatesAsync(
                 source,
@@ -122,7 +121,7 @@ public sealed class CollectContextLineupsCommand : AsyncCommand<CollectContextLi
                 return 0;
             }
 
-            var kpiRepository = _firebaseServiceFactory.CreateKpiRepository(repositoryCompetition);
+            var kpiRepository = _firebaseServiceFactory.CreateKpiRepository(competition);
 
             var savedContextCount = 0;
             var skippedContextCount = 0;

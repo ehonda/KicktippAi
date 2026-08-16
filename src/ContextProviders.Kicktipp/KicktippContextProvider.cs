@@ -22,15 +22,16 @@ public class KicktippContextProvider : IKicktippContextProvider
         IKicktippClient kicktippClient,
         IFileProvider communityRulesFileProvider,
         string community,
+        string competition,
         string? communityContext = null,
-        string? competition = null,
         int? matchday = null)
     {
         _kicktippClient = kicktippClient ?? throw new ArgumentNullException(nameof(kicktippClient));
         _communityRulesFileProvider = communityRulesFileProvider ?? throw new ArgumentNullException(nameof(communityRulesFileProvider));
         _community = community ?? throw new ArgumentNullException(nameof(community));
+        ArgumentException.ThrowIfNullOrWhiteSpace(competition);
         _communityContext = communityContext ?? community;
-        _competition = competition ?? CompetitionIds.Bundesliga2026_27;
+        _competition = competition.Trim();
         _matchday = matchday;
         _teamHistoryLazy = new Lazy<Task<IReadOnlyDictionary<string, List<MatchResult>>>>(LoadTeamHistoryAsync);
         _homeAwayHistoryLazy = new Lazy<Task<IReadOnlyDictionary<string, (List<MatchResult> homeHistory, List<MatchResult> awayHistory)>>>(LoadHomeAwayHistoryAsync);

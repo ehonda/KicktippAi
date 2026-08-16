@@ -50,7 +50,7 @@ public class AnalyzeMatchDetailedCommand : AsyncCommand<AnalyzeMatchDetailedSett
 
             var predictionService = _openAiServiceFactory.CreatePredictionService(settings.Model);
             var tokenUsageTracker = _openAiServiceFactory.GetTokenUsageTracker();
-            var contextRepository = _firebaseServiceFactory.CreateContextRepository();
+            var contextRepository = _firebaseServiceFactory.CreateContextRepository(CompetitionIds.Bundesliga2026_27);
             var kicktippClient = _kicktippClientFactory.CreateClient();
 
             var communityContext = settings.CommunityContext!;

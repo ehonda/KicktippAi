@@ -46,7 +46,7 @@ public class CostCommand : AsyncCommand<CostSettings>
             }
             
             // Create Firebase services using factory (factory handles env var loading)
-            var predictionRepository = _firebaseServiceFactory.CreatePredictionRepository();
+            var predictionRepository = _firebaseServiceFactory.CreatePredictionRepository(CompetitionIds.Bundesliga2026_27);
             
             _console.MarkupLine($"[green]Cost command initialized[/]");
             

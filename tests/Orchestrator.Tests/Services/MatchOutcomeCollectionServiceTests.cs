@@ -30,7 +30,10 @@ public class MatchOutcomeCollectionServiceTests
 
         var service = CreateService(client, outcomeRepository);
 
-        var result = await service.CollectAsync(communityContext, dryRun: true);
+        var result = await service.CollectAsync(
+            communityContext,
+            dryRun: true,
+            competition: CompetitionIds.Bundesliga2026_27);
 
         await Assert.That(result.CurrentMatchday).IsEqualTo(25);
         await Assert.That(result.IncompleteMatchdays).HasCount().EqualTo(1);
@@ -85,7 +88,11 @@ public class MatchOutcomeCollectionServiceTests
 
         var service = CreateService(client, outcomeRepository);
 
-        var result = await service.CollectAsync(communityContext, dryRun: false, cancellationToken: cancellationToken);
+        var result = await service.CollectAsync(
+            communityContext,
+            dryRun: false,
+            competition: CompetitionIds.Bundesliga2026_27,
+            cancellationToken: cancellationToken);
 
         await Assert.That(result.MatchdaySummaries).HasCount().EqualTo(2);
 
@@ -127,7 +134,10 @@ public class MatchOutcomeCollectionServiceTests
 
         var service = CreateService(client, outcomeRepository);
 
-        var result = await service.CollectAsync(communityContext, dryRun: false);
+        var result = await service.CollectAsync(
+            communityContext,
+            dryRun: false,
+            competition: CompetitionIds.Bundesliga2026_27);
 
         await Assert.That(result.IncompleteMatchdays).IsEmpty();
         await Assert.That(result.MatchdaySummaries).IsEmpty();
@@ -146,7 +156,7 @@ public class MatchOutcomeCollectionServiceTests
         kicktippClientFactory.Setup(f => f.CreateClient()).Returns(client.Object);
 
         var firebaseServiceFactory = new Mock<IFirebaseServiceFactory>();
-        firebaseServiceFactory.Setup(f => f.CreateMatchOutcomeRepository((string?)null)).Returns(outcomeRepository.Object);
+        firebaseServiceFactory.Setup(f => f.CreateMatchOutcomeRepository(CompetitionIds.Bundesliga2026_27)).Returns(outcomeRepository.Object);
 
         return new MatchOutcomeCollectionService(
             firebaseServiceFactory.Object,

@@ -8,7 +8,7 @@ namespace Orchestrator.Infrastructure.Factories;
 /// </summary>
 /// <remarks>
 /// The factory initializes <see cref="FirestoreDb"/> from environment variables
-/// on construction and provides parameterless methods to create repositories.
+/// on construction and creates repositories for an explicit competition.
 /// </remarks>
 public interface IFirebaseServiceFactory
 {
@@ -21,23 +21,23 @@ public interface IFirebaseServiceFactory
     /// Creates a prediction repository instance.
     /// </summary>
     /// <returns>A prediction repository instance.</returns>
-    IPredictionRepository CreatePredictionRepository(string? competition = null);
+    IPredictionRepository CreatePredictionRepository(string competition);
 
     /// <summary>
     /// Creates a KPI repository instance.
     /// </summary>
     /// <returns>A KPI repository instance.</returns>
-    IKpiRepository CreateKpiRepository(string? competition = null);
+    IKpiRepository CreateKpiRepository(string competition);
 
     /// <summary>
     /// Creates a context repository instance.
     /// </summary>
     /// <returns>A context repository instance.</returns>
-    IContextRepository CreateContextRepository(string? competition = null);
+    IContextRepository CreateContextRepository(string competition);
 
     /// <summary>
     /// Creates a match outcome repository instance.
     /// </summary>
     /// <returns>A match outcome repository instance.</returns>
-    IMatchOutcomeRepository CreateMatchOutcomeRepository(string? competition = null);
+    IMatchOutcomeRepository CreateMatchOutcomeRepository(string competition);
 }

@@ -53,7 +53,7 @@ public class ContextChangesCommand : AsyncCommand<ContextChangesSettings>
     private async Task ExecuteContextChanges(ContextChangesSettings settings)
     {
         // Create context repository using factory (factory handles env var loading)
-        var contextRepository = _firebaseServiceFactory.CreateContextRepository();
+        var contextRepository = _firebaseServiceFactory.CreateContextRepository(CompetitionIds.Bundesliga2026_27);
         
         _console.MarkupLine($"[blue]Getting context document names for community:[/] [yellow]{settings.CommunityContext}[/]");
         

@@ -1,6 +1,6 @@
 # Firebase Adapter
 
-This project provides a Firebase Firestore implementation of the `IPredictionRepository` interface.
+This project provides Firebase Firestore implementations of the prediction, context, KPI, and match-outcome repository interfaces.
 
 ## Overview
 
@@ -10,7 +10,7 @@ The Firebase adapter uses Google Cloud Firestore to persist match predictions an
 
 - **Persistent Storage**: Store predictions and matches in Google Cloud Firestore
 - **Matchday Management**: Organize matches by matchday (1-34 for Bundesliga)
-- **Competition Scoping**: All data is scoped to "bundesliga-2025-26" competition
+- **Competition Scoping**: Every repository requires an explicit, nonblank competition identifier
 - **Audit Trail**: Tracks creation and update timestamps
 - **Deterministic IDs**: Uses consistent document IDs for reliable querying
 
@@ -18,7 +18,7 @@ The Firebase adapter uses Google Cloud Firestore to persist match predictions an
 
 ### Collections
 
-#### `predictions`
+#### `match-predictions`
 Stores match predictions with the following structure:
 - `homeTeam`: Home team name
 - `awayTeam`: Away team name  
@@ -28,7 +28,8 @@ Stores match predictions with the following structure:
 - `awayGoals`: Predicted away team goals
 - `createdAt`: When prediction was first created
 - `updatedAt`: When prediction was last updated
-- `competition`: Competition identifier ("bundesliga-2025-26")
+- `competition`: Required competition identifier (for example, `bundesliga-2026-27`)
+- `communityContext`: Required community partition
 
 #### `matches`
 Stores match information for matchday management:
@@ -38,17 +39,11 @@ Stores match information for matchday management:
 - `matchday`: Match day number (1-34)
 - `competition`: Competition identifier
 
-### Document IDs
+### Competition isolation
 
-Document IDs are generated deterministically using the format:
-```
-{homeTeam}_{awayTeam}_{startsAtTicks}_{matchday}
-```
+Context, KPI, and match-outcome document IDs include both the competition and community identity. Prediction documents retain GUID IDs and are isolated by required `competition` and `communityContext` fields on every query and write.
 
-This ensures:
-- Uniqueness across all matches
-- Consistent IDs for the same match
-- Easy querying and updates
+Missing competition identity is rejected when a repository is constructed. Legacy unscoped documents therefore cannot satisfy a current-season query. Historical data is not migrated or deleted by this adapter.
 
 ## Dependencies
 
@@ -72,7 +67,7 @@ The repository will be registered with dependency injection. See [DI-SETUP.md](D
 **Quick Setup:**
 ```csharp
 // In Program.cs or Startup.cs
-services.AddFirebaseDatabase(configuration);
+services.AddFirebaseDatabase(configuration, CompetitionIds.Bundesliga2026_27);
 ```
 
 The main methods include:
@@ -97,6 +92,5 @@ All operations include proper error handling and logging:
 
 - Batch operations for better performance
 - Offline support with local caching
-- Competition configuration (currently hardcoded to Bundesliga 2025/26)
 - Archive old seasons
 - Analytics queries (win rate, accuracy, etc.)

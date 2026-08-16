@@ -74,10 +74,8 @@ public class VerifyMatchdayCommand : AsyncCommand<VerifySettings>
         string communityContext = settings.CommunityContext ?? settings.Community;
         var competition = CompetitionResolver.ResolveCompetition(settings.Competition, settings.Community, communityContext);
         var modelConfig = PredictionServiceCommandSupport.CreateModelConfig(settings.Model, settings.ReasoningEffort);
-        var repositoryCompetition = CompetitionResolver.ToRepositoryCompetitionArgument(competition);
-
         // Try to get the prediction repository (may be null if Firebase is not configured)
-        var predictionRepository = _firebaseServiceFactory.CreatePredictionRepository(repositoryCompetition);
+        var predictionRepository = _firebaseServiceFactory.CreatePredictionRepository(competition);
         if (predictionRepository == null)
         {
             _console.MarkupLine("[red]Error: Database not configured. Cannot verify predictions without database access.[/]");
@@ -86,7 +84,7 @@ public class VerifyMatchdayCommand : AsyncCommand<VerifySettings>
         }
 
         // Get context repository for outdated checks (may be null if Firebase is not configured)
-        var contextRepository = _firebaseServiceFactory.CreateContextRepository(repositoryCompetition);
+        var contextRepository = _firebaseServiceFactory.CreateContextRepository(competition);
         if (settings.CheckOutdated && contextRepository == null)
         {
             _console.MarkupLine("[red]Error: Database not configured. Cannot check outdated predictions without database access.[/]");

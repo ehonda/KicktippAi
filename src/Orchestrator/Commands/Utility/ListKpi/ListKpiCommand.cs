@@ -30,7 +30,6 @@ public class ListKpiCommand : AsyncCommand<ListKpiSettings>
         {
             _console.MarkupLine($"[green]List KPI command initialized for community context:[/] [yellow]{settings.CommunityContext}[/]");
             var competition = CompetitionResolver.ResolveCompetition(settings.Competition, settings.CommunityContext, settings.CommunityContext);
-            var repositoryCompetition = CompetitionResolver.ToRepositoryCompetitionArgument(competition);
             _console.MarkupLine($"[blue]Using competition:[/] [yellow]{competition}[/]");
             
             if (settings.Verbose)
@@ -39,7 +38,7 @@ public class ListKpiCommand : AsyncCommand<ListKpiSettings>
             }
             
             // Create Firebase services using factory (factory handles env var loading)
-            var kpiRepository = _firebaseServiceFactory.CreateKpiRepository(repositoryCompetition);
+            var kpiRepository = _firebaseServiceFactory.CreateKpiRepository(competition);
             
             var table = new Table();
             table.AddColumn("Document Name");

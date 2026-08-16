@@ -38,7 +38,6 @@ public class UploadTransfersCommand : AsyncCommand<UploadTransfersSettings>
             _console.MarkupLine($"[green]Upload Transfers command initialized for document:[/] [yellow]{docName}[/]");
             _console.MarkupLine($"[blue]Using community context:[/] [yellow]{settings.CommunityContext}[/]");
             var competition = CompetitionResolver.ResolveCompetition(settings.Competition, settings.CommunityContext, settings.CommunityContext);
-            var repositoryCompetition = CompetitionResolver.ToRepositoryCompetitionArgument(competition);
             _console.MarkupLine($"[blue]Using competition:[/] [yellow]{competition}[/]");
             if (settings.Verbose) _console.MarkupLine("[dim]Verbose mode enabled[/]");
 
@@ -69,7 +68,7 @@ public class UploadTransfersCommand : AsyncCommand<UploadTransfersSettings>
             }
 
             // Create Firebase services using factory (factory handles env var loading)
-            var contextRepo = _firebaseServiceFactory.CreateContextRepository(repositoryCompetition);
+            var contextRepo = _firebaseServiceFactory.CreateContextRepository(competition);
             var existing = await contextRepo.GetLatestContextDocumentAsync(transfersDoc.DocumentName, transfersDoc.CommunityContext);
             if (existing != null)
             {

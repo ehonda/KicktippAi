@@ -30,13 +30,13 @@ public interface IContextProviderFactory
     IKicktippContextProvider CreateKicktippContextProvider(
         KicktippIntegration.IKicktippClient kicktippClient,
         string community,
+        string competition,
         string? communityContext = null,
-        string? competition = null,
         int? matchday = null);
 
     /// <summary>
     /// Creates a KPI context provider for bonus predictions.
     /// </summary>
     /// <returns>A configured <see cref="IKpiContextProvider"/> instance.</returns>
-    IKpiContextProvider CreateKpiContextProvider(string? competition = null);
+    IKpiContextProvider CreateKpiContextProvider(string competition);
 }

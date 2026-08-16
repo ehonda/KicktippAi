@@ -1,4 +1,5 @@
 using EHonda.Optional.Core;
+using EHonda.KicktippAi.Core;
 using Google.Cloud.Firestore;
 using Microsoft.Extensions.Logging.Testing;
 using TestUtilities;
@@ -61,7 +62,7 @@ public abstract class FirebaseContextRepositoryTests_Base(FirestoreFixture fixtu
     {
         var actualDb = firestoreDb.Or(() => Fixture.Db);
         var actualLogger = logger.Or(() => new FakeLogger<FirebaseContextRepository>());
-        var actualCompetition = competition.Or(() => null);
-        return new FirebaseContextRepository(actualDb!, actualLogger!, actualCompetition);
+        var actualCompetition = competition.Or(() => CompetitionIds.Bundesliga2026_27);
+        return new FirebaseContextRepository(actualDb!, actualLogger!, actualCompetition!);
     }
 }

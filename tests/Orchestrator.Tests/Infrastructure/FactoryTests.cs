@@ -104,7 +104,7 @@ public class FactoryTests
     {
         var kpiRepository = new Mock<IKpiRepository>();
         var firebaseFactory = new Mock<IFirebaseServiceFactory>();
-        firebaseFactory.Setup(factory => factory.CreateKpiRepository((string?)null)).Returns(kpiRepository.Object);
+        firebaseFactory.Setup(factory => factory.CreateKpiRepository(CompetitionIds.Bundesliga2026_27)).Returns(kpiRepository.Object);
 
         var sut = new ContextProviderFactory(
             firebaseFactory.Object,
@@ -112,13 +112,21 @@ public class FactoryTests
 
         var kicktippClient = new Mock<IKicktippClient>();
 
-        var kicktippContextProvider = sut.CreateKicktippContextProvider(kicktippClient.Object, "community-name", "community-context");
-        var kpiContextProvider = sut.CreateKpiContextProvider();
+        var kicktippContextProvider = sut.CreateKicktippContextProvider(
+            kicktippClient.Object,
+            "community-name",
+            CompetitionIds.Bundesliga2026_27,
+            "community-context");
+        var kpiContextProvider = sut.CreateKpiContextProvider(CompetitionIds.Bundesliga2026_27);
 
         await Assert.That(kicktippContextProvider).IsTypeOf<KicktippContextProvider>();
         await Assert.That(kpiContextProvider).IsTypeOf<FirebaseKpiContextProvider>();
         await Assert.That(sut.CommunityRulesFileProvider).IsSameReferenceAs(sut.CommunityRulesFileProvider);
-        firebaseFactory.Verify(factory => factory.CreateKpiRepository((string?)null), Times.Once);
+        firebaseFactory.Verify(factory => factory.CreateKpiRepository(CompetitionIds.Bundesliga2026_27), Times.Once);
+
+        await Assert.That(() => sut.CreateKpiContextProvider(" "))
+            .Throws<ArgumentException>()
+            .WithParameterName("competition");
     }
 
     [Test]
@@ -139,6 +147,10 @@ public class FactoryTests
 
         await Assert.That(() => missingCredentialsFactory.FirestoreDb)
             .Throws<InvalidOperationException>();
+
+        await Assert.That(() => missingCredentialsFactory.CreatePredictionRepository(" "))
+            .Throws<ArgumentException>()
+            .WithParameterName("competition");
     }
 
     private static ILoggerFactory CreateLoggerFactory()

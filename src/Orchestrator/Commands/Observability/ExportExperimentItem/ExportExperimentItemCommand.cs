@@ -38,9 +38,9 @@ public sealed class ExportExperimentItemCommand : AsyncCommand<ExportExperimentI
         {
             _console.MarkupLine($"[green]Exporting experiment item for:[/] [yellow]{Markup.Escape(settings.HomeTeam)}[/] vs [yellow]{Markup.Escape(settings.AwayTeam)}[/]");
 
-            var predictionRepository = _firebaseServiceFactory.CreatePredictionRepository();
-            var contextRepository = _firebaseServiceFactory.CreateContextRepository();
-            var matchOutcomeRepository = _firebaseServiceFactory.CreateMatchOutcomeRepository();
+            var predictionRepository = _firebaseServiceFactory.CreatePredictionRepository(CompetitionIds.Bundesliga2026_27);
+            var contextRepository = _firebaseServiceFactory.CreateContextRepository(CompetitionIds.Bundesliga2026_27);
+            var matchOutcomeRepository = _firebaseServiceFactory.CreateMatchOutcomeRepository(CompetitionIds.Bundesliga2026_27);
 
             var reconstructionService = new MatchPromptReconstructionService(
                 predictionRepository,

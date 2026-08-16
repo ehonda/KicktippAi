@@ -19,15 +19,14 @@ public class FirebaseContextRepository : IContextRepository
     public FirebaseContextRepository(
         FirestoreDb firestoreDb,
         ILogger<FirebaseContextRepository> logger,
-        string? competition = null)
+        string competition)
     {
         _firestoreDb = firestoreDb ?? throw new ArgumentNullException(nameof(firestoreDb));
         _logger = logger ?? throw new ArgumentNullException(nameof(logger));
         
         _contextDocumentsCollection = "context-documents";
-        _competition = string.IsNullOrWhiteSpace(competition)
-            ? CompetitionIds.Bundesliga2025_26
-            : competition.Trim();
+        ArgumentException.ThrowIfNullOrWhiteSpace(competition);
+        _competition = competition.Trim();
         
         _logger.LogInformation("Firebase context repository initialized");
     }
@@ -273,8 +272,6 @@ public class FirebaseContextRepository : IContextRepository
 
     private string BuildDocumentId(string documentName, string communityContext, int version)
     {
-        return string.Equals(_competition, CompetitionIds.Bundesliga2025_26, StringComparison.OrdinalIgnoreCase)
-            ? $"{documentName}_{communityContext}_{version}"
-            : $"{_competition}_{documentName}_{communityContext}_{version}";
+        return $"{_competition}_{documentName}_{communityContext}_{version}";
     }
 }

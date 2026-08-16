@@ -168,6 +168,11 @@ internal static class PreparedExperimentCommandSupport
 
     public static void ValidateManifest(PreparedExperimentManifest manifest)
     {
+        if (string.IsNullOrWhiteSpace(manifest.Competition))
+        {
+            throw new InvalidOperationException("Slice manifest must contain a competition.");
+        }
+
         if (manifest.Items.Count == 0)
         {
             throw new InvalidOperationException("Slice manifest must contain at least one item.");

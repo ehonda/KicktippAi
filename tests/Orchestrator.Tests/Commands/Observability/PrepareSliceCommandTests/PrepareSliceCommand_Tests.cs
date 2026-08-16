@@ -84,7 +84,7 @@ public class PrepareSliceCommand_Tests
 
             var firebaseFactory = new Mock<IFirebaseServiceFactory>();
             firebaseFactory
-                .Setup(factory => factory.CreateMatchOutcomeRepository((string?)null))
+                .Setup(factory => factory.CreateMatchOutcomeRepository(CompetitionIds.Bundesliga2026_27))
                 .Returns(matchOutcomeRepository.Object);
 
             var outputDirectoryOne = Path.Combine(tempDirectory.FullName, "one");
@@ -211,7 +211,7 @@ public class PrepareSliceCommand_Tests
 
             var firebaseFactory = new Mock<IFirebaseServiceFactory>();
             firebaseFactory
-                .Setup(factory => factory.CreateMatchOutcomeRepository((string?)null))
+                .Setup(factory => factory.CreateMatchOutcomeRepository(CompetitionIds.Bundesliga2026_27))
                 .Returns(matchOutcomeRepository.Object);
 
             var outputDirectory = Path.Combine(tempDirectory.FullName, "filtered");

@@ -71,13 +71,6 @@ public static class CompetitionResolver
             isWorldCup ? WorldCupFallbackPromptModel : string.Empty);
     }
 
-    public static string? ToRepositoryCompetitionArgument(string competition)
-    {
-        return string.Equals(competition, CompetitionIds.Bundesliga2025_26, StringComparison.OrdinalIgnoreCase)
-            ? null
-            : competition;
-    }
-
     public static bool IsWorldCupCompetition(string competition)
     {
         return string.Equals(competition, CompetitionIds.FifaWorldCup2026, StringComparison.OrdinalIgnoreCase);

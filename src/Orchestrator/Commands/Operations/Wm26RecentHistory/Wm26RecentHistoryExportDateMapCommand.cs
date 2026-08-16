@@ -34,8 +34,7 @@ public sealed class Wm26RecentHistoryExportDateMapCommand
             var competition = CompetitionResolver.ResolveCompetition(
                 settings.Competition,
                 communityContext: settings.CommunityContext);
-            var repositoryCompetition = CompetitionResolver.ToRepositoryCompetitionArgument(competition);
-            var contextRepository = _firebaseServiceFactory.CreateContextRepository(repositoryCompetition);
+            var contextRepository = _firebaseServiceFactory.CreateContextRepository(competition);
 
             _console.MarkupLine($"[green]Exporting WM26 recent-history date map for:[/] [yellow]{settings.CommunityContext}[/]");
             _console.MarkupLine($"[blue]Using competition:[/] [yellow]{competition}[/]");

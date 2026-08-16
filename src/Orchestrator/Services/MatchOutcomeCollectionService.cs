@@ -37,10 +37,11 @@ public class MatchOutcomeCollectionService
     public async Task<MatchOutcomeCollectionResult> CollectAsync(
         string communityContext,
         bool dryRun,
-        string? competition = null,
+        string competition,
         CancellationToken cancellationToken = default)
     {
         var kicktippClient = _kicktippClientFactory.CreateClient();
+        ArgumentException.ThrowIfNullOrWhiteSpace(competition);
         var matchOutcomeRepository = _firebaseServiceFactory.CreateMatchOutcomeRepository(competition);
 
         var currentMatchday = await kicktippClient.GetCurrentTippuebersichtMatchdayAsync(communityContext);

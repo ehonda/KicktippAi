@@ -31,7 +31,7 @@ public sealed class PrepareSliceCommand : AsyncCommand<PrepareSliceSettings>
     {
         try
         {
-            var matchOutcomeRepository = _firebaseServiceFactory.CreateMatchOutcomeRepository();
+            var matchOutcomeRepository = _firebaseServiceFactory.CreateMatchOutcomeRepository(CompetitionIds.Bundesliga2026_27);
             var matchdays = ParseMatchdays(settings.Matchdays);
             var startsAfter = EvaluationTimeParser.ParseOrNull(settings.StartsAfter);
             var normalizedStartsAfter = EvaluationTimeParser.NormalizeOrNull(settings.StartsAfter);

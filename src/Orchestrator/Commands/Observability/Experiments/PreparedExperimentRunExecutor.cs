@@ -63,9 +63,11 @@ internal sealed class PreparedExperimentRunExecutor
             request.ReplaceRun,
             cancellationToken);
 
-        var predictionRepository = _firebaseServiceFactory.CreatePredictionRepository();
-        var contextRepository = _firebaseServiceFactory.CreateContextRepository();
-        var matchOutcomeRepository = _firebaseServiceFactory.CreateMatchOutcomeRepository();
+        var competition = runMetadata.Competition
+                          ?? throw new InvalidOperationException("Prepared experiment metadata must include a competition.");
+        var predictionRepository = _firebaseServiceFactory.CreatePredictionRepository(competition);
+        var contextRepository = _firebaseServiceFactory.CreateContextRepository(competition);
+        var matchOutcomeRepository = _firebaseServiceFactory.CreateMatchOutcomeRepository(competition);
         var promptRoute = await ResolvePromptRouteAsync(runMetadata, cancellationToken);
         if (promptRoute.TraceMetadata is { } promptTraceMetadata)
         {

@@ -190,16 +190,16 @@ public class CollectContextKicktippCommand_NormalMode_Tests : CollectContextKick
             f => f.CreateKicktippContextProvider(
                 ctx.KicktippClient.Object,
                 "test-community",
-                "test-community",
                 CompetitionIds.Bundesliga2026_27,
+                "test-community",
                 2),
             Times.Once);
         ctx.ContextProviderFactory.Verify(
             f => f.CreateKicktippContextProvider(
                 ctx.KicktippClient.Object,
                 "test-community",
-                "test-community",
                 CompetitionIds.Bundesliga2026_27,
+                "test-community",
                 3),
             Times.Once);
     }

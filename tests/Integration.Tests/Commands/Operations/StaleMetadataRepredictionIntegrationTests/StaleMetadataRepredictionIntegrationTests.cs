@@ -67,7 +67,7 @@ public class StaleMetadataRepredictionIntegrationTests : StaleMetadataRepredicti
                 createdAt: contextUpdatedAt);
         }
 
-        var repository = new TestFirebaseServiceFactory(Fixture.Db).CreatePredictionRepository();
+        var repository = new TestFirebaseServiceFactory(Fixture.Db).CreatePredictionRepository(Competition);
         var latestMetadata = await repository.GetPredictionMetadataAsync(match, Model, Community);
 
         await Assert.That(latestMetadata).IsNotNull();
@@ -214,7 +214,7 @@ public class StaleMetadataRepredictionIntegrationTests : StaleMetadataRepredicti
             createdAt: stableContextCreatedAt,
             content: "recent-history-b04-stable");
 
-        var repository = new TestFirebaseServiceFactory(Fixture.Db).CreatePredictionRepository();
+        var repository = new TestFirebaseServiceFactory(Fixture.Db).CreatePredictionRepository(Competition);
         var latestMetadata = await repository.GetPredictionMetadataAsync(match, Model, Community);
 
         await Assert.That(latestMetadata).IsNotNull();

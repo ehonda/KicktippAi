@@ -18,14 +18,13 @@ public class FirebaseMatchOutcomeRepository : IMatchOutcomeRepository
     public FirebaseMatchOutcomeRepository(
         FirestoreDb firestoreDb,
         ILogger<FirebaseMatchOutcomeRepository> logger,
-        string? competition = null)
+        string competition)
     {
         _firestoreDb = firestoreDb ?? throw new ArgumentNullException(nameof(firestoreDb));
         _logger = logger ?? throw new ArgumentNullException(nameof(logger));
         _matchOutcomesCollection = "match-outcomes";
-        _competition = string.IsNullOrWhiteSpace(competition)
-            ? CompetitionIds.Bundesliga2025_26
-            : competition.Trim();
+        ArgumentException.ThrowIfNullOrWhiteSpace(competition);
+        _competition = competition.Trim();
     }
 
     public async Task<MatchOutcomeUpsertResult> UpsertMatchOutcomeAsync(
@@ -179,9 +178,7 @@ public class FirebaseMatchOutcomeRepository : IMatchOutcomeRepository
         var tippSpielId = outcome.TippSpielId ?? throw new InvalidOperationException(
             $"Cannot persist match outcome for {outcome.HomeTeam} vs {outcome.AwayTeam} on matchday {outcome.Matchday} because tippspielId is missing.");
 
-        return string.Equals(_competition, CompetitionIds.Bundesliga2025_26, StringComparison.OrdinalIgnoreCase)
-            ? tippSpielId
-            : $"{_competition}_{communityContext}_{tippSpielId}";
+        return $"{_competition}_{communityContext}_{tippSpielId}";
     }
 
     private static Timestamp ConvertToTimestamp(ZonedDateTime zonedDateTime)

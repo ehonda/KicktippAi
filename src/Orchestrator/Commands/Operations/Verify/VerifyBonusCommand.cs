@@ -74,10 +74,8 @@ public class VerifyBonusCommand : AsyncCommand<VerifySettings>
         string communityContext = settings.CommunityContext ?? settings.Community;
         var competition = CompetitionResolver.ResolveCompetition(settings.Competition, settings.Community, communityContext);
         var modelConfig = PredictionServiceCommandSupport.CreateModelConfig(settings.Model, settings.ReasoningEffort);
-        var repositoryCompetition = CompetitionResolver.ToRepositoryCompetitionArgument(competition);
-
         // Try to get the prediction repository (may be null if Firebase is not configured)
-        var predictionRepository = _firebaseServiceFactory.CreatePredictionRepository(repositoryCompetition);
+        var predictionRepository = _firebaseServiceFactory.CreatePredictionRepository(competition);
         if (predictionRepository == null)
         {
             _console.MarkupLine("[red]Error: Database not configured. Cannot verify predictions without database access.[/]");
@@ -86,7 +84,7 @@ public class VerifyBonusCommand : AsyncCommand<VerifySettings>
         }
         
         // Get KPI repository for outdated checks (required for bonus predictions)
-        var kpiRepository = _firebaseServiceFactory.CreateKpiRepository(repositoryCompetition);
+        var kpiRepository = _firebaseServiceFactory.CreateKpiRepository(competition);
         
         _console.MarkupLine($"[blue]Using community:[/] [yellow]{settings.Community}[/]");
         _console.MarkupLine($"[blue]Using community context:[/] [yellow]{communityContext}[/]");

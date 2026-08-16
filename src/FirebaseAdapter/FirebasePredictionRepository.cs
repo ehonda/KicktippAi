@@ -38,18 +38,17 @@ public class FirebasePredictionRepository : IPredictionRepository
     public FirebasePredictionRepository(
         FirestoreDb firestoreDb,
         ILogger<FirebasePredictionRepository> logger,
-        string? competition = null)
+        string competition)
     {
         _firestoreDb = firestoreDb ?? throw new ArgumentNullException(nameof(firestoreDb));
         _logger = logger ?? throw new ArgumentNullException(nameof(logger));
+        ArgumentException.ThrowIfNullOrWhiteSpace(competition);
 
         // Use unified collection names (no longer community-specific)
         _predictionsCollection = "match-predictions";
         _matchesCollection = "matches";
         _bonusPredictionsCollection = "bonus-predictions";
-        _competition = string.IsNullOrWhiteSpace(competition)
-            ? CompetitionIds.Bundesliga2025_26
-            : competition.Trim();
+        _competition = competition.Trim();
 
         _logger.LogInformation("Firebase repository initialized");
     }

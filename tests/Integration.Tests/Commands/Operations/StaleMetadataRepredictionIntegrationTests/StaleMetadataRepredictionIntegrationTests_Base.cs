@@ -134,12 +134,12 @@ public abstract class StaleMetadataRepredictionIntegrationTests_Base(FirestoreFi
             .Setup(factory => factory.CreateKicktippContextProvider(
                 It.IsAny<IKicktippClient>(),
                 It.IsAny<string>(),
-                It.IsAny<string?>(),
+                It.IsAny<string>(),
                 It.IsAny<string?>(),
                 It.IsAny<int?>()))
             .Returns(kicktippContextProvider.Object);
         contextProviderFactory
-            .Setup(factory => factory.CreateKpiContextProvider((string?)null))
+            .Setup(factory => factory.CreateKpiContextProvider(Competition))
             .Returns(kpiContextProvider.Object);
 
         return contextProviderFactory;

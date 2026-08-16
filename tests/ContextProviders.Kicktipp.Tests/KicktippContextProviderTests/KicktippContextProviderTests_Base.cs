@@ -40,14 +40,14 @@ public abstract class KicktippContextProviderTests_Base
         var actualCommunityRulesFileProvider = communityRulesFileProvider.Or(() => CreateMockCommunityRulesFileProvider().Object);
         var actualCommunity = community.Or(TestCommunity);
         var actualCommunityContext = communityContext.Or(TestCommunity);
-        var actualCompetition = competition.Or(() => null);
+        var actualCompetition = competition.Or(() => CompetitionIds.Bundesliga2026_27);
 
         return new KicktippContextProvider(
             actualKicktippClient!,
             actualCommunityRulesFileProvider!,
             actualCommunity!,
-            actualCommunityContext,
-            actualCompetition);
+            actualCompetition!,
+            actualCommunityContext);
     }
     
     protected static Mock<IFileProvider> CreateMockCommunityRulesFileProvider(

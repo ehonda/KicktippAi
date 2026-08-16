@@ -16,13 +16,12 @@ public class FirebaseKpiRepository : IKpiRepository
 
     private const string KpiCollectionName = "kpi-documents";
 
-    public FirebaseKpiRepository(FirestoreDb firestoreDb, ILogger<FirebaseKpiRepository> logger, string? competition = null)
+    public FirebaseKpiRepository(FirestoreDb firestoreDb, ILogger<FirebaseKpiRepository> logger, string competition)
     {
         _firestoreDb = firestoreDb;
         _logger = logger;
-        _competition = string.IsNullOrWhiteSpace(competition)
-            ? CompetitionIds.Bundesliga2025_26
-            : competition.Trim();
+        ArgumentException.ThrowIfNullOrWhiteSpace(competition);
+        _competition = competition.Trim();
     }
 
     /// <summary>
@@ -289,8 +288,6 @@ public class FirebaseKpiRepository : IKpiRepository
 
     private string BuildDocumentId(string documentName, string communityContext, int version)
     {
-        return string.Equals(_competition, CompetitionIds.Bundesliga2025_26, StringComparison.OrdinalIgnoreCase)
-            ? $"{documentName}_{communityContext}_{version}"
-            : $"{_competition}_{documentName}_{communityContext}_{version}";
+        return $"{_competition}_{documentName}_{communityContext}_{version}";
     }
 }

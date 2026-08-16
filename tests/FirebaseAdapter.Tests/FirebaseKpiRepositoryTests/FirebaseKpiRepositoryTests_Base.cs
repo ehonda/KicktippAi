@@ -1,4 +1,5 @@
 using EHonda.Optional.Core;
+using EHonda.KicktippAi.Core;
 using Google.Cloud.Firestore;
 using Microsoft.Extensions.Logging.Testing;
 using TestUtilities;
@@ -53,7 +54,7 @@ public abstract class FirebaseKpiRepositoryTests_Base(FirestoreFixture fixture)
     /// </summary>
     /// <param name="firestoreDb">Optional FirestoreDb. Defaults to the fixture's Db. Use NullableOption to pass null for null guard tests.</param>
     /// <param name="logger">Optional logger. Defaults to a new FakeLogger. Use NullableOption to pass null for null guard tests.</param>
-    /// <param name="competition">Optional competition string. Defaults to "bundesliga-2025-26".</param>
+    /// <param name="competition">Optional competition string. Defaults to the current Bundesliga competition.</param>
     /// <returns>A configured FirebaseKpiRepository instance.</returns>
     protected FirebaseKpiRepository CreateRepository(
         NullableOption<FirestoreDb> firestoreDb = default,
@@ -62,7 +63,7 @@ public abstract class FirebaseKpiRepositoryTests_Base(FirestoreFixture fixture)
     {
         var actualDb = firestoreDb.Or(() => Fixture.Db);
         var actualLogger = logger.Or(() => new FakeLogger<FirebaseKpiRepository>());
-        var actualCompetition = competition.Or("bundesliga-2025-26");
-        return new FirebaseKpiRepository(actualDb!, actualLogger!, actualCompetition);
+        var actualCompetition = competition.Or(CompetitionIds.Bundesliga2026_27);
+        return new FirebaseKpiRepository(actualDb!, actualLogger!, actualCompetition!);
     }
 }

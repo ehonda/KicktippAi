@@ -446,9 +446,9 @@ public class RunExperimentCommands_Tests
                 });
 
             var firebaseFactory = new Mock<IFirebaseServiceFactory>();
-            firebaseFactory.Setup(factory => factory.CreatePredictionRepository((string?)null)).Returns(predictionRepository.Object);
-            firebaseFactory.Setup(factory => factory.CreateContextRepository((string?)null)).Returns(contextRepository.Object);
-            firebaseFactory.Setup(factory => factory.CreateMatchOutcomeRepository((string?)null)).Returns(matchOutcomeRepository.Object);
+            firebaseFactory.Setup(factory => factory.CreatePredictionRepository(It.IsAny<string>())).Returns(predictionRepository.Object);
+            firebaseFactory.Setup(factory => factory.CreateContextRepository(It.IsAny<string>())).Returns(contextRepository.Object);
+            firebaseFactory.Setup(factory => factory.CreateMatchOutcomeRepository(It.IsAny<string>())).Returns(matchOutcomeRepository.Object);
             firebaseFactory.SetupGet(factory => factory.FirestoreDb).Returns((FirestoreDb)null!);
 
             var predictionService = CreateMockPredictionService(
@@ -695,9 +695,9 @@ public class RunExperimentCommands_Tests
                 });
 
             var firebaseFactory = new Mock<IFirebaseServiceFactory>();
-            firebaseFactory.Setup(factory => factory.CreatePredictionRepository((string?)null)).Returns(predictionRepository.Object);
-            firebaseFactory.Setup(factory => factory.CreateContextRepository((string?)null)).Returns(contextRepository.Object);
-            firebaseFactory.Setup(factory => factory.CreateMatchOutcomeRepository((string?)null)).Returns(matchOutcomeRepository.Object);
+            firebaseFactory.Setup(factory => factory.CreatePredictionRepository(It.IsAny<string>())).Returns(predictionRepository.Object);
+            firebaseFactory.Setup(factory => factory.CreateContextRepository(It.IsAny<string>())).Returns(contextRepository.Object);
+            firebaseFactory.Setup(factory => factory.CreateMatchOutcomeRepository(It.IsAny<string>())).Returns(matchOutcomeRepository.Object);
             firebaseFactory.SetupGet(factory => factory.FirestoreDb).Returns((Google.Cloud.Firestore.FirestoreDb)null!);
 
             var predictionService = CreateMockPredictionService(

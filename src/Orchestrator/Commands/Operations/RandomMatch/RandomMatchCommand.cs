@@ -76,8 +76,6 @@ public class RandomMatchCommand : AsyncCommand<RandomMatchSettings>
         var competition = CompetitionResolver.ResolveCompetition(settings.Competition, settings.Community, communityContext);
         var modelConfig = PredictionServiceCommandSupport.CreateModelConfig(settings.Model, settings.ReasoningEffort);
         var model = modelConfig.Model;
-        var repositoryCompetition = CompetitionResolver.ToRepositoryCompetitionArgument(competition);
-
         if (settings.WithJustification && PredictionServiceCommandSupport.UsesLangfusePromptSource(
                 competition,
                 settings.Community,
@@ -109,14 +107,14 @@ public class RandomMatchCommand : AsyncCommand<RandomMatchSettings>
 
         // Create context provider using factory (community is used as context)
         var contextProvider = _contextProviderFactory.CreateKicktippContextProvider(
-            kicktippClient, settings.Community, communityContext, repositoryCompetition);
+            kicktippClient, settings.Community, competition, communityContext);
 
         var tokenUsageTracker = _openAiServiceFactory.GetTokenUsageTracker();
 
         _console.MarkupLine($"[dim]Match prompt:[/] [blue]{predictionService.GetMatchPromptPath(settings.WithJustification)}[/]");
 
         // Create context repository for hybrid context lookup
-        var contextRepository = _firebaseServiceFactory.CreateContextRepository(repositoryCompetition);
+        var contextRepository = _firebaseServiceFactory.CreateContextRepository(competition);
 
         // Reset token usage tracker for this workflow
         tokenUsageTracker.Reset();

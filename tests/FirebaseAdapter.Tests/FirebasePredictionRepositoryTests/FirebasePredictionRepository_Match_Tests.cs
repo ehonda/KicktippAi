@@ -67,7 +67,7 @@ public class FirebasePredictionRepository_Match_Tests(FirestoreFixture fixture)
                 ["startsAt"] = Timestamp.FromDateTimeOffset(
                     Instant.FromUtc(2026, 6, 1, 12, 0).ToDateTimeOffset()),
                 ["matchday"] = 12,
-                ["competition"] = CompetitionIds.Bundesliga2025_26,
+                ["competition"] = CompetitionIds.Bundesliga2026_27,
                 ["isCancelled"] = false
             });
 
@@ -329,7 +329,7 @@ public class FirebasePredictionRepository_Match_Tests(FirestoreFixture fixture)
                 ["awayTeam"] = "Team B",
                 ["startsAt"] = Timestamp.FromDateTimeOffset(laterStartsAt.ToDateTimeOffset()),
                 ["matchday"] = 25,
-                ["competition"] = "bundesliga-2025-26",
+                ["competition"] = CompetitionIds.Bundesliga2026_27,
                 ["isCancelled"] = false
             });
 
@@ -341,7 +341,7 @@ public class FirebasePredictionRepository_Match_Tests(FirestoreFixture fixture)
                 ["awayTeam"] = "Team B",
                 ["startsAt"] = Timestamp.FromDateTimeOffset(earlierStartsAt.ToDateTimeOffset()),
                 ["matchday"] = 25,
-                ["competition"] = "bundesliga-2025-26",
+                ["competition"] = CompetitionIds.Bundesliga2026_27,
                 ["isCancelled"] = false
             });
 
@@ -368,7 +368,7 @@ public class FirebasePredictionRepository_Match_Tests(FirestoreFixture fixture)
                 ["awayGoals"] = 0,
                 ["createdAt"] = Timestamp.FromDateTime(DateTime.SpecifyKind(new DateTime(2026, 2, 1, 12, 0, 0), DateTimeKind.Utc)),
                 ["updatedAt"] = Timestamp.FromDateTime(DateTime.SpecifyKind(new DateTime(2026, 2, 1, 12, 0, 0), DateTimeKind.Utc)),
-                ["competition"] = "bundesliga-2025-26",
+                ["competition"] = CompetitionIds.Bundesliga2026_27,
                 ["model"] = "gpt-4o",
                 ["tokenUsage"] = "100",
                 ["cost"] = 0.01,
@@ -389,7 +389,7 @@ public class FirebasePredictionRepository_Match_Tests(FirestoreFixture fixture)
                 ["awayGoals"] = 1,
                 ["createdAt"] = Timestamp.FromDateTime(DateTime.SpecifyKind(new DateTime(2026, 2, 2, 12, 0, 0), DateTimeKind.Utc)),
                 ["updatedAt"] = Timestamp.FromDateTime(DateTime.SpecifyKind(new DateTime(2026, 2, 2, 12, 0, 0), DateTimeKind.Utc)),
-                ["competition"] = "bundesliga-2025-26",
+                ["competition"] = CompetitionIds.Bundesliga2026_27,
                 ["model"] = "gpt-4o",
                 ["tokenUsage"] = "120",
                 ["cost"] = 0.02,
@@ -410,7 +410,7 @@ public class FirebasePredictionRepository_Match_Tests(FirestoreFixture fixture)
                 ["awayGoals"] = 2,
                 ["createdAt"] = Timestamp.FromDateTime(DateTime.SpecifyKind(new DateTime(2026, 2, 2, 12, 0, 0), DateTimeKind.Utc)),
                 ["updatedAt"] = Timestamp.FromDateTime(DateTime.SpecifyKind(new DateTime(2026, 2, 2, 12, 0, 0), DateTimeKind.Utc)),
-                ["competition"] = "bundesliga-2025-26",
+                ["competition"] = CompetitionIds.Bundesliga2026_27,
                 ["model"] = "gpt-4o",
                 ["tokenUsage"] = "130",
                 ["cost"] = 0.03,
@@ -513,7 +513,7 @@ public class FirebasePredictionRepository_Match_Tests(FirestoreFixture fixture)
             ["awayTeam"] = "Legacy Team B",
             ["startsAt"] = Google.Cloud.Firestore.Timestamp.FromDateTime(DateTime.UtcNow),
             ["matchday"] = 20,
-            ["competition"] = "bundesliga-2025-26"
+            ["competition"] = CompetitionIds.Bundesliga2026_27
             // Note: IsCancelled is intentionally NOT included
         };
 

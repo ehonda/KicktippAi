@@ -60,7 +60,7 @@ public class AnalyzeMatchComparisonCommand_ErrorHandling_Tests : AnalyzeMatchTes
     public async Task Context_repository_null_shows_warning_and_continues()
     {
         var mockFirebaseFactory = new Mock<IFirebaseServiceFactory>();
-        mockFirebaseFactory.Setup(f => f.CreateContextRepository((string?)null)).Returns((IContextRepository?)null!);
+        mockFirebaseFactory.Setup(f => f.CreateContextRepository(CompetitionIds.Bundesliga2026_27)).Returns((IContextRepository?)null!);
         var context = CreateComparisonCommandApp(firebaseServiceFactory: mockFirebaseFactory);
         var (exitCode, output) = await RunComparisonAsync(context, "--runs", "1");
 

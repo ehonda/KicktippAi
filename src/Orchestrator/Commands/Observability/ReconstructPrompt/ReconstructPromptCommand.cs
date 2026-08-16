@@ -36,8 +36,8 @@ public class ReconstructPromptCommand : AsyncCommand<ReconstructPromptSettings>
         {
             _console.MarkupLine($"[green]Reconstructing prompt for:[/] [yellow]{Markup.Escape(settings.HomeTeam)}[/] vs [yellow]{Markup.Escape(settings.AwayTeam)}[/]");
 
-            var predictionRepository = _firebaseServiceFactory.CreatePredictionRepository();
-            var contextRepository = _firebaseServiceFactory.CreateContextRepository();
+            var predictionRepository = _firebaseServiceFactory.CreatePredictionRepository(CompetitionIds.Bundesliga2026_27);
+            var contextRepository = _firebaseServiceFactory.CreateContextRepository(CompetitionIds.Bundesliga2026_27);
             var reconstructionService = new MatchPromptReconstructionService(
                 predictionRepository,
                 contextRepository,

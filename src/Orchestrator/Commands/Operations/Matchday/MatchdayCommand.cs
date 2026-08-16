@@ -152,8 +152,6 @@ public class MatchdayCommand : AsyncCommand<BaseSettings>
         var competition = CompetitionResolver.ResolveCompetition(settings.Competition, settings.Community, communityContext);
         var modelConfig = PredictionServiceCommandSupport.CreateModelConfig(settings.Model, settings.ReasoningEffort);
         var model = modelConfig.Model;
-        var repositoryCompetition = CompetitionResolver.ToRepositoryCompetitionArgument(competition);
-
         if (settings.WithJustification && PredictionServiceCommandSupport.UsesLangfusePromptSource(
                 competition,
                 settings.Community,
@@ -185,7 +183,7 @@ public class MatchdayCommand : AsyncCommand<BaseSettings>
 
         // Create context provider using factory
         var contextProvider = _contextProviderFactory.CreateKicktippContextProvider(
-            kicktippClient, settings.Community, communityContext, repositoryCompetition);
+            kicktippClient, settings.Community, competition, communityContext);
 
         var tokenUsageTracker = _openAiServiceFactory.GetTokenUsageTracker();
 
@@ -196,8 +194,8 @@ public class MatchdayCommand : AsyncCommand<BaseSettings>
         }
 
         // Create repositories
-        var predictionRepository = _firebaseServiceFactory.CreatePredictionRepository(repositoryCompetition);
-        var contextRepository = _firebaseServiceFactory.CreateContextRepository(repositoryCompetition);
+        var predictionRepository = _firebaseServiceFactory.CreatePredictionRepository(competition);
+        var contextRepository = _firebaseServiceFactory.CreateContextRepository(competition);
         var databaseEnabled = true;
 
         // Reset token usage tracker for this workflow

@@ -33,8 +33,8 @@ public class CollectContextDevCommandTests
         await Assert.That(exitCode).IsEqualTo(1);
         await Assert.That(output).Contains("only available");
         testContext.KicktippClientFactory.Verify(f => f.CreateClient(), Times.Never);
-        testContext.FirebaseServiceFactory.Verify(f => f.CreateContextRepository(It.IsAny<string?>()), Times.Never);
-        testContext.FirebaseServiceFactory.Verify(f => f.CreateKpiRepository(It.IsAny<string?>()), Times.Never);
+        testContext.FirebaseServiceFactory.Verify(f => f.CreateContextRepository(It.IsAny<string>()), Times.Never);
+        testContext.FirebaseServiceFactory.Verify(f => f.CreateKpiRepository(It.IsAny<string>()), Times.Never);
     }
 
     [Test]

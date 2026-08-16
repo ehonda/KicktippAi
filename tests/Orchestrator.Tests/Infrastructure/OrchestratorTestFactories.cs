@@ -124,7 +124,7 @@ public static class OrchestratorTestFactories
         var mockFactory = new Mock<IFirebaseServiceFactory>();
         var mockRepo = kpiRepository.Or(() => new Mock<IKpiRepository>());
 
-        mockFactory.Setup(f => f.CreateKpiRepository((string?)null)).Returns(mockRepo.Object);
+        mockFactory.Setup(f => f.CreateKpiRepository(CompetitionIds.Bundesliga2026_27)).Returns(mockRepo.Object);
 
         return mockFactory;
     }
@@ -418,12 +418,12 @@ public static class OrchestratorTestFactories
         mockFactory.Setup(f => f.CreateKicktippContextProvider(
                 It.IsAny<IKicktippClient>(),
                 It.IsAny<string>(),
-                It.IsAny<string?>(),
+                It.IsAny<string>(),
                 It.IsAny<string?>(),
                 It.IsAny<int?>()))
             .Returns(mockProvider.Object);
 
-        mockFactory.Setup(f => f.CreateKpiContextProvider(It.IsAny<string?>()))
+        mockFactory.Setup(f => f.CreateKpiContextProvider(It.IsAny<string>()))
             .Returns(mockKpiProvider.Object);
 
         return mockFactory;
@@ -939,10 +939,10 @@ public static class OrchestratorTestFactories
         var mockContextRepo = contextRepository.Or(() => CreateMockContextRepository());
         var mockMatchOutcomeRepo = matchOutcomeRepository.Or(() => CreateMockMatchOutcomeRepository());
 
-        mockFactory.Setup(f => f.CreateKpiRepository(It.IsAny<string?>())).Returns(mockKpiRepo.Object);
-        mockFactory.Setup(f => f.CreatePredictionRepository(It.IsAny<string?>())).Returns(mockPredictionRepo.Object);
-        mockFactory.Setup(f => f.CreateContextRepository(It.IsAny<string?>())).Returns(mockContextRepo.Object);
-        mockFactory.Setup(f => f.CreateMatchOutcomeRepository(It.IsAny<string?>())).Returns(mockMatchOutcomeRepo.Object);
+        mockFactory.Setup(f => f.CreateKpiRepository(It.IsAny<string>())).Returns(mockKpiRepo.Object);
+        mockFactory.Setup(f => f.CreatePredictionRepository(It.IsAny<string>())).Returns(mockPredictionRepo.Object);
+        mockFactory.Setup(f => f.CreateContextRepository(It.IsAny<string>())).Returns(mockContextRepo.Object);
+        mockFactory.Setup(f => f.CreateMatchOutcomeRepository(It.IsAny<string>())).Returns(mockMatchOutcomeRepo.Object);
 
         return mockFactory;
     }

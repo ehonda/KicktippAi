@@ -27,29 +27,33 @@ public sealed class FirebaseServiceFactory : IFirebaseServiceFactory
     public FirestoreDb FirestoreDb => _firestoreDb.Value;
 
     /// <inheritdoc />
-    public IPredictionRepository CreatePredictionRepository(string? competition = null)
+    public IPredictionRepository CreatePredictionRepository(string competition)
     {
+        ArgumentException.ThrowIfNullOrWhiteSpace(competition);
         var logger = _loggerFactory.CreateLogger<FirebasePredictionRepository>();
         return new FirebasePredictionRepository(FirestoreDb, logger, competition);
     }
 
     /// <inheritdoc />
-    public IKpiRepository CreateKpiRepository(string? competition = null)
+    public IKpiRepository CreateKpiRepository(string competition)
     {
+        ArgumentException.ThrowIfNullOrWhiteSpace(competition);
         var logger = _loggerFactory.CreateLogger<FirebaseKpiRepository>();
-        return new FirebaseKpiRepository(FirestoreDb, logger, competition ?? CompetitionIds.Bundesliga2025_26);
+        return new FirebaseKpiRepository(FirestoreDb, logger, competition);
     }
 
     /// <inheritdoc />
-    public IContextRepository CreateContextRepository(string? competition = null)
+    public IContextRepository CreateContextRepository(string competition)
     {
+        ArgumentException.ThrowIfNullOrWhiteSpace(competition);
         var logger = _loggerFactory.CreateLogger<FirebaseContextRepository>();
         return new FirebaseContextRepository(FirestoreDb, logger, competition);
     }
 
     /// <inheritdoc />
-    public IMatchOutcomeRepository CreateMatchOutcomeRepository(string? competition = null)
+    public IMatchOutcomeRepository CreateMatchOutcomeRepository(string competition)
     {
+        ArgumentException.ThrowIfNullOrWhiteSpace(competition);
         var logger = _loggerFactory.CreateLogger<FirebaseMatchOutcomeRepository>();
         return new FirebaseMatchOutcomeRepository(FirestoreDb, logger, competition);
     }

@@ -1,3 +1,4 @@
+using EHonda.KicktippAi.Core;
 using Google.Cloud.Firestore;
 using TUnit.Core;
 using TestUtilities;
@@ -107,7 +108,7 @@ public class FirebaseContextRepository_GetContextDocumentByTimestampAsync_Tests(
 
     private async Task SetCreatedAtAsync(string documentName, int version, string communityContext, DateTimeOffset createdAt)
     {
-        var documentId = $"{documentName}_{communityContext}_{version}";
+        var documentId = $"{CompetitionIds.Bundesliga2026_27}_{documentName}_{communityContext}_{version}";
         var documentReference = Fixture.Db.Collection("context-documents").Document(documentId);
         await documentReference.UpdateAsync("createdAt", Timestamp.FromDateTime(createdAt.UtcDateTime));
     }

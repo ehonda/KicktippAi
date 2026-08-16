@@ -75,10 +75,10 @@ public class FirestoreMatchPrediction
     public Timestamp UpdatedAt { get; set; }
 
     /// <summary>
-    /// Competition/season identifier (e.g., "bundesliga-2025-26").
+    /// Competition/season identifier (e.g., "bundesliga-2026-27").
     /// </summary>
     [FirestoreProperty("competition")]
-    public string Competition { get; set; } = "bundesliga-2025-26";
+    public string Competition { get; set; } = string.Empty;
 
     /// <summary>
     /// The AI model used to generate this prediction (e.g., "gpt-4o", "o1-mini").
@@ -172,7 +172,7 @@ public class FirestoreMatch
     /// Competition/season identifier.
     /// </summary>
     [FirestoreProperty("competition")]
-    public string Competition { get; set; } = "bundesliga-2025-26";
+    public string Competition { get; set; } = string.Empty;
     
     /// <summary>
     /// Indicates whether the match has been cancelled.
@@ -248,10 +248,10 @@ public class FirestoreBonusPrediction
     public Timestamp UpdatedAt { get; set; }
 
     /// <summary>
-    /// Competition/season identifier (e.g., "bundesliga-2025-26").
+    /// Competition/season identifier (e.g., "bundesliga-2026-27").
     /// </summary>
     [FirestoreProperty("competition")]
-    public string Competition { get; set; } = "bundesliga-2025-26";
+    public string Competition { get; set; } = string.Empty;
 
     /// <summary>
     /// The AI model used to generate this prediction (e.g., "gpt-4o", "o1-mini").
@@ -349,10 +349,10 @@ public class FirestoreKpiDocument
     public Timestamp CreatedAt { get; set; }
 
     /// <summary>
-    /// Competition/season identifier (e.g., "bundesliga-2025-26").
+    /// Competition/season identifier (e.g., "bundesliga-2026-27").
     /// </summary>
     [FirestoreProperty("competition")]
-    public string Competition { get; set; } = "bundesliga-2025-26";
+    public string Competition { get; set; } = string.Empty;
 
     /// <summary>
     /// Community context for filtering KPI documents.
@@ -400,10 +400,10 @@ public class FirestoreContextDocument
     public Timestamp CreatedAt { get; set; }
 
     /// <summary>
-    /// Competition/season identifier (e.g., "bundesliga-2025-26").
+    /// Competition/season identifier (e.g., "bundesliga-2026-27").
     /// </summary>
     [FirestoreProperty("competition")]
-    public string Competition { get; set; } = "bundesliga-2025-26";
+    public string Competition { get; set; } = string.Empty;
 
     /// <summary>
     /// Community context for filtering context documents.
@@ -452,7 +452,7 @@ public class FirestoreMatchOutcome
     public Timestamp UpdatedAt { get; set; }
 
     [FirestoreProperty("competition")]
-    public string Competition { get; set; } = "bundesliga-2025-26";
+    public string Competition { get; set; } = string.Empty;
 
     [FirestoreProperty("communityContext")]
     public string CommunityContext { get; set; } = string.Empty;

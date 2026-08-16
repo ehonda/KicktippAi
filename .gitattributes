@@ -1,1 +1,2 @@
 *.sh text eol=lf
+data/bundesliga-2026-27/team-manifest.csv text eol=crlf

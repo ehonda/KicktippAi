@@ -29,7 +29,7 @@ public sealed class PrepareRepeatedMatchCommand : AsyncCommand<PrepareRepeatedMa
     {
         try
         {
-            var matchOutcomeRepository = _firebaseServiceFactory.CreateMatchOutcomeRepository();
+            var matchOutcomeRepository = _firebaseServiceFactory.CreateMatchOutcomeRepository(CompetitionIds.Bundesliga2026_27);
             var outcome = await LoadCompletedOutcomeAsync(matchOutcomeRepository, settings, cancellationToken);
             var sourceDatasetName = ExperimentArtifactSupport.BuildSourceDatasetName(settings.CommunityContext);
             var sourceItem = ExperimentArtifactSupport.BuildHostedDatasetItem(outcome);

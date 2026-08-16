@@ -30,7 +30,7 @@ public class ServiceCollectionExtensionsTests
     /// </summary>
     private static void AddDefaultFirebaseDatabase(IServiceCollection services)
     {
-        services.AddFirebaseDatabase(options =>
+        services.AddFirebaseDatabase(CompetitionIds.Bundesliga2026_27, options =>
         {
             options.ProjectId = "test-project";
             options.ServiceAccountJson = "{}";
@@ -44,7 +44,7 @@ public class ServiceCollectionExtensionsTests
         var services = CreateServices();
 
         // Act
-        services.AddFirebaseDatabase(options =>
+        services.AddFirebaseDatabase(CompetitionIds.Bundesliga2026_27, options =>
         {
             options.ProjectId = "test-project";
             options.ServiceAccountJson = "test-json";
@@ -145,7 +145,7 @@ public class ServiceCollectionExtensionsTests
             .Build();
 
         // Act
-        services.AddFirebaseDatabase(configuration);
+        services.AddFirebaseDatabase(configuration, CompetitionIds.Bundesliga2026_27);
 
         // Assert
         var provider = services.BuildServiceProvider();
@@ -165,7 +165,7 @@ public class ServiceCollectionExtensionsTests
         services.AddFirebaseDatabase(
             projectId: "explicit-project",
             serviceAccountJson: "explicit-json",
-            community: "test-community");
+            competition: CompetitionIds.Bundesliga2026_27);
 
         // Assert
         var provider = services.BuildServiceProvider();
@@ -184,7 +184,8 @@ public class ServiceCollectionExtensionsTests
         // Act
         services.AddFirebaseDatabaseWithFile(
             projectId: "file-project",
-            serviceAccountPath: "/path/to/service-account.json");
+            serviceAccountPath: "/path/to/service-account.json",
+            competition: CompetitionIds.Bundesliga2026_27);
 
         // Assert
         var provider = services.BuildServiceProvider();
@@ -201,7 +202,7 @@ public class ServiceCollectionExtensionsTests
         var services = CreateServices();
 
         // Act
-        var result = services.AddFirebaseDatabase(options =>
+        var result = services.AddFirebaseDatabase(CompetitionIds.Bundesliga2026_27, options =>
         {
             options.ProjectId = "test";
             options.ServiceAccountJson = "{}";
@@ -225,7 +226,7 @@ public class ServiceCollectionExtensionsTests
         });
 
         // Act - Call without configureOptions delegate
-        services.AddFirebaseDatabase();
+        services.AddFirebaseDatabase(CompetitionIds.Bundesliga2026_27);
 
         // Assert - Services should still be registered
         var predictionDescriptor = services.FirstOrDefault(d => d.ServiceType == typeof(IPredictionRepository));
@@ -247,7 +248,8 @@ public class ServiceCollectionExtensionsTests
         // Act
         services.AddFirebaseDatabaseWithFile(
             projectId: "file-test-project",
-            serviceAccountPath: expectedPath);
+            serviceAccountPath: expectedPath,
+            competition: CompetitionIds.Bundesliga2026_27);
 
         // Assert
         var provider = services.BuildServiceProvider();

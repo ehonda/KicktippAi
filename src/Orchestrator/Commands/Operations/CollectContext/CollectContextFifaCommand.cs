@@ -54,7 +54,6 @@ public sealed class CollectContextFifaCommand : AsyncCommand<CollectContextFifaS
 
             var communityContext = settings.CommunityContext.Trim();
             var competition = CompetitionResolver.ResolveCompetition(settings.Competition, communityContext, communityContext);
-            var repositoryCompetition = CompetitionResolver.ToRepositoryCompetitionArgument(competition);
             var collectionDate = DateOnly.FromDateTime(DateTime.UtcNow);
 
             _console.MarkupLine("[green]Collect-context fifa command initialized[/]");
@@ -90,8 +89,8 @@ public sealed class CollectContextFifaCommand : AsyncCommand<CollectContextFifaS
                 return 0;
             }
 
-            var contextRepository = _firebaseServiceFactory.CreateContextRepository(repositoryCompetition);
-            var kpiRepository = _firebaseServiceFactory.CreateKpiRepository(repositoryCompetition);
+            var contextRepository = _firebaseServiceFactory.CreateContextRepository(competition);
+            var kpiRepository = _firebaseServiceFactory.CreateKpiRepository(competition);
 
             var savedContextCount = 0;
             var skippedContextCount = 0;

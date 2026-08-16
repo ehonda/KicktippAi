@@ -37,8 +37,7 @@ public sealed class Wm26RecentHistoryProbePredictionLookupCommand
             var competition = CompetitionResolver.ResolveCompetition(
                 settings.Competition,
                 communityContext: settings.CommunityContext);
-            var repositoryCompetition = CompetitionResolver.ToRepositoryCompetitionArgument(competition);
-            var predictionRepository = _firebaseServiceFactory.CreatePredictionRepository(repositoryCompetition);
+            var predictionRepository = _firebaseServiceFactory.CreatePredictionRepository(competition);
 
             _console.MarkupLine("[green]Probing latest predicted match lookup[/]");
             _console.MarkupLine($"[blue]Using community context:[/] [yellow]{Markup.Escape(settings.CommunityContext)}[/]");

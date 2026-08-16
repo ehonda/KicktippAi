@@ -59,11 +59,10 @@ public sealed class Wm26RecentHistoryApplyDateMapCommand
             var competition = CompetitionResolver.ResolveCompetition(
                 settings.Competition,
                 communityContext: settings.CommunityContext);
-            var repositoryCompetition = CompetitionResolver.ToRepositoryCompetitionArgument(competition);
-            var contextRepository = _firebaseServiceFactory.CreateContextRepository(repositoryCompetition);
+            var contextRepository = _firebaseServiceFactory.CreateContextRepository(competition);
             var applyOptions = CreateApplyOptions(settings);
             var predictionRepository = settings.ApplyKnownOnly && applyOptions.PreserveCollectedOnOrAfter.HasValue
-                ? _firebaseServiceFactory.CreatePredictionRepository(repositoryCompetition)
+                ? _firebaseServiceFactory.CreatePredictionRepository(competition)
                 : null;
             var predictionLookupCache = new Dictionary<PredictionLookupKey, Match?>();
 

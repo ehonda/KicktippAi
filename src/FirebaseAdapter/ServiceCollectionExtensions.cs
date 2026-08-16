@@ -18,14 +18,17 @@ public static class ServiceCollectionExtensions
     /// Adds Firebase Firestore database services to the service collection.
     /// </summary>
     /// <param name="services">The service collection to add services to.</param>
+    /// <param name="competition">The required competition identifier for every repository registration.</param>
     /// <param name="configureOptions">Optional configuration delegate for Firebase options.</param>
-    /// <param name="community">The community identifier for collection naming.</param>
     /// <returns>The service collection for chaining.</returns>
     public static IServiceCollection AddFirebaseDatabase(
-        this IServiceCollection services, 
-        Action<FirebaseOptions>? configureOptions = null,
-        string? community = null)
+        this IServiceCollection services,
+        string competition,
+        Action<FirebaseOptions>? configureOptions = null)
     {
+        ArgumentException.ThrowIfNullOrWhiteSpace(competition);
+        competition = competition.Trim();
+
         // Configure options
         if (configureOptions != null)
         {
@@ -86,7 +89,7 @@ public static class ServiceCollectionExtensions
         {
             var firestoreDb = serviceProvider.GetRequiredService<FirestoreDb>();
             var logger = serviceProvider.GetRequiredService<ILogger<FirebasePredictionRepository>>();
-            return new FirebasePredictionRepository(firestoreDb, logger);
+            return new FirebasePredictionRepository(firestoreDb, logger, competition);
         });
 
         // Register the KPI repository
@@ -94,7 +97,7 @@ public static class ServiceCollectionExtensions
         {
             var firestoreDb = serviceProvider.GetRequiredService<FirestoreDb>();
             var logger = serviceProvider.GetRequiredService<ILogger<FirebaseKpiRepository>>();
-            return new FirebaseKpiRepository(firestoreDb, logger);
+            return new FirebaseKpiRepository(firestoreDb, logger, competition);
         });
 
         // Register the context repository
@@ -102,14 +105,14 @@ public static class ServiceCollectionExtensions
         {
             var firestoreDb = serviceProvider.GetRequiredService<FirestoreDb>();
             var logger = serviceProvider.GetRequiredService<ILogger<FirebaseContextRepository>>();
-            return new FirebaseContextRepository(firestoreDb, logger);
+            return new FirebaseContextRepository(firestoreDb, logger, competition);
         });
 
         services.AddScoped<IMatchOutcomeRepository>(serviceProvider =>
         {
             var firestoreDb = serviceProvider.GetRequiredService<FirestoreDb>();
             var logger = serviceProvider.GetRequiredService<ILogger<FirebaseMatchOutcomeRepository>>();
-            return new FirebaseMatchOutcomeRepository(firestoreDb, logger);
+            return new FirebaseMatchOutcomeRepository(firestoreDb, logger, competition);
         });
 
         // Register the KPI context provider
@@ -128,13 +131,15 @@ public static class ServiceCollectionExtensions
     /// </summary>
     /// <param name="services">The service collection to add services to.</param>
     /// <param name="configuration">The configuration to bind Firebase options from.</param>
+    /// <param name="competition">The required competition identifier for every repository registration.</param>
     /// <returns>The service collection for chaining.</returns>
     public static IServiceCollection AddFirebaseDatabase(
         this IServiceCollection services,
-        IConfiguration configuration)
+        IConfiguration configuration,
+        string competition)
     {
         services.Configure<FirebaseOptions>(configuration.GetSection(FirebaseOptions.SectionName));
-        return services.AddFirebaseDatabase((Action<FirebaseOptions>?)null);
+        return services.AddFirebaseDatabase(competition);
     }
 
     /// <summary>
@@ -143,19 +148,19 @@ public static class ServiceCollectionExtensions
     /// <param name="services">The service collection to add services to.</param>
     /// <param name="projectId">Firebase project ID.</param>
     /// <param name="serviceAccountJson">Service account JSON content.</param>
-    /// <param name="community">The community identifier for collection naming.</param>
+    /// <param name="competition">The required competition identifier for every repository registration.</param>
     /// <returns>The service collection for chaining.</returns>
     public static IServiceCollection AddFirebaseDatabase(
         this IServiceCollection services,
         string projectId,
         string serviceAccountJson,
-        string community)
+        string competition)
     {
-        return services.AddFirebaseDatabase(options =>
+        return services.AddFirebaseDatabase(competition, options =>
         {
             options.ProjectId = projectId;
             options.ServiceAccountJson = serviceAccountJson;
-        }, community);
+        });
     }
 
     /// <summary>
@@ -164,13 +169,15 @@ public static class ServiceCollectionExtensions
     /// <param name="services">The service collection to add services to.</param>
     /// <param name="projectId">Firebase project ID.</param>
     /// <param name="serviceAccountPath">Path to service account JSON file.</param>
+    /// <param name="competition">The required competition identifier for every repository registration.</param>
     /// <returns>The service collection for chaining.</returns>
     public static IServiceCollection AddFirebaseDatabaseWithFile(
         this IServiceCollection services,
         string projectId,
-        string serviceAccountPath)
+        string serviceAccountPath,
+        string competition)
     {
-        return services.AddFirebaseDatabase(options =>
+        return services.AddFirebaseDatabase(competition, options =>
         {
             options.ProjectId = projectId;
             options.ServiceAccountPath = serviceAccountPath;

@@ -35,7 +35,6 @@ public sealed class CopyFirestoreContextCommand : AsyncCommand<CopyFirestoreCont
             var competition = CompetitionResolver.ResolveCompetition(
                 settings.Competition,
                 communityContext: settings.TargetCommunityContext);
-            var repositoryCompetition = CompetitionResolver.ToRepositoryCompetitionArgument(competition);
 
             _console.MarkupLine($"[green]Copy Firestore context command initialized[/]");
             _console.MarkupLine($"[blue]Source community context:[/] [yellow]{settings.SourceCommunityContext}[/]");
@@ -46,8 +45,8 @@ public sealed class CopyFirestoreContextCommand : AsyncCommand<CopyFirestoreCont
                 _console.MarkupLine("[magenta]Dry run mode enabled - no Firestore documents will be written[/]");
             }
 
-            var contextRepository = _firebaseServiceFactory.CreateContextRepository(repositoryCompetition);
-            var kpiRepository = _firebaseServiceFactory.CreateKpiRepository(repositoryCompetition);
+            var contextRepository = _firebaseServiceFactory.CreateContextRepository(competition);
+            var kpiRepository = _firebaseServiceFactory.CreateKpiRepository(competition);
 
             var sourceContextDocuments = await LoadSourceContextDocumentsAsync(
                 contextRepository,
