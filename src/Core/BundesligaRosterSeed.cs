@@ -9,6 +9,11 @@ namespace EHonda.KicktippAi.Core;
 public sealed class BundesligaRosterSeed
 {
     public const string RelativePath = "data/bundesliga-2026-27/rosters/roster-membership-seed.csv";
+    public const string QualityReportRelativePath = "data/bundesliga-2026-27/rosters/roster-membership-quality-report.csv";
+
+    private const string ResourceName = "EHonda.KicktippAi.Core.Data.Bundesliga2026_27RosterMembershipSeed.csv";
+
+    private static readonly Lazy<BundesligaRosterSeed> DefaultSeed = new(LoadEmbedded);
 
     public static readonly IReadOnlyList<string> Headers =
     [
@@ -36,6 +41,8 @@ public sealed class BundesligaRosterSeed
     public IReadOnlyList<BundesligaRosterSeedEntry> Entries { get; }
 
     public IReadOnlyList<string> Diagnostics { get; }
+
+    public static BundesligaRosterSeed Default => DefaultSeed.Value;
 
     public static BundesligaRosterSeed Parse(
         byte[] content,
@@ -320,6 +327,15 @@ public sealed class BundesligaRosterSeed
         {
             throw Invalid(sourceName, $"{fieldName} value '{duplicate.Key}' must be unique");
         }
+    }
+
+    private static BundesligaRosterSeed LoadEmbedded()
+    {
+        using var stream = typeof(BundesligaRosterSeed).Assembly.GetManifestResourceStream(ResourceName)
+            ?? throw new InvalidOperationException($"Embedded Bundesliga roster seed resource '{ResourceName}' was not found.");
+        using var memory = new MemoryStream();
+        stream.CopyTo(memory);
+        return Parse(memory.ToArray());
     }
 
     private static InvalidDataException Invalid(string sourceName, string message, Exception? innerException = null)

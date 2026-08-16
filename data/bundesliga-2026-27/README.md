@@ -24,6 +24,35 @@ Rows are sorted by `Team_Slug` using ordinal comparison. The file is UTF-8 witho
 
 The identity and lookup behavior are fixed by [ADR-0010](../../plans/bundesliga-2026-27/decisions/0010-season-scoped-team-identity-manifest.md).
 
+## Roster membership fallback
+
+`rosters/roster-membership-seed.csv` is the complete fallback snapshot collected on 2026-08-16 under [ADR-0011](../../plans/bundesliga-2026-27/decisions/0011-roster-snapshot-and-publication-contract.md). It contains 534 current players and exactly one primary coach for each of the 18 manifest clubs. The 552 data rows are ordered by manifest slug, coach before players, normalized name, and stable player ID. All club IDs are the manifest IDs. Of the 534 players, 464 have a confident stable Transfermarkt ID from the repository-local research snapshot; the other 70 IDs are deliberately empty.
+
+`rosters/roster-membership-quality-report.csv` is the deterministic 18-row fallback audit in ADR-0011's reusable quality-report schema. `Known_*` and value counts remain zero because those are P0-09 enrichment outputs, not membership claims. `MISSING_STABLE_PLAYER_IDS:*` is informational: optional IDs do not invalidate authoritative membership.
+
+| Slug | Players | Primary coach | Official player source | Official coach source |
+|---|---:|---|---|---|
+| `b04` | 31 | Carles Martínez | [Werkself](https://www.bayer04.de/de-de/team/werkself/bayer-04-leverkusen) | same page |
+| `bmg` | 31 | Eugen Polanski | [Fohlenelf](https://www.borussia.de/kader-und-staff-fohlenelf) | same page |
+| `bvb` | 27 | Niko Kovac | [Profis](https://www.bvb.de/de/de/mannschaften/fussball/profis.html) | same page |
+| `fca` | 29 | Manuel Baum | [Kader](https://www.fcaugsburg.de/team/) | [Funktionsteam](https://www.fcaugsburg.de/team/people) |
+| `fcb` | 25 | Vincent Kompany | [Profis](https://fcbayern.com/de/teams/profis) | same page |
+| `fck` | 26 | René Wagner | [Männerkader](https://fc.de/mannschaften/maenner/kader) | same page |
+| `fcu` | 30 | Mauro Lustrinelli | [Profis Männer](https://www.fc-union-berlin.de/de-e/fussball/profis-maenner/kader-F0GX) | same page |
+| `hsv` | 30 | Merlin Polzin | [Spieler](https://www.hsv.de/profis/spieler/) | [current coach evidence](https://www.hsv.de/news/merlin-polzin-jeden-einzelnen-tag-gewinnen) |
+| `m05` | 29 | Urs Fischer | [Kader](https://www.mainz05.de/tab/kader) | [Trainer](https://www.mainz05.de/tab/trainer) |
+| `rbl` | 34 | Martín Demichelis | [Männer](https://rbleipzig.com/de/teams/maenner) | same page |
+| `s04` | 29 | Miron Muslić | [Kader 2026/27](https://schalke04.de/kader-2026-2027/) | [coach profile](https://schalke04.de/teams/profis/person/miron-muslic/) |
+| `scf` | 30 | Julian Schuster | [Spieler](https://www.scfreiburg.com/teams/profis/spieler/) | [coach profile](https://www.scfreiburg.com/teams/profis/trainer/julian-schuster/) |
+| `scp` | 30 | Ralf Kettemann | [Mannschaft](https://www.scp07.de/Teams/Profis/Mannschaft/) | same page |
+| `sge` | 31 | Adi Hütter | [Kader](https://profis.eintracht.de/kader/) | same page |
+| `sve` | 28 | Vincent Wagner | [Profikader](https://sv07elversberg.de/teams/profis/kader/) | same page |
+| `svw` | 31 | Daniel Thioune | [Spieler](https://www.werder.de/teams/maenner/spieler/) | [Trainerteam](https://www.werder.de/teams/maenner/trainerteam) |
+| `tsg` | 29 | Christian Ilzer | [Profis](https://www.tsg-hoffenheim.de/teams/profis/team) | same page |
+| `vfb` | 34 | Sebastian Hoeneß | [Kader 2026/27](https://www.vfb.de/de/1893/profis/kader/saisonen/2026-2027/listenansicht/) | same page |
+
+The independent high-risk audit covered all three promoted clubs and the sources whose normal page crawler was stale or incomplete. Borussia Mönchengladbach's official page was cross-checked through the public GraphQL payload used by that page; RB Leipzig's current `/de/teams/maenner` route and Hoffenheim's current team payload replaced stale legacy routes. Mainz's current 29-card squad was reconciled against its [2026/27 training-start evidence](https://www.mainz05.de/news/trainingsauftakt-sommervorbereitung-profis-2627) and dated summer transactions. The [official HSV departure notice](https://www.hsv.de/news/ransford-koenigsdoerffer-verlaesst-den-hsv) and [official Mainz arrival notice](https://www.mainz05.de/news/ransford-konigsdorffer-wird-mainzer) place Ransford Königsdörffer only at Mainz. Schalke's current 29-player 2026/27 page excludes Junior Dina Ebimbe and Edin Džeko from an earlier stale capture. These reconciliations eliminate cross-club identity collisions without inferring membership from Transfermarkt data.
+
 ## Club Elo launch seed
 
 `club-elo-launch-seed.csv` is the complete launch-safe snapshot captured from the [Club Elo Germany ranking](https://clubelo.com/GER) on 2026-08-16. Its single `Rated_At` value is the provider's 2026-08-14 rating date; `Collected_At` separately records the UTC capture time. The 18 rows use the manifest's exact `Team_Slug` and `Club_Elo_Name` joins and are ordered by slug.

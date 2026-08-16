@@ -1,4 +1,5 @@
 *.sh text eol=lf
 data/bundesliga-2026-27/club-elo-launch-seed.csv text eol=crlf
+data/bundesliga-2026-27/rosters/*.csv text eol=crlf
 data/bundesliga-2026-27/team-manifest.csv text eol=crlf
 tests/Core.Tests/Fixtures/BundesligaRosters/*.csv text eol=crlf
