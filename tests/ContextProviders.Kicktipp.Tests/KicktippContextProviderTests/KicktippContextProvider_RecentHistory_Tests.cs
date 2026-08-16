@@ -44,21 +44,14 @@ public class KicktippContextProvider_RecentHistory_Tests : KicktippContextProvid
     }
 
     [Test]
-    public async Task Getting_recent_history_for_unknown_team_returns_empty_csv()
+    public async Task Getting_recent_history_for_unknown_bundesliga_team_fails_fast()
     {
         // Arrange
         var provider = CreateProvider();
 
-        // Act
-        var context = await provider.RecentHistory("Unknown Team FC");
-
-        // Assert
-        await Assert.That(context.Name).IsEqualTo("recent-history-unknown-team-fc.csv");
-        var expectedCsv = """
-            Competition,Home_Team,Away_Team,Score,Annotation
-
-            """;
-        await Assert.That(context.Content).IsEqualToWithNormalizedLineEndings(expectedCsv);
+        // Act & Assert
+        await Assert.That(async () => await provider.RecentHistory("Unknown Team FC"))
+            .Throws<KeyNotFoundException>();
     }
 
     [Test]

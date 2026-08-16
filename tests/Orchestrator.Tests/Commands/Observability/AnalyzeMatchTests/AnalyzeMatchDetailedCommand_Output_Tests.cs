@@ -191,7 +191,7 @@ public class AnalyzeMatchDetailedCommand_Output_Tests : AnalyzeMatchTests_Base
     }
 
     [Test]
-    public async Task Unknown_team_names_use_fallback_abbreviations()
+    public async Task Unknown_bundesliga_team_names_fail_instead_of_using_fallback_abbreviations()
     {
         var docs = CreateMatchContextDocuments(homeAbbreviation: "ta", awayAbbreviation: "tb");
         var match = CreateMatchWithHistory(
@@ -201,7 +201,7 @@ public class AnalyzeMatchDetailedCommand_Output_Tests : AnalyzeMatchTests_Base
             context, "--runs", "1", "--no-live-estimates",
             "--home", "Team Alpha", "--away", "Team Beta");
 
-        await Assert.That(exitCode).IsEqualTo(0);
-        await Assert.That(output).Contains("Loaded context documents:");
+        await Assert.That(exitCode).IsNotEqualTo(0);
+        await Assert.That(output).Contains("team-manifest.csv").And.Contains("fallback is disabled");
     }
 }

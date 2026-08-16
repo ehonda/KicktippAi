@@ -63,15 +63,15 @@ public class MatchdayCommand_ContextRetrieval_Tests : MatchdayCommandTests_Base
     [Arguments("VfB Stuttgart", "vfb")]
     [Arguments("Eintracht Frankfurt", "sge")]
     [Arguments("SC Freiburg", "scf")]
-    [Arguments("VfL Wolfsburg", "wob")]
+    [Arguments("SV Elversberg", "sve")]
     [Arguments("1. FC Union Berlin", "fcu")]
     [Arguments("FSV Mainz 05", "m05")]
     [Arguments("Werder Bremen", "svw")]
     [Arguments("Bor. Mönchengladbach", "bmg")]
     [Arguments("FC Augsburg", "fca")]
     [Arguments("1899 Hoffenheim", "tsg")]
-    [Arguments("1. FC Heidenheim 1846", "fch")]
-    [Arguments("FC St. Pauli", "fcs")]
+    [Arguments("SC Paderborn 07", "scp")]
+    [Arguments("FC Schalke 04", "s04")]
     [Arguments("1. FC Köln", "fck")]
     [Arguments("Hamburger SV", "hsv")]
     public async Task Running_command_retrieves_context_for_team_using_correct_abbreviation(string teamName, string expectedAbbreviation)
@@ -123,7 +123,7 @@ public class MatchdayCommand_ContextRetrieval_Tests : MatchdayCommandTests_Base
     }
 
     [Test]
-    public async Task Running_command_generates_fallback_abbreviation_for_unknown_team()
+    public async Task Running_command_rejects_unknown_bundesliga_team_instead_of_generating_a_slug()
     {
         var matches = new List<MatchWithHistory>
         {
@@ -133,9 +133,8 @@ public class MatchdayCommand_ContextRetrieval_Tests : MatchdayCommandTests_Base
 
         var (exitCode, output) = await RunCommandAsync(ctx.App, ctx.Console, "matchday", "gpt-4o", "-c", "test-community");
 
-        await Assert.That(exitCode).IsEqualTo(0);
-        await Assert.That(output).Contains("Processing:");
-        await Assert.That(output).Contains("Unknown Team FC");
+        await Assert.That(exitCode).IsNotEqualTo(0);
+        await Assert.That(output).Contains("automatic slug fallback is disabled");
     }
 
     [Test]

@@ -85,16 +85,37 @@ public class MatchContextDocumentCatalogTests
     }
 
     [Test]
-    public async Task Bundesliga_competition_keeps_legacy_standings_document_and_abbreviations()
+    public async Task Current_bundesliga_competition_uses_manifest_document_slugs()
     {
         var selection = MatchContextDocumentCatalog.ForMatch(
             "FC Bayern München",
             "Borussia Dortmund",
             "pes-squad",
-            CompetitionIds.Bundesliga2025_26);
+            CompetitionIds.Bundesliga2026_27);
 
         await Assert.That(selection.RequiredDocumentNames).Contains("bundesliga-standings.csv");
         await Assert.That(selection.RequiredDocumentNames).Contains("recent-history-fcb.csv");
         await Assert.That(selection.RequiredDocumentNames).Contains("head-to-head-fcb-vs-bvb.csv");
+    }
+
+    [Test]
+    public async Task Current_bundesliga_competition_rejects_unknown_team_instead_of_slugging_it()
+    {
+        await Assert.That(() => MatchContextDocumentCatalog.ForMatch(
+                "Unknown Team FC",
+                "Borussia Dortmund",
+                "ehonda-dev-buli-2627",
+                CompetitionIds.Bundesliga2026_27))
+            .Throws<KeyNotFoundException>();
+    }
+
+    [Test]
+    public async Task World_cup_competition_still_slugs_team_names_without_the_bundesliga_manifest()
+    {
+        var slug = MatchContextDocumentCatalog.GetTeamAbbreviation(
+            "Côte d'Ivoire",
+            CompetitionIds.FifaWorldCup2026);
+
+        await Assert.That(slug).IsEqualTo("cote-d-ivoire");
     }
 }

@@ -1,4 +1,3 @@
-using System.Text;
 using EHonda.KicktippAi.Core;
 using Microsoft.Extensions.Logging;
 using Spectre.Console;
@@ -82,8 +81,12 @@ internal static class AnalyzeMatchCommandHelpers
         IAnsiConsole console)
     {
         var contextDocuments = new List<AnalyzeMatchContextDocumentInfo>();
-        var homeAbbreviation = GetTeamAbbreviation(homeTeam);
-        var awayAbbreviation = GetTeamAbbreviation(awayTeam);
+        var homeAbbreviation = MatchContextDocumentCatalog.GetTeamAbbreviation(
+            homeTeam,
+            CompetitionIds.Bundesliga2026_27);
+        var awayAbbreviation = MatchContextDocumentCatalog.GetTeamAbbreviation(
+            awayTeam,
+            CompetitionIds.Bundesliga2026_27);
 
         var requiredDocuments = new[]
         {
@@ -154,48 +157,5 @@ internal static class AnalyzeMatchCommandHelpers
         }
 
         return contextDocuments;
-    }
-
-    private static string GetTeamAbbreviation(string teamName)
-    {
-        var abbreviations = new Dictionary<string, string>(StringComparer.OrdinalIgnoreCase)
-        {
-            { "1. FC Heidenheim 1846", "fch" },
-            { "1. FC Köln", "fck" },
-            { "1. FC Union Berlin", "fcu" },
-            { "1899 Hoffenheim", "tsg" },
-            { "Bayer 04 Leverkusen", "b04" },
-            { "Bor. Mönchengladbach", "bmg" },
-            { "Borussia Dortmund", "bvb" },
-            { "Eintracht Frankfurt", "sge" },
-            { "FC Augsburg", "fca" },
-            { "FC Bayern München", "fcb" },
-            { "FC St. Pauli", "fcs" },
-            { "FSV Mainz 05", "m05" },
-            { "Hamburger SV", "hsv" },
-            { "RB Leipzig", "rbl" },
-            { "SC Freiburg", "scf" },
-            { "VfB Stuttgart", "vfb" },
-            { "VfL Wolfsburg", "wob" },
-            { "Werder Bremen", "svw" }
-        };
-
-        if (abbreviations.TryGetValue(teamName, out var abbreviation))
-        {
-            return abbreviation;
-        }
-
-        var words = teamName.Split(' ', StringSplitOptions.RemoveEmptyEntries);
-        var builder = new StringBuilder();
-
-        foreach (var word in words.Take(3))
-        {
-            if (word.Length > 0 && char.IsLetter(word[0]))
-            {
-                builder.Append(char.ToLowerInvariant(word[0]));
-            }
-        }
-
-        return builder.Length > 0 ? builder.ToString() : "unknown";
     }
 }

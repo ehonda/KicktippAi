@@ -84,3 +84,4 @@ P0 is complete only when:
 - [ADR-0007: Require context hygiene before launch](decisions/0007-require-context-hygiene-before-launch.md)
 - [ADR-0008: Launch Club Elo from a dated seed when necessary](decisions/0008-launch-club-elo-from-a-dated-seed.md)
 - [ADR-0009: Use bounded orchestration and hybrid Git integration](decisions/0009-bounded-orchestration-and-hybrid-git.md)
+- [ADR-0010: Use a season-scoped strict team identity manifest](decisions/0010-season-scoped-team-identity-manifest.md)

@@ -30,7 +30,7 @@ public class KicktippContextProvider : IKicktippContextProvider
         _communityRulesFileProvider = communityRulesFileProvider ?? throw new ArgumentNullException(nameof(communityRulesFileProvider));
         _community = community ?? throw new ArgumentNullException(nameof(community));
         _communityContext = communityContext ?? community;
-        _competition = competition ?? CompetitionIds.Bundesliga2025_26;
+        _competition = competition ?? CompetitionIds.Bundesliga2026_27;
         _matchday = matchday;
         _teamHistoryLazy = new Lazy<Task<IReadOnlyDictionary<string, List<MatchResult>>>>(LoadTeamHistoryAsync);
         _homeAwayHistoryLazy = new Lazy<Task<IReadOnlyDictionary<string, (List<MatchResult> homeHistory, List<MatchResult> awayHistory)>>>(LoadHomeAwayHistoryAsync);
@@ -141,8 +141,8 @@ public class KicktippContextProvider : IKicktippContextProvider
         var selection = match is null
             ? MatchContextDocumentCatalog.ForMatch(homeTeam, awayTeam, _communityContext, _competition)
             : MatchContextDocumentCatalog.ForMatch(match, _communityContext, _competition);
-        var homeAbbreviation = MatchContextDocumentCatalog.GetTeamAbbreviation(homeTeam);
-        var awayAbbreviation = MatchContextDocumentCatalog.GetTeamAbbreviation(awayTeam);
+        var homeAbbreviation = MatchContextDocumentCatalog.GetTeamAbbreviation(homeTeam, _competition);
+        var awayAbbreviation = MatchContextDocumentCatalog.GetTeamAbbreviation(awayTeam, _competition);
 
         foreach (var documentName in selection.RequiredDocumentNames)
         {
@@ -232,7 +232,7 @@ public class KicktippContextProvider : IKicktippContextProvider
         var teamHistory = await _teamHistoryLazy.Value;
         var matchResults = teamHistory.TryGetValue(teamName, out var results) ? results : new List<MatchResult>();
         
-        var teamAbbreviation = MatchContextDocumentCatalog.GetTeamAbbreviation(teamName);
+        var teamAbbreviation = MatchContextDocumentCatalog.GetTeamAbbreviation(teamName, _competition);
         
         return matchResults.ToCsvDocumentContext<MatchResult, MatchResultCsvMap>($"recent-history-{teamAbbreviation}");
     }
@@ -252,7 +252,7 @@ public class KicktippContextProvider : IKicktippContextProvider
             ? history 
             : (new List<MatchResult>(), new List<MatchResult>());
         
-        var homeAbbreviation = MatchContextDocumentCatalog.GetTeamAbbreviation(homeTeam);
+        var homeAbbreviation = MatchContextDocumentCatalog.GetTeamAbbreviation(homeTeam, _competition);
         
         return homeTeamHistory.ToCsvDocumentContext<MatchResult, MatchResultCsvMap>($"home-history-{homeAbbreviation}");
     }
@@ -266,7 +266,7 @@ public class KicktippContextProvider : IKicktippContextProvider
             ? history 
             : (new List<MatchResult>(), new List<MatchResult>());
         
-        var awayAbbreviation = MatchContextDocumentCatalog.GetTeamAbbreviation(awayTeam);
+        var awayAbbreviation = MatchContextDocumentCatalog.GetTeamAbbreviation(awayTeam, _competition);
         
         return awayTeamHistory.ToCsvDocumentContext<MatchResult, MatchResultCsvMap>($"away-history-{awayAbbreviation}");
     }
@@ -286,8 +286,8 @@ public class KicktippContextProvider : IKicktippContextProvider
             ? cachedHistory 
             : new List<HeadToHeadResult>();
         
-        var homeAbbreviation = MatchContextDocumentCatalog.GetTeamAbbreviation(homeTeam);
-        var awayAbbreviation = MatchContextDocumentCatalog.GetTeamAbbreviation(awayTeam);
+        var homeAbbreviation = MatchContextDocumentCatalog.GetTeamAbbreviation(homeTeam, _competition);
+        var awayAbbreviation = MatchContextDocumentCatalog.GetTeamAbbreviation(awayTeam, _competition);
         
         return history.ToCsvDocumentContext<HeadToHeadResult, HeadToHeadResultCsvMap>(
             $"head-to-head-{homeAbbreviation}-vs-{awayAbbreviation}");

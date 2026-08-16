@@ -3,7 +3,7 @@
 - Status: Not started
 - Priority: P0
 - Depends on: [P0-04](p0-04-team-manifest.md), [P0-10](p0-10-club-elo-source.md)
-- Decisions: [ADR-0002](../decisions/0002-supersede-transfer-documents.md), [ADR-0008](../decisions/0008-launch-club-elo-from-a-dated-seed.md)
+- Decisions: [ADR-0002](../decisions/0002-supersede-transfer-documents.md), [ADR-0008](../decisions/0008-launch-club-elo-from-a-dated-seed.md), [ADR-0010](../decisions/0010-season-scoped-team-identity-manifest.md)
 
 ## Outcome
 

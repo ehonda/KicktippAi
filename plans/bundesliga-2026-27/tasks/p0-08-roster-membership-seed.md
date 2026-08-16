@@ -3,6 +3,7 @@
 - Status: Not started
 - Priority: P0
 - Depends on: [P0-07](p0-07-roster-contract.md)
+- Decision: [ADR-0010](../decisions/0010-season-scoped-team-identity-manifest.md)
 
 ## Outcome
 
