@@ -7,5 +7,5 @@ namespace Orchestrator.Infrastructure;
 /// </summary>
 public static class KicktippSeasonMetadata
 {
-    public const string Current = CompetitionIds.Bundesliga2025_26;
+    public const string Current = CompetitionIds.Bundesliga2026_27;
 }

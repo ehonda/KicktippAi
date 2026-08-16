@@ -11,7 +11,7 @@ public sealed class UploadContextSettings : CommandSettings
     public string Input { get; set; } = string.Empty;
 
     [CommandOption("--competition <COMPETITION>")]
-    [Description("Competition identifier (defaults from the JSON community context)")]
+    [Description("Competition identifier (defaults to bundesliga-2026-27; WM26 JSON community contexts default to fifa-world-cup-2026)")]
     public string? Competition { get; set; }
 
     [CommandOption("--dry-run")]

@@ -28,7 +28,7 @@ public class CollectContextKicktippSettings : CollectContextSettings
     public string CommunityContext { get; set; } = string.Empty;
 
     [CommandOption("--competition")]
-    [Description("Competition identifier (defaults from community context, e.g., fifa-world-cup-2026 for ehonda-dev-wm26)")]
+    [Description("Competition identifier (defaults to bundesliga-2026-27; WM26 communities default to fifa-world-cup-2026)")]
     public string? Competition { get; set; }
 
     [CommandOption("--matchdays")]
@@ -50,7 +50,7 @@ public class CollectContextFifaSettings : CollectContextSettings
     public string CommunityContext { get; set; } = string.Empty;
 
     [CommandOption("--competition")]
-    [Description("Competition identifier (defaults from community context, e.g., fifa-world-cup-2026 for ehonda-dev-wm26)")]
+    [Description("Competition identifier (defaults to bundesliga-2026-27; WM26 communities default to fifa-world-cup-2026)")]
     public string? Competition { get; set; }
 
     [CommandOption("--dry-run")]
@@ -72,7 +72,7 @@ public class CollectContextLineupsSettings : CollectContextSettings
     public string CommunityContext { get; set; } = string.Empty;
 
     [CommandOption("--competition")]
-    [Description("Competition identifier (defaults from community context, e.g., fifa-world-cup-2026 for ehonda-dev-wm26)")]
+    [Description("Competition identifier (defaults to bundesliga-2026-27; WM26 communities default to fifa-world-cup-2026)")]
     public string? Competition { get; set; }
 
     [CommandOption("--seed")]

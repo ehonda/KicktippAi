@@ -36,7 +36,7 @@ public static class CompetitionResolver
             return CompetitionIds.FifaWorldCup2026;
         }
 
-        return CompetitionIds.Bundesliga2025_26;
+        return CompetitionIds.Bundesliga2026_27;
     }
 
     public static CompetitionRuntimeMetadata ResolveRuntimeMetadata(

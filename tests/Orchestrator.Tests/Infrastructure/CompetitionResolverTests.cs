@@ -35,14 +35,34 @@ public class CompetitionResolverTests
     }
 
     [Test]
-    public async Task Defaults_existing_communities_to_bundesliga()
+    public async Task Defaults_existing_bundesliga_communities_to_current_bundesliga_competition()
     {
         var competition = CompetitionResolver.ResolveCompetition(
             competition: null,
             community: "pes-squad",
             communityContext: null);
 
-        await Assert.That(competition).IsEqualTo(CompetitionIds.Bundesliga2025_26);
+        await Assert.That(competition).IsEqualTo(CompetitionIds.Bundesliga2026_27);
+    }
+
+    [Test]
+    [Arguments(CompetitionIds.Bundesliga2026_27)]
+    [Arguments(CompetitionIds.FifaWorldCup2026)]
+    public async Task Preserves_explicit_current_competition(string explicitCompetition)
+    {
+        var competition = CompetitionResolver.ResolveCompetition(
+            competition: explicitCompetition,
+            community: "ehonda-dev-wm26",
+            communityContext: null);
+
+        await Assert.That(competition).IsEqualTo(explicitCompetition);
+    }
+
+    [Test]
+    public async Task Current_kicktipp_season_metadata_uses_current_bundesliga_competition()
+    {
+        await Assert.That(KicktippSeasonMetadata.Current)
+            .IsEqualTo(CompetitionIds.Bundesliga2026_27);
     }
 
     [Test]

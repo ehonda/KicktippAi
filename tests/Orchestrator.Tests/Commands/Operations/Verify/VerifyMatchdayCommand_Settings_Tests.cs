@@ -37,7 +37,7 @@ public class VerifyMatchdayCommand_Settings_Tests : VerifyMatchdayCommandTests_B
 
         // Assert - verify the community was passed to the kicktipp client
         ctx.KicktippClient.Verify(
-            c => c.GetPlacedPredictionsAsync("my-test-community", CompetitionIds.Bundesliga2025_26),
+            c => c.GetPlacedPredictionsAsync("my-test-community", CompetitionIds.Bundesliga2026_27),
             Times.Once());
     }
 

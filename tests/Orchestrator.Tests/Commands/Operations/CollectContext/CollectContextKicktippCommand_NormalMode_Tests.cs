@@ -177,13 +177,13 @@ public class CollectContextKicktippCommand_NormalMode_Tests : CollectContextKick
         await Assert.That(output).Contains("Getting matchday 3 matches");
 
         ctx.KicktippClient.Verify(
-            c => c.GetMatchesWithHistoryAsync("test-community", 2, CompetitionIds.Bundesliga2025_26),
+            c => c.GetMatchesWithHistoryAsync("test-community", 2, CompetitionIds.Bundesliga2026_27),
             Times.Once);
         ctx.KicktippClient.Verify(
-            c => c.GetMatchesWithHistoryAsync("test-community", 3, CompetitionIds.Bundesliga2025_26),
+            c => c.GetMatchesWithHistoryAsync("test-community", 3, CompetitionIds.Bundesliga2026_27),
             Times.Once);
         ctx.KicktippClient.Verify(
-            c => c.GetMatchesWithHistoryAsync("test-community", CompetitionIds.Bundesliga2025_26),
+            c => c.GetMatchesWithHistoryAsync("test-community", CompetitionIds.Bundesliga2026_27),
             Times.Never);
 
         ctx.ContextProviderFactory.Verify(
@@ -191,7 +191,7 @@ public class CollectContextKicktippCommand_NormalMode_Tests : CollectContextKick
                 ctx.KicktippClient.Object,
                 "test-community",
                 "test-community",
-                (string?)null,
+                CompetitionIds.Bundesliga2026_27,
                 2),
             Times.Once);
         ctx.ContextProviderFactory.Verify(
@@ -199,7 +199,7 @@ public class CollectContextKicktippCommand_NormalMode_Tests : CollectContextKick
                 ctx.KicktippClient.Object,
                 "test-community",
                 "test-community",
-                (string?)null,
+                CompetitionIds.Bundesliga2026_27,
                 3),
             Times.Once);
     }

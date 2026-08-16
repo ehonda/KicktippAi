@@ -10,7 +10,7 @@ public class ListKpiSettings : CommandSettings
     public required string CommunityContext { get; set; } = string.Empty;
 
     [CommandOption("--competition")]
-    [Description("Competition identifier (defaults from community context, e.g., fifa-world-cup-2026 for ehonda-dev-wm26)")]
+    [Description("Competition identifier (defaults to bundesliga-2026-27; WM26 communities default to fifa-world-cup-2026)")]
     public string? Competition { get; set; }
 
     [CommandOption("-v|--verbose")]

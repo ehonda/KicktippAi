@@ -15,7 +15,7 @@ public sealed class CopyFirestoreContextSettings : CommandSettings
     public string TargetCommunityContext { get; set; } = string.Empty;
 
     [CommandOption("--competition <COMPETITION>")]
-    [Description("Competition identifier")]
+    [Description("Competition identifier (defaults to bundesliga-2026-27; WM26 target contexts default to fifa-world-cup-2026)")]
     public string? Competition { get; set; }
 
     [CommandOption("--context-prefix <PREFIX>")]
