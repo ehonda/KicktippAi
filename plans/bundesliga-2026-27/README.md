@@ -4,12 +4,13 @@ This directory decomposes the P0 and P1 proposals in [the readiness research](..
 
 P0 ends with successful manual production runs, the opening bonus and match predictions, deliberately enabled schedules, and observation of the first scheduled sequence. P1 then improves maintainability, freshness, experiment tooling, and live cost evidence.
 
-The accepted [execution strategy](execution-strategy.md) defines gated orchestration, bounded worktree parallelism, hybrid Git integration, ChatGPT Pro usage discipline, and the remaining owner-controlled launch decisions.
+The accepted [execution strategy](execution-strategy.md) defines gated orchestration, bounded worktree parallelism, hybrid Git integration, Codex usage discipline, and the remaining owner-controlled launch decisions.
 
 ## Accepted direction
 
 - Bundesliga 2026/27 is the only live Bundesliga runtime target in scope. We are not preserving 2025/26 workflows, prompt routes, defaults, or implicit storage behavior.
 - Transfer documents are retired. Club Elo provides current strength context; current rosters and squad summaries provide membership and squad context.
+- Recent, home, and away history must carry exact played dates: current-season Bundesliga rows come from the competition-scoped Kicktipp schedule/results, while intervening cup, UEFA, friendly, and other fixtures use an accepted source with explicit provenance. Head-to-head already carries dates and is not rewritten.
 - DuckDB is the primary roster-membership source per club once it explicitly represents 2026/27 and passes strict gates. A complete, source-dated 18-club seed and last-known-good snapshots cover missing, stale, partial, or suspicious data without ongoing manual maintenance.
 - Langfuse-hosted prompts are primary. Checked-in mirrors are the outage or first-fetch fallback.
 - The required production scope is `pes-squad`, `schadensfresse`, and `ehonda-ai-arena`; `ehonda-dev-buli-2627` is the safe development target.
@@ -32,16 +33,17 @@ The accepted [execution strategy](execution-strategy.md) defines gated orchestra
 | [P0-11](tasks/p0-11-club-elo-collector.md) | Publish complete per-team and aggregate Elo snapshots | P0-04, P0-10 |
 | [P0-12](tasks/p0-12-match-context-and-transfer-retirement.md) | Replace transfer context with required Elo and roster context | P0-09, P0-11 |
 | [P0-13](tasks/p0-13-bonus-context-baseline.md) | Route safe aggregate and targeted bonus context | P0-09, P0-11, P0-12 |
-| [P0-14](tasks/p0-14-profile-driven-collection.md) | Select collectors from a competition profile | P0-09, P0-11, P0-12 |
-| [P0-15](tasks/p0-15-context-document-hygiene.md) | Remove stale, duplicate, and deprecated live context | P0-12, P0-13, P0-14 |
+| [P0-14](tasks/p0-14-profile-driven-collection.md) | Select collectors from a competition profile | P0-09, P0-11, P0-12, P0-22 |
+| [P0-15](tasks/p0-15-context-document-hygiene.md) | Remove stale, duplicate, and deprecated live context | P0-12, P0-13, P0-14, P0-22 |
 | [P0-16](tasks/p0-16-question-aware-bonus-context.md) | Bound bonus context by question before the one-time bonus run | P0-13, P0-15 |
 | [P0-17](tasks/p0-17-community-scope.md) | Record community, context, model-slot, and credential topology | P0-05, P0-16 |
 | [P0-18](tasks/p0-18-base-workflow-support.md) | Teach reusable workflows the Bundesliga profile | P0-14, P0-17 |
 | [P0-19](tasks/p0-19-community-workflow-triad.md) | Add an explicit workflow triad per community | P0-17, P0-18 |
-| [P0-20](tasks/p0-20-seed-and-development-validation.md) | Seed context and validate dev plus arena plumbing | P0-02 through P0-18, Luna/none P0-19 entrypoints |
+| [P0-20](tasks/p0-20-seed-and-development-validation.md) | Seed context and validate dev plus arena plumbing | P0-02 through P0-18, P0-22, Luna/none P0-19 entrypoints |
 | [P0-21](tasks/p0-21-production-activation.md) | Validate production, submit opening predictions, and enable schedules | P0-06, P0-20, production P0-19 entrypoints |
+| [P0-22](tasks/p0-22-history-played-dates.md) | Reconstruct exact played dates for recent, home, and away history | P0-02, P0-04 |
 
-P0-01 and P0-04 can begin independently. After P0-01, storage, completion, and prompt work can proceed in dependency-safe lanes; after P0-04, roster and Club Elo contract work can proceed independently. Context hygiene joins those lanes before any community workflow can generate a real prediction. P0-21 is the only task authorized to enable final production schedules.
+P0-01 and P0-04 can begin independently. After P0-01, storage, completion, and prompt work can proceed in dependency-safe lanes; after P0-04, roster, Club Elo, and history played-date work can proceed independently. Context hygiene joins those lanes before any community workflow can generate a real prediction. P0-21 is the only task authorized to enable final production schedules.
 
 For P0-19, copy the template once per community matrix row that needs an entrypoint so each workflow triad can be implemented and reviewed independently.
 
@@ -65,6 +67,7 @@ P0 is complete only when:
 
 - all 18 teams map one-to-one across Kicktipp, document slugs, roster sources, and the accepted Club Elo snapshot;
 - all production reads and writes use `bundesliga-2026-27` and cannot fall back to the old unscoped Bundesliga identity;
+- every selected recent/home/away history row has an exact source-attributed played date; collection timestamps and inferred league order are never presented as played dates, and head-to-head dates remain intact;
 - match and bonus context use explicit live allowlists, contain the required Elo/roster/squad documents, and exclude stale team/manager, transfer, old-season, and cross-competition documents;
 - bonus context is question-aware and bounded before the only pre-season bonus predictions are generated;
 - a partial matchday is not complete before all nine matches are complete;

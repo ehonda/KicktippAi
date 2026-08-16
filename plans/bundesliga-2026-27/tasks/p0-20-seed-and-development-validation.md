@@ -2,7 +2,7 @@
 
 - Status: Not started
 - Priority: P0
-- Depends on: P0-02 through P0-18 and the Luna/none development/arena entrypoints copied from P0-19; final production P0-19 copies may remain gated on P0-06
+- Depends on: P0-02 through P0-18, [P0-22](p0-22-history-played-dates.md), and the Luna/none development/arena entrypoints copied from P0-19; final production P0-19 copies may remain gated on P0-06
 - Decisions: [ADR-0006](../decisions/0006-stage-validation-with-a-cheap-test-model.md), [ADR-0012](../decisions/0012-competition-aware-matchday-completion.md), [ADR-0013](../decisions/0013-club-elo-snapshot-and-freshness-contract.md)
 
 ## Outcome
@@ -12,7 +12,8 @@ The new Firestore partition and prompt paths complete representative matchday an
 ## Work items
 
 - [ ] Run the full profile in dry-run and resolve every manifest, source, and quality warning.
-- [ ] Collect Kicktipp rules, standings, histories, outcomes, Club Elo, rosters, and squad summaries into `bundesliga-2026-27`.
+- [ ] Collect Kicktipp rules, standings, histories, outcomes, Club Elo, rosters, and squad summaries into `bundesliga-2026-27`, then run the strict history played-date reconstruction/audit.
+- [ ] Prove every selected recent/home/away row has an exact source-attributed played date, including one current Bundesliga fixture and one intervening non-league fixture; record zero unresolved/ambiguous rows and prove head-to-head content was not rewritten.
 - [ ] Query/inspect stored identities and prove no old unscoped Bundesliga or WM26 document satisfied the run.
 - [ ] Verify all CSVs render header-first, deterministic, CRLF-terminated content with a final terminator.
 - [ ] Run a development prediction cycle covering a complete nine-match matchday and representative champion/relegation/top-scorer/coach bonus questions.

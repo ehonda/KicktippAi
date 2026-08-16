@@ -8,7 +8,7 @@ This document describes how to deliver the accepted P0 scope quickly while prese
 
 ## Operating principles
 
-- Run P0 as one gated release train rather than 21 unrelated planning exercises.
+- Run P0 as one gated release train rather than unrelated planning exercises.
 - Keep one strong orchestration agent responsible for dependency order, ADR gates, integration, validation evidence, machine load, and launch gates.
 - Delegate bounded work only, with explicit owned paths, inputs, outputs, tests, and completion criteria.
 - Start each task with a short plan audit, then implement in the same thread unless a missing durable decision requires owner direction and an ADR.
@@ -20,12 +20,12 @@ This document describes how to deliver the accepted P0 scope quickly while prese
 | Wave | Work | Gate before advancing |
 |---|---|---|
 | Foundations | P0-01 through P0-11 in dependency-safe lanes, leaving P0-06's final production choice open | Identity, storage, prompt, model-test, roster, and Club Elo contracts are fixed; targeted tests pass |
-| Context integration | P0-12 through P0-16 | Match/bonus allowlists and budgets pass; no WM26, old-season, stale, duplicate, or transfer context leaks |
+| Context integration | P0-12 through P0-16 plus P0-22 | Match/bonus allowlists, exact history played dates, and budgets pass; no WM26, old-season, stale, duplicate, or transfer context leaks |
 | Community workflows | P0-17 through P0-19 for the fixed Luna/none path and production templates | Community matrix is complete; test entrypoints are explicit; final schedules remain disabled |
 | Development and arena validation | P0-20 | Dev and arena ladder evidence passes, including fail-closed cases |
 | Production selection and activation | Finish P0-06, production P0-19 copies, then P0-21 | Owner approves final model/prompt/cost and Club Elo network policy; all production communities pass manual and first scheduled validation |
 
-The likely critical path is P0-04 -> P0-07 -> P0-08 -> P0-09 -> P0-12 -> P0-15 -> P0-16 -> P0-17 -> P0-18 -> P0-19 -> P0-20 -> P0-21. Prompt work, Club Elo provider work, and other independent foundations can advance beside it within the resource limits below.
+The likely critical path is P0-04 -> P0-07 -> P0-08 -> P0-09 -> P0-12 -> P0-22 -> P0-14 -> P0-15 -> P0-16 -> P0-17 -> P0-18 -> P0-19 -> P0-20 -> P0-21. Prompt work, Club Elo provider work, and other independent foundations can advance beside it within the resource limits below.
 
 ## Agent roles and task loop
 
@@ -51,7 +51,7 @@ Fact-finding agents may establish evidence and recommend; they may not silently 
 - Do not recursively delegate unless the orchestrator explicitly determines that the bounded saving justifies the coordination cost.
 - For the 18-club fallback seed, small research batches are acceptable, but one owner assembles the canonical seed and one targeted independent audit checks provenance and coverage.
 
-## ChatGPT Pro usage policy
+## Codex usage policy
 
 Agent usage varies with model, task complexity, context, reasoning, tools, retrieval, and caching. Budget qualitatively rather than treating prompt count as a reliable allowance measure. See [OpenAI Codex pricing and usage limits](https://learn.chatgpt.com/docs/pricing#what-are-the-usage-limits-for-my-plan).
 

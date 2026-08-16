@@ -2,7 +2,7 @@
 
 - Status: Not started
 - Priority: P0
-- Depends on: [P0-12](p0-12-match-context-and-transfer-retirement.md), [P0-13](p0-13-bonus-context-baseline.md), [P0-14](p0-14-profile-driven-collection.md)
+- Depends on: [P0-12](p0-12-match-context-and-transfer-retirement.md), [P0-13](p0-13-bonus-context-baseline.md), [P0-14](p0-14-profile-driven-collection.md), [P0-22](p0-22-history-played-dates.md)
 - Decisions: [ADR-0007](../decisions/0007-require-context-hygiene-before-launch.md), [ADR-0011](../decisions/0011-roster-snapshot-and-publication-contract.md)
 
 ## Outcome
@@ -18,6 +18,7 @@ No 2026/27 match or bonus prediction can receive stale, duplicated, deprecated, 
 - [ ] Replace broad name-substring routing with explicit document names from the Bundesliga profile.
 - [ ] Remove superseded upload utilities, files, and tests once no live consumer remains.
 - [ ] Audit the complete match and bonus document catalogs and exclude transfer, WM26, 2025/26, and any other deprecated document from the 2026/27 live allowlists.
+- [ ] Audit every selected recent/home/away row for exact `Played_At` provenance; reject collection timestamps or inferred match ordering masquerading as played dates and leave dated head-to-head rows untouched.
 - [ ] Preserve historical competition partitions by default; produce an explicit dry-run inventory before deleting any remote current-scope document.
 - [ ] Add trace-visible selected-document evidence and a negative test proving a stale document present in storage is not selected.
 - [ ] Add freshness and missing-data tests.

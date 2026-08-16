@@ -20,7 +20,7 @@ Reusable context, matchday, and bonus workflows can run the 2026/27 profile with
 ## Validation
 
 - Validate all workflow YAML and inspect rendered command lines for Bundesliga and WM26 callers.
-- Confirm a Bundesliga context invocation contains no FIFA, lineup, date-map, or transfer step.
+- Confirm a Bundesliga context invocation contains the Bundesliga history played-date step and no FIFA, lineup, WM26 date-map, or transfer step.
 
 ## Complete when
 
