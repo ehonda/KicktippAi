@@ -3,7 +3,7 @@
 - Status: Not started
 - Priority: P0
 - Depends on: [P0-12](p0-12-match-context-and-transfer-retirement.md), [P0-13](p0-13-bonus-context-baseline.md), [P0-14](p0-14-profile-driven-collection.md)
-- Decision: [ADR-0007](../decisions/0007-require-context-hygiene-before-launch.md)
+- Decisions: [ADR-0007](../decisions/0007-require-context-hygiene-before-launch.md), [ADR-0011](../decisions/0011-roster-snapshot-and-publication-contract.md)
 
 ## Outcome
 

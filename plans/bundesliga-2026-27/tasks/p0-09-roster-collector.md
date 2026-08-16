@@ -3,7 +3,7 @@
 - Status: Not started
 - Priority: P0
 - Depends on: [P0-07](p0-07-roster-contract.md), [P0-08](p0-08-roster-membership-seed.md)
-- Decisions: [ADR-0003](../decisions/0003-duckdb-primary-rosters-with-fallback.md), [ADR-0010](../decisions/0010-season-scoped-team-identity-manifest.md)
+- Decisions: [ADR-0003](../decisions/0003-duckdb-primary-rosters-with-fallback.md), [ADR-0010](../decisions/0010-season-scoped-team-identity-manifest.md), [ADR-0011](../decisions/0011-roster-snapshot-and-publication-contract.md)
 
 ## Outcome
 

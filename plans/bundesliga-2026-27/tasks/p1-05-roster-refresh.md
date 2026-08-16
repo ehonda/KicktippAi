@@ -3,7 +3,7 @@
 - Status: Not started
 - Priority: P1
 - Depends on: [P0-21](p0-21-production-activation.md)
-- Decision: [ADR-0003](../decisions/0003-duckdb-primary-rosters-with-fallback.md)
+- Decisions: [ADR-0003](../decisions/0003-duckdb-primary-rosters-with-fallback.md), [ADR-0011](../decisions/0011-roster-snapshot-and-publication-contract.md)
 
 ## Outcome
 

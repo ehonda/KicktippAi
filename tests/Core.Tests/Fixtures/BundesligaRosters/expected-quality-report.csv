@@ -1,0 +1,2 @@
+Team_Slug,Team,Selected_Source,Membership_As_Of,Source_References,Source_Revision,Last_Known_Good_Snapshot_Id,DuckDB_Snapshot_As_Of,Player_Count,Coach_Count,Stable_Player_Id_Count,Known_Age_Count,Known_Position_Count,Valued_Player_Count,DuckDB_Gate_Result,Selection_Reason,Diagnostics
+b04,Bayer 04 Leverkusen,FallbackSeed,2026-08-16,https://www.bundesliga.com/de/bundesliga/clubs/bayer-04-leverkusen,N/A,N/A,N/A,20,1,20,4,4,4,NOT_EVALUATED,SEED_VALIDATED,AGE_COVERAGE_BELOW_80_PERCENT;MARKET_VALUE_COVERAGE_BELOW_50_PERCENT;POSITION_COVERAGE_BELOW_80_PERCENT
