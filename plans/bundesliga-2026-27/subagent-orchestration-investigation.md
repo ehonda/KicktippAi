@@ -15,6 +15,15 @@ The next improvement should be to keep two useful lanes occupied: one sole write
 
 This agrees with the [official Codex subagent guidance](https://learn.chatgpt.com/docs/agent-configuration/subagents): parallel agents are a good starting point for independent, read-heavy exploration, tests, triage, and summarization, while parallel write-heavy work needs more care because it increases conflict and coordination overhead.
 
+### Runtime capacity versus repository policy
+
+Two different limits apply and must not be conflated:
+
+- The observed session received a Codex runtime instruction allowing four active agents in total, including the root. That runtime could therefore execute at most three subagents simultaneously. This was enforced by the session environment, not selected by this repository.
+- ADR-0009 deliberately allows at most two task agents, normally one writer and one read-heavy helper. This repository policy is stricter than the observed runtime capacity.
+
+The four-total runtime budget is not a universal Codex maximum. Codex exposes `agents.max_concurrent_threads_per_session` for spawned threads, excluding the primary agent; neither the user nor repository Codex config set that option during this investigation, so Codex selected the session default. The official documentation shows higher configured examples. Any attempt to change the runtime capacity should be verified in a new session rather than inferred from the repository policy.
+
 ## Scope and method
 
 The investigation compared two local Codex transcript families stored under `%USERPROFILE%\.codex\sessions`:
@@ -100,6 +109,22 @@ That control plane works: reviewers found material defects and writers closed th
 
 The cost is serial coordination. The root called `wait_agent` 270 times, about six waits per assigned turn. Only seven minutes contained two active subagents, primarily short overlaps between an audit and writer, between two P0-12 audits, or at a writer/reviewer boundary. No interval contained three active subagents. Most review work correctly waited for a stable writer checkpoint, but next-task preparation also usually waited instead of overlapping the current writer.
 
+### Why the two-task-agent allowance became mostly one active task agent
+
+The policy says **at most** two task agents; it does not require two writers. Its normal shape is one writer plus one read-heavy helper, and a second writer is allowed only in a separate worktree with non-overlapping ownership. The ongoing session had only the primary worktree and a large dirty P0-12 change, so starting another writer there would have violated the policy.
+
+The task loop also has real serial gates: a reviewer needs a stable diff, remediation needs concrete findings, CI needs a pushed commit, and the next dependent task needs its prerequisites. The orchestrator concentrated on one task through audit, implementation, repeated review, commit, and CI instead of keeping an independent look-ahead lane continuously occupied.
+
+There was nevertheless ready independent work. The absence of concurrency was not caused solely by the dependency graph:
+
+| Ready opportunity at the live cutoff | State | Parallel value |
+|---|---|---|
+| P0-05 prompt route | Ready since P0-01 completed | Independent prompt/configuration lane; later unlocks the non-owner part of P0-06 |
+| P0-22 history played dates | Ready since P0-02 and P0-04 completed | Independent history lane, initially read-heavy because a source/identity ADR must be accepted before implementation |
+| P0-13 bonus-context baseline | Blocked only by active P0-12; P0-09 and P0-11 are complete | Becomes a context-lane candidate as soon as P0-12 lands |
+
+The missed opportunity was operational isolation and scheduling. P0-05 or P0-22 preparation could have overlapped the collector and P0-12 writers. A second implementation writer needed a worktree that was never created.
+
 ## What works well
 
 - Role-specialized agents keep the root out of routine implementation. Root execution calls fell from 237 in the completed session to 64 in the larger ongoing run.
@@ -132,6 +157,19 @@ Review of the same diff and CI of its pushed commit remain dependency-serial. Th
 - Let a reviewer report a numbered finding set once. Route one consolidated remediation turn to the same writer, then re-review only reopened findings.
 - Keep orchestration decisions in task files and ADRs so a new thread does not need the root to replay historical context.
 
+### Allow narrow reviewer-to-writer communication
+
+The available collaboration tools can address another named agent directly, but the observed subagents sent every explicit message to `/root`. Direct reviewer-to-writer communication can shorten clarification and remediation latency when both threads already exist. It does not make review independent of a stable writer checkpoint and therefore will not materially increase task parallelism by itself.
+
+Use direct communication within these boundaries:
+
+- A reviewer may send numbered, evidence-backed findings or answer a clarification directly to the assigned writer.
+- The reviewer also sends the root a compact finding summary; the writer reports resolutions and validation to the root.
+- Only the root starts a new remediation turn, changes scope or ownership, accepts a risk, authorizes Git integration, or decides that a finding is closed for the release gate.
+- A reviewer must not recursively assign work or silently expand the writer's paths. If reviewer and writer disagree about the contract, they stop that point and escalate it to the root.
+
+This keeps the root as decision maker while removing it as a verbatim relay. The feasibility experiment should include one controlled direct-message handoff and compare root steering/wait traffic with the baseline.
+
 ### Keep role and model allocation stable
 
 The initial Banach writer was overpowered and aborted. Later reuse also drifted CI/triage and roster turns from low or high effort to xhigh. Use fresh fixed-role agents when the task class changes, and reuse a writer or reviewer only for concrete remediation within the same task checkpoint. Record the intended model and effort in the assignment and verify it from the thread before expensive work starts.
@@ -140,11 +178,23 @@ The initial Banach writer was overpowered and aborted. Later reuse also drifted 
 
 P0-09 moved from Hypatia to Wegener, and P0-12 moved from Zeno to Darwin. A handoff can be justified when a writer stalls or the remaining slice is independently bounded, but it adds context reconstruction and root coordination. Prefer keeping one task writer through implementation, review remediation, validation, and scoped commit. If a handoff is necessary, require the outgoing writer to leave a structured gap list and exact dirty-path ownership.
 
+### Make worktree isolation compatible with repository secrets
+
+Worktrees were not rejected. ADR-0009 explicitly authorizes up to two isolated writers in separate worktrees. The live session simply did not create one.
+
+The repository does have a worktree-specific constraint that the earlier policy did not spell out. `PathUtility` resolves `.env`, community `.env.<community>`, and `firebase.json` through a `KicktippAi.Secrets` directory next to the solution root. A Codex-managed worktree under the Codex home directory changes that parent directory and therefore does not naturally resolve the existing secrets repository. The repo has no `.worktreeinclude`, and that feature copies ignored files from inside the source checkout; it does not solve this external sibling-repository layout.
+
+A manually created worktree that is a direct sibling of `KicktippAi` and `KicktippAi.Secrets` preserves the existing path contract without copying secrets. For example, `.../ehonda/KicktippAi-p0-prompt` still resolves `../KicktippAi.Secrets`. The [official Codex worktree documentation](https://learn.chatgpt.com/docs/environments/git-worktrees) confirms that managed worktrees otherwise receive tracked files and only explicitly included ignored local files.
+
+One additional feasibility gate remains: subagents in the observed orchestration runtime share the parent's current directory and workspace permissions. A child can be instructed to use another `workdir`, but the experiment must prove that it can edit a sibling worktree with normal patch tooling and appropriately scoped permissions. Do not work around a failed probe with broad unsandboxed shell writes, secret copies, or directory junctions.
+
+Secrets are not required for ordinary code edits and unit tests. Live collection or write validation should remain serialized and may be run from the primary checkout after integration if the assigned worktree cannot safely load the sibling secrets.
+
 ## Feasibility of more parallel subagents
 
 ### Four subagents
 
-Four simultaneous subagents are not feasible in the runtime observed for this investigation because the root consumes one of four available concurrent slots. Even if a future runtime exposes root plus four children, four write-capable agents would conflict with ADR-0009, the shared-checkout safety rule, the slow-machine constraint, serialized heavy commands, and the official caution about parallel writes.
+Four simultaneous subagents are not feasible in the runtime observed for this investigation because the root consumes one of four available active slots. This is a session-environment limit, not the repository's two-task-agent policy and not a universal Codex maximum. Even if a future runtime exposes root plus four children, four write-capable agents would conflict with ADR-0009, the shared-checkout safety rule, the slow-machine constraint, serialized heavy commands, and the official caution about parallel writes.
 
 Four logical lanes can still exist as a queue—writer, next-task audit, reviewer, and CI reconciler—but reviewer and CI are gated by the writer and normally will not all execute simultaneously. Calling that a four-agent pipeline would overstate usable parallelism.
 
@@ -159,17 +209,58 @@ A maximum of three simultaneous subagents is technically possible in the current
 
 Do not run two local heavy test/build commands concurrently. Do not let the extra read-only agents edit planning or source files. A second writer is allowed only under the existing ADR's isolated-worktree, non-overlapping-ownership conditions and still counts against its two-task-agent limit. Adopting three task agents as a standing policy would require a superseding ADR.
 
-## Recommended experiment and decision gate
+## Two-lane feasibility experiment
 
-Run the next dependency-safe wave with the existing two-task-agent limit but deliberately overlap the current writer with next-task read-only preparation. Record:
+Do not run this experiment inside the current dirty, late-running P0-12 session. Start only after that session has committed and pushed its scoped work, exact-SHA CI is green, `main` is clean, and no agent still owns the primary checkout.
 
-- task start, stable-review checkpoint, commit, push, and exact-SHA CI times;
-- minutes with one, two, and three subagents active;
-- root spawn, follow-up, steering, wait, and status-poll counts;
-- writer handoffs and review/remediation cycles;
-- raw/cached tokens by role;
-- test conflicts, checkout conflicts, and CI result.
+The experiment does not change ADR-0009; it tests the two-writer mode the ADR already permits.
+
+### Phase 1: worktree and secrets smoke test
+
+1. Record the clean baseline SHA and create one temporary manual worktree as a direct sibling of the primary repository, on its own experiment branch. Keep the primary checkout as the integration lane.
+2. Confirm the worktree resolves the existing sibling `KicktippAi.Secrets/src/Orchestrator` paths for the base environment, each community environment, and Firebase credentials. Report only path existence; never print file contents or secret values.
+3. Confirm a subagent assigned to the sibling worktree can create and remove an ignored scratch file with normal patch tooling, inspect Git state, and run a harmless read-only command without acquiring access to the primary lane's dirty files.
+4. Run the focused `PathUtilityAndEnvironmentHelperTests` outside the sandbox. Do not run a live collector, prediction, or remote write.
+5. If the agent cannot write the sibling worktree without broad permission escalation, or if the secrets path does not resolve, stop. Keep the existing one-writer topology and record whether the prerequisite is workspace-root support or an explicit secrets-root override.
+
+### Phase 2: small real two-lane trial
+
+Use two orthogonal, already-ready slices rather than inventing throwaway work:
+
+| Lane | Initial bounded slice | Ownership guard |
+|---|---|---|
+| Prompt lane | P0-05 runtime/prompt-route audit and a local checked-in implementation slice | Own prompt files, prompt-provider/runtime-metadata code, focused tests, and P0-05 evidence; defer shared integration files and hosted promotion until the integration gate |
+| History lane | P0-22 source/schema inventory and proposed source/identity ADR, followed by the smallest accepted parser/identity slice | Own the new ADR/evidence, history-specific code/tests, and P0-22 evidence; do not implement beyond the accepted source decision |
+
+The root assigns exact paths after both lane agents report their anticipated file sets. Any overlapping file becomes root-owned integration work or forces one lane to wait. Neither lane pushes `main`, edits the other worktree, runs live external collection, or changes a late owner gate.
+
+Run both agents concurrently for read, edit, and lightweight validation. Serialize `dotnet`, containers, live network collection, Git integration, and full test suites. Each writer commits only its branch. Reviewers inspect a frozen lane diff in that lane's worktree; one reviewer may send a controlled numbered finding directly to its writer under the communication rules above.
+
+### Phase 3: integration and measurement
+
+The root reviews and integrates the two branch commits sequentially into the primary checkout, preferring cherry-picks of cohesive commits. Then run affected tests, the broader gate, one explicit push, and exact-SHA CI reconciliation. Remove a worktree only after its commit is integrated and recoverable.
+
+Record:
+
+- worktree creation, task start, stable-review checkpoint, commit, integration, push, and exact-SHA CI times;
+- minutes with zero, one, and two task agents active and the reason for every idle interval;
+- root spawn, follow-up, steering, wait, status-poll, and message-relay counts;
+- direct reviewer/writer messages and whether they avoided a root relay without hiding a decision;
+- file ownership violations, merge conflicts, writer handoffs, and review/remediation cycles;
+- targeted and full validation duration, including confirmation that heavy commands did not overlap;
+- raw/cached tokens by role and model/effort drift;
+- secret-path success without copied or printed secrets.
 
 The current live-session baseline is 2.4% dual-subagent utilization, 1.02 average concurrency while active, six root waits per assignment, one aborted turn, and green exact-SHA CI for all four pushed commits.
 
-Only if deliberate two-lane scheduling still leaves independent ready work queued should the project trial a third read-only subagent. Adopt that topology through a superseding ADR only if it reduces wave wall time without increasing checkout conflicts, heavy-command contention, open review findings at commit time, CI failures, or token use enough to threaten the weekly allowance. There is no evidence yet supporting four simultaneous subagents or four writers.
+### Pass, fail, and adoption rules
+
+The feasibility experiment passes only when both lane agents can work in isolated checkouts with normal scoped permissions, secrets paths are safe, ownership remains disjoint, integration needs no material conflict resolution, serialized validation stays reliable, and both lane outputs satisfy review and exact-SHA CI.
+
+Treat improved wall time as evidence only when concurrency is real rather than nominal: record at least one meaningful interval of simultaneous useful lane work and compare total wave time with the sequential estimate. Do not require a specific percentage from a single small sample.
+
+If it passes, use two isolated lanes for dependency-safe P0 work under the existing ADR. A likely continuation is the prompt lane through the non-owner portion of P0-06 while the context lane completes P0-22 and then picks up newly unblocked P0-13. Rejoin before P0-14/P0-15 and serialize shared integration and validation.
+
+If it fails because subagent workspace permissions cannot isolate sibling worktrees, retain one writer plus one read-heavy helper. A separate top-level Codex worktree chat is an alternative, but it is a different orchestration model because the root session cannot directly supervise that chat. If it fails only because of secrets lookup, consider a separately reviewed explicit secrets-root override before retrying; never copy secrets into tracked files.
+
+Only after successful two-lane evidence should the project consider a third read-only subagent. Adopting three task agents as standing policy still requires a superseding ADR. There is no evidence supporting four simultaneous subagents or four writers.
