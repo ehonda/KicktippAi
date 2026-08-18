@@ -122,6 +122,13 @@ public static class BundesligaRosterPolicy
             diagnostics.Add("DUPLICATE_PLAYER_NAME");
         }
 
+        if (!string.IsNullOrWhiteSpace(candidate.HeadCoach)
+            && players.Any(player => !string.IsNullOrWhiteSpace(player.Name)
+                && string.Equals(BundesligaRosterSeed.NormalizeName(player.Name), BundesligaRosterSeed.NormalizeName(candidate.HeadCoach), StringComparison.Ordinal)))
+        {
+            diagnostics.Add("COACH_PLAYER_NAME_COLLISION");
+        }
+
         if (candidate.ManifestClubId is not null
             && players.Any(player => player.CurrentClubId != candidate.ManifestClubId.Value))
         {

@@ -3,7 +3,7 @@
 - Status: Not started
 - Priority: P0
 - Depends on: [P0-12](p0-12-match-context-and-transfer-retirement.md), [P0-13](p0-13-bonus-context-baseline.md), [P0-14](p0-14-profile-driven-collection.md), [P0-22](p0-22-history-played-dates.md)
-- Decisions: [ADR-0007](../decisions/0007-require-context-hygiene-before-launch.md), [ADR-0011](../decisions/0011-roster-snapshot-and-publication-contract.md), [ADR-0015](../decisions/0015-club-elo-prompt-publication-contract.md), [ADR-0016](../decisions/0016-validate-club-elo-publication-metadata.md)
+- Decisions: [ADR-0007](../decisions/0007-require-context-hygiene-before-launch.md), [ADR-0011](../decisions/0011-roster-snapshot-and-publication-contract.md), [ADR-0015](../decisions/0015-club-elo-prompt-publication-contract.md), [ADR-0016](../decisions/0016-validate-club-elo-publication-metadata.md), [ADR-0017](../decisions/0017-roster-collector-duckdb-and-reconstruction-contract.md), [ADR-0018](../decisions/0018-validate-roster-publication-metadata-semantically.md), [ADR-0019](../decisions/0019-roster-publication-truth-boundary.md)
 
 ## Outcome
 

@@ -137,6 +137,9 @@ public class Program
                 collectContext.AddCommand<CollectContextClubEloCommand>("club-elo")
                     .WithDescription("Publish the complete seed-backed Bundesliga 2026/27 Club Elo snapshot")
                     .WithExample("collect-context", "club-elo", "--competition", "bundesliga-2026-27", "--community-context", "ehonda-dev-buli-2627", "--dry-run");
+                collectContext.AddCommand<CollectContextRostersCommand>("rosters")
+                    .WithDescription("Select, enrich, and atomically publish complete Bundesliga 2026/27 roster context")
+                    .WithExample("collect-context", "rosters", "--competition", "bundesliga-2026-27", "--community-context", "ehonda-dev-buli-2627", "--dry-run");
             });
 
             config.AddBranch<Wm26RecentHistorySettings>("wm26-recent-history", wm26RecentHistory =>

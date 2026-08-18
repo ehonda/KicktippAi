@@ -468,6 +468,12 @@ public static class ServiceRegistrationExtensions
         return services;
     }
 
+    private static IServiceCollection AddBundesligaRosterSourceServicesIfMissing(this IServiceCollection services)
+    {
+        services.TryAddTransient<IBundesligaRosterSource, BundesligaRosterSource>();
+        return services;
+    }
+
     /// <summary>
     /// Registers services specific to the VerifyBonusCommand.
     /// </summary>
@@ -540,6 +546,16 @@ public static class ServiceRegistrationExtensions
     {
         services.AddOrchestratorInfrastructure(minimumLogLevel);
         services.AddBundesligaClubEloSourceServicesIfMissing();
+        return services;
+    }
+
+    /// <summary>Registers the local-only atomic Bundesliga roster collector.</summary>
+    public static IServiceCollection AddCollectContextRostersCommandServices(
+        this IServiceCollection services,
+        LogLevel minimumLogLevel = LogLevel.Information)
+    {
+        services.AddOrchestratorInfrastructure(minimumLogLevel);
+        services.AddBundesligaRosterSourceServicesIfMissing();
         return services;
     }
 
@@ -688,6 +704,7 @@ public static class ServiceRegistrationExtensions
         services.AddCollectContextFifaCommandServices(minimumLogLevel);
         services.AddCollectContextLineupsCommandServices(minimumLogLevel);
         services.AddCollectContextClubEloCommandServices(minimumLogLevel);
+        services.AddCollectContextRostersCommandServices(minimumLogLevel);
         services.AddCollectContextDevCommandServices(minimumLogLevel);
         services.AddWm26RecentHistoryCommandServices(minimumLogLevel);
         services.AddContextChangesCommandServices(minimumLogLevel);

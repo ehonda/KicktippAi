@@ -98,3 +98,6 @@ P0 is complete only when:
 - [ADR-0014: Share atomic context and KPI publication snapshots](decisions/0014-share-atomic-context-kpi-publication.md)
 - [ADR-0015: Use strict Club Elo prompt documents and reconstructable publication provenance](decisions/0015-club-elo-prompt-publication-contract.md)
 - [ADR-0016: Validate Club Elo publication metadata semantically](decisions/0016-validate-club-elo-publication-metadata.md)
+- [ADR-0017: Fix roster collector DuckDB and reconstruction contract](decisions/0017-roster-collector-duckdb-and-reconstruction-contract.md)
+- [ADR-0018: Validate roster publication metadata semantically](decisions/0018-validate-roster-publication-metadata-semantically.md)
+- [ADR-0019: Share one roster-publication truth boundary](decisions/0019-roster-publication-truth-boundary.md)

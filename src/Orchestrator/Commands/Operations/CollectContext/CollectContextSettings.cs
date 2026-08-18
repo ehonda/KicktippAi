@@ -120,3 +120,43 @@ public class CollectContextClubEloSettings : CollectContextSettings
     [Description("Enable verbose diagnostics")]
     public bool Verbose { get; set; }
 }
+
+/// <summary>Settings for the atomic Bundesliga 2026/27 roster collector.</summary>
+public class CollectContextRostersSettings : CollectContextSettings
+{
+    [CommandOption("--community-context")]
+    [Description("The explicit community context to publish roster documents for")]
+    public string CommunityContext { get; set; } = string.Empty;
+
+    [CommandOption("--competition")]
+    [Description("Required competition identifier; must be bundesliga-2026-27")]
+    public string? Competition { get; set; }
+
+    [CommandOption("--seed")]
+    [Description("Strict fallback roster membership seed CSV path")]
+    public string Seed { get; set; } = BundesligaRosterSeed.RelativePath;
+
+    [CommandOption("--manifest")]
+    [Description("Strict Bundesliga team manifest CSV path")]
+    public string Manifest { get; set; } = BundesligaTeamManifest.RelativePath;
+
+    [CommandOption("--duckdb-path")]
+    [Description("Optional existing local ADR-0017 DuckDB path; never downloaded or refreshed")]
+    public string? DuckDbPath { get; set; }
+
+    [CommandOption("--duckdb-revision")]
+    [Description("Required with --duckdb-path: immutable dataset revision")]
+    public string? DuckDbRevision { get; set; }
+
+    [CommandOption("--duckdb-snapshot-date")]
+    [Description("Required with --duckdb-path: source snapshot date in yyyy-MM-dd")]
+    public string? DuckDbSnapshotDate { get; set; }
+
+    [CommandOption("--dry-run")]
+    [Description("Render, validate, hash, and report without publishing")]
+    public bool DryRun { get; set; }
+
+    [CommandOption("--verbose")]
+    [Description("Enable verbose diagnostics")]
+    public bool Verbose { get; set; }
+}
