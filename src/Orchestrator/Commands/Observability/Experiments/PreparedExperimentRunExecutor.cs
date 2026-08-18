@@ -95,7 +95,8 @@ internal sealed class PreparedExperimentRunExecutor
         var reconstructionService = new MatchPromptReconstructionService(
             predictionRepository,
             contextRepository,
-            promptRoute.TemplateProvider ?? new InstructionsTemplateProvider(PromptsFileProvider.Create()));
+            promptRoute.TemplateProvider ?? new InstructionsTemplateProvider(PromptsFileProvider.Create()),
+            _firebaseServiceFactory.CreateDocumentPublicationRepository(competition));
 
         var outcomesByKey = await LoadOutcomesAsync(matchOutcomeRepository, communityContext, manifest, cancellationToken);
         var experimentName = PreparedExperimentSupport.DeriveExperimentName(runMetadata, request.RunName);
@@ -533,21 +534,39 @@ internal sealed class PreparedExperimentRunExecutor
         var promptMatch = storedMatch is null
             ? ExperimentArtifactSupport.RehydrateForPromptOutput(new Match(item.HomeTeam, item.AwayTeam, outcome.StartsAt, item.Matchday))
             : ExperimentArtifactSupport.RehydrateForPromptOutput(storedMatch);
+        var isBundesliga2026_27 = string.Equals(runMetadata.Competition, CompetitionIds.Bundesliga2026_27, StringComparison.Ordinal);
+        if (isBundesliga2026_27 && item.ResolvedContextManifest is null)
+        {
+            throw new InvalidOperationException(
+                $"Prepared Bundesliga 2026/27 item '{item.SliceDatasetItemId}' is missing its immutable resolvedContextManifest; timestamp reconstruction is forbidden.");
+        }
+        if (isBundesliga2026_27 && item.PredictionCreatedAt is null)
+        {
+            throw new InvalidOperationException(
+                $"Prepared Bundesliga 2026/27 item '{item.SliceDatasetItemId}' is missing predictionCreatedAt required for immutable prompt provenance.");
+        }
+
         var evaluationTimestamp = explicitEvaluationTime
             ?? EvaluationTimestampResolver.Resolve(
                 promptMatch,
                 evaluationTimestampPolicy ?? throw new InvalidOperationException(
                     "Run metadata must contain either evaluationTime or evaluationTimestampPolicy."));
-        var selection = MatchContextDocumentCatalog.ForMatch(item.HomeTeam, item.AwayTeam, runMetadata.CommunityContext!);
-        var reconstructedPrompt = await reconstructionService.ReconstructMatchPredictionPromptAtTimestampAsync(
-            promptMatch,
-            request.Options.Model,
-            runMetadata.CommunityContext!,
-            evaluationTimestamp,
-            selection.RequiredDocumentNames,
-            selection.OptionalDocumentNames,
-            runMetadata.IncludeJustification,
-            cancellationToken);
+        var reconstructedPrompt = isBundesliga2026_27
+            ? await reconstructionService.ReconstructMatchPredictionPromptFromResolvedManifestAsync(
+                promptMatch,
+                request.Options.Model,
+                item.ResolvedContextManifest!,
+                item.PredictionCreatedAt!.Value,
+                includeJustification: runMetadata.IncludeJustification,
+                cancellationToken: cancellationToken)
+            : await reconstructionService.ReconstructMatchPredictionPromptAtTimestampAsync(
+                promptMatch,
+                request.Options.Model,
+                runMetadata.CommunityContext!,
+                evaluationTimestamp,
+                MatchContextDocumentCatalog.ForMatch(item.HomeTeam, item.AwayTeam, runMetadata.CommunityContext!, runMetadata.Competition).RequiredDocumentNames,
+                includeJustification: runMetadata.IncludeJustification,
+                cancellationToken: cancellationToken);
 
         var contextDocuments = reconstructedPrompt.ResolvedContextDocuments
             .Select(document => new DocumentContext(document.DocumentName, document.Content))

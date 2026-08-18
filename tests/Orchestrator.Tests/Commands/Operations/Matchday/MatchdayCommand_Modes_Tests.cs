@@ -126,10 +126,11 @@ public class MatchdayCommand_Modes_Tests : MatchdayCommandTests_Base
 
         await RunCommandAsync(ctx.App, ctx.Console, "matchday", "gpt-4o", "-c", "test-community", "--agent");
 
-        ctx.PredictionRepository.Verify(
-            r => r.SavePredictionAsync(
+        ctx.PredictionRepository.As<IResolvedMatchContextPredictionRepository>().Verify(
+            r => r.SavePredictionWithResolvedContextAsync(
                 It.IsAny<Match>(), It.IsAny<Prediction>(), It.IsAny<PredictionModelConfig>(), It.IsAny<string>(),
-                It.IsAny<double>(), It.IsAny<string>(), It.IsAny<IEnumerable<string>>(), It.IsAny<bool>(), It.IsAny<CancellationToken>()),
+                It.IsAny<double>(), It.IsAny<string>(), It.IsAny<IEnumerable<string>>(),
+                It.Is<ResolvedMatchContextManifest>(manifest => manifest.Documents.Length == 11), It.IsAny<bool>(), It.IsAny<CancellationToken>()),
             Times.Once);
     }
 

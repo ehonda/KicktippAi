@@ -22,7 +22,8 @@ public record ReconstructedMatchPredictionPrompt(
     string SystemPrompt,
     string MatchJson,
     IReadOnlyList<string> ContextDocumentNames,
-    IReadOnlyList<ResolvedContextDocumentVersion> ResolvedContextDocuments);
+    IReadOnlyList<ResolvedContextDocumentVersion> ResolvedContextDocuments,
+    ResolvedMatchContextManifest? ResolvedContextManifest = null);
 
 /// <summary>
 /// Reconstructs prompt inputs for historical match predictions.

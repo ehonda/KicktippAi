@@ -204,6 +204,14 @@ public interface IDocumentPublicationRepository
         DocumentPublicationDefinition definition,
         string communityContext,
         CancellationToken cancellationToken = default);
+
+    /// <summary>Loads and validates one immutable publication snapshot by its recorded identity.</summary>
+    Task<LoadedDocumentPublication?> GetSnapshotAsync(
+        DocumentPublicationDefinition definition,
+        string communityContext,
+        string snapshotId,
+        CancellationToken cancellationToken = default) =>
+        throw new NotSupportedException("This publication repository does not support immutable snapshot reads.");
 }
 
 public static class DocumentPublicationContract

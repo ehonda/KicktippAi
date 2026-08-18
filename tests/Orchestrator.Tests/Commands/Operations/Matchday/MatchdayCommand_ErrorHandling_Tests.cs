@@ -103,10 +103,10 @@ public class MatchdayCommand_ErrorHandling_Tests : MatchdayCommandTests_Base
     public async Task Running_command_handles_database_save_error_gracefully()
     {
         var mockPredictionRepo = CreateMockPredictionRepository();
-        mockPredictionRepo
-            .Setup(r => r.SavePredictionAsync(
+        mockPredictionRepo.As<IResolvedMatchContextPredictionRepository>()
+            .Setup(r => r.SavePredictionWithResolvedContextAsync(
                 It.IsAny<Match>(), It.IsAny<Prediction>(), It.IsAny<PredictionModelConfig>(), It.IsAny<string>(),
-                It.IsAny<double>(), It.IsAny<string>(), It.IsAny<IEnumerable<string>>(), It.IsAny<bool>(), It.IsAny<CancellationToken>()))
+                It.IsAny<double>(), It.IsAny<string>(), It.IsAny<IEnumerable<string>>(), It.IsAny<ResolvedMatchContextManifest>(), It.IsAny<bool>(), It.IsAny<CancellationToken>()))
             .ThrowsAsync(new InvalidOperationException("Database connection failed"));
 
         var mockKicktippClient = CreateMockKicktippClient(matchesWithHistory: new List<MatchWithHistory> { CreateBayernVsDortmundMatchWithHistory() });
@@ -118,15 +118,15 @@ public class MatchdayCommand_ErrorHandling_Tests : MatchdayCommandTests_Base
 
         var (exitCode, output) = await RunCommandAsync(ctx.App, ctx.Console, "matchday", "gpt-4o", "-c", "test-community");
 
-        await Assert.That(exitCode).IsEqualTo(0);
+        await Assert.That(exitCode).IsEqualTo(1);
         await Assert.That(output).Contains("Failed to save to database");
         mockKicktippClient.Verify(
             c => c.PlaceBetsAsync(It.IsAny<string>(), It.IsAny<Dictionary<Match, BetPrediction>>(), It.IsAny<bool>()),
-            Times.Once);
+            Times.Never);
     }
 
     [Test]
-    public async Task Running_command_handles_context_repository_error_gracefully()
+    public async Task Running_command_fails_closed_when_context_repository_errors()
     {
         var mockContextRepo = new Mock<IContextRepository>();
         mockContextRepo
@@ -137,8 +137,8 @@ public class MatchdayCommand_ErrorHandling_Tests : MatchdayCommandTests_Base
 
         var (exitCode, output) = await RunCommandAsync(ctx.App, ctx.Console, "matchday", "gpt-4o", "-c", "test-community");
 
-        await Assert.That(exitCode).IsEqualTo(0);
-        await Assert.That(output).Contains("Warning:");
+        await Assert.That(exitCode).IsNotEqualTo(0);
+        await Assert.That(output).Contains("Context fetch failed");
     }
 
     [Test]

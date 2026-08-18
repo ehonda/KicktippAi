@@ -371,7 +371,7 @@ public class FirebasePredictionRepository_Justification_Tests(FirestoreFixture f
                 ],
                 LeastValuable: [
                     new PredictionJustificationContextSource("weather", "No significant impact"),
-                    new PredictionJustificationContextSource("transfers", "Too recent to matter")
+                    new PredictionJustificationContextSource("form", "Too recent to matter")
                 ]),
             Uncertainties: []);
         var prediction = new Prediction(3, 1, justification);
@@ -395,7 +395,7 @@ public class FirebasePredictionRepository_Justification_Tests(FirestoreFixture f
         await Assert.That(sources.MostValuable).HasCount().EqualTo(2);
         await Assert.That(sources.LeastValuable).HasCount().EqualTo(2);
         await Assert.That(sources.MostValuable.Select(s => s.DocumentName)).IsEquivalentTo(["standings", "head-to-head"]);
-        await Assert.That(sources.LeastValuable.Select(s => s.DocumentName)).IsEquivalentTo(["weather", "transfers"]);
+        await Assert.That(sources.LeastValuable.Select(s => s.DocumentName)).IsEquivalentTo(["weather", "form"]);
     }
 
     [Test]

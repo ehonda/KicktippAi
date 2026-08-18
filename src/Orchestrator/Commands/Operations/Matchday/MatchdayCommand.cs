@@ -449,14 +449,45 @@ public class MatchdayCommand : AsyncCommand<BaseSettings>
                 {
                     _console.MarkupLine("[yellow]  → Generating new prediction...[/]");
 
-                    // Step 3: Get context using hybrid approach (database first, fallback to on-demand)
-                    var contextDocuments = await GetHybridContextAsync(
-                        contextRepository,
-                        contextProvider,
-                        match,
-                        communityContext,
-                        competition,
-                        settings.Verbose);
+                    // Step 3: Reserved Bundesliga context is read as two coherent publication
+                    // snapshots. Other competitions retain their existing generic/on-demand flow.
+                    ResolvedMatchContextManifest? resolvedContextManifest = null;
+                    List<DocumentContext> contextDocuments;
+                    if (string.Equals(competition, CompetitionIds.Bundesliga2026_27, StringComparison.Ordinal))
+                    {
+                        Dictionary<string, DocumentContext>? onDemandDocuments = null;
+                        async Task<DocumentContext?> GetOnDemandDocumentAsync(string name, CancellationToken token)
+                        {
+                            if (onDemandDocuments is null)
+                            {
+                                onDemandDocuments = new Dictionary<string, DocumentContext>(StringComparer.Ordinal);
+                                await foreach (var generatedContext in contextProvider.GetMatchContextAsync(match.HomeTeam, match.AwayTeam)
+                                    .WithCancellation(token))
+                                {
+                                    onDemandDocuments.TryAdd(generatedContext.Name, generatedContext);
+                                }
+                            }
+
+                            return onDemandDocuments.TryGetValue(name, out var requestedContext) ? requestedContext : null;
+                        }
+
+                        var resolved = await new BundesligaMatchContextResolver(
+                            contextRepository,
+                            _firebaseServiceFactory.CreateDocumentPublicationRepository(competition))
+                            .ResolveLiveAsync(match, communityContext, GetOnDemandDocumentAsync);
+                        contextDocuments = resolved.Documents.ToList();
+                        resolvedContextManifest = resolved.Manifest;
+                    }
+                    else
+                    {
+                        contextDocuments = await GetHybridContextAsync(
+                            contextRepository,
+                            contextProvider,
+                            match,
+                            communityContext,
+                            competition,
+                            settings.Verbose);
+                    }
 
                     if (settings.Verbose)
                     {
@@ -539,6 +570,7 @@ public class MatchdayCommand : AsyncCommand<BaseSettings>
                                             modelConfig,
                                             communityContext,
                                             contextDocuments,
+                                            resolvedContextManifest,
                                             settings,
                                             tokenUsageTracker);
                                     }
@@ -588,6 +620,7 @@ public class MatchdayCommand : AsyncCommand<BaseSettings>
                                     modelConfig,
                                     communityContext,
                                     contextDocuments,
+                                    resolvedContextManifest,
                                     settings,
                                     tokenUsageTracker);
                             }
@@ -595,6 +628,12 @@ public class MatchdayCommand : AsyncCommand<BaseSettings>
                             {
                                 _logger.LogError(ex, "Failed to save prediction for match {Match}", match);
                                 _console.MarkupLine($"[red]    ✗ Failed to save to database: {ex.Message}[/]");
+                                if (resolvedContextManifest is not null)
+                                {
+                                    BlockMatch(blockedMatches, match, "bundesliga_provenance_persistence_failed",
+                                        "The snapshot-backed Bundesliga prediction was not durably persisted and will not be submitted.");
+                                    continue;
+                                }
                             }
                         }
                         else if (databaseEnabled && settings.DryRun && settings.Verbose)
@@ -763,34 +802,6 @@ public class MatchdayCommand : AsyncCommand<BaseSettings>
                 }
             }
 
-            // Retrieve optional transfers documents (best-effort)
-            foreach (var documentName in selection.OptionalDocumentNames)
-            {
-                try
-                {
-                    var contextDoc = await contextRepository.GetLatestContextDocumentAsync(documentName, communityContext);
-                    if (contextDoc != null)
-                    {
-                        // Display name suffix to distinguish optional docs in prediction metadata (helps debug)
-                        contextDocuments[documentName] = new DocumentContext(contextDoc.DocumentName, contextDoc.Content);
-                        if (verbose)
-                        {
-                            _console.MarkupLine($"[dim]      ✓ Retrieved optional {documentName} (version {contextDoc.Version})[/]");
-                        }
-                    }
-                    else if (verbose)
-                    {
-                        _console.MarkupLine($"[dim]      · Missing optional {documentName}[/]");
-                    }
-                }
-                catch (Exception optEx)
-                {
-                    if (verbose)
-                    {
-                        _console.MarkupLine($"[dim]      · Failed optional {documentName}: {optEx.Message}[/]");
-                    }
-                }
-            }
         }
         catch (Exception ex)
         {
@@ -812,7 +823,7 @@ public class MatchdayCommand : AsyncCommand<BaseSettings>
         bool verbose = false)
     {
         var contextDocuments = new List<DocumentContext>();
-        // Step 1: Retrieve any database documents (required + optional)
+        // Step 1: Retrieve required database documents.
         var databaseContexts = await GetMatchContextDocumentsAsync(
             contextRepository,
             match,
@@ -829,7 +840,7 @@ public class MatchdayCommand : AsyncCommand<BaseSettings>
 
         if (requiredPresent == requiredTotal)
         {
-            // All required docs present; include every database doc (required + optional)
+            // All required docs present.
             if (verbose)
             {
                 _console.MarkupLine($"[green]    Using {databaseContexts.Count} context documents from database (all required present)[/]");
@@ -838,8 +849,9 @@ public class MatchdayCommand : AsyncCommand<BaseSettings>
         }
         else
         {
-            // Fallback: use on-demand provider but still include any database docs we already have (including optional transfers)
-            _console.MarkupLine($"[yellow]    Warning: Only found {requiredPresent}/{requiredTotal} required context documents in database (have {databaseContexts.Count} total incl. optional). Falling back to on-demand context while preserving retrieved documents[/]");
+            // Only the generic catalog documents may be supplied on demand. Reserved Bundesliga
+            // roster and Club Elo documents are rejected before this path by the resolver.
+            _console.MarkupLine($"[yellow]    Warning: Only found {requiredPresent}/{requiredTotal} required context documents in database. Falling back to on-demand context while preserving retrieved documents[/]");
 
             // Start with database docs
             contextDocuments.AddRange(databaseContexts.Values);
@@ -909,10 +921,31 @@ public class MatchdayCommand : AsyncCommand<BaseSettings>
                 predictionMetadata = await predictionRepository.GetPredictionMetadataAsync(match, modelConfig, communityContext);
             }
 
-            if (predictionMetadata == null || !predictionMetadata.ContextDocumentNames.Any())
+            if (predictionMetadata is null)
+            {
+                return false;
+            }
+
+            if (string.Equals(competition, CompetitionIds.Bundesliga2026_27, StringComparison.Ordinal)
+                && predictionMetadata.ResolvedContextManifest is null)
+            {
+                return true;
+            }
+
+            if (!predictionMetadata.ContextDocumentNames.Any())
             {
                 // If no context documents were used, prediction can't be outdated based on context changes
                 return false;
+            }
+
+            if (string.Equals(competition, CompetitionIds.Bundesliga2026_27, StringComparison.Ordinal))
+            {
+                return await BundesligaPredictionOutdatedChecker.IsOutdatedAsync(
+                    contextRepository,
+                    _firebaseServiceFactory.CreateDocumentPublicationRepository(competition),
+                    match,
+                    communityContext,
+                    predictionMetadata);
             }
 
             if (verbose)
@@ -982,7 +1015,7 @@ public class MatchdayCommand : AsyncCommand<BaseSettings>
             {
                 _console.MarkupLine($"[yellow]  Warning: Failed to check outdated status: {ex.Message}[/]");
             }
-            return false;
+            return string.Equals(competition, CompetitionIds.Bundesliga2026_27, StringComparison.Ordinal);
         }
     }
 
@@ -1029,6 +1062,7 @@ public class MatchdayCommand : AsyncCommand<BaseSettings>
         PredictionModelConfig modelConfig,
         string communityContext,
         IReadOnlyCollection<DocumentContext> contextDocuments,
+        ResolvedMatchContextManifest? resolvedContextManifest,
         BaseSettings settings,
         ITokenUsageTracker tokenUsageTracker)
     {
@@ -1044,15 +1078,20 @@ public class MatchdayCommand : AsyncCommand<BaseSettings>
                 communityContext);
             var nextIndex = currentIndex == -1 ? 0 : currentIndex + 1;
 
-            await predictionRepository.SaveRepredictionAsync(
-                match,
-                prediction,
-                modelConfig,
-                tokenUsageJson,
-                cost,
-                communityContext,
-                contextDocuments.Select(document => document.Name),
-                nextIndex);
+            if (resolvedContextManifest is not null)
+            {
+                if (predictionRepository is not IResolvedMatchContextPredictionRepository provenanceRepository)
+                {
+                    throw new InvalidOperationException("Bundesliga snapshot-backed predictions require a provenance-capable prediction repository.");
+                }
+                await provenanceRepository.SaveRepredictionWithResolvedContextAsync(match, prediction, modelConfig, tokenUsageJson, cost,
+                    communityContext, contextDocuments.Select(document => document.Name), nextIndex, resolvedContextManifest);
+            }
+            else
+            {
+                await predictionRepository.SaveRepredictionAsync(match, prediction, modelConfig, tokenUsageJson, cost,
+                    communityContext, contextDocuments.Select(document => document.Name), nextIndex);
+            }
 
             if (settings.Verbose)
             {
@@ -1062,15 +1101,21 @@ public class MatchdayCommand : AsyncCommand<BaseSettings>
             return;
         }
 
-        await predictionRepository.SavePredictionAsync(
-            match,
-            prediction,
-            modelConfig,
-            tokenUsageJson,
-            cost,
-            communityContext,
-            contextDocuments.Select(document => document.Name),
-            overrideCreatedAt: settings.OverrideDatabase);
+        if (resolvedContextManifest is not null)
+        {
+            if (predictionRepository is not IResolvedMatchContextPredictionRepository resolvedContextRepository)
+            {
+                throw new InvalidOperationException("Bundesliga snapshot-backed predictions require a provenance-capable prediction repository.");
+            }
+            await resolvedContextRepository.SavePredictionWithResolvedContextAsync(match, prediction, modelConfig, tokenUsageJson, cost,
+                communityContext, contextDocuments.Select(document => document.Name), resolvedContextManifest,
+                overrideCreatedAt: settings.OverrideDatabase);
+        }
+        else
+        {
+            await predictionRepository.SavePredictionAsync(match, prediction, modelConfig, tokenUsageJson, cost,
+                communityContext, contextDocuments.Select(document => document.Name), overrideCreatedAt: settings.OverrideDatabase);
+        }
 
         if (settings.Verbose)
         {

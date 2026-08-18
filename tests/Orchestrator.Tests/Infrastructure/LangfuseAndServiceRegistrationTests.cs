@@ -783,15 +783,11 @@ public class LangfuseAndServiceRegistrationTests
         var services = new ServiceCollection();
 
         services.AddUploadKpiCommandServices();
-        services.AddUploadTransfersCommandServices();
         services.AddAllCommandServices();
 
         await Assert.That(services.Any(descriptor =>
             descriptor.ServiceType == typeof(IFileProvider) &&
             Equals(descriptor.ServiceKey, ServiceRegistrationExtensions.KpiDocumentsFileProviderKey))).IsTrue();
-        await Assert.That(services.Any(descriptor =>
-            descriptor.ServiceType == typeof(IFileProvider) &&
-            Equals(descriptor.ServiceKey, ServiceRegistrationExtensions.TransfersDocumentsFileProviderKey))).IsTrue();
         await Assert.That(services.Any(descriptor =>
             descriptor.ServiceType == typeof(IFirebaseServiceFactory))).IsTrue();
         await Assert.That(services.Any(descriptor =>

@@ -22,7 +22,7 @@ public class MatchdayCommand_ContextRetrieval_Tests : MatchdayCommandTests_Base
         var (exitCode, output) = await RunCommandAsync(ctx.App, ctx.Console, "matchday", "gpt-4o", "-c", "test-community", "--verbose");
 
         await Assert.That(exitCode).IsEqualTo(0);
-        await Assert.That(output).Contains("context documents from database");
+        await Assert.That(output).Contains("Using 11 context documents");
     }
 
     [Test]
@@ -38,9 +38,8 @@ public class MatchdayCommand_ContextRetrieval_Tests : MatchdayCommandTests_Base
 
         var (exitCode, output) = await RunCommandAsync(ctx.App, ctx.Console, "matchday", "gpt-4o", "-c", "test-community");
 
-        await Assert.That(exitCode).IsEqualTo(0);
-        await Assert.That(output).Contains("Warning:");
-        await Assert.That(output).Contains("required context documents");
+        await Assert.That(exitCode).IsNotEqualTo(0);
+        await Assert.That(output).Contains("Missing required Bundesliga context document");
     }
 
     [Test]
@@ -77,6 +76,8 @@ public class MatchdayCommand_ContextRetrieval_Tests : MatchdayCommandTests_Base
     public async Task Running_command_retrieves_context_for_team_using_correct_abbreviation(string teamName, string expectedAbbreviation)
     {
         var contextTimestamp = new DateTimeOffset(2025, 1, 10, 12, 0, 0, TimeSpan.Zero);
+        var awayTeam = teamName == "Borussia Dortmund" ? "FC Bayern München" : "Borussia Dortmund";
+        var awayAbbreviation = awayTeam == "FC Bayern München" ? "fcb" : "bvb";
         var contextDocs = new Dictionary<string, ContextDocument>
         {
             ["bundesliga-standings.csv"] = CreateContextDocument(
@@ -91,27 +92,27 @@ public class MatchdayCommand_ContextRetrieval_Tests : MatchdayCommandTests_Base
                 documentName: $"recent-history-{expectedAbbreviation}.csv",
                 content: "Match,Result",
                 createdAt: contextTimestamp),
-            ["recent-history-bvb.csv"] = CreateContextDocument(
-                documentName: "recent-history-bvb.csv",
+            [$"recent-history-{awayAbbreviation}.csv"] = CreateContextDocument(
+                documentName: $"recent-history-{awayAbbreviation}.csv",
                 content: "Match,Result",
                 createdAt: contextTimestamp),
             [$"home-history-{expectedAbbreviation}.csv"] = CreateContextDocument(
                 documentName: $"home-history-{expectedAbbreviation}.csv",
                 content: "Match,Result",
                 createdAt: contextTimestamp),
-            ["away-history-bvb.csv"] = CreateContextDocument(
-                documentName: "away-history-bvb.csv",
+            [$"away-history-{awayAbbreviation}.csv"] = CreateContextDocument(
+                documentName: $"away-history-{awayAbbreviation}.csv",
                 content: "Match,Result",
                 createdAt: contextTimestamp),
-            [$"head-to-head-{expectedAbbreviation}-vs-bvb.csv"] = CreateContextDocument(
-                documentName: $"head-to-head-{expectedAbbreviation}-vs-bvb.csv",
+            [$"head-to-head-{expectedAbbreviation}-vs-{awayAbbreviation}.csv"] = CreateContextDocument(
+                documentName: $"head-to-head-{expectedAbbreviation}-vs-{awayAbbreviation}.csv",
                 content: "Match,Score",
                 createdAt: contextTimestamp)
         };
 
         var matches = new List<MatchWithHistory>
         {
-            CreateMatchWithHistory(match: CreateMatch(homeTeam: teamName, awayTeam: "Borussia Dortmund"))
+            CreateMatchWithHistory(match: CreateMatch(homeTeam: teamName, awayTeam: awayTeam))
         };
 
         var ctx = CreateMatchdayCommandApp(matchesWithHistory: matches, contextDocuments: contextDocs, existingPrediction: (Prediction?)null);
@@ -119,7 +120,7 @@ public class MatchdayCommand_ContextRetrieval_Tests : MatchdayCommandTests_Base
         var (exitCode, output) = await RunCommandAsync(ctx.App, ctx.Console, "matchday", "gpt-4o", "-c", "test-community", "--verbose");
 
         await Assert.That(exitCode).IsEqualTo(0);
-        await Assert.That(output).Contains("context documents from database");
+        await Assert.That(output).Contains("Using 11 context documents");
     }
 
     [Test]
@@ -137,20 +138,4 @@ public class MatchdayCommand_ContextRetrieval_Tests : MatchdayCommandTests_Base
         await Assert.That(output).Contains("automatic slug fallback is disabled");
     }
 
-    [Test]
-    public async Task Running_command_includes_optional_transfers_documents_when_available()
-    {
-        var contextDocs = CreateBayernVsDortmundContextDocuments();
-        contextDocs["fcb-transfers.csv"] = CreateContextDocument(documentName: "fcb-transfers.csv", content: "Player,From,To");
-        contextDocs["bvb-transfers.csv"] = CreateContextDocument(documentName: "bvb-transfers.csv", content: "Player,From,To");
-
-        var ctx = CreateMatchdayCommandApp(contextDocuments: contextDocs, existingPrediction: (Prediction?)null);
-
-        var (exitCode, output) = await RunCommandAsync(ctx.App, ctx.Console, "matchday", "gpt-4o", "-c", "test-community", "--verbose");
-
-        await Assert.That(exitCode).IsEqualTo(0);
-        ctx.PredictionService.Verify(
-            s => s.PredictMatchAsync(It.IsAny<Match>(), It.IsAny<IEnumerable<DocumentContext>>(), It.IsAny<bool>(), It.IsAny<OpenAiIntegration.PredictionTelemetryMetadata?>(), It.IsAny<CancellationToken>()),
-            Times.Once);
-    }
 }

@@ -173,7 +173,7 @@ public class VerifyMatchdayCommand_ErrorHandling_Tests : VerifyMatchdayCommandTe
             kicktippClientFactory: mockKicktippFactory);
 
         // Act
-        var (exitCode, output) = await RunCommandAsync(ctx.App, ctx.Console, "verify-matchday", "gpt-4o", "-c", "test", "--check-outdated", "-v");
+        var (exitCode, output) = await RunCommandAsync(ctx.App, ctx.Console, "verify-matchday", "gpt-4o", "-c", "test", "--competition", CompetitionIds.Bundesliga2025_26, "--check-outdated", "-v");
 
         // Assert - should still pass because outdated check failure is gracefully handled
         await Assert.That(exitCode).IsEqualTo(0);

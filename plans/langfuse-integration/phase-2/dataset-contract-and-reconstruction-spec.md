@@ -1,5 +1,11 @@
 # Phase 2 — Dataset Contract And Reconstruction Spec
 
+> **Historical/immutable experiment input note:** This is the retired 2025/26
+> timestamp-based replay contract. Its transfer references describe only explicit
+> historical experiment inputs; they are not part of the live Bundesliga 2026/27
+> context contract. See [ADR-0020](../../bundesliga-2026-27/decisions/0020-record-immutable-match-context-manifests.md)
+> for the current immutable-manifest rule.
+
 This document is the handoff-ready contract for Task 4 and Task 5 implementation.
 
 ## Canonical Hosted Dataset
@@ -49,7 +55,7 @@ Task 5 reconstructs prompt context from an evaluation timestamp policy rather th
 1. Choose an evaluation timestamp policy such as `startsAt - 7 days`
 2. Derive the required context-document names from `homeTeam`, `awayTeam`, and `communityContext`
 3. Resolve the latest version of each required document whose `createdAt` is less than or equal to the chosen evaluation timestamp
-4. Include transfer documents only if a version exists by that timestamp
+4. For the historical 2025/26 replay only, include an explicitly declared immutable transfer input when supplied by the artifact; do not query or infer one.
 
 ## Required Match Context Documents
 
@@ -61,14 +67,14 @@ Task 5 reconstructs prompt context from an evaluation timestamp policy rather th
 - `away-history-{awayAbbreviation}.csv`
 - `head-to-head-{homeAbbreviation}-vs-{awayAbbreviation}.csv`
 
-## Optional Match Context Documents
+## Historical 2025/26 Explicit Inputs
 
 - `{homeAbbreviation}-transfers.csv`
 - `{awayAbbreviation}-transfers.csv`
 
 ## Verified Claim From Current Orchestration
 
-Current match prediction uses a deterministic fixed required context-document set plus optional transfers when available. It does not dynamically choose arbitrary subsets from all stored context documents.
+Historical 2025/26 replay used a deterministic required set plus explicitly supplied immutable transfer inputs when available. Current Bundesliga 2026/27 prediction uses the immutable resolved-context manifest in ADR-0020 and never selects live transfer documents.
 
 Relevant implementation references:
 

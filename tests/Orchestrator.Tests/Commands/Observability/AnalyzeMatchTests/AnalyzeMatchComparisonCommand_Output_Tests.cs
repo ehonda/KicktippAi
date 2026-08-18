@@ -87,7 +87,7 @@ public class AnalyzeMatchComparisonCommand_Output_Tests : AnalyzeMatchTests_Base
         var context = CreateComparisonCommandApp();
         var (_, output) = await RunComparisonAsync(context, "--runs", "1", "--verbose");
 
-        await Assert.That(output).Contains("Looking for 7 required context documents in database");
+        await Assert.That(output).Contains("Resolved 7 generic versioned and 4 publication-snapshot-backed Bundesliga");
     }
 
     [Test]
@@ -112,13 +112,14 @@ public class AnalyzeMatchComparisonCommand_Output_Tests : AnalyzeMatchTests_Base
     }
 
     [Test]
-    public async Task No_context_documents_shows_warning()
+    public async Task Missing_required_context_fails_clearly()
     {
         var context = CreateComparisonCommandApp(
             contextDocuments: new Dictionary<string, ContextDocument>());
-        var (_, output) = await RunComparisonAsync(context, "--runs", "1");
+        var (exitCode, output) = await RunComparisonAsync(context, "--runs", "1");
 
-        await Assert.That(output).Contains("No context documents retrieved");
+        await Assert.That(exitCode).IsNotEqualTo(0);
+        await Assert.That(output).Contains("Missing required Bundesliga context document");
     }
 
     [Test]
@@ -131,16 +132,13 @@ public class AnalyzeMatchComparisonCommand_Output_Tests : AnalyzeMatchTests_Base
     }
 
     [Test]
-    public async Task Verbose_shows_retrieved_optional_transfer_documents()
+    public async Task Verbose_shows_snapshot_backed_bundesliga_context_documents()
     {
         var docs = CreateDefaultContextDocuments();
-        docs[$"{HomeAbbreviation}-transfers.csv"] = CreateContextDocument(
-            documentName: $"{HomeAbbreviation}-transfers.csv",
-            content: "Transfer,Fee\nPlayer A,10M");
         var context = CreateComparisonCommandApp(contextDocuments: docs);
         var (_, output) = await RunComparisonAsync(context, "--runs", "1", "--verbose");
 
-        await Assert.That(output).Contains($"Retrieved optional {HomeAbbreviation}-transfers.csv");
+        await Assert.That(output).Contains("Resolved 7 generic versioned and 4 publication-snapshot-backed Bundesliga");
     }
 
     [Test]

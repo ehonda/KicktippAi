@@ -1,6 +1,7 @@
 using System.Text.Json;
 using System.Text.Json.Nodes;
 using System.Text.Json.Serialization;
+using EHonda.KicktippAi.Core;
 
 namespace Orchestrator.Commands.Observability.Experiments;
 
@@ -99,7 +100,9 @@ internal static class PreparedExperimentBundleBuilder
                     item.AwayTeam,
                     item.TippSpielId,
                     item.FixtureIndex,
-                    item.RepetitionIndex
+                    item.RepetitionIndex,
+                    item.ResolvedContextManifest,
+                    item.PredictionCreatedAt
                 }, OutputJsonOptions)))
             .ToList();
 
@@ -113,7 +116,9 @@ internal static class PreparedExperimentBundleBuilder
             StartsAt = item.StartsAt,
             TippSpielId = item.TippSpielId,
             FixtureIndex = item.FixtureIndex,
-            RepetitionIndex = item.RepetitionIndex
+            RepetitionIndex = item.RepetitionIndex,
+            ResolvedContextManifest = item.ResolvedContextManifest,
+            PredictionCreatedAt = item.PredictionCreatedAt
         }).ToList();
 
         var datasetMetadataNode = JsonSerializer.SerializeToNode(new
@@ -218,7 +223,9 @@ internal sealed record PreparedExperimentSourceItem(
     int ExpectedHomeGoals,
     int ExpectedAwayGoals,
     int? FixtureIndex = null,
-    int? RepetitionIndex = null);
+    int? RepetitionIndex = null,
+    ResolvedMatchContextManifest? ResolvedContextManifest = null,
+    DateTimeOffset? PredictionCreatedAt = null);
 
 internal sealed record PreparedExperimentBundle(
     PreparedExperimentDataset Artifact,

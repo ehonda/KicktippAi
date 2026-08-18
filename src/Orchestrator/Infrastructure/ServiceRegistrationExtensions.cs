@@ -311,11 +311,6 @@ public static class ServiceRegistrationExtensions
     public const string KpiDocumentsFileProviderKey = "kpi-documents";
 
     /// <summary>
-    /// Service key for the transfers documents file provider.
-    /// </summary>
-    public const string TransfersDocumentsFileProviderKey = "transfers-documents";
-
-    /// <summary>
     /// Registers services specific to the UploadKpiCommand.
     /// </summary>
     /// <remarks>
@@ -604,24 +599,6 @@ public static class ServiceRegistrationExtensions
     }
 
     /// <summary>
-    /// Registers services specific to the UploadTransfersCommand.
-    /// </summary>
-    public static IServiceCollection AddUploadTransfersCommandServices(
-        this IServiceCollection services,
-        LogLevel minimumLogLevel = LogLevel.Information)
-    {
-        services.AddOrchestratorInfrastructure(minimumLogLevel);
-
-        // UploadTransfersCommand needs Firebase (IContextRepository)
-        // Register keyed file provider for transfers documents directory
-        services.TryAddKeyedSingleton<IFileProvider>(
-            TransfersDocumentsFileProviderKey,
-            (_, _) => SolutionRelativeFileProvider.Create("transfers-documents"));
-
-        return services;
-    }
-
-    /// <summary>
     /// Registers services specific to the UploadContextCommand.
     /// </summary>
     public static IServiceCollection AddUploadContextCommandServices(
@@ -708,7 +685,6 @@ public static class ServiceRegistrationExtensions
         services.AddCollectContextDevCommandServices(minimumLogLevel);
         services.AddWm26RecentHistoryCommandServices(minimumLogLevel);
         services.AddContextChangesCommandServices(minimumLogLevel);
-        services.AddUploadTransfersCommandServices(minimumLogLevel);
         services.AddUploadContextCommandServices(minimumLogLevel);
         services.AddCopyFirestoreContextCommandServices(minimumLogLevel);
         services.AddAnalyzeMatchDetailedCommandServices(minimumLogLevel);

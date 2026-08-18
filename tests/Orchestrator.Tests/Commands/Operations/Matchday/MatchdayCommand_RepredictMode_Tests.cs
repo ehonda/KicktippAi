@@ -21,7 +21,9 @@ public class MatchdayCommand_RepredictMode_Tests : MatchdayCommandTests_Base
             .ReturnsAsync(-1);
 
         var ctx = CreateMatchdayCommandApp(
-            firebaseServiceFactory: CreateMockFirebaseServiceFactoryFull(predictionRepository: predictionRepo));
+            firebaseServiceFactory: CreateMockFirebaseServiceFactoryFull(
+                predictionRepository: predictionRepo,
+                contextRepository: CreateMockContextRepositoryWithDocuments(CreateMatchContextDocuments())));
 
         var (exitCode, output) = await RunCommandAsync(ctx.App, ctx.Console, "matchday", "gpt-4o", "-c", "test-community", "--repredict");
 
@@ -43,7 +45,8 @@ public class MatchdayCommand_RepredictMode_Tests : MatchdayCommandTests_Base
             .ReturnsAsync(0);
         predictionRepo
             .Setup(r => r.GetPredictionMetadataAsync(It.IsAny<Match>(), It.IsAny<PredictionModelConfig>(), It.IsAny<string>(), It.IsAny<CancellationToken>()))
-            .ReturnsAsync(new PredictionMetadata(existingPrediction, predictionTimestamp, ["bundesliga-standings.csv", "recent-history-fcb.csv"]));
+            .ReturnsAsync(CreateCanonicalBundesligaPredictionMetadata(existingPrediction, CreateBayernVsDortmundMatch(),
+                new Dictionary<string, ContextDocument> { ["recent-history-fcb.csv"] = CreateContextDocument(documentName: "recent-history-fcb.csv", version: 0) }, predictionTimestamp));
 
         var contextDocs = CreateBayernVsDortmundContextDocuments(createdAt: contextTimestamp);
         var contextRepo = new Mock<IContextRepository>();
@@ -74,7 +77,7 @@ public class MatchdayCommand_RepredictMode_Tests : MatchdayCommandTests_Base
             .ReturnsAsync(0);
         predictionRepo
             .Setup(r => r.GetPredictionMetadataAsync(It.IsAny<Match>(), It.IsAny<PredictionModelConfig>(), It.IsAny<string>(), It.IsAny<CancellationToken>()))
-            .ReturnsAsync(new PredictionMetadata(existingPrediction, predictionTimestamp, ["bundesliga-standings.csv", "recent-history-fcb.csv"]));
+            .ReturnsAsync(CreateCanonicalBundesligaPredictionMetadata(existingPrediction, CreateBayernVsDortmundMatch(), createdAt: predictionTimestamp));
 
         var contextDocs = CreateBayernVsDortmundContextDocuments(createdAt: contextTimestamp);
         var contextRepo = new Mock<IContextRepository>();
@@ -105,7 +108,7 @@ public class MatchdayCommand_RepredictMode_Tests : MatchdayCommandTests_Base
             .ReturnsAsync(0);
         predictionRepo
             .Setup(r => r.GetPredictionMetadataAsync(It.IsAny<Match>(), It.IsAny<PredictionModelConfig>(), It.IsAny<string>(), It.IsAny<CancellationToken>()))
-            .ReturnsAsync(new PredictionMetadata(existingPrediction, predictionTimestamp, ["bundesliga-standings.csv"]));
+            .ReturnsAsync(CreateCanonicalBundesligaPredictionMetadata(existingPrediction, CreateBayernVsDortmundMatch(), createdAt: predictionTimestamp));
 
         var contextDocs = CreateBayernVsDortmundContextDocuments(createdAt: contextTimestamp);
         var contextRepo = new Mock<IContextRepository>();
@@ -157,7 +160,8 @@ public class MatchdayCommand_RepredictMode_Tests : MatchdayCommandTests_Base
             .ReturnsAsync(1);
         predictionRepo
             .Setup(r => r.GetPredictionMetadataAsync(It.IsAny<Match>(), It.IsAny<PredictionModelConfig>(), It.IsAny<string>(), It.IsAny<CancellationToken>()))
-            .ReturnsAsync(new PredictionMetadata(existingPrediction, predictionTimestamp, ["recent-history-fcb.csv"]));
+            .ReturnsAsync(CreateCanonicalBundesligaPredictionMetadata(existingPrediction, CreateBayernVsDortmundMatch(),
+                new Dictionary<string, ContextDocument> { ["recent-history-fcb.csv"] = CreateContextDocument(documentName: "recent-history-fcb.csv", version: 0) }, predictionTimestamp));
 
         var contextDocs = CreateBayernVsDortmundContextDocuments(createdAt: contextTimestamp);
         var contextRepo = new Mock<IContextRepository>();
@@ -209,7 +213,8 @@ public class MatchdayCommand_RepredictMode_Tests : MatchdayCommandTests_Base
             .ReturnsAsync(1);
         predictionRepo
             .Setup(r => r.GetPredictionMetadataAsync(It.IsAny<Match>(), It.IsAny<PredictionModelConfig>(), It.IsAny<string>(), It.IsAny<CancellationToken>()))
-            .ReturnsAsync(new PredictionMetadata(existingPrediction, predictionTimestamp, ["recent-history-fcb.csv"]));
+            .ReturnsAsync(CreateCanonicalBundesligaPredictionMetadata(existingPrediction, CreateBayernVsDortmundMatch(),
+                new Dictionary<string, ContextDocument> { ["recent-history-fcb.csv"] = CreateContextDocument(documentName: "recent-history-fcb.csv", version: 0) }, predictionTimestamp));
 
         var contextDocs = CreateBayernVsDortmundContextDocuments(createdAt: contextTimestamp);
         var contextRepo = new Mock<IContextRepository>();
@@ -222,10 +227,11 @@ public class MatchdayCommand_RepredictMode_Tests : MatchdayCommandTests_Base
 
         await RunCommandAsync(ctx.App, ctx.Console, "matchday", "gpt-4o", "-c", "test-community", "--repredict");
 
-        predictionRepo.Verify(
-            r => r.SaveRepredictionAsync(
+        predictionRepo.As<IResolvedMatchContextPredictionRepository>().Verify(
+            r => r.SaveRepredictionWithResolvedContextAsync(
                 It.IsAny<Match>(), It.IsAny<Prediction>(), It.IsAny<PredictionModelConfig>(), It.IsAny<string>(),
-                It.IsAny<double>(), It.IsAny<string>(), It.IsAny<IEnumerable<string>>(), 2, It.IsAny<CancellationToken>()),
+                It.IsAny<double>(), It.IsAny<string>(), It.IsAny<IEnumerable<string>>(), 2,
+                It.Is<ResolvedMatchContextManifest>(manifest => manifest.Documents.Length == 11), It.IsAny<CancellationToken>()),
             Times.Once);
     }
 
@@ -242,7 +248,8 @@ public class MatchdayCommand_RepredictMode_Tests : MatchdayCommandTests_Base
             .ReturnsAsync(0);
         predictionRepo
             .Setup(r => r.GetPredictionMetadataAsync(It.IsAny<Match>(), It.IsAny<PredictionModelConfig>(), It.IsAny<string>(), It.IsAny<CancellationToken>()))
-            .ReturnsAsync(new PredictionMetadata(existingPrediction, predictionTimestamp, ["recent-history-fcb.csv"]));
+            .ReturnsAsync(CreateCanonicalBundesligaPredictionMetadata(existingPrediction, CreateBayernVsDortmundMatch(),
+                new Dictionary<string, ContextDocument> { ["recent-history-fcb.csv"] = CreateContextDocument(documentName: "recent-history-fcb.csv", version: 0) }, predictionTimestamp));
 
         var contextDocs = CreateBayernVsDortmundContextDocuments(createdAt: contextTimestamp);
         var contextRepo = new Mock<IContextRepository>();

@@ -4,6 +4,7 @@ using KicktippIntegration;
 using Moq;
 using static Orchestrator.Tests.Infrastructure.OrchestratorTestFactories;
 using static TestUtilities.CoreTestFactories;
+using Match = EHonda.KicktippAi.Core.Match;
 
 namespace Orchestrator.Tests.Commands.Operations.Verify;
 
@@ -12,6 +13,52 @@ namespace Orchestrator.Tests.Commands.Operations.Verify;
 /// </summary>
 public class VerifyMatchdayCommand_Outdated_Tests : VerifyMatchdayCommandTests_Base
 {
+    [Test]
+    public async Task Bundesliga_prediction_without_immutable_manifest_is_outdated_fail_closed()
+    {
+        var match = CreateTestMatch();
+        var ctx = CreateVerifyMatchdayCommandApp(
+            placedPredictions: CreatePlacedPredictions(match, CreateBetPrediction(homeGoals: 2, awayGoals: 1)),
+            databasePrediction: CreatePrediction(homeGoals: 2, awayGoals: 1),
+            predictionMetadata: CreatePredictionMetadata(
+                prediction: CreatePrediction(homeGoals: 2, awayGoals: 1),
+                contextDocumentNames: new List<string> { "recent-history-fcb.csv" }));
+
+        var (exitCode, output) = await RunCommandAsync(
+            ctx.App, ctx.Console, "verify-matchday", "gpt-4o", "-c", "test-community", "--check-outdated");
+
+        await Assert.That(exitCode).IsEqualTo(1);
+        await Assert.That(output).Contains("Status:").And.Contains("Outdated");
+    }
+
+    [Test]
+    public async Task Bundesliga_prediction_with_complete_manifest_and_matching_heads_is_current_even_with_unrelated_generic_reserved_row()
+    {
+        var match = CreateTestMatch();
+        var ordinaryDocuments = CreateBundesligaOrdinaryDocuments(match);
+        ordinaryDocuments["roster-unrelated"] = CreateContextDocument(documentName: "roster-unrelated", version: 999);
+        var metadata = CreateCanonicalBundesligaPredictionMetadata(
+            CreatePrediction(homeGoals: 2, awayGoals: 1), match, ordinaryDocuments, communityContext: "test-community");
+        var contextRepository = CreateMockContextRepositoryWithDocuments(ordinaryDocuments);
+        var firebaseFactory = CreateMockFirebaseServiceFactoryFull(
+            predictionRepository: CreateMockPredictionRepository(
+                getPredictionResult: CreatePrediction(homeGoals: 2, awayGoals: 1),
+                getPredictionMetadataResult: metadata),
+            contextRepository: contextRepository);
+        var ctx = CreateVerifyMatchdayCommandApp(
+            placedPredictions: CreatePlacedPredictions(match, CreateBetPrediction(homeGoals: 2, awayGoals: 1)),
+            firebaseServiceFactory: firebaseFactory);
+
+        var (exitCode, output) = await RunCommandAsync(
+            ctx.App, ctx.Console, "verify-matchday", "gpt-4o", "-c", "test-community", "--check-outdated");
+
+        await Assert.That(exitCode).IsEqualTo(0);
+        await Assert.That(output).Contains("verification successful");
+        contextRepository.Verify(repository => repository.GetLatestContextDocumentAsync(
+            It.Is<string>(name => name.StartsWith("roster-", StringComparison.Ordinal) || name.StartsWith("club-elo-", StringComparison.Ordinal)),
+            It.IsAny<string>(), It.IsAny<CancellationToken>()), Times.Never);
+    }
+
     [Test]
     [Description(
         """
@@ -144,7 +191,7 @@ public class VerifyMatchdayCommand_Outdated_Tests : VerifyMatchdayCommandTests_B
             contextDocumentsByName: contextDocs);
 
         // Act
-        var (exitCode, output) = await RunCommandAsync(ctx.App, ctx.Console, "verify-matchday", "gpt-4o", "-c", "test", "--check-outdated");
+        var (exitCode, output) = await RunCommandAsync(ctx.App, ctx.Console, "verify-matchday", "gpt-4o", "-c", "test", "--competition", CompetitionIds.Bundesliga2025_26, "--check-outdated");
 
         // Assert
         await Assert.That(exitCode).IsEqualTo(1);
@@ -198,7 +245,7 @@ public class VerifyMatchdayCommand_Outdated_Tests : VerifyMatchdayCommandTests_B
             firebaseServiceFactory: mockFirebaseFactory);
 
         // Act
-        var (exitCode, output) = await RunCommandAsync(ctx.App, ctx.Console, "verify-matchday", "gpt-4o", "-c", "test", "--check-outdated", "-v");
+        var (exitCode, output) = await RunCommandAsync(ctx.App, ctx.Console, "verify-matchday", "gpt-4o", "-c", "test", "--competition", CompetitionIds.Bundesliga2025_26, "--check-outdated", "-v");
 
         // Assert
         await Assert.That(exitCode).IsEqualTo(0);
@@ -232,7 +279,7 @@ public class VerifyMatchdayCommand_Outdated_Tests : VerifyMatchdayCommandTests_B
             contextDocumentsByName: contextDocs);
 
         // Act
-        var (_, output) = await RunCommandAsync(ctx.App, ctx.Console, "verify-matchday", "gpt-4o", "-c", "test", "--check-outdated", "-v");
+        var (_, output) = await RunCommandAsync(ctx.App, ctx.Console, "verify-matchday", "gpt-4o", "-c", "test", "--competition", CompetitionIds.Bundesliga2025_26, "--check-outdated", "-v");
 
         // Assert
         await Assert.That(output).Contains("recent-history-fcb.csv").And.Contains("updated after prediction");
@@ -264,7 +311,7 @@ public class VerifyMatchdayCommand_Outdated_Tests : VerifyMatchdayCommandTests_B
             contextDocumentsByName: contextDocs);
 
         // Act
-        var (exitCode, output) = await RunCommandAsync(ctx.App, ctx.Console, "verify-matchday", "gpt-4o", "-c", "test", "--check-outdated");
+        var (exitCode, output) = await RunCommandAsync(ctx.App, ctx.Console, "verify-matchday", "gpt-4o", "-c", "test", "--competition", CompetitionIds.Bundesliga2025_26, "--check-outdated");
 
         // Assert
         await Assert.That(exitCode).IsEqualTo(0);
@@ -297,7 +344,7 @@ public class VerifyMatchdayCommand_Outdated_Tests : VerifyMatchdayCommandTests_B
             contextDocumentsByName: contextDocs);
 
         // Act
-        var (exitCode, output) = await RunCommandAsync(ctx.App, ctx.Console, "verify-matchday", "gpt-4o", "-c", "test", "--check-outdated", "-v");
+        var (exitCode, output) = await RunCommandAsync(ctx.App, ctx.Console, "verify-matchday", "gpt-4o", "-c", "test", "--competition", CompetitionIds.Bundesliga2025_26, "--check-outdated", "-v");
 
         // Assert - should still pass despite context being newer
         await Assert.That(exitCode).IsEqualTo(0);
@@ -331,7 +378,7 @@ public class VerifyMatchdayCommand_Outdated_Tests : VerifyMatchdayCommandTests_B
             contextDocumentsByName: contextDocs);
 
         // Act
-        var (exitCode, _) = await RunCommandAsync(ctx.App, ctx.Console, "verify-matchday", "gpt-4o", "-c", "test", "--check-outdated");
+        var (exitCode, _) = await RunCommandAsync(ctx.App, ctx.Console, "verify-matchday", "gpt-4o", "-c", "test", "--competition", CompetitionIds.Bundesliga2025_26, "--check-outdated");
 
         // Assert - should detect outdated because suffix was stripped and match found
         await Assert.That(exitCode).IsEqualTo(1);
@@ -354,7 +401,7 @@ public class VerifyMatchdayCommand_Outdated_Tests : VerifyMatchdayCommandTests_B
             contextDocumentsByName: new Dictionary<string, ContextDocument>());
 
         // Act
-        var (exitCode, output) = await RunCommandAsync(ctx.App, ctx.Console, "verify-matchday", "gpt-4o", "-c", "test", "--check-outdated", "-v");
+        var (exitCode, output) = await RunCommandAsync(ctx.App, ctx.Console, "verify-matchday", "gpt-4o", "-c", "test", "--competition", CompetitionIds.Bundesliga2025_26, "--check-outdated", "-v");
 
         // Assert - should pass (missing = not outdated) but show warning
         await Assert.That(exitCode).IsEqualTo(0);
@@ -376,7 +423,7 @@ public class VerifyMatchdayCommand_Outdated_Tests : VerifyMatchdayCommandTests_B
             predictionMetadata: metadata);
 
         // Act
-        var (exitCode, _) = await RunCommandAsync(ctx.App, ctx.Console, "verify-matchday", "gpt-4o", "-c", "test", "--check-outdated");
+        var (exitCode, _) = await RunCommandAsync(ctx.App, ctx.Console, "verify-matchday", "gpt-4o", "-c", "test", "--competition", CompetitionIds.Bundesliga2025_26, "--check-outdated");
 
         // Assert
         await Assert.That(exitCode).IsEqualTo(0);
@@ -393,7 +440,7 @@ public class VerifyMatchdayCommand_Outdated_Tests : VerifyMatchdayCommandTests_B
             predictionMetadata: (PredictionMetadata?)null);
 
         // Act
-        var (exitCode, _) = await RunCommandAsync(ctx.App, ctx.Console, "verify-matchday", "gpt-4o", "-c", "test", "--check-outdated");
+        var (exitCode, _) = await RunCommandAsync(ctx.App, ctx.Console, "verify-matchday", "gpt-4o", "-c", "test", "--competition", CompetitionIds.Bundesliga2025_26, "--check-outdated");
 
         // Assert
         await Assert.That(exitCode).IsEqualTo(0);
@@ -423,7 +470,7 @@ public class VerifyMatchdayCommand_Outdated_Tests : VerifyMatchdayCommandTests_B
             contextDocumentsByName: contextDocs);
 
         // Act
-        var (_, output) = await RunCommandAsync(ctx.App, ctx.Console, "verify-matchday", "gpt-4o", "-c", "test", "--check-outdated", "--agent");
+        var (_, output) = await RunCommandAsync(ctx.App, ctx.Console, "verify-matchday", "gpt-4o", "-c", "test", "--competition", CompetitionIds.Bundesliga2025_26, "--check-outdated", "--agent");
 
         // Assert
         await Assert.That(output).Contains("✗ Team A vs Team B");
@@ -454,7 +501,7 @@ public class VerifyMatchdayCommand_Outdated_Tests : VerifyMatchdayCommandTests_B
             contextDocumentsByName: contextDocs);
 
         // Act
-        var (_, output) = await RunCommandAsync(ctx.App, ctx.Console, "verify-matchday", "gpt-4o", "-c", "test", "--check-outdated");
+        var (_, output) = await RunCommandAsync(ctx.App, ctx.Console, "verify-matchday", "gpt-4o", "-c", "test", "--competition", CompetitionIds.Bundesliga2025_26, "--check-outdated");
 
         // Assert
         await Assert.That(output).Contains("Status:").And.Contains("Outdated");
@@ -483,7 +530,7 @@ public class VerifyMatchdayCommand_Outdated_Tests : VerifyMatchdayCommandTests_B
             contextDocumentsByName: contextDocs);
 
         // Act
-        var (_, output) = await RunCommandAsync(ctx.App, ctx.Console, "verify-matchday", "gpt-4o", "-c", "test", "--check-outdated", "-v");
+        var (_, output) = await RunCommandAsync(ctx.App, ctx.Console, "verify-matchday", "gpt-4o", "-c", "test", "--competition", CompetitionIds.Bundesliga2025_26, "--check-outdated", "-v");
 
         // Assert
         await Assert.That(output).Contains("Checking 3 context documents for updates");
@@ -499,10 +546,16 @@ public class VerifyMatchdayCommand_Outdated_Tests : VerifyMatchdayCommandTests_B
             databasePrediction: (Prediction?)null);
 
         // Act
-        var (exitCode, output) = await RunCommandAsync(ctx.App, ctx.Console, "verify-matchday", "gpt-4o", "-c", "test", "--check-outdated");
+        var (exitCode, output) = await RunCommandAsync(ctx.App, ctx.Console, "verify-matchday", "gpt-4o", "-c", "test", "--competition", CompetitionIds.Bundesliga2025_26, "--check-outdated");
 
         // Assert - fails due to mismatch, not outdated check
         await Assert.That(exitCode).IsEqualTo(1);
         await Assert.That(output).DoesNotContain("Checking").Or.DoesNotContain("context documents for updates");
     }
+
+    private static Dictionary<string, ContextDocument> CreateBundesligaOrdinaryDocuments(Match match) =>
+        MatchContextDocumentCatalog.ForMatch(match, "test-community", CompetitionIds.Bundesliga2026_27)
+            .RequiredDocumentNames
+            .Where(name => !name.StartsWith("roster-", StringComparison.Ordinal) && !name.StartsWith("club-elo-", StringComparison.Ordinal))
+            .ToDictionary(name => name, name => CreateContextDocument(documentName: name, version: 1));
 }

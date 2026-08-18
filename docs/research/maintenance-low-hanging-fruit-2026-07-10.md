@@ -461,11 +461,9 @@ These items should be verified before inclusion in an implementation plan:
 - `Encrypt-Fixture.ps1` overlaps with the newer `snapshots encrypt` command and
   is not referenced by repository documentation. Confirm whether any manual
   workflow still needs it before retiring it.
-- `Create-KpiDocument.ps1` and `Create-TransfersDocument.ps1` are also not
-  referenced by repository documentation, but they create input/document
-  templates rather than merely duplicating the upload commands. They should be
-  documented, moved under `tools`, or explicitly retired after checking the
-  manual workflow.
+- Historical note: `Create-TransfersDocument.ps1` was retired with the live
+  transfer-document path. `Create-KpiDocument.ps1` remains a separate template
+  workflow that should be assessed independently.
 - The repository has 36 workflow YAML files, of which 21 are explicitly marked
   deactivated. `.github/workflows/AGENTS.md` says they are intentionally retained
   for reuse. Treat archive, deletion, or generation as a workflow-design

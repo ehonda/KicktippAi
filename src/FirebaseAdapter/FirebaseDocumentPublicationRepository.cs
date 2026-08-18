@@ -155,6 +155,21 @@ public sealed class FirebaseDocumentPublicationRepository : IDocumentPublication
         }, cancellationToken: cancellationToken);
     }
 
+    public async Task<LoadedDocumentPublication?> GetSnapshotAsync(
+        DocumentPublicationDefinition definition,
+        string communityContext,
+        string snapshotId,
+        CancellationToken cancellationToken = default)
+    {
+        var scope = new DocumentPublicationScope(Competition, communityContext, definition.PublicationSet);
+        DocumentPublicationContract.ValidateScope(scope);
+        ArgumentException.ThrowIfNullOrWhiteSpace(snapshotId);
+
+        return await _db.RunTransactionAsync(
+            transaction => LoadSnapshotAsync(transaction, scope, definition, snapshotId),
+            cancellationToken: cancellationToken);
+    }
+
     private async Task<string?> LoadHeadSnapshotIdAsync(
         Transaction transaction,
         DocumentPublicationScope scope)

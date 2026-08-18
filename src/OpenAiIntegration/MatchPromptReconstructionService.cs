@@ -10,15 +10,18 @@ public sealed class MatchPromptReconstructionService : IMatchPromptReconstructio
     private readonly IPredictionRepository _predictionRepository;
     private readonly IContextRepository _contextRepository;
     private readonly IInstructionsTemplateProvider _templateProvider;
+    private readonly IDocumentPublicationRepository? _publicationRepository;
 
     public MatchPromptReconstructionService(
         IPredictionRepository predictionRepository,
         IContextRepository contextRepository,
-        IInstructionsTemplateProvider templateProvider)
+        IInstructionsTemplateProvider templateProvider,
+        IDocumentPublicationRepository? publicationRepository = null)
     {
         _predictionRepository = predictionRepository ?? throw new ArgumentNullException(nameof(predictionRepository));
         _contextRepository = contextRepository ?? throw new ArgumentNullException(nameof(contextRepository));
         _templateProvider = templateProvider ?? throw new ArgumentNullException(nameof(templateProvider));
+        _publicationRepository = publicationRepository;
     }
 
     public async Task<ReconstructedMatchPredictionPrompt?> ReconstructMatchPredictionPromptAsync(
@@ -58,6 +61,38 @@ public sealed class MatchPromptReconstructionService : IMatchPromptReconstructio
             return null;
         }
 
+        if (predictionMetadata.ResolvedContextManifest is { } manifest)
+        {
+            ResolvedMatchContextManifest.ValidateForMatch(manifest, match, communityContext);
+            if (_publicationRepository is null)
+            {
+                throw new InvalidOperationException(
+                    "Historical Bundesliga prompt reconstruction requires the publication repository to validate its recorded context manifest.");
+            }
+
+            var resolved = await new BundesligaMatchContextResolver(_contextRepository, _publicationRepository)
+                .ResolveRecordedAsync(match, manifest, cancellationToken);
+            var (template, templatePath) = _templateProvider.LoadMatchTemplate(modelConfig.Model, includeJustification);
+            return new ReconstructedMatchPredictionPrompt(
+                match,
+                modelConfig.Model,
+                communityContext,
+                includeJustification,
+                predictionMetadata.CreatedAt,
+                templatePath,
+                PredictionPromptComposer.BuildSystemPrompt(template, resolved.Documents),
+                PredictionPromptComposer.CreateMatchJson(match),
+                resolved.Documents.Select(document => document.Name).ToArray(),
+                resolved.ResolvedDocuments,
+                manifest);
+        }
+
+        if (predictionMetadata.ContextDocumentNames.Any(IsBundesligaReservedDocument))
+        {
+            throw new InvalidOperationException(
+                "Historical Bundesliga prediction is missing the immutable resolved-context manifest required for roster or Club Elo context; current publication heads will not be used.");
+        }
+
         return await ReconstructMatchPredictionPromptAtTimestampAsync(
             match,
             modelConfig.Model,
@@ -67,6 +102,9 @@ public sealed class MatchPromptReconstructionService : IMatchPromptReconstructio
             includeJustification: includeJustification,
             cancellationToken: cancellationToken);
     }
+
+    private static bool IsBundesligaReservedDocument(string name) =>
+        name.StartsWith("roster-", StringComparison.Ordinal) || name.StartsWith("club-elo-", StringComparison.Ordinal);
 
     public async Task<ReconstructedMatchPredictionPrompt> ReconstructMatchPredictionPromptAtTimestampAsync(
         Match match,
@@ -82,6 +120,11 @@ public sealed class MatchPromptReconstructionService : IMatchPromptReconstructio
         ArgumentException.ThrowIfNullOrWhiteSpace(model);
         ArgumentException.ThrowIfNullOrWhiteSpace(communityContext);
         ArgumentNullException.ThrowIfNull(requiredContextDocumentNames);
+        if (requiredContextDocumentNames.Any(IsBundesligaReservedDocument))
+        {
+            throw new InvalidOperationException(
+                "Timestamp-only reconstruction cannot resolve Bundesliga roster or Club Elo context. Supply a stored immutable resolved-context manifest.");
+        }
 
         var resolvedContextDocuments = await ResolveContextDocumentsAsync(
             match,
@@ -107,6 +150,35 @@ public sealed class MatchPromptReconstructionService : IMatchPromptReconstructio
             PredictionPromptComposer.CreateMatchJson(match),
             resolvedContextDocuments.Select(document => document.DocumentName).ToArray(),
             resolvedContextDocuments);
+    }
+
+    /// <summary>Reconstructs a Bundesliga prompt exclusively from immutable stored provenance.</summary>
+    public async Task<ReconstructedMatchPredictionPrompt> ReconstructMatchPredictionPromptFromResolvedManifestAsync(
+        Match match,
+        string model,
+        ResolvedMatchContextManifest manifest,
+        DateTimeOffset promptTimestamp,
+        bool includeJustification = false,
+        CancellationToken cancellationToken = default)
+    {
+        ArgumentNullException.ThrowIfNull(match);
+        ArgumentNullException.ThrowIfNull(manifest);
+        if (_publicationRepository is null)
+        {
+            throw new InvalidOperationException("Recorded Bundesliga reconstruction requires the publication repository.");
+        }
+
+        ResolvedMatchContextManifest.ValidateForMatch(manifest, match, manifest.CommunityContext);
+        var resolved = await new BundesligaMatchContextResolver(_contextRepository, _publicationRepository)
+            .ResolveRecordedAsync(match, manifest, cancellationToken);
+        var (template, templatePath) = _templateProvider.LoadMatchTemplate(model, includeJustification);
+        return new ReconstructedMatchPredictionPrompt(
+            match, model, manifest.CommunityContext, includeJustification, promptTimestamp, templatePath,
+            PredictionPromptComposer.BuildSystemPrompt(template, resolved.Documents),
+            PredictionPromptComposer.CreateMatchJson(match),
+            resolved.Documents.Select(document => document.Name).ToArray(),
+            resolved.ResolvedDocuments,
+            manifest);
     }
 
     private async Task<IReadOnlyList<ResolvedContextDocumentVersion>> ResolveContextDocumentsAsync(

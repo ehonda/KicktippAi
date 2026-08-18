@@ -47,7 +47,7 @@ This is the source of truth for required and optional context document names use
 Bundesliga keeps the legacy policy:
 
 - Required: standings, community rules, recent history for both teams, home/away history, head-to-head.
-- Optional: per-team transfer documents.
+  - Bundesliga 2026/27 additionally requires two canonical roster documents and two Club Elo documents resolved through their immutable publication snapshots; transfer documents are not part of the live contract.
 
 WM26 starts with a smaller national-team policy:
 

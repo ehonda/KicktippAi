@@ -17,6 +17,58 @@ namespace Orchestrator.Tests.Commands.Observability.RunExperimentCommandsTests;
 public class RunExperimentCommands_Tests
 {
     [Test]
+    public async Task Prepared_bundesliga_2026_27_item_without_immutable_manifest_is_rejected_before_execution()
+    {
+        var manifest = new PreparedExperimentManifest
+        {
+            Competition = CompetitionIds.Bundesliga2026_27,
+            CommunityContext = "test-community",
+            Items =
+            [
+                new PreparedExperimentManifestItem
+                {
+                    SourceDatasetItemId = "source-item",
+                    SliceDatasetItemId = "slice-item",
+                    HomeTeam = "FC Bayern München",
+                    AwayTeam = "Borussia Dortmund",
+                    Matchday = 1,
+                    StartsAt = "2026-08-21T20:30:00 Europe/Berlin (+02)"
+                }
+            ]
+        };
+
+        var exception = await Assert.That(() => PreparedExperimentCommandSupport.ValidateManifest(manifest))
+            .Throws<InvalidOperationException>();
+
+        await Assert.That(exception!.Message).Contains("resolvedContextManifest");
+    }
+
+    [Test]
+    public async Task Prepared_bundesliga_2025_26_item_remains_valid_without_immutable_manifest()
+    {
+        var manifest = new PreparedExperimentManifest
+        {
+            Competition = "bundesliga-2025-26",
+            CommunityContext = "test-community",
+            Items =
+            [
+                new PreparedExperimentManifestItem
+                {
+                    SourceDatasetItemId = "source-item",
+                    SliceDatasetItemId = "slice-item",
+                    HomeTeam = "FC Bayern München",
+                    AwayTeam = "Borussia Dortmund",
+                    Matchday = 1,
+                    StartsAt = "2025-08-22T20:30:00 Europe/Berlin (+02)"
+                }
+            ]
+        };
+
+        PreparedExperimentCommandSupport.ValidateManifest(manifest);
+        await Assert.That(manifest.Items.Single().ResolvedContextManifest).IsNull();
+    }
+
+    [Test]
     public async Task Warmup_then_batch_chunks_with_twenty_five_items_and_three_batches_runs_warmup_then_three_equal_batches()
     {
         var items = Enumerable.Range(1, 25).ToArray();
@@ -411,16 +463,6 @@ public class RunExperimentCommands_Tests
                     .ReturnsAsync(new ContextDocument(documentName, $"content:{documentName}", 1, evaluationTimestamp.AddMinutes(-5)));
             }
 
-            foreach (var documentName in selection.OptionalDocumentNames)
-            {
-                contextRepository
-                    .Setup(repository => repository.GetContextDocumentByTimestampAsync(
-                        documentName,
-                        evaluationTimestamp,
-                        "test-community",
-                        It.IsAny<CancellationToken>()))
-                    .ReturnsAsync((ContextDocument?)null);
-            }
 
             var matchOutcomeRepository = new Mock<IMatchOutcomeRepository>(MockBehavior.Strict);
             matchOutcomeRepository
@@ -660,16 +702,6 @@ public class RunExperimentCommands_Tests
                     .ReturnsAsync(new ContextDocument(documentName, $"content:{documentName}", 1, exactEvaluationTime.AddMinutes(-5)));
             }
 
-            foreach (var documentName in selection.OptionalDocumentNames)
-            {
-                contextRepository
-                    .Setup(repository => repository.GetContextDocumentByTimestampAsync(
-                        documentName,
-                        exactEvaluationTime,
-                        "test-community",
-                        It.IsAny<CancellationToken>()))
-                    .ReturnsAsync((ContextDocument?)null);
-            }
 
             var matchOutcomeRepository = new Mock<IMatchOutcomeRepository>(MockBehavior.Strict);
             matchOutcomeRepository

@@ -52,7 +52,7 @@ These conclusions came from completed read-only audits. Revalidate against the c
 ### Match and bonus context audits
 
 - P0-12's exact Bundesliga match set is the existing seven documents followed by `club-elo-{homeSlug}.csv`, `club-elo-{awaySlug}.csv`, `roster-{homeSlug}`, and `roster-{awaySlug}`. Roster names have no `.csv` suffix. All eleven are required; missing persistent Elo/roster context must block prediction after on-demand fallback.
-- Remove live optional-transfer selection and the upload-transfers command. Keep WM26's eight-document contract unchanged.
+- Historical handoff note: remove live optional-transfer selection and the upload-transfers command. Keep WM26's eight-document contract unchanged.
 - Analyze/reconstruct/experiment paths must use the shared catalog with explicit competition rather than duplicate lists.
 - P0-13/P0-16 should introduce a pure bonus selector over the full `BonusQuestion`, preserving a separate WM26 branch. Bundesliga's safe aggregate baseline is `club-elo-rankings` plus `team-squad-summary`; top-scorer/coach questions add only exact manifest-targeted `roster-{slug}` documents. Never fall back to all rosters.
 - Bonus metadata, reprediction, and verification must retain document kind plus snapshot/version identity so context and KPI references are checked through the correct store.

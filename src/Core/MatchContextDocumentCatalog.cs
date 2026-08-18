@@ -3,9 +3,7 @@ using System.Text.RegularExpressions;
 
 namespace EHonda.KicktippAi.Core;
 
-public sealed record MatchContextDocumentSelection(
-    IReadOnlyList<string> RequiredDocumentNames,
-    IReadOnlyList<string> OptionalDocumentNames);
+public sealed record MatchContextDocumentSelection(IReadOnlyList<string> RequiredDocumentNames);
 
 public static class MatchContextDocumentCatalog
 {
@@ -15,8 +13,7 @@ public static class MatchContextDocumentCatalog
         bool IncludeFifaRankings,
         bool IncludeLineups,
         bool IncludeHomeAwayHistory,
-        bool IncludeHeadToHead,
-        bool IncludeTransfers);
+        bool IncludeHeadToHead);
 
     private static readonly MatchContextDocumentPolicy BundesligaPolicy = new(
         IncludeCommunityRules: true,
@@ -24,8 +21,7 @@ public static class MatchContextDocumentCatalog
         IncludeFifaRankings: false,
         IncludeLineups: false,
         IncludeHomeAwayHistory: true,
-        IncludeHeadToHead: true,
-        IncludeTransfers: true);
+        IncludeHeadToHead: true);
 
     private static readonly MatchContextDocumentPolicy WorldCup2026Policy = new(
         IncludeCommunityRules: true,
@@ -33,8 +29,7 @@ public static class MatchContextDocumentCatalog
         IncludeFifaRankings: true,
         IncludeLineups: true,
         IncludeHomeAwayHistory: false,
-        IncludeHeadToHead: false,
-        IncludeTransfers: false);
+        IncludeHeadToHead: false);
 
     private static readonly IReadOnlyDictionary<string, MatchContextDocumentPolicy> CommunityPolicies =
         new Dictionary<string, MatchContextDocumentPolicy>(StringComparer.OrdinalIgnoreCase)
@@ -124,15 +119,17 @@ public static class MatchContextDocumentCatalog
             requiredDocuments.Add($"head-to-head-{homeAbbreviation}-vs-{awayAbbreviation}.csv");
         }
 
-        var optionalDocuments = policy.IncludeTransfers
-            ? new List<string>
-            {
-                $"{homeAbbreviation}-transfers.csv",
-                $"{awayAbbreviation}-transfers.csv"
-            }
-            : [];
+        if (string.Equals(competition, CompetitionIds.Bundesliga2026_27, StringComparison.OrdinalIgnoreCase))
+        {
+            // These names are derived only from the strict, case-sensitive season manifest.
+            // Their payloads must be resolved through their publication heads, never generic latest.
+            requiredDocuments.Add($"roster-{homeAbbreviation}");
+            requiredDocuments.Add($"roster-{awayAbbreviation}");
+            requiredDocuments.Add($"club-elo-{homeAbbreviation}.csv");
+            requiredDocuments.Add($"club-elo-{awayAbbreviation}.csv");
+        }
 
-        return new MatchContextDocumentSelection(requiredDocuments, optionalDocuments);
+        return new MatchContextDocumentSelection(requiredDocuments);
     }
 
     public static MatchContextDocumentSelection ForCommunity(
@@ -150,7 +147,7 @@ public static class MatchContextDocumentCatalog
             requiredDocuments.Add($"community-rules-{communityContext}.md");
         }
 
-        return new MatchContextDocumentSelection(requiredDocuments, []);
+        return new MatchContextDocumentSelection(requiredDocuments);
     }
 
     public static string GetStandingsDocumentName(string? competition = null)

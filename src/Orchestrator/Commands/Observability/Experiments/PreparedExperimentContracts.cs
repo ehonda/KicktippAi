@@ -124,6 +124,13 @@ internal sealed record PreparedExperimentManifestItem
 
     [JsonPropertyName("repetitionIndex")]
     public int? RepetitionIndex { get; init; }
+
+    /// <summary>Required for immutable 2026/27 Bundesliga reconstruction; legacy artifacts retain timestamp semantics.</summary>
+    [JsonPropertyName("resolvedContextManifest")]
+    public ResolvedMatchContextManifest? ResolvedContextManifest { get; init; }
+
+    [JsonPropertyName("predictionCreatedAt")]
+    public DateTimeOffset? PredictionCreatedAt { get; init; }
 }
 
 internal sealed record PreparedExperimentEvaluationTimestampPolicyMetadata

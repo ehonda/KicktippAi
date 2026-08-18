@@ -102,33 +102,22 @@ public class AnalyzeMatchDetailedCommand_ErrorHandling_Tests : AnalyzeMatchTests
     }
 
     [Test]
-    public async Task Optional_document_exception_handled_gracefully_in_verbose()
+    public async Task Required_document_exception_fails_clearly_in_verbose()
     {
-        // Set up a context repo that throws for transfer documents but returns others
         var mockContextRepo = new Mock<IContextRepository>();
-        var docs = CreateDefaultContextDocuments();
-
         mockContextRepo.Setup(r => r.GetLatestContextDocumentAsync(
-                It.Is<string>(name => !name.Contains("transfers")),
+                It.Is<string>(name => name == "bundesliga-standings.csv"),
                 It.IsAny<string>(),
                 It.IsAny<CancellationToken>()))
-            .ReturnsAsync((string docName, string _, CancellationToken _) =>
-                docs.TryGetValue(docName, out var doc) ? doc : null);
-
-        mockContextRepo.Setup(r => r.GetLatestContextDocumentAsync(
-                It.Is<string>(name => name.Contains("transfers")),
-                It.IsAny<string>(),
-                It.IsAny<CancellationToken>()))
-            .ThrowsAsync(new Exception("Transfer doc error"));
+            .ThrowsAsync(new Exception("Required document error"));
 
         var mockFirebaseFactory = CreateMockFirebaseServiceFactoryFull(contextRepository: mockContextRepo);
         var context = CreateDetailedCommandApp(firebaseServiceFactory: mockFirebaseFactory);
         var (exitCode, output) = await RunDetailedAsync(
             context, "--runs", "1", "--no-live-estimates", "--verbose");
 
-        await Assert.That(exitCode).IsEqualTo(0);
-        await Assert.That(output).Contains("Failed optional");
-        await Assert.That(output).Contains("Transfer doc error");
+        await Assert.That(exitCode).IsNotEqualTo(0);
+        await Assert.That(output).Contains("Required document error");
     }
 
     [Test]

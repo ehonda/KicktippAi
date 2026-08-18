@@ -179,13 +179,42 @@ public class RandomMatchCommand : AsyncCommand<RandomMatchSettings>
         // Step 3: Generate prediction
         _console.MarkupLine($"[yellow]  → Generating prediction...[/]");
 
-        // Get context using hybrid approach (database first, fallback to on-demand)
-        var contextDocuments = await GetHybridContextAsync(
-            contextRepository,
-            contextProvider,
-            match,
-            communityContext,
-            competition);
+        // Bundesliga reserved context must come from coherent publication heads. The legacy
+        // generic/on-demand fallback remains available only for non-reserved contracts.
+        List<DocumentContext> contextDocuments;
+        if (string.Equals(competition, CompetitionIds.Bundesliga2026_27, StringComparison.Ordinal))
+        {
+            Dictionary<string, DocumentContext>? onDemandDocuments = null;
+            async Task<DocumentContext?> GetOnDemandDocumentAsync(string name, CancellationToken token)
+            {
+                if (onDemandDocuments is null)
+                {
+                    onDemandDocuments = new Dictionary<string, DocumentContext>(StringComparer.Ordinal);
+                    await foreach (var generatedContext in contextProvider.GetMatchContextAsync(match.HomeTeam, match.AwayTeam)
+                        .WithCancellation(token))
+                    {
+                        onDemandDocuments.TryAdd(generatedContext.Name, generatedContext);
+                    }
+                }
+
+                return onDemandDocuments.TryGetValue(name, out var requestedContext) ? requestedContext : null;
+            }
+
+            var resolved = await new BundesligaMatchContextResolver(
+                contextRepository,
+                _firebaseServiceFactory.CreateDocumentPublicationRepository(competition))
+                .ResolveLiveAsync(match, communityContext, GetOnDemandDocumentAsync);
+            contextDocuments = resolved.Documents.ToList();
+        }
+        else
+        {
+            contextDocuments = await GetHybridContextAsync(
+                contextRepository,
+                contextProvider,
+                match,
+                communityContext,
+                competition);
+        }
 
         _console.MarkupLine($"[dim]    Using {contextDocuments.Count} context documents[/]");
 
@@ -251,26 +280,6 @@ public class RandomMatchCommand : AsyncCommand<RandomMatchSettings>
                 }
             }
 
-            foreach (var documentName in selection.OptionalDocumentNames)
-            {
-                try
-                {
-                    var contextDoc = await contextRepository.GetLatestContextDocumentAsync(documentName, communityContext);
-                    if (contextDoc != null)
-                    {
-                        contextDocuments[documentName] = new DocumentContext(contextDoc.DocumentName, contextDoc.Content);
-                        _console.MarkupLine($"[dim]      ✓ Retrieved optional {documentName} (version {contextDoc.Version})[/]");
-                    }
-                    else
-                    {
-                        _console.MarkupLine($"[dim]      · Missing optional {documentName}[/]");
-                    }
-                }
-                catch (Exception optEx)
-                {
-                    _console.MarkupLine($"[dim]      · Failed optional {documentName}: {optEx.Message}[/]");
-                }
-            }
         }
         catch (Exception ex)
         {
@@ -311,7 +320,7 @@ public class RandomMatchCommand : AsyncCommand<RandomMatchSettings>
         }
         else
         {
-            _console.MarkupLine($"[yellow]    Warning: Only found {requiredPresent}/{requiredTotal} required context documents in database (have {databaseContexts.Count} total incl. optional). Falling back to on-demand context while preserving retrieved documents[/]");
+            _console.MarkupLine($"[yellow]    Warning: Only found {requiredPresent}/{requiredTotal} required context documents in database. Falling back to on-demand context while preserving retrieved documents[/]");
 
             contextDocuments.AddRange(databaseContexts.Values);
 

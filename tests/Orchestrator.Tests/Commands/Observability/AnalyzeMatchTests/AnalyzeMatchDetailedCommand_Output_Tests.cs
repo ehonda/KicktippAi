@@ -49,7 +49,7 @@ public class AnalyzeMatchDetailedCommand_Output_Tests : AnalyzeMatchTests_Base
         var context = CreateDetailedCommandApp();
         var (_, output) = await RunDetailedAsync(context, "--runs", "1", "--no-live-estimates", "--verbose");
 
-        await Assert.That(output).Contains("Looking for 7 required context documents in database");
+        await Assert.That(output).Contains("Resolved 7 generic versioned and 4 publication-snapshot-backed Bundesliga");
     }
 
     [Test]
@@ -58,7 +58,8 @@ public class AnalyzeMatchDetailedCommand_Output_Tests : AnalyzeMatchTests_Base
         var context = CreateDetailedCommandApp();
         var (_, output) = await RunDetailedAsync(context, "--runs", "1", "--no-live-estimates", "--verbose");
 
-        await Assert.That(output).Contains("Retrieved bundesliga-standings.csv");
+        await Assert.That(output).Contains("bundesliga-standings.csv (v1)");
+        await Assert.That(output).Contains("roster-fcb (v5)");
     }
 
     [Test]
@@ -67,17 +68,17 @@ public class AnalyzeMatchDetailedCommand_Output_Tests : AnalyzeMatchTests_Base
         var context = CreateDetailedCommandApp();
         var (_, output) = await RunDetailedAsync(context, "--runs", "1", "--no-live-estimates", "--verbose");
 
-        await Assert.That(output).Contains("(version 1)");
+        await Assert.That(output).Contains("(v1)");
     }
 
     [Test]
-    public async Task Verbose_shows_missing_optional_transfer_documents()
+    public async Task Verbose_shows_all_required_snapshot_backed_documents()
     {
         var context = CreateDetailedCommandApp();
         var (_, output) = await RunDetailedAsync(context, "--runs", "1", "--no-live-estimates", "--verbose");
 
-        // Transfers are optional and not included in default context documents
-        await Assert.That(output).Contains("Missing optional");
+        await Assert.That(output).Contains("roster-fcb (v5)");
+        await Assert.That(output).Contains("club-elo-bvb.csv (v3)");
     }
 
     [Test]
@@ -120,13 +121,14 @@ public class AnalyzeMatchDetailedCommand_Output_Tests : AnalyzeMatchTests_Base
     }
 
     [Test]
-    public async Task No_context_documents_shows_warning()
+    public async Task Missing_required_context_fails_clearly()
     {
         var context = CreateDetailedCommandApp(
             contextDocuments: new Dictionary<string, ContextDocument>());
-        var (_, output) = await RunDetailedAsync(context, "--runs", "1", "--no-live-estimates");
+        var (exitCode, output) = await RunDetailedAsync(context, "--runs", "1", "--no-live-estimates");
 
-        await Assert.That(output).Contains("No context documents retrieved");
+        await Assert.That(exitCode).IsNotEqualTo(0);
+        await Assert.That(output).Contains("Missing required Bundesliga context document");
     }
 
     [Test]
@@ -162,17 +164,14 @@ public class AnalyzeMatchDetailedCommand_Output_Tests : AnalyzeMatchTests_Base
     }
 
     [Test]
-    public async Task Verbose_shows_retrieved_optional_transfer_documents()
+    public async Task Verbose_shows_snapshot_backed_bundesliga_context_documents()
     {
         var docs = CreateDefaultContextDocuments();
-        docs[$"{HomeAbbreviation}-transfers.csv"] = CreateContextDocument(
-            documentName: $"{HomeAbbreviation}-transfers.csv",
-            content: "Transfer,Fee\nPlayer A,10M");
         var context = CreateDetailedCommandApp(contextDocuments: docs);
         var (_, output) = await RunDetailedAsync(
             context, "--runs", "1", "--no-live-estimates", "--verbose");
 
-        await Assert.That(output).Contains($"Retrieved optional {HomeAbbreviation}-transfers.csv");
+        await Assert.That(output).Contains("Resolved 7 generic versioned and 4 publication-snapshot-backed Bundesliga");
     }
 
     [Test]

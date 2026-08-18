@@ -123,6 +123,10 @@ public class FirestoreMatchPrediction
     [FirestoreProperty("contextDocumentNames")]
     public string[] ContextDocumentNames { get; set; } = [];
 
+    /// <summary>Canonical JSON resolved-context provenance for Bundesliga snapshot-backed prompts.</summary>
+    [FirestoreProperty("resolvedContextManifest")]
+    public string? ResolvedContextManifest { get; set; }
+
     /// <summary>
     /// Reprediction index for tracking prediction versions.
     /// Starts at 0 for the first prediction, increments for each reprediction.

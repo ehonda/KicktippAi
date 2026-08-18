@@ -120,17 +120,17 @@ public class ReconstructPromptCommand_Tests
     }
 
     [Test]
-    public async Task Running_command_with_explicit_evaluation_time_reconstructs_without_prediction_metadata()
+    public async Task Explicit_timestamp_reconstruction_rejects_bundesliga_reserved_context()
     {
-        var match = new Match("Team A", "Team B", NodaTime.Instant.FromUtc(2025, 10, 30, 15, 30).InUtc(), 7);
+        var match = new Match("FC Bayern München", "Borussia Dortmund", NodaTime.Instant.FromUtc(2025, 10, 30, 15, 30).InUtc(), 7);
         var predictionRepository = new Mock<IPredictionRepository>(MockBehavior.Strict);
         predictionRepository
-            .Setup(repository => repository.GetStoredMatchAsync("Team A", "Team B", 7, (PredictionModelConfig?)null, null, It.IsAny<CancellationToken>()))
+            .Setup(repository => repository.GetStoredMatchAsync("FC Bayern München", "Borussia Dortmund", 7, (PredictionModelConfig?)null, null, It.IsAny<CancellationToken>()))
             .ReturnsAsync(match);
 
         var exactTimestamp = new DateTimeOffset(2026, 3, 15, 12, 0, 0, TimeSpan.FromHours(1));
         var contextRepository = new Mock<IContextRepository>();
-        foreach (var documentName in MatchContextDocumentCatalog.ForMatch("Team A", "Team B", "test-community").RequiredDocumentNames)
+        foreach (var documentName in MatchContextDocumentCatalog.ForMatch("FC Bayern München", "Borussia Dortmund", "test-community", CompetitionIds.Bundesliga2026_27).RequiredDocumentNames)
         {
             contextRepository
                 .Setup(repository => repository.GetContextDocumentByTimestampAsync(
@@ -139,17 +139,6 @@ public class ReconstructPromptCommand_Tests
                     "test-community",
                     It.IsAny<CancellationToken>()))
                 .ReturnsAsync(new ContextDocument(documentName, $"content:{documentName}", 1, exactTimestamp.AddMinutes(-5)));
-        }
-
-        foreach (var documentName in MatchContextDocumentCatalog.ForMatch("Team A", "Team B", "test-community").OptionalDocumentNames)
-        {
-            contextRepository
-                .Setup(repository => repository.GetContextDocumentByTimestampAsync(
-                    documentName,
-                    exactTimestamp,
-                    "test-community",
-                    It.IsAny<CancellationToken>()))
-                .ReturnsAsync((ContextDocument?)null);
         }
 
         var firebaseFactory = new Mock<IFirebaseServiceFactory>();
@@ -169,17 +158,16 @@ public class ReconstructPromptCommand_Tests
             "--community-context",
             "test-community",
             "--home",
-            "Team A",
+            "FC Bayern München",
             "--away",
-            "Team B",
+            "Borussia Dortmund",
             "--matchday",
             "7",
             "--evaluation-time",
             "\"2026-03-15T12:00:00 Europe/Berlin (+01)\"");
 
-        await Assert.That(exitCode).IsEqualTo(0);
-        await Assert.That(output).Contains("Reconstruction timestamp:");
-        await Assert.That(output).Contains("2026-03-15T12:00:00.0000000+01:00");
-        await Assert.That(output).Contains("community-rules-test-community.md");
+        await Assert.That(exitCode).IsNotEqualTo(0);
+        await Assert.That(output).Contains("Timestamp-only reconstruction cannot resolve Bundesliga roster")
+            .And.Contains("Elo context");
     }
 }

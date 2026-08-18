@@ -74,88 +74,26 @@ internal static class AnalyzeMatchCommandHelpers
 
     public static async Task<List<AnalyzeMatchContextDocumentInfo>> GetMatchContextDocumentsAsync(
         IContextRepository contextRepository,
+        IDocumentPublicationRepository publicationRepository,
         string homeTeam,
         string awayTeam,
         string communityContext,
         bool verbose,
         IAnsiConsole console)
     {
-        var contextDocuments = new List<AnalyzeMatchContextDocumentInfo>();
-        var homeAbbreviation = MatchContextDocumentCatalog.GetTeamAbbreviation(
-            homeTeam,
-            CompetitionIds.Bundesliga2026_27);
-        var awayAbbreviation = MatchContextDocumentCatalog.GetTeamAbbreviation(
-            awayTeam,
-            CompetitionIds.Bundesliga2026_27);
-
-        var requiredDocuments = new[]
-        {
-            "bundesliga-standings.csv",
-            $"community-rules-{communityContext}.md",
-            $"recent-history-{homeAbbreviation}.csv",
-            $"recent-history-{awayAbbreviation}.csv",
-            $"home-history-{homeAbbreviation}.csv",
-            $"away-history-{awayAbbreviation}.csv",
-            $"head-to-head-{homeAbbreviation}-vs-{awayAbbreviation}.csv"
-        };
-
-        var optionalDocuments = new[]
-        {
-            $"{homeAbbreviation}-transfers.csv",
-            $"{awayAbbreviation}-transfers.csv"
-        };
-
+        var match = new Match(homeTeam, awayTeam, default, 0);
+        var resolved = await new BundesligaMatchContextResolver(contextRepository, publicationRepository)
+            .ResolveLiveAsync(match, communityContext);
         if (verbose)
         {
-            console.MarkupLine($"[dim]Looking for {requiredDocuments.Length} required context documents in database[/]");
+            console.MarkupLine("[dim]Resolved 7 generic versioned and 4 publication-snapshot-backed Bundesliga context documents[/]");
+            console.MarkupLine($"[dim]Roster snapshot: {resolved.Manifest.RosterPublicationSnapshotId}; Club Elo snapshot: {resolved.Manifest.ClubEloPublicationSnapshotId}[/]");
         }
 
-        foreach (var documentName in requiredDocuments)
-        {
-            var contextDoc = await contextRepository.GetLatestContextDocumentAsync(documentName, communityContext);
-            if (contextDoc != null)
-            {
-                contextDocuments.Add(new AnalyzeMatchContextDocumentInfo(new DocumentContext(contextDoc.DocumentName, contextDoc.Content), contextDoc.Version));
-
-                if (verbose)
-                {
-                    console.MarkupLine($"[dim]  ✓ Retrieved {documentName} (version {contextDoc.Version})[/]");
-                }
-            }
-            else if (verbose)
-            {
-                console.MarkupLine($"[dim]  ✗ Missing {documentName}[/]");
-            }
-        }
-
-        foreach (var documentName in optionalDocuments)
-        {
-            try
-            {
-                var contextDoc = await contextRepository.GetLatestContextDocumentAsync(documentName, communityContext);
-                if (contextDoc != null)
-                {
-                    contextDocuments.Add(new AnalyzeMatchContextDocumentInfo(new DocumentContext(contextDoc.DocumentName, contextDoc.Content), contextDoc.Version));
-
-                    if (verbose)
-                    {
-                        console.MarkupLine($"[dim]  ✓ Retrieved optional {documentName} (version {contextDoc.Version})[/]");
-                    }
-                }
-                else if (verbose)
-                {
-                    console.MarkupLine($"[dim]  · Missing optional {documentName}[/]");
-                }
-            }
-            catch (Exception ex)
-            {
-                if (verbose)
-                {
-                    console.MarkupLine($"[dim]  · Failed optional {documentName}: {Markup.Escape(ex.Message)}[/]");
-                }
-            }
-        }
-
-        return contextDocuments;
+        return resolved.ResolvedDocuments
+            .Select(document => new AnalyzeMatchContextDocumentInfo(
+                new DocumentContext(document.DocumentName, document.Content),
+                document.Version))
+            .ToList();
     }
 }

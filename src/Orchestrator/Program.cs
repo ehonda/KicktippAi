@@ -22,7 +22,6 @@ using Orchestrator.Commands.Observability.ReconstructPrompt;
 using Orchestrator.Commands.Observability.SyncDataset;
 using Orchestrator.Commands.Utility.UploadKpi;
 using Orchestrator.Commands.Utility.UploadContext;
-using Orchestrator.Commands.Utility.UploadTransfers;
 using Orchestrator.Commands.Utility.CopyFirestoreContext;
 using Orchestrator.Commands.Utility.ListKpi;
 using Orchestrator.Commands.Utility.Snapshots;
@@ -215,9 +214,6 @@ public class Program
                     "--kpi-document",
                     "lineups");
 
-            config.AddCommand<UploadTransfersCommand>("upload-transfers")
-                .WithDescription("Upload a transfers context document to Firebase (team transfers CSV)")
-                .WithExample("upload-transfers", "fcb", "--community-context", "ehonda-test-buli");
 
             config.AddCommand<ListKpiCommand>("list-kpi")
                 .WithDescription("List KPI context documents from Firebase")

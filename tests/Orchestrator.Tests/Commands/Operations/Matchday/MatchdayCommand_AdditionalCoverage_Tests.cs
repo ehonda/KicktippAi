@@ -50,7 +50,7 @@ public class MatchdayCommand_AdditionalCoverage_Tests : MatchdayCommandTests_Bas
         var (exitCode, output) = await RunCommandAsync(ctx.App, ctx.Console, "matchday", "gpt-4o", "-c", "test-community", "--repredict");
 
         await Assert.That(exitCode).IsEqualTo(0);
-        await Assert.That(output).Contains("up-to-date");
+        await Assert.That(output).Contains("outdated");
     }
 
     [Test]
@@ -62,7 +62,7 @@ public class MatchdayCommand_AdditionalCoverage_Tests : MatchdayCommandTests_Bas
         var mockPredictionRepository = CreateMockPredictionRepository(getPredictionResult: CreatePrediction(), getRepredictionIndexResult: 0);
         mockPredictionRepository
             .Setup(r => r.GetPredictionMetadataAsync(It.IsAny<Match>(), It.IsAny<PredictionModelConfig>(), It.IsAny<string>(), It.IsAny<CancellationToken>()))
-            .ReturnsAsync(new PredictionMetadata(CreatePrediction(), predictionCreatedAt, new List<string> { "recent-history-fcb.csv" }));
+            .ReturnsAsync(CreateCanonicalBundesligaPredictionMetadata(CreatePrediction(), CreateBayernVsDortmundMatch(), createdAt: predictionCreatedAt));
 
         var contextDocs = new Dictionary<string, ContextDocument>
         {
@@ -73,6 +73,11 @@ public class MatchdayCommand_AdditionalCoverage_Tests : MatchdayCommandTests_Bas
         {
             contextDocs[kvp.Key] = kvp.Value;
         }
+        contextDocs["recent-history-fcb.csv"] = CreateContextDocument(
+            documentName: "recent-history-fcb.csv",
+            content: "Match,Result\n1,W\n2,W",
+            version: 2,
+            createdAt: contextDocumentCreatedAt);
 
         var mockFirebaseFactory = CreateMockFirebaseServiceFactoryFull(
             predictionRepository: mockPredictionRepository,
@@ -96,7 +101,7 @@ public class MatchdayCommand_AdditionalCoverage_Tests : MatchdayCommandTests_Bas
         var mockPredictionRepository = CreateMockPredictionRepository(getPredictionResult: CreatePrediction(), getRepredictionIndexResult: 0);
         mockPredictionRepository
             .Setup(r => r.GetPredictionMetadataAsync(It.IsAny<Match>(), It.IsAny<PredictionModelConfig>(), It.IsAny<string>(), It.IsAny<CancellationToken>()))
-            .ReturnsAsync(new PredictionMetadata(CreatePrediction(), predictionCreatedAt, new List<string> { "recent-history-fcb.csv" }));
+            .ReturnsAsync(CreateCanonicalBundesligaPredictionMetadata(CreatePrediction(), CreateBayernVsDortmundMatch(), createdAt: predictionCreatedAt));
 
         var contextDocs = CreateBayernVsDortmundContextDocuments(createdAt: predictionCreatedAt.AddHours(-3));
         contextDocs["recent-history-fcb.csv"] = CreateContextDocument(
@@ -126,7 +131,7 @@ public class MatchdayCommand_AdditionalCoverage_Tests : MatchdayCommandTests_Bas
         var (exitCode, output) = await RunCommandAsync(ctx.App, ctx.Console, "matchday", "gpt-4o", "-c", "test-community", "--repredict", "--verbose");
 
         await Assert.That(exitCode).IsEqualTo(0);
-        await Assert.That(output).Contains("matches the prediction-time version");
+        await Assert.That(output).Contains("Skipped reprediction");
         await Assert.That(output).Contains("up-to-date");
         mockPredictionRepository.Verify(
             r => r.SaveRepredictionAsync(
@@ -150,7 +155,7 @@ public class MatchdayCommand_AdditionalCoverage_Tests : MatchdayCommandTests_Bas
         var mockPredictionRepository = CreateMockPredictionRepository(getPredictionResult: CreatePrediction(), getRepredictionIndexResult: 0);
         mockPredictionRepository
             .Setup(r => r.GetPredictionMetadataAsync(It.IsAny<Match>(), It.IsAny<PredictionModelConfig>(), It.IsAny<string>(), It.IsAny<CancellationToken>()))
-            .ReturnsAsync(new PredictionMetadata(CreatePrediction(), predictionCreatedAt, new List<string> { "recent-history-fcb.csv", "recent-history-bvb.csv" }));
+            .ReturnsAsync(CreateCanonicalBundesligaPredictionMetadata(CreatePrediction(), CreateBayernVsDortmundMatch(), createdAt: predictionCreatedAt));
 
         var mockFirebaseFactory = CreateMockFirebaseServiceFactoryFull(
             predictionRepository: mockPredictionRepository,
@@ -161,7 +166,7 @@ public class MatchdayCommand_AdditionalCoverage_Tests : MatchdayCommandTests_Bas
         var (exitCode, output) = await RunCommandAsync(ctx.App, ctx.Console, "matchday", "gpt-4o", "-c", "test-community", "--repredict", "-v");
 
         await Assert.That(exitCode).IsEqualTo(0);
-        await Assert.That(output).Contains("Checking");
+        await Assert.That(output).Contains("Skipped reprediction");
     }
 
     [Test]
@@ -181,7 +186,7 @@ public class MatchdayCommand_AdditionalCoverage_Tests : MatchdayCommandTests_Bas
         var (exitCode, output) = await RunCommandAsync(ctx.App, ctx.Console, "matchday", "gpt-4o", "-c", "test-community", "--repredict");
 
         await Assert.That(exitCode).IsEqualTo(0);
-        await Assert.That(output).Contains("up-to-date");
+        await Assert.That(output).Contains("outdated");
     }
 
     [Test]
@@ -207,9 +212,8 @@ public class MatchdayCommand_AdditionalCoverage_Tests : MatchdayCommandTests_Bas
 
         var (exitCode, output) = await RunCommandAsync(ctx.App, ctx.Console, "matchday", "gpt-4o", "-c", "test-community", "--repredict", "-v");
 
-        await Assert.That(exitCode).IsEqualTo(0);
-        await Assert.That(output).Contains("Warning:");
-        await Assert.That(output).Contains("not found");
+        await Assert.That(exitCode).IsEqualTo(1);
+        await Assert.That(output).Contains("Missing required Bundesliga context document");
     }
 
     [Test]
@@ -221,7 +225,7 @@ public class MatchdayCommand_AdditionalCoverage_Tests : MatchdayCommandTests_Bas
         var mockPredictionRepository = CreateMockPredictionRepository(getPredictionResult: CreatePrediction(), getRepredictionIndexResult: 0);
         mockPredictionRepository
             .Setup(r => r.GetPredictionMetadataAsync(It.IsAny<Match>(), It.IsAny<PredictionModelConfig>(), It.IsAny<string>(), It.IsAny<CancellationToken>()))
-            .ReturnsAsync(new PredictionMetadata(CreatePrediction(), predictionCreatedAt, new List<string> { "bundesliga-standings.csv" }));
+            .ReturnsAsync(CreateCanonicalBundesligaPredictionMetadata(CreatePrediction(), CreateBayernVsDortmundMatch(), createdAt: predictionCreatedAt));
 
         var contextDocs = new Dictionary<string, ContextDocument>
         {
@@ -242,7 +246,7 @@ public class MatchdayCommand_AdditionalCoverage_Tests : MatchdayCommandTests_Bas
         var (exitCode, output) = await RunCommandAsync(ctx.App, ctx.Console, "matchday", "gpt-4o", "-c", "test-community", "--repredict", "-v");
 
         await Assert.That(exitCode).IsEqualTo(0);
-        await Assert.That(output).Contains("Skipping");
+        await Assert.That(output).Contains("Skipped reprediction");
         await Assert.That(output).Contains("up-to-date");
     }
 
@@ -259,7 +263,7 @@ public class MatchdayCommand_AdditionalCoverage_Tests : MatchdayCommandTests_Bas
     }
 
     [Test]
-    public async Task Verbose_mode_shows_merged_context_count_when_fallback_used()
+    public async Task Missing_required_context_fails_closed_in_verbose_mode()
     {
         var partialDocs = new Dictionary<string, ContextDocument>
         {
@@ -271,9 +275,8 @@ public class MatchdayCommand_AdditionalCoverage_Tests : MatchdayCommandTests_Bas
 
         var (exitCode, output) = await RunCommandAsync(ctx.App, ctx.Console, "matchday", "gpt-4o", "-c", "test-community", "-v");
 
-        await Assert.That(exitCode).IsEqualTo(0);
-        await Assert.That(output).Contains("Warning:");
-        await Assert.That(output).Contains("Falling back");
+        await Assert.That(exitCode).IsNotEqualTo(0);
+        await Assert.That(output).Contains("Missing required Bundesliga context document");
     }
 
     [Test]
@@ -299,7 +302,7 @@ public class MatchdayCommand_AdditionalCoverage_Tests : MatchdayCommandTests_Bas
     }
 
     [Test]
-    public async Task Command_handles_context_repository_exception_gracefully()
+    public async Task Context_repository_exception_fails_closed()
     {
         var mockContextRepository = new Mock<IContextRepository>();
         mockContextRepository
@@ -311,16 +314,14 @@ public class MatchdayCommand_AdditionalCoverage_Tests : MatchdayCommandTests_Bas
 
         var (exitCode, output) = await RunCommandAsync(ctx.App, ctx.Console, "matchday", "gpt-4o", "-c", "test-community");
 
-        await Assert.That(exitCode).IsEqualTo(0);
-        await Assert.That(output).Contains("Warning:");
+        await Assert.That(exitCode).IsNotEqualTo(0);
+        await Assert.That(output).Contains("Database connection failed");
     }
 
     [Test]
-    public async Task Verbose_mode_shows_optional_transfers_document_info()
+    public async Task Matchday_context_includes_required_roster_and_club_elo_documents()
     {
         var contextDocs = CreateBayernVsDortmundContextDocuments();
-        contextDocs["fcb-transfers.csv"] = CreateContextDocument(documentName: "fcb-transfers.csv", content: "Player,Type\nMüller,Loan");
-        contextDocs["bvb-transfers.csv"] = CreateContextDocument(documentName: "bvb-transfers.csv", content: "Player,Type\nHaller,Transfer");
 
         var mockFirebaseFactory = CreateMockFirebaseServiceFactoryFull(contextRepository: CreateMockContextRepositoryWithDocuments(contextDocs));
         var ctx = CreateMatchdayCommandApp(firebaseServiceFactory: mockFirebaseFactory);
@@ -328,18 +329,14 @@ public class MatchdayCommand_AdditionalCoverage_Tests : MatchdayCommandTests_Bas
         var (exitCode, output) = await RunCommandAsync(ctx.App, ctx.Console, "matchday", "gpt-4o", "-c", "test-community", "-v");
 
         await Assert.That(exitCode).IsEqualTo(0);
-        await Assert.That(output).Contains("optional");
-    }
-
-    [Test]
-    public async Task Verbose_mode_shows_missing_optional_documents()
-    {
-        var ctx = CreateMatchdayCommandApp(existingPrediction: (Prediction?)null);
-
-        var (exitCode, output) = await RunCommandAsync(ctx.App, ctx.Console, "matchday", "gpt-4o", "-c", "test-community", "-v");
-
-        await Assert.That(exitCode).IsEqualTo(0);
-        await Assert.That(output).Contains("Missing optional");
+        ctx.PredictionService.Verify(service => service.PredictMatchAsync(
+            It.IsAny<Match>(),
+            It.Is<IEnumerable<DocumentContext>>(documents =>
+                documents.Any(document => document.Name == "roster-fcb") &&
+                documents.Any(document => document.Name == "club-elo-bvb.csv")),
+            It.IsAny<bool>(),
+            It.IsAny<OpenAiIntegration.PredictionTelemetryMetadata?>(),
+            It.IsAny<CancellationToken>()), Times.Once);
     }
 
     [Test]
@@ -350,7 +347,7 @@ public class MatchdayCommand_AdditionalCoverage_Tests : MatchdayCommandTests_Bas
         var mockPredictionRepository = CreateMockPredictionRepository(getPredictionResult: CreatePrediction(), getRepredictionIndexResult: 0);
         mockPredictionRepository
             .Setup(r => r.GetPredictionMetadataAsync(It.IsAny<Match>(), It.IsAny<PredictionModelConfig>(), It.IsAny<string>(), It.IsAny<CancellationToken>()))
-            .ReturnsAsync(new PredictionMetadata(CreatePrediction(), predictionCreatedAt, new List<string> { "recent-history-fcb.csv (kpi-context)" }));
+            .ReturnsAsync(CreateCanonicalBundesligaPredictionMetadata(CreatePrediction(), CreateBayernVsDortmundMatch(), createdAt: predictionCreatedAt));
 
         var mockFirebaseFactory = CreateMockFirebaseServiceFactoryFull(
             predictionRepository: mockPredictionRepository,
@@ -365,7 +362,7 @@ public class MatchdayCommand_AdditionalCoverage_Tests : MatchdayCommandTests_Bas
     }
 
     [Test]
-    public async Task Fallback_adds_on_demand_context_documents_when_database_has_partial_docs()
+    public async Task Partial_on_demand_context_fails_closed_when_contract_remains_incomplete()
     {
         var partialDocs = new Dictionary<string, ContextDocument>
         {
@@ -389,16 +386,15 @@ public class MatchdayCommand_AdditionalCoverage_Tests : MatchdayCommandTests_Bas
 
         var (exitCode, output) = await RunCommandAsync(ctx.App, ctx.Console, "matchday", "gpt-4o", "-c", "test-community");
 
-        await Assert.That(exitCode).IsEqualTo(0);
-        await Assert.That(output).Contains("Warning:");
-        await Assert.That(output).Contains("Falling back");
+        await Assert.That(exitCode).IsNotEqualTo(0);
+        await Assert.That(output).Contains("Missing required Bundesliga context document");
         ctx.PredictionService.Verify(
-            s => s.PredictMatchAsync(It.IsAny<Match>(), It.Is<IEnumerable<DocumentContext>>(docs => docs.Count() >= 3), It.IsAny<bool>(), It.IsAny<OpenAiIntegration.PredictionTelemetryMetadata?>(), It.IsAny<CancellationToken>()),
-            Times.Once);
+            s => s.PredictMatchAsync(It.IsAny<Match>(), It.IsAny<IEnumerable<DocumentContext>>(), It.IsAny<bool>(), It.IsAny<OpenAiIntegration.PredictionTelemetryMetadata?>(), It.IsAny<CancellationToken>()),
+            Times.Never);
     }
 
     [Test]
-    public async Task Fallback_skips_duplicate_documents_from_on_demand_provider()
+    public async Task Extra_on_demand_document_does_not_relax_the_required_contract()
     {
         var partialDocs = new Dictionary<string, ContextDocument>
         {
@@ -422,22 +418,20 @@ public class MatchdayCommand_AdditionalCoverage_Tests : MatchdayCommandTests_Bas
 
         var (exitCode, output) = await RunCommandAsync(ctx.App, ctx.Console, "matchday", "gpt-4o", "-c", "test-community");
 
-        await Assert.That(exitCode).IsEqualTo(0);
+        await Assert.That(exitCode).IsNotEqualTo(0);
+        await Assert.That(output).Contains("Missing required Bundesliga context document");
         ctx.PredictionService.Verify(
             s => s.PredictMatchAsync(
                 It.IsAny<Match>(),
-                It.Is<IEnumerable<DocumentContext>>(docs =>
-                    docs.Count() == 2 &&
-                    docs.Any(d => d.Name == "bundesliga-standings.csv" && d.Content.Contains("Bayern")) &&
-                    docs.Any(d => d.Name == "new-document.csv")),
+                It.IsAny<IEnumerable<DocumentContext>>(),
                 It.IsAny<bool>(),
                 It.IsAny<OpenAiIntegration.PredictionTelemetryMetadata?>(),
                 It.IsAny<CancellationToken>()),
-            Times.Once);
+            Times.Never);
     }
 
     [Test]
-    public async Task Fallback_verbose_mode_shows_merged_context_document_count()
+    public async Task Partial_context_fails_closed_before_prediction_in_verbose_mode()
     {
         var partialDocs = new Dictionary<string, ContextDocument>
         {
@@ -461,8 +455,8 @@ public class MatchdayCommand_AdditionalCoverage_Tests : MatchdayCommandTests_Bas
 
         var (exitCode, output) = await RunCommandAsync(ctx.App, ctx.Console, "matchday", "gpt-4o", "-c", "test-community", "-v");
 
-        await Assert.That(exitCode).IsEqualTo(0);
-        await Assert.That(output).Contains("merged context documents");
+        await Assert.That(exitCode).IsNotEqualTo(0);
+        await Assert.That(output).Contains("Missing required Bundesliga context document");
     }
 
     [Test]
@@ -650,7 +644,7 @@ public class MatchdayCommand_AdditionalCoverage_Tests : MatchdayCommandTests_Bas
 
         var predictionRepo = CreateMockPredictionRepository(
             getCancelledMatchPredictionResult: existingPrediction,
-            getCancelledMatchPredictionMetadataResult: new PredictionMetadata(existingPrediction, predictionTimestamp, ["recent-history-fcb.csv"]),
+            getCancelledMatchPredictionMetadataResult: CreateCanonicalBundesligaPredictionMetadata(existingPrediction, cancelledMatch, createdAt: predictionTimestamp),
             getCancelledMatchRepredictionIndexResult: 0);
 
         var ctx = CreateMatchdayCommandApp(
@@ -780,7 +774,7 @@ public class MatchdayCommand_AdditionalCoverage_Tests : MatchdayCommandTests_Bas
     }
 
     [Test]
-    public async Task Verbose_mode_reports_optional_document_lookup_failures()
+    public async Task Verbose_mode_reports_required_document_lookup_failures()
     {
         var docs = CreateBayernVsDortmundContextDocuments();
         var contextRepository = new Mock<IContextRepository>();
@@ -788,9 +782,9 @@ public class MatchdayCommand_AdditionalCoverage_Tests : MatchdayCommandTests_Bas
             .Setup(r => r.GetLatestContextDocumentAsync(It.IsAny<string>(), It.IsAny<string>(), It.IsAny<CancellationToken>()))
             .ReturnsAsync((string documentName, string _, CancellationToken _) =>
             {
-                if (documentName.EndsWith("-transfers.csv", StringComparison.Ordinal))
+                if (documentName == "bundesliga-standings.csv")
                 {
-                    throw new InvalidOperationException("Optional lookup failed");
+                    throw new InvalidOperationException("Required lookup failed");
                 }
 
                 return docs.GetValueOrDefault(documentName);
@@ -802,8 +796,13 @@ public class MatchdayCommand_AdditionalCoverage_Tests : MatchdayCommandTests_Bas
 
         var (exitCode, output) = await RunCommandAsync(ctx.App, ctx.Console, "matchday", "gpt-5", "-c", "test-community", "--verbose");
 
-        await Assert.That(exitCode).IsEqualTo(0);
-        await Assert.That(output).Contains("Failed optional");
-        await Assert.That(output).Contains("Optional lookup failed");
+        await Assert.That(exitCode).IsNotEqualTo(0);
+        await Assert.That(output).Contains("Required lookup failed");
+        ctx.PredictionService.Verify(service => service.PredictMatchAsync(
+            It.IsAny<Match>(),
+            It.IsAny<IEnumerable<DocumentContext>>(),
+            It.IsAny<bool>(),
+            It.IsAny<OpenAiIntegration.PredictionTelemetryMetadata?>(),
+            It.IsAny<CancellationToken>()), Times.Never);
     }
 }

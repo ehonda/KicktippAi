@@ -41,7 +41,8 @@ public class ReconstructPromptCommand : AsyncCommand<ReconstructPromptSettings>
             var reconstructionService = new MatchPromptReconstructionService(
                 predictionRepository,
                 contextRepository,
-                new InstructionsTemplateProvider(PromptsFileProvider.Create()));
+                new InstructionsTemplateProvider(PromptsFileProvider.Create()),
+                _firebaseServiceFactory.CreateDocumentPublicationRepository(CompetitionIds.Bundesliga2026_27));
 
             var evaluationTime = EvaluationTimeParser.ParseOrNull(settings.EvaluationTime);
             var modelConfig = PredictionModelConfig.Create(settings.Model, settings.ReasoningEffort);
@@ -69,7 +70,8 @@ public class ReconstructPromptCommand : AsyncCommand<ReconstructPromptSettings>
                 var selection = MatchContextDocumentCatalog.ForMatch(
                     match.HomeTeam,
                     match.AwayTeam,
-                    settings.CommunityContext);
+                    settings.CommunityContext,
+                    CompetitionIds.Bundesliga2026_27);
 
                 reconstructedPrompt = await reconstructionService.ReconstructMatchPredictionPromptAtTimestampAsync(
                     match,
@@ -77,8 +79,7 @@ public class ReconstructPromptCommand : AsyncCommand<ReconstructPromptSettings>
                     settings.CommunityContext,
                     evaluationTime.Value,
                     selection.RequiredDocumentNames,
-                    selection.OptionalDocumentNames,
-                    settings.WithJustification);
+                    includeJustification: settings.WithJustification);
             }
 
             if (reconstructedPrompt is null)

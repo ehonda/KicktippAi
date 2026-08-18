@@ -1,5 +1,6 @@
 using System.Globalization;
 using System.Text.Json;
+using EHonda.KicktippAi.Core;
 using System.Text.Json.Serialization;
 
 namespace Orchestrator.Commands.Observability.Experiments;
@@ -204,6 +205,27 @@ internal static class PreparedExperimentCommandSupport
             if (item.Matchday < 1)
             {
                 throw new InvalidOperationException($"Slice manifest item '{item.SliceDatasetItemId}' has an invalid matchday.");
+            }
+
+            if (string.Equals(manifest.Competition, CompetitionIds.Bundesliga2026_27, StringComparison.Ordinal))
+            {
+                if (item.ResolvedContextManifest is null)
+                {
+                    throw new InvalidOperationException(
+                        $"Prepared Bundesliga 2026/27 item '{item.SliceDatasetItemId}' is missing required immutable resolvedContextManifest.");
+                }
+
+                if (item.PredictionCreatedAt is null)
+                {
+                    throw new InvalidOperationException(
+                        $"Prepared Bundesliga 2026/27 item '{item.SliceDatasetItemId}' is missing required predictionCreatedAt provenance.");
+                }
+
+                if (!string.Equals(item.ResolvedContextManifest.CommunityContext, manifest.CommunityContext, StringComparison.Ordinal))
+                {
+                    throw new InvalidOperationException(
+                        $"Prepared Bundesliga 2026/27 item '{item.SliceDatasetItemId}' has a resolvedContextManifest with a different community scope.");
+                }
             }
         }
     }

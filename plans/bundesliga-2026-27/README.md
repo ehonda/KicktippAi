@@ -101,3 +101,4 @@ P0 is complete only when:
 - [ADR-0017: Fix roster collector DuckDB and reconstruction contract](decisions/0017-roster-collector-duckdb-and-reconstruction-contract.md)
 - [ADR-0018: Validate roster publication metadata semantically](decisions/0018-validate-roster-publication-metadata-semantically.md)
 - [ADR-0019: Share one roster-publication truth boundary](decisions/0019-roster-publication-truth-boundary.md)
+- [ADR-0020: Record immutable match-context manifests](decisions/0020-record-immutable-match-context-manifests.md)

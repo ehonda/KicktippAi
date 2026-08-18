@@ -761,6 +761,21 @@ public static class OrchestratorTestFactories
                 })
             .Returns(Task.CompletedTask);
 
+        var resolvedContext = mock.As<IResolvedMatchContextPredictionRepository>();
+        resolvedContext.Setup(repository => repository.SavePredictionWithResolvedContextAsync(
+                It.IsAny<Match>(), It.IsAny<Prediction>(), It.IsAny<PredictionModelConfig>(),
+                It.IsAny<string>(), It.IsAny<double>(), It.IsAny<string>(), It.IsAny<IEnumerable<string>>(),
+                It.IsAny<ResolvedMatchContextManifest>(), It.IsAny<bool>(), It.IsAny<CancellationToken>()))
+            .Returns(Task.CompletedTask);
+        resolvedContext.Setup(repository => repository.SaveRepredictionWithResolvedContextAsync(
+                It.IsAny<Match>(), It.IsAny<Prediction>(), It.IsAny<PredictionModelConfig>(),
+                It.IsAny<string>(), It.IsAny<double>(), It.IsAny<string>(), It.IsAny<IEnumerable<string>>(),
+                It.IsAny<int>(), It.IsAny<ResolvedMatchContextManifest>(), It.IsAny<CancellationToken>()))
+            .Returns(Task.CompletedTask);
+        resolvedContext.Setup(repository => repository.GetResolvedMatchContextManifestAsync(
+                It.IsAny<Match>(), It.IsAny<PredictionModelConfig>(), It.IsAny<string>(), It.IsAny<CancellationToken>()))
+            .ReturnsAsync((ResolvedMatchContextManifest?)null);
+
         return mock;
     }
 
@@ -939,7 +954,7 @@ public static class OrchestratorTestFactories
         var mockPredictionRepo = predictionRepository.Or(() => CreateMockPredictionRepository());
         var mockContextRepo = contextRepository.Or(() => CreateMockContextRepository());
         var mockMatchOutcomeRepo = matchOutcomeRepository.Or(() => CreateMockMatchOutcomeRepository());
-        var mockDocumentPublicationRepo = documentPublicationRepository.Or(() => new Mock<IDocumentPublicationRepository>());
+        var mockDocumentPublicationRepo = documentPublicationRepository.Or(CreateMockBundesligaDocumentPublicationRepository);
 
         mockFactory.Setup(f => f.CreateKpiRepository(It.IsAny<string>())).Returns(mockKpiRepo.Object);
         mockFactory.Setup(f => f.CreatePredictionRepository(It.IsAny<string>())).Returns(mockPredictionRepo.Object);
@@ -948,6 +963,137 @@ public static class OrchestratorTestFactories
         mockFactory.Setup(f => f.CreateDocumentPublicationRepository(It.IsAny<string>())).Returns(mockDocumentPublicationRepo.Object);
 
         return mockFactory;
+    }
+
+    /// <summary>
+    /// Provides complete coherent publication heads for the live Bundesliga resolver used by
+    /// command tests. Context payloads are deliberately synthetic; their names and versions
+    /// exercise the production snapshot boundary without a Firestore emulator.
+    /// </summary>
+    public static Mock<IDocumentPublicationRepository> CreateMockBundesligaDocumentPublicationRepository()
+    {
+        var mock = new Mock<IDocumentPublicationRepository>();
+        mock.SetupGet(repository => repository.Competition).Returns(CompetitionIds.Bundesliga2026_27);
+        mock.Setup(repository => repository.GetLastKnownGoodAsync(
+                BundesligaDocumentPublication.Rosters,
+                It.IsAny<string>(),
+                It.IsAny<CancellationToken>()))
+            .ReturnsAsync(CreateCanonicalRosterPublication());
+        mock.Setup(repository => repository.GetLastKnownGoodAsync(
+                BundesligaDocumentPublication.ClubElo,
+                It.IsAny<string>(),
+                It.IsAny<CancellationToken>()))
+            .ReturnsAsync(CreateCanonicalClubEloPublication());
+        return mock;
+    }
+
+    /// <summary>
+    /// Creates the exact immutable manifest corresponding to this factory's canonical
+    /// Bundesliga publication heads. Command tests must opt into this explicitly when
+    /// they model an already-persisted 2026/27 prediction; a missing manifest remains
+    /// observable as a fail-closed legacy condition.
+    /// </summary>
+    public static ResolvedMatchContextManifest CreateCanonicalBundesligaResolvedContextManifest(
+        Match match,
+        string communityContext = "test-community",
+        IReadOnlyDictionary<string, ContextDocument>? ordinaryDocuments = null)
+    {
+        var roster = CreateCanonicalRosterPublication();
+        var elo = CreateCanonicalClubEloPublication();
+        var names = MatchContextDocumentCatalog.ForMatch(
+            match,
+            communityContext,
+            CompetitionIds.Bundesliga2026_27).RequiredDocumentNames;
+        var reserved = roster.Documents.Concat(elo.Documents)
+            .ToDictionary(document => document.Name, document => document.Version, StringComparer.Ordinal);
+
+        return ResolvedMatchContextManifest.Create(
+            CompetitionIds.Bundesliga2026_27,
+            communityContext,
+            names.Select(name => new ResolvedMatchContextDocument(
+                name,
+                reserved.TryGetValue(name, out var version)
+                    ? version
+                    : ordinaryDocuments?.GetValueOrDefault(name)?.Version ?? 1)),
+            roster.Snapshot.SnapshotId,
+            elo.Snapshot.SnapshotId);
+    }
+
+    public static PredictionMetadata CreateCanonicalBundesligaPredictionMetadata(
+        Prediction prediction,
+        Match match,
+        IReadOnlyDictionary<string, ContextDocument>? ordinaryDocuments = null,
+        DateTimeOffset? createdAt = null,
+        string communityContext = "test-community")
+    {
+        var manifest = CreateCanonicalBundesligaResolvedContextManifest(match, communityContext, ordinaryDocuments);
+        return new PredictionMetadata(
+            prediction,
+            createdAt ?? DateTimeOffset.UtcNow,
+            manifest.Documents.Select(document => document.Name).ToList(),
+            manifest);
+    }
+
+    private static LoadedDocumentPublication CreateCanonicalRosterPublication()
+    {
+        var snapshots = BundesligaRosterSeed.Default.Entries
+            .GroupBy(entry => entry.TeamSlug)
+            .Select(group => new BundesligaRosterClubSnapshot(
+                BundesligaTeamManifest.Default.GetByTeamSlug(group.Key),
+                group.First().MembershipAsOf,
+                BundesligaRosterMembershipSource.FallbackSeed,
+                group.Select(entry => new BundesligaRosterMember(entry.Role, entry.Name, entry.TransfermarktPlayerId)).ToArray()))
+            .OrderBy(snapshot => snapshot.Team.TeamSlug, StringComparer.Ordinal)
+            .ToArray();
+        var rows = snapshots.Select(snapshot =>
+        {
+            var players = snapshot.Members.Where(member => member.Role == BundesligaRosterRole.Player).ToArray();
+            var diagnostics = players.Any(player => player.TransfermarktPlayerId is null)
+                ? new[] { $"MISSING_STABLE_PLAYER_IDS:{players.Count(player => player.TransfermarktPlayerId is null)}" }
+                : Array.Empty<string>();
+            return new BundesligaRosterQualityReportRow(snapshot.Team, snapshot.MembershipSource, snapshot.MembershipAsOf,
+                [snapshot.Team.OfficialRosterSourceUrl], null, null, null, players.Length, 1,
+                players.Count(player => player.TransfermarktPlayerId is not null), 0, 0, 0,
+                BundesligaRosterDuckDbGateResult.NotAvailable, "DUCKDB_NOT_AVAILABLE_USE_FALLBACK_SEED", diagnostics);
+        }).ToArray();
+        var build = BundesligaRosterPublication.Build(snapshots, rows);
+        return CreateCanonicalPublication(BundesligaDocumentPublication.Rosters, build.Documents, build.MetadataJson);
+    }
+
+    private static LoadedDocumentPublication CreateCanonicalClubEloPublication()
+    {
+        var build = BundesligaClubEloPublication.Build(new BundesligaClubEloSelection(
+            BundesligaClubEloSeed.Default,
+            BundesligaClubEloSelectionDisposition.NetworkDisabled,
+            ["UNATTENDED_NETWORK_USE_NOT_APPROVED"]));
+        return CreateCanonicalPublication(BundesligaDocumentPublication.ClubElo, build.Documents, build.MetadataJson);
+    }
+
+    private static LoadedDocumentPublication CreateCanonicalPublication(
+        DocumentPublicationDefinition definition,
+        IReadOnlyList<DocumentPublicationPayload> payloads,
+        string metadataJson)
+    {
+        const string communityContext = "test-community";
+        var documents = payloads.Select((payload, index) => new PublishedDocument(
+            CompetitionIds.Bundesliga2026_27, communityContext, definition.PublicationSet,
+            payload.Kind, payload.Name, index + 1, payload.Content, payload.Description, DateTimeOffset.UnixEpoch)).ToArray();
+        var snapshotId = DocumentPublicationContract.ComputeSnapshotId(payloads);
+        return new LoadedDocumentPublication(
+            new DocumentPublicationSnapshot(
+                CompetitionIds.Bundesliga2026_27,
+                communityContext,
+                definition.PublicationSet,
+                snapshotId,
+                null,
+                DateTimeOffset.UnixEpoch,
+                metadataJson,
+                documents.Select(document => new DocumentPublicationEntry(
+                    document.Kind,
+                    document.Name,
+                    document.Version,
+                    DocumentPublicationContract.ComputeContentSha256(document.Content)))),
+            documents);
     }
 
     /// <summary>
@@ -1085,44 +1231,6 @@ public static class OrchestratorTestFactories
                 "communityContext": "{{context}}"
             }
             """;
-    }
-
-    /// <summary>
-    /// Creates a JSON string representing a transfers document file.
-    /// </summary>
-    /// <param name="documentName">Document name. Defaults to "test-transfers.csv".</param>
-    /// <param name="content">Document content. Defaults to "test transfers content".</param>
-    /// <param name="description">Document description. Defaults to "test transfers description".</param>
-    /// <param name="communityContext">Community context. Defaults to "test-community".</param>
-    public static string CreateTransfersDocumentJson(
-        Option<string> documentName = default,
-        Option<string> content = default,
-        Option<string> description = default,
-        Option<string> communityContext = default)
-    {
-        var name = documentName.Or("test-transfers.csv");
-        var contentValue = content.Or("test transfers content");
-        var desc = description.Or("test transfers description");
-        var context = communityContext.Or("test-community");
-
-        return $$"""
-            {
-                "documentName": "{{name}}",
-                "content": "{{contentValue}}",
-                "description": "{{desc}}",
-                "communityContext": "{{context}}"
-            }
-            """;
-    }
-
-    /// <summary>
-    /// Creates a mock <see cref="IFileProvider"/> configured with the specified transfers document JSON files.
-    /// </summary>
-    /// <param name="files">Dictionary mapping relative file paths (e.g., "output/community/doc.json") to file contents.</param>
-    /// <returns>A configured mock IFileProvider.</returns>
-    public static Mock<IFileProvider> CreateMockTransfersFileProvider(Dictionary<string, string> files)
-    {
-        return MockFileProviderHelpers.CreateMockFileProvider(files);
     }
 
     /// <summary>

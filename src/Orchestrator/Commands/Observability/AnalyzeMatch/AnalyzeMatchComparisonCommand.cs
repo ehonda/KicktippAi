@@ -75,6 +75,7 @@ public class AnalyzeMatchComparisonCommand : AsyncCommand<AnalyzeMatchComparison
             {
                 var contextDocumentInfos = await AnalyzeMatchCommandHelpers.GetMatchContextDocumentsAsync(
                     contextRepository,
+                    _firebaseServiceFactory.CreateDocumentPublicationRepository(CompetitionIds.Bundesliga2026_27),
                     match.HomeTeam,
                     match.AwayTeam,
                     communityContext,

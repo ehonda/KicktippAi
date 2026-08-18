@@ -28,7 +28,7 @@ public static class CompetitionResolver
     {
         if (!string.IsNullOrWhiteSpace(competition))
         {
-            return competition.Trim();
+            return CompetitionIds.Canonicalize(competition);
         }
 
         if (IsWorldCupCommunity(community) || IsWorldCupCommunity(communityContext))

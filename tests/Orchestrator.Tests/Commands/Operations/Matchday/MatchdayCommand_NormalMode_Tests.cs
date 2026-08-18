@@ -43,7 +43,12 @@ public class MatchdayCommand_NormalMode_Tests : MatchdayCommandTests_Base
             CreateBayernVsDortmundMatchWithHistory(),
             CreateMatchWithHistory(match: CreateMatch(homeTeam: "RB Leipzig", awayTeam: "VfB Stuttgart"))
         };
-        var ctx = CreateMatchdayCommandApp(matchesWithHistory: matches);
+        var docs = CreateBayernVsDortmundContextDocuments();
+        foreach (var pair in CreateMatchContextDocuments(homeAbbreviation: "rbl", awayAbbreviation: "vfb"))
+        {
+            docs[pair.Key] = pair.Value;
+        }
+        var ctx = CreateMatchdayCommandApp(matchesWithHistory: matches, contextDocuments: docs);
 
         var (exitCode, output) = await RunCommandAsync(ctx.App, ctx.Console, "matchday", "gpt-4o", "-c", "test-community");
 
@@ -135,10 +140,11 @@ public class MatchdayCommand_NormalMode_Tests : MatchdayCommandTests_Base
 
         await RunCommandAsync(ctx.App, ctx.Console, "matchday", "gpt-4o", "-c", "test-community");
 
-        ctx.PredictionRepository.Verify(
-            r => r.SavePredictionAsync(
+        ctx.PredictionRepository.As<IResolvedMatchContextPredictionRepository>().Verify(
+            r => r.SavePredictionWithResolvedContextAsync(
                 It.IsAny<Match>(), It.IsAny<Prediction>(), It.IsAny<PredictionModelConfig>(), It.IsAny<string>(),
-                It.IsAny<double>(), It.IsAny<string>(), It.IsAny<IEnumerable<string>>(), It.IsAny<bool>(), It.IsAny<CancellationToken>()),
+                It.IsAny<double>(), It.IsAny<string>(), It.IsAny<IEnumerable<string>>(),
+                It.Is<ResolvedMatchContextManifest>(manifest => manifest.Documents.Length == 11), It.IsAny<bool>(), It.IsAny<CancellationToken>()),
             Times.Once);
     }
 

@@ -1,4 +1,5 @@
 using System.Text.Json;
+using EHonda.KicktippAi.Core;
 
 namespace Orchestrator.Commands.Observability.ExportExperimentItem;
 
@@ -30,7 +31,8 @@ public sealed record MatchExperimentMetadata(
     string PromptTemplatePath,
     IReadOnlyList<string> ContextDocumentNames,
     IReadOnlyList<MatchExperimentResolvedContextDocument> ResolvedContextDocuments,
-    MatchExperimentOutcome Outcome);
+    MatchExperimentOutcome Outcome,
+    ResolvedMatchContextManifest? ResolvedContextManifest = null);
 
 public sealed record MatchExperimentResolvedContextDocument(
     string DocumentName,

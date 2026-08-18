@@ -10,7 +10,7 @@ This document focuses on the experiment and dataset-export path because it is th
 - `export-experiment-dataset` loops across matchdays and calls `GetMatchdayOutcomesAsync` once per matchday.
 - `export-experiment-item` reads the stored match, reads persisted outcomes for the specific matchday, and reconstructs a historical prompt.
 - Prompt reconstruction resolves each required context document individually at a historical timestamp.
-- A reconstructed match prompt usually needs seven required context documents and up to two optional transfer documents, based on [MatchContextDocumentCatalog.cs](../../src/Core/MatchContextDocumentCatalog.cs).
+- In the retired timestamp-replay path, a reconstructed prompt used seven required documents and could include two explicit historical transfer inputs. Current Bundesliga 2026/27 reconstruction uses the immutable manifest in [ADR-0020](../bundesliga-2026-27/decisions/0020-record-immutable-match-context-manifests.md).
 - The default sampled flow currently uses a sample size of `10` and models `o3` plus `gpt-5-nano`, so even a small experiment can trigger many repeated repository lookups.
 
 ## Estimated Impact

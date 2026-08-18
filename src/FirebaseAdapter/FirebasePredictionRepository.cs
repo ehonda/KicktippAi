@@ -13,12 +13,17 @@ namespace FirebaseAdapter;
 /// <summary>
 /// Firebase Firestore implementation of the prediction repository.
 /// </summary>
-public class FirebasePredictionRepository : IPredictionRepository
+public class FirebasePredictionRepository : IPredictionRepository, IResolvedMatchContextPredictionRepository
 {
     private static readonly JsonSerializerOptions JustificationSerializerOptions = new()
     {
         PropertyNamingPolicy = JsonNamingPolicy.CamelCase,
         DefaultIgnoreCondition = JsonIgnoreCondition.WhenWritingNull
+    };
+
+    private static readonly JsonSerializerOptions ResolvedContextManifestSerializerOptions = new()
+    {
+        PropertyNamingPolicy = JsonNamingPolicy.CamelCase
     };
 
     private readonly FirestoreDb _firestoreDb;
@@ -147,8 +152,21 @@ public class FirebasePredictionRepository : IPredictionRepository
 
     public async Task SavePredictionAsync(Match match, Prediction prediction, PredictionModelConfig modelConfig, string tokenUsage, double cost, string communityContext, IEnumerable<string> contextDocumentNames, bool overrideCreatedAt = false, CancellationToken cancellationToken = default)
     {
+        await SavePredictionInternalAsync(match, prediction, modelConfig, tokenUsage, cost, communityContext, contextDocumentNames, null, overrideCreatedAt, cancellationToken);
+    }
+
+    public Task SavePredictionWithResolvedContextAsync(
+        Match match, Prediction prediction, PredictionModelConfig modelConfig, string tokenUsage, double cost,
+        string communityContext, IEnumerable<string> contextDocumentNames, ResolvedMatchContextManifest resolvedContextManifest,
+        bool overrideCreatedAt = false, CancellationToken cancellationToken = default) =>
+        SavePredictionInternalAsync(match, prediction, modelConfig, tokenUsage, cost, communityContext, contextDocumentNames,
+            resolvedContextManifest, overrideCreatedAt, cancellationToken);
+
+    private async Task SavePredictionInternalAsync(Match match, Prediction prediction, PredictionModelConfig modelConfig, string tokenUsage, double cost, string communityContext, IEnumerable<string> contextDocumentNames, ResolvedMatchContextManifest? resolvedContextManifest, bool overrideCreatedAt, CancellationToken cancellationToken)
+    {
         try
         {
+            ValidateResolvedContextManifest(match, communityContext, contextDocumentNames, resolvedContextManifest);
             var now = Timestamp.GetCurrentTimestamp();
 
             // Check if a prediction already exists for this match, model, and community context
@@ -218,6 +236,7 @@ public class FirebasePredictionRepository : IPredictionRepository
                 Cost = cost,
                 CommunityContext = communityContext,
                 ContextDocumentNames = contextDocumentNames.ToArray(),
+                ResolvedContextManifest = resolvedContextManifest is null ? null : SerializeResolvedContextManifest(resolvedContextManifest),
                 RepredictionIndex = repredictionIndex
             };
 
@@ -377,7 +396,13 @@ public class FirebasePredictionRepository : IPredictionRepository
             var createdAt = firestorePrediction.CreatedAt.ToDateTimeOffset();
             var contextDocumentNames = firestorePrediction.ContextDocumentNames?.ToList() ?? new List<string>();
 
-            return new PredictionMetadata(prediction, createdAt, contextDocumentNames);
+            var manifest = DeserializeResolvedContextManifest(firestorePrediction.ResolvedContextManifest);
+            ValidateResolvedContextManifest(match, communityContext, contextDocumentNames, manifest);
+            return new PredictionMetadata(
+                prediction,
+                createdAt,
+                contextDocumentNames,
+                manifest);
         }
         catch (Exception ex)
         {
@@ -385,6 +410,16 @@ public class FirebasePredictionRepository : IPredictionRepository
                 match.HomeTeam, match.AwayTeam, modelConfig.DisplayName, communityContext);
             throw;
         }
+    }
+
+    public async Task<ResolvedMatchContextManifest?> GetResolvedMatchContextManifestAsync(
+        Match match,
+        PredictionModelConfig modelConfig,
+        string communityContext,
+        CancellationToken cancellationToken = default)
+    {
+        var metadata = await GetPredictionMetadataAsync(match, modelConfig, communityContext, cancellationToken);
+        return metadata?.ResolvedContextManifest;
     }
 
     public async Task<IReadOnlyList<Match>> GetMatchDayAsync(int matchDay, CancellationToken cancellationToken = default)
@@ -1157,7 +1192,18 @@ public class FirebasePredictionRepository : IPredictionRepository
             var createdAt = firestorePrediction.CreatedAt.ToDateTimeOffset();
             var contextDocumentNames = firestorePrediction.ContextDocumentNames?.ToList() ?? new List<string>();
 
-            return new PredictionMetadata(prediction, createdAt, contextDocumentNames);
+            var manifest = DeserializeResolvedContextManifest(firestorePrediction.ResolvedContextManifest);
+            if (manifest is not null)
+            {
+                var storedMatch = new Match(
+                    firestorePrediction.HomeTeam,
+                    firestorePrediction.AwayTeam,
+                    ConvertFromTimestamp(firestorePrediction.StartsAt),
+                    firestorePrediction.Matchday,
+                    true);
+                ValidateResolvedContextManifest(storedMatch, communityContext, contextDocumentNames, manifest);
+            }
+            return new PredictionMetadata(prediction, createdAt, contextDocumentNames, manifest);
         }
         catch (Exception ex)
         {
@@ -1264,8 +1310,21 @@ public class FirebasePredictionRepository : IPredictionRepository
 
     public async Task SaveRepredictionAsync(Match match, Prediction prediction, PredictionModelConfig modelConfig, string tokenUsage, double cost, string communityContext, IEnumerable<string> contextDocumentNames, int repredictionIndex, CancellationToken cancellationToken = default)
     {
+        await SaveRepredictionInternalAsync(match, prediction, modelConfig, tokenUsage, cost, communityContext, contextDocumentNames, repredictionIndex, null, cancellationToken);
+    }
+
+    public Task SaveRepredictionWithResolvedContextAsync(
+        Match match, Prediction prediction, PredictionModelConfig modelConfig, string tokenUsage, double cost,
+        string communityContext, IEnumerable<string> contextDocumentNames, int repredictionIndex,
+        ResolvedMatchContextManifest resolvedContextManifest, CancellationToken cancellationToken = default) =>
+        SaveRepredictionInternalAsync(match, prediction, modelConfig, tokenUsage, cost, communityContext, contextDocumentNames,
+            repredictionIndex, resolvedContextManifest, cancellationToken);
+
+    private async Task SaveRepredictionInternalAsync(Match match, Prediction prediction, PredictionModelConfig modelConfig, string tokenUsage, double cost, string communityContext, IEnumerable<string> contextDocumentNames, int repredictionIndex, ResolvedMatchContextManifest? resolvedContextManifest, CancellationToken cancellationToken)
+    {
         try
         {
+            ValidateResolvedContextManifest(match, communityContext, contextDocumentNames, resolvedContextManifest);
             var now = Timestamp.GetCurrentTimestamp();
 
             // Create new document for this reprediction
@@ -1296,6 +1355,7 @@ public class FirebasePredictionRepository : IPredictionRepository
                 Cost = cost,
                 CommunityContext = communityContext,
                 ContextDocumentNames = contextDocumentNames.ToArray(),
+                ResolvedContextManifest = resolvedContextManifest is null ? null : SerializeResolvedContextManifest(resolvedContextManifest),
                 RepredictionIndex = repredictionIndex
             };
 
@@ -1689,6 +1749,106 @@ public class FirebasePredictionRepository : IPredictionRepository
             throw;
         }
     }
+
+    private static string SerializeResolvedContextManifest(ResolvedMatchContextManifest manifest)
+    {
+        ArgumentNullException.ThrowIfNull(manifest);
+        if (!string.Equals(manifest.Competition, CompetitionIds.Bundesliga2026_27, StringComparison.Ordinal)
+            || manifest.Documents.Length != 11)
+        {
+            throw new ArgumentException("Only a complete Bundesliga resolved-context manifest may be persisted.", nameof(manifest));
+        }
+
+        return JsonSerializer.Serialize(manifest, ResolvedContextManifestSerializerOptions);
+    }
+
+    private void ValidateResolvedContextManifest(
+        Match match,
+        string communityContext,
+        IEnumerable<string> contextDocumentNames,
+        ResolvedMatchContextManifest? manifest)
+    {
+        if (manifest is null)
+        {
+            return;
+        }
+
+        if (!string.Equals(_competition, CompetitionIds.Bundesliga2026_27, StringComparison.Ordinal))
+        {
+            throw new InvalidOperationException("Resolved Bundesliga context manifests cannot be persisted outside the canonical Bundesliga competition scope.");
+        }
+
+        ResolvedMatchContextManifest.ValidateForMatch(manifest, match, communityContext);
+        var names = contextDocumentNames?.ToArray() ?? throw new ArgumentNullException(nameof(contextDocumentNames));
+        if (!names.SequenceEqual(manifest.Documents.Select(document => document.Name), StringComparer.Ordinal))
+        {
+            throw new InvalidDataException("Prediction context-document names do not match the immutable resolved-context manifest.");
+        }
+    }
+
+    private static ResolvedMatchContextManifest? DeserializeResolvedContextManifest(string? serialized)
+    {
+        if (string.IsNullOrWhiteSpace(serialized))
+        {
+            return null;
+        }
+
+        try
+        {
+            using var json = JsonDocument.Parse(serialized);
+            if (json.RootElement.ValueKind != JsonValueKind.Object)
+            {
+                throw new InvalidDataException("Stored resolved-context manifest must be an object.");
+            }
+            var properties = json.RootElement.EnumerateObject().ToArray();
+            var expectedRootNames = new[]
+            {
+                "competition", "communityContext", "documents", "rosterPublicationSnapshotId", "clubEloPublicationSnapshotId"
+            };
+            if (!properties.Select(property => property.Name).SequenceEqual(expectedRootNames, StringComparer.Ordinal))
+            {
+                throw new InvalidDataException("Stored resolved-context manifest has an unknown, missing, duplicate, or noncanonical field.");
+            }
+
+            var documents = properties[2].Value.ValueKind == JsonValueKind.Array
+                ? properties[2].Value.EnumerateArray().Select(ParseResolvedContextDocument).ToArray()
+                : throw new InvalidDataException("Stored resolved-context manifest documents must be an array.");
+            return ResolvedMatchContextManifest.Create(
+                GetRequiredString(properties[0].Value, "competition"),
+                GetRequiredString(properties[1].Value, "communityContext"),
+                documents,
+                GetRequiredString(properties[3].Value, "rosterPublicationSnapshotId"),
+                GetRequiredString(properties[4].Value, "clubEloPublicationSnapshotId"));
+        }
+        catch (Exception exception) when (exception is JsonException or ArgumentException or InvalidOperationException)
+        {
+            throw new InvalidDataException("Stored resolved-context manifest is invalid.", exception);
+        }
+    }
+
+    private static ResolvedMatchContextDocument ParseResolvedContextDocument(JsonElement element)
+    {
+        if (element.ValueKind != JsonValueKind.Object)
+        {
+            throw new InvalidDataException("Stored resolved-context manifest document must be an object.");
+        }
+        var properties = element.EnumerateObject().ToArray();
+        var expectedNames = new[] { "name", "version", "kind" };
+        if (!properties.Select(property => property.Name).SequenceEqual(expectedNames, StringComparer.Ordinal)
+            || properties[1].Value.ValueKind != JsonValueKind.Number)
+        {
+            throw new InvalidDataException("Stored resolved-context manifest document has an unknown, missing, duplicate, or noncanonical field.");
+        }
+        return new ResolvedMatchContextDocument(
+            GetRequiredString(properties[0].Value, "name"),
+            properties[1].Value.GetInt32(),
+            GetRequiredString(properties[2].Value, "kind"));
+    }
+
+    private static string GetRequiredString(JsonElement element, string fieldName) =>
+        element.ValueKind == JsonValueKind.String && !string.IsNullOrWhiteSpace(element.GetString())
+            ? element.GetString()!
+            : throw new InvalidDataException($"Stored resolved-context manifest field '{fieldName}' must be a nonempty string.");
 
     private string? SerializeJustification(PredictionJustification? justification)
     {

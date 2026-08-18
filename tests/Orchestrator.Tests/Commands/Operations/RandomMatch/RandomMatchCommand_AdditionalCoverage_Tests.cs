@@ -116,19 +116,25 @@ public class RandomMatchCommand_AdditionalCoverage_Tests
     public async Task All_required_documents_in_database_use_database_only_context()
     {
         var docs = CreateMatchContextDocuments();
-        docs["fcb-transfers.csv"] = CreateContextDocument(documentName: "fcb-transfers.csv", content: "Player,Fee\nA,1");
 
         var ctx = CreateRandomMatchCommandApp(contextDocuments: docs);
 
         var (exitCode, output) = await RunCommandAsync(ctx.App, ctx.Console, "random-match", "gpt-5", "-c", "test-community");
 
         await Assert.That(exitCode).IsEqualTo(0);
-        await Assert.That(output).Contains("Retrieved optional fcb-transfers.csv");
-        await Assert.That(output).Contains("all required present");
+        await Assert.That(output).Contains("Using 11 context documents");
+        ctx.PredictionService.Verify(service => service.PredictMatchAsync(
+            It.IsAny<Match>(),
+            It.Is<IEnumerable<DocumentContext>>(documents =>
+                documents.Any(document => document.Name == "roster-fcb") &&
+                documents.Any(document => document.Name == "club-elo-bvb.csv")),
+            It.IsAny<bool>(),
+            It.IsAny<PredictionTelemetryMetadata?>(),
+            It.IsAny<CancellationToken>()), Times.Once);
     }
 
     [Test]
-    public async Task Missing_required_documents_falls_back_to_on_demand_without_duplicates()
+    public async Task Incomplete_on_demand_context_fails_closed()
     {
         var partialDocs = new Dictionary<string, ContextDocument>
         {
@@ -149,13 +155,12 @@ public class RandomMatchCommand_AdditionalCoverage_Tests
 
         var (exitCode, output) = await RunCommandAsync(ctx.App, ctx.Console, "random-match", "gpt-5", "-c", "test-community");
 
-        await Assert.That(exitCode).IsEqualTo(0);
-        await Assert.That(output).Contains("Falling back to on-demand context");
-        await Assert.That(output).Contains("Using 2 merged context documents");
+        await Assert.That(exitCode).IsNotEqualTo(0);
+        await Assert.That(output).Contains("Missing required Bundesliga context document");
     }
 
     [Test]
-    public async Task Optional_document_failures_are_reported_and_database_errors_fall_back_to_on_demand()
+    public async Task Required_document_repository_failure_fails_closed()
     {
         var contextRepository = new Mock<IContextRepository>();
         contextRepository
@@ -166,13 +171,12 @@ public class RandomMatchCommand_AdditionalCoverage_Tests
 
         var (exitCode, output) = await RunCommandAsync(ctx.App, ctx.Console, "random-match", "gpt-5", "-c", "test-community");
 
-        await Assert.That(exitCode).IsEqualTo(0);
-        await Assert.That(output).Contains("Warning: Failed to retrieve context from database");
-        await Assert.That(output).Contains("merged context documents");
+        await Assert.That(exitCode).IsNotEqualTo(0);
+        await Assert.That(output).Contains("Database unavailable");
     }
 
     [Test]
-    public async Task Optional_document_lookup_exceptions_are_reported()
+    public async Task Required_document_lookup_exceptions_are_reported()
     {
         var docs = CreateMatchContextDocuments();
         var contextRepository = new Mock<IContextRepository>();
@@ -180,9 +184,9 @@ public class RandomMatchCommand_AdditionalCoverage_Tests
             .Setup(repo => repo.GetLatestContextDocumentAsync(It.IsAny<string>(), It.IsAny<string>(), It.IsAny<CancellationToken>()))
             .ReturnsAsync((string documentName, string _, CancellationToken _) =>
             {
-                if (documentName.EndsWith("-transfers.csv", StringComparison.Ordinal))
+                if (documentName == "bundesliga-standings.csv")
                 {
-                    throw new InvalidOperationException("Optional lookup failed");
+                    throw new InvalidOperationException("Required lookup failed");
                 }
 
                 return docs.GetValueOrDefault(documentName);
@@ -192,9 +196,14 @@ public class RandomMatchCommand_AdditionalCoverage_Tests
 
         var (exitCode, output) = await RunCommandAsync(ctx.App, ctx.Console, "random-match", "gpt-5", "-c", "test-community");
 
-        await Assert.That(exitCode).IsEqualTo(0);
-        await Assert.That(output).Contains("Failed optional");
-        await Assert.That(output).Contains("Optional lookup failed");
+        await Assert.That(exitCode).IsNotEqualTo(0);
+        await Assert.That(output).Contains("Required lookup failed");
+        ctx.PredictionService.Verify(service => service.PredictMatchAsync(
+            It.IsAny<Match>(),
+            It.IsAny<IEnumerable<DocumentContext>>(),
+            It.IsAny<bool>(),
+            It.IsAny<PredictionTelemetryMetadata?>(),
+            It.IsAny<CancellationToken>()), Times.Never);
     }
 
     private static RandomMatchCommandTestContext CreateRandomMatchCommandApp(

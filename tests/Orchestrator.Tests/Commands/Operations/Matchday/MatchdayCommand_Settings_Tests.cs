@@ -15,7 +15,7 @@ public class MatchdayCommand_Settings_Tests : MatchdayCommandTests_Base
     [Test]
     public async Task Model_argument_is_required()
     {
-        var ctx = CreateMatchdayCommandApp();
+        var ctx = CreateMatchdayCommandApp(contextDocuments: CreateMatchContextDocuments(communityContext: "my-test-community"));
 
         var (exitCode, output) = await RunCommandAsync(ctx.App, ctx.Console, "matchday", "-c", "test-community");
 
@@ -149,7 +149,7 @@ public class MatchdayCommand_Settings_Tests : MatchdayCommandTests_Base
     [Test]
     public async Task Running_command_with_justification_and_agent_returns_error()
     {
-        var ctx = CreateMatchdayCommandApp();
+        var ctx = CreateMatchdayCommandApp(contextDocuments: CreateMatchContextDocuments(communityContext: "shared-context"));
 
         var (exitCode, output) = await RunCommandAsync(ctx.App, ctx.Console, "matchday", "gpt-4o", "-c", "test-community", "--with-justification", "--agent");
 
@@ -222,7 +222,8 @@ public class MatchdayCommand_Settings_Tests : MatchdayCommandTests_Base
     [Test]
     public async Task Running_command_displays_community_name()
     {
-        var ctx = CreateMatchdayCommandApp();
+        var ctx = CreateMatchdayCommandApp(
+            contextDocuments: CreateMatchContextDocuments(communityContext: "my-test-community"));
 
         var (exitCode, output) = await RunCommandAsync(ctx.App, ctx.Console, "matchday", "gpt-4o", "-c", "my-test-community");
 
@@ -234,7 +235,8 @@ public class MatchdayCommand_Settings_Tests : MatchdayCommandTests_Base
     [Test]
     public async Task Running_command_with_community_context_displays_both_community_and_context()
     {
-        var ctx = CreateMatchdayCommandApp();
+        var ctx = CreateMatchdayCommandApp(
+            contextDocuments: CreateMatchContextDocuments(communityContext: "shared-context"));
 
         var (exitCode, output) = await RunCommandAsync(ctx.App, ctx.Console, "matchday", "gpt-4o", "-c", "my-community", "--community-context", "shared-context");
 

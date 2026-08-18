@@ -314,10 +314,31 @@ public class VerifyMatchdayCommand : AsyncCommand<VerifySettings>
                 predictionMetadata = await predictionRepository.GetPredictionMetadataAsync(match, modelConfig, communityContext);
             }
 
-            if (predictionMetadata == null || !predictionMetadata.ContextDocumentNames.Any())
+            if (predictionMetadata is null)
+            {
+                return false;
+            }
+
+            if (string.Equals(competition, CompetitionIds.Bundesliga2026_27, StringComparison.Ordinal)
+                && predictionMetadata.ResolvedContextManifest is null)
+            {
+                return true;
+            }
+
+            if (!predictionMetadata.ContextDocumentNames.Any())
             {
                 // If no context documents were used, prediction can't be outdated based on context changes
                 return false;
+            }
+
+            if (string.Equals(competition, CompetitionIds.Bundesliga2026_27, StringComparison.Ordinal))
+            {
+                return await BundesligaPredictionOutdatedChecker.IsOutdatedAsync(
+                    contextRepository,
+                    _firebaseServiceFactory.CreateDocumentPublicationRepository(competition),
+                    match,
+                    communityContext,
+                    predictionMetadata);
             }
 
             if (verbose)
@@ -387,7 +408,7 @@ public class VerifyMatchdayCommand : AsyncCommand<VerifySettings>
             {
                 _console.MarkupLine($"[yellow]  Warning: Failed to check outdated status: {ex.Message}[/]");
             }
-            return false;
+            return string.Equals(competition, CompetitionIds.Bundesliga2026_27, StringComparison.Ordinal);
         }
     }
 

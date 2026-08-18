@@ -36,4 +36,39 @@ public record PredictionResult(
 public record PredictionMetadata(
     Prediction Prediction,
     DateTimeOffset CreatedAt,
-    List<string> ContextDocumentNames);
+    List<string> ContextDocumentNames,
+    ResolvedMatchContextManifest? ResolvedContextManifest = null);
+
+/// <summary>Optional capability for prediction stores that preserve immutable context provenance.</summary>
+public interface IResolvedMatchContextPredictionRepository
+{
+    Task SavePredictionWithResolvedContextAsync(
+        Match match,
+        Prediction prediction,
+        PredictionModelConfig modelConfig,
+        string tokenUsage,
+        double cost,
+        string communityContext,
+        IEnumerable<string> contextDocumentNames,
+        ResolvedMatchContextManifest resolvedContextManifest,
+        bool overrideCreatedAt = false,
+        CancellationToken cancellationToken = default);
+
+    Task SaveRepredictionWithResolvedContextAsync(
+        Match match,
+        Prediction prediction,
+        PredictionModelConfig modelConfig,
+        string tokenUsage,
+        double cost,
+        string communityContext,
+        IEnumerable<string> contextDocumentNames,
+        int repredictionIndex,
+        ResolvedMatchContextManifest resolvedContextManifest,
+        CancellationToken cancellationToken = default);
+
+    Task<ResolvedMatchContextManifest?> GetResolvedMatchContextManifestAsync(
+        Match match,
+        PredictionModelConfig modelConfig,
+        string communityContext,
+        CancellationToken cancellationToken = default);
+}

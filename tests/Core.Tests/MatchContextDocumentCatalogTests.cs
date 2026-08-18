@@ -24,7 +24,6 @@ public class MatchContextDocumentCatalogTests
                 "lineup-germany.csv",
                 "lineup-cote-d-ivoire.csv"
             ]);
-        await Assert.That(selection.OptionalDocumentNames).IsEmpty();
     }
 
     [Test]
@@ -61,7 +60,6 @@ public class MatchContextDocumentCatalogTests
                 "fifa-world-cup-2026-standings.csv",
                 "community-rules-ehonda-dev-wm26.md"
             ]);
-        await Assert.That(selection.OptionalDocumentNames).IsEmpty();
     }
 
     [Test]
@@ -81,7 +79,6 @@ public class MatchContextDocumentCatalogTests
         await Assert.That(selection.RequiredDocumentNames).Contains("lineup-germany.csv");
         await Assert.That(selection.RequiredDocumentNames).Contains("lineup-cote-d-ivoire.csv");
         await Assert.That(selection.RequiredDocumentNames).DoesNotContain("head-to-head-germany-vs-cote-d-ivoire.csv");
-        await Assert.That(selection.OptionalDocumentNames).IsEmpty();
     }
 
     [Test]
@@ -96,6 +93,25 @@ public class MatchContextDocumentCatalogTests
         await Assert.That(selection.RequiredDocumentNames).Contains("bundesliga-standings.csv");
         await Assert.That(selection.RequiredDocumentNames).Contains("recent-history-fcb.csv");
         await Assert.That(selection.RequiredDocumentNames).Contains("head-to-head-fcb-vs-bvb.csv");
+        await Assert.That(selection.RequiredDocumentNames).Contains("roster-fcb");
+        await Assert.That(selection.RequiredDocumentNames).Contains("roster-bvb");
+        await Assert.That(selection.RequiredDocumentNames).Contains("club-elo-fcb.csv");
+        await Assert.That(selection.RequiredDocumentNames).Contains("club-elo-bvb.csv");
+        await Assert.That(selection.RequiredDocumentNames).Count().IsEqualTo(11);
+        await Assert.That(selection.RequiredDocumentNames.SequenceEqual(
+            [
+                "bundesliga-standings.csv",
+                "community-rules-pes-squad.md",
+                "recent-history-fcb.csv",
+                "recent-history-bvb.csv",
+                "home-history-fcb.csv",
+                "away-history-bvb.csv",
+                "head-to-head-fcb-vs-bvb.csv",
+                "roster-fcb",
+                "roster-bvb",
+                "club-elo-fcb.csv",
+                "club-elo-bvb.csv"
+            ])).IsTrue();
     }
 
     [Test]
