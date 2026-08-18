@@ -1,7 +1,7 @@
 # Codex subagent orchestration investigation
 
 - Status: Investigation and recommendation; not an accepted policy change
-- Last updated: 2026-08-18
+- Last updated: 2026-08-19
 - Related policy: [Bundesliga 2026/27 execution strategy](execution-strategy.md) and [ADR-0009](decisions/0009-bounded-orchestration-and-hybrid-git.md)
 - Live-session snapshot: 2026-08-18 23:28 CEST
 
@@ -161,14 +161,17 @@ Review of the same diff and CI of its pushed commit remain dependency-serial. Th
 
 The available collaboration tools can address another named agent directly, but the observed subagents sent every explicit message to `/root`. Direct reviewer-to-writer communication can shorten clarification and remediation latency when both threads already exist. It does not make review independent of a stable writer checkpoint and therefore will not materially increase task parallelism by itself.
 
+Preserve the existing role separation. A task's read side is not one generic reader: pre-implementation audit, independent post-implementation review, and CI/evidence reconciliation have different incentives and should remain separate role threads. Do not merge those roles into the writer or reuse one thread across role boundaries merely to reduce thread count. Continuing the same writer thread for same-task remediation, or the same reviewer thread for re-review, is same-role continuity rather than role reuse. The optimization target is the communication edge between those threads, not the number of distinct roles.
+
 Use direct communication within these boundaries:
 
 - A reviewer may send numbered, evidence-backed findings or answer a clarification directly to the assigned writer.
-- The reviewer also sends the root a compact finding summary; the writer reports resolutions and validation to the root.
-- Only the root starts a new remediation turn, changes scope or ownership, accepts a risk, authorizes Git integration, or decides that a finding is closed for the release gate.
+- The writer may ask the reviewer to clarify a finding and report finding-by-finding resolutions directly. Both agents send the root compact checkpoint summaries rather than making it relay the full exchange.
+- Initially, the root still starts remediation turns. As a separately measured extension, if a direct message cannot wake an idle writer, the reviewer may be pre-authorized to trigger at most one follow-up turn on the already assigned writer containing only the numbered finding set. The reviewer must notify the root that it did so; any second remediation cycle returns to the root unless explicitly authorized.
+- Only the root changes scope or ownership, accepts a risk, authorizes Git integration, or decides that a finding is closed for the release gate.
 - A reviewer must not recursively assign work or silently expand the writer's paths. If reviewer and writer disagree about the contract, they stop that point and escalate it to the root.
 
-This keeps the root as decision maker while removing it as a verbatim relay. The feasibility experiment should include one controlled direct-message handoff and compare root steering/wait traffic with the baseline.
+This keeps the root as decision maker while removing it as a verbatim relay and, if the bounded follow-up extension works, as the mechanical wake-up hop. The feasibility experiment should include one controlled direct-message handoff, optionally the single pre-authorized reviewer-to-writer follow-up, and compare root steering, relay, and wait traffic with the baseline.
 
 ### Keep role and model allocation stable
 
