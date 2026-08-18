@@ -9,7 +9,7 @@ This document describes how to deliver the accepted P0 scope quickly while prese
 ## Operating principles
 
 - Run P0 as one gated release train rather than unrelated planning exercises.
-- Keep one strong orchestration agent responsible for dependency order, ADR gates, integration, validation evidence, machine load, and launch gates.
+- Keep one strongest orchestration agent as the control plane for dependency order, ADR gates, integration, validation evidence, machine load, launch gates, and cross-task judgment. It is the coordinator, not the default writer or reviewer.
 - Delegate bounded work only, with explicit owned paths, inputs, outputs, tests, and completion criteria.
 - Start each task with a short plan audit, then implement in the same thread unless a missing durable decision requires owner direction and an ADR.
 - Treat P0-15 context hygiene and P0-16 bonus-context budgeting as launch work. Other P1 tasks do not delay go-live.
@@ -29,7 +29,7 @@ The likely critical path is P0-04 -> P0-07 -> P0-08 -> P0-09 -> P0-12 -> P0-22 -
 
 ## Agent roles and task loop
 
-The orchestration agent owns the cross-task plan and final judgment. A task agent owns only its named task or slice.
+The orchestration agent owns the cross-task plan, delegation, integration checkpoints, and final judgment. A task agent owns only its named task or slice. The default expectation is that bounded implementation work is assigned to a task agent whose capability tier matches the task's risk and ambiguity, while the orchestration agent stays free for coordination and hard decisions.
 
 For each task:
 
@@ -40,11 +40,12 @@ For each task:
 5. Update task status and durable validation evidence.
 6. Verify the exact Git target, create a scoped commit, and push under the hybrid Git policy.
 
-Fact-finding agents may establish evidence and recommend; they may not silently decide final production model/configuration, Club Elo network reuse, final schedules, or a new product/data policy.
+Fact-finding agents may establish evidence and recommend; they may not silently decide final production model/configuration, Club Elo network reuse, final schedules, or a new product/data policy. Read-only research, status, and CI reconciliation should prefer the fastest reliable agent tier that can accurately gather the evidence.
 
 ## Bounded parallelism and worktrees
 
 - Use at most two task agents and two writable worktrees at once. Normally run one writer plus one read-heavy helper.
+- Keep one active writer per checkout/worktree. Under ADR-0009, the orchestrator may run up to two isolated writers at once when they have separate worktrees and non-overlapping owned paths; otherwise use the normal one-writer-plus-helper lane. Start a dedicated review only after the relevant writer reaches a stable checkpoint with a reviewable diff and validation evidence.
 - Keep the primary checkout as integration/coordination checkout; never switch its branch while another writer depends on it.
 - Serialize full builds, full test suites, Docker/Testcontainers, live external collection, and other resource-heavy commands.
 - Reduce concurrency as soon as the machine, network, CI, or weekly allowance shows pressure.
@@ -55,9 +56,9 @@ Fact-finding agents may establish evidence and recommend; they may not silently 
 
 Agent usage varies with model, task complexity, context, reasoning, tools, retrieval, and caching. Budget qualitatively rather than treating prompt count as a reliable allowance measure. See [OpenAI Codex pricing and usage limits](https://learn.chatgpt.com/docs/pricing#what-are-the-usage-limits-for-my-plan).
 
-- Reserve the strongest model and high reasoning for orchestration, ambiguous cross-cutting implementation, launch gates, and difficult failure analysis.
-- Prefer a balanced everyday model for normal implementation and a lightweight model for narrow deterministic work with mechanical verification.
-- Use one task-agent self-review. Add an independent review only for high-risk artifacts or wave integration, and repeat only after a concrete finding.
+- Reserve the strongest capability tier and highest reasoning for orchestration, ambiguous cross-cutting implementation, launch gates, and difficult failure analysis. Do not treat the top tier as the routine default for every writer, reviewer, or status check.
+- Prefer a balanced everyday capability tier for normal implementation and a lightweight tier for narrow deterministic work, read-only research, status gathering, and mechanical verification.
+- Use one task-agent self-review during implementation. Add an independent dedicated review agent only for high-risk artifacts or wave integration, size that reviewer to the review risk, and repeat only after a concrete finding.
 - Run targeted tests per task and broader affected suites at wave gates. Do not run the full suite once per agent.
 - Persist decisions and evidence in tasks/ADRs so later waves do not repeatedly rediscover them.
 - Avoid speculative agents, duplicate investigations, and routine author-reviewer-fixer loops.
@@ -86,7 +87,7 @@ The repository currently builds/tests PRs and pushes to `main`; native auto-merg
 
 - After every push and at every wave gate, assign one dedicated read-only CI reconciliation agent. It may inspect GitHub state and logs but must not push, rerun, cancel, approve, or otherwise mutate CI state.
 - Record the exact local and remote head SHA, workflow run ID and status/conclusion, and every relevant job ID, name, status/conclusion, and URL in the active task or wave evidence. Reconcile the run's head SHA with the pushed commit before treating a result as current.
-- Route a trivial in-scope failure, such as formatting or a deterministic test correction that does not change an accepted contract, immediately back to the current sole writer. After the fix is pushed, repeat the read-only reconciliation loop against the new head.
+- Route a trivial in-scope failure, such as formatting or a deterministic test correction that does not change an accepted contract, immediately back to the writer that owns that change. After the fix is pushed, repeat the read-only reconciliation loop against the new head.
 - For a nontrivial, cross-task, flaky, infrastructure, or policy-sensitive failure, the reconciliation agent reports the evidence and the orchestrator creates or links a durable work item with the failing head/run/job evidence, owner, scope, and dependencies. Keep independent work moving when its gates do not depend on that failure; do not silently broaden the active task.
 - A wave gate remains closed until every required check for its exact head succeeds or a linked accepted decision explicitly changes the gate.
 

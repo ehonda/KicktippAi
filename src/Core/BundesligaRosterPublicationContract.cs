@@ -1,5 +1,3 @@
-using System.Buffers.Binary;
-using System.Security.Cryptography;
 using System.Text;
 
 namespace EHonda.KicktippAi.Core;
@@ -67,15 +65,17 @@ public static class BundesligaRosterPublicationContract
         IReadOnlyList<BundesligaTeamManifestEntry>? teams = null)
     {
         var ordered = ValidateAndOrder(documents, teams);
-        using var hash = IncrementalHash.CreateHash(HashAlgorithmName.SHA256);
-        foreach (var document in ordered)
-        {
-            AppendLengthPrefixed(hash, Encoding.UTF8.GetBytes(document.Kind.ToString()));
-            AppendLengthPrefixed(hash, Encoding.UTF8.GetBytes(document.Name));
-            AppendLengthPrefixed(hash, document.Content);
-        }
-
-        return Convert.ToHexString(hash.GetHashAndReset()).ToLowerInvariant();
+        return DocumentPublicationContract.ComputeSnapshotId(ordered
+            .Select(document => new DocumentPublicationPayload(
+                document.Kind == BundesligaRosterPublicationDocumentKind.Context
+                    ? DocumentPublicationKind.Context
+                    : DocumentPublicationKind.Kpi,
+                document.Name,
+                DocumentPublicationContract.DecodeUtf8(document.Content),
+                document.Kind == BundesligaRosterPublicationDocumentKind.Kpi
+                    ? "Bundesliga roster publication KPI"
+                    : null))
+            .ToArray());
     }
 
     private static void ValidateCsvBytes(
@@ -128,14 +128,6 @@ public static class BundesligaRosterPublicationContract
                     $"Roster publication document '{document.Name}' contains a bare line feed.");
             }
         }
-    }
-
-    private static void AppendLengthPrefixed(IncrementalHash hash, ReadOnlySpan<byte> value)
-    {
-        Span<byte> length = stackalloc byte[sizeof(int)];
-        BinaryPrimitives.WriteInt32BigEndian(length, value.Length);
-        hash.AppendData(length);
-        hash.AppendData(value);
     }
 
     private static string FormatKey((BundesligaRosterPublicationDocumentKind Kind, string Name) key)

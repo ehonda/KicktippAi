@@ -48,6 +48,25 @@ public class BundesligaRosterPublicationContractTests
     }
 
     [Test]
+    public async Task Snapshot_hash_matches_the_hard_coded_adr_0011_compatibility_vector()
+    {
+        var roster = "Team,Data_Collected_At,Role,Name,Age,Position,Market_Value_EUR\r\n" +
+                     "Bayer 04 Leverkusen,2026-08-16,Coach,Coach Alpha,N/A,Coach,N/A\r\n";
+        var summary = "Team_Slug,Team,Data_Collected_At,Membership_Source,Coach,Squad_Size,Known_Age_Count,Average_Age,Valued_Player_Count,Total_Market_Value_EUR,Median_Market_Value_EUR\r\n" +
+                      "b04,Bayer 04 Leverkusen,2026-08-16,FallbackSeed,Coach Alpha,20,0,N/A,0,N/A,N/A\r\n";
+        var documents = new[]
+        {
+            new BundesligaRosterPublicationDocument(BundesligaRosterPublicationDocumentKind.Kpi, "team-squad-summary", Encoding.UTF8.GetBytes(summary)),
+            new BundesligaRosterPublicationDocument(BundesligaRosterPublicationDocumentKind.Context, "team-rosters", Encoding.UTF8.GetBytes(roster)),
+            new BundesligaRosterPublicationDocument(BundesligaRosterPublicationDocumentKind.Context, "roster-bmg", Encoding.UTF8.GetBytes(roster)),
+            new BundesligaRosterPublicationDocument(BundesligaRosterPublicationDocumentKind.Context, "roster-b04", Encoding.UTF8.GetBytes(roster))
+        };
+
+        await Assert.That(BundesligaRosterPublicationContract.ComputeSnapshotId(documents, Teams))
+            .IsEqualTo("57d9a3f707a82f49054a81d3bde2db8f4186204bf8a6744404e6f8e986b1f90e");
+    }
+
+    [Test]
     public async Task Publication_contract_rejects_partial_header_only_bom_and_lf_documents()
     {
         var teams = Teams;

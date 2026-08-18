@@ -95,3 +95,4 @@ P0 is complete only when:
 - [ADR-0011: Fix roster snapshots and atomic publication](decisions/0011-roster-snapshot-and-publication-contract.md)
 - [ADR-0012: Make matchday completion competition aware](decisions/0012-competition-aware-matchday-completion.md)
 - [ADR-0013: Fix the Club Elo snapshot and freshness contract](decisions/0013-club-elo-snapshot-and-freshness-contract.md)
+- [ADR-0014: Share atomic context and KPI publication snapshots](decisions/0014-share-atomic-context-kpi-publication.md)
