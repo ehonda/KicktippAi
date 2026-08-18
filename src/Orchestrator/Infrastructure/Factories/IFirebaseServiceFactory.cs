@@ -35,6 +35,9 @@ public interface IFirebaseServiceFactory
     /// <returns>A context repository instance.</returns>
     IContextRepository CreateContextRepository(string competition);
 
+    /// <summary>Creates the atomic mixed context/KPI publication repository.</summary>
+    IDocumentPublicationRepository CreateDocumentPublicationRepository(string competition);
+
     /// <summary>
     /// Creates a match outcome repository instance.
     /// </summary>

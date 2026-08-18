@@ -1,6 +1,6 @@
 # P0-11 — Implement Club Elo collection
 
-- Status: Not started
+- Status: In progress (shared atomic publication boundary only; collector remains unimplemented)
 - Priority: P0
 - Depends on: [P0-04](p0-04-team-manifest.md), [P0-10](p0-10-club-elo-source.md)
 - Decisions: [ADR-0002](../decisions/0002-supersede-transfer-documents.md), [ADR-0008](../decisions/0008-launch-club-elo-from-a-dated-seed.md), [ADR-0010](../decisions/0010-season-scoped-team-identity-manifest.md), [ADR-0013](../decisions/0013-club-elo-snapshot-and-freshness-contract.md), [ADR-0014](../decisions/0014-share-atomic-context-kpi-publication.md)
@@ -8,6 +8,10 @@
 ## Outcome
 
 A collector publishes one source-dated `club-elo-{slug}.csv` per team and one complete `club-elo-rankings` KPI document.
+
+## Progress evidence
+
+- 2026-08-18: The shared ADR-0014 Firestore boundary passed its focused publication emulator suite and the default Firebase adapter suite. Club Elo rendering, source/cache selection, and CLI work remain unimplemented.
 
 ## Work items
 

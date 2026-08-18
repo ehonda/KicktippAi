@@ -322,14 +322,8 @@ public static class DocumentPublicationContract
         string targetSnapshotId,
         bool targetSnapshotAlreadyExists)
     {
-        ValidateScope(scope);
-        ValidateOptionalSha256(expectedPreviousSnapshotId, nameof(expectedPreviousSnapshotId));
-        ValidateOptionalSha256(currentSnapshotId, nameof(currentSnapshotId));
+        EnsureExpectedHead(scope, expectedPreviousSnapshotId, currentSnapshotId);
         ValidateSha256(targetSnapshotId, nameof(targetSnapshotId));
-        if (!string.Equals(expectedPreviousSnapshotId, currentSnapshotId, StringComparison.Ordinal))
-        {
-            throw new DocumentPublicationConcurrencyException(scope, expectedPreviousSnapshotId, currentSnapshotId);
-        }
 
         if (string.Equals(targetSnapshotId, currentSnapshotId, StringComparison.Ordinal))
         {
@@ -339,6 +333,25 @@ public static class DocumentPublicationContract
         return targetSnapshotAlreadyExists
             ? DocumentPublicationDisposition.Reactivated
             : DocumentPublicationDisposition.Published;
+    }
+
+    /// <summary>
+    /// Validates and applies the compare-and-swap precondition before an adapter reads a
+    /// snapshot graph. This makes a stale request fail before unrelated corrupt target data can
+    /// affect the outcome.
+    /// </summary>
+    public static void EnsureExpectedHead(
+        DocumentPublicationScope scope,
+        string? expectedPreviousSnapshotId,
+        string? currentSnapshotId)
+    {
+        ValidateScope(scope);
+        ValidateOptionalSha256(expectedPreviousSnapshotId, nameof(expectedPreviousSnapshotId));
+        ValidateOptionalSha256(currentSnapshotId, nameof(currentSnapshotId));
+        if (!string.Equals(expectedPreviousSnapshotId, currentSnapshotId, StringComparison.Ordinal))
+        {
+            throw new DocumentPublicationConcurrencyException(scope, expectedPreviousSnapshotId, currentSnapshotId);
+        }
     }
 
     public static void ValidateRequest(
@@ -596,6 +609,38 @@ public static class BundesligaDocumentPublication
         {
             throw new InvalidOperationException($"'{kind}:{documentName}' is reserved for atomic Bundesliga document publication.");
         }
+    }
+
+    /// <summary>
+    /// Resolves the canonical publication definition that owns a concrete Bundesliga document
+    /// key. Generic repositories use this only to find immutable publication-scoped payload IDs;
+    /// non-canonical reserved-looking names deliberately retain their legacy lookup behavior.
+    /// </summary>
+    public static bool TryGetOwningDefinition(
+        string competition,
+        DocumentPublicationKind kind,
+        string documentName,
+        out DocumentPublicationDefinition? definition)
+    {
+        definition = null;
+        if (!string.Equals(competition, CompetitionIds.Bundesliga2026_27, StringComparison.Ordinal))
+        {
+            return false;
+        }
+
+        if (Rosters.RequiredDocuments.Any(key => key.Kind == kind && string.Equals(key.Name, documentName, StringComparison.Ordinal)))
+        {
+            definition = Rosters;
+            return true;
+        }
+
+        if (ClubElo.RequiredDocuments.Any(key => key.Kind == kind && string.Equals(key.Name, documentName, StringComparison.Ordinal)))
+        {
+            definition = ClubElo;
+            return true;
+        }
+
+        return false;
     }
 
     internal static void ThrowIfRedefinedReservedDefinition(string competition, DocumentPublicationDefinition definition)

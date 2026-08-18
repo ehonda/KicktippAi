@@ -33,6 +33,10 @@ public class FirebaseContextRepository : IContextRepository
 
     public async Task<int?> SaveContextDocumentAsync(string documentName, string content, string communityContext, CancellationToken cancellationToken = default)
     {
+        BundesligaDocumentPublication.ThrowIfReservedForGenericMutation(
+            _competition,
+            DocumentPublicationKind.Context,
+            documentName);
         try
         {
             // Get the latest version to check if content differs
@@ -111,6 +115,33 @@ public class FirebaseContextRepository : IContextRepository
     {
         try
         {
+            if (BundesligaDocumentPublication.TryGetOwningDefinition(
+                    _competition,
+                    DocumentPublicationKind.Context,
+                    documentName,
+                    out var definition))
+            {
+                var scope = new DocumentPublicationScope(_competition, communityContext, definition!.PublicationSet);
+                var publicationId = FirebaseDocumentPublicationRepository.BuildPublicationPayloadId(scope, documentName, version);
+                var publicationSnapshot = await _firestoreDb.Collection(_contextDocumentsCollection)
+                    .Document(publicationId)
+                    .GetSnapshotAsync(cancellationToken);
+                if (publicationSnapshot.Exists)
+                {
+                    var publicationDocument = publicationSnapshot.ConvertTo<FirestoreContextDocument>();
+                    if (publicationDocument.Competition != scope.Competition
+                        || publicationDocument.CommunityContext != scope.CommunityContext
+                        || publicationDocument.PublicationSet != scope.PublicationSet
+                        || publicationDocument.DocumentName != documentName
+                        || publicationDocument.Version != version)
+                    {
+                        throw new InvalidDataException("Publication-scoped context payload identity is corrupt.");
+                    }
+
+                    return ConvertToContextDocument(publicationDocument);
+                }
+            }
+
             var documentId = BuildDocumentId(documentName, communityContext, version);
             var docRef = _firestoreDb.Collection(_contextDocumentsCollection).Document(documentId);
             var snapshot = await docRef.GetSnapshotAsync(cancellationToken);
@@ -227,6 +258,10 @@ public class FirebaseContextRepository : IContextRepository
 
     public async Task<bool> UpdateContextDocumentVersionAsync(string documentName, int version, string newContent, string communityContext, CancellationToken cancellationToken = default)
     {
+        BundesligaDocumentPublication.ThrowIfReservedForGenericMutation(
+            _competition,
+            DocumentPublicationKind.Context,
+            documentName);
         try
         {
             var documentId = BuildDocumentId(documentName, communityContext, version);

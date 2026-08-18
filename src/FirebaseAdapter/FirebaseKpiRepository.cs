@@ -41,6 +41,10 @@ public class FirebaseKpiRepository : IKpiRepository
         string communityContext,
         CancellationToken cancellationToken = default)
     {
+        BundesligaDocumentPublication.ThrowIfReservedForGenericMutation(
+            _competition,
+            DocumentPublicationKind.Kpi,
+            documentName);
         try
         {
             var now = Timestamp.GetCurrentTimestamp();
@@ -135,6 +139,38 @@ public class FirebaseKpiRepository : IKpiRepository
     {
         try
         {
+            if (BundesligaDocumentPublication.TryGetOwningDefinition(
+                    _competition,
+                    DocumentPublicationKind.Kpi,
+                    documentName,
+                    out var definition))
+            {
+                var scope = new DocumentPublicationScope(_competition, communityContext, definition!.PublicationSet);
+                var publicationId = FirebaseDocumentPublicationRepository.BuildPublicationPayloadId(scope, documentName, version);
+                var publicationSnapshot = await _firestoreDb.Collection(KpiCollectionName)
+                    .Document(publicationId)
+                    .GetSnapshotAsync(cancellationToken);
+                if (publicationSnapshot.Exists)
+                {
+                    var publicationDocument = publicationSnapshot.ConvertTo<FirestoreKpiDocument>();
+                    if (publicationDocument.Competition != scope.Competition
+                        || publicationDocument.CommunityContext != scope.CommunityContext
+                        || publicationDocument.PublicationSet != scope.PublicationSet
+                        || publicationDocument.DocumentName != documentName
+                        || publicationDocument.Version != version)
+                    {
+                        throw new InvalidDataException("Publication-scoped KPI payload identity is corrupt.");
+                    }
+
+                    return new KpiDocument(
+                        publicationDocument.DocumentName,
+                        publicationDocument.Content,
+                        publicationDocument.Description,
+                        publicationDocument.Version,
+                        publicationDocument.CreatedAt.ToDateTimeOffset());
+                }
+            }
+
             var versionedDocumentId = BuildDocumentId(documentName, communityContext, version);
             var docRef = _firestoreDb.Collection(KpiCollectionName).Document(versionedDocumentId);
             var snapshot = await docRef.GetSnapshotAsync(cancellationToken);

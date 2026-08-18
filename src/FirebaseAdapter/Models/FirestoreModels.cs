@@ -359,6 +359,9 @@ public class FirestoreKpiDocument
     /// </summary>
     [FirestoreProperty("communityContext")]
     public string CommunityContext { get; set; } = string.Empty;
+
+    [FirestoreProperty("publicationSet")]
+    public string PublicationSet { get; set; } = string.Empty;
 }
 
 /// <summary>
@@ -410,6 +413,75 @@ public class FirestoreContextDocument
     /// </summary>
     [FirestoreProperty("communityContext")]
     public string CommunityContext { get; set; } = string.Empty;
+
+    [FirestoreProperty("publicationSet")]
+    public string PublicationSet { get; set; } = string.Empty;
+}
+
+[FirestoreData]
+public class FirestoreDocumentPublicationHead
+{
+    [FirestoreDocumentId]
+    public string? Id { get; set; }
+
+    [FirestoreProperty("competition")]
+    public string Competition { get; set; } = string.Empty;
+
+    [FirestoreProperty("communityContext")]
+    public string CommunityContext { get; set; } = string.Empty;
+
+    [FirestoreProperty("publicationSet")]
+    public string PublicationSet { get; set; } = string.Empty;
+
+    [FirestoreProperty("snapshotId")]
+    public string SnapshotId { get; set; } = string.Empty;
+}
+
+[FirestoreData]
+public class FirestoreDocumentPublicationSnapshot
+{
+    [FirestoreDocumentId]
+    public string? Id { get; set; }
+
+    [FirestoreProperty("competition")]
+    public string Competition { get; set; } = string.Empty;
+
+    [FirestoreProperty("communityContext")]
+    public string CommunityContext { get; set; } = string.Empty;
+
+    [FirestoreProperty("publicationSet")]
+    public string PublicationSet { get; set; } = string.Empty;
+
+    [FirestoreProperty("snapshotId")]
+    public string SnapshotId { get; set; } = string.Empty;
+
+    [FirestoreProperty("previousSnapshotId")]
+    public string? PreviousSnapshotId { get; set; }
+
+    [FirestoreProperty("createdAt")]
+    public Timestamp CreatedAt { get; set; }
+
+    [FirestoreProperty("metadataJson")]
+    public string MetadataJson { get; set; } = string.Empty;
+
+    [FirestoreProperty("documents")]
+    public List<FirestoreDocumentPublicationEntry> Documents { get; set; } = [];
+}
+
+[FirestoreData]
+public class FirestoreDocumentPublicationEntry
+{
+    [FirestoreProperty("kind")]
+    public string Kind { get; set; } = string.Empty;
+
+    [FirestoreProperty("name")]
+    public string Name { get; set; } = string.Empty;
+
+    [FirestoreProperty("version")]
+    public int Version { get; set; }
+
+    [FirestoreProperty("contentSha256")]
+    public string ContentSha256 { get; set; } = string.Empty;
 }
 
 /// <summary>

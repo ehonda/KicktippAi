@@ -1,6 +1,6 @@
 # P0-09 — Implement roster enrichment and collection
 
-- Status: Not started
+- Status: In progress (shared atomic publication boundary only; collector remains unimplemented)
 - Priority: P0
 - Depends on: [P0-07](p0-07-roster-contract.md), [P0-08](p0-08-roster-membership-seed.md)
 - Decisions: [ADR-0003](../decisions/0003-duckdb-primary-rosters-with-fallback.md), [ADR-0010](../decisions/0010-season-scoped-team-identity-manifest.md), [ADR-0011](../decisions/0011-roster-snapshot-and-publication-contract.md), [ADR-0014](../decisions/0014-share-atomic-context-kpi-publication.md)
@@ -8,6 +8,10 @@
 ## Outcome
 
 A Bundesliga collector selects quality-gated current-season DuckDB membership per club, otherwise preserves fallback or last-known-good membership, enriches safely, and atomically publishes `roster-*`, `team-rosters`, and `team-squad-summary` documents.
+
+## Progress evidence
+
+- 2026-08-18: The shared ADR-0014 Firestore boundary passed its focused publication emulator suite and the default Firebase adapter suite. Roster collection, source selection, enrichment, and CLI work remain unimplemented.
 
 ## Work items
 

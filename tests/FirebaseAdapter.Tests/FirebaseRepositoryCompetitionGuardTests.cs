@@ -40,5 +40,11 @@ public sealed class FirebaseRepositoryCompetitionGuardTests(FirestoreFixture fix
                 competition!))
             .Throws<ArgumentException>()
             .WithParameterName("competition");
+        await Assert.That(() => new FirebaseDocumentPublicationRepository(
+                db,
+                new FakeLogger<FirebaseDocumentPublicationRepository>(),
+                competition!))
+            .Throws<ArgumentException>()
+            .WithParameterName("competition");
     }
 }

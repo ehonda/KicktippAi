@@ -108,6 +108,13 @@ public static class ServiceCollectionExtensions
             return new FirebaseContextRepository(firestoreDb, logger, competition);
         });
 
+        services.AddScoped<IDocumentPublicationRepository>(serviceProvider =>
+        {
+            var firestoreDb = serviceProvider.GetRequiredService<FirestoreDb>();
+            var logger = serviceProvider.GetRequiredService<ILogger<FirebaseDocumentPublicationRepository>>();
+            return new FirebaseDocumentPublicationRepository(firestoreDb, logger, competition);
+        });
+
         services.AddScoped<IMatchOutcomeRepository>(serviceProvider =>
         {
             var firestoreDb = serviceProvider.GetRequiredService<FirestoreDb>();
@@ -161,6 +168,7 @@ public static class ServiceCollectionExtensions
             options.ProjectId = projectId;
             options.ServiceAccountJson = serviceAccountJson;
         });
+
     }
 
     /// <summary>

@@ -20,6 +20,8 @@ public sealed class FirestoreFixture : IAsyncInitializer, IAsyncDisposable
     public const string KpiParallelKey = "Firestore:Kpi";
     public const string MatchOutcomesParallelKey = "Firestore:MatchOutcomes";
     public const string OrchestratorIntegrationParallelKey = "Firestore:OrchestratorIntegration";
+    public const string DocumentPublicationParallelKey = "Firestore:DocumentPublication";
+    public const string PublicationPayloadsParallelKey = "Firestore:PublicationPayloads";
 
     private const string ContextDocumentsCollection = "context-documents";
     private const string MatchPredictionsCollection = "match-predictions";
@@ -27,6 +29,8 @@ public sealed class FirestoreFixture : IAsyncInitializer, IAsyncDisposable
     private const string BonusPredictionsCollection = "bonus-predictions";
     private const string KpiDocumentsCollection = "kpi-documents";
     private const string MatchOutcomesCollection = "match-outcomes";
+    private const string DocumentPublicationHeadsCollection = "document-publication-heads";
+    private const string DocumentPublicationSnapshotsCollection = "document-publication-snapshots";
     private const string EmulatorImageTag = "google/cloud-sdk:550.0.0-emulators";
 
     private readonly FirestoreContainer _container;
@@ -77,6 +81,13 @@ public sealed class FirestoreFixture : IAsyncInitializer, IAsyncDisposable
     public async Task ClearMatchOutcomesAsync()
     {
         await ClearCollectionAsync(MatchOutcomesCollection);
+    }
+
+    public async Task ClearDocumentPublicationsAsync()
+    {
+        await Task.WhenAll(
+            ClearCollectionAsync(DocumentPublicationHeadsCollection),
+            ClearCollectionAsync(DocumentPublicationSnapshotsCollection));
     }
 
     public async Task ClearOrchestratorIntegrationAsync()

@@ -31,7 +31,7 @@ namespace FirebaseAdapter.Tests.FirebaseKpiRepositoryTests;
 /// </para>
 /// </remarks>
 [ClassDataSource<FirestoreFixture>(Shared = SharedType.Keyed, Key = FirestoreFixture.SharedKey)]
-[NotInParallel(FirestoreFixture.KpiParallelKey)]
+[NotInParallel(FirestoreFixture.PublicationPayloadsParallelKey)]
 public abstract class FirebaseKpiRepositoryTests_Base(FirestoreFixture fixture)
 {
     protected FirestoreFixture Fixture { get; } = fixture;

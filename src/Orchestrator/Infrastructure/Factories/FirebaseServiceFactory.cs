@@ -51,6 +51,14 @@ public sealed class FirebaseServiceFactory : IFirebaseServiceFactory
     }
 
     /// <inheritdoc />
+    public IDocumentPublicationRepository CreateDocumentPublicationRepository(string competition)
+    {
+        ArgumentException.ThrowIfNullOrWhiteSpace(competition);
+        var logger = _loggerFactory.CreateLogger<FirebaseDocumentPublicationRepository>();
+        return new FirebaseDocumentPublicationRepository(FirestoreDb, logger, competition);
+    }
+
+    /// <inheritdoc />
     public IMatchOutcomeRepository CreateMatchOutcomeRepository(string competition)
     {
         ArgumentException.ThrowIfNullOrWhiteSpace(competition);

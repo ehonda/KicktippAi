@@ -25,6 +25,14 @@ internal sealed class TestFirebaseServiceFactory(FirestoreDb firestoreDb) : IFir
         return new FirebaseContextRepository(FirestoreDb, new FakeLogger<FirebaseContextRepository>(), competition);
     }
 
+    public IDocumentPublicationRepository CreateDocumentPublicationRepository(string competition)
+    {
+        return new FirebaseDocumentPublicationRepository(
+            FirestoreDb,
+            new FakeLogger<FirebaseDocumentPublicationRepository>(),
+            competition);
+    }
+
     public IMatchOutcomeRepository CreateMatchOutcomeRepository(string competition)
     {
         return new FirebaseMatchOutcomeRepository(FirestoreDb, new FakeLogger<FirebaseMatchOutcomeRepository>(), competition);
