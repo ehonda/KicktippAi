@@ -1,4 +1,5 @@
 using System.ComponentModel;
+using EHonda.KicktippAi.Core;
 using Spectre.Console.Cli;
 
 namespace Orchestrator.Commands.Operations.CollectContext;
@@ -93,5 +94,29 @@ public class CollectContextLineupsSettings : CollectContextSettings
 
     [CommandOption("--verbose")]
     [Description("Enable verbose output")]
+    public bool Verbose { get; set; }
+}
+
+/// <summary>Settings for the seed-backed Bundesliga 2026/27 Club Elo collector.</summary>
+public class CollectContextClubEloSettings : CollectContextSettings
+{
+    [CommandOption("--community-context")]
+    [Description("The explicit community context to publish Club Elo documents for")]
+    public string CommunityContext { get; set; } = string.Empty;
+
+    [CommandOption("--competition")]
+    [Description("Required competition identifier; must be bundesliga-2026-27")]
+    public string? Competition { get; set; }
+
+    [CommandOption("--seed")]
+    [Description("Optional strict Club Elo launch-seed CSV path")]
+    public string Seed { get; set; } = BundesligaClubEloSeed.RelativePath;
+
+    [CommandOption("--dry-run")]
+    [Description("Render and validate without publishing any documents")]
+    public bool DryRun { get; set; }
+
+    [CommandOption("--verbose")]
+    [Description("Enable verbose diagnostics")]
     public bool Verbose { get; set; }
 }

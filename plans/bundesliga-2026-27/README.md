@@ -96,3 +96,5 @@ P0 is complete only when:
 - [ADR-0012: Make matchday completion competition aware](decisions/0012-competition-aware-matchday-completion.md)
 - [ADR-0013: Fix the Club Elo snapshot and freshness contract](decisions/0013-club-elo-snapshot-and-freshness-contract.md)
 - [ADR-0014: Share atomic context and KPI publication snapshots](decisions/0014-share-atomic-context-kpi-publication.md)
+- [ADR-0015: Use strict Club Elo prompt documents and reconstructable publication provenance](decisions/0015-club-elo-prompt-publication-contract.md)
+- [ADR-0016: Validate Club Elo publication metadata semantically](decisions/0016-validate-club-elo-publication-metadata.md)

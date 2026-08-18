@@ -3,7 +3,7 @@
 - Status: Not started
 - Priority: P0
 - Depends on: [P0-09](p0-09-roster-collector.md), [P0-11](p0-11-club-elo-collector.md), [P0-12](p0-12-match-context-and-transfer-retirement.md)
-- Decision: [ADR-0007](../decisions/0007-require-context-hygiene-before-launch.md)
+- Decisions: [ADR-0007](../decisions/0007-require-context-hygiene-before-launch.md), [ADR-0015](../decisions/0015-club-elo-prompt-publication-contract.md)
 
 ## Outcome
 

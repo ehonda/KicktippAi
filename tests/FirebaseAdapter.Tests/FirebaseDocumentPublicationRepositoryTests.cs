@@ -397,6 +397,62 @@ public sealed class FirebaseDocumentPublicationRepositoryTests(FirestoreFixture 
         await wm26.SaveKpiDocumentAsync("club-elo-rankings", "allowed", "description", "community");
     }
 
+    [Test]
+    public async Task Club_elo_initial_unchanged_changed_and_stale_cas_use_one_exact_headed_lkg()
+    {
+        var repository = CreateRepository();
+        var initialBuild = ClubEloBuild(BundesligaClubEloSeed.Default);
+        var initialRequest = BundesligaClubEloPublication.CreateRequest(Community, null, initialBuild);
+
+        var initial = await repository.PublishAsync(BundesligaDocumentPublication.ClubElo, initialRequest);
+        var loaded = await repository.GetLastKnownGoodAsync(BundesligaDocumentPublication.ClubElo, Community);
+        var unchanged = await repository.PublishAsync(
+            BundesligaDocumentPublication.ClubElo,
+            BundesligaClubEloPublication.CreateRequest(Community, initial.Snapshot.SnapshotId, initialBuild));
+        var changedSnapshot = BundesligaClubEloSnapshot.Create(
+            BundesligaClubEloSeed.Default.Entries.Select(entry => entry.Team.TeamSlug == "b04" ? entry with { Elo = entry.Elo + 1 } : entry).ToArray(),
+            BundesligaClubEloSeed.Default.RatedAt,
+            BundesligaClubEloSeed.Default.CollectedAt,
+            BundesligaClubEloSeed.Default.SourceUrl,
+            BundesligaClubEloSnapshotOrigin.LaunchSeed);
+        var changed = await repository.PublishAsync(
+            BundesligaDocumentPublication.ClubElo,
+            BundesligaClubEloPublication.CreateRequest(Community, initial.Snapshot.SnapshotId, ClubEloBuild(changedSnapshot)));
+
+        await Assert.That(initial.Disposition).IsEqualTo(DocumentPublicationDisposition.Published);
+        await Assert.That(initial.Snapshot.Documents.Length).IsEqualTo(19);
+        var reconstructed = BundesligaClubEloPublication.ReconstructLastKnownGood(loaded!);
+        await Assert.That(reconstructed.Entries).IsEquivalentTo(BundesligaClubEloSeed.Default.Entries);
+        await Assert.That(reconstructed.RatedAt).IsEqualTo(BundesligaClubEloSeed.Default.RatedAt);
+        await Assert.That(unchanged.Disposition).IsEqualTo(DocumentPublicationDisposition.Unchanged);
+        await Assert.That(changed.Disposition).IsEqualTo(DocumentPublicationDisposition.Published);
+        await Assert.That(changed.Snapshot.Documents.Single(entry => entry.Name == "club-elo-b04.csv").Version).IsEqualTo(1);
+        await Assert.That(changed.Snapshot.Documents.Single(entry => entry.Name == "club-elo-rankings").Version).IsEqualTo(1);
+        await Assert.That(() => repository.PublishAsync(BundesligaDocumentPublication.ClubElo, initialRequest))
+            .Throws<DocumentPublicationConcurrencyException>();
+    }
+
+    [Test]
+    public async Task Club_elo_corrupt_headed_payload_fails_before_lkg_reconstruction_or_head_movement()
+    {
+        var repository = CreateRepository();
+        var published = await repository.PublishAsync(
+            BundesligaDocumentPublication.ClubElo,
+            BundesligaClubEloPublication.CreateRequest(Community, null, ClubEloBuild(BundesligaClubEloSeed.Default)));
+        var scope = new DocumentPublicationScope(CompetitionIds.Bundesliga2026_27, Community, BundesligaDocumentPublication.ClubEloPublicationSet);
+        var entry = published.Snapshot.Documents.Single(value => value.Name == "club-elo-b04.csv");
+        var reference = fixture.Db.Collection("context-documents").Document(PublicationPayloadId(scope, entry.Name, entry.Version));
+        await reference.UpdateAsync("content", "corrupt");
+
+        await Assert.That(() => repository.GetLastKnownGoodAsync(BundesligaDocumentPublication.ClubElo, Community))
+            .Throws<InvalidDataException>();
+        await Assert.That(() => repository.PublishAsync(
+                BundesligaDocumentPublication.ClubElo,
+                BundesligaClubEloPublication.CreateRequest(Community, published.Snapshot.SnapshotId, ClubEloBuild(BundesligaClubEloSeed.Default))))
+            .Throws<InvalidDataException>();
+        await Assert.That(await HeadSnapshotIdAsync(scope)).IsEqualTo(published.Snapshot.SnapshotId);
+    }
+
     private FirebaseDocumentPublicationRepository CreateRepository() => new(
         fixture.Db,
         new FakeLogger<FirebaseDocumentPublicationRepository>(),
@@ -420,6 +476,12 @@ public sealed class FirebaseDocumentPublicationRepositoryTests(FirestoreFixture 
             $"payload:{key.Kind}:{key.Name}",
             key.Kind == DocumentPublicationKind.Kpi ? $"Description for {key.Name}" : null)),
         "{\"fixture\":true}");
+
+    private static BundesligaClubEloPublicationBuild ClubEloBuild(BundesligaClubEloSnapshot snapshot) =>
+        BundesligaClubEloPublication.Build(new BundesligaClubEloSelection(
+            snapshot,
+            BundesligaClubEloSelectionDisposition.NetworkDisabled,
+            ["UNATTENDED_NETWORK_USE_NOT_APPROVED"]));
 
     private async Task CorruptStoredSnapshotIdAsync(DocumentPublicationScope scope, string metadataId, string storedSnapshotId)
     {

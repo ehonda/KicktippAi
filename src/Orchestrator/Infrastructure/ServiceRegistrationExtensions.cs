@@ -462,6 +462,12 @@ public static class ServiceRegistrationExtensions
         return services;
     }
 
+    private static IServiceCollection AddBundesligaClubEloSourceServicesIfMissing(this IServiceCollection services)
+    {
+        services.TryAddTransient<IBundesligaClubEloSource, BundesligaClubEloSeedSource>();
+        return services;
+    }
+
     /// <summary>
     /// Registers services specific to the VerifyBonusCommand.
     /// </summary>
@@ -524,6 +530,16 @@ public static class ServiceRegistrationExtensions
         // CollectContextLineupsCommand needs Firebase (IContextRepository, IKpiRepository)
         // and the Transfermarkt DuckDB snapshot.
 
+        return services;
+    }
+
+    /// <summary>Registers the deliberately seed-backed Bundesliga Club Elo collector.</summary>
+    public static IServiceCollection AddCollectContextClubEloCommandServices(
+        this IServiceCollection services,
+        LogLevel minimumLogLevel = LogLevel.Information)
+    {
+        services.AddOrchestratorInfrastructure(minimumLogLevel);
+        services.AddBundesligaClubEloSourceServicesIfMissing();
         return services;
     }
 
@@ -671,6 +687,7 @@ public static class ServiceRegistrationExtensions
         services.AddCollectContextKicktippCommandServices(minimumLogLevel);
         services.AddCollectContextFifaCommandServices(minimumLogLevel);
         services.AddCollectContextLineupsCommandServices(minimumLogLevel);
+        services.AddCollectContextClubEloCommandServices(minimumLogLevel);
         services.AddCollectContextDevCommandServices(minimumLogLevel);
         services.AddWm26RecentHistoryCommandServices(minimumLogLevel);
         services.AddContextChangesCommandServices(minimumLogLevel);

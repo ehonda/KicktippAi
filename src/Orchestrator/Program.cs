@@ -134,6 +134,9 @@ public class Program
                 collectContext.AddCommand<CollectContextLineupsCommand>("lineups")
                     .WithDescription("Refresh and upload WM26 lineup context and KPI documents")
                     .WithExample("collect-context", "lineups", "--community-context", "ehonda-dev-wm26", "--dry-run");
+                collectContext.AddCommand<CollectContextClubEloCommand>("club-elo")
+                    .WithDescription("Publish the complete seed-backed Bundesliga 2026/27 Club Elo snapshot")
+                    .WithExample("collect-context", "club-elo", "--competition", "bundesliga-2026-27", "--community-context", "ehonda-dev-buli-2627", "--dry-run");
             });
 
             config.AddBranch<Wm26RecentHistorySettings>("wm26-recent-history", wm26RecentHistory =>

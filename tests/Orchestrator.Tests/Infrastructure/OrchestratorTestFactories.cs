@@ -931,18 +931,21 @@ public static class OrchestratorTestFactories
         Option<Mock<IKpiRepository>> kpiRepository = default,
         Option<Mock<IPredictionRepository>> predictionRepository = default,
         Option<Mock<IContextRepository>> contextRepository = default,
-        Option<Mock<IMatchOutcomeRepository>> matchOutcomeRepository = default)
+        Option<Mock<IMatchOutcomeRepository>> matchOutcomeRepository = default,
+        Option<Mock<IDocumentPublicationRepository>> documentPublicationRepository = default)
     {
         var mockFactory = new Mock<IFirebaseServiceFactory>();
         var mockKpiRepo = kpiRepository.Or(() => new Mock<IKpiRepository>());
         var mockPredictionRepo = predictionRepository.Or(() => CreateMockPredictionRepository());
         var mockContextRepo = contextRepository.Or(() => CreateMockContextRepository());
         var mockMatchOutcomeRepo = matchOutcomeRepository.Or(() => CreateMockMatchOutcomeRepository());
+        var mockDocumentPublicationRepo = documentPublicationRepository.Or(() => new Mock<IDocumentPublicationRepository>());
 
         mockFactory.Setup(f => f.CreateKpiRepository(It.IsAny<string>())).Returns(mockKpiRepo.Object);
         mockFactory.Setup(f => f.CreatePredictionRepository(It.IsAny<string>())).Returns(mockPredictionRepo.Object);
         mockFactory.Setup(f => f.CreateContextRepository(It.IsAny<string>())).Returns(mockContextRepo.Object);
         mockFactory.Setup(f => f.CreateMatchOutcomeRepository(It.IsAny<string>())).Returns(mockMatchOutcomeRepo.Object);
+        mockFactory.Setup(f => f.CreateDocumentPublicationRepository(It.IsAny<string>())).Returns(mockDocumentPublicationRepo.Object);
 
         return mockFactory;
     }
