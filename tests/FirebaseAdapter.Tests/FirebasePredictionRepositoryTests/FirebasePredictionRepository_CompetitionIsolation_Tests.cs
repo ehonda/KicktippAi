@@ -14,7 +14,8 @@ public class FirebasePredictionRepository_CompetitionIsolation_Tests(FirestoreFi
     {
         const string communityContext = "shared-community";
         var match = CreateMatch();
-        var bundesligaRepository = CreateRepository();
+        var bundesligaRepository = CreateRepository(
+            competition: NullableOption.Some(CompetitionIds.Bundesliga2026_27));
         var worldCupRepository = CreateRepository(
             competition: NullableOption.Some(CompetitionIds.FifaWorldCup2026));
 
@@ -48,18 +49,31 @@ public class FirebasePredictionRepository_CompetitionIsolation_Tests(FirestoreFi
     [Test]
     public async Task Current_bundesliga_predictions_store_explicit_competition_and_community_fields()
     {
-        var repository = CreateRepository();
-        var match = CreateMatch();
+        var repository = CreateRepository(competition: NullableOption.Some(CompetitionIds.Bundesliga2026_27));
+        var match = CreateMatch(homeTeam: "FC Bayern München", awayTeam: "Borussia Dortmund", matchday: 1);
         var question = CreateBonusQuestion(text: "Who will win?");
+        var modelConfig = PredictionModelConfig.Create("gpt-5");
+        var manifest = ResolvedMatchContextManifest.Create(
+            CompetitionIds.Bundesliga2026_27,
+            "community-a",
+            MatchContextDocumentCatalog.ForMatch(match, "community-a", CompetitionIds.Bundesliga2026_27)
+                .RequiredDocumentNames.Select((name, index) => new ResolvedMatchContextDocument(
+                    name,
+                    index + 1,
+                    "Context",
+                    DocumentPublicationContract.ComputeContentSha256(name))),
+            new string('a', DocumentPublicationContract.Sha256HexLength),
+            new string('b', DocumentPublicationContract.Sha256HexLength));
 
-        await repository.SavePredictionAsync(
+        await repository.SavePredictionWithResolvedContextAsync(
             match,
             CreatePrediction(),
-            "gpt-5",
+            modelConfig,
             "100",
             0.01,
             "community-a",
-            []);
+            manifest.Documents.Select(document => document.Name),
+            manifest);
         await repository.SaveBonusPredictionAsync(
             question,
             new BonusPrediction([question.Options[0].Id]),

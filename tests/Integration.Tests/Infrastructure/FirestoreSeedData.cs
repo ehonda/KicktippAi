@@ -7,7 +7,9 @@ namespace Integration.Tests.Infrastructure;
 
 internal static class FirestoreSeedData
 {
-    private const string Competition = CompetitionIds.Bundesliga2026_27;
+    // This helper is currently scoped only to the stale-metadata regressions, which
+    // deliberately preserve the legacy timestamp-based 2025/26 contract.
+    private const string Competition = CompetitionIds.Bundesliga2025_26;
 
     public static async Task SeedMatchPredictionAsync(
         FirestoreDb firestoreDb,

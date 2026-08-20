@@ -48,7 +48,7 @@ public sealed class FirebasePredictionRepository_ResolvedContextManifest_Tests(F
     public async Task Ordinary_Bundesliga_save_entrypoints_reject_manifestless_new_writes()
     {
         var repository = CreateRepository(competition: EHonda.Optional.Core.Option.Some(CompetitionIds.Bundesliga2026_27));
-        var match = CreateMatch();
+        var match = CreateCanonicalBundesligaMatch();
         var config = PredictionModelConfig.Create("gpt-5");
 
         await Assert.That(() => repository.SavePredictionAsync(
@@ -63,7 +63,7 @@ public sealed class FirebasePredictionRepository_ResolvedContextManifest_Tests(F
     public async Task Provenance_capable_Bundesliga_save_entrypoints_reject_mismatched_manifest_scope()
     {
         var repository = CreateRepository(competition: EHonda.Optional.Core.Option.Some(CompetitionIds.Bundesliga2026_27));
-        var match = CreateMatch();
+        var match = CreateCanonicalBundesligaMatch();
         var manifest = CreateManifest(match, "different-community");
         var config = PredictionModelConfig.Create("gpt-5");
 
@@ -81,7 +81,7 @@ public sealed class FirebasePredictionRepository_ResolvedContextManifest_Tests(F
     public async Task Transactional_Bundesliga_reprediction_allocation_allows_only_one_concurrent_writer()
     {
         var repository = CreateRepository(competition: EHonda.Optional.Core.Option.Some(CompetitionIds.Bundesliga2026_27));
-        var match = CreateMatch();
+        var match = CreateCanonicalBundesligaMatch();
         var config = PredictionModelConfig.Create("gpt-5");
         var manifest = CreateManifest(match, "test-community");
         var names = manifest.Documents.Select(document => document.Name).ToArray();
@@ -114,7 +114,7 @@ public sealed class FirebasePredictionRepository_ResolvedContextManifest_Tests(F
     public async Task Transactional_Bundesliga_reprediction_allocation_enforces_the_configured_maximum_and_cancelled_lookup()
     {
         var repository = CreateRepository(competition: EHonda.Optional.Core.Option.Some(CompetitionIds.Bundesliga2026_27));
-        var storedMatch = CreateMatch(isCancelled: true);
+        var storedMatch = CreateCanonicalBundesligaMatch(isCancelled: true);
         var rescheduledCancelledMatch = storedMatch with { StartsAt = storedMatch.StartsAt.PlusHours(2) };
         var config = PredictionModelConfig.Create("gpt-5");
         var manifest = CreateManifest(rescheduledCancelledMatch, "test-community");
@@ -135,7 +135,7 @@ public sealed class FirebasePredictionRepository_ResolvedContextManifest_Tests(F
     public async Task Transactional_Bundesliga_reprediction_allocation_rejects_the_int32_maximum_boundary()
     {
         var repository = CreateRepository(competition: EHonda.Optional.Core.Option.Some(CompetitionIds.Bundesliga2026_27));
-        var match = CreateMatch();
+        var match = CreateCanonicalBundesligaMatch();
         var config = PredictionModelConfig.Create("gpt-5");
         var manifest = CreateManifest(match, "test-community");
         var now = Timestamp.GetCurrentTimestamp();
@@ -170,7 +170,7 @@ public sealed class FirebasePredictionRepository_ResolvedContextManifest_Tests(F
     public async Task Metadata_read_preserves_direct_seeded_manifestless_bundesliga_history()
     {
         var repository = CreateRepository(competition: EHonda.Optional.Core.Option.Some(CompetitionIds.Bundesliga2026_27));
-        var match = CreateMatch();
+        var match = CreateCanonicalBundesligaMatch();
         var config = PredictionModelConfig.Create("gpt-5");
         await SeedManifestlessHistoricalPredictionAsync(match, config, "historical-normal");
 
@@ -184,7 +184,7 @@ public sealed class FirebasePredictionRepository_ResolvedContextManifest_Tests(F
     public async Task Cancelled_metadata_read_preserves_direct_seeded_manifestless_bundesliga_history()
     {
         var repository = CreateRepository(competition: EHonda.Optional.Core.Option.Some(CompetitionIds.Bundesliga2026_27));
-        var match = CreateMatch(isCancelled: true);
+        var match = CreateCanonicalBundesligaMatch(isCancelled: true);
         var config = PredictionModelConfig.Create("gpt-5");
         await SeedManifestlessHistoricalPredictionAsync(match, config, "historical-cancelled");
 
@@ -199,7 +199,7 @@ public sealed class FirebasePredictionRepository_ResolvedContextManifest_Tests(F
     public async Task Cancelled_metadata_read_still_fails_closed_for_a_non_null_corrupt_manifest()
     {
         var repository = CreateRepository(competition: EHonda.Optional.Core.Option.Some(CompetitionIds.Bundesliga2026_27));
-        var match = CreateMatch(isCancelled: true);
+        var match = CreateCanonicalBundesligaMatch(isCancelled: true);
         var config = PredictionModelConfig.Create("gpt-5");
         await SeedManifestlessHistoricalPredictionAsync(match, config, "historical-cancelled-corrupt");
         await Fixture.Db.Collection("match-predictions").Document("historical-cancelled-corrupt")
@@ -239,6 +239,9 @@ public sealed class FirebasePredictionRepository_ResolvedContextManifest_Tests(F
             .Throws<InvalidDataException>();
     }
 
+    private static Match CreateCanonicalBundesligaMatch(bool isCancelled = false) =>
+        CreateMatch(homeTeam: "FC Bayern München", awayTeam: "Borussia Dortmund", matchday: 1, isCancelled: isCancelled);
+
     private static ResolvedMatchContextManifest CreateManifest(Match match, string communityContext) =>
         ResolvedMatchContextManifest.Create(
             CompetitionIds.Bundesliga2026_27,
@@ -254,7 +257,7 @@ public sealed class FirebasePredictionRepository_ResolvedContextManifest_Tests(F
         SavePredictionForDirectManifestMutationAsync()
     {
         var repository = CreateRepository(competition: EHonda.Optional.Core.Option.Some(CompetitionIds.Bundesliga2026_27));
-        var match = CreateMatch();
+        var match = CreateCanonicalBundesligaMatch();
         var config = PredictionModelConfig.Create("gpt-5");
         var manifest = CreateManifest(match, "test-community");
         await repository.SavePredictionWithResolvedContextAsync(
