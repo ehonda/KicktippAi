@@ -73,7 +73,7 @@ public class ServiceCollectionExtensions_Tests
         var predictorContext = scope.ServiceProvider.GetRequiredService<PredictorContext>();
         var fileProvider = provider.GetRequiredService<IFileProvider>();
 
-        await Assert.That(predictorContext.Documents).HasCount().EqualTo(0);
+        await Assert.That(predictorContext.Documents.Count).IsEqualTo(0);
         await Assert.That(fileProvider).IsNotNull();
     }
 
