@@ -70,11 +70,11 @@ public sealed class FirebasePredictionRepository_ResolvedContextManifest_Tests(F
         await Assert.That(() => repository.SavePredictionWithResolvedContextAsync(
                 match, new Prediction(2, 1), config, "{}", 0.01, "test-community",
                 manifest.Documents.Select(document => document.Name), manifest))
-            .Throws<ArgumentException>();
+            .Throws<InvalidDataException>();
         await Assert.That(() => repository.SaveRepredictionWithResolvedContextAsync(
                 match, new Prediction(2, 1), config, "{}", 0.01, "test-community",
                 manifest.Documents.Select(document => document.Name), -1, 1, manifest))
-            .Throws<ArgumentException>();
+            .Throws<InvalidDataException>();
     }
 
     [Test]
