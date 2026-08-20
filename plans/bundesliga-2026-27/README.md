@@ -102,3 +102,5 @@ P0 is complete only when:
 - [ADR-0018: Validate roster publication metadata semantically](decisions/0018-validate-roster-publication-metadata-semantically.md)
 - [ADR-0019: Share one roster-publication truth boundary](decisions/0019-roster-publication-truth-boundary.md)
 - [ADR-0020: Record immutable match-context manifests](decisions/0020-record-immutable-match-context-manifests.md)
+- [ADR-0021: Bind ordinary context content and prepare provenance](decisions/0021-bind-ordinary-context-content-and-prepare-provenance.md) — supersedes only ADR-0020's ordinary-document version/content portions
+- [ADR-0022: Allocate Bundesliga repredictions transactionally](decisions/0022-transactional-bundesliga-reprediction-allocation.md) — supersedes only ADR-0020's Bundesliga prediction-save portion

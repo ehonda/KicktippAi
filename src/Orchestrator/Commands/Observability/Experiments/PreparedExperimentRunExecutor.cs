@@ -38,7 +38,7 @@ internal sealed class PreparedExperimentRunExecutor
         var manifest = await PreparedExperimentCommandSupport.LoadJsonFileAsync<PreparedExperimentManifest>(
             request.ManifestPath,
             cancellationToken);
-        PreparedExperimentCommandSupport.ValidateManifest(manifest);
+        manifest = PreparedExperimentCommandSupport.ValidateManifest(manifest);
         PreparedExperimentCommandSupport.EnsureTaskType(manifest, expectedTaskType);
 
         var runMetadata = string.IsNullOrWhiteSpace(request.RunMetadataFile)
@@ -205,7 +205,7 @@ internal sealed class PreparedExperimentRunExecutor
         var manifest = await PreparedExperimentCommandSupport.LoadJsonFileAsync<PreparedExperimentManifest>(
             request.ManifestPath,
             cancellationToken);
-        PreparedExperimentCommandSupport.ValidateManifest(manifest);
+        manifest = PreparedExperimentCommandSupport.ValidateManifest(manifest);
         PreparedExperimentCommandSupport.EnsureTaskType(manifest, "community-to-date");
 
         if (manifest.Participants.Count == 0)

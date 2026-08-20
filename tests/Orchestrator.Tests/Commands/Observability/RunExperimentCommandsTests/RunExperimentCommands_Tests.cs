@@ -1,5 +1,6 @@
 using System.Diagnostics;
 using System.Text.Json;
+using System.Text.Json.Nodes;
 using EHonda.KicktippAi.Core;
 using Google.Cloud.Firestore;
 using Microsoft.Extensions.DependencyInjection;
@@ -66,6 +67,220 @@ public class RunExperimentCommands_Tests
 
         PreparedExperimentCommandSupport.ValidateManifest(manifest);
         await Assert.That(manifest.Items.Single().ResolvedContextManifest).IsNull();
+    }
+
+    [Test]
+    public async Task Prepared_bundesliga_case_variant_is_canonicalized_but_embedded_scope_must_match()
+    {
+        var match = new Match("FC Bayern München", "Borussia Dortmund", default, 1);
+        var resolved = CreateCanonicalBundesligaResolvedContextManifest(match);
+        var manifest = new PreparedExperimentManifest
+        {
+            Competition = "BUNDESLIGA-2026-27", CommunityContext = "test-community",
+            Items = [new PreparedExperimentManifestItem
+            {
+                SourceDatasetItemId = "source", SliceDatasetItemId = "slice", HomeTeam = match.HomeTeam,
+                AwayTeam = match.AwayTeam, Matchday = 1, StartsAt = "2026-08-21T20:30:00Z",
+                ResolvedContextManifest = resolved, PredictionCreatedAt = DateTimeOffset.UtcNow
+            }]
+        };
+
+        var normalized = PreparedExperimentCommandSupport.ValidateManifest(manifest);
+        await Assert.That(normalized.Competition).IsEqualTo(CompetitionIds.Bundesliga2026_27);
+    }
+
+    [Test]
+    public async Task Prepared_bundesliga_embedded_manifest_competition_or_community_mismatch_is_rejected()
+    {
+        var match = new Match("FC Bayern München", "Borussia Dortmund", default, 1);
+        var matching = CreateCanonicalBundesligaResolvedContextManifest(match);
+        var wrongCommunity = CreateCanonicalBundesligaResolvedContextManifest(match, communityContext: "other-community");
+
+        var communityException = await Assert.That(() => PreparedExperimentCommandSupport.ValidateManifest(new PreparedExperimentManifest
+        {
+            Competition = CompetitionIds.Bundesliga2026_27,
+            CommunityContext = "test-community",
+            Items = [CreateBundesligaPreparedItem(match, wrongCommunity)]
+        })).Throws<InvalidOperationException>();
+
+        await Assert.That(communityException!.Message).Contains("community scope");
+
+        var matchingManifest = new PreparedExperimentManifest
+        {
+            Competition = CompetitionIds.Bundesliga2026_27,
+            CommunityContext = "test-community",
+            Items = [CreateBundesligaPreparedItem(match, matching)]
+        };
+        var json = JsonNode.Parse(JsonSerializer.Serialize(matchingManifest, PreparedExperimentCommandSupport.JsonOptions))!;
+        json["items"]![0]!["resolvedContextManifest"]!["competition"] = CompetitionIds.Bundesliga2025_26;
+
+        var exception = await Assert.That(() => JsonSerializer.Deserialize<PreparedExperimentManifest>(
+                json.ToJsonString(), PreparedExperimentCommandSupport.JsonOptions))
+            .Throws<JsonException>();
+        await Assert.That(exception!.Message).Contains("invalid");
+    }
+
+    [Test]
+    public async Task Prepared_run_metadata_scope_override_is_rejected()
+    {
+        var manifest = new PreparedExperimentManifest { Competition = CompetitionIds.Bundesliga2025_26, CommunityContext = "community-a", Items = [new PreparedExperimentManifestItem { SourceDatasetItemId = "source", SliceDatasetItemId = "slice", HomeTeam = "A", AwayTeam = "B", Matchday = 1, StartsAt = "x" }] };
+        var options = new PreparedExperimentRunOptions("gpt-5", "prompt", false, null, null, null, null, "local", null, null, null, "simple");
+        await Assert.That(() => PreparedExperimentCommandSupport.NormalizeRunMetadata(new PreparedExperimentRunMetadata { Competition = CompetitionIds.FifaWorldCup2026 }, manifest, options)).Throws<InvalidOperationException>();
+        await Assert.That(() => PreparedExperimentCommandSupport.NormalizeRunMetadata(new PreparedExperimentRunMetadata { CommunityContext = "community-b" }, manifest, options)).Throws<InvalidOperationException>();
+    }
+
+    [Test]
+    [NotInParallel("ProcessState")]
+    public async Task File_backed_bundesliga_manifest_round_trips_and_reconstructs_recorded_context_after_heads_advance()
+    {
+        var temporaryDirectory = Directory.CreateTempSubdirectory();
+        try
+        {
+            var match = new Match("FC Bayern München", "Borussia Dortmund", default, 1);
+            var recordedOrdinaryDocuments = CreateMatchContextDocuments();
+            var manifest = new PreparedExperimentManifest
+            {
+                TaskType = "slice",
+                Competition = CompetitionIds.Bundesliga2026_27,
+                CommunityContext = "test-community",
+                SliceDatasetName = "test-dataset",
+                Items = [CreateBundesligaPreparedItem(
+                    match,
+                    CreateCanonicalBundesligaResolvedContextManifest(match, ordinaryDocuments: recordedOrdinaryDocuments))]
+            };
+            var manifestPath = Path.Combine(temporaryDirectory.FullName, "prepared-bundesliga.json");
+            await File.WriteAllTextAsync(
+                manifestPath,
+                JsonSerializer.Serialize(manifest, PreparedExperimentCommandSupport.JsonOptions));
+
+            // The generic rows have since advanced from the exact version recorded in the
+            // artifact.  A reconstruction must never fall back to these current heads.
+            var advancedOrdinaryDocuments = recordedOrdinaryDocuments.ToDictionary(
+                entry => entry.Key,
+                entry => new ContextDocument(entry.Key, $"advanced:{entry.Value.Content}", entry.Value.Version + 1, DateTimeOffset.UtcNow),
+                StringComparer.Ordinal);
+            var contextRepository = new Mock<IContextRepository>(MockBehavior.Strict);
+            contextRepository
+                .Setup(repository => repository.GetContextDocumentAsync(
+                    It.IsAny<string>(), 1, "test-community", It.IsAny<CancellationToken>()))
+                .ReturnsAsync((string name, int _, string _, CancellationToken _) => recordedOrdinaryDocuments[name]);
+            contextRepository
+                .Setup(repository => repository.GetLatestContextDocumentAsync(
+                    It.IsAny<string>(), "test-community", It.IsAny<CancellationToken>()))
+                .ReturnsAsync((string name, string _, CancellationToken _) => advancedOrdinaryDocuments[name]);
+
+            var recordedPublicationRepository = CreateMockBundesligaDocumentPublicationRepository();
+            var recordedRoster = await recordedPublicationRepository.Object.GetLastKnownGoodAsync(
+                BundesligaDocumentPublication.Rosters, "test-community");
+            var recordedElo = await recordedPublicationRepository.Object.GetLastKnownGoodAsync(
+                BundesligaDocumentPublication.ClubElo, "test-community");
+            var advancedRoster = CreateAdvancedHead(recordedRoster!, 'a');
+            var advancedElo = CreateAdvancedHead(recordedElo!, 'b');
+            var publicationRepository = new Mock<IDocumentPublicationRepository>(MockBehavior.Strict);
+            publicationRepository.SetupGet(repository => repository.Competition).Returns(CompetitionIds.Bundesliga2026_27);
+            publicationRepository
+                .Setup(repository => repository.GetSnapshotAsync(
+                    BundesligaDocumentPublication.Rosters,
+                    "test-community",
+                    recordedRoster!.Snapshot.SnapshotId,
+                    It.IsAny<CancellationToken>()))
+                .ReturnsAsync(recordedRoster);
+            publicationRepository
+                .Setup(repository => repository.GetSnapshotAsync(
+                    BundesligaDocumentPublication.ClubElo,
+                    "test-community",
+                    recordedElo!.Snapshot.SnapshotId,
+                    It.IsAny<CancellationToken>()))
+                .ReturnsAsync(recordedElo);
+            // These represent post-prediction heads with different snapshot identities.
+            // Recorded reconstruction is required to use the two immutable snapshot IDs above,
+            // never either current head.
+            publicationRepository
+                .Setup(repository => repository.GetLastKnownGoodAsync(
+                    BundesligaDocumentPublication.Rosters, "test-community", It.IsAny<CancellationToken>()))
+                .ReturnsAsync(advancedRoster);
+            publicationRepository
+                .Setup(repository => repository.GetLastKnownGoodAsync(
+                    BundesligaDocumentPublication.ClubElo, "test-community", It.IsAny<CancellationToken>()))
+                .ReturnsAsync(advancedElo);
+
+            var predictionRepository = new Mock<IPredictionRepository>(MockBehavior.Strict);
+            predictionRepository
+                .Setup(repository => repository.GetStoredMatchAsync(
+                    match.HomeTeam, match.AwayTeam, match.Matchday, (PredictionModelConfig?)null, null, It.IsAny<CancellationToken>()))
+                .ReturnsAsync(match);
+            var outcomeRepository = CreateMockMatchOutcomeRepository(matchdayOutcomes:
+            new List<PersistedMatchOutcome>
+            {
+                new(
+                "test-community", CompetitionIds.Bundesliga2026_27, match.HomeTeam, match.AwayTeam, match.StartsAt,
+                match.Matchday, 2, 1, MatchOutcomeAvailability.Completed, "tippspiel-1", DateTimeOffset.UtcNow, DateTimeOffset.UtcNow)
+            });
+            var firebaseFactory = CreateMockFirebaseServiceFactoryFull(
+                predictionRepository: predictionRepository,
+                contextRepository: contextRepository,
+                matchOutcomeRepository: outcomeRepository,
+                documentPublicationRepository: publicationRepository);
+
+            IReadOnlyList<DocumentContext>? usedContext = null;
+            var predictionService = CreateMockPredictionService(predictMatchResult: new Prediction(2, 1));
+            predictionService
+                .Setup(service => service.PredictMatchAsync(
+                    It.IsAny<Match>(), It.IsAny<IEnumerable<DocumentContext>>(), It.IsAny<bool>(),
+                    It.IsAny<PredictionTelemetryMetadata?>(), It.IsAny<CancellationToken>()))
+                .Callback((Match _, IEnumerable<DocumentContext> documents, bool _, PredictionTelemetryMetadata? _, CancellationToken _) =>
+                    usedContext = documents.ToList())
+                .ReturnsAsync(new Prediction(2, 1));
+
+            var langfuseClient = new Mock<ILangfusePublicApiClient>(MockBehavior.Strict);
+            langfuseClient
+                .Setup(client => client.CreateDatasetRunItemAsync(It.IsAny<LangfuseCreateDatasetRunItemRequest>(), It.IsAny<CancellationToken>()))
+                .ReturnsAsync(new LangfuseDatasetRunItem("run-item-1", "run-1", "recorded-run", "slice", "trace", null, DateTimeOffset.UtcNow, DateTimeOffset.UtcNow));
+            langfuseClient
+                .Setup(client => client.CreateScoreAsync(It.IsAny<LangfuseCreateScoreRequest>(), It.IsAny<CancellationToken>()))
+                .ReturnsAsync(new LangfuseCreateScoreResponse("score"));
+            langfuseClient
+                .Setup(client => client.GetDatasetRunAsync("test-dataset", "recorded-run", It.IsAny<CancellationToken>()))
+                .ReturnsAsync(new LangfuseDatasetRunWithItems("run-1", "recorded-run", "dataset-1", "test-dataset", null, default, []));
+            langfuseClient
+                .Setup(client => client.ListDatasetRunItemsAsync("dataset-1", "recorded-run", 1, It.IsAny<int>(), It.IsAny<CancellationToken>()))
+                .ReturnsAsync(new LangfusePaginatedResponse<LangfuseDatasetRunItem>([], new LangfusePaginationMeta(1, 100, 1, 1)));
+
+            var executor = new PreparedExperimentRunExecutor(
+                firebaseFactory.Object,
+                CreateMockOpenAiServiceFactory(predictionService: predictionService).Object,
+                langfuseClient.Object);
+            var summary = await executor.ExecuteAsync(
+                "slice",
+                new PreparedExperimentRunRequest(
+                    manifestPath,
+                    "recorded-run",
+                    null,
+                    null,
+                    false,
+                    new PreparedExperimentRunOptions(
+                        "gpt-5-nano", "prompt", false, "2026-08-21T20:30:00 Europe/Berlin (+02)", null, null,
+                        "test-dataset", "local", null, null, null, "simple-batched", BatchSize: 1)),
+                CancellationToken.None);
+
+            await Assert.That(summary.ExecutionCount).IsEqualTo(1);
+            await Assert.That(usedContext).HasCount().EqualTo(11);
+            await Assert.That(usedContext!.Where(document => recordedOrdinaryDocuments.ContainsKey(document.Name))
+                .Select(document => document.Content)).IsEquivalentTo(recordedOrdinaryDocuments.Values.Select(document => document.Content));
+            await Assert.That(usedContext!.Select(document => document.Content)).DoesNotContain(advancedOrdinaryDocuments.Values.First().Content);
+            contextRepository.Verify(repository => repository.GetLatestContextDocumentAsync(
+                It.IsAny<string>(), It.IsAny<string>(), It.IsAny<CancellationToken>()), Times.Never);
+            publicationRepository.Verify(repository => repository.GetLastKnownGoodAsync(
+                It.IsAny<DocumentPublicationDefinition>(), It.IsAny<string>(), It.IsAny<CancellationToken>()), Times.Never);
+            publicationRepository.Verify(repository => repository.GetSnapshotAsync(
+                BundesligaDocumentPublication.Rosters, "test-community", recordedRoster!.Snapshot.SnapshotId, It.IsAny<CancellationToken>()), Times.Once);
+            publicationRepository.Verify(repository => repository.GetSnapshotAsync(
+                BundesligaDocumentPublication.ClubElo, "test-community", recordedElo!.Snapshot.SnapshotId, It.IsAny<CancellationToken>()), Times.Once);
+        }
+        finally
+        {
+            temporaryDirectory.Delete(recursive: true);
+        }
     }
 
     [Test]
@@ -176,6 +391,36 @@ public class RunExperimentCommands_Tests
         await Assert.That(result.Successful).IsFalse();
         await Assert.That(result.Message).Contains("--langfuse-prompt-name is required");
     }
+
+    private static PreparedExperimentManifestItem CreateBundesligaPreparedItem(
+        Match match,
+        ResolvedMatchContextManifest resolvedContextManifest) =>
+        new()
+        {
+            SourceDatasetItemId = "source",
+            SliceDatasetItemId = "slice",
+            HomeTeam = match.HomeTeam,
+            AwayTeam = match.AwayTeam,
+            Matchday = match.Matchday,
+            StartsAt = "2026-08-21T20:30:00Z",
+            ResolvedContextManifest = resolvedContextManifest,
+            PredictionCreatedAt = DateTimeOffset.UtcNow
+        };
+
+    private static LoadedDocumentPublication CreateAdvancedHead(
+        LoadedDocumentPublication recorded,
+        char snapshotCharacter) =>
+        new(
+            new DocumentPublicationSnapshot(
+                recorded.Snapshot.Competition,
+                recorded.Snapshot.CommunityContext,
+                recorded.Snapshot.PublicationSet,
+                new string(snapshotCharacter, DocumentPublicationContract.Sha256HexLength),
+                recorded.Snapshot.SnapshotId,
+                recorded.Snapshot.CreatedAt.AddMinutes(1),
+                recorded.Snapshot.MetadataJson,
+                recorded.Snapshot.Documents),
+            recorded.Documents);
 
     private static PreparedExperimentExecutionSummary CreateExecutionSummary(
         string sourceDatasetItemId,

@@ -1,3 +1,6 @@
+using FirebaseAdapter.Models;
+using EHonda.KicktippAi.Core;
+using Google.Cloud.Firestore;
 using TestUtilities;
 using TUnit.Core;
 
@@ -125,5 +128,71 @@ public class FirebaseContextRepository_GetContextDocumentAsync_Tests(FirestoreFi
 
         // Assert
         await Assert.That(result).IsNull();
+    }
+
+    [Test]
+    public async Task Exact_read_fails_closed_when_the_stored_scope_envelope_is_corrupt()
+    {
+        const string documentName = "test-document";
+        const string community = "test-community";
+        await Fixture.Db.Collection("context-documents")
+            .Document("bundesliga-2026-27_test-document_test-community_0")
+            .SetAsync(new FirestoreContextDocument
+            {
+                Competition = "bundesliga-2025-26",
+                CommunityContext = community,
+                DocumentName = documentName,
+                Content = "content",
+                Version = 0,
+                CreatedAt = Timestamp.GetCurrentTimestamp()
+            });
+
+        await Assert.That(() => CreateRepository().GetContextDocumentAsync(documentName, 0, community))
+            .Throws<InvalidDataException>()
+            .WithMessageContaining("scope or exact identity");
+    }
+
+    [Test]
+    public async Task Ordinary_latest_timestamp_and_version_list_reads_ignore_a_newer_nonreserved_publication_row()
+    {
+        const string documentName = "test-document";
+        const string community = "test-community";
+        var ordinaryCreatedAt = new DateTimeOffset(2026, 8, 20, 10, 0, 0, TimeSpan.Zero);
+        var publicationCreatedAt = ordinaryCreatedAt.AddMinutes(1);
+        await Fixture.Db.Collection("context-documents")
+            .Document("bundesliga-2026-27_test-document_test-community_0")
+            .SetAsync(new FirestoreContextDocument
+            {
+                Id = "bundesliga-2026-27_test-document_test-community_0",
+                Competition = CompetitionIds.Bundesliga2026_27,
+                CommunityContext = community,
+                DocumentName = documentName,
+                Content = "ordinary",
+                Version = 0,
+                CreatedAt = Timestamp.FromDateTime(ordinaryCreatedAt.UtcDateTime)
+            });
+        await Fixture.Db.Collection("context-documents")
+            .Document("newer-custom-publication-row")
+            .SetAsync(new FirestoreContextDocument
+            {
+                Id = "newer-custom-publication-row",
+                Competition = CompetitionIds.Bundesliga2026_27,
+                CommunityContext = community,
+                PublicationSet = "custom-nonreserved-set",
+                DocumentName = documentName,
+                Content = "publication payload",
+                Version = 99,
+                CreatedAt = Timestamp.FromDateTime(publicationCreatedAt.UtcDateTime)
+            });
+
+        var repository = CreateRepository();
+        var latest = await repository.GetLatestContextDocumentAsync(documentName, community);
+        var timestamp = await repository.GetContextDocumentByTimestampAsync(documentName, publicationCreatedAt, community);
+        var versions = await repository.GetContextDocumentVersionsAsync(documentName, community);
+
+        await Assert.That(latest!.Content).IsEqualTo("ordinary");
+        await Assert.That(timestamp!.Content).IsEqualTo("ordinary");
+        await Assert.That(versions).HasCount().EqualTo(1);
+        await Assert.That(versions.Single().Content).IsEqualTo("ordinary");
     }
 }

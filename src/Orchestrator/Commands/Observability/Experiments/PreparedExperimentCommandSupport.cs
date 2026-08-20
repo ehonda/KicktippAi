@@ -66,6 +66,18 @@ internal static class PreparedExperimentCommandSupport
             ? PreparedExperimentSupport.BuildRunSubjectDisplayName(options.Model, normalizedReasoningEffort)
             : runMetadata.RunSubjectDisplayName;
 
+        var canonicalCompetition = CompetitionIds.Canonicalize(manifest.Competition);
+        if (!string.IsNullOrWhiteSpace(runMetadata.Competition)
+            && !string.Equals(CompetitionIds.Canonicalize(runMetadata.Competition), canonicalCompetition, StringComparison.Ordinal))
+        {
+            throw new InvalidOperationException("Run metadata competition does not match the prepared manifest competition.");
+        }
+        if (!string.IsNullOrWhiteSpace(runMetadata.CommunityContext)
+            && !string.Equals(runMetadata.CommunityContext, manifest.CommunityContext, StringComparison.Ordinal))
+        {
+            throw new InvalidOperationException("Run metadata community context does not match the prepared manifest community context.");
+        }
+
         return runMetadata with
         {
             Runner = string.IsNullOrWhiteSpace(runMetadata.Runner) ? "match-experiment-runner" : runMetadata.Runner,
@@ -76,7 +88,7 @@ internal static class PreparedExperimentCommandSupport
                 ? manifest.CommunityContext
                 : runMetadata.CommunityContext,
             Model = options.Model,
-            Competition = string.IsNullOrWhiteSpace(runMetadata.Competition) ? manifest.Competition : runMetadata.Competition,
+            Competition = canonicalCompetition,
             SourceDatasetName = string.IsNullOrWhiteSpace(runMetadata.SourceDatasetName)
                 ? manifest.SourceDatasetName
                 : runMetadata.SourceDatasetName,
@@ -167,13 +179,15 @@ internal static class PreparedExperimentCommandSupport
             runMetadata.EvaluationTimestampPolicy.Offset);
     }
 
-    public static void ValidateManifest(PreparedExperimentManifest manifest)
+    public static PreparedExperimentManifest ValidateManifest(PreparedExperimentManifest manifest)
     {
         if (string.IsNullOrWhiteSpace(manifest.Competition))
         {
             throw new InvalidOperationException("Slice manifest must contain a competition.");
         }
 
+        var canonicalCompetition = CompetitionIds.Canonicalize(manifest.Competition);
+        manifest = manifest with { Competition = canonicalCompetition };
         if (manifest.Items.Count == 0)
         {
             throw new InvalidOperationException("Slice manifest must contain at least one item.");
@@ -207,7 +221,7 @@ internal static class PreparedExperimentCommandSupport
                 throw new InvalidOperationException($"Slice manifest item '{item.SliceDatasetItemId}' has an invalid matchday.");
             }
 
-            if (string.Equals(manifest.Competition, CompetitionIds.Bundesliga2026_27, StringComparison.Ordinal))
+            if (string.Equals(canonicalCompetition, CompetitionIds.Bundesliga2026_27, StringComparison.Ordinal))
             {
                 if (item.ResolvedContextManifest is null)
                 {
@@ -226,8 +240,16 @@ internal static class PreparedExperimentCommandSupport
                     throw new InvalidOperationException(
                         $"Prepared Bundesliga 2026/27 item '{item.SliceDatasetItemId}' has a resolvedContextManifest with a different community scope.");
                 }
+
+                if (!string.Equals(item.ResolvedContextManifest.Competition, canonicalCompetition, StringComparison.Ordinal))
+                {
+                    throw new InvalidOperationException(
+                        $"Prepared Bundesliga 2026/27 item '{item.SliceDatasetItemId}' has a resolvedContextManifest with a different competition scope.");
+                }
             }
         }
+
+        return manifest;
     }
 
     public static void EnsureTaskType(PreparedExperimentManifest manifest, string expectedTaskType)

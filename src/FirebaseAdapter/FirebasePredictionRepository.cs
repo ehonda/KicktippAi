@@ -397,7 +397,10 @@ public class FirebasePredictionRepository : IPredictionRepository, IResolvedMatc
             var contextDocumentNames = firestorePrediction.ContextDocumentNames?.ToList() ?? new List<string>();
 
             var manifest = DeserializeResolvedContextManifest(firestorePrediction.ResolvedContextManifest);
-            ValidateResolvedContextManifest(match, communityContext, contextDocumentNames, manifest);
+            if (manifest is not null)
+            {
+                ValidateResolvedContextManifest(match, communityContext, contextDocumentNames, manifest);
+            }
             return new PredictionMetadata(
                 prediction,
                 createdAt,
@@ -1315,10 +1318,137 @@ public class FirebasePredictionRepository : IPredictionRepository, IResolvedMatc
 
     public Task SaveRepredictionWithResolvedContextAsync(
         Match match, Prediction prediction, PredictionModelConfig modelConfig, string tokenUsage, double cost,
-        string communityContext, IEnumerable<string> contextDocumentNames, int repredictionIndex,
-        ResolvedMatchContextManifest resolvedContextManifest, CancellationToken cancellationToken = default) =>
-        SaveRepredictionInternalAsync(match, prediction, modelConfig, tokenUsage, cost, communityContext, contextDocumentNames,
-            repredictionIndex, resolvedContextManifest, cancellationToken);
+        string communityContext, IEnumerable<string> contextDocumentNames, int expectedCurrentRepredictionIndex,
+        int maxRepredictions, ResolvedMatchContextManifest resolvedContextManifest,
+        CancellationToken cancellationToken = default) =>
+        SaveBundesligaRepredictionWithResolvedContextAsync(
+            match,
+            prediction,
+            modelConfig,
+            tokenUsage,
+            cost,
+            communityContext,
+            contextDocumentNames,
+            expectedCurrentRepredictionIndex,
+            maxRepredictions,
+            resolvedContextManifest,
+            cancellationToken);
+
+    private async Task SaveBundesligaRepredictionWithResolvedContextAsync(
+        Match match,
+        Prediction prediction,
+        PredictionModelConfig modelConfig,
+        string tokenUsage,
+        double cost,
+        string communityContext,
+        IEnumerable<string> contextDocumentNames,
+        int expectedCurrentRepredictionIndex,
+        int maxRepredictions,
+        ResolvedMatchContextManifest resolvedContextManifest,
+        CancellationToken cancellationToken)
+    {
+        ValidateResolvedContextManifest(match, communityContext, contextDocumentNames, resolvedContextManifest);
+        if (expectedCurrentRepredictionIndex < -1 || maxRepredictions < 0 || expectedCurrentRepredictionIndex > maxRepredictions)
+        {
+            throw new ArgumentOutOfRangeException(
+                nameof(expectedCurrentRepredictionIndex),
+                "The expected current reprediction index must be -1 through the configured nonnegative maximum.");
+        }
+
+        try
+        {
+            var storedNames = contextDocumentNames.ToArray();
+            var savedIndex = await _firestoreDb.RunTransactionAsync(async transaction =>
+            {
+                Query query = _firestoreDb.Collection(_predictionsCollection)
+                    .WhereEqualTo("homeTeam", match.HomeTeam)
+                    .WhereEqualTo("awayTeam", match.AwayTeam)
+                    .WhereEqualTo("competition", _competition)
+                    .WhereEqualTo("model", modelConfig.Model)
+                    .WhereEqualTo("communityContext", communityContext);
+                if (!match.IsCancelled)
+                {
+                    query = query.WhereEqualTo("startsAt", ConvertToTimestamp(match.StartsAt));
+                }
+
+                // A transaction reads the whole exact candidate set, rather than trusting the
+                // index observed before generation. Firestore retries on a concurrent matching
+                // write, making this compare-and-swap serializable for this prediction identity.
+                var candidates = await transaction.GetSnapshotAsync(query);
+                var current = SelectLatestForModelConfig(
+                    candidates.Documents.Select(document => document.ConvertTo<FirestoreMatchPrediction>()),
+                    modelConfig);
+                var actualCurrentIndex = current?.RepredictionIndex ?? -1;
+                if (actualCurrentIndex != expectedCurrentRepredictionIndex)
+                {
+                    throw new InvalidOperationException(
+                        $"Bundesliga reprediction concurrency conflict: expected current index {expectedCurrentRepredictionIndex}, found {actualCurrentIndex}.");
+                }
+
+                if (actualCurrentIndex == int.MaxValue)
+                {
+                    throw new InvalidOperationException(
+                        "Bundesliga reprediction index overflow: no index can be allocated after Int32.MaxValue.");
+                }
+
+                var nextIndex = checked(actualCurrentIndex + 1);
+                if (nextIndex > maxRepredictions)
+                {
+                    throw new InvalidOperationException(
+                        $"Bundesliga reprediction maximum conflict: next index {nextIndex} exceeds configured maximum {maxRepredictions}.");
+                }
+
+                var documentId = BuildBundesligaRepredictionDocumentId(match, modelConfig, communityContext, nextIndex);
+                var docRef = _firestoreDb.Collection(_predictionsCollection).Document(documentId);
+                var existing = await transaction.GetSnapshotAsync(docRef);
+                if (existing.Exists)
+                {
+                    throw new InvalidOperationException(
+                        $"Bundesliga reprediction concurrency conflict: index {nextIndex} is already allocated.");
+                }
+
+                var now = Timestamp.GetCurrentTimestamp();
+                transaction.Create(docRef, new FirestoreMatchPrediction
+                {
+                    Id = docRef.Id,
+                    HomeTeam = match.HomeTeam,
+                    AwayTeam = match.AwayTeam,
+                    StartsAt = ConvertToTimestamp(match.StartsAt),
+                    Matchday = match.Matchday,
+                    CompetitionSpecificData = ToFirestoreCompetitionSpecificData(match.CompetitionSpecificData),
+                    HomeGoals = prediction.HomeGoals,
+                    AwayGoals = prediction.AwayGoals,
+                    Justification = SerializeJustification(prediction.Justification),
+                    CreatedAt = now,
+                    UpdatedAt = now,
+                    Competition = _competition,
+                    Model = modelConfig.Model,
+                    ModelConfigKey = modelConfig.IdentityKey,
+                    ReasoningEffort = modelConfig.ReasoningEffort,
+                    TokenUsage = tokenUsage,
+                    Cost = cost,
+                    CommunityContext = communityContext,
+                    ContextDocumentNames = storedNames,
+                    ResolvedContextManifest = SerializeResolvedContextManifest(resolvedContextManifest),
+                    RepredictionIndex = nextIndex
+                });
+                return nextIndex;
+            }, cancellationToken: cancellationToken);
+
+            _logger.LogInformation(
+                "Saved transactionally allocated Bundesliga reprediction for match {HomeTeam} vs {AwayTeam} on matchday {Matchday} (reprediction index: {RepredictionIndex})",
+                match.HomeTeam,
+                match.AwayTeam,
+                match.Matchday,
+                savedIndex);
+        }
+        catch (Exception ex)
+        {
+            _logger.LogError(ex, "Failed to save transactionally allocated Bundesliga reprediction for match {HomeTeam} vs {AwayTeam}",
+                match.HomeTeam, match.AwayTeam);
+            throw;
+        }
+    }
 
     private async Task SaveRepredictionInternalAsync(Match match, Prediction prediction, PredictionModelConfig modelConfig, string tokenUsage, double cost, string communityContext, IEnumerable<string> contextDocumentNames, int repredictionIndex, ResolvedMatchContextManifest? resolvedContextManifest, CancellationToken cancellationToken)
     {
@@ -1770,6 +1900,12 @@ public class FirebasePredictionRepository : IPredictionRepository, IResolvedMatc
     {
         if (manifest is null)
         {
+            if (string.Equals(_competition, CompetitionIds.Bundesliga2026_27, StringComparison.Ordinal))
+            {
+                throw new InvalidOperationException(
+                    "New Bundesliga 2026/27 prediction writes require an immutable resolved-context manifest.");
+            }
+
             return;
         }
 
@@ -1784,6 +1920,25 @@ public class FirebasePredictionRepository : IPredictionRepository, IResolvedMatc
         {
             throw new InvalidDataException("Prediction context-document names do not match the immutable resolved-context manifest.");
         }
+    }
+
+    private string BuildBundesligaRepredictionDocumentId(
+        Match match,
+        PredictionModelConfig modelConfig,
+        string communityContext,
+        int repredictionIndex)
+    {
+        var identity = string.Join("\n", new[]
+        {
+            _competition,
+            match.HomeTeam,
+            match.AwayTeam,
+            match.IsCancelled ? "cancelled" : ConvertToTimestamp(match.StartsAt).ToString(),
+            modelConfig.IdentityKey,
+            communityContext,
+            repredictionIndex.ToString(System.Globalization.CultureInfo.InvariantCulture)
+        });
+        return $"bundesliga-reprediction-{DocumentPublicationContract.ComputeContentSha256(identity)}";
     }
 
     private static ResolvedMatchContextManifest? DeserializeResolvedContextManifest(string? serialized)
@@ -1833,7 +1988,7 @@ public class FirebasePredictionRepository : IPredictionRepository, IResolvedMatc
             throw new InvalidDataException("Stored resolved-context manifest document must be an object.");
         }
         var properties = element.EnumerateObject().ToArray();
-        var expectedNames = new[] { "name", "version", "kind" };
+        var expectedNames = new[] { "name", "version", "kind", "contentSha256" };
         if (!properties.Select(property => property.Name).SequenceEqual(expectedNames, StringComparer.Ordinal)
             || properties[1].Value.ValueKind != JsonValueKind.Number)
         {
@@ -1842,7 +1997,8 @@ public class FirebasePredictionRepository : IPredictionRepository, IResolvedMatc
         return new ResolvedMatchContextDocument(
             GetRequiredString(properties[0].Value, "name"),
             properties[1].Value.GetInt32(),
-            GetRequiredString(properties[2].Value, "kind"));
+            GetRequiredString(properties[2].Value, "kind"),
+            GetRequiredString(properties[3].Value, "contentSha256"));
     }
 
     private static string GetRequiredString(JsonElement element, string fieldName) =>

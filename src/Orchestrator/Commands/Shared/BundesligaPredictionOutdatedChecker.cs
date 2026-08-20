@@ -26,7 +26,13 @@ public static class BundesligaPredictionOutdatedChecker
         foreach (var entry in manifest.Documents.Where(entry => !IsReserved(entry.Name)))
         {
             var latest = await contextRepository.GetLatestContextDocumentAsync(entry.Name, communityContext, cancellationToken);
-            if (latest is null || !string.Equals(latest.DocumentName, entry.Name, StringComparison.Ordinal) || latest.Version != entry.Version)
+            if (latest is null
+                || !string.Equals(latest.DocumentName, entry.Name, StringComparison.Ordinal)
+                || latest.Version != entry.Version
+                || !string.Equals(
+                    DocumentPublicationContract.ComputeContentSha256(latest.Content),
+                    entry.ContentSha256,
+                    StringComparison.Ordinal))
             {
                 return true;
             }
@@ -52,7 +58,12 @@ public static class BundesligaPredictionOutdatedChecker
         {
             var publication = entry.Name.StartsWith("roster-", StringComparison.Ordinal) ? rosters : elo;
             var current = publication.Documents.SingleOrDefault(document => string.Equals(document.Name, entry.Name, StringComparison.Ordinal));
-            if (current is null || current.Version != entry.Version)
+            if (current is null
+                || current.Version != entry.Version
+                || !string.Equals(
+                    DocumentPublicationContract.ComputeContentSha256(current.Content),
+                    entry.ContentSha256,
+                    StringComparison.Ordinal))
             {
                 return true;
             }

@@ -316,7 +316,7 @@ public class VerifyMatchdayCommand : AsyncCommand<VerifySettings>
 
             if (predictionMetadata is null)
             {
-                return false;
+                return string.Equals(competition, CompetitionIds.Bundesliga2026_27, StringComparison.Ordinal);
             }
 
             if (string.Equals(competition, CompetitionIds.Bundesliga2026_27, StringComparison.Ordinal)

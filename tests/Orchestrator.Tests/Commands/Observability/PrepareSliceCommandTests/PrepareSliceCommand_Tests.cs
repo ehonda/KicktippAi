@@ -11,6 +11,44 @@ namespace Orchestrator.Tests.Commands.Observability.PrepareSliceCommandTests;
 public class PrepareSliceCommand_Tests
 {
     [Test]
+    public async Task Running_command_rejects_manifestless_bundesliga_source_before_writing_artifacts()
+    {
+        var tempDirectory = Directory.CreateTempSubdirectory();
+
+        try
+        {
+            var matchOutcomeRepository = new Mock<IMatchOutcomeRepository>(MockBehavior.Strict);
+            matchOutcomeRepository
+                .Setup(repository => repository.GetMatchdayOutcomesAsync(
+                    1,
+                    "test-community",
+                    It.IsAny<CancellationToken>()))
+                .ReturnsAsync([CreateCompletedOutcome(
+                    "FC Bayern München", "RB Leipzig", NodaTime.Instant.FromUtc(2026, 8, 21, 14, 30).InUtc(),
+                    1, 2, 1, "manifestless", CompetitionIds.Bundesliga2026_27)]);
+            var firebaseFactory = new Mock<IFirebaseServiceFactory>();
+            firebaseFactory
+                .Setup(factory => factory.CreateMatchOutcomeRepository(CompetitionIds.Bundesliga2026_27))
+                .Returns(matchOutcomeRepository.Object);
+            var outputDirectory = Path.Combine(tempDirectory.FullName, "manifestless");
+            var context = CreateCommandApp<PrepareSliceCommand>("prepare-slice", firebaseServiceFactory: firebaseFactory);
+
+            var (exitCode, output) = await RunCommandAsync(
+                context.App, context.Console, "prepare-slice", "--community-context", "test-community", "--matchdays", "1",
+                "--sample-size", "1", "--sample-seed", "42", "--output-directory", outputDirectory);
+
+            await Assert.That(exitCode).IsEqualTo(1);
+            await Assert.That(output).Contains("missing required immutable resolvedContextManifest");
+            await Assert.That(File.Exists(Path.Combine(outputDirectory, "slice-dataset.json"))).IsFalse();
+            await Assert.That(File.Exists(Path.Combine(outputDirectory, "slice-manifest.json"))).IsFalse();
+        }
+        finally
+        {
+            tempDirectory.Delete(recursive: true);
+        }
+    }
+
+    [Test]
     public async Task Running_command_writes_deterministic_slice_artifacts_for_a_fixed_seed()
     {
         var tempDirectory = Directory.CreateTempSubdirectory();
@@ -304,12 +342,13 @@ public class PrepareSliceCommand_Tests
         int matchday,
         int homeGoals,
         int awayGoals,
-        string tippSpielId)
+        string tippSpielId,
+        string competition = CompetitionIds.Bundesliga2025_26)
     {
         var createdAt = startsAt.ToInstant().ToDateTimeOffset();
         return new PersistedMatchOutcome(
             "test-community",
-            "bundesliga-2025-26",
+            competition,
             homeTeam,
             awayTeam,
             startsAt,

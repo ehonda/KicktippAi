@@ -54,6 +54,25 @@ public sealed class BundesligaMatchContextResolverTests
     }
 
     [Test]
+    public async Task Live_resolution_rejects_an_on_demand_exact_reread_that_returns_a_different_version()
+    {
+        var missing = "head-to-head-fcb-vs-bvb.csv";
+        var context = CreateContextRepository(missing);
+        context.Setup(repository => repository.SaveContextDocumentAsync(missing, "generated", Community, It.IsAny<CancellationToken>()))
+            .ReturnsAsync(42);
+        context.Setup(repository => repository.GetContextDocumentAsync(missing, 42, Community, It.IsAny<CancellationToken>()))
+            .ReturnsAsync(new ContextDocument(missing, "generated", 43, DateTimeOffset.UnixEpoch));
+        var publications = CreatePublicationRepository(CreateCanonicalRosterPublication(), CreateCanonicalClubEloPublication());
+
+        await Assert.That(() => new BundesligaMatchContextResolver(context.Object, publications.Object).ResolveLiveAsync(
+                Match,
+                Community,
+                (name, _) => Task.FromResult<DocumentContext?>(new DocumentContext(name, "generated"))))
+            .Throws<InvalidOperationException>()
+            .WithMessageContaining("materialize and verify");
+    }
+
+    [Test]
     public async Task Recorded_resolution_uses_the_original_snapshot_versions_after_heads_advance()
     {
         var context = CreateContextRepository();
@@ -72,11 +91,11 @@ public sealed class BundesligaMatchContextResolverTests
             MatchContextDocumentCatalog.ForMatch(Match, Community, CompetitionIds.Bundesliga2026_27).RequiredDocumentNames.Select(name =>
                 name switch
                 {
-                    "roster-fcb" => new ResolvedMatchContextDocument(name, originalRosters.Documents.Single(document => document.Name == name).Version),
-                    "roster-bvb" => new ResolvedMatchContextDocument(name, originalRosters.Documents.Single(document => document.Name == name).Version),
-                    "club-elo-fcb.csv" => new ResolvedMatchContextDocument(name, originalElo.Documents.Single(document => document.Name == name).Version),
-                    "club-elo-bvb.csv" => new ResolvedMatchContextDocument(name, originalElo.Documents.Single(document => document.Name == name).Version),
-                    _ => new ResolvedMatchContextDocument(name, 1)
+                    "roster-fcb" => Entry(originalRosters.Documents.Single(document => document.Name == name)),
+                    "roster-bvb" => Entry(originalRosters.Documents.Single(document => document.Name == name)),
+                    "club-elo-fcb.csv" => Entry(originalElo.Documents.Single(document => document.Name == name)),
+                    "club-elo-bvb.csv" => Entry(originalElo.Documents.Single(document => document.Name == name)),
+                    _ => Entry(name, 1, name)
                 }),
             originalRosters.Snapshot.SnapshotId,
             originalElo.Snapshot.SnapshotId);
@@ -103,7 +122,7 @@ public sealed class BundesligaMatchContextResolverTests
         var manifest = ResolvedMatchContextManifest.Create(
             CompetitionIds.Bundesliga2026_27,
             Community,
-            MatchContextDocumentCatalog.ForMatch(Match, Community, CompetitionIds.Bundesliga2026_27).RequiredDocumentNames.Select(name => new ResolvedMatchContextDocument(name, 1)),
+            MatchContextDocumentCatalog.ForMatch(Match, Community, CompetitionIds.Bundesliga2026_27).RequiredDocumentNames.Select(name => Entry(name, 1, name)),
             missingSnapshot,
             new string('b', DocumentPublicationContract.Sha256HexLength));
 
@@ -131,7 +150,7 @@ public sealed class BundesligaMatchContextResolverTests
         await Assert.That(() => ResolvedMatchContextManifest.Create(
                 CompetitionIds.Bundesliga2026_27,
                 Community,
-                names.Select(name => new ResolvedMatchContextDocument(name, 1)),
+                names.Select(name => Entry(name, 1, name)),
                 new string('A', DocumentPublicationContract.Sha256HexLength),
                 new string('b', DocumentPublicationContract.Sha256HexLength)))
             .Throws<ArgumentException>();
@@ -139,11 +158,71 @@ public sealed class BundesligaMatchContextResolverTests
         var noncanonicalOrder = ResolvedMatchContextManifest.Create(
             CompetitionIds.Bundesliga2026_27,
             Community,
-            names.Reverse().Select(name => new ResolvedMatchContextDocument(name, 1)),
+            names.Reverse().Select(name => Entry(name, 1, name)),
             new string('a', DocumentPublicationContract.Sha256HexLength),
             new string('b', DocumentPublicationContract.Sha256HexLength));
         await Assert.That(() => ResolvedMatchContextManifest.ValidateForMatch(noncanonicalOrder, Match, Community))
             .Throws<InvalidDataException>();
+
+        await Assert.That(() => ResolvedMatchContextManifest.Create(
+                CompetitionIds.Bundesliga2026_27,
+                Community,
+                names.Select((name, index) => index == 0
+                    ? new ResolvedMatchContextDocument(name, 1, "Context", "not-a-hash")
+                    : Entry(name, 1, name)),
+                new string('a', DocumentPublicationContract.Sha256HexLength),
+                new string('b', DocumentPublicationContract.Sha256HexLength)))
+            .Throws<ArgumentException>();
+    }
+
+    [Test]
+    public async Task Recorded_resolution_rejects_an_ordinary_document_whose_content_changed_after_prediction()
+    {
+        var context = CreateContextRepository();
+        var rosters = CreateCanonicalRosterPublication();
+        var elo = CreateCanonicalClubEloPublication();
+        var publications = CreatePublicationRepository(rosters, elo);
+        var resolver = new BundesligaMatchContextResolver(context.Object, publications.Object);
+        var manifest = (await resolver.ResolveLiveAsync(Match, Community)).Manifest;
+        var ordinary = manifest.Documents.First(document => document.Name == "bundesliga-standings.csv");
+        context.Setup(repository => repository.GetContextDocumentAsync(
+                ordinary.Name, ordinary.Version, Community, It.IsAny<CancellationToken>()))
+            .ReturnsAsync(new ContextDocument(ordinary.Name, "tampered", ordinary.Version, DateTimeOffset.UnixEpoch));
+        publications.Setup(repository => repository.GetSnapshotAsync(
+                BundesligaDocumentPublication.Rosters, Community, rosters.Snapshot.SnapshotId, It.IsAny<CancellationToken>()))
+            .ReturnsAsync(rosters);
+        publications.Setup(repository => repository.GetSnapshotAsync(
+                BundesligaDocumentPublication.ClubElo, Community, elo.Snapshot.SnapshotId, It.IsAny<CancellationToken>()))
+            .ReturnsAsync(elo);
+
+        await Assert.That(() => resolver.ResolveRecordedAsync(Match, manifest))
+            .Throws<InvalidDataException>()
+            .WithMessageContaining("content hash");
+    }
+
+    [Test]
+    public async Task Recorded_resolution_rejects_a_repository_response_with_the_wrong_requested_version()
+    {
+        var context = CreateContextRepository();
+        var rosters = CreateCanonicalRosterPublication();
+        var elo = CreateCanonicalClubEloPublication();
+        var publications = CreatePublicationRepository(rosters, elo);
+        var resolver = new BundesligaMatchContextResolver(context.Object, publications.Object);
+        var manifest = (await resolver.ResolveLiveAsync(Match, Community)).Manifest;
+        var ordinary = manifest.Documents.First(document => document.Name == "bundesliga-standings.csv");
+        context.Setup(repository => repository.GetContextDocumentAsync(
+                ordinary.Name, ordinary.Version, Community, It.IsAny<CancellationToken>()))
+            .ReturnsAsync(new ContextDocument(ordinary.Name, ordinary.Name, ordinary.Version + 1, DateTimeOffset.UnixEpoch));
+        publications.Setup(repository => repository.GetSnapshotAsync(
+                BundesligaDocumentPublication.Rosters, Community, rosters.Snapshot.SnapshotId, It.IsAny<CancellationToken>()))
+            .ReturnsAsync(rosters);
+        publications.Setup(repository => repository.GetSnapshotAsync(
+                BundesligaDocumentPublication.ClubElo, Community, elo.Snapshot.SnapshotId, It.IsAny<CancellationToken>()))
+            .ReturnsAsync(elo);
+
+        await Assert.That(() => resolver.ResolveRecordedAsync(Match, manifest))
+            .Throws<InvalidDataException>()
+            .WithMessageContaining("different identity");
     }
 
     private static Mock<IContextRepository> CreateContextRepository(string? missing = null)
@@ -261,4 +340,13 @@ public sealed class BundesligaMatchContextResolverTests
         new DocumentPublicationSnapshot(publication.Snapshot.Competition, publication.Snapshot.CommunityContext,
             publication.Snapshot.PublicationSet, publication.Snapshot.SnapshotId, publication.Snapshot.PreviousSnapshotId,
             publication.Snapshot.CreatedAt, metadataJson, publication.Snapshot.Documents), publication.Documents);
+
+    private static ResolvedMatchContextDocument Entry(string name, int version, string content) => new(
+        name,
+        version,
+        "Context",
+        DocumentPublicationContract.ComputeContentSha256(content));
+
+    private static ResolvedMatchContextDocument Entry(PublishedDocument document) =>
+        Entry(document.Name, document.Version, document.Content);
 }

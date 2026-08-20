@@ -1,5 +1,8 @@
 using TestUtilities;
 using TUnit.Core;
+using FirebaseAdapter.Models;
+using EHonda.KicktippAi.Core;
+using Google.Cloud.Firestore;
 
 namespace FirebaseAdapter.Tests.FirebaseContextRepositoryTests;
 
@@ -75,5 +78,44 @@ public class FirebaseContextRepository_GetContextDocumentNamesAsync_Tests(Firest
         // Assert
         await Assert.That(names).HasCount().EqualTo(1)
             .And.Contains("doc-a");
+    }
+
+    [Test]
+    public async Task Getting_names_excludes_publication_rows_but_keeps_missing_and_empty_legacy_scope()
+    {
+        const string community = "test-community";
+        await Fixture.Db.Collection("context-documents").Document("missing-publication-set").SetAsync(new Dictionary<string, object>
+        {
+            ["competition"] = CompetitionIds.Bundesliga2026_27,
+            ["communityContext"] = community,
+            ["documentName"] = "historical-missing.csv",
+            ["content"] = "historical",
+            ["version"] = 0,
+            ["createdAt"] = Timestamp.GetCurrentTimestamp()
+        });
+        await Fixture.Db.Collection("context-documents").Document("empty-publication-set").SetAsync(new FirestoreContextDocument
+        {
+            Competition = CompetitionIds.Bundesliga2026_27,
+            CommunityContext = community,
+            PublicationSet = string.Empty,
+            DocumentName = "ordinary-empty.csv",
+            Content = "ordinary",
+            Version = 1,
+            CreatedAt = Timestamp.GetCurrentTimestamp()
+        });
+        await Fixture.Db.Collection("context-documents").Document("publication-row").SetAsync(new FirestoreContextDocument
+        {
+            Competition = CompetitionIds.Bundesliga2026_27,
+            CommunityContext = community,
+            PublicationSet = "custom-publication",
+            DocumentName = "custom-published.csv",
+            Content = "publication",
+            Version = 2,
+            CreatedAt = Timestamp.GetCurrentTimestamp()
+        });
+
+        var names = await CreateRepository().GetContextDocumentNamesAsync(community);
+
+        await Assert.That(names).IsEquivalentTo(["historical-missing.csv", "ordinary-empty.csv"]);
     }
 }

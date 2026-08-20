@@ -283,6 +283,10 @@ public static class DocumentPublicationContract
         return Convert.ToHexString(SHA256.HashData(GetUtf8Bytes(content))).ToLowerInvariant();
     }
 
+    public static bool IsLowercaseSha256(string? value) =>
+        value?.Length == Sha256HexLength
+        && value.All(character => character is (>= '0' and <= '9') or (>= 'a' and <= 'f'));
+
     public static string DecodeUtf8(ReadOnlySpan<byte> content) => StrictUtf8.GetString(content);
 
     public static string ComputeSnapshotId(IEnumerable<DocumentPublicationPayload> documents)
@@ -544,7 +548,7 @@ public static class DocumentPublicationContract
 
     private static void ValidateSha256(string value, string parameterName)
     {
-        if (value.Length != Sha256HexLength || value.Any(character => character is not (>= '0' and <= '9') and not (>= 'a' and <= 'f')))
+        if (!IsLowercaseSha256(value))
         {
             throw new InvalidDataException($"{parameterName} must be a lowercase SHA-256 value.");
         }

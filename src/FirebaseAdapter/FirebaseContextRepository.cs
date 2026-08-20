@@ -39,40 +39,53 @@ public class FirebaseContextRepository : IContextRepository
             documentName);
         try
         {
-            // Get the latest version to check if content differs
-            var latestDocument = await GetLatestContextDocumentAsync(documentName, communityContext, cancellationToken);
-            
-            // If content is the same, don't save a new version
-            if (latestDocument != null && latestDocument.Content == content)
+            var savedVersion = await _firestoreDb.RunTransactionAsync(async transaction =>
             {
-                _logger.LogInformation("Context document {DocumentName} content unchanged, skipping save", documentName);
-                return null;
-            }
-            
-            // Determine the next version number
-            var nextVersion = latestDocument?.Version + 1 ?? 0;
-            
-            var now = Timestamp.GetCurrentTimestamp();
-            var documentId = BuildDocumentId(documentName, communityContext, nextVersion);
-            
-            var firestoreDocument = new FirestoreContextDocument
-            {
-                Id = documentId,
-                DocumentName = documentName,
-                Content = content,
-                Version = nextVersion,
-                CreatedAt = now,
-                Competition = _competition,
-                CommunityContext = communityContext
-            };
-            
-            var docRef = _firestoreDb.Collection(_contextDocumentsCollection).Document(documentId);
-            await docRef.SetAsync(firestoreDocument, cancellationToken: cancellationToken);
-            
-            _logger.LogInformation("Saved context document {DocumentName} version {Version} for community {CommunityContext}", 
-                documentName, nextVersion, communityContext);
-            
-            return nextVersion;
+                var query = _firestoreDb.Collection(_contextDocumentsCollection)
+                    .WhereEqualTo("documentName", documentName)
+                    .WhereEqualTo("communityContext", communityContext)
+                    .WhereEqualTo("competition", _competition)
+                    .OrderByDescending("version");
+                var matchingRows = await transaction.GetSnapshotAsync(query);
+                // Publication-scoped payloads share this collection. They participate in the
+                // version ceiling so a generic row can never collide with an existing payload,
+                // but only an ordinary row is eligible for the same-content no-op decision.
+                var existing = matchingRows.Documents
+                    .Where(document => string.IsNullOrEmpty(document.ConvertTo<FirestoreContextDocument>().PublicationSet))
+                    .Select(document => ValidateOrdinaryContextDocument(
+                        document.ConvertTo<FirestoreContextDocument>(),
+                        documentName,
+                        communityContext,
+                        expectedVersion: null,
+                        document.Id))
+                    .FirstOrDefault();
+                if (existing is not null && string.Equals(existing.Content, content, StringComparison.Ordinal))
+                {
+                    return (int?)null;
+                }
+
+                var nextVersion = matchingRows.Documents.Count == 0
+                    ? 0
+                    : matchingRows.Documents.Max(document => document.GetValue<int>("version")) + 1;
+                var documentId = BuildDocumentId(documentName, communityContext, nextVersion);
+                var reference = _firestoreDb.Collection(_contextDocumentsCollection).Document(documentId);
+                transaction.Create(reference, new FirestoreContextDocument
+                {
+                    Id = documentId,
+                    DocumentName = documentName,
+                    Content = content,
+                    Version = nextVersion,
+                    CreatedAt = Timestamp.GetCurrentTimestamp(),
+                    Competition = _competition,
+                    CommunityContext = communityContext
+                });
+                return (int?)nextVersion;
+            }, cancellationToken: cancellationToken);
+
+            _logger.LogInformation("Saved context document {DocumentName} version {Version} for community {CommunityContext}",
+                documentName, savedVersion, communityContext);
+
+            return savedVersion;
         }
         catch (Exception ex)
         {
@@ -90,18 +103,16 @@ public class FirebaseContextRepository : IContextRepository
                 .WhereEqualTo("documentName", documentName)
                 .WhereEqualTo("communityContext", communityContext)
                 .WhereEqualTo("competition", _competition)
-                .OrderByDescending("version")
-                .Limit(1);
+                .OrderByDescending("version");
 
             var snapshot = await query.GetSnapshotAsync(cancellationToken);
-            
-            if (!snapshot.Documents.Any())
-            {
-                return null;
-            }
-
-            var firestoreDoc = snapshot.Documents.First().ConvertTo<FirestoreContextDocument>();
-            return ConvertToContextDocument(firestoreDoc);
+            return snapshot.Documents
+                .Select(document => new { Document = document, Value = document.ConvertTo<FirestoreContextDocument>() })
+                // Older ordinary rows do not have a publicationSet property. They remain eligible.
+                .Where(candidate => string.IsNullOrEmpty(candidate.Value.PublicationSet))
+                .Select(candidate => ValidateOrdinaryContextDocument(
+                    candidate.Value, documentName, communityContext, expectedVersion: null, candidate.Document.Id))
+                .FirstOrDefault();
         }
         catch (Exception ex)
         {
@@ -138,7 +149,11 @@ public class FirebaseContextRepository : IContextRepository
                         throw new InvalidDataException("Publication-scoped context payload identity is corrupt.");
                     }
 
-                    return ConvertToContextDocument(publicationDocument);
+                    return new ContextDocument(
+                        publicationDocument.DocumentName,
+                        publicationDocument.Content,
+                        publicationDocument.Version,
+                        publicationDocument.CreatedAt.ToDateTimeOffset());
                 }
             }
 
@@ -151,8 +166,8 @@ public class FirebaseContextRepository : IContextRepository
                 return null;
             }
 
-            var firestoreDoc = snapshot.ConvertTo<FirestoreContextDocument>();
-            return ConvertToContextDocument(firestoreDoc);
+            return ValidateOrdinaryContextDocument(
+                snapshot.ConvertTo<FirestoreContextDocument>(), documentName, communityContext, version, snapshot.Id);
         }
         catch (Exception ex)
         {
@@ -176,18 +191,15 @@ public class FirebaseContextRepository : IContextRepository
                 .WhereEqualTo("competition", _competition)
                 .WhereLessThanOrEqualTo("createdAt", Timestamp.FromDateTime(createdAtOrEarlier.UtcDateTime))
                 .OrderByDescending("createdAt")
-                .OrderByDescending("version")
-                .Limit(1);
+                .OrderByDescending("version");
 
             var snapshot = await query.GetSnapshotAsync(cancellationToken);
-
-            if (!snapshot.Documents.Any())
-            {
-                return null;
-            }
-
-            var firestoreDoc = snapshot.Documents.First().ConvertTo<FirestoreContextDocument>();
-            return ConvertToContextDocument(firestoreDoc);
+            return snapshot.Documents
+                .Select(document => new { Document = document, Value = document.ConvertTo<FirestoreContextDocument>() })
+                .Where(candidate => string.IsNullOrEmpty(candidate.Value.PublicationSet))
+                .Select(candidate => ValidateOrdinaryContextDocument(
+                    candidate.Value, documentName, communityContext, expectedVersion: null, candidate.Document.Id))
+                .FirstOrDefault();
         }
         catch (Exception ex)
         {
@@ -208,11 +220,13 @@ public class FirebaseContextRepository : IContextRepository
             var query = _firestoreDb.Collection(_contextDocumentsCollection)
                 .WhereEqualTo("communityContext", communityContext)
                 .WhereEqualTo("competition", _competition)
-                .Select("documentName");
+                .Select("documentName", "publicationSet");
 
             var snapshot = await query.GetSnapshotAsync(cancellationToken);
-            
+
             var documentNames = snapshot.Documents
+                .Where(doc => !doc.ContainsField("publicationSet")
+                    || string.IsNullOrEmpty(doc.GetValue<string>("publicationSet")))
                 .Select(doc => doc.GetValue<string>("documentName"))
                 .Distinct()
                 .OrderBy(name => name, StringComparer.Ordinal)
@@ -241,8 +255,10 @@ public class FirebaseContextRepository : IContextRepository
             var snapshot = await query.GetSnapshotAsync(cancellationToken);
             
             var documents = snapshot.Documents
-                .Select(doc => doc.ConvertTo<FirestoreContextDocument>())
-                .Select(ConvertToContextDocument)
+                .Select(document => new { Document = document, Value = document.ConvertTo<FirestoreContextDocument>() })
+                .Where(candidate => string.IsNullOrEmpty(candidate.Value.PublicationSet))
+                .Select(candidate => ValidateOrdinaryContextDocument(
+                    candidate.Value, documentName, communityContext, expectedVersion: null, candidate.Document.Id))
                 .ToList()
                 .AsReadOnly();
             
@@ -256,48 +272,23 @@ public class FirebaseContextRepository : IContextRepository
         }
     }
 
-    public async Task<bool> UpdateContextDocumentVersionAsync(string documentName, int version, string newContent, string communityContext, CancellationToken cancellationToken = default)
+    private ContextDocument ValidateOrdinaryContextDocument(
+        FirestoreContextDocument firestoreDoc,
+        string documentName,
+        string communityContext,
+        int? expectedVersion,
+        string documentId)
     {
-        BundesligaDocumentPublication.ThrowIfReservedForGenericMutation(
-            _competition,
-            DocumentPublicationKind.Context,
-            documentName);
-        try
+        if (!string.Equals(documentId, BuildDocumentId(documentName, communityContext, firestoreDoc.Version), StringComparison.Ordinal)
+            || !string.Equals(firestoreDoc.Competition, _competition, StringComparison.Ordinal)
+            || !string.Equals(firestoreDoc.CommunityContext, communityContext, StringComparison.Ordinal)
+            || !string.Equals(firestoreDoc.DocumentName, documentName, StringComparison.Ordinal)
+            || !string.IsNullOrEmpty(firestoreDoc.PublicationSet)
+            || expectedVersion is not null && firestoreDoc.Version != expectedVersion.Value)
         {
-            var documentId = BuildDocumentId(documentName, communityContext, version);
-            var docRef = _firestoreDb.Collection(_contextDocumentsCollection).Document(documentId);
-            
-            // Check if document exists
-            var snapshot = await docRef.GetSnapshotAsync(cancellationToken);
-            if (!snapshot.Exists)
-            {
-                _logger.LogWarning("Cannot update non-existent document {DocumentId}", documentId);
-                return false;
-            }
-            
-            // Update only the content field
-            var updates = new Dictionary<string, object>
-            {
-                ["content"] = newContent
-            };
-            
-            await docRef.UpdateAsync(updates, cancellationToken: cancellationToken);
-            
-            _logger.LogInformation("Updated content for context document {DocumentName} version {Version} in community {CommunityContext}", 
-                documentName, version, communityContext);
-            
-            return true;
+            throw new InvalidDataException("Ordinary context document scope or exact identity is corrupt.");
         }
-        catch (Exception ex)
-        {
-            _logger.LogError(ex, "Failed to update context document {DocumentName} version {Version} in community {CommunityContext}", 
-                documentName, version, communityContext);
-            throw;
-        }
-    }
 
-    private static ContextDocument ConvertToContextDocument(FirestoreContextDocument firestoreDoc)
-    {
         return new ContextDocument(
             firestoreDoc.DocumentName,
             firestoreDoc.Content,

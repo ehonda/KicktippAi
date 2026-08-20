@@ -179,7 +179,12 @@ internal static class PreparedExperimentBundleBuilder
             Items = manifestItems
         };
 
-        return new PreparedExperimentBundle(artifact, manifest);
+        // All prepare commands build their complete bundle before they write either JSON
+        // artifact. Validate the manifest here so an outcome-only 2026/27 source cannot
+        // leave a dataset without the required immutable prediction provenance on disk.
+        return new PreparedExperimentBundle(
+            artifact,
+            PreparedExperimentCommandSupport.ValidateManifest(manifest));
     }
 
     private static void AddDatasetMetadata(JsonObject datasetMetadata, IReadOnlyDictionary<string, object?>? extraDatasetMetadata)

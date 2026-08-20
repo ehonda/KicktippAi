@@ -64,7 +64,9 @@ public abstract class FirebasePredictionRepositoryTests_Base(FirestoreFixture fi
     {
         var actualDb = firestoreDb.Or(() => Fixture.Db);
         var actualLogger = logger.Or(() => new FakeLogger<FirebasePredictionRepository>());
-        var actualCompetition = competition.Or(() => CompetitionIds.Bundesliga2026_27);
+        // Most adapter fixtures exercise the retained historical save contract. New 2026/27
+        // writes are covered explicitly through the provenance-capable API tests.
+        var actualCompetition = competition.Or(() => CompetitionIds.Bundesliga2025_26);
         return new FirebasePredictionRepository(actualDb!, actualLogger!, actualCompetition!);
     }
 }

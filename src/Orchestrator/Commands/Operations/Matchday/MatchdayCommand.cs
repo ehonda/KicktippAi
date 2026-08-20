@@ -277,6 +277,7 @@ public class MatchdayCommand : AsyncCommand<BaseSettings>
                 bool fromDatabase = false;
                 bool shouldPredict = false;
                 int? predictionRepredictionIndex = settings.IsRepredictMode ? null : 0;
+                int? expectedCurrentRepredictionIndex = settings.IsRepredictMode ? null : 0;
 
                 // Check if we have an existing prediction in the database
                 if (databaseEnabled && !settings.OverrideDatabase && !settings.IsRepredictMode)
@@ -306,6 +307,19 @@ public class MatchdayCommand : AsyncCommand<BaseSettings>
                             continue;
                         }
 
+                        if (string.Equals(competition, CompetitionIds.Bundesliga2026_27, StringComparison.Ordinal)
+                            && !await IsCachedPredictionSafeToSubmitAsync(
+                                predictionRepository!, contextRepository, match, modelConfig, communityContext, competition, prediction, settings.Verbose))
+                        {
+                            BlockMatch(
+                                blockedMatches,
+                                match,
+                                "invalid_cached_provenance",
+                                "Stored Bundesliga prediction lacks valid immutable provenance; use repredict or an explicit database override.");
+                            _console.MarkupLine("[yellow]  ✗ Blocked - stored Bundesliga prediction lacks valid immutable provenance; use repredict or an explicit database override[/]");
+                            continue;
+                        }
+
                         fromDatabase = true;
                         if (settings.Agent)
                         {
@@ -327,6 +341,7 @@ public class MatchdayCommand : AsyncCommand<BaseSettings>
                         match,
                         modelConfig,
                         communityContext);
+                    expectedCurrentRepredictionIndex = currentRepredictionIndex;
 
                     if (currentRepredictionIndex == -1)
                     {
@@ -338,7 +353,7 @@ public class MatchdayCommand : AsyncCommand<BaseSettings>
                     else
                     {
                         var maxAllowed = settings.MaxRepredictions ?? int.MaxValue;
-                        var nextIndex = currentRepredictionIndex + 1;
+                        var nextIndex = (long)currentRepredictionIndex + 1;
                         prediction = await GetStoredPredictionAsync(predictionRepository!, match, modelConfig, communityContext);
 
                         if (prediction == null)
@@ -346,7 +361,7 @@ public class MatchdayCommand : AsyncCommand<BaseSettings>
                             if (nextIndex <= maxAllowed)
                             {
                                 shouldPredict = true;
-                                predictionRepredictionIndex = nextIndex;
+                                predictionRepredictionIndex = checked((int)nextIndex);
                                 _console.MarkupLine($"[yellow]  → Current prediction record missing, creating reprediction {nextIndex} (current: {currentRepredictionIndex}, max: {maxAllowed})[/]");
                             }
                             else
@@ -369,7 +384,7 @@ public class MatchdayCommand : AsyncCommand<BaseSettings>
                                 if (nextIndex <= maxAllowed)
                                 {
                                     shouldPredict = true;
-                                    predictionRepredictionIndex = nextIndex;
+                                    predictionRepredictionIndex = checked((int)nextIndex);
 
                                     if (settings.Agent)
                                     {
@@ -406,12 +421,13 @@ public class MatchdayCommand : AsyncCommand<BaseSettings>
                             else if (nextIndex <= maxAllowed)
                             {
                                 // Before repredicting, check if the current prediction is actually outdated
-                                var isOutdated = await CheckPredictionOutdated(predictionRepository!, contextRepository, match, modelConfig, communityContext, competition, settings.Verbose);
+                                var isOutdated = !await IsCachedPredictionSafeToSubmitAsync(
+                                    predictionRepository!, contextRepository, match, modelConfig, communityContext, competition, prediction, settings.Verbose);
 
                                 if (isOutdated)
                                 {
                                     shouldPredict = true;
-                                    predictionRepredictionIndex = nextIndex;
+                                    predictionRepredictionIndex = checked((int)nextIndex);
                                     prediction = null;
                                     _console.MarkupLine($"[yellow]  → Creating reprediction {nextIndex} (current: {currentRepredictionIndex}, max: {maxAllowed}) - prediction is outdated[/]");
                                 }
@@ -430,6 +446,19 @@ public class MatchdayCommand : AsyncCommand<BaseSettings>
                             }
                             else
                             {
+                                if (!await IsCachedPredictionSafeToSubmitAsync(
+                                        predictionRepository!, contextRepository, match, modelConfig, communityContext, competition, prediction, settings.Verbose))
+                                {
+                                    traceRepredictionIndices.Add(currentRepredictionIndex.ToString());
+                                    BlockMatch(
+                                        blockedMatches,
+                                        match,
+                                        "invalid_cached_provenance",
+                                        "Stored Bundesliga prediction lacks valid immutable provenance while already at max repredictions.");
+                                    _console.MarkupLine("[yellow]  ✗ Blocked - stored Bundesliga prediction lacks valid immutable provenance and cannot be reused[/]");
+                                    continue;
+                                }
+
                                 traceRepredictionIndices.Add(currentRepredictionIndex.ToString());
                                 fromDatabase = true;
                                 _console.MarkupLine($"[yellow]  ✗ Skipped - already at max repredictions ({currentRepredictionIndex}/{maxAllowed})[/]");
@@ -571,6 +600,7 @@ public class MatchdayCommand : AsyncCommand<BaseSettings>
                                             communityContext,
                                             contextDocuments,
                                             resolvedContextManifest,
+                                            expectedCurrentRepredictionIndex,
                                             settings,
                                             tokenUsageTracker);
                                     }
@@ -621,6 +651,7 @@ public class MatchdayCommand : AsyncCommand<BaseSettings>
                                     communityContext,
                                     contextDocuments,
                                     resolvedContextManifest,
+                                    expectedCurrentRepredictionIndex,
                                     settings,
                                     tokenUsageTracker);
                             }
@@ -923,7 +954,7 @@ public class MatchdayCommand : AsyncCommand<BaseSettings>
 
             if (predictionMetadata is null)
             {
-                return false;
+                return string.Equals(competition, CompetitionIds.Bundesliga2026_27, StringComparison.Ordinal);
             }
 
             if (string.Equals(competition, CompetitionIds.Bundesliga2026_27, StringComparison.Ordinal)
@@ -1037,6 +1068,56 @@ public class MatchdayCommand : AsyncCommand<BaseSettings>
         return await predictionRepository.GetPredictionAsync(match, modelConfig, communityContext);
     }
 
+    private async Task<bool> IsCachedPredictionSafeToSubmitAsync(
+        IPredictionRepository predictionRepository,
+        IContextRepository contextRepository,
+        Match match,
+        PredictionModelConfig modelConfig,
+        string communityContext,
+        string competition,
+        Prediction prediction,
+        bool verbose)
+    {
+        if (!string.Equals(competition, CompetitionIds.Bundesliga2026_27, StringComparison.Ordinal))
+        {
+            return !await CheckPredictionOutdated(
+                predictionRepository,
+                contextRepository,
+                match,
+                modelConfig,
+                communityContext,
+                competition,
+                verbose);
+        }
+
+        var metadata = match.IsCancelled
+            ? await predictionRepository.GetCancelledMatchPredictionMetadataAsync(match.HomeTeam, match.AwayTeam, modelConfig, communityContext)
+            : await predictionRepository.GetPredictionMetadataAsync(match, modelConfig, communityContext);
+        if (metadata is null || !PredictionContentEquality.Equals(metadata.Prediction, prediction))
+        {
+            return false;
+        }
+
+        try
+        {
+            return !await BundesligaPredictionOutdatedChecker.IsOutdatedAsync(
+                contextRepository,
+                _firebaseServiceFactory.CreateDocumentPublicationRepository(competition),
+                match,
+                communityContext,
+                metadata);
+        }
+        catch (Exception exception) when (exception is InvalidDataException or InvalidOperationException)
+        {
+            if (verbose)
+            {
+                _console.MarkupLine($"[yellow]  Warning: Cached Bundesliga provenance is invalid: {exception.Message}[/]");
+            }
+
+            return false;
+        }
+    }
+
     private async Task<int> GetStoredRepredictionIndexAsync(
         IPredictionRepository predictionRepository,
         Match match,
@@ -1063,6 +1144,7 @@ public class MatchdayCommand : AsyncCommand<BaseSettings>
         string communityContext,
         IReadOnlyCollection<DocumentContext> contextDocuments,
         ResolvedMatchContextManifest? resolvedContextManifest,
+        int? expectedCurrentRepredictionIndex,
         BaseSettings settings,
         ITokenUsageTracker tokenUsageTracker)
     {
@@ -1071,27 +1153,35 @@ public class MatchdayCommand : AsyncCommand<BaseSettings>
 
         if (settings.IsRepredictMode)
         {
-            var currentIndex = await GetStoredRepredictionIndexAsync(
-                predictionRepository,
-                match,
-                modelConfig,
-                communityContext);
-            var nextIndex = currentIndex == -1 ? 0 : currentIndex + 1;
-
             if (resolvedContextManifest is not null)
             {
                 if (predictionRepository is not IResolvedMatchContextPredictionRepository provenanceRepository)
                 {
                     throw new InvalidOperationException("Bundesliga snapshot-backed predictions require a provenance-capable prediction repository.");
                 }
+                var expectedIndex = expectedCurrentRepredictionIndex
+                    ?? throw new InvalidOperationException("Bundesliga reprediction is missing its expected current index.");
+                var maxRepredictions = settings.MaxRepredictions ?? int.MaxValue;
                 await provenanceRepository.SaveRepredictionWithResolvedContextAsync(match, prediction, modelConfig, tokenUsageJson, cost,
-                    communityContext, contextDocuments.Select(document => document.Name), nextIndex, resolvedContextManifest);
+                    communityContext, contextDocuments.Select(document => document.Name), expectedIndex, maxRepredictions,
+                    resolvedContextManifest);
+
+                if (settings.Verbose)
+                {
+                    _console.MarkupLine($"[dim]    ✓ Saved as reprediction {(long)expectedIndex + 1} to database[/]");
+                }
+
+                return;
             }
-            else
-            {
-                await predictionRepository.SaveRepredictionAsync(match, prediction, modelConfig, tokenUsageJson, cost,
-                    communityContext, contextDocuments.Select(document => document.Name), nextIndex);
-            }
+
+            var currentIndex = await GetStoredRepredictionIndexAsync(
+                predictionRepository,
+                match,
+                modelConfig,
+                communityContext);
+            var nextIndex = currentIndex == -1 ? 0 : checked(currentIndex + 1);
+            await predictionRepository.SaveRepredictionAsync(match, prediction, modelConfig, tokenUsageJson, cost,
+                communityContext, contextDocuments.Select(document => document.Name), nextIndex);
 
             if (settings.Verbose)
             {

@@ -1,4 +1,6 @@
 using System.Collections.Immutable;
+using System.Text.Json;
+using System.Text.Json.Serialization;
 
 namespace EHonda.KicktippAi.Core;
 
@@ -6,6 +8,7 @@ namespace EHonda.KicktippAi.Core;
 /// Immutable provenance for every context document that entered a Bundesliga match prompt.
 /// Reserved roster and Club Elo entries are anchored by their complete publication snapshots.
 /// </summary>
+[JsonConverter(typeof(ResolvedMatchContextManifestJsonConverter))]
 public sealed class ResolvedMatchContextManifest
 {
     private ResolvedMatchContextManifest(
@@ -49,9 +52,10 @@ public sealed class ResolvedMatchContextManifest
             || ordered.Select(document => document.Name).Distinct(StringComparer.Ordinal).Count() != ordered.Length
             || ordered.Any(document => string.IsNullOrWhiteSpace(document.Name)
                                        || document.Version < 0
-                                       || !string.Equals(document.Kind, "Context", StringComparison.Ordinal)))
+                                       || !string.Equals(document.Kind, "Context", StringComparison.Ordinal)
+                                       || !DocumentPublicationContract.IsLowercaseSha256(document.ContentSha256)))
         {
-            throw new ArgumentException("A Bundesliga match context manifest must contain exactly eleven unique Context documents with nonnegative versions.", nameof(documents));
+            throw new ArgumentException("A Bundesliga match context manifest must contain exactly eleven unique Context documents with nonnegative versions and lowercase SHA-256 content hashes.", nameof(documents));
         }
         ValidateSnapshotId(rosterPublicationSnapshotId, nameof(rosterPublicationSnapshotId));
         ValidateSnapshotId(clubEloPublicationSnapshotId, nameof(clubEloPublicationSnapshotId));
@@ -92,16 +96,103 @@ public sealed class ResolvedMatchContextManifest
 
 public sealed class ResolvedMatchContextDocument
 {
-    public ResolvedMatchContextDocument(string name, int version, string kind = "Context")
+    public ResolvedMatchContextDocument(string name, int version, string kind, string contentSha256)
     {
         Name = name;
         Version = version;
         Kind = kind;
+        ContentSha256 = contentSha256;
     }
 
     public string Name { get; }
     public int Version { get; }
     public string Kind { get; }
+    public string ContentSha256 { get; }
+}
+
+/// <summary>Canonical, fail-closed JSON contract shared by persisted and file-backed manifests.</summary>
+public sealed class ResolvedMatchContextManifestJsonConverter : JsonConverter<ResolvedMatchContextManifest>
+{
+    public override ResolvedMatchContextManifest Read(ref Utf8JsonReader reader, Type typeToConvert, JsonSerializerOptions options)
+    {
+        using var json = JsonDocument.ParseValue(ref reader);
+        if (json.RootElement.ValueKind != JsonValueKind.Object)
+        {
+            throw new JsonException("Resolved context manifest must be an object.");
+        }
+
+        var properties = json.RootElement.EnumerateObject().ToArray();
+        var expected = new[] { "competition", "communityContext", "documents", "rosterPublicationSnapshotId", "clubEloPublicationSnapshotId" };
+        if (!properties.Select(property => property.Name).SequenceEqual(expected, StringComparer.Ordinal)
+            || properties[2].Value.ValueKind != JsonValueKind.Array)
+        {
+            throw new JsonException("Resolved context manifest has an unknown, missing, duplicate, or noncanonical field.");
+        }
+
+        var documents = properties[2].Value.EnumerateArray().Select(ParseDocument).ToArray();
+        try
+        {
+            return ResolvedMatchContextManifest.Create(
+                RequiredString(properties[0].Value, "competition"),
+                RequiredString(properties[1].Value, "communityContext"),
+                documents,
+                RequiredString(properties[3].Value, "rosterPublicationSnapshotId"),
+                RequiredString(properties[4].Value, "clubEloPublicationSnapshotId"));
+        }
+        catch (ArgumentException exception)
+        {
+            throw new JsonException("Resolved context manifest is invalid.", exception);
+        }
+    }
+
+    public override void Write(Utf8JsonWriter writer, ResolvedMatchContextManifest value, JsonSerializerOptions options)
+    {
+        writer.WriteStartObject();
+        writer.WriteString("competition", value.Competition);
+        writer.WriteString("communityContext", value.CommunityContext);
+        writer.WritePropertyName("documents");
+        writer.WriteStartArray();
+        foreach (var document in value.Documents)
+        {
+            writer.WriteStartObject();
+            writer.WriteString("name", document.Name);
+            writer.WriteNumber("version", document.Version);
+            writer.WriteString("kind", document.Kind);
+            writer.WriteString("contentSha256", document.ContentSha256);
+            writer.WriteEndObject();
+        }
+        writer.WriteEndArray();
+        writer.WriteString("rosterPublicationSnapshotId", value.RosterPublicationSnapshotId);
+        writer.WriteString("clubEloPublicationSnapshotId", value.ClubEloPublicationSnapshotId);
+        writer.WriteEndObject();
+    }
+
+    private static ResolvedMatchContextDocument ParseDocument(JsonElement element)
+    {
+        if (element.ValueKind != JsonValueKind.Object)
+        {
+            throw new JsonException("Resolved context manifest document must be an object.");
+        }
+
+        var properties = element.EnumerateObject().ToArray();
+        var expected = new[] { "name", "version", "kind", "contentSha256" };
+        if (!properties.Select(property => property.Name).SequenceEqual(expected, StringComparer.Ordinal)
+            || properties[1].Value.ValueKind != JsonValueKind.Number)
+        {
+            throw new JsonException("Resolved context manifest document has an unknown, missing, duplicate, or noncanonical field.");
+        }
+
+        return new ResolvedMatchContextDocument(
+            RequiredString(properties[0].Value, "name"),
+            properties[1].Value.GetInt32(),
+            RequiredString(properties[2].Value, "kind"),
+            RequiredString(properties[3].Value, "contentSha256"));
+    }
+
+    private static string RequiredString(JsonElement element, string fieldName) =>
+        element.ValueKind == JsonValueKind.String && !string.IsNullOrWhiteSpace(element.GetString())
+            ? element.GetString()!
+            : throw new JsonException($"Resolved context manifest field '{fieldName}' must be a nonempty string.");
 }
 
 public sealed record ResolvedBundesligaMatchContext(
@@ -181,7 +272,9 @@ public sealed class BundesligaMatchContextResolver
                 document = version >= 0
                     ? await _contextRepository.GetContextDocumentAsync(name, version, communityContext, cancellationToken)
                     : null;
-                if (document is null || !string.Equals(document.Content, generated.Content, StringComparison.Ordinal))
+                if (document is null
+                    || document.Version != version
+                    || !string.Equals(document.Content, generated.Content, StringComparison.Ordinal))
                 {
                     throw new InvalidOperationException(
                         $"Could not materialize and verify on-demand Bundesliga context document '{name}'.");
@@ -194,7 +287,11 @@ public sealed class BundesligaMatchContextResolver
             }
 
             documents.Add(new DocumentContext(document.DocumentName, document.Content));
-            entries.Add(new ResolvedMatchContextDocument(document.DocumentName, document.Version));
+            entries.Add(new ResolvedMatchContextDocument(
+                document.DocumentName,
+                document.Version,
+                "Context",
+                DocumentPublicationContract.ComputeContentSha256(document.Content)));
             resolvedDocuments.Add(new ResolvedContextDocumentVersion(document.DocumentName, document.Version, document.CreatedAt, document.Content));
         }
 
@@ -245,9 +342,14 @@ public sealed class BundesligaMatchContextResolver
             {
                 throw new InvalidDataException($"Recorded context version '{name}' v{entry.Version} is missing.");
             }
-            if (!string.Equals(document.DocumentName, name, StringComparison.Ordinal) || document.Version != entry.Version)
+            if (!string.Equals(document.DocumentName, name, StringComparison.Ordinal)
+                || document.Version != entry.Version
+                || !string.Equals(
+                    DocumentPublicationContract.ComputeContentSha256(document.Content),
+                    entry.ContentSha256,
+                    StringComparison.Ordinal))
             {
-                throw new InvalidDataException($"Recorded context version '{name}' v{entry.Version} resolved to a different identity.");
+                throw new InvalidDataException($"Recorded context version '{name}' v{entry.Version} resolved to a different identity or content hash.");
             }
 
             documents.Add(new DocumentContext(document.DocumentName, document.Content));
@@ -307,13 +409,23 @@ public sealed class BundesligaMatchContextResolver
             var document = publication.Documents.SingleOrDefault(document => document.Name == name)
                 ?? throw new InvalidDataException(
                     $"Publication snapshot '{publication.Snapshot.SnapshotId}' is missing required match-team document '{name}'.");
-            if (recorded is not null && (!recorded.TryGetValue(name, out var entry) || entry.Version != document.Version))
+            if (recorded is not null
+                && (!recorded.TryGetValue(name, out var entry)
+                    || entry.Version != document.Version
+                    || !string.Equals(
+                        entry.ContentSha256,
+                        DocumentPublicationContract.ComputeContentSha256(document.Content),
+                        StringComparison.Ordinal)))
             {
-                throw new InvalidDataException($"Recorded reserved context version '{name}' does not match publication snapshot '{publication.Snapshot.SnapshotId}'.");
+                throw new InvalidDataException($"Recorded reserved context version or content hash '{name}' does not match publication snapshot '{publication.Snapshot.SnapshotId}'.");
             }
 
             documents.Add(new DocumentContext(document.Name, document.Content));
-            entries.Add(new ResolvedMatchContextDocument(document.Name, document.Version));
+            entries.Add(new ResolvedMatchContextDocument(
+                document.Name,
+                document.Version,
+                "Context",
+                DocumentPublicationContract.ComputeContentSha256(document.Content)));
             resolvedDocuments.Add(new ResolvedContextDocumentVersion(document.Name, document.Version, document.CreatedAt, document.Content));
         }
     }

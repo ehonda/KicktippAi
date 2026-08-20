@@ -14,6 +14,44 @@ namespace Orchestrator.Tests.Commands.Operations.Verify;
 public class VerifyMatchdayCommand_Outdated_Tests : VerifyMatchdayCommandTests_Base
 {
     [Test]
+    public async Task Bundesliga_prediction_with_null_metadata_is_outdated_fail_closed()
+    {
+        var match = CreateTestMatch();
+        var ctx = CreateVerifyMatchdayCommandApp(
+            placedPredictions: CreatePlacedPredictions(match, CreateBetPrediction(homeGoals: 2, awayGoals: 1)),
+            databasePrediction: CreatePrediction(homeGoals: 2, awayGoals: 1),
+            predictionMetadata: (PredictionMetadata?)null);
+
+        var (exitCode, output) = await RunCommandAsync(
+            ctx.App, ctx.Console, "verify-matchday", "gpt-4o", "-c", "test-community",
+            "--competition", CompetitionIds.Bundesliga2026_27, "--check-outdated");
+
+        await Assert.That(exitCode).IsEqualTo(1);
+        await Assert.That(output).Contains("Status:").And.Contains("Outdated");
+    }
+
+    [Test]
+    public async Task Bundesliga_prediction_with_corrupt_metadata_retrieval_is_outdated_fail_closed()
+    {
+        var match = CreateTestMatch();
+        var predictionRepository = CreateMockPredictionRepository(getPredictionResult: CreatePrediction(homeGoals: 2, awayGoals: 1));
+        predictionRepository
+            .Setup(repository => repository.GetPredictionMetadataAsync(
+                match, It.IsAny<PredictionModelConfig>(), "test-community", It.IsAny<CancellationToken>()))
+            .ThrowsAsync(new InvalidDataException("Stored metadata is corrupt."));
+        var ctx = CreateVerifyMatchdayCommandApp(
+            placedPredictions: CreatePlacedPredictions(match, CreateBetPrediction(homeGoals: 2, awayGoals: 1)),
+            firebaseServiceFactory: CreateMockFirebaseServiceFactoryFull(predictionRepository: predictionRepository));
+
+        var (exitCode, output) = await RunCommandAsync(
+            ctx.App, ctx.Console, "verify-matchday", "gpt-4o", "-c", "test-community",
+            "--competition", CompetitionIds.Bundesliga2026_27, "--check-outdated");
+
+        await Assert.That(exitCode).IsEqualTo(1);
+        await Assert.That(output).Contains("Status:").And.Contains("Outdated");
+    }
+
+    [Test]
     public async Task Bundesliga_prediction_without_immutable_manifest_is_outdated_fail_closed()
     {
         var match = CreateTestMatch();
@@ -57,6 +95,70 @@ public class VerifyMatchdayCommand_Outdated_Tests : VerifyMatchdayCommandTests_B
         contextRepository.Verify(repository => repository.GetLatestContextDocumentAsync(
             It.Is<string>(name => name.StartsWith("roster-", StringComparison.Ordinal) || name.StartsWith("club-elo-", StringComparison.Ordinal)),
             It.IsAny<string>(), It.IsAny<CancellationToken>()), Times.Never);
+    }
+
+    [Test]
+    public async Task Bundesliga_prediction_with_same_version_ordinary_content_mutation_is_outdated()
+    {
+        var match = CreateTestMatch();
+        var recordedDocuments = CreateBundesligaOrdinaryDocuments(match);
+        var currentDocuments = new Dictionary<string, ContextDocument>(recordedDocuments, StringComparer.Ordinal)
+        {
+            ["bundesliga-standings.csv"] = new ContextDocument(
+                "bundesliga-standings.csv",
+                "same version, changed bytes",
+                recordedDocuments["bundesliga-standings.csv"].Version,
+                recordedDocuments["bundesliga-standings.csv"].CreatedAt)
+        };
+        var prediction = CreatePrediction(homeGoals: 2, awayGoals: 1);
+        var metadata = CreateCanonicalBundesligaPredictionMetadata(prediction, match, recordedDocuments, communityContext: "test-community");
+        var ctx = CreateVerifyMatchdayCommandApp(
+            placedPredictions: CreatePlacedPredictions(match, CreateBetPrediction(homeGoals: 2, awayGoals: 1)),
+            databasePrediction: prediction,
+            predictionMetadata: metadata,
+            contextDocumentsByName: currentDocuments);
+
+        var (exitCode, output) = await RunCommandAsync(
+            ctx.App, ctx.Console, "verify-matchday", "gpt-4o", "-c", "test-community",
+            "--competition", CompetitionIds.Bundesliga2026_27, "--check-outdated");
+
+        await Assert.That(exitCode).IsEqualTo(1);
+        await Assert.That(output).Contains("Status:").And.Contains("Outdated");
+    }
+
+    [Test]
+    public async Task Bundesliga_prediction_with_valid_shape_tampered_manifest_hash_is_outdated()
+    {
+        var match = CreateTestMatch();
+        var ordinaryDocuments = CreateBundesligaOrdinaryDocuments(match);
+        var original = CreateCanonicalBundesligaResolvedContextManifest(match, ordinaryDocuments: ordinaryDocuments);
+        var tampered = ResolvedMatchContextManifest.Create(
+            original.Competition,
+            original.CommunityContext,
+            original.Documents.Select(document => document.Name.StartsWith("roster-", StringComparison.Ordinal)
+                ? new ResolvedMatchContextDocument(document.Name, document.Version, document.Kind,
+                    new string('f', DocumentPublicationContract.Sha256HexLength))
+                : document),
+            original.RosterPublicationSnapshotId,
+            original.ClubEloPublicationSnapshotId);
+        var prediction = CreatePrediction(homeGoals: 2, awayGoals: 1);
+        var metadata = new PredictionMetadata(
+            prediction,
+            DateTimeOffset.UtcNow,
+            tampered.Documents.Select(document => document.Name).ToList(),
+            tampered);
+        var ctx = CreateVerifyMatchdayCommandApp(
+            placedPredictions: CreatePlacedPredictions(match, CreateBetPrediction(homeGoals: 2, awayGoals: 1)),
+            databasePrediction: prediction,
+            predictionMetadata: metadata,
+            contextDocumentsByName: ordinaryDocuments);
+
+        var (exitCode, output) = await RunCommandAsync(
+            ctx.App, ctx.Console, "verify-matchday", "gpt-4o", "-c", "test-community",
+            "--competition", CompetitionIds.Bundesliga2026_27, "--check-outdated");
+
+        await Assert.That(exitCode).IsEqualTo(1);
+        await Assert.That(output).Contains("Status:").And.Contains("Outdated");
     }
 
     [Test]

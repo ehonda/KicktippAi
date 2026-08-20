@@ -10,6 +10,45 @@ namespace Orchestrator.Tests.Commands.Observability.PrepareRepeatedMatchCommandT
 public class PrepareRepeatedMatchCommand_Tests
 {
     [Test]
+    public async Task Running_command_rejects_manifestless_bundesliga_source_before_writing_artifacts()
+    {
+        var tempDirectory = Directory.CreateTempSubdirectory();
+
+        try
+        {
+            var matchOutcomeRepository = new Mock<IMatchOutcomeRepository>(MockBehavior.Strict);
+            matchOutcomeRepository
+                .Setup(repository => repository.GetMatchdayOutcomesAsync(
+                    1,
+                    "test-community",
+                    It.IsAny<CancellationToken>()))
+                .ReturnsAsync([CreateCompletedOutcome(CompetitionIds.Bundesliga2026_27, 1)]);
+            var firebaseFactory = new Mock<IFirebaseServiceFactory>();
+            firebaseFactory
+                .Setup(factory => factory.CreateMatchOutcomeRepository(CompetitionIds.Bundesliga2026_27))
+                .Returns(matchOutcomeRepository.Object);
+            var outputDirectory = Path.Combine(tempDirectory.FullName, "manifestless");
+            var context = CreateCommandApp<PrepareRepeatedMatchCommand>(
+                "prepare-repeated-match",
+                firebaseServiceFactory: firebaseFactory);
+
+            var (exitCode, output) = await RunCommandAsync(
+                context.App, context.Console, "prepare-repeated-match", "--community-context", "test-community",
+                "--home", "VfB Stuttgart", "--away", "RB Leipzig", "--matchday", "1", "--sample-size", "1",
+                "--output-directory", outputDirectory);
+
+            await Assert.That(exitCode).IsEqualTo(1);
+            await Assert.That(output).Contains("missing required immutable resolvedContextManifest");
+            await Assert.That(File.Exists(Path.Combine(outputDirectory, "slice-dataset.json"))).IsFalse();
+            await Assert.That(File.Exists(Path.Combine(outputDirectory, "slice-manifest.json"))).IsFalse();
+        }
+        finally
+        {
+            tempDirectory.Delete(recursive: true);
+        }
+    }
+
+    [Test]
     public async Task Running_command_materializes_repeated_match_dataset_and_manifest()
     {
         var tempDirectory = Directory.CreateTempSubdirectory();
@@ -111,4 +150,19 @@ public class PrepareRepeatedMatchCommand_Tests
             tempDirectory.Delete(recursive: true);
         }
     }
+
+    private static PersistedMatchOutcome CreateCompletedOutcome(string competition, int matchday) =>
+        new(
+            "test-community",
+            competition,
+            "VfB Stuttgart",
+            "RB Leipzig",
+            NodaTime.Instant.FromUtc(2026, 8, 21, 14, 30).InUtc(),
+            matchday,
+            1,
+            0,
+            MatchOutcomeAvailability.Completed,
+            "manifestless",
+            new DateTimeOffset(2026, 8, 21, 16, 0, 0, TimeSpan.Zero),
+            new DateTimeOffset(2026, 8, 21, 16, 0, 0, TimeSpan.Zero));
 }

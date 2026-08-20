@@ -88,7 +88,7 @@ public class MatchdayCommand_RepredictMode_Tests : MatchdayCommandTests_Base
         var ctx = CreateMatchdayCommandApp(
             firebaseServiceFactory: CreateMockFirebaseServiceFactoryFull(predictionRepository: predictionRepo, contextRepository: contextRepo));
 
-        var (exitCode, output) = await RunCommandAsync(ctx.App, ctx.Console, "matchday", "gpt-4o", "-c", "test-community", "--repredict");
+        var (exitCode, output) = await RunCommandAsync(ctx.App, ctx.Console, "matchday", "gpt-4o", "-c", "test-community", "--competition", CompetitionIds.Bundesliga2025_26, "--repredict");
 
         await Assert.That(exitCode).IsEqualTo(0);
         await Assert.That(output).Contains("Skipped reprediction");
@@ -119,7 +119,7 @@ public class MatchdayCommand_RepredictMode_Tests : MatchdayCommandTests_Base
         var ctx = CreateMatchdayCommandApp(
             firebaseServiceFactory: CreateMockFirebaseServiceFactoryFull(predictionRepository: predictionRepo, contextRepository: contextRepo));
 
-        var (exitCode, output) = await RunCommandAsync(ctx.App, ctx.Console, "matchday", "gpt-4o", "-c", "test-community", "--repredict");
+        var (exitCode, output) = await RunCommandAsync(ctx.App, ctx.Console, "matchday", "gpt-4o", "-c", "test-community", "--competition", CompetitionIds.Bundesliga2025_26, "--repredict");
 
         await Assert.That(exitCode).IsEqualTo(0);
         await Assert.That(output).Contains("3:2");
@@ -127,7 +127,7 @@ public class MatchdayCommand_RepredictMode_Tests : MatchdayCommandTests_Base
     }
 
     [Test]
-    public async Task Running_command_with_max_repredictions_skips_when_at_limit()
+    public async Task Running_command_with_max_repredictions_blocks_unsafe_cached_prediction_at_limit()
     {
         var existingPrediction = CreatePrediction(homeGoals: 1, awayGoals: 1);
 
@@ -141,10 +141,34 @@ public class MatchdayCommand_RepredictMode_Tests : MatchdayCommandTests_Base
 
         var (exitCode, output) = await RunCommandAsync(ctx.App, ctx.Console, "matchday", "gpt-4o", "-c", "test-community", "--max-repredictions", "2");
 
+        await Assert.That(exitCode).IsEqualTo(1);
+        await Assert.That(output).Contains("cannot be reused");
+    }
+
+    [Test]
+    public async Task Running_command_with_int32_max_reprediction_index_reuses_the_current_legacy_prediction_without_overflow()
+    {
+        var existingPrediction = CreatePrediction(homeGoals: 1, awayGoals: 1);
+        var predictionRepo = CreateMockPredictionRepository(getPredictionResult: existingPrediction);
+        predictionRepo
+            .Setup(r => r.GetMatchRepredictionIndexAsync(It.IsAny<Match>(), It.IsAny<PredictionModelConfig>(), It.IsAny<string>(), It.IsAny<CancellationToken>()))
+            .ReturnsAsync(int.MaxValue);
+        predictionRepo
+            .Setup(r => r.GetPredictionMetadataAsync(It.IsAny<Match>(), It.IsAny<PredictionModelConfig>(), It.IsAny<string>(), It.IsAny<CancellationToken>()))
+            .ReturnsAsync(new PredictionMetadata(existingPrediction, DateTimeOffset.UtcNow, []));
+        var ctx = CreateMatchdayCommandApp(
+            firebaseServiceFactory: CreateMockFirebaseServiceFactoryFull(predictionRepository: predictionRepo));
+
+        var (exitCode, output) = await RunCommandAsync(
+            ctx.App, ctx.Console, "matchday", "gpt-4o", "-c", "test-community",
+            "--competition", CompetitionIds.Bundesliga2025_26, "--repredict");
+
         await Assert.That(exitCode).IsEqualTo(0);
-        await Assert.That(output).Contains("Skipped");
-        await Assert.That(output).Contains("already at max repredictions");
-        await Assert.That(output).Contains("2/2");
+        await Assert.That(output).Contains("already at max repredictions (2147483647/2147483647)");
+        predictionRepo.Verify(r => r.SaveRepredictionAsync(
+            It.IsAny<Match>(), It.IsAny<Prediction>(), It.IsAny<PredictionModelConfig>(), It.IsAny<string>(),
+            It.IsAny<double>(), It.IsAny<string>(), It.IsAny<IEnumerable<string>>(), It.IsAny<int>(), It.IsAny<CancellationToken>()),
+            Times.Never);
     }
 
     [Test]
@@ -181,7 +205,7 @@ public class MatchdayCommand_RepredictMode_Tests : MatchdayCommandTests_Base
     }
 
     [Test]
-    public async Task Running_command_with_max_repredictions_zero_allows_only_first_prediction()
+    public async Task Running_command_with_zero_max_repredictions_blocks_unsafe_cached_prediction()
     {
         var existingPrediction = CreatePrediction(homeGoals: 1, awayGoals: 1);
 
@@ -195,9 +219,8 @@ public class MatchdayCommand_RepredictMode_Tests : MatchdayCommandTests_Base
 
         var (exitCode, output) = await RunCommandAsync(ctx.App, ctx.Console, "matchday", "gpt-4o", "-c", "test-community", "--max-repredictions", "0");
 
-        await Assert.That(exitCode).IsEqualTo(0);
-        await Assert.That(output).Contains("already at max repredictions");
-        await Assert.That(output).Contains("0/0");
+        await Assert.That(exitCode).IsEqualTo(1);
+        await Assert.That(output).Contains("cannot be reused");
     }
 
     [Test]
@@ -230,7 +253,7 @@ public class MatchdayCommand_RepredictMode_Tests : MatchdayCommandTests_Base
         predictionRepo.As<IResolvedMatchContextPredictionRepository>().Verify(
             r => r.SaveRepredictionWithResolvedContextAsync(
                 It.IsAny<Match>(), It.IsAny<Prediction>(), It.IsAny<PredictionModelConfig>(), It.IsAny<string>(),
-                It.IsAny<double>(), It.IsAny<string>(), It.IsAny<IEnumerable<string>>(), 2,
+                It.IsAny<double>(), It.IsAny<string>(), It.IsAny<IEnumerable<string>>(), 1, int.MaxValue,
                 It.Is<ResolvedMatchContextManifest>(manifest => manifest.Documents.Length == 11), It.IsAny<CancellationToken>()),
             Times.Once);
     }

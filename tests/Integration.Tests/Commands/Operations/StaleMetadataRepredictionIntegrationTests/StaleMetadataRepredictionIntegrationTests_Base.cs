@@ -19,7 +19,9 @@ namespace Integration.Tests.Commands.Operations.StaleMetadataRepredictionIntegra
 [NotInParallel(FirestoreFixture.OrchestratorIntegrationParallelKey)]
 public abstract class StaleMetadataRepredictionIntegrationTests_Base(FirestoreFixture fixture)
 {
-    protected const string Competition = CompetitionIds.Bundesliga2026_27;
+    // These regressions exercise the historical timestamp-based metadata path. 2026/27
+    // requires a resolved immutable manifest and is covered by the Matchday provenance tests.
+    protected const string Competition = CompetitionIds.Bundesliga2025_26;
     protected const string Community = "ehonda-ai-arena";
     protected const string Model = "o4-mini";
 

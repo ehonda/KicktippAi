@@ -378,10 +378,6 @@ public sealed class FirebaseDocumentPublicationRepositoryTests(FirestoreFixture 
             .Throws<InvalidOperationException>();
         await Assert.That(() => context.SaveContextDocumentAsync("club-elo-b04.csv", "content", "community"))
             .Throws<InvalidOperationException>();
-        await Assert.That(() => context.UpdateContextDocumentVersionAsync("team-rosters", 0, "content", "community"))
-            .Throws<InvalidOperationException>();
-        await Assert.That(() => context.UpdateContextDocumentVersionAsync("roster-b04", 0, "content", "community"))
-            .Throws<InvalidOperationException>();
         await Assert.That(() => kpi.SaveKpiDocumentAsync("team-squad-summary", "content", "description", "community"))
             .Throws<InvalidOperationException>();
         await Assert.That(() => kpi.SaveKpiDocumentAsync("club-elo-rankings", "content", "description", "community"))

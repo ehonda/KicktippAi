@@ -770,7 +770,7 @@ public static class OrchestratorTestFactories
         resolvedContext.Setup(repository => repository.SaveRepredictionWithResolvedContextAsync(
                 It.IsAny<Match>(), It.IsAny<Prediction>(), It.IsAny<PredictionModelConfig>(),
                 It.IsAny<string>(), It.IsAny<double>(), It.IsAny<string>(), It.IsAny<IEnumerable<string>>(),
-                It.IsAny<int>(), It.IsAny<ResolvedMatchContextManifest>(), It.IsAny<CancellationToken>()))
+                It.IsAny<int>(), It.IsAny<int>(), It.IsAny<ResolvedMatchContextManifest>(), It.IsAny<CancellationToken>()))
             .Returns(Task.CompletedTask);
         resolvedContext.Setup(repository => repository.GetResolvedMatchContextManifestAsync(
                 It.IsAny<Match>(), It.IsAny<PredictionModelConfig>(), It.IsAny<string>(), It.IsAny<CancellationToken>()))
@@ -1005,16 +1005,20 @@ public static class OrchestratorTestFactories
             communityContext,
             CompetitionIds.Bundesliga2026_27).RequiredDocumentNames;
         var reserved = roster.Documents.Concat(elo.Documents)
-            .ToDictionary(document => document.Name, document => document.Version, StringComparer.Ordinal);
+            .ToDictionary(document => document.Name, StringComparer.Ordinal);
 
         return ResolvedMatchContextManifest.Create(
             CompetitionIds.Bundesliga2026_27,
             communityContext,
             names.Select(name => new ResolvedMatchContextDocument(
                 name,
-                reserved.TryGetValue(name, out var version)
-                    ? version
-                    : ordinaryDocuments?.GetValueOrDefault(name)?.Version ?? 1)),
+                reserved.TryGetValue(name, out var published)
+                    ? published.Version
+                    : ordinaryDocuments?.GetValueOrDefault(name)?.Version ?? 1,
+                "Context",
+                reserved.TryGetValue(name, out published)
+                    ? DocumentPublicationContract.ComputeContentSha256(published.Content)
+                    : DocumentPublicationContract.ComputeContentSha256(ordinaryDocuments?.GetValueOrDefault(name)?.Content ?? name))),
             roster.Snapshot.SnapshotId,
             elo.Snapshot.SnapshotId);
     }
