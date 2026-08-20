@@ -53,7 +53,7 @@ public static class TestEnvironmentHelper
     /// </summary>
     private static string GetEnvFilePath()
     {
-        var solutionRoot = SolutionPathUtility.FindSolutionRoot();
+        var solutionRoot = SolutionPathUtility.FindOriginalRepositoryRoot();
         return Path.Combine(solutionRoot, "..", "KicktippAi.Secrets", "tests", "KicktippIntegration.Tests", ".env");
     }
 }

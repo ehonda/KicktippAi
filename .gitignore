@@ -5,6 +5,7 @@
 
 # dotenv files
 .env
+.codex-local/original-repository-path
 
 # Python packaging artifacts
 __pycache__/

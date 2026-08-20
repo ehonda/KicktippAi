@@ -1,3 +1,5 @@
+using EHonda.KicktippAi.Core;
+
 namespace Orchestrator;
 
 public static class PathUtility
@@ -9,20 +11,7 @@ public static class PathUtility
     /// <exception cref="DirectoryNotFoundException">Thrown when the solution root cannot be found.</exception>
     public static string FindSolutionRoot()
     {
-        var currentDirectory = Directory.GetCurrentDirectory();
-        var directory = new DirectoryInfo(currentDirectory);
-
-        while (directory != null)
-        {
-            var solutionFile = Path.Combine(directory.FullName, "KicktippAi.slnx");
-            if (File.Exists(solutionFile))
-            {
-                return directory.FullName;
-            }
-            directory = directory.Parent;
-        }
-
-        throw new DirectoryNotFoundException($"Could not find solution root (KicktippAi.slnx) starting from: {currentDirectory}");
+        return SolutionPathUtility.FindSolutionRoot();
     }
 
     /// <summary>
@@ -43,7 +32,7 @@ public static class PathUtility
     /// <returns>The full path to the .env file.</returns>
     public static string GetEnvFilePath(string projectName, string? suffix = null)
     {
-        var solutionRoot = FindSolutionRoot();
+        var solutionRoot = SolutionPathUtility.FindOriginalRepositoryRoot();
         var envFileName = string.IsNullOrWhiteSpace(suffix)
             ? ".env"
             : $".env.{suffix.Trim()}";
@@ -57,7 +46,7 @@ public static class PathUtility
     /// <returns>The full path to the firebase.json file.</returns>
     public static string GetFirebaseJsonPath()
     {
-        var solutionRoot = FindSolutionRoot();
+        var solutionRoot = SolutionPathUtility.FindOriginalRepositoryRoot();
         return Path.Combine(solutionRoot, "..", "KicktippAi.Secrets", "src", "Orchestrator", "firebase.json");
     }
 }

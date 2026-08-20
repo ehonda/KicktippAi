@@ -85,6 +85,28 @@ public class PathUtilityAndEnvironmentHelperTests : TempDirectoryTestBase
     }
 
     [Test]
+    public async Task Secret_path_helpers_use_original_repository_locator()
+    {
+        var (worktreeRoot, _) = CreateSolutionAndSecretsDirectories();
+        var originalWorkspaceRoot = Path.Combine(TestDirectory, "original-workspace");
+        var originalRoot = Path.Combine(originalWorkspaceRoot, "KicktippAi");
+        var originalSecretsRoot = Path.Combine(originalWorkspaceRoot, "KicktippAi.Secrets");
+        Directory.CreateDirectory(originalRoot);
+        Directory.CreateDirectory(originalSecretsRoot);
+        File.WriteAllText(Path.Combine(originalRoot, "KicktippAi.slnx"), "test");
+        WriteOriginalRepositoryLocator(worktreeRoot, originalRoot);
+
+        var instructionsPath = PathUtility.GetInstructionsTemplatePath();
+        var envPath = PathUtility.GetEnvFilePath("Orchestrator");
+        var firebasePath = PathUtility.GetFirebaseJsonPath();
+
+        await Assert.That(instructionsPath).IsEqualTo(
+            Path.Combine(worktreeRoot, "prompts", "reasoning-models", "predict-one-match", "v0-handcrafted", "instructions_template.md"));
+        await Assert.That(Path.GetFullPath(envPath)).IsEqualTo(Path.Combine(originalSecretsRoot, "src", "Orchestrator", ".env"));
+        await Assert.That(Path.GetFullPath(firebasePath)).IsEqualTo(Path.Combine(originalSecretsRoot, "src", "Orchestrator", "firebase.json"));
+    }
+
+    [Test]
     public async Task Loading_environment_variables_loads_dotenv_and_firebase_credentials()
     {
         var (_, secretsRoot) = CreateSolutionAndSecretsDirectories();
@@ -216,5 +238,12 @@ public class PathUtilityAndEnvironmentHelperTests : TempDirectoryTestBase
 
         Directory.SetCurrentDirectory(solutionRoot);
         return (solutionRoot, secretsRoot);
+    }
+
+    private static void WriteOriginalRepositoryLocator(string solutionRoot, string originalRoot)
+    {
+        var locatorDirectory = Path.Combine(solutionRoot, ".codex-local");
+        Directory.CreateDirectory(locatorDirectory);
+        File.WriteAllText(Path.Combine(locatorDirectory, "original-repository-path"), originalRoot);
     }
 }
