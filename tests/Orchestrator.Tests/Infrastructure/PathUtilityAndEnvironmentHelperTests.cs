@@ -3,7 +3,8 @@ using Microsoft.Extensions.Logging.Testing;
 
 namespace Orchestrator.Tests.Infrastructure;
 
-[NotInParallel("ProcessState")]
+// These tests mutate the process-wide current directory and environment variables.
+[NotInParallel]
 public class PathUtilityAndEnvironmentHelperTests : TempDirectoryTestBase
 {
     private const string FirebaseProjectIdEnvVar = "FIREBASE_PROJECT_ID";
