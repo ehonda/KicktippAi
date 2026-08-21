@@ -805,4 +805,47 @@ public class PredictionService_PredictMatchAsync_Tests : PredictionServiceTests_
             .IsEqualTo("kicktippai/predict-one-match-o3-poc");
         await Assert.That(activity.GetTagItem("langfuse.observation.prompt.version")).IsEqualTo(7);
     }
+
+    [Test]
+    [NotInParallel("Telemetry")]
+    public async Task Predicting_match_records_resolved_prompt_route_hash_and_fallback_metadata()
+    {
+        var capturedActivities = new List<Activity>();
+        using var listener = CreateActivityListener(capturedActivities);
+        var templateProvider = CreateMockTemplateProvider();
+        templateProvider.As<IPromptTemplateTelemetryMetadataProvider>()
+            .Setup(provider => provider.GetPromptTemplateTelemetryMetadata())
+            .Returns(new PromptTemplateTelemetryMetadata(
+                RequestedSource: "langfuse",
+                ActualSource: "local",
+                LangfusePromptName: "kicktippai/bundesliga-2026-27/predict-one-match",
+                LangfusePromptLabel: "production",
+                LangfusePromptVersion: null,
+                IsFallback: true,
+                PromptPath: "/prompts/bundesliga-2026-27/match.md",
+                ContentSha256: "abc123"));
+        var service = CreateService(
+            CreateMockChatClient("""{"home": 2, "away": 1}"""),
+            templateProvider: NullableOption.Some(templateProvider.Object));
+
+        var prediction = await PredictMatchAsync(service);
+
+        await Assert.That(prediction).IsNotNull();
+        var activity = capturedActivities.Single(candidate =>
+            candidate.OperationName == "predict-match" &&
+            candidate.GetTagItem("langfuse.observation.metadata.promptRequestedSource") is not null);
+        await Assert.That(activity.GetTagItem("langfuse.observation.prompt.name")).IsNull();
+        await Assert.That(activity.GetTagItem("langfuse.observation.metadata.promptRequestedSource")).IsEqualTo("langfuse");
+        await Assert.That(activity.GetTagItem("langfuse.observation.metadata.promptActualSource")).IsEqualTo("local");
+        await Assert.That(activity.GetTagItem("langfuse.observation.metadata.langfusePromptName"))
+            .IsEqualTo("kicktippai/bundesliga-2026-27/predict-one-match");
+        await Assert.That(activity.GetTagItem("langfuse.observation.metadata.langfusePromptLabel")).IsEqualTo("production");
+        await Assert.That(activity.GetTagItem("langfuse.observation.metadata.langfusePromptVersion")).IsNull();
+        await Assert.That(
+                activity.GetTagItem("langfuse.observation.metadata.langfusePromptFallback") is bool fallbackUsed && fallbackUsed)
+            .IsTrue();
+        await Assert.That(activity.GetTagItem("langfuse.observation.metadata.promptFallbackPath"))
+            .IsEqualTo("/prompts/bundesliga-2026-27/match.md");
+        await Assert.That(activity.GetTagItem("langfuse.observation.metadata.promptContentSha256")).IsEqualTo("abc123");
+    }
 }

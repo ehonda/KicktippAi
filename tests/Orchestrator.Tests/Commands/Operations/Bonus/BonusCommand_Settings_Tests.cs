@@ -277,7 +277,8 @@ public class BonusCommand_Settings_Tests : BonusCommandTests_Base
         context.OpenAiServiceFactory.Verify(
             factory => factory.CreatePredictionService(
                 "test-model",
-                It.Is<PredictionServiceOptions>(options => options.MaxOutputTokenCount == 40_000)),
+                It.Is<PredictionServiceOptions>(options => options.MaxOutputTokenCount == 40_000),
+                It.IsAny<IInstructionsTemplateProvider>()),
             Times.Once);
     }
 

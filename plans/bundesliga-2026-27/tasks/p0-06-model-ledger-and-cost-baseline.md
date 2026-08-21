@@ -2,7 +2,7 @@
 
 - Status: Not started
 - Priority: P0
-- Depends on: [P0-05](p0-05-prompt-route.md)
+- Depends on: [P0-05](p0-05-prompt-route.md) candidate implementation and stable hashes; its final production-label promotion shares this task's owner gate
 - Decisions: [ADR-0004](../decisions/0004-hosted-prompts-with-local-fallback.md), [ADR-0006](../decisions/0006-stage-validation-with-a-cheap-test-model.md)
 
 ## Outcome

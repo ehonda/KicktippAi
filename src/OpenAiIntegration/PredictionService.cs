@@ -1190,8 +1190,18 @@ public class PredictionService : IPredictionService
 
         if (providerPromptMetadata is not null)
         {
+            activity.SetTag("langfuse.observation.metadata.promptRequestedSource", providerPromptMetadata.RequestedSource);
+            activity.SetTag("langfuse.observation.metadata.promptActualSource", providerPromptMetadata.ActualSource);
+            activity.SetTag("langfuse.observation.metadata.langfusePromptName", providerPromptMetadata.LangfusePromptName);
+            activity.SetTag("langfuse.observation.metadata.langfusePromptLabel", providerPromptMetadata.LangfusePromptLabel);
+            activity.SetTag("langfuse.observation.metadata.langfusePromptVersion", providerPromptMetadata.LangfusePromptVersion);
             activity.SetTag("langfuse.observation.metadata.langfusePromptFallback", providerPromptMetadata.IsFallback);
             activity.SetTag("langfuse.observation.metadata.promptTemplatePath", providerPromptMetadata.PromptPath);
+            activity.SetTag("langfuse.observation.metadata.promptContentSha256", providerPromptMetadata.ContentSha256);
+            if (providerPromptMetadata.IsFallback)
+            {
+                activity.SetTag("langfuse.observation.metadata.promptFallbackPath", providerPromptMetadata.PromptPath);
+            }
         }
         else if (_options.LangfusePromptTraceMetadata is { IsFallback: true })
         {

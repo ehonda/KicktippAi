@@ -11,6 +11,7 @@ using OpenAiIntegration;
 using Orchestrator.Commands.Operations.RandomMatch;
 using Orchestrator.Infrastructure;
 using Orchestrator.Infrastructure.Factories;
+using Orchestrator.Infrastructure.Langfuse;
 using Spectre.Console;
 using Spectre.Console.Cli;
 using Spectre.Console.Testing;
@@ -54,6 +55,24 @@ public class RandomMatchCommand_AdditionalCoverage_Tests
         await Assert.That(output).Contains("Justification output enabled");
         await Assert.That(output).Contains("Key reasoning:");
         await Assert.That(output).Contains("Strong home form");
+    }
+
+    [Test]
+    public async Task World_cup_hosted_match_prompt_with_justification_remains_fail_closed()
+    {
+        var ctx = CreateRandomMatchCommandApp();
+
+        var (exitCode, output) = await RunCommandAsync(
+            ctx.App,
+            ctx.Console,
+            "random-match",
+            "gpt-5-nano",
+            "-c",
+            "ehonda-dev-wm26",
+            "--with-justification");
+
+        await Assert.That(exitCode).IsEqualTo(1);
+        await Assert.That(output).Contains("WM 2026 hosted match prompt").And.Contains("justification");
     }
 
     [Test]
@@ -248,6 +267,7 @@ public class RandomMatchCommand_AdditionalCoverage_Tests
         services.AddSingleton(mockKicktippFactory.Object);
         services.AddSingleton(mockOpenAiFactory.Object);
         services.AddSingleton(mockContextProviderFactory.Object);
+        services.AddSingleton(Mock.Of<ILangfusePublicApiClient>());
         services.AddSingleton<ILogger<RandomMatchCommand>>(new FakeLogger<RandomMatchCommand>());
 
         var registrar = new TypeRegistrar(services);

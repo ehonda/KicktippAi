@@ -150,6 +150,7 @@ public class MatchdayCommand_ErrorHandling_Tests : MatchdayCommandTests_Base
 
         ctx.OpenAiServiceFactory.Verify(f => f.CreatePredictionService(
             "custom-model-name",
-            It.IsAny<PredictionServiceOptions>()), Times.Once);
+            It.IsAny<PredictionServiceOptions>(),
+            It.IsAny<IInstructionsTemplateProvider>()), Times.Once);
     }
 }

@@ -84,6 +84,44 @@ public class CompetitionResolverTests
     }
 
     [Test]
+    [Arguments(false, CompetitionResolver.BundesligaMatchPromptName)]
+    [Arguments(true, CompetitionResolver.BundesligaBonusPromptName)]
+    public async Task Bundesliga_runtime_defaults_to_hosted_production_prompt_and_season_fallback(
+        bool bonusPrompt,
+        string expectedPromptName)
+    {
+        var metadata = CompetitionResolver.ResolveRuntimeMetadata(
+            competition: CompetitionIds.Bundesliga2026_27,
+            community: "pes-squad",
+            communityContext: "pes-squad",
+            promptSource: null,
+            langfusePromptName: null,
+            langfusePromptLabel: null,
+            bonusPrompt);
+
+        await Assert.That(metadata.PromptSource).IsEqualTo(CompetitionResolver.LangfusePromptSource);
+        await Assert.That(metadata.PromptName).IsEqualTo(expectedPromptName);
+        await Assert.That(metadata.PromptLabel).IsEqualTo(CompetitionResolver.DefaultBundesligaPromptLabel);
+        await Assert.That(metadata.FallbackPromptModel).IsEqualTo(CompetitionResolver.BundesligaFallbackPromptModel);
+    }
+
+    [Test]
+    public async Task Bundesliga_candidate_route_preserves_explicit_staging_label()
+    {
+        var metadata = CompetitionResolver.ResolveRuntimeMetadata(
+            competition: CompetitionIds.Bundesliga2026_27,
+            community: "ehonda-dev-buli-2627",
+            communityContext: "ehonda-dev-buli-2627",
+            promptSource: "langfuse",
+            langfusePromptName: null,
+            langfusePromptLabel: "staging",
+            bonusPrompt: false);
+
+        await Assert.That(metadata.PromptName).IsEqualTo(CompetitionResolver.BundesligaMatchPromptName);
+        await Assert.That(metadata.PromptLabel).IsEqualTo("staging");
+    }
+
+    [Test]
     public async Task Missing_model_is_rejected_for_standard_commands()
     {
         var exception = Assert.Throws<ArgumentException>(() =>
