@@ -1,3 +1,5 @@
+using DotNetEnv;
+using DotNetEnv.Extensions;
 using Microsoft.Extensions.Logging;
 using Microsoft.Extensions.Logging.Testing;
 
@@ -11,9 +13,12 @@ public class PathUtilityAndEnvironmentHelperTests : TempDirectoryTestBase
     private const string FirebaseServiceAccountJsonEnvVar = "FIREBASE_SERVICE_ACCOUNT_JSON";
     private const string KicktippPasswordEnvVar = "KICKTIPP_PASSWORD";
     private const string KicktippUsernameEnvVar = "KICKTIPP_USERNAME";
+    private const string SiblingOnlyEnvVar = "KICKTIPP_AI_SIBLING_ONLY";
+    private const string DotNetEnvProbeVar = "KICKTIPP_AI_DOTENV_PROBE";
     private const string TestEnvVar = "KICKTIPP_AI_TEST_ENV";
 
     private readonly Dictionary<string, string?> _originalEnvironmentVariables = new();
+    private readonly Dictionary<string, string> _originalDotNetEnvFallback = new(StringComparer.Ordinal);
     private string _originalCurrentDirectory = null!;
 
     protected override string TestDirectoryName => "PathUtilityAndEnvironmentHelperTests";
@@ -27,7 +32,17 @@ public class PathUtilityAndEnvironmentHelperTests : TempDirectoryTestBase
         RememberEnvironmentVariable(FirebaseServiceAccountJsonEnvVar);
         RememberEnvironmentVariable(KicktippPasswordEnvVar);
         RememberEnvironmentVariable(KicktippUsernameEnvVar);
+        RememberEnvironmentVariable(SiblingOnlyEnvVar);
+        RememberEnvironmentVariable(DotNetEnvProbeVar);
         RememberEnvironmentVariable(TestEnvVar);
+
+        _originalDotNetEnvFallback.Clear();
+        foreach (var (name, value) in Env.FakeEnvVars)
+        {
+            _originalDotNetEnvFallback[name] = value;
+        }
+
+        Env.FakeEnvVars.Clear();
     }
 
     [After(Test)]
@@ -38,6 +53,12 @@ public class PathUtilityAndEnvironmentHelperTests : TempDirectoryTestBase
         foreach (var (name, value) in _originalEnvironmentVariables)
         {
             Environment.SetEnvironmentVariable(name, value);
+        }
+
+        Env.FakeEnvVars.Clear();
+        foreach (var (name, value) in _originalDotNetEnvFallback)
+        {
+            Env.FakeEnvVars[name] = value;
         }
     }
 
@@ -186,14 +207,27 @@ public class PathUtilityAndEnvironmentHelperTests : TempDirectoryTestBase
         Directory.CreateDirectory(orchestratorSecretsDirectory);
         File.WriteAllText(
             Path.Combine(orchestratorSecretsDirectory, ".env.test-community"),
-            "KICKTIPP_USERNAME=community-user\nKICKTIPP_PASSWORD=community-pass\nKICKTIPP_AI_TEST_ENV=must-not-load");
+            "KICKTIPP_USERNAME=community-user\n" +
+            "KICKTIPP_PASSWORD=community-pass\n" +
+            "KICKTIPP_AI_TEST_ENV=must-not-load\n" +
+            $"{SiblingOnlyEnvVar}=must-not-leak");
         Environment.SetEnvironmentVariable(TestEnvVar, "base-value");
+        Environment.SetEnvironmentVariable(SiblingOnlyEnvVar, null);
 
         EnvironmentHelper.LoadCommunityKicktippCredentials(
             new FakeLogger<PathUtilityAndEnvironmentHelperTests>(),
             "test-community");
 
         await Assert.That(Environment.GetEnvironmentVariable(TestEnvVar)).IsEqualTo("base-value");
+        await Assert.That(Environment.GetEnvironmentVariable(SiblingOnlyEnvVar)).IsNull();
+        await Assert.That(Env.FakeEnvVars.ContainsKey(SiblingOnlyEnvVar)).IsFalse();
+
+        var laterParse = Env
+            .LoadContents(
+                $"{DotNetEnvProbeVar}=${{{SiblingOnlyEnvVar}:-fallback}}",
+                Env.NoEnvVars())
+            .ToDotEnvDictionary();
+        await Assert.That(laterParse[DotNetEnvProbeVar]).IsEqualTo("fallback");
     }
 
     [Test]
@@ -206,7 +240,7 @@ public class PathUtilityAndEnvironmentHelperTests : TempDirectoryTestBase
         Directory.CreateDirectory(orchestratorSecretsDirectory);
         File.WriteAllText(
             Path.Combine(orchestratorSecretsDirectory, ".env.test-community"),
-            siblingContents);
+            $"{siblingContents}\n{SiblingOnlyEnvVar}=must-not-leak");
         Environment.SetEnvironmentVariable(KicktippUsernameEnvVar, "base-user");
         Environment.SetEnvironmentVariable(KicktippPasswordEnvVar, "base-pass");
 
@@ -217,6 +251,85 @@ public class PathUtilityAndEnvironmentHelperTests : TempDirectoryTestBase
 
         await Assert.That(Environment.GetEnvironmentVariable(KicktippUsernameEnvVar)).IsEqualTo("base-user");
         await Assert.That(Environment.GetEnvironmentVariable(KicktippPasswordEnvVar)).IsEqualTo("base-pass");
+        await Assert.That(Environment.GetEnvironmentVariable(SiblingOnlyEnvVar)).IsNull();
+        await Assert.That(Env.FakeEnvVars.ContainsKey(SiblingOnlyEnvVar)).IsFalse();
+        await Assert.That(Env.FakeEnvVars.ContainsKey(KicktippUsernameEnvVar)).IsFalse();
+        await Assert.That(Env.FakeEnvVars.ContainsKey(KicktippPasswordEnvVar)).IsFalse();
+    }
+
+    [Test]
+    public async Task Repeated_load_rejects_interpolation_instead_of_inheriting_prior_sibling_value()
+    {
+        var (_, secretsRoot) = CreateSolutionAndSecretsDirectories();
+        var orchestratorSecretsDirectory = Path.Combine(secretsRoot, "src", "Orchestrator");
+        Directory.CreateDirectory(orchestratorSecretsDirectory);
+        File.WriteAllText(
+            Path.Combine(orchestratorSecretsDirectory, ".env.first-community"),
+            "KICKTIPP_USERNAME=first-user\nKICKTIPP_PASSWORD=first-pass");
+        File.WriteAllText(
+            Path.Combine(orchestratorSecretsDirectory, ".env.second-community"),
+            "KICKTIPP_USERNAME=second-user\nKICKTIPP_PASSWORD=${KICKTIPP_PASSWORD}");
+        var logger = new FakeLogger<PathUtilityAndEnvironmentHelperTests>();
+
+        EnvironmentHelper.LoadCommunityKicktippCredentials(logger, "first-community");
+        await Assert.That(() => EnvironmentHelper.LoadCommunityKicktippCredentials(logger, "second-community"))
+            .Throws<InvalidOperationException>();
+
+        await Assert.That(Environment.GetEnvironmentVariable(KicktippUsernameEnvVar)).IsEqualTo("first-user");
+        await Assert.That(Environment.GetEnvironmentVariable(KicktippPasswordEnvVar)).IsEqualTo("first-pass");
+        await Assert.That(Env.FakeEnvVars.ContainsKey(KicktippUsernameEnvVar)).IsFalse();
+        await Assert.That(Env.FakeEnvVars.ContainsKey(KicktippPasswordEnvVar)).IsFalse();
+    }
+
+    [Test]
+    public async Task Quoted_credentials_support_literal_dollar_signs_without_global_interpolation()
+    {
+        var (_, secretsRoot) = CreateSolutionAndSecretsDirectories();
+        var orchestratorSecretsDirectory = Path.Combine(secretsRoot, "src", "Orchestrator");
+        Directory.CreateDirectory(orchestratorSecretsDirectory);
+        File.WriteAllText(
+            Path.Combine(orchestratorSecretsDirectory, ".env.quoted-community"),
+            "KICKTIPP_USERNAME='user$name'\nKICKTIPP_PASSWORD=\"pass\\$word\"");
+        Env.FakeEnvVars["name"] = "must-not-expand";
+        Env.FakeEnvVars["word"] = "must-not-expand";
+
+        EnvironmentHelper.LoadCommunityKicktippCredentials(
+            new FakeLogger<PathUtilityAndEnvironmentHelperTests>(),
+            "quoted-community");
+
+        await Assert.That(Environment.GetEnvironmentVariable(KicktippUsernameEnvVar)).IsEqualTo("user$name");
+        await Assert.That(Environment.GetEnvironmentVariable(KicktippPasswordEnvVar)).IsEqualTo("pass$word");
+        await Assert.That(Env.FakeEnvVars["name"]).IsEqualTo("must-not-expand");
+        await Assert.That(Env.FakeEnvVars["word"]).IsEqualTo("must-not-expand");
+    }
+
+    [Test]
+    [Arguments("../escape")]
+    [Arguments("nested/community")]
+    [Arguments(@"nested\community")]
+    [Arguments(@"C:\escape")]
+    [Arguments(".")]
+    [Arguments("..")]
+    [Arguments(" pes-squad")]
+    [Arguments("pes-squad ")]
+    [Arguments("pes--squad")]
+    [Arguments("PES-squad")]
+    public async Task Invalid_community_slug_is_rejected_before_path_resolution_or_state_change(string community)
+    {
+        Directory.SetCurrentDirectory(TestDirectory);
+        Environment.SetEnvironmentVariable(KicktippUsernameEnvVar, "base-user");
+        Environment.SetEnvironmentVariable(KicktippPasswordEnvVar, "base-pass");
+        Env.FakeEnvVars[SiblingOnlyEnvVar] = "unchanged";
+
+        await Assert.That(() => EnvironmentHelper.LoadCommunityKicktippCredentials(
+                new FakeLogger<PathUtilityAndEnvironmentHelperTests>(),
+                community))
+            .Throws<ArgumentException>();
+
+        await Assert.That(Environment.GetEnvironmentVariable(KicktippUsernameEnvVar)).IsEqualTo("base-user");
+        await Assert.That(Environment.GetEnvironmentVariable(KicktippPasswordEnvVar)).IsEqualTo("base-pass");
+        await Assert.That(Env.FakeEnvVars.Count).IsEqualTo(1);
+        await Assert.That(Env.FakeEnvVars[SiblingOnlyEnvVar]).IsEqualTo("unchanged");
     }
 
     [Test]
