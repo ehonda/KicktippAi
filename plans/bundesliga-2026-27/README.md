@@ -115,3 +115,5 @@ P0 is complete only when:
 - [ADR-0031: Correct DFB-Pokal final inventory coverage](decisions/0031-correct-dfb-pokal-final-inventory-coverage.md)
 - [ADR-0032: Freeze the complete preseason history set and publish it atomically](decisions/0032-freeze-complete-history-set-and-publish-atomically.md)
 - [ADR-0033: Pin the validation model ledger and reserve production selection](decisions/0033-pin-validation-model-ledger-and-reserve-production-selection.md)
+- [ADR-0034: Drive context collection from competition profiles](decisions/0034-drive-context-collection-from-competition-profiles.md)
+- [ADR-0035: Freeze the first live DFB-Pokal history completion](decisions/0035-freeze-first-live-dfb-history-completion.md)

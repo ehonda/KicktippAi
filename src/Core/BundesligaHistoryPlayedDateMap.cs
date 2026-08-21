@@ -36,6 +36,9 @@ public sealed class BundesligaHistoryPlayedDateMap
     public const string OpenLigaDbDfbPokalUrl = "https://api.openligadb.de/getmatchdata/dfb/2025";
     public const string OpenLigaDbDfbPokalRevision = "9d16d5d30e5882c592ec4d8b39b592ea0f102c2e2695da98897f76a87b6ec2a3";
     public const string OpenLigaDbDfbPokalFinalMatchId = "81581";
+    public const string OpenLigaDbDfbPokal2026Url = "https://api.openligadb.de/getmatchdata/dfb/2026";
+    public const string OpenLigaDbDfbPokal2026Revision = "b60d4c1ef214ffa2680efb27cace33cc7b47bf9700b4f57e7043736919a8eeab";
+    public const string OpenLigaDbDfbPokal2026MatchId = "81832";
     public const string UefaSourceClass = "official-match-record";
     public const string UefaSourceName = "UEFA";
     public const string UefaFinalUrl = "https://www.uefa.com/uefaeuropaleague/match/2047743/";
@@ -50,6 +53,8 @@ public sealed class BundesligaHistoryPlayedDateMap
     ];
 
     private static readonly Lazy<BundesligaHistoryPlayedDateMap> DefaultMap = new(LoadEmbedded);
+    private static readonly DateTimeOffset OpenLigaDbDfbPokal2026EvidenceAvailableAt =
+        new(2026, 8, 21, 19, 57, 23, TimeSpan.FromHours(2));
     private static readonly string[] SelectedDocumentPrefixes = ["away-history-", "home-history-", "recent-history-"];
     private static readonly HashSet<string> TransfermarktCompetitions =
         new(["1.BL", "DFB", "CL", "EL", "ConfL"], StringComparer.Ordinal);
@@ -214,6 +219,22 @@ public sealed class BundesligaHistoryPlayedDateMap
                                 && string.Equals(entry.SourceName, OpenLigaDbSourceName, StringComparison.Ordinal);
         var isUefaFinal = string.Equals(entry.HistoryCompetition, "EL", StringComparison.Ordinal)
                           && string.Equals(entry.SourceName, UefaSourceName, StringComparison.Ordinal);
+        var isAcceptedDfbPokalCapture = isDfbPokalCapture
+            && ((string.Equals(entry.SourceRevision, OpenLigaDbDfbPokalRevision, StringComparison.Ordinal)
+                && string.Equals(entry.SourceUrl, OpenLigaDbDfbPokalUrl, StringComparison.Ordinal)
+                && string.Equals(entry.SourceMatchId, OpenLigaDbDfbPokalFinalMatchId, StringComparison.Ordinal)
+                && string.Equals(entry.HomeTeam, "FC Bayern München", StringComparison.Ordinal)
+                && string.Equals(entry.AwayTeam, "VfB Stuttgart", StringComparison.Ordinal)
+                && string.Equals(entry.Score, "3:0", StringComparison.Ordinal)
+                && string.Equals(entry.PlayedAt, "2026-05-23", StringComparison.Ordinal))
+                || (string.Equals(entry.SourceRevision, OpenLigaDbDfbPokal2026Revision, StringComparison.Ordinal)
+                && string.Equals(entry.SourceUrl, OpenLigaDbDfbPokal2026Url, StringComparison.Ordinal)
+                && string.Equals(entry.SourceMatchId, OpenLigaDbDfbPokal2026MatchId, StringComparison.Ordinal)
+                && string.Equals(entry.HomeTeam, "SC St. Tönis", StringComparison.Ordinal)
+                && string.Equals(entry.AwayTeam, "Eintracht Frankfurt", StringComparison.Ordinal)
+                && string.Equals(entry.Score, "0:11", StringComparison.Ordinal)
+                && string.Equals(entry.PlayedAt, "2026-08-21", StringComparison.Ordinal)
+                && verifiedAt >= OpenLigaDbDfbPokal2026EvidenceAvailableAt));
         var validSource = isSecondBundesliga
             ? string.Equals(entry.SourceClass, OpenLigaDbSourceClass, StringComparison.Ordinal)
               && string.Equals(entry.SourceName, OpenLigaDbSourceName, StringComparison.Ordinal)
@@ -226,13 +247,7 @@ public sealed class BundesligaHistoryPlayedDateMap
                 && string.Equals(entry.SourceUrl, OpenLigaDbRelegationUrl, StringComparison.Ordinal)
             : isDfbPokalCapture
               ? string.Equals(entry.SourceClass, OpenLigaDbSourceClass, StringComparison.Ordinal)
-                && string.Equals(entry.SourceRevision, OpenLigaDbDfbPokalRevision, StringComparison.Ordinal)
-                && string.Equals(entry.SourceUrl, OpenLigaDbDfbPokalUrl, StringComparison.Ordinal)
-                && string.Equals(entry.SourceMatchId, OpenLigaDbDfbPokalFinalMatchId, StringComparison.Ordinal)
-                && string.Equals(entry.HomeTeam, "FC Bayern München", StringComparison.Ordinal)
-                && string.Equals(entry.AwayTeam, "VfB Stuttgart", StringComparison.Ordinal)
-                && string.Equals(entry.Score, "3:0", StringComparison.Ordinal)
-                && string.Equals(entry.PlayedAt, "2026-05-23", StringComparison.Ordinal)
+                && isAcceptedDfbPokalCapture
             : isUefaFinal
               ? string.Equals(entry.SourceClass, UefaSourceClass, StringComparison.Ordinal)
                 && string.Equals(entry.SourceRevision, UefaFinalRevision, StringComparison.Ordinal)
@@ -279,6 +294,19 @@ public sealed class BundesligaHistoryPlayedDateMap
             throw Invalid(sourceName, $"source match '{duplicateSource.Key.SourceMatchId}' occurs more than once in {duplicateSource.Key.DocumentName}");
         }
 
+        var duplicateIdentity = entries.GroupBy(entry => (
+                entry.DocumentName,
+                entry.HistoryCompetition,
+                entry.HomeTeam,
+                entry.AwayTeam,
+                entry.Score,
+                entry.Annotation))
+            .FirstOrDefault(group => group.Count() > 1);
+        if (duplicateIdentity is not null)
+        {
+            throw Invalid(sourceName, $"exact fixed-map identity occurs more than once in {duplicateIdentity.Key.DocumentName}");
+        }
+
         var nonContiguous = entries
             .GroupBy(entry => entry.DocumentName, StringComparer.Ordinal)
             .FirstOrDefault(group => !group
@@ -312,14 +340,25 @@ public sealed class BundesligaHistoryPlayedDateMap
             throw Invalid(sourceName, "UEFA match 2047743 must be used exactly once in each of home-history-scf.csv and recent-history-scf.csv");
         }
 
-        var openLigaDfbRows = entries.Where(entry =>
+        var openLigaDfbFinalRows = entries.Where(entry =>
             string.Equals(entry.HistoryCompetition, "DFB", StringComparison.Ordinal)
-            && string.Equals(entry.SourceName, OpenLigaDbSourceName, StringComparison.Ordinal)).ToArray();
-        if (openLigaDfbRows.Length is not 0 and not 4
-            || openLigaDfbRows.Length == 4 && !openLigaDfbRows.Select(entry => entry.DocumentName).ToHashSet(StringComparer.Ordinal)
+            && string.Equals(entry.SourceName, OpenLigaDbSourceName, StringComparison.Ordinal)
+            && string.Equals(entry.SourceMatchId, OpenLigaDbDfbPokalFinalMatchId, StringComparison.Ordinal)).ToArray();
+        if (openLigaDfbFinalRows.Length is not 0 and not 4
+            || openLigaDfbFinalRows.Length == 4 && !openLigaDfbFinalRows.Select(entry => entry.DocumentName).ToHashSet(StringComparer.Ordinal)
                 .SetEquals(["away-history-vfb.csv", "home-history-fcb.csv", "recent-history-fcb.csv", "recent-history-vfb.csv"]))
         {
             throw Invalid(sourceName, "OpenLigaDB DFB-Pokal final 81581 must be used exactly once in each of the four accepted inventory documents");
+        }
+        var openLigaDfb2026Rows = entries.Where(entry =>
+            string.Equals(entry.HistoryCompetition, "DFB", StringComparison.Ordinal)
+            && string.Equals(entry.SourceName, OpenLigaDbSourceName, StringComparison.Ordinal)
+            && string.Equals(entry.SourceMatchId, OpenLigaDbDfbPokal2026MatchId, StringComparison.Ordinal)).ToArray();
+        if (openLigaDfb2026Rows.Length is not 0 and not 2
+            || openLigaDfb2026Rows.Length == 2 && !openLigaDfb2026Rows.Select(entry => entry.DocumentName).ToHashSet(StringComparer.Ordinal)
+                .SetEquals(["away-history-sge.csv", "recent-history-sge.csv"]))
+        {
+            throw Invalid(sourceName, "OpenLigaDB DFB-Pokal match 81832 must be used exactly once in each of away-history-sge.csv and recent-history-sge.csv");
         }
 
         var ordered = entries.OrderBy(entry => entry.DocumentName, StringComparer.Ordinal).ThenBy(entry => entry.RowOrdinal).ToArray();

@@ -136,7 +136,9 @@ public sealed class BundesligaHistoryPlayedDateCollector : IBundesligaHistoryPla
         var resolutions = new List<BundesligaHistoryPlayedDateResolution>();
         var rendered = new List<BundesligaHistoryDocument>(documents.Count);
         var excludedIncompleteRowCount = 0;
-        var mapByOrdinal = dateMap.GroupBy(entry => (entry.DocumentName, entry.RowOrdinal)).ToDictionary(group => group.Key, group => group.ToArray());
+        var mapByIdentity = dateMap
+            .GroupBy(FixedMapIdentityFor)
+            .ToDictionary(group => group.Key, group => group.ToArray());
 
         foreach (var document in documents)
         {
@@ -163,7 +165,7 @@ public sealed class BundesligaHistoryPlayedDateCollector : IBundesligaHistoryPla
                 var resolvedRows = new List<HistoryRow>(rows.Length);
                 foreach (var row in rows)
                 {
-                    var resolution = Resolve(document.Name, row, mapByOrdinal, matchOutcomes, diagnostics);
+                    var resolution = Resolve(document.Name, row, mapByIdentity, matchOutcomes, diagnostics);
                     if (resolution is null)
                     {
                         resolvedRows.Add(row);
@@ -181,13 +183,6 @@ public sealed class BundesligaHistoryPlayedDateCollector : IBundesligaHistoryPla
                 diagnostics.Add(new(document.Name, null, exception.Message));
                 rendered.Add(document);
             }
-        }
-
-        var unusedMapEntries = dateMap.Where(entry => selectedNames.Contains(entry.DocumentName, StringComparer.Ordinal)
-            && !resolutions.Any(resolution => resolution.DocumentName == entry.DocumentName && resolution.RowOrdinal == entry.RowOrdinal)).ToArray();
-        foreach (var entry in unusedMapEntries)
-        {
-            diagnostics.Add(new(entry.DocumentName, entry.RowOrdinal, "Map entry did not resolve the exact document row"));
         }
 
         if (diagnostics.Count > 0)
@@ -250,7 +245,7 @@ public sealed class BundesligaHistoryPlayedDateCollector : IBundesligaHistoryPla
     private static BundesligaHistoryPlayedDateResolution? Resolve(
         string documentName,
         HistoryRow row,
-        IReadOnlyDictionary<(string DocumentName, int RowOrdinal), BundesligaHistoryPlayedDateMapEntry[]> map,
+        IReadOnlyDictionary<FixedMapIdentity, BundesligaHistoryPlayedDateMapEntry[]> map,
         IReadOnlyList<PersistedMatchOutcome> outcomes,
         List<BundesligaHistoryPlayedDateDiagnostic> diagnostics)
     {
@@ -267,19 +262,18 @@ public sealed class BundesligaHistoryPlayedDateCollector : IBundesligaHistoryPla
             return null;
         }
 
-        map.TryGetValue((documentName, row.Ordinal), out var mapMatches);
+        map.TryGetValue(FixedMapIdentityFor(documentName, row), out var mapMatches);
         mapMatches ??= [];
-        var exactMapMatches = mapMatches.Where(entry => MapIdentityMatches(entry, row)).ToArray();
-        if (mapMatches.Length != exactMapMatches.Length || exactMapMatches.Length > 1)
+        if (mapMatches.Length > 1)
         {
-            diagnostics.Add(new(documentName, row.Ordinal, "Map ordinal is duplicate or does not match the exact row identity"));
+            diagnostics.Add(new(documentName, row.Ordinal, "Multiple fixed-map candidates match this exact row identity"));
             return null;
         }
 
         var outcomeDate = outcomeMatches.Length == 1
             ? outcomeMatches[0].StartsAt.WithZone(Berlin).Date.ToString("yyyy-MM-dd", CultureInfo.InvariantCulture)
             : null;
-        var mapDate = exactMapMatches.SingleOrDefault()?.PlayedAt;
+        var mapDate = mapMatches.SingleOrDefault()?.PlayedAt;
         if (IsExactPlayedAt(row.PlayedAt))
         {
             if (outcomeDate is not null && !SameCalendarDate(row.PlayedAt, outcomeDate)
@@ -305,7 +299,7 @@ public sealed class BundesligaHistoryPlayedDateCollector : IBundesligaHistoryPla
         }
         if (mapDate is not null)
         {
-            var entry = exactMapMatches[0];
+            var entry = mapMatches[0];
             return new(documentName, row.Ordinal, mapDate, BundesligaHistoryPlayedDateSourceClass.FixedExternalMap,
                 $"{entry.SourceName}@{entry.SourceRevision}:{entry.SourceMatchId}");
         }
@@ -369,12 +363,21 @@ public sealed class BundesligaHistoryPlayedDateCollector : IBundesligaHistoryPla
         return writer.ToString();
     }
 
-    private static bool MapIdentityMatches(BundesligaHistoryPlayedDateMapEntry entry, HistoryRow row) =>
-        string.Equals(entry.HistoryCompetition, row.HistoryCompetition, StringComparison.Ordinal)
-        && string.Equals(entry.HomeTeam, row.HomeTeam, StringComparison.Ordinal)
-        && string.Equals(entry.AwayTeam, row.AwayTeam, StringComparison.Ordinal)
-        && string.Equals(NormalizeScore(entry.Score), row.Score, StringComparison.Ordinal)
-        && string.Equals(entry.Annotation, row.Annotation, StringComparison.Ordinal);
+    private static FixedMapIdentity FixedMapIdentityFor(BundesligaHistoryPlayedDateMapEntry entry) => new(
+        entry.DocumentName,
+        entry.HistoryCompetition,
+        entry.HomeTeam,
+        entry.AwayTeam,
+        NormalizeScore(entry.Score),
+        entry.Annotation);
+
+    private static FixedMapIdentity FixedMapIdentityFor(string documentName, HistoryRow row) => new(
+        documentName,
+        row.HistoryCompetition,
+        row.HomeTeam,
+        row.AwayTeam,
+        row.Score,
+        row.Annotation);
 
     private static string RowIdentity(HistoryRow row) => string.Join('|', row.HistoryCompetition, row.HomeTeam, row.AwayTeam, row.Score, row.Annotation);
 
@@ -414,6 +417,13 @@ public sealed class BundesligaHistoryPlayedDateCollector : IBundesligaHistoryPla
             new[] { new BundesligaHistoryPlayedDateDiagnostic(documentName, ordinal, message) });
 
     private sealed record HistoryRow(int Ordinal, string HistoryCompetition, string PlayedAt, string HomeTeam, string AwayTeam, string Score, string Annotation);
+    private sealed record FixedMapIdentity(
+        string DocumentName,
+        string HistoryCompetition,
+        string HomeTeam,
+        string AwayTeam,
+        string Score,
+        string Annotation);
 }
 
 public sealed record BundesligaHistoryPlayedDateInventory(
