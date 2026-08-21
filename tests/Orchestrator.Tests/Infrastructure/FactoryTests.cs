@@ -103,8 +103,11 @@ public class FactoryTests
     public async Task ContextProviderFactory_creates_expected_provider_types_and_caches_community_rules_provider()
     {
         var kpiRepository = new Mock<IKpiRepository>();
+        var publicationRepository = new Mock<IDocumentPublicationRepository>();
         var firebaseFactory = new Mock<IFirebaseServiceFactory>();
         firebaseFactory.Setup(factory => factory.CreateKpiRepository(CompetitionIds.Bundesliga2026_27)).Returns(kpiRepository.Object);
+        firebaseFactory.Setup(factory => factory.CreateDocumentPublicationRepository(CompetitionIds.Bundesliga2026_27))
+            .Returns(publicationRepository.Object);
 
         var sut = new ContextProviderFactory(
             firebaseFactory.Object,
@@ -123,10 +126,33 @@ public class FactoryTests
         await Assert.That(kpiContextProvider).IsTypeOf<FirebaseKpiContextProvider>();
         await Assert.That(sut.CommunityRulesFileProvider).IsSameReferenceAs(sut.CommunityRulesFileProvider);
         firebaseFactory.Verify(factory => factory.CreateKpiRepository(CompetitionIds.Bundesliga2026_27), Times.Once);
+        firebaseFactory.Verify(
+            factory => factory.CreateDocumentPublicationRepository(CompetitionIds.Bundesliga2026_27),
+            Times.Once);
 
         await Assert.That(() => sut.CreateKpiContextProvider(" "))
             .Throws<ArgumentException>()
             .WithParameterName("competition");
+    }
+
+    [Test]
+    public async Task ContextProviderFactory_keeps_world_cup_bonus_context_off_the_Bundesliga_publication_boundary()
+    {
+        var kpiRepository = new Mock<IKpiRepository>();
+        var firebaseFactory = new Mock<IFirebaseServiceFactory>();
+        firebaseFactory.Setup(factory => factory.CreateKpiRepository(CompetitionIds.FifaWorldCup2026))
+            .Returns(kpiRepository.Object);
+        var sut = new ContextProviderFactory(
+            firebaseFactory.Object,
+            new FakeLogger<FirebaseKpiContextProvider>());
+
+        var provider = sut.CreateKpiContextProvider(CompetitionIds.FifaWorldCup2026.ToUpperInvariant());
+
+        await Assert.That(provider).IsTypeOf<FirebaseKpiContextProvider>();
+        firebaseFactory.Verify(factory => factory.CreateKpiRepository(CompetitionIds.FifaWorldCup2026), Times.Once);
+        firebaseFactory.Verify(
+            factory => factory.CreateDocumentPublicationRepository(It.IsAny<string>()),
+            Times.Never);
     }
 
     [Test]

@@ -3,7 +3,7 @@
 - Status: Not started
 - Priority: P0
 - Depends on: [P0-13](p0-13-bonus-context-baseline.md), [P0-15](p0-15-context-document-hygiene.md)
-- Decision: [ADR-0007](../decisions/0007-require-context-hygiene-before-launch.md)
+- Decisions: [ADR-0007](../decisions/0007-require-context-hygiene-before-launch.md), [ADR-0024](../decisions/0024-select-bonus-context-by-competition-and-question.md)
 
 ## Outcome
 

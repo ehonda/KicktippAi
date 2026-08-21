@@ -50,8 +50,18 @@ public sealed class ContextProviderFactory : IContextProviderFactory
     /// <inheritdoc />
     public IKpiContextProvider CreateKpiContextProvider(string competition)
     {
-        ArgumentException.ThrowIfNullOrWhiteSpace(competition);
-        var kpiRepository = _firebaseServiceFactory.CreateKpiRepository(competition);
-        return new FirebaseKpiContextProvider(kpiRepository, _kpiContextProviderLogger);
+        var canonicalCompetition = CompetitionIds.Canonicalize(competition);
+        var kpiRepository = _firebaseServiceFactory.CreateKpiRepository(canonicalCompetition);
+        var publicationRepository = string.Equals(
+            canonicalCompetition,
+            CompetitionIds.Bundesliga2026_27,
+            StringComparison.Ordinal)
+            ? _firebaseServiceFactory.CreateDocumentPublicationRepository(canonicalCompetition)
+            : null;
+        return new FirebaseKpiContextProvider(
+            canonicalCompetition,
+            kpiRepository,
+            publicationRepository,
+            _kpiContextProviderLogger);
     }
 }

@@ -547,4 +547,282 @@ public class FirebaseKpiContextProviderTests
         // Assert
         await Assert.That(contexts.Select(c => c.Name)).Contains("manager-data");
     }
+
+    [Test]
+    public async Task Bundesliga_champion_question_reads_only_the_two_headed_aggregate_documents()
+    {
+        var kpiRepository = new Mock<IKpiRepository>(MockBehavior.Strict);
+        var publicationRepository = CreateBundesligaPublicationRepository();
+        var provider = CreateBundesligaProvider(kpiRepository, publicationRepository);
+
+        var contexts = await ReadAsync(provider.GetBonusQuestionContextAsync(
+            Question("Wer wird Deutscher Meister?", "FC Bayern München", "Borussia Dortmund"),
+            "test-community"));
+
+        await Assert.That(contexts.Select(context => context.Name).SequenceEqual(
+        [
+            "club-elo-rankings",
+            "team-squad-summary"
+        ])).IsTrue();
+        kpiRepository.Verify(
+            repository => repository.GetAllKpiDocumentsAsync(It.IsAny<string>(), It.IsAny<CancellationToken>()),
+            Times.Never);
+        publicationRepository.Verify(repository => repository.GetLastKnownGoodAsync(
+            BundesligaDocumentPublication.ClubElo,
+            "test-community",
+            It.IsAny<CancellationToken>()), Times.Once);
+        publicationRepository.Verify(repository => repository.GetLastKnownGoodAsync(
+            BundesligaDocumentPublication.Rosters,
+            "test-community",
+            It.IsAny<CancellationToken>()), Times.Once);
+    }
+
+    [Test]
+    public async Task Bundesliga_top_scorer_question_adds_only_the_exact_option_team_roster()
+    {
+        var publicationRepository = CreateBundesligaPublicationRepository();
+        var provider = CreateBundesligaProvider(new Mock<IKpiRepository>(MockBehavior.Strict), publicationRepository);
+
+        var contexts = await ReadAsync(provider.GetBonusQuestionContextAsync(
+            Question(TopScorerTeamQuestion, "FC Bayern München"),
+            "test-community"));
+
+        await Assert.That(contexts.Select(context => context.Name).SequenceEqual(
+        [
+            "club-elo-rankings",
+            "team-squad-summary",
+            "roster-fcb"
+        ])).IsTrue();
+        await Assert.That(contexts.Select(context => context.Name)).DoesNotContain("team-rosters");
+        await Assert.That(contexts.Select(context => context.Name)).DoesNotContain("fifa-rankings");
+        await Assert.That(contexts.Select(context => context.Name)).DoesNotContain("lineups");
+    }
+
+    [Test]
+    public async Task Bundesliga_coach_question_maps_an_exact_roster_member_option()
+    {
+        var rosterPublication = CreateCanonicalRosterPublication();
+        var reconstructed = BundesligaRosterPublication.ReconstructLastKnownGood(rosterPublication);
+        var target = reconstructed.Snapshots
+            .Select(snapshot => new
+            {
+                snapshot.Team.TeamSlug,
+                Coach = snapshot.Members.Single(member => member.Role == BundesligaRosterRole.Coach).Name
+            })
+            .First();
+        var publicationRepository = CreateBundesligaPublicationRepository(rosterPublication);
+        var provider = CreateBundesligaProvider(new Mock<IKpiRepository>(MockBehavior.Strict), publicationRepository);
+
+        var contexts = await ReadAsync(provider.GetBonusQuestionContextAsync(
+            Question("Welcher Trainer wird zuerst entlassen?", target.Coach),
+            "test-community"));
+
+        await Assert.That(contexts.Select(context => context.Name))
+            .Contains($"roster-{target.TeamSlug}");
+        await Assert.That(contexts.Select(context => context.Name)).DoesNotContain("manager-data");
+    }
+
+    [Test]
+    public async Task Bundesliga_roster_question_without_exact_identity_fails_actionably()
+    {
+        var provider = CreateBundesligaProvider(
+            new Mock<IKpiRepository>(MockBehavior.Strict),
+            CreateBundesligaPublicationRepository());
+
+        await Assert.That(async () => await ReadAsync(provider.GetBonusQuestionContextAsync(
+                Question("Welcher Trainer wird zuerst entlassen?", "Unbekannte Person"),
+                "test-community")))
+            .Throws<InvalidOperationException>()
+            .WithMessageContaining("requires targeted roster context");
+    }
+
+    [Test]
+    public async Task Bundesliga_missing_publication_fails_with_the_collection_command()
+    {
+        var publicationRepository = new Mock<IDocumentPublicationRepository>(MockBehavior.Strict);
+        publicationRepository.Setup(repository => repository.GetLastKnownGoodAsync(
+                BundesligaDocumentPublication.ClubElo,
+                "test-community",
+                It.IsAny<CancellationToken>()))
+            .ReturnsAsync((LoadedDocumentPublication?)null);
+        var provider = CreateBundesligaProvider(
+            new Mock<IKpiRepository>(MockBehavior.Strict),
+            publicationRepository);
+
+        await Assert.That(async () => await ReadAsync(provider.GetBonusQuestionContextAsync(
+                Question("Wer wird Deutscher Meister?", "FC Bayern München"),
+                "test-community")))
+            .Throws<InvalidOperationException>()
+            .WithMessageContaining("collect-context club-elo");
+    }
+
+    [Test]
+    public async Task Bundesliga_string_only_selection_is_rejected_before_any_repository_read()
+    {
+        var publicationRepository = new Mock<IDocumentPublicationRepository>(MockBehavior.Strict);
+        var provider = CreateBundesligaProvider(
+            new Mock<IKpiRepository>(MockBehavior.Strict),
+            publicationRepository);
+
+        await Assert.That(async () => await ReadAsync(provider.GetBonusQuestionContextAsync(
+                TopScorerTeamQuestion,
+                "test-community")))
+            .Throws<InvalidOperationException>()
+            .WithMessageContaining("complete BonusQuestion");
+    }
+
+    [Test]
+    public async Task World_cup_full_question_keeps_fifa_and_lineups_without_Bundesliga_documents()
+    {
+        var kpiRepository = new Mock<IKpiRepository>();
+        kpiRepository.Setup(repository => repository.GetAllKpiDocumentsAsync(
+                "test-community",
+                It.IsAny<CancellationToken>()))
+            .ReturnsAsync(
+            [
+                new KpiDocument("fifa-rankings", "fifa", "desc", 1, DateTimeOffset.UnixEpoch),
+                new KpiDocument("lineups", "lineups", "desc", 1, DateTimeOffset.UnixEpoch),
+                new KpiDocument("club-elo-rankings", "elo", "desc", 1, DateTimeOffset.UnixEpoch),
+                new KpiDocument("team-squad-summary", "summary", "desc", 1, DateTimeOffset.UnixEpoch)
+            ]);
+        var provider = new FirebaseKpiContextProvider(
+            CompetitionIds.FifaWorldCup2026,
+            kpiRepository.Object,
+            null,
+            new FakeLogger<FirebaseKpiContextProvider>());
+
+        var contexts = await ReadAsync(provider.GetBonusQuestionContextAsync(
+            Question(TopScorerTeamQuestion, "Deutschland"),
+            "test-community"));
+
+        await Assert.That(contexts.Select(context => context.Name).SequenceEqual(
+        [
+            "fifa-rankings",
+            "lineups"
+        ])).IsTrue();
+    }
+
+    private static FirebaseKpiContextProvider CreateBundesligaProvider(
+        Mock<IKpiRepository> kpiRepository,
+        Mock<IDocumentPublicationRepository> publicationRepository) => new(
+        CompetitionIds.Bundesliga2026_27,
+        kpiRepository.Object,
+        publicationRepository.Object,
+        new FakeLogger<FirebaseKpiContextProvider>());
+
+    private static Mock<IDocumentPublicationRepository> CreateBundesligaPublicationRepository(
+        LoadedDocumentPublication? rosterPublication = null)
+    {
+        var repository = new Mock<IDocumentPublicationRepository>(MockBehavior.Strict);
+        repository.Setup(value => value.GetLastKnownGoodAsync(
+                BundesligaDocumentPublication.ClubElo,
+                "test-community",
+                It.IsAny<CancellationToken>()))
+            .ReturnsAsync(CreateCanonicalClubEloPublication());
+        repository.Setup(value => value.GetLastKnownGoodAsync(
+                BundesligaDocumentPublication.Rosters,
+                "test-community",
+                It.IsAny<CancellationToken>()))
+            .ReturnsAsync(rosterPublication ?? CreateCanonicalRosterPublication());
+        return repository;
+    }
+
+    private static LoadedDocumentPublication CreateCanonicalRosterPublication()
+    {
+        var snapshots = BundesligaRosterSeed.Default.Entries
+            .GroupBy(entry => entry.TeamSlug)
+            .Select(group => new BundesligaRosterClubSnapshot(
+                BundesligaTeamManifest.Default.GetByTeamSlug(group.Key),
+                group.First().MembershipAsOf,
+                BundesligaRosterMembershipSource.FallbackSeed,
+                group.Select(entry => new BundesligaRosterMember(entry.Role, entry.Name, entry.TransfermarktPlayerId)).ToArray()))
+            .OrderBy(snapshot => snapshot.Team.TeamSlug, StringComparer.Ordinal)
+            .ToArray();
+        var rows = snapshots.Select(snapshot =>
+        {
+            var players = snapshot.Members.Where(member => member.Role == BundesligaRosterRole.Player).ToArray();
+            var diagnostics = players.Any(player => player.TransfermarktPlayerId is null)
+                ? new[] { $"MISSING_STABLE_PLAYER_IDS:{players.Count(player => player.TransfermarktPlayerId is null)}" }
+                : [];
+            return new BundesligaRosterQualityReportRow(
+                snapshot.Team,
+                snapshot.MembershipSource,
+                snapshot.MembershipAsOf,
+                [snapshot.Team.OfficialRosterSourceUrl],
+                null,
+                null,
+                null,
+                players.Length,
+                1,
+                players.Count(player => player.TransfermarktPlayerId is not null),
+                0,
+                0,
+                0,
+                BundesligaRosterDuckDbGateResult.NotAvailable,
+                "DUCKDB_NOT_AVAILABLE_USE_FALLBACK_SEED",
+                diagnostics);
+        }).ToArray();
+        var build = BundesligaRosterPublication.Build(snapshots, rows);
+        return CreateCanonicalPublication(BundesligaDocumentPublication.Rosters, build.Documents, build.MetadataJson);
+    }
+
+    private static LoadedDocumentPublication CreateCanonicalClubEloPublication()
+    {
+        var build = BundesligaClubEloPublication.Build(new BundesligaClubEloSelection(
+            BundesligaClubEloSeed.Default,
+            BundesligaClubEloSelectionDisposition.NetworkDisabled,
+            ["UNATTENDED_NETWORK_USE_NOT_APPROVED"]));
+        return CreateCanonicalPublication(BundesligaDocumentPublication.ClubElo, build.Documents, build.MetadataJson);
+    }
+
+    private static LoadedDocumentPublication CreateCanonicalPublication(
+        DocumentPublicationDefinition definition,
+        IReadOnlyList<DocumentPublicationPayload> payloads,
+        string metadataJson)
+    {
+        var documents = payloads.Select((payload, index) => new PublishedDocument(
+            CompetitionIds.Bundesliga2026_27,
+            "test-community",
+            definition.PublicationSet,
+            payload.Kind,
+            payload.Name,
+            index + 1,
+            payload.Content,
+            payload.Description,
+            DateTimeOffset.UnixEpoch)).ToArray();
+        var snapshotId = DocumentPublicationContract.ComputeSnapshotId(payloads);
+        return new LoadedDocumentPublication(
+            new DocumentPublicationSnapshot(
+                CompetitionIds.Bundesliga2026_27,
+                "test-community",
+                definition.PublicationSet,
+                snapshotId,
+                null,
+                DateTimeOffset.UnixEpoch,
+                metadataJson,
+                documents.Select(document => new DocumentPublicationEntry(
+                    document.Kind,
+                    document.Name,
+                    document.Version,
+                    DocumentPublicationContract.ComputeContentSha256(document.Content)))),
+            documents);
+    }
+
+    private static BonusQuestion Question(string text, params string[] options) => new(
+        text,
+        default,
+        options.Select((option, index) => new BonusQuestionOption(index.ToString(), option)).ToList(),
+        1);
+
+    private static async Task<IReadOnlyList<DocumentContext>> ReadAsync(
+        IAsyncEnumerable<DocumentContext> values)
+    {
+        var result = new List<DocumentContext>();
+        await foreach (var value in values)
+        {
+            result.Add(value);
+        }
+
+        return result;
+    }
 }

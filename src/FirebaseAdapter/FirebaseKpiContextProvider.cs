@@ -5,8 +5,8 @@ using Microsoft.Extensions.Logging;
 namespace FirebaseAdapter;
 
 /// <summary>
-/// Firebase-based context provider for KPI documents.
-/// Retrieves KPI documents from Firestore for use in bonus predictions.
+/// Firebase-based context provider for bonus predictions. Bundesliga reserved documents are
+/// resolved through their headed publication sets; legacy competitions retain generic KPI reads.
 /// </summary>
 public class FirebaseKpiContextProvider : IKpiContextProvider
 {
@@ -14,56 +14,66 @@ public class FirebaseKpiContextProvider : IKpiContextProvider
     private const string LineupsDocumentName = "lineups";
     private const string TopScorerTeamQuestion = "Welche Mannschaft stellt den Spieler mit den meisten Toren?";
 
+    private readonly string? _competition;
     private readonly IKpiRepository _kpiRepository;
+    private readonly IDocumentPublicationRepository? _publicationRepository;
     private readonly ILogger<FirebaseKpiContextProvider> _logger;
 
-    public FirebaseKpiContextProvider(IKpiRepository kpiRepository, ILogger<FirebaseKpiContextProvider> logger)
+    /// <summary>
+    /// Compatibility constructor for non-Bundesliga callers that still use generic KPI context.
+    /// Live composition uses the competition-bound constructor.
+    /// </summary>
+    public FirebaseKpiContextProvider(
+        IKpiRepository kpiRepository,
+        ILogger<FirebaseKpiContextProvider> logger)
     {
         _kpiRepository = kpiRepository ?? throw new ArgumentNullException(nameof(kpiRepository));
         _logger = logger ?? throw new ArgumentNullException(nameof(logger));
     }
 
-    /// <summary>
-    /// Gets all KPI documents as context for predictions for a specific community.
-    /// This method provides all available KPI documents for bonus predictions.
-    /// </summary>
-    /// <param name="communityContext">The community context to filter by.</param>
-    /// <param name="cancellationToken">Cancellation token for the operation.</param>
-    /// <returns>An async enumerable of document contexts containing KPI data.</returns>
-    public async IAsyncEnumerable<DocumentContext> GetContextAsync(string communityContext, [EnumeratorCancellation] CancellationToken cancellationToken = default)
+    public FirebaseKpiContextProvider(
+        string competition,
+        IKpiRepository kpiRepository,
+        IDocumentPublicationRepository? publicationRepository,
+        ILogger<FirebaseKpiContextProvider> logger)
     {
-        _logger.LogDebug("Retrieving all KPI documents for context in community: {CommunityContext}", communityContext);
+        _competition = CompetitionIds.Canonicalize(competition);
+        _kpiRepository = kpiRepository ?? throw new ArgumentNullException(nameof(kpiRepository));
+        _publicationRepository = publicationRepository;
+        _logger = logger ?? throw new ArgumentNullException(nameof(logger));
 
-        IReadOnlyList<KpiDocument> kpiDocuments;
-        try
+        if (string.Equals(_competition, CompetitionIds.Bundesliga2026_27, StringComparison.Ordinal)
+            && _publicationRepository is null)
         {
-            kpiDocuments = await _kpiRepository.GetAllKpiDocumentsAsync(communityContext, cancellationToken);
-            _logger.LogInformation("Found {DocumentCount} KPI documents for context in community: {CommunityContext}", kpiDocuments.Count, communityContext);
-        }
-        catch (Exception ex)
-        {
-            _logger.LogError(ex, "Failed to retrieve KPI documents for context in community: {CommunityContext}", communityContext);
-            throw;
-        }
-
-        foreach (var kpiDocument in kpiDocuments)
-        {
-            _logger.LogDebug("Providing KPI document context: {DocumentName}", kpiDocument.DocumentName);
-            
-            yield return new DocumentContext(
-                Name: kpiDocument.DocumentName,
-                Content: kpiDocument.Content);
+            throw new ArgumentNullException(
+                nameof(publicationRepository),
+                "Bundesliga bonus context requires the headed document-publication repository.");
         }
     }
 
-    /// <summary>
-    /// Gets KPI context specifically for bonus questions for a specific community.
-    /// This is an alias for GetContextAsync() since KPI documents are primarily used for bonus predictions.
-    /// </summary>
-    /// <param name="communityContext">The community context to filter by.</param>
-    /// <param name="cancellationToken">Cancellation token for the operation.</param>
-    /// <returns>An async enumerable of document contexts containing KPI data for bonus questions.</returns>
-    public async IAsyncEnumerable<DocumentContext> GetBonusQuestionContextByCommunityAsync(string communityContext, [EnumeratorCancellation] CancellationToken cancellationToken = default)
+    public async IAsyncEnumerable<DocumentContext> GetContextAsync(
+        string communityContext,
+        [EnumeratorCancellation] CancellationToken cancellationToken = default)
+    {
+        if (IsCurrentBundesliga)
+        {
+            foreach (var context in await GetBundesligaContextAsync(null, communityContext, cancellationToken))
+            {
+                yield return context;
+            }
+
+            yield break;
+        }
+
+        await foreach (var context in GetGenericContextAsync(communityContext, cancellationToken))
+        {
+            yield return context;
+        }
+    }
+
+    public async IAsyncEnumerable<DocumentContext> GetBonusQuestionContextByCommunityAsync(
+        string communityContext,
+        [EnumeratorCancellation] CancellationToken cancellationToken = default)
     {
         await foreach (var context in GetContextAsync(communityContext, cancellationToken))
         {
@@ -72,136 +82,215 @@ public class FirebaseKpiContextProvider : IKpiContextProvider
     }
 
     /// <summary>
-    /// Gets KPI context specifically tailored for a bonus question based on its content and community.
-    /// This method provides targeted context by including additional relevant documents based on question patterns.
+    /// Compatibility overload for legacy callers. Bundesliga targeting requires the full question.
     /// </summary>
-    /// <param name="questionText">The text of the bonus question to provide context for.</param>
-    /// <param name="communityContext">The community context to filter by.</param>
-    /// <param name="cancellationToken">Cancellation token for the operation.</param>
-    /// <returns>An async enumerable of document contexts containing relevant KPI data for the specific question.</returns>
-    public async IAsyncEnumerable<DocumentContext> GetBonusQuestionContextAsync(string questionText, string communityContext, [EnumeratorCancellation] CancellationToken cancellationToken = default)
+    public async IAsyncEnumerable<DocumentContext> GetBonusQuestionContextAsync(
+        string questionText,
+        string communityContext,
+        [EnumeratorCancellation] CancellationToken cancellationToken = default)
     {
-        _logger.LogDebug("Retrieving targeted KPI context for question: {QuestionText} in community: {CommunityContext}", questionText, communityContext);
-
-        // For now, we'll get all documents for the community and filter based on question patterns
-        // In the future, we could make GetKpiDocumentContextAsync community-aware too
-        
-        // Always include team data for all bonus questions
-        await foreach (var context in GetContextAsync(communityContext, cancellationToken))
+        if (IsCurrentBundesliga)
         {
-            if (IsAlwaysIncludedBonusDocument(context.Name))
-            {
-                yield return context;
-            }
-            else if (IsTopScorerTeamQuestion(questionText) &&
-                     string.Equals(context.Name, LineupsDocumentName, StringComparison.OrdinalIgnoreCase))
-            {
-                _logger.LogDebug("Detected WM26 top scorer team question, including lineups data");
-                yield return context;
-            }
+            throw new InvalidOperationException(
+                "Bundesliga bonus context selection requires the complete BonusQuestion, including its options.");
+        }
 
-            // For trainer/manager change questions, also include manager data
-            else if (IsTrainerChangeQuestion(questionText) && context.Name.Contains("manager-data", StringComparison.OrdinalIgnoreCase))
-            {
-                _logger.LogDebug("Detected trainer/manager change question, including manager data");
-                yield return context;
-            }
-            
-            // For relegation questions, also include manager data
-            else if (IsRelegationQuestion(questionText) && context.Name.Contains("manager-data", StringComparison.OrdinalIgnoreCase))
-            {
-                _logger.LogDebug("Detected relegation question, including manager data");
-                yield return context;
-            }
+        await foreach (var context in GetLegacyBonusQuestionContextAsync(questionText, communityContext, cancellationToken))
+        {
+            yield return context;
         }
     }
 
-    private static bool IsAlwaysIncludedBonusDocument(string documentName)
+    public async IAsyncEnumerable<DocumentContext> GetBonusQuestionContextAsync(
+        BonusQuestion question,
+        string communityContext,
+        [EnumeratorCancellation] CancellationToken cancellationToken = default)
     {
-        return documentName.Contains("team-data", StringComparison.OrdinalIgnoreCase) ||
-               string.Equals(documentName, FifaRankingsDocumentName, StringComparison.OrdinalIgnoreCase);
+        ArgumentNullException.ThrowIfNull(question);
+
+        if (IsCurrentBundesliga)
+        {
+            foreach (var context in await GetBundesligaContextAsync(question, communityContext, cancellationToken))
+            {
+                yield return context;
+            }
+
+            yield break;
+        }
+
+        await foreach (var context in GetLegacyBonusQuestionContextAsync(question.Text, communityContext, cancellationToken))
+        {
+            yield return context;
+        }
     }
 
-    private static bool IsTopScorerTeamQuestion(string questionText)
+    private bool IsCurrentBundesliga =>
+        string.Equals(_competition, CompetitionIds.Bundesliga2026_27, StringComparison.Ordinal);
+
+    private async Task<IReadOnlyList<DocumentContext>> GetBundesligaContextAsync(
+        BonusQuestion? question,
+        string communityContext,
+        CancellationToken cancellationToken)
     {
-        return string.Equals(questionText, TopScorerTeamQuestion, StringComparison.Ordinal);
-    }
+        ArgumentException.ThrowIfNullOrWhiteSpace(communityContext);
+        var repository = _publicationRepository
+            ?? throw new InvalidOperationException("Bundesliga bonus context publication repository is not configured.");
 
-    /// <summary>
-    /// Determines if a bonus question is about trainer/manager changes based on its text.
-    /// </summary>
-    /// <param name="questionText">The text of the bonus question.</param>
-    /// <returns>True if the question is about trainer/manager changes, false otherwise.</returns>
-    private static bool IsTrainerChangeQuestion(string questionText)
-    {
-        if (string.IsNullOrWhiteSpace(questionText))
-            return false;
+        var elo = await repository.GetLastKnownGoodAsync(
+            BundesligaDocumentPublication.ClubElo,
+            communityContext,
+            cancellationToken);
+        if (elo is null)
+        {
+            throw new InvalidOperationException(
+                $"Missing required Bundesliga Club Elo publication for community context '{communityContext}'. " +
+                "Run 'collect-context club-elo' before bonus prediction.");
+        }
 
-        var lowerText = questionText.ToLowerInvariant();
-        
-        // Check for German trainer/manager change keywords
-        return lowerText.Contains("trainerwechsel") || 
-               lowerText.Contains("trainer") ||
-               lowerText.Contains("cheftrainer") ||
-               lowerText.Contains("entlassung") ||
-               lowerText.Contains("entlassen") ||
-               lowerText.Contains("manager") ||
-               lowerText.Contains("coach");
-    }
-
-    /// <summary>
-    /// Determines if a bonus question is about relegation based on its text.
-    /// </summary>
-    /// <param name="questionText">The text of the bonus question.</param>
-    /// <returns>True if the question is about relegation, false otherwise.</returns>
-    private static bool IsRelegationQuestion(string questionText)
-    {
-        if (string.IsNullOrWhiteSpace(questionText))
-            return false;
-
-        var lowerText = questionText.ToLowerInvariant();
-        
-        // Check for German relegation keywords
-        return lowerText.Contains("16-18") || 
-               lowerText.Contains("plätze 16-18") ||
-               lowerText.Contains("abstieg") ||
-               lowerText.Contains("relegation") ||
-               lowerText.Contains("abstiegsplätze") ||
-               lowerText.Contains("absteiger");
-    }
-
-    /// <summary>
-    /// Gets a specific KPI document by its ID.
-    /// </summary>
-    /// <param name="documentId">The ID of the KPI document to retrieve.</param>
-    /// <param name="communityContext">The community context to filter by.</param>
-    /// <param name="cancellationToken">Cancellation token for the operation.</param>
-    /// <returns>The document context for the specified KPI document, or null if not found.</returns>
-    public async Task<DocumentContext?> GetKpiDocumentContextAsync(string documentId, string communityContext, CancellationToken cancellationToken = default)
-    {
-        _logger.LogDebug("Retrieving specific KPI document: {DocumentId} for community: {CommunityContext}", documentId, communityContext);
+        var rosters = await repository.GetLastKnownGoodAsync(
+            BundesligaDocumentPublication.Rosters,
+            communityContext,
+            cancellationToken);
+        if (rosters is null)
+        {
+            throw new InvalidOperationException(
+                $"Missing required Bundesliga roster publication for community context '{communityContext}'. " +
+                "Run 'collect-context rosters' before bonus prediction.");
+        }
 
         try
         {
-            var kpiDocument = await _kpiRepository.GetKpiDocumentAsync(documentId, communityContext, cancellationToken);
-            
-            if (kpiDocument == null)
-            {
-                _logger.LogWarning("KPI document not found: {DocumentId} for community: {CommunityContext}", documentId, communityContext);
-                return null;
-            }
+            _ = BundesligaClubEloPublication.ReconstructLastKnownGood(elo);
+            var reconstructedRosters = BundesligaRosterPublication.ReconstructLastKnownGood(rosters);
+            var selection = BonusContextSelectionPolicy.SelectBundesliga(question, reconstructedRosters);
+            var byKey = elo.Documents
+                .Concat(rosters.Documents)
+                .ToDictionary(document => document.Key);
 
-            _logger.LogDebug("Found KPI document: {DocumentId} for community: {CommunityContext}", documentId, communityContext);
-            
-            return new DocumentContext(
-                Name: kpiDocument.DocumentName,
-                Content: kpiDocument.Content);
+            var contexts = selection.RequiredDocuments.Select(key =>
+            {
+                if (!byKey.TryGetValue(key, out var document))
+                {
+                    throw new InvalidDataException(
+                        $"Required Bundesliga bonus context document '{key.Kind}:{key.Name}' is missing from its headed publication.");
+                }
+
+                return new DocumentContext(document.Name, document.Content);
+            }).ToArray();
+
+            _logger.LogInformation(
+                "Selected {DocumentCount} Bundesliga bonus context documents for community {CommunityContext}: {DocumentNames}",
+                contexts.Length,
+                communityContext,
+                string.Join(',', contexts.Select(context => context.Name)));
+            return contexts;
         }
-        catch (Exception ex)
+        catch (Exception exception) when (exception is InvalidDataException or ArgumentException)
         {
-            _logger.LogError(ex, "Failed to retrieve KPI document: {DocumentId} for community: {CommunityContext}", documentId, communityContext);
-            throw;
+            throw new InvalidOperationException(
+                $"Bundesliga bonus context for community '{communityContext}' failed headed publication validation. " +
+                "Refresh Club Elo and roster context before bonus prediction.",
+                exception);
         }
     }
 
+    private async IAsyncEnumerable<DocumentContext> GetGenericContextAsync(
+        string communityContext,
+        [EnumeratorCancellation] CancellationToken cancellationToken)
+    {
+        _logger.LogDebug(
+            "Retrieving generic KPI documents for competition {Competition} and community {CommunityContext}",
+            _competition ?? "legacy-unbound",
+            communityContext);
+
+        IReadOnlyList<KpiDocument> kpiDocuments;
+        try
+        {
+            kpiDocuments = await _kpiRepository.GetAllKpiDocumentsAsync(communityContext, cancellationToken);
+        }
+        catch (Exception exception)
+        {
+            _logger.LogError(
+                exception,
+                "Failed to retrieve KPI documents for community {CommunityContext}",
+                communityContext);
+            throw;
+        }
+
+        foreach (var kpiDocument in kpiDocuments)
+        {
+            yield return new DocumentContext(kpiDocument.DocumentName, kpiDocument.Content);
+        }
+    }
+
+    private async IAsyncEnumerable<DocumentContext> GetLegacyBonusQuestionContextAsync(
+        string questionText,
+        string communityContext,
+        [EnumeratorCancellation] CancellationToken cancellationToken)
+    {
+        await foreach (var context in GetGenericContextAsync(communityContext, cancellationToken))
+        {
+            if (IsAlwaysIncludedLegacyBonusDocument(context.Name)
+                || IsTopScorerTeamQuestion(questionText)
+                && string.Equals(context.Name, LineupsDocumentName, StringComparison.OrdinalIgnoreCase)
+                || IsTrainerChangeQuestion(questionText)
+                && context.Name.Contains("manager-data", StringComparison.OrdinalIgnoreCase)
+                || IsRelegationQuestion(questionText)
+                && context.Name.Contains("manager-data", StringComparison.OrdinalIgnoreCase))
+            {
+                yield return context;
+            }
+        }
+    }
+
+    private static bool IsAlwaysIncludedLegacyBonusDocument(string documentName) =>
+        documentName.Contains("team-data", StringComparison.OrdinalIgnoreCase)
+        || string.Equals(documentName, FifaRankingsDocumentName, StringComparison.OrdinalIgnoreCase);
+
+    private static bool IsTopScorerTeamQuestion(string questionText) =>
+        string.Equals(questionText, TopScorerTeamQuestion, StringComparison.Ordinal);
+
+    private static bool IsTrainerChangeQuestion(string questionText)
+    {
+        if (string.IsNullOrWhiteSpace(questionText))
+        {
+            return false;
+        }
+
+        var lowerText = questionText.ToLowerInvariant();
+        return lowerText.Contains("trainerwechsel")
+               || lowerText.Contains("trainer")
+               || lowerText.Contains("cheftrainer")
+               || lowerText.Contains("entlassung")
+               || lowerText.Contains("entlassen")
+               || lowerText.Contains("manager")
+               || lowerText.Contains("coach");
+    }
+
+    private static bool IsRelegationQuestion(string questionText)
+    {
+        if (string.IsNullOrWhiteSpace(questionText))
+        {
+            return false;
+        }
+
+        var lowerText = questionText.ToLowerInvariant();
+        return lowerText.Contains("16-18")
+               || lowerText.Contains("plätze 16-18")
+               || lowerText.Contains("abstieg")
+               || lowerText.Contains("relegation")
+               || lowerText.Contains("abstiegsplätze")
+               || lowerText.Contains("absteiger");
+    }
+
+    public async Task<DocumentContext?> GetKpiDocumentContextAsync(
+        string documentId,
+        string communityContext,
+        CancellationToken cancellationToken = default)
+    {
+        var kpiDocument = await _kpiRepository.GetKpiDocumentAsync(documentId, communityContext, cancellationToken);
+        return kpiDocument is null
+            ? null
+            : new DocumentContext(kpiDocument.DocumentName, kpiDocument.Content);
+    }
 }

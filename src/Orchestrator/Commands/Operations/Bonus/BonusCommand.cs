@@ -350,18 +350,18 @@ public class BonusCommand : AsyncCommand<BaseSettings>
                 {
                     _console.MarkupLine($"[yellow]  → Generating new prediction...[/]");
                     
-                    // Step 3: Get KPI context for bonus predictions
+                    // Step 3: Get competition-aware context for bonus predictions.
                     var contextDocuments = new List<DocumentContext>();
                     
-                    // Use KPI documents as context for bonus predictions (targeted by question content)
-                    await foreach (var context in kpiContextProvider.GetBonusQuestionContextAsync(question.Text, communityContext))
+                    // Bundesliga may combine KPI aggregates with targeted roster context documents.
+                    await foreach (var context in kpiContextProvider.GetBonusQuestionContextAsync(question, communityContext))
                     {
                         contextDocuments.Add(context);
                     }
                     
                     if (settings.Verbose)
                     {
-                        _console.MarkupLine($"[dim]    Using {contextDocuments.Count} KPI context documents[/]");
+                        _console.MarkupLine($"[dim]    Using {contextDocuments.Count} bonus context documents[/]");
                     }
 
                     var telemetryMetadata = new PredictionTelemetryMetadata(
