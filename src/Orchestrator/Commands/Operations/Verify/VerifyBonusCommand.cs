@@ -14,17 +14,20 @@ public class VerifyBonusCommand : AsyncCommand<VerifySettings>
     private readonly IAnsiConsole _console;
     private readonly IFirebaseServiceFactory _firebaseServiceFactory;
     private readonly IKicktippClientFactory _kicktippClientFactory;
+    private readonly ICommunityKicktippCredentialLoader _credentialLoader;
     private readonly ILogger<VerifyBonusCommand> _logger;
 
     public VerifyBonusCommand(
         IAnsiConsole console,
         IFirebaseServiceFactory firebaseServiceFactory,
         IKicktippClientFactory kicktippClientFactory,
+        ICommunityKicktippCredentialLoader credentialLoader,
         ILogger<VerifyBonusCommand> logger)
     {
         _console = console;
         _firebaseServiceFactory = firebaseServiceFactory;
         _kicktippClientFactory = kicktippClientFactory;
+        _credentialLoader = credentialLoader;
         _logger = logger;
     }
 
@@ -70,7 +73,6 @@ public class VerifyBonusCommand : AsyncCommand<VerifySettings>
     
     private async Task<bool> ExecuteVerificationWorkflow(VerifySettings settings)
     {
-        var kicktippClient = _kicktippClientFactory.CreateClient();
         string communityContext = settings.CommunityContext ?? settings.Community;
         var competition = CompetitionResolver.ResolveCompetition(settings.Competition, settings.Community, communityContext);
         var modelConfig = PredictionServiceCommandSupport.CreateModelConfig(
@@ -85,6 +87,8 @@ public class VerifyBonusCommand : AsyncCommand<VerifySettings>
             settings.LangfusePromptVersion,
             settings.MaxOutputTokenCount,
             bonusPrompt: true);
+        _credentialLoader.Load(settings.Community);
+        var kicktippClient = _kicktippClientFactory.CreateClient();
         var isBundesliga = string.Equals(
             competition,
             CompetitionIds.Bundesliga2026_27,

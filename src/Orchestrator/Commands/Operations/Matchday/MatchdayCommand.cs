@@ -20,6 +20,7 @@ public class MatchdayCommand : AsyncCommand<BaseSettings>
     private readonly IKicktippClientFactory _kicktippClientFactory;
     private readonly IOpenAiServiceFactory _openAiServiceFactory;
     private readonly IContextProviderFactory _contextProviderFactory;
+    private readonly ICommunityKicktippCredentialLoader _credentialLoader;
     private readonly ILogger<MatchdayCommand> _logger;
     private readonly ILangfusePublicApiClient? _langfuseClient;
 
@@ -29,6 +30,7 @@ public class MatchdayCommand : AsyncCommand<BaseSettings>
         IKicktippClientFactory kicktippClientFactory,
         IOpenAiServiceFactory openAiServiceFactory,
         IContextProviderFactory contextProviderFactory,
+        ICommunityKicktippCredentialLoader credentialLoader,
         ILogger<MatchdayCommand> logger,
         ILangfusePublicApiClient? langfuseClient = null)
     {
@@ -37,6 +39,7 @@ public class MatchdayCommand : AsyncCommand<BaseSettings>
         _kicktippClientFactory = kicktippClientFactory;
         _openAiServiceFactory = openAiServiceFactory;
         _contextProviderFactory = contextProviderFactory;
+        _credentialLoader = credentialLoader;
         _logger = logger;
         _langfuseClient = langfuseClient;
     }
@@ -173,6 +176,8 @@ public class MatchdayCommand : AsyncCommand<BaseSettings>
             throw new NotSupportedException(
                 "The WM 2026 hosted match prompt does not support responses with justification. Use local prompts or omit --with-justification.");
         }
+
+        _credentialLoader.Load(settings.Community);
 
         // Create services using factories
         var kicktippClient = _kicktippClientFactory.CreateClient();

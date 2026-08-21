@@ -65,7 +65,8 @@ public abstract class VerifyBonusCommandTests_Base
         Option<bool> kpiRepositoryReturnsNull = default,
         // Factory-level parameters for advanced scenarios
         Option<Mock<IFirebaseServiceFactory>> firebaseServiceFactory = default,
-        Option<Mock<IKicktippClientFactory>> kicktippClientFactory = default)
+        Option<Mock<IKicktippClientFactory>> kicktippClientFactory = default,
+        Option<Mock<ICommunityKicktippCredentialLoader>> credentialLoader = default)
     {
         var testConsole = console.Or(() => new TestConsole());
 
@@ -115,11 +116,13 @@ public abstract class VerifyBonusCommandTests_Base
 
         var mockKicktippFactory = kicktippClientFactory.Or(() =>
             CreateMockKicktippClientFactory(mockKicktippClient));
+        var mockCredentialLoader = credentialLoader.Or(() => new Mock<ICommunityKicktippCredentialLoader>());
 
         var services = new ServiceCollection();
         services.AddSingleton<IAnsiConsole>(testConsole);
         services.AddSingleton(mockFirebaseFactory.Object);
         services.AddSingleton(mockKicktippFactory.Object);
+        services.AddSingleton(mockCredentialLoader.Object);
         services.AddSingleton<ILogger<VerifyBonusCommand>>(new FakeLogger<VerifyBonusCommand>());
 
         var registrar = new TypeRegistrar(services);
@@ -135,6 +138,7 @@ public abstract class VerifyBonusCommandTests_Base
             testConsole,
             mockFirebaseFactory,
             mockKicktippFactory,
+            mockCredentialLoader,
             mockKicktippClient,
             mockPredictionRepository,
             mockKpiRepository);
@@ -217,6 +221,7 @@ public abstract class VerifyBonusCommandTests_Base
         TestConsole Console,
         Mock<IFirebaseServiceFactory> FirebaseServiceFactory,
         Mock<IKicktippClientFactory> KicktippClientFactory,
+        Mock<ICommunityKicktippCredentialLoader> CredentialLoader,
         Mock<IKicktippClient> KicktippClient,
         Mock<IPredictionRepository> PredictionRepository,
         Mock<IKpiRepository> KpiRepository);
