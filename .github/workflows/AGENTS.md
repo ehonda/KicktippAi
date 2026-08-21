@@ -69,9 +69,13 @@ Each command (`matchday`, `bonus`) determines its Langfuse trace environment (`p
 
 ### Current Production Communities
 
+These lists define the command's retained production-environment
+classification; they do not imply that a workflow trigger is active. The WM26
+files cited below are historical, inert `workflow_call`-only entrypoints.
+
 #### Matchday Command
 
-Derived from workflows: `pes-squad-matchday.yml`, `schadensfresse-matchday.yml`, `wm26-rabetrabauken2026-o3-high-matchday.yml`, and the active `ehonda-ai-arena` matchday entrypoints including `wm26-ehonda-ai-arena-*-matchday.yml`
+Derived from retained workflows: `pes-squad-matchday.yml`, `schadensfresse-matchday.yml`, `wm26-rabetrabauken2026-o3-high-matchday.yml`, and the historical/inert `ehonda-ai-arena` matchday entrypoints including `wm26-ehonda-ai-arena-*-matchday.yml`
 
 - `pes-squad`
 - `schadensfresse`
@@ -80,7 +84,7 @@ Derived from workflows: `pes-squad-matchday.yml`, `schadensfresse-matchday.yml`,
 
 #### Bonus Command
 
-Derived from workflows: `pes-squad-bonus.yml`, `schadensfresse-bonus.yml`, `wm26-rabetrabauken2026-o3-high-bonus.yml`, and the active `ehonda-ai-arena` bonus entrypoints including `wm26-ehonda-ai-arena-*-bonus.yml`
+Derived from retained workflows: `pes-squad-bonus.yml`, `schadensfresse-bonus.yml`, `wm26-rabetrabauken2026-o3-high-bonus.yml`, and the historical/inert `ehonda-ai-arena` bonus entrypoints including `wm26-ehonda-ai-arena-*-bonus.yml`
 
 - `pes-squad`
 - `schadensfresse`
