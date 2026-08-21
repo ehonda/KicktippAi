@@ -18,7 +18,7 @@ public class CollectContextKicktippCommand_HistoryProcessing_Tests : CollectCont
         };
         var ctx = CreateCollectContextCommandApp(contextDocuments: docs);
 
-        await RunCommandAsync(ctx.App, ctx.Console, "collect-context-kicktipp", "--community-context", "test-community");
+        await RunNonBundesligaCommandAsync(ctx);
 
         ctx.ContextRepository.Verify(
             r => r.SaveContextDocumentAsync(
@@ -40,7 +40,7 @@ public class CollectContextKicktippCommand_HistoryProcessing_Tests : CollectCont
             contextDocuments: docs,
             timeProvider: new FixedTimeProvider(new DateTimeOffset(2026, 6, 11, 12, 0, 0, TimeSpan.Zero)));
 
-        await RunCommandAsync(ctx.App, ctx.Console, "collect-context-kicktipp", "--community-context", "test-community");
+        await RunNonBundesligaCommandAsync(ctx);
 
         ctx.ContextRepository.Verify(
             r => r.SaveContextDocumentAsync(
@@ -60,7 +60,7 @@ public class CollectContextKicktippCommand_HistoryProcessing_Tests : CollectCont
         };
         var ctx = CreateCollectContextCommandApp(contextDocuments: docs);
 
-        await RunCommandAsync(ctx.App, ctx.Console, "collect-context-kicktipp", "--community-context", "test-community");
+        await RunNonBundesligaCommandAsync(ctx);
 
         ctx.ContextRepository.Verify(
             r => r.SaveContextDocumentAsync(
@@ -80,7 +80,7 @@ public class CollectContextKicktippCommand_HistoryProcessing_Tests : CollectCont
         };
         var ctx = CreateCollectContextCommandApp(contextDocuments: docs);
 
-        await RunCommandAsync(ctx.App, ctx.Console, "collect-context-kicktipp", "--community-context", "test-community");
+        await RunNonBundesligaCommandAsync(ctx);
 
         ctx.ContextRepository.Verify(
             r => r.SaveContextDocumentAsync(
@@ -100,7 +100,7 @@ public class CollectContextKicktippCommand_HistoryProcessing_Tests : CollectCont
         };
         var ctx = CreateCollectContextCommandApp(contextDocuments: docs);
 
-        await RunCommandAsync(ctx.App, ctx.Console, "collect-context-kicktipp", "--community-context", "test-community");
+        await RunNonBundesligaCommandAsync(ctx);
 
         ctx.ContextRepository.Verify(
             r => r.SaveContextDocumentAsync(
@@ -120,7 +120,7 @@ public class CollectContextKicktippCommand_HistoryProcessing_Tests : CollectCont
         };
         var ctx = CreateCollectContextCommandApp(contextDocuments: docs);
 
-        await RunCommandAsync(ctx.App, ctx.Console, "collect-context-kicktipp", "--community-context", "test-community");
+        await RunNonBundesligaCommandAsync(ctx);
 
         ctx.ContextRepository.Verify(
             r => r.GetLatestContextDocumentAsync("recent-history-fcb.csv", "test-community", It.IsAny<CancellationToken>()),
@@ -136,7 +136,7 @@ public class CollectContextKicktippCommand_HistoryProcessing_Tests : CollectCont
         };
         var ctx = CreateCollectContextCommandApp(contextDocuments: docs);
 
-        await RunCommandAsync(ctx.App, ctx.Console, "collect-context-kicktipp", "--community-context", "test-community");
+        await RunNonBundesligaCommandAsync(ctx);
 
         ctx.ContextRepository.Verify(
             r => r.GetLatestContextDocumentAsync("bundesliga-standings.csv", "test-community", It.IsAny<CancellationToken>()),
@@ -160,7 +160,7 @@ public class CollectContextKicktippCommand_HistoryProcessing_Tests : CollectCont
         };
         var ctx = CreateCollectContextCommandApp(contextDocuments: docs, previousContextDocuments: previousDocs);
 
-        await RunCommandAsync(ctx.App, ctx.Console, "collect-context-kicktipp", "--community-context", "test-community");
+        await RunNonBundesligaCommandAsync(ctx);
 
         ctx.ContextRepository.Verify(
             r => r.SaveContextDocumentAsync(
@@ -182,7 +182,7 @@ public class CollectContextKicktippCommand_HistoryProcessing_Tests : CollectCont
         };
         var ctx = CreateCollectContextCommandApp(contextDocuments: docs);
 
-        await RunCommandAsync(ctx.App, ctx.Console, "collect-context-kicktipp", "--community-context", "test-community");
+        await RunNonBundesligaCommandAsync(ctx);
 
         ctx.ContextRepository.Verify(
             r => r.SaveContextDocumentAsync(
@@ -201,5 +201,12 @@ public class CollectContextKicktippCommand_HistoryProcessing_Tests : CollectCont
         }
 
         public override TimeZoneInfo LocalTimeZone => TimeZoneInfo.Utc;
+    }
+
+    private static async Task RunNonBundesligaCommandAsync(CollectContextKicktippCommandTestContext context)
+    {
+        await RunCommandAsync(context.App, context.Console,
+            "collect-context-kicktipp", "--community-context", "test-community",
+            "--competition", CompetitionIds.FifaWorldCup2026);
     }
 }

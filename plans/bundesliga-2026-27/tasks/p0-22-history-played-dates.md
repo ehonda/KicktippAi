@@ -3,7 +3,7 @@
 - Status: Complete
 - Priority: P0
 - Depends on: [P0-02](p0-02-competition-scoped-storage.md), [P0-04](p0-04-team-manifest.md)
-- Decisions: [ADR-0007](../decisions/0007-require-context-hygiene-before-launch.md), [ADR-0010](../decisions/0010-season-scoped-team-identity-manifest.md), [ADR-0025](../decisions/0025-reconstruct-bundesliga-history-played-dates.md), [ADR-0026](../decisions/0026-exclude-incomplete-history-rows.md), [ADR-0027](../decisions/0027-add-openfootball-for-second-bundesliga-history.md), [ADR-0028](../decisions/0028-capture-openligadb-second-bundesliga-history.md), [ADR-0029](../decisions/0029-capture-openligadb-dfb-pokal-final.md), [ADR-0030](../decisions/0030-use-uefa-match-record-for-europa-league-final.md), and [ADR-0031](../decisions/0031-correct-dfb-pokal-final-inventory-coverage.md)
+- Decisions: [ADR-0007](../decisions/0007-require-context-hygiene-before-launch.md), [ADR-0010](../decisions/0010-season-scoped-team-identity-manifest.md), [ADR-0025](../decisions/0025-reconstruct-bundesliga-history-played-dates.md), [ADR-0026](../decisions/0026-exclude-incomplete-history-rows.md), [ADR-0027](../decisions/0027-add-openfootball-for-second-bundesliga-history.md), [ADR-0028](../decisions/0028-capture-openligadb-second-bundesliga-history.md), [ADR-0029](../decisions/0029-capture-openligadb-dfb-pokal-final.md), [ADR-0030](../decisions/0030-use-uefa-match-record-for-europa-league-final.md), [ADR-0031](../decisions/0031-correct-dfb-pokal-final-inventory-coverage.md), and [ADR-0032](../decisions/0032-freeze-complete-history-set-and-publish-atomically.md)
 
 ## Outcome
 
@@ -34,14 +34,15 @@ Every row selected from Bundesliga `recent-history-*`, `home-history-*`, and `aw
 
 ## Evidence
 
-- Read-only authenticated Kicktipp export for `ehonda-dev-buli-2627`, matchday 1: 36 documents and 288 raw selected rows; 25 incomplete future DFB-Pokal rows excluded before ordinal assignment; 263 completed rows retained.
-- Frozen deterministic map: 263/263 inventory rows and 147 unique matches. Transfermarkt covers 214 rows / 116 matches, captured OpenLigaDB snapshots cover 47 rows / 30 matches, and the official UEFA match record covers 2 rows / 1 match.
+- Read-only authenticated Kicktipp export for `ehonda-dev-buli-2627`, exact requested matchdays 1 and 2: all 54 manifest prefix documents were nonempty; 432 raw rows yielded 398 completed rows after 34 incomplete scheduled rows were excluded before ordinal assignment.
+- Frozen deterministic map: 398/398 inventory rows and 196 unique matches. Transfermarkt covers 326 rows / 152 matches, captured OpenLigaDB snapshots cover 70 rows / 43 matches, and the official UEFA match record covers 2 rows / 1 match. No new identity, source gap, or source conflict occurred during the 18-document expansion.
+- The read-only inventory scratch artifact SHA-256 was `ECC9A7FE9F0EE92BF119066A8A24C6345F8FC1C906A2D60EB636433B1DC5DB2E`; the tracked canonical map SHA-256 is `FD97CE0DBD218C1BB4DAA9B60D5132C11C3E00CE1CB0C121D15BEA92AF9DDD8E`.
 - Artifact audit: exact header/order/counts, CRLF with final terminator, source revisions and hashes, source split, final identities, attribution/license boundaries, verification timestamps, constants, and secret scan all passed.
-- Git checkout-filter audit: the history-map attribute resolves to `text eol=crlf`; index reconstruction produced 264 CRLF-only lines, no bare LF, the header as the first byte, and a final CRLF. The embedded-map/CRLF Core smoke class then passed 14/14 in 0.744s.
-- Focused tests: Core 18/18 in 1.029s; Orchestrator history plus collect-context 42/42 in 4.667s; Firestore integration 1/1 in 18.073s; Dev dependency-resolution regression 3/3 in 2.442s.
-- Full affected suites: Core 149/149 in 4.961s; ContextProviders.Kicktipp 46/46 in 2.748s; KicktippIntegration 193/193 in 10.727s; FirebaseAdapter 252/252 in 2m17.597s; Orchestrator 897/897 in 1m33.866s; Integration 4/4 in 1m33.098s.
-- `dotnet build KicktippAi.slnx`: succeeded in 12.89s with 0 errors and 18 existing dependency-advisory warnings.
-- No Firestore or Kicktipp write was performed. The P0-20 activation gate retains the required strict live zero-unresolved audit before prediction validation.
+- Git checkout-filter audit: the history-map attribute resolves to `text eol=crlf`; index reconstruction produces 399 CRLF-only lines, no bare LF, the header as the first byte, and a final CRLF.
+- Focused tests: Core history 20/20 in 1.304s; Orchestrator history/expected-set/apply 24/24 in 3.933s; corrected WM26 history/verbose regressions 15/15 in 3.423s; invalid-matchday pre-write safety 5/5 in 3.230s; Firebase atomic publication 6/6 in 19.736s; real Firestore canonical-set integration 1/1 in 1m04.919s.
+- Full affected suites: Core 155/155 in 2.896s; ContextProviders.Kicktipp 47/47 in 1.527s; KicktippIntegration 194/194 in 13.131s; FirebaseAdapter 258/258 in 52.760s; Orchestrator 903/903 in 1m51.138s; Integration 4/4 in 27.439s.
+- `dotnet build --no-restore KicktippAi.slnx`: succeeded in 14.32s with 0 errors and 10 existing dependency-advisory/obsolete-API warnings.
+- No live Firestore or Kicktipp write was performed; Firestore validation used the local emulator. The P0-20 activation gate retains the required strict live zero-unresolved audit before prediction validation.
 
 ## Complete when
 

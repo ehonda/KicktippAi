@@ -13,7 +13,9 @@ public class CollectContextKicktippCommand_VerboseMode_Tests : CollectContextKic
     {
         var ctx = CreateCollectContextCommandApp();
 
-        var (exitCode, output) = await RunCommandAsync(ctx.App, ctx.Console, "collect-context-kicktipp", "--community-context", "test-community", "--verbose");
+        var (exitCode, output) = await RunCommandAsync(ctx.App, ctx.Console,
+            "collect-context-kicktipp", "--community-context", "test-community", "--verbose",
+            "--competition", EHonda.KicktippAi.Core.CompetitionIds.FifaWorldCup2026);
 
         await Assert.That(exitCode).IsEqualTo(0);
         await Assert.That(output).Contains("Verbose mode enabled");
@@ -45,7 +47,9 @@ public class CollectContextKicktippCommand_VerboseMode_Tests : CollectContextKic
         };
         var ctx = CreateCollectContextCommandApp(contextDocuments: docs);
 
-        var (exitCode, output) = await RunCommandAsync(ctx.App, ctx.Console, "collect-context-kicktipp", "--community-context", "test-community", "--verbose");
+        var (exitCode, output) = await RunCommandAsync(ctx.App, ctx.Console,
+            "collect-context-kicktipp", "--community-context", "test-community", "--verbose",
+            "--competition", CompetitionIds.FifaWorldCup2026);
 
         await Assert.That(exitCode).IsEqualTo(0);
         await Assert.That(output).Contains("Added Data_Collected_At column to recent-history-fcb.csv");

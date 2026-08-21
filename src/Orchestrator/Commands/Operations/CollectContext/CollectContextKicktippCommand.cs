@@ -94,6 +94,9 @@ public class CollectContextKicktippCommand : AsyncCommand<CollectContextKicktipp
     {
         var competition = CompetitionResolver.ResolveCompetition(settings.Competition, settings.CommunityContext, settings.CommunityContext);
         var isBundesliga2026 = string.Equals(competition, CompetitionIds.Bundesliga2026_27, StringComparison.Ordinal);
+        // Validate all caller-controlled matchday input before match-outcome collection, which may write. This also
+        // applies to --match-outcomes-only so an otherwise-unused invalid option can never precede a partial write.
+        var requestedMatchdays = ParseMatchdays(settings.Matchdays);
         var outcomeCollectionResult = await _matchOutcomeCollectionService.CollectAsync(
             settings.CommunityContext,
             settings.DryRun,
@@ -118,7 +121,6 @@ public class CollectContextKicktippCommand : AsyncCommand<CollectContextKicktipp
         _console.MarkupLine($"[blue]Using community context:[/] [yellow]{settings.CommunityContext}[/]");
         _console.MarkupLine($"[blue]Using competition:[/] [yellow]{competition}[/]");
 
-        var requestedMatchdays = ParseMatchdays(settings.Matchdays);
         var targetMatchdays = requestedMatchdays.Count > 0
             ? requestedMatchdays.Select<int, int?>(matchday => matchday).ToList()
             : new List<int?> { null };
