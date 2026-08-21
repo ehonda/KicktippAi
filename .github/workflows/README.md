@@ -4,7 +4,7 @@ This directory contains GitHub Actions workflows that automate the process of ge
 
 ## Current activation status
 
-As of 2026-08-21, every existing season-specific community entrypoint in this
+As of 2026-08-22, every existing season-specific community entrypoint in this
 directory is historical and inert: Bundesliga 2025/26 and WM26 files retain
 `workflow_call` only, with no active `workflow_dispatch` or `schedule` trigger.
 Schedule and model descriptions later in this document describe their former
@@ -12,7 +12,7 @@ operation; they are not current activation evidence.
 
 No Bundesliga 2026/27 entrypoint exists yet. P0-17 records the
 [authoritative community matrix](../../docs/onboarding-bundesliga-2026-27/community-onboarding.md)
-without changing workflows. P0-18 updates the reusable workflow contract,
+without changing workflows. P0-18 established the reusable workflow contract,
 P0-19 adds explicit manual entrypoints, and P0-21 alone enables final
 production schedules. The separately authorized Luna/none arena validation
 schedule may run only inside the P0-20 validation ladder.
@@ -164,8 +164,8 @@ Each prediction workflow implements the core prediction loop:
 Context collection workflows gather and store contextual data for multiple communities:
 
 1. **Environment Setup**: Configure Kicktipp and Firebase credentials
-2. **Context Gathering**: Collect match context from all current matchday matches
-3. **Competition Extras**: WM26 collection applies known pre-tournament recent-history dates, resolves tournament recent-history rows from stored prediction kickoff timestamps, then optional WM26 collection runs `collect-context fifa` and `collect-context lineups`
+2. **Profile Resolution**: Resolve the exact competition profile and its ordered collectors
+3. **Context Gathering**: Run `collect-context profile` for the exact competition and community context. Bundesliga runs Kicktipp with included played-date reconstruction, Club Elo, and rosters; WM26 retains its Kicktipp, date-map, FIFA, and lineup profile.
 4. **Database Storage**: Store context documents in Firebase with version control
 5. **Duplicate Detection**: Skip unchanged context to avoid redundant storage
 
@@ -174,12 +174,26 @@ Context collection workflows gather and store contextual data for multiple commu
 Each community workflow is configured with direct parameters:
 
 - **`community`**: Kicktipp community name
-- **`model`**: OpenAI model to use for predictions (o4-mini, o1)
-- **`reasoning_effort`**: Optional OpenAI reasoning effort for prediction generation. Leave empty for the model default, or set `none`, `minimal`, `low`, `medium`, `high`, or `xhigh`.
-- **`max_output_tokens`**: Optional maximum output token cap for prediction generation. Use `0` to keep the command default (`10000`).
+- **`model`**: Required, pinned OpenAI model identity for predictions
+- **`reasoning_effort`**: Required, pinned OpenAI reasoning effort
+- **`max_output_tokens`**: Required, positive output-token cap
 - **`community_context`**: Community context when generating predictions (or using stored ones from the database)
-- **`competition`**: Optional competition identifier for context collection
-- **`include_fifa_rankings` / `include_lineups`**: Enable WM26 ranking and lineup context extras for World Cup communities. WM26 recent-history date-map application is automatic when `competition` is `fifa-world-cup-2026`.
+- **`competition`**: Required competition identifier in context, matchday, and bonus workflows
+- **`prompt_source` / prompt name, label, and version**: Required prompt route and exact hosted identity when `langfuse` is selected
+
+### Bundesliga 2026/27 sequencing contract
+
+The reusable context and prediction workflows are separate callable units, so
+their caller owns sequencing. A Bundesliga matchday or bonus dispatch is not
+valid until context collection has completed successfully for that exact
+`competition` and `community_context`; a successful run for another community,
+competition, or an old WM26/unscoped partition does not satisfy this dependency.
+
+P0-19 entrypoints remain `workflow_dispatch`-only. During P0-20, record the
+successful context run ID and completion before dispatching matchday or bonus
+validation. P0-21 must preserve context-before-prediction spacing when enabling
+production schedules and must observe the first scheduled sequence. A failed or
+cancelled context run blocks the corresponding prediction dispatch.
 
 ### Bundesliga 2026/27 topology
 
