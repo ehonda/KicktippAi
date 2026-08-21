@@ -37,6 +37,13 @@ public static class MatchContextDocumentCatalog
             ["ehonda-dev-wm26"] = WorldCup2026Policy
         };
 
+    private static readonly IReadOnlyDictionary<string, string> KnownCommunityCompetitions =
+        new Dictionary<string, string>(StringComparer.OrdinalIgnoreCase)
+        {
+            ["ehonda-dev-wm26"] = CompetitionIds.FifaWorldCup2026,
+            ["ehonda-dev-buli-2627"] = CompetitionIds.Bundesliga2026_27
+        };
+
     public static MatchContextDocumentSelection ForMatch(
         string homeTeam,
         string awayTeam,
@@ -77,10 +84,10 @@ public static class MatchContextDocumentCatalog
         ArgumentException.ThrowIfNullOrWhiteSpace(awayTeam);
         ArgumentException.ThrowIfNullOrWhiteSpace(communityContext);
 
+        var policy = ResolvePolicy(communityContext, competition);
         var homeAbbreviation = GetTeamAbbreviation(homeTeam, competition);
         var awayAbbreviation = GetTeamAbbreviation(awayTeam, competition);
         var standingsDocumentName = GetStandingsDocumentName(competition);
-        var policy = ResolvePolicy(communityContext, competition);
 
         var requiredDocuments = new List<string> { standingsDocumentName };
         if (policy.IncludeCommunityRules)
@@ -193,14 +200,28 @@ public static class MatchContextDocumentCatalog
 
     private static MatchContextDocumentPolicy ResolvePolicy(string communityContext, string? competition)
     {
+        if (!string.IsNullOrWhiteSpace(competition))
+        {
+            var canonicalCompetition = CompetitionIds.Canonicalize(competition);
+            if (KnownCommunityCompetitions.TryGetValue(communityContext, out var communityCompetition)
+                && !string.Equals(canonicalCompetition, communityCompetition, StringComparison.Ordinal))
+            {
+                throw new InvalidOperationException(
+                    $"Community context '{communityContext}' belongs to '{communityCompetition}' and conflicts with " +
+                    $"the explicit competition '{canonicalCompetition}'.");
+            }
+
+            return string.Equals(canonicalCompetition, CompetitionIds.FifaWorldCup2026, StringComparison.Ordinal)
+                ? WorldCup2026Policy
+                : BundesligaPolicy;
+        }
+
         if (CommunityPolicies.TryGetValue(communityContext, out var communityPolicy))
         {
             return communityPolicy;
         }
 
-        return string.Equals(competition, CompetitionIds.FifaWorldCup2026, StringComparison.OrdinalIgnoreCase)
-            ? WorldCup2026Policy
-            : BundesligaPolicy;
+        return BundesligaPolicy;
     }
 
     private static string SlugifyTeamName(string teamName)

@@ -444,15 +444,15 @@ When asserting objects that are records or have value equality, prefer using `Is
 
 ```csharp
 // ✅ Good: Use record equality
-var expected = new DocumentContext("team-data", "team content");
+var expected = new DocumentContext("club-elo-rankings", "elo content");
 await Assert.That(context).IsEqualTo(expected);
 
 // ✅ Good: Inline expected object
 await Assert.That(result).IsEqualTo(new Prediction(2, 1, null));
 
 // ❌ Avoid: Member-by-member assertions when record equality suffices
-await Assert.That(context).Member(c => c.Name, n => n.IsEqualTo("team-data"))
-    .And.Member(c => c.Content, c => c.IsEqualTo("team content"));
+await Assert.That(context).Member(c => c.Name, n => n.IsEqualTo("club-elo-rankings"))
+    .And.Member(c => c.Content, c => c.IsEqualTo("elo content"));
 ```
 
 **When to use record equality:**
@@ -489,15 +489,15 @@ When asserting collections, prefer `IsEquivalentTo` with an expected collection 
 // ✅ Good: Collection equality
 var expected = new List<DocumentContext>
 {
-    new("team-data", "team content"),
-    new("manager-data", "manager content")
+    new("club-elo-rankings", "elo content"),
+    new("team-squad-summary", "squad content")
 };
 await Assert.That(contexts).IsEquivalentTo(expected);
 
 // ✅ Good: Inline collection literal
 await Assert.That(contexts).IsEquivalentTo([
-    new DocumentContext("team-data", "team content"),
-    new DocumentContext("manager-data", "manager content")
+    new DocumentContext("club-elo-rankings", "elo content"),
+    new DocumentContext("team-squad-summary", "squad content")
 ]);
 
 // ✅ Good: For ordered comparisons with partial data
@@ -505,8 +505,8 @@ await Assert.That(versions.Select(v => (v.Version, v.Content)))
     .IsEquivalentTo([(0, "v0"), (1, "v1"), (2, "v2")]);
 
 // ❌ Avoid: Element-by-element assertions
-await Assert.That(contexts[0]).Member(c => c.Name, n => n.IsEqualTo("team-data"));
-await Assert.That(contexts[1]).Member(c => c.Name, n => n.IsEqualTo("manager-data"));
+await Assert.That(contexts[0]).Member(c => c.Name, n => n.IsEqualTo("club-elo-rankings"));
+await Assert.That(contexts[1]).Member(c => c.Name, n => n.IsEqualTo("team-squad-summary"));
 ```
 
 **When to use collection assertions:**

@@ -120,6 +120,55 @@ public class UploadContextCommandTests
             It.IsAny<CancellationToken>()), Times.Never);
     }
 
+    [Arguments("team-data")]
+    [Arguments("recent-history-fcb.csv")]
+    [Arguments("lineup-germany.csv")]
+    [Test]
+    public async Task Live_bundesliga_profile_owned_or_retired_names_fail_before_writes(string documentName)
+    {
+        var inputPath = WriteContextJson(documentName, "stale content", "ehonda-dev-buli-2627");
+        var (app, console, contextRepository) = CreateUploadContextCommandApp();
+
+        var exitCode = await app.RunAsync([
+            "upload-context",
+            "--input",
+            inputPath,
+            "--competition",
+            CompetitionIds.Bundesliga2026_27,
+            "--dry-run"
+        ]);
+
+        await Assert.That(exitCode).IsEqualTo(1);
+        await Assert.That(console.Output).Contains("Generic mutation");
+        contextRepository.Verify(r => r.SaveContextDocumentAsync(
+            It.IsAny<string>(),
+            It.IsAny<string>(),
+            It.IsAny<string>(),
+            It.IsAny<CancellationToken>()), Times.Never);
+    }
+
+    [Test]
+    public async Task Historical_bundesliga_partition_preserves_generic_uploads()
+    {
+        var inputPath = WriteContextJson("team-data", "historical content", "historical-community");
+        var (app, _, contextRepository) = CreateUploadContextCommandApp();
+
+        var exitCode = await app.RunAsync([
+            "upload-context",
+            "--input",
+            inputPath,
+            "--competition",
+            CompetitionIds.Bundesliga2025_26
+        ]);
+
+        await Assert.That(exitCode).IsEqualTo(0);
+        contextRepository.Verify(r => r.SaveContextDocumentAsync(
+            "team-data",
+            "historical content",
+            "historical-community",
+            It.IsAny<CancellationToken>()), Times.Once);
+    }
+
     private static string WriteContextJson(string documentName, string content, string communityContext)
     {
         var path = Path.Combine(Path.GetTempPath(), $"upload-context-{Guid.NewGuid():N}.json");

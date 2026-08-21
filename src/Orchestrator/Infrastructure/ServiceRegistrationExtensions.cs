@@ -4,7 +4,6 @@ using System.Text;
 using EHonda.KicktippAi.Core;
 using Microsoft.Extensions.DependencyInjection;
 using Microsoft.Extensions.DependencyInjection.Extensions;
-using Microsoft.Extensions.FileProviders;
 using Microsoft.Extensions.Http.Resilience;
 using Microsoft.Extensions.Logging;
 using OpenTelemetry.Exporter;
@@ -306,29 +305,12 @@ public static class ServiceRegistrationExtensions
         return services;
     }
 
-    /// <summary>
-    /// Service key for the KPI documents file provider.
-    /// </summary>
-    public const string KpiDocumentsFileProviderKey = "kpi-documents";
-
-    /// <summary>
-    /// Registers services specific to the UploadKpiCommand.
-    /// </summary>
-    /// <remarks>
-    /// This method is idempotent and ensures infrastructure is registered.
-    /// </remarks>
-    public static IServiceCollection AddUploadKpiCommandServices(
+    /// <summary>Registers the read-only context hygiene inventory dependencies.</summary>
+    public static IServiceCollection AddContextHygieneInventoryCommandServices(
         this IServiceCollection services,
         LogLevel minimumLogLevel = LogLevel.Information)
     {
         services.AddOrchestratorInfrastructure(minimumLogLevel);
-
-        // UploadKpiCommand only needs Firebase factory (uses IKpiRepository)
-        // Register keyed file provider for KPI documents directory
-        services.TryAddKeyedSingleton<IFileProvider>(
-            KpiDocumentsFileProviderKey,
-            (_, _) => SolutionRelativeFileProvider.Create("kpi-documents"));
-
         return services;
     }
 
@@ -687,7 +669,7 @@ public static class ServiceRegistrationExtensions
 
         // Register all command-specific services
         services.AddListKpiCommandServices(minimumLogLevel);
-        services.AddUploadKpiCommandServices(minimumLogLevel);
+        services.AddContextHygieneInventoryCommandServices(minimumLogLevel);
         services.AddCostCommandServices(minimumLogLevel);
         services.AddMatchdayCommandServices(minimumLogLevel);
         services.AddRandomMatchCommandServices(minimumLogLevel);

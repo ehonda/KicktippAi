@@ -6,7 +6,6 @@ using System.Reflection;
 using System.Text.Json;
 using EHonda.KicktippAi.Core;
 using Microsoft.Extensions.DependencyInjection;
-using Microsoft.Extensions.FileProviders;
 using Microsoft.Extensions.Hosting;
 using Microsoft.Extensions.Logging;
 using Microsoft.Extensions.Logging.Testing;
@@ -885,16 +884,13 @@ public class LangfuseAndServiceRegistrationTests
     }
 
     [Test]
-    public async Task AddCommandServices_register_keyed_file_providers_and_reuse_infrastructure()
+    public async Task AddAllCommandServices_registers_shared_infrastructure()
     {
         var services = new ServiceCollection();
 
-        services.AddUploadKpiCommandServices();
+        services.AddContextHygieneInventoryCommandServices();
         services.AddAllCommandServices();
 
-        await Assert.That(services.Any(descriptor =>
-            descriptor.ServiceType == typeof(IFileProvider) &&
-            Equals(descriptor.ServiceKey, ServiceRegistrationExtensions.KpiDocumentsFileProviderKey))).IsTrue();
         await Assert.That(services.Any(descriptor =>
             descriptor.ServiceType == typeof(IFirebaseServiceFactory))).IsTrue();
         await Assert.That(services.Any(descriptor =>
