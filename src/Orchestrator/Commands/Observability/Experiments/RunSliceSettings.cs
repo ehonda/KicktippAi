@@ -14,7 +14,8 @@ public abstract class RunExperimentSettingsBase : CommandSettings
         "low",
         "medium",
         "high",
-        "xhigh"
+        "xhigh",
+        "max"
     };
 
     [CommandArgument(0, "<MODEL>")]
@@ -61,7 +62,7 @@ public abstract class RunExperimentSettingsBase : CommandSettings
     public int? LangfusePromptVersion { get; set; }
 
     [CommandOption("--reasoning-effort")]
-    [Description("Optional OpenAI reasoning effort for experiment predictions: none, minimal, low, medium, high, or xhigh")]
+    [Description("Optional OpenAI reasoning effort for experiment predictions: none, minimal, low, medium, high, xhigh, or max")]
     public string? ReasoningEffort { get; set; }
 
     [CommandOption("--max-output-tokens")]
@@ -121,7 +122,7 @@ public abstract class RunExperimentSettingsBase : CommandSettings
             var normalizedReasoningEffort = ReasoningEffort.Trim().ToLowerInvariant();
             if (!AllowedReasoningEfforts.Contains(normalizedReasoningEffort))
             {
-                return ValidationResult.Error("--reasoning-effort must be one of: none, minimal, low, medium, high, xhigh");
+                return ValidationResult.Error("--reasoning-effort must be one of: none, minimal, low, medium, high, xhigh, max");
             }
 
             ReasoningEffort = normalizedReasoningEffort;

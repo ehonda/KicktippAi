@@ -1,6 +1,7 @@
 using EHonda.KicktippAi.Core;
 using KicktippIntegration;
 using Moq;
+using Orchestrator.Infrastructure;
 using static Orchestrator.Tests.Infrastructure.OrchestratorTestFactories;
 using static TestUtilities.CoreTestFactories;
 using Match = EHonda.KicktippAi.Core.Match;
@@ -386,6 +387,46 @@ public class MatchdayCommand_NormalMode_Tests : MatchdayCommandTests_Base
                 It.IsAny<Match>(), It.IsAny<Prediction>(), It.IsAny<PredictionModelConfig>(), It.IsAny<string>(),
                 It.IsAny<double>(), It.IsAny<string>(), It.IsAny<IEnumerable<string>>(),
                 It.Is<ResolvedMatchContextManifest>(manifest => manifest.Documents.Length == 11), It.IsAny<bool>(), It.IsAny<CancellationToken>()),
+            Times.Once);
+    }
+
+    [Test]
+    public async Task Bundesliga_validation_run_saves_exact_match_runtime_identity()
+    {
+        var ctx = CreateMatchdayCommandApp(existingPrediction: (Prediction?)null);
+
+        var (exitCode, _) = await RunCommandAsync(
+            ctx.App,
+            ctx.Console,
+            "matchday",
+            "gpt-5.6-luna",
+            "-c",
+            "test-community",
+            "--competition",
+            CompetitionIds.Bundesliga2026_27,
+            "--reasoning-effort",
+            "none",
+            "--max-output-tokens",
+            "10000");
+
+        await Assert.That(exitCode).IsEqualTo(0);
+        ctx.PredictionRepository.As<IResolvedMatchContextPredictionRepository>().Verify(
+            repository => repository.SavePredictionWithResolvedContextAsync(
+                It.IsAny<Match>(),
+                It.IsAny<Prediction>(),
+                It.Is<PredictionModelConfig>(config =>
+                    config.Model == "gpt-5.6-luna" &&
+                    config.ReasoningEffort == "none" &&
+                    config.MaxOutputTokenCount == 10_000 &&
+                    config.PromptName == CompetitionResolver.BundesligaMatchPromptName &&
+                    config.PromptVersion == CompetitionResolver.BundesligaMatchPromptVersion),
+                It.IsAny<string>(),
+                It.IsAny<double>(),
+                It.IsAny<string>(),
+                It.IsAny<IEnumerable<string>>(),
+                It.IsAny<ResolvedMatchContextManifest>(),
+                It.IsAny<bool>(),
+                It.IsAny<CancellationToken>()),
             Times.Once);
     }
 

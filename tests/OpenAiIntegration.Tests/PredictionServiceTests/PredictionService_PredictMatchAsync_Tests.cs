@@ -758,8 +758,32 @@ public class PredictionService_PredictMatchAsync_Tests : PredictionServiceTests_
     {
         var capturedActivities = new List<Activity>();
         using var listener = CreateActivityListener(capturedActivities);
-        var service = CreateService(CreateMockChatClient("""{"home": 2, "away": 1}"""));
-        var telemetryMetadata = new PredictionTelemetryMetadata("Telemetry Home Team", "Telemetry Away Team", 3);
+        var templateProvider = CreateMockTemplateProvider();
+        templateProvider.As<IPromptTemplateTelemetryMetadataProvider>()
+            .Setup(provider => provider.GetPromptTemplateTelemetryMetadata())
+            .Returns(new PromptTemplateTelemetryMetadata(
+                RequestedSource: "langfuse",
+                ActualSource: "langfuse",
+                LangfusePromptName: "kicktippai/bundesliga-2026-27/predict-one-match",
+                LangfusePromptLabel: "production",
+                LangfusePromptVersion: 2,
+                IsFallback: false,
+                PromptPath: "langfuse://prompts/kicktippai%2Fbundesliga-2026-27%2Fpredict-one-match/versions/2?label=production",
+                ContentSha256: "94a7aa775546028d3ded89f626873d7dfce162d1f08bb9573e102dd427ac08c1"));
+        var service = CreateService(
+            CreateMockChatClient("""{"home": 2, "away": 1}"""),
+            templateProvider: NullableOption.Some(templateProvider.Object),
+            model: NullableOption.Some("gpt-5.6-luna"),
+            options: NullableOption.Some(PredictionServiceOptions.FlexProcessingWithStandardFallback with
+            {
+                ReasoningEffort = "none",
+                MaxOutputTokenCount = 10_000
+            }));
+        var telemetryMetadata = new PredictionTelemetryMetadata(
+            "Telemetry Home Team",
+            "Telemetry Away Team",
+            3,
+            "bundesliga-2026-27");
         var match = CreateTestMatch();
         var contextDocuments = CreateTestContextDocuments();
 
@@ -770,7 +794,17 @@ public class PredictionService_PredictMatchAsync_Tests : PredictionServiceTests_
             .FirstOrDefault(candidate => IsMatchingPredictMatchActivity(candidate, telemetryMetadata));
         await Assert.That(activity).IsNotNull();
         await Assert.That(activity.GetTagItem("langfuse.observation.type")).IsEqualTo("generation");
-        await Assert.That(activity.GetTagItem("gen_ai.request.model")).IsEqualTo("gpt-5");
+        await Assert.That(activity.GetTagItem("gen_ai.request.model")).IsEqualTo("gpt-5.6-luna");
+        await Assert.That(activity.GetTagItem("langfuse.observation.metadata.openaiModel")).IsEqualTo("gpt-5.6-luna");
+        await Assert.That(activity.GetTagItem("gen_ai.request.reasoning_effort")).IsEqualTo("none");
+        await Assert.That(activity.GetTagItem("langfuse.observation.metadata.openaiReasoningEffort")).IsEqualTo("none");
+        await Assert.That(activity.GetTagItem("gen_ai.request.max_tokens")).IsEqualTo(10_000);
+        await Assert.That(activity.GetTagItem("langfuse.observation.metadata.openaiMaxOutputTokens")).IsEqualTo(10_000);
+        await Assert.That(activity.GetTagItem("langfuse.observation.metadata.competition")).IsEqualTo("bundesliga-2026-27");
+        await Assert.That(activity.GetTagItem("langfuse.observation.prompt.name"))
+            .IsEqualTo("kicktippai/bundesliga-2026-27/predict-one-match");
+        await Assert.That(activity.GetTagItem("langfuse.observation.prompt.version")).IsEqualTo(2);
+        await Assert.That(activity.GetTagItem("langfuse.observation.metadata.langfusePromptVersion")).IsEqualTo(2);
         await Assert.That(activity.GetTagItem("langfuse.observation.input")?.ToString()).Contains("\"role\":\"system\"");
         await Assert.That(activity.GetTagItem("langfuse.observation.input")?.ToString()).Contains("\"role\":\"user\"");
         await Assert.That(activity.GetTagItem("langfuse.observation.output")).IsEqualTo("""{"home": 2, "away": 1}""");

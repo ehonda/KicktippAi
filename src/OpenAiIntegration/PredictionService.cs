@@ -1173,6 +1173,9 @@ public class PredictionService : IPredictionService
 
         activity.SetTag("langfuse.observation.type", "generation");
         activity.SetTag("gen_ai.request.model", _model);
+        activity.SetTag("langfuse.observation.metadata.openaiModel", _model);
+        activity.SetTag("gen_ai.request.max_tokens", _options.MaxOutputTokenCount);
+        activity.SetTag("langfuse.observation.metadata.openaiMaxOutputTokens", _options.MaxOutputTokenCount);
         var providerPromptMetadata = (_templateProvider as IPromptTemplateTelemetryMetadataProvider)
             ?.GetPromptTemplateTelemetryMetadata();
 

@@ -576,7 +576,8 @@ internal sealed class PreparedExperimentRunExecutor
         var telemetryMetadata = new PredictionTelemetryMetadata(
             HomeTeam: item.HomeTeam,
             AwayTeam: item.AwayTeam,
-            RepredictionIndex: 0);
+            RepredictionIndex: 0,
+            Competition: runMetadata.Competition);
 
         using var activity = Telemetry.Source.StartActivity("experiment-item-run");
         ConfigureTraceContext(

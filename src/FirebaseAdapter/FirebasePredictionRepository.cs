@@ -82,6 +82,11 @@ public class FirebasePredictionRepository : IPredictionRepository, IResolvedMatc
 
         if (!string.IsNullOrWhiteSpace(storedReasoningEffort))
         {
+            if (!modelConfig.AllowsReasoningEffortOnlyLookup)
+            {
+                return PredictionConfigMatchKind.None;
+            }
+
             if (!PredictionModelConfig.IsValidReasoningEffort(storedReasoningEffort))
             {
                 return PredictionConfigMatchKind.None;
@@ -232,6 +237,9 @@ public class FirebasePredictionRepository : IPredictionRepository, IResolvedMatc
                 Model = modelConfig.Model,
                 ModelConfigKey = modelConfig.IdentityKey,
                 ReasoningEffort = modelConfig.ReasoningEffort,
+                MaxOutputTokenCount = modelConfig.MaxOutputTokenCount,
+                PromptName = modelConfig.PromptName,
+                PromptVersion = modelConfig.PromptVersion,
                 TokenUsage = tokenUsage,
                 Cost = cost,
                 CommunityContext = communityContext,
@@ -728,6 +736,9 @@ public class FirebasePredictionRepository : IPredictionRepository, IResolvedMatc
                 Model = modelConfig.Model,
                 ModelConfigKey = modelConfig.IdentityKey,
                 ReasoningEffort = modelConfig.ReasoningEffort,
+                MaxOutputTokenCount = modelConfig.MaxOutputTokenCount,
+                PromptName = modelConfig.PromptName,
+                PromptVersion = modelConfig.PromptVersion,
                 TokenUsage = tokenUsage,
                 Cost = cost,
                 CommunityContext = communityContext,
@@ -1425,6 +1436,9 @@ public class FirebasePredictionRepository : IPredictionRepository, IResolvedMatc
                     Model = modelConfig.Model,
                     ModelConfigKey = modelConfig.IdentityKey,
                     ReasoningEffort = modelConfig.ReasoningEffort,
+                    MaxOutputTokenCount = modelConfig.MaxOutputTokenCount,
+                    PromptName = modelConfig.PromptName,
+                    PromptVersion = modelConfig.PromptVersion,
                     TokenUsage = tokenUsage,
                     Cost = cost,
                     CommunityContext = communityContext,
@@ -1481,6 +1495,9 @@ public class FirebasePredictionRepository : IPredictionRepository, IResolvedMatc
                 Model = modelConfig.Model,
                 ModelConfigKey = modelConfig.IdentityKey,
                 ReasoningEffort = modelConfig.ReasoningEffort,
+                MaxOutputTokenCount = modelConfig.MaxOutputTokenCount,
+                PromptName = modelConfig.PromptName,
+                PromptVersion = modelConfig.PromptVersion,
                 TokenUsage = tokenUsage,
                 Cost = cost,
                 CommunityContext = communityContext,
@@ -1547,6 +1564,9 @@ public class FirebasePredictionRepository : IPredictionRepository, IResolvedMatc
                 Model = modelConfig.Model,
                 ModelConfigKey = modelConfig.IdentityKey,
                 ReasoningEffort = modelConfig.ReasoningEffort,
+                MaxOutputTokenCount = modelConfig.MaxOutputTokenCount,
+                PromptName = modelConfig.PromptName,
+                PromptVersion = modelConfig.PromptVersion,
                 TokenUsage = tokenUsage,
                 Cost = cost,
                 CommunityContext = communityContext,
@@ -1814,15 +1834,33 @@ public class FirebasePredictionRepository : IPredictionRepository, IResolvedMatc
 
     private static void AddModelConfigIfValid(Dictionary<string, PredictionModelConfig> modelConfigs, FirestoreMatchPrediction prediction)
     {
-        AddModelConfigIfValid(modelConfigs, prediction.Model, prediction.ReasoningEffort);
+        AddModelConfigIfValid(
+            modelConfigs,
+            prediction.Model,
+            prediction.ReasoningEffort,
+            prediction.MaxOutputTokenCount,
+            prediction.PromptName,
+            prediction.PromptVersion);
     }
 
     private static void AddModelConfigIfValid(Dictionary<string, PredictionModelConfig> modelConfigs, FirestoreBonusPrediction prediction)
     {
-        AddModelConfigIfValid(modelConfigs, prediction.Model, prediction.ReasoningEffort);
+        AddModelConfigIfValid(
+            modelConfigs,
+            prediction.Model,
+            prediction.ReasoningEffort,
+            prediction.MaxOutputTokenCount,
+            prediction.PromptName,
+            prediction.PromptVersion);
     }
 
-    private static void AddModelConfigIfValid(Dictionary<string, PredictionModelConfig> modelConfigs, string model, string? reasoningEffort)
+    private static void AddModelConfigIfValid(
+        Dictionary<string, PredictionModelConfig> modelConfigs,
+        string model,
+        string? reasoningEffort,
+        int? maxOutputTokenCount,
+        string? promptName,
+        int? promptVersion)
     {
         if (string.IsNullOrWhiteSpace(model))
         {
@@ -1834,8 +1872,20 @@ public class FirebasePredictionRepository : IPredictionRepository, IResolvedMatc
             return;
         }
 
-        var modelConfig = PredictionModelConfig.Create(model, reasoningEffort);
-        modelConfigs.TryAdd(modelConfig.IdentityKey, modelConfig);
+        try
+        {
+            var modelConfig = PredictionModelConfig.Create(
+                model,
+                reasoningEffort,
+                maxOutputTokenCount,
+                promptName,
+                promptVersion);
+            modelConfigs.TryAdd(modelConfig.IdentityKey, modelConfig);
+        }
+        catch (ArgumentException)
+        {
+            // Ignore malformed historical rows when enumerating available filters.
+        }
     }
 
     /// <inheritdoc />

@@ -9,7 +9,8 @@ namespace OpenAiIntegration;
 public sealed record PredictionTelemetryMetadata(
     string? HomeTeam = null,
     string? AwayTeam = null,
-    int? RepredictionIndex = null)
+    int? RepredictionIndex = null,
+    string? Competition = null)
 {
     public void ApplyToObservation(Activity? activity)
     {
@@ -20,6 +21,7 @@ public sealed record PredictionTelemetryMetadata(
 
         SetObservationMetadata(activity, "homeTeam", HomeTeam);
         SetObservationMetadata(activity, "awayTeam", AwayTeam);
+        SetObservationMetadata(activity, "competition", Competition);
 
         if (RepredictionIndex.HasValue)
         {

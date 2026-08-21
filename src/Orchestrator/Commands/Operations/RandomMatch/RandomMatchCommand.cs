@@ -74,7 +74,18 @@ public class RandomMatchCommand : AsyncCommand<RandomMatchSettings>
 
         var communityContext = settings.CommunityContext ?? settings.Community;
         var competition = CompetitionResolver.ResolveCompetition(settings.Competition, settings.Community, communityContext);
-        var modelConfig = PredictionServiceCommandSupport.CreateModelConfig(settings.Model, settings.ReasoningEffort);
+        var modelConfig = PredictionServiceCommandSupport.CreateModelConfig(
+            settings.Model,
+            settings.ReasoningEffort,
+            competition,
+            settings.Community,
+            communityContext,
+            settings.PromptSource,
+            settings.LangfusePromptName,
+            settings.LangfusePromptLabel,
+            settings.LangfusePromptVersion,
+            maxOutputTokenCount: null,
+            bonusPrompt: false);
         var model = modelConfig.Model;
         if (settings.WithJustification && PredictionServiceCommandSupport.UsesUnsupportedWorldCupHostedMatchPrompt(
                 competition,
@@ -222,7 +233,8 @@ public class RandomMatchCommand : AsyncCommand<RandomMatchSettings>
         var telemetryMetadata = new PredictionTelemetryMetadata(
             HomeTeam: match.HomeTeam,
             AwayTeam: match.AwayTeam,
-            RepredictionIndex: 0);
+            RepredictionIndex: 0,
+            Competition: competition);
 
         var prediction = await predictionService.PredictMatchAsync(match, contextDocuments, settings.WithJustification, telemetryMetadata);
 

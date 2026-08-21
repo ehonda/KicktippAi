@@ -24,7 +24,7 @@ public class BaseSettings : CommandSettings
     public string? Competition { get; set; }
 
     [CommandOption("--reasoning-effort")]
-    [Description("Optional OpenAI reasoning effort (none, minimal, low, medium, high, xhigh)")]
+    [Description("Optional OpenAI reasoning effort (none, minimal, low, medium, high, xhigh, max)")]
     public string? ReasoningEffort { get; set; }
 
     [CommandOption("--max-output-tokens")]
@@ -109,7 +109,7 @@ public class BaseSettings : CommandSettings
 
         if (!PredictionModelConfig.IsValidReasoningEffort(ReasoningEffort))
         {
-            return ValidationResult.Error("--reasoning-effort must be one of: none, minimal, low, medium, high, xhigh");
+            return ValidationResult.Error("--reasoning-effort must be one of: none, minimal, low, medium, high, xhigh, max");
         }
 
         if (MaxOutputTokenCount is < 1)

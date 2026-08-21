@@ -4,6 +4,8 @@ using EHonda.KicktippAi.Core;
 using Microsoft.Extensions.Logging;
 using OpenAiIntegration;
 using Orchestrator.Commands.Observability;
+using Orchestrator.Commands.Shared;
+using Orchestrator.Infrastructure;
 using Orchestrator.Infrastructure.Factories;
 using Spectre.Console;
 using Spectre.Console.Cli;
@@ -38,22 +40,41 @@ public sealed class ExportExperimentItemCommand : AsyncCommand<ExportExperimentI
         {
             _console.MarkupLine($"[green]Exporting experiment item for:[/] [yellow]{Markup.Escape(settings.HomeTeam)}[/] vs [yellow]{Markup.Escape(settings.AwayTeam)}[/]");
 
-            var predictionRepository = _firebaseServiceFactory.CreatePredictionRepository(CompetitionIds.Bundesliga2026_27);
-            var contextRepository = _firebaseServiceFactory.CreateContextRepository(CompetitionIds.Bundesliga2026_27);
-            var matchOutcomeRepository = _firebaseServiceFactory.CreateMatchOutcomeRepository(CompetitionIds.Bundesliga2026_27);
+            var runtimeMetadata = CompetitionResolver.ResolveRuntimeMetadata(
+                settings.Competition,
+                community: null,
+                settings.CommunityContext,
+                settings.PromptSource,
+                settings.LangfusePromptName,
+                settings.LangfusePromptLabel,
+                bonusPrompt: false);
+            var predictionRepository = _firebaseServiceFactory.CreatePredictionRepository(runtimeMetadata.Competition);
+            var contextRepository = _firebaseServiceFactory.CreateContextRepository(runtimeMetadata.Competition);
+            var matchOutcomeRepository = _firebaseServiceFactory.CreateMatchOutcomeRepository(runtimeMetadata.Competition);
 
             var reconstructionService = new MatchPromptReconstructionService(
                 predictionRepository,
                 contextRepository,
                 new InstructionsTemplateProvider(PromptsFileProvider.Create()),
-                _firebaseServiceFactory.CreateDocumentPublicationRepository(CompetitionIds.Bundesliga2026_27));
+                _firebaseServiceFactory.CreateDocumentPublicationRepository(runtimeMetadata.Competition));
 
             var evaluationTime = EvaluationTimeParser.ParseOrNull(settings.EvaluationTime);
             var evaluationPolicy = EvaluationTimestampPolicyParser.ParseOrNull(
                 settings.EvaluationPolicyKind,
                 settings.EvaluationPolicyOffset);
             var reconstructAtTimestamp = evaluationTime is not null || evaluationPolicy is not null;
-            var modelConfig = PredictionModelConfig.Create(settings.Model, settings.ReasoningEffort);
+            var modelConfig = PredictionServiceCommandSupport.CreateModelConfig(
+                settings.Model,
+                settings.ReasoningEffort,
+                runtimeMetadata.Competition,
+                community: string.Empty,
+                settings.CommunityContext,
+                settings.PromptSource,
+                settings.LangfusePromptName,
+                settings.LangfusePromptLabel,
+                settings.LangfusePromptVersion,
+                settings.MaxOutputTokenCount,
+                bonusPrompt: false);
 
             var storedMatch = await predictionRepository.GetStoredMatchAsync(
                 settings.HomeTeam,
@@ -87,7 +108,7 @@ public sealed class ExportExperimentItemCommand : AsyncCommand<ExportExperimentI
                     promptMatch.HomeTeam,
                     promptMatch.AwayTeam,
                     settings.CommunityContext,
-                    CompetitionIds.Bundesliga2026_27);
+                    runtimeMetadata.Competition);
 
                 reconstructedPrompt = await reconstructionService.ReconstructMatchPredictionPromptAtTimestampAsync(
                     promptMatch,

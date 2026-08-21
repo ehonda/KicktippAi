@@ -70,7 +70,7 @@ internal static class PredictionServiceCommandSupport
             langfuseClient,
             promptName,
             string.IsNullOrWhiteSpace(metadata.PromptLabel) ? null : metadata.PromptLabel,
-            langfusePromptVersion,
+            langfusePromptVersion ?? metadata.PromptVersion,
             promptKind: bonusPrompt ? LangfusePromptKind.Bonus : LangfusePromptKind.Match,
             fallbackTemplateProvider: new InstructionsTemplateProvider(PromptsFileProvider.Create()),
             fallbackModel: fallbackModel,
@@ -108,6 +108,52 @@ internal static class PredictionServiceCommandSupport
     public static PredictionModelConfig CreateModelConfig(string? model, string? reasoningEffort)
     {
         return PredictionModelConfig.Create(ResolveModel(model), reasoningEffort);
+    }
+
+    public static PredictionModelConfig CreateModelConfig(
+        string? model,
+        string? reasoningEffort,
+        string competition,
+        string community,
+        string communityContext,
+        string? promptSource,
+        string? langfusePromptName,
+        string? langfusePromptLabel,
+        int? langfusePromptVersion,
+        int? maxOutputTokenCount,
+        bool bonusPrompt)
+    {
+        var resolvedModel = ResolveModel(model);
+        if (!string.Equals(competition, CompetitionIds.Bundesliga2026_27, StringComparison.OrdinalIgnoreCase))
+        {
+            return PredictionModelConfig.Create(resolvedModel, reasoningEffort);
+        }
+
+        var metadata = CompetitionResolver.ResolveRuntimeMetadata(
+            competition,
+            community,
+            communityContext,
+            promptSource,
+            langfusePromptName,
+            langfusePromptLabel,
+            bonusPrompt);
+        var effectiveMaxOutputTokenCount = maxOutputTokenCount
+                                           ?? PredictionServiceOptions.FlexProcessingWithStandardFallback.MaxOutputTokenCount;
+        var usesHostedPrompt = string.Equals(
+            metadata.PromptSource,
+            CompetitionResolver.LangfusePromptSource,
+            StringComparison.OrdinalIgnoreCase);
+        var exactPromptVersion = usesHostedPrompt
+            ? langfusePromptVersion ?? metadata.PromptVersion
+            : null;
+        var exactPromptName = exactPromptVersion is null ? null : metadata.PromptName;
+
+        return PredictionModelConfig.Create(
+            resolvedModel,
+            reasoningEffort,
+            effectiveMaxOutputTokenCount,
+            exactPromptName,
+            exactPromptVersion);
     }
 
     public static string ResolveModel(string? model)

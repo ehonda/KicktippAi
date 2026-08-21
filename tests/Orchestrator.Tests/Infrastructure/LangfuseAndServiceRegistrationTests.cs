@@ -12,12 +12,14 @@ using Microsoft.Extensions.Logging;
 using Microsoft.Extensions.Logging.Testing;
 using Microsoft.Extensions.Options;
 using Moq;
+using Orchestrator.Commands.Shared;
 using Orchestrator.Infrastructure;
 using Orchestrator.Infrastructure.Factories;
 using Orchestrator.Infrastructure.Langfuse;
 using Orchestrator.Services;
 using OpenAiIntegration;
 using Polly.CircuitBreaker;
+using Spectre.Console;
 using WireMock.RequestBuilders;
 using WireMock.ResponseBuilders;
 using WireMock.Server;
@@ -335,6 +337,36 @@ public class LangfuseAndServiceRegistrationTests
         var withJustification = provider.LoadMatchTemplate("gpt-5.6-luna", includeJustification: true);
 
         await Assert.That(withJustification).IsEqualTo(withoutJustification);
+    }
+
+    [Test]
+    public async Task Bundesliga_prediction_service_pins_default_production_prompt_version()
+    {
+        await AssertBundesligaPredictionServiceLookupAsync(
+            promptLabel: null,
+            explicitVersion: null,
+            expectedLabel: CompetitionResolver.DefaultBundesligaPromptLabel,
+            expectedVersion: CompetitionResolver.BundesligaMatchPromptVersion);
+    }
+
+    [Test]
+    public async Task Bundesliga_prediction_service_preserves_staging_label_without_implicit_version()
+    {
+        await AssertBundesligaPredictionServiceLookupAsync(
+            promptLabel: "staging",
+            explicitVersion: null,
+            expectedLabel: "staging",
+            expectedVersion: null);
+    }
+
+    [Test]
+    public async Task Bundesliga_prediction_service_explicit_version_takes_precedence_over_staging_label()
+    {
+        await AssertBundesligaPredictionServiceLookupAsync(
+            promptLabel: "staging",
+            explicitVersion: 7,
+            expectedLabel: "staging",
+            expectedVersion: 7);
     }
 
     [Test]
@@ -895,6 +927,61 @@ public class LangfuseAndServiceRegistrationTests
             Labels: ["latest"],
             Tags: [],
             configDocument.RootElement.Clone());
+    }
+
+    private static async Task AssertBundesligaPredictionServiceLookupAsync(
+        string? promptLabel,
+        int? explicitVersion,
+        string expectedLabel,
+        int? expectedVersion)
+    {
+        var mirrorProvider = new InstructionsTemplateProvider(PromptsFileProvider.Create());
+        var (mirror, _) = mirrorProvider.LoadMatchTemplate(
+            CompetitionResolver.BundesligaFallbackPromptModel,
+            includeJustification: false);
+        var langfuseClient = new Mock<ILangfusePublicApiClient>(MockBehavior.Strict);
+        langfuseClient
+            .Setup(client => client.GetPromptAsync(
+                CompetitionResolver.BundesligaMatchPromptName,
+                expectedLabel,
+                expectedVersion,
+                It.IsAny<CancellationToken>()))
+            .ReturnsAsync(CreateTextPrompt(
+                CompetitionResolver.BundesligaMatchPromptName,
+                expectedVersion ?? 99,
+                mirror));
+
+        IInstructionsTemplateProvider? capturedProvider = null;
+        var predictionService = new Mock<IPredictionService>();
+        var openAiFactory = new Mock<IOpenAiServiceFactory>(MockBehavior.Strict);
+        openAiFactory
+            .Setup(factory => factory.CreatePredictionService(
+                "gpt-5.6-luna",
+                It.IsAny<PredictionServiceOptions>(),
+                It.IsAny<IInstructionsTemplateProvider>()))
+            .Callback<string, PredictionServiceOptions, IInstructionsTemplateProvider>(
+                (_, _, provider) => capturedProvider = provider)
+            .Returns(predictionService.Object);
+
+        PredictionServiceCommandSupport.CreatePredictionService(
+            openAiFactory.Object,
+            langfuseClient.Object,
+            new Mock<IAnsiConsole>().Object,
+            "gpt-5.6-luna",
+            CompetitionIds.Bundesliga2026_27,
+            "ehonda-dev-buli-2627",
+            "ehonda-dev-buli-2627",
+            promptSource: null,
+            langfusePromptName: null,
+            langfusePromptLabel: promptLabel,
+            langfusePromptVersion: explicitVersion,
+            reasoningEffort: "none",
+            maxOutputTokenCount: 10_000,
+            bonusPrompt: false);
+
+        await Assert.That(capturedProvider).IsNotNull();
+        capturedProvider!.LoadMatchTemplate("gpt-5.6-luna", includeJustification: false);
+        langfuseClient.VerifyAll();
     }
 
     private void RememberEnvironmentVariable(string name)

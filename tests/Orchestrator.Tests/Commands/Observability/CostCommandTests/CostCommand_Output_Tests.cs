@@ -226,6 +226,32 @@ public class CostCommand_Output_Tests
     }
 
     [Test]
+    public async Task Detailed_breakdown_keeps_exact_prompt_versions_separate()
+    {
+        var promptName = "kicktippai/bundesliga-2026-27/predict-one-match";
+        var mockRepo = CreateMockPredictionRepositoryForCosts(
+            matchCostsByIndex: new Dictionary<int, (double cost, int count)>
+            {
+                { 0, (0.25, 1) }
+            },
+            availableModelConfigs: new List<PredictionModelConfig>
+            {
+                PredictionModelConfig.Create("gpt-5.6-luna", "none", 10000, promptName, 2),
+                PredictionModelConfig.Create("gpt-5.6-luna", "none", 10000, promptName, 3)
+            },
+            availableCommunityContexts: new List<string> { "test-community" });
+        var (app, console, _, _, _) = CreateCostCommandApp(mockRepo);
+        console.Profile.Width = 400;
+
+        var exitCode = await app.RunAsync(["cost", "--detailed-breakdown"]);
+
+        await Assert.That(exitCode).IsEqualTo(0);
+        await Assert.That(console.Output)
+            .Contains($"prompt {promptName} v2")
+            .And.Contains($"prompt {promptName} v3");
+    }
+
+    [Test]
     public async Task Summary_table_with_bonus_shows_match_and_bonus_rows()
     {
         // Arrange

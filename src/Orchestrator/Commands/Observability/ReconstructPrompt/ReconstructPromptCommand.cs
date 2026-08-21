@@ -3,6 +3,8 @@ using Microsoft.Extensions.Logging;
 using NodaTime;
 using OpenAiIntegration;
 using Orchestrator.Commands.Observability;
+using Orchestrator.Commands.Shared;
+using Orchestrator.Infrastructure;
 using Orchestrator.Infrastructure.Factories;
 using Spectre.Console;
 using Spectre.Console.Cli;
@@ -36,16 +38,35 @@ public class ReconstructPromptCommand : AsyncCommand<ReconstructPromptSettings>
         {
             _console.MarkupLine($"[green]Reconstructing prompt for:[/] [yellow]{Markup.Escape(settings.HomeTeam)}[/] vs [yellow]{Markup.Escape(settings.AwayTeam)}[/]");
 
-            var predictionRepository = _firebaseServiceFactory.CreatePredictionRepository(CompetitionIds.Bundesliga2026_27);
-            var contextRepository = _firebaseServiceFactory.CreateContextRepository(CompetitionIds.Bundesliga2026_27);
+            var runtimeMetadata = CompetitionResolver.ResolveRuntimeMetadata(
+                settings.Competition,
+                community: null,
+                settings.CommunityContext,
+                settings.PromptSource,
+                settings.LangfusePromptName,
+                settings.LangfusePromptLabel,
+                bonusPrompt: false);
+            var predictionRepository = _firebaseServiceFactory.CreatePredictionRepository(runtimeMetadata.Competition);
+            var contextRepository = _firebaseServiceFactory.CreateContextRepository(runtimeMetadata.Competition);
             var reconstructionService = new MatchPromptReconstructionService(
                 predictionRepository,
                 contextRepository,
                 new InstructionsTemplateProvider(PromptsFileProvider.Create()),
-                _firebaseServiceFactory.CreateDocumentPublicationRepository(CompetitionIds.Bundesliga2026_27));
+                _firebaseServiceFactory.CreateDocumentPublicationRepository(runtimeMetadata.Competition));
 
             var evaluationTime = EvaluationTimeParser.ParseOrNull(settings.EvaluationTime);
-            var modelConfig = PredictionModelConfig.Create(settings.Model, settings.ReasoningEffort);
+            var modelConfig = PredictionServiceCommandSupport.CreateModelConfig(
+                settings.Model,
+                settings.ReasoningEffort,
+                runtimeMetadata.Competition,
+                community: string.Empty,
+                settings.CommunityContext,
+                settings.PromptSource,
+                settings.LangfusePromptName,
+                settings.LangfusePromptLabel,
+                settings.LangfusePromptVersion,
+                settings.MaxOutputTokenCount,
+                bonusPrompt: false);
 
             var match = await ResolveMatchAsync(predictionRepository, settings, modelConfig, evaluationTime is not null);
             if (match is null)
@@ -71,7 +92,7 @@ public class ReconstructPromptCommand : AsyncCommand<ReconstructPromptSettings>
                     match.HomeTeam,
                     match.AwayTeam,
                     settings.CommunityContext,
-                    CompetitionIds.Bundesliga2026_27);
+                    runtimeMetadata.Competition);
 
                 reconstructedPrompt = await reconstructionService.ReconstructMatchPredictionPromptAtTimestampAsync(
                     match,

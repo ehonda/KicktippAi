@@ -1,6 +1,7 @@
 using EHonda.KicktippAi.Core;
 using EHonda.Optional.Core;
 using Moq;
+using Orchestrator.Infrastructure;
 using static Orchestrator.Tests.Infrastructure.OrchestratorTestFactories;
 using static TestUtilities.CoreTestFactories;
 
@@ -104,6 +105,43 @@ public class BonusCommand_NormalMode_Tests : BonusCommandTests_Base
             It.Is<PredictionModelConfig>(config =>
                 config.Model == "test-model" &&
                 config.ReasoningEffort == null),
+            It.IsAny<string>(),
+            It.IsAny<double>(),
+            "test",
+            It.IsAny<IEnumerable<string>>(),
+            false,
+            It.IsAny<CancellationToken>()), Times.Once);
+    }
+
+    [Test]
+    public async Task Bundesliga_validation_run_saves_exact_bonus_runtime_identity()
+    {
+        var context = CreateBonusCommandApp(
+            existingBonusPrediction: Option.None<BonusPrediction>());
+
+        var exitCode = await context.App.RunAsync([
+            "bonus",
+            "gpt-5.6-luna",
+            "--community",
+            "test",
+            "--competition",
+            CompetitionIds.Bundesliga2026_27,
+            "--reasoning-effort",
+            "none",
+            "--max-output-tokens",
+            "10000"
+        ]);
+
+        await Assert.That(exitCode).IsEqualTo(0);
+        context.PredictionRepository.Verify(repository => repository.SaveBonusPredictionAsync(
+            It.IsAny<BonusQuestion>(),
+            It.IsAny<BonusPrediction>(),
+            It.Is<PredictionModelConfig>(config =>
+                config.Model == "gpt-5.6-luna" &&
+                config.ReasoningEffort == "none" &&
+                config.MaxOutputTokenCount == 10_000 &&
+                config.PromptName == CompetitionResolver.BundesligaBonusPromptName &&
+                config.PromptVersion == CompetitionResolver.BundesligaBonusPromptVersion),
             It.IsAny<string>(),
             It.IsAny<double>(),
             "test",
