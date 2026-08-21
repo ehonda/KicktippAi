@@ -84,6 +84,31 @@ public class CompetitionCollectionProfileTests
     }
 
     [Test]
+    public async Task Bundesliga_profile_rules_document_exists_with_the_verified_live_scoring_contract()
+    {
+        var profile = _resolver.ResolveForDevelopment(CompetitionResolver.BundesligaDevelopmentCommunity);
+        var rulesDocumentName = profile.RequiredMatchDocumentTemplates
+            .Single(template => template == "community-rules-{community-context}.md")
+            .Replace(
+                "{community-context}",
+                CompetitionResolver.BundesligaDevelopmentCommunity,
+                StringComparison.Ordinal);
+        var rulesDirectory = Path.Combine(SolutionPathUtility.FindSolutionRoot(), "community-rules");
+        var rulesPath = Path.Combine(rulesDirectory, rulesDocumentName["community-rules-".Length..]);
+
+        await Assert.That(File.Exists(rulesPath)).IsTrue();
+        var content = await File.ReadAllTextAsync(rulesPath);
+        await Assert.That(content)
+            .Contains("| Win         | 2        | 3               | 4            |")
+            .And.Contains("| Draw        | 2        | -               | 4            |")
+            .And.DoesNotContain("| Draw        | 3");
+        await Assert.That(content)
+            .IsEqualTo(await File.ReadAllTextAsync(Path.Combine(rulesDirectory, "pes-squad.md")));
+        await Assert.That(content)
+            .IsEqualTo(await File.ReadAllTextAsync(Path.Combine(rulesDirectory, "ehonda-ai-arena.md")));
+    }
+
+    [Test]
     public async Task Wm26_profile_preserves_its_separate_collector_and_document_contract()
     {
         var profile = _resolver.ResolveForDevelopment("EHONDA-DEV-WM26");
