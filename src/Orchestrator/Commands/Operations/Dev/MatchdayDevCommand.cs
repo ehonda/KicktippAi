@@ -43,7 +43,8 @@ public sealed class MatchdayDevCommand : AsyncCommand<MatchdayDevSettings>
                 settings,
                 _console,
                 "matchday-dev",
-                settings.ShowContextDocuments,
+                bonusPrompt: false,
+                showContextDocuments: settings.ShowContextDocuments,
                 out var baseSettings))
         {
             return 1;

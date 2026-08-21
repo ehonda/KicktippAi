@@ -36,6 +36,12 @@ public class CollectContextKicktippSettings : CollectContextSettings
     [Description("Comma-separated Kicktipp matchday indexes to collect instead of only the current matchday")]
     public string? Matchdays { get; set; }
 
+    /// <summary>
+    /// Optional profile-owned exact fixture-count gate. Standalone collection leaves it unset;
+    /// competition-profile orchestration supplies the accepted competition contract.
+    /// </summary>
+    public int? ExpectedMatchesPerMatchday { get; set; }
+
     [CommandOption("--verbose")]
     [Description("Enable verbose output")]
     public bool Verbose { get; set; }

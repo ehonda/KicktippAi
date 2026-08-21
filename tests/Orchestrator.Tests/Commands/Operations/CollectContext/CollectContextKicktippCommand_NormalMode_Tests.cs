@@ -1,5 +1,9 @@
 using EHonda.KicktippAi.Core;
+using KicktippIntegration;
+using Microsoft.Extensions.Logging.Testing;
 using Moq;
+using Orchestrator.Commands.Operations.CollectContext;
+using Orchestrator.Services;
 using static Orchestrator.Tests.Infrastructure.OrchestratorTestFactories;
 using static TestUtilities.CoreTestFactories;
 
@@ -59,6 +63,51 @@ public class CollectContextKicktippCommand_NormalMode_Tests : CollectContextKick
 
         await Assert.That(exitCode).IsEqualTo(1);
         await Assert.That(output).Contains("derived no").And.Contains("expected selected-history documents");
+        ctx.ContextRepository.Verify(repository => repository.SaveContextDocumentsAtomicallyAsync(
+            It.IsAny<IReadOnlyList<ContextDocumentWrite>>(), It.IsAny<string>(), It.IsAny<CancellationToken>()), Times.Never);
+    }
+
+    [Test]
+    public async Task Profile_owned_expected_match_count_fails_before_context_collection_or_publication()
+    {
+        var matches = Enumerable.Range(1, 8)
+            .Select(_ => CreateBayernVsDortmundMatchWithHistory())
+            .ToList();
+        var ctx = CreateCollectContextCommandApp(matchesWithHistory: matches);
+        var outcomeService = new MatchOutcomeCollectionService(
+            ctx.FirebaseServiceFactory.Object,
+            ctx.KicktippClientFactory.Object,
+            new FakeLogger<MatchOutcomeCollectionService>());
+        var command = new CollectContextKicktippCommand(
+            ctx.Console,
+            ctx.FirebaseServiceFactory.Object,
+            ctx.KicktippClientFactory.Object,
+            ctx.ContextProviderFactory.Object,
+            outcomeService,
+            ctx.HistoryCollector.Object,
+            TimeProvider.System,
+            new FakeLogger<CollectContextKicktippCommand>());
+
+        var exitCode = await command.ExecuteWithSettingsAsync(new CollectContextKicktippSettings
+        {
+            CommunityContext = "ehonda-dev-buli-2627",
+            Competition = CompetitionIds.Bundesliga2026_27,
+            ExpectedMatchesPerMatchday = 9,
+            DryRun = true
+        });
+
+        await Assert.That(exitCode).IsEqualTo(1);
+        await Assert.That(ctx.Console.Output)
+            .Contains("expected exactly 9 matches")
+            .And.Contains("matchday, but found 8");
+        ctx.ContextProviderFactory.Verify(factory => factory.CreateKicktippContextProvider(
+            It.IsAny<IKicktippClient>(),
+            It.IsAny<string>(),
+            It.IsAny<string>(),
+            It.IsAny<string>(),
+            It.IsAny<int?>()), Times.Never);
+        ctx.ContextRepository.Verify(repository => repository.SaveContextDocumentAsync(
+            It.IsAny<string>(), It.IsAny<string>(), It.IsAny<string>(), It.IsAny<CancellationToken>()), Times.Never);
         ctx.ContextRepository.Verify(repository => repository.SaveContextDocumentsAtomicallyAsync(
             It.IsAny<IReadOnlyList<ContextDocumentWrite>>(), It.IsAny<string>(), It.IsAny<CancellationToken>()), Times.Never);
     }

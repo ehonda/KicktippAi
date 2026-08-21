@@ -224,8 +224,22 @@ public class CompetitionResolverTests
     [Test]
     public async Task Recognizes_only_supported_development_communities_for_dev_shortcuts()
     {
+        await Assert.That(CompetitionResolver.IsDevCommunity("ehonda-dev-buli-2627")).IsTrue();
         await Assert.That(CompetitionResolver.IsDevCommunity("ehonda-dev-wm26")).IsTrue();
+        await Assert.That(CompetitionResolver.SupportedDevCommunities)
+            .IsEquivalentTo(["ehonda-dev-buli-2627", "ehonda-dev-wm26"]);
         await Assert.That(CompetitionResolver.IsDevCommunity("rabetrabauken2026")).IsFalse();
         await Assert.That(CompetitionResolver.IsDevCommunity("pes-squad")).IsFalse();
+    }
+
+    [Test]
+    [Arguments("ehonda-dev-buli-2627", CompetitionIds.FifaWorldCup2026)]
+    [Arguments("ehonda-dev-wm26", CompetitionIds.Bundesliga2026_27)]
+    public async Task Development_community_rejects_an_explicit_mismatched_competition(
+        string community,
+        string competition)
+    {
+        await Assert.That(() => CompetitionResolver.ResolveDevelopmentCompetition(community, competition))
+            .Throws<InvalidOperationException>();
     }
 }

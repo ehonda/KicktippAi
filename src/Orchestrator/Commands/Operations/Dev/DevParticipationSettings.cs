@@ -6,7 +6,7 @@ namespace Orchestrator.Commands.Operations.Dev;
 public class DevParticipationSettings : CommandSettings
 {
     [CommandOption("-c|--community")]
-    [Description("The development Kicktipp community to use (e.g., ehonda-dev-wm26)")]
+    [Description("The development Kicktipp community to use (ehonda-dev-buli-2627 or ehonda-dev-wm26)")]
     public required string Community { get; set; }
 
     [CommandOption("--community-context")]

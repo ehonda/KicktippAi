@@ -43,6 +43,7 @@ public sealed class BonusDevCommand : AsyncCommand<DevParticipationSettings>
                 settings,
                 _console,
                 "bonus-dev",
+                bonusPrompt: true,
                 showContextDocuments: false,
                 out var baseSettings))
         {

@@ -12,8 +12,18 @@ public sealed record CompetitionRuntimeMetadata(
 
 public static class CompetitionResolver
 {
-    private static readonly string[] KnownDevCommunities = ["ehonda-dev-wm26"];
-    private static readonly string[] KnownWorldCupCommunities = ["ehonda-dev-wm26", "rabetrabauken2026", "ehonda-ai-arena"];
+    public const string BundesligaDevelopmentCommunity = "ehonda-dev-buli-2627";
+    public const string WorldCupDevelopmentCommunity = "ehonda-dev-wm26";
+
+    private static readonly IReadOnlyDictionary<string, string> KnownDevCommunityCompetitions =
+        new Dictionary<string, string>(StringComparer.OrdinalIgnoreCase)
+        {
+            [BundesligaDevelopmentCommunity] = CompetitionIds.Bundesliga2026_27,
+            [WorldCupDevelopmentCommunity] = CompetitionIds.FifaWorldCup2026
+        };
+    private static readonly string[] KnownDevCommunities =
+        KnownDevCommunityCompetitions.Keys.OrderBy(value => value, StringComparer.Ordinal).ToArray();
+    private static readonly string[] KnownWorldCupCommunities = [WorldCupDevelopmentCommunity, "rabetrabauken2026", "ehonda-ai-arena"];
 
     public const string LocalPromptSource = "local";
     public const string LangfusePromptSource = "langfuse";
@@ -27,6 +37,9 @@ public static class CompetitionResolver
     public const int BundesligaMatchPromptVersion = 2;
     public const int BundesligaBonusPromptVersion = 1;
     public const string BundesligaFallbackPromptModel = "bundesliga-2026-27";
+    public const string BundesligaValidationModel = "gpt-5.6-luna";
+    public const string BundesligaValidationReasoningEffort = "none";
+    public const int BundesligaValidationMaxOutputTokenCount = 10_000;
 
     public static string ResolveCompetition(
         string? competition,
@@ -101,10 +114,47 @@ public static class CompetitionResolver
 
     public static IReadOnlyList<string> SupportedDevCommunities => KnownDevCommunities;
 
+    public static string ResolveDevelopmentCompetition(string community, string? competition = null)
+    {
+        ArgumentException.ThrowIfNullOrWhiteSpace(community);
+        var normalizedCommunity = community.Trim();
+        if (!KnownDevCommunityCompetitions.TryGetValue(normalizedCommunity, out var expectedCompetition))
+        {
+            throw new NotSupportedException(
+                $"Development community '{normalizedCommunity}' is not supported. " +
+                $"Supported communities: {string.Join(", ", SupportedDevCommunities)}.");
+        }
+
+        if (string.IsNullOrWhiteSpace(competition))
+        {
+            return expectedCompetition;
+        }
+
+        string canonicalCompetition;
+        try
+        {
+            canonicalCompetition = CompetitionIds.Canonicalize(competition);
+        }
+        catch (ArgumentOutOfRangeException exception)
+        {
+            throw new NotSupportedException(
+                $"Competition '{competition.Trim()}' is not supported for development commands.",
+                exception);
+        }
+        if (!string.Equals(canonicalCompetition, expectedCompetition, StringComparison.Ordinal))
+        {
+            throw new InvalidOperationException(
+                $"Development community '{normalizedCommunity}' uses competition '{expectedCompetition}', " +
+                $"not '{canonicalCompetition}'.");
+        }
+
+        return expectedCompetition;
+    }
+
     public static bool IsDevCommunity(string? value)
     {
         return !string.IsNullOrWhiteSpace(value)
-               && KnownDevCommunities.Contains(value.Trim(), StringComparer.OrdinalIgnoreCase);
+               && KnownDevCommunityCompetitions.ContainsKey(value.Trim());
     }
 
     private static bool IsWorldCupCommunity(string? value)

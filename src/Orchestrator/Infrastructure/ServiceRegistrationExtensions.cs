@@ -12,6 +12,7 @@ using OpenTelemetry.Resources;
 using OpenTelemetry.Trace;
 using OpenAiIntegration;
 using Orchestrator.Commands.Operations.CollectContext;
+using Orchestrator.Commands.Operations.Dev;
 using Orchestrator.Infrastructure.Factories;
 using Orchestrator.Infrastructure.Langfuse;
 using Orchestrator.Services;
@@ -565,9 +566,13 @@ public static class ServiceRegistrationExtensions
         services.AddOrchestratorInfrastructure(minimumLogLevel);
         services.AddFifaRankingSourceServicesIfMissing();
         services.AddWm26LineupSourceServicesIfMissing();
+        services.AddBundesligaClubEloSourceServicesIfMissing();
+        services.AddBundesligaRosterSourceServicesIfMissing();
         services.TryAddSingleton<IBundesligaHistoryPlayedDateCollector, BundesligaHistoryPlayedDateCollector>();
+        services.TryAddSingleton<ICompetitionCollectionProfileResolver, CompetitionCollectionProfileResolver>();
+        services.TryAddTransient<ICompetitionProfileCollectorExecutor, CompetitionProfileCollectorExecutor>();
 
-        // CollectContextDevCommand composes the Kicktipp, FIFA, and lineup collection paths.
+        // CollectContextDevCommand resolves and executes the competition-specific collector profile.
 
         return services;
     }

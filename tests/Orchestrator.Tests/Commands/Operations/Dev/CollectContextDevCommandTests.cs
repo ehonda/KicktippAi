@@ -8,9 +8,11 @@ using NodaTime;
 using Orchestrator.Commands.Operations.CollectContext;
 using Orchestrator.Commands.Operations.Dev;
 using Orchestrator.Commands.Operations.Wm26RecentHistory;
+using Orchestrator.Infrastructure;
 using Orchestrator.Infrastructure.Factories;
 using Orchestrator.Services;
 using Spectre.Console;
+using TestUtilities;
 using static Orchestrator.Tests.Infrastructure.OrchestratorTestFactories;
 using static TestUtilities.CoreTestFactories;
 
@@ -31,14 +33,14 @@ public class CollectContextDevCommandTests
             "ehonda-test-buli");
 
         await Assert.That(exitCode).IsEqualTo(1);
-        await Assert.That(output).Contains("only available");
+        await Assert.That(output).Contains("has no collection profile");
         testContext.KicktippClientFactory.Verify(f => f.CreateClient(), Times.Never);
         testContext.FirebaseServiceFactory.Verify(f => f.CreateContextRepository(It.IsAny<string>()), Times.Never);
         testContext.FirebaseServiceFactory.Verify(f => f.CreateKpiRepository(It.IsAny<string>()), Times.Never);
     }
 
     [Test]
-    public async Task Running_collect_context_dev_for_wm26_calls_kicktipp_date_map_fifa_and_lineup_collection_paths()
+    public async Task Running_collect_context_dev_for_wm26_calls_its_collection_paths_without_resolving_inactive_Bundesliga_sources()
     {
         var testContext = CreateCollectContextDevCommandApp();
         var dateMapPath = CreateTempDateMap();
@@ -165,6 +167,162 @@ public class CollectContextDevCommandTests
             Times.Never);
     }
 
+    [Test]
+    public async Task Bundesliga_real_profile_dry_run_reaches_only_its_composite_collectors_and_never_writes()
+    {
+        var contextRepository = new Mock<IContextRepository>();
+        contextRepository.Setup(repository => repository.SaveContextDocumentAsync(
+                It.IsAny<string>(), It.IsAny<string>(), It.IsAny<string>(), It.IsAny<CancellationToken>()))
+            .ThrowsAsync(new InvalidOperationException("Context writes are forbidden in this dry-run test."));
+        contextRepository.Setup(repository => repository.SaveContextDocumentsAtomicallyAsync(
+                It.IsAny<IReadOnlyList<ContextDocumentWrite>>(), It.IsAny<string>(), It.IsAny<CancellationToken>()))
+            .ThrowsAsync(new InvalidOperationException("Atomic context writes are forbidden in this dry-run test."));
+
+        var outcomeRepository = CreateMockMatchOutcomeRepository();
+        outcomeRepository.Setup(repository => repository.UpsertMatchOutcomeAsync(
+                It.IsAny<CollectedMatchOutcome>(), It.IsAny<string>(), It.IsAny<CancellationToken>()))
+            .ThrowsAsync(new InvalidOperationException("Outcome writes are forbidden in this dry-run test."));
+
+        var publicationRepository = new Mock<IDocumentPublicationRepository>();
+        publicationRepository.SetupGet(repository => repository.Competition)
+            .Returns(CompetitionIds.Bundesliga2026_27);
+        publicationRepository.Setup(repository => repository.GetLastKnownGoodAsync(
+                It.IsAny<DocumentPublicationDefinition>(),
+                It.IsAny<string>(),
+                It.IsAny<CancellationToken>()))
+            .ReturnsAsync((LoadedDocumentPublication?)null);
+        publicationRepository.Setup(repository => repository.PublishAsync(
+                It.IsAny<DocumentPublicationDefinition>(),
+                It.IsAny<DocumentPublicationRequest>(),
+                It.IsAny<CancellationToken>()))
+            .ThrowsAsync(new InvalidOperationException("Publications are forbidden in this dry-run test."));
+
+        var firebaseFactory = CreateMockFirebaseServiceFactoryFull(
+            contextRepository: contextRepository,
+            matchOutcomeRepository: outcomeRepository,
+            documentPublicationRepository: publicationRepository);
+        firebaseFactory.Setup(factory => factory.CreateKpiRepository(It.IsAny<string>()))
+            .Throws(new InvalidOperationException("WM KPI dependencies are inactive for Bundesliga."));
+
+        var matches = Enumerable.Range(1, 9)
+            .Select(_ => CreateMatchWithHistory(match: CreateMatch(
+                homeTeam: "FC Bayern München",
+                awayTeam: "Borussia Dortmund",
+                matchday: 1)))
+            .ToList();
+        var kicktippClient = CreateMockKicktippClient(matchesWithHistory: matches);
+        var kicktippClientFactory = CreateMockKicktippClientFactory(kicktippClient);
+        var contextProvider = CreateMockKicktippContextProvider(matchContextDocuments: new List<DocumentContext>
+        {
+            new DocumentContext("bundesliga-standings.csv", "Position,Team,Points\r\n1,FC Bayern München,0\r\n"),
+            new DocumentContext("recent-history-fcb.csv", "Competition,Home_Team,Away_Team,Score,Annotation\r\n1.BL,FC Bayern München,Test,1:0,\r\n"),
+            new DocumentContext("recent-history-bvb.csv", "Competition,Home_Team,Away_Team,Score,Annotation\r\n1.BL,Borussia Dortmund,Test,1:0,\r\n"),
+            new DocumentContext("home-history-fcb.csv", "Competition,Home_Team,Away_Team,Score,Annotation\r\n1.BL,FC Bayern München,Test,1:0,\r\n"),
+            new DocumentContext("away-history-bvb.csv", "Competition,Home_Team,Away_Team,Score,Annotation\r\n1.BL,Test,Borussia Dortmund,0:1,\r\n")
+        });
+        var contextProviderFactory = CreateMockContextProviderFactory(contextProvider);
+        var historyCollector = new Mock<IBundesligaHistoryPlayedDateCollector>();
+        historyCollector.Setup(collector => collector.Collect(
+                CompetitionIds.Bundesliga2026_27,
+                It.IsAny<IReadOnlyList<BundesligaHistoryDocument>>(),
+                It.IsAny<IReadOnlyList<BundesligaHistoryPlayedDateMapEntry>>(),
+                It.IsAny<IReadOnlyList<PersistedMatchOutcome>>(),
+                It.IsAny<IReadOnlySet<string>>()))
+            .Returns((string _, IReadOnlyList<BundesligaHistoryDocument> documents,
+                IReadOnlyList<BundesligaHistoryPlayedDateMapEntry> _, IReadOnlyList<PersistedMatchOutcome> _,
+                IReadOnlySet<string> _) => new BundesligaHistoryPlayedDateCollectionResult(true, documents, [], []));
+
+        var clubEloSource = new Mock<IBundesligaClubEloSource>();
+        clubEloSource.Setup(source => source.GetLatestAsync(It.IsAny<CancellationToken>()))
+            .ReturnsAsync(BundesligaClubEloSourceResult.Complete(BundesligaClubEloSeed.Default));
+        var solutionRoot = SolutionPathUtility.FindSolutionRoot();
+        var rosterCollection = await new BundesligaRosterSource().CollectAsync(
+            new BundesligaRosterSourceRequest(
+                Path.Combine(solutionRoot, BundesligaRosterSeed.RelativePath),
+                Path.Combine(solutionRoot, BundesligaTeamManifest.RelativePath),
+                null,
+                null,
+                null),
+            null,
+            new DateOnly(2026, 8, 21));
+        var rosterSource = new Mock<IBundesligaRosterSource>();
+        rosterSource.Setup(source => source.CollectAsync(
+                It.IsAny<BundesligaRosterSourceRequest>(),
+                It.IsAny<BundesligaRosterLastKnownGood?>(),
+                It.IsAny<DateOnly>(),
+                It.IsAny<CancellationToken>()))
+            .ReturnsAsync(rosterCollection);
+
+        var (app, console) = CreateCommandApp<CollectContextDevCommand>(
+            "collect-context-dev",
+            firebaseServiceFactory: firebaseFactory,
+            configureServices: new Action<IServiceCollection>(services =>
+            {
+                services.AddSingleton(kicktippClientFactory.Object);
+                services.AddSingleton(contextProviderFactory.Object);
+                services.AddSingleton(historyCollector.Object);
+                services.AddSingleton(clubEloSource.Object);
+                services.AddSingleton(rosterSource.Object);
+                services.AddSingleton<IFifaRankingSource>(_ => throw new InvalidOperationException("Inactive FIFA source was resolved."));
+                services.AddSingleton<IWm26LineupSource>(_ => throw new InvalidOperationException("Inactive WM lineup source was resolved."));
+                services.AddSingleton<TimeProvider>(new FixedTimeProvider(
+                    new DateTimeOffset(2026, 8, 21, 18, 0, 0, TimeSpan.Zero)));
+                services.AddSingleton<ILogger<MatchOutcomeCollectionService>>(new FakeLogger<MatchOutcomeCollectionService>());
+                services.AddSingleton<MatchOutcomeCollectionService>();
+                services.AddSingleton<ILogger<CollectContextKicktippCommand>>(new FakeLogger<CollectContextKicktippCommand>());
+                services.AddSingleton<ILogger<CollectContextClubEloCommand>>(new FakeLogger<CollectContextClubEloCommand>());
+                services.AddSingleton<ILogger<CollectContextRostersCommand>>(new FakeLogger<CollectContextRostersCommand>());
+                services.AddSingleton<ICompetitionCollectionProfileResolver, CompetitionCollectionProfileResolver>();
+                services.AddSingleton<ICompetitionProfileCollectorExecutor, CompetitionProfileCollectorExecutor>();
+            }));
+
+        var (exitCode, output) = await RunCommandAsync(
+            app,
+            console,
+            "collect-context-dev",
+            "--community", CompetitionResolver.BundesligaDevelopmentCommunity,
+            "--competition", CompetitionIds.Bundesliga2026_27,
+            "--dry-run",
+            "--verbose");
+
+        await Assert.That(exitCode).IsEqualTo(0);
+        await Assert.That(NormalizeWhitespace(output))
+            .Contains("Bundesliga history played-date gate passed")
+            .And.Contains("BundesligaHistoryPlayedDates: IncludedInPreviousDryRun")
+            .And.Contains("Collect-context Club Elo command initialized")
+            .And.Contains("Collect-context Bundesliga roster command initialized")
+            .And.Contains("Competition profile dry run completed")
+            .And.DoesNotContain("Collect-context fifa command initialized")
+            .And.DoesNotContain("Collect-context lineups command initialized");
+        historyCollector.Verify(collector => collector.Collect(
+            CompetitionIds.Bundesliga2026_27,
+            It.IsAny<IReadOnlyList<BundesligaHistoryDocument>>(),
+            It.IsAny<IReadOnlyList<BundesligaHistoryPlayedDateMapEntry>>(),
+            It.IsAny<IReadOnlyList<PersistedMatchOutcome>>(),
+            It.Is<IReadOnlySet<string>>(names => names.SetEquals(new[]
+            {
+                "recent-history-fcb.csv",
+                "recent-history-bvb.csv",
+                "home-history-fcb.csv",
+                "away-history-bvb.csv"
+            }))), Times.Once);
+        clubEloSource.Verify(source => source.GetLatestAsync(It.IsAny<CancellationToken>()), Times.Once);
+        rosterSource.Verify(source => source.CollectAsync(
+            It.IsAny<BundesligaRosterSourceRequest>(),
+            It.IsAny<BundesligaRosterLastKnownGood?>(),
+            It.IsAny<DateOnly>(),
+            It.IsAny<CancellationToken>()), Times.Once);
+        contextRepository.Verify(repository => repository.SaveContextDocumentAsync(
+            It.IsAny<string>(), It.IsAny<string>(), It.IsAny<string>(), It.IsAny<CancellationToken>()), Times.Never);
+        contextRepository.Verify(repository => repository.SaveContextDocumentsAtomicallyAsync(
+            It.IsAny<IReadOnlyList<ContextDocumentWrite>>(), It.IsAny<string>(), It.IsAny<CancellationToken>()), Times.Never);
+        outcomeRepository.Verify(repository => repository.UpsertMatchOutcomeAsync(
+            It.IsAny<CollectedMatchOutcome>(), It.IsAny<string>(), It.IsAny<CancellationToken>()), Times.Never);
+        publicationRepository.Verify(repository => repository.PublishAsync(
+            It.IsAny<DocumentPublicationDefinition>(), It.IsAny<DocumentPublicationRequest>(), It.IsAny<CancellationToken>()), Times.Never);
+        firebaseFactory.Verify(factory => factory.CreateKpiRepository(It.IsAny<string>()), Times.Never);
+    }
+
     private static CollectContextDevCommandTestContext CreateCollectContextDevCommandApp()
     {
         var contextRepository = CreateInMemoryContextRepository();
@@ -230,7 +388,6 @@ public class CollectContextDevCommandTests
                 "Team,Data_Collected_At,Role,Name,Age,Position,Market_Value_EUR\r\nMexiko,2026-05-25,Player,Player One,25,Forward,1.000.000\r\n",
                 [],
                 []));
-
         var (app, console) = CreateCommandApp<CollectContextDevCommand>(
             "collect-context-dev",
             firebaseServiceFactory: firebaseFactory,
@@ -248,6 +405,8 @@ public class CollectContextDevCommandTests
                 services.AddSingleton<ILogger<CollectContextFifaCommand>>(new FakeLogger<CollectContextFifaCommand>());
                 services.AddSingleton<ILogger<CollectContextLineupsCommand>>(new FakeLogger<CollectContextLineupsCommand>());
                 services.AddSingleton<ILogger<Wm26RecentHistoryApplyDateMapCommand>>(new FakeLogger<Wm26RecentHistoryApplyDateMapCommand>());
+                services.AddSingleton<ICompetitionCollectionProfileResolver, CompetitionCollectionProfileResolver>();
+                services.AddSingleton<ICompetitionProfileCollectorExecutor, CompetitionProfileCollectorExecutor>();
             }));
 
         return new CollectContextDevCommandTestContext(
@@ -317,6 +476,11 @@ public class CollectContextDevCommandTests
         return path;
     }
 
+    private static string NormalizeWhitespace(string value)
+    {
+        return string.Join(' ', value.Split((char[]?)null, StringSplitOptions.RemoveEmptyEntries));
+    }
+
     private sealed record CollectContextDevCommandTestContext(
         Spectre.Console.Cli.CommandApp App,
         Spectre.Console.Testing.TestConsole Console,
@@ -325,4 +489,9 @@ public class CollectContextDevCommandTests
         Mock<IKicktippClient> KicktippClient,
         Mock<IContextRepository> ContextRepository,
         Mock<IKpiRepository> KpiRepository);
+
+    private sealed class FixedTimeProvider(DateTimeOffset utcNow) : TimeProvider
+    {
+        public override DateTimeOffset GetUtcNow() => utcNow;
+    }
 }

@@ -15,7 +15,7 @@ namespace Orchestrator.Commands.Operations.CollectContext;
 /// </summary>
 public sealed class CollectContextLineupsCommand : AsyncCommand<CollectContextLineupsSettings>
 {
-    private const string LineupsDocumentName = "lineups";
+    public const string LineupsDocumentName = "lineups";
     private const string LineupsDescription =
         "WM26 lineups for all participants, used for the top scorer team bonus question.";
     private static readonly IReadOnlyList<string> LineupColumns =
