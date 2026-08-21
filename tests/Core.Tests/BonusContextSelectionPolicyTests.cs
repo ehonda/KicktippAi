@@ -43,6 +43,8 @@ public class BonusContextSelectionPolicyTests
     [Arguments("Wer wird Champions League Meister?")]
     [Arguments("Who will be Champions-League champion?")]
     [Arguments("Who will be Champions League champion?")]
+    [Arguments("Wer gewinnt die Champions-League-Meisterschaft?")]
+    [Arguments("Who will be the Champions League winner?")]
     public async Task Champions_League_titles_do_not_classify_as_Bundesliga_champion(string text)
     {
         var category = BonusContextSelectionPolicy.Classify(Question(text, "FC Bayern München"));
@@ -58,6 +60,31 @@ public class BonusContextSelectionPolicyTests
         var category = BonusContextSelectionPolicy.Classify(Question(text, "FC Bayern München"));
 
         await Assert.That(category).IsEqualTo(BundesligaBonusQuestionCategory.Champion);
+    }
+
+    [Test]
+    [Arguments("Champions League champion; wer wird Deutscher Meister?")]
+    [Arguments("Champions-League-Meister; who will be Bundesliga champion?")]
+    public async Task Champions_League_title_mask_keeps_independent_Bundesliga_champion_phrases(string text)
+    {
+        var category = BonusContextSelectionPolicy.Classify(Question(text, "FC Bayern München"));
+
+        await Assert.That(category).IsEqualTo(BundesligaBonusQuestionCategory.Champion);
+    }
+
+    [Test]
+    public async Task Champions_League_title_mask_does_not_create_or_hide_category_ambiguity()
+    {
+        var coachOnly = BonusContextSelectionPolicy.Classify(Question(
+            "Which Champions League champion coach will be sacked first?",
+            "Niko Kovač"));
+
+        await Assert.That(coachOnly).IsEqualTo(BundesligaBonusQuestionCategory.Coach);
+        await Assert.That(() => BonusContextSelectionPolicy.Classify(Question(
+                "Champions League champion; welcher Bundesliga-Trainer wird Deutscher Meister?",
+                "Niko Kovač")))
+            .Throws<InvalidOperationException>()
+            .WithMessageContaining("matches multiple context categories");
     }
 
     [Test]
@@ -402,11 +429,95 @@ public class BonusContextSelectionPolicyTests
             .WithMessageContaining("disjoint canonical selected/excluded documents");
     }
 
+    [Test]
+    [Arguments(BundesligaBonusQuestionCategory.Champion, false)]
+    [Arguments(BundesligaBonusQuestionCategory.Relegation, false)]
+    [Arguments(BundesligaBonusQuestionCategory.Unknown, false)]
+    [Arguments(BundesligaBonusQuestionCategory.TopScorer, true)]
+    [Arguments(BundesligaBonusQuestionCategory.Coach, true)]
+    public async Task Resolved_result_enforces_category_selected_roster_cardinality(
+        BundesligaBonusQuestionCategory category,
+        bool requiresRoster)
+    {
+        var validDocuments = BonusDocuments(requiresRoster);
+        var validNames = validDocuments.Select(document => document.Name).ToImmutableArray();
+        _ = CreateResolvedResult(
+            category,
+            validDocuments,
+            BonusContextSelectionPolicy.GetCanonicalExclusions(category, validNames));
+
+        var invalidDocuments = BonusDocuments(!requiresRoster);
+        var invalidNames = invalidDocuments.Select(document => document.Name).ToImmutableArray();
+        var invalidReason = category is BundesligaBonusQuestionCategory.TopScorer
+            or BundesligaBonusQuestionCategory.Coach
+            ? BonusContextExclusionReason.NoExactIdentity
+            : BonusContextExclusionReason.CategoryDoesNotUseRoster;
+        var selectedRosterNames = invalidNames
+            .Where(name => name.StartsWith("roster-", StringComparison.Ordinal))
+            .ToHashSet(StringComparer.Ordinal);
+        var invalidLedger = ImmutableArray.CreateBuilder<BonusContextDocumentExclusion>();
+        invalidLedger.Add(new BonusContextDocumentExclusion(
+            new DocumentPublicationKey(DocumentPublicationKind.Context, "team-rosters"),
+            BonusContextExclusionReason.ProhibitedAggregate));
+        invalidLedger.AddRange(BundesligaTeamManifest.Default.Entries
+            .Select(entry => $"roster-{entry.TeamSlug}")
+            .Order(StringComparer.Ordinal)
+            .Where(name => !selectedRosterNames.Contains(name))
+            .Select(name => new BonusContextDocumentExclusion(
+                new DocumentPublicationKey(DocumentPublicationKind.Context, name),
+                invalidReason)));
+
+        await Assert.That(() => CreateResolvedResult(category, invalidDocuments, invalidLedger.ToImmutable()))
+            .Throws<ArgumentException>()
+            .WithMessageContaining("does not use canonical Bundesliga roster documents");
+    }
+
     private static BonusQuestion Question(string text, params string[] options) => new(
         text,
         default,
         options.Select((option, index) => new BonusQuestionOption(index.ToString(), option)).ToList(),
         1);
+
+    private static DocumentContext[] BonusDocuments(bool includeRoster) => includeRoster
+        ?
+        [
+            new DocumentContext("club-elo-rankings", "elo"),
+            new DocumentContext("team-squad-summary", "summary"),
+            new DocumentContext("roster-fcb", "roster")
+        ]
+        :
+        [
+            new DocumentContext("club-elo-rankings", "elo"),
+            new DocumentContext("team-squad-summary", "summary")
+        ];
+
+    private static ResolvedBonusContext CreateResolvedResult(
+        BundesligaBonusQuestionCategory category,
+        IReadOnlyList<DocumentContext> documents,
+        ImmutableArray<BonusContextDocumentExclusion> exclusions)
+    {
+        var manifest = ResolvedBonusContextManifest.Create(
+            CompetitionIds.Bundesliga2026_27,
+            "test-community",
+            documents.Select((document, index) => new ResolvedBonusContextDocument(
+                index < 2 ? "Kpi" : "Context",
+                document.Name,
+                1,
+                DocumentPublicationContract.ComputeContentSha256(document.Content))),
+            new string('a', 64),
+            new string('b', 64));
+        var measurement = BonusContextBudgetEstimator.Measure(documents);
+        return new ResolvedBonusContext(
+            documents,
+            manifest,
+            new ResolvedBonusContextSelection(
+                category,
+                documents.Select(document => document.Name).ToImmutableArray(),
+                exclusions,
+                measurement.Utf8Bytes,
+                measurement.EstimatedTokens,
+                BonusContextBudget.Default));
+    }
 
     private static BundesligaRosterLastKnownGood Rosters()
     {

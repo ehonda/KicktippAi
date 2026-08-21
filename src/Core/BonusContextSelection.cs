@@ -158,6 +158,14 @@ public static class BonusContextSelectionPolicy
         "win the league"
     ];
 
+    private static readonly string[] ChampionsLeagueTitleWords =
+    [
+        "champion",
+        "meister",
+        "meisterschaft",
+        "winner"
+    ];
+
     private static readonly string[] RelegationSignals =
     [
         "abstieg",
@@ -260,8 +268,23 @@ public static class BonusContextSelectionPolicy
                 nameof(selectedDocumentNames));
         }
 
-        var rosterExclusionReason = category is BundesligaBonusQuestionCategory.TopScorer
-            or BundesligaBonusQuestionCategory.Coach
+        var categoryUsesRosters = category is BundesligaBonusQuestionCategory.TopScorer
+            or BundesligaBonusQuestionCategory.Coach;
+        if (categoryUsesRosters && selectedRosterNames.Count == 0)
+        {
+            throw new ArgumentException(
+                $"Bundesliga bonus category {category} requires at least one canonical selected roster document.",
+                nameof(selectedDocumentNames));
+        }
+
+        if (!categoryUsesRosters && selectedRosterNames.Count != 0)
+        {
+            throw new ArgumentException(
+                $"Bundesliga bonus category {category} does not allow selected roster documents.",
+                nameof(selectedDocumentNames));
+        }
+
+        var rosterExclusionReason = categoryUsesRosters
             ? BonusContextExclusionReason.NoExactIdentity
             : BonusContextExclusionReason.CategoryDoesNotUseRoster;
         var exclusions = ImmutableArray.CreateBuilder<BonusContextDocumentExclusion>();
@@ -288,10 +311,11 @@ public static class BonusContextSelectionPolicy
         ArgumentNullException.ThrowIfNull(question.Options);
 
         var matches = new List<BundesligaBonusQuestionCategory>(4);
-        if (!IsChampionsLeagueChampionReference(question.Text))
-        {
-            AddIfMatched(matches, question.Text, ChampionSignals, BundesligaBonusQuestionCategory.Champion);
-        }
+        AddIfMatched(
+            matches,
+            MaskChampionsLeagueTitleReferences(question.Text),
+            ChampionSignals,
+            BundesligaBonusQuestionCategory.Champion);
         AddIfMatched(matches, question.Text, RelegationSignals, BundesligaBonusQuestionCategory.Relegation);
         AddIfMatched(matches, question.Text, TopScorerSignals, BundesligaBonusQuestionCategory.TopScorer);
         AddIfMatched(matches, question.Text, CoachSignals, BundesligaBonusQuestionCategory.Coach);
@@ -395,11 +419,36 @@ public static class BonusContextSelectionPolicy
         return false;
     }
 
-    private static bool IsChampionsLeagueChampionReference(string value)
+    private static string MaskChampionsLeagueTitleReferences(string value)
     {
         var normalized = value.Replace('-', ' ');
-        return ContainsWholePhrase(normalized, "champions league meister")
-               || ContainsWholePhrase(normalized, "champions league champion");
+        char[]? masked = null;
+        foreach (var titleWord in ChampionsLeagueTitleWords)
+        {
+            var phrase = $"champions league {titleWord}";
+            var searchStart = 0;
+            while (searchStart <= normalized.Length - phrase.Length)
+            {
+                var index = normalized.IndexOf(phrase, searchStart, StringComparison.OrdinalIgnoreCase);
+                if (index < 0)
+                {
+                    break;
+                }
+
+                var beforeIsBoundary = index == 0 || !IsLetterOrDigitBefore(normalized, index);
+                var afterIndex = index + phrase.Length;
+                var afterIsBoundary = afterIndex == normalized.Length || !IsLetterOrDigitAt(normalized, afterIndex);
+                if (beforeIsBoundary && afterIsBoundary)
+                {
+                    masked ??= value.ToCharArray();
+                    Array.Fill(masked, ' ', index, phrase.Length);
+                }
+
+                searchStart = index + 1;
+            }
+        }
+
+        return masked is null ? value : new string(masked);
     }
 
     private static bool IsLetterOrDigitBefore(string value, int index)
