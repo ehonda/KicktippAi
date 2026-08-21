@@ -50,6 +50,7 @@ public sealed class BundesligaHistoryPlayedDateMap
     ];
 
     private static readonly Lazy<BundesligaHistoryPlayedDateMap> DefaultMap = new(LoadEmbedded);
+    private static readonly string[] SelectedDocumentPrefixes = ["away-history-", "home-history-", "recent-history-"];
 
     private BundesligaHistoryPlayedDateMap(IReadOnlyList<BundesligaHistoryPlayedDateMapEntry> entries) => Entries = entries;
 
@@ -57,7 +58,25 @@ public sealed class BundesligaHistoryPlayedDateMap
 
     public IReadOnlyList<BundesligaHistoryPlayedDateMapEntry> Entries { get; }
 
-    public static BundesligaHistoryPlayedDateMap Parse(TextReader reader, string sourceName = RelativePath)
+    public static IReadOnlyList<string> ExpectedDocumentNames { get; } = BundesligaTeamManifest.Default.Entries
+        .SelectMany(team => SelectedDocumentPrefixes.Select(prefix => $"{prefix}{team.TeamSlug}.csv"))
+        .Order(StringComparer.Ordinal)
+        .ToArray();
+
+    public static BundesligaHistoryPlayedDateMap Parse(TextReader reader, string sourceName = RelativePath) =>
+        ParseCore(reader, sourceName, requireCompleteDocumentSet: true);
+
+    /// <summary>
+    /// Parses a deliberately partial map for focused source-contract validation. Production callers must use
+    /// <see cref="Parse(TextReader, string)"/>, which requires the complete preseason document set.
+    /// </summary>
+    public static BundesligaHistoryPlayedDateMap ParseFragment(TextReader reader, string sourceName) =>
+        ParseCore(reader, sourceName, requireCompleteDocumentSet: false);
+
+    private static BundesligaHistoryPlayedDateMap ParseCore(
+        TextReader reader,
+        string sourceName,
+        bool requireCompleteDocumentSet)
     {
         ArgumentNullException.ThrowIfNull(reader);
         ArgumentException.ThrowIfNullOrWhiteSpace(sourceName);
@@ -94,7 +113,7 @@ public sealed class BundesligaHistoryPlayedDateMap
                 entries.Add(ParseEntry(csv, sourceName));
             }
 
-            Validate(entries, sourceName);
+            Validate(entries, sourceName, requireCompleteDocumentSet);
             return new BundesligaHistoryPlayedDateMap(entries.AsReadOnly());
         }
         catch (CsvHelperException exception)
@@ -226,7 +245,10 @@ public sealed class BundesligaHistoryPlayedDateMap
         }
     }
 
-    private static void Validate(IReadOnlyList<BundesligaHistoryPlayedDateMapEntry> entries, string sourceName)
+    private static void Validate(
+        IReadOnlyList<BundesligaHistoryPlayedDateMapEntry> entries,
+        string sourceName,
+        bool requireCompleteDocumentSet)
     {
         var duplicateOrdinal = entries.GroupBy(entry => (entry.DocumentName, entry.RowOrdinal)).FirstOrDefault(group => group.Count() > 1);
         if (duplicateOrdinal is not null)
@@ -238,6 +260,31 @@ public sealed class BundesligaHistoryPlayedDateMap
         if (duplicateSource is not null)
         {
             throw Invalid(sourceName, $"source match '{duplicateSource.Key.SourceMatchId}' occurs more than once in {duplicateSource.Key.DocumentName}");
+        }
+
+        var nonContiguous = entries
+            .GroupBy(entry => entry.DocumentName, StringComparer.Ordinal)
+            .FirstOrDefault(group => !group
+                .OrderBy(entry => entry.RowOrdinal)
+                .Select(entry => entry.RowOrdinal)
+                .SequenceEqual(Enumerable.Range(1, group.Count())));
+        if (nonContiguous is not null)
+        {
+            throw Invalid(sourceName, $"completed row ordinals in {nonContiguous.Key} must be contiguous from 1");
+        }
+
+        if (requireCompleteDocumentSet)
+        {
+            var actualDocumentNames = entries.Select(entry => entry.DocumentName).ToHashSet(StringComparer.Ordinal);
+            var expectedDocumentNames = ExpectedDocumentNames.ToHashSet(StringComparer.Ordinal);
+            if (!actualDocumentNames.SetEquals(expectedDocumentNames))
+            {
+                var missing = expectedDocumentNames.Except(actualDocumentNames, StringComparer.Ordinal).Order(StringComparer.Ordinal);
+                var unexpected = actualDocumentNames.Except(expectedDocumentNames, StringComparer.Ordinal).Order(StringComparer.Ordinal);
+                throw Invalid(sourceName,
+                    $"document set must exactly match all {ExpectedDocumentNames.Count} preseason selected-history documents; " +
+                    $"missing=[{string.Join(',', missing)}], unexpected=[{string.Join(',', unexpected)}]");
+            }
         }
 
         var uefaRows = entries.Where(entry => string.Equals(entry.SourceName, UefaSourceName, StringComparison.Ordinal)).ToArray();
