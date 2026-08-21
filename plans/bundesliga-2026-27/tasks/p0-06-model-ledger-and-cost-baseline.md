@@ -2,7 +2,7 @@
 
 - Status: Not started
 - Priority: P0
-- Depends on: [P0-05](p0-05-prompt-route.md) candidate implementation and stable hashes; its final production-label promotion shares this task's owner gate
+- Depends on: [P0-05](p0-05-prompt-route.md) (complete; owner-approved production prompt versions and hashes recorded below)
 - Decisions: [ADR-0004](../decisions/0004-hosted-prompts-with-local-fallback.md), [ADR-0006](../decisions/0006-stage-validation-with-a-cheap-test-model.md)
 
 ## Outcome
@@ -24,6 +24,12 @@ The cheap plumbing configuration and the later owner-approved launch configurati
 
 - Run the relevant matchday/bonus telemetry and prediction identity tests.
 - Run the project cost-estimation workflow using the repository's `whole-season-estimates` and `estimate-experiment-cost-skill` instructions.
+
+## P0-05 prompt identity input
+
+- Match: `kicktippai/bundesliga-2026-27/predict-one-match` version 2, normalized SHA-256 `94a7aa775546028d3ded89f626873d7dfce162d1f08bb9573e102dd427ac08c1`.
+- Bonus: `kicktippai/bundesliga-2026-27/predict-bonus` version 1, normalized SHA-256 `332bac6d654871d843fc8a47345ff3e2b1f902fa8d1d2243166283304bb005e9`.
+- The owner approved production promotion on 2026-08-21; `staging`, `production`, and automatic `latest` resolve those versions. P0-06 must pin the numbered versions in the ledger rather than the floating labels.
 
 ## Complete when
 
