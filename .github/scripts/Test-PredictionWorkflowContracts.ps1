@@ -1,6 +1,7 @@
 [CmdletBinding()]
 param(
-    [string] $RepositoryRoot = (Resolve-Path (Join-Path $PSScriptRoot '..\..')).Path
+    [string] $RepositoryRoot = (Resolve-Path (Join-Path $PSScriptRoot '..\..')).Path,
+    [switch] $SkipHostileShellSimulation
 )
 
 $ErrorActionPreference = 'Stop'
@@ -77,6 +78,87 @@ function Assert-CommandIdentity {
     }
 }
 
+function Get-WorkflowRunScripts {
+    param([string] $Content)
+
+    $lines = [regex]::Split($Content, '\r?\n')
+    $scripts = [Collections.Generic.List[string]]::new()
+    for ($lineIndex = 0; $lineIndex -lt $lines.Count; $lineIndex++) {
+        $runMatch = [regex]::Match($lines[$lineIndex], '^(?<indent>\s*)run:\s*(?<value>.*)$')
+        if (-not $runMatch.Success) {
+            continue
+        }
+
+        $value = $runMatch.Groups['value'].Value.Trim()
+        if ($value -notmatch '^[|>][-+]?$') {
+            $scripts.Add($value)
+            continue
+        }
+
+        $runIndent = $runMatch.Groups['indent'].Value.Length
+        $body = [Collections.Generic.List[string]]::new()
+        for ($bodyIndex = $lineIndex + 1; $bodyIndex -lt $lines.Count; $bodyIndex++) {
+            $line = $lines[$bodyIndex]
+            if ($line.Length -eq 0) {
+                $body.Add($line)
+                continue
+            }
+
+            $lineIndent = [regex]::Match($line, '^\s*').Value.Length
+            if ($lineIndent -le $runIndent) {
+                break
+            }
+
+            $body.Add($line)
+        }
+
+        $scripts.Add(($body -join "`n"))
+        $lineIndex = $bodyIndex - 1
+    }
+
+    return $scripts.ToArray()
+}
+
+function Assert-HostileSummaryValueIsLiteral {
+    param([switch] $Skip)
+
+    if ($Skip) {
+        return
+    }
+
+    $bashPath = $null
+    if ($IsWindows) {
+        $gitCommand = Get-Command git -ErrorAction SilentlyContinue
+        if ($null -ne $gitCommand) {
+            $gitRoot = Split-Path (Split-Path $gitCommand.Source -Parent) -Parent
+            $gitBashCandidate = Join-Path $gitRoot 'bin\bash.exe'
+            if (Test-Path -LiteralPath $gitBashCandidate) {
+                $bashPath = $gitBashCandidate
+            }
+        }
+    }
+    if ($null -eq $bashPath) {
+        $bashCommand = Get-Command bash -ErrorAction SilentlyContinue
+        $bashPath = if ($null -ne $bashCommand) { $bashCommand.Source } else { $null }
+    }
+
+    Assert-True ($null -ne $bashPath) 'Bash is required for the hostile workflow-summary shell simulation. Use -SkipHostileShellSimulation only when Bash is unavailable.'
+
+    $hostileValue = '$(printf INJECTED)"; echo BROKEN; # $HOME `backticks`' + "`n" + 'second line'
+    $previousCommunity = $env:COMMUNITY
+    try {
+        $env:COMMUNITY = $hostileValue
+        $bashScript = 'printf ''%s\n'' "- **Community**: $COMMUNITY"'
+        $actual = (& $bashPath -c $bashScript 2>&1) -join "`n"
+        Assert-True ($LASTEXITCODE -eq 0) "Hostile workflow-summary shell simulation failed with exit code $LASTEXITCODE."
+        $expected = "- **Community**: $hostileValue"
+        Assert-True ($actual -ceq $expected) "Workflow-summary environment expansion did not preserve the hostile-looking input literally. Expected $($expected | ConvertTo-Json -Compress); got $($actual | ConvertTo-Json -Compress)."
+    }
+    finally {
+        $env:COMMUNITY = $previousCommunity
+    }
+}
+
 $workflowDirectory = Join-Path $RepositoryRoot '.github\workflows'
 $matchBasePath = Join-Path $workflowDirectory 'base-matchday-predictions.yml'
 $bonusBasePath = Join-Path $workflowDirectory 'base-bonus-predictions.yml'
@@ -103,7 +185,29 @@ foreach ($base in @(
     $checkoutIndex = $base.Content.IndexOf('- name: Checkout repository', [StringComparison]::Ordinal)
     Assert-True ($preflightIndex -ge 0 -and $preflightIndex -lt $checkoutIndex) "$(Split-Path -Leaf $base.Path) must fail invalid identity before checkout or prediction work."
     Assert-True $base.Content.Contains('This historical prediction configuration is retired', [StringComparison]::Ordinal) "$(Split-Path -Leaf $base.Path) must explicitly fail retired historical callers."
+
+    foreach ($environmentRoute in @(
+        @{ Name = 'TRIGGER_TYPE'; Input = 'trigger_type' },
+        @{ Name = 'FORCE_PREDICTION'; Input = 'force_prediction' },
+        @{ Name = 'MAX_REPREDICTIONS'; Input = 'max_repredictions' }
+    )) {
+        $expectedRoute = "      $($environmentRoute.Name): `${{ inputs.$($environmentRoute.Input) }}"
+        Assert-True $base.Content.Contains($expectedRoute, [StringComparison]::Ordinal) "$(Split-Path -Leaf $base.Path) must route $($environmentRoute.Input) through the job environment."
+    }
+
+    $runScripts = @(Get-WorkflowRunScripts $base.Content)
+    Assert-True ($runScripts.Count -gt 0) "$(Split-Path -Leaf $base.Path) must contain shell run blocks to audit."
+    foreach ($runScript in $runScripts) {
+        Assert-True (-not $runScript.Contains('${{ inputs.', [StringComparison]::Ordinal)) "$(Split-Path -Leaf $base.Path) must not interpolate workflow inputs directly into shell run blocks."
+    }
+
+    $safeSummaryLine = @'
+          printf '%s\n' "- **Community**: $COMMUNITY" >> "$GITHUB_STEP_SUMMARY"
+'@.Trim()
+    Assert-True $base.Content.Contains($safeSummaryLine, [StringComparison]::Ordinal) "$(Split-Path -Leaf $base.Path) must render summary values from quoted environment variables with printf."
 }
+
+Assert-HostileSummaryValueIsLiteral -Skip:$SkipHostileShellSimulation
 
 Assert-CommandIdentity $matchBase 'verify' 2 'base-matchday-predictions.yml'
 Assert-CommandIdentity $matchBase 'matchday' 1 'base-matchday-predictions.yml'

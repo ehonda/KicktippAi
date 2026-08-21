@@ -117,6 +117,9 @@ jobs:
       BONUS_CONTEXT_DOCUMENT_BUDGET: ${{ inputs.bonus_context_document_budget }}
       BONUS_CONTEXT_TOKEN_BUDGET: ${{ inputs.bonus_context_token_budget }}
       RETIRED_CONFIGURATION: ${{ inputs.retired_configuration }}
+      TRIGGER_TYPE: ${{ inputs.trigger_type }}
+      FORCE_PREDICTION: ${{ inputs.force_prediction }}
+      MAX_REPREDICTIONS: ${{ inputs.max_repredictions }}
 
     steps:
       - name: Validate pinned prediction configuration
@@ -224,13 +227,13 @@ jobs:
           echo "Prompt: $PROMPT_SOURCE $LANGFUSE_PROMPT_NAME v$LANGFUSE_PROMPT_VERSION"
           echo "Bonus Context Document Budget: $BONUS_CONTEXT_DOCUMENT_BUDGET"
           echo "Bonus Context Token Budget: $BONUS_CONTEXT_TOKEN_BUDGET"
-          echo "Max Repredictions: ${{ inputs.max_repredictions }}"
+          echo "Max Repredictions: $MAX_REPREDICTIONS"
 
           PREDICTION_FLAGS=()
-          if [ "${{ inputs.force_prediction }}" = "true" ]; then
+          if [ "$FORCE_PREDICTION" = "true" ]; then
             PREDICTION_FLAGS+=(--override-database)
           else
-            PREDICTION_FLAGS+=(--max-repredictions "${{ inputs.max_repredictions }}")
+            PREDICTION_FLAGS+=(--max-repredictions "$MAX_REPREDICTIONS")
           fi
           if [ -n "$LANGFUSE_PROMPT_LABEL" ]; then
             PREDICTION_FLAGS+=(--langfuse-prompt-label "$LANGFUSE_PROMPT_LABEL")
@@ -268,19 +271,21 @@ jobs:
 
       - name: Workflow summary
         if: always()
+        env:
+          INITIAL_VERIFY_RESULT: ${{ steps.verify.outcome }}
         run: |
-          echo "## Bonus Predictions Summary" >> $GITHUB_STEP_SUMMARY
-          echo "- **Community**: ${{ inputs.community }}" >> $GITHUB_STEP_SUMMARY
-          echo "- **Community Context**: ${{ inputs.community_context }}" >> $GITHUB_STEP_SUMMARY
-          echo "- **Competition**: ${{ inputs.competition }}" >> $GITHUB_STEP_SUMMARY
-          echo "- **Model**: ${{ inputs.model }}" >> $GITHUB_STEP_SUMMARY
-          echo "- **Reasoning Effort**: ${{ inputs.reasoning_effort }}" >> $GITHUB_STEP_SUMMARY
-          echo "- **Max Output Tokens**: ${{ inputs.max_output_tokens }}" >> $GITHUB_STEP_SUMMARY
-          echo "- **Prompt Source**: ${{ inputs.prompt_source }}" >> $GITHUB_STEP_SUMMARY
-          echo "- **Prompt Name**: ${{ inputs.langfuse_prompt_name }}" >> $GITHUB_STEP_SUMMARY
-          echo "- **Prompt Version**: ${{ inputs.langfuse_prompt_version }}" >> $GITHUB_STEP_SUMMARY
-          echo "- **Bonus Context Document Budget**: ${{ inputs.bonus_context_document_budget }}" >> $GITHUB_STEP_SUMMARY
-          echo "- **Bonus Context Token Budget**: ${{ inputs.bonus_context_token_budget }}" >> $GITHUB_STEP_SUMMARY
-          echo "- **Max Repredictions**: ${{ inputs.max_repredictions }}" >> $GITHUB_STEP_SUMMARY
-          echo "- **Trigger**: ${{ inputs.trigger_type }}" >> $GITHUB_STEP_SUMMARY
-          echo "- **Initial Verify Result**: ${{ steps.verify.outcome }}" >> $GITHUB_STEP_SUMMARY
+          printf '%s\n' "## Bonus Predictions Summary" >> "$GITHUB_STEP_SUMMARY"
+          printf '%s\n' "- **Community**: $COMMUNITY" >> "$GITHUB_STEP_SUMMARY"
+          printf '%s\n' "- **Community Context**: $COMMUNITY_CONTEXT" >> "$GITHUB_STEP_SUMMARY"
+          printf '%s\n' "- **Competition**: $COMPETITION" >> "$GITHUB_STEP_SUMMARY"
+          printf '%s\n' "- **Model**: $MODEL" >> "$GITHUB_STEP_SUMMARY"
+          printf '%s\n' "- **Reasoning Effort**: $REASONING_EFFORT" >> "$GITHUB_STEP_SUMMARY"
+          printf '%s\n' "- **Max Output Tokens**: $MAX_OUTPUT_TOKENS" >> "$GITHUB_STEP_SUMMARY"
+          printf '%s\n' "- **Prompt Source**: $PROMPT_SOURCE" >> "$GITHUB_STEP_SUMMARY"
+          printf '%s\n' "- **Prompt Name**: $LANGFUSE_PROMPT_NAME" >> "$GITHUB_STEP_SUMMARY"
+          printf '%s\n' "- **Prompt Version**: $LANGFUSE_PROMPT_VERSION" >> "$GITHUB_STEP_SUMMARY"
+          printf '%s\n' "- **Bonus Context Document Budget**: $BONUS_CONTEXT_DOCUMENT_BUDGET" >> "$GITHUB_STEP_SUMMARY"
+          printf '%s\n' "- **Bonus Context Token Budget**: $BONUS_CONTEXT_TOKEN_BUDGET" >> "$GITHUB_STEP_SUMMARY"
+          printf '%s\n' "- **Max Repredictions**: $MAX_REPREDICTIONS" >> "$GITHUB_STEP_SUMMARY"
+          printf '%s\n' "- **Trigger**: $TRIGGER_TYPE" >> "$GITHUB_STEP_SUMMARY"
+          printf '%s\n' "- **Initial Verify Result**: $INITIAL_VERIFY_RESULT" >> "$GITHUB_STEP_SUMMARY"
