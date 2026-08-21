@@ -1,0 +1,43 @@
+name: Bundesliga 2026/27 ehonda-ai-arena Luna validation - Bonus
+
+on:
+  workflow_dispatch:
+    inputs:
+      force_prediction:
+        description: 'Force prediction even if verify passes'
+        required: false
+        default: false
+        type: boolean
+      max_repredictions:
+        description: 'Maximum number of repredictions allowed (0-based index)'
+        required: false
+        default: 2
+        type: number
+
+jobs:
+  call-base-workflow:
+    name: Run Bonus Predictions
+    uses: ./.github/workflows/base-bonus-predictions.yml
+    with:
+      community: "ehonda-ai-arena"
+      community_context: "ehonda-ai-arena"
+      competition: "bundesliga-2026-27"
+      model: "gpt-5.6-luna"
+      reasoning_effort: "none"
+      max_output_tokens: 10000
+      prompt_source: "langfuse"
+      langfuse_prompt_name: "kicktippai/bundesliga-2026-27/predict-bonus"
+      langfuse_prompt_label: "production"
+      langfuse_prompt_version: 1
+      bonus_context_document_budget: 20
+      bonus_context_token_budget: 32000
+      trigger_type: "manual"
+      force_prediction: ${{ inputs.force_prediction }}
+      max_repredictions: ${{ inputs.max_repredictions }}
+    secrets:
+      kicktipp_username: ${{ secrets.EHONDA_AI_ARENA_GPT_5_6_LUNA_NONE_KICKTIPP_USERNAME }}
+      kicktipp_password: ${{ secrets.EHONDA_AI_ARENA_GPT_5_6_LUNA_NONE_KICKTIPP_PASSWORD }}
+      firebase_project_id: ${{ secrets.FIREBASE_PROJECT_ID }}
+      firebase_service_account_json: ${{ secrets.FIREBASE_SERVICE_ACCOUNT_JSON }}
+      openai_api_key: ${{ secrets.OPENAI_API_KEY }}
+      langfuse_secret_key: ${{ secrets.LANGFUSE_SECRET_KEY }}
