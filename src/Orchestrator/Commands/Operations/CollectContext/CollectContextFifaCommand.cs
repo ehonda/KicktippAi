@@ -12,7 +12,7 @@ namespace Orchestrator.Commands.Operations.CollectContext;
 /// </summary>
 public sealed class CollectContextFifaCommand : AsyncCommand<CollectContextFifaSettings>
 {
-    private const string FifaRankingsDocumentName = "fifa-rankings";
+    public const string FifaRankingsDocumentName = "fifa-rankings";
     private const string FifaRankingsDescription = "WM26 FIFA rankings for all participants, used as KPI context for bonus predictions.";
 
     private readonly IAnsiConsole _console;

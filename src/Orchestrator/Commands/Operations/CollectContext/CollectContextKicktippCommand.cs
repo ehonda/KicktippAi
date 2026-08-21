@@ -94,6 +94,13 @@ public class CollectContextKicktippCommand : AsyncCommand<CollectContextKicktipp
     {
         var competition = CompetitionResolver.ResolveCompetition(settings.Competition, settings.CommunityContext, settings.CommunityContext);
         var isBundesliga2026 = string.Equals(competition, CompetitionIds.Bundesliga2026_27, StringComparison.Ordinal);
+        if (settings.ExpectedMatchesPerMatchday is <= 0)
+        {
+            throw new ArgumentOutOfRangeException(
+                nameof(settings.ExpectedMatchesPerMatchday),
+                settings.ExpectedMatchesPerMatchday,
+                "Expected matches per matchday must be a positive integer when supplied by a competition profile.");
+        }
         // Validate all caller-controlled matchday input before match-outcome collection, which may write. This also
         // applies to --match-outcomes-only so an otherwise-unused invalid option can never precede a partial write.
         var requestedMatchdays = ParseMatchdays(settings.Matchdays);
@@ -133,14 +140,6 @@ public class CollectContextKicktippCommand : AsyncCommand<CollectContextKicktipp
         {
             var matchdayLabel = targetMatchday.HasValue ? $"matchday {targetMatchday.Value}" : "current matchday";
 
-            // Create context provider using factory
-            var contextProvider = _contextProviderFactory.CreateKicktippContextProvider(
-                kicktippClient,
-                settings.CommunityContext,
-                competition,
-                settings.CommunityContext,
-                targetMatchday);
-
             _console.MarkupLine($"[blue]Getting {matchdayLabel} matches...[/]");
 
             // Step 1: Get target matchday matches
@@ -150,11 +149,33 @@ public class CollectContextKicktippCommand : AsyncCommand<CollectContextKicktipp
 
             if (!matchesWithHistory.Any())
             {
+                if (settings.ExpectedMatchesPerMatchday is int expectedMatches)
+                {
+                    throw new InvalidDataException(
+                        $"The {competition} profile expected exactly {expectedMatches} matches for {matchdayLabel}, but found 0.");
+                }
+
                 _console.MarkupLine($"[yellow]No matches found for {matchdayLabel}[/]");
                 continue;
             }
 
+            if (settings.ExpectedMatchesPerMatchday is int expectedMatchCount
+                && matchesWithHistory.Count != expectedMatchCount)
+            {
+                throw new InvalidDataException(
+                    $"The {competition} profile expected exactly {expectedMatchCount} matches for {matchdayLabel}, " +
+                    $"but found {matchesWithHistory.Count}.");
+            }
+
             _console.MarkupLine($"[green]Found {matchesWithHistory.Count} matches for {matchdayLabel}[/]");
+
+            // Construct the provider only after the profile-owned fixture-count gate passes.
+            var contextProvider = _contextProviderFactory.CreateKicktippContextProvider(
+                kicktippClient,
+                settings.CommunityContext,
+                competition,
+                settings.CommunityContext,
+                targetMatchday);
 
             if (isBundesliga2026)
             {

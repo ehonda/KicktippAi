@@ -68,8 +68,9 @@ public class Program
                 .WithExample("matchday-dev", "--community", "ehonda-dev-wm26");
 
             config.AddCommand<CollectContextDevCommand>("collect-context-dev")
-                .WithDescription("Collect Kicktipp, FIFA ranking, and lineup context using guarded development-community defaults")
-                .WithExample("collect-context-dev", "--community", "ehonda-dev-wm26", "--verbose");
+                .WithDescription("Collect context in the ordered competition profile for a guarded development community")
+                .WithExample("collect-context-dev", "--community", "ehonda-dev-wm26", "--verbose")
+                .WithExample("collect-context-dev", "--community", "ehonda-dev-buli-2627", "--competition", "bundesliga-2026-27", "--dry-run", "--verbose");
 
             config.AddCommand<RandomMatchCommand>("random-match")
                 .WithDescription("Generate a prediction for a random match from the current matchday (useful for testing)")
