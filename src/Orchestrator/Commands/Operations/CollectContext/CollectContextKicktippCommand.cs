@@ -3,6 +3,7 @@ using Microsoft.Extensions.Logging;
 using Spectre.Console.Cli;
 using Spectre.Console;
 using EHonda.KicktippAi.Core;
+using Orchestrator.Commands.Operations.BundesligaHistory;
 using Orchestrator.Infrastructure;
 using Orchestrator.Infrastructure.Factories;
 using Orchestrator.Services;
@@ -19,6 +20,7 @@ public class CollectContextKicktippCommand : AsyncCommand<CollectContextKicktipp
     private readonly IKicktippClientFactory _kicktippClientFactory;
     private readonly IContextProviderFactory _contextProviderFactory;
     private readonly MatchOutcomeCollectionService _matchOutcomeCollectionService;
+    private readonly IBundesligaHistoryPlayedDateCollector _historyPlayedDateCollector;
     private readonly TimeProvider _timeProvider;
     private readonly ILogger<CollectContextKicktippCommand> _logger;
 
@@ -28,6 +30,7 @@ public class CollectContextKicktippCommand : AsyncCommand<CollectContextKicktipp
         IKicktippClientFactory kicktippClientFactory,
         IContextProviderFactory contextProviderFactory,
         MatchOutcomeCollectionService matchOutcomeCollectionService,
+        IBundesligaHistoryPlayedDateCollector historyPlayedDateCollector,
         TimeProvider timeProvider,
         ILogger<CollectContextKicktippCommand> logger)
     {
@@ -36,6 +39,7 @@ public class CollectContextKicktippCommand : AsyncCommand<CollectContextKicktipp
         _kicktippClientFactory = kicktippClientFactory;
         _contextProviderFactory = contextProviderFactory;
         _matchOutcomeCollectionService = matchOutcomeCollectionService;
+        _historyPlayedDateCollector = historyPlayedDateCollector;
         _timeProvider = timeProvider;
         _logger = logger;
     }
@@ -186,6 +190,33 @@ public class CollectContextKicktippCommand : AsyncCommand<CollectContextKicktipp
         {
             return;
         }
+
+        if (string.Equals(competition, CompetitionIds.Bundesliga2026_27, StringComparison.Ordinal))
+        {
+            var matchOutcomes = await LoadBundesligaMatchOutcomesAsync(
+                settings.CommunityContext,
+                competition,
+                cancellationToken);
+            var collection = _historyPlayedDateCollector.Collect(
+                competition,
+                allContextDocuments.Select(pair => new BundesligaHistoryDocument(pair.Key, pair.Value)).ToArray(),
+                BundesligaHistoryPlayedDateMap.Default.Entries,
+                matchOutcomes);
+            if (!collection.Succeeded)
+            {
+                var details = string.Join(Environment.NewLine, collection.Diagnostics.Take(20)
+                    .Select(value => $"{value.DocumentName}#{value.RowOrdinal?.ToString() ?? "-"}: {value.Message}"));
+                throw new InvalidDataException(
+                    $"Bundesliga history played-date gate failed; no context documents were saved.{Environment.NewLine}{details}");
+            }
+
+            allContextDocuments = collection.Documents.ToDictionary(document => document.Name, document => document.Content, StringComparer.Ordinal);
+            _console.MarkupLine(
+                $"[green]Bundesliga history played-date gate passed:[/] {collection.Resolutions.Count} completed row(s); " +
+                $"existing={collection.PreservedCount}, Kicktipp={collection.KicktippCount}, fixed-map={collection.FixedMapCount}, " +
+                $"excluded-incomplete={collection.ExcludedIncompleteRowCount}; " +
+                $"fixed-map sources: {Markup.Escape(BundesligaHistoryCommandSupport.FormatFixedSourceCounts(collection))}");
+        }
         
         _console.MarkupLine($"[green]Collected {allContextDocuments.Count} unique context documents[/]");
         
@@ -292,6 +323,20 @@ public class CollectContextKicktippCommand : AsyncCommand<CollectContextKicktipp
         }
 
         return result;
+    }
+
+    private async Task<IReadOnlyList<PersistedMatchOutcome>> LoadBundesligaMatchOutcomesAsync(
+        string communityContext,
+        string competition,
+        CancellationToken cancellationToken)
+    {
+        var repository = _firebaseServiceFactory.CreateMatchOutcomeRepository(competition);
+        var outcomes = new List<PersistedMatchOutcome>();
+        for (var matchday = 1; matchday <= 34; matchday++)
+        {
+            outcomes.AddRange(await repository.GetMatchdayOutcomesAsync(matchday, communityContext, cancellationToken));
+        }
+        return outcomes.AsReadOnly();
     }
 
     private void PrintOutcomeCollectionSummary(MatchOutcomeCollectionResult result, CollectContextKicktippSettings settings)

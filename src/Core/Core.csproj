@@ -25,6 +25,9 @@
       <EmbeddedResource Include="..\..\data\bundesliga-2026-27\team-manifest.csv">
         <LogicalName>EHonda.KicktippAi.Core.Data.Bundesliga2026_27TeamManifest.csv</LogicalName>
       </EmbeddedResource>
+      <EmbeddedResource Include="..\..\data\bundesliga-2026-27\history\history-played-dates.csv">
+        <LogicalName>EHonda.KicktippAi.Core.Data.Bundesliga2026_27HistoryPlayedDates.csv</LogicalName>
+      </EmbeddedResource>
     </ItemGroup>
 
 </Project>
