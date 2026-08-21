@@ -19,7 +19,16 @@ public class PredictionTelemetryMetadata_Tests
     public async Task Applying_to_activity_sets_expected_tags()
     {
         using var activity = new Activity("test");
-        var metadata = new PredictionTelemetryMetadata("Bayern", "Dortmund", 2, "bundesliga-2026-27");
+        var rosterSnapshot = new string('a', 64);
+        var eloSnapshot = new string('b', 64);
+        var metadata = new PredictionTelemetryMetadata(
+            "Bayern",
+            "Dortmund",
+            2,
+            "bundesliga-2026-27",
+            ["club-elo-rankings", "team-squad-summary", "roster-fcb"],
+            rosterSnapshot,
+            eloSnapshot);
 
         metadata.ApplyToObservation(activity);
 
@@ -28,6 +37,12 @@ public class PredictionTelemetryMetadata_Tests
         await Assert.That(activity.GetTagItem("langfuse.observation.metadata.repredictionIndex")).IsEqualTo("2");
         await Assert.That(activity.GetTagItem("langfuse.observation.metadata.competition")).IsEqualTo("bundesliga-2026-27");
         await Assert.That(activity.GetTagItem("langfuse.observation.metadata.match")).IsEqualTo("Bayern vs Dortmund");
+        await Assert.That(activity.GetTagItem("langfuse.observation.metadata.contextDocuments"))
+            .IsEqualTo("club-elo-rankings,team-squad-summary,roster-fcb");
+        await Assert.That(activity.GetTagItem("langfuse.observation.metadata.rosterPublicationSnapshotId"))
+            .IsEqualTo(rosterSnapshot);
+        await Assert.That(activity.GetTagItem("langfuse.observation.metadata.clubEloPublicationSnapshotId"))
+            .IsEqualTo(eloSnapshot);
     }
 
     [Test]

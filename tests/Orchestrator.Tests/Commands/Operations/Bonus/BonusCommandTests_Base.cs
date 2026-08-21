@@ -83,15 +83,23 @@ public abstract class BonusCommandTests_Base
         // Build internal mocks from domain parameters (used when factory mocks not provided)
         var questions = openBonusQuestions.Or(() => [CreateLeagueWinnerBonusQuestion()]);
         var kpiDocs = kpiContextDocuments.Or(() => []);
+        var storedPrediction = existingBonusPrediction.Or((BonusPrediction?)null);
+        var storedMetadata = existingBonusPredictionMetadata.Or(
+            storedPrediction is null
+                ? null
+                : CreateCanonicalBundesligaBonusPredictionMetadata(
+                    questions[0],
+                    storedPrediction,
+                    communityContext: "test"));
 
         var mockKicktippClient = CreateMockKicktippClient(
             openBonusQuestions: questions,
             placeBonusPredictionsResult: placeBonusPredictionsResult.Or(true));
 
         var mockPredictionRepository = CreateMockPredictionRepository(
-            getBonusPredictionByTextResult: existingBonusPrediction,
+            getBonusPredictionByTextResult: storedPrediction,
             getBonusRepredictionIndexResult: bonusRepredictionIndex.Or(-1),
-            getBonusPredictionMetadataByTextResult: existingBonusPredictionMetadata);
+            getBonusPredictionMetadataByTextResult: storedMetadata);
         var mockKpiRepository = kpiRepository.Or(() => new Mock<IKpiRepository>());
 
         var mockPredictionService = CreateMockPredictionService(

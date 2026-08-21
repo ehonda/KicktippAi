@@ -46,4 +46,5 @@ public record BonusPredictionResult(
 public record BonusPredictionMetadata(
     BonusPrediction BonusPrediction,
     DateTimeOffset CreatedAt,
-    List<string> ContextDocumentNames);
+    List<string> ContextDocumentNames,
+    ResolvedBonusContextManifest? ResolvedContextManifest = null);

@@ -91,21 +91,24 @@ public abstract class VerifyBonusCommandTests_Base
 
             if (predictionRepositoryReturnsNull.Or(false))
             {
-                factory.Setup(f => f.CreatePredictionRepository(CompetitionIds.Bundesliga2026_27)).Returns((IPredictionRepository)null!);
+                factory.Setup(f => f.CreatePredictionRepository(It.IsAny<string>())).Returns((IPredictionRepository)null!);
             }
             else
             {
-                factory.Setup(f => f.CreatePredictionRepository(CompetitionIds.Bundesliga2026_27)).Returns(mockPredictionRepository.Object);
+                factory.Setup(f => f.CreatePredictionRepository(It.IsAny<string>())).Returns(mockPredictionRepository.Object);
             }
 
             if (kpiRepositoryReturnsNull.Or(false))
             {
-                factory.Setup(f => f.CreateKpiRepository(CompetitionIds.Bundesliga2026_27)).Returns((IKpiRepository)null!);
+                factory.Setup(f => f.CreateKpiRepository(It.IsAny<string>())).Returns((IKpiRepository)null!);
             }
             else
             {
-                factory.Setup(f => f.CreateKpiRepository(CompetitionIds.Bundesliga2026_27)).Returns(mockKpiRepository.Object);
+                factory.Setup(f => f.CreateKpiRepository(It.IsAny<string>())).Returns(mockKpiRepository.Object);
             }
+
+            factory.Setup(f => f.CreateDocumentPublicationRepository(CompetitionIds.Bundesliga2026_27))
+                .Returns(CreateMockBundesligaDocumentPublicationRepository().Object);
 
             return factory;
         });

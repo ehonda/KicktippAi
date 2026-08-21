@@ -99,7 +99,8 @@ public class BonusCommand_NormalMode_Tests : BonusCommandTests_Base
 
         // Assert
         await Assert.That(exitCode).IsEqualTo(0);
-        context.PredictionRepository.Verify(r => r.SaveBonusPredictionAsync(
+        context.PredictionRepository.As<IResolvedBonusContextPredictionRepository>().Verify(r =>
+            r.SaveBonusPredictionWithResolvedContextAsync(
             It.IsAny<BonusQuestion>(),
             It.IsAny<BonusPrediction>(),
             It.Is<PredictionModelConfig>(config =>
@@ -109,6 +110,7 @@ public class BonusCommand_NormalMode_Tests : BonusCommandTests_Base
             It.IsAny<double>(),
             "test",
             It.IsAny<IEnumerable<string>>(),
+            It.IsAny<ResolvedBonusContextManifest>(),
             false,
             It.IsAny<CancellationToken>()), Times.Once);
     }
@@ -133,7 +135,8 @@ public class BonusCommand_NormalMode_Tests : BonusCommandTests_Base
         ]);
 
         await Assert.That(exitCode).IsEqualTo(0);
-        context.PredictionRepository.Verify(repository => repository.SaveBonusPredictionAsync(
+        context.PredictionRepository.As<IResolvedBonusContextPredictionRepository>().Verify(repository =>
+            repository.SaveBonusPredictionWithResolvedContextAsync(
             It.IsAny<BonusQuestion>(),
             It.IsAny<BonusPrediction>(),
             It.Is<PredictionModelConfig>(config =>
@@ -146,6 +149,9 @@ public class BonusCommand_NormalMode_Tests : BonusCommandTests_Base
             It.IsAny<double>(),
             "test",
             It.IsAny<IEnumerable<string>>(),
+            It.Is<ResolvedBonusContextManifest>(manifest =>
+                manifest.Documents.Select(document => document.Name).SequenceEqual(
+                new[] { "club-elo-rankings", "team-squad-summary" })),
             false,
             It.IsAny<CancellationToken>()), Times.Once);
     }
@@ -262,7 +268,8 @@ public class BonusCommand_NormalMode_Tests : BonusCommandTests_Base
 
         // Assert
         await Assert.That(exitCode).IsEqualTo(0);
-        context.PredictionRepository.Verify(r => r.SaveBonusPredictionAsync(
+        context.PredictionRepository.As<IResolvedBonusContextPredictionRepository>().Verify(r =>
+            r.SaveBonusPredictionWithResolvedContextAsync(
             It.IsAny<BonusQuestion>(),
             It.IsAny<BonusPrediction>(),
             It.IsAny<PredictionModelConfig>(),
@@ -270,6 +277,7 @@ public class BonusCommand_NormalMode_Tests : BonusCommandTests_Base
             It.IsAny<double>(),
             It.IsAny<string>(),
             It.IsAny<IEnumerable<string>>(),
+            It.IsAny<ResolvedBonusContextManifest>(),
             true, // overrideCreatedAt should be true
             It.IsAny<CancellationToken>()), Times.Once);
     }
@@ -407,7 +415,8 @@ public class BonusCommand_NormalMode_Tests : BonusCommandTests_Base
 
         // Assert
         await Assert.That(exitCode).IsEqualTo(0);
-        context.PredictionRepository.Verify(r => r.SaveBonusPredictionAsync(
+        context.PredictionRepository.As<IResolvedBonusContextPredictionRepository>().Verify(r =>
+            r.SaveBonusPredictionWithResolvedContextAsync(
             It.IsAny<BonusQuestion>(),
             It.IsAny<BonusPrediction>(),
             It.IsAny<PredictionModelConfig>(),
@@ -415,6 +424,7 @@ public class BonusCommand_NormalMode_Tests : BonusCommandTests_Base
             It.IsAny<double>(),
             It.IsAny<string>(),
             It.Is<IEnumerable<string>>(names => names.Any()), // Verify context document names are passed
+            It.IsAny<ResolvedBonusContextManifest>(),
             It.IsAny<bool>(),
             It.IsAny<CancellationToken>()), Times.Once);
     }
@@ -430,7 +440,8 @@ public class BonusCommand_NormalMode_Tests : BonusCommandTests_Base
         var exitCode = await context.App.RunAsync(["bonus", "test-model", "--community", "test"]);
 
         await Assert.That(exitCode).IsEqualTo(0);
-        context.KpiContextProvider.Verify(provider => provider.GetBonusQuestionContextAsync(
+        context.KpiContextProvider.As<IResolvedBonusContextProvider>().Verify(provider =>
+            provider.ResolveBonusQuestionContextAsync(
             question,
             "test",
             It.IsAny<CancellationToken>()), Times.Once);

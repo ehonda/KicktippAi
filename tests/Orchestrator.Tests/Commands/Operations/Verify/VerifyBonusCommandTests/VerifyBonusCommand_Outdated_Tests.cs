@@ -12,6 +12,96 @@ namespace Orchestrator.Tests.Commands.Operations.Verify.VerifyBonusCommandTests;
 public class VerifyBonusCommand_Outdated_Tests : VerifyBonusCommandTests_Base
 {
     [Test]
+    public async Task Bundesliga_prediction_with_current_canonical_manifest_is_not_outdated()
+    {
+        var question = CreateTestBonusQuestion(formFieldName: "bonus_q1");
+        var prediction = CreateBonusPrediction(selectedOptionIds: new List<string> { "opt-1" });
+        var metadata = CreateCanonicalBundesligaBonusPredictionMetadata(question, prediction, communityContext: "test");
+        var ctx = CreateVerifyBonusCommandApp(
+            bonusQuestions: new List<BonusQuestion> { question },
+            placedBonusPredictions: CreatePlacedBonusPredictions("bonus_q1", prediction),
+            databaseBonusPrediction: prediction,
+            bonusPredictionMetadata: metadata);
+
+        var (exitCode, output) = await RunCommandAsync(
+            ctx.App,
+            ctx.Console,
+            "verify-bonus",
+            "gpt-4o",
+            "-c",
+            "test",
+            "--check-outdated");
+
+        await Assert.That(exitCode).IsEqualTo(0);
+        await Assert.That(output).Contains("verification successful");
+    }
+
+    [Test]
+    public async Task Bundesliga_legacy_metadata_without_manifest_is_outdated()
+    {
+        var question = CreateTestBonusQuestion(formFieldName: "bonus_q1");
+        var prediction = CreateBonusPrediction(selectedOptionIds: new List<string> { "opt-1" });
+        var metadata = CreateBonusPredictionMetadata(
+            bonusPrediction: prediction,
+            contextDocumentNames: new List<string> { "club-elo-rankings", "team-squad-summary" });
+        var ctx = CreateVerifyBonusCommandApp(
+            bonusQuestions: new List<BonusQuestion> { question },
+            placedBonusPredictions: CreatePlacedBonusPredictions("bonus_q1", prediction),
+            databaseBonusPrediction: prediction,
+            bonusPredictionMetadata: metadata);
+
+        var (exitCode, output) = await RunCommandAsync(
+            ctx.App,
+            ctx.Console,
+            "verify-bonus",
+            "gpt-4o",
+            "-c",
+            "test",
+            "--check-outdated");
+
+        await Assert.That(exitCode).IsEqualTo(1);
+        await Assert.That(output).Contains("outdated");
+    }
+
+    [Test]
+    public async Task Bundesliga_changed_publication_snapshot_is_outdated()
+    {
+        var question = CreateTestBonusQuestion(formFieldName: "bonus_q1");
+        var prediction = CreateBonusPrediction(selectedOptionIds: new List<string> { "opt-1" });
+        var current = CreateCanonicalBundesligaBonusPredictionMetadata(question, prediction, communityContext: "test");
+        var manifest = current.ResolvedContextManifest!;
+        var changedSnapshot = manifest.RosterPublicationSnapshotId[0] == 'f'
+            ? new string('e', DocumentPublicationContract.Sha256HexLength)
+            : new string('f', DocumentPublicationContract.Sha256HexLength);
+        var metadata = current with
+        {
+            ResolvedContextManifest = ResolvedBonusContextManifest.Create(
+                manifest.Competition,
+                manifest.CommunityContext,
+                manifest.Documents,
+                changedSnapshot,
+                manifest.ClubEloPublicationSnapshotId)
+        };
+        var ctx = CreateVerifyBonusCommandApp(
+            bonusQuestions: new List<BonusQuestion> { question },
+            placedBonusPredictions: CreatePlacedBonusPredictions("bonus_q1", prediction),
+            databaseBonusPrediction: prediction,
+            bonusPredictionMetadata: metadata);
+
+        var (exitCode, output) = await RunCommandAsync(
+            ctx.App,
+            ctx.Console,
+            "verify-bonus",
+            "gpt-4o",
+            "-c",
+            "test",
+            "--check-outdated");
+
+        await Assert.That(exitCode).IsEqualTo(1);
+        await Assert.That(output).Contains("outdated");
+    }
+
+    [Test]
     [Description(
         """
         Regression test for the stale-metadata failure mode in VerifyBonusCommand.
@@ -53,7 +143,7 @@ public class VerifyBonusCommand_Outdated_Tests : VerifyBonusCommandTests_Base
             firebaseServiceFactory: mockFirebaseFactory);
 
         // Act
-        var (exitCode, output) = await RunCommandAsync(ctx.App, ctx.Console, "verify-bonus", "o4-mini", "-c", "ehonda-ai-arena", "--check-outdated");
+        var (exitCode, output) = await RunCommandAsync(ctx.App, ctx.Console, "verify-bonus", "o4-mini", "-c", "ehonda-ai-arena", "--competition", CompetitionIds.FifaWorldCup2026, "--check-outdated");
 
         // Assert
         await Assert.That(exitCode).IsEqualTo(1);
@@ -90,7 +180,7 @@ public class VerifyBonusCommand_Outdated_Tests : VerifyBonusCommandTests_Base
             kpiDocumentsByName: kpiDocs);
 
         // Act
-        var (exitCode, output) = await RunCommandAsync(ctx.App, ctx.Console, "verify-bonus", "gpt-4o", "-c", "test", "--check-outdated");
+        var (exitCode, output) = await RunCommandAsync(ctx.App, ctx.Console, "verify-bonus", "gpt-4o", "-c", "test", "--competition", CompetitionIds.FifaWorldCup2026, "--check-outdated");
 
         // Assert
         await Assert.That(exitCode).IsEqualTo(1);
@@ -126,7 +216,7 @@ public class VerifyBonusCommand_Outdated_Tests : VerifyBonusCommandTests_Base
             kpiDocumentsByName: kpiDocs);
 
         // Act
-        var (_, output) = await RunCommandAsync(ctx.App, ctx.Console, "verify-bonus", "gpt-4o", "-c", "test", "--check-outdated", "-v");
+        var (_, output) = await RunCommandAsync(ctx.App, ctx.Console, "verify-bonus", "gpt-4o", "-c", "test", "--competition", CompetitionIds.FifaWorldCup2026, "--check-outdated", "-v");
 
         // Assert
         await Assert.That(output).Contains("test-kpi.md").And.Contains("updated after prediction");
@@ -161,7 +251,7 @@ public class VerifyBonusCommand_Outdated_Tests : VerifyBonusCommandTests_Base
             kpiDocumentsByName: kpiDocs);
 
         // Act
-        var (exitCode, output) = await RunCommandAsync(ctx.App, ctx.Console, "verify-bonus", "gpt-4o", "-c", "test", "--check-outdated");
+        var (exitCode, output) = await RunCommandAsync(ctx.App, ctx.Console, "verify-bonus", "gpt-4o", "-c", "test", "--competition", CompetitionIds.FifaWorldCup2026, "--check-outdated");
 
         // Assert
         await Assert.That(exitCode).IsEqualTo(0);
@@ -188,7 +278,7 @@ public class VerifyBonusCommand_Outdated_Tests : VerifyBonusCommandTests_Base
             kpiDocumentsByName: new Dictionary<string, KpiDocument>());
 
         // Act
-        var (exitCode, output) = await RunCommandAsync(ctx.App, ctx.Console, "verify-bonus", "gpt-4o", "-c", "test", "--check-outdated", "-v");
+        var (exitCode, output) = await RunCommandAsync(ctx.App, ctx.Console, "verify-bonus", "gpt-4o", "-c", "test", "--competition", CompetitionIds.FifaWorldCup2026, "--check-outdated", "-v");
 
         // Assert - should pass (missing = not outdated) but show warning
         await Assert.That(exitCode).IsEqualTo(0);
@@ -209,7 +299,7 @@ public class VerifyBonusCommand_Outdated_Tests : VerifyBonusCommandTests_Base
         // Note: bonusPredictionMetadata defaults to null
 
         // Act
-        var (exitCode, output) = await RunCommandAsync(ctx.App, ctx.Console, "verify-bonus", "gpt-4o", "-c", "test", "--check-outdated");
+        var (exitCode, output) = await RunCommandAsync(ctx.App, ctx.Console, "verify-bonus", "gpt-4o", "-c", "test", "--competition", CompetitionIds.FifaWorldCup2026, "--check-outdated");
 
         // Assert
         await Assert.That(exitCode).IsEqualTo(0);
@@ -249,7 +339,7 @@ public class VerifyBonusCommand_Outdated_Tests : VerifyBonusCommandTests_Base
             kpiDocumentsByName: kpiDocs);
 
         // Act
-        var (exitCode, _) = await RunCommandAsync(ctx.App, ctx.Console, "verify-bonus", "gpt-4o", "-c", "test", "--check-outdated");
+        var (exitCode, _) = await RunCommandAsync(ctx.App, ctx.Console, "verify-bonus", "gpt-4o", "-c", "test", "--competition", CompetitionIds.FifaWorldCup2026, "--check-outdated");
 
         // Assert - should fail because one document is newer
         await Assert.That(exitCode).IsEqualTo(1);
@@ -284,7 +374,7 @@ public class VerifyBonusCommand_Outdated_Tests : VerifyBonusCommandTests_Base
             kpiDocumentsByName: kpiDocs);
 
         // Act
-        var (_, output) = await RunCommandAsync(ctx.App, ctx.Console, "verify-bonus", "gpt-4o", "-c", "test", "--check-outdated", "-v");
+        var (_, output) = await RunCommandAsync(ctx.App, ctx.Console, "verify-bonus", "gpt-4o", "-c", "test", "--competition", CompetitionIds.FifaWorldCup2026, "--check-outdated", "-v");
 
         // Assert
         await Assert.That(output).Contains("test-kpi.md").And.Contains("version 5").And.Contains("latest");
@@ -317,7 +407,7 @@ public class VerifyBonusCommand_Outdated_Tests : VerifyBonusCommandTests_Base
             kpiDocumentsByName: kpiDocs);
 
         // Act
-        var (_, output) = await RunCommandAsync(ctx.App, ctx.Console, "verify-bonus", "gpt-4o", "-c", "test", "--check-outdated", "--agent");
+        var (_, output) = await RunCommandAsync(ctx.App, ctx.Console, "verify-bonus", "gpt-4o", "-c", "test", "--competition", CompetitionIds.FifaWorldCup2026, "--check-outdated", "--agent");
 
         // Assert
         await Assert.That(output).Contains("✗ Outdated question");
@@ -351,7 +441,7 @@ public class VerifyBonusCommand_Outdated_Tests : VerifyBonusCommandTests_Base
             kpiDocumentsByName: kpiDocs);
 
         // Act
-        var (_, output) = await RunCommandAsync(ctx.App, ctx.Console, "verify-bonus", "gpt-4o", "-c", "test", "--check-outdated");
+        var (_, output) = await RunCommandAsync(ctx.App, ctx.Console, "verify-bonus", "gpt-4o", "-c", "test", "--competition", CompetitionIds.FifaWorldCup2026, "--check-outdated");
 
         // Assert
         await Assert.That(output).Contains("✗ Outdated question");

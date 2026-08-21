@@ -10,7 +10,10 @@ public sealed record PredictionTelemetryMetadata(
     string? HomeTeam = null,
     string? AwayTeam = null,
     int? RepredictionIndex = null,
-    string? Competition = null)
+    string? Competition = null,
+    IReadOnlyList<string>? ContextDocumentNames = null,
+    string? RosterPublicationSnapshotId = null,
+    string? ClubEloPublicationSnapshotId = null)
 {
     public void ApplyToObservation(Activity? activity)
     {
@@ -22,6 +25,14 @@ public sealed record PredictionTelemetryMetadata(
         SetObservationMetadata(activity, "homeTeam", HomeTeam);
         SetObservationMetadata(activity, "awayTeam", AwayTeam);
         SetObservationMetadata(activity, "competition", Competition);
+        SetObservationMetadata(
+            activity,
+            "contextDocuments",
+            ContextDocumentNames is null
+                ? null
+                : string.Join(',', ContextDocumentNames));
+        SetObservationMetadata(activity, "rosterPublicationSnapshotId", RosterPublicationSnapshotId);
+        SetObservationMetadata(activity, "clubEloPublicationSnapshotId", ClubEloPublicationSnapshotId);
 
         if (RepredictionIndex.HasValue)
         {

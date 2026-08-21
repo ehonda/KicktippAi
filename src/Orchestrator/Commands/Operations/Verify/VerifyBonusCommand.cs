@@ -85,6 +85,10 @@ public class VerifyBonusCommand : AsyncCommand<VerifySettings>
             settings.LangfusePromptVersion,
             settings.MaxOutputTokenCount,
             bonusPrompt: true);
+        var isBundesliga = string.Equals(
+            competition,
+            CompetitionIds.Bundesliga2026_27,
+            StringComparison.Ordinal);
         // Try to get the prediction repository (may be null if Firebase is not configured)
         var predictionRepository = _firebaseServiceFactory.CreatePredictionRepository(competition);
         if (predictionRepository == null)
@@ -95,7 +99,12 @@ public class VerifyBonusCommand : AsyncCommand<VerifySettings>
         }
         
         // Get KPI repository for outdated checks (required for bonus predictions)
-        var kpiRepository = _firebaseServiceFactory.CreateKpiRepository(competition);
+        var kpiRepository = isBundesliga
+            ? null
+            : _firebaseServiceFactory.CreateKpiRepository(competition);
+        var publicationRepository = isBundesliga
+            ? _firebaseServiceFactory.CreateDocumentPublicationRepository(competition)
+            : null;
         
         _console.MarkupLine($"[blue]Using community:[/] [yellow]{settings.Community}[/]");
         _console.MarkupLine($"[blue]Using community context:[/] [yellow]{communityContext}[/]");
@@ -156,7 +165,15 @@ public class VerifyBonusCommand : AsyncCommand<VerifySettings>
                     var isOutdated = false;
                     if (settings.CheckOutdated)
                     {
-                        isOutdated = await CheckBonusPredictionOutdated(predictionRepository, kpiRepository, question.Text, modelConfig, communityContext, settings.Verbose);
+                        isOutdated = await CheckBonusPredictionOutdated(
+                            predictionRepository,
+                            kpiRepository,
+                            publicationRepository,
+                            question,
+                            modelConfig,
+                            communityContext,
+                            isBundesliga,
+                            settings.Verbose);
                     }
                     
                     // Consider prediction valid if it passes validation, matches Kicktipp, and is not outdated
@@ -318,28 +335,42 @@ public class VerifyBonusCommand : AsyncCommand<VerifySettings>
     
     private async Task<bool> CheckBonusPredictionOutdated(
         IPredictionRepository predictionRepository,
-        IKpiRepository kpiRepository,
-        string questionText,
+        IKpiRepository? kpiRepository,
+        IDocumentPublicationRepository? publicationRepository,
+        BonusQuestion question,
         PredictionModelConfig modelConfig,
         string communityContext,
+        bool isBundesliga,
         bool verbose)
     {
         try
         {
             // Get prediction metadata (includes creation timestamp and context document names)
             var predictionMetadata = await predictionRepository.GetBonusPredictionMetadataByTextAsync(
-                questionText, modelConfig, communityContext);
+                question.Text, modelConfig, communityContext);
             
             if (predictionMetadata == null)
             {
-                // No metadata found, assume not outdated
-                return false;
+                return isBundesliga;
+            }
+
+            if (isBundesliga)
+            {
+                return await BundesligaBonusPredictionOutdatedChecker.IsOutdatedAsync(
+                    publicationRepository
+                    ?? throw new InvalidOperationException(
+                        "Bundesliga bonus outdated checks require a publication repository."),
+                    question,
+                    communityContext,
+                    predictionMetadata);
             }
             
             // Check if any KPI document has been updated after the prediction was created
             foreach (var contextDocumentName in predictionMetadata.ContextDocumentNames)
             {
-                var kpiDocument = await kpiRepository.GetKpiDocumentAsync(contextDocumentName, communityContext);
+                var kpiDocument = await (kpiRepository
+                    ?? throw new InvalidOperationException("Legacy bonus outdated checks require a KPI repository."))
+                    .GetKpiDocumentAsync(contextDocumentName, communityContext);
                 if (kpiDocument != null)
                 {
                     // Compare the creation timestamps
@@ -375,7 +406,7 @@ public class VerifyBonusCommand : AsyncCommand<VerifySettings>
             {
                 _console.MarkupLine($"[yellow]Warning: Could not check if prediction is outdated: {ex.Message}[/]");
             }
-            return false; // Assume not outdated if we can't determine
+            return isBundesliga;
         }
     }
     

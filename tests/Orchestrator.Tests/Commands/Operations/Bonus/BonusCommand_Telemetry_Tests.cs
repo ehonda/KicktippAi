@@ -1,4 +1,7 @@
 using System.Diagnostics;
+using EHonda.KicktippAi.Core;
+using Moq;
+using OpenAiIntegration;
 using static Orchestrator.Tests.Infrastructure.OrchestratorTestFactories;
 
 namespace Orchestrator.Tests.Commands.Operations.Bonus;
@@ -9,6 +12,35 @@ namespace Orchestrator.Tests.Commands.Operations.Bonus;
 /// </summary>
 public class BonusCommand_Telemetry_Tests : BonusCommandTests_Base
 {
+    [Test]
+    public async Task Bundesliga_prediction_telemetry_carries_exact_resolved_context_provenance()
+    {
+        PredictionTelemetryMetadata? captured = null;
+        var predictionService = CreateMockPredictionService();
+        predictionService.Setup(service => service.PredictBonusQuestionAsync(
+                It.IsAny<BonusQuestion>(),
+                It.IsAny<IEnumerable<DocumentContext>>(),
+                It.IsAny<PredictionTelemetryMetadata?>(),
+                It.IsAny<CancellationToken>()))
+            .Callback((BonusQuestion _, IEnumerable<DocumentContext> _, PredictionTelemetryMetadata? metadata, CancellationToken _) =>
+                captured = metadata)
+            .ReturnsAsync(new BonusPrediction(["bayern"]));
+        var question = CreateLeagueWinnerBonusQuestion();
+        var ctx = CreateBonusCommandApp(
+            openBonusQuestions: new List<BonusQuestion> { question },
+            existingBonusPrediction: (BonusPrediction?)null,
+            openAiServiceFactory: CreateMockOpenAiServiceFactory(predictionService: predictionService));
+
+        var (exitCode, _) = await RunCommandAsync(ctx.App, ctx.Console, "bonus", "gpt-4o", "-c", "test-community");
+
+        var expected = CreateCanonicalBundesligaResolvedBonusContext(question, "test-community").Manifest;
+        await Assert.That(exitCode).IsEqualTo(0);
+        await Assert.That(captured).IsNotNull();
+        await Assert.That(captured!.ContextDocumentNames!.SequenceEqual(expected.Documents.Select(document => document.Name))).IsTrue();
+        await Assert.That(captured.RosterPublicationSnapshotId).IsEqualTo(expected.RosterPublicationSnapshotId);
+        await Assert.That(captured.ClubEloPublicationSnapshotId).IsEqualTo(expected.ClubEloPublicationSnapshotId);
+    }
+
     [Test]
     [NotInParallel("Telemetry")]
     public async Task Root_activity_is_named_bonus()

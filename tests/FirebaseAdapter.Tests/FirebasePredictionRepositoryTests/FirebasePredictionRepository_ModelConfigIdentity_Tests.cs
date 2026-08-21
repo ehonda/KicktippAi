@@ -225,15 +225,17 @@ public class FirebasePredictionRepository_ModelConfigIdentity_Tests(FirestoreFix
             10_000,
             "kicktippai/bundesliga-2026-27/predict-bonus",
             1);
+        var manifest = CreateBonusManifest("test-community");
 
-        await repository.SaveBonusPredictionAsync(
+        await repository.SaveBonusPredictionWithResolvedContextAsync(
             question,
             new BonusPrediction(["opt-1"]),
             config,
             "100",
             0.01,
             "test-community",
-            []);
+            manifest.Documents.Select(document => document.Name),
+            manifest);
 
         var configs = await repository.GetAvailableModelConfigsAsync();
         await Assert.That(configs.Select(candidate => candidate.IdentityKey)).Contains(config.IdentityKey);
@@ -256,6 +258,21 @@ public class FirebasePredictionRepository_ModelConfigIdentity_Tests(FirestoreFix
             MatchContextDocumentCatalog.ForMatch(match, communityContext, CompetitionIds.Bundesliga2026_27)
                 .RequiredDocumentNames.Select((name, index) => new ResolvedMatchContextDocument(
                     name, index + 1, "Context", DocumentPublicationContract.ComputeContentSha256(name))),
+            new string('a', DocumentPublicationContract.Sha256HexLength),
+            new string('b', DocumentPublicationContract.Sha256HexLength));
+
+    private static ResolvedBonusContextManifest CreateBonusManifest(string communityContext) =>
+        ResolvedBonusContextManifest.Create(
+            CompetitionIds.Bundesliga2026_27,
+            communityContext,
+            [
+                new ResolvedBonusContextDocument(
+                    "Kpi", "club-elo-rankings", 1,
+                    DocumentPublicationContract.ComputeContentSha256("elo")),
+                new ResolvedBonusContextDocument(
+                    "Kpi", "team-squad-summary", 1,
+                    DocumentPublicationContract.ComputeContentSha256("summary"))
+            ],
             new string('a', DocumentPublicationContract.Sha256HexLength),
             new string('b', DocumentPublicationContract.Sha256HexLength));
 

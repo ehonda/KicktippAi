@@ -64,7 +64,8 @@ public class BonusCommand_RepredictMode_Tests : BonusCommandTests_Base
             It.IsAny<IEnumerable<DocumentContext>>(),
             It.IsAny<PredictionTelemetryMetadata?>(),
             It.IsAny<CancellationToken>()), Times.Never);
-        context.PredictionRepository.Verify(r => r.SaveBonusRepredictionAsync(
+        context.PredictionRepository.As<IResolvedBonusContextPredictionRepository>().Verify(r =>
+            r.SaveBonusRepredictionWithResolvedContextAsync(
             It.IsAny<BonusQuestion>(),
             It.IsAny<BonusPrediction>(),
             It.IsAny<PredictionModelConfig>(),
@@ -73,6 +74,7 @@ public class BonusCommand_RepredictMode_Tests : BonusCommandTests_Base
             It.IsAny<string>(),
             It.IsAny<IEnumerable<string>>(),
             It.IsAny<int>(),
+            It.IsAny<ResolvedBonusContextManifest>(),
             It.IsAny<CancellationToken>()), Times.Never);
     }
 
@@ -81,9 +83,12 @@ public class BonusCommand_RepredictMode_Tests : BonusCommandTests_Base
     {
         // Arrange - bonusRepredictionIndex = 2, max = 2 means we're at limit
         var existingPrediction = CreateBonusPrediction(selectedOptionIds: new List<string> { "bayern" });
+        var metadata = CreateCanonicalBundesligaBonusPredictionMetadata(
+            CreateLeagueWinnerBonusQuestion(), existingPrediction, communityContext: "test");
         var mockPredictionRepository = CreateMockPredictionRepository(
             getBonusPredictionByTextResult: existingPrediction,
-            getBonusRepredictionIndexResult: 2);
+            getBonusRepredictionIndexResult: 2,
+            getBonusPredictionMetadataByTextResult: metadata);
         var mockFirebaseFactory = CreateMockFirebaseServiceFactoryFull(predictionRepository: mockPredictionRepository);
         var context = CreateBonusCommandApp(firebaseServiceFactory: mockFirebaseFactory);
 
@@ -98,13 +103,34 @@ public class BonusCommand_RepredictMode_Tests : BonusCommandTests_Base
     }
 
     [Test]
+    public async Task Bundesliga_outdated_prediction_at_reprediction_limit_is_not_placed()
+    {
+        var context = CreateRepredictCommandAppWithKpiFreshness(
+            currentRepredictionIndex: 2,
+            isOutdated: true);
+
+        var exitCode = await context.App.RunAsync(
+            ["bonus", "test-model", "--community", "test", "--max-repredictions", "2"]);
+
+        await Assert.That(exitCode).IsEqualTo(0);
+        await Assert.That(context.Console.Output).Contains("cannot be reused at the reprediction limit");
+        context.KicktippClient.Verify(client => client.PlaceBonusPredictionsAsync(
+            It.IsAny<string>(),
+            It.IsAny<Dictionary<string, BonusPrediction>>(),
+            It.IsAny<bool>()), Times.Never);
+    }
+
+    [Test]
     public async Task Running_command_in_repredict_mode_shows_latest_prediction_when_skipped()
     {
         // Arrange
         var existingPrediction = CreateBonusPrediction(selectedOptionIds: new List<string> { "bayern" });
+        var metadata = CreateCanonicalBundesligaBonusPredictionMetadata(
+            CreateLeagueWinnerBonusQuestion(), existingPrediction, communityContext: "test");
         var mockPredictionRepository = CreateMockPredictionRepository(
             getBonusPredictionByTextResult: existingPrediction,
-            getBonusRepredictionIndexResult: 2);
+            getBonusRepredictionIndexResult: 2,
+            getBonusPredictionMetadataByTextResult: metadata);
         var mockFirebaseFactory = CreateMockFirebaseServiceFactoryFull(predictionRepository: mockPredictionRepository);
         var context = CreateBonusCommandApp(firebaseServiceFactory: mockFirebaseFactory);
 
@@ -130,7 +156,8 @@ public class BonusCommand_RepredictMode_Tests : BonusCommandTests_Base
 
         // Assert
         await Assert.That(exitCode).IsEqualTo(0);
-        context.PredictionRepository.Verify(r => r.SaveBonusRepredictionAsync(
+        context.PredictionRepository.As<IResolvedBonusContextPredictionRepository>().Verify(r =>
+            r.SaveBonusRepredictionWithResolvedContextAsync(
             It.IsAny<BonusQuestion>(),
             It.IsAny<BonusPrediction>(),
             It.Is<PredictionModelConfig>(config =>
@@ -141,6 +168,7 @@ public class BonusCommand_RepredictMode_Tests : BonusCommandTests_Base
             "test",
             It.IsAny<IEnumerable<string>>(),
             2, // nextIndex = currentIndex + 1 = 1 + 1 = 2
+            It.IsAny<ResolvedBonusContextManifest>(),
             It.IsAny<CancellationToken>()), Times.Once);
     }
 
@@ -194,7 +222,8 @@ public class BonusCommand_RepredictMode_Tests : BonusCommandTests_Base
 
         // Assert
         await Assert.That(exitCode).IsEqualTo(0);
-        context.PredictionRepository.Verify(r => r.SaveBonusRepredictionAsync(
+        context.PredictionRepository.As<IResolvedBonusContextPredictionRepository>().Verify(r =>
+            r.SaveBonusRepredictionWithResolvedContextAsync(
             It.IsAny<BonusQuestion>(),
             It.IsAny<BonusPrediction>(),
             It.IsAny<PredictionModelConfig>(),
@@ -203,6 +232,7 @@ public class BonusCommand_RepredictMode_Tests : BonusCommandTests_Base
             It.IsAny<string>(),
             It.IsAny<IEnumerable<string>>(),
             0, // First prediction in repredict mode is index 0
+            It.IsAny<ResolvedBonusContextManifest>(),
             It.IsAny<CancellationToken>()), Times.Once);
     }
 
@@ -226,9 +256,12 @@ public class BonusCommand_RepredictMode_Tests : BonusCommandTests_Base
     {
         // Arrange - bonusRepredictionIndex = 0 means first exists, max = 0 means no more allowed
         var existingPrediction = CreateBonusPrediction(selectedOptionIds: new List<string> { "bayern" });
+        var metadata = CreateCanonicalBundesligaBonusPredictionMetadata(
+            CreateLeagueWinnerBonusQuestion(), existingPrediction, communityContext: "test");
         var mockPredictionRepository = CreateMockPredictionRepository(
             getBonusPredictionByTextResult: existingPrediction,
-            getBonusRepredictionIndexResult: 0);
+            getBonusRepredictionIndexResult: 0,
+            getBonusPredictionMetadataByTextResult: metadata);
         var mockFirebaseFactory = CreateMockFirebaseServiceFactoryFull(predictionRepository: mockPredictionRepository);
         var context = CreateBonusCommandApp(firebaseServiceFactory: mockFirebaseFactory);
 
@@ -257,7 +290,8 @@ public class BonusCommand_RepredictMode_Tests : BonusCommandTests_Base
 
         // Assert
         await Assert.That(exitCode).IsEqualTo(0);
-        context.PredictionRepository.Verify(r => r.SaveBonusRepredictionAsync(
+        context.PredictionRepository.As<IResolvedBonusContextPredictionRepository>().Verify(r =>
+            r.SaveBonusRepredictionWithResolvedContextAsync(
             It.IsAny<BonusQuestion>(),
             It.IsAny<BonusPrediction>(),
             It.IsAny<PredictionModelConfig>(),
@@ -266,6 +300,7 @@ public class BonusCommand_RepredictMode_Tests : BonusCommandTests_Base
             It.IsAny<string>(),
             It.Is<IEnumerable<string>>(names => names.Any()), // Verify context document names are passed
             It.IsAny<int>(),
+            It.IsAny<ResolvedBonusContextManifest>(),
             It.IsAny<CancellationToken>()), Times.Once);
     }
 
@@ -277,26 +312,30 @@ public class BonusCommand_RepredictMode_Tests : BonusCommandTests_Base
     {
         var prediction = existingPrediction ?? CreateBonusPrediction(selectedOptionIds: new List<string> { "bayern" });
         var predictionCreatedAt = new DateTimeOffset(2025, 1, 10, 12, 0, 0, TimeSpan.Zero);
-        var kpiCreatedAt = isOutdated
-            ? predictionCreatedAt.AddHours(1)
-            : predictionCreatedAt.AddHours(-1);
-
-        var kpiRepository = new Mock<IKpiRepository>();
-        kpiRepository
-            .Setup(r => r.GetKpiDocumentAsync(
-                "team-data",
-                It.IsAny<string>(),
-                It.IsAny<CancellationToken>()))
-            .ReturnsAsync(new KpiDocument("team-data", "test content", "test description", version: 1, createdAt: kpiCreatedAt));
+        var question = CreateLeagueWinnerBonusQuestion();
+        var metadata = CreateCanonicalBundesligaBonusPredictionMetadata(
+            question,
+            prediction,
+            predictionCreatedAt,
+            "test");
+        if (isOutdated)
+        {
+            var manifest = metadata.ResolvedContextManifest!;
+            metadata = metadata with
+            {
+                ResolvedContextManifest = ResolvedBonusContextManifest.Create(
+                    manifest.Competition,
+                    manifest.CommunityContext,
+                    manifest.Documents,
+                    new string('f', DocumentPublicationContract.Sha256HexLength),
+                    manifest.ClubEloPublicationSnapshotId)
+            };
+        }
 
         return CreateBonusCommandApp(
             existingBonusPrediction: prediction,
-            existingBonusPredictionMetadata: new BonusPredictionMetadata(
-                prediction,
-                predictionCreatedAt,
-                new List<string> { "team-data" }),
+            existingBonusPredictionMetadata: metadata,
             bonusRepredictionIndex: currentRepredictionIndex,
-            kpiRepository: kpiRepository,
             kpiContextDocuments: kpiContextDocuments ?? CreateBonusQuestionKpiDocuments());
     }
 }

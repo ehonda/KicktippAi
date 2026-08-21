@@ -13,7 +13,10 @@ namespace FirebaseAdapter;
 /// <summary>
 /// Firebase Firestore implementation of the prediction repository.
 /// </summary>
-public class FirebasePredictionRepository : IPredictionRepository, IResolvedMatchContextPredictionRepository
+public class FirebasePredictionRepository :
+    IPredictionRepository,
+    IResolvedMatchContextPredictionRepository,
+    IResolvedBonusContextPredictionRepository
 {
     private static readonly JsonSerializerOptions JustificationSerializerOptions = new()
     {
@@ -668,10 +671,66 @@ public class FirebasePredictionRepository : IPredictionRepository, IResolvedMatc
             cancellationToken);
     }
 
-    public async Task SaveBonusPredictionAsync(BonusQuestion bonusQuestion, BonusPrediction bonusPrediction, PredictionModelConfig modelConfig, string tokenUsage, double cost, string communityContext, IEnumerable<string> contextDocumentNames, bool overrideCreatedAt = false, CancellationToken cancellationToken = default)
+    public Task SaveBonusPredictionAsync(BonusQuestion bonusQuestion, BonusPrediction bonusPrediction, PredictionModelConfig modelConfig, string tokenUsage, double cost, string communityContext, IEnumerable<string> contextDocumentNames, bool overrideCreatedAt = false, CancellationToken cancellationToken = default)
+    {
+        return SaveBonusPredictionInternalAsync(
+            bonusQuestion,
+            bonusPrediction,
+            modelConfig,
+            tokenUsage,
+            cost,
+            communityContext,
+            contextDocumentNames,
+            null,
+            overrideCreatedAt,
+            cancellationToken);
+    }
+
+    public Task SaveBonusPredictionWithResolvedContextAsync(
+        BonusQuestion bonusQuestion,
+        BonusPrediction bonusPrediction,
+        PredictionModelConfig modelConfig,
+        string tokenUsage,
+        double cost,
+        string communityContext,
+        IEnumerable<string> contextDocumentNames,
+        ResolvedBonusContextManifest resolvedContextManifest,
+        bool overrideCreatedAt = false,
+        CancellationToken cancellationToken = default)
+    {
+        return SaveBonusPredictionInternalAsync(
+            bonusQuestion,
+            bonusPrediction,
+            modelConfig,
+            tokenUsage,
+            cost,
+            communityContext,
+            contextDocumentNames,
+            resolvedContextManifest,
+            overrideCreatedAt,
+            cancellationToken);
+    }
+
+    private async Task SaveBonusPredictionInternalAsync(
+        BonusQuestion bonusQuestion,
+        BonusPrediction bonusPrediction,
+        PredictionModelConfig modelConfig,
+        string tokenUsage,
+        double cost,
+        string communityContext,
+        IEnumerable<string> contextDocumentNames,
+        ResolvedBonusContextManifest? resolvedContextManifest,
+        bool overrideCreatedAt,
+        CancellationToken cancellationToken)
     {
         try
         {
+            var documentNames = contextDocumentNames?.ToArray()
+                ?? throw new ArgumentNullException(nameof(contextDocumentNames));
+            ValidateResolvedBonusContextManifestForWrite(
+                communityContext,
+                documentNames,
+                resolvedContextManifest);
             var now = Timestamp.GetCurrentTimestamp();
 
             // Check if a prediction already exists for this question, model, and community context
@@ -742,7 +801,10 @@ public class FirebasePredictionRepository : IPredictionRepository, IResolvedMatc
                 TokenUsage = tokenUsage,
                 Cost = cost,
                 CommunityContext = communityContext,
-                ContextDocumentNames = contextDocumentNames.ToArray(),
+                ContextDocumentNames = documentNames,
+                ResolvedBonusContextManifest = resolvedContextManifest is null
+                    ? null
+                    : SerializeResolvedBonusContextManifest(resolvedContextManifest),
                 RepredictionIndex = repredictionIndex
             };
 
@@ -879,11 +941,24 @@ public class FirebasePredictionRepository : IPredictionRepository, IResolvedMatc
             var bonusPrediction = new BonusPrediction(firestoreBonusPrediction.SelectedOptionIds.ToList());
             var createdAt = firestoreBonusPrediction.CreatedAt.ToDateTimeOffset();
             var contextDocumentNames = firestoreBonusPrediction.ContextDocumentNames?.ToList() ?? new List<string>();
+            var resolvedContextManifest = DeserializeResolvedBonusContextManifest(
+                firestoreBonusPrediction.ResolvedBonusContextManifest);
+            if (resolvedContextManifest is not null)
+            {
+                ValidateResolvedBonusContextManifest(
+                    communityContext,
+                    contextDocumentNames,
+                    resolvedContextManifest);
+            }
 
             _logger.LogDebug("Found bonus prediction metadata for question text: {QuestionText} with model: {Model} and community context: {CommunityContext}",
                 questionText, modelConfig.DisplayName, communityContext);
 
-            return new BonusPredictionMetadata(bonusPrediction, createdAt, contextDocumentNames);
+            return new BonusPredictionMetadata(
+                bonusPrediction,
+                createdAt,
+                contextDocumentNames,
+                resolvedContextManifest);
         }
         catch (Exception ex)
         {
@@ -1533,10 +1608,66 @@ public class FirebasePredictionRepository : IPredictionRepository, IResolvedMatc
             cancellationToken);
     }
 
-    public async Task SaveBonusRepredictionAsync(BonusQuestion bonusQuestion, BonusPrediction bonusPrediction, PredictionModelConfig modelConfig, string tokenUsage, double cost, string communityContext, IEnumerable<string> contextDocumentNames, int repredictionIndex, CancellationToken cancellationToken = default)
+    public Task SaveBonusRepredictionAsync(BonusQuestion bonusQuestion, BonusPrediction bonusPrediction, PredictionModelConfig modelConfig, string tokenUsage, double cost, string communityContext, IEnumerable<string> contextDocumentNames, int repredictionIndex, CancellationToken cancellationToken = default)
+    {
+        return SaveBonusRepredictionInternalAsync(
+            bonusQuestion,
+            bonusPrediction,
+            modelConfig,
+            tokenUsage,
+            cost,
+            communityContext,
+            contextDocumentNames,
+            repredictionIndex,
+            null,
+            cancellationToken);
+    }
+
+    public Task SaveBonusRepredictionWithResolvedContextAsync(
+        BonusQuestion bonusQuestion,
+        BonusPrediction bonusPrediction,
+        PredictionModelConfig modelConfig,
+        string tokenUsage,
+        double cost,
+        string communityContext,
+        IEnumerable<string> contextDocumentNames,
+        int repredictionIndex,
+        ResolvedBonusContextManifest resolvedContextManifest,
+        CancellationToken cancellationToken = default)
+    {
+        return SaveBonusRepredictionInternalAsync(
+            bonusQuestion,
+            bonusPrediction,
+            modelConfig,
+            tokenUsage,
+            cost,
+            communityContext,
+            contextDocumentNames,
+            repredictionIndex,
+            resolvedContextManifest,
+            cancellationToken);
+    }
+
+    private async Task SaveBonusRepredictionInternalAsync(
+        BonusQuestion bonusQuestion,
+        BonusPrediction bonusPrediction,
+        PredictionModelConfig modelConfig,
+        string tokenUsage,
+        double cost,
+        string communityContext,
+        IEnumerable<string> contextDocumentNames,
+        int repredictionIndex,
+        ResolvedBonusContextManifest? resolvedContextManifest,
+        CancellationToken cancellationToken)
     {
         try
         {
+            var documentNames = contextDocumentNames?.ToArray()
+                ?? throw new ArgumentNullException(nameof(contextDocumentNames));
+            ValidateResolvedBonusContextManifestForWrite(
+                communityContext,
+                documentNames,
+                resolvedContextManifest);
             var now = Timestamp.GetCurrentTimestamp();
 
             // Create new document for this reprediction
@@ -1570,7 +1701,10 @@ public class FirebasePredictionRepository : IPredictionRepository, IResolvedMatc
                 TokenUsage = tokenUsage,
                 Cost = cost,
                 CommunityContext = communityContext,
-                ContextDocumentNames = contextDocumentNames.ToArray(),
+                ContextDocumentNames = documentNames,
+                ResolvedBonusContextManifest = resolvedContextManifest is null
+                    ? null
+                    : SerializeResolvedBonusContextManifest(resolvedContextManifest),
                 RepredictionIndex = repredictionIndex
             };
 
@@ -1927,6 +2061,83 @@ public class FirebasePredictionRepository : IPredictionRepository, IResolvedMatc
         {
             _logger.LogError(ex, "Failed to get available community contexts");
             throw;
+        }
+    }
+
+    private static string SerializeResolvedBonusContextManifest(ResolvedBonusContextManifest manifest)
+    {
+        ArgumentNullException.ThrowIfNull(manifest);
+        return JsonSerializer.Serialize(manifest, ResolvedContextManifestSerializerOptions);
+    }
+
+    private void ValidateResolvedBonusContextManifestForWrite(
+        string communityContext,
+        IReadOnlyList<string> contextDocumentNames,
+        ResolvedBonusContextManifest? manifest)
+    {
+        if (manifest is null)
+        {
+            if (string.Equals(_competition, CompetitionIds.Bundesliga2026_27, StringComparison.Ordinal))
+            {
+                throw new InvalidOperationException(
+                    "New Bundesliga 2026/27 bonus prediction writes require an immutable resolved bonus-context manifest.");
+            }
+
+            return;
+        }
+
+        ValidateResolvedBonusContextManifest(communityContext, contextDocumentNames, manifest);
+    }
+
+    private void ValidateResolvedBonusContextManifest(
+        string communityContext,
+        IReadOnlyList<string> contextDocumentNames,
+        ResolvedBonusContextManifest manifest)
+    {
+        if (!string.Equals(_competition, CompetitionIds.Bundesliga2026_27, StringComparison.Ordinal))
+        {
+            throw new InvalidOperationException(
+                "Resolved Bundesliga bonus-context manifests cannot be persisted outside the canonical Bundesliga competition scope.");
+        }
+
+        ResolvedBonusContextManifest.ValidateForCommunity(manifest, communityContext);
+        if (!contextDocumentNames.SequenceEqual(
+                manifest.Documents.Select(document => document.Name),
+                StringComparer.Ordinal))
+        {
+            throw new InvalidDataException(
+                "Bonus prediction context-document names do not match the immutable resolved bonus-context manifest.");
+        }
+    }
+
+    private static ResolvedBonusContextManifest? DeserializeResolvedBonusContextManifest(string? serialized)
+    {
+        if (string.IsNullOrWhiteSpace(serialized))
+        {
+            return null;
+        }
+
+        try
+        {
+            var manifest = JsonSerializer.Deserialize<ResolvedBonusContextManifest>(
+                               serialized,
+                               ResolvedContextManifestSerializerOptions)
+                           ?? throw new InvalidDataException(
+                               "Stored resolved bonus-context manifest cannot be null.");
+            var canonical = SerializeResolvedBonusContextManifest(manifest);
+            if (!string.Equals(canonical, serialized, StringComparison.Ordinal))
+            {
+                throw new InvalidDataException(
+                    "Stored resolved bonus-context manifest is not canonical JSON.");
+            }
+
+            return manifest;
+        }
+        catch (Exception exception) when (exception is JsonException or ArgumentException)
+        {
+            throw new InvalidDataException(
+                "Stored resolved bonus-context manifest is invalid.",
+                exception);
         }
     }
 

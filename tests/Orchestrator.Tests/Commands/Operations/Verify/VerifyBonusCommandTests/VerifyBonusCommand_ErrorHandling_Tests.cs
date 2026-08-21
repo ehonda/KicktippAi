@@ -138,8 +138,8 @@ public class VerifyBonusCommand_ErrorHandling_Tests : VerifyBonusCommandTests_Ba
             .ThrowsAsync(new InvalidOperationException("KPI lookup failed"));
 
         var mockFirebaseFactory = new Mock<IFirebaseServiceFactory>();
-        mockFirebaseFactory.Setup(f => f.CreatePredictionRepository(CompetitionIds.Bundesliga2026_27)).Returns(mockPredictionRepo.Object);
-        mockFirebaseFactory.Setup(f => f.CreateKpiRepository(CompetitionIds.Bundesliga2026_27)).Returns(mockKpiRepo.Object);
+        mockFirebaseFactory.Setup(f => f.CreatePredictionRepository(CompetitionIds.FifaWorldCup2026)).Returns(mockPredictionRepo.Object);
+        mockFirebaseFactory.Setup(f => f.CreateKpiRepository(CompetitionIds.FifaWorldCup2026)).Returns(mockKpiRepo.Object);
 
         var mockKicktippClient = CreateMockKicktippClient(
             openBonusQuestions: new List<BonusQuestion> { question },
@@ -151,7 +151,7 @@ public class VerifyBonusCommand_ErrorHandling_Tests : VerifyBonusCommandTests_Ba
             kicktippClientFactory: mockKicktippFactory);
 
         // Act
-        var (exitCode, output) = await RunCommandAsync(ctx.App, ctx.Console, "verify-bonus", "gpt-4o", "-c", "test", "--check-outdated", "-v");
+        var (exitCode, output) = await RunCommandAsync(ctx.App, ctx.Console, "verify-bonus", "gpt-4o", "-c", "test", "--competition", CompetitionIds.FifaWorldCup2026, "--check-outdated", "-v");
 
         // Assert - should still pass because exception is caught and treated as "not outdated"
         await Assert.That(exitCode).IsEqualTo(0);

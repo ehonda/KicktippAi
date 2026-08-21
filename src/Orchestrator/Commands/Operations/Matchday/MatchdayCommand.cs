@@ -567,7 +567,10 @@ public class MatchdayCommand : AsyncCommand<BaseSettings>
                         HomeTeam: match.HomeTeam,
                         AwayTeam: match.AwayTeam,
                         RepredictionIndex: predictionRepredictionIndex,
-                        Competition: competition);
+                        Competition: competition,
+                        ContextDocumentNames: contextDocuments.Select(document => document.Name).ToArray(),
+                        RosterPublicationSnapshotId: resolvedContextManifest?.RosterPublicationSnapshotId,
+                        ClubEloPublicationSnapshotId: resolvedContextManifest?.ClubEloPublicationSnapshotId);
 
                     // Predict the match
                     prediction = await predictionService.PredictMatchAsync(match, contextDocuments, settings.WithJustification, telemetryMetadata);

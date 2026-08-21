@@ -53,6 +53,7 @@ public class FirebasePredictionRepository_CompetitionIsolation_Tests(FirestoreFi
         var match = CreateMatch(homeTeam: "FC Bayern München", awayTeam: "Borussia Dortmund", matchday: 1);
         var question = CreateBonusQuestion(text: "Who will win?");
         var modelConfig = PredictionModelConfig.Create("gpt-5");
+        var bonusManifest = CreateBonusManifest("community-b");
         var manifest = ResolvedMatchContextManifest.Create(
             CompetitionIds.Bundesliga2026_27,
             "community-a",
@@ -74,14 +75,15 @@ public class FirebasePredictionRepository_CompetitionIsolation_Tests(FirestoreFi
             "community-a",
             manifest.Documents.Select(document => document.Name),
             manifest);
-        await repository.SaveBonusPredictionAsync(
+        await repository.SaveBonusPredictionWithResolvedContextAsync(
             question,
             new BonusPrediction([question.Options[0].Id]),
-            "gpt-5",
+            modelConfig,
             "100",
             0.01,
             "community-b",
-            []);
+            bonusManifest.Documents.Select(document => document.Name),
+            bonusManifest);
 
         var matchSnapshot = await Fixture.Db.Collection("match-predictions").GetSnapshotAsync();
         var bonusSnapshot = await Fixture.Db.Collection("bonus-predictions").GetSnapshotAsync();
@@ -100,4 +102,19 @@ public class FirebasePredictionRepository_CompetitionIsolation_Tests(FirestoreFi
         await Assert.That(bonusSnapshot.Documents[0].GetValue<string>("communityContext"))
             .IsEqualTo("community-b");
     }
+
+    private static ResolvedBonusContextManifest CreateBonusManifest(string communityContext) =>
+        ResolvedBonusContextManifest.Create(
+            CompetitionIds.Bundesliga2026_27,
+            communityContext,
+            [
+                new ResolvedBonusContextDocument(
+                    "Kpi", "club-elo-rankings", 1,
+                    DocumentPublicationContract.ComputeContentSha256("elo")),
+                new ResolvedBonusContextDocument(
+                    "Kpi", "team-squad-summary", 1,
+                    DocumentPublicationContract.ComputeContentSha256("summary"))
+            ],
+            new string('a', DocumentPublicationContract.Sha256HexLength),
+            new string('b', DocumentPublicationContract.Sha256HexLength));
 }

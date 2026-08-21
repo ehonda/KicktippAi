@@ -478,6 +478,29 @@ public static class OrchestratorTestFactories
                 It.IsAny<CancellationToken>()))
             .Returns(docs.ToAsyncEnumerable());
 
+        var resolvedBonus = mock.As<IResolvedBonusContextProvider>();
+        resolvedBonus.Setup(provider => provider.ResolveBonusQuestionContextAsync(
+                It.IsAny<BonusQuestion>(),
+                It.IsAny<string>(),
+                It.IsAny<CancellationToken>()))
+            .ReturnsAsync((BonusQuestion question, string communityContext, CancellationToken _) =>
+            {
+                try
+                {
+                    return CreateCanonicalBundesligaResolvedBonusContext(question, communityContext);
+                }
+                catch (InvalidOperationException)
+                {
+                    var baselineQuestion = CoreTestFactories.CreateBonusQuestion(
+                        text: "Wer wird Deutscher Meister?",
+                        deadline: question.Deadline,
+                        options: question.Options,
+                        maxSelections: question.MaxSelections,
+                        formFieldName: question.FormFieldName);
+                    return CreateCanonicalBundesligaResolvedBonusContext(baselineQuestion, communityContext);
+                }
+            });
+
         return mock;
     }
 
@@ -782,6 +805,18 @@ public static class OrchestratorTestFactories
                 It.IsAny<Match>(), It.IsAny<PredictionModelConfig>(), It.IsAny<string>(), It.IsAny<CancellationToken>()))
             .ReturnsAsync((ResolvedMatchContextManifest?)null);
 
+        var resolvedBonusContext = mock.As<IResolvedBonusContextPredictionRepository>();
+        resolvedBonusContext.Setup(repository => repository.SaveBonusPredictionWithResolvedContextAsync(
+                It.IsAny<BonusQuestion>(), It.IsAny<BonusPrediction>(), It.IsAny<PredictionModelConfig>(),
+                It.IsAny<string>(), It.IsAny<double>(), It.IsAny<string>(), It.IsAny<IEnumerable<string>>(),
+                It.IsAny<ResolvedBonusContextManifest>(), It.IsAny<bool>(), It.IsAny<CancellationToken>()))
+            .Returns(Task.CompletedTask);
+        resolvedBonusContext.Setup(repository => repository.SaveBonusRepredictionWithResolvedContextAsync(
+                It.IsAny<BonusQuestion>(), It.IsAny<BonusPrediction>(), It.IsAny<PredictionModelConfig>(),
+                It.IsAny<string>(), It.IsAny<double>(), It.IsAny<string>(), It.IsAny<IEnumerable<string>>(),
+                It.IsAny<int>(), It.IsAny<ResolvedBonusContextManifest>(), It.IsAny<CancellationToken>()))
+            .Returns(Task.CompletedTask);
+
         return mock;
     }
 
@@ -1027,6 +1062,45 @@ public static class OrchestratorTestFactories
                     : DocumentPublicationContract.ComputeContentSha256(ordinaryDocuments?.GetValueOrDefault(name)?.Content ?? name))),
             roster.Snapshot.SnapshotId,
             elo.Snapshot.SnapshotId);
+    }
+
+    public static ResolvedBonusContext CreateCanonicalBundesligaResolvedBonusContext(
+        BonusQuestion question,
+        string communityContext = "test-community")
+    {
+        var roster = CreateCanonicalRosterPublication();
+        var elo = CreateCanonicalClubEloPublication();
+        var reconstructedRosters = BundesligaRosterPublication.ReconstructLastKnownGood(roster);
+        var selection = BonusContextSelectionPolicy.SelectBundesliga(question, reconstructedRosters);
+        var byKey = roster.Documents.Concat(elo.Documents).ToDictionary(document => document.Key);
+        var selected = selection.RequiredDocuments.Select(key => byKey[key]).ToArray();
+        var manifest = ResolvedBonusContextManifest.Create(
+            CompetitionIds.Bundesliga2026_27,
+            communityContext,
+            selected.Select(document => new ResolvedBonusContextDocument(
+                document.Kind.ToString(),
+                document.Name,
+                document.Version,
+                DocumentPublicationContract.ComputeContentSha256(document.Content))),
+            roster.Snapshot.SnapshotId,
+            elo.Snapshot.SnapshotId);
+        return new ResolvedBonusContext(
+            selected.Select(document => new DocumentContext(document.Name, document.Content)),
+            manifest);
+    }
+
+    public static BonusPredictionMetadata CreateCanonicalBundesligaBonusPredictionMetadata(
+        BonusQuestion question,
+        BonusPrediction? prediction = null,
+        DateTimeOffset? createdAt = null,
+        string communityContext = "test-community")
+    {
+        var resolved = CreateCanonicalBundesligaResolvedBonusContext(question, communityContext);
+        return new BonusPredictionMetadata(
+            prediction ?? new BonusPrediction([question.Options[0].Id]),
+            createdAt ?? DateTimeOffset.UtcNow,
+            resolved.Documents.Select(document => document.Name).ToList(),
+            resolved.Manifest);
     }
 
     public static PredictionMetadata CreateCanonicalBundesligaPredictionMetadata(
