@@ -93,6 +93,16 @@ try {
     }
     $worktreeAdded = $true
 
+    $checkedOutCommitOutput = & git -C $worktreePath rev-parse --verify 'HEAD^{commit}'
+    $checkedOutCommitExitCode = $LASTEXITCODE
+    $checkedOutCommit = ($checkedOutCommitOutput -join '').Trim()
+    if (
+        $checkedOutCommitExitCode -ne 0 -or
+        [string]::IsNullOrWhiteSpace($checkedOutCommit) -or
+        -not $checkedOutCommit.Equals($startCommit, [System.StringComparison]::OrdinalIgnoreCase)) {
+        throw "Worktree commit validation failed. Expected '$startCommit', found '$checkedOutCommit'."
+    }
+
     $locatorDirectory = Join-Path $worktreePath '.codex-local'
     $locatorPath = Join-Path $locatorDirectory 'original-repository-path'
     New-Item -ItemType Directory -Path $locatorDirectory -Force | Out-Null
