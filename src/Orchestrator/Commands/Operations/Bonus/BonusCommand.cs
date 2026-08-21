@@ -34,6 +34,7 @@ public class BonusCommand : AsyncCommand<BonusSettings>
     private readonly IKicktippClientFactory _kicktippClientFactory;
     private readonly IOpenAiServiceFactory _openAiServiceFactory;
     private readonly IContextProviderFactory _contextProviderFactory;
+    private readonly ICommunityKicktippCredentialLoader _credentialLoader;
     private readonly ILogger<BonusCommand> _logger;
     private readonly ILangfusePublicApiClient? _langfuseClient;
 
@@ -43,6 +44,7 @@ public class BonusCommand : AsyncCommand<BonusSettings>
         IKicktippClientFactory kicktippClientFactory,
         IOpenAiServiceFactory openAiServiceFactory,
         IContextProviderFactory contextProviderFactory,
+        ICommunityKicktippCredentialLoader credentialLoader,
         ILogger<BonusCommand> logger,
         ILangfusePublicApiClient? langfuseClient = null)
     {
@@ -51,6 +53,7 @@ public class BonusCommand : AsyncCommand<BonusSettings>
         _kicktippClientFactory = kicktippClientFactory;
         _openAiServiceFactory = openAiServiceFactory;
         _contextProviderFactory = contextProviderFactory;
+        _credentialLoader = credentialLoader;
         _logger = logger;
         _langfuseClient = langfuseClient;
     }
@@ -184,6 +187,8 @@ public class BonusCommand : AsyncCommand<BonusSettings>
         LangfuseActivityPropagation.SetTraceMetadata(activity, "repredictMode", settings.IsRepredictMode ? "true" : "false");
 
         // Note: trace input is set after bonus questions are fetched
+
+        _credentialLoader.Load(settings.Community);
 
         // Create services using factories
         var kicktippClient = _kicktippClientFactory.CreateClient();

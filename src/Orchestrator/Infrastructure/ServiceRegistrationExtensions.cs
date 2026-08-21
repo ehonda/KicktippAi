@@ -67,6 +67,7 @@ public static class ServiceRegistrationExtensions
         // Register factories (idempotent)
         services.TryAddSingleton<IFirebaseServiceFactory, FirebaseServiceFactory>();
         services.TryAddSingleton<IKicktippClientFactory, KicktippClientFactory>();
+        services.TryAddSingleton<ICommunityKicktippCredentialLoader, CommunityKicktippCredentialLoader>();
         services.TryAddSingleton<IOpenAiServiceFactory, OpenAiServiceFactory>();
         services.TryAddSingleton<IContextProviderFactory, ContextProviderFactory>();
         services.TryAddSingleton<TimeProvider>(TimeProvider.System);

@@ -159,6 +159,64 @@ public class PathUtilityAndEnvironmentHelperTests : TempDirectoryTestBase
         await Assert.That(Environment.GetEnvironmentVariable(KicktippUsernameEnvVar)).IsEqualTo("pes-user");
         await Assert.That(Environment.GetEnvironmentVariable(KicktippPasswordEnvVar)).IsEqualTo("pes-pass");
         await Assert.That(logger.Collector.GetSnapshot().Any(record => record.Message.Contains("Loaded community-specific Kicktipp credentials from:"))).IsTrue();
+        await Assert.That(logger.Collector.GetSnapshot().Any(record =>
+            record.Message.Contains("pes-user") || record.Message.Contains("pes-pass"))).IsFalse();
+    }
+
+    [Test]
+    public async Task Missing_community_file_preserves_base_credentials()
+    {
+        CreateSolutionAndSecretsDirectories();
+        Environment.SetEnvironmentVariable(KicktippUsernameEnvVar, "base-user");
+        Environment.SetEnvironmentVariable(KicktippPasswordEnvVar, "base-pass");
+
+        var logger = new FakeLogger<PathUtilityAndEnvironmentHelperTests>();
+
+        EnvironmentHelper.LoadCommunityKicktippCredentials(logger, "missing-community");
+
+        await Assert.That(Environment.GetEnvironmentVariable(KicktippUsernameEnvVar)).IsEqualTo("base-user");
+        await Assert.That(Environment.GetEnvironmentVariable(KicktippPasswordEnvVar)).IsEqualTo("base-pass");
+    }
+
+    [Test]
+    public async Task Community_file_overrides_only_kicktipp_credential_pair()
+    {
+        var (_, secretsRoot) = CreateSolutionAndSecretsDirectories();
+        var orchestratorSecretsDirectory = Path.Combine(secretsRoot, "src", "Orchestrator");
+        Directory.CreateDirectory(orchestratorSecretsDirectory);
+        File.WriteAllText(
+            Path.Combine(orchestratorSecretsDirectory, ".env.test-community"),
+            "KICKTIPP_USERNAME=community-user\nKICKTIPP_PASSWORD=community-pass\nKICKTIPP_AI_TEST_ENV=must-not-load");
+        Environment.SetEnvironmentVariable(TestEnvVar, "base-value");
+
+        EnvironmentHelper.LoadCommunityKicktippCredentials(
+            new FakeLogger<PathUtilityAndEnvironmentHelperTests>(),
+            "test-community");
+
+        await Assert.That(Environment.GetEnvironmentVariable(TestEnvVar)).IsEqualTo("base-value");
+    }
+
+    [Test]
+    [Arguments("KICKTIPP_USERNAME=community-user")]
+    [Arguments("KICKTIPP_PASSWORD=community-pass")]
+    public async Task Incomplete_community_credential_pair_preserves_both_base_values(string siblingContents)
+    {
+        var (_, secretsRoot) = CreateSolutionAndSecretsDirectories();
+        var orchestratorSecretsDirectory = Path.Combine(secretsRoot, "src", "Orchestrator");
+        Directory.CreateDirectory(orchestratorSecretsDirectory);
+        File.WriteAllText(
+            Path.Combine(orchestratorSecretsDirectory, ".env.test-community"),
+            siblingContents);
+        Environment.SetEnvironmentVariable(KicktippUsernameEnvVar, "base-user");
+        Environment.SetEnvironmentVariable(KicktippPasswordEnvVar, "base-pass");
+
+        await Assert.That(() => EnvironmentHelper.LoadCommunityKicktippCredentials(
+                new FakeLogger<PathUtilityAndEnvironmentHelperTests>(),
+                "test-community"))
+            .Throws<InvalidOperationException>();
+
+        await Assert.That(Environment.GetEnvironmentVariable(KicktippUsernameEnvVar)).IsEqualTo("base-user");
+        await Assert.That(Environment.GetEnvironmentVariable(KicktippPasswordEnvVar)).IsEqualTo("base-pass");
     }
 
     [Test]

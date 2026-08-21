@@ -71,7 +71,8 @@ public abstract class MatchdayCommandTests_Base
         Option<Mock<IFirebaseServiceFactory>> firebaseServiceFactory = default,
         Option<Mock<IKicktippClientFactory>> kicktippClientFactory = default,
         Option<Mock<IOpenAiServiceFactory>> openAiServiceFactory = default,
-        Option<Mock<IContextProviderFactory>> contextProviderFactory = default)
+        Option<Mock<IContextProviderFactory>> contextProviderFactory = default,
+        Option<Mock<ICommunityKicktippCredentialLoader>> credentialLoader = default)
     {
         var testConsole = console.Or(() => new TestConsole());
 
@@ -109,6 +110,7 @@ public abstract class MatchdayCommandTests_Base
 
         var mockContextProviderFactory = contextProviderFactory.Or(() =>
             CreateMockContextProviderFactory());
+        var mockCredentialLoader = credentialLoader.Or(() => new Mock<ICommunityKicktippCredentialLoader>());
 
         var services = new ServiceCollection();
         services.AddSingleton<IAnsiConsole>(testConsole);
@@ -116,6 +118,7 @@ public abstract class MatchdayCommandTests_Base
         services.AddSingleton(mockKicktippFactory.Object);
         services.AddSingleton(mockOpenAiFactory.Object);
         services.AddSingleton(mockContextProviderFactory.Object);
+        services.AddSingleton(mockCredentialLoader.Object);
         services.AddSingleton(Mock.Of<ILangfusePublicApiClient>());
         services.AddSingleton<ILogger<MatchdayCommand>>(new FakeLogger<MatchdayCommand>());
 
@@ -135,6 +138,7 @@ public abstract class MatchdayCommandTests_Base
             mockKicktippFactory,
             mockOpenAiFactory,
             mockContextProviderFactory,
+            mockCredentialLoader,
             mockKicktippClient,
             mockPredictionRepository,
             mockContextRepository,
@@ -190,6 +194,7 @@ public abstract class MatchdayCommandTests_Base
         Mock<IKicktippClientFactory> KicktippClientFactory,
         Mock<IOpenAiServiceFactory> OpenAiServiceFactory,
         Mock<IContextProviderFactory> ContextProviderFactory,
+        Mock<ICommunityKicktippCredentialLoader> CredentialLoader,
         Mock<IKicktippClient> KicktippClient,
         Mock<IPredictionRepository> PredictionRepository,
         Mock<IContextRepository> ContextRepository,

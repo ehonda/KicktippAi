@@ -1,4 +1,5 @@
 using DotNetEnv;
+using DotNetEnv.Extensions;
 using Microsoft.Extensions.Logging;
 using System.Text.Json;
 
@@ -50,10 +51,16 @@ public static class EnvironmentHelper
             return;
         }
 
-        Env.Load(envPath);
+        var variables = Env.NoEnvVars()
+            .Load(envPath)
+            .ToDotEnvDictionary();
 
-        EnsureRequiredEnvironmentVariableIsPresent(KicktippUsernameEnvVar, envPath);
-        EnsureRequiredEnvironmentVariableIsPresent(KicktippPasswordEnvVar, envPath);
+        var username = GetRequiredCredential(variables, KicktippUsernameEnvVar, envPath);
+        var password = GetRequiredCredential(variables, KicktippPasswordEnvVar, envPath);
+
+        // Change the credential pair only after both sibling-file values have passed validation.
+        Environment.SetEnvironmentVariable(KicktippUsernameEnvVar, username);
+        Environment.SetEnvironmentVariable(KicktippPasswordEnvVar, password);
 
         logger.LogInformation("Loaded community-specific Kicktipp credentials from: {EnvPath}", envPath);
     }
@@ -125,11 +132,16 @@ public static class EnvironmentHelper
         }
     }
 
-    private static void EnsureRequiredEnvironmentVariableIsPresent(string variableName, string envPath)
+    private static string GetRequiredCredential(
+        IReadOnlyDictionary<string, string> variables,
+        string variableName,
+        string envPath)
     {
-        if (string.IsNullOrWhiteSpace(Environment.GetEnvironmentVariable(variableName)))
+        if (!variables.TryGetValue(variableName, out var value) || string.IsNullOrWhiteSpace(value))
         {
             throw new InvalidOperationException($"{Path.GetFileName(envPath)} must define {variableName}.");
         }
+
+        return value;
     }
 }

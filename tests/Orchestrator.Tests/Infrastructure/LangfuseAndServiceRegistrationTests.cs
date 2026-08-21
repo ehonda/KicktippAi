@@ -132,6 +132,10 @@ public class LangfuseAndServiceRegistrationTests
             descriptor.ServiceType == typeof(IKicktippClientFactory) &&
             descriptor.ImplementationType == typeof(KicktippClientFactory))).IsTrue();
         await Assert.That(services.Any(descriptor =>
+            descriptor.ServiceType == typeof(ICommunityKicktippCredentialLoader) &&
+            descriptor.ImplementationType == typeof(CommunityKicktippCredentialLoader) &&
+            descriptor.Lifetime == ServiceLifetime.Singleton)).IsTrue();
+        await Assert.That(services.Any(descriptor =>
             descriptor.ServiceType == typeof(IOpenAiServiceFactory) &&
             descriptor.ImplementationType == typeof(OpenAiServiceFactory))).IsTrue();
         await Assert.That(services.Any(descriptor =>

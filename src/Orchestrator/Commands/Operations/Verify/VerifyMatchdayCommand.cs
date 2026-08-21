@@ -14,17 +14,20 @@ public class VerifyMatchdayCommand : AsyncCommand<VerifySettings>
     private readonly IAnsiConsole _console;
     private readonly IFirebaseServiceFactory _firebaseServiceFactory;
     private readonly IKicktippClientFactory _kicktippClientFactory;
+    private readonly ICommunityKicktippCredentialLoader _credentialLoader;
     private readonly ILogger<VerifyMatchdayCommand> _logger;
 
     public VerifyMatchdayCommand(
         IAnsiConsole console,
         IFirebaseServiceFactory firebaseServiceFactory,
         IKicktippClientFactory kicktippClientFactory,
+        ICommunityKicktippCredentialLoader credentialLoader,
         ILogger<VerifyMatchdayCommand> logger)
     {
         _console = console;
         _firebaseServiceFactory = firebaseServiceFactory;
         _kicktippClientFactory = kicktippClientFactory;
+        _credentialLoader = credentialLoader;
         _logger = logger;
     }
 
@@ -70,7 +73,6 @@ public class VerifyMatchdayCommand : AsyncCommand<VerifySettings>
 
     private async Task<bool> ExecuteVerificationWorkflow(VerifySettings settings)
     {
-        var kicktippClient = _kicktippClientFactory.CreateClient();
         string communityContext = settings.CommunityContext ?? settings.Community;
         var competition = CompetitionResolver.ResolveCompetition(settings.Competition, settings.Community, communityContext);
         var modelConfig = PredictionServiceCommandSupport.CreateModelConfig(
@@ -85,6 +87,8 @@ public class VerifyMatchdayCommand : AsyncCommand<VerifySettings>
             settings.LangfusePromptVersion,
             settings.MaxOutputTokenCount,
             bonusPrompt: false);
+        _credentialLoader.Load(settings.Community);
+        var kicktippClient = _kicktippClientFactory.CreateClient();
         // Try to get the prediction repository (may be null if Firebase is not configured)
         var predictionRepository = _firebaseServiceFactory.CreatePredictionRepository(competition);
         if (predictionRepository == null)

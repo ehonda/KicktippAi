@@ -2,6 +2,7 @@ using ContextProviders.Kicktipp;
 using Microsoft.Extensions.Logging;
 using OpenAiIntegration;
 using Orchestrator.Commands.Operations.Bonus;
+using Orchestrator.Infrastructure;
 using Orchestrator.Infrastructure.Factories;
 using Orchestrator.Infrastructure.Langfuse;
 using Spectre.Console;
@@ -20,6 +21,7 @@ public sealed class BonusDevCommand : AsyncCommand<DevParticipationSettings>
         IKicktippClientFactory kicktippClientFactory,
         IOpenAiServiceFactory openAiServiceFactory,
         IContextProviderFactory contextProviderFactory,
+        ICommunityKicktippCredentialLoader credentialLoader,
         ILogger<BonusCommand> logger,
         ILangfusePublicApiClient? langfuseClient = null)
     {
@@ -30,6 +32,7 @@ public sealed class BonusDevCommand : AsyncCommand<DevParticipationSettings>
             kicktippClientFactory,
             openAiServiceFactory,
             contextProviderFactory,
+            credentialLoader,
             logger,
             langfuseClient);
     }
