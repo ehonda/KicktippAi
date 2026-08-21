@@ -8,13 +8,15 @@ public enum OpenLigaDbHistorySnapshotKind
 {
     SecondBundesliga,
     Relegation,
-    DfbPokal
+    DfbPokal,
+    DfbPokal2026LiveCompletion
 }
 
 public sealed record OpenLigaDbHistorySnapshotValidation(
     OpenLigaDbHistorySnapshotKind Kind,
     string Sha256,
     int MatchCount,
+    int CompletedMatchCount,
     IReadOnlySet<long> MatchIds);
 
 public static class OpenLigaDbHistorySnapshotValidator
@@ -45,6 +47,7 @@ public static class OpenLigaDbHistorySnapshotValidator
         }
 
         var ids = new HashSet<long>();
+        var completedIds = new HashSet<long>();
         foreach (var match in matches)
         {
             var matchId = RequiredInt64(match, "matchID", sourceName);
@@ -53,14 +56,19 @@ public static class OpenLigaDbHistorySnapshotValidator
                 throw Invalid(sourceName, $"matchID '{matchId}' must be positive and unique");
             }
 
-            if (!RequiredBoolean(match, "matchIsFinished", sourceName))
+            var isCompleted = RequiredBoolean(match, "matchIsFinished", sourceName);
+            if (isCompleted)
+            {
+                completedIds.Add(matchId);
+            }
+            if (contract.RequireAllCompleted && !isCompleted)
             {
                 throw Invalid(sourceName, $"matchID '{matchId}' is not completed");
             }
-            if (RequiredInt32(match, "leagueSeason", sourceName) != 2025
+            if (RequiredInt32(match, "leagueSeason", sourceName) != contract.LeagueSeason
                 || !string.Equals(RequiredString(match, "leagueShortcut", sourceName), contract.LeagueShortcut, StringComparison.Ordinal))
             {
-                throw Invalid(sourceName, $"matchID '{matchId}' is outside {contract.LeagueShortcut}/2025");
+                throw Invalid(sourceName, $"matchID '{matchId}' is outside {contract.LeagueShortcut}/{contract.LeagueSeason}");
             }
 
             ValidateExactDateTime(match, matchId, sourceName);
@@ -75,16 +83,24 @@ public static class OpenLigaDbHistorySnapshotValidator
             var fullTimeResults = results.EnumerateArray()
                 .Where(result => RequiredInt32(result, "resultTypeID", sourceName) == 2)
                 .ToArray();
-            if (fullTimeResults.Length != 1)
+            if (isCompleted && fullTimeResults.Length != 1)
             {
                 throw Invalid(sourceName, $"matchID '{matchId}' must have exactly one full-time resultTypeID 2");
             }
-            _ = RequiredInt32(fullTimeResults[0], "pointsTeam1", sourceName);
-            _ = RequiredInt32(fullTimeResults[0], "pointsTeam2", sourceName);
+            if (isCompleted)
+            {
+                _ = RequiredInt32(fullTimeResults[0], "pointsTeam1", sourceName);
+                _ = RequiredInt32(fullTimeResults[0], "pointsTeam2", sourceName);
+            }
         }
 
+        if (contract.ExactCompletedMatchIds is not null && !completedIds.SetEquals(contract.ExactCompletedMatchIds))
+        {
+            throw Invalid(sourceName,
+                $"completed match IDs must be exactly [{string.Join(',', contract.ExactCompletedMatchIds.Order())}]");
+        }
         contract.ValidateIdentities(matches, sourceName);
-        return new(kind, hash, matches.Length, ids);
+        return new(kind, hash, matches.Length, completedIds.Count, ids);
     }
 
     private static void ValidateExactDateTime(JsonElement match, long matchId, string sourceName)
@@ -167,18 +183,24 @@ public static class OpenLigaDbHistorySnapshotValidator
 
     private sealed record Contract(
         int MatchCount,
+        int LeagueSeason,
         string LeagueShortcut,
         string Revision,
+        bool RequireAllCompleted,
+        IReadOnlySet<long>? ExactCompletedMatchIds,
         Action<JsonElement[], string> ValidateIdentities)
     {
         public static Contract For(OpenLigaDbHistorySnapshotKind kind) => kind switch
         {
             OpenLigaDbHistorySnapshotKind.SecondBundesliga => new(
-                306, "bl2", BundesligaHistoryPlayedDateMap.OpenLigaDbLeagueRevision, (_, _) => { }),
+                306, 2025, "bl2", BundesligaHistoryPlayedDateMap.OpenLigaDbLeagueRevision, true, null, (_, _) => { }),
             OpenLigaDbHistorySnapshotKind.Relegation => new(
-                2, "rel", BundesligaHistoryPlayedDateMap.OpenLigaDbRelegationRevision, ValidateRelegation),
+                2, 2025, "rel", BundesligaHistoryPlayedDateMap.OpenLigaDbRelegationRevision, true, null, ValidateRelegation),
             OpenLigaDbHistorySnapshotKind.DfbPokal => new(
-                63, "dfb", BundesligaHistoryPlayedDateMap.OpenLigaDbDfbPokalRevision, ValidateDfbPokalFinal),
+                63, 2025, "dfb", BundesligaHistoryPlayedDateMap.OpenLigaDbDfbPokalRevision, true, null, ValidateDfbPokalFinal),
+            OpenLigaDbHistorySnapshotKind.DfbPokal2026LiveCompletion => new(
+                32, 2026, "dfb", BundesligaHistoryPlayedDateMap.OpenLigaDbDfbPokal2026Revision, false,
+                new HashSet<long> { 81832, 81848 }, ValidateDfbPokal2026LiveCompletion),
             _ => throw new ArgumentOutOfRangeException(nameof(kind), kind, null)
         };
 
@@ -213,10 +235,27 @@ public static class OpenLigaDbHistorySnapshotValidator
             }
         }
 
+        private static void ValidateDfbPokal2026LiveCompletion(JsonElement[] matches, string sourceName)
+        {
+            var match = matches.SingleOrDefault(value => RequiredInt64(value, "matchID", sourceName) == 81832);
+            if (match.ValueKind == JsonValueKind.Undefined
+                || !string.Equals(RequiredTeamName(match, "team1", 81832, sourceName), "SC St. Tönis", StringComparison.Ordinal)
+                || !string.Equals(RequiredTeamName(match, "team2", 81832, sourceName), "Eintracht Frankfurt", StringComparison.Ordinal)
+                || !string.Equals(ResultScore(match, 1, sourceName), "0:10", StringComparison.Ordinal)
+                || !string.Equals(ResultScore(match, 2, sourceName), "0:11", StringComparison.Ordinal)
+                || !string.Equals(RequiredString(match, "matchDateTime", sourceName), "2026-08-21T18:00:00", StringComparison.Ordinal))
+            {
+                throw Invalid(sourceName, "does not contain the accepted exact DFB-Pokal live completion identity");
+            }
+        }
+
         private static string FullTimeScore(JsonElement match, string sourceName)
+            => ResultScore(match, 2, sourceName);
+
+        private static string ResultScore(JsonElement match, int resultTypeId, string sourceName)
         {
             var result = RequiredProperty(match, "matchResults", sourceName).EnumerateArray()
-                .Single(value => RequiredInt32(value, "resultTypeID", sourceName) == 2);
+                .Single(value => RequiredInt32(value, "resultTypeID", sourceName) == resultTypeId);
             return $"{RequiredInt32(result, "pointsTeam1", sourceName)}:{RequiredInt32(result, "pointsTeam2", sourceName)}";
         }
     }
