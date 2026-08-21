@@ -38,6 +38,20 @@ public class KicktippContextProvider_HomeAwayHistory_Tests : KicktippContextProv
     }
 
     [Test]
+    public async Task Getting_home_history_for_requested_matchday_uses_matchday_scoped_client_lookup()
+    {
+        var mockClient = CreateMockKicktippClient();
+        var provider = CreateProvider(Option.Some(mockClient.Object), matchday: 2);
+
+        _ = await provider.HomeHistory(TestHomeTeam, TestAwayTeam);
+
+        mockClient.Verify(client => client.GetHomeAwayHistoryAsync(
+            TestCommunity, TestHomeTeam, TestAwayTeam, 2), Times.Once);
+        mockClient.Verify(client => client.GetHomeAwayHistoryAsync(
+            It.IsAny<string>(), It.IsAny<string>(), It.IsAny<string>()), Times.Never);
+    }
+
+    [Test]
     public async Task Getting_home_history_returns_correct_csv_format()
     {
         // Arrange

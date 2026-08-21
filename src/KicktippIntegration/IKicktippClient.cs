@@ -104,6 +104,20 @@ public interface IKicktippClient
     Task<(List<MatchResult> homeTeamHomeHistory, List<MatchResult> awayTeamAwayHistory)> GetHomeAwayHistoryAsync(string community, string homeTeam, string awayTeam);
 
     /// <summary>
+    /// Get home/away specific match history from the exact requested matchday's spielinfo pages.
+    /// </summary>
+    /// <param name="community">The community name</param>
+    /// <param name="homeTeam">The home team name</param>
+    /// <param name="awayTeam">The away team name</param>
+    /// <param name="matchday">The exact matchday index whose fixture pages must be searched</param>
+    /// <returns>Tuple containing home team's home history and away team's away history</returns>
+    Task<(List<MatchResult> homeTeamHomeHistory, List<MatchResult> awayTeamAwayHistory)> GetHomeAwayHistoryAsync(
+        string community,
+        string homeTeam,
+        string awayTeam,
+        int matchday);
+
+    /// <summary>
     /// Get head-to-head match history between two teams
     /// </summary>
     /// <param name="community">The community name</param>
