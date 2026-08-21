@@ -1,5 +1,9 @@
 namespace EHonda.KicktippAi.Core;
 
+public sealed record ContextDocumentWrite(string DocumentName, string Content);
+
+public sealed record ContextDocumentSaveResult(string DocumentName, int? Version);
+
 /// <summary>
 /// Repository interface for persisting and retrieving versioned context documents.
 /// </summary>
@@ -17,6 +21,15 @@ public interface IContextRepository
     Task<int?> SaveContextDocumentAsync(
         string documentName, 
         string content, 
+        string communityContext,
+        CancellationToken cancellationToken = default);
+
+    /// <summary>
+    /// Atomically saves a complete set of ordinary context documents. The operation either publishes every changed
+    /// document or publishes none; unchanged documents retain their existing versions.
+    /// </summary>
+    Task<IReadOnlyList<ContextDocumentSaveResult>> SaveContextDocumentsAtomicallyAsync(
+        IReadOnlyList<ContextDocumentWrite> documents,
         string communityContext,
         CancellationToken cancellationToken = default);
 

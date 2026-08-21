@@ -296,6 +296,111 @@ public class FirebaseContextRepository : IContextRepository
             firestoreDoc.CreatedAt.ToDateTimeOffset());
     }
 
+    public async Task<IReadOnlyList<ContextDocumentSaveResult>> SaveContextDocumentsAtomicallyAsync(
+        IReadOnlyList<ContextDocumentWrite> documents,
+        string communityContext,
+        CancellationToken cancellationToken = default)
+    {
+        ArgumentNullException.ThrowIfNull(documents);
+        ArgumentException.ThrowIfNullOrWhiteSpace(communityContext);
+        if (documents.Count == 0)
+        {
+            throw new ArgumentException("At least one context document is required for an atomic save.", nameof(documents));
+        }
+
+        var orderedDocuments = documents.OrderBy(document => document.DocumentName, StringComparer.Ordinal).ToArray();
+        foreach (var document in orderedDocuments)
+        {
+            ArgumentException.ThrowIfNullOrWhiteSpace(document.DocumentName);
+            ArgumentNullException.ThrowIfNull(document.Content);
+            BundesligaDocumentPublication.ThrowIfReservedForGenericMutation(
+                _competition,
+                DocumentPublicationKind.Context,
+                document.DocumentName);
+        }
+        var duplicate = orderedDocuments.GroupBy(document => document.DocumentName, StringComparer.Ordinal)
+            .FirstOrDefault(group => group.Count() > 1);
+        if (duplicate is not null)
+        {
+            throw new ArgumentException($"Atomic context save contains duplicate document '{duplicate.Key}'.", nameof(documents));
+        }
+        cancellationToken.ThrowIfCancellationRequested();
+
+        try
+        {
+            var results = await _firestoreDb.RunTransactionAsync(async transaction =>
+            {
+                var pending = new List<(ContextDocumentWrite Document, int? Version, DocumentReference? Reference)>();
+
+                // Firestore transactions require every read to happen before the first write. Build the entire batch
+                // and validate every ordinary row before staging any create operation.
+                foreach (var document in orderedDocuments)
+                {
+                    var query = _firestoreDb.Collection(_contextDocumentsCollection)
+                        .WhereEqualTo("documentName", document.DocumentName)
+                        .WhereEqualTo("communityContext", communityContext)
+                        .WhereEqualTo("competition", _competition)
+                        .OrderByDescending("version");
+                    var matchingRows = await transaction.GetSnapshotAsync(query);
+                    var ordinaryRows = matchingRows.Documents
+                        .Where(snapshot => string.IsNullOrEmpty(snapshot.ConvertTo<FirestoreContextDocument>().PublicationSet))
+                        .Select(snapshot => ValidateOrdinaryContextDocument(
+                            snapshot.ConvertTo<FirestoreContextDocument>(),
+                            document.DocumentName,
+                            communityContext,
+                            expectedVersion: null,
+                            snapshot.Id))
+                        .ToArray();
+                    var existing = ordinaryRows.FirstOrDefault();
+                    if (existing is not null && string.Equals(existing.Content, document.Content, StringComparison.Ordinal))
+                    {
+                        pending.Add((document, null, null));
+                        continue;
+                    }
+
+                    var nextVersion = matchingRows.Documents.Count == 0
+                        ? 0
+                        : checked(matchingRows.Documents.Max(snapshot => snapshot.GetValue<int>("version")) + 1);
+                    var documentId = BuildDocumentId(document.DocumentName, communityContext, nextVersion);
+                    pending.Add((document, nextVersion,
+                        _firestoreDb.Collection(_contextDocumentsCollection).Document(documentId)));
+                }
+
+                var createdAt = Timestamp.GetCurrentTimestamp();
+                foreach (var item in pending.Where(item => item.Version.HasValue))
+                {
+                    var documentId = item.Reference!.Id;
+                    transaction.Create(item.Reference, new FirestoreContextDocument
+                    {
+                        Id = documentId,
+                        DocumentName = item.Document.DocumentName,
+                        Content = item.Document.Content,
+                        Version = item.Version!.Value,
+                        CreatedAt = createdAt,
+                        Competition = _competition,
+                        CommunityContext = communityContext
+                    });
+                }
+
+                return (IReadOnlyList<ContextDocumentSaveResult>)pending
+                    .Select(item => new ContextDocumentSaveResult(item.Document.DocumentName, item.Version))
+                    .ToArray();
+            }, cancellationToken: cancellationToken);
+
+            _logger.LogInformation(
+                "Atomically saved {SavedCount} of {DocumentCount} context documents for community {CommunityContext}",
+                results.Count(result => result.Version.HasValue), results.Count, communityContext);
+            return results;
+        }
+        catch (Exception ex)
+        {
+            _logger.LogError(ex,
+                "Failed to atomically save {DocumentCount} context documents for community {CommunityContext}",
+                documents.Count, communityContext);
+            throw;
+        }
+    }
+
     private string BuildDocumentId(string documentName, string communityContext, int version)
     {
         return $"{_competition}_{documentName}_{communityContext}_{version}";

@@ -44,8 +44,9 @@ public sealed class BundesligaHistoryAuditCommand : AsyncCommand<BundesligaHisto
         if (documents.Count == 0) throw new InvalidOperationException("No selected Bundesliga history documents found");
         var outcomes = await BundesligaHistoryCommandSupport.LoadOutcomesAsync(
             _firebaseFactory.CreateMatchOutcomeRepository(settings.Competition), settings.CommunityContext, cancellationToken);
-        return _collector.Collect(settings.Competition, documents,
-            BundesligaHistoryCommandSupport.ReadMap(settings.Input).Entries, outcomes);
+        var dateMap = BundesligaHistoryCommandSupport.ReadMap(settings.Input).Entries;
+        return _collector.Collect(settings.Competition, documents, dateMap, outcomes,
+            dateMap.Select(entry => entry.DocumentName).ToHashSet(StringComparer.Ordinal));
     }
 
     internal void Print(BundesligaHistoryPlayedDateCollectionResult result, bool verbose)

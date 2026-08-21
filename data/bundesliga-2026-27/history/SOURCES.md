@@ -2,6 +2,16 @@
 
 The canonical map is [`history-played-dates.csv`](history-played-dates.csv). Runtime reads only checked-in files and never fetches these providers.
 
+## Frozen coverage
+
+- Read-only Kicktipp inventory: exact requested matchdays 1 and 2 for `ehonda-dev-buli-2627`.
+- Selected documents: all 54 manifest combinations (18 recent, 18 home, 18 away), each with at least one completed result.
+- Raw selected inventory: 432 rows. The canonical 398 completed rows cover 196 unique source matches; 34 incomplete scheduled rows were excluded before completed ordinals were assigned.
+- Source split: 326 rows / 152 unique matches from `transfermarkt-datasets`; 70 / 43 from OpenLigaDB; 2 / 1 from UEFA.
+- Canonical map SHA-256: `FD97CE0DBD218C1BB4DAA9B60D5132C11C3E00CE1CB0C121D15BEA92AF9DDD8E`.
+
+The checked-in map is the frozen inventory plus played-date provenance. Dates were joined directly to the accepted source identities; no date was derived from another selected document or from row ordering.
+
 ## transfermarkt-datasets
 
 - Scope: completed `1.BL`, `DFB`, `CL`, `EL`, and `ConfL` rows covered by the captured DuckDB artifact.

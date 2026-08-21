@@ -21,14 +21,15 @@ public class BundesligaHistoryPlayedDateCollectorTests
 
         var result = Collector.Collect(CompetitionIds.Bundesliga2026_27, documents, map, []);
 
-        await Assert.That(map.Count).IsEqualTo(263);
-        await Assert.That(map.Select(entry => (entry.SourceName, entry.SourceMatchId)).Distinct().Count()).IsEqualTo(147);
-        await Assert.That(map.Count(entry => entry.SourceName == BundesligaHistoryPlayedDateMap.TransfermarktDatasetSourceName)).IsEqualTo(214);
-        await Assert.That(map.Count(entry => entry.SourceName == BundesligaHistoryPlayedDateMap.OpenLigaDbSourceName)).IsEqualTo(47);
+        await Assert.That(map.Count).IsEqualTo(398);
+        await Assert.That(map.Select(entry => (entry.SourceName, entry.SourceMatchId)).Distinct().Count()).IsEqualTo(196);
+        await Assert.That(map.Count(entry => entry.SourceName == BundesligaHistoryPlayedDateMap.TransfermarktDatasetSourceName)).IsEqualTo(326);
+        await Assert.That(map.Count(entry => entry.SourceName == BundesligaHistoryPlayedDateMap.OpenLigaDbSourceName)).IsEqualTo(70);
         await Assert.That(map.Count(entry => entry.SourceName == BundesligaHistoryPlayedDateMap.UefaSourceName)).IsEqualTo(2);
         await Assert.That(result.Succeeded).IsTrue();
-        await Assert.That(result.FixedMapCount).IsEqualTo(263);
-        await Assert.That(result.Documents.Count).IsEqualTo(36);
+        await Assert.That(result.FixedMapCount).IsEqualTo(398);
+        await Assert.That(result.Documents.Count).IsEqualTo(54);
+        await Assert.That(map.Select(entry => entry.DocumentName).Distinct(StringComparer.Ordinal).Count()).IsEqualTo(54);
     }
 
     [Test]
@@ -120,6 +121,21 @@ public class BundesligaHistoryPlayedDateCollectorTests
     }
 
     [Test]
+    public async Task Inventory_export_rejects_header_only_and_incomplete_only_selected_documents()
+    {
+        var headerOnly = new BundesligaHistoryDocument(DocumentName,
+            "Competition,Home_Team,Away_Team,Score,Annotation\r\n");
+        var incompleteOnly = new BundesligaHistoryDocument(DocumentName,
+            "Competition,Home_Team,Away_Team,Score,Annotation\r\n" +
+            "DFB,Bayer 04 Leverkusen,VfB Stuttgart,,\r\n");
+
+        await Assert.That(() => BundesligaHistoryPlayedDateCollector.ExportInventory([headerOnly]))
+            .Throws<InvalidDataException>();
+        await Assert.That(() => BundesligaHistoryPlayedDateCollector.ExportInventory([incompleteOnly]))
+            .Throws<InvalidDataException>();
+    }
+
+    [Test]
     public async Task Repeated_application_is_byte_stable()
     {
         var map = new[] { Map(1, "1.BL", "Bayer 04 Leverkusen", "VfB Stuttgart", "3:1", "2026-05-09") };
@@ -188,6 +204,24 @@ public class BundesligaHistoryPlayedDateCollectorTests
     }
 
     [Test]
+    public async Task Explicit_expected_selected_document_set_must_match_exactly()
+    {
+        var content = Undated("1.BL,Bayer 04 Leverkusen,VfB Stuttgart,3:1,");
+        var documents = new[] { new BundesligaHistoryDocument(DocumentName, content) };
+        var map = new[] { Map(1, "1.BL", "Bayer 04 Leverkusen", "VfB Stuttgart", "3:1", "2026-05-09") };
+
+        var missing = Collector.Collect(CompetitionIds.Bundesliga2026_27, documents, map, [],
+            new HashSet<string>([DocumentName, "home-history-b04.csv"], StringComparer.Ordinal));
+        var unexpected = Collector.Collect(CompetitionIds.Bundesliga2026_27, documents, map, [],
+            new HashSet<string>(["home-history-b04.csv"], StringComparer.Ordinal));
+
+        await Assert.That(missing.Succeeded).IsFalse();
+        await Assert.That(missing.Diagnostics[0].Message).Contains("missing=[home-history-b04.csv]");
+        await Assert.That(unexpected.Succeeded).IsFalse();
+        await Assert.That(unexpected.Diagnostics[0].Message).Contains("unexpected=[recent-history-b04.csv]");
+    }
+
+    [Test]
     public async Task Existing_played_at_is_preserved_but_source_conflicts_fail()
     {
         var content = "Competition,Played_At,Home_Team,Away_Team,Score,Annotation\r\n" +
@@ -214,13 +248,13 @@ public class BundesligaHistoryPlayedDateCollectorTests
                 sourceClass: BundesligaHistoryPlayedDateMap.OpenLigaDbSourceClass)
         ]);
         using var reader = new StringReader(valid);
-        var parsed = BundesligaHistoryPlayedDateMap.Parse(reader, "test");
+        var parsed = BundesligaHistoryPlayedDateMap.ParseFragment(reader, "test");
 
         await Assert.That(parsed.Entries.Count).IsEqualTo(1);
         await Assert.That(() =>
         {
             using var invalidReader = new StringReader(valid.Replace("2.BL", "1.BL", StringComparison.Ordinal));
-            return BundesligaHistoryPlayedDateMap.Parse(invalidReader, "test");
+            return BundesligaHistoryPlayedDateMap.ParseFragment(invalidReader, "test");
         }).Throws<InvalidDataException>();
 
         var future = valid.Replace(
@@ -230,8 +264,36 @@ public class BundesligaHistoryPlayedDateCollectorTests
         await Assert.That(() =>
         {
             using var futureReader = new StringReader(future);
-            return BundesligaHistoryPlayedDateMap.Parse(futureReader, "test");
+            return BundesligaHistoryPlayedDateMap.ParseFragment(futureReader, "test");
         }).Throws<InvalidDataException>();
+    }
+
+    [Test]
+    public async Task Map_parser_binds_transfermarkt_competition_score_host_path_and_numeric_match_id()
+    {
+        var valid = Map(1, "1.BL", "Bayer 04 Leverkusen", "VfB Stuttgart", "3:1", "2026-05-09");
+        var invalidEntries = new[]
+        {
+            valid with { HistoryCompetition = "Friendly" },
+            valid with { Score = "3-1" },
+            valid with { SourceUrl = "https://example.com/example/index/spielbericht/4634534" },
+            valid with { SourceUrl = "https://www.transfermarkt.co.uk/example/index/spielbericht/9999999" },
+            valid with
+            {
+                SourceMatchId = "not-numeric",
+                SourceUrl = "https://www.transfermarkt.co.uk/example/index/spielbericht/not-numeric"
+            }
+        };
+
+        foreach (var entry in invalidEntries)
+        {
+            var content = BundesligaHistoryPlayedDateMap.Write([entry]);
+            await Assert.That(() =>
+            {
+                using var reader = new StringReader(content);
+                return BundesligaHistoryPlayedDateMap.ParseFragment(reader, "invalid-transfermarkt");
+            }).Throws<InvalidDataException>();
+        }
     }
 
     [Test]
@@ -251,7 +313,7 @@ public class BundesligaHistoryPlayedDateCollectorTests
         ]);
 
         using var reader = new StringReader(valid);
-        var parsed = BundesligaHistoryPlayedDateMap.Parse(reader, "test");
+        var parsed = BundesligaHistoryPlayedDateMap.ParseFragment(reader, "test");
 
         await Assert.That(parsed.Entries.Count).IsEqualTo(4);
         await Assert.That(() =>
@@ -260,7 +322,7 @@ public class BundesligaHistoryPlayedDateCollectorTests
                 BundesligaHistoryPlayedDateMap.OpenLigaDbDfbPokalRevision,
                 BundesligaHistoryPlayedDateMap.OpenLigaDbLeagueRevision,
                 StringComparison.Ordinal));
-            return BundesligaHistoryPlayedDateMap.Parse(invalidReader, "test");
+            return BundesligaHistoryPlayedDateMap.ParseFragment(invalidReader, "test");
         }).Throws<InvalidDataException>();
     }
 
@@ -279,13 +341,34 @@ public class BundesligaHistoryPlayedDateCollectorTests
         ]);
 
         using var reader = new StringReader(valid);
-        var parsed = BundesligaHistoryPlayedDateMap.Parse(reader, "test");
+        var parsed = BundesligaHistoryPlayedDateMap.ParseFragment(reader, "test");
 
         await Assert.That(parsed.Entries.Count).IsEqualTo(2);
         await Assert.That(() =>
         {
             using var invalidReader = new StringReader(valid.Replace("recent-history-scf.csv", "recent-history-b04.csv", StringComparison.Ordinal));
-            return BundesligaHistoryPlayedDateMap.Parse(invalidReader, "test");
+            return BundesligaHistoryPlayedDateMap.ParseFragment(invalidReader, "test");
+        }).Throws<InvalidDataException>();
+    }
+
+    [Test]
+    public async Task Production_map_parser_requires_all_manifest_documents_and_contiguous_completed_ordinals()
+    {
+        var complete = BundesligaHistoryPlayedDateMap.Default.Entries;
+        var missingDocument = BundesligaHistoryPlayedDateMap.Write(
+            complete.Where(entry => entry.DocumentName != "away-history-bvb.csv"));
+        var missingFirstOrdinal = BundesligaHistoryPlayedDateMap.Write(
+            complete.Where(entry => entry.DocumentName != "home-history-b04.csv" || entry.RowOrdinal != 1));
+
+        await Assert.That(() =>
+        {
+            using var reader = new StringReader(missingDocument);
+            return BundesligaHistoryPlayedDateMap.Parse(reader, "missing-document");
+        }).Throws<InvalidDataException>();
+        await Assert.That(() =>
+        {
+            using var reader = new StringReader(missingFirstOrdinal);
+            return BundesligaHistoryPlayedDateMap.Parse(reader, "missing-ordinal");
         }).Throws<InvalidDataException>();
     }
 

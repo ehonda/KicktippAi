@@ -15,7 +15,7 @@ Report this as one unique consumed source match covering four inventory rows. Th
 
 ## Alternatives considered
 
-- **Keep the expected count of three:** Rejected because it contradicts the canonical 263-row completed inventory.
+- **Keep the expected count of three:** Rejected because it contradicts both the original 263-row inventory and ADR-0032's superseding 398-row complete preseason inventory; both contain the same four final occurrences.
 - **Collapse repeated document rows:** Rejected because each selected document is an independent prompt context with its own exact row identity.
 
 ## Consequences

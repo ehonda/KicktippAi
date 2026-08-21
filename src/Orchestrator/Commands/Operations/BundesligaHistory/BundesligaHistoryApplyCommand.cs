@@ -29,8 +29,9 @@ public sealed class BundesligaHistoryApplyCommand : AsyncCommand<BundesligaHisto
             if (documents.Count == 0) throw new InvalidOperationException("No selected Bundesliga history documents found");
             var outcomes = await BundesligaHistoryCommandSupport.LoadOutcomesAsync(
                 _firebaseFactory.CreateMatchOutcomeRepository(settings.Competition), settings.CommunityContext, cancellationToken);
-            var result = _collector.Collect(settings.Competition, documents,
-                BundesligaHistoryCommandSupport.ReadMap(settings.Input).Entries, outcomes);
+            var dateMap = BundesligaHistoryCommandSupport.ReadMap(settings.Input).Entries;
+            var expectedDocumentNames = dateMap.Select(entry => entry.DocumentName).ToHashSet(StringComparer.Ordinal);
+            var result = _collector.Collect(settings.Competition, documents, dateMap, outcomes, expectedDocumentNames);
             if (!result.Succeeded)
             {
                 _console.MarkupLine($"[red]Strict apply gate failed with {result.Diagnostics.Count} diagnostic(s); no documents were written[/]");
@@ -48,9 +49,15 @@ public sealed class BundesligaHistoryApplyCommand : AsyncCommand<BundesligaHisto
                 return 0;
             }
 
-            foreach (var pair in changed)
-                await repository.SaveContextDocumentAsync(pair.First.Name, pair.First.Content, settings.CommunityContext, cancellationToken);
-            _console.MarkupLine($"[green]Strict apply completed; saved {changed.Length} document(s)[/]");
+            var saveResults = await repository.SaveContextDocumentsAtomicallyAsync(
+                result.Documents
+                    .OrderBy(document => document.Name, StringComparer.Ordinal)
+                    .Select(document => new ContextDocumentWrite(document.Name, document.Content))
+                    .ToArray(),
+                settings.CommunityContext,
+                cancellationToken);
+            var savedCount = saveResults.Count(saveResult => saveResult.Version.HasValue);
+            _console.MarkupLine($"[green]Strict apply completed; atomically saved {savedCount} document(s)[/]");
             _console.MarkupLine($"[dim]{sourceEvidence}[/]");
             return 0;
         }

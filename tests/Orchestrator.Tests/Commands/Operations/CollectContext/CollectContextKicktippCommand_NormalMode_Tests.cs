@@ -15,7 +15,9 @@ public class CollectContextKicktippCommand_NormalMode_Tests : CollectContextKick
     {
         var ctx = CreateCollectContextCommandApp();
 
-        var (exitCode, output) = await RunCommandAsync(ctx.App, ctx.Console, "collect-context-kicktipp", "--community-context", "test-community");
+        var (exitCode, output) = await RunCommandAsync(ctx.App, ctx.Console,
+            "collect-context-kicktipp", "--community-context", "test-community",
+            "--competition", CompetitionIds.FifaWorldCup2026);
 
         await Assert.That(exitCode).IsEqualTo(0);
         await Assert.That(output).Contains("Collect-context kicktipp command initialized");
@@ -38,10 +40,51 @@ public class CollectContextKicktippCommand_NormalMode_Tests : CollectContextKick
     {
         var ctx = CreateCollectContextCommandApp(matchesWithHistory: new List<MatchWithHistory>());
 
-        var (exitCode, output) = await RunCommandAsync(ctx.App, ctx.Console, "collect-context-kicktipp", "--community-context", "test-community");
+        var (exitCode, output) = await RunCommandAsync(ctx.App, ctx.Console,
+            "collect-context-kicktipp", "--community-context", "test-community",
+            "--competition", CompetitionIds.FifaWorldCup2026);
 
         await Assert.That(exitCode).IsEqualTo(0);
         await Assert.That(output).Contains("No matches found for current matchday");
+    }
+
+    [Test]
+    public async Task Bundesliga_running_command_with_no_matches_fails_closed()
+    {
+        var ctx = CreateCollectContextCommandApp(matchesWithHistory: new List<MatchWithHistory>());
+
+        var (exitCode, output) = await RunCommandAsync(ctx.App, ctx.Console,
+            "collect-context-kicktipp", "--community-context", "ehonda-dev-buli-2627",
+            "--competition", CompetitionIds.Bundesliga2026_27);
+
+        await Assert.That(exitCode).IsEqualTo(1);
+        await Assert.That(output).Contains("derived no").And.Contains("expected selected-history documents");
+        ctx.ContextRepository.Verify(repository => repository.SaveContextDocumentsAtomicallyAsync(
+            It.IsAny<IReadOnlyList<ContextDocumentWrite>>(), It.IsAny<string>(), It.IsAny<CancellationToken>()), Times.Never);
+    }
+
+    [Test]
+    public async Task Bundesliga_derives_the_exact_selected_history_set_from_fetched_fixtures()
+    {
+        var ctx = CreateCollectContextCommandApp();
+
+        var (exitCode, _) = await RunCommandAsync(ctx.App, ctx.Console,
+            "collect-context-kicktipp", "--community-context", "ehonda-dev-buli-2627",
+            "--competition", CompetitionIds.Bundesliga2026_27);
+
+        await Assert.That(exitCode).IsEqualTo(0);
+        ctx.HistoryCollector.Verify(collector => collector.Collect(
+            CompetitionIds.Bundesliga2026_27,
+            It.IsAny<IReadOnlyList<BundesligaHistoryDocument>>(),
+            It.IsAny<IReadOnlyList<BundesligaHistoryPlayedDateMapEntry>>(),
+            It.IsAny<IReadOnlyList<PersistedMatchOutcome>>(),
+            It.Is<IReadOnlySet<string>>(names => names.SetEquals(new[]
+            {
+                "away-history-bvb.csv",
+                "home-history-fcb.csv",
+                "recent-history-bvb.csv",
+                "recent-history-fcb.csv"
+            }))), Times.Once);
     }
 
     [Test]
@@ -54,7 +97,9 @@ public class CollectContextKicktippCommand_NormalMode_Tests : CollectContextKick
         };
         var ctx = CreateCollectContextCommandApp(matchesWithHistory: matches);
 
-        var (exitCode, output) = await RunCommandAsync(ctx.App, ctx.Console, "collect-context-kicktipp", "--community-context", "test-community");
+        var (exitCode, output) = await RunCommandAsync(ctx.App, ctx.Console,
+            "collect-context-kicktipp", "--community-context", "test-community",
+            "--competition", CompetitionIds.FifaWorldCup2026);
 
         await Assert.That(exitCode).IsEqualTo(0);
         await Assert.That(output).Contains("Found 2 matches for current matchday");
@@ -65,7 +110,9 @@ public class CollectContextKicktippCommand_NormalMode_Tests : CollectContextKick
     {
         var ctx = CreateCollectContextCommandApp();
 
-        var (exitCode, output) = await RunCommandAsync(ctx.App, ctx.Console, "collect-context-kicktipp", "--community-context", "test-community");
+        var (exitCode, output) = await RunCommandAsync(ctx.App, ctx.Console,
+            "collect-context-kicktipp", "--community-context", "test-community",
+            "--competition", CompetitionIds.FifaWorldCup2026);
 
         await Assert.That(exitCode).IsEqualTo(0);
         await Assert.That(output).Contains("Collecting context for:");
@@ -104,7 +151,9 @@ public class CollectContextKicktippCommand_NormalMode_Tests : CollectContextKick
         };
         var ctx = CreateCollectContextCommandApp(matchesWithHistory: matches, contextDocuments: docs);
 
-        var (exitCode, output) = await RunCommandAsync(ctx.App, ctx.Console, "collect-context-kicktipp", "--community-context", "test-community");
+        var (exitCode, output) = await RunCommandAsync(ctx.App, ctx.Console,
+            "collect-context-kicktipp", "--community-context", "test-community",
+            "--competition", CompetitionIds.FifaWorldCup2026);
 
         await Assert.That(exitCode).IsEqualTo(0);
         await Assert.That(output).Contains("Collected 1 unique context documents");

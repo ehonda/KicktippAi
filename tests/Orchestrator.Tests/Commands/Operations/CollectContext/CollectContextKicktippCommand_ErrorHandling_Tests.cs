@@ -23,7 +23,9 @@ public class CollectContextKicktippCommand_ErrorHandling_Tests : CollectContextK
 
         var ctx = CreateCollectContextCommandApp(kicktippClientFactory: CreateMockKicktippClientFactory(mockKicktippClient));
 
-        var (exitCode, output) = await RunCommandAsync(ctx.App, ctx.Console, "collect-context-kicktipp", "--community-context", "test-community");
+        var (exitCode, output) = await RunCommandAsync(ctx.App, ctx.Console,
+            "collect-context-kicktipp", "--community-context", "test-community",
+            "--competition", CompetitionIds.FifaWorldCup2026);
 
         await Assert.That(exitCode).IsEqualTo(1);
         await Assert.That(output).Contains("Error:");
@@ -41,10 +43,55 @@ public class CollectContextKicktippCommand_ErrorHandling_Tests : CollectContextK
         var mockContextProviderFactory = CreateMockContextProviderFactory(mockContextProvider);
         var ctx = CreateCollectContextCommandApp(contextProviderFactory: mockContextProviderFactory);
 
-        var (exitCode, output) = await RunCommandAsync(ctx.App, ctx.Console, "collect-context-kicktipp", "--community-context", "test-community");
+        var (exitCode, output) = await RunCommandAsync(ctx.App, ctx.Console,
+            "collect-context-kicktipp", "--community-context", "test-community",
+            "--competition", CompetitionIds.FifaWorldCup2026);
 
         await Assert.That(exitCode).IsEqualTo(0); // Continues processing
         await Assert.That(output).Contains("Failed to collect context: Context fetch failed");
+    }
+
+    [Test]
+    public async Task Bundesliga_context_collection_exception_is_fatal_and_publishes_no_history_batch()
+    {
+        var mockContextProvider = new Mock<IKicktippContextProvider>();
+        mockContextProvider
+            .Setup(provider => provider.GetMatchContextAsync(
+                It.IsAny<string>(), It.IsAny<string>(), It.IsAny<CancellationToken>()))
+            .Returns(CreateThrowingAsyncEnumerable<DocumentContext>(new InvalidOperationException("Context fetch failed")));
+        var ctx = CreateCollectContextCommandApp(
+            contextProviderFactory: CreateMockContextProviderFactory(mockContextProvider));
+
+        var (exitCode, output) = await RunCommandAsync(ctx.App, ctx.Console,
+            "collect-context-kicktipp", "--community-context", "ehonda-dev-buli-2627",
+            "--competition", CompetitionIds.Bundesliga2026_27);
+
+        await Assert.That(exitCode).IsEqualTo(1);
+        await Assert.That(output).Contains("complete selected-history set was not published");
+        ctx.ContextRepository.Verify(repository => repository.SaveContextDocumentsAtomicallyAsync(
+            It.IsAny<IReadOnlyList<ContextDocumentWrite>>(), It.IsAny<string>(), It.IsAny<CancellationToken>()), Times.Never);
+    }
+
+    [Test]
+    public async Task Bundesliga_atomic_history_save_failure_does_not_print_success()
+    {
+        var repository = CreateMockContextRepositoryWithPreviousDocuments([]);
+        repository.Setup(value => value.SaveContextDocumentsAtomicallyAsync(
+                It.IsAny<IReadOnlyList<ContextDocumentWrite>>(),
+                It.IsAny<string>(),
+                It.IsAny<CancellationToken>()))
+            .ThrowsAsync(new InvalidOperationException("Atomic save failed"));
+        var ctx = CreateCollectContextCommandApp(
+            firebaseServiceFactory: CreateMockFirebaseServiceFactoryFull(contextRepository: repository));
+
+        var (exitCode, output) = await RunCommandAsync(ctx.App, ctx.Console,
+            "collect-context-kicktipp", "--community-context", "ehonda-dev-buli-2627",
+            "--competition", CompetitionIds.Bundesliga2026_27);
+
+        await Assert.That(exitCode).IsEqualTo(1);
+        await Assert.That(output).Contains("Atomic save failed").And.DoesNotContain("Context collection completed");
+        repository.Verify(value => value.SaveContextDocumentAsync(
+            It.IsAny<string>(), It.IsAny<string>(), It.IsAny<string>(), It.IsAny<CancellationToken>()), Times.Never);
     }
 
     [Test]
@@ -70,7 +117,9 @@ public class CollectContextKicktippCommand_ErrorHandling_Tests : CollectContextK
         var mockContextProviderFactory = CreateMockContextProviderFactory(mockContextProvider);
         var ctx = CreateCollectContextCommandApp(matchesWithHistory: matches, contextProviderFactory: mockContextProviderFactory);
 
-        var (exitCode, output) = await RunCommandAsync(ctx.App, ctx.Console, "collect-context-kicktipp", "--community-context", "test-community");
+        var (exitCode, output) = await RunCommandAsync(ctx.App, ctx.Console,
+            "collect-context-kicktipp", "--community-context", "test-community",
+            "--competition", CompetitionIds.FifaWorldCup2026);
 
         await Assert.That(exitCode).IsEqualTo(0);
         await Assert.That(output).Contains("Failed to collect context: First match failed");
