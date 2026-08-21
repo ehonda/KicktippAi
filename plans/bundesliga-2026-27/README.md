@@ -117,3 +117,5 @@ P0 is complete only when:
 - [ADR-0033: Pin the validation model ledger and reserve production selection](decisions/0033-pin-validation-model-ledger-and-reserve-production-selection.md)
 - [ADR-0034: Drive context collection from competition profiles](decisions/0034-drive-context-collection-from-competition-profiles.md)
 - [ADR-0035: Freeze the first live DFB-Pokal history completion](decisions/0035-freeze-first-live-dfb-history-completion.md)
+- [ADR-0036: Retire legacy team and manager context](decisions/0036-retire-legacy-team-manager-context.md)
+- [ADR-0037: Record immutable bonus-context manifests](decisions/0037-record-immutable-bonus-context-manifests.md)
