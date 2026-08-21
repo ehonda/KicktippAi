@@ -22,14 +22,17 @@ Development and reusable collection orchestration select Kicktipp, Club Elo, and
 ## Validation
 
 - [x] `CollectContextDevCommandTests`: `4/4` passed in `1.809s`, including real-executor WM26 preservation and a real-executor Bundesliga composite dry-run whose context/outcome/publication writes throw if reached and whose inactive WM sources throw if resolved.
-- [x] Competition-profile/orchestration tests: `17/17` passed in `1.398s`; shared competition resolver tests: `21/21` passed in `0.535s`.
+- [x] Competition-profile/orchestration tests: `18/18` passed in `2.663s`; shared competition resolver tests: `21/21` passed in `0.535s`.
 - [x] All affected `CollectContext*` command tests: `81/81` passed in `38.783s`.
-- [x] Full `Orchestrator.Tests`: `947/947` passed in `1m 35.323s`.
-- [x] `dotnet build KicktippAi.slnx`: succeeded in `43.71s` with `0` errors (existing warnings remain).
+- [x] Full `Orchestrator.Tests`: `948/948` passed in `1m 23.565s`.
+- [x] `dotnet build KicktippAi.slnx --no-restore`: succeeded in `16.25s` with `0` errors (existing warnings remain).
 - [x] Deterministic dry-run regressions compare the Bundesliga collector list (`Kicktipp`, embedded `BundesligaHistoryPlayedDates`, `ClubElo`, `Rosters`) with the preserved WM26 list (`Kicktipp`, `Wm26HistoryPlayedDates`, `FifaRankings`, `NationalLineups`) and prove no writes.
+- [x] On `2026-08-21`, an authenticated read-only fetch of [the `ehonda-dev-buli-2627` Kicktipp rules](https://www.kicktipp.de/ehonda-dev-buli-2627/spielregeln) verified win points `2/3/4` (tendency/goal difference/exact), draw points `2/4` (tendency/exact), and `4` points for a correct bonus answer. The normal-match contract is frozen in `community-rules/ehonda-dev-buli-2627.md` with SHA-256 `e52945f0d63e9a332ee225d4a9fd60677b761771dac0ac6cc8d7957143252292`, exactly matching `pes-squad.md` and `ehonda-ai-arena.md`, not `ehonda-test-buli.md`. Its narrow Git attribute stores normalized LF in the index and reconstructs all `43` line terminators as CRLF, including the final terminator; a fresh index checkout reproduced the same SHA-256.
+- [x] The first credentialed Bundesliga profile dry-run authenticated and fetched exactly nine fixtures, then failed only because `community-rules/ehonda-dev-buli-2627.md` was not yet tracked. Dry-run prevented writes; this follow-up supplies that missing required profile document.
+- [x] Installing the original-repository locator exposed the real base Firebase environment to the full test process, so three environment-helper cases initially short-circuited their synthetic file paths (`945/948`, while the class passed `9/9` alone). The affected tests now explicitly clear inherited project/service-account variables after saving them for restoration; the class passes `9/9` in `0.920s` and the subsequent default full suite passes `948/948`.
 - [ ] After integration, run the only credentialed live profile dry-run against `ehonda-dev-buli-2627` and record its collector list. WM26 is retired and must remain deterministic regression coverage only; do not contact live WM26 Kicktipp.
 
-No credentialed Kicktipp or Firebase run and no external write occurred in this implementation lane.
+No external write occurred. The implementation agent did not handle credentials; the authenticated read-only source and first dry-run evidence above were supplied by the root orchestrator.
 
 ## Complete when
 

@@ -110,6 +110,9 @@ public class PathUtilityAndEnvironmentHelperTests : TempDirectoryTestBase
     [Test]
     public async Task Loading_environment_variables_loads_dotenv_and_firebase_credentials()
     {
+        ClearFirebaseEnvironmentVariables();
+        Environment.SetEnvironmentVariable(TestEnvVar, null);
+
         var (_, secretsRoot) = CreateSolutionAndSecretsDirectories();
         var orchestratorSecretsDirectory = Path.Combine(secretsRoot, "src", "Orchestrator");
         Directory.CreateDirectory(orchestratorSecretsDirectory);
@@ -161,6 +164,8 @@ public class PathUtilityAndEnvironmentHelperTests : TempDirectoryTestBase
     [Test]
     public async Task Loading_environment_variables_without_files_logs_guidance_messages()
     {
+        ClearFirebaseEnvironmentVariables();
+
         CreateSolutionAndSecretsDirectories();
         var logger = new FakeLogger<PathUtilityAndEnvironmentHelperTests>();
 
@@ -202,6 +207,8 @@ public class PathUtilityAndEnvironmentHelperTests : TempDirectoryTestBase
     [Test]
     public async Task Invalid_firebase_json_logs_parse_error()
     {
+        ClearFirebaseEnvironmentVariables();
+
         var (_, secretsRoot) = CreateSolutionAndSecretsDirectories();
         var orchestratorSecretsDirectory = Path.Combine(secretsRoot, "src", "Orchestrator");
         Directory.CreateDirectory(orchestratorSecretsDirectory);
@@ -225,6 +232,12 @@ public class PathUtilityAndEnvironmentHelperTests : TempDirectoryTestBase
         {
             _originalEnvironmentVariables[name] = Environment.GetEnvironmentVariable(name);
         }
+    }
+
+    private static void ClearFirebaseEnvironmentVariables()
+    {
+        Environment.SetEnvironmentVariable(FirebaseProjectIdEnvVar, null);
+        Environment.SetEnvironmentVariable(FirebaseServiceAccountJsonEnvVar, null);
     }
 
     private (string SolutionRoot, string SecretsRoot) CreateSolutionAndSecretsDirectories()
