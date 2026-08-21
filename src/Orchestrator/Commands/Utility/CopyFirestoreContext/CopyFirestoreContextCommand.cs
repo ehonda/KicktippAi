@@ -32,9 +32,9 @@ public sealed class CopyFirestoreContextCommand : AsyncCommand<CopyFirestoreCont
         {
             var prefixes = SplitCsvOption(settings.ContextPrefix);
             var kpiDocumentNames = SplitCsvOption(settings.KpiDocument);
-            var competition = CompetitionResolver.ResolveCompetition(
+            var competition = CompetitionResolver.ResolveTargetCompetition(
                 settings.Competition,
-                communityContext: settings.TargetCommunityContext);
+                settings.TargetCommunityContext);
             var sourceCompetition = CompetitionResolver.ResolveCompetition(
                 competition: null,
                 communityContext: settings.SourceCommunityContext);

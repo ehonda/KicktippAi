@@ -131,6 +131,10 @@ public class CopyFirestoreContextCommandTests
 
     [Arguments("team-data")]
     [Arguments("team-squad-summary")]
+    [Arguments("roster-fcb")]
+    [Arguments("roster-invalid-shadow")]
+    [Arguments("recent-history-fcb.csv")]
+    [Arguments("team-rosters")]
     [Test]
     public async Task Live_bundesliga_retired_or_profile_owned_kpi_copy_fails_before_writes(string documentName)
     {
@@ -176,6 +180,80 @@ public class CopyFirestoreContextCommandTests
         await Assert.That(console.Output).Contains("Cannot copy context");
         contextRepository.Verify(r => r.GetContextDocumentNamesAsync(
             It.IsAny<string>(), It.IsAny<CancellationToken>()), Times.Never);
+    }
+
+    [Arguments("team-squad-summary")]
+    [Arguments("club-elo-rankings")]
+    [Test]
+    public async Task Live_bundesliga_wrong_kind_context_copy_fails_before_writes(string documentName)
+    {
+        var contextRepository = CreateContextRepository(new Dictionary<string, ContextDocument>
+        {
+            [documentName] = CreateContextDocument(documentName, "wrong-kind content")
+        });
+        var kpiRepository = new Mock<IKpiRepository>();
+        var (app, console, _, _) = CreateCopyCommandApp(contextRepository, kpiRepository);
+
+        var exitCode = await app.RunAsync([
+            "copy-firestore-context",
+            "--source-community-context", "source-community",
+            "--target-community-context", "ehonda-dev-buli-2627",
+            "--competition", CompetitionIds.Bundesliga2026_27,
+            "--context-prefix", documentName,
+            "--dry-run"
+        ]);
+
+        await Assert.That(exitCode).IsEqualTo(1);
+        await Assert.That(console.Output).Contains("Wrong-kind");
+        contextRepository.Verify(repository => repository.SaveContextDocumentAsync(
+            It.IsAny<string>(), It.IsAny<string>(), It.IsAny<string>(), It.IsAny<CancellationToken>()), Times.Never);
+    }
+
+    [Test]
+    public async Task Known_target_community_conflict_fails_before_repository_access_even_in_dry_run()
+    {
+        var contextRepository = new Mock<IContextRepository>();
+        var kpiRepository = new Mock<IKpiRepository>();
+        var (app, console, _, _) = CreateCopyCommandApp(contextRepository, kpiRepository);
+
+        var exitCode = await app.RunAsync([
+            "copy-firestore-context",
+            "--source-community-context", "source-community",
+            "--target-community-context", "ehonda-dev-wm26",
+            "--competition", CompetitionIds.Bundesliga2026_27,
+            "--context-prefix", "operator-notes",
+            "--dry-run"
+        ]);
+
+        await Assert.That(exitCode).IsEqualTo(1);
+        await Assert.That(console.Output).Contains("belongs to");
+        contextRepository.Verify(repository => repository.GetContextDocumentNamesAsync(
+            It.IsAny<string>(), It.IsAny<CancellationToken>()), Times.Never);
+        kpiRepository.Verify(repository => repository.GetKpiDocumentAsync(
+            It.IsAny<string>(), It.IsAny<string>(), It.IsAny<CancellationToken>()), Times.Never);
+    }
+
+    [Test]
+    public async Task Multi_scope_target_is_not_treated_as_an_exact_community_conflict()
+    {
+        var contextRepository = CreateContextRepository(new Dictionary<string, ContextDocument>
+        {
+            ["operator-notes.md"] = CreateContextDocument("operator-notes.md", "bounded notes")
+        });
+        var kpiRepository = new Mock<IKpiRepository>();
+        var (app, console, _, _) = CreateCopyCommandApp(contextRepository, kpiRepository);
+
+        var exitCode = await app.RunAsync([
+            "copy-firestore-context",
+            "--source-community-context", "source-community",
+            "--target-community-context", "ehonda-ai-arena",
+            "--competition", CompetitionIds.Bundesliga2026_27,
+            "--context-prefix", "operator-notes",
+            "--dry-run"
+        ]);
+
+        await Assert.That(exitCode).IsEqualTo(0);
+        await Assert.That(console.Output).Contains("Would copy 1 context document(s)");
     }
 
     private static Task<int> RunLineupCopyAsync(CommandApp app, params string[] extraArgs)

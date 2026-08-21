@@ -242,4 +242,28 @@ public class CompetitionResolverTests
         await Assert.That(() => CompetitionResolver.ResolveDevelopmentCompetition(community, competition))
             .Throws<InvalidOperationException>();
     }
+
+    [Test]
+    [Arguments("ehonda-dev-buli-2627", CompetitionIds.FifaWorldCup2026)]
+    [Arguments("ehonda-dev-wm26", CompetitionIds.Bundesliga2026_27)]
+    public async Task Target_resolution_rejects_exact_known_community_conflicts(
+        string communityContext,
+        string competition)
+    {
+        await Assert.That(() => CompetitionResolver.ResolveTargetCompetition(competition, communityContext))
+            .Throws<InvalidOperationException>();
+    }
+
+    [Test]
+    [Arguments("ehonda-ai-arena", CompetitionIds.Bundesliga2026_27)]
+    [Arguments("historical-community", CompetitionIds.Bundesliga2025_26)]
+    [Arguments("unmapped-community", CompetitionIds.FifaWorldCup2026)]
+    public async Task Target_resolution_preserves_multi_scope_unmapped_and_historical_targets(
+        string communityContext,
+        string competition)
+    {
+        var resolved = CompetitionResolver.ResolveTargetCompetition(competition, communityContext);
+
+        await Assert.That(resolved).IsEqualTo(competition);
+    }
 }

@@ -50,6 +50,7 @@ public class ContextHygieneInventoryCommandTests
 
         await Assert.That(exitCode).IsEqualTo(0);
         using var json = JsonDocument.Parse(console.Output);
+        await Assert.That(json.RootElement.GetProperty("identityConflictCount").GetInt32()).IsEqualTo(0);
         var rows = json.RootElement.GetProperty("documents").EnumerateArray().ToArray();
         var legacy = rows.Single(row => row.GetProperty("name").GetString() == "team-data");
         await Assert.That(legacy.GetProperty("classification").GetString())
@@ -109,6 +110,101 @@ public class ContextHygieneInventoryCommandTests
     }
 
     [Test]
+    public async Task Inventory_distinguishes_matching_generic_identities_from_context_and_kpi_head_conflicts()
+    {
+        var publicationRepository = CreateMockBundesligaDocumentPublicationRepository();
+        var rosterPublication = await publicationRepository.Object.GetLastKnownGoodAsync(
+            BundesligaDocumentPublication.Rosters,
+            "test-community");
+        var eloPublication = await publicationRepository.Object.GetLastKnownGoodAsync(
+            BundesligaDocumentPublication.ClubElo,
+            "test-community");
+        var headedRoster = rosterPublication!.Documents.Single(document => document.Name == "roster-fcb");
+        var headedSquadSummary = rosterPublication.Documents.Single(document => document.Name == "team-squad-summary");
+        var headedElo = eloPublication!.Documents.Single(document => document.Name == "club-elo-fcb.csv");
+        var headedEloRankings = eloPublication.Documents.Single(document => document.Name == "club-elo-rankings");
+
+        var contextRepository = new Mock<IContextRepository>();
+        contextRepository.Setup(repository => repository.GetContextDocumentNamesAsync(
+                "test-community", It.IsAny<CancellationToken>()))
+            .ReturnsAsync(["roster-fcb", "club-elo-fcb.csv"]);
+        var contextDocuments = new Dictionary<string, ContextDocument>(StringComparer.Ordinal)
+        {
+            ["roster-fcb"] = new(
+                "roster-fcb",
+                "SECRET_DIVERGENT_ROSTER_CONTENT",
+                headedRoster.Version + 50,
+                headedRoster.CreatedAt.AddMinutes(1)),
+            ["club-elo-fcb.csv"] = new(
+                "club-elo-fcb.csv",
+                headedElo.Content,
+                headedElo.Version,
+                headedElo.CreatedAt)
+        };
+        contextRepository.Setup(repository => repository.GetLatestContextDocumentAsync(
+                It.IsAny<string>(), "test-community", It.IsAny<CancellationToken>()))
+            .ReturnsAsync((string name, string _, CancellationToken _) => contextDocuments[name]);
+
+        var kpiRepository = new Mock<IKpiRepository>();
+        kpiRepository.Setup(repository => repository.GetAllKpiDocumentsAsync(
+                "test-community", It.IsAny<CancellationToken>()))
+            .ReturnsAsync([
+                new KpiDocument(
+                    "team-squad-summary",
+                    "SECRET_DIVERGENT_KPI_CONTENT",
+                    "divergent",
+                    headedSquadSummary.Version + 50,
+                    headedSquadSummary.CreatedAt.AddMinutes(1)),
+                new KpiDocument(
+                    "club-elo-rankings",
+                    headedEloRankings.Content,
+                    headedEloRankings.Description ?? string.Empty,
+                    headedEloRankings.Version,
+                    headedEloRankings.CreatedAt)
+            ]);
+        var (app, console) = CreateApp(contextRepository, kpiRepository, publicationRepository);
+
+        var exitCode = await app.RunAsync([
+            "inventory",
+            "--community-context", "test-community",
+            "--evaluation-date", "2026-08-21",
+            "--json"
+        ]);
+
+        await Assert.That(exitCode).IsEqualTo(0);
+        using var json = JsonDocument.Parse(console.Output);
+        await Assert.That(json.RootElement.GetProperty("identityConflictCount").GetInt32()).IsEqualTo(2);
+        var rows = json.RootElement.GetProperty("documents").EnumerateArray().ToArray();
+        foreach (var name in new[] { "roster-fcb", "team-squad-summary" })
+        {
+            var conflict = rows.Single(row => row.GetProperty("name").GetString() == name);
+            await Assert.That(conflict.GetProperty("state").GetString()).IsEqualTo("HeadedGenericConflict");
+            await Assert.That(conflict.GetProperty("genericVersion").GetInt32())
+                .IsGreaterThan(conflict.GetProperty("headedVersion").GetInt32());
+            await Assert.That(conflict.GetProperty("genericContentSha256").GetString())
+                .IsNotEqualTo(conflict.GetProperty("headedContentSha256").GetString());
+            await Assert.That(conflict.GetProperty("identityDiagnostic").GetString())
+                .Contains("GENERIC_LATEST_DIVERGES_FROM_PUBLICATION_HEAD");
+            await Assert.That(conflict.GetProperty("identityDiagnostic").GetString()).Contains("generic(version=");
+            await Assert.That(conflict.GetProperty("identityDiagnostic").GetString()).Contains("headed(version=");
+        }
+
+        foreach (var name in new[] { "club-elo-fcb.csv", "club-elo-rankings" })
+        {
+            var matching = rows.Single(row => row.GetProperty("name").GetString() == name);
+            await Assert.That(matching.GetProperty("state").GetString()).IsEqualTo("HeadedGenericMatch");
+            await Assert.That(matching.GetProperty("genericVersion").GetInt32())
+                .IsEqualTo(matching.GetProperty("headedVersion").GetInt32());
+            await Assert.That(matching.GetProperty("genericContentSha256").GetString())
+                .IsEqualTo(matching.GetProperty("headedContentSha256").GetString());
+            await Assert.That(matching.GetProperty("identityDiagnostic").ValueKind).IsEqualTo(JsonValueKind.Null);
+        }
+
+        await Assert.That(console.Output).DoesNotContain("SECRET_DIVERGENT_ROSTER_CONTENT");
+        await Assert.That(console.Output).DoesNotContain("SECRET_DIVERGENT_KPI_CONTENT");
+    }
+
+    [Test]
     public async Task Historical_competition_is_rejected_before_repository_access()
     {
         var contextRepository = new Mock<IContextRepository>();
@@ -126,6 +222,30 @@ public class ContextHygieneInventoryCommandTests
         await Assert.That(console.Output).Contains("supports only");
         contextRepository.Verify(repository => repository.GetContextDocumentNamesAsync(
             It.IsAny<string>(), It.IsAny<CancellationToken>()), Times.Never);
+    }
+
+    [Test]
+    public async Task Known_community_conflict_is_rejected_before_repository_access()
+    {
+        var contextRepository = new Mock<IContextRepository>();
+        var kpiRepository = new Mock<IKpiRepository>();
+        var publicationRepository = new Mock<IDocumentPublicationRepository>();
+        var (app, console) = CreateApp(contextRepository, kpiRepository, publicationRepository);
+
+        var exitCode = await app.RunAsync([
+            "inventory",
+            "--community-context", "ehonda-dev-wm26",
+            "--competition", CompetitionIds.Bundesliga2026_27
+        ]);
+
+        await Assert.That(exitCode).IsEqualTo(1);
+        await Assert.That(console.Output).Contains("belongs to");
+        contextRepository.Verify(repository => repository.GetContextDocumentNamesAsync(
+            It.IsAny<string>(), It.IsAny<CancellationToken>()), Times.Never);
+        kpiRepository.Verify(repository => repository.GetAllKpiDocumentsAsync(
+            It.IsAny<string>(), It.IsAny<CancellationToken>()), Times.Never);
+        publicationRepository.Verify(repository => repository.GetLastKnownGoodAsync(
+            It.IsAny<DocumentPublicationDefinition>(), It.IsAny<string>(), It.IsAny<CancellationToken>()), Times.Never);
     }
 
     private static (CommandApp App, TestConsole Console) CreateApp(

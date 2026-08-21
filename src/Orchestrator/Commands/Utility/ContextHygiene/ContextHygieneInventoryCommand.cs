@@ -2,6 +2,7 @@ using System.Globalization;
 using System.Text.Json;
 using EHonda.KicktippAi.Core;
 using Microsoft.Extensions.Logging;
+using Orchestrator.Infrastructure;
 using Orchestrator.Infrastructure.Factories;
 using Spectre.Console;
 using Spectre.Console.Cli;
@@ -17,6 +18,13 @@ public sealed record ContextHygieneInventoryRow(
     int? Version,
     string? ContentSha256,
     string? CreatedAt,
+    int? GenericVersion,
+    string? GenericContentSha256,
+    string? GenericCreatedAt,
+    int? HeadedVersion,
+    string? HeadedContentSha256,
+    string? HeadedCreatedAt,
+    string? IdentityDiagnostic,
     string? PublicationSet,
     string? PublicationSnapshotId,
     string? SourceAsOf,
@@ -30,6 +38,7 @@ public sealed record ContextHygieneInventoryReport(
     int PresentCount,
     int MissingCount,
     int UnexpectedCount,
+    int IdentityConflictCount,
     IReadOnlyList<ContextHygieneInventoryRow> Documents);
 
 public sealed class ContextHygieneInventoryCommand : AsyncCommand<ContextHygieneInventorySettings>
@@ -60,7 +69,9 @@ public sealed class ContextHygieneInventoryCommand : AsyncCommand<ContextHygiene
     {
         try
         {
-            var competition = CompetitionIds.Canonicalize(settings.Competition);
+            var competition = CompetitionResolver.ResolveTargetCompetition(
+                settings.Competition,
+                settings.CommunityContext);
             if (!string.Equals(competition, CompetitionIds.Bundesliga2026_27, StringComparison.Ordinal))
             {
                 throw new InvalidOperationException(
@@ -82,7 +93,8 @@ public sealed class ContextHygieneInventoryCommand : AsyncCommand<ContextHygiene
                 cancellationToken);
             if (settings.Json)
             {
-                _console.WriteLine(JsonSerializer.Serialize(report, JsonOptions));
+                await _console.Profile.Out.Writer.WriteLineAsync(
+                    JsonSerializer.Serialize(report, JsonOptions));
             }
             else
             {
@@ -166,9 +178,10 @@ public sealed class ContextHygieneInventoryCommand : AsyncCommand<ContextHygiene
             communityContext,
             evaluationDate.ToString("yyyy-MM-dd", CultureInfo.InvariantCulture),
             expected.Count,
-            rows.Count(row => row.State is "Present" or "Headed" or "UnheadedReserved"),
+            rows.Count(row => row.State is "Present" or "Headed" or "HeadedGenericMatch" or "HeadedGenericConflict" or "UnheadedReserved"),
             rows.Count(row => row.State == "Missing"),
             rows.Count(row => row.Classification != nameof(BundesligaContextHygieneClassification.Expected)),
+            rows.Count(row => row.State == "HeadedGenericConflict"),
             rows);
     }
 
@@ -186,12 +199,24 @@ public sealed class ContextHygieneInventoryCommand : AsyncCommand<ContextHygiene
         var genericVersion = context?.Version ?? kpi?.Version;
         var genericContent = context?.Content ?? kpi?.Content;
         var genericCreatedAt = context?.CreatedAt ?? kpi?.CreatedAt;
+        var genericContentHash = genericContent is null
+            ? null
+            : DocumentPublicationContract.ComputeContentSha256(genericContent);
+        var hasGenericIdentity = genericVersion is not null;
+        var genericMatchesHead = headed is not null
+                                 && genericVersion == headed.Version
+                                 && string.Equals(genericContentHash, headed.ContentSha256, StringComparison.Ordinal)
+                                 && genericCreatedAt == headed.CreatedAt;
         var isReserved = BundesligaDocumentPublication.IsReserved(
             CompetitionIds.Bundesliga2026_27,
             key.Kind,
             key.Name);
         var state = headed is not null
-            ? "Headed"
+            ? !hasGenericIdentity
+                ? "Headed"
+                : genericMatchesHead
+                    ? "HeadedGenericMatch"
+                    : "HeadedGenericConflict"
             : isReserved && genericVersion is not null
                 ? "UnheadedReserved"
                 : genericVersion is not null
@@ -201,8 +226,13 @@ public sealed class ContextHygieneInventoryCommand : AsyncCommand<ContextHygiene
                         : "Absent";
         var version = headed?.Version ?? genericVersion;
         var contentHash = headed?.ContentSha256
-                          ?? (genericContent is null ? null : DocumentPublicationContract.ComputeContentSha256(genericContent));
+                          ?? genericContentHash;
         var createdAt = headed?.CreatedAt ?? genericCreatedAt;
+        var identityDiagnostic = headed is not null && hasGenericIdentity && !genericMatchesHead
+            ? "GENERIC_LATEST_DIVERGES_FROM_PUBLICATION_HEAD;" +
+              FormatIdentity("generic", genericVersion, genericContentHash, genericCreatedAt) + ";" +
+              FormatIdentity("headed", headed.Version, headed.ContentSha256, headed.CreatedAt)
+            : null;
 
         return new ContextHygieneInventoryRow(
             key.Kind.ToString(),
@@ -213,11 +243,27 @@ public sealed class ContextHygieneInventoryCommand : AsyncCommand<ContextHygiene
             version,
             contentHash,
             createdAt?.ToUniversalTime().ToString("O", CultureInfo.InvariantCulture),
+            genericVersion,
+            genericContentHash,
+            genericCreatedAt?.ToUniversalTime().ToString("O", CultureInfo.InvariantCulture),
+            headed?.Version,
+            headed?.ContentSha256,
+            headed?.CreatedAt.ToUniversalTime().ToString("O", CultureInfo.InvariantCulture),
+            identityDiagnostic,
             headed?.PublicationSet,
             headed?.SnapshotId,
             sourceDate?.Display,
             GetFreshness(key, sourceDate, evaluationDate));
     }
+
+    private static string FormatIdentity(
+        string label,
+        int? version,
+        string? contentSha256,
+        DateTimeOffset? createdAt) =>
+        $"{label}(version={version?.ToString(CultureInfo.InvariantCulture) ?? "<none>"}," +
+        $"sha256={contentSha256 ?? "<none>"}," +
+        $"createdAt={createdAt?.ToUniversalTime().ToString("O", CultureInfo.InvariantCulture) ?? "<none>"})";
 
     private static void AddRosterPublication(
         LoadedDocumentPublication? loaded,
@@ -330,7 +376,8 @@ public sealed class ContextHygieneInventoryCommand : AsyncCommand<ContextHygiene
             .AddColumn("Created at")
             .AddColumn("Source as of")
             .AddColumn("Freshness")
-            .AddColumn("Publication snapshot");
+            .AddColumn("Publication snapshot")
+            .AddColumn("Identity diagnostic");
         foreach (var row in report.Documents)
         {
             table.AddRow(
@@ -344,13 +391,15 @@ public sealed class ContextHygieneInventoryCommand : AsyncCommand<ContextHygiene
                 row.CreatedAt ?? "-",
                 row.SourceAsOf ?? "-",
                 row.Freshness,
-                row.PublicationSnapshotId ?? "-");
+                row.PublicationSnapshotId ?? "-",
+                Markup.Escape(row.IdentityDiagnostic ?? "-"));
         }
 
         _console.Write(table);
         _console.MarkupLine(
             $"[blue]Expected:[/] {report.ExpectedCount}; [green]present:[/] {report.PresentCount}; " +
-            $"[red]missing:[/] {report.MissingCount}; [yellow]unexpected:[/] {report.UnexpectedCount}");
+            $"[red]missing:[/] {report.MissingCount}; [yellow]unexpected:[/] {report.UnexpectedCount}; " +
+            $"[red]identity conflicts:[/] {report.IdentityConflictCount}");
     }
 
     private sealed record HeadedIdentity(

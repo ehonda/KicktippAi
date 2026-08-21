@@ -59,6 +59,38 @@ public class BundesligaContextHygienePolicyTests
             .Throws<InvalidOperationException>();
     }
 
+    [Arguments(DocumentPublicationKind.Context, "team-squad-summary")]
+    [Arguments(DocumentPublicationKind.Context, "club-elo-rankings")]
+    [Arguments(DocumentPublicationKind.Kpi, "bundesliga-standings.csv")]
+    [Arguments(DocumentPublicationKind.Kpi, "community-rules-ehonda-dev-buli-2627.md")]
+    [Arguments(DocumentPublicationKind.Kpi, "recent-history-fcb.csv")]
+    [Arguments(DocumentPublicationKind.Kpi, "home-history-fcb.csv")]
+    [Arguments(DocumentPublicationKind.Kpi, "away-history-fcb.csv")]
+    [Arguments(DocumentPublicationKind.Kpi, "head-to-head-fcb-vs-bvb.csv")]
+    [Arguments(DocumentPublicationKind.Kpi, "roster-fcb")]
+    [Arguments(DocumentPublicationKind.Kpi, "team-rosters")]
+    [Arguments(DocumentPublicationKind.Kpi, "club-elo-fcb.csv")]
+    [Test]
+    public async Task Wrong_kind_shadows_of_every_profile_owned_name_family_fail_closed(
+        DocumentPublicationKind wrongKind,
+        string documentName)
+    {
+        var assessment = BundesligaContextHygienePolicy.Assess(
+            wrongKind,
+            documentName,
+            "ehonda-dev-buli-2627");
+
+        await Assert.That(assessment.Classification)
+            .IsEqualTo(BundesligaContextHygieneClassification.InvalidProfileOwnedName);
+        await Assert.That(assessment.BlocksGenericMutation).IsTrue();
+        await Assert.That(() => BundesligaContextHygienePolicy.ThrowIfBlockedGenericMutation(
+                CompetitionIds.Bundesliga2026_27,
+                wrongKind,
+                documentName,
+                "ehonda-dev-buli-2627"))
+            .Throws<InvalidOperationException>();
+    }
+
     [Test]
     public Task Historical_partition_preserves_generic_mutation_behavior()
     {
