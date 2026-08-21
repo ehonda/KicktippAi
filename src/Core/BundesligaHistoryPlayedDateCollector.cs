@@ -156,6 +156,13 @@ public sealed class BundesligaHistoryPlayedDateCollector : IBundesligaHistoryPla
                 var rows = parsedRows.Where(row => !string.IsNullOrWhiteSpace(row.Score))
                     .Select((row, index) => row with { Ordinal = index + 1 }).ToArray();
                 excludedIncompleteRowCount += incompleteRows.Length;
+                if (rows.Length == 0)
+                {
+                    diagnostics.Add(new(document.Name, null,
+                        $"Selected history document '{document.Name}' must contain at least one completed result row"));
+                    rendered.Add(document);
+                    continue;
+                }
                 var duplicateRows = rows.GroupBy(RowIdentity, StringComparer.Ordinal).Where(group => group.Count() > 1).ToArray();
                 foreach (var duplicate in duplicateRows)
                 {

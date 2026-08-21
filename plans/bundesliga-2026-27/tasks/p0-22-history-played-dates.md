@@ -46,7 +46,7 @@ Every row selected from Bundesliga `recent-history-*`, `home-history-*`, and `aw
 - Focused tests: Core history 20/20 in 1.304s; Orchestrator history/expected-set/apply 24/24 in 3.933s; corrected WM26 history/verbose regressions 15/15 in 3.423s; invalid-matchday pre-write safety 5/5 in 3.230s; Firebase atomic publication 6/6 in 19.736s; real Firestore canonical-set integration 1/1 in 1m04.919s.
 - Full affected suites: Core 155/155 in 2.896s; ContextProviders.Kicktipp 47/47 in 1.527s; KicktippIntegration 194/194 in 13.131s; FirebaseAdapter 258/258 in 52.760s; Orchestrator 903/903 in 1m51.138s; Integration 4/4 in 27.439s.
 - `dotnet build --no-restore KicktippAi.slnx`: succeeded in 14.32s with 0 errors and 10 existing dependency-advisory/obsolete-API warnings.
-- Live-completion follow-up tests: final focused Core history/source `30/30` in `1.066s`; full Core `172/172` in `2.635s`; affected Bundesliga-history and Kicktipp collection commands `49/49` in `4.805s`.
+- Live-completion follow-up tests: final focused Core history/source `31/31` in `0.926s`; full Core `173/173` in `2.564s`; affected Bundesliga-history and Kicktipp collection commands `49/49` in `4.448s`.
 - Live-completion follow-up `dotnet build KicktippAi.slnx --no-restore`: succeeded in `26.30s` with `0` errors; the fresh full build reported `192` existing dependency-advisory, obsolete-API, and nullability warnings.
 - No live Firestore or Kicktipp write was performed; Firestore validation used the local emulator. The P0-20 activation gate retains the required strict live zero-unresolved audit before prediction validation.
 

@@ -282,6 +282,34 @@ public class BundesligaHistoryPlayedDateCollectorTests
     }
 
     [Test]
+    public async Task Explicit_expected_set_rejects_header_only_and_incomplete_only_selected_documents()
+    {
+        var contents = new[]
+        {
+            "Competition,Home_Team,Away_Team,Score,Annotation\r\n",
+            "Competition,Home_Team,Away_Team,Score,Annotation\r\n" +
+            "DFB,SV Wehen Wiesbaden,Bayer 04 Leverkusen,,\r\n"
+        };
+        foreach (var content in contents)
+        {
+            var document = new BundesligaHistoryDocument(DocumentName, content);
+
+            var result = Collector.Collect(
+                CompetitionIds.Bundesliga2026_27,
+                [document],
+                [],
+                [],
+                new HashSet<string>([DocumentName], StringComparer.Ordinal));
+
+            await Assert.That(result.Succeeded).IsFalse();
+            await Assert.That(result.Documents).IsEquivalentTo([document]);
+            await Assert.That(result.Diagnostics.Any(value => value.Message.Contains(
+                "must contain at least one completed result row",
+                StringComparison.Ordinal))).IsTrue();
+        }
+    }
+
+    [Test]
     public async Task Existing_played_at_is_preserved_but_source_conflicts_fail()
     {
         var content = "Competition,Played_At,Home_Team,Away_Team,Score,Annotation\r\n" +
