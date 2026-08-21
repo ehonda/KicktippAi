@@ -16,6 +16,19 @@ public class BonusCommand : AsyncCommand<BaseSettings>
 {
     private const string FifaRankingsDocumentName = "fifa-rankings";
 
+    private sealed class BundesligaBonusSafetyException : InvalidOperationException
+    {
+        public BundesligaBonusSafetyException(string message)
+            : base(message)
+        {
+        }
+
+        public BundesligaBonusSafetyException(string message, Exception innerException)
+            : base(message, innerException)
+        {
+        }
+    }
+
     private readonly IAnsiConsole _console;
     private readonly IFirebaseServiceFactory _firebaseServiceFactory;
     private readonly IKicktippClientFactory _kicktippClientFactory;
@@ -283,7 +296,10 @@ public class BonusCommand : AsyncCommand<BaseSettings>
                 if (databaseEnabled && !settings.OverrideDatabase && !settings.IsRepredictMode)
                 {
                     // Look for prediction by question text, model, and community context
-                    prediction = await predictionRepository!.GetBonusPredictionByTextAsync(question.Text, modelConfig, communityContext);
+                    prediction = await ReadCachedValueSafelyAsync(
+                        () => predictionRepository!.GetBonusPredictionByTextAsync(question.Text, modelConfig, communityContext),
+                        question,
+                        isBundesliga);
                     if (prediction != null)
                     {
                         if (isBundesliga && await CheckBonusPredictionOutdated(
@@ -291,12 +307,13 @@ public class BonusCommand : AsyncCommand<BaseSettings>
                                 kpiRepository,
                                 publicationRepository,
                                 question,
+                                prediction,
                                 modelConfig,
                                 communityContext,
                                 isBundesliga,
                                 settings.Verbose))
                         {
-                            throw new InvalidDataException(
+                            throw new BundesligaBonusSafetyException(
                                 "Stored Bundesliga bonus prediction lacks current immutable provenance; use repredict or an explicit database override.");
                         }
 
@@ -318,7 +335,10 @@ public class BonusCommand : AsyncCommand<BaseSettings>
                 // Handle reprediction logic
                 if (settings.IsRepredictMode && databaseEnabled)
                 {
-                    var currentRepredictionIndex = await predictionRepository!.GetBonusRepredictionIndexAsync(question.Text, modelConfig, communityContext);
+                    var currentRepredictionIndex = await ReadCachedValueSafelyAsync(
+                        () => predictionRepository!.GetBonusRepredictionIndexAsync(question.Text, modelConfig, communityContext),
+                        question,
+                        isBundesliga);
                     
                     if (currentRepredictionIndex == -1)
                     {
@@ -329,6 +349,14 @@ public class BonusCommand : AsyncCommand<BaseSettings>
                     }
                     else
                     {
+                        var cachedPrediction = await ReadCachedValueSafelyAsync(
+                            () => predictionRepository!.GetBonusPredictionByTextAsync(
+                                question.Text,
+                                modelConfig,
+                                communityContext),
+                            question,
+                            isBundesliga);
+
                         // Check if we can create another reprediction
                         var maxAllowed = settings.MaxRepredictions ?? int.MaxValue;
                         var nextIndex = currentRepredictionIndex + 1;
@@ -338,6 +366,7 @@ public class BonusCommand : AsyncCommand<BaseSettings>
                             kpiRepository,
                             publicationRepository,
                             question,
+                            cachedPrediction,
                             modelConfig,
                             communityContext,
                             isBundesliga,
@@ -356,7 +385,7 @@ public class BonusCommand : AsyncCommand<BaseSettings>
                                 traceRepredictionIndices.Add(currentRepredictionIndex.ToString());
                                 _console.MarkupLine($"[green]  ✓ Skipped reprediction - current prediction is up-to-date[/]");
 
-                                prediction = await predictionRepository!.GetBonusPredictionByTextAsync(question.Text, modelConfig, communityContext);
+                                prediction = cachedPrediction;
                                 if (prediction != null)
                                 {
                                     fromDatabase = true;
@@ -374,7 +403,7 @@ public class BonusCommand : AsyncCommand<BaseSettings>
                         {
                             if (isBundesliga && isOutdated)
                             {
-                                throw new InvalidDataException(
+                                throw new BundesligaBonusSafetyException(
                                     "Stored Bundesliga bonus prediction lacks current immutable provenance and cannot be reused at the reprediction limit.");
                             }
 
@@ -382,7 +411,7 @@ public class BonusCommand : AsyncCommand<BaseSettings>
                             _console.MarkupLine($"[yellow]  ✗ Skipped - already at max repredictions ({currentRepredictionIndex}/{maxAllowed})[/]");
                             
                             // Get the latest prediction for display purposes
-                            prediction = await predictionRepository!.GetBonusPredictionByTextAsync(question.Text, modelConfig, communityContext);
+                            prediction = cachedPrediction;
                             if (prediction != null)
                             {
                                 fromDatabase = true;
@@ -409,9 +438,19 @@ public class BonusCommand : AsyncCommand<BaseSettings>
                     
                     if (isBundesliga)
                     {
-                        resolvedBonusContext = await resolvedBonusContextProvider!.ResolveBonusQuestionContextAsync(
-                            question,
-                            communityContext);
+                        try
+                        {
+                            resolvedBonusContext = await resolvedBonusContextProvider!.ResolveBonusQuestionContextAsync(
+                                question,
+                                communityContext);
+                        }
+                        catch (Exception ex)
+                        {
+                            throw new BundesligaBonusSafetyException(
+                                $"Failed to resolve immutable Bundesliga bonus provenance for '{question.Text}'.",
+                                ex);
+                        }
+
                         contextDocuments.AddRange(resolvedBonusContext.Documents);
                     }
                     else
@@ -540,12 +579,15 @@ public class BonusCommand : AsyncCommand<BaseSettings>
                             }
                             catch (Exception ex)
                             {
-                                _logger.LogError(ex, "Failed to save bonus prediction for question '{QuestionText}'", question.Text);
-                                _console.MarkupLine($"[red]    ✗ Failed to save to database: {ex.Message}[/]");
                                 if (isBundesliga)
                                 {
-                                    throw;
+                                    throw new BundesligaBonusSafetyException(
+                                        $"Failed to persist immutable Bundesliga bonus provenance for '{question.Text}': {ex.Message}",
+                                        ex);
                                 }
+
+                                _logger.LogError(ex, "Failed to save bonus prediction for question '{QuestionText}'", question.Text);
+                                _console.MarkupLine($"[red]    ✗ Failed to save to database: {ex.Message}[/]");
                             }
                         }
                         else if (databaseEnabled && settings.DryRun && settings.Verbose)
@@ -575,6 +617,10 @@ public class BonusCommand : AsyncCommand<BaseSettings>
                 {
                     _console.MarkupLine($"[dim]    Ready for Kicktipp placement[/]");
                 }
+            }
+            catch (BundesligaBonusSafetyException)
+            {
+                throw;
             }
             catch (Exception ex)
             {
@@ -675,6 +721,7 @@ public class BonusCommand : AsyncCommand<BaseSettings>
         IKpiRepository? kpiRepository,
         IDocumentPublicationRepository? publicationRepository,
         BonusQuestion question,
+        BonusPrediction? cachedPrediction,
         PredictionModelConfig modelConfig,
         string communityContext,
         bool isBundesliga,
@@ -692,6 +739,12 @@ public class BonusCommand : AsyncCommand<BaseSettings>
 
             if (isBundesliga)
             {
+                if (!BonusPredictionContentEquality.Equals(cachedPrediction, predictionMetadata.BonusPrediction))
+                {
+                    throw new BundesligaBonusSafetyException(
+                        "Stored Bundesliga bonus prediction and immutable provenance metadata do not describe the same cached value.");
+                }
+
                 return await BundesligaBonusPredictionOutdatedChecker.IsOutdatedAsync(
                     publicationRepository
                     ?? throw new InvalidOperationException(
@@ -733,6 +786,10 @@ public class BonusCommand : AsyncCommand<BaseSettings>
 
             return false;
         }
+        catch (BundesligaBonusSafetyException)
+        {
+            throw;
+        }
         catch (Exception ex)
         {
             if (verbose)
@@ -742,10 +799,29 @@ public class BonusCommand : AsyncCommand<BaseSettings>
 
             if (isBundesliga)
             {
-                throw;
+                throw new BundesligaBonusSafetyException(
+                    $"Could not validate immutable Bundesliga bonus provenance for '{question.Text}'.",
+                    ex);
             }
 
             return false;
+        }
+    }
+
+    private static async Task<T> ReadCachedValueSafelyAsync<T>(
+        Func<Task<T>> read,
+        BonusQuestion question,
+        bool isBundesliga)
+    {
+        try
+        {
+            return await read();
+        }
+        catch (Exception ex) when (isBundesliga)
+        {
+            throw new BundesligaBonusSafetyException(
+                $"Failed to read a coherent cached Bundesliga bonus prediction for '{question.Text}': {ex.Message}",
+                ex);
         }
     }
 }

@@ -29,6 +29,24 @@ public record BonusPrediction(
 );
 
 /// <summary>
+/// Compares bonus-prediction payloads by their persisted, ordered selection content.
+/// </summary>
+public static class BonusPredictionContentEquality
+{
+    public static bool Equals(BonusPrediction? left, BonusPrediction? right)
+    {
+        if (ReferenceEquals(left, right))
+        {
+            return true;
+        }
+
+        return left is not null
+            && right is not null
+            && left.SelectedOptionIds.SequenceEqual(right.SelectedOptionIds, StringComparer.Ordinal);
+    }
+}
+
+/// <summary>
 /// Extended bonus prediction result that includes metadata about how the prediction was generated.
 /// </summary>
 public record BonusPredictionResult(

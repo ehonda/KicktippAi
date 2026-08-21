@@ -170,6 +170,7 @@ public class VerifyBonusCommand : AsyncCommand<VerifySettings>
                             kpiRepository,
                             publicationRepository,
                             question,
+                            databasePrediction,
                             modelConfig,
                             communityContext,
                             isBundesliga,
@@ -338,6 +339,7 @@ public class VerifyBonusCommand : AsyncCommand<VerifySettings>
         IKpiRepository? kpiRepository,
         IDocumentPublicationRepository? publicationRepository,
         BonusQuestion question,
+        BonusPrediction databasePrediction,
         PredictionModelConfig modelConfig,
         string communityContext,
         bool isBundesliga,
@@ -356,6 +358,16 @@ public class VerifyBonusCommand : AsyncCommand<VerifySettings>
 
             if (isBundesliga)
             {
+                if (!BonusPredictionContentEquality.Equals(databasePrediction, predictionMetadata.BonusPrediction))
+                {
+                    if (verbose)
+                    {
+                        _console.MarkupLine("[yellow]Stored Bundesliga bonus prediction does not match its immutable provenance metadata[/]");
+                    }
+
+                    return true;
+                }
+
                 return await BundesligaBonusPredictionOutdatedChecker.IsOutdatedAsync(
                     publicationRepository
                     ?? throw new InvalidOperationException(
