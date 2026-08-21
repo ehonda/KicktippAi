@@ -11,8 +11,6 @@ jobs:
     with:
       community_context: "ehonda-ai-arena"
       competition: "fifa-world-cup-2026"
-      include_fifa_rankings: true
-      include_lineups: true
       trigger_type: ${{ github.event_name == 'schedule' && 'scheduled' || 'manual' }}
     secrets:
       kicktipp_username: ${{ secrets.EHONDA_AI_ARENA_GPT_5_NANO_MINIMAL_KICKTIPP_USERNAME }}

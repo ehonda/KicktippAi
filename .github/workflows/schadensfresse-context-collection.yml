@@ -1,9 +1,7 @@
 name: schadensfresse ⚽ Context Collection
 
 on:
-  # 🚫 Deactivated: The most recent active competition for this workflow,
-  # 🚫 Bundesliga 2025 / 2026, has concluded.
-  # Keep an inert trigger so the workflow file remains valid while disabled.
+  # 🚫 Retained as workflow_call-only until P0-21 explicitly activates production.
   workflow_call:
   # Schedule to run every 12 hours starting at 00:00 UTC
   # schedule:
@@ -19,6 +17,7 @@ jobs:
     uses: ./.github/workflows/base-context-collection.yml
     with:
       community_context: "schadensfresse"
+      competition: "bundesliga-2026-27"
       trigger_type: ${{ github.event_name == 'schedule' && 'scheduled' || 'manual' }}
     secrets:
       kicktipp_username: ${{ secrets.SCHADENSFRESSE_KICKTIPP_USERNAME }}

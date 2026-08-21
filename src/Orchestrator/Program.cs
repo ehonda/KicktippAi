@@ -141,6 +141,9 @@ public class Program
                 collectContext.AddCommand<CollectContextRostersCommand>("rosters")
                     .WithDescription("Select, enrich, and atomically publish complete Bundesliga 2026/27 roster context")
                     .WithExample("collect-context", "rosters", "--competition", "bundesliga-2026-27", "--community-context", "ehonda-dev-buli-2627", "--dry-run");
+                collectContext.AddCommand<CollectContextProfileCommand>("profile")
+                    .WithDescription("Run the ordered collector profile for an explicit competition and community context")
+                    .WithExample("collect-context", "profile", "--competition", "bundesliga-2026-27", "--community-context", "ehonda-dev-buli-2627", "--dry-run", "--verbose");
             });
 
             config.AddBranch<Wm26RecentHistorySettings>("wm26-recent-history", wm26RecentHistory =>

@@ -10,19 +10,8 @@ on:
         type: string
       competition:
         description: 'Competition identifier for context collection'
-        required: false
+        required: true
         type: string
-        default: ''
-      include_fifa_rankings:
-        description: 'Whether to collect WM26 FIFA ranking context after Kicktipp context'
-        required: false
-        type: boolean
-        default: false
-      include_lineups:
-        description: 'Whether to collect WM26 lineup context after Kicktipp context'
-        required: false
-        type: boolean
-        default: false
       trigger_type:
         description: 'How this workflow was triggered (scheduled, manual)'
         required: true
@@ -67,86 +56,26 @@ jobs:
         
       - name: Run context collection
         run: |
-          args=(
-            collect-context kicktipp
-            --community-context "${{ inputs.community_context }}"
+          dotnet run --no-build \
+            --project src/Orchestrator/Orchestrator.csproj \
+            --configuration Release -- \
+            collect-context profile \
+            --community-context "${{ inputs.community_context }}" \
+            --competition "${{ inputs.competition }}" \
+            --markdown-summary-output "$GITHUB_STEP_SUMMARY" \
             --verbose
-          )
-
-          if [ -n "${{ inputs.competition }}" ]; then
-            args+=(--competition "${{ inputs.competition }}")
-          fi
-
-          dotnet run --project src/Orchestrator/Orchestrator.csproj --configuration Release -- \
-            "${args[@]}"
         env:
           KICKTIPP_USERNAME: ${{ secrets.kicktipp_username }}
           KICKTIPP_PASSWORD: ${{ secrets.kicktipp_password }}
           FIREBASE_PROJECT_ID: ${{ secrets.firebase_project_id }}
           FIREBASE_SERVICE_ACCOUNT_JSON: ${{ secrets.firebase_service_account_json }}
 
-      - name: Run WM26 recent-history played-date map
-        if: ${{ inputs.competition == 'fifa-world-cup-2026' }}
-        run: |
-          dotnet run --project src/Orchestrator/Orchestrator.csproj --configuration Release -- \
-            wm26-recent-history apply-date-map \
-            --community-context "${{ inputs.community_context }}" \
-            --competition "${{ inputs.competition }}" \
-            --input data/wm26/recent-history/recent-history-match-dates.csv \
-            --apply-known-only \
-            --preserve-collected-on-or-after 2026-06-11 \
-            --verbose
-        env:
-          FIREBASE_PROJECT_ID: ${{ secrets.firebase_project_id }}
-          FIREBASE_SERVICE_ACCOUNT_JSON: ${{ secrets.firebase_service_account_json }}
-
-      - name: Run WM26 FIFA ranking collection
-        if: ${{ inputs.include_fifa_rankings }}
-        run: |
-          args=(
-            collect-context fifa
-            --community-context "${{ inputs.community_context }}"
-            --verbose
-          )
-
-          if [ -n "${{ inputs.competition }}" ]; then
-            args+=(--competition "${{ inputs.competition }}")
-          fi
-
-          dotnet run --project src/Orchestrator/Orchestrator.csproj --configuration Release -- \
-            "${args[@]}"
-        env:
-          FIREBASE_PROJECT_ID: ${{ secrets.firebase_project_id }}
-          FIREBASE_SERVICE_ACCOUNT_JSON: ${{ secrets.firebase_service_account_json }}
-
-      - name: Run WM26 lineup collection
-        if: ${{ inputs.include_lineups }}
-        run: |
-          args=(
-            collect-context lineups
-            --community-context "${{ inputs.community_context }}"
-            --verbose
-          )
-
-          if [ -n "${{ inputs.competition }}" ]; then
-            args+=(--competition "${{ inputs.competition }}")
-          fi
-
-          dotnet run --project src/Orchestrator/Orchestrator.csproj --configuration Release -- \
-            "${args[@]}"
-        env:
-          FIREBASE_PROJECT_ID: ${{ secrets.firebase_project_id }}
-          FIREBASE_SERVICE_ACCOUNT_JSON: ${{ secrets.firebase_service_account_json }}
-        
       - name: Build summary
         if: always()
         run: |
-          echo "## Context Collection Summary" >> $GITHUB_STEP_SUMMARY
-          echo "- **Community Context**: ${{ inputs.community_context }}" >> $GITHUB_STEP_SUMMARY
-          echo "- **Competition**: ${{ inputs.competition || 'default' }}" >> $GITHUB_STEP_SUMMARY
-          echo "- **Recent-history played-date map**: ${{ inputs.competition == 'fifa-world-cup-2026' }}" >> $GITHUB_STEP_SUMMARY
-          echo "- **FIFA Rankings**: ${{ inputs.include_fifa_rankings }}" >> $GITHUB_STEP_SUMMARY
-          echo "- **Lineups**: ${{ inputs.include_lineups }}" >> $GITHUB_STEP_SUMMARY
-          echo "- **Trigger**: ${{ inputs.trigger_type }}" >> $GITHUB_STEP_SUMMARY
-          echo "- **Timestamp**: $(date -u)" >> $GITHUB_STEP_SUMMARY
-          echo "- **Status**: ${{ job.status }}" >> $GITHUB_STEP_SUMMARY
+          echo "## Context Collection Job" >> "$GITHUB_STEP_SUMMARY"
+          echo "- **Community context:** \`${{ inputs.community_context }}\`" >> "$GITHUB_STEP_SUMMARY"
+          echo "- **Requested competition:** \`${{ inputs.competition }}\`" >> "$GITHUB_STEP_SUMMARY"
+          echo "- **Trigger:** ${{ inputs.trigger_type }}" >> "$GITHUB_STEP_SUMMARY"
+          echo "- **Timestamp:** $(date -u)" >> "$GITHUB_STEP_SUMMARY"
+          echo "- **Status:** ${{ job.status }}" >> "$GITHUB_STEP_SUMMARY"

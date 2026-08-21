@@ -540,7 +540,7 @@ public static class ServiceRegistrationExtensions
     }
 
     /// <summary>
-    /// Registers services specific to the CollectContextDevCommand.
+    /// Registers services for profile-driven context collection, including the guarded development wrapper.
     /// </summary>
     public static IServiceCollection AddCollectContextDevCommandServices(
         this IServiceCollection services,
@@ -555,7 +555,7 @@ public static class ServiceRegistrationExtensions
         services.TryAddSingleton<ICompetitionCollectionProfileResolver, CompetitionCollectionProfileResolver>();
         services.TryAddTransient<ICompetitionProfileCollectorExecutor, CompetitionProfileCollectorExecutor>();
 
-        // CollectContextDevCommand resolves and executes the competition-specific collector profile.
+        // CollectContextProfileCommand and CollectContextDevCommand resolve and execute the same competition profile.
 
         return services;
     }

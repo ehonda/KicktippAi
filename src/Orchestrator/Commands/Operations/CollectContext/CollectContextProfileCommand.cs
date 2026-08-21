@@ -1,15 +1,17 @@
+using Orchestrator.Commands.Operations.Dev;
+using Orchestrator.Infrastructure;
 using Spectre.Console;
 using Spectre.Console.Cli;
 
-namespace Orchestrator.Commands.Operations.Dev;
+namespace Orchestrator.Commands.Operations.CollectContext;
 
-public sealed class CollectContextDevCommand : AsyncCommand<CollectContextDevSettings>
+public sealed class CollectContextProfileCommand : AsyncCommand<CollectContextProfileSettings>
 {
     private readonly IAnsiConsole _console;
     private readonly ICompetitionCollectionProfileResolver _profileResolver;
     private readonly ICompetitionProfileCollectorExecutor _collectorExecutor;
 
-    public CollectContextDevCommand(
+    public CollectContextProfileCommand(
         IAnsiConsole console,
         ICompetitionCollectionProfileResolver profileResolver,
         ICompetitionProfileCollectorExecutor collectorExecutor)
@@ -21,13 +23,18 @@ public sealed class CollectContextDevCommand : AsyncCommand<CollectContextDevSet
 
     protected override async Task<int> ExecuteAsync(
         CommandContext context,
-        CollectContextDevSettings settings,
+        CollectContextProfileSettings settings,
         CancellationToken cancellationToken)
     {
         CompetitionCollectionProfile profile;
+        string communityContext;
         try
         {
-            profile = _profileResolver.ResolveForDevelopment(settings.Community, settings.Competition);
+            communityContext = settings.CommunityContext.Trim();
+            var targetCompetition = CompetitionResolver.ResolveTargetCompetition(
+                settings.Competition,
+                communityContext);
+            profile = _profileResolver.ResolveCompetition(targetCompetition);
         }
         catch (Exception exception) when (exception is ArgumentException or InvalidOperationException or NotSupportedException)
         {
@@ -35,18 +42,15 @@ public sealed class CollectContextDevCommand : AsyncCommand<CollectContextDevSet
             return 1;
         }
 
-        var community = settings.Community.Trim();
-        var communityContext = string.IsNullOrWhiteSpace(settings.CommunityContext)
-            ? community
-            : settings.CommunityContext.Trim();
         var request = new CompetitionProfileCollectionRequest(
             profile,
-            community,
+            communityContext,
             communityContext,
             settings.Matchdays,
             settings.RecentHistoryDateMap,
             settings.DryRun,
-            settings.Verbose);
+            settings.Verbose,
+            settings.MarkdownSummaryOutput);
         return await CompetitionProfileCollectionRunner.ExecuteAsync(
             _console,
             _collectorExecutor,

@@ -11,8 +11,6 @@ jobs:
     with:
       community_context: "rabetrabauken2026"
       competition: "fifa-world-cup-2026"
-      include_fifa_rankings: true
-      include_lineups: true
       trigger_type: ${{ github.event_name == 'schedule' && 'scheduled' || 'manual' }}
     secrets:
       kicktipp_username: ${{ secrets.RABETRABAUKEN2026_KICKTIPP_USERNAME }}
