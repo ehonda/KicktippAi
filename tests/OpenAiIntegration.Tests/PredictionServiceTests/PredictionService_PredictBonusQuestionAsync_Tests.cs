@@ -351,6 +351,46 @@ public class PredictionService_PredictBonusQuestionAsync_Tests : PredictionServi
     }
 
     [Test]
+    [NotInParallel("Telemetry")]
+    public async Task Predicting_bonus_question_applies_question_specific_context_budget_metadata_to_the_observation()
+    {
+        var chatClient = CreateMockChatClient("""{"selectedOptionIds": ["opt1"]}""");
+        var service = CreateService(chatClient);
+        var capturedActivities = new List<Activity>();
+        using var listener = CreateActivityListener(capturedActivities);
+        var metadata = new PredictionTelemetryMetadata(
+            Competition: CompetitionIds.Bundesliga2026_27,
+            BonusContextCategory: "Unknown",
+            BonusContextSelectedDocuments: ["club-elo-rankings", "team-squad-summary"],
+            BonusContextExcludedDocuments: ["team-rosters=ProhibitedAggregate"],
+            BonusContextEstimatedUtf8Bytes: 2_250,
+            BonusContextEstimatedTokens: 563,
+            BonusContextDocumentBudget: 20,
+            BonusContextEstimatedTokenBudget: 32_000);
+
+        var prediction = await service.PredictBonusQuestionAsync(
+            CreateTestBonusQuestion(),
+            CreateTestContextDocuments(),
+            metadata);
+
+        await Assert.That(prediction).IsEquivalentTo(new BonusPrediction(["opt1"]));
+        var activity = capturedActivities.Last(candidate =>
+            candidate.OperationName == "predict-bonus"
+            && string.Equals(
+                candidate.GetTagItem("langfuse.observation.metadata.bonusContextCategory")?.ToString(),
+                "Unknown",
+                StringComparison.Ordinal));
+        await Assert.That(activity.GetTagItem("langfuse.observation.metadata.bonusContextCategory"))
+            .IsEqualTo("Unknown");
+        await Assert.That(activity.GetTagItem("langfuse.observation.metadata.bonusContextSelectedDocuments"))
+            .IsEqualTo("club-elo-rankings,team-squad-summary");
+        await Assert.That(activity.GetTagItem("langfuse.observation.metadata.bonusContextEstimatedTokens"))
+            .IsEqualTo("563");
+        await Assert.That(activity.GetTagItem("langfuse.observation.metadata.bonusContextEstimatedTokenBudget"))
+            .IsEqualTo("32000");
+    }
+
+    [Test]
     public async Task Predicting_bonus_question_with_API_exception_returns_null()
     {
         // Arrange

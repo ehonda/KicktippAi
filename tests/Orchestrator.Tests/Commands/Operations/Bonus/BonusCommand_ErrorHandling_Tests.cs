@@ -101,7 +101,8 @@ public class BonusCommand_ErrorHandling_Tests : BonusCommandTests_Base
             .Setup(candidate => candidate.ResolveBonusQuestionContextAsync(
                 It.IsAny<BonusQuestion>(),
                 It.IsAny<string>(),
-                It.IsAny<CancellationToken>()))
+                It.IsAny<CancellationToken>(),
+                It.IsAny<BonusContextBudget?>()))
             .ThrowsAsync(new InvalidOperationException("publication head is corrupt"));
         var context = CreateBonusCommandApp(
             existingBonusPrediction: Option.None<BonusPrediction>(),
@@ -128,12 +129,13 @@ public class BonusCommand_ErrorHandling_Tests : BonusCommandTests_Base
             .Setup(candidate => candidate.ResolveBonusQuestionContextAsync(
                 It.IsAny<BonusQuestion>(),
                 It.IsAny<string>(),
-                It.IsAny<CancellationToken>()))
-            .ReturnsAsync((BonusQuestion question, string communityContext, CancellationToken _) =>
+                It.IsAny<CancellationToken>(),
+                It.IsAny<BonusContextBudget?>()))
+            .ReturnsAsync((BonusQuestion question, string communityContext, CancellationToken _, BonusContextBudget? budget) =>
             {
                 calls++;
                 return calls == 1
-                    ? CreateCanonicalBundesligaResolvedBonusContext(question, communityContext)
+                    ? CreateCanonicalBundesligaResolvedBonusContext(question, communityContext, budget)
                     : throw new InvalidOperationException("second publication head is corrupt");
             });
         var context = CreateBonusCommandApp(
