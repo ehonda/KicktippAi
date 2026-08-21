@@ -34,7 +34,8 @@ public abstract class KicktippContextProviderTests_Base
         NullableOption<IFileProvider> communityRulesFileProvider = default,
         NullableOption<string> community = default,
         NullableOption<string> communityContext = default,
-        NullableOption<string> competition = default)
+        NullableOption<string> competition = default,
+        int? matchday = null)
     {
         var actualKicktippClient = kicktippClient.Or(() => CreateMockKicktippClient().Object);
         var actualCommunityRulesFileProvider = communityRulesFileProvider.Or(() => CreateMockCommunityRulesFileProvider().Object);
@@ -47,7 +48,8 @@ public abstract class KicktippContextProviderTests_Base
             actualCommunityRulesFileProvider!,
             actualCommunity!,
             actualCompetition!,
-            actualCommunityContext);
+            actualCommunityContext,
+            matchday);
     }
     
     protected static Mock<IFileProvider> CreateMockCommunityRulesFileProvider(
@@ -87,6 +89,9 @@ public abstract class KicktippContextProviderTests_Base
             .ReturnsAsync(matchesWithHistory.Or(CreateTestMatchesWithHistory));
 
         mock.Setup(c => c.GetHomeAwayHistoryAsync(It.IsAny<string>(), It.IsAny<string>(), It.IsAny<string>()))
+            .ReturnsAsync(homeAwayHistory.Or(() => (CreateTestMatchResults("HomeHistory"), CreateTestMatchResults("AwayHistory"))));
+
+        mock.Setup(c => c.GetHomeAwayHistoryAsync(It.IsAny<string>(), It.IsAny<string>(), It.IsAny<string>(), It.IsAny<int>()))
             .ReturnsAsync(homeAwayHistory.Or(() => (CreateTestMatchResults("HomeHistory"), CreateTestMatchResults("AwayHistory"))));
 
         mock.Setup(c => c.GetHeadToHeadHistoryAsync(It.IsAny<string>(), It.IsAny<string>(), It.IsAny<string>()))

@@ -23,6 +23,42 @@ public class KicktippClient_GetHomeAwayHistory_Tests : KicktippClientTests_Base
     }
 
     [Test]
+    public async Task Getting_home_away_history_for_matchday_uses_exact_matchday_tippabgabe_page()
+    {
+        const string tippabgabeHtml = """
+            <html><body>
+            <a href="/test-community/spielinfo?tippspielId=22">Tippabgabe mit Spielinfos</a>
+            </body></html>
+            """;
+        const string spielinfoHtml = """
+            <html><body>
+            <table class="tippabgabe"><tbody><tr>
+              <td>04.09.26 20:30</td><td>Home Team</td><td>Away Team</td>
+              <td><input type="text" /><input type="text" /></td>
+            </tr></tbody></table>
+            <table class="spielinfoHeim"><tbody><tr>
+              <td>1.BL</td><td class="nw">Home Team</td><td class="nw">Opponent A</td>
+              <td><span class="kicktipp-ergebnis"><span class="kicktipp-abschnitt kicktipp-abpfiff"><span class="kicktipp-heim">2</span><span class="kicktipp-tortrenner">:</span><span class="kicktipp-gast">0</span></span></span></td>
+            </tr></tbody></table>
+            <table class="spielinfoGast"><tbody><tr>
+              <td>1.BL</td><td class="nw">Opponent B</td><td class="nw">Away Team</td>
+              <td><span class="kicktipp-ergebnis"><span class="kicktipp-abschnitt kicktipp-abpfiff"><span class="kicktipp-heim">1</span><span class="kicktipp-tortrenner">:</span><span class="kicktipp-gast">0</span></span></span></td>
+            </tr></tbody></table>
+            </body></html>
+            """;
+        StubHtmlResponseWithParams("/test-community/tippabgabe", tippabgabeHtml, ("spieltagIndex", "2"));
+        StubHtmlResponseWithParams("/test-community/spielinfo", spielinfoHtml,
+            ("tippspielId", "22"), ("ansicht", "2"));
+        var client = CreateClient();
+
+        var (homeHistory, awayHistory) = await client.GetHomeAwayHistoryAsync(
+            "test-community", "Home Team", "Away Team", 2);
+
+        await Assert.That(homeHistory).Count().IsEqualTo(1);
+        await Assert.That(awayHistory).Count().IsEqualTo(1);
+    }
+
+    [Test]
     public async Task Getting_home_away_history_uses_ansicht_2_parameter()
     {
         // Arrange
