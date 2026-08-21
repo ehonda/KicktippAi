@@ -93,6 +93,7 @@ public class CollectContextKicktippCommand : AsyncCommand<CollectContextKicktipp
     private async Task ExecuteKicktippContextCollection(CollectContextKicktippSettings settings, CancellationToken cancellationToken)
     {
         var competition = CompetitionResolver.ResolveCompetition(settings.Competition, settings.CommunityContext, settings.CommunityContext);
+        var isBundesliga2026 = string.Equals(competition, CompetitionIds.Bundesliga2026_27, StringComparison.Ordinal);
         var outcomeCollectionResult = await _matchOutcomeCollectionService.CollectAsync(
             settings.CommunityContext,
             settings.DryRun,
@@ -124,6 +125,7 @@ public class CollectContextKicktippCommand : AsyncCommand<CollectContextKicktipp
 
         // Collect all unique context documents for all matches
         var allContextDocuments = new Dictionary<string, string>(); // documentName -> content
+        var expectedSelectedHistoryDocumentNames = new HashSet<string>(StringComparer.Ordinal);
 
         foreach (var targetMatchday in targetMatchdays)
         {
@@ -151,6 +153,19 @@ public class CollectContextKicktippCommand : AsyncCommand<CollectContextKicktipp
             }
 
             _console.MarkupLine($"[green]Found {matchesWithHistory.Count} matches for {matchdayLabel}[/]");
+
+            if (isBundesliga2026)
+            {
+                foreach (var requiredDocumentName in matchesWithHistory
+                    .SelectMany(matchWithHistory => MatchContextDocumentCatalog.ForMatch(
+                        matchWithHistory.Match,
+                        settings.CommunityContext,
+                        competition).RequiredDocumentNames)
+                    .Where(BundesligaHistoryPlayedDateCollector.IsSelectedDocumentName))
+                {
+                    expectedSelectedHistoryDocumentNames.Add(requiredDocumentName);
+                }
+            }
 
             // Step 2: Collect all unique context documents for all matches
             foreach (var matchWithHistory in matchesWithHistory)
@@ -182,8 +197,20 @@ public class CollectContextKicktippCommand : AsyncCommand<CollectContextKicktipp
                 {
                     _logger.LogError(ex, "Failed to collect context for match {HomeTeam} vs {AwayTeam}", match.HomeTeam, match.AwayTeam);
                     _console.MarkupLine($"[red]  ✗ Failed to collect context: {ex.Message}[/]");
+                    if (isBundesliga2026)
+                    {
+                        throw new InvalidDataException(
+                            $"Bundesliga context collection failed for {match.HomeTeam} vs {match.AwayTeam}; " +
+                            "the complete selected-history set was not published.", ex);
+                    }
                 }
             }
+        }
+
+        if (isBundesliga2026 && expectedSelectedHistoryDocumentNames.Count == 0)
+        {
+            throw new InvalidDataException(
+                "Bundesliga context collection returned no fixtures and derived no expected selected-history documents.");
         }
 
         if (!allContextDocuments.Any())
@@ -191,7 +218,7 @@ public class CollectContextKicktippCommand : AsyncCommand<CollectContextKicktipp
             return;
         }
 
-        if (string.Equals(competition, CompetitionIds.Bundesliga2026_27, StringComparison.Ordinal))
+        if (isBundesliga2026)
         {
             var matchOutcomes = await LoadBundesligaMatchOutcomesAsync(
                 settings.CommunityContext,
@@ -201,7 +228,8 @@ public class CollectContextKicktippCommand : AsyncCommand<CollectContextKicktipp
                 competition,
                 allContextDocuments.Select(pair => new BundesligaHistoryDocument(pair.Key, pair.Value)).ToArray(),
                 BundesligaHistoryPlayedDateMap.Default.Entries,
-                matchOutcomes);
+                matchOutcomes,
+                expectedSelectedHistoryDocumentNames);
             if (!collection.Succeeded)
             {
                 var details = string.Join(Environment.NewLine, collection.Diagnostics.Take(20)
@@ -225,9 +253,46 @@ public class CollectContextKicktippCommand : AsyncCommand<CollectContextKicktipp
         var skippedCount = 0;
         var currentDate = DateOnly.FromDateTime(_timeProvider.GetLocalNow().DateTime)
             .ToString("yyyy-MM-dd", CultureInfo.InvariantCulture);
+
+        var bundesligaSelectedHistoryDocuments = isBundesliga2026
+            ? allContextDocuments
+                .Where(pair => BundesligaHistoryPlayedDateCollector.IsSelectedDocumentName(pair.Key))
+                .OrderBy(pair => pair.Key, StringComparer.Ordinal)
+                .Select(pair => new ContextDocumentWrite(pair.Key, pair.Value))
+                .ToArray()
+            : [];
+        if (bundesligaSelectedHistoryDocuments.Length > 0)
+        {
+            if (settings.DryRun)
+            {
+                foreach (var document in bundesligaSelectedHistoryDocuments)
+                {
+                    _console.MarkupLine($"[magenta]  Dry run - would atomically save:[/] {document.DocumentName}");
+                }
+            }
+            else
+            {
+                var batchResults = await contextRepository.SaveContextDocumentsAtomicallyAsync(
+                    bundesligaSelectedHistoryDocuments,
+                    settings.CommunityContext,
+                    cancellationToken);
+                savedCount += batchResults.Count(result => result.Version.HasValue);
+                skippedCount += batchResults.Count(result => !result.Version.HasValue);
+                if (settings.Verbose)
+                {
+                    _console.MarkupLine(
+                        $"[green]  ✓ Atomically published {bundesligaSelectedHistoryDocuments.Length} selected Bundesliga history document(s)[/]");
+                }
+            }
+        }
         
         foreach (var (documentName, content) in allContextDocuments)
         {
+            if (isBundesliga2026 && BundesligaHistoryPlayedDateCollector.IsSelectedDocumentName(documentName))
+            {
+                continue;
+            }
+
             try
             {
                 if (settings.DryRun)
@@ -241,7 +306,8 @@ public class CollectContextKicktippCommand : AsyncCommand<CollectContextKicktipp
                 if (IsHistoryDocument(documentName))
                 {
                     // Get the previous version to compare against
-                    var previousDocument = await contextRepository.GetLatestContextDocumentAsync(documentName, settings.CommunityContext);
+                    var previousDocument = await contextRepository.GetLatestContextDocumentAsync(
+                        documentName, settings.CommunityContext, cancellationToken);
                     var previousContent = previousDocument?.Content;
                     
                     // Add Data_Collected_At column with current date for new matches
@@ -256,7 +322,8 @@ public class CollectContextKicktippCommand : AsyncCommand<CollectContextKicktipp
                 var savedVersion = await contextRepository.SaveContextDocumentAsync(
                     documentName, 
                     finalContent, 
-                    settings.CommunityContext);
+                    settings.CommunityContext,
+                    cancellationToken);
                 
                 if (savedVersion.HasValue)
                 {

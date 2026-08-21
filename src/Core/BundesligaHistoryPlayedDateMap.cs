@@ -51,6 +51,8 @@ public sealed class BundesligaHistoryPlayedDateMap
 
     private static readonly Lazy<BundesligaHistoryPlayedDateMap> DefaultMap = new(LoadEmbedded);
     private static readonly string[] SelectedDocumentPrefixes = ["away-history-", "home-history-", "recent-history-"];
+    private static readonly HashSet<string> TransfermarktCompetitions =
+        new(["1.BL", "DFB", "CL", "EL", "ConfL"], StringComparer.Ordinal);
 
     private BundesligaHistoryPlayedDateMap(IReadOnlyList<BundesligaHistoryPlayedDateMapEntry> entries) => Entries = entries;
 
@@ -202,6 +204,10 @@ public sealed class BundesligaHistoryPlayedDateMap
         {
             throw Invalid(sourceName, $"row {row} requires an absolute HTTPS Source_Url");
         }
+        if (!IsNormalizedScore(entry.Score))
+        {
+            throw Invalid(sourceName, $"row {row} has invalid normalized Score '{entry.Score}'");
+        }
         var isSecondBundesliga = string.Equals(entry.HistoryCompetition, "2.BL", StringComparison.Ordinal);
         var isRelegation = string.Equals(entry.HistoryCompetition, "Releg", StringComparison.Ordinal);
         var isDfbPokalCapture = string.Equals(entry.HistoryCompetition, "DFB", StringComparison.Ordinal)
@@ -236,9 +242,20 @@ public sealed class BundesligaHistoryPlayedDateMap
                 && string.Equals(entry.AwayTeam, "Aston Villa", StringComparison.Ordinal)
                 && string.Equals(entry.Score, "0:3", StringComparison.Ordinal)
                 && string.Equals(entry.PlayedAt, "2026-05-20", StringComparison.Ordinal)
-            : string.Equals(entry.SourceName, TransfermarktDatasetSourceName, StringComparison.Ordinal)
+            : TransfermarktCompetitions.Contains(entry.HistoryCompetition)
+              && string.Equals(entry.SourceName, TransfermarktDatasetSourceName, StringComparison.Ordinal)
               && string.Equals(entry.SourceClass, TransfermarktDatasetSourceClass, StringComparison.Ordinal)
-              && string.Equals(entry.SourceRevision, TransfermarktDatasetRevision, StringComparison.Ordinal);
+              && string.Equals(entry.SourceRevision, TransfermarktDatasetRevision, StringComparison.Ordinal)
+              && entry.SourceMatchId.Length > 0
+              && entry.SourceMatchId.All(char.IsAsciiDigit)
+              && string.Equals(sourceUrl.Host, "www.transfermarkt.co.uk", StringComparison.Ordinal)
+              && string.Equals(sourceUrl.AbsolutePath.Split('/', StringSplitOptions.RemoveEmptyEntries) switch
+                  {
+                      [.., "spielbericht", var sourceMatchId] => sourceMatchId,
+                      _ => null
+                  }, entry.SourceMatchId, StringComparison.Ordinal)
+              && string.IsNullOrEmpty(sourceUrl.Query)
+              && string.IsNullOrEmpty(sourceUrl.Fragment);
         if (!validSource)
         {
             throw Invalid(sourceName, $"row {row} does not identify the accepted fixed source for '{entry.HistoryCompetition}'");
@@ -316,6 +333,17 @@ public sealed class BundesligaHistoryPlayedDateMap
     {
         var value = csv.GetField(fieldName)?.Trim();
         return string.IsNullOrWhiteSpace(value) ? throw Invalid(sourceName, $"row {row} requires {fieldName}") : value;
+    }
+
+    private static bool IsNormalizedScore(string score)
+    {
+        var parts = score.Split(':', StringSplitOptions.None);
+        return parts.Length == 2
+               && int.TryParse(parts[0], NumberStyles.None, CultureInfo.InvariantCulture, out var home)
+               && int.TryParse(parts[1], NumberStyles.None, CultureInfo.InvariantCulture, out var away)
+               && home >= 0
+               && away >= 0
+               && string.Equals(score, $"{home}:{away}", StringComparison.Ordinal);
     }
 
     private static BundesligaHistoryPlayedDateMap LoadEmbedded()

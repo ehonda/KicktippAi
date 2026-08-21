@@ -60,6 +60,7 @@ public sealed class BundesligaHistoryExportInventoryCommand : AsyncCommand<Bunde
         _console.MarkupLine("[blue]Read-only Kicktipp inventory mode; no Firestore or Kicktipp writes will be made[/]");
         var client = _kicktippFactory.CreateClient();
         var documents = new Dictionary<string, string>(StringComparer.Ordinal);
+        var expectedDocumentNames = new HashSet<string>(StringComparer.Ordinal);
         foreach (var matchday in BundesligaHistoryCommandSupport.ParseMatchdays(settings.Matchdays))
         {
             var provider = _providerFactory.CreateKicktippContextProvider(client, settings.CommunityContext,
@@ -69,6 +70,13 @@ public sealed class BundesligaHistoryExportInventoryCommand : AsyncCommand<Bunde
             {
                 cancellationToken.ThrowIfCancellationRequested();
                 var match = matchWithHistory.Match;
+                foreach (var requiredDocumentName in MatchContextDocumentCatalog.ForMatch(
+                    match,
+                    settings.CommunityContext,
+                    settings.Competition).RequiredDocumentNames.Where(BundesligaHistoryPlayedDateCollector.IsSelectedDocumentName))
+                {
+                    expectedDocumentNames.Add(requiredDocumentName);
+                }
                 var historyDocuments = new[]
                 {
                     await provider.RecentHistory(match.HomeTeam),
@@ -81,6 +89,17 @@ public sealed class BundesligaHistoryExportInventoryCommand : AsyncCommand<Bunde
                     documents.TryAdd(document.Name, document.Content);
                 }
             }
+        }
+        var actualDocumentNames = documents.Keys
+            .Where(BundesligaHistoryPlayedDateCollector.IsSelectedDocumentName)
+            .ToHashSet(StringComparer.Ordinal);
+        if (!actualDocumentNames.SetEquals(expectedDocumentNames))
+        {
+            var missing = expectedDocumentNames.Except(actualDocumentNames, StringComparer.Ordinal).Order(StringComparer.Ordinal);
+            var unexpected = actualDocumentNames.Except(expectedDocumentNames, StringComparer.Ordinal).Order(StringComparer.Ordinal);
+            throw new InvalidDataException(
+                $"Read-only Kicktipp inventory did not return the exact requested selected-history set; " +
+                $"missing=[{string.Join(',', missing)}], unexpected=[{string.Join(',', unexpected)}]");
         }
         return documents.OrderBy(pair => pair.Key, StringComparer.Ordinal)
             .Select(pair => new BundesligaHistoryDocument(pair.Key, pair.Value)).ToArray();

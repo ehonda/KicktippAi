@@ -26,7 +26,7 @@ Record SC Freiburg's official report at `https://www.scfreiburg.com/aktuell/nach
 
 ## Consequences
 
-- All 263 selected completed inventory rows have exact fixed-source coverage without guessing the final date.
+- Under ADR-0032's superseding complete preseason inventory, all 398 selected completed rows have exact source coverage without guessing the final date; UEFA match 2047743 still covers exactly the same two rows.
 - The UEFA exception is deliberately limited to one unique match identity repeated in two transparent rows.
 - A future change to either official record requires a reviewed source update and a superseding decision.
 

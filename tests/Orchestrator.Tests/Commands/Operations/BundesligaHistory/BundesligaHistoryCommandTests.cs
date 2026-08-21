@@ -1,3 +1,5 @@
+using System.Globalization;
+using CsvHelper;
 using EHonda.KicktippAi.Core;
 using Microsoft.Extensions.DependencyInjection;
 using Microsoft.Extensions.Logging;
@@ -17,13 +19,11 @@ public class BundesligaHistoryCommandTests
 {
     private const string Community = "ehonda-dev-buli-2627";
     private const string DocumentName = "recent-history-b04.csv";
-    private const string UndatedContent = "Competition,Home_Team,Away_Team,Score,Annotation\n" +
-                                            "1.BL,Bayer 04 Leverkusen,VfB Stuttgart,3:1,";
 
     [Test]
     public async Task Dry_run_audits_all_matchdays_without_writing_and_uses_the_exact_competition_partition()
     {
-        var contextRepository = CreateRepository(UndatedContent);
+        var contextRepository = CreateRepository();
         var outcomeRepository = CreateMockMatchOutcomeRepository();
         var test = CreateApp(contextRepository, outcomeRepository);
         var mapPath = CreateMap();
@@ -36,6 +36,8 @@ public class BundesligaHistoryCommandTests
         await Assert.That(test.Console.Output).Contains("Strict dry-run passed").And.Contains("no writes were made");
         contextRepository.Verify(repository => repository.SaveContextDocumentAsync(
             It.IsAny<string>(), It.IsAny<string>(), It.IsAny<string>(), It.IsAny<CancellationToken>()), Times.Never);
+        contextRepository.Verify(repository => repository.SaveContextDocumentsAtomicallyAsync(
+            It.IsAny<IReadOnlyList<ContextDocumentWrite>>(), It.IsAny<string>(), It.IsAny<CancellationToken>()), Times.Never);
         outcomeRepository.Verify(repository => repository.GetMatchdayOutcomesAsync(
             It.Is<int>(matchday => matchday >= 1 && matchday <= 34), Community, It.IsAny<CancellationToken>()), Times.Exactly(34));
         test.FirebaseFactory.Verify(factory => factory.CreateContextRepository(CompetitionIds.Bundesliga2026_27), Times.Once);
@@ -45,7 +47,7 @@ public class BundesligaHistoryCommandTests
     [Test]
     public async Task Apply_saves_only_the_changed_canonical_document_after_the_complete_gate_passes()
     {
-        var contextRepository = CreateRepository(UndatedContent);
+        var contextRepository = CreateRepository();
         var test = CreateApp(contextRepository, CreateMockMatchOutcomeRepository());
 
         var exitCode = await test.App.RunAsync([
@@ -53,21 +55,22 @@ public class BundesligaHistoryCommandTests
         ]);
 
         await Assert.That(exitCode).IsEqualTo(0);
-        await Assert.That(test.Console.Output).Contains("saved 1 document");
-        contextRepository.Verify(repository => repository.SaveContextDocumentAsync(
-            DocumentName,
-            "Competition,Played_At,Home_Team,Away_Team,Score,Annotation\r\n" +
-            "1.BL,2026-05-09,Bayer 04 Leverkusen,VfB Stuttgart,3:1,\r\n",
+        await Assert.That(test.Console.Output).Contains("atomically saved 1 document");
+        contextRepository.Verify(repository => repository.SaveContextDocumentsAtomicallyAsync(
+            It.Is<IReadOnlyList<ContextDocumentWrite>>(documents =>
+                documents.Count == 54
+                && documents.Any(document => document.DocumentName == DocumentName
+                    && document.Content.StartsWith("Competition,Played_At,", StringComparison.Ordinal))),
             Community,
             It.IsAny<CancellationToken>()), Times.Once);
+        contextRepository.Verify(repository => repository.SaveContextDocumentAsync(
+            It.IsAny<string>(), It.IsAny<string>(), It.IsAny<string>(), It.IsAny<CancellationToken>()), Times.Never);
     }
 
     [Test]
     public async Task Failed_apply_gate_retains_last_known_good_document_and_makes_no_partial_write()
     {
-        var contextRepository = CreateRepository(
-            "Competition,Home_Team,Away_Team,Score,Annotation\n" +
-            "1.BL,Bayer 04 Leverkusen,VfB Stuttgart,4:1,");
+        var contextRepository = CreateRepository(corruptTargetScore: true);
         var test = CreateApp(contextRepository, CreateMockMatchOutcomeRepository());
 
         var exitCode = await test.App.RunAsync([
@@ -78,12 +81,14 @@ public class BundesligaHistoryCommandTests
         await Assert.That(test.Console.Output).Contains("no documents were written");
         contextRepository.Verify(repository => repository.SaveContextDocumentAsync(
             It.IsAny<string>(), It.IsAny<string>(), It.IsAny<string>(), It.IsAny<CancellationToken>()), Times.Never);
+        contextRepository.Verify(repository => repository.SaveContextDocumentsAtomicallyAsync(
+            It.IsAny<IReadOnlyList<ContextDocumentWrite>>(), It.IsAny<string>(), It.IsAny<CancellationToken>()), Times.Never);
     }
 
     [Test]
     public async Task Audit_is_strict_and_never_uses_the_repository_save_seam()
     {
-        var contextRepository = CreateRepository(UndatedContent);
+        var contextRepository = CreateRepository();
         var test = CreateApp(contextRepository, CreateMockMatchOutcomeRepository());
 
         var exitCode = await test.App.RunAsync([
@@ -94,6 +99,8 @@ public class BundesligaHistoryCommandTests
         await Assert.That(test.Console.Output).Contains("Strict audit passed").And.Contains("transfermarkt-datasets@");
         contextRepository.Verify(repository => repository.SaveContextDocumentAsync(
             It.IsAny<string>(), It.IsAny<string>(), It.IsAny<string>(), It.IsAny<CancellationToken>()), Times.Never);
+        contextRepository.Verify(repository => repository.SaveContextDocumentsAtomicallyAsync(
+            It.IsAny<IReadOnlyList<ContextDocumentWrite>>(), It.IsAny<string>(), It.IsAny<CancellationToken>()), Times.Never);
     }
 
     private static TestContext CreateApp(
@@ -121,35 +128,63 @@ public class BundesligaHistoryCommandTests
         return new(app, console, firebaseFactory);
     }
 
-    private static Mock<IContextRepository> CreateRepository(string content)
+    private static Mock<IContextRepository> CreateRepository(bool corruptTargetScore = false)
     {
-        var document = CreateContextDocument(documentName: DocumentName, content: content);
+        var map = BundesligaHistoryPlayedDateMap.Default.Entries;
+        var documents = map.GroupBy(entry => entry.DocumentName, StringComparer.Ordinal)
+            .ToDictionary(
+                group => group.Key,
+                group => CreateContextDocument(
+                    documentName: group.Key,
+                    content: RenderHistory(group, includePlayedAt: group.Key != DocumentName,
+                        corruptFirstScore: corruptTargetScore)),
+                StringComparer.Ordinal);
         var repository = new Mock<IContextRepository>();
         repository.Setup(value => value.GetContextDocumentNamesAsync(Community, It.IsAny<CancellationToken>()))
-            .ReturnsAsync([DocumentName, "head-to-head-b04-vs-vfb.csv"]);
+            .ReturnsAsync(documents.Keys.Append("head-to-head-b04-vs-vfb.csv").ToArray());
         repository.Setup(value => value.GetLatestContextDocumentAsync(
                 It.IsAny<string>(), Community, It.IsAny<CancellationToken>()))
-            .ReturnsAsync((string name, string _, CancellationToken _) => name == DocumentName ? document : null);
-        repository.Setup(value => value.SaveContextDocumentAsync(
-                It.IsAny<string>(), It.IsAny<string>(), It.IsAny<string>(), It.IsAny<CancellationToken>()))
-            .ReturnsAsync(2);
+            .ReturnsAsync((string name, string _, CancellationToken _) => documents.GetValueOrDefault(name));
+        repository.Setup(value => value.SaveContextDocumentsAtomicallyAsync(
+                It.IsAny<IReadOnlyList<ContextDocumentWrite>>(), Community, It.IsAny<CancellationToken>()))
+            .ReturnsAsync((IReadOnlyList<ContextDocumentWrite> writes, string _, CancellationToken _) => writes
+                .Select(write => new ContextDocumentSaveResult(write.DocumentName,
+                    write.DocumentName == DocumentName ? 2 : null))
+                .ToArray());
         return repository;
     }
 
     private static string CreateMap()
     {
-        var path = Path.Combine(Path.GetTempPath(), "KicktippAi", "bundesliga-history-tests", $"{Guid.NewGuid():N}.csv");
-        Directory.CreateDirectory(Path.GetDirectoryName(path)!);
-        File.WriteAllText(path, BundesligaHistoryPlayedDateMap.Write([
-            new BundesligaHistoryPlayedDateMapEntry(
-                DocumentName, 1, "1.BL", "Bayer 04 Leverkusen", "VfB Stuttgart", "3:1", string.Empty,
-                "2026-05-09", BundesligaHistoryPlayedDateMap.TransfermarktDatasetSourceClass,
-                BundesligaHistoryPlayedDateMap.TransfermarktDatasetSourceName,
-                "https://www.transfermarkt.co.uk/example/index/spielbericht/4634534",
-                BundesligaHistoryPlayedDateMap.TransfermarktDatasetRevision,
-                "4634534", "2026-08-21T12:00:00+02:00")
-        ]));
-        return path;
+        return Path.Combine(SolutionPathUtility.FindSolutionRoot(), "data", "bundesliga-2026-27", "history", "history-played-dates.csv");
+    }
+
+    private static string RenderHistory(
+        IEnumerable<BundesligaHistoryPlayedDateMapEntry> entries,
+        bool includePlayedAt,
+        bool corruptFirstScore)
+    {
+        using var writer = new StringWriter(CultureInfo.InvariantCulture) { NewLine = "\r\n" };
+        using var csv = new CsvWriter(writer, CultureInfo.InvariantCulture);
+        foreach (var header in includePlayedAt
+                     ? new[] { "Competition", "Played_At", "Home_Team", "Away_Team", "Score", "Annotation" }
+                     : new[] { "Competition", "Home_Team", "Away_Team", "Score", "Annotation" })
+        {
+            csv.WriteField(header);
+        }
+        csv.NextRecord();
+
+        foreach (var entry in entries.OrderBy(entry => entry.RowOrdinal))
+        {
+            csv.WriteField(entry.HistoryCompetition);
+            if (includePlayedAt) csv.WriteField(entry.PlayedAt);
+            csv.WriteField(entry.HomeTeam);
+            csv.WriteField(entry.AwayTeam);
+            csv.WriteField(corruptFirstScore && entry.RowOrdinal == 1 ? "99:99" : entry.Score);
+            csv.WriteField(entry.Annotation);
+            csv.NextRecord();
+        }
+        return writer.ToString();
     }
 
     private sealed record TestContext(

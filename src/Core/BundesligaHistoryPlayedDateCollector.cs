@@ -42,6 +42,13 @@ public interface IBundesligaHistoryPlayedDateCollector
         IReadOnlyList<BundesligaHistoryDocument> documents,
         IReadOnlyList<BundesligaHistoryPlayedDateMapEntry> dateMap,
         IReadOnlyList<PersistedMatchOutcome> matchOutcomes);
+
+    BundesligaHistoryPlayedDateCollectionResult Collect(
+        string competition,
+        IReadOnlyList<BundesligaHistoryDocument> documents,
+        IReadOnlyList<BundesligaHistoryPlayedDateMapEntry> dateMap,
+        IReadOnlyList<PersistedMatchOutcome> matchOutcomes,
+        IReadOnlySet<string> expectedSelectedDocumentNames);
 }
 
 public sealed class BundesligaHistoryPlayedDateCollector : IBundesligaHistoryPlayedDateCollector
@@ -58,7 +65,26 @@ public sealed class BundesligaHistoryPlayedDateCollector : IBundesligaHistoryPla
         string competition,
         IReadOnlyList<BundesligaHistoryDocument> documents,
         IReadOnlyList<BundesligaHistoryPlayedDateMapEntry> dateMap,
-        IReadOnlyList<PersistedMatchOutcome> matchOutcomes)
+        IReadOnlyList<PersistedMatchOutcome> matchOutcomes) =>
+        CollectCore(competition, documents, dateMap, matchOutcomes, expectedSelectedDocumentNames: null);
+
+    public BundesligaHistoryPlayedDateCollectionResult Collect(
+        string competition,
+        IReadOnlyList<BundesligaHistoryDocument> documents,
+        IReadOnlyList<BundesligaHistoryPlayedDateMapEntry> dateMap,
+        IReadOnlyList<PersistedMatchOutcome> matchOutcomes,
+        IReadOnlySet<string> expectedSelectedDocumentNames)
+    {
+        ArgumentNullException.ThrowIfNull(expectedSelectedDocumentNames);
+        return CollectCore(competition, documents, dateMap, matchOutcomes, expectedSelectedDocumentNames);
+    }
+
+    private static BundesligaHistoryPlayedDateCollectionResult CollectCore(
+        string competition,
+        IReadOnlyList<BundesligaHistoryDocument> documents,
+        IReadOnlyList<BundesligaHistoryPlayedDateMapEntry> dateMap,
+        IReadOnlyList<PersistedMatchOutcome> matchOutcomes,
+        IReadOnlySet<string>? expectedSelectedDocumentNames)
     {
         ArgumentException.ThrowIfNullOrWhiteSpace(competition);
         ArgumentNullException.ThrowIfNull(documents);
@@ -77,6 +103,33 @@ public sealed class BundesligaHistoryPlayedDateCollector : IBundesligaHistoryPla
         if (selectedNames.Distinct(StringComparer.Ordinal).Count() != selectedNames.Length)
         {
             return Failure(documents, string.Empty, null, "Selected document names must be unique");
+        }
+        if (expectedSelectedDocumentNames is not null)
+        {
+            foreach (var expectedDocumentName in expectedSelectedDocumentNames)
+            {
+                try
+                {
+                    ValidateSelectedDocumentName(expectedDocumentName);
+                }
+                catch (Exception exception) when (exception is InvalidDataException or KeyNotFoundException)
+                {
+                    return Failure(documents, expectedDocumentName, null,
+                        $"Invalid expected selected document name: {exception.Message}");
+                }
+            }
+
+            var actualSelectedDocumentNames = selectedNames.ToHashSet(StringComparer.Ordinal);
+            if (!actualSelectedDocumentNames.SetEquals(expectedSelectedDocumentNames))
+            {
+                var missing = expectedSelectedDocumentNames.Except(actualSelectedDocumentNames, StringComparer.Ordinal)
+                    .Order(StringComparer.Ordinal);
+                var unexpected = actualSelectedDocumentNames.Except(expectedSelectedDocumentNames, StringComparer.Ordinal)
+                    .Order(StringComparer.Ordinal);
+                return Failure(documents, string.Empty, null,
+                    $"Selected document set does not match the explicit expected set; " +
+                    $"missing=[{string.Join(',', missing)}], unexpected=[{string.Join(',', unexpected)}]");
+            }
         }
 
         var diagnostics = new List<BundesligaHistoryPlayedDateDiagnostic>();
@@ -172,6 +225,7 @@ public sealed class BundesligaHistoryPlayedDateCollector : IBundesligaHistoryPla
         foreach (var document in documents.Where(document => IsSelectedDocumentName(document.Name)).OrderBy(document => document.Name, StringComparer.Ordinal))
         {
             ValidateSelectedDocumentName(document.Name);
+            var entryCountBeforeDocument = entries.Count;
             var completedOrdinal = 0;
             foreach (var row in ParseRows(document, allowMissingScore: true))
             {
@@ -183,6 +237,11 @@ public sealed class BundesligaHistoryPlayedDateCollector : IBundesligaHistoryPla
                 completedOrdinal++;
                 entries.Add(new(document.Name, completedOrdinal, row.HistoryCompetition, row.HomeTeam, row.AwayTeam, row.Score,
                     row.Annotation, row.PlayedAt, string.Empty, string.Empty, string.Empty, string.Empty, string.Empty, string.Empty));
+            }
+            if (entries.Count == entryCountBeforeDocument)
+            {
+                throw new InvalidDataException(
+                    $"Selected history document '{document.Name}' must contain at least one completed result row.");
             }
         }
         return new(entries.AsReadOnly(), excludedIncompleteRowCount);

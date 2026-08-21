@@ -110,6 +110,16 @@ public abstract class CollectContextKicktippCommandTests_Base
             .Returns((string _, IReadOnlyList<BundesligaHistoryDocument> documents,
                 IReadOnlyList<BundesligaHistoryPlayedDateMapEntry> _, IReadOnlyList<PersistedMatchOutcome> _) =>
                 new BundesligaHistoryPlayedDateCollectionResult(true, documents, [], []));
+        historyCollector.Setup(value => value.Collect(
+                It.IsAny<string>(),
+                It.IsAny<IReadOnlyList<BundesligaHistoryDocument>>(),
+                It.IsAny<IReadOnlyList<BundesligaHistoryPlayedDateMapEntry>>(),
+                It.IsAny<IReadOnlyList<PersistedMatchOutcome>>(),
+                It.IsAny<IReadOnlySet<string>>()))
+            .Returns((string _, IReadOnlyList<BundesligaHistoryDocument> documents,
+                IReadOnlyList<BundesligaHistoryPlayedDateMapEntry> _, IReadOnlyList<PersistedMatchOutcome> _,
+                IReadOnlySet<string> _) =>
+                new BundesligaHistoryPlayedDateCollectionResult(true, documents, [], []));
         services.AddSingleton(historyCollector.Object);
         services.AddSingleton(timeProvider.Or(TimeProvider.System));
         services.AddSingleton<ILogger<CollectContextKicktippCommand>>(new FakeLogger<CollectContextKicktippCommand>());
@@ -130,7 +140,8 @@ public abstract class CollectContextKicktippCommandTests_Base
             mockContextProviderFactory,
             mockKicktippClient,
             mockContextRepository,
-            mockContextProvider);
+            mockContextProvider,
+            historyCollector);
     }
 
     /// <summary>
@@ -156,6 +167,12 @@ public abstract class CollectContextKicktippCommandTests_Base
                 It.IsAny<string>(),
                 It.IsAny<CancellationToken>()))
             .ReturnsAsync(saveResult);
+        mock.Setup(r => r.SaveContextDocumentsAtomicallyAsync(
+                It.IsAny<IReadOnlyList<ContextDocumentWrite>>(),
+                It.IsAny<string>(),
+                It.IsAny<CancellationToken>()))
+            .ReturnsAsync((IReadOnlyList<ContextDocumentWrite> documents, string _, CancellationToken _) =>
+                documents.Select(document => new ContextDocumentSaveResult(document.DocumentName, saveResult)).ToArray());
 
         return mock;
     }
@@ -219,5 +236,6 @@ public abstract class CollectContextKicktippCommandTests_Base
         Mock<IContextProviderFactory> ContextProviderFactory,
         Mock<IKicktippClient> KicktippClient,
         Mock<IContextRepository> ContextRepository,
-        Mock<IKicktippContextProvider> ContextProvider);
+        Mock<IKicktippContextProvider> ContextProvider,
+        Mock<IBundesligaHistoryPlayedDateCollector> HistoryCollector);
 }
