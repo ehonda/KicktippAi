@@ -1,3 +1,5 @@
+using System.Globalization;
+using CsvHelper;
 using EHonda.KicktippAi.Core;
 using Integration.Tests.Infrastructure;
 using Microsoft.Extensions.DependencyInjection;
@@ -28,13 +30,17 @@ public class BundesligaHistoryIntegrationTests(FirestoreFixture fixture)
     [Test]
     public async Task Strict_apply_updates_only_the_Bundesliga_partition_and_leaves_WM26_bytes_unchanged()
     {
-        const string undated = "Competition,Home_Team,Away_Team,Score,Annotation\n" +
-                                 "1.BL,Bayer 04 Leverkusen,VfB Stuttgart,3:1,";
         const string wmBytes = "unrelated-wm26-bytes\n";
         var factory = new TestFirebaseServiceFactory(Fixture.Db);
         var bundesliga = factory.CreateContextRepository(CompetitionIds.Bundesliga2026_27);
         var worldCup = factory.CreateContextRepository(CompetitionIds.FifaWorldCup2026);
-        await bundesliga.SaveContextDocumentAsync(DocumentName, undated, Community);
+        var map = BundesligaHistoryPlayedDateMap.Default.Entries;
+        var initialDocuments = map.GroupBy(entry => entry.DocumentName, StringComparer.Ordinal)
+            .Select(group => new ContextDocumentWrite(
+                group.Key,
+                RenderHistory(group, includePlayedAt: group.Key != DocumentName)))
+            .ToArray();
+        await bundesliga.SaveContextDocumentsAtomicallyAsync(initialDocuments, Community);
         await worldCup.SaveContextDocumentAsync(DocumentName, wmBytes, Community);
 
         var (app, console) = CreateCommandApp(factory);
@@ -44,12 +50,11 @@ public class BundesligaHistoryIntegrationTests(FirestoreFixture fixture)
         ]);
 
         await Assert.That(exitCode).IsEqualTo(0);
-        await Assert.That(console.Output).Contains("saved 1 document");
+        await Assert.That(console.Output).Contains("atomically saved 1 document");
         var updated = await bundesliga.GetLatestContextDocumentAsync(DocumentName, Community);
         var untouched = await worldCup.GetLatestContextDocumentAsync(DocumentName, Community);
-        await Assert.That(updated!.Content).IsEqualTo(
-            "Competition,Played_At,Home_Team,Away_Team,Score,Annotation\r\n" +
-            "1.BL,2026-05-09,Bayer 04 Leverkusen,VfB Stuttgart,3:1,\r\n");
+        await Assert.That(updated!.Content).IsEqualTo(RenderHistory(
+            map.Where(entry => entry.DocumentName == DocumentName), includePlayedAt: true));
         await Assert.That(untouched!.Content).IsEqualTo(wmBytes);
     }
 
@@ -72,17 +77,33 @@ public class BundesligaHistoryIntegrationTests(FirestoreFixture fixture)
 
     private static string CreateMap()
     {
-        var path = Path.Combine(Path.GetTempPath(), "KicktippAi", "bundesliga-history-integration-tests", $"{Guid.NewGuid():N}.csv");
-        Directory.CreateDirectory(Path.GetDirectoryName(path)!);
-        File.WriteAllText(path, BundesligaHistoryPlayedDateMap.Write([
-            new BundesligaHistoryPlayedDateMapEntry(
-                DocumentName, 1, "1.BL", "Bayer 04 Leverkusen", "VfB Stuttgart", "3:1", string.Empty,
-                "2026-05-09", BundesligaHistoryPlayedDateMap.TransfermarktDatasetSourceClass,
-                BundesligaHistoryPlayedDateMap.TransfermarktDatasetSourceName,
-                "https://www.transfermarkt.co.uk/example/index/spielbericht/4634534",
-                BundesligaHistoryPlayedDateMap.TransfermarktDatasetRevision,
-                "4634534", "2026-08-21T12:00:00+02:00")
-        ]));
-        return path;
+        return Path.Combine(SolutionPathUtility.FindSolutionRoot(), "data", "bundesliga-2026-27", "history", "history-played-dates.csv");
+    }
+
+    private static string RenderHistory(
+        IEnumerable<BundesligaHistoryPlayedDateMapEntry> entries,
+        bool includePlayedAt)
+    {
+        using var writer = new StringWriter(CultureInfo.InvariantCulture) { NewLine = "\r\n" };
+        using var csv = new CsvWriter(writer, CultureInfo.InvariantCulture);
+        foreach (var header in includePlayedAt
+                     ? new[] { "Competition", "Played_At", "Home_Team", "Away_Team", "Score", "Annotation" }
+                     : new[] { "Competition", "Home_Team", "Away_Team", "Score", "Annotation" })
+        {
+            csv.WriteField(header);
+        }
+        csv.NextRecord();
+
+        foreach (var entry in entries.OrderBy(entry => entry.RowOrdinal))
+        {
+            csv.WriteField(entry.HistoryCompetition);
+            if (includePlayedAt) csv.WriteField(entry.PlayedAt);
+            csv.WriteField(entry.HomeTeam);
+            csv.WriteField(entry.AwayTeam);
+            csv.WriteField(entry.Score);
+            csv.WriteField(entry.Annotation);
+            csv.NextRecord();
+        }
+        return writer.ToString();
     }
 }
