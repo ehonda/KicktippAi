@@ -183,15 +183,20 @@ public class CostCommand : AsyncCommand<CostSettings>
                 table.AddColumn("Total Count", col => col.RightAligned());
                 table.AddColumn("Total Cost (USD)", col => col.RightAligned());
                 
-                // Group data by community context, model, and category to aggregate reprediction indices
+                // Group by the complete stored model configuration so caps and prompt versions never collapse.
                 var groupedData = costRows
-                    .GroupBy(d => new { d.CommunityContext, d.Model, d.ReasoningEffort, d.Category })
+                    .GroupBy(d => new
+                    {
+                        d.CommunityContext,
+                        d.ModelConfigKey,
+                        d.ModelConfigDisplayName,
+                        d.Category
+                    })
                     .Select(g => new
                     {
                         g.Key.CommunityContext,
-                        g.Key.Model,
-                        ReasoningEffort = g.Key.ReasoningEffort ?? "model-default",
-                        ModelConfigDisplayName = PredictionModelConfig.Create(g.Key.Model, g.Key.ReasoningEffort).DisplayName,
+                        g.Key.ModelConfigKey,
+                        g.Key.ModelConfigDisplayName,
                         g.Key.Category,
                         Index0Count = g.Where(x => x.RepredictionIndex == 0).Sum(x => x.Count),
                         Index0Cost = g.Where(x => x.RepredictionIndex == 0).Sum(x => x.Cost),
@@ -203,8 +208,7 @@ public class CostCommand : AsyncCommand<CostSettings>
                         TotalCost = g.Sum(x => x.Cost)
                     })
                     .OrderBy(g => g.CommunityContext)
-                    .ThenBy(g => g.Model)
-                    .ThenBy(g => g.ReasoningEffort)
+                    .ThenBy(g => g.ModelConfigKey, StringComparer.Ordinal)
                     .ThenBy(g => g.Category)
                     .ToList();
                 
@@ -464,8 +468,7 @@ public class CostCommand : AsyncCommand<CostSettings>
                 settings.All),
             rows
                 .OrderBy(row => row.CommunityContext, StringComparer.Ordinal)
-                .ThenBy(row => row.Model, StringComparer.Ordinal)
-                .ThenBy(row => row.ReasoningEffort ?? string.Empty, StringComparer.Ordinal)
+                .ThenBy(row => row.ModelConfigKey, StringComparer.Ordinal)
                 .ThenBy(row => row.Category, StringComparer.Ordinal)
                 .ThenBy(row => row.RepredictionIndex)
                 .ToList(),
@@ -537,7 +540,7 @@ public class CostCommand : AsyncCommand<CostSettings>
 
             if (!PredictionModelConfig.IsValidReasoningEffort(trimmed))
             {
-                throw new ArgumentException("--reasoning-efforts must contain only: model-default, none, minimal, low, medium, high, xhigh, or all");
+                throw new ArgumentException("--reasoning-efforts must contain only: model-default, none, minimal, low, medium, high, xhigh, max, or all");
             }
 
             efforts.Add(PredictionModelConfig.NormalizeReasoningEffort(trimmed));
@@ -570,6 +573,7 @@ public class CostCommand : AsyncCommand<CostSettings>
         return filtered
             .OrderBy(config => config.Model, StringComparer.Ordinal)
             .ThenBy(config => config.ReasoningEffort ?? string.Empty, StringComparer.Ordinal)
+            .ThenBy(config => config.IdentityKey, StringComparer.Ordinal)
             .ToList();
     }
     

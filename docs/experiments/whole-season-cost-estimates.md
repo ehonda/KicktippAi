@@ -1,8 +1,8 @@
 # Whole-Season Cost Estimates
 
-Last estimate refresh: 2026-06-06
+Last estimate refresh: 2026-08-21
 
-Coverage note updated: 2026-06-06
+Coverage note updated: 2026-08-21
 
 This estimate projects match prediction cost for two full competitions, all
 `gpt-5.5` reasoning efforts, four comparison configurations, and the current
@@ -10,6 +10,14 @@ WM26 onboarding configurations for `gpt-5-nano` / `minimal`, `gpt-5.5` /
 `none`, `gpt-5.5` / `xhigh`, `gpt-5.4-nano` / `none`, `o3` / `medium`, and
 `o3` / `high`. Bonus question cost is excluded because it is negligible
 relative to full-season match prediction cost.
+
+Bundesliga 2026/27 plumbing validation is now pinned to `gpt-5.6-luna` /
+`none`, cap `10000`, hosted match prompt
+`kicktippai/bundesliga-2026-27/predict-one-match` version `2`, and hosted bonus
+prompt `kicktippai/bundesliga-2026-27/predict-bonus` version `1`. This is not a
+production model selection. The base-estimate store has no exact Luna/none row,
+so the new season's dollar cells remain deliberately unavailable until the paid
+evidence gates below are approved and completed.
 
 Important pricing assumption: these estimates assume every match prediction is
 billed at OpenAI `flex` pricing. Production is expected to use flex from here
@@ -66,6 +74,7 @@ estimate coverage.
 | Competition | Official match count | Reprediction basis | Projected calls without repredictions | Projected calls with repredictions |
 | --- | ---: | --- | ---: | ---: |
 | Bundesliga 2025/26 | 306 | Reused `pes-squad` / `o3` evidence from Firebase cost analysis | 306 | 493 |
+| Bundesliga 2026/27 | 306 | Reused `pes-squad` historical counts: 313 initial, 123 first reprediction, 68 second-or-later | 306 | 493 |
 | FIFA World Cup 2026 | 104 | Assumes no repredictions | 104 | 104 |
 
 Sources:
@@ -102,6 +111,7 @@ for predictions that were generated before production moved to flex.
 
 | Competition | Model config | Base row prompt route | Max output tokens | Cost without repredictions | Cost with repredictions |
 | --- | --- | --- | ---: | ---: | ---: |
+| Bundesliga 2026/27 | `gpt-5.6-luna none` validation only | Langfuse Bundesliga match v2 | 10000 | Pending paid exact base row | Pending paid exact base row |
 | Bundesliga 2025/26 | `gpt-5.5 none` | Langfuse `langfuse-o3-poc` | 10000 | `$2.662965000000` | `$4.290332500000` |
 | Bundesliga 2025/26 | `gpt-5.5 low` | Langfuse `langfuse-o3-poc` | 10000 | `$3.572932500000` | `$5.756391250000` |
 | Bundesliga 2025/26 | `gpt-5.5 medium` | Langfuse `langfuse-o3-poc` | 10000 | `$5.194120500000` | `$8.368305250000` |
@@ -130,6 +140,45 @@ uses model knowledge cutoff `2024-05-31` with sampling cutoff
 `2024-06-02T00:00:00 Europe/Berlin (+02)`. If a future run observes non-flex
 fallbacks, estimate the standard-tier share separately instead of silently
 mixing it into these all-flex totals.
+
+### Bundesliga 2026/27 Luna evidence gate
+
+[Official model documentation](https://developers.openai.com/api/docs/models/gpt-5.6-luna)
+records a 1,050,000-token context window, 128,000 maximum output tokens, the
+supported reasoning efforts `none`, `low`, `medium` (default), `high`, `xhigh`,
+and `max`, and a 2026-02-16 knowledge cutoff. The estimator's mandatory two-day
+safety margin therefore uses
+`2026-02-18T00:00:00 Europe/Berlin (+01)` as the sampling cutoff.
+[Official pricing](https://developers.openai.com/api/docs/pricing) records
+short-context standard input/cached-input/cache-write/output prices of
+`$0.20`/`$0.02`/`$0.25`/`$1.20` per million tokens and long-context prices of
+`$0.40`/`$0.04`/`$0.50`/`$1.80`.
+
+The prescribed no-spend lookup was run:
+
+```powershell
+uv --cache-dir .uv-cache run python .agents/skills/estimate-experiment-cost-skill/scripts/experiment_cost_estimator.py estimate --counts 306,493 --model gpt-5.6-luna --reasoning-effort none
+```
+
+It failed closed exactly as intended:
+
+```text
+No matching base estimate JSON row found for model='gpt-5.6-luna', reasoningEffort='none'.
+```
+
+No season dollar figure is inferred from another model or calculated by hand.
+The first paid gate is one observation with exact match prompt v2, Luna/none,
+cap `10000`, and flex-first/standard-fallback processing. Its prepared slice is
+`random-1x1-seed-20260821-gpt-5-6-luna-none-cost-preflight`; its fixed run name
+is
+`p0-06__gpt-5.6-luna__none__match-v2__random-1x1-seed-20260821__cost-preflight`.
+The `$2.00` authorization ceiling deliberately overcounts the entire context
+at both the official long-context uncached-input and cache-write rates, adds
+the full output cap, allows the flex attempt plus one standard fallback,
+includes the possible 10% regional uplift, and rounds up from less than
+`$1.60`. It is not a projected cost. After that observation, its collected
+cost must be used to state the expected 20-item spend and obtain a second
+confirmation before the prescribed five-fixture-by-four-repetition base run.
 
 Base estimate rows noted in this document:
 

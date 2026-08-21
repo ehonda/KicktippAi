@@ -7,6 +7,7 @@ public sealed record CompetitionRuntimeMetadata(
     string PromptSource,
     string PromptName,
     string PromptLabel,
+    int? PromptVersion,
     string FallbackPromptModel);
 
 public static class CompetitionResolver
@@ -23,6 +24,8 @@ public static class CompetitionResolver
     public const string BundesligaMatchPromptName = "kicktippai/bundesliga-2026-27/predict-one-match";
     public const string BundesligaBonusPromptName = "kicktippai/bundesliga-2026-27/predict-bonus";
     public const string DefaultBundesligaPromptLabel = "production";
+    public const int BundesligaMatchPromptVersion = 2;
+    public const int BundesligaBonusPromptVersion = 1;
     public const string BundesligaFallbackPromptModel = "bundesliga-2026-27";
 
     public static string ResolveCompetition(
@@ -54,6 +57,10 @@ public static class CompetitionResolver
     {
         var resolvedCompetition = ResolveCompetition(competition, community, communityContext);
         var isWorldCup = string.Equals(resolvedCompetition, CompetitionIds.FifaWorldCup2026, StringComparison.OrdinalIgnoreCase);
+        var isBundesliga2026_27 = string.Equals(
+            resolvedCompetition,
+            CompetitionIds.Bundesliga2026_27,
+            StringComparison.OrdinalIgnoreCase);
         var resolvedPromptSource = string.IsNullOrWhiteSpace(promptSource)
             ? LangfusePromptSource
             : promptSource.Trim().ToLowerInvariant();
@@ -68,12 +75,22 @@ public static class CompetitionResolver
         var promptLabel = string.IsNullOrWhiteSpace(langfusePromptLabel)
             ? isWorldCup ? DefaultWorldCupPromptLabel : DefaultBundesligaPromptLabel
             : langfusePromptLabel.Trim();
+        int? promptVersion = isBundesliga2026_27 &&
+                             string.Equals(promptLabel, DefaultBundesligaPromptLabel, StringComparison.OrdinalIgnoreCase)
+            ? promptName switch
+            {
+                BundesligaMatchPromptName => BundesligaMatchPromptVersion,
+                BundesligaBonusPromptName => BundesligaBonusPromptVersion,
+                _ => null
+            }
+            : null;
 
         return new CompetitionRuntimeMetadata(
             resolvedCompetition,
             resolvedPromptSource,
             promptName,
             promptLabel,
+            promptVersion,
             isWorldCup ? WorldCupFallbackPromptModel : BundesligaFallbackPromptModel);
     }
 

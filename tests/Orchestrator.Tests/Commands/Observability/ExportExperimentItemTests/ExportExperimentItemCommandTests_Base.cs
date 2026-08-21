@@ -72,7 +72,8 @@ public abstract class ExportExperimentItemCommandTests_Base
             PredictionMetadata? predictionMetadata = null,
             Dictionary<string, ContextDocument>? contextDocuments = null,
             IReadOnlyList<PersistedMatchOutcome>? outcomes = null,
-            Exception? storedMatchException = null)
+            Exception? storedMatchException = null,
+            PredictionModelConfig? expectedModelConfig = null)
     {
         var match = storedMatch ?? CreateStoredMatch();
         var createdAt = predictionMetadata?.CreatedAt ?? new DateTimeOffset(2025, 3, 15, 12, 0, 0, TimeSpan.Zero);
@@ -82,6 +83,11 @@ public abstract class ExportExperimentItemCommandTests_Base
             ["bundesliga-standings.csv"] = CreateContextDocument("bundesliga-standings.csv", "standings", createdAt),
             ["community-rules-test-community.md"] = CreateContextDocument("community-rules-test-community.md", "rules", createdAt)
         };
+        var modelConfig = expectedModelConfig ?? PredictionModelConfig.Create(
+            Model,
+            maxOutputTokenCount: 10000,
+            promptName: "kicktippai/bundesliga-2026-27/predict-one-match",
+            promptVersion: 2);
 
         var predictionRepository = CreateMockPredictionRepository(getPredictionMetadataResult: metadata);
         if (storedMatchException is not null)
@@ -90,7 +96,7 @@ public abstract class ExportExperimentItemCommandTests_Base
                     HomeTeam,
                     AwayTeam,
                     Matchday,
-                    It.Is<PredictionModelConfig>(config => config.Model == Model && config.ReasoningEffort == null),
+                    It.Is<PredictionModelConfig>(config => config.IdentityKey == modelConfig.IdentityKey),
                     CommunityContext,
                     It.IsAny<CancellationToken>()))
                 .ThrowsAsync(storedMatchException);
@@ -101,7 +107,7 @@ public abstract class ExportExperimentItemCommandTests_Base
                     HomeTeam,
                     AwayTeam,
                     Matchday,
-                    It.Is<PredictionModelConfig>(config => config.Model == Model && config.ReasoningEffort == null),
+                    It.Is<PredictionModelConfig>(config => config.IdentityKey == modelConfig.IdentityKey),
                     CommunityContext,
                     It.IsAny<CancellationToken>()))
                 .ReturnsAsync(storedMatch);

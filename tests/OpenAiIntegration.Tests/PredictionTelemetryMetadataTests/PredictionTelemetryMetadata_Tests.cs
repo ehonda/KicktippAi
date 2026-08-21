@@ -8,7 +8,7 @@ public class PredictionTelemetryMetadata_Tests
     [Test]
     public async Task Applying_to_null_activity_does_nothing()
     {
-        var metadata = new PredictionTelemetryMetadata("Bayern", "Dortmund", 2);
+        var metadata = new PredictionTelemetryMetadata("Bayern", "Dortmund", 2, "bundesliga-2026-27");
 
         metadata.ApplyToObservation(null);
 
@@ -19,13 +19,14 @@ public class PredictionTelemetryMetadata_Tests
     public async Task Applying_to_activity_sets_expected_tags()
     {
         using var activity = new Activity("test");
-        var metadata = new PredictionTelemetryMetadata("Bayern", "Dortmund", 2);
+        var metadata = new PredictionTelemetryMetadata("Bayern", "Dortmund", 2, "bundesliga-2026-27");
 
         metadata.ApplyToObservation(activity);
 
         await Assert.That(activity.GetTagItem("langfuse.observation.metadata.homeTeam")).IsEqualTo("Bayern");
         await Assert.That(activity.GetTagItem("langfuse.observation.metadata.awayTeam")).IsEqualTo("Dortmund");
         await Assert.That(activity.GetTagItem("langfuse.observation.metadata.repredictionIndex")).IsEqualTo("2");
+        await Assert.That(activity.GetTagItem("langfuse.observation.metadata.competition")).IsEqualTo("bundesliga-2026-27");
         await Assert.That(activity.GetTagItem("langfuse.observation.metadata.match")).IsEqualTo("Bayern vs Dortmund");
     }
 

@@ -169,7 +169,9 @@ public class VerifyMatchdayCommand_Settings_Tests : VerifyMatchdayCommandTests_B
             It.Is<PredictionModelConfig>(config =>
                 config.Model == "gpt-5-nano" &&
                 config.ReasoningEffort == "high" &&
-                config.IdentityKey == "gpt-5-nano:reasoning-effort:high"),
+                config.MaxOutputTokenCount == 10000 &&
+                config.PromptName == "kicktippai/bundesliga-2026-27/predict-one-match" &&
+                config.PromptVersion == 2),
             It.IsAny<string>(),
             It.IsAny<CancellationToken>()),
             Moq.Times.AtLeastOnce());

@@ -114,7 +114,9 @@ public class VerifyBonusCommand_Settings_Tests : VerifyBonusCommandTests_Base
             It.Is<PredictionModelConfig>(config =>
                 config.Model == "gpt-5-nano" &&
                 config.ReasoningEffort == "minimal" &&
-                config.IdentityKey == "gpt-5-nano:reasoning-effort:minimal"),
+                config.MaxOutputTokenCount == 10000 &&
+                config.PromptName == "kicktippai/bundesliga-2026-27/predict-bonus" &&
+                config.PromptVersion == 1),
             It.IsAny<string>(),
             It.IsAny<CancellationToken>()), Times.Once);
     }

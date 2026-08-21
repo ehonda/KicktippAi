@@ -1,4 +1,5 @@
 using EHonda.KicktippAi.Core;
+using EHonda.Optional.Core;
 using Google.Cloud.Firestore;
 using TestUtilities;
 using TUnit.Core;
@@ -165,6 +166,98 @@ public class FirebasePredictionRepository_ModelConfigIdentity_Tests(FirestoreFix
         await Assert.That(minimalBonusCosts[0]).IsEqualTo((cost: 0.20, count: 1));
         await Assert.That(highBonusCosts[0]).IsEqualTo((cost: 0.80, count: 1));
     }
+
+    [Test]
+    public async Task Match_prediction_identity_persists_and_isolates_cap_and_exact_prompt_version()
+    {
+        var repository = CreateRepository(competition: NullableOption.Some(CompetitionIds.Bundesliga2026_27));
+        var match = CreateMatch(homeTeam: "FC Bayern München", awayTeam: "Borussia Dortmund", matchday: 1);
+        var version2 = PredictionModelConfig.Create(
+            "gpt-5.6-luna",
+            "none",
+            10_000,
+            "kicktippai/bundesliga-2026-27/predict-one-match",
+            2);
+        var version3 = PredictionModelConfig.Create(
+            "gpt-5.6-luna",
+            "none",
+            10_000,
+            "kicktippai/bundesliga-2026-27/predict-one-match",
+            3);
+        var productionPrediction = CreatePrediction(homeGoals: 1, awayGoals: 0);
+        var futurePrediction = CreatePrediction(homeGoals: 4, awayGoals: 4);
+        var manifest = CreateManifest(match, "test-community");
+        var contextDocumentNames = manifest.Documents.Select(document => document.Name).ToArray();
+
+        await repository.SavePredictionWithResolvedContextAsync(
+            match, productionPrediction, version2, "100", 0.01, "test-community", contextDocumentNames, manifest);
+        await repository.SavePredictionWithResolvedContextAsync(
+            match, futurePrediction, version3, "100", 0.02, "test-community", contextDocumentNames, manifest);
+
+        await Assert.That(await repository.GetPredictionAsync(match, version2, "test-community"))
+            .IsEqualTo(productionPrediction);
+        await Assert.That(await repository.GetPredictionAsync(match, version3, "test-community"))
+            .IsEqualTo(futurePrediction);
+
+        var snapshot = await Fixture.Db.Collection("match-predictions")
+            .WhereEqualTo("homeTeam", match.HomeTeam)
+            .WhereEqualTo("promptVersion", 2)
+            .GetSnapshotAsync();
+        var stored = snapshot.Documents.Single();
+        await Assert.That(stored.GetValue<string>("competition")).IsEqualTo(CompetitionIds.Bundesliga2026_27);
+        await Assert.That(stored.GetValue<string>("model")).IsEqualTo("gpt-5.6-luna");
+        await Assert.That(stored.GetValue<string>("reasoningEffort")).IsEqualTo("none");
+        await Assert.That(stored.GetValue<long>("maxOutputTokens")).IsEqualTo(10_000L);
+        await Assert.That(stored.GetValue<string>("promptName"))
+            .IsEqualTo("kicktippai/bundesliga-2026-27/predict-one-match");
+        await Assert.That(stored.GetValue<long>("promptVersion")).IsEqualTo(2L);
+        await Assert.That(stored.GetValue<string>("modelConfigKey")).IsEqualTo(version2.IdentityKey);
+    }
+
+    [Test]
+    public async Task Bonus_prediction_identity_persists_and_reconstructs_exact_config()
+    {
+        var repository = CreateRepository(competition: NullableOption.Some(CompetitionIds.Bundesliga2026_27));
+        var question = CreateBonusQuestion(text: "Exact bonus?");
+        var config = PredictionModelConfig.Create(
+            "gpt-5.6-luna",
+            "none",
+            10_000,
+            "kicktippai/bundesliga-2026-27/predict-bonus",
+            1);
+
+        await repository.SaveBonusPredictionAsync(
+            question,
+            new BonusPrediction(["opt-1"]),
+            config,
+            "100",
+            0.01,
+            "test-community",
+            []);
+
+        var configs = await repository.GetAvailableModelConfigsAsync();
+        await Assert.That(configs.Select(candidate => candidate.IdentityKey)).Contains(config.IdentityKey);
+
+        var snapshot = await Fixture.Db.Collection("bonus-predictions")
+            .WhereEqualTo("questionText", question.Text)
+            .GetSnapshotAsync();
+        var stored = snapshot.Documents.Single();
+        await Assert.That(stored.GetValue<string>("competition")).IsEqualTo(CompetitionIds.Bundesliga2026_27);
+        await Assert.That(stored.GetValue<long>("maxOutputTokens")).IsEqualTo(10_000L);
+        await Assert.That(stored.GetValue<string>("promptName"))
+            .IsEqualTo("kicktippai/bundesliga-2026-27/predict-bonus");
+        await Assert.That(stored.GetValue<long>("promptVersion")).IsEqualTo(1L);
+    }
+
+    private static ResolvedMatchContextManifest CreateManifest(Match match, string communityContext) =>
+        ResolvedMatchContextManifest.Create(
+            CompetitionIds.Bundesliga2026_27,
+            communityContext,
+            MatchContextDocumentCatalog.ForMatch(match, communityContext, CompetitionIds.Bundesliga2026_27)
+                .RequiredDocumentNames.Select((name, index) => new ResolvedMatchContextDocument(
+                    name, index + 1, "Context", DocumentPublicationContract.ComputeContentSha256(name))),
+            new string('a', DocumentPublicationContract.Sha256HexLength),
+            new string('b', DocumentPublicationContract.Sha256HexLength));
 
     private async Task InsertLegacyMatchPredictionAsync(
         Match match,

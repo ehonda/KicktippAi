@@ -102,6 +102,10 @@ public class CompetitionResolverTests
         await Assert.That(metadata.PromptSource).IsEqualTo(CompetitionResolver.LangfusePromptSource);
         await Assert.That(metadata.PromptName).IsEqualTo(expectedPromptName);
         await Assert.That(metadata.PromptLabel).IsEqualTo(CompetitionResolver.DefaultBundesligaPromptLabel);
+        await Assert.That(metadata.PromptVersion).IsEqualTo(
+            bonusPrompt
+                ? CompetitionResolver.BundesligaBonusPromptVersion
+                : CompetitionResolver.BundesligaMatchPromptVersion);
         await Assert.That(metadata.FallbackPromptModel).IsEqualTo(CompetitionResolver.BundesligaFallbackPromptModel);
     }
 
@@ -119,6 +123,93 @@ public class CompetitionResolverTests
 
         await Assert.That(metadata.PromptName).IsEqualTo(CompetitionResolver.BundesligaMatchPromptName);
         await Assert.That(metadata.PromptLabel).IsEqualTo("staging");
+        await Assert.That(metadata.PromptVersion).IsNull();
+
+        var modelConfig = PredictionServiceCommandSupport.CreateModelConfig(
+            "gpt-5.6-luna",
+            "none",
+            metadata.Competition,
+            "ehonda-dev-buli-2627",
+            "ehonda-dev-buli-2627",
+            metadata.PromptSource,
+            metadata.PromptName,
+            metadata.PromptLabel,
+            langfusePromptVersion: null,
+            maxOutputTokenCount: 10_000,
+            bonusPrompt: false);
+
+        await Assert.That(modelConfig.PromptName).IsNull();
+        await Assert.That(modelConfig.PromptVersion).IsNull();
+    }
+
+    [Test]
+    public async Task Bundesliga_candidate_route_uses_explicit_numbered_version_for_exact_identity()
+    {
+        var modelConfig = PredictionServiceCommandSupport.CreateModelConfig(
+            "gpt-5.6-luna",
+            "none",
+            CompetitionIds.Bundesliga2026_27,
+            "ehonda-dev-buli-2627",
+            "ehonda-dev-buli-2627",
+            CompetitionResolver.LangfusePromptSource,
+            CompetitionResolver.BundesligaMatchPromptName,
+            "staging",
+            langfusePromptVersion: 7,
+            maxOutputTokenCount: 10_000,
+            bonusPrompt: false);
+
+        await Assert.That(modelConfig.PromptName).IsEqualTo(CompetitionResolver.BundesligaMatchPromptName);
+        await Assert.That(modelConfig.PromptVersion).IsEqualTo(7);
+    }
+
+    [Test]
+    [Arguments(false, CompetitionResolver.BundesligaBonusPromptName, CompetitionResolver.BundesligaBonusPromptVersion)]
+    [Arguments(true, CompetitionResolver.BundesligaMatchPromptName, CompetitionResolver.BundesligaMatchPromptVersion)]
+    public async Task Bundesliga_known_prompt_version_follows_exact_prompt_name_not_command_kind(
+        bool bonusPrompt,
+        string promptName,
+        int expectedVersion)
+    {
+        var metadata = CompetitionResolver.ResolveRuntimeMetadata(
+            competition: CompetitionIds.Bundesliga2026_27,
+            community: "ehonda-dev-buli-2627",
+            communityContext: "ehonda-dev-buli-2627",
+            promptSource: "langfuse",
+            langfusePromptName: promptName,
+            langfusePromptLabel: "production",
+            bonusPrompt);
+
+        await Assert.That(metadata.PromptVersion).IsEqualTo(expectedVersion);
+    }
+
+    [Test]
+    public async Task Custom_bundesliga_hosted_prompt_has_no_implicit_numbered_version()
+    {
+        var metadata = CompetitionResolver.ResolveRuntimeMetadata(
+            competition: CompetitionIds.Bundesliga2026_27,
+            community: "ehonda-dev-buli-2627",
+            communityContext: "ehonda-dev-buli-2627",
+            promptSource: "langfuse",
+            langfusePromptName: "kicktippai/bundesliga-2026-27/custom-candidate",
+            langfusePromptLabel: "staging",
+            bonusPrompt: false);
+
+        await Assert.That(metadata.PromptVersion).IsNull();
+        var modelConfig = PredictionServiceCommandSupport.CreateModelConfig(
+            "gpt-5.6-luna",
+            "none",
+            metadata.Competition,
+            "ehonda-dev-buli-2627",
+            "ehonda-dev-buli-2627",
+            metadata.PromptSource,
+            metadata.PromptName,
+            metadata.PromptLabel,
+            langfusePromptVersion: null,
+            maxOutputTokenCount: 10_000,
+            bonusPrompt: false);
+
+        await Assert.That(modelConfig.PromptName).IsNull();
+        await Assert.That(modelConfig.PromptVersion).IsNull();
     }
 
     [Test]

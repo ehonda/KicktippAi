@@ -20,7 +20,12 @@ public class ReconstructPromptCommand_Tests
                 "Team A",
                 "Team B",
                 7,
-                It.Is<PredictionModelConfig>(config => config.Model == "gpt-5" && config.ReasoningEffort == null),
+                It.Is<PredictionModelConfig>(config =>
+                    config.Model == "gpt-5" &&
+                    config.ReasoningEffort == "none" &&
+                    config.MaxOutputTokenCount == 8000 &&
+                    config.PromptName == "kicktippai/bundesliga-2026-27/custom-match" &&
+                    config.PromptVersion == 7),
                 "test-community",
                 It.IsAny<CancellationToken>()))
             .ReturnsAsync(match);
@@ -31,7 +36,12 @@ public class ReconstructPromptCommand_Tests
                     candidate.AwayTeam == match.AwayTeam &&
                     candidate.Matchday == match.Matchday &&
                     candidate.StartsAt.ToInstant() == match.StartsAt.ToInstant()),
-                It.Is<PredictionModelConfig>(config => config.Model == "gpt-5" && config.ReasoningEffort == null),
+                It.Is<PredictionModelConfig>(config =>
+                    config.Model == "gpt-5" &&
+                    config.ReasoningEffort == "none" &&
+                    config.MaxOutputTokenCount == 8000 &&
+                    config.PromptName == "kicktippai/bundesliga-2026-27/custom-match" &&
+                    config.PromptVersion == 7),
                 "test-community",
                 It.IsAny<CancellationToken>()))
             .ReturnsAsync(new PredictionMetadata(
@@ -69,6 +79,16 @@ public class ReconstructPromptCommand_Tests
             "--away",
             "Team B",
             "--matchday",
+            "7",
+            "--reasoning-effort",
+            "none",
+            "--max-output-tokens",
+            "8000",
+            "--prompt-source",
+            "langfuse",
+            "--langfuse-prompt-name",
+            "kicktippai/bundesliga-2026-27/custom-match",
+            "--langfuse-prompt-version",
             "7");
 
         await Assert.That(exitCode).IsEqualTo(0);
@@ -87,7 +107,12 @@ public class ReconstructPromptCommand_Tests
                 "Team A",
                 "Team B",
                 7,
-                It.Is<PredictionModelConfig>(config => config.Model == "gpt-5" && config.ReasoningEffort == null),
+                It.Is<PredictionModelConfig>(config =>
+                    config.Model == "gpt-5" &&
+                    config.ReasoningEffort == null &&
+                    config.MaxOutputTokenCount == 10000 &&
+                    config.PromptName == "kicktippai/bundesliga-2026-27/predict-one-match" &&
+                    config.PromptVersion == 2),
                 "test-community",
                 It.IsAny<CancellationToken>()))
             .ReturnsAsync((Match?)null);
@@ -117,6 +142,46 @@ public class ReconstructPromptCommand_Tests
 
         await Assert.That(exitCode).IsEqualTo(1);
         await Assert.That(output).Contains("Match not found on matchday 7");
+    }
+
+    [Test]
+    public async Task Explicit_competition_selects_its_repository()
+    {
+        var predictionRepository = new Mock<IPredictionRepository>();
+        predictionRepository
+            .Setup(repository => repository.GetStoredMatchAsync(
+                "Team A",
+                "Team B",
+                7,
+                It.Is<PredictionModelConfig>(config => config.IdentityKey == "gpt-5"),
+                "test-community",
+                It.IsAny<CancellationToken>()))
+            .ReturnsAsync((Match?)null);
+
+        var firebaseFactory = new Mock<IFirebaseServiceFactory>();
+        firebaseFactory.Setup(factory => factory.CreatePredictionRepository(CompetitionIds.FifaWorldCup2026)).Returns(predictionRepository.Object);
+        firebaseFactory.Setup(factory => factory.CreateContextRepository(CompetitionIds.FifaWorldCup2026)).Returns(new Mock<IContextRepository>().Object);
+        firebaseFactory.SetupGet(factory => factory.FirestoreDb).Returns((FirestoreDb)null!);
+
+        var context = CreateCommandApp<ReconstructPromptCommand>(
+            "reconstruct-prompt",
+            firebaseServiceFactory: firebaseFactory);
+
+        var (exitCode, output) = await RunCommandAsync(
+            context.App,
+            context.Console,
+            "reconstruct-prompt",
+            "gpt-5",
+            "--community-context", "test-community",
+            "--competition", "fifa-world-cup-2026",
+            "--prompt-source", "local",
+            "--home", "Team A",
+            "--away", "Team B",
+            "--matchday", "7");
+
+        await Assert.That(exitCode).IsEqualTo(1);
+        await Assert.That(output).Contains("Match not found on matchday 7");
+        firebaseFactory.Verify(factory => factory.CreatePredictionRepository(CompetitionIds.FifaWorldCup2026), Times.Once);
     }
 
     [Test]

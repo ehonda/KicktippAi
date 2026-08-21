@@ -99,6 +99,24 @@ public class FirestoreMatchPrediction
     public string? ReasoningEffort { get; set; }
 
     /// <summary>
+    /// Explicit maximum output-token cap used to generate this prediction.
+    /// </summary>
+    [FirestoreProperty("maxOutputTokens")]
+    public int? MaxOutputTokenCount { get; set; }
+
+    /// <summary>
+    /// Hosted prompt name used to generate this prediction.
+    /// </summary>
+    [FirestoreProperty("promptName")]
+    public string? PromptName { get; set; }
+
+    /// <summary>
+    /// Exact hosted prompt version used to generate this prediction.
+    /// </summary>
+    [FirestoreProperty("promptVersion")]
+    public int? PromptVersion { get; set; }
+
+    /// <summary>
     /// JSON string containing the token usage object from the API (e.g., completion_tokens, prompt_tokens, total_tokens).
     /// </summary>
     [FirestoreProperty("tokenUsage")]
@@ -274,6 +292,24 @@ public class FirestoreBonusPrediction
     /// </summary>
     [FirestoreProperty("reasoningEffort")]
     public string? ReasoningEffort { get; set; }
+
+    /// <summary>
+    /// Explicit maximum output-token cap used to generate this prediction.
+    /// </summary>
+    [FirestoreProperty("maxOutputTokens")]
+    public int? MaxOutputTokenCount { get; set; }
+
+    /// <summary>
+    /// Hosted prompt name used to generate this prediction.
+    /// </summary>
+    [FirestoreProperty("promptName")]
+    public string? PromptName { get; set; }
+
+    /// <summary>
+    /// Exact hosted prompt version used to generate this prediction.
+    /// </summary>
+    [FirestoreProperty("promptVersion")]
+    public int? PromptVersion { get; set; }
 
     /// <summary>
     /// JSON string containing the token usage object from the API (e.g., completion_tokens, prompt_tokens, total_tokens).

@@ -73,7 +73,18 @@ public class VerifyBonusCommand : AsyncCommand<VerifySettings>
         var kicktippClient = _kicktippClientFactory.CreateClient();
         string communityContext = settings.CommunityContext ?? settings.Community;
         var competition = CompetitionResolver.ResolveCompetition(settings.Competition, settings.Community, communityContext);
-        var modelConfig = PredictionServiceCommandSupport.CreateModelConfig(settings.Model, settings.ReasoningEffort);
+        var modelConfig = PredictionServiceCommandSupport.CreateModelConfig(
+            settings.Model,
+            settings.ReasoningEffort,
+            competition,
+            settings.Community,
+            communityContext,
+            settings.PromptSource,
+            settings.LangfusePromptName,
+            settings.LangfusePromptLabel,
+            settings.LangfusePromptVersion,
+            settings.MaxOutputTokenCount,
+            bonusPrompt: true);
         // Try to get the prediction repository (may be null if Firebase is not configured)
         var predictionRepository = _firebaseServiceFactory.CreatePredictionRepository(competition);
         if (predictionRepository == null)

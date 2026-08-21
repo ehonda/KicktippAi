@@ -191,6 +191,7 @@ public class CostCalculationService_CalculateCost_Tests : CostCalculationService
     [Arguments("gpt-5.4", 2.50, 15.00, 0.25)]
     [Arguments("gpt-5.4-mini", 0.75, 4.50, 0.075)]
     [Arguments("gpt-5.4-nano", 0.20, 1.25, 0.02)]
+    [Arguments("gpt-5.6-luna", 0.20, 1.20, 0.02)]
     [Arguments("o4-mini", 1.10, 4.40, 0.275)]
     [Arguments("gpt-4.1", 2.00, 8.00, 0.50)]
     public async Task CalculateCost_with_various_models_calculates_correctly(

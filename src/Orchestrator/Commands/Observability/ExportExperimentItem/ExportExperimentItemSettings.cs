@@ -33,8 +33,32 @@ public sealed class ExportExperimentItemSettings : CommandSettings
     public bool WithJustification { get; set; }
 
     [CommandOption("--reasoning-effort")]
-    [Description("Optional OpenAI reasoning effort used for the stored prediction (none, minimal, low, medium, high, xhigh)")]
+    [Description("Optional OpenAI reasoning effort used for the stored prediction (none, minimal, low, medium, high, xhigh, max)")]
     public string? ReasoningEffort { get; set; }
+
+    [CommandOption("--competition")]
+    [Description("Competition identifier for repository and stored identity selection (defaults to bundesliga-2026-27)")]
+    public string? Competition { get; set; }
+
+    [CommandOption("--max-output-tokens")]
+    [Description("Maximum output token cap used by the stored prediction identity")]
+    public int? MaxOutputTokenCount { get; set; }
+
+    [CommandOption("--prompt-source")]
+    [Description("Prompt source used by the stored prediction identity: local or langfuse")]
+    public string? PromptSource { get; set; }
+
+    [CommandOption("--langfuse-prompt-name")]
+    [Description("Langfuse hosted prompt name used by the stored prediction identity")]
+    public string? LangfusePromptName { get; set; }
+
+    [CommandOption("--langfuse-prompt-label")]
+    [Description("Langfuse hosted prompt label used by the stored prediction identity")]
+    public string? LangfusePromptLabel { get; set; }
+
+    [CommandOption("--langfuse-prompt-version")]
+    [Description("Exact Langfuse hosted prompt version used by the stored prediction identity")]
+    public int? LangfusePromptVersion { get; set; }
 
     [CommandOption("--evaluation-time")]
     [Description("Optional explicit evaluation time in NodaTime invariant ZonedDateTime 'G' format, for example '2026-03-15T12:00:00 Europe/Berlin (+01)'")]
@@ -93,7 +117,17 @@ public sealed class ExportExperimentItemSettings : CommandSettings
 
         if (!PredictionModelConfig.IsValidReasoningEffort(ReasoningEffort))
         {
-            return ValidationResult.Error("--reasoning-effort must be one of: none, minimal, low, medium, high, xhigh");
+            return ValidationResult.Error("--reasoning-effort must be one of: none, minimal, low, medium, high, xhigh, max");
+        }
+
+        if (MaxOutputTokenCount is < 1)
+        {
+            return ValidationResult.Error("--max-output-tokens must be at least 1 when provided");
+        }
+
+        if (LangfusePromptVersion is < 1)
+        {
+            return ValidationResult.Error("--langfuse-prompt-version must be at least 1 when provided");
         }
 
         var hasEvaluationPolicyKind = !string.IsNullOrWhiteSpace(EvaluationPolicyKind);

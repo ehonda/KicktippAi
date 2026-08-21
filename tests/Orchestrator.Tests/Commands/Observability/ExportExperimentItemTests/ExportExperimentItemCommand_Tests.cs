@@ -1,11 +1,56 @@
 using System.Text.Json;
 using EHonda.KicktippAi.Core;
+using Moq;
 using TUnit.Core;
 
 namespace Orchestrator.Tests.Commands.Observability.ExportExperimentItemTests;
 
 public class ExportExperimentItemCommand_Tests : ExportExperimentItemCommandTests_Base
 {
+    [Test]
+    public async Task Exporting_experiment_item_selects_the_exact_cap_and_prompt_identity()
+    {
+        var outputPath = Path.Combine(Path.GetTempPath(), $"{Guid.NewGuid():N}-exact-identity.json");
+        var expectedConfig = PredictionModelConfig.Create(
+            Model,
+            "none",
+            8000,
+            "kicktippai/bundesliga-2026-27/custom-match",
+            7);
+        var (app, console, predictionRepository, _, _) = CreateItemCommandApp(
+            storedMatch: CreateStoredMatch(),
+            expectedModelConfig: expectedConfig);
+
+        try
+        {
+            var (exitCode, _) = await RunAsync(
+                app,
+                console,
+                outputPath,
+                "--reasoning-effort", "none",
+                "--max-output-tokens", "8000",
+                "--prompt-source", "langfuse",
+                "--langfuse-prompt-name", "kicktippai/bundesliga-2026-27/custom-match",
+                "--langfuse-prompt-version", "7");
+
+            await Assert.That(exitCode).IsEqualTo(0);
+            predictionRepository.Verify(repository => repository.GetStoredMatchAsync(
+                HomeTeam,
+                AwayTeam,
+                Matchday,
+                It.Is<PredictionModelConfig>(config => config.IdentityKey == expectedConfig.IdentityKey),
+                CommunityContext,
+                It.IsAny<CancellationToken>()), Times.Once);
+        }
+        finally
+        {
+            if (File.Exists(outputPath))
+            {
+                File.Delete(outputPath);
+            }
+        }
+    }
+
     [Test]
     public async Task Exporting_experiment_item_writes_expected_json_file()
     {

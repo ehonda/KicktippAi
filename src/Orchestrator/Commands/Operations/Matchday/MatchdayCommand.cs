@@ -150,7 +150,18 @@ public class MatchdayCommand : AsyncCommand<BaseSettings>
 
         string communityContext = settings.CommunityContext ?? settings.Community;
         var competition = CompetitionResolver.ResolveCompetition(settings.Competition, settings.Community, communityContext);
-        var modelConfig = PredictionServiceCommandSupport.CreateModelConfig(settings.Model, settings.ReasoningEffort);
+        var modelConfig = PredictionServiceCommandSupport.CreateModelConfig(
+            settings.Model,
+            settings.ReasoningEffort,
+            competition,
+            settings.Community,
+            communityContext,
+            settings.PromptSource,
+            settings.LangfusePromptName,
+            settings.LangfusePromptLabel,
+            settings.LangfusePromptVersion,
+            settings.MaxOutputTokenCount,
+            bonusPrompt: false);
         var model = modelConfig.Model;
         if (settings.WithJustification && PredictionServiceCommandSupport.UsesUnsupportedWorldCupHostedMatchPrompt(
                 competition,
@@ -230,6 +241,7 @@ public class MatchdayCommand : AsyncCommand<BaseSettings>
         {
             LangfuseActivityPropagation.SetTraceMetadata(activity, "reasoningEffort", modelConfig.ReasoningEffort);
         }
+        SetPinnedModelConfigTraceMetadata(activity, modelConfig);
         LangfuseActivityPropagation.SetTraceMetadata(activity, "homeTeams", PredictionTelemetryMetadata.BuildDelimitedFilterValue(matchesWithHistory.Select(m => m.Match.HomeTeam)), propagateToObservations: false);
         LangfuseActivityPropagation.SetTraceMetadata(activity, "awayTeams", PredictionTelemetryMetadata.BuildDelimitedFilterValue(matchesWithHistory.Select(m => m.Match.AwayTeam)), propagateToObservations: false);
         LangfuseActivityPropagation.SetTraceMetadata(activity, "teams", PredictionTelemetryMetadata.BuildDelimitedFilterValue(matchesWithHistory.SelectMany(m => new[] { m.Match.HomeTeam, m.Match.AwayTeam })), propagateToObservations: false);
@@ -554,7 +566,8 @@ public class MatchdayCommand : AsyncCommand<BaseSettings>
                     var telemetryMetadata = new PredictionTelemetryMetadata(
                         HomeTeam: match.HomeTeam,
                         AwayTeam: match.AwayTeam,
-                        RepredictionIndex: predictionRepredictionIndex);
+                        RepredictionIndex: predictionRepredictionIndex,
+                        Competition: competition);
 
                     // Predict the match
                     prediction = await predictionService.PredictMatchAsync(match, contextDocuments, settings.WithJustification, telemetryMetadata);
@@ -790,6 +803,27 @@ public class MatchdayCommand : AsyncCommand<BaseSettings>
         _console.MarkupLine($"[dim]Token usage (uncached/cached/reasoning/output/$cost): {summary}[/]");
 
         return blockedMatches.Count > 0 || !submitSuccess ? 1 : 0;
+    }
+
+    private static void SetPinnedModelConfigTraceMetadata(
+        System.Diagnostics.Activity? activity,
+        PredictionModelConfig modelConfig)
+    {
+        LangfuseActivityPropagation.SetTraceMetadata(activity, "modelConfigKey", modelConfig.IdentityKey);
+        if (modelConfig.MaxOutputTokenCount is not null)
+        {
+            LangfuseActivityPropagation.SetTraceMetadata(activity, "maxOutputTokens", modelConfig.MaxOutputTokenCount.Value.ToString(System.Globalization.CultureInfo.InvariantCulture));
+        }
+
+        if (modelConfig.PromptName is not null)
+        {
+            LangfuseActivityPropagation.SetTraceMetadata(activity, "promptName", modelConfig.PromptName);
+        }
+
+        if (modelConfig.PromptVersion is not null)
+        {
+            LangfuseActivityPropagation.SetTraceMetadata(activity, "promptVersion", modelConfig.PromptVersion.Value.ToString(System.Globalization.CultureInfo.InvariantCulture));
+        }
     }
     /// <summary>
     /// Retrieves all available context documents from the database for the given community context.

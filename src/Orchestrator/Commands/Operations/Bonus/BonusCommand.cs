@@ -141,7 +141,18 @@ public class BonusCommand : AsyncCommand<BaseSettings>
 
         string communityContext = settings.CommunityContext ?? settings.Community;
         var competition = CompetitionResolver.ResolveCompetition(settings.Competition, settings.Community, communityContext);
-        var modelConfig = PredictionServiceCommandSupport.CreateModelConfig(settings.Model, settings.ReasoningEffort);
+        var modelConfig = PredictionServiceCommandSupport.CreateModelConfig(
+            settings.Model,
+            settings.ReasoningEffort,
+            competition,
+            settings.Community,
+            communityContext,
+            settings.PromptSource,
+            settings.LangfusePromptName,
+            settings.LangfusePromptLabel,
+            settings.LangfusePromptVersion,
+            settings.MaxOutputTokenCount,
+            bonusPrompt: true);
         var model = modelConfig.Model;
         // Set Langfuse trace-level attributes
         var sessionId = $"bonus-{settings.Community}";
@@ -155,6 +166,7 @@ public class BonusCommand : AsyncCommand<BaseSettings>
         {
             LangfuseActivityPropagation.SetTraceMetadata(activity, "reasoningEffort", modelConfig.ReasoningEffort);
         }
+        SetPinnedModelConfigTraceMetadata(activity, modelConfig);
         LangfuseActivityPropagation.SetTraceMetadata(activity, "repredictMode", settings.IsRepredictMode ? "true" : "false");
 
         // Note: trace input is set after bonus questions are fetched
@@ -365,7 +377,8 @@ public class BonusCommand : AsyncCommand<BaseSettings>
                     }
 
                     var telemetryMetadata = new PredictionTelemetryMetadata(
-                        RepredictionIndex: predictionRepredictionIndex);
+                        RepredictionIndex: predictionRepredictionIndex,
+                        Competition: competition);
                     
                     // Predict the bonus question
                     prediction = await predictionService.PredictBonusQuestionAsync(question, contextDocuments, telemetryMetadata);
@@ -527,6 +540,27 @@ public class BonusCommand : AsyncCommand<BaseSettings>
             ? tokenUsageTracker.GetCompactSummaryWithEstimatedCosts(settings.EstimatedCostsModel)
             : tokenUsageTracker.GetCompactSummary();
         _console.MarkupLine($"[dim]Token usage (uncached/cached/reasoning/output/$cost): {summary}[/]");
+    }
+
+    private static void SetPinnedModelConfigTraceMetadata(
+        System.Diagnostics.Activity? activity,
+        PredictionModelConfig modelConfig)
+    {
+        LangfuseActivityPropagation.SetTraceMetadata(activity, "modelConfigKey", modelConfig.IdentityKey);
+        if (modelConfig.MaxOutputTokenCount is not null)
+        {
+            LangfuseActivityPropagation.SetTraceMetadata(activity, "maxOutputTokens", modelConfig.MaxOutputTokenCount.Value.ToString(System.Globalization.CultureInfo.InvariantCulture));
+        }
+
+        if (modelConfig.PromptName is not null)
+        {
+            LangfuseActivityPropagation.SetTraceMetadata(activity, "promptName", modelConfig.PromptName);
+        }
+
+        if (modelConfig.PromptVersion is not null)
+        {
+            LangfuseActivityPropagation.SetTraceMetadata(activity, "promptVersion", modelConfig.PromptVersion.Value.ToString(System.Globalization.CultureInfo.InvariantCulture));
+        }
     }
 
     private static async Task EnsureWorldCupRankingKpiPresentAsync(

@@ -50,7 +50,7 @@ public class CostSettings : CommandSettings
     public string? Models { get; set; }
 
     [CommandOption("--reasoning-efforts")]
-    [Description("Comma-separated list of reasoning efforts to include (none, minimal, low, medium, high, xhigh, or model-default). Use 'all' for all stored configs.")]
+    [Description("Comma-separated list of reasoning efforts to include (none, minimal, low, medium, high, xhigh, max, or model-default). Use 'all' for all stored configs.")]
     public string? ReasoningEfforts { get; set; }
 
     [CommandOption("--community-contexts")]
