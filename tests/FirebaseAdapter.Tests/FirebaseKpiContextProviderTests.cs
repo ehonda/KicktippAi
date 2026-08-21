@@ -608,6 +608,84 @@ public class FirebaseKpiContextProviderTests
             resolved.Manifest.RosterPublicationSnapshotId)).IsTrue();
         await Assert.That(DocumentPublicationContract.IsLowercaseSha256(
             resolved.Manifest.ClubEloPublicationSnapshotId)).IsTrue();
+        await Assert.That(resolved.Selection.Category).IsEqualTo(BundesligaBonusQuestionCategory.TopScorer);
+        await Assert.That(resolved.Selection.SelectedDocumentNames.SequenceEqual(
+            resolved.Documents.Select(document => document.Name))).IsTrue();
+        await Assert.That(resolved.Selection.EstimatedUtf8Bytes).IsGreaterThan(0);
+        await Assert.That(resolved.Selection.EstimatedTokens)
+            .IsEqualTo((resolved.Selection.EstimatedUtf8Bytes + 3) / 4);
+        await Assert.That(resolved.Selection.Budget).IsEqualTo(BonusContextBudget.Default);
+        await Assert.That(resolved.Selection.ExcludedDocuments[0].Document.Name).IsEqualTo("team-rosters");
+        await Assert.That(resolved.Selection.ExcludedDocuments[0].Reason)
+            .IsEqualTo(BonusContextExclusionReason.ProhibitedAggregate);
+    }
+
+    [Test]
+    public async Task Bundesliga_budget_rejects_the_complete_selected_set_without_partial_roster_context()
+    {
+        var provider = CreateBundesligaProvider(
+            new Mock<IKpiRepository>(MockBehavior.Strict),
+            CreateBundesligaPublicationRepository());
+        var question = Question(TopScorerTeamQuestion, "Borussia Dortmund", "FC Bayern München");
+
+        await Assert.That(async () => await provider.ResolveBonusQuestionContextAsync(
+                question,
+                "test-community",
+                budget: new BonusContextBudget(3, 32_000)))
+            .Throws<InvalidOperationException>()
+            .WithMessageContaining("all 4 selected documents");
+    }
+
+    [Test]
+    public async Task Fixed_representative_categories_keep_P0_document_sets_and_fit_default_budgets()
+    {
+        var provider = CreateBundesligaProvider(
+            new Mock<IKpiRepository>(MockBehavior.Strict),
+            CreateBundesligaPublicationRepository());
+        var rosters = BundesligaRosterPublication.ReconstructLastKnownGood(CreateCanonicalRosterPublication());
+        var player = rosters.Snapshots
+            .SelectMany(snapshot => snapshot.Members
+                .Where(member => member.Role == BundesligaRosterRole.Player)
+                .Select(member => member.Name))
+            .First();
+        var coach = rosters.Snapshots
+            .SelectMany(snapshot => snapshot.Members
+                .Where(member => member.Role == BundesligaRosterRole.Coach)
+                .Select(member => member.Name))
+            .First();
+        var questions = new[]
+        {
+            Question("Wer wird Deutscher Meister?", "FC Bayern München"),
+            Question("Welche drei Mannschaften steigen ab?", "FC Bayern München"),
+            Question("Wer wird Torschützenkönig?", player),
+            Question("Welcher Trainer wird zuerst entlassen?", coach),
+            Question("Wie viele Tore fallen am ersten Spieltag?", "Mehr", "Weniger")
+        };
+
+        var resolved = new List<ResolvedBonusContext>();
+        foreach (var question in questions)
+        {
+            resolved.Add(await provider.ResolveBonusQuestionContextAsync(question, "test-community"));
+        }
+
+        await Assert.That(resolved.Select(value => value.Selection.Category).SequenceEqual(
+        [
+            BundesligaBonusQuestionCategory.Champion,
+            BundesligaBonusQuestionCategory.Relegation,
+            BundesligaBonusQuestionCategory.TopScorer,
+            BundesligaBonusQuestionCategory.Coach,
+            BundesligaBonusQuestionCategory.Unknown
+        ])).IsTrue();
+        await Assert.That(resolved.Select(value => value.Documents.Length).SequenceEqual([2, 2, 3, 3, 2])).IsTrue();
+        await Assert.That(resolved.All(value =>
+            value.Documents.Length <= BonusContextBudget.DefaultMaximumDocuments
+            && value.Selection.EstimatedTokens <= BonusContextBudget.DefaultMaximumEstimatedTokens)).IsTrue();
+
+        var measurements = string.Join(';', resolved.Select(value =>
+            $"{value.Selection.Category}={value.Documents.Length}/{value.Selection.EstimatedUtf8Bytes}/{value.Selection.EstimatedTokens}"));
+        await Assert.That(measurements).IsEqualTo(
+            "Champion=2/2250/563;Relegation=2/2250/563;TopScorer=3/4441/1111;" +
+            "Coach=3/4441/1111;Unknown=2/2250/563");
     }
 
     [Test]

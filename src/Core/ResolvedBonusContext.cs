@@ -273,10 +273,31 @@ public sealed record ResolvedBonusContext
 {
     public ResolvedBonusContext(
         IEnumerable<DocumentContext> documents,
-        ResolvedBonusContextManifest manifest)
+        ResolvedBonusContextManifest manifest,
+        ResolvedBonusContextSelection selection)
     {
         Documents = documents?.ToImmutableArray() ?? throw new ArgumentNullException(nameof(documents));
         Manifest = manifest ?? throw new ArgumentNullException(nameof(manifest));
+        Selection = selection ?? throw new ArgumentNullException(nameof(selection));
+        if (!Enum.IsDefined(selection.Category)
+            || selection.SelectedDocumentNames.IsDefault
+            || selection.ExcludedDocuments.IsDefault
+            || selection.SelectedDocumentNames.Any(string.IsNullOrWhiteSpace)
+            || selection.SelectedDocumentNames.Distinct(StringComparer.Ordinal).Count()
+            != selection.SelectedDocumentNames.Length
+            || selection.ExcludedDocuments.Any(exclusion =>
+                exclusion is null || string.IsNullOrWhiteSpace(exclusion.Document.Name))
+            || selection.ExcludedDocuments.Select(exclusion => exclusion.Document.Name)
+                .Distinct(StringComparer.Ordinal)
+                .Count() != selection.ExcludedDocuments.Length
+            || selection.ExcludedDocuments.Any(exclusion =>
+                selection.SelectedDocumentNames.Contains(exclusion.Document.Name, StringComparer.Ordinal)))
+        {
+            throw new ArgumentException(
+                "Resolved bonus context selection requires a known category and unique, disjoint canonical selected/excluded documents.",
+                nameof(selection));
+        }
+
         if (!Documents.Select(document => document.Name)
                 .SequenceEqual(manifest.Documents.Select(document => document.Name), StringComparer.Ordinal)
             || Documents.Where((document, index) => !string.Equals(
@@ -289,10 +310,30 @@ public sealed record ResolvedBonusContext
                 "Resolved bonus context documents do not match the immutable manifest names, order, or hashes.",
                 nameof(documents));
         }
+
+        if (!Documents.Select(document => document.Name)
+                .SequenceEqual(selection.SelectedDocumentNames, StringComparer.Ordinal))
+        {
+            throw new ArgumentException(
+                "Resolved bonus context selection does not match the exact document names and order.",
+                nameof(selection));
+        }
+
+        var measurement = BonusContextBudgetEstimator.Measure(Documents);
+        if (measurement.Utf8Bytes != selection.EstimatedUtf8Bytes
+            || measurement.EstimatedTokens != selection.EstimatedTokens)
+        {
+            throw new ArgumentException(
+                "Resolved bonus context selection does not match the deterministic context-size estimate.",
+                nameof(selection));
+        }
+
+        BonusContextBudgetEstimator.EnsureFits(Documents.Length, measurement, selection.Budget);
     }
 
     public ImmutableArray<DocumentContext> Documents { get; }
     public ResolvedBonusContextManifest Manifest { get; }
+    public ResolvedBonusContextSelection Selection { get; }
 }
 
 /// <summary>Optional capability for providers that return exact Bundesliga bonus provenance.</summary>
@@ -301,7 +342,8 @@ public interface IResolvedBonusContextProvider
     Task<ResolvedBonusContext> ResolveBonusQuestionContextAsync(
         BonusQuestion question,
         string communityContext,
-        CancellationToken cancellationToken = default);
+        CancellationToken cancellationToken = default,
+        BonusContextBudget? budget = null);
 }
 
 /// <summary>Optional capability for prediction stores that persist exact Bundesliga bonus provenance.</summary>

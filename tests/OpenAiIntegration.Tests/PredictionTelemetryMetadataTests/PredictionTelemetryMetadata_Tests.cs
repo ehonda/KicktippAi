@@ -22,13 +22,20 @@ public class PredictionTelemetryMetadata_Tests
         var rosterSnapshot = new string('a', 64);
         var eloSnapshot = new string('b', 64);
         var metadata = new PredictionTelemetryMetadata(
-            "Bayern",
-            "Dortmund",
-            2,
-            "bundesliga-2026-27",
-            ["club-elo-rankings", "team-squad-summary", "roster-fcb"],
-            rosterSnapshot,
-            eloSnapshot);
+            HomeTeam: "Bayern",
+            AwayTeam: "Dortmund",
+            RepredictionIndex: 2,
+            Competition: "bundesliga-2026-27",
+            ContextDocumentNames: ["club-elo-rankings", "team-squad-summary", "roster-fcb"],
+            RosterPublicationSnapshotId: rosterSnapshot,
+            ClubEloPublicationSnapshotId: eloSnapshot,
+            BonusContextCategory: "TopScorer",
+            BonusContextSelectedDocuments: ["club-elo-rankings", "team-squad-summary", "roster-fcb"],
+            BonusContextExcludedDocuments: ["team-rosters=ProhibitedAggregate", "roster-bvb=NoExactIdentity"],
+            BonusContextEstimatedUtf8Bytes: 4_441,
+            BonusContextEstimatedTokens: 1_111,
+            BonusContextDocumentBudget: 20,
+            BonusContextEstimatedTokenBudget: 32_000);
 
         metadata.ApplyToObservation(activity);
 
@@ -43,6 +50,20 @@ public class PredictionTelemetryMetadata_Tests
             .IsEqualTo(rosterSnapshot);
         await Assert.That(activity.GetTagItem("langfuse.observation.metadata.clubEloPublicationSnapshotId"))
             .IsEqualTo(eloSnapshot);
+        await Assert.That(activity.GetTagItem("langfuse.observation.metadata.bonusContextCategory"))
+            .IsEqualTo("TopScorer");
+        await Assert.That(activity.GetTagItem("langfuse.observation.metadata.bonusContextSelectedDocuments"))
+            .IsEqualTo("club-elo-rankings,team-squad-summary,roster-fcb");
+        await Assert.That(activity.GetTagItem("langfuse.observation.metadata.bonusContextExcludedDocuments"))
+            .IsEqualTo("team-rosters=ProhibitedAggregate,roster-bvb=NoExactIdentity");
+        await Assert.That(activity.GetTagItem("langfuse.observation.metadata.bonusContextEstimatedUtf8Bytes"))
+            .IsEqualTo("4441");
+        await Assert.That(activity.GetTagItem("langfuse.observation.metadata.bonusContextEstimatedTokens"))
+            .IsEqualTo("1111");
+        await Assert.That(activity.GetTagItem("langfuse.observation.metadata.bonusContextDocumentBudget"))
+            .IsEqualTo("20");
+        await Assert.That(activity.GetTagItem("langfuse.observation.metadata.bonusContextEstimatedTokenBudget"))
+            .IsEqualTo("32000");
     }
 
     [Test]

@@ -268,6 +268,86 @@ public class BonusCommand_Settings_Tests : BonusCommandTests_Base
     }
 
     [Test]
+    public async Task Document_budget_below_required_baseline_is_rejected_before_provider_access()
+    {
+        var context = CreateBonusCommandApp();
+
+        var exitCode = await context.App.RunAsync(
+            ["bonus", "test-model", "--community", "test", "--bonus-context-document-budget", "1"]);
+
+        await Assert.That(exitCode).IsNotEqualTo(0);
+        await Assert.That(context.Console.Output).Contains("--bonus-context-document-budget must be at least 2");
+        context.KicktippClientFactory.Verify(factory => factory.CreateClient(), Times.Never);
+        context.ContextProviderFactory.Verify(
+            factory => factory.CreateKpiContextProvider(It.IsAny<string>()),
+            Times.Never);
+    }
+
+    [Test]
+    public async Task Estimated_token_budget_below_guardrail_is_rejected_before_provider_access()
+    {
+        var context = CreateBonusCommandApp();
+
+        var exitCode = await context.App.RunAsync(
+            ["bonus", "test-model", "--community", "test", "--bonus-context-token-budget", "255"]);
+
+        await Assert.That(exitCode).IsNotEqualTo(0);
+        await Assert.That(context.Console.Output).Contains("--bonus-context-token-budget must be at least 256");
+        context.KicktippClientFactory.Verify(factory => factory.CreateClient(), Times.Never);
+        context.ContextProviderFactory.Verify(
+            factory => factory.CreateKpiContextProvider(It.IsAny<string>()),
+            Times.Never);
+    }
+
+    [Test]
+    public async Task Valid_budget_overrides_are_passed_exactly_to_Bundesliga_resolution()
+    {
+        var context = CreateBonusCommandApp();
+
+        var exitCode = await context.App.RunAsync(
+        [
+            "bonus", "test-model", "--community", "test",
+            "--bonus-context-document-budget", "2",
+            "--bonus-context-token-budget", "1000"
+        ]);
+
+        await Assert.That(exitCode).IsEqualTo(0);
+        context.KpiContextProvider.As<IResolvedBonusContextProvider>().Verify(provider =>
+            provider.ResolveBonusQuestionContextAsync(
+                It.IsAny<BonusQuestion>(),
+                "test",
+                It.IsAny<CancellationToken>(),
+                It.Is<BonusContextBudget>(budget =>
+                    budget.MaximumDocuments == 2
+                    && budget.MaximumEstimatedTokens == 1000)),
+            Times.Once);
+    }
+
+    [Test]
+    public async Task Valid_but_exceeded_budget_fails_closed_before_prediction_or_placement()
+    {
+        var context = CreateBonusCommandApp();
+
+        var exitCode = await context.App.RunAsync(
+        [
+            "bonus", "test-model", "--community", "test",
+            "--bonus-context-token-budget", "256"
+        ]);
+
+        await Assert.That(exitCode).IsEqualTo(1);
+        await Assert.That(context.Console.Output).Contains("configured budget of 256");
+        context.PredictionService.Verify(service => service.PredictBonusQuestionAsync(
+            It.IsAny<BonusQuestion>(),
+            It.IsAny<IEnumerable<DocumentContext>>(),
+            It.IsAny<PredictionTelemetryMetadata?>(),
+            It.IsAny<CancellationToken>()), Times.Never);
+        context.KicktippClient.Verify(client => client.PlaceBonusPredictionsAsync(
+            It.IsAny<string>(),
+            It.IsAny<Dictionary<string, BonusPrediction>>(),
+            It.IsAny<bool>()), Times.Never);
+    }
+
+    [Test]
     public async Task Running_command_with_max_output_tokens_passes_cap_to_prediction_service()
     {
         var context = CreateBonusCommandApp();

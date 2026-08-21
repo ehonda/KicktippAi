@@ -63,6 +63,24 @@ public class PredictionPromptComposer_Tests
     }
 
     [Test]
+    public async Task Bonus_context_budget_estimate_matches_exact_rendered_context_section_bytes()
+    {
+        var documents = new[]
+        {
+            new DocumentContext("club-elo-rankings", "Rang,Club\r\n1,FC Bayern München\r\n"),
+            new DocumentContext("team-squad-summary", "Club,Players\r\nFC Bayern München,25\r\n")
+        };
+
+        var renderedSection = PredictionPromptComposer.BuildSystemPrompt("{{context_documents}}", documents);
+        var measurement = BonusContextBudgetEstimator.Measure(documents);
+
+        await Assert.That(measurement.Utf8Bytes)
+            .IsEqualTo(System.Text.Encoding.UTF8.GetByteCount(renderedSection));
+        await Assert.That(measurement.EstimatedTokens)
+            .IsEqualTo((measurement.Utf8Bytes + 3) / 4);
+    }
+
+    [Test]
     public async Task Building_system_prompt_replaces_context_documents_placeholder_with_empty_string_when_no_context_exists()
     {
         var result = PredictionPromptComposer.BuildSystemPrompt("template:{{context_documents}}", []);

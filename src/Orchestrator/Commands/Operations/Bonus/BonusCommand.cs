@@ -12,7 +12,7 @@ using Orchestrator.Infrastructure.Langfuse;
 
 namespace Orchestrator.Commands.Operations.Bonus;
 
-public class BonusCommand : AsyncCommand<BaseSettings>
+public class BonusCommand : AsyncCommand<BonusSettings>
 {
     private const string FifaRankingsDocumentName = "fifa-rankings";
 
@@ -55,7 +55,7 @@ public class BonusCommand : AsyncCommand<BaseSettings>
         _langfuseClient = langfuseClient;
     }
 
-    protected override async Task<int> ExecuteAsync(CommandContext context, BaseSettings settings, CancellationToken cancellationToken)
+    protected override async Task<int> ExecuteAsync(CommandContext context, BonusSettings settings, CancellationToken cancellationToken)
     {
         return await ExecuteWithSettingsAsync(settings, cancellationToken);
     }
@@ -65,6 +65,7 @@ public class BonusCommand : AsyncCommand<BaseSettings>
         
         try
         {
+            var bonusContextBudget = ResolveBonusContextBudget(settings);
             var initialModel = string.IsNullOrWhiteSpace(settings.Model) ? "(competition default)" : settings.Model;
             _console.MarkupLine($"[green]Bonus command initialized with model:[/] [yellow]{initialModel}[/]");
             
@@ -118,7 +119,7 @@ public class BonusCommand : AsyncCommand<BaseSettings>
             }
             
             // Execute the bonus prediction workflow
-            await ExecuteBonusWorkflow(settings);
+            await ExecuteBonusWorkflow(settings, bonusContextBudget);
             
             return 0;
         }
@@ -143,7 +144,7 @@ public class BonusCommand : AsyncCommand<BaseSettings>
         "rabetrabauken2026"
     };
 
-    private async Task ExecuteBonusWorkflow(BaseSettings settings)
+    private async Task ExecuteBonusWorkflow(BaseSettings settings, BonusContextBudget bonusContextBudget)
     {
         // Start root OTel activity for Langfuse trace
         using var activity = Telemetry.Source.StartActivity("bonus");
@@ -442,12 +443,13 @@ public class BonusCommand : AsyncCommand<BaseSettings>
                         {
                             resolvedBonusContext = await resolvedBonusContextProvider!.ResolveBonusQuestionContextAsync(
                                 question,
-                                communityContext);
+                                communityContext,
+                                budget: bonusContextBudget);
                         }
                         catch (Exception ex)
                         {
                             throw new BundesligaBonusSafetyException(
-                                $"Failed to resolve immutable Bundesliga bonus provenance for '{question.Text}'.",
+                                $"Failed to resolve immutable Bundesliga bonus provenance for '{question.Text}': {ex.Message}",
                                 ex);
                         }
 
@@ -464,14 +466,29 @@ public class BonusCommand : AsyncCommand<BaseSettings>
                     if (settings.Verbose)
                     {
                         _console.MarkupLine($"[dim]    Using {contextDocuments.Count} bonus context documents[/]");
+                        if (resolvedBonusContext is not null)
+                        {
+                            var selection = resolvedBonusContext.Selection;
+                            _console.MarkupLine(
+                                $"[dim]    Category {selection.Category}; estimated {selection.EstimatedUtf8Bytes} UTF-8 bytes/{selection.EstimatedTokens} tokens; budgets {selection.Budget.MaximumDocuments}/{selection.Budget.MaximumEstimatedTokens}; excluded {string.Join(',', selection.ExcludedDocuments.Select(exclusion => $"{exclusion.Document.Name}={exclusion.Reason}"))}[/]");
+                        }
                     }
 
+                    var bonusSelection = resolvedBonusContext?.Selection;
                     var telemetryMetadata = new PredictionTelemetryMetadata(
                         RepredictionIndex: predictionRepredictionIndex,
                         Competition: competition,
                         ContextDocumentNames: contextDocuments.Select(document => document.Name).ToArray(),
                         RosterPublicationSnapshotId: resolvedBonusContext?.Manifest.RosterPublicationSnapshotId,
-                        ClubEloPublicationSnapshotId: resolvedBonusContext?.Manifest.ClubEloPublicationSnapshotId);
+                        ClubEloPublicationSnapshotId: resolvedBonusContext?.Manifest.ClubEloPublicationSnapshotId,
+                        BonusContextCategory: bonusSelection?.Category.ToString(),
+                        BonusContextSelectedDocuments: bonusSelection?.SelectedDocumentNames,
+                        BonusContextExcludedDocuments: bonusSelection?.ExcludedDocuments.Select(exclusion =>
+                            $"{exclusion.Document.Name}={exclusion.Reason}").ToArray(),
+                        BonusContextEstimatedUtf8Bytes: bonusSelection?.EstimatedUtf8Bytes,
+                        BonusContextEstimatedTokens: bonusSelection?.EstimatedTokens,
+                        BonusContextDocumentBudget: bonusSelection?.Budget.MaximumDocuments,
+                        BonusContextEstimatedTokenBudget: bonusSelection?.Budget.MaximumEstimatedTokens);
                     
                     // Predict the bonus question
                     prediction = await predictionService.PredictBonusQuestionAsync(question, contextDocuments, telemetryMetadata);
@@ -697,6 +714,19 @@ public class BonusCommand : AsyncCommand<BaseSettings>
         {
             LangfuseActivityPropagation.SetTraceMetadata(activity, "promptVersion", modelConfig.PromptVersion.Value.ToString(System.Globalization.CultureInfo.InvariantCulture));
         }
+    }
+
+    private static BonusContextBudget ResolveBonusContextBudget(BaseSettings settings)
+    {
+        ArgumentNullException.ThrowIfNull(settings);
+        if (settings is not BonusSettings bonusSettings)
+        {
+            return BonusContextBudget.Default;
+        }
+
+        return new BonusContextBudget(
+            bonusSettings.BonusContextDocumentBudget ?? BonusContextBudget.DefaultMaximumDocuments,
+            bonusSettings.BonusContextEstimatedTokenBudget ?? BonusContextBudget.DefaultMaximumEstimatedTokens);
     }
 
     private static async Task EnsureWorldCupRankingKpiPresentAsync(

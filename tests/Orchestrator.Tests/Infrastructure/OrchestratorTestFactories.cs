@@ -1,4 +1,5 @@
 using ContextProviders.Kicktipp;
+using System.Collections.Immutable;
 using System.Diagnostics;
 using EHonda.KicktippAi.Core;
 using EHonda.Optional.Core;
@@ -482,12 +483,13 @@ public static class OrchestratorTestFactories
         resolvedBonus.Setup(provider => provider.ResolveBonusQuestionContextAsync(
                 It.IsAny<BonusQuestion>(),
                 It.IsAny<string>(),
-                It.IsAny<CancellationToken>()))
-            .ReturnsAsync((BonusQuestion question, string communityContext, CancellationToken _) =>
+                It.IsAny<CancellationToken>(),
+                It.IsAny<BonusContextBudget?>()))
+            .ReturnsAsync((BonusQuestion question, string communityContext, CancellationToken _, BonusContextBudget? budget) =>
             {
                 try
                 {
-                    return CreateCanonicalBundesligaResolvedBonusContext(question, communityContext);
+                    return CreateCanonicalBundesligaResolvedBonusContext(question, communityContext, budget);
                 }
                 catch (InvalidOperationException)
                 {
@@ -497,7 +499,7 @@ public static class OrchestratorTestFactories
                         options: question.Options,
                         maxSelections: question.MaxSelections,
                         formFieldName: question.FormFieldName);
-                    return CreateCanonicalBundesligaResolvedBonusContext(baselineQuestion, communityContext);
+                    return CreateCanonicalBundesligaResolvedBonusContext(baselineQuestion, communityContext, budget);
                 }
             });
 
@@ -1066,7 +1068,8 @@ public static class OrchestratorTestFactories
 
     public static ResolvedBonusContext CreateCanonicalBundesligaResolvedBonusContext(
         BonusQuestion question,
-        string communityContext = "test-community")
+        string communityContext = "test-community",
+        BonusContextBudget? budget = null)
     {
         var roster = CreateCanonicalRosterPublication();
         var elo = CreateCanonicalClubEloPublication();
@@ -1084,9 +1087,22 @@ public static class OrchestratorTestFactories
                 DocumentPublicationContract.ComputeContentSha256(document.Content))),
             roster.Snapshot.SnapshotId,
             elo.Snapshot.SnapshotId);
+        var documents = selected
+            .Select(document => new DocumentContext(document.Name, document.Content))
+            .ToArray();
+        var effectiveBudget = budget ?? BonusContextBudget.Default;
+        var measurement = BonusContextBudgetEstimator.Measure(documents);
+        BonusContextBudgetEstimator.EnsureFits(documents.Length, measurement, effectiveBudget);
         return new ResolvedBonusContext(
-            selected.Select(document => new DocumentContext(document.Name, document.Content)),
-            manifest);
+            documents,
+            manifest,
+            new ResolvedBonusContextSelection(
+                selection.Category,
+                documents.Select(document => document.Name).ToImmutableArray(),
+                selection.ExcludedDocuments,
+                measurement.Utf8Bytes,
+                measurement.EstimatedTokens,
+                effectiveBudget));
     }
 
     public static BonusPredictionMetadata CreateCanonicalBundesligaBonusPredictionMetadata(

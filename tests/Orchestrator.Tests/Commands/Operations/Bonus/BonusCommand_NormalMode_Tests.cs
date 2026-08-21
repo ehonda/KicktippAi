@@ -469,7 +469,10 @@ public class BonusCommand_NormalMode_Tests : BonusCommandTests_Base
             provider.ResolveBonusQuestionContextAsync(
             question,
             "test",
-            It.IsAny<CancellationToken>()), Times.Once);
+            It.IsAny<CancellationToken>(),
+            It.Is<BonusContextBudget>(budget =>
+                budget.MaximumDocuments == BonusContextBudget.DefaultMaximumDocuments
+                && budget.MaximumEstimatedTokens == BonusContextBudget.DefaultMaximumEstimatedTokens)), Times.Once);
         context.KpiContextProvider.Verify(provider => provider.GetBonusQuestionContextAsync(
             It.IsAny<string>(),
             It.IsAny<string>(),

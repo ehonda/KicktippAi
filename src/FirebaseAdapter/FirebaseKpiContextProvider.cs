@@ -1,3 +1,4 @@
+using System.Collections.Immutable;
 using System.Runtime.CompilerServices;
 using EHonda.KicktippAi.Core;
 using Microsoft.Extensions.Logging;
@@ -57,7 +58,11 @@ public class FirebaseKpiContextProvider : IKpiContextProvider, IResolvedBonusCon
     {
         if (IsCurrentBundesliga)
         {
-            foreach (var context in (await GetBundesligaContextAsync(null, communityContext, cancellationToken)).Documents)
+            foreach (var context in (await GetBundesligaContextAsync(
+                         null,
+                         communityContext,
+                         BonusContextBudget.Default,
+                         cancellationToken)).Documents)
             {
                 yield return context;
             }
@@ -133,7 +138,8 @@ public class FirebaseKpiContextProvider : IKpiContextProvider, IResolvedBonusCon
     public Task<ResolvedBonusContext> ResolveBonusQuestionContextAsync(
         BonusQuestion question,
         string communityContext,
-        CancellationToken cancellationToken = default)
+        CancellationToken cancellationToken = default,
+        BonusContextBudget? budget = null)
     {
         ArgumentNullException.ThrowIfNull(question);
         if (!IsCurrentBundesliga)
@@ -142,12 +148,17 @@ public class FirebaseKpiContextProvider : IKpiContextProvider, IResolvedBonusCon
                 "Resolved bonus-context provenance is available only for bundesliga-2026-27.");
         }
 
-        return GetBundesligaContextAsync(question, communityContext, cancellationToken);
+        return GetBundesligaContextAsync(
+            question,
+            communityContext,
+            budget ?? BonusContextBudget.Default,
+            cancellationToken);
     }
 
     private async Task<ResolvedBonusContext> GetBundesligaContextAsync(
         BonusQuestion? question,
         string communityContext,
+        BonusContextBudget budget,
         CancellationToken cancellationToken)
     {
         ArgumentException.ThrowIfNullOrWhiteSpace(communityContext);
@@ -198,6 +209,8 @@ public class FirebaseKpiContextProvider : IKpiContextProvider, IResolvedBonusCon
             var contexts = selectedDocuments
                 .Select(document => new DocumentContext(document.Name, document.Content))
                 .ToArray();
+            var measurement = BonusContextBudgetEstimator.Measure(contexts);
+            BonusContextBudgetEstimator.EnsureFits(contexts.Length, measurement, budget);
             var manifest = ResolvedBonusContextManifest.Create(
                 CompetitionIds.Bundesliga2026_27,
                 communityContext,
@@ -209,12 +222,27 @@ public class FirebaseKpiContextProvider : IKpiContextProvider, IResolvedBonusCon
                 rosters.Snapshot.SnapshotId,
                 elo.Snapshot.SnapshotId);
 
+            var selectionResult = new ResolvedBonusContextSelection(
+                selection.Category,
+                contexts.Select(context => context.Name).ToImmutableArray(),
+                selection.ExcludedDocuments,
+                measurement.Utf8Bytes,
+                measurement.EstimatedTokens,
+                budget);
+
             _logger.LogInformation(
-                "Selected {DocumentCount} Bundesliga bonus context documents for community {CommunityContext}: {DocumentNames}",
+                "Selected {DocumentCount} Bundesliga bonus context documents for category {Category} and community {CommunityContext}: {DocumentNames}; excluded {ExcludedDocuments}; estimated {EstimatedUtf8Bytes} UTF-8 bytes/{EstimatedTokens} tokens within budgets {DocumentBudget}/{EstimatedTokenBudget}",
                 contexts.Length,
+                selection.Category,
                 communityContext,
-                string.Join(',', contexts.Select(context => context.Name)));
-            return new ResolvedBonusContext(contexts, manifest);
+                string.Join(',', contexts.Select(context => context.Name)),
+                string.Join(',', selection.ExcludedDocuments.Select(exclusion =>
+                    $"{exclusion.Document.Name}={exclusion.Reason}")),
+                measurement.Utf8Bytes,
+                measurement.EstimatedTokens,
+                budget.MaximumDocuments,
+                budget.MaximumEstimatedTokens);
+            return new ResolvedBonusContext(contexts, manifest, selectionResult);
         }
         catch (Exception exception) when (exception is InvalidDataException or ArgumentException)
         {

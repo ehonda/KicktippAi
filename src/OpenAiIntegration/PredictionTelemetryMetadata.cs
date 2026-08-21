@@ -13,7 +13,14 @@ public sealed record PredictionTelemetryMetadata(
     string? Competition = null,
     IReadOnlyList<string>? ContextDocumentNames = null,
     string? RosterPublicationSnapshotId = null,
-    string? ClubEloPublicationSnapshotId = null)
+    string? ClubEloPublicationSnapshotId = null,
+    string? BonusContextCategory = null,
+    IReadOnlyList<string>? BonusContextSelectedDocuments = null,
+    IReadOnlyList<string>? BonusContextExcludedDocuments = null,
+    int? BonusContextEstimatedUtf8Bytes = null,
+    int? BonusContextEstimatedTokens = null,
+    int? BonusContextDocumentBudget = null,
+    int? BonusContextEstimatedTokenBudget = null)
 {
     public void ApplyToObservation(Activity? activity)
     {
@@ -33,6 +40,35 @@ public sealed record PredictionTelemetryMetadata(
                 : string.Join(',', ContextDocumentNames));
         SetObservationMetadata(activity, "rosterPublicationSnapshotId", RosterPublicationSnapshotId);
         SetObservationMetadata(activity, "clubEloPublicationSnapshotId", ClubEloPublicationSnapshotId);
+        SetObservationMetadata(activity, "bonusContextCategory", BonusContextCategory);
+        SetObservationMetadata(
+            activity,
+            "bonusContextSelectedDocuments",
+            BonusContextSelectedDocuments is null
+                ? null
+                : string.Join(',', BonusContextSelectedDocuments));
+        SetObservationMetadata(
+            activity,
+            "bonusContextExcludedDocuments",
+            BonusContextExcludedDocuments is null
+                ? null
+                : string.Join(',', BonusContextExcludedDocuments));
+        SetObservationMetadata(
+            activity,
+            "bonusContextEstimatedUtf8Bytes",
+            BonusContextEstimatedUtf8Bytes?.ToString(CultureInfo.InvariantCulture));
+        SetObservationMetadata(
+            activity,
+            "bonusContextEstimatedTokens",
+            BonusContextEstimatedTokens?.ToString(CultureInfo.InvariantCulture));
+        SetObservationMetadata(
+            activity,
+            "bonusContextDocumentBudget",
+            BonusContextDocumentBudget?.ToString(CultureInfo.InvariantCulture));
+        SetObservationMetadata(
+            activity,
+            "bonusContextEstimatedTokenBudget",
+            BonusContextEstimatedTokenBudget?.ToString(CultureInfo.InvariantCulture));
 
         if (RepredictionIndex.HasValue)
         {
