@@ -106,3 +106,11 @@ P0 is complete only when:
 - [ADR-0022: Allocate Bundesliga repredictions transactionally](decisions/0022-transactional-bundesliga-reprediction-allocation.md) — supersedes only ADR-0020's Bundesliga prediction-save portion
 - [ADR-0023: Use orchestrator-created CLI worktrees for parallel writers](decisions/0023-use-orchestrator-created-cli-worktrees.md)
 - [ADR-0024: Select bonus context by competition and question](decisions/0024-select-bonus-context-by-competition-and-question.md)
+- [ADR-0025: Reconstruct Bundesliga history played dates from fixed sources](decisions/0025-reconstruct-bundesliga-history-played-dates.md)
+- [ADR-0026: Exclude incomplete rows from selected match history](decisions/0026-exclude-incomplete-history-rows.md)
+- [ADR-0027: Add a fixed CC0 source for second-division history](decisions/0027-add-openfootball-for-second-bundesliga-history.md)
+- [ADR-0028: Capture OpenLigaDB for second-division history](decisions/0028-capture-openligadb-second-bundesliga-history.md)
+- [ADR-0029: Capture the OpenLigaDB DFB-Pokal final](decisions/0029-capture-openligadb-dfb-pokal-final.md)
+- [ADR-0030: Use the UEFA match record for the Europa League final](decisions/0030-use-uefa-match-record-for-europa-league-final.md)
+- [ADR-0031: Correct DFB-Pokal final inventory coverage](decisions/0031-correct-dfb-pokal-final-inventory-coverage.md)
+- [ADR-0032: Freeze the complete preseason history set and publish it atomically](decisions/0032-freeze-complete-history-set-and-publish-atomically.md)
