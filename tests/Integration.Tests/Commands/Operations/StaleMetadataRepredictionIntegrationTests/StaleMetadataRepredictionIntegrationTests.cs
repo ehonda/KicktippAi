@@ -106,6 +106,8 @@ public class StaleMetadataRepredictionIntegrationTests : StaleMetadataRepredicti
             Community,
             "--competition",
             Competition,
+            "--prompt-source",
+            "local",
             "--repredict");
 
         await Assert.That(matchdayExitCode).IsEqualTo(0);
@@ -253,6 +255,8 @@ public class StaleMetadataRepredictionIntegrationTests : StaleMetadataRepredicti
             Community,
             "--competition",
             Competition,
+            "--prompt-source",
+            "local",
             "--repredict");
 
         await Assert.That(matchdayExitCode).IsEqualTo(0);
