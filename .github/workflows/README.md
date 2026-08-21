@@ -2,6 +2,21 @@
 
 This directory contains GitHub Actions workflows that automate the process of generating and posting matchday and bonus predictions for multiple Kicktipp communities in the KicktippAi project.
 
+## Current activation status
+
+As of 2026-08-21, every existing season-specific community entrypoint in this
+directory is historical and inert: Bundesliga 2025/26 and WM26 files retain
+`workflow_call` only, with no active `workflow_dispatch` or `schedule` trigger.
+Schedule and model descriptions later in this document describe their former
+operation; they are not current activation evidence.
+
+No Bundesliga 2026/27 entrypoint exists yet. P0-17 records the
+[authoritative community matrix](../../docs/onboarding-bundesliga-2026-27/community-onboarding.md)
+without changing workflows. P0-18 updates the reusable workflow contract,
+P0-19 adds explicit manual entrypoints, and P0-21 alone enables final
+production schedules. The separately authorized Luna/none arena validation
+schedule may run only inside the P0-20 validation ladder.
+
 ## Architecture Overview
 
 The workflow system is built on a **reusable workflow architecture** that supports multiple communities with individual configurations and schedules:
@@ -19,7 +34,7 @@ Each community gets its own set of workflows that call the base workflows with s
 - **`{community}-matchday.yml`**: Matchday predictions for a specific community
 - **`{community}-bonus.yml`**: Bonus predictions for a specific community
 
-### Context Collection Workflows
+### Context Collection Workflows (historical entrypoints)
 
 - **`pes-squad-context-collection.yml`**: Automated context collection for pes-squad community
   - Runs every 12 hours (00:00 and 12:00 UTC)
@@ -36,12 +51,11 @@ Each community gets its own set of workflows that call the base workflows with s
   - Uses the WM26 context cadence: 23:47, 06:47, and 11:47 UTC
   - Feeds the self-contained `ehonda-ai-arena` WM26 workflows such as `gpt-5-nano minimal`, `gpt-5.5 none`, `gpt-5.5 xhigh`, `gpt-5.4-nano none`, and `o3 medium`
 
-### WM26 Prediction Workflows
+### WM26 Prediction Workflows (historical entrypoints)
 
-As of 2026-06-15, all WM26 bonus entrypoint workflows have their `schedule` and
-`workflow_dispatch` triggers commented out. Once the tournament started, bonus
-predictions became locked in, so those runs were just burning runner time plus
-a few database lookups.
+All WM26 entrypoint workflows are now `workflow_call`-only. The former
+production selections and cadences below are retained as historical design
+evidence and must not be copied into Bundesliga 2026/27.
 
 - **`wm26-rabetrabauken2026-o3-high-matchday.yml`**: Scheduled WM26 primary production matchday predictions
   - Uses `o3` with `reasoning_effort: "high"`
@@ -167,6 +181,34 @@ Each community workflow is configured with direct parameters:
 - **`competition`**: Optional competition identifier for context collection
 - **`include_fifa_rankings` / `include_lineups`**: Enable WM26 ranking and lineup context extras for World Cup communities. WM26 recent-history date-map application is automatic when `competition` is `fifa-world-cup-2026`.
 
+### Bundesliga 2026/27 topology
+
+The exact P0-17 matrix has six stable rows: `dev-luna`,
+`arena-luna-self-contained`, `pes-production-reference`,
+`schadensfresse-production-independent`, `arena-production-copy`, and the
+nondeployable `arena-challenger-slot` template. Do not replace an unresolved
+production or challenger field with a historical model or the Luna validation
+identity.
+
+The arena validation workflow reserves
+`EHONDA_AI_ARENA_GPT_5_6_LUNA_NONE_KICKTIPP_USERNAME` and
+`EHONDA_AI_ARENA_GPT_5_6_LUNA_NONE_KICKTIPP_PASSWORD`. The production reference
+and independent rows use `PES_SQUAD_KICKTIPP_USERNAME` /
+`PES_SQUAD_KICKTIPP_PASSWORD` and `SCHADENSFRESSE_KICKTIPP_USERNAME` /
+`SCHADENSFRESSE_KICKTIPP_PASSWORD`, respectively. Exact model-specific names
+for `arena-production-copy` and admitted challengers remain an owner gate; do
+not create placeholder secrets.
+
+Shared prediction workflows use `FIREBASE_PROJECT_ID`,
+`FIREBASE_SERVICE_ACCOUNT_JSON`, `OPENAI_API_KEY`, and
+`LANGFUSE_SECRET_KEY`. `LANGFUSE_PUBLIC_KEY` is a repository variable. Secret
+names are safe to document; values must never be printed or committed.
+
+For the copy row, `community` is `ehonda-ai-arena` and `community_context` is
+`pes-squad`. Posting-target arena credentials are mandatory. Match fixtures
+must be compatible, and bonus questions plus options must normalize exactly
+before a stored reference prediction is posted.
+
 For self-contained WM26 workflow tests and comparisons, keep `community` and
 `community_context` aligned. The scheduled self-contained `ehonda-ai-arena`
 WM26 workflows use `community_context: "ehonda-ai-arena"` plus the WM26
@@ -241,6 +283,19 @@ Examples:
 - `FIREBASE_PROJECT_ID`: Your Firebase project ID
 - `FIREBASE_SERVICE_ACCOUNT_JSON`: Firebase service account JSON key
 - `OPENAI_API_KEY`: OpenAI API key for prediction generation
+- `LANGFUSE_SECRET_KEY`: Langfuse ingestion key for traced prediction steps
+
+`LANGFUSE_PUBLIC_KEY` is configured as a repository variable, not a secret.
+
+### Bundesliga 2026/27 Model-Specific Prediction Secrets
+
+- `EHONDA_AI_ARENA_GPT_5_6_LUNA_NONE_KICKTIPP_USERNAME`: username for the authorized self-contained Luna/none arena validation participant
+- `EHONDA_AI_ARENA_GPT_5_6_LUNA_NONE_KICKTIPP_PASSWORD`: password for the authorized self-contained Luna/none arena validation participant
+- `PES_SQUAD_KICKTIPP_USERNAME` / `PES_SQUAD_KICKTIPP_PASSWORD`: reference production community names; use remains gated by P0-21
+- `SCHADENSFRESSE_KICKTIPP_USERNAME` / `SCHADENSFRESSE_KICKTIPP_PASSWORD`: independent production community names; use remains gated by P0-21
+
+Arena production-copy and challenger secret names are deliberately absent
+until the owner selects the exact model participants.
 
 ### WM26 Model-Specific Prediction Secrets
 

@@ -2,14 +2,16 @@
 
 Updated: 2026-08-21
 
-This is the source-of-truth ledger for Bundesliga 2026/27 prediction configurations. A row is not onboarded unless its competition, model, reasoning effort, maximum output cap, and numbered prompt versions are all present. Labels are useful for candidate routing, but they are not a substitute for the numbered version in a production or persisted exact identity.
+This is the source-of-truth ledger for Bundesliga 2026/27 prediction configurations. A row is not onboarded unless its competition, model, reasoning effort, maximum output cap, and numbered prompt versions are all present. Labels are useful for candidate routing, but they are not a substitute for the numbered version in a production or persisted exact identity. [The community onboarding matrix](community-onboarding.md) maps these configuration slots to posting targets, community contexts, credential names, and Langfuse environments.
 
 ## Current ledger
 
 | Use | Competition | Model | Reasoning | Max output tokens | Exact prompts | Runtime policy | Status |
 | --- | --- | --- | --- | ---: | --- | --- | --- |
-| Development and `ehonda-ai-arena` plumbing validation | `bundesliga-2026-27` | `gpt-5.6-luna` | `none` | `10000` | Match `kicktippai/bundesliga-2026-27/predict-one-match` v2; bonus `kicktippai/bundesliga-2026-27/predict-bonus` v1 | Current prediction-service flex request with standard fallback; every invocation must pass the complete identity | Authorized for plumbing validation only; not a production default; no workflow or schedule activated by P0-06 |
-| Final production | `bundesliga-2026-27` | **Owner decision required** | **Owner decision required** | **Owner decision required** | Match and bonus numbered versions require owner approval | Service tier/fallback policy and cost ceiling require owner approval | Blocked from onboarding and activation until owner decision evidence is recorded |
+| `validation-luna-none` — `ehonda-dev-buli-2627` self-contained plumbing | `bundesliga-2026-27` | `gpt-5.6-luna` | `none` | `10000` | Match `kicktippai/bundesliga-2026-27/predict-one-match` v2; bonus `kicktippai/bundesliga-2026-27/predict-bonus` v1 | Current prediction-service flex request with standard fallback; every invocation must pass the complete identity | Authorized for development plumbing validation only; not a production default |
+| `validation-luna-none` — `ehonda-ai-arena` self-contained plumbing | `bundesliga-2026-27` | `gpt-5.6-luna` | `none` | `10000` | Match `kicktippai/bundesliga-2026-27/predict-one-match` v2; bonus `kicktippai/bundesliga-2026-27/predict-bonus` v1 | Same exact validation identity, with arena-owned context and participant credentials | Authorized only for the P0-20 validation ladder; its production-community trace environment does not make it a production model |
+| `production-primary` — reference, independent, and arena-copy uses | `bundesliga-2026-27` | **Owner decision required** | **Owner decision required** | **Owner decision required** | Match and bonus numbered versions require owner approval | Service tier/fallback policy and cost ceiling require owner approval | Blocked from onboarding and activation until owner decision evidence is recorded |
+| `arena-challenger-<n>` | `bundesliga-2026-27` | **Owner decision required** | **Owner decision required** | **Owner decision required** | Match and bonus numbered versions require owner approval | Every challenger requires an independently approved complete identity and participant | Template only; zero challengers are admitted by this ledger |
 
 The match mirror/version has normalized SHA-256 `94a7aa775546028d3ded89f626873d7dfce162d1f08bb9573e102dd427ac08c1`. The bonus mirror/version has normalized SHA-256 `332bac6d654871d843fc8a47345ff3e2b1f902fa8d1d2243166283304bb005e9`. In Langfuse, `production`, `staging`, and automatic `latest` resolved these versions when P0-05 closed, but production automation must pass `--langfuse-prompt-version` explicitly.
 
@@ -39,7 +41,7 @@ Bonus and bonus verification additionally pass:
 --langfuse-prompt-version 1
 ```
 
-P0-19 owns workflow creation. Its manual and scheduled entries must provide every value above as explicit input; they may not rely on the command's model, reasoning, cap, prompt-label, or prompt-version defaults. P0-06 does not create or activate those workflows.
+P0-19 owns workflow creation. Its manual entries and the separately authorized Luna validation schedule must provide every value above as explicit input; they may not rely on the command's model, reasoning, cap, prompt-label, or prompt-version defaults. P0-06 does not create or activate those workflows. Final production schedules remain blocked until P0-21.
 
 ## Capability and pricing evidence
 
@@ -79,4 +81,4 @@ See [whole-season-cost-estimates.md](../experiments/whole-season-cost-estimates.
 
 ## Production owner gate
 
-Before any production workflow or schedule is enabled, record the approved model, reasoning effort, maximum output tokens, match and bonus prompt versions, arena challenger matrix, service-tier/fallback behavior, whole-season cost ceiling, and exact estimator evidence in this ledger and an accepted decision. The Luna/none validation row cannot be copied into that production row without explicit owner approval.
+Before any production workflow or schedule is enabled, record the approved `production-primary` model, reasoning effort, maximum output tokens, match and bonus prompt versions, arena challenger matrix, service-tier/fallback behavior, whole-season cost ceiling, and exact estimator evidence in this ledger and an accepted decision. The Luna/none validation row cannot be copied into `production-primary` or an `arena-challenger-<n>` row without explicit owner approval.

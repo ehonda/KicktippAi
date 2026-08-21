@@ -76,13 +76,30 @@ The Orchestrator requires the following environment variables to be set:
 
 ### Loading Credentials
 
-The application loads credentials in this order:
+At startup, the application loads the base `.env` file at
+`../KicktippAi.Secrets/src/Orchestrator/.env` when it exists, then loads
+Firebase credentials from the existing process environment or
+`../KicktippAi.Secrets/src/Orchestrator/firebase.json`.
 
-1. **Environment variables** (highest priority)
-2. **`.env` file** at `../KicktippAi.Secrets/src/Orchestrator/.env`
-3. **`firebase.json`** file at `../KicktippAi.Secrets/src/Orchestrator/firebase.json`
+Ordinary `matchday`, `bonus`, `verify`, and `verify-bonus` commands then look
+for `../KicktippAi.Secrets/src/Orchestrator/.env.<posting-community>`. When the
+sibling file exists, its `KICKTIPP_USERNAME` and `KICKTIPP_PASSWORD` replace
+the base values before the Kicktipp client is created. When it is absent, the
+already loaded environment remains unchanged. The posting `community` selects
+credentials; `community-context` never does. This distinction is required for
+an arena command that posts to `ehonda-ai-arena` while reusing `pes-squad`
+context.
 
-For `prepare-community-to-date`, Orchestrator also looks for `../KicktippAi.Secrets/src/Orchestrator/.env.<community-context>` and, when present, uses its `KICKTIPP_USERNAME` and `KICKTIPP_PASSWORD` values for that command.
+`prepare-community-to-date` similarly uses
+`.env.<community-context>` because that command's community context is also its
+Kicktipp source. Credential values are never written to logs.
+
+For Bundesliga 2026/27, the base `.env` remains the
+`ehonda-dev-buli-2627` development source and `.env.ehonda-ai-arena` is
+reserved for the confirmed Luna/none validation participant. It must not be
+treated as credentials for a future production or challenger arena
+participant. See the
+[authoritative community matrix](../../docs/onboarding-bundesliga-2026-27/community-onboarding.md).
 
 **Example `.env` file:**
 
