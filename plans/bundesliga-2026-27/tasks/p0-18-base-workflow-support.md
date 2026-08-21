@@ -3,7 +3,7 @@
 - Status: Not started
 - Priority: P0
 - Depends on: [P0-14](p0-14-profile-driven-collection.md), [P0-17](p0-17-community-scope.md)
-- Decisions: [ADR-0038](../decisions/0038-bound-bonus-context-by-question-policy.md)
+- Decisions: [ADR-0038](../decisions/0038-bound-bonus-context-by-question-policy.md), [ADR-0039](../decisions/0039-record-bundesliga-community-and-credential-topology.md)
 
 ## Outcome
 
