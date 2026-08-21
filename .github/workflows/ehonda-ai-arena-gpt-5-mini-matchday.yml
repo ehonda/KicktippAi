@@ -31,8 +31,12 @@ jobs:
     uses: ./.github/workflows/base-matchday-predictions.yml
     with:
       community: "ehonda-ai-arena"
+      competition: "bundesliga-2025-26"
       model: "gpt-5-mini"
       reasoning_effort: ""
+      max_output_tokens: 10000
+      prompt_source: "local"
+      retired_configuration: true
       community_context: "pes-squad"
       trigger_type: ${{ github.event_name == 'schedule' && 'scheduled' || 'manual' }}
       force_prediction: ${{ github.event.inputs.force_prediction == 'true' }}

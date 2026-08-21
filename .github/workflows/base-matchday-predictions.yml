@@ -5,27 +5,53 @@ on:
   workflow_call:
     inputs:
       community:
-        description: 'Kicktipp community name'
+        description: 'Kicktipp posting community name'
+        required: true
+        type: string
+      community_context:
+        description: 'Community context used to resolve stored predictions'
+        required: true
+        type: string
+      competition:
+        description: 'Exact competition identifier'
         required: true
         type: string
       model:
-        description: 'OpenAI model to use for predictions'
+        description: 'Pinned OpenAI model'
         required: true
         type: string
       reasoning_effort:
-        description: 'Optional OpenAI reasoning effort to use for predictions'
+        description: 'Pinned OpenAI reasoning effort'
+        required: true
+        type: string
+      max_output_tokens:
+        description: 'Pinned maximum output token cap'
+        required: true
+        type: number
+      prompt_source:
+        description: 'Exact prompt source; operational callers use langfuse'
+        required: true
+        type: string
+      langfuse_prompt_name:
+        description: 'Exact hosted prompt name when prompt_source is langfuse'
         required: false
         type: string
         default: ''
-      max_output_tokens:
-        description: 'Optional maximum output token cap for prediction generation; use 0 to keep the command default'
+      langfuse_prompt_label:
+        description: 'Optional hosted prompt label used alongside the numbered version'
+        required: false
+        type: string
+        default: ''
+      langfuse_prompt_version:
+        description: 'Exact numbered hosted prompt version when prompt_source is langfuse'
         required: false
         type: number
         default: 0
-      community_context:
-        description: 'Community context when generating predictions (or using stored ones from the database)'
-        required: true
-        type: string
+      retired_configuration:
+        description: 'Explicitly fail a historical unversioned caller before any prediction work'
+        required: false
+        type: boolean
+        default: false
       trigger_type:
         description: 'How this workflow was triggered (scheduled, manual)'
         required: true
@@ -67,145 +93,169 @@ jobs:
   matchday-predictions:
     name: Matchday Predictions
     runs-on: ubuntu-latest
-    
+    env:
+      COMMUNITY: ${{ inputs.community }}
+      COMMUNITY_CONTEXT: ${{ inputs.community_context }}
+      COMPETITION: ${{ inputs.competition }}
+      MODEL: ${{ inputs.model }}
+      REASONING_EFFORT: ${{ inputs.reasoning_effort }}
+      MAX_OUTPUT_TOKENS: ${{ inputs.max_output_tokens }}
+      PROMPT_SOURCE: ${{ inputs.prompt_source }}
+      LANGFUSE_PROMPT_NAME: ${{ inputs.langfuse_prompt_name }}
+      LANGFUSE_PROMPT_LABEL: ${{ inputs.langfuse_prompt_label }}
+      LANGFUSE_PROMPT_VERSION: ${{ inputs.langfuse_prompt_version }}
+      RETIRED_CONFIGURATION: ${{ inputs.retired_configuration }}
+
     steps:
+      - name: Validate pinned prediction configuration
+        shell: bash
+        run: |
+          if [ "$RETIRED_CONFIGURATION" = "true" ]; then
+            echo "::error::This historical prediction configuration is retired because it has no truthful numbered prompt identity."
+            exit 1
+          fi
+
+          for required_name in COMMUNITY COMMUNITY_CONTEXT COMPETITION MODEL REASONING_EFFORT PROMPT_SOURCE; do
+            required_value="${!required_name}"
+            if [ -z "${required_value//[[:space:]]/}" ]; then
+              echo "::error::$required_name must be explicit and non-empty."
+              exit 1
+            fi
+          done
+
+          if [[ ! "$MAX_OUTPUT_TOKENS" =~ ^[1-9][0-9]*$ ]]; then
+            echo "::error::MAX_OUTPUT_TOKENS must be a positive pinned integer."
+            exit 1
+          fi
+
+          if [[ ! "$REASONING_EFFORT" =~ ^(none|minimal|low|medium|high|xhigh|max)$ ]]; then
+            echo "::error::REASONING_EFFORT must be one supported explicit value."
+            exit 1
+          fi
+
+          if [ "$PROMPT_SOURCE" != "langfuse" ]; then
+            echo "::error::Operational prediction workflows require prompt_source=langfuse; local unversioned routes must remain retired."
+            exit 1
+          fi
+
+          if [ -z "${LANGFUSE_PROMPT_NAME//[[:space:]]/}" ] || [[ ! "$LANGFUSE_PROMPT_VERSION" =~ ^[1-9][0-9]*$ ]]; then
+            echo "::error::Hosted prediction workflows require an exact prompt name and numbered version."
+            exit 1
+          fi
+
+          case "$COMPETITION|$LANGFUSE_PROMPT_NAME" in
+            "bundesliga-2026-27|kicktippai/bundesliga-2026-27/predict-one-match"|\
+            "fifa-world-cup-2026|kicktippai/wm26/predict-one-match") ;;
+            *)
+              echo "::error::The competition and match prompt route do not form a supported exact identity."
+              exit 1
+              ;;
+          esac
+
       - name: Checkout repository
         uses: actions/checkout@v7
-        
+
       - name: Setup .NET
         uses: actions/setup-dotnet@v6
         with:
           dotnet-version: '10.x'
-          
+
       - name: Restore dependencies
         run: dotnet restore
-        
+
       - name: Build project
         run: dotnet build --no-restore --configuration Release
-        
+
       - name: Verify current predictions
         id: verify
         continue-on-error: true
         run: |
-          echo "🔍 Verifying current matchday predictions..."
-          echo "Community: ${{ inputs.community }}"
-          echo "Model: ${{ inputs.model }}"
-          echo "Reasoning Effort: ${{ inputs.reasoning_effort || 'model default' }}"
-          if [ "${{ inputs.max_output_tokens }}" -gt 0 ]; then
-            echo "Max Output Tokens: ${{ inputs.max_output_tokens }}"
-          else
-            echo "Max Output Tokens: workflow default"
+          echo "Verifying current matchday predictions..."
+          echo "Community: $COMMUNITY"
+          echo "Competition: $COMPETITION"
+          echo "Model: $MODEL"
+          echo "Reasoning Effort: $REASONING_EFFORT"
+          echo "Max Output Tokens: $MAX_OUTPUT_TOKENS"
+          echo "Community Context: $COMMUNITY_CONTEXT"
+          echo "Prompt: $PROMPT_SOURCE $LANGFUSE_PROMPT_NAME v$LANGFUSE_PROMPT_VERSION"
+          PROMPT_LABEL_FLAGS=()
+          if [ -n "$LANGFUSE_PROMPT_LABEL" ]; then
+            PROMPT_LABEL_FLAGS+=(--langfuse-prompt-label "$LANGFUSE_PROMPT_LABEL")
           fi
-          echo "Community Context: ${{ inputs.community_context }}"
-          VERIFY_FLAGS=()
-          if [ -n "$REASONING_EFFORT" ]; then
-            VERIFY_FLAGS+=(--reasoning-effort "$REASONING_EFFORT")
-          fi
-          dotnet run --project src/Orchestrator --configuration Release -- verify "${{ inputs.model }}" --community "${{ inputs.community }}" --community-context "${{ inputs.community_context }}" --init-matchday --check-outdated --agent --verbose "${VERIFY_FLAGS[@]}"
+          dotnet run --project src/Orchestrator --configuration Release -- verify "$MODEL" --community "$COMMUNITY" --community-context "$COMMUNITY_CONTEXT" --competition "$COMPETITION" --reasoning-effort "$REASONING_EFFORT" --max-output-tokens "$MAX_OUTPUT_TOKENS" --prompt-source "$PROMPT_SOURCE" --langfuse-prompt-name "$LANGFUSE_PROMPT_NAME" --langfuse-prompt-version "$LANGFUSE_PROMPT_VERSION" --init-matchday --check-outdated --agent --verbose "${PROMPT_LABEL_FLAGS[@]}"
         env:
           KICKTIPP_USERNAME: ${{ secrets.kicktipp_username }}
           KICKTIPP_PASSWORD: ${{ secrets.kicktipp_password }}
           FIREBASE_PROJECT_ID: ${{ secrets.firebase_project_id }}
           FIREBASE_SERVICE_ACCOUNT_JSON: ${{ secrets.firebase_service_account_json }}
           OPENAI_API_KEY: ${{ secrets.openai_api_key }}
-          REASONING_EFFORT: ${{ inputs.reasoning_effort }}
-          
+
       - name: Generate and post predictions
         id: generate
         if: steps.verify.outcome == 'failure' || inputs.force_prediction == true
         run: |
-          echo "🤖 Generating predictions with model: ${{ inputs.model }}"
-          echo "Community: ${{ inputs.community }}"
-          echo "Community Context: ${{ inputs.community_context }}"
-          echo "Reasoning Effort: ${REASONING_EFFORT:-model default}"
+          echo "Generating predictions with model: $MODEL"
+          echo "Community: $COMMUNITY"
+          echo "Competition: $COMPETITION"
+          echo "Community Context: $COMMUNITY_CONTEXT"
+          echo "Reasoning Effort: $REASONING_EFFORT"
+          echo "Max Output Tokens: $MAX_OUTPUT_TOKENS"
+          echo "Prompt: $PROMPT_SOURCE $LANGFUSE_PROMPT_NAME v$LANGFUSE_PROMPT_VERSION"
           echo "Max Repredictions: ${{ inputs.max_repredictions }}"
-          if [ "${{ steps.verify.outcome }}" = "failure" ]; then
-            echo "📝 Predictions needed - verify command indicated missing or mismatched predictions"
-          else
-            echo "🔄 Force prediction enabled - running regardless of verify result"
-          fi
 
           PREDICTION_FLAGS=()
-
-          # Use reprediction logic with max repredictions limit unless force prediction is enabled
           if [ "${{ inputs.force_prediction }}" = "true" ]; then
             PREDICTION_FLAGS+=(--override-database)
-            echo "💾 Using --override-database flag to force regeneration of predictions"
           else
             PREDICTION_FLAGS+=(--max-repredictions "${{ inputs.max_repredictions }}")
-            echo "🔄 Using reprediction logic with max repredictions: ${{ inputs.max_repredictions }}"
+          fi
+          if [ -n "$LANGFUSE_PROMPT_LABEL" ]; then
+            PREDICTION_FLAGS+=(--langfuse-prompt-label "$LANGFUSE_PROMPT_LABEL")
           fi
 
-          if [ -n "$REASONING_EFFORT" ]; then
-            PREDICTION_FLAGS+=(--reasoning-effort "$REASONING_EFFORT")
-            echo "🧠 Using reasoning effort: $REASONING_EFFORT"
-          fi
-
-          if [ "${{ inputs.max_output_tokens }}" -gt 0 ]; then
-            PREDICTION_FLAGS+=(--max-output-tokens "${{ inputs.max_output_tokens }}")
-            echo "📏 Using max output tokens: ${{ inputs.max_output_tokens }}"
-          fi
-
-          dotnet run --project src/Orchestrator --configuration Release -- matchday "${{ inputs.model }}" --community "${{ inputs.community }}" --community-context "${{ inputs.community_context }}" --override-kicktipp --verbose --agent "${PREDICTION_FLAGS[@]}"
+          dotnet run --project src/Orchestrator --configuration Release -- matchday "$MODEL" --community "$COMMUNITY" --community-context "$COMMUNITY_CONTEXT" --competition "$COMPETITION" --reasoning-effort "$REASONING_EFFORT" --max-output-tokens "$MAX_OUTPUT_TOKENS" --prompt-source "$PROMPT_SOURCE" --langfuse-prompt-name "$LANGFUSE_PROMPT_NAME" --langfuse-prompt-version "$LANGFUSE_PROMPT_VERSION" --override-kicktipp --verbose --agent "${PREDICTION_FLAGS[@]}"
         env:
           KICKTIPP_USERNAME: ${{ secrets.kicktipp_username }}
           KICKTIPP_PASSWORD: ${{ secrets.kicktipp_password }}
           FIREBASE_PROJECT_ID: ${{ secrets.firebase_project_id }}
           FIREBASE_SERVICE_ACCOUNT_JSON: ${{ secrets.firebase_service_account_json }}
           OPENAI_API_KEY: ${{ secrets.openai_api_key }}
-          REASONING_EFFORT: ${{ inputs.reasoning_effort }}
           LANGFUSE_PUBLIC_KEY: ${{ vars.LANGFUSE_PUBLIC_KEY }}
           LANGFUSE_SECRET_KEY: ${{ secrets.langfuse_secret_key }}
-          
+
       - name: Final verification
         if: steps.verify.outcome == 'failure' || inputs.force_prediction == true
         run: |
-          echo "✅ Running final verification to confirm predictions were posted successfully..."
-          VERIFY_FLAGS=()
-          if [ -n "$REASONING_EFFORT" ]; then
-            VERIFY_FLAGS+=(--reasoning-effort "$REASONING_EFFORT")
+          echo "Running final verification to confirm predictions were posted successfully..."
+          PROMPT_LABEL_FLAGS=()
+          if [ -n "$LANGFUSE_PROMPT_LABEL" ]; then
+            PROMPT_LABEL_FLAGS+=(--langfuse-prompt-label "$LANGFUSE_PROMPT_LABEL")
           fi
-          dotnet run --project src/Orchestrator --configuration Release -- verify "${{ inputs.model }}" --community "${{ inputs.community }}" --community-context "${{ inputs.community_context }}" --agent --verbose "${VERIFY_FLAGS[@]}"
+          dotnet run --project src/Orchestrator --configuration Release -- verify "$MODEL" --community "$COMMUNITY" --community-context "$COMMUNITY_CONTEXT" --competition "$COMPETITION" --reasoning-effort "$REASONING_EFFORT" --max-output-tokens "$MAX_OUTPUT_TOKENS" --prompt-source "$PROMPT_SOURCE" --langfuse-prompt-name "$LANGFUSE_PROMPT_NAME" --langfuse-prompt-version "$LANGFUSE_PROMPT_VERSION" --check-outdated --agent --verbose "${PROMPT_LABEL_FLAGS[@]}"
         env:
           KICKTIPP_USERNAME: ${{ secrets.kicktipp_username }}
           KICKTIPP_PASSWORD: ${{ secrets.kicktipp_password }}
           FIREBASE_PROJECT_ID: ${{ secrets.firebase_project_id }}
           FIREBASE_SERVICE_ACCOUNT_JSON: ${{ secrets.firebase_service_account_json }}
           OPENAI_API_KEY: ${{ secrets.openai_api_key }}
-          REASONING_EFFORT: ${{ inputs.reasoning_effort }}
-          
+
       - name: Success notification
         if: steps.verify.outcome == 'success' && inputs.force_prediction == false
-        run: |
-          echo "✅ All predictions are up to date - no action needed"
-          
+        run: echo "All predictions are up to date - no action needed"
+
       - name: Workflow summary
         if: always()
         run: |
           echo "## Matchday Predictions Summary" >> $GITHUB_STEP_SUMMARY
           echo "- **Community**: ${{ inputs.community }}" >> $GITHUB_STEP_SUMMARY
-          echo "- **Model**: ${{ inputs.model }}" >> $GITHUB_STEP_SUMMARY
-          echo "- **Reasoning Effort**: ${{ inputs.reasoning_effort || 'model default' }}" >> $GITHUB_STEP_SUMMARY
-          if [ "${{ inputs.max_output_tokens }}" -gt 0 ]; then
-            echo "- **Max Output Tokens**: ${{ inputs.max_output_tokens }}" >> $GITHUB_STEP_SUMMARY
-          else
-            echo "- **Max Output Tokens**: workflow default (10000)" >> $GITHUB_STEP_SUMMARY
-          fi
           echo "- **Community Context**: ${{ inputs.community_context }}" >> $GITHUB_STEP_SUMMARY
+          echo "- **Competition**: ${{ inputs.competition }}" >> $GITHUB_STEP_SUMMARY
+          echo "- **Model**: ${{ inputs.model }}" >> $GITHUB_STEP_SUMMARY
+          echo "- **Reasoning Effort**: ${{ inputs.reasoning_effort }}" >> $GITHUB_STEP_SUMMARY
+          echo "- **Max Output Tokens**: ${{ inputs.max_output_tokens }}" >> $GITHUB_STEP_SUMMARY
+          echo "- **Prompt Source**: ${{ inputs.prompt_source }}" >> $GITHUB_STEP_SUMMARY
+          echo "- **Prompt Name**: ${{ inputs.langfuse_prompt_name }}" >> $GITHUB_STEP_SUMMARY
+          echo "- **Prompt Version**: ${{ inputs.langfuse_prompt_version }}" >> $GITHUB_STEP_SUMMARY
           echo "- **Max Repredictions**: ${{ inputs.max_repredictions }}" >> $GITHUB_STEP_SUMMARY
           echo "- **Trigger**: ${{ inputs.trigger_type }}" >> $GITHUB_STEP_SUMMARY
-          echo "- **Verify Result**: ${{ steps.verify.outcome }}" >> $GITHUB_STEP_SUMMARY
-          
-          # Determine action based on what actually happened
-          if [ "${{ steps.verify.outcome }}" = "success" ] && [ "${{ inputs.force_prediction }}" != "true" ]; then
-            echo "- **Action**: No predictions needed" >> $GITHUB_STEP_SUMMARY
-          elif [ "${{ steps.generate.outcome }}" = "success" ]; then
-            echo "- **Action**: Predictions generated and posted successfully" >> $GITHUB_STEP_SUMMARY
-          elif [ "${{ steps.generate.outcome }}" = "failure" ]; then
-            echo "- **Action**: Prediction generation failed" >> $GITHUB_STEP_SUMMARY
-          elif [ "${{ steps.generate.outcome }}" = "skipped" ]; then
-            echo "- **Action**: Prediction generation skipped" >> $GITHUB_STEP_SUMMARY
-          else
-            echo "- **Action**: Prediction generation attempted" >> $GITHUB_STEP_SUMMARY
-          fi
-          echo "- **Timezone**: ${{ env.TZ }}" >> $GITHUB_STEP_SUMMARY
+          echo "- **Initial Verify Result**: ${{ steps.verify.outcome }}" >> $GITHUB_STEP_SUMMARY

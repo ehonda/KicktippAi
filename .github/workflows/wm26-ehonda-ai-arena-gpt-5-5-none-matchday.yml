@@ -10,9 +10,14 @@ jobs:
     uses: ./.github/workflows/base-matchday-predictions.yml
     with:
       community: "ehonda-ai-arena"
+      competition: "fifa-world-cup-2026"
       model: "gpt-5.5"
       reasoning_effort: "none"
       max_output_tokens: 10000
+      prompt_source: "langfuse"
+      langfuse_prompt_name: "kicktippai/wm26/predict-one-match"
+      langfuse_prompt_label: "latest"
+      langfuse_prompt_version: 3
       community_context: "ehonda-ai-arena"
       trigger_type: ${{ github.event_name == 'schedule' && 'scheduled' || 'manual' }}
       force_prediction: ${{ github.event.inputs.force_prediction == 'true' }}
