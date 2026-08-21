@@ -101,7 +101,10 @@ public abstract class StaleMetadataRepredictionIntegrationTests_Base(FirestoreFi
 
         var openAiFactory = new Mock<IOpenAiServiceFactory>();
         openAiFactory
-            .Setup(factory => factory.CreatePredictionService(Model, It.IsAny<PredictionServiceOptions>()))
+            .Setup(factory => factory.CreatePredictionService(
+                Model,
+                It.IsAny<PredictionServiceOptions>(),
+                It.IsAny<IInstructionsTemplateProvider>()))
             .Returns(predictionService.Object);
         openAiFactory
             .Setup(factory => factory.GetTokenUsageTracker())
