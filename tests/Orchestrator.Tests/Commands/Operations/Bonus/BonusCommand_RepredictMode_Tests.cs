@@ -112,8 +112,40 @@ public class BonusCommand_RepredictMode_Tests : BonusCommandTests_Base
         var exitCode = await context.App.RunAsync(
             ["bonus", "test-model", "--community", "test", "--max-repredictions", "2"]);
 
-        await Assert.That(exitCode).IsEqualTo(0);
+        await Assert.That(exitCode).IsEqualTo(1);
         await Assert.That(context.Console.Output).Contains("cannot be reused at the reprediction limit");
+        context.KicktippClient.Verify(client => client.PlaceBonusPredictionsAsync(
+            It.IsAny<string>(),
+            It.IsAny<Dictionary<string, BonusPrediction>>(),
+            It.IsAny<bool>()), Times.Never);
+    }
+
+    [Test]
+    public async Task Bundesliga_reprediction_fails_closed_when_cached_value_and_metadata_disagree()
+    {
+        var cachedPrediction = CreateBonusPrediction(selectedOptionIds: new List<string> { "bayern" });
+        var metadataPrediction = CreateBonusPrediction(selectedOptionIds: new List<string> { "bvb" });
+        var metadata = CreateCanonicalBundesligaBonusPredictionMetadata(
+            CreateLeagueWinnerBonusQuestion(),
+            metadataPrediction,
+            communityContext: "test");
+        var repository = CreateMockPredictionRepository(
+            getBonusPredictionByTextResult: cachedPrediction,
+            getBonusRepredictionIndexResult: 0,
+            getBonusPredictionMetadataByTextResult: metadata);
+        var context = CreateBonusCommandApp(
+            firebaseServiceFactory: CreateMockFirebaseServiceFactoryFull(predictionRepository: repository));
+
+        var exitCode = await context.App.RunAsync(
+            ["bonus", "test-model", "--community", "test", "--max-repredictions", "2"]);
+
+        await Assert.That(exitCode).IsEqualTo(1);
+        await Assert.That(context.Console.Output).Contains("same cached value");
+        context.PredictionService.Verify(service => service.PredictBonusQuestionAsync(
+            It.IsAny<BonusQuestion>(),
+            It.IsAny<IEnumerable<DocumentContext>>(),
+            It.IsAny<PredictionTelemetryMetadata?>(),
+            It.IsAny<CancellationToken>()), Times.Never);
         context.KicktippClient.Verify(client => client.PlaceBonusPredictionsAsync(
             It.IsAny<string>(),
             It.IsAny<Dictionary<string, BonusPrediction>>(),

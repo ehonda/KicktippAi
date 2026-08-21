@@ -60,8 +60,91 @@ public class BonusCommand_ErrorHandling_Tests : BonusCommandTests_Base
 
         var exitCode = await context.App.RunAsync(["bonus", "test-model", "--community", "test"]);
 
-        await Assert.That(exitCode).IsEqualTo(0);
+        await Assert.That(exitCode).IsEqualTo(1);
         await Assert.That(context.Console.Output).Contains("lacks current").And.Contains("immutable provenance");
+        context.KicktippClient.Verify(client => client.PlaceBonusPredictionsAsync(
+            It.IsAny<string>(),
+            It.IsAny<Dictionary<string, BonusPrediction>>(),
+            It.IsAny<bool>()), Times.Never);
+    }
+
+    [Test]
+    public async Task Bundesliga_normal_mode_fails_closed_when_cached_value_and_metadata_disagree()
+    {
+        var cachedPrediction = CreateBonusPrediction(selectedOptionIds: new List<string> { "bayern" });
+        var metadataPrediction = CreateBonusPrediction(selectedOptionIds: new List<string> { "bvb" });
+        var metadata = CreateCanonicalBundesligaBonusPredictionMetadata(
+            CreateLeagueWinnerBonusQuestion(),
+            metadataPrediction,
+            communityContext: "test");
+        var repository = CreateMockPredictionRepository(
+            getBonusPredictionByTextResult: cachedPrediction,
+            getBonusPredictionMetadataByTextResult: metadata);
+        var context = CreateBonusCommandApp(
+            firebaseServiceFactory: CreateMockFirebaseServiceFactoryFull(predictionRepository: repository));
+
+        var exitCode = await context.App.RunAsync(["bonus", "test-model", "--community", "test"]);
+
+        await Assert.That(exitCode).IsEqualTo(1);
+        await Assert.That(context.Console.Output).Contains("immutable provenance metadata").And.Contains("same cached value");
+        context.KicktippClient.Verify(client => client.PlaceBonusPredictionsAsync(
+            It.IsAny<string>(),
+            It.IsAny<Dictionary<string, BonusPrediction>>(),
+            It.IsAny<bool>()), Times.Never);
+    }
+
+    [Test]
+    public async Task Bundesliga_context_provenance_failure_returns_nonzero_and_places_nothing()
+    {
+        var provider = CreateMockKpiContextProvider();
+        provider.As<IResolvedBonusContextProvider>()
+            .Setup(candidate => candidate.ResolveBonusQuestionContextAsync(
+                It.IsAny<BonusQuestion>(),
+                It.IsAny<string>(),
+                It.IsAny<CancellationToken>()))
+            .ThrowsAsync(new InvalidOperationException("publication head is corrupt"));
+        var context = CreateBonusCommandApp(
+            existingBonusPrediction: Option.None<BonusPrediction>(),
+            contextProviderFactory: CreateMockContextProviderFactory(kpiContextProvider: provider));
+
+        var exitCode = await context.App.RunAsync(["bonus", "test-model", "--community", "test"]);
+
+        await Assert.That(exitCode).IsEqualTo(1);
+        await Assert.That(context.Console.Output).Contains("Failed to resolve immutable Bundesliga bonus provenance");
+        context.KicktippClient.Verify(client => client.PlaceBonusPredictionsAsync(
+            It.IsAny<string>(),
+            It.IsAny<Dictionary<string, BonusPrediction>>(),
+            It.IsAny<bool>()), Times.Never);
+    }
+
+    [Test]
+    public async Task Bundesliga_later_question_provenance_failure_blocks_placement_of_all_selected_answers()
+    {
+        var firstQuestion = CreateLeagueWinnerBonusQuestion(formFieldName: "q1");
+        var secondQuestion = CreateTrainerChangeBonusQuestion(formFieldName: "q2");
+        var provider = CreateMockKpiContextProvider();
+        var calls = 0;
+        provider.As<IResolvedBonusContextProvider>()
+            .Setup(candidate => candidate.ResolveBonusQuestionContextAsync(
+                It.IsAny<BonusQuestion>(),
+                It.IsAny<string>(),
+                It.IsAny<CancellationToken>()))
+            .ReturnsAsync((BonusQuestion question, string communityContext, CancellationToken _) =>
+            {
+                calls++;
+                return calls == 1
+                    ? CreateCanonicalBundesligaResolvedBonusContext(question, communityContext)
+                    : throw new InvalidOperationException("second publication head is corrupt");
+            });
+        var context = CreateBonusCommandApp(
+            openBonusQuestions: new List<BonusQuestion> { firstQuestion, secondQuestion },
+            existingBonusPrediction: Option.None<BonusPrediction>(),
+            contextProviderFactory: CreateMockContextProviderFactory(kpiContextProvider: provider));
+
+        var exitCode = await context.App.RunAsync(["bonus", "test-model", "--community", "test"]);
+
+        await Assert.That(exitCode).IsEqualTo(1);
+        await Assert.That(calls).IsEqualTo(2);
         context.KicktippClient.Verify(client => client.PlaceBonusPredictionsAsync(
             It.IsAny<string>(),
             It.IsAny<Dictionary<string, BonusPrediction>>(),
@@ -205,10 +288,9 @@ public class BonusCommand_ErrorHandling_Tests : BonusCommandTests_Base
         var output = context.Console.Output;
 
         // Assert
-        await Assert.That(exitCode).IsEqualTo(0);
-        await Assert.That(output).Contains("Failed to save to database");
+        await Assert.That(exitCode).IsEqualTo(1);
+        await Assert.That(output).Contains("Failed to persist immutable Bundesliga bonus provenance");
         await Assert.That(output).Contains("Database write failed");
-        await Assert.That(output).Contains("No predictions available, nothing to place");
         context.KicktippClient.Verify(client => client.PlaceBonusPredictionsAsync(
             It.IsAny<string>(),
             It.IsAny<Dictionary<string, BonusPrediction>>(),
@@ -241,7 +323,7 @@ public class BonusCommand_ErrorHandling_Tests : BonusCommandTests_Base
     }
 
     [Test]
-    public async Task Running_command_handles_database_lookup_exception()
+    public async Task World_cup_command_continues_after_database_lookup_exception()
     {
         // Arrange
         var mockPredictionRepository = CreateMockPredictionRepository();
@@ -253,15 +335,49 @@ public class BonusCommand_ErrorHandling_Tests : BonusCommandTests_Base
             .ThrowsAsync(new InvalidOperationException("Database read failed"));
 
         var mockFirebaseFactory = CreateMockFirebaseServiceFactoryFull(predictionRepository: mockPredictionRepository);
-        var context = CreateBonusCommandApp(firebaseServiceFactory: mockFirebaseFactory);
+        var context = CreateBonusCommandApp(
+            firebaseServiceFactory: mockFirebaseFactory,
+            kpiContextDocuments: new List<DocumentContext>
+            {
+                new("fifa-rankings", "Rank,Team,ELO\r\n1,Test,1000\r\n")
+            });
 
         // Act
-        var exitCode = await context.App.RunAsync(["bonus", "test-model", "--community", "test"]);
+        var exitCode = await context.App.RunAsync([
+            "bonus",
+            "test-model",
+            "--community",
+            "ehonda-dev-wm26",
+            "--competition",
+            CompetitionIds.FifaWorldCup2026]);
         var output = context.Console.Output;
 
         // Assert
         await Assert.That(exitCode).IsEqualTo(0);
         await Assert.That(output).Contains("Error processing question");
         await Assert.That(output).Contains("Database read failed");
+    }
+
+    [Test]
+    public async Task Bundesliga_database_lookup_failure_returns_nonzero_and_places_nothing()
+    {
+        var repository = CreateMockPredictionRepository();
+        repository.Setup(candidate => candidate.GetBonusPredictionByTextAsync(
+                It.IsAny<string>(),
+                It.IsAny<PredictionModelConfig>(),
+                It.IsAny<string>(),
+                It.IsAny<CancellationToken>()))
+            .ThrowsAsync(new InvalidOperationException("Database read failed"));
+        var context = CreateBonusCommandApp(
+            firebaseServiceFactory: CreateMockFirebaseServiceFactoryFull(predictionRepository: repository));
+
+        var exitCode = await context.App.RunAsync(["bonus", "test-model", "--community", "test"]);
+
+        await Assert.That(exitCode).IsEqualTo(1);
+        await Assert.That(context.Console.Output).Contains("Failed to read a coherent cached Bundesliga bonus prediction");
+        context.KicktippClient.Verify(client => client.PlaceBonusPredictionsAsync(
+            It.IsAny<string>(),
+            It.IsAny<Dictionary<string, BonusPrediction>>(),
+            It.IsAny<bool>()), Times.Never);
     }
 }

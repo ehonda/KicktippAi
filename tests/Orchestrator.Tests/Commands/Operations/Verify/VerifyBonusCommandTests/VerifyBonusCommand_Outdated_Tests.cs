@@ -64,6 +64,35 @@ public class VerifyBonusCommand_Outdated_Tests : VerifyBonusCommandTests_Base
     }
 
     [Test]
+    public async Task Bundesliga_cached_value_and_metadata_mismatch_is_outdated_fail_closed()
+    {
+        var question = CreateTestBonusQuestion(formFieldName: "bonus_q1");
+        var cachedPrediction = CreateBonusPrediction(selectedOptionIds: new List<string> { "opt-1" });
+        var metadataPrediction = CreateBonusPrediction(selectedOptionIds: new List<string> { "opt-2" });
+        var metadata = CreateCanonicalBundesligaBonusPredictionMetadata(
+            question,
+            metadataPrediction,
+            communityContext: "test");
+        var ctx = CreateVerifyBonusCommandApp(
+            bonusQuestions: new List<BonusQuestion> { question },
+            placedBonusPredictions: CreatePlacedBonusPredictions("bonus_q1", cachedPrediction),
+            databaseBonusPrediction: cachedPrediction,
+            bonusPredictionMetadata: metadata);
+
+        var (exitCode, output) = await RunCommandAsync(
+            ctx.App,
+            ctx.Console,
+            "verify-bonus",
+            "gpt-4o",
+            "-c",
+            "test",
+            "--check-outdated");
+
+        await Assert.That(exitCode).IsEqualTo(1);
+        await Assert.That(output).Contains("outdated");
+    }
+
+    [Test]
     public async Task Bundesliga_changed_publication_snapshot_is_outdated()
     {
         var question = CreateTestBonusQuestion(formFieldName: "bonus_q1");

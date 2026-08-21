@@ -66,6 +66,31 @@ public class BonusCommand_NormalMode_Tests : BonusCommandTests_Base
     }
 
     [Test]
+    public async Task Bundesliga_accepts_separately_materialized_cached_value_and_metadata_with_exact_content()
+    {
+        var cachedPrediction = CreateBonusPrediction(selectedOptionIds: new List<string> { "bayern" });
+        var metadataPrediction = CreateBonusPrediction(selectedOptionIds: new List<string> { "bayern" });
+        var metadata = CreateCanonicalBundesligaBonusPredictionMetadata(
+            CreateLeagueWinnerBonusQuestion(),
+            metadataPrediction,
+            communityContext: "test");
+        var repository = CreateMockPredictionRepository(
+            getBonusPredictionByTextResult: cachedPrediction,
+            getBonusPredictionMetadataByTextResult: metadata);
+        var context = CreateBonusCommandApp(
+            firebaseServiceFactory: CreateMockFirebaseServiceFactoryFull(predictionRepository: repository));
+
+        var exitCode = await context.App.RunAsync(["bonus", "test-model", "--community", "test"]);
+
+        await Assert.That(exitCode).IsEqualTo(0);
+        context.KicktippClient.Verify(client => client.PlaceBonusPredictionsAsync(
+            "test",
+            It.Is<Dictionary<string, BonusPrediction>>(predictions =>
+                BonusPredictionContentEquality.Equals(predictions["bonus_q1"], cachedPrediction)),
+            false), Times.Once);
+    }
+
+    [Test]
     public async Task Running_command_generates_new_prediction_when_none_exists()
     {
         // Arrange
