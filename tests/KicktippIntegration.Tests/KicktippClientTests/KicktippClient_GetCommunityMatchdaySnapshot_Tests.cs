@@ -18,7 +18,7 @@ public class KicktippClient_GetCommunityMatchdaySnapshot_Tests : KicktippClientT
 
         await Assert.That(snapshot).IsNotNull();
         var participant = snapshot!.Participants.Single(candidate => candidate.DisplayName == "gpt-5");
-        await Assert.That(participant.Predictions).HasCount().EqualTo(1);
+        await Assert.That(participant.Predictions.Count).IsEqualTo(1);
         await Assert.That(participant.Predictions[0].Status).IsEqualTo(KicktippCommunityPredictionStatus.Placed);
         await Assert.That(participant.Predictions[0].Prediction).IsNotNull();
         await Assert.That(participant.Predictions[0].Prediction!.HomeGoals).IsEqualTo(3);
