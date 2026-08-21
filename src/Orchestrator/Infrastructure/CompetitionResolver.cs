@@ -59,6 +59,26 @@ public static class CompetitionResolver
         return CompetitionIds.Bundesliga2026_27;
     }
 
+    public static string ResolveTargetCompetition(
+        string? competition,
+        string communityContext)
+    {
+        ArgumentException.ThrowIfNullOrWhiteSpace(communityContext);
+        var normalizedCommunityContext = communityContext.Trim();
+        var resolvedCompetition = ResolveCompetition(
+            competition,
+            communityContext: normalizedCommunityContext);
+        if (KnownDevCommunityCompetitions.TryGetValue(normalizedCommunityContext, out var expectedCompetition)
+            && !string.Equals(resolvedCompetition, expectedCompetition, StringComparison.Ordinal))
+        {
+            throw new InvalidOperationException(
+                $"Target community context '{normalizedCommunityContext}' belongs to '{expectedCompetition}' and " +
+                $"conflicts with the resolved competition '{resolvedCompetition}'.");
+        }
+
+        return resolvedCompetition;
+    }
+
     public static CompetitionRuntimeMetadata ResolveRuntimeMetadata(
         string? competition,
         string? community,

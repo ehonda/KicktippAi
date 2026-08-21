@@ -123,6 +123,8 @@ public class UploadContextCommandTests
     [Arguments("team-data")]
     [Arguments("recent-history-fcb.csv")]
     [Arguments("lineup-germany.csv")]
+    [Arguments("team-squad-summary")]
+    [Arguments("club-elo-rankings")]
     [Test]
     public async Task Live_bundesliga_profile_owned_or_retired_names_fail_before_writes(string documentName)
     {
@@ -167,6 +169,27 @@ public class UploadContextCommandTests
             "historical content",
             "historical-community",
             It.IsAny<CancellationToken>()), Times.Once);
+    }
+
+    [Test]
+    public async Task Known_target_community_conflict_fails_before_repository_access_even_in_dry_run()
+    {
+        var inputPath = WriteContextJson("operator-notes.md", "content", "ehonda-dev-wm26");
+        var (app, console, contextRepository) = CreateUploadContextCommandApp();
+
+        var exitCode = await app.RunAsync([
+            "upload-context",
+            "--input", inputPath,
+            "--competition", CompetitionIds.Bundesliga2026_27,
+            "--dry-run"
+        ]);
+
+        await Assert.That(exitCode).IsEqualTo(1);
+        await Assert.That(console.Output).Contains("belongs to");
+        contextRepository.Verify(repository => repository.GetLatestContextDocumentAsync(
+            It.IsAny<string>(), It.IsAny<string>(), It.IsAny<CancellationToken>()), Times.Never);
+        contextRepository.Verify(repository => repository.SaveContextDocumentAsync(
+            It.IsAny<string>(), It.IsAny<string>(), It.IsAny<string>(), It.IsAny<CancellationToken>()), Times.Never);
     }
 
     private static string WriteContextJson(string documentName, string content, string communityContext)

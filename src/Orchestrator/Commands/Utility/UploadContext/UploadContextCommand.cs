@@ -55,9 +55,9 @@ public sealed class UploadContextCommand : AsyncCommand<UploadContextSettings>
                 return 1;
             }
 
-            var competition = CompetitionResolver.ResolveCompetition(
+            var competition = CompetitionResolver.ResolveTargetCompetition(
                 settings.Competition,
-                communityContext: document.CommunityContext);
+                document.CommunityContext);
             BundesligaContextHygienePolicy.ThrowIfBlockedGenericMutation(
                 competition,
                 DocumentPublicationKind.Context,

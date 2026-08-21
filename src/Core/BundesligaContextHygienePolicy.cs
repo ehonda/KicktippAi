@@ -124,12 +124,11 @@ public static class BundesligaContextHygienePolicy
                 "Bundesliga 2026/27 profile-owned document");
         }
 
-        if (expected.Any(entry => entry.Key.Kind == kind
-                                  && string.Equals(entry.Key.Name, documentName, StringComparison.OrdinalIgnoreCase)))
+        if (expected.Any(entry => string.Equals(entry.Key.Name, documentName, StringComparison.OrdinalIgnoreCase)))
         {
             return new(key, BundesligaContextHygieneClassification.InvalidProfileOwnedName,
                 BundesligaContextDocumentUse.None, true,
-                "Case-variant of a Bundesliga 2026/27 profile-owned document");
+                "Wrong-kind or case-variant shadow of a Bundesliga 2026/27 profile-owned document");
         }
 
         if (string.Equals(documentName, "team-data", StringComparison.OrdinalIgnoreCase)
@@ -161,7 +160,7 @@ public static class BundesligaContextHygienePolicy
                 "Historical-season context is preserved in its own competition partition");
         }
 
-        if (IsProfileOwnedLookingName(kind, documentName))
+        if (IsProfileOwnedLookingName(documentName))
         {
             return new(key, BundesligaContextHygieneClassification.InvalidProfileOwnedName,
                 BundesligaContextDocumentUse.None, true,
@@ -194,19 +193,13 @@ public static class BundesligaContextHygienePolicy
         }
     }
 
-    private static bool IsProfileOwnedLookingName(DocumentPublicationKind kind, string documentName)
+    private static bool IsProfileOwnedLookingName(string documentName)
     {
-        if (kind == DocumentPublicationKind.Context
-            && (string.Equals(documentName, "bundesliga-standings.csv", StringComparison.OrdinalIgnoreCase)
-                || string.Equals(documentName, BundesligaRosterPublicationContract.AggregateRosterDocumentName, StringComparison.OrdinalIgnoreCase)
-                || ProfileOwnedPrefixes.Any(prefix => documentName.StartsWith(prefix, StringComparison.OrdinalIgnoreCase))))
-        {
-            return true;
-        }
-
-        return kind == DocumentPublicationKind.Kpi
-               && (string.Equals(documentName, BundesligaRosterPublicationContract.SquadSummaryDocumentName, StringComparison.OrdinalIgnoreCase)
-                   || string.Equals(documentName, BundesligaDocumentPublication.ClubEloRankingsDocumentName, StringComparison.OrdinalIgnoreCase));
+        return string.Equals(documentName, "bundesliga-standings.csv", StringComparison.OrdinalIgnoreCase)
+               || string.Equals(documentName, BundesligaRosterPublicationContract.AggregateRosterDocumentName, StringComparison.OrdinalIgnoreCase)
+               || string.Equals(documentName, BundesligaRosterPublicationContract.SquadSummaryDocumentName, StringComparison.OrdinalIgnoreCase)
+               || string.Equals(documentName, BundesligaDocumentPublication.ClubEloRankingsDocumentName, StringComparison.OrdinalIgnoreCase)
+               || ProfileOwnedPrefixes.Any(prefix => documentName.StartsWith(prefix, StringComparison.OrdinalIgnoreCase));
     }
 
     private static bool IsWorldCupName(string documentName) =>
