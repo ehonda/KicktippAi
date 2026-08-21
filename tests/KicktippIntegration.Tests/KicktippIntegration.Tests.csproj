@@ -6,6 +6,8 @@
         <ImplicitUsings>enable</ImplicitUsings>
         <Nullable>enable</Nullable>
         <IsPackable>false</IsPackable>
+        <!-- Keep worktree test runs on the stable dotnet host so localhost listeners do not trigger per-path firewall prompts. -->
+        <UseAppHost>false</UseAppHost>
     </PropertyGroup>
 
     <ItemGroup>
