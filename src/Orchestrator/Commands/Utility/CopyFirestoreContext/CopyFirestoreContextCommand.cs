@@ -35,6 +35,16 @@ public sealed class CopyFirestoreContextCommand : AsyncCommand<CopyFirestoreCont
             var competition = CompetitionResolver.ResolveCompetition(
                 settings.Competition,
                 communityContext: settings.TargetCommunityContext);
+            var sourceCompetition = CompetitionResolver.ResolveCompetition(
+                competition: null,
+                communityContext: settings.SourceCommunityContext);
+
+            if (string.Equals(competition, CompetitionIds.Bundesliga2026_27, StringComparison.Ordinal)
+                && !string.Equals(sourceCompetition, competition, StringComparison.Ordinal))
+            {
+                throw new InvalidOperationException(
+                    $"Cannot copy context from '{sourceCompetition}' into the live '{competition}' partition.");
+            }
 
             _console.MarkupLine($"[green]Copy Firestore context command initialized[/]");
             _console.MarkupLine($"[blue]Source community context:[/] [yellow]{settings.SourceCommunityContext}[/]");
@@ -67,6 +77,24 @@ public sealed class CopyFirestoreContextCommand : AsyncCommand<CopyFirestoreCont
                 }
 
                 return 1;
+            }
+
+            foreach (var document in sourceContextDocuments.Documents)
+            {
+                BundesligaContextHygienePolicy.ThrowIfBlockedGenericMutation(
+                    competition,
+                    DocumentPublicationKind.Context,
+                    document.DocumentName,
+                    settings.TargetCommunityContext);
+            }
+
+            foreach (var document in sourceKpiDocuments.Documents)
+            {
+                BundesligaContextHygienePolicy.ThrowIfBlockedGenericMutation(
+                    competition,
+                    DocumentPublicationKind.Kpi,
+                    document.DocumentName,
+                    settings.TargetCommunityContext);
             }
 
             if (settings.Verbose)

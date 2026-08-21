@@ -33,8 +33,8 @@ public class ListKpiCommandTests
         // Arrange
         var documents = new List<KpiDocument>
         {
-            CreateKpiDocument(documentName: "team-data", content: "team content", description: "Team info", version: 1),
-            CreateKpiDocument(documentName: "manager-data", content: "manager content", description: "Manager info", version: 2)
+            CreateKpiDocument(documentName: "club-elo-rankings", content: "elo content", description: "Club Elo", version: 1),
+            CreateKpiDocument(documentName: "team-squad-summary", content: "squad content", description: "Squad summary", version: 2)
         };
         var mockRepo = CreateMockKpiRepository(documents: documents);
         var mockFactory = CreateMockFirebaseServiceFactory(mockRepo);
@@ -45,8 +45,8 @@ public class ListKpiCommandTests
 
         // Assert
         await Assert.That(exitCode).IsEqualTo(0);
-        await Assert.That(output).Contains("team-data");
-        await Assert.That(output).Contains("manager-data");
+        await Assert.That(output).Contains("club-elo-rankings");
+        await Assert.That(output).Contains("team-squad-summary");
         await Assert.That(output).Contains("v1");
         await Assert.That(output).Contains("v2");
         await Assert.That(output).Contains("Found 2 KPI document(s)");

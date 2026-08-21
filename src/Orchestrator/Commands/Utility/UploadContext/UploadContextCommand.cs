@@ -58,6 +58,11 @@ public sealed class UploadContextCommand : AsyncCommand<UploadContextSettings>
             var competition = CompetitionResolver.ResolveCompetition(
                 settings.Competition,
                 communityContext: document.CommunityContext);
+            BundesligaContextHygienePolicy.ThrowIfBlockedGenericMutation(
+                competition,
+                DocumentPublicationKind.Context,
+                document.DocumentName,
+                document.CommunityContext);
 
             _console.MarkupLine($"[green]Upload context command initialized for document:[/] [yellow]{document.DocumentName}[/]");
             _console.MarkupLine($"[blue]Using community context:[/] [yellow]{document.CommunityContext}[/]");

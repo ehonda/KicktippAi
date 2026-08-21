@@ -21,9 +21,9 @@ using Orchestrator.Commands.Observability.PrepareRepeatedMatchSlice;
 using Orchestrator.Commands.Observability.PrepareSlice;
 using Orchestrator.Commands.Observability.ReconstructPrompt;
 using Orchestrator.Commands.Observability.SyncDataset;
-using Orchestrator.Commands.Utility.UploadKpi;
 using Orchestrator.Commands.Utility.UploadContext;
 using Orchestrator.Commands.Utility.CopyFirestoreContext;
+using Orchestrator.Commands.Utility.ContextHygiene;
 using Orchestrator.Commands.Utility.ListKpi;
 using Orchestrator.Commands.Utility.Snapshots;
 using Orchestrator.Infrastructure;
@@ -207,10 +207,6 @@ public class Program
                 .WithDescription("Verify that database bonus predictions are valid and complete")
                 .WithExample("verify-bonus", "gpt-4o-2024-08-06", "--community", "ehonda-test-buli");
 
-            config.AddCommand<UploadKpiCommand>("upload-kpi")
-                .WithDescription("Upload a KPI context document to Firebase")
-                .WithExample("upload-kpi", "team-data", "--community", "ehonda-test-buli");
-
             config.AddCommand<UploadContextCommand>("upload-context")
                 .WithDescription("Upload a generic context document JSON to Firebase")
                 .WithExample("upload-context", "--input", "lineup-exampleland.csv.json", "--competition", "fifa-world-cup-2026");
@@ -230,6 +226,13 @@ public class Program
                     "--kpi-document",
                     "lineups");
 
+            config.AddBranch("context-hygiene", hygiene =>
+            {
+                hygiene.SetDescription("Audit the bounded Bundesliga 2026/27 context-document contract");
+                hygiene.AddCommand<ContextHygieneInventoryCommand>("inventory")
+                    .WithDescription("Read document identities and hygiene classifications without content or writes")
+                    .WithExample("context-hygiene", "inventory", "--community-context", "ehonda-dev-buli-2627");
+            });
 
             config.AddCommand<ListKpiCommand>("list-kpi")
                 .WithDescription("List KPI context documents from Firebase")

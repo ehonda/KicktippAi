@@ -115,6 +115,53 @@ public class MatchContextDocumentCatalogTests
     }
 
     [Test]
+    public async Task Explicit_bundesliga_competition_takes_precedence_over_an_unmapped_community_name()
+    {
+        var selection = MatchContextDocumentCatalog.ForMatch(
+            "FC Bayern München",
+            "Borussia Dortmund",
+            "community-name-containing-wm-but-not-mapped",
+            CompetitionIds.Bundesliga2026_27);
+
+        await Assert.That(selection.RequiredDocumentNames.SequenceEqual(
+        [
+            "bundesliga-standings.csv",
+            "community-rules-community-name-containing-wm-but-not-mapped.md",
+            "recent-history-fcb.csv",
+            "recent-history-bvb.csv",
+            "home-history-fcb.csv",
+            "away-history-bvb.csv",
+            "head-to-head-fcb-vs-bvb.csv",
+            "roster-fcb",
+            "roster-bvb",
+            "club-elo-fcb.csv",
+            "club-elo-bvb.csv"
+        ])).IsTrue();
+    }
+
+    [Arguments(CompetitionIds.Bundesliga2026_27, "ehonda-dev-wm26")]
+    [Arguments(CompetitionIds.FifaWorldCup2026, "ehonda-dev-buli-2627")]
+    [Test]
+    public async Task Explicit_competition_and_known_community_conflicts_fail_closed(
+        string competition,
+        string communityContext)
+    {
+        await Assert.That(() => MatchContextDocumentCatalog.ForCommunity(communityContext, competition))
+            .Throws<InvalidOperationException>();
+    }
+
+    [Test]
+    public async Task Match_catalog_rejects_known_conflict_before_interpreting_team_names()
+    {
+        await Assert.That(() => MatchContextDocumentCatalog.ForMatch(
+                "FC Bayern München",
+                "Borussia Dortmund",
+                "ehonda-dev-wm26",
+                CompetitionIds.Bundesliga2026_27))
+            .Throws<InvalidOperationException>();
+    }
+
+    [Test]
     public async Task Current_bundesliga_competition_rejects_unknown_team_instead_of_slugging_it()
     {
         await Assert.That(() => MatchContextDocumentCatalog.ForMatch(
