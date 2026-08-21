@@ -493,6 +493,7 @@ public static class ServiceRegistrationExtensions
         LogLevel minimumLogLevel = LogLevel.Information)
     {
         services.AddOrchestratorInfrastructure(minimumLogLevel);
+        services.TryAddSingleton<IBundesligaHistoryPlayedDateCollector, BundesligaHistoryPlayedDateCollector>();
 
         // CollectContextKicktippCommand needs:
         // - Firebase (IContextRepository, IMatchOutcomeRepository)
@@ -564,6 +565,7 @@ public static class ServiceRegistrationExtensions
         services.AddOrchestratorInfrastructure(minimumLogLevel);
         services.AddFifaRankingSourceServicesIfMissing();
         services.AddWm26LineupSourceServicesIfMissing();
+        services.TryAddSingleton<IBundesligaHistoryPlayedDateCollector, BundesligaHistoryPlayedDateCollector>();
 
         // CollectContextDevCommand composes the Kicktipp, FIFA, and lineup collection paths.
 
@@ -581,6 +583,16 @@ public static class ServiceRegistrationExtensions
 
         // WM26 recent-history commands need Firebase (IContextRepository).
 
+        return services;
+    }
+
+    /// <summary>Registers strict Bundesliga 2026/27 history played-date tooling.</summary>
+    public static IServiceCollection AddBundesligaHistoryCommandServices(
+        this IServiceCollection services,
+        LogLevel minimumLogLevel = LogLevel.Information)
+    {
+        services.AddOrchestratorInfrastructure(minimumLogLevel);
+        services.TryAddSingleton<IBundesligaHistoryPlayedDateCollector, BundesligaHistoryPlayedDateCollector>();
         return services;
     }
 
@@ -684,6 +696,7 @@ public static class ServiceRegistrationExtensions
         services.AddCollectContextRostersCommandServices(minimumLogLevel);
         services.AddCollectContextDevCommandServices(minimumLogLevel);
         services.AddWm26RecentHistoryCommandServices(minimumLogLevel);
+        services.AddBundesligaHistoryCommandServices(minimumLogLevel);
         services.AddContextChangesCommandServices(minimumLogLevel);
         services.AddUploadContextCommandServices(minimumLogLevel);
         services.AddCopyFirestoreContextCommandServices(minimumLogLevel);

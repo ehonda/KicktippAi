@@ -7,6 +7,7 @@ using Orchestrator.Commands.Operations.RandomMatch;
 using Orchestrator.Commands.Operations.Bonus;
 using Orchestrator.Commands.Operations.CollectContext;
 using Orchestrator.Commands.Operations.Wm26RecentHistory;
+using Orchestrator.Commands.Operations.BundesligaHistory;
 using Orchestrator.Commands.Operations.Verify;
 using Orchestrator.Commands.Observability.AnalyzeMatch;
 using Orchestrator.Commands.Observability.ContextChanges;
@@ -181,6 +182,20 @@ public class Program
                         "--away-team",
                         "Südafrika",
                         "--verbose");
+            });
+
+            config.AddBranch<BundesligaHistorySettings>("bundesliga-history", history =>
+            {
+                history.SetDescription("Inventory, audit, and apply exact Bundesliga 2026/27 history played dates");
+                history.AddCommand<BundesligaHistoryExportInventoryCommand>("export-inventory")
+                    .WithDescription("Export exact selected history row identities from storage or read-only Kicktipp collection")
+                    .WithExample("bundesliga-history", "export-inventory", "--community-context", "ehonda-dev-buli-2627", "--from-kicktipp", "--matchdays", "1");
+                history.AddCommand<BundesligaHistoryAuditCommand>("audit")
+                    .WithDescription("Strictly audit all stored selected history without writing")
+                    .WithExample("bundesliga-history", "audit", "--community-context", "ehonda-dev-buli-2627");
+                history.AddCommand<BundesligaHistoryApplyCommand>("apply")
+                    .WithDescription("Strictly plan all history updates, then apply them only when the complete gate passes")
+                    .WithExample("bundesliga-history", "apply", "--community-context", "ehonda-dev-buli-2627", "--dry-run");
             });
 
             config.AddCommand<VerifyMatchdayCommand>("verify")

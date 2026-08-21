@@ -101,6 +101,16 @@ public abstract class CollectContextKicktippCommandTests_Base
         services.AddSingleton(mockContextProviderFactory.Object);
         services.AddSingleton<ILogger<MatchOutcomeCollectionService>>(new FakeLogger<MatchOutcomeCollectionService>());
         services.AddSingleton<MatchOutcomeCollectionService>();
+        var historyCollector = new Mock<IBundesligaHistoryPlayedDateCollector>();
+        historyCollector.Setup(value => value.Collect(
+                It.IsAny<string>(),
+                It.IsAny<IReadOnlyList<BundesligaHistoryDocument>>(),
+                It.IsAny<IReadOnlyList<BundesligaHistoryPlayedDateMapEntry>>(),
+                It.IsAny<IReadOnlyList<PersistedMatchOutcome>>()))
+            .Returns((string _, IReadOnlyList<BundesligaHistoryDocument> documents,
+                IReadOnlyList<BundesligaHistoryPlayedDateMapEntry> _, IReadOnlyList<PersistedMatchOutcome> _) =>
+                new BundesligaHistoryPlayedDateCollectionResult(true, documents, [], []));
+        services.AddSingleton(historyCollector.Object);
         services.AddSingleton(timeProvider.Or(TimeProvider.System));
         services.AddSingleton<ILogger<CollectContextKicktippCommand>>(new FakeLogger<CollectContextKicktippCommand>());
 

@@ -1,4 +1,5 @@
 using ContextProviders.Kicktipp;
+using EHonda.KicktippAi.Core;
 using Microsoft.Extensions.Logging;
 using Orchestrator.Commands.Operations.CollectContext;
 using Orchestrator.Commands.Operations.Wm26RecentHistory;
@@ -24,6 +25,7 @@ public sealed class CollectContextDevCommand : AsyncCommand<CollectContextDevSet
         IKicktippClientFactory kicktippClientFactory,
         IContextProviderFactory contextProviderFactory,
         MatchOutcomeCollectionService matchOutcomeCollectionService,
+        IBundesligaHistoryPlayedDateCollector historyPlayedDateCollector,
         IFifaRankingSource fifaRankingSource,
         IWm26LineupSource lineupSource,
         TimeProvider timeProvider,
@@ -39,6 +41,7 @@ public sealed class CollectContextDevCommand : AsyncCommand<CollectContextDevSet
             kicktippClientFactory,
             contextProviderFactory,
             matchOutcomeCollectionService,
+            historyPlayedDateCollector,
             timeProvider,
             kicktippLogger);
         _fifaCommand = new CollectContextFifaCommand(

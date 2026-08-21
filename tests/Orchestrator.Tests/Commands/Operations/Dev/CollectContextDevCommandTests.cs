@@ -243,6 +243,7 @@ public class CollectContextDevCommandTests
                 services.AddSingleton(TimeProvider.System);
                 services.AddSingleton<ILogger<MatchOutcomeCollectionService>>(new FakeLogger<MatchOutcomeCollectionService>());
                 services.AddSingleton<MatchOutcomeCollectionService>();
+                services.AddSingleton<IBundesligaHistoryPlayedDateCollector, BundesligaHistoryPlayedDateCollector>();
                 services.AddSingleton<ILogger<CollectContextKicktippCommand>>(new FakeLogger<CollectContextKicktippCommand>());
                 services.AddSingleton<ILogger<CollectContextFifaCommand>>(new FakeLogger<CollectContextFifaCommand>());
                 services.AddSingleton<ILogger<CollectContextLineupsCommand>>(new FakeLogger<CollectContextLineupsCommand>());
