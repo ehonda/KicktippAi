@@ -152,15 +152,15 @@ public class MatchdayCommand : AsyncCommand<BaseSettings>
         var competition = CompetitionResolver.ResolveCompetition(settings.Competition, settings.Community, communityContext);
         var modelConfig = PredictionServiceCommandSupport.CreateModelConfig(settings.Model, settings.ReasoningEffort);
         var model = modelConfig.Model;
-        if (settings.WithJustification && PredictionServiceCommandSupport.UsesLangfusePromptSource(
+        if (settings.WithJustification && PredictionServiceCommandSupport.UsesUnsupportedWorldCupHostedMatchPrompt(
                 competition,
                 settings.Community,
                 communityContext,
                 settings.PromptSource,
-                bonusPrompt: false))
+                settings.LangfusePromptName))
         {
             throw new NotSupportedException(
-                "WM 2026 hosted match prompts with justification are not supported yet. Use local prompts or omit --with-justification.");
+                "The WM 2026 hosted match prompt does not support responses with justification. Use local prompts or omit --with-justification.");
         }
 
         // Create services using factories

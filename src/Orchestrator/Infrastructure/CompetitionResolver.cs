@@ -20,6 +20,10 @@ public static class CompetitionResolver
     public const string WorldCupBonusPromptName = "kicktippai/wm26/predict-bonus";
     public const string DefaultWorldCupPromptLabel = "latest";
     public const string WorldCupFallbackPromptModel = "wm26";
+    public const string BundesligaMatchPromptName = "kicktippai/bundesliga-2026-27/predict-one-match";
+    public const string BundesligaBonusPromptName = "kicktippai/bundesliga-2026-27/predict-bonus";
+    public const string DefaultBundesligaPromptLabel = "production";
+    public const string BundesligaFallbackPromptModel = "bundesliga-2026-27";
 
     public static string ResolveCompetition(
         string? competition,
@@ -51,16 +55,18 @@ public static class CompetitionResolver
         var resolvedCompetition = ResolveCompetition(competition, community, communityContext);
         var isWorldCup = string.Equals(resolvedCompetition, CompetitionIds.FifaWorldCup2026, StringComparison.OrdinalIgnoreCase);
         var resolvedPromptSource = string.IsNullOrWhiteSpace(promptSource)
-            ? isWorldCup ? LangfusePromptSource : LocalPromptSource
+            ? LangfusePromptSource
             : promptSource.Trim().ToLowerInvariant();
 
-        var defaultPromptName = bonusPrompt ? WorldCupBonusPromptName : WorldCupMatchPromptName;
+        var defaultPromptName = isWorldCup
+            ? bonusPrompt ? WorldCupBonusPromptName : WorldCupMatchPromptName
+            : bonusPrompt ? BundesligaBonusPromptName : BundesligaMatchPromptName;
         var promptName = string.IsNullOrWhiteSpace(langfusePromptName)
-            ? isWorldCup ? defaultPromptName : string.Empty
+            ? defaultPromptName
             : langfusePromptName.Trim();
 
         var promptLabel = string.IsNullOrWhiteSpace(langfusePromptLabel)
-            ? isWorldCup ? DefaultWorldCupPromptLabel : string.Empty
+            ? isWorldCup ? DefaultWorldCupPromptLabel : DefaultBundesligaPromptLabel
             : langfusePromptLabel.Trim();
 
         return new CompetitionRuntimeMetadata(
@@ -68,7 +74,7 @@ public static class CompetitionResolver
             resolvedPromptSource,
             promptName,
             promptLabel,
-            isWorldCup ? WorldCupFallbackPromptModel : string.Empty);
+            isWorldCup ? WorldCupFallbackPromptModel : BundesligaFallbackPromptModel);
     }
 
     public static bool IsWorldCupCompetition(string competition)

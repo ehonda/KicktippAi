@@ -7,6 +7,7 @@ using Microsoft.Extensions.DependencyInjection;
 using Moq;
 using OpenAiIntegration;
 using Orchestrator.Commands.Observability.Experiments;
+using Orchestrator.Infrastructure;
 using Orchestrator.Infrastructure.Factories;
 using Orchestrator.Infrastructure.Langfuse;
 using static Orchestrator.Tests.Infrastructure.OrchestratorTestFactories;
@@ -443,7 +444,7 @@ public class RunExperimentCommands_Tests
     }
 
     [Test]
-    public async Task Run_experiment_settings_reject_langfuse_prompt_source_with_justification()
+    public async Task Run_experiment_settings_accept_langfuse_prompt_source_with_justification()
     {
         var settings = new RunRepeatedMatchSettings
         {
@@ -451,14 +452,32 @@ public class RunExperimentCommands_Tests
             ManifestPath = "slice-manifest.json",
             RunName = "run-name",
             PromptSource = "langfuse",
-            LangfusePromptName = "kicktippai/predict-one-match-o3-poc",
+            LangfusePromptName = CompetitionResolver.BundesligaMatchPromptName,
+            IncludeJustification = true
+        };
+
+        var result = settings.Validate();
+
+        await Assert.That(result.Successful).IsTrue();
+    }
+
+    [Test]
+    public async Task Run_experiment_settings_reject_world_cup_hosted_prompt_with_justification()
+    {
+        var settings = new RunRepeatedMatchSettings
+        {
+            Model = "gpt-5.5",
+            ManifestPath = "slice-manifest.json",
+            RunName = "run-name",
+            PromptSource = "langfuse",
+            LangfusePromptName = CompetitionResolver.WorldCupMatchPromptName,
             IncludeJustification = true
         };
 
         var result = settings.Validate();
 
         await Assert.That(result.Successful).IsFalse();
-        await Assert.That(result.Message).Contains("does not support --include-justification");
+        await Assert.That(result.Message).Contains("WM 2026");
     }
 
     [Test]

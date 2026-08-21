@@ -19,7 +19,8 @@ internal sealed class LangfuseTextPromptTemplateProvider : IInstructionsTemplate
     private readonly IInstructionsTemplateProvider? _fallbackTemplateProvider;
     private readonly string? _fallbackModel;
     private readonly Action<string>? _fallbackWarning;
-    private readonly Lazy<ResolvedPrompt> _prompt;
+    private readonly Lazy<HostedPromptResolution> _hostedPrompt;
+    private PromptTemplateTelemetryMetadata? _lastTelemetryMetadata;
 
     public LangfuseTextPromptTemplateProvider(
         ILangfusePublicApiClient client,
@@ -43,14 +44,14 @@ internal sealed class LangfuseTextPromptTemplateProvider : IInstructionsTemplate
         _fallbackTemplateProvider = fallbackTemplateProvider;
         _fallbackModel = string.IsNullOrWhiteSpace(fallbackModel) ? null : fallbackModel.Trim();
         _fallbackWarning = fallbackWarning;
-        _prompt = new Lazy<ResolvedPrompt>(LoadPrompt);
+        _hostedPrompt = new Lazy<HostedPromptResolution>(LoadHostedPrompt);
     }
 
-    public LangfusePrompt? Prompt => _prompt.Value.Prompt;
+    public LangfusePrompt? Prompt => _hostedPrompt.Value.Prompt;
 
     public PromptTemplateTelemetryMetadata? GetPromptTemplateTelemetryMetadata()
     {
-        return _prompt.IsValueCreated ? _prompt.Value.TelemetryMetadata : null;
+        return Volatile.Read(ref _lastTelemetryMetadata);
     }
 
     public (string template, string path) LoadMatchTemplate(string model, bool includeJustification)
@@ -60,13 +61,15 @@ internal sealed class LangfuseTextPromptTemplateProvider : IInstructionsTemplate
             throw new NotSupportedException("This Langfuse prompt provider is configured for bonus prompts.");
         }
 
-        if (includeJustification)
+        if (includeJustification &&
+            string.Equals(_promptName, CompetitionResolver.WorldCupMatchPromptName, StringComparison.Ordinal))
         {
             throw new NotSupportedException(
-                "The Langfuse prompt source only supports WM 2026 match prompts without justification in this version.");
+                "The WM 2026 hosted match prompt does not support responses with justification.");
         }
 
-        var prompt = _prompt.Value;
+        var prompt = ResolvePrompt(includeJustification);
+        Volatile.Write(ref _lastTelemetryMetadata, prompt.TelemetryMetadata);
         return (prompt.Template, prompt.Path);
     }
 
@@ -77,11 +80,12 @@ internal sealed class LangfuseTextPromptTemplateProvider : IInstructionsTemplate
             throw new NotSupportedException("This Langfuse prompt provider is configured for match prompts.");
         }
 
-        var prompt = _prompt.Value;
+        var prompt = ResolvePrompt(includeJustification: false);
+        Volatile.Write(ref _lastTelemetryMetadata, prompt.TelemetryMetadata);
         return (prompt.Template, prompt.Path);
     }
 
-    private ResolvedPrompt LoadPrompt()
+    private HostedPromptResolution LoadHostedPrompt()
     {
         try
         {
@@ -92,20 +96,44 @@ internal sealed class LangfuseTextPromptTemplateProvider : IInstructionsTemplate
 
             if (prompt is not null)
             {
-                var path = BuildPromptPath(prompt);
-                return new ResolvedPrompt(
-                    prompt.GetTextPrompt(),
-                    path,
-                    prompt,
-                    new PromptTemplateTelemetryMetadata(prompt.Name, prompt.Version, IsFallback: false, path));
+                return new HostedPromptResolution(prompt, prompt.GetTextPrompt(), FailureReason: null);
             }
 
-            return LoadFallbackPrompt($"Langfuse prompt '{_promptName}' was not found.");
+            return new HostedPromptResolution(
+                Prompt: null,
+                Template: null,
+                FailureReason: $"Langfuse prompt '{_promptName}' was not found.");
         }
         catch (Exception ex) when (_fallbackTemplateProvider is not null)
         {
-            return LoadFallbackPrompt($"Failed to fetch Langfuse prompt '{_promptName}': {ex.Message}");
+            return new HostedPromptResolution(
+                Prompt: null,
+                Template: null,
+                FailureReason: $"Failed to fetch Langfuse prompt '{_promptName}': {ex.Message}");
         }
+    }
+
+    private ResolvedPrompt ResolvePrompt(bool includeJustification)
+    {
+        var hosted = _hostedPrompt.Value;
+        if (hosted.Prompt is { } prompt && hosted.Template is { } template)
+        {
+            var path = BuildPromptPath(prompt);
+            return new ResolvedPrompt(
+                template,
+                path,
+                new PromptTemplateTelemetryMetadata(
+                    RequestedSource: CompetitionResolver.LangfusePromptSource,
+                    ActualSource: CompetitionResolver.LangfusePromptSource,
+                    LangfusePromptName: prompt.Name,
+                    LangfusePromptLabel: _label,
+                    LangfusePromptVersion: prompt.Version,
+                    IsFallback: false,
+                    PromptPath: path,
+                    ContentSha256: PromptTemplateContentHash.ComputeSha256(template)));
+        }
+
+        return LoadFallbackPrompt(hosted.FailureReason!, includeJustification);
     }
 
     private string BuildPromptPath(LangfusePrompt prompt)
@@ -114,7 +142,7 @@ internal sealed class LangfuseTextPromptTemplateProvider : IInstructionsTemplate
         return $"langfuse://prompts/{Uri.EscapeDataString(prompt.Name)}/versions/{prompt.Version}{labelSuffix}";
     }
 
-    private ResolvedPrompt LoadFallbackPrompt(string reason)
+    private ResolvedPrompt LoadFallbackPrompt(string reason, bool includeJustification)
     {
         if (_fallbackTemplateProvider is null || string.IsNullOrWhiteSpace(_fallbackModel))
         {
@@ -123,20 +151,31 @@ internal sealed class LangfuseTextPromptTemplateProvider : IInstructionsTemplate
         }
 
         var fallback = _promptKind == LangfusePromptKind.Match
-            ? _fallbackTemplateProvider.LoadMatchTemplate(_fallbackModel, includeJustification: false)
+            ? _fallbackTemplateProvider.LoadMatchTemplate(_fallbackModel, includeJustification)
             : _fallbackTemplateProvider.LoadBonusTemplate(_fallbackModel);
 
         _fallbackWarning?.Invoke($"{reason} Using local fallback prompt '{fallback.path}'.");
         return new ResolvedPrompt(
             fallback.template,
             fallback.path,
-            Prompt: null,
-            new PromptTemplateTelemetryMetadata(_promptName, null, IsFallback: true, fallback.path));
+            new PromptTemplateTelemetryMetadata(
+                RequestedSource: CompetitionResolver.LangfusePromptSource,
+                ActualSource: CompetitionResolver.LocalPromptSource,
+                LangfusePromptName: _promptName,
+                LangfusePromptLabel: _label,
+                LangfusePromptVersion: null,
+                IsFallback: true,
+                PromptPath: fallback.path,
+                ContentSha256: PromptTemplateContentHash.ComputeSha256(fallback.template)));
     }
+
+    private sealed record HostedPromptResolution(
+        LangfusePrompt? Prompt,
+        string? Template,
+        string? FailureReason);
 
     private sealed record ResolvedPrompt(
         string Template,
         string Path,
-        LangfusePrompt? Prompt,
         PromptTemplateTelemetryMetadata TelemetryMetadata);
 }

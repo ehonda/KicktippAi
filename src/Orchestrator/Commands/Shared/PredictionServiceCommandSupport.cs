@@ -45,7 +45,10 @@ internal static class PredictionServiceCommandSupport
 
         if (!string.Equals(metadata.PromptSource, CompetitionResolver.LangfusePromptSource, StringComparison.OrdinalIgnoreCase))
         {
-            return openAiServiceFactory.CreatePredictionService(model, options);
+            var localTemplateProvider = new LocalPromptTemplateProvider(
+                new InstructionsTemplateProvider(PromptsFileProvider.Create()),
+                metadata.FallbackPromptModel);
+            return openAiServiceFactory.CreatePredictionService(model, options, localTemplateProvider);
         }
 
         if (langfuseClient is null)
@@ -76,23 +79,25 @@ internal static class PredictionServiceCommandSupport
         return openAiServiceFactory.CreatePredictionService(model, options, templateProvider);
     }
 
-    public static bool UsesLangfusePromptSource(
+    public static bool UsesUnsupportedWorldCupHostedMatchPrompt(
         string competition,
         string community,
         string communityContext,
         string? promptSource,
-        bool bonusPrompt)
+        string? langfusePromptName)
     {
         var metadata = CompetitionResolver.ResolveRuntimeMetadata(
             competition,
             community,
             communityContext,
             promptSource,
-            langfusePromptName: null,
+            langfusePromptName,
             langfusePromptLabel: null,
-            bonusPrompt);
+            bonusPrompt: false);
 
-        return string.Equals(metadata.PromptSource, CompetitionResolver.LangfusePromptSource, StringComparison.OrdinalIgnoreCase);
+        return CompetitionResolver.IsWorldCupCompetition(metadata.Competition)
+               && string.Equals(metadata.PromptSource, CompetitionResolver.LangfusePromptSource, StringComparison.OrdinalIgnoreCase)
+               && string.Equals(metadata.PromptName, CompetitionResolver.WorldCupMatchPromptName, StringComparison.Ordinal);
     }
 
     public static string? NormalizeReasoningEffort(string? reasoningEffort)

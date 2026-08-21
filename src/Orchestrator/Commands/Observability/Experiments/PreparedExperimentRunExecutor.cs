@@ -2,6 +2,7 @@ using System.Diagnostics;
 using System.Text.Json;
 using EHonda.KicktippAi.Core;
 using OpenAiIntegration;
+using Orchestrator.Infrastructure;
 using Orchestrator.Infrastructure.Factories;
 using Orchestrator.Infrastructure.Langfuse;
 using Match = EHonda.KicktippAi.Core.Match;
@@ -431,10 +432,11 @@ internal sealed class PreparedExperimentRunExecutor
             throw new InvalidOperationException($"Unsupported prompt source '{runMetadata.PromptSource}'.");
         }
 
-        if (runMetadata.IncludeJustification)
+        if (runMetadata.IncludeJustification &&
+            string.Equals(runMetadata.LangfusePromptName?.Trim(), CompetitionResolver.WorldCupMatchPromptName, StringComparison.Ordinal))
         {
             throw new InvalidOperationException(
-                "The Langfuse prompt source POC only supports match prompts without justification.");
+                "The WM 2026 hosted match prompt does not support responses with justification.");
         }
 
         if (string.IsNullOrWhiteSpace(runMetadata.LangfusePromptName))

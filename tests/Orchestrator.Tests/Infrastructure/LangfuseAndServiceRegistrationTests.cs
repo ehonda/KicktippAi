@@ -224,9 +224,13 @@ public class LangfuseAndServiceRegistrationTests
         await Assert.That(template).Contains("Hosted WM prompt");
         await Assert.That(path).IsEqualTo("langfuse://prompts/kicktippai%2Fwm26%2Fpredict-one-match/versions/7?label=latest");
         await Assert.That(metadata).IsNotNull();
+        await Assert.That(metadata!.RequestedSource).IsEqualTo("langfuse");
+        await Assert.That(metadata.ActualSource).IsEqualTo("langfuse");
         await Assert.That(metadata!.LangfusePromptName).IsEqualTo("kicktippai/wm26/predict-one-match");
+        await Assert.That(metadata.LangfusePromptLabel).IsEqualTo("latest");
         await Assert.That(metadata.LangfusePromptVersion).IsEqualTo(7);
         await Assert.That(metadata.IsFallback).IsFalse();
+        await Assert.That(metadata.ContentSha256).IsEqualTo(PromptTemplateContentHash.ComputeSha256(template));
     }
 
     [Test]
@@ -260,9 +264,14 @@ public class LangfuseAndServiceRegistrationTests
         await Assert.That(template).Contains("{{context_documents}}");
         await Assert.That(warnings).HasCount().EqualTo(1);
         await Assert.That(metadata).IsNotNull();
+        await Assert.That(metadata!.RequestedSource).IsEqualTo("langfuse");
+        await Assert.That(metadata.ActualSource).IsEqualTo("local");
         await Assert.That(metadata!.LangfusePromptName).IsEqualTo("kicktippai/wm26/predict-one-match");
+        await Assert.That(metadata.LangfusePromptLabel).IsEqualTo("latest");
         await Assert.That(metadata.LangfusePromptVersion).IsNull();
         await Assert.That(metadata.IsFallback).IsTrue();
+        await Assert.That(metadata.PromptPath.Replace('\\', '/')).Contains("prompts/wm26/match.md");
+        await Assert.That(metadata.ContentSha256).IsEqualTo(PromptTemplateContentHash.ComputeSha256(template));
     }
 
     [Test]
@@ -296,7 +305,7 @@ public class LangfuseAndServiceRegistrationTests
     }
 
     [Test]
-    public async Task Langfuse_text_prompt_provider_rejects_hosted_match_justification_for_world_cup_v1()
+    public async Task Langfuse_text_prompt_provider_rejects_world_cup_hosted_match_justification()
     {
         var langfuseClient = new Mock<ILangfusePublicApiClient>();
         var provider = new LangfuseTextPromptTemplateProvider(
@@ -308,7 +317,73 @@ public class LangfuseAndServiceRegistrationTests
 
         await Assert.That(() => provider.LoadMatchTemplate("gpt-5-nano", includeJustification: true))
             .Throws<NotSupportedException>()
-            .WithMessageContaining("justification");
+            .WithMessageContaining("WM 2026");
+    }
+
+    [Test]
+    public async Task Langfuse_text_prompt_provider_uses_one_bundesliga_hosted_match_prompt_with_or_without_justification()
+    {
+        var langfuseClient = new Mock<ILangfusePublicApiClient>();
+        var provider = new LangfuseTextPromptTemplateProvider(
+            langfuseClient.Object,
+            CompetitionResolver.BundesligaMatchPromptName,
+            "staging",
+            version: null,
+            preloadedPrompt: CreateTextPrompt(CompetitionResolver.BundesligaMatchPromptName, 1, "prompt"));
+
+        var withoutJustification = provider.LoadMatchTemplate("gpt-5.6-luna", includeJustification: false);
+        var withJustification = provider.LoadMatchTemplate("gpt-5.6-luna", includeJustification: true);
+
+        await Assert.That(withJustification).IsEqualTo(withoutJustification);
+    }
+
+    [Test]
+    public async Task Langfuse_match_fallback_uses_justification_mirror_when_requested()
+    {
+        var langfuseClient = new Mock<ILangfusePublicApiClient>();
+        langfuseClient
+            .Setup(client => client.GetPromptAsync(
+                CompetitionResolver.BundesligaMatchPromptName,
+                "production",
+                null,
+                It.IsAny<CancellationToken>()))
+            .ReturnsAsync((LangfusePrompt?)null);
+
+        var provider = new LangfuseTextPromptTemplateProvider(
+            langfuseClient.Object,
+            CompetitionResolver.BundesligaMatchPromptName,
+            "production",
+            version: null,
+            promptKind: LangfusePromptKind.Match,
+            fallbackTemplateProvider: new InstructionsTemplateProvider(PromptsFileProvider.Create()),
+            fallbackModel: CompetitionResolver.BundesligaFallbackPromptModel);
+
+        var (template, path) = provider.LoadMatchTemplate("gpt-5.6-luna", includeJustification: true);
+
+        await Assert.That(path.Replace('\\', '/')).Contains("prompts/bundesliga-2026-27/match.justification.md");
+        await Assert.That(template).Contains("Bundesliga 2026/27");
+        await Assert.That(template).Contains("{{context_documents}}");
+    }
+
+    [Test]
+    public async Task Local_prompt_provider_pins_the_competition_mirror_and_records_its_hash()
+    {
+        var provider = new LocalPromptTemplateProvider(
+            new InstructionsTemplateProvider(PromptsFileProvider.Create()),
+            CompetitionResolver.BundesligaFallbackPromptModel);
+
+        var (template, path) = provider.LoadMatchTemplate("some-runtime-model", includeJustification: false);
+        var metadata = provider.GetPromptTemplateTelemetryMetadata();
+
+        await Assert.That(path.Replace('\\', '/')).Contains("prompts/bundesliga-2026-27/match.md");
+        await Assert.That(template).Contains("Bundesliga 2026/27");
+        await Assert.That(metadata).IsNotNull();
+        await Assert.That(metadata!.RequestedSource).IsEqualTo("local");
+        await Assert.That(metadata.ActualSource).IsEqualTo("local");
+        await Assert.That(metadata.LangfusePromptName).IsNull();
+        await Assert.That(metadata.LangfusePromptVersion).IsNull();
+        await Assert.That(metadata.IsFallback).IsFalse();
+        await Assert.That(metadata.ContentSha256).IsEqualTo(PromptTemplateContentHash.ComputeSha256(template));
     }
 
     [Test]

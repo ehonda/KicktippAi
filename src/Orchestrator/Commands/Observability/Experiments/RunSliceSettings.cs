@@ -1,4 +1,5 @@
 using System.ComponentModel;
+using Orchestrator.Infrastructure;
 using Spectre.Console;
 using Spectre.Console.Cli;
 
@@ -139,9 +140,11 @@ public abstract class RunExperimentSettingsBase : CommandSettings
 
         if (normalizedPromptSource == "langfuse")
         {
-            if (IncludeJustification)
+            if (IncludeJustification &&
+                string.Equals(LangfusePromptName?.Trim(), CompetitionResolver.WorldCupMatchPromptName, StringComparison.Ordinal))
             {
-                return ValidationResult.Error("--prompt-source langfuse does not support --include-justification in this POC");
+                return ValidationResult.Error(
+                    "The WM 2026 hosted match prompt does not support --include-justification");
             }
 
             if (string.IsNullOrWhiteSpace(LangfusePromptName))

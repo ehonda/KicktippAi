@@ -158,7 +158,31 @@ public class MatchdayCommand_Settings_Tests : MatchdayCommandTests_Base
     }
 
     [Test]
-    public async Task Running_world_cup_hosted_match_prompt_with_justification_returns_clear_error()
+    public async Task Running_bundesliga_hosted_match_prompt_with_justification_is_supported()
+    {
+        var ctx = CreateMatchdayCommandApp();
+
+        var (exitCode, output) = await RunCommandAsync(
+            ctx.App,
+            ctx.Console,
+            "matchday",
+            "gpt-5-nano",
+            "-c",
+            "test-community",
+            "--with-justification");
+
+        await Assert.That(exitCode).IsEqualTo(0);
+        await Assert.That(output).DoesNotContain("not supported");
+        ctx.OpenAiServiceFactory.Verify(
+            factory => factory.CreatePredictionService(
+                "gpt-5-nano",
+                It.IsAny<PredictionServiceOptions>(),
+                It.IsAny<IInstructionsTemplateProvider>()),
+            Times.Once);
+    }
+
+    [Test]
+    public async Task Running_world_cup_hosted_match_prompt_with_justification_remains_fail_closed()
     {
         var ctx = CreateMatchdayCommandApp();
 
@@ -172,7 +196,7 @@ public class MatchdayCommand_Settings_Tests : MatchdayCommandTests_Base
             "--with-justification");
 
         await Assert.That(exitCode).IsEqualTo(1);
-        await Assert.That(output).Contains("hosted match prompts with justification are not supported yet");
+        await Assert.That(output).Contains("WM 2026 hosted match prompt").And.Contains("justification");
     }
 
     [Test]
@@ -265,7 +289,8 @@ public class MatchdayCommand_Settings_Tests : MatchdayCommandTests_Base
         ctx.OpenAiServiceFactory.Verify(
             factory => factory.CreatePredictionService(
                 "custom-model-name",
-                It.Is<PredictionServiceOptions>(options => options.MaxOutputTokenCount == 40_000)),
+                It.Is<PredictionServiceOptions>(options => options.MaxOutputTokenCount == 40_000),
+                It.IsAny<IInstructionsTemplateProvider>()),
             Times.Once);
     }
 
