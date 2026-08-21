@@ -114,3 +114,4 @@ P0 is complete only when:
 - [ADR-0030: Use the UEFA match record for the Europa League final](decisions/0030-use-uefa-match-record-for-europa-league-final.md)
 - [ADR-0031: Correct DFB-Pokal final inventory coverage](decisions/0031-correct-dfb-pokal-final-inventory-coverage.md)
 - [ADR-0032: Freeze the complete preseason history set and publish it atomically](decisions/0032-freeze-complete-history-set-and-publish-atomically.md)
+- [ADR-0033: Pin the validation model ledger and reserve production selection](decisions/0033-pin-validation-model-ledger-and-reserve-production-selection.md)
