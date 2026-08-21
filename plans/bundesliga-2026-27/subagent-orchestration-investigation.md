@@ -1,17 +1,17 @@
 # Codex subagent orchestration investigation
 
-- Status: Investigation and recommendation; not an accepted policy change
-- Last updated: 2026-08-19
-- Related policy: [Bundesliga 2026/27 execution strategy](execution-strategy.md) and [ADR-0009](decisions/0009-bounded-orchestration-and-hybrid-git.md)
+- Status: Experiment complete; recommendation accepted in [ADR-0023](decisions/0023-use-orchestrator-created-cli-worktrees.md)
+- Last updated: 2026-08-21
+- Related policy: [Bundesliga 2026/27 execution strategy](execution-strategy.md), [ADR-0009](decisions/0009-bounded-orchestration-and-hybrid-git.md), and [ADR-0023](decisions/0023-use-orchestrator-created-cli-worktrees.md)
 - Live-session snapshot: 2026-08-18 23:28 CEST
 
 ## Conclusion
 
-Do not change the default from two task agents to four parallel subagents yet.
+Do not change the limit from two task agents to four parallel subagents. Change how the existing two-agent allowance is used: dependency-safe, non-overlapping P0/P1 work now defaults to two isolated writer lanes in orchestrator-created command-line worktrees.
 
 At the snapshot, the local Codex runtime exposed four concurrent agent slots including the root, so it could schedule at most three subagents at once, not four. More importantly, the live session used two concurrent subagents for only 7.0 of 289.8 subagent-active minutes and never used three. Its measured bottleneck is dependency sequencing and root-mediated coordination, not the two-agent policy ceiling.
 
-The next improvement should be to keep two useful lanes occupied: one sole writer for the current task and one read-only agent preparing the next independent task or reconciling evidence. If that produces a measurable wall-time improvement without more rework, trial a third **read-only** subagent for a bounded wave. Do not add concurrent writers in the same checkout, and do not raise the accepted two-writer/worktree limit without a superseding ADR and isolated worktrees.
+The 2026-08-21 feasibility experiment passed. Two agents performed useful edits concurrently in isolated worktrees, independently built and tested their branches, and pushed disjoint commits without ownership violations or integration conflicts. The original trial unnecessarily serialized lane validation; the project owner corrected that limitation during the experiment. The adopted design runs lane-local builds and tests concurrently by default and throttles only on measured resource pressure. Git integration, live external writes, and final combined validation remain serialized.
 
 This agrees with the [official Codex subagent guidance](https://learn.chatgpt.com/docs/agent-configuration/subagents): parallel agents are a good starting point for independent, read-heavy exploration, tests, triage, and summarization, while parallel write-heavy work needs more care because it increases conflict and coordination overhead.
 
@@ -140,14 +140,14 @@ The missed opportunity was operational isolation and scheduling. P0-05 or P0-22 
 
 The current effective concurrency is 1.02, and only 2.4% of active wall time has two subagents working. Raising the configured ceiling cannot help until the orchestrator schedules independent work earlier.
 
-Use this default rolling topology:
+The investigation originally proposed this conservative rolling topology:
 
 1. **Current-task writer:** one Terra/high writer owns the stable task scope and checkout changes.
 2. **Read-only look-ahead:** one Luna/medium or Terra/medium agent audits the next dependency-safe task, linked ADRs, code seams, and test commands while the writer works.
 3. When the writer reaches a stable checkpoint, replace the look-ahead lane with a Sol/high reviewer only when the artifact risk justifies independent review.
 4. After push, reuse the read-only lane for Luna/low exact-SHA CI reconciliation while the writer or look-ahead agent starts independent preparation.
 
-Review of the same diff and CI of its pushed commit remain dependency-serial. The parallel opportunity is preparing the *next* task, not pretending those gates can run early.
+The successful experiment superseded that proposal as the default. When two dependency-safe write slices exist, assign both to isolated worktrees and let their lane-local validation overlap. Use the writer-plus-look-ahead topology only when a safe second writer slice is unavailable. Review of a lane's own diff and CI of its pushed commit remain dependency-serial within that lane, but one lane need not wait for the other lane's build or tests.
 
 ### Reduce root message-bus work
 
@@ -171,7 +171,7 @@ Use direct communication within these boundaries:
 - Only the root changes scope or ownership, accepts a risk, authorizes Git integration, or decides that a finding is closed for the release gate.
 - A reviewer must not recursively assign work or silently expand the writer's paths. If reviewer and writer disagree about the contract, they stop that point and escalate it to the root.
 
-This keeps the root as decision maker while removing it as a verbatim relay and, if the bounded follow-up extension works, as the mechanical wake-up hop. The feasibility experiment should include one controlled direct-message handoff, optionally the single pre-authorized reviewer-to-writer follow-up, and compare root steering, relay, and wait traffic with the baseline.
+This keeps the root as decision maker while removing it as a verbatim relay and, if the bounded follow-up extension works, as the mechanical wake-up hop. A future task that exercises the direct-message handoff should compare root steering, relay, and wait traffic with the baseline; that communication variant was not required to establish worktree feasibility.
 
 ### Keep role and model allocation stable
 
@@ -183,25 +183,25 @@ P0-09 moved from Hypatia to Wegener, and P0-12 moved from Zeno to Darwin. A hand
 
 ### Make worktree isolation compatible with repository secrets
 
-Worktrees were not rejected. ADR-0009 explicitly authorizes up to two isolated writers in separate worktrees. The live session simply did not create one.
+Worktrees were not rejected. ADR-0009 explicitly authorizes up to two isolated writers in separate worktrees. The earlier live session simply did not create one; the 2026-08-21 experiment proved the topology and ADR-0023 makes it the autonomous default for dependency-safe work.
 
-The repository does have a worktree-specific constraint that the earlier policy did not spell out. `PathUtility` resolves `.env`, community `.env.<community>`, and `firebase.json` through a `KicktippAi.Secrets` directory next to the solution root. Codex creates managed worktrees under `$CODEX_HOME/worktrees` by default, so the managed worktree's parent directory does not contain the existing secrets repository. The [official Codex worktree documentation](https://learn.chatgpt.com/docs/environments/git-worktrees) confirms both that location and that a root `.worktreeinclude` can copy selected ignored local files into a newly created managed worktree.
+The repository has a worktree-specific constraint that the earlier policy did not spell out. `PathUtility` resolves `.env`, community `.env.<community>`, and `firebase.json` through a `KicktippAi.Secrets` directory next to the solution root. An orchestrator-created worktree below `.tmp/worktrees` does not have the existing secrets repository as a sibling. The [official Codex worktree documentation](https://learn.chatgpt.com/docs/environments/git-worktrees) documents `.worktreeinclude` copying for Codex desktop-managed worktrees; command-line `git worktree` creation does not process that file.
 
-Use that mechanism for a locator, not for the secrets themselves. Before the two-lane experiment, add a tracked root `.worktreeinclude` entry for an ignored file such as `.codex-local/original-repository-path`. Populate that local file in the primary checkout with the canonical absolute path to the original `KicktippAi` checkout. Adjust `PathUtility` so that, when the locator is present, it validates the path as a rooted existing repository containing `KicktippAi.slnx` and resolves `KicktippAi.Secrets` relative to the original checkout's parent. When the locator is absent, retain the existing sibling-of-current-checkout behavior for normal clones, CI, and manual sibling worktrees. A present but invalid locator should fail with an actionable error instead of silently selecting another secrets location.
+The prerequisite implemented an ignored `.codex-local/original-repository-path` locator and a validated `PathUtility` lookup. When present, it must identify a rooted existing repository containing `KicktippAi.slnx`; code then resolves `KicktippAi.Secrets` relative to the original checkout's parent. When absent, the existing sibling-of-current-checkout behavior remains compatible with normal clones and CI. A present but invalid locator fails with an actionable error instead of silently selecting another secrets location.
 
-The locator contains no credentials and remains ignored; `.worktreeinclude` contains only its relative filename and is safe to track. Never list `.env`, `firebase.json`, the external `KicktippAi.Secrets` directory, or secret contents in `.worktreeinclude`. The setup must be committed and the ignored locator created before Codex creates the managed worktree, because copying occurs during worktree creation.
+The locator contains no credentials and remains ignored. For every command-line worktree, the orchestrator explicitly writes the canonical primary-checkout path into that file and verifies only required file existence, never secret contents. The tracked `.worktreeinclude` contains only the locator's relative filename and remains optional support for desktop-managed worktrees. Never list `.env`, `firebase.json`, the external `KicktippAi.Secrets` directory, or secret contents in `.worktreeinclude`.
 
-A manually created worktree that is a direct sibling of `KicktippAi` and `KicktippAi.Secrets` remains a useful fallback and control case. For example, `.../ehonda/KicktippAi-p0-prompt` still resolves `../KicktippAi.Secrets` without the locator. It does not, however, exercise the normal Codex-managed worktree topology and therefore is not the preferred experiment path.
+The locator prerequisite was committed as `b242fc3` on `experiment/worktree-locator`, integrated to `main` as `9fe768c`, and pushed. Exact-SHA CI run `32429699420` was green. The experiment then confirmed that two command-line worktrees could resolve the base environment, community environments, Firebase credentials, and the Kicktipp fixture environment without copying or printing credentials.
 
-One additional feasibility gate remains: subagents in the observed orchestration runtime share the parent's current directory and workspace permissions. A child can be instructed to use another `workdir`, but the experiment must prove that it can edit the Codex-managed worktree with normal patch tooling and appropriately scoped permissions. Do not work around a failed probe with broad unsandboxed shell writes, secret copies, or directory junctions.
+Both lane agents edited their assigned command-line worktrees with normal scoped patch tooling and did not acquire or mutate the primary lane's dirty files. No broad unsandboxed file writes, secret copies, or directory junctions were needed.
 
-Secrets are not required for ordinary code edits and unit tests. Live collection or write validation should remain serialized and may be run from the primary checkout after integration if the assigned worktree cannot safely load the sibling secrets.
+Live collection and remote writes remain serialized even though each lane can safely locate the sibling secrets checkout. Ordinary lane-local builds and tests do not need to be serialized across isolated worktrees.
 
 ## Feasibility of more parallel subagents
 
 ### Four subagents
 
-Four simultaneous subagents are not feasible in the runtime observed for this investigation because the root consumes one of four available active slots. This is a session-environment limit, not the repository's two-task-agent policy and not a universal Codex maximum. Even if a future runtime exposes root plus four children, four write-capable agents would conflict with ADR-0009, the shared-checkout safety rule, the slow-machine constraint, serialized heavy commands, and the official caution about parallel writes.
+Four simultaneous subagents are not feasible in the runtime observed for this investigation because the root consumes one of four available active slots. This is a session-environment limit, not the repository's two-task-agent policy and not a universal Codex maximum. Even if a future runtime exposes root plus four children, four write-capable agents would conflict with ADR-0009's two-task-agent ceiling and increase ownership and integration risk beyond the evidence gathered here.
 
 Four logical lanes can still exist as a queue—writer, next-task audit, reviewer, and CI reconciler—but reviewer and CI are gated by the writer and normally will not all execute simultaneously. Calling that a four-agent pipeline would overstate usable parallelism.
 
@@ -214,40 +214,40 @@ A maximum of three simultaneous subagents is technically possible in the current
 - one second read-only activity, such as a separate contract/code audit or remote CI reconciliation;
 - the root as control plane.
 
-Do not run two local heavy test/build commands concurrently. Do not let the extra read-only agents edit planning or source files. A second writer is allowed only under the existing ADR's isolated-worktree, non-overlapping-ownership conditions and still counts against its two-task-agent limit. Adopting three task agents as a standing policy would require a superseding ADR.
+Do not let extra read-only agents edit planning or source files. The two accepted writer lanes may run lane-local builds and tests concurrently; reduce concurrency only when measured resource or test interference warrants it. A second writer is allowed only under the isolated-worktree, non-overlapping-ownership conditions and still counts against the two-task-agent limit. Adopting three task agents as a standing policy would require a superseding ADR.
 
-## Two-lane feasibility experiment
+## Two-lane feasibility experiment — completed 2026-08-21
 
-Do not run this experiment inside the current dirty, late-running P0-12 session. Start only after that session has committed and pushed its scoped work, exact-SHA CI is green, `main` is clean, and no agent still owns the primary checkout.
+The experiment ran after the prior scoped work was committed and pushed, exact-SHA CI was green, `main` was clean, and no agent owned the primary checkout.
 
-The experiment does not change ADR-0009; it tests the two-writer mode the ADR already permits.
+The experiment tested the two-writer mode ADR-0009 already permitted. Its successful result is accepted as the operating default in ADR-0023.
 
 ### Phase 1: worktree and secrets smoke test
 
-1. On a clean primary checkout, implement and review the locator prerequisite: ignore `.codex-local/original-repository-path`, track a `.worktreeinclude` entry for that file, add the validated optional lookup to `PathUtility`, and cover valid, absent, malformed, and nonexistent locator cases with focused tests. Commit and push this prerequisite before creating an experiment worktree.
-2. Create `.codex-local/original-repository-path` in the primary checkout with the canonical absolute path to that checkout. Confirm Git ignores it and that it contains no credentials or secret paths beyond what can be derived from the repository location.
-3. Record the clean baseline SHA and create one temporary Codex-managed worktree on its own experiment branch or detached starting point. Keep the primary checkout as the integration lane. Confirm that Codex created it below the configured worktree root and copied the locator file through `.worktreeinclude`.
-4. Confirm `PathUtility` in the managed worktree follows the locator and resolves the existing `KicktippAi.Secrets/src/Orchestrator` paths for the base environment, each community environment, and Firebase credentials. Report only successful validation and path existence; never print file contents or secret values.
-5. Confirm a subagent assigned to the managed worktree can create and remove an ignored scratch file with normal patch tooling, inspect Git state, and run a harmless read-only command without acquiring access to the primary lane's dirty files.
-6. Run the focused `PathUtilityAndEnvironmentHelperTests` outside the sandbox. Also verify in a locator-free temporary checkout that the existing sibling-path fallback remains compatible. Do not run a live collector, prediction, or remote write.
-7. If Codex does not copy the locator, the agent cannot write the managed worktree without broad permission escalation, `PathUtility` cannot validate the original checkout, or any secret content is copied, stop. Keep the existing one-writer topology and record the failed prerequisite. A manually created sibling worktree may diagnose whether the failure is specific to Codex-managed placement, but it is not evidence that the managed-worktree experiment passed.
+The locator prerequisite covered valid, absent, blank, relative, nonexistent, and missing-solution cases, plus the Orchestrator and Kicktipp environment-loading paths. Focused Core, Orchestrator, and Kicktipp tests passed. Commit `b242fc3` was pushed on `experiment/worktree-locator`, integrated to `main` as `9fe768c`, and exact-SHA CI run `32429699420` passed.
+
+The orchestrator then created two command-line worktrees below ignored `.tmp/worktrees`, each on its own experiment branch, and explicitly wrote the ignored locator. `.worktreeinclude` did not participate because its copy behavior is specific to desktop-managed worktrees. Both agents could edit normally; the locator resolved all required existing environment and Firebase paths; Git ignored it; and no secret contents were copied or printed.
 
 ### Phase 2: small real two-lane trial
 
-Use two orthogonal, already-ready slices rather than inventing throwaway work:
+The trial used two orthogonal assertion-cleanup slices rather than starting actual P0 work:
 
 | Lane | Initial bounded slice | Ownership guard |
 |---|---|---|
-| Prompt lane | P0-05 runtime/prompt-route audit and a local checked-in implementation slice | Own prompt files, prompt-provider/runtime-metadata code, focused tests, and P0-05 evidence; defer shared integration files and hosted promotion until the integration gate |
-| History lane | P0-22 source/schema inventory and proposed source/identity ADR, followed by the smallest accepted parser/identity slice | Own the new ADR/evidence, history-specific code/tests, and P0-22 evidence; do not implement beyond the accepted source decision |
+| OpenAI cleanup | Modernize one obsolete collection assertion | Own only `tests/OpenAiIntegration.Tests/ServiceCollectionExtensionsTests/ServiceCollectionExtensions_Tests.cs` |
+| Kicktipp cleanup | Modernize one obsolete collection assertion | Own only `tests/KicktippIntegration.Tests/KicktippClientTests/KicktippClient_GetCommunityMatchdaySnapshot_Tests.cs` |
 
-The root assigns exact paths after both lane agents report their anticipated file sets. Any overlapping file becomes root-owned integration work or forces one lane to wait. Neither lane pushes `main`, edits the other worktree, runs live external collection, or changes a late owner gate.
+Useful edits overlapped from `2026-08-21T01:49:13+02:00`. Neither lane edited the other worktree, touched `main`, ran live external collection, or changed a late owner gate. There were no ownership violations.
 
-Run both agents concurrently for read, edit, and lightweight validation. Serialize `dotnet`, containers, live network collection, Git integration, and full test suites. Each writer commits only its branch. Reviewers inspect a frozen lane diff in that lane's worktree; one reviewer may send a controlled numbered finding directly to its writer under the communication rules above.
+The OpenAI lane produced `d1a5e18` on `experiment/two-lane-openai-cleanup`; its Release solution build had zero errors and all eight test suites passed. The writer's explicit push was blocked by the environment's remote-verification review, so the orchestrator re-recorded the exact target and pushed the lane branch. The Kicktipp lane produced and pushed `a3ff57c` on `experiment/two-lane-kicktipp-cleanup`; its Release solution build passed, seven suites passed immediately, and the sole transient Orchestrator logging-test failure passed on an exact filtered retry.
+
+The trial serialized the two lanes' validation. That was an unnecessary experiment limitation, not a finding that isolation requires serialization. The owner corrected it during the run: the adopted design runs independent lane-local builds and tests concurrently by default and reduces concurrency only after measured resource pressure or interference.
+
+The listener suites initially exposed a separate Windows issue. Worktree-specific project apphosts caused Windows Defender Firewall prompts when WireMock opened listeners. Experimental commit `5ce388c` disabled apphosts only for `KicktippIntegration.Tests` and `Orchestrator.Tests`; after one private-network approval for the stable `C:\Program Files\dotnet\dotnet.exe` host, a second unique worktree ran both suites concurrently with no popup, passing 193/193 and 893/893 tests. During P0/P1, every project using WireMock—or a future equivalent local listener that triggers Defender—must set `<UseAppHost>false</UseAppHost>`; adding such a listener to another project requires adding and validating that setting. The other six current test projects and normal production projects are unchanged. After P0/P1, remove the temporary settings and investigate whether a command-line `-p:UseAppHost=false` convention, a worktree setup wrapper, or another solution should replace them.
 
 ### Phase 3: integration and measurement
 
-The root reviews and integrates the two branch commits sequentially into the primary checkout, preferring cherry-picks of cohesive commits. Then run affected tests, the broader gate, one explicit push, and exact-SHA CI reconciliation. Remove a worktree only after its commit is integrated and recoverable.
+The root reviewed and integrated the two cleanup commits sequentially into the primary checkout without a cherry-pick conflict. Git integration, the final combined validation, the explicit `main` push, and exact-SHA CI reconciliation remain serialized. Cleanup is a required completion gate because worktrees consume substantial disk: after each branch commit is pushed and integrated or otherwise recoverable, verify its worktree is clean, remove it, prune stale worktree metadata, and confirm no temporary worktrees remain. Remote branches may remain for recoverability unless separately removed.
 
 Record:
 
@@ -256,7 +256,7 @@ Record:
 - root spawn, follow-up, steering, wait, status-poll, and message-relay counts;
 - direct reviewer/writer messages and whether they avoided a root relay without hiding a decision;
 - file ownership violations, merge conflicts, writer handoffs, and review/remediation cycles;
-- targeted and full validation duration, including confirmation that heavy commands did not overlap;
+- targeted and full validation duration, including whether lane-local commands overlapped and whether measured contention required throttling;
 - raw/cached tokens by role and model/effort drift;
 - secret-path success without copied or printed secrets.
 
@@ -264,12 +264,12 @@ The current live-session baseline is 2.4% dual-subagent utilization, 1.02 averag
 
 ### Pass, fail, and adoption rules
 
-The feasibility experiment passes only when the ignored original-repository locator is copied into managed worktrees without copying credentials, both lane agents can work in isolated checkouts with normal scoped permissions, `PathUtility` resolves secrets safely with and without the locator, ownership remains disjoint, integration needs no material conflict resolution, serialized validation stays reliable, and both lane outputs satisfy review and exact-SHA CI.
+The feasibility experiment passed: the ignored original-repository locator was explicitly installed in command-line worktrees without copying credentials; both lane agents worked with normal scoped permissions; `PathUtility` resolved secrets safely with and without the locator; ownership remained disjoint; integration needed no conflict resolution; and both lane outputs satisfied their local gates and branch pushes. Exact-SHA CI on the integrated head remains the final release gate.
 
 Treat improved wall time as evidence only when concurrency is real rather than nominal: record at least one meaningful interval of simultaneous useful lane work and compare total wave time with the sequential estimate. Do not require a specific percentage from a single small sample.
 
-If it passes, use two isolated lanes for dependency-safe P0 work under the existing ADR. A likely continuation is the prompt lane through the non-owner portion of P0-06 while the context lane completes P0-22 and then picks up newly unblocked P0-13. Rejoin before P0-14/P0-15 and serialize shared integration and validation.
+Use two isolated command-line worktree lanes for dependency-safe P0/P1 work under ADR-0023. The primary checkout is integration-only while writers are active. Rejoin at shared dependency points and serialize Git integration, live external writes, and final exact-head validation, not independent lane-local builds or tests.
 
-If it fails because subagent workspace permissions cannot isolate managed worktrees, retain one writer plus one read-heavy helper. A separate top-level Codex worktree chat is an alternative, but it is a different orchestration model because the root session cannot directly supervise that chat. If the locator approach alone is insufficient, consider a separately reviewed explicit secrets-root override before retrying; never copy secrets into a worktree or tracked files.
+When the dependency graph or file ownership cannot produce two safe write slices, retain one writer plus one read-heavy helper. Never copy secrets into a worktree or tracked files.
 
 Only after successful two-lane evidence should the project consider a third read-only subagent. Adopting three task agents as standing policy still requires a superseding ADR. There is no evidence supporting four simultaneous subagents or four writers.

@@ -1,7 +1,7 @@
 # Bundesliga 2026/27 execution strategy
 
 - Status: Accepted starting point
-- Last updated: 2026-08-16
+- Last updated: 2026-08-21
 - Implementation gate: Ready for an explicit implementation-orchestration request; this planning change does not start implementation
 
 This document describes how to deliver the accepted P0 scope quickly while preserving the project owner's control over the few deliberately late production choices. Task files and accepted ADRs are the implementation contracts.
@@ -44,11 +44,15 @@ Fact-finding agents may establish evidence and recommend; they may not silently 
 
 ## Bounded parallelism and worktrees
 
-- Use at most two task agents and two writable worktrees at once. Normally run one writer plus one read-heavy helper.
-- Keep one active writer per checkout/worktree. Under ADR-0009, the orchestrator may run up to two isolated writers at once when they have separate worktrees and non-overlapping owned paths; otherwise use the normal one-writer-plus-helper lane. Start a dedicated review only after the relevant writer reaches a stable checkpoint with a reviewable diff and validation evidence.
-- Keep the primary checkout as integration/coordination checkout; never switch its branch while another writer depends on it.
-- Serialize full builds, full test suites, Docker/Testcontainers, live external collection, and other resource-heavy commands.
-- Reduce concurrency as soon as the machine, network, CI, or weekly allowance shows pressure.
+- Use at most two task agents and two writable worktrees at once. The default for dependency-safe, non-overlapping P0/P1 slices is two isolated writer lanes; fall back to one writer plus one read-heavy helper when a safe second write slice is unavailable.
+- Create each writer branch in an orchestrator-created command-line worktree below the ignored repo-local `.tmp/worktrees` directory. Give each lane exact, disjoint path ownership and keep one active writer per worktree.
+- Keep the primary checkout as an integration-only checkout while lanes are active. The orchestrator creates worktrees, reviews frozen lane commits, and integrates them sequentially; lane agents never mutate `main` or another lane's worktree.
+- The orchestrator writes the ignored `.codex-local/original-repository-path` locator into every command-line worktree. The locator contains only the canonical primary-checkout path, is validated before use, and allows repository code to resolve the sibling `KicktippAi.Secrets` checkout without copying or printing credentials. `.worktreeinclude` remains optional support for Codex desktop-managed worktrees; command-line worktree creation does not process it.
+- Let isolated lanes run their lane-local builds and tests concurrently by default, including full solution/test gates when each lane requires them. Reduce command or lane concurrency only in response to measured CPU, memory, disk, network, test-port, or allowance pressure; do not serialize merely because commands are heavy.
+- During P0/P1, every test project using WireMock or an equivalent local listener that triggers Defender must set `<UseAppHost>false</UseAppHost>` so unattended worktrees use the stable installed `dotnet.exe` host. Adding such a listener to another project requires adding and validating the setting there. Re-evaluate and remove this temporary convention after P1; production projects and unrelated test projects remain unchanged.
+- Serialize Git integration and primary-checkout mutation, live external collection or writes, and final integrated validation against the exact combined head.
+- Each lane verifies its exact Git target, commits only owned paths, and pushes its explicit experiment/task branch. The orchestrator then integrates the branch commits in dependency order.
+- Worktree cleanup is a completion gate, not optional housekeeping: after each lane commit is pushed and integrated or otherwise recoverable, verify the worktree is clean, remove it, prune stale worktree metadata, and confirm no temporary worktrees remain. Remote lane branches may remain for recoverability unless separately removed.
 - Do not recursively delegate unless the orchestrator explicitly determines that the bounded saving justifies the coordination cost.
 - For the 18-club fallback seed, small research batches are acceptable, but one owner assembles the canonical seed and one targeted independent audit checks provenance and coverage.
 
@@ -59,7 +63,7 @@ Agent usage varies with model, task complexity, context, reasoning, tools, retri
 - Reserve the strongest capability tier and highest reasoning for orchestration, ambiguous cross-cutting implementation, launch gates, and difficult failure analysis. Do not treat the top tier as the routine default for every writer, reviewer, or status check.
 - Prefer a balanced everyday capability tier for normal implementation and a lightweight tier for narrow deterministic work, read-only research, status gathering, and mechanical verification.
 - Use one task-agent self-review during implementation. Add an independent dedicated review agent only for high-risk artifacts or wave integration, size that reviewer to the review risk, and repeat only after a concrete finding.
-- Run targeted tests per task and broader affected suites at wave gates. Do not run the full suite once per agent.
+- Run targeted tests per task and broader affected suites at wave gates. Avoid redundant full-suite runs, but let both lanes run required full gates concurrently when branch independence or the task contract calls for them.
 - Persist decisions and evidence in tasks/ADRs so later waves do not repeatedly rediscover them.
 - Avoid speculative agents, duplicate investigations, and routine author-reviewer-fixer loops.
 
@@ -96,7 +100,7 @@ The repository currently builds/tests PRs and pushes to `main`; native auto-merg
 | Area | Accepted direction |
 |---|---|
 | Git and isolation | Hybrid direct-main/PR integration; worktrees for simultaneous writers; routine merges autonomous |
-| Capacity | At most two task agents, two writable worktrees, and one heavy command at a time |
+| Capacity | At most two task agents and two writable worktrees; lane-local builds/tests may overlap, with concurrency reduced only on measured pressure |
 | Communities | Dev: `ehonda-dev-buli-2627`; production: `pes-squad`, `schadensfresse`, `ehonda-ai-arena` |
 | Prediction topology | `pes-squad` reference; `schadensfresse` independent; matching production arena entry copy-posted from `pes-squad`; challengers independent |
 | Rosters | DuckDB primary per valid 2026/27 club; complete one-time fallback seed; last-known-good on invalid data; `N/A` enrichment gaps |
