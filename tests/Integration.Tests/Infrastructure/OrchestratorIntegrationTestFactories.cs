@@ -33,6 +33,7 @@ public static class OrchestratorIntegrationTestFactories
         services.AddSingleton(kicktippClientFactory.Object);
         services.AddSingleton(openAiServiceFactory.Object);
         services.AddSingleton(contextProviderFactory.Object);
+        services.AddSingleton(new Mock<ICommunityKicktippCredentialLoader>().Object);
         services.AddSingleton<ILogger<VerifyMatchdayCommand>>(new FakeLogger<VerifyMatchdayCommand>());
         services.AddSingleton<ILogger<MatchdayCommand>>(new FakeLogger<MatchdayCommand>());
 
