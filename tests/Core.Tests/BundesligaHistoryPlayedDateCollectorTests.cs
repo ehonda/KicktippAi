@@ -57,6 +57,39 @@ public class BundesligaHistoryPlayedDateCollectorTests
     }
 
     [Test]
+    public async Task Non_league_row_uses_fixed_map_even_when_kicktipp_outcome_matches_identity()
+    {
+        var content = Undated("DFB,Bayer 04 Leverkusen,VfB Stuttgart,3:1,");
+        var outcome = new PersistedMatchOutcome("community", CompetitionIds.Bundesliga2026_27,
+            "Bayer 04 Leverkusen", "VfB Stuttgart", Instant.FromUtc(2026, 5, 10, 13, 30).InUtc(), 33,
+            3, 1, MatchOutcomeAvailability.Completed, "9", DateTimeOffset.UtcNow, DateTimeOffset.UtcNow);
+
+        var result = Collect(content,
+            [Map(1, "DFB", "Bayer 04 Leverkusen", "VfB Stuttgart", "3:1", "2026-05-09")], [outcome]);
+
+        await Assert.That(result.Succeeded).IsTrue();
+        await Assert.That(result.FixedMapCount).IsEqualTo(1);
+        await Assert.That(result.KicktippCount).IsEqualTo(0);
+        await Assert.That(result.Documents[0].Content).Contains("DFB,2026-05-09,Bayer 04 Leverkusen,VfB Stuttgart,3:1,");
+    }
+
+    [Test]
+    public async Task Non_league_row_without_fixed_map_fails_instead_of_using_kicktipp_outcome()
+    {
+        var content = Undated("DFB,Bayer 04 Leverkusen,VfB Stuttgart,3:1,");
+        var outcome = new PersistedMatchOutcome("community", CompetitionIds.Bundesliga2026_27,
+            "Bayer 04 Leverkusen", "VfB Stuttgart", Instant.FromUtc(2026, 5, 10, 13, 30).InUtc(), 33,
+            3, 1, MatchOutcomeAvailability.Completed, "9", DateTimeOffset.UtcNow, DateTimeOffset.UtcNow);
+
+        var result = Collect(content, [], [outcome]);
+
+        await Assert.That(result.Succeeded).IsFalse();
+        await Assert.That(result.KicktippCount).IsEqualTo(0);
+        await Assert.That(result.Diagnostics.Any(value => value.Message.Contains("No exact played-date source", StringComparison.Ordinal))).IsTrue();
+        await Assert.That(result.Documents[0].Content).IsEqualTo(content);
+    }
+
+    [Test]
     public async Task Completed_current_season_outcome_uses_exact_manifest_names_and_berlin_date()
     {
         var outcome = new PersistedMatchOutcome("community", CompetitionIds.Bundesliga2026_27,

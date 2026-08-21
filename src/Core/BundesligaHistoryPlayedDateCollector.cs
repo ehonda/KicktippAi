@@ -47,6 +47,7 @@ public interface IBundesligaHistoryPlayedDateCollector
 public sealed class BundesligaHistoryPlayedDateCollector : IBundesligaHistoryPlayedDateCollector
 {
     private const string Competition = CompetitionIds.Bundesliga2026_27;
+    private const string KicktippHistoryCompetition = "1.BL";
     private static readonly DateTimeZone Berlin = DateTimeZoneProviders.Tzdb["Europe/Berlin"];
     private static readonly string[] UndatedHeaders = ["Competition", "Home_Team", "Away_Team", "Score", "Annotation"];
     private static readonly string[] LegacyHeaders = ["Competition", "Data_Collected_At", "Home_Team", "Away_Team", "Score", "Annotation"];
@@ -195,10 +196,12 @@ public sealed class BundesligaHistoryPlayedDateCollector : IBundesligaHistoryPla
         List<BundesligaHistoryPlayedDateDiagnostic> diagnostics)
     {
         var normalizedScore = NormalizeScore(row.Score);
-        var outcomeMatches = outcomes.Where(outcome => outcome.HasOutcome
-            && string.Equals(outcome.HomeTeam, row.HomeTeam, StringComparison.Ordinal)
-            && string.Equals(outcome.AwayTeam, row.AwayTeam, StringComparison.Ordinal)
-            && string.Equals($"{outcome.HomeGoals}:{outcome.AwayGoals}", normalizedScore, StringComparison.Ordinal)).ToArray();
+        var outcomeMatches = string.Equals(row.HistoryCompetition, KicktippHistoryCompetition, StringComparison.Ordinal)
+            ? outcomes.Where(outcome => outcome.HasOutcome
+                && string.Equals(outcome.HomeTeam, row.HomeTeam, StringComparison.Ordinal)
+                && string.Equals(outcome.AwayTeam, row.AwayTeam, StringComparison.Ordinal)
+                && string.Equals($"{outcome.HomeGoals}:{outcome.AwayGoals}", normalizedScore, StringComparison.Ordinal)).ToArray()
+            : [];
         if (outcomeMatches.Length > 1)
         {
             diagnostics.Add(new(documentName, row.Ordinal, "Multiple competition-scoped Kicktipp outcomes match this row"));
