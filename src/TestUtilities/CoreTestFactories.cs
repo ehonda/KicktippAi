@@ -289,11 +289,13 @@ public static class CoreTestFactories
     public static BonusPredictionMetadata CreateBonusPredictionMetadata(
         Option<BonusPrediction> bonusPrediction = default,
         Option<DateTimeOffset> createdAt = default,
-        Option<List<string>> contextDocumentNames = default)
+        Option<List<string>> contextDocumentNames = default,
+        NullableOption<ResolvedBonusContextManifest> resolvedContextManifest = default)
     {
         return new BonusPredictionMetadata(
             bonusPrediction.Or(() => CreateBonusPrediction()),
             createdAt.Or(() => new DateTimeOffset(2025, 1, 10, 12, 0, 0, TimeSpan.Zero)),
-            contextDocumentNames.Or(() => []));
+            contextDocumentNames.Or(() => []),
+            resolvedContextManifest.Or((ResolvedBonusContextManifest?)null));
     }
 }

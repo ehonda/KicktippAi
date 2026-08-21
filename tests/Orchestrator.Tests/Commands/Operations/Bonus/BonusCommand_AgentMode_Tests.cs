@@ -116,9 +116,12 @@ public class BonusCommand_AgentMode_Tests : BonusCommandTests_Base
     {
         // Arrange
         var existingPrediction = CreateBonusPrediction(selectedOptionIds: new List<string> { "bayern" });
+        var metadata = CreateCanonicalBundesligaBonusPredictionMetadata(
+            CreateLeagueWinnerBonusQuestion(), existingPrediction, communityContext: "test");
         var mockPredictionRepository = CreateMockPredictionRepository(
             getBonusPredictionByTextResult: existingPrediction,
-            getBonusRepredictionIndexResult: 2);
+            getBonusRepredictionIndexResult: 2,
+            getBonusPredictionMetadataByTextResult: metadata);
         var mockFirebaseFactory = CreateMockFirebaseServiceFactoryFull(predictionRepository: mockPredictionRepository);
         var context = CreateBonusCommandApp(firebaseServiceFactory: mockFirebaseFactory);
 

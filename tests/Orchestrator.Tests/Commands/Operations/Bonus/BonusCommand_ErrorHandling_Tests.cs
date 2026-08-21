@@ -12,6 +12,63 @@ namespace Orchestrator.Tests.Commands.Operations.Bonus;
 public class BonusCommand_ErrorHandling_Tests : BonusCommandTests_Base
 {
     [Test]
+    public async Task Bundesliga_command_requires_a_resolved_bonus_context_provider()
+    {
+        var legacyProvider = new Mock<IKpiContextProvider>();
+        var context = CreateBonusCommandApp(
+            contextProviderFactory: CreateMockContextProviderFactory(kpiContextProvider: legacyProvider));
+
+        var exitCode = await context.App.RunAsync(["bonus", "test-model", "--community", "test"]);
+
+        await Assert.That(exitCode).IsEqualTo(1);
+        await Assert.That(context.Console.Output).Contains("requires a resolved bonus-context provider");
+        context.PredictionService.Verify(service => service.PredictBonusQuestionAsync(
+            It.IsAny<BonusQuestion>(),
+            It.IsAny<IEnumerable<DocumentContext>>(),
+            It.IsAny<OpenAiIntegration.PredictionTelemetryMetadata?>(),
+            It.IsAny<CancellationToken>()), Times.Never);
+    }
+
+    [Test]
+    public async Task Bundesliga_command_requires_a_provenance_capable_prediction_repository()
+    {
+        var legacyRepository = new Mock<IPredictionRepository>();
+        var context = CreateBonusCommandApp(
+            firebaseServiceFactory: CreateMockFirebaseServiceFactoryFull(
+                predictionRepository: legacyRepository));
+
+        var exitCode = await context.App.RunAsync(["bonus", "test-model", "--community", "test"]);
+
+        await Assert.That(exitCode).IsEqualTo(1);
+        await Assert.That(context.Console.Output).Contains("provenance-capable prediction");
+        context.PredictionService.Verify(service => service.PredictBonusQuestionAsync(
+            It.IsAny<BonusQuestion>(),
+            It.IsAny<IEnumerable<DocumentContext>>(),
+            It.IsAny<OpenAiIntegration.PredictionTelemetryMetadata?>(),
+            It.IsAny<CancellationToken>()), Times.Never);
+    }
+
+    [Test]
+    public async Task Bundesliga_normal_mode_does_not_place_a_legacy_prediction_without_provenance()
+    {
+        var legacyPrediction = CreateBonusPrediction(selectedOptionIds: new List<string> { "bayern" });
+        var repository = CreateMockPredictionRepository(
+            getBonusPredictionByTextResult: legacyPrediction,
+            getBonusPredictionMetadataByTextResult: (BonusPredictionMetadata?)null);
+        var context = CreateBonusCommandApp(
+            firebaseServiceFactory: CreateMockFirebaseServiceFactoryFull(predictionRepository: repository));
+
+        var exitCode = await context.App.RunAsync(["bonus", "test-model", "--community", "test"]);
+
+        await Assert.That(exitCode).IsEqualTo(0);
+        await Assert.That(context.Console.Output).Contains("lacks current").And.Contains("immutable provenance");
+        context.KicktippClient.Verify(client => client.PlaceBonusPredictionsAsync(
+            It.IsAny<string>(),
+            It.IsAny<Dictionary<string, BonusPrediction>>(),
+            It.IsAny<bool>()), Times.Never);
+    }
+
+    [Test]
     public async Task Running_command_handles_kicktipp_client_exception()
     {
         // Arrange
@@ -120,11 +177,12 @@ public class BonusCommand_ErrorHandling_Tests : BonusCommandTests_Base
     }
 
     [Test]
-    public async Task Running_command_handles_database_save_exception_and_continues()
+    public async Task Bundesliga_database_save_failure_does_not_place_the_unsaved_prediction()
     {
         // Arrange
         var mockPredictionRepository = CreateMockPredictionRepository();
-        mockPredictionRepository.Setup(r => r.SaveBonusPredictionAsync(
+        mockPredictionRepository.As<IResolvedBonusContextPredictionRepository>().Setup(r =>
+            r.SaveBonusPredictionWithResolvedContextAsync(
                 It.IsAny<BonusQuestion>(),
                 It.IsAny<BonusPrediction>(),
                 It.IsAny<PredictionModelConfig>(),
@@ -132,6 +190,7 @@ public class BonusCommand_ErrorHandling_Tests : BonusCommandTests_Base
                 It.IsAny<double>(),
                 It.IsAny<string>(),
                 It.IsAny<IEnumerable<string>>(),
+                It.IsAny<ResolvedBonusContextManifest>(),
                 It.IsAny<bool>(),
                 It.IsAny<CancellationToken>()))
             .ThrowsAsync(new InvalidOperationException("Database write failed"));
@@ -149,7 +208,11 @@ public class BonusCommand_ErrorHandling_Tests : BonusCommandTests_Base
         await Assert.That(exitCode).IsEqualTo(0);
         await Assert.That(output).Contains("Failed to save to database");
         await Assert.That(output).Contains("Database write failed");
-        await Assert.That(output).Contains("Placing"); // Should still attempt placement
+        await Assert.That(output).Contains("No predictions available, nothing to place");
+        context.KicktippClient.Verify(client => client.PlaceBonusPredictionsAsync(
+            It.IsAny<string>(),
+            It.IsAny<Dictionary<string, BonusPrediction>>(),
+            It.IsAny<bool>()), Times.Never);
     }
 
     [Test]

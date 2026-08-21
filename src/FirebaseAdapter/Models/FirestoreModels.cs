@@ -336,6 +336,10 @@ public class FirestoreBonusPrediction
     [FirestoreProperty("contextDocumentNames")]
     public string[] ContextDocumentNames { get; set; } = [];
 
+    /// <summary>Canonical JSON resolved-context provenance for Bundesliga bonus prompts.</summary>
+    [FirestoreProperty("resolvedBonusContextManifest")]
+    public string? ResolvedBonusContextManifest { get; set; }
+
     /// <summary>
     /// Reprediction index for tracking prediction versions.
     /// Starts at 0 for the first prediction, increments for each reprediction.

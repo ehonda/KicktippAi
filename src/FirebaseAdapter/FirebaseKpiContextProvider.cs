@@ -8,7 +8,7 @@ namespace FirebaseAdapter;
 /// Firebase-based context provider for bonus predictions. Bundesliga reserved documents are
 /// resolved through their headed publication sets; legacy competitions retain generic KPI reads.
 /// </summary>
-public class FirebaseKpiContextProvider : IKpiContextProvider
+public class FirebaseKpiContextProvider : IKpiContextProvider, IResolvedBonusContextProvider
 {
     private const string FifaRankingsDocumentName = "fifa-rankings";
     private const string LineupsDocumentName = "lineups";
@@ -57,7 +57,7 @@ public class FirebaseKpiContextProvider : IKpiContextProvider
     {
         if (IsCurrentBundesliga)
         {
-            foreach (var context in await GetBundesligaContextAsync(null, communityContext, cancellationToken))
+            foreach (var context in (await GetBundesligaContextAsync(null, communityContext, cancellationToken)).Documents)
             {
                 yield return context;
             }
@@ -110,7 +110,10 @@ public class FirebaseKpiContextProvider : IKpiContextProvider
 
         if (IsCurrentBundesliga)
         {
-            foreach (var context in await GetBundesligaContextAsync(question, communityContext, cancellationToken))
+            foreach (var context in (await ResolveBonusQuestionContextAsync(
+                         question,
+                         communityContext,
+                         cancellationToken)).Documents)
             {
                 yield return context;
             }
@@ -127,7 +130,22 @@ public class FirebaseKpiContextProvider : IKpiContextProvider
     private bool IsCurrentBundesliga =>
         string.Equals(_competition, CompetitionIds.Bundesliga2026_27, StringComparison.Ordinal);
 
-    private async Task<IReadOnlyList<DocumentContext>> GetBundesligaContextAsync(
+    public Task<ResolvedBonusContext> ResolveBonusQuestionContextAsync(
+        BonusQuestion question,
+        string communityContext,
+        CancellationToken cancellationToken = default)
+    {
+        ArgumentNullException.ThrowIfNull(question);
+        if (!IsCurrentBundesliga)
+        {
+            throw new InvalidOperationException(
+                "Resolved bonus-context provenance is available only for bundesliga-2026-27.");
+        }
+
+        return GetBundesligaContextAsync(question, communityContext, cancellationToken);
+    }
+
+    private async Task<ResolvedBonusContext> GetBundesligaContextAsync(
         BonusQuestion? question,
         string communityContext,
         CancellationToken cancellationToken)
@@ -167,7 +185,7 @@ public class FirebaseKpiContextProvider : IKpiContextProvider
                 .Concat(rosters.Documents)
                 .ToDictionary(document => document.Key);
 
-            var contexts = selection.RequiredDocuments.Select(key =>
+            var selectedDocuments = selection.RequiredDocuments.Select(key =>
             {
                 if (!byKey.TryGetValue(key, out var document))
                 {
@@ -175,15 +193,28 @@ public class FirebaseKpiContextProvider : IKpiContextProvider
                         $"Required Bundesliga bonus context document '{key.Kind}:{key.Name}' is missing from its headed publication.");
                 }
 
-                return new DocumentContext(document.Name, document.Content);
+                return document;
             }).ToArray();
+            var contexts = selectedDocuments
+                .Select(document => new DocumentContext(document.Name, document.Content))
+                .ToArray();
+            var manifest = ResolvedBonusContextManifest.Create(
+                CompetitionIds.Bundesliga2026_27,
+                communityContext,
+                selectedDocuments.Select(document => new ResolvedBonusContextDocument(
+                    document.Kind.ToString(),
+                    document.Name,
+                    document.Version,
+                    DocumentPublicationContract.ComputeContentSha256(document.Content))),
+                rosters.Snapshot.SnapshotId,
+                elo.Snapshot.SnapshotId);
 
             _logger.LogInformation(
                 "Selected {DocumentCount} Bundesliga bonus context documents for community {CommunityContext}: {DocumentNames}",
                 contexts.Length,
                 communityContext,
                 string.Join(',', contexts.Select(context => context.Name)));
-            return contexts;
+            return new ResolvedBonusContext(contexts, manifest);
         }
         catch (Exception exception) when (exception is InvalidDataException or ArgumentException)
         {

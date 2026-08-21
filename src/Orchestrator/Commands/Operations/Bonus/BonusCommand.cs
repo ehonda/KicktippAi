@@ -197,6 +197,15 @@ public class BonusCommand : AsyncCommand<BaseSettings>
         
         // Create KPI Context Provider for bonus predictions using factory
         var kpiContextProvider = _contextProviderFactory.CreateKpiContextProvider(competition);
+        var isBundesliga = string.Equals(
+            competition,
+            CompetitionIds.Bundesliga2026_27,
+            StringComparison.Ordinal);
+        var resolvedBonusContextProvider = isBundesliga
+            ? kpiContextProvider as IResolvedBonusContextProvider
+              ?? throw new InvalidOperationException(
+                  "Bundesliga bonus prediction requires a resolved bonus-context provider.")
+            : null;
         if (CompetitionResolver.IsWorldCupCompetition(competition))
         {
             await EnsureWorldCupRankingKpiPresentAsync(kpiContextProvider, communityContext);
@@ -206,7 +215,17 @@ public class BonusCommand : AsyncCommand<BaseSettings>
         
         // Create repositories
         var predictionRepository = _firebaseServiceFactory.CreatePredictionRepository(competition);
-        var kpiRepository = _firebaseServiceFactory.CreateKpiRepository(competition);
+        var resolvedBonusPredictionRepository = isBundesliga
+            ? predictionRepository as IResolvedBonusContextPredictionRepository
+              ?? throw new InvalidOperationException(
+                  "Bundesliga bonus prediction requires a provenance-capable prediction repository.")
+            : null;
+        var publicationRepository = isBundesliga
+            ? _firebaseServiceFactory.CreateDocumentPublicationRepository(competition)
+            : null;
+        var kpiRepository = isBundesliga
+            ? null
+            : _firebaseServiceFactory.CreateKpiRepository(competition);
         var databaseEnabled = true;
         
         // Reset token usage tracker for this workflow
@@ -267,6 +286,20 @@ public class BonusCommand : AsyncCommand<BaseSettings>
                     prediction = await predictionRepository!.GetBonusPredictionByTextAsync(question.Text, modelConfig, communityContext);
                     if (prediction != null)
                     {
+                        if (isBundesliga && await CheckBonusPredictionOutdated(
+                                predictionRepository,
+                                kpiRepository,
+                                publicationRepository,
+                                question,
+                                modelConfig,
+                                communityContext,
+                                isBundesliga,
+                                settings.Verbose))
+                        {
+                            throw new InvalidDataException(
+                                "Stored Bundesliga bonus prediction lacks current immutable provenance; use repredict or an explicit database override.");
+                        }
+
                         fromDatabase = true;
                         if (settings.Agent)
                         {
@@ -299,17 +332,19 @@ public class BonusCommand : AsyncCommand<BaseSettings>
                         // Check if we can create another reprediction
                         var maxAllowed = settings.MaxRepredictions ?? int.MaxValue;
                         var nextIndex = currentRepredictionIndex + 1;
+                        var mustCheckOutdated = nextIndex <= maxAllowed || isBundesliga;
+                        var isOutdated = mustCheckOutdated && await CheckBonusPredictionOutdated(
+                            predictionRepository!,
+                            kpiRepository,
+                            publicationRepository,
+                            question,
+                            modelConfig,
+                            communityContext,
+                            isBundesliga,
+                            settings.Verbose);
                         
                         if (nextIndex <= maxAllowed)
                         {
-                            var isOutdated = await CheckBonusPredictionOutdated(
-                                predictionRepository!,
-                                kpiRepository,
-                                question.Text,
-                                modelConfig,
-                                communityContext,
-                                settings.Verbose);
-
                             if (isOutdated)
                             {
                                 shouldPredict = true;
@@ -337,6 +372,12 @@ public class BonusCommand : AsyncCommand<BaseSettings>
                         }
                         else
                         {
+                            if (isBundesliga && isOutdated)
+                            {
+                                throw new InvalidDataException(
+                                    "Stored Bundesliga bonus prediction lacks current immutable provenance and cannot be reused at the reprediction limit.");
+                            }
+
                             traceRepredictionIndices.Add(currentRepredictionIndex.ToString());
                             _console.MarkupLine($"[yellow]  ✗ Skipped - already at max repredictions ({currentRepredictionIndex}/{maxAllowed})[/]");
                             
@@ -364,11 +405,21 @@ public class BonusCommand : AsyncCommand<BaseSettings>
                     
                     // Step 3: Get competition-aware context for bonus predictions.
                     var contextDocuments = new List<DocumentContext>();
+                    ResolvedBonusContext? resolvedBonusContext = null;
                     
-                    // Bundesliga may combine KPI aggregates with targeted roster context documents.
-                    await foreach (var context in kpiContextProvider.GetBonusQuestionContextAsync(question, communityContext))
+                    if (isBundesliga)
                     {
-                        contextDocuments.Add(context);
+                        resolvedBonusContext = await resolvedBonusContextProvider!.ResolveBonusQuestionContextAsync(
+                            question,
+                            communityContext);
+                        contextDocuments.AddRange(resolvedBonusContext.Documents);
+                    }
+                    else
+                    {
+                        await foreach (var context in kpiContextProvider.GetBonusQuestionContextAsync(question, communityContext))
+                        {
+                            contextDocuments.Add(context);
+                        }
                     }
                     
                     if (settings.Verbose)
@@ -378,7 +429,10 @@ public class BonusCommand : AsyncCommand<BaseSettings>
 
                     var telemetryMetadata = new PredictionTelemetryMetadata(
                         RepredictionIndex: predictionRepredictionIndex,
-                        Competition: competition);
+                        Competition: competition,
+                        ContextDocumentNames: contextDocuments.Select(document => document.Name).ToArray(),
+                        RosterPublicationSnapshotId: resolvedBonusContext?.Manifest.RosterPublicationSnapshotId,
+                        ClubEloPublicationSnapshotId: resolvedBonusContext?.Manifest.ClubEloPublicationSnapshotId);
                     
                     // Predict the bonus question
                     prediction = await predictionService.PredictBonusQuestionAsync(question, contextDocuments, telemetryMetadata);
@@ -418,15 +472,31 @@ public class BonusCommand : AsyncCommand<BaseSettings>
                                     var currentIndex = await predictionRepository!.GetBonusRepredictionIndexAsync(question.Text, modelConfig, communityContext);
                                     var nextIndex = currentIndex == -1 ? 0 : currentIndex + 1;
                                     
-                                    await predictionRepository!.SaveBonusRepredictionAsync(
-                                        question, 
-                                        prediction, 
-                                        modelConfig,
-                                        tokenUsageJson, 
-                                        cost, 
-                                        communityContext,
-                                        contextDocuments.Select(d => d.Name),
-                                        nextIndex);
+                                    if (isBundesliga)
+                                    {
+                                        await resolvedBonusPredictionRepository!.SaveBonusRepredictionWithResolvedContextAsync(
+                                            question,
+                                            prediction,
+                                            modelConfig,
+                                            tokenUsageJson,
+                                            cost,
+                                            communityContext,
+                                            contextDocuments.Select(document => document.Name),
+                                            nextIndex,
+                                            resolvedBonusContext!.Manifest);
+                                    }
+                                    else
+                                    {
+                                        await predictionRepository!.SaveBonusRepredictionAsync(
+                                            question,
+                                            prediction,
+                                            modelConfig,
+                                            tokenUsageJson,
+                                            cost,
+                                            communityContext,
+                                            contextDocuments.Select(document => document.Name),
+                                            nextIndex);
+                                    }
                                         
                                     if (settings.Verbose)
                                     {
@@ -436,15 +506,31 @@ public class BonusCommand : AsyncCommand<BaseSettings>
                                 else
                                 {
                                     // Save normally (override or new prediction)
-                                    await predictionRepository!.SaveBonusPredictionAsync(
-                                        question, 
-                                        prediction, 
-                                        modelConfig,
-                                        tokenUsageJson, 
-                                        cost, 
-                                        communityContext,
-                                        contextDocuments.Select(d => d.Name),
-                                        overrideCreatedAt: settings.OverrideDatabase);
+                                    if (isBundesliga)
+                                    {
+                                        await resolvedBonusPredictionRepository!.SaveBonusPredictionWithResolvedContextAsync(
+                                            question,
+                                            prediction,
+                                            modelConfig,
+                                            tokenUsageJson,
+                                            cost,
+                                            communityContext,
+                                            contextDocuments.Select(document => document.Name),
+                                            resolvedBonusContext!.Manifest,
+                                            overrideCreatedAt: settings.OverrideDatabase);
+                                    }
+                                    else
+                                    {
+                                        await predictionRepository!.SaveBonusPredictionAsync(
+                                            question,
+                                            prediction,
+                                            modelConfig,
+                                            tokenUsageJson,
+                                            cost,
+                                            communityContext,
+                                            contextDocuments.Select(document => document.Name),
+                                            overrideCreatedAt: settings.OverrideDatabase);
+                                    }
                                         
                                     if (settings.Verbose)
                                     {
@@ -456,6 +542,10 @@ public class BonusCommand : AsyncCommand<BaseSettings>
                             {
                                 _logger.LogError(ex, "Failed to save bonus prediction for question '{QuestionText}'", question.Text);
                                 _console.MarkupLine($"[red]    ✗ Failed to save to database: {ex.Message}[/]");
+                                if (isBundesliga)
+                                {
+                                    throw;
+                                }
                             }
                         }
                         else if (databaseEnabled && settings.DryRun && settings.Verbose)
@@ -582,25 +672,40 @@ public class BonusCommand : AsyncCommand<BaseSettings>
 
     private async Task<bool> CheckBonusPredictionOutdated(
         IPredictionRepository predictionRepository,
-        IKpiRepository kpiRepository,
-        string questionText,
+        IKpiRepository? kpiRepository,
+        IDocumentPublicationRepository? publicationRepository,
+        BonusQuestion question,
         PredictionModelConfig modelConfig,
         string communityContext,
+        bool isBundesliga,
         bool verbose)
     {
         try
         {
             var predictionMetadata = await predictionRepository.GetBonusPredictionMetadataByTextAsync(
-                questionText, modelConfig, communityContext);
+                question.Text, modelConfig, communityContext);
 
             if (predictionMetadata == null)
             {
-                return false;
+                return isBundesliga;
+            }
+
+            if (isBundesliga)
+            {
+                return await BundesligaBonusPredictionOutdatedChecker.IsOutdatedAsync(
+                    publicationRepository
+                    ?? throw new InvalidOperationException(
+                        "Bundesliga bonus outdated checks require a publication repository."),
+                    question,
+                    communityContext,
+                    predictionMetadata);
             }
 
             foreach (var contextDocumentName in predictionMetadata.ContextDocumentNames)
             {
-                var kpiDocument = await kpiRepository.GetKpiDocumentAsync(contextDocumentName, communityContext);
+                var kpiDocument = await (kpiRepository
+                    ?? throw new InvalidOperationException("Legacy bonus outdated checks require a KPI repository."))
+                    .GetKpiDocumentAsync(contextDocumentName, communityContext);
                 if (kpiDocument != null)
                 {
                     if (kpiDocument.CreatedAt > predictionMetadata.CreatedAt)
@@ -633,6 +738,11 @@ public class BonusCommand : AsyncCommand<BaseSettings>
             if (verbose)
             {
                 _console.MarkupLine($"[yellow]Warning: Could not check if prediction is outdated: {ex.Message}[/]");
+            }
+
+            if (isBundesliga)
+            {
+                throw;
             }
 
             return false;

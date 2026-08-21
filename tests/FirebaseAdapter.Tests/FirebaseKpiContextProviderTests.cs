@@ -578,6 +578,39 @@ public class FirebaseKpiContextProviderTests
     }
 
     [Test]
+    public async Task Bundesliga_resolved_context_records_exact_ordered_versions_hashes_and_heads()
+    {
+        var publicationRepository = CreateBundesligaPublicationRepository();
+        var provider = CreateBundesligaProvider(
+            new Mock<IKpiRepository>(MockBehavior.Strict),
+            publicationRepository);
+        var question = Question(TopScorerTeamQuestion, "Borussia Dortmund", "FC Bayern München");
+
+        var resolved = await provider.ResolveBonusQuestionContextAsync(question, "test-community");
+
+        await Assert.That(resolved.Documents.Select(document => document.Name).SequenceEqual(
+        [
+            "club-elo-rankings",
+            "team-squad-summary",
+            "roster-bvb",
+            "roster-fcb"
+        ])).IsTrue();
+        await Assert.That(resolved.Manifest.Documents.Select(document => document.Kind).SequenceEqual(
+            ["Kpi", "Kpi", "Context", "Context"])).IsTrue();
+        await Assert.That(resolved.Manifest.Documents.Select(document => document.Name)
+            .SequenceEqual(resolved.Documents.Select(document => document.Name))).IsTrue();
+        await Assert.That(resolved.Manifest.Documents.Zip(resolved.Documents).All(pair =>
+            string.Equals(
+                pair.First.ContentSha256,
+                DocumentPublicationContract.ComputeContentSha256(pair.Second.Content),
+                StringComparison.Ordinal))).IsTrue();
+        await Assert.That(DocumentPublicationContract.IsLowercaseSha256(
+            resolved.Manifest.RosterPublicationSnapshotId)).IsTrue();
+        await Assert.That(DocumentPublicationContract.IsLowercaseSha256(
+            resolved.Manifest.ClubEloPublicationSnapshotId)).IsTrue();
+    }
+
+    [Test]
     public async Task Bundesliga_top_scorer_question_adds_only_the_exact_option_team_roster()
     {
         var publicationRepository = CreateBundesligaPublicationRepository();
