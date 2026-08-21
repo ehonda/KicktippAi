@@ -467,6 +467,12 @@ public static class OrchestratorTestFactories
                 It.IsAny<CancellationToken>()))
             .Returns(bonusDocs.ToAsyncEnumerable());
 
+        mock.Setup(p => p.GetBonusQuestionContextAsync(
+                It.IsAny<BonusQuestion>(),
+                It.IsAny<string>(),
+                It.IsAny<CancellationToken>()))
+            .Returns(bonusDocs.ToAsyncEnumerable());
+
         mock.Setup(p => p.GetContextAsync(
                 It.IsAny<string>(),
                 It.IsAny<CancellationToken>()))

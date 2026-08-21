@@ -195,7 +195,7 @@ public class BonusCommand_NormalMode_Tests : BonusCommandTests_Base
 
         // Assert
         await Assert.That(exitCode).IsEqualTo(0);
-        await Assert.That(output).Contains("Using 2 KPI context documents");
+        await Assert.That(output).Contains("Using 2 bonus context documents");
     }
 
     [Test]
@@ -379,5 +379,26 @@ public class BonusCommand_NormalMode_Tests : BonusCommandTests_Base
             It.Is<IEnumerable<string>>(names => names.Any()), // Verify context document names are passed
             It.IsAny<bool>(),
             It.IsAny<CancellationToken>()), Times.Once);
+    }
+
+    [Test]
+    public async Task Running_command_passes_the_complete_question_to_context_selection()
+    {
+        var question = CreateLeagueWinnerBonusQuestion();
+        var context = CreateBonusCommandApp(
+            openBonusQuestions: new List<BonusQuestion> { question },
+            existingBonusPrediction: NullableOption.Some<BonusPrediction>(null));
+
+        var exitCode = await context.App.RunAsync(["bonus", "test-model", "--community", "test"]);
+
+        await Assert.That(exitCode).IsEqualTo(0);
+        context.KpiContextProvider.Verify(provider => provider.GetBonusQuestionContextAsync(
+            question,
+            "test",
+            It.IsAny<CancellationToken>()), Times.Once);
+        context.KpiContextProvider.Verify(provider => provider.GetBonusQuestionContextAsync(
+            It.IsAny<string>(),
+            It.IsAny<string>(),
+            It.IsAny<CancellationToken>()), Times.Never);
     }
 }

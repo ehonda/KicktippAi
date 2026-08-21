@@ -24,4 +24,13 @@ public interface IKpiContextProvider
         string questionText,
         string communityContext,
         CancellationToken cancellationToken = default);
+
+    /// <summary>
+    /// Gets context selected from the complete question, including its answer options.
+    /// Competition-aware providers use the options for exact team/member targeting.
+    /// </summary>
+    IAsyncEnumerable<DocumentContext> GetBonusQuestionContextAsync(
+        BonusQuestion question,
+        string communityContext,
+        CancellationToken cancellationToken = default);
 }
