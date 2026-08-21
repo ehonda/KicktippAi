@@ -39,6 +39,50 @@ public class BonusContextSelectionPolicyTests
     }
 
     [Test]
+    [Arguments("Wer wird Champions-League-Meister?")]
+    [Arguments("Wer wird Champions League Meister?")]
+    [Arguments("Who will be Champions-League champion?")]
+    [Arguments("Who will be Champions League champion?")]
+    public async Task Champions_League_titles_do_not_classify_as_Bundesliga_champion(string text)
+    {
+        var category = BonusContextSelectionPolicy.Classify(Question(text, "FC Bayern München"));
+
+        await Assert.That(category).IsEqualTo(BundesligaBonusQuestionCategory.Unknown);
+    }
+
+    [Test]
+    [Arguments("Wer wird Bundesliga-Meister?")]
+    [Arguments("Who will be Bundesliga champion?")]
+    public async Task Bundesliga_champion_phrases_remain_supported(string text)
+    {
+        var category = BonusContextSelectionPolicy.Classify(Question(text, "FC Bayern München"));
+
+        await Assert.That(category).IsEqualTo(BundesligaBonusQuestionCategory.Champion);
+    }
+
+    [Test]
+    [Arguments("\U00010400meister")]
+    [Arguments("\U000104A0meister")]
+    [Arguments("meister\U00010400")]
+    [Arguments("meister\U000104A0")]
+    public async Task Supplementary_letter_or_digit_adjacency_is_not_a_phrase_boundary(string text)
+    {
+        var category = BonusContextSelectionPolicy.Classify(Question(text, "FC Bayern München"));
+
+        await Assert.That(category).IsEqualTo(BundesligaBonusQuestionCategory.Unknown);
+    }
+
+    [Test]
+    [Arguments("🏆Meister!")]
+    [Arguments("Meister🏆")]
+    public async Task Punctuation_and_supplementary_emoji_remain_valid_phrase_boundaries(string text)
+    {
+        var category = BonusContextSelectionPolicy.Classify(Question(text, "FC Bayern München"));
+
+        await Assert.That(category).IsEqualTo(BundesligaBonusQuestionCategory.Champion);
+    }
+
+    [Test]
     public async Task Options_do_not_classify_a_question()
     {
         var category = BonusContextSelectionPolicy.Classify(
@@ -226,6 +270,9 @@ public class BonusContextSelectionPolicyTests
             new string('a', 64),
             new string('b', 64));
         var measurement = BonusContextBudgetEstimator.Measure(documents);
+        var canonicalChampionExclusions = BonusContextSelectionPolicy.GetCanonicalExclusions(
+            BundesligaBonusQuestionCategory.Champion,
+            documents.Select(document => document.Name));
 
         await Assert.That(() => new ResolvedBonusContext(
                 documents,
@@ -233,7 +280,7 @@ public class BonusContextSelectionPolicyTests
                 new ResolvedBonusContextSelection(
                     BundesligaBonusQuestionCategory.Champion,
                     ["team-squad-summary", "club-elo-rankings"],
-                    [],
+                    canonicalChampionExclusions,
                     measurement.Utf8Bytes,
                     measurement.EstimatedTokens,
                     BonusContextBudget.Default)))
@@ -246,7 +293,7 @@ public class BonusContextSelectionPolicyTests
                 new ResolvedBonusContextSelection(
                     BundesligaBonusQuestionCategory.Champion,
                     documents.Select(document => document.Name).ToImmutableArray(),
-                    [],
+                    canonicalChampionExclusions,
                     measurement.Utf8Bytes + 1,
                     measurement.EstimatedTokens,
                     BonusContextBudget.Default)))
@@ -262,6 +309,92 @@ public class BonusContextSelectionPolicyTests
                     [new BonusContextDocumentExclusion(
                         new DocumentPublicationKey(DocumentPublicationKind.Kpi, "team-squad-summary"),
                         BonusContextExclusionReason.CategoryDoesNotUseRoster)],
+                    measurement.Utf8Bytes,
+                    measurement.EstimatedTokens,
+                    BonusContextBudget.Default)))
+            .Throws<ArgumentException>()
+            .WithMessageContaining("disjoint canonical selected/excluded documents");
+    }
+
+    [Test]
+    public async Task Resolved_result_requires_the_exact_canonical_exclusion_ledger()
+    {
+        var documents = new[]
+        {
+            new DocumentContext("club-elo-rankings", "elo"),
+            new DocumentContext("team-squad-summary", "summary"),
+            new DocumentContext("roster-fcb", "roster")
+        };
+        var selectedNames = documents.Select(document => document.Name).ToImmutableArray();
+        var manifest = ResolvedBonusContextManifest.Create(
+            CompetitionIds.Bundesliga2026_27,
+            "test-community",
+            documents.Select((document, index) => new ResolvedBonusContextDocument(
+                index < 2 ? "Kpi" : "Context",
+                document.Name,
+                1,
+                DocumentPublicationContract.ComputeContentSha256(document.Content))),
+            new string('a', 64),
+            new string('b', 64));
+        var measurement = BonusContextBudgetEstimator.Measure(documents);
+        var expected = BonusContextSelectionPolicy.GetCanonicalExclusions(
+            BundesligaBonusQuestionCategory.TopScorer,
+            selectedNames);
+
+        _ = new ResolvedBonusContext(
+            documents,
+            manifest,
+            new ResolvedBonusContextSelection(
+                BundesligaBonusQuestionCategory.TopScorer,
+                selectedNames,
+                expected,
+                measurement.Utf8Bytes,
+                measurement.EstimatedTokens,
+                BonusContextBudget.Default));
+
+        var invalidLedgers = new[]
+        {
+            expected.RemoveAt(expected.Length - 1),
+            expected.Add(new BonusContextDocumentExclusion(
+                new DocumentPublicationKey(DocumentPublicationKind.Context, "roster-extra"),
+                BonusContextExclusionReason.NoExactIdentity)),
+            expected.SetItem(0, expected[1]).SetItem(1, expected[0]),
+            expected.SetItem(1, expected[1] with { Reason = (BonusContextExclusionReason)999 }),
+            expected.SetItem(1, expected[1] with
+            {
+                Document = new DocumentPublicationKey(DocumentPublicationKind.Kpi, expected[1].Document.Name)
+            }),
+            expected.SetItem(1, expected[1] with
+            {
+                Reason = BonusContextExclusionReason.CategoryDoesNotUseRoster
+            })
+        };
+
+        foreach (var invalidLedger in invalidLedgers)
+        {
+            await Assert.That(() => new ResolvedBonusContext(
+                    documents,
+                    manifest,
+                    new ResolvedBonusContextSelection(
+                        BundesligaBonusQuestionCategory.TopScorer,
+                        selectedNames,
+                        invalidLedger,
+                        measurement.Utf8Bytes,
+                        measurement.EstimatedTokens,
+                        BonusContextBudget.Default)))
+                .Throws<ArgumentException>()
+                .WithMessageContaining("exact canonical exclusion ledger");
+        }
+
+        await Assert.That(() => new ResolvedBonusContext(
+                documents,
+                manifest,
+                new ResolvedBonusContextSelection(
+                    BundesligaBonusQuestionCategory.TopScorer,
+                    selectedNames,
+                    expected.Add(new BonusContextDocumentExclusion(
+                        new DocumentPublicationKey(DocumentPublicationKind.Context, "roster-fcb"),
+                        BonusContextExclusionReason.NoExactIdentity)),
                     measurement.Utf8Bytes,
                     measurement.EstimatedTokens,
                     BonusContextBudget.Default)))

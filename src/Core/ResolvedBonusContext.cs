@@ -298,6 +298,28 @@ public sealed record ResolvedBonusContext
                 nameof(selection));
         }
 
+        ImmutableArray<BonusContextDocumentExclusion> expectedExclusions;
+        try
+        {
+            expectedExclusions = BonusContextSelectionPolicy.GetCanonicalExclusions(
+                selection.Category,
+                selection.SelectedDocumentNames);
+        }
+        catch (ArgumentException exception)
+        {
+            throw new ArgumentException(
+                "Resolved bonus context selection does not use canonical Bundesliga roster documents.",
+                nameof(selection),
+                exception);
+        }
+
+        if (!selection.ExcludedDocuments.SequenceEqual(expectedExclusions))
+        {
+            throw new ArgumentException(
+                "Resolved bonus context selection does not contain the exact canonical exclusion ledger.",
+                nameof(selection));
+        }
+
         if (!Documents.Select(document => document.Name)
                 .SequenceEqual(manifest.Documents.Select(document => document.Name), StringComparer.Ordinal)
             || Documents.Where((document, index) => !string.Equals(

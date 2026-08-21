@@ -23,11 +23,11 @@ Every Bundesliga bonus question is classified into exactly one of these categori
 | `Coach` | whole German or English coach/dismissal/coach-change phrases | aggregate baseline plus only exact team or coach roster targets |
 | `Unknown` | no supported signal | aggregate baseline only |
 
-Matching is ordinal case-insensitive and Unicode phrase-boundary aware. A substring inside a longer letter-or-digit token is not a signal. Options never determine the category. If more than one supported category matches, classification fails actionably rather than choosing a priority that could select the wrong member role.
+Matching is ordinal case-insensitive and Unicode-scalar phrase-boundary aware. A substring inside a longer letter-or-digit token is not a signal. UEFA Champions League title phrases such as `Champions-League-Meister` and `Champions League champion` are explicitly outside the Bundesliga champion category. Options never determine the category. If more than one supported category matches, classification fails actionably rather than choosing a priority that could select the wrong member role.
 
 For `TopScorer` and `Coach`, an option targets a team or relevant member only when its trimmed value equals that canonical identity. Question text may contain the exact identity as a whole phrase. Targets are unique and ordered by manifest slug. A roster-relevant question with no exact target fails closed. `Champion`, `Relegation`, and `Unknown` never select a roster document.
 
-Every result explicitly soft-excludes `team-rosters` with reason `ProhibitedAggregate`. Every canonical `roster-{slug}` not selected is reported in manifest-slug order with either `CategoryDoesNotUseRoster` or `NoExactIdentity`. These policy exclusions are diagnostic and do not make a useful aggregate-only category fail. Stored document presence never adds a candidate.
+Every result explicitly soft-excludes `team-rosters` first with reason `ProhibitedAggregate`. Every canonical `roster-{slug}` not selected follows in manifest-slug order with `Context` kind and either `CategoryDoesNotUseRoster` or `NoExactIdentity`; selected rosters are absent. Result construction rejects any missing, extra, reordered, undefined, wrong-kind, or category-inconsistent ledger entry. These policy exclusions are diagnostic and do not make a useful aggregate-only category fail. Stored document presence never adds a candidate.
 
 ### Whole-selection budgets
 

@@ -119,3 +119,4 @@ P0 is complete only when:
 - [ADR-0035: Freeze the first live DFB-Pokal history completion](decisions/0035-freeze-first-live-dfb-history-completion.md)
 - [ADR-0036: Retire legacy team and manager context](decisions/0036-retire-legacy-team-manager-context.md)
 - [ADR-0037: Record immutable bonus-context manifests](decisions/0037-record-immutable-bonus-context-manifests.md)
+- [ADR-0038: Bound bonus context by question policy](decisions/0038-bound-bonus-context-by-question-policy.md)

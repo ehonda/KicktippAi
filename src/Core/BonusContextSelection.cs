@@ -1,3 +1,4 @@
+using System.Buffers;
 using System.Collections.Immutable;
 using System.Text;
 
@@ -219,31 +220,65 @@ public static class BonusContextSelectionPolicy
         required.AddRange(targets.Select(slug =>
             new DocumentPublicationKey(DocumentPublicationKind.Context, $"roster-{slug}")));
 
-        var exclusions = ImmutableArray.CreateBuilder<BonusContextDocumentExclusion>();
-        exclusions.Add(new BonusContextDocumentExclusion(
-            ProhibitedTeamRosters,
-            BonusContextExclusionReason.ProhibitedAggregate));
+        var requiredDocuments = required.ToImmutable();
 
-        var selectedTargetSet = targets.ToHashSet(StringComparer.Ordinal);
+        return new BundesligaBonusContextSelection(
+            category,
+            requiredDocuments,
+            targets,
+            GetCanonicalExclusions(category, requiredDocuments.Select(document => document.Name)));
+    }
+
+    public static ImmutableArray<BonusContextDocumentExclusion> GetCanonicalExclusions(
+        BundesligaBonusQuestionCategory category,
+        IEnumerable<string> selectedDocumentNames)
+    {
+        if (!Enum.IsDefined(category))
+        {
+            throw new ArgumentOutOfRangeException(nameof(category));
+        }
+
+        var selectedNames = selectedDocumentNames?.ToImmutableArray()
+            ?? throw new ArgumentNullException(nameof(selectedDocumentNames));
+        if (selectedNames.Any(string.IsNullOrWhiteSpace))
+        {
+            throw new ArgumentException("Selected bonus-context document names must be nonempty.", nameof(selectedDocumentNames));
+        }
+
+        var canonicalRosterNames = BundesligaTeamManifest.Default.Entries
+            .Select(entry => $"roster-{entry.TeamSlug}")
+            .Order(StringComparer.Ordinal)
+            .ToImmutableArray();
+        var canonicalRosterNameSet = canonicalRosterNames.ToHashSet(StringComparer.Ordinal);
+        var selectedRosterNames = selectedNames
+            .Where(name => name.StartsWith("roster-", StringComparison.Ordinal))
+            .ToHashSet(StringComparer.Ordinal);
+        if (!selectedRosterNames.IsSubsetOf(canonicalRosterNameSet))
+        {
+            throw new ArgumentException(
+                "Selected Bundesliga roster documents must use canonical manifest slugs.",
+                nameof(selectedDocumentNames));
+        }
+
         var rosterExclusionReason = category is BundesligaBonusQuestionCategory.TopScorer
             or BundesligaBonusQuestionCategory.Coach
             ? BonusContextExclusionReason.NoExactIdentity
             : BonusContextExclusionReason.CategoryDoesNotUseRoster;
-        foreach (var entry in BundesligaTeamManifest.Default.Entries.OrderBy(entry => entry.TeamSlug, StringComparer.Ordinal))
+        var exclusions = ImmutableArray.CreateBuilder<BonusContextDocumentExclusion>();
+        exclusions.Add(new BonusContextDocumentExclusion(
+            ProhibitedTeamRosters,
+            BonusContextExclusionReason.ProhibitedAggregate));
+        foreach (var rosterName in canonicalRosterNames)
         {
-            if (!selectedTargetSet.Contains(entry.TeamSlug))
+            if (!selectedRosterNames.Contains(rosterName))
             {
                 exclusions.Add(new BonusContextDocumentExclusion(
-                    new DocumentPublicationKey(DocumentPublicationKind.Context, $"roster-{entry.TeamSlug}"),
+                    new DocumentPublicationKey(DocumentPublicationKind.Context, rosterName),
                     rosterExclusionReason));
             }
         }
 
-        return new BundesligaBonusContextSelection(
-            category,
-            required.ToImmutable(),
-            targets,
-            exclusions.ToImmutable());
+        return exclusions.ToImmutable();
     }
 
     public static BundesligaBonusQuestionCategory Classify(BonusQuestion question)
@@ -253,7 +288,10 @@ public static class BonusContextSelectionPolicy
         ArgumentNullException.ThrowIfNull(question.Options);
 
         var matches = new List<BundesligaBonusQuestionCategory>(4);
-        AddIfMatched(matches, question.Text, ChampionSignals, BundesligaBonusQuestionCategory.Champion);
+        if (!IsChampionsLeagueChampionReference(question.Text))
+        {
+            AddIfMatched(matches, question.Text, ChampionSignals, BundesligaBonusQuestionCategory.Champion);
+        }
         AddIfMatched(matches, question.Text, RelegationSignals, BundesligaBonusQuestionCategory.Relegation);
         AddIfMatched(matches, question.Text, TopScorerSignals, BundesligaBonusQuestionCategory.TopScorer);
         AddIfMatched(matches, question.Text, CoachSignals, BundesligaBonusQuestionCategory.Coach);
@@ -343,9 +381,9 @@ public static class BonusContextSelectionPolicy
                 return false;
             }
 
-            var beforeIsBoundary = index == 0 || !char.IsLetterOrDigit(value[index - 1]);
+            var beforeIsBoundary = index == 0 || !IsLetterOrDigitBefore(value, index);
             var afterIndex = index + phrase.Length;
-            var afterIsBoundary = afterIndex == value.Length || !char.IsLetterOrDigit(value[afterIndex]);
+            var afterIsBoundary = afterIndex == value.Length || !IsLetterOrDigitAt(value, afterIndex);
             if (beforeIsBoundary && afterIsBoundary)
             {
                 return true;
@@ -355,5 +393,28 @@ public static class BonusContextSelectionPolicy
         }
 
         return false;
+    }
+
+    private static bool IsChampionsLeagueChampionReference(string value)
+    {
+        var normalized = value.Replace('-', ' ');
+        return ContainsWholePhrase(normalized, "champions league meister")
+               || ContainsWholePhrase(normalized, "champions league champion");
+    }
+
+    private static bool IsLetterOrDigitBefore(string value, int index)
+    {
+        var status = Rune.DecodeLastFromUtf16(value.AsSpan(0, index), out var rune, out _);
+        return status == OperationStatus.Done
+            ? Rune.IsLetterOrDigit(rune)
+            : char.IsLetterOrDigit(value[index - 1]);
+    }
+
+    private static bool IsLetterOrDigitAt(string value, int index)
+    {
+        var status = Rune.DecodeFromUtf16(value.AsSpan(index), out var rune, out _);
+        return status == OperationStatus.Done
+            ? Rune.IsLetterOrDigit(rune)
+            : char.IsLetterOrDigit(value[index]);
     }
 }
