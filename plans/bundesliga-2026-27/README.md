@@ -105,3 +105,4 @@ P0 is complete only when:
 - [ADR-0021: Bind ordinary context content and prepare provenance](decisions/0021-bind-ordinary-context-content-and-prepare-provenance.md) — supersedes only ADR-0020's ordinary-document version/content portions
 - [ADR-0022: Allocate Bundesliga repredictions transactionally](decisions/0022-transactional-bundesliga-reprediction-allocation.md) — supersedes only ADR-0020's Bundesliga prediction-save portion
 - [ADR-0023: Use orchestrator-created CLI worktrees for parallel writers](decisions/0023-use-orchestrator-created-cli-worktrees.md)
+- [ADR-0024: Select bonus context by competition and question](decisions/0024-select-bonus-context-by-competition-and-question.md)
