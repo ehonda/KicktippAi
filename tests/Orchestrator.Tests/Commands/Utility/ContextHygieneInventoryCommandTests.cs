@@ -104,7 +104,6 @@ public class ContextHygieneInventoryCommandTests
             "inventory",
             "--community-context", "test-community",
             "--evaluation-date", "2026-08-21",
-            "--validate-csv-bytes",
             "--json"
         ]);
 
@@ -188,7 +187,7 @@ public class ContextHygieneInventoryCommandTests
             "--json"
         ]);
 
-        await Assert.That(exitCode).IsEqualTo(0);
+        await Assert.That(exitCode).IsEqualTo(1);
         using var json = JsonDocument.Parse(console.Output);
         await Assert.That(json.RootElement.GetProperty("identityConflictCount").GetInt32()).IsEqualTo(2);
         await Assert.That(json.RootElement.GetProperty("expectedCsvCount").GetInt32()).IsEqualTo(400);
@@ -225,6 +224,178 @@ public class ContextHygieneInventoryCommandTests
 
         await Assert.That(console.Output).DoesNotContain("SECRET_DIVERGENT_ROSTER_CONTENT");
         await Assert.That(console.Output).DoesNotContain("SECRET_DIVERGENT_KPI_CONTENT");
+    }
+
+    [Test]
+    public async Task Csv_byte_audit_fails_on_missing_csv_without_counting_it_as_invalid()
+    {
+        const string communityContext = "ehonda-dev-buli-2627";
+        var contextRepository = new Mock<IContextRepository>();
+        contextRepository.Setup(repository => repository.GetContextDocumentNamesAsync(
+                communityContext, It.IsAny<CancellationToken>()))
+            .ReturnsAsync([]);
+        var kpiRepository = new Mock<IKpiRepository>();
+        kpiRepository.Setup(repository => repository.GetAllKpiDocumentsAsync(
+                communityContext, It.IsAny<CancellationToken>()))
+            .ReturnsAsync([]);
+        var publicationRepository = new Mock<IDocumentPublicationRepository>();
+        publicationRepository.Setup(repository => repository.GetLastKnownGoodAsync(
+                It.IsAny<DocumentPublicationDefinition>(), communityContext, It.IsAny<CancellationToken>()))
+            .ReturnsAsync((LoadedDocumentPublication?)null);
+        var (app, console) = CreateApp(contextRepository, kpiRepository, publicationRepository);
+
+        var exitCode = await app.RunAsync([
+            "inventory",
+            "--community-context", communityContext,
+            "--evaluation-date", "2026-08-21",
+            "--validate-csv-bytes",
+            "--json"
+        ]);
+
+        await Assert.That(exitCode).IsEqualTo(1);
+        using var json = JsonDocument.Parse(console.Output);
+        await Assert.That(json.RootElement.GetProperty("expectedCsvCount").GetInt32()).IsEqualTo(400);
+        await Assert.That(json.RootElement.GetProperty("validCsvCount").GetInt32()).IsEqualTo(0);
+        await Assert.That(json.RootElement.GetProperty("invalidCsvCount").GetInt32()).IsEqualTo(0);
+        var rows = json.RootElement.GetProperty("documents").EnumerateArray().ToArray();
+        await Assert.That(rows.Count(row =>
+                row.GetProperty("csvByteState").GetString()
+                == nameof(BundesligaContextCsvValidationState.Missing)))
+            .IsEqualTo(400);
+        await Assert.That(rows.Single(row =>
+                row.GetProperty("name").GetString() == $"community-rules-{communityContext}.md")
+            .GetProperty("csvByteState").GetString())
+            .IsEqualTo(nameof(BundesligaContextCsvValidationState.NotApplicable));
+        VerifyNoWrites(contextRepository, kpiRepository, publicationRepository);
+    }
+
+    [Arguments(
+        BundesligaDocumentPublication.RosterPublicationSet,
+        "roster-fcb",
+        BundesligaContextCsvFormatContract.CsvBomNotAllowed)]
+    [Arguments(
+        BundesligaDocumentPublication.ClubEloPublicationSet,
+        "club-elo-rankings",
+        BundesligaContextCsvFormatContract.CsvLineEndingNotCrLf)]
+    [Test]
+    public async Task Csv_byte_audit_reports_malformed_authoritative_heads_without_payload_or_generic_error(
+        string publicationSet,
+        string corruptDocumentName,
+        string expectedDiagnostic)
+    {
+        var corruptContent = publicationSet == BundesligaDocumentPublication.RosterPublicationSet
+            ? "\uFEFFSECRET_HEADED_ROSTER_PAYLOAD"
+            : BundesligaClubEloPublication.CsvHeader + "\nSECRET_HEADED_ELO_PAYLOAD\n";
+        var canonicalRepository = CreateMockBundesligaDocumentPublicationRepository();
+        var roster = await canonicalRepository.Object.GetLastKnownGoodAsync(
+            BundesligaDocumentPublication.Rosters,
+            "test-community");
+        var elo = await canonicalRepository.Object.GetLastKnownGoodAsync(
+            BundesligaDocumentPublication.ClubElo,
+            "test-community");
+        if (publicationSet == BundesligaDocumentPublication.RosterPublicationSet)
+        {
+            roster = WithDocumentContent(roster!, corruptDocumentName, corruptContent);
+        }
+        else
+        {
+            elo = WithDocumentContent(elo!, corruptDocumentName, corruptContent);
+        }
+
+        var contextRepository = new Mock<IContextRepository>();
+        contextRepository.Setup(repository => repository.GetContextDocumentNamesAsync(
+                "test-community", It.IsAny<CancellationToken>()))
+            .ReturnsAsync([]);
+        var kpiRepository = new Mock<IKpiRepository>();
+        kpiRepository.Setup(repository => repository.GetAllKpiDocumentsAsync(
+                "test-community", It.IsAny<CancellationToken>()))
+            .ReturnsAsync([]);
+        var publicationRepository = new Mock<IDocumentPublicationRepository>();
+        publicationRepository.Setup(repository => repository.GetLastKnownGoodAsync(
+                BundesligaDocumentPublication.Rosters,
+                "test-community",
+                It.IsAny<CancellationToken>()))
+            .ReturnsAsync(roster);
+        publicationRepository.Setup(repository => repository.GetLastKnownGoodAsync(
+                BundesligaDocumentPublication.ClubElo,
+                "test-community",
+                It.IsAny<CancellationToken>()))
+            .ReturnsAsync(elo);
+        var (app, console) = CreateApp(contextRepository, kpiRepository, publicationRepository);
+
+        var exitCode = await app.RunAsync([
+            "inventory",
+            "--community-context", "test-community",
+            "--evaluation-date", "2026-08-21",
+            "--validate-csv-bytes",
+            "--json"
+        ]);
+
+        await Assert.That(exitCode).IsEqualTo(1);
+        using var json = JsonDocument.Parse(console.Output);
+        await Assert.That(json.RootElement.GetProperty("expectedCount").GetInt32()).IsEqualTo(401);
+        await Assert.That(json.RootElement.GetProperty("expectedCsvCount").GetInt32()).IsEqualTo(400);
+        await Assert.That(json.RootElement.GetProperty("validCsvCount").GetInt32()).IsEqualTo(38);
+        await Assert.That(json.RootElement.GetProperty("invalidCsvCount").GetInt32()).IsEqualTo(1);
+        var rows = json.RootElement.GetProperty("documents").EnumerateArray().ToArray();
+        await Assert.That(rows.Length).IsEqualTo(401);
+        var corrupt = rows.Single(row => row.GetProperty("name").GetString() == corruptDocumentName);
+        await Assert.That(corrupt.GetProperty("state").GetString()).IsEqualTo("Headed");
+        await Assert.That(corrupt.GetProperty("csvByteState").GetString())
+            .IsEqualTo(nameof(BundesligaContextCsvValidationState.Invalid));
+        await Assert.That(corrupt.GetProperty("csvByteDiagnostic").GetString())
+            .IsEqualTo(expectedDiagnostic);
+        await Assert.That(corrupt.GetProperty("sourceAsOf").ValueKind).IsEqualTo(JsonValueKind.Null);
+        await Assert.That(console.Output).DoesNotContain("SECRET_HEADED_ROSTER_PAYLOAD");
+        await Assert.That(console.Output).DoesNotContain("SECRET_HEADED_ELO_PAYLOAD");
+        await Assert.That(console.Output).DoesNotContain("Error:");
+        VerifyNoWrites(contextRepository, kpiRepository, publicationRepository);
+    }
+
+    [Test]
+    public async Task Default_inventory_retains_strict_semantic_failure_for_a_malformed_authoritative_head()
+    {
+        const string corruptContent = "\uFEFFSECRET_HEADED_ROSTER_PAYLOAD";
+        var canonicalRepository = CreateMockBundesligaDocumentPublicationRepository();
+        var roster = await canonicalRepository.Object.GetLastKnownGoodAsync(
+            BundesligaDocumentPublication.Rosters,
+            "test-community");
+        var elo = await canonicalRepository.Object.GetLastKnownGoodAsync(
+            BundesligaDocumentPublication.ClubElo,
+            "test-community");
+        roster = WithDocumentContent(roster!, "roster-fcb", corruptContent);
+
+        var contextRepository = new Mock<IContextRepository>();
+        contextRepository.Setup(repository => repository.GetContextDocumentNamesAsync(
+                "test-community", It.IsAny<CancellationToken>()))
+            .ReturnsAsync([]);
+        var kpiRepository = new Mock<IKpiRepository>();
+        kpiRepository.Setup(repository => repository.GetAllKpiDocumentsAsync(
+                "test-community", It.IsAny<CancellationToken>()))
+            .ReturnsAsync([]);
+        var publicationRepository = new Mock<IDocumentPublicationRepository>();
+        publicationRepository.Setup(repository => repository.GetLastKnownGoodAsync(
+                BundesligaDocumentPublication.Rosters,
+                "test-community",
+                It.IsAny<CancellationToken>()))
+            .ReturnsAsync(roster);
+        publicationRepository.Setup(repository => repository.GetLastKnownGoodAsync(
+                BundesligaDocumentPublication.ClubElo,
+                "test-community",
+                It.IsAny<CancellationToken>()))
+            .ReturnsAsync(elo);
+        var (app, console) = CreateApp(contextRepository, kpiRepository, publicationRepository);
+
+        var exitCode = await app.RunAsync([
+            "inventory",
+            "--community-context", "test-community",
+            "--evaluation-date", "2026-08-21",
+            "--json"
+        ]);
+
+        await Assert.That(exitCode).IsEqualTo(1);
+        await Assert.That(console.Output).Contains("Error:");
+        await Assert.That(console.Output).DoesNotContain("SECRET_HEADED_ROSTER_PAYLOAD");
     }
 
     [Test]
@@ -433,5 +604,37 @@ public class ContextHygieneInventoryCommandTests
         publicationRepository.Verify(repository => repository.PublishAsync(
             It.IsAny<DocumentPublicationDefinition>(), It.IsAny<DocumentPublicationRequest>(),
             It.IsAny<CancellationToken>()), Times.Never);
+    }
+
+    private static LoadedDocumentPublication WithDocumentContent(
+        LoadedDocumentPublication loaded,
+        string documentName,
+        string content)
+    {
+        var documents = loaded.Documents
+            .Select(document => string.Equals(document.Name, documentName, StringComparison.Ordinal)
+                ? document with { Content = content }
+                : document)
+            .ToArray();
+        var payloads = documents.Select(document => new DocumentPublicationPayload(
+            document.Kind,
+            document.Name,
+            document.Content,
+            document.Description)).ToArray();
+        var snapshotId = DocumentPublicationContract.ComputeSnapshotId(payloads);
+        var snapshot = new DocumentPublicationSnapshot(
+            loaded.Snapshot.Competition,
+            loaded.Snapshot.CommunityContext,
+            loaded.Snapshot.PublicationSet,
+            snapshotId,
+            loaded.Snapshot.PreviousSnapshotId,
+            loaded.Snapshot.CreatedAt,
+            loaded.Snapshot.MetadataJson,
+            documents.Select(document => new DocumentPublicationEntry(
+                document.Kind,
+                document.Name,
+                document.Version,
+                DocumentPublicationContract.ComputeContentSha256(document.Content))));
+        return new LoadedDocumentPublication(snapshot, documents);
     }
 }

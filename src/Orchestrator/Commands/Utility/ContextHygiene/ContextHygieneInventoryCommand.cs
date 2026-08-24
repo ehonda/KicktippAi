@@ -107,7 +107,12 @@ public sealed class ContextHygieneInventoryCommand : AsyncCommand<ContextHygiene
                 WriteTable(report);
             }
 
-            return report.InvalidCsvCount > 0 ? 1 : 0;
+            return settings.ValidateCsvBytes
+                   && (report.InvalidCsvCount > 0
+                       || report.Documents.Any(row =>
+                           row.CsvByteState == nameof(BundesligaContextCsvValidationState.Missing)))
+                ? 1
+                : 0;
         }
         catch (Exception exception)
         {
@@ -155,8 +160,18 @@ public sealed class ContextHygieneInventoryCommand : AsyncCommand<ContextHygiene
 
         var headed = new Dictionary<DocumentPublicationKey, HeadedIdentity>();
         var sourceDates = new Dictionary<DocumentPublicationKey, SourceDateIdentity>();
-        AddRosterPublication(rosterPublication, headed, sourceDates);
-        AddClubEloPublication(eloPublication, headed, sourceDates);
+        AddRosterPublication(
+            rosterPublication,
+            headed,
+            sourceDates,
+            communityContext,
+            validateCsvBytes);
+        AddClubEloPublication(
+            eloPublication,
+            headed,
+            sourceDates,
+            communityContext,
+            validateCsvBytes);
 
         var expected = BundesligaContextHygienePolicy.GetExpectedDocuments(communityContext)
             .ToDictionary(entry => entry.Key, entry => entry.Use);
@@ -288,14 +303,33 @@ public sealed class ContextHygieneInventoryCommand : AsyncCommand<ContextHygiene
     private static void AddRosterPublication(
         LoadedDocumentPublication? loaded,
         IDictionary<DocumentPublicationKey, HeadedIdentity> headed,
-        IDictionary<DocumentPublicationKey, SourceDateIdentity> sourceDates)
+        IDictionary<DocumentPublicationKey, SourceDateIdentity> sourceDates,
+        string communityContext,
+        bool validateCsvBytes)
     {
         if (loaded is null)
         {
             return;
         }
 
-        var reconstructed = BundesligaRosterPublication.ReconstructLastKnownGood(loaded);
+        foreach (var document in loaded.Documents)
+        {
+            AddHeaded(document, loaded.Snapshot, headed);
+        }
+
+        BundesligaRosterLastKnownGood reconstructed;
+        try
+        {
+            reconstructed = BundesligaRosterPublication.ReconstructLastKnownGood(loaded);
+        }
+        catch (InvalidDataException) when (CanDeferSemanticReconstructionFailure(
+                                               loaded,
+                                               communityContext,
+                                               validateCsvBytes))
+        {
+            return;
+        }
+
         var memberships = reconstructed.Snapshots.ToDictionary(snapshot => snapshot.Team.TeamSlug, snapshot => snapshot.MembershipAsOf);
         var aggregateMinimumDate = reconstructed.Snapshots.Min(snapshot => snapshot.MembershipAsOf);
         var aggregateMaximumDate = reconstructed.Snapshots.Max(snapshot => snapshot.MembershipAsOf);
@@ -306,7 +340,6 @@ public sealed class ContextHygieneInventoryCommand : AsyncCommand<ContextHygiene
             aggregateMinimumDate);
         foreach (var document in loaded.Documents)
         {
-            AddHeaded(document, loaded.Snapshot, headed);
             var key = document.Key;
             if (document.Kind == DocumentPublicationKind.Context
                 && document.Name.StartsWith("roster-", StringComparison.Ordinal))
@@ -326,22 +359,52 @@ public sealed class ContextHygieneInventoryCommand : AsyncCommand<ContextHygiene
     private static void AddClubEloPublication(
         LoadedDocumentPublication? loaded,
         IDictionary<DocumentPublicationKey, HeadedIdentity> headed,
-        IDictionary<DocumentPublicationKey, SourceDateIdentity> sourceDates)
+        IDictionary<DocumentPublicationKey, SourceDateIdentity> sourceDates,
+        string communityContext,
+        bool validateCsvBytes)
     {
         if (loaded is null)
         {
             return;
         }
 
-        var reconstructed = BundesligaClubEloPublication.ReconstructLastKnownGood(loaded);
         foreach (var document in loaded.Documents)
         {
             AddHeaded(document, loaded.Snapshot, headed);
+        }
+
+        BundesligaClubEloSnapshot reconstructed;
+        try
+        {
+            reconstructed = BundesligaClubEloPublication.ReconstructLastKnownGood(loaded);
+        }
+        catch (InvalidDataException) when (CanDeferSemanticReconstructionFailure(
+                                               loaded,
+                                               communityContext,
+                                               validateCsvBytes))
+        {
+            return;
+        }
+
+        foreach (var document in loaded.Documents)
+        {
             sourceDates[document.Key] = new SourceDateIdentity(
                 reconstructed.RatedAt.ToString("yyyy-MM-dd", CultureInfo.InvariantCulture),
                 reconstructed.RatedAt);
         }
     }
+
+    private static bool CanDeferSemanticReconstructionFailure(
+        LoadedDocumentPublication loaded,
+        string communityContext,
+        bool validateCsvBytes) =>
+        validateCsvBytes
+        && loaded.Documents.Any(document =>
+            BundesligaContextCsvFormatContract.Validate(
+                document.Key,
+                communityContext,
+                document.Content,
+                validateBytes: true).State == BundesligaContextCsvValidationState.Invalid);
 
     private static void AddHeaded(
         PublishedDocument document,
