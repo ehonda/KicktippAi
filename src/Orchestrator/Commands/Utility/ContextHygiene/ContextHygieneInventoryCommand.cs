@@ -28,7 +28,9 @@ public sealed record ContextHygieneInventoryRow(
     string? PublicationSet,
     string? PublicationSnapshotId,
     string? SourceAsOf,
-    string Freshness);
+    string Freshness,
+    string CsvByteState,
+    string? CsvByteDiagnostic);
 
 public sealed record ContextHygieneInventoryReport(
     string Competition,
@@ -39,6 +41,9 @@ public sealed record ContextHygieneInventoryReport(
     int MissingCount,
     int UnexpectedCount,
     int IdentityConflictCount,
+    int ExpectedCsvCount,
+    int ValidCsvCount,
+    int InvalidCsvCount,
     IReadOnlyList<ContextHygieneInventoryRow> Documents);
 
 public sealed class ContextHygieneInventoryCommand : AsyncCommand<ContextHygieneInventorySettings>
@@ -90,6 +95,7 @@ public sealed class ContextHygieneInventoryCommand : AsyncCommand<ContextHygiene
                 competition,
                 settings.CommunityContext,
                 evaluationDate,
+                settings.ValidateCsvBytes,
                 cancellationToken);
             if (settings.Json)
             {
@@ -101,7 +107,7 @@ public sealed class ContextHygieneInventoryCommand : AsyncCommand<ContextHygiene
                 WriteTable(report);
             }
 
-            return 0;
+            return report.InvalidCsvCount > 0 ? 1 : 0;
         }
         catch (Exception exception)
         {
@@ -115,6 +121,7 @@ public sealed class ContextHygieneInventoryCommand : AsyncCommand<ContextHygiene
         string competition,
         string communityContext,
         DateOnly evaluationDate,
+        bool validateCsvBytes,
         CancellationToken cancellationToken)
     {
         var contextRepository = _firebaseServiceFactory.CreateContextRepository(competition);
@@ -170,7 +177,8 @@ public sealed class ContextHygieneInventoryCommand : AsyncCommand<ContextHygiene
                 kpis.GetValueOrDefault(key),
                 headed.GetValueOrDefault(key),
                 sourceDates.GetValueOrDefault(key),
-                evaluationDate))
+                evaluationDate,
+                validateCsvBytes))
             .ToArray();
 
         return new ContextHygieneInventoryReport(
@@ -182,6 +190,9 @@ public sealed class ContextHygieneInventoryCommand : AsyncCommand<ContextHygiene
             rows.Count(row => row.State == "Missing"),
             rows.Count(row => row.Classification != nameof(BundesligaContextHygieneClassification.Expected)),
             rows.Count(row => row.State == "HeadedGenericConflict"),
+            BundesligaContextCsvFormatContract.GetExpectedCsvDocuments(communityContext).Count,
+            rows.Count(row => row.CsvByteState == nameof(BundesligaContextCsvValidationState.Valid)),
+            rows.Count(row => row.CsvByteState == nameof(BundesligaContextCsvValidationState.Invalid)),
             rows);
     }
 
@@ -193,7 +204,8 @@ public sealed class ContextHygieneInventoryCommand : AsyncCommand<ContextHygiene
         KpiDocument? kpi,
         HeadedIdentity? headed,
         SourceDateIdentity? sourceDate,
-        DateOnly evaluationDate)
+        DateOnly evaluationDate,
+        bool validateCsvBytes)
     {
         var assessment = BundesligaContextHygienePolicy.Assess(key.Kind, key.Name, communityContext);
         var genericVersion = context?.Version ?? kpi?.Version;
@@ -228,6 +240,12 @@ public sealed class ContextHygieneInventoryCommand : AsyncCommand<ContextHygiene
         var contentHash = headed?.ContentSha256
                           ?? genericContentHash;
         var createdAt = headed?.CreatedAt ?? genericCreatedAt;
+        var effectiveContent = headed?.Content ?? genericContent;
+        var csvValidation = BundesligaContextCsvFormatContract.Validate(
+            key,
+            communityContext,
+            effectiveContent,
+            validateCsvBytes);
         var identityDiagnostic = headed is not null && hasGenericIdentity && !genericMatchesHead
             ? "GENERIC_LATEST_DIVERGES_FROM_PUBLICATION_HEAD;" +
               FormatIdentity("generic", genericVersion, genericContentHash, genericCreatedAt) + ";" +
@@ -253,7 +271,9 @@ public sealed class ContextHygieneInventoryCommand : AsyncCommand<ContextHygiene
             headed?.PublicationSet,
             headed?.SnapshotId,
             sourceDate?.Display,
-            GetFreshness(key, sourceDate, evaluationDate));
+            GetFreshness(key, sourceDate, evaluationDate),
+            csvValidation.State.ToString(),
+            csvValidation.Diagnostic);
     }
 
     private static string FormatIdentity(
@@ -333,7 +353,8 @@ public sealed class ContextHygieneInventoryCommand : AsyncCommand<ContextHygiene
             DocumentPublicationContract.ComputeContentSha256(document.Content),
             document.CreatedAt,
             snapshot.PublicationSet,
-            snapshot.SnapshotId));
+            snapshot.SnapshotId,
+            document.Content));
     }
 
     private static string GetFreshness(
@@ -377,7 +398,9 @@ public sealed class ContextHygieneInventoryCommand : AsyncCommand<ContextHygiene
             .AddColumn("Source as of")
             .AddColumn("Freshness")
             .AddColumn("Publication snapshot")
-            .AddColumn("Identity diagnostic");
+            .AddColumn("Identity diagnostic")
+            .AddColumn("CSV bytes")
+            .AddColumn("CSV diagnostic");
         foreach (var row in report.Documents)
         {
             table.AddRow(
@@ -392,7 +415,9 @@ public sealed class ContextHygieneInventoryCommand : AsyncCommand<ContextHygiene
                 row.SourceAsOf ?? "-",
                 row.Freshness,
                 row.PublicationSnapshotId ?? "-",
-                Markup.Escape(row.IdentityDiagnostic ?? "-"));
+                Markup.Escape(row.IdentityDiagnostic ?? "-"),
+                row.CsvByteState,
+                row.CsvByteDiagnostic ?? "-");
         }
 
         _console.Write(table);
@@ -400,6 +425,9 @@ public sealed class ContextHygieneInventoryCommand : AsyncCommand<ContextHygiene
             $"[blue]Expected:[/] {report.ExpectedCount}; [green]present:[/] {report.PresentCount}; " +
             $"[red]missing:[/] {report.MissingCount}; [yellow]unexpected:[/] {report.UnexpectedCount}; " +
             $"[red]identity conflicts:[/] {report.IdentityConflictCount}");
+        _console.MarkupLine(
+            $"[blue]Expected CSV:[/] {report.ExpectedCsvCount}; [green]valid CSV:[/] {report.ValidCsvCount}; " +
+            $"[red]invalid CSV:[/] {report.InvalidCsvCount}");
     }
 
     private sealed record HeadedIdentity(
@@ -407,7 +435,8 @@ public sealed class ContextHygieneInventoryCommand : AsyncCommand<ContextHygiene
         string ContentSha256,
         DateTimeOffset CreatedAt,
         string PublicationSet,
-        string SnapshotId);
+        string SnapshotId,
+        string Content);
 
     private sealed record SourceDateIdentity(string Display, DateOnly Oldest);
 }

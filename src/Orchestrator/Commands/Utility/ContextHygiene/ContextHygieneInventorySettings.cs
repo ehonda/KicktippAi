@@ -21,6 +21,11 @@ public sealed class ContextHygieneInventorySettings : CommandSettings
     [DefaultValue(false)]
     public bool Json { get; set; }
 
+    [CommandOption("--validate-csv-bytes")]
+    [Description("Validate expected Bundesliga CSV headers and CRLF byte-format contracts")]
+    [DefaultValue(false)]
+    public bool ValidateCsvBytes { get; set; }
+
     [CommandOption("--evaluation-date <YYYY-MM-DD>")]
     [Description("Optional explicit Europe/Berlin date used for reproducible freshness classification")]
     public string? EvaluationDate { get; set; }

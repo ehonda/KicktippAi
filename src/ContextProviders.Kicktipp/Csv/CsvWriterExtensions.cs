@@ -21,7 +21,11 @@ public static class CsvWriterExtensions
         where TMap : ClassMap<T>, new()
     {
         using var stringWriter = new StringWriter();
-        using var csvWriter = new CsvWriter(stringWriter, CultureInfo.InvariantCulture);
+        var configuration = new CsvConfiguration(CultureInfo.InvariantCulture)
+        {
+            NewLine = "\r\n"
+        };
+        using var csvWriter = new CsvWriter(stringWriter, configuration);
         
         csvWriter.Context.RegisterClassMap<TMap>();
         csvWriter.WriteRecords(records);

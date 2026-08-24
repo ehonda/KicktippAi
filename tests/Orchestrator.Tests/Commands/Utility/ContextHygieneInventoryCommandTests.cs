@@ -51,10 +51,25 @@ public class ContextHygieneInventoryCommandTests
         await Assert.That(exitCode).IsEqualTo(0);
         using var json = JsonDocument.Parse(console.Output);
         await Assert.That(json.RootElement.GetProperty("identityConflictCount").GetInt32()).IsEqualTo(0);
+        await Assert.That(json.RootElement.GetProperty("expectedCsvCount").GetInt32()).IsEqualTo(400);
+        await Assert.That(json.RootElement.GetProperty("validCsvCount").GetInt32()).IsEqualTo(0);
+        await Assert.That(json.RootElement.GetProperty("invalidCsvCount").GetInt32()).IsEqualTo(0);
         var rows = json.RootElement.GetProperty("documents").EnumerateArray().ToArray();
+        var standings = rows.Single(row => row.GetProperty("name").GetString() == "bundesliga-standings.csv");
+        var missingHistory = rows.Single(row => row.GetProperty("name").GetString() == "recent-history-fcb.csv");
+        var missingRules = rows.Single(row =>
+            row.GetProperty("name").GetString() == "community-rules-ehonda-dev-buli-2627.md");
         var legacy = rows.Single(row => row.GetProperty("name").GetString() == "team-data");
+        await Assert.That(standings.GetProperty("csvByteState").GetString())
+            .IsEqualTo(nameof(BundesligaContextCsvValidationState.NotChecked));
+        await Assert.That(missingHistory.GetProperty("csvByteState").GetString())
+            .IsEqualTo(nameof(BundesligaContextCsvValidationState.Missing));
+        await Assert.That(missingRules.GetProperty("csvByteState").GetString())
+            .IsEqualTo(nameof(BundesligaContextCsvValidationState.NotApplicable));
         await Assert.That(legacy.GetProperty("classification").GetString())
             .IsEqualTo(nameof(BundesligaContextHygieneClassification.DeprecatedTeamOrManager));
+        await Assert.That(legacy.GetProperty("csvByteState").GetString())
+            .IsEqualTo(nameof(BundesligaContextCsvValidationState.NotApplicable));
         await Assert.That(legacy.GetProperty("contentSha256").GetString())
             .IsEqualTo(DocumentPublicationContract.ComputeContentSha256("SECRET_LEGACY_BODY"));
         await Assert.That(console.Output).DoesNotContain("SECRET_STANDINGS_BODY");
@@ -89,6 +104,7 @@ public class ContextHygieneInventoryCommandTests
             "inventory",
             "--community-context", "test-community",
             "--evaluation-date", "2026-08-21",
+            "--validate-csv-bytes",
             "--json"
         ]);
 
@@ -168,12 +184,16 @@ public class ContextHygieneInventoryCommandTests
             "inventory",
             "--community-context", "test-community",
             "--evaluation-date", "2026-08-21",
+            "--validate-csv-bytes",
             "--json"
         ]);
 
         await Assert.That(exitCode).IsEqualTo(0);
         using var json = JsonDocument.Parse(console.Output);
         await Assert.That(json.RootElement.GetProperty("identityConflictCount").GetInt32()).IsEqualTo(2);
+        await Assert.That(json.RootElement.GetProperty("expectedCsvCount").GetInt32()).IsEqualTo(400);
+        await Assert.That(json.RootElement.GetProperty("validCsvCount").GetInt32()).IsEqualTo(39);
+        await Assert.That(json.RootElement.GetProperty("invalidCsvCount").GetInt32()).IsEqualTo(0);
         var rows = json.RootElement.GetProperty("documents").EnumerateArray().ToArray();
         foreach (var name in new[] { "roster-fcb", "team-squad-summary" })
         {
@@ -187,6 +207,9 @@ public class ContextHygieneInventoryCommandTests
                 .Contains("GENERIC_LATEST_DIVERGES_FROM_PUBLICATION_HEAD");
             await Assert.That(conflict.GetProperty("identityDiagnostic").GetString()).Contains("generic(version=");
             await Assert.That(conflict.GetProperty("identityDiagnostic").GetString()).Contains("headed(version=");
+            await Assert.That(conflict.GetProperty("csvByteState").GetString())
+                .IsEqualTo(nameof(BundesligaContextCsvValidationState.Valid));
+            await Assert.That(conflict.GetProperty("csvByteDiagnostic").ValueKind).IsEqualTo(JsonValueKind.Null);
         }
 
         foreach (var name in new[] { "club-elo-fcb.csv", "club-elo-rankings" })
@@ -202,6 +225,71 @@ public class ContextHygieneInventoryCommandTests
 
         await Assert.That(console.Output).DoesNotContain("SECRET_DIVERGENT_ROSTER_CONTENT");
         await Assert.That(console.Output).DoesNotContain("SECRET_DIVERGENT_KPI_CONTENT");
+    }
+
+    [Test]
+    public async Task Csv_byte_audit_reports_full_json_then_fails_without_writes_or_content_disclosure()
+    {
+        var (app, console, contextRepository, kpiRepository, publicationRepository) =
+            CreateInvalidCsvAuditApp();
+
+        var exitCode = await app.RunAsync([
+            "inventory",
+            "--community-context", "ehonda-dev-buli-2627",
+            "--evaluation-date", "2026-08-21",
+            "--validate-csv-bytes",
+            "--json"
+        ]);
+
+        await Assert.That(exitCode).IsEqualTo(1);
+        using var json = JsonDocument.Parse(console.Output);
+        await Assert.That(json.RootElement.GetProperty("expectedCount").GetInt32()).IsEqualTo(401);
+        await Assert.That(json.RootElement.GetProperty("expectedCsvCount").GetInt32()).IsEqualTo(400);
+        await Assert.That(json.RootElement.GetProperty("validCsvCount").GetInt32()).IsEqualTo(0);
+        await Assert.That(json.RootElement.GetProperty("invalidCsvCount").GetInt32()).IsEqualTo(1);
+        var rows = json.RootElement.GetProperty("documents").EnumerateArray().ToArray();
+        await Assert.That(rows.Length).IsEqualTo(402);
+        var standings = rows.Single(row => row.GetProperty("name").GetString() == "bundesliga-standings.csv");
+        var rules = rows.Single(row =>
+            row.GetProperty("name").GetString() == "community-rules-ehonda-dev-buli-2627.md");
+        var missing = rows.Single(row => row.GetProperty("name").GetString() == "recent-history-fcb.csv");
+        var unexpected = rows.Single(row => row.GetProperty("name").GetString() == "operator-notes.csv");
+        await Assert.That(standings.GetProperty("csvByteState").GetString())
+            .IsEqualTo(nameof(BundesligaContextCsvValidationState.Invalid));
+        await Assert.That(standings.GetProperty("csvByteDiagnostic").GetString())
+            .IsEqualTo(BundesligaContextCsvFormatContract.CsvLineEndingNotCrLf);
+        await Assert.That(rules.GetProperty("csvByteState").GetString())
+            .IsEqualTo(nameof(BundesligaContextCsvValidationState.NotApplicable));
+        await Assert.That(missing.GetProperty("csvByteState").GetString())
+            .IsEqualTo(nameof(BundesligaContextCsvValidationState.Missing));
+        await Assert.That(unexpected.GetProperty("csvByteState").GetString())
+            .IsEqualTo(nameof(BundesligaContextCsvValidationState.NotApplicable));
+        await AssertNoSecretContent(console.Output);
+        VerifyNoWrites(contextRepository, kpiRepository, publicationRepository);
+    }
+
+    [Test]
+    public async Task Csv_byte_audit_table_reports_states_and_counts_then_fails()
+    {
+        var (app, console, _, _, _) = CreateInvalidCsvAuditApp();
+        console.Profile.Width = 500;
+
+        var exitCode = await app.RunAsync([
+            "inventory",
+            "--community-context", "ehonda-dev-buli-2627",
+            "--evaluation-date", "2026-08-21",
+            "--validate-csv-bytes"
+        ]);
+
+        await Assert.That(exitCode).IsEqualTo(1);
+        await Assert.That(console.Output).Contains("Expected CSV: 400");
+        await Assert.That(console.Output).Contains("valid CSV: 0");
+        await Assert.That(console.Output).Contains("invalid CSV: 1");
+        await Assert.That(console.Output).Contains(nameof(BundesligaContextCsvValidationState.Invalid));
+        await Assert.That(console.Output).Contains(nameof(BundesligaContextCsvValidationState.Missing));
+        await Assert.That(console.Output).Contains(nameof(BundesligaContextCsvValidationState.NotApplicable));
+        await Assert.That(console.Output).Contains(BundesligaContextCsvFormatContract.CsvLineEndingNotCrLf);
+        await AssertNoSecretContent(console.Output);
     }
 
     [Test]
@@ -270,5 +358,80 @@ public class ContextHygieneInventoryCommandTests
             configuration.AddCommand<ContextHygieneInventoryCommand>("inventory");
         });
         return (app, console);
+    }
+
+    private static (
+        CommandApp App,
+        TestConsole Console,
+        Mock<IContextRepository> ContextRepository,
+        Mock<IKpiRepository> KpiRepository,
+        Mock<IDocumentPublicationRepository> PublicationRepository) CreateInvalidCsvAuditApp()
+    {
+        const string communityContext = "ehonda-dev-buli-2627";
+        var contextRepository = new Mock<IContextRepository>();
+        contextRepository.Setup(repository => repository.GetContextDocumentNamesAsync(
+                communityContext, It.IsAny<CancellationToken>()))
+            .ReturnsAsync([
+                "bundesliga-standings.csv",
+                $"community-rules-{communityContext}.md",
+                "operator-notes.csv"
+            ]);
+        var documents = new Dictionary<string, ContextDocument>(StringComparer.Ordinal)
+        {
+            ["bundesliga-standings.csv"] = new(
+                "bundesliga-standings.csv",
+                BundesligaContextCsvFormatContract.StandingsHeader + "\nSECRET_INVALID_CSV_PAYLOAD\n",
+                4,
+                DateTimeOffset.UnixEpoch),
+            [$"community-rules-{communityContext}.md"] = new(
+                $"community-rules-{communityContext}.md",
+                "SECRET_MARKDOWN_PAYLOAD",
+                1,
+                DateTimeOffset.UnixEpoch),
+            ["operator-notes.csv"] = new(
+                "operator-notes.csv",
+                "SECRET_UNEXPECTED_CSV_PAYLOAD",
+                2,
+                DateTimeOffset.UnixEpoch)
+        };
+        contextRepository.Setup(repository => repository.GetLatestContextDocumentAsync(
+                It.IsAny<string>(), communityContext, It.IsAny<CancellationToken>()))
+            .ReturnsAsync((string name, string _, CancellationToken _) => documents[name]);
+
+        var kpiRepository = new Mock<IKpiRepository>();
+        kpiRepository.Setup(repository => repository.GetAllKpiDocumentsAsync(
+                communityContext, It.IsAny<CancellationToken>()))
+            .ReturnsAsync([]);
+        var publicationRepository = new Mock<IDocumentPublicationRepository>();
+        publicationRepository.Setup(repository => repository.GetLastKnownGoodAsync(
+                It.IsAny<DocumentPublicationDefinition>(), communityContext, It.IsAny<CancellationToken>()))
+            .ReturnsAsync((LoadedDocumentPublication?)null);
+
+        var (app, console) = CreateApp(contextRepository, kpiRepository, publicationRepository);
+        return (app, console, contextRepository, kpiRepository, publicationRepository);
+    }
+
+    private static async Task AssertNoSecretContent(string output)
+    {
+        await Assert.That(output).DoesNotContain("SECRET_INVALID_CSV_PAYLOAD");
+        await Assert.That(output).DoesNotContain("SECRET_MARKDOWN_PAYLOAD");
+        await Assert.That(output).DoesNotContain("SECRET_UNEXPECTED_CSV_PAYLOAD");
+    }
+
+    private static void VerifyNoWrites(
+        Mock<IContextRepository> contextRepository,
+        Mock<IKpiRepository> kpiRepository,
+        Mock<IDocumentPublicationRepository> publicationRepository)
+    {
+        contextRepository.Verify(repository => repository.SaveContextDocumentAsync(
+            It.IsAny<string>(), It.IsAny<string>(), It.IsAny<string>(), It.IsAny<CancellationToken>()), Times.Never);
+        contextRepository.Verify(repository => repository.SaveContextDocumentsAtomicallyAsync(
+            It.IsAny<IReadOnlyList<ContextDocumentWrite>>(), It.IsAny<string>(), It.IsAny<CancellationToken>()), Times.Never);
+        kpiRepository.Verify(repository => repository.SaveKpiDocumentAsync(
+            It.IsAny<string>(), It.IsAny<string>(), It.IsAny<string>(), It.IsAny<string>(),
+            It.IsAny<CancellationToken>()), Times.Never);
+        publicationRepository.Verify(repository => repository.PublishAsync(
+            It.IsAny<DocumentPublicationDefinition>(), It.IsAny<DocumentPublicationRequest>(),
+            It.IsAny<CancellationToken>()), Times.Never);
     }
 }
