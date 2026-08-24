@@ -10,15 +10,18 @@ public sealed class CollectContextProfileCommand : AsyncCommand<CollectContextPr
     private readonly IAnsiConsole _console;
     private readonly ICompetitionCollectionProfileResolver _profileResolver;
     private readonly ICompetitionProfileCollectorExecutor _collectorExecutor;
+    private readonly ICommunityKicktippCredentialLoader _credentialLoader;
 
     public CollectContextProfileCommand(
         IAnsiConsole console,
         ICompetitionCollectionProfileResolver profileResolver,
-        ICompetitionProfileCollectorExecutor collectorExecutor)
+        ICompetitionProfileCollectorExecutor collectorExecutor,
+        ICommunityKicktippCredentialLoader credentialLoader)
     {
         _console = console;
         _profileResolver = profileResolver;
         _collectorExecutor = collectorExecutor;
+        _credentialLoader = credentialLoader;
     }
 
     protected override async Task<int> ExecuteAsync(
@@ -39,6 +42,22 @@ public sealed class CollectContextProfileCommand : AsyncCommand<CollectContextPr
         catch (Exception exception) when (exception is ArgumentException or InvalidOperationException or NotSupportedException)
         {
             _console.MarkupLine($"[red]Error:[/] {Markup.Escape(exception.Message)}");
+            return 1;
+        }
+
+        try
+        {
+            _credentialLoader.Load(communityContext);
+        }
+        catch (Exception exception) when (exception is ArgumentException
+                                           or InvalidOperationException
+                                           or IOException
+                                           or UnauthorizedAccessException)
+        {
+            _console.MarkupLine(
+                $"[red]Error:[/] Unable to load Kicktipp credentials for community context " +
+                $"'[yellow]{Markup.Escape(communityContext)}[/]'. Check the matching sibling credential file " +
+                "and injected environment variables.");
             return 1;
         }
 

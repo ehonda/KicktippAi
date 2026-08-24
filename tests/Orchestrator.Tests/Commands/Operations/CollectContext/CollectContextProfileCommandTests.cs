@@ -11,6 +11,61 @@ namespace Orchestrator.Tests.Commands.Operations.CollectContext;
 public class CollectContextProfileCommandTests
 {
     [Test]
+    public async Task Arena_profile_loads_exact_context_credentials_once_before_first_collector()
+    {
+        var calls = new List<string>();
+        var credentialLoader = new Mock<ICommunityKicktippCredentialLoader>();
+        credentialLoader
+            .Setup(loader => loader.Load("ehonda-ai-arena"))
+            .Callback(() => calls.Add("credentials"));
+        var executor = new Mock<ICompetitionProfileCollectorExecutor>();
+        executor.Setup(instance => instance.ExecuteAsync(
+                It.IsAny<CompetitionCollector>(),
+                It.IsAny<CompetitionCollectorExecutionContext>(),
+                It.IsAny<CancellationToken>()))
+            .Callback<CompetitionCollector, CompetitionCollectorExecutionContext, CancellationToken>(
+                (collector, _, _) => calls.Add($"collector:{collector}"))
+            .ReturnsAsync(0);
+        var (app, console) = CreateApp(executor, credentialLoader);
+
+        var (exitCode, _) = await RunCommandAsync(
+            app,
+            console,
+            "collect-context-profile",
+            "--community-context", " ehonda-ai-arena ",
+            "--competition", CompetitionIds.Bundesliga2026_27,
+            "--dry-run");
+
+        await Assert.That(exitCode).IsEqualTo(0);
+        await Assert.That(calls[0]).IsEqualTo("credentials");
+        await Assert.That(calls[1]).StartsWith("collector:");
+        credentialLoader.Verify(loader => loader.Load("ehonda-ai-arena"), Times.Once);
+    }
+
+    [Test]
+    public async Task Explicit_self_contained_profile_uses_trimmed_context_as_credential_identity()
+    {
+        var executed = new List<(CompetitionCollector Collector, CompetitionCollectorExecutionContext Context)>();
+        var executor = CreateExecutor(executed);
+        var credentialLoader = new Mock<ICommunityKicktippCredentialLoader>();
+        var (app, console) = CreateApp(executor, credentialLoader);
+
+        var (exitCode, _) = await RunCommandAsync(
+            app,
+            console,
+            "collect-context-profile",
+            "--community-context", " standalone-community ",
+            "--competition", CompetitionIds.Bundesliga2026_27,
+            "--dry-run");
+
+        await Assert.That(exitCode).IsEqualTo(0);
+        credentialLoader.Verify(loader => loader.Load("standalone-community"), Times.Once);
+        await Assert.That(executed.All(call =>
+            call.Context.Community == "standalone-community"
+            && call.Context.CommunityContext == "standalone-community")).IsTrue();
+    }
+
+    [Test]
     public async Task Bundesliga_profile_runs_only_its_direct_collectors_and_writes_stable_summary()
     {
         var executed = new List<(CompetitionCollector Collector, CompetitionCollectorExecutionContext Context)>();
@@ -138,7 +193,8 @@ public class CollectContextProfileCommandTests
     public async Task Explicit_cross_competition_dev_context_fails_before_any_collector()
     {
         var executor = new Mock<ICompetitionProfileCollectorExecutor>();
-        var (app, console) = CreateApp(executor);
+        var credentialLoader = new Mock<ICommunityKicktippCredentialLoader>();
+        var (app, console) = CreateApp(executor, credentialLoader);
 
         var (exitCode, output) = await RunCommandAsync(
             app,
@@ -153,13 +209,15 @@ public class CollectContextProfileCommandTests
             It.IsAny<CompetitionCollector>(),
             It.IsAny<CompetitionCollectorExecutionContext>(),
             It.IsAny<CancellationToken>()), Times.Never);
+        credentialLoader.Verify(loader => loader.Load(It.IsAny<string>()), Times.Never);
     }
 
     [Test]
     public async Task Missing_explicit_competition_fails_settings_validation_before_any_collector()
     {
         var executor = new Mock<ICompetitionProfileCollectorExecutor>();
-        var (app, console) = CreateApp(executor);
+        var credentialLoader = new Mock<ICommunityKicktippCredentialLoader>();
+        var (app, console) = CreateApp(executor, credentialLoader);
 
         var (exitCode, output) = await RunCommandAsync(
             app,
@@ -169,6 +227,51 @@ public class CollectContextProfileCommandTests
 
         await Assert.That(exitCode).IsNotEqualTo(0);
         await Assert.That(output).Contains("--competition is required");
+        executor.Verify(instance => instance.ExecuteAsync(
+            It.IsAny<CompetitionCollector>(),
+            It.IsAny<CompetitionCollectorExecutionContext>(),
+            It.IsAny<CancellationToken>()), Times.Never);
+        credentialLoader.Verify(loader => loader.Load(It.IsAny<string>()), Times.Never);
+    }
+
+    [Test]
+    [Arguments("argument")]
+    [Arguments("invalid-operation")]
+    [Arguments("io")]
+    [Arguments("unauthorized")]
+    public async Task Credential_loader_failure_is_actionable_redacted_and_prevents_collection(string failureKind)
+    {
+        const string secretSentinel = "do-not-print-this-password";
+        Exception failure = failureKind switch
+        {
+            "argument" => new ArgumentException(secretSentinel),
+            "invalid-operation" => new InvalidOperationException(secretSentinel),
+            "io" => new IOException(secretSentinel),
+            "unauthorized" => new UnauthorizedAccessException(secretSentinel),
+            _ => throw new ArgumentOutOfRangeException(nameof(failureKind), failureKind, null)
+        };
+        var executor = new Mock<ICompetitionProfileCollectorExecutor>();
+        var credentialLoader = new Mock<ICommunityKicktippCredentialLoader>();
+        credentialLoader
+            .Setup(loader => loader.Load("ehonda-ai-arena"))
+            .Throws(failure);
+        var (app, console) = CreateApp(executor, credentialLoader);
+
+        var (exitCode, output) = await RunCommandAsync(
+            app,
+            console,
+            "collect-context-profile",
+            "--community-context", "ehonda-ai-arena",
+            "--competition", CompetitionIds.Bundesliga2026_27);
+
+        await Assert.That(exitCode).IsEqualTo(1);
+        await Assert.That(output)
+            .Contains("Unable to load Kicktipp credentials")
+            .And.Contains("ehonda-ai-arena")
+            .And.Contains("sibling credential file")
+            .And.Contains("environment variables")
+            .And.DoesNotContain(secretSentinel);
+        credentialLoader.Verify(loader => loader.Load("ehonda-ai-arena"), Times.Once);
         executor.Verify(instance => instance.ExecuteAsync(
             It.IsAny<CompetitionCollector>(),
             It.IsAny<CompetitionCollectorExecutionContext>(),
@@ -190,14 +293,17 @@ public class CollectContextProfileCommandTests
     }
 
     private static (Spectre.Console.Cli.CommandApp App, Spectre.Console.Testing.TestConsole Console) CreateApp(
-        Mock<ICompetitionProfileCollectorExecutor> executor)
+        Mock<ICompetitionProfileCollectorExecutor> executor,
+        Mock<ICommunityKicktippCredentialLoader>? credentialLoader = null)
     {
+        var resolvedCredentialLoader = credentialLoader ?? new Mock<ICommunityKicktippCredentialLoader>();
         return CreateCommandApp<CollectContextProfileCommand>(
             "collect-context-profile",
             configureServices: new Action<IServiceCollection>(services =>
             {
                 services.AddSingleton<ICompetitionCollectionProfileResolver, CompetitionCollectionProfileResolver>();
                 services.AddSingleton(executor.Object);
+                services.AddSingleton(resolvedCredentialLoader.Object);
             }));
     }
 
