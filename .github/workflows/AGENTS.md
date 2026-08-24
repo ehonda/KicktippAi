@@ -13,6 +13,24 @@ As of 2026-08-13, all WM26 entrypoint workflows are deactivated: their
 has concluded. The files keep `workflow_call` only so they remain valid for
 future reuse.
 
+As of 2026-08-22, the only Bundesliga 2026/27 Actions entrypoints are the
+manual-only self-contained arena Luna validation triad:
+
+- `buli2627-ehonda-ai-arena-context-collection.yml`;
+- `buli2627-ehonda-ai-arena-gpt-5-6-luna-none-matchday.yml`; and
+- `buli2627-ehonda-ai-arena-gpt-5-6-luna-none-bonus.yml`.
+
+They expose `workflow_dispatch` only and have no checked-in schedule or
+`workflow_call`. They target and source context from `ehonda-ai-arena`, pin
+competition `bundesliga-2026-27`, and use the authorized plumbing identity
+`gpt-5.6-luna` / `none` / `10000` with production-labelled hosted prompt
+versions `2` (match) and `1` (bonus). The bonus caller pins the accepted
+`20`-document and `32000`-estimated-token budgets. P0-20 owns dispatch and any
+separately authorized temporary arena schedule; the triad itself creates no
+schedule. Its traces are classified as Langfuse `production` because the arena
+is a production posting target, which does not promote Luna/none to the final
+production model.
+
 `wm26-ehonda-ai-arena-gpt-5-nano-minimal-matchday.yml`,
 `wm26-ehonda-ai-arena-gpt-5-nano-minimal-bonus.yml`,
 `wm26-ehonda-ai-arena-gpt-5-5-none-matchday.yml`,
@@ -75,7 +93,7 @@ files cited below are historical, inert `workflow_call`-only entrypoints.
 
 #### Matchday Command
 
-Derived from retained workflows: `pes-squad-matchday.yml`, `schadensfresse-matchday.yml`, `wm26-rabetrabauken2026-o3-high-matchday.yml`, and the historical/inert `ehonda-ai-arena` matchday entrypoints including `wm26-ehonda-ai-arena-*-matchday.yml`
+Derived from retained workflows: `pes-squad-matchday.yml`, `schadensfresse-matchday.yml`, `wm26-rabetrabauken2026-o3-high-matchday.yml`, the historical/inert `wm26-ehonda-ai-arena-*-matchday.yml` files, and the manual-only Bundesliga arena Luna matchday entrypoint
 
 - `pes-squad`
 - `schadensfresse`
@@ -84,7 +102,7 @@ Derived from retained workflows: `pes-squad-matchday.yml`, `schadensfresse-match
 
 #### Bonus Command
 
-Derived from retained workflows: `pes-squad-bonus.yml`, `schadensfresse-bonus.yml`, `wm26-rabetrabauken2026-o3-high-bonus.yml`, and the historical/inert `ehonda-ai-arena` bonus entrypoints including `wm26-ehonda-ai-arena-*-bonus.yml`
+Derived from retained workflows: `pes-squad-bonus.yml`, `schadensfresse-bonus.yml`, `wm26-rabetrabauken2026-o3-high-bonus.yml`, the historical/inert `wm26-ehonda-ai-arena-*-bonus.yml` files, and the manual-only Bundesliga arena Luna bonus entrypoint
 
 - `pes-squad`
 - `schadensfresse`

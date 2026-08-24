@@ -128,6 +128,44 @@ public class BonusCommand_Telemetry_Tests : BonusCommandTests_Base
 
     [Test]
     [NotInParallel("Telemetry")]
+    public async Task Arena_Luna_Bundesliga_validation_path_keeps_production_environment_and_exact_identity()
+    {
+        var capturedActivities = new List<Activity>();
+        using var listener = CreateActivityListener(capturedActivities);
+        var ctx = CreateBonusCommandApp();
+
+        var (exitCode, _) = await RunCommandAsync(
+            ctx.App,
+            ctx.Console,
+            "bonus",
+            "gpt-5.6-luna",
+            "-c", "ehonda-ai-arena",
+            "--community-context", "ehonda-ai-arena",
+            "--competition", CompetitionIds.Bundesliga2026_27,
+            "--reasoning-effort", "none",
+            "--max-output-tokens", "10000",
+            "--prompt-source", "langfuse",
+            "--langfuse-prompt-name", "kicktippai/bundesliga-2026-27/predict-bonus",
+            "--langfuse-prompt-label", "production",
+            "--langfuse-prompt-version", "1",
+            "--bonus-context-document-budget", "20",
+            "--bonus-context-token-budget", "32000");
+
+        var rootActivity = capturedActivities.LastOrDefault(activity => activity.OperationName == "bonus");
+        await Assert.That(exitCode).IsEqualTo(0);
+        await Assert.That(rootActivity).IsNotNull();
+        await Assert.That(rootActivity!.GetTagItem("langfuse.environment") as string).IsEqualTo("production");
+        await Assert.That(rootActivity.GetTagItem("langfuse.trace.metadata.community") as string).IsEqualTo("ehonda-ai-arena");
+        await Assert.That(rootActivity.GetTagItem("langfuse.trace.metadata.competition") as string).IsEqualTo(CompetitionIds.Bundesliga2026_27);
+        await Assert.That(rootActivity.GetTagItem("langfuse.trace.metadata.model") as string).IsEqualTo("gpt-5.6-luna");
+        await Assert.That(rootActivity.GetTagItem("langfuse.trace.metadata.reasoningEffort") as string).IsEqualTo("none");
+        await Assert.That(rootActivity.GetTagItem("langfuse.trace.metadata.maxOutputTokens") as string).IsEqualTo("10000");
+        await Assert.That(rootActivity.GetTagItem("langfuse.trace.metadata.promptName") as string).IsEqualTo("kicktippai/bundesliga-2026-27/predict-bonus");
+        await Assert.That(rootActivity.GetTagItem("langfuse.trace.metadata.promptVersion") as string).IsEqualTo("1");
+    }
+
+    [Test]
+    [NotInParallel("Telemetry")]
     public async Task Rabetrabauken2026_sets_environment_to_production()
     {
         var capturedActivities = new List<Activity>();

@@ -58,4 +58,13 @@ Shared Actions configuration uses `FIREBASE_PROJECT_ID`, `FIREBASE_SERVICE_ACCOU
 
 ## Workflow and activation boundary
 
-P0-17 adds no workflow. Existing Bundesliga 2025/26 and WM26 community entrypoints remain `workflow_call`-only historical files with no active `workflow_dispatch` or schedule. P0-18 makes reusable workflows accept the explicit Bundesliga identity. P0-19 creates manual-only entrypoints from deployable rows. P0-20 alone exercises the Luna validation ladder, including its separately authorized temporary arena schedule. P0-21 owns production manual evidence and final schedule activation.
+P0-17 adds no workflow. Existing Bundesliga 2025/26 and WM26 community
+entrypoints remain `workflow_call`-only historical files with no active
+`workflow_dispatch` or schedule. P0-18 makes reusable workflows accept the
+explicit Bundesliga identity. The first P0-19 copy creates exactly one
+manual-only `arena-luna-self-contained` triad; the `dev-luna` row remains a
+local CLI path because P0-17 assigns it no Actions participant. Production and
+challenger entrypoints remain owner-gated. P0-20 alone exercises the local dev
+cycle and arena Luna ladder, including its separately authorized temporary
+arena schedule. P0-21 owns production manual evidence and final schedule
+activation.

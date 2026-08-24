@@ -38,14 +38,19 @@ The accepted [execution strategy](execution-strategy.md) defines gated orchestra
 | [P0-16](tasks/p0-16-question-aware-bonus-context.md) | Bound bonus context by question before the one-time bonus run | P0-13, P0-15 |
 | [P0-17](tasks/p0-17-community-scope.md) | Record community, context, model-slot, and credential topology | P0-05, P0-16 |
 | [P0-18](tasks/p0-18-base-workflow-support.md) | Teach reusable workflows the Bundesliga profile | P0-14, P0-17 |
-| [P0-19](tasks/p0-19-community-workflow-triad.md) | Add an explicit workflow triad per community | P0-17, P0-18 |
+| [P0-19 template](tasks/p0-19-community-workflow-triad.md) | Copy an explicit workflow-triad task per deployable matrix row | P0-17, P0-18 |
+| [P0-19 arena Luna](tasks/p0-19-arena-luna-self-contained-workflow-triad.md) | Add exactly one manual-only self-contained arena Luna validation triad | P0-17, P0-18 |
 | [P0-20](tasks/p0-20-seed-and-development-validation.md) | Seed context and validate dev plus arena plumbing | P0-02 through P0-18, P0-22, local dev path, Luna/none arena P0-19 entrypoints |
 | [P0-21](tasks/p0-21-production-activation.md) | Validate production, submit opening predictions, and enable schedules | P0-06, P0-20, production P0-19 entrypoints |
 | [P0-22](tasks/p0-22-history-played-dates.md) | Reconstruct exact played dates for recent, home, and away history | P0-02, P0-04 |
 
 P0-01 and P0-04 can begin independently. After P0-01, storage, completion, and prompt work can proceed in dependency-safe lanes; after P0-04, roster, Club Elo, and history played-date work can proceed independently. Context hygiene joins those lanes before any community workflow can generate a real prediction. P0-21 is the only task authorized to enable final production schedules.
 
-For P0-19, copy the template once per community matrix row that needs an entrypoint so each workflow triad can be implemented and reviewed independently.
+For P0-19, copy the template once per community matrix row that needs an
+entrypoint so each workflow triad can be implemented and reviewed
+independently. The only deployable copy so far is the manual-only
+`arena-luna-self-contained` validation triad. The development row remains a
+local CLI path, while production and challenger rows retain their owner gates.
 
 ## Handoffs
 

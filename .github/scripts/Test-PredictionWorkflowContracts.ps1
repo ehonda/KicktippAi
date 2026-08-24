@@ -1,7 +1,8 @@
 [CmdletBinding()]
 param(
     [string] $RepositoryRoot = (Resolve-Path (Join-Path $PSScriptRoot '..\..')).Path,
-    [switch] $SkipHostileShellSimulation
+    [switch] $SkipHostileShellSimulation,
+    [switch] $AllowMissingArenaLunaTriad
 )
 
 $ErrorActionPreference = 'Stop'
@@ -25,8 +26,13 @@ function Get-WithValue {
         [bool] $Required = $true
     )
 
-    $match = [regex]::Match(
+    $withBlock = [regex]::Match(
         $Content,
+        '(?ms)^    with:\r?\n(?<body>.*?)(?=^    \S)')
+    Assert-True $withBlock.Success "$FileName does not contain a reusable-workflow with block."
+
+    $match = [regex]::Match(
+        $withBlock.Groups['body'].Value,
         "(?m)^      $([regex]::Escape($Name)):[ \t]*(?<value>[^\r\n]*)\r?$")
     if (-not $match.Success) {
         if ($Required) {
@@ -48,6 +54,206 @@ function Assert-RequiredInput {
 
     $pattern = "(?ms)^      $([regex]::Escape($Name)):\r?\n(?:(?!^      \S).)*?^        required: true\s*$"
     Assert-True ([regex]::IsMatch($Content, $pattern)) "$FileName must declare '$Name' as a required workflow_call input."
+}
+
+function Get-TriggerBlock {
+    param(
+        [string] $Content,
+        [string] $FileName
+    )
+
+    $match = [regex]::Match($Content, '(?ms)^on:\r?\n(?<body>.*?)^jobs:')
+    Assert-True $match.Success "$FileName does not contain a readable top-level trigger block."
+    return $match.Groups['body'].Value
+}
+
+function Assert-ManualDispatchOnly {
+    param(
+        [string] $Content,
+        [string] $FileName,
+        [bool] $RequiresPredictionInputs
+    )
+
+    $triggerBlock = Get-TriggerBlock $Content $FileName
+    $topLevelEntries = @($triggerBlock -split '\r?\n' |
+        Where-Object { $_ -match '^  \S' -and $_ -notmatch '^  #' })
+    $hasExactManualEntry = $topLevelEntries.Count -eq 1 -and
+        $topLevelEntries[0] -match '^  workflow_dispatch:\s*$'
+    Assert-True $hasExactManualEntry "$FileName trigger block must contain exactly the unquoted workflow_dispatch entry and no other top-level entry; found: $($topLevelEntries -join ' | ')."
+
+    if (-not $RequiresPredictionInputs) {
+        Assert-True (-not [regex]::IsMatch($triggerBlock, '(?m)^    inputs:\s*$')) "$FileName context dispatch must not expose prediction inputs."
+        return
+    }
+
+    foreach ($inputContract in @(
+        @{ Name = 'force_prediction'; Default = 'false'; Type = 'boolean' },
+        @{ Name = 'max_repredictions'; Default = '2'; Type = 'number' }
+    )) {
+        $pattern = "(?ms)^      $([regex]::Escape($inputContract.Name)):\r?\n(?:(?!^      \S).)*?^        default: $([regex]::Escape($inputContract.Default))\s*\r?\n(?:(?!^      \S).)*?^        type: $([regex]::Escape($inputContract.Type))\s*$"
+        Assert-True ([regex]::IsMatch($triggerBlock, $pattern)) "$FileName must expose $($inputContract.Name) with default $($inputContract.Default) and type $($inputContract.Type)."
+    }
+}
+
+function Assert-AdditionalManualTriggersRejected {
+    foreach ($mutation in @(
+        @{ Name = 'bare-push'; Entry = '  push:' },
+        @{ Name = 'single-quoted-push'; Entry = "  'push':" },
+        @{ Name = 'double-quoted-pull-request'; Entry = '  "pull_request":' },
+        @{ Name = 'spaced-repository-dispatch'; Entry = '  repository_dispatch :' },
+        @{ Name = 'quoted-spaced-push'; Entry = "  'push' :" }
+    )) {
+        $syntheticContent = @"
+on:
+  workflow_dispatch:
+$($mutation.Entry)
+jobs:
+  test:
+    runs-on: ubuntu-latest
+"@
+        $rejectionMessage = $null
+        try {
+            Assert-ManualDispatchOnly $syntheticContent "synthetic-$($mutation.Name).yml" $false
+        }
+        catch {
+            $rejectionMessage = $_.Exception.Message
+        }
+
+        Assert-True ($null -ne $rejectionMessage -and $rejectionMessage.Contains($mutation.Entry, [StringComparison]::Ordinal)) "Manual-only trigger validation must identify and reject the $($mutation.Name) top-level entry."
+    }
+}
+
+function Assert-SecretMapping {
+    param(
+        [string] $Content,
+        [string] $InputName,
+        [string] $SecretName,
+        [string] $FileName
+    )
+
+    $pattern = "(?m)^      $([regex]::Escape($InputName)):\s*\$\{\{\s*secrets\.$([regex]::Escape($SecretName))\s*\}\}\s*$"
+    Assert-True ([regex]::IsMatch($Content, $pattern)) "$FileName must map $InputName from secrets.$SecretName."
+}
+
+function Assert-ExactSecretMappings {
+    param(
+        [string] $Content,
+        [string[]] $ExpectedMappings,
+        [string] $FileName
+    )
+
+    $actualMappings = @([regex]::Matches(
+        $Content,
+        '(?m)^      (?<input>[a-z0-9_]+):\s*\$\{\{\s*secrets\.(?<secret>[A-Z0-9_]+)\s*\}\}\s*$') |
+        ForEach-Object { "$($_.Groups['input'].Value)=$($_.Groups['secret'].Value)" })
+    $expected = [Collections.Generic.HashSet[string]]::new([StringComparer]::Ordinal)
+    $actual = [Collections.Generic.HashSet[string]]::new([StringComparer]::Ordinal)
+    foreach ($mapping in $ExpectedMappings) {
+        $null = $expected.Add($mapping)
+    }
+    foreach ($mapping in $actualMappings) {
+        $null = $actual.Add($mapping)
+    }
+    Assert-True ($expected.SetEquals($actual)) "$FileName secret mappings differ. Expected $($ExpectedMappings -join ', '); got $($actualMappings -join ', ')."
+}
+
+function Assert-ArenaLunaTriad {
+    param(
+        [string] $WorkflowDirectory,
+        [switch] $AllowMissing
+    )
+
+    $contextFileName = 'buli2627-ehonda-ai-arena-context-collection.yml'
+    $matchFileName = 'buli2627-ehonda-ai-arena-gpt-5-6-luna-none-matchday.yml'
+    $bonusFileName = 'buli2627-ehonda-ai-arena-gpt-5-6-luna-none-bonus.yml'
+    $fileNames = @($contextFileName, $matchFileName, $bonusFileName)
+    $paths = @($fileNames | ForEach-Object { Join-Path $WorkflowDirectory $_ })
+    $presentPaths = @($paths | Where-Object { Test-Path -LiteralPath $_ })
+
+    if ($presentPaths.Count -eq 0 -and $AllowMissing) {
+        Write-Verbose 'Arena Luna triad not present in this isolated support lane; integrated validation remains required.'
+        return $false
+    }
+
+    $missingFileNames = @($fileNames | Where-Object { -not (Test-Path -LiteralPath (Join-Path $WorkflowDirectory $_)) })
+    Assert-True ($missingFileNames.Count -eq 0) "The arena Luna triad is incomplete. Missing: $($missingFileNames -join ', ')."
+
+    $context = Get-Content -Raw -LiteralPath (Join-Path $WorkflowDirectory $contextFileName)
+    $match = Get-Content -Raw -LiteralPath (Join-Path $WorkflowDirectory $matchFileName)
+    $bonus = Get-Content -Raw -LiteralPath (Join-Path $WorkflowDirectory $bonusFileName)
+
+    Assert-ManualDispatchOnly $context $contextFileName $false
+    Assert-ManualDispatchOnly $match $matchFileName $true
+    Assert-ManualDispatchOnly $bonus $bonusFileName $true
+
+    Assert-True $context.Contains('uses: ./.github/workflows/base-context-collection.yml', [StringComparison]::Ordinal) "$contextFileName must call the reusable context workflow."
+    foreach ($expected in @(
+        @{ Name = 'community_context'; Value = 'ehonda-ai-arena' },
+        @{ Name = 'competition'; Value = 'bundesliga-2026-27' },
+        @{ Name = 'trigger_type'; Value = 'manual' }
+    )) {
+        Assert-True ((Get-WithValue $context $expected.Name $contextFileName) -eq $expected.Value) "$contextFileName must pass $($expected.Name)=$($expected.Value)."
+    }
+
+    foreach ($prediction in @(
+        @{ FileName = $matchFileName; Content = $match; Base = 'base-matchday-predictions.yml'; PromptName = 'kicktippai/bundesliga-2026-27/predict-one-match'; PromptVersion = '2' },
+        @{ FileName = $bonusFileName; Content = $bonus; Base = 'base-bonus-predictions.yml'; PromptName = 'kicktippai/bundesliga-2026-27/predict-bonus'; PromptVersion = '1' }
+    )) {
+        Assert-True $prediction.Content.Contains("uses: ./.github/workflows/$($prediction.Base)", [StringComparison]::Ordinal) "$($prediction.FileName) must call $($prediction.Base)."
+        foreach ($expected in @(
+            @{ Name = 'community'; Value = 'ehonda-ai-arena' },
+            @{ Name = 'community_context'; Value = 'ehonda-ai-arena' },
+            @{ Name = 'competition'; Value = 'bundesliga-2026-27' },
+            @{ Name = 'model'; Value = 'gpt-5.6-luna' },
+            @{ Name = 'reasoning_effort'; Value = 'none' },
+            @{ Name = 'max_output_tokens'; Value = '10000' },
+            @{ Name = 'prompt_source'; Value = 'langfuse' },
+            @{ Name = 'langfuse_prompt_name'; Value = $prediction.PromptName },
+            @{ Name = 'langfuse_prompt_label'; Value = 'production' },
+            @{ Name = 'langfuse_prompt_version'; Value = $prediction.PromptVersion },
+            @{ Name = 'trigger_type'; Value = 'manual' }
+        )) {
+            Assert-True ((Get-WithValue $prediction.Content $expected.Name $prediction.FileName) -eq $expected.Value) "$($prediction.FileName) must pass $($expected.Name)=$($expected.Value)."
+        }
+        Assert-True ((Get-WithValue $prediction.Content 'force_prediction' $prediction.FileName) -eq '${{ inputs.force_prediction }}') "$($prediction.FileName) must pass through the typed force_prediction input."
+        Assert-True ((Get-WithValue $prediction.Content 'max_repredictions' $prediction.FileName) -eq '${{ inputs.max_repredictions }}') "$($prediction.FileName) must pass through the typed max_repredictions input."
+    }
+
+    Assert-True ((Get-WithValue $bonus 'bonus_context_document_budget' $bonusFileName) -eq '20') "$bonusFileName must pin the accepted 20-document bonus budget."
+    Assert-True ((Get-WithValue $bonus 'bonus_context_token_budget' $bonusFileName) -eq '32000') "$bonusFileName must pin the accepted 32,000-token bonus budget."
+
+    foreach ($workflow in @(
+        @{ FileName = $contextFileName; Content = $context; Prediction = $false },
+        @{ FileName = $matchFileName; Content = $match; Prediction = $true },
+        @{ FileName = $bonusFileName; Content = $bonus; Prediction = $true }
+    )) {
+        Assert-SecretMapping $workflow.Content 'kicktipp_username' 'EHONDA_AI_ARENA_GPT_5_6_LUNA_NONE_KICKTIPP_USERNAME' $workflow.FileName
+        Assert-SecretMapping $workflow.Content 'kicktipp_password' 'EHONDA_AI_ARENA_GPT_5_6_LUNA_NONE_KICKTIPP_PASSWORD' $workflow.FileName
+        Assert-SecretMapping $workflow.Content 'firebase_project_id' 'FIREBASE_PROJECT_ID' $workflow.FileName
+        Assert-SecretMapping $workflow.Content 'firebase_service_account_json' 'FIREBASE_SERVICE_ACCOUNT_JSON' $workflow.FileName
+        if ($workflow.Prediction) {
+            Assert-SecretMapping $workflow.Content 'openai_api_key' 'OPENAI_API_KEY' $workflow.FileName
+            Assert-SecretMapping $workflow.Content 'langfuse_secret_key' 'LANGFUSE_SECRET_KEY' $workflow.FileName
+            Assert-ExactSecretMappings $workflow.Content @(
+                'kicktipp_username=EHONDA_AI_ARENA_GPT_5_6_LUNA_NONE_KICKTIPP_USERNAME',
+                'kicktipp_password=EHONDA_AI_ARENA_GPT_5_6_LUNA_NONE_KICKTIPP_PASSWORD',
+                'firebase_project_id=FIREBASE_PROJECT_ID',
+                'firebase_service_account_json=FIREBASE_SERVICE_ACCOUNT_JSON',
+                'openai_api_key=OPENAI_API_KEY',
+                'langfuse_secret_key=LANGFUSE_SECRET_KEY'
+            ) $workflow.FileName
+        }
+        else {
+            Assert-ExactSecretMappings $workflow.Content @(
+                'kicktipp_username=EHONDA_AI_ARENA_GPT_5_6_LUNA_NONE_KICKTIPP_USERNAME',
+                'kicktipp_password=EHONDA_AI_ARENA_GPT_5_6_LUNA_NONE_KICKTIPP_PASSWORD',
+                'firebase_project_id=FIREBASE_PROJECT_ID',
+                'firebase_service_account_json=FIREBASE_SERVICE_ACCOUNT_JSON'
+            ) $workflow.FileName
+        }
+    }
+
+    return $true
 }
 
 function Assert-CommandIdentity {
@@ -160,10 +366,14 @@ function Assert-HostileSummaryValueIsLiteral {
 }
 
 $workflowDirectory = Join-Path $RepositoryRoot '.github\workflows'
+Assert-AdditionalManualTriggersRejected
 $matchBasePath = Join-Path $workflowDirectory 'base-matchday-predictions.yml'
 $bonusBasePath = Join-Path $workflowDirectory 'base-bonus-predictions.yml'
 $matchBase = Get-Content -Raw -LiteralPath $matchBasePath
 $bonusBase = Get-Content -Raw -LiteralPath $bonusBasePath
+$arenaLunaMatchFileName = 'buli2627-ehonda-ai-arena-gpt-5-6-luna-none-matchday.yml'
+$arenaLunaBonusFileName = 'buli2627-ehonda-ai-arena-gpt-5-6-luna-none-bonus.yml'
+$arenaLunaTriadPresent = Assert-ArenaLunaTriad $workflowDirectory -AllowMissing:$AllowMissingArenaLunaTriad
 
 foreach ($base in @(
     @{ Path = $matchBasePath; Content = $matchBase },
@@ -185,6 +395,7 @@ foreach ($base in @(
     $checkoutIndex = $base.Content.IndexOf('- name: Checkout repository', [StringComparison]::Ordinal)
     Assert-True ($preflightIndex -ge 0 -and $preflightIndex -lt $checkoutIndex) "$(Split-Path -Leaf $base.Path) must fail invalid identity before checkout or prediction work."
     Assert-True $base.Content.Contains('This historical prediction configuration is retired', [StringComparison]::Ordinal) "$(Split-Path -Leaf $base.Path) must explicitly fail retired historical callers."
+    Assert-True $base.Content.Contains('LANGFUSE_PUBLIC_KEY: ${{ vars.LANGFUSE_PUBLIC_KEY }}', [StringComparison]::Ordinal) "$(Split-Path -Leaf $base.Path) must source LANGFUSE_PUBLIC_KEY from the repository variable."
 
     foreach ($environmentRoute in @(
         @{ Name = 'TRIGGER_TYPE'; Input = 'trigger_type' },
@@ -253,9 +464,15 @@ $retiredBundesligaCount = 0
 $currentBundesligaCount = 0
 foreach ($caller in $callerFiles) {
     $content = Get-Content -Raw -LiteralPath $caller.FullName
-    $triggerBlock = [regex]::Match($content, '(?ms)^on:\r?\n(?<body>.*?)^jobs:').Groups['body'].Value
-    Assert-True ([regex]::IsMatch($triggerBlock, '(?m)^  workflow_call:\s*$')) "$($caller.Name) must remain workflow_call-only."
-    Assert-True (-not [regex]::IsMatch($triggerBlock, '(?m)^  (schedule|workflow_dispatch):')) "$($caller.Name) must not activate schedule or workflow_dispatch."
+    $isArenaLunaPrediction = $caller.Name -in @($arenaLunaMatchFileName, $arenaLunaBonusFileName)
+    if ($isArenaLunaPrediction) {
+        Assert-ManualDispatchOnly $content $caller.Name $true
+    }
+    else {
+        $triggerBlock = Get-TriggerBlock $content $caller.Name
+        Assert-True ([regex]::IsMatch($triggerBlock, '(?m)^  workflow_call:\s*$')) "$($caller.Name) must remain workflow_call-only."
+        Assert-True (-not [regex]::IsMatch($triggerBlock, '(?m)^  (schedule|workflow_dispatch):')) "$($caller.Name) must not activate schedule or workflow_dispatch."
+    }
 
     foreach ($inputName in @(
         'community',
@@ -315,5 +532,7 @@ foreach ($caller in $callerFiles) {
 
 Assert-True ($wm26Count -eq 14) "Expected 14 historical WM26 callers, found $wm26Count."
 Assert-True ($retiredBundesligaCount -eq 12) "Expected 12 retired Bundesliga 2025/26 callers, found $retiredBundesligaCount."
+$expectedCurrentBundesligaCount = if ($arenaLunaTriadPresent) { 2 } else { 0 }
+Assert-True ($currentBundesligaCount -eq $expectedCurrentBundesligaCount) "Expected $expectedCurrentBundesligaCount current Bundesliga arena Luna prediction callers, found $currentBundesligaCount."
 
 Write-Output "Prediction workflow contract validation passed: 2 bases, $wm26Count callable WM26 callers, $retiredBundesligaCount explicitly retired Bundesliga callers, $currentBundesligaCount current Bundesliga callers."

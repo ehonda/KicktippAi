@@ -7,7 +7,10 @@
 
 ## Outcome
 
-The new Firestore partition and prompt paths complete representative matchday and bonus cycles in the safe development community, then pass the authorized local, `workflow_dispatch`, and scheduled arena ladder with trace evidence.
+The new Firestore partition and prompt paths complete representative matchday
+and bonus cycles through the local-only safe development path, then pass the
+authorized arena local CLI, `workflow_dispatch`, and temporary-schedule ladder
+with trace evidence. No development Actions triad exists.
 
 ## Work items
 
@@ -16,7 +19,7 @@ The new Firestore partition and prompt paths complete representative matchday an
 - [ ] Prove every selected recent/home/away row has an exact source-attributed played date, including one current Bundesliga fixture and one intervening non-league fixture; record zero unresolved/ambiguous rows and prove head-to-head content was not rewritten.
 - [ ] Query/inspect stored identities and prove no old unscoped Bundesliga or WM26 document satisfied the run.
 - [ ] Verify all CSVs render header-first, deterministic, CRLF-terminated content with a final terminator.
-- [ ] Run a development prediction cycle covering a complete nine-match matchday and representative champion/relegation/top-scorer/coach bonus questions.
+- [ ] Run a local CLI development prediction cycle in `ehonda-dev-buli-2627` covering a complete nine-match matchday and representative champion/relegation/top-scorer/coach bonus questions; do not treat the arena Actions triad as a development-community workflow.
 - [ ] Use `gpt-5.6-luna` with `none` reasoning for autonomous dev and arena plumbing validation; do not judge or promote its prediction quality.
 - [ ] Using the owner-confirmed arena setup, validate the same cheap configuration through local CLI, `workflow_dispatch`, and an arena-only schedule.
 - [ ] Verify the owner-confirmed Firebase, OpenAI, Langfuse, Kicktipp, and workflow credentials by connectivity and behavior without displaying secret values.
