@@ -131,3 +131,4 @@ P0 is complete only when:
 - [ADR-0042: Publish complete preseason Kicktipp context atomically](decisions/0042-publish-complete-preseason-context-atomically.md) — superseded by ADR-0044
 - [ADR-0043: Freeze historical experiment aliases and the context-eligible pool](decisions/0043-freeze-historical-experiment-aliases-and-eligible-pool.md) — refines ADR-0040's document-name and sampling-pool contract
 - [ADR-0044: Select canonical preseason history sources](decisions/0044-select-canonical-preseason-history-sources.md)
+- [ADR-0045: Verify versioned prompt promotion before validation](decisions/0045-verify-versioned-prompt-promotion-before-validation.md)

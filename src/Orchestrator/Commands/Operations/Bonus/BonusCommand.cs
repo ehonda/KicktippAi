@@ -206,7 +206,8 @@ public class BonusCommand : AsyncCommand<BonusSettings>
             settings.LangfusePromptVersion,
             modelConfig.ReasoningEffort,
             settings.MaxOutputTokenCount,
-            bonusPrompt: true);
+            bonusPrompt: true,
+            requireHostedPrompt: settings.RequireHostedPrompt);
         
         // Log the prompt paths being used
         if (settings.Verbose)

@@ -49,6 +49,16 @@ internal sealed class LangfuseTextPromptTemplateProvider : IInstructionsTemplate
 
     public LangfusePrompt? Prompt => _hostedPrompt.Value.Prompt;
 
+    public void EnsureHostedPromptResolved()
+    {
+        var hosted = _hostedPrompt.Value;
+        if (hosted.Prompt is null || hosted.Template is null)
+        {
+            throw new FileNotFoundException(
+                $"{hosted.FailureReason} A hosted prompt is required for this operation; local fallback is not permitted.");
+        }
+    }
+
     public PromptTemplateTelemetryMetadata? GetPromptTemplateTelemetryMetadata()
     {
         return Volatile.Read(ref _lastTelemetryMetadata);
@@ -87,22 +97,13 @@ internal sealed class LangfuseTextPromptTemplateProvider : IInstructionsTemplate
 
     private HostedPromptResolution LoadHostedPrompt()
     {
+        LangfusePrompt? prompt;
         try
         {
-            var prompt = _preloadedPrompt
-                         ?? _client.GetPromptAsync(_promptName, _label, _version)
-                             .GetAwaiter()
-                             .GetResult();
-
-            if (prompt is not null)
-            {
-                return new HostedPromptResolution(prompt, prompt.GetTextPrompt(), FailureReason: null);
-            }
-
-            return new HostedPromptResolution(
-                Prompt: null,
-                Template: null,
-                FailureReason: $"Langfuse prompt '{_promptName}' was not found.");
+            prompt = _preloadedPrompt
+                     ?? _client.GetPromptAsync(_promptName, _label, _version)
+                         .GetAwaiter()
+                         .GetResult();
         }
         catch (Exception ex) when (_fallbackTemplateProvider is not null)
         {
@@ -110,6 +111,40 @@ internal sealed class LangfuseTextPromptTemplateProvider : IInstructionsTemplate
                 Prompt: null,
                 Template: null,
                 FailureReason: $"Failed to fetch Langfuse prompt '{_promptName}': {ex.Message}");
+        }
+
+        if (prompt is null)
+        {
+            return new HostedPromptResolution(
+                Prompt: null,
+                Template: null,
+                FailureReason: $"Langfuse prompt '{_promptName}' was not found.");
+        }
+
+        ValidatePromptBinding(prompt);
+        return new HostedPromptResolution(prompt, prompt.GetTextPrompt(), FailureReason: null);
+    }
+
+    private void ValidatePromptBinding(LangfusePrompt prompt)
+    {
+        if (!string.Equals(prompt.Name, _promptName, StringComparison.Ordinal))
+        {
+            throw new InvalidDataException(
+                $"Resolved Langfuse prompt name '{prompt.Name}' does not match required name '{_promptName}'.");
+        }
+
+        if (_version is { } requiredVersion && prompt.Version != requiredVersion)
+        {
+            throw new InvalidDataException(
+                $"Resolved Langfuse prompt '{_promptName}' version {prompt.Version} does not match required version {requiredVersion}.");
+        }
+
+        if (_label is { } requiredLabel
+            && (prompt.Labels is null
+                || !prompt.Labels.Contains(requiredLabel, StringComparer.Ordinal)))
+        {
+            throw new InvalidDataException(
+                $"Resolved Langfuse prompt '{_promptName}' version {prompt.Version} does not have required label '{requiredLabel}'.");
         }
     }
 

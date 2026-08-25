@@ -3,7 +3,7 @@
 - Status: Not started
 - Priority: P0
 - Depends on: P0-02 through P0-18, [P0-22](p0-22-history-played-dates.md), the authorized local Luna/none development path, and the Luna/none arena entrypoints copied from P0-19; final production P0-19 copies may remain gated on P0-06
-- Decisions: [ADR-0006](../decisions/0006-stage-validation-with-a-cheap-test-model.md), [ADR-0012](../decisions/0012-competition-aware-matchday-completion.md), [ADR-0013](../decisions/0013-club-elo-snapshot-and-freshness-contract.md), [ADR-0038](../decisions/0038-bound-bonus-context-by-question-policy.md), [ADR-0039](../decisions/0039-record-bundesliga-community-and-credential-topology.md), [ADR-0044](../decisions/0044-select-canonical-preseason-history-sources.md)
+- Decisions: [ADR-0006](../decisions/0006-stage-validation-with-a-cheap-test-model.md), [ADR-0012](../decisions/0012-competition-aware-matchday-completion.md), [ADR-0013](../decisions/0013-club-elo-snapshot-and-freshness-contract.md), [ADR-0038](../decisions/0038-bound-bonus-context-by-question-policy.md), [ADR-0039](../decisions/0039-record-bundesliga-community-and-credential-topology.md), [ADR-0044](../decisions/0044-select-canonical-preseason-history-sources.md), [ADR-0045](../decisions/0045-verify-versioned-prompt-promotion-before-validation.md)
 
 ## Outcome
 
@@ -78,6 +78,49 @@ canonical home/away histories from each team's earliest fixture in that role
 its exact matchday page. The live retry remains paused until this amendment and
 implementation are independently reviewed, integrated, pushed, and exact-head
 CI is green.
+
+### Full-season publication and failed hosted-prompt rung — 2026-08-25
+
+After ADR-0044 was independently reviewed, integrated, pushed, and green at
+exact head, the authorized `--full-season` command succeeded. It validated all
+34 matchdays with nine fixtures each, selected the canonical 54 history
+documents, collected 306 exact-matchday H2H documents, validated the exact 362
+Kicktipp context subset, resolved 430 completed history rows, excluded exactly
+the two accepted incomplete fixtures, and atomically saved 315 changed
+documents while retaining 47 byte-identical documents.
+
+The strict post-publication inventory passed with `expected=401`,
+`present=401`, `expectedCsv=400`, `validCsv=400`, and zero missing, invalid,
+unexpected, identity-conflicting, WM26, or unscoped documents. The stored
+history audit passed with 54 documents and 430 rows. The sorted 306-document H2H
+name/content-hash aggregate was
+`3f1e361f5a052dd9a2e165af5aa1eacb65430cecbf65f672ac6554eecb9e4f2b`
+both before and after the read-only audits.
+
+The subsequent `matchday-dev` command started at
+`2026-08-25T03:15:49.4305089Z` with the authorized
+`gpt-5.6-luna`/`none`/cap-`10000` identity and requested hosted match prompt
+v2/`production`. Langfuse returned HTTP 400 because the runtime supplied both
+selectors; the runtime used the checked-in mirror. Before the stop took effect,
+all nine ordered matchday-one identities were stored in Firestore and posted to
+the development Kicktipp community at reprediction index 0: Bayern–VfB,
+Köln–Hoffenheim, Elversberg–Leverkusen, Mainz–Paderborn, Union–Frankfurt,
+Leipzig–Mönchengladbach, Dortmund–Hamburg, Freiburg–Bremen, and
+Augsburg–Schalke. Their configured stored identity names match prompt v2, but
+the observed template source was the local fallback, so they must not be reused
+as hosted evidence. No prediction payload, prompt text, or context bytes are
+retained here. Aggregate usage was 36,766 uncached input tokens, zero cached
+input tokens, zero reasoning tokens, 153 output tokens, and approximately USD
+0.0038. No bonus, arena, workflow, or schedule rung followed.
+These fallback-based writes are failed-rung evidence and must be replaced and
+verified on the hosted retry; they do not satisfy P0-20.
+
+[ADR-0045](../decisions/0045-verify-versioned-prompt-promotion-before-validation.md)
+records the repair: retrieve immutable prompts by version only, prove the exact
+returned name/version/`production` binding, and require that hosted preflight
+before prediction-service construction in the Bundesliga dev shortcuts. Live
+retry remains paused until the repair is independently reviewed, integrated,
+pushed, and exact-head CI is green.
 
 ## Complete when
 

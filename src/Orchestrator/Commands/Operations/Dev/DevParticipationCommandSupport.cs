@@ -89,6 +89,7 @@ internal static class DevParticipationCommandSupport
                     ? CompetitionResolver.BundesligaBonusPromptVersion
                     : CompetitionResolver.BundesligaMatchPromptVersion
                 : null,
+            RequireHostedPrompt = usesBundesligaValidationIdentity,
             Verbose = settings.Verbose,
             OverrideKicktipp = true,
             OverrideDatabase = true,

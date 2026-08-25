@@ -195,7 +195,8 @@ public class MatchdayCommand : AsyncCommand<BaseSettings>
             settings.LangfusePromptVersion,
             modelConfig.ReasoningEffort,
             settings.MaxOutputTokenCount,
-            bonusPrompt: false);
+            bonusPrompt: false,
+            requireHostedPrompt: settings.RequireHostedPrompt);
 
         // Create context provider using factory
         var contextProvider = _contextProviderFactory.CreateKicktippContextProvider(

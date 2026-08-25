@@ -37,7 +37,11 @@ public sealed class LangfusePublicApiClient : ILangfusePublicApiClient
 
         var queryParameters = new List<KeyValuePair<string, string?>>
         {
-            new("label", label),
+            // Langfuse rejects a prompt lookup that supplies both selectors. An
+            // immutable version is the retrieval key when both a version and a
+            // required promotion label are configured; the returned labels are
+            // verified by the prompt provider after the fetch.
+            new("label", version is null ? label : null),
             new("version", version?.ToString(System.Globalization.CultureInfo.InvariantCulture))
         };
         var path = BuildQueryString($"v2/prompts/{EncodePathSegment(promptName)}", queryParameters);

@@ -334,7 +334,11 @@ public class LangfuseAndServiceRegistrationTests
             CompetitionResolver.BundesligaMatchPromptName,
             "staging",
             version: null,
-            preloadedPrompt: CreateTextPrompt(CompetitionResolver.BundesligaMatchPromptName, 1, "prompt"));
+            preloadedPrompt: CreateTextPrompt(
+                CompetitionResolver.BundesligaMatchPromptName,
+                1,
+                "prompt",
+                ["staging"]));
 
         var withoutJustification = provider.LoadMatchTemplate("gpt-5.6-luna", includeJustification: false);
         var withJustification = provider.LoadMatchTemplate("gpt-5.6-luna", includeJustification: true);
@@ -373,6 +377,218 @@ public class LangfuseAndServiceRegistrationTests
     }
 
     [Test]
+    public async Task Langfuse_text_prompt_provider_rejects_a_version_without_the_required_promotion_label()
+    {
+        var langfuseClient = new Mock<ILangfusePublicApiClient>();
+        langfuseClient
+            .Setup(client => client.GetPromptAsync(
+                CompetitionResolver.BundesligaMatchPromptName,
+                "production",
+                CompetitionResolver.BundesligaMatchPromptVersion,
+                It.IsAny<CancellationToken>()))
+            .ReturnsAsync(CreateTextPrompt(
+                CompetitionResolver.BundesligaMatchPromptName,
+                CompetitionResolver.BundesligaMatchPromptVersion,
+                "prompt",
+                ["staging"]));
+        var provider = new LangfuseTextPromptTemplateProvider(
+            langfuseClient.Object,
+            CompetitionResolver.BundesligaMatchPromptName,
+            "production",
+            CompetitionResolver.BundesligaMatchPromptVersion,
+            promptKind: LangfusePromptKind.Match,
+            fallbackTemplateProvider: new InstructionsTemplateProvider(PromptsFileProvider.Create()),
+            fallbackModel: CompetitionResolver.BundesligaFallbackPromptModel);
+
+        await Assert.That(() => provider.LoadMatchTemplate("gpt-5.6-luna", includeJustification: false))
+            .Throws<InvalidDataException>()
+            .WithMessageContaining("required label 'production'");
+    }
+
+    [Test]
+    public async Task Langfuse_text_prompt_provider_rejects_a_different_immutable_version()
+    {
+        var langfuseClient = new Mock<ILangfusePublicApiClient>();
+        langfuseClient
+            .Setup(client => client.GetPromptAsync(
+                CompetitionResolver.BundesligaMatchPromptName,
+                "production",
+                CompetitionResolver.BundesligaMatchPromptVersion,
+                It.IsAny<CancellationToken>()))
+            .ReturnsAsync(CreateTextPrompt(
+                CompetitionResolver.BundesligaMatchPromptName,
+                CompetitionResolver.BundesligaMatchPromptVersion + 1,
+                "prompt",
+                ["production"]));
+        var provider = new LangfuseTextPromptTemplateProvider(
+            langfuseClient.Object,
+            CompetitionResolver.BundesligaMatchPromptName,
+            "production",
+            CompetitionResolver.BundesligaMatchPromptVersion);
+
+        await Assert.That(() => provider.LoadMatchTemplate("gpt-5.6-luna", includeJustification: false))
+            .Throws<InvalidDataException>()
+            .WithMessageContaining("does not match required version 2");
+    }
+
+    [Test]
+    public async Task Langfuse_text_prompt_provider_rejects_a_different_prompt_name()
+    {
+        var langfuseClient = new Mock<ILangfusePublicApiClient>();
+        langfuseClient
+            .Setup(client => client.GetPromptAsync(
+                CompetitionResolver.BundesligaMatchPromptName,
+                "production",
+                CompetitionResolver.BundesligaMatchPromptVersion,
+                It.IsAny<CancellationToken>()))
+            .ReturnsAsync(CreateTextPrompt(
+                CompetitionResolver.BundesligaBonusPromptName,
+                CompetitionResolver.BundesligaMatchPromptVersion,
+                "prompt",
+                ["production"]));
+        var provider = new LangfuseTextPromptTemplateProvider(
+            langfuseClient.Object,
+            CompetitionResolver.BundesligaMatchPromptName,
+            "production",
+            CompetitionResolver.BundesligaMatchPromptVersion);
+
+        await Assert.That(() => provider.LoadMatchTemplate("gpt-5.6-luna", includeJustification: false))
+            .Throws<InvalidDataException>()
+            .WithMessageContaining("does not match required name");
+    }
+
+    [Test]
+    public async Task Required_hosted_prompt_failure_prevents_prediction_service_construction()
+    {
+        var langfuseClient = new Mock<ILangfusePublicApiClient>();
+        langfuseClient
+            .Setup(client => client.GetPromptAsync(
+                CompetitionResolver.BundesligaMatchPromptName,
+                "production",
+                CompetitionResolver.BundesligaMatchPromptVersion,
+                It.IsAny<CancellationToken>()))
+            .ThrowsAsync(new HttpRequestException("hosted prompt unavailable"));
+        var openAiFactory = new Mock<IOpenAiServiceFactory>(MockBehavior.Strict);
+
+        await Assert.That(() => PredictionServiceCommandSupport.CreatePredictionService(
+                openAiFactory.Object,
+                langfuseClient.Object,
+                new Mock<IAnsiConsole>().Object,
+                "gpt-5.6-luna",
+                CompetitionIds.Bundesliga2026_27,
+                "ehonda-dev-buli-2627",
+                "ehonda-dev-buli-2627",
+                CompetitionResolver.LangfusePromptSource,
+                CompetitionResolver.BundesligaMatchPromptName,
+                "production",
+                CompetitionResolver.BundesligaMatchPromptVersion,
+                "none",
+                10_000,
+                bonusPrompt: false,
+                requireHostedPrompt: true))
+            .Throws<FileNotFoundException>()
+            .WithMessageContaining("hosted prompt unavailable");
+        openAiFactory.Verify(
+            factory => factory.CreatePredictionService(
+                It.IsAny<string>(),
+                It.IsAny<PredictionServiceOptions>(),
+                It.IsAny<IInstructionsTemplateProvider>()),
+            Times.Never);
+    }
+
+    [Test]
+    public async Task Required_hosted_prompt_binding_drift_prevents_prediction_service_construction()
+    {
+        var langfuseClient = new Mock<ILangfusePublicApiClient>();
+        langfuseClient
+            .Setup(client => client.GetPromptAsync(
+                CompetitionResolver.BundesligaMatchPromptName,
+                "production",
+                CompetitionResolver.BundesligaMatchPromptVersion,
+                It.IsAny<CancellationToken>()))
+            .ReturnsAsync(CreateTextPrompt(
+                CompetitionResolver.BundesligaMatchPromptName,
+                CompetitionResolver.BundesligaMatchPromptVersion,
+                "prompt",
+                ["staging"]));
+        var openAiFactory = new Mock<IOpenAiServiceFactory>(MockBehavior.Strict);
+
+        await Assert.That(() => PredictionServiceCommandSupport.CreatePredictionService(
+                openAiFactory.Object,
+                langfuseClient.Object,
+                new Mock<IAnsiConsole>().Object,
+                "gpt-5.6-luna",
+                CompetitionIds.Bundesliga2026_27,
+                "ehonda-dev-buli-2627",
+                "ehonda-dev-buli-2627",
+                CompetitionResolver.LangfusePromptSource,
+                CompetitionResolver.BundesligaMatchPromptName,
+                "production",
+                CompetitionResolver.BundesligaMatchPromptVersion,
+                "none",
+                10_000,
+                bonusPrompt: false,
+                requireHostedPrompt: true))
+            .Throws<InvalidDataException>()
+            .WithMessageContaining("required label 'production'");
+        openAiFactory.Verify(
+            factory => factory.CreatePredictionService(
+                It.IsAny<string>(),
+                It.IsAny<PredictionServiceOptions>(),
+                It.IsAny<IInstructionsTemplateProvider>()),
+            Times.Never);
+    }
+
+    [Test]
+    public async Task Required_hosted_prompt_is_verified_before_prediction_service_construction()
+    {
+        var promptFetched = false;
+        var factoryObservedFetch = false;
+        var langfuseClient = new Mock<ILangfusePublicApiClient>();
+        langfuseClient
+            .Setup(client => client.GetPromptAsync(
+                CompetitionResolver.BundesligaMatchPromptName,
+                "production",
+                CompetitionResolver.BundesligaMatchPromptVersion,
+                It.IsAny<CancellationToken>()))
+            .Callback(() => promptFetched = true)
+            .ReturnsAsync(CreateTextPrompt(
+                CompetitionResolver.BundesligaMatchPromptName,
+                CompetitionResolver.BundesligaMatchPromptVersion,
+                "prompt",
+                ["production"]));
+        var predictionService = new Mock<IPredictionService>();
+        var openAiFactory = new Mock<IOpenAiServiceFactory>(MockBehavior.Strict);
+        openAiFactory
+            .Setup(factory => factory.CreatePredictionService(
+                "gpt-5.6-luna",
+                It.IsAny<PredictionServiceOptions>(),
+                It.IsAny<IInstructionsTemplateProvider>()))
+            .Callback(() => factoryObservedFetch = promptFetched)
+            .Returns(predictionService.Object);
+
+        var result = PredictionServiceCommandSupport.CreatePredictionService(
+            openAiFactory.Object,
+            langfuseClient.Object,
+            new Mock<IAnsiConsole>().Object,
+            "gpt-5.6-luna",
+            CompetitionIds.Bundesliga2026_27,
+            "ehonda-dev-buli-2627",
+            "ehonda-dev-buli-2627",
+            CompetitionResolver.LangfusePromptSource,
+            CompetitionResolver.BundesligaMatchPromptName,
+            "production",
+            CompetitionResolver.BundesligaMatchPromptVersion,
+            "none",
+            10_000,
+            bonusPrompt: false,
+            requireHostedPrompt: true);
+
+        await Assert.That(result).IsSameReferenceAs(predictionService.Object);
+        await Assert.That(factoryObservedFetch).IsTrue();
+    }
+
+    [Test]
     public async Task Langfuse_match_fallback_uses_justification_mirror_when_requested()
     {
         var langfuseClient = new Mock<ILangfusePublicApiClient>();
@@ -398,6 +614,38 @@ public class LangfuseAndServiceRegistrationTests
         await Assert.That(path.Replace('\\', '/')).Contains("prompts/bundesliga-2026-27/match.justification.md");
         await Assert.That(template).Contains("Bundesliga 2026/27");
         await Assert.That(template).Contains("{{context_documents}}");
+    }
+
+    [Test]
+    public async Task Ordinary_versioned_hosted_route_retains_the_visible_outage_fallback()
+    {
+        var warnings = new List<string>();
+        var langfuseClient = new Mock<ILangfusePublicApiClient>();
+        langfuseClient
+            .Setup(client => client.GetPromptAsync(
+                CompetitionResolver.BundesligaMatchPromptName,
+                "production",
+                CompetitionResolver.BundesligaMatchPromptVersion,
+                It.IsAny<CancellationToken>()))
+            .ThrowsAsync(new HttpRequestException("network unavailable"));
+        var provider = new LangfuseTextPromptTemplateProvider(
+            langfuseClient.Object,
+            CompetitionResolver.BundesligaMatchPromptName,
+            "production",
+            CompetitionResolver.BundesligaMatchPromptVersion,
+            promptKind: LangfusePromptKind.Match,
+            fallbackTemplateProvider: new InstructionsTemplateProvider(PromptsFileProvider.Create()),
+            fallbackModel: CompetitionResolver.BundesligaFallbackPromptModel,
+            fallbackWarning: warnings.Add);
+
+        var (_, path) = provider.LoadMatchTemplate("gpt-5.6-luna", includeJustification: false);
+        var metadata = provider.GetPromptTemplateTelemetryMetadata();
+
+        await Assert.That(path.Replace('\\', '/')).Contains("prompts/bundesliga-2026-27/match.md");
+        await Assert.That(warnings).Count().IsEqualTo(1);
+        await Assert.That(metadata).IsNotNull();
+        await Assert.That(metadata!.ActualSource).IsEqualTo(CompetitionResolver.LocalPromptSource);
+        await Assert.That(metadata.IsFallback).IsTrue();
     }
 
     [Test]
@@ -775,13 +1023,12 @@ public class LangfuseAndServiceRegistrationTests
     }
 
     [Test]
-    public async Task Langfuse_client_gets_text_prompt_with_label_and_version_query_parameters()
+    public async Task Langfuse_client_fetches_an_immutable_prompt_version_without_the_label_query_parameter()
     {
         using var server = WireMockServer.Start();
         server
             .Given(Request.Create()
                 .WithPath("/api/public/v2/prompts/kicktippai/predict-one-match-o3-poc")
-                .WithParam("label", "poc")
                 .WithParam("version", "7")
                 .UsingGet())
             .RespondWith(Response.Create()
@@ -813,6 +1060,49 @@ public class LangfuseAndServiceRegistrationTests
         await Assert.That(prompt!.Name).IsEqualTo("kicktippai/predict-one-match-o3-poc");
         await Assert.That(prompt.Version).IsEqualTo(7);
         await Assert.That(prompt.GetTextPrompt()).IsEqualTo("Hello {{context_documents}}");
+        var requestUrl = server.LogEntries.Single().RequestMessage?.Url ?? string.Empty;
+        await Assert.That(requestUrl).Contains("version=7");
+        await Assert.That(requestUrl).DoesNotContain("label=");
+    }
+
+    [Test]
+    public async Task Langfuse_client_keeps_a_label_only_prompt_lookup_label_resolved()
+    {
+        using var server = WireMockServer.Start();
+        server
+            .Given(Request.Create()
+                .WithPath("/api/public/v2/prompts/kicktippai/predict-one-match-o3-poc")
+                .WithParam("label", "staging")
+                .UsingGet())
+            .RespondWith(Response.Create()
+                .WithStatusCode(200)
+                .WithHeader("Content-Type", "application/json")
+                .WithBody(
+                    """
+                    {
+                      "name": "kicktippai/predict-one-match-o3-poc",
+                      "version": 8,
+                      "type": "text",
+                      "prompt": "Hello {{context_documents}}",
+                      "labels": ["staging"],
+                      "tags": ["kicktippai"],
+                      "config": {}
+                    }
+                    """));
+
+        using var httpClient = new HttpClient
+        {
+            BaseAddress = new Uri($"{server.Urls[0]}/api/public/")
+        };
+
+        var client = new LangfusePublicApiClient(httpClient, new FakeLogger<LangfusePublicApiClient>());
+
+        var prompt = await client.GetPromptAsync("kicktippai/predict-one-match-o3-poc", "staging");
+
+        await Assert.That(prompt).IsNotNull();
+        var requestUrl = server.LogEntries.Single().RequestMessage?.Url ?? string.Empty;
+        await Assert.That(requestUrl).Contains("label=staging");
+        await Assert.That(requestUrl).DoesNotContain("version=");
     }
 
     [Test]
@@ -914,7 +1204,11 @@ public class LangfuseAndServiceRegistrationTests
         await Assert.That(loggerFilterOptions.MinLevel).IsEqualTo(LogLevel.Warning);
     }
 
-    private static LangfusePrompt CreateTextPrompt(string name, int version, string text)
+    private static LangfusePrompt CreateTextPrompt(
+        string name,
+        int version,
+        string text,
+        IReadOnlyList<string>? labels = null)
     {
         using var promptDocument = JsonDocument.Parse(JsonSerializer.Serialize(text));
         using var configDocument = JsonDocument.Parse("{}");
@@ -924,7 +1218,7 @@ public class LangfuseAndServiceRegistrationTests
             version,
             "text",
             promptDocument.RootElement.Clone(),
-            Labels: ["latest"],
+            Labels: labels ?? ["latest"],
             Tags: [],
             configDocument.RootElement.Clone());
     }
@@ -949,7 +1243,8 @@ public class LangfuseAndServiceRegistrationTests
             .ReturnsAsync(CreateTextPrompt(
                 CompetitionResolver.BundesligaMatchPromptName,
                 expectedVersion ?? 99,
-                mirror));
+                mirror,
+                [expectedLabel]));
 
         IInstructionsTemplateProvider? capturedProvider = null;
         var predictionService = new Mock<IPredictionService>();

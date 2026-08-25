@@ -26,7 +26,8 @@ internal static class PredictionServiceCommandSupport
         int? langfusePromptVersion,
         string? reasoningEffort,
         int? maxOutputTokenCount,
-        bool bonusPrompt)
+        bool bonusPrompt,
+        bool requireHostedPrompt = false)
     {
         var metadata = CompetitionResolver.ResolveRuntimeMetadata(
             competition,
@@ -75,6 +76,13 @@ internal static class PredictionServiceCommandSupport
             fallbackTemplateProvider: new InstructionsTemplateProvider(PromptsFileProvider.Create()),
             fallbackModel: fallbackModel,
             fallbackWarning: message => console.MarkupLine($"[yellow]Warning:[/] {Markup.Escape(message)}"));
+
+        if (requireHostedPrompt)
+        {
+            // Resolve and validate the exact immutable version/promotion binding
+            // before constructing the model-backed prediction service.
+            templateProvider.EnsureHostedPromptResolved();
+        }
 
         return openAiServiceFactory.CreatePredictionService(model, options, templateProvider);
     }

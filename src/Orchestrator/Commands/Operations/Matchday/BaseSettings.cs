@@ -47,6 +47,13 @@ public class BaseSettings : CommandSettings
     [Description("Optional Langfuse hosted prompt version when --prompt-source langfuse is used")]
     public int? LangfusePromptVersion { get; set; }
 
+    /// <summary>
+    /// Requires the configured hosted prompt binding to resolve before the
+    /// prediction service is constructed. Used by the fail-closed validation
+    /// shortcuts; ordinary hosted routes retain the accepted local fallback.
+    /// </summary>
+    public bool RequireHostedPrompt { get; set; }
+
     [CommandOption("-v|--verbose")]
     [Description("Enable verbose output to show detailed information")]
     [DefaultValue(false)]

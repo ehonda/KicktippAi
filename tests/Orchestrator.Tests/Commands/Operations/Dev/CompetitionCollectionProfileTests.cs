@@ -501,6 +501,7 @@ public class DevParticipationProfileDefaultsTests
         await Assert.That(baseSettings.LangfusePromptLabel)
             .IsEqualTo(CompetitionResolver.DefaultBundesligaPromptLabel);
         await Assert.That(baseSettings.LangfusePromptVersion).IsEqualTo(expectedPromptVersion);
+        await Assert.That(baseSettings.RequireHostedPrompt).IsTrue();
         await Assert.That(NormalizeWhitespace(console.Output))
             .Contains("Bundesliga validation identity:")
             .And.Contains("model=gpt-5.6-luna")
@@ -532,6 +533,7 @@ public class DevParticipationProfileDefaultsTests
         await Assert.That(baseSettings.PromptSource).IsNull();
         await Assert.That(baseSettings.LangfusePromptName).IsNull();
         await Assert.That(baseSettings.LangfusePromptVersion).IsNull();
+        await Assert.That(baseSettings.RequireHostedPrompt).IsFalse();
         await Assert.That(baseSettings.Model).IsEqualTo(PredictionServiceCommandSupport.WorldCupDevDefaultModel);
         await Assert.That(baseSettings.ReasoningEffort)
             .IsEqualTo(PredictionServiceCommandSupport.WorldCupDevDefaultReasoningEffort);

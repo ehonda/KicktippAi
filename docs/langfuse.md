@@ -2,6 +2,22 @@
 
 This document captures repository-specific findings about how Langfuse currently behaves for our tracing setup.
 
+## Versioned Prompt Retrieval
+
+The Langfuse v2 prompt endpoint accepts either a label or an immutable version
+selector. It rejects a request that sends both. Repository prompt retrieval
+therefore sends only `version` when a numbered version is configured and uses
+`label` only for label-resolved lookups. When both an immutable version and a
+required promotion label are part of the runtime contract, the provider fetches
+by version and then verifies the returned prompt name, exact version, and label
+membership.
+
+Name, version, or label drift fails closed and never activates a checked-in
+fallback. Ordinary fetch failures retain the visible local-mirror behavior from
+ADR-0004. Bundesliga `matchday-dev` and `bonus-dev` are hosted-required
+validation paths: the exact v2/`production` or v1/`production` binding must pass
+before prediction-service construction, and a fallback cannot pass that rung.
+
 ## Metadata Filtering Status
 
 We verified the current behavior against the live Langfuse Cloud project on 2026-03-13.
