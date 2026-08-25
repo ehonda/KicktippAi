@@ -1,6 +1,6 @@
 # Bundesliga 2026/27 Model Configuration Onboarding
 
-Updated: 2026-08-21
+Updated: 2026-08-25
 
 This is the source-of-truth ledger for Bundesliga 2026/27 prediction configurations. A row is not onboarded unless its competition, model, reasoning effort, maximum output cap, and numbered prompt versions are all present. Labels are useful for candidate routing, but they are not a substitute for the numbered version in a production or persisted exact identity. [The community onboarding matrix](community-onboarding.md) maps these configuration slots to posting targets, community contexts, credential names, and Langfuse environments.
 
@@ -59,18 +59,20 @@ uv --cache-dir .uv-cache run python .agents/skills/estimate-experiment-cost-skil
 
 It fails closed with `No matching base estimate JSON row found for model='gpt-5.6-luna', reasoningEffort='none'.` No dollar total is reported or hand-calculated.
 
-Before producing an actionable dollar estimate, the paid evidence proceeds through two separate gates:
+On 2026-08-25 the owner explicitly authorized both paid evidence stages:
 
-1. authorize one observed request using match prompt version 2, `gpt-5.6-luna`, `none`, flex-first processing with standard fallback, and cap `10000`;
-2. use that observation to state the expected 20-item spend and obtain a second confirmation for the 5-fixture-by-4-repetition base run;
-3. collect exactly 20 successful observations, persist the row with `upsert-row`, and rerun the exact 306/493 estimator command.
+1. collect one observed request using match prompt version 2, `gpt-5.6-luna`, `none`, flex-first processing with standard fallback, and cap `10000`;
+2. inspect its tokens, tier, cap headroom, and cost, then state the expected 20-item spend;
+3. without a second approval pause, collect exactly 20 successful observations, persist the row with `upsert-row`, and rerun the exact 306/493 estimator command.
 
-The exact one-item identity prepared for the first gate is slice `random-1x1-seed-20260821-gpt-5-6-luna-none-cost-preflight` and run `p0-06__gpt-5.6-luna__none__match-v2__random-1x1-seed-20260821__cost-preflight`. Its conservative authorization ceiling is `$2.00`. The bound deliberately overcounts the full 1,050,000-token context at both the long-context uncached-input and cache-write rates, adds the full `10000` output cap, allows both the initial flex attempt and the executor's single standard fallback, applies the documented 10% regional uplift, and rounds up from less than `$1.60`. It is a spend ceiling, not an estimator projection. No request has been made by P0-06 without the separate approval.
+A new approval is required only if the observed cap/cost materially departs from the prescribed lane or another anomaly changes its scope. Execution still follows the orchestrator's independent-review and serialized-live-lane protocol.
 
-Prepared commands (do not execute without the first spend approval):
+The exact one-item identity prepared for the first gate is slice `random-1x1-seed-20260821-gpt-5-6-luna-none-cost-preflight` and run `p0-06__gpt-5.6-luna__none__match-v2__random-1x1-seed-20260821__cost-preflight`. Its conservative authorization ceiling is `$2.00`. The bound deliberately overcounts the full 1,050,000-token context at both the long-context uncached-input and cache-write rates, adds the full `10000` output cap, allows both the initial flex attempt and the executor's single standard fallback, applies the documented 10% regional uplift, and rounds up from less than `$1.60`. It is a spend ceiling, not an estimator projection. No paid request had been made when this authorization was recorded.
+
+Prepared commands (authorized, but execute only after the implementation review closes and the serialized live lane is assigned to P0-06):
 
 ```powershell
-dotnet run --project src/Orchestrator -- prepare-repeated-match-slice --community-context pes-squad --match-count 1 --repetitions 1 --sample-seed 20260821 --starts-after "2026-02-18T00:00:00 Europe/Berlin (+01)" --slice-key random-1x1-seed-20260821-gpt-5-6-luna-none-cost-preflight
+dotnet run --project src/Orchestrator -- prepare-repeated-match-slice --competition bundesliga-2025-26 --historical-context-compatibility bundesliga-2025-26-legacy-id-hash-v1 --official-knowledge-cutoff 2026-02-16 --community-context pes-squad --match-count 1 --repetitions 1 --sample-seed 20260821 --starts-after "2026-02-18T00:00:00 Europe/Berlin (+01)" --slice-key random-1x1-seed-20260821-gpt-5-6-luna-none-cost-preflight
 
 dotnet run --project src/Orchestrator -- sync-dataset --input artifacts/langfuse-experiments/repeated-match-slices/pes-squad/all-matchdays-after-20260217t230000z/random-1x1-seed-20260821-gpt-5-6-luna-none-cost-preflight/slice-dataset.json
 

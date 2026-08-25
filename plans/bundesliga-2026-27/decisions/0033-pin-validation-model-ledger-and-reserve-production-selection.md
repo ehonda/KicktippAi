@@ -9,7 +9,7 @@ Bundesliga 2026/27 needs a cheap, reproducible configuration for plumbing valida
 
 P0-05 promoted the accepted hosted prompt mirrors. The exact production prompt identities are match version `2`, normalized SHA-256 `94a7aa775546028d3ded89f626873d7dfce162d1f08bb9573e102dd427ac08c1`, and bonus version `1`, normalized SHA-256 `332bac6d654871d843fc8a47345ff3e2b1f902fa8d1d2243166283304bb005e9`.
 
-The authoritative cost-estimate store has no `gpt-5.6-luna` / `none` base row. Official model documentation records a 2026-02-16 knowledge cutoff, so the estimator's two-day sampling cutoff is `2026-02-18T00:00:00 Europe/Berlin (+01)`. Producing the missing row still requires separately authorized paid predictions.
+The authoritative cost-estimate store has no `gpt-5.6-luna` / `none` base row. Official model documentation records a 2026-02-16 knowledge cutoff, so the estimator's two-day sampling cutoff is `2026-02-18T00:00:00 Europe/Berlin (+01)`. On 2026-08-25 the owner explicitly authorized the exact one-item preflight and subsequent 5-by-4 paid base estimate under the recorded process.
 
 ## Decision
 
@@ -26,7 +26,7 @@ This is a validation identity only. It is not a command default, a production se
 
 Runtime observation metadata and stored prediction identity include competition, model, reasoning effort, output cap, and exact prompt name/version when known. Legacy model-only and reasoning-only rows cannot satisfy a pinned cap/prompt lookup.
 
-Production onboarding remains paused. The owner must select and record the final production row and cost ceiling before P0-19/P0-21 can activate production workflows. The missing Luna/none whole-season dollar row remains a separate two-stage spend gate: first authorize one exact match-v2 observation, then use its cost to state the expected 20-item spend and obtain a second confirmation for the prescribed 5-by-4 base estimate. Only after those observations are persisted may the 306/493 estimator run produce actionable dollar evidence.
+Production onboarding remains paused. The owner must select and record the final production row and cost ceiling before P0-19/P0-21 can activate production workflows. For the missing Luna/none whole-season dollar row, run the exact authorized match-v2 preflight, inspect its tokens, tier, cap headroom, and cost, and state the expected 20-item spend. The prescribed 5-by-4 base estimate may then proceed without a second approval pause unless a material cap/cost anomaly changes the scope. Only after those observations are persisted may the 306/493 estimator run produce actionable dollar evidence. This spend authorization does not select Luna for production or bypass the independent-review and serialized-live-lane protocol.
 
 Official capability and pricing evidence is recorded directly from [the `gpt-5.6-luna` model page](https://developers.openai.com/api/docs/models/gpt-5.6-luna) and [OpenAI API pricing](https://developers.openai.com/api/docs/pricing).
 
@@ -34,7 +34,7 @@ Official capability and pricing evidence is recorded directly from [the `gpt-5.6
 
 - Plumbing runs are reproducible and cannot silently reuse a prediction from another cap or prompt version.
 - Candidate labels remain usable without being silently redirected to the production version.
-- Exact season dollars are intentionally unavailable until the owner authorizes the one-item preflight and then the paid 20-item base evidence.
+- Exact season dollars remain unavailable until the already-authorized one-item preflight and paid 20-item base evidence are collected and persisted.
 - No production model, arena challenger matrix, fallback behavior, cost ceiling, workflow, or schedule is selected by this ADR.
 
 ## Affected tasks

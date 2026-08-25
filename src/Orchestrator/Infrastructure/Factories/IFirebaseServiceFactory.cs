@@ -35,6 +35,9 @@ public interface IFirebaseServiceFactory
     /// <returns>A context repository instance.</returns>
     IContextRepository CreateContextRepository(string competition);
 
+    /// <summary>Creates the read-only legacy-ID adapter for Bundesliga 2025/26 experiments.</summary>
+    IHistoricalExperimentContextReader CreateBundesliga2025_26HistoricalExperimentContextReader();
+
     /// <summary>Creates the atomic mixed context/KPI publication repository.</summary>
     IDocumentPublicationRepository CreateDocumentPublicationRepository(string competition);
 

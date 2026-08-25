@@ -167,7 +167,7 @@ No matching base estimate JSON row found for model='gpt-5.6-luna', reasoningEffo
 ```
 
 No season dollar figure is inferred from another model or calculated by hand.
-The first paid gate is one observation with exact match prompt v2, Luna/none,
+The first paid stage is one observation with exact match prompt v2, Luna/none,
 cap `10000`, and flex-first/standard-fallback processing. Its prepared slice is
 `random-1x1-seed-20260821-gpt-5-6-luna-none-cost-preflight`; its fixed run name
 is
@@ -176,9 +176,13 @@ The `$2.00` authorization ceiling deliberately overcounts the entire context
 at both the official long-context uncached-input and cache-write rates, adds
 the full output cap, allows the flex attempt plus one standard fallback,
 includes the possible 10% regional uplift, and rounds up from less than
-`$1.60`. It is not a projected cost. After that observation, its collected
-cost must be used to state the expected 20-item spend and obtain a second
-confirmation before the prescribed five-fixture-by-four-repetition base run.
+`$1.60`. It is not a projected cost. On 2026-08-25 the owner explicitly
+authorized this one-item preflight and the subsequent prescribed
+five-fixture-by-four-repetition base run. After the preflight, use its
+collected cost to state the expected 20-item spend and continue without a
+second approval pause unless the observed cap/cost materially departs from the
+prescribed lane or another anomaly changes scope. The orchestration review and
+serialized-live-lane controls still apply.
 
 Base estimate rows noted in this document:
 

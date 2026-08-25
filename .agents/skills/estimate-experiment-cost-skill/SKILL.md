@@ -80,6 +80,14 @@ Use this method only after stating the expected spend and getting user confirmat
 dotnet run --project src/Orchestrator -- prepare-repeated-match-slice --community-context pes-squad --match-count 5 --repetitions 4 --sample-seed 20260503 --starts-after "2025-12-01T00:00:00 Europe/Berlin (+01)" --slice-key random-5x4-seed-20260503-cost-estimate
 ```
 
+   When the current Bundesliga season has not started and the owner has selected completed Bundesliga 2025/26 fixtures as the preseason basis, use only the explicit hash-bound historical route:
+
+```powershell
+dotnet run --project src/Orchestrator -- prepare-repeated-match-slice --competition bundesliga-2025-26 --historical-context-compatibility bundesliga-2025-26-legacy-id-hash-v1 --official-knowledge-cutoff MODEL_CUTOFF_YYYY_MM_DD --community-context pes-squad --match-count 5 --repetitions 4 --sample-seed SEED --starts-after "SAMPLING_CUTOFF" --slice-key SLICE_KEY
+```
+
+   `SAMPLING_CUTOFF` must be exactly Europe/Berlin local midnight two calendar days after `MODEL_CUTOFF_YYYY_MM_DD`; for Luna this is `2026-02-18T00:00:00 Europe/Berlin (+01)` after the `2026-02-16` official cutoff. The run must use hosted prompt `kicktippai/bundesliga-2026-27/predict-one-match` version `2`, label `production`, and relative `startsAt -12:00:00`. Record the prompt route as `Langfuse Bundesliga match v2; Bundesliga 2025/26 7-document legacy-id-hash-v1 context`. State that the row is a preseason cost proxy that may understate live 2026/27 input cost because the historical contract has seven documents while the live contract has eleven. Do not make a prediction-quality claim from a cost row.
+
 4. Sync the emitted repeated-match-slice dataset once.
 5. Run the repeated-match-slice manifest with one shared UTC run stamp, `--batch-count 1`, `--parallelism 5`, the intended model, reasoning effort, prompt route, evaluation policy, flex processing default, and `--replace-run`.
 6. If the run hits rate limits or flex-capacity failures, retry the same manifest and settings with `--parallelism 3`, then `--parallelism 1`.

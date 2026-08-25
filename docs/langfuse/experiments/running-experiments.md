@@ -179,6 +179,27 @@ dotnet run --project src/Orchestrator -- run-repeated-match-slice gpt-5.4-nano -
 
 If a run hits OpenAI rate limits or flex-capacity failures, retry the same manifest and run settings with lower parallelism, first `--parallelism 3` and then `--parallelism 1`.
 
+### Hash-bound Bundesliga 2025/26 preseason cost samples
+
+Before Bundesliga 2026/27 has completed outcomes, cost-only base estimates may explicitly use completed 2025/26 fixtures. This is a marked experiment compatibility route, not a live runtime fallback. It does not write or migrate Firestore context and does not relax the ordinary context repository.
+
+Prepare the Luna five-by-four sample with both cutoff dates and the explicit compatibility marker:
+
+```powershell
+dotnet run --project src/Orchestrator -- prepare-repeated-match-slice --competition bundesliga-2025-26 --historical-context-compatibility bundesliga-2025-26-legacy-id-hash-v1 --official-knowledge-cutoff 2026-02-16 --community-context pes-squad --match-count 5 --repetitions 4 --sample-seed 20260821 --starts-after "2026-02-18T00:00:00 Europe/Berlin (+01)" --slice-key random-5x4-seed-20260821-gpt-5-6-luna-none-cost-estimate
+```
+
+Preparation resolves the canonical seven historical documents once per selected fixture at `startsAt -12h`, embeds the completed score only in the local run manifest, and binds the prompt route, cutoffs, fixture identity, score, and context hashes. The synced dataset keeps its existing public schema.
+
+Run only with the bound route and evaluation policy:
+
+```powershell
+$runStamp = (Get-Date).ToUniversalTime().ToString("yyyy-MM-ddTHH-mm-ssZ").ToLowerInvariant()
+dotnet run --project src/Orchestrator -- run-repeated-match-slice gpt-5.6-luna --manifest artifacts/langfuse-experiments/repeated-match-slices/pes-squad/all-matchdays-after-20260217t230000z/random-5x4-seed-20260821-gpt-5-6-luna-none-cost-estimate/slice-manifest.json --run-name "repeated-match-slice__pes-squad__gpt-5.6-luna__match-v2__reasoning-none__random-5x4-seed-20260821__startsat-12h__$runStamp" --prompt-key bundesliga-match-v2 --prompt-source langfuse --langfuse-prompt-name kicktippai/bundesliga-2026-27/predict-one-match --langfuse-prompt-label production --langfuse-prompt-version 2 --reasoning-effort none --max-output-tokens 10000 --evaluation-policy-kind relative --evaluation-policy-offset -12:00:00 --batch-count 1 --parallelism 5 --replace-run
+```
+
+Before prompt retrieval, run replacement, model construction, or prediction, the runner exact-rereads and re-hashes all distinct historical fixture contexts. It then verifies that the returned hosted prompt still has the bound name, numbered version, and `production` label before run replacement or model construction. Drift fails closed. Label resulting cost evidence `Langfuse Bundesliga match v2; Bundesliga 2025/26 7-document legacy-id-hash-v1 context`; it is a preseason cost proxy that may understate the live eleven-document 2026/27 input and is not prediction-quality evidence.
+
 ### Reasoning effort experiments
 
 `run-slice`, `run-repeated-match`, and `run-repeated-match-slice` can optionally pass OpenAI reasoning effort through the Responses API request:

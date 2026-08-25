@@ -25,6 +25,13 @@ internal sealed class TestFirebaseServiceFactory(FirestoreDb firestoreDb) : IFir
         return new FirebaseContextRepository(FirestoreDb, new FakeLogger<FirebaseContextRepository>(), competition);
     }
 
+    public IHistoricalExperimentContextReader CreateBundesliga2025_26HistoricalExperimentContextReader()
+    {
+        return new Bundesliga2025_26HistoricalExperimentContextReader(
+            FirestoreDb,
+            new FakeLogger<Bundesliga2025_26HistoricalExperimentContextReader>());
+    }
+
     public IDocumentPublicationRepository CreateDocumentPublicationRepository(string competition)
     {
         return new FirebaseDocumentPublicationRepository(

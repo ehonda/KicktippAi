@@ -126,4 +126,5 @@ P0 is complete only when:
 - [ADR-0037: Record immutable bonus-context manifests](decisions/0037-record-immutable-bonus-context-manifests.md)
 - [ADR-0038: Bound bonus context by question policy](decisions/0038-bound-bonus-context-by-question-policy.md)
 - [ADR-0039: Record Bundesliga community and credential topology](decisions/0039-record-bundesliga-community-and-credential-topology.md)
+- [ADR-0040: Use hash-bound 2025/26 context for preseason cost experiments](decisions/0040-use-hash-bound-2025-26-context-for-preseason-cost-experiments.md)
 - [ADR-0041: Freeze the completed DFB-Pokal first-round history transition](decisions/0041-freeze-completed-dfb-first-round-history-transition.md)

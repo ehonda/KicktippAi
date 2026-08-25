@@ -6,6 +6,7 @@ using Google.Cloud.Firestore;
 using Microsoft.Extensions.DependencyInjection;
 using Moq;
 using OpenAiIntegration;
+using Orchestrator.Commands.Observability;
 using Orchestrator.Commands.Observability.Experiments;
 using Orchestrator.Infrastructure;
 using Orchestrator.Infrastructure.Factories;
@@ -18,6 +19,445 @@ namespace Orchestrator.Tests.Commands.Observability.RunExperimentCommandsTests;
 [NotInParallel("Telemetry")]
 public class RunExperimentCommands_Tests
 {
+    [Test]
+    public async Task Marked_historical_context_drift_fails_before_run_delete_prompt_fetch_or_model_construction()
+    {
+        var temporaryDirectory = Directory.CreateTempSubdirectory();
+        try
+        {
+            var manifest = CreateHistoricalPreparedManifest();
+            var manifestPath = Path.Combine(temporaryDirectory.FullName, "historical.json");
+            await File.WriteAllTextAsync(
+                manifestPath,
+                JsonSerializer.Serialize(manifest, PreparedExperimentCommandSupport.JsonOptions));
+            var recorded = manifest.Items.Single().HistoricalContextManifest!;
+            var reader = new Mock<IHistoricalExperimentContextReader>(MockBehavior.Strict);
+            foreach (var document in recorded.Documents)
+            {
+                reader.Setup(repository => repository.GetContextDocumentAsync(
+                        document.Name,
+                        document.Version,
+                        "pes-squad",
+                        It.IsAny<CancellationToken>()))
+                    .ReturnsAsync(new ContextDocument(
+                        document.Name,
+                        document == recorded.Documents[^1] ? "drifted" : $"content:{document.Name}",
+                        document.Version,
+                        document.CreatedAt));
+            }
+
+            var firebaseFactory = new Mock<IFirebaseServiceFactory>(MockBehavior.Strict);
+            firebaseFactory.Setup(factory => factory.CreateBundesliga2025_26HistoricalExperimentContextReader())
+                .Returns(reader.Object);
+            var openAiFactory = new Mock<IOpenAiServiceFactory>(MockBehavior.Strict);
+            var langfuseClient = new Mock<ILangfusePublicApiClient>(MockBehavior.Strict);
+            var executor = new PreparedExperimentRunExecutor(
+                firebaseFactory.Object,
+                openAiFactory.Object,
+                langfuseClient.Object);
+
+            await Assert.That(() => executor.ExecuteAsync(
+                    "repeated-match-slice",
+                    new PreparedExperimentRunRequest(
+                        manifestPath,
+                        "historical-run",
+                        null,
+                        null,
+                        true,
+                        CreateHistoricalRunOptions()),
+                    CancellationToken.None))
+                .Throws<InvalidDataException>()
+                .WithMessageContaining("drifted");
+
+            reader.Verify(repository => repository.GetContextDocumentAsync(
+                It.IsAny<string>(), It.IsAny<int>(), "pes-squad", It.IsAny<CancellationToken>()), Times.Exactly(7));
+            langfuseClient.VerifyNoOtherCalls();
+            openAiFactory.VerifyNoOtherCalls();
+            firebaseFactory.Verify(factory => factory.CreatePredictionRepository(It.IsAny<string>()), Times.Never);
+            firebaseFactory.Verify(factory => factory.CreateContextRepository(It.IsAny<string>()), Times.Never);
+            firebaseFactory.Verify(factory => factory.CreateMatchOutcomeRepository(It.IsAny<string>()), Times.Never);
+        }
+        finally
+        {
+            temporaryDirectory.Delete(recursive: true);
+        }
+    }
+
+    [Test]
+    public async Task Marked_historical_route_mismatch_fails_before_firestore_langfuse_or_model_access()
+    {
+        var temporaryDirectory = Directory.CreateTempSubdirectory();
+        try
+        {
+            var manifestPath = Path.Combine(temporaryDirectory.FullName, "historical.json");
+            await File.WriteAllTextAsync(
+                manifestPath,
+                JsonSerializer.Serialize(CreateHistoricalPreparedManifest(), PreparedExperimentCommandSupport.JsonOptions));
+            var firebaseFactory = new Mock<IFirebaseServiceFactory>(MockBehavior.Strict);
+            var openAiFactory = new Mock<IOpenAiServiceFactory>(MockBehavior.Strict);
+            var langfuseClient = new Mock<ILangfusePublicApiClient>(MockBehavior.Strict);
+            var executor = new PreparedExperimentRunExecutor(
+                firebaseFactory.Object,
+                openAiFactory.Object,
+                langfuseClient.Object);
+            var wrongRoute = CreateHistoricalRunOptions() with
+            {
+                PromptSource = "local",
+                LangfusePromptName = null,
+                LangfusePromptLabel = null,
+                LangfusePromptVersion = null
+            };
+
+            await Assert.That(() => executor.ExecuteAsync(
+                    "repeated-match-slice",
+                    new PreparedExperimentRunRequest(
+                        manifestPath,
+                        "historical-run",
+                        null,
+                        null,
+                        true,
+                        wrongRoute),
+                    CancellationToken.None))
+                .Throws<InvalidOperationException>()
+                .WithMessageContaining("prompt route");
+
+            firebaseFactory.VerifyNoOtherCalls();
+            langfuseClient.VerifyNoOtherCalls();
+            openAiFactory.VerifyNoOtherCalls();
+        }
+        finally
+        {
+            temporaryDirectory.Delete(recursive: true);
+        }
+    }
+
+    [Test]
+    [Arguments("wrong-name", 2, true)]
+    [Arguments("kicktippai/bundesliga-2026-27/predict-one-match", 3, true)]
+    [Arguments("kicktippai/bundesliga-2026-27/predict-one-match", 2, false)]
+    public async Task Marked_historical_resolved_prompt_mismatch_fails_before_run_delete_or_model_construction(
+        string resolvedName,
+        int resolvedVersion,
+        bool hasProductionLabel)
+    {
+        var temporaryDirectory = Directory.CreateTempSubdirectory();
+        try
+        {
+            var manifest = CreateHistoricalPreparedManifest();
+            var manifestPath = Path.Combine(temporaryDirectory.FullName, "historical.json");
+            await File.WriteAllTextAsync(
+                manifestPath,
+                JsonSerializer.Serialize(manifest, PreparedExperimentCommandSupport.JsonOptions));
+            var recorded = manifest.Items.Single().HistoricalContextManifest!;
+            var reader = new Mock<IHistoricalExperimentContextReader>(MockBehavior.Strict);
+            foreach (var document in recorded.Documents)
+            {
+                reader.Setup(repository => repository.GetContextDocumentAsync(
+                        document.Name,
+                        document.Version,
+                        "pes-squad",
+                        It.IsAny<CancellationToken>()))
+                    .ReturnsAsync(new ContextDocument(
+                        document.Name,
+                        $"content:{document.Name}",
+                        document.Version,
+                        document.CreatedAt));
+            }
+
+            var firebaseFactory = new Mock<IFirebaseServiceFactory>(MockBehavior.Strict);
+            firebaseFactory.Setup(factory => factory.CreateBundesliga2025_26HistoricalExperimentContextReader())
+                .Returns(reader.Object);
+            var openAiFactory = new Mock<IOpenAiServiceFactory>(MockBehavior.Strict);
+            var langfuseClient = new Mock<ILangfusePublicApiClient>(MockBehavior.Strict);
+            langfuseClient.Setup(client => client.GetPromptAsync(
+                    PreparedHistoricalExperimentCompatibility.PromptName,
+                    PreparedHistoricalExperimentCompatibility.PromptLabel,
+                    PreparedHistoricalExperimentCompatibility.PromptVersion,
+                    It.IsAny<CancellationToken>()))
+                .ReturnsAsync(new LangfusePrompt(
+                    resolvedName,
+                    resolvedVersion,
+                    "text",
+                    JsonSerializer.SerializeToElement("{{context_documents}}"),
+                    hasProductionLabel ? [PreparedHistoricalExperimentCompatibility.PromptLabel] : ["staging"],
+                    [],
+                    JsonSerializer.SerializeToElement(new { })));
+            var executor = new PreparedExperimentRunExecutor(
+                firebaseFactory.Object,
+                openAiFactory.Object,
+                langfuseClient.Object);
+
+            await Assert.That(() => executor.ExecuteAsync(
+                    "repeated-match-slice",
+                    new PreparedExperimentRunRequest(
+                        manifestPath,
+                        "historical-run",
+                        null,
+                        null,
+                        true,
+                        CreateHistoricalRunOptions()),
+                    CancellationToken.None))
+                .Throws<InvalidDataException>()
+                .WithMessageContaining("production-label binding");
+
+            langfuseClient.Verify(client => client.GetPromptAsync(
+                PreparedHistoricalExperimentCompatibility.PromptName,
+                PreparedHistoricalExperimentCompatibility.PromptLabel,
+                PreparedHistoricalExperimentCompatibility.PromptVersion,
+                It.IsAny<CancellationToken>()), Times.Once);
+            langfuseClient.VerifyNoOtherCalls();
+            openAiFactory.VerifyNoOtherCalls();
+            reader.Verify(repository => repository.GetContextDocumentAsync(
+                It.IsAny<string>(), It.IsAny<int>(), "pes-squad", It.IsAny<CancellationToken>()), Times.Exactly(7));
+            firebaseFactory.Verify(factory => factory.CreateBundesliga2025_26HistoricalExperimentContextReader(), Times.Once);
+            firebaseFactory.VerifyNoOtherCalls();
+        }
+        finally
+        {
+            temporaryDirectory.Delete(recursive: true);
+        }
+    }
+
+    [Test]
+    public async Task Marked_historical_run_uses_cached_seven_documents_and_embedded_score_without_live_repositories()
+    {
+        var temporaryDirectory = Directory.CreateTempSubdirectory();
+        try
+        {
+            var manifest = CreateHistoricalPreparedManifest();
+            var manifestPath = Path.Combine(temporaryDirectory.FullName, "historical.json");
+            await File.WriteAllTextAsync(
+                manifestPath,
+                JsonSerializer.Serialize(manifest, PreparedExperimentCommandSupport.JsonOptions));
+            var recorded = manifest.Items.Single().HistoricalContextManifest!;
+            var reader = new Mock<IHistoricalExperimentContextReader>(MockBehavior.Strict);
+            foreach (var document in recorded.Documents)
+            {
+                reader.Setup(repository => repository.GetContextDocumentAsync(
+                        document.Name,
+                        document.Version,
+                        "pes-squad",
+                        It.IsAny<CancellationToken>()))
+                    .ReturnsAsync(new ContextDocument(
+                        document.Name,
+                        $"content:{document.Name}",
+                        document.Version,
+                        document.CreatedAt));
+            }
+
+            var firebaseFactory = new Mock<IFirebaseServiceFactory>(MockBehavior.Strict);
+            firebaseFactory.Setup(factory => factory.CreateBundesliga2025_26HistoricalExperimentContextReader())
+                .Returns(reader.Object);
+            IReadOnlyList<DocumentContext>? usedContext = null;
+            var predictionService = CreateMockPredictionService(predictMatchResult: new Prediction(2, 1));
+            predictionService.Setup(service => service.PredictMatchAsync(
+                    It.IsAny<Match>(),
+                    It.IsAny<IEnumerable<DocumentContext>>(),
+                    It.IsAny<bool>(),
+                    It.IsAny<PredictionTelemetryMetadata?>(),
+                    It.IsAny<CancellationToken>()))
+                .Callback((Match _, IEnumerable<DocumentContext> documents, bool _, PredictionTelemetryMetadata? _, CancellationToken _) =>
+                    usedContext = documents.ToList())
+                .ReturnsAsync(new Prediction(2, 1));
+            var openAiFactory = CreateMockOpenAiServiceFactory(predictionService: predictionService);
+            var langfuseClient = new Mock<ILangfusePublicApiClient>(MockBehavior.Strict);
+            langfuseClient.Setup(client => client.GetPromptAsync(
+                    PreparedHistoricalExperimentCompatibility.PromptName,
+                    PreparedHistoricalExperimentCompatibility.PromptLabel,
+                    PreparedHistoricalExperimentCompatibility.PromptVersion,
+                    It.IsAny<CancellationToken>()))
+                .ReturnsAsync(new LangfusePrompt(
+                    PreparedHistoricalExperimentCompatibility.PromptName,
+                    PreparedHistoricalExperimentCompatibility.PromptVersion,
+                    "text",
+                    JsonSerializer.SerializeToElement("{{context_documents}}"),
+                    [PreparedHistoricalExperimentCompatibility.PromptLabel],
+                    [],
+                    JsonSerializer.SerializeToElement(new { })));
+            langfuseClient.Setup(client => client.CreateDatasetRunItemAsync(
+                    It.IsAny<LangfuseCreateDatasetRunItemRequest>(), It.IsAny<CancellationToken>()))
+                .ReturnsAsync(new LangfuseDatasetRunItem(
+                    "run-item-1", "run-1", "historical-run", "slice-1", "trace", null,
+                    DateTimeOffset.UtcNow, DateTimeOffset.UtcNow));
+            langfuseClient.Setup(client => client.CreateScoreAsync(
+                    It.IsAny<LangfuseCreateScoreRequest>(), It.IsAny<CancellationToken>()))
+                .ReturnsAsync(new LangfuseCreateScoreResponse("score"));
+            langfuseClient.Setup(client => client.GetDatasetRunAsync(
+                    "historical-dataset", "historical-run", It.IsAny<CancellationToken>()))
+                .ReturnsAsync(new LangfuseDatasetRunWithItems(
+                    "run-1", "historical-run", "dataset-1", "historical-dataset", null, default, []));
+            langfuseClient.Setup(client => client.ListDatasetRunItemsAsync(
+                    "dataset-1", "historical-run", 1, It.IsAny<int>(), It.IsAny<CancellationToken>()))
+                .ReturnsAsync(new LangfusePaginatedResponse<LangfuseDatasetRunItem>(
+                    [], new LangfusePaginationMeta(1, 100, 1, 1)));
+            var executor = new PreparedExperimentRunExecutor(
+                firebaseFactory.Object,
+                openAiFactory.Object,
+                langfuseClient.Object);
+
+            var summary = await executor.ExecuteAsync(
+                "repeated-match-slice",
+                new PreparedExperimentRunRequest(
+                    manifestPath,
+                    "historical-run",
+                    null,
+                    null,
+                    false,
+                    CreateHistoricalRunOptions()),
+                CancellationToken.None);
+
+            await Assert.That(summary.ExecutionCount).IsEqualTo(1);
+            await Assert.That(summary.AggregateScores.TotalKicktippPoints).IsEqualTo(4);
+            await Assert.That(usedContext).IsNotNull();
+            await Assert.That(usedContext!.Count).IsEqualTo(7);
+            firebaseFactory.Verify(factory => factory.CreatePredictionRepository(It.IsAny<string>()), Times.Never);
+            firebaseFactory.Verify(factory => factory.CreateContextRepository(It.IsAny<string>()), Times.Never);
+            firebaseFactory.Verify(factory => factory.CreateMatchOutcomeRepository(It.IsAny<string>()), Times.Never);
+            firebaseFactory.Verify(factory => factory.CreateDocumentPublicationRepository(It.IsAny<string>()), Times.Never);
+            reader.Verify(repository => repository.GetContextDocumentAsync(
+                It.IsAny<string>(), It.IsAny<int>(), "pes-squad", It.IsAny<CancellationToken>()), Times.Exactly(7));
+        }
+        finally
+        {
+            temporaryDirectory.Delete(recursive: true);
+        }
+    }
+
+    [Test]
+    public async Task Historical_artifact_hash_binds_completed_score_cutoff_route_and_context()
+    {
+        var manifest = CreateHistoricalPreparedManifest();
+
+        await Assert.That(() => PreparedExperimentCommandSupport.ValidateManifest(
+                manifest with
+                {
+                    Items = [manifest.Items.Single() with { ExpectedHomeGoals = 9 }]
+                }))
+            .Throws<InvalidOperationException>()
+            .WithMessageContaining("artifact hash");
+        await Assert.That(() => PreparedExperimentCommandSupport.ValidateManifest(
+                manifest with
+                {
+                    StartsAfter = "2026-02-17T00:00:00 Europe/Berlin (+01)",
+                    HistoricalCompatibility = manifest.HistoricalCompatibility! with
+                    {
+                        OfficialKnowledgeCutoff = "2026-02-15",
+                        SamplingCutoff = "2026-02-17T00:00:00 Europe/Berlin (+01)"
+                    }
+                }))
+            .Throws<InvalidOperationException>()
+            .WithMessageContaining("artifact hash");
+        await Assert.That(() => PreparedExperimentCommandSupport.ValidateManifest(
+                manifest with { SampleSeed = 99 }))
+            .Throws<InvalidOperationException>()
+            .WithMessageContaining("artifact hash");
+        await Assert.That(() => PreparedExperimentCommandSupport.ValidateManifest(
+                manifest with { SliceDatasetName = "another-historical-dataset" }))
+            .Throws<InvalidOperationException>()
+            .WithMessageContaining("artifact hash");
+    }
+
+    [Test]
+    public async Task Historical_topology_accepts_exact_one_by_one_and_five_by_four_manifests()
+    {
+        var oneByOne = PreparedExperimentCommandSupport.ValidateManifest(CreateHistoricalPreparedManifest());
+        var fiveByFour = PreparedExperimentCommandSupport.ValidateManifest(CreateHistoricalPreparedManifest(5, 4));
+
+        await Assert.That(oneByOne.Items.Count).IsEqualTo(1);
+        await Assert.That(fiveByFour.Items.Count).IsEqualTo(20);
+        await Assert.That(fiveByFour.SelectedItemIds.Count).IsEqualTo(5);
+    }
+
+    [Test]
+    public async Task Historical_topology_rejects_partial_identities_and_generated_id_or_dimension_drift()
+    {
+        var manifest = CreateHistoricalPreparedManifest(5, 4);
+        var first = manifest.Items[0];
+
+        await Assert.That(() => PreparedExperimentCommandSupport.ValidateManifest(
+                manifest with { Items = [first with { TippSpielId = null }, .. manifest.Items.Skip(1)] }))
+            .Throws<InvalidOperationException>();
+        await Assert.That(() => PreparedExperimentCommandSupport.ValidateManifest(
+                manifest with
+                {
+                    Items = [first, manifest.Items[1] with { TippSpielId = null }, .. manifest.Items.Skip(2)]
+                }))
+            .Throws<InvalidOperationException>()
+            .WithMessageContaining("partial or inconsistent");
+        await Assert.That(() => PreparedExperimentCommandSupport.ValidateManifest(
+                manifest with { Items = [first with { FixtureIndex = null }, .. manifest.Items.Skip(1)] }))
+            .Throws<InvalidOperationException>();
+        await Assert.That(() => PreparedExperimentCommandSupport.ValidateManifest(
+                manifest with { Items = [first with { RepetitionIndex = null }, .. manifest.Items.Skip(1)] }))
+            .Throws<InvalidOperationException>();
+        await Assert.That(() => PreparedExperimentCommandSupport.ValidateManifest(
+                manifest with { SampleSize = 19 }))
+            .Throws<InvalidOperationException>()
+            .WithMessageContaining("matchCount multiplied by repetitions");
+        await Assert.That(() => PreparedExperimentCommandSupport.ValidateManifest(
+                manifest with { Items = [first with { SourceDatasetItemId = "wrong" }, .. manifest.Items.Skip(1)] }))
+            .Throws<InvalidOperationException>()
+            .WithMessageContaining("sourceDatasetItemId");
+        await Assert.That(() => PreparedExperimentCommandSupport.ValidateManifest(
+                manifest with { Items = [first with { SliceDatasetItemId = "wrong" }, .. manifest.Items.Skip(1)] }))
+            .Throws<InvalidOperationException>()
+            .WithMessageContaining("generated repeated-match-slice identity");
+        await Assert.That(() => PreparedExperimentCommandSupport.ValidateManifest(
+                manifest with { SelectedItemIdsHash = new string('a', 64) }))
+            .Throws<InvalidOperationException>()
+            .WithMessageContaining("selectedItemIdsHash");
+        await Assert.That(() => PreparedExperimentCommandSupport.ValidateManifest(
+                manifest with { SelectedItemIds = ["wrong", .. manifest.SelectedItemIds.Skip(1)] }))
+            .Throws<InvalidOperationException>()
+            .WithMessageContaining("selectedItemIds");
+    }
+
+    [Test]
+    public async Task Historical_sampling_cutoff_requires_exact_two_day_berlin_local_midnight_margin()
+    {
+        var manifest = CreateHistoricalPreparedManifest();
+        var wrongCompatibility = manifest.HistoricalCompatibility! with
+        {
+            SamplingCutoff = "2026-02-18T01:00:00 Europe/Berlin (+01)"
+        };
+        var wrongCutoff = manifest with
+        {
+            StartsAfter = wrongCompatibility.SamplingCutoff,
+            HistoricalCompatibility = wrongCompatibility
+        };
+        wrongCutoff = wrongCutoff with
+        {
+            HistoricalArtifactSha256 = PreparedExperimentCommandSupport.ComputeHistoricalArtifactSha256(wrongCutoff)
+        };
+
+        await Assert.That(() => PreparedExperimentCommandSupport.ValidateManifest(wrongCutoff))
+            .Throws<InvalidOperationException>()
+            .WithMessageContaining("local midnight two days");
+        await Assert.That(PreparedExperimentCommandSupport.BuildRequiredHistoricalSamplingCutoff(
+                new DateOnly(2026, 2, 16)))
+            .IsEqualTo("2026-02-18T00:00:00 Europe/Berlin (+01)");
+    }
+
+    [Test]
+    public async Task Historical_artifact_hash_without_the_explicit_compatibility_contract_fails_closed()
+    {
+        var manifest = CreateHistoricalPreparedManifest();
+
+        await Assert.That(() => PreparedExperimentCommandSupport.ValidateManifest(
+                manifest with
+                {
+                    HistoricalCompatibility = null,
+                    Items = manifest.Items.Select(item => item with
+                    {
+                        HistoricalContextManifest = null,
+                        ExpectedHomeGoals = null,
+                        ExpectedAwayGoals = null
+                    }).ToArray()
+                }))
+            .Throws<InvalidOperationException>()
+            .WithMessageContaining("historicalCompatibility");
+    }
+
     [Test]
     public async Task Prepared_bundesliga_2026_27_item_without_immutable_manifest_is_rejected_before_execution()
     {
@@ -407,6 +847,147 @@ public class RunExperimentCommands_Tests
             ResolvedContextManifest = resolvedContextManifest,
             PredictionCreatedAt = DateTimeOffset.UtcNow
         };
+
+    private static PreparedExperimentManifest CreateHistoricalPreparedManifest(
+        int matchCount = 1,
+        int repetitions = 1)
+    {
+        const string community = "pes-squad";
+        const string sliceKey = "historical-topology-test";
+        var fixtureTeams = new[]
+        {
+            (Home: "VfL Wolfsburg", Away: "Eintracht Frankfurt"),
+            (Home: "FC Bayern München", Away: "Borussia Dortmund"),
+            (Home: "RB Leipzig", Away: "VfB Stuttgart"),
+            (Home: "SC Freiburg", Away: "1. FC Köln"),
+            (Home: "FC St. Pauli", Away: "Hamburger SV")
+        };
+        if (matchCount < 1 || matchCount > fixtureTeams.Length || repetitions < 1)
+        {
+            throw new ArgumentOutOfRangeException(nameof(matchCount));
+        }
+
+        var compatibility = new PreparedHistoricalExperimentCompatibility
+        {
+            Mode = ResolvedHistoricalExperimentContextManifest.LegacyIdHashV1,
+            OfficialKnowledgeCutoff = "2026-02-16",
+            SamplingCutoff = "2026-02-18T00:00:00 Europe/Berlin (+01)",
+            BoundPromptSource = PreparedHistoricalExperimentCompatibility.PromptSource,
+            BoundPromptName = PreparedHistoricalExperimentCompatibility.PromptName,
+            BoundPromptLabel = PreparedHistoricalExperimentCompatibility.PromptLabel,
+            BoundPromptVersion = PreparedHistoricalExperimentCompatibility.PromptVersion,
+            BoundEvaluationPolicyKind = PreparedHistoricalExperimentCompatibility.EvaluationPolicyKind,
+            BoundEvaluationPolicyReference = PreparedHistoricalExperimentCompatibility.EvaluationPolicyReference,
+            BoundEvaluationPolicyOffset = PreparedHistoricalExperimentCompatibility.EvaluationPolicyOffset,
+            ContextDocumentCount = 7
+        };
+        var selectedItemIds = new List<string>(matchCount);
+        var items = new List<PreparedExperimentManifestItem>(matchCount * repetitions);
+        for (var fixtureIndex = 1; fixtureIndex <= matchCount; fixtureIndex += 1)
+        {
+            var teams = fixtureTeams[fixtureIndex - 1];
+            var day = 10 + fixtureIndex;
+            var startsAt = $"2026-04-{day:D2}T16:30:00 Europe/Berlin (+02)";
+            var startsAtInstant = new DateTimeOffset(2026, 4, day, 16, 30, 0, TimeSpan.FromHours(2));
+            var evaluation = startsAtInstant.AddHours(-12);
+            var match = new Match(
+                teams.Home,
+                teams.Away,
+                NodaTime.Instant.FromDateTimeOffset(startsAtInstant).InZone(NodaTime.DateTimeZone.Utc),
+                28 + fixtureIndex);
+            var entries = MatchContextDocumentCatalog.ForMatch(
+                    match,
+                    community,
+                    CompetitionIds.Bundesliga2025_26).RequiredDocumentNames
+                .Select((name, index) => new ResolvedHistoricalExperimentContextDocument(
+                    name,
+                    index,
+                    ResolvedHistoricalExperimentContextManifest.BuildLegacyDocumentId(name, community, index),
+                    evaluation.AddMinutes(-(index + 1)),
+                    DocumentPublicationContract.ComputeContentSha256($"content:{name}")))
+                .ToArray();
+            var historicalContext = ResolvedHistoricalExperimentContextManifest.Create(
+                community,
+                evaluation,
+                entries);
+            var tippSpielId = (1423757340 + fixtureIndex).ToString(System.Globalization.CultureInfo.InvariantCulture);
+            var sourceDatasetItemId = ExperimentArtifactSupport.BuildHostedDatasetItemId(
+                CompetitionIds.Bundesliga2025_26,
+                community,
+                tippSpielId);
+            selectedItemIds.Add(sourceDatasetItemId);
+            for (var repetitionIndex = 1; repetitionIndex <= repetitions; repetitionIndex += 1)
+            {
+                items.Add(new PreparedExperimentManifestItem
+                {
+                    SourceDatasetItemId = sourceDatasetItemId,
+                    SliceDatasetItemId = ExperimentArtifactSupport.BuildRepeatedMatchSliceDatasetItemId(
+                        sourceDatasetItemId,
+                        sliceKey,
+                        fixtureIndex,
+                        matchCount,
+                        repetitionIndex,
+                        repetitions),
+                    HomeTeam = match.HomeTeam,
+                    AwayTeam = match.AwayTeam,
+                    Matchday = match.Matchday,
+                    StartsAt = startsAt,
+                    TippSpielId = tippSpielId,
+                    FixtureIndex = fixtureIndex,
+                    RepetitionIndex = repetitionIndex,
+                    HistoricalContextManifest = historicalContext,
+                    ExpectedHomeGoals = 2,
+                    ExpectedAwayGoals = 1
+                });
+            }
+        }
+
+        var manifest = new PreparedExperimentManifest
+        {
+            TaskType = "repeated-match-slice",
+            Competition = CompetitionIds.Bundesliga2025_26,
+            CommunityContext = community,
+            Season = ExperimentArtifactSupport.Season,
+            SliceKey = sliceKey,
+            SliceKind = "repeated-match-slice",
+            SampleMethod = "repeated-match-slice",
+            SourcePoolKey = "all-matchdays-after-20260217t230000z",
+            SourceDatasetName = ExperimentArtifactSupport.BuildSourceDatasetName(community),
+            SliceDatasetName = "historical-dataset",
+            SampleSeed = 42,
+            SampleSize = matchCount * repetitions,
+            MatchCount = matchCount,
+            Repetitions = repetitions,
+            SelectedItemIds = selectedItemIds,
+            SelectedItemIdsHash = ExperimentArtifactSupport.ComputeSelectedItemIdsHash(selectedItemIds),
+            StartsAfter = compatibility.SamplingCutoff,
+            HistoricalCompatibility = compatibility,
+            Items = items
+        };
+        return manifest with
+        {
+            HistoricalArtifactSha256 = PreparedExperimentCommandSupport.ComputeHistoricalArtifactSha256(manifest)
+        };
+    }
+
+    private static PreparedExperimentRunOptions CreateHistoricalRunOptions() =>
+        new(
+            "gpt-5.6-luna",
+            "bundesliga-match-v2",
+            false,
+            null,
+            PreparedHistoricalExperimentCompatibility.EvaluationPolicyKind,
+            PreparedHistoricalExperimentCompatibility.EvaluationPolicyOffset,
+            "historical-dataset",
+            PreparedHistoricalExperimentCompatibility.PromptSource,
+            PreparedHistoricalExperimentCompatibility.PromptName,
+            PreparedHistoricalExperimentCompatibility.PromptLabel,
+            PreparedHistoricalExperimentCompatibility.PromptVersion,
+            "warmup-plus-batches",
+            BatchCount: 1,
+            ReasoningEffort: "none",
+            MaxOutputTokenCount: 10000,
+            Parallelism: 1);
 
     private static LoadedDocumentPublication CreateAdvancedHead(
         LoadedDocumentPublication recorded,

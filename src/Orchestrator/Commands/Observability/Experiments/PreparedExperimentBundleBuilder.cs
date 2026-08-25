@@ -64,7 +64,9 @@ internal static class PreparedExperimentBundleBuilder
         string? datasetDescription = null,
         IReadOnlyDictionary<string, object?>? extraDatasetMetadata = null,
         int? matchCount = null,
-        int? repetitions = null)
+        int? repetitions = null,
+        PreparedHistoricalExperimentCompatibility? historicalCompatibility = null,
+        string? startsAfter = null)
     {
         if (sourceItems.Count == 0)
         {
@@ -118,7 +120,10 @@ internal static class PreparedExperimentBundleBuilder
             FixtureIndex = item.FixtureIndex,
             RepetitionIndex = item.RepetitionIndex,
             ResolvedContextManifest = item.ResolvedContextManifest,
-            PredictionCreatedAt = item.PredictionCreatedAt
+            PredictionCreatedAt = item.PredictionCreatedAt,
+            HistoricalContextManifest = item.HistoricalContextManifest,
+            ExpectedHomeGoals = item.HistoricalContextManifest is null ? null : item.ExpectedHomeGoals,
+            ExpectedAwayGoals = item.HistoricalContextManifest is null ? null : item.ExpectedAwayGoals
         }).ToList();
 
         var datasetMetadataNode = JsonSerializer.SerializeToNode(new
@@ -161,6 +166,7 @@ internal static class PreparedExperimentBundleBuilder
 
         var manifest = new PreparedExperimentManifest
         {
+            TaskType = historicalCompatibility is null ? null : sliceKind,
             SliceKey = sliceKey,
             SliceKind = sliceKind,
             SampleMethod = sampleMethod,
@@ -174,10 +180,19 @@ internal static class PreparedExperimentBundleBuilder
             SampleSize = sourceItems.Count,
             MatchCount = matchCount,
             Repetitions = repetitions,
+            HistoricalCompatibility = historicalCompatibility,
+            StartsAfter = startsAfter,
             SelectedItemIds = selectedItemIds,
             SelectedItemIdsHash = selectedItemIdsHash,
             Items = manifestItems
         };
+        if (historicalCompatibility is not null)
+        {
+            manifest = manifest with
+            {
+                HistoricalArtifactSha256 = PreparedExperimentCommandSupport.ComputeHistoricalArtifactSha256(manifest)
+            };
+        }
 
         // All prepare commands build their complete bundle before they write either JSON
         // artifact. Validate the manifest here so an outcome-only 2026/27 source cannot
@@ -230,7 +245,8 @@ internal sealed record PreparedExperimentSourceItem(
     int? FixtureIndex = null,
     int? RepetitionIndex = null,
     ResolvedMatchContextManifest? ResolvedContextManifest = null,
-    DateTimeOffset? PredictionCreatedAt = null);
+    DateTimeOffset? PredictionCreatedAt = null,
+    ResolvedHistoricalExperimentContextManifest? HistoricalContextManifest = null);
 
 internal sealed record PreparedExperimentBundle(
     PreparedExperimentDataset Artifact,

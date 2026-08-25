@@ -255,6 +255,10 @@ internal static class PreparedExperimentSupport
                     Offset = evaluationTimestampPolicy.Offset.ToTimeSpan().ToString("c", CultureInfo.InvariantCulture)
                 },
             EvaluationTime = explicitEvaluationTime?.ToString("O", CultureInfo.InvariantCulture),
+            HistoricalCompatibilityMode = manifest.HistoricalCompatibility?.Mode,
+            OfficialKnowledgeCutoff = manifest.HistoricalCompatibility?.OfficialKnowledgeCutoff,
+            SamplingCutoff = manifest.HistoricalCompatibility?.SamplingCutoff,
+            HistoricalContextDocumentCount = manifest.HistoricalCompatibility?.ContextDocumentCount,
             StartedAtUtc = ExperimentArtifactSupport.FormatStartedAtUtc(DateTimeOffset.UtcNow),
             SampleSeed = manifest.SampleSeed,
             SampleMethod = ResolveSampleMethod(manifest),
@@ -374,6 +378,10 @@ internal static class PreparedExperimentSupport
         AddIfValid(metadata, "communityContext", runMetadata.CommunityContext);
         AddIfValid(metadata, "evaluationTime", runMetadata.EvaluationTime);
         AddIfValid(metadata, "evaluationTimestampPolicyKey", runMetadata.EvaluationTimestampPolicyKey);
+        AddIfValid(metadata, "historicalCompatibilityMode", runMetadata.HistoricalCompatibilityMode);
+        AddIfValid(metadata, "officialKnowledgeCutoff", runMetadata.OfficialKnowledgeCutoff);
+        AddIfValid(metadata, "samplingCutoff", runMetadata.SamplingCutoff);
+        AddIfValid(metadata, "historicalContextDocumentCount", runMetadata.HistoricalContextDocumentCount?.ToString(CultureInfo.InvariantCulture));
         AddIfValid(metadata, "model", runMetadata.Model);
         AddIfValid(metadata, "promptKey", runMetadata.PromptKey);
         AddIfValid(metadata, "promptSource", runMetadata.PromptSource);

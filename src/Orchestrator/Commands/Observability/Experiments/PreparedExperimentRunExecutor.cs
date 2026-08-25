@@ -58,6 +58,16 @@ internal sealed class PreparedExperimentRunExecutor
         var evaluationTimestampPolicy = explicitEvaluationTime is null
             ? PreparedExperimentCommandSupport.ParseEvaluationTimestampPolicy(runMetadata)
             : null;
+        var historicalContexts = await PreResolveHistoricalContextsAsync(
+            manifest,
+            runMetadata,
+            explicitEvaluationTime,
+            evaluationTimestampPolicy,
+            cancellationToken);
+        var isHistoricalCompatibilityRun = historicalContexts is not null;
+        var verifiedHistoricalPromptRoute = isHistoricalCompatibilityRun
+            ? await ResolvePromptRouteAsync(runMetadata, manifest.HistoricalCompatibility, cancellationToken)
+            : null;
         var deletedExistingRun = await DeleteExistingRunIfRequestedAsync(
             datasetName,
             request.RunName,
@@ -66,10 +76,17 @@ internal sealed class PreparedExperimentRunExecutor
 
         var competition = runMetadata.Competition
                           ?? throw new InvalidOperationException("Prepared experiment metadata must include a competition.");
-        var predictionRepository = _firebaseServiceFactory.CreatePredictionRepository(competition);
-        var contextRepository = _firebaseServiceFactory.CreateContextRepository(competition);
-        var matchOutcomeRepository = _firebaseServiceFactory.CreateMatchOutcomeRepository(competition);
-        var promptRoute = await ResolvePromptRouteAsync(runMetadata, cancellationToken);
+        var predictionRepository = isHistoricalCompatibilityRun
+            ? null
+            : _firebaseServiceFactory.CreatePredictionRepository(competition);
+        var contextRepository = isHistoricalCompatibilityRun
+            ? null
+            : _firebaseServiceFactory.CreateContextRepository(competition);
+        var matchOutcomeRepository = isHistoricalCompatibilityRun
+            ? null
+            : _firebaseServiceFactory.CreateMatchOutcomeRepository(competition);
+        var promptRoute = verifiedHistoricalPromptRoute
+                          ?? await ResolvePromptRouteAsync(runMetadata, historicalCompatibility: null, cancellationToken);
         if (promptRoute.TraceMetadata is { } promptTraceMetadata)
         {
             runMetadata = runMetadata with
@@ -93,13 +110,17 @@ internal sealed class PreparedExperimentRunExecutor
                 request.Options.Model,
                 predictionServiceOptions,
                 promptRoute.TemplateProvider);
-        var reconstructionService = new MatchPromptReconstructionService(
-            predictionRepository,
-            contextRepository,
-            promptRoute.TemplateProvider ?? new InstructionsTemplateProvider(PromptsFileProvider.Create()),
-            _firebaseServiceFactory.CreateDocumentPublicationRepository(competition));
+        var reconstructionService = isHistoricalCompatibilityRun
+            ? null
+            : new MatchPromptReconstructionService(
+                predictionRepository!,
+                contextRepository!,
+                promptRoute.TemplateProvider ?? new InstructionsTemplateProvider(PromptsFileProvider.Create()),
+                _firebaseServiceFactory.CreateDocumentPublicationRepository(competition));
 
-        var outcomesByKey = await LoadOutcomesAsync(matchOutcomeRepository, communityContext, manifest, cancellationToken);
+        var outcomesByKey = matchOutcomeRepository is null
+            ? new Dictionary<string, PersistedMatchOutcome>()
+            : await LoadOutcomesAsync(matchOutcomeRepository, communityContext, manifest, cancellationToken);
         var experimentName = PreparedExperimentSupport.DeriveExperimentName(runMetadata, request.RunName);
         var traceTags = PreparedExperimentSupport.DeriveTraceTags(runMetadata);
         var propagatedMetadata = PreparedExperimentSupport.DerivePropagatedMetadata(runMetadata);
@@ -141,6 +162,7 @@ internal sealed class PreparedExperimentRunExecutor
                 reconstructionService,
                 predictionService,
                 outcomesByKey,
+                historicalContexts,
                 traceTags,
                 propagatedMetadata,
                 runMetadataPayload,
@@ -414,8 +436,67 @@ internal sealed class PreparedExperimentRunExecutor
         return batches;
     }
 
+    private async Task<IReadOnlyDictionary<string, ResolvedHistoricalExperimentContext>?> PreResolveHistoricalContextsAsync(
+        PreparedExperimentManifest manifest,
+        PreparedExperimentRunMetadata runMetadata,
+        DateTimeOffset? explicitEvaluationTime,
+        EvaluationTimestampPolicy? evaluationTimestampPolicy,
+        CancellationToken cancellationToken)
+    {
+        var compatibility = manifest.HistoricalCompatibility;
+        if (compatibility is null)
+        {
+            return null;
+        }
+
+        if (explicitEvaluationTime is not null
+            || evaluationTimestampPolicy is null
+            || !string.Equals(evaluationTimestampPolicy.Kind, PreparedHistoricalExperimentCompatibility.EvaluationPolicyKind, StringComparison.Ordinal)
+            || !string.Equals(evaluationTimestampPolicy.Reference, PreparedHistoricalExperimentCompatibility.EvaluationPolicyReference, StringComparison.Ordinal)
+            || !string.Equals(
+                evaluationTimestampPolicy.Offset.ToTimeSpan().ToString("c", System.Globalization.CultureInfo.InvariantCulture),
+                PreparedHistoricalExperimentCompatibility.EvaluationPolicyOffset,
+                StringComparison.Ordinal)
+            || !string.Equals(runMetadata.PromptSource, compatibility.BoundPromptSource, StringComparison.Ordinal)
+            || !string.Equals(runMetadata.LangfusePromptName, compatibility.BoundPromptName, StringComparison.Ordinal)
+            || !string.Equals(runMetadata.LangfusePromptLabel, compatibility.BoundPromptLabel, StringComparison.Ordinal)
+            || runMetadata.LangfusePromptVersion != compatibility.BoundPromptVersion)
+        {
+            throw new InvalidOperationException(
+                "Historical compatibility runs must use the prompt route and startsAt -12h evaluation policy bound by the prepared manifest.");
+        }
+
+        var reader = _firebaseServiceFactory.CreateBundesliga2025_26HistoricalExperimentContextReader();
+        var resolver = new Bundesliga2025_26HistoricalExperimentContextResolver(reader);
+        var resolved = new Dictionary<string, ResolvedHistoricalExperimentContext>(StringComparer.Ordinal);
+        foreach (var item in manifest.Items)
+        {
+            var recorded = item.HistoricalContextManifest
+                ?? throw new InvalidOperationException(
+                    $"Historical item '{item.SliceDatasetItemId}' is missing its context manifest.");
+            if (resolved.ContainsKey(recorded.ManifestSha256))
+            {
+                continue;
+            }
+
+            var startsAt = Commands.Observability.EvaluationTimeParser.Parse(item.StartsAt);
+            var instant = NodaTime.Instant.FromDateTimeOffset(startsAt);
+            var match = new Match(
+                item.HomeTeam,
+                item.AwayTeam,
+                instant.InZone(NodaTime.DateTimeZone.Utc),
+                item.Matchday);
+            resolved.Add(
+                recorded.ManifestSha256,
+                await resolver.ResolveRecordedAsync(match, recorded, cancellationToken));
+        }
+
+        return resolved;
+    }
+
     private async Task<ExperimentPromptRoute> ResolvePromptRouteAsync(
         PreparedExperimentRunMetadata runMetadata,
+        PreparedHistoricalExperimentCompatibility? historicalCompatibility,
         CancellationToken cancellationToken)
     {
         var promptSource = string.IsNullOrWhiteSpace(runMetadata.PromptSource)
@@ -451,6 +532,16 @@ internal sealed class PreparedExperimentRunExecutor
                          cancellationToken)
                      ?? throw new FileNotFoundException(
                          $"Langfuse prompt '{runMetadata.LangfusePromptName}' was not found.");
+
+        if (historicalCompatibility is not null
+            && (!string.Equals(prompt.Name, historicalCompatibility.BoundPromptName, StringComparison.Ordinal)
+                || prompt.Version != historicalCompatibility.BoundPromptVersion
+                || prompt.Labels is null
+                || !prompt.Labels.Contains(historicalCompatibility.BoundPromptLabel, StringComparer.Ordinal)))
+        {
+            throw new InvalidDataException(
+                "Resolved hosted prompt does not match the exact name, version, and production-label binding in the historical artifact.");
+        }
 
         _ = prompt.GetTextPrompt();
         var templateProvider = new LangfuseTextPromptTemplateProvider(
@@ -503,39 +594,79 @@ internal sealed class PreparedExperimentRunExecutor
         PreparedExperimentRunMetadata runMetadata,
         DateTimeOffset? explicitEvaluationTime,
         EvaluationTimestampPolicy? evaluationTimestampPolicy,
-        IPredictionRepository predictionRepository,
-        MatchPromptReconstructionService reconstructionService,
+        IPredictionRepository? predictionRepository,
+        MatchPromptReconstructionService? reconstructionService,
         IPredictionService predictionService,
         IReadOnlyDictionary<string, PersistedMatchOutcome> outcomesByKey,
+        IReadOnlyDictionary<string, ResolvedHistoricalExperimentContext>? historicalContexts,
         IReadOnlyList<string> traceTags,
         IReadOnlyDictionary<string, string> propagatedMetadata,
         JsonElement runMetadataPayload,
         CancellationToken cancellationToken)
     {
-        var outcomeKey = BuildOutcomeKey(item.HomeTeam, item.AwayTeam, item.Matchday);
-        if (!outcomesByKey.TryGetValue(outcomeKey, out var outcome))
+        PersistedMatchOutcome? outcome = null;
+        Match promptMatch;
+        IReadOnlyList<DocumentContext> contextDocuments;
+        DateTimeOffset evaluationTimestamp;
+        int expectedHomeGoals;
+        int expectedAwayGoals;
+        string? tippSpielId;
+        if (item.HistoricalContextManifest is { } historicalManifest)
         {
-            throw new InvalidOperationException(
-                $"No persisted match outcome was found for {item.HomeTeam} vs {item.AwayTeam} on matchday {item.Matchday}.");
+            if (historicalContexts is null
+                || !historicalContexts.TryGetValue(historicalManifest.ManifestSha256, out var historicalContext))
+            {
+                throw new InvalidOperationException(
+                    $"Historical context for prepared item '{item.SliceDatasetItemId}' was not pre-resolved.");
+            }
+
+            var startsAt = Commands.Observability.EvaluationTimeParser.Parse(item.StartsAt);
+            var instant = NodaTime.Instant.FromDateTimeOffset(startsAt);
+            var zone = NodaTime.DateTimeZone.ForOffset(NodaTime.Offset.FromTimeSpan(startsAt.Offset));
+            promptMatch = ExperimentArtifactSupport.RehydrateForPromptOutput(
+                new Match(item.HomeTeam, item.AwayTeam, instant.InZone(zone), item.Matchday));
+            contextDocuments = historicalContext.Documents;
+            evaluationTimestamp = historicalManifest.EvaluationTimestamp;
+            expectedHomeGoals = item.ExpectedHomeGoals!.Value;
+            expectedAwayGoals = item.ExpectedAwayGoals!.Value;
+            tippSpielId = item.TippSpielId;
+        }
+        else
+        {
+            var outcomeKey = BuildOutcomeKey(item.HomeTeam, item.AwayTeam, item.Matchday);
+            if (!outcomesByKey.TryGetValue(outcomeKey, out outcome))
+            {
+                throw new InvalidOperationException(
+                    $"No persisted match outcome was found for {item.HomeTeam} vs {item.AwayTeam} on matchday {item.Matchday}.");
+            }
+
+            if (!outcome.HasOutcome || outcome.HomeGoals is null || outcome.AwayGoals is null)
+            {
+                throw new InvalidOperationException(
+                    $"The selected match does not have a completed persisted outcome yet: {item.HomeTeam} vs {item.AwayTeam}.");
+            }
+
+            var storedMatch = await predictionRepository!.GetStoredMatchAsync(
+                item.HomeTeam,
+                item.AwayTeam,
+                item.Matchday,
+                (PredictionModelConfig?)null,
+                null,
+                cancellationToken);
+            promptMatch = storedMatch is null
+                ? ExperimentArtifactSupport.RehydrateForPromptOutput(new Match(item.HomeTeam, item.AwayTeam, outcome.StartsAt, item.Matchday))
+                : ExperimentArtifactSupport.RehydrateForPromptOutput(storedMatch);
+            evaluationTimestamp = explicitEvaluationTime
+                ?? EvaluationTimestampResolver.Resolve(
+                    promptMatch,
+                    evaluationTimestampPolicy ?? throw new InvalidOperationException(
+                        "Run metadata must contain either evaluationTime or evaluationTimestampPolicy."));
+            contextDocuments = [];
+            expectedHomeGoals = outcome.HomeGoals.Value;
+            expectedAwayGoals = outcome.AwayGoals.Value;
+            tippSpielId = outcome.TippSpielId;
         }
 
-        if (!outcome.HasOutcome || outcome.HomeGoals is null || outcome.AwayGoals is null)
-        {
-            throw new InvalidOperationException(
-                $"The selected match does not have a completed persisted outcome yet: {item.HomeTeam} vs {item.AwayTeam}.");
-        }
-
-        var storedMatch = await predictionRepository.GetStoredMatchAsync(
-            item.HomeTeam,
-            item.AwayTeam,
-            item.Matchday,
-            (PredictionModelConfig?)null,
-            null,
-            cancellationToken);
-
-        var promptMatch = storedMatch is null
-            ? ExperimentArtifactSupport.RehydrateForPromptOutput(new Match(item.HomeTeam, item.AwayTeam, outcome.StartsAt, item.Matchday))
-            : ExperimentArtifactSupport.RehydrateForPromptOutput(storedMatch);
         var isBundesliga2026_27 = string.Equals(runMetadata.Competition, CompetitionIds.Bundesliga2026_27, StringComparison.Ordinal);
         if (isBundesliga2026_27 && item.ResolvedContextManifest is null)
         {
@@ -548,20 +679,17 @@ internal sealed class PreparedExperimentRunExecutor
                 $"Prepared Bundesliga 2026/27 item '{item.SliceDatasetItemId}' is missing predictionCreatedAt required for immutable prompt provenance.");
         }
 
-        var evaluationTimestamp = explicitEvaluationTime
-            ?? EvaluationTimestampResolver.Resolve(
-                promptMatch,
-                evaluationTimestampPolicy ?? throw new InvalidOperationException(
-                    "Run metadata must contain either evaluationTime or evaluationTimestampPolicy."));
-        var reconstructedPrompt = isBundesliga2026_27
-            ? await reconstructionService.ReconstructMatchPredictionPromptFromResolvedManifestAsync(
+        if (item.HistoricalContextManifest is null)
+        {
+            var reconstructedPrompt = isBundesliga2026_27
+            ? await reconstructionService!.ReconstructMatchPredictionPromptFromResolvedManifestAsync(
                 promptMatch,
                 request.Options.Model,
                 item.ResolvedContextManifest!,
                 item.PredictionCreatedAt!.Value,
                 includeJustification: runMetadata.IncludeJustification,
                 cancellationToken: cancellationToken)
-            : await reconstructionService.ReconstructMatchPredictionPromptAtTimestampAsync(
+            : await reconstructionService!.ReconstructMatchPredictionPromptAtTimestampAsync(
                 promptMatch,
                 request.Options.Model,
                 runMetadata.CommunityContext!,
@@ -570,9 +698,10 @@ internal sealed class PreparedExperimentRunExecutor
                 includeJustification: runMetadata.IncludeJustification,
                 cancellationToken: cancellationToken);
 
-        var contextDocuments = reconstructedPrompt.ResolvedContextDocuments
-            .Select(document => new DocumentContext(document.DocumentName, document.Content))
-            .ToList();
+            contextDocuments = reconstructedPrompt.ResolvedContextDocuments
+                .Select(document => new DocumentContext(document.DocumentName, document.Content))
+                .ToList();
+        }
         var telemetryMetadata = new PredictionTelemetryMetadata(
             HomeTeam: item.HomeTeam,
             AwayTeam: item.AwayTeam,
@@ -588,7 +717,7 @@ internal sealed class PreparedExperimentRunExecutor
             datasetName,
             runMetadata,
             item,
-            outcome.TippSpielId,
+            tippSpielId,
             traceTags,
             propagatedMetadata,
             evaluationTimestamp,
@@ -597,7 +726,7 @@ internal sealed class PreparedExperimentRunExecutor
         SetExperimentItemMetadata(activity, CreateExperimentItemMetadataJson(item));
         SetExperimentItemExpectedOutput(
             activity,
-            CreateExperimentItemExpectedOutputJson(outcome.HomeGoals.Value, outcome.AwayGoals.Value));
+            CreateExperimentItemExpectedOutputJson(expectedHomeGoals, expectedAwayGoals));
         SetTraceAndRootObservationInput(activity, CreateExperimentItemInputJson(item));
 
         var traceId = activity?.TraceId.ToString();
@@ -636,7 +765,7 @@ internal sealed class PreparedExperimentRunExecutor
 
         SetTraceAndRootObservationOutput(activity, JsonSerializer.Serialize(prediction, TraceJsonOptions));
 
-        var itemScores = PreparedExperimentSupport.CalculateScores(prediction, outcome.HomeGoals.Value, outcome.AwayGoals.Value);
+        var itemScores = PreparedExperimentSupport.CalculateScores(prediction, expectedHomeGoals, expectedAwayGoals);
         await PostItemScoreAsync(
             datasetRunItem.DatasetRunId,
             datasetName,
@@ -983,6 +1112,19 @@ internal sealed class PreparedExperimentRunExecutor
                 evaluationTimestamp.Value.ToString("O"),
                 propagateToObservations: false);
         }
+        if (item.HistoricalContextManifest is { } historicalContext)
+        {
+            LangfuseActivityPropagation.SetTraceMetadata(
+                activity,
+                "historicalContextManifestSha256",
+                historicalContext.ManifestSha256,
+                propagateToObservations: false);
+            LangfuseActivityPropagation.SetTraceMetadata(
+                activity,
+                "historicalContextDocumentCount",
+                historicalContext.Documents.Count.ToString(System.Globalization.CultureInfo.InvariantCulture),
+                propagateToObservations: false);
+        }
 
         LangfuseActivityPropagation.SetTraceMetadata(activity, "tippSpielId", tippSpielId, propagateToObservations: false);
         LangfuseActivityPropagation.SetTraceMetadata(activity, "promptTemplatePath", promptTemplatePath, propagateToObservations: false);
@@ -1068,7 +1210,8 @@ internal sealed class PreparedExperimentRunExecutor
             item.Matchday,
             item.TippSpielId,
             item.FixtureIndex,
-            item.RepetitionIndex
+            item.RepetitionIndex,
+            historicalContextManifestSha256 = item.HistoricalContextManifest?.ManifestSha256
         }, TraceJsonOptions);
     }
 

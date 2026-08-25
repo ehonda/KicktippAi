@@ -59,6 +59,12 @@ internal sealed record PreparedExperimentManifest
     [JsonPropertyName("startsAfter")]
     public string? StartsAfter { get; init; }
 
+    [JsonPropertyName("historicalCompatibility")]
+    public PreparedHistoricalExperimentCompatibility? HistoricalCompatibility { get; init; }
+
+    [JsonPropertyName("historicalArtifactSha256")]
+    public string? HistoricalArtifactSha256 { get; init; }
+
     [JsonPropertyName("participants")]
     public IReadOnlyList<PreparedExperimentParticipantManifest> Participants { get; init; } = [];
 
@@ -131,6 +137,59 @@ internal sealed record PreparedExperimentManifestItem
 
     [JsonPropertyName("predictionCreatedAt")]
     public DateTimeOffset? PredictionCreatedAt { get; init; }
+
+    [JsonPropertyName("historicalContextManifest")]
+    public ResolvedHistoricalExperimentContextManifest? HistoricalContextManifest { get; init; }
+
+    [JsonPropertyName("expectedHomeGoals")]
+    public int? ExpectedHomeGoals { get; init; }
+
+    [JsonPropertyName("expectedAwayGoals")]
+    public int? ExpectedAwayGoals { get; init; }
+}
+
+internal sealed record PreparedHistoricalExperimentCompatibility
+{
+    public const string PromptSource = "langfuse";
+    public const string PromptName = "kicktippai/bundesliga-2026-27/predict-one-match";
+    public const string PromptLabel = "production";
+    public const int PromptVersion = 2;
+    public const string EvaluationPolicyKind = "relative";
+    public const string EvaluationPolicyReference = "startsAt";
+    public const string EvaluationPolicyOffset = "-12:00:00";
+
+    [JsonPropertyName("mode")]
+    public string Mode { get; init; } = string.Empty;
+
+    [JsonPropertyName("officialKnowledgeCutoff")]
+    public string OfficialKnowledgeCutoff { get; init; } = string.Empty;
+
+    [JsonPropertyName("samplingCutoff")]
+    public string SamplingCutoff { get; init; } = string.Empty;
+
+    [JsonPropertyName("promptSource")]
+    public string BoundPromptSource { get; init; } = string.Empty;
+
+    [JsonPropertyName("promptName")]
+    public string BoundPromptName { get; init; } = string.Empty;
+
+    [JsonPropertyName("promptLabel")]
+    public string BoundPromptLabel { get; init; } = string.Empty;
+
+    [JsonPropertyName("promptVersion")]
+    public int BoundPromptVersion { get; init; }
+
+    [JsonPropertyName("evaluationPolicyKind")]
+    public string BoundEvaluationPolicyKind { get; init; } = string.Empty;
+
+    [JsonPropertyName("evaluationPolicyReference")]
+    public string BoundEvaluationPolicyReference { get; init; } = string.Empty;
+
+    [JsonPropertyName("evaluationPolicyOffset")]
+    public string BoundEvaluationPolicyOffset { get; init; } = string.Empty;
+
+    [JsonPropertyName("contextDocumentCount")]
+    public int ContextDocumentCount { get; init; }
 }
 
 internal sealed record PreparedExperimentEvaluationTimestampPolicyMetadata
@@ -218,6 +277,18 @@ internal sealed record PreparedExperimentRunMetadata
 
     [JsonPropertyName("evaluationTime")]
     public string? EvaluationTime { get; init; }
+
+    [JsonPropertyName("historicalCompatibilityMode")]
+    public string? HistoricalCompatibilityMode { get; init; }
+
+    [JsonPropertyName("officialKnowledgeCutoff")]
+    public string? OfficialKnowledgeCutoff { get; init; }
+
+    [JsonPropertyName("samplingCutoff")]
+    public string? SamplingCutoff { get; init; }
+
+    [JsonPropertyName("historicalContextDocumentCount")]
+    public int? HistoricalContextDocumentCount { get; init; }
 
     [JsonPropertyName("startedAtUtc")]
     public string? StartedAtUtc { get; init; }

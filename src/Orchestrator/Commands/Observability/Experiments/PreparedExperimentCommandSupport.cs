@@ -1,7 +1,9 @@
 using System.Globalization;
 using System.Text.Json;
-using EHonda.KicktippAi.Core;
 using System.Text.Json.Serialization;
+using EHonda.KicktippAi.Core;
+using NodaTime;
+using NodaTime.Text;
 
 namespace Orchestrator.Commands.Observability.Experiments;
 
@@ -26,6 +28,10 @@ internal sealed record PreparedExperimentRunOptions(
 
 internal static class PreparedExperimentCommandSupport
 {
+    private static readonly DateTimeZone HistoricalSamplingZone = DateTimeZoneProviders.Tzdb["Europe/Berlin"];
+    private static readonly ZonedDateTimePattern HistoricalSamplingCutoffPattern =
+        ZonedDateTimePattern.GeneralFormatOnlyIso.WithZoneProvider(DateTimeZoneProviders.Tzdb);
+
     internal static readonly JsonSerializerOptions JsonOptions = new(JsonSerializerDefaults.Web)
     {
         PropertyNameCaseInsensitive = true,
@@ -121,6 +127,10 @@ internal static class PreparedExperimentCommandSupport
             Repetitions = runMetadata.Repetitions ?? manifest.Repetitions,
             SampleSeed = runMetadata.SampleSeed ?? manifest.SampleSeed,
             SampleMethod = string.IsNullOrWhiteSpace(runMetadata.SampleMethod) ? manifest.SampleMethod : runMetadata.SampleMethod,
+            HistoricalCompatibilityMode = manifest.HistoricalCompatibility?.Mode,
+            OfficialKnowledgeCutoff = manifest.HistoricalCompatibility?.OfficialKnowledgeCutoff,
+            SamplingCutoff = manifest.HistoricalCompatibility?.SamplingCutoff,
+            HistoricalContextDocumentCount = manifest.HistoricalCompatibility?.ContextDocumentCount,
             PromptVersion = string.IsNullOrWhiteSpace(runMetadata.PromptVersion)
                 ? string.IsNullOrWhiteSpace(runMetadata.PromptKey) ? options.PromptKey : runMetadata.PromptKey
                 : runMetadata.PromptVersion,
@@ -194,6 +204,23 @@ internal static class PreparedExperimentCommandSupport
         }
 
         var seenHostedIds = new HashSet<string>(StringComparer.Ordinal);
+        var hasHistoricalCompatibilityMarker = manifest.HistoricalCompatibility is not null
+                                               || manifest.HistoricalArtifactSha256 is not null
+                                               || manifest.Items.Any(item => item.HistoricalContextManifest is not null
+                                                                             || item.ExpectedHomeGoals is not null
+                                                                             || item.ExpectedAwayGoals is not null);
+        if (string.Equals(canonicalCompetition, CompetitionIds.Bundesliga2025_26, StringComparison.Ordinal)
+            && hasHistoricalCompatibilityMarker)
+        {
+            ValidateHistoricalCompatibility(manifest);
+        }
+        else if (!string.Equals(canonicalCompetition, CompetitionIds.Bundesliga2025_26, StringComparison.Ordinal)
+                 && hasHistoricalCompatibilityMarker)
+        {
+            throw new InvalidOperationException(
+                "Historical experiment compatibility provenance is only valid for bundesliga-2025-26.");
+        }
+
         foreach (var item in manifest.Items)
         {
             if (string.IsNullOrWhiteSpace(item.SourceDatasetItemId))
@@ -247,9 +274,316 @@ internal static class PreparedExperimentCommandSupport
                         $"Prepared Bundesliga 2026/27 item '{item.SliceDatasetItemId}' has a resolvedContextManifest with a different competition scope.");
                 }
             }
+            else if (string.Equals(canonicalCompetition, CompetitionIds.Bundesliga2025_26, StringComparison.Ordinal)
+                     && hasHistoricalCompatibilityMarker)
+            {
+                ValidateHistoricalItem(manifest, item);
+            }
         }
 
         return manifest;
+    }
+
+    private static void ValidateHistoricalCompatibility(PreparedExperimentManifest manifest)
+    {
+        var compatibility = manifest.HistoricalCompatibility
+            ?? throw new InvalidOperationException(
+                "Bundesliga 2025/26 prepared experiments require an explicit historicalCompatibility contract.");
+        if (!string.Equals(compatibility.Mode, ResolvedHistoricalExperimentContextManifest.LegacyIdHashV1, StringComparison.Ordinal)
+            || !string.Equals(compatibility.BoundPromptSource, PreparedHistoricalExperimentCompatibility.PromptSource, StringComparison.Ordinal)
+            || !string.Equals(compatibility.BoundPromptName, PreparedHistoricalExperimentCompatibility.PromptName, StringComparison.Ordinal)
+            || !string.Equals(compatibility.BoundPromptLabel, PreparedHistoricalExperimentCompatibility.PromptLabel, StringComparison.Ordinal)
+            || compatibility.BoundPromptVersion != PreparedHistoricalExperimentCompatibility.PromptVersion
+            || !string.Equals(compatibility.BoundEvaluationPolicyKind, PreparedHistoricalExperimentCompatibility.EvaluationPolicyKind, StringComparison.Ordinal)
+            || !string.Equals(compatibility.BoundEvaluationPolicyReference, PreparedHistoricalExperimentCompatibility.EvaluationPolicyReference, StringComparison.Ordinal)
+            || !string.Equals(compatibility.BoundEvaluationPolicyOffset, PreparedHistoricalExperimentCompatibility.EvaluationPolicyOffset, StringComparison.Ordinal)
+            || compatibility.ContextDocumentCount != 7)
+        {
+            throw new InvalidOperationException(
+                "Bundesliga 2025/26 historical compatibility route must bind the canonical legacy-ID hash mode, seven-document context, hosted Bundesliga match prompt v2/production, and startsAt -12h evaluation policy.");
+        }
+
+        if (!DateOnly.TryParseExact(
+                compatibility.OfficialKnowledgeCutoff,
+                "yyyy-MM-dd",
+                CultureInfo.InvariantCulture,
+                DateTimeStyles.None,
+                out var officialCutoff))
+        {
+            throw new InvalidOperationException("Historical compatibility officialKnowledgeCutoff must use yyyy-MM-dd.");
+        }
+
+        if (string.IsNullOrWhiteSpace(manifest.StartsAfter)
+            || !string.Equals(manifest.StartsAfter, compatibility.SamplingCutoff, StringComparison.Ordinal))
+        {
+            throw new InvalidOperationException(
+                "Historical compatibility samplingCutoff must exactly match the manifest startsAfter cutoff.");
+        }
+
+        var requiredSamplingCutoff = BuildRequiredHistoricalSamplingCutoff(officialCutoff);
+        if (!string.Equals(compatibility.SamplingCutoff, requiredSamplingCutoff, StringComparison.Ordinal))
+        {
+            throw new InvalidOperationException(
+                $"Historical compatibility samplingCutoff must be exactly the Europe/Berlin local midnight two days after officialKnowledgeCutoff: '{requiredSamplingCutoff}'.");
+        }
+
+        ValidateHistoricalTopology(manifest);
+
+        if (!DocumentPublicationContract.IsLowercaseSha256(manifest.HistoricalArtifactSha256)
+            || !string.Equals(
+                manifest.HistoricalArtifactSha256,
+                ComputeHistoricalArtifactSha256(manifest),
+                StringComparison.Ordinal))
+        {
+            throw new InvalidOperationException(
+                "Historical experiment artifact hash does not match its cutoff, route, fixture, score, and context bindings.");
+        }
+    }
+
+    public static string ComputeHistoricalArtifactSha256(PreparedExperimentManifest manifest)
+    {
+        var compatibility = manifest.HistoricalCompatibility
+            ?? throw new InvalidOperationException("Cannot hash a historical artifact without historicalCompatibility.");
+        using var payload = new MemoryStream();
+        using (var writer = new BinaryWriter(payload, System.Text.Encoding.UTF8, leaveOpen: true))
+        {
+            WriteHashField(writer, manifest.TaskType);
+            WriteHashField(writer, manifest.Competition);
+            WriteHashField(writer, manifest.CommunityContext);
+            WriteHashField(writer, manifest.Season);
+            WriteHashField(writer, manifest.SliceKey);
+            WriteHashField(writer, manifest.SliceKind);
+            WriteHashField(writer, manifest.SampleMethod);
+            WriteHashField(writer, manifest.SourcePoolKey);
+            WriteHashField(writer, manifest.SourceDatasetName);
+            WriteHashField(writer, manifest.SliceDatasetName);
+            WriteHashField(writer, manifest.SampleSeed?.ToString(CultureInfo.InvariantCulture));
+            WriteHashField(writer, manifest.SampleSize.ToString(CultureInfo.InvariantCulture));
+            WriteHashField(writer, manifest.MatchCount?.ToString(CultureInfo.InvariantCulture));
+            WriteHashField(writer, manifest.Repetitions?.ToString(CultureInfo.InvariantCulture));
+            foreach (var selectedItemId in manifest.SelectedItemIds)
+            {
+                WriteHashField(writer, selectedItemId);
+            }
+            WriteHashField(writer, manifest.SelectedItemIdsHash);
+            WriteHashField(writer, manifest.StartsAfter);
+            WriteHashField(writer, compatibility.Mode);
+            WriteHashField(writer, compatibility.OfficialKnowledgeCutoff);
+            WriteHashField(writer, compatibility.SamplingCutoff);
+            WriteHashField(writer, compatibility.BoundPromptSource);
+            WriteHashField(writer, compatibility.BoundPromptName);
+            WriteHashField(writer, compatibility.BoundPromptLabel);
+            WriteHashField(writer, compatibility.BoundPromptVersion.ToString(CultureInfo.InvariantCulture));
+            WriteHashField(writer, compatibility.BoundEvaluationPolicyKind);
+            WriteHashField(writer, compatibility.BoundEvaluationPolicyReference);
+            WriteHashField(writer, compatibility.BoundEvaluationPolicyOffset);
+            WriteHashField(writer, compatibility.ContextDocumentCount.ToString(CultureInfo.InvariantCulture));
+            foreach (var item in manifest.Items)
+            {
+                WriteHashField(writer, item.SourceDatasetItemId);
+                WriteHashField(writer, item.SliceDatasetItemId);
+                WriteHashField(writer, item.HomeTeam);
+                WriteHashField(writer, item.AwayTeam);
+                WriteHashField(writer, item.Matchday.ToString(CultureInfo.InvariantCulture));
+                WriteHashField(writer, item.StartsAt);
+                WriteHashField(writer, item.TippSpielId);
+                WriteHashField(writer, item.FixtureIndex?.ToString(CultureInfo.InvariantCulture));
+                WriteHashField(writer, item.RepetitionIndex?.ToString(CultureInfo.InvariantCulture));
+                WriteHashField(writer, item.ExpectedHomeGoals?.ToString(CultureInfo.InvariantCulture));
+                WriteHashField(writer, item.ExpectedAwayGoals?.ToString(CultureInfo.InvariantCulture));
+                WriteHashField(writer, item.HistoricalContextManifest?.ManifestSha256);
+            }
+        }
+
+        return Convert.ToHexString(System.Security.Cryptography.SHA256.HashData(payload.ToArray())).ToLowerInvariant();
+    }
+
+    internal static string BuildRequiredHistoricalSamplingCutoff(DateOnly officialKnowledgeCutoff)
+    {
+        var localCutoffDate = new LocalDate(
+            officialKnowledgeCutoff.Year,
+            officialKnowledgeCutoff.Month,
+            officialKnowledgeCutoff.Day).PlusDays(2);
+        return HistoricalSamplingCutoffPattern.Format(HistoricalSamplingZone.AtStartOfDay(localCutoffDate));
+    }
+
+    private static void ValidateHistoricalTopology(PreparedExperimentManifest manifest)
+    {
+        if (!string.Equals(manifest.TaskType, "repeated-match-slice", StringComparison.Ordinal)
+            || !string.Equals(manifest.SliceKind, "repeated-match-slice", StringComparison.Ordinal)
+            || !string.Equals(manifest.SampleMethod, "repeated-match-slice", StringComparison.Ordinal)
+            || string.IsNullOrWhiteSpace(manifest.SliceKey)
+            || string.IsNullOrWhiteSpace(manifest.SourcePoolKey)
+            || string.IsNullOrWhiteSpace(manifest.SliceDatasetName)
+            || !string.Equals(
+                manifest.SourceDatasetName,
+                ExperimentArtifactSupport.BuildSourceDatasetName(manifest.CommunityContext),
+                StringComparison.Ordinal)
+            || !string.Equals(manifest.Season, ExperimentArtifactSupport.Season, StringComparison.Ordinal)
+            || manifest.SampleSeed is null)
+        {
+            throw new InvalidOperationException(
+                "Historical compatibility requires complete repeated-match-slice task, dataset, season, slice, source-pool, and sample-seed provenance.");
+        }
+
+        if (manifest.MatchCount is not int matchCount || matchCount < 1
+            || manifest.Repetitions is not int repetitions || repetitions < 1)
+        {
+            throw new InvalidOperationException(
+                "Historical compatibility requires positive matchCount and repetitions values.");
+        }
+
+        var expectedSampleSize = checked(matchCount * repetitions);
+        if (manifest.SampleSize != expectedSampleSize || manifest.Items.Count != expectedSampleSize)
+        {
+            throw new InvalidOperationException(
+                "Historical compatibility requires sampleSize and item count to equal matchCount multiplied by repetitions.");
+        }
+
+        if (manifest.SelectedItemIds is null
+            || manifest.SelectedItemIds.Count != matchCount
+            || manifest.SelectedItemIds.Any(string.IsNullOrWhiteSpace)
+            || manifest.SelectedItemIds.Distinct(StringComparer.Ordinal).Count() != matchCount)
+        {
+            throw new InvalidOperationException(
+                "Historical compatibility selectedItemIds must contain exactly one unique source identity per fixture.");
+        }
+
+        var sourceIdsByFixture = new List<string>(matchCount);
+        var tippSpielIds = new HashSet<string>(StringComparer.Ordinal);
+        for (var fixtureIndex = 1; fixtureIndex <= matchCount; fixtureIndex += 1)
+        {
+            var fixtureItems = manifest.Items
+                .Where(item => item.FixtureIndex == fixtureIndex)
+                .OrderBy(item => item.RepetitionIndex)
+                .ToList();
+            if (fixtureItems.Count != repetitions
+                || !fixtureItems.Select(item => item.RepetitionIndex).SequenceEqual(
+                    Enumerable.Range(1, repetitions).Select(value => (int?)value)))
+            {
+                throw new InvalidOperationException(
+                    $"Historical fixture index {fixtureIndex} must contain every repetition exactly once.");
+            }
+
+            var fixture = fixtureItems[0];
+            if (string.IsNullOrWhiteSpace(fixture.TippSpielId)
+                || !tippSpielIds.Add(fixture.TippSpielId))
+            {
+                throw new InvalidOperationException(
+                    $"Historical fixture index {fixtureIndex} must bind a unique non-empty TippSpiel identity.");
+            }
+
+            var expectedSourceId = ExperimentArtifactSupport.BuildHostedDatasetItemId(
+                manifest.Competition,
+                manifest.CommunityContext,
+                fixture.TippSpielId);
+            if (!string.Equals(fixture.SourceDatasetItemId, expectedSourceId, StringComparison.Ordinal))
+            {
+                throw new InvalidOperationException(
+                    $"Historical fixture index {fixtureIndex} sourceDatasetItemId does not match its canonical competition/community/TippSpiel identity.");
+            }
+
+            foreach (var item in fixtureItems)
+            {
+                if (item.FixtureIndex is null
+                    || item.RepetitionIndex is null
+                    || string.IsNullOrWhiteSpace(item.TippSpielId)
+                    || !string.Equals(item.SourceDatasetItemId, fixture.SourceDatasetItemId, StringComparison.Ordinal)
+                    || !string.Equals(item.TippSpielId, fixture.TippSpielId, StringComparison.Ordinal)
+                    || !string.Equals(item.HomeTeam, fixture.HomeTeam, StringComparison.Ordinal)
+                    || !string.Equals(item.AwayTeam, fixture.AwayTeam, StringComparison.Ordinal)
+                    || item.Matchday != fixture.Matchday
+                    || !string.Equals(item.StartsAt, fixture.StartsAt, StringComparison.Ordinal)
+                    || item.ExpectedHomeGoals != fixture.ExpectedHomeGoals
+                    || item.ExpectedAwayGoals != fixture.ExpectedAwayGoals
+                    || !string.Equals(
+                        item.HistoricalContextManifest?.ManifestSha256,
+                        fixture.HistoricalContextManifest?.ManifestSha256,
+                        StringComparison.Ordinal))
+                {
+                    throw new InvalidOperationException(
+                        $"Historical fixture index {fixtureIndex} contains partial or inconsistent repeated-fixture provenance.");
+                }
+
+                var expectedSliceId = ExperimentArtifactSupport.BuildRepeatedMatchSliceDatasetItemId(
+                    expectedSourceId,
+                    manifest.SliceKey,
+                    fixtureIndex,
+                    matchCount,
+                    item.RepetitionIndex.Value,
+                    repetitions);
+                if (!string.Equals(item.SliceDatasetItemId, expectedSliceId, StringComparison.Ordinal))
+                {
+                    throw new InvalidOperationException(
+                        $"Historical item '{item.SliceDatasetItemId}' does not match its generated repeated-match-slice identity.");
+                }
+            }
+
+            sourceIdsByFixture.Add(expectedSourceId);
+        }
+
+        var expectedOrder = Enumerable.Range(1, matchCount)
+            .SelectMany(fixtureIndex => Enumerable.Range(1, repetitions)
+                .Select(repetitionIndex => (FixtureIndex: fixtureIndex, RepetitionIndex: repetitionIndex)));
+        if (!manifest.Items
+                .Select(item => (item.FixtureIndex ?? 0, item.RepetitionIndex ?? 0))
+                .SequenceEqual(expectedOrder)
+            || !manifest.SelectedItemIds.SequenceEqual(sourceIdsByFixture, StringComparer.Ordinal)
+            || !DocumentPublicationContract.IsLowercaseSha256(manifest.SelectedItemIdsHash)
+            || !string.Equals(
+                manifest.SelectedItemIdsHash,
+                ExperimentArtifactSupport.ComputeSelectedItemIdsHash(sourceIdsByFixture),
+                StringComparison.Ordinal))
+        {
+            throw new InvalidOperationException(
+                "Historical compatibility fixture order, selectedItemIds, or selectedItemIdsHash does not match the generated topology.");
+        }
+    }
+
+    private static void WriteHashField(BinaryWriter writer, string? value)
+    {
+        var bytes = System.Text.Encoding.UTF8.GetBytes(value ?? string.Empty);
+        writer.Write(bytes.Length);
+        writer.Write(bytes);
+    }
+
+    private static void ValidateHistoricalItem(
+        PreparedExperimentManifest manifest,
+        PreparedExperimentManifestItem item)
+    {
+        if (item.ResolvedContextManifest is not null || item.PredictionCreatedAt is not null)
+        {
+            throw new InvalidOperationException(
+                $"Historical item '{item.SliceDatasetItemId}' must not use the live Bundesliga 2026/27 context manifest fields.");
+        }
+
+        var historicalManifest = item.HistoricalContextManifest
+            ?? throw new InvalidOperationException(
+                $"Historical item '{item.SliceDatasetItemId}' is missing its hash-bound historicalContextManifest.");
+        if (item.ExpectedHomeGoals is null or < 0 || item.ExpectedAwayGoals is null or < 0)
+        {
+            throw new InvalidOperationException(
+                $"Historical item '{item.SliceDatasetItemId}' is missing a valid embedded completed score.");
+        }
+
+        var startsAt = Commands.Observability.EvaluationTimeParser.Parse(item.StartsAt);
+        var samplingCutoff = Commands.Observability.EvaluationTimeParser.Parse(manifest.HistoricalCompatibility!.SamplingCutoff);
+        if (startsAt <= samplingCutoff)
+        {
+            throw new InvalidOperationException(
+                $"Historical item '{item.SliceDatasetItemId}' does not start strictly after the bound sampling cutoff.");
+        }
+
+        if (historicalManifest.EvaluationTimestamp != startsAt.AddHours(-12))
+        {
+            throw new InvalidOperationException(
+                $"Historical item '{item.SliceDatasetItemId}' context timestamp is not exactly startsAt -12h.");
+        }
+
+        ResolvedHistoricalExperimentContextManifest.ValidateForMatch(
+            historicalManifest,
+            new Match(item.HomeTeam, item.AwayTeam, default, item.Matchday),
+            manifest.CommunityContext);
     }
 
     public static void EnsureTaskType(PreparedExperimentManifest manifest, string expectedTaskType)

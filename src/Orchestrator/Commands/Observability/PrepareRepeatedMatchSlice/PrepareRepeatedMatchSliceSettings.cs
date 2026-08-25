@@ -1,4 +1,7 @@
 using System.ComponentModel;
+using System.Globalization;
+using EHonda.KicktippAi.Core;
+using Orchestrator.Commands.Observability.Experiments;
 using Spectre.Console;
 using Spectre.Console.Cli;
 
@@ -6,6 +9,19 @@ namespace Orchestrator.Commands.Observability.PrepareRepeatedMatchSlice;
 
 public sealed class PrepareRepeatedMatchSliceSettings : CommandSettings
 {
+    [CommandOption("--competition")]
+    [Description("Canonical competition scope. Defaults to bundesliga-2026-27; historical 2025/26 requires the explicit compatibility mode.")]
+    [DefaultValue(CompetitionIds.Bundesliga2026_27)]
+    public string Competition { get; set; } = CompetitionIds.Bundesliga2026_27;
+
+    [CommandOption("--historical-context-compatibility")]
+    [Description("Explicit read-only historical context compatibility mode. Bundesliga 2025/26 supports bundesliga-2025-26-legacy-id-hash-v1.")]
+    public string? HistoricalContextCompatibility { get; set; }
+
+    [CommandOption("--official-knowledge-cutoff")]
+    [Description("Official model knowledge cutoff date (yyyy-MM-dd), required for historical compatibility preparation.")]
+    public string? OfficialKnowledgeCutoff { get; set; }
+
     [CommandOption("--community-context")]
     [Description("Community context used to scope persisted historical match outcomes")]
     public string CommunityContext { get; set; } = string.Empty;
@@ -57,6 +73,61 @@ public sealed class PrepareRepeatedMatchSliceSettings : CommandSettings
         if (string.IsNullOrWhiteSpace(CommunityContext))
         {
             return ValidationResult.Error("--community-context is required");
+        }
+
+        string competition;
+        try
+        {
+            competition = CompetitionIds.Canonicalize(Competition);
+        }
+        catch (ArgumentException ex)
+        {
+            return ValidationResult.Error(ex.Message);
+        }
+
+        if (string.Equals(competition, CompetitionIds.Bundesliga2025_26, StringComparison.Ordinal))
+        {
+            if (!string.Equals(
+                    HistoricalContextCompatibility,
+                    ResolvedHistoricalExperimentContextManifest.LegacyIdHashV1,
+                    StringComparison.Ordinal))
+            {
+                return ValidationResult.Error(
+                    $"Bundesliga 2025/26 preparation requires --historical-context-compatibility {ResolvedHistoricalExperimentContextManifest.LegacyIdHashV1}");
+            }
+
+            if (string.IsNullOrWhiteSpace(StartsAfter))
+            {
+                return ValidationResult.Error("Bundesliga 2025/26 historical compatibility preparation requires --starts-after");
+            }
+
+            if (!DateOnly.TryParseExact(
+                    OfficialKnowledgeCutoff,
+                    "yyyy-MM-dd",
+                    CultureInfo.InvariantCulture,
+                    DateTimeStyles.None,
+                    out var officialKnowledgeCutoff))
+            {
+                return ValidationResult.Error(
+                    "Bundesliga 2025/26 historical compatibility preparation requires --official-knowledge-cutoff in yyyy-MM-dd format");
+            }
+
+            var requiredSamplingCutoff = PreparedExperimentCommandSupport.BuildRequiredHistoricalSamplingCutoff(
+                officialKnowledgeCutoff);
+            if (!string.Equals(
+                    EvaluationTimeParser.NormalizeOrNull(StartsAfter),
+                    requiredSamplingCutoff,
+                    StringComparison.Ordinal))
+            {
+                return ValidationResult.Error(
+                    $"Bundesliga 2025/26 historical compatibility preparation requires --starts-after exactly '{requiredSamplingCutoff}' (Europe/Berlin local midnight two days after the official cutoff)");
+            }
+        }
+        else if (!string.IsNullOrWhiteSpace(HistoricalContextCompatibility)
+                 || !string.IsNullOrWhiteSpace(OfficialKnowledgeCutoff))
+        {
+            return ValidationResult.Error(
+                "Historical compatibility options are only valid with --competition bundesliga-2025-26");
         }
 
         if (MatchCount < 1)

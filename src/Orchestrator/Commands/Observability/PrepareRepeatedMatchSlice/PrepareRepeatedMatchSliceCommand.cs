@@ -34,7 +34,8 @@ public sealed class PrepareRepeatedMatchSliceCommand : AsyncCommand<PrepareRepea
     {
         try
         {
-            var matchOutcomeRepository = _firebaseServiceFactory.CreateMatchOutcomeRepository(CompetitionIds.Bundesliga2026_27);
+            var competition = CompetitionIds.Canonicalize(settings.Competition);
+            var matchOutcomeRepository = _firebaseServiceFactory.CreateMatchOutcomeRepository(competition);
             var matchdays = ParseMatchdays(settings.Matchdays);
             var startsAfter = EvaluationTimeParser.ParseOrNull(settings.StartsAfter);
             var normalizedStartsAfter = EvaluationTimeParser.NormalizeOrNull(settings.StartsAfter);
@@ -62,6 +63,14 @@ public sealed class PrepareRepeatedMatchSliceCommand : AsyncCommand<PrepareRepea
             var selectedItems = SelectRandomItems(availableItems, settings.MatchCount, sampleSeed)
                 .OrderBy(item => item.SourceDatasetItemId, StringComparer.Ordinal)
                 .ToList();
+            if (string.Equals(competition, CompetitionIds.Bundesliga2025_26, StringComparison.Ordinal))
+            {
+                selectedItems = await BindHistoricalContextAsync(
+                    selectedItems,
+                    settings.CommunityContext,
+                    _firebaseServiceFactory.CreateBundesliga2025_26HistoricalExperimentContextReader(),
+                    cancellationToken);
+            }
             var repeatedItems = ExpandRepeatedItems(selectedItems, sliceKey, settings.Repetitions);
 
             var sourceDatasetName = ExperimentArtifactSupport.BuildSourceDatasetName(settings.CommunityContext);
@@ -73,6 +82,9 @@ public sealed class PrepareRepeatedMatchSliceCommand : AsyncCommand<PrepareRepea
             var outputDirectory = ResolveOutputDirectory(settings.OutputDirectory, settings.CommunityContext, sourcePoolKey, sliceKey);
             var sliceArtifactPath = Path.Combine(outputDirectory, "slice-dataset.json");
             var sliceManifestPath = Path.Combine(outputDirectory, "slice-manifest.json");
+            var historicalCompatibility = string.Equals(competition, CompetitionIds.Bundesliga2025_26, StringComparison.Ordinal)
+                ? BuildHistoricalCompatibility(settings, normalizedStartsAfter!)
+                : null;
 
             Directory.CreateDirectory(outputDirectory);
 
@@ -89,12 +101,15 @@ public sealed class PrepareRepeatedMatchSliceCommand : AsyncCommand<PrepareRepea
                 datasetDescription,
                 BuildDatasetMetadata(settings.MatchCount, settings.Repetitions, normalizedStartsAfter, datasetDescription),
                 settings.MatchCount,
-                settings.Repetitions);
+                settings.Repetitions,
+                historicalCompatibility,
+                normalizedStartsAfter);
             var manifest = bundle.Manifest with
             {
-                TaskType = "repeated-match-slice",
-                StartsAfter = normalizedStartsAfter
+                TaskType = "repeated-match-slice"
             };
+
+            manifest = PreparedExperimentCommandSupport.ValidateManifest(manifest);
 
             await WriteJsonFileAsync(sliceArtifactPath, bundle.Artifact, cancellationToken);
             await WriteJsonFileAsync(sliceManifestPath, manifest, cancellationToken);
@@ -115,6 +130,7 @@ public sealed class PrepareRepeatedMatchSliceCommand : AsyncCommand<PrepareRepea
                 manifest.SampleSeed,
                 matchdays,
                 manifest.StartsAfter,
+                manifest.HistoricalCompatibility,
                 datasetDescription = bundle.Artifact.DatasetDescription,
                 datasetMetadata = bundle.Artifact.DatasetMetadata,
                 manifest.SelectedItemIds,
@@ -215,6 +231,52 @@ public sealed class PrepareRepeatedMatchSliceCommand : AsyncCommand<PrepareRepea
 
         return repeatedItems;
     }
+
+    private static async Task<List<PreparedExperimentSourceItem>> BindHistoricalContextAsync(
+        IReadOnlyList<PreparedExperimentSourceItem> selectedItems,
+        string communityContext,
+        IHistoricalExperimentContextReader reader,
+        CancellationToken cancellationToken)
+    {
+        var boundItems = new List<PreparedExperimentSourceItem>(selectedItems.Count);
+        var resolver = new Bundesliga2025_26HistoricalExperimentContextResolver(reader);
+        foreach (var item in selectedItems)
+        {
+            var evaluationTimestamp = EvaluationTimeParser.Parse(item.StartsAt).AddHours(-12);
+            var startsAt = Instant.FromDateTimeOffset(EvaluationTimeParser.Parse(item.StartsAt));
+            var promptMatch = new Match(
+                item.HomeTeam,
+                item.AwayTeam,
+                startsAt.InZone(DateTimeZone.Utc),
+                item.Matchday);
+            var historical = await resolver.ResolveAtTimestampAsync(
+                promptMatch,
+                communityContext,
+                evaluationTimestamp,
+                cancellationToken);
+            boundItems.Add(item with { HistoricalContextManifest = historical.Manifest });
+        }
+
+        return boundItems;
+    }
+
+    private static PreparedHistoricalExperimentCompatibility BuildHistoricalCompatibility(
+        PrepareRepeatedMatchSliceSettings settings,
+        string samplingCutoff) =>
+        new()
+        {
+            Mode = ResolvedHistoricalExperimentContextManifest.LegacyIdHashV1,
+            OfficialKnowledgeCutoff = settings.OfficialKnowledgeCutoff!,
+            SamplingCutoff = samplingCutoff,
+            BoundPromptSource = PreparedHistoricalExperimentCompatibility.PromptSource,
+            BoundPromptName = PreparedHistoricalExperimentCompatibility.PromptName,
+            BoundPromptLabel = PreparedHistoricalExperimentCompatibility.PromptLabel,
+            BoundPromptVersion = PreparedHistoricalExperimentCompatibility.PromptVersion,
+            BoundEvaluationPolicyKind = PreparedHistoricalExperimentCompatibility.EvaluationPolicyKind,
+            BoundEvaluationPolicyReference = PreparedHistoricalExperimentCompatibility.EvaluationPolicyReference,
+            BoundEvaluationPolicyOffset = PreparedHistoricalExperimentCompatibility.EvaluationPolicyOffset,
+            ContextDocumentCount = 7
+        };
 
     private static string GetStartsAt(HostedMatchExperimentDatasetItem item)
     {
