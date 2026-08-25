@@ -6,9 +6,9 @@ The canonical map is [`history-played-dates.csv`](history-played-dates.csv). Run
 
 - Read-only Kicktipp inventory: exact requested matchdays 1 and 2 for `ehonda-dev-buli-2627`.
 - Selected documents: all 54 manifest combinations (18 recent, 18 home, 18 away), each with at least one completed result.
-- Raw preseason selected inventory: 432 rows, of which 34 incomplete scheduled rows were excluded before completed ordinals were assigned. The live-completion canonical map has 400 rows covering 197 unique source matches after exact match `81832` was prepended to two SGE documents.
-- Source split: 326 rows / 152 unique matches from `transfermarkt-datasets`; 72 / 44 from OpenLigaDB; 2 / 1 from UEFA.
-- Canonical map SHA-256: `9EDA9A437B54286A20CCBBE89A6B8701FD77478B69450E7528EB07320A87F221`.
+- Current authenticated selected inventory: 432 raw rows, of which two incomplete scheduled rows are excluded before completed ordinals are assigned. The canonical map has 430 rows covering 212 unique source matches after the completed 2026/27 DFB-Pokal first-round transition.
+- Source split: 326 rows / 152 unique matches from `transfermarkt-datasets`; 102 / 59 from OpenLigaDB; 2 / 1 from UEFA.
+- Canonical map SHA-256: `E341010B4BB0F95FF31009BF904616C825212118D4E3F80D7D2DBCB0F8732492`.
 
 The checked-in map is the frozen inventory plus played-date provenance. Dates were joined directly to the accepted source identities; no date was derived from another selected document or from row ordering.
 
@@ -21,7 +21,7 @@ The checked-in map is the frozen inventory plus played-date provenance. Dates we
 
 ## OpenLigaDB
 
-- Scope: completed 2025/26 `2.BL` and Bundesliga `Releg` rows absent from the DuckDB artifact; the exact 2025/26 DFB-Pokal final identity absent from that artifact and repeated in four selected inventory rows; and 2026/27 DFB-Pokal match `81832` repeated in the two exact live SGE rows.
+- Scope: completed 2025/26 `2.BL` and Bundesliga `Releg` rows absent from the DuckDB artifact; the exact 2025/26 DFB-Pokal final identity absent from that artifact and repeated in four selected inventory rows; and the 16 exact 2026/27 DFB-Pokal identities repeated across 32 authenticated selected-history occurrences.
 - League endpoint: <https://api.openligadb.de/getmatchdata/bl2/2025>.
 - Relegation endpoint: <https://api.openligadb.de/getmatchdata/rel/2025>.
 - DFB-Pokal endpoint: <https://api.openligadb.de/getmatchdata/dfb/2025>.
@@ -31,9 +31,11 @@ The checked-in map is the frozen inventory plus played-date provenance. Dates we
 - Frozen league response: [`sources/openligadb-bl2-2025.json`](sources/openligadb-bl2-2025.json), SHA-256 `83dbea21fe56c30ed2393dd888efede627cbdf7b26c5694f14753cf792af6a84`.
 - Frozen relegation response: [`sources/openligadb-rel-2025.json`](sources/openligadb-rel-2025.json), SHA-256 `0cbe277ed6539364eb4f9f2122e4af33e2e10a5797e159382b27908a74e08d8e`.
 - Frozen DFB-Pokal response: [`sources/openligadb-dfb-2025.json`](sources/openligadb-dfb-2025.json), SHA-256 `9d16d5d30e5882c592ec4d8b39b592ea0f102c2e2695da98897f76a87b6ec2a3`.
-- Frozen 2026/27 DFB-Pokal response: [`sources/openligadb-dfb-2026.json`](sources/openligadb-dfb-2026.json), 30,666 bytes, SHA-256 `b60d4c1ef214ffa2680efb27cace33cc7b47bf9700b4f57e7043736919a8eeab`.
+- Frozen 2026/27 DFB-Pokal response: [`sources/openligadb-dfb-2026.json`](sources/openligadb-dfb-2026.json), 74,988 bytes, SHA-256 `92ca6f8c7175970db15bbdcea15cb79f3f2e83cb52a59300cfcf9591760affa2`.
 
-The 2026/27 response was frozen at 20:13 Europe/Berlin while the endpoint was live. It contains 32 unique `dfb/2026` fixtures: completed IDs `81832` and `81848`, plus 30 incomplete fixtures. Only `81832` (SC St. Tönis 0:11 Eintracht Frankfurt, 2026-08-21 18:00 local, halftime 0:10) joins the selected Bundesliga history inventory. Completed match `81848` (Preußen Münster 1:2 Karlsruher SC) is retained in the immutable response but contributes no map row because neither team belongs to the 18-team Bundesliga manifest. Incomplete results are never date evidence.
+The 2026/27 response was frozen at `2026-08-25T01:45:04+02:00` while the endpoint was live. It contains 32 positive unique `dfb/2026` fixtures and exactly 30 completed IDs; `81836` and `81852` remain incomplete. Every completed match has exactly one full-time result. Match `81843` additionally has the exact after-extra-time `2:5` result used by Kicktipp with annotation `nach Verlängerung`; match `81832` retains the previously accepted halftime `0:10` and full-time `0:11` evidence.
+
+An authenticated read-only matchdays 1+2 export is the occurrence authority. Its exact 54 documents contain 430 completed rows and two excluded incomplete rows. Relative to the prior 400-row map, it adds 30 occurrences / 15 fixtures while retaining all prior identities. Together with the existing two `81832` occurrences, exactly 16 source matches / 32 document rows use the new frozen revision. Each appears only in the exact `away-history-*` and `recent-history-*` documents recorded by ADR-0041. The other 14 completed response matches and both incomplete matches contribute no map row. Runtime never fuzzy-matches the reviewed provider/Kicktipp naming differences.
 
 Contains information from OpenLigaDB, which is made available under the Open Database License (ODbL) 1.0. The four raw OpenLigaDB response files and the OpenLigaDB-derived rows in `history-played-dates.csv` are made available under ODbL 1.0. The repository's application and tooling code remains MIT-licensed.
 

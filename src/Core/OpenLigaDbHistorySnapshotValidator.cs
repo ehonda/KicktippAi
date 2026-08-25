@@ -200,7 +200,12 @@ public static class OpenLigaDbHistorySnapshotValidator
                 63, 2025, "dfb", BundesligaHistoryPlayedDateMap.OpenLigaDbDfbPokalRevision, true, null, ValidateDfbPokalFinal),
             OpenLigaDbHistorySnapshotKind.DfbPokal2026LiveCompletion => new(
                 32, 2026, "dfb", BundesligaHistoryPlayedDateMap.OpenLigaDbDfbPokal2026Revision, false,
-                new HashSet<long> { 81832, 81848 }, ValidateDfbPokal2026LiveCompletion),
+                new HashSet<long>
+                {
+                    81832, 81833, 81834, 81835, 81837, 81838, 81839, 81840, 81841, 81842,
+                    81843, 81844, 81845, 81846, 81847, 81848, 81849, 81850, 81851, 81853,
+                    81854, 81855, 81856, 81857, 81858, 81859, 81860, 81861, 81862, 81863
+                }, ValidateDfbPokal2026LiveCompletion),
             _ => throw new ArgumentOutOfRangeException(nameof(kind), kind, null)
         };
 
@@ -237,17 +242,58 @@ public static class OpenLigaDbHistorySnapshotValidator
 
         private static void ValidateDfbPokal2026LiveCompletion(JsonElement[] matches, string sourceName)
         {
-            var match = matches.SingleOrDefault(value => RequiredInt64(value, "matchID", sourceName) == 81832);
-            if (match.ValueKind == JsonValueKind.Undefined
-                || !string.Equals(RequiredTeamName(match, "team1", 81832, sourceName), "SC St. Tönis", StringComparison.Ordinal)
-                || !string.Equals(RequiredTeamName(match, "team2", 81832, sourceName), "Eintracht Frankfurt", StringComparison.Ordinal)
-                || !string.Equals(ResultScore(match, 1, sourceName), "0:10", StringComparison.Ordinal)
-                || !string.Equals(ResultScore(match, 2, sourceName), "0:11", StringComparison.Ordinal)
-                || !string.Equals(RequiredString(match, "matchDateTime", sourceName), "2026-08-21T18:00:00", StringComparison.Ordinal))
+            var accepted = new[]
             {
-                throw Invalid(sourceName, "does not contain the accepted exact DFB-Pokal live completion identity");
+                new Dfb2026SourceIdentity(81832, "SC St. Tönis", "Eintracht Frankfurt", "2026-08-21T18:00:00", 2, "0:11"),
+                new Dfb2026SourceIdentity(81833, "Erzgebirge Aue", "TSG Hoffenheim", "2026-08-22T15:30:00", 2, "0:4"),
+                new Dfb2026SourceIdentity(81834, "Eintracht Braunschweig", "1. FC Union Berlin", "2026-08-23T15:30:00", 2, "2:4"),
+                new Dfb2026SourceIdentity(81835, "Eintracht Trier", "RB Leipzig", "2026-08-22T18:00:00", 2, "0:6"),
+                new Dfb2026SourceIdentity(81837, "TSV Schott Mainz", "Borussia Mönchengladbach", "2026-08-23T15:30:00", 2, "0:5"),
+                new Dfb2026SourceIdentity(81838, "Fortuna Düsseldorf", "SC Freiburg", "2026-08-23T18:00:00", 2, "1:5"),
+                new Dfb2026SourceIdentity(81842, "SV Wehen Wiesbaden", "Bayer 04 Leverkusen", "2026-08-22T13:00:00", 2, "0:4"),
+                new Dfb2026SourceIdentity(81843, "Hallescher FC", "FC Schalke 04", "2026-08-24T20:45:00", 4, "2:5"),
+                new Dfb2026SourceIdentity(81844, "Energie Cottbus", "FC Augsburg", "2026-08-22T13:00:00", 2, "0:2"),
+                new Dfb2026SourceIdentity(81845, "VfB 1921 Krieschow ", "1. FSV Mainz 05", "2026-08-23T15:30:00", 2, "0:9"),
+                new Dfb2026SourceIdentity(81851, "MSV Duisburg", "SV 07 Elversberg", "2026-08-22T15:30:00", 2, "1:3"),
+                new Dfb2026SourceIdentity(81853, "Lüneburger SK Hansa", "SV Werder Bremen", "2026-08-22T15:30:00", 2, "0:3"),
+                new Dfb2026SourceIdentity(81854, "SC Verl", "Hamburger SV", "2026-08-24T18:00:00", 2, "0:3"),
+                new Dfb2026SourceIdentity(81855, "Hansa Rostock", "VfB Stuttgart", "2026-08-21T20:45:00", 2, "0:4"),
+                new Dfb2026SourceIdentity(81861, "1. FC Phönix Lübeck", "SC Paderborn 07", "2026-08-23T18:00:00", 2, "2:4"),
+                new Dfb2026SourceIdentity(81863, "Würzburger Kickers", "1. FC Köln", "2026-08-24T18:00:00", 2, "1:2")
+            };
+            foreach (var identity in accepted)
+            {
+                var match = matches.SingleOrDefault(value => RequiredInt64(value, "matchID", sourceName) == identity.MatchId);
+                if (match.ValueKind == JsonValueKind.Undefined
+                    || !string.Equals(RequiredTeamName(match, "team1", identity.MatchId, sourceName), identity.HomeTeam, StringComparison.Ordinal)
+                    || !string.Equals(RequiredTeamName(match, "team2", identity.MatchId, sourceName), identity.AwayTeam, StringComparison.Ordinal)
+                    || !string.Equals(ResultScore(match, identity.ResultTypeId, sourceName), identity.Score, StringComparison.Ordinal)
+                    || !string.Equals(RequiredString(match, "matchDateTime", sourceName), identity.LocalDateTime, StringComparison.Ordinal))
+                {
+                    throw Invalid(sourceName, $"does not contain accepted exact DFB-Pokal completion identity {identity.MatchId}");
+                }
+            }
+
+            var firstCompletion = matches.Single(value => RequiredInt64(value, "matchID", sourceName) == 81832);
+            if (!string.Equals(ResultScore(firstCompletion, 1, sourceName), "0:10", StringComparison.Ordinal))
+            {
+                throw Invalid(sourceName, "does not retain the accepted match 81832 halftime identity");
+            }
+
+            var extraTimeCompletion = matches.Single(value => RequiredInt64(value, "matchID", sourceName) == 81843);
+            if (!string.Equals(ResultScore(extraTimeCompletion, 2, sourceName), "2:2", StringComparison.Ordinal))
+            {
+                throw Invalid(sourceName, "does not retain the accepted match 81843 full-time identity");
             }
         }
+
+        private sealed record Dfb2026SourceIdentity(
+            long MatchId,
+            string HomeTeam,
+            string AwayTeam,
+            string LocalDateTime,
+            int ResultTypeId,
+            string Score);
 
         private static string FullTimeScore(JsonElement match, string sourceName)
             => ResultScore(match, 2, sourceName);

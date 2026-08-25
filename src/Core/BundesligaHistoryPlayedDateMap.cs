@@ -37,8 +37,7 @@ public sealed class BundesligaHistoryPlayedDateMap
     public const string OpenLigaDbDfbPokalRevision = "9d16d5d30e5882c592ec4d8b39b592ea0f102c2e2695da98897f76a87b6ec2a3";
     public const string OpenLigaDbDfbPokalFinalMatchId = "81581";
     public const string OpenLigaDbDfbPokal2026Url = "https://api.openligadb.de/getmatchdata/dfb/2026";
-    public const string OpenLigaDbDfbPokal2026Revision = "b60d4c1ef214ffa2680efb27cace33cc7b47bf9700b4f57e7043736919a8eeab";
-    public const string OpenLigaDbDfbPokal2026MatchId = "81832";
+    public const string OpenLigaDbDfbPokal2026Revision = "92ca6f8c7175970db15bbdcea15cb79f3f2e83cb52a59300cfcf9591760affa2";
     public const string UefaSourceClass = "official-match-record";
     public const string UefaSourceName = "UEFA";
     public const string UefaFinalUrl = "https://www.uefa.com/uefaeuropaleague/match/2047743/";
@@ -54,7 +53,7 @@ public sealed class BundesligaHistoryPlayedDateMap
 
     private static readonly Lazy<BundesligaHistoryPlayedDateMap> DefaultMap = new(LoadEmbedded);
     private static readonly DateTimeOffset OpenLigaDbDfbPokal2026EvidenceAvailableAt =
-        new(2026, 8, 21, 19, 57, 23, TimeSpan.FromHours(2));
+        new(2026, 8, 25, 1, 45, 4, TimeSpan.FromHours(2));
     private static readonly string[] SelectedDocumentPrefixes = ["away-history-", "home-history-", "recent-history-"];
     private static readonly HashSet<string> TransfermarktCompetitions =
         new(["1.BL", "DFB", "CL", "EL", "ConfL"], StringComparer.Ordinal);
@@ -64,6 +63,26 @@ public sealed class BundesligaHistoryPlayedDateMap
     public static BundesligaHistoryPlayedDateMap Default => DefaultMap.Value;
 
     public IReadOnlyList<BundesligaHistoryPlayedDateMapEntry> Entries { get; }
+
+    private static IReadOnlyList<OpenLigaDbDfbPokal2026MapIdentity> OpenLigaDbDfbPokal2026MapIdentities { get; } =
+    [
+        Dfb2026("81832", "SC St. Tönis", "Eintracht Frankfurt", "0:11", "", "2026-08-21", "sge"),
+        Dfb2026("81833", "Erzgebirge Aue", "1899 Hoffenheim", "0:4", "", "2026-08-22", "tsg"),
+        Dfb2026("81834", "Eintracht Braunschweig", "1. FC Union Berlin", "2:4", "", "2026-08-23", "fcu"),
+        Dfb2026("81835", "Eintracht Trier", "RB Leipzig", "0:6", "", "2026-08-22", "rbl"),
+        Dfb2026("81837", "TSV Schott Mainz", "Bor. Mönchengladbach", "0:5", "", "2026-08-23", "bmg"),
+        Dfb2026("81838", "Fortuna Düsseldorf", "SC Freiburg", "1:5", "", "2026-08-23", "scf"),
+        Dfb2026("81842", "SV Wehen Wiesbaden", "Bayer 04 Leverkusen", "0:4", "", "2026-08-22", "b04"),
+        Dfb2026("81843", "Hallescher FC", "FC Schalke 04", "2:5", "nach Verlängerung", "2026-08-24", "s04"),
+        Dfb2026("81844", "Energie Cottbus", "FC Augsburg", "0:2", "", "2026-08-22", "fca"),
+        Dfb2026("81845", "VfB Krieschow", "FSV Mainz 05", "0:9", "", "2026-08-23", "m05"),
+        Dfb2026("81851", "MSV Duisburg", "SV Elversberg", "1:3", "", "2026-08-22", "sve"),
+        Dfb2026("81853", "Lüneburger SK Hansa", "Werder Bremen", "0:3", "", "2026-08-22", "svw"),
+        Dfb2026("81854", "SC Verl", "Hamburger SV", "0:3", "", "2026-08-24", "hsv"),
+        Dfb2026("81855", "FC Hansa Rostock", "VfB Stuttgart", "0:4", "", "2026-08-21", "vfb"),
+        Dfb2026("81861", "1. FC Phönix Lübeck", "SC Paderborn 07", "2:4", "", "2026-08-23", "scp"),
+        Dfb2026("81863", "FC Würzburger Kickers", "1. FC Köln", "1:2", "", "2026-08-24", "fck")
+    ];
 
     public static IReadOnlyList<string> ExpectedDocumentNames { get; } = BundesligaTeamManifest.Default.Entries
         .SelectMany(team => SelectedDocumentPrefixes.Select(prefix => $"{prefix}{team.TeamSlug}.csv"))
@@ -219,6 +238,8 @@ public sealed class BundesligaHistoryPlayedDateMap
                                 && string.Equals(entry.SourceName, OpenLigaDbSourceName, StringComparison.Ordinal);
         var isUefaFinal = string.Equals(entry.HistoryCompetition, "EL", StringComparison.Ordinal)
                           && string.Equals(entry.SourceName, UefaSourceName, StringComparison.Ordinal);
+        var acceptedDfbPokal2026Identity = OpenLigaDbDfbPokal2026MapIdentities.SingleOrDefault(identity =>
+            string.Equals(identity.SourceMatchId, entry.SourceMatchId, StringComparison.Ordinal));
         var isAcceptedDfbPokalCapture = isDfbPokalCapture
             && ((string.Equals(entry.SourceRevision, OpenLigaDbDfbPokalRevision, StringComparison.Ordinal)
                 && string.Equals(entry.SourceUrl, OpenLigaDbDfbPokalUrl, StringComparison.Ordinal)
@@ -227,13 +248,14 @@ public sealed class BundesligaHistoryPlayedDateMap
                 && string.Equals(entry.AwayTeam, "VfB Stuttgart", StringComparison.Ordinal)
                 && string.Equals(entry.Score, "3:0", StringComparison.Ordinal)
                 && string.Equals(entry.PlayedAt, "2026-05-23", StringComparison.Ordinal))
-                || (string.Equals(entry.SourceRevision, OpenLigaDbDfbPokal2026Revision, StringComparison.Ordinal)
+                || (acceptedDfbPokal2026Identity is not null
+                && string.Equals(entry.SourceRevision, OpenLigaDbDfbPokal2026Revision, StringComparison.Ordinal)
                 && string.Equals(entry.SourceUrl, OpenLigaDbDfbPokal2026Url, StringComparison.Ordinal)
-                && string.Equals(entry.SourceMatchId, OpenLigaDbDfbPokal2026MatchId, StringComparison.Ordinal)
-                && string.Equals(entry.HomeTeam, "SC St. Tönis", StringComparison.Ordinal)
-                && string.Equals(entry.AwayTeam, "Eintracht Frankfurt", StringComparison.Ordinal)
-                && string.Equals(entry.Score, "0:11", StringComparison.Ordinal)
-                && string.Equals(entry.PlayedAt, "2026-08-21", StringComparison.Ordinal)
+                && string.Equals(entry.HomeTeam, acceptedDfbPokal2026Identity.HomeTeam, StringComparison.Ordinal)
+                && string.Equals(entry.AwayTeam, acceptedDfbPokal2026Identity.AwayTeam, StringComparison.Ordinal)
+                && string.Equals(entry.Score, acceptedDfbPokal2026Identity.Score, StringComparison.Ordinal)
+                && string.Equals(entry.Annotation, acceptedDfbPokal2026Identity.Annotation, StringComparison.Ordinal)
+                && string.Equals(entry.PlayedAt, acceptedDfbPokal2026Identity.PlayedAt, StringComparison.Ordinal)
                 && verifiedAt >= OpenLigaDbDfbPokal2026EvidenceAvailableAt));
         var validSource = isSecondBundesliga
             ? string.Equals(entry.SourceClass, OpenLigaDbSourceClass, StringComparison.Ordinal)
@@ -353,12 +375,20 @@ public sealed class BundesligaHistoryPlayedDateMap
         var openLigaDfb2026Rows = entries.Where(entry =>
             string.Equals(entry.HistoryCompetition, "DFB", StringComparison.Ordinal)
             && string.Equals(entry.SourceName, OpenLigaDbSourceName, StringComparison.Ordinal)
-            && string.Equals(entry.SourceMatchId, OpenLigaDbDfbPokal2026MatchId, StringComparison.Ordinal)).ToArray();
-        if (openLigaDfb2026Rows.Length is not 0 and not 2
-            || openLigaDfb2026Rows.Length == 2 && !openLigaDfb2026Rows.Select(entry => entry.DocumentName).ToHashSet(StringComparer.Ordinal)
-                .SetEquals(["away-history-sge.csv", "recent-history-sge.csv"]))
+            && string.Equals(entry.SourceRevision, OpenLigaDbDfbPokal2026Revision, StringComparison.Ordinal)).ToArray();
+        if (openLigaDfb2026Rows.Length != 0 &&
+            (openLigaDfb2026Rows.Length != OpenLigaDbDfbPokal2026MapIdentities.Sum(identity => identity.DocumentNames.Count)
+             || OpenLigaDbDfbPokal2026MapIdentities.Any(identity =>
+                 !openLigaDfb2026Rows
+                     .Where(entry => string.Equals(entry.SourceMatchId, identity.SourceMatchId, StringComparison.Ordinal))
+                     .Select(entry => entry.DocumentName)
+                     .ToHashSet(StringComparer.Ordinal)
+                     .SetEquals(identity.DocumentNames))
+             || openLigaDfb2026Rows.Any(entry =>
+                 !OpenLigaDbDfbPokal2026MapIdentities.Any(identity =>
+                     string.Equals(identity.SourceMatchId, entry.SourceMatchId, StringComparison.Ordinal)))))
         {
-            throw Invalid(sourceName, "OpenLigaDB DFB-Pokal match 81832 must be used exactly once in each of away-history-sge.csv and recent-history-sge.csv");
+            throw Invalid(sourceName, "OpenLigaDB DFB-Pokal 2026 selected matches must cover exactly their accepted away-history and recent-history documents");
         }
 
         var ordered = entries.OrderBy(entry => entry.DocumentName, StringComparer.Ordinal).ThenBy(entry => entry.RowOrdinal).ToArray();
@@ -384,6 +414,26 @@ public sealed class BundesligaHistoryPlayedDateMap
                && away >= 0
                && string.Equals(score, $"{home}:{away}", StringComparison.Ordinal);
     }
+
+    private sealed record OpenLigaDbDfbPokal2026MapIdentity(
+        string SourceMatchId,
+        string HomeTeam,
+        string AwayTeam,
+        string Score,
+        string Annotation,
+        string PlayedAt,
+        IReadOnlyList<string> DocumentNames);
+
+    private static OpenLigaDbDfbPokal2026MapIdentity Dfb2026(
+        string sourceMatchId,
+        string homeTeam,
+        string awayTeam,
+        string score,
+        string annotation,
+        string playedAt,
+        string teamSlug) =>
+        new(sourceMatchId, homeTeam, awayTeam, score, annotation, playedAt,
+            [$"away-history-{teamSlug}.csv", $"recent-history-{teamSlug}.csv"]);
 
     private static BundesligaHistoryPlayedDateMap LoadEmbedded()
     {

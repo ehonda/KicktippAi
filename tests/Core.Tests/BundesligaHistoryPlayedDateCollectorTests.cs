@@ -21,13 +21,13 @@ public class BundesligaHistoryPlayedDateCollectorTests
 
         var result = Collector.Collect(CompetitionIds.Bundesliga2026_27, documents, map, []);
 
-        await Assert.That(map.Count).IsEqualTo(400);
-        await Assert.That(map.Select(entry => (entry.SourceName, entry.SourceMatchId)).Distinct().Count()).IsEqualTo(197);
+        await Assert.That(map.Count).IsEqualTo(430);
+        await Assert.That(map.Select(entry => (entry.SourceName, entry.SourceMatchId)).Distinct().Count()).IsEqualTo(212);
         await Assert.That(map.Count(entry => entry.SourceName == BundesligaHistoryPlayedDateMap.TransfermarktDatasetSourceName)).IsEqualTo(326);
-        await Assert.That(map.Count(entry => entry.SourceName == BundesligaHistoryPlayedDateMap.OpenLigaDbSourceName)).IsEqualTo(72);
+        await Assert.That(map.Count(entry => entry.SourceName == BundesligaHistoryPlayedDateMap.OpenLigaDbSourceName)).IsEqualTo(102);
         await Assert.That(map.Count(entry => entry.SourceName == BundesligaHistoryPlayedDateMap.UefaSourceName)).IsEqualTo(2);
         await Assert.That(result.Succeeded).IsTrue();
-        await Assert.That(result.FixedMapCount).IsEqualTo(400);
+        await Assert.That(result.FixedMapCount).IsEqualTo(430);
         await Assert.That(result.Documents.Count).IsEqualTo(54);
         await Assert.That(map.Select(entry => entry.DocumentName).Distinct(StringComparer.Ordinal).Count()).IsEqualTo(54);
     }
@@ -422,33 +422,30 @@ public class BundesligaHistoryPlayedDateCollectorTests
     [Test]
     public async Task Map_parser_accepts_only_the_frozen_2026_DFB_live_completion_capture()
     {
-        var match = Map(1, "DFB", "SC St. Tönis", "Eintracht Frankfurt", "0:11", "2026-08-21",
-            sourceMatchId: BundesligaHistoryPlayedDateMap.OpenLigaDbDfbPokal2026MatchId,
-            sourceName: BundesligaHistoryPlayedDateMap.OpenLigaDbSourceName,
-            sourceUrl: BundesligaHistoryPlayedDateMap.OpenLigaDbDfbPokal2026Url,
-            sourceRevision: BundesligaHistoryPlayedDateMap.OpenLigaDbDfbPokal2026Revision,
-            sourceClass: BundesligaHistoryPlayedDateMap.OpenLigaDbSourceClass) with
-        {
-            VerifiedAt = "2026-08-21T20:14:00+02:00"
-        };
-        var entries = new[]
-        {
-            match with { DocumentName = "away-history-sge.csv" },
-            match with { DocumentName = "recent-history-sge.csv" }
-        };
+        var entries = BundesligaHistoryPlayedDateMap.Default.Entries
+            .Where(entry => string.Equals(
+                entry.SourceUrl,
+                BundesligaHistoryPlayedDateMap.OpenLigaDbDfbPokal2026Url,
+                StringComparison.Ordinal))
+            .ToArray();
         var valid = BundesligaHistoryPlayedDateMap.Write(entries);
 
         using var reader = new StringReader(valid);
         var parsed = BundesligaHistoryPlayedDateMap.ParseFragment(reader, "dfb-2026-live-completion");
 
-        await Assert.That(parsed.Entries.Count).IsEqualTo(2);
+        await Assert.That(parsed.Entries.Count).IsEqualTo(32);
+        await Assert.That(parsed.Entries.Select(entry => entry.SourceMatchId).Distinct().Count()).IsEqualTo(16);
+        var extraTime = parsed.Entries.Single(entry =>
+            entry.SourceMatchId == "81843" && entry.DocumentName == "away-history-s04.csv");
+        await Assert.That(extraTime.Score).IsEqualTo("2:5");
+        await Assert.That(extraTime.Annotation).IsEqualTo("nach Verlängerung");
 
         var invalidMaps = new[]
         {
-            BundesligaHistoryPlayedDateMap.Write(entries.Take(1)),
-            BundesligaHistoryPlayedDateMap.Write([entries[0] with { HomeTeam = "Wrong Team" }, entries[1]]),
-            BundesligaHistoryPlayedDateMap.Write([entries[0] with { SourceRevision = BundesligaHistoryPlayedDateMap.OpenLigaDbDfbPokalRevision }, entries[1]]),
-            BundesligaHistoryPlayedDateMap.Write([entries[0] with { VerifiedAt = "2026-08-21T19:30:00+02:00" }, entries[1]])
+            BundesligaHistoryPlayedDateMap.Write(entries.Take(31)),
+            BundesligaHistoryPlayedDateMap.Write([entries[0] with { HomeTeam = "Wrong Team" }, .. entries[1..]]),
+            BundesligaHistoryPlayedDateMap.Write([entries[0] with { SourceRevision = BundesligaHistoryPlayedDateMap.OpenLigaDbDfbPokalRevision }, .. entries[1..]]),
+            BundesligaHistoryPlayedDateMap.Write([entries[0] with { VerifiedAt = "2026-08-21T20:14:00+02:00" }, .. entries[1..]])
         };
         foreach (var invalid in invalidMaps)
         {
