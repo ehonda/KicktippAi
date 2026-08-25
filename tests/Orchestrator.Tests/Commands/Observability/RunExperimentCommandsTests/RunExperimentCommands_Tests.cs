@@ -1,3 +1,4 @@
+using System.Collections.Concurrent;
 using System.Diagnostics;
 using System.Text.Json;
 using System.Text.Json.Nodes;
@@ -1336,7 +1337,7 @@ public class RunExperimentCommands_Tests
     public async Task Running_run_slice_reconstructs_predicts_and_posts_scores()
     {
         var tempDirectory = Directory.CreateTempSubdirectory();
-        var capturedActivities = new List<Activity>();
+        var capturedActivities = new ConcurrentQueue<Activity>();
 
         try
         {
@@ -1496,13 +1497,14 @@ public class RunExperimentCommands_Tests
             var openAiServiceFactory = CreateMockOpenAiServiceFactory(predictionService: predictionService);
 
             var postedScores = new List<LangfuseCreateScoreRequest>();
-            var createdDatasetRunItems = new List<LangfuseCreateDatasetRunItemRequest>();
+            var createdDatasetRunItems = new ConcurrentQueue<LangfuseCreateDatasetRunItemRequest>();
             var langfuseClient = new Mock<ILangfusePublicApiClient>(MockBehavior.Strict);
             langfuseClient
                 .Setup(client => client.CreateDatasetRunItemAsync(
                     It.IsAny<LangfuseCreateDatasetRunItemRequest>(),
                     It.IsAny<CancellationToken>()))
-                .Callback((LangfuseCreateDatasetRunItemRequest request, CancellationToken _) => createdDatasetRunItems.Add(request))
+                .Callback((LangfuseCreateDatasetRunItemRequest request, CancellationToken _) =>
+                    createdDatasetRunItems.Enqueue(request))
                 .ReturnsAsync((LangfuseCreateDatasetRunItemRequest request, CancellationToken _) => new LangfuseDatasetRunItem(
                     "dataset-run-item-1",
                     "dataset-run-1",
@@ -1582,7 +1584,8 @@ public class RunExperimentCommands_Tests
                 .IsEquivalentTo(["avg_kicktipp_points", "kicktipp_points", "total_kicktipp_points"]);
             await Assert.That(postedScores.All(score => !string.IsNullOrWhiteSpace(score.Id))).IsTrue();
             await Assert.That(postedScores.Select(score => score.Id).Distinct(StringComparer.Ordinal).Count()).IsEqualTo(3);
-            var experimentItemRun = capturedActivities.Single(activity => activity.OperationName == "experiment-item-run");
+            var createdDatasetRunItem = createdDatasetRunItems.Single();
+            var experimentItemRun = FindExperimentItemRun(capturedActivities, createdDatasetRunItem);
             var experimentItemInput = experimentItemRun.GetTagItem("langfuse.observation.input")?.ToString();
             await Assert.That(experimentItemInput).Contains("RB Leipzig");
             await Assert.That(experimentItemInput).Contains("2025-10-30T15:30:00 Europe/Berlin");
@@ -1596,7 +1599,7 @@ public class RunExperimentCommands_Tests
             await Assert.That(experimentItemRun.GetTagItem("langfuse.trace.tags")?.ToString()).DoesNotContain("phase-2");
             await Assert.That(experimentItemRun.GetTagItem("langfuse.trace.tags")?.ToString()).DoesNotContain("experiment");
             await Assert.That(experimentItemRun.GetTagItem("langfuse.experiment.id")).IsEqualTo("dataset-run-1");
-            await Assert.That(createdDatasetRunItems.Single().ObservationId).IsEqualTo(experimentItemRun.SpanId.ToString());
+            await Assert.That(createdDatasetRunItem.ObservationId).IsEqualTo(experimentItemRun.SpanId.ToString());
             var predictMatchActivity = capturedActivities.Single(activity => activity.OperationName == "predict-match");
             await Assert.That(predictMatchActivity.GetBaggageItem("langfuse.experiment.id")).IsEqualTo("dataset-run-1");
             await Assert.That(predictMatchActivity.GetBaggageItem("langfuse.experiment.item.id")).IsEqualTo(sliceDatasetItemId);
@@ -1615,7 +1618,7 @@ public class RunExperimentCommands_Tests
     public async Task Running_run_repeated_match_without_metadata_file_uses_direct_settings_and_exact_evaluation_time()
     {
         var tempDirectory = Directory.CreateTempSubdirectory();
-        var capturedActivities = new List<Activity>();
+        var capturedActivities = new ConcurrentQueue<Activity>();
 
         try
         {
@@ -1722,11 +1725,14 @@ public class RunExperimentCommands_Tests
             var openAiServiceFactory = CreateMockOpenAiServiceFactory(predictionService: predictionService);
 
             var postedScores = new List<LangfuseCreateScoreRequest>();
+            var createdDatasetRunItems = new ConcurrentQueue<LangfuseCreateDatasetRunItemRequest>();
             var langfuseClient = new Mock<ILangfusePublicApiClient>(MockBehavior.Strict);
             langfuseClient
                 .Setup(client => client.CreateDatasetRunItemAsync(
                     It.IsAny<LangfuseCreateDatasetRunItemRequest>(),
                     It.IsAny<CancellationToken>()))
+                .Callback((LangfuseCreateDatasetRunItemRequest request, CancellationToken _) =>
+                    createdDatasetRunItems.Enqueue(request))
                 .ReturnsAsync((LangfuseCreateDatasetRunItemRequest request, CancellationToken _) => new LangfuseDatasetRunItem(
                     "dataset-run-item-1",
                     "dataset-run-1",
@@ -1784,7 +1790,12 @@ public class RunExperimentCommands_Tests
                     services.AddSingleton(langfuseClient.Object);
                 }));
 
-            var (exitCode, output) = await RunCommandAsync(
+            using var foreignActivity = new Activity("experiment-item-run").Start();
+            foreignActivity.SetTag("langfuse.experiment.name", runName);
+            foreignActivity.SetTag("langfuse.experiment.item.id", sliceDatasetItemId);
+            foreignActivity.Stop();
+
+            var commandTask = RunCommandAsync(
                 context.App,
                 context.Console,
                 "run-repeated-match",
@@ -1799,13 +1810,17 @@ public class RunExperimentCommands_Tests
                 "2026-03-15T12:00:00 Europe/Berlin (+01)",
                 "--batch-count",
                 "1");
+            capturedActivities.Enqueue(foreignActivity);
+            var (exitCode, output) = await commandTask;
 
             await Assert.That(exitCode).IsEqualTo(0);
             await Assert.That(output).Contains("\"executionCount\": 1");
             await Assert.That(output).Contains("\"taskType\": \"repeated-match\"");
             await Assert.That(postedScores.Select(score => score.Name).OrderBy(name => name))
                 .IsEquivalentTo(["avg_kicktipp_points", "kicktipp_points", "total_kicktipp_points"]);
-            var experimentItemRun = capturedActivities.Single(activity => activity.OperationName == "experiment-item-run");
+            var createdDatasetRunItem = createdDatasetRunItems.Single();
+            var experimentItemRun = FindExperimentItemRun(capturedActivities, createdDatasetRunItem);
+            await Assert.That(experimentItemRun).IsNotSameReferenceAs(foreignActivity);
             await Assert.That(experimentItemRun.GetTagItem("langfuse.observation.input")?.ToString())
                 .Contains("VfB Stuttgart vs RB Leipzig");
             await Assert.That(experimentItemRun.GetTagItem("langfuse.observation.input")?.ToString())
@@ -1830,7 +1845,7 @@ public class RunExperimentCommands_Tests
     public async Task Running_run_community_to_date_creates_one_dataset_run_per_participant()
     {
         var tempDirectory = Directory.CreateTempSubdirectory();
-        var capturedActivities = new List<Activity>();
+        var capturedActivities = new ConcurrentQueue<Activity>();
 
         try
         {
@@ -1838,6 +1853,9 @@ public class RunExperimentCommands_Tests
             var datasetName = "match-predictions/bundesliga-2025-26/test-community/community-to-date/through-md01/community-to-date-md01";
             var sliceDatasetItemId = "bundesliga-2025-26__test-community__ts123__slice__community-to-date-md01";
             var sourceDatasetItemId = "bundesliga-2025-26__test-community__ts123";
+            var runFamilyName = "community-to-date__test-community__community-to-date-md01__2026-04-07t12-00-00z";
+            var aliceRunName = $"{runFamilyName}__alice-p1";
+            var bobRunName = $"{runFamilyName}__bob-p2";
 
             await File.WriteAllTextAsync(
                 manifestPath,
@@ -1907,12 +1925,15 @@ public class RunExperimentCommands_Tests
                 }));
 
             var postedScores = new List<LangfuseCreateScoreRequest>();
+            var createdDatasetRunItems = new ConcurrentQueue<LangfuseCreateDatasetRunItemRequest>();
             var openAiServiceFactory = CreateMockOpenAiServiceFactory();
             var langfuseClient = new Mock<ILangfusePublicApiClient>(MockBehavior.Strict);
             langfuseClient
                 .Setup(client => client.CreateDatasetRunItemAsync(
                     It.IsAny<LangfuseCreateDatasetRunItemRequest>(),
                     It.IsAny<CancellationToken>()))
+                .Callback((LangfuseCreateDatasetRunItemRequest request, CancellationToken _) =>
+                    createdDatasetRunItems.Enqueue(request))
                 .ReturnsAsync((LangfuseCreateDatasetRunItemRequest request, CancellationToken _) => new LangfuseDatasetRunItem(
                     $"{request.RunName}-item-1",
                     request.RunName.Contains("alice", StringComparison.Ordinal) ? "dataset-run-1" : "dataset-run-2",
@@ -1965,7 +1986,7 @@ public class RunExperimentCommands_Tests
                     [new LangfuseDatasetRunItem(
                         "dataset-run-item-1",
                         "dataset-run-1",
-                        "community-to-date__test-community__community-to-date-md01__2026-04-07t12-00-00z__alice-p1",
+                        aliceRunName,
                         sliceDatasetItemId,
                         "trace-alice",
                         null,
@@ -1983,7 +2004,7 @@ public class RunExperimentCommands_Tests
                     [new LangfuseDatasetRunItem(
                         "dataset-run-item-2",
                         "dataset-run-2",
-                        "community-to-date__test-community__community-to-date-md01__2026-04-07t12-00-00z__bob-p2",
+                        bobRunName,
                         sliceDatasetItemId,
                         "trace-bob",
                         null,
@@ -2000,18 +2021,25 @@ public class RunExperimentCommands_Tests
                     services.AddSingleton(langfuseClient.Object);
                 }));
 
-            var (exitCode, output) = await RunCommandAsync(
+            using var foreignActivity = new Activity("experiment-item-run").Start();
+            foreignActivity.SetTag("langfuse.experiment.name", aliceRunName);
+            foreignActivity.SetTag("langfuse.experiment.item.id", sliceDatasetItemId);
+            foreignActivity.Stop();
+
+            var commandTask = RunCommandAsync(
                 context.App,
                 context.Console,
                 "run-community-to-date",
                 "--manifest",
                 manifestPath,
                 "--run-family-name",
-                "community-to-date__test-community__community-to-date-md01__2026-04-07t12-00-00z",
+                runFamilyName,
                 "--participant-limit",
                 "2",
                 "--batch-size",
                 "1");
+            capturedActivities.Enqueue(foreignActivity);
+            var (exitCode, output) = await commandTask;
 
             await Assert.That(exitCode).IsEqualTo(0);
             await Assert.That(output).Contains("\"taskType\": \"community-to-date\"");
@@ -2031,10 +2059,18 @@ public class RunExperimentCommands_Tests
             await Assert.That(capturedActivities.Any(activity => activity.OperationName == "community-match-prediction")).IsTrue();
             await Assert.That(postedScores.Where(score => score.Name == "kicktipp_points").All(score => !string.IsNullOrWhiteSpace(score.ObservationId))).IsTrue();
 
-            var experimentItemRuns = capturedActivities
-                .Where(activity => activity.OperationName == "experiment-item-run")
+            var expectedDatasetRunItems = createdDatasetRunItems
+                .OrderBy(item => item.RunName, StringComparer.Ordinal)
+                .ToList();
+            await Assert.That(expectedDatasetRunItems.Count).IsEqualTo(2);
+            await Assert.That(expectedDatasetRunItems.Select(item => item.RunName))
+                .IsEquivalentTo([aliceRunName, bobRunName]);
+            await Assert.That(expectedDatasetRunItems.All(item => item.DatasetItemId == sliceDatasetItemId)).IsTrue();
+            var experimentItemRuns = expectedDatasetRunItems
+                .Select(item => FindExperimentItemRun(capturedActivities, item))
                 .ToList();
             await Assert.That(experimentItemRuns.Count).IsEqualTo(2);
+            await Assert.That(experimentItemRuns.All(activity => !ReferenceEquals(activity, foreignActivity))).IsTrue();
             await Assert.That(experimentItemRuns.All(activity =>
             {
                 var input = activity.GetTagItem("langfuse.observation.input")?.ToString();
@@ -2062,4 +2098,19 @@ public class RunExperimentCommands_Tests
             tempDirectory.Delete(recursive: true);
         }
     }
+
+    private static Activity FindExperimentItemRun(
+        IEnumerable<Activity> capturedActivities,
+        LangfuseCreateDatasetRunItemRequest createdDatasetRunItem) =>
+        capturedActivities.Single(activity =>
+            activity.OperationName == "experiment-item-run"
+            && activity.SpanId.ToString() == createdDatasetRunItem.ObservationId
+            && string.Equals(
+                activity.GetTagItem("langfuse.experiment.name")?.ToString(),
+                createdDatasetRunItem.RunName,
+                StringComparison.Ordinal)
+            && string.Equals(
+                activity.GetTagItem("langfuse.experiment.item.id")?.ToString(),
+                createdDatasetRunItem.DatasetItemId,
+                StringComparison.Ordinal));
 }
