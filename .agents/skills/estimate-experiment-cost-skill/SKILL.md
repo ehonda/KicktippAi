@@ -97,11 +97,13 @@ dotnet run --project src/Orchestrator -- prepare-repeated-match-slice --competit
 6. If the run hits rate limits or flex-capacity failures, retry the same manifest and settings with `--parallelism 3`, then `--parallelism 1`.
 7. Use `--evaluation-policy-kind relative --evaluation-policy-offset -12:00:00` for the default slice-like policy, or the intended exact `--evaluation-time` when the planned estimate requires exact-time execution.
 8. Start with the default `--max-output-tokens 10000` unless JSON or prior preflight evidence requires a higher cap. If any run item fails because of cap exhaustion, no output text, or `outputTokens >= maxOutputTokens`, increase the cap and rerun the complete 5-by-4 base estimate.
-9. Collect compact usage with the run name and the default ingestion wait:
+9. Collect compact usage with the run name and the default ingestion wait. A replaced or retried repeated-match-slice run must bind the exact accepted dataset run and prepared manifest. Every exact dataset-run collection requires the dataset ID, dataset-run ID, prepared manifest, and `--expect`; use this form for new base rows whenever the run result exposes those identities:
 
 ```powershell
-uv --cache-dir .uv-cache run python .agents/skills/estimate-experiment-cost-skill/scripts/experiment_cost_estimator.py collect --env ..\KicktippAi.Secrets\src\Orchestrator\.env --group "repeated-match-slice-measured=RUN_NAME" --expect repeated-match-slice-measured=20 --output C:\tmp\kicktippai-cost-estimate-usage.json
+uv --cache-dir .uv-cache run python .agents/skills/estimate-experiment-cost-skill/scripts/experiment_cost_estimator.py collect --env ..\KicktippAi.Secrets\src\Orchestrator\.env --group "repeated-match-slice-measured=RUN_NAME" --dataset-id "repeated-match-slice-measured=DATASET_ID" --dataset-run-id "repeated-match-slice-measured=DATASET_RUN_ID" --manifest "repeated-match-slice-measured=PATH_TO_SLICE_MANIFEST" --expect repeated-match-slice-measured=20 --output C:\tmp\kicktippai-cost-estimate-usage.json
 ```
+
+   Exact dataset-run mode refuses to start without both `--manifest` and `--expect`. It reads the immutable dataset-item-to-trace links for `DATASET_RUN_ID`, requires exactly 20 distinct links, checks their item set against the prepared manifest, and admits only those traces. Every compact record stores the dataset/run IDs and the prepared-manifest SHA-256/sample-size tuple. `base-row` and `upsert-row` require both manifest fields on every exact-bound record, require them to be identical across the group, and require the sample size to equal the accepted linked-record and expected counts. Whole omission, partial omission, drift, or count mismatch fails closed. Run-name-only collection remains valid for an unambiguous single attempt, but an overcount fails immediately; never truncate, use a timestamp window, or choose the newest observations.
 
 10. Persist the row with `upsert-row`. Keep the default `--service-tier flex` assumption for base estimates, even if the observed run had non-flex retry fallbacks; the extrapolated experiment may not see the same 429 rate. The row still stores `observedServiceTierCounts`, `nonFlexRetryCount`, and retry rates as context. Use `--service-tier observed` only for an explicit what-this-run-actually-cost mode. The command validates 20 observations, uncached input pricing, and no output-cap hits before writing JSON:
 
@@ -144,4 +146,5 @@ git push origin CURRENT_BRANCH
 - Verify estimates use `N` match predictions, not batches or fixtures.
 - Verify all reported estimate totals come from `experiment_cost_estimator.py estimate`.
 - Verify mixed-tier rows report `observedServiceTierCounts` and `nonFlexRetryCount`.
+- Verify replaced or retried runs use exact dataset-run binding with `--manifest` and `--expect`, and that the stored row carries the accepted `datasetRunId` plus the complete prepared-manifest hash/sample-size tuple.
 - Inspect the diff before staging, committing, or pushing.

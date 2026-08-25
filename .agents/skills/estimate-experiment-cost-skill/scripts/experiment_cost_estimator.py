@@ -10,6 +10,7 @@ from __future__ import annotations
 import argparse
 import base64
 import email.utils
+import hashlib
 import json
 import re
 import sys
@@ -61,6 +62,36 @@ def main() -> int:
         default=[],
         metavar="GROUP=N",
         help="Expected record count for a group.",
+    )
+    collect.add_argument(
+        "--dataset-id",
+        action="append",
+        default=[],
+        metavar="GROUP=DATASET_ID",
+        help=(
+            "Bind a group to an exact Langfuse dataset. Must be paired with "
+            "--dataset-run-id for the same group."
+        ),
+    )
+    collect.add_argument(
+        "--dataset-run-id",
+        action="append",
+        default=[],
+        metavar="GROUP=DATASET_RUN_ID",
+        help=(
+            "Collect only observations linked to this exact Langfuse dataset run. "
+            "Must be paired with --dataset-id for the same group."
+        ),
+    )
+    collect.add_argument(
+        "--manifest",
+        action="append",
+        default=[],
+        metavar="GROUP=PATH",
+        help=(
+            "Required for a dataset-run-bound group. Validates the exact "
+            "prepared manifest item identities."
+        ),
     )
     collect.add_argument(
         "--langfuse-sleep-seconds",
@@ -207,6 +238,7 @@ def collect_records(args: argparse.Namespace) -> list[dict[str, Any]]:
 
     env_values = load_env_file(Path(args.env))
     expected_counts = parse_expectations(args.expect)
+    validate_collect_bindings(args)
     deadline = time.monotonic() + max(args.wait_timeout_seconds, 0.0)
 
     while True:
@@ -220,6 +252,25 @@ def collect_records(args: argparse.Namespace) -> list[dict[str, Any]]:
         if expectations_met(records, expected_counts):
             print(f"Langfuse expectation counts satisfied: {status}.")
             return records
+
+        overcounts = {
+            group: (len(filter_group(records, group)), expected)
+            for group, expected in expected_counts.items()
+            if len(filter_group(records, group)) > expected
+        }
+        if overcounts:
+            detail = ", ".join(
+                f"{group}={actual}/{expected}"
+                for group, (actual, expected) in overcounts.items()
+            )
+            raise SystemExit(
+                "Langfuse collection returned more observations than expected: "
+                f"{detail}. Do not truncate or select observations by timestamp. "
+                "For a replaced or retried run name, bind the exact current run with "
+                "--dataset-id GROUP=DATASET_ID and "
+                "--dataset-run-id GROUP=DATASET_RUN_ID, and pass the required "
+                "--manifest GROUP=PATH."
+            )
 
         if args.no_wait_for_expectations:
             validate_expectations(records, args.expect)
@@ -247,15 +298,35 @@ def collect_records_once(
 ) -> list[dict[str, Any]]:
     records: list[dict[str, Any]] = []
     seen_trace_ids: set[str] = set()
+    dataset_ids = parse_unique_pairs(getattr(args, "dataset_id", []), "--dataset-id")
+    dataset_run_ids = parse_unique_pairs(
+        getattr(args, "dataset_run_id", []), "--dataset-run-id"
+    )
+    manifests = parse_unique_pairs(getattr(args, "manifest", []), "--manifest")
+    expected_counts = parse_expectations(getattr(args, "expect", []))
 
     for group_arg in args.group:
         group, run_name = parse_pair(group_arg)
         observations = list_run_observations(args, env_values, run_name)
+        provenance: dict[str, Any] = {}
+        if group in dataset_run_ids:
+            observations, provenance = select_dataset_run_observations(
+                args,
+                env_values,
+                run_name,
+                dataset_ids[group],
+                dataset_run_ids[group],
+                manifests.get(group),
+                expected_counts.get(group),
+                observations,
+            )
+
         for observation in observations:
             trace_id = observation.get("traceId")
             if trace_id in seen_trace_ids:
                 continue
             record = extract_usage_record(group, run_name, observation)
+            record.update(provenance)
             records.append(record)
             seen_trace_ids.add(record.get("traceId", ""))
         if args.langfuse_sleep_seconds > 0:
@@ -263,6 +334,201 @@ def collect_records_once(
 
     sort_records(records)
     return records
+
+
+def validate_collect_bindings(args: argparse.Namespace) -> None:
+    groups = {parse_pair(value)[0] for value in args.group}
+    dataset_ids = parse_unique_pairs(getattr(args, "dataset_id", []), "--dataset-id")
+    dataset_run_ids = parse_unique_pairs(
+        getattr(args, "dataset_run_id", []), "--dataset-run-id"
+    )
+    manifests = parse_unique_pairs(getattr(args, "manifest", []), "--manifest")
+    expected_counts = parse_expectations(getattr(args, "expect", []))
+
+    if dataset_ids.keys() != dataset_run_ids.keys():
+        raise SystemExit(
+            "--dataset-id and --dataset-run-id must be provided together for the "
+            "same groups."
+        )
+
+    unknown = (dataset_ids.keys() | manifests.keys()) - groups
+    if unknown:
+        raise SystemExit(
+            "Collector binding references unknown group(s): "
+            + ", ".join(sorted(unknown))
+            + "."
+        )
+
+    manifest_without_run = manifests.keys() - dataset_run_ids.keys()
+    if manifest_without_run:
+        raise SystemExit(
+            "--manifest requires an exact --dataset-id/--dataset-run-id binding for "
+            "group(s): "
+            + ", ".join(sorted(manifest_without_run))
+            + "."
+        )
+
+    missing_manifests = dataset_run_ids.keys() - manifests.keys()
+    if missing_manifests:
+        raise SystemExit(
+            "Exact dataset-run collection requires --manifest for group(s): "
+            + ", ".join(sorted(missing_manifests))
+            + "."
+        )
+
+    missing_expectations = dataset_run_ids.keys() - expected_counts.keys()
+    if missing_expectations:
+        raise SystemExit(
+            "Exact dataset-run collection requires --expect for group(s): "
+            + ", ".join(sorted(missing_expectations))
+            + "."
+        )
+
+
+def parse_unique_pairs(values: list[str], option_name: str) -> dict[str, str]:
+    parsed: dict[str, str] = {}
+    for value in values:
+        key, parsed_value = parse_pair(value)
+        if key in parsed:
+            raise SystemExit(f"{option_name} was provided more than once for '{key}'.")
+        parsed[key] = parsed_value
+    return parsed
+
+
+def select_dataset_run_observations(
+    args: argparse.Namespace,
+    env_values: dict[str, str],
+    run_name: str,
+    dataset_id: str,
+    dataset_run_id: str,
+    manifest_path: str | None,
+    expected_count: int | None,
+    observations: list[dict[str, Any]],
+) -> tuple[list[dict[str, Any]], dict[str, Any]]:
+    run_items = list_dataset_run_items(args, env_values, dataset_id, run_name)
+    selected_items = [
+        item for item in run_items if item.get("datasetRunId") == dataset_run_id
+    ]
+    provenance = {
+        "datasetId": dataset_id,
+        "datasetRunId": dataset_run_id,
+        "datasetRunName": run_name,
+    }
+    if not selected_items and expected_count is None:
+        raise RuntimeError(
+            f"Dataset run '{dataset_run_id}' has no items for dataset '{dataset_id}' "
+            f"and run name '{run_name}'."
+        )
+
+    dataset_item_to_trace: dict[str, str] = {}
+    trace_to_dataset_item: dict[str, str] = {}
+    for item in selected_items:
+        item_run_name = str(item.get("datasetRunName") or "").strip()
+        dataset_item_id = str(item.get("datasetItemId") or "").strip()
+        trace_id = str(item.get("traceId") or "").strip()
+        if item_run_name != run_name:
+            raise RuntimeError(
+                f"Dataset run '{dataset_run_id}' item has run name "
+                f"'{item_run_name}', expected '{run_name}'."
+            )
+        if not dataset_item_id or not trace_id:
+            raise RuntimeError(
+                f"Dataset run '{dataset_run_id}' contains an item without a "
+                "dataset item ID or trace ID."
+            )
+        if dataset_item_id in dataset_item_to_trace:
+            raise RuntimeError(
+                f"Dataset run '{dataset_run_id}' contains duplicate dataset item "
+                f"ID '{dataset_item_id}'."
+            )
+        if trace_id in trace_to_dataset_item:
+            raise RuntimeError(
+                f"Dataset run '{dataset_run_id}' links trace '{trace_id}' more than once."
+            )
+        dataset_item_to_trace[dataset_item_id] = trace_id
+        trace_to_dataset_item[trace_id] = dataset_item_id
+
+    if expected_count is not None and len(selected_items) > expected_count:
+        raise RuntimeError(
+            f"Dataset run '{dataset_run_id}' links {len(selected_items)} distinct "
+            f"items, expected {expected_count}."
+        )
+
+    run_links_complete = expected_count is None or len(selected_items) == expected_count
+    if manifest_path and run_links_complete:
+        manifest_provenance = validate_manifest_item_identity(
+            Path(manifest_path), dataset_item_to_trace.keys(), expected_count
+        )
+        provenance.update(manifest_provenance)
+
+    observations_by_trace: dict[str, dict[str, Any]] = {}
+    for observation in observations:
+        trace_id = str(observation.get("traceId") or "").strip()
+        if trace_id not in trace_to_dataset_item:
+            continue
+        if trace_id in observations_by_trace:
+            raise RuntimeError(
+                f"Dataset run '{dataset_run_id}' trace '{trace_id}' has more than one "
+                "predict-match generation observation."
+            )
+        observation_dataset_item_id = extract_dataset_item_id(observation)
+        linked_dataset_item_id = trace_to_dataset_item[trace_id]
+        if observation_dataset_item_id != linked_dataset_item_id:
+            raise RuntimeError(
+                f"Dataset run '{dataset_run_id}' trace '{trace_id}' reports dataset "
+                f"item '{observation_dataset_item_id}', but the immutable run link "
+                f"targets '{linked_dataset_item_id}'."
+            )
+        observations_by_trace[trace_id] = observation
+
+    return list(observations_by_trace.values()), provenance
+
+
+def validate_manifest_item_identity(
+    path: Path, dataset_item_ids: Any, expected_count: int | None
+) -> dict[str, Any]:
+    manifest_bytes = path.read_bytes()
+    manifest = json.loads(manifest_bytes.decode("utf-8"))
+    manifest_items = manifest.get("items") or []
+    manifest_item_ids = [
+        str(item.get("sliceDatasetItemId") or "").strip() for item in manifest_items
+    ]
+    if not manifest_item_ids or any(not item_id for item_id in manifest_item_ids):
+        raise RuntimeError(f"Prepared manifest '{path}' has missing item identities.")
+    if len(manifest_item_ids) != len(set(manifest_item_ids)):
+        raise RuntimeError(f"Prepared manifest '{path}' has duplicate item identities.")
+    sample_size = manifest.get("sampleSize")
+    if sample_size != len(manifest_item_ids):
+        raise RuntimeError(
+            f"Prepared manifest '{path}' binds sampleSize={sample_size}, but contains "
+            f"{len(manifest_item_ids)} items."
+        )
+    if expected_count is not None and len(manifest_item_ids) != expected_count:
+        raise RuntimeError(
+            f"Prepared manifest '{path}' contains {len(manifest_item_ids)} items, "
+            f"expected {expected_count}."
+        )
+    linked_item_ids = set(dataset_item_ids)
+    if set(manifest_item_ids) != linked_item_ids:
+        missing = sorted(set(manifest_item_ids) - linked_item_ids)
+        unexpected = sorted(linked_item_ids - set(manifest_item_ids))
+        raise RuntimeError(
+            f"Dataset-run item identity differs from prepared manifest '{path}': "
+            f"missing={missing}, unexpected={unexpected}."
+        )
+    return {
+        "preparedManifestSha256": hashlib.sha256(manifest_bytes).hexdigest(),
+        "preparedManifestSampleSize": len(manifest_item_ids),
+    }
+
+
+def extract_dataset_item_id(observation: dict[str, Any]) -> str:
+    metadata = observation.get("metadata") or {}
+    return str(
+        metadata.get("attributes.langfuse.experiment.item.id")
+        or metadata.get("langfuse.experiment.item.id")
+        or ""
+    ).strip()
 
 
 def load_env_file(path: Path) -> dict[str, str]:
@@ -318,6 +584,41 @@ def list_run_observations(
             break
 
     return observations
+
+
+def list_dataset_run_items(
+    args: argparse.Namespace,
+    env_values: dict[str, str],
+    dataset_id: str,
+    run_name: str,
+) -> list[dict[str, Any]]:
+    items: list[dict[str, Any]] = []
+    page = 1
+    page_size = 100
+    while True:
+        query = {
+            "datasetId": dataset_id,
+            "runName": run_name,
+            "page": str(page),
+            "limit": str(page_size),
+        }
+        body = langfuse_get_json(args, env_values, "dataset-run-items", query)
+        page_items = body.get("data", [])
+        items.extend(page_items)
+        meta = body.get("meta") or {}
+        total_pages = int(meta.get("totalPages") or 0)
+        total_items = int(meta.get("totalItems") or 0)
+        if total_pages:
+            if page >= total_pages:
+                break
+        elif total_items:
+            if len(items) >= total_items:
+                break
+        elif len(page_items) < page_size:
+            break
+        page += 1
+
+    return items
 
 
 def langfuse_get_json(
@@ -565,8 +866,9 @@ def calculate_base_row(args: argparse.Namespace) -> dict[str, Any]:
         1 for record in records if parse_bool(record.get("serviceTierFallbackUsed"))
     )
     observed_flex_count = service_tier_counts.get("flex", 0)
+    collection_provenance = validate_collection_provenance(records)
 
-    return {
+    row = {
         "model": args.model,
         "reasoningEffort": args.reasoning_effort,
         "promptRoute": args.prompt_route,
@@ -608,6 +910,94 @@ def calculate_base_row(args: argparse.Namespace) -> dict[str, Any]:
         "observedLangfuseCostTotalUsd": money_text(observed_total_cost),
         "source": args.source,
     }
+    row.update(collection_provenance)
+    return row
+
+
+def validate_collection_provenance(records: list[dict[str, Any]]) -> dict[str, Any]:
+    required_fields = ("datasetId", "datasetRunId", "datasetRunName")
+    manifest_fields = (
+        "preparedManifestSha256",
+        "preparedManifestSampleSize",
+    )
+    if not any(
+        record.get(field)
+        for record in records
+        for field in required_fields + manifest_fields
+    ):
+        return {}
+
+    provenance: dict[str, Any] = {}
+    for field in required_fields:
+        values = [record.get(field) for record in records]
+        if any(value is None or str(value).strip() == "" for value in values):
+            raise SystemExit(
+                f"Compact usage has partial dataset-run provenance for '{field}'."
+            )
+        distinct = {str(value) for value in values}
+        if len(distinct) != 1:
+            raise SystemExit(
+                f"Compact usage spans multiple values for '{field}': "
+                + ", ".join(sorted(distinct))
+                + "."
+            )
+        provenance[field] = values[0]
+
+    for field in ("datasetItemId", "traceId"):
+        identities = [str(record.get(field) or "").strip() for record in records]
+        if any(not identity for identity in identities):
+            raise SystemExit(
+                f"Dataset-run-bound compact usage has a missing '{field}'."
+            )
+        if len(set(identities)) != len(identities):
+            raise SystemExit(
+                f"Dataset-run-bound compact usage has duplicate '{field}' values."
+            )
+
+    manifest_hashes = [
+        str(record.get("preparedManifestSha256") or "").strip()
+        for record in records
+    ]
+    raw_sample_sizes = [record.get("preparedManifestSampleSize") for record in records]
+    if any(not manifest_hash for manifest_hash in manifest_hashes) or any(
+        value is None or str(value).strip() == "" for value in raw_sample_sizes
+    ):
+        raise SystemExit(
+            "Dataset-run-bound compact usage requires preparedManifestSha256 and "
+            "preparedManifestSampleSize on every record."
+        )
+
+    distinct_hashes = set(manifest_hashes)
+    if len(distinct_hashes) != 1:
+        raise SystemExit(
+            "Compact usage spans multiple prepared manifest hashes: "
+            + ", ".join(sorted(distinct_hashes))
+            + "."
+        )
+
+    if any(
+        isinstance(value, bool) or not isinstance(value, int)
+        for value in raw_sample_sizes
+    ):
+        raise SystemExit(
+            "Compact usage has a non-integer prepared manifest sample size."
+        )
+    sample_sizes = raw_sample_sizes
+    if len(set(sample_sizes)) != 1:
+        raise SystemExit(
+            "Compact usage spans multiple prepared manifest sample sizes."
+        )
+    if sample_sizes[0] != len(records):
+        raise SystemExit(
+            "Prepared manifest sample size "
+            f"{sample_sizes[0]} does not equal the accepted compact usage count "
+            f"{len(records)}."
+        )
+
+    provenance["preparedManifestSha256"] = manifest_hashes[0]
+    provenance["preparedManifestSampleSize"] = sample_sizes[0]
+
+    return provenance
 
 
 def count_service_tiers(records: list[dict[str, Any]]) -> dict[str, int]:

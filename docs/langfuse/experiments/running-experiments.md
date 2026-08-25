@@ -179,6 +179,14 @@ dotnet run --project src/Orchestrator -- run-repeated-match-slice gpt-5.4-nano -
 
 If a run hits OpenAI rate limits or flex-capacity failures, retry the same manifest and run settings with lower parallelism, first `--parallelism 3` and then `--parallelism 1`.
 
+`--replace-run` replaces the Langfuse dataset-run object, not earlier traces that used the same run name as their session ID. A same-name retry can therefore leave more trace observations than the accepted dataset run contains. Cost collection for a replaced or retried run must bind the exact accepted dataset ID, dataset-run ID, prepared manifest, and expected observation count, then validate its immutable dataset-item-to-trace links against the manifest:
+
+```powershell
+uv --cache-dir .uv-cache run python .agents/skills/estimate-experiment-cost-skill/scripts/experiment_cost_estimator.py collect --env ..\KicktippAi.Secrets\src\Orchestrator\.env --group "repeated-match-slice-measured=RUN_NAME" --dataset-id "repeated-match-slice-measured=DATASET_ID" --dataset-run-id "repeated-match-slice-measured=DATASET_RUN_ID" --manifest "repeated-match-slice-measured=PATH_TO_SLICE_MANIFEST" --expect repeated-match-slice-measured=20 --output C:\tmp\kicktippai-cost-estimate-usage.json
+```
+
+The exact mode refuses to start without both `--manifest` and `--expect`. It rejects missing or duplicate dataset items/traces, run-name drift, observation/link identity drift, count mismatch, and manifest item-set mismatch. Every compact record carries the accepted dataset-run ID plus an inseparable prepared-manifest SHA-256/sample-size tuple. Base-row creation requires both manifest fields on every record, requires them to be identical across the group, and requires the sample size to equal the accepted linked-record and expected counts; whole omission, partial omission, drift, or mismatch fails closed. Run-name-only collection remains available for unambiguous executions; an overcount fails closed and must never be resolved by truncating or selecting a timestamp window. See [ADR-0046](../../plans/bundesliga-2026-27/decisions/0046-bind-cost-usage-to-langfuse-dataset-runs.md).
+
 ### Hash-bound Bundesliga 2025/26 preseason cost samples
 
 Before Bundesliga 2026/27 has completed outcomes, cost-only base estimates may explicitly use completed 2025/26 fixtures. This is a marked experiment compatibility route, not a live runtime fallback. It does not write or migrate Firestore context and does not relax the ordinary context repository.
