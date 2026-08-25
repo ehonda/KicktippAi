@@ -34,7 +34,7 @@ CEST (UTC+02:00) on those dates.
 
 Primary sources:
 
-- [Official Bundesliga Matchday 1 fixture page](https://www.bundesliga.com/en/bundesliga/matchday/en/1)
+- [Official Bundesliga Matchday 1 fixture page](https://www.bundesliga.com/en/bundesliga/matchday/2026-2027/1)
 - [Official Bundesliga Media fixture table with local and UTC kickoffs](https://products.bundesliga.com/fixtures)
 - [Official opening-four-matchdays timing announcement, 15 July 2026](https://www.bundesliga.com/en/bundesliga/news/confirmed-kick-off-times-dates-2026-27-fixtures-23955)
 - [Official 2026/27 fixture-list announcement, 2 July 2026](https://www.bundesliga.com/en/bundesliga/news/2026-27-fixture-lists-now-available-38068)
@@ -160,7 +160,8 @@ throughout the season.
       persist exact Firestore identities, use exact hosted prompts without local
       fallback, and pass payload-safe Langfuse/cost/error inspection.
 - [ ] No 2025/26 identity, WM26 collector/document, transfer document, wrong
-      community context, extra model call, or reprediction index is observed.
+      community context, extra model call, unexpected/non-zero reprediction
+      index, or unintended reprediction is observed.
 
 ## Per-community readiness — all currently blocked
 
