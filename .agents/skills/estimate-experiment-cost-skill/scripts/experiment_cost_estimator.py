@@ -182,7 +182,7 @@ def main() -> int:
     budget_gate.add_argument(
         "--candidate",
         action="append",
-        required=True,
+        default=[],
         metavar="MODEL,REASONING_EFFORT,COUNT",
         help=(
             "Candidate prediction count to estimate from an exact authoritative "
@@ -190,9 +190,31 @@ def main() -> int:
         ),
     )
     budget_gate.add_argument(
+        "--provisional-candidate",
+        action="append",
+        default=[],
+        metavar="REPORT_JSON,COUNT",
+        help=(
+            "Candidate prediction count projected from an exact one-observation "
+            "base-row JSON report. Repeat for every provisional wave entry."
+        ),
+    )
+    budget_gate.add_argument(
+        "--observed-attempt",
+        action="append",
+        default=[],
+        metavar="NAME=USD",
+        help=(
+            "Named settled experiment attempt and its observed USD spend. Repeat "
+            "for every attempt; names must be unique."
+        ),
+    )
+    budget_gate.add_argument(
         "--observed-spend-usd",
-        required=True,
-        help="Settled experiment spend already incurred in USD.",
+        help=(
+            "Compatibility-only scalar settled spend. Cannot be combined with "
+            "--observed-attempt."
+        ),
     )
     budget_gate.add_argument(
         "--reservation",
@@ -204,11 +226,21 @@ def main() -> int:
     budget_gate.add_argument(
         "--retry-reserve",
         action="append",
-        required=True,
+        default=[],
         metavar="MODEL,REASONING_EFFORT,COUNT",
         help=(
             "Retry prediction reserve estimated from the same authoritative rows. "
             "Repeat for every reserve entry."
+        ),
+    )
+    budget_gate.add_argument(
+        "--provisional-retry-reserve",
+        action="append",
+        default=[],
+        metavar="REPORT_JSON,COUNT",
+        help=(
+            "Retry prediction reserve projected from an exact one-observation "
+            "base-row JSON report. Repeat for every provisional reserve entry."
         ),
     )
     budget_gate.add_argument(
@@ -222,7 +254,8 @@ def main() -> int:
         help="JSON base estimate store.",
     )
     budget_gate.add_argument(
-        "--report-json", help="Optional machine-readable report."
+        "--report-json",
+        help="Machine-readable admission report; its write is mandatory when set.",
     )
 
     args = parser.parse_args()
@@ -256,9 +289,18 @@ def main() -> int:
         return 0
     if args.command == "budget-gate":
         report = calculate_budget_gate(args)
-        emit_budget_gate(report)
         if args.report_json:
-            try_write_optional_json(Path(args.report_json), report)
+            try:
+                write_json(Path(args.report_json), report)
+            except OSError as ex:
+                report["result"] = "blocked"
+                report["admissionErrors"] = [
+                    f"Requested budget-gate JSON could not be written: {ex}"
+                ]
+                emit_budget_gate(report)
+                print(report["admissionErrors"][0], file=sys.stderr)
+                return 3
+        emit_budget_gate(report)
         return 0 if report["result"] == "allowed" else 2
 
     raise AssertionError(f"Unhandled command {args.command!r}.")
@@ -1198,14 +1240,49 @@ def calculate_estimate(args: argparse.Namespace) -> dict[str, Any]:
 
 def calculate_budget_gate(args: argparse.Namespace) -> dict[str, Any]:
     store = load_base_estimate_store(Path(args.store))
-    candidates, projected_wave_cost = calculate_budget_entries(
-        args.candidate, store["baseEstimates"], "--candidate"
+    candidates, authoritative_wave_cost = calculate_authoritative_budget_entries(
+        getattr(args, "candidate", []),
+        store["baseEstimates"],
+        "--candidate",
     )
-    retry_reserves, retry_reserve_total = calculate_budget_entries(
-        args.retry_reserve, store["baseEstimates"], "--retry-reserve"
+    provisional_candidates, provisional_wave_cost = (
+        calculate_provisional_budget_entries(
+            getattr(args, "provisional_candidate", []),
+            "--provisional-candidate",
+            start_index=len(candidates) + 1,
+        )
     )
-    observed_spend = parse_non_negative_decimal(
-        args.observed_spend_usd, "--observed-spend-usd"
+    candidates.extend(provisional_candidates)
+    if not candidates:
+        raise SystemExit(
+            "At least one --candidate or --provisional-candidate is required."
+        )
+    projected_wave_cost = authoritative_wave_cost + provisional_wave_cost
+
+    retry_reserves, authoritative_retry_cost = (
+        calculate_authoritative_budget_entries(
+            getattr(args, "retry_reserve", []),
+            store["baseEstimates"],
+            "--retry-reserve",
+        )
+    )
+    provisional_retries, provisional_retry_cost = (
+        calculate_provisional_budget_entries(
+            getattr(args, "provisional_retry_reserve", []),
+            "--provisional-retry-reserve",
+            start_index=len(retry_reserves) + 1,
+        )
+    )
+    retry_reserves.extend(provisional_retries)
+    if not retry_reserves:
+        raise SystemExit(
+            "At least one --retry-reserve or --provisional-retry-reserve is required."
+        )
+    retry_reserve_total = authoritative_retry_cost + provisional_retry_cost
+
+    observed_attempts, observed_spend = calculate_observed_attempts(
+        getattr(args, "observed_attempt", []),
+        getattr(args, "observed_spend_usd", None),
     )
     ceiling = parse_non_negative_decimal(args.ceiling_usd, "--ceiling-usd")
     if ceiling == 0:
@@ -1232,6 +1309,7 @@ def calculate_budget_gate(args: argparse.Namespace) -> dict[str, Any]:
     return {
         "schemaVersion": 1,
         "ceilingUsd": budget_money_text(ceiling),
+        "observedAttempts": observed_attempts,
         "observedSpendToDateUsd": budget_money_text(observed_spend),
         "candidates": candidates,
         "projectedWaveCostUsd": budget_money_text(projected_wave_cost),
@@ -1245,15 +1323,53 @@ def calculate_budget_gate(args: argparse.Namespace) -> dict[str, Any]:
         "allInProjectedTotalUsd": budget_money_text(all_in_total),
         "remainingUsd": budget_money_text(remaining),
         "strictlyInsideCeiling": allowed,
+        "admissionErrors": [],
         "result": "allowed" if allowed else "blocked",
     }
 
 
-def calculate_budget_entries(
+def calculate_observed_attempts(
+    values: list[str], legacy_observed_spend: Any
+) -> tuple[list[dict[str, str]], Decimal]:
+    if values and legacy_observed_spend is not None:
+        raise SystemExit(
+            "--observed-spend-usd cannot be combined with --observed-attempt; "
+            "use named attempts only."
+        )
+    if legacy_observed_spend is not None:
+        amount = parse_non_negative_decimal(
+            legacy_observed_spend, "--observed-spend-usd"
+        )
+        return (
+            [
+                {
+                    "name": "legacy-observed-spend-usd",
+                    "amountUsd": budget_money_text(amount),
+                }
+            ],
+            amount,
+        )
+    if not values:
+        raise SystemExit("--observed-attempt must be provided at least once.")
+
+    attempts = []
+    seen_names: set[str] = set()
+    total = Decimal("0")
+    for value in values:
+        name, amount_text = parse_pair(value)
+        normalized_name = name.casefold()
+        if normalized_name in seen_names:
+            raise SystemExit(f"--observed-attempt name {name!r} was provided twice.")
+        seen_names.add(normalized_name)
+        amount = parse_non_negative_decimal(amount_text, "--observed-attempt")
+        attempts.append({"name": name, "amountUsd": budget_money_text(amount)})
+        total += amount
+    return attempts, total
+
+
+def calculate_authoritative_budget_entries(
     values: list[str], rows: list[dict[str, Any]], option_name: str
 ) -> tuple[list[dict[str, Any]], Decimal]:
-    if not values:
-        raise SystemExit(f"{option_name} must be provided at least once.")
     entries = []
     entries_total = Decimal("0")
     for index, value in enumerate(values, start=1):
@@ -1276,10 +1392,193 @@ def calculate_budget_entries(
                 "matchPredictionCount": count,
                 "averageCostPerMatchPredictionUsd": budget_money_text(average),
                 "estimatedTotalCostUsd": budget_money_text(total),
+                "estimateBasis": "authoritative-base-estimate",
                 "baseEstimate": row,
             }
         )
     return entries, entries_total
+
+
+def calculate_provisional_budget_entries(
+    values: list[str], option_name: str, start_index: int
+) -> tuple[list[dict[str, Any]], Decimal]:
+    entries = []
+    entries_total = Decimal("0")
+    for offset, value in enumerate(values):
+        path, count = parse_provisional_budget_entry(value, option_name)
+        report, provenance = load_provisional_base_row_report(path, option_name)
+        average = parse_positive_decimal(
+            report.get("averageCostPerMatchPredictionUsd"),
+            f"{option_name} averageCostPerMatchPredictionUsd in {path}",
+        )
+        total = average * Decimal(count)
+        entries_total += total
+        entries.append(
+            {
+                "entry": start_index + offset,
+                "model": provenance["model"],
+                "reasoningEffort": provenance["reasoningEffort"],
+                "matchPredictionCount": count,
+                "averageCostPerMatchPredictionUsd": budget_money_text(average),
+                "estimatedTotalCostUsd": budget_money_text(total),
+                "estimateBasis": "provisional-one-item-base-row-report",
+                "provisionalReport": provenance,
+            }
+        )
+    return entries, entries_total
+
+
+def parse_provisional_budget_entry(value: str, option_name: str) -> tuple[Path, int]:
+    if "," not in value:
+        raise SystemExit(f"{option_name} must be REPORT_JSON,COUNT, got {value!r}.")
+    path_text, count_text = (part.strip() for part in value.rsplit(",", 1))
+    if not path_text or not count_text:
+        raise SystemExit(f"{option_name} must be REPORT_JSON,COUNT, got {value!r}.")
+    return Path(path_text), parse_positive_count(count_text, option_name)
+
+
+def load_provisional_base_row_report(
+    path: Path, option_name: str
+) -> tuple[dict[str, Any], dict[str, Any]]:
+    try:
+        source_bytes = path.read_bytes()
+    except OSError as ex:
+        raise SystemExit(f"{option_name} could not read {path}: {ex}") from ex
+    try:
+        report = json.loads(source_bytes)
+    except (json.JSONDecodeError, UnicodeDecodeError) as ex:
+        raise SystemExit(f"{option_name} report {path} is not valid JSON.") from ex
+    if not isinstance(report, dict):
+        raise SystemExit(f"{option_name} report {path} must contain a JSON object.")
+
+    observations = report.get("baseSampleObservations")
+    if (
+        isinstance(observations, bool)
+        or not isinstance(observations, int)
+        or observations != 1
+    ):
+        raise SystemExit(
+            f"{option_name} report {path} must have baseSampleObservations=1."
+        )
+
+    required_text_fields = (
+        "model",
+        "reasoningEffort",
+        "promptRoute",
+        "modelKnowledgeCutoffDate",
+        "samplingCutoffUsed",
+        "serviceTier",
+        "source",
+    )
+    required_text = {
+        field: require_nonempty_report_text(report, field, path, option_name)
+        for field in required_text_fields
+    }
+
+    max_output_tokens = report.get("maxOutputTokens")
+    if (
+        isinstance(max_output_tokens, bool)
+        or not isinstance(max_output_tokens, int)
+        or max_output_tokens < 1
+    ):
+        raise SystemExit(
+            f"{option_name} report {path} must have a positive integer "
+            "maxOutputTokens."
+        )
+
+    average = parse_positive_decimal(
+        report.get("averageCostPerMatchPredictionUsd"),
+        f"{option_name} averageCostPerMatchPredictionUsd in {path}",
+    )
+    estimated_total = parse_positive_decimal(
+        report.get("estimatedTotalCostUsd"),
+        f"{option_name} estimatedTotalCostUsd in {path}",
+    )
+    if estimated_total != average:
+        raise SystemExit(
+            f"{option_name} report {path} has one observation but its "
+            "estimatedTotalCostUsd differs from averageCostPerMatchPredictionUsd."
+        )
+    validate_optional_provisional_dataset_provenance(report, path, option_name)
+
+    provenance = {
+        "path": str(path.resolve()),
+        "sha256": hashlib.sha256(source_bytes).hexdigest(),
+        "model": required_text["model"],
+        "reasoningEffort": required_text["reasoningEffort"],
+        "maxOutputTokens": max_output_tokens,
+        "source": required_text["source"],
+        "baseSampleObservations": 1,
+        "promptRoute": required_text["promptRoute"],
+        "modelKnowledgeCutoffDate": required_text["modelKnowledgeCutoffDate"],
+        "samplingCutoffUsed": required_text["samplingCutoffUsed"],
+        "serviceTier": required_text["serviceTier"],
+    }
+    for field in (
+        "datasetId",
+        "datasetRunId",
+        "datasetRunName",
+        "preparedManifestSha256",
+        "preparedManifestSampleSize",
+    ):
+        if field in report:
+            provenance[field] = report[field]
+    return report, provenance
+
+
+def require_nonempty_report_text(
+    report: dict[str, Any], field: str, path: Path, option_name: str
+) -> str:
+    value = report.get(field)
+    if not isinstance(value, str) or not value.strip():
+        raise SystemExit(
+            f"{option_name} report {path} must have nonempty string field {field!r}."
+        )
+    return value.strip()
+
+
+def validate_optional_provisional_dataset_provenance(
+    report: dict[str, Any], path: Path, option_name: str
+) -> None:
+    text_fields = (
+        "datasetId",
+        "datasetRunId",
+        "datasetRunName",
+        "preparedManifestSha256",
+    )
+    sample_size_field = "preparedManifestSampleSize"
+    present = [field for field in text_fields if field in report]
+    if sample_size_field in report:
+        present.append(sample_size_field)
+    if not present:
+        return
+    missing = [
+        field
+        for field in text_fields + (sample_size_field,)
+        if field not in report
+    ]
+    if missing:
+        raise SystemExit(
+            f"{option_name} report {path} has partial dataset provenance; "
+            f"missing {', '.join(missing)}."
+        )
+    for field in text_fields:
+        require_nonempty_report_text(report, field, path, option_name)
+    manifest_hash = str(report["preparedManifestSha256"])
+    if not re.fullmatch(r"[0-9a-f]{64}", manifest_hash):
+        raise SystemExit(
+            f"{option_name} report {path} has invalid preparedManifestSha256."
+        )
+    sample_size = report[sample_size_field]
+    if (
+        isinstance(sample_size, bool)
+        or not isinstance(sample_size, int)
+        or sample_size != 1
+    ):
+        raise SystemExit(
+            f"{option_name} report {path} must have "
+            "preparedManifestSampleSize=1 when dataset provenance is present."
+        )
 
 
 def parse_budget_entry(value: str, option_name: str) -> tuple[str, str, int]:
@@ -1288,15 +1587,19 @@ def parse_budget_entry(value: str, option_name: str) -> tuple[str, str, int]:
         raise SystemExit(
             f"{option_name} must be MODEL,REASONING_EFFORT,COUNT, got {value!r}."
         )
+    return parts[0], parts[1], parse_positive_count(parts[2], option_name)
+
+
+def parse_positive_count(value: str, option_name: str) -> int:
     try:
-        count = int(parts[2])
+        count = int(value)
     except ValueError as ex:
         raise SystemExit(
-            f"{option_name} count must be an integer, got {parts[2]!r}."
+            f"{option_name} count must be an integer, got {value!r}."
         ) from ex
     if count < 1:
         raise SystemExit(f"{option_name} count must be at least 1, got {count}.")
-    return parts[0], parts[1], count
+    return count
 
 
 def parse_non_negative_decimal(value: Any, field_name: str) -> Decimal:
@@ -1307,6 +1610,13 @@ def parse_non_negative_decimal(value: Any, field_name: str) -> Decimal:
     if not parsed.is_finite() or parsed < 0:
         raise SystemExit(f"{field_name} must be a finite non-negative USD amount.")
     return Decimal("0") if parsed == 0 else parsed
+
+
+def parse_positive_decimal(value: Any, field_name: str) -> Decimal:
+    parsed = parse_non_negative_decimal(value, field_name)
+    if parsed == 0:
+        raise SystemExit(f"{field_name} must be greater than zero.")
+    return parsed
 
 
 def parse_counts(args: argparse.Namespace) -> list[int]:
@@ -1463,6 +1773,9 @@ def emit_estimate(report: dict[str, Any]) -> None:
 def emit_budget_gate(report: dict[str, Any]) -> None:
     print("Cumulative experiment budget gate:")
     print(f"Ceiling: ${report['ceilingUsd']}")
+    print("Observed attempts:")
+    for index, attempt in enumerate(report["observedAttempts"], start=1):
+        print(f"{index}. {attempt['name']} | ${attempt['amountUsd']}")
     print(f"Observed spend to date: ${report['observedSpendToDateUsd']}")
     print()
     print("Candidate wave estimates:")
@@ -1471,7 +1784,8 @@ def emit_budget_gate(report: dict[str, Any]) -> None:
             f"{entry['entry']}. {entry['model']} {entry['reasoningEffort']} | "
             f"N={entry['matchPredictionCount']} | "
             f"average=${entry['averageCostPerMatchPredictionUsd']} | "
-            f"estimated=${entry['estimatedTotalCostUsd']}"
+            f"estimated=${entry['estimatedTotalCostUsd']} | "
+            f"basis={entry['estimateBasis']}"
         )
     print(f"Projected wave cost: ${report['projectedWaveCostUsd']}")
     print()
@@ -1494,18 +1808,21 @@ def emit_budget_gate(report: dict[str, Any]) -> None:
             f"{entry['entry']}. {entry['model']} {entry['reasoningEffort']} | "
             f"N={entry['matchPredictionCount']} | "
             f"average=${entry['averageCostPerMatchPredictionUsd']} | "
-            f"estimated=${entry['estimatedTotalCostUsd']}"
+            f"estimated=${entry['estimatedTotalCostUsd']} | "
+            f"basis={entry['estimateBasis']}"
         )
     print(f"Retry reserve total: ${report['retryReserveTotalUsd']}")
     print(f"All reserves: ${report['reservesTotalUsd']}")
     print()
     print(f"All-in projected total: ${report['allInProjectedTotalUsd']}")
     print(f"Remaining before ceiling: ${report['remainingUsd']}")
-    print(
-        "Result: "
-        f"{report['result'].upper()} "
-        "(all-in projected total must be strictly less than the ceiling)"
-    )
+    for error in report.get("admissionErrors", []):
+        print(f"Admission error: {error}")
+    if report.get("admissionErrors"):
+        reason = "requested admission evidence was not persisted"
+    else:
+        reason = "all-in projected total must be strictly less than the ceiling"
+    print(f"Result: {report['result'].upper()} ({reason})")
 
 
 def filter_group(records: list[dict[str, Any]], group: str) -> list[dict[str, Any]]:

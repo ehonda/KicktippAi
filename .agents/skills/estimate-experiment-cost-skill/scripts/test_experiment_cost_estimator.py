@@ -1,7 +1,9 @@
 from __future__ import annotations
 
 import contextlib
+import hashlib
 import io
+import json
 import sys
 import unittest
 from pathlib import Path
@@ -27,7 +29,7 @@ class BudgetGateTests(unittest.TestCase):
                     "gpt-5.6-luna,none,10",
                     "gpt-5.6-luna,none,5",
                 ],
-                observed="0.1",
+                observed_attempts=["luna-preflight=0.04", "luna-base-row=0.06"],
                 reservations=["langfuse-ingestion=0.03"],
                 retries=["gpt-5.6-luna,none,2"],
                 ceiling="1",
@@ -40,6 +42,14 @@ class BudgetGateTests(unittest.TestCase):
         self.assertEqual("0.865682680000", report["remainingUsd"])
         self.assertEqual("allowed", report["result"])
         self.assertEqual(2, len(report["candidates"]))
+        self.assertEqual(
+            [
+                {"name": "luna-preflight", "amountUsd": "0.040000000000"},
+                {"name": "luna-base-row", "amountUsd": "0.060000000000"},
+            ],
+            report["observedAttempts"],
+        )
+        self.assertEqual("0.100000000000", report["observedSpendToDateUsd"])
 
     def test_aggregates_multiple_authoritative_rows(self) -> None:
         with PatchedStore(
@@ -219,7 +229,7 @@ class BudgetGateTests(unittest.TestCase):
                         ceiling="0",
                     )
                 )
-            with self.assertRaisesRegex(SystemExit, "provided at least once"):
+            with self.assertRaisesRegex(SystemExit, "At least one --retry-reserve"):
                 estimator.calculate_budget_gate(
                     budget_args(
                         store,
@@ -245,6 +255,154 @@ class BudgetGateTests(unittest.TestCase):
                     )
                 )
 
+    def test_duplicate_observed_attempt_names_fail_closed(self) -> None:
+        with PatchedStore([row("model-a", "low", "0.10")]) as store:
+            with self.assertRaisesRegex(SystemExit, "provided twice"):
+                estimator.calculate_budget_gate(
+                    budget_args(
+                        store,
+                        candidates=["model-a,low,1"],
+                        observed_attempts=["Attempt-A=0.10", "attempt-a=0.20"],
+                        reservations=[],
+                        retries=["model-a,low,1"],
+                        ceiling="1",
+                    )
+                )
+
+    def test_scalar_observed_compatibility_is_explicit_and_not_combinable(self) -> None:
+        with PatchedStore([row("model-a", "low", "0.10")]) as store:
+            report = estimator.calculate_budget_gate(
+                budget_args(
+                    store,
+                    candidates=["model-a,low,1"],
+                    legacy_observed="0.20",
+                    reservations=[],
+                    retries=["model-a,low,1"],
+                    ceiling="1",
+                )
+            )
+            self.assertEqual(
+                [
+                    {
+                        "name": "legacy-observed-spend-usd",
+                        "amountUsd": "0.200000000000",
+                    }
+                ],
+                report["observedAttempts"],
+            )
+
+            with self.assertRaisesRegex(SystemExit, "cannot be combined"):
+                estimator.calculate_budget_gate(
+                    budget_args(
+                        store,
+                        candidates=["model-a,low,1"],
+                        observed_attempts=["attempt=0.10"],
+                        legacy_observed="0.20",
+                        reservations=[],
+                        retries=["model-a,low,1"],
+                        ceiling="1",
+                    )
+                )
+
+    def test_mixes_authoritative_and_provisional_candidates_and_retries(self) -> None:
+        provisional = provisional_report()
+        with PatchedStore([row("model-a", "low", "0.10")]) as store:
+            with PatchedProvisionalReport(provisional) as (path, source_bytes):
+                report = estimator.calculate_budget_gate(
+                    budget_args(
+                        store,
+                        candidates=["model-a,low,2"],
+                        provisional_candidates=[f"{path},4"],
+                        observed_attempts=["preflight=0.10", "prior-row=0.20"],
+                        reservations=[],
+                        retries=["model-a,low,1"],
+                        provisional_retries=[f"{path},2"],
+                        ceiling="3",
+                    )
+                )
+
+        self.assertEqual("1.200000000000", report["projectedWaveCostUsd"])
+        self.assertEqual("0.600000000000", report["retryReserveTotalUsd"])
+        self.assertEqual("2.100000000000", report["allInProjectedTotalUsd"])
+        provisional_candidate = report["candidates"][1]
+        self.assertEqual(
+            "provisional-one-item-base-row-report",
+            provisional_candidate["estimateBasis"],
+        )
+        provenance = provisional_candidate["provisionalReport"]
+        self.assertEqual(str(path.resolve()), provenance["path"])
+        self.assertEqual(hashlib.sha256(source_bytes).hexdigest(), provenance["sha256"])
+        self.assertEqual("model-p", provenance["model"])
+        self.assertEqual("high", provenance["reasoningEffort"])
+        self.assertEqual(10000, provenance["maxOutputTokens"])
+        self.assertEqual("preflight attempt", provenance["source"])
+        self.assertEqual(
+            "provisional-one-item-base-row-report",
+            report["retryReserves"][1]["estimateBasis"],
+        )
+        self.assertEqual(provenance, report["retryReserves"][1]["provisionalReport"])
+
+    def test_malformed_and_multi_observation_provisional_reports_fail_closed(self) -> None:
+        with PatchedStore([]) as store:
+            with PatchedProvisionalReport(raw=b"{not-json") as (path, _):
+                with self.assertRaisesRegex(SystemExit, "not valid JSON"):
+                    estimator.calculate_budget_gate(
+                        budget_args(
+                            store,
+                            candidates=[],
+                            provisional_candidates=[f"{path},20"],
+                            observed="0",
+                            reservations=[],
+                            retries=[],
+                            provisional_retries=[f"{path},1"],
+                            ceiling="3",
+                        )
+                    )
+
+            with PatchedProvisionalReport(
+                provisional_report(baseSampleObservations=2)
+            ) as (path, _):
+                with self.assertRaisesRegex(SystemExit, "baseSampleObservations=1"):
+                    estimator.calculate_budget_gate(
+                        budget_args(
+                            store,
+                            candidates=[],
+                            provisional_candidates=[f"{path},20"],
+                            observed="0",
+                            reservations=[],
+                            retries=[],
+                            provisional_retries=[f"{path},1"],
+                            ceiling="3",
+                        )
+                    )
+
+    def test_provisional_report_requires_cap_average_and_provenance(self) -> None:
+        invalid_reports = (
+            ({**provisional_report(), "maxOutputTokens": 0}, "maxOutputTokens"),
+            (
+                {**provisional_report(), "averageCostPerMatchPredictionUsd": "0"},
+                "greater than zero",
+            ),
+            ({**provisional_report(), "source": ""}, "source"),
+        )
+        with PatchedStore([]) as store:
+            for invalid_report, message in invalid_reports:
+                with self.subTest(message=message):
+                    with PatchedProvisionalReport(invalid_report) as (path, _):
+                        with self.assertRaisesRegex(SystemExit, message):
+                            estimator.calculate_budget_gate(
+                                budget_args(
+                                    store,
+                                    candidates=[],
+                                    provisional_candidates=[f"{path},20"],
+                                    observed="0",
+                                    reservations=[],
+                                    retries=[],
+                                    provisional_retries=[f"{path},1"],
+                                    ceiling="3",
+                                )
+                            )
+
     def test_blocked_cli_emits_stable_result_and_nonzero_exit(self) -> None:
         with PatchedStore([row("model-a", "low", "0.10")]) as store:
             argv = [
@@ -252,8 +410,8 @@ class BudgetGateTests(unittest.TestCase):
                 "budget-gate",
                 "--candidate",
                 "model-a,low,1",
-                "--observed-spend-usd",
-                "0.8",
+                "--observed-attempt",
+                "prior-attempt=0.8",
                 "--retry-reserve",
                 "model-a,low,1",
                 "--ceiling-usd",
@@ -270,22 +428,108 @@ class BudgetGateTests(unittest.TestCase):
         self.assertIn("All-in projected total: $1.000000000000", output.getvalue())
         self.assertIn("Result: BLOCKED", output.getvalue())
 
+    def test_report_json_write_failure_blocks_and_returns_nonzero(self) -> None:
+        with PatchedStore([row("model-a", "low", "0.10")]) as store:
+            argv = [
+                "experiment_cost_estimator.py",
+                "budget-gate",
+                "--candidate",
+                "model-a,low,1",
+                "--observed-attempt",
+                "prior-attempt=0.1",
+                "--retry-reserve",
+                "model-a,low,1",
+                "--ceiling-usd",
+                "1",
+                "--store",
+                str(store),
+                "--report-json",
+                "unwritable-report.json",
+            ]
+            stdout = io.StringIO()
+            stderr = io.StringIO()
+            with (
+                patch.object(sys, "argv", argv),
+                patch.object(estimator, "write_json", side_effect=OSError("denied")),
+                contextlib.redirect_stdout(stdout),
+                contextlib.redirect_stderr(stderr),
+            ):
+                exit_code = estimator.main()
+
+        self.assertEqual(3, exit_code)
+        self.assertIn("Result: BLOCKED", stdout.getvalue())
+        self.assertNotIn("ALLOWED", stdout.getvalue())
+        self.assertIn("could not be written", stdout.getvalue())
+        self.assertIn("could not be written", stderr.getvalue())
+
+    def test_report_json_receives_named_observed_attempts(self) -> None:
+        captured: list[tuple[Path, dict[str, object]]] = []
+
+        def capture_report(path: Path, payload: dict[str, object]) -> None:
+            captured.append((path, payload))
+
+        with PatchedStore([row("model-a", "low", "0.10")]) as store:
+            argv = [
+                "experiment_cost_estimator.py",
+                "budget-gate",
+                "--candidate",
+                "model-a,low,1",
+                "--observed-attempt",
+                "preflight=0.1",
+                "--observed-attempt",
+                "base-row=0.2",
+                "--retry-reserve",
+                "model-a,low,1",
+                "--ceiling-usd",
+                "1",
+                "--store",
+                str(store),
+                "--report-json",
+                "budget-gate.json",
+            ]
+            with (
+                patch.object(sys, "argv", argv),
+                patch.object(estimator, "write_json", side_effect=capture_report),
+                contextlib.redirect_stdout(io.StringIO()),
+            ):
+                exit_code = estimator.main()
+
+        self.assertEqual(0, exit_code)
+        self.assertEqual(Path("budget-gate.json"), captured[0][0])
+        self.assertEqual(
+            [
+                {"name": "preflight", "amountUsd": "0.100000000000"},
+                {"name": "base-row", "amountUsd": "0.200000000000"},
+            ],
+            captured[0][1]["observedAttempts"],
+        )
+        self.assertEqual("0.300000000000", captured[0][1]["observedSpendToDateUsd"])
+
 
 def budget_args(
     store: Path,
     *,
     candidates: list[str],
-    observed: str,
     reservations: list[str],
     retries: list[str],
     ceiling: str,
+    observed: str | None = None,
+    observed_attempts: list[str] | None = None,
+    legacy_observed: str | None = None,
+    provisional_candidates: list[str] | None = None,
+    provisional_retries: list[str] | None = None,
 ) -> SimpleNamespace:
+    if observed_attempts is None:
+        observed_attempts = [] if observed is None else [f"attempt-1={observed}"]
     return SimpleNamespace(
         store=str(store),
         candidate=candidates,
-        observed_spend_usd=observed,
+        provisional_candidate=provisional_candidates or [],
+        observed_attempt=observed_attempts,
+        observed_spend_usd=legacy_observed,
         reservation=reservations,
         retry_reserve=retries,
+        provisional_retry_reserve=provisional_retries or [],
         ceiling_usd=ceiling,
     )
 
@@ -296,6 +540,24 @@ def row(model: str, effort: str, average: str) -> dict[str, str]:
         "reasoningEffort": effort,
         "averageCostPerMatchPredictionUsd": average,
     }
+
+
+def provisional_report(**overrides: object) -> dict[str, object]:
+    report: dict[str, object] = {
+        "model": "model-p",
+        "reasoningEffort": "high",
+        "promptRoute": "hosted prompt v2",
+        "modelKnowledgeCutoffDate": "2026-02-16",
+        "samplingCutoffUsed": "2026-02-18T00:00:00 Europe/Berlin (+01)",
+        "maxOutputTokens": 10000,
+        "baseSampleObservations": 1,
+        "serviceTier": "flex",
+        "averageCostPerMatchPredictionUsd": "0.25",
+        "estimatedTotalCostUsd": "0.25",
+        "source": "preflight attempt",
+    }
+    report.update(overrides)
+    return report
 
 
 class PatchedStore:
@@ -310,6 +572,33 @@ class PatchedStore:
     def __enter__(self) -> Path:
         self.patcher.start()
         return Path("patched-base-estimates.json")
+
+    def __exit__(self, *args: object) -> None:
+        self.patcher.stop()
+
+
+class PatchedProvisionalReport:
+    def __init__(
+        self,
+        report: dict[str, object] | None = None,
+        *,
+        raw: bytes | None = None,
+    ) -> None:
+        self.path = Path("provisional-base-row-report.json")
+        self.source_bytes = (
+            raw
+            if raw is not None
+            else json.dumps(report, sort_keys=True, separators=(",", ":")).encode(
+                "utf-8"
+            )
+        )
+        self.patcher = patch.object(
+            Path, "read_bytes", autospec=True, return_value=self.source_bytes
+        )
+
+    def __enter__(self) -> tuple[Path, bytes]:
+        self.patcher.start()
+        return self.path, self.source_bytes
 
     def __exit__(self, *args: object) -> None:
         self.patcher.stop()

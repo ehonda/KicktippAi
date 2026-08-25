@@ -1,6 +1,6 @@
 ---
 name: estimate-experiment-cost-skill
-description: Estimate KicktippAi Langfuse experiment costs before running slice, repeated-match, or repeated-match-slice experiments. Use when Codex needs to project spend from stored JSON base estimates, collect compact Langfuse usage, run high-reasoning preflights, choose output token caps, calculate or upsert 5-by-4 base estimate rows, or maintain the project-scoped experiment cost estimate store.
+description: Estimate and gate KicktippAi Langfuse experiment costs before running slice, repeated-match, or repeated-match-slice experiments. Use when Codex needs to project spend from stored or provisional rows, aggregate cumulative attempt and reserve costs, collect compact Langfuse usage, run high-reasoning preflights, choose output token caps, calculate or upsert 5-by-4 base estimate rows, or maintain the project-scoped experiment cost estimate store.
 ---
 
 # Estimate Experiment Cost
@@ -15,8 +15,8 @@ Treat every input token as uncached for estimates, even when the observed Langfu
 - Run bundled Python tooling as `uv --cache-dir .uv-cache run ...`.
 - Run every `dotnet` and `git` command outside the sandbox, as required by `AGENTS.md`.
 - Do not hand-calculate, spreadsheet, PowerShell-multiply, or mentally estimate reported costs.
-- Reported estimates must come from `scripts/experiment_cost_estimator.py estimate` output.
-- Final estimate answers must cite the exact `estimate --counts ...` command used.
+- Reported single-row estimates must come from `scripts/experiment_cost_estimator.py estimate` output; cumulative admission totals must come from `budget-gate` output.
+- Final estimate answers must cite the exact `estimate --counts ...` and/or `budget-gate ...` command used.
 - Use [references/base-estimates.json](references/base-estimates.json) as the authoritative store. Do not paste new rows into the retired Markdown table.
 - Persist new or changed base estimate rows with `upsert-row`.
 - Optional `--report-json` failures do not invalidate successful estimator stdout for `base-row` or `estimate`.
@@ -53,20 +53,34 @@ If `model + reasoningEffort` matches multiple JSON rows, do not choose manually.
 
 ## Cumulative Budget Gate
 
-Before admitting a multi-configuration quality wave, aggregate its projected cost with settled spend, unsettled reservations, and estimator-derived retry reserves:
+After collecting an authorized one-item preflight, create a provisional `base-row` report without upserting it:
 
 ```powershell
-uv --cache-dir .uv-cache run python .agents/skills/estimate-experiment-cost-skill/scripts/experiment_cost_estimator.py budget-gate --candidate gpt-5.6-luna,none,60 --candidate gpt-5.6-luna,none,20 --observed-spend-usd 1.25 --reservation cost-row-in-flight=0.50 --retry-reserve gpt-5.6-luna,none,20 --ceiling-usd 30 --report-json .tmp/experiment-budget-gate.json
+uv --cache-dir .uv-cache run python .agents/skills/estimate-experiment-cost-skill/scripts/experiment_cost_estimator.py base-row --input .tmp/terra-xhigh-preflight-usage.json --group repeated-measured --expect-count 1 --model gpt-5.6-terra --reasoning-effort xhigh --prompt-route "Langfuse Bundesliga match v2; Bundesliga 2025/26 7-document legacy-id-hash-v1 context" --model-knowledge-cutoff 2026-02-16 --sampling-cutoff "2026-02-18T00:00:00 Europe/Berlin (+01)" --max-output-tokens 10000 --source "terra xhigh one-item preflight RUN_NAME" --report-json .tmp/terra-xhigh-preflight-base-row.json
 ```
 
-- Repeat `--candidate MODEL,REASONING_EFFORT,COUNT` for every planned wave entry. Repeated entries for the same model and effort are retained and estimated separately.
-- Pass the settled cumulative experiment spend with `--observed-spend-usd`.
-- Repeat `--reservation NAME=USD` for every unsettled charge or in-flight reservation. Omit it only when none exist.
-- Repeat `--retry-reserve MODEL,REASONING_EFFORT,COUNT` for one or more explicit retry allowances. Retry reserves use the same exact authoritative row lookup and cost calculation as candidates.
-- Set the complete program ceiling with `--ceiling-usd`; the gate allows the wave only when the all-in projected total is strictly less than that ceiling. Equality is blocked.
-- Use `--report-json` when a machine-readable admission record is required. A blocked gate still emits text and JSON, then exits with status `2`.
+Use that exact one-observation report to gate the pending 20-call 5-by-4 base row, including a full retry reserve when appropriate:
 
-The gate fails closed on missing or ambiguous authoritative rows, invalid or non-positive prediction counts, non-finite or negative USD amounts, and an all-in total at or above the ceiling. It reports every candidate and retry estimate, projected wave cost, unsettled and retry reserves, all-in total, remaining budget, and `allowed` or `blocked`. This aggregates exact rows; it never replaces the mandatory preflight or 5-by-4 base-row process for a configuration that lacks one.
+```powershell
+uv --cache-dir .uv-cache run python .agents/skills/estimate-experiment-cost-skill/scripts/experiment_cost_estimator.py budget-gate --provisional-candidate .tmp/terra-xhigh-preflight-base-row.json,20 --observed-attempt terra-xhigh-preflight=OBSERVED_USD --provisional-retry-reserve .tmp/terra-xhigh-preflight-base-row.json,20 --ceiling-usd 30 --report-json .tmp/terra-xhigh-base-row-budget-gate.json
+```
+
+Before admitting a multi-configuration quality wave, aggregate every exact authoritative row with each settled attempt, unsettled reservation, and estimator-derived retry reserve:
+
+```powershell
+uv --cache-dir .uv-cache run python .agents/skills/estimate-experiment-cost-skill/scripts/experiment_cost_estimator.py budget-gate --candidate gpt-5.6-luna,none,60 --candidate gpt-5.6-luna,none,20 --observed-attempt luna-none-base-row=OBSERVED_LUNA_BASE_ROW_USD --observed-attempt terra-xhigh-preflight=OBSERVED_TERRA_XHIGH_PREFLIGHT_USD --reservation cost-row-in-flight=RESERVED_USD --retry-reserve gpt-5.6-luna,none,20 --ceiling-usd 30 --report-json .tmp/quality-wave-budget-gate.json
+```
+
+- Repeat `--candidate MODEL,REASONING_EFFORT,COUNT` for every authoritative wave entry. Repeated entries for the same model and effort are retained and estimated separately.
+- Repeat `--observed-attempt NAME=USD` for every settled experiment attempt. Names must be nonempty and unique; the command performs the Decimal sum. Do not externally pre-sum new admission evidence. `--observed-spend-usd` remains compatibility-only and cannot be combined with named attempts.
+- Repeat `--reservation NAME=USD` for every unsettled charge or in-flight reservation. Omit it only when none exist.
+- Repeat `--retry-reserve MODEL,REASONING_EFFORT,COUNT` for authoritative retry allowances. Candidate and retry entries use the same exact authoritative row lookup.
+- Use `--provisional-candidate REPORT_JSON,COUNT` or `--provisional-retry-reserve REPORT_JSON,COUNT` only to gate a pending base-row run from its exact one-item `base-row --report-json` evidence. The command reads but never upserts the report, requires `baseSampleObservations=1` plus valid model, effort, cap, average, and provenance, hashes the source bytes, and embeds its resolved path, SHA-256, model, effort, cap, and source in the gate JSON.
+- A quality wave still requires exact authoritative rows. A provisional report admits the pending 20-call row-production step; it does not replace the completed 5-by-4 row.
+- Set the complete program ceiling with `--ceiling-usd`; the gate allows the wave only when the all-in projected total is strictly less than that ceiling. Equality is blocked.
+- Use `--report-json` for the machine-readable admission record. A blocked budget emits text and JSON, then exits with status `2`. If the requested JSON cannot be written, the command reports `BLOCKED` and exits with status `3`; unlike optional `base-row` and `estimate` reports, a budget-gate report is admission evidence and its write is mandatory.
+
+The gate fails closed on missing or ambiguous authoritative rows, invalid provisional evidence, duplicate observed-attempt names, invalid or non-positive prediction counts, non-finite or negative USD amounts, and an all-in total at or above the ceiling. It reports every observed attempt, candidate and retry estimate, projected wave cost, unsettled and retry reserves, all-in total, remaining budget, and `allowed` or `blocked`.
 
 ## Mandatory Preflight Gate
 
