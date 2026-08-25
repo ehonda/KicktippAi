@@ -1,6 +1,6 @@
 # P0-23 — Collect GPT-5.6 production-candidate evidence
 
-- Status: In progress — no-spend preregistration drafted; its provisional surface is superseded and execution awaits the owner's detailed model-experiment specification and phase budget
+- Status: In progress — the owner-authorized nine-row GPT-5.6 matrix and one cumulative USD 30 experiment-program ceiling are preregistered; live mutation and spend wait for independent review of the no-spend checkpoint
 - Priority: P0
 - Depends on: [P0-05](p0-05-prompt-route.md), [P0-12](p0-12-match-context-and-transfer-retirement.md), and [P0-20](p0-20-seed-and-development-validation.md)
 - Reuses: the completed cost/provenance foundation recorded in [P0-06](p0-06-model-ledger-and-cost-baseline.md)
@@ -15,22 +15,24 @@ The already accepted hosted prompt identities remain match version 2 and bonus v
 
 The current no-spend design is
 [the GPT-5.6 Bundesliga 2025/26 production-candidate preregistration](../../../docs/experiments/gpt-5-6-bundesliga-2025-26-production-candidate-preregistration.md).
-Its Terra/`medium`, Sol/`medium`, cap-`10000`, and `15 × 20` entries are now
-superseded provisional examples, not the selected experiment surface. The owner
-will provide a detailed model-experiment specification after the current
-autonomous preparation work. No replacement candidates, efforts, caps, or
-topology are inferred here. The exact Luna/`none` row remains reusable without a
-rerun; all owner, spend, execution, and evidence boxes below remain open.
+It replaces the superseded Terra/`medium`, Sol/`medium`, cap-`10000`, and
+fixed-`15 × 20` example with the owner's exact matrix: Sol `high` / `medium` /
+`none`, Terra `xhigh` / `medium` / `none`, and Luna `max` / `medium` / `none`.
+Output caps are derived by the estimate-row preflight process, never guessed.
+The quality topology is selected adaptively from exact rows while preserving a
+meaningful paired minimum. The exact Luna/`none` row remains reusable without a
+rerun.
 
 ## Owner and spend gate
 
-- [ ] Obtain the owner's detailed model-experiment specification: exact model IDs, reasoning efforts, maximum output-token caps, topology, and any configurations intentionally excluded. Do not revive the superseded provisional surface by default.
-- [ ] Obtain explicit authorization and a maximum spend for the cost phase and, separately, the later quality phase. No prompt, dataset, Langfuse, or model mutation may begin before the applicable phase is authorized.
-- [ ] Record whether the owner requires comparative quality evidence before selection or explicitly waives it. A waiver must state its rationale and accepted risk in the final production-selection ADR; silence is not a waiver.
+- [x] Record the owner's exact matrix: `gpt-5.6-sol` at `high`, `medium`, and `none`; `gpt-5.6-terra` at `xhigh`, `medium`, and `none`; and `gpt-5.6-luna` at `max`, `medium`, and `none`. Caps follow the estimate-row preflight policy, and quality topology is chosen adaptively only after exact rows exist.
+- [x] Record explicit authorization for cost-row and quality runs under one cumulative USD 30 ceiling. This owner amendment supersedes the handoff's earlier separate fixed phase-budget template. USD 30 is a stop ceiling, not a target; cheaper completion remains preferred.
+- [x] Record that comparative quality evidence is required for the production and arena decisions. If the full matrix cannot support the preregistered meaningful minimum inside the remaining ceiling, run the preregistered subset first and return to the owner before expanding it.
+- [ ] Pass independent review of the no-spend checkpoint before preparing or syncing a dataset, resolving or mutating a hosted prompt, calling a model, or incurring new spend.
 
 ## Cutoff and provenance contract
 
-- [ ] Verify each candidate's published model knowledge cutoff and current pricing from primary sources immediately before preparing evidence. Derive and record a separate exact eligible window for every candidate rather than inheriting Luna's dates.
+- [ ] Reverify each candidate's published model knowledge cutoff and current pricing from primary sources immediately before preparing evidence. The 2026-08-26 no-spend check found cutoff `2026-02-16` for every exact model ID; execution must recheck rather than assume it remains current.
 - [ ] Derive the sampling boundary as the exact Europe/Berlin local midnight two calendar days after the candidate's published cutoff. The historical compatibility contract admits only Bundesliga 2025/26 fixtures starting strictly after that boundary; do not weaken the margin, shift the boundary to gain fixtures, or substitute an earlier manifest.
 - [ ] For Luna, preserve the already-proven contract exactly: official cutoff `2026-02-16`, sampling boundary `2026-02-18T00:00:00+01:00`, and only fixtures strictly after that instant. The completed Luna one-item and five-by-four samples already satisfied this rule and do not need another model run.
 - [ ] Fail before spend if the cutoff-safe, completed, exact-context pool cannot support the declared sample. Do not retry seeds or silently change the candidate list, fixture count, repetitions, or comparison design.
@@ -45,7 +47,7 @@ rerun; all owner, spend, execution, and evidence boxes below remain open.
 
 ## Quality evidence — phase 2
 
-- [ ] Pre-register the comparison metrics, aggregation, paired/common-manifest rule, repetition policy, and failure handling before any quality run. Apply the hardest candidate cutoff to a shared paired sample when candidates are compared directly.
+- [x] Pre-register the comparison metrics, aggregation, paired/common-manifest rule, repetition policy, adaptive topology, and failure handling before any quality run. Apply the hardest candidate cutoff to a shared paired sample when candidates are compared directly.
 - [ ] Run only the owner-authorized candidates against completed, cutoff-safe Bundesliga 2025/26 outcomes using exact prepared manifests and immutable run binding. Keep model/prompt settings equal to their declared production candidates.
 - [ ] Publish complete comparable results, including failures and uncertainty, without selecting the production model. Never infer quality from cost, token count, output length, plumbing success, or the Luna validation ladder.
 - [ ] If a cutoff-safe paired comparison is impossible, fail closed and return the exact eligible-pool evidence to the owner; do not manufacture comparability from different or pre-cutoff samples.
@@ -63,26 +65,31 @@ rerun; all owner, spend, execution, and evidence boxes below remain open.
 - Reconcile every reported run to its exact manifest, model configuration, prompt version, dataset, dataset-run, traces, usage, scores, and tracked evidence.
 - Run focused and affected full automated suites for any implementation required by the evidence workflow, then obtain independent review before live spend and before integration.
 
-## Evidence — 2026-08-25 no-spend preregistration
+## Evidence — 2026-08-26 no-spend checkpoint
 
-- Official OpenAI model pages were checked for `gpt-5.6-sol`,
+- Official OpenAI model pages were rechecked for `gpt-5.6-sol`,
   `gpt-5.6-terra`, and `gpt-5.6-luna`; all currently publish knowledge cutoff
-  `2026-02-16` and `medium` as default reasoning effort.
-- Official Standard and Flex short-context prices were recorded with a dated
-  source link in the preregistration. The repository cost calculator already
-  recognizes the explicit Sol and Terra model IDs.
+  `2026-02-16`, support every effort used by the owner matrix, and name `medium`
+  as their default reasoning effort.
+- Official Standard and Flex short-context prices were rechecked. The repository
+  cost calculator already recognizes all three exact IDs at the current Standard
+  rates, and its Flex multiplier produces the current official Flex rates. The
+  experiment CLI and core identity accept `none`, `medium`, `high`, `xhigh`, and
+  `max`; no source/test change is required.
 - The strict `2026-02-18T00:00:00 Europe/Berlin (+01)` boundary, eligible pool
   count `109`, and hash
   `6ecb182489b97f9ea389374183f0ef7cfe632ddfba341ea72aa354647593b415`
   remain authoritative for the completed Luna row. They are not inherited by an
   unspecified future surface; every selected model must re-derive its cutoff.
-- The earlier Terra/Sol application of the one-item then exact five-by-four cost
-  process and the draft 15-fixture-by-20-repetition quality topology are
-  superseded provisional examples. Execution is deferred until the owner records
-  the detailed surface and applicable phase budget. Luna remains reusable without
-  another prediction.
+- The earlier fixed `15 × 20` topology and separate-phase budget template remain
+  superseded. The accepted design uses a single USD 30 cumulative ledger and an
+  exact-row-driven topology; it preserves at least `10 × 10` for any executed
+  quality subset instead of manufacturing precision from a tiny matrix.
+- The three owner-supplied rationale screenshots are preserved under
+  `docs/experiments/assets/gpt-5-6-production-candidate-selection/` and embedded
+  in the preregistration.
 - No dataset was prepared or synced; no Langfuse or prompt mutation, model call,
-  or spend occurred while drafting this evidence.
+  or spend occurred while creating this checkpoint.
 
 ## Complete when
 
