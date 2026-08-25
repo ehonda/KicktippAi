@@ -237,12 +237,17 @@ public class BonusCommand_ErrorHandling_Tests : BonusCommandTests_Base
                 It.IsAny<IEnumerable<DocumentContext>>(),
             It.IsAny<OpenAiIntegration.PredictionTelemetryMetadata?>(),
                 It.IsAny<CancellationToken>()))
-            .ReturnsAsync(() =>
+            .ReturnsAsync((
+                BonusQuestion question,
+                IEnumerable<DocumentContext> _,
+                OpenAiIntegration.PredictionTelemetryMetadata? _,
+                CancellationToken _) =>
             {
                 callCount++;
                 if (callCount == 1)
                     throw new InvalidOperationException("First question error");
-                return CreateBonusPrediction();
+                return new BonusPrediction(
+                    question.Options.Take(question.MaxSelections).Select(option => option.Id).ToList());
             });
 
         var mockOpenAiFactory = CreateMockOpenAiServiceFactory(predictionService: mockPredictionService);

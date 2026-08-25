@@ -1,3 +1,4 @@
+using System.Collections.Concurrent;
 using System.Diagnostics;
 using EHonda.KicktippAi.Core;
 using EHonda.Optional.Core;
@@ -65,7 +66,7 @@ public sealed class BonusCommand_CopyCompatibility_Tests : BonusCommandTests_Bas
     }
 
     [Test]
-    public async Task Option_mismatch_generates_once_and_persists_in_target_context()
+    public async Task Changed_option_generates_once_and_persists_in_target_context()
     {
         var sourceQuestion = CreateSourceQuestion() with
         {
@@ -83,6 +84,90 @@ public sealed class BonusCommand_CopyCompatibility_Tests : BonusCommandTests_Bas
         await AssertIndependentFallbackAsync(
             candidate,
             "option_set_mismatch");
+    }
+
+    [Test]
+    public async Task Missing_option_generates_once_and_persists_in_target_context()
+    {
+        var candidate = CreateCanonicalBundesligaBonusPredictionMetadata(
+            CreateSourceQuestion(),
+            new BonusPrediction(["source-fcb"]),
+            communityContext: SourceCommunityContext);
+        var targetQuestion = CreateTargetQuestion() with
+        {
+            Options = [new("target-bvb", "Borussia Dortmund")]
+        };
+
+        await AssertIndependentFallbackAsync(
+            candidate,
+            "option_set_mismatch",
+            targetQuestion);
+    }
+
+    [Test]
+    public async Task Extra_option_generates_once_and_persists_in_target_context()
+    {
+        var candidate = CreateCanonicalBundesligaBonusPredictionMetadata(
+            CreateSourceQuestion(),
+            new BonusPrediction(["source-fcb"]),
+            communityContext: SourceCommunityContext);
+        var targetQuestion = CreateTargetQuestion() with
+        {
+            Options =
+            [
+                .. CreateTargetQuestion().Options,
+                new("target-rbl", "RB Leipzig")
+            ]
+        };
+
+        await AssertIndependentFallbackAsync(
+            candidate,
+            "option_set_mismatch",
+            targetQuestion);
+    }
+
+    [Test]
+    public async Task Question_mismatch_generates_once_and_persists_in_target_context()
+    {
+        var candidate = CreateCanonicalBundesligaBonusPredictionMetadata(
+            CreateSourceQuestion(),
+            new BonusPrediction(["source-fcb"]),
+            communityContext: SourceCommunityContext);
+        var targetQuestion = CreateTargetQuestion() with { Text = "Who will finish second?" };
+
+        await AssertIndependentFallbackAsync(
+            candidate,
+            "question_mismatch",
+            targetQuestion);
+    }
+
+    [Test]
+    public async Task Max_selection_mismatch_generates_once_and_persists_in_target_context()
+    {
+        var candidate = CreateCanonicalBundesligaBonusPredictionMetadata(
+            CreateSourceQuestion(),
+            new BonusPrediction(["source-fcb"]),
+            communityContext: SourceCommunityContext);
+        var targetQuestion = CreateTargetQuestion() with { MaxSelections = 2 };
+
+        await AssertIndependentFallbackAsync(
+            candidate,
+            "max_selections_mismatch",
+            targetQuestion,
+            new BonusPrediction(["target-bvb", "target-fcb"]));
+    }
+
+    [Test]
+    public async Task Duplicate_source_selection_generates_once_and_persists_in_target_context()
+    {
+        var candidate = CreateCanonicalBundesligaBonusPredictionMetadata(
+            CreateSourceQuestion(),
+            new BonusPrediction(["source-fcb", "source-fcb"]),
+            communityContext: SourceCommunityContext);
+
+        await AssertIndependentFallbackAsync(
+            candidate,
+            "invalid_source_selection");
     }
 
     [Test]
@@ -159,8 +244,8 @@ public sealed class BonusCommand_CopyCompatibility_Tests : BonusCommandTests_Bas
     public async Task Compatible_copy_trace_carries_payload_safe_source_identity()
     {
         const string predictionIdentity = "firestore-bonus-prediction-id";
-        var activities = new List<Activity>();
-        using var listener = CreateActivityListener(activities);
+        var activities = new ConcurrentQueue<Activity>();
+        using var listener = CreateConcurrentActivityListener(activities);
         var sourceQuestion = CreateSourceQuestion();
         var context = CreateBonusCommandApp(
             openBonusQuestions: new List<BonusQuestion> { CreateTargetQuestion() },
@@ -172,15 +257,64 @@ public sealed class BonusCommand_CopyCompatibility_Tests : BonusCommandTests_Bas
 
         var exitCode = await RunCopyAsync(context);
 
-        var rootActivity = activities.LastOrDefault(activity => activity.OperationName == "bonus");
+        var expectedIdentityTag = $"|{predictionIdentity}|";
+        var rootActivity = activities.SingleOrDefault(activity =>
+            activity.OperationName == "bonus"
+            && string.Equals(
+                activity.GetTagItem("langfuse.trace.metadata.bonusCopySourcePredictionIdentities") as string,
+                expectedIdentityTag,
+                StringComparison.Ordinal));
         await Assert.That(exitCode).IsEqualTo(0);
         await Assert.That(rootActivity).IsNotNull();
-        await Assert.That(rootActivity!.GetTagItem(
-                "langfuse.trace.metadata.bonusCopySourceCommunityContext") as string)
-            .IsEqualTo(SourceCommunityContext);
-        await Assert.That(rootActivity.GetTagItem(
-                "langfuse.trace.metadata.bonusCopySourcePredictionIdentities") as string)
-            .IsEqualTo($"|{predictionIdentity}|");
+        var compatibilityMetadata = rootActivity!.Tags
+            .Where(tag => tag.Key.StartsWith("langfuse.trace.metadata.bonus", StringComparison.Ordinal))
+            .ToDictionary(tag => tag.Key, tag => tag.Value, StringComparer.Ordinal);
+        var compatibilityHash = BonusQuestionCompatibilityManifest
+            .Create(sourceQuestion)
+            .CompatibilitySha256;
+        await Assert.That(compatibilityMetadata).IsEquivalentTo(
+            new Dictionary<string, string?>(StringComparer.Ordinal)
+            {
+                ["langfuse.trace.metadata.bonusPredictionMode"] = "reference-copy-with-independent-fallback",
+                ["langfuse.trace.metadata.bonusCopySourceCommunityContext"] = SourceCommunityContext,
+                ["langfuse.trace.metadata.bonusCopiedPredictionCount"] = "1",
+                ["langfuse.trace.metadata.bonusIndependentFallbackCount"] = "0",
+                ["langfuse.trace.metadata.bonusCopyCompatibilityHashes"] = $"|{compatibilityHash}|",
+                ["langfuse.trace.metadata.bonusCopySourcePredictionIdentities"] = expectedIdentityTag
+            });
+    }
+
+    [Test]
+    public async Task Null_generated_prediction_fails_closed_before_target_write_or_post()
+    {
+        await AssertInvalidGeneratedPredictionFailsClosedAsync(null);
+    }
+
+    [Test]
+    public async Task Unknown_generated_option_id_fails_closed_before_target_write_or_post()
+    {
+        await AssertInvalidGeneratedPredictionFailsClosedAsync(
+            new BonusPrediction(["unknown-target-option"]));
+    }
+
+    [Test]
+    public async Task Duplicate_generated_option_id_fails_closed_before_target_write_or_post()
+    {
+        var targetQuestion = CreateTargetQuestion() with { MaxSelections = 2 };
+
+        await AssertInvalidGeneratedPredictionFailsClosedAsync(
+            new BonusPrediction(["target-bvb", "target-bvb"]),
+            targetQuestion);
+    }
+
+    [Test]
+    public async Task Wrong_generated_selection_count_fails_closed_before_target_write_or_post()
+    {
+        var targetQuestion = CreateTargetQuestion() with { MaxSelections = 2 };
+
+        await AssertInvalidGeneratedPredictionFailsClosedAsync(
+            new BonusPrediction(["target-bvb"]),
+            targetQuestion);
     }
 
     [Test]
@@ -212,16 +346,86 @@ public sealed class BonusCommand_CopyCompatibility_Tests : BonusCommandTests_Bas
             It.IsAny<bool>()), Times.Never);
     }
 
+    [Test]
+    public async Task Immutable_source_context_mismatch_fails_copy_without_model_or_posting()
+    {
+        var candidate = CreateCanonicalBundesligaBonusPredictionMetadata(
+            CreateSourceQuestion(),
+            new BonusPrediction(["source-fcb"]),
+            communityContext: SourceCommunityContext);
+        candidate = candidate with
+        {
+            ResolvedContextManifest = ResolvedBonusContextManifest.Create(
+                candidate.ResolvedContextManifest!.Competition,
+                "different-source-context",
+                candidate.ResolvedContextManifest.Documents,
+                candidate.ResolvedContextManifest.RosterPublicationSnapshotId,
+                candidate.ResolvedContextManifest.ClubEloPublicationSnapshotId)
+        };
+        var context = CreateBonusCommandApp(
+            openBonusQuestions: new List<BonusQuestion> { CreateTargetQuestion() },
+            bonusPredictionCopyCandidate: candidate);
+
+        var exitCode = await RunCopyAsync(context);
+
+        await Assert.That(exitCode).IsEqualTo(1);
+        await Assert.That(CountPredictionServiceConstructions(context)).IsEqualTo(0);
+        context.KicktippClient.Verify(client => client.PlaceBonusPredictionsAsync(
+            It.IsAny<string>(),
+            It.IsAny<Dictionary<string, BonusPrediction>>(),
+            It.IsAny<bool>()), Times.Never);
+    }
+
+    [Test]
+    public async Task Immutable_target_context_failure_fails_copy_without_persistence_or_posting()
+    {
+        var contextProvider = CreateMockKpiContextProvider();
+        contextProvider.As<IResolvedBonusContextProvider>()
+            .Setup(provider => provider.ResolveBonusQuestionContextAsync(
+                It.IsAny<BonusQuestion>(),
+                TargetCommunity,
+                It.IsAny<CancellationToken>(),
+                It.IsAny<BonusContextBudget?>()))
+            .ThrowsAsync(new InvalidOperationException("target publication head is unavailable"));
+        var context = CreateBonusCommandApp(
+            openBonusQuestions: new List<BonusQuestion> { CreateTargetQuestion() },
+            bonusPredictionCopyCandidate: NullableOption.Some<BonusPredictionMetadata>(null),
+            contextProviderFactory: CreateMockContextProviderFactory(
+                kpiContextProvider: contextProvider));
+
+        var exitCode = await RunCopyAsync(context);
+
+        await Assert.That(exitCode).IsEqualTo(1);
+        context.PredictionRepository.As<IResolvedBonusContextPredictionRepository>().Verify(repository =>
+            repository.SaveBonusPredictionWithResolvedContextAsync(
+                It.IsAny<BonusQuestion>(),
+                It.IsAny<BonusPrediction>(),
+                It.IsAny<PredictionModelConfig>(),
+                It.IsAny<string>(),
+                It.IsAny<double>(),
+                It.IsAny<string>(),
+                It.IsAny<IEnumerable<string>>(),
+                It.IsAny<ResolvedBonusContextManifest>(),
+                It.IsAny<bool>(),
+                It.IsAny<CancellationToken>()), Times.Never);
+        context.KicktippClient.Verify(client => client.PlaceBonusPredictionsAsync(
+            It.IsAny<string>(),
+            It.IsAny<Dictionary<string, BonusPrediction>>(),
+            It.IsAny<bool>()), Times.Never);
+    }
+
     private static async Task AssertIndependentFallbackAsync(
         BonusPredictionMetadata? candidate,
-        string expectedReason)
+        string expectedReason,
+        BonusQuestion? targetQuestion = null,
+        BonusPrediction? generatedPrediction = null)
     {
-        var targetQuestion = CreateTargetQuestion();
-        var generated = new BonusPrediction(["target-bvb"]);
+        targetQuestion ??= CreateTargetQuestion();
+        generatedPrediction ??= new BonusPrediction(["target-bvb"]);
         var context = CreateBonusCommandApp(
             openBonusQuestions: new List<BonusQuestion> { targetQuestion },
             bonusPredictionCopyCandidate: NullableOption.Some<BonusPredictionMetadata>(candidate),
-            predictionResult: generated);
+            predictionResult: generatedPrediction);
 
         var exitCode = await RunCopyAsync(context);
 
@@ -242,7 +446,7 @@ public sealed class BonusCommand_CopyCompatibility_Tests : BonusCommandTests_Bas
         context.PredictionRepository.As<IResolvedBonusContextPredictionRepository>().Verify(repository =>
             repository.SaveBonusPredictionWithResolvedContextAsync(
                 targetQuestion,
-                generated,
+                generatedPrediction,
                 It.IsAny<PredictionModelConfig>(),
                 It.IsAny<string>(),
                 It.IsAny<double>(),
@@ -257,8 +461,81 @@ public sealed class BonusCommand_CopyCompatibility_Tests : BonusCommandTests_Bas
             It.Is<Dictionary<string, BonusPrediction>>(predictions =>
                 BonusPredictionContentEquality.Equals(
                     predictions[targetQuestion.FormFieldName!],
-                    generated)),
+                    generatedPrediction)),
             false), Times.Once);
+    }
+
+    private static async Task AssertInvalidGeneratedPredictionFailsClosedAsync(
+        BonusPrediction? generated,
+        BonusQuestion? targetQuestion = null)
+    {
+        targetQuestion ??= CreateTargetQuestion();
+        var predictionService = CreateMockPredictionService();
+        predictionService.Setup(service => service.PredictBonusQuestionAsync(
+                It.IsAny<BonusQuestion>(),
+                It.IsAny<IEnumerable<DocumentContext>>(),
+                It.IsAny<PredictionTelemetryMetadata?>(),
+                It.IsAny<CancellationToken>()))
+            .ReturnsAsync(generated);
+        var openAiServiceFactory = CreateMockOpenAiServiceFactory(
+            predictionService: predictionService);
+        var context = CreateBonusCommandApp(
+            openBonusQuestions: new List<BonusQuestion> { targetQuestion },
+            bonusPredictionCopyCandidate: NullableOption.Some<BonusPredictionMetadata>(null),
+            openAiServiceFactory: openAiServiceFactory);
+
+        var exitCode = await RunCopyAsync(context);
+
+        await Assert.That(exitCode).IsEqualTo(1);
+        await Assert.That(CountPredictionServiceConstructions(context)).IsEqualTo(1);
+        predictionService.Verify(service => service.PredictBonusQuestionAsync(
+            targetQuestion,
+            It.IsAny<IEnumerable<DocumentContext>>(),
+            It.IsAny<PredictionTelemetryMetadata?>(),
+            It.IsAny<CancellationToken>()), Times.Once);
+        context.PredictionRepository.As<IResolvedBonusContextPredictionRepository>().Verify(repository =>
+            repository.SaveBonusPredictionWithResolvedContextAsync(
+                It.IsAny<BonusQuestion>(),
+                It.IsAny<BonusPrediction>(),
+                It.IsAny<PredictionModelConfig>(),
+                It.IsAny<string>(),
+                It.IsAny<double>(),
+                It.IsAny<string>(),
+                It.IsAny<IEnumerable<string>>(),
+                It.IsAny<ResolvedBonusContextManifest>(),
+                It.IsAny<bool>(),
+                It.IsAny<CancellationToken>()), Times.Never);
+        context.PredictionRepository.As<IResolvedBonusContextPredictionRepository>().Verify(repository =>
+            repository.SaveBonusRepredictionWithResolvedContextAsync(
+                It.IsAny<BonusQuestion>(),
+                It.IsAny<BonusPrediction>(),
+                It.IsAny<PredictionModelConfig>(),
+                It.IsAny<string>(),
+                It.IsAny<double>(),
+                It.IsAny<string>(),
+                It.IsAny<IEnumerable<string>>(),
+                It.IsAny<int>(),
+                It.IsAny<ResolvedBonusContextManifest>(),
+                It.IsAny<CancellationToken>()), Times.Never);
+        context.KicktippClient.Verify(client => client.PlaceBonusPredictionsAsync(
+            It.IsAny<string>(),
+            It.IsAny<Dictionary<string, BonusPrediction>>(),
+            It.IsAny<bool>()), Times.Never);
+    }
+
+    private static ActivityListener CreateConcurrentActivityListener(
+        ConcurrentQueue<Activity> activities)
+    {
+        var listener = new ActivityListener
+        {
+            ShouldListenTo = source => source.Name == "KicktippAi",
+            Sample = (ref ActivityCreationOptions<ActivityContext> _) =>
+                ActivitySamplingResult.AllDataAndRecorded,
+            ActivityStopped = activities.Enqueue
+        };
+
+        ActivitySource.AddActivityListener(listener);
+        return listener;
     }
 
     private static int CountPredictionServiceConstructions(BonusCommandTestContext context)

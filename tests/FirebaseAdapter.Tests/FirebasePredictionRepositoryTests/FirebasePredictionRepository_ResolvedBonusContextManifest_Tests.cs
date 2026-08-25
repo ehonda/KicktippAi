@@ -97,6 +97,55 @@ public sealed class FirebasePredictionRepository_ResolvedBonusContextManifest_Te
     }
 
     [Test]
+    public async Task Copy_candidate_selects_only_the_exact_competing_model_configuration()
+    {
+        var repository = CreateBundesligaRepository();
+        var question = CreateBonusQuestion(text: "Which club wins the league?");
+        var version1 = PredictionModelConfig.Create(
+            "gpt-5.6-luna",
+            "none",
+            10_000,
+            "kicktippai/bundesliga-2026-27/predict-bonus",
+            1);
+        var version2 = PredictionModelConfig.Create(
+            "gpt-5.6-luna",
+            "none",
+            10_000,
+            "kicktippai/bundesliga-2026-27/predict-bonus",
+            2);
+        var manifest = CreateManifest("pes-squad");
+
+        await repository.SaveBonusPredictionWithResolvedContextAsync(
+            question,
+            new BonusPrediction([question.Options[0].Id]),
+            version1,
+            "{}",
+            0.01,
+            manifest.CommunityContext,
+            manifest.Documents.Select(document => document.Name),
+            manifest);
+        await repository.SaveBonusPredictionWithResolvedContextAsync(
+            question,
+            new BonusPrediction([question.Options[1].Id]),
+            version2,
+            "{}",
+            0.02,
+            manifest.CommunityContext,
+            manifest.Documents.Select(document => document.Name),
+            manifest);
+
+        var version1Candidate = await ((IBonusPredictionCopyRepository)repository)
+            .GetBonusPredictionCopyCandidateAsync(question, version1, manifest.CommunityContext);
+        var version2Candidate = await ((IBonusPredictionCopyRepository)repository)
+            .GetBonusPredictionCopyCandidateAsync(question, version2, manifest.CommunityContext);
+
+        await Assert.That(version1Candidate!.BonusPrediction.SelectedOptionIds)
+            .IsEquivalentTo([question.Options[0].Id]);
+        await Assert.That(version2Candidate!.BonusPrediction.SelectedOptionIds)
+            .IsEquivalentTo([question.Options[1].Id]);
+    }
+
+    [Test]
     public async Task Provenance_capable_bonus_reprediction_round_trips_the_manifest()
     {
         var repository = CreateBundesligaRepository();

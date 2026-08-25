@@ -50,12 +50,22 @@ target prediction. Legacy rows are not rewritten merely to become copyable.
 Invalid target definitions and immutable source/target context safety failures
 remain fail closed.
 
-Trace metadata records only payload-safe mode, effective context, counts,
-source context and stored Firestore prediction identity, compatibility hashes,
-and fixed fallback-reason codes. It does not expose question text, option text,
-predictions, prompts, context content, or secrets. Prediction-service creation
-is lazy, so a compatible-only copy run neither constructs a model service nor
-fetches its hosted prompt.
+Every independently generated Bundesliga target result is validated again at
+the command boundary before persistence or posting. The result must be present,
+must contain exactly `MaxSelections` distinct IDs, and every ID must belong to
+the target question. A null or invalid result aborts the command without a
+target persistence write or Kicktipp post. Other competitions retain their
+existing command behavior.
+
+The new compatibility-specific trace metadata records only payload-safe mode,
+effective context, counts, source context and stored Firestore prediction
+identity, compatibility hashes, and fixed fallback-reason codes. These new
+metadata fields do not duplicate question text, option text, prediction
+selections, prompts, context content, or secrets. The owner-authorized,
+pre-existing trace input/output remains unchanged and can carry question and
+selected-option identifiers under its existing contract. Prediction-service
+creation is lazy, so a compatible-only copy run neither constructs a model
+service nor fetches its hosted prompt.
 
 ## Alternatives considered
 

@@ -114,7 +114,7 @@ public class BonusCommand_NormalMode_Tests : BonusCommandTests_Base
     public async Task Running_command_saves_prediction_to_database()
     {
         // Arrange
-        var prediction = CreateBonusPrediction();
+        var prediction = CreateBonusPrediction(selectedOptionIds: new List<string> { "bayern" });
         var context = CreateBonusCommandApp(
             existingBonusPrediction: Option.None<BonusPrediction>(),
             predictionResult: prediction);
@@ -363,7 +363,10 @@ public class BonusCommand_NormalMode_Tests : BonusCommandTests_Base
             openAiServiceFactory: mockOpenAiFactory);
 
         // Act
-        var exitCode = await context.App.RunAsync(["bonus", "test-model", "--community", "test"]);
+        var exitCode = await context.App.RunAsync([
+            "bonus", "test-model", "--community", "test",
+            "--competition", CompetitionIds.Bundesliga2025_26
+        ]);
         var output = context.Console.Output;
 
         // Assert
@@ -388,7 +391,10 @@ public class BonusCommand_NormalMode_Tests : BonusCommandTests_Base
             openAiServiceFactory: mockOpenAiFactory);
 
         // Act
-        var exitCode = await context.App.RunAsync(["bonus", "test-model", "--community", "test"]);
+        var exitCode = await context.App.RunAsync([
+            "bonus", "test-model", "--community", "test",
+            "--competition", CompetitionIds.Bundesliga2025_26
+        ]);
         var output = context.Console.Output;
 
         // Assert

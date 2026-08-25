@@ -629,6 +629,11 @@ public class BonusCommand : AsyncCommand<BonusSettings>
                         question,
                         contextDocuments,
                         telemetryMetadata);
+
+                    if (isBundesliga)
+                    {
+                        prediction = ValidateGeneratedBundesligaPrediction(question, prediction);
+                    }
                     
                     if (prediction != null)
                     {
@@ -1063,6 +1068,41 @@ public class BonusCommand : AsyncCommand<BonusSettings>
             BonusPredictionCopyCompatibility.InvalidSourceSelection => "invalid_source_selection",
             _ => throw new ArgumentOutOfRangeException(nameof(compatibility), compatibility, null)
         };
+    }
+
+    private static BonusPrediction ValidateGeneratedBundesligaPrediction(
+        BonusQuestion question,
+        BonusPrediction? prediction)
+    {
+        if (prediction is null)
+        {
+            throw new BundesligaBonusSafetyException(
+                "Bundesliga bonus prediction service returned no prediction.");
+        }
+
+        var selectedOptionIds = prediction.SelectedOptionIds;
+        if (selectedOptionIds is null || selectedOptionIds.Count != question.MaxSelections)
+        {
+            throw new BundesligaBonusSafetyException(
+                $"Bundesliga bonus prediction must select exactly {question.MaxSelections} target options.");
+        }
+
+        if (selectedOptionIds.Distinct(StringComparer.Ordinal).Count() != selectedOptionIds.Count)
+        {
+            throw new BundesligaBonusSafetyException(
+                "Bundesliga bonus prediction contains duplicate target option IDs.");
+        }
+
+        var targetOptionIds = question.Options
+            .Select(option => option.Id)
+            .ToHashSet(StringComparer.Ordinal);
+        if (selectedOptionIds.Any(optionId => !targetOptionIds.Contains(optionId)))
+        {
+            throw new BundesligaBonusSafetyException(
+                "Bundesliga bonus prediction contains an unknown target option ID.");
+        }
+
+        return prediction;
     }
 
     private static async Task<T> ReadCachedValueSafelyAsync<T>(

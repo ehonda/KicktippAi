@@ -314,7 +314,7 @@ public static class OrchestratorTestFactories
     /// </summary>
     /// <param name="predictMatchResult">Result of PredictMatchAsync. Defaults to a new test prediction.</param>
     /// <param name="matchPromptPath">Result of GetMatchPromptPath. Defaults to "prompts/match-prompt.md".</param>
-    /// <param name="predictBonusResult">Result of PredictBonusQuestionAsync. Defaults to a new test bonus prediction.</param>
+    /// <param name="predictBonusResult">Result of PredictBonusQuestionAsync. Defaults to a full valid selection for the requested question.</param>
     /// <param name="bonusPromptPath">Result of GetBonusPromptPath. Defaults to "prompts/bonus-prompt.md".</param>
     public static Mock<IPredictionService> CreateMockPredictionService(
         NullableOption<Prediction> predictMatchResult = default,
@@ -336,13 +336,22 @@ public static class OrchestratorTestFactories
         mock.Setup(s => s.GetMatchPromptPath(It.IsAny<bool>()))
             .Returns(matchPromptPath.Or("prompts/match-prompt.md"));
 
-        var bonusPrediction = predictBonusResult.Or(() => new BonusPrediction(["opt-1"]));
+        var bonusPrediction = predictBonusResult.Or((BonusPrediction?)null);
         mock.Setup(s => s.PredictBonusQuestionAsync(
                 It.IsAny<BonusQuestion>(),
                 It.IsAny<IEnumerable<DocumentContext>>(),
             It.IsAny<OpenAiIntegration.PredictionTelemetryMetadata?>(),
                 It.IsAny<CancellationToken>()))
-            .ReturnsAsync(bonusPrediction);
+            .ReturnsAsync((
+                BonusQuestion question,
+                IEnumerable<DocumentContext> _,
+                OpenAiIntegration.PredictionTelemetryMetadata? _,
+                CancellationToken _) =>
+                bonusPrediction ?? new BonusPrediction(
+                    question.Options
+                        .Take(question.MaxSelections)
+                        .Select(option => option.Id)
+                        .ToList()));
 
         mock.Setup(s => s.GetBonusPromptPath())
             .Returns(bonusPromptPath.Or("prompts/bonus-prompt.md"));

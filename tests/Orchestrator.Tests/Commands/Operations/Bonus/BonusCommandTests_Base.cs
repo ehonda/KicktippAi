@@ -106,7 +106,7 @@ public abstract class BonusCommandTests_Base
         var mockKpiRepository = kpiRepository.Or(() => new Mock<IKpiRepository>());
 
         var mockPredictionService = CreateMockPredictionService(
-            predictBonusResult: predictionResult.Or(() => CreateBonusPrediction()));
+            predictBonusResult: predictionResult);
 
         var mockTokenUsageTracker = CreateMockTokenUsageTracker();
 
