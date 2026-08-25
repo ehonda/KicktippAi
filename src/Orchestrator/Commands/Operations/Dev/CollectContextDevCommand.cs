@@ -44,6 +44,7 @@ public sealed class CollectContextDevCommand : AsyncCommand<CollectContextDevSet
             community,
             communityContext,
             settings.Matchdays,
+            settings.FullSeason,
             settings.RecentHistoryDateMap,
             settings.DryRun,
             settings.Verbose);

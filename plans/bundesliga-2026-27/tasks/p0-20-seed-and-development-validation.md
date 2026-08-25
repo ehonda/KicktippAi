@@ -3,7 +3,7 @@
 - Status: Not started
 - Priority: P0
 - Depends on: P0-02 through P0-18, [P0-22](p0-22-history-played-dates.md), the authorized local Luna/none development path, and the Luna/none arena entrypoints copied from P0-19; final production P0-19 copies may remain gated on P0-06
-- Decisions: [ADR-0006](../decisions/0006-stage-validation-with-a-cheap-test-model.md), [ADR-0012](../decisions/0012-competition-aware-matchday-completion.md), [ADR-0013](../decisions/0013-club-elo-snapshot-and-freshness-contract.md), [ADR-0038](../decisions/0038-bound-bonus-context-by-question-policy.md), [ADR-0039](../decisions/0039-record-bundesliga-community-and-credential-topology.md)
+- Decisions: [ADR-0006](../decisions/0006-stage-validation-with-a-cheap-test-model.md), [ADR-0012](../decisions/0012-competition-aware-matchday-completion.md), [ADR-0013](../decisions/0013-club-elo-snapshot-and-freshness-contract.md), [ADR-0038](../decisions/0038-bound-bonus-context-by-question-policy.md), [ADR-0039](../decisions/0039-record-bundesliga-community-and-credential-topology.md), [ADR-0042](../decisions/0042-publish-complete-preseason-context-atomically.md)
 
 ## Outcome
 
@@ -15,7 +15,7 @@ with trace evidence. No development Actions triad exists.
 ## Work items
 
 - [ ] Run the full profile in dry-run and resolve every manifest, source, and quality warning.
-- [ ] Collect Kicktipp rules, standings, histories, outcomes, Club Elo, rosters, and squad summaries into `bundesliga-2026-27`, then run the strict history played-date reconstruction/audit.
+- [ ] Collect Kicktipp rules, standings, histories, outcomes, Club Elo, rosters, and squad summaries into `bundesliga-2026-27` with the explicit profile-owned `--full-season` mode, then run the strict history played-date reconstruction/audit.
 - [ ] Prove every selected recent/home/away row has an exact source-attributed played date, including one current Bundesliga fixture and one intervening non-league fixture; record zero unresolved/ambiguous rows and prove head-to-head content was not rewritten.
 - [ ] Query/inspect stored identities and prove no old unscoped Bundesliga or WM26 document satisfied the run.
 - [ ] Verify all CSVs render header-first, deterministic, CRLF-terminated content with a final terminator.
@@ -29,7 +29,33 @@ with trace evidence. No development Actions triad exists.
 
 ## Validation evidence
 
-Not run yet.
+### Fail-closed development collection checkpoint — 2026-08-25
+
+The initial authorized command completed successfully:
+
+```powershell
+dotnet run --no-build --project src/Orchestrator -- collect-context-dev --community ehonda-dev-buli-2627 --community-context ehonda-dev-buli-2627 --competition bundesliga-2026-27 --verbose
+```
+
+It published the current nine-fixture scope: 36 selected history documents,
+standings, rules, and nine H2H documents. The subsequent strict read-only
+inventory failed closed with `expected=401`, `present=86`, `missing=315`,
+`unexpected=0`, `identityConflicts=0`, `expectedCsv=400`, `validCsv=85`, and
+`invalidCsv=0`. The missing set decomposed exactly into 297 H2H documents and
+18 selected home/away history documents. The strict history audit also failed
+because those 18 selected documents were absent. No model, prediction, arena,
+workflow, or schedule operation followed. The nine present H2H content hashes
+were identical before and after the read-only audits.
+
+ADR-0042 records the code-only repair. After independent review, integration,
+push, and exact-head green CI, the authoritative retry is:
+
+```powershell
+dotnet run --no-build --project src/Orchestrator -- collect-context-dev --community ehonda-dev-buli-2627 --community-context ehonda-dev-buli-2627 --competition bundesliga-2026-27 --full-season --verbose
+```
+
+The retry and every subsequent live/model phase remain pending; this evidence
+does not claim the strict 401-document gate has passed.
 
 ## Complete when
 

@@ -9,6 +9,7 @@ public sealed record CompetitionCollectorExecutionContext(
     string Community,
     string CommunityContext,
     string? Matchdays,
+    bool FullSeason,
     string RecentHistoryDateMap,
     bool DryRun,
     bool Verbose);
@@ -44,6 +45,8 @@ public sealed class CompetitionProfileCollectorExecutor : ICompetitionProfileCol
                     CommunityContext = context.CommunityContext,
                     Competition = context.Profile.Competition,
                     Matchdays = context.Matchdays,
+                    FullSeason = context.FullSeason,
+                    ExpectedMatchCount = context.Profile.ExpectedMatchCount,
                     ExpectedMatchesPerMatchday = context.Profile.ExpectedMatchesPerMatchday,
                     DryRun = context.DryRun,
                     Verbose = context.Verbose

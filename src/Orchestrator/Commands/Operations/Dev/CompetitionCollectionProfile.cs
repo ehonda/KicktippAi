@@ -113,7 +113,7 @@ public sealed class CompetitionCollectionProfileResolver : ICompetitionCollectio
             KnockoutRules: false,
             Transfers: false),
         [
-            "dotnet run --project src/Orchestrator -- collect-context-dev --community ehonda-dev-buli-2627 --competition bundesliga-2026-27 --dry-run --verbose",
+            "dotnet run --project src/Orchestrator -- collect-context-dev --community ehonda-dev-buli-2627 --competition bundesliga-2026-27 --full-season --dry-run --verbose",
             "dotnet run --project src/Orchestrator -- bundesliga-history audit --community-context ehonda-dev-buli-2627 --competition bundesliga-2026-27"
         ]);
 

@@ -9,6 +9,10 @@ public sealed class CollectContextDevSettings : DevParticipationSettings
     [Description("Comma-separated Kicktipp matchday indexes to collect instead of only the current matchday")]
     public string? Matchdays { get; set; }
 
+    [CommandOption("--full-season")]
+    [Description("Collect the complete profile-owned Bundesliga season fixture context atomically")]
+    public bool FullSeason { get; set; }
+
     [CommandOption("--dry-run")]
     [Description("Show what would be saved without actually saving to database")]
     [DefaultValue(false)]

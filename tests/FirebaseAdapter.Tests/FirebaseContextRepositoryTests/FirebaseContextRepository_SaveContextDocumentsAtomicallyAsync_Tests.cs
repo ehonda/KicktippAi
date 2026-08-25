@@ -37,6 +37,36 @@ public class FirebaseContextRepository_SaveContextDocumentsAtomicallyAsync_Tests
     }
 
     [Test]
+    public async Task Complete_Bundesliga_preseason_batch_of_362_documents_is_supported_atomically()
+    {
+        const string fullSeasonCommunity = "atomic-full-season-community";
+        var historyNames = BundesligaHistoryPlayedDateMap.ExpectedDocumentNames.ToHashSet(StringComparer.Ordinal);
+        var names = BundesligaContextHygienePolicy.GetExpectedDocuments(fullSeasonCommunity)
+            .Where(document => document.Key.Kind == DocumentPublicationKind.Context)
+            .Select(document => document.Key.Name)
+            .Where(name => name is "bundesliga-standings.csv"
+                           || name == $"community-rules-{fullSeasonCommunity}.md"
+                           || historyNames.Contains(name)
+                           || name.StartsWith("head-to-head-", StringComparison.Ordinal))
+            .Order(StringComparer.Ordinal)
+            .ToArray();
+        var writes = names.Select(name => new ContextDocumentWrite(name, $"content:{name}")).ToArray();
+        var repository = CreateRepository();
+
+        var saved = await repository.SaveContextDocumentsAtomicallyAsync(writes, fullSeasonCommunity);
+        var unchanged = await repository.SaveContextDocumentsAtomicallyAsync(writes, fullSeasonCommunity);
+
+        await Assert.That(names).Count().IsEqualTo(362);
+        await Assert.That(saved).Count().IsEqualTo(362);
+        await Assert.That(saved.All(result => result.Version == 0)).IsTrue();
+        await Assert.That(unchanged.All(result => result.Version is null)).IsTrue();
+        await Assert.That((await repository.GetLatestContextDocumentAsync(names[0], fullSeasonCommunity))!.Content)
+            .IsEqualTo($"content:{names[0]}");
+        await Assert.That((await repository.GetLatestContextDocumentAsync(names[^1], fullSeasonCommunity))!.Content)
+            .IsEqualTo($"content:{names[^1]}");
+    }
+
+    [Test]
     public async Task Validation_failure_on_later_document_rolls_back_the_entire_batch()
     {
         var repository = CreateRepository();

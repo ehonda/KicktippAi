@@ -66,6 +66,27 @@ public class CollectContextProfileCommandTests
     }
 
     [Test]
+    public async Task Explicit_Bundesliga_profile_forwards_full_season_scope_to_every_lazy_collector()
+    {
+        var executed = new List<(CompetitionCollector Collector, CompetitionCollectorExecutionContext Context)>();
+        var executor = CreateExecutor(executed);
+        var (app, console) = CreateApp(executor);
+
+        var (exitCode, output) = await RunCommandAsync(
+            app,
+            console,
+            "collect-context-profile",
+            "--community-context", "ehonda-ai-arena",
+            "--competition", CompetitionIds.Bundesliga2026_27,
+            "--full-season",
+            "--dry-run");
+
+        await Assert.That(exitCode).IsEqualTo(0);
+        await Assert.That(executed.All(call => call.Context.FullSeason)).IsTrue();
+        await Assert.That(output).Contains("Kicktipp scope: full season");
+    }
+
+    [Test]
     public async Task Bundesliga_profile_runs_only_its_direct_collectors_and_writes_stable_summary()
     {
         var executed = new List<(CompetitionCollector Collector, CompetitionCollectorExecutionContext Context)>();

@@ -66,6 +66,7 @@ public sealed class CollectContextProfileCommand : AsyncCommand<CollectContextPr
             communityContext,
             communityContext,
             settings.Matchdays,
+            settings.FullSeason,
             settings.RecentHistoryDateMap,
             settings.DryRun,
             settings.Verbose,

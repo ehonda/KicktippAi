@@ -81,6 +81,7 @@ public class CompetitionCollectionProfileTests
                 "ehonda-dev-buli-2627",
                 CompetitionIds.Bundesliga2026_27).RequiredDocumentNames)).IsTrue();
         await Assert.That(profile.ValidationCommands).Count().IsEqualTo(2);
+        await Assert.That(profile.ValidationCommands[0]).Contains("--full-season");
     }
 
     [Test]
@@ -352,6 +353,30 @@ public class CollectContextDevProfileOrchestrationTests
         ])).IsTrue();
         await Assert.That(output)
             .Contains("Collector ClubElo: Failed")
+            .And.Contains("Collector Rosters: SkippedAfterFailure")
+            .And.DoesNotContain("Competition profile collection completed");
+    }
+
+    [Test]
+    public async Task Full_season_kicktipp_failure_stops_before_elo_and_roster_construction()
+    {
+        var calls = new List<(CompetitionCollector Collector, CompetitionCollectorExecutionContext Context)>();
+        var executor = CreateExecutor(calls, failedCollector: CompetitionCollector.Kicktipp, failureExitCode: 9);
+        var (app, console) = CreateApp(executor);
+
+        var (exitCode, output) = await RunCommandAsync(
+            app,
+            console,
+            "collect-context-dev",
+            "--community", "ehonda-dev-buli-2627",
+            "--full-season");
+
+        await Assert.That(exitCode).IsEqualTo(9);
+        await Assert.That(calls).Count().IsEqualTo(1);
+        await Assert.That(calls[0].Collector).IsEqualTo(CompetitionCollector.Kicktipp);
+        await Assert.That(calls[0].Context.FullSeason).IsTrue();
+        await Assert.That(output)
+            .Contains("Collector ClubElo: SkippedAfterFailure")
             .And.Contains("Collector Rosters: SkippedAfterFailure")
             .And.DoesNotContain("Competition profile collection completed");
     }

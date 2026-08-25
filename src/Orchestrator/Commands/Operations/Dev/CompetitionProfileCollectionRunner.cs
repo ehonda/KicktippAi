@@ -8,6 +8,7 @@ internal sealed record CompetitionProfileCollectionRequest(
     string Community,
     string CommunityContext,
     string? Matchdays,
+    bool FullSeason,
     string RecentHistoryDateMap,
     bool DryRun,
     bool Verbose,
@@ -26,11 +27,14 @@ internal static class CompetitionProfileCollectionRunner
             request.Community,
             request.CommunityContext,
             request.Matchdays,
+            request.FullSeason,
             request.RecentHistoryDateMap,
             request.DryRun,
             request.Verbose);
 
         PrintProfile(console, request.Profile, request.Community, request.CommunityContext);
+        console.MarkupLine(
+            $"[blue]Kicktipp scope:[/] [yellow]{(request.FullSeason ? "full season" : "current or explicit matchday")}[/]");
 
         var dispositions = new List<(CompetitionCollector Collector, string Disposition)>();
         for (var index = 0; index < request.Profile.Collectors.Count; index++)
@@ -173,6 +177,7 @@ internal static class CompetitionProfileCollectionRunner
             $"- **Resolved profile:** {EscapeMarkdown(request.Profile.DisplayName)} (`{EscapeCode(request.Profile.Competition)}`)",
             $"- **Community context:** `{EscapeCode(request.CommunityContext)}`",
             $"- **Mode:** {(request.DryRun ? "dry run" : "write")}",
+            $"- **Kicktipp scope:** {(request.FullSeason ? "full season" : "current or explicit matchday")}",
             $"- **Result:** {(exitCode == 0 ? "succeeded" : $"failed (exit code {exitCode})")}",
             "- **Collector results:**"
         };

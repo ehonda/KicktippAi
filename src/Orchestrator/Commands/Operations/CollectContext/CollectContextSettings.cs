@@ -36,6 +36,16 @@ public class CollectContextKicktippSettings : CollectContextSettings
     [Description("Comma-separated Kicktipp matchday indexes to collect instead of only the current matchday")]
     public string? Matchdays { get; set; }
 
+    [CommandOption("--full-season")]
+    [Description("Collect the complete profile-owned Bundesliga season fixture context atomically")]
+    public bool FullSeason { get; set; }
+
+    /// <summary>
+    /// Optional profile-owned exact season fixture-count gate. Standalone collection leaves it unset;
+    /// competition-profile orchestration supplies the accepted competition contract.
+    /// </summary>
+    public int? ExpectedMatchCount { get; set; }
+
     /// <summary>
     /// Optional profile-owned exact fixture-count gate. Standalone collection leaves it unset;
     /// competition-profile orchestration supplies the accepted competition contract.
