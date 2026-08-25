@@ -115,10 +115,11 @@ public class BonusCommand_Telemetry_Tests : BonusCommandTests_Base
     }
 
     [Test]
+    [Arguments("pes-squad")]
+    [Arguments("schadensfresse")]
     [NotInParallel("Telemetry")]
-    public async Task Production_community_sets_environment_to_production()
+    public async Task Production_community_sets_environment_to_production(string community)
     {
-        const string community = "pes-squad";
         const string model = "telemetry-production-model";
         var capturedActivities = new ConcurrentQueue<Activity>();
         using var listener = CreateActivityListener(capturedActivities);
