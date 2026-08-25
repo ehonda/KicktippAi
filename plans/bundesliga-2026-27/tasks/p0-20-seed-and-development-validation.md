@@ -3,7 +3,7 @@
 - Status: Not started
 - Priority: P0
 - Depends on: P0-02 through P0-18, [P0-22](p0-22-history-played-dates.md), the authorized local Luna/none development path, and the Luna/none arena entrypoints copied from P0-19; final production P0-19 copies may remain gated on P0-06
-- Decisions: [ADR-0006](../decisions/0006-stage-validation-with-a-cheap-test-model.md), [ADR-0012](../decisions/0012-competition-aware-matchday-completion.md), [ADR-0013](../decisions/0013-club-elo-snapshot-and-freshness-contract.md), [ADR-0038](../decisions/0038-bound-bonus-context-by-question-policy.md), [ADR-0039](../decisions/0039-record-bundesliga-community-and-credential-topology.md), [ADR-0042](../decisions/0042-publish-complete-preseason-context-atomically.md)
+- Decisions: [ADR-0006](../decisions/0006-stage-validation-with-a-cheap-test-model.md), [ADR-0012](../decisions/0012-competition-aware-matchday-completion.md), [ADR-0013](../decisions/0013-club-elo-snapshot-and-freshness-contract.md), [ADR-0038](../decisions/0038-bound-bonus-context-by-question-policy.md), [ADR-0039](../decisions/0039-record-bundesliga-community-and-credential-topology.md), [ADR-0044](../decisions/0044-select-canonical-preseason-history-sources.md)
 
 ## Outcome
 
@@ -47,7 +47,7 @@ because those 18 selected documents were absent. No model, prediction, arena,
 workflow, or schedule operation followed. The nine present H2H content hashes
 were identical before and after the read-only audits.
 
-ADR-0042 records the code-only repair. After independent review, integration,
+[ADR-0042](../decisions/0042-publish-complete-preseason-context-atomically.md) recorded the first code-only repair. After independent review, integration,
 push, and exact-head green CI, the authoritative retry is:
 
 ```powershell
@@ -59,7 +59,7 @@ does not claim the strict 401-document gate has passed.
 
 ### Full-season canonical-history checkpoint — 2026-08-25
 
-After ADR-0042's first implementation was independently reviewed, integrated,
+After the first implementation of [ADR-0042](../decisions/0042-publish-complete-preseason-context-atomically.md) was independently reviewed, integrated,
 and green at exact head, the authorized full-season command above was run once.
 It fetched and validated all 34 matchday pages, with exactly nine fixtures per
 page and 306 distinct ordered fixtures in total. Context collection then failed
@@ -71,7 +71,7 @@ contract rather than corrupt history content.
 
 No outcome refresh, history transformation, repository save, model,
 prediction, arena, workflow, or schedule operation followed. Candidate history
-content was neither printed nor retained. ADR-0042 now records the superseding
+content was neither printed nor retained. [ADR-0044](../decisions/0044-select-canonical-preseason-history-sources.md) records the superseding
 two-phase contract: canonical global recent histories from matchday 1,
 canonical home/away histories from each team's earliest fixture in that role
 (all accepted selectors must lie in matchdays 1-2), and every ordered H2H from

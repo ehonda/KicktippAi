@@ -1,6 +1,6 @@
 # ADR-0042: Publish complete preseason Kicktipp context atomically
 
-- Status: Accepted
+- Status: Superseded
 - Date: 2026-08-25
 
 ## Context
@@ -22,18 +22,6 @@ did not offer a profile-owned complete-season collection contract. Passing an
 ad hoc list to `--matchdays` could enumerate more pages, but did not prove the
 exact 34-page schedule, the exact strict catalog, or one atomic publication.
 
-The first authorized `--full-season` attempt then proved all 34 pages and all
-306 ordered fixtures, but failed closed while collecting the first matchday-2
-fixture. `recent-history-vfb.csv` was produced from the matchday-1 away fixture
-and again from the matchday-2 home fixture with different bytes. This is valid
-provider behavior: Kicktipp's recent-history source is fixture-date and
-home/away-role sensitive even though the stored identity is global. Across a
-season, collision-driven enumeration would request each recent identity 34
-times and each home/away identity 17 times. Selecting the first or last
-collision would therefore make the frozen 54-document inventory incidental.
-The attempt reached neither outcome refresh nor the atomic context save, and
-no model or prediction operation followed.
-
 ## Decision
 
 Add an explicit `--full-season` collection mode to `collect-context-dev` and
@@ -53,27 +41,16 @@ the following operations serially and in this order:
    exactly once per matchday.
 3. Require exactly 306 distinct ordered manifest pairs across the season and
    exact equality with the strict 306-name head-to-head catalog.
-4. Construct matchday-scoped providers only after every fixture page passes.
-   Collect standings and the exact community rules document once. Select the
-   canonical 54 global history sources explicitly: every recent document comes
-   from its team's matchday-1 fixture, while each home/away document comes from
-   that team's earliest scheduled fixture in the corresponding role. The
-   accepted ADR-0032/ADR-0041 inventory requires each of those deterministic
-   source fixtures to be in matchday 1 or 2; a later selector fails closed.
-   Unselected per-fixture variants are never requested or silently collapsed.
-5. Collect each of the 306 H2H documents separately through its fixture's exact
-   matchday page, never through the current `tippabgabe` page. Require exact
-   equality with the 362-document Kicktipp-owned strict subset: standings,
-   rules, 54 selected histories, and 306 H2Hs. A duplicate inside either
-   semantic phase reports only the document name, UTF-8 byte counts, and
-   SHA-256 hashes; conflicting content and unexpected, WM26, unscoped,
-   missing, or case-variant names fail.
-6. Refresh current match outcomes only after that complete remote candidate set
+4. Construct providers only after every fixture page passes, enumerate them
+   serially, reject conflicting bytes for a repeated document name, and require
+   exact equality with the 362-document Kicktipp-owned strict subset: standings,
+   the exact community rules document, 54 selected histories, and 306 H2H
+   documents. Unexpected, WM26, unscoped, missing, or case-variant names fail.
+5. Refresh current match outcomes only after that complete remote candidate set
    passes, then run the existing strict played-date collector with the exact 54
-   selected names, all 430 frozen completed-map occurrences, and the accepted
-   exact two excluded incomplete rows. Any unresolved, ambiguous, missing,
-   unexpected, or count-mismatched frozen-map application fails.
-7. Recheck the exact 362-name set after transformation and submit the
+   selected names and all 430 frozen map occurrences. Any unresolved,
+   ambiguous, missing, unexpected, or incomplete frozen-map application fails.
+6. Recheck the exact 362-name set after transformation and submit the
    deterministic ordinal-name-ordered writes in one call to
    `SaveContextDocumentsAtomicallyAsync`.
 
@@ -113,10 +90,8 @@ can begin through this runner.
 - Complete schedule acquisition is more expensive and intentionally serialized,
   but it is bounded to the 34 typed Bundesliga pages and runs only when the
   explicit flag is supplied.
-- Globally named selected histories now have explicit canonical fixture sources;
-  their other valid fixture-scoped variants cannot affect publication order.
-- A duplicate within the canonical-history or ordered-H2H phase still blocks
-  publication with content-redacted byte/hash diagnostics.
+- A repeated document with differing provider bytes now blocks full-season
+  publication instead of making the result depend on first-observed order.
 - Live collection must remain paused until this decision and implementation are
   independently reviewed, integrated, pushed, and exact-head CI is green.
 
@@ -132,3 +107,5 @@ can begin through this runner.
 ADR-0034 only where its current/explicit-matchday fixture gate was sufficient
 for complete preseason publication. ADR-0032's exact history, source, ordering,
 and atomic last-complete-set contracts remain in force.
+
+Superseded by [ADR-0044](0044-select-canonical-preseason-history-sources.md).
