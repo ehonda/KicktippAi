@@ -1,8 +1,9 @@
 # GPT-5.6 Bundesliga 2025/26 production-candidate preregistration
 
-**Status:** NO-SPEND CHECKPOINT — owner matrix and cumulative ceiling recorded;
-live mutation and spend wait for independent review and the integrated Decimal
-cumulative-budget gate.
+**Status:** APPROVED NO-SPEND CHECKPOINT — independent review approved the
+owner matrix and cumulative ceiling, and the Decimal cumulative-budget gate is
+integrated. Live mutation and spend still require every unchecked execution
+gate below.
 
 **Verified:** 2026-08-26
 
@@ -14,11 +15,12 @@ estimate-row-derived cap workflow, an adaptive paired quality design, and one
 cumulative USD 30 ceiling.
 
 USD 30 is a hard ceiling, not a spending target. The program should finish for
-less whenever the evidence is sufficient. The owner authorization is dormant
-while this checkpoint awaits review and its budget dependency: no dataset
-preparation or synchronization, hosted prompt or Langfuse mutation, model call,
-production model, arena participant, prediction post, workflow dispatch, or
-schedule activation proceeds from this checkpoint.
+less whenever the evidence is sufficient. Independent review and budget-tool
+integration do not bypass the remaining execution-date checks or the separate
+admission of every paid attempt: no dataset preparation or synchronization,
+hosted prompt or Langfuse mutation, model call, production model, arena
+participant, prediction post, workflow dispatch, or schedule activation has
+proceeded from this checkpoint.
 
 Related planning and decisions:
 
@@ -215,14 +217,13 @@ Ledger rules:
 
 - Initialize new authorized spend at exactly `$0.000000000000` and ceiling at
   `$30.000000000000`.
-- The current per-row estimator cannot validate this cumulative multi-attempt
-  total. No live action begins until the separate budget-tool lane's
-  machine-readable Decimal ledger and validated aggregate command are
-  integrated, and that exact command is recorded in this document.
-- The integrated tool must machine-project and admit each one-item preflight
-  before its model call; there is no accepted candidate row to reuse at that
-  point. Record the exact supported transient-projection invocation after the
-  dependency lands rather than inventing it here.
+- Use the integrated `budget-gate` command below for the cumulative
+  multi-attempt total. Its machine-readable JSON is mandatory admission
+  evidence; a write failure blocks rather than returning `ALLOWED`.
+- Machine-project and admit each one-item preflight before its model call with
+  `--planned-preflight`; there is no accepted candidate row to reuse at that
+  point. This is a conservative full-cap admission bound, not a base-row or
+  quality estimate.
 - Record every new paid attempt: accepted calls, failed calls with usage,
   cap-retry calls, Flex/Standard fallbacks, replaced dataset runs, and quality
   retries. Do not count only the accepted artifact.
@@ -243,8 +244,139 @@ Ledger rules:
 
 Per-row cost estimates reported to the owner come only from
 `experiment_cost_estimator.py`; observed Langfuse cost is kept as a separate
-ledger field. The pending Decimal aggregate command, not the current estimator
-alone, enforces program-total admission.
+ledger field. `budget-gate` enforces program-total admission with exact Decimal
+arithmetic and authoritative or explicitly provisional evidence.
+
+Independent review approved the exact integrated gate at main commit
+`0b86b11564b9cc7500b7bfaf94301e4e83263f73`. Its focused deterministic suite
+passes all `24` tests, and the exact commit's
+[`Build and Test` run 32910669112](https://github.com/ehonda/KicktippAi/actions/runs/32910669112)
+completed successfully. These are no-spend tooling checks, not permission to
+skip any live-action checklist item.
+
+### Executable admission command contract
+
+All artifacts stay under `.tmp/p0-23-budget/`, which is repo-local and ignored.
+Run from the repository root. Replace a `SETTLED_*_USD` value only with the
+settled Langfuse cost for that named attempt; never pre-sum attempts. Every gate
+must emit `ALLOWED` and successfully write its JSON before the corresponding
+paid call starts.
+
+For the first missing-row candidate in the frozen order, create
+`.tmp/p0-23-budget/gpt-5.6-luna-max-preflight-plan.json` with these exact
+contents:
+
+```json
+{
+  "name": "gpt-5.6-luna-max-preflight",
+  "model": "gpt-5.6-luna",
+  "reasoningEffort": "max",
+  "serviceTier": "flex",
+  "inputTokenBound": 272000,
+  "maxOutputTokens": 10000,
+  "boundEvidence": "Uses the complete 272,000-token input boundary supported by the repository short-context price table; it does not rely on a prior row or historical average.",
+  "source": "P0-23 preregistration: first missing-row preflight in the owner-approved matrix"
+}
+```
+
+Create the ignored artifact directory and admit exactly one bootstrap call with
+zero observed attempts and no retry reserve:
+
+```powershell
+New-Item -ItemType Directory -Force -Path .tmp/p0-23-budget | Out-Null
+
+uv --cache-dir .uv-cache run python .agents/skills/estimate-experiment-cost-skill/scripts/experiment_cost_estimator.py budget-gate `
+  --planned-preflight .tmp/p0-23-budget/gpt-5.6-luna-max-preflight-plan.json `
+  --pricing-source src/OpenAiIntegration/CostCalculationService.cs `
+  --ceiling-usd 30 `
+  --report-json .tmp/p0-23-budget/gpt-5.6-luna-max-preflight-budget-gate.json
+```
+
+For each later missing row, use its exact model, effort, unique name, and
+deterministic artifact path in a separate spec. Keep tier `flex`, input bound
+`272000`, initial output cap `10000`, the same explicit bound basis and pricing
+source, and include every already settled attempt on that gate.
+
+After the one-item Luna/`max` call settles and its compact usage is collected,
+produce its exact provisional report, then machine-admit the pending 20-call
+five-by-four row:
+
+```powershell
+$preflightUsageJson = '.tmp/p0-23-budget/gpt-5.6-luna-max-preflight-usage.json'
+$preflightBaseRowJson = '.tmp/p0-23-budget/gpt-5.6-luna-max-preflight-base-row.json'
+$settledLunaMaxPreflightUsd = 'SETTLED_LUNA_MAX_PREFLIGHT_USD'
+
+uv --cache-dir .uv-cache run python .agents/skills/estimate-experiment-cost-skill/scripts/experiment_cost_estimator.py base-row `
+  --input $preflightUsageJson `
+  --group repeated-match-slice-measured `
+  --expect-count 1 `
+  --model gpt-5.6-luna `
+  --reasoning-effort max `
+  --prompt-route "Langfuse Bundesliga match v2; Bundesliga 2025/26 7-document legacy-id-hash-v1 context" `
+  --model-knowledge-cutoff 2026-02-16 `
+  --sampling-cutoff "2026-02-18T00:00:00 Europe/Berlin (+01)" `
+  --max-output-tokens 10000 `
+  --source "P0-23 exact one-item preflight DATASET_RUN_ID" `
+  --report-json $preflightBaseRowJson
+
+uv --cache-dir .uv-cache run python .agents/skills/estimate-experiment-cost-skill/scripts/experiment_cost_estimator.py budget-gate `
+  --provisional-candidate "$preflightBaseRowJson,20" `
+  --observed-attempt "gpt-5.6-luna-max-preflight=$settledLunaMaxPreflightUsd" `
+  --ceiling-usd 30 `
+  --report-json .tmp/p0-23-budget/gpt-5.6-luna-max-base-row-p5-budget-gate.json
+```
+
+The one-item report must have `baseSampleObservations=1` and complete model,
+effort, cap, average, and source provenance. The gate hashes and reads it but
+does not upsert it. It is valid only for admitting this pending 20-call row;
+the later quality call requires the completed authoritative row.
+
+Once the needed authoritative rows exist, admit one serialized quality
+candidate with a repeated observed-attempt ledger and no mandatory retry
+reserve. This exact example uses the already authoritative Luna/`none` row and
+the preferred `10 × 20 = 200` topology:
+
+```powershell
+$settledLunaMaxPreflightUsd = 'SETTLED_LUNA_MAX_PREFLIGHT_USD'
+$settledLunaMaxBaseRowUsd = 'SETTLED_LUNA_MAX_BASE_ROW_USD'
+$settledAttemptArgs = @(
+  '--observed-attempt'
+  "gpt-5.6-luna-max-preflight=$settledLunaMaxPreflightUsd"
+  '--observed-attempt'
+  "gpt-5.6-luna-max-base-row-p5=$settledLunaMaxBaseRowUsd"
+)
+# Append one --observed-attempt/name-value pair for every other settled P0-23 attempt.
+
+uv --cache-dir .uv-cache run python .agents/skills/estimate-experiment-cost-skill/scripts/experiment_cost_estimator.py budget-gate `
+  --candidate gpt-5.6-luna,none,200 `
+  @settledAttemptArgs `
+  --ceiling-usd 30 `
+  --report-json .tmp/p0-23-budget/gpt-5.6-luna-none-quality-10x20-p5-budget-gate.json
+```
+
+Do not pre-reserve a speculative retry in this serialized program. If that
+quality attempt fails transiently, wait until its cost settles, append the
+attempt to the ledger, and admit the same 200-call candidate separately before
+the parallelism-`3` retry:
+
+```powershell
+$settledLunaNoneQualityP5Usd = 'SETTLED_LUNA_NONE_QUALITY_P5_USD'
+$settledAttemptArgs += @(
+  '--observed-attempt'
+  "gpt-5.6-luna-none-quality-p5=$settledLunaNoneQualityP5Usd"
+)
+
+uv --cache-dir .uv-cache run python .agents/skills/estimate-experiment-cost-skill/scripts/experiment_cost_estimator.py budget-gate `
+  --candidate gpt-5.6-luna,none,200 `
+  @settledAttemptArgs `
+  --ceiling-usd 30 `
+  --report-json .tmp/p0-23-budget/gpt-5.6-luna-none-quality-10x20-p3-retry-budget-gate.json
+```
+
+If parallelism `3` also fails transiently, first settle and append that attempt,
+then run the same candidate gate again with a distinct `p1-retry` report path.
+`--retry-reserve` remains available only for an explicit concurrent reserve;
+it is deliberately absent from this serialized initial/retry contract.
 
 ## Phase A — exact cost rows and whole-season estimates
 
@@ -281,9 +413,10 @@ No new Firestore cost read is needed.
 
 ### Missing-row preflight sequence
 
-After independent checkpoint approval and integration of the Decimal gate,
-prepare and sync one shared `1 × 1` historical manifest once, inspect its exact
-provenance, and run these eight preflights serially. It uses seed `20260821` and,
+Independent checkpoint approval and Decimal-gate integration are complete.
+After every remaining live-action check below passes, prepare and sync one
+shared `1 × 1` historical manifest once, inspect its exact provenance, and run
+these eight preflights serially. It uses seed `20260821` and,
 under the unchanged cutoff/pool, must select source fixture `1423757341`; its
 exact selected source-item ID is
 `bundesliga-2025-26__pes-squad__ts1423757341` and its selected-set SHA-256 is
@@ -307,17 +440,13 @@ comparable ladder to expose cap/cost anomalies cheaply. Each run waits for an
 exact one-item collection and ledger update before the next starts. A finding
 may stop the sequence; the order is not authority to skip a failed gate.
 
-For each accepted preflight, calculate an exact one-item machine-readable row:
-
-```powershell
-uv --cache-dir .uv-cache run python .agents/skills/estimate-experiment-cost-skill/scripts/experiment_cost_estimator.py base-row --input PREFLIGHT_USAGE_JSON --group repeated-match-slice-measured --expect-count 1 --model MODEL --reasoning-effort EFFORT --prompt-route "Langfuse Bundesliga match v2; Bundesliga 2025/26 7-document legacy-id-hash-v1 context" --model-knowledge-cutoff MODEL_CUTOFF --sampling-cutoff "SAMPLING_CUTOFF" --max-output-tokens CAP --source "P0-23 exact one-item preflight" --report-json PREFLIGHT_BASE_ROW_JSON
-```
-
-The pending Decimal budget command must consume that exact report and emit the
-20-item projection before admitting the five-by-four row. Do not manually
-multiply the one-item result. Replace the descriptive placeholders above with
-the exact accepted paths/values when the command is recorded; this template is
-not executable evidence.
+For each accepted preflight, follow the exact one-item `base-row` and
+provisional `budget-gate` pattern above, using deterministic repo-local
+`.tmp/p0-23-budget/<model>-<effort>-...` artifact paths. Replace only the
+necessarily runtime dataset-run identity and settled cost. The provisional gate
+emits the 20-item projection before admitting the five-by-four row; do not
+manually multiply the one-item result. Retain the emitted JSON as admission
+evidence.
 
 ### Authoritative five-by-four rows
 
@@ -446,10 +575,10 @@ evaluates the quality/cost tradeoff.
 - [x] Adaptive common-manifest topology, meaningful minimum, immutable metrics,
       and failure rules recorded.
 - [x] Owner-supplied captures preserved and embedded.
-- [ ] Independent review approves this no-spend checkpoint.
-- [ ] The separate machine-readable Decimal ledger and validated aggregate
-      command are integrated; replace the preregistration placeholder with its
-      exact invocation and pass its focused tests before live action.
+- [x] Independent review approved this no-spend checkpoint.
+- [x] The machine-readable Decimal `budget-gate` and exact command contract are
+      integrated; its focused deterministic suite passes all 24 tests and CI is
+      green for exact main commit `0b86b11564b9cc7500b7bfaf94301e4e83263f73`.
 - [ ] Official model pages and pricing are re-fetched on the execution date.
 - [ ] Current pricing-calculator and CLI support are rechecked after any code
       integration that lands before execution.
