@@ -4,19 +4,21 @@ This directory contains GitHub Actions workflows that automate the process of ge
 
 ## Current activation status
 
-As of 2026-08-22, Bundesliga 2025/26 and WM26 community entrypoints are
+As of 2026-08-25, Bundesliga 2025/26 and WM26 community entrypoints are
 historical and inert: they retain `workflow_call` only, with no active
 `workflow_dispatch` or `schedule` trigger. Former schedule and model
 descriptions later in this document are historical evidence, not activation
 evidence.
 
-The only Bundesliga 2026/27 Actions entrypoints are the exact manual-only
+The current Bundesliga 2026/27 Actions entrypoints are the two manual-only,
+model-independent production context callers and the exact manual-only
 `ehonda-ai-arena` Luna validation triad documented below. P0-17 records the
 [authoritative community matrix](../../docs/onboarding-bundesliga-2026-27/community-onboarding.md),
 P0-18 established the reusable workflow contract, and P0-21 alone enables
-final production schedules. The separately authorized Luna/none arena
-validation schedule was governed by ADR-0047 and is no longer present in the
-checked-in workflows.
+final production schedules. Final production matchday and bonus callers remain
+gated on the owner-selected model configuration. The separately authorized
+Luna/none arena validation schedule was governed by ADR-0047 and is no longer
+present in the checked-in workflows.
 
 ## Architecture Overview
 
@@ -57,12 +59,12 @@ record a successful context dispatch before either prediction dispatch. Arena
 traces use the Langfuse `production` environment because the posting target is a
 production community; this does not promote Luna/none to the production model.
 
-### Context Collection Workflows (historical entrypoints)
+### Context Collection Workflows
 
-- **`pes-squad-context-collection.yml`**: Inert retained context caller for `pes-squad`
-  - Retains `workflow_call` only; its former 12-hour cadence and manual trigger are inactive
-- **`schadensfresse-context-collection.yml`**: Inert retained context caller for `schadensfresse`
-  - Retains `workflow_call` only; its former 12-hour cadence and manual trigger are inactive
+- **`pes-squad-context-collection.yml`**: Current manual context caller for `pes-squad`
+  - Exposes `workflow_dispatch` only, pins `bundesliga-2026-27`, and has no schedule or inputs
+- **`schadensfresse-context-collection.yml`**: Current manual context caller for `schadensfresse`
+  - Exposes `workflow_dispatch` only, pins `bundesliga-2026-27`, and has no schedule or inputs
 - **`rabetrabauken2026-context-collection.yml`**: Historical WM26 reference context collection (`workflow_call` only)
   - Runs Kicktipp collection, guarded recent-history date-map application, FIFA ranking, and lineup context collection for `fifa-world-cup-2026`
   - Formerly used the WM26 context cadence: 23:47, 06:47, and 11:47 UTC

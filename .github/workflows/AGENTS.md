@@ -13,8 +13,22 @@ As of 2026-08-13, all WM26 entrypoint workflows are deactivated: their
 has concluded. The files keep `workflow_call` only so they remain valid for
 future reuse.
 
-As of 2026-08-22, the only Bundesliga 2026/27 Actions entrypoints are the
-manual-only self-contained arena Luna validation triad:
+As of 2026-08-25, the Bundesliga 2026/27 Actions entrypoints include the
+manual-only, model-independent production context callers:
+
+- `pes-squad-context-collection.yml`; and
+- `schadensfresse-context-collection.yml`.
+
+They expose `workflow_dispatch` only, have no inputs or schedule, pin their
+respective `community_context`, pin competition `bundesliga-2026-27`, and pass
+literal trigger type `manual` to the reusable context workflow. Their accepted
+community-specific Kicktipp credentials and shared Firebase mappings remain
+unchanged. Final production matchday and bonus callers remain gated on the
+owner-selected production model configuration and P0-21 activation evidence;
+the old production prediction callers remain retired.
+
+The current Actions entrypoints also include the manual-only self-contained
+arena Luna validation triad:
 
 - `buli2627-ehonda-ai-arena-context-collection.yml`;
 - `buli2627-ehonda-ai-arena-gpt-5-6-luna-none-matchday.yml`; and

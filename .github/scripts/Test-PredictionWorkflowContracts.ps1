@@ -157,6 +157,91 @@ function Assert-ExactSecretMappings {
     Assert-True ($expected.SetEquals($actual)) "$FileName secret mappings differ. Expected $($ExpectedMappings -join ', '); got $($actualMappings -join ', ')."
 }
 
+function Assert-ExactReusableMappingBlock {
+    param(
+        [string] $Content,
+        [string] $BlockName,
+        [string[]] $ExpectedMappings,
+        [string] $FileName
+    )
+
+    $block = [regex]::Match(
+        $Content,
+        "(?ms)^    $([regex]::Escape($BlockName)):\r?\n(?<body>.*?)(?=^    \S|\z)")
+    Assert-True $block.Success "$FileName does not contain a reusable-workflow $BlockName block."
+
+    $actualMappings = @([regex]::Matches(
+        $block.Groups['body'].Value,
+        '(?m)^      (?<key>[a-z0-9_]+):[ \t]*(?<value>[^\r\n]*)\r?$') |
+        ForEach-Object { "$($_.Groups['key'].Value)=$($_.Groups['value'].Value.Trim())" })
+    $nonEmptyBlockLines = @($block.Groups['body'].Value -split '\r?\n' |
+        Where-Object { -not [string]::IsNullOrWhiteSpace($_) })
+    Assert-True ($nonEmptyBlockLines.Count -eq $actualMappings.Count) "$FileName $BlockName block must contain only exact unquoted mapping keys with scalar values."
+    Assert-True ($actualMappings.Count -eq $ExpectedMappings.Count) "$FileName $BlockName mapping count differs. Expected $($ExpectedMappings.Count); got $($actualMappings.Count)."
+    for ($mappingIndex = 0; $mappingIndex -lt $ExpectedMappings.Count; $mappingIndex++) {
+        Assert-True ($actualMappings[$mappingIndex] -ceq $ExpectedMappings[$mappingIndex]) "$FileName $BlockName mapping at index $mappingIndex differs. Expected '$($ExpectedMappings[$mappingIndex])'; got '$($actualMappings[$mappingIndex])'."
+    }
+}
+
+function Assert-ProductionContextEntrypoints {
+    param([string] $WorkflowDirectory)
+
+    foreach ($caller in @(
+        @{
+            FileName = 'pes-squad-context-collection.yml'
+            CommunityContext = 'pes-squad'
+            KicktippUsername = 'PES_SQUAD_KICKTIPP_USERNAME'
+            KicktippPassword = 'PES_SQUAD_KICKTIPP_PASSWORD'
+        },
+        @{
+            FileName = 'schadensfresse-context-collection.yml'
+            CommunityContext = 'schadensfresse'
+            KicktippUsername = 'SCHADENSFRESSE_KICKTIPP_USERNAME'
+            KicktippPassword = 'SCHADENSFRESSE_KICKTIPP_PASSWORD'
+        }
+    )) {
+        $path = Join-Path $WorkflowDirectory $caller.FileName
+        Assert-True (Test-Path -LiteralPath $path) "$($caller.FileName) must exist."
+        $content = Get-Content -Raw -LiteralPath $path
+
+        Assert-ManualDispatchOnly $content $caller.FileName $false
+        Assert-True (-not [regex]::IsMatch((Get-TriggerBlock $content $caller.FileName), '(?m)^  (?:schedule|workflow_call):')) "$($caller.FileName) must not expose schedule or workflow_call."
+        Assert-True $content.StartsWith("name: $($caller.CommunityContext) ⚽ Context Collection", [StringComparison]::Ordinal) "$($caller.FileName) must retain the exact community context display name."
+
+        $topLevelKeys = @([regex]::Matches($content, '(?m)^(?<key>\S[^:\r\n]*):\s*') |
+            ForEach-Object { $_.Groups['key'].Value.Trim() })
+        Assert-True (($topLevelKeys -join ',') -ceq 'name,on,jobs') "$($caller.FileName) must contain exactly the name, on, and jobs top-level keys in order; got $($topLevelKeys -join ', ')."
+
+        $jobKeys = @([regex]::Matches($content, '(?m)^  (?<key>\S[^:\r\n]*):\s*') |
+            ForEach-Object { $_.Groups['key'].Value.Trim() })
+        Assert-True (($jobKeys -join ',') -ceq 'workflow_dispatch,call-base-workflow') "$($caller.FileName) must expose only workflow_dispatch and the call-base-workflow job at two-space indentation; got $($jobKeys -join ', ')."
+
+        $jobPropertyKeys = @([regex]::Matches($content, '(?m)^    (?<key>\S[^:\r\n]*):\s*') |
+            ForEach-Object { $_.Groups['key'].Value.Trim() })
+        Assert-True (($jobPropertyKeys -join ',') -ceq 'name,uses,with,secrets') "$($caller.FileName) call-base-workflow job keys must be exactly name, uses, with, and secrets; got $($jobPropertyKeys -join ', ')."
+
+        Assert-True ([regex]::IsMatch($content, "(?m)^    name: Context Collection - $([regex]::Escape($caller.CommunityContext))\r?$")) "$($caller.FileName) must retain the exact reusable job display name."
+        Assert-True ([regex]::IsMatch($content, '(?m)^    uses: \./\.github/workflows/base-context-collection\.yml\r?$')) "$($caller.FileName) must call exactly the reusable context workflow."
+        Assert-ExactReusableMappingBlock $content 'with' @(
+            "community_context=`"$($caller.CommunityContext)`"",
+            'competition="bundesliga-2026-27"',
+            'trigger_type="manual"'
+        ) $caller.FileName
+        Assert-ExactReusableMappingBlock $content 'secrets' @(
+            ('kicktipp_username=${{ secrets.' + $caller.KicktippUsername + ' }}'),
+            ('kicktipp_password=${{ secrets.' + $caller.KicktippPassword + ' }}'),
+            'firebase_project_id=${{ secrets.FIREBASE_PROJECT_ID }}',
+            'firebase_service_account_json=${{ secrets.FIREBASE_SERVICE_ACCOUNT_JSON }}'
+        ) $caller.FileName
+        Assert-ExactSecretMappings $content @(
+            "kicktipp_username=$($caller.KicktippUsername)",
+            "kicktipp_password=$($caller.KicktippPassword)",
+            'firebase_project_id=FIREBASE_PROJECT_ID',
+            'firebase_service_account_json=FIREBASE_SERVICE_ACCOUNT_JSON'
+        ) $caller.FileName
+    }
+}
+
 function Assert-ArenaLunaTriad {
     param(
         [string] $WorkflowDirectory,
@@ -474,6 +559,7 @@ $bonusBase = Get-Content -Raw -LiteralPath $bonusBasePath
 $arenaLunaMatchFileName = 'buli2627-ehonda-ai-arena-gpt-5-6-luna-none-matchday.yml'
 $arenaLunaBonusFileName = 'buli2627-ehonda-ai-arena-gpt-5-6-luna-none-bonus.yml'
 $arenaLunaTriadPresent = Assert-ArenaLunaTriad $workflowDirectory -AllowMissing:$AllowMissingArenaLunaTriad
+Assert-ProductionContextEntrypoints $workflowDirectory
 Assert-ArenaScheduleScannerSelfTests
 Assert-NoActiveArenaLunaSchedule $workflowDirectory
 

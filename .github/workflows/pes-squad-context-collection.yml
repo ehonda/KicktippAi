@@ -1,15 +1,7 @@
 name: pes-squad ⚽ Context Collection
 
 on:
-  # 🚫 Retained as workflow_call-only until P0-21 explicitly activates production.
-  workflow_call:
-  # Schedule to run every 12 hours starting at 00:00 UTC
-  # schedule:
-  #   - cron: '0 0 * * *'   # 00:00 UTC (01:00 CET, 02:00 CEST)
-  #   - cron: '0 12 * * *'  # 12:00 UTC (13:00 CET, 14:00 CEST)
-  #
-  # Allow manual triggering
-  # workflow_dispatch:
+  workflow_dispatch:
 
 jobs:
   call-base-workflow:
@@ -18,7 +10,7 @@ jobs:
     with:
       community_context: "pes-squad"
       competition: "bundesliga-2026-27"
-      trigger_type: ${{ github.event_name == 'schedule' && 'scheduled' || 'manual' }}
+      trigger_type: "manual"
     secrets:
       kicktipp_username: ${{ secrets.PES_SQUAD_KICKTIPP_USERNAME }}
       kicktipp_password: ${{ secrets.PES_SQUAD_KICKTIPP_PASSWORD }}

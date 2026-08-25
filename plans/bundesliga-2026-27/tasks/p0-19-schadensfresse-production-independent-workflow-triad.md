@@ -1,6 +1,6 @@
 # P0-19 — Add the `schadensfresse` independent-production workflow triad
 
-- Status: Not started — the model-independent context caller may be prepared; final matchday and bonus callers wait for the P0-06 owner-selected `production-primary` identity
+- Status: In progress — the model-independent manual context caller is prepared; final matchday and bonus callers wait for the P0-06 owner-selected `production-primary` identity
 - Priority: P0
 - Matrix row: `schadensfresse-production-independent`
 - Depends on: [P0-06](p0-06-model-ledger-and-cost-baseline.md), [P0-17](p0-17-community-scope.md), and [P0-18](p0-18-base-workflow-support.md)
@@ -15,7 +15,7 @@ context, matchday, and bonus workflow triad for competition
 `schadensfresse`; every match and bonus prediction is generated independently
 with the exact owner-approved `production-primary` identity.
 
-The model-independent context entrypoint may be prepared autonomously from the
+The model-independent context entrypoint is prepared from the
 accepted target/context topology and credential names. Final matchday and bonus
 caller construction waits only for the exact P0-06 `production-primary`
 identity. Secret presence, authentication/readiness, POST permission, Kicktipp
@@ -50,11 +50,22 @@ gate, or treat successful authentication as season readiness.
 
 ## Work items
 
-- [ ] Copy the current P0-19 template into an explicit `schadensfresse` context
+- [x] Copy the current P0-19 template into an explicit `schadensfresse` context
       entrypoint pinned to posting context `schadensfresse`, competition
       `bundesliga-2026-27`, and the accepted Bundesliga context profile. This
-      model-independent repository work may proceed before P0-06 selection and
+      model-independent repository work was completed before P0-06 selection and
       before the external community administrator completes setup.
+      Evidence: [`schadensfresse-context-collection.yml`](../../../.github/workflows/schadensfresse-context-collection.yml)
+      exposes `workflow_dispatch` only and passes literal
+      `community_context: "schadensfresse"`,
+      `competition: "bundesliga-2026-27"`, and `trigger_type: "manual"`. Its
+      exact four symbolic mappings are
+      `SCHADENSFRESSE_KICKTIPP_USERNAME`,
+      `SCHADENSFRESSE_KICKTIPP_PASSWORD`, `FIREBASE_PROJECT_ID`, and
+      `FIREBASE_SERVICE_ACCOUNT_JSON`; the local workflow contract and
+      targeted actionlint and repository-wide actionlint with only unchanged
+      shellcheck baseline codes excluded all passed without a dispatch or live
+      operation.
 - [ ] Create the `schadensfresse` matchday entrypoint with posting target
       `schadensfresse`, `community_context: "schadensfresse"`, the exact approved
       `production-primary` model/reasoning/cap/service policy, and the accepted
@@ -113,11 +124,11 @@ gate, or treat successful authentication as season readiness.
 
 ## Validation
 
-- Validate YAML syntax, workflow-call contracts, explicit secret mapping, and
+- Validate YAML syntax, reusable-workflow contracts, explicit secret mapping, and
   deterministic caller inventory.
 - Run focused workflow-contract and telemetry tests plus every affected full
   suite.
-- Confirm no active trigger, 2025/26 identity, WM26 route, transfer document,
+- Confirm no schedule or non-manual trigger, 2025/26 identity, WM26 route, transfer document,
   Luna/none production inference, unresolved model slot, placeholder credential,
   or external write is introduced.
 
