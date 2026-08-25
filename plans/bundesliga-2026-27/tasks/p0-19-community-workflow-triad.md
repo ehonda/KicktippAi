@@ -14,7 +14,7 @@ One selected community has context, matchday, and bonus entrypoints pinned to it
 - Copy this file to `p0-19-<community>-workflow-triad.md`.
 - Replace every reference to “the community” with the exact P0-17 matrix row.
 - Add the copied task to the P0 table in `README.md`; leave this template uncompleted.
-- For a final production entrypoint, wait for P0-06 owner approval before replacing its model/configuration slot. Luna/none validation entrypoints may proceed earlier.
+- For a final production entrypoint, wait for P0-06 owner approval before replacing its model/configuration slot, and require [P0-24](p0-24-bonus-copy-post-compatibility.md) before enabling bonus copy-post behavior. Luna/none validation entrypoints may proceed earlier.
 
 ## Work items
 

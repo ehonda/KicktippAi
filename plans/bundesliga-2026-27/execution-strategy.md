@@ -1,7 +1,7 @@
 # Bundesliga 2026/27 execution strategy
 
 - Status: Accepted starting point
-- Last updated: 2026-08-21
+- Last updated: 2026-08-25
 - Implementation gate: Ready for an explicit implementation-orchestration request; this planning change does not start implementation
 
 This document describes how to deliver the accepted P0 scope quickly while preserving the project owner's control over the few deliberately late production choices. Task files and accepted ADRs are the implementation contracts.
@@ -23,9 +23,10 @@ This document describes how to deliver the accepted P0 scope quickly while prese
 | Context integration | P0-12 through P0-16 plus P0-22 | Match/bonus allowlists, exact history played dates, and budgets pass; no WM26, old-season, stale, duplicate, or transfer context leaks |
 | Community workflows | P0-17 through P0-19 for the fixed Luna/none path and production templates | Community matrix is complete; test entrypoints are explicit; final schedules remain disabled |
 | Development and arena validation | P0-20 | Dev and arena ladder evidence passes, including fail-closed cases |
-| Production selection and activation | Finish P0-06, production P0-19 copies, then P0-21 | Owner approves final model/prompt/cost and Club Elo network policy; all production communities pass manual and first scheduled validation |
+| Production evidence and copy safety | P0-23 and P0-24 in parallel | Owner-authorized GPT-5.6 cost/quality evidence or an explicit owner waiver exists; compatible bonus copy is zero-model and ordinary incompatibility produces exactly one independent target prediction |
+| Production selection and activation | Finish P0-06, production P0-19 copies, then P0-21 | Owner approves the final model/cost/challenger configuration against the accepted prompt versions and records the Club Elo mode; all production communities pass manual and first scheduled validation |
 
-The likely critical path is P0-04 -> P0-07 -> P0-08 -> P0-09 -> P0-12 -> P0-22 -> P0-14 -> P0-15 -> P0-16 -> P0-17 -> P0-18 -> P0-19 -> P0-20 -> P0-21. Prompt work, Club Elo provider work, and other independent foundations can advance beside it within the resource limits below.
+The implementation path through P0-20 is complete. The closeout path is parallel P0-23 production-candidate evidence and P0-24 bonus copy safety, then the final P0-06 owner decision, production P0-19 copies, and P0-21. Prompt work is already fixed at the accepted numbered versions; Club Elo network reuse remains independently gated and the dated-seed path remains launch-safe.
 
 ## Agent roles and task loop
 
@@ -104,7 +105,7 @@ The repository currently builds/tests PRs and pushes to `main`; native auto-merg
 | Communities | Dev: `ehonda-dev-buli-2627`; production: `pes-squad`, `schadensfresse`, `ehonda-ai-arena` |
 | Prediction topology | `pes-squad` reference; `schadensfresse` independent; matching production arena entry copy-posted from `pes-squad`; challengers independent |
 | Rosters | DuckDB primary per valid 2026/27 club; complete one-time fallback seed; last-known-good on invalid data; `N/A` enrichment gaps |
-| Prompts | Langfuse hosted primary, `production` label for schedules, checked-in local mirror fallback |
+| Prompts | Accepted hosted match v2 and bonus v1, with required `production` membership for scheduled/hosted-required routes; checked-in local mirrors remain the ordinary outage fallback |
 | Plumbing model | `gpt-5.6-luna`, `none` reasoning, pinned output cap; never promote silently to production |
 | Context | Explicit live allowlists; stale/duplicate team/manager cleanup and question-aware bonus budgeting before production |
 | Club Elo | Implement provider/cache/gates now; a complete dated seed is launch-safe; network use remains an owner gate |
@@ -119,9 +120,9 @@ Confirmed by the project owner on 2026-08-16:
 - Existing local and GitHub Actions Firebase, OpenAI, Langfuse, and other shared credentials remain valid from prior WM26 runs.
 - The base local `.env` remains the development credential source.
 
-The local audit found that normal `verify`, `matchday`, and `bonus` commands currently load only the base `.env`; only `prepare-community-to-date` switches to `.env.<community>`. P0-17 therefore includes community-specific credential loading for ordinary local arena validation. Agents must inspect names/presence without printing secret values.
+P0-17 recorded posting-target credential resolution and the implementation now loads a present `.env.<posting-community>` for ordinary local arena validation without replacing the shared base environment. Agents inspect names/presence without printing secret values.
 
-The connected GitHub token could not enumerate Actions secret names, so the owner's provisioning confirmation is the planning source of truth. P0-20 still verifies actual workflow connectivity and fails safely before final production activation.
+The connected GitHub token could not enumerate Actions secret names, so the owner's provisioning confirmation remains the planning source of truth. P0-20 subsequently verified the Luna arena workflow connectivity and fail-closed behavior without exposing values; production-participant credentials remain a P0-21 runtime gate.
 
 ## Deliberately late owner gates
 
@@ -129,7 +130,7 @@ These are not ambiguities agents may decide on their own:
 
 | Decision | Timing | Work that may proceed first |
 |---|---|---|
-| Final production model, reasoning, output cap, exact prompt versions, arena challengers, and cost ceiling | Late in P0, before production onboarding/dispatch | All plumbing with Luna/none; experiment design and cost-estimate preparation |
+| Final production model, reasoning, output cap, service/fallback policy, arena challengers, and cost ceiling; carry accepted match v2/bonus v1 unless a successor ADR changes them | Late in P0, after P0-23 comparative evidence or an explicit owner waiver and before production onboarding/dispatch | Completed Luna/none plumbing and cost row; owner-authorized candidate evidence preparation |
 | Whether Club Elo terms permit unattended network refresh, or which permitted alternative to use | Late before go-live | Provider boundary, validation, cache, dated seed, and last-known-good behavior |
 | Exact production schedules, spacing, rollback trigger, and activation | P0-21 after manual evidence | Manual-only workflows and the arena validation schedule |
 | `pes-squad` and `schadensfresse` season setup | Later, before their production validation | All foundations, dev/arena validation, and workflow templates |

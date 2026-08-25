@@ -1,8 +1,8 @@
 # P0-06 — Pin the model ledger and launch cost baseline
 
-- Status: In progress — Luna cost baseline complete; final production owner decision pending
+- Status: In progress — Luna cost baseline complete; P0-23 comparative evidence or owner waiver and final production decision pending
 - Priority: P0
-- Depends on: [P0-05](p0-05-prompt-route.md) (complete; owner-approved production prompt versions and hashes recorded below)
+- Depends on: [P0-05](p0-05-prompt-route.md) (complete; owner-approved production prompt versions and hashes recorded below), [P0-23](p0-23-gpt-5-6-production-candidate-evidence.md)
 - Decisions: [ADR-0004](../decisions/0004-hosted-prompts-with-local-fallback.md), [ADR-0006](../decisions/0006-stage-validation-with-a-cheap-test-model.md), [ADR-0033](../decisions/0033-pin-validation-model-ledger-and-reserve-production-selection.md), [ADR-0039](../decisions/0039-record-bundesliga-community-and-credential-topology.md), [ADR-0040](../decisions/0040-use-hash-bound-2025-26-context-for-preseason-cost-experiments.md), [ADR-0043](../decisions/0043-freeze-historical-experiment-aliases-and-eligible-pool.md), [ADR-0046](../decisions/0046-bind-cost-usage-to-langfuse-dataset-runs.md)
 
 ## Outcome
@@ -15,7 +15,7 @@ The cheap plumbing configuration and the later owner-approved launch configurati
 - [x] Prepare the reproducible no-spend experiment and whole-season cost procedure for the late owner decision, accounting for the model cutoff and the lack of a matching paid base row.
 - [x] Add the hash-bound, read-only Bundesliga 2025/26 compatibility route required to prepare the preseason cost sample without relaxing live 2026/27 validation or mutating historical Firestore rows.
 - [x] Freeze the producer-era 18-team alias catalog and sample once from the complete context-eligible historical pool rather than selecting fixtures before reconstruction coverage is known.
-- [ ] Pause production onboarding for the owner to select the final model, reasoning effort, maximum output tokens, prompts, arena challengers, fallback behavior, and cost ceiling; record the approved values in an ADR.
+- [ ] After P0-23 supplies comparative cost/quality evidence or the owner explicitly waives missing evidence, pause production onboarding for the owner to select the final model, reasoning effort, maximum output tokens, accepted prompt versions, arena challengers, fallback behavior, and cost ceiling; record the approved values and any waiver in an ADR.
 - [x] Add the exact configuration to the repository's model/onboarding ledger rather than relying on command defaults.
 - [x] Estimate 306 fixtures and the documented 493-call reprediction baseline from the paid Luna/none preseason seven-document proxy row, explicitly retaining its possible understatement versus the live eleven-document 2026/27 context.
 - [x] Record the no-spend estimator result, assumptions, official prices, and date in `docs/experiments/whole-season-cost-estimates.md`.

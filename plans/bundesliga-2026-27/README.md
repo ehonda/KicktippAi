@@ -25,7 +25,7 @@ The accepted [execution strategy](execution-strategy.md) defines gated orchestra
 | [P0-03](tasks/p0-03-matchday-completion.md) | Require nine completed matches per Bundesliga matchday | P0-01 |
 | [P0-04](tasks/p0-04-team-manifest.md) | Check in the exact 18-team join manifest | — |
 | [P0-05](tasks/p0-05-prompt-route.md) | Implement hosted 2026/27 prompts with local fallback | P0-01 |
-| [P0-06](tasks/p0-06-model-ledger-and-cost-baseline.md) | Pin test identity and later approve the launch model/cost baseline | P0-05 |
+| [P0-06](tasks/p0-06-model-ledger-and-cost-baseline.md) | Pin test identity and later approve the launch model/cost baseline | P0-05, P0-23 |
 | [P0-07](tasks/p0-07-roster-contract.md) | Define quality-gated DuckDB and fallback roster contracts | P0-04 |
 | [P0-08](tasks/p0-08-roster-membership-seed.md) | Author and audit fallback membership for all clubs | P0-07 |
 | [P0-09](tasks/p0-09-roster-collector.md) | Select, enrich, and publish complete roster documents | P0-07, P0-08 |
@@ -41,10 +41,12 @@ The accepted [execution strategy](execution-strategy.md) defines gated orchestra
 | [P0-19 template](tasks/p0-19-community-workflow-triad.md) | Copy an explicit workflow-triad task per deployable matrix row | P0-17, P0-18 |
 | [P0-19 arena Luna](tasks/p0-19-arena-luna-self-contained-workflow-triad.md) | Add exactly one manual-only self-contained arena Luna validation triad | P0-17, P0-18 |
 | [P0-20](tasks/p0-20-seed-and-development-validation.md) | Seed context and validate dev plus arena plumbing | P0-02 through P0-18, P0-22, local dev path, Luna/none arena P0-19 entrypoints |
-| [P0-21](tasks/p0-21-production-activation.md) | Validate production, submit opening predictions, and enable schedules | P0-06, P0-20, production P0-19 entrypoints |
+| [P0-21](tasks/p0-21-production-activation.md) | Validate production, submit opening predictions, and enable schedules | P0-06, P0-20, P0-24, production P0-19 entrypoints |
 | [P0-22](tasks/p0-22-history-played-dates.md) | Reconstruct exact played dates for recent, home, and away history | P0-02, P0-04 |
+| [P0-23](tasks/p0-23-gpt-5-6-production-candidate-evidence.md) | Collect cutoff-safe GPT-5.6 production-candidate cost and quality evidence | P0-05, P0-12, P0-20 |
+| [P0-24](tasks/p0-24-bonus-copy-post-compatibility.md) | Prove exact bonus question and complete-option-set copy compatibility | P0-16, P0-17, P0-18 |
 
-P0-01 and P0-04 can begin independently. After P0-01, storage, completion, and prompt work can proceed in dependency-safe lanes; after P0-04, roster, Club Elo, and history played-date work can proceed independently. Context hygiene joins those lanes before any community workflow can generate a real prediction. P0-21 is the only task authorized to enable final production schedules.
+P0-01 and P0-04 can begin independently. After P0-01, storage, completion, and prompt work can proceed in dependency-safe lanes; after P0-04, roster, Club Elo, and history played-date work can proceed independently. Context hygiene joins those lanes before any community workflow can generate a real prediction. For closeout, P0-23 and P0-24 may proceed in parallel: P0-23 gates the remaining P0-06 owner decision unless the owner records an explicit evidence waiver, while P0-24 gates production bonus-copy entrypoints and activation. P0-21 is the only task authorized to enable final production schedules.
 
 For P0-19, copy the template once per community matrix row that needs an
 entrypoint so each workflow triad can be implemented and reviewed
@@ -81,8 +83,9 @@ P0 is complete only when:
 - bonus context is question-aware and bounded before the only pre-season bonus predictions are generated;
 - a partial matchday is not complete before all nine matches are complete;
 - hosted prompt versions and local mirrors agree, and the exact production model/configuration has owner approval plus a reproducible cost estimate;
+- final production selection uses the P0-23 comparative evidence, or its Accepted ADR explicitly records the owner's evidence waiver and accepted risk;
 - autonomous Luna/none validation passes in development and through the arena local, `workflow_dispatch`, and schedule ladder;
-- manual production runs and opening writes succeed for `pes-squad`, `schadensfresse`, and `ehonda-ai-arena`, including compatible prediction copy-posting;
+- manual production runs and opening writes succeed for `pes-squad`, `schadensfresse`, and `ehonda-ai-arena`, including P0-24-compatible prediction copy-posting without an extra model call;
 - final schedules remain disabled until P0-21 records the launch decision and successful manual evidence, then the first scheduled sequence is observed.
 
 ## Decision index
