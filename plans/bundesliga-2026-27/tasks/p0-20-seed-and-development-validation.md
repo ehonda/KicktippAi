@@ -19,7 +19,7 @@ with trace evidence. No development Actions triad exists.
 - [ ] Prove every selected recent/home/away row has an exact source-attributed played date, including one current Bundesliga fixture and one intervening non-league fixture; record zero unresolved/ambiguous rows and prove head-to-head content was not rewritten.
 - [ ] Query/inspect stored identities and prove no old unscoped Bundesliga or WM26 document satisfied the run.
 - [ ] Verify all CSVs render header-first, deterministic, CRLF-terminated content with a final terminator.
-- [ ] Run a local CLI development prediction cycle in `ehonda-dev-buli-2627` covering a complete nine-match matchday and representative champion/relegation/top-scorer/coach bonus questions; do not treat the arena Actions triad as a development-community workflow.
+- [x] Run a local CLI development prediction cycle in `ehonda-dev-buli-2627` covering a complete nine-match matchday and representative champion/relegation/top-scorer/coach bonus questions; do not treat the arena Actions triad as a development-community workflow.
 - [ ] Use `gpt-5.6-luna` with `none` reasoning for autonomous dev and arena plumbing validation; do not judge or promote its prediction quality.
 - [ ] Using the owner-confirmed arena setup, validate the same cheap configuration through local CLI, `workflow_dispatch`, and an arena-only schedule.
 - [ ] Verify the owner-confirmed Firebase, OpenAI, Langfuse, Kicktipp, and workflow credentials by connectivity and behavior without displaying secret values.
@@ -119,8 +119,98 @@ verified on the hosted retry; they do not satisfy P0-20.
 records the repair: retrieve immutable prompts by version only, prove the exact
 returned name/version/`production` binding, and require that hosted preflight
 before prediction-service construction in the Bundesliga dev shortcuts. Live
-retry remains paused until the repair is independently reviewed, integrated,
-pushed, and exact-head CI is green.
+retry remained paused at that checkpoint until the repair was independently
+reviewed, integrated, pushed, and exact-head CI was green.
+
+### Corrected hosted local-development rung — 2026-08-25
+
+After ADR-0045 was independently reviewed, integrated, pushed, and green at
+exact head `59212665c5f079a9cc2b15409d502ac7cd0db0a5` (CI run
+`32808395594`, all 12 jobs successful), the authorized local-development rung
+was rerun in strict order:
+
+```powershell
+dotnet run --no-build --project src/Orchestrator -- matchday-dev --community ehonda-dev-buli-2627 --community-context ehonda-dev-buli-2627 --competition bundesliga-2026-27 --verbose
+dotnet run --no-build --project src/Orchestrator -- bonus-dev --community ehonda-dev-buli-2627 --community-context ehonda-dev-buli-2627 --competition bundesliga-2026-27 --verbose
+```
+
+`matchday-dev` ran from `2026-08-25T04:24:27.4970498Z` through
+`2026-08-25T04:25:05.6604361Z` and exited zero. Its hosted preflight returned
+HTTP 200 and resolved exact match prompt
+`kicktippai/bundesliga-2026-27/predict-one-match` version 2 with required
+`production` membership before model construction. The command updated the
+prior failed-rung records at reprediction index 0 and posted all nine Kicktipp
+bets in this exact order: FC Bayern München–VfB Stuttgart,
+1. FC Köln–1899 Hoffenheim, SV Elversberg–Bayer 04 Leverkusen,
+FSV Mainz 05–SC Paderborn 07, 1. FC Union Berlin–Eintracht Frankfurt,
+RB Leipzig–Bor. Mönchengladbach, Borussia Dortmund–Hamburger SV,
+SC Freiburg–Werder Bremen, and FC Augsburg–FC Schalke 04. No prediction
+values are retained here.
+
+`bonus-dev` ran from `2026-08-25T04:25:22.2425643Z` through
+`2026-08-25T04:25:43.2620088Z` and exited zero. Its hosted preflight returned
+HTTP 200 and resolved exact bonus prompt
+`kicktippai/bundesliga-2026-27/predict-bonus` version 1 with required
+`production` membership before model construction. Kicktipp exposed exactly
+five questions, all of which were stored and posted in this order:
+
+1. `Welche Mannschaften belegen die Plätze 16-18?` (`Relegation`);
+2. `Welche Mannschaft stellt den Spieler mit den meisten Toren?`
+   (`TopScorer`);
+3. `Wer wird Deutscher Meister?` (`Champion`);
+4. `Wer wird Herbstmeister?` (`Unknown`, the accepted ADR-0038 two-document
+   baseline);
+5. `Wo findet der erste Trainerwechsel statt?` (`Coach`).
+
+The category context selections were respectively 2, 20, 2, 2, and 20
+documents. Their estimated token counts were 567, 9,398, 567, 567, and 9,398,
+all within the immutable 20-document/32,000-token budgets.
+
+Read-only verification used the complete stored identities rather than model
+name alone:
+
+```powershell
+dotnet run --no-build --project src/Orchestrator -- verify gpt-5.6-luna --community ehonda-dev-buli-2627 --community-context ehonda-dev-buli-2627 --competition bundesliga-2026-27 --reasoning-effort none --max-output-tokens 10000 --prompt-source langfuse --langfuse-prompt-name kicktippai/bundesliga-2026-27/predict-one-match --langfuse-prompt-label production --langfuse-prompt-version 2 --verbose --agent
+dotnet run --no-build --project src/Orchestrator -- verify-bonus gpt-5.6-luna --community ehonda-dev-buli-2627 --community-context ehonda-dev-buli-2627 --competition bundesliga-2026-27 --reasoning-effort none --max-output-tokens 10000 --prompt-source langfuse --langfuse-prompt-name kicktippai/bundesliga-2026-27/predict-bonus --langfuse-prompt-label production --langfuse-prompt-version 1 --verbose --agent
+```
+
+Both exited zero. Match verification found 9 Kicktipp predictions, 9 Firestore
+predictions, and 9 exact matches in the order above. Bonus verification found
+the same 5 exposed questions in Kicktipp and Firestore, all valid. A read-only
+cost inventory independently found only the two accepted
+`gpt-5.6-luna`/`none`/cap-`10000` prompt configurations in this scope, with 9
+match and 5 bonus documents at reprediction index 0. This successful hosted run
+therefore replaces the earlier fallback-based match records; those failed-rung
+records are not reused as evidence.
+
+The installed Langfuse CLI was queried with `core`, `metrics`, `metadata`,
+`model`, `usage`, `prompt`, and trace-context fields only; input, output,
+prompt text, and context payloads were not requested or retained. Immutable
+prompt readback independently confirmed match v2 and bonus v1 are active text
+prompts carrying `production`. The redacted traces were:
+
+- matchday trace `15117e2e3082bb0987d3684df54d8ac6`, timestamp
+  `2026-08-25T04:24:29.640Z`, 9 ordered `predict-match` observations;
+- bonus trace `58adee48590f299900e7745a3d61c5d7`, timestamp
+  `2026-08-25T04:25:24.303Z`, 5 ordered `predict-bonus` observations.
+
+Every observation recorded environment `development`, community/context
+`ehonda-dev-buli-2627`, competition `bundesliga-2026-27`, model
+`gpt-5.6-luna`, reasoning `none`, output cap `10000`, requested and actual
+source `langfuse`, requested label `production`, and `fallback=false`. Match
+observations resolved prompt v2 with content SHA-256
+`94a7aa775546028d3ded89f626873d7dfce162d1f08bb9573e102dd427ac08c1`;
+bonus observations resolved prompt v1 with SHA-256
+`332bac6d654871d843fc8a47345ff3e2b1f902fa8d1d2243166283304bb005e9`.
+All calls requested and received the `flex` tier with no tier fallback. No
+output cap was hit.
+
+Match aggregate usage was 36,739 uncached input, zero cached input, zero
+reasoning, and 153 output tokens, costing USD `0.0037657`. Bonus aggregate
+usage was 37,327 uncached input, zero cached input, zero reasoning, and 98
+output tokens, costing USD `0.0037915`. No WM26, arena, workflow, or schedule
+operation followed. The earlier strict 401/401 context, 54-history/430-row,
+306-H2H, and stable H2H hash evidence remains unchanged.
 
 ## Complete when
 
