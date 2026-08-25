@@ -40,6 +40,8 @@ The accepted [execution strategy](execution-strategy.md) defines gated orchestra
 | [P0-18](tasks/p0-18-base-workflow-support.md) | Teach reusable workflows the Bundesliga profile | P0-14, P0-17 |
 | [P0-19 template](tasks/p0-19-community-workflow-triad.md) | Copy an explicit workflow-triad task per deployable matrix row | P0-17, P0-18 |
 | [P0-19 arena Luna](tasks/p0-19-arena-luna-self-contained-workflow-triad.md) | Add exactly one manual-only self-contained arena Luna validation triad | P0-17, P0-18 |
+| [P0-19 pes-squad production reference](tasks/p0-19-pes-squad-production-reference-workflow-triad.md) | Blocked/nondeployable: add the manual-only `pes-squad` reference-production triad after owner selection and readiness gates | P0-06, P0-17, P0-18 |
+| [P0-19 schadensfresse independent production](tasks/p0-19-schadensfresse-production-independent-workflow-triad.md) | Blocked/nondeployable: add the manual-only independent `schadensfresse` production triad after owner selection and community remediation | P0-06, P0-17, P0-18 |
 | [P0-20](tasks/p0-20-seed-and-development-validation.md) | Seed context and validate dev plus arena plumbing | P0-02 through P0-18, P0-22, local dev path, Luna/none arena P0-19 entrypoints |
 | [P0-21](tasks/p0-21-production-activation.md) | Validate production, submit opening predictions, and enable schedules | P0-06, P0-20, P0-24, production P0-19 entrypoints |
 | [P0-22](tasks/p0-22-history-played-dates.md) | Reconstruct exact played dates for recent, home, and away history | P0-02, P0-04 |

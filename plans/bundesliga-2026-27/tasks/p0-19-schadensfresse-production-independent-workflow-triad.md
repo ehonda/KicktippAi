@@ -15,9 +15,11 @@ context, matchday, and bonus workflow triad for competition
 `schadensfresse`; every match and bonus prediction is generated independently
 with the exact owner-approved `production-primary` identity.
 
-This task creates entrypoints only after every gate below passes. It authorizes
-no community request, prediction, workflow dispatch, schedule, or production
-write. P0-21 exclusively owns manual production evidence and activation.
+This task constructs schedule-free entrypoints only after the model, community,
+and credential prerequisites in `Current blocked state` pass. The separate
+P0-21 activation gates remain open after construction. This task authorizes no
+community request, prediction, workflow dispatch, schedule, or production write.
+P0-21 exclusively owns manual production evidence and activation.
 
 ## Current blocked state
 
@@ -37,8 +39,6 @@ write. P0-21 exclusively owns manual production evidence and activation.
       `SCHADENSFRESSE_KICKTIPP_PASSWORD` without displaying values. Actions
       presence is unknown; accepted names are not evidence that repository
       secrets exist.
-- [ ] P0-21 records the exact Kicktipp match and bonus deadlines, operator,
-      monitor/on-call, schedule proposal, and rollback authority.
 
 Do not infer any unresolved value from Luna/none validation, a historical
 Bundesliga or WM26 caller, a model default, a local environment file, or an old
@@ -59,7 +59,7 @@ gate, or treat successful authentication as season readiness.
       hosted numbered match prompt with required `production` membership.
 - [ ] Create the `schadensfresse` bonus entrypoint with the same exact posting,
       context, model, cap, and service identity plus the accepted hosted numbered
-      bonus prompt and immutable bonus document/token budgets.
+      bonus prompt and explicit immutable budgets of 20 documents / 32000 tokens.
 - [ ] Wire only `SCHADENSFRESSE_KICKTIPP_USERNAME` and
       `SCHADENSFRESSE_KICKTIPP_PASSWORD` as the posting credential pair, plus the
       already accepted shared Firebase/OpenAI/Langfuse inputs required by each
@@ -77,16 +77,22 @@ gate, or treat successful authentication as season readiness.
       exact 2026/27 competition, posting/context identity, numbered hosted
       prompts, approved model configuration, credential names, schedule absence,
       and rejection of historical/Luna inference.
-- [ ] Validate the three YAML files and every reusable-workflow input; prove the
-      context job must complete successfully before either prediction workflow
-      is manually dispatched.
+- [ ] Validate the three YAML files and every reusable-workflow input. For the
+      separate manual callers, require the P0-21 operator to record the exact
+      successful context workflow run ID and completion before manually
+      dispatching either prediction workflow. Machine-enforced `needs` ordering
+      belongs only to a later Accepted outer workflow.
 
 ## Activation boundary
 
+- [ ] P0-21 records the exact Kicktipp match and bonus deadlines, operator,
+      monitor/on-call, schedule proposal, and rollback authority.
 - [ ] Hand the reviewed, green, manual-only triad to P0-21 without dispatching it.
 - [ ] P0-21 manually collects and inspects `schadensfresse` context, then
-      manually generates/verifies match and required bonus predictions before any
-      schedule is enabled.
+      records the exact successful context workflow run ID and completion before
+      dispatching and verifying match and required bonus predictions. A later
+      Accepted outer workflow must use machine-enforced `needs` ordering before
+      any schedule is enabled.
 - [ ] P0-21 verifies exact Kicktipp, Firestore, hosted-prompt, model, context,
       telemetry, usage/cost, and error evidence for the independent-generation
       path.
