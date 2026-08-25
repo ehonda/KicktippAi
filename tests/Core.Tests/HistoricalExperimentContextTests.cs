@@ -24,10 +24,9 @@ public sealed class HistoricalExperimentContextTests
         var resolved = await new Bundesliga2025_26HistoricalExperimentContextResolver(reader.Object)
             .ResolveAtTimestampAsync(Match, Community, EvaluationTimestamp);
 
-        var expectedNames = MatchContextDocumentCatalog.ForMatch(
+        var expectedNames = Bundesliga2025_26HistoricalExperimentDocumentCatalog.ForMatch(
             Match,
-            Community,
-            CompetitionIds.Bundesliga2025_26).RequiredDocumentNames;
+            Community).RequiredDocumentNames;
         await Assert.That(resolved.Documents.Select(document => document.Name).SequenceEqual(expectedNames, StringComparer.Ordinal)).IsTrue();
         await Assert.That(resolved.Manifest.Documents.Count).IsEqualTo(7);
         await Assert.That(resolved.Manifest.Documents.Select(document => document.Name).SequenceEqual(expectedNames, StringComparer.Ordinal)).IsTrue();
@@ -78,13 +77,105 @@ public sealed class HistoricalExperimentContextTests
             .Throws<InvalidDataException>();
     }
 
+    [Test]
+    public async Task Historical_catalog_preserves_exact_producer_era_fcs_and_fck_names()
+    {
+        var selection = Bundesliga2025_26HistoricalExperimentDocumentCatalog.ForMatch(
+            "FC St. Pauli",
+            "1. FC Köln",
+            Community);
+
+        await Assert.That(selection.RequiredDocumentNames).IsEquivalentTo(
+        [
+            "bundesliga-standings.csv",
+            "community-rules-pes-squad.md",
+            "recent-history-fcs.csv",
+            "recent-history-fck.csv",
+            "home-history-fcs.csv",
+            "away-history-fck.csv",
+            "head-to-head-fcs-vs-fck.csv"
+        ]);
+        await Assert.That(selection.RequiredDocumentNames.SequenceEqual(
+        [
+            "bundesliga-standings.csv",
+            "community-rules-pes-squad.md",
+            "recent-history-fcs.csv",
+            "recent-history-fck.csv",
+            "home-history-fcs.csv",
+            "away-history-fck.csv",
+            "head-to-head-fcs-vs-fck.csv"
+        ], StringComparer.Ordinal)).IsTrue();
+        await Assert.That(() => Bundesliga2025_26HistoricalExperimentDocumentCatalog.GetTeamAlias("FC St Pauli"))
+            .Throws<InvalidDataException>();
+    }
+
+    [Test]
+    [Arguments("1. FC Heidenheim 1846", "fch")]
+    [Arguments("1. FC Köln", "fck")]
+    [Arguments("1. FC Union Berlin", "fcu")]
+    [Arguments("1899 Hoffenheim", "tsg")]
+    [Arguments("Bayer 04 Leverkusen", "b04")]
+    [Arguments("Bor. Mönchengladbach", "bmg")]
+    [Arguments("Borussia Dortmund", "bvb")]
+    [Arguments("Eintracht Frankfurt", "sge")]
+    [Arguments("FC Augsburg", "fca")]
+    [Arguments("FC Bayern München", "fcb")]
+    [Arguments("FC St. Pauli", "fcs")]
+    [Arguments("FSV Mainz 05", "m05")]
+    [Arguments("Hamburger SV", "hsv")]
+    [Arguments("RB Leipzig", "rbl")]
+    [Arguments("SC Freiburg", "scf")]
+    [Arguments("VfB Stuttgart", "vfb")]
+    [Arguments("VfL Wolfsburg", "wob")]
+    [Arguments("Werder Bremen", "svw")]
+    public async Task Historical_catalog_freezes_every_producer_era_team_alias(
+        string teamName,
+        string expectedAlias)
+    {
+        await Assert.That(Bundesliga2025_26HistoricalExperimentDocumentCatalog.GetTeamAlias(teamName))
+            .IsEqualTo(expectedAlias);
+    }
+
+    [Test]
+    public async Task Try_resolution_returns_null_only_for_a_genuinely_absent_exact_document()
+    {
+        var names = Bundesliga2025_26HistoricalExperimentDocumentCatalog.ForMatch(Match, Community).RequiredDocumentNames;
+        var reader = CreateReader();
+        reader.Setup(repository => repository.GetContextDocumentAtOrBeforeAsync(
+                names[2], Community, EvaluationTimestamp, It.IsAny<CancellationToken>()))
+            .ReturnsAsync((ContextDocument?)null);
+
+        var result = await new Bundesliga2025_26HistoricalExperimentContextResolver(reader.Object)
+            .TryResolveAtTimestampAsync(Match, Community, EvaluationTimestamp);
+
+        await Assert.That(result).IsNull();
+    }
+
+    [Test]
+    public async Task Try_resolution_does_not_treat_malformed_identity_as_ineligible()
+    {
+        var names = Bundesliga2025_26HistoricalExperimentDocumentCatalog.ForMatch(Match, Community).RequiredDocumentNames;
+        var reader = CreateReader();
+        reader.Setup(repository => repository.GetContextDocumentAtOrBeforeAsync(
+                names[2], Community, EvaluationTimestamp, It.IsAny<CancellationToken>()))
+            .ReturnsAsync(new ContextDocument(
+                "recent-history-wrong.csv",
+                "content",
+                1,
+                EvaluationTimestamp.AddMinutes(-1)));
+
+        await Assert.That(() => new Bundesliga2025_26HistoricalExperimentContextResolver(reader.Object)
+                .TryResolveAtTimestampAsync(Match, Community, EvaluationTimestamp))
+            .Throws<InvalidDataException>()
+            .WithMessageContaining("invalid identity or timestamp");
+    }
+
     private static Mock<IHistoricalExperimentContextReader> CreateReader()
     {
         var reader = new Mock<IHistoricalExperimentContextReader>(MockBehavior.Strict);
-        var names = MatchContextDocumentCatalog.ForMatch(
+        var names = Bundesliga2025_26HistoricalExperimentDocumentCatalog.ForMatch(
             Match,
-            Community,
-            CompetitionIds.Bundesliga2025_26).RequiredDocumentNames;
+            Community).RequiredDocumentNames;
         foreach (var (name, index) in names.Select((name, index) => (name, index)))
         {
             var document = new ContextDocument(

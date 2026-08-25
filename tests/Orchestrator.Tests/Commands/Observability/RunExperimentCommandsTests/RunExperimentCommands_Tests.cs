@@ -226,9 +226,19 @@ public class RunExperimentCommands_Tests
         {
             var manifest = CreateHistoricalPreparedManifest();
             var manifestPath = Path.Combine(temporaryDirectory.FullName, "historical.json");
+            var runMetadataPath = Path.Combine(temporaryDirectory.FullName, "tampered-run-metadata.json");
             await File.WriteAllTextAsync(
                 manifestPath,
                 JsonSerializer.Serialize(manifest, PreparedExperimentCommandSupport.JsonOptions));
+            await File.WriteAllTextAsync(
+                runMetadataPath,
+                JsonSerializer.Serialize(
+                    PreparedExperimentSupport.BuildRunMetadata(manifest, CreateHistoricalRunOptions()) with
+                    {
+                        SelectedItemIdsCount = 999,
+                        SelectedItemIdsHash = new string('a', 64)
+                    },
+                    PreparedExperimentCommandSupport.JsonOptions));
             var recorded = manifest.Items.Single().HistoricalContextManifest!;
             var reader = new Mock<IHistoricalExperimentContextReader>(MockBehavior.Strict);
             foreach (var document in recorded.Documents)
@@ -261,6 +271,7 @@ public class RunExperimentCommands_Tests
                 .ReturnsAsync(new Prediction(2, 1));
             var openAiFactory = CreateMockOpenAiServiceFactory(predictionService: predictionService);
             var langfuseClient = new Mock<ILangfusePublicApiClient>(MockBehavior.Strict);
+            LangfuseCreateDatasetRunItemRequest? createdRunItem = null;
             langfuseClient.Setup(client => client.GetPromptAsync(
                     PreparedHistoricalExperimentCompatibility.PromptName,
                     PreparedHistoricalExperimentCompatibility.PromptLabel,
@@ -276,6 +287,8 @@ public class RunExperimentCommands_Tests
                     JsonSerializer.SerializeToElement(new { })));
             langfuseClient.Setup(client => client.CreateDatasetRunItemAsync(
                     It.IsAny<LangfuseCreateDatasetRunItemRequest>(), It.IsAny<CancellationToken>()))
+                .Callback((LangfuseCreateDatasetRunItemRequest request, CancellationToken _) =>
+                    createdRunItem = request)
                 .ReturnsAsync(new LangfuseDatasetRunItem(
                     "run-item-1", "run-1", "historical-run", "slice-1", "trace", null,
                     DateTimeOffset.UtcNow, DateTimeOffset.UtcNow));
@@ -301,7 +314,7 @@ public class RunExperimentCommands_Tests
                     manifestPath,
                     "historical-run",
                     null,
-                    null,
+                    runMetadataPath,
                     false,
                     CreateHistoricalRunOptions()),
                 CancellationToken.None);
@@ -310,6 +323,14 @@ public class RunExperimentCommands_Tests
             await Assert.That(summary.AggregateScores.TotalKicktippPoints).IsEqualTo(4);
             await Assert.That(usedContext).IsNotNull();
             await Assert.That(usedContext!.Count).IsEqualTo(7);
+            await Assert.That(createdRunItem).IsNotNull();
+            var createdRunMetadata = JsonSerializer.SerializeToElement(
+                createdRunItem!.Metadata,
+                PreparedExperimentCommandSupport.JsonOptions);
+            await Assert.That(createdRunMetadata.GetProperty("selectedItemIdsCount").GetInt32())
+                .IsEqualTo(manifest.SelectedItemIds.Count);
+            await Assert.That(createdRunMetadata.GetProperty("selectedItemIdsHash").GetString())
+                .IsEqualTo(manifest.SelectedItemIdsHash);
             firebaseFactory.Verify(factory => factory.CreatePredictionRepository(It.IsAny<string>()), Times.Never);
             firebaseFactory.Verify(factory => factory.CreateContextRepository(It.IsAny<string>()), Times.Never);
             firebaseFactory.Verify(factory => factory.CreateMatchOutcomeRepository(It.IsAny<string>()), Times.Never);
@@ -355,6 +376,26 @@ public class RunExperimentCommands_Tests
                 manifest with { SliceDatasetName = "another-historical-dataset" }))
             .Throws<InvalidOperationException>()
             .WithMessageContaining("artifact hash");
+        await Assert.That(() => PreparedExperimentCommandSupport.ValidateManifest(
+                manifest with
+                {
+                    HistoricalCompatibility = manifest.HistoricalCompatibility! with
+                    {
+                        EligibleFixtureIdsHash = new string('a', 64)
+                    }
+                }))
+            .Throws<InvalidOperationException>()
+            .WithMessageContaining("artifact hash");
+        await Assert.That(() => PreparedExperimentCommandSupport.ValidateManifest(
+                manifest with
+                {
+                    HistoricalCompatibility = manifest.HistoricalCompatibility! with
+                    {
+                        EligibilityPolicy = "wrong-policy"
+                    }
+                }))
+            .Throws<InvalidOperationException>()
+            .WithMessageContaining("complete context-eligible pool");
     }
 
     [Test]
@@ -362,10 +403,53 @@ public class RunExperimentCommands_Tests
     {
         var oneByOne = PreparedExperimentCommandSupport.ValidateManifest(CreateHistoricalPreparedManifest());
         var fiveByFour = PreparedExperimentCommandSupport.ValidateManifest(CreateHistoricalPreparedManifest(5, 4));
+        var runMetadata = PreparedExperimentSupport.BuildRunMetadata(oneByOne, CreateHistoricalRunOptions());
+        var propagatedMetadata = PreparedExperimentSupport.DerivePropagatedMetadata(runMetadata);
 
         await Assert.That(oneByOne.Items.Count).IsEqualTo(1);
         await Assert.That(fiveByFour.Items.Count).IsEqualTo(20);
         await Assert.That(fiveByFour.SelectedItemIds.Count).IsEqualTo(5);
+        await Assert.That(runMetadata.HistoricalEligibilityPolicy)
+            .IsEqualTo(PreparedHistoricalExperimentCompatibility.RequiredEligibilityPolicy);
+        await Assert.That(runMetadata.HistoricalEligibleFixtureCount).IsEqualTo(5);
+        await Assert.That(runMetadata.HistoricalEligibleFixtureIdsHash)
+            .IsEqualTo(oneByOne.HistoricalCompatibility!.EligibleFixtureIdsHash);
+        await Assert.That(propagatedMetadata["historicalEligibilityPolicy"])
+            .IsEqualTo(PreparedHistoricalExperimentCompatibility.RequiredEligibilityPolicy);
+        await Assert.That(propagatedMetadata["historicalEligibleFixtureCount"]).IsEqualTo("5");
+        await Assert.That(propagatedMetadata["historicalEligibleFixtureIdsHash"])
+            .IsEqualTo(oneByOne.HistoricalCompatibility!.EligibleFixtureIdsHash);
+    }
+
+    [Test]
+    public async Task Historical_run_metadata_forces_validated_manifest_selected_identity_over_caller_tampering()
+    {
+        var manifest = PreparedExperimentCommandSupport.ValidateManifest(CreateHistoricalPreparedManifest(5, 4));
+        var callerMetadata = new PreparedExperimentRunMetadata
+        {
+            SelectedItemIdsCount = 999,
+            SelectedItemIdsHash = new string('a', 64)
+        };
+
+        var normalized = PreparedExperimentCommandSupport.NormalizeRunMetadata(
+            callerMetadata,
+            manifest,
+            CreateHistoricalRunOptions());
+        var propagated = PreparedExperimentSupport.DerivePropagatedMetadata(normalized);
+        var langfuseMetadata = PreparedExperimentSupport.BuildLangfuseExperimentMetadata(
+            normalized,
+            "historical-cost-estimate",
+            "historical-cost-estimate__run");
+
+        await Assert.That(normalized.SelectedItemIdsCount).IsEqualTo(manifest.SelectedItemIds.Count);
+        await Assert.That(normalized.SelectedItemIdsHash).IsEqualTo(manifest.SelectedItemIdsHash);
+        await Assert.That(propagated["selectedItemIdsCount"])
+            .IsEqualTo(manifest.SelectedItemIds.Count.ToString(System.Globalization.CultureInfo.InvariantCulture));
+        await Assert.That(propagated["selectedItemIdsHash"]).IsEqualTo(manifest.SelectedItemIdsHash);
+        await Assert.That(langfuseMetadata.GetProperty("selectedItemIdsCount").GetInt32())
+            .IsEqualTo(manifest.SelectedItemIds.Count);
+        await Assert.That(langfuseMetadata.GetProperty("selectedItemIdsHash").GetString())
+            .IsEqualTo(manifest.SelectedItemIdsHash);
     }
 
     [Test]
@@ -410,6 +494,16 @@ public class RunExperimentCommands_Tests
                 manifest with { SelectedItemIds = ["wrong", .. manifest.SelectedItemIds.Skip(1)] }))
             .Throws<InvalidOperationException>()
             .WithMessageContaining("selectedItemIds");
+        await Assert.That(() => PreparedExperimentCommandSupport.ValidateManifest(
+                manifest with
+                {
+                    HistoricalCompatibility = manifest.HistoricalCompatibility! with
+                    {
+                        EligibleFixtureCount = 4
+                    }
+                }))
+            .Throws<InvalidOperationException>()
+            .WithMessageContaining("exceeds the bound complete context-eligible pool");
     }
 
     [Test]
@@ -568,6 +662,43 @@ public class RunExperimentCommands_Tests
         var options = new PreparedExperimentRunOptions("gpt-5", "prompt", false, null, null, null, null, "local", null, null, null, "simple");
         await Assert.That(() => PreparedExperimentCommandSupport.NormalizeRunMetadata(new PreparedExperimentRunMetadata { Competition = CompetitionIds.FifaWorldCup2026 }, manifest, options)).Throws<InvalidOperationException>();
         await Assert.That(() => PreparedExperimentCommandSupport.NormalizeRunMetadata(new PreparedExperimentRunMetadata { CommunityContext = "community-b" }, manifest, options)).Throws<InvalidOperationException>();
+    }
+
+    [Test]
+    public async Task Non_historical_run_metadata_preserves_existing_selected_identity_override_behavior()
+    {
+        var manifest = new PreparedExperimentManifest
+        {
+            Competition = CompetitionIds.FifaWorldCup2026,
+            CommunityContext = "community-a",
+            SelectedItemIds = ["source"],
+            SelectedItemIdsHash = ExperimentArtifactSupport.ComputeSelectedItemIdsHash(["source"]),
+            Items = [new PreparedExperimentManifestItem
+            {
+                SourceDatasetItemId = "source",
+                SliceDatasetItemId = "slice",
+                HomeTeam = "A",
+                AwayTeam = "B",
+                Matchday = 1,
+                StartsAt = "x"
+            }]
+        };
+        var callerHash = new string('a', 64);
+        var normalized = PreparedExperimentCommandSupport.NormalizeRunMetadata(
+            new PreparedExperimentRunMetadata
+            {
+                SelectedItemIdsCount = 999,
+                SelectedItemIdsHash = callerHash
+            },
+            manifest,
+            new PreparedExperimentRunOptions(
+                "gpt-5", "prompt", false, null, null, null, null, "local", null, null, null, "simple"));
+        var propagated = PreparedExperimentSupport.DerivePropagatedMetadata(normalized);
+
+        await Assert.That(normalized.SelectedItemIdsCount).IsEqualTo(999);
+        await Assert.That(normalized.SelectedItemIdsHash).IsEqualTo(callerHash);
+        await Assert.That(propagated.ContainsKey("selectedItemIdsCount")).IsFalse();
+        await Assert.That(propagated["selectedItemIdsHash"]).IsEqualTo(callerHash);
     }
 
     [Test]
@@ -867,6 +998,12 @@ public class RunExperimentCommands_Tests
             throw new ArgumentOutOfRangeException(nameof(matchCount));
         }
 
+        var eligibleFixtureIds = Enumerable.Range(1, fixtureTeams.Length)
+            .Select(index => ExperimentArtifactSupport.BuildHostedDatasetItemId(
+                CompetitionIds.Bundesliga2025_26,
+                community,
+                (1423757340 + index).ToString(System.Globalization.CultureInfo.InvariantCulture)))
+            .ToArray();
         var compatibility = new PreparedHistoricalExperimentCompatibility
         {
             Mode = ResolvedHistoricalExperimentContextManifest.LegacyIdHashV1,
@@ -879,7 +1016,10 @@ public class RunExperimentCommands_Tests
             BoundEvaluationPolicyKind = PreparedHistoricalExperimentCompatibility.EvaluationPolicyKind,
             BoundEvaluationPolicyReference = PreparedHistoricalExperimentCompatibility.EvaluationPolicyReference,
             BoundEvaluationPolicyOffset = PreparedHistoricalExperimentCompatibility.EvaluationPolicyOffset,
-            ContextDocumentCount = 7
+            ContextDocumentCount = 7,
+            EligibilityPolicy = PreparedHistoricalExperimentCompatibility.RequiredEligibilityPolicy,
+            EligibleFixtureCount = eligibleFixtureIds.Length,
+            EligibleFixtureIdsHash = ExperimentArtifactSupport.ComputeSelectedItemIdsHash(eligibleFixtureIds)
         };
         var selectedItemIds = new List<string>(matchCount);
         var items = new List<PreparedExperimentManifestItem>(matchCount * repetitions);
@@ -895,10 +1035,9 @@ public class RunExperimentCommands_Tests
                 teams.Away,
                 NodaTime.Instant.FromDateTimeOffset(startsAtInstant).InZone(NodaTime.DateTimeZone.Utc),
                 28 + fixtureIndex);
-            var entries = MatchContextDocumentCatalog.ForMatch(
+            var entries = Bundesliga2025_26HistoricalExperimentDocumentCatalog.ForMatch(
                     match,
-                    community,
-                    CompetitionIds.Bundesliga2025_26).RequiredDocumentNames
+                    community).RequiredDocumentNames
                 .Select((name, index) => new ResolvedHistoricalExperimentContextDocument(
                     name,
                     index,

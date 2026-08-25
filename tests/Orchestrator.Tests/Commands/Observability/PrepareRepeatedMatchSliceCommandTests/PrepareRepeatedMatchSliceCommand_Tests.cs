@@ -1,6 +1,8 @@
 using System.Text.Json;
 using EHonda.KicktippAi.Core;
 using Moq;
+using Orchestrator.Commands.Observability;
+using Orchestrator.Commands.Observability.Experiments;
 using Orchestrator.Commands.Observability.PrepareRepeatedMatchSlice;
 using Orchestrator.Infrastructure.Factories;
 using static Orchestrator.Tests.Infrastructure.OrchestratorTestFactories;
@@ -77,6 +79,15 @@ public class PrepareRepeatedMatchSliceCommand_Tests
                 .IsEqualTo("kicktippai/bundesliga-2026-27/predict-one-match");
             await Assert.That(compatibility.GetProperty("promptVersion").GetInt32()).IsEqualTo(2);
             await Assert.That(compatibility.GetProperty("contextDocumentCount").GetInt32()).IsEqualTo(7);
+            await Assert.That(compatibility.GetProperty("eligibilityPolicy").GetString())
+                .IsEqualTo(PreparedHistoricalExperimentCompatibility.RequiredEligibilityPolicy);
+            await Assert.That(compatibility.GetProperty("eligibleFixtureCount").GetInt32()).IsEqualTo(5);
+            await Assert.That(compatibility.GetProperty("eligibleFixtureIdsHash").GetString()).IsEqualTo(
+                ExperimentArtifactSupport.ComputeSelectedItemIdsHash(
+                    outcomes.Select(outcome => ExperimentArtifactSupport.BuildHostedDatasetItemId(
+                        CompetitionIds.Bundesliga2025_26,
+                        "pes-squad",
+                        outcome.TippSpielId!))));
             await Assert.That(DocumentPublicationContract.IsLowercaseSha256(
                 manifest.GetProperty("historicalArtifactSha256").GetString())).IsTrue();
             await Assert.That(items.Length).IsEqualTo(matchCount * repetitions);
@@ -85,8 +96,27 @@ public class PrepareRepeatedMatchSliceCommand_Tests
                 == startsAt.ToDateTimeOffset().AddHours(-12))).IsTrue();
             await Assert.That(items.Select(item => item.GetProperty("historicalContextManifest").GetProperty("manifestSha256").GetString()).Distinct().Count())
                 .IsEqualTo(matchCount);
+            var selectedIds = manifest.GetProperty("selectedItemIds").EnumerateArray()
+                .Select(value => value.GetString()!)
+                .ToArray();
+            if (matchCount == 1)
+            {
+                await Assert.That(selectedIds).IsEquivalentTo(
+                    [ExperimentArtifactSupport.BuildHostedDatasetItemId(
+                        CompetitionIds.Bundesliga2025_26,
+                        "pes-squad",
+                        "105")]);
+            }
+            else
+            {
+                await Assert.That(selectedIds).IsEquivalentTo(outcomes.Select(outcome =>
+                    ExperimentArtifactSupport.BuildHostedDatasetItemId(
+                        CompetitionIds.Bundesliga2025_26,
+                        "pes-squad",
+                        outcome.TippSpielId!)));
+            }
             historicalReader.Verify(repository => repository.GetContextDocumentAtOrBeforeAsync(
-                It.IsAny<string>(), "pes-squad", It.IsAny<DateTimeOffset>(), It.IsAny<CancellationToken>()), Times.Exactly(matchCount * 7));
+                It.IsAny<string>(), "pes-squad", It.IsAny<DateTimeOffset>(), It.IsAny<CancellationToken>()), Times.Exactly(outcomes.Length * 7));
             historicalFixtureReader.Verify(reader => reader.GetCompletedMatchdayFixturesAsync(
                 7, "pes-squad", It.IsAny<CancellationToken>()), Times.Once);
             firebaseFactory.Verify(factory => factory.CreateBundesliga2025_26HistoricalExperimentFixtureReader(), Times.Once);
@@ -98,6 +128,232 @@ public class PrepareRepeatedMatchSliceCommand_Tests
                 await File.ReadAllTextAsync(Path.Combine(outputDirectory, "slice-dataset.json")));
             await Assert.That(datasetDocument.RootElement.GetProperty("items").EnumerateArray().All(item =>
                 !item.GetProperty("metadata").TryGetProperty("historicalContextManifest", out _))).IsTrue();
+        }
+        finally
+        {
+            tempDirectory.Delete(recursive: true);
+        }
+    }
+
+    [Test]
+    public async Task Historical_preparation_excludes_exact_sampling_cutoff_and_includes_one_instant_after()
+    {
+        var tempDirectory = Directory.CreateTempSubdirectory();
+        try
+        {
+            const string samplingCutoff = "2026-02-18T00:00:00 Europe/Berlin (+01)";
+            var cutoff = EvaluationTimeParser.Parse(samplingCutoff);
+            var cutoffInstant = NodaTime.Instant.FromDateTimeOffset(cutoff);
+            var outcomes = new[]
+            {
+                CreateCompletedOutcome(
+                    "FC Bayern München", "RB Leipzig", "100", 2, 1,
+                    CompetitionIds.Bundesliga2025_26, cutoffInstant.InUtc(), "pes-squad"),
+                CreateCompletedOutcome(
+                    "FC St. Pauli", "1. FC Köln", "101", 0, 1,
+                    CompetitionIds.Bundesliga2025_26,
+                    (cutoffInstant + NodaTime.Duration.FromSeconds(1)).InUtc(),
+                    "pes-squad")
+            };
+            var fixtureReader = new Mock<IHistoricalExperimentFixtureReader>(MockBehavior.Strict);
+            fixtureReader.Setup(reader => reader.GetCompletedMatchdayFixturesAsync(
+                    7, "pes-squad", It.IsAny<CancellationToken>()))
+                .ReturnsAsync(outcomes);
+            var contextReader = new Mock<IHistoricalExperimentContextReader>(MockBehavior.Strict);
+            contextReader.Setup(reader => reader.GetContextDocumentAtOrBeforeAsync(
+                    It.IsAny<string>(), "pes-squad", It.IsAny<DateTimeOffset>(), It.IsAny<CancellationToken>()))
+                .ReturnsAsync((string name, string _, DateTimeOffset evaluation, CancellationToken _) =>
+                    new ContextDocument(name, $"content:{name}", 3, evaluation.AddMinutes(-1)));
+            var firebaseFactory = new Mock<IFirebaseServiceFactory>(MockBehavior.Strict);
+            firebaseFactory.Setup(factory => factory.CreateBundesliga2025_26HistoricalExperimentFixtureReader())
+                .Returns(fixtureReader.Object);
+            firebaseFactory.Setup(factory => factory.CreateBundesliga2025_26HistoricalExperimentContextReader())
+                .Returns(contextReader.Object);
+            var outputDirectory = Path.Combine(tempDirectory.FullName, "cutoff-boundary");
+            var context = CreateCommandApp<PrepareRepeatedMatchSliceCommand>(
+                "prepare-repeated-match-slice",
+                firebaseServiceFactory: firebaseFactory);
+
+            var (exitCode, output) = await RunCommandAsync(
+                context.App,
+                context.Console,
+                "prepare-repeated-match-slice",
+                "--competition", CompetitionIds.Bundesliga2025_26,
+                "--historical-context-compatibility", ResolvedHistoricalExperimentContextManifest.LegacyIdHashV1,
+                "--official-knowledge-cutoff", "2026-02-16",
+                "--starts-after", samplingCutoff,
+                "--community-context", "pes-squad",
+                "--matchdays", "7",
+                "--match-count", "1",
+                "--repetitions", "1",
+                "--sample-seed", "20260821",
+                "--output-directory", outputDirectory);
+
+            await Assert.That(cutoff.ToUniversalTime())
+                .IsEqualTo(new DateTimeOffset(2026, 2, 17, 23, 0, 0, TimeSpan.Zero));
+            await Assert.That(exitCode).IsEqualTo(0);
+            await Assert.That(output).DoesNotContain("Error:");
+            using var manifestDocument = JsonDocument.Parse(
+                await File.ReadAllTextAsync(Path.Combine(outputDirectory, "slice-manifest.json")));
+            var manifest = manifestDocument.RootElement;
+            var selectedId = ExperimentArtifactSupport.BuildHostedDatasetItemId(
+                CompetitionIds.Bundesliga2025_26,
+                "pes-squad",
+                "101");
+            await Assert.That(manifest.GetProperty("selectedItemIds")[0].GetString()).IsEqualTo(selectedId);
+            await Assert.That(manifest.GetProperty("historicalCompatibility").GetProperty("eligibleFixtureCount").GetInt32())
+                .IsEqualTo(1);
+            contextReader.Verify(reader => reader.GetContextDocumentAtOrBeforeAsync(
+                It.IsAny<string>(), "pes-squad", It.IsAny<DateTimeOffset>(), It.IsAny<CancellationToken>()), Times.Exactly(7));
+        }
+        finally
+        {
+            tempDirectory.Delete(recursive: true);
+        }
+    }
+
+    [Test]
+    public async Task Historical_preparation_filters_the_complete_eligible_pool_before_one_seeded_sample()
+    {
+        var tempDirectory = Directory.CreateTempSubdirectory();
+        try
+        {
+            var outcomes = new[]
+            {
+                CreateCompletedOutcome(
+                    "FC Bayern München", "RB Leipzig", "101", 2, 1,
+                    CompetitionIds.Bundesliga2025_26, NodaTime.Instant.FromUtc(2026, 3, 1, 18, 30).InUtc(), "pes-squad"),
+                CreateCompletedOutcome(
+                    "Borussia Dortmund", "VfB Stuttgart", "102", 1, 1,
+                    CompetitionIds.Bundesliga2025_26, NodaTime.Instant.FromUtc(2026, 3, 2, 18, 30).InUtc(), "pes-squad"),
+                CreateCompletedOutcome(
+                    "FC St. Pauli", "1. FC Köln", "103", 0, 1,
+                    CompetitionIds.Bundesliga2025_26, NodaTime.Instant.FromUtc(2026, 3, 3, 18, 30).InUtc(), "pes-squad")
+            };
+            var fixtureReader = new Mock<IHistoricalExperimentFixtureReader>(MockBehavior.Strict);
+            fixtureReader.Setup(reader => reader.GetCompletedMatchdayFixturesAsync(
+                    7, "pes-squad", It.IsAny<CancellationToken>()))
+                .ReturnsAsync(outcomes);
+            var contextReader = new Mock<IHistoricalExperimentContextReader>(MockBehavior.Strict);
+            contextReader.Setup(reader => reader.GetContextDocumentAtOrBeforeAsync(
+                    It.IsAny<string>(), "pes-squad", It.IsAny<DateTimeOffset>(), It.IsAny<CancellationToken>()))
+                .ReturnsAsync((string name, string _, DateTimeOffset evaluation, CancellationToken _) =>
+                    string.Equals(name, "recent-history-bvb.csv", StringComparison.Ordinal)
+                        ? null
+                        : new ContextDocument(name, $"content:{name}", 3, evaluation.AddMinutes(-1)));
+            var firebaseFactory = new Mock<IFirebaseServiceFactory>(MockBehavior.Strict);
+            firebaseFactory.Setup(factory => factory.CreateBundesliga2025_26HistoricalExperimentFixtureReader())
+                .Returns(fixtureReader.Object);
+            firebaseFactory.Setup(factory => factory.CreateBundesliga2025_26HistoricalExperimentContextReader())
+                .Returns(contextReader.Object);
+            var outputDirectory = Path.Combine(tempDirectory.FullName, "eligible-pool");
+            var context = CreateCommandApp<PrepareRepeatedMatchSliceCommand>(
+                "prepare-repeated-match-slice",
+                firebaseServiceFactory: firebaseFactory);
+
+            var (exitCode, output) = await RunCommandAsync(
+                context.App,
+                context.Console,
+                "prepare-repeated-match-slice",
+                "--competition", CompetitionIds.Bundesliga2025_26,
+                "--historical-context-compatibility", ResolvedHistoricalExperimentContextManifest.LegacyIdHashV1,
+                "--official-knowledge-cutoff", "2026-02-16",
+                "--starts-after", "2026-02-18T00:00:00 Europe/Berlin (+01)",
+                "--community-context", "pes-squad",
+                "--matchdays", "7",
+                "--match-count", "2",
+                "--repetitions", "1",
+                "--sample-seed", "20260821",
+                "--output-directory", outputDirectory);
+
+            await Assert.That(exitCode).IsEqualTo(0);
+            await Assert.That(output).DoesNotContain("Error:");
+            using var manifestDocument = JsonDocument.Parse(
+                await File.ReadAllTextAsync(Path.Combine(outputDirectory, "slice-manifest.json")));
+            var manifest = manifestDocument.RootElement;
+            var compatibility = manifest.GetProperty("historicalCompatibility");
+            var expectedEligibleIds = new[] { "101", "103" }
+                .Select(id => ExperimentArtifactSupport.BuildHostedDatasetItemId(
+                    CompetitionIds.Bundesliga2025_26,
+                    "pes-squad",
+                    id))
+                .ToArray();
+            await Assert.That(compatibility.GetProperty("eligibleFixtureCount").GetInt32()).IsEqualTo(2);
+            await Assert.That(compatibility.GetProperty("eligibleFixtureIdsHash").GetString())
+                .IsEqualTo(ExperimentArtifactSupport.ComputeSelectedItemIdsHash(expectedEligibleIds));
+            await Assert.That(manifest.GetProperty("selectedItemIds").EnumerateArray().Select(value => value.GetString()!))
+                .IsEquivalentTo(expectedEligibleIds);
+            contextReader.Verify(reader => reader.GetContextDocumentAtOrBeforeAsync(
+                It.IsAny<string>(), "pes-squad", It.IsAny<DateTimeOffset>(), It.IsAny<CancellationToken>()), Times.Exactly(17));
+            fixtureReader.Verify(reader => reader.GetCompletedMatchdayFixturesAsync(
+                7, "pes-squad", It.IsAny<CancellationToken>()), Times.Once);
+        }
+        finally
+        {
+            tempDirectory.Delete(recursive: true);
+        }
+    }
+
+    [Test]
+    public async Task Historical_preparation_fails_before_artifact_output_when_the_complete_eligible_pool_is_too_small()
+    {
+        var tempDirectory = Directory.CreateTempSubdirectory();
+        try
+        {
+            var startsAt = NodaTime.Instant.FromUtc(2026, 3, 1, 18, 30).InUtc();
+            var outcomes = new[]
+            {
+                CreateCompletedOutcome(
+                    "FC Bayern München", "RB Leipzig", "101", 2, 1,
+                    CompetitionIds.Bundesliga2025_26, startsAt, "pes-squad"),
+                CreateCompletedOutcome(
+                    "Borussia Dortmund", "VfB Stuttgart", "102", 1, 1,
+                    CompetitionIds.Bundesliga2025_26, startsAt, "pes-squad")
+            };
+            var fixtureReader = new Mock<IHistoricalExperimentFixtureReader>(MockBehavior.Strict);
+            fixtureReader.Setup(reader => reader.GetCompletedMatchdayFixturesAsync(
+                    7, "pes-squad", It.IsAny<CancellationToken>()))
+                .ReturnsAsync(outcomes);
+            var contextReader = new Mock<IHistoricalExperimentContextReader>(MockBehavior.Strict);
+            contextReader.Setup(reader => reader.GetContextDocumentAtOrBeforeAsync(
+                    It.IsAny<string>(), "pes-squad", It.IsAny<DateTimeOffset>(), It.IsAny<CancellationToken>()))
+                .ReturnsAsync((string name, string _, DateTimeOffset evaluation, CancellationToken _) =>
+                    string.Equals(name, "recent-history-bvb.csv", StringComparison.Ordinal)
+                        ? null
+                        : new ContextDocument(name, $"content:{name}", 3, evaluation.AddMinutes(-1)));
+            var firebaseFactory = new Mock<IFirebaseServiceFactory>(MockBehavior.Strict);
+            firebaseFactory.Setup(factory => factory.CreateBundesliga2025_26HistoricalExperimentFixtureReader())
+                .Returns(fixtureReader.Object);
+            firebaseFactory.Setup(factory => factory.CreateBundesliga2025_26HistoricalExperimentContextReader())
+                .Returns(contextReader.Object);
+            var outputDirectory = Path.Combine(tempDirectory.FullName, "insufficient-pool");
+            var context = CreateCommandApp<PrepareRepeatedMatchSliceCommand>(
+                "prepare-repeated-match-slice",
+                firebaseServiceFactory: firebaseFactory);
+
+            var (exitCode, output) = await RunCommandAsync(
+                context.App,
+                context.Console,
+                "prepare-repeated-match-slice",
+                "--competition", CompetitionIds.Bundesliga2025_26,
+                "--historical-context-compatibility", ResolvedHistoricalExperimentContextManifest.LegacyIdHashV1,
+                "--official-knowledge-cutoff", "2026-02-16",
+                "--starts-after", "2026-02-18T00:00:00 Europe/Berlin (+01)",
+                "--community-context", "pes-squad",
+                "--matchdays", "7",
+                "--match-count", "2",
+                "--repetitions", "1",
+                "--sample-seed", "20260821",
+                "--output-directory", outputDirectory);
+
+            await Assert.That(exitCode).IsEqualTo(1);
+            await Assert.That(output).Contains("context-eligible fixture count 1");
+            await Assert.That(File.Exists(Path.Combine(outputDirectory, "slice-dataset.json"))).IsFalse();
+            await Assert.That(File.Exists(Path.Combine(outputDirectory, "slice-manifest.json"))).IsFalse();
+            contextReader.Verify(reader => reader.GetContextDocumentAtOrBeforeAsync(
+                It.IsAny<string>(), "pes-squad", It.IsAny<DateTimeOffset>(), It.IsAny<CancellationToken>()), Times.Exactly(10));
+            fixtureReader.Verify(reader => reader.GetCompletedMatchdayFixturesAsync(
+                7, "pes-squad", It.IsAny<CancellationToken>()), Times.Once);
         }
         finally
         {

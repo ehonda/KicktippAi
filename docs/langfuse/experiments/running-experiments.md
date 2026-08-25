@@ -189,7 +189,9 @@ Prepare the Luna five-by-four sample with both cutoff dates and the explicit com
 dotnet run --project src/Orchestrator -- prepare-repeated-match-slice --competition bundesliga-2025-26 --historical-context-compatibility bundesliga-2025-26-legacy-id-hash-v1 --official-knowledge-cutoff 2026-02-16 --community-context pes-squad --match-count 5 --repetitions 4 --sample-seed 20260821 --starts-after "2026-02-18T00:00:00 Europe/Berlin (+01)" --slice-key random-5x4-seed-20260821-gpt-5-6-luna-none-cost-estimate
 ```
 
-Preparation resolves the canonical seven historical documents once per selected fixture at `startsAt -12h`, embeds the completed score only in the local run manifest, and binds the prompt route, cutoffs, fixture identity, score, and context hashes. The synced dataset keeps its existing public schema.
+Preparation first resolves the exact producer-era seven-document route for every completed post-cutoff fixture at `startsAt -12h`. It forms the complete context-eligible pool, fails if that pool is smaller than `--match-count`, and only then applies `--sample-seed` once with the normal Fisher-Yates sampler. Do not retry or substitute a seed to bypass missing context. Malformed identity, scope, timestamp, or hash provenance fails instead of being classified as merely ineligible.
+
+The local compatibility contract binds eligibility policy `bundesliga-2025-26-completed-after-sampling-cutoff-all-7-context-documents-at-or-before-starts-at-minus-12h-v1`, `eligibleFixtureCount`, and the sorted-newline `eligibleFixtureIdsHash`, in addition to the selected IDs/hash, prompt route, cutoffs, fixture identity, completed score, and context hashes. For the documented Luna cutoff and `pes-squad`, the audited complete pool is 109 fixtures and its hash is `6ecb182489b97f9ea389374183f0ef7cfe632ddfba341ea72aa354647593b415`. The synced dataset keeps its existing public schema.
 
 Run only with the bound route and evaluation policy:
 
@@ -275,11 +277,13 @@ Run commands also still support `--run-metadata-file` for compatibility with old
 
 ### Missing historical context
 
-If a run fails during prompt reconstruction because a required document did not exist yet at the requested timestamp:
+If an ordinary run fails during prompt reconstruction because a required document did not exist yet at the requested timestamp:
 
 1. switch to a community with stronger context coverage, typically `pes-squad`
 2. probe the exact timestamp with `reconstruct-prompt`
 3. use a later exact historical evaluation time, or prepare a different slice fixture
+
+For marked Bundesliga 2025/26 preparation, do not probe alternate seeds or manually substitute fixtures. Preparation checks the whole declared source scope, excludes only genuinely absent exact document versions, records the resulting eligible count/hash, and fails when fewer distinct fixtures than requested remain. Any identity, scope, timestamp, or hash error must be fixed as a provenance defect before running.
 
 ### Verifying a fixture before a full run
 

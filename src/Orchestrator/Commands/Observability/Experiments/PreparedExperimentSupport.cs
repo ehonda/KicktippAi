@@ -259,6 +259,9 @@ internal static class PreparedExperimentSupport
             OfficialKnowledgeCutoff = manifest.HistoricalCompatibility?.OfficialKnowledgeCutoff,
             SamplingCutoff = manifest.HistoricalCompatibility?.SamplingCutoff,
             HistoricalContextDocumentCount = manifest.HistoricalCompatibility?.ContextDocumentCount,
+            HistoricalEligibilityPolicy = manifest.HistoricalCompatibility?.EligibilityPolicy,
+            HistoricalEligibleFixtureCount = manifest.HistoricalCompatibility?.EligibleFixtureCount,
+            HistoricalEligibleFixtureIdsHash = manifest.HistoricalCompatibility?.EligibleFixtureIdsHash,
             StartedAtUtc = ExperimentArtifactSupport.FormatStartedAtUtc(DateTimeOffset.UtcNow),
             SampleSeed = manifest.SampleSeed,
             SampleMethod = ResolveSampleMethod(manifest),
@@ -382,6 +385,9 @@ internal static class PreparedExperimentSupport
         AddIfValid(metadata, "officialKnowledgeCutoff", runMetadata.OfficialKnowledgeCutoff);
         AddIfValid(metadata, "samplingCutoff", runMetadata.SamplingCutoff);
         AddIfValid(metadata, "historicalContextDocumentCount", runMetadata.HistoricalContextDocumentCount?.ToString(CultureInfo.InvariantCulture));
+        AddIfValid(metadata, "historicalEligibilityPolicy", runMetadata.HistoricalEligibilityPolicy);
+        AddIfValid(metadata, "historicalEligibleFixtureCount", runMetadata.HistoricalEligibleFixtureCount?.ToString(CultureInfo.InvariantCulture));
+        AddIfValid(metadata, "historicalEligibleFixtureIdsHash", runMetadata.HistoricalEligibleFixtureIdsHash);
         AddIfValid(metadata, "model", runMetadata.Model);
         AddIfValid(metadata, "promptKey", runMetadata.PromptKey);
         AddIfValid(metadata, "promptSource", runMetadata.PromptSource);
@@ -394,6 +400,12 @@ internal static class PreparedExperimentSupport
         AddIfValid(metadata, "matchCount", runMetadata.MatchCount?.ToString(CultureInfo.InvariantCulture));
         AddIfValid(metadata, "repetitions", runMetadata.Repetitions?.ToString(CultureInfo.InvariantCulture));
         AddIfValid(metadata, "parallelism", runMetadata.Parallelism?.ToString(CultureInfo.InvariantCulture));
+        if (!string.IsNullOrWhiteSpace(runMetadata.HistoricalCompatibilityMode))
+        {
+            AddIfValid(metadata, "selectedItemIdsCount", runMetadata.SelectedItemIdsCount > 0
+                ? runMetadata.SelectedItemIdsCount.ToString(CultureInfo.InvariantCulture)
+                : null);
+        }
         AddIfValid(metadata, "selectedItemIdsHash", runMetadata.SelectedItemIdsHash);
         AddIfValid(metadata, "sliceKind", runMetadata.SliceKind);
         AddIfValid(metadata, "sliceKey", runMetadata.SliceKey);

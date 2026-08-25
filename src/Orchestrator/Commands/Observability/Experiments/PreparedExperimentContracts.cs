@@ -157,6 +157,8 @@ internal sealed record PreparedHistoricalExperimentCompatibility
     public const string EvaluationPolicyKind = "relative";
     public const string EvaluationPolicyReference = "startsAt";
     public const string EvaluationPolicyOffset = "-12:00:00";
+    public const string RequiredEligibilityPolicy =
+        "bundesliga-2025-26-completed-after-sampling-cutoff-all-7-context-documents-at-or-before-starts-at-minus-12h-v1";
 
     [JsonPropertyName("mode")]
     public string Mode { get; init; } = string.Empty;
@@ -190,6 +192,15 @@ internal sealed record PreparedHistoricalExperimentCompatibility
 
     [JsonPropertyName("contextDocumentCount")]
     public int ContextDocumentCount { get; init; }
+
+    [JsonPropertyName("eligibilityPolicy")]
+    public string EligibilityPolicy { get; init; } = string.Empty;
+
+    [JsonPropertyName("eligibleFixtureCount")]
+    public int EligibleFixtureCount { get; init; }
+
+    [JsonPropertyName("eligibleFixtureIdsHash")]
+    public string EligibleFixtureIdsHash { get; init; } = string.Empty;
 }
 
 internal sealed record PreparedExperimentEvaluationTimestampPolicyMetadata
@@ -289,6 +300,15 @@ internal sealed record PreparedExperimentRunMetadata
 
     [JsonPropertyName("historicalContextDocumentCount")]
     public int? HistoricalContextDocumentCount { get; init; }
+
+    [JsonPropertyName("historicalEligibilityPolicy")]
+    public string? HistoricalEligibilityPolicy { get; init; }
+
+    [JsonPropertyName("historicalEligibleFixtureCount")]
+    public int? HistoricalEligibleFixtureCount { get; init; }
+
+    [JsonPropertyName("historicalEligibleFixtureIdsHash")]
+    public string? HistoricalEligibleFixtureIdsHash { get; init; }
 
     [JsonPropertyName("startedAtUtc")]
     public string? StartedAtUtc { get; init; }

@@ -129,4 +129,5 @@ P0 is complete only when:
 - [ADR-0040: Use hash-bound 2025/26 context for preseason cost experiments](decisions/0040-use-hash-bound-2025-26-context-for-preseason-cost-experiments.md)
 - [ADR-0041: Freeze the completed DFB-Pokal first-round history transition](decisions/0041-freeze-completed-dfb-first-round-history-transition.md)
 - [ADR-0042: Publish complete preseason Kicktipp context atomically](decisions/0042-publish-complete-preseason-context-atomically.md) — superseded by ADR-0044
+- [ADR-0043: Freeze historical experiment aliases and the context-eligible pool](decisions/0043-freeze-historical-experiment-aliases-and-eligible-pool.md) — refines ADR-0040's document-name and sampling-pool contract
 - [ADR-0044: Select canonical preseason history sources](decisions/0044-select-canonical-preseason-history-sources.md)

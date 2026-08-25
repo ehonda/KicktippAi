@@ -84,6 +84,27 @@ internal static class PreparedExperimentCommandSupport
             throw new InvalidOperationException("Run metadata community context does not match the prepared manifest community context.");
         }
 
+        var manifestSelectedItemIdsCount = manifest.SelectedItemIds.Count > 0
+            ? manifest.SelectedItemIds.Count
+            : manifest.Items.Count;
+        var manifestSelectedItemIdsHash = string.IsNullOrWhiteSpace(manifest.SelectedItemIdsHash)
+            ? ExperimentArtifactSupport.ComputeSelectedItemIdsHash(
+                manifest.SelectedItemIds.Count > 0
+                    ? manifest.SelectedItemIds
+                    : manifest.Items.Select(item => item.SliceDatasetItemId))
+            : manifest.SelectedItemIdsHash;
+        var forceManifestSelectedItemIdentity = manifest.HistoricalCompatibility is not null;
+        var normalizedSelectedItemIdsCount = forceManifestSelectedItemIdentity
+            ? manifestSelectedItemIdsCount
+            : runMetadata.SelectedItemIdsCount > 0
+                ? runMetadata.SelectedItemIdsCount
+                : manifestSelectedItemIdsCount;
+        var normalizedSelectedItemIdsHash = forceManifestSelectedItemIdentity
+            ? manifestSelectedItemIdsHash
+            : string.IsNullOrWhiteSpace(runMetadata.SelectedItemIdsHash)
+                ? manifestSelectedItemIdsHash
+                : runMetadata.SelectedItemIdsHash;
+
         return runMetadata with
         {
             Runner = string.IsNullOrWhiteSpace(runMetadata.Runner) ? "match-experiment-runner" : runMetadata.Runner,
@@ -111,17 +132,8 @@ internal static class PreparedExperimentCommandSupport
             SliceKind = string.IsNullOrWhiteSpace(runMetadata.SliceKind) ? manifest.SliceKind : runMetadata.SliceKind,
             SliceKey = string.IsNullOrWhiteSpace(runMetadata.SliceKey) ? manifest.SliceKey : runMetadata.SliceKey,
             SourcePoolKey = string.IsNullOrWhiteSpace(runMetadata.SourcePoolKey) ? manifest.SourcePoolKey : runMetadata.SourcePoolKey,
-            SelectedItemIdsCount = runMetadata.SelectedItemIdsCount > 0
-                ? runMetadata.SelectedItemIdsCount
-                : manifest.SelectedItemIds.Count > 0 ? manifest.SelectedItemIds.Count : manifest.Items.Count,
-            SelectedItemIdsHash = string.IsNullOrWhiteSpace(runMetadata.SelectedItemIdsHash)
-                ? string.IsNullOrWhiteSpace(manifest.SelectedItemIdsHash)
-                    ? ExperimentArtifactSupport.ComputeSelectedItemIdsHash(
-                        manifest.SelectedItemIds.Count > 0
-                            ? manifest.SelectedItemIds
-                            : manifest.Items.Select(item => item.SliceDatasetItemId))
-                    : manifest.SelectedItemIdsHash
-                : runMetadata.SelectedItemIdsHash,
+            SelectedItemIdsCount = normalizedSelectedItemIdsCount,
+            SelectedItemIdsHash = normalizedSelectedItemIdsHash,
             SampleSize = runMetadata.SampleSize > 0 ? runMetadata.SampleSize : manifest.SampleSize > 0 ? manifest.SampleSize : manifest.Items.Count,
             MatchCount = runMetadata.MatchCount ?? manifest.MatchCount,
             Repetitions = runMetadata.Repetitions ?? manifest.Repetitions,
@@ -131,6 +143,9 @@ internal static class PreparedExperimentCommandSupport
             OfficialKnowledgeCutoff = manifest.HistoricalCompatibility?.OfficialKnowledgeCutoff,
             SamplingCutoff = manifest.HistoricalCompatibility?.SamplingCutoff,
             HistoricalContextDocumentCount = manifest.HistoricalCompatibility?.ContextDocumentCount,
+            HistoricalEligibilityPolicy = manifest.HistoricalCompatibility?.EligibilityPolicy,
+            HistoricalEligibleFixtureCount = manifest.HistoricalCompatibility?.EligibleFixtureCount,
+            HistoricalEligibleFixtureIdsHash = manifest.HistoricalCompatibility?.EligibleFixtureIdsHash,
             PromptVersion = string.IsNullOrWhiteSpace(runMetadata.PromptVersion)
                 ? string.IsNullOrWhiteSpace(runMetadata.PromptKey) ? options.PromptKey : runMetadata.PromptKey
                 : runMetadata.PromptVersion,
@@ -297,10 +312,13 @@ internal static class PreparedExperimentCommandSupport
             || !string.Equals(compatibility.BoundEvaluationPolicyKind, PreparedHistoricalExperimentCompatibility.EvaluationPolicyKind, StringComparison.Ordinal)
             || !string.Equals(compatibility.BoundEvaluationPolicyReference, PreparedHistoricalExperimentCompatibility.EvaluationPolicyReference, StringComparison.Ordinal)
             || !string.Equals(compatibility.BoundEvaluationPolicyOffset, PreparedHistoricalExperimentCompatibility.EvaluationPolicyOffset, StringComparison.Ordinal)
-            || compatibility.ContextDocumentCount != 7)
+            || compatibility.ContextDocumentCount != 7
+            || !string.Equals(compatibility.EligibilityPolicy, PreparedHistoricalExperimentCompatibility.RequiredEligibilityPolicy, StringComparison.Ordinal)
+            || compatibility.EligibleFixtureCount < 1
+            || !DocumentPublicationContract.IsLowercaseSha256(compatibility.EligibleFixtureIdsHash))
         {
             throw new InvalidOperationException(
-                "Bundesliga 2025/26 historical compatibility route must bind the canonical legacy-ID hash mode, seven-document context, hosted Bundesliga match prompt v2/production, and startsAt -12h evaluation policy.");
+                "Bundesliga 2025/26 historical compatibility route must bind the canonical legacy-ID hash mode, seven-document context, complete context-eligible pool, hosted Bundesliga match prompt v2/production, and startsAt -12h evaluation policy.");
         }
 
         if (!DateOnly.TryParseExact(
@@ -328,6 +346,13 @@ internal static class PreparedExperimentCommandSupport
         }
 
         ValidateHistoricalTopology(manifest);
+
+        if (manifest.MatchCount is not int matchCount
+            || compatibility.EligibleFixtureCount < matchCount)
+        {
+            throw new InvalidOperationException(
+                "Historical compatibility selected fixture count exceeds the bound complete context-eligible pool.");
+        }
 
         if (!DocumentPublicationContract.IsLowercaseSha256(manifest.HistoricalArtifactSha256)
             || !string.Equals(
@@ -378,6 +403,9 @@ internal static class PreparedExperimentCommandSupport
             WriteHashField(writer, compatibility.BoundEvaluationPolicyReference);
             WriteHashField(writer, compatibility.BoundEvaluationPolicyOffset);
             WriteHashField(writer, compatibility.ContextDocumentCount.ToString(CultureInfo.InvariantCulture));
+            WriteHashField(writer, compatibility.EligibilityPolicy);
+            WriteHashField(writer, compatibility.EligibleFixtureCount.ToString(CultureInfo.InvariantCulture));
+            WriteHashField(writer, compatibility.EligibleFixtureIdsHash);
             foreach (var item in manifest.Items)
             {
                 WriteHashField(writer, item.SourceDatasetItemId);

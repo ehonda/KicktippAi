@@ -61,6 +61,33 @@ public sealed class Bundesliga2025_26HistoricalExperimentContextReaderTests(Fire
     }
 
     [Test]
+    public async Task Exact_reads_support_the_producer_era_fcs_and_fck_document_route()
+    {
+        var names = Bundesliga2025_26HistoricalExperimentDocumentCatalog.ForMatch(
+            "FC St. Pauli",
+            "1. FC Köln",
+            Community).RequiredDocumentNames;
+        var reader = CreateReader();
+        var createdAt = new DateTimeOffset(2026, 4, 13, 0, 54, 0, TimeSpan.Zero);
+
+        foreach (var (name, index) in names.Select((name, index) => (name, index)))
+        {
+            var version = 700 + index;
+            await SeedAsync(name, version, $"content-{index}", createdAt.AddSeconds(index));
+
+            var result = await reader.GetContextDocumentAsync(name, version, Community);
+
+            await Assert.That(result).IsNotNull()
+                .And.Member(document => document!.DocumentName, actual => actual.IsEqualTo(name))
+                .And.Member(document => document!.Version, actual => actual.IsEqualTo(version));
+        }
+
+        await Assert.That(names).Contains("recent-history-fcs.csv")
+            .And.Contains("recent-history-fck.csv")
+            .And.Contains("head-to-head-fcs-vs-fck.csv");
+    }
+
+    [Test]
     public async Task Reader_contract_exposes_no_write_operations()
     {
         var publicMethods = typeof(IHistoricalExperimentContextReader).GetMethods();

@@ -123,10 +123,9 @@ public sealed record ResolvedHistoricalExperimentContextManifest(
             throw new InvalidDataException("Historical experiment context manifest community scope does not match the experiment scope.");
         }
 
-        var expectedNames = MatchContextDocumentCatalog.ForMatch(
+        var expectedNames = Bundesliga2025_26HistoricalExperimentDocumentCatalog.ForMatch(
             match,
-            communityContext,
-            CompetitionIds.Bundesliga2025_26).RequiredDocumentNames;
+            communityContext).RequiredDocumentNames;
         if (!manifest.Documents.Select(document => document.Name).SequenceEqual(expectedNames, StringComparer.Ordinal))
         {
             throw new InvalidDataException(
@@ -199,12 +198,45 @@ public sealed class Bundesliga2025_26HistoricalExperimentContextResolver
         DateTimeOffset evaluationTimestamp,
         CancellationToken cancellationToken = default)
     {
-        ArgumentNullException.ThrowIfNull(match);
-        ArgumentException.ThrowIfNullOrWhiteSpace(communityContext);
-        var requiredNames = MatchContextDocumentCatalog.ForMatch(
+        var result = await TryResolveAtTimestampCoreAsync(
             match,
             communityContext,
-            CompetitionIds.Bundesliga2025_26).RequiredDocumentNames;
+            evaluationTimestamp,
+            cancellationToken);
+        return result.Context
+            ?? throw new InvalidOperationException(
+                $"Historical context document '{result.MissingDocumentName}' had no version at or before {evaluationTimestamp:O}.");
+    }
+
+    /// <summary>
+    /// Resolves a historical context when all exact producer-era documents exist at the boundary.
+    /// A genuinely absent document returns <see langword="null"/>; malformed data still fails closed.
+    /// </summary>
+    public async Task<ResolvedHistoricalExperimentContext?> TryResolveAtTimestampAsync(
+        Match match,
+        string communityContext,
+        DateTimeOffset evaluationTimestamp,
+        CancellationToken cancellationToken = default)
+    {
+        var result = await TryResolveAtTimestampCoreAsync(
+            match,
+            communityContext,
+            evaluationTimestamp,
+            cancellationToken);
+        return result.Context;
+    }
+
+    private async Task<(ResolvedHistoricalExperimentContext? Context, string? MissingDocumentName)> TryResolveAtTimestampCoreAsync(
+        Match match,
+        string communityContext,
+        DateTimeOffset evaluationTimestamp,
+        CancellationToken cancellationToken)
+    {
+        ArgumentNullException.ThrowIfNull(match);
+        ArgumentException.ThrowIfNullOrWhiteSpace(communityContext);
+        var requiredNames = Bundesliga2025_26HistoricalExperimentDocumentCatalog.ForMatch(
+            match,
+            communityContext).RequiredDocumentNames;
         var documents = new List<DocumentContext>(requiredNames.Count);
         var entries = new List<ResolvedHistoricalExperimentContextDocument>(requiredNames.Count);
         foreach (var name in requiredNames)
@@ -213,9 +245,11 @@ public sealed class Bundesliga2025_26HistoricalExperimentContextResolver
                 name,
                 communityContext,
                 evaluationTimestamp,
-                cancellationToken)
-                ?? throw new InvalidOperationException(
-                    $"Historical context document '{name}' had no version at or before {evaluationTimestamp:O}.");
+                cancellationToken);
+            if (document is null)
+            {
+                return (null, name);
+            }
             if (!string.Equals(document.DocumentName, name, StringComparison.Ordinal)
                 || document.Version < 0
                 || document.CreatedAt > evaluationTimestamp)
@@ -241,7 +275,7 @@ public sealed class Bundesliga2025_26HistoricalExperimentContextResolver
             evaluationTimestamp,
             entries);
         ResolvedHistoricalExperimentContextManifest.ValidateForMatch(manifest, match, communityContext);
-        return new ResolvedHistoricalExperimentContext(documents.AsReadOnly(), manifest);
+        return (new ResolvedHistoricalExperimentContext(documents.AsReadOnly(), manifest), null);
     }
 
     public async Task<ResolvedHistoricalExperimentContext> ResolveRecordedAsync(

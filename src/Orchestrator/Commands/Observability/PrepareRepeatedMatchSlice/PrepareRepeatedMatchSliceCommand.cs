@@ -76,17 +76,30 @@ public sealed class PrepareRepeatedMatchSliceCommand : AsyncCommand<PrepareRepea
             var sourcePoolKey = string.IsNullOrWhiteSpace(settings.SourcePoolKey)
                 ? BuildDefaultSourcePoolKey(matchdays, startsAfter)
                 : settings.SourcePoolKey.Trim();
-            var selectedItems = SelectRandomItems(availableItems, settings.MatchCount, sampleSeed)
-                .OrderBy(item => item.SourceDatasetItemId, StringComparer.Ordinal)
-                .ToList();
+            var samplingPool = availableItems;
+            HistoricalEligibility? historicalEligibility = null;
             if (isHistoricalCompatibility)
             {
-                selectedItems = await BindHistoricalContextAsync(
-                    selectedItems,
+                samplingPool = await BindEligibleHistoricalContextsAsync(
+                    availableItems,
                     settings.CommunityContext,
                     _firebaseServiceFactory.CreateBundesliga2025_26HistoricalExperimentContextReader(),
                     cancellationToken);
+                if (samplingPool.Count < settings.MatchCount)
+                {
+                    throw new InvalidOperationException(
+                        $"Requested match count {settings.MatchCount} exceeds the complete Bundesliga 2025/26 context-eligible fixture count {samplingPool.Count}.");
+                }
+
+                historicalEligibility = new HistoricalEligibility(
+                    samplingPool.Count,
+                    ExperimentArtifactSupport.ComputeSelectedItemIdsHash(
+                        samplingPool.Select(item => item.SourceDatasetItemId)));
             }
+
+            var selectedItems = SelectRandomItems(samplingPool, settings.MatchCount, sampleSeed)
+                .OrderBy(item => item.SourceDatasetItemId, StringComparer.Ordinal)
+                .ToList();
             var repeatedItems = ExpandRepeatedItems(selectedItems, sliceKey, settings.Repetitions);
 
             var sourceDatasetName = ExperimentArtifactSupport.BuildSourceDatasetName(settings.CommunityContext);
@@ -99,7 +112,7 @@ public sealed class PrepareRepeatedMatchSliceCommand : AsyncCommand<PrepareRepea
             var sliceArtifactPath = Path.Combine(outputDirectory, "slice-dataset.json");
             var sliceManifestPath = Path.Combine(outputDirectory, "slice-manifest.json");
             var historicalCompatibility = isHistoricalCompatibility
-                ? BuildHistoricalCompatibility(settings, normalizedStartsAfter!)
+                ? BuildHistoricalCompatibility(settings, normalizedStartsAfter!, historicalEligibility!)
                 : null;
 
             Directory.CreateDirectory(outputDirectory);
@@ -248,15 +261,15 @@ public sealed class PrepareRepeatedMatchSliceCommand : AsyncCommand<PrepareRepea
         return repeatedItems;
     }
 
-    private static async Task<List<PreparedExperimentSourceItem>> BindHistoricalContextAsync(
-        IReadOnlyList<PreparedExperimentSourceItem> selectedItems,
+    private static async Task<List<PreparedExperimentSourceItem>> BindEligibleHistoricalContextsAsync(
+        IReadOnlyList<PreparedExperimentSourceItem> availableItems,
         string communityContext,
         IHistoricalExperimentContextReader reader,
         CancellationToken cancellationToken)
     {
-        var boundItems = new List<PreparedExperimentSourceItem>(selectedItems.Count);
+        var boundItems = new List<PreparedExperimentSourceItem>(availableItems.Count);
         var resolver = new Bundesliga2025_26HistoricalExperimentContextResolver(reader);
-        foreach (var item in selectedItems)
+        foreach (var item in availableItems)
         {
             var evaluationTimestamp = EvaluationTimeParser.Parse(item.StartsAt).AddHours(-12);
             var startsAt = Instant.FromDateTimeOffset(EvaluationTimeParser.Parse(item.StartsAt));
@@ -265,11 +278,16 @@ public sealed class PrepareRepeatedMatchSliceCommand : AsyncCommand<PrepareRepea
                 item.AwayTeam,
                 startsAt.InZone(DateTimeZone.Utc),
                 item.Matchday);
-            var historical = await resolver.ResolveAtTimestampAsync(
+            var historical = await resolver.TryResolveAtTimestampAsync(
                 promptMatch,
                 communityContext,
                 evaluationTimestamp,
                 cancellationToken);
+            if (historical is null)
+            {
+                continue;
+            }
+
             boundItems.Add(item with { HistoricalContextManifest = historical.Manifest });
         }
 
@@ -278,7 +296,8 @@ public sealed class PrepareRepeatedMatchSliceCommand : AsyncCommand<PrepareRepea
 
     private static PreparedHistoricalExperimentCompatibility BuildHistoricalCompatibility(
         PrepareRepeatedMatchSliceSettings settings,
-        string samplingCutoff) =>
+        string samplingCutoff,
+        HistoricalEligibility eligibility) =>
         new()
         {
             Mode = ResolvedHistoricalExperimentContextManifest.LegacyIdHashV1,
@@ -291,8 +310,13 @@ public sealed class PrepareRepeatedMatchSliceCommand : AsyncCommand<PrepareRepea
             BoundEvaluationPolicyKind = PreparedHistoricalExperimentCompatibility.EvaluationPolicyKind,
             BoundEvaluationPolicyReference = PreparedHistoricalExperimentCompatibility.EvaluationPolicyReference,
             BoundEvaluationPolicyOffset = PreparedHistoricalExperimentCompatibility.EvaluationPolicyOffset,
-            ContextDocumentCount = 7
+            ContextDocumentCount = 7,
+            EligibilityPolicy = PreparedHistoricalExperimentCompatibility.RequiredEligibilityPolicy,
+            EligibleFixtureCount = eligibility.FixtureCount,
+            EligibleFixtureIdsHash = eligibility.FixtureIdsHash
         };
+
+    private sealed record HistoricalEligibility(int FixtureCount, string FixtureIdsHash);
 
     private static string GetStartsAt(HostedMatchExperimentDatasetItem item)
     {
