@@ -74,11 +74,38 @@ The draft inherits, but does not modify, these accepted repository contracts:
   `community_context: "ehonda-ai-arena"`; invalid target selection or immutable
   context-safety failure remains fail closed.
 
-Final production model, reasoning effort, output cap, service-tier/fallback
-policy, cost ceiling, accepted hosted prompt versions, arena participants,
-Club Elo unattended-network policy, exact schedules, and rollback authority
-remain owner-controlled P0-21 inputs. The accepted match v2 and bonus v1 prompt
+P0-06 records the final production model, reasoning effort, output cap,
+service-tier/fallback policy, cost ceiling, and accepted hosted prompt versions;
+P0-21 consumes that exact identity for live dispatch. Arena participants, Club
+Elo unattended-network policy, exact schedules, and rollback authority remain
+owner-controlled P0-21 inputs. The accepted match v2 and bonus v1 prompt
 identities remain the current planning baseline, not permission to dispatch.
+
+## Repository preparation versus live authorization
+
+Schedule-free repository preparation does not prove or consume a live community
+permission:
+
+- P0-19 may prepare the model-independent `pes-squad` and `schadensfresse`
+  context callers autonomously from the accepted topology and credential names.
+- Their final matchday and bonus callers wait only for P0-06 to record the exact
+  `production-primary` identity.
+- Arena production-copy preparation additionally waits for the owner-selected
+  participant/profile/exact credential names and the exact P0-06 identity.
+- Secret presence, authentication/current-season readiness, POST permission,
+  Kicktipp deadlines, manual/live writes, monitoring, rollback, and schedules
+  remain open P0-21 pre-dispatch gates. No production POST is authorized here.
+
+The `schadensfresse` setup request is external and pending with its community
+administrator. The agent is not authorized or expected to administer that
+community; P0-21 must verify the external result before dispatch.
+
+P0-23's earlier Terra/`medium`, Sol/`medium`, cap-`10000`, and `15 × 20`
+surface is a superseded provisional example, not the selected experiment
+surface. The owner will provide a detailed model-experiment specification and
+phase budget after autonomous preparation. No exact paid matrix, dataset action,
+model call, or spend is authorized by this clarification. The completed Luna
+cost row remains reusable without another model run.
 
 ## Evidence-backed duration envelope
 
@@ -163,17 +190,18 @@ throughout the season.
       community context, extra model call, unexpected/non-zero reprediction
       index, or unintended reprediction is observed.
 
-## Per-community readiness — all currently blocked
+## Per-community readiness — all currently blocked for live dispatch
 
 The current facts below incorporate the separate read-only
 [production prerequisite audit](production-prerequisite-audit-2026-08-25.md).
 That audit established authentication/read evidence only; it did not prove any
-posting right or authorize production.
+posting right or authorize production. These are P0-21 live gates, not blockers
+to the schedule-free repository preparation described above.
 
 | Matrix row | Current unresolved fact | Evidence required before manual dispatch | Schedule state |
 |---|---|---|---|
-| `pes-production-reference` | Authentication and current 9-fixture/18-team Bundesliga 2026/27 read readiness passed, but POST permission is unknown; final `production-primary` remains gated | Community administrator proves posting permission, exact Kicktipp deadlines, repository secret presence, and one inspected manual independent-generation cycle | Disabled / manual-only |
-| `schadensfresse-production-independent` | Authentication passed, but the community exposed 9 completed / 0 pending results and 0 current prediction inputs; Bundesliga 2026/27 is not ready and POST permission is unknown | Community administrator fixes and verifies the 2026/27 competition, then proves posting permission/deadlines/repository-secret presence and one inspected manual independent-generation cycle | Disabled / manual-only |
+| `pes-production-reference` | Authentication and current 9-fixture/18-team Bundesliga 2026/27 read readiness passed, but POST permission is unknown; final `production-primary` remains gated | P0-21 obtains posting permission, exact Kicktipp deadlines, repository secret presence, and one inspected manual independent-generation cycle | No active schedule; dispatch forbidden until gates pass |
+| `schadensfresse-production-independent` | Authentication passed, but the community exposed 9 completed / 0 pending results and 0 current prediction inputs; Bundesliga 2026/27 is not ready and POST permission is unknown; external setup request pending | External community administrator fixes the 2026/27 competition; P0-21 then verifies readiness, posting permission/deadlines/repository-secret presence, and one inspected manual independent-generation cycle | No active schedule; dispatch forbidden until gates pass |
 | `arena-production-copy` | The production participant, exact credential names/profile, and production configuration are unresolved; the confirmed arena sibling profile belongs only to Luna validation | Owner admits the matching production participant, provisions its exact credentials, proves fixture compatibility and P0-24 bonus behavior, and verifies copy without an extra call or exact target-context fallback when incompatible | Nondeployable; no workflow or schedule |
 | `arena-challenger-<n>` | Zero challenger rows are admitted | Owner records every model/configuration/participant field and separately approves admission; the template alone creates nothing | Nondeployable |
 
@@ -224,6 +252,8 @@ activation ADR must name the rollback operator and exact repository change.
   target community at activation time.
 - `pes-squad` POST permission and final season setup.
 - `schadensfresse` Bundesliga 2026/27 readiness.
+- External completion of the `schadensfresse` setup request; the agent neither
+  administers nor is expected to administer the community.
 - Arena production participant, credential profile, and any challengers.
 - Owner-selected production configuration, cost ceiling, Club Elo operating
   mode, exact schedule/cadence, named monitor/on-call/rollback owners, and

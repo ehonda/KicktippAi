@@ -1,6 +1,6 @@
 # P0-19 — Add the `schadensfresse` independent-production workflow triad
 
-- Status: Blocked — not started; waiting for community-admin remediation and the P0-06 owner-selected `production-primary` identity
+- Status: Not started — the model-independent context caller may be prepared; final matchday and bonus callers wait for the P0-06 owner-selected `production-primary` identity
 - Priority: P0
 - Matrix row: `schadensfresse-production-independent`
 - Depends on: [P0-06](p0-06-model-ledger-and-cost-baseline.md), [P0-17](p0-17-community-scope.md), and [P0-18](p0-18-base-workflow-support.md)
@@ -15,48 +15,51 @@ context, matchday, and bonus workflow triad for competition
 `schadensfresse`; every match and bonus prediction is generated independently
 with the exact owner-approved `production-primary` identity.
 
-This task constructs schedule-free entrypoints only after the model, community,
-and credential prerequisites in `Current blocked state` pass. The separate
-P0-21 activation gates remain open after construction. This task authorizes no
-community request, prediction, workflow dispatch, schedule, or production write.
+The model-independent context entrypoint may be prepared autonomously from the
+accepted target/context topology and credential names. Final matchday and bonus
+caller construction waits only for the exact P0-06 `production-primary`
+identity. Secret presence, authentication/readiness, POST permission, Kicktipp
+deadlines, live writes, and activation remain open P0-21 pre-dispatch gates;
+they do not block schedule-free repository preparation. This task authorizes no
+community request, prediction, workflow dispatch, schedule, or production POST.
 P0-21 exclusively owns manual production evidence and activation.
 
-## Current blocked state
+## Repository-preparation boundary
 
-- [ ] A `schadensfresse` community administrator fixes and verifies Bundesliga
-      2026/27 setup. Authentication passed in the read-only audit, but the
-      community exposed nine completed and zero pending results plus zero current
-      prediction-input rows; the current-season profile therefore failed its
-      exact-nine-fixture readiness gate.
-- [ ] `schadensfresse` Bundesliga 2026/27 POST permission is unknown. The
-      community administrator must confirm it; the audit made no POST request.
 - [ ] P0-06 records an owner-approved `production-primary` model, reasoning
       effort, positive output-token cap, hosted numbered match and bonus prompt
       versions, service-tier/fallback policy, whole-season cost ceiling, and
       estimator evidence after P0-23 evidence or an explicit accepted waiver.
-- [ ] A repository administrator confirms names-only Actions presence for
-      `SCHADENSFRESSE_KICKTIPP_USERNAME` and
-      `SCHADENSFRESSE_KICKTIPP_PASSWORD` without displaying values. Actions
-      presence is unknown; accepted names are not evidence that repository
-      secrets exist.
+
+That unchecked P0-06 item blocks only the model-bound matchday and bonus
+callers. It does not block the model-independent context caller. Terra and Sol
+were provisional P0-23 examples and are not the selected experiment surface.
+Later owner-specified cost evidence informs the model, cost-ceiling, and
+quality-budget decisions, but this clarification authorizes no exact paid
+matrix, preflight, dataset mutation, or model call.
+
+The `schadensfresse` setup request is external and pending with its community
+administrator. The agent is neither authorized nor expected to administer the
+community. Its completion, current-season readiness, and POST permission are
+P0-21 pre-dispatch gates, not repository-preparation prerequisites.
 
 Do not infer any unresolved value from Luna/none validation, a historical
 Bundesliga or WM26 caller, a model default, a local environment file, or an old
 schedule. Do not invent a replacement secret name, bypass the exact-nine input
 gate, or treat successful authentication as season readiness.
 
-## Work items after the gates pass
+## Work items
 
-- [ ] Re-run the supported current-season read-only profile after administrator
-      remediation and require exactly nine current Bundesliga 2026/27 prediction
-      inputs before workflow implementation proceeds.
 - [ ] Copy the current P0-19 template into an explicit `schadensfresse` context
       entrypoint pinned to posting context `schadensfresse`, competition
-      `bundesliga-2026-27`, and the accepted Bundesliga context profile.
+      `bundesliga-2026-27`, and the accepted Bundesliga context profile. This
+      model-independent repository work may proceed before P0-06 selection and
+      before the external community administrator completes setup.
 - [ ] Create the `schadensfresse` matchday entrypoint with posting target
       `schadensfresse`, `community_context: "schadensfresse"`, the exact approved
       `production-primary` model/reasoning/cap/service policy, and the accepted
-      hosted numbered match prompt with required `production` membership.
+      hosted numbered match prompt with required `production` membership. Do
+      not construct this caller until P0-06 records that exact identity.
 - [ ] Create the `schadensfresse` bonus entrypoint with the same exact posting,
       context, model, cap, and service identity plus the accepted hosted numbered
       bonus prompt and explicit immutable budgets of 20 documents / 32000 tokens.
@@ -85,6 +88,17 @@ gate, or treat successful authentication as season readiness.
 
 ## Activation boundary
 
+- [ ] The external `schadensfresse` community administrator completes the
+      pending Bundesliga 2026/27 setup request. P0-21 then re-runs the supported
+      read-only profile and requires exactly nine current prediction inputs;
+      the agent does not administer the community.
+- [ ] P0-21 confirms names-only Actions presence for
+      `SCHADENSFRESSE_KICKTIPP_USERNAME` and
+      `SCHADENSFRESSE_KICKTIPP_PASSWORD`, then authenticates without displaying
+      secret values.
+- [ ] P0-21 obtains community-administrator confirmation of Bundesliga 2026/27
+      POST permission. The audit made no POST request, and this task authorizes
+      none.
 - [ ] P0-21 records the exact Kicktipp match and bonus deadlines, operator,
       monitor/on-call, schedule proposal, and rollback authority.
 - [ ] Hand the reviewed, green, manual-only triad to P0-21 without dispatching it.
@@ -109,9 +123,10 @@ gate, or treat successful authentication as season readiness.
 
 ## Complete when
 
-- Community-admin remediation and every other gate and work item have evidence;
-  the triad is manually callable and schedule-free; every production field
-  equals the P0-06 owner decision.
+- Every repository work item has evidence, the triad is manually callable and
+  schedule-free, and every model-bound production field equals the P0-06 owner
+  decision. External community remediation and the other open P0-21
+  pre-dispatch gates do not block repository closeout.
 - The superseded 2025/26 callers cannot be mistaken for a live path.
 - P0-21—not this task—owns the first production dispatch, opening writes,
   schedule activation, first scheduled observation, and rollback decision.

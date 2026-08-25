@@ -1,6 +1,6 @@
 # P0-23 — Collect GPT-5.6 production-candidate evidence
 
-- Status: In progress — no-spend preregistration drafted; owner matrix and both spend gates pending
+- Status: In progress — no-spend preregistration drafted; its provisional surface is superseded and execution awaits the owner's detailed model-experiment specification and phase budget
 - Priority: P0
 - Depends on: [P0-05](p0-05-prompt-route.md), [P0-12](p0-12-match-context-and-transfer-retirement.md), and [P0-20](p0-20-seed-and-development-validation.md)
 - Reuses: the completed cost/provenance foundation recorded in [P0-06](p0-06-model-ledger-and-cost-baseline.md)
@@ -15,13 +15,16 @@ The already accepted hosted prompt identities remain match version 2 and bonus v
 
 The current no-spend design is
 [the GPT-5.6 Bundesliga 2025/26 production-candidate preregistration](../../../docs/experiments/gpt-5-6-bundesliga-2025-26-production-candidate-preregistration.md).
-It proposes Sol and Terra at their documented default `medium` effort and cap
-`10000`, reuses the exact Luna/`none` row, and keeps all owner, spend, execution,
-and evidence boxes below open.
+Its Terra/`medium`, Sol/`medium`, cap-`10000`, and `15 × 20` entries are now
+superseded provisional examples, not the selected experiment surface. The owner
+will provide a detailed model-experiment specification after the current
+autonomous preparation work. No replacement candidates, efforts, caps, or
+topology are inferred here. The exact Luna/`none` row remains reusable without a
+rerun; all owner, spend, execution, and evidence boxes below remain open.
 
 ## Owner and spend gate
 
-- [ ] Obtain the owner's exact candidate matrix: model IDs, reasoning efforts, maximum output-token caps, and any configurations intentionally excluded.
+- [ ] Obtain the owner's detailed model-experiment specification: exact model IDs, reasoning efforts, maximum output-token caps, topology, and any configurations intentionally excluded. Do not revive the superseded provisional surface by default.
 - [ ] Obtain explicit authorization and a maximum spend for the cost phase and, separately, the later quality phase. No prompt, dataset, Langfuse, or model mutation may begin before the applicable phase is authorized.
 - [ ] Record whether the owner requires comparative quality evidence before selection or explicitly waives it. A waiver must state its rationale and accepted risk in the final production-selection ADR; silence is not a waiver.
 
@@ -68,14 +71,16 @@ and evidence boxes below open.
 - Official Standard and Flex short-context prices were recorded with a dated
   source link in the preregistration. The repository cost calculator already
   recognizes the explicit Sol and Terra model IDs.
-- The provisional hardest-cutoff boundary is therefore the already-audited
-  strict `2026-02-18T00:00:00 Europe/Berlin (+01)` boundary with eligible pool
-  count `109` and hash
-  `6ecb182489b97f9ea389374183f0ef7cfe632ddfba341ea72aa354647593b415`.
-- The cost design freezes one-item then exact five-by-four evidence for every
-  missing candidate row and reuses Luna without another prediction. The quality
-  section remains explicitly DRAFT at 15 fixtures by 20 repetitions on one
-  common manifest, pending the owner's exact matrix and separate spend ceiling.
+- The strict `2026-02-18T00:00:00 Europe/Berlin (+01)` boundary, eligible pool
+  count `109`, and hash
+  `6ecb182489b97f9ea389374183f0ef7cfe632ddfba341ea72aa354647593b415`
+  remain authoritative for the completed Luna row. They are not inherited by an
+  unspecified future surface; every selected model must re-derive its cutoff.
+- The earlier Terra/Sol application of the one-item then exact five-by-four cost
+  process and the draft 15-fixture-by-20-repetition quality topology are
+  superseded provisional examples. Execution is deferred until the owner records
+  the detailed surface and applicable phase budget. Luna remains reusable without
+  another prediction.
 - No dataset was prepared or synced; no Langfuse or prompt mutation, model call,
   or spend occurred while drafting this evidence.
 

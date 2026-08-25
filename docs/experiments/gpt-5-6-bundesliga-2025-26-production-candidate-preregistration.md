@@ -4,11 +4,14 @@
 
 **Verified:** 2026-08-25
 
-This preregistration defines the proposed cost and quality evidence for the
-Bundesliga 2026/27 production-model decision. It keeps cost measurement separate
-from prediction-quality comparison. The project owner must approve the exact
-candidate matrix and a phase-specific spend ceiling before either missing cost
-rows or quality evidence are produced.
+This preregistration records a no-spend design history for the Bundesliga
+2026/27 production-model decision. Its former Terra/`medium`, Sol/`medium`,
+cap-`10000`, and `15 × 20` surface is a superseded provisional example, not the
+selected experiment surface. The owner will provide a detailed model-experiment
+specification after the current autonomous preparation work. Cost measurement
+remains separate from prediction-quality comparison, and no missing cost row or
+quality evidence may be produced before that exact surface and its phase-specific
+spend ceiling are approved.
 
 Related planning and decisions:
 
@@ -22,7 +25,9 @@ Related planning and decisions:
 ## Decisions still reserved for the owner
 
 - [ ] Approve the exact production-candidate model and reasoning-effort matrix.
-- [ ] Approve the proposed `10000` output-token cap for each new candidate.
+- [ ] Approve the exact output-token cap for each candidate in the detailed
+      model-experiment specification; do not inherit the superseded `10000`
+      example.
 - [ ] Approve a maximum spend for the missing-cost-row phase.
 - [ ] After reviewing the completed cost rows, approve the final quality matrix,
       topology, and a separate quality-phase spend ceiling.
@@ -32,35 +37,38 @@ Related planning and decisions:
 No unchecked decision above is implied by the repository changes that create
 this draft.
 
-## Official model facts and proposed candidate register
+## Official model facts and superseded provisional examples
 
 The official OpenAI model pages and pricing page were checked on 2026-08-25.
 All three exact GPT-5.6 model IDs publish a `2026-02-16` knowledge cutoff and
 support `medium` as the default reasoning effort. Short-context token prices are
 USD per one million tokens.
 
-| Exact model ID | Proposed effort | Evidence state | Standard input / cached / output | Flex input / cached / output | Official source |
+| Exact model ID | Recorded example effort | Evidence state | Standard input / cached / output | Flex input / cached / output | Official source |
 |---|---:|---|---:|---:|---|
-| `gpt-5.6-luna` | `none` | Existing authoritative 5x4 cost row; reuse without rerun | `$0.20 / $0.02 / $1.20` | `$0.10 / $0.01 / $0.60` | [Model](https://developers.openai.com/api/docs/models/gpt-5.6-luna), [pricing](https://developers.openai.com/api/docs/pricing) |
-| `gpt-5.6-terra` | `medium` | Proposed; owner approval and cost row missing | `$2.00 / $0.20 / $12.00` | `$1.00 / $0.10 / $6.00` | [Model](https://developers.openai.com/api/docs/models/gpt-5.6-terra), [pricing](https://developers.openai.com/api/docs/pricing) |
-| `gpt-5.6-sol` | `medium` | Proposed; owner approval and cost row missing | `$4.00 / $0.40 / $20.00` | `$2.00 / $0.20 / $10.00` | [Model](https://developers.openai.com/api/docs/models/gpt-5.6-sol), [pricing](https://developers.openai.com/api/docs/pricing) |
+| `gpt-5.6-luna` | `none` | Existing authoritative 5x4 cost row; reusable without rerun, but not production selection | `$0.20 / $0.02 / $1.20` | `$0.10 / $0.01 / $0.60` | [Model](https://developers.openai.com/api/docs/models/gpt-5.6-luna), [pricing](https://developers.openai.com/api/docs/pricing) |
+| `gpt-5.6-terra` | `medium` | Superseded provisional example; not selected | `$2.00 / $0.20 / $12.00` | `$1.00 / $0.10 / $6.00` | [Model](https://developers.openai.com/api/docs/models/gpt-5.6-terra), [pricing](https://developers.openai.com/api/docs/pricing) |
+| `gpt-5.6-sol` | `medium` | Superseded provisional example; not selected | `$4.00 / $0.40 / $20.00` | `$2.00 / $0.20 / $10.00` | [Model](https://developers.openai.com/api/docs/models/gpt-5.6-sol), [pricing](https://developers.openai.com/api/docs/pricing) |
 
 The unsuffixed `gpt-5.6` alias routes to Sol according to the official model
 documentation. It is therefore excluded as a duplicate candidate identity;
 experiments must use the exact `gpt-5.6-sol` ID for immutable provenance.
 
-The candidate register is a proposal, not an authorization. In particular,
-`medium` and cap `10000` remain pending owner approval for Terra and Sol.
+This table is not a candidate register or authorization. Terra/`medium` and
+Sol/`medium` were not selected, and cap `10000` is not approved for them. Do not
+infer a replacement effort, cap, candidate, or topology before the owner's
+detailed specification.
 
 ## Shared knowledge-cutoff and historical-context contract
 
-Every proposed candidate currently has the same official knowledge cutoff:
-`2026-02-16`. The established two-day safety margin yields a strict sampling
-boundary of `2026-02-18T00:00:00 Europe/Berlin (+01:00)`. A completed fixture is
-eligible only when its start is strictly after that boundary. If the owner adds
-a model with a later cutoff, the exact common window must be re-derived from the
-hardest cutoff before any preparation; an earlier-cutoff manifest must not be
-reused silently.
+The three exact model IDs in the superseded example published the same
+`2026-02-16` knowledge cutoff when checked. That fact does not freeze the future
+experiment surface. After the owner supplies it, derive every selected model's
+current cutoff and apply the established two-day margin before any preparation.
+For the completed Luna row, the strict sampling boundary remains
+`2026-02-18T00:00:00 Europe/Berlin (+01:00)` and a fixture was eligible only when
+its start was strictly after that boundary. An earlier-cutoff manifest must not
+be inherited silently by a new surface.
 
 Both phases use the explicit historical compatibility route
 `bundesliga-2025-26-legacy-id-hash-v1`, evaluation at match start minus 12 hours,
@@ -74,14 +82,18 @@ pool is already bound as:
 | Sorted eligible-source-ID SHA-256 | `6ecb182489b97f9ea389374183f0ef7cfe632ddfba341ea72aa354647593b415` |
 | Hosted match prompt | `kicktippai/bundesliga-2026-27/predict-one-match`, exact version `2`, required label `production` |
 | Prompt key | `bundesliga-match-v2` |
-| Output cap | Proposed `10000`, pending owner approval for new candidates |
+| Output cap | `10000` only for the completed Luna row; no cap selected for a future surface |
 | Service tier | Flex first, Standard only as the recorded fallback |
 
 The seven-document historical route is a preseason cost and comparison proxy.
 Its input can understate the live Bundesliga 2026/27 eleven-document input cost.
 Cost observations do not establish prediction quality.
 
-## Phase A — cost rows
+## Phase A — cost rows (execution deferred)
+
+No new cost-row execution is selected or authorized. The repository process
+below applies only after the owner supplies the detailed surface and approves
+the exact cost-phase budget.
 
 ### Existing Luna reference
 
@@ -135,15 +147,15 @@ observations have been validated. Run the authoritative estimator for counts
 fallbacks/retries, cutoff/pool/selection identities, exact collector binding, and
 estimator stdout.
 
-## Phase B — quality comparison (DRAFT)
+## Phase B — quality comparison (SUPERSEDED PROVISIONAL EXAMPLE)
 
-This section freezes a reviewable proposal, not an executable authorization. The
-exact matrix, topology, and quality spend ceiling remain owner decisions after
-the missing cost rows are complete.
+This section preserves the earlier reviewable example for history. It is not an
+executable authorization and its matrix/topology were not selected. Execution
+waits for the owner's detailed surface and separate quality-phase budget.
 
-### Proposed topology
+### Superseded provisional topology
 
-- Use the owner-approved subset of the candidate register.
+- The earlier example assumed an owner-approved subset of the provisional table.
 - Derive one common manifest from the hardest published model cutoff plus the
   two-day margin; every candidate receives identical fixture/repetition items.
 - Use a repeated-match-slice of `15` distinct fixtures × `20` repetitions
@@ -153,9 +165,10 @@ the missing cost rows are complete.
 - Prepare and inspect before synchronization. A matrix entry may run only after
   its cost estimate fits within the separately approved quality ceiling.
 
-The `15 × 20` topology is deliberately marked DRAFT. It provides 20 paired
-repetition-total observations under the current reporter while retaining fixture
-coverage; the owner may approve another topology before the manifest is frozen.
+The `15 × 20` topology is superseded and must not be prepared or executed. It was
+intended to provide 20 paired repetition-total observations under the current
+reporter while retaining fixture coverage; the owner's detailed specification
+will supply the actual topology without inheriting this example.
 
 ### Paired analysis and reporting
 
@@ -196,6 +209,8 @@ without an explicit documented amendment.
 - [ ] Prepared manifest, selection identity, expected count, and service-tier
       fallback contract have passed pre-spend inspection.
 
-As of 2026-08-25, none of these freeze items authorizes a new call. This document
-adds no dataset, Langfuse mutation, prompt mutation, model run, spend, production
-promotion, or prediction-quality claim.
+As of 2026-08-25, none of these freeze items authorizes a new call. The Terra/Sol
+medium matrix and `15 × 20` topology are not selected. This document adds no
+dataset, Langfuse mutation, prompt mutation, model run, spend, production
+promotion, or prediction-quality claim. The authoritative Luna row remains
+reusable without another model run.

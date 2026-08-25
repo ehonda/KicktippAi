@@ -1,6 +1,6 @@
 # P0-19 — Add the `pes-squad` production-reference workflow triad
 
-- Status: Blocked — not started; waiting for the P0-06 owner-selected `production-primary` identity and the readiness gates below
+- Status: Not started — the model-independent context caller may be prepared; final matchday and bonus callers wait for the P0-06 owner-selected `production-primary` identity
 - Priority: P0
 - Matrix row: `pes-production-reference`
 - Depends on: [P0-06](p0-06-model-ledger-and-cost-baseline.md), [P0-17](p0-17-community-scope.md), and [P0-18](p0-18-base-workflow-support.md)
@@ -16,40 +16,44 @@ predictions are generated independently using the exact owner-approved
 `production-primary` identity and stored as the reference for compatible arena
 copy-posting.
 
-This task constructs schedule-free entrypoints only after the model, community,
-and credential prerequisites in `Current blocked state` pass. The separate
-P0-21 activation gates remain open after construction. This task authorizes no
-community request, prediction, workflow dispatch, schedule, or production write.
+The model-independent context entrypoint may be prepared autonomously from the
+accepted target/context topology and credential names. Final matchday and bonus
+caller construction waits only for the exact P0-06 `production-primary`
+identity. Secret presence, authentication/readiness, POST permission, Kicktipp
+deadlines, live writes, and activation remain open P0-21 pre-dispatch gates;
+they do not block schedule-free repository preparation. This task authorizes no
+community request, prediction, workflow dispatch, schedule, or production POST.
 P0-21 exclusively owns manual production evidence and activation.
 
-## Current blocked state
+## Repository-preparation boundary
 
 - [ ] P0-06 records an owner-approved `production-primary` model, reasoning
       effort, positive output-token cap, hosted numbered match and bonus prompt
       versions, service-tier/fallback policy, whole-season cost ceiling, and
       estimator evidence after P0-23 evidence or an explicit accepted waiver.
-- [ ] `pes-squad` Bundesliga 2026/27 POST permission is unknown. The community
-      administrator must confirm it. The read-only audit established
-      authentication, nine current fixtures, the current 18-team standings, and
-      expected context readability, but made no POST request.
-- [ ] A repository administrator confirms names-only Actions presence for
-      `PES_SQUAD_KICKTIPP_USERNAME` and
-      `PES_SQUAD_KICKTIPP_PASSWORD` without displaying values. Actions presence
-      is unknown; accepted names are not evidence that repository secrets exist.
+
+That unchecked P0-06 item blocks only the model-bound matchday and bonus
+callers. It does not block the model-independent context caller. Terra and Sol
+were provisional P0-23 examples and are not the selected experiment surface.
+Later owner-specified cost evidence informs the model, cost-ceiling, and
+quality-budget decisions, but this clarification authorizes no exact paid
+matrix, preflight, dataset mutation, or model call.
 
 Do not infer any unresolved value from Luna/none validation, a historical
 Bundesliga or WM26 caller, a model default, a local environment file, or an old
 schedule. Do not invent a replacement secret name.
 
-## Work items after the gates pass
+## Work items
 
 - [ ] Copy the current P0-19 template into an explicit `pes-squad` context
       entrypoint pinned to posting context `pes-squad`, competition
-      `bundesliga-2026-27`, and the accepted Bundesliga context profile.
+      `bundesliga-2026-27`, and the accepted Bundesliga context profile. This
+      model-independent repository work may proceed before P0-06 selection.
 - [ ] Create the `pes-squad` matchday entrypoint with posting target
       `pes-squad`, `community_context: "pes-squad"`, the exact approved
       `production-primary` model/reasoning/cap/service policy, and the accepted
-      hosted numbered match prompt with required `production` membership.
+      hosted numbered match prompt with required `production` membership. Do
+      not construct this caller until P0-06 records that exact identity.
 - [ ] Create the `pes-squad` bonus entrypoint with the same exact posting,
       context, model, cap, and service identity plus the accepted hosted numbered
       bonus prompt and explicit immutable budgets of 20 documents / 32000 tokens.
@@ -78,6 +82,13 @@ schedule. Do not invent a replacement secret name.
 
 ## Activation boundary
 
+- [ ] P0-21 confirms names-only Actions presence for
+      `PES_SQUAD_KICKTIPP_USERNAME` and
+      `PES_SQUAD_KICKTIPP_PASSWORD`, then authenticates and rechecks current
+      community readiness without displaying secret values.
+- [ ] P0-21 obtains community-administrator confirmation of Bundesliga 2026/27
+      POST permission. The read-only audit made no POST request, and this task
+      authorizes none.
 - [ ] P0-21 records the exact Kicktipp match and bonus deadlines, operator,
       monitor/on-call, schedule proposal, and rollback authority.
 - [ ] Hand the reviewed, green, manual-only triad to P0-21 without dispatching it.
@@ -102,8 +113,9 @@ schedule. Do not invent a replacement secret name.
 
 ## Complete when
 
-- Every gate and work item above has evidence, the triad is manually callable
-  and schedule-free, and every production field equals the P0-06 owner decision.
+- Every repository work item has evidence, the triad is manually callable and
+  schedule-free, and every model-bound production field equals the P0-06 owner
+  decision. The open P0-21 pre-dispatch gates do not block repository closeout.
 - The superseded 2025/26 callers cannot be mistaken for a live path.
 - P0-21—not this task—owns the first production dispatch, opening writes,
   schedule activation, first scheduled observation, and rollback decision.

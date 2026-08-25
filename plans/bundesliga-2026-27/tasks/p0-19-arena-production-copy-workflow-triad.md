@@ -14,18 +14,19 @@ to `ehonda-ai-arena`, read the reference prediction with
 `community_context: "pes-squad"`, and use the exact same owner-approved
 `production-primary` identity as `pes-production-reference`.
 
-This task record does not resolve any gated value and authorizes no workflow,
-dispatch, model call, prediction write, credential use, or schedule change.
-Current prerequisite facts and activation gates are recorded in the
+This task record does not resolve any gated value. Schedule-free repository
+preparation becomes available only after the preparation prerequisites below;
+it authorizes no dispatch, model call, prediction write, credential use,
+production POST, or schedule change. Current prerequisite facts and activation
+gates are recorded in the
 [production prerequisite audit](../../../docs/onboarding-bundesliga-2026-27/production-prerequisite-audit-2026-08-25.md)
 and [production activation preregistration](../../../docs/onboarding-bundesliga-2026-27/production-activation-preregistration.md).
 
-## Blocking prerequisites
+## Repository-preparation prerequisites
 
 - [ ] P0-06 records the owner-approved `production-primary` model, reasoning effort, maximum output-token cap, numbered match and bonus prompt versions, service-tier/fallback policy, whole-season cost ceiling, and estimator evidence; Luna/none is not inherited.
 - [ ] The separately instantiated `pes-production-reference` P0-19 task and its callers are reviewed and green, and those callers pin the exact `production-primary` configuration that the arena callers must mirror byte for byte.
 - [ ] The owner selects the arena production-copy Kicktipp participant and records the exact model-specific local credential-profile name and exact model-specific Actions username/password names.
-- [ ] A repository administrator confirms the selected Actions names are present without exposing values, and the selected participant's authentication, Bundesliga 2026/27 readiness, and posting permission are verified.
 - [ ] Any local profile selector needed to distinguish the selected production participant from other `ehonda-ai-arena` participants is accepted and implemented before local use.
 - [ ] The existing `.env.ehonda-ai-arena` profile and `EHONDA_AI_ARENA_GPT_5_6_LUNA_NONE_KICKTIPP_USERNAME` / `EHONDA_AI_ARENA_GPT_5_6_LUNA_NONE_KICKTIPP_PASSWORD` names remain reserved for the Luna plumbing participant and are not reused.
 - [ ] P0-24's integrated exact bonus-compatibility, independent target-context fallback, immutable provenance, and fail-closed safety contracts are present on the implementation base.
@@ -33,8 +34,16 @@ and [production activation preregistration](../../../docs/onboarding-bundesliga-
 No placeholder participant, model value, local profile, or Actions credential
 name may be invented to close a prerequisite.
 
-Exact Kicktipp match-submission and bonus deadlines are P0-21 live-dispatch and
-activation gates, not prerequisites to constructing this manual-only triad.
+Terra and Sol were provisional P0-23 examples and are not the selected
+experiment surface. Later owner-specified cost evidence informs the model,
+cost-ceiling, and quality-budget decisions, but this clarification authorizes no
+exact paid matrix, preflight, dataset mutation, or model call.
+
+Repository secret presence, participant authentication and Bundesliga 2026/27
+readiness, POST permission, exact Kicktipp match-submission and bonus deadlines,
+live writes, and schedule activation are P0-21 live-dispatch gates. They are not
+prerequisites to constructing this manual-only triad after the owner has selected
+the participant/profile/exact credential names and P0-06 identity.
 
 ## Work items
 
@@ -50,6 +59,17 @@ activation gates, not prerequisites to constructing this manual-only triad.
 - [ ] Record the arena prediction dispatch precondition: P0-21 must hold exact successful `pes-production-reference` evidence for the same runtime identity and target item before either arena prediction workflow is dispatched; the arena caller still revalidates source identity and compatibility at runtime.
 - [ ] Keep every Bundesliga 2025/26 and historical arena caller retired. Add new explicitly named Bundesliga 2026/27 callers rather than repurposing an old entrypoint.
 - [ ] Leave deadline verification, live dispatch, posting verification, trace inspection, first production copy evidence, and any deliberate schedule activation exclusively to [P0-21](p0-21-production-activation.md). Machine-enforced reference-before-copy ordering belongs only to P0-21's later owner-approved Accepted activation ADR and outer workflow with explicit `needs` dependencies.
+
+## Activation boundary
+
+- [ ] P0-21 confirms names-only Actions presence for the exact owner-selected
+      credential names without exposing values, authenticates that participant,
+      and verifies Bundesliga 2026/27 community readiness.
+- [ ] P0-21 confirms POST permission and records exact Kicktipp match and bonus
+      deadlines before the first manual dispatch. This task authorizes no POST.
+- [ ] P0-21 obtains and inspects the first production reference/copy evidence,
+      retains all live-write gates, and alone decides schedule activation and
+      rollback.
 
 ## Validation
 
@@ -67,13 +87,19 @@ activation gates, not prerequisites to constructing this manual-only triad.
 The [production prerequisite audit](../../../docs/onboarding-bundesliga-2026-27/production-prerequisite-audit-2026-08-25.md)
 found no accepted arena production participant or credential profile, and the
 [activation preregistration](../../../docs/onboarding-bundesliga-2026-27/production-activation-preregistration.md)
-keeps this row nondeployable with no workflow or schedule. The command-level
-P0-24 topology is implemented and tested, but no live production copy-post or
-independent fallback has run. P0-21 owns that evidence after every prerequisite
-above passes.
+keeps this row nondeployable with no workflow or schedule. Repository preparation
+is blocked on the P0-06 identity, reviewed `pes-production-reference` callers,
+and owner-selected participant/profile/exact credential names—not on P0-21 live
+permission evidence. The command-level P0-24 topology is implemented and tested,
+but no live production copy-post or independent fallback has run. P0-21 owns
+that evidence after the repository triad is ready and every pre-dispatch gate
+passes.
 
 ## Complete when
 
 - [ ] The owner-selected participant and exact credential names are recorded, the `production-primary` slot is resolved, the matching `pes-production-reference` task and callers are reviewed and green, and the arena callers mirror their exact `production-primary` configuration byte for byte.
 - [ ] The triad is fully explicit, manually callable, schedule-free, and protected by workflow, copy-compatibility, persistence, telemetry, and retired-caller contracts.
 - [ ] No unresolved model, participant, profile, credential, compatibility, or activation gate is deployed or marked complete by this task record.
+- [ ] Open P0-21 secret-presence, authentication/readiness, POST, deadline,
+      live-write, and activation gates remain recorded for handoff and do not
+      block repository closeout.
