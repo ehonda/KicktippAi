@@ -32,6 +32,13 @@ internal sealed class TestFirebaseServiceFactory(FirestoreDb firestoreDb) : IFir
             new FakeLogger<Bundesliga2025_26HistoricalExperimentContextReader>());
     }
 
+    public IHistoricalExperimentFixtureReader CreateBundesliga2025_26HistoricalExperimentFixtureReader()
+    {
+        return new Bundesliga2025_26HistoricalExperimentFixtureReader(
+            FirestoreDb,
+            new FakeLogger<Bundesliga2025_26HistoricalExperimentFixtureReader>());
+    }
+
     public IDocumentPublicationRepository CreateDocumentPublicationRepository(string competition)
     {
         return new FirebaseDocumentPublicationRepository(

@@ -35,12 +35,28 @@ public sealed class PrepareRepeatedMatchSliceCommand : AsyncCommand<PrepareRepea
         try
         {
             var competition = CompetitionIds.Canonicalize(settings.Competition);
-            var matchOutcomeRepository = _firebaseServiceFactory.CreateMatchOutcomeRepository(competition);
             var matchdays = ParseMatchdays(settings.Matchdays);
             var startsAfter = EvaluationTimeParser.ParseOrNull(settings.StartsAfter);
             var normalizedStartsAfter = EvaluationTimeParser.NormalizeOrNull(settings.StartsAfter);
+            var isHistoricalCompatibility = string.Equals(
+                competition,
+                CompetitionIds.Bundesliga2025_26,
+                StringComparison.Ordinal);
+            Func<int, string, CancellationToken, Task<IReadOnlyList<PersistedMatchOutcome>>> loadMatchdayOutcomesAsync;
+            if (isHistoricalCompatibility)
+            {
+                var historicalFixtureReader = _firebaseServiceFactory
+                    .CreateBundesliga2025_26HistoricalExperimentFixtureReader();
+                loadMatchdayOutcomesAsync = historicalFixtureReader.GetCompletedMatchdayFixturesAsync;
+            }
+            else
+            {
+                var matchOutcomeRepository = _firebaseServiceFactory.CreateMatchOutcomeRepository(competition);
+                loadMatchdayOutcomesAsync = matchOutcomeRepository.GetMatchdayOutcomesAsync;
+            }
+
             var availableItems = await LoadSourceItemsAsync(
-                matchOutcomeRepository,
+                loadMatchdayOutcomesAsync,
                 settings.CommunityContext,
                 matchdays,
                 startsAfter,
@@ -63,7 +79,7 @@ public sealed class PrepareRepeatedMatchSliceCommand : AsyncCommand<PrepareRepea
             var selectedItems = SelectRandomItems(availableItems, settings.MatchCount, sampleSeed)
                 .OrderBy(item => item.SourceDatasetItemId, StringComparer.Ordinal)
                 .ToList();
-            if (string.Equals(competition, CompetitionIds.Bundesliga2025_26, StringComparison.Ordinal))
+            if (isHistoricalCompatibility)
             {
                 selectedItems = await BindHistoricalContextAsync(
                     selectedItems,
@@ -82,7 +98,7 @@ public sealed class PrepareRepeatedMatchSliceCommand : AsyncCommand<PrepareRepea
             var outputDirectory = ResolveOutputDirectory(settings.OutputDirectory, settings.CommunityContext, sourcePoolKey, sliceKey);
             var sliceArtifactPath = Path.Combine(outputDirectory, "slice-dataset.json");
             var sliceManifestPath = Path.Combine(outputDirectory, "slice-manifest.json");
-            var historicalCompatibility = string.Equals(competition, CompetitionIds.Bundesliga2025_26, StringComparison.Ordinal)
+            var historicalCompatibility = isHistoricalCompatibility
                 ? BuildHistoricalCompatibility(settings, normalizedStartsAfter!)
                 : null;
 
@@ -152,7 +168,7 @@ public sealed class PrepareRepeatedMatchSliceCommand : AsyncCommand<PrepareRepea
     }
 
     private static async Task<IReadOnlyList<PreparedExperimentSourceItem>> LoadSourceItemsAsync(
-        IMatchOutcomeRepository matchOutcomeRepository,
+        Func<int, string, CancellationToken, Task<IReadOnlyList<PersistedMatchOutcome>>> loadMatchdayOutcomesAsync,
         string communityContext,
         IReadOnlyList<int> matchdays,
         DateTimeOffset? startsAfter,
@@ -165,7 +181,7 @@ public sealed class PrepareRepeatedMatchSliceCommand : AsyncCommand<PrepareRepea
 
         foreach (var matchday in matchdays)
         {
-            var outcomes = await matchOutcomeRepository.GetMatchdayOutcomesAsync(matchday, communityContext, cancellationToken);
+            var outcomes = await loadMatchdayOutcomesAsync(matchday, communityContext, cancellationToken);
             foreach (var outcome in outcomes)
             {
                 if (!outcome.HasOutcome || outcome.HomeGoals is null || outcome.AwayGoals is null)

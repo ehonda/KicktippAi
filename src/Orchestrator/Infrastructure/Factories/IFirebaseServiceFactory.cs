@@ -38,6 +38,9 @@ public interface IFirebaseServiceFactory
     /// <summary>Creates the read-only legacy-ID adapter for Bundesliga 2025/26 experiments.</summary>
     IHistoricalExperimentContextReader CreateBundesliga2025_26HistoricalExperimentContextReader();
 
+    /// <summary>Creates the read-only legacy-ID completed-fixture adapter for Bundesliga 2025/26 experiments.</summary>
+    IHistoricalExperimentFixtureReader CreateBundesliga2025_26HistoricalExperimentFixtureReader();
+
     /// <summary>Creates the atomic mixed context/KPI publication repository.</summary>
     IDocumentPublicationRepository CreateDocumentPublicationRepository(string competition);
 

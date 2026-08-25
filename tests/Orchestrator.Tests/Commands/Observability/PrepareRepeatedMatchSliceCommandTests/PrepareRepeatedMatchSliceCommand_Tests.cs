@@ -10,7 +10,11 @@ namespace Orchestrator.Tests.Commands.Observability.PrepareRepeatedMatchSliceCom
 public class PrepareRepeatedMatchSliceCommand_Tests
 {
     [Test]
-    public async Task Historical_compatibility_prepares_exact_five_by_four_hash_bound_cost_proxy()
+    [Arguments(1, 1)]
+    [Arguments(5, 4)]
+    public async Task Historical_compatibility_prepares_exact_topology_without_constructing_live_outcome_repository(
+        int matchCount,
+        int repetitions)
     {
         var tempDirectory = Directory.CreateTempSubdirectory();
         try
@@ -24,8 +28,8 @@ public class PrepareRepeatedMatchSliceCommand_Tests
                 CreateCompletedOutcome("FC St. Pauli", "1. FC Köln", "104", 0, 1, CompetitionIds.Bundesliga2025_26, startsAt, "pes-squad"),
                 CreateCompletedOutcome("Hamburger SV", "1899 Hoffenheim", "105", 2, 2, CompetitionIds.Bundesliga2025_26, startsAt, "pes-squad")
             };
-            var outcomesRepository = new Mock<IMatchOutcomeRepository>(MockBehavior.Strict);
-            outcomesRepository.Setup(repository => repository.GetMatchdayOutcomesAsync(
+            var historicalFixtureReader = new Mock<IHistoricalExperimentFixtureReader>(MockBehavior.Strict);
+            historicalFixtureReader.Setup(reader => reader.GetCompletedMatchdayFixturesAsync(
                     7, "pes-squad", It.IsAny<CancellationToken>()))
                 .ReturnsAsync(outcomes);
             var historicalReader = new Mock<IHistoricalExperimentContextReader>(MockBehavior.Strict);
@@ -34,11 +38,11 @@ public class PrepareRepeatedMatchSliceCommand_Tests
                 .ReturnsAsync((string name, string _, DateTimeOffset evaluation, CancellationToken _) =>
                     new ContextDocument(name, $"content:{name}", 3, evaluation.AddMinutes(-1)));
             var firebaseFactory = new Mock<IFirebaseServiceFactory>(MockBehavior.Strict);
-            firebaseFactory.Setup(factory => factory.CreateMatchOutcomeRepository(CompetitionIds.Bundesliga2025_26))
-                .Returns(outcomesRepository.Object);
+            firebaseFactory.Setup(factory => factory.CreateBundesliga2025_26HistoricalExperimentFixtureReader())
+                .Returns(historicalFixtureReader.Object);
             firebaseFactory.Setup(factory => factory.CreateBundesliga2025_26HistoricalExperimentContextReader())
                 .Returns(historicalReader.Object);
-            var outputDirectory = Path.Combine(tempDirectory.FullName, "historical-5x4");
+            var outputDirectory = Path.Combine(tempDirectory.FullName, $"historical-{matchCount}x{repetitions}");
             var context = CreateCommandApp<PrepareRepeatedMatchSliceCommand>(
                 "prepare-repeated-match-slice",
                 firebaseServiceFactory: firebaseFactory);
@@ -53,8 +57,8 @@ public class PrepareRepeatedMatchSliceCommand_Tests
                 "--starts-after", "2026-02-18T00:00:00 Europe/Berlin (+01)",
                 "--community-context", "pes-squad",
                 "--matchdays", "7",
-                "--match-count", "5",
-                "--repetitions", "4",
+                "--match-count", matchCount.ToString(System.Globalization.CultureInfo.InvariantCulture),
+                "--repetitions", repetitions.ToString(System.Globalization.CultureInfo.InvariantCulture),
                 "--sample-seed", "20260821",
                 "--output-directory", outputDirectory);
 
@@ -65,7 +69,7 @@ public class PrepareRepeatedMatchSliceCommand_Tests
             var manifest = manifestDocument.RootElement;
             var compatibility = manifest.GetProperty("historicalCompatibility");
             var items = manifest.GetProperty("items").EnumerateArray().ToArray();
-            await Assert.That(manifest.GetProperty("sampleSize").GetInt32()).IsEqualTo(20);
+            await Assert.That(manifest.GetProperty("sampleSize").GetInt32()).IsEqualTo(matchCount * repetitions);
             await Assert.That(manifest.GetProperty("startsAfter").GetString())
                 .IsEqualTo("2026-02-18T00:00:00 Europe/Berlin (+01)");
             await Assert.That(compatibility.GetProperty("officialKnowledgeCutoff").GetString()).IsEqualTo("2026-02-16");
@@ -75,14 +79,20 @@ public class PrepareRepeatedMatchSliceCommand_Tests
             await Assert.That(compatibility.GetProperty("contextDocumentCount").GetInt32()).IsEqualTo(7);
             await Assert.That(DocumentPublicationContract.IsLowercaseSha256(
                 manifest.GetProperty("historicalArtifactSha256").GetString())).IsTrue();
-            await Assert.That(items.Length).IsEqualTo(20);
+            await Assert.That(items.Length).IsEqualTo(matchCount * repetitions);
             await Assert.That(items.All(item => item.GetProperty("historicalContextManifest").GetProperty("documents").GetArrayLength() == 7)).IsTrue();
             await Assert.That(items.All(item => item.GetProperty("historicalContextManifest").GetProperty("evaluationTimestamp").GetDateTimeOffset()
                 == startsAt.ToDateTimeOffset().AddHours(-12))).IsTrue();
             await Assert.That(items.Select(item => item.GetProperty("historicalContextManifest").GetProperty("manifestSha256").GetString()).Distinct().Count())
-                .IsEqualTo(5);
+                .IsEqualTo(matchCount);
             historicalReader.Verify(repository => repository.GetContextDocumentAtOrBeforeAsync(
-                It.IsAny<string>(), "pes-squad", It.IsAny<DateTimeOffset>(), It.IsAny<CancellationToken>()), Times.Exactly(35));
+                It.IsAny<string>(), "pes-squad", It.IsAny<DateTimeOffset>(), It.IsAny<CancellationToken>()), Times.Exactly(matchCount * 7));
+            historicalFixtureReader.Verify(reader => reader.GetCompletedMatchdayFixturesAsync(
+                7, "pes-squad", It.IsAny<CancellationToken>()), Times.Once);
+            firebaseFactory.Verify(factory => factory.CreateBundesliga2025_26HistoricalExperimentFixtureReader(), Times.Once);
+            firebaseFactory.Verify(
+                factory => factory.CreateMatchOutcomeRepository(It.IsAny<string>()),
+                Times.Never);
 
             using var datasetDocument = JsonDocument.Parse(
                 await File.ReadAllTextAsync(Path.Combine(outputDirectory, "slice-dataset.json")));
@@ -128,6 +138,14 @@ public class PrepareRepeatedMatchSliceCommand_Tests
             await Assert.That(output).Contains("missing required immutable resolvedContextManifest");
             await Assert.That(File.Exists(Path.Combine(outputDirectory, "slice-dataset.json"))).IsFalse();
             await Assert.That(File.Exists(Path.Combine(outputDirectory, "slice-manifest.json"))).IsFalse();
+            firebaseFactory.Verify(
+                factory => factory.CreateMatchOutcomeRepository(CompetitionIds.Bundesliga2026_27),
+                Times.Once);
+            matchOutcomeRepository.Verify(repository => repository.GetMatchdayOutcomesAsync(
+                1, "test-community", It.IsAny<CancellationToken>()), Times.Once);
+            firebaseFactory.Verify(
+                factory => factory.CreateBundesliga2025_26HistoricalExperimentFixtureReader(),
+                Times.Never);
         }
         finally
         {

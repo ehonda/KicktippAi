@@ -58,6 +58,13 @@ public sealed class FirebaseServiceFactory : IFirebaseServiceFactory
     }
 
     /// <inheritdoc />
+    public IHistoricalExperimentFixtureReader CreateBundesliga2025_26HistoricalExperimentFixtureReader()
+    {
+        var logger = _loggerFactory.CreateLogger<Bundesliga2025_26HistoricalExperimentFixtureReader>();
+        return new Bundesliga2025_26HistoricalExperimentFixtureReader(FirestoreDb, logger);
+    }
+
+    /// <inheritdoc />
     public IDocumentPublicationRepository CreateDocumentPublicationRepository(string competition)
     {
         ArgumentException.ThrowIfNullOrWhiteSpace(competition);
