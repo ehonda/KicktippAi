@@ -62,6 +62,7 @@ owner gates.
 
 ## Handoffs
 
+- [`buli-2627-p0-closeout-ready-2026-08-25`](handoffs/buli-2627-p0-closeout-ready-2026-08-25.md) — **current active handoff** for the remaining P0-23, P0-06, production P0-19, and P0-21 closeout sequence; P0 is not complete.
 - [`buli-2627-p0-foundations-green-2026-08-16`](handoffs/buli-2627-p0-foundations-green-2026-08-16.md) — historical foundation pause; superseded by the current task ledger and execution strategy.
 - [`buli-2627-p0-12-open-review-2026-08-19`](handoffs/buli-2627-p0-12-open-review-2026-08-19.md) — historical interrupted-review checkpoint; P0-12 is now complete, so its resume instructions are no longer active.
 
