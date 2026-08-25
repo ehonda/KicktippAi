@@ -26,7 +26,7 @@ Each selected production community succeeds manually before its context and pred
 
 ## Validation evidence
 
-Not run yet.
+Production activation validation has not run. The read-only [production prerequisite audit from 2026-08-25](../../../docs/onboarding-bundesliga-2026-27/production-prerequisite-audit-2026-08-25.md) confirmed `pes-squad` authentication and Bundesliga 2026/27 read readiness without proving posting rights. It also confirmed `schadensfresse` authentication but found no current prediction-input rows, so community-admin remediation remains required. GitHub Actions secret-name presence, the final model and arena participant identities, manual production writes, and every schedule gate remain open.
 
 ## Complete when
 
