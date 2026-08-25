@@ -1,3 +1,4 @@
+using System.Security.Cryptography;
 using EHonda.KicktippAi.Core;
 using Microsoft.Extensions.DependencyInjection;
 using Moq;
@@ -67,6 +68,93 @@ public class CollectContextRostersCommandTests
     }
 
     [Test]
+    public async Task Launch_coverage_requires_a_pinned_database_and_rejects_a_hash_mismatch_before_source()
+    {
+        var path = Path.GetTempFileName();
+        try
+        {
+            var repository = Repository();
+            var factory = CreateMockFirebaseServiceFactoryFull(documentPublicationRepository: repository);
+            var source = Source();
+            var (missingApp, missingConsole) = App(factory, source);
+            var (missingExit, missingOutput) = await RunCommandAsync(missingApp, missingConsole, "collect-context-rosters",
+                "--competition", CompetitionIds.Bundesliga2026_27, "--community-context", "ehonda-dev-buli-2627",
+                "--require-launch-coverage", "--dry-run");
+            var (mismatchApp, mismatchConsole) = App(factory, source);
+            var (mismatchExit, mismatchOutput) = await RunCommandAsync(mismatchApp, mismatchConsole, "collect-context-rosters",
+                "--competition", CompetitionIds.Bundesliga2026_27, "--community-context", "ehonda-dev-buli-2627",
+                "--duckdb-path", path, "--duckdb-revision", "fixture@1", "--duckdb-snapshot-date", "2026-08-13",
+                "--duckdb-sha256", new string('a', 64), "--require-launch-coverage", "--dry-run");
+
+            await Assert.That(missingExit).IsEqualTo(1);
+            await Assert.That(missingOutput).Contains("--require-launch-coverage requires --duckdb-path")
+                .And.Contains("--duckdb-sha256");
+            await Assert.That(mismatchExit).IsEqualTo(1);
+            await Assert.That(mismatchOutput).Contains("DuckDB SHA-256 mismatch");
+            source.Verify(value => value.CollectAsync(It.IsAny<BundesligaRosterSourceRequest>(), It.IsAny<BundesligaRosterLastKnownGood?>(), It.IsAny<DateOnly>(), It.IsAny<CancellationToken>()), Times.Never);
+            repository.Verify(value => value.PublishAsync(It.IsAny<DocumentPublicationDefinition>(), It.IsAny<DocumentPublicationRequest>(), It.IsAny<CancellationToken>()), Times.Never);
+        }
+        finally
+        {
+            File.Delete(path);
+        }
+    }
+
+    [Test]
+    public async Task Launch_coverage_gate_reports_audited_counts_and_allows_a_dry_run_without_write()
+    {
+        var path = Path.GetTempFileName();
+        try
+        {
+            var sha256 = Convert.ToHexString(SHA256.HashData(File.ReadAllBytes(path))).ToLowerInvariant();
+            var repository = Repository();
+            var factory = CreateMockFirebaseServiceFactoryFull(documentPublicationRepository: repository);
+            var source = LaunchSource();
+            var (app, console) = App(factory, source);
+
+            var (exitCode, output) = await RunCommandAsync(app, console, "collect-context-rosters",
+                "--competition", CompetitionIds.Bundesliga2026_27, "--community-context", "ehonda-dev-buli-2627",
+                "--duckdb-path", path, "--duckdb-revision", "fixture@1", "--duckdb-snapshot-date", "2026-08-13",
+                "--duckdb-sha256", sha256, "--require-launch-coverage", "--dry-run");
+
+            await Assert.That(exitCode).IsEqualTo(0);
+            await Assert.That(output).Contains("Launch roster coverage passed: ages 464/464, positions 464/464, valued 450/450");
+            repository.Verify(value => value.PublishAsync(It.IsAny<DocumentPublicationDefinition>(), It.IsAny<DocumentPublicationRequest>(), It.IsAny<CancellationToken>()), Times.Never);
+        }
+        finally
+        {
+            File.Delete(path);
+        }
+    }
+
+    [Test]
+    public async Task Launch_coverage_regression_fails_before_publication()
+    {
+        var path = Path.GetTempFileName();
+        try
+        {
+            var sha256 = Convert.ToHexString(SHA256.HashData(File.ReadAllBytes(path))).ToLowerInvariant();
+            var repository = Repository();
+            var factory = CreateMockFirebaseServiceFactoryFull(documentPublicationRepository: repository);
+            var source = Source();
+            var (app, console) = App(factory, source);
+
+            var (exitCode, output) = await RunCommandAsync(app, console, "collect-context-rosters",
+                "--competition", CompetitionIds.Bundesliga2026_27, "--community-context", "ehonda-dev-buli-2627",
+                "--duckdb-path", path, "--duckdb-revision", "fixture@1", "--duckdb-snapshot-date", "2026-08-13",
+                "--duckdb-sha256", sha256, "--require-launch-coverage");
+
+            await Assert.That(exitCode).IsEqualTo(1);
+            await Assert.That(output).Contains("Bundesliga launch roster enrichment regressed");
+            repository.Verify(value => value.PublishAsync(It.IsAny<DocumentPublicationDefinition>(), It.IsAny<DocumentPublicationRequest>(), It.IsAny<CancellationToken>()), Times.Never);
+        }
+        finally
+        {
+            File.Delete(path);
+        }
+    }
+
+    [Test]
     public async Task Retained_last_known_good_disposition_never_calls_publish()
     {
         var repository = Repository();
@@ -92,13 +180,56 @@ public class CollectContextRostersCommandTests
 
     private static Mock<IBundesligaRosterSource> Source()
     {
-        var root = SolutionPathUtility.FindSolutionRoot();
-        var result = new BundesligaRosterSource().CollectAsync(new BundesligaRosterSourceRequest(
-            Path.Combine(root, BundesligaRosterSeed.RelativePath), Path.Combine(root, BundesligaTeamManifest.RelativePath),
-            null, null, null), null, new DateOnly(2026, 8, 18)).GetAwaiter().GetResult();
+        var result = BaselineCollection();
         var source = new Mock<IBundesligaRosterSource>();
         source.Setup(value => value.CollectAsync(It.IsAny<BundesligaRosterSourceRequest>(), It.IsAny<BundesligaRosterLastKnownGood?>(), It.IsAny<DateOnly>(), It.IsAny<CancellationToken>()))
             .ReturnsAsync(result);
+        return source;
+    }
+
+    private static BundesligaRosterCollection BaselineCollection()
+    {
+        var root = SolutionPathUtility.FindSolutionRoot();
+        return new BundesligaRosterSource().CollectAsync(new BundesligaRosterSourceRequest(
+            Path.Combine(root, BundesligaRosterSeed.RelativePath), Path.Combine(root, BundesligaTeamManifest.RelativePath),
+            null, null, null), null, new DateOnly(2026, 8, 18)).GetAwaiter().GetResult();
+    }
+
+    private static Mock<IBundesligaRosterSource> LaunchSource()
+    {
+        var baseline = BaselineCollection();
+        var valuedRemaining = BundesligaRosterLaunchCoverage.RequiredValuedPlayerCount;
+        var snapshots = baseline.Snapshots.Select(snapshot => snapshot with
+        {
+            Members = snapshot.Members.Select(member =>
+            {
+                if (member.Role != BundesligaRosterRole.Player || member.TransfermarktPlayerId is null)
+                {
+                    return member;
+                }
+                var value = valuedRemaining > 0 ? 1_000_000L : (long?)null;
+                if (value is not null) valuedRemaining--;
+                return member with { Age = 25, Position = BundesligaRosterPosition.Midfield, MarketValueEur = value };
+            }).ToArray()
+        }).ToArray();
+        var rows = baseline.QualityRows.Select(row =>
+        {
+            var snapshot = snapshots.Single(value => value.Team.TeamSlug == row.Team.TeamSlug);
+            var players = snapshot.Members.Where(member => member.Role == BundesligaRosterRole.Player).ToArray();
+            return row with
+            {
+                SourceRevision = "fixture@1",
+                DuckDbSnapshotAsOf = new DateOnly(2026, 8, 13),
+                KnownAgeCount = players.Count(player => player.Age is not null),
+                KnownPositionCount = players.Count(player => player.Position is not null),
+                ValuedPlayerCount = players.Count(player => player.MarketValueEur is not null),
+                DuckDbGateResult = BundesligaRosterDuckDbGateResult.Rejected,
+                SelectionReason = "DUCKDB_REJECTED_USE_FALLBACK_SEED"
+            };
+        }).ToArray();
+        var source = new Mock<IBundesligaRosterSource>();
+        source.Setup(value => value.CollectAsync(It.IsAny<BundesligaRosterSourceRequest>(), It.IsAny<BundesligaRosterLastKnownGood?>(), It.IsAny<DateOnly>(), It.IsAny<CancellationToken>()))
+            .ReturnsAsync(baseline with { Snapshots = snapshots, QualityRows = rows });
         return source;
     }
 

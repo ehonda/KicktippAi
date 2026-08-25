@@ -11,7 +11,7 @@
 ## Resume objective
 
 Close P0 without crossing the remaining owner, spend, community-administrator,
-or production-activation gates. Resume from [P0-23](../tasks/p0-23-gpt-5-6-production-candidate-evidence.md),
+or production-activation gates. Resume in parallel from [P0-23](../tasks/p0-23-gpt-5-6-production-candidate-evidence.md) and [P0-25](../tasks/p0-25-roster-enrichment-and-team-total.md),
 then finish [P0-06](../tasks/p0-06-model-ledger-and-cost-baseline.md), the
 model-bound production [P0-19](../tasks/p0-19-community-workflow-triad.md)
 callers, and finally [P0-21](../tasks/p0-21-production-activation.md).
@@ -26,6 +26,13 @@ callers, and finally [P0-21](../tasks/p0-21-production-activation.md).
 - Implementation through P0-20 and P0-24 is complete and integrated. P0-23 is
   the active closeout evidence gate; the final P0-06 selection and all P0-21
   production evidence remain open.
+- P0-25 is a parallel launch-data remediation under
+  [ADR-0050](../decisions/0050-publish-enriched-launch-rosters-with-derived-team-subtotals.md).
+  It adds v2 roster documents with one derived known-value subtotal per team,
+  retains strict historical v1 reconstruction, and gates explicit launch
+  publication on the audited artifact SHA and 464/464/450 coverage floors.
+  Integration, exact-head CI, the enriched arena publication, and exactly one
+  owner-authorized overriding Luna/none matchday trace round remain open.
 - [ADR-0049](../decisions/0049-preregister-gpt-5-6-candidate-evidence.md)
   supersedes this handoff's provisional P0-23 owner-input template. The exact
   nine-row GPT-5.6 matrix, one cumulative USD 30 ceiling, evidence-derived cap
@@ -47,29 +54,40 @@ callers, and finally [P0-21](../tasks/p0-21-production-activation.md).
 
 ## Remaining sequence
 
-1. Integrate and validate the pending machine-readable Decimal cumulative-budget
+1. Independently review and integrate P0-25, reconcile exact-head CI, then from
+   the clean primary checkout publish the pinned enriched v2 roster snapshot to
+   `ehonda-ai-arena`. Only after that publication and exact-head checks, dispatch
+   exactly one forced
+   `buli2627-ehonda-ai-arena-gpt-5-6-luna-none-matchday.yml` round. Verify the
+   headed v2 snapshot, 464/464/450-or-better coverage, exactly 18 derived rows,
+   nine Firestore/Kicktipp predictions, and payload-safe Langfuse metadata. Do
+   not treat this plumbing round as P0-23 quality evidence or production-model
+   selection.
+2. Integrate and validate the pending machine-readable Decimal cumulative-budget
    gate, record its exact aggregate command in the preregistration, and obtain
    independent approval of the corrected no-spend checkpoint. Authorization
    already exists for ADR-0049's exact evidence program, but neither prerequisite
    may be bypassed.
-2. Collect the ADR-0049 cutoff-safe cost rows and adaptive quality evidence with
+3. Collect the ADR-0049 cutoff-safe cost rows and adaptive quality evidence with
    immutable provenance. Keep cost and quality evidence separate, reuse the
    completed Luna row without another Luna model run, and return to the owner
    after the one preliminary quality-first block before any additional block.
-3. P0-06 pauses for the owner to select the exact final production model,
+4. P0-06 pauses for the owner to select the exact final production model,
    reasoning effort, output cap, numbered prompt versions, service-tier/fallback
    policy, cost ceiling, and challenger matrix. Record the selection, estimator
    evidence, and comparative evidence or waiver in the model ledger and a **new
    Accepted ADR**; do not edit an existing Accepted ADR to make the selection.
-4. Build and review the model-bound manual matchday and bonus callers for
+5. Build and review the model-bound manual matchday and bonus callers for
    `pes-squad` and `schadensfresse` using the exact selected identity. Their
    model-independent context callers are already present.
-5. Build the arena production-copy callers only after the owner also supplies
+6. Build the arena production-copy callers only after the owner also supplies
    the arena participant, local profile, and exact credential names and the
    matching `pes-squad` callers are reviewed and green. Preserve P0-24 bonus
    compatibility and independent target-context fallback plus fail-closed match
    copy behavior.
-6. P0-21 owns the remaining administrator and live gates: external
+7. P0-21 owns the remaining administrator and live gates: pinned enriched v2
+   roster publication to each production community before its first prediction,
+   external
    `schadensfresse` setup, names-only repository secret presence,
    authentication/current-season readiness, POST permission, exact match and
    bonus deadlines, the Club Elo operating decision, named
@@ -109,6 +127,11 @@ historical pool/manifest provenance remain execution-date fail-closed gates.
   production selection.
 - Do not make a production POST, dispatch a production workflow, or add/enable
   a production schedule before the applicable P0-21 gates pass.
+- Do not run P0-25's arena publish/override ladder from a writer branch or
+  before its exact integrated main SHA is green. The authorization is exactly
+  one arena-only Luna/none matchday round after enriched v2 publication; it is
+  not authority for a production-community prediction, bonus round, schedule,
+  or P0-23 quality claim.
 - The `schadensfresse` setup request remains external and pending. Agents do not
   administer that community or treat authentication as current-season
   readiness or POST permission.
@@ -139,5 +162,6 @@ historical pool/manifest provenance remain execution-date fail-closed gates.
 
 Report the exact main/origin SHA and CI state, clean worktree inventory,
 ADR-0049 checkpoint-review state, Decimal budget-gate integration/command state,
-and bounded lane assignment. Stop before dataset, Langfuse, prompt, or model
-mutation while either prerequisite remains open.
+P0-25 review/integration/CI state, and bounded lane assignment. Stop before
+dataset, Langfuse, prompt, or model mutation while the applicable prerequisite
+remains open.

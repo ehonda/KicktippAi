@@ -63,6 +63,27 @@ public class BundesligaRosterCsvTests
             .Throws<InvalidDataException>();
     }
 
+    [Test]
+    public async Task Team_accumulated_is_the_final_derived_row_and_never_turns_unknown_into_zero()
+    {
+        var partial = CreateSnapshot("b04");
+        var allUnknown = partial with
+        {
+            Members = partial.Members
+                .Select(member => member with { MarketValueEur = null })
+                .ToArray()
+        };
+
+        var partialRows = BundesligaRosterCsv.RenderTeamRoster(partial).Split("\r\n", StringSplitOptions.RemoveEmptyEntries);
+        var unknownRows = BundesligaRosterCsv.RenderTeamRoster(allUnknown).Split("\r\n", StringSplitOptions.RemoveEmptyEntries);
+
+        await Assert.That(partialRows[^1]).IsEqualTo(
+            "Bayer 04 Leverkusen,2026-08-16,Team Accumulated,N/A,N/A,N/A,10.000.001");
+        await Assert.That(unknownRows[^1]).IsEqualTo(
+            "Bayer 04 Leverkusen,2026-08-16,Team Accumulated,N/A,N/A,N/A,N/A");
+        await Assert.That(Enum.GetNames<BundesligaRosterRole>()).DoesNotContain(BundesligaRosterCsv.TeamAccumulatedRole);
+    }
+
     private static BundesligaRosterClubSnapshot CreateSnapshot(string slug, int idOffset = 0)
     {
         var players = Enumerable.Range(1, 20).Select(index => new BundesligaRosterMember(

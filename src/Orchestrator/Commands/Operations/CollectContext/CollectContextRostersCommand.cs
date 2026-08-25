@@ -1,4 +1,5 @@
 using System.Globalization;
+using System.Security.Cryptography;
 using EHonda.KicktippAi.Core;
 using Microsoft.Extensions.Logging;
 using OpenAiIntegration;
@@ -54,6 +55,11 @@ public sealed class CollectContextRostersCommand : AsyncCommand<CollectContextRo
                 _console.MarkupLine($"[red]Error: {Markup.Escape(inputError)}[/]");
                 return 1;
             }
+            if (!TryValidateDuckDbFile(settings, out inputError))
+            {
+                _console.MarkupLine($"[red]Error: {Markup.Escape(inputError)}[/]");
+                return 1;
+            }
 
             _console.MarkupLine("[green]Collect-context Bundesliga roster command initialized[/]");
             _console.MarkupLine($"[blue]Using community context:[/] [yellow]{Markup.Escape(community)}[/]");
@@ -68,6 +74,19 @@ public sealed class CollectContextRostersCommand : AsyncCommand<CollectContextRo
             BundesligaRosterLastKnownGood? lkg = loaded is null ? null : BundesligaRosterPublication.ReconstructLastKnownGood(loaded);
             var collection = await _source.CollectAsync(new BundesligaRosterSourceRequest(settings.Seed, settings.Manifest, settings.DuckDbPath,
                 settings.DuckDbRevision, snapshotDate), lkg, DateOnly.FromDateTime(_timeProvider.GetUtcNow().UtcDateTime), cancellationToken);
+            BundesligaRosterCoverage? launchCoverage = null;
+            if (settings.RequireLaunchCoverage)
+            {
+                launchCoverage = BundesligaRosterLaunchCoverage.Validate(collection.Snapshots);
+                _console.MarkupLine(
+                    $"[green]Launch roster coverage passed:[/] ages {launchCoverage.KnownAgeCount}/{BundesligaRosterLaunchCoverage.RequiredKnownAgeCount}, " +
+                    $"positions {launchCoverage.KnownPositionCount}/{BundesligaRosterLaunchCoverage.RequiredKnownPositionCount}, " +
+                    $"valued {launchCoverage.ValuedPlayerCount}/{BundesligaRosterLaunchCoverage.RequiredValuedPlayerCount}");
+            }
+            activity?.SetTag("rosters.launch_coverage_required", settings.RequireLaunchCoverage);
+            activity?.SetTag("rosters.launch_known_age_count", launchCoverage?.KnownAgeCount ?? 0);
+            activity?.SetTag("rosters.launch_known_position_count", launchCoverage?.KnownPositionCount ?? 0);
+            activity?.SetTag("rosters.launch_valued_player_count", launchCoverage?.ValuedPlayerCount ?? 0);
             if (collection.RetainLastKnownGood)
             {
                 _console.MarkupLine("[yellow]Retained the exact headed last-known-good roster snapshot; no publication was attempted[/]");
@@ -125,11 +144,43 @@ public sealed class CollectContextRostersCommand : AsyncCommand<CollectContextRo
         var hasPath = !string.IsNullOrWhiteSpace(settings.DuckDbPath);
         var hasRevision = !string.IsNullOrWhiteSpace(settings.DuckDbRevision);
         var hasDate = !string.IsNullOrWhiteSpace(settings.DuckDbSnapshotDate);
-        if (!hasPath && (hasRevision || hasDate)) { error = "--duckdb-revision and --duckdb-snapshot-date require --duckdb-path"; return false; }
+        var hasSha256 = !string.IsNullOrWhiteSpace(settings.DuckDbSha256);
+        if (!hasPath && (hasRevision || hasDate || hasSha256)) { error = "--duckdb-revision, --duckdb-snapshot-date, and --duckdb-sha256 require --duckdb-path"; return false; }
         if (hasPath && (!hasRevision || !hasDate)) { error = "--duckdb-path requires --duckdb-revision and --duckdb-snapshot-date"; return false; }
+        if (settings.RequireLaunchCoverage && (!hasPath || !hasSha256)) { error = "--require-launch-coverage requires --duckdb-path, provenance, and --duckdb-sha256"; return false; }
+        if (hasSha256 && !IsLowerSha256(settings.DuckDbSha256!)) { error = "--duckdb-sha256 must be 64 lower-case hexadecimal characters"; return false; }
         var date = default(DateOnly);
         if (hasDate && !DateOnly.TryParseExact(settings.DuckDbSnapshotDate, "yyyy-MM-dd", CultureInfo.InvariantCulture, DateTimeStyles.None, out date)) { error = "--duckdb-snapshot-date must use yyyy-MM-dd"; return false; }
         if (hasDate) result = date;
         return true;
     }
+
+    private static bool TryValidateDuckDbFile(CollectContextRostersSettings settings, out string error)
+    {
+        error = string.Empty;
+        if (string.IsNullOrWhiteSpace(settings.DuckDbSha256))
+        {
+            return true;
+        }
+
+        var path = Path.GetFullPath(settings.DuckDbPath!);
+        if (!File.Exists(path))
+        {
+            error = $"DuckDB file not found for SHA-256 validation: {path}";
+            return false;
+        }
+
+        using var stream = File.OpenRead(path);
+        var actual = Convert.ToHexString(SHA256.HashData(stream)).ToLowerInvariant();
+        if (!string.Equals(actual, settings.DuckDbSha256, StringComparison.Ordinal))
+        {
+            error = $"DuckDB SHA-256 mismatch: expected {settings.DuckDbSha256}, actual {actual}";
+            return false;
+        }
+
+        return true;
+    }
+
+    private static bool IsLowerSha256(string value) => value.Length == 64
+        && value.All(character => character is >= '0' and <= '9' or >= 'a' and <= 'f');
 }

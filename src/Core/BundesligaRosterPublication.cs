@@ -9,7 +9,8 @@ namespace EHonda.KicktippAi.Core;
 /// <summary>Builds and strictly reconstructs the atomic Bundesliga roster publication.</summary>
 public static class BundesligaRosterPublication
 {
-    public const string MetadataContract = "bundesliga-roster-publication/v1";
+    public const string LegacyMetadataContract = "bundesliga-roster-publication/v1";
+    public const string MetadataContract = "bundesliga-roster-publication/v2";
     public const string SquadSummaryDescription = "Bundesliga 2026/27 roster membership and squad summary KPI.";
 
     public static BundesligaRosterBuiltPublication Build(
@@ -63,6 +64,7 @@ public static class BundesligaRosterPublication
             loaded.Snapshot,
             loaded.Documents);
         var metadata = ParseMetadata(loaded.Snapshot.MetadataJson);
+        var isLegacy = string.Equals(metadata.Contract, LegacyMetadataContract, StringComparison.Ordinal);
         var byKey = loaded.Documents.ToDictionary(document => document.Key);
         var snapshots = new List<BundesligaRosterClubSnapshot>();
         var qualityRows = new List<BundesligaRosterQualityReportRow>();
@@ -70,14 +72,16 @@ public static class BundesligaRosterPublication
         {
             var team = BundesligaTeamManifest.Default.GetByTeamSlug(club.TeamSlug);
             var content = byKey[new DocumentPublicationKey(DocumentPublicationKind.Context, $"roster-{club.TeamSlug}")].Content;
-            var snapshot = ParseAndValidateTeamRoster(content, team, club);
+            var snapshot = ParseAndValidateTeamRoster(content, team, club, isLegacy);
             snapshots.Add(snapshot);
             qualityRows.Add(CreateQualityRow(snapshot, club));
         }
 
         var ordered = snapshots.OrderBy(snapshot => snapshot.Team.TeamSlug, StringComparer.Ordinal).ToArray();
         _ = ValidateSnapshotQuality(ordered, qualityRows);
-        var expectedAggregate = BundesligaRosterCsv.RenderAggregate(ordered);
+        var expectedAggregate = isLegacy
+            ? BundesligaRosterCsv.RenderLegacyAggregate(ordered)
+            : BundesligaRosterCsv.RenderAggregate(ordered);
         var expectedSummary = BundesligaRosterCsv.RenderSummary(ordered);
         if (!string.Equals(byKey[new DocumentPublicationKey(DocumentPublicationKind.Context, BundesligaRosterPublicationContract.AggregateRosterDocumentName)].Content, expectedAggregate, StringComparison.Ordinal)
             || !string.Equals(byKey[new DocumentPublicationKey(DocumentPublicationKind.Kpi, BundesligaRosterPublicationContract.SquadSummaryDocumentName)].Content, expectedSummary, StringComparison.Ordinal))
@@ -121,7 +125,8 @@ public static class BundesligaRosterPublication
             {
                 throw new InvalidDataException("Roster publication metadata is not canonical JSON.");
             }
-            if (!string.Equals(metadata.Contract, MetadataContract, StringComparison.Ordinal)
+            if (!(string.Equals(metadata.Contract, MetadataContract, StringComparison.Ordinal)
+                  || string.Equals(metadata.Contract, LegacyMetadataContract, StringComparison.Ordinal))
                 || string.IsNullOrEmpty(metadata.QualityReportCsv)
                 || metadata.Clubs is null
                 || metadata.Clubs.Length != BundesligaTeamManifest.ExpectedTeamCount
@@ -146,7 +151,8 @@ public static class BundesligaRosterPublication
     private static BundesligaRosterClubSnapshot ParseAndValidateTeamRoster(
         string content,
         BundesligaTeamManifestEntry team,
-        ClubMetadata club)
+        ClubMetadata club,
+        bool isLegacy)
     {
         if (!DateOnly.TryParseExact(club.MembershipAsOf, "yyyy-MM-dd", CultureInfo.InvariantCulture, DateTimeStyles.None, out var asOf)
             || !Enum.TryParse<BundesligaRosterMembershipSource>(club.SelectedSource, ignoreCase: false, out var source)
@@ -159,16 +165,16 @@ public static class BundesligaRosterPublication
         }
 
         var expectedMembers = club.Members.Select(member => ParseMetadataMember(member, team.TeamSlug)).ToArray();
-        var rows = ReadRosterRows(content, team, asOf);
-        if (rows.Count != expectedMembers.Length
-            || !rows.Select(row => (row.Role, row.Name))
+        var document = ReadRosterRows(content, team, asOf, isLegacy);
+        if (document.MemberRows.Count != expectedMembers.Length
+            || !document.MemberRows.Select(row => (row.Role, row.Name))
                 .SequenceEqual(expectedMembers.Select(member => (Role: Enum.Parse<BundesligaRosterRole>(member.Role), member.Name))))
         {
             throw new InvalidDataException($"Roster document for '{team.TeamSlug}' does not match its headed membership metadata.");
         }
 
         var memberByIdentity = expectedMembers.ToDictionary(member => (Enum.Parse<BundesligaRosterRole>(member.Role), member.Name));
-        var members = rows.Select(row => new BundesligaRosterMember(
+        var members = document.MemberRows.Select(row => new BundesligaRosterMember(
             row.Role,
             row.Name,
             memberByIdentity[(row.Role, row.Name)].TransfermarktPlayerId,
@@ -176,7 +182,16 @@ public static class BundesligaRosterPublication
             row.Position,
             row.MarketValueEur)).ToArray();
         var snapshot = new BundesligaRosterClubSnapshot(team, asOf, source, members);
-        if (!string.Equals(BundesligaRosterCsv.RenderTeamRoster(snapshot), content, StringComparison.Ordinal))
+        var expectedTotal = BundesligaRosterCsv.KnownMarketValueTotal(snapshot.Members);
+        if (!isLegacy && document.TeamAccumulatedMarketValueEur != expectedTotal)
+        {
+            throw new InvalidDataException($"Roster document for '{team.TeamSlug}' has an incorrect known-value subtotal.");
+        }
+
+        var expectedContent = isLegacy
+            ? BundesligaRosterCsv.RenderLegacyTeamRoster(snapshot)
+            : BundesligaRosterCsv.RenderTeamRoster(snapshot);
+        if (!string.Equals(expectedContent, content, StringComparison.Ordinal))
         {
             throw new InvalidDataException($"Roster document for '{team.TeamSlug}' is not canonical.");
         }
@@ -184,7 +199,11 @@ public static class BundesligaRosterPublication
         return snapshot;
     }
 
-    private static IReadOnlyList<ParsedRow> ReadRosterRows(string content, BundesligaTeamManifestEntry team, DateOnly asOf)
+    private static ParsedRosterDocument ReadRosterRows(
+        string content,
+        BundesligaTeamManifestEntry team,
+        DateOnly asOf,
+        bool isLegacy)
     {
         using var reader = new StringReader(content);
         using var csv = new CsvReader(reader, new CsvConfiguration(CultureInfo.InvariantCulture) { BadDataFound = null, HeaderValidated = null, MissingFieldFound = null });
@@ -194,6 +213,8 @@ public static class BundesligaRosterPublication
         }
 
         var rows = new List<ParsedRow>();
+        long? accumulatedMarketValue = null;
+        var accumulatedRowCount = 0;
         while (csv.Read())
         {
             var rowTeam = csv.GetField("Team");
@@ -201,11 +222,32 @@ public static class BundesligaRosterPublication
             var roleText = csv.GetField("Role");
             var name = csv.GetField("Name");
             if (!string.Equals(rowTeam, team.KicktippName, StringComparison.Ordinal)
-                || !string.Equals(date, asOf.ToString("yyyy-MM-dd", CultureInfo.InvariantCulture), StringComparison.Ordinal)
+                || !string.Equals(date, asOf.ToString("yyyy-MM-dd", CultureInfo.InvariantCulture), StringComparison.Ordinal))
+            {
+                throw new InvalidDataException($"Roster document for '{team.TeamSlug}' has an invalid row.");
+            }
+
+            if (string.Equals(roleText, BundesligaRosterCsv.TeamAccumulatedRole, StringComparison.Ordinal))
+            {
+                accumulatedRowCount++;
+                if (isLegacy
+                    || accumulatedRowCount != 1
+                    || !string.Equals(name, BundesligaRosterCsv.MissingValue, StringComparison.Ordinal)
+                    || !string.Equals(csv.GetField("Age"), BundesligaRosterCsv.MissingValue, StringComparison.Ordinal)
+                    || !string.Equals(csv.GetField("Position"), BundesligaRosterCsv.MissingValue, StringComparison.Ordinal))
+                {
+                    throw new InvalidDataException($"Roster document for '{team.TeamSlug}' has an invalid team-accumulated row.");
+                }
+
+                accumulatedMarketValue = ParseTeamAccumulatedMoney(csv.GetField("Market_Value_EUR"));
+                continue;
+            }
+
+            if (accumulatedRowCount != 0
                 || !Enum.TryParse<BundesligaRosterRole>(roleText, false, out var role)
                 || string.IsNullOrWhiteSpace(name))
             {
-                throw new InvalidDataException($"Roster document for '{team.TeamSlug}' has an invalid row.");
+                throw new InvalidDataException($"Roster document for '{team.TeamSlug}' has an invalid or misplaced member row.");
             }
 
             var normalizedName = BundesligaRosterSeed.NormalizeName(name);
@@ -215,7 +257,12 @@ public static class BundesligaRosterPublication
                 ParseOptionalMoney(csv.GetField("Market_Value_EUR"), role)));
         }
 
-        return rows;
+        if (isLegacy ? accumulatedRowCount != 0 : accumulatedRowCount != 1)
+        {
+            throw new InvalidDataException($"Roster document for '{team.TeamSlug}' does not have the required team-accumulated row count.");
+        }
+
+        return new ParsedRosterDocument(rows, accumulatedMarketValue);
     }
 
     private static MemberMetadata ParseMetadataMember(MemberMetadata member, string teamSlug)
@@ -259,6 +306,9 @@ public static class BundesligaRosterPublication
         : value == BundesligaRosterCsv.MissingValue ? null
         : long.TryParse(value?.Replace(".", string.Empty, StringComparison.Ordinal), NumberStyles.None, CultureInfo.InvariantCulture, out var parsed) && parsed > 0 ? parsed
         : throw new InvalidDataException("Roster Market_Value_EUR must be positive or N/A.");
+    private static long? ParseTeamAccumulatedMoney(string? value) => value == BundesligaRosterCsv.MissingValue ? null
+        : long.TryParse(value?.Replace(".", string.Empty, StringComparison.Ordinal), NumberStyles.None, CultureInfo.InvariantCulture, out var parsed) && parsed > 0 ? parsed
+        : throw new InvalidDataException("Roster team-accumulated Market_Value_EUR must be positive or N/A.");
     private static BundesligaRosterPosition? ParsePosition(string? value, BundesligaRosterRole role) => role == BundesligaRosterRole.Coach && value == "Coach" ? null
         : value == BundesligaRosterCsv.MissingValue ? null
         : Enum.TryParse<BundesligaRosterPosition>(value, false, out var position) ? position
@@ -267,6 +317,7 @@ public static class BundesligaRosterPublication
     private static string GateName(BundesligaRosterDuckDbGateResult value) => value.ToString();
 
     private sealed record ParsedRow(BundesligaRosterRole Role, string Name, int? Age, BundesligaRosterPosition? Position, long? MarketValueEur);
+    private sealed record ParsedRosterDocument(IReadOnlyList<ParsedRow> MemberRows, long? TeamAccumulatedMarketValueEur);
     private sealed record PublicationMetadata(string Contract, string QualityReportCsv, ClubMetadata[] Clubs);
     private sealed record ClubMetadata(string TeamSlug, string SelectedSource, string MembershipAsOf, string[] SourceReferences,
         string? SourceRevision, string? LastKnownGoodSnapshotId, string? DuckDbSnapshotAsOf, string DuckDbGateResult,

@@ -8,6 +8,7 @@ namespace EHonda.KicktippAi.Core;
 public static class BundesligaRosterCsv
 {
     public const string MissingValue = "N/A";
+    public const string TeamAccumulatedRole = "Team Accumulated";
 
     public static readonly IReadOnlyList<string> RosterHeaders =
     [
@@ -61,18 +62,35 @@ public static class BundesligaRosterCsv
         RegexOptions.CultureInvariant | RegexOptions.NonBacktracking);
 
     public static string RenderTeamRoster(BundesligaRosterClubSnapshot snapshot)
+        => RenderTeamRoster(snapshot, includeTeamAccumulated: true);
+
+    internal static string RenderLegacyTeamRoster(BundesligaRosterClubSnapshot snapshot)
+        => RenderTeamRoster(snapshot, includeTeamAccumulated: false);
+
+    private static string RenderTeamRoster(BundesligaRosterClubSnapshot snapshot, bool includeTeamAccumulated)
     {
         ArgumentNullException.ThrowIfNull(snapshot);
         ValidateSnapshot(snapshot);
-        return WriteCsv(RosterHeaders, csv => WriteRosterRows(csv, [snapshot]));
+        return WriteCsv(RosterHeaders, csv => WriteRosterRows(csv, [snapshot], includeTeamAccumulated));
     }
 
     public static string RenderAggregate(
         IReadOnlyList<BundesligaRosterClubSnapshot> snapshots,
         IReadOnlyList<BundesligaTeamManifestEntry>? expectedTeams = null)
+        => RenderAggregate(snapshots, expectedTeams, includeTeamAccumulated: true);
+
+    internal static string RenderLegacyAggregate(
+        IReadOnlyList<BundesligaRosterClubSnapshot> snapshots,
+        IReadOnlyList<BundesligaTeamManifestEntry>? expectedTeams = null)
+        => RenderAggregate(snapshots, expectedTeams, includeTeamAccumulated: false);
+
+    private static string RenderAggregate(
+        IReadOnlyList<BundesligaRosterClubSnapshot> snapshots,
+        IReadOnlyList<BundesligaTeamManifestEntry>? expectedTeams,
+        bool includeTeamAccumulated)
     {
         var ordered = ValidateAndOrderSnapshots(snapshots, expectedTeams);
-        return WriteCsv(RosterHeaders, csv => WriteRosterRows(csv, ordered));
+        return WriteCsv(RosterHeaders, csv => WriteRosterRows(csv, ordered, includeTeamAccumulated));
     }
 
     public static string RenderSummary(
@@ -87,11 +105,7 @@ public static class BundesligaRosterCsv
                 var coach = snapshot.Members.Single(member => member.Role == BundesligaRosterRole.Coach);
                 var players = snapshot.Members.Where(member => member.Role == BundesligaRosterRole.Player).ToArray();
                 var ages = players.Where(player => player.Age is not null).Select(player => player.Age!.Value).ToArray();
-                var values = players
-                    .Where(player => player.MarketValueEur is not null)
-                    .Select(player => player.MarketValueEur!.Value)
-                    .Order()
-                    .ToArray();
+                var values = KnownMarketValues(players);
 
                 csv.WriteField(snapshot.Team.TeamSlug);
                 csv.WriteField(snapshot.Team.KicktippName);
@@ -163,7 +177,10 @@ public static class BundesligaRosterCsv
         });
     }
 
-    private static void WriteRosterRows(CsvWriter csv, IEnumerable<BundesligaRosterClubSnapshot> snapshots)
+    private static void WriteRosterRows(
+        CsvWriter csv,
+        IEnumerable<BundesligaRosterClubSnapshot> snapshots,
+        bool includeTeamAccumulated)
     {
         foreach (var snapshot in snapshots)
         {
@@ -184,8 +201,33 @@ public static class BundesligaRosterCsv
                     : FormatMoney(member.MarketValueEur.Value));
                 csv.NextRecord();
             }
+
+            if (includeTeamAccumulated)
+            {
+                var total = KnownMarketValueTotal(snapshot.Members);
+                csv.WriteField(snapshot.Team.KicktippName);
+                csv.WriteField(FormatDate(snapshot.MembershipAsOf));
+                csv.WriteField(TeamAccumulatedRole);
+                csv.WriteField(MissingValue);
+                csv.WriteField(MissingValue);
+                csv.WriteField(MissingValue);
+                csv.WriteField(total is null ? MissingValue : FormatMoney(total.Value));
+                csv.NextRecord();
+            }
         }
     }
+
+    internal static long? KnownMarketValueTotal(IEnumerable<BundesligaRosterMember> members)
+    {
+        var values = KnownMarketValues(members);
+        return values.Length == 0 ? null : values.Sum();
+    }
+
+    private static long[] KnownMarketValues(IEnumerable<BundesligaRosterMember> members) => members
+        .Where(member => member.Role == BundesligaRosterRole.Player && member.MarketValueEur is not null)
+        .Select(member => member.MarketValueEur!.Value)
+        .Order()
+        .ToArray();
 
     private static IReadOnlyList<BundesligaRosterClubSnapshot> ValidateAndOrderSnapshots(
         IReadOnlyList<BundesligaRosterClubSnapshot> snapshots,

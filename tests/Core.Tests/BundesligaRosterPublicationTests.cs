@@ -23,6 +23,76 @@ public class BundesligaRosterPublicationTests
         await Assert.That(reconstructed.SnapshotId).IsEqualTo(snapshotId);
         await Assert.That(reconstructed.Snapshots).Count().IsEqualTo(18);
         await Assert.That(reconstructed.QualityReport).IsEqualTo(publication.QualityReport);
+        await Assert.That(publication.MetadataJson).StartsWith(
+            $"{{\"contract\":\"{BundesligaRosterPublication.MetadataContract}\"");
+        await Assert.That(publication.Documents
+            .Where(document => document.Name.StartsWith("roster-", StringComparison.Ordinal))
+            .All(document => document.Content.Split("\r\n", StringSplitOptions.RemoveEmptyEntries)[^1]
+                .Contains(",Team Accumulated,N/A,N/A,N/A,", StringComparison.Ordinal))).IsTrue();
+    }
+
+    [Test]
+    public async Task Strict_reconstruction_preserves_historical_v1_without_team_accumulated_rows()
+    {
+        var (snapshots, rows) = SeedSnapshots();
+        var current = BundesligaRosterPublication.Build(snapshots, rows);
+        var legacyDocuments = current.Documents.Select(document => document with
+        {
+            Content = document.Kind == DocumentPublicationKind.Context
+                && (document.Name == BundesligaRosterPublicationContract.AggregateRosterDocumentName
+                    || document.Name.StartsWith("roster-", StringComparison.Ordinal))
+                    ? RemoveTeamAccumulatedRows(document.Content)
+                    : document.Content
+        }).ToArray();
+        var legacy = current with
+        {
+            Documents = legacyDocuments,
+            MetadataJson = current.MetadataJson.Replace(
+                BundesligaRosterPublication.MetadataContract,
+                BundesligaRosterPublication.LegacyMetadataContract,
+                StringComparison.Ordinal)
+        };
+
+        var reconstructed = BundesligaRosterPublication.ReconstructLastKnownGood(Load(legacy));
+
+        await Assert.That(reconstructed.Snapshots).Count().IsEqualTo(18);
+        await Assert.That(reconstructed.Snapshots.Sum(snapshot => snapshot.Members.Count)).IsEqualTo(
+            snapshots.Sum(snapshot => snapshot.Members.Count));
+    }
+
+    [Test]
+    [Arguments("missing")]
+    [Arguments("duplicate")]
+    [Arguments("misplaced")]
+    [Arguments("malformed-irrelevant")]
+    [Arguments("malformed-total")]
+    [Arguments("incorrect-total")]
+    public async Task V2_reconstruction_rejects_corrupt_team_accumulated_rows(string scenario)
+    {
+        var (snapshots, rows) = SeedSnapshots();
+        var publication = BundesligaRosterPublication.Build(snapshots, rows);
+        var target = publication.Documents.Single(document => document.Name == "roster-b04");
+        var lines = target.Content.Split("\r\n", StringSplitOptions.RemoveEmptyEntries).ToList();
+        var accumulated = lines[^1];
+        switch (scenario)
+        {
+            case "missing": lines.RemoveAt(lines.Count - 1); break;
+            case "duplicate": lines.Add(accumulated); break;
+            case "misplaced": lines.RemoveAt(lines.Count - 1); lines.Insert(2, accumulated); break;
+            case "malformed-irrelevant": lines[^1] = accumulated.Replace(",N/A,N/A,N/A,", ",Not A Team,N/A,N/A,", StringComparison.Ordinal); break;
+            case "malformed-total": lines[^1] = accumulated[..accumulated.LastIndexOf(',')] + ",0"; break;
+            case "incorrect-total": lines[^1] = accumulated[..accumulated.LastIndexOf(',')] + ",1"; break;
+        }
+        var corrupted = string.Join("\r\n", lines) + "\r\n";
+        var changed = publication with
+        {
+            Documents = publication.Documents.Select(document => document.Name == target.Name
+                ? document with { Content = corrupted }
+                : document).ToArray()
+        };
+
+        await Assert.That(() => BundesligaRosterPublication.ReconstructLastKnownGood(Load(changed)))
+            .Throws<InvalidDataException>();
     }
 
     [Test]
@@ -145,4 +215,30 @@ public class BundesligaRosterPublicationTests
         }).ToArray();
         return (snapshots, rows);
     }
+
+    private static LoadedDocumentPublication Load(BundesligaRosterBuiltPublication publication)
+    {
+        var documents = publication.Documents.Select((payload, index) => new PublishedDocument(
+            CompetitionIds.Bundesliga2026_27, "roster-test", BundesligaDocumentPublication.RosterPublicationSet,
+            payload.Kind, payload.Name, index + 1, payload.Content, payload.Description, DateTimeOffset.UtcNow)).ToArray();
+        var snapshot = new DocumentPublicationSnapshot(
+            CompetitionIds.Bundesliga2026_27,
+            "roster-test",
+            BundesligaDocumentPublication.RosterPublicationSet,
+            DocumentPublicationContract.ComputeSnapshotId(publication.Documents),
+            null,
+            DateTimeOffset.UtcNow,
+            publication.MetadataJson,
+            documents.Select(document => new DocumentPublicationEntry(
+                document.Kind,
+                document.Name,
+                document.Version,
+                DocumentPublicationContract.ComputeContentSha256(document.Content))));
+        return new LoadedDocumentPublication(snapshot, documents);
+    }
+
+    private static string RemoveTeamAccumulatedRows(string content) => string.Join(
+        "\r\n",
+        content.Split("\r\n", StringSplitOptions.RemoveEmptyEntries)
+            .Where(line => !line.Contains(",Team Accumulated,", StringComparison.Ordinal))) + "\r\n";
 }

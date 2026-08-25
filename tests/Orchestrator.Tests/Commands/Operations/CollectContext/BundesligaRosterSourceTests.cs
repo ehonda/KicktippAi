@@ -361,6 +361,69 @@ public class BundesligaRosterSourceTests
         await Assert.That(result.Diagnostics).Contains("DUCKDB_NOT_AVAILABLE");
     }
 
+    [Test]
+    public async Task Later_no_duckdb_collection_preserves_the_enriched_launch_snapshot_as_last_known_good()
+    {
+        var root = SolutionPathUtility.FindSolutionRoot();
+        var source = new BundesligaRosterSource();
+        var baseline = await source.CollectAsync(new BundesligaRosterSourceRequest(
+            Path.Combine(root, BundesligaRosterSeed.RelativePath),
+            Path.Combine(root, BundesligaTeamManifest.RelativePath),
+            null,
+            null,
+            null), null, new DateOnly(2026, 8, 18));
+        var valuedRemaining = BundesligaRosterLaunchCoverage.RequiredValuedPlayerCount;
+        var enriched = baseline.Snapshots.Select(snapshot => snapshot with
+        {
+            MembershipSource = BundesligaRosterMembershipSource.LastKnownGood,
+            Members = snapshot.Members.Select(member =>
+            {
+                if (member.Role != BundesligaRosterRole.Player || member.TransfermarktPlayerId is null)
+                {
+                    return member;
+                }
+                var value = valuedRemaining > 0 ? 1_000_000L : (long?)null;
+                if (value is not null) valuedRemaining--;
+                return member with { Age = 25, Position = BundesligaRosterPosition.Midfield, MarketValueEur = value };
+            }).ToArray()
+        }).ToArray();
+        var lkgSnapshotId = new string('d', 64);
+        var lkgRows = baseline.QualityRows.Select(row =>
+        {
+            var snapshot = enriched.Single(value => value.Team.TeamSlug == row.Team.TeamSlug);
+            var players = snapshot.Members.Where(member => member.Role == BundesligaRosterRole.Player).ToArray();
+            return row with
+            {
+                SelectedSource = BundesligaRosterMembershipSource.LastKnownGood,
+                LastKnownGoodSnapshotId = lkgSnapshotId,
+                KnownAgeCount = players.Count(player => player.Age is not null),
+                KnownPositionCount = players.Count(player => player.Position is not null),
+                ValuedPlayerCount = players.Count(player => player.MarketValueEur is not null),
+                SelectionReason = "DUCKDB_NOT_AVAILABLE_USE_LAST_KNOWN_GOOD"
+            };
+        }).ToArray();
+        var headed = BundesligaRosterPublication.Build(enriched, lkgRows);
+        var lkg = new BundesligaRosterLastKnownGood(lkgSnapshotId, enriched, lkgRows, headed.QualityReport);
+
+        var later = await source.CollectAsync(new BundesligaRosterSourceRequest(
+            Path.Combine(root, BundesligaRosterSeed.RelativePath),
+            Path.Combine(root, BundesligaTeamManifest.RelativePath),
+            null,
+            null,
+            null), lkg, new DateOnly(2026, 8, 19));
+
+        var coverage = BundesligaRosterLaunchCoverage.Validate(later.Snapshots);
+        await Assert.That(later.RetainLastKnownGood).IsFalse();
+        await Assert.That(later.Snapshots.All(snapshot => snapshot.MembershipSource == BundesligaRosterMembershipSource.LastKnownGood)).IsTrue();
+        await Assert.That(coverage).IsEqualTo(new BundesligaRosterCoverage(464, 464, 450));
+        await Assert.That(later.QualityRows.Sum(row => row.KnownAgeCount)).IsEqualTo(464);
+        await Assert.That(later.QualityRows.Sum(row => row.KnownPositionCount)).IsEqualTo(464);
+        await Assert.That(later.QualityRows.Sum(row => row.ValuedPlayerCount)).IsEqualTo(450);
+        await Assert.That(later.Snapshots.SelectMany(snapshot => snapshot.Members)
+            .Where(member => member.TransfermarktPlayerId is not null)
+            .All(member => member.Age == 25 && member.Position == BundesligaRosterPosition.Midfield)).IsTrue();
+    }
+
     private static void CreateDuckDb(string path)
     {
         var seed = BundesligaRosterSeed.Default.Entries.Where(entry => entry.TeamSlug == "b04" && entry.Role == BundesligaRosterRole.Player).ToArray();

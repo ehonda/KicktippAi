@@ -168,6 +168,14 @@ public class CollectContextRostersSettings : CollectContextSettings
     [Description("Required with --duckdb-path: source snapshot date in yyyy-MM-dd")]
     public string? DuckDbSnapshotDate { get; set; }
 
+    [CommandOption("--duckdb-sha256")]
+    [Description("Optional expected lower-case SHA-256 of the local DuckDB file; required by --require-launch-coverage")]
+    public string? DuckDbSha256 { get; set; }
+
+    [CommandOption("--require-launch-coverage")]
+    [Description("Fail before publication unless the pinned P0 launch enrichment coverage floor is met")]
+    public bool RequireLaunchCoverage { get; set; }
+
     [CommandOption("--dry-run")]
     [Description("Render, validate, hash, and report without publishing")]
     public bool DryRun { get; set; }
