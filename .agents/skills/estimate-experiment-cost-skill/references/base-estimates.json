@@ -1,6 +1,6 @@
 {
   "schemaVersion": 1,
-  "updatedAt": "2026-06-02",
+  "updatedAt": "2026-08-25",
   "baseEstimates": [
     {
       "model": "o3",
@@ -271,6 +271,48 @@
       "averageCostPerMatchPredictionUsd": "0.000085520000",
       "observedLangfuseCostTotalUsd": "0.000751360000",
       "source": "Base estimate run family 2026-06-02t22-02-53z; WM26 hosted latest prompt preliminary onboarding estimate using historical pes-squad repeated-match-slice fixtures."
+    },
+    {
+      "model": "gpt-5.6-luna",
+      "reasoningEffort": "none",
+      "promptRoute": "Langfuse Bundesliga match v2; Bundesliga 2025/26 7-document legacy-id-hash-v1 context",
+      "modelKnowledgeCutoffDate": "2026-02-16",
+      "samplingCutoffUsed": "2026-02-18T00:00:00 Europe/Berlin (+01)",
+      "maxOutputTokens": 10000,
+      "baseSampleObservations": 20,
+      "serviceTier": "flex",
+      "observedServiceTierCounts": {
+        "flex": 20
+      },
+      "observedFlexRequestCount": 20,
+      "nonFlexRequestCount": 0,
+      "nonFlexRequestRate": "0.0000",
+      "nonFlexRequestPercent": "0.00%",
+      "nonFlexRetryCount": 0,
+      "nonFlexRetryRate": "0.0000",
+      "nonFlexRetryPercent": "0.00%",
+      "serviceTierFallbackUsedCount": 0,
+      "serviceTierFallbackUsedRate": "0.0000",
+      "serviceTierFallbackUsedPercent": "0.00%",
+      "standardInputPricePerMillionUsd": "0.2",
+      "standardOutputPricePerMillionUsd": "1.2",
+      "effectiveInputPricePerMillionUsd": "0.1",
+      "effectiveOutputPricePerMillionUsd": "0.6",
+      "totalInputTokens": 48752,
+      "totalCachedInputTokensObserved": 48692,
+      "totalOutputTokens": 340,
+      "totalReasoningTokens": 0,
+      "estimatedUncachedInputCostUsd": "0.004875200000",
+      "estimatedOutputCostUsd": "0.000204000000",
+      "estimatedTotalCostUsd": "0.005079200000",
+      "averageCostPerMatchPredictionUsd": "0.000253960000",
+      "observedLangfuseCostTotalUsd": "0.000696920000",
+      "source": "Base estimate run family repeated-match-slice__pes-squad__gpt-5.6-luna__match-v2__reasoning-none__random-5x4-seed-20260821__startsat-12h__2026-08-25t04-45-49z; accepted dataset run 6a3c4e70-ebb4-4c07-9a1a-7af19c32d995.",
+      "datasetId": "cmt86m8gn0awvad0eyx7mn5f6",
+      "datasetRunId": "6a3c4e70-ebb4-4c07-9a1a-7af19c32d995",
+      "datasetRunName": "repeated-match-slice__pes-squad__gpt-5.6-luna__match-v2__reasoning-none__random-5x4-seed-20260821__startsat-12h__2026-08-25t04-45-49z",
+      "preparedManifestSha256": "fcadeeadaadd1356472a1f4f96b7277a05ba3b8a19dcde60e6f2e7d79af577b7",
+      "preparedManifestSampleSize": 20
     }
   ]
 }

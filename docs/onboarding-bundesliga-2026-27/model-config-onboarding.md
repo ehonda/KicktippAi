@@ -49,37 +49,55 @@ P0-19 owns workflow creation. Its manual entries and the separately authorized L
 
 [Official OpenAI pricing](https://developers.openai.com/api/docs/pricing) lists short-context standard prices per one million tokens of `$0.20` input, `$0.02` cached input, `$0.25` cache writes, and `$1.20` output. Long-context standard prices are `$0.40`, `$0.04`, `$0.50`, and `$1.80`, respectively. The runtime cost calculator now recognizes the short-context input, cached-input, and output rates; cache-write and long-context accounting are not represented by its current token-usage contract and remain explicit planning caveats.
 
-## Whole-season cost gate
+## Whole-season cost evidence
 
-Bundesliga has 306 official fixtures. Reusing the documented historical counts (`313` initial predictions, `123` first repredictions, `68` second-or-later repredictions) projects `493` calls with repredictions. The prescribed estimator lookup is:
+Bundesliga has 306 official fixtures. Reusing the documented historical counts
+(`313` initial predictions, `123` first repredictions, `68` second-or-later
+repredictions) projects `493` calls with repredictions. On 2026-08-25 the owner
+authorized the one-item and subsequent 20-item Luna/none cost gates. Both were
+completed without cap pressure; this authorization did not select Luna for
+production.
+
+The one-item run used source fixture `1423757341`, dataset
+`cmt86fx6o0aeuad0dg99ivamv`, and dataset run
+`80e17c90-631d-4c89-8640-21fe36fef541`. It observed `2463` uncached input,
+`17` output, and zero reasoning tokens on flex with no fallback, at observed
+cost `$0.0002565` and `0.17%` output-cap use.
+
+The five-by-four sample uses completed Bundesliga 2025/26 fixtures strictly
+after `2026-02-18T00:00:00 Europe/Berlin (+01)` and the exact historical
+seven-document compatibility route. Eligibility policy
+`bundesliga-2025-26-completed-after-sampling-cutoff-all-7-context-documents-at-or-before-starts-at-minus-12h-v1`
+yielded 109 fixtures, hash
+`6ecb182489b97f9ea389374183f0ef7cfe632ddfba341ea72aa354647593b415`.
+Seed `20260821` selected source IDs `1423757259`, `1423757286`, `1423757328`,
+`1423757333`, and `1423757341`.
+
+The non-authoritative parallelism-5 attempt completed 20 items with one
+flex-429 standard fallback. The prescribed parallelism-3 replacement completed
+20/20 entirely on flex and is authoritative: dataset
+`cmt86m8gn0awvad0eyx7mn5f6`, dataset run
+`6a3c4e70-ebb4-4c07-9a1a-7af19c32d995`, prepared manifest SHA-256
+`fcadeeadaadd1356472a1f4f96b7277a05ba3b8a19dcde60e6f2e7d79af577b7`.
+Exact dataset-run recovery admitted 20 distinct linked traces and excluded the
+20 retained same-name traces from the earlier attempt.
+
+The base row prices all `48752` input tokens as uncached, despite `48692`
+observed cache-read tokens, and records `340` output, zero reasoning tokens,
+zero non-flex/fallback requests, total estimated flex cost `$0.005079200000`,
+and average `$0.000253960000` per prediction. The exact estimator command was:
 
 ```powershell
 uv --cache-dir .uv-cache run python .agents/skills/estimate-experiment-cost-skill/scripts/experiment_cost_estimator.py estimate --counts 306,493 --model gpt-5.6-luna --reasoning-effort none
 ```
 
-It fails closed with `No matching base estimate JSON row found for model='gpt-5.6-luna', reasoningEffort='none'.` No dollar total is reported or hand-calculated.
+Exact estimator stdout: `N=306: $0.077711760000`; `N=493: $0.125202280000`.
+This is a preseason seven-document cost proxy that may understate the live
+eleven-document Bundesliga 2026/27 input. It is not prediction-quality evidence.
 
-On 2026-08-25 the owner explicitly authorized both paid evidence stages:
-
-1. collect one observed request using match prompt version 2, `gpt-5.6-luna`, `none`, flex-first processing with standard fallback, and cap `10000`;
-2. inspect its tokens, tier, cap headroom, and cost, then state the expected 20-item spend;
-3. without a second approval pause, collect exactly 20 successful observations, persist the row with `upsert-row`, and rerun the exact 306/493 estimator command.
-
-A new approval is required only if the observed cap/cost materially departs from the prescribed lane or another anomaly changes its scope. Execution still follows the orchestrator's independent-review and serialized-live-lane protocol.
-
-The exact one-item identity prepared for the first gate is slice `random-1x1-seed-20260821-gpt-5-6-luna-none-cost-preflight` and run `p0-06__gpt-5.6-luna__none__match-v2__random-1x1-seed-20260821__cost-preflight`. Its conservative authorization ceiling is `$2.00`. The bound deliberately overcounts the full 1,050,000-token context at both the long-context uncached-input and cache-write rates, adds the full `10000` output cap, allows both the initial flex attempt and the executor's single standard fallback, applies the documented 10% regional uplift, and rounds up from less than `$1.60`. It is a spend ceiling, not an estimator projection. No paid request had been made when this authorization was recorded.
-
-Prepared commands (authorized, but execute only after the implementation review closes and the serialized live lane is assigned to P0-06):
-
-```powershell
-dotnet run --project src/Orchestrator -- prepare-repeated-match-slice --competition bundesliga-2025-26 --historical-context-compatibility bundesliga-2025-26-legacy-id-hash-v1 --official-knowledge-cutoff 2026-02-16 --community-context pes-squad --match-count 1 --repetitions 1 --sample-seed 20260821 --starts-after "2026-02-18T00:00:00 Europe/Berlin (+01)" --slice-key random-1x1-seed-20260821-gpt-5-6-luna-none-cost-preflight
-
-dotnet run --project src/Orchestrator -- sync-dataset --input artifacts/langfuse-experiments/repeated-match-slices/pes-squad/all-matchdays-after-20260217t230000z/random-1x1-seed-20260821-gpt-5-6-luna-none-cost-preflight/slice-dataset.json
-
-dotnet run --project src/Orchestrator -- run-repeated-match-slice gpt-5.6-luna --manifest artifacts/langfuse-experiments/repeated-match-slices/pes-squad/all-matchdays-after-20260217t230000z/random-1x1-seed-20260821-gpt-5-6-luna-none-cost-preflight/slice-manifest.json --run-name "p0-06__gpt-5.6-luna__none__match-v2__random-1x1-seed-20260821__cost-preflight" --prompt-key bundesliga-2026-27-match-v2 --prompt-source langfuse --langfuse-prompt-name kicktippai/bundesliga-2026-27/predict-one-match --langfuse-prompt-label production --langfuse-prompt-version 2 --reasoning-effort none --max-output-tokens 10000 --evaluation-policy-kind relative --evaluation-policy-offset -12:00:00 --batch-count 1 --parallelism 1 --replace-run
-```
-
-See [whole-season-cost-estimates.md](../experiments/whole-season-cost-estimates.md) and [ADR-0033](../../plans/bundesliga-2026-27/decisions/0033-pin-validation-model-ledger-and-reserve-production-selection.md).
+See [whole-season-cost-estimates.md](../experiments/whole-season-cost-estimates.md),
+[the compact base evidence](../../.agents/skills/estimate-experiment-cost-skill/references/gpt-5.6-luna-none-base-estimate-2026-08-25.md),
+and [ADR-0033](../../plans/bundesliga-2026-27/decisions/0033-pin-validation-model-ledger-and-reserve-production-selection.md).
 
 ## Production owner gate
 
