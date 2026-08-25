@@ -75,31 +75,72 @@ last-known-good data.
 Run from the clean primary checkout at the exact green `main` head. First
 verify the artifact hash equals
 `808959f5b5b16bb698180c348b269d9ec26e1d1a5538767ffe9d971b96796d1c`
-and the sibling `.env.ehonda-ai-arena` exists without printing its values. Then:
+and the sibling `.env.ehonda-ai-arena` exists without printing its values.
+Publish the roster first:
 
 ```powershell
 dotnet run --project src/Orchestrator --configuration Release -- collect-context rosters --competition bundesliga-2026-27 --community-context ehonda-ai-arena --duckdb-path .tmp/buli-2026-27-research/transfermarkt-datasets.duckdb --duckdb-revision 154367dfa6d6eb0b86332e332f9df0a080c7ddce --duckdb-snapshot-date 2026-08-13 --duckdb-sha256 808959f5b5b16bb698180c348b269d9ec26e1d1a5538767ffe9d971b96796d1c --require-launch-coverage --verbose
-gh workflow run buli2627-ehonda-ai-arena-gpt-5-6-luna-none-matchday.yml --ref main -f force_prediction=true -f max_repredictions=2
 ```
 
 Capture the published snapshot ID, previous snapshot ID, disposition, and
 per-team/aggregate/summary document versions without content payloads. The
 publication must be v2, show exactly 18 derived rows, coverage totals of at
 least 464/464/450, and the expected partial subtotal for teams with missing
-valuations. Confirm the dispatched run's `headSha` is the exact green main SHA,
-watch it to success, and run the existing exact-identity verification command
-for `gpt-5.6-luna`/`none`/cap `10000`, hosted match prompt v2 with `production`
-membership. Inspect only payload-safe Langfuse trace/observation fields:
-environment, community/context, competition, model, reasoning, cap, prompt
-name/label/version/hash, fallback, roster snapshot ID, selected document names,
-usage/cost, errors, and ordered generation count. Confirm every relevant
-`roster-*` prompt document contains non-`N/A` age/position/value coverage and
-one final `Team Accumulated` row; do not record prompt text or prediction
-payloads. Verify exactly nine Firestore/Kicktipp match predictions and no
-unexpected reprediction index.
+valuations.
+
+Before dispatch, run the existing exact-identity verifier and a read-only cost
+inventory. Keep the inventory JSON under ignored `.tmp/`; it contains metadata
+and cost/count aggregates, not prediction or prompt payloads:
+
+```powershell
+dotnet run --no-build --project src/Orchestrator --configuration Release -- verify gpt-5.6-luna --community ehonda-ai-arena --community-context ehonda-ai-arena --competition bundesliga-2026-27 --reasoning-effort none --max-output-tokens 10000 --prompt-source langfuse --langfuse-prompt-name kicktippai/bundesliga-2026-27/predict-one-match --langfuse-prompt-label production --langfuse-prompt-version 2 --verbose --agent
+dotnet run --no-build --project src/Orchestrator --configuration Release -- cost --matchdays 1 --models gpt-5.6-luna --reasoning-efforts none --community-contexts ehonda-ai-arena --detailed-breakdown --output-json .tmp/p0-25-arena-pre-dispatch-cost.json
+```
+
+This is a fail-closed pre-dispatch gate. The exact identity verifier must find
+the expected nine matchday-one identities in Firestore and Kicktipp: FC Bayern
+München–VfB Stuttgart, 1. FC Köln–1899 Hoffenheim, SV Elversberg–Bayer 04
+Leverkusen, FSV Mainz 05–SC Paderborn 07, 1. FC Union Berlin–Eintracht
+Frankfurt, RB Leipzig–Bor. Mönchengladbach, Borussia Dortmund–Hamburger SV, SC
+Freiburg–Werder Bremen, and FC Augsburg–FC Schalke 04. The inventory must
+contain exactly one match row for the complete
+`gpt-5.6-luna`/`none`/cap-`10000`/hosted-match-v2-`production` configuration,
+with count 9 at prediction index 0 and zero records at index 1 or higher. Stop
+without dispatching on a missing, extra, differently configured, or differently
+indexed record.
+
+Only after that gate passes, dispatch exactly once:
+
+```powershell
+gh workflow run buli2627-ehonda-ai-arena-gpt-5-6-luna-none-matchday.yml --ref main -f force_prediction=true -f max_repredictions=0
+```
+
+`force_prediction=true` selects the reusable workflow's
+`--override-database` path: it overwrites/replaces prediction index 0 instead
+of appending a reprediction. `max_repredictions` is ignored on this forced
+path; the explicit `0` documents that no reprediction allocation is intended.
+Confirm the dispatched run's `headSha` is the exact green main SHA and watch it
+to success. Do not retry or dispatch a second round if it fails; stop and
+reconcile the evidence.
+
+After success, rerun the same exact-identity verifier and cost inventory, using
+`.tmp/p0-25-arena-post-dispatch-cost.json` for the latter. The post-inventory
+must still contain exactly the nine expected match records at index 0 and zero
+records at index 1 or higher. Inspect only payload-safe Langfuse
+trace/observation fields: environment, community/context, competition, model,
+reasoning, cap, prompt name/label/version/hash, fallback, roster snapshot ID,
+selected document names, usage/cost, errors, and ordered generation count. The
+single dispatched workflow and its single replacement trace round must contain
+exactly nine ordered match generations, and the trace's roster snapshot ID must
+equal the exact enriched snapshot ID captured after publication. Confirm every
+relevant `roster-*` prompt document has non-`N/A` age/position/value coverage
+and one final `Team Accumulated` row; do not record prompt text or prediction
+payloads. The whole ladder is arena-only plumbing validation: it authorizes no
+production community post, production schedule, retry, or P0-23
+quality-evidence claim.
 
 ## Complete when
 
 - The implementation commit is independently approved, integrated, and exact-head CI is green.
-- The arena ladder above records successful enriched v2 publication, one authorized overriding validation round, exact prediction identity, and payload-safe trace/document evidence.
+- The arena ladder above records successful enriched v2 publication, the passing pre-dispatch index gate, exactly one authorized index-0 replacement round, the unchanged nine-at-index-0/zero-at-index-1+ post-state, exact enriched roster snapshot identity, and payload-safe trace/document evidence.
 - P0-21 carries the enriched-publication precondition for every initial production prediction while P1-05 retains the refresh-automation boundary.

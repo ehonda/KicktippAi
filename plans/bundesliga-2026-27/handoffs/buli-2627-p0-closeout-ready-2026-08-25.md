@@ -56,13 +56,20 @@ callers, and finally [P0-21](../tasks/p0-21-production-activation.md).
 
 1. Independently review and integrate P0-25, reconcile exact-head CI, then from
    the clean primary checkout publish the pinned enriched v2 roster snapshot to
-   `ehonda-ai-arena`. Only after that publication and exact-head checks, dispatch
-   exactly one forced
-   `buli2627-ehonda-ai-arena-gpt-5-6-luna-none-matchday.yml` round. Verify the
-   headed v2 snapshot, 464/464/450-or-better coverage, exactly 18 derived rows,
-   nine Firestore/Kicktipp predictions, and payload-safe Langfuse metadata. Do
-   not treat this plumbing round as P0-23 quality evidence or production-model
-   selection.
+   `ehonda-ai-arena`. Before dispatch, fail closed unless the payload-safe exact
+   identity/index inventory proves exactly the expected nine
+   `gpt-5.6-luna`/`none`/cap-`10000` match records at prediction index 0 and no
+   index-1-or-higher records. Then dispatch exactly one forced
+   `buli2627-ehonda-ai-arena-gpt-5-6-luna-none-matchday.yml` round with
+   `max_repredictions=0`. `force_prediction=true` selects
+   `--override-database`, which replaces index 0; the max-reprediction input is
+   ignored on that forced path. Post-verify the headed v2 snapshot,
+   464/464/450-or-better coverage, exactly 18 derived rows, the same exact nine
+   index-0 records with zero at index 1+, the enriched roster snapshot identity
+   in the one replacement trace round, and payload-safe Langfuse metadata. Stop
+   on any deviation or failed dispatch rather than running a second round. This
+   remains arena-only plumbing validation: it authorizes no production post or
+   schedule and is not P0-23 quality evidence or production-model selection.
 2. Integrate and validate the pending machine-readable Decimal cumulative-budget
    gate, record its exact aggregate command in the preregistration, and obtain
    independent approval of the corrected no-spend checkpoint. Authorization
