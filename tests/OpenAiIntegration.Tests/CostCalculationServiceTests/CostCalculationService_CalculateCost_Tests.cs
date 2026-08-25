@@ -187,6 +187,62 @@ public class CostCalculationService_CalculateCost_Tests : CostCalculationService
     }
 
     [Test]
+    [Arguments("gpt-5.6", 4.00, 0.40, 20.00, 24.40)]
+    [Arguments("gpt-5.6-sol", 4.00, 0.40, 20.00, 24.40)]
+    [Arguments("gpt-5.6-terra", 2.00, 0.20, 12.00, 14.20)]
+    public async Task CalculateCostBreakdown_with_gpt_5_6_models_uses_official_standard_prices(
+        string model,
+        decimal expectedInput,
+        decimal expectedCachedInput,
+        decimal expectedOutput,
+        decimal expectedTotal)
+    {
+        // Arrange
+        var usage = OpenAITestHelpers.CreateChatTokenUsage(
+            inputTokens: 2_000_000,
+            outputTokens: 1_000_000,
+            cachedInputTokens: 1_000_000);
+
+        // Act
+        var breakdown = Service.CalculateCostBreakdown(model, usage);
+
+        // Assert
+        await Assert.That(breakdown).IsNotNull();
+        await Assert.That(breakdown!.Input).IsEqualTo(expectedInput);
+        await Assert.That(breakdown.CachedInput).IsEqualTo(expectedCachedInput);
+        await Assert.That(breakdown.Output).IsEqualTo(expectedOutput);
+        await Assert.That(breakdown.Total).IsEqualTo(expectedTotal);
+    }
+
+    [Test]
+    [Arguments("gpt-5.6", 2.00, 0.20, 10.00, 12.20)]
+    [Arguments("gpt-5.6-sol", 2.00, 0.20, 10.00, 12.20)]
+    [Arguments("gpt-5.6-terra", 1.00, 0.10, 6.00, 7.10)]
+    public async Task CalculateCostBreakdown_with_gpt_5_6_models_and_flex_service_tier_halves_each_price(
+        string model,
+        decimal expectedInput,
+        decimal expectedCachedInput,
+        decimal expectedOutput,
+        decimal expectedTotal)
+    {
+        // Arrange
+        var usage = OpenAITestHelpers.CreateChatTokenUsage(
+            inputTokens: 2_000_000,
+            outputTokens: 1_000_000,
+            cachedInputTokens: 1_000_000);
+
+        // Act
+        var breakdown = Service.CalculateCostBreakdown(model, usage, "flex");
+
+        // Assert
+        await Assert.That(breakdown).IsNotNull();
+        await Assert.That(breakdown!.Input).IsEqualTo(expectedInput);
+        await Assert.That(breakdown.CachedInput).IsEqualTo(expectedCachedInput);
+        await Assert.That(breakdown.Output).IsEqualTo(expectedOutput);
+        await Assert.That(breakdown.Total).IsEqualTo(expectedTotal);
+    }
+
+    [Test]
     [Arguments("gpt-5-nano", 0.05, 0.40, 0.005)]
     [Arguments("gpt-5.4", 2.50, 15.00, 0.25)]
     [Arguments("gpt-5.4-mini", 0.75, 4.50, 0.075)]
