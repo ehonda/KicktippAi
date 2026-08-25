@@ -1,6 +1,6 @@
 # P0-23 — Collect GPT-5.6 production-candidate evidence
 
-- Status: Not started
+- Status: In progress — no-spend preregistration drafted; owner matrix and both spend gates pending
 - Priority: P0
 - Depends on: [P0-05](p0-05-prompt-route.md), [P0-12](p0-12-match-context-and-transfer-retirement.md), and [P0-20](p0-20-seed-and-development-validation.md)
 - Reuses: the completed cost/provenance foundation recorded in [P0-06](p0-06-model-ledger-and-cost-baseline.md)
@@ -12,6 +12,12 @@
 The owner can compare an explicitly authorized set of GPT-5.6 production candidates using reproducible cost evidence and a separate cutoff-safe Bundesliga 2025/26 quality comparison, or can explicitly waive missing comparative evidence before selecting the launch configuration.
 
 The already accepted hosted prompt identities remain match version 2 and bonus version 1. This task does not reopen or silently move either prompt.
+
+The current no-spend design is
+[the GPT-5.6 Bundesliga 2025/26 production-candidate preregistration](../../../docs/experiments/gpt-5-6-bundesliga-2025-26-production-candidate-preregistration.md).
+It proposes Sol and Terra at their documented default `medium` effort and cap
+`10000`, reuses the exact Luna/`none` row, and keeps all owner, spend, execution,
+and evidence boxes below open.
 
 ## Owner and spend gate
 
@@ -53,6 +59,25 @@ The already accepted hosted prompt identities remain match version 2 and bonus v
 - Verify cutoff boundaries directly, including exclusion at the exact cutoff and admission only strictly afterward.
 - Reconcile every reported run to its exact manifest, model configuration, prompt version, dataset, dataset-run, traces, usage, scores, and tracked evidence.
 - Run focused and affected full automated suites for any implementation required by the evidence workflow, then obtain independent review before live spend and before integration.
+
+## Evidence — 2026-08-25 no-spend preregistration
+
+- Official OpenAI model pages were checked for `gpt-5.6-sol`,
+  `gpt-5.6-terra`, and `gpt-5.6-luna`; all currently publish knowledge cutoff
+  `2026-02-16` and `medium` as default reasoning effort.
+- Official Standard and Flex short-context prices were recorded with a dated
+  source link in the preregistration. The repository cost calculator already
+  recognizes the explicit Sol and Terra model IDs.
+- The provisional hardest-cutoff boundary is therefore the already-audited
+  strict `2026-02-18T00:00:00 Europe/Berlin (+01)` boundary with eligible pool
+  count `109` and hash
+  `6ecb182489b97f9ea389374183f0ef7cfe632ddfba341ea72aa354647593b415`.
+- The cost design freezes one-item then exact five-by-four evidence for every
+  missing candidate row and reuses Luna without another prediction. The quality
+  section remains explicitly DRAFT at 15 fixtures by 20 repetitions on one
+  common manifest, pending the owner's exact matrix and separate spend ceiling.
+- No dataset was prepared or synced; no Langfuse or prompt mutation, model call,
+  or spend occurred while drafting this evidence.
 
 ## Complete when
 
