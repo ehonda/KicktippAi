@@ -45,6 +45,26 @@ public class KicktippContextProvider_HeadToHeadHistory_Tests : KicktippContextPr
     }
 
     [Test]
+    public async Task Getting_head_to_head_history_for_requested_matchday_uses_matchday_scoped_client_lookup()
+    {
+        var mockClient = CreateMockKicktippClient();
+        var provider = CreateProvider(Option.Some(mockClient.Object), matchday: 2);
+
+        var context = await provider.HeadToHeadHistory(TestHomeTeam, TestAwayTeam);
+
+        await Assert.That(context.Name).IsEqualTo("head-to-head-fcb-vs-bvb.csv");
+        mockClient.Verify(client => client.GetHeadToHeadDetailedHistoryAsync(
+            TestCommunity,
+            TestHomeTeam,
+            TestAwayTeam,
+            2), Times.Once);
+        mockClient.Verify(client => client.GetHeadToHeadDetailedHistoryAsync(
+            It.IsAny<string>(),
+            It.IsAny<string>(),
+            It.IsAny<string>()), Times.Never);
+    }
+
+    [Test]
     public async Task Getting_head_to_head_history_with_empty_data_returns_headers_only()
     {
         // Arrange

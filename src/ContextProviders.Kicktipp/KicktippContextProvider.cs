@@ -82,7 +82,13 @@ public class KicktippContextProvider : IKicktippContextProvider
             var homeTeam = matchWithHistory.Match.HomeTeam;
             var awayTeam = matchWithHistory.Match.AwayTeam;
             
-            var history = await _kicktippClient.GetHeadToHeadDetailedHistoryAsync(_community, homeTeam, awayTeam);
+            var history = _matchday.HasValue
+                ? await _kicktippClient.GetHeadToHeadDetailedHistoryAsync(
+                    _community,
+                    homeTeam,
+                    awayTeam,
+                    _matchday.Value)
+                : await _kicktippClient.GetHeadToHeadDetailedHistoryAsync(_community, homeTeam, awayTeam);
             var cacheKey = $"{homeTeam}|{awayTeam}";
             detailedHeadToHeadHistory[cacheKey] = history;
         }

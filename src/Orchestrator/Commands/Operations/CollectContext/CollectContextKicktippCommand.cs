@@ -17,6 +17,7 @@ namespace Orchestrator.Commands.Operations.CollectContext;
 public class CollectContextKicktippCommand : AsyncCommand<CollectContextKicktippSettings>
 {
     private const int BundesligaOrdinaryOutcomeMatchdayCount = 34;
+    private const int BundesligaAcceptedIncompleteHistoryRowCount = 2;
 
     private readonly IAnsiConsole _console;
     private readonly IFirebaseServiceFactory _firebaseServiceFactory;
@@ -233,20 +234,18 @@ public class CollectContextKicktippCommand : AsyncCommand<CollectContextKicktipp
         }
 
         var expectedDocumentNames = ValidateFullSeasonFixtures(settings, pages, matchdayCount);
-        var expectedSelectedHistoryDocumentNames = BundesligaHistoryPlayedDateMap.ExpectedDocumentNames
-            .ToHashSet(StringComparer.Ordinal);
-        var collection = await CollectContextDocumentsAsync(
+        var collection = await CollectFullSeasonContextDocumentsAsync(
             kicktippClient,
             settings,
             competition,
-            isBundesliga2026: true,
             pages,
-            failOnConflictingContent: true,
             cancellationToken);
         ValidateExactDocumentSet(
             "raw full-season Kicktipp context",
             collection.Documents.Keys,
             expectedDocumentNames);
+        var expectedSelectedHistoryDocumentNames = BundesligaHistoryPlayedDateMap.ExpectedDocumentNames
+            .ToHashSet(StringComparer.Ordinal);
         if (!collection.ExpectedSelectedHistoryDocumentNames.SetEquals(expectedSelectedHistoryDocumentNames))
         {
             throw SetMismatch(
@@ -278,6 +277,126 @@ public class CollectContextKicktippCommand : AsyncCommand<CollectContextKicktipp
 
         _console.MarkupLine($"[green]Collected and validated {documents.Count} exact full-season context documents[/]");
         await PublishFullSeasonAtomicallyAsync(settings, contextRepository, documents, cancellationToken);
+    }
+
+    private async Task<CollectedContextDocuments> CollectFullSeasonContextDocumentsAsync(
+        IKicktippClient kicktippClient,
+        CollectContextKicktippSettings settings,
+        string competition,
+        IReadOnlyList<TargetMatchdayCollection> pages,
+        CancellationToken cancellationToken)
+    {
+        var matchdays = pages.ToDictionary(
+            page => page.Matchday!.Value,
+            page => page.Matches,
+            EqualityComparer<int>.Default);
+        var historyRequests = BundesligaFullSeasonHistorySelector.Select(matchdays);
+        var providers = pages.ToDictionary(
+            page => page.Matchday!.Value,
+            page => _contextProviderFactory.CreateKicktippContextProvider(
+                kicktippClient,
+                settings.CommunityContext,
+                competition,
+                settings.CommunityContext,
+                page.Matchday),
+            EqualityComparer<int>.Default);
+        var documents = new Dictionary<string, string>(StringComparer.Ordinal);
+
+        var firstProvider = providers[1];
+        AddUniqueFullSeasonDocument(
+            documents,
+            await firstProvider.CurrentStandings(),
+            "bundesliga-standings.csv",
+            "shared standings");
+        AddUniqueFullSeasonDocument(
+            documents,
+            await firstProvider.CommunityScoringRules(),
+            $"community-rules-{settings.CommunityContext}.md",
+            "shared rules");
+
+        foreach (var request in historyRequests)
+        {
+            cancellationToken.ThrowIfCancellationRequested();
+            var provider = providers[request.Matchday];
+            var document = request.Kind switch
+            {
+                BundesligaCanonicalHistoryKind.Recent => await provider.RecentHistory(request.TeamName),
+                BundesligaCanonicalHistoryKind.Home => await provider.HomeHistory(
+                    request.Match.HomeTeam,
+                    request.Match.AwayTeam),
+                BundesligaCanonicalHistoryKind.Away => await provider.AwayHistory(
+                    request.Match.HomeTeam,
+                    request.Match.AwayTeam),
+                _ => throw new ArgumentOutOfRangeException(nameof(request.Kind), request.Kind, null)
+            };
+            AddUniqueFullSeasonDocument(
+                documents,
+                document,
+                request.DocumentName,
+                $"canonical {request.Kind.ToString().ToLowerInvariant()} history matchday {request.Matchday}");
+            if (settings.Verbose)
+            {
+                _console.MarkupLine(
+                    $"[dim]  Collected canonical history document: {Markup.Escape(document.Name)} " +
+                    $"(matchday {request.Matchday})[/]");
+            }
+        }
+
+        foreach (var page in pages.OrderBy(page => page.Matchday))
+        {
+            var provider = providers[page.Matchday!.Value];
+            foreach (var matchWithHistory in page.Matches)
+            {
+                cancellationToken.ThrowIfCancellationRequested();
+                var match = matchWithHistory.Match;
+                var identity = GetFixtureIdentity(match);
+                var expectedName = $"head-to-head-{identity.HomeSlug}-vs-{identity.AwaySlug}.csv";
+                _console.MarkupLine(
+                    $"[cyan]Collecting matchday {page.Matchday} H2H for:[/] " +
+                    $"{Markup.Escape(match.HomeTeam)} vs {Markup.Escape(match.AwayTeam)}");
+                var document = await provider.HeadToHeadHistory(match.HomeTeam, match.AwayTeam);
+                AddUniqueFullSeasonDocument(
+                    documents,
+                    document,
+                    expectedName,
+                    $"matchday {page.Matchday} ordered fixture");
+                if (settings.Verbose)
+                {
+                    _console.MarkupLine($"[dim]  Collected H2H document: {Markup.Escape(document.Name)}[/]");
+                }
+            }
+        }
+
+        return new CollectedContextDocuments(
+            documents,
+            historyRequests.Select(request => request.DocumentName).ToHashSet(StringComparer.Ordinal));
+    }
+
+    private static void AddUniqueFullSeasonDocument(
+        IDictionary<string, string> documents,
+        DocumentContext document,
+        string expectedName,
+        string phase)
+    {
+        ArgumentNullException.ThrowIfNull(document);
+        if (documents.TryGetValue(document.Name, out var existing))
+        {
+            var existingHash = DocumentPublicationContract.ComputeContentSha256(existing);
+            var incomingHash = DocumentPublicationContract.ComputeContentSha256(document.Content);
+            throw new InvalidDataException(
+                $"Full-season {phase} returned duplicate exact identity '{document.Name}'; " +
+                $"existingBytes={System.Text.Encoding.UTF8.GetByteCount(existing)}, " +
+                $"incomingBytes={System.Text.Encoding.UTF8.GetByteCount(document.Content)}, " +
+                $"existingSha256={existingHash}, incomingSha256={incomingHash}.");
+        }
+
+        if (!string.Equals(document.Name, expectedName, StringComparison.Ordinal))
+        {
+            throw new InvalidDataException(
+                $"Full-season {phase} returned document '{document.Name}' instead of exact identity '{expectedName}'.");
+        }
+
+        documents.Add(document.Name, document.Content);
     }
 
     private async Task<TargetMatchdayCollection?> FetchMatchdayAsync(
@@ -551,6 +670,21 @@ public class CollectContextKicktippCommand : AsyncCommand<CollectContextKicktipp
             throw new InvalidDataException(
                 $"Full-season history gate expected all {dateMap.Count} frozen row identities in deterministic order, " +
                 $"but resolved {collection.FixedMapCount} through the fixed map.");
+        }
+
+        if (requireCompleteFrozenMap && collection.Resolutions.Count != dateMap.Count)
+        {
+            throw new InvalidDataException(
+                $"Full-season history gate expected exactly {dateMap.Count} completed selected-history rows, " +
+                $"but resolved {collection.Resolutions.Count}.");
+        }
+
+        if (requireCompleteFrozenMap
+            && collection.ExcludedIncompleteRowCount != BundesligaAcceptedIncompleteHistoryRowCount)
+        {
+            throw new InvalidDataException(
+                $"Full-season history gate expected exactly {BundesligaAcceptedIncompleteHistoryRowCount} " +
+                $"accepted incomplete selected-history rows, but excluded {collection.ExcludedIncompleteRowCount}.");
         }
 
         _console.MarkupLine(

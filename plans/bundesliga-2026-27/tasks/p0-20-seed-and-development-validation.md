@@ -57,6 +57,28 @@ dotnet run --no-build --project src/Orchestrator -- collect-context-dev --commun
 The retry and every subsequent live/model phase remain pending; this evidence
 does not claim the strict 401-document gate has passed.
 
+### Full-season canonical-history checkpoint — 2026-08-25
+
+After ADR-0042's first implementation was independently reviewed, integrated,
+and green at exact head, the authorized full-season command above was run once.
+It fetched and validated all 34 matchday pages, with exactly nine fixtures per
+page and 306 distinct ordered fixtures in total. Context collection then failed
+closed at the first matchday-2 fixture because the matchday-1 away source and
+matchday-2 home source returned different bytes for the same global
+`recent-history-vfb.csv` identity. The provider behavior is legitimate and
+fixture-role sensitive; the collision exposed an incomplete source-selection
+contract rather than corrupt history content.
+
+No outcome refresh, history transformation, repository save, model,
+prediction, arena, workflow, or schedule operation followed. Candidate history
+content was neither printed nor retained. ADR-0042 now records the superseding
+two-phase contract: canonical global recent histories from matchday 1,
+canonical home/away histories from each team's earliest fixture in that role
+(all accepted selectors must lie in matchdays 1-2), and every ordered H2H from
+its exact matchday page. The live retry remains paused until this amendment and
+implementation are independently reviewed, integrated, pushed, and exact-head
+CI is green.
+
 ## Complete when
 
 - Every P0 launch gate except final production-model execution/scheduling has direct evidence.

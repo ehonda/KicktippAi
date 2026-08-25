@@ -100,6 +100,13 @@ public abstract class KicktippContextProviderTests_Base
         mock.Setup(c => c.GetHeadToHeadDetailedHistoryAsync(It.IsAny<string>(), It.IsAny<string>(), It.IsAny<string>()))
             .ReturnsAsync(headToHeadDetailedHistory.Or(CreateTestHeadToHeadResults));
 
+        mock.Setup(c => c.GetHeadToHeadDetailedHistoryAsync(
+                It.IsAny<string>(),
+                It.IsAny<string>(),
+                It.IsAny<string>(),
+                It.IsAny<int>()))
+            .ReturnsAsync(headToHeadDetailedHistory.Or(CreateTestHeadToHeadResults));
+
         return mock;
     }
 

@@ -90,4 +90,62 @@ public class KicktippContextProvider_RecentHistory_Tests : KicktippContextProvid
             """;
         await Assert.That(context.Content).IsEqualToWithNormalizedLineEndings(expectedCsv);
     }
+
+    [Test]
+    public async Task Same_global_recent_history_name_can_have_different_fixture_scoped_bytes()
+    {
+        const string team = "VfB Stuttgart";
+        var completed = new MatchResult(
+            "DFB",
+            "FC Hansa Rostock",
+            team,
+            0,
+            4,
+            MatchOutcome.Win);
+        var pendingEarlierFixture = new MatchResult(
+            "1.BL",
+            "FC Bayern München",
+            team,
+            null,
+            null,
+            MatchOutcome.Pending);
+        var matchday1 = new List<MatchWithHistory>
+        {
+            new(
+                new Match("FC Bayern München", team, default, 1),
+                [],
+                [completed])
+        };
+        var matchday2 = new List<MatchWithHistory>
+        {
+            new(
+                new Match(team, "1. FC Köln", default, 2),
+                [pendingEarlierFixture, completed],
+                [])
+        };
+        var client = CreateMockKicktippClient();
+        client.Setup(value => value.GetMatchesWithHistoryAsync(
+                TestCommunity,
+                1,
+                CompetitionIds.Bundesliga2026_27))
+            .ReturnsAsync(matchday1);
+        client.Setup(value => value.GetMatchesWithHistoryAsync(
+                TestCommunity,
+                2,
+                CompetitionIds.Bundesliga2026_27))
+            .ReturnsAsync(matchday2);
+        var provider1 = CreateProvider(Option.Some(client.Object), matchday: 1);
+        var provider2 = CreateProvider(Option.Some(client.Object), matchday: 2);
+
+        var fromMatchday1 = await provider1.RecentHistory(team);
+        var fromMatchday2 = await provider2.RecentHistory(team);
+
+        await Assert.That(fromMatchday1.Name).IsEqualTo("recent-history-vfb.csv");
+        await Assert.That(fromMatchday2.Name).IsEqualTo(fromMatchday1.Name);
+        await Assert.That(fromMatchday2.Content).IsNotEqualTo(fromMatchday1.Content);
+        await Assert.That(DocumentPublicationContract.ComputeContentSha256(fromMatchday2.Content))
+            .IsNotEqualTo(DocumentPublicationContract.ComputeContentSha256(fromMatchday1.Content));
+        await Assert.That(fromMatchday1.Content).DoesNotContain("FC Bayern München,VfB Stuttgart,,");
+        await Assert.That(fromMatchday2.Content).Contains("FC Bayern München,VfB Stuttgart,,");
+    }
 }

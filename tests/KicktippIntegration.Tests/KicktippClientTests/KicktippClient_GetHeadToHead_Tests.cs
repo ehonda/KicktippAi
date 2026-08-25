@@ -110,6 +110,37 @@ public class KicktippClient_GetHeadToHead_Tests : KicktippClientTests_Base
     }
 
     [Test]
+    public async Task Getting_detailed_head_to_head_for_matchday_opens_the_exact_matchday_page()
+    {
+        var tippabgabeHtml = """
+            <!DOCTYPE html>
+            <html>
+            <body>
+            <a href="/test-community/spielinfo?tippspielId=1">Tippabgabe mit Spielinfos</a>
+            </body>
+            </html>
+            """;
+        StubHtmlResponseWithParams(
+            "/test-community/tippabgabe",
+            tippabgabeHtml,
+            ("spieltagIndex", "2"));
+        StubHtmlResponseWithParams(
+            "/test-community/spielinfo",
+            LoadSyntheticFixtureContent("test-community", "spielinfo-head-to-head"),
+            ("tippspielId", "1"),
+            ("ansicht", "3"));
+        var client = CreateClient();
+
+        var history = await client.GetHeadToHeadDetailedHistoryAsync(
+            "test-community",
+            "Team Alpha",
+            "Team Beta",
+            2);
+
+        await Assert.That(history).HasCount().EqualTo(3);
+    }
+
+    [Test]
     public async Task Getting_head_to_head_navigates_to_find_correct_match()
     {
         // Arrange

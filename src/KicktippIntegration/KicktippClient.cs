@@ -1236,12 +1236,39 @@ public class KicktippClient : IKicktippClient, IDisposable
     }
 
     /// <inheritdoc />
-    public async Task<List<HeadToHeadResult>> GetHeadToHeadDetailedHistoryAsync(string community, string homeTeam, string awayTeam)
+    public Task<List<HeadToHeadResult>> GetHeadToHeadDetailedHistoryAsync(
+        string community,
+        string homeTeam,
+        string awayTeam) =>
+        GetHeadToHeadDetailedHistoryInternalAsync(community, homeTeam, awayTeam, matchday: null);
+
+    /// <inheritdoc />
+    public Task<List<HeadToHeadResult>> GetHeadToHeadDetailedHistoryAsync(
+        string community,
+        string homeTeam,
+        string awayTeam,
+        int matchday)
+    {
+        if (matchday <= 0)
+        {
+            throw new ArgumentOutOfRangeException(nameof(matchday), matchday, "Matchday must be positive.");
+        }
+
+        return GetHeadToHeadDetailedHistoryInternalAsync(community, homeTeam, awayTeam, matchday);
+    }
+
+    private async Task<List<HeadToHeadResult>> GetHeadToHeadDetailedHistoryInternalAsync(
+        string community,
+        string homeTeam,
+        string awayTeam,
+        int? matchday)
     {
         try
         {
             // First, get the tippabgabe page to find the link to spielinfos
-            var tippabgabeUrl = $"{community}/tippabgabe";
+            var tippabgabeUrl = matchday.HasValue
+                ? $"{community}/tippabgabe?spieltagIndex={matchday.Value}"
+                : $"{community}/tippabgabe";
             var response = await _httpClient.GetAsync(tippabgabeUrl);
             
             if (!response.IsSuccessStatusCode)

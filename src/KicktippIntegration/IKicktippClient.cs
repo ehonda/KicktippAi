@@ -136,6 +136,15 @@ public interface IKicktippClient
     Task<List<HeadToHeadResult>> GetHeadToHeadDetailedHistoryAsync(string community, string homeTeam, string awayTeam);
 
     /// <summary>
+    /// Get detailed head-to-head history from the exact requested matchday page.
+    /// </summary>
+    Task<List<HeadToHeadResult>> GetHeadToHeadDetailedHistoryAsync(
+        string community,
+        string homeTeam,
+        string awayTeam,
+        int matchday);
+
+    /// <summary>
     /// Get placed predictions for the current matchday
     /// </summary>
     /// <param name="community">The community name</param>

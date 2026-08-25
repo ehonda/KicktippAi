@@ -51,6 +51,15 @@ public class CollectContextKicktippCommand_FullSeason_Tests : CollectContextKick
             It.IsAny<CancellationToken>()), Times.Once);
         context.ContextRepository.Verify(repository => repository.SaveContextDocumentAsync(
             It.IsAny<string>(), It.IsAny<string>(), It.IsAny<string>(), It.IsAny<CancellationToken>()), Times.Never);
+        context.ContextProvider.Verify(provider => provider.RecentHistory(It.IsAny<string>()), Times.Exactly(18));
+        context.ContextProvider.Verify(provider => provider.HomeHistory(
+            It.IsAny<string>(), It.IsAny<string>()), Times.Exactly(18));
+        context.ContextProvider.Verify(provider => provider.AwayHistory(
+            It.IsAny<string>(), It.IsAny<string>()), Times.Exactly(18));
+        context.ContextProvider.Verify(provider => provider.HeadToHeadHistory(
+            It.IsAny<string>(), It.IsAny<string>()), Times.Exactly(306));
+        context.ContextProvider.Verify(provider => provider.GetMatchContextAsync(
+            It.IsAny<string>(), It.IsAny<string>(), It.IsAny<CancellationToken>()), Times.Never);
         context.HistoryCollector.Verify(collector => collector.Collect(
             CompetitionIds.Bundesliga2026_27,
             It.IsAny<IReadOnlyList<BundesligaHistoryDocument>>(),
@@ -58,6 +67,71 @@ public class CollectContextKicktippCommand_FullSeason_Tests : CollectContextKick
             It.IsAny<IReadOnlyList<PersistedMatchOutcome>>(),
             It.Is<IReadOnlySet<string>>(names =>
                 names.SetEquals(BundesligaHistoryPlayedDateMap.ExpectedDocumentNames))), Times.Once);
+    }
+
+    [Test]
+    public async Task Tampered_canonical_history_duplicate_fails_with_redacted_hash_diagnostics()
+    {
+        var schedule = CreateFullSeasonSchedule();
+        var context = CreateCollectContextCommandApp();
+        ConfigureSchedule(context, schedule);
+        ConfigureExactProvider(context, includeHeadToHead: true);
+        context.ContextProvider.Setup(provider => provider.RecentHistory(It.IsAny<string>()))
+            .ReturnsAsync((string _) => new DocumentContext(
+                "recent-history-b04.csv",
+                "canonical-history-bytes"));
+        var command = CreateCommand(context);
+
+        var exitCode = await command.ExecuteWithSettingsAsync(CreateSettings());
+
+        await Assert.That(exitCode).IsEqualTo(1);
+        await Assert.That(context.Console.Output)
+            .Contains("returned duplicate exact")
+            .And.Contains("recent-history-b04.csv")
+            .And.Contains("existingBytes=")
+            .And.Contains("incomingBytes=")
+            .And.Contains("existingSha256=")
+            .And.Contains("incomingSha256=")
+            .And.DoesNotContain("canonical-history-bytes");
+        context.KicktippClient.Verify(client => client.GetCurrentTippuebersichtMatchdayAsync(
+            It.IsAny<string>()), Times.Never);
+        context.ContextRepository.Verify(repository => repository.SaveContextDocumentsAtomicallyAsync(
+            It.IsAny<IReadOnlyList<ContextDocumentWrite>>(), It.IsAny<string>(), It.IsAny<CancellationToken>()), Times.Never);
+    }
+
+    [Test]
+    public async Task Accepted_incomplete_history_count_mismatch_fails_before_atomic_publication()
+    {
+        var schedule = CreateFullSeasonSchedule();
+        var context = CreateCollectContextCommandApp();
+        ConfigureSchedule(context, schedule);
+        ConfigureExactProvider(context, includeHeadToHead: true);
+        context.HistoryCollector.Setup(collector => collector.Collect(
+                CompetitionIds.Bundesliga2026_27,
+                It.IsAny<IReadOnlyList<BundesligaHistoryDocument>>(),
+                It.IsAny<IReadOnlyList<BundesligaHistoryPlayedDateMapEntry>>(),
+                It.IsAny<IReadOnlyList<PersistedMatchOutcome>>(),
+                It.IsAny<IReadOnlySet<string>>()))
+            .Returns((string _, IReadOnlyList<BundesligaHistoryDocument> documents,
+                IReadOnlyList<BundesligaHistoryPlayedDateMapEntry> _, IReadOnlyList<PersistedMatchOutcome> _,
+                IReadOnlySet<string> _) =>
+                new BundesligaHistoryPlayedDateCollectionResult(
+                    true,
+                    documents,
+                    CompleteFrozenResolutions(),
+                    [],
+                    ExcludedIncompleteRowCount: 1));
+        var command = CreateCommand(context);
+
+        var exitCode = await command.ExecuteWithSettingsAsync(CreateSettings());
+
+        await Assert.That(exitCode).IsEqualTo(1);
+        await Assert.That(context.Console.Output)
+            .Contains("expected exactly 2 accepted incomplete")
+            .And.Contains("selected-history rows")
+            .And.Contains("excluded 1");
+        context.ContextRepository.Verify(repository => repository.SaveContextDocumentsAtomicallyAsync(
+            It.IsAny<IReadOnlyList<ContextDocumentWrite>>(), It.IsAny<string>(), It.IsAny<CancellationToken>()), Times.Never);
     }
 
     [Test]
@@ -97,7 +171,7 @@ public class CollectContextKicktippCommand_FullSeason_Tests : CollectContextKick
     }
 
     [Test]
-    public async Task Current_scope_sized_document_gap_fails_before_outcome_or_context_write()
+    public async Task Missing_full_season_h2h_identity_fails_before_outcome_or_context_write()
     {
         var schedule = CreateFullSeasonSchedule();
         var context = CreateCollectContextCommandApp();
@@ -109,8 +183,9 @@ public class CollectContextKicktippCommand_FullSeason_Tests : CollectContextKick
 
         await Assert.That(exitCode).IsEqualTo(1);
         await Assert.That(context.Console.Output)
-            .Contains("raw full-season Kicktipp context set mismatch")
-            .And.Contains("head-to-head-");
+            .Contains("returned document")
+            .And.Contains("instead of exact identity")
+            .And.Contains("head-to-head-b04-vs-vfb.csv");
         context.KicktippClient.Verify(client => client.GetCurrentTippuebersichtMatchdayAsync(
             It.IsAny<string>()), Times.Never);
         context.ContextRepository.Verify(repository => repository.SaveContextDocumentsAtomicallyAsync(
@@ -125,14 +200,25 @@ public class CollectContextKicktippCommand_FullSeason_Tests : CollectContextKick
         var schedule = CreateFullSeasonSchedule();
         var context = CreateCollectContextCommandApp();
         ConfigureSchedule(context, schedule);
+        ConfigureExactProvider(context, includeHeadToHead: true);
         var callCount = 0;
-        context.ContextProvider.Setup(provider => provider.GetMatchContextAsync(
+        context.ContextProvider.Setup(provider => provider.HeadToHeadHistory(
                 It.IsAny<string>(),
-                It.IsAny<string>(),
-                It.IsAny<CancellationToken>()))
-            .Returns(() => ++callCount == 100
-                ? ThrowingDocuments(new InvalidOperationException("late provider failure"))
-                : new List<DocumentContext>().ToAsyncEnumerable());
+                It.IsAny<string>()))
+            .Returns((string homeTeam, string awayTeam) =>
+            {
+                if (++callCount == 100)
+                {
+                    return Task.FromException<DocumentContext>(new InvalidOperationException("late provider failure"));
+                }
+
+                var manifest = BundesligaTeamManifest.Default;
+                var homeSlug = manifest.GetByKicktippName(homeTeam).TeamSlug;
+                var awaySlug = manifest.GetByKicktippName(awayTeam).TeamSlug;
+                return Task.FromResult(new DocumentContext(
+                    $"head-to-head-{homeSlug}-vs-{awaySlug}.csv",
+                    $"h2h-{homeSlug}-{awaySlug}"));
+            });
         var command = CreateCommand(context);
 
         var exitCode = await command.ExecuteWithSettingsAsync(CreateSettings());
@@ -239,7 +325,7 @@ public class CollectContextKicktippCommand_FullSeason_Tests : CollectContextKick
             new FakeLogger<CollectContextKicktippCommand>());
     }
 
-    private static Dictionary<int, List<MatchWithHistory>> CreateFullSeasonSchedule()
+    internal static Dictionary<int, List<MatchWithHistory>> CreateFullSeasonSchedule()
     {
         var rotation = BundesligaTeamManifest.Default.Entries.Select(team => team.KicktippName).ToList();
         var firstLeg = new List<(string Home, string Away)[]>();
@@ -262,10 +348,12 @@ public class CollectContextKicktippCommand_FullSeason_Tests : CollectContextKick
         var schedule = new Dictionary<int, List<MatchWithHistory>>();
         for (var round = 0; round < firstLeg.Count; round++)
         {
-            schedule[round + 1] = CreateMatchday(firstLeg[round], round + 1);
-            schedule[round + 18] = CreateMatchday(
+            var firstMatchday = round * 2 + 1;
+            var reverseMatchday = firstMatchday + 1;
+            schedule[firstMatchday] = CreateMatchday(firstLeg[round], firstMatchday);
+            schedule[reverseMatchday] = CreateMatchday(
                 firstLeg[round].Select(fixture => (fixture.Away, fixture.Home)).ToArray(),
-                round + 18);
+                reverseMatchday);
         }
 
         return schedule;
@@ -303,45 +391,46 @@ public class CollectContextKicktippCommand_FullSeason_Tests : CollectContextKick
         CollectContextKicktippCommandTestContext context,
         bool includeHeadToHead)
     {
-        context.ContextProvider.Setup(provider => provider.GetMatchContextAsync(
-                It.IsAny<string>(),
-                It.IsAny<string>(),
-                It.IsAny<CancellationToken>()))
-            .Returns((string homeTeam, string awayTeam, CancellationToken _) =>
+        var manifest = BundesligaTeamManifest.Default;
+        context.ContextProvider.Setup(provider => provider.CurrentStandings())
+            .ReturnsAsync(new DocumentContext("bundesliga-standings.csv", "standings"));
+        context.ContextProvider.Setup(provider => provider.CommunityScoringRules())
+            .ReturnsAsync(new DocumentContext($"community-rules-{Community}.md", "rules"));
+        context.ContextProvider.Setup(provider => provider.RecentHistory(It.IsAny<string>()))
+            .ReturnsAsync((string teamName) =>
             {
-                var manifest = BundesligaTeamManifest.Default;
+                var slug = manifest.GetByKicktippName(teamName).TeamSlug;
+                return new DocumentContext($"recent-history-{slug}.csv", $"recent-{slug}");
+            });
+        context.ContextProvider.Setup(provider => provider.HomeHistory(It.IsAny<string>(), It.IsAny<string>()))
+            .ReturnsAsync((string homeTeam, string _) =>
+            {
+                var slug = manifest.GetByKicktippName(homeTeam).TeamSlug;
+                return new DocumentContext($"home-history-{slug}.csv", $"home-{slug}");
+            });
+        context.ContextProvider.Setup(provider => provider.AwayHistory(It.IsAny<string>(), It.IsAny<string>()))
+            .ReturnsAsync((string _, string awayTeam) =>
+            {
+                var slug = manifest.GetByKicktippName(awayTeam).TeamSlug;
+                return new DocumentContext($"away-history-{slug}.csv", $"away-{slug}");
+            });
+        context.ContextProvider.Setup(provider => provider.HeadToHeadHistory(
+                It.IsAny<string>(),
+                It.IsAny<string>()))
+            .ReturnsAsync((string homeTeam, string awayTeam) =>
+            {
                 var homeSlug = manifest.GetByKicktippName(homeTeam).TeamSlug;
                 var awaySlug = manifest.GetByKicktippName(awayTeam).TeamSlug;
-                var documents = new List<DocumentContext>
-                {
-                    new("bundesliga-standings.csv", "standings"),
-                    new($"community-rules-{Community}.md", "rules"),
-                    new($"recent-history-{homeSlug}.csv", $"recent-{homeSlug}"),
-                    new($"recent-history-{awaySlug}.csv", $"recent-{awaySlug}"),
-                    new($"home-history-{homeSlug}.csv", $"home-{homeSlug}"),
-                    new($"away-history-{awaySlug}.csv", $"away-{awaySlug}")
-                };
-                if (includeHeadToHead)
-                {
-                    documents.Add(new(
-                        $"head-to-head-{homeSlug}-vs-{awaySlug}.csv",
-                        $"h2h-{homeSlug}-{awaySlug}"));
-                }
-
-                return documents.ToAsyncEnumerable();
+                var name = includeHeadToHead
+                    ? $"head-to-head-{homeSlug}-vs-{awaySlug}.csv"
+                    : "head-to-head-missing.csv";
+                return new DocumentContext(name, $"h2h-{homeSlug}-{awaySlug}");
             });
     }
 
     private static void ConfigureCompleteFrozenHistoryGate(CollectContextKicktippCommandTestContext context)
     {
-        var resolutions = BundesligaHistoryPlayedDateMap.Default.Entries
-            .Select(entry => new BundesligaHistoryPlayedDateResolution(
-                entry.DocumentName,
-                entry.RowOrdinal,
-                entry.PlayedAt,
-                BundesligaHistoryPlayedDateSourceClass.FixedExternalMap,
-                $"{entry.SourceName}@{entry.SourceRevision}:{entry.SourceMatchId}"))
-            .ToArray();
+        var resolutions = CompleteFrozenResolutions();
         context.HistoryCollector.Setup(collector => collector.Collect(
                 CompetitionIds.Bundesliga2026_27,
                 It.IsAny<IReadOnlyList<BundesligaHistoryDocument>>(),
@@ -351,8 +440,23 @@ public class CollectContextKicktippCommand_FullSeason_Tests : CollectContextKick
             .Returns((string _, IReadOnlyList<BundesligaHistoryDocument> documents,
                 IReadOnlyList<BundesligaHistoryPlayedDateMapEntry> _, IReadOnlyList<PersistedMatchOutcome> _,
                 IReadOnlySet<string> _) =>
-                new BundesligaHistoryPlayedDateCollectionResult(true, documents, resolutions, []));
+                new BundesligaHistoryPlayedDateCollectionResult(
+                    true,
+                    documents,
+                    resolutions,
+                    [],
+                    ExcludedIncompleteRowCount: 2));
     }
+
+    private static BundesligaHistoryPlayedDateResolution[] CompleteFrozenResolutions() =>
+        BundesligaHistoryPlayedDateMap.Default.Entries
+            .Select(entry => new BundesligaHistoryPlayedDateResolution(
+                entry.DocumentName,
+                entry.RowOrdinal,
+                entry.PlayedAt,
+                BundesligaHistoryPlayedDateSourceClass.FixedExternalMap,
+                $"{entry.SourceName}@{entry.SourceRevision}:{entry.SourceMatchId}"))
+            .ToArray();
 
     private static HashSet<string> ExpectedFullSeasonDocumentNames()
     {
@@ -385,12 +489,4 @@ public class CollectContextKicktippCommand_FullSeason_Tests : CollectContextKick
             It.IsAny<string>()), Times.Never);
     }
 
-    private static async IAsyncEnumerable<DocumentContext> ThrowingDocuments(Exception exception)
-    {
-        await Task.CompletedTask;
-        throw exception;
-#pragma warning disable CS0162
-        yield break;
-#pragma warning restore CS0162
-    }
 }
