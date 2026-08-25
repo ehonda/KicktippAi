@@ -1,11 +1,11 @@
 # P0-23 — Collect GPT-5.6 production-candidate evidence
 
-- Status: In progress — the owner-authorized nine-row GPT-5.6 matrix and one cumulative USD 30 experiment-program ceiling are preregistered; live mutation and spend wait for independent review of the no-spend checkpoint
+- Status: In progress — the owner-authorized nine-row GPT-5.6 matrix and one cumulative USD 30 experiment-program ceiling are preregistered; live mutation and spend wait for independent review of the no-spend checkpoint and the integrated Decimal cumulative-budget gate
 - Priority: P0
 - Depends on: [P0-05](p0-05-prompt-route.md), [P0-12](p0-12-match-context-and-transfer-retirement.md), and [P0-20](p0-20-seed-and-development-validation.md)
 - Reuses: the completed cost/provenance foundation recorded in [P0-06](p0-06-model-ledger-and-cost-baseline.md)
 - Gates: the final owner-selection item in [P0-06](p0-06-model-ledger-and-cost-baseline.md)
-- Decisions: [ADR-0006](../decisions/0006-stage-validation-with-a-cheap-test-model.md), [ADR-0033](../decisions/0033-pin-validation-model-ledger-and-reserve-production-selection.md), [ADR-0040](../decisions/0040-use-hash-bound-2025-26-context-for-preseason-cost-experiments.md), [ADR-0043](../decisions/0043-freeze-historical-experiment-aliases-and-eligible-pool.md), [ADR-0046](../decisions/0046-bind-cost-usage-to-langfuse-dataset-runs.md)
+- Decisions: [ADR-0006](../decisions/0006-stage-validation-with-a-cheap-test-model.md), [ADR-0033](../decisions/0033-pin-validation-model-ledger-and-reserve-production-selection.md), [ADR-0040](../decisions/0040-use-hash-bound-2025-26-context-for-preseason-cost-experiments.md), [ADR-0043](../decisions/0043-freeze-historical-experiment-aliases-and-eligible-pool.md), [ADR-0046](../decisions/0046-bind-cost-usage-to-langfuse-dataset-runs.md), [ADR-0049](../decisions/0049-preregister-gpt-5-6-candidate-evidence.md)
 
 ## Outcome
 
@@ -28,7 +28,7 @@ rerun.
 - [x] Record the owner's exact matrix: `gpt-5.6-sol` at `high`, `medium`, and `none`; `gpt-5.6-terra` at `xhigh`, `medium`, and `none`; and `gpt-5.6-luna` at `max`, `medium`, and `none`. Caps follow the estimate-row preflight policy, and quality topology is chosen adaptively only after exact rows exist.
 - [x] Record explicit authorization for cost-row and quality runs under one cumulative USD 30 ceiling. This owner amendment supersedes the handoff's earlier separate fixed phase-budget template. USD 30 is a stop ceiling, not a target; cheaper completion remains preferred.
 - [x] Record that comparative quality evidence is required for the production and arena decisions. If the full matrix cannot support the preregistered meaningful minimum inside the remaining ceiling, run the preregistered subset first and return to the owner before expanding it.
-- [ ] Pass independent review of the no-spend checkpoint before preparing or syncing a dataset, resolving or mutating a hosted prompt, calling a model, or incurring new spend.
+- [ ] Pass independent review of the no-spend checkpoint and integrate the pending machine-readable Decimal cumulative-budget gate with its exact validated aggregate command before preparing or syncing a dataset, resolving or mutating a hosted prompt, calling a model, or incurring new spend. The current per-row estimator alone is not the program-total gate.
 
 ## Cutoff and provenance contract
 
@@ -41,13 +41,14 @@ rerun.
 
 ## Cost evidence — phase 1
 
+- [ ] Use the integrated Decimal gate to machine-project/admit each one-item preflight, serialize every candidate row, and separately admit each retry only after preceding usage/cost settles. Produce each preflight-to-20 projection through tooling from the exact one-item `base-row --expect-count 1` report; never multiply it manually.
 - [ ] For every owner-authorized candidate without an authoritative matching row, follow the repository estimate-row process: verify pricing, run the prescribed one-item preflight, inspect cap/tier/fallback/cost behavior, then run the exact five-fixture by four-repetition base sample only when the preflight is healthy.
 - [ ] Collect compact usage by immutable Langfuse dataset-run binding, upsert the authoritative row, and run the repository estimator for 306 and 493 match-prediction calls. Do not retain prompt, context, or prediction payloads.
 - [ ] Label every historical seven-document result as a preseason cost proxy that may understate the live eleven-document Bundesliga 2026/27 input. Cost evidence is not prediction-quality evidence.
 
 ## Quality evidence — phase 2
 
-- [x] Pre-register the comparison metrics, aggregation, paired/common-manifest rule, repetition policy, adaptive topology, and failure handling before any quality run. Apply the hardest candidate cutoff to a shared paired sample when candidates are compared directly.
+- [x] Pre-register the comparison metrics, aggregation, paired/common-manifest rule, repetition policy, adaptive topology, and failure handling before any quality run. Full-matrix designs retain 20 paired repetition totals. If those cannot fit, exactly one quality-first preliminary block is allowed; it targets 20 paired totals and may use the owner-authorized exploratory `10 × 15` then `10 × 10` fallback only after machine estimates prove stronger options unaffordable. Apply the hardest candidate cutoff to a shared paired sample when candidates are compared directly.
 - [ ] Run only the owner-authorized candidates against completed, cutoff-safe Bundesliga 2025/26 outcomes using exact prepared manifests and immutable run binding. Keep model/prompt settings equal to their declared production candidates.
 - [ ] Publish complete comparable results, including failures and uncertainty, without selecting the production model. Never infer quality from cost, token count, output length, plumbing success, or the Luna validation ladder.
 - [ ] If a cutoff-safe paired comparison is impossible, fail closed and return the exact eligible-pool evidence to the owner; do not manufacture comparability from different or pre-cutoff samples.
@@ -83,8 +84,13 @@ rerun.
   unspecified future surface; every selected model must re-derive its cutoff.
 - The earlier fixed `15 × 20` topology and separate-phase budget template remain
   superseded. The accepted design uses a single USD 30 cumulative ledger and an
-  exact-row-driven topology; it preserves at least `10 × 10` for any executed
-  quality subset instead of manufacturing precision from a tiny matrix.
+  exact-row-driven topology. Full-matrix evidence preserves 20 paired
+  repetition totals; only the one quality-first preliminary block may fall back
+  to 15 or 10, with weaker precision and effective sample size stated plainly.
+- [ADR-0049](../decisions/0049-preregister-gpt-5-6-candidate-evidence.md)
+  is the durable experiment contract. No live action begins until the separate
+  Decimal budget-tool lane is integrated and its exact aggregate command is
+  recorded and validated.
 - The three owner-supplied rationale screenshots are preserved under
   `docs/experiments/assets/gpt-5-6-production-candidate-selection/` and embedded
   in the preregistration.

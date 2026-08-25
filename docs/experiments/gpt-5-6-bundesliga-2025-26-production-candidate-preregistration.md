@@ -1,7 +1,8 @@
 # GPT-5.6 Bundesliga 2025/26 production-candidate preregistration
 
 **Status:** NO-SPEND CHECKPOINT — owner matrix and cumulative ceiling recorded;
-live mutation and spend wait for independent review.
+live mutation and spend wait for independent review and the integrated Decimal
+cumulative-budget gate.
 
 **Verified:** 2026-08-26
 
@@ -13,10 +14,11 @@ estimate-row-derived cap workflow, an adaptive paired quality design, and one
 cumulative USD 30 ceiling.
 
 USD 30 is a hard ceiling, not a spending target. The program should finish for
-less whenever the evidence is sufficient. This checkpoint authorizes no
-dataset preparation or synchronization, hosted prompt or Langfuse mutation,
-model call, production model, arena participant, prediction post, workflow
-dispatch, or schedule activation.
+less whenever the evidence is sufficient. The owner authorization is dormant
+while this checkpoint awaits review and its budget dependency: no dataset
+preparation or synchronization, hosted prompt or Langfuse mutation, model call,
+production model, arena participant, prediction post, workflow dispatch, or
+schedule activation proceeds from this checkpoint.
 
 Related planning and decisions:
 
@@ -26,6 +28,7 @@ Related planning and decisions:
 - [ADR-0040 — hash-bound Bundesliga 2025/26 experiment compatibility](../../plans/bundesliga-2026-27/decisions/0040-use-hash-bound-2025-26-context-for-preseason-cost-experiments.md)
 - [ADR-0043 — freeze historical aliases and the eligible pool](../../plans/bundesliga-2026-27/decisions/0043-freeze-historical-experiment-aliases-and-eligible-pool.md)
 - [ADR-0046 — bind cost usage to exact Langfuse dataset runs](../../plans/bundesliga-2026-27/decisions/0046-bind-cost-usage-to-langfuse-dataset-runs.md)
+- [ADR-0049 — preregister GPT-5.6 candidate evidence under one program ceiling](../../plans/bundesliga-2026-27/decisions/0049-preregister-gpt-5-6-candidate-evidence.md)
 - [Luna base-estimate evidence](../../.agents/skills/estimate-experiment-cost-skill/references/gpt-5.6-luna-none-base-estimate-2026-08-25.md)
 
 ## Decision questions
@@ -122,6 +125,10 @@ experiment route does not opt into explicit cache writes. If a run reports
 cache-write usage or a cost inconsistent with this assumption, stop before the
 next paid run and amend the calculator/evidence process rather than ignoring it.
 
+OpenAI currently states that Sol's promotional price is available at least
+through `2026-11-21`. If execution or production-cost interpretation crosses
+that date, recheck the applicable Sol price and rerun every affected estimate.
+
 Official prices and cutoffs must be fetched again immediately before live
 preparation. Any change pauses execution for an explicit preregistration and
 calculator review.
@@ -134,6 +141,12 @@ Bundesliga 2025/26 fixtures starting strictly after that instant are eligible.
 If the execution-date recheck gives different model cutoffs, use the hardest
 cutoff plus two calendar days for every directly compared quality run and
 derive each cost-row window explicitly.
+
+When the execution-date cutoffs remain common, all missing-row preflights reuse
+one seed-`20260821` one-item manifest and all missing base rows reuse one
+seed-`20260821` five-by-four manifest. Prepare a separate cost manifest only for
+a candidate whose official cutoff has changed; do not duplicate manifests just
+because model or effort differs.
 
 Both phases use only:
 
@@ -202,17 +215,25 @@ Ledger rules:
 
 - Initialize new authorized spend at exactly `$0.000000000000` and ceiling at
   `$30.000000000000`.
+- The current per-row estimator cannot validate this cumulative multi-attempt
+  total. No live action begins until the separate budget-tool lane's
+  machine-readable Decimal ledger and validated aggregate command are
+  integrated, and that exact command is recorded in this document.
+- The integrated tool must machine-project and admit each one-item preflight
+  before its model call; there is no accepted candidate row to reuse at that
+  point. Record the exact supported transient-projection invocation after the
+  dependency lands rather than inventing it here.
 - Record every new paid attempt: accepted calls, failed calls with usage,
   cap-retry calls, Flex/Standard fallbacks, replaced dataset runs, and quality
   retries. Do not count only the accepted artifact.
-- Track observed cost, an unsettled-ingestion reservation, and the exact
-  estimator projection for the next proposed run using decimal arithmetic.
+- Track observed cost, unsettled ingestion, and the next proposed run's exact
+  tooling projection using Decimal arithmetic in that machine-readable ledger.
 - Never launch the next paid run while the preceding attempt's usage is
   unsettled. Do not rerun because Langfuse ingestion is delayed; recollect.
-- Start a run only when cumulative observed spend plus all outstanding
-  reservations plus the next run's estimator projection and retry reserve are
-  strictly within USD 30. The reserve is the estimator projection for one
-  same-manifest retry of the most expensive run in the proposed wave.
+- Serialize candidate runs. Start an initial attempt only when the aggregate
+  command admits it strictly within USD 30. Do not reserve an assumed partial
+  retry: after the attempt settles, separately gate the parallelism-`3` retry,
+  then separately gate the parallelism-`1` retry if it becomes necessary.
 - If exact tooling cannot produce a required projection, stop. Do not replace
   it with hand arithmetic.
 - Stop before the next call on pricing drift, identity drift, cap pressure,
@@ -220,9 +241,10 @@ Ledger rules:
   between projected and observed cost.
 - Never spend the remainder merely because it is available.
 
-Cost estimates reported to the owner come only from
+Per-row cost estimates reported to the owner come only from
 `experiment_cost_estimator.py`; observed Langfuse cost is kept as a separate
-ledger field.
+ledger field. The pending Decimal aggregate command, not the current estimator
+alone, enforces program-total admission.
 
 ## Phase A — exact cost rows and whole-season estimates
 
@@ -259,9 +281,16 @@ No new Firestore cost read is needed.
 
 ### Missing-row preflight sequence
 
-After independent checkpoint approval, prepare and sync one shared `1 × 1`
-historical manifest once, inspect its exact provenance, and run these eight
-preflights serially:
+After independent checkpoint approval and integration of the Decimal gate,
+prepare and sync one shared `1 × 1` historical manifest once, inspect its exact
+provenance, and run these eight preflights serially. It uses seed `20260821` and,
+under the unchanged cutoff/pool, must select source fixture `1423757341`; its
+exact selected source-item ID is
+`bundesliga-2025-26__pes-squad__ts1423757341` and its selected-set SHA-256 is
+`4a293d4bac8f6406cb88770332a5b85f9084f01d2f2e0227f7d52d63e93c4e16`.
+That identity and hash are derived through the repository's canonical dataset
+item and sorted-newline SHA-256 functions and reproduce the established
+five-item selected-set hash when applied to its recorded IDs.
 
 1. `gpt-5.6-luna` / `max`
 2. `gpt-5.6-terra` / `xhigh`
@@ -277,6 +306,18 @@ balanced and no-reasoning ladders, while moving Luna → Terra → Sol inside ea
 comparable ladder to expose cap/cost anomalies cheaply. Each run waits for an
 exact one-item collection and ledger update before the next starts. A finding
 may stop the sequence; the order is not authority to skip a failed gate.
+
+For each accepted preflight, calculate an exact one-item machine-readable row:
+
+```powershell
+uv --cache-dir .uv-cache run python .agents/skills/estimate-experiment-cost-skill/scripts/experiment_cost_estimator.py base-row --input PREFLIGHT_USAGE_JSON --group repeated-match-slice-measured --expect-count 1 --model MODEL --reasoning-effort EFFORT --prompt-route "Langfuse Bundesliga match v2; Bundesliga 2025/26 7-document legacy-id-hash-v1 context" --model-knowledge-cutoff MODEL_CUTOFF --sampling-cutoff "SAMPLING_CUTOFF" --max-output-tokens CAP --source "P0-23 exact one-item preflight" --report-json PREFLIGHT_BASE_ROW_JSON
+```
+
+The pending Decimal budget command must consume that exact report and emit the
+20-item projection before admitting the five-by-four row. Do not manually
+multiply the one-item result. Replace the descriptive placeholders above with
+the exact accepted paths/values when the command is recorded; this template is
+not executable evidence.
 
 ### Authoritative five-by-four rows
 
@@ -294,16 +335,17 @@ unchanged pool it must select:
 
 Run missing rows in the same sequence as the preflights. Within a row use batch
 count `1` and fixture parallelism `5`; only Flex/rate failures may retry the
-same manifest and settings at `3`, then `1`. Bind collection to the exact
-dataset ID, accepted dataset-run ID, prepared manifest SHA-256/sample-size
-tuple, and expected 20 distinct item-to-trace links. Upsert only after all 20
-items succeed below cap.
+same manifest and settings at `3`, then `1`, and each retry is separately
+admitted only after the preceding attempt's cost settles. Bind collection to
+the exact dataset ID, accepted dataset-run ID, prepared manifest
+SHA-256/sample-size tuple, and expected 20 distinct item-to-trace links. Upsert
+only after all 20 items succeed below cap.
 
 After each row, run the estimator for the quality-design counts and the two
 season counts:
 
 ```powershell
-uv --cache-dir .uv-cache run python .agents/skills/estimate-experiment-cost-skill/scripts/experiment_cost_estimator.py estimate --counts 20,100,150,200,240,300,306,493 --model MODEL --reasoning-effort EFFORT
+uv --cache-dir .uv-cache run python .agents/skills/estimate-experiment-cost-skill/scripts/experiment_cost_estimator.py estimate --counts 20,100,150,200,306,493 --model MODEL --reasoning-effort EFFORT
 ```
 
 Every row and estimate records the exact cap, cutoff, prompt route, observed
@@ -313,46 +355,46 @@ they do not themselves rank quality.
 
 ## Phase B — adaptive common-manifest quality comparison
 
-Quality execution starts only after every row needed by the proposed subset is
-exact and the complete proposed wave plus retry reserve fits the remaining
-ledger. Cost rows may reduce the matrix before any quality call.
+Quality execution starts only after every row needed by the proposed surface is
+exact and the Decimal aggregate command admits each serialized candidate run.
+Cost rows determine the topology before any quality call.
 
 ### Topology rule
 
-Choose the first affordable topology from this ordered lattice, using exact
-per-row estimator output and one common manifest for every compared candidate:
+First test the owner's preferred full-nine-matrix topology of `10` fixtures ×
+`20` repetitions = `200` predictions per candidate, using exact per-row
+estimator output, the Decimal aggregate gate, and one common manifest for every
+compared candidate. It retains the decision-strength target of 20 paired
+repetition totals without buying extra fixture coverage merely because ceiling
+remains.
 
-1. `15` fixtures × `20` repetitions = `300` predictions per candidate;
-2. `12` fixtures × `20` repetitions = `240` predictions per candidate;
-3. `10` fixtures × `20` repetitions = `200` predictions per candidate;
-4. `10` fixtures × `15` repetitions = `150` predictions per candidate; or
-5. `10` fixtures × `10` repetitions = `100` predictions per candidate.
+If the full matrix cannot fit at `10 × 20`, prefer stronger evidence for one
+preliminary subset over covering all nine rows with fewer repetitions. Run
+exactly this quality-first family block:
 
-Shrinking fixture coverage while retaining 20 paired repetition totals is
-preferred to immediately shrinking the paired sample. A quality comparison
-below `10 × 10` is not considered meaningful for this decision and must not be
-run merely to cover more configurations.
+- Sol/`high`;
+- Terra/`xhigh`; and
+- Luna/`max`.
 
-Try the full nine-row matrix first. If it does not fit at `10 × 10`, execute
-the largest cumulative subset that fits at or above that minimum in these
-predeclared blocks:
+Select the first affordable preliminary topology in this order:
 
-1. quality-first family coverage: Sol/`high`, Terra/`xhigh`, Luna/`max`;
-2. then balanced family coverage: Sol/`medium`, Terra/`medium`, Luna/`medium`;
-3. then no-reasoning baselines: Sol/`none`, Terra/`none`, Luna/`none`.
+1. `10 × 20`;
+2. exploratory `10 × 15`; or
+3. exploratory `10 × 10`.
 
-Do not split a three-row block or choose a subset after seeing its match scores.
-If even the first block cannot fit the meaningful minimum and retry reserve,
-run no quality matrix and return the cost evidence to the owner. After a
-preliminary subset report, additional blocks require the owner's next decision,
-even if ceiling remains.
+The owner authorizes the two exploratory fallbacks only after machine estimates
+prove no 20-repetition preliminary topology fits the cumulative ceiling under
+the separately gated retry policy. Their effective paired `n` is 15 or 10,
+with visibly weaker precision; report that limitation and do not overclaim. If
+the block cannot fit at `10 × 10`, run no quality matrix. Do not split the block
+or choose membership after seeing scores. Return to the owner after its report
+before any medium, none, or other follow-up quality configuration, even if
+ceiling remains.
 
-Use one shared UTC run stamp for the accepted family. Multiple candidate
-processes may run in parallel only after reservations for the complete wave and
-retry reserve fit under the ceiling; PowerShell must launch all jobs before
-waiting. Each process still uses the runner's fixture parallelism. A cheaper
-serialized wave is acceptable when concurrent Flex capacity would increase
-fallback risk.
+Use one shared UTC run stamp for the accepted family. Candidate processes are
+serialized so settled cost gates the next candidate; each process still uses
+the runner's fixture-level parallelism. This preserves the repository's useful
+parallelization without admitting multiple unsettled model totals.
 
 ### Immutable pairing and metrics
 
@@ -374,7 +416,9 @@ selected fixtures. Report:
 Item-level rows are descriptive diagnostics, not independent inferential
 samples. Report the 306/493 cost estimate next to quality, but never infer
 quality from cost, tokens, output length, plumbing success, or the Luna
-validation ladder. The owner evaluates the quality/cost tradeoff.
+validation ladder. For an exploratory 15- or 10-repetition result, label the
+effective paired sample and weaker intervals/tests in every summary. The owner
+evaluates the quality/cost tradeoff.
 
 ### Failure and retry contract
 
@@ -403,14 +447,17 @@ validation ladder. The owner evaluates the quality/cost tradeoff.
       and failure rules recorded.
 - [x] Owner-supplied captures preserved and embedded.
 - [ ] Independent review approves this no-spend checkpoint.
+- [ ] The separate machine-readable Decimal ledger and validated aggregate
+      command are integrated; replace the preregistration placeholder with its
+      exact invocation and pass its focused tests before live action.
 - [ ] Official model pages and pricing are re-fetched on the execution date.
 - [ ] Current pricing-calculator and CLI support are rechecked after any code
       integration that lands before execution.
 - [ ] Exact prompt version `2` still carries required `production` membership.
 - [ ] Prepared pool, manifest, selection, and expected counts pass pre-spend
       inspection.
-- [ ] Cumulative ledger plus next projection and retry reserve remain strictly
-      within USD 30.
+- [ ] The Decimal aggregate command separately admits the next initial attempt
+      or retry strictly within USD 30 after all preceding cost settles.
 
 As of this checkpoint, no dataset was prepared or synced, no hosted prompt or
 Langfuse object was mutated, no model was called, and no new spend occurred.

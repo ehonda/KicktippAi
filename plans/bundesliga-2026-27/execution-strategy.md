@@ -1,7 +1,7 @@
 # Bundesliga 2026/27 execution strategy
 
 - Status: Accepted execution strategy; P0-23 is the active closeout evidence gate
-- Last updated: 2026-08-25
+- Last updated: 2026-08-26
 - Implementation state: P0 implementation through P0-20 and P0-24 is integrated; P0-23 and the remaining owner, external-setup, production-evidence, and activation gates below are open
 
 This document describes how to deliver the accepted P0 scope quickly while preserving the project owner's control over the few deliberately late production choices. Task files and accepted ADRs are the implementation contracts.
@@ -107,6 +107,7 @@ The repository currently builds/tests PRs and pushes to `main`; native auto-merg
 | Rosters | DuckDB primary per valid 2026/27 club; complete one-time fallback seed; last-known-good on invalid data; `N/A` enrichment gaps |
 | Prompts | Accepted hosted match v2 and bonus v1, with required `production` membership for scheduled/hosted-required routes; checked-in local mirrors remain the ordinary outage fallback |
 | Plumbing model | `gpt-5.6-luna`, `none` reasoning, pinned output cap; never promote silently to production |
+| P0-23 candidate evidence | ADR-0049's exact nine-row GPT-5.6 matrix under one cumulative USD 30 ceiling; caps come from preflights, quality topology is machine-gated, and a preliminary result returns to the owner before expansion; this is not production selection |
 | Context | Explicit live allowlists; stale/duplicate team/manager cleanup and question-aware bonus budgeting before production |
 | Club Elo | Implement provider/cache/gates now; a complete dated seed is launch-safe; network use remains an owner gate |
 | Activation | Dev and arena ladder first; final production manual dispatch and inspection; then enable and observe schedules |
@@ -130,7 +131,7 @@ These are not ambiguities agents may decide on their own:
 
 | Decision | Timing | Work that may proceed first |
 |---|---|---|
-| Final production model, reasoning, output cap, service/fallback policy, arena challengers, and cost ceiling; carry accepted match v2/bonus v1 unless a successor ADR changes them | Late in P0, after P0-23 comparative evidence or an explicit owner waiver and before production onboarding/dispatch | Completed Luna/none plumbing, cost row, and P0-24 copy safety; P0-23 read-only preparation may proceed, while model spend requires owner authorization |
+| Final production model, reasoning, output cap, service/fallback policy, arena challengers, and cost ceiling; carry accepted match v2/bonus v1 unless a successor ADR changes them | Late in P0, after P0-23 comparative evidence or an explicit owner waiver and before production onboarding/dispatch | Completed Luna/none plumbing, cost row, and P0-24 copy safety; ADR-0049 authorizes only its evidence program under USD 30, while live spend still requires the accepted no-spend checkpoint and integrated Decimal cumulative gate |
 | Whether Club Elo terms permit unattended network refresh, or which permitted alternative to use | Late before go-live | Provider boundary, validation, cache, dated seed, and last-known-good behavior |
 | Exact production schedules, spacing, rollback trigger, and activation | P0-21 after manual evidence | Manual-only workflows and the arena validation schedule |
 | `pes-squad` and `schadensfresse` season setup | Later, before their production validation | All foundations, dev/arena validation, and workflow templates |
@@ -139,4 +140,4 @@ Final model selection will mix experiments and whole-season cost estimates. New-
 
 ## Orchestration start condition
 
-Implementation through P0-20 and P0-24 is complete and integrated. Continue from the current task ledger with P0-23's owner-authorized evidence or an explicit owner waiver, then the final P0-06 selection, production-community setup and model-bound P0-19 entrypoints, and P0-21 manual evidence, opening writes, schedule activation, and first scheduled observation. The orchestrator keeps these late gates visible and never substitutes an agent preference for an owner decision.
+Implementation through P0-20 and P0-24 is complete and integrated. Continue from the current task ledger with ADR-0049's owner-authorized P0-23 evidence after its no-spend checkpoint and Decimal cumulative gate pass, or with an explicit owner waiver, then the final P0-06 selection, production-community setup and model-bound P0-19 entrypoints, and P0-21 manual evidence, opening writes, schedule activation, and first scheduled observation. The orchestrator keeps these late gates visible and never substitutes an agent preference for an owner decision.

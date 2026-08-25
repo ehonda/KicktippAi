@@ -26,6 +26,12 @@ callers, and finally [P0-21](../tasks/p0-21-production-activation.md).
 - Implementation through P0-20 and P0-24 is complete and integrated. P0-23 is
   the active closeout evidence gate; the final P0-06 selection and all P0-21
   production evidence remain open.
+- [ADR-0049](../decisions/0049-preregister-gpt-5-6-candidate-evidence.md)
+  supersedes this handoff's provisional P0-23 owner-input template. The exact
+  nine-row GPT-5.6 matrix, one cumulative USD 30 ceiling, evidence-derived cap
+  mechanics, adaptive topology, and preliminary-return gate are now fixed. Live
+  spend still waits for the reviewed no-spend checkpoint and integrated Decimal
+  cumulative-budget gate.
 - `pes-squad-context-collection.yml` and
   `schadensfresse-context-collection.yml` are integrated manual-only
   `workflow_dispatch` context callers. They have no inputs, `workflow_call`, or
@@ -41,13 +47,15 @@ callers, and finally [P0-21](../tasks/p0-21-production-activation.md).
 
 ## Remaining sequence
 
-1. The owner supplies the detailed P0-23 candidate surface and separately
-   authorizes the cost and quality phases with separate maximum budgets.
-2. After the applicable authorization, collect the requested cutoff-safe cost
-   and quality evidence with immutable provenance, or record the owner's
-   explicit evidence waiver, rationale, and accepted risk. Keep cost and quality
-   evidence separate. Reuse the completed Luna row without another Luna model
-   run.
+1. Integrate and validate the pending machine-readable Decimal cumulative-budget
+   gate, record its exact aggregate command in the preregistration, and obtain
+   independent approval of the corrected no-spend checkpoint. Authorization
+   already exists for ADR-0049's exact evidence program, but neither prerequisite
+   may be bypassed.
+2. Collect the ADR-0049 cutoff-safe cost rows and adaptive quality evidence with
+   immutable provenance. Keep cost and quality evidence separate, reuse the
+   completed Luna row without another Luna model run, and return to the owner
+   after the one preliminary quality-first block before any additional block.
 3. P0-06 pauses for the owner to select the exact final production model,
    reasoning effort, output cap, numbered prompt versions, service-tier/fallback
    policy, cost ceiling, and challenger matrix. Record the selection, estimator
@@ -69,45 +77,34 @@ callers, and finally [P0-21](../tasks/p0-21-production-activation.md).
    the new activation ADR, deliberate schedules, and first scheduled
    observation.
 
-## Copyable owner input for P0-23
+## Resolved P0-23 owner input
 
-Complete this block before any new experiment mutation or spend:
+[ADR-0049](../decisions/0049-preregister-gpt-5-6-candidate-evidence.md)
+is the authoritative P0-23 experiment contract. It records:
 
-```text
-Candidate surface
-- Included candidate rows (repeat for each row):
-  - Exact model ID:
-  - Exact reasoning effort:
-  - Exact maximum output-token cap:
-- Configurations intentionally excluded:
-- Exact requested cost topology:
-- Exact requested quality topology, including fixture count, repetitions,
-  paired/common-manifest rule, metrics, aggregation, and failure handling:
+- Sol `high` / `medium` / `none`;
+- Terra `xhigh` / `medium` / `none`;
+- Luna `max` / `medium` / `none`;
+- one cumulative USD 30 ceiling for new P0-23 attempts;
+- exact preflight-derived candidate caps;
+- a 20-paired-repetition full-matrix target and one quality-first preliminary
+  fallback block, with explicitly weaker 15/10-repetition exploratory fallbacks
+  only after the Decimal gate proves stronger options unaffordable; and
+- a mandatory return to the owner after that preliminary report.
 
-Cost phase
-- Authorized to begin (yes/no):
-- Maximum cost-phase spend:
-
-Quality phase
-- Authorized to begin (yes/no):
-- Maximum quality-phase spend:
-
-Selection evidence
-- Comparative quality evidence required before selection (yes/no):
-- If waived, rationale and accepted risk for the final production-selection ADR:
-```
-
-For each authorized candidate, the agent must still verify the current official
-knowledge cutoff and pricing and derive its own exact cutoff-safe eligibility
-window before preparing evidence. An owner surface does not waive those
-fail-closed checks.
+The owner still reserves final production and arena selection. Each candidate's
+current official cutoff and price, the hosted prompt binding, and the exact
+historical pool/manifest provenance remain execution-date fail-closed gates.
 
 ## Hard boundaries
 
-- Do not infer or revive Terra, Sol, a reasoning default, an output cap, a
-  topology, or an exclusion from the superseded provisional surface.
+- Do not replace ADR-0049's exact matrix, derive candidate caps outside its
+  preflight process, or extend its one preliminary quality block after results
+  without returning to the owner.
 - Do not prepare/sync a dataset, mutate Langfuse or a hosted prompt, call a
-  model, or incur spend without authorization for that exact phase.
+  model, or incur spend before the corrected checkpoint is independently
+  accepted and the machine-readable Decimal cumulative gate is integrated and
+  invoked successfully.
 - Do not rerun the completed Luna cost row; it is reusable evidence and is not
   production selection.
 - Do not make a production POST, dispatch a production workflow, or add/enable
@@ -140,7 +137,7 @@ fail-closed checks.
 
 ## First resume checkpoint
 
-Report the exact main/origin SHA and CI state, clean worktree inventory, P0-23
-owner-input status, candidate/spend authorization state, and the bounded lane
-assignment. If the owner block above is incomplete, stop before dataset,
-Langfuse, prompt, or model mutation and request only the missing inputs.
+Report the exact main/origin SHA and CI state, clean worktree inventory,
+ADR-0049 checkpoint-review state, Decimal budget-gate integration/command state,
+and bounded lane assignment. Stop before dataset, Langfuse, prompt, or model
+mutation while either prerequisite remains open.

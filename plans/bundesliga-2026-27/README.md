@@ -146,3 +146,4 @@ P0 is complete only when:
 - [ADR-0046: Bind cost usage to exact Langfuse dataset runs](decisions/0046-bind-cost-usage-to-langfuse-dataset-runs.md)
 - [ADR-0047: Observe one temporary arena Luna scheduled cycle](decisions/0047-observe-one-temporary-arena-luna-scheduled-cycle.md)
 - [ADR-0048: Verify bonus compatibility before reference copying](decisions/0048-verify-bonus-compatibility-before-reference-copy.md)
+- [ADR-0049: Preregister GPT-5.6 candidate evidence under one program ceiling](decisions/0049-preregister-gpt-5-6-candidate-evidence.md)
