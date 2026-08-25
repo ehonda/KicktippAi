@@ -66,6 +66,36 @@ public sealed class BonusCommand_CopyCompatibility_Tests : BonusCommandTests_Bas
     }
 
     [Test]
+    public async Task Reference_copy_topology_reads_pes_squad_and_posts_to_arena()
+    {
+        var sourceQuestion = CreateSourceQuestion();
+        var targetQuestion = CreateTargetQuestion();
+        var candidate = CreateCanonicalBundesligaBonusPredictionMetadata(
+            sourceQuestion,
+            new BonusPrediction(["source-fcb"]),
+            communityContext: SourceCommunityContext);
+        var context = CreateBonusCommandApp(
+            openBonusQuestions: new List<BonusQuestion> { targetQuestion },
+            bonusPredictionCopyCandidate: candidate);
+
+        var exitCode = await RunCopyAsync(context);
+
+        await Assert.That(exitCode).IsEqualTo(0);
+        context.CredentialLoader.Verify(loader => loader.Load(TargetCommunity), Times.Once);
+        context.PredictionRepository.As<IBonusPredictionCopyRepository>().Verify(repository =>
+            repository.GetBonusPredictionCopyCandidateAsync(
+                targetQuestion,
+                It.Is<PredictionModelConfig>(config => config.Model == "test-model"),
+                SourceCommunityContext,
+                It.IsAny<CancellationToken>()), Times.Once);
+        context.KicktippClient.Verify(client => client.PlaceBonusPredictionsAsync(
+            TargetCommunity,
+            It.IsAny<Dictionary<string, BonusPrediction>>(),
+            false), Times.Once);
+        await Assert.That(CountPredictionServiceConstructions(context)).IsEqualTo(0);
+    }
+
+    [Test]
     public async Task Changed_option_generates_once_and_persists_in_target_context()
     {
         var sourceQuestion = CreateSourceQuestion() with
@@ -207,6 +237,30 @@ public sealed class BonusCommand_CopyCompatibility_Tests : BonusCommandTests_Bas
     }
 
     [Test]
+    public async Task Duplicate_normalized_source_option_provenance_generates_once_in_target_context()
+    {
+        var candidate = CreateCanonicalBundesligaBonusPredictionMetadata(
+            CreateSourceQuestion(),
+            new BonusPrediction(["source-fcb"]),
+            communityContext: SourceCommunityContext);
+        candidate = candidate with
+        {
+            QuestionCompatibilityManifest = candidate.QuestionCompatibilityManifest! with
+            {
+                Options =
+                [
+                    new BonusQuestionOptionProvenance("source-fcb", "FC Bayern München"),
+                    new BonusQuestionOptionProvenance("source-duplicate", "FC Bayern München")
+                ]
+            }
+        };
+
+        await AssertIndependentFallbackAsync(
+            candidate,
+            "source_option_provenance_missing_or_invalid");
+    }
+
+    [Test]
     public async Task Missing_source_candidate_generates_once_in_target_context()
     {
         await AssertIndependentFallbackAsync(
@@ -282,6 +336,49 @@ public sealed class BonusCommand_CopyCompatibility_Tests : BonusCommandTests_Bas
                 ["langfuse.trace.metadata.bonusCopyCompatibilityHashes"] = $"|{compatibilityHash}|",
                 ["langfuse.trace.metadata.bonusCopySourcePredictionIdentities"] = expectedIdentityTag
             });
+    }
+
+    [Test]
+    [NotInParallel("Telemetry")]
+    public async Task Incompatible_copy_trace_records_arena_as_effective_generation_context()
+    {
+        const string predictionIdentity = "fallback-source-prediction-id";
+        var activities = new ConcurrentQueue<Activity>();
+        using var listener = CreateConcurrentActivityListener(activities);
+        var sourceQuestion = CreateSourceQuestion() with
+        {
+            Options =
+            [
+                new("source-fcb", "A different club"),
+                new("source-bvb", "Borussia Dortmund")
+            ]
+        };
+        var context = CreateBonusCommandApp(
+            openBonusQuestions: new List<BonusQuestion> { CreateTargetQuestion() },
+            bonusPredictionCopyCandidate: CreateCanonicalBundesligaBonusPredictionMetadata(
+                sourceQuestion,
+                new BonusPrediction(["source-fcb"]),
+                communityContext: SourceCommunityContext,
+                predictionIdentity: predictionIdentity),
+            predictionResult: new BonusPrediction(["target-bvb"]));
+
+        var exitCode = await RunCopyAsync(context);
+
+        var expectedIdentityTag = $"|{predictionIdentity}|";
+        var rootActivity = activities.SingleOrDefault(activity =>
+            activity.OperationName == "bonus"
+            && string.Equals(
+                activity.GetTagItem("langfuse.trace.metadata.bonusCopySourcePredictionIdentities") as string,
+                expectedIdentityTag,
+                StringComparison.Ordinal));
+        await Assert.That(exitCode).IsEqualTo(0);
+        await Assert.That(rootActivity).IsNotNull();
+        await Assert.That(rootActivity!.GetTagItem(
+                "langfuse.trace.metadata.bonusEffectiveGenerationContext") as string)
+            .IsEqualTo(TargetCommunity);
+        await Assert.That(rootActivity.GetTagItem(
+                "langfuse.trace.metadata.bonusCopyFallbackReasons") as string)
+            .IsEqualTo("|option_set_mismatch|");
     }
 
     [Test]

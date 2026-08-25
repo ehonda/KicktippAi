@@ -89,6 +89,63 @@ public class BonusQuestionCompatibilityManifestTests
     }
 
     [Test]
+    public async Task Question_and_option_comparisons_remain_case_and_accent_sensitive()
+    {
+        var source = CreateBonusQuestion(
+            text: "Wer wird Torschützenkönig?",
+            options: new List<BonusQuestionOption>
+            {
+                new BonusQuestionOption("a", "FC Bayern München"),
+                new BonusQuestionOption("b", "Borussia Dortmund")
+            });
+        var sourceManifest = BonusQuestionCompatibilityManifest.Create(source);
+
+        var lowercaseQuestion = source with { Text = "wer wird Torschützenkönig?" };
+        var unaccentedQuestion = source with { Text = "Wer wird Torschutzenkonig?" };
+        var lowercaseOption = source with
+        {
+            Options =
+            [
+                new BonusQuestionOption("target-a", "fc Bayern München"),
+                new BonusQuestionOption("target-b", "Borussia Dortmund")
+            ]
+        };
+        var unaccentedOption = source with
+        {
+            Options =
+            [
+                new BonusQuestionOption("target-a", "FC Bayern Munchen"),
+                new BonusQuestionOption("target-b", "Borussia Dortmund")
+            ]
+        };
+
+        await Assert.That(sourceManifest.TryMapPrediction(
+                lowercaseQuestion,
+                new BonusPrediction(["a"]),
+                out _,
+                out _))
+            .IsEqualTo(BonusPredictionCopyCompatibility.QuestionMismatch);
+        await Assert.That(sourceManifest.TryMapPrediction(
+                unaccentedQuestion,
+                new BonusPrediction(["a"]),
+                out _,
+                out _))
+            .IsEqualTo(BonusPredictionCopyCompatibility.QuestionMismatch);
+        await Assert.That(sourceManifest.TryMapPrediction(
+                lowercaseOption,
+                new BonusPrediction(["a"]),
+                out _,
+                out _))
+            .IsEqualTo(BonusPredictionCopyCompatibility.OptionSetMismatch);
+        await Assert.That(sourceManifest.TryMapPrediction(
+                unaccentedOption,
+                new BonusPrediction(["a"]),
+                out _,
+                out _))
+            .IsEqualTo(BonusPredictionCopyCompatibility.OptionSetMismatch);
+    }
+
+    [Test]
     public async Task Duplicate_normalized_target_options_fail_before_mapping()
     {
         var source = CreateQuestion(new("a", "Option A"), new("b", "Option B"));
