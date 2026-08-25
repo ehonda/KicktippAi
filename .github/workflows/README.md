@@ -10,13 +10,13 @@ historical and inert: they retain `workflow_call` only, with no active
 descriptions later in this document are historical evidence, not activation
 evidence.
 
-The only Bundesliga 2026/27 Actions entrypoints are the exact manual-only
+The permanent Bundesliga 2026/27 Actions entrypoints are the exact manual-only
 `ehonda-ai-arena` Luna validation triad documented below. P0-17 records the
 [authoritative community matrix](../../docs/onboarding-bundesliga-2026-27/community-onboarding.md),
 P0-18 established the reusable workflow contract, and P0-21 alone enables
-final production schedules. The separately authorized Luna/none arena
-validation schedule may run only inside the P0-20 validation ladder and is not
-present in the checked-in triad.
+final production schedules. ADR-0047 temporarily adds one separate
+schedule-only caller for a single ordered P0-20 Luna/none arena validation
+cycle at `47 8 * * *` UTC; it must be removed manually after that occurrence.
 
 ## Architecture Overview
 
@@ -56,6 +56,13 @@ workflow reads `LANGFUSE_PUBLIC_KEY` from the repository variable. P0-20 must
 record a successful context dispatch before either prediction dispatch. Arena
 traces use the Langfuse `production` environment because the posting target is a
 production community; this does not promote Luna/none to the production model.
+
+The temporary
+**`buli2627-ehonda-ai-arena-gpt-5-6-luna-none-scheduled-cycle.yml`** caller
+chains context, forced matchday, and forced bonus reusable jobs with `needs`.
+It pins index zero, the same hosted prompt/configuration identity, and a fixed
+non-cancelling concurrency group. It has no manual trigger and is authorized
+for exactly one terminal scheduled occurrence under ADR-0047.
 
 ### Context Collection Workflows (historical entrypoints)
 
