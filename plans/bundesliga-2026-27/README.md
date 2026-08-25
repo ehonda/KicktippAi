@@ -43,10 +43,10 @@ The accepted [execution strategy](execution-strategy.md) defines gated orchestra
 | [P0-20](tasks/p0-20-seed-and-development-validation.md) | Seed context and validate dev plus arena plumbing | P0-02 through P0-18, P0-22, local dev path, Luna/none arena P0-19 entrypoints |
 | [P0-21](tasks/p0-21-production-activation.md) | Validate production, submit opening predictions, and enable schedules | P0-06, P0-20, P0-24, production P0-19 entrypoints |
 | [P0-22](tasks/p0-22-history-played-dates.md) | Reconstruct exact played dates for recent, home, and away history | P0-02, P0-04 |
-| [P0-23](tasks/p0-23-gpt-5-6-production-candidate-evidence.md) | Collect cutoff-safe GPT-5.6 production-candidate cost and quality evidence | P0-05, P0-12, P0-20 |
-| [P0-24](tasks/p0-24-bonus-copy-post-compatibility.md) | Prove exact bonus question and complete-option-set copy compatibility | P0-16, P0-17, P0-18 |
+| [P0-23](tasks/p0-23-gpt-5-6-production-candidate-evidence.md) | Remaining active evidence gate: collect cutoff-safe GPT-5.6 production-candidate cost and quality evidence | P0-05, P0-12, P0-20 |
+| [P0-24](tasks/p0-24-bonus-copy-post-compatibility.md) | Complete: exact bonus question and complete-option-set copy compatibility is implemented and integrated | P0-16, P0-17, P0-18 |
 
-P0-01 and P0-04 can begin independently. After P0-01, storage, completion, and prompt work can proceed in dependency-safe lanes; after P0-04, roster, Club Elo, and history played-date work can proceed independently. Context hygiene joins those lanes before any community workflow can generate a real prediction. For closeout, P0-23 and P0-24 may proceed in parallel: P0-23 gates the remaining P0-06 owner decision unless the owner records an explicit evidence waiver, while P0-24 gates production bonus-copy entrypoints and activation. P0-21 is the only task authorized to enable final production schedules.
+The implementation path through P0-20 is complete, and P0-24's bonus-copy safety contract is implemented, independently approved, and integrated. P0-23 is the remaining active evidence gate for the final P0-06 owner decision unless the owner records an explicit evidence waiver and accepted risk. After that decision, production P0-19 copies and P0-21 still require the selected configuration, production-community setup and credentials, manual production evidence, opening writes, and deliberate schedule activation. P0-21 is the only task authorized to enable final production schedules.
 
 For P0-19, copy the template once per community matrix row that needs an
 entrypoint so each workflow triad can be implemented and reviewed
@@ -56,7 +56,8 @@ local CLI path, while production and challenger rows retain their owner gates.
 
 ## Handoffs
 
-- [`buli-2627-p0-foundations-green-2026-08-16`](handoffs/buli-2627-p0-foundations-green-2026-08-16.md) — clean, green pause after the foundation contracts, Club Elo seed, roster membership seed, and P0-22 planning; intended resume after the 2026-08-20 allowance reset.
+- [`buli-2627-p0-foundations-green-2026-08-16`](handoffs/buli-2627-p0-foundations-green-2026-08-16.md) — historical foundation pause; superseded by the current task ledger and execution strategy.
+- [`buli-2627-p0-12-open-review-2026-08-19`](handoffs/buli-2627-p0-12-open-review-2026-08-19.md) — historical interrupted-review checkpoint; P0-12 is now complete, so its resume instructions are no longer active.
 
 ## P1 tasks
 

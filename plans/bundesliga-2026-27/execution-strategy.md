@@ -1,8 +1,8 @@
 # Bundesliga 2026/27 execution strategy
 
-- Status: Accepted starting point
+- Status: Accepted execution strategy; P0-23 is the active closeout evidence gate
 - Last updated: 2026-08-25
-- Implementation gate: Ready for an explicit implementation-orchestration request; this planning change does not start implementation
+- Implementation state: P0 implementation through P0-20 and P0-24 is integrated; P0-23 and the remaining owner, external-setup, production-evidence, and activation gates below are open
 
 This document describes how to deliver the accepted P0 scope quickly while preserving the project owner's control over the few deliberately late production choices. Task files and accepted ADRs are the implementation contracts.
 
@@ -23,10 +23,10 @@ This document describes how to deliver the accepted P0 scope quickly while prese
 | Context integration | P0-12 through P0-16 plus P0-22 | Match/bonus allowlists, exact history played dates, and budgets pass; no WM26, old-season, stale, duplicate, or transfer context leaks |
 | Community workflows | P0-17 through P0-19 for the fixed Luna/none path and production templates | Community matrix is complete; test entrypoints are explicit; final schedules remain disabled |
 | Development and arena validation | P0-20 | Dev and arena ladder evidence passes, including fail-closed cases |
-| Production evidence and copy safety | P0-23 and P0-24 in parallel | Owner-authorized GPT-5.6 cost/quality evidence or an explicit owner waiver exists; compatible bonus copy is zero-model and ordinary incompatibility produces exactly one independent target prediction |
+| Production evidence and copy safety | P0-23 active; P0-24 complete and integrated | Owner-authorized GPT-5.6 cost/quality evidence or an explicit owner waiver exists; P0-24 already proves compatible bonus copy is zero-model and ordinary incompatibility produces exactly one independent target prediction |
 | Production selection and activation | Finish P0-06, production P0-19 copies, then P0-21 | Owner approves the final model/cost/challenger configuration against the accepted prompt versions and records the Club Elo mode; all production communities pass manual and first scheduled validation |
 
-The implementation path through P0-20 is complete. The closeout path is parallel P0-23 production-candidate evidence and P0-24 bonus copy safety, then the final P0-06 owner decision, production P0-19 copies, and P0-21. Prompt work is already fixed at the accepted numbered versions; Club Elo network reuse remains independently gated and the dated-seed path remains launch-safe.
+The implementation path through P0-20 and P0-24 is complete and integrated. P0-23 production-candidate evidence is the active closeout gate, followed by the final P0-06 owner decision, production P0-19 copies, and P0-21. Prompt work is already fixed at the accepted numbered versions; Club Elo network reuse remains independently owner-gated and the dated-seed path remains launch-safe.
 
 ## Agent roles and task loop
 
@@ -130,7 +130,7 @@ These are not ambiguities agents may decide on their own:
 
 | Decision | Timing | Work that may proceed first |
 |---|---|---|
-| Final production model, reasoning, output cap, service/fallback policy, arena challengers, and cost ceiling; carry accepted match v2/bonus v1 unless a successor ADR changes them | Late in P0, after P0-23 comparative evidence or an explicit owner waiver and before production onboarding/dispatch | Completed Luna/none plumbing and cost row; owner-authorized candidate evidence preparation |
+| Final production model, reasoning, output cap, service/fallback policy, arena challengers, and cost ceiling; carry accepted match v2/bonus v1 unless a successor ADR changes them | Late in P0, after P0-23 comparative evidence or an explicit owner waiver and before production onboarding/dispatch | Completed Luna/none plumbing, cost row, and P0-24 copy safety; P0-23 read-only preparation may proceed, while model spend requires owner authorization |
 | Whether Club Elo terms permit unattended network refresh, or which permitted alternative to use | Late before go-live | Provider boundary, validation, cache, dated seed, and last-known-good behavior |
 | Exact production schedules, spacing, rollback trigger, and activation | P0-21 after manual evidence | Manual-only workflows and the arena validation schedule |
 | `pes-squad` and `schadensfresse` season setup | Later, before their production validation | All foundations, dev/arena validation, and workflow templates |
@@ -139,4 +139,4 @@ Final model selection will mix experiments and whole-season cost estimates. New-
 
 ## Orchestration start condition
 
-The ambiguity-grilling session is complete and the durable decisions are recorded. Implementation may begin when the user explicitly requests orchestration. The orchestrator then keeps late gates visible, schedules manual prerequisites near their dependent tasks, and never substitutes an agent preference for an owner decision.
+Implementation through P0-20 and P0-24 is complete and integrated. Continue from the current task ledger with P0-23's owner-authorized evidence or an explicit owner waiver, then the final P0-06 selection, production-community setup and model-bound P0-19 entrypoints, and P0-21 manual evidence, opening writes, schedule activation, and first scheduled observation. The orchestrator keeps these late gates visible and never substitutes an agent preference for an owner decision.
