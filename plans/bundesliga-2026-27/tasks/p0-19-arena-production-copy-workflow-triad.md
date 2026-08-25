@@ -3,7 +3,7 @@
 - Status: Blocked — not started; the production-primary identity, arena production participant, and exact credential names remain owner-gated
 - Priority: P0
 - Matrix row: `arena-production-copy`
-- Depends on: [P0-06](p0-06-model-ledger-and-cost-baseline.md), [P0-17](p0-17-community-scope.md), [P0-18](p0-18-base-workflow-support.md), [P0-24](p0-24-bonus-copy-post-compatibility.md), and the separately instantiated [`pes-production-reference` P0-19 task](p0-19-pes-squad-production-reference-workflow-triad.md) and runtime identity
+- Depends on: [P0-06](p0-06-model-ledger-and-cost-baseline.md), [P0-17](p0-17-community-scope.md), [P0-18](p0-18-base-workflow-support.md), [P0-24](p0-24-bonus-copy-post-compatibility.md), and the separately instantiated [`pes-production-reference` P0-19 task](p0-19-pes-squad-production-reference-workflow-triad.md) with reviewed, green callers
 - Decisions: [ADR-0001](../decisions/0001-current-bundesliga-season-only.md), [ADR-0005](../decisions/0005-launch-community-and-prediction-topology.md), [ADR-0006](../decisions/0006-stage-validation-with-a-cheap-test-model.md), [ADR-0039](../decisions/0039-record-bundesliga-community-and-credential-topology.md), [ADR-0045](../decisions/0045-verify-versioned-prompt-promotion-before-validation.md), [ADR-0048](../decisions/0048-verify-bonus-compatibility-before-reference-copy.md)
 
 ## Outcome
@@ -23,7 +23,7 @@ and [production activation preregistration](../../../docs/onboarding-bundesliga-
 ## Blocking prerequisites
 
 - [ ] P0-06 records the owner-approved `production-primary` model, reasoning effort, maximum output-token cap, numbered match and bonus prompt versions, service-tier/fallback policy, whole-season cost ceiling, and estimator evidence; Luna/none is not inherited.
-- [ ] The separately instantiated `pes-production-reference` P0-19 task is reviewed and green, and its callers and stored runtime identity use that exact `production-primary` configuration.
+- [ ] The separately instantiated `pes-production-reference` P0-19 task and its callers are reviewed and green, and those callers pin the exact `production-primary` configuration that the arena callers must mirror byte for byte.
 - [ ] The owner selects the arena production-copy Kicktipp participant and records the exact model-specific local credential-profile name and exact model-specific Actions username/password names.
 - [ ] A repository administrator confirms the selected Actions names are present without exposing values, and the selected participant's authentication, Bundesliga 2026/27 readiness, and posting permission are verified.
 - [ ] Any local profile selector needed to distinguish the selected production participant from other `ehonda-ai-arena` participants is accepted and implemented before local use.
@@ -40,7 +40,7 @@ activation gates, not prerequisites to constructing this manual-only triad.
 
 - [ ] Create a dedicated context entrypoint for the selected arena production participant with explicit `competition: bundesliga-2026-27` and `ehonda-ai-arena` target context required by the independent bonus-fallback safety path.
 - [ ] Create the matchday entrypoint with `community: "ehonda-ai-arena"`, `community_context: "pes-squad"`, and the exact same explicit `production-primary` model, reasoning, cap, prompt, and service-tier identity as the reviewed `pes-production-reference` caller.
-- [ ] Require the matchday caller to exact-read and validate the stored `pes-squad` source at runtime. Copy-post only when its model configuration, fixture, and immutable context are compatible; never assume another manual workflow completed or copy an incompatible or ambiguous reference result.
+- [ ] Require the matchday caller to exact-read and validate the stored `pes-squad` source at runtime. Copy-post only when its model configuration, fixture, and immutable context are compatible; never assume another manual workflow completed. A missing, incompatible, or ambiguous source/configuration/fixture/context fails closed with zero model-service construction/call, zero prediction persistence, and zero Kicktipp post. No independent arena-context match fallback may be added without a separate Accepted contract.
 - [ ] Create the bonus entrypoint with the same posting target, source context, explicit `production-primary` identity, and exact question-aware context budgets of `20` documents and `32000` estimated tokens.
 - [ ] Require exact normalized question, `MaxSelections`, and complete normalized option-set compatibility before copy-posting a stored `pes-squad` bonus prediction; a compatible path maps target option IDs and performs no model-service construction or call.
 - [ ] For every ordinary missing/incompatible source bonus candidate or legacy/partial/malformed provenance, generate exactly one independent prediction in the same invocation with effective `community_context: "ehonda-ai-arena"`, persist it under that target context, and post only the independently generated target selection.
@@ -56,7 +56,7 @@ activation gates, not prerequisites to constructing this manual-only triad.
 - [ ] Parse and run `actionlint` against all three callers, and compare every `with` and `secrets` key against the corresponding reusable-workflow declaration.
 - [ ] Add exact-shape workflow contracts proving manual-only triggers, no schedule or `workflow_call`, explicit `bundesliga-2026-27`, arena posting target, `pes-squad` source context, exact shared `production-primary` identity, bonus budgets `20` / `32000`, exact owner-recorded credentials, and no hidden or retired inputs.
 - [ ] Prove the arena and `pes-production-reference` callers have byte-for-byte equivalent model, reasoning, cap, numbered prompt, and service-tier/fallback values wherever the reusable contracts require the shared runtime identity.
-- [ ] Retain command coverage proving fixture-compatible match reuse and rejection of incompatible or ambiguous match candidates.
+- [ ] Retain command coverage proving fixture-compatible match reuse and that every missing, incompatible, or ambiguous match source/configuration/fixture/context terminates with zero model-service construction/call, zero persistence, zero Kicktipp post, and no independent arena-context fallback.
 - [ ] Retain P0-24 command, persistence, and topology coverage proving compatible bonus copy uses zero model-service constructions/calls; each ordinary incompatibility uses exactly one independent arena-context prediction; and invalid target/context safety failures persist and post nothing.
 - [ ] Add telemetry coverage for posting-target environment `production`, payload-safe copy source and stored prediction identity, compatible no-model behavior, and independent fallback effective context `ehonda-ai-arena`.
 - [ ] Verify the new callers contain no Bundesliga 2025/26 identity, WM26 identity, transfer document, Luna participant credential, unresolved placeholder, secret value, or schedule, and verify historical callers remain retired.
@@ -74,6 +74,6 @@ above passes.
 
 ## Complete when
 
-- [ ] The owner-selected participant and exact credential names are recorded, the `production-primary` slot is resolved, and the matching `pes-production-reference` task/runtime identity is reviewed and green.
+- [ ] The owner-selected participant and exact credential names are recorded, the `production-primary` slot is resolved, the matching `pes-production-reference` task and callers are reviewed and green, and the arena callers mirror their exact `production-primary` configuration byte for byte.
 - [ ] The triad is fully explicit, manually callable, schedule-free, and protected by workflow, copy-compatibility, persistence, telemetry, and retired-caller contracts.
 - [ ] No unresolved model, participant, profile, credential, compatibility, or activation gate is deployed or marked complete by this task record.
