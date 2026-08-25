@@ -1,3 +1,4 @@
+using System.Collections.Concurrent;
 using System.Diagnostics;
 using EHonda.KicktippAi.Core;
 using Moq;
@@ -100,13 +101,15 @@ public class BonusCommand_Telemetry_Tests : BonusCommandTests_Base
     [NotInParallel("Telemetry")]
     public async Task Root_activity_is_named_bonus()
     {
-        var capturedActivities = new List<Activity>();
+        const string community = "test-community";
+        const string model = "telemetry-root-model";
+        var capturedActivities = new ConcurrentQueue<Activity>();
         using var listener = CreateActivityListener(capturedActivities);
         var ctx = CreateBonusCommandApp();
 
-        await RunCommandAsync(ctx.App, ctx.Console, "bonus", "gpt-4o", "-c", "test-community");
+        await RunCommandAsync(ctx.App, ctx.Console, "bonus", model, "-c", community);
 
-        var rootActivity = capturedActivities.LastOrDefault(a => a.OperationName == "bonus");
+        var rootActivity = FindBonusActivity(capturedActivities, community, model);
         await Assert.That(rootActivity).IsNotNull();
         await Assert.That(rootActivity!.OperationName).IsEqualTo("bonus");
     }
@@ -115,13 +118,15 @@ public class BonusCommand_Telemetry_Tests : BonusCommandTests_Base
     [NotInParallel("Telemetry")]
     public async Task Production_community_sets_environment_to_production()
     {
-        var capturedActivities = new List<Activity>();
+        const string community = "pes-squad";
+        const string model = "telemetry-production-model";
+        var capturedActivities = new ConcurrentQueue<Activity>();
         using var listener = CreateActivityListener(capturedActivities);
         var ctx = CreateBonusCommandApp();
 
-        await RunCommandAsync(ctx.App, ctx.Console, "bonus", "gpt-4o", "-c", "pes-squad");
+        await RunCommandAsync(ctx.App, ctx.Console, "bonus", model, "-c", community);
 
-        var rootActivity = capturedActivities.LastOrDefault(a => a.OperationName == "bonus");
+        var rootActivity = FindBonusActivity(capturedActivities, community, model);
         await Assert.That(rootActivity).IsNotNull();
         await Assert.That(rootActivity!.GetTagItem("langfuse.environment") as string).IsEqualTo("production");
     }
@@ -130,7 +135,9 @@ public class BonusCommand_Telemetry_Tests : BonusCommandTests_Base
     [NotInParallel("Telemetry")]
     public async Task Arena_Luna_Bundesliga_validation_path_keeps_production_environment_and_exact_identity()
     {
-        var capturedActivities = new List<Activity>();
+        const string community = "ehonda-ai-arena";
+        const string model = "gpt-5.6-luna";
+        var capturedActivities = new ConcurrentQueue<Activity>();
         using var listener = CreateActivityListener(capturedActivities);
         var ctx = CreateBonusCommandApp();
 
@@ -138,9 +145,9 @@ public class BonusCommand_Telemetry_Tests : BonusCommandTests_Base
             ctx.App,
             ctx.Console,
             "bonus",
-            "gpt-5.6-luna",
-            "-c", "ehonda-ai-arena",
-            "--community-context", "ehonda-ai-arena",
+            model,
+            "-c", community,
+            "--community-context", community,
             "--competition", CompetitionIds.Bundesliga2026_27,
             "--reasoning-effort", "none",
             "--max-output-tokens", "10000",
@@ -151,7 +158,7 @@ public class BonusCommand_Telemetry_Tests : BonusCommandTests_Base
             "--bonus-context-document-budget", "20",
             "--bonus-context-token-budget", "32000");
 
-        var rootActivity = capturedActivities.LastOrDefault(activity => activity.OperationName == "bonus");
+        var rootActivity = FindBonusActivity(capturedActivities, community, model);
         await Assert.That(exitCode).IsEqualTo(0);
         await Assert.That(rootActivity).IsNotNull();
         await Assert.That(rootActivity!.GetTagItem("langfuse.environment") as string).IsEqualTo("production");
@@ -168,13 +175,29 @@ public class BonusCommand_Telemetry_Tests : BonusCommandTests_Base
     [NotInParallel("Telemetry")]
     public async Task Rabetrabauken2026_sets_environment_to_production()
     {
-        var capturedActivities = new List<Activity>();
-        using var listener = CreateActivityListener(capturedActivities);
+        const string community = "rabetrabauken2026";
+        const string model = "telemetry-rabetrabauken-model";
+        var capturedActivities = new ConcurrentQueue<Activity>();
         var ctx = CreateBonusCommandApp();
 
-        await RunCommandAsync(ctx.App, ctx.Console, "bonus", "gpt-4o", "-c", "rabetrabauken2026");
+        Activity? capturedTarget;
+        using (var listener = CreateActivityListener(capturedActivities))
+        {
+            await RunCommandAsync(ctx.App, ctx.Console, "bonus", model, "-c", community);
+            capturedTarget = FindBonusActivity(capturedActivities, community, model);
+        }
 
-        var rootActivity = capturedActivities.LastOrDefault(a => a.OperationName == "bonus");
+        await Assert.That(capturedTarget).IsNotNull();
+
+        using var foreignActivity = new Activity("bonus");
+        foreignActivity.SetTag("langfuse.trace.metadata.community", community);
+        foreignActivity.SetTag("langfuse.trace.metadata.model", "foreign-telemetry-model");
+        foreignActivity.SetTag("langfuse.environment", "development");
+        var stableActivities = new[] { capturedTarget!, foreignActivity };
+
+        var rootActivity = FindBonusActivity(stableActivities, community, model);
+        await Assert.That(stableActivities.Last().GetTagItem("langfuse.environment") as string)
+            .IsEqualTo("development");
         await Assert.That(rootActivity).IsNotNull();
         await Assert.That(rootActivity!.GetTagItem("langfuse.environment") as string).IsEqualTo("production");
     }
@@ -183,14 +206,31 @@ public class BonusCommand_Telemetry_Tests : BonusCommandTests_Base
     [NotInParallel("Telemetry")]
     public async Task Non_production_community_sets_environment_to_development()
     {
-        var capturedActivities = new List<Activity>();
+        const string community = "ehonda-test-buli";
+        const string model = "telemetry-development-model";
+        var capturedActivities = new ConcurrentQueue<Activity>();
         using var listener = CreateActivityListener(capturedActivities);
         var ctx = CreateBonusCommandApp();
 
-        await RunCommandAsync(ctx.App, ctx.Console, "bonus", "gpt-4o", "-c", "ehonda-test-buli");
+        await RunCommandAsync(ctx.App, ctx.Console, "bonus", model, "-c", community);
 
-        var rootActivity = capturedActivities.LastOrDefault(a => a.OperationName == "bonus");
+        var rootActivity = FindBonusActivity(capturedActivities, community, model);
         await Assert.That(rootActivity).IsNotNull();
         await Assert.That(rootActivity!.GetTagItem("langfuse.environment") as string).IsEqualTo("development");
     }
+
+    private static Activity? FindBonusActivity(
+        IEnumerable<Activity> activities,
+        string community,
+        string model) =>
+        activities.SingleOrDefault(activity =>
+            activity.OperationName == "bonus"
+            && string.Equals(
+                activity.GetTagItem("langfuse.trace.metadata.community") as string,
+                community,
+                StringComparison.Ordinal)
+            && string.Equals(
+                activity.GetTagItem("langfuse.trace.metadata.model") as string,
+                model,
+                StringComparison.Ordinal));
 }

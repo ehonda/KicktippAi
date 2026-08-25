@@ -1,4 +1,5 @@
 using ContextProviders.Kicktipp;
+using System.Collections.Concurrent;
 using System.Collections.Immutable;
 using System.Diagnostics;
 using EHonda.KicktippAi.Core;
@@ -1437,6 +1438,30 @@ public static class OrchestratorTestFactories
             ShouldListenTo = source => source.Name == "KicktippAi",
             Sample = (ref ActivityCreationOptions<ActivityContext> _) => ActivitySamplingResult.AllDataAndRecorded,
             ActivityStopped = activity => capturedActivities.Add(activity)
+        };
+
+        ActivitySource.AddActivityListener(listener);
+        return listener;
+    }
+
+    /// <summary>
+    /// Creates an <see cref="ActivityListener"/> that captures activities from the "KicktippAi"
+    /// <see cref="ActivitySource"/> into a thread-safe queue.
+    /// </summary>
+    /// <remarks>
+    /// The returned listener must be disposed after the test to stop capturing. The queue makes
+    /// capture safe when unrelated command tests emit activities concurrently; callers must still
+    /// select their invocation by unique trace metadata rather than activity order.
+    /// </remarks>
+    /// <param name="capturedActivities">The queue that captured activities will be added to.</param>
+    /// <returns>A started <see cref="ActivityListener"/> that captures activities.</returns>
+    public static ActivityListener CreateActivityListener(ConcurrentQueue<Activity> capturedActivities)
+    {
+        var listener = new ActivityListener
+        {
+            ShouldListenTo = source => source.Name == "KicktippAi",
+            Sample = (ref ActivityCreationOptions<ActivityContext> _) => ActivitySamplingResult.AllDataAndRecorded,
+            ActivityStopped = capturedActivities.Enqueue
         };
 
         ActivitySource.AddActivityListener(listener);
