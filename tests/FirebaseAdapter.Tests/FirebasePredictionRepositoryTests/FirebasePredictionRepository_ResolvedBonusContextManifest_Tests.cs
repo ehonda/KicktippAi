@@ -37,12 +37,63 @@ public sealed class FirebasePredictionRepository_ResolvedBonusContextManifest_Te
 
         await Assert.That(metadata).IsNotNull();
         await Assert.That(metadata!.ResolvedContextManifest).IsNotNull();
+        await Assert.That(metadata.QuestionCompatibilityManifest).IsNotNull();
+        await Assert.That(metadata.QuestionCompatibilityManifest!.CompatibilitySha256)
+            .IsEqualTo(BonusQuestionCompatibilityManifest.Create(question).CompatibilitySha256);
         await Assert.That(metadata.ResolvedContextManifest!.Documents.Select(document => document.Name))
             .IsEquivalentTo(manifest.Documents.Select(document => document.Name));
         await Assert.That(stored.ResolvedBonusContextManifest).StartsWith(
             "{\"competition\":\"bundesliga-2026-27\",\"communityContext\":\"test-community\",\"documents\":[{\"kind\":\"Kpi\",\"name\":\"club-elo-rankings\"");
         await Assert.That(stored.ResolvedBonusContextManifest).DoesNotContain("elo-content");
         await Assert.That(stored.ResolvedBonusContextManifest).DoesNotContain("summary-content");
+    }
+
+    [Test]
+    public async Task Copy_candidate_round_trips_complete_source_options_and_normalized_lookup()
+    {
+        var repository = CreateBundesligaRepository();
+        var sourceQuestion = CreateBonusQuestion(
+            text: "  Wer\t wird Meister? ",
+            options: new List<BonusQuestionOption>
+            {
+                new BonusQuestionOption("source-fcb", "ＦＣ Bayern  München"),
+                new BonusQuestionOption("source-bvb", "Borussia Dortmund")
+            });
+        var targetQuestion = CreateBonusQuestion(
+            text: "Wer wird Meister?",
+            options: new List<BonusQuestionOption>
+            {
+                new BonusQuestionOption("target-bvb", "Borussia   Dortmund"),
+                new BonusQuestionOption("target-fcb", "FC Bayern München")
+            });
+        var config = PredictionModelConfig.Create("gpt-5");
+        var manifest = CreateManifest("pes-squad");
+
+        await repository.SaveBonusPredictionWithResolvedContextAsync(
+            sourceQuestion,
+            new BonusPrediction(["source-fcb"]),
+            config,
+            "{}",
+            0.01,
+            manifest.CommunityContext,
+            manifest.Documents.Select(document => document.Name),
+            manifest);
+
+        var candidate = await ((IBonusPredictionCopyRepository)repository)
+            .GetBonusPredictionCopyCandidateAsync(targetQuestion, config, manifest.CommunityContext);
+
+        await Assert.That(candidate).IsNotNull();
+        await Assert.That(candidate!.PredictionIdentity).IsNotNull().And.IsNotEmpty();
+        await Assert.That(candidate!.QuestionCompatibilityManifest).IsNotNull();
+        await Assert.That(candidate.QuestionCompatibilityManifest!.Options.Select(option => option.SourceOptionId))
+            .IsEquivalentTo(["source-bvb", "source-fcb"]);
+        var compatibility = candidate.QuestionCompatibilityManifest.TryMapPrediction(
+            targetQuestion,
+            candidate.BonusPrediction,
+            out var mapped,
+            out _);
+        await Assert.That(compatibility).IsEqualTo(BonusPredictionCopyCompatibility.Compatible);
+        await Assert.That(mapped!.SelectedOptionIds).IsEquivalentTo(["target-fcb"]);
     }
 
     [Test]
@@ -163,6 +214,34 @@ public sealed class FirebasePredictionRepository_ResolvedBonusContextManifest_Te
 
         await Assert.That(metadata).IsNotNull();
         await Assert.That(metadata!.ResolvedContextManifest).IsNull();
+        await Assert.That(metadata.QuestionCompatibilityManifest).IsNull();
+    }
+
+    [Test]
+    public async Task Legacy_or_malformed_option_provenance_is_returned_as_noncopyable()
+    {
+        var repository = CreateBundesligaRepository();
+        var config = PredictionModelConfig.Create("gpt-5");
+        var manifest = System.Text.Json.JsonSerializer.Serialize(
+            CreateManifest("test-community"),
+            new System.Text.Json.JsonSerializerOptions
+            {
+                PropertyNamingPolicy = System.Text.Json.JsonNamingPolicy.CamelCase
+            });
+        var legacy = CreateBonusQuestion(text: "Legacy options?");
+        var malformed = CreateBonusQuestion(text: "Malformed options?");
+        await SeedLegacyAsync(legacy, config, manifest);
+        await SeedLegacyAsync(malformed, config, manifest, "{invalid-json");
+
+        var legacyCandidate = await ((IBonusPredictionCopyRepository)repository)
+            .GetBonusPredictionCopyCandidateAsync(legacy, config, "test-community");
+        var malformedCandidate = await ((IBonusPredictionCopyRepository)repository)
+            .GetBonusPredictionCopyCandidateAsync(malformed, config, "test-community");
+
+        await Assert.That(legacyCandidate).IsNotNull();
+        await Assert.That(legacyCandidate!.QuestionCompatibilityManifest).IsNull();
+        await Assert.That(malformedCandidate).IsNotNull();
+        await Assert.That(malformedCandidate!.QuestionCompatibilityManifest).IsNull();
     }
 
     [Test]
@@ -218,7 +297,8 @@ public sealed class FirebasePredictionRepository_ResolvedBonusContextManifest_Te
     private async Task SeedLegacyAsync(
         BonusQuestion question,
         PredictionModelConfig config,
-        string? manifest)
+        string? manifest,
+        string? questionCompatibilityManifest = null)
     {
         var now = Timestamp.GetCurrentTimestamp();
         await Fixture.Db.Collection("bonus-predictions").Document(Guid.NewGuid().ToString()).SetAsync(
@@ -237,6 +317,7 @@ public sealed class FirebasePredictionRepository_ResolvedBonusContextManifest_Te
                     ? []
                     : ["club-elo-rankings", "team-squad-summary"],
                 ResolvedBonusContextManifest = manifest,
+                BonusQuestionCompatibilityManifest = questionCompatibilityManifest,
                 RepredictionIndex = 0
             });
     }

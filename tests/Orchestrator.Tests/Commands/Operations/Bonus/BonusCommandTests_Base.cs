@@ -71,6 +71,7 @@ public abstract class BonusCommandTests_Base
         Option<bool> placeBonusPredictionsResult = default,
         Option<List<DocumentContext>> kpiContextDocuments = default,
         Option<int> bonusRepredictionIndex = default,
+        NullableOption<BonusPredictionMetadata> bonusPredictionCopyCandidate = default,
         Option<Mock<IKpiRepository>> kpiRepository = default,
         // Factory-level parameters for advanced scenarios
         Option<Mock<IFirebaseServiceFactory>> firebaseServiceFactory = default,
@@ -100,7 +101,8 @@ public abstract class BonusCommandTests_Base
         var mockPredictionRepository = CreateMockPredictionRepository(
             getBonusPredictionByTextResult: storedPrediction,
             getBonusRepredictionIndexResult: bonusRepredictionIndex.Or(-1),
-            getBonusPredictionMetadataByTextResult: storedMetadata);
+            getBonusPredictionMetadataByTextResult: storedMetadata,
+            getBonusPredictionCopyCandidateResult: bonusPredictionCopyCandidate.Or((BonusPredictionMetadata?)null));
         var mockKpiRepository = kpiRepository.Or(() => new Mock<IKpiRepository>());
 
         var mockPredictionService = CreateMockPredictionService(

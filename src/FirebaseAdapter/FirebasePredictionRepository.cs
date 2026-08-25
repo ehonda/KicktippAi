@@ -16,7 +16,8 @@ namespace FirebaseAdapter;
 public class FirebasePredictionRepository :
     IPredictionRepository,
     IResolvedMatchContextPredictionRepository,
-    IResolvedBonusContextPredictionRepository
+    IResolvedBonusContextPredictionRepository,
+    IBonusPredictionCopyRepository
 {
     private static readonly JsonSerializerOptions JustificationSerializerOptions = new()
     {
@@ -805,6 +806,8 @@ public class FirebasePredictionRepository :
                 ResolvedBonusContextManifest = resolvedContextManifest is null
                     ? null
                     : SerializeResolvedBonusContextManifest(resolvedContextManifest),
+                BonusQuestionCompatibilityManifest = SerializeBonusQuestionCompatibilityManifest(
+                    BonusQuestionCompatibilityManifest.Create(bonusQuestion)),
                 RepredictionIndex = repredictionIndex
             };
 
@@ -938,31 +941,71 @@ public class FirebasePredictionRepository :
                 return null;
             }
 
-            var bonusPrediction = new BonusPrediction(firestoreBonusPrediction.SelectedOptionIds.ToList());
-            var createdAt = firestoreBonusPrediction.CreatedAt.ToDateTimeOffset();
-            var contextDocumentNames = firestoreBonusPrediction.ContextDocumentNames?.ToList() ?? new List<string>();
-            var resolvedContextManifest = DeserializeResolvedBonusContextManifest(
-                firestoreBonusPrediction.ResolvedBonusContextManifest);
-            if (resolvedContextManifest is not null)
-            {
-                ValidateResolvedBonusContextManifest(
-                    communityContext,
-                    contextDocumentNames,
-                    resolvedContextManifest);
-            }
-
             _logger.LogDebug("Found bonus prediction metadata for question text: {QuestionText} with model: {Model} and community context: {CommunityContext}",
                 questionText, modelConfig.DisplayName, communityContext);
 
-            return new BonusPredictionMetadata(
-                bonusPrediction,
-                createdAt,
-                contextDocumentNames,
-                resolvedContextManifest);
+            return CreateBonusPredictionMetadata(firestoreBonusPrediction, communityContext);
         }
         catch (Exception ex)
         {
             _logger.LogError(ex, "Failed to retrieve bonus prediction metadata by text: {QuestionText} with model: {Model} and community context: {CommunityContext}", questionText, modelConfig.DisplayName, communityContext);
+            throw;
+        }
+    }
+
+    public async Task<BonusPredictionMetadata?> GetBonusPredictionCopyCandidateAsync(
+        BonusQuestion targetQuestion,
+        PredictionModelConfig modelConfig,
+        string sourceCommunityContext,
+        CancellationToken cancellationToken = default)
+    {
+        ArgumentNullException.ThrowIfNull(targetQuestion);
+        ArgumentNullException.ThrowIfNull(modelConfig);
+        ArgumentException.ThrowIfNullOrWhiteSpace(sourceCommunityContext);
+
+        try
+        {
+            var normalizedQuestionText = BonusQuestionCompatibilityManifest.NormalizeText(targetQuestion.Text);
+            var query = _firestoreDb.Collection(_bonusPredictionsCollection)
+                .WhereEqualTo("competition", _competition)
+                .WhereEqualTo("model", modelConfig.Model)
+                .WhereEqualTo("communityContext", sourceCommunityContext);
+            var snapshot = await query.GetSnapshotAsync(cancellationToken);
+            var firestoreBonusPrediction = SelectLatestForModelConfig(
+                snapshot.Documents
+                    .Select(document => document.ConvertTo<FirestoreBonusPrediction>())
+                    .Where(prediction => string.Equals(
+                        BonusQuestionCompatibilityManifest.NormalizeText(prediction.QuestionText),
+                        normalizedQuestionText,
+                        StringComparison.Ordinal)),
+                modelConfig);
+
+            if (firestoreBonusPrediction is null)
+            {
+                return null;
+            }
+
+            var metadata = CreateBonusPredictionMetadata(
+                firestoreBonusPrediction,
+                sourceCommunityContext,
+                tolerateInvalidCompatibilityManifest: true);
+            if (metadata.QuestionCompatibilityManifest is null
+                && !string.IsNullOrWhiteSpace(firestoreBonusPrediction.BonusQuestionCompatibilityManifest))
+            {
+                _logger.LogWarning(
+                    "Stored bonus prediction {DocumentId} has invalid compatibility provenance and cannot be copied.",
+                    firestoreBonusPrediction.Id);
+            }
+
+            return metadata;
+        }
+        catch (Exception ex)
+        {
+            _logger.LogError(
+                ex,
+                "Failed to retrieve bonus copy candidate using model {Model} and source community context {CommunityContext}",
+                modelConfig.DisplayName,
+                sourceCommunityContext);
             throw;
         }
     }
@@ -1705,6 +1748,8 @@ public class FirebasePredictionRepository :
                 ResolvedBonusContextManifest = resolvedContextManifest is null
                     ? null
                     : SerializeResolvedBonusContextManifest(resolvedContextManifest),
+                BonusQuestionCompatibilityManifest = SerializeBonusQuestionCompatibilityManifest(
+                    BonusQuestionCompatibilityManifest.Create(bonusQuestion)),
                 RepredictionIndex = repredictionIndex
             };
 
@@ -2068,6 +2113,84 @@ public class FirebasePredictionRepository :
     {
         ArgumentNullException.ThrowIfNull(manifest);
         return JsonSerializer.Serialize(manifest, ResolvedContextManifestSerializerOptions);
+    }
+
+    private BonusPredictionMetadata CreateBonusPredictionMetadata(
+        FirestoreBonusPrediction firestoreBonusPrediction,
+        string communityContext,
+        bool tolerateInvalidCompatibilityManifest = false)
+    {
+        var bonusPrediction = new BonusPrediction(firestoreBonusPrediction.SelectedOptionIds.ToList());
+        var createdAt = firestoreBonusPrediction.CreatedAt.ToDateTimeOffset();
+        var contextDocumentNames = firestoreBonusPrediction.ContextDocumentNames?.ToList() ?? new List<string>();
+        var resolvedContextManifest = DeserializeResolvedBonusContextManifest(
+            firestoreBonusPrediction.ResolvedBonusContextManifest);
+        if (resolvedContextManifest is not null)
+        {
+            ValidateResolvedBonusContextManifest(
+                communityContext,
+                contextDocumentNames,
+                resolvedContextManifest);
+        }
+
+        var compatibilityManifest = DeserializeBonusQuestionCompatibilityManifest(
+            firestoreBonusPrediction.BonusQuestionCompatibilityManifest,
+            tolerateInvalidCompatibilityManifest);
+        return new BonusPredictionMetadata(
+            bonusPrediction,
+            createdAt,
+            contextDocumentNames,
+            resolvedContextManifest,
+            compatibilityManifest,
+            firestoreBonusPrediction.Id);
+    }
+
+    private static string SerializeBonusQuestionCompatibilityManifest(
+        BonusQuestionCompatibilityManifest manifest)
+    {
+        ArgumentNullException.ThrowIfNull(manifest);
+        manifest.Validate();
+        return JsonSerializer.Serialize(manifest, ResolvedContextManifestSerializerOptions);
+    }
+
+    private static BonusQuestionCompatibilityManifest? DeserializeBonusQuestionCompatibilityManifest(
+        string? serialized,
+        bool tolerateInvalid)
+    {
+        if (string.IsNullOrWhiteSpace(serialized))
+        {
+            return null;
+        }
+
+        try
+        {
+            var manifest = JsonSerializer.Deserialize<BonusQuestionCompatibilityManifest>(
+                               serialized,
+                               ResolvedContextManifestSerializerOptions)
+                           ?? throw new InvalidDataException(
+                               "Stored bonus-question compatibility manifest cannot be null.");
+            manifest.Validate();
+            var canonical = SerializeBonusQuestionCompatibilityManifest(manifest);
+            if (!string.Equals(canonical, serialized, StringComparison.Ordinal))
+            {
+                throw new InvalidDataException(
+                    "Stored bonus-question compatibility manifest is not canonical JSON.");
+            }
+
+            return manifest;
+        }
+        catch (Exception exception) when (
+            tolerateInvalid
+            && exception is JsonException or ArgumentException or InvalidDataException)
+        {
+            return null;
+        }
+        catch (Exception exception) when (exception is JsonException or ArgumentException)
+        {
+            throw new InvalidDataException(
+                "Stored bonus-question compatibility manifest is invalid.",
+                exception);
+        }
     }
 
     private void ValidateResolvedBonusContextManifestForWrite(

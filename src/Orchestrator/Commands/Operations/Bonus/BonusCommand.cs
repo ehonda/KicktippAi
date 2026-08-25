@@ -158,6 +158,15 @@ public class BonusCommand : AsyncCommand<BonusSettings>
 
         string communityContext = settings.CommunityContext ?? settings.Community;
         var competition = CompetitionResolver.ResolveCompetition(settings.Competition, settings.Community, communityContext);
+        var isBundesliga = string.Equals(
+            competition,
+            CompetitionIds.Bundesliga2026_27,
+            StringComparison.Ordinal);
+        var isReferenceCopyMode = isBundesliga
+            && !string.Equals(settings.Community, communityContext, StringComparison.Ordinal);
+        var generationCommunityContext = isReferenceCopyMode
+            ? settings.Community
+            : communityContext;
         var modelConfig = PredictionServiceCommandSupport.CreateModelConfig(
             settings.Model,
             settings.ReasoningEffort,
@@ -185,6 +194,10 @@ public class BonusCommand : AsyncCommand<BonusSettings>
         }
         SetPinnedModelConfigTraceMetadata(activity, modelConfig);
         LangfuseActivityPropagation.SetTraceMetadata(activity, "repredictMode", settings.IsRepredictMode ? "true" : "false");
+        LangfuseActivityPropagation.SetTraceMetadata(
+            activity,
+            "bonusPredictionMode",
+            isReferenceCopyMode ? "reference-copy-with-independent-fallback" : "independent");
 
         // Note: trace input is set after bonus questions are fetched
 
@@ -192,35 +205,41 @@ public class BonusCommand : AsyncCommand<BonusSettings>
 
         // Create services using factories
         var kicktippClient = _kicktippClientFactory.CreateClient();
-        var predictionService = PredictionServiceCommandSupport.CreatePredictionService(
-            _openAiServiceFactory,
-            _langfuseClient,
-            _console,
-            model,
-            competition,
-            settings.Community,
-            communityContext,
-            settings.PromptSource,
-            settings.LangfusePromptName,
-            settings.LangfusePromptLabel,
-            settings.LangfusePromptVersion,
-            modelConfig.ReasoningEffort,
-            settings.MaxOutputTokenCount,
-            bonusPrompt: true,
-            requireHostedPrompt: settings.RequireHostedPrompt);
-        
-        // Log the prompt paths being used
-        if (settings.Verbose)
+        IPredictionService? predictionService = null;
+        IPredictionService GetPredictionService()
         {
-            _console.MarkupLine($"[dim]Bonus prompt:[/] [blue]{predictionService.GetBonusPromptPath()}[/]");
+            if (predictionService is not null)
+            {
+                return predictionService;
+            }
+
+            predictionService = PredictionServiceCommandSupport.CreatePredictionService(
+                _openAiServiceFactory,
+                _langfuseClient,
+                _console,
+                model,
+                competition,
+                settings.Community,
+                generationCommunityContext,
+                settings.PromptSource,
+                settings.LangfusePromptName,
+                settings.LangfusePromptLabel,
+                settings.LangfusePromptVersion,
+                modelConfig.ReasoningEffort,
+                settings.MaxOutputTokenCount,
+                bonusPrompt: true,
+                requireHostedPrompt: settings.RequireHostedPrompt);
+
+            if (settings.Verbose)
+            {
+                _console.MarkupLine($"[dim]Bonus prompt:[/] [blue]{predictionService.GetBonusPromptPath()}[/]");
+            }
+
+            return predictionService;
         }
         
         // Create KPI Context Provider for bonus predictions using factory
         var kpiContextProvider = _contextProviderFactory.CreateKpiContextProvider(competition);
-        var isBundesliga = string.Equals(
-            competition,
-            CompetitionIds.Bundesliga2026_27,
-            StringComparison.Ordinal);
         var resolvedBonusContextProvider = isBundesliga
             ? kpiContextProvider as IResolvedBonusContextProvider
               ?? throw new InvalidOperationException(
@@ -238,7 +257,12 @@ public class BonusCommand : AsyncCommand<BonusSettings>
         var resolvedBonusPredictionRepository = isBundesliga
             ? predictionRepository as IResolvedBonusContextPredictionRepository
               ?? throw new InvalidOperationException(
-                  "Bundesliga bonus prediction requires a provenance-capable prediction repository.")
+                   "Bundesliga bonus prediction requires a provenance-capable prediction repository.")
+            : null;
+        var bonusPredictionCopyRepository = isReferenceCopyMode
+            ? predictionRepository as IBonusPredictionCopyRepository
+              ?? throw new InvalidOperationException(
+                  "Bundesliga reference bonus copying requires a compatibility-capable prediction repository.")
             : null;
         var publicationRepository = isBundesliga
             ? _firebaseServiceFactory.CreateDocumentPublicationRepository(competition)
@@ -286,6 +310,11 @@ public class BonusCommand : AsyncCommand<BonusSettings>
         
         var predictions = new Dictionary<string, BonusPrediction>();
         var traceRepredictionIndices = new HashSet<string>(StringComparer.Ordinal);
+        var copyCompatibilityHashes = new HashSet<string>(StringComparer.Ordinal);
+        var copySourcePredictionIdentities = new HashSet<string>(StringComparer.Ordinal);
+        var copyFallbackReasons = new HashSet<string>(StringComparer.Ordinal);
+        var copiedPredictionCount = 0;
+        var independentFallbackCount = 0;
         
         // Step 2: For each question, check database first, then predict if needed
         foreach (var question in bonusQuestions)
@@ -298,9 +327,108 @@ public class BonusCommand : AsyncCommand<BonusSettings>
                 bool fromDatabase = false;
                 bool shouldPredict = false;
                 int? predictionRepredictionIndex = settings.IsRepredictMode ? null : 0;
+                var predictionCommunityContext = communityContext;
+                BonusQuestionCompatibilityManifest? targetCompatibilityManifest = null;
+                if (isBundesliga)
+                {
+                    try
+                    {
+                        targetCompatibilityManifest = BonusQuestionCompatibilityManifest.Create(question);
+                    }
+                    catch (InvalidDataException ex)
+                    {
+                        throw new BundesligaBonusSafetyException(
+                            "Bundesliga target bonus question has an invalid compatibility definition.",
+                            ex);
+                    }
+                }
+
+                if (isReferenceCopyMode)
+                {
+                    var copyCandidate = await ReadCachedValueSafelyAsync(
+                        () => bonusPredictionCopyRepository!.GetBonusPredictionCopyCandidateAsync(
+                            question,
+                            modelConfig,
+                            communityContext),
+                        question,
+                        isBundesliga);
+                    var fallbackReason = "source_prediction_not_found";
+
+                    if (copyCandidate is not null
+                        && string.IsNullOrWhiteSpace(copyCandidate.PredictionIdentity))
+                    {
+                        fallbackReason = "source_prediction_identity_missing";
+                    }
+                    else if (copyCandidate is not null)
+                    {
+                        copySourcePredictionIdentities.Add(copyCandidate.PredictionIdentity!);
+                        if (copyCandidate.QuestionCompatibilityManifest is null)
+                        {
+                            fallbackReason = "source_option_provenance_missing_or_invalid";
+                        }
+                        else
+                        {
+                            try
+                            {
+                                var compatibility = copyCandidate.QuestionCompatibilityManifest.TryMapPrediction(
+                                    question,
+                                    copyCandidate.BonusPrediction,
+                                    out var mappedPrediction,
+                                    out var mappedTargetManifest);
+                                targetCompatibilityManifest = mappedTargetManifest;
+                                fallbackReason = ToCopyFallbackReason(compatibility);
+
+                                if (compatibility == BonusPredictionCopyCompatibility.Compatible)
+                                {
+                                    if (await CheckBonusPredictionMetadataOutdated(
+                                            publicationRepository!,
+                                            question,
+                                            copyCandidate,
+                                            communityContext,
+                                            settings.Verbose))
+                                    {
+                                        throw new BundesligaBonusSafetyException(
+                                            "Stored Bundesliga reference bonus prediction lacks current immutable provenance.");
+                                    }
+
+                                    prediction = mappedPrediction
+                                        ?? throw new BundesligaBonusSafetyException(
+                                            "Compatible Bundesliga bonus copy did not produce a mapped target prediction.");
+                                    fromDatabase = true;
+                                    copiedPredictionCount++;
+                                    copyCompatibilityHashes.Add(targetCompatibilityManifest.CompatibilitySha256);
+                                    _console.MarkupLine(
+                                        "[green]  ✓ Reused compatible reference prediction[/] [dim](mapped to target options)[/]");
+                                }
+                            }
+                            catch (InvalidDataException)
+                            {
+                                fallbackReason = "source_option_provenance_missing_or_invalid";
+                            }
+                        }
+                    }
+
+                    if (prediction is null)
+                    {
+                        predictionCommunityContext = settings.Community;
+                        shouldPredict = true;
+                        predictionRepredictionIndex = settings.IsRepredictMode ? null : 0;
+                        independentFallbackCount++;
+                        copyFallbackReasons.Add(fallbackReason);
+                        LangfuseActivityPropagation.SetTraceMetadata(
+                            activity,
+                            "bonusEffectiveGenerationContext",
+                            predictionCommunityContext);
+                        _console.MarkupLine(
+                            $"[yellow]  → Reference copy incompatible; generating independently in target context ({fallbackReason})[/]");
+                    }
+                }
                 
                 // Check if we have an existing prediction in the database
-                if (databaseEnabled && !settings.OverrideDatabase && !settings.IsRepredictMode)
+                if (!isReferenceCopyMode
+                    && databaseEnabled
+                    && !settings.OverrideDatabase
+                    && !settings.IsRepredictMode)
                 {
                     // Look for prediction by question text, model, and community context
                     prediction = await ReadCachedValueSafelyAsync(
@@ -340,7 +468,7 @@ public class BonusCommand : AsyncCommand<BonusSettings>
                 }
                 
                 // Handle reprediction logic
-                if (settings.IsRepredictMode && databaseEnabled)
+                if (!isReferenceCopyMode && settings.IsRepredictMode && databaseEnabled)
                 {
                     var currentRepredictionIndex = await ReadCachedValueSafelyAsync(
                         () => predictionRepository!.GetBonusRepredictionIndexAsync(question.Text, modelConfig, communityContext),
@@ -449,7 +577,7 @@ public class BonusCommand : AsyncCommand<BonusSettings>
                         {
                             resolvedBonusContext = await resolvedBonusContextProvider!.ResolveBonusQuestionContextAsync(
                                 question,
-                                communityContext,
+                                predictionCommunityContext,
                                 budget: bonusContextBudget);
                         }
                         catch (Exception ex)
@@ -497,7 +625,10 @@ public class BonusCommand : AsyncCommand<BonusSettings>
                         BonusContextEstimatedTokenBudget: bonusSelection?.Budget.MaximumEstimatedTokens);
                     
                     // Predict the bonus question
-                    prediction = await predictionService.PredictBonusQuestionAsync(question, contextDocuments, telemetryMetadata);
+                    prediction = await GetPredictionService().PredictBonusQuestionAsync(
+                        question,
+                        contextDocuments,
+                        telemetryMetadata);
                     
                     if (prediction != null)
                     {
@@ -531,7 +662,10 @@ public class BonusCommand : AsyncCommand<BonusSettings>
                                 if (settings.IsRepredictMode)
                                 {
                                     // Save as reprediction with specific index
-                                    var currentIndex = await predictionRepository!.GetBonusRepredictionIndexAsync(question.Text, modelConfig, communityContext);
+                                    var currentIndex = await predictionRepository!.GetBonusRepredictionIndexAsync(
+                                        question.Text,
+                                        modelConfig,
+                                        predictionCommunityContext);
                                     var nextIndex = currentIndex == -1 ? 0 : currentIndex + 1;
                                     
                                     if (isBundesliga)
@@ -542,7 +676,7 @@ public class BonusCommand : AsyncCommand<BonusSettings>
                                             modelConfig,
                                             tokenUsageJson,
                                             cost,
-                                            communityContext,
+                                            predictionCommunityContext,
                                             contextDocuments.Select(document => document.Name),
                                             nextIndex,
                                             resolvedBonusContext!.Manifest);
@@ -555,7 +689,7 @@ public class BonusCommand : AsyncCommand<BonusSettings>
                                             modelConfig,
                                             tokenUsageJson,
                                             cost,
-                                            communityContext,
+                                            predictionCommunityContext,
                                             contextDocuments.Select(document => document.Name),
                                             nextIndex);
                                     }
@@ -576,7 +710,7 @@ public class BonusCommand : AsyncCommand<BonusSettings>
                                             modelConfig,
                                             tokenUsageJson,
                                             cost,
-                                            communityContext,
+                                            predictionCommunityContext,
                                             contextDocuments.Select(document => document.Name),
                                             resolvedBonusContext!.Manifest,
                                             overrideCreatedAt: settings.OverrideDatabase);
@@ -589,7 +723,7 @@ public class BonusCommand : AsyncCommand<BonusSettings>
                                             modelConfig,
                                             tokenUsageJson,
                                             cost,
-                                            communityContext,
+                                            predictionCommunityContext,
                                             contextDocuments.Select(document => document.Name),
                                             overrideCreatedAt: settings.OverrideDatabase);
                                     }
@@ -656,6 +790,51 @@ public class BonusCommand : AsyncCommand<BonusSettings>
         {
             LangfuseActivityPropagation.SetTraceMetadata(activity, "repredictionIndices", PredictionTelemetryMetadata.BuildDelimitedFilterValue(traceRepredictionIndices), propagateToObservations: false);
             LangfuseActivityPropagation.SetTraceMetadata(activity, "hasRepredictions", traceRepredictionIndices.Any(index => index != "0") ? "true" : "false", propagateToObservations: false);
+        }
+
+        if (isReferenceCopyMode)
+        {
+            LangfuseActivityPropagation.SetTraceMetadata(
+                activity,
+                "bonusCopySourceCommunityContext",
+                communityContext,
+                propagateToObservations: false);
+            LangfuseActivityPropagation.SetTraceMetadata(
+                activity,
+                "bonusCopiedPredictionCount",
+                copiedPredictionCount.ToString(System.Globalization.CultureInfo.InvariantCulture),
+                propagateToObservations: false);
+            LangfuseActivityPropagation.SetTraceMetadata(
+                activity,
+                "bonusIndependentFallbackCount",
+                independentFallbackCount.ToString(System.Globalization.CultureInfo.InvariantCulture),
+                propagateToObservations: false);
+            if (copyCompatibilityHashes.Count > 0)
+            {
+                LangfuseActivityPropagation.SetTraceMetadata(
+                    activity,
+                    "bonusCopyCompatibilityHashes",
+                    PredictionTelemetryMetadata.BuildDelimitedFilterValue(copyCompatibilityHashes),
+                    propagateToObservations: false);
+            }
+
+            if (copySourcePredictionIdentities.Count > 0)
+            {
+                LangfuseActivityPropagation.SetTraceMetadata(
+                    activity,
+                    "bonusCopySourcePredictionIdentities",
+                    PredictionTelemetryMetadata.BuildDelimitedFilterValue(copySourcePredictionIdentities),
+                    propagateToObservations: false);
+            }
+
+            if (copyFallbackReasons.Count > 0)
+            {
+                LangfuseActivityPropagation.SetTraceMetadata(
+                    activity,
+                    "bonusCopyFallbackReasons",
+                    PredictionTelemetryMetadata.BuildDelimitedFilterValue(copyFallbackReasons),
+                    propagateToObservations: false);
+            }
         }
         
         if (!predictions.Any())
@@ -842,6 +1021,48 @@ public class BonusCommand : AsyncCommand<BonusSettings>
 
             return false;
         }
+    }
+
+    private async Task<bool> CheckBonusPredictionMetadataOutdated(
+        IDocumentPublicationRepository publicationRepository,
+        BonusQuestion question,
+        BonusPredictionMetadata predictionMetadata,
+        string communityContext,
+        bool verbose)
+    {
+        try
+        {
+            return await BundesligaBonusPredictionOutdatedChecker.IsOutdatedAsync(
+                publicationRepository,
+                question,
+                communityContext,
+                predictionMetadata);
+        }
+        catch (Exception ex)
+        {
+            if (verbose)
+            {
+                _console.MarkupLine(
+                    $"[yellow]Warning: Could not validate source bonus provenance: {ex.Message}[/]");
+            }
+
+            throw new BundesligaBonusSafetyException(
+                $"Could not validate immutable Bundesliga reference bonus provenance for '{question.Text}'.",
+                ex);
+        }
+    }
+
+    private static string ToCopyFallbackReason(BonusPredictionCopyCompatibility compatibility)
+    {
+        return compatibility switch
+        {
+            BonusPredictionCopyCompatibility.Compatible => "compatible",
+            BonusPredictionCopyCompatibility.QuestionMismatch => "question_mismatch",
+            BonusPredictionCopyCompatibility.MaxSelectionsMismatch => "max_selections_mismatch",
+            BonusPredictionCopyCompatibility.OptionSetMismatch => "option_set_mismatch",
+            BonusPredictionCopyCompatibility.InvalidSourceSelection => "invalid_source_selection",
+            _ => throw new ArgumentOutOfRangeException(nameof(compatibility), compatibility, null)
+        };
     }
 
     private static async Task<T> ReadCachedValueSafelyAsync<T>(

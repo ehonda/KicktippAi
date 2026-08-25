@@ -65,4 +65,6 @@ public record BonusPredictionMetadata(
     BonusPrediction BonusPrediction,
     DateTimeOffset CreatedAt,
     List<string> ContextDocumentNames,
-    ResolvedBonusContextManifest? ResolvedContextManifest = null);
+    ResolvedBonusContextManifest? ResolvedContextManifest = null,
+    BonusQuestionCompatibilityManifest? QuestionCompatibilityManifest = null,
+    string? PredictionIdentity = null);

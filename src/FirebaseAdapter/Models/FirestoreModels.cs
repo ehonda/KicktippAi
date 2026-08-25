@@ -341,6 +341,13 @@ public class FirestoreBonusPrediction
     public string? ResolvedBonusContextManifest { get; set; }
 
     /// <summary>
+    /// Canonical JSON provenance for the complete normalized question and source option set.
+    /// Legacy documents legitimately omit this field and cannot be reused across communities.
+    /// </summary>
+    [FirestoreProperty("bonusQuestionCompatibilityManifest")]
+    public string? BonusQuestionCompatibilityManifest { get; set; }
+
+    /// <summary>
     /// Reprediction index for tracking prediction versions.
     /// Starts at 0 for the first prediction, increments for each reprediction.
     /// </summary>

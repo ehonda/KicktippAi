@@ -529,7 +529,8 @@ public static class OrchestratorTestFactories
         NullableOption<PredictionMetadata> getCancelledMatchPredictionMetadataResult = default,
         Option<int> getCancelledMatchRepredictionIndexResult = default,
         NullableOption<BonusPredictionMetadata> getBonusPredictionMetadataByTextResult = default,
-        NullableOption<Match> getLatestPredictedMatchByTeamsResult = default)
+        NullableOption<Match> getLatestPredictedMatchByTeamsResult = default,
+        NullableOption<BonusPredictionMetadata> getBonusPredictionCopyCandidateResult = default)
     {
         var mock = new Mock<IPredictionRepository>();
 
@@ -818,6 +819,14 @@ public static class OrchestratorTestFactories
                 It.IsAny<string>(), It.IsAny<double>(), It.IsAny<string>(), It.IsAny<IEnumerable<string>>(),
                 It.IsAny<int>(), It.IsAny<ResolvedBonusContextManifest>(), It.IsAny<CancellationToken>()))
             .Returns(Task.CompletedTask);
+
+        var bonusCopyRepository = mock.As<IBonusPredictionCopyRepository>();
+        bonusCopyRepository.Setup(repository => repository.GetBonusPredictionCopyCandidateAsync(
+                It.IsAny<BonusQuestion>(),
+                It.IsAny<PredictionModelConfig>(),
+                It.IsAny<string>(),
+                It.IsAny<CancellationToken>()))
+            .ReturnsAsync(getBonusPredictionCopyCandidateResult.Or((BonusPredictionMetadata?)null));
 
         return mock;
     }
@@ -1109,14 +1118,17 @@ public static class OrchestratorTestFactories
         BonusQuestion question,
         BonusPrediction? prediction = null,
         DateTimeOffset? createdAt = null,
-        string communityContext = "test-community")
+        string communityContext = "test-community",
+        string predictionIdentity = "bonus-prediction-source-id")
     {
         var resolved = CreateCanonicalBundesligaResolvedBonusContext(question, communityContext);
         return new BonusPredictionMetadata(
             prediction ?? new BonusPrediction([question.Options[0].Id]),
             createdAt ?? DateTimeOffset.UtcNow,
             resolved.Documents.Select(document => document.Name).ToList(),
-            resolved.Manifest);
+            resolved.Manifest,
+            BonusQuestionCompatibilityManifest.Create(question),
+            predictionIdentity);
     }
 
     public static PredictionMetadata CreateCanonicalBundesligaPredictionMetadata(
