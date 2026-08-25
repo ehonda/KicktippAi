@@ -216,7 +216,7 @@ class BudgetGateTests(unittest.TestCase):
                             )
                         )
 
-    def test_zero_ceiling_and_empty_retry_reserve_fail_closed(self) -> None:
+    def test_zero_ceiling_fails_and_empty_retry_reserve_is_allowed(self) -> None:
         with PatchedStore([row("model-a", "low", "0.10")]) as store:
             with self.assertRaisesRegex(SystemExit, "greater than zero"):
                 estimator.calculate_budget_gate(
@@ -229,17 +229,19 @@ class BudgetGateTests(unittest.TestCase):
                         ceiling="0",
                     )
                 )
-            with self.assertRaisesRegex(SystemExit, "At least one --retry-reserve"):
-                estimator.calculate_budget_gate(
-                    budget_args(
-                        store,
-                        candidates=["model-a,low,1"],
-                        observed="0",
-                        reservations=[],
-                        retries=[],
-                        ceiling="1",
-                    )
+            report = estimator.calculate_budget_gate(
+                budget_args(
+                    store,
+                    candidates=["model-a,low,1"],
+                    observed="0",
+                    reservations=[],
+                    retries=[],
+                    ceiling="1",
                 )
+            )
+            self.assertEqual([], report["retryReserves"])
+            self.assertEqual("0.000000000000", report["retryReserveTotalUsd"])
+            self.assertEqual("allowed", report["result"])
 
     def test_invalid_authoritative_average_fails_closed(self) -> None:
         with PatchedStore([row("model-a", "low", "NaN")]) as store:
@@ -403,6 +405,172 @@ class BudgetGateTests(unittest.TestCase):
                                 )
                             )
 
+    def test_bootstrap_preflight_allows_zero_attempts_and_no_retry_reserve(self) -> None:
+        spec = planned_preflight_spec()
+        with PatchedStore([]) as store:
+            with PatchedPlannedPreflightFiles([spec]) as files:
+                report = estimator.calculate_budget_gate(
+                    budget_args(
+                        store,
+                        candidates=[],
+                        planned_preflights=[str(files.spec_paths[0])],
+                        reservations=[],
+                        retries=[],
+                        ceiling="0.012",
+                        pricing_source=files.pricing_path,
+                    )
+                )
+
+        self.assertEqual([], report["observedAttempts"])
+        self.assertEqual("0.000000000000", report["observedSpendToDateUsd"])
+        self.assertEqual([], report["retryReserves"])
+        self.assertEqual("0.000000000000", report["retryReserveTotalUsd"])
+        self.assertEqual("0.011000000000", report["projectedWaveCostUsd"])
+        self.assertEqual("allowed", report["result"])
+
+        entry = report["candidates"][0]
+        self.assertEqual("planned-preflight-conservative-full-cap", entry["estimateBasis"])
+        self.assertEqual(spec["name"], entry["name"])
+        self.assertEqual(spec["model"], entry["model"])
+        self.assertEqual(spec["reasoningEffort"], entry["reasoningEffort"])
+        self.assertEqual(1, entry["matchPredictionCount"])
+        self.assertEqual(spec["inputTokenBound"], entry["inputTokenBound"])
+        self.assertEqual(spec["maxOutputTokens"], entry["maxOutputTokens"])
+        self.assertEqual("flex", entry["serviceTier"])
+        self.assertEqual("0.5", entry["appliedPriceMultiplier"])
+        self.assertEqual("2", entry["standardInputPricePerMillionUsd"])
+        self.assertEqual("10", entry["standardOutputPricePerMillionUsd"])
+        self.assertEqual("1", entry["effectiveInputPricePerMillionUsd"])
+        self.assertEqual("5", entry["effectiveOutputPricePerMillionUsd"])
+        self.assertEqual("0.001000000000", entry["estimatedUncachedInputCostUsd"])
+        self.assertEqual("0.010000000000", entry["estimatedFullCapOutputCostUsd"])
+        self.assertEqual(
+            hashlib.sha256(files.pricing_bytes).hexdigest(),
+            entry["pricingSource"]["sha256"],
+        )
+        self.assertEqual(str(files.pricing_path.resolve()), entry["pricingSource"]["path"])
+        self.assertEqual(
+            hashlib.sha256(files.spec_bytes[0]).hexdigest(),
+            entry["plannedPreflightSpec"]["sha256"],
+        )
+        self.assertEqual(
+            str(files.spec_paths[0].resolve()),
+            entry["plannedPreflightSpec"]["path"],
+        )
+        self.assertEqual(spec["boundEvidence"], entry["boundEvidence"])
+        self.assertEqual(spec["source"], entry["source"])
+
+    def test_bootstrap_preflight_blocks_at_exact_ceiling(self) -> None:
+        with PatchedStore([]) as store:
+            with PatchedPlannedPreflightFiles([planned_preflight_spec()]) as files:
+                report = estimator.calculate_budget_gate(
+                    budget_args(
+                        store,
+                        candidates=[],
+                        planned_preflights=[str(files.spec_paths[0])],
+                        reservations=[],
+                        retries=[],
+                        ceiling="0.011",
+                        pricing_source=files.pricing_path,
+                    )
+                )
+
+        self.assertEqual("0.011000000000", report["allInProjectedTotalUsd"])
+        self.assertEqual("blocked", report["result"])
+
+    def test_standard_bootstrap_uses_unmultiplied_unit_prices(self) -> None:
+        spec = planned_preflight_spec(serviceTier="standard")
+        with PatchedStore([]) as store:
+            with PatchedPlannedPreflightFiles([spec]) as files:
+                report = estimator.calculate_budget_gate(
+                    budget_args(
+                        store,
+                        candidates=[],
+                        planned_preflights=[str(files.spec_paths[0])],
+                        reservations=[],
+                        retries=[],
+                        ceiling="1",
+                        pricing_source=files.pricing_path,
+                    )
+                )
+
+        entry = report["candidates"][0]
+        self.assertEqual("1", entry["appliedPriceMultiplier"])
+        self.assertEqual("2", entry["effectiveInputPricePerMillionUsd"])
+        self.assertEqual("10", entry["effectiveOutputPricePerMillionUsd"])
+        self.assertEqual("0.022000000000", entry["estimatedTotalCostUsd"])
+
+    def test_planned_preflight_invalid_specs_fail_closed(self) -> None:
+        invalid_specs = (
+            (planned_preflight_spec(name=""), "name"),
+            (planned_preflight_spec(reasoningEffort=""), "reasoningEffort"),
+            (planned_preflight_spec(serviceTier="batch"), "unsupported serviceTier"),
+            (planned_preflight_spec(model="missing"), "unknown pricing model"),
+            (planned_preflight_spec(inputTokenBound=0), "inputTokenBound"),
+            (planned_preflight_spec(inputTokenBound="1000"), "inputTokenBound"),
+            (
+                planned_preflight_spec(
+                    inputTokenBound=estimator.SHORT_CONTEXT_INPUT_TOKEN_LIMIT + 1
+                ),
+                "exceeds the repository short-context pricing limit",
+            ),
+            (planned_preflight_spec(maxOutputTokens=0), "maxOutputTokens"),
+            (planned_preflight_spec(boundEvidence=""), "boundEvidence"),
+            (planned_preflight_spec(source=""), "source"),
+        )
+        with PatchedStore([]) as store:
+            for invalid_spec, message in invalid_specs:
+                with self.subTest(message=message):
+                    with PatchedPlannedPreflightFiles([invalid_spec]) as files:
+                        with self.assertRaisesRegex(SystemExit, message):
+                            estimator.calculate_budget_gate(
+                                budget_args(
+                                    store,
+                                    candidates=[],
+                                    planned_preflights=[str(files.spec_paths[0])],
+                                    reservations=[],
+                                    retries=[],
+                                    ceiling="1",
+                                    pricing_source=files.pricing_path,
+                                )
+                            )
+
+    def test_planned_preflight_pricing_parse_and_duplicate_names_fail_closed(self) -> None:
+        with PatchedStore([]) as store:
+            with PatchedPlannedPreflightFiles(
+                [planned_preflight_spec()], pricing_source=b"not pricing"
+            ) as files:
+                with self.assertRaisesRegex(SystemExit, "Could not parse pricing"):
+                    estimator.calculate_budget_gate(
+                        budget_args(
+                            store,
+                            candidates=[],
+                            planned_preflights=[str(files.spec_paths[0])],
+                            reservations=[],
+                            retries=[],
+                            ceiling="1",
+                            pricing_source=files.pricing_path,
+                        )
+                    )
+
+            duplicate_specs = [
+                planned_preflight_spec(name="Bootstrap-A"),
+                planned_preflight_spec(name="bootstrap-a"),
+            ]
+            with PatchedPlannedPreflightFiles(duplicate_specs) as files:
+                with self.assertRaisesRegex(SystemExit, "provided twice"):
+                    estimator.calculate_budget_gate(
+                        budget_args(
+                            store,
+                            candidates=[],
+                            planned_preflights=[str(path) for path in files.spec_paths],
+                            reservations=[],
+                            retries=[],
+                            ceiling="1",
+                            pricing_source=files.pricing_path,
+                        )
+                    )
+
     def test_blocked_cli_emits_stable_result_and_nonzero_exit(self) -> None:
         with PatchedStore([row("model-a", "low", "0.10")]) as store:
             argv = [
@@ -518,6 +686,8 @@ def budget_args(
     legacy_observed: str | None = None,
     provisional_candidates: list[str] | None = None,
     provisional_retries: list[str] | None = None,
+    planned_preflights: list[str] | None = None,
+    pricing_source: Path | None = None,
 ) -> SimpleNamespace:
     if observed_attempts is None:
         observed_attempts = [] if observed is None else [f"attempt-1={observed}"]
@@ -525,12 +695,14 @@ def budget_args(
         store=str(store),
         candidate=candidates,
         provisional_candidate=provisional_candidates or [],
+        planned_preflight=planned_preflights or [],
         observed_attempt=observed_attempts,
         observed_spend_usd=legacy_observed,
         reservation=reservations,
         retry_reserve=retries,
         provisional_retry_reserve=provisional_retries or [],
         ceiling_usd=ceiling,
+        pricing_source=str(pricing_source or estimator.DEFAULT_PRICING_SOURCE),
     )
 
 
@@ -558,6 +730,24 @@ def provisional_report(**overrides: object) -> dict[str, object]:
     }
     report.update(overrides)
     return report
+
+
+def planned_preflight_spec(**overrides: object) -> dict[str, object]:
+    spec: dict[str, object] = {
+        "name": "model-p-high-preflight",
+        "model": "model-p",
+        "reasoningEffort": "high",
+        "serviceTier": "flex",
+        "inputTokenBound": 1000,
+        "maxOutputTokens": 2000,
+        "boundEvidence": "Upper bound from serialized fixture and context byte count.",
+        "source": "P0 bootstrap preregistration",
+    }
+    spec.update(overrides)
+    return spec
+
+
+SYNTHETIC_PRICING_SOURCE = b'["model-p"] = new(2.00m, 10.00m, 0.20m),\n'
 
 
 class PatchedStore:
@@ -599,6 +789,46 @@ class PatchedProvisionalReport:
     def __enter__(self) -> tuple[Path, bytes]:
         self.patcher.start()
         return self.path, self.source_bytes
+
+    def __exit__(self, *args: object) -> None:
+        self.patcher.stop()
+
+
+class PatchedPlannedPreflightFiles:
+    def __init__(
+        self,
+        specs: list[dict[str, object]],
+        *,
+        pricing_source: bytes = SYNTHETIC_PRICING_SOURCE,
+    ) -> None:
+        self.spec_paths = [
+            Path(f"planned-preflight-{index}.json")
+            for index in range(1, len(specs) + 1)
+        ]
+        self.pricing_path = Path("synthetic-pricing.cs")
+        self.spec_bytes = [
+            json.dumps(spec, sort_keys=True, separators=(",", ":")).encode("utf-8")
+            for spec in specs
+        ]
+        self.pricing_bytes = pricing_source
+        self.files = dict(zip(self.spec_paths, self.spec_bytes, strict=True))
+        self.files[self.pricing_path] = self.pricing_bytes
+        self.patcher = patch.object(
+            Path,
+            "read_bytes",
+            autospec=True,
+            side_effect=self.read_bytes,
+        )
+
+    def read_bytes(self, path: Path) -> bytes:
+        try:
+            return self.files[path]
+        except KeyError as ex:
+            raise OSError(f"unexpected test path {path}") from ex
+
+    def __enter__(self) -> PatchedPlannedPreflightFiles:
+        self.patcher.start()
+        return self
 
     def __exit__(self, *args: object) -> None:
         self.patcher.stop()

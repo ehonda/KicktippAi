@@ -1,6 +1,6 @@
 ---
 name: estimate-experiment-cost-skill
-description: Estimate and gate KicktippAi Langfuse experiment costs before running slice, repeated-match, or repeated-match-slice experiments. Use when Codex needs to project spend from stored or provisional rows, aggregate cumulative attempt and reserve costs, collect compact Langfuse usage, run high-reasoning preflights, choose output token caps, calculate or upsert 5-by-4 base estimate rows, or maintain the project-scoped experiment cost estimate store.
+description: Estimate and gate KicktippAi Langfuse experiment costs before running slice, repeated-match, or repeated-match-slice experiments. Use when Codex needs to bootstrap a missing-row preflight from conservative token bounds, project spend from stored or provisional rows, aggregate cumulative attempt and reserve costs, collect compact Langfuse usage, choose output token caps, calculate or upsert 5-by-4 base estimate rows, or maintain the project-scoped experiment cost estimate store.
 ---
 
 # Estimate Experiment Cost
@@ -53,34 +53,57 @@ If `model + reasoningEffort` matches multiple JSON rows, do not choose manually.
 
 ## Cumulative Budget Gate
 
-After collecting an authorized one-item preflight, create a provisional `base-row` report without upserting it:
+Before the first missing-row preflight has observations, create `.tmp/terra-xhigh-preflight-plan.json` with this conservative one-call specification:
+
+```json
+{
+  "name": "terra-xhigh-preflight",
+  "model": "gpt-5.6-terra",
+  "reasoningEffort": "xhigh",
+  "serviceTier": "flex",
+  "inputTokenBound": 272000,
+  "maxOutputTokens": 10000,
+  "boundEvidence": "Uses the full 272,000-token input boundary supported by the repository short-context price table; it does not rely on a prior row or historical average.",
+  "source": "Owner-authorized P0 gpt-5.6 experiment matrix, 2026-08-26"
+}
+```
+
+Admit exactly that first call with no observed attempts and no retry reserve:
+
+```powershell
+uv --cache-dir .uv-cache run python .agents/skills/estimate-experiment-cost-skill/scripts/experiment_cost_estimator.py budget-gate --planned-preflight .tmp/terra-xhigh-preflight-plan.json --pricing-source src/OpenAiIntegration/CostCalculationService.cs --ceiling-usd 30 --report-json .tmp/terra-xhigh-preflight-budget-gate.json
+```
+
+`--planned-preflight SPEC_JSON` is a bootstrap candidate for exactly one call. Repeat the option for independent first-call candidates; every spec name must be nonempty and unique. It conservatively prices the full uncached input bound plus the full output cap from the repository C# short-context standard prices, applying the Flex multiplier only when the spec selects `flex`. The gate records the model, effort, tier, bounds, evidence, source, standard and effective unit prices, projected component costs, and the resolved pricing-source path and SHA-256. It rejects input bounds above `272000` because the repository source does not encode long-context prices. This is an admission ceiling for the first preflight, not a quality estimate or a base-row estimate.
+
+After that call settles, record its actual cost as a named observed attempt and create a provisional `base-row` report without upserting it:
 
 ```powershell
 uv --cache-dir .uv-cache run python .agents/skills/estimate-experiment-cost-skill/scripts/experiment_cost_estimator.py base-row --input .tmp/terra-xhigh-preflight-usage.json --group repeated-measured --expect-count 1 --model gpt-5.6-terra --reasoning-effort xhigh --prompt-route "Langfuse Bundesliga match v2; Bundesliga 2025/26 7-document legacy-id-hash-v1 context" --model-knowledge-cutoff 2026-02-16 --sampling-cutoff "2026-02-18T00:00:00 Europe/Berlin (+01)" --max-output-tokens 10000 --source "terra xhigh one-item preflight RUN_NAME" --report-json .tmp/terra-xhigh-preflight-base-row.json
 ```
 
-Use that exact one-observation report to gate the pending 20-call 5-by-4 base row, including a full retry reserve when appropriate:
+Use that exact one-observation report to gate the pending 20-call 5-by-4 base row:
 
 ```powershell
-uv --cache-dir .uv-cache run python .agents/skills/estimate-experiment-cost-skill/scripts/experiment_cost_estimator.py budget-gate --provisional-candidate .tmp/terra-xhigh-preflight-base-row.json,20 --observed-attempt terra-xhigh-preflight=OBSERVED_USD --provisional-retry-reserve .tmp/terra-xhigh-preflight-base-row.json,20 --ceiling-usd 30 --report-json .tmp/terra-xhigh-base-row-budget-gate.json
+uv --cache-dir .uv-cache run python .agents/skills/estimate-experiment-cost-skill/scripts/experiment_cost_estimator.py budget-gate --provisional-candidate .tmp/terra-xhigh-preflight-base-row.json,20 --observed-attempt terra-xhigh-preflight=OBSERVED_USD --ceiling-usd 30 --report-json .tmp/terra-xhigh-base-row-budget-gate.json
 ```
 
 Before admitting a multi-configuration quality wave, aggregate every exact authoritative row with each settled attempt, unsettled reservation, and estimator-derived retry reserve:
 
 ```powershell
-uv --cache-dir .uv-cache run python .agents/skills/estimate-experiment-cost-skill/scripts/experiment_cost_estimator.py budget-gate --candidate gpt-5.6-luna,none,60 --candidate gpt-5.6-luna,none,20 --observed-attempt luna-none-base-row=OBSERVED_LUNA_BASE_ROW_USD --observed-attempt terra-xhigh-preflight=OBSERVED_TERRA_XHIGH_PREFLIGHT_USD --reservation cost-row-in-flight=RESERVED_USD --retry-reserve gpt-5.6-luna,none,20 --ceiling-usd 30 --report-json .tmp/quality-wave-budget-gate.json
+uv --cache-dir .uv-cache run python .agents/skills/estimate-experiment-cost-skill/scripts/experiment_cost_estimator.py budget-gate --candidate gpt-5.6-luna,none,60 --candidate gpt-5.6-luna,none,20 --observed-attempt luna-none-base-row=OBSERVED_LUNA_BASE_ROW_USD --observed-attempt terra-xhigh-preflight=OBSERVED_TERRA_XHIGH_PREFLIGHT_USD --reservation cost-row-in-flight=RESERVED_USD --ceiling-usd 30 --report-json .tmp/quality-wave-budget-gate.json
 ```
 
 - Repeat `--candidate MODEL,REASONING_EFFORT,COUNT` for every authoritative wave entry. Repeated entries for the same model and effort are retained and estimated separately.
-- Repeat `--observed-attempt NAME=USD` for every settled experiment attempt. Names must be nonempty and unique; the command performs the Decimal sum. Do not externally pre-sum new admission evidence. `--observed-spend-usd` remains compatibility-only and cannot be combined with named attempts.
+- Repeat `--observed-attempt NAME=USD` for every settled experiment attempt. Names must be nonempty and unique; the command performs the Decimal sum. Omit observed attempts at program start; the gate records an empty list and exact zero. Do not externally pre-sum new admission evidence. `--observed-spend-usd` remains compatibility-only and cannot be combined with named attempts.
 - Repeat `--reservation NAME=USD` for every unsettled charge or in-flight reservation. Omit it only when none exist.
-- Repeat `--retry-reserve MODEL,REASONING_EFFORT,COUNT` for authoritative retry allowances. Candidate and retry entries use the same exact authoritative row lookup.
+- Retry reserves are optional. Use `--retry-reserve MODEL,REASONING_EFFORT,COUNT` or `--provisional-retry-reserve REPORT_JSON,COUNT` only for an explicit concurrent reserve. For the serialized workflow, wait for the prior attempt to settle, add its actual spend as `--observed-attempt`, and submit the retry as the next candidate.
 - Use `--provisional-candidate REPORT_JSON,COUNT` or `--provisional-retry-reserve REPORT_JSON,COUNT` only to gate a pending base-row run from its exact one-item `base-row --report-json` evidence. The command reads but never upserts the report, requires `baseSampleObservations=1` plus valid model, effort, cap, average, and provenance, hashes the source bytes, and embeds its resolved path, SHA-256, model, effort, cap, and source in the gate JSON.
 - A quality wave still requires exact authoritative rows. A provisional report admits the pending 20-call row-production step; it does not replace the completed 5-by-4 row.
 - Set the complete program ceiling with `--ceiling-usd`; the gate allows the wave only when the all-in projected total is strictly less than that ceiling. Equality is blocked.
 - Use `--report-json` for the machine-readable admission record. A blocked budget emits text and JSON, then exits with status `2`. If the requested JSON cannot be written, the command reports `BLOCKED` and exits with status `3`; unlike optional `base-row` and `estimate` reports, a budget-gate report is admission evidence and its write is mandatory.
 
-The gate fails closed on missing or ambiguous authoritative rows, invalid provisional evidence, duplicate observed-attempt names, invalid or non-positive prediction counts, non-finite or negative USD amounts, and an all-in total at or above the ceiling. It reports every observed attempt, candidate and retry estimate, projected wave cost, unsettled and retry reserves, all-in total, remaining budget, and `allowed` or `blocked`.
+The gate fails closed on invalid bootstrap bounds or evidence, unknown models or service tiers, unreadable or unparseable pricing, short-context boundary violations, missing or ambiguous authoritative rows, invalid provisional evidence, duplicate names, invalid or non-positive prediction counts, non-finite or negative USD amounts, and an all-in total at or above the ceiling. It reports every observed attempt, candidate and retry estimate, projected wave cost, unsettled and retry reserves, all-in total, remaining budget, and `allowed` or `blocked`.
 
 ## Mandatory Preflight Gate
 
@@ -175,7 +198,7 @@ git push origin CURRENT_BRANCH
 - Verify each stored row is based on five randomly selected fixtures with four repetitions each, preferably through one repeated-match-slice run.
 - Verify the sampling cutoff equals the stored model knowledge cutoff date plus two days.
 - Verify estimates use `N` match predictions, not batches or fixtures.
-- Verify all reported estimate totals come from `experiment_cost_estimator.py estimate`.
+- Verify single-row totals come from `estimate` and cumulative admission totals come from `budget-gate`.
 - Verify mixed-tier rows report `observedServiceTierCounts` and `nonFlexRetryCount`.
 - Verify replaced or retried runs use exact dataset-run binding with `--manifest` and `--expect`, and that the stored row carries the accepted `datasetRunId` plus the complete prepared-manifest hash/sample-size tuple.
 - Inspect the diff before staging, committing, or pushing.

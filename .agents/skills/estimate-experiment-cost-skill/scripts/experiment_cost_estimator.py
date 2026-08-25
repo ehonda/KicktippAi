@@ -30,6 +30,7 @@ DEFAULT_BASE_ESTIMATES_SOURCE = Path(
     ".agents/skills/estimate-experiment-cost-skill/references/base-estimates.json"
 )
 FLEX_PRICE_MULTIPLIER = Decimal("0.5")
+SHORT_CONTEXT_INPUT_TOKEN_LIMIT = 272_000
 DEFAULT_COLLECT_WAIT_TIMEOUT_SECONDS = 900.0
 DEFAULT_COLLECT_WAIT_INTERVAL_SECONDS = 30.0
 
@@ -200,6 +201,16 @@ def main() -> int:
         ),
     )
     budget_gate.add_argument(
+        "--planned-preflight",
+        action="append",
+        default=[],
+        metavar="SPEC_JSON",
+        help=(
+            "One-call bootstrap preflight specification JSON. Repeat for every "
+            "planned preflight."
+        ),
+    )
+    budget_gate.add_argument(
         "--observed-attempt",
         action="append",
         default=[],
@@ -252,6 +263,11 @@ def main() -> int:
         "--store",
         default=str(DEFAULT_BASE_ESTIMATES_SOURCE),
         help="JSON base estimate store.",
+    )
+    budget_gate.add_argument(
+        "--pricing-source",
+        default=str(DEFAULT_PRICING_SOURCE),
+        help="C# short-context standard pricing source for planned preflights.",
     )
     budget_gate.add_argument(
         "--report-json",
@@ -1174,6 +1190,10 @@ def effective_output_price_for_summary(
 
 def load_pricing(path: Path) -> dict[str, ModelPricing]:
     source = path.read_text(encoding="utf-8")
+    return parse_pricing_source(source, path)
+
+
+def parse_pricing_source(source: str, path: Path) -> dict[str, ModelPricing]:
     pattern = re.compile(r'\["([^"]+)"\]\s*=\s*new\(([^)]*)\)')
     pricing: dict[str, ModelPricing] = {}
     for match in pattern.finditer(source):
@@ -1253,11 +1273,22 @@ def calculate_budget_gate(args: argparse.Namespace) -> dict[str, Any]:
         )
     )
     candidates.extend(provisional_candidates)
+    planned_preflights, planned_preflight_cost = (
+        calculate_planned_preflight_entries(
+            getattr(args, "planned_preflight", []),
+            Path(getattr(args, "pricing_source", DEFAULT_PRICING_SOURCE)),
+            start_index=len(candidates) + 1,
+        )
+    )
+    candidates.extend(planned_preflights)
     if not candidates:
         raise SystemExit(
-            "At least one --candidate or --provisional-candidate is required."
+            "At least one --candidate, --provisional-candidate, or "
+            "--planned-preflight is required."
         )
-    projected_wave_cost = authoritative_wave_cost + provisional_wave_cost
+    projected_wave_cost = (
+        authoritative_wave_cost + provisional_wave_cost + planned_preflight_cost
+    )
 
     retry_reserves, authoritative_retry_cost = (
         calculate_authoritative_budget_entries(
@@ -1274,10 +1305,6 @@ def calculate_budget_gate(args: argparse.Namespace) -> dict[str, Any]:
         )
     )
     retry_reserves.extend(provisional_retries)
-    if not retry_reserves:
-        raise SystemExit(
-            "At least one --retry-reserve or --provisional-retry-reserve is required."
-        )
     retry_reserve_total = authoritative_retry_cost + provisional_retry_cost
 
     observed_attempts, observed_spend = calculate_observed_attempts(
@@ -1350,7 +1377,7 @@ def calculate_observed_attempts(
             amount,
         )
     if not values:
-        raise SystemExit("--observed-attempt must be provided at least once.")
+        return [], Decimal("0")
 
     attempts = []
     seen_names: set[str] = set()
@@ -1426,6 +1453,174 @@ def calculate_provisional_budget_entries(
             }
         )
     return entries, entries_total
+
+
+def calculate_planned_preflight_entries(
+    values: list[str], pricing_source: Path, start_index: int
+) -> tuple[list[dict[str, Any]], Decimal]:
+    if not values:
+        return [], Decimal("0")
+
+    pricing, pricing_provenance = load_hashed_pricing(pricing_source)
+    entries = []
+    entries_total = Decimal("0")
+    seen_names: set[str] = set()
+    for offset, value in enumerate(values):
+        spec_path = Path(value)
+        spec, spec_provenance = load_planned_preflight_spec(spec_path)
+        name = require_nonempty_spec_text(spec, "name", spec_path)
+        normalized_name = name.casefold()
+        if normalized_name in seen_names:
+            raise SystemExit(f"--planned-preflight name {name!r} was provided twice.")
+        seen_names.add(normalized_name)
+
+        model = require_nonempty_spec_text(spec, "model", spec_path)
+        reasoning_effort = require_nonempty_spec_text(
+            spec, "reasoningEffort", spec_path
+        )
+        service_tier = require_nonempty_spec_text(
+            spec, "serviceTier", spec_path
+        ).lower()
+        if service_tier not in ("flex", "standard"):
+            raise SystemExit(
+                f"--planned-preflight spec {spec_path} has unsupported serviceTier "
+                f"{service_tier!r}; expected 'flex' or 'standard'."
+            )
+        input_token_bound = require_positive_spec_integer(
+            spec, "inputTokenBound", spec_path
+        )
+        if input_token_bound > SHORT_CONTEXT_INPUT_TOKEN_LIMIT:
+            raise SystemExit(
+                f"--planned-preflight spec {spec_path} inputTokenBound "
+                f"{input_token_bound} exceeds the repository short-context pricing "
+                f"limit {SHORT_CONTEXT_INPUT_TOKEN_LIMIT}."
+            )
+        max_output_tokens = require_positive_spec_integer(
+            spec, "maxOutputTokens", spec_path
+        )
+        bound_evidence = require_nonempty_spec_text(
+            spec, "boundEvidence", spec_path
+        )
+        source = require_nonempty_spec_text(spec, "source", spec_path)
+
+        model_pricing = pricing.get(model)
+        if model_pricing is None:
+            raise SystemExit(
+                f"--planned-preflight spec {spec_path} references unknown pricing "
+                f"model {model!r}."
+            )
+        effective_input_price = input_price_for_tier(model_pricing, service_tier)
+        effective_output_price = output_price_for_tier(model_pricing, service_tier)
+        input_cost = cost_for_tokens(input_token_bound, effective_input_price)
+        output_cost = cost_for_tokens(max_output_tokens, effective_output_price)
+        total = input_cost + output_cost
+        entries_total += total
+
+        entries.append(
+            {
+                "entry": start_index + offset,
+                "name": name,
+                "model": model,
+                "reasoningEffort": reasoning_effort,
+                "matchPredictionCount": 1,
+                "inputTokenBound": input_token_bound,
+                "maxOutputTokens": max_output_tokens,
+                "serviceTier": service_tier,
+                "appliedPriceMultiplier": decimal_text(
+                    FLEX_PRICE_MULTIPLIER
+                    if service_tier == "flex"
+                    else Decimal("1")
+                ),
+                "boundEvidence": bound_evidence,
+                "source": source,
+                "standardInputPricePerMillionUsd": decimal_text(
+                    model_pricing.input_price
+                ),
+                "standardOutputPricePerMillionUsd": decimal_text(
+                    model_pricing.output_price
+                ),
+                "effectiveInputPricePerMillionUsd": decimal_text(
+                    effective_input_price
+                ),
+                "effectiveOutputPricePerMillionUsd": decimal_text(
+                    effective_output_price
+                ),
+                "estimatedUncachedInputCostUsd": budget_money_text(input_cost),
+                "estimatedFullCapOutputCostUsd": budget_money_text(output_cost),
+                "estimatedTotalCostUsd": budget_money_text(total),
+                "shortContextInputTokenLimit": SHORT_CONTEXT_INPUT_TOKEN_LIMIT,
+                "estimateBasis": "planned-preflight-conservative-full-cap",
+                "plannedPreflightSpec": spec_provenance,
+                "pricingSource": pricing_provenance,
+            }
+        )
+    return entries, entries_total
+
+
+def load_planned_preflight_spec(
+    path: Path,
+) -> tuple[dict[str, Any], dict[str, str]]:
+    try:
+        source_bytes = path.read_bytes()
+    except OSError as ex:
+        raise SystemExit(f"--planned-preflight could not read {path}: {ex}") from ex
+    try:
+        spec = json.loads(source_bytes)
+    except (json.JSONDecodeError, UnicodeDecodeError) as ex:
+        raise SystemExit(f"--planned-preflight spec {path} is not valid JSON.") from ex
+    if not isinstance(spec, dict):
+        raise SystemExit(
+            f"--planned-preflight spec {path} must contain a JSON object."
+        )
+    return spec, {
+        "path": str(path.resolve()),
+        "sha256": hashlib.sha256(source_bytes).hexdigest(),
+    }
+
+
+def require_nonempty_spec_text(
+    spec: dict[str, Any], field: str, path: Path
+) -> str:
+    value = spec.get(field)
+    if not isinstance(value, str) or not value.strip():
+        raise SystemExit(
+            f"--planned-preflight spec {path} must have nonempty string field "
+            f"{field!r}."
+        )
+    return value.strip()
+
+
+def require_positive_spec_integer(
+    spec: dict[str, Any], field: str, path: Path
+) -> int:
+    value = spec.get(field)
+    if isinstance(value, bool) or not isinstance(value, int) or value < 1:
+        raise SystemExit(
+            f"--planned-preflight spec {path} must have positive integer field "
+            f"{field!r}."
+        )
+    return value
+
+
+def load_hashed_pricing(
+    path: Path,
+) -> tuple[dict[str, ModelPricing], dict[str, str]]:
+    try:
+        source_bytes = path.read_bytes()
+    except OSError as ex:
+        raise SystemExit(f"Could not read pricing source {path}: {ex}") from ex
+    try:
+        source = source_bytes.decode("utf-8")
+    except UnicodeDecodeError as ex:
+        raise SystemExit(f"Pricing source {path} is not valid UTF-8.") from ex
+    try:
+        pricing = parse_pricing_source(source, path)
+    except (InvalidOperation, RuntimeError, ValueError) as ex:
+        raise SystemExit(f"Could not parse pricing source {path}: {ex}") from ex
+    return pricing, {
+        "path": str(path.resolve()),
+        "sha256": hashlib.sha256(source_bytes).hexdigest(),
+    }
 
 
 def parse_provisional_budget_entry(value: str, option_name: str) -> tuple[Path, int]:
@@ -1774,19 +1969,32 @@ def emit_budget_gate(report: dict[str, Any]) -> None:
     print("Cumulative experiment budget gate:")
     print(f"Ceiling: ${report['ceilingUsd']}")
     print("Observed attempts:")
-    for index, attempt in enumerate(report["observedAttempts"], start=1):
-        print(f"{index}. {attempt['name']} | ${attempt['amountUsd']}")
+    if report["observedAttempts"]:
+        for index, attempt in enumerate(report["observedAttempts"], start=1):
+            print(f"{index}. {attempt['name']} | ${attempt['amountUsd']}")
+    else:
+        print("none")
     print(f"Observed spend to date: ${report['observedSpendToDateUsd']}")
     print()
     print("Candidate wave estimates:")
     for entry in report["candidates"]:
-        print(
-            f"{entry['entry']}. {entry['model']} {entry['reasoningEffort']} | "
-            f"N={entry['matchPredictionCount']} | "
-            f"average=${entry['averageCostPerMatchPredictionUsd']} | "
-            f"estimated=${entry['estimatedTotalCostUsd']} | "
-            f"basis={entry['estimateBasis']}"
-        )
+        if entry["estimateBasis"] == "planned-preflight-conservative-full-cap":
+            print(
+                f"{entry['entry']}. {entry['name']} | {entry['model']} "
+                f"{entry['reasoningEffort']} | N=1 | "
+                f"inputBound={entry['inputTokenBound']} | "
+                f"outputCap={entry['maxOutputTokens']} | "
+                f"estimated=${entry['estimatedTotalCostUsd']} | "
+                f"basis={entry['estimateBasis']}"
+            )
+        else:
+            print(
+                f"{entry['entry']}. {entry['model']} {entry['reasoningEffort']} | "
+                f"N={entry['matchPredictionCount']} | "
+                f"average=${entry['averageCostPerMatchPredictionUsd']} | "
+                f"estimated=${entry['estimatedTotalCostUsd']} | "
+                f"basis={entry['estimateBasis']}"
+            )
     print(f"Projected wave cost: ${report['projectedWaveCostUsd']}")
     print()
     print("Unsettled reservations:")
@@ -1803,14 +2011,17 @@ def emit_budget_gate(report: dict[str, Any]) -> None:
     )
     print()
     print("Retry reserves:")
-    for entry in report["retryReserves"]:
-        print(
-            f"{entry['entry']}. {entry['model']} {entry['reasoningEffort']} | "
-            f"N={entry['matchPredictionCount']} | "
-            f"average=${entry['averageCostPerMatchPredictionUsd']} | "
-            f"estimated=${entry['estimatedTotalCostUsd']} | "
-            f"basis={entry['estimateBasis']}"
-        )
+    if report["retryReserves"]:
+        for entry in report["retryReserves"]:
+            print(
+                f"{entry['entry']}. {entry['model']} {entry['reasoningEffort']} | "
+                f"N={entry['matchPredictionCount']} | "
+                f"average=${entry['averageCostPerMatchPredictionUsd']} | "
+                f"estimated=${entry['estimatedTotalCostUsd']} | "
+                f"basis={entry['estimateBasis']}"
+            )
+    else:
+        print("none")
     print(f"Retry reserve total: ${report['retryReserveTotalUsd']}")
     print(f"All reserves: ${report['reservesTotalUsd']}")
     print()
