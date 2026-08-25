@@ -27,13 +27,9 @@ competition `bundesliga-2026-27`, and use the authorized plumbing identity
 versions `2` (match) and `1` (bonus). The bonus caller pins the accepted
 `20`-document and `32000`-estimated-token budgets. P0-20 owns dispatch and any
 separately authorized temporary arena schedule; the triad itself creates no
-schedule. ADR-0047 temporarily adds the separate schedule-only
-`buli2627-ehonda-ai-arena-gpt-5-6-luna-none-scheduled-cycle.yml` caller for one
-ordered context -> matchday -> bonus run at `47 8 * * *` UTC. It must be
-removed manually after the first terminal occurrence and never authorizes a
-second cycle. Its traces are classified as Langfuse `production` because the
-arena is a production posting target, which does not promote Luna/none to the
-final production model.
+schedule. Its traces are classified as Langfuse `production` because the arena
+is a production posting target, which does not promote Luna/none to the final
+production model.
 
 `wm26-ehonda-ai-arena-gpt-5-nano-minimal-matchday.yml`,
 `wm26-ehonda-ai-arena-gpt-5-nano-minimal-bonus.yml`,

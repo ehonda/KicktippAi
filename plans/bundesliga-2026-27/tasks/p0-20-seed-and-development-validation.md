@@ -1,6 +1,6 @@
 # P0-20 — Seed and validate in development and the arena
 
-- Status: Not started
+- Status: Complete
 - Priority: P0
 - Depends on: P0-02 through P0-18, [P0-22](p0-22-history-played-dates.md), the authorized local Luna/none development path, and the Luna/none arena entrypoints copied from P0-19; final production P0-19 copies may remain gated on P0-06
 - Decisions: [ADR-0006](../decisions/0006-stage-validation-with-a-cheap-test-model.md), [ADR-0012](../decisions/0012-competition-aware-matchday-completion.md), [ADR-0013](../decisions/0013-club-elo-snapshot-and-freshness-contract.md), [ADR-0038](../decisions/0038-bound-bonus-context-by-question-policy.md), [ADR-0039](../decisions/0039-record-bundesliga-community-and-credential-topology.md), [ADR-0044](../decisions/0044-select-canonical-preseason-history-sources.md), [ADR-0045](../decisions/0045-verify-versioned-prompt-promotion-before-validation.md), [ADR-0047](../decisions/0047-observe-one-temporary-arena-luna-scheduled-cycle.md)
@@ -14,18 +14,18 @@ with trace evidence. No development Actions triad exists.
 
 ## Work items
 
-- [ ] Run the full profile in dry-run and resolve every manifest, source, and quality warning.
-- [ ] Collect Kicktipp rules, standings, histories, outcomes, Club Elo, rosters, and squad summaries into `bundesliga-2026-27` with the explicit profile-owned `--full-season` mode, then run the strict history played-date reconstruction/audit.
-- [ ] Prove every selected recent/home/away row has an exact source-attributed played date, including one current Bundesliga fixture and one intervening non-league fixture; record zero unresolved/ambiguous rows and prove head-to-head content was not rewritten.
-- [ ] Query/inspect stored identities and prove no old unscoped Bundesliga or WM26 document satisfied the run.
-- [ ] Verify all CSVs render header-first, deterministic, CRLF-terminated content with a final terminator.
+- [x] Run the full profile in dry-run and resolve every manifest, source, and quality warning.
+- [x] Collect Kicktipp rules, standings, histories, outcomes, Club Elo, rosters, and squad summaries into `bundesliga-2026-27` with the explicit profile-owned `--full-season` mode, then run the strict history played-date reconstruction/audit.
+- [x] Prove every selected recent/home/away row has an exact source-attributed played date, including one current Bundesliga fixture and one intervening non-league fixture; record zero unresolved/ambiguous rows and prove head-to-head content was not rewritten.
+- [x] Query/inspect stored identities and prove no old unscoped Bundesliga or WM26 document satisfied the run.
+- [x] Verify all CSVs render header-first, deterministic, CRLF-terminated content with a final terminator.
 - [x] Run a local CLI development prediction cycle in `ehonda-dev-buli-2627` covering a complete nine-match matchday and representative champion/relegation/top-scorer/coach bonus questions; do not treat the arena Actions triad as a development-community workflow.
-- [ ] Use `gpt-5.6-luna` with `none` reasoning for autonomous dev and arena plumbing validation; do not judge or promote its prediction quality.
-- [ ] Using the owner-confirmed arena setup, validate the same cheap configuration through local CLI, `workflow_dispatch`, and an arena-only schedule.
-- [ ] Verify the owner-confirmed Firebase, OpenAI, Langfuse, Kicktipp, and workflow credentials by connectivity and behavior without displaying secret values.
-- [ ] Inspect Langfuse traces for selected document names, prompt version, model identity, reasoning, token usage, and cost anomalies.
-- [ ] Test missing roster, partial Elo, and eight-of-nine outcomes to confirm launch gates fail safely.
-- [ ] Record commands, trace IDs, document versions, timestamps, and results in the task's validation evidence section.
+- [x] Use `gpt-5.6-luna` with `none` reasoning for autonomous dev and arena plumbing validation; do not judge or promote its prediction quality.
+- [x] Using the owner-confirmed arena setup, validate the same cheap configuration through local CLI, `workflow_dispatch`, and an arena-only schedule.
+- [x] Verify the owner-confirmed Firebase, OpenAI, Langfuse, Kicktipp, and workflow credentials by connectivity and behavior without displaying secret values.
+- [x] Inspect Langfuse traces for selected document names, prompt version, model identity, reasoning, token usage, and cost anomalies.
+- [x] Test missing roster, partial Elo, and eight-of-nine outcomes to confirm launch gates fail safely.
+- [x] Record commands, trace IDs, document versions, timestamps, and results in the task's validation evidence section.
 
 ## Validation evidence
 
@@ -211,6 +211,115 @@ usage was 37,327 uncached input, zero cached input, zero reasoning, and 98
 output tokens, costing USD `0.0037915`. No WM26, arena, workflow, or schedule
 operation followed. The earlier strict 401/401 context, 54-history/430-row,
 306-H2H, and stable H2H hash evidence remains unchanged.
+
+### Arena local and manual-Action rungs — 2026-08-25
+
+The owner-authorized local arena commands used the same explicit matchday and
+bonus arguments shown in the reusable workflows: community and context
+`ehonda-ai-arena`, competition `bundesliga-2026-27`, model `gpt-5.6-luna`,
+reasoning `none`, cap `10000`, Langfuse `production`, match v2, bonus v1, and
+the 20-document/32,000-token bonus budgets. They ran matchday before bonus,
+overwrote only index 0, and completed with direct Kicktipp and Firestore
+verification. Payload-safe Langfuse inspection found:
+
+- match trace `447ce81bf2389ed724d9b9f24c07effc`, 9 ordered generations,
+  36,712 uncached / 0 cached / 0 reasoning / 153 output tokens, USD
+  `0.003763`;
+- bonus trace `46675bd758cdb1dfbe65fb1b295402f3`, 5 ordered generations,
+  37,237 uncached / 0 cached / 0 reasoning / 98 output tokens, USD
+  `0.0037825`.
+
+The manual Actions rung then ran sequentially. Context dispatch
+`32817062469`, job `97707392914`, used exact SHA
+`1d93935cb84ccc0dc31d040a618b822acb4587c6` and succeeded from
+`06:27:44Z` through `06:29:31Z`. Forced match dispatch `32820234994`, job
+`97716606282`, and forced bonus dispatch `32821107656`, job `97719218938`,
+used exact green SHA `a25c0ca0c131dbb500d9abba1998d73c4540a790`; their verification,
+generation, and final-verification steps succeeded in order. Their redacted
+traces were match `b33e7f9babba40def409c016ec0c14ae` and bonus
+`8792574fb39eaa0bdf642fe133bee0af`. Match usage was 36,712 / 0 / 0 / 153,
+USD `0.003763`; bonus usage was 37,327 / 0 / 0 / 98, USD `0.0037915`.
+
+All local/manual observations used the exact hosted prompt names, immutable
+versions, labels, content hashes recorded above, and the unchanged Club Elo
+snapshot `1f63ba33cb4f46bf37d21000743ca1e86b035a7ffe5792e64dddfea2336a653e`
+and roster snapshot
+`0773e9baa4f73ced6e0f86e6eb4b513ef82669e0a80ed5180749a08ebc52a7fa`.
+They produced no prompt fallback, output-cap hit, unexpected reprediction, or
+out-of-order operation. Final verification found all 9 match and 5 bonus
+records in both Firestore and Kicktipp.
+
+### One authorized scheduled arena cycle and teardown — 2026-08-25
+
+[ADR-0047](../decisions/0047-observe-one-temporary-arena-luna-scheduled-cycle.md)
+authorized exactly one temporary scheduled occurrence. Activation SHA
+`50cfb05d7bee245fb2ab4d77c6f86185b9f9d348` was green in CI run
+`32825264396` before observation. The workflow appeared exactly once as
+schedule-event run `32829701617` on `main` at that exact SHA. It was created
+at `09:01:32Z` and completed successfully at `09:16:30Z` with this strict,
+non-overlapping order:
+
+1. context job `97745392027`, `09:01:37Z`–`09:03:56Z`;
+2. match job `97746058288`, `09:04:00Z`–`09:11:20Z`;
+3. bonus job `97748133517`, `09:11:23Z`–`09:16:29Z`.
+
+Both forced prediction jobs passed their initial verification, generation,
+and final verification. Match verification found 9 Kicktipp predictions, 9
+Firestore predictions, and 9 exact matches; bonus verification found 5
+questions, 5 Firestore predictions, and 5 valid Kicktipp matches. A separate
+read-only Firestore cost/index inventory found only the exact match-v2 and
+bonus-v1 Luna/none/cap-10000 identities: 9 match and 5 bonus documents, all at
+index 0, with no index 1 or 2+ records.
+
+The installed Langfuse CLI requested only payload-safe field groups. Exactly
+two `production` traces occurred in the scheduled window:
+
+- match trace `a9c1a280c6dd30a6a811b6facc6b53a3`, timestamp
+  `09:06:43.183Z`, 9 `predict-match` observations, 36,712 / 0 / 0 / 153
+  tokens and USD `0.004187`;
+- bonus trace `2755cb86bee29b3c8428359cab2b029e`, timestamp
+  `09:13:21.855Z`, 5 `predict-bonus` observations, 37,327 / 0 / 0 / 98
+  tokens and USD `0.0057812`.
+
+Every observation recorded the exact arena/Bundesliga/model/reasoning/cap
+identity, requested and actual prompt source `langfuse`, label `production`,
+the immutable prompt version/hash, index 0, and the two snapshot hashes above.
+Match order was the canonical nine-match order already recorded in this task.
+Bonus category order was `Relegation`, `TopScorer`, `Champion`, `Unknown`,
+`Coach`, selecting 2, 20, 2, 2, and 20 documents with estimated token counts
+567, 9,398, 567, 567, and 9,398. No prompt fallback occurred.
+
+OpenAI returned exact retryable HTTP 429 `rate_limit_exceeded` responses for
+four Flex requests. The configured `flex-first-standard-fallback` strategy
+made its single designed retry with Standard processing: match observation
+`42a962c2c6775c81` (Mainz–Paderborn, USD `0.000848`) and bonus observations
+`a709bb760ded0e78`, `7a1d6b1073079e9d`, and `aa65c3d2f96fc9d6`
+(Relegation/TopScorer/Champion, combined USD `0.0039794`). The other 10 calls
+used Flex. This is inspected service-tier fallback and explains the higher
+scheduled cost; it is not Langfuse prompt fallback, model reprediction, or an
+unhandled workflow retry. The P0-20 plumbing gate permits this accepted
+runtime path and records it for later production cost calibration; it does not
+select a production model.
+
+The post-run strict inventory remained `expected=401`, `present=401`,
+`expectedCsv=400`, `validCsv=400`, with zero missing, unexpected,
+identity-conflicting, or invalid-CSV documents. The strict history audit
+remained 54 documents / 430 rows. The sorted 306-H2H
+`name=contentSha256` LF-final aggregate was
+`8d4f0933abed10276c7d3386bdb2b0d963dd40698a08f088b8169f8f5423a85d`.
+Club Elo and roster publications were unchanged at the snapshot hashes above.
+The schedule is removed by this teardown change, the manual arena triad is
+unchanged, and ADR-0047 never authorizes a second cycle.
+
+### Fail-closed coverage
+
+Exact activation-head CI run `32825264396` passed all 12 jobs. Its test suites
+include the dedicated missing-roster publication contract, the 17-of-18 Club
+Elo seed rejection, and the full-season eight-of-nine matchday rejection.
+Each rejects the incomplete input before publication or any downstream
+provider/outcome/context write. The live ladder also preserved the complete
+401-document context set through its earlier failed full-season and hosted
+prompt checkpoints before the reviewed repairs were integrated.
 
 ## Complete when
 
