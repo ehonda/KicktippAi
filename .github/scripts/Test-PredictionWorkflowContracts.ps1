@@ -216,7 +216,10 @@ function Assert-ArenaLunaTriad {
             Assert-True ((Get-WithValue $prediction.Content $expected.Name $prediction.FileName) -eq $expected.Value) "$($prediction.FileName) must pass $($expected.Name)=$($expected.Value)."
         }
         Assert-True ((Get-WithValue $prediction.Content 'force_prediction' $prediction.FileName) -eq '${{ inputs.force_prediction }}') "$($prediction.FileName) must pass through the typed force_prediction input."
-        Assert-True ((Get-WithValue $prediction.Content 'max_repredictions' $prediction.FileName) -eq '${{ inputs.max_repredictions }}') "$($prediction.FileName) must pass through the typed max_repredictions input."
+        $maxRepredictions = Get-WithValue $prediction.Content 'max_repredictions' $prediction.FileName
+        Assert-True ($maxRepredictions -eq '${{ fromJSON(inputs.max_repredictions) }}') "$($prediction.FileName) must convert the dispatch max_repredictions string to the reusable workflow's number input."
+        Assert-True ($maxRepredictions -ne '${{ inputs.max_repredictions }}') "$($prediction.FileName) must reject raw string passthrough for the numeric max_repredictions input."
+        Assert-True (-not $maxRepredictions.Contains('||', [StringComparison]::Ordinal)) "$($prediction.FileName) must not replace the valid zero max_repredictions value with a fallback."
     }
 
     Assert-True ((Get-WithValue $bonus 'bonus_context_document_budget' $bonusFileName) -eq '20') "$bonusFileName must pin the accepted 20-document bonus budget."

@@ -31,7 +31,7 @@ jobs:
       langfuse_prompt_version: 2
       trigger_type: "manual"
       force_prediction: ${{ inputs.force_prediction }}
-      max_repredictions: ${{ inputs.max_repredictions }}
+      max_repredictions: ${{ fromJSON(inputs.max_repredictions) }}
     secrets:
       kicktipp_username: ${{ secrets.EHONDA_AI_ARENA_GPT_5_6_LUNA_NONE_KICKTIPP_USERNAME }}
       kicktipp_password: ${{ secrets.EHONDA_AI_ARENA_GPT_5_6_LUNA_NONE_KICKTIPP_PASSWORD }}
