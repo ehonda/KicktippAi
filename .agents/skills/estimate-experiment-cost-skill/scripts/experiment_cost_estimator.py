@@ -17,7 +17,7 @@ import sys
 import time
 from dataclasses import dataclass
 from datetime import datetime, timezone
-from decimal import Decimal, ROUND_HALF_UP
+from decimal import Decimal, InvalidOperation, ROUND_HALF_UP
 from pathlib import Path
 from typing import Any
 from urllib.error import HTTPError
@@ -172,6 +172,59 @@ def main() -> int:
     )
     estimate.add_argument("--report-json", help="Optional machine-readable report.")
 
+    budget_gate = subparsers.add_parser(
+        "budget-gate",
+        help=(
+            "Aggregate a candidate quality wave, spend, and reserves against a "
+            "strict USD ceiling."
+        ),
+    )
+    budget_gate.add_argument(
+        "--candidate",
+        action="append",
+        required=True,
+        metavar="MODEL,REASONING_EFFORT,COUNT",
+        help=(
+            "Candidate prediction count to estimate from an exact authoritative "
+            "row. Repeat for every wave entry, including repeated configurations."
+        ),
+    )
+    budget_gate.add_argument(
+        "--observed-spend-usd",
+        required=True,
+        help="Settled experiment spend already incurred in USD.",
+    )
+    budget_gate.add_argument(
+        "--reservation",
+        action="append",
+        default=[],
+        metavar="NAME=USD",
+        help="Unsettled USD reservation. Repeat for every reservation.",
+    )
+    budget_gate.add_argument(
+        "--retry-reserve",
+        action="append",
+        required=True,
+        metavar="MODEL,REASONING_EFFORT,COUNT",
+        help=(
+            "Retry prediction reserve estimated from the same authoritative rows. "
+            "Repeat for every reserve entry."
+        ),
+    )
+    budget_gate.add_argument(
+        "--ceiling-usd",
+        required=True,
+        help="Strict all-in experiment ceiling in USD.",
+    )
+    budget_gate.add_argument(
+        "--store",
+        default=str(DEFAULT_BASE_ESTIMATES_SOURCE),
+        help="JSON base estimate store.",
+    )
+    budget_gate.add_argument(
+        "--report-json", help="Optional machine-readable report."
+    )
+
     args = parser.parse_args()
     if args.command == "collect":
         records = collect_records(args)
@@ -201,6 +254,12 @@ def main() -> int:
         if args.report_json:
             try_write_optional_json(Path(args.report_json), report)
         return 0
+    if args.command == "budget-gate":
+        report = calculate_budget_gate(args)
+        emit_budget_gate(report)
+        if args.report_json:
+            try_write_optional_json(Path(args.report_json), report)
+        return 0 if report["result"] == "allowed" else 2
 
     raise AssertionError(f"Unhandled command {args.command!r}.")
 
@@ -1137,6 +1196,119 @@ def calculate_estimate(args: argparse.Namespace) -> dict[str, Any]:
     }
 
 
+def calculate_budget_gate(args: argparse.Namespace) -> dict[str, Any]:
+    store = load_base_estimate_store(Path(args.store))
+    candidates, projected_wave_cost = calculate_budget_entries(
+        args.candidate, store["baseEstimates"], "--candidate"
+    )
+    retry_reserves, retry_reserve_total = calculate_budget_entries(
+        args.retry_reserve, store["baseEstimates"], "--retry-reserve"
+    )
+    observed_spend = parse_non_negative_decimal(
+        args.observed_spend_usd, "--observed-spend-usd"
+    )
+    ceiling = parse_non_negative_decimal(args.ceiling_usd, "--ceiling-usd")
+    if ceiling == 0:
+        raise SystemExit("--ceiling-usd must be greater than zero.")
+
+    reservations = []
+    unsettled_reservation_total = Decimal("0")
+    for value in args.reservation:
+        name, amount_text = parse_pair(value)
+        amount = parse_non_negative_decimal(amount_text, "--reservation")
+        reservations.append(
+            {
+                "name": name,
+                "amountUsd": budget_money_text(amount),
+            }
+        )
+        unsettled_reservation_total += amount
+
+    reserves_total = unsettled_reservation_total + retry_reserve_total
+    all_in_total = observed_spend + projected_wave_cost + reserves_total
+    remaining = ceiling - all_in_total
+    allowed = all_in_total < ceiling
+
+    return {
+        "schemaVersion": 1,
+        "ceilingUsd": budget_money_text(ceiling),
+        "observedSpendToDateUsd": budget_money_text(observed_spend),
+        "candidates": candidates,
+        "projectedWaveCostUsd": budget_money_text(projected_wave_cost),
+        "unsettledReservations": reservations,
+        "unsettledReservationTotalUsd": budget_money_text(
+            unsettled_reservation_total
+        ),
+        "retryReserves": retry_reserves,
+        "retryReserveTotalUsd": budget_money_text(retry_reserve_total),
+        "reservesTotalUsd": budget_money_text(reserves_total),
+        "allInProjectedTotalUsd": budget_money_text(all_in_total),
+        "remainingUsd": budget_money_text(remaining),
+        "strictlyInsideCeiling": allowed,
+        "result": "allowed" if allowed else "blocked",
+    }
+
+
+def calculate_budget_entries(
+    values: list[str], rows: list[dict[str, Any]], option_name: str
+) -> tuple[list[dict[str, Any]], Decimal]:
+    if not values:
+        raise SystemExit(f"{option_name} must be provided at least once.")
+    entries = []
+    entries_total = Decimal("0")
+    for index, value in enumerate(values, start=1):
+        model, reasoning_effort, count = parse_budget_entry(value, option_name)
+        row = lookup_base_estimate_row(rows, model, reasoning_effort)
+        average = parse_non_negative_decimal(
+            row.get("averageCostPerMatchPredictionUsd"),
+            (
+                "authoritative averageCostPerMatchPredictionUsd for "
+                f"model={model!r}, reasoningEffort={reasoning_effort!r}"
+            ),
+        )
+        total = average * Decimal(count)
+        entries_total += total
+        entries.append(
+            {
+                "entry": index,
+                "model": model,
+                "reasoningEffort": reasoning_effort,
+                "matchPredictionCount": count,
+                "averageCostPerMatchPredictionUsd": budget_money_text(average),
+                "estimatedTotalCostUsd": budget_money_text(total),
+                "baseEstimate": row,
+            }
+        )
+    return entries, entries_total
+
+
+def parse_budget_entry(value: str, option_name: str) -> tuple[str, str, int]:
+    parts = [part.strip() for part in value.split(",")]
+    if len(parts) != 3 or not parts[0] or not parts[1] or not parts[2]:
+        raise SystemExit(
+            f"{option_name} must be MODEL,REASONING_EFFORT,COUNT, got {value!r}."
+        )
+    try:
+        count = int(parts[2])
+    except ValueError as ex:
+        raise SystemExit(
+            f"{option_name} count must be an integer, got {parts[2]!r}."
+        ) from ex
+    if count < 1:
+        raise SystemExit(f"{option_name} count must be at least 1, got {count}.")
+    return parts[0], parts[1], count
+
+
+def parse_non_negative_decimal(value: Any, field_name: str) -> Decimal:
+    try:
+        parsed = Decimal(str(value))
+    except (InvalidOperation, ValueError) as ex:
+        raise SystemExit(f"{field_name} must be a valid decimal USD amount.") from ex
+    if not parsed.is_finite() or parsed < 0:
+        raise SystemExit(f"{field_name} must be a finite non-negative USD amount.")
+    return Decimal("0") if parsed == 0 else parsed
+
+
 def parse_counts(args: argparse.Namespace) -> list[int]:
     values: list[str] = []
     if args.counts:
@@ -1288,6 +1460,54 @@ def emit_estimate(report: dict[str, Any]) -> None:
         )
 
 
+def emit_budget_gate(report: dict[str, Any]) -> None:
+    print("Cumulative experiment budget gate:")
+    print(f"Ceiling: ${report['ceilingUsd']}")
+    print(f"Observed spend to date: ${report['observedSpendToDateUsd']}")
+    print()
+    print("Candidate wave estimates:")
+    for entry in report["candidates"]:
+        print(
+            f"{entry['entry']}. {entry['model']} {entry['reasoningEffort']} | "
+            f"N={entry['matchPredictionCount']} | "
+            f"average=${entry['averageCostPerMatchPredictionUsd']} | "
+            f"estimated=${entry['estimatedTotalCostUsd']}"
+        )
+    print(f"Projected wave cost: ${report['projectedWaveCostUsd']}")
+    print()
+    print("Unsettled reservations:")
+    if report["unsettledReservations"]:
+        for index, reservation in enumerate(
+            report["unsettledReservations"], start=1
+        ):
+            print(f"{index}. {reservation['name']} | ${reservation['amountUsd']}")
+    else:
+        print("none")
+    print(
+        "Unsettled reservation total: "
+        f"${report['unsettledReservationTotalUsd']}"
+    )
+    print()
+    print("Retry reserves:")
+    for entry in report["retryReserves"]:
+        print(
+            f"{entry['entry']}. {entry['model']} {entry['reasoningEffort']} | "
+            f"N={entry['matchPredictionCount']} | "
+            f"average=${entry['averageCostPerMatchPredictionUsd']} | "
+            f"estimated=${entry['estimatedTotalCostUsd']}"
+        )
+    print(f"Retry reserve total: ${report['retryReserveTotalUsd']}")
+    print(f"All reserves: ${report['reservesTotalUsd']}")
+    print()
+    print(f"All-in projected total: ${report['allInProjectedTotalUsd']}")
+    print(f"Remaining before ceiling: ${report['remainingUsd']}")
+    print(
+        "Result: "
+        f"{report['result'].upper()} "
+        "(all-in projected total must be strictly less than the ceiling)"
+    )
+
+
 def filter_group(records: list[dict[str, Any]], group: str) -> list[dict[str, Any]]:
     return [
         record
@@ -1311,6 +1531,14 @@ def money_text(value: Decimal) -> str:
     return format(
         value.quantize(Decimal("0.000000000001"), rounding=ROUND_HALF_UP), "f"
     )
+
+
+def budget_money_text(value: Decimal) -> str:
+    text = format(value, "f")
+    if "." not in text:
+        return text + ".000000000000"
+    whole, fractional = text.split(".", 1)
+    return whole + "." + fractional.ljust(12, "0")
 
 
 def rate_text(numerator: int, denominator: int) -> str:

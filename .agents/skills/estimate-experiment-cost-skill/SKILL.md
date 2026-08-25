@@ -51,6 +51,23 @@ Report the row used, observed sample size, max output token cap, model knowledge
 
 If `model + reasoningEffort` matches multiple JSON rows, do not choose manually. Add explicit CLI qualifier support first.
 
+## Cumulative Budget Gate
+
+Before admitting a multi-configuration quality wave, aggregate its projected cost with settled spend, unsettled reservations, and estimator-derived retry reserves:
+
+```powershell
+uv --cache-dir .uv-cache run python .agents/skills/estimate-experiment-cost-skill/scripts/experiment_cost_estimator.py budget-gate --candidate gpt-5.6-luna,none,60 --candidate gpt-5.6-luna,none,20 --observed-spend-usd 1.25 --reservation cost-row-in-flight=0.50 --retry-reserve gpt-5.6-luna,none,20 --ceiling-usd 30 --report-json .tmp/experiment-budget-gate.json
+```
+
+- Repeat `--candidate MODEL,REASONING_EFFORT,COUNT` for every planned wave entry. Repeated entries for the same model and effort are retained and estimated separately.
+- Pass the settled cumulative experiment spend with `--observed-spend-usd`.
+- Repeat `--reservation NAME=USD` for every unsettled charge or in-flight reservation. Omit it only when none exist.
+- Repeat `--retry-reserve MODEL,REASONING_EFFORT,COUNT` for one or more explicit retry allowances. Retry reserves use the same exact authoritative row lookup and cost calculation as candidates.
+- Set the complete program ceiling with `--ceiling-usd`; the gate allows the wave only when the all-in projected total is strictly less than that ceiling. Equality is blocked.
+- Use `--report-json` when a machine-readable admission record is required. A blocked gate still emits text and JSON, then exits with status `2`.
+
+The gate fails closed on missing or ambiguous authoritative rows, invalid or non-positive prediction counts, non-finite or negative USD amounts, and an all-in total at or above the ceiling. It reports every candidate and retry estimate, projected wave cost, unsettled and retry reserves, all-in total, remaining budget, and `allowed` or `blocked`. This aggregates exact rows; it never replaces the mandatory preflight or 5-by-4 base-row process for a configuration that lacks one.
+
 ## Mandatory Preflight Gate
 
 Use this gate before any base estimate or actionable estimate for `high` or `xhigh` reasoning when no exact JSON row exists for the intended model and reasoning effort.
