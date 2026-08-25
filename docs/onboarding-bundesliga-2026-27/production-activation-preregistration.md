@@ -86,8 +86,10 @@ identities remain the current planning baseline, not permission to dispatch.
 Schedule-free repository preparation does not prove or consume a live community
 permission:
 
-- P0-19 may prepare the model-independent `pes-squad` and `schadensfresse`
-  context callers autonomously from the accepted topology and credential names.
+- P0-19 has prepared the model-independent `pes-squad` and `schadensfresse`
+  context callers from the accepted topology and credential names. Both expose
+  manual `workflow_dispatch` only, have no inputs or schedule, and have never
+  been dispatched.
 - Their final matchday and bonus callers wait only for P0-06 to record the exact
   `production-primary` identity.
 - Arena production-copy preparation additionally waits for the owner-selected

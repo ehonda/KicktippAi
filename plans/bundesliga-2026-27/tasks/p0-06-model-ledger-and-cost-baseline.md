@@ -57,6 +57,12 @@ The cheap plumbing configuration and the later owner-approved launch configurati
 
 ## Complete when
 
+- P0-23 supplies the owner-required comparative evidence, or the owner records
+  an explicit evidence waiver and accepted risk, and the owner-selected final
+  production model, reasoning effort, maximum output tokens, numbered prompt
+  versions, arena challenger matrix, service-tier/fallback policy, cost ceiling,
+  and estimator evidence are recorded in the model ledger and a new Accepted
+  ADR.
 - A reviewer can reproduce the estimate and identify the exact test and launch configurations from tracked files.
 - No production workflow depends on a floating model or reasoning default.
 - The Luna/none test identity cannot be silently promoted to production.

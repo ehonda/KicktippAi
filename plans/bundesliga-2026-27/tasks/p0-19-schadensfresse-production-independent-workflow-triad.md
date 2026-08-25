@@ -84,9 +84,17 @@ gate, or treat successful authentication as season readiness.
 - [ ] Update `MatchdayCommand.ProductionCommunities` and
       `BonusCommand.ProductionCommunities` only as required for the exact
       accepted `schadensfresse` production entrypoints.
-- [ ] Remove or clearly retire the superseded Bundesliga 2025/26
+- [x] Remove or clearly retire the superseded Bundesliga 2025/26
       `schadensfresse` matchday and bonus callers so no similarly named old-season
-      entrypoint can remain live or appear to be the current production path.
+      entrypoint can remain live or appear to be the current production path. At
+      exact base `177bc0bf9c9fbf4e888991eebecd7bc82243d069`, both
+      `schadensfresse-matchday.yml` and `schadensfresse-bonus.yml` expose only
+      `workflow_call`, retain explicit competition `bundesliga-2025-26`, and
+      pass `retired_configuration: true`. Both reusable prediction bases test
+      that flag and exit with the explicit historical-retirement error before
+      checkout or prediction work. The read-only deterministic workflow
+      contract passed and counted these files within exactly 12 explicitly
+      retired Bundesliga callers.
 - [ ] Add/update workflow-contract and telemetry-environment tests proving the
       exact 2026/27 competition, posting/context identity, numbered hosted
       prompts, approved model configuration, credential names, schedule absence,

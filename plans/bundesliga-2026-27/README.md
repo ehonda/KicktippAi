@@ -40,8 +40,8 @@ The accepted [execution strategy](execution-strategy.md) defines gated orchestra
 | [P0-18](tasks/p0-18-base-workflow-support.md) | Teach reusable workflows the Bundesliga profile | P0-14, P0-17 |
 | [P0-19 template](tasks/p0-19-community-workflow-triad.md) | Copy an explicit workflow-triad task per deployable matrix row | P0-17, P0-18 |
 | [P0-19 arena Luna](tasks/p0-19-arena-luna-self-contained-workflow-triad.md) | Add exactly one manual-only self-contained arena Luna validation triad | P0-17, P0-18 |
-| [P0-19 pes-squad production reference](tasks/p0-19-pes-squad-production-reference-workflow-triad.md) | Blocked/nondeployable: add the manual-only `pes-squad` reference-production triad after owner selection and readiness gates | P0-06, P0-17, P0-18 |
-| [P0-19 schadensfresse independent production](tasks/p0-19-schadensfresse-production-independent-workflow-triad.md) | Blocked/nondeployable: add the manual-only independent `schadensfresse` production triad after owner selection and community remediation | P0-06, P0-17, P0-18 |
+| [P0-19 pes-squad production reference](tasks/p0-19-pes-squad-production-reference-workflow-triad.md) | In progress: the manual-only model-independent context caller is prepared; final matchday and bonus callers wait only for P0-06's exact `production-primary` identity | P0-06, P0-17, P0-18 |
+| [P0-19 schadensfresse independent production](tasks/p0-19-schadensfresse-production-independent-workflow-triad.md) | In progress: the manual-only model-independent context caller is prepared; final matchday and bonus callers wait only for P0-06, while external community remediation remains a P0-21 pre-dispatch gate | P0-06, P0-17, P0-18 |
 | [P0-19 arena production copy](tasks/p0-19-arena-production-copy-workflow-triad.md) | Blocked/nondeployable: add the manual-only `ehonda-ai-arena` production-copy triad after owner selection, credential, reviewed pes-reference-caller, and compatibility gates | P0-06, P0-17, P0-18, P0-24, P0-19 pes-squad production reference |
 | [P0-20](tasks/p0-20-seed-and-development-validation.md) | Seed context and validate dev plus arena plumbing | P0-02 through P0-18, P0-22, local dev path, Luna/none arena P0-19 entrypoints |
 | [P0-21](tasks/p0-21-production-activation.md) | Validate production, submit opening predictions, and enable schedules | P0-06, P0-20, P0-24, production P0-19 entrypoints |
@@ -49,13 +49,16 @@ The accepted [execution strategy](execution-strategy.md) defines gated orchestra
 | [P0-23](tasks/p0-23-gpt-5-6-production-candidate-evidence.md) | Remaining active evidence gate: collect cutoff-safe GPT-5.6 production-candidate cost and quality evidence | P0-05, P0-12, P0-20 |
 | [P0-24](tasks/p0-24-bonus-copy-post-compatibility.md) | Complete: exact bonus question and complete-option-set copy compatibility is implemented and integrated | P0-16, P0-17, P0-18 |
 
-The implementation path through P0-20 is complete, and P0-24's bonus-copy safety contract is implemented, independently approved, and integrated. P0-23 is the remaining active evidence gate for the final P0-06 owner decision unless the owner records an explicit evidence waiver and accepted risk. The read-only [production prerequisite audit from 2026-08-25](../../docs/onboarding-bundesliga-2026-27/production-prerequisite-audit-2026-08-25.md) confirmed `pes-squad` authentication and Bundesliga 2026/27 read readiness without proving posting rights, while `schadensfresse` authenticated but still requires community-admin remediation because no current prediction-input rows were available. GitHub Actions secret-name presence and arena production/challenger identities also remain unverified or owner-gated. After those gates and the P0-06 decision, production P0-19 copies and P0-21 still require the selected configuration, manual production evidence, opening writes, and deliberate schedule activation. P0-21 is the only task authorized to enable final production schedules.
+The implementation path through P0-20 is complete, and P0-24's bonus-copy safety contract is implemented, independently approved, and integrated. P0-23 is the remaining active evidence gate for the final P0-06 owner decision unless the owner records an explicit evidence waiver and accepted risk. The manual-only model-independent `pes-squad` and `schadensfresse` context callers are integrated and have not been dispatched; their final matchday and bonus callers wait only for the exact P0-06 `production-primary` identity. The read-only [production prerequisite audit from 2026-08-25](../../docs/onboarding-bundesliga-2026-27/production-prerequisite-audit-2026-08-25.md) confirmed `pes-squad` authentication and Bundesliga 2026/27 read readiness without proving posting rights, while `schadensfresse` authenticated but still requires external community-admin remediation because no current prediction-input rows were available. Secret presence, authentication/readiness, POST permission, deadlines, that external remediation, manual production evidence, opening writes, and activation remain P0-21 pre-dispatch gates; they do not block schedule-free repository construction after P0-06. Arena production/challenger identities also remain owner-gated. P0-21 is the only task authorized to enable final production schedules.
 
 For P0-19, copy the template once per community matrix row that needs an
 entrypoint so each workflow triad can be implemented and reviewed
-independently. The only deployable copy so far is the manual-only
-`arena-luna-self-contained` validation triad. The development row remains a
-local CLI path, while production and challenger rows retain their owner gates.
+independently. The only complete prediction-capable copy so far is the
+manual-only `arena-luna-self-contained` validation triad. The `pes-squad` and
+`schadensfresse` rows additionally have their model-independent manual context
+callers, but no production prediction caller. The development row remains a
+local CLI path, while model-bound production and challenger rows retain their
+owner gates.
 
 ## Handoffs
 

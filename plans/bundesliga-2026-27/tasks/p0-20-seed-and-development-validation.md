@@ -323,6 +323,12 @@ prompt checkpoints before the reviewed repairs were integrated.
 
 ## Complete when
 
-- Every P0 launch gate except final production-model execution/scheduling has direct evidence.
+- Every implementation, context, fail-closed, local-development, and Luna arena
+  validation gate owned by P0-20 has direct evidence.
 - Fail-closed scenarios preserve the last complete context and prevent prediction.
 - No final production-model schedule has been enabled; only the explicitly authorized Luna/none arena validation schedule may have run.
+- P0-21 retains production secret presence, authentication/readiness, POST
+  permission, exact deadlines, external `schadensfresse` setup, the Club Elo
+  operating decision, named operator/monitor/rollback ownership, manual
+  production writes, final schedule activation, and first scheduled observation;
+  none is claimed by P0-20 completion.
