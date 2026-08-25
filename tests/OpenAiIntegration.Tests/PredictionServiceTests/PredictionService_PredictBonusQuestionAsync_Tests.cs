@@ -1,4 +1,5 @@
 using EHonda.KicktippAi.Core;
+using System.Collections.Concurrent;
 using Microsoft.Extensions.Logging;
 using Moq;
 using OpenAI.Chat;
@@ -38,13 +39,13 @@ public class PredictionService_PredictBonusQuestionAsync_Tests : PredictionServi
             cancellationToken: cancellationToken);
     }
 
-    private static ActivityListener CreateActivityListener(List<Activity> capturedActivities)
+    private static ActivityListener CreateActivityListener(ConcurrentQueue<Activity> capturedActivities)
     {
         var listener = new ActivityListener
         {
             ShouldListenTo = source => source.Name == "KicktippAi",
             Sample = (ref ActivityCreationOptions<ActivityContext> _) => ActivitySamplingResult.AllDataAndRecorded,
-            ActivityStopped = capturedActivities.Add
+            ActivityStopped = capturedActivities.Enqueue
         };
 
         ActivitySource.AddActivityListener(listener);
@@ -316,7 +317,7 @@ public class PredictionService_PredictBonusQuestionAsync_Tests : PredictionServi
             chatClient,
             costCalculationService: NullableOption.Some(costCalculationService.Object),
             tokenUsageTracker: NullableOption.Some(tokenUsageTracker.Object));
-        var capturedActivities = new List<Activity>();
+        var capturedActivities = new ConcurrentQueue<Activity>();
         using var listener = CreateActivityListener(capturedActivities);
 
         // Act
@@ -356,7 +357,7 @@ public class PredictionService_PredictBonusQuestionAsync_Tests : PredictionServi
     {
         var chatClient = CreateMockChatClient("""{"selectedOptionIds": ["opt1"]}""");
         var service = CreateService(chatClient);
-        var capturedActivities = new List<Activity>();
+        var capturedActivities = new ConcurrentQueue<Activity>();
         using var listener = CreateActivityListener(capturedActivities);
         var metadata = new PredictionTelemetryMetadata(
             Competition: CompetitionIds.Bundesliga2026_27,

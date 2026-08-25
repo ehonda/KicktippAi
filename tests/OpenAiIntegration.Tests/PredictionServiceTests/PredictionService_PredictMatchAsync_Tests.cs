@@ -1,4 +1,5 @@
 using EHonda.KicktippAi.Core;
+using System.Collections.Concurrent;
 using System.Diagnostics;
 using System.Text;
 using System.Text.Json;
@@ -20,13 +21,13 @@ namespace OpenAiIntegration.Tests.PredictionServiceTests;
 /// </summary>
 public class PredictionService_PredictMatchAsync_Tests : PredictionServiceTests_Base
 {
-    private static ActivityListener CreateActivityListener(List<Activity> capturedActivities)
+    private static ActivityListener CreateActivityListener(ConcurrentQueue<Activity> capturedActivities)
     {
         var listener = new ActivityListener
         {
             ShouldListenTo = source => source.Name == "KicktippAi",
             Sample = (ref ActivityCreationOptions<ActivityContext> _) => ActivitySamplingResult.AllDataAndRecorded,
-            ActivityStopped = capturedActivities.Add
+            ActivityStopped = capturedActivities.Enqueue
         };
 
         ActivitySource.AddActivityListener(listener);
@@ -43,6 +44,42 @@ public class PredictionService_PredictMatchAsync_Tests : PredictionServiceTests_
                awayTeam == telemetryMetadata.AwayTeam &&
                candidate.GetTagItem("langfuse.observation.metadata.repredictionIndex") is string repredictionIndex &&
                repredictionIndex == telemetryMetadata.RepredictionIndex?.ToString();
+    }
+
+    [Test]
+    [NotInParallel("Telemetry")]
+    public async Task Activity_listener_captures_concurrent_stops_without_losing_activities()
+    {
+        const int activityCount = 32;
+        var capturedActivities = new ConcurrentQueue<Activity>();
+        using var listener = CreateActivityListener(capturedActivities);
+        using var source = new ActivitySource("KicktippAi");
+        var release = new TaskCompletionSource(TaskCreationOptions.RunContinuationsAsynchronously);
+        var readyCount = 0;
+
+        var activities = Enumerable.Range(0, activityCount)
+            .Select(index => Task.Run(async () =>
+            {
+                using var activity = source.StartActivity("concurrent-capture-regression");
+                activity?.SetTag("capture.index", index);
+
+                if (Interlocked.Increment(ref readyCount) == activityCount)
+                {
+                    release.SetResult();
+                }
+
+                await release.Task;
+            }))
+            .ToArray();
+
+        await Task.WhenAll(activities);
+
+        var capturedIndexes = capturedActivities
+            .Where(activity => activity.OperationName == "concurrent-capture-regression")
+            .Select(activity => Convert.ToInt32(activity.GetTagItem("capture.index")))
+            .Order()
+            .ToArray();
+        await Assert.That(capturedIndexes).IsEquivalentTo(Enumerable.Range(0, activityCount).ToArray());
     }
 
     private static ResponsesClient CreateProtocolChatClient(
@@ -411,7 +448,7 @@ public class PredictionService_PredictMatchAsync_Tests : PredictionServiceTests_
             "Fallback Telemetry Home Team",
             "Fallback Telemetry Away Team",
             7);
-        var capturedActivities = new List<Activity>();
+        var capturedActivities = new ConcurrentQueue<Activity>();
         using var listener = CreateActivityListener(capturedActivities);
 
         // Act
@@ -500,7 +537,7 @@ public class PredictionService_PredictMatchAsync_Tests : PredictionServiceTests_
             costCalculationService: NullableOption.Some(costCalculationService.Object),
             tokenUsageTracker: NullableOption.Some(tokenUsageTracker.Object),
             options: NullableOption.Some(PredictionServiceOptions.FlexProcessingWithStandardFallback));
-        var capturedActivities = new List<Activity>();
+        var capturedActivities = new ConcurrentQueue<Activity>();
         using var listener = CreateActivityListener(capturedActivities);
 
         // Act
@@ -547,7 +584,7 @@ public class PredictionService_PredictMatchAsync_Tests : PredictionServiceTests_
             {
                 ReasoningEffort = "xhigh"
             }));
-        var capturedActivities = new List<Activity>();
+        var capturedActivities = new ConcurrentQueue<Activity>();
         using var listener = CreateActivityListener(capturedActivities);
 
         // Act
@@ -756,7 +793,7 @@ public class PredictionService_PredictMatchAsync_Tests : PredictionServiceTests_
     [NotInParallel("Telemetry")]
     public async Task Predicting_match_records_langfuse_generation_activity_tags()
     {
-        var capturedActivities = new List<Activity>();
+        var capturedActivities = new ConcurrentQueue<Activity>();
         using var listener = CreateActivityListener(capturedActivities);
         var templateProvider = CreateMockTemplateProvider();
         templateProvider.As<IPromptTemplateTelemetryMetadataProvider>()
@@ -820,7 +857,7 @@ public class PredictionService_PredictMatchAsync_Tests : PredictionServiceTests_
     [NotInParallel("Telemetry")]
     public async Task Predicting_match_records_langfuse_prompt_link_tags_when_prompt_metadata_is_configured()
     {
-        var capturedActivities = new List<Activity>();
+        var capturedActivities = new ConcurrentQueue<Activity>();
         using var listener = CreateActivityListener(capturedActivities);
         var service = CreateService(
             CreateMockChatClient("""{"home": 2, "away": 1}"""),
@@ -844,7 +881,7 @@ public class PredictionService_PredictMatchAsync_Tests : PredictionServiceTests_
     [NotInParallel("Telemetry")]
     public async Task Predicting_match_records_resolved_prompt_route_hash_and_fallback_metadata()
     {
-        var capturedActivities = new List<Activity>();
+        var capturedActivities = new ConcurrentQueue<Activity>();
         using var listener = CreateActivityListener(capturedActivities);
         var templateProvider = CreateMockTemplateProvider();
         templateProvider.As<IPromptTemplateTelemetryMetadataProvider>()
