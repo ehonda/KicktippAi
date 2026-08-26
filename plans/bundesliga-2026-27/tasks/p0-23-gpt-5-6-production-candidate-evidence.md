@@ -1,6 +1,6 @@
 # P0-23 — Collect GPT-5.6 production-candidate evidence
 
-- Status: In progress — the owner-authorized nine-row GPT-5.6 matrix and one cumulative USD 30 experiment-program ceiling are preregistered; live mutation and spend wait for independent review of the no-spend checkpoint and the integrated Decimal cumulative-budget gate
+- Status: In progress — independent review approved the preregistered owner matrix and cumulative USD 30 ceiling, and the machine-readable Decimal cumulative-budget gate is integrated; live mutation and spend still wait for every unchecked execution-date gate and a green exact-head CI run
 - Priority: P0
 - Depends on: [P0-05](p0-05-prompt-route.md), [P0-12](p0-12-match-context-and-transfer-retirement.md), and [P0-20](p0-20-seed-and-development-validation.md)
 - Reuses: the completed cost/provenance foundation recorded in [P0-06](p0-06-model-ledger-and-cost-baseline.md)
@@ -28,7 +28,7 @@ rerun.
 - [x] Record the owner's exact matrix: `gpt-5.6-sol` at `high`, `medium`, and `none`; `gpt-5.6-terra` at `xhigh`, `medium`, and `none`; and `gpt-5.6-luna` at `max`, `medium`, and `none`. Caps follow the estimate-row preflight policy, and quality topology is chosen adaptively only after exact rows exist.
 - [x] Record explicit authorization for cost-row and quality runs under one cumulative USD 30 ceiling. This owner amendment supersedes the handoff's earlier separate fixed phase-budget template. USD 30 is a stop ceiling, not a target; cheaper completion remains preferred.
 - [x] Record that comparative quality evidence is required for the production and arena decisions. If the full matrix cannot support the preregistered meaningful minimum inside the remaining ceiling, run the preregistered subset first and return to the owner before expanding it.
-- [ ] Pass independent review of the no-spend checkpoint and integrate the pending machine-readable Decimal cumulative-budget gate with its exact validated aggregate command before preparing or syncing a dataset, resolving or mutating a hosted prompt, calling a model, or incurring new spend. The current per-row estimator alone is not the program-total gate.
+- [x] Pass independent review of the no-spend checkpoint and integrate the machine-readable Decimal cumulative-budget gate with its exact validated aggregate command before preparing or syncing a dataset, resolving or mutating a hosted prompt, calling a model, or incurring new spend. The reviewed gate is integrated at exact main commit `0b86b11564b9cc7500b7bfaf94301e4e83263f73`; its focused deterministic suite passes all 24 tests, and exact-commit `Build and Test` run `32910669112` completed successfully. The current per-row estimator alone remains insufficient as the program-total gate.
 
 ## Cutoff and provenance contract
 
@@ -88,9 +88,13 @@ rerun.
   repetition totals; only the one quality-first preliminary block may fall back
   to 15 or 10, with weaker precision and effective sample size stated plainly.
 - [ADR-0049](../decisions/0049-preregister-gpt-5-6-candidate-evidence.md)
-  is the durable experiment contract. No live action begins until the separate
-  Decimal budget-tool lane is integrated and its exact aggregate command is
-  recorded and validated.
+  is the durable experiment contract. Independent review approved the
+  preregistration, and exact main commit
+  `0b86b11564b9cc7500b7bfaf94301e4e83263f73` integrates the Decimal
+  cumulative-budget gate and executable aggregate contract. All 24 focused
+  deterministic gate tests and exact-commit `Build and Test` run `32910669112`
+  passed. These no-spend checks do not satisfy any unchecked execution-date or
+  live-action gate.
 - The three owner-supplied rationale screenshots are preserved under
   `docs/experiments/assets/gpt-5-6-production-candidate-selection/` and embedded
   in the preregistration.
