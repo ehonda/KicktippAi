@@ -1,6 +1,6 @@
 # P0-23 — Collect GPT-5.6 production-candidate evidence
 
-- Status: In progress — independent review approved the preregistered owner matrix and cumulative USD 30 ceiling, and the machine-readable Decimal cumulative-budget gate is integrated; live mutation and spend still wait for every unchecked execution-date gate and a green exact-head CI run
+- Status: In progress — independent review approved the preregistered owner matrix and cumulative USD 30 ceiling, the machine-readable Decimal cumulative-budget gate is integrated, and exact main commit `c6caa6a998893193b097e152cd4cce588a6efb5c` is green in `Build and Test` run `32913630047`; the first live dataset sync is blocked pending explicit authorization for cutoff-safe historical/context dataset egress, while every downstream live-action gate remains open
 - Priority: P0
 - Depends on: [P0-05](p0-05-prompt-route.md), [P0-12](p0-12-match-context-and-transfer-retirement.md), and [P0-20](p0-20-seed-and-development-validation.md)
 - Reuses: the completed cost/provenance foundation recorded in [P0-06](p0-06-model-ledger-and-cost-baseline.md)
@@ -98,8 +98,14 @@ rerun.
 - The three owner-supplied rationale screenshots are preserved under
   `docs/experiments/assets/gpt-5-6-production-candidate-selection/` and embedded
   in the preregistration.
-- No dataset was prepared or synced; no Langfuse or prompt mutation, model call,
-  or spend occurred while creating this checkpoint.
+- The exact one-item and five-by-four datasets and manifests were prepared only
+  as ignored local artifacts through the pre-sync boundary. The first
+  `sync-dataset` invocation was denied by auto-review before HTTP or payload
+  egress. No Langfuse or prompt mutation, model call, or spend occurred, and the
+  observed cumulative P0-23 ledger remains exactly USD 0. The blocker is the
+  missing explicit authorization for cutoff-safe historical/context dataset
+  egress, not the worktree locator or a general auto-review restriction. All
+  downstream live-action checklist items remain open.
 
 ## Complete when
 
