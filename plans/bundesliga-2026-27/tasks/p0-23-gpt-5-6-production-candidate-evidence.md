@@ -1,6 +1,6 @@
 # P0-23 — Collect GPT-5.6 production-candidate evidence
 
-- Status: In progress — live cost execution is paused at the first Luna/`max` cap gate: its exact cap-`10000` one-item preflight passed, but the admitted five-by-four row stopped in batch one after a no-output response and one other call used `8970 / 10000` output tokens; no row was upserted and exactly one cap-`20000` one-item remediation probe now waits for independent exact-SHA review, integration to `main`, explicit push, exact-head green CI, and fresh Decimal admission
+- Status: In progress — live cost execution is paused after the reviewed Luna/`max` cap-`20000` one-item remediation succeeded with healthy headroom on Flex; cap `20000` is selected for a future five-by-four row, but no row was upserted and no further paid call is admitted until a new reviewed checkpoint, integration, explicit push, exact-head green CI, ledger reconciliation, and fresh Decimal admission
 - Priority: P0
 - Depends on: [P0-05](p0-05-prompt-route.md), [P0-12](p0-12-match-context-and-transfer-retirement.md), and [P0-20](p0-20-seed-and-development-validation.md)
 - Reuses: the completed cost/provenance foundation recorded in [P0-06](p0-06-model-ledger-and-cost-baseline.md)
@@ -148,11 +148,39 @@ rerun.
   independently binds the exact failed run, trace, error, artifact hashes,
   execution settings, 900-second `4/5` outcome, and supporting output hashes.
 - [The preregistration live checkpoint](../../../docs/experiments/gpt-5-6-bundesliga-2025-26-production-candidate-preregistration.md#live-execution-checkpoint--lunamax-cap-stop)
-  now allows exactly one cap-`20000` Luna/`max` one-item remediation preflight
-  only after independent exact-SHA review, integration to `main`, explicit
-  push, exact-head green CI, and fresh Decimal admission. It allows no direct
-  20-call rerun, cap-`40000` probe, later candidate, or quality run from this
-  checkpoint.
+  admitted exactly one cap-`20000` Luna/`max` one-item remediation preflight
+  after independent exact-SHA review, integration to `main`, explicit push,
+  exact-head green CI, and fresh Decimal admission. Exact dataset run
+  `47045b08-91f3-4251-a1fa-fb017f05ecc2`, trace
+  `1431f6e783d63396832abeef3612a3b7`, completed on Flex without fallback at
+  `2463` input, `1053` output, `1034` reasoning tokens, and
+  `$0.000878100000` observed cost. The output used `5.265%` of cap, selecting
+  cap `20000` for a future reviewed five-by-four row.
+- Exact-head `main` commit `ef9221c4ca694158afa1600c3074c9bc83c94df6`
+  passed all 12 jobs in `Build and Test` run `32945456262`. The fresh gate
+  artifact
+  `.tmp/p0-23-budget/gpt-5.6-luna-max-20k-remediation-green-ef9221c-budget-gate.json`,
+  SHA-256
+  `4037347433e2baa3efa5bed2cbf4b0202c27de7746ea4b937d3440215fbbfe3a`,
+  records `$0.010494600000` settled named attempts, the unresolved
+  `$0.033200000000` failed-call reservation, the `$0.039200000000` probe
+  bound, and `$0.082894600000` bounded all-in exposure.
+- Compact immutable usage is retained only in ignored artifact
+  `.tmp/p0-23-budget/gpt-5.6-luna-max-20k-remediation-usage.json`, SHA-256
+  `5e28b9c988bfd96539368481ad2084897e31a64804dac7f6751ff2ea9bd4c032`.
+  Its exact run-name suffix `2026-08-2608-09-51+0` is unconventional because
+  PowerShell interpreted `t` and `z` as format specifiers; the run remains
+  uniquely named and immutably bound.
+- The immutable one-item provisional report, SHA-256
+  `7e69e837e0421011c7c1339c68c3d68713e9a539cc8faa28324c7831a5a42270`,
+  machine-projects `$0.017562000000` for 20 calls. The post-probe planning
+  gate, SHA-256
+  `3780a03d3a84a470889c2a1cf25d6e844a2c8b236e037a9b432710a3949b472c`,
+  records all three settled attempts at `$0.011372700000`, keeps the
+  `$0.033200000000` unresolved failed-call reservation, and projects bounded
+  all-in `$0.062134700000`. This is planning evidence only. This checkpoint
+  allows no direct 20-call rerun, cap-`40000` probe, later candidate, or
+  quality run.
 
 ## Complete when
 

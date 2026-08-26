@@ -1,9 +1,9 @@
 # GPT-5.6 Bundesliga 2025/26 production-candidate preregistration
 
-**Status:** LIVE EXECUTION PAUSED AT CAP GATE — the Luna/`max` one-item
-preflight passed at cap `10000`, but its admitted five-by-four row stopped in
-the first batch after one response returned no output text. No authoritative
-row was upserted and no later candidate or quality run started.
+**Status:** LIVE EXECUTION PAUSED AFTER CAP REMEDIATION — the Luna/`max`
+cap-`10000` five-by-four row stopped in its first batch, while the subsequently
+reviewed cap-`20000` one-item remediation succeeded with healthy headroom. No
+authoritative row was upserted and no later candidate or quality run started.
 
 **Verified:** 2026-08-26
 
@@ -15,13 +15,14 @@ estimate-row-derived cap workflow, an adaptive paired quality design, and one
 cumulative USD 30 ceiling.
 
 USD 30 is a hard ceiling, not a spending target. The program should finish for
-less whenever the evidence is sufficient. The authorized one-item dataset sync,
-Luna/`max` preflight, and failed first-batch five-by-four attempt below have now
-created Langfuse dataset/run/trace/score state and model usage. They did not
-mutate hosted-prompt content or labels, select a production model or arena
-participant, post a community prediction, dispatch a production workflow, or
-activate a schedule. Independent review and budget-tool integration still do
-not bypass any remaining gate or the separate admission of every paid attempt.
+less whenever the evidence is sufficient. The authorized one-item dataset
+sync, Luna/`max` cap-`10000` preflight, failed first-batch five-by-four attempt,
+and cap-`20000` remediation probe below have now created Langfuse
+dataset/run/trace/score state and model usage. They did not mutate hosted-prompt
+content or labels, select a production model or arena participant, post a
+community prediction, dispatch a production workflow, or activate a schedule.
+Independent review and budget-tool integration still do not bypass any
+remaining gate or the separate admission of every paid attempt.
 
 Related planning and decisions:
 
@@ -86,7 +87,7 @@ because it currently routes to Sol and would weaken provenance.
 | `gpt-5.6-terra` | `xhigh` | Terra quality-first candidate | Missing |
 | `gpt-5.6-terra` | `medium` | Terra balanced candidate | Missing |
 | `gpt-5.6-terra` | `none` | Terra no-reasoning baseline | Missing |
-| `gpt-5.6-luna` | `max` | Luna quality-first candidate | Missing; cap-`10000` full row invalid, one cap-`20000` remediation preflight pending exact-SHA review |
+| `gpt-5.6-luna` | `max` | Luna quality-first candidate | Missing authoritative five-by-four row; cap-`10000` row invalid, cap-`20000` one-item remediation succeeded with healthy headroom, and the future row awaits its new reviewed gate |
 | `gpt-5.6-luna` | `medium` | Luna balanced candidate | Missing |
 | `gpt-5.6-luna` | `none` | Luna no-reasoning baseline and plumbing identity | Reuse exact authoritative row; do not rerun |
 
@@ -424,16 +425,46 @@ bound, producing bounded all-in exposure `$0.043694600000`. No row was
 upserted, the exact estimator counts were not run, and all later paid work
 stopped.
 
-The bounded remediation is exactly one Luna/`max` one-item run against the same
-one-item manifest and prompt/evaluation route at cap `20000`, parallelism `1`.
-A no-spend Decimal gate carrying both observed attempt groups and the
-`$0.033200000000` unresolved reservation admitted that future probe at a
-conservative `$0.039200000000`, with bounded all-in `$0.082894600000`. The
-probe may run only after independent exact-SHA approval of this amendment,
-integration to `main`, an explicit `main` push, reconciliation of green CI for
-that exact pushed head, and a fresh machine admission from that exact head. If
-it returns no output, reaches `20000`, drifts tier/identity/pricing, or is
-otherwise malformed, stop again. There is no automatic cap-`40000` action.
+The bounded remediation was exactly one Luna/`max` one-item run against the
+same one-item manifest and prompt/evaluation route at cap `20000`, parallelism
+`1`. Independent review was integrated and explicitly pushed as exact `main`
+commit `ef9221c4ca694158afa1600c3074c9bc83c94df6`; `Build and Test` run
+`32945456262` completed all 12 jobs successfully for that exact head. A fresh
+no-spend Decimal gate then carried both observed attempt groups and the
+`$0.033200000000` unresolved reservation. It admitted the single probe at a
+conservative `$0.039200000000`, with bounded all-in `$0.082894600000`. Gate
+artifact
+`.tmp/p0-23-budget/gpt-5.6-luna-max-20k-remediation-green-ef9221c-budget-gate.json`
+has SHA-256
+`4037347433e2baa3efa5bed2cbf4b0202c27de7746ea4b937d3440215fbbfe3a`.
+
+Exact dataset run `47045b08-91f3-4251-a1fa-fb017f05ecc2`, trace
+`1431f6e783d63396832abeef3612a3b7`, completed on Flex without fallback:
+`2463` input, `1053` output, `1034` reasoning tokens, and observed cost
+`$0.000878100000`. The output used `5.265%` of cap, so cap `20000` is selected
+for a future full five-by-four Luna/`max` row. The exact run name is
+`repeated-match-slice__pes-squad__gpt-5.6-luna__match-v2__reasoning-max__maxout-20000__random-1x1-seed-20260821__cost-preflight-remediation__startsat-12h__2026-08-2608-09-51+0`.
+The final suffix is unconventional because PowerShell interpreted `t` and `z`
+as format specifiers, but it is unique and the immutable dataset-run, trace,
+manifest, prompt, model, effort, cap, and evaluation binding are exact. Compact
+usage artifact
+`.tmp/p0-23-budget/gpt-5.6-luna-max-20k-remediation-usage.json` has SHA-256
+`5e28b9c988bfd96539368481ad2084897e31a64804dac7f6751ff2ea9bd4c032`.
+
+The immutable one-item `base-row --expect-count 1` report, SHA-256
+`7e69e837e0421011c7c1339c68c3d68713e9a539cc8faa28324c7831a5a42270`,
+projects `$0.017562000000` for 20 calls. A post-probe no-spend machine ledger
+records all three settled named attempts at `$0.011372700000`, preserves the
+unresolved `$0.033200000000` failed-call reservation, and projects bounded
+all-in `$0.062134700000` if the future 20-call row is later admitted. Planning
+gate artifact
+`.tmp/p0-23-budget/gpt-5.6-luna-max-20k-future-base-row-planning-gate.json`
+has SHA-256
+`3780a03d3a84a470889c2a1cf25d6e844a2c8b236e037a9b432710a3949b472c`.
+
+This result does not admit the 20-call row. A new reviewed checkpoint, exact
+ledger reconciliation, and fresh Decimal gate must precede that future run.
+There is no automatic cap-`40000` action, later candidate, or quality action.
 
 ## Phase A — exact cost rows and whole-season estimates
 
@@ -665,19 +696,22 @@ evaluates the quality/cost tradeoff.
 - [x] Exact prompt version `2` still carries required `production` membership.
 - [x] Prepared pool, manifest, selection, and expected counts pass pre-spend
       inspection.
-- [ ] Independent exact-SHA review approves the bounded Luna/`max` cap-`20000`
+- [x] Independent exact-SHA review approves the bounded Luna/`max` cap-`20000`
       one-item amendment before its paid call.
-- [ ] Integrate the reviewed amendment to `main` and push `origin main`
+- [x] Integrate the reviewed amendment to `main` and push `origin main`
       explicitly before the remediation probe.
-- [ ] Reconcile an exact-head green `Build and Test` run for that pushed `main`
+- [x] Reconcile an exact-head green `Build and Test` run for that pushed `main`
       SHA before the remediation probe.
-- [ ] The Decimal aggregate command separately admits the next initial attempt
-      or retry strictly within USD 30 from that exact green head after all
-      preceding cost settles.
+- [x] The fresh Decimal aggregate command separately admitted the one-item
+      remediation probe strictly within USD 30 from that exact green head.
+- [ ] Independently review, integrate, explicitly push, reconcile exact-head
+      green CI, and freshly Decimal-admit the future cap-`20000` five-by-four
+      Luna/`max` row before any further paid call.
 
 As of this live checkpoint, the one-item dataset is synchronized unchanged, the
-one-item preflight and failed first-batch five-by-four attempt above are the only
-new paid P0-23 actions, and all further paid work is paused.
+cap-`10000` preflight, failed first-batch five-by-four attempt, and single
+cap-`20000` remediation probe above are the only new paid P0-23 actions. All
+further paid work is paused.
 
 The synced dataset contained only the previously audited public match record;
 the local manifest with context names, versions, source IDs, timestamps, and
