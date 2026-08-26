@@ -684,8 +684,8 @@ public class FirebaseKpiContextProviderTests
         var measurements = string.Join(';', resolved.Select(value =>
             $"{value.Selection.Category}={value.Documents.Length}/{value.Selection.EstimatedUtf8Bytes}/{value.Selection.EstimatedTokens}"));
         await Assert.That(measurements).IsEqualTo(
-            "Champion=2/2250/563;Relegation=2/2250/563;TopScorer=3/4441/1111;" +
-            "Coach=3/4441/1111;Unknown=2/2250/563");
+            "Champion=2/2250/563;Relegation=2/2250/563;TopScorer=3/4506/1127;" +
+            "Coach=3/4506/1127;Unknown=2/2250/563");
     }
 
     [Test]

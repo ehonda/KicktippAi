@@ -59,6 +59,12 @@ last-known-good data.
 - Focused Orchestrator validation passes 42/42, covering pin requirements/hash
   mismatch, coverage pass/regression, no-write dry-run, publication boundaries,
   DuckDB enrichment, and later no-DuckDB last-known-good preservation.
+- The exact headed-v2 Firebase bonus-context fixture retains the existing
+  2/2/3/3/2 document counts and category-specific content sets. The roster-aware
+  TopScorer and Coach selections now measure 4,506 UTF-8 bytes / 1,127 estimated
+  tokens after their derived subtotal row, still far below the default
+  20-document / 32,000-token budget. The focused regression passes 1/1 and the
+  full FirebaseAdapter suite passes 292/292.
 - Full Core validation passes 295/295. The full Orchestrator run executed 1,114
   tests: 1,110 passed and four Firestore Testcontainers fixtures timed out while
   starting several emulator containers concurrently on Docker Desktop. The
