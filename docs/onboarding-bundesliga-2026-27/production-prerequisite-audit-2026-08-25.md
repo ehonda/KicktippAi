@@ -11,6 +11,25 @@ This read-only audit records which production prerequisites can be verified befo
 | `ehonda-ai-arena` production copy | Not testable: no accepted production participant or credential profile exists | Not tested | Unknown | Repository preparation waits for P0-06's shared `production-primary` plus owner selection of the arena participant/profile/exact credential names. Secret presence, authentication/readiness, POST permission, deadlines, and live evidence remain P0-21 gates. |
 | `ehonda-ai-arena` challengers | Not testable: zero challengers are admitted | Not tested | Unknown | Owner selection of each challenger, participant, and exact model-specific credential names |
 
+## Read-only readiness refresh — 2026-08-26
+
+Both production-community profile checks were repeated with
+`OTEL_SDK_DISABLED=true` set before process startup. The refresh was dry-run
+only: it made no Firestore or Kicktipp write, constructed no Langfuse telemetry
+path, exposed no submission deadline, and did not test or prove POST permission.
+
+| Posting target | Exit and authentication | Exact read-only profile evidence | Current conclusion |
+|---|---|---|---|
+| `pes-squad` | Exit `0`; sibling-profile authentication and GET access passed | Matchday 1 exposed exactly 9 current prediction inputs, 0 completed and 9 pending matches; standings contained 18 teams; Kicktipp collection selected 47 current context documents and 288 history rows; Club Elo selected 18 `LaunchSeed` rows with `NetworkDisabled`; rosters selected the 18-club fallback path | Read readiness is reconfirmed only. Actions secret presence, POST permission, exact deadlines, production roster publication, prediction dispatch, and activation remain open. |
+| `schadensfresse` | Exit `1`; sibling-profile authentication and GET access passed | Matchday 1 exposed 9 completed and 0 pending results but 0 current prediction-input rows. The profile stopped with the exact gate failure `The bundesliga-2026-27 profile expected exactly 9 matches for current matchday, but found 0.`; all later profile stages were skipped. | Current-season readiness still fails and the external community-administrator remediation remains required. Authentication does not establish readiness or posting rights. |
+
+The refresh therefore confirms the same boundary as the original audit:
+`pes-squad` can proceed to later P0-21 permission and live gates after its
+model-bound workflows exist, while `schadensfresse` cannot be dispatched until
+the external setup is corrected and the exact-nine read gate passes. It records
+no model selection, participant admission, production authorization, or
+schedule decision.
+
 The existing `.env.ehonda-ai-arena` profile and `EHONDA_AI_ARENA_GPT_5_6_LUNA_NONE_KICKTIPP_USERNAME` / `EHONDA_AI_ARENA_GPT_5_6_LUNA_NONE_KICKTIPP_PASSWORD` Actions names remain exclusive to the Luna plumbing participant. They do not authorize a production-copy participant or challenger. This preserves the credential boundary in [ADR-0039](../../plans/bundesliga-2026-27/decisions/0039-record-bundesliga-community-and-credential-topology.md) and the community matrix in [community onboarding](community-onboarding.md).
 
 ## Credential-name inventory
@@ -30,6 +49,13 @@ gh variable list --repo ehonda/KicktippAi --json name,updatedAt
 ```
 
 The 403 is a repository-metadata permission gap, not evidence that a named secret is absent. A repository administrator must perform the names-only inventory without viewing values. Arena production-copy and challenger names must not be invented during that inventory because their participants remain owner-gated.
+
+The names-only check was repeated on 2026-08-26 at exact main
+`94224b23ad35e16f5fd6c4b68a70815d3b9b3e3f`. GitHub CLI authenticated as
+`ehonda`, but both commands again exited `1` with HTTP 403,
+`Resource not accessible by personal access token`. This reconfirms only that
+the current token cannot enumerate the metadata; it neither verifies nor
+disproves presence of the `PES_SQUAD_*` or `SCHADENSFRESSE_*` names.
 
 For `pes-squad` and `schadensfresse`, this names-only Actions check is a P0-21
 pre-dispatch gate and did not block preparing their schedule-free manual context
@@ -58,6 +84,11 @@ The `pes-squad` profile dry run ran at approximately 2026-08-25 14:53 CEST. Alth
 Before the `schadensfresse` run at approximately 2026-08-25 14:57 CEST, the process-only `OTEL_SDK_DISABLED=true` guard was applied. OpenTelemetry .NET 1.17 reads this flag from environment configuration and returns a no-op tracer provider before constructing the configured tracer provider and exporter. No OTLP exporter request occurred in that run. The repository's exporter setup is in [ServiceRegistrationExtensions](../../src/Orchestrator/Infrastructure/ServiceRegistrationExtensions.cs); the pinned dependency version is in [Directory.Packages.props](../../Directory.Packages.props), and the upstream guard is visible in [`TracerProviderBuilderBase`](https://github.com/open-telemetry/opentelemetry-dotnet/blob/core-1.17.0/src/OpenTelemetry/Trace/Builder/TracerProviderBuilderBase.cs).
 
 This telemetry observation does not change any Langfuse prompt, trace, or production gate. Future read-only profile audits should hard-disable the telemetry SDK before process startup when trace ingestion is outside their authorized scope.
+
+The 2026-08-26 refresh followed that rule for both communities: the process
+received `OTEL_SDK_DISABLED=true` before startup, so neither refresh used a
+Langfuse path. This is telemetry-boundary evidence only and does not weaken any
+production trace-inspection requirement.
 
 ## Workflow readiness and next gates
 
