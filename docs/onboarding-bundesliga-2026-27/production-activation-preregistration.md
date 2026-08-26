@@ -104,10 +104,13 @@ community; P0-21 must verify the external result before dispatch.
 
 P0-23's earlier Terra/`medium`, Sol/`medium`, cap-`10000`, and `15 × 20`
 surface is a superseded provisional example, not the selected experiment
-surface. The owner will provide a detailed model-experiment specification and
-phase budget after autonomous preparation. No exact paid matrix, dataset action,
-model call, or spend is authorized by this clarification. The completed Luna
-cost row remains reusable without another model run.
+surface. [ADR-0049](../../plans/bundesliga-2026-27/decisions/0049-preregister-gpt-5-6-candidate-evidence.md)
+supplies the owner-authorized exact matrix: Sol `high` / `medium` / `none`,
+Terra `xhigh` / `medium` / `none`, and Luna `max` / `medium` / `none`, under
+one cumulative USD 30 ceiling for new P0-23 attempts. The preregistered cost
+and cutoff-safe quality evidence remains pending and is not a production-model
+or arena-participant selection. The completed Luna cost row remains reusable
+without another model run.
 
 ## Evidence-backed duration envelope
 

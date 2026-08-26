@@ -45,9 +45,15 @@ callers, and finally [P0-21](../tasks/p0-21-production-activation.md).
 - [ADR-0049](../decisions/0049-preregister-gpt-5-6-candidate-evidence.md)
   supersedes this handoff's provisional P0-23 owner-input template. The exact
   nine-row GPT-5.6 matrix, one cumulative USD 30 ceiling, evidence-derived cap
-  mechanics, adaptive topology, and preliminary-return gate are now fixed. Live
-  spend still waits for the reviewed no-spend checkpoint and integrated Decimal
-  cumulative-budget gate.
+  mechanics, adaptive topology, and preliminary-return gate are now fixed. The
+  no-spend checkpoint is independently approved, and the machine-readable
+  Decimal cumulative-budget gate is integrated at exact main commit
+  `0b86b11564b9cc7500b7bfaf94301e4e83263f73`; its 24 focused tests and
+  exact-commit [Build and Test run 32910669112](https://github.com/ehonda/KicktippAi/actions/runs/32910669112)
+  are green. The first live dataset sync remains blocked pending explicit
+  authorization for cutoff-safe historical/context dataset egress. No HTTP or
+  payload egress, model call, or P0-23 spend occurred; its observed cumulative
+  ledger remains exactly USD 0.
 - `pes-squad-context-collection.yml` and
   `schadensfresse-context-collection.yml` are integrated manual-only
   `workflow_dispatch` context callers. They have no inputs, `workflow_call`, or
@@ -72,11 +78,12 @@ callers, and finally [P0-21](../tasks/p0-21-production-activation.md).
    generations, snapshot `591adbc3cbc99ee93591f074ad218703c9badb2af4e267142898145825b77ea2`,
    no fallback/errors, and payload-safe usage/cost evidence. No prompt or
    prediction payload was retained. This is arena plumbing validation only.
-2. Integrate and validate the pending machine-readable Decimal cumulative-budget
-   gate, record its exact aggregate command in the preregistration, and obtain
-   independent approval of the corrected no-spend checkpoint. Authorization
-   already exists for ADR-0049's exact evidence program, but neither prerequisite
-   may be bypassed.
+2. **Complete:** The corrected no-spend checkpoint was independently approved,
+   and the machine-readable Decimal cumulative-budget gate plus its exact
+   aggregate command were integrated and validated at the exact green commit
+   and Actions run recorded above. ADR-0049 authorizes its exact evidence
+   program, but the first live dataset sync remains blocked on the separate
+   explicit historical/context dataset-egress authorization.
 3. Collect the ADR-0049 cutoff-safe cost rows and adaptive quality evidence with
    immutable provenance. Keep cost and quality evidence separate, reuse the
    completed Luna row without another Luna model run, and return to the owner
