@@ -1,9 +1,9 @@
 # GPT-5.6 Bundesliga 2025/26 production-candidate preregistration
 
-**Status:** APPROVED NO-SPEND CHECKPOINT — independent review approved the
-owner matrix and cumulative ceiling, and the Decimal cumulative-budget gate is
-integrated. Live mutation and spend still require every unchecked execution
-gate below.
+**Status:** LIVE EXECUTION PAUSED AT CAP GATE — the Luna/`max` one-item
+preflight passed at cap `10000`, but its admitted five-by-four row stopped in
+the first batch after one response returned no output text. No authoritative
+row was upserted and no later candidate or quality run started.
 
 **Verified:** 2026-08-26
 
@@ -15,12 +15,13 @@ estimate-row-derived cap workflow, an adaptive paired quality design, and one
 cumulative USD 30 ceiling.
 
 USD 30 is a hard ceiling, not a spending target. The program should finish for
-less whenever the evidence is sufficient. Independent review and budget-tool
-integration do not bypass the remaining execution-date checks or the separate
-admission of every paid attempt: no dataset synchronization, hosted prompt or
-Langfuse mutation, model call, production model, arena
-participant, prediction post, workflow dispatch, or schedule activation has
-proceeded from this checkpoint.
+less whenever the evidence is sufficient. The authorized one-item dataset sync,
+Luna/`max` preflight, and failed first-batch five-by-four attempt below have now
+created Langfuse dataset/run/trace/score state and model usage. They did not
+mutate hosted-prompt content or labels, select a production model or arena
+participant, post a community prediction, dispatch a production workflow, or
+activate a schedule. Independent review and budget-tool integration still do
+not bypass any remaining gate or the separate admission of every paid attempt.
 
 Related planning and decisions:
 
@@ -85,7 +86,7 @@ because it currently routes to Sol and would weaken provenance.
 | `gpt-5.6-terra` | `xhigh` | Terra quality-first candidate | Missing |
 | `gpt-5.6-terra` | `medium` | Terra balanced candidate | Missing |
 | `gpt-5.6-terra` | `none` | Terra no-reasoning baseline | Missing |
-| `gpt-5.6-luna` | `max` | Luna quality-first candidate | Missing |
+| `gpt-5.6-luna` | `max` | Luna quality-first candidate | Missing; cap-`10000` full row invalid, one cap-`20000` remediation preflight pending exact-SHA review |
 | `gpt-5.6-luna` | `medium` | Luna balanced candidate | Missing |
 | `gpt-5.6-luna` | `none` | Luna no-reasoning baseline and plumbing identity | Reuse exact authoritative row; do not rerun |
 
@@ -190,8 +191,13 @@ Caps are observations, not owner guesses:
 3. Collect input, output, reasoning, tier, fallback, termination, and observed
    cost. A cap exhaustion, missing output, or `outputTokens >= maxOutputTokens`
    fails the preflight.
-4. A higher cap may be selected only from that exact preflight evidence and an
-   explicit reviewed amendment. There is no automatic guessed doubling ladder.
+4. A higher cap may be selected only from exact evidence and an explicit
+   reviewed amendment. The Luna/`max` five-by-four cap failure below amends the
+   plan for exactly one new one-item preflight at cap `20000`, after independent
+   review of the frozen checkpoint. The reviewed amendment must then be
+   integrated to `main`, explicitly pushed, and pass exact-head green CI before
+   a fresh Decimal gate may admit the call. It does not authorize a direct
+   20-call rerun, a cap-`40000` probe, or an automatic doubling ladder.
 5. The full five-by-four row must complete all 20 items below the selected cap.
    Any cap hit invalidates the row and pauses execution before another paid run.
 6. The quality run uses the exact cap established by that candidate's accepted
@@ -377,6 +383,57 @@ If parallelism `3` also fails transiently, first settle and append that attempt,
 then run the same candidate gate again with a distinct `p1-retry` report path.
 `--retry-reserve` remains available only for an explicit concurrent reserve;
 it is deliberately absent from this serialized initial/retry contract.
+
+## Live execution checkpoint — Luna/max cap stop
+
+Execution-date checks on 2026-08-26 reconfirmed the three official cutoffs,
+reasoning surfaces, prices, the Sol promotion, the local calculator, and hosted
+match prompt version `2` with `production` membership. The exact one-item
+dataset sync was unchanged at dataset ID `cmt86fx6o0aeuad0dg99ivamv`.
+
+The first Decimal gate admitted the Luna/`max` cap-`10000` preflight at the
+conservative `$0.033200000000` bound. Exact dataset run
+`195f2348-bac2-4900-9764-bd35618bd4a3`, trace
+`4f617fa3b1972f95f549181656f52dac`, then completed on Flex without fallback:
+`2463` input, `535` output, `516` reasoning tokens, and observed cost
+`$0.000567300000`. Its provisional report machine-projected and admitted the
+20-call row at `$0.011346000000`, with `$0.011913300000` all-in at that gate.
+
+The exact cap-`10000`, parallelism-`5`, manifest
+`fcadeeadaadd1356472a1f4f96b7277a05ba3b8a19dcde60e6f2e7d79af577b7`
+attempt was
+`repeated-match-slice__pes-squad__gpt-5.6-luna__match-v2__reasoning-max__random-5x4-seed-20260821__cost-estimate__startsat-12h__2026-08-26t07-16-37z`.
+It exited `1` on source item `ts1423757259` (Hamburger SV vs RB Leipzig,
+matchday 24) because the OpenAI response contained no output text. Failed trace
+`4dc34c3c55f2425c7da00decc4ddb3e7` contains only spans, no generation usage,
+and Langfuse reports zero cost; that is not treated as proof that the provider
+charge was zero. Four other calls are observable. One used `8970 / 10000`
+output tokens (`8951` reasoning), independently demonstrating cap pressure.
+The collector's complete 900-second expectation wait ended `4/5`.
+The ignored payload-safe binding artifact is
+`.tmp/p0-23-budget/gpt-5.6-luna-max-base-row-p5-failure-evidence.json`, SHA-256
+`2d129d123765d0674d1edaa9a3686498bfa59b6aa8f47138fff42c1e285f0157`.
+It independently records the run/trace/error, immutable dataset/manifest
+hashes, execution settings, collector outcome, and supporting output hashes;
+it contains no prompt, context, prediction, credential, or secret payload.
+
+The machine ledger records `$0.010494600000` observable spend: the preflight
+plus `$0.009927300000` across the four visible row calls. It carries the missing
+fifth call as a conservative `$0.033200000000` full-272k-input/full-10k-output
+bound, producing bounded all-in exposure `$0.043694600000`. No row was
+upserted, the exact estimator counts were not run, and all later paid work
+stopped.
+
+The bounded remediation is exactly one Luna/`max` one-item run against the same
+one-item manifest and prompt/evaluation route at cap `20000`, parallelism `1`.
+A no-spend Decimal gate carrying both observed attempt groups and the
+`$0.033200000000` unresolved reservation admitted that future probe at a
+conservative `$0.039200000000`, with bounded all-in `$0.082894600000`. The
+probe may run only after independent exact-SHA approval of this amendment,
+integration to `main`, an explicit `main` push, reconciliation of green CI for
+that exact pushed head, and a fresh machine admission from that exact head. If
+it returns no output, reaches `20000`, drifts tier/identity/pricing, or is
+otherwise malformed, stop again. There is no automatic cap-`40000` action.
 
 ## Phase A — exact cost rows and whole-season estimates
 
@@ -602,29 +659,28 @@ evaluates the quality/cost tradeoff.
 - [x] The machine-readable Decimal `budget-gate` and exact command contract are
       integrated; its focused deterministic suite passes all 24 tests and CI is
       green for exact main commit `0b86b11564b9cc7500b7bfaf94301e4e83263f73`.
-- [ ] Official model pages and pricing are re-fetched on the execution date.
-- [ ] Current pricing-calculator and CLI support are rechecked after any code
+- [x] Official model pages and pricing were re-fetched on the execution date.
+- [x] Current pricing-calculator and CLI support were rechecked after any code
       integration that lands before execution.
-- [ ] Exact prompt version `2` still carries required `production` membership.
+- [x] Exact prompt version `2` still carries required `production` membership.
 - [x] Prepared pool, manifest, selection, and expected counts pass pre-spend
       inspection.
+- [ ] Independent exact-SHA review approves the bounded Luna/`max` cap-`20000`
+      one-item amendment before its paid call.
+- [ ] Integrate the reviewed amendment to `main` and push `origin main`
+      explicitly before the remediation probe.
+- [ ] Reconcile an exact-head green `Build and Test` run for that pushed `main`
+      SHA before the remediation probe.
 - [ ] The Decimal aggregate command separately admits the next initial attempt
-      or retry strictly within USD 30 after all preceding cost settles.
+      or retry strictly within USD 30 from that exact green head after all
+      preceding cost settles.
 
-As of this checkpoint, the exact `1 × 1` and `5 × 4` datasets and manifests are
-prepared only as ignored local artifacts. No dataset was synchronized and no
-HTTP payload egress, hosted-prompt or Langfuse mutation, model construction or
-call, or new spend occurred.
+As of this live checkpoint, the one-item dataset is synchronized unchanged, the
+one-item preflight and failed first-batch five-by-four attempt above are the only
+new paid P0-23 actions, and all further paid work is paused.
 
-The exact pending authorization is narrower than historical-context egress: it
-is authorization to upload/synchronize the public cutoff-safe historical match
-dataset records to Langfuse. Each outbound item contains fixture/team names,
-kickoff, competition, season, community slug, matchday and label, Kicktipp
-match ID, fixture/repetition indices, and the completed score. The
-`slice-dataset.json` files contain no historical context body, context
-reference, context hash, prompt text, prediction output, credential, or secret.
-The separate local manifests retain only the seven context-document names,
-versions, source-document IDs, timestamps, and content hashes required for
-immutable reconstruction. That manifest is not the dataset sync payload. Every
-downstream execution-date, prompt, Decimal-budget, immutable-run, and
-production-selection gate remains open.
+The synced dataset contained only the previously audited public match record;
+the local manifest with context names, versions, source IDs, timestamps, and
+hashes was not the sync payload. No prompt/context/prediction payload or secret
+was retained. Every later immutable-run, quality, production-selection, and
+activation gate remains open.

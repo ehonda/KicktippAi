@@ -1,6 +1,6 @@
 # P0-23 — Collect GPT-5.6 production-candidate evidence
 
-- Status: In progress — independent review approved the preregistered owner matrix and cumulative USD 30 ceiling, the machine-readable Decimal cumulative-budget gate is integrated, and exact main commit `c6caa6a998893193b097e152cd4cce588a6efb5c` is green in `Build and Test` run `32913630047`; the exact one-item and five-by-four artifacts reproduce the frozen local checkpoint, while their first Langfuse sync is blocked pending explicit authorization to upload the public cutoff-safe historical match dataset records and every downstream live-action gate remains open
+- Status: In progress — live cost execution is paused at the first Luna/`max` cap gate: its exact cap-`10000` one-item preflight passed, but the admitted five-by-four row stopped in batch one after a no-output response and one other call used `8970 / 10000` output tokens; no row was upserted and exactly one cap-`20000` one-item remediation probe now waits for independent exact-SHA review, integration to `main`, explicit push, exact-head green CI, and fresh Decimal admission
 - Priority: P0
 - Depends on: [P0-05](p0-05-prompt-route.md), [P0-12](p0-12-match-context-and-transfer-retirement.md), and [P0-20](p0-20-seed-and-development-validation.md)
 - Reuses: the completed cost/provenance foundation recorded in [P0-06](p0-06-model-ledger-and-cost-baseline.md)
@@ -32,11 +32,11 @@ rerun.
 
 ## Cutoff and provenance contract
 
-- [ ] Reverify each candidate's published model knowledge cutoff and current pricing from primary sources immediately before preparing evidence. The 2026-08-26 no-spend check found cutoff `2026-02-16` for every exact model ID; execution must recheck rather than assume it remains current.
-- [ ] Derive the sampling boundary as the exact Europe/Berlin local midnight two calendar days after the candidate's published cutoff. The historical compatibility contract admits only Bundesliga 2025/26 fixtures starting strictly after that boundary; do not weaken the margin, shift the boundary to gain fixtures, or substitute an earlier manifest.
-- [ ] For Luna, preserve the already-proven contract exactly: official cutoff `2026-02-16`, sampling boundary `2026-02-18T00:00:00+01:00`, and only fixtures strictly after that instant. The completed Luna one-item and five-by-four samples already satisfied this rule and do not need another model run.
-- [ ] Fail before spend if the cutoff-safe, completed, exact-context pool cannot support the declared sample. Do not retry seeds or silently change the candidate list, fixture count, repetitions, or comparison design.
-- [ ] Use only the explicit `bundesliga-2025-26-legacy-id-hash-v1` read-only compatibility route and hosted `kicktippai/bundesliga-2026-27/predict-one-match` version 2 with required `production` membership.
+- [x] Reverify each candidate's published model knowledge cutoff and current pricing from primary sources immediately before preparing evidence. The 2026-08-26 execution-date check reconfirmed cutoff `2026-02-16` for every exact model ID.
+- [x] Derive the sampling boundary as the exact Europe/Berlin local midnight two calendar days after the candidate's published cutoff. The common boundary remains `2026-02-18T00:00:00 Europe/Berlin (+01)`.
+- [x] For Luna, preserve the already-proven contract exactly: official cutoff `2026-02-16`, sampling boundary `2026-02-18T00:00:00 Europe/Berlin (+01)`, and only fixtures strictly after that instant.
+- [x] Fail before spend if the cutoff-safe, completed, exact-context pool cannot support the declared sample. The frozen `109`-fixture pool and hash passed unchanged.
+- [x] Use only the explicit `bundesliga-2025-26-legacy-id-hash-v1` read-only compatibility route and hosted `kicktippai/bundesliga-2026-27/predict-one-match` version 2 with required `production` membership.
 - [ ] Bind the official and sampling cutoffs, eligibility policy/count/hash, seed, selected fixture IDs/hash, completed scores, evaluation time, all seven exact context-document versions/content hashes, prompt identity, model identity, reasoning, cap, and dataset/run/trace linkage in the prepared and reported provenance.
 
 ## Cost evidence — phase 1
@@ -118,18 +118,41 @@ rerun.
   and canonical historical-artifact hash
   `22dfcab23f063e2fbb7a7fa96df4f2fb5dca384bb1329adc0c33157f5419a105`.
   Manifest sample/item counts are `1` / `1` and `20` / `20`.
-- The pending authorization is exactly to upload/synchronize the public
-  cutoff-safe historical match dataset records to Langfuse: fixture/team names,
-  kickoff, competition/season/community slug, matchday and label, Kicktipp match
-  ID, fixture/repetition indices, and completed score. `slice-dataset.json`
-  contains no historical context bodies, references, or hashes, prompt text,
-  prediction output, credentials, or secrets. Only the separate local manifest
-  retains seven context-document reference/version/timestamp/content-hash
-  tuples. The first `sync-dataset` attempt was denied before HTTP or payload
-  egress. No Langfuse or prompt mutation, model call, or spend occurred; the
-  observed cumulative P0-23 ledger remains exactly USD 0. This is not a
-  worktree-locator blocker or a general auto-review restriction. All downstream
-  live-action checklist items remain open.
+- The owner subsequently authorized the audited public dataset sync and all
+  experiment-required Langfuse changes. The exact one-item sync returned
+  `created=0`, `updated=0`, `unchanged=1`; no local context manifest, prompt,
+  prediction payload, credential, or secret was uploaded.
+
+## Evidence — 2026-08-26 Luna/max live stop
+
+- Exact preflight dataset run `195f2348-bac2-4900-9764-bd35618bd4a3`
+  completed on Flex without fallback at cap `10000`: `2463` input, `535`
+  output, `516` reasoning tokens, observed cost `$0.000567300000`.
+- The machine-admitted five-by-four attempt used frozen manifest SHA-256
+  `fcadeeadaadd1356472a1f4f96b7277a05ba3b8a19dcde60e6f2e7d79af577b7`
+  and parallelism `5`. It exited `1` on `ts1423757259`, Hamburger SV vs RB
+  Leipzig, with `OpenAI response did not contain output text`; a different
+  visible call used `8970 / 10000` output tokens. No accepted dataset run or
+  authoritative estimate row exists.
+- Four visible row calls total `$0.009927300000`. The full 900-second collector
+  wait ended `4/5`; failed trace `4dc34c3c55f2425c7da00decc4ddb3e7`
+  has no generation usage and its reported zero cost is not accepted as proof
+  of zero provider charge.
+- The Decimal ledger records observable spend `$0.010494600000` and carries a
+  conservative `$0.033200000000` bound for the unobservable failed call,
+  yielding bounded exposure `$0.043694600000` under the USD 30 ceiling.
+- Ignored payload-safe evidence
+  `.tmp/p0-23-budget/gpt-5.6-luna-max-base-row-p5-failure-evidence.json`,
+  SHA-256
+  `2d129d123765d0674d1edaa9a3686498bfa59b6aa8f47138fff42c1e285f0157`,
+  independently binds the exact failed run, trace, error, artifact hashes,
+  execution settings, 900-second `4/5` outcome, and supporting output hashes.
+- [The preregistration live checkpoint](../../../docs/experiments/gpt-5-6-bundesliga-2025-26-production-candidate-preregistration.md#live-execution-checkpoint--lunamax-cap-stop)
+  now allows exactly one cap-`20000` Luna/`max` one-item remediation preflight
+  only after independent exact-SHA review, integration to `main`, explicit
+  push, exact-head green CI, and fresh Decimal admission. It allows no direct
+  20-call rerun, cap-`40000` probe, later candidate, or quality run from this
+  checkpoint.
 
 ## Complete when
 
