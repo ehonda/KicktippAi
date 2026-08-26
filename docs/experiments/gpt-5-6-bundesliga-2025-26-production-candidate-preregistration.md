@@ -1,9 +1,9 @@
 # GPT-5.6 Bundesliga 2025/26 production-candidate preregistration
 
 **Status:** COST PHASE COMPLETE — all nine owner-authorized configurations now
-have authoritative five-by-four rows. Luna/`none` was reused without a new
-call; the other eight rows completed through the reviewed serialized workflow.
-The paired quality phase has not started.
+have authoritative five-by-four rows. The reviewed Phase-B execution contract
+is frozen, but its post-green no-spend preparation checkpoint has not run and
+the paired quality phase has not started.
 
 **Verified:** 2026-08-26
 
@@ -177,10 +177,13 @@ declared seed. An identity, scope, timestamp, context, prompt, count, or hash
 mismatch is a stop condition. Never retry a seed or substitute a fixture to
 obtain a convenient sample.
 
-The seven-document historical route is a preseason proxy. It may understate
-live Bundesliga 2026/27 input cost because the live route has eleven documents.
-No historical cost row, token count, output length, or plumbing result is a
-prediction-quality claim.
+The seven-document historical route is a preseason cost proxy. It may
+understate live Bundesliga 2026/27 input cost because the live route has eleven
+documents. Generic historical cost rows, token counts, output lengths, and
+plumbing results are not prediction-quality evidence. This separately
+preregistered, cutoff-safe common-manifest comparison over completed outcomes
+is valid scored quality evidence under ADR-0049; its scores come from the
+runner's existing Kicktipp scoring contract, not from cost or token behavior.
 
 ## Output-cap policy
 
@@ -339,52 +342,16 @@ effort, cap, average, and source provenance. The gate hashes and reads it but
 does not upsert it. It is valid only for admitting this pending 20-call row;
 the later quality call requires the completed authoritative row.
 
-Once the needed authoritative rows exist, admit one serialized quality
-candidate with a repeated observed-attempt ledger and no mandatory retry
-reserve. This exact example uses the already authoritative Luna/`none` row and
-the preferred `10 × 20 = 200` topology:
-
-```powershell
-$settledLunaMaxPreflightUsd = 'SETTLED_LUNA_MAX_PREFLIGHT_USD'
-$settledLunaMaxBaseRowUsd = 'SETTLED_LUNA_MAX_BASE_ROW_USD'
-$settledAttemptArgs = @(
-  '--observed-attempt'
-  "gpt-5.6-luna-max-preflight=$settledLunaMaxPreflightUsd"
-  '--observed-attempt'
-  "gpt-5.6-luna-max-base-row-p5=$settledLunaMaxBaseRowUsd"
-)
-# Append one --observed-attempt/name-value pair for every other settled P0-23 attempt.
-
-uv --cache-dir .uv-cache run python .agents/skills/estimate-experiment-cost-skill/scripts/experiment_cost_estimator.py budget-gate `
-  --candidate gpt-5.6-luna,none,200 `
-  @settledAttemptArgs `
-  --ceiling-usd 30 `
-  --report-json .tmp/p0-23-budget/gpt-5.6-luna-none-quality-10x20-p5-budget-gate.json
-```
-
-Do not pre-reserve a speculative retry in this serialized program. If that
-quality attempt fails transiently, wait until its cost settles, append the
-attempt to the ledger, and admit the same 200-call candidate separately before
-the parallelism-`3` retry:
-
-```powershell
-$settledLunaNoneQualityP5Usd = 'SETTLED_LUNA_NONE_QUALITY_P5_USD'
-$settledAttemptArgs += @(
-  '--observed-attempt'
-  "gpt-5.6-luna-none-quality-p5=$settledLunaNoneQualityP5Usd"
-)
-
-uv --cache-dir .uv-cache run python .agents/skills/estimate-experiment-cost-skill/scripts/experiment_cost_estimator.py budget-gate `
-  --candidate gpt-5.6-luna,none,200 `
-  @settledAttemptArgs `
-  --ceiling-usd 30 `
-  --report-json .tmp/p0-23-budget/gpt-5.6-luna-none-quality-10x20-p3-retry-budget-gate.json
-```
-
-If parallelism `3` also fails transiently, first settle and append that attempt,
-then run the same candidate gate again with a distinct `p1-retry` report path.
-`--retry-reserve` remains available only for an explicit concurrent reserve;
-it is deliberately absent from this serialized initial/retry contract.
+The early two-attempt quality-gate sketch that previously appeared here is
+superseded and intentionally removed: after cost completion it would undercount
+the program ledger and omit the fixed unresolved Luna/`max` reservation. It is
+not an executable template. Every initial quality candidate and every
+parallelism-`3` or parallelism-`1` retry must instead use the complete frozen
+[per-candidate admission contract](#reviewed-phase-b-execution-freeze): all 18
+settled cost attempts, the fixed `$0.033200000000` reservation, every earlier
+settled quality attempt, exactly one 200-call candidate, a candidate-specific
+JSON path, strict USD 30, and no speculative retry reserve. No other quality
+admission command in this document is current.
 
 ## Live execution checkpoint — Luna/max cap stop
 
@@ -603,13 +570,173 @@ exact and the Decimal aggregate command admits each serialized candidate run.
 Cost rows determine the topology before any quality call.
 
 The cost-phase gate proves that the full-nine `10 × 20` topology fits the
-ceiling; it is not yet an execution-ready quality freeze. Before any quality
-call, a reviewed amendment must pin the common quality sample seed and
-`batch-count` and reconcile the generic runner documentation's current
-cost-only wording for the historical compatibility route with ADR-0049's
-accepted cutoff-safe quality use. Neither this preregistration nor ADR-0049
-currently names that quality seed or batch count, so the executor must not
-infer them from the separate cost manifests.
+ceiling. The reviewed amendment below now freezes the Phase-B selection inputs,
+execution settings, and serial order. It deliberately selects seed `20260821`;
+matching the cost seed is an explicit reviewed choice, not silent reuse of the
+one-item or five-by-four cost artifacts. The quality dataset and manifest are
+new artifacts and no quality preparation, sync, gate, or model call occurred in
+this amendment.
+
+### Reviewed Phase-B execution freeze
+
+The automatic full-matrix quality surface is frozen as follows:
+
+| Property | Frozen value |
+|---|---|
+| Sample seed | `20260821` |
+| Match count | `10` |
+| Repetitions | `20` |
+| Prediction count per candidate | `200` |
+| Slice key | `random-10x20-seed-20260821-gpt-5-6-production-candidate-quality` |
+| Official knowledge cutoff | `2026-02-16` |
+| Sampling boundary | `2026-02-18T00:00:00 Europe/Berlin (+01)`; fixtures must start strictly later |
+| Historical route | `bundesliga-2025-26-legacy-id-hash-v1` for `pes-squad` |
+| Evaluation | relative `startsAt -12:00:00` |
+| Hosted prompt | `kicktippai/bundesliga-2026-27/predict-one-match`, label `production`, exact version `2`, prompt key `bundesliga-match-v2` |
+| Batch count | `7` |
+| Initial fixture parallelism | `5` |
+
+After this amendment is integrated, pushed, and green at exact `main`, prepare
+the quality artifact once with those exact inputs:
+
+```powershell
+dotnet run --project src/Orchestrator -- prepare-repeated-match-slice `
+  --competition bundesliga-2025-26 `
+  --historical-context-compatibility bundesliga-2025-26-legacy-id-hash-v1 `
+  --official-knowledge-cutoff 2026-02-16 `
+  --community-context pes-squad `
+  --match-count 10 `
+  --repetitions 20 `
+  --sample-seed 20260821 `
+  --starts-after "2026-02-18T00:00:00 Europe/Berlin (+01)" `
+  --slice-key random-10x20-seed-20260821-gpt-5-6-production-candidate-quality
+```
+
+Before dataset sync, any
+candidate-specific spend gate, or any model call, a payload-safe no-spend
+checkpoint must record and independently verify all of:
+
+- the exact ten selected canonical source item IDs and their sorted-newline
+  SHA-256;
+- the raw prepared `slice-dataset.json` and `slice-manifest.json` SHA-256
+  values;
+- the canonical historical-artifact SHA-256;
+- eligible fixture count `109` and sorted eligible-source-ID SHA-256
+  `6ecb182489b97f9ea389374183f0ef7cfe632ddfba341ea72aa354647593b415`;
+  and
+- manifest sample size `200` and dataset item count `200`.
+
+Any mismatch is a stop. Never replace an ineligible or inconvenient fixture,
+retry the seed, or change the seed after any candidate score is visible. A
+preparation or provenance defect must be fixed without selecting a different
+sample.
+
+All related run names use one shared UTC run stamp created before the first
+candidate. Candidate processes are serialized in this exact order:
+
+1. Sol / `high` at cap `10000`;
+2. Sol / `medium` at cap `10000`;
+3. Sol / `none` at cap `10000`;
+4. Terra / `xhigh` at cap `10000`;
+5. Terra / `medium` at cap `10000`;
+6. Terra / `none` at cap `10000`;
+7. Luna / `max` at cap `20000`;
+8. Luna / `medium` at cap `10000`; and
+9. Luna / `none` at cap `10000`.
+
+Each candidate starts with `--batch-count 7 --parallelism 5`. With one warmup
+and `19` post-warmup repetitions per fixture, the seven deterministic
+post-warmup groups are `3, 3, 3, 3, 3, 2, 2`. The peak model-call concurrency
+is therefore `15` at parallelism `5`, `9` at parallelism `3`, and `3` at
+parallelism `1`; the artifact still contains the same 200 items and produces
+the same 20 paired repetition totals. A transient
+Flex/rate failure may retry only that exact manifest, model, effort, cap,
+prompt, evaluation policy, batch count, run name, and shared stamp at
+parallelism `3`, then `1`. Settle and record the complete preceding attempt,
+then pass a fresh Decimal gate before each retry. Do not reserve a speculative
+retry. Delayed Langfuse ingestion means recollect and wait; it never means
+rerun.
+
+No quality preflight is permitted or required: all nine exact authoritative
+rows already establish the selected caps. Before each initial candidate or
+retry, write a candidate-specific JSON gate under `.tmp/p0-23-budget/`. The
+gate must include all `18` settled cost attempts, every earlier settled quality
+attempt, the fixed `$0.033200000000` unresolved Luna/`max` reservation, exactly
+one `--candidate MODEL,EFFORT,200`, strict `--ceiling-usd 30`, and no
+speculative retry reserve. For example, the first admission artifact is
+`gpt-5.6-sol-high-quality-10x20-p5-budget-gate.json`; any retry uses a distinct
+`p3-retry` or `p1-retry` artifact. Record the exact JSON SHA-256 before its
+corresponding call.
+
+The earlier topology-only gate remains valid planning evidence: its 18 settled
+attempts total `$0.410982080000`, fixed reservation is `$0.033200000000`,
+nine-candidate wave projection is `$6.160682000000`, all-in projection is
+`$6.604864080000`, and remaining budget is `$23.395135920000`. Ignored artifact
+`.tmp/p0-23-budget/full-nine-10x20-quality-topology-budget-gate.json` has
+SHA-256
+`28f6d471315aaaca27188343052fdbd1445d3d1d541c3b65b2ea9d7d32902c84`.
+It does not replace any fresh candidate-specific admission gate.
+
+The settled cost-attempt portion of every candidate gate is frozen to these 18
+separate named values; never replace them with a pre-summed amount:
+
+```powershell
+$settledCostAttemptArgs = @(
+  '--observed-attempt'
+  'gpt-5.6-luna-max-preflight-cap10000=0.000567300000'
+  '--observed-attempt'
+  'gpt-5.6-luna-max-base-row-p5-visible=0.009927300000'
+  '--observed-attempt'
+  'gpt-5.6-luna-max-preflight-cap20000=0.000878100000'
+  '--observed-attempt'
+  'gpt-5.6-luna-max-base-row-cap20000=0.047204090000'
+  '--observed-attempt'
+  'gpt-5.6-terra-xhigh-preflight=0.007914000000'
+  '--observed-attempt'
+  'gpt-5.6-terra-xhigh-base-row=0.047684900000'
+  '--observed-attempt'
+  'gpt-5.6-sol-high-preflight=0.005786000000'
+  '--observed-attempt'
+  'gpt-5.6-sol-high-base-row=0.146277600000'
+  '--observed-attempt'
+  'gpt-5.6-luna-medium-preflight=0.000321300000'
+  '--observed-attempt'
+  'gpt-5.6-luna-medium-base-row=0.003392090000'
+  '--observed-attempt'
+  'gpt-5.6-terra-medium-preflight=0.003321000000'
+  '--observed-attempt'
+  'gpt-5.6-terra-medium-base-row=0.029846900000'
+  '--observed-attempt'
+  'gpt-5.6-sol-medium-preflight=0.005606000000'
+  '--observed-attempt'
+  'gpt-5.6-sol-medium-base-row=0.048141800000'
+  '--observed-attempt'
+  'gpt-5.6-terra-none-preflight=0.002565000000'
+  '--observed-attempt'
+  'gpt-5.6-terra-none-base-row=0.015710900000'
+  '--observed-attempt'
+  'gpt-5.6-sol-none-preflight=0.005096000000'
+  '--observed-attempt'
+  'gpt-5.6-sol-none-base-row=0.030741800000'
+)
+```
+
+For the first candidate, pass that array plus the fixed reservation and no
+quality-attempt arguments:
+
+```powershell
+uv --cache-dir .uv-cache run python .agents/skills/estimate-experiment-cost-skill/scripts/experiment_cost_estimator.py budget-gate `
+  --candidate gpt-5.6-sol,high,200 `
+  @settledCostAttemptArgs `
+  --reservation gpt-5.6-luna-max-base-row-p5-unobservable-call=0.033200000000 `
+  --ceiling-usd 30 `
+  --report-json .tmp/p0-23-budget/gpt-5.6-sol-high-quality-10x20-p5-budget-gate.json
+```
+
+For every later candidate or retry, append each earlier settled quality attempt
+as its own unique `--observed-attempt` argument before running the otherwise
+candidate-specific command. A successful gate's JSON and SHA-256 are part of
+the pre-call checkpoint.
 
 ### Topology rule
 
@@ -665,6 +792,13 @@ selected fixtures. Report:
 - Friedman omnibus results for three or more candidates; and
 - only when warranted, Holm-adjusted pairwise Wilcoxon signed-rank results.
 
+The existing runner computes the `0` / `2` / `3` / `4` Kicktipp score and the
+repetition-total aggregate in
+[PreparedExperimentSupport](../../src/Orchestrator/Commands/Observability/Experiments/PreparedExperimentSupport.cs).
+[The focused repeated-match-slice scoring test](../../tests/Orchestrator.Tests/Commands/Observability/RunExperimentCommandsTests/RunExperimentCommands_Tests.cs)
+asserts that `avg_kicktipp_points` is the average of repetition totals. This
+freeze changes no scoring code.
+
 Item-level rows are descriptive diagnostics, not independent inferential
 samples. Report the 306/493 cost estimate next to quality, but never infer
 quality from cost, tokens, output length, plumbing success, or the Luna
@@ -697,6 +831,13 @@ evaluates the quality/cost tradeoff.
       `20000`; the other eight authoritative rows use `10000`.
 - [x] Adaptive common-manifest topology, meaningful minimum, immutable metrics,
       and failure rules recorded.
+- [x] Explicitly select quality seed `20260821`, `10 × 20`, slice key
+      `random-10x20-seed-20260821-gpt-5-6-production-candidate-quality`, batch
+      count `7`, initial parallelism `5`, shared-stamp serialized order, exact
+      caps, and separately gated `p3` / `p1` retry mechanics.
+- [x] Reconcile generic historical-route documentation: ordinary cost rows are
+      not quality evidence, while this separately preregistered cutoff-safe
+      completed-outcome comparison is valid scored quality evidence.
 - [x] Owner-supplied captures preserved and embedded.
 - [x] Independent review approved this no-spend checkpoint.
 - [x] The machine-readable Decimal `budget-gate` and exact command contract are
@@ -719,6 +860,15 @@ evaluates the quality/cost tradeoff.
 - [x] Independently review, integrate, explicitly push, reconcile exact-head
       green CI, and freshly Decimal-admit the cap-`20000` five-by-four
       Luna/`max` row before the resumed serialized cost sequence.
+- [ ] After this quality-freeze amendment is integrated, pushed, and exact-head
+      green, prepare the frozen `10 × 20` artifact once and record the ten
+      selected IDs/hash, raw dataset/manifest hashes, canonical historical hash,
+      `109`-fixture eligible-pool identity, and `200` / `200` counts before sync
+      or spend.
+- [ ] Before every quality attempt, write and hash a fresh candidate-specific
+      Decimal gate containing all 18 cost attempts, all earlier quality
+      attempts, the fixed `$0.033200000000` reserve, and exactly one 200-call
+      candidate with no speculative retry reserve.
 
 The cost phase then completed all eight missing authoritative rows in frozen
 order. The final P0-23 cost-phase ledger contains 18 settled attempts at

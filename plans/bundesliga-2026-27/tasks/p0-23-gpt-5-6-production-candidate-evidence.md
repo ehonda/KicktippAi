@@ -1,6 +1,6 @@
 # P0-23 — Collect GPT-5.6 production-candidate evidence
 
-- Status: In progress — phase 1 cost evidence is complete for all nine owner-authorized rows; phase 2 paired quality evidence has not started and remains gated on an exact sample-seed/batch-count and historical-route semantics freeze
+- Status: In progress — phase 1 cost evidence is complete for all nine owner-authorized rows; the phase 2 sample/execution semantics are frozen, but post-green quality-artifact preparation and paired quality execution have not started
 - Priority: P0
 - Depends on: [P0-05](p0-05-prompt-route.md), [P0-12](p0-12-match-context-and-transfer-retirement.md), and [P0-20](p0-20-seed-and-development-validation.md)
 - Reuses: the completed cost/provenance foundation recorded in [P0-06](p0-06-model-ledger-and-cost-baseline.md)
@@ -44,11 +44,14 @@ rerun.
 - [x] Use the integrated Decimal gate to machine-project/admit each one-item preflight, serialize every candidate row, and separately admit each retry only after preceding usage/cost settles. Produce each preflight-to-20 projection through tooling from the exact one-item `base-row --expect-count 1` report; never multiply it manually.
 - [x] For every owner-authorized candidate without an authoritative matching row, follow the repository estimate-row process: verify pricing, run the prescribed one-item preflight, inspect cap/tier/fallback/cost behavior, then run the exact five-fixture by four-repetition base sample only when the preflight is healthy.
 - [x] Collect compact usage by immutable Langfuse dataset-run binding, upsert the authoritative row, and run the repository estimator for 306 and 493 match-prediction calls. Do not retain prompt, context, or prediction payloads.
-- [x] Label every historical seven-document result as a preseason cost proxy that may understate the live eleven-document Bundesliga 2026/27 input. Cost evidence is not prediction-quality evidence.
+- [x] Label every historical seven-document cost result as a preseason cost proxy that may understate the live eleven-document Bundesliga 2026/27 input. Cost evidence is not prediction-quality evidence; the separately preregistered cutoff-safe completed-outcome comparison remains valid scored quality evidence.
 
 ## Quality evidence — phase 2
 
 - [x] Pre-register the comparison metrics, aggregation, paired/common-manifest rule, repetition policy, adaptive topology, and failure handling before any quality run. Full-matrix designs retain 20 paired repetition totals. If those cannot fit, exactly one quality-first preliminary block is allowed; it targets 20 paired totals and may use the owner-authorized exploratory `10 × 15` then `10 × 10` fallback only after machine estimates prove stronger options unaffordable. Apply the hardest candidate cutoff to a shared paired sample when candidates are compared directly.
+- [x] Freeze the reviewed full-matrix execution inputs before scores are visible: seed `20260821`, `10 × 20`, slice key `random-10x20-seed-20260821-gpt-5-6-production-candidate-quality`, batch count `7`, initial parallelism `5`, one shared UTC stamp, exact serialized order Sol `high` / `medium` / `none`, Terra `xhigh` / `medium` / `none`, Luna `max` / `medium` / `none`, Luna/`max` cap `20000`, and cap `10000` for every other row. Retrying the seed or changing these settings after scores are visible is forbidden.
+- [x] Clarify the historical-route evidence boundary without changing ADR-0049: generic seven-document token/cost rows are not quality evidence, while a separately preregistered cutoff-safe common-manifest run over completed outcomes is valid scored quality evidence. Retain the warning that seven-document historical input may understate live eleven-document cost.
+- [ ] After the quality-freeze commit is integrated, pushed, and exact-head green, prepare the frozen quality artifact once and record the exact ten selected IDs/hash, raw dataset/manifest hashes, canonical historical-artifact hash, eligible pool count/hash, and `200` / `200` manifest/item counts before sync, a spend gate, or a model call.
 - [ ] Run only the owner-authorized candidates against completed, cutoff-safe Bundesliga 2025/26 outcomes using exact prepared manifests and immutable run binding. Keep model/prompt settings equal to their declared production candidates.
 - [ ] Publish complete comparable results, including failures and uncertainty, without selecting the production model. Never infer quality from cost, token count, output length, plumbing success, or the Luna validation ladder.
 - [ ] If a cutoff-safe paired comparison is impossible, fail closed and return the exact eligible-pool evidence to the owner; do not manufacture comparability from different or pre-cutoff samples.
@@ -214,6 +217,34 @@ rerun.
   SHA-256
   `28f6d471315aaaca27188343052fdbd1445d3d1d541c3b65b2ea9d7d32902c84`,
   records the exact Decimal calculation. No quality call was started.
+
+## Evidence — 2026-08-26 Phase-B quality freeze
+
+- The reviewed docs-only amendment explicitly selects seed `20260821` for the
+  new `10 × 20` quality artifact. This is an intentional selection, not silent
+  reuse of either cost artifact. No preparation, dataset sync, Langfuse/API
+  mutation, prompt action, candidate gate, preflight, or model call occurred in
+  the freeze lane.
+- Each future candidate uses batch count `7`, initial parallelism `5`, and the
+  exact shared-stamp serial order recorded above. Its post-warmup groups are
+  `3, 3, 3, 3, 3, 2, 2`, so p5 / p3 / p1 peak model-call concurrency is
+  `15` / `9` / `3` without changing the 200 items or 20 paired totals. Only a
+  transient Flex/rate failure may retry the identical settings at parallelism
+  `3`, then `1`, after
+  full cost settlement and a fresh gate. Delayed ingestion requires
+  recollection, not rerun. Existing exact rows make quality preflights
+  unnecessary and forbidden.
+- The no-spend full-topology gate remains `ALLOWED`: 18 settled attempts
+  `$0.410982080000`, fixed reserve `$0.033200000000`, projected wave
+  `$6.160682000000`, all-in `$6.604864080000`, and remaining
+  `$23.395135920000`. Its ignored JSON SHA-256 remains
+  `28f6d471315aaaca27188343052fdbd1445d3d1d541c3b65b2ea9d7d32902c84`.
+  This is planning evidence only.
+- Before each initial candidate or exact-setting retry, a fresh
+  candidate-specific JSON gate must include all 18 cost attempts, every earlier
+  quality attempt, the fixed reserve, exactly one `N=200` candidate, strict USD
+  30, and no speculative retry reserve. The JSON hash is recorded before its
+  corresponding call.
 
 ## Complete when
 

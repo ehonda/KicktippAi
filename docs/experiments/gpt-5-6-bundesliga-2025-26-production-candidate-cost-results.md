@@ -1,6 +1,7 @@
 # GPT-5.6 Bundesliga 2025/26 production-candidate cost results
 
-**Status:** Cost phase complete; quality phase not started
+**Status:** Cost phase complete; quality execution contract frozen; quality
+artifact preparation and runs not started
 
 **Executed:** 2026-08-26
 
@@ -117,11 +118,41 @@ gate artifact
 `.tmp/p0-23-budget/full-nine-10x20-quality-topology-budget-gate.json` has
 SHA-256
 `28f6d471315aaaca27188343052fdbd1445d3d1d541c3b65b2ea9d7d32902c84`.
-This is planning/admission evidence only; this cost-phase closeout did not run
-the quality wave. Quality execution remains gated on a reviewed freeze that
-pins its common sample seed and `batch-count` and reconciles the historical
-compatibility route's generic cost-only documentation with ADR-0049's accepted
-quality design. The cost manifest's seed must not be silently reused.
+This is planning evidence only; this cost-phase closeout did not run
+the quality wave.
+
+The later reviewed docs-only Phase-B freeze explicitly selects seed `20260821`,
+`10 × 20`, slice key
+`random-10x20-seed-20260821-gpt-5-6-production-candidate-quality`, batch count
+`7`, initial fixture parallelism `5`, one shared UTC run stamp, and serialized
+order Sol `high` / `medium` / `none`, Terra `xhigh` / `medium` / `none`, Luna
+`max` / `medium` / `none`. Luna/`max` retains cap `20000`; every other
+configuration retains cap `10000`. Matching the cost seed is an explicit
+reviewed selection, not reuse of a cost artifact. The freeze made no external
+read or write and created no quality score.
+
+For each fixture, one warmup plus the seven post-warmup groups
+`3, 3, 3, 3, 3, 2, 2` preserve all 20 repetitions. Peak model-call concurrency
+is `15` for p5, `9` for p3, and `3` for p1, while candidate serialization and
+the 200-item common manifest remain unchanged.
+
+After that freeze is integrated, pushed, and exact-head green, one no-spend
+preparation checkpoint must materialize and record the selected ten IDs/hash,
+raw dataset/manifest hashes, canonical historical-artifact hash, frozen
+`109`-fixture pool identity, and `200` / `200` counts before sync or spend. The
+generic route now distinguishes cost evidence from quality correctly: token and
+cost rows are not quality evidence, while the separately preregistered
+cutoff-safe common-manifest run over completed outcomes is valid scored quality
+evidence under ADR-0049. The seven-document route can still understate live
+eleven-document cost.
+
+The full-topology JSON remains planning evidence rather than a reusable live
+admission. Before every candidate or exact-setting `p3` / `p1` retry, write and
+hash a fresh candidate-specific gate containing all 18 settled cost attempts,
+all earlier settled quality attempts, the fixed `$0.033200000000` reserve,
+exactly one 200-call candidate, strict USD 30, and no speculative retry reserve.
+Existing exact rows and caps mean there is no quality preflight. If Langfuse
+ingestion lags, recollect instead of rerunning.
 
 ## Reproduction
 

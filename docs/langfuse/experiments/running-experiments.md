@@ -185,11 +185,28 @@ If a run hits OpenAI rate limits or flex-capacity failures, retry the same manif
 uv --cache-dir .uv-cache run python .agents/skills/estimate-experiment-cost-skill/scripts/experiment_cost_estimator.py collect --env ..\KicktippAi.Secrets\src\Orchestrator\.env --group "repeated-match-slice-measured=RUN_NAME" --dataset-id "repeated-match-slice-measured=DATASET_ID" --dataset-run-id "repeated-match-slice-measured=DATASET_RUN_ID" --manifest "repeated-match-slice-measured=PATH_TO_SLICE_MANIFEST" --expect repeated-match-slice-measured=20 --output C:\tmp\kicktippai-cost-estimate-usage.json
 ```
 
-The exact mode refuses to start without both `--manifest` and `--expect`. It rejects missing or duplicate dataset items/traces, run-name drift, observation/link identity drift, count mismatch, and manifest item-set mismatch. Every compact record carries the accepted dataset-run ID plus an inseparable prepared-manifest SHA-256/sample-size tuple. Base-row creation requires both manifest fields on every record, requires them to be identical across the group, and requires the sample size to equal the accepted linked-record and expected counts; whole omission, partial omission, drift, or mismatch fails closed. Run-name-only collection remains available for unambiguous executions; an overcount fails closed and must never be resolved by truncating or selecting a timestamp window. See [ADR-0046](../../plans/bundesliga-2026-27/decisions/0046-bind-cost-usage-to-langfuse-dataset-runs.md).
+The exact mode refuses to start without both `--manifest` and `--expect`. It rejects missing or duplicate dataset items/traces, run-name drift, observation/link identity drift, count mismatch, and manifest item-set mismatch. Every compact record carries the accepted dataset-run ID plus an inseparable prepared-manifest SHA-256/sample-size tuple. Base-row creation requires both manifest fields on every record, requires them to be identical across the group, and requires the sample size to equal the accepted linked-record and expected counts; whole omission, partial omission, drift, or mismatch fails closed. Run-name-only collection remains available for unambiguous executions; an overcount fails closed and must never be resolved by truncating or selecting a timestamp window. See [ADR-0046](../../../plans/bundesliga-2026-27/decisions/0046-bind-cost-usage-to-langfuse-dataset-runs.md).
 
-### Hash-bound Bundesliga 2025/26 preseason cost samples
+### Hash-bound Bundesliga 2025/26 preseason historical samples
 
-Before Bundesliga 2026/27 has completed outcomes, cost-only base estimates may explicitly use completed 2025/26 fixtures. This is a marked experiment compatibility route, not a live runtime fallback. It does not write or migrate Firestore context and does not relax the ordinary context repository.
+Before Bundesliga 2026/27 has completed outcomes, separately preregistered
+preseason experiments may explicitly use completed 2025/26 fixtures. This is a
+marked experiment compatibility route, not a live runtime fallback. It does not
+write or migrate Firestore context and does not relax the ordinary context
+repository.
+
+Generic token/cost rows on this route are cost and plumbing evidence only; they
+are not prediction-quality evidence. A separately preregistered,
+knowledge-cutoff-safe experiment over completed outcomes can use the same
+hash-bound route as valid scored quality evidence when its common manifest,
+seed, topology, metrics, and failure rules were frozen before scores were
+visible. P0-23's accepted contract in
+[ADR-0049](../../../plans/bundesliga-2026-27/decisions/0049-preregister-gpt-5-6-candidate-evidence.md)
+is one such use. The runner calculates item-level Kicktipp points and
+repetition-total aggregates in
+[PreparedExperimentSupport](../../../src/Orchestrator/Commands/Observability/Experiments/PreparedExperimentSupport.cs),
+with the repeated-match-slice aggregation contract covered by
+[RunExperimentCommands_Tests](../../../tests/Orchestrator.Tests/Commands/Observability/RunExperimentCommandsTests/RunExperimentCommands_Tests.cs).
 
 Prepare the Luna five-by-four sample with both cutoff dates and the explicit compatibility marker:
 
@@ -208,7 +225,7 @@ $runStamp = (Get-Date).ToUniversalTime().ToString("yyyy-MM-ddTHH-mm-ssZ").ToLowe
 dotnet run --project src/Orchestrator -- run-repeated-match-slice gpt-5.6-luna --manifest artifacts/langfuse-experiments/repeated-match-slices/pes-squad/all-matchdays-after-20260217t230000z/random-5x4-seed-20260821-gpt-5-6-luna-none-cost-estimate/slice-manifest.json --run-name "repeated-match-slice__pes-squad__gpt-5.6-luna__match-v2__reasoning-none__random-5x4-seed-20260821__startsat-12h__$runStamp" --prompt-key bundesliga-match-v2 --prompt-source langfuse --langfuse-prompt-name kicktippai/bundesliga-2026-27/predict-one-match --langfuse-prompt-label production --langfuse-prompt-version 2 --reasoning-effort none --max-output-tokens 10000 --evaluation-policy-kind relative --evaluation-policy-offset -12:00:00 --batch-count 1 --parallelism 5 --replace-run
 ```
 
-Before prompt retrieval, run replacement, model construction, or prediction, the runner exact-rereads and re-hashes all distinct historical fixture contexts. It then verifies that the returned hosted prompt still has the bound name, numbered version, and `production` label before run replacement or model construction. Drift fails closed. Label resulting cost evidence `Langfuse Bundesliga match v2; Bundesliga 2025/26 7-document legacy-id-hash-v1 context`; it is a preseason cost proxy that may understate the live eleven-document 2026/27 input and is not prediction-quality evidence.
+Before prompt retrieval, run replacement, model construction, or prediction, the runner exact-rereads and re-hashes all distinct historical fixture contexts. It then verifies that the returned hosted prompt still has the bound name, numbered version, and `production` label before run replacement or model construction. Drift fails closed. Label resulting evidence `Langfuse Bundesliga match v2; Bundesliga 2025/26 7-document legacy-id-hash-v1 context`. For token and cost interpretation, it remains a preseason proxy that may understate the live eleven-document 2026/27 input. That seven-versus-eleven-document warning does not invalidate a separately preregistered cutoff-safe quality comparison over the hash-bound completed outcomes, and no cost or token observation is itself a quality claim.
 
 ### Reasoning effort experiments
 
