@@ -20,6 +20,9 @@ class AnalysisError(Exception):
     pass
 
 
+KICKTIPP_POINT_BUCKETS = (0, 2, 3, 4)
+
+
 @dataclass(frozen=True)
 class OutputPaths:
     json_path: Path
@@ -158,6 +161,40 @@ def is_repeated_match_slice_task(bundle: dict[str, Any]) -> bool:
     return str(bundle.get("taskType", "")).strip().lower() == "repeated-match-slice"
 
 
+def build_comparison_unit(task_type: Any) -> dict[str, str]:
+    if str(task_type).strip().lower() == "repeated-match-slice":
+        return {
+            "key": "repetition_total",
+            "singular": "repetition total",
+            "plural": "repetition totals",
+            "label": "Per-Repetition-Total",
+            "methodLabel": "per-repetition-total",
+        }
+
+    return {
+        "key": "prepared_dataset_item",
+        "singular": "prepared dataset item",
+        "plural": "prepared dataset items",
+        "label": "Per-Item",
+        "methodLabel": "per-item",
+    }
+
+
+def build_primary_ranks(ranking_records: list[dict[str, Any]]) -> list[int]:
+    ranks: list[int] = []
+    previous_metric: float | None = None
+    current_rank = 0
+    for index, row in enumerate(ranking_records):
+        metric = normalize_optional_float(row.get("primaryMetricValue"))
+        if metric is None:
+            raise AnalysisError(f"Run '{row.get('runName', '')}' has an invalid primaryMetricValue.")
+        if index == 0 or metric != previous_metric:
+            current_rank = index + 1
+        ranks.append(current_rank)
+        previous_metric = metric
+    return ranks
+
+
 def is_single_run_report(report: dict[str, Any]) -> bool:
     return int(report.get("runCount", 0)) == 1
 
@@ -168,6 +205,111 @@ def is_knowledge_cutoff_single_run_followup(report: dict[str, Any]) -> bool:
     if str(report.get("taskType", "")).strip().lower() != "repeated-match":
         return False
     return "knowledge-cutoff" in str(report.get("datasetName", "")).strip().lower()
+
+
+def resolve_repeated_match_slice_topology_value(
+    run: dict[str, Any],
+    dataset_metadata: dict[str, Any],
+    field_name: str,
+) -> int:
+    run_value = normalize_optional_int(run.get(field_name))
+    dataset_value = normalize_optional_int(dataset_metadata.get(field_name))
+    run_name = str(run.get("runName", ""))
+    if run_value is not None and dataset_value is not None and run_value != dataset_value:
+        raise AnalysisError(
+            f"Repeated-match-slice run '{run_name}' declares {field_name} {run_value}, "
+            f"but dataset metadata declares {dataset_value}."
+        )
+
+    value = run_value if run_value is not None else dataset_value
+    if value is None or value < 1:
+        raise AnalysisError(
+            f"Repeated-match-slice run '{run_name}' requires a positive {field_name} "
+            "in run or dataset metadata."
+        )
+    return value
+
+
+def validate_repeated_match_slice_topology(bundle: dict[str, Any], rows_df: pd.DataFrame) -> None:
+    required_fields = {"runName", "repetitionIndex", "sourceDatasetItemId"}
+    missing_fields = sorted(required_fields.difference(rows_df.columns))
+    if missing_fields:
+        raise AnalysisError(
+            "Repeated-match-slice topology validation requires row field(s): "
+            + ", ".join(missing_fields)
+        )
+
+    dataset_metadata = bundle.get("datasetMetadata")
+    metadata = dataset_metadata if isinstance(dataset_metadata, dict) else {}
+    common_fixture_ids: set[str] | None = None
+    for raw_run in bundle["runs"]:
+        run = raw_run if isinstance(raw_run, dict) else {}
+        run_name = normalize_optional_string(run.get("runName"))
+        if run_name is None:
+            raise AnalysisError("Repeated-match-slice run metadata is missing runName.")
+
+        match_count = resolve_repeated_match_slice_topology_value(run, metadata, "matchCount")
+        repetitions = resolve_repeated_match_slice_topology_value(run, metadata, "repetitions")
+        run_rows = rows_df.loc[rows_df["runName"].astype(str) == run_name].copy()
+        if run_rows.empty:
+            raise AnalysisError(f"Repeated-match-slice run '{run_name}' has no rows.")
+
+        run_rows["_repetitionIndex"] = run_rows["repetitionIndex"].map(normalize_optional_int)
+        if run_rows["_repetitionIndex"].isnull().any():
+            raise AnalysisError(
+                f"Repeated-match-slice run '{run_name}' requires an integer repetitionIndex on every row."
+            )
+
+        actual_repetition_indices = {
+            int(value)
+            for value in run_rows["_repetitionIndex"].tolist()
+        }
+        expected_repetition_indices = set(range(1, repetitions + 1))
+        if actual_repetition_indices != expected_repetition_indices:
+            raise AnalysisError(
+                f"Repeated-match-slice run '{run_name}' repetitionIndex set must be exactly "
+                f"1..{repetitions}; found {sorted(actual_repetition_indices)}."
+            )
+
+        run_fixture_ids: set[str] | None = None
+        for repetition_index in range(1, repetitions + 1):
+            repetition_rows = run_rows.loc[run_rows["_repetitionIndex"] == repetition_index]
+            if len(repetition_rows) != match_count:
+                raise AnalysisError(
+                    f"Repeated-match-slice run '{run_name}' repetition {repetition_index} must contain "
+                    f"exactly {match_count} rows; found {len(repetition_rows)}."
+                )
+
+            fixture_ids = [
+                normalize_optional_string(value)
+                for value in repetition_rows["sourceDatasetItemId"].tolist()
+            ]
+            if any(fixture_id is None for fixture_id in fixture_ids):
+                raise AnalysisError(
+                    f"Repeated-match-slice run '{run_name}' repetition {repetition_index} requires "
+                    "sourceDatasetItemId on every row."
+                )
+            fixture_id_set = {str(fixture_id) for fixture_id in fixture_ids}
+            if len(fixture_id_set) != match_count:
+                raise AnalysisError(
+                    f"Repeated-match-slice run '{run_name}' repetition {repetition_index} must contain "
+                    f"{match_count} distinct sourceDatasetItemIds; found {len(fixture_id_set)}."
+                )
+            if run_fixture_ids is None:
+                run_fixture_ids = fixture_id_set
+            elif fixture_id_set != run_fixture_ids:
+                raise AnalysisError(
+                    f"Repeated-match-slice run '{run_name}' repetition {repetition_index} does not use "
+                    "the same fixture-ID set as repetition 1."
+                )
+
+        if common_fixture_ids is None:
+            common_fixture_ids = run_fixture_ids
+        elif run_fixture_ids != common_fixture_ids:
+            raise AnalysisError(
+                f"Repeated-match-slice run '{run_name}' does not use the common fixture-ID set "
+                "shared by the other runs."
+            )
 
 
 def build_repeated_match_slice_comparison_rows(rows_df: pd.DataFrame) -> pd.DataFrame:
@@ -208,7 +350,11 @@ def analyze_bundle(
     random_seed: int,
 ) -> dict[str, Any]:
     raw_rows_df = pd.DataFrame(bundle["rows"])
-    rows_df = build_repeated_match_slice_comparison_rows(raw_rows_df) if is_repeated_match_slice_task(bundle) else raw_rows_df
+    if is_repeated_match_slice_task(bundle):
+        validate_repeated_match_slice_topology(bundle, raw_rows_df)
+        rows_df = build_repeated_match_slice_comparison_rows(raw_rows_df)
+    else:
+        rows_df = raw_rows_df
     runs_df = pd.DataFrame(bundle["runs"])
     run_input_records = runs_df.to_dict(orient="records")
 
@@ -256,30 +402,47 @@ def analyze_bundle(
 
     ranking_df = runs_df.sort_values(["primaryMetricValue", "runName"], ascending=[False, True]).reset_index(drop=True)
     ranking_input_records = ranking_df.to_dict(orient="records")
+    primary_ranks = build_primary_ranks(ranking_input_records)
+    raw_row_counts = {
+        str(run_name): int(len(run_rows))
+        for run_name, run_rows in raw_rows_df.groupby("runName", sort=False)
+    }
     ranking_records = [
         {
-            "rank": index + 1,
+            "rank": primary_ranks[index],
             "runName": str(row["runName"]),
+            "datasetRunId": normalize_optional_string(row.get("datasetRunId")),
+            "taskType": normalize_optional_string(row.get("taskType")) or str(bundle["taskType"]),
             "runDisplayName": resolve_run_display_name(row),
             "model": str(row["model"]),
-            "promptKey": row.get("promptKey"),
+            "promptKey": normalize_optional_string(row.get("promptKey")),
             "promptSource": normalize_optional_string(row.get("promptSource")),
             "langfusePromptName": normalize_optional_string(row.get("langfusePromptName")),
             "langfusePromptLabel": normalize_optional_string(row.get("langfusePromptLabel")),
             "langfusePromptVersion": normalize_optional_int(row.get("langfusePromptVersion")),
             "reasoningEffort": normalize_optional_string(row.get("reasoningEffort")),
             "maxOutputTokens": normalize_optional_int(row.get("maxOutputTokens")),
-            "sliceKey": row.get("sliceKey"),
-            "sliceKind": row.get("sliceKind"),
+            "sliceKey": normalize_optional_string(row.get("sliceKey")),
+            "sliceKind": normalize_optional_string(row.get("sliceKind")),
+            "sourcePoolKey": normalize_optional_string(row.get("sourcePoolKey")),
             "selectedItemIdsHash": normalize_optional_string(row.get("selectedItemIdsHash")),
+            "selectedItemIdsCount": normalize_optional_int(row.get("selectedItemIdsCount")),
+            "sampleSize": normalize_optional_int(row.get("sampleSize")),
+            "matchCount": normalize_optional_int(row.get("matchCount")),
+            "repetitions": normalize_optional_int(row.get("repetitions")),
+            "parallelism": normalize_optional_int(row.get("parallelism")),
+            "evaluationTimestampPolicyKey": normalize_optional_string(row.get("evaluationTimestampPolicyKey")),
             "evaluationTime": normalize_optional_string(row.get("evaluationTime")),
+            "startedAtUtc": normalize_optional_string(row.get("startedAtUtc")),
+            "batchStrategy": normalize_optional_string(row.get("batchStrategy")),
+            "batchSize": normalize_optional_int(row.get("batchSize")),
             "batchCount": normalize_optional_int(row.get("batchCount")),
             "runSubjectKind": normalize_optional_string(row.get("runSubjectKind")),
             "runSubjectId": normalize_optional_string(row.get("runSubjectId")),
             "runSubjectDisplayName": normalize_optional_string(row.get("runSubjectDisplayName")),
             "primaryMetricValue": float(row["primaryMetricValue"]),
             "aggregateScores": row["aggregateScores"],
-            "rowCount": int(row.get("rowCount", len(paired_scores))),
+            "rowCount": int(row.get("rowCount", raw_row_counts.get(str(row["runName"]), len(paired_scores)))),
         }
         for index, row in enumerate(ranking_input_records, start=0)
     ]
@@ -288,20 +451,31 @@ def analyze_bundle(
         str(row["runName"]): float(row["primaryMetricValue"])
         for row in run_input_records
     }
+    comparison_unit = build_comparison_unit(bundle["taskType"])
 
     report: dict[str, Any] = {
         "datasetName": bundle["datasetName"],
         "datasetDescription": normalize_optional_string(bundle.get("datasetDescription")),
         "datasetMetadata": bundle.get("datasetMetadata") if isinstance(bundle.get("datasetMetadata"), dict) else {},
         "taskType": bundle["taskType"],
+        "exportedAtUtc": normalize_optional_string(bundle.get("exportedAtUtc")),
         "primaryMetricName": bundle["primaryMetricName"],
         "runCount": len(run_names),
         "pairingCount": int(len(paired_scores)),
         "alpha": alpha,
         "correctionMethod": correction_method,
-        "methodDescription": build_statistical_method_description(len(run_names), correction_method),
+        "comparisonUnit": comparison_unit,
+        "methodDescription": build_statistical_method_description(
+            len(run_names),
+            correction_method,
+            comparison_unit=comparison_unit,
+        ),
         "runs": ranking_records,
     }
+
+    report["runProvenance"] = build_run_provenance(raw_rows_df, ranking_records)
+    report["provenanceLimitations"] = build_provenance_limitations(report["runProvenance"])
+    report["kicktippPointBuckets"] = build_kicktipp_point_buckets(raw_rows_df, ranking_records)
 
     match_summary = build_match_summary(raw_rows_df, report["datasetMetadata"])
     if match_summary is not None:
@@ -331,8 +505,9 @@ def analyze_bundle(
             confidence_level=confidence_level,
             random_seed=random_seed,
         )
+        report["comparison"]["outcomeUnit"] = comparison_unit["key"]
     else:
-        report["friedman"] = analyze_friedman(paired_scores)
+        report["friedman"] = analyze_friedman(paired_scores, alpha=alpha)
         report["pairwiseComparisons"] = analyze_pairwise_comparisons(
             ranking_input_records,
             primary_metric_by_run,
@@ -344,6 +519,9 @@ def analyze_bundle(
             confidence_level=confidence_level,
             random_seed=random_seed,
         )
+        for comparison in report["pairwiseComparisons"]:
+            comparison["outcomeUnit"] = comparison_unit["key"]
+        gate_pairwise_interpretation(report)
 
     report["reportTitle"] = build_report_title(report)
     return report
@@ -428,23 +606,77 @@ def analyze_two_run_comparison(
     }
 
 
-def analyze_friedman(paired_scores: pd.DataFrame) -> dict[str, Any]:
+def analyze_friedman(paired_scores: pd.DataFrame, *, alpha: float) -> dict[str, Any]:
     sample_arrays = [paired_scores[column].to_numpy(dtype=float) for column in paired_scores.columns]
+    paired_matrix = paired_scores.to_numpy(dtype=float)
+    if paired_matrix.size > 0 and np.all(paired_matrix == paired_matrix[:, [0]]):
+        return {
+            "statistic": 0.0,
+            "pValue": 1.0,
+            "alpha": alpha,
+            "significant": False,
+            "computed": True,
+            "method": "all_tied_short_circuit",
+        }
+
     try:
         result = scipy_stats.friedmanchisquare(*sample_arrays)
     except ValueError as exc:
         return {
             "statistic": None,
             "pValue": None,
+            "alpha": alpha,
+            "significant": False,
             "computed": False,
             "error": str(exc),
         }
 
+    statistic = float(getattr(result, "statistic"))
+    pvalue = float(getattr(result, "pvalue"))
+    if not math.isfinite(statistic) or not math.isfinite(pvalue):
+        return {
+            "statistic": None,
+            "pValue": None,
+            "alpha": alpha,
+            "significant": False,
+            "computed": False,
+            "error": "Friedman test returned a non-finite statistic or p-value.",
+        }
+
     return {
-        "statistic": float(getattr(result, "statistic")),
-        "pValue": float(getattr(result, "pvalue")),
+        "statistic": statistic,
+        "pValue": pvalue,
+        "alpha": alpha,
+        "significant": bool(pvalue < alpha),
         "computed": True,
     }
+
+
+def gate_pairwise_interpretation(report: dict[str, Any]) -> None:
+    friedman = report["friedman"]
+    interpretation_allowed = bool(friedman.get("computed") and friedman.get("significant"))
+    if interpretation_allowed:
+        reason = "The omnibus Friedman test is significant, so corrected pairwise results may be interpreted."
+    elif friedman.get("computed"):
+        reason = (
+            "The omnibus Friedman test is not significant; corrected pairwise results are retained "
+            "as raw descriptive output and are not interpreted as model differences."
+        )
+    else:
+        reason = (
+            "The omnibus Friedman test could not be computed; corrected pairwise results are retained "
+            "as raw descriptive output and are not interpreted as model differences."
+        )
+
+    report["pairwiseInterpretation"] = {
+        "allowed": interpretation_allowed,
+        "reason": reason,
+    }
+    for comparison in report["pairwiseComparisons"]:
+        comparison["wilcoxon"]["significantAfterOmnibusGate"] = bool(
+            interpretation_allowed
+            and comparison["wilcoxon"].get("significantAfterCorrection")
+        )
 
 
 def analyze_pairwise_comparisons(
@@ -630,19 +862,196 @@ def compute_per_item_outcome_counts(left_scores: np.ndarray, right_scores: np.nd
     }
 
 
-def build_statistical_method_description(run_count: int, correction_method: str) -> str:
+def build_run_provenance(
+    rows_df: pd.DataFrame,
+    ranking_records: list[dict[str, Any]],
+) -> list[dict[str, Any]]:
+    rows_by_run = {
+        str(run_name): run_rows
+        for run_name, run_rows in rows_df.groupby("runName", sort=False)
+    }
+    provenance: list[dict[str, Any]] = []
+    for run in ranking_records:
+        run_name = str(run["runName"])
+        run_rows = rows_by_run.get(run_name)
+        row_dataset_run_ids = unique_column_strings(run_rows, "datasetRunId") if run_rows is not None else []
+        if len(row_dataset_run_ids) > 1:
+            raise AnalysisError(
+                f"Run '{run_name}' rows bind to multiple datasetRunId values: "
+                + ", ".join(row_dataset_run_ids)
+            )
+
+        run_dataset_run_id = normalize_optional_string(run.get("datasetRunId"))
+        row_dataset_run_id = row_dataset_run_ids[0] if row_dataset_run_ids else None
+        if (
+            run_dataset_run_id is not None
+            and row_dataset_run_id is not None
+            and run_dataset_run_id != row_dataset_run_id
+        ):
+            raise AnalysisError(
+                f"Run '{run_name}' datasetRunId '{run_dataset_run_id}' does not match row binding "
+                f"'{row_dataset_run_id}'."
+            )
+
+        record = {
+            "runName": run_name,
+            "runDisplayName": run["runDisplayName"],
+            "datasetRunId": run_dataset_run_id or row_dataset_run_id,
+            "datasetItemCount": count_unique_column_strings(run_rows, "datasetItemId"),
+            "sourceDatasetItemCount": count_unique_column_strings(run_rows, "sourceDatasetItemId"),
+            "traceCount": count_unique_column_strings(run_rows, "traceId"),
+            "observationCount": count_unique_column_strings(run_rows, "observationId"),
+            "rowCount": int(len(run_rows)) if run_rows is not None else 0,
+            "metadata": build_run_metadata_record(run),
+        }
+        provenance.append(record)
+    return provenance
+
+
+def count_unique_column_strings(rows_df: pd.DataFrame | None, column_name: str) -> int | None:
+    if rows_df is None or column_name not in rows_df.columns:
+        return None
+    return len(unique_column_strings(rows_df, column_name))
+
+
+def build_run_metadata_record(run: dict[str, Any]) -> dict[str, Any]:
+    field_names = [
+        "taskType",
+        "model",
+        "promptKey",
+        "promptSource",
+        "langfusePromptName",
+        "langfusePromptLabel",
+        "langfusePromptVersion",
+        "reasoningEffort",
+        "maxOutputTokens",
+        "sliceKind",
+        "sliceKey",
+        "sourcePoolKey",
+        "selectedItemIdsHash",
+        "selectedItemIdsCount",
+        "sampleSize",
+        "matchCount",
+        "repetitions",
+        "parallelism",
+        "evaluationTimestampPolicyKey",
+        "evaluationTime",
+        "startedAtUtc",
+        "batchStrategy",
+        "batchSize",
+        "batchCount",
+        "runSubjectKind",
+        "runSubjectId",
+        "runSubjectDisplayName",
+    ]
+    return {
+        field_name: run[field_name]
+        for field_name in field_names
+        if run.get(field_name) is not None
+    }
+
+
+def build_provenance_limitations(provenance_records: list[dict[str, Any]]) -> list[str]:
+    return [
+        (
+            f"Normalized bundle did not include datasetRunId for run '{run['runName']}'; "
+            "the report cannot display an exact Langfuse dataset-run binding for that run."
+        )
+        for run in provenance_records
+        if normalize_optional_string(run.get("datasetRunId")) is None
+    ]
+
+
+def build_kicktipp_point_buckets(
+    rows_df: pd.DataFrame,
+    ranking_records: list[dict[str, Any]],
+) -> list[dict[str, Any]]:
+    rows_by_run = {
+        str(run_name): run_rows
+        for run_name, run_rows in rows_df.groupby("runName", sort=False)
+    }
+    distributions: list[dict[str, Any]] = []
+    for run in ranking_records:
+        run_name = str(run["runName"])
+        run_rows = rows_by_run.get(run_name)
+        if run_rows is None or "kicktippPoints" not in run_rows.columns:
+            raise AnalysisError(f"Run '{run_name}' does not contain Kicktipp point rows.")
+
+        counts = {str(bucket): 0 for bucket in KICKTIPP_POINT_BUCKETS}
+        for raw_value in run_rows["kicktippPoints"].tolist():
+            point_value = normalize_optional_int(raw_value)
+            if point_value not in KICKTIPP_POINT_BUCKETS:
+                raise AnalysisError(
+                    f"Run '{run_name}' contains unsupported Kicktipp point value '{raw_value}'. "
+                    "Expected one of 0, 2, 3, or 4."
+                )
+            counts[str(point_value)] += 1
+
+        sample_size = int(len(run_rows))
+        declared_row_count = normalize_optional_int(run.get("rowCount"))
+        if declared_row_count is not None and declared_row_count != sample_size:
+            raise AnalysisError(
+                f"Run '{run_name}' declares rowCount {declared_row_count}, but the bundle contains "
+                f"{sample_size} rows."
+            )
+        declared_sample_size = normalize_optional_int(run.get("sampleSize"))
+        if declared_sample_size is not None and declared_sample_size != sample_size:
+            raise AnalysisError(
+                f"Run '{run_name}' declares authoritative sampleSize {declared_sample_size}, but the bundle "
+                f"contains {sample_size} rows."
+            )
+        match_count = normalize_optional_int(run.get("matchCount"))
+        repetitions = normalize_optional_int(run.get("repetitions"))
+        if (
+            str(run.get("taskType", "")).strip().lower() == "repeated-match-slice"
+            and match_count is not None
+            and repetitions is not None
+        ):
+            topology_sample_size = match_count * repetitions
+            if topology_sample_size != sample_size:
+                raise AnalysisError(
+                    f"Repeated-match-slice run '{run_name}' declares topology {match_count}x{repetitions} "
+                    f"({topology_sample_size} predictions), but the bundle contains {sample_size} rows."
+                )
+        counted_sample_size = sum(counts.values())
+        if counted_sample_size != sample_size:
+            raise AnalysisError(
+                f"Run '{run_name}' Kicktipp point bucket count {counted_sample_size} "
+                f"does not match sample size {sample_size}."
+            )
+
+        distributions.append(
+            {
+                "runName": run_name,
+                "runDisplayName": run["runDisplayName"],
+                "sampleSize": sample_size,
+                "declaredRowCount": declared_row_count,
+                "declaredSampleSize": declared_sample_size,
+                "counts": counts,
+            }
+        )
+    return distributions
+
+
+def build_statistical_method_description(
+    run_count: int,
+    correction_method: str,
+    *,
+    comparison_unit: dict[str, str],
+) -> str:
     if run_count == 1:
         return "Descriptive single-run summary; no between-run significance test applies."
 
     if run_count == 2:
         return (
-            "Paired Wilcoxon signed-rank test on per-item Kicktipp-point differences; "
+            f"Paired Wilcoxon signed-rank test on {comparison_unit['methodLabel']} Kicktipp-point differences; "
             "bootstrap confidence intervals summarize mean and median paired differences."
         )
 
     return (
-        "Friedman test across all paired runs; pairwise Wilcoxon signed-rank tests use "
-        f"{correction_method} correction, with bootstrap confidence intervals for paired differences."
+        f"Friedman test across all paired {comparison_unit['plural']}; pairwise Wilcoxon signed-rank tests use "
+        f"{correction_method} correction, with bootstrap confidence intervals for paired differences. "
+        "Pairwise results are interpreted only when the omnibus Friedman test is significant."
     )
 
 
@@ -694,6 +1103,10 @@ def build_single_run_summary(
 def build_single_run_metadata(run_record: dict[str, Any], total_count: int) -> list[tuple[str, str]]:
     metadata_rows: list[tuple[str, str]] = []
 
+    dataset_run_id = normalize_optional_string(run_record.get("datasetRunId"))
+    if dataset_run_id is not None:
+        metadata_rows.append(("Dataset run ID", dataset_run_id))
+
     run_name = normalize_optional_string(run_record.get("runName"))
     if run_name is not None:
         metadata_rows.append(("Run", run_name))
@@ -729,6 +1142,18 @@ def build_single_run_metadata(run_record: dict[str, Any], total_count: int) -> l
     selected_item_ids_hash = normalize_optional_string(run_record.get("selectedItemIdsHash"))
     if selected_item_ids_hash is not None:
         metadata_rows.append(("Selected item hash", selected_item_ids_hash))
+
+    source_pool_key = normalize_optional_string(run_record.get("sourcePoolKey"))
+    if source_pool_key is not None:
+        metadata_rows.append(("Source pool", source_pool_key))
+
+    evaluation_policy = normalize_optional_string(run_record.get("evaluationTimestampPolicyKey"))
+    if evaluation_policy is not None:
+        metadata_rows.append(("Evaluation policy", evaluation_policy))
+
+    started_at = normalize_optional_string(run_record.get("startedAtUtc"))
+    if started_at is not None:
+        metadata_rows.append(("Started at UTC", started_at))
 
     metadata_rows.append(("Verified observations", f"{total_count} / {total_count}"))
     return metadata_rows
@@ -1134,6 +1559,53 @@ def format_metadata_value(value: Any) -> str:
     return str(value)
 
 
+def comparison_outcome_label(report: dict[str, Any], *, long: bool = False) -> str:
+    comparison_unit = report.get("comparisonUnit")
+    label = (
+        normalize_optional_string(comparison_unit.get("label"))
+        if isinstance(comparison_unit, dict)
+        else None
+    ) or "Per-Item"
+    return f"{label} Win/Tie/Loss Counts" if long else f"{label} W/T/L"
+
+
+def comparison_outcome_explanation(report: dict[str, Any]) -> str:
+    comparison_unit = report.get("comparisonUnit")
+    plural = (
+        normalize_optional_string(comparison_unit.get("plural"))
+        if isinstance(comparison_unit, dict)
+        else None
+    ) or "prepared dataset items"
+    return (
+        f"Win/tie/loss counts compare paired Kicktipp points for the listed run ordering across {plural}."
+    )
+
+
+def run_provenance_items(provenance: dict[str, Any]) -> list[tuple[str, str]]:
+    items: list[tuple[str, str]] = []
+    direct_fields = [
+        ("Dataset run ID", "datasetRunId"),
+        ("Run name", "runName"),
+        ("Rows", "rowCount"),
+        ("Dataset items", "datasetItemCount"),
+        ("Source items", "sourceDatasetItemCount"),
+        ("Traces", "traceCount"),
+        ("Observations", "observationCount"),
+    ]
+    for label, field_name in direct_fields:
+        value = provenance.get(field_name)
+        if value is not None:
+            items.append((label, format_metadata_value(value)))
+
+    metadata = provenance.get("metadata")
+    if isinstance(metadata, dict):
+        for field_name, value in metadata.items():
+            formatted = format_metadata_value(value)
+            if formatted:
+                items.append((humanize_metadata_key(field_name), formatted))
+    return items
+
+
 def render_markdown(report: dict[str, Any]) -> str:
     lines = ["# Experiment Analysis Report", ""]
     lines.append(f"- Dataset: `{report['datasetName']}`")
@@ -1141,6 +1613,8 @@ def render_markdown(report: dict[str, Any]) -> str:
     lines.append(f"- Primary Metric: `{report['primaryMetricName']}`")
     lines.append(f"- Runs: {report['runCount']}")
     lines.append(f"- Pairings: {report['pairingCount']}")
+    if report.get("exportedAtUtc"):
+        lines.append(f"- Exported At UTC: `{report['exportedAtUtc']}`")
     if report.get("datasetDescription"):
         lines.append(f"- Dataset Description: {report['datasetDescription']}")
     lines.append(f"- Method: {report['methodDescription']}")
@@ -1174,6 +1648,42 @@ def render_markdown(report: dict[str, Any]) -> str:
             )
         )
     lines.append("")
+
+    point_buckets = report.get("kicktippPointBuckets")
+    if isinstance(point_buckets, list) and point_buckets:
+        lines.append("## Kicktipp Point Buckets")
+        lines.append("")
+        lines.extend(
+            render_table(
+                ["Run", "Sample Size", "0 Points", "2 Points", "3 Points", "4 Points"],
+                [
+                    [
+                        bucket["runDisplayName"],
+                        str(bucket["sampleSize"]),
+                        str(bucket["counts"]["0"]),
+                        str(bucket["counts"]["2"]),
+                        str(bucket["counts"]["3"]),
+                        str(bucket["counts"]["4"]),
+                    ]
+                    for bucket in point_buckets
+                ],
+            )
+        )
+        lines.append("")
+
+    provenance_records = report.get("runProvenance")
+    if isinstance(provenance_records, list) and provenance_records:
+        lines.append("## Run Provenance")
+        lines.append("")
+        for provenance in provenance_records:
+            lines.append(f"### {provenance['runDisplayName']}")
+            lines.append("")
+            lines.extend(render_table(["Field", "Value"], run_provenance_items(provenance)))
+            lines.append("")
+        for limitation in report.get("provenanceLimitations", []):
+            lines.append(f"- Limitation: {limitation}")
+        if report.get("provenanceLimitations"):
+            lines.append("")
 
     if report["runCount"] == 1:
         single_run_summary = report.get("singleRunSummary", {})
@@ -1209,7 +1719,7 @@ def render_markdown(report: dict[str, Any]) -> str:
         lines.append(f"- Mean Difference: {format_number(comparison['meanDifference'])}")
         lines.append(f"- Median Difference: {format_number(comparison['medianDifference'])}")
         lines.append(
-            "- Per-Item Win/Tie/Loss Counts: "
+            f"- {comparison_outcome_label(report, long=True)}: "
             f"{comparison['perItemOutcomeCounts']['wins']}/"
             f"{comparison['perItemOutcomeCounts']['ties']}/"
             f"{comparison['perItemOutcomeCounts']['losses']}"
@@ -1247,6 +1757,8 @@ def render_markdown(report: dict[str, Any]) -> str:
         lines.append(
             f"- Friedman p-value: {format_number(friedman['pValue']) if friedman['pValue'] is not None else 'n/a'}"
         )
+        interpretation = report["pairwiseInterpretation"]
+        lines.append(f"- Pairwise interpretation: {interpretation['reason']}")
         lines.append("")
         lines.append("## Pairwise Comparisons")
         lines.append("")
@@ -1258,8 +1770,9 @@ def render_markdown(report: dict[str, Any]) -> str:
                     "Primary Delta",
                     "Raw p-value",
                     "Adj. p-value",
-                    "Significant",
-                    "Per-Item W/T/L",
+                    "Adjusted significant (raw)",
+                    "Interpreted significant",
+                    comparison_outcome_label(report),
                 ],
                 [
                     [
@@ -1269,6 +1782,7 @@ def render_markdown(report: dict[str, Any]) -> str:
                         format_number(comparison["wilcoxon"]["pValue"]) if comparison["wilcoxon"]["pValue"] is not None else "n/a",
                         format_number(comparison["wilcoxon"]["adjustedPValue"]) if comparison["wilcoxon"]["adjustedPValue"] is not None else "n/a",
                         "yes" if comparison["wilcoxon"].get("significantAfterCorrection") else "no",
+                        "yes" if comparison["wilcoxon"].get("significantAfterOmnibusGate") else "no",
                         (
                             f"{comparison['perItemOutcomeCounts']['wins']}/"
                             f"{comparison['perItemOutcomeCounts']['ties']}/"
@@ -1281,7 +1795,8 @@ def render_markdown(report: dict[str, Any]) -> str:
         )
 
     lines.append("")
-    lines.append("Per-item win/tie/loss counts compare paired Kicktipp points for the listed run ordering on each prepared dataset item.")
+    if report["runCount"] > 1:
+        lines.append(comparison_outcome_explanation(report))
     return "\n".join(lines) + "\n"
 
 
@@ -1293,6 +1808,11 @@ def render_html(report: dict[str, Any]) -> str:
         document_title = f"{report_title} - Experiment Analysis"
         at_a_glance_section = render_at_a_glance_section(report)
         matches_section = render_match_breakdown_section(report.get("matchBreakdown"))
+        point_buckets_section = render_kicktipp_point_buckets_section(report.get("kicktippPointBuckets"))
+        run_provenance_section = render_run_provenance_section(
+                report.get("runProvenance"),
+                report.get("provenanceLimitations"),
+        )
         metadata_items = dataset_metadata_items(report)
         dataset_description = report.get("datasetDescription")
         dataset_description_html = (
@@ -1341,6 +1861,7 @@ def render_html(report: dict[str, Any]) -> str:
                     {render_metric_card('Task type', report['taskType'])}
                     {render_metric_card('Primary metric', report['primaryMetricName'])}
                     {render_metric_card('Alpha', format_number(report['alpha']))}
+                    {render_metric_card('Exported at UTC', report['exportedAtUtc']) if report.get('exportedAtUtc') else ''}
                 </div>
                 <div class=\"panel-subsection\">
                     <p class=\"footnote\">{escape_html(str(report['methodDescription']))}</p>
@@ -1412,7 +1933,7 @@ def render_html(report: dict[str, Any]) -> str:
                         {render_metric_card('Wilcoxon p-value', format_number(wilcoxon['pValue']))}
                         {render_metric_card('Mean difference', format_number(comparison['meanDifference']))}
                         {render_metric_card('Median difference', format_number(comparison['medianDifference']))}
-                        {render_metric_card('Per-item W/T/L', format_outcome_counts(comparison['perItemOutcomeCounts']))}
+                        {render_metric_card(comparison_outcome_label(report), format_outcome_counts(comparison['perItemOutcomeCounts']))}
                     </div>
                     <div class=\"panel-subsection\">
                         <h3>Effect size confidence intervals</h3>
@@ -1445,16 +1966,22 @@ def render_html(report: dict[str, Any]) -> str:
                 """
         else:
                 friedman = report["friedman"]
+                interpretation = report["pairwiseInterpretation"]
+                omnibus_status = "significant" if interpretation["allowed"] else "not significant"
                 pairwise_rows = "\n".join(
-                        render_pairwise_html_table_row(comparison)
+                        render_pairwise_html_table_row(
+                                comparison,
+                                outcome_label=comparison_outcome_label(report),
+                        )
                         for comparison in report["pairwiseComparisons"]
                 )
                 detail_section = f"""
                 <section class=\"panel\">
                     <div class=\"panel-header\">
                         <h2>Multi-run comparison</h2>
-                        <span class=\"pill pill-neutral\">Friedman p-value {format_number(friedman['pValue'])}</span>
+                        <span class=\"pill {'pill-good' if interpretation['allowed'] else 'pill-neutral'}\">Friedman {omnibus_status} · p-value {format_number(friedman['pValue'])}</span>
                     </div>
+                    <p class=\"footnote\">{escape_html(str(interpretation['reason']))}</p>
                     <table class=\"sortable-table\" data-sortable-table>
                         <thead>
                             <tr>
@@ -1463,8 +1990,9 @@ def render_html(report: dict[str, Any]) -> str:
                                 {render_sortable_header('Primary delta', 'number')}
                                 {render_sortable_header('Raw p-value', 'number')}
                                 {render_sortable_header('Adjusted p-value', 'number')}
-                                {render_sortable_header('Significant', 'boolean')}
-                                {render_sortable_header('Per-item W/T/L', 'outcome')}
+                                {render_sortable_header('Adjusted significant (raw)', 'boolean')}
+                                {render_sortable_header('Interpreted significant', 'boolean')}
+                                {render_sortable_header(comparison_outcome_label(report), 'outcome')}
                             </tr>
                         </thead>
                         <tbody>
@@ -2302,9 +2830,13 @@ def render_html(report: dict[str, Any]) -> str:
 
         {matches_section}
 
+        {point_buckets_section}
+
         {summary_section}
 
         {dataset_metadata_section}
+
+        {run_provenance_section}
 
         <section class=\"panel\">
             <div class=\"panel-header\">
@@ -2323,7 +2855,7 @@ def render_html(report: dict[str, Any]) -> str:
         {detail_section}
 
         <section class=\"panel\">
-            <p class=\"footnote\">Per-item win/tie/loss counts compare paired Kicktipp points for the listed run ordering on each prepared dataset item.</p>
+            <p class=\"footnote\">{escape_html(comparison_outcome_explanation(report))}</p>
         </section>
     </main>
     <script type=\"application/json\" id=\"standings-comparison-data\">{standings_comparison_json}</script>
@@ -2512,8 +3044,13 @@ def render_single_run_repeated_match_html(report: dict[str, Any]) -> str:
         prediction_distribution_panel = render_single_run_prediction_distribution_panel(
                 report.get("predictionDistributions", [])
         )
+        point_buckets_section = render_kicktipp_point_buckets_section(report.get("kicktippPointBuckets"))
         metadata_rows = single_run_summary.get("runMetadata")
         run_metadata_section = render_single_run_run_metadata_section(metadata_rows)
+        run_provenance_section = render_run_provenance_section(
+                report.get("runProvenance"),
+                report.get("provenanceLimitations"),
+        )
         related_analysis_section = render_single_run_related_analysis_section(report)
         why_separate_text = (
                 "The existing report is a paired 25x comparison. This 100x run uses the same source match, "
@@ -2814,7 +3351,9 @@ def render_single_run_repeated_match_html(report: dict[str, Any]) -> str:
         </section>
 
         {prediction_distribution_panel}
+        {point_buckets_section}
         {run_metadata_section}
+        {run_provenance_section}
         {related_analysis_section}
     </main>
 </body>
@@ -2842,6 +3381,86 @@ def render_single_run_prediction_distribution_panel(distributions: Any) -> str:
                 {histogram_cards}
             </div>
         </section>
+        """
+
+
+def render_kicktipp_point_buckets_section(distributions: Any) -> str:
+        if not isinstance(distributions, list) or not distributions:
+                return ""
+
+        rows_html = "\n".join(
+                render_html_table_row(
+                        [
+                                distribution["runDisplayName"],
+                                distribution["sampleSize"],
+                                distribution["counts"]["0"],
+                                distribution["counts"]["2"],
+                                distribution["counts"]["3"],
+                                distribution["counts"]["4"],
+                        ]
+                )
+                for distribution in distributions
+        )
+        return f"""
+        <section class=\"panel\">
+            <h2>Kicktipp Point Buckets</h2>
+            <p class=\"footnote\">Counts are item-level Kicktipp outcomes; every run includes explicit 0, 2, 3, and 4 point buckets whose sum equals its sample size.</p>
+            <table>
+                <thead>
+                    <tr>
+                        <th>Run</th>
+                        <th>Sample size</th>
+                        <th>0 points</th>
+                        <th>2 points</th>
+                        <th>3 points</th>
+                        <th>4 points</th>
+                    </tr>
+                </thead>
+                <tbody>
+                    {rows_html}
+                </tbody>
+            </table>
+        </section>
+        """
+
+
+def render_run_provenance_section(provenance_records: Any, limitations: Any) -> str:
+        if not isinstance(provenance_records, list) or not provenance_records:
+                return ""
+
+        run_sections = "\n".join(
+                f"""
+                <div class=\"panel-subsection\">
+                    <h3>{escape_html(str(provenance['runDisplayName']))}</h3>
+                    <table>
+                        <thead><tr><th>Field</th><th>Value</th></tr></thead>
+                        <tbody>
+                            {''.join(render_html_table_row([label, value]) for label, value in run_provenance_items(provenance))}
+                        </tbody>
+                    </table>
+                </div>
+                """
+                for provenance in provenance_records
+                if isinstance(provenance, dict)
+        )
+        limitation_items = limitations if isinstance(limitations, list) else []
+        limitation_html = "".join(
+                f"<li>{escape_html(str(limitation))}</li>"
+                for limitation in limitation_items
+        )
+        limitations_section = (
+                f'<p class="footnote">Provenance limits in this input:</p><ul>{limitation_html}</ul>'
+                if limitation_html
+                else ""
+        )
+        return f"""
+        <details class=\"panel collapsible-panel\">
+            <summary class=\"collapsible-summary\"><h2>Run provenance</h2></summary>
+            <div class=\"collapsible-body\">
+                {run_sections}
+                {limitations_section}
+            </div>
+        </details>
         """
 
 
@@ -3173,7 +3792,7 @@ def normalize_optional_float(value: Any) -> float | None:
                 number = float(value)
         except (TypeError, ValueError):
                 return None
-        if math.isnan(number):
+        if not math.isfinite(number):
                 return None
         return number
 
@@ -3309,14 +3928,24 @@ def render_sortable_header(label: str, sort_type: str) -> str:
         )
 
 
-def render_pairwise_html_table_row(comparison: dict[str, Any]) -> str:
-        significant = bool(comparison["wilcoxon"].get("significantAfterCorrection"))
-        significant_text = "yes" if significant else "no"
-        row_class = "pairwise-row pairwise-row-significant" if significant else "pairwise-row"
+def render_pairwise_html_table_row(
+        comparison: dict[str, Any],
+        *,
+        outcome_label: str = "Per-Item W/T/L",
+) -> str:
+        raw_significant = bool(comparison["wilcoxon"].get("significantAfterCorrection"))
+        interpreted_significant = bool(comparison["wilcoxon"].get("significantAfterOmnibusGate"))
+        raw_significant_text = "yes" if raw_significant else "no"
+        interpreted_significant_text = "yes" if interpreted_significant else "no"
+        row_class = "pairwise-row pairwise-row-significant" if interpreted_significant else "pairwise-row"
         counts = comparison["perItemOutcomeCounts"]
-        significant_badge = (
-                f'<span class="significance-badge significance-badge-{significant_text}">'
-                f"{significant_text}</span>"
+        raw_significant_badge = (
+                f'<span class="significance-badge significance-badge-{raw_significant_text}">'
+                f"{raw_significant_text}</span>"
+        )
+        interpreted_significant_badge = (
+                f'<span class="significance-badge significance-badge-{interpreted_significant_text}">'
+                f"{interpreted_significant_text}</span>"
         )
 
         cells = [
@@ -3346,14 +3975,20 @@ def render_pairwise_html_table_row(comparison: dict[str, Any]) -> str:
                         sort_value=comparison["wilcoxon"]["adjustedPValue"],
                 ),
                 render_html_table_cell(
-                        significant_text,
-                        label="Significant",
-                        sort_value=1 if significant else 0,
-                        html_value=significant_badge,
+                        raw_significant_text,
+                        label="Adjusted significant (raw)",
+                        sort_value=1 if raw_significant else 0,
+                        html_value=raw_significant_badge,
+                ),
+                render_html_table_cell(
+                        interpreted_significant_text,
+                        label="Interpreted significant",
+                        sort_value=1 if interpreted_significant else 0,
+                        html_value=interpreted_significant_badge,
                 ),
                 render_html_table_cell(
                         format_outcome_counts(counts),
-                        label="Per-item W/T/L",
+                        label=outcome_label,
                         sort_value=format_outcome_counts(counts),
                         extra_attributes={
                                 "data-sort-wins": counts["wins"],
@@ -3400,7 +4035,7 @@ def escape_html(value: str) -> str:
 def render_standings_comparison_json(report: dict[str, Any]) -> str:
         matrix = build_standings_comparison_matrix(report)
         return (
-                json.dumps(matrix, separators=(",", ":"), sort_keys=True)
+                json.dumps(matrix, separators=(",", ":"), sort_keys=True, allow_nan=False)
                 .replace("&", "\\u0026")
                 .replace("<", "\\u003c")
                 .replace(">", "\\u003e")
@@ -3438,7 +4073,7 @@ def build_standings_comparison_matrix(report: dict[str, Any]) -> dict[str, dict[
                         str(comparison["runAName"]),
                         str(comparison["runBName"]),
                         comparison["wilcoxon"].get("adjustedPValue"),
-                        bool(comparison["wilcoxon"].get("significantAfterCorrection")),
+                        bool(comparison["wilcoxon"].get("significantAfterOmnibusGate")),
                         float(comparison["primaryMetricDelta"]),
                 )
 
@@ -3500,10 +4135,19 @@ def is_community_standings_report(report: dict[str, Any]) -> bool:
         return str(report.get("taskType", "")).lower() == "community-to-date"
 
 
-def render_table(headers: list[str], rows: list[list[str]]) -> list[str]:
-    header_line = "| " + " | ".join(headers) + " |"
-    separator_line = "| " + " | ".join(["---"] * len(headers)) + " |"
-    row_lines = ["| " + " | ".join(row) + " |" for row in rows]
+def escape_markdown_table_cell(value: Any) -> str:
+    text = str(value).replace("\\", "\\\\").replace("|", "\\|")
+    return text.replace("\r\n", "<br>").replace("\r", "<br>").replace("\n", "<br>")
+
+
+def render_table(headers: Sequence[Any], rows: Sequence[Sequence[Any]]) -> list[str]:
+    escaped_headers = [escape_markdown_table_cell(header) for header in headers]
+    header_line = "| " + " | ".join(escaped_headers) + " |"
+    separator_line = "| " + " | ".join(["---"] * len(escaped_headers)) + " |"
+    row_lines = [
+        "| " + " | ".join(escape_markdown_table_cell(cell) for cell in row) + " |"
+        for row in rows
+    ]
     return [header_line, separator_line, *row_lines]
 
 
@@ -3534,9 +4178,13 @@ def format_kicktipp_points(value: float | None) -> str:
 
 def write_outputs(report: dict[str, Any], output_paths: OutputPaths) -> str:
     markdown = strip_trailing_whitespace(render_markdown(report))
+    try:
+        report_json = json.dumps(report, indent=2, allow_nan=False)
+    except ValueError as exc:
+        raise AnalysisError(f"Report contains a non-finite JSON value: {exc}") from exc
     output_paths.json_path.parent.mkdir(parents=True, exist_ok=True)
     output_paths.markdown_path.parent.mkdir(parents=True, exist_ok=True)
-    output_paths.json_path.write_text(json.dumps(report, indent=2), encoding="utf-8")
+    output_paths.json_path.write_text(report_json, encoding="utf-8")
     output_paths.markdown_path.write_text(markdown, encoding="utf-8")
     if output_paths.html_path is not None:
         output_paths.html_path.parent.mkdir(parents=True, exist_ok=True)

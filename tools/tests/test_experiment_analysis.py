@@ -11,6 +11,50 @@ from tools.experiment_analysis import report
 
 
 class ExperimentAnalysisReportTests(unittest.TestCase):
+    @staticmethod
+    def build_repeated_slice_topology_bundle(
+        topology_by_run: dict[str, list[tuple[int, str]]],
+        *,
+        match_count: int = 2,
+        repetitions: int = 2,
+    ) -> dict[str, object]:
+        return {
+            "datasetName": "match-predictions/bundesliga-2025-26/test/repeated-match-slices/topology",
+            "datasetMetadata": {
+                "matchCount": match_count,
+                "repetitions": repetitions,
+            },
+            "taskType": "repeated-match-slice",
+            "primaryMetricName": "avg_kicktipp_points",
+            "runs": [
+                {
+                    "runName": run_name,
+                    "model": run_name,
+                    "sampleSize": len(topology),
+                    "matchCount": match_count,
+                    "repetitions": repetitions,
+                    "rowCount": len(topology),
+                    "primaryMetricValue": float(match_count * 2),
+                    "aggregateScores": {
+                        "total_kicktipp_points": float(len(topology) * 2),
+                        "avg_kicktipp_points": float(match_count * 2),
+                    },
+                }
+                for run_name, topology in topology_by_run.items()
+            ],
+            "rows": [
+                {
+                    "pairingKey": f"{run_name}-{row_index}",
+                    "runName": run_name,
+                    "kicktippPoints": 2,
+                    "repetitionIndex": repetition_index,
+                    "sourceDatasetItemId": fixture_id,
+                }
+                for run_name, topology in topology_by_run.items()
+                for row_index, (repetition_index, fixture_id) in enumerate(topology, start=1)
+            ],
+        }
+
     def test_two_run_slice_bundle_produces_primary_metric_and_per_item_outcomes(self) -> None:
         fixture = Path("tools/tests/fixtures/two_run_slice_bundle.json")
         with tempfile.TemporaryDirectory() as temp_directory:
@@ -43,11 +87,26 @@ class ExperimentAnalysisReportTests(unittest.TestCase):
             self.assertEqual(report_json["comparison"]["betterRunName"], "slice__test-community__o3")
             self.assertEqual(report_json["comparison"]["betterRunDisplayName"], "o3")
             self.assertEqual(report_json["comparison"]["perItemOutcomeCounts"], {"wins": 2, "ties": 2, "losses": 0})
+            self.assertEqual(report_json["runs"][0]["datasetRunId"], "dataset-run-1")
+            self.assertEqual(report_json["exportedAtUtc"], "2026-04-06T10:00:00Z")
+            self.assertEqual(report_json["runProvenance"][0]["datasetRunId"], "dataset-run-1")
+            self.assertEqual(report_json["runProvenance"][0]["traceCount"], 4)
+            self.assertEqual(
+                report_json["kicktippPointBuckets"][0]["counts"],
+                {"0": 0, "2": 3, "3": 0, "4": 1},
+            )
+            self.assertEqual(
+                sum(report_json["kicktippPointBuckets"][0]["counts"].values()),
+                report_json["kicktippPointBuckets"][0]["sampleSize"],
+            )
             self.assertIn("Per-Item Win/Tie/Loss Counts", report_markdown)
+            self.assertIn("## Run Provenance", report_markdown)
+            self.assertIn("| Dataset run ID | dataset-run-1 |", report_markdown)
             self.assertIn("| 1 | o3 | o3 | 10.0000 |", report_markdown)
             self.assertIn("Two-run comparison", report_html)
             self.assertIn("<td>o3</td>", report_html)
-            self.assertNotIn("<td>slice__test-community__o3</td>", report_html)
+            self.assertIn("<td>slice__test-community__o3</td>", report_html)
+            self.assertIn("Kicktipp Point Buckets", report_html)
 
     def test_reasoning_effort_is_displayed_next_to_model_when_no_subject_label_exists(self) -> None:
         bundle = {
@@ -69,15 +128,15 @@ class ExperimentAnalysisReportTests(unittest.TestCase):
                     "runName": "gpt-55-xhigh",
                     "model": "gpt-5.5",
                     "reasoningEffort": "xhigh",
-                    "primaryMetricValue": 1.0,
-                    "aggregateScores": {"total_kicktipp_points": 2.0, "avg_kicktipp_points": 1.0},
+                    "primaryMetricValue": 0.0,
+                    "aggregateScores": {"total_kicktipp_points": 0.0, "avg_kicktipp_points": 0.0},
                 },
             ],
             "rows": [
                 {"pairingKey": "repeat-1", "runName": "gpt-55-none", "kicktippPoints": 2},
-                {"pairingKey": "repeat-1", "runName": "gpt-55-xhigh", "kicktippPoints": 1},
+                {"pairingKey": "repeat-1", "runName": "gpt-55-xhigh", "kicktippPoints": 0},
                 {"pairingKey": "repeat-2", "runName": "gpt-55-none", "kicktippPoints": 2},
-                {"pairingKey": "repeat-2", "runName": "gpt-55-xhigh", "kicktippPoints": 1},
+                {"pairingKey": "repeat-2", "runName": "gpt-55-xhigh", "kicktippPoints": 0},
             ],
         }
 
@@ -95,7 +154,9 @@ class ExperimentAnalysisReportTests(unittest.TestCase):
         self.assertEqual(report_json["reportTitle"], "gpt-5.5 (none) vs gpt-5.5 (xhigh)")
         self.assertEqual(report_json["comparison"]["betterRunDisplayName"], "gpt-5.5 (none)")
         self.assertEqual(report_json["comparison"]["otherRunDisplayName"], "gpt-5.5 (xhigh)")
+        self.assertEqual(len(report_json["provenanceLimitations"]), 2)
         self.assertIn("gpt-5.5 (none)", report_markdown)
+        self.assertIn("Normalized bundle did not include datasetRunId", report_markdown)
         self.assertIn("gpt-5.5 (xhigh)", report_html)
         self.assertIn(
             '<meta name="kicktippai-report-title" content="gpt-5.5 (none) vs gpt-5.5 (xhigh)">',
@@ -126,6 +187,7 @@ class ExperimentAnalysisReportTests(unittest.TestCase):
             "runs": [
                 {
                     "runName": "repeated-match__pes-squad__o3__prompt-v1__repeat-25__exact-time__2026-03-15t12-00-00z",
+                    "datasetRunId": "dataset-run-o3",
                     "model": "o3",
                     "runSubjectDisplayName": "o3",
                     "primaryMetricValue": 2.5,
@@ -133,6 +195,7 @@ class ExperimentAnalysisReportTests(unittest.TestCase):
                 },
                 {
                     "runName": "repeated-match__pes-squad__gpt-5-nano__prompt-v1__repeat-25__exact-time__2026-03-15t12-00-00z",
+                    "datasetRunId": "dataset-run-nano",
                     "model": "gpt-5-nano",
                     "runSubjectDisplayName": "gpt-5-nano",
                     "primaryMetricValue": 1.0,
@@ -206,7 +269,8 @@ class ExperimentAnalysisReportTests(unittest.TestCase):
         self.assertIn("Effect Size Confidence Intervals", report_markdown)
         self.assertIn("- Better Run: `o3`", report_markdown)
         self.assertIn("- Other Run: `gpt-5-nano`", report_markdown)
-        self.assertNotIn("repeated-match__pes-squad__o3__prompt-v1", report_markdown)
+        self.assertIn("| Dataset run ID | dataset-run-o3 |", report_markdown)
+        self.assertIn("repeated-match__pes-squad__o3__prompt-v1", report_markdown)
         self.assertIn("<h2>At a glance</h2>", report_html)
         self.assertIn("Match to predict", report_html)
         self.assertIn("Compact head to head", report_html)
@@ -218,7 +282,7 @@ class ExperimentAnalysisReportTests(unittest.TestCase):
         self.assertIn("VfB Stuttgart 1 - 0 RB Leipzig", report_html)
         self.assertIn("Two-run comparison", report_html)
         self.assertIn("pill-", report_html)
-        self.assertNotIn("<td>repeated-match__pes-squad__o3__prompt-v1", report_html)
+        self.assertIn("<td>repeated-match__pes-squad__o3__prompt-v1", report_html)
 
     def test_single_run_knowledge_cutoff_follow_up_renders_exact_score_signal(self) -> None:
         run_name = (
@@ -377,8 +441,15 @@ class ExperimentAnalysisReportTests(unittest.TestCase):
 
         self.assertEqual(report_json["primaryMetricName"], "avg_kicktipp_points")
         self.assertEqual(report_json["pairingCount"], 2)
+        self.assertEqual(report_json["comparisonUnit"]["key"], "repetition_total")
+        self.assertIn("per-repetition-total Kicktipp-point differences", report_json["methodDescription"])
         self.assertEqual(report_json["comparison"]["betterRunName"], run_a)
         self.assertEqual(report_json["comparison"]["perItemOutcomeCounts"], {"wins": 1, "ties": 1, "losses": 0})
+        self.assertEqual(report_json["comparison"]["outcomeUnit"], "repetition_total")
+        self.assertEqual(
+            report_json["kicktippPointBuckets"][0]["counts"],
+            {"0": 1, "2": 2, "3": 0, "4": 1},
+        )
         self.assertEqual(len(report_json["matchBreakdown"]), 2)
         self.assertEqual(report_json["matchBreakdown"][0]["fixture"], "Home 1 vs Away 1")
         self.assertEqual(report_json["matchBreakdown"][0]["actualResultDisplay"], "Home 1 1 - 0 Away 1")
@@ -390,6 +461,8 @@ class ExperimentAnalysisReportTests(unittest.TestCase):
         self.assertIn("| Matches | 2 |", report_markdown)
         self.assertIn("| Repetitions | 2 |", report_markdown)
         self.assertIn("| Predictions | 4 |", report_markdown)
+        self.assertIn("Per-Repetition-Total Win/Tie/Loss Counts", report_markdown)
+        self.assertIn("across repetition totals", report_markdown)
         self.assertIn('<details class="panel collapsible-panel matches-panel">', report_html)
         self.assertIn("<h2>Matches</h2>", report_html)
         self.assertIn("2 fixtures", report_html)
@@ -405,6 +478,8 @@ class ExperimentAnalysisReportTests(unittest.TestCase):
         self.assertIn("background: #dcefd8;", report_html)
         self.assertIn(">3pt</span>", report_html)
         self.assertIn("Model A", report_html)
+        self.assertIn("Per-Repetition-Total W/T/L", report_html)
+        self.assertNotIn("each prepared dataset item", report_html)
 
     def test_repeated_match_slice_match_breakdown_supports_multi_run_html(self) -> None:
         run_a = "repeated-match-slice__test-community__a"
@@ -429,17 +504,17 @@ class ExperimentAnalysisReportTests(unittest.TestCase):
                 (1, 1): (2, (1, 1)),
                 (1, 2): (2, (1, 1)),
                 (1, 3): (2, (1, 1)),
-                (2, 1): (1, (0, 2)),
-                (2, 2): (1, (0, 2)),
-                (2, 3): (1, (0, 2)),
+                (2, 1): (0, (0, 2)),
+                (2, 2): (0, (0, 2)),
+                (2, 3): (0, (0, 2)),
             },
             run_c: {
-                (1, 1): (1, (0, 0)),
-                (1, 2): (1, (0, 0)),
-                (1, 3): (1, (0, 0)),
-                (2, 1): (1, (1, 3)),
-                (2, 2): (1, (1, 3)),
-                (2, 3): (1, (1, 3)),
+                (1, 1): (0, (0, 0)),
+                (1, 2): (0, (0, 0)),
+                (1, 3): (0, (0, 0)),
+                (2, 1): (0, (1, 3)),
+                (2, 2): (0, (1, 3)),
+                (2, 3): (0, (1, 3)),
             },
         }
         bundle = {
@@ -577,7 +652,7 @@ class ExperimentAnalysisReportTests(unittest.TestCase):
                 for run_name, points in [
                     ("community__alice-1", 3),
                     ("community__bob-2", 2),
-                    ("community__cara-3", 1),
+                    ("community__cara-3", 0),
                 ]
             ],
         }
@@ -640,6 +715,397 @@ class ExperimentAnalysisReportTests(unittest.TestCase):
         self.assertIn("data-sortable-table", report_html)
         self.assertIn('data-sort-type="outcome"', report_html)
         self.assertIn('querySelectorAll("[data-sortable-table]")', report_html)
+
+    def test_primary_metric_ties_receive_shared_ranks_with_deterministic_display_order(self) -> None:
+        bundle = {
+            "datasetName": "match-predictions/bundesliga-2025-26/test/slices/tied-ranking",
+            "taskType": "slice",
+            "primaryMetricName": "total_kicktipp_points",
+            "runs": [
+                {
+                    "runName": run_name,
+                    "model": run_name,
+                    "primaryMetricValue": primary_value,
+                    "aggregateScores": {"total_kicktipp_points": primary_value},
+                }
+                for run_name, primary_value in [
+                    ("run-b", 4.0),
+                    ("run-a", 4.0),
+                    ("run-c", 2.0),
+                ]
+            ],
+            "rows": [
+                {"pairingKey": pairing_key, "runName": run_name, "kicktippPoints": points}
+                for pairing_key, scores in [
+                    ("item-1", {"run-a": 4, "run-b": 2, "run-c": 0}),
+                    ("item-2", {"run-a": 0, "run-b": 2, "run-c": 2}),
+                ]
+                for run_name, points in scores.items()
+            ],
+        }
+
+        report_json = report.analyze_bundle(
+            bundle,
+            alpha=0.05,
+            correction_method="holm",
+            bootstrap_resamples=100,
+            confidence_level=0.95,
+            random_seed=20260406,
+        )
+
+        self.assertEqual([run["runName"] for run in report_json["runs"]], ["run-a", "run-b", "run-c"])
+        self.assertEqual([run["rank"] for run in report_json["runs"]], [1, 1, 3])
+
+    def test_nonsignificant_friedman_gates_pairwise_interpretation_but_keeps_raw_tables(self) -> None:
+        scores_by_run = {
+            "run-a": [4, 2, 0, 2],
+            "run-b": [2, 0, 2, 4],
+            "run-c": [0, 4, 2, 2],
+        }
+        bundle = {
+            "datasetName": "match-predictions/bundesliga-2025-26/test/slices/nonsignificant",
+            "taskType": "slice",
+            "primaryMetricName": "total_kicktipp_points",
+            "runs": [
+                {
+                    "runName": run_name,
+                    "model": run_name,
+                    "primaryMetricValue": 8.0,
+                    "aggregateScores": {"total_kicktipp_points": 8.0},
+                }
+                for run_name in scores_by_run
+            ],
+            "rows": [
+                {
+                    "pairingKey": f"item-{index}",
+                    "runName": run_name,
+                    "kicktippPoints": points,
+                }
+                for run_name, scores in scores_by_run.items()
+                for index, points in enumerate(scores, start=1)
+            ],
+        }
+
+        report_json = report.analyze_bundle(
+            bundle,
+            alpha=0.05,
+            correction_method="holm",
+            bootstrap_resamples=100,
+            confidence_level=0.95,
+            random_seed=20260406,
+        )
+        report_markdown = report.render_markdown(report_json)
+        report_html = report.render_html(report_json)
+
+        self.assertTrue(report_json["friedman"]["computed"])
+        self.assertFalse(report_json["friedman"]["significant"])
+        self.assertFalse(report_json["pairwiseInterpretation"]["allowed"])
+        self.assertTrue(
+            all(
+                not comparison["wilcoxon"]["significantAfterOmnibusGate"]
+                for comparison in report_json["pairwiseComparisons"]
+            )
+        )
+        self.assertIn("not significant", report_json["pairwiseInterpretation"]["reason"])
+        self.assertIn("not interpreted as model differences", report_markdown)
+        self.assertIn("Raw p-value", report_markdown)
+        self.assertIn("Adjusted significant (raw)", report_html)
+        self.assertIn("Interpreted significant", report_html)
+
+    def test_common_incomplete_bundle_fails_authoritative_sample_size_validation(self) -> None:
+        run_names = ["run-a", "run-b", "run-c"]
+        bundle = {
+            "datasetName": "match-predictions/bundesliga-2025-26/test/slices/incomplete",
+            "taskType": "slice",
+            "primaryMetricName": "total_kicktipp_points",
+            "runs": [
+                {
+                    "runName": run_name,
+                    "model": run_name,
+                    "sampleSize": 4,
+                    "rowCount": 3,
+                    "primaryMetricValue": 6.0,
+                    "aggregateScores": {"total_kicktipp_points": 6.0},
+                }
+                for run_name in run_names
+            ],
+            "rows": [
+                {
+                    "pairingKey": f"item-{index}",
+                    "runName": run_name,
+                    "kicktippPoints": 2,
+                }
+                for run_name in run_names
+                for index in range(1, 4)
+            ],
+        }
+
+        with self.assertRaisesRegex(report.AnalysisError, "authoritative sampleSize 4"):
+            report.analyze_bundle(
+                bundle,
+                alpha=0.05,
+                correction_method="holm",
+                bootstrap_resamples=100,
+                confidence_level=0.95,
+                random_seed=20260406,
+            )
+
+    def test_repeated_match_slice_rejects_noncanonical_repetition_indices(self) -> None:
+        invalid_topology = [
+            (1, "fixture-1"),
+            (2, "fixture-1"),
+            (3, "fixture-2"),
+            (4, "fixture-2"),
+        ]
+        bundle = self.build_repeated_slice_topology_bundle(
+            {"run-a": invalid_topology, "run-b": invalid_topology}
+        )
+
+        with self.assertRaisesRegex(
+            report.AnalysisError,
+            r"repetitionIndex set must be exactly 1\.\.2; found \[1, 2, 3, 4\]",
+        ):
+            report.analyze_bundle(
+                bundle,
+                alpha=0.05,
+                correction_method="holm",
+                bootstrap_resamples=100,
+                confidence_level=0.95,
+                random_seed=20260406,
+            )
+
+    def test_repeated_match_slice_rejects_unbalanced_repetition_rows(self) -> None:
+        invalid_topology = [
+            (1, "fixture-1"),
+            (1, "fixture-2"),
+            (1, "fixture-3"),
+            (2, "fixture-1"),
+        ]
+        bundle = self.build_repeated_slice_topology_bundle(
+            {"run-a": invalid_topology, "run-b": invalid_topology}
+        )
+
+        with self.assertRaisesRegex(
+            report.AnalysisError,
+            r"repetition 1 must contain exactly 2 rows; found 3",
+        ):
+            report.analyze_bundle(
+                bundle,
+                alpha=0.05,
+                correction_method="holm",
+                bootstrap_resamples=100,
+                confidence_level=0.95,
+                random_seed=20260406,
+            )
+
+    def test_repeated_match_slice_rejects_duplicate_fixture_ids_in_repetition(self) -> None:
+        invalid_topology = [
+            (1, "fixture-1"),
+            (1, "fixture-1"),
+            (2, "fixture-1"),
+            (2, "fixture-2"),
+        ]
+        bundle = self.build_repeated_slice_topology_bundle(
+            {"run-a": invalid_topology, "run-b": invalid_topology}
+        )
+
+        with self.assertRaisesRegex(
+            report.AnalysisError,
+            r"repetition 1 must contain 2 distinct sourceDatasetItemIds; found 1",
+        ):
+            report.analyze_bundle(
+                bundle,
+                alpha=0.05,
+                correction_method="holm",
+                bootstrap_resamples=100,
+                confidence_level=0.95,
+                random_seed=20260406,
+            )
+
+    def test_repeated_match_slice_rejects_different_fixture_sets_between_repetitions(self) -> None:
+        invalid_topology = [
+            (1, "fixture-1"),
+            (1, "fixture-2"),
+            (2, "fixture-1"),
+            (2, "fixture-3"),
+        ]
+        bundle = self.build_repeated_slice_topology_bundle(
+            {"run-a": invalid_topology, "run-b": invalid_topology}
+        )
+
+        with self.assertRaisesRegex(
+            report.AnalysisError,
+            r"repetition 2 does not use the same fixture-ID set as repetition 1",
+        ):
+            report.analyze_bundle(
+                bundle,
+                alpha=0.05,
+                correction_method="holm",
+                bootstrap_resamples=100,
+                confidence_level=0.95,
+                random_seed=20260406,
+            )
+
+    def test_repeated_match_slice_accepts_complete_balanced_topology(self) -> None:
+        valid_topology = [
+            (1, "fixture-1"),
+            (1, "fixture-2"),
+            (2, "fixture-2"),
+            (2, "fixture-1"),
+        ]
+        bundle = self.build_repeated_slice_topology_bundle(
+            {"run-a": valid_topology, "run-b": valid_topology}
+        )
+
+        report_json = report.analyze_bundle(
+            bundle,
+            alpha=0.05,
+            correction_method="holm",
+            bootstrap_resamples=100,
+            confidence_level=0.95,
+            random_seed=20260406,
+        )
+
+        self.assertEqual(report_json["pairingCount"], 2)
+        self.assertEqual(report_json["comparisonUnit"]["key"], "repetition_total")
+
+    def test_repeated_match_slice_rejects_different_fixture_sets_between_runs(self) -> None:
+        run_a_topology = [
+            (1, "fixture-1"),
+            (1, "fixture-2"),
+            (2, "fixture-1"),
+            (2, "fixture-2"),
+        ]
+        run_b_topology = [
+            (1, "fixture-1"),
+            (1, "fixture-3"),
+            (2, "fixture-1"),
+            (2, "fixture-3"),
+        ]
+        bundle = self.build_repeated_slice_topology_bundle(
+            {"run-a": run_a_topology, "run-b": run_b_topology}
+        )
+
+        with self.assertRaisesRegex(
+            report.AnalysisError,
+            r"run 'run-b' does not use the common fixture-ID set",
+        ):
+            report.analyze_bundle(
+                bundle,
+                alpha=0.05,
+                correction_method="holm",
+                bootstrap_resamples=100,
+                confidence_level=0.95,
+                random_seed=20260406,
+            )
+
+    def test_all_tied_friedman_is_finite_and_report_json_is_strict(self) -> None:
+        run_names = ["run-a", "run-b", "run-c"]
+        bundle = {
+            "datasetName": "match-predictions/bundesliga-2025-26/test/slices/all-tied",
+            "taskType": "slice",
+            "primaryMetricName": "total_kicktipp_points",
+            "runs": [
+                {
+                    "runName": run_name,
+                    "model": run_name,
+                    "sampleSize": 2,
+                    "rowCount": 2,
+                    "primaryMetricValue": 4.0,
+                    "aggregateScores": {"total_kicktipp_points": 4.0},
+                }
+                for run_name in run_names
+            ],
+            "rows": [
+                {
+                    "pairingKey": f"item-{index}",
+                    "runName": run_name,
+                    "kicktippPoints": 2,
+                }
+                for run_name in run_names
+                for index in range(1, 3)
+            ],
+        }
+
+        report_json = report.analyze_bundle(
+            bundle,
+            alpha=0.05,
+            correction_method="holm",
+            bootstrap_resamples=100,
+            confidence_level=0.95,
+            random_seed=20260406,
+        )
+
+        self.assertEqual(report_json["friedman"]["method"], "all_tied_short_circuit")
+        self.assertEqual(report_json["friedman"]["statistic"], 0.0)
+        self.assertEqual(report_json["friedman"]["pValue"], 1.0)
+        self.assertFalse(report_json["friedman"]["significant"])
+
+        with tempfile.TemporaryDirectory() as temp_directory:
+            output_paths = report.OutputPaths(
+                Path(temp_directory) / "report.json",
+                Path(temp_directory) / "report.md",
+                None,
+            )
+            report.write_outputs(report_json, output_paths)
+
+            def reject_nonfinite_constant(value: str) -> None:
+                raise ValueError(value)
+
+            strict_report = json.loads(
+                output_paths.json_path.read_text(encoding="utf-8"),
+                parse_constant=reject_nonfinite_constant,
+            )
+            self.assertEqual(strict_report["friedman"]["pValue"], 1.0)
+
+            invalid_report = dict(report_json)
+            invalid_report["nonFinite"] = float("nan")
+            with self.assertRaisesRegex(report.AnalysisError, "non-finite JSON value"):
+                report.write_outputs(invalid_report, output_paths)
+
+    def test_markdown_tables_escape_display_names_and_metadata_cells(self) -> None:
+        bundle = {
+            "datasetName": "match-predictions/bundesliga-2025-26/test/slices/markdown-escaping",
+            "datasetMetadata": {"note": "path\\to\nnext"},
+            "taskType": "slice",
+            "primaryMetricName": "total_kicktipp_points",
+            "runs": [
+                {
+                    "runName": "run-a",
+                    "model": "model-a",
+                    "runSubjectDisplayName": "Model | injected",
+                    "promptKey": "prompt | value",
+                    "primaryMetricValue": 4.0,
+                    "aggregateScores": {"total_kicktipp_points": 4.0},
+                },
+                {
+                    "runName": "run-b",
+                    "model": "model-b",
+                    "runSubjectDisplayName": "Model B",
+                    "primaryMetricValue": 0.0,
+                    "aggregateScores": {"total_kicktipp_points": 0.0},
+                },
+            ],
+            "rows": [
+                {"pairingKey": "item-1", "runName": "run-a", "kicktippPoints": 4},
+                {"pairingKey": "item-1", "runName": "run-b", "kicktippPoints": 0},
+            ],
+        }
+
+        report_json = report.analyze_bundle(
+            bundle,
+            alpha=0.05,
+            correction_method="holm",
+            bootstrap_resamples=100,
+            confidence_level=0.95,
+            random_seed=20260406,
+        )
+        report_markdown = report.render_markdown(report_json)
+
+        self.assertIn("Model \\| injected", report_markdown)
+        self.assertIn("prompt \\| value", report_markdown)
+        self.assertIn("path\\\\to<br>next", report_markdown)
+        self.assertNotIn("| Model | injected |", report_markdown)
 
     def test_default_html_output_path_targets_experiment_analysis_site_tree(self) -> None:
         fixture = Path("tools/tests/fixtures/two_run_slice_bundle.json")
