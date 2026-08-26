@@ -1,9 +1,9 @@
 # GPT-5.6 Bundesliga 2025/26 production-candidate preregistration
 
-**Status:** LIVE EXECUTION PAUSED AFTER CAP REMEDIATION — the Luna/`max`
-cap-`10000` five-by-four row stopped in its first batch, while the subsequently
-reviewed cap-`20000` one-item remediation succeeded with healthy headroom. No
-authoritative row was upserted and no later candidate or quality run started.
+**Status:** COST PHASE COMPLETE — all nine owner-authorized configurations now
+have authoritative five-by-four rows. Luna/`none` was reused without a new
+call; the other eight rows completed through the reviewed serialized workflow.
+The paired quality phase has not started.
 
 **Verified:** 2026-08-26
 
@@ -15,14 +15,15 @@ estimate-row-derived cap workflow, an adaptive paired quality design, and one
 cumulative USD 30 ceiling.
 
 USD 30 is a hard ceiling, not a spending target. The program should finish for
-less whenever the evidence is sufficient. The authorized one-item dataset
-sync, Luna/`max` cap-`10000` preflight, failed first-batch five-by-four attempt,
-and cap-`20000` remediation probe below have now created Langfuse
-dataset/run/trace/score state and model usage. They did not mutate hosted-prompt
-content or labels, select a production model or arena participant, post a
-community prediction, dispatch a production workflow, or activate a schedule.
-Independent review and budget-tool integration still do not bypass any
-remaining gate or the separate admission of every paid attempt.
+less whenever the evidence is sufficient. The authorized dataset sync,
+preflights, failed Luna/`max` first-batch attempt, cap remediation, and accepted
+cost rows created Langfuse dataset/run/trace/score state and model usage. They
+did not mutate hosted-prompt content or labels, select a production model or
+arena participant, post a community prediction, dispatch a production
+workflow, or activate a schedule. Every paid cost action was separately
+admitted through the cumulative Decimal gate. The final cost evidence is
+reported in
+[the cost-results report](gpt-5-6-bundesliga-2025-26-production-candidate-cost-results.md).
 
 Related planning and decisions:
 
@@ -81,15 +82,15 @@ because it currently routes to Sol and would weaken provenance.
 
 | Model | Effort | Evidence role | Cost-row state |
 |---|---|---|---|
-| `gpt-5.6-sol` | `high` | Sol quality-first candidate | Missing |
-| `gpt-5.6-sol` | `medium` | Sol balanced candidate | Missing |
-| `gpt-5.6-sol` | `none` | Sol no-reasoning baseline | Missing |
-| `gpt-5.6-terra` | `xhigh` | Terra quality-first candidate | Missing |
-| `gpt-5.6-terra` | `medium` | Terra balanced candidate | Missing |
-| `gpt-5.6-terra` | `none` | Terra no-reasoning baseline | Missing |
-| `gpt-5.6-luna` | `max` | Luna quality-first candidate | Missing authoritative five-by-four row; cap-`10000` row invalid, cap-`20000` one-item remediation succeeded with healthy headroom, and the future row awaits its new reviewed gate |
-| `gpt-5.6-luna` | `medium` | Luna balanced candidate | Missing |
-| `gpt-5.6-luna` | `none` | Luna no-reasoning baseline and plumbing identity | Reuse exact authoritative row; do not rerun |
+| `gpt-5.6-sol` | `high` | Sol quality-first candidate | Complete at cap `10000`; exact 20-item row |
+| `gpt-5.6-sol` | `medium` | Sol balanced candidate | Complete at cap `10000`; exact 20-item row |
+| `gpt-5.6-sol` | `none` | Sol no-reasoning baseline | Complete at cap `10000`; exact 20-item row |
+| `gpt-5.6-terra` | `xhigh` | Terra quality-first candidate | Complete at cap `10000`; exact 20-item row |
+| `gpt-5.6-terra` | `medium` | Terra balanced candidate | Complete at cap `10000`; exact 20-item row |
+| `gpt-5.6-terra` | `none` | Terra no-reasoning baseline | Complete at cap `10000`; exact 20-item row |
+| `gpt-5.6-luna` | `max` | Luna quality-first candidate | Complete at remediated cap `20000`; exact 20-item row |
+| `gpt-5.6-luna` | `medium` | Luna balanced candidate | Complete at cap `10000`; exact 20-item row |
+| `gpt-5.6-luna` | `none` | Luna no-reasoning baseline and plumbing identity | Reused exact authoritative row; no rerun |
 
 The owner explicitly authorized the missing cost rows and the later quality
 experiments within the cumulative ceiling. That authorization does not select
@@ -387,6 +388,10 @@ it is deliberately absent from this serialized initial/retry contract.
 
 ## Live execution checkpoint — Luna/max cap stop
 
+This subsection preserves the historical stop that triggered the reviewed cap
+remediation. The later cost-phase completion is recorded under Phase A and in
+the cost-results report.
+
 Execution-date checks on 2026-08-26 reconfirmed the three official cutoffs,
 reasoning surfaces, prices, the Sol promotion, the local calculator, and hosted
 match prompt version `2` with `production` membership. The exact one-item
@@ -441,8 +446,9 @@ has SHA-256
 Exact dataset run `47045b08-91f3-4251-a1fa-fb017f05ecc2`, trace
 `1431f6e783d63396832abeef3612a3b7`, completed on Flex without fallback:
 `2463` input, `1053` output, `1034` reasoning tokens, and observed cost
-`$0.000878100000`. The output used `5.265%` of cap, so cap `20000` is selected
-for a future full five-by-four Luna/`max` row. The exact run name is
+`$0.000878100000`. The output used `5.265%` of cap, so the reviewed workflow
+selected cap `20000`; the later full five-by-four Luna/`max` row completed at
+that cap. The exact probe run name is
 `repeated-match-slice__pes-squad__gpt-5.6-luna__match-v2__reasoning-max__maxout-20000__random-1x1-seed-20260821__cost-preflight-remediation__startsat-12h__2026-08-2608-09-51+0`.
 The final suffix is unconventional because PowerShell interpreted `t` and `z`
 as format specifiers, but it is unique and the immutable dataset-run, trace,
@@ -462,9 +468,10 @@ gate artifact
 has SHA-256
 `3780a03d3a84a470889c2a1cf25d6e844a2c8b236e037a9b432710a3949b472c`.
 
-This result does not admit the 20-call row. A new reviewed checkpoint, exact
-ledger reconciliation, and fresh Decimal gate must precede that future run.
-There is no automatic cap-`40000` action, later candidate, or quality action.
+At this historical checkpoint, the result did not admit the 20-call row. The
+subsequent exact-head review, integration, green CI, ledger reconciliation, and
+fresh Decimal gate admitted the cap-`20000` row, which later completed 20/20.
+There was no cap-`40000` action, and no quality action has started.
 
 ## Phase A — exact cost rows and whole-season estimates
 
@@ -499,14 +506,13 @@ reprediction evidence:
 
 No new Firestore cost read is needed.
 
-### Missing-row preflight sequence
+### Executed missing-row preflight sequence
 
-Independent checkpoint approval and Decimal-gate integration are complete.
-The shared `1 × 1` historical dataset and manifest are now prepared as ignored
-local artifacts and their exact provenance has passed the pre-sync inspection.
-After every remaining live-action check below passes, and after the pending
-dataset-upload authorization is explicit, sync that exact dataset once and run
-these eight preflights serially. It uses seed `20260821` and selected source
+Independent checkpoint approval and Decimal-gate integration completed before
+the live sequence. The owner authorized the audited dataset upload; the shared
+`1 × 1` historical dataset was synchronized unchanged, and these eight
+preflights ran serially in the frozen order. The manifest uses seed `20260821`
+and selected source
 fixture `1423757341`; its exact selected source-item ID is
 `bundesliga-2025-26__pes-squad__ts1423757341` and its selected-set SHA-256 is
 `4a293d4bac8f6406cb88770332a5b85f9084f01d2f2e0227f7d52d63e93c4e16`.
@@ -540,19 +546,18 @@ comparable ladder to expose cap/cost anomalies cheaply. Each run waits for an
 exact one-item collection and ledger update before the next starts. A finding
 may stop the sequence; the order is not authority to skip a failed gate.
 
-For each accepted preflight, follow the exact one-item `base-row` and
-provisional `budget-gate` pattern above, using deterministic repo-local
+Each accepted preflight followed the exact one-item `base-row` and provisional
+`budget-gate` pattern above, using deterministic repo-local
 `.tmp/p0-23-budget/<model>-<effort>-...` artifact paths. Replace only the
 necessarily runtime dataset-run identity and settled cost. The provisional gate
 emits the 20-item projection before admitting the five-by-four row; do not
 manually multiply the one-item result. Retain the emitted JSON as admission
 evidence.
 
-### Authoritative five-by-four rows
+### Executed authoritative five-by-four rows
 
-If all applicable preflights are healthy, prepare or exact-reuse one shared
-five-fixture-by-four-repetition manifest with seed `20260821`. Under the
-unchanged pool it must select:
+The live sequence exact-reused one shared five-fixture-by-four-repetition
+manifest with seed `20260821`. Under the unchanged pool it selected:
 
 - `1423757259`
 - `1423757286`
@@ -573,15 +578,13 @@ The locally reproduced `5 × 4` artifacts bind exactly that selection and have:
   and
 - manifest sample size and item count `20` / `20`.
 
-Run missing rows in the same sequence as the preflights. Within a row use batch
-count `1` and fixture parallelism `5`; only Flex/rate failures may retry the
-same manifest and settings at `3`, then `1`, and each retry is separately
-admitted only after the preceding attempt's cost settles. Bind collection to
-the exact dataset ID, accepted dataset-run ID, prepared manifest
-SHA-256/sample-size tuple, and expected 20 distinct item-to-trace links. Upsert
-only after all 20 items succeed below cap.
+Rows ran in the same sequence as the preflights with batch count `1` and
+fixture parallelism `5`. No lower-parallelism retry was required. Collection
+bound the exact dataset ID, accepted dataset-run ID, prepared manifest
+SHA-256/sample-size tuple, and 20 distinct item-to-trace links. Every row was
+upserted only after all 20 items succeeded below cap.
 
-After each row, run the estimator for the quality-design counts and the two
+After each row, the estimator ran for the quality-design counts and the two
 season counts:
 
 ```powershell
@@ -598,6 +601,15 @@ they do not themselves rank quality.
 Quality execution starts only after every row needed by the proposed surface is
 exact and the Decimal aggregate command admits each serialized candidate run.
 Cost rows determine the topology before any quality call.
+
+The cost-phase gate proves that the full-nine `10 × 20` topology fits the
+ceiling; it is not yet an execution-ready quality freeze. Before any quality
+call, a reviewed amendment must pin the common quality sample seed and
+`batch-count` and reconcile the generic runner documentation's current
+cost-only wording for the historical compatibility route with ADR-0049's
+accepted cutoff-safe quality use. Neither this preregistration nor ADR-0049
+currently names that quality seed or batch count, so the executor must not
+infer them from the separate cost manifests.
 
 ### Topology rule
 
@@ -681,8 +693,8 @@ evaluates the quality/cost tradeoff.
 
 - [x] Exact nine-row owner matrix recorded.
 - [x] Single cumulative USD 30 ceiling and stop ledger recorded.
-- [x] Workflow-derived cap policy recorded; only Luna/`none` currently has a
-      selected exact cap.
+- [x] Workflow-derived cap policy recorded and validated: Luna/`max` uses
+      `20000`; the other eight authoritative rows use `10000`.
 - [x] Adaptive common-manifest topology, meaningful minimum, immutable metrics,
       and failure rules recorded.
 - [x] Owner-supplied captures preserved and embedded.
@@ -704,17 +716,20 @@ evaluates the quality/cost tradeoff.
       SHA before the remediation probe.
 - [x] The fresh Decimal aggregate command separately admitted the one-item
       remediation probe strictly within USD 30 from that exact green head.
-- [ ] Independently review, integrate, explicitly push, reconcile exact-head
-      green CI, and freshly Decimal-admit the future cap-`20000` five-by-four
-      Luna/`max` row before any further paid call.
+- [x] Independently review, integrate, explicitly push, reconcile exact-head
+      green CI, and freshly Decimal-admit the cap-`20000` five-by-four
+      Luna/`max` row before the resumed serialized cost sequence.
 
-As of this live checkpoint, the one-item dataset is synchronized unchanged, the
-cap-`10000` preflight, failed first-batch five-by-four attempt, and single
-cap-`20000` remediation probe above are the only new paid P0-23 actions. All
-further paid work is paused.
+The cost phase then completed all eight missing authoritative rows in frozen
+order. The final P0-23 cost-phase ledger contains 18 settled attempts at
+`$0.410982080000` and retains the `$0.033200000000` unresolved failed-call
+reservation. The no-spend full-nine `10 × 20` quality-topology gate is allowed
+at `$6.604864080000` all-in, but no quality call started. Exact rows, season
+estimates, attempt totals, and gate identity are in the
+[cost-results report](gpt-5-6-bundesliga-2025-26-production-candidate-cost-results.md).
 
-The synced dataset contained only the previously audited public match record;
-the local manifest with context names, versions, source IDs, timestamps, and
-hashes was not the sync payload. No prompt/context/prediction payload or secret
-was retained. Every later immutable-run, quality, production-selection, and
-activation gate remains open.
+The synced datasets contained only the previously audited public match records
+and completed outcomes; local manifests with context names, versions, source
+IDs, timestamps, and hashes were not sync payloads. No prompt/context/
+prediction payload or secret was retained. Quality, production-selection, and
+activation gates remain open.

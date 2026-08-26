@@ -1,6 +1,6 @@
 # P0-23 — Collect GPT-5.6 production-candidate evidence
 
-- Status: In progress — live cost execution is paused after the reviewed Luna/`max` cap-`20000` one-item remediation succeeded with healthy headroom on Flex; cap `20000` is selected for a future five-by-four row, but no row was upserted and no further paid call is admitted until a new reviewed checkpoint, integration, explicit push, exact-head green CI, ledger reconciliation, and fresh Decimal admission
+- Status: In progress — phase 1 cost evidence is complete for all nine owner-authorized rows; phase 2 paired quality evidence has not started and remains gated on an exact sample-seed/batch-count and historical-route semantics freeze
 - Priority: P0
 - Depends on: [P0-05](p0-05-prompt-route.md), [P0-12](p0-12-match-context-and-transfer-retirement.md), and [P0-20](p0-20-seed-and-development-validation.md)
 - Reuses: the completed cost/provenance foundation recorded in [P0-06](p0-06-model-ledger-and-cost-baseline.md)
@@ -37,14 +37,14 @@ rerun.
 - [x] For Luna, preserve the already-proven contract exactly: official cutoff `2026-02-16`, sampling boundary `2026-02-18T00:00:00 Europe/Berlin (+01)`, and only fixtures strictly after that instant.
 - [x] Fail before spend if the cutoff-safe, completed, exact-context pool cannot support the declared sample. The frozen `109`-fixture pool and hash passed unchanged.
 - [x] Use only the explicit `bundesliga-2025-26-legacy-id-hash-v1` read-only compatibility route and hosted `kicktippai/bundesliga-2026-27/predict-one-match` version 2 with required `production` membership.
-- [ ] Bind the official and sampling cutoffs, eligibility policy/count/hash, seed, selected fixture IDs/hash, completed scores, evaluation time, all seven exact context-document versions/content hashes, prompt identity, model identity, reasoning, cap, and dataset/run/trace linkage in the prepared and reported provenance.
+- [x] Bind the official and sampling cutoffs, eligibility policy/count/hash, seed, selected fixture IDs/hash, completed scores, evaluation time, all seven exact context-document versions/content hashes, prompt identity, model identity, reasoning, cap, and dataset/run/trace linkage in the prepared and reported cost provenance.
 
 ## Cost evidence — phase 1
 
-- [ ] Use the integrated Decimal gate to machine-project/admit each one-item preflight, serialize every candidate row, and separately admit each retry only after preceding usage/cost settles. Produce each preflight-to-20 projection through tooling from the exact one-item `base-row --expect-count 1` report; never multiply it manually.
-- [ ] For every owner-authorized candidate without an authoritative matching row, follow the repository estimate-row process: verify pricing, run the prescribed one-item preflight, inspect cap/tier/fallback/cost behavior, then run the exact five-fixture by four-repetition base sample only when the preflight is healthy.
-- [ ] Collect compact usage by immutable Langfuse dataset-run binding, upsert the authoritative row, and run the repository estimator for 306 and 493 match-prediction calls. Do not retain prompt, context, or prediction payloads.
-- [ ] Label every historical seven-document result as a preseason cost proxy that may understate the live eleven-document Bundesliga 2026/27 input. Cost evidence is not prediction-quality evidence.
+- [x] Use the integrated Decimal gate to machine-project/admit each one-item preflight, serialize every candidate row, and separately admit each retry only after preceding usage/cost settles. Produce each preflight-to-20 projection through tooling from the exact one-item `base-row --expect-count 1` report; never multiply it manually.
+- [x] For every owner-authorized candidate without an authoritative matching row, follow the repository estimate-row process: verify pricing, run the prescribed one-item preflight, inspect cap/tier/fallback/cost behavior, then run the exact five-fixture by four-repetition base sample only when the preflight is healthy.
+- [x] Collect compact usage by immutable Langfuse dataset-run binding, upsert the authoritative row, and run the repository estimator for 306 and 493 match-prediction calls. Do not retain prompt, context, or prediction payloads.
+- [x] Label every historical seven-document result as a preseason cost proxy that may understate the live eleven-document Bundesliga 2026/27 input. Cost evidence is not prediction-quality evidence.
 
 ## Quality evidence — phase 2
 
@@ -181,6 +181,39 @@ rerun.
   all-in `$0.062134700000`. This is planning evidence only. This checkpoint
   allows no direct 20-call rerun, cap-`40000` probe, later candidate, or
   quality run.
+
+## Evidence — 2026-08-26 cost-phase completion
+
+- Exact-head `main` commit `f694b844e77fcbd2e178cc9667d6d2a948463283`
+  passed all 12 jobs in `Build and Test` run `32948444213` before the resumed
+  live sequence. Prompt version `2` retained `production` membership, local
+  pricing SHA-256 remained
+  `909e49a177dc905704b3c608d7394f6726e284f48ac124c6ed5f7e3e965db7d2`,
+  and both frozen manifest hashes remained exact.
+- All eight missing rows completed in the frozen serialized order. Luna/`max`
+  used its reviewed cap `20000`; the other seven new rows used cap `10000`.
+  Luna/`none` reused exact authoritative dataset run
+  `6a3c4e70-ebb4-4c07-9a1a-7af19c32d995` without a new model call.
+- Every accepted row binds exactly 20 dataset items and traces to five-by-four
+  manifest SHA-256
+  `fcadeeadaadd1356472a1f4f96b7277a05ba3b8a19dcde60e6f2e7d79af577b7`.
+  No accepted output reached its configured cap. Sol/`high` completed through
+  the runner's fallback contract with one Flex and 19 Standard requests; all
+  other accepted new rows were entirely Flex.
+- The authoritative rows and exact `20,100,150,200,306,493` projections are in
+  the
+  [cost-results report](../../../docs/experiments/gpt-5-6-bundesliga-2025-26-production-candidate-cost-results.md).
+  They are preseason seven-document cost proxies, not quality evidence.
+- The final machine ledger contains all 18 settled P0-23 attempts at
+  `$0.410982080000` plus the retained `$0.033200000000` unresolved failed-call
+  reservation. The next preregistered full-nine `10 × 20` quality topology
+  projects `$6.160682000000`, `$6.604864080000` all-in, and
+  `$23.395135920000` remaining under the strict USD 30 ceiling. Ignored gate
+  artifact
+  `.tmp/p0-23-budget/full-nine-10x20-quality-topology-budget-gate.json`,
+  SHA-256
+  `28f6d471315aaaca27188343052fdbd1445d3d1d541c3b65b2ea9d7d32902c84`,
+  records the exact Decimal calculation. No quality call was started.
 
 ## Complete when
 
