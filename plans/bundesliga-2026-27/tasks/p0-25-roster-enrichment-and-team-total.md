@@ -92,6 +92,33 @@ last-known-good data.
 
 ## Live arena validation evidence — 2026-08-26
 
+- The exact-head CI gate was
+  [Build and Test run 32917332258](https://github.com/ehonda/KicktippAi/actions/runs/32917332258)
+  for main `f1cfddeb6e2f7ba376856c0843a196af104b9a5c`; it reached terminal
+  success. Every required job succeeded: Build
+  [98023676041](https://github.com/ehonda/KicktippAi/actions/runs/32917332258/job/98023676041),
+  matrix
+  [98023676344](https://github.com/ehonda/KicktippAi/actions/runs/32917332258/job/98023676344),
+  OpenAI
+  [98023928194](https://github.com/ehonda/KicktippAi/actions/runs/32917332258/job/98023928194),
+  Orchestrator
+  [98023928211](https://github.com/ehonda/KicktippAi/actions/runs/32917332258/job/98023928211),
+  Context
+  [98023928219](https://github.com/ehonda/KicktippAi/actions/runs/32917332258/job/98023928219),
+  Core
+  [98023928226](https://github.com/ehonda/KicktippAi/actions/runs/32917332258/job/98023928226),
+  Integration
+  [98023928236](https://github.com/ehonda/KicktippAi/actions/runs/32917332258/job/98023928236),
+  TestUtilities
+  [98023928243](https://github.com/ehonda/KicktippAi/actions/runs/32917332258/job/98023928243),
+  Firebase
+  [98023928247](https://github.com/ehonda/KicktippAi/actions/runs/32917332258/job/98023928247),
+  Kicktipp
+  [98023928289](https://github.com/ehonda/KicktippAi/actions/runs/32917332258/job/98023928289),
+  coverage
+  [98024298632](https://github.com/ehonda/KicktippAi/actions/runs/32917332258/job/98024298632),
+  and Pages
+  [98024391832](https://github.com/ehonda/KicktippAi/actions/runs/32917332258/job/98024391832).
 - The explicit corrected republish ran from exact-green main
   `f1cfddeb6e2f7ba376856c0843a196af104b9a5c`. Its strictly reconstructed final
   gate passed all 18 teams, all 18 final derived rows, 464 known ages, 464 known
