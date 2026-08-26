@@ -108,6 +108,81 @@ class ExperimentAnalysisReportTests(unittest.TestCase):
             self.assertIn("<td>slice__test-community__o3</td>", report_html)
             self.assertIn("Kicktipp Point Buckets", report_html)
 
+    def test_publication_caveats_and_canonical_writeup_are_visible_in_every_report_format(self) -> None:
+        fixture = Path("tools/tests/fixtures/two_run_slice_bundle.json")
+        caveats = [
+            "The appended run is exploratory and data-dependent.",
+            "The incomplete run is excluded without an imputed score or rank.",
+        ]
+        canonical_url = "https://github.com/ehonda/KicktippAi/blob/main/docs/experiments/results.md"
+        canonical_label = "Read the full experiment write-up"
+
+        with tempfile.TemporaryDirectory() as temp_directory:
+            json_output = Path(temp_directory) / "report.json"
+            markdown_output = Path(temp_directory) / "report.md"
+            html_output = Path(temp_directory) / "report.html"
+
+            with redirect_stdout(io.StringIO()):
+                exit_code = report.main(
+                    [
+                        "--input",
+                        str(fixture),
+                        "--json-output",
+                        str(json_output),
+                        "--markdown-output",
+                        str(markdown_output),
+                        "--html-output",
+                        str(html_output),
+                        "--bootstrap-resamples",
+                        "100",
+                        "--report-caveat",
+                        caveats[0],
+                        "--report-caveat",
+                        caveats[1],
+                        "--canonical-writeup-url",
+                        canonical_url,
+                        "--canonical-writeup-label",
+                        canonical_label,
+                    ]
+                )
+
+            self.assertEqual(exit_code, 0)
+            report_json = json.loads(json_output.read_text(encoding="utf-8"))
+            report_markdown = markdown_output.read_text(encoding="utf-8")
+            report_html = html_output.read_text(encoding="utf-8")
+
+            self.assertEqual(report_json["reportCaveats"], caveats)
+            self.assertEqual(
+                report_json["canonicalWriteup"],
+                {"url": canonical_url, "label": canonical_label},
+            )
+            self.assertIn("## Interpretation Caveats", report_markdown)
+            self.assertIn(f"- {caveats[0]}", report_markdown)
+            self.assertIn(f"[{canonical_label}]({canonical_url})", report_markdown)
+            self.assertIn(
+                '<section class="panel report-caveats" role="note" '
+                'aria-labelledby="report-caveats-heading">',
+                report_html,
+            )
+            self.assertIn('<h2 id="report-caveats-heading">Interpretation caveats</h2>', report_html)
+            self.assertIn(caveats[1], report_html)
+            self.assertIn(f'href="{canonical_url}"', report_html)
+            self.assertLess(report_html.index("Interpretation caveats"), report_html.index("At a glance"))
+
+    def test_canonical_writeup_must_be_an_absolute_https_url(self) -> None:
+        bundle = report.load_bundle(Path("tools/tests/fixtures/two_run_slice_bundle.json"))
+
+        with self.assertRaisesRegex(report.AnalysisError, "absolute HTTPS URL"):
+            report.analyze_bundle(
+                bundle,
+                alpha=0.05,
+                correction_method="holm",
+                bootstrap_resamples=100,
+                confidence_level=0.95,
+                random_seed=20260406,
+                canonical_writeup_url="docs/experiments/results.md",
+            )
+
     def test_reasoning_effort_is_displayed_next_to_model_when_no_subject_label_exists(self) -> None:
         bundle = {
             "datasetName": (

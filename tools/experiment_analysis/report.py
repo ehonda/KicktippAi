@@ -9,6 +9,7 @@ from dataclasses import dataclass
 from itertools import combinations
 from pathlib import Path
 from typing import Any, Callable, Sequence
+from urllib.parse import urlsplit
 
 import numpy as np
 import pandas as pd
@@ -86,6 +87,24 @@ def parse_args(argv: Sequence[str] | None = None) -> argparse.Namespace:
         default=20260406,
         help="Random seed used for bootstrap resampling (default: 20260406)",
     )
+    parser.add_argument(
+        "--report-caveat",
+        action="append",
+        default=[],
+        help=(
+            "Visible report-level interpretation caveat. Repeat for multiple caveats; "
+            "the values are persisted in JSON and rendered in Markdown and HTML."
+        ),
+    )
+    parser.add_argument(
+        "--canonical-writeup-url",
+        help="Absolute HTTPS URL for the canonical narrative write-up linked by the report.",
+    )
+    parser.add_argument(
+        "--canonical-writeup-label",
+        default="Read the full experiment write-up",
+        help="Link label for --canonical-writeup-url.",
+    )
     return parser.parse_args(argv)
 
 
@@ -155,6 +174,25 @@ def normalize_optional_string(value: Any) -> str | None:
 
     text = str(value).strip()
     return text if text else None
+
+
+def build_canonical_writeup(url: Any, label: Any) -> dict[str, str] | None:
+    normalized_url = normalize_optional_string(url)
+    if normalized_url is None:
+        return None
+
+    parsed_url = urlsplit(normalized_url)
+    if parsed_url.scheme.lower() != "https" or not parsed_url.netloc:
+        raise AnalysisError("Canonical write-up URL must be an absolute HTTPS URL.")
+
+    normalized_label = normalize_optional_string(label)
+    if normalized_label is None:
+        raise AnalysisError("Canonical write-up label must not be empty when a URL is supplied.")
+
+    return {
+        "url": normalized_url,
+        "label": normalized_label,
+    }
 
 
 def is_repeated_match_slice_task(bundle: dict[str, Any]) -> bool:
@@ -348,7 +386,19 @@ def analyze_bundle(
     bootstrap_resamples: int,
     confidence_level: float,
     random_seed: int,
+    report_caveats: Sequence[str] = (),
+    canonical_writeup_url: str | None = None,
+    canonical_writeup_label: str = "Read the full experiment write-up",
 ) -> dict[str, Any]:
+    normalized_report_caveats = [
+        normalized
+        for caveat in report_caveats
+        if (normalized := normalize_optional_string(caveat)) is not None
+    ]
+    canonical_writeup = build_canonical_writeup(
+        canonical_writeup_url,
+        canonical_writeup_label,
+    )
     raw_rows_df = pd.DataFrame(bundle["rows"])
     if is_repeated_match_slice_task(bundle):
         validate_repeated_match_slice_topology(bundle, raw_rows_df)
@@ -470,6 +520,8 @@ def analyze_bundle(
             correction_method,
             comparison_unit=comparison_unit,
         ),
+        "reportCaveats": normalized_report_caveats,
+        "canonicalWriteup": canonical_writeup,
         "runs": ranking_records,
     }
 
@@ -1618,6 +1670,20 @@ def render_markdown(report: dict[str, Any]) -> str:
     if report.get("datasetDescription"):
         lines.append(f"- Dataset Description: {report['datasetDescription']}")
     lines.append(f"- Method: {report['methodDescription']}")
+    report_caveats = report.get("reportCaveats")
+    canonical_writeup = report.get("canonicalWriteup")
+    if (isinstance(report_caveats, list) and report_caveats) or isinstance(canonical_writeup, dict):
+        lines.append("")
+        lines.append("## Interpretation Caveats")
+        lines.append("")
+        if isinstance(report_caveats, list):
+            lines.extend(f"- {caveat}" for caveat in report_caveats)
+        if isinstance(canonical_writeup, dict):
+            label = normalize_optional_string(canonical_writeup.get("label"))
+            url = normalize_optional_string(canonical_writeup.get("url"))
+            if label is not None and url is not None:
+                lines.append("")
+                lines.append(f"[{label}]({url})")
     metadata_items = dataset_metadata_items(report)
     if metadata_items:
         lines.append("")
@@ -1800,12 +1866,53 @@ def render_markdown(report: dict[str, Any]) -> str:
     return "\n".join(lines) + "\n"
 
 
+def render_publication_context_section(report: dict[str, Any]) -> str:
+    report_caveats = report.get("reportCaveats")
+    caveats = (
+        [str(caveat) for caveat in report_caveats if normalize_optional_string(caveat) is not None]
+        if isinstance(report_caveats, list)
+        else []
+    )
+    canonical_writeup = report.get("canonicalWriteup")
+    writeup_url = (
+        normalize_optional_string(canonical_writeup.get("url"))
+        if isinstance(canonical_writeup, dict)
+        else None
+    )
+    writeup_label = (
+        normalize_optional_string(canonical_writeup.get("label"))
+        if isinstance(canonical_writeup, dict)
+        else None
+    )
+    if not caveats and (writeup_url is None or writeup_label is None):
+        return ""
+
+    caveat_items = "\n".join(f"<li>{escape_html(caveat)}</li>" for caveat in caveats)
+    caveat_list = f'<ul class="footnote">{caveat_items}</ul>' if caveat_items else ""
+    writeup_link = (
+        f'<p><a href="{escape_html(writeup_url)}" rel="noopener noreferrer">'
+        f"{escape_html(writeup_label)}</a></p>"
+        if writeup_url is not None and writeup_label is not None
+        else ""
+    )
+    return f"""
+        <section class="panel report-caveats" role="note" aria-labelledby="report-caveats-heading">
+            <div class="panel-header">
+                <h2 id="report-caveats-heading">Interpretation caveats</h2>
+            </div>
+            {caveat_list}
+            {writeup_link}
+        </section>
+    """
+
+
 def render_html(report: dict[str, Any]) -> str:
         if report["runCount"] == 1 and str(report.get("taskType", "")).strip().lower() == "repeated-match":
                 return render_single_run_repeated_match_html(report)
 
         report_title = normalize_optional_string(report.get("reportTitle")) or str(report["datasetName"])
         document_title = f"{report_title} - Experiment Analysis"
+        publication_context_section = render_publication_context_section(report)
         at_a_glance_section = render_at_a_glance_section(report)
         matches_section = render_match_breakdown_section(report.get("matchBreakdown"))
         point_buckets_section = render_kicktipp_point_buckets_section(report.get("kicktippPointBuckets"))
@@ -2826,6 +2933,8 @@ def render_html(report: dict[str, Any]) -> str:
             </div>
         </header>
 
+        {publication_context_section}
+
         {at_a_glance_section}
 
         {matches_section}
@@ -3031,6 +3140,7 @@ def render_html(report: dict[str, Any]) -> str:
 def render_single_run_repeated_match_html(report: dict[str, Any]) -> str:
         report_title = normalize_optional_string(report.get("reportTitle")) or str(report["datasetName"])
         document_title = f"{report_title} - Experiment Analysis"
+        publication_context_section = render_publication_context_section(report)
         match_summary = report.get("matchSummary") if isinstance(report.get("matchSummary"), dict) else {}
         single_run_summary = report.get("singleRunSummary") if isinstance(report.get("singleRunSummary"), dict) else {}
         prediction_count = int(single_run_summary.get("predictionCount", report.get("pairingCount", 0)))
@@ -3311,6 +3421,8 @@ def render_single_run_repeated_match_html(report: dict[str, Any]) -> str:
                 <span class=\"pill pill-good\">Exact {escape_html(exact_result)}: {escape_html(format_percentage(exact_prediction_share))}</span>
             </div>
         </header>
+
+        {publication_context_section}
 
         <section class=\"panel\">
             <div class=\"glance-grid\">
@@ -4218,6 +4330,9 @@ def main(argv: Sequence[str] | None = None) -> int:
             bootstrap_resamples=args.bootstrap_resamples,
             confidence_level=args.confidence_level,
             random_seed=args.random_seed,
+            report_caveats=args.report_caveat,
+            canonical_writeup_url=args.canonical_writeup_url,
+            canonical_writeup_label=args.canonical_writeup_label,
         )
         markdown = write_outputs(report, output_paths)
     except AnalysisError as exc:

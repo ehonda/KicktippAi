@@ -1,14 +1,16 @@
 # GPT-5.6 Bundesliga 2025/26 production-candidate cost results
 
-**Status:** Cost phase complete; quality execution contract frozen; quality
-artifact preparation and runs not started
+**Status:** Cost phase and quality evidence collection complete; Owner selection
+pending
 
 **Executed:** 2026-08-26
 
-This report records the cost evidence for the owner's exact nine-configuration
-GPT-5.6 matrix. It does not select a production model or arena participant and
-does not make a prediction-quality claim. The separate paired quality phase
-remains governed by the
+This report records the cost evidence for the owner's original exact
+nine-configuration GPT-5.6 matrix and the later Owner-directed Sol/`xhigh`
+addition. It does not select a production model or arena participant. Prediction
+quality is reported separately in the
+[quality-results report](gpt-5-6-bundesliga-2025-26-production-candidate-quality-results.md)
+under the
 [preregistration](gpt-5-6-bundesliga-2025-26-production-candidate-preregistration.md).
 
 ## Decision context
@@ -53,6 +55,7 @@ was needed.
 
 | Model / effort | Cap | Exact dataset run | Observed tiers | Max output | Observed paid cost | Conservative 20-call cost | Average / prediction | 306 calls | 493 calls |
 |---|---:|---|---|---:|---:|---:|---:|---:|---:|
+| Sol / `xhigh` (post-hoc addition) | 10000 | `d1257b5f-7031-4766-b3e8-b94867b57a22` | Flex 20 | 584 | `$0.100411800000` | `$0.170574000000` | `$0.008528700000` | `$2.609782200000` | `$4.204649100000` |
 | Sol / `high` | 10000 | `3297864a-93fd-4c05-a153-8cbf738c37f1` | Flex 1; Standard fallback 19 | 306 | `$0.146277600000` | `$0.135904000000` | `$0.006795200000` | `$2.079331200000` | `$3.350033600000` |
 | Sol / `medium` | 10000 | `d45fb91a-0fe8-4a99-976d-1340fd448ed9` | Flex 20 | 266 | `$0.048141800000` | `$0.118304000000` | `$0.005915200000` | `$1.810051200000` | `$2.916193600000` |
 | Sol / `none` | 10000 | `c5d1ac4b-ee82-4269-85e0-c70613f0da63` | Flex 20 | 17 | `$0.030741800000` | `$0.100904000000` | `$0.005045200000` | `$1.543831200000` | `$2.487283600000` |
@@ -82,6 +85,7 @@ one-item probe.
 
 | Model / effort | Cap | Exact dataset run | Input | Output | Reasoning | Tier / fallback | Observed cost |
 |---|---:|---|---:|---:|---:|---|---:|
+| Sol / `xhigh` (post-hoc addition) | 10000 | `d60a135b-9088-49b2-9d78-6f8c370e733f` | 2463 | 213 | 194 | Flex | `$0.007056000000` |
 | Terra / `xhigh` | 10000 | `2671c389-40fe-4212-b8b0-4bd7d2fa49d6` | 2463 | 249 | 230 | Standard fallback after Flex 429 | `$0.007914000000` |
 | Sol / `high` | 10000 | `85401acb-8196-4df4-9c02-ec7d5313ce5e` | 2463 | 86 | 67 | Flex | `$0.005786000000` |
 | Luna / `medium` | 10000 | `b6e74bee-9f65-4c6d-a8e6-ac9a2ba0a9ad` | 2463 | 125 | 106 | Flex | `$0.000321300000` |
@@ -96,7 +100,7 @@ and the preregistration's live checkpoint.
 
 ## Program ledger and next-phase projection
 
-The final cost-phase Decimal ledger records 18 settled P0-23 attempts at
+At the cost-phase freeze, the Decimal ledger recorded 18 settled P0-23 attempts at
 `$0.410982080000`. It keeps the unresolved Luna/`max` failed-call reservation
 at `$0.033200000000`. The ledger does not add the older reused Luna/`none` row
 to new P0-23 spend.
@@ -118,8 +122,8 @@ gate artifact
 `.tmp/p0-23-budget/full-nine-10x20-quality-topology-budget-gate.json` has
 SHA-256
 `28f6d471315aaaca27188343052fdbd1445d3d1d541c3b65b2ea9d7d32902c84`.
-This is planning evidence only; this cost-phase closeout did not run
-the quality wave.
+This is the historical planning checkpoint that admitted the later quality
+wave; it is not the final program settlement.
 
 The later reviewed docs-only Phase-B freeze explicitly selects seed `20260821`,
 `10 × 20`, slice key
@@ -136,8 +140,8 @@ For each fixture, one warmup plus the seven post-warmup groups
 is `15` for p5, `9` for p3, and `3` for p1, while candidate serialization and
 the 200-item common manifest remain unchanged.
 
-After that freeze is integrated, pushed, and exact-head green, one no-spend
-preparation checkpoint must materialize and record the selected ten IDs/hash,
+After that freeze was integrated, pushed, and exact-head green, one no-spend
+preparation checkpoint materialized and recorded the selected ten IDs/hash,
 raw dataset/manifest hashes, canonical historical-artifact hash, frozen
 `109`-fixture pool identity, and `200` / `200` counts before sync or spend. The
 generic route now distinguishes cost evidence from quality correctly: token and
@@ -151,8 +155,28 @@ admission. Before every candidate or exact-setting `p3` / `p1` retry, write and
 hash a fresh candidate-specific gate containing all 18 settled cost attempts,
 all earlier settled quality attempts, the fixed `$0.033200000000` reserve,
 exactly one 200-call candidate, strict USD 30, and no speculative retry reserve.
-Existing exact rows and caps mean there is no quality preflight. If Langfuse
-ingestion lags, recollect instead of rerunning.
+Existing exact rows and caps meant there was no quality preflight. Langfuse
+ingestion delays were recollected instead of rerunning.
+
+## Final program settlement
+
+The original eight rankable configurations completed. Luna/`max` failed twice
+with transient capacity errors and is excluded from quality scores; the Owner
+explicitly stopped its planned p1 retry. After the original eight scores were
+visible, the Owner added Sol/`xhigh`. Its one-item preflight and exact
+five-by-four row above were produced before its 200-item quality run. That
+addition is post-hoc and its quality inference is exploratory.
+
+The final machine settlement records 31 observed attempts at
+`$4.708337270000`, including `$4.189887390000` for the nine accepted quality
+runs plus both incomplete Luna/`max` attempts and `$0.107467800000` for the two
+Sol/`xhigh` cost-row calls. Three separately named unresolved-call reservations
+total `$0.099600000000`. Observed plus reserved exposure is
+`$4.807937270000`, leaving `$25.192062730000` under the strict USD 30 ceiling.
+Settlement artifact SHA-256 is
+`546b4b8eb48ebe2adddc551f3c6d39b5a38d6132c598cf2eed05d8c7d31d729e`.
+See the quality-results report for exact quality run IDs, scores, fallback
+counts, timings, statistical results, and the Luna/`max` exclusion.
 
 ## Reproduction
 
@@ -161,6 +185,7 @@ The reported planning counts were regenerated immediately before this report
 with these exact commands:
 
 ```powershell
+uv --cache-dir .uv-cache run python .agents/skills/estimate-experiment-cost-skill/scripts/experiment_cost_estimator.py estimate --counts 20,100,150,200,306,493 --model gpt-5.6-sol --reasoning-effort xhigh
 uv --cache-dir .uv-cache run python .agents/skills/estimate-experiment-cost-skill/scripts/experiment_cost_estimator.py estimate --counts 20,100,150,200,306,493 --model gpt-5.6-sol --reasoning-effort high
 uv --cache-dir .uv-cache run python .agents/skills/estimate-experiment-cost-skill/scripts/experiment_cost_estimator.py estimate --counts 20,100,150,200,306,493 --model gpt-5.6-sol --reasoning-effort medium
 uv --cache-dir .uv-cache run python .agents/skills/estimate-experiment-cost-skill/scripts/experiment_cost_estimator.py estimate --counts 20,100,150,200,306,493 --model gpt-5.6-sol --reasoning-effort none

@@ -112,6 +112,14 @@ The Python report command currently produces:
 
 Reports display model/run subjects with short display names such as `o3` and `gpt-5-nano` when available instead of using long experiment run-name slugs as primary labels.
 
+When a published report has decisive interpretation constraints or a separate
+canonical narrative, pass each constraint with `--report-caveat` and the
+narrative URL with `--canonical-writeup-url` (plus an optional
+`--canonical-writeup-label`). The generator persists this structured publication
+context in JSON and renders it as an always-visible section near the top of both
+Markdown and HTML. Use an absolute HTTPS URL. Do not hand-edit generated HTML to
+add experimental deviations, exclusions, or provenance caveats.
+
 Two-run bundles are reported with:
 
 - primary metric deltas

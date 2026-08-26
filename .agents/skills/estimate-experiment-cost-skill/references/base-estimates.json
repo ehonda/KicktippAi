@@ -650,6 +650,48 @@
       "datasetRunName": "repeated-match-slice__pes-squad__gpt-5.6-sol__match-v2__reasoning-none__random-5x4-seed-20260821__cost-estimate__startsat-12h__2026-08-26t09-35-27z",
       "preparedManifestSha256": "fcadeeadaadd1356472a1f4f96b7277a05ba3b8a19dcde60e6f2e7d79af577b7",
       "preparedManifestSampleSize": 20
+    },
+    {
+      "model": "gpt-5.6-sol",
+      "reasoningEffort": "xhigh",
+      "promptRoute": "Langfuse Bundesliga match v2; Bundesliga 2025/26 7-document legacy-id-hash-v1 context",
+      "modelKnowledgeCutoffDate": "2026-02-16",
+      "samplingCutoffUsed": "2026-02-18T00:00:00 Europe/Berlin (+01)",
+      "maxOutputTokens": 10000,
+      "baseSampleObservations": 20,
+      "serviceTier": "flex",
+      "observedServiceTierCounts": {
+        "flex": 20
+      },
+      "observedFlexRequestCount": 20,
+      "nonFlexRequestCount": 0,
+      "nonFlexRequestRate": "0.0000",
+      "nonFlexRequestPercent": "0.00%",
+      "nonFlexRetryCount": 0,
+      "nonFlexRetryRate": "0.0000",
+      "nonFlexRetryPercent": "0.00%",
+      "serviceTierFallbackUsedCount": 0,
+      "serviceTierFallbackUsedRate": "0.0000",
+      "serviceTierFallbackUsedPercent": "0.00%",
+      "standardInputPricePerMillionUsd": "4",
+      "standardOutputPricePerMillionUsd": "20",
+      "effectiveInputPricePerMillionUsd": "2",
+      "effectiveOutputPricePerMillionUsd": "10",
+      "totalInputTokens": 48752,
+      "totalCachedInputTokensObserved": 38979,
+      "totalOutputTokens": 7307,
+      "totalReasoningTokens": 6927,
+      "estimatedUncachedInputCostUsd": "0.097504000000",
+      "estimatedOutputCostUsd": "0.073070000000",
+      "estimatedTotalCostUsd": "0.170574000000",
+      "averageCostPerMatchPredictionUsd": "0.008528700000",
+      "observedLangfuseCostTotalUsd": "0.100411800000",
+      "source": "P0-23 appended Sol/xhigh exact 5x4 base-estimate run 2026-08-26t12-03-30z; dataset run d1257b5f-7031-4766-b3e8-b94867b57a22",
+      "datasetId": "cmt86m8gn0awvad0eyx7mn5f6",
+      "datasetRunId": "d1257b5f-7031-4766-b3e8-b94867b57a22",
+      "datasetRunName": "repeated-match-slice__pes-squad__gpt-5.6-sol__match-v2__reasoning-xhigh__random-5x4-seed-20260821__cost-estimate__sol-xhigh-appended__startsat-12h__2026-08-26t12-03-30z",
+      "preparedManifestSha256": "fcadeeadaadd1356472a1f4f96b7277a05ba3b8a19dcde60e6f2e7d79af577b7",
+      "preparedManifestSampleSize": 20
     }
   ]
 }

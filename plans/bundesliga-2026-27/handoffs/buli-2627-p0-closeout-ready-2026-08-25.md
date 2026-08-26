@@ -2,22 +2,51 @@
 
 - Handoff ID: `buli-2627-p0-closeout-ready-2026-08-25`
 - Created: 2026-08-25
-- Status: **Active P0 closeout handoff; P0 is not complete**
+- Last advanced: 2026-08-26
+- Status: **Active P0 closeout handoff; P0-23 and P0-25 are complete; P0 is not complete**
 - Repository: `ehonda/KicktippAi`
-- Branch/remote baseline: `main` / `origin/main`
-- Exact clean baseline: `78ee2c0aa1b4e1b0093b7ef442936cf042ad2681`
-- Exact green Actions run: [32898097769](https://github.com/ehonda/KicktippAi/actions/runs/32898097769), all 12 jobs successful
+- Historical branch/remote baseline at creation: `main` / `origin/main`
+- Historical exact clean baseline at creation: `78ee2c0aa1b4e1b0093b7ef442936cf042ad2681`
+- Historical exact green Actions run at creation: [32898097769](https://github.com/ehonda/KicktippAi/actions/runs/32898097769), all 12 jobs successful
 
 ## Resume objective
 
 Close P0 without crossing the remaining owner, spend, community-administrator,
-or production-activation gates. P0-25 is complete. Resume from
-[P0-23](../tasks/p0-23-gpt-5-6-production-candidate-evidence.md), then finish
-[P0-06](../tasks/p0-06-model-ledger-and-cost-baseline.md), the
+or production-activation gates. P0-23 and P0-25 are complete. Resume from the
+Owner selection gate in [P0-06](../tasks/p0-06-model-ledger-and-cost-baseline.md),
+then finish the
 model-bound production [P0-19](../tasks/p0-19-community-workflow-triad.md)
 callers, and finally [P0-21](../tasks/p0-21-production-activation.md).
 
-## Exact durable state
+## P0-23 completion addendum — 2026-08-26
+
+- [P0-23](../tasks/p0-23-gpt-5-6-production-candidate-evidence.md) is complete.
+  Its [quality results](../../../docs/experiments/gpt-5-6-bundesliga-2025-26-production-candidate-quality-results.md)
+  and [cost evidence](../../../docs/experiments/gpt-5-6-bundesliga-2025-26-production-candidate-cost-results.md)
+  are the current decision inputs for P0-06. No production model or arena
+  participant was selected by the experiment lane.
+- Eight originally planned configurations completed. Luna/max did not: its p5
+  and p3 attempts ended in transient capacity failures, and the Owner explicitly
+  stopped the planned p1 retry. It has no quality score, rank, confidence
+  interval, or imputed quality result.
+- After all eight accepted original scores were visible, the Owner added
+  Sol/xhigh. Its cost row and quality run completed, but this was a post-hoc,
+  data-dependent addition. Every nine-run-family inference that includes it is
+  exploratory rather than preregistered confirmatory evidence.
+- Final experiment accounting is USD `4.708337270000` observed plus USD
+  `0.099600000000` reserved, USD `4.807937270000` all-in, and USD
+  `25.192062730000` remaining under the cumulative USD 30 ceiling.
+- This addendum supersedes the stale execution-state and resume instructions in
+  the dated historical sections below. The original ADR/preregistration and its
+  audit trail remain point-in-time records; do not rewrite them as though the
+  Owner stop or Sol/xhigh addition had been planned originally. Do not perform
+  another P0-23 dataset sync, model call, or experiment mutation without a new
+  Owner-authorized task and fresh budget gate.
+
+## Historical durable state at handoff creation
+
+The dated state in this section is preserved for audit history. Where it says
+P0-23 was pending or blocked, the completion addendum above is authoritative.
 
 - `main` and `origin/main` were clean and equal at the exact baseline above.
   The exact-head Actions run was terminal green with all 12 jobs successful.
@@ -92,7 +121,10 @@ callers, and finally [P0-21](../tasks/p0-21-production-activation.md).
   retaining deterministic activity correlation. This is code evidence, not a
   live trace or posting claim.
 
-## Remaining sequence
+## Historical remaining sequence from 2026-08-25 (superseded)
+
+This sequence records the original handoff state. Resume from the current
+objective and completion addendum above, not from its pending P0-23 steps.
 
 1. **Complete:** P0-25 was independently reviewed, integrated, and green before
    the paired explicit overlay republish. The unchanged enriched snapshot passed
@@ -137,7 +169,7 @@ callers, and finally [P0-21](../tasks/p0-21-production-activation.md).
    the new activation ADR, deliberate schedules, and first scheduled
    observation.
 
-## Resolved P0-23 owner input
+## Historical preregistered P0-23 owner input
 
 [ADR-0049](../decisions/0049-preregister-gpt-5-6-candidate-evidence.md)
 is the authoritative P0-23 experiment contract. It records:
@@ -158,12 +190,14 @@ historical pool/manifest provenance remain execution-date fail-closed gates.
 
 ## Hard boundaries
 
-- Do not replace ADR-0049's exact matrix, derive candidate caps outside its
-  preflight process, or extend its one preliminary quality block after results
-  without returning to the owner.
-- Local preparation is complete. Do not upload/sync a dataset, mutate Langfuse
-  or a hosted prompt, call a model, or incur spend before the pending upload
-  authorization and every applicable execution-date/Decimal gate pass.
+- Preserve ADR-0049 and the preregistration as the frozen historical design. Do
+  not describe the Owner-stopped Luna/max p1 attempt or post-hoc Sol/xhigh
+  addition as preregistered. Any inference across all nine completed run
+  families is exploratory and data-dependent.
+- P0-23 is complete. Do not sync or rerun its dataset, mutate its Langfuse
+  experiment state, call another model, or incur more experiment spend under
+  the consumed authorization. A new experiment requires a new Owner-authorized
+  task and fresh cumulative gate.
 - Do not rerun the completed Luna cost row; it is reusable evidence and is not
   production selection.
 - Do not make a production POST, dispatch a production workflow, or add/enable
@@ -201,7 +235,7 @@ historical pool/manifest provenance remain execution-date fail-closed gates.
 ## First resume checkpoint
 
 Report the exact main/origin SHA and CI state, clean worktree inventory,
-ADR-0049 checkpoint-review state, Decimal budget-gate integration/command state,
-the completed P0-25 evidence state, and bounded lane assignment. Do not assign a
-new P0-25 live lane. Stop before dataset upload/synchronization, Langfuse,
-prompt, or model mutation while the applicable prerequisite remains open.
+P0-23 publication/integration state, the pending P0-06 Owner-selection state,
+the completed P0-25 evidence state, and bounded lane assignment. Do not assign
+a new P0-23 or P0-25 live lane, and do not perform another P0-23 external or
+model action while resuming the P0-06 decision gate.

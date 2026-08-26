@@ -1,9 +1,9 @@
 # GPT-5.6 Bundesliga 2025/26 production-candidate preregistration
 
-**Status:** COST PHASE COMPLETE — all nine owner-authorized configurations now
-have authoritative five-by-four rows. The reviewed Phase-B execution contract
-is frozen, but its post-green no-spend preparation checkpoint has not run and
-the paired quality phase has not started.
+**Status:** EVIDENCE COLLECTION COMPLETE — the original full-nine quality
+surface could not complete Luna/`max`; eight original configurations and the
+post-hoc Owner-added Sol/`xhigh` configuration completed. Owner selection is
+pending.
 
 **Verified:** 2026-08-26
 
@@ -24,6 +24,8 @@ workflow, or activate a schedule. Every paid cost action was separately
 admitted through the cumulative Decimal gate. The final cost evidence is
 reported in
 [the cost-results report](gpt-5-6-bundesliga-2025-26-production-candidate-cost-results.md).
+The execution outcome and exploratory statistical comparison are in the
+[quality-results report](gpt-5-6-bundesliga-2025-26-production-candidate-quality-results.md).
 
 Related planning and decisions:
 
@@ -438,7 +440,8 @@ has SHA-256
 At this historical checkpoint, the result did not admit the 20-call row. The
 subsequent exact-head review, integration, green CI, ledger reconciliation, and
 fresh Decimal gate admitted the cap-`20000` row, which later completed 20/20.
-There was no cap-`40000` action, and no quality action has started.
+There was no cap-`40000` action, and at that remediation checkpoint no quality
+action had started.
 
 ## Phase A — exact cost rows and whole-season estimates
 
@@ -569,13 +572,13 @@ Quality execution starts only after every row needed by the proposed surface is
 exact and the Decimal aggregate command admits each serialized candidate run.
 Cost rows determine the topology before any quality call.
 
-The cost-phase gate proves that the full-nine `10 × 20` topology fits the
+The cost-phase gate proved that the full-nine `10 × 20` topology fit the
 ceiling. The reviewed amendment below now freezes the Phase-B selection inputs,
 execution settings, and serial order. It deliberately selects seed `20260821`;
 matching the cost seed is an explicit reviewed choice, not silent reuse of the
 one-item or five-by-four cost artifacts. The quality dataset and manifest are
-new artifacts and no quality preparation, sync, gate, or model call occurred in
-this amendment.
+new artifacts. At the time this freeze amendment was written, no quality
+preparation, sync, gate, or model call had occurred.
 
 ### Reviewed Phase-B execution freeze
 
@@ -860,26 +863,64 @@ evaluates the quality/cost tradeoff.
 - [x] Independently review, integrate, explicitly push, reconcile exact-head
       green CI, and freshly Decimal-admit the cap-`20000` five-by-four
       Luna/`max` row before the resumed serialized cost sequence.
-- [ ] After this quality-freeze amendment is integrated, pushed, and exact-head
+- [x] After this quality-freeze amendment is integrated, pushed, and exact-head
       green, prepare the frozen `10 × 20` artifact once and record the ten
       selected IDs/hash, raw dataset/manifest hashes, canonical historical hash,
       `109`-fixture eligible-pool identity, and `200` / `200` counts before sync
       or spend.
-- [ ] Before every quality attempt, write and hash a fresh candidate-specific
+- [x] Before every quality attempt, write and hash a fresh candidate-specific
       Decimal gate containing all 18 cost attempts, all earlier quality
       attempts, the fixed `$0.033200000000` reserve, and exactly one 200-call
       candidate with no speculative retry reserve.
 
-The cost phase then completed all eight missing authoritative rows in frozen
+The cost phase completed all eight missing authoritative rows in frozen
 order. The final P0-23 cost-phase ledger contains 18 settled attempts at
 `$0.410982080000` and retains the `$0.033200000000` unresolved failed-call
 reservation. The no-spend full-nine `10 × 20` quality-topology gate is allowed
-at `$6.604864080000` all-in, but no quality call started. Exact rows, season
+at `$6.604864080000` all-in. This records the historical pre-quality
+checkpoint; quality execution subsequently occurred. Exact rows, season
 estimates, attempt totals, and gate identity are in the
 [cost-results report](gpt-5-6-bundesliga-2025-26-production-candidate-cost-results.md).
 
 The synced datasets contained only the previously audited public match records
 and completed outcomes; local manifests with context names, versions, source
 IDs, timestamps, and hashes were not sync payloads. No prompt/context/
-prediction payload or secret was retained. Quality, production-selection, and
-activation gates remain open.
+prediction payload or secret was retained. Production selection and activation
+remain open.
+
+## Post-execution amendment and deviations
+
+This section records the actual outcome without rewriting the frozen design as
+if it had been planned.
+
+- The preparation ran once with the frozen inputs. It selected the ten IDs and
+  hashes recorded in the quality-results report, produced exact `200` / `200`
+  manifest/dataset counts, and synced dataset
+  `cmta0tdfc00rnad0fnbxelgkk` before spend.
+- The first six serialized candidates completed. Luna/`max` then stopped with a
+  transient capacity failure at p5. A separately admitted exact-settings p3
+  retry also stopped with transient capacity failure. Neither attempt yielded
+  a complete paired run.
+- The Owner explicitly overrode the frozen p1 retry rule for Luna/`max`, stopped
+  further Luna/`max` calls, and directed that the configuration be incomplete
+  and excluded. No score or rank is imputed.
+- Luna/`medium` and Luna/`none` then completed the original sequence. These are
+  the eight completed configurations from the original matrix.
+- Only after all eight original accepted scores were visible, the Owner added
+  Sol/`xhigh`. The required one-item preflight and exact five-by-four cost row
+  completed before its 200-item quality run. This was not preregistered and was
+  selected after partial outcomes; Sol/`xhigh` and all nine-run inference are
+  exploratory and data-dependent rather than confirmatory.
+- The final accepted comparison therefore contains eight original completed
+  configurations plus post-hoc Sol/`xhigh`. The preregistered full-nine matrix
+  itself did not complete because Luna/`max` is missing.
+- Final observed spend is `$4.708337270000`; three separately named reserves
+  total `$0.099600000000`; bounded exposure is `$4.807937270000`, leaving
+  `$25.192062730000` under the USD 30 ceiling.
+
+The generated report uses the frozen primary metric and paired repetition-total
+unit with Friedman, Holm-adjusted Wilcoxon, 10,000 bootstrap resamples, 95%
+confidence intervals, and seed `20260406`. Its output and all selection,
+dataset-run, score, cost, fallback, cap, timing, uncertainty, and artifact
+evidence are in the quality-results report. P0-23 makes no production or arena
+selection.

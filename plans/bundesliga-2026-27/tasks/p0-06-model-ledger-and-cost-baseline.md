@@ -1,6 +1,6 @@
 # P0-06 — Pin the model ledger and launch cost baseline
 
-- Status: In progress — Luna cost baseline complete; P0-23 comparative evidence or owner waiver and final production decision pending
+- Status: In progress — P0-23 comparative cost/quality evidence complete; Owner production-model, arena-participant, policy, and ceiling decision pending
 - Priority: P0
 - Depends on: [P0-05](p0-05-prompt-route.md) (complete; owner-approved production prompt versions and hashes recorded below), [P0-23](p0-23-gpt-5-6-production-candidate-evidence.md)
 - Decisions: [ADR-0004](../decisions/0004-hosted-prompts-with-local-fallback.md), [ADR-0006](../decisions/0006-stage-validation-with-a-cheap-test-model.md), [ADR-0033](../decisions/0033-pin-validation-model-ledger-and-reserve-production-selection.md), [ADR-0039](../decisions/0039-record-bundesliga-community-and-credential-topology.md), [ADR-0040](../decisions/0040-use-hash-bound-2025-26-context-for-preseason-cost-experiments.md), [ADR-0043](../decisions/0043-freeze-historical-experiment-aliases-and-eligible-pool.md), [ADR-0046](../decisions/0046-bind-cost-usage-to-langfuse-dataset-runs.md)
@@ -54,6 +54,35 @@ The cheap plumbing configuration and the later owner-approved launch configurati
 - Independent-review remediation machine-enforces the exact 1-by-1 or 5-by-4 topology, generated source/slice identities, selected-item hash, top-level artifact provenance, and the exact two-day Europe/Berlin local-midnight cutoff; it also verifies the resolved hosted prompt's name, numbered version, and `production` label before any run replacement or model construction. Validation: solution build (0 errors), focused preparation 4/4, focused runner 31/31, full Orchestrator 1,053/1,053, and repository estimate skill validation passed. No prompt, Langfuse mutation, or model call was made during remediation.
 - Focused tests: Core identity 4/4, Orchestrator routing/provider 49/49, OpenAI cost/telemetry/runtime identity 50/50, Firebase exact identity 8/8, matchday/bonus/verify commands 112/112, and reconstruction/export/cost exact selectors 21/21.
 - Full affected suites: Core 142/142, OpenAI integration 218/218, Firebase adapter 261/261, Orchestrator 916/916, Integration 3/3. One timing-sensitive Langfuse retry test failed during an earlier contended run (three requests observed instead of two), then passed 1/1 in isolation and in the clean 916/916 rerun.
+
+## P0-23 comparative-evidence handoff — 2026-08-26
+
+- [P0-23](p0-23-gpt-5-6-production-candidate-evidence.md) is complete. Its
+  [quality-results report](../../../docs/experiments/gpt-5-6-bundesliga-2025-26-production-candidate-quality-results.md)
+  and
+  [cost-results report](../../../docs/experiments/gpt-5-6-bundesliga-2025-26-production-candidate-cost-results.md)
+  provide the evidence for the still-unchecked Owner selection item above.
+- Eight original configurations completed the frozen paired quality sample.
+  Luna/`max` remains incomplete after two transient capacity failures and the
+  Owner's explicit p1-stop override; it has no imputed score or rank.
+- Sol/`xhigh` was added only after the original eight accepted scores were
+  visible. Its cost row and quality run completed, but its comparison is
+  exploratory and data-dependent rather than preregistered confirmatory
+  evidence.
+- The nine accepted runs share 200 exact items and yield 20 paired
+  repetition-total observations. The descriptive order is Sol/`xhigh`,
+  Sol/`high`, Sol/`medium`, Luna/`medium`, Sol/`none`, Terra/`xhigh`,
+  Terra/`medium`, Terra/`none`, Luna/`none`; the report contains exact
+  uncertainty and corrected pairwise results, so order alone must not be used
+  as an automatic selection rule.
+- Final P0-23 observed plus reserved exposure is `$4.807937270000` under the
+  authorized USD 30 ceiling. Exact 306/493 season estimates are recorded next
+  to quality, including post-hoc Sol/`xhigh` at `$2.609782200000` /
+  `$4.204649100000` and Luna/`medium` at `$0.105573060000` /
+  `$0.170089930000`.
+- No production model, cap, fallback policy, participant topology, community
+  prediction, workflow, or schedule changed. The Owner selection and new
+  Accepted ADR remain the sole active P0-06 decision gate.
 
 ## Complete when
 

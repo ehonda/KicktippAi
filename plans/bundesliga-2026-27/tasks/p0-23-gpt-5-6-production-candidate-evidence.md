@@ -1,6 +1,6 @@
 # P0-23 — Collect GPT-5.6 production-candidate evidence
 
-- Status: In progress — phase 1 cost evidence is complete for all nine owner-authorized rows; the phase 2 sample/execution semantics are frozen, but post-green quality-artifact preparation and paired quality execution have not started
+- Status: Complete — cost and cutoff-safe quality evidence published; the Owner's production-model and arena-participant selection remains in P0-06
 - Priority: P0
 - Depends on: [P0-05](p0-05-prompt-route.md), [P0-12](p0-12-match-context-and-transfer-retirement.md), and [P0-20](p0-20-seed-and-development-validation.md)
 - Reuses: the completed cost/provenance foundation recorded in [P0-06](p0-06-model-ledger-and-cost-baseline.md)
@@ -51,16 +51,16 @@ rerun.
 - [x] Pre-register the comparison metrics, aggregation, paired/common-manifest rule, repetition policy, adaptive topology, and failure handling before any quality run. Full-matrix designs retain 20 paired repetition totals. If those cannot fit, exactly one quality-first preliminary block is allowed; it targets 20 paired totals and may use the owner-authorized exploratory `10 × 15` then `10 × 10` fallback only after machine estimates prove stronger options unaffordable. Apply the hardest candidate cutoff to a shared paired sample when candidates are compared directly.
 - [x] Freeze the reviewed full-matrix execution inputs before scores are visible: seed `20260821`, `10 × 20`, slice key `random-10x20-seed-20260821-gpt-5-6-production-candidate-quality`, batch count `7`, initial parallelism `5`, one shared UTC stamp, exact serialized order Sol `high` / `medium` / `none`, Terra `xhigh` / `medium` / `none`, Luna `max` / `medium` / `none`, Luna/`max` cap `20000`, and cap `10000` for every other row. Retrying the seed or changing these settings after scores are visible is forbidden.
 - [x] Clarify the historical-route evidence boundary without changing ADR-0049: generic seven-document token/cost rows are not quality evidence, while a separately preregistered cutoff-safe common-manifest run over completed outcomes is valid scored quality evidence. Retain the warning that seven-document historical input may understate live eleven-document cost.
-- [ ] After the quality-freeze commit is integrated, pushed, and exact-head green, prepare the frozen quality artifact once and record the exact ten selected IDs/hash, raw dataset/manifest hashes, canonical historical-artifact hash, eligible pool count/hash, and `200` / `200` manifest/item counts before sync, a spend gate, or a model call.
-- [ ] Run only the owner-authorized candidates against completed, cutoff-safe Bundesliga 2025/26 outcomes using exact prepared manifests and immutable run binding. Keep model/prompt settings equal to their declared production candidates.
-- [ ] Publish complete comparable results, including failures and uncertainty, without selecting the production model. Never infer quality from cost, token count, output length, plumbing success, or the Luna validation ladder.
-- [ ] If a cutoff-safe paired comparison is impossible, fail closed and return the exact eligible-pool evidence to the owner; do not manufacture comparability from different or pre-cutoff samples.
+- [x] After the quality-freeze commit is integrated, pushed, and exact-head green, prepare the frozen quality artifact once and record the exact ten selected IDs/hash, raw dataset/manifest hashes, canonical historical-artifact hash, eligible pool count/hash, and `200` / `200` manifest/item counts before sync, a spend gate, or a model call.
+- [x] Run only the owner-authorized candidates against completed, cutoff-safe Bundesliga 2025/26 outcomes using exact prepared manifests and immutable run binding. Keep model/prompt settings equal to their declared production candidates. Luna/`max` remains explicitly incomplete after two transient capacity failures and the Owner's p1-stop override; no score is imputed.
+- [x] Publish complete comparable results, including failures and uncertainty, without selecting the production model. Never infer quality from cost, token count, output length, plumbing success, or the Luna validation ladder.
+- [x] If a cutoff-safe paired comparison is impossible, fail closed and return the exact eligible-pool evidence to the owner; do not manufacture comparability from different or pre-cutoff samples. The audited common pool and exact pairing passed, so this stop condition did not trigger.
 
 ## Production-selection boundary
 
-- [ ] Do not fill `production-primary`, admit an arena challenger, create its model-bound production workflow, or activate production based only on the Luna plumbing row.
-- [ ] After the comparative evidence is complete, or after the owner records an explicit waiver, hand the exact cost and quality evidence to P0-06 for the owner decision and new Accepted ADR.
-- [ ] Carry the already accepted match v2 and bonus v1 prompt identities into the candidate ledger unless a separately reviewed successor ADR deliberately changes them.
+- [x] Do not fill `production-primary`, admit an arena challenger, create its model-bound production workflow, or activate production based only on the Luna plumbing row.
+- [x] After the comparative evidence is complete, or after the owner records an explicit waiver, hand the exact cost and quality evidence to P0-06 for the owner decision and new Accepted ADR.
+- [x] Carry the already accepted match v2 and bonus v1 prompt identities into the candidate ledger unless a separately reviewed successor ADR deliberately changes them.
 
 ## Validation
 
@@ -216,7 +216,8 @@ rerun.
   `.tmp/p0-23-budget/full-nine-10x20-quality-topology-budget-gate.json`,
   SHA-256
   `28f6d471315aaaca27188343052fdbd1445d3d1d541c3b65b2ea9d7d32902c84`,
-  records the exact Decimal calculation. No quality call was started.
+  records the exact Decimal calculation. At that historical checkpoint no
+  quality call had started.
 
 ## Evidence — 2026-08-26 Phase-B quality freeze
 
@@ -225,8 +226,9 @@ rerun.
   reuse of either cost artifact. No preparation, dataset sync, Langfuse/API
   mutation, prompt action, candidate gate, preflight, or model call occurred in
   the freeze lane.
-- Each future candidate uses batch count `7`, initial parallelism `5`, and the
-  exact shared-stamp serial order recorded above. Its post-warmup groups are
+- The freeze required each candidate to use batch count `7`, initial
+  parallelism `5`, and the exact shared-stamp serial order recorded above. Its
+  post-warmup groups are
   `3, 3, 3, 3, 3, 2, 2`, so p5 / p3 / p1 peak model-call concurrency is
   `15` / `9` / `3` without changing the 200 items or 20 paired totals. Only a
   transient Flex/rate failure may retry the identical settings at parallelism
@@ -240,14 +242,52 @@ rerun.
   `$23.395135920000`. Its ignored JSON SHA-256 remains
   `28f6d471315aaaca27188343052fdbd1445d3d1d541c3b65b2ea9d7d32902c84`.
   This is planning evidence only.
-- Before each initial candidate or exact-setting retry, a fresh
-  candidate-specific JSON gate must include all 18 cost attempts, every earlier
-  quality attempt, the fixed reserve, exactly one `N=200` candidate, strict USD
-  30, and no speculative retry reserve. The JSON hash is recorded before its
-  corresponding call.
+- The freeze required a fresh gate before each initial candidate or
+  exact-setting retry. Each candidate-specific JSON gate must include all 18
+  cost attempts, every earlier quality attempt, the fixed reserve, exactly one
+  `N=200` candidate, strict USD 30, and no speculative retry reserve. The JSON
+  hash is recorded before its corresponding call.
+
+## Evidence — 2026-08-26 quality execution and publication
+
+- The frozen preparation selected ten fixtures, expanded them to exactly 200
+  stable items, and synced Langfuse dataset
+  `cmta0tdfc00rnad0fnbxelgkk`. Manifest SHA-256 is
+  `5953b332fbcfba668223a2071ebc78beac85c0ce66561005fd5a89f4b4a33ca4`;
+  the common item-set SHA-256 is
+  `08be7ae653ed52f9fa412a244ec2ab46ffc75adead3183149fb27015d9381daf`.
+- Eight configurations from the frozen original matrix completed the exact
+  common manifest. Luna/`max` failed at p5 and again at p3 with transient
+  capacity failures. The Owner explicitly stopped the p1 retry and excluded the
+  incomplete configuration. It has no score or rank.
+- After all eight original accepted scores were visible, the Owner directed an
+  appended Sol/`xhigh` cost row and quality run. It completed, but it was
+  data-dependent and not preregistered; all inference including Sol/`xhigh` is
+  explicitly exploratory.
+- The exact nine accepted dataset runs export to 1,800 paired rows with 1,800
+  distinct traces and observations and no Luna/`max` row. Export SHA-256 is
+  `c10dcf6978cc172ad26404f5e4a4556431d600f0563dbcbde464495df8ecb00c`.
+- The reviewed report applies Friedman plus Holm-gated paired Wilcoxon tests to
+  20 repetition totals with 10,000 bootstrap resamples, 95% confidence
+  intervals, and seed `20260406`. Its standalone HTML visibly discloses the
+  post-hoc Sol/xhigh interpretation boundary and Luna/max exclusion and links
+  the canonical results write-up. The generated HTML SHA-256 is
+  `38614b8ea20a782d810d834326af710f9a84f1e5a9a765af6426ba434c47b1e4`.
+- Final observed spend is `$4.708337270000`; three conservative reservations
+  total `$0.099600000000`; bounded exposure is `$4.807937270000`, leaving
+  `$25.192062730000` under USD 30.
+- The complete design deviations, exact selected IDs/hashes, run IDs, score
+  distributions, caps, tiers/fallbacks, costs, timings, statistical output, and
+  caveats are in the
+  [quality-results report](../../../docs/experiments/gpt-5-6-bundesliga-2025-26-production-candidate-quality-results.md).
+  Production and arena choices remain explicitly pending in P0-06.
 
 ## Complete when
 
-- Every owner-authorized production candidate has comparable, reproducible cost evidence and the required cutoff-safe quality evidence, or the final owner ADR explicitly records the waived evidence and risk.
+- The Owner receives comparable, reproducible cost and cutoff-safe quality
+  evidence for every completed candidate, plus explicit failure evidence and no
+  imputed score for an incomplete candidate.
 - Cost and quality claims remain visibly separate and traceable to exact immutable provenance.
-- P0-06 can record the production decision without silently inheriting Luna/none or an old prompt/context route.
+- P0-06 can record the production decision without silently inheriting
+  Luna/none or an old prompt/context route. The selection itself is a P0-06
+  completion condition, not a P0-23 completion condition.
