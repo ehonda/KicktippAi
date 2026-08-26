@@ -50,10 +50,35 @@ callers, and finally [P0-21](../tasks/p0-21-production-activation.md).
   Decimal cumulative-budget gate is integrated at exact main commit
   `0b86b11564b9cc7500b7bfaf94301e4e83263f73`; its 24 focused tests and
   exact-commit [Build and Test run 32910669112](https://github.com/ehonda/KicktippAi/actions/runs/32910669112)
-  are green. The first live dataset sync remains blocked pending explicit
-  authorization for cutoff-safe historical/context dataset egress. No HTTP or
-  payload egress, model call, or P0-23 spend occurred; its observed cumulative
-  ledger remains exactly USD 0.
+  are green. The exact `1 × 1` and `5 × 4` artifacts are prepared locally and
+  reproduce the frozen pool, selection, and manifest identities. Their first
+  Langfuse sync remains blocked pending explicit authorization to upload the
+  public cutoff-safe historical match dataset records described below. No HTTP
+  or payload egress, model call, or P0-23 spend occurred; its observed
+  cumulative ledger remains exactly USD 0.
+- The `1 × 1` raw dataset/manifest hashes are
+  `389b806e89b08169ea0092667d7fc774f0737c6e235e44b4fbf18c81c412c717` /
+  `b396ffd599c8c79569db656d66e68ebe9169caf9a7e274d1aa0e7a0c8f8017c1`;
+  its canonical historical-artifact hash is
+  `a03c31c174e0e0be1723b5214453a3992c2b5d023d125eb75fa658a7503c2946`.
+  The `5 × 4` raw dataset/manifest hashes are
+  `0fbc3e07f926596805a23bbe3241fcf2ec368858f217cb1e05ccbac96c907d18` /
+  `fcadeeadaadd1356472a1f4f96b7277a05ba3b8a19dcde60e6f2e7d79af577b7`;
+  its canonical historical-artifact hash is
+  `22dfcab23f063e2fbb7a7fa96df4f2fb5dca384bb1329adc0c33157f5419a105`.
+  The exact eligible pool is `109` fixtures/hash
+  `6ecb182489b97f9ea389374183f0ef7cfe632ddfba341ea72aa354647593b415`;
+  selected-set hashes are
+  `4a293d4bac8f6406cb88770332a5b85f9084f01d2f2e0227f7d52d63e93c4e16`
+  and
+  `3f5b16efb7901c9536c9e290ea3e9a4d5138e43ef784c26b252437d714e13ad6`.
+- The exact pending upload contains only public historical match records:
+  fixture/team names, kickoff, competition/season/community slug, matchday and
+  label, Kicktipp match ID, fixture/repetition indices, and completed score.
+  `slice-dataset.json` contains no historical context bodies, references, or
+  hashes, prompt text, prediction output, credentials, or secrets. The local
+  manifest alone retains seven context-document reference/version/timestamp/
+  content-hash tuples and is not the dataset sync payload.
 - `pes-squad-context-collection.yml` and
   `schadensfresse-context-collection.yml` are integrated manual-only
   `workflow_dispatch` context callers. They have no inputs, `workflow_call`, or
@@ -82,8 +107,8 @@ callers, and finally [P0-21](../tasks/p0-21-production-activation.md).
    and the machine-readable Decimal cumulative-budget gate plus its exact
    aggregate command were integrated and validated at the exact green commit
    and Actions run recorded above. ADR-0049 authorizes its exact evidence
-   program, but the first live dataset sync remains blocked on the separate
-   explicit historical/context dataset-egress authorization.
+   program, but the first live dataset sync remains blocked on separate explicit
+   authorization to upload the public cutoff-safe historical match records.
 3. Collect the ADR-0049 cutoff-safe cost rows and adaptive quality evidence with
    immutable provenance. Keep cost and quality evidence separate, reuse the
    completed Luna row without another Luna model run, and return to the owner
@@ -136,10 +161,9 @@ historical pool/manifest provenance remain execution-date fail-closed gates.
 - Do not replace ADR-0049's exact matrix, derive candidate caps outside its
   preflight process, or extend its one preliminary quality block after results
   without returning to the owner.
-- Do not prepare/sync a dataset, mutate Langfuse or a hosted prompt, call a
-  model, or incur spend before the corrected checkpoint is independently
-  accepted and the machine-readable Decimal cumulative gate is integrated and
-  invoked successfully.
+- Local preparation is complete. Do not upload/sync a dataset, mutate Langfuse
+  or a hosted prompt, call a model, or incur spend before the pending upload
+  authorization and every applicable execution-date/Decimal gate pass.
 - Do not rerun the completed Luna cost row; it is reusable evidence and is not
   production selection.
 - Do not make a production POST, dispatch a production workflow, or add/enable
@@ -179,5 +203,5 @@ historical pool/manifest provenance remain execution-date fail-closed gates.
 Report the exact main/origin SHA and CI state, clean worktree inventory,
 ADR-0049 checkpoint-review state, Decimal budget-gate integration/command state,
 the completed P0-25 evidence state, and bounded lane assignment. Do not assign a
-new P0-25 live lane. Stop before dataset, Langfuse, prompt, or model mutation
-while the applicable prerequisite remains open.
+new P0-25 live lane. Stop before dataset upload/synchronization, Langfuse,
+prompt, or model mutation while the applicable prerequisite remains open.

@@ -1,6 +1,6 @@
 # P0-23 — Collect GPT-5.6 production-candidate evidence
 
-- Status: In progress — independent review approved the preregistered owner matrix and cumulative USD 30 ceiling, the machine-readable Decimal cumulative-budget gate is integrated, and exact main commit `c6caa6a998893193b097e152cd4cce588a6efb5c` is green in `Build and Test` run `32913630047`; the first live dataset sync is blocked pending explicit authorization for cutoff-safe historical/context dataset egress, while every downstream live-action gate remains open
+- Status: In progress — independent review approved the preregistered owner matrix and cumulative USD 30 ceiling, the machine-readable Decimal cumulative-budget gate is integrated, and exact main commit `c6caa6a998893193b097e152cd4cce588a6efb5c` is green in `Build and Test` run `32913630047`; the exact one-item and five-by-four artifacts reproduce the frozen local checkpoint, while their first Langfuse sync is blocked pending explicit authorization to upload the public cutoff-safe historical match dataset records and every downstream live-action gate remains open
 - Priority: P0
 - Depends on: [P0-05](p0-05-prompt-route.md), [P0-12](p0-12-match-context-and-transfer-retirement.md), and [P0-20](p0-20-seed-and-development-validation.md)
 - Reuses: the completed cost/provenance foundation recorded in [P0-06](p0-06-model-ledger-and-cost-baseline.md)
@@ -98,14 +98,38 @@ rerun.
 - The three owner-supplied rationale screenshots are preserved under
   `docs/experiments/assets/gpt-5-6-production-candidate-selection/` and embedded
   in the preregistration.
-- The exact one-item and five-by-four datasets and manifests were prepared only
-  as ignored local artifacts through the pre-sync boundary. The first
-  `sync-dataset` invocation was denied by auto-review before HTTP or payload
-  egress. No Langfuse or prompt mutation, model call, or spend occurred, and the
-  observed cumulative P0-23 ledger remains exactly USD 0. The blocker is the
-  missing explicit authorization for cutoff-safe historical/context dataset
-  egress, not the worktree locator or a general auto-review restriction. All
-  downstream live-action checklist items remain open.
+- The exact one-item and five-by-four datasets and manifests were reproduced as
+  ignored local artifacts through the pre-sync boundary. Both bind eligible
+  pool count `109` and hash
+  `6ecb182489b97f9ea389374183f0ef7cfe632ddfba341ea72aa354647593b415`.
+  The one-item selection is `ts1423757341`, selected-set hash
+  `4a293d4bac8f6406cb88770332a5b85f9084f01d2f2e0227f7d52d63e93c4e16`,
+  raw dataset/manifest hashes
+  `389b806e89b08169ea0092667d7fc774f0737c6e235e44b4fbf18c81c412c717` /
+  `b396ffd599c8c79569db656d66e68ebe9169caf9a7e274d1aa0e7a0c8f8017c1`,
+  and canonical historical-artifact hash
+  `a03c31c174e0e0be1723b5214453a3992c2b5d023d125eb75fa658a7503c2946`.
+  The five-by-four selection is `ts1423757259`, `ts1423757286`,
+  `ts1423757328`, `ts1423757333`, and `ts1423757341`, selected-set hash
+  `3f5b16efb7901c9536c9e290ea3e9a4d5138e43ef784c26b252437d714e13ad6`,
+  raw dataset/manifest hashes
+  `0fbc3e07f926596805a23bbe3241fcf2ec368858f217cb1e05ccbac96c907d18` /
+  `fcadeeadaadd1356472a1f4f96b7277a05ba3b8a19dcde60e6f2e7d79af577b7`,
+  and canonical historical-artifact hash
+  `22dfcab23f063e2fbb7a7fa96df4f2fb5dca384bb1329adc0c33157f5419a105`.
+  Manifest sample/item counts are `1` / `1` and `20` / `20`.
+- The pending authorization is exactly to upload/synchronize the public
+  cutoff-safe historical match dataset records to Langfuse: fixture/team names,
+  kickoff, competition/season/community slug, matchday and label, Kicktipp match
+  ID, fixture/repetition indices, and completed score. `slice-dataset.json`
+  contains no historical context bodies, references, or hashes, prompt text,
+  prediction output, credentials, or secrets. Only the separate local manifest
+  retains seven context-document reference/version/timestamp/content-hash
+  tuples. The first `sync-dataset` attempt was denied before HTTP or payload
+  egress. No Langfuse or prompt mutation, model call, or spend occurred; the
+  observed cumulative P0-23 ledger remains exactly USD 0. This is not a
+  worktree-locator blocker or a general auto-review restriction. All downstream
+  live-action checklist items remain open.
 
 ## Complete when
 

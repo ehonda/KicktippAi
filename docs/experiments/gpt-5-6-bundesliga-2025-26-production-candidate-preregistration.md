@@ -17,8 +17,8 @@ cumulative USD 30 ceiling.
 USD 30 is a hard ceiling, not a spending target. The program should finish for
 less whenever the evidence is sufficient. Independent review and budget-tool
 integration do not bypass the remaining execution-date checks or the separate
-admission of every paid attempt: no dataset preparation or synchronization,
-hosted prompt or Langfuse mutation, model call, production model, arena
+admission of every paid attempt: no dataset synchronization, hosted prompt or
+Langfuse mutation, model call, production model, arena
 participant, prediction post, workflow dispatch, or schedule activation has
 proceeded from this checkpoint.
 
@@ -414,16 +414,28 @@ No new Firestore cost read is needed.
 ### Missing-row preflight sequence
 
 Independent checkpoint approval and Decimal-gate integration are complete.
-After every remaining live-action check below passes, prepare and sync one
-shared `1 × 1` historical manifest once, inspect its exact provenance, and run
-these eight preflights serially. It uses seed `20260821` and,
-under the unchanged cutoff/pool, must select source fixture `1423757341`; its
-exact selected source-item ID is
+The shared `1 × 1` historical dataset and manifest are now prepared as ignored
+local artifacts and their exact provenance has passed the pre-sync inspection.
+After every remaining live-action check below passes, and after the pending
+dataset-upload authorization is explicit, sync that exact dataset once and run
+these eight preflights serially. It uses seed `20260821` and selected source
+fixture `1423757341`; its exact selected source-item ID is
 `bundesliga-2025-26__pes-squad__ts1423757341` and its selected-set SHA-256 is
 `4a293d4bac8f6406cb88770332a5b85f9084f01d2f2e0227f7d52d63e93c4e16`.
 That identity and hash are derived through the repository's canonical dataset
 item and sorted-newline SHA-256 functions and reproduce the established
 five-item selected-set hash when applied to its recorded IDs.
+
+The prepared `1 × 1` identities are:
+
+- raw `slice-dataset.json` SHA-256
+  `389b806e89b08169ea0092667d7fc774f0737c6e235e44b4fbf18c81c412c717`;
+- raw `slice-manifest.json` SHA-256
+  `b396ffd599c8c79569db656d66e68ebe9169caf9a7e274d1aa0e7a0c8f8017c1`;
+- canonical historical-artifact SHA-256
+  `a03c31c174e0e0be1723b5214453a3992c2b5d023d125eb75fa658a7503c2946`;
+  and
+- manifest sample size and item count `1` / `1`.
 
 1. `gpt-5.6-luna` / `max`
 2. `gpt-5.6-terra` / `xhigh`
@@ -461,6 +473,17 @@ unchanged pool it must select:
 - `1423757341`
 - selected-set SHA-256
   `3f5b16efb7901c9536c9e290ea3e9a4d5138e43ef784c26b252437d714e13ad6`
+
+The locally reproduced `5 × 4` artifacts bind exactly that selection and have:
+
+- raw `slice-dataset.json` SHA-256
+  `0fbc3e07f926596805a23bbe3241fcf2ec368858f217cb1e05ccbac96c907d18`;
+- raw `slice-manifest.json` SHA-256
+  `fcadeeadaadd1356472a1f4f96b7277a05ba3b8a19dcde60e6f2e7d79af577b7`;
+- canonical historical-artifact SHA-256
+  `22dfcab23f063e2fbb7a7fa96df4f2fb5dca384bb1329adc0c33157f5419a105`;
+  and
+- manifest sample size and item count `20` / `20`.
 
 Run missing rows in the same sequence as the preflights. Within a row use batch
 count `1` and fixture parallelism `5`; only Flex/rate failures may retry the
@@ -583,10 +606,25 @@ evaluates the quality/cost tradeoff.
 - [ ] Current pricing-calculator and CLI support are rechecked after any code
       integration that lands before execution.
 - [ ] Exact prompt version `2` still carries required `production` membership.
-- [ ] Prepared pool, manifest, selection, and expected counts pass pre-spend
+- [x] Prepared pool, manifest, selection, and expected counts pass pre-spend
       inspection.
 - [ ] The Decimal aggregate command separately admits the next initial attempt
       or retry strictly within USD 30 after all preceding cost settles.
 
-As of this checkpoint, no dataset was prepared or synced, no hosted prompt or
-Langfuse object was mutated, no model was called, and no new spend occurred.
+As of this checkpoint, the exact `1 × 1` and `5 × 4` datasets and manifests are
+prepared only as ignored local artifacts. No dataset was synchronized and no
+HTTP payload egress, hosted-prompt or Langfuse mutation, model construction or
+call, or new spend occurred.
+
+The exact pending authorization is narrower than historical-context egress: it
+is authorization to upload/synchronize the public cutoff-safe historical match
+dataset records to Langfuse. Each outbound item contains fixture/team names,
+kickoff, competition, season, community slug, matchday and label, Kicktipp
+match ID, fixture/repetition indices, and the completed score. The
+`slice-dataset.json` files contain no historical context body, context
+reference, context hash, prompt text, prediction output, credential, or secret.
+The separate local manifests retain only the seven context-document names,
+versions, source-document IDs, timestamps, and content hashes required for
+immutable reconstruction. That manifest is not the dataset sync payload. Every
+downstream execution-date, prompt, Decimal-budget, immutable-run, and
+production-selection gate remains open.
