@@ -268,7 +268,7 @@ public class CollectContextDevProfileOrchestrationTests
             .Contains("Kicktipp -> BundesligaHistoryPlayedDates -> ClubElo -> Rosters")
             .And.Contains("BundesligaHistoryPlayedDates: IncludedInPrevious")
             .And.Contains("completed inside immediately preceding Kicktipp")
-            .And.Contains("match-version=2")
+            .And.Contains("match-version=3")
             .And.Contains("bonus-version=1")
             .And.Contains("club-elo-rankings")
             .And.Contains("team-squad-summary")

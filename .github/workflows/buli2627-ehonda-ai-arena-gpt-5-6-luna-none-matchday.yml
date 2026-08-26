@@ -28,7 +28,7 @@ jobs:
       prompt_source: "langfuse"
       langfuse_prompt_name: "kicktippai/bundesliga-2026-27/predict-one-match"
       langfuse_prompt_label: "production"
-      langfuse_prompt_version: 2
+      langfuse_prompt_version: 3
       trigger_type: "manual"
       force_prediction: ${{ inputs.force_prediction }}
       max_repredictions: ${{ fromJSON(inputs.max_repredictions) }}

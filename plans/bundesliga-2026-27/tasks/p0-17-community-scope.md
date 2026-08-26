@@ -3,7 +3,7 @@
 - Status: Complete
 - Priority: P0
 - Depends on: [P0-05](p0-05-prompt-route.md), [P0-16](p0-16-question-aware-bonus-context.md)
-- Decisions: [ADR-0005](../decisions/0005-launch-community-and-prediction-topology.md), [ADR-0006](../decisions/0006-stage-validation-with-a-cheap-test-model.md), [ADR-0033](../decisions/0033-pin-validation-model-ledger-and-reserve-production-selection.md), [ADR-0039](../decisions/0039-record-bundesliga-community-and-credential-topology.md)
+- Decisions: [ADR-0005](../decisions/0005-launch-community-and-prediction-topology.md) (superseded), [ADR-0006](../decisions/0006-stage-validation-with-a-cheap-test-model.md), [ADR-0033](../decisions/0033-pin-validation-model-ledger-and-reserve-production-selection.md), [ADR-0039](../decisions/0039-record-bundesliga-community-and-credential-topology.md), [ADR-0052](../decisions/0052-select-production-model-community-matrix-and-match-prompt-v3.md)
 
 ## Outcome
 
@@ -28,6 +28,23 @@ The exact development and production communities, context-sharing relationships,
 - Existing local and GitHub Actions Firebase, OpenAI, Langfuse, and other shared credentials remain valid from prior WM26 runs.
 - Ordinary `verify`, `matchday`, and `bonus` startup loads credentials for the posting target after settings validation and before client construction. Development keeps the base `.env`; arena and production targets use their exact sibling `.env.<community>` files.
 - The connected GitHub token could not list repository secret names. The owner confirmed the required names/configuration; P0-20 must still prove runtime connectivity without revealing values.
+
+## Owner-selection addendum — 2026-08-27
+
+ADR-0052 extends this completed topology with `relaxdays-tippt` as a secondary
+production copy of `pes-squad`, resolves the production arena participant to
+Sol/`xhigh`, and admits self-contained arena challengers Sol/`high`,
+Luna/`medium`, Terra/`xhigh`, and Luna/`none`. `pes-squad` and
+`schadensfresse` remain independent primaries. All generation rows pin 10000
+maximum output tokens and match v3 / bonus v1.
+
+The local credential selector now supports one isolated
+`.env.<posting-community>.<participant-profile>` per arena participant while
+retaining `.env.ehonda-ai-arena` for Luna/`none`. On 2026-08-27 the Owner
+confirmed all eight exact Actions Kicktipp username/password pairs in the
+[community ledger](../../../docs/onboarding-bundesliga-2026-27/community-onboarding.md)
+are provisioned. This confirmation is not API enumeration, authentication,
+readiness, POST-permission, or dispatch evidence; P0-21 retains those gates.
 
 ## Validation
 

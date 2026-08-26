@@ -1,6 +1,7 @@
 using KicktippIntegration;
 using Moq;
 using EHonda.KicktippAi.Core;
+using Orchestrator.Infrastructure;
 using static Orchestrator.Tests.Infrastructure.OrchestratorTestFactories;
 using static TestUtilities.CoreTestFactories;
 using Match = EHonda.KicktippAi.Core.Match;
@@ -171,7 +172,7 @@ public class VerifyMatchdayCommand_Settings_Tests : VerifyMatchdayCommandTests_B
                 config.ReasoningEffort == "high" &&
                 config.MaxOutputTokenCount == 10000 &&
                 config.PromptName == "kicktippai/bundesliga-2026-27/predict-one-match" &&
-                config.PromptVersion == 2),
+                config.PromptVersion == CompetitionResolver.BundesligaMatchPromptVersion),
             It.IsAny<string>(),
             It.IsAny<CancellationToken>()),
             Moq.Times.AtLeastOnce());

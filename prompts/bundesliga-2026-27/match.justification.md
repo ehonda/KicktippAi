@@ -6,7 +6,7 @@ You are participating in a Kicktipp community that predicts every Bundesliga fix
 
 ## Objective
 
-Predict the most likely final score for the supplied fixture while maximizing expected Kicktipp points. Use the response schema exactly. If the schema contains a `justification` object, populate it concisely with neutral paraphrases of the evidence, important uncertainties, and the context documents used. If the schema does not contain that object, return only the requested score fields.
+Predict the most likely final score for the supplied fixture while maximizing expected Kicktipp points. Use the response schema exactly.{{justification_explainer}}
 
 ## Match input
 

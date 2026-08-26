@@ -17,10 +17,13 @@ public sealed class BundesligaPromptMirrorTests
         await Assert.That(regular.template)
             .Contains("Bundesliga 2026/27")
             .And.Contains("{{context_documents}}")
+            .And.Contains("{{justification_explainer}}")
             .And.Contains("club-elo-*.csv")
             .And.Contains("roster-*")
             .And.DoesNotContain("2025/2026")
             .And.DoesNotContain("transfer");
+        await Assert.That(PromptTemplateContentHash.ComputeSha256(regular.template))
+            .IsEqualTo("7c223c0765024e52b542bbdb8093ab9b8fcaad505de0c5f8d6c92f4044e175f3");
         await Assert.That(regular.path.Replace('\\', '/')).EndsWith("prompts/bundesliga-2026-27/match.md");
         await Assert.That(justification.path.Replace('\\', '/')).EndsWith("prompts/bundesliga-2026-27/match.justification.md");
     }
@@ -50,10 +53,26 @@ public sealed class BundesligaPromptMirrorTests
         var bonus = provider.LoadBonusTemplate(PromptModel);
         DocumentContext[] documents = [new("club-elo-example.csv", "Club,Elo\nExample,1500")];
 
-        var reconstructedMatch = PredictionPromptComposer.BuildSystemPrompt(match.template, documents);
+        var reconstructedMatch = PredictionPromptComposer.BuildSystemPrompt(
+            match.template,
+            documents,
+            includeJustification: true);
+        var reconstructedMatchWithoutJustification = PredictionPromptComposer.BuildSystemPrompt(
+            match.template,
+            documents,
+            includeJustification: false);
         var reconstructedBonus = PredictionPromptComposer.BuildSystemPrompt(bonus.template, documents);
 
-        await Assert.That(reconstructedMatch).Contains("club-elo-example.csv").And.DoesNotContain("{{context_documents}}");
+        await Assert.That(reconstructedMatch)
+            .Contains("club-elo-example.csv")
+            .And.Contains("Populate the `justification` object concisely")
+            .And.DoesNotContain("{{context_documents}}")
+            .And.DoesNotContain("{{justification_explainer}}");
+        await Assert.That(reconstructedMatchWithoutJustification)
+            .Contains("club-elo-example.csv")
+            .And.DoesNotContain("justification")
+            .And.DoesNotContain("{{context_documents}}")
+            .And.DoesNotContain("{{justification_explainer}}");
         await Assert.That(reconstructedBonus).Contains("club-elo-example.csv").And.DoesNotContain("{{context_documents}}");
     }
 

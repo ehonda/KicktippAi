@@ -2,6 +2,31 @@
 
 ## Workflow Activation Status
 
+As of 2026-08-27, ADR-0052's complete Bundesliga 2026/27 caller matrix is
+present. `pes-squad` and `schadensfresse` are independent Sol/`xhigh`
+primaries; `relaxdays-tippt` and arena Sol/`xhigh` copy `pes-squad`; arena
+Sol/`high`, Luna/`medium`, Terra/`xhigh`, and Luna/`none` are self-contained.
+All rows pin cap `10000`, match v3 / bonus v1, and Flex-first / Standard-
+fallback. Every current caller exposes only `workflow_dispatch`; no current
+caller has `schedule` or `workflow_call`. P0-21 owns all dispatch and activation.
+
+The reusable context workflow's `publish_launch_roster_overlay` input is false
+by default. Set it only for an accepted initial Bundesliga production roster
+publication. Current `pes-squad`, `relaxdays-tippt`, and prepared
+`schadensfresse` callers set it true; it must download the exact audited R2
+artifact, pass SHA/revision/date plus both launch flags to `collect-context
+rosters`, and complete before the normal profile. Arena callers must keep it
+absent because their shared community context already has the verified enriched
+last-known-good head. Do not loosen the pins, reorder profile before overlay,
+or turn this initial gate into recurring DuckDB refresh automation.
+
+Participant-specific Actions workflows map their exact posting-participant
+secret pair directly. Local commands use `--kicktipp-credential-profile` to
+select the equivalent sibling file. Neither path selects credentials from a
+copied `community_context`. The exact canonical Actions pairs are
+Owner-confirmed provisioned, which is not runtime authentication/readiness or
+POST evidence.
+
 As of 2026-06-06, most season-specific community entrypoint workflows in this
 directory are deactivated because the most recent active competition,
 Bundesliga 2025 / 2026, has concluded. The files remain in place for future
@@ -13,7 +38,11 @@ As of 2026-08-13, all WM26 entrypoint workflows are deactivated: their
 has concluded. The files keep `workflow_call` only so they remain valid for
 future reuse.
 
-As of 2026-08-25, the Bundesliga 2026/27 Actions entrypoints include the
+The following 2026-08-25 subsection is historical prerequisite evidence. It is
+superseded by the 2026-08-27 matrix above where it calls prediction callers or
+model values unresolved.
+
+As of 2026-08-25, the Bundesliga 2026/27 Actions entrypoints included the
 manual-only, model-independent production context callers:
 
 - `pes-squad-context-collection.yml`; and
@@ -23,9 +52,9 @@ They expose `workflow_dispatch` only, have no inputs or schedule, pin their
 respective `community_context`, pin competition `bundesliga-2026-27`, and pass
 literal trigger type `manual` to the reusable context workflow. Their accepted
 community-specific Kicktipp credentials and shared Firebase mappings remain
-unchanged. Final production matchday and bonus callers remain gated on the
-owner-selected production model configuration and P0-21 activation evidence;
-the old production prediction callers remain retired.
+unchanged. At that date, final production matchday and bonus callers remained
+gated on the Owner selection; the old production prediction callers remain
+retired.
 
 The current Actions entrypoints also include the manual-only self-contained
 arena Luna validation triad:
@@ -38,7 +67,7 @@ They expose `workflow_dispatch` only and have no checked-in schedule or
 `workflow_call`. They target and source context from `ehonda-ai-arena`, pin
 competition `bundesliga-2026-27`, and use the authorized plumbing identity
 `gpt-5.6-luna` / `none` / `10000` with production-labelled hosted prompt
-versions `2` (match) and `1` (bonus). The bonus caller pins the accepted
+versions `3` (match) and `1` (bonus). The bonus caller pins the accepted
 `20`-document and `32000`-estimated-token budgets. P0-20 owns dispatch and any
 separately authorized temporary arena schedule; the triad itself creates no
 schedule. Its traces are classified as Langfuse `production` because the arena
@@ -111,6 +140,7 @@ Derived from retained workflows: `pes-squad-matchday.yml`, `schadensfresse-match
 
 - `pes-squad`
 - `schadensfresse`
+- `relaxdays-tippt`
 - `rabetrabauken2026`
 - `ehonda-ai-arena`
 
@@ -120,6 +150,7 @@ Derived from retained workflows: `pes-squad-bonus.yml`, `schadensfresse-bonus.ym
 
 - `pes-squad`
 - `schadensfresse`
+- `relaxdays-tippt`
 - `rabetrabauken2026`
 - `ehonda-ai-arena`
 

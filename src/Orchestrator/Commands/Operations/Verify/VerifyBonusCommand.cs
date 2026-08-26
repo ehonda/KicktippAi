@@ -87,7 +87,14 @@ public class VerifyBonusCommand : AsyncCommand<VerifySettings>
             settings.LangfusePromptVersion,
             settings.MaxOutputTokenCount,
             bonusPrompt: true);
-        _credentialLoader.Load(settings.Community);
+        if (string.IsNullOrWhiteSpace(settings.KicktippCredentialProfile))
+        {
+            _credentialLoader.Load(settings.Community);
+        }
+        else
+        {
+            _credentialLoader.Load(settings.Community, settings.KicktippCredentialProfile);
+        }
         var kicktippClient = _kicktippClientFactory.CreateClient();
         var isBundesliga = string.Equals(
             competition,

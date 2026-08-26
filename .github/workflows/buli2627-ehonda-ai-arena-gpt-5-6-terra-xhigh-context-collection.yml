@@ -1,0 +1,18 @@
+name: Bundesliga 2026/27 ehonda-ai-arena Terra xhigh challenger - Context
+
+on:
+  workflow_dispatch:
+
+jobs:
+  call-base-workflow:
+    name: Context Collection - ehonda-ai-arena Terra xhigh
+    uses: ./.github/workflows/base-context-collection.yml
+    with:
+      community_context: "ehonda-ai-arena"
+      competition: "bundesliga-2026-27"
+      trigger_type: "manual"
+    secrets:
+      kicktipp_username: ${{ secrets.EHONDA_AI_ARENA_GPT_5_6_TERRA_XHIGH_KICKTIPP_USERNAME }}
+      kicktipp_password: ${{ secrets.EHONDA_AI_ARENA_GPT_5_6_TERRA_XHIGH_KICKTIPP_PASSWORD }}
+      firebase_project_id: ${{ secrets.FIREBASE_PROJECT_ID }}
+      firebase_service_account_json: ${{ secrets.FIREBASE_SERVICE_ACCOUNT_JSON }}

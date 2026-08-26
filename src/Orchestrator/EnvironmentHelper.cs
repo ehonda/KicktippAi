@@ -40,9 +40,23 @@ public static class EnvironmentHelper
 
     public static void LoadCommunityKicktippCredentials(ILogger logger, string community)
     {
-        var postingCommunity = ValidatePostingCommunity(community);
+        LoadCommunityKicktippCredentials(logger, community, credentialProfile: null);
+    }
 
-        var envPath = PathUtility.GetEnvFilePath("Orchestrator", postingCommunity);
+    public static void LoadCommunityKicktippCredentials(
+        ILogger logger,
+        string community,
+        string? credentialProfile)
+    {
+        var postingCommunity = ValidatePostingCommunity(community);
+        var normalizedCredentialProfile = string.IsNullOrWhiteSpace(credentialProfile)
+            ? null
+            : ValidateCredentialProfile(credentialProfile);
+        var credentialFileSuffix = normalizedCredentialProfile is null
+            ? postingCommunity
+            : $"{postingCommunity}.{normalizedCredentialProfile}";
+
+        var envPath = PathUtility.GetEnvFilePath("Orchestrator", credentialFileSuffix);
         if (!File.Exists(envPath))
         {
             logger.LogWarning(
@@ -171,11 +185,46 @@ public static class EnvironmentHelper
         return community;
     }
 
+    private static string ValidateCredentialProfile(string credentialProfile)
+    {
+        if (string.IsNullOrWhiteSpace(credentialProfile)
+            || !string.Equals(credentialProfile, credentialProfile.Trim(), StringComparison.Ordinal)
+            || credentialProfile[0] == '-'
+            || credentialProfile[^1] == '-')
+        {
+            throw CreateInvalidCredentialProfileException();
+        }
+
+        var previousWasHyphen = false;
+        foreach (var character in credentialProfile)
+        {
+            var isLowercaseAsciiLetter = character is >= 'a' and <= 'z';
+            var isAsciiDigit = character is >= '0' and <= '9';
+            var isHyphen = character == '-';
+            if ((!isLowercaseAsciiLetter && !isAsciiDigit && !isHyphen)
+                || (isHyphen && previousWasHyphen))
+            {
+                throw CreateInvalidCredentialProfileException();
+            }
+
+            previousWasHyphen = isHyphen;
+        }
+
+        return credentialProfile;
+    }
+
     private static ArgumentException CreateInvalidPostingCommunityException()
     {
         return new ArgumentException(
             "Posting community must be an exact lowercase Kicktipp slug containing only letters, digits, and single hyphens (for example, 'pes-squad').",
             "community");
+    }
+
+    private static ArgumentException CreateInvalidCredentialProfileException()
+    {
+        return new ArgumentException(
+            "Kicktipp credential profile must be an exact lowercase participant slug containing only letters, digits, and single hyphens (for example, 'gpt-5-6-sol-xhigh').",
+            "credentialProfile");
     }
 
     private static IReadOnlyDictionary<string, string> ReadCommunityCredentialFile(string envPath)

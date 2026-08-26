@@ -13,7 +13,9 @@ The accepted [execution strategy](execution-strategy.md) defines gated orchestra
 - Recent, home, and away history must carry exact played dates: current-season Bundesliga rows come from the competition-scoped Kicktipp schedule/results, while intervening cup, UEFA, friendly, and other fixtures use an accepted source with explicit provenance. Head-to-head already carries dates and is not rewritten.
 - DuckDB is the primary roster-membership source per club once it explicitly represents 2026/27 and passes strict gates. A complete, source-dated 18-club seed and last-known-good snapshots cover missing, stale, partial, or suspicious data without ongoing manual maintenance.
 - Langfuse-hosted prompts are primary. Checked-in mirrors are the outage or first-fetch fallback.
-- The required production scope is `pes-squad`, `schadensfresse`, and `ehonda-ai-arena`; `ehonda-dev-buli-2627` is the safe development target.
+- The required production scope is `pes-squad`, `schadensfresse`,
+  `relaxdays-tippt`, and `ehonda-ai-arena`; `ehonda-dev-buli-2627` is the safe
+  development target. ADR-0052 fixes the exact primary/copy/challenger matrix.
 - Historical data is not deleted. A future historical experiment must opt into an explicit competition, prompt, and context setup.
 
 ## P0 tasks
@@ -25,7 +27,7 @@ The accepted [execution strategy](execution-strategy.md) defines gated orchestra
 | [P0-03](tasks/p0-03-matchday-completion.md) | Require nine completed matches per Bundesliga matchday | P0-01 |
 | [P0-04](tasks/p0-04-team-manifest.md) | Check in the exact 18-team join manifest | — |
 | [P0-05](tasks/p0-05-prompt-route.md) | Implement hosted 2026/27 prompts with local fallback | P0-01 |
-| [P0-06](tasks/p0-06-model-ledger-and-cost-baseline.md) | Pin test identity and later approve the launch model/cost baseline | P0-05, P0-23 |
+| [P0-06](tasks/p0-06-model-ledger-and-cost-baseline.md) | Complete: production Sol/xhigh and the arena matrix are pinned with a non-enforced USD 35 planning orientation | P0-05, P0-23 |
 | [P0-07](tasks/p0-07-roster-contract.md) | Define quality-gated DuckDB and fallback roster contracts | P0-04 |
 | [P0-08](tasks/p0-08-roster-membership-seed.md) | Author and audit fallback membership for all clubs | P0-07 |
 | [P0-09](tasks/p0-09-roster-collector.md) | Select, enrich, and publish complete roster documents | P0-07, P0-08 |
@@ -39,10 +41,14 @@ The accepted [execution strategy](execution-strategy.md) defines gated orchestra
 | [P0-17](tasks/p0-17-community-scope.md) | Record community, context, model-slot, and credential topology | P0-05, P0-16 |
 | [P0-18](tasks/p0-18-base-workflow-support.md) | Teach reusable workflows the Bundesliga profile | P0-14, P0-17 |
 | [P0-19 template](tasks/p0-19-community-workflow-triad.md) | Copy an explicit workflow-triad task per deployable matrix row | P0-17, P0-18 |
-| [P0-19 arena Luna](tasks/p0-19-arena-luna-self-contained-workflow-triad.md) | Add exactly one manual-only self-contained arena Luna validation triad | P0-17, P0-18 |
-| [P0-19 pes-squad production reference](tasks/p0-19-pes-squad-production-reference-workflow-triad.md) | In progress: the manual-only model-independent context caller is prepared; final matchday and bonus callers wait only for P0-06's exact `production-primary` identity | P0-06, P0-17, P0-18 |
-| [P0-19 schadensfresse independent production](tasks/p0-19-schadensfresse-production-independent-workflow-triad.md) | In progress: the manual-only model-independent context caller is prepared; final matchday and bonus callers wait only for P0-06, while external community remediation remains a P0-21 pre-dispatch gate | P0-06, P0-17, P0-18 |
-| [P0-19 arena production copy](tasks/p0-19-arena-production-copy-workflow-triad.md) | Blocked/nondeployable: add the manual-only `ehonda-ai-arena` production-copy triad after owner selection, credential, reviewed pes-reference-caller, and compatibility gates | P0-06, P0-17, P0-18, P0-24, P0-19 pes-squad production reference |
+| [P0-19 arena Luna/none](tasks/p0-19-arena-luna-self-contained-workflow-triad.md) | Complete: manual-only self-contained challenger/validation triad on match v3 | P0-17, P0-18 |
+| [P0-19 pes-squad production reference](tasks/p0-19-pes-squad-production-reference-workflow-triad.md) | Complete: manual-only Sol/xhigh primary triad; P0-21 owns runtime evidence | P0-06, P0-17, P0-18 |
+| [P0-19 schadensfresse independent production](tasks/p0-19-schadensfresse-production-independent-workflow-triad.md) | Complete: manual-only Sol/xhigh primary triad; external setup and runtime remain P0-21 | P0-06, P0-17, P0-18 |
+| [P0-19 relaxdays production copy](tasks/p0-19-relaxdays-production-copy-workflow-triad.md) | Complete: manual-only Sol/xhigh copy triad sourced from `pes-squad` | P0-06, P0-17, P0-18, P0-24 |
+| [P0-19 arena production copy](tasks/p0-19-arena-production-copy-workflow-triad.md) | Complete: manual-only Sol/xhigh production-copy triad sourced from `pes-squad` | P0-06, P0-17, P0-18, P0-24 |
+| [P0-19 arena Sol/high](tasks/p0-19-arena-sol-high-self-contained-workflow-triad.md) | Complete: manual-only self-contained challenger triad | P0-06, P0-17, P0-18 |
+| [P0-19 arena Luna/medium](tasks/p0-19-arena-luna-medium-self-contained-workflow-triad.md) | Complete: manual-only self-contained challenger triad | P0-06, P0-17, P0-18 |
+| [P0-19 arena Terra/xhigh](tasks/p0-19-arena-terra-xhigh-self-contained-workflow-triad.md) | Complete: manual-only self-contained challenger triad | P0-06, P0-17, P0-18 |
 | [P0-20](tasks/p0-20-seed-and-development-validation.md) | Seed context and validate dev plus arena plumbing | P0-02 through P0-18, P0-22, local dev path, Luna/none arena P0-19 entrypoints |
 | [P0-21](tasks/p0-21-production-activation.md) | Validate production, submit opening predictions, and enable schedules | P0-06, P0-20, P0-24, P0-25, production P0-19 entrypoints |
 | [P0-22](tasks/p0-22-history-played-dates.md) | Reconstruct exact played dates for recent, home, and away history | P0-02, P0-04 |
@@ -50,20 +56,22 @@ The accepted [execution strategy](execution-strategy.md) defines gated orchestra
 | [P0-24](tasks/p0-24-bonus-copy-post-compatibility.md) | Complete: exact bonus question and complete-option-set copy compatibility is implemented and integrated | P0-16, P0-17, P0-18 |
 | [P0-25](tasks/p0-25-roster-enrichment-and-team-total.md) | Complete: pinned enriched v2 arena rosters, deterministic team known-value subtotals, and one exact Luna/none replacement trace round are validated | P0-09, P0-20 |
 
-The implementation path through P0-20, P0-23, P0-24, and P0-25 is complete. P0-25's explicit overlay republish passed the reconstructed 18-team/18-derived-row/464-age/464-position/450-value gate at exact-green main, remained on the already enriched headed snapshot, and one authorized Luna/none arena replacement round passed its pre/post index, Firestore, roster, and payload-safe Langfuse checks. This is completed arena plumbing evidence only. P0-23 published the production-candidate evidence and handed it to P0-06; the Owner's exact `production-primary`, arena participants, policy, and ceiling decision is now the active gate. The manual-only model-independent `pes-squad` and `schadensfresse` context callers are integrated and have not been dispatched; their final matchday and bonus callers wait only for that exact P0-06 identity. The read-only [production prerequisite audit from 2026-08-25](../../docs/onboarding-bundesliga-2026-27/production-prerequisite-audit-2026-08-25.md) confirmed `pes-squad` authentication and Bundesliga 2026/27 read readiness without proving posting rights, while `schadensfresse` authenticated but still requires external community-admin remediation because no current prediction-input rows were available. Secret presence, authentication/readiness, POST permission, deadlines, that external remediation, enriched production roster publication, manual production evidence, opening writes, and activation remain P0-21 pre-dispatch gates; they do not block schedule-free repository construction after P0-06. Arena production/challenger identities also remain Owner-gated. P0-21 is the only task authorized to enable final production schedules.
+The implementation path through P0-20 and P0-23 through P0-25 is complete.
+ADR-0052 closes P0-06 and every schedule-free P0-19 repository row. All exact
+production and challenger callers are manual-only and have not been dispatched.
+The Owner confirmed their canonical Actions Kicktipp pairs provisioned, without
+claiming authentication or POST permission. P0-21 is now the active P0 closeout
+gate: it retains `schadensfresse` external setup, runtime readiness/permission,
+deadlines, enriched production roster publication, inspected manual runs and
+opening writes, the final schedule decision, and first scheduled observation.
 
-For P0-19, copy the template once per community matrix row that needs an
-entrypoint so each workflow triad can be implemented and reviewed
-independently. The only complete prediction-capable copy so far is the
-manual-only `arena-luna-self-contained` validation triad. The `pes-squad` and
-`schadensfresse` rows additionally have their model-independent manual context
-callers, but no production prediction caller. The development row remains a
-local CLI path, while model-bound production and challenger rows retain their
-owner gates.
+P0-19 is instantiated for every ADR-0052 deployable row. The development row
+remains a local CLI path; every production/copy/challenger entrypoint is
+explicit, manual-only, schedule-free, and handed to P0-21 for live validation.
 
 ## Handoffs
 
-- [`buli-2627-p0-closeout-ready-2026-08-25`](handoffs/buli-2627-p0-closeout-ready-2026-08-25.md) — current closeout handoff; P0-23 and P0-25 are now complete, while P0-06, production P0-19, and P0-21 remain.
+- [`buli-2627-p0-closeout-ready-2026-08-25`](handoffs/buli-2627-p0-closeout-ready-2026-08-25.md) — current closeout handoff; its 2026-08-27 addendum closes P0-06 and schedule-free P0-19, leaving P0-21.
 - [`buli-2627-p0-foundations-green-2026-08-16`](handoffs/buli-2627-p0-foundations-green-2026-08-16.md) — historical foundation pause; superseded by the current task ledger and execution strategy.
 - [`buli-2627-p0-12-open-review-2026-08-19`](handoffs/buli-2627-p0-12-open-review-2026-08-19.md) — historical interrupted-review checkpoint; P0-12 is now complete, so its resume instructions are no longer active.
 
@@ -94,8 +102,16 @@ P0 is complete only when:
 - hosted prompt versions and local mirrors agree, and the exact production model/configuration has owner approval plus a reproducible cost estimate;
 - final production selection uses the P0-23 comparative evidence, or its Accepted ADR explicitly records the owner's evidence waiver and accepted risk;
 - before the first production prediction, that community has a headed v2 roster publication from the exact pinned launch artifact, at least 464 known ages, 464 known positions, and 450 valued players, plus exactly one validated final `Team Accumulated` row per club; later no-DuckDB collection must preserve the enriched last-known-good snapshot;
+- the prepared `pes-squad`, `relaxdays-tippt`, and `schadensfresse` context
+  callers satisfy that non-arena gate through ADR-0052's false-by-default,
+  exact-pinned overlay step before normal profile collection; arena callers
+  preserve their already verified shared enriched head without redownloading;
 - autonomous Luna/none validation passes in development and through the arena local, `workflow_dispatch`, and schedule ladder;
-- manual production runs and opening writes succeed for `pes-squad`, `schadensfresse`, and `ehonda-ai-arena`, including P0-24-compatible prediction copy-posting without an extra model call;
+- manual production runs and opening writes succeed for every ready ADR-0052
+  row: `pes-squad`, `relaxdays-tippt`, and all selected arena participants,
+  including P0-24-compatible copy-posting without an extra model call;
+  `schadensfresse` remains a visible manual-only exception until its external
+  season setup completes;
 - final schedules remain disabled until P0-21 records the launch decision and successful manual evidence, then the first scheduled sequence is observed.
 
 ## Decision index
@@ -104,7 +120,7 @@ P0 is complete only when:
 - [ADR-0002: Supersede transfer documents with Elo and roster context](decisions/0002-supersede-transfer-documents.md) — superseded by ADR-0003
 - [ADR-0003: Use DuckDB-primary rosters with per-club fallback](decisions/0003-duckdb-primary-rosters-with-fallback.md)
 - [ADR-0004: Use hosted prompts with local fallback](decisions/0004-hosted-prompts-with-local-fallback.md)
-- [ADR-0005: Launch all selected communities with reference prediction reuse](decisions/0005-launch-community-and-prediction-topology.md)
+- [ADR-0005: Launch all selected communities with reference prediction reuse](decisions/0005-launch-community-and-prediction-topology.md) — superseded by ADR-0052
 - [ADR-0006: Stage validation with a cheap test model](decisions/0006-stage-validation-with-a-cheap-test-model.md)
 - [ADR-0007: Require context hygiene before launch](decisions/0007-require-context-hygiene-before-launch.md)
 - [ADR-0008: Launch Club Elo from a dated seed when necessary](decisions/0008-launch-club-elo-from-a-dated-seed.md)
@@ -151,3 +167,4 @@ P0 is complete only when:
 - [ADR-0049: Preregister GPT-5.6 candidate evidence under one program ceiling](decisions/0049-preregister-gpt-5-6-candidate-evidence.md)
 - [ADR-0050: Publish enriched launch rosters with derived team subtotals](decisions/0050-publish-enriched-launch-rosters-with-derived-team-subtotals.md)
 - [ADR-0051: Require an explicit launch roster enrichment overlay](decisions/0051-require-explicit-launch-roster-enrichment-overlay.md)
+- [ADR-0052: Select the production model, community matrix, and match prompt v3](decisions/0052-select-production-model-community-matrix-and-match-prompt-v3.md)

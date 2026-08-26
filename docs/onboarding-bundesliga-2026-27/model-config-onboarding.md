@@ -1,6 +1,6 @@
 # Bundesliga 2026/27 Model Configuration Onboarding
 
-Updated: 2026-08-25
+Updated: 2026-08-27
 
 This is the source-of-truth ledger for Bundesliga 2026/27 prediction configurations. A row is not onboarded unless its competition, model, reasoning effort, maximum output cap, and numbered prompt versions are all present. Labels are useful for candidate routing, but they are not a substitute for the numbered version in a production or persisted exact identity. [The community onboarding matrix](community-onboarding.md) maps these configuration slots to posting targets, community contexts, credential names, and Langfuse environments.
 
@@ -8,12 +8,14 @@ This is the source-of-truth ledger for Bundesliga 2026/27 prediction configurati
 
 | Use | Competition | Model | Reasoning | Max output tokens | Exact prompts | Runtime policy | Status |
 | --- | --- | --- | --- | ---: | --- | --- | --- |
-| `validation-luna-none` — `ehonda-dev-buli-2627` self-contained plumbing | `bundesliga-2026-27` | `gpt-5.6-luna` | `none` | `10000` | Match `kicktippai/bundesliga-2026-27/predict-one-match` v2; bonus `kicktippai/bundesliga-2026-27/predict-bonus` v1 | Current prediction-service flex request with standard fallback; every invocation must pass the complete identity | Authorized for development plumbing validation only; not a production default |
-| `validation-luna-none` — `ehonda-ai-arena` self-contained plumbing | `bundesliga-2026-27` | `gpt-5.6-luna` | `none` | `10000` | Match `kicktippai/bundesliga-2026-27/predict-one-match` v2; bonus `kicktippai/bundesliga-2026-27/predict-bonus` v1 | Same exact validation identity, with arena-owned context and participant credentials | Authorized only for the P0-20 validation ladder; its production-community trace environment does not make it a production model |
-| `production-primary` — reference, independent, and arena-copy uses | `bundesliga-2026-27` | **Owner decision required** | **Owner decision required** | **Owner decision required** | Match and bonus numbered versions require owner approval | Service tier/fallback policy and cost ceiling require owner approval | Blocked from onboarding and activation until owner decision evidence is recorded |
-| `arena-challenger-<n>` | `bundesliga-2026-27` | **Owner decision required** | **Owner decision required** | **Owner decision required** | Match and bonus numbered versions require owner approval | Every challenger requires an independently approved complete identity and participant | Template only; zero challengers are admitted by this ledger |
+| `validation-luna-none` — `ehonda-dev-buli-2627` self-contained plumbing | `bundesliga-2026-27` | `gpt-5.6-luna` | `none` | `10000` | Match `kicktippai/bundesliga-2026-27/predict-one-match` v3; bonus `kicktippai/bundesliga-2026-27/predict-bonus` v1 | Existing Flex-first/Standard-fallback policy; every invocation passes the complete identity | Authorized for development plumbing validation only; not a production default |
+| `production-primary` — `pes-squad` / `schadensfresse` generation and compatible copies | `bundesliga-2026-27` | `gpt-5.6-sol` | `xhigh` | `10000` | Match v3; bonus v1; exact names/hashes below | Existing Flex-first/Standard-fallback policy; USD 35 season orientation is planning-only and not enforced | Owner-selected; repository callers are manual-only pending P0-21 live gates |
+| `arena-challenger-sol-high` | `bundesliga-2026-27` | `gpt-5.6-sol` | `high` | `10000` | Match v3; bonus v1 | Self-contained arena context; existing Flex-first/Standard-fallback policy | Owner-admitted; manual-only |
+| `arena-challenger-luna-medium` | `bundesliga-2026-27` | `gpt-5.6-luna` | `medium` | `10000` | Match v3; bonus v1 | Self-contained arena context; existing Flex-first/Standard-fallback policy | Owner-admitted; manual-only |
+| `arena-challenger-terra-xhigh` | `bundesliga-2026-27` | `gpt-5.6-terra` | `xhigh` | `10000` | Match v3; bonus v1 | Self-contained arena context; existing Flex-first/Standard-fallback policy | Owner-admitted; manual-only |
+| `arena-challenger-luna-none` / `validation-luna-none` — `ehonda-ai-arena` | `bundesliga-2026-27` | `gpt-5.6-luna` | `none` | `10000` | Match v3; bonus v1 | Self-contained arena context; existing Flex-first/Standard-fallback policy | Owner-admitted challenger and retained plumbing identity; manual-only |
 
-The match mirror/version has normalized SHA-256 `94a7aa775546028d3ded89f626873d7dfce162d1f08bb9573e102dd427ac08c1`. The bonus mirror/version has normalized SHA-256 `332bac6d654871d843fc8a47345ff3e2b1f902fa8d1d2243166283304bb005e9`. In Langfuse, `production`, `staging`, and automatic `latest` resolved these versions when P0-05 closed, but production automation must pass `--langfuse-prompt-version` explicitly.
+The current match v3 mirror/version has normalized SHA-256 `7c223c0765024e52b542bbdb8093ab9b8fcaad505de0c5f8d6c92f4044e175f3`. The bonus v1 mirror/version has normalized SHA-256 `332bac6d654871d843fc8a47345ff3e2b1f902fa8d1d2243166283304bb005e9`. Hosted v3 carries `production` and `staging`, with `latest` maintained automatically. Production automation passes `--langfuse-prompt-version` explicitly and requires `production` membership. Historical P0-23 artifacts remain bound to match v2 and its hash `94a7aa775546028d3ded89f626873d7dfce162d1f08bb9573e102dd427ac08c1`.
 
 ## Exact validation command contract
 
@@ -31,7 +33,7 @@ Matchday and match verification additionally pass:
 
 ```text
 --langfuse-prompt-name kicktippai/bundesliga-2026-27/predict-one-match
---langfuse-prompt-version 2
+--langfuse-prompt-version 3
 ```
 
 Bonus and bonus verification additionally pass:
@@ -41,7 +43,7 @@ Bonus and bonus verification additionally pass:
 --langfuse-prompt-version 1
 ```
 
-P0-19 owns workflow creation. Its manual entries and the separately authorized Luna validation schedule must provide every value above as explicit input; they may not rely on the command's model, reasoning, cap, prompt-label, or prompt-version defaults. P0-06 does not create or activate those workflows. Final production schedules remain blocked until P0-21.
+P0-19 owns workflow creation. Every manual entry provides the exact ledger values as explicit inputs and does not rely on command model, reasoning, cap, prompt-label, or prompt-version defaults. Final production schedules remain absent until P0-21.
 
 ## Capability and pricing evidence
 
@@ -99,6 +101,38 @@ See [whole-season-cost-estimates.md](../experiments/whole-season-cost-estimates.
 [the compact base evidence](../../.agents/skills/estimate-experiment-cost-skill/references/gpt-5.6-luna-none-base-estimate-2026-08-25.md),
 and [ADR-0033](../../plans/bundesliga-2026-27/decisions/0033-pin-validation-model-ledger-and-reserve-production-selection.md).
 
-## Production owner gate
+## Production selection evidence
 
-Before any production workflow or schedule is enabled, record the approved `production-primary` model, reasoning effort, maximum output tokens, match and bonus prompt versions, arena challenger matrix, service-tier/fallback behavior, whole-season cost ceiling, and exact estimator evidence in this ledger and an accepted decision. The Luna/none validation row cannot be copied into `production-primary` or an `arena-challenger-<n>` row without explicit owner approval.
+[ADR-0052](../../plans/bundesliga-2026-27/decisions/0052-select-production-model-community-matrix-and-match-prompt-v3.md)
+records the Owner decision and its exploratory-evidence caveat. The accepted
+P0-23 quality order starts with Sol/`xhigh` at `27.8` average points, followed
+by Sol/`high` at `26.4`; their `+1.4` difference has Holm-adjusted
+`p = 0.192` and is not statistically significant. The Owner selected
+Sol/`xhigh` because its descriptive result follows the observed
+higher-reasoning trend and the cost remains acceptable. Sol/`max` is a
+separate post-hoc follow-up and did not block this selection.
+
+Exact normalized Flex match estimates from the authoritative rows are:
+
+| Configuration | 306 calls | 493 calls |
+| --- | ---: | ---: |
+| Sol/`xhigh` | `$2.609782200000` | `$4.204649100000` |
+| Sol/`high` | `$2.079331200000` | `$3.350033600000` |
+| Luna/`medium` | `$0.105573060000` | `$0.170089930000` |
+| Terra/`xhigh` | `$1.266319800000` | `$2.040181900000` |
+| Luna/`none` | `$0.077711760000` | `$0.125202280000` |
+
+Two independent 493-call Sol/`xhigh` primaries plus one 493-call stream for
+each of the four arena challengers total `$14.094805910000`. Compatible
+`relaxdays-tippt` and production-arena copies add no match-model call. This
+match-only projection excludes bonus calls, the richer live 11-document input,
+Standard fallback premiums, and retry variance. USD `35` is therefore retained
+only as an orientation and is not enforced.
+
+## Remaining activation gate
+
+The production model, cap, prompts, arena matrix, service policy, and planning
+orientation are settled. P0-21 still requires community/runtime readiness,
+POST permission, exact deadlines, roster publication, manual evidence, the
+activation ADR, deliberate schedules, and first scheduled observation. The
+repository's manual-only callers do not grant those live permissions.

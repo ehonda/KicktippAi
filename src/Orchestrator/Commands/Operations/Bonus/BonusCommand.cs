@@ -143,6 +143,7 @@ public class BonusCommand : AsyncCommand<BonusSettings>
     {
         "schadensfresse",
         "pes-squad",
+        "relaxdays-tippt",
         "ehonda-ai-arena",
         "rabetrabauken2026"
     };
@@ -201,7 +202,14 @@ public class BonusCommand : AsyncCommand<BonusSettings>
 
         // Note: trace input is set after bonus questions are fetched
 
-        _credentialLoader.Load(settings.Community);
+        if (string.IsNullOrWhiteSpace(settings.KicktippCredentialProfile))
+        {
+            _credentialLoader.Load(settings.Community);
+        }
+        else
+        {
+            _credentialLoader.Load(settings.Community, settings.KicktippCredentialProfile);
+        }
 
         // Create services using factories
         var kicktippClient = _kicktippClientFactory.CreateClient();

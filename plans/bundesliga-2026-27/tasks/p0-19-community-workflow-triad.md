@@ -3,13 +3,17 @@
 - Status: Template — copy once per selected community
 - Priority: P0
 - Depends on: [P0-17](p0-17-community-scope.md), [P0-18](p0-18-base-workflow-support.md)
-- Decisions: [ADR-0001](../decisions/0001-current-bundesliga-season-only.md), [ADR-0005](../decisions/0005-launch-community-and-prediction-topology.md), [ADR-0006](../decisions/0006-stage-validation-with-a-cheap-test-model.md), [ADR-0039](../decisions/0039-record-bundesliga-community-and-credential-topology.md)
+- Decisions: [ADR-0001](../decisions/0001-current-bundesliga-season-only.md), [ADR-0005](../decisions/0005-launch-community-and-prediction-topology.md) (superseded), [ADR-0006](../decisions/0006-stage-validation-with-a-cheap-test-model.md), [ADR-0039](../decisions/0039-record-bundesliga-community-and-credential-topology.md), [ADR-0052](../decisions/0052-select-production-model-community-matrix-and-match-prompt-v3.md)
 
 ## Outcome
 
 One selected community has context, matchday, and bonus entrypoints pinned to its accepted 2026/27 configuration, with manual dispatch only.
 
 ## Before implementation
+
+ADR-0052's currently selected rows have all been instantiated and prepared.
+Retain this file only as the template for a future explicitly accepted row;
+do not infer another participant from the current matrix.
 
 - Copy this file to `p0-19-<community>-workflow-triad.md`.
 - Replace every reference to “the community” with the exact P0-17 matrix row.

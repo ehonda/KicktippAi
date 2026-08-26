@@ -1,10 +1,10 @@
 # P0-19 — Add the `schadensfresse` independent-production workflow triad
 
-- Status: In progress — the model-independent manual context caller is prepared; final matchday and bonus callers wait for the P0-06 owner-selected `production-primary` identity
+- Status: Complete — the exact manual-only, schedule-free triad is prepared; external setup and all live gates remain P0-21
 - Priority: P0
 - Matrix row: `schadensfresse-production-independent`
 - Depends on: [P0-06](p0-06-model-ledger-and-cost-baseline.md), [P0-17](p0-17-community-scope.md), and [P0-18](p0-18-base-workflow-support.md)
-- Decisions: [ADR-0001](../decisions/0001-current-bundesliga-season-only.md), [ADR-0005](../decisions/0005-launch-community-and-prediction-topology.md), [ADR-0006](../decisions/0006-stage-validation-with-a-cheap-test-model.md), and [ADR-0039](../decisions/0039-record-bundesliga-community-and-credential-topology.md)
+- Decisions: [ADR-0001](../decisions/0001-current-bundesliga-season-only.md), [ADR-0005](../decisions/0005-launch-community-and-prediction-topology.md) (superseded), [ADR-0006](../decisions/0006-stage-validation-with-a-cheap-test-model.md), [ADR-0039](../decisions/0039-record-bundesliga-community-and-credential-topology.md), and [ADR-0052](../decisions/0052-select-production-model-community-matrix-and-match-prompt-v3.md)
 - Readiness evidence: [production prerequisite audit](../../../docs/onboarding-bundesliga-2026-27/production-prerequisite-audit-2026-08-25.md) and [production activation preregistration](../../../docs/onboarding-bundesliga-2026-27/production-activation-preregistration.md)
 
 ## Outcome
@@ -24,9 +24,25 @@ they do not block schedule-free repository preparation. This task authorizes no
 community request, prediction, workflow dispatch, schedule, or production POST.
 P0-21 exclusively owns manual production evidence and activation.
 
+## Repository closeout — 2026-08-27
+
+ADR-0052 resolved the blocked identity to `gpt-5.6-sol` / `xhigh` / cap
+`10000`, match v3 and bonus v1, with Flex-first / Standard-fallback. The new
+matchday and bonus callers use that exact identity and the existing context
+caller, expose only `workflow_dispatch`, and contain no schedule. The Owner
+confirmed the exact `SCHADENSFRESSE_KICKTIPP_USERNAME` /
+`SCHADENSFRESSE_KICKTIPP_PASSWORD` pair is
+provisioned; current-season setup, authentication/readiness, and POST evidence
+remain P0-21.
+
+The context caller is prepared with ADR-0052's false-by-default launch-roster
+opt-in. Once administrator setup lands, one dispatch downloads the exact
+audited artifact, runs the pinned P0-25 enrichment overlay, and stops before
+normal profile collection on any failure. It remains unrun in this lane.
+
 ## Repository-preparation boundary
 
-- [ ] P0-06 records an owner-approved `production-primary` model, reasoning
+- [x] P0-06 records an owner-approved `production-primary` model, reasoning
       effort, positive output-token cap, hosted numbered match and bonus prompt
       versions, service-tier/fallback policy, whole-season cost ceiling, and
       estimator evidence after P0-23 evidence or an explicit accepted waiver.
@@ -58,30 +74,31 @@ gate, or treat successful authentication as season readiness.
       Evidence: [`schadensfresse-context-collection.yml`](../../../.github/workflows/schadensfresse-context-collection.yml)
       exposes `workflow_dispatch` only and passes literal
       `community_context: "schadensfresse"`,
-      `competition: "bundesliga-2026-27"`, and `trigger_type: "manual"`. Its
-      exact four symbolic mappings are
+      `competition: "bundesliga-2026-27"`, `trigger_type: "manual"`, and
+      `publish_launch_roster_overlay: true`. Its exact four symbolic secret
+      mappings are
       `SCHADENSFRESSE_KICKTIPP_USERNAME`,
       `SCHADENSFRESSE_KICKTIPP_PASSWORD`, `FIREBASE_PROJECT_ID`, and
       `FIREBASE_SERVICE_ACCOUNT_JSON`; the local workflow contract and
       targeted actionlint and repository-wide actionlint with only unchanged
       shellcheck baseline codes excluded all passed without a dispatch or live
       operation.
-- [ ] Create the `schadensfresse` matchday entrypoint with posting target
+- [x] Create the `schadensfresse` matchday entrypoint with posting target
       `schadensfresse`, `community_context: "schadensfresse"`, the exact approved
       `production-primary` model/reasoning/cap/service policy, and the accepted
       hosted numbered match prompt with required `production` membership. Do
       not construct this caller until P0-06 records that exact identity.
-- [ ] Create the `schadensfresse` bonus entrypoint with the same exact posting,
+- [x] Create the `schadensfresse` bonus entrypoint with the same exact posting,
       context, model, cap, and service identity plus the accepted hosted numbered
       bonus prompt and explicit immutable budgets of 20 documents / 32000 tokens.
-- [ ] Wire only `SCHADENSFRESSE_KICKTIPP_USERNAME` and
+- [x] Wire only `SCHADENSFRESSE_KICKTIPP_USERNAME` and
       `SCHADENSFRESSE_KICKTIPP_PASSWORD` as the posting credential pair, plus the
       already accepted shared Firebase/OpenAI/Langfuse inputs required by each
       reusable workflow. Never select credentials from another context or row.
-- [ ] Expose `workflow_dispatch` only. Leave every final production `schedule`
+- [x] Expose `workflow_dispatch` only. Leave every final production `schedule`
       absent or commented out until P0-21 has successful manual evidence and an
       Accepted activation decision.
-- [ ] Update `MatchdayCommand.ProductionCommunities` and
+- [x] Update `MatchdayCommand.ProductionCommunities` and
       `BonusCommand.ProductionCommunities` only as required for the exact
       accepted `schadensfresse` production entrypoints.
 - [x] Remove or clearly retire the superseded Bundesliga 2025/26
@@ -95,11 +112,11 @@ gate, or treat successful authentication as season readiness.
       checkout or prediction work. The read-only deterministic workflow
       contract passed and counted these files within exactly 12 explicitly
       retired Bundesliga callers.
-- [ ] Add/update workflow-contract and telemetry-environment tests proving the
+- [x] Add/update workflow-contract and telemetry-environment tests proving the
       exact 2026/27 competition, posting/context identity, numbered hosted
       prompts, approved model configuration, credential names, schedule absence,
       and rejection of historical/Luna inference.
-- [ ] Validate the three YAML files and every reusable-workflow input. For the
+- [x] Validate the three YAML files and every reusable-workflow input. For the
       separate manual callers, require the P0-21 operator to record the exact
       successful context workflow run ID and completion before manually
       dispatching either prediction workflow. Machine-enforced `needs` ordering

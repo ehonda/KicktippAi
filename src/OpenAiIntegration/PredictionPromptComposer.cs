@@ -10,24 +10,86 @@ namespace OpenAiIntegration;
 public static class PredictionPromptComposer
 {
     private const string ContextDocumentsPlaceholder = "{{context_documents}}";
+    private const string JustificationExplainerPlaceholder = "{{justification_explainer}}";
+    private const string JustificationExplainer =
+        " Populate the `justification` object concisely with neutral paraphrases of the evidence, " +
+        "important uncertainties, and the context documents used.";
 
-    public static string BuildSystemPrompt(string template, IEnumerable<DocumentContext> contextDocuments)
+    public static string BuildSystemPrompt(
+        string template,
+        IEnumerable<DocumentContext> contextDocuments,
+        bool includeJustification = false)
     {
+        ArgumentNullException.ThrowIfNull(template);
+        ArgumentNullException.ThrowIfNull(contextDocuments);
+
+        var renderedTemplate = ReplaceOptionalSinglePlaceholder(
+            template,
+            JustificationExplainerPlaceholder,
+            includeJustification ? JustificationExplainer : string.Empty);
         var contextList = contextDocuments.ToList();
-        if (template.Contains(ContextDocumentsPlaceholder, StringComparison.Ordinal))
+        var contextPlaceholderCount = CountOccurrences(renderedTemplate, ContextDocumentsPlaceholder);
+        if (contextPlaceholderCount > 1)
         {
-            return template.Replace(
+            throw new InvalidOperationException(
+                $"Prompt template contains {contextPlaceholderCount} occurrences of {ContextDocumentsPlaceholder}; exactly zero or one is supported.");
+        }
+
+        if (contextPlaceholderCount == 1)
+        {
+            EnsureNoUnresolvedTemplatePlaceholders(
+                renderedTemplate.Replace(ContextDocumentsPlaceholder, string.Empty, StringComparison.Ordinal));
+            renderedTemplate = renderedTemplate.Replace(
                 ContextDocumentsPlaceholder,
                 BuildContextDocumentsSection(contextList, includeLeadingNewLine: false),
                 StringComparison.Ordinal);
+            return renderedTemplate;
         }
 
+        EnsureNoUnresolvedTemplatePlaceholders(renderedTemplate);
         if (contextList.Count == 0)
         {
-            return template;
+            return renderedTemplate;
         }
 
-        return template + BuildContextDocumentsSection(contextList, includeLeadingNewLine: true);
+        renderedTemplate += BuildContextDocumentsSection(contextList, includeLeadingNewLine: true);
+        return renderedTemplate;
+    }
+
+    private static string ReplaceOptionalSinglePlaceholder(string template, string placeholder, string replacement)
+    {
+        var count = CountOccurrences(template, placeholder);
+        if (count > 1)
+        {
+            throw new InvalidOperationException(
+                $"Prompt template contains {count} occurrences of {placeholder}; exactly zero or one is supported.");
+        }
+
+        return count == 1
+            ? template.Replace(placeholder, replacement, StringComparison.Ordinal)
+            : template;
+    }
+
+    private static int CountOccurrences(string value, string searchValue)
+    {
+        var count = 0;
+        var index = 0;
+        while ((index = value.IndexOf(searchValue, index, StringComparison.Ordinal)) >= 0)
+        {
+            count++;
+            index += searchValue.Length;
+        }
+
+        return count;
+    }
+
+    private static void EnsureNoUnresolvedTemplatePlaceholders(string renderedTemplate)
+    {
+        if (renderedTemplate.Contains("{{", StringComparison.Ordinal)
+            || renderedTemplate.Contains("}}", StringComparison.Ordinal))
+        {
+            throw new InvalidOperationException("Prompt rendering left a template placeholder unresolved.");
+        }
     }
 
     private static string BuildContextDocumentsSection(

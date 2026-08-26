@@ -47,7 +47,14 @@ public sealed class CollectContextProfileCommand : AsyncCommand<CollectContextPr
 
         try
         {
-            _credentialLoader.Load(communityContext);
+            if (string.IsNullOrWhiteSpace(settings.KicktippCredentialProfile))
+            {
+                _credentialLoader.Load(communityContext);
+            }
+            else
+            {
+                _credentialLoader.Load(communityContext, settings.KicktippCredentialProfile);
+            }
         }
         catch (Exception exception) when (exception is ArgumentException
                                            or InvalidOperationException

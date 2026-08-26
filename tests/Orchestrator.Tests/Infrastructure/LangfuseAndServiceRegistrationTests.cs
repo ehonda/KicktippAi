@@ -428,7 +428,7 @@ public class LangfuseAndServiceRegistrationTests
 
         await Assert.That(() => provider.LoadMatchTemplate("gpt-5.6-luna", includeJustification: false))
             .Throws<InvalidDataException>()
-            .WithMessageContaining("does not match required version 2");
+            .WithMessageContaining($"does not match required version {CompetitionResolver.BundesligaMatchPromptVersion}");
     }
 
     [Test]

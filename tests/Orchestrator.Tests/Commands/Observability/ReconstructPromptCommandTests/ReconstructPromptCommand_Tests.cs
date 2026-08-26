@@ -3,6 +3,7 @@ using Google.Cloud.Firestore;
 using Moq;
 using Orchestrator.Commands.Observability.ReconstructPrompt;
 using Orchestrator.Infrastructure.Factories;
+using Orchestrator.Infrastructure;
 using static Orchestrator.Tests.Infrastructure.OrchestratorTestFactories;
 using Match = EHonda.KicktippAi.Core.Match;
 
@@ -112,7 +113,7 @@ public class ReconstructPromptCommand_Tests
                     config.ReasoningEffort == null &&
                     config.MaxOutputTokenCount == 10000 &&
                     config.PromptName == "kicktippai/bundesliga-2026-27/predict-one-match" &&
-                    config.PromptVersion == 2),
+                    config.PromptVersion == CompetitionResolver.BundesligaMatchPromptVersion),
                 "test-community",
                 It.IsAny<CancellationToken>()))
             .ReturnsAsync((Match?)null);

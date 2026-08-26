@@ -87,7 +87,14 @@ public class VerifyMatchdayCommand : AsyncCommand<VerifySettings>
             settings.LangfusePromptVersion,
             settings.MaxOutputTokenCount,
             bonusPrompt: false);
-        _credentialLoader.Load(settings.Community);
+        if (string.IsNullOrWhiteSpace(settings.KicktippCredentialProfile))
+        {
+            _credentialLoader.Load(settings.Community);
+        }
+        else
+        {
+            _credentialLoader.Load(settings.Community, settings.KicktippCredentialProfile);
+        }
         var kicktippClient = _kicktippClientFactory.CreateClient();
         // Try to get the prediction repository (may be null if Firebase is not configured)
         var predictionRepository = _firebaseServiceFactory.CreatePredictionRepository(competition);

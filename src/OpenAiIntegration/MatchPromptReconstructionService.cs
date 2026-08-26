@@ -80,7 +80,7 @@ public sealed class MatchPromptReconstructionService : IMatchPromptReconstructio
                 includeJustification,
                 predictionMetadata.CreatedAt,
                 templatePath,
-                PredictionPromptComposer.BuildSystemPrompt(template, resolved.Documents),
+                PredictionPromptComposer.BuildSystemPrompt(template, resolved.Documents, includeJustification),
                 PredictionPromptComposer.CreateMatchJson(match),
                 resolved.Documents.Select(document => document.Name).ToArray(),
                 resolved.ResolvedDocuments,
@@ -137,7 +137,8 @@ public sealed class MatchPromptReconstructionService : IMatchPromptReconstructio
         var (template, templatePath) = _templateProvider.LoadMatchTemplate(model, includeJustification);
         var systemPrompt = PredictionPromptComposer.BuildSystemPrompt(
             template,
-            resolvedContextDocuments.Select(document => new DocumentContext(document.DocumentName, document.Content)));
+            resolvedContextDocuments.Select(document => new DocumentContext(document.DocumentName, document.Content)),
+            includeJustification);
 
         return new ReconstructedMatchPredictionPrompt(
             match,
@@ -174,7 +175,7 @@ public sealed class MatchPromptReconstructionService : IMatchPromptReconstructio
         var (template, templatePath) = _templateProvider.LoadMatchTemplate(model, includeJustification);
         return new ReconstructedMatchPredictionPrompt(
             match, model, manifest.CommunityContext, includeJustification, promptTimestamp, templatePath,
-            PredictionPromptComposer.BuildSystemPrompt(template, resolved.Documents),
+            PredictionPromptComposer.BuildSystemPrompt(template, resolved.Documents, includeJustification),
             PredictionPromptComposer.CreateMatchJson(match),
             resolved.Documents.Select(document => document.Name).ToArray(),
             resolved.ResolvedDocuments,

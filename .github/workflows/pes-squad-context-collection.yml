@@ -11,6 +11,7 @@ jobs:
       community_context: "pes-squad"
       competition: "bundesliga-2026-27"
       trigger_type: "manual"
+      publish_launch_roster_overlay: true
     secrets:
       kicktipp_username: ${{ secrets.PES_SQUAD_KICKTIPP_USERNAME }}
       kicktipp_password: ${{ secrets.PES_SQUAD_KICKTIPP_PASSWORD }}

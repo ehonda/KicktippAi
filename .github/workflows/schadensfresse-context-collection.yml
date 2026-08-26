@@ -11,6 +11,7 @@ jobs:
       community_context: "schadensfresse"
       competition: "bundesliga-2026-27"
       trigger_type: "manual"
+      publish_launch_roster_overlay: true
     secrets:
       kicktipp_username: ${{ secrets.SCHADENSFRESSE_KICKTIPP_USERNAME }}
       kicktipp_password: ${{ secrets.SCHADENSFRESSE_KICKTIPP_PASSWORD }}

@@ -1,8 +1,8 @@
 # Bundesliga 2026/27 execution strategy
 
-- Status: Accepted execution strategy; P0-23 and P0-25 complete, P0-06 Owner selection is the active gate
-- Last updated: 2026-08-26
-- Implementation state: P0 implementation through P0-20, P0-23, P0-24, and P0-25 is validated; the remaining Owner-selection, external-setup, production-copy, and activation gates below are open
+- Status: Accepted execution strategy; P0-06 and schedule-free P0-19 complete, P0-21 is the active gate
+- Last updated: 2026-08-27
+- Implementation state: P0 implementation through P0-20 and P0-23 through P0-25 is validated; P0-06 and schedule-free P0-19 are complete, while P0-21's external-setup, runtime-evidence, and activation gates remain open
 
 This document describes how to deliver the accepted P0 scope quickly while preserving the project owner's control over the few deliberately late production choices. Task files and accepted ADRs are the implementation contracts.
 
@@ -25,9 +25,14 @@ This document describes how to deliver the accepted P0 scope quickly while prese
 | Development and arena validation | P0-20 | Dev and arena ladder evidence passes, including fail-closed cases |
 | Production evidence and copy safety | P0-23 and P0-24 complete | Owner-authorized GPT-5.6 cost/quality evidence is published with Luna/`max` explicitly incomplete and post-hoc Sol/`xhigh` exploratory; P0-24 proves compatible bonus copy is zero-model and ordinary incompatibility produces exactly one independent target prediction |
 | Launch roster remediation | P0-25 complete | ADR-0051's explicit overlay republish passed the final reconstructed 18-team / 18-derived-row / 464-age / 464-position / 450-value gate from exact-green main; the headed snapshot remained unchanged, and exactly one authorized Luna/none index-0 replacement round passed payload-safe pre/post and trace validation |
-| Production selection and activation | Finish P0-06, production P0-19 copies, then P0-21 | Owner approves the final model/cost/challenger configuration against the accepted prompt versions and records the Club Elo mode; all production communities pass manual and first scheduled validation |
+| Production selection and activation | P0-06 and schedule-free P0-19 are complete; execute P0-21 | Run the Owner-authorized ordered manual validation for ready rows, record Club Elo/operating decisions, then schedule and observe only successful rows |
 
-The implementation path through P0-20, P0-23, P0-24, and P0-25 is complete. The final P0-06 Owner decision is now the active gate, followed by production P0-19 copies. P0-21 retains P0-25's explicit enriched-publication precondition for every initial production prediction. Prompt work is already fixed at the accepted numbered versions; Club Elo network reuse remains independently owner-gated and the dated-seed path remains launch-safe.
+The implementation path through P0-20 and P0-23 through P0-25 is complete;
+ADR-0052 also closes P0-06 and every schedule-free P0-19 row. P0-21 retains
+P0-25's enriched-publication precondition and the exact context-first,
+primary-before-secondary manual order. Prompt work is fixed at match v3 / bonus
+v1. Club Elo network reuse remains independently Owner-gated and the dated-seed
+path remains launch-safe.
 
 ## Agent roles and task loop
 
@@ -103,16 +108,18 @@ The repository currently builds/tests PRs and pushes to `main`; native auto-merg
 |---|---|
 | Git and isolation | Hybrid direct-main/PR integration; worktrees for simultaneous writers; routine merges autonomous |
 | Capacity | At most two task agents and two writable worktrees; lane-local builds/tests may overlap, with concurrency reduced only on measured pressure |
-| Communities | Dev: `ehonda-dev-buli-2627`; production: `pes-squad`, `schadensfresse`, `ehonda-ai-arena` |
-| Prediction topology | `pes-squad` reference; `schadensfresse` independent; matching production arena entry copy-posted from `pes-squad`; challengers independent |
+| Communities | Dev: `ehonda-dev-buli-2627`; production: `pes-squad`, `schadensfresse`, `relaxdays-tippt`, `ehonda-ai-arena` |
+| Prediction topology | Independent primaries `pes-squad` and `schadensfresse`; `relaxdays-tippt` and arena Sol/xhigh copy `pes-squad`; four arena challengers are independent |
 | Rosters | DuckDB primary per valid 2026/27 club; complete one-time fallback seed; last-known-good on invalid data; `N/A` enrichment gaps |
-| Launch roster publication | ADR-0050 v2 adds one final known-value subtotal row per team; ADR-0051's paired explicit overlay preserves authoritative seed/LKG membership, adds supplemental fields only by exact stable ID, and gates the strictly reconstructed final payload at 18 teams / 18 derived rows / 464 ages / 464 positions / 450 values before write; recurring automation stays P1-05 |
-| Prompts | Accepted hosted match v2 and bonus v1, with required `production` membership for scheduled/hosted-required routes; checked-in local mirrors remain the ordinary outage fallback |
+| Launch roster publication | ADR-0050 v2 adds one final known-value subtotal row per team; ADR-0051's paired explicit overlay preserves authoritative seed/LKG membership, adds supplemental fields only by exact stable ID, and gates the strictly reconstructed final payload at 18 teams / 18 derived rows / 464 ages / 464 positions / 450 values before write. ADR-0052 prepares a false-by-default workflow input enabled for pes/relaxdays/schadens before normal profile collection; arena preserves its verified enriched head; recurring automation stays P1-05 |
+| Prompts | Accepted hosted match v3 and bonus v1, with required `production` membership for live routes; historical P0-23 remains on v2; checked-in local mirrors remain the ordinary outage fallback |
 | Plumbing model | `gpt-5.6-luna`, `none` reasoning, pinned output cap; never promote silently to production |
 | P0-23 candidate evidence | Complete under ADR-0049 and the Owner's execution-time amendments: eight original paired runs completed, Luna/`max` is incomplete after two transient capacity failures and an explicit p1 stop, and post-hoc Sol/`xhigh` is exploratory; this is evidence, not production selection |
 | Context | Explicit live allowlists; stale/duplicate team/manager cleanup and question-aware bonus budgeting before production |
 | Club Elo | Implement provider/cache/gates now; a complete dated seed is launch-safe; network use remains an owner gate |
-| Activation | Dev and arena ladder first; final production manual dispatch and inspection; then enable and observe schedules |
+| Production identity | `gpt-5.6-sol` / `xhigh` / cap `10000`, Flex-first with Standard fallback; USD 35 is planning orientation only |
+| Arena challengers | Sol/high, Luna/medium, Terra/xhigh, Luna/none; cap `10000`, match v3 / bonus v1 |
+| Activation | All repository callers remain manual-only; P0-21 performs production dispatch and inspection, then obtains the final Owner schedule decision and observes the enabled sequence |
 
 ## Prerequisite state
 
@@ -125,15 +132,18 @@ Confirmed by the project owner on 2026-08-16:
 
 P0-17 recorded posting-target credential resolution and the implementation now loads a present `.env.<posting-community>` for ordinary local arena validation without replacing the shared base environment. Agents inspect names/presence without printing secret values.
 
-The connected GitHub token could not enumerate Actions secret names, so the owner's provisioning confirmation remains the planning source of truth. P0-20 subsequently verified the Luna arena workflow connectivity and fail-closed behavior without exposing values; production-participant credentials remain a P0-21 runtime gate.
+The connected GitHub token could not enumerate Actions secret names. On
+2026-08-27 the Owner confirmed every canonical ADR-0052 Kicktipp pair
+provisioned; that confirmation remains the planning source of truth and does
+not replace P0-21 authentication, readiness, or POST evidence.
 
-## Deliberately late owner gates
+## Remaining deliberately late Owner gates
 
 These are not ambiguities agents may decide on their own:
 
 | Decision | Timing | Work that may proceed first |
 |---|---|---|
-| Final production model, reasoning, output cap, service/fallback policy, arena challengers, and cost ceiling; carry accepted match v2/bonus v1 unless a successor ADR changes them | Late in P0, after P0-23 comparative evidence or an explicit owner waiver and before production onboarding/dispatch | Completed Luna/none plumbing, cost row, and P0-24 copy safety; ADR-0049 authorizes only its evidence program under USD 30, while live spend still requires the accepted no-spend checkpoint and integrated Decimal cumulative gate |
+| Final production model, reasoning, output cap, service/fallback policy, arena challengers, and planning ceiling | Resolved by ADR-0052 on 2026-08-27 | Production and challenger callers are now prepared; P0-21 retains live use |
 | Whether Club Elo terms permit unattended network refresh, or which permitted alternative to use | Late before go-live | Provider boundary, validation, cache, dated seed, and last-known-good behavior |
 | Exact production schedules, spacing, rollback trigger, and activation | P0-21 after manual evidence | Manual-only workflows and the arena validation schedule |
 | `pes-squad` and `schadensfresse` season setup | Later, before their production validation | All foundations, dev/arena validation, and workflow templates |
@@ -142,4 +152,9 @@ Final model selection will mix experiments and whole-season cost estimates. New-
 
 ## Orchestration start condition
 
-Implementation through P0-20, P0-23, P0-24, and P0-25 is complete. Continue with the P0-06 Owner selection using P0-23's published cost/quality evidence, then create the model-bound production P0-19 entrypoints. P0-21 may publish the pinned enriched v2 roster to each ready production context only through ADR-0051's paired explicit overlay mode, but must still wait for every posting, Owner, and activation gate before predictions or schedules. The completed P0-23 experiment and P0-25 arena round grant no production, schedule, or repeated-arena-run authority. The orchestrator keeps these late gates visible and never substitutes an agent preference for an Owner decision.
+Implementation through P0-20 and P0-23 through P0-25 is complete. ADR-0052
+also closes P0-06 and every schedule-free P0-19 repository row. Continue with
+P0-21 only. It may publish the pinned enriched v2 roster to each ready
+production context only through ADR-0051's paired explicit overlay mode and
+must retain every posting, deadline, manual-evidence, Owner, and activation
+gate. No schedule exists in the prepared callers.

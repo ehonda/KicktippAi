@@ -3,7 +3,7 @@
 - Status: Complete
 - Priority: P0
 - Depends on: [P0-17](p0-17-community-scope.md), [P0-18](p0-18-base-workflow-support.md)
-- Decisions: [ADR-0001](../decisions/0001-current-bundesliga-season-only.md), [ADR-0005](../decisions/0005-launch-community-and-prediction-topology.md), [ADR-0006](../decisions/0006-stage-validation-with-a-cheap-test-model.md), [ADR-0033](../decisions/0033-pin-validation-model-ledger-and-reserve-production-selection.md), [ADR-0039](../decisions/0039-record-bundesliga-community-and-credential-topology.md)
+- Decisions: [ADR-0001](../decisions/0001-current-bundesliga-season-only.md), [ADR-0005](../decisions/0005-launch-community-and-prediction-topology.md) (superseded), [ADR-0006](../decisions/0006-stage-validation-with-a-cheap-test-model.md), [ADR-0033](../decisions/0033-pin-validation-model-ledger-and-reserve-production-selection.md), [ADR-0039](../decisions/0039-record-bundesliga-community-and-credential-topology.md), [ADR-0052](../decisions/0052-select-production-model-community-matrix-and-match-prompt-v3.md)
 
 ## Outcome
 
@@ -14,7 +14,7 @@ The `arena-luna-self-contained` matrix row has context, matchday, and bonus entr
 - [x] Create the `ehonda-ai-arena` context entrypoint with explicit `competition: bundesliga-2026-27` and the profile-driven reusable collector.
 - [x] Create the self-contained matchday entrypoint with `community` and `community_context` set to `ehonda-ai-arena` and the exact Luna/none validation ledger identity.
 - [x] Create the self-contained bonus entrypoint with the same explicit identity and the accepted `20`-document / `32000`-token context budgets.
-- [x] Pin the production-labelled hosted match prompt to `kicktippai/bundesliga-2026-27/predict-one-match` version `2` and the bonus prompt to `kicktippai/bundesliga-2026-27/predict-bonus` version `1`.
+- [x] Pin the production-labelled hosted match prompt to `kicktippai/bundesliga-2026-27/predict-one-match` version `3` and the bonus prompt to `kicktippai/bundesliga-2026-27/predict-bonus` version `1`; retain historical P0-20/P0-25 evidence on immutable v2.
 - [x] Expose only `workflow_dispatch`, including typed `force_prediction` and `max_repredictions` passthrough on prediction entrypoints; do not add `workflow_call` or `schedule`.
 - [x] Wire only the P0-17 Luna arena credential pair and the shared Firebase, OpenAI, and Langfuse contracts. Keep `LANGFUSE_PUBLIC_KEY` as the repository variable consumed by the reusable prediction workflows.
 - [x] Leave `MatchdayCommand.ProductionCommunities` and `BonusCommand.ProductionCommunities` unchanged because `ehonda-ai-arena` is already classified as production.
@@ -42,3 +42,10 @@ The `arena-luna-self-contained` matrix row has context, matchday, and bonus entr
 
 - The triad is manually callable, schedule-free, and fully explicit, without deploying an unresolved production model slot.
 - P0-20 owns the first context-before-prediction dispatch sequence and its runtime evidence.
+
+## Challenger continuation — 2026-08-27
+
+ADR-0052 additionally admits this exact Luna/`none` / cap-`10000` row as a
+cheap arena challenger. The Owner confirmed its existing Actions pair remains
+provisioned. Future dispatch and any schedule remain P0-21; the prior plumbing
+ladder does not silently activate it.

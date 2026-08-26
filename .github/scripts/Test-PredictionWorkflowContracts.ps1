@@ -183,6 +183,36 @@ function Assert-ExactReusableMappingBlock {
     }
 }
 
+function Assert-LaunchRosterOverlayBaseContract {
+    param([string] $WorkflowDirectory)
+
+    $fileName = 'base-context-collection.yml'
+    $path = Join-Path $WorkflowDirectory $fileName
+    Assert-True (Test-Path -LiteralPath $path) "$fileName must exist."
+    $content = Get-Content -Raw -LiteralPath $path
+
+    $inputPattern = '(?ms)^      publish_launch_roster_overlay:\r?\n        description:.*\r?\n        required: false\r?\n        default: false\r?\n        type: boolean\s*$'
+    Assert-True ([regex]::IsMatch($content, $inputPattern)) "$fileName must expose an optional false-by-default boolean launch-overlay input."
+    foreach ($expected in @(
+        'if: ${{ inputs.publish_launch_roster_overlay }}',
+        'https://pub-e682421888d945d684bcae8890b0ec20.r2.dev/data/transfermarkt-datasets.duckdb',
+        'collect-context rosters',
+        '--duckdb-path "$RUNNER_TEMP/transfermarkt-datasets.duckdb"',
+        '--duckdb-revision "154367dfa6d6eb0b86332e332f9df0a080c7ddce"',
+        '--duckdb-snapshot-date "2026-08-13"',
+        '--duckdb-sha256 "808959f5b5b16bb698180c348b269d9ec26e1d1a5538767ffe9d971b96796d1c"',
+        '--require-launch-coverage',
+        '--launch-enrichment-overlay',
+        'collect-context profile'
+    )) {
+        Assert-True $content.Contains($expected, [StringComparison]::Ordinal) "$fileName must contain the exact launch-overlay contract token '$expected'."
+    }
+
+    $rosterIndex = $content.IndexOf('collect-context rosters', [StringComparison]::Ordinal)
+    $profileIndex = $content.IndexOf('collect-context profile', [StringComparison]::Ordinal)
+    Assert-True ($rosterIndex -ge 0 -and $profileIndex -gt $rosterIndex) "$fileName must publish the pinned roster overlay before normal profile collection."
+}
+
 function Assert-ProductionContextEntrypoints {
     param([string] $WorkflowDirectory)
 
@@ -198,6 +228,12 @@ function Assert-ProductionContextEntrypoints {
             CommunityContext = 'schadensfresse'
             KicktippUsername = 'SCHADENSFRESSE_KICKTIPP_USERNAME'
             KicktippPassword = 'SCHADENSFRESSE_KICKTIPP_PASSWORD'
+        },
+        @{
+            FileName = 'relaxdays-tippt-context-collection.yml'
+            CommunityContext = 'relaxdays-tippt'
+            KicktippUsername = 'RELAXDAYS_TIPPT_KICKTIPP_USERNAME'
+            KicktippPassword = 'RELAXDAYS_TIPPT_KICKTIPP_PASSWORD'
         }
     )) {
         $path = Join-Path $WorkflowDirectory $caller.FileName
@@ -225,7 +261,8 @@ function Assert-ProductionContextEntrypoints {
         Assert-ExactReusableMappingBlock $content 'with' @(
             "community_context=`"$($caller.CommunityContext)`"",
             'competition="bundesliga-2026-27"',
-            'trigger_type="manual"'
+            'trigger_type="manual"',
+            'publish_launch_roster_overlay=true'
         ) $caller.FileName
         Assert-ExactReusableMappingBlock $content 'secrets' @(
             ('kicktipp_username=${{ secrets.' + $caller.KicktippUsername + ' }}'),
@@ -281,7 +318,7 @@ function Assert-ArenaLunaTriad {
     }
 
     foreach ($prediction in @(
-        @{ FileName = $matchFileName; Content = $match; Base = 'base-matchday-predictions.yml'; PromptName = 'kicktippai/bundesliga-2026-27/predict-one-match'; PromptVersion = '2' },
+        @{ FileName = $matchFileName; Content = $match; Base = 'base-matchday-predictions.yml'; PromptName = 'kicktippai/bundesliga-2026-27/predict-one-match'; PromptVersion = '3' },
         @{ FileName = $bonusFileName; Content = $bonus; Base = 'base-bonus-predictions.yml'; PromptName = 'kicktippai/bundesliga-2026-27/predict-bonus'; PromptVersion = '1' }
     )) {
         Assert-True $prediction.Content.Contains("uses: ./.github/workflows/$($prediction.Base)", [StringComparison]::Ordinal) "$($prediction.FileName) must call $($prediction.Base)."
@@ -342,6 +379,55 @@ function Assert-ArenaLunaTriad {
     }
 
     return $true
+}
+
+function Assert-ArenaParticipantContextEntrypoints {
+    param([string] $WorkflowDirectory)
+
+    foreach ($caller in @(
+        @{
+            FileName = 'buli2627-ehonda-ai-arena-gpt-5-6-sol-xhigh-context-collection.yml'
+            Participant = 'Sol xhigh'
+            SecretStem = 'EHONDA_AI_ARENA_GPT_5_6_SOL_XHIGH'
+        },
+        @{
+            FileName = 'buli2627-ehonda-ai-arena-gpt-5-6-sol-high-context-collection.yml'
+            Participant = 'Sol high'
+            SecretStem = 'EHONDA_AI_ARENA_GPT_5_6_SOL_HIGH'
+        },
+        @{
+            FileName = 'buli2627-ehonda-ai-arena-gpt-5-6-luna-medium-context-collection.yml'
+            Participant = 'Luna medium'
+            SecretStem = 'EHONDA_AI_ARENA_GPT_5_6_LUNA_MEDIUM'
+        },
+        @{
+            FileName = 'buli2627-ehonda-ai-arena-gpt-5-6-terra-xhigh-context-collection.yml'
+            Participant = 'Terra xhigh'
+            SecretStem = 'EHONDA_AI_ARENA_GPT_5_6_TERRA_XHIGH'
+        }
+    )) {
+        $path = Join-Path $WorkflowDirectory $caller.FileName
+        Assert-True (Test-Path -LiteralPath $path) "$($caller.FileName) must exist."
+        $content = Get-Content -Raw -LiteralPath $path
+
+        Assert-ManualDispatchOnly $content $caller.FileName $false
+        Assert-NoYamlScheduleKey $content $caller.FileName
+        Assert-True $content.Contains('uses: ./.github/workflows/base-context-collection.yml', [StringComparison]::Ordinal) "$($caller.FileName) must call the reusable context workflow."
+        foreach ($expected in @(
+            @{ Name = 'community_context'; Value = 'ehonda-ai-arena' },
+            @{ Name = 'competition'; Value = 'bundesliga-2026-27' },
+            @{ Name = 'trigger_type'; Value = 'manual' }
+        )) {
+            Assert-True ((Get-WithValue $content $expected.Name $caller.FileName) -eq $expected.Value) "$($caller.FileName) must pass $($expected.Name)=$($expected.Value)."
+        }
+
+        Assert-ExactSecretMappings $content @(
+            "kicktipp_username=$($caller.SecretStem)_KICKTIPP_USERNAME",
+            "kicktipp_password=$($caller.SecretStem)_KICKTIPP_PASSWORD",
+            'firebase_project_id=FIREBASE_PROJECT_ID',
+            'firebase_service_account_json=FIREBASE_SERVICE_ACCOUNT_JSON'
+        ) $caller.FileName
+    }
 }
 
 function Test-IsWorkflowYamlFileName {
@@ -559,7 +645,9 @@ $bonusBase = Get-Content -Raw -LiteralPath $bonusBasePath
 $arenaLunaMatchFileName = 'buli2627-ehonda-ai-arena-gpt-5-6-luna-none-matchday.yml'
 $arenaLunaBonusFileName = 'buli2627-ehonda-ai-arena-gpt-5-6-luna-none-bonus.yml'
 $arenaLunaTriadPresent = Assert-ArenaLunaTriad $workflowDirectory -AllowMissing:$AllowMissingArenaLunaTriad
+Assert-LaunchRosterOverlayBaseContract $workflowDirectory
 Assert-ProductionContextEntrypoints $workflowDirectory
+Assert-ArenaParticipantContextEntrypoints $workflowDirectory
 Assert-ArenaScheduleScannerSelfTests
 Assert-NoActiveArenaLunaSchedule $workflowDirectory
 
@@ -620,6 +708,30 @@ Assert-True $bonusBase.Contains('default: 32000', [StringComparison]::Ordinal) '
 Assert-True $bonusBase.Contains('--bonus-context-document-budget "$BONUS_CONTEXT_DOCUMENT_BUDGET"', [StringComparison]::Ordinal) 'The bonus document budget must reach generation.'
 Assert-True $bonusBase.Contains('--bonus-context-token-budget "$BONUS_CONTEXT_TOKEN_BUDGET"', [StringComparison]::Ordinal) 'The bonus token budget must reach generation.'
 
+$currentBundesligaCallers = @{}
+foreach ($row in @(
+    @{ BaseName = 'buli2627-pes-squad-gpt-5-6-sol-xhigh'; Community = 'pes-squad'; Context = 'pes-squad'; Model = 'gpt-5.6-sol'; Effort = 'xhigh'; SecretStem = 'PES_SQUAD' },
+    @{ BaseName = 'buli2627-schadensfresse-gpt-5-6-sol-xhigh'; Community = 'schadensfresse'; Context = 'schadensfresse'; Model = 'gpt-5.6-sol'; Effort = 'xhigh'; SecretStem = 'SCHADENSFRESSE' },
+    @{ BaseName = 'buli2627-relaxdays-tippt-gpt-5-6-sol-xhigh'; Community = 'relaxdays-tippt'; Context = 'pes-squad'; Model = 'gpt-5.6-sol'; Effort = 'xhigh'; SecretStem = 'RELAXDAYS_TIPPT' },
+    @{ BaseName = 'buli2627-ehonda-ai-arena-gpt-5-6-sol-xhigh'; Community = 'ehonda-ai-arena'; Context = 'pes-squad'; Model = 'gpt-5.6-sol'; Effort = 'xhigh'; SecretStem = 'EHONDA_AI_ARENA_GPT_5_6_SOL_XHIGH' },
+    @{ BaseName = 'buli2627-ehonda-ai-arena-gpt-5-6-sol-high'; Community = 'ehonda-ai-arena'; Context = 'ehonda-ai-arena'; Model = 'gpt-5.6-sol'; Effort = 'high'; SecretStem = 'EHONDA_AI_ARENA_GPT_5_6_SOL_HIGH' },
+    @{ BaseName = 'buli2627-ehonda-ai-arena-gpt-5-6-luna-medium'; Community = 'ehonda-ai-arena'; Context = 'ehonda-ai-arena'; Model = 'gpt-5.6-luna'; Effort = 'medium'; SecretStem = 'EHONDA_AI_ARENA_GPT_5_6_LUNA_MEDIUM' },
+    @{ BaseName = 'buli2627-ehonda-ai-arena-gpt-5-6-terra-xhigh'; Community = 'ehonda-ai-arena'; Context = 'ehonda-ai-arena'; Model = 'gpt-5.6-terra'; Effort = 'xhigh'; SecretStem = 'EHONDA_AI_ARENA_GPT_5_6_TERRA_XHIGH' },
+    @{ BaseName = 'buli2627-ehonda-ai-arena-gpt-5-6-luna-none'; Community = 'ehonda-ai-arena'; Context = 'ehonda-ai-arena'; Model = 'gpt-5.6-luna'; Effort = 'none'; SecretStem = 'EHONDA_AI_ARENA_GPT_5_6_LUNA_NONE' }
+)) {
+    foreach ($kind in @('matchday', 'bonus')) {
+        $fileName = "$($row.BaseName)-$kind.yml"
+        $currentBundesligaCallers[$fileName] = [pscustomobject]@{
+            Community = $row.Community
+            Context = $row.Context
+            Model = $row.Model
+            Effort = $row.Effort
+            SecretStem = $row.SecretStem
+            IsBonus = $kind -eq 'bonus'
+        }
+    }
+}
+
 $callerFiles = Get-ChildItem -LiteralPath $workflowDirectory -Filter '*.yml' |
     Where-Object {
         $content = Get-Content -Raw -LiteralPath $_.FullName
@@ -645,16 +757,17 @@ $retiredBundesligaFiles = [Collections.Generic.HashSet[string]]::new(
     ),
     [StringComparer]::Ordinal
 )
-Assert-True ($callerFiles.Count -ge 26) "Expected at least 26 retained prediction callers, found $($callerFiles.Count)."
+Assert-True ($callerFiles.Count -ge 42) "Expected at least 42 retained prediction callers, found $($callerFiles.Count)."
 
 $wm26Count = 0
 $retiredBundesligaCount = 0
 $currentBundesligaCount = 0
 foreach ($caller in $callerFiles) {
     $content = Get-Content -Raw -LiteralPath $caller.FullName
-    $isArenaLunaPrediction = $caller.Name -in @($arenaLunaMatchFileName, $arenaLunaBonusFileName)
-    if ($isArenaLunaPrediction) {
+    $isCurrentBundesliga = $currentBundesligaCallers.ContainsKey($caller.Name)
+    if ($isCurrentBundesliga) {
         Assert-ManualDispatchOnly $content $caller.Name $true
+        Assert-NoYamlScheduleKey $content $caller.Name
     }
     else {
         $triggerBlock = Get-TriggerBlock $content $caller.Name
@@ -703,24 +816,48 @@ foreach ($caller in $callerFiles) {
         Assert-True ((Get-WithValue $content 'langfuse_prompt_version' $caller.Name $false) -eq $null) "$($caller.Name) must not invent a numbered local prompt version."
     }
     else {
+        Assert-True $isCurrentBundesliga "$($caller.Name) is neither an accepted current Bundesliga caller nor an explicitly retained historical caller."
         $currentBundesligaCount++
+        $expectedCaller = $currentBundesligaCallers[$caller.Name]
         Assert-True ($competition -eq 'bundesliga-2026-27') "$($caller.Name) must explicitly target bundesliga-2026-27."
         Assert-True ($promptSource -eq 'langfuse') "$($caller.Name) must use the accepted hosted Bundesliga prompt route."
         Assert-True ((Get-WithValue $content 'retired_configuration' $caller.Name $false) -ne 'true') "$($caller.Name) is a current Bundesliga caller and cannot be retired."
 
         $reasoningEffort = Get-WithValue $content 'reasoning_effort' $caller.Name
-        Assert-True ($reasoningEffort -match '^(none|minimal|low|medium|high|xhigh|max)$') "$($caller.Name) must pin a supported reasoning effort."
+        Assert-True ($reasoningEffort -eq $expectedCaller.Effort) "$($caller.Name) must pin reasoning_effort=$($expectedCaller.Effort)."
+        Assert-True ((Get-WithValue $content 'community' $caller.Name) -eq $expectedCaller.Community) "$($caller.Name) must pin community=$($expectedCaller.Community)."
+        Assert-True ((Get-WithValue $content 'community_context' $caller.Name) -eq $expectedCaller.Context) "$($caller.Name) must pin community_context=$($expectedCaller.Context)."
+        Assert-True ((Get-WithValue $content 'model' $caller.Name) -eq $expectedCaller.Model) "$($caller.Name) must pin model=$($expectedCaller.Model)."
+        Assert-True ($maxOutputTokens -eq '10000') "$($caller.Name) must pin the accepted 10000 output cap."
         $isBonus = $caller.Name.EndsWith('-bonus.yml', [StringComparison]::Ordinal)
+        Assert-True ($isBonus -eq $expectedCaller.IsBonus) "$($caller.Name) kind does not match its accepted matrix row."
         $expectedName = if ($isBonus) { 'kicktippai/bundesliga-2026-27/predict-bonus' } else { 'kicktippai/bundesliga-2026-27/predict-one-match' }
-        $expectedVersion = if ($isBonus) { '1' } else { '2' }
+        $expectedVersion = if ($isBonus) { '1' } else { '3' }
         Assert-True ((Get-WithValue $content 'langfuse_prompt_name' $caller.Name) -eq $expectedName) "$($caller.Name) has the wrong Bundesliga prompt name."
         Assert-True ((Get-WithValue $content 'langfuse_prompt_version' $caller.Name) -eq $expectedVersion) "$($caller.Name) has the wrong accepted Bundesliga prompt version."
+        Assert-True ((Get-WithValue $content 'langfuse_prompt_label' $caller.Name) -eq 'production') "$($caller.Name) must require production label membership."
+        Assert-True ((Get-WithValue $content 'trigger_type' $caller.Name) -eq 'manual') "$($caller.Name) must pass trigger_type=manual."
+        Assert-True ((Get-WithValue $content 'force_prediction' $caller.Name) -eq '${{ inputs.force_prediction }}') "$($caller.Name) must pass through force_prediction."
+        Assert-True ((Get-WithValue $content 'max_repredictions' $caller.Name) -eq '${{ fromJSON(inputs.max_repredictions) }}') "$($caller.Name) must preserve zero while converting max_repredictions to a number."
+        if ($isBonus) {
+            Assert-True ((Get-WithValue $content 'bonus_context_document_budget' $caller.Name) -eq '20') "$($caller.Name) must pin the accepted 20-document bonus budget."
+            Assert-True ((Get-WithValue $content 'bonus_context_token_budget' $caller.Name) -eq '32000') "$($caller.Name) must pin the accepted 32000-token bonus budget."
+        }
+
+        Assert-ExactSecretMappings $content @(
+            "kicktipp_username=$($expectedCaller.SecretStem)_KICKTIPP_USERNAME",
+            "kicktipp_password=$($expectedCaller.SecretStem)_KICKTIPP_PASSWORD",
+            'firebase_project_id=FIREBASE_PROJECT_ID',
+            'firebase_service_account_json=FIREBASE_SERVICE_ACCOUNT_JSON',
+            'openai_api_key=OPENAI_API_KEY',
+            'langfuse_secret_key=LANGFUSE_SECRET_KEY'
+        ) $caller.Name
     }
 }
 
 Assert-True ($wm26Count -eq 14) "Expected 14 historical WM26 callers, found $wm26Count."
 Assert-True ($retiredBundesligaCount -eq 12) "Expected 12 retired Bundesliga 2025/26 callers, found $retiredBundesligaCount."
-$expectedCurrentBundesligaCount = if ($arenaLunaTriadPresent) { 2 } else { 0 }
-Assert-True ($currentBundesligaCount -eq $expectedCurrentBundesligaCount) "Expected $expectedCurrentBundesligaCount current Bundesliga arena Luna prediction callers, found $currentBundesligaCount."
+$expectedCurrentBundesligaCount = $currentBundesligaCallers.Count
+Assert-True ($currentBundesligaCount -eq $expectedCurrentBundesligaCount) "Expected $expectedCurrentBundesligaCount exact current Bundesliga prediction callers, found $currentBundesligaCount."
 
 Write-Output "Prediction workflow contract validation passed: 2 bases, $wm26Count callable WM26 callers, $retiredBundesligaCount explicitly retired Bundesliga callers, $currentBundesligaCount current Bundesliga callers."

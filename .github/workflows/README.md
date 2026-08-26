@@ -4,21 +4,26 @@ This directory contains GitHub Actions workflows that automate the process of ge
 
 ## Current activation status
 
-As of 2026-08-25, Bundesliga 2025/26 and WM26 community entrypoints are
+As of 2026-08-27, Bundesliga 2025/26 and WM26 community entrypoints are
 historical and inert: they retain `workflow_call` only, with no active
 `workflow_dispatch` or `schedule` trigger. Former schedule and model
 descriptions later in this document are historical evidence, not activation
 evidence.
 
-The current Bundesliga 2026/27 Actions entrypoints are the two manual-only,
-model-independent production context callers and the exact manual-only
-`ehonda-ai-arena` Luna validation triad documented below. P0-17 records the
+The current Bundesliga 2026/27 Actions entrypoints implement ADR-0052's exact
+manual-only matrix. Independent Sol/`xhigh` primary triads target `pes-squad`
+and `schadensfresse`; Sol/`xhigh` copy triads target `relaxdays-tippt` and its
+arena participant with `community_context: "pes-squad"`; self-contained arena
+triads target Sol/`high`, Luna/`medium`, Terra/`xhigh`, and Luna/`none`. All
+generation rows pin cap `10000`, match v3 / bonus v1, and the reusable
+Flex-first / Standard-fallback policy. P0-17 records the
 [authoritative community matrix](../../docs/onboarding-bundesliga-2026-27/community-onboarding.md),
 P0-18 established the reusable workflow contract, and P0-21 alone enables
-final production schedules. Final production matchday and bonus callers remain
-gated on the owner-selected model configuration. The separately authorized
-Luna/none arena validation schedule was governed by ADR-0047 and is no longer
-present in the checked-in workflows.
+final schedules. Every current caller exposes only `workflow_dispatch`; no
+current caller contains `schedule` or `workflow_call`. The Owner confirmed the
+canonical Kicktipp Actions pairs provisioned, but runtime readiness, POST
+permission, dispatch, and activation remain P0-21. The separately authorized
+Luna/none validation schedule from ADR-0047 is no longer present.
 
 ## Architecture Overview
 
@@ -29,6 +34,13 @@ The workflow system is built on a **reusable workflow architecture** that suppor
 - **`base-matchday-predictions.yml`**: Core logic for matchday predictions
 - **`base-bonus-predictions.yml`**: Core logic for bonus predictions
 - **`base-context-collection.yml`**: Core logic for context collection and storage
+  - Its optional `publish_launch_roster_overlay` input defaults to false. The
+    current `pes-squad`, `relaxdays-tippt`, and prepared `schadensfresse`
+    callers opt in: the job downloads the exact audited public CC0 DuckDB
+    artifact, verifies its pinned SHA through `collect-context rosters`, and
+    runs the paired launch-coverage/enrichment-overlay mode before the normal
+    profile. Any failure stops before profile collection. Arena callers omit
+    the input and preserve their already enriched shared last-known-good head.
 
 ### Community-Specific Workflows
 
@@ -37,14 +49,14 @@ Each community gets its own set of workflows that call the base workflows with s
 - **`{community}-matchday.yml`**: Matchday predictions for a specific community
 - **`{community}-bonus.yml`**: Bonus predictions for a specific community
 
-### Bundesliga 2026/27 manual arena validation triad
+### Bundesliga 2026/27 manual arena Luna/none triad
 
 - **`buli2627-ehonda-ai-arena-context-collection.yml`**: Manual profile-driven
   context collection for `ehonda-ai-arena` and `bundesliga-2026-27`.
 - **`buli2627-ehonda-ai-arena-gpt-5-6-luna-none-matchday.yml`**: Manual
   self-contained matchday validation with `gpt-5.6-luna`, reasoning `none`,
   output cap `10000`, and the production-labelled hosted match prompt pinned to
-  version `2`.
+  version `3`.
 - **`buli2627-ehonda-ai-arena-gpt-5-6-luna-none-bonus.yml`**: Manual
   self-contained bonus validation with the same model identity, hosted bonus
   prompt version `1`, and context budgets `20` documents / `32000` estimated
@@ -54,17 +66,30 @@ All three files expose `workflow_dispatch` only and have no schedule or
 `workflow_call`. The prediction workflows use the reserved Luna arena Kicktipp
 credential pair; context and predictions use the shared Firebase configuration,
 predictions additionally use OpenAI and Langfuse secrets, and the reusable
-workflow reads `LANGFUSE_PUBLIC_KEY` from the repository variable. P0-20 must
+workflow reads `LANGFUSE_PUBLIC_KEY` from the repository variable. P0-21 must
 record a successful context dispatch before either prediction dispatch. Arena
 traces use the Langfuse `production` environment because the posting target is a
 production community; this does not promote Luna/none to the production model.
 
+The other current entrypoints follow the exact filenames asserted by
+`.github/scripts/Test-PredictionWorkflowContracts.ps1`: two Sol/`xhigh`
+primary pairs, one `relaxdays-tippt` context/copy pair, an arena Sol/`xhigh`
+participant-specific context/copy pair, and participant-specific context plus
+prediction pairs for Sol/`high`, Luna/`medium`, and Terra/`xhigh`. Every bonus
+caller pins budgets `20` / `32000`.
+
 ### Context Collection Workflows
 
 - **`pes-squad-context-collection.yml`**: Current manual context caller for `pes-squad`
-  - Exposes `workflow_dispatch` only, pins `bundesliga-2026-27`, and has no schedule or inputs
+  - Exposes `workflow_dispatch` only, pins `bundesliga-2026-27`, opts into the
+    exact pinned launch-roster overlay, and has no schedule or dispatch inputs
 - **`schadensfresse-context-collection.yml`**: Current manual context caller for `schadensfresse`
-  - Exposes `workflow_dispatch` only, pins `bundesliga-2026-27`, and has no schedule or inputs
+  - Exposes `workflow_dispatch` only, pins `bundesliga-2026-27`, and is prepared
+    with the exact pinned launch-roster overlay; it remains unrun pending
+    community-admin setup
+- **`relaxdays-tippt-context-collection.yml`**: Current manual context caller for `relaxdays-tippt`
+  - Exposes `workflow_dispatch` only, pins `bundesliga-2026-27`, and opts into
+    the exact pinned launch-roster overlay
 - **`rabetrabauken2026-context-collection.yml`**: Historical WM26 reference context collection (`workflow_call` only)
   - Runs Kicktipp collection, guarded recent-history date-map application, FIFA ranking, and lineup context collection for `fifa-world-cup-2026`
   - Formerly used the WM26 context cadence: 23:47, 06:47, and 11:47 UTC
@@ -188,9 +213,13 @@ Context collection workflows gather and store contextual data for multiple commu
 
 1. **Environment Setup**: Configure Kicktipp and Firebase credentials
 2. **Profile Resolution**: Resolve the exact competition profile and its ordered collectors
-3. **Context Gathering**: Run `collect-context profile` for the exact competition and community context. Bundesliga runs Kicktipp with included played-date reconstruction, Club Elo, and rosters; WM26 retains its Kicktipp, date-map, FIFA, and lineup profile.
-4. **Database Storage**: Store context documents in Firebase with version control
-5. **Duplicate Detection**: Skip unchanged context to avoid redundant storage
+3. **Launch roster gate (opt-in only)**: For the three non-arena production
+   callers, download the audited artifact to the ephemeral runner and publish
+   the exact SHA/revision/date-gated overlay. A non-zero download or roster
+   command result stops the job.
+4. **Context Gathering**: Run `collect-context profile` for the exact competition and community context. Bundesliga runs Kicktipp with included played-date reconstruction, Club Elo, and rosters; the no-DuckDB roster step preserves the enriched same-date last-known-good publication. WM26 retains its Kicktipp, date-map, FIFA, and lineup profile.
+5. **Database Storage**: Store context documents in Firebase with version control
+6. **Duplicate Detection**: Skip unchanged context to avoid redundant storage
 
 ## Community Configuration
 
@@ -212,29 +241,33 @@ valid until context collection has completed successfully for that exact
 `competition` and `community_context`; a successful run for another community,
 competition, or an old WM26/unscoped partition does not satisfy this dependency.
 
-P0-19 entrypoints remain `workflow_dispatch`-only. During P0-20, record the
+P0-19 entrypoints remain `workflow_dispatch`-only. During P0-21, record the
 successful context run ID and completion before dispatching matchday or bonus
 validation. P0-21 must preserve context-before-prediction spacing when enabling
 production schedules and must observe the first scheduled sequence. A failed or
 cancelled context run blocks the corresponding prediction dispatch.
 
+For `pes-squad`, `relaxdays-tippt`, and eventually `schadensfresse`, the same
+successful context run must show the pinned launch-overlay step before ordinary
+profile collection. Verify `NotEvaluated` membership gates,
+`LAUNCH_ENRICHMENT_OVERLAY`, the v2 head, 464/464/450 minimum enrichment, and
+18 final `Team Accumulated` rows. Arena reuses its previously verified exact
+enriched head and must not redownload the artifact on each participant run.
+
 ### Bundesliga 2026/27 topology
 
-The exact P0-17 matrix has six stable rows: `dev-luna`,
-`arena-luna-self-contained`, `pes-production-reference`,
-`schadensfresse-production-independent`, `arena-production-copy`, and the
-nondeployable `arena-challenger-slot` template. Do not replace an unresolved
-production or challenger field with a historical model or the Luna validation
-identity.
+ADR-0052 fixes nine stable rows: the local `dev-luna` path; independent
+`pes-production-reference` and `schadensfresse-production-independent`;
+`relaxdays-production-copy` and `arena-production-copy`; and self-contained
+arena Sol/`high`, Luna/`medium`, Terra/`xhigh`, and Luna/`none`. No unresolved
+challenger slot is deployed.
 
 The arena validation workflow reserves
 `EHONDA_AI_ARENA_GPT_5_6_LUNA_NONE_KICKTIPP_USERNAME` and
-`EHONDA_AI_ARENA_GPT_5_6_LUNA_NONE_KICKTIPP_PASSWORD`. The production reference
-and independent rows use `PES_SQUAD_KICKTIPP_USERNAME` /
-`PES_SQUAD_KICKTIPP_PASSWORD` and `SCHADENSFRESSE_KICKTIPP_USERNAME` /
-`SCHADENSFRESSE_KICKTIPP_PASSWORD`, respectively. Exact model-specific names
-for `arena-production-copy` and admitted challengers remain an owner gate; do
-not create placeholder secrets.
+`EHONDA_AI_ARENA_GPT_5_6_LUNA_NONE_KICKTIPP_PASSWORD`. The exact production,
+copy, and challenger names are listed in Required Secrets below and asserted by
+the workflow contract. Do not create placeholder secrets or reuse one arena
+participant's pair for another.
 
 Shared prediction workflows use `FIREBASE_PROJECT_ID`,
 `FIREBASE_SERVICE_ACCOUNT_JSON`, `OPENAI_API_KEY`, and
@@ -329,9 +362,15 @@ Examples:
 - `EHONDA_AI_ARENA_GPT_5_6_LUNA_NONE_KICKTIPP_PASSWORD`: password for the authorized self-contained Luna/none arena validation participant
 - `PES_SQUAD_KICKTIPP_USERNAME` / `PES_SQUAD_KICKTIPP_PASSWORD`: reference production community names; use remains gated by P0-21
 - `SCHADENSFRESSE_KICKTIPP_USERNAME` / `SCHADENSFRESSE_KICKTIPP_PASSWORD`: independent production community names; use remains gated by P0-21
+- `RELAXDAYS_TIPPT_KICKTIPP_USERNAME` / `RELAXDAYS_TIPPT_KICKTIPP_PASSWORD`: secondary production copy target
+- `EHONDA_AI_ARENA_GPT_5_6_SOL_XHIGH_KICKTIPP_USERNAME` / `EHONDA_AI_ARENA_GPT_5_6_SOL_XHIGH_KICKTIPP_PASSWORD`: arena production copy participant
+- `EHONDA_AI_ARENA_GPT_5_6_SOL_HIGH_KICKTIPP_USERNAME` / `EHONDA_AI_ARENA_GPT_5_6_SOL_HIGH_KICKTIPP_PASSWORD`: self-contained challenger
+- `EHONDA_AI_ARENA_GPT_5_6_LUNA_MEDIUM_KICKTIPP_USERNAME` / `EHONDA_AI_ARENA_GPT_5_6_LUNA_MEDIUM_KICKTIPP_PASSWORD`: self-contained challenger
+- `EHONDA_AI_ARENA_GPT_5_6_TERRA_XHIGH_KICKTIPP_USERNAME` / `EHONDA_AI_ARENA_GPT_5_6_TERRA_XHIGH_KICKTIPP_PASSWORD`: self-contained challenger
 
-Arena production-copy and challenger secret names are deliberately absent
-until the owner selects the exact model participants.
+The Owner confirmed all eight exact pairs above provisioned on 2026-08-27.
+This is not API enumeration, authentication, POST permission, or dispatch
+evidence; P0-21 retains runtime use.
 
 ### WM26 Model-Specific Prediction Secrets
 

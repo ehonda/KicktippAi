@@ -10,6 +10,62 @@ and rollback expectations reviewable before production activation. It does not
 replace the required Accepted activation ADR and does not satisfy any manual or
 scheduled evidence item in [P0-21](../../plans/bundesliga-2026-27/tasks/p0-21-production-activation.md).
 
+## Owner-selection and repository-preparation addendum — 2026-08-27
+
+[ADR-0052](../../plans/bundesliga-2026-27/decisions/0052-select-production-model-community-matrix-and-match-prompt-v3.md)
+settles the previously open configuration and topology gates:
+
+- production is `gpt-5.6-sol` / `xhigh` / cap `10000`, Flex-first with one
+  Standard fallback;
+- match prompt v3 is promoted at normalized SHA-256
+  `7c223c0765024e52b542bbdb8093ab9b8fcaad505de0c5f8d6c92f4044e175f3`;
+  bonus remains v1;
+- `pes-squad` and `schadensfresse` are independent primaries;
+  `relaxdays-tippt` and arena Sol/`xhigh` copy the `pes-squad` reference; and
+- self-contained arena challengers are Sol/`high`, Luna/`medium`,
+  Terra/`xhigh`, and Luna/`none`, all cap `10000`.
+
+All exact workflow triads are now prepared as `workflow_dispatch`-only callers
+with no schedules. The Owner confirmed every canonical Actions Kicktipp pair in
+the [community ledger](community-onboarding.md) provisioned on 2026-08-27.
+That confirmation does not claim API enumeration, authentication, readiness,
+POST permission, deadlines, or a successful workflow run.
+
+The context workflow now has one false-by-default
+`publish_launch_roster_overlay` input. The manual `pes-squad`,
+`relaxdays-tippt`, and prepared `schadensfresse` callers opt in. Their job first
+downloads the public CC0 DuckDB artifact from the existing audited R2 URL into
+ephemeral runner storage and runs `collect-context rosters` with exact SHA
+`808959f5b5b16bb698180c348b269d9ec26e1d1a5538767ffe9d971b96796d1c`,
+revision `154367dfa6d6eb0b86332e332f9df0a080c7ddce`, snapshot date
+`2026-08-13`, and both launch flags. Only a successful fail-closed overlay may
+proceed to ordinary profile collection, whose no-DuckDB roster step preserves
+the enriched same-date last-known-good head. Arena callers omit the opt-in and
+preserve their already verified shared enriched snapshot
+`591adbc3cbc99ee93591f074ad218703c9badb2af4e267142898145825b77ea2`.
+
+This addendum supersedes dated statements below that call the production model,
+participants, prompt v3, callers, or secret presence unresolved. It does not
+close any live P0-21 gate. Before a caller is dispatched, P0-21 still requires
+participant authentication and current-season readiness, POST permission,
+exact deadlines, enriched roster publication, context-before-prediction order,
+and inspection. `schadensfresse` still awaits external new-season setup. No
+schedule may be enabled until the final Owner activation gate.
+
+### Owner dispatch authorization — 2026-08-27
+
+Once repository preparation is independently reviewed, integrated, pushed, and
+green, the Owner authorizes P0-21 to dispatch context and then predictions for
+`pes-squad`, `relaxdays-tippt`, and every selected arena participant, with
+primaries before dependent secondaries and an immediate stop of an affected
+chain on failure. The authorization includes the resulting initial prediction
+writes for rows that pass their runtime checks. `schadensfresse` remains
+unrun/manual-only until its administrator finishes new-season setup.
+
+Successful inspected manual evidence permits a later activation lane to author
+the schedule ADR and schedules for ready rows. The current callers remain
+manual-only and schedule-free; no schedule is preregistered as already active.
+
 No authenticated community lookup, workflow dispatch, model or Langfuse call,
 schedule change, prediction write, or other external mutation was performed to
 prepare this draft.
@@ -50,9 +106,7 @@ official kickoff. No schedule or opening write may rely on kickoff as a proxy.
 The draft inherits, but does not modify, these accepted repository contracts:
 
 - [ADR-0005](../../plans/bundesliga-2026-27/decisions/0005-launch-community-and-prediction-topology.md)
-  requires independent `pes-squad` and `schadensfresse` generation and an
-  `ehonda-ai-arena` production entry copied from the matching `pes-squad`
-  prediction when compatibility permits.
+  is superseded by ADR-0052's exact four-community/challenger matrix.
 - [ADR-0006](../../plans/bundesliga-2026-27/decisions/0006-stage-validation-with-a-cheap-test-model.md)
   forbids silently promoting the Luna/none plumbing identity and requires one
   inspected manual production run before final schedules are enabled.
@@ -60,8 +114,8 @@ The draft inherits, but does not modify, these accepted repository contracts:
   makes current-season context hygiene and question-aware bonus selection launch
   requirements.
 - [ADR-0039](../../plans/bundesliga-2026-27/decisions/0039-record-bundesliga-community-and-credential-topology.md)
-  binds posting target, context owner, model slot, and credential ownership; an
-  unresolved production or challenger slot is nondeployable.
+  retains posting-target credential ownership, as refined by ADR-0052's exact
+  participant profiles and resolved slots.
 - [ADR-0045](../../plans/bundesliga-2026-27/decisions/0045-verify-versioned-prompt-promotion-before-validation.md)
   requires exact hosted prompt name/version/`production` membership to pass
   before model construction on the strict validation path.
@@ -74,29 +128,26 @@ The draft inherits, but does not modify, these accepted repository contracts:
   `community_context: "ehonda-ai-arena"`; invalid target selection or immutable
   context-safety failure remains fail closed.
 
-P0-06 records the final production model, reasoning effort, output cap,
-service-tier/fallback policy, cost ceiling, and accepted hosted prompt versions;
-P0-21 consumes that exact identity for live dispatch. Arena participants, Club
-Elo unattended-network policy, exact schedules, and rollback authority remain
-owner-controlled P0-21 inputs. The accepted match v2 and bonus v1 prompt
-identities remain the current planning baseline, not permission to dispatch.
+P0-06 has recorded the final production model, reasoning effort, output cap,
+service-tier/fallback policy, planning orientation, arena participants, and
+match v3 / bonus v1 prompt versions. P0-21 consumes those exact identities.
+Club Elo unattended-network policy, exact schedules, and rollback authority
+remain Owner-controlled P0-21 inputs.
 
 ## Repository preparation versus live authorization
 
 Schedule-free repository preparation does not prove or consume a live community
 permission:
 
-- P0-19 has prepared the model-independent `pes-squad` and `schadensfresse`
-  context callers from the accepted topology and credential names. Both expose
-  manual `workflow_dispatch` only, have no inputs or schedule, and have never
-  been dispatched.
-- Their final matchday and bonus callers wait only for P0-06 to record the exact
-  `production-primary` identity.
-- Arena production-copy preparation additionally waits for the owner-selected
-  participant/profile/exact credential names and the exact P0-06 identity.
-- Secret presence, authentication/current-season readiness, POST permission,
-  Kicktipp deadlines, manual/live writes, monitoring, rollback, and schedules
-  remain open P0-21 pre-dispatch gates. No production POST is authorized here.
+- P0-19 has prepared every exact production, copy, and challenger caller with
+  manual `workflow_dispatch` only and no schedule.
+- The Owner confirmed all canonical Kicktipp Actions pairs provisioned, without
+  API enumeration or runtime proof.
+- After reviewed/integrated/pushed/green preparation, the separate Owner
+  authorization above permits P0-21's ordered initial dispatch/writes for ready
+  rows. Authentication/current-season readiness, failures, deadlines,
+  inspection, monitoring, rollback, and the later schedule ADR remain live
+  gates.
 
 The `schadensfresse` setup request is external and pending with its community
 administrator. The agent is not authorized or expected to administer that
@@ -168,7 +219,7 @@ throughout the season.
 
 ## Required gates before any manual production write
 
-- [ ] **OWNER GATE — configuration:** record the exact `production-primary`
+- [x] **OWNER GATE — configuration:** record the exact `production-primary`
       model, reasoning, cap, prompt versions, service/fallback policy, cost
       ceiling, and arena challenger matrix after P0-23 evidence or an explicit
       accepted waiver. Luna/none must not be inherited.
@@ -182,12 +233,18 @@ throughout the season.
       rollback operator. Record one reachable escalation path and response SLO.
 - [ ] **OWNER GATE — rollback:** accept exact stop triggers, repository rollback
       change, manual-only fallback, and authority to disable before activation.
-- [ ] Production P0-19 entrypoints exist on the exact selected identity, are
+- [x] Production P0-19 entrypoints exist on the exact selected identity, are
       reviewed and green, expose manual dispatch only, and map only accepted
       credentials.
+- [x] The three non-arena context callers are wired to the exact pinned
+      launch-overlay step before normal profile collection; arena callers omit
+      the download and retain their accepted enriched LKG path.
 - [ ] All per-community readiness gates below pass.
 - [ ] Manual context collection succeeds and its exact run ID/completion is
-      recorded before each matching prediction dispatch.
+      recorded before each matching prediction dispatch. For non-arena rows,
+      the same run must record the successful overlay and preserved enriched
+      head; for arena rows it must record preservation of the verified shared
+      enriched head.
 - [ ] Manual match and required bonus runs post the expected Kicktipp values,
       persist exact Firestore identities, use exact hosted prompts without local
       fallback, and pass payload-safe Langfuse/cost/error inspection.
@@ -205,10 +262,11 @@ to the schedule-free repository preparation described above.
 
 | Matrix row | Current unresolved fact | Evidence required before manual dispatch | Schedule state |
 |---|---|---|---|
-| `pes-production-reference` | Authentication and current 9-fixture/18-team Bundesliga 2026/27 read readiness passed, but POST permission is unknown; final `production-primary` remains gated | P0-21 obtains posting permission, exact Kicktipp deadlines, repository secret presence, and one inspected manual independent-generation cycle | No active schedule; dispatch forbidden until gates pass |
-| `schadensfresse-production-independent` | Authentication passed, but the community exposed 9 completed / 0 pending results and 0 current prediction inputs; Bundesliga 2026/27 is not ready and POST permission is unknown; external setup request pending | External community administrator fixes the 2026/27 competition; P0-21 then verifies readiness, posting permission/deadlines/repository-secret presence, and one inspected manual independent-generation cycle | No active schedule; dispatch forbidden until gates pass |
-| `arena-production-copy` | The production participant, exact credential names/profile, and production configuration are unresolved; the confirmed arena sibling profile belongs only to Luna validation | Owner admits the matching production participant, provisions its exact credentials, proves fixture compatibility and P0-24 bonus behavior, and verifies copy without an extra call or exact target-context fallback when incompatible | Nondeployable; no workflow or schedule |
-| `arena-challenger-<n>` | Zero challenger rows are admitted | Owner records every model/configuration/participant field and separately approves admission; the template alone creates nothing | Nondeployable |
+| `pes-production-reference` | Authentication and current 9-fixture/18-team Bundesliga 2026/27 read readiness passed; exact secrets and pinned overlay caller are prepared, but POST permission is unknown | P0-21 obtains posting permission and exact deadlines, inspects the overlay/profile context run, then inspects one independent-generation cycle | No active schedule; dispatch forbidden until gates pass |
+| `schadensfresse-production-independent` | Authentication passed and the pinned overlay caller is prepared, but the community exposed 9 completed / 0 pending results and 0 current prediction inputs; Bundesliga 2026/27 is not ready and POST permission is unknown; external setup request pending | External community administrator fixes the 2026/27 competition; P0-21 then verifies readiness/permission/deadlines, inspects the overlay/profile context run, and inspects one independent-generation cycle | No active schedule; do not dispatch pending setup |
+| `relaxdays-production-copy` | Exact secrets and pinned overlay caller are prepared; runtime readiness, default-rule compatibility, and POST permission are unknown | Authenticate, verify rules/readiness/deadlines, inspect the overlay/profile context run, and inspect one reference-copy cycle | No active schedule; dispatch forbidden until gates pass |
+| `arena-production-copy` | Sol/`xhigh`, its exact profile/secrets, and callers are prepared; runtime readiness and POST permission are unknown | Authenticate, verify fixture and P0-24 bonus compatibility, and inspect copy without an extra call or exact target-context fallback when incompatible | No active schedule; dispatch forbidden until gates pass |
+| Arena Sol/`high`, Luna/`medium`, Terra/`xhigh`, Luna/`none` | Exact rows and callers are admitted; secrets are Owner-confirmed present | Authenticate each participant, verify readiness/deadlines/POST permission, and inspect one self-contained cycle | No active schedule; dispatch forbidden until each row passes |
 
 One community passing does not activate another. P0-21 may enable only a row
 whose own manual evidence passes; failed or unverified rows remain manual-only

@@ -4,6 +4,7 @@ using Moq;
 using NodaTime;
 using Orchestrator.Commands.Observability.ExportExperimentItem;
 using Orchestrator.Infrastructure.Factories;
+using Orchestrator.Infrastructure;
 using Spectre.Console.Cli;
 using Spectre.Console.Testing;
 using static Orchestrator.Tests.Infrastructure.OrchestratorTestFactories;
@@ -87,7 +88,7 @@ public abstract class ExportExperimentItemCommandTests_Base
             Model,
             maxOutputTokenCount: 10000,
             promptName: "kicktippai/bundesliga-2026-27/predict-one-match",
-            promptVersion: 2);
+            promptVersion: CompetitionResolver.BundesligaMatchPromptVersion);
 
         var predictionRepository = CreateMockPredictionRepository(getPredictionMetadataResult: metadata);
         if (storedMatchException is not null)

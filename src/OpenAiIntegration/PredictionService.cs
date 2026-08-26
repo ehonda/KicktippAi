@@ -756,7 +756,7 @@ public class PredictionService : IPredictionService
             _logger.LogDebug("No context documents provided");
         }
 
-        return PredictionPromptComposer.BuildSystemPrompt(template, contextList);
+        return PredictionPromptComposer.BuildSystemPrompt(template, contextList, includeJustification);
     }
 
     private static byte[] BuildPredictionJsonSchema(bool includeJustification)

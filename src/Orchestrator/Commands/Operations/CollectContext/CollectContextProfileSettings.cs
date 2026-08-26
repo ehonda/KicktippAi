@@ -10,6 +10,10 @@ public sealed class CollectContextProfileSettings : CollectContextSettings
     [Description("The explicit community context to collect and publish the profile for")]
     public string CommunityContext { get; set; } = string.Empty;
 
+    [CommandOption("--kicktipp-credential-profile <PROFILE>")]
+    [Description("Optional participant profile suffix for .env.<community-context>.<profile> credential selection")]
+    public string? KicktippCredentialProfile { get; set; }
+
     [CommandOption("--competition <COMPETITION>")]
     [Description("The explicit competition profile identifier")]
     public string Competition { get; set; } = string.Empty;

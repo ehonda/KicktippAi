@@ -34,7 +34,7 @@ public static class CompetitionResolver
     public const string BundesligaMatchPromptName = "kicktippai/bundesliga-2026-27/predict-one-match";
     public const string BundesligaBonusPromptName = "kicktippai/bundesliga-2026-27/predict-bonus";
     public const string DefaultBundesligaPromptLabel = "production";
-    public const int BundesligaMatchPromptVersion = 2;
+    public const int BundesligaMatchPromptVersion = 3;
     public const int BundesligaBonusPromptVersion = 1;
     public const string BundesligaFallbackPromptModel = "bundesliga-2026-27";
     public const string BundesligaValidationModel = "gpt-5.6-luna";

@@ -2,8 +2,8 @@
 
 - Handoff ID: `buli-2627-p0-closeout-ready-2026-08-25`
 - Created: 2026-08-25
-- Last advanced: 2026-08-26
-- Status: **Active P0 closeout handoff; P0-23 and P0-25 are complete; P0 is not complete**
+- Last advanced: 2026-08-27
+- Status: **Active P0 closeout handoff; P0-06 and schedule-free P0-19 are complete; P0-21 remains**
 - Repository: `ehonda/KicktippAi`
 - Historical branch/remote baseline at creation: `main` / `origin/main`
 - Historical exact clean baseline at creation: `78ee2c0aa1b4e1b0093b7ef442936cf042ad2681`
@@ -11,12 +11,74 @@
 
 ## Resume objective
 
-Close P0 without crossing the remaining owner, spend, community-administrator,
-or production-activation gates. P0-23 and P0-25 are complete. Resume from the
-Owner selection gate in [P0-06](../tasks/p0-06-model-ledger-and-cost-baseline.md),
-then finish the
-model-bound production [P0-19](../tasks/p0-19-community-workflow-triad.md)
-callers, and finally [P0-21](../tasks/p0-21-production-activation.md).
+Close P0 through [P0-21](../tasks/p0-21-production-activation.md) without
+crossing its remaining community-administrator, runtime-write, or schedule
+activation gates. P0-06 and every ADR-0052 P0-19 repository row are complete.
+
+## Owner-selection and workflow closeout addendum — 2026-08-27
+
+- [ADR-0052](../decisions/0052-select-production-model-community-matrix-and-match-prompt-v3.md)
+  selects production `gpt-5.6-sol` / `xhigh` / cap `10000`, Flex-first /
+  Standard-fallback, and the non-enforced USD 35 planning orientation.
+- `pes-squad` and `schadensfresse` are independent primaries;
+  `relaxdays-tippt` and the arena Sol/`xhigh` participant copy the exact
+  `pes-squad` production identity. Self-contained arena challengers are
+  Sol/`high`, Luna/`medium`, Terra/`xhigh`, and Luna/`none`, all cap `10000`.
+- Match prompt v3 is hosted and checked in at normalized SHA-256
+  `7c223c0765024e52b542bbdb8093ab9b8fcaad505de0c5f8d6c92f4044e175f3`.
+  `production`, `staging`, and automatic `latest` each resolve version 3;
+  bonus remains version 1. Historical P0-23 runs remain immutable on v2.
+- All primary/copy/challenger workflow triads are prepared as independent
+  `workflow_dispatch` entrypoints with no schedules. No workflow was dispatched
+  and no prediction was posted during preparation.
+- The reusable context workflow now has a false-by-default pinned launch-roster
+  input. `pes-squad`, `relaxdays-tippt`, and the pending `schadensfresse`
+  caller opt in: their context job downloads the exact audited public artifact,
+  runs the SHA/revision/date-gated paired P0-25 overlay before ordinary profile
+  collection, and stops on any failure. Arena callers omit it and preserve the
+  already verified shared enriched head
+  `591adbc3cbc99ee93591f074ad218703c9badb2af4e267142898145825b77ea2`.
+- The Owner confirmed every exact canonical Kicktipp Actions username/password
+  pair in the community ledger provisioned on 2026-08-27. This is not API
+  enumeration, authentication, current-season readiness, or POST evidence.
+- Resume only with P0-21: remediate `schadensfresse` externally, validate every
+  participant/community manually, dispatch and inspect the prepared launch-
+  overlay/profile context path where applicable, record
+  deadlines and permissions, perform opening writes, then return to the final
+  Owner schedule gate and observe the first deliberately enabled sequence.
+- After this repository change is independently reviewed, integrated, pushed,
+  and green, the Owner authorizes manual context-then-prediction dispatch and
+  initial writes for `pes-squad`, `relaxdays-tippt`, and every selected arena
+  participant. Run primaries before dependent secondaries and stop on failure.
+  Keep `schadensfresse` unrun/manual-only. Successful evidence authorizes a
+  later root-owned schedule ADR/workflow lane for ready rows; this lane remains
+  schedule-free.
+
+This addendum supersedes later stale statements in this dated handoff that call
+the Owner selection, production callers, challenger rows, prompt v3, or secret
+provisioning unresolved.
+
+### Schedule-free repository validation
+
+- Release solution build completed with zero errors; existing dependency,
+  nullability, and obsolete-API warnings remain unchanged.
+- Full `OpenAiIntegration.Tests` passed `233/233` after the v3 mirror/hash and
+  unresolved-placeholder assertions were added.
+- Focused context-workflow contracts passed `12/12`, and the final full
+  `Orchestrator.Tests` suite passed `1136/1136` after the launch-overlay path.
+- The deterministic workflow contract passed with `2` prediction bases, `14`
+  callable WM26 callers, `12` explicitly retired Bundesliga callers, and `16`
+  current Bundesliga callers. Docker actionlint passed all `23` changed/new
+  workflow files.
+- The two checked-in match mirrors are byte-identical and reproduce normalized
+  v3 SHA-256
+  `7c223c0765024e52b542bbdb8093ab9b8fcaad505de0c5f8d6c92f4044e175f3`.
+  Changed/new Markdown relative links, added-content secret patterns, and
+  `git diff --check` passed.
+- No workflow dispatch, model call, Kicktipp post, prediction write, schedule,
+  bonus-prompt mutation, or roster publication was performed by this lane.
+  Independent exact-SHA review and integration remain the orchestrator's next
+  repository gates.
 
 ## P0-23 completion addendum — 2026-08-26
 
@@ -110,8 +172,10 @@ P0-23 was pending or blocked, the completion addendum above is authoritative.
   content-hash tuples and is not the dataset sync payload.
 - `pes-squad-context-collection.yml` and
   `schadensfresse-context-collection.yml` are integrated manual-only
-  `workflow_dispatch` context callers. They have no inputs, `workflow_call`, or
-  schedule and have never been dispatched.
+  `workflow_dispatch` context callers. They have no dispatch inputs,
+  `workflow_call`, or schedule and had never been dispatched at handoff
+  creation. ADR-0052 later added the reusable caller's exact internal launch-
+  overlay opt-in.
 - The four superseded `pes-squad` / `schadensfresse` Bundesliga 2025/26 match
   and bonus callers remain inert `workflow_call`-only paths with
   `retired_configuration: true`; the reusable prediction workflows reject them
@@ -159,8 +223,9 @@ objective and completion addendum above, not from its pending P0-23 steps.
    compatibility and independent target-context fallback plus fail-closed match
    copy behavior.
 7. P0-21 owns the remaining administrator and live gates: pinned enriched v2
-   roster publication through ADR-0051's paired explicit overlay mode to each
-   production community before its first prediction,
+   roster publication through the prepared ADR-0051 paired-overlay context
+   path for each non-arena production community before its first prediction,
+   preservation inspection of the exact already enriched arena head,
    external
    `schadensfresse` setup, names-only repository secret presence,
    authentication/current-season readiness, POST permission, exact match and

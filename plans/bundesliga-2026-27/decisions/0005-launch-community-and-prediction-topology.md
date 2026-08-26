@@ -1,6 +1,6 @@
 # ADR-0005: Launch all selected communities with reference prediction reuse
 
-- Status: Accepted
+- Status: Superseded by [ADR-0052](0052-select-production-model-community-matrix-and-match-prompt-v3.md)
 - Date: 2026-08-16
 
 ## Context

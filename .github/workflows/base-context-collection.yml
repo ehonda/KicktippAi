@@ -16,6 +16,11 @@ on:
         description: 'How this workflow was triggered (scheduled, manual)'
         required: true
         type: string
+      publish_launch_roster_overlay:
+        description: 'Publish the exact pinned Bundesliga launch-enrichment overlay before normal profile collection'
+        required: false
+        default: false
+        type: boolean
     secrets:
       kicktipp_username:
         description: 'Kicktipp username'
@@ -37,7 +42,7 @@ jobs:
   context-collection:
     name: Context Collection
     runs-on: ubuntu-latest
-    timeout-minutes: 30
+    timeout-minutes: 45
     
     steps:
       - name: Checkout repository
@@ -53,6 +58,33 @@ jobs:
         
       - name: Build project
         run: dotnet build --no-restore --configuration Release
+
+      - name: Download pinned Bundesliga launch roster artifact
+        if: ${{ inputs.publish_launch_roster_overlay }}
+        run: |
+          curl --fail --location --retry 3 --retry-all-errors \
+            --output "$RUNNER_TEMP/transfermarkt-datasets.duckdb" \
+            "https://pub-e682421888d945d684bcae8890b0ec20.r2.dev/data/transfermarkt-datasets.duckdb"
+
+      - name: Publish pinned Bundesliga launch roster enrichment
+        if: ${{ inputs.publish_launch_roster_overlay }}
+        run: |
+          dotnet run --no-build \
+            --project src/Orchestrator/Orchestrator.csproj \
+            --configuration Release -- \
+            collect-context rosters \
+            --community-context "${{ inputs.community_context }}" \
+            --competition "${{ inputs.competition }}" \
+            --duckdb-path "$RUNNER_TEMP/transfermarkt-datasets.duckdb" \
+            --duckdb-revision "154367dfa6d6eb0b86332e332f9df0a080c7ddce" \
+            --duckdb-snapshot-date "2026-08-13" \
+            --duckdb-sha256 "808959f5b5b16bb698180c348b269d9ec26e1d1a5538767ffe9d971b96796d1c" \
+            --require-launch-coverage \
+            --launch-enrichment-overlay \
+            --verbose
+        env:
+          FIREBASE_PROJECT_ID: ${{ secrets.firebase_project_id }}
+          FIREBASE_SERVICE_ACCOUNT_JSON: ${{ secrets.firebase_service_account_json }}
         
       - name: Run context collection
         run: |
@@ -73,9 +105,12 @@ jobs:
       - name: Build summary
         if: always()
         run: |
-          echo "## Context Collection Job" >> "$GITHUB_STEP_SUMMARY"
-          echo "- **Community context:** \`${{ inputs.community_context }}\`" >> "$GITHUB_STEP_SUMMARY"
-          echo "- **Requested competition:** \`${{ inputs.competition }}\`" >> "$GITHUB_STEP_SUMMARY"
-          echo "- **Trigger:** ${{ inputs.trigger_type }}" >> "$GITHUB_STEP_SUMMARY"
-          echo "- **Timestamp:** $(date -u)" >> "$GITHUB_STEP_SUMMARY"
-          echo "- **Status:** ${{ job.status }}" >> "$GITHUB_STEP_SUMMARY"
+          {
+            echo "## Context Collection Job"
+            echo "- **Community context:** \`${{ inputs.community_context }}\`"
+            echo "- **Requested competition:** \`${{ inputs.competition }}\`"
+            echo "- **Pinned launch roster overlay:** \`${{ inputs.publish_launch_roster_overlay }}\`"
+            echo "- **Trigger:** ${{ inputs.trigger_type }}"
+            echo "- **Timestamp:** $(date -u)"
+            echo "- **Status:** ${{ job.status }}"
+          } >> "$GITHUB_STEP_SUMMARY"

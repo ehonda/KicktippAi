@@ -66,6 +66,29 @@ public class CollectContextProfileCommandTests
     }
 
     [Test]
+    public async Task Explicit_participant_profile_is_loaded_for_context_community()
+    {
+        var executor = CreateExecutor([]);
+        var credentialLoader = new Mock<ICommunityKicktippCredentialLoader>();
+        var (app, console) = CreateApp(executor, credentialLoader);
+
+        var (exitCode, _) = await RunCommandAsync(
+            app,
+            console,
+            "collect-context-profile",
+            "--community-context", "ehonda-ai-arena",
+            "--competition", CompetitionIds.Bundesliga2026_27,
+            "--kicktipp-credential-profile", "gpt-5-6-sol-xhigh",
+            "--dry-run");
+
+        await Assert.That(exitCode).IsEqualTo(0);
+        credentialLoader.Verify(
+            loader => loader.Load("ehonda-ai-arena", "gpt-5-6-sol-xhigh"),
+            Times.Once);
+        credentialLoader.Verify(loader => loader.Load("ehonda-ai-arena"), Times.Never);
+    }
+
+    [Test]
     public async Task Explicit_Bundesliga_profile_forwards_full_season_scope_to_every_lazy_collector()
     {
         var executed = new List<(CompetitionCollector Collector, CompetitionCollectorExecutionContext Context)>();

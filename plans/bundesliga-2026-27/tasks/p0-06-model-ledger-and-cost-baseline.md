@@ -1,9 +1,9 @@
 # P0-06 — Pin the model ledger and launch cost baseline
 
-- Status: In progress — P0-23 comparative cost/quality evidence complete; Owner production-model, arena-participant, policy, and ceiling decision pending
+- Status: Complete — ADR-0052 records the Owner-selected production identity, arena matrix, planning ceiling, and match-prompt successor
 - Priority: P0
 - Depends on: [P0-05](p0-05-prompt-route.md) (complete; owner-approved production prompt versions and hashes recorded below), [P0-23](p0-23-gpt-5-6-production-candidate-evidence.md)
-- Decisions: [ADR-0004](../decisions/0004-hosted-prompts-with-local-fallback.md), [ADR-0006](../decisions/0006-stage-validation-with-a-cheap-test-model.md), [ADR-0033](../decisions/0033-pin-validation-model-ledger-and-reserve-production-selection.md), [ADR-0039](../decisions/0039-record-bundesliga-community-and-credential-topology.md), [ADR-0040](../decisions/0040-use-hash-bound-2025-26-context-for-preseason-cost-experiments.md), [ADR-0043](../decisions/0043-freeze-historical-experiment-aliases-and-eligible-pool.md), [ADR-0046](../decisions/0046-bind-cost-usage-to-langfuse-dataset-runs.md)
+- Decisions: [ADR-0004](../decisions/0004-hosted-prompts-with-local-fallback.md), [ADR-0006](../decisions/0006-stage-validation-with-a-cheap-test-model.md), [ADR-0033](../decisions/0033-pin-validation-model-ledger-and-reserve-production-selection.md), [ADR-0039](../decisions/0039-record-bundesliga-community-and-credential-topology.md), [ADR-0040](../decisions/0040-use-hash-bound-2025-26-context-for-preseason-cost-experiments.md), [ADR-0043](../decisions/0043-freeze-historical-experiment-aliases-and-eligible-pool.md), [ADR-0046](../decisions/0046-bind-cost-usage-to-langfuse-dataset-runs.md), [ADR-0052](../decisions/0052-select-production-model-community-matrix-and-match-prompt-v3.md)
 
 ## Outcome
 
@@ -15,7 +15,7 @@ The cheap plumbing configuration and the later owner-approved launch configurati
 - [x] Prepare the reproducible no-spend experiment and whole-season cost procedure for the late owner decision, accounting for the model cutoff and the lack of a matching paid base row.
 - [x] Add the hash-bound, read-only Bundesliga 2025/26 compatibility route required to prepare the preseason cost sample without relaxing live 2026/27 validation or mutating historical Firestore rows.
 - [x] Freeze the producer-era 18-team alias catalog and sample once from the complete context-eligible historical pool rather than selecting fixtures before reconstruction coverage is known.
-- [ ] After P0-23 supplies comparative cost/quality evidence or the owner explicitly waives missing evidence, pause production onboarding for the owner to select the final model, reasoning effort, maximum output tokens, accepted prompt versions, arena challengers, fallback behavior, and cost ceiling; record the approved values and any waiver in an ADR.
+- [x] After P0-23 supplied comparative cost/quality evidence, pause production onboarding for the Owner to select the final model, reasoning effort, maximum output tokens, accepted prompt versions, arena challengers, fallback behavior, and planning ceiling; record the approved values in ADR-0052.
 - [x] Add the exact configuration to the repository's model/onboarding ledger rather than relying on command defaults.
 - [x] Estimate 306 fixtures and the documented 493-call reprediction baseline from the paid Luna/none preseason seven-document proxy row, explicitly retaining its possible understatement versus the live eleven-document 2026/27 context.
 - [x] Record the no-spend estimator result, assumptions, official prices, and date in `docs/experiments/whole-season-cost-estimates.md`.
@@ -32,6 +32,35 @@ The cheap plumbing configuration and the later owner-approved launch configurati
 - Match: `kicktippai/bundesliga-2026-27/predict-one-match` version 2, normalized SHA-256 `94a7aa775546028d3ded89f626873d7dfce162d1f08bb9573e102dd427ac08c1`.
 - Bonus: `kicktippai/bundesliga-2026-27/predict-bonus` version 1, normalized SHA-256 `332bac6d654871d843fc8a47345ff3e2b1f902fa8d1d2243166283304bb005e9`.
 - The owner approved production promotion on 2026-08-21; `staging`, `production`, and automatic `latest` resolve those versions. P0-06 must pin the numbered versions in the ledger rather than the floating labels.
+
+The lines above are the immutable v2 experiment input. ADR-0052 selects the
+live successor match version 3, normalized SHA-256
+`7c223c0765024e52b542bbdb8093ab9b8fcaad505de0c5f8d6c92f4044e175f3`,
+with bonus version 1 unchanged. Historical P0-23 manifests stay pinned to v2.
+
+## Owner-selected launch ledger — 2026-08-27
+
+| Role | Model | Reasoning | Maximum output tokens | Match / bonus prompt |
+| --- | --- | --- | ---: | --- |
+| `production-primary` | `gpt-5.6-sol` | `xhigh` | 10000 | v3 / v1 |
+| Arena challenger | `gpt-5.6-sol` | `high` | 10000 | v3 / v1 |
+| Arena challenger | `gpt-5.6-luna` | `medium` | 10000 | v3 / v1 |
+| Arena challenger | `gpt-5.6-terra` | `xhigh` | 10000 | v3 / v1 |
+| Arena challenger/validation | `gpt-5.6-luna` | `none` | 10000 | v3 / v1 |
+
+Every generation row uses Flex first with Standard fallback. The USD 35
+whole-season total is an orientation ceiling, not a runtime enforcement gate.
+At the evidence-derived 493-call baseline, two independent production streams
+plus the four challenger streams project to USD `14.094805910000`; secondary
+copies make no additional compatible-path model call. ADR-0052 records the
+exact evidence, topology, and Owner reasoning.
+
+The later exploratory/post-hoc Sol/`max` follow-up at exact lane commit
+`f7dd2aee6c35fec26a5f09df0f1a68d82495f01b` corroborates but does not
+retroactively preregister the decision: average `27.6` versus Sol/`xhigh`
+`27.8`, paired xhigh-minus-max `+0.2`, 95% bootstrap CI `[-1.2, 1.6]`,
+Holm-adjusted `p = 0.8918`, and a 493-call estimate of `$7.903381600000`.
+P0-06 had already settled independently.
 
 ## Evidence — 2026-08-21 and 2026-08-25
 

@@ -2,6 +2,51 @@
 
 This read-only audit records which production prerequisites can be verified before the owner selects the final model and arena participants. It is prerequisite evidence for [P0-21](../../plans/bundesliga-2026-27/tasks/p0-21-production-activation.md), not production validation or authorization to post predictions.
 
+## Owner-selection and provisioning addendum — 2026-08-27
+
+[ADR-0052](../../plans/bundesliga-2026-27/decisions/0052-select-production-model-community-matrix-and-match-prompt-v3.md)
+supersedes this audit's unresolved model/participant statements. The Owner
+selected Sol/`xhigh` production, four exact arena challengers, and the added
+`relaxdays-tippt` production copy. All corresponding repository callers are
+prepared as manual-only entrypoints; no schedule or dispatch was added.
+
+The Owner also confirmed every canonical Actions Kicktipp username/password
+pair provisioned:
+
+- `PES_SQUAD_KICKTIPP_USERNAME` / `PES_SQUAD_KICKTIPP_PASSWORD`;
+- `SCHADENSFRESSE_KICKTIPP_USERNAME` / `SCHADENSFRESSE_KICKTIPP_PASSWORD`;
+- `RELAXDAYS_TIPPT_KICKTIPP_USERNAME` / `RELAXDAYS_TIPPT_KICKTIPP_PASSWORD`;
+- `EHONDA_AI_ARENA_GPT_5_6_SOL_XHIGH_KICKTIPP_USERNAME` /
+  `EHONDA_AI_ARENA_GPT_5_6_SOL_XHIGH_KICKTIPP_PASSWORD`;
+- `EHONDA_AI_ARENA_GPT_5_6_SOL_HIGH_KICKTIPP_USERNAME` /
+  `EHONDA_AI_ARENA_GPT_5_6_SOL_HIGH_KICKTIPP_PASSWORD`;
+- `EHONDA_AI_ARENA_GPT_5_6_LUNA_MEDIUM_KICKTIPP_USERNAME` /
+  `EHONDA_AI_ARENA_GPT_5_6_LUNA_MEDIUM_KICKTIPP_PASSWORD`;
+- `EHONDA_AI_ARENA_GPT_5_6_TERRA_XHIGH_KICKTIPP_USERNAME` /
+  `EHONDA_AI_ARENA_GPT_5_6_TERRA_XHIGH_KICKTIPP_PASSWORD`; and
+- the existing `EHONDA_AI_ARENA_GPT_5_6_LUNA_NONE_KICKTIPP_USERNAME` /
+  `EHONDA_AI_ARENA_GPT_5_6_LUNA_NONE_KICKTIPP_PASSWORD` pair.
+
+The [community ledger](community-onboarding.md) records the same exact names.
+This Owner confirmation replaces the generic secret-presence uncertainty for
+those exact names. It does not claim successful API enumeration,
+authentication, current-season readiness, POST permission, or a workflow run.
+
+Current runtime conclusions are:
+
+| Posting target/participant | Current evidence | Remaining P0-21 gate |
+| --- | --- | --- |
+| `pes-squad` | Prior authentication/read readiness passed; exact secrets Owner-confirmed present | Reauthenticate, POST permission, deadlines, enriched roster publication, manual context/prediction/bonus evidence |
+| `schadensfresse` | Exact secrets Owner-confirmed present; prior authentication passed | External season setup, exact-nine read gate, POST permission, deadlines, roster/manual evidence |
+| `relaxdays-tippt` | Exact secrets Owner-confirmed present; schedule-free copy callers prepared | Authentication/readiness, default-rule compatibility confirmation, POST permission, deadlines, roster/manual copy evidence |
+| Arena Sol/`xhigh` copy | Exact participant and secrets Owner-confirmed; callers prepared | Authentication/readiness, POST permission, deadlines, roster/manual production-copy evidence |
+| Arena Sol/`high`, Luna/`medium`, Terra/`xhigh` | Exact participants and secrets Owner-confirmed; callers prepared | Authentication/readiness, POST permission, deadlines, roster/manual self-contained evidence |
+| Arena Luna/`none` | Existing validation ladder passed and secrets remain provisioned | Future challenger dispatch remains manual; prior evidence does not activate a schedule |
+
+The dated sections below remain the read-only evidence as observed on
+2026-08-25/26. Where they call the model, participants, names, or callers
+unresolved, this addendum is authoritative.
+
 ## Result
 
 | Posting target | Credential authentication | Bundesliga 2026/27 read readiness | Posting rights | Repository/live boundary |

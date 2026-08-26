@@ -58,6 +58,7 @@ public class MatchdayCommand_Telemetry_Tests : MatchdayCommandTests_Base
     [Test]
     [Arguments("pes-squad")]
     [Arguments("schadensfresse")]
+    [Arguments("relaxdays-tippt")]
     [NotInParallel("Telemetry")]
     public async Task Production_community_sets_environment_to_production(string community)
     {
@@ -109,7 +110,7 @@ public class MatchdayCommand_Telemetry_Tests : MatchdayCommandTests_Base
             "--prompt-source", "langfuse",
             "--langfuse-prompt-name", "kicktippai/bundesliga-2026-27/predict-one-match",
             "--langfuse-prompt-label", "production",
-            "--langfuse-prompt-version", "2");
+            "--langfuse-prompt-version", "3");
 
         var rootActivity = FindMatchdayActivity(capturedActivities, community, model);
         await Assert.That(exitCode).IsEqualTo(0);
@@ -121,7 +122,7 @@ public class MatchdayCommand_Telemetry_Tests : MatchdayCommandTests_Base
         await Assert.That(rootActivity.GetTagItem("langfuse.trace.metadata.reasoningEffort") as string).IsEqualTo("none");
         await Assert.That(rootActivity.GetTagItem("langfuse.trace.metadata.maxOutputTokens") as string).IsEqualTo("10000");
         await Assert.That(rootActivity.GetTagItem("langfuse.trace.metadata.promptName") as string).IsEqualTo("kicktippai/bundesliga-2026-27/predict-one-match");
-        await Assert.That(rootActivity.GetTagItem("langfuse.trace.metadata.promptVersion") as string).IsEqualTo("2");
+        await Assert.That(rootActivity.GetTagItem("langfuse.trace.metadata.promptVersion") as string).IsEqualTo("3");
     }
 
     [Test]

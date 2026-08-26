@@ -90,15 +90,28 @@ credentials; `community-context` never does. This distinction is required for
 an arena command that posts to `ehonda-ai-arena` while reusing `pes-squad`
 context.
 
+When multiple participants post to the same community, pass
+`--kicktipp-credential-profile <participant-profile>`. The loader then selects
+`.env.<posting-community>.<participant-profile>` and validates the profile as a
+lowercase path-safe slug. Bundesliga 2026/27 uses:
+
+- `.env.ehonda-ai-arena.gpt-5-6-sol-xhigh`;
+- `.env.ehonda-ai-arena.gpt-5-6-sol-high`;
+- `.env.ehonda-ai-arena.gpt-5-6-luna-medium`; and
+- `.env.ehonda-ai-arena.gpt-5-6-terra-xhigh`.
+
+The option is available on `matchday`, `bonus`, `verify`, `verify-bonus`, and
+`collect-context profile`. Omit it for ordinary community profiles such as
+`.env.pes-squad`, `.env.schadensfresse`, and `.env.relaxdays-tippt`.
+
 `prepare-community-to-date` similarly uses
 `.env.<community-context>` because that command's community context is also its
 Kicktipp source. Credential values are never written to logs.
 
 For Bundesliga 2026/27, the base `.env` remains the
 `ehonda-dev-buli-2627` development source and `.env.ehonda-ai-arena` is
-reserved for the confirmed Luna/none validation participant. It must not be
-treated as credentials for a future production or challenger arena
-participant. See the
+reserved for the Luna/none validation/challenger participant. It is not reused
+for another arena participant. See the
 [authoritative community matrix](../../docs/onboarding-bundesliga-2026-27/community-onboarding.md).
 
 **Example `.env` file:**

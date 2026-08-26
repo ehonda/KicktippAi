@@ -47,6 +47,24 @@ public class VerifyBonusCommand_CredentialLoading_Tests : VerifyBonusCommandTest
     }
 
     [Test]
+    public async Task Explicit_participant_profile_is_loaded_for_posting_community()
+    {
+        var context = CreateVerifyBonusCommandApp();
+
+        await context.App.RunAsync([
+            "verify-bonus", "test-model",
+            "--community", "ehonda-ai-arena",
+            "--community-context", "pes-squad",
+            "--kicktipp-credential-profile", "gpt-5-6-sol-xhigh"
+        ]);
+
+        context.CredentialLoader.Verify(
+            loader => loader.Load("ehonda-ai-arena", "gpt-5-6-sol-xhigh"),
+            Times.Once);
+        context.CredentialLoader.Verify(loader => loader.Load("ehonda-ai-arena"), Times.Never);
+    }
+
+    [Test]
     public async Task Invalid_competition_does_not_load_credentials_or_create_client()
     {
         var context = CreateVerifyBonusCommandApp();

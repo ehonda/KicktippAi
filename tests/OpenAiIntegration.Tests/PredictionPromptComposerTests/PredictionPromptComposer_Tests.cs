@@ -89,6 +89,64 @@ public class PredictionPromptComposer_Tests
     }
 
     [Test]
+    public async Task Building_system_prompt_removes_justification_placeholder_when_justification_is_not_requested()
+    {
+        var result = PredictionPromptComposer.BuildSystemPrompt(
+            "Predict the score.{{justification_explainer}}",
+            [],
+            includeJustification: false);
+
+        await Assert.That(result)
+            .IsEqualTo("Predict the score.")
+            .And.DoesNotContain("justification")
+            .And.DoesNotContain("{{justification_explainer}}");
+    }
+
+    [Test]
+    public async Task Building_system_prompt_expands_justification_placeholder_only_when_requested()
+    {
+        var result = PredictionPromptComposer.BuildSystemPrompt(
+            "Predict the score.{{justification_explainer}}",
+            [],
+            includeJustification: true);
+
+        await Assert.That(result)
+            .Contains("Populate the `justification` object concisely")
+            .And.DoesNotContain("{{justification_explainer}}");
+    }
+
+    [Test]
+    [Arguments("{{context_documents}}{{context_documents}}")]
+    [Arguments("{{justification_explainer}}{{justification_explainer}}")]
+    public async Task Building_system_prompt_rejects_duplicate_supported_placeholders(string template)
+    {
+        await Assert.That(() => PredictionPromptComposer.BuildSystemPrompt(
+                template,
+                [],
+                includeJustification: true))
+            .Throws<InvalidOperationException>();
+    }
+
+    [Test]
+    public async Task Building_system_prompt_rejects_an_unknown_template_placeholder()
+    {
+        await Assert.That(() => PredictionPromptComposer.BuildSystemPrompt(
+                "Predict the score. {{unknown_variable}}",
+                []))
+            .Throws<InvalidOperationException>();
+    }
+
+    [Test]
+    public async Task Building_system_prompt_does_not_interpret_context_content_as_template_syntax()
+    {
+        var result = PredictionPromptComposer.BuildSystemPrompt(
+            "{{context_documents}}",
+            [new DocumentContext("literal.txt", "Retain {{literal_context_text}} exactly.")]);
+
+        await Assert.That(result).Contains("Retain {{literal_context_text}} exactly.");
+    }
+
+    [Test]
     public async Task Creating_match_json_uses_expected_payload_shape()
     {
         var match = new Match(

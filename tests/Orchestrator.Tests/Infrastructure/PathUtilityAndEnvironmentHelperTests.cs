@@ -185,6 +185,50 @@ public class PathUtilityAndEnvironmentHelperTests : TempDirectoryTestBase
     }
 
     [Test]
+    public async Task Loading_participant_profile_uses_exact_community_and_profile_file()
+    {
+        var (_, secretsRoot) = CreateSolutionAndSecretsDirectories();
+        var orchestratorSecretsDirectory = Path.Combine(secretsRoot, "src", "Orchestrator");
+        Directory.CreateDirectory(orchestratorSecretsDirectory);
+        File.WriteAllText(
+            Path.Combine(orchestratorSecretsDirectory, ".env.ehonda-ai-arena"),
+            "KICKTIPP_USERNAME=luna-user\nKICKTIPP_PASSWORD=luna-pass");
+        File.WriteAllText(
+            Path.Combine(orchestratorSecretsDirectory, ".env.ehonda-ai-arena.gpt-5-6-sol-xhigh"),
+            "KICKTIPP_USERNAME=sol-user\nKICKTIPP_PASSWORD=sol-pass");
+
+        EnvironmentHelper.LoadCommunityKicktippCredentials(
+            new FakeLogger<PathUtilityAndEnvironmentHelperTests>(),
+            "ehonda-ai-arena",
+            "gpt-5-6-sol-xhigh");
+
+        await Assert.That(Environment.GetEnvironmentVariable(KicktippUsernameEnvVar)).IsEqualTo("sol-user");
+        await Assert.That(Environment.GetEnvironmentVariable(KicktippPasswordEnvVar)).IsEqualTo("sol-pass");
+    }
+
+    [Test]
+    [Arguments("../escape")]
+    [Arguments("nested/profile")]
+    [Arguments("gpt--5-6-sol-xhigh")]
+    [Arguments("GPT-5-6-sol-xhigh")]
+    [Arguments(" gpt-5-6-sol-xhigh")]
+    public async Task Invalid_participant_profile_is_rejected_before_path_resolution_or_state_change(string profile)
+    {
+        Directory.SetCurrentDirectory(TestDirectory);
+        Environment.SetEnvironmentVariable(KicktippUsernameEnvVar, "base-user");
+        Environment.SetEnvironmentVariable(KicktippPasswordEnvVar, "base-pass");
+
+        await Assert.That(() => EnvironmentHelper.LoadCommunityKicktippCredentials(
+                new FakeLogger<PathUtilityAndEnvironmentHelperTests>(),
+                "ehonda-ai-arena",
+                profile))
+            .Throws<ArgumentException>();
+
+        await Assert.That(Environment.GetEnvironmentVariable(KicktippUsernameEnvVar)).IsEqualTo("base-user");
+        await Assert.That(Environment.GetEnvironmentVariable(KicktippPasswordEnvVar)).IsEqualTo("base-pass");
+    }
+
+    [Test]
     public async Task Missing_community_file_preserves_base_credentials()
     {
         CreateSolutionAndSecretsDirectories();

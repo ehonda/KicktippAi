@@ -137,6 +137,7 @@ public class MatchdayCommand : AsyncCommand<BaseSettings>
     {
         "schadensfresse",
         "pes-squad",
+        "relaxdays-tippt",
         "ehonda-ai-arena",
         "rabetrabauken2026"
     };
@@ -177,7 +178,14 @@ public class MatchdayCommand : AsyncCommand<BaseSettings>
                 "The WM 2026 hosted match prompt does not support responses with justification. Use local prompts or omit --with-justification.");
         }
 
-        _credentialLoader.Load(settings.Community);
+        if (string.IsNullOrWhiteSpace(settings.KicktippCredentialProfile))
+        {
+            _credentialLoader.Load(settings.Community);
+        }
+        else
+        {
+            _credentialLoader.Load(settings.Community, settings.KicktippCredentialProfile);
+        }
 
         // Create services using factories
         var kicktippClient = _kicktippClientFactory.CreateClient();

@@ -803,10 +803,10 @@ public class PredictionService_PredictMatchAsync_Tests : PredictionServiceTests_
                 ActualSource: "langfuse",
                 LangfusePromptName: "kicktippai/bundesliga-2026-27/predict-one-match",
                 LangfusePromptLabel: "production",
-                LangfusePromptVersion: 2,
+                LangfusePromptVersion: 3,
                 IsFallback: false,
-                PromptPath: "langfuse://prompts/kicktippai%2Fbundesliga-2026-27%2Fpredict-one-match/versions/2?label=production",
-                ContentSha256: "94a7aa775546028d3ded89f626873d7dfce162d1f08bb9573e102dd427ac08c1"));
+                PromptPath: "langfuse://prompts/kicktippai%2Fbundesliga-2026-27%2Fpredict-one-match/versions/3?label=production",
+                ContentSha256: "7c223c0765024e52b542bbdb8093ab9b8fcaad505de0c5f8d6c92f4044e175f3"));
         var service = CreateService(
             CreateMockChatClient("""{"home": 2, "away": 1}"""),
             templateProvider: NullableOption.Some(templateProvider.Object),
@@ -840,8 +840,8 @@ public class PredictionService_PredictMatchAsync_Tests : PredictionServiceTests_
         await Assert.That(activity.GetTagItem("langfuse.observation.metadata.competition")).IsEqualTo("bundesliga-2026-27");
         await Assert.That(activity.GetTagItem("langfuse.observation.prompt.name"))
             .IsEqualTo("kicktippai/bundesliga-2026-27/predict-one-match");
-        await Assert.That(activity.GetTagItem("langfuse.observation.prompt.version")).IsEqualTo(2);
-        await Assert.That(activity.GetTagItem("langfuse.observation.metadata.langfusePromptVersion")).IsEqualTo(2);
+        await Assert.That(activity.GetTagItem("langfuse.observation.prompt.version")).IsEqualTo(3);
+        await Assert.That(activity.GetTagItem("langfuse.observation.metadata.langfusePromptVersion")).IsEqualTo(3);
         await Assert.That(activity.GetTagItem("langfuse.observation.input")?.ToString()).Contains("\"role\":\"system\"");
         await Assert.That(activity.GetTagItem("langfuse.observation.input")?.ToString()).Contains("\"role\":\"user\"");
         await Assert.That(activity.GetTagItem("langfuse.observation.output")).IsEqualTo("""{"home": 2, "away": 1}""");

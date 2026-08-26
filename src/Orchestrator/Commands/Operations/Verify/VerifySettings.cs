@@ -19,6 +19,10 @@ public class VerifySettings : CommandSettings
     [Description("The community context for filtering predictions (defaults to community name if not specified)")]
     public string? CommunityContext { get; set; }
 
+    [CommandOption("--kicktipp-credential-profile")]
+    [Description("Optional participant profile suffix for .env.<community>.<profile> credential selection")]
+    public string? KicktippCredentialProfile { get; set; }
+
     [CommandOption("--competition")]
     [Description("Competition identifier (defaults to bundesliga-2026-27; WM26 communities default to fifa-world-cup-2026)")]
     public string? Competition { get; set; }
