@@ -84,6 +84,55 @@ The cheap plumbing configuration and the later owner-approved launch configurati
   prediction, workflow, or schedule changed. The Owner selection and new
   Accepted ADR remain the sole active P0-06 decision gate.
 
+## Sol/`max` cost-only follow-up — 2026-08-26
+
+- The Owner authorized one Sol/`max` cost preflight and, if admitted, one exact
+  5-by-4 calibration under a new strict USD 5 sub-ledger and the existing USD
+  30 P0 ceiling. The initial 60-minute deadline was explicitly extended to 120
+  minutes without resetting its `2026-08-26T20:29:20.3751477Z` start. This
+  follow-up collected cost evidence only; it did not run a quality experiment
+  or change any model-selection decision.
+- Both stages reused the already-audited hosted Luna/`none` cost slices without
+  resynchronizing them. The one-item dataset is
+  `cmt86fx6o0aeuad0dg99ivamv` (dataset SHA-256
+  `389b806e89b08169ea0092667d7fc774f0737c6e235e44b4fbf18c81c412c717`),
+  and the 20-item dataset is `cmt86m8gn0awvad0eyx7mn5f6` (dataset SHA-256
+  `0fbc3e07f926596805a23bbe3241fcf2ec368858f217cb1e05ccbac96c907d18`).
+  Both bind the same 109-fixture eligible-pool hash recorded above.
+- The 20,000-token-cap preflight completed on Flex with 2,463 input tokens,
+  9,893 output tokens, 9,874 reasoning tokens, and observed cost
+  `$0.103856000000`. Exact dataset-run collection bound 1/1 item before the
+  calibration gate was evaluated; the cap was not escalated.
+- The parallelism-5 calibration completed without a retry and collected 20/20
+  exact-bound items from dataset run
+  `0205df36-af15-47ab-9f7e-4caf844932a3`. It used 48,752 input tokens and
+  22,312 output tokens, of which 21,932 were reasoning tokens; 19 requests
+  remained on Flex and one used standard fallback. Maximum per-item output was
+  6,751 of 20,000. Accepted collection completed after 921.701252 seconds on
+  the original clock, inside the extended deadline.
+- Observed calibration cost was `$0.265793800000`. The authoritative base row
+  normalizes all 48,752 input tokens as uncached Flex input, yielding
+  `$0.320624000000` total and `$0.016031200000` per prediction. This normalized
+  planning estimate is intentionally higher than the observed mixed
+  cached/tier bill; it is not additional spend.
+- Exact normalized estimates are `$0.320624000000` for 20 predictions,
+  `$1.603120000000` for 100, `$2.404680000000` for 150,
+  `$3.206240000000` for 200, `$4.905547200000` for 306, and
+  `$7.903381600000` for 493. The
+  [tracked compact evidence](../../../.agents/skills/estimate-experiment-cost-skill/references/gpt-5.6-sol-max-base-estimate-2026-08-26.md)
+  records the exact run identity, provenance, usage hash, and estimator output.
+- Actual incremental settled exposure was `$0.369649800000` across the two new
+  experiment attempts, with no new reservation. Actual global exposure was
+  `$5.177587070000`: `$5.077987070000` across 33 settled attempts plus the
+  three pre-existing reservations totaling `$0.099600000000`. The final
+  machine gates displayed `$0.385681000000` and `$5.193618270000` because the
+  gate requires a candidate and therefore included one authoritative-row
+  `$0.016031200000` sentinel. That sentinel is conservative one-more-call
+  headroom, not spent, in flight, or reserved.
+- Sol/`max` now has reproducible season-cost evidence, but no quality result and
+  no recommendation. The unchecked Owner production-model and arena-participant
+  decision remains unchanged.
+
 ## Complete when
 
 - P0-23 supplies the owner-required comparative evidence, or the owner records

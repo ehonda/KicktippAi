@@ -178,6 +178,40 @@ Settlement artifact SHA-256 is
 See the quality-results report for exact quality run IDs, scores, fallback
 counts, timings, statistical results, and the Luna/`max` exclusion.
 
+## P0-06 follow-up Sol/max cost-only probe
+
+After P0-23 closed, the Owner separately authorized a Sol/`max` cost-row probe
+under strict incremental USD 5 and global USD 30 ceilings. This follow-up is
+not part of the quality matrix and makes no production or arena selection.
+
+The exact one-item preflight used cap `20000`, dataset run
+`492c8cad-9cda-4dd9-ab1c-31b22a32cddf`, `2463` input, `9893` output, `9874`
+reasoning tokens, Flex without fallback, and `$0.103856000000` observed cost.
+Fresh dual gates then admitted the exact five-by-four run.
+
+Dataset run `0205df36-af15-47ab-9f7e-4caf844932a3` completed 20/20 at
+parallelism `5`; no retry was needed. It observed Flex `19` plus one Standard
+fallback, maximum output `6751 / 20000`, and `$0.265793800000` paid cost. The
+authoritative all-input-uncached Flex row is:
+
+| Model / effort | Cap | Conservative 20-call cost | Average / prediction | 306 calls | 493 calls |
+|---|---:|---:|---:|---:|---:|
+| Sol / `max` cost-only probe | 20000 | `$0.320624000000` | `$0.016031200000` | `$4.905547200000` | `$7.903381600000` |
+
+The shared monotonic clock began at `2026-08-26T20:29:20.3751477Z`. The Owner
+extended that same clock from 60 to 120 minutes without resetting it; accepted
+calibration collection completed after `921.701252` seconds. New settled spend
+is `$0.369649800000`. Global observed spend is `$5.077987070000`; with the
+unchanged three older reservations, actual global exposure is
+`$5.177587070000`.
+
+Final dual gates include an explicitly unexecuted one-call sentinel because
+`budget-gate` requires a candidate. That `$0.016031200000` entry is conservative
+one-more-call headroom, not spent, in flight, or reserved. It yields displayed
+incremental/global all-in totals `$0.385681000000` / `$5.193618270000`; no call
+was made for it. Full immutable evidence is
+[tracked with the estimator skill](../../.agents/skills/estimate-experiment-cost-skill/references/gpt-5.6-sol-max-base-estimate-2026-08-26.md).
+
 ## Reproduction
 
 Each row was persisted with `upsert-row` only after exact 20-item collection.
@@ -185,6 +219,7 @@ The reported planning counts were regenerated immediately before this report
 with these exact commands:
 
 ```powershell
+uv --cache-dir .uv-cache run python .agents/skills/estimate-experiment-cost-skill/scripts/experiment_cost_estimator.py estimate --counts 20,100,150,200,306,493 --model gpt-5.6-sol --reasoning-effort max
 uv --cache-dir .uv-cache run python .agents/skills/estimate-experiment-cost-skill/scripts/experiment_cost_estimator.py estimate --counts 20,100,150,200,306,493 --model gpt-5.6-sol --reasoning-effort xhigh
 uv --cache-dir .uv-cache run python .agents/skills/estimate-experiment-cost-skill/scripts/experiment_cost_estimator.py estimate --counts 20,100,150,200,306,493 --model gpt-5.6-sol --reasoning-effort high
 uv --cache-dir .uv-cache run python .agents/skills/estimate-experiment-cost-skill/scripts/experiment_cost_estimator.py estimate --counts 20,100,150,200,306,493 --model gpt-5.6-sol --reasoning-effort medium

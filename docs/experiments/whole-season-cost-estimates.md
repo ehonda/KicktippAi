@@ -1,16 +1,17 @@
 # Whole-Season Cost Estimates
 
-Last estimate refresh: 2026-08-25
+Last estimate refresh: 2026-08-26
 
-Coverage note updated: 2026-08-25
+Coverage note updated: 2026-08-26
 
 This estimate projects match prediction cost for two full competitions, all
 `gpt-5.5` reasoning efforts, four comparison configurations, and the current
 WM26 onboarding configurations for `gpt-5-nano` / `minimal`, `gpt-5.5` /
 `none`, `gpt-5.5` / `xhigh`, `gpt-5.4-nano` / `none`, `o3` / `medium`, and
 `o3` / `high`, plus the Bundesliga `gpt-5.6-luna` / `none` validation
-configuration. Bonus question cost is excluded because it is negligible
-relative to full-season match prediction cost.
+configuration and the cost-only `gpt-5.6-sol` / `max` probe. Bonus question
+cost is excluded because it is negligible relative to full-season match
+prediction cost.
 
 Bundesliga 2026/27 plumbing validation is now pinned to `gpt-5.6-luna` /
 `none`, cap `10000`, hosted match prompt
@@ -20,6 +21,11 @@ production model selection. The exact Luna/none row now uses a five-fixture,
 four-repetition Bundesliga 2025/26 seven-document historical sample as a
 preseason cost proxy for match prompt v2. It may understate the live
 eleven-document 2026/27 input cost and makes no prediction-quality claim.
+
+The Owner later authorized a Sol/`max` cost-only probe to understand its season
+cost. Its exact five-by-four row uses the same historical route and cap `20000`.
+It is not quality evidence, a production selection, or an arena-participant
+decision.
 
 Important pricing assumption: these estimates assume every match prediction is
 billed at OpenAI `flex` pricing. Production is expected to use flex from here
@@ -114,6 +120,7 @@ for predictions that were generated before production moved to flex.
 | Competition | Model config | Base row prompt route | Max output tokens | Cost without repredictions | Cost with repredictions |
 | --- | --- | --- | ---: | ---: | ---: |
 | Bundesliga 2026/27 | `gpt-5.6-luna none` validation only | Langfuse Bundesliga match v2; Bundesliga 2025/26 seven-document proxy | 10000 | `$0.077711760000` | `$0.125202280000` |
+| Bundesliga 2026/27 | `gpt-5.6-sol max` cost-only probe | Langfuse Bundesliga match v2; Bundesliga 2025/26 seven-document proxy | 20000 | `$4.905547200000` | `$7.903381600000` |
 | Bundesliga 2025/26 | `gpt-5.5 none` | Langfuse `langfuse-o3-poc` | 10000 | `$2.662965000000` | `$4.290332500000` |
 | Bundesliga 2025/26 | `gpt-5.5 low` | Langfuse `langfuse-o3-poc` | 10000 | `$3.572932500000` | `$5.756391250000` |
 | Bundesliga 2025/26 | `gpt-5.5 medium` | Langfuse `langfuse-o3-poc` | 10000 | `$5.194120500000` | `$8.368305250000` |
@@ -135,7 +142,9 @@ for predictions that were generated before production moved to flex.
 | FIFA World Cup 2026 | `o3 high` | local `prompt-v1` | 10000 | `$2.499338400000` | `$2.499338400000` |
 
 All base rows use service tier `flex` and treat input tokens as uncached for the
-estimate. The Luna row uses cutoff `2026-02-16` and exact sampling cutoff
+estimate. The Sol/`max` row retains that planning basis while separately
+recording its 19 Flex requests and one Standard fallback. The Luna row uses
+cutoff `2026-02-16` and exact sampling cutoff
 `2026-02-18T00:00:00 Europe/Berlin (+01)`. Its accepted 20-observation run was
 entirely flex with no fallback; an earlier non-authoritative parallelism-5
 attempt had one flex-429 standard fallback and is retained only as retry
@@ -143,9 +152,46 @@ context. The existing `gpt-5.5`, `gpt-5.4-nano`, and `o3` rows use model
 knowledge cutoff `2025-11-29` with sampling cutoff
 `2025-12-01T00:00:00 Europe/Berlin (+01)`. The new `gpt-5-nano minimal` row
 uses model knowledge cutoff `2024-05-31` with sampling cutoff
-`2024-06-02T00:00:00 Europe/Berlin (+02)`. If a future run observes non-flex
-fallbacks, estimate the standard-tier share separately instead of silently
-mixing it into these all-flex totals.
+`2024-06-02T00:00:00 Europe/Berlin (+02)`. Operational projections that model
+non-Flex fallback share must do so separately instead of silently mixing it
+into these all-Flex totals.
+
+### Bundesliga 2026/27 Sol/max cost-only evidence
+
+[Official model documentation](https://developers.openai.com/api/docs/models/gpt-5.6-sol)
+records `max` reasoning support and the `2026-02-16` knowledge cutoff. The
+historical estimator route therefore retains the exact
+`2026-02-18T00:00:00 Europe/Berlin (+01)` sampling boundary.
+
+The authorized one-item run used cap `20000`, exact dataset run
+`492c8cad-9cda-4dd9-ab1c-31b22a32cddf`, `2463` input tokens, `9893` output
+tokens, `9874` reasoning tokens, Flex without fallback, and observed cost
+`$0.103856000000`. It succeeded below cap. Fresh incremental and global
+machine gates admitted the exact five-by-four calibration.
+
+Parallelism `5` completed 20/20 items without a retry. Accepted dataset run
+`0205df36-af15-47ab-9f7e-4caf844932a3` is immutably bound to manifest SHA-256
+`fcadeeadaadd1356472a1f4f96b7277a05ba3b8a19dcde60e6f2e7d79af577b7`.
+The row records `48752` input tokens, `22312` output tokens, `21932` reasoning
+tokens, maximum output `6751 / 20000`, Flex `19` plus one Standard fallback,
+and observed paid cost `$0.265793800000`. Its deliberately normalized
+all-input-uncached Flex estimate is `$0.320624000000` total and
+`$0.016031200000` per prediction.
+
+The required command was:
+
+```powershell
+uv --cache-dir .uv-cache run python .agents/skills/estimate-experiment-cost-skill/scripts/experiment_cost_estimator.py estimate --counts 20,100,150,200,306,493 --model gpt-5.6-sol --reasoning-effort max
+```
+
+It reported `N=306: $4.905547200000` and
+`N=493: $7.903381600000`. Full admission, timing, provenance, and settlement
+evidence is in
+[the Sol/max base evidence](../../.agents/skills/estimate-experiment-cost-skill/references/gpt-5.6-sol-max-base-estimate-2026-08-26.md).
+
+This remains a seven-document preseason cost proxy and may understate the live
+eleven-document input. It contains no Sol/`max` quality measurement and does
+not alter the Owner-controlled P0-06 selection.
 
 ### Bundesliga 2026/27 Luna evidence
 
@@ -208,6 +254,11 @@ N=493: $0.125202280000
 
 Base estimate rows noted in this document:
 
+- `gpt-5.6-sol max`: 20 observations from exact dataset run
+  `0205df36-af15-47ab-9f7e-4caf844932a3`, average `$0.016031200000` under the
+  all-input-uncached Flex estimate, observed tiers `{'flex': 19, 'default': 1}`,
+  one Standard fallback, prompt route Bundesliga match v2 with the
+  seven-document 2025/26 historical proxy, cap `20000`.
 - `gpt-5.6-luna none`: 20 observations from accepted dataset run
   `6a3c4e70-ebb4-4c07-9a1a-7af19c32d995`, average `$0.000253960000` per match
   prediction under the all-input-uncached flex estimate, observed service tiers
@@ -253,6 +304,24 @@ Base estimate rows noted in this document:
   observed service tiers `{'flex': 20}`, no non-flex fallback.
 
 ## Estimator Commands
+
+`gpt-5.6-sol max`:
+
+```powershell
+uv --cache-dir .uv-cache run python .agents/skills/estimate-experiment-cost-skill/scripts/experiment_cost_estimator.py estimate --counts 20,100,150,200,306,493 --model gpt-5.6-sol --reasoning-effort max
+```
+
+Fresh output summary:
+
+```text
+Average cost per match prediction: $0.016031200000
+N=20: $0.320624000000
+N=100: $1.603120000000
+N=150: $2.404680000000
+N=200: $3.206240000000
+N=306: $4.905547200000
+N=493: $7.903381600000
+```
 
 `gpt-5.6-luna none`:
 
