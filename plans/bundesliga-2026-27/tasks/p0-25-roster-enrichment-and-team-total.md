@@ -1,6 +1,6 @@
 # P0-25 — Publish enriched rosters and derived team totals
 
-- Status: In progress
+- Status: Complete
 - Priority: P0
 - Depends on: [P0-09](p0-09-roster-collector.md), [P0-20](p0-20-seed-and-development-validation.md)
 - Gates: [P0-21](p0-21-production-activation.md)
@@ -36,15 +36,17 @@ last-known-good data.
   last-known-good snapshot without losing supplemental values.
 - [x] Keep generic competition-profile CI free of a machine-local DuckDB path;
   leave acquisition, refresh, diffing, and automatic adoption to P1-05.
-- [ ] After integration and exact-head CI green, publish the pinned enriched v2
+- [x] After integration and exact-head CI green, publish the pinned enriched v2
   roster snapshot to `ehonda-ai-arena`, then execute the owner-authorized single
   overriding Luna/`none` matchday validation round and inspect payload-safe
   evidence. This is plumbing validation, not P0-23 quality evidence or final
   production selection.
-- [ ] Before any initial production prediction in P0-21, publish the same
-  hash- and coverage-gated enriched v2 snapshot to that production community
-  and inspect its headed snapshot/summary. Do not infer authority to post a
-  prediction or activate a schedule.
+- [x] Carry the fail-closed precondition into P0-21: before any initial
+  production prediction, publish the same hash- and coverage-gated enriched v2
+  snapshot to that production community and inspect its headed
+  snapshot/summary. This records a future P0-21 gate; it does not claim the
+  production publication happened or grant authority to post a prediction or
+  activate a schedule.
 
 ## Implementation evidence — 2026-08-26
 
@@ -86,13 +88,64 @@ last-known-good data.
   Release solution build succeeds with zero errors. Existing
   NU1903/nullable/obsolete warnings remain unchanged.
 - No collector, Firestore, Kicktipp, Langfuse, GitHub dispatch, or model command
-  was executed by the implementation lane. Live evidence remains deliberately
-  open until integration and exact-head CI are green.
+  was executed by the implementation lane.
 
-## Post-integration arena validation ladder
+## Live arena validation evidence — 2026-08-26
 
-Run from the clean primary checkout at the exact green `main` head. First
-verify the artifact hash equals
+- The explicit corrected republish ran from exact-green main
+  `f1cfddeb6e2f7ba376856c0843a196af104b9a5c`. Its strictly reconstructed final
+  gate passed all 18 teams, all 18 final derived rows, 464 known ages, 464 known
+  positions, and 450 valued players. The headed last-known-good and rendered
+  target were both
+  `591adbc3cbc99ee93591f074ad218703c9badb2af4e267142898145825b77ea2`,
+  and publication disposition was `Unchanged`.
+- The first implicit publication had already produced that same enriched
+  snapshot and one collector OTLP trace. The explicit corrected republish added
+  one collector OTLP trace but made no second Firestore content change. These
+  are context-publication effects only.
+- The pre-dispatch exact-identity verifier passed 9/9. The payload-safe metadata
+  inventory contained exactly one match row for
+  `gpt-5.6-luna`/`none`/cap-`10000`/hosted-match-v2-`production`, with nine
+  records at prediction index 0, none at index 1 or higher, and no bonus row.
+- Exactly one authorized workflow dispatch ran:
+  [Actions run 32917812259](https://github.com/ehonda/KicktippAi/actions/runs/32917812259),
+  exact head `f1cfddeb6e2f7ba376856c0843a196af104b9a5c`, job `98025095214`.
+  It completed successfully in 5m06s. The workflow's internal pre-verification
+  expectedly exited 1 under `continue-on-error` because the existing index-0
+  predictions were outdated against the newly selected roster snapshot;
+  generation/posting and final verification succeeded, the success-notification
+  step was skipped, and the job and summary remained successful.
+- Post-dispatch verification with `--check-outdated` passed 9/9. The post-run
+  inventory still contained exactly nine records at index 0 and none at index 1
+  or higher: one replacement round, no appended reprediction.
+- Payload-safe Langfuse inspection identified exact trace
+  `3c2814f7b2b6200f3cf4e4bab94d772e` in environment `production`, session
+  `matchday-1-ehonda-ai-arena`. It contains one root span and nine ordered
+  generations in the exact match order below. All generations used
+  `gpt-5.6-luna`, reasoning `none`, cap `10000`, hosted prompt v2 label
+  `production`, prompt hash
+  `94a7aa775546028d3ded89f626873d7dfce162d1f08bb9573e102dd427ac08c1`,
+  Flex service, index 0, no fallback, no error/status failure, and roster
+  snapshot `591adbc3cbc99ee93591f074ad218703c9badb2af4e267142898145825b77ea2`.
+  Machine totals were 39,228 input tokens, 153 output tokens, and USD
+  0.0040146. This is arena plumbing cost only and is excluded from P0-23's USD
+  30 experiment ledger.
+- In-memory, no-payload roster inspection found 18 unique roster documents.
+  Every document had non-`N/A` age, position, and value coverage and exactly one
+  valid final `Team Accumulated` row; aggregate coverage was 464/464/450.
+  FC Bayern München had 25/25/25 known age/position/value rows and VfB Stuttgart
+  had 33/33/33. `validationErrors` was empty. No prompt text or prediction
+  payload was retained.
+- This consumed the authorization for one arena-only replacement round. It is
+  not a production-community post, production schedule, P0-23 quality result,
+  final model selection, or authority to repeat the round.
+
+## Executed post-integration arena validation ladder
+
+The following ladder was executed exactly once from the clean primary checkout
+at the exact green `main` head and remains as the audit contract. Its authority
+is consumed: do not rerun these historical reproduction commands without new
+owner authorization. The ladder first verified that the artifact hash equals
 `808959f5b5b16bb698180c348b269d9ec26e1d1a5538767ffe9d971b96796d1c`
 and the sibling `.env.ehonda-ai-arena` exists without printing its values.
 Publish the roster first:
@@ -164,6 +217,6 @@ quality-evidence claim.
 
 ## Complete when
 
-- The implementation commit is independently approved, integrated, and exact-head CI is green.
-- The arena ladder above records successful enriched v2 publication, the passing pre-dispatch index gate, exactly one authorized index-0 replacement round, the unchanged nine-at-index-0/zero-at-index-1+ post-state, exact enriched roster snapshot identity, and payload-safe trace/document evidence.
-- P0-21 carries the enriched-publication precondition for every initial production prediction while P1-05 retains the refresh-automation boundary.
+- [x] The implementation commit is independently approved, integrated, and exact-head CI is green.
+- [x] The arena ladder above records successful enriched v2 publication, the passing pre-dispatch index gate, exactly one authorized index-0 replacement round, the unchanged nine-at-index-0/zero-at-index-1+ post-state, exact enriched roster snapshot identity, and payload-safe trace/document evidence.
+- [x] P0-21 carries the enriched-publication precondition for every initial production prediction while P1-05 retains the refresh-automation boundary.

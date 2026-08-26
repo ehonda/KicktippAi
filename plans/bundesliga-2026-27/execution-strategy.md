@@ -1,8 +1,8 @@
 # Bundesliga 2026/27 execution strategy
 
-- Status: Accepted execution strategy; P0-23 and P0-25 are parallel active closeout gates
+- Status: Accepted execution strategy; P0-25 complete, P0-23 is the active evidence gate
 - Last updated: 2026-08-26
-- Implementation state: P0 implementation through P0-20 and P0-24 is integrated; P0-23, P0-25 integration/live validation, and the remaining owner, external-setup, production-evidence, and activation gates below are open
+- Implementation state: P0 implementation through P0-20, P0-24, and P0-25 is integrated and validated; P0-23 and the remaining owner, external-setup, production-evidence, and activation gates below are open
 
 This document describes how to deliver the accepted P0 scope quickly while preserving the project owner's control over the few deliberately late production choices. Task files and accepted ADRs are the implementation contracts.
 
@@ -24,10 +24,10 @@ This document describes how to deliver the accepted P0 scope quickly while prese
 | Community workflows | P0-17 through P0-19 for the fixed Luna/none path and production templates | Community matrix is complete; test entrypoints are explicit; final schedules remain disabled |
 | Development and arena validation | P0-20 | Dev and arena ladder evidence passes, including fail-closed cases |
 | Production evidence and copy safety | P0-23 active; P0-24 complete and integrated | Owner-authorized GPT-5.6 cost/quality evidence or an explicit owner waiver exists; P0-24 already proves compatible bonus copy is zero-model and ordinary incompatibility produces exactly one independent target prediction |
-| Launch roster remediation | P0-25 active in parallel with P0-23 | v2 is integrated and green; the first arena publication had the correct enriched bytes but exposed an ambiguous source-selection boundary; integrate ADR-0051's explicit overlay correction, republish from exact green main, and run one authorized Luna/none trace round to prove the corrected path and one final derived subtotal row per team |
+| Launch roster remediation | P0-25 complete | ADR-0051's explicit overlay republish passed the final reconstructed 18-team / 18-derived-row / 464-age / 464-position / 450-value gate from exact-green main; the headed snapshot remained unchanged, and exactly one authorized Luna/none index-0 replacement round passed payload-safe pre/post and trace validation |
 | Production selection and activation | Finish P0-06, production P0-19 copies, then P0-21 | Owner approves the final model/cost/challenger configuration against the accepted prompt versions and records the Club Elo mode; all production communities pass manual and first scheduled validation |
 
-The implementation path through P0-20 and P0-24 is complete and integrated. P0-23 production-candidate evidence and P0-25 launch-roster remediation are independent active closeout gates. P0-23 is followed by the final P0-06 owner decision and production P0-19 copies; P0-25 must finish before any initial P0-21 production prediction. Prompt work is already fixed at the accepted numbered versions; Club Elo network reuse remains independently owner-gated and the dated-seed path remains launch-safe.
+The implementation path through P0-20, P0-24, and P0-25 is complete and integrated. P0-23 production-candidate evidence is the active evidence gate, followed by the final P0-06 owner decision and production P0-19 copies. P0-21 retains P0-25's explicit enriched-publication precondition for every initial production prediction. Prompt work is already fixed at the accepted numbered versions; Club Elo network reuse remains independently owner-gated and the dated-seed path remains launch-safe.
 
 ## Agent roles and task loop
 
@@ -142,4 +142,4 @@ Final model selection will mix experiments and whole-season cost estimates. New-
 
 ## Orchestration start condition
 
-Implementation through P0-20 and P0-24 is complete and integrated. Continue in parallel with ADR-0049's owner-authorized P0-23 evidence after its no-spend checkpoint and Decimal cumulative gate pass, or an explicit owner waiver, and P0-25's reviewed v2 integration plus enriched arena validation. Then finish the P0-06 selection and model-bound production P0-19 entrypoints. P0-21 may publish the pinned enriched v2 roster to each ready production context only through ADR-0051's paired explicit overlay mode, but must still wait for every posting, owner, and activation gate before predictions or schedules. The orchestrator keeps these late gates visible and never substitutes an agent preference for an owner decision.
+Implementation through P0-20, P0-24, and P0-25 is complete and integrated. Continue with ADR-0049's owner-authorized P0-23 evidence after its no-spend checkpoint and Decimal cumulative gate pass, or an explicit owner waiver. Then finish the P0-06 selection and model-bound production P0-19 entrypoints. P0-21 may publish the pinned enriched v2 roster to each ready production context only through ADR-0051's paired explicit overlay mode, but must still wait for every posting, owner, and activation gate before predictions or schedules. The completed P0-25 arena round grants no production, schedule, repeated-arena-run, or P0-23 authority. The orchestrator keeps these late gates visible and never substitutes an agent preference for an owner decision.

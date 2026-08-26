@@ -11,8 +11,9 @@
 ## Resume objective
 
 Close P0 without crossing the remaining owner, spend, community-administrator,
-or production-activation gates. Resume in parallel from [P0-23](../tasks/p0-23-gpt-5-6-production-candidate-evidence.md) and [P0-25](../tasks/p0-25-roster-enrichment-and-team-total.md),
-then finish [P0-06](../tasks/p0-06-model-ledger-and-cost-baseline.md), the
+or production-activation gates. P0-25 is complete. Resume from
+[P0-23](../tasks/p0-23-gpt-5-6-production-candidate-evidence.md), then finish
+[P0-06](../tasks/p0-06-model-ledger-and-cost-baseline.md), the
 model-bound production [P0-19](../tasks/p0-19-community-workflow-triad.md)
 callers, and finally [P0-21](../tasks/p0-21-production-activation.md).
 
@@ -26,15 +27,21 @@ callers, and finally [P0-21](../tasks/p0-21-production-activation.md).
 - Implementation through P0-20 and P0-24 is complete and integrated. P0-23 is
   the active closeout evidence gate; the final P0-06 selection and all P0-21
   production evidence remain open.
-- P0-25 is a parallel launch-data remediation under
+- P0-25 is a completed launch-data remediation under
   [ADR-0050](../decisions/0050-publish-enriched-launch-rosters-with-derived-team-subtotals.md)
   and its launch-boundary correction
   [ADR-0051](../decisions/0051-require-explicit-launch-roster-enrichment-overlay.md).
   It adds v2 roster documents with one derived known-value subtotal per team,
   retains strict historical v1 reconstruction, and gates explicit launch
-  publication on the audited artifact SHA and 464/464/450 coverage floors.
-  Integration, exact-head CI, the enriched arena publication, and exactly one
-  owner-authorized overriding Luna/none matchday trace round remain open.
+  publication on the audited artifact SHA and 464/464/450 coverage floors. Its
+  explicit republish from exact-green main
+  `f1cfddeb6e2f7ba376856c0843a196af104b9a5c` passed 18-team/18-derived-row and
+  464/464/450 final reconstruction with unchanged headed snapshot
+  `591adbc3cbc99ee93591f074ad218703c9badb2af4e267142898145825b77ea2`.
+  Exactly one authorized Luna/none index-0 replacement round completed in
+  [run 32917812259](https://github.com/ehonda/KicktippAi/actions/runs/32917812259)
+  and passed pre/post identity, inventory, roster, and payload-safe trace checks.
+  P0-25 records the full evidence; its arena authorization is consumed.
 - [ADR-0049](../decisions/0049-preregister-gpt-5-6-candidate-evidence.md)
   supersedes this handoff's provisional P0-23 owner-input template. The exact
   nine-row GPT-5.6 matrix, one cumulative USD 30 ceiling, evidence-derived cap
@@ -56,26 +63,15 @@ callers, and finally [P0-21](../tasks/p0-21-production-activation.md).
 
 ## Remaining sequence
 
-1. Independently review and integrate P0-25, reconcile exact-head CI, then from
-   the clean primary checkout publish the pinned enriched v2 roster snapshot to
-   `ehonda-ai-arena` with paired `--require-launch-coverage
-   --launch-enrichment-overlay`. Require all 18 teams to report DuckDB membership
-   `NotEvaluated` plus `LAUNCH_ENRICHMENT_OVERLAY`, and require the strictly
-   reconstructed final payload to prove 18 derived rows and 464/464/450-or-better
-   coverage before any write. Before dispatch, fail closed unless the payload-safe exact
-   identity/index inventory proves exactly the expected nine
-   `gpt-5.6-luna`/`none`/cap-`10000` match records at prediction index 0 and no
-   index-1-or-higher records. Then dispatch exactly one forced
-   `buli2627-ehonda-ai-arena-gpt-5-6-luna-none-matchday.yml` round with
-   `max_repredictions=0`. `force_prediction=true` selects
-   `--override-database`, which replaces index 0; the max-reprediction input is
-   ignored on that forced path. Post-verify the headed v2 snapshot,
-   464/464/450-or-better coverage, exactly 18 derived rows, the same exact nine
-   index-0 records with zero at index 1+, the enriched roster snapshot identity
-   in the one replacement trace round, and payload-safe Langfuse metadata. Stop
-   on any deviation or failed dispatch rather than running a second round. This
-   remains arena-only plumbing validation: it authorizes no production post or
-   schedule and is not P0-23 quality evidence or production-model selection.
+1. **Complete:** P0-25 was independently reviewed, integrated, and green before
+   the paired explicit overlay republish. The unchanged enriched snapshot passed
+   the final 18/18/464/464/450 gate; the preflight inventory proved exactly nine
+   Luna/none/cap-10000 records at index 0 and none at index 1+; and exactly one
+   forced replacement workflow passed final verification. Exact trace
+   `3c2814f7b2b6200f3cf4e4bab94d772e` had one root plus nine ordered Flex
+   generations, snapshot `591adbc3cbc99ee93591f074ad218703c9badb2af4e267142898145825b77ea2`,
+   no fallback/errors, and payload-safe usage/cost evidence. No prompt or
+   prediction payload was retained. This is arena plumbing validation only.
 2. Integrate and validate the pending machine-readable Decimal cumulative-budget
    gate, record its exact aggregate command in the preregistration, and obtain
    independent approval of the corrected no-spend checkpoint. Authorization
@@ -141,11 +137,10 @@ historical pool/manifest provenance remain execution-date fail-closed gates.
   production selection.
 - Do not make a production POST, dispatch a production workflow, or add/enable
   a production schedule before the applicable P0-21 gates pass.
-- Do not run P0-25's arena publish/override ladder from a writer branch or
-  before its exact integrated main SHA is green. The authorization is exactly
-  one arena-only Luna/none matchday round after enriched v2 publication; it is
-  not authority for a production-community prediction, bonus round, schedule,
-  or P0-23 quality claim.
+- P0-25's authorization for exactly one arena-only Luna/none replacement round
+  is consumed. Do not repeat that publish/override ladder or infer authority for
+  a production-community prediction, bonus round, schedule, or P0-23 quality
+  claim.
 - The `schadensfresse` setup request remains external and pending. Agents do not
   administer that community or treat authentication as current-season
   readiness or POST permission.
@@ -176,6 +171,6 @@ historical pool/manifest provenance remain execution-date fail-closed gates.
 
 Report the exact main/origin SHA and CI state, clean worktree inventory,
 ADR-0049 checkpoint-review state, Decimal budget-gate integration/command state,
-P0-25 review/integration/CI state, and bounded lane assignment. Stop before
-dataset, Langfuse, prompt, or model mutation while the applicable prerequisite
-remains open.
+the completed P0-25 evidence state, and bounded lane assignment. Do not assign a
+new P0-25 live lane. Stop before dataset, Langfuse, prompt, or model mutation
+while the applicable prerequisite remains open.
