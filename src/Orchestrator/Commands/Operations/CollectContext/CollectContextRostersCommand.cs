@@ -73,29 +73,38 @@ public sealed class CollectContextRostersCommand : AsyncCommand<CollectContextRo
             var loaded = await repository.GetLastKnownGoodAsync(BundesligaDocumentPublication.Rosters, community, cancellationToken);
             BundesligaRosterLastKnownGood? lkg = loaded is null ? null : BundesligaRosterPublication.ReconstructLastKnownGood(loaded);
             var collection = await _source.CollectAsync(new BundesligaRosterSourceRequest(settings.Seed, settings.Manifest, settings.DuckDbPath,
-                settings.DuckDbRevision, snapshotDate), lkg, DateOnly.FromDateTime(_timeProvider.GetUtcNow().UtcDateTime), cancellationToken);
-            BundesligaRosterCoverage? launchCoverage = null;
-            if (settings.RequireLaunchCoverage)
-            {
-                launchCoverage = BundesligaRosterLaunchCoverage.Validate(collection.Snapshots);
-                _console.MarkupLine(
-                    $"[green]Launch roster coverage passed:[/] ages {launchCoverage.KnownAgeCount}/{BundesligaRosterLaunchCoverage.RequiredKnownAgeCount}, " +
-                    $"positions {launchCoverage.KnownPositionCount}/{BundesligaRosterLaunchCoverage.RequiredKnownPositionCount}, " +
-                    $"valued {launchCoverage.ValuedPlayerCount}/{BundesligaRosterLaunchCoverage.RequiredValuedPlayerCount}");
-            }
-            activity?.SetTag("rosters.launch_coverage_required", settings.RequireLaunchCoverage);
-            activity?.SetTag("rosters.launch_known_age_count", launchCoverage?.KnownAgeCount ?? 0);
-            activity?.SetTag("rosters.launch_known_position_count", launchCoverage?.KnownPositionCount ?? 0);
-            activity?.SetTag("rosters.launch_valued_player_count", launchCoverage?.ValuedPlayerCount ?? 0);
+                settings.DuckDbRevision, snapshotDate, settings.LaunchEnrichmentOverlay), lkg,
+                DateOnly.FromDateTime(_timeProvider.GetUtcNow().UtcDateTime), cancellationToken);
             if (collection.RetainLastKnownGood)
             {
                 _console.MarkupLine("[yellow]Retained the exact headed last-known-good roster snapshot; no publication was attempted[/]");
                 foreach (var diagnostic in collection.Diagnostics) _console.MarkupLine($"[yellow]Diagnostic: {Markup.Escape(diagnostic)}[/]");
                 activity?.SetTag("rosters.publication_disposition", "RetainedLastKnownGood");
                 activity?.SetTag("rosters.diagnostics", string.Join(",", collection.Diagnostics));
+                if (settings.RequireLaunchCoverage)
+                {
+                    throw new InvalidDataException(
+                        "Launch enrichment overlay did not produce a publishable final roster set; no publication was attempted.");
+                }
                 return 0;
             }
             var publication = BundesligaRosterPublication.Build(collection.Snapshots, collection.QualityRows);
+            var reconstructed = BundesligaRosterPublication.ReconstructBuilt(publication);
+            BundesligaRosterCoverage? launchCoverage = null;
+            if (settings.RequireLaunchCoverage)
+            {
+                launchCoverage = BundesligaRosterLaunchCoverage.Validate(reconstructed.Snapshots);
+                _console.MarkupLine(
+                    $"[green]Final launch roster publication passed:[/] 18 teams and derived rows; " +
+                    $"ages {launchCoverage.KnownAgeCount}/{BundesligaRosterLaunchCoverage.RequiredKnownAgeCount}, " +
+                    $"positions {launchCoverage.KnownPositionCount}/{BundesligaRosterLaunchCoverage.RequiredKnownPositionCount}, " +
+                    $"valued {launchCoverage.ValuedPlayerCount}/{BundesligaRosterLaunchCoverage.RequiredValuedPlayerCount}");
+            }
+            activity?.SetTag("rosters.launch_enrichment_overlay", settings.LaunchEnrichmentOverlay);
+            activity?.SetTag("rosters.launch_coverage_required", settings.RequireLaunchCoverage);
+            activity?.SetTag("rosters.launch_known_age_count", launchCoverage?.KnownAgeCount ?? 0);
+            activity?.SetTag("rosters.launch_known_position_count", launchCoverage?.KnownPositionCount ?? 0);
+            activity?.SetTag("rosters.launch_valued_player_count", launchCoverage?.ValuedPlayerCount ?? 0);
             var request = BundesligaRosterPublication.CreateRequest(community, loaded?.Snapshot.SnapshotId, publication);
             DocumentPublicationContract.ValidateRequest(competition, BundesligaDocumentPublication.Rosters, request);
             var targetSnapshot = DocumentPublicationContract.ComputeSnapshotId(request.Documents);
@@ -111,7 +120,10 @@ public sealed class CollectContextRostersCommand : AsyncCommand<CollectContextRo
             _console.MarkupLine($"[blue]Rendered target snapshot:[/] [yellow]{targetSnapshot}[/]");
             foreach (var row in collection.QualityRows)
             {
-                _console.MarkupLine($"[blue]{Markup.Escape(row.Team.TeamSlug)}[/]: [yellow]{row.SelectedSource}[/], {Markup.Escape(row.SelectionReason)}, diagnostics: {Markup.Escape(row.Diagnostics.Count == 0 ? "NONE" : string.Join(';', row.Diagnostics))}");
+                _console.MarkupLine(
+                    $"[blue]{Markup.Escape(row.Team.TeamSlug)}[/]: [yellow]{row.SelectedSource}[/], " +
+                    $"DuckDB membership gate: {row.DuckDbGateResult}, {Markup.Escape(row.SelectionReason)}, " +
+                    $"diagnostics: {Markup.Escape(row.Diagnostics.Count == 0 ? "NONE" : string.Join(';', row.Diagnostics))}");
             }
 
             if (settings.DryRun)
@@ -147,7 +159,8 @@ public sealed class CollectContextRostersCommand : AsyncCommand<CollectContextRo
         var hasSha256 = !string.IsNullOrWhiteSpace(settings.DuckDbSha256);
         if (!hasPath && (hasRevision || hasDate || hasSha256)) { error = "--duckdb-revision, --duckdb-snapshot-date, and --duckdb-sha256 require --duckdb-path"; return false; }
         if (hasPath && (!hasRevision || !hasDate)) { error = "--duckdb-path requires --duckdb-revision and --duckdb-snapshot-date"; return false; }
-        if (settings.RequireLaunchCoverage && (!hasPath || !hasSha256)) { error = "--require-launch-coverage requires --duckdb-path, provenance, and --duckdb-sha256"; return false; }
+        if (settings.RequireLaunchCoverage != settings.LaunchEnrichmentOverlay) { error = "--require-launch-coverage and --launch-enrichment-overlay must be supplied together"; return false; }
+        if (settings.LaunchEnrichmentOverlay && (!hasPath || !hasSha256)) { error = "--launch-enrichment-overlay requires --duckdb-path, provenance, and --duckdb-sha256"; return false; }
         if (hasSha256 && !IsLowerSha256(settings.DuckDbSha256!)) { error = "--duckdb-sha256 must be 64 lower-case hexadecimal characters"; return false; }
         var date = default(DateOnly);
         if (hasDate && !DateOnly.TryParseExact(settings.DuckDbSnapshotDate, "yyyy-MM-dd", CultureInfo.InvariantCulture, DateTimeStyles.None, out date)) { error = "--duckdb-snapshot-date must use yyyy-MM-dd"; return false; }

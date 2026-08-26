@@ -173,8 +173,12 @@ public class CollectContextRostersSettings : CollectContextSettings
     public string? DuckDbSha256 { get; set; }
 
     [CommandOption("--require-launch-coverage")]
-    [Description("Fail before publication unless the pinned P0 launch enrichment coverage floor is met")]
+    [Description("Fail before publication unless the reconstructed final P0 launch publication meets the coverage floor; requires --launch-enrichment-overlay")]
     public bool RequireLaunchCoverage { get; set; }
+
+    [CommandOption("--launch-enrichment-overlay")]
+    [Description("Use the pinned DuckDB only for stable-ID supplemental enrichment of authoritative seed/LKG membership; requires --require-launch-coverage")]
+    public bool LaunchEnrichmentOverlay { get; set; }
 
     [CommandOption("--dry-run")]
     [Description("Render, validate, hash, and report without publishing")]

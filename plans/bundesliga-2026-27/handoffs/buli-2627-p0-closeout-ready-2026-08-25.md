@@ -27,7 +27,9 @@ callers, and finally [P0-21](../tasks/p0-21-production-activation.md).
   the active closeout evidence gate; the final P0-06 selection and all P0-21
   production evidence remain open.
 - P0-25 is a parallel launch-data remediation under
-  [ADR-0050](../decisions/0050-publish-enriched-launch-rosters-with-derived-team-subtotals.md).
+  [ADR-0050](../decisions/0050-publish-enriched-launch-rosters-with-derived-team-subtotals.md)
+  and its launch-boundary correction
+  [ADR-0051](../decisions/0051-require-explicit-launch-roster-enrichment-overlay.md).
   It adds v2 roster documents with one derived known-value subtotal per team,
   retains strict historical v1 reconstruction, and gates explicit launch
   publication on the audited artifact SHA and 464/464/450 coverage floors.
@@ -56,7 +58,11 @@ callers, and finally [P0-21](../tasks/p0-21-production-activation.md).
 
 1. Independently review and integrate P0-25, reconcile exact-head CI, then from
    the clean primary checkout publish the pinned enriched v2 roster snapshot to
-   `ehonda-ai-arena`. Before dispatch, fail closed unless the payload-safe exact
+   `ehonda-ai-arena` with paired `--require-launch-coverage
+   --launch-enrichment-overlay`. Require all 18 teams to report DuckDB membership
+   `NotEvaluated` plus `LAUNCH_ENRICHMENT_OVERLAY`, and require the strictly
+   reconstructed final payload to prove 18 derived rows and 464/464/450-or-better
+   coverage before any write. Before dispatch, fail closed unless the payload-safe exact
    identity/index inventory proves exactly the expected nine
    `gpt-5.6-luna`/`none`/cap-`10000` match records at prediction index 0 and no
    index-1-or-higher records. Then dispatch exactly one forced
@@ -93,7 +99,8 @@ callers, and finally [P0-21](../tasks/p0-21-production-activation.md).
    compatibility and independent target-context fallback plus fail-closed match
    copy behavior.
 7. P0-21 owns the remaining administrator and live gates: pinned enriched v2
-   roster publication to each production community before its first prediction,
+   roster publication through ADR-0051's paired explicit overlay mode to each
+   production community before its first prediction,
    external
    `schadensfresse` setup, names-only repository secret presence,
    authentication/current-season readiness, POST permission, exact match and

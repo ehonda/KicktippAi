@@ -424,6 +424,79 @@ public class BundesligaRosterSourceTests
             .All(member => member.Age == 25 && member.Position == BundesligaRosterPosition.Midfield)).IsTrue();
     }
 
+    [Test]
+    public async Task Launch_overlay_enriches_exact_authoritative_eighteen_team_membership_without_evaluating_duckdb_membership()
+    {
+        var root = SolutionPathUtility.FindSolutionRoot();
+        var source = new BundesligaRosterSource();
+        var baseline = await source.CollectAsync(new BundesligaRosterSourceRequest(
+            Path.Combine(root, BundesligaRosterSeed.RelativePath),
+            Path.Combine(root, BundesligaTeamManifest.RelativePath),
+            null,
+            null,
+            null), null, new DateOnly(2026, 8, 26));
+        var baselinePublication = BundesligaRosterPublication.Build(baseline.Snapshots, baseline.QualityRows);
+        var lkg = new BundesligaRosterLastKnownGood(
+            DocumentPublicationContract.ComputeSnapshotId(baselinePublication.Documents),
+            baseline.Snapshots,
+            baseline.QualityRows,
+            baselinePublication.QualityReport);
+        using var fixture = new BundesligaRosterDuckDbFixture();
+        foreach (var team in BundesligaTeamManifest.Default.Entries)
+        {
+            fixture.AddEligibleClub(team.TeamSlug);
+        }
+        fixture.Execute("update clubs set last_season = 2025, domestic_competition_id = 'L0'");
+        fixture.Execute("update players set last_season = 2025");
+        fixture.Execute("update player_valuations set date = '2026-08-13'");
+        var missingValuations = BundesligaRosterSeed.Default.Entries
+            .Where(entry => entry.Role == BundesligaRosterRole.Player && entry.TransfermarktPlayerId is not null)
+            .Select(entry => entry.TransfermarktPlayerId!.Value)
+            .Order()
+            .Take(14)
+            .ToArray();
+        fixture.Execute($"delete from player_valuations where player_id in ({string.Join(',', missingValuations)})");
+
+        var overlaid = await source.CollectAsync(new BundesligaRosterSourceRequest(
+            Path.Combine(root, BundesligaRosterSeed.RelativePath),
+            Path.Combine(root, BundesligaTeamManifest.RelativePath),
+            fixture.Path,
+            "fixture@launch-overlay",
+            new DateOnly(2026, 8, 13),
+            LaunchEnrichmentOverlay: true), lkg, new DateOnly(2026, 8, 26));
+
+        await Assert.That(overlaid.RetainLastKnownGood).IsFalse();
+        await Assert.That(overlaid.Snapshots).Count().IsEqualTo(18);
+        await Assert.That(overlaid.Snapshots.All(snapshot => snapshot.MembershipSource == BundesligaRosterMembershipSource.LastKnownGood)).IsTrue();
+        await Assert.That(overlaid.Snapshots.Sum(snapshot => snapshot.Members.Count(member =>
+            member.Role == BundesligaRosterRole.Player && member.TransfermarktPlayerId is not null))).IsEqualTo(464);
+        foreach (var snapshot in overlaid.Snapshots)
+        {
+            var expected = lkg.Snapshots.Single(value => value.Team.TeamSlug == snapshot.Team.TeamSlug);
+            await Assert.That(snapshot.Members.Select(member => (member.Role, member.Name, member.TransfermarktPlayerId))
+                .SequenceEqual(expected.Members.Select(member => (member.Role, member.Name, member.TransfermarktPlayerId))))
+                .IsTrue();
+        }
+        await Assert.That(overlaid.QualityRows.All(row =>
+            row.DuckDbGateResult == BundesligaRosterDuckDbGateResult.NotEvaluated
+            && row.SelectionReason == "LAUNCH_ENRICHMENT_OVERLAY_USE_LAST_KNOWN_GOOD"
+            && row.Diagnostics.Contains("LAUNCH_ENRICHMENT_OVERLAY", StringComparer.Ordinal)
+            && !row.Diagnostics.Contains("WRONG_SEASON", StringComparer.Ordinal)
+            && !row.Diagnostics.Contains("WRONG_COMPETITION", StringComparer.Ordinal)
+            && row.SourceRevision == "fixture@launch-overlay"
+            && row.DuckDbSnapshotAsOf == new DateOnly(2026, 8, 13))).IsTrue();
+
+        var publication = BundesligaRosterPublication.Build(overlaid.Snapshots, overlaid.QualityRows);
+        var reconstructed = BundesligaRosterPublication.ReconstructBuilt(publication);
+        await Assert.That(BundesligaRosterLaunchCoverage.Validate(reconstructed.Snapshots))
+            .IsEqualTo(new BundesligaRosterCoverage(464, 464, 450));
+        await Assert.That(publication.Documents.Count(document =>
+            document.Kind == DocumentPublicationKind.Context
+            && document.Name.StartsWith("roster-", StringComparison.Ordinal)
+            && document.Content.Split("\r\n", StringSplitOptions.RemoveEmptyEntries)[^1]
+                .Contains(",Team Accumulated,N/A,N/A,N/A,", StringComparison.Ordinal))).IsEqualTo(18);
+    }
+
     private static void CreateDuckDb(string path)
     {
         var seed = BundesligaRosterSeed.Default.Entries.Where(entry => entry.TeamSlug == "b04" && entry.Role == BundesligaRosterRole.Player).ToArray();

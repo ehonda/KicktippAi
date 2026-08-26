@@ -4,7 +4,7 @@
 - Priority: P0
 - Depends on: [P0-09](p0-09-roster-collector.md), [P0-20](p0-20-seed-and-development-validation.md)
 - Gates: [P0-21](p0-21-production-activation.md)
-- Decisions: [ADR-0011](../decisions/0011-roster-snapshot-and-publication-contract.md), [ADR-0017](../decisions/0017-roster-collector-duckdb-and-reconstruction-contract.md), [ADR-0018](../decisions/0018-validate-roster-publication-metadata-semantically.md), [ADR-0019](../decisions/0019-roster-publication-truth-boundary.md), [ADR-0050](../decisions/0050-publish-enriched-launch-rosters-with-derived-team-subtotals.md)
+- Decisions: [ADR-0011](../decisions/0011-roster-snapshot-and-publication-contract.md), [ADR-0017](../decisions/0017-roster-collector-duckdb-and-reconstruction-contract.md), [ADR-0018](../decisions/0018-validate-roster-publication-metadata-semantically.md), [ADR-0019](../decisions/0019-roster-publication-truth-boundary.md), [ADR-0050](../decisions/0050-publish-enriched-launch-rosters-with-derived-team-subtotals.md), [ADR-0051](../decisions/0051-require-explicit-launch-roster-enrichment-overlay.md)
 
 ## Outcome
 
@@ -28,6 +28,10 @@ last-known-good data.
   rows, including non-`N/A` irrelevant fields.
 - [x] Add an opt-in local artifact SHA-256 check and the audited 18-team launch
   floors of 464 ages, 464 positions, and 450 valuations before publication.
+- [x] Correct the launch path with an explicit paired enrichment-overlay mode:
+  preserve authoritative seed/LKG membership, overlay only exact stable-ID
+  supplemental fields, never evaluate/adopt historical DuckDB membership, and
+  gate the strictly reconstructed final v2 bytes before any write.
 - [x] Prove later collection without DuckDB selects the enriched same-date
   last-known-good snapshot without losing supplemental values.
 - [x] Keep generic competition-profile CI free of a machine-local DuckDB path;
@@ -50,27 +54,36 @@ last-known-good data.
 - `BundesligaRosterPublication` writes v2 and dispatches strict reconstruction
   between immutable v1 bytes and v2 semantics. Derived rows never enter member
   metadata or quality counts.
-- `collect-context rosters` accepts `--duckdb-sha256` and
-  `--require-launch-coverage`; the exact file hash is checked before loading
-  Firestore and the aggregate coverage floor is checked before publication.
-- Focused Core validation passes 22/22, covering exact fixture bytes,
-  CRLF/final terminator, order, partial and wholly unknown subtotals, aggregate
-  reuse/summary, historical v1, current v2, and six corruption classes.
-- Focused Orchestrator validation passes 42/42, covering pin requirements/hash
-  mismatch, coverage pass/regression, no-write dry-run, publication boundaries,
-  DuckDB enrichment, and later no-DuckDB last-known-good preservation.
+- `collect-context rosters` accepts `--duckdb-sha256`,
+  `--require-launch-coverage`, and `--launch-enrichment-overlay`. The two launch
+  flags are required together; the exact file hash is checked before source
+  collection, and strict v2 reconstruction plus 18-team/derived-row/coverage
+  validation occurs before a Firestore request is constructed.
+- The first live arena command on exact main
+  `517db42ce66cb9554848230e176e104ddc87bb64` published snapshot
+  `591adbc3cbc99ee93591f074ad218703c9badb2af4e267142898145825b77ea2`.
+  A payload-safe read-only reconstruction reproduced that hash and proved the
+  selected LastKnownGood membership was enriched to 464/464/450. Firestore and
+  one collector OTLP trace were the only side effects; no prediction dispatch,
+  model call, Kicktipp prediction, or schedule action occurred. ADR-0051 records
+  why the corrected explicit launch mode is still required before live retry.
+- The final corrective focused validation passes 15/15 Core publication tests,
+  36/36 roster-source tests, and 9/9 roster-command tests. It covers exact
+  fixture bytes, CRLF/final terminator, order, partial and wholly unknown
+  subtotals, aggregate reuse/summary, historical v1, current v2, six derived-row
+  corruption classes, explicit overlay provenance, exact 18-team membership
+  preservation, no DuckDB membership evaluation, 464/464/450 enrichment,
+  paired launch flags, strict final reconstruction, and negative no-write
+  behavior.
 - The exact headed-v2 Firebase bonus-context fixture retains the existing
   2/2/3/3/2 document counts and category-specific content sets. The roster-aware
   TopScorer and Coach selections now measure 4,506 UTF-8 bytes / 1,127 estimated
   tokens after their derived subtotal row, still far below the default
   20-document / 32,000-token budget. The focused regression passes 1/1 and the
   full FirebaseAdapter suite passes 292/292.
-- Full Core validation passes 295/295. The full Orchestrator run executed 1,114
-  tests: 1,110 passed and four Firestore Testcontainers fixtures timed out while
-  starting several emulator containers concurrently on Docker Desktop. The
-  three affected roster tests then passed 3/3 when serialized, and the one
-  unrelated Club Elo fixture passed 1/1 when serialized; no assertion failed.
-  The full Release solution build succeeded with zero errors. Existing
+- Final full validation passes Core 297/297, FirebaseAdapter 292/292, and
+  Orchestrator 1,117/1,117, including all Docker-backed fixtures. The full
+  Release solution build succeeds with zero errors. Existing
   NU1903/nullable/obsolete warnings remain unchanged.
 - No collector, Firestore, Kicktipp, Langfuse, GitHub dispatch, or model command
   was executed by the implementation lane. Live evidence remains deliberately
@@ -85,14 +98,18 @@ and the sibling `.env.ehonda-ai-arena` exists without printing its values.
 Publish the roster first:
 
 ```powershell
-dotnet run --project src/Orchestrator --configuration Release -- collect-context rosters --competition bundesliga-2026-27 --community-context ehonda-ai-arena --duckdb-path .tmp/buli-2026-27-research/transfermarkt-datasets.duckdb --duckdb-revision 154367dfa6d6eb0b86332e332f9df0a080c7ddce --duckdb-snapshot-date 2026-08-13 --duckdb-sha256 808959f5b5b16bb698180c348b269d9ec26e1d1a5538767ffe9d971b96796d1c --require-launch-coverage --verbose
+dotnet run --project src/Orchestrator --configuration Release -- collect-context rosters --competition bundesliga-2026-27 --community-context ehonda-ai-arena --duckdb-path .tmp/buli-2026-27-research/transfermarkt-datasets.duckdb --duckdb-revision 154367dfa6d6eb0b86332e332f9df0a080c7ddce --duckdb-snapshot-date 2026-08-13 --duckdb-sha256 808959f5b5b16bb698180c348b269d9ec26e1d1a5538767ffe9d971b96796d1c --require-launch-coverage --launch-enrichment-overlay --verbose
 ```
 
-Capture the published snapshot ID, previous snapshot ID, disposition, and
+The command must report `NotEvaluated` DuckDB membership gates and the stable
+`LAUNCH_ENRICHMENT_OVERLAY` diagnostic for all 18 teams. Any evaluated/rejected
+DuckDB membership result, retained-LKG disposition, or missing overlay
+diagnostic is a stop condition. Capture the published snapshot ID, previous
+snapshot ID, disposition, and
 per-team/aggregate/summary document versions without content payloads. The
-publication must be v2, show exactly 18 derived rows, coverage totals of at
-least 464/464/450, and the expected partial subtotal for teams with missing
-valuations.
+strictly reconstructed final publication must be v2, show exactly 18 derived
+rows, coverage totals of at least 464/464/450, and the expected partial subtotal
+for teams with missing valuations.
 
 Before dispatch, run the existing exact-identity verifier and a read-only cost
 inventory. Keep the inventory JSON under ignored `.tmp/`; it contains metadata

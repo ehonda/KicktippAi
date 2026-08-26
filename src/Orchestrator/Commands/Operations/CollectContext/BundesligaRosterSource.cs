@@ -24,11 +24,21 @@ internal sealed class BundesligaRosterSource : IBundesligaRosterSource
     {
         cancellationToken.ThrowIfCancellationRequested();
         ArgumentNullException.ThrowIfNull(request);
+        if (request.LaunchEnrichmentOverlay
+            && (string.IsNullOrWhiteSpace(request.DuckDbPath)
+                || string.IsNullOrWhiteSpace(request.DuckDbRevision)
+                || request.DuckDbSnapshotAsOf is null))
+        {
+            throw new ArgumentException(
+                "Launch enrichment overlay requires a DuckDB path, revision, and snapshot date.",
+                nameof(request));
+        }
         var manifest = ReadManifest(request.ManifestPath);
         var seed = BundesligaRosterSeed.Parse(File.ReadAllBytes(ResolveExisting(request.SeedPath, "Roster seed")), manifest.Entries, request.SeedPath);
         var fallback = BuildSeedSnapshots(seed, manifest.Entries);
         var lkgSnapshots = lastKnownGood?.Snapshots.ToDictionary(snapshot => snapshot.Team.TeamSlug, StringComparer.Ordinal);
         IReadOnlyDictionary<string, DuckDbClubData>? duckDb = null;
+        var duckDbAvailableForEnrichment = false;
         string? duckDbFailure = null;
         if (!string.IsNullOrWhiteSpace(request.DuckDbPath))
         {
@@ -46,7 +56,12 @@ internal sealed class BundesligaRosterSource : IBundesligaRosterSource
             {
                 try
                 {
-                    duckDb = ReadDuckDb(ResolveExisting(request.DuckDbPath, "DuckDB"), manifest.Entries);
+                    var resolvedDuckDbPath = ResolveExisting(request.DuckDbPath, "DuckDB");
+                    if (!request.LaunchEnrichmentOverlay)
+                    {
+                        duckDb = ReadDuckDb(resolvedDuckDbPath, manifest.Entries);
+                    }
+                    duckDbAvailableForEnrichment = true;
                 }
                 catch (Exception exception) when (exception is DuckDBException or InvalidOperationException or FormatException or OverflowException or FileNotFoundException)
                 {
@@ -70,6 +85,23 @@ internal sealed class BundesligaRosterSource : IBundesligaRosterSource
             var seedSnapshot = fallback[team.TeamSlug];
             var lkg = lkgSnapshots?.GetValueOrDefault(team.TeamSlug);
             var reference = PickReference(seedSnapshot, lkg);
+            if (request.LaunchEnrichmentOverlay)
+            {
+                var overlayEvaluation = new BundesligaRosterDuckDbEvaluation(
+                    BundesligaRosterDuckDbGateResult.NotEvaluated,
+                    ["LAUNCH_ENRICHMENT_OVERLAY"]);
+                evaluations[team.TeamSlug] = overlayEvaluation;
+                var overlaySelection = BundesligaRosterPolicy.SelectMembership(
+                    MembershipCandidate(seedSnapshot, BundesligaRosterMembershipSource.FallbackSeed),
+                    lkg is null ? null : MembershipCandidate(lkg, BundesligaRosterMembershipSource.LastKnownGood, lastKnownGood!.SnapshotId),
+                    null,
+                    overlayEvaluation);
+                selected.Add(overlaySelection.Selected.Source == BundesligaRosterMembershipSource.LastKnownGood
+                    ? lkg! with { MembershipSource = BundesligaRosterMembershipSource.LastKnownGood }
+                    : seedSnapshot);
+                continue;
+            }
+
             DuckDbClubData? data = duckDb?.GetValueOrDefault(team.TeamSlug);
             var candidate = data is null || request.DuckDbSnapshotAsOf is null || string.IsNullOrWhiteSpace(request.DuckDbRevision)
                 ? null
@@ -106,7 +138,7 @@ internal sealed class BundesligaRosterSource : IBundesligaRosterSource
         // Enrichment is independent of membership selection and only attaches exact stable IDs at
         // each selected membership date. A whole enrichment failure cannot replace a valid LKG.
         var unmatchedByTeam = new Dictionary<string, IReadOnlyList<int>>(StringComparer.Ordinal);
-        if (duckDb is not null)
+        if (duckDbAvailableForEnrichment)
         {
             try
             {
@@ -176,10 +208,16 @@ internal sealed class BundesligaRosterSource : IBundesligaRosterSource
             }
             if (sourceFailure is not null) diagnostics.Add(sourceFailure == "DUCKDB_SCHEMA_OR_QUERY_FAILED" ? "ENRICHMENT_UNAVAILABLE" : sourceFailure);
             var isDuck = snapshot.MembershipSource == BundesligaRosterMembershipSource.DuckDb;
-            var gateResult = evaluations.GetValueOrDefault(snapshot.Team.TeamSlug)?.Result ?? BundesligaRosterDuckDbGateResult.NotAvailable;
+            var teamEvaluation = evaluations.GetValueOrDefault(snapshot.Team.TeamSlug);
+            var gateResult = teamEvaluation?.Result ?? BundesligaRosterDuckDbGateResult.NotAvailable;
+            var membershipSuffix = snapshot.MembershipSource == BundesligaRosterMembershipSource.LastKnownGood
+                ? "USE_LAST_KNOWN_GOOD"
+                : "USE_FALLBACK_SEED";
             var selectionReason = isDuck
                 ? "DUCKDB_GATES_PASSED"
-                : $"{(gateResult is BundesligaRosterDuckDbGateResult.NotAvailable or BundesligaRosterDuckDbGateResult.NotEvaluated ? "DUCKDB_NOT_AVAILABLE" : "DUCKDB_REJECTED")}_{(snapshot.MembershipSource == BundesligaRosterMembershipSource.LastKnownGood ? "USE_LAST_KNOWN_GOOD" : "USE_FALLBACK_SEED")}";
+                : teamEvaluation?.Diagnostics.Contains("LAUNCH_ENRICHMENT_OVERLAY", StringComparer.Ordinal) == true
+                    ? $"LAUNCH_ENRICHMENT_OVERLAY_{membershipSuffix}"
+                    : $"{(gateResult is BundesligaRosterDuckDbGateResult.NotAvailable or BundesligaRosterDuckDbGateResult.NotEvaluated ? "DUCKDB_NOT_AVAILABLE" : "DUCKDB_REJECTED")}_{membershipSuffix}";
             return new BundesligaRosterQualityReportRow(snapshot.Team, snapshot.MembershipSource, snapshot.MembershipAsOf,
                 [snapshot.Team.OfficialRosterSourceUrl], revision,
                 snapshot.MembershipSource == BundesligaRosterMembershipSource.LastKnownGood ? lastKnownGoodSnapshotId : null,
@@ -276,7 +314,9 @@ internal sealed class BundesligaRosterSource : IBundesligaRosterSource
             var enrichment = new Dictionary<int, EnrichmentMatch>();
             foreach (var player in snapshot.Members.Where(member => member.Role == BundesligaRosterRole.Player && member.TransfermarktPlayerId is not null))
             {
-                enrichment[player.TransfermarktPlayerId.Value] = ReadEnrichment(connection, player.TransfermarktPlayerId!.Value, snapshot.MembershipAsOf);
+                var playerId = player.TransfermarktPlayerId
+                    ?? throw new InvalidOperationException("Stable-ID enrichment selected a player without a stable ID.");
+                enrichment[playerId] = ReadEnrichment(connection, playerId, snapshot.MembershipAsOf);
             }
             result.Add(snapshot.Team.TeamSlug, enrichment);
         }
@@ -388,5 +428,11 @@ internal sealed class BundesligaRosterSource : IBundesligaRosterSource
     }
 }
 
-public sealed record BundesligaRosterSourceRequest(string SeedPath, string ManifestPath, string? DuckDbPath, string? DuckDbRevision, DateOnly? DuckDbSnapshotAsOf);
+public sealed record BundesligaRosterSourceRequest(
+    string SeedPath,
+    string ManifestPath,
+    string? DuckDbPath,
+    string? DuckDbRevision,
+    DateOnly? DuckDbSnapshotAsOf,
+    bool LaunchEnrichmentOverlay = false);
 public sealed record BundesligaRosterCollection(IReadOnlyList<BundesligaRosterClubSnapshot> Snapshots, IReadOnlyList<BundesligaRosterQualityReportRow> QualityRows, IReadOnlyList<string> Diagnostics, string SeedPath, string ManifestPath, string? DuckDbPath, bool RetainLastKnownGood = false);

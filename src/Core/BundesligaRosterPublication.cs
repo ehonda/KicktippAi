@@ -54,6 +54,43 @@ public static class BundesligaRosterPublication
         BundesligaRosterBuiltPublication publication) =>
         new(communityContext, expectedPreviousSnapshotId, publication.Documents, publication.MetadataJson);
 
+    /// <summary>
+    /// Reconstructs the exact bytes emitted by <see cref="Build"/> through the same headed
+    /// publication contract used by live reads. Launch gates use this result so serialized
+    /// roster rows, aggregate reuse, metadata, and derived rows are all validated before write.
+    /// </summary>
+    public static BundesligaRosterLastKnownGood ReconstructBuilt(BundesligaRosterBuiltPublication publication)
+    {
+        ArgumentNullException.ThrowIfNull(publication);
+        const string validationCommunityContext = "roster-publication-validation";
+        var createdAt = DateTimeOffset.UnixEpoch;
+        var documents = publication.Documents.Select((payload, index) => new PublishedDocument(
+            CompetitionIds.Bundesliga2026_27,
+            validationCommunityContext,
+            BundesligaDocumentPublication.RosterPublicationSet,
+            payload.Kind,
+            payload.Name,
+            index + 1,
+            payload.Content,
+            payload.Description,
+            createdAt)).ToArray();
+        var snapshotId = DocumentPublicationContract.ComputeSnapshotId(publication.Documents);
+        var snapshot = new DocumentPublicationSnapshot(
+            CompetitionIds.Bundesliga2026_27,
+            validationCommunityContext,
+            BundesligaDocumentPublication.RosterPublicationSet,
+            snapshotId,
+            null,
+            createdAt,
+            publication.MetadataJson,
+            documents.Select(document => new DocumentPublicationEntry(
+                document.Kind,
+                document.Name,
+                document.Version,
+                DocumentPublicationContract.ComputeContentSha256(document.Content))));
+        return ReconstructLastKnownGood(new LoadedDocumentPublication(snapshot, documents));
+    }
+
     public static BundesligaRosterLastKnownGood ReconstructLastKnownGood(LoadedDocumentPublication loaded)
     {
         ArgumentNullException.ThrowIfNull(loaded);
@@ -345,7 +382,7 @@ public static class BundesligaRosterPublication
             || (source == BundesligaRosterMembershipSource.LastKnownGood
                 ? !IsLowerSha256(club.LastKnownGoodSnapshotId)
                 : club.LastKnownGoodSnapshotId is not null)
-            || !string.Equals(club.SelectionReason, ExpectedSelectionReason(source, gate), StringComparison.Ordinal))
+            || !string.Equals(club.SelectionReason, ExpectedSelectionReason(source, gate, club.Diagnostics), StringComparison.Ordinal))
         {
             throw new InvalidDataException($"Roster metadata source/gate/provenance matrix is invalid for '{club.TeamSlug}'.");
         }
@@ -393,7 +430,7 @@ public static class BundesligaRosterPublication
                 || row.ValuedPlayerCount != players.Count(member => member.MarketValueEur is not null)
                 || !row.SourceReferences.Select(uri => uri.AbsoluteUri).SequenceEqual(row.SourceReferences.Select(uri => uri.AbsoluteUri).Distinct(StringComparer.Ordinal).Order(StringComparer.Ordinal), StringComparer.Ordinal)
                 || !row.Diagnostics.SequenceEqual(row.Diagnostics.Distinct(StringComparer.Ordinal).Order(StringComparer.Ordinal), StringComparer.Ordinal)
-                || !string.Equals(row.SelectionReason, ExpectedSelectionReason(row.SelectedSource, row.DuckDbGateResult), StringComparison.Ordinal))
+                || !string.Equals(row.SelectionReason, ExpectedSelectionReason(row.SelectedSource, row.DuckDbGateResult, row.Diagnostics), StringComparison.Ordinal))
             {
                 throw new InvalidDataException($"Roster quality metadata has false or non-canonical facts for '{snapshot.Team.TeamSlug}'.");
             }
@@ -411,13 +448,32 @@ public static class BundesligaRosterPublication
         return orderedRows;
     }
 
-    private static string ExpectedSelectionReason(BundesligaRosterMembershipSource source, BundesligaRosterDuckDbGateResult gate) => source switch
+    private static string ExpectedSelectionReason(
+        BundesligaRosterMembershipSource source,
+        BundesligaRosterDuckDbGateResult gate,
+        IReadOnlyCollection<string> diagnostics)
     {
-        BundesligaRosterMembershipSource.DuckDb when gate == BundesligaRosterDuckDbGateResult.Pass => "DUCKDB_GATES_PASSED",
-        BundesligaRosterMembershipSource.FallbackSeed => $"{(gate is BundesligaRosterDuckDbGateResult.NotAvailable or BundesligaRosterDuckDbGateResult.NotEvaluated ? "DUCKDB_NOT_AVAILABLE" : "DUCKDB_REJECTED")}_USE_FALLBACK_SEED",
-        BundesligaRosterMembershipSource.LastKnownGood => $"{(gate is BundesligaRosterDuckDbGateResult.NotAvailable or BundesligaRosterDuckDbGateResult.NotEvaluated ? "DUCKDB_NOT_AVAILABLE" : "DUCKDB_REJECTED")}_USE_LAST_KNOWN_GOOD",
-        _ => throw new InvalidDataException("Roster source and DuckDB gate matrix is invalid.")
-    };
+        if (diagnostics.Contains("LAUNCH_ENRICHMENT_OVERLAY", StringComparer.Ordinal))
+        {
+            if (gate != BundesligaRosterDuckDbGateResult.NotEvaluated
+                || source == BundesligaRosterMembershipSource.DuckDb)
+            {
+                throw new InvalidDataException("Launch enrichment overlay provenance is invalid.");
+            }
+
+            return source == BundesligaRosterMembershipSource.LastKnownGood
+                ? "LAUNCH_ENRICHMENT_OVERLAY_USE_LAST_KNOWN_GOOD"
+                : "LAUNCH_ENRICHMENT_OVERLAY_USE_FALLBACK_SEED";
+        }
+
+        return source switch
+        {
+            BundesligaRosterMembershipSource.DuckDb when gate == BundesligaRosterDuckDbGateResult.Pass => "DUCKDB_GATES_PASSED",
+            BundesligaRosterMembershipSource.FallbackSeed => $"{(gate is BundesligaRosterDuckDbGateResult.NotAvailable or BundesligaRosterDuckDbGateResult.NotEvaluated ? "DUCKDB_NOT_AVAILABLE" : "DUCKDB_REJECTED")}_USE_FALLBACK_SEED",
+            BundesligaRosterMembershipSource.LastKnownGood => $"{(gate is BundesligaRosterDuckDbGateResult.NotAvailable or BundesligaRosterDuckDbGateResult.NotEvaluated ? "DUCKDB_NOT_AVAILABLE" : "DUCKDB_REJECTED")}_USE_LAST_KNOWN_GOOD",
+            _ => throw new InvalidDataException("Roster source and DuckDB gate matrix is invalid.")
+        };
+    }
 
     private static bool IsLowerSha256(string? value) => value is { Length: 64 }
         && value.All(character => character is >= '0' and <= '9' or >= 'a' and <= 'f');

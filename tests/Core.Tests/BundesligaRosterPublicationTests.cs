@@ -32,6 +32,29 @@ public class BundesligaRosterPublicationTests
     }
 
     [Test]
+    public async Task Built_payload_reconstruction_validates_the_exact_serialized_v2_graph()
+    {
+        var (snapshots, rows) = SeedSnapshots();
+        var publication = BundesligaRosterPublication.Build(snapshots, rows);
+
+        var reconstructed = BundesligaRosterPublication.ReconstructBuilt(publication);
+
+        await Assert.That(reconstructed.SnapshotId)
+            .IsEqualTo(DocumentPublicationContract.ComputeSnapshotId(publication.Documents));
+        await Assert.That(reconstructed.Snapshots).Count().IsEqualTo(18);
+
+        var corrupt = publication with
+        {
+            Documents = publication.Documents.Select(document =>
+                document.Name == "roster-b04"
+                    ? document with { Content = RemoveTeamAccumulatedRows(document.Content) }
+                    : document).ToArray()
+        };
+        await Assert.That(() => BundesligaRosterPublication.ReconstructBuilt(corrupt))
+            .Throws<InvalidDataException>();
+    }
+
+    [Test]
     public async Task Strict_reconstruction_preserves_historical_v1_without_team_accumulated_rows()
     {
         var (snapshots, rows) = SeedSnapshots();
@@ -141,6 +164,39 @@ public class BundesligaRosterPublicationTests
 
         await Assert.That(() => BundesligaRosterPublication.Build(snapshots, falseCount)).Throws<InvalidDataException>();
         await Assert.That(() => BundesligaRosterPublication.Build(snapshots, falseReason)).Throws<InvalidDataException>();
+    }
+
+    [Test]
+    public async Task Launch_overlay_provenance_requires_not_evaluated_gate_diagnostic_and_explicit_reason()
+    {
+        var (snapshots, rows) = SeedSnapshots();
+        var overlayRows = rows.Select(row => row with
+        {
+            SourceRevision = "fixture@launch-overlay",
+            DuckDbSnapshotAsOf = new DateOnly(2026, 8, 13),
+            DuckDbGateResult = BundesligaRosterDuckDbGateResult.NotEvaluated,
+            SelectionReason = "LAUNCH_ENRICHMENT_OVERLAY_USE_FALLBACK_SEED",
+            Diagnostics = row.Diagnostics.Append("LAUNCH_ENRICHMENT_OVERLAY")
+                .Distinct(StringComparer.Ordinal)
+                .Order(StringComparer.Ordinal)
+                .ToArray()
+        }).ToArray();
+
+        var publication = BundesligaRosterPublication.Build(snapshots, overlayRows);
+        await Assert.That(BundesligaRosterPublication.ReconstructBuilt(publication).QualityRows
+            .All(row => row.SelectionReason == "LAUNCH_ENRICHMENT_OVERLAY_USE_FALLBACK_SEED"))
+            .IsTrue();
+
+        var wrongGate = overlayRows.Select((row, index) => index == 0
+            ? row with { DuckDbGateResult = BundesligaRosterDuckDbGateResult.Rejected }
+            : row).ToArray();
+        var missingDiagnostic = overlayRows.Select((row, index) => index == 0
+            ? row with { Diagnostics = row.Diagnostics.Where(value => value != "LAUNCH_ENRICHMENT_OVERLAY").ToArray() }
+            : row).ToArray();
+        await Assert.That(() => BundesligaRosterPublication.Build(snapshots, wrongGate))
+            .Throws<InvalidDataException>();
+        await Assert.That(() => BundesligaRosterPublication.Build(snapshots, missingDiagnostic))
+            .Throws<InvalidDataException>();
     }
 
     [Test]
