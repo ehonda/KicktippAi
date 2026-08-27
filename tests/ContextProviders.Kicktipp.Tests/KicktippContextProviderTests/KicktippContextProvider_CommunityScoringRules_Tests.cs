@@ -1,3 +1,7 @@
+using ContextProviders.Kicktipp;
+using EHonda.Optional.Core;
+using Microsoft.Extensions.FileProviders;
+
 namespace ContextProviders.Kicktipp.Tests.KicktippContextProviderTests;
 
 public class KicktippContextProvider_CommunityScoringRules_Tests : KicktippContextProviderTests_Base
@@ -54,5 +58,28 @@ public class KicktippContextProvider_CommunityScoringRules_Tests : KicktippConte
         await Assert.That(async () => await provider.CommunityScoringRules())
             .Throws<FileNotFoundException>()
             .WithMessageContaining("nonexistent-community-rules");
+    }
+
+    [Test]
+    public async Task Relaxdays_rules_use_the_target_document_identity_and_match_pes_squad()
+    {
+        using var rulesFileProvider = (PhysicalFileProvider)CommunityRulesFileProvider.Create();
+        var providerOption = Option.Some<IFileProvider>(rulesFileProvider);
+        var relaxdaysProvider = CreateProvider(
+            communityRulesFileProvider: providerOption,
+            community: "relaxdays-tippt",
+            communityContext: "relaxdays-tippt");
+        var pesProvider = CreateProvider(
+            communityRulesFileProvider: providerOption,
+            community: "pes-squad",
+            communityContext: "pes-squad");
+
+        var relaxdaysRules = await relaxdaysProvider.CommunityScoringRules();
+        var pesRules = await pesProvider.CommunityScoringRules();
+
+        await Assert.That(relaxdaysRules.Name)
+            .IsEqualTo("community-rules-relaxdays-tippt.md");
+        await Assert.That(relaxdaysRules.Content.ReplaceLineEndings("\n"))
+            .IsEqualTo(pesRules.Content.ReplaceLineEndings("\n"));
     }
 }

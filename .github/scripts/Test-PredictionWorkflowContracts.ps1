@@ -213,6 +213,18 @@ function Assert-LaunchRosterOverlayBaseContract {
     Assert-True ($rosterIndex -ge 0 -and $profileIndex -gt $rosterIndex) "$fileName must publish the pinned roster overlay before normal profile collection."
 }
 
+function Assert-CommunityRulesSource {
+    param(
+        [string] $WorkflowDirectory,
+        [string] $CommunityContext,
+        [string] $ContractName
+    )
+
+    $repositoryRoot = Split-Path (Split-Path $WorkflowDirectory -Parent) -Parent
+    $rulesPath = Join-Path $repositoryRoot "community-rules\$CommunityContext.md"
+    Assert-True (Test-Path -LiteralPath $rulesPath -PathType Leaf) "$ContractName requires tracked community rules source community-rules/$CommunityContext.md."
+}
+
 function Assert-ProductionContextEntrypoints {
     param([string] $WorkflowDirectory)
 
@@ -236,6 +248,7 @@ function Assert-ProductionContextEntrypoints {
             KicktippPassword = 'RELAXDAYS_TIPPT_KICKTIPP_PASSWORD'
         }
     )) {
+        Assert-CommunityRulesSource $WorkflowDirectory $caller.CommunityContext $caller.FileName
         $path = Join-Path $WorkflowDirectory $caller.FileName
         Assert-True (Test-Path -LiteralPath $path) "$($caller.FileName) must exist."
         $content = Get-Content -Raw -LiteralPath $path
@@ -383,6 +396,8 @@ function Assert-ArenaLunaTriad {
 
 function Assert-ArenaParticipantContextEntrypoints {
     param([string] $WorkflowDirectory)
+
+    Assert-CommunityRulesSource $WorkflowDirectory 'ehonda-ai-arena' 'Bundesliga arena context entrypoints'
 
     foreach ($caller in @(
         @{

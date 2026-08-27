@@ -53,6 +53,16 @@ activation gates. P0-06 and every ADR-0052 P0-19 repository row are complete.
   Keep `schadensfresse` unrun/manual-only. Successful evidence authorizes a
   later root-owned schedule ADR/workflow lane for ready rows; this lane remains
   schedule-free.
+- The first authorized `relaxdays-tippt` context attempt
+  ([Actions run `33047564359`](https://github.com/ehonda/KicktippAi/actions/runs/33047564359))
+  proved authentication, current-season/match access, and successful pinned
+  roster-overlay publication, then failed closed in normal profile collection
+  because `community-rules/relaxdays-tippt.md` was not tracked. The bounded
+  repository repair adds the exact target document with content identical to
+  `pes-squad.md` plus deterministic coverage for every current Bundesliga
+  production community. The failed run still requires a later authorized retry
+  after review, integration, push, and green CI; no prediction or schedule
+  authority is inferred.
 
 This addendum supersedes later stale statements in this dated handoff that call
 the Owner selection, production callers, challenger rows, prompt v3, or secret

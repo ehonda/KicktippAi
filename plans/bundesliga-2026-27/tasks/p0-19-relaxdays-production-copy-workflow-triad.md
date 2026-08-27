@@ -29,6 +29,12 @@ authentication nor POST permission.
       `pes-squad` reference with the exact production identity.
 - [x] `buli2627-relaxdays-tippt-gpt-5-6-sol-xhigh-bonus.yml` uses the exact
       production identity and budgets `20` / `32000`.
+- [x] `community-rules/relaxdays-tippt.md` supplies the exact
+      `community-rules-relaxdays-tippt.md` context-document identity and is
+      textually identical to the accepted default-rule source
+      `pes-squad.md`. A fresh checkout reconstructs the same CRLF SHA-256
+      `e52945f0d63e9a332ee225d4a9fd60677b761771dac0ac6cc8d7957143252292`.
+      Missing selected rule sources still fail closed.
 - [x] Every caller exposes only `workflow_dispatch`; none has a schedule or
       `workflow_call`.
 - [x] The workflow contract fixes exact inputs, context, credential names, and
@@ -40,3 +46,12 @@ authentication nor POST permission.
       permission, record deadlines and rule compatibility, and inspect one
       context-before-prediction manual cycle.
 - [ ] Enable no schedule until the final Owner activation decision.
+
+The first authorized context attempt, Actions run
+[`33047564359`](https://github.com/ehonda/KicktippAi/actions/runs/33047564359),
+authenticated, found the current season and matches, and published the pinned
+roster overlay. Normal profile collection then failed closed because the
+required checked-in `relaxdays-tippt.md` rules source was missing. The tracked
+source and deterministic production-community coverage remediate that
+repository defect; the failed run is not successful evidence and has not been
+retried by this repair.

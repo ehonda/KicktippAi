@@ -65,7 +65,19 @@ lane remains schedule-free; it does not create an outer scheduled workflow.
 
 ## Validation evidence
 
-Production activation validation has not run. The read-only [production prerequisite audit from 2026-08-25](../../../docs/onboarding-bundesliga-2026-27/production-prerequisite-audit-2026-08-25.md) confirmed `pes-squad` authentication and Bundesliga 2026/27 read readiness without proving posting rights. It also confirmed `schadensfresse` authentication but found no current prediction-input rows, so community-admin remediation remains required. ADR-0052 now fixes the model/participant identities and exact callers, including the in-workflow pinned roster path for the three non-arena communities. On 2026-08-27 the Owner confirmed every canonical Actions Kicktipp pair provisioned; that is not API enumeration or successful use. Pinned enriched v2 non-arena roster publications, preservation inspection for the arena head, manual production writes, and every schedule gate remain open.
+Production activation validation is incomplete. The read-only [production prerequisite audit from 2026-08-25](../../../docs/onboarding-bundesliga-2026-27/production-prerequisite-audit-2026-08-25.md) confirmed `pes-squad` authentication and Bundesliga 2026/27 read readiness without proving posting rights. It also confirmed `schadensfresse` authentication but found no current prediction-input rows, so community-admin remediation remains required. ADR-0052 now fixes the model/participant identities and exact callers, including the in-workflow pinned roster path for the three non-arena communities. On 2026-08-27 the Owner confirmed every canonical Actions Kicktipp pair provisioned; that is not API enumeration or successful use. Completed and inspected non-arena context runs, preservation inspection for the arena head, manual production writes, and every schedule gate remain open.
+
+The first authorized `relaxdays-tippt` context dispatch, Actions run
+[`33047564359`](https://github.com/ehonda/KicktippAi/actions/runs/33047564359),
+proved authentication, current-season/match access, and successful pinned
+roster-overlay publication. Its normal profile phase then failed closed before
+completion because the repository lacked the exact required
+`community-rules/relaxdays-tippt.md` source. The repository repair adds that
+target-owned document with content identical to `pes-squad.md` and a
+deterministic all-production-community existence contract. This does not turn
+the failed run into completed context evidence, prove POST permission or
+deadlines, authorize a retry from this lane, or satisfy the remaining manual
+prediction and schedule gates.
 
 A telemetry-disabled read-only refresh on 2026-08-26 reconfirmed this state
 without a write or Langfuse path. `pes-squad` exited successfully with exactly

@@ -20,11 +20,12 @@ To add rules for a new community:
 
 ## Current Communities
 
-- `default.md` - Standard Kicktipp scoring rules
 - `ehonda-dev-buli-2627.md` - Bundesliga 2026/27 development-community rules verified from Kicktipp
 - `ehonda-test-buli.md` - Test community rules
 - `ehonda-ai-arena.md` - AI arena community rules
-- `pes-squad.md` - PES squad community with modified scoring
+- `pes-squad.md` - PES squad production-community rules
+- `schadensfresse.md` - Schadensfresse production-community rules
+- `relaxdays-tippt.md` - Relaxdays production-copy rules, intentionally identical to `pes-squad.md`
 - `rabetrabauken2026.md` - WM26 reference community rules
 
 ## Example Usage
@@ -33,6 +34,6 @@ To add rules for a new community:
 # Uses ehonda-test-buli.md rules
 dotnet run --project src/Orchestrator -- matchday o4-mini --community ehonda-test-buli
 
-# Uses custom-community.md rules if it exists, otherwise falls back to default.md
+# Uses custom-community.md rules; a missing selected rules file fails closed
 dotnet run --project src/Orchestrator -- matchday o4-mini --community some-community --community-context custom-community
 ```
