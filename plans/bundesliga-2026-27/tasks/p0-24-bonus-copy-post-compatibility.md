@@ -34,6 +34,26 @@ The `arena-production-copy` invocation reuses a stored `pes-squad` bonus predict
 - The current executable arena workflow remains the self-contained `ehonda-ai-arena` to `ehonda-ai-arena` Luna validation path. The supported production-copy topology (`community=ehonda-ai-arena`, `community_context=pes-squad`) is covered at the command contract boundary, including target credentials and target posting with a source-context exact read. Creating and exercising its model-bound production workflow remains a P0-19/P0-21 activation responsibility.
 - This evidence is automated contract and persistence proof. It does not claim a production community prediction, model call, copy-post, or live P0-21 validation.
 
+### Final-verifier remediation — 2026-08-27
+
+- Activation review found that generation and posting already followed ADR-0048,
+  but the final `verify-bonus` step still read only the requested source
+  `community_context`. That source-only read could reject a valid copy whose
+  community-local option IDs differ, and it could not verify the target-context
+  fallback produced for an ordinary incompatibility.
+- Bundesliga reference-copy verification is now copy-aware. A compatible exact
+  source candidate is freshness-checked and mapped to the current target option
+  IDs before comparison with Kicktipp. An ordinary incompatible or missing
+  source instead exact-reads, compatibility-maps, and freshness-checks the
+  independently persisted target-context fallback. Missing, incoherent, stale,
+  or ambiguous target state and immutable source/target provenance failures
+  remain discrepancies.
+- The verifier does not create a prediction service or make a model call.
+  Self-contained Bundesliga, credential-profile, and legacy competition paths
+  retain their existing behavior. Focused verifier coverage passed 67/67,
+  including six new compatible-copy, target-fallback, and fail-closed cases;
+  the cumulative full Orchestrator suite passed 1142/1142.
+
 ## Validation
 
 - [x] Test exact normalized compatibility when raw question/option formatting or community-local IDs/order differ but canonical identities are equal.
@@ -44,6 +64,7 @@ The `arena-production-copy` invocation reuses a stored `pes-squad` bonus predict
 - [x] Prove invalid/ambiguous target definitions or selections and immutable target-context safety violations fail closed without a post; these are the only incompatibility-related no-post outcomes.
 - [x] Add repository round-trip, command, telemetry, workflow-contract, and production-topology coverage for the immutable compatibility fields and copy source.
 - [x] Retain the P0-21 handoff to inspect one compatible production copy end to end and retain any real mismatch as evidence of independent generation or fail-closed behavior without recording question/option payloads. This task records the required activation check, not live-production evidence.
+- [x] Make final verification follow the same compatible-copy versus exact target-fallback branch as generation, without constructing or calling a prediction service.
 
 ## Complete when
 

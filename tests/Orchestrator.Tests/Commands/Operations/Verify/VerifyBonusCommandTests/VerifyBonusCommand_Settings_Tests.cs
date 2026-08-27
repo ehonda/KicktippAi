@@ -59,14 +59,24 @@ public class VerifyBonusCommand_Settings_Tests : VerifyBonusCommandTests_Base
     }
 
     [Test]
-    public async Task Community_context_can_differ_from_community()
+    public async Task Legacy_community_context_can_differ_from_community()
     {
         // Arrange
         var question = CreateTestBonusQuestion(formFieldName: "bonus_q1");
         var ctx = CreateVerifyBonusCommandApp(bonusQuestions: new List<BonusQuestion> { question });
 
         // Act
-        await RunCommandAsync(ctx.App, ctx.Console, "verify-bonus", "gpt-4o", "-c", "my-community", "--community-context", "different-context");
+        await RunCommandAsync(
+            ctx.App,
+            ctx.Console,
+            "verify-bonus",
+            "gpt-4o",
+            "-c",
+            "my-community",
+            "--community-context",
+            "different-context",
+            "--competition",
+            CompetitionIds.FifaWorldCup2026);
 
         // Assert - prediction lookup uses explicit community context
         ctx.PredictionRepository.Verify(r => r.GetBonusPredictionByTextAsync(

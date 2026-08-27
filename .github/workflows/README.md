@@ -277,7 +277,12 @@ names are safe to document; values must never be printed or committed.
 For the copy row, `community` is `ehonda-ai-arena` and `community_context` is
 `pes-squad`. Posting-target arena credentials are mandatory. Match fixtures
 must be compatible, and bonus questions plus options must normalize exactly
-before a stored reference prediction is posted.
+before a stored reference prediction is posted. Final bonus verification uses
+the same distinction as generation: it maps a compatible source selection to
+the current target option IDs, while an ordinary incompatibility exact-reads
+and verifies the independently stored target-context fallback. Missing,
+outdated, incoherent, or ambiguous target fallback state fails the workflow;
+verification never creates a prediction service or makes a model call.
 
 The retained self-contained WM26 workflow evidence keeps `community` and
 `community_context` aligned. Those inert `ehonda-ai-arena` callers use

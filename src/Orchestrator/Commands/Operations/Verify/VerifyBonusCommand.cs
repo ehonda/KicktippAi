@@ -100,6 +100,8 @@ public class VerifyBonusCommand : AsyncCommand<VerifySettings>
             competition,
             CompetitionIds.Bundesliga2026_27,
             StringComparison.Ordinal);
+        var isReferenceCopyMode = isBundesliga
+            && !string.Equals(settings.Community, communityContext, StringComparison.Ordinal);
         // Try to get the prediction repository (may be null if Firebase is not configured)
         var predictionRepository = _firebaseServiceFactory.CreatePredictionRepository(competition);
         if (predictionRepository == null)
@@ -115,6 +117,11 @@ public class VerifyBonusCommand : AsyncCommand<VerifySettings>
             : _firebaseServiceFactory.CreateKpiRepository(competition);
         var publicationRepository = isBundesliga
             ? _firebaseServiceFactory.CreateDocumentPublicationRepository(competition)
+            : null;
+        var bonusPredictionCopyRepository = isReferenceCopyMode
+            ? predictionRepository as IBonusPredictionCopyRepository
+              ?? throw new InvalidOperationException(
+                  "Bundesliga reference bonus verification requires a compatibility-capable prediction repository.")
             : null;
         
         _console.MarkupLine($"[blue]Using community:[/] [yellow]{settings.Community}[/]");
@@ -153,13 +160,48 @@ public class VerifyBonusCommand : AsyncCommand<VerifySettings>
             
             try
             {
-                // Get prediction from database
+                // Get the exact independently stored prediction, or reconstruct the target
+                // selection from the compatible reference prediction without a model call.
                 if (settings.Verbose)
                 {
                     _console.MarkupLine($"[dim]  Looking up: {Markup.Escape(question.Text)}[/]");
                 }
-                
-                var databasePrediction = await predictionRepository.GetBonusPredictionByTextAsync(question.Text, modelConfig, communityContext);
+
+                BonusPrediction? databasePrediction;
+                bool isOutdated;
+                if (isReferenceCopyMode)
+                {
+                    var resolved = await ResolveReferenceCopyPredictionAsync(
+                        predictionRepository,
+                        bonusPredictionCopyRepository!,
+                        publicationRepository!,
+                        question,
+                        modelConfig,
+                        settings.Community,
+                        communityContext,
+                        settings.Verbose);
+                    databasePrediction = resolved.Prediction;
+                    isOutdated = resolved.IsOutdated;
+                }
+                else
+                {
+                    databasePrediction = await predictionRepository.GetBonusPredictionByTextAsync(
+                        question.Text,
+                        modelConfig,
+                        communityContext);
+                    isOutdated = databasePrediction is not null
+                        && settings.CheckOutdated
+                        && await CheckBonusPredictionOutdated(
+                            predictionRepository,
+                            kpiRepository,
+                            publicationRepository,
+                            question,
+                            databasePrediction,
+                            modelConfig,
+                            communityContext,
+                            isBundesliga,
+                            settings.Verbose);
+                }
                 var kicktippPrediction = placedPredictions.GetValueOrDefault(question.FormFieldName ?? question.Text);
                 
                 if (databasePrediction != null)
@@ -171,22 +213,6 @@ public class VerifyBonusCommand : AsyncCommand<VerifySettings>
                     
                     // Compare database prediction with Kicktipp placed prediction
                     var predictionsMatch = CompareBonusPredictions(databasePrediction, kicktippPrediction);
-                    
-                    // Check if prediction is outdated (if enabled)
-                    var isOutdated = false;
-                    if (settings.CheckOutdated)
-                    {
-                        isOutdated = await CheckBonusPredictionOutdated(
-                            predictionRepository,
-                            kpiRepository,
-                            publicationRepository,
-                            question,
-                            databasePrediction,
-                            modelConfig,
-                            communityContext,
-                            isBundesliga,
-                            settings.Verbose);
-                    }
                     
                     // Consider prediction valid if it passes validation, matches Kicktipp, and is not outdated
                     var isPredictionValid = isValidPrediction && predictionsMatch && !isOutdated;
@@ -316,6 +342,109 @@ public class VerifyBonusCommand : AsyncCommand<VerifySettings>
         
         return hasDiscrepancies;
     }
+
+    private async Task<ResolvedVerificationPrediction> ResolveReferenceCopyPredictionAsync(
+        IPredictionRepository predictionRepository,
+        IBonusPredictionCopyRepository bonusPredictionCopyRepository,
+        IDocumentPublicationRepository publicationRepository,
+        BonusQuestion targetQuestion,
+        PredictionModelConfig modelConfig,
+        string targetCommunityContext,
+        string sourceCommunityContext,
+        bool verbose)
+    {
+        // Validate the target before inspecting source provenance. An ambiguous target is
+        // never an ordinary copy mismatch and must fail closed.
+        _ = BonusQuestionCompatibilityManifest.Create(targetQuestion);
+
+        var copyCandidate = await bonusPredictionCopyRepository.GetBonusPredictionCopyCandidateAsync(
+            targetQuestion,
+            modelConfig,
+            sourceCommunityContext);
+
+        if (copyCandidate is not null
+            && !string.IsNullOrWhiteSpace(copyCandidate.PredictionIdentity)
+            && copyCandidate.QuestionCompatibilityManifest is not null)
+        {
+            try
+            {
+                var compatibility = copyCandidate.QuestionCompatibilityManifest.TryMapPrediction(
+                    targetQuestion,
+                    copyCandidate.BonusPrediction,
+                    out var mappedPrediction,
+                    out _);
+
+                if (compatibility == BonusPredictionCopyCompatibility.Compatible)
+                {
+                    var isOutdated = await CheckBundesligaBonusPredictionMetadataOutdated(
+                        publicationRepository,
+                        targetQuestion,
+                        copyCandidate.BonusPrediction,
+                        copyCandidate,
+                        sourceCommunityContext,
+                        verbose);
+                    return new ResolvedVerificationPrediction(
+                        mappedPrediction
+                        ?? throw new InvalidDataException(
+                            "Compatible Bundesliga bonus verification did not produce a mapped target prediction."),
+                        isOutdated);
+                }
+            }
+            catch (InvalidDataException)
+            {
+                // Malformed source compatibility provenance is an ordinary incompatibility.
+                // Verify the exact independently generated target fallback below.
+            }
+        }
+
+        var targetPrediction = await predictionRepository.GetBonusPredictionByTextAsync(
+            targetQuestion.Text,
+            modelConfig,
+            targetCommunityContext);
+        if (targetPrediction is null)
+        {
+            return new ResolvedVerificationPrediction(null, true);
+        }
+
+        var targetMetadata = await predictionRepository.GetBonusPredictionMetadataByTextAsync(
+            targetQuestion.Text,
+            modelConfig,
+            targetCommunityContext);
+        if (targetMetadata is null
+            || string.IsNullOrWhiteSpace(targetMetadata.PredictionIdentity)
+            || targetMetadata.QuestionCompatibilityManifest is null
+            || !BonusPredictionContentEquality.Equals(targetPrediction, targetMetadata.BonusPrediction))
+        {
+            return new ResolvedVerificationPrediction(targetPrediction, true);
+        }
+
+        try
+        {
+            var compatibility = targetMetadata.QuestionCompatibilityManifest.TryMapPrediction(
+                targetQuestion,
+                targetMetadata.BonusPrediction,
+                out var mappedTargetPrediction,
+                out _);
+            if (compatibility != BonusPredictionCopyCompatibility.Compatible
+                || mappedTargetPrediction is null)
+            {
+                return new ResolvedVerificationPrediction(targetPrediction, true);
+            }
+
+            var isOutdated = await CheckBundesligaBonusPredictionMetadataOutdated(
+                publicationRepository,
+                targetQuestion,
+                targetPrediction,
+                targetMetadata,
+                targetCommunityContext,
+                verbose);
+            return new ResolvedVerificationPrediction(mappedTargetPrediction, isOutdated);
+        }
+        catch (InvalidDataException)
+        {
+            return new ResolvedVerificationPrediction(targetPrediction, true);
+        }
+    }
     
     private static bool ValidateBonusPrediction(BonusQuestion question, BonusPrediction prediction)
     {
@@ -369,23 +498,15 @@ public class VerifyBonusCommand : AsyncCommand<VerifySettings>
 
             if (isBundesliga)
             {
-                if (!BonusPredictionContentEquality.Equals(databasePrediction, predictionMetadata.BonusPrediction))
-                {
-                    if (verbose)
-                    {
-                        _console.MarkupLine("[yellow]Stored Bundesliga bonus prediction does not match its immutable provenance metadata[/]");
-                    }
-
-                    return true;
-                }
-
-                return await BundesligaBonusPredictionOutdatedChecker.IsOutdatedAsync(
+                return await CheckBundesligaBonusPredictionMetadataOutdated(
                     publicationRepository
                     ?? throw new InvalidOperationException(
                         "Bundesliga bonus outdated checks require a publication repository."),
                     question,
+                    databasePrediction,
+                    predictionMetadata,
                     communityContext,
-                    predictionMetadata);
+                    verbose);
             }
             
             // Check if any KPI document has been updated after the prediction was created
@@ -432,6 +553,43 @@ public class VerifyBonusCommand : AsyncCommand<VerifySettings>
             return isBundesliga;
         }
     }
+
+    private async Task<bool> CheckBundesligaBonusPredictionMetadataOutdated(
+        IDocumentPublicationRepository publicationRepository,
+        BonusQuestion question,
+        BonusPrediction prediction,
+        BonusPredictionMetadata predictionMetadata,
+        string communityContext,
+        bool verbose)
+    {
+        if (!BonusPredictionContentEquality.Equals(prediction, predictionMetadata.BonusPrediction))
+        {
+            if (verbose)
+            {
+                _console.MarkupLine("[yellow]Stored Bundesliga bonus prediction does not match its immutable provenance metadata[/]");
+            }
+
+            return true;
+        }
+
+        try
+        {
+            return await BundesligaBonusPredictionOutdatedChecker.IsOutdatedAsync(
+                publicationRepository,
+                question,
+                communityContext,
+                predictionMetadata);
+        }
+        catch (Exception ex) when (ex is InvalidDataException or InvalidOperationException)
+        {
+            if (verbose)
+            {
+                _console.MarkupLine($"[yellow]Stored Bundesliga bonus provenance is invalid: {Markup.Escape(ex.Message)}[/]");
+            }
+
+            return true;
+        }
+    }
     
     private static bool CompareBonusPredictions(BonusPrediction? databasePrediction, BonusPrediction? kicktippPrediction)
     {
@@ -453,4 +611,8 @@ public class VerifyBonusCommand : AsyncCommand<VerifySettings>
         
         return databaseOptions.SequenceEqual(kicktippOptions);
     }
+
+    private sealed record ResolvedVerificationPrediction(
+        BonusPrediction? Prediction,
+        bool IsOutdated);
 }

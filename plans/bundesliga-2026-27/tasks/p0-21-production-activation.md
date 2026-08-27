@@ -57,7 +57,7 @@ lane remains schedule-free; it does not create an outer scheduled workflow.
       model call.
 - [ ] Validate self-contained arena Sol/`high`, Luna/`medium`, Terra/`xhigh`,
       and Luna/`none` in context-before-prediction order.
-- [ ] For bonus copy-posting, enforce P0-24's exact normalized question and complete-option-set compatibility; every ordinary source/provenance/question/option mismatch generates and persists exactly one independent prediction with `community_context: "ehonda-ai-arena"` in the same invocation, never the requested `pes-squad` copy-source context, while invalid target selection or immutable-context safety violations fail closed.
+- [ ] For bonus copy-posting, enforce P0-24's exact normalized question and complete-option-set compatibility; every ordinary source/provenance/question/option mismatch generates and persists exactly one independent prediction under the posting target's community context in the same invocation, never the requested `pes-squad` copy-source context, while invalid target selection or immutable-context safety violations fail closed. Confirm final `verify-bonus` maps a compatible source selection to target-local option IDs, or exact-reads the independently persisted target-context fallback for an ordinary incompatibility, without creating or calling a prediction service.
 - [ ] Inspect production traces for competition, prompt/model identity, context documents, tokens, costs, and errors.
 - [ ] Confirm no 2025/26 identity, WM26 collector, or transfer document appears.
 - [ ] Enable schedules only for communities whose manual evidence passed; keep failed/unverified communities manual-only.

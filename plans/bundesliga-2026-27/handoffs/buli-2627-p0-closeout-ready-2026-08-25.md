@@ -65,11 +65,18 @@ provisioning unresolved.
 - Full `OpenAiIntegration.Tests` passed `233/233` after the v3 mirror/hash and
   unresolved-placeholder assertions were added.
 - Focused context-workflow contracts passed `12/12`, and the final full
-  `Orchestrator.Tests` suite passed `1136/1136` after the launch-overlay path.
+  `Orchestrator.Tests` suite passed `1142/1142` after the launch-overlay path
+  and copy-aware final-verifier remediation.
 - The deterministic workflow contract passed with `2` prediction bases, `14`
   callable WM26 callers, `12` explicitly retired Bundesliga callers, and `16`
   current Bundesliga callers. Docker actionlint passed all `23` changed/new
   workflow files.
+- Activation review found and repaired a final `verify-bonus` asymmetry for
+  dependent communities. The verifier now maps a compatible `pes-squad`
+  candidate to target-local option IDs, or exact-reads the target-context
+  fallback produced by an ordinary incompatibility. It fails closed on stale
+  or invalid provenance and performs no model call. The focused verifier family
+  passed 67/67, including six new copy-aware regressions.
 - The two checked-in match mirrors are byte-identical and reproduce normalized
   v3 SHA-256
   `7c223c0765024e52b542bbdb8093ab9b8fcaad505de0c5f8d6c92f4044e175f3`.
