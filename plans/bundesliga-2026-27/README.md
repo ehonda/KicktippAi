@@ -15,8 +15,9 @@ The accepted [execution strategy](execution-strategy.md) defines gated orchestra
 - Langfuse-hosted prompts are primary. Checked-in mirrors are the outage or first-fetch fallback.
 - The required production scope is `pes-squad`, `schadensfresse`,
   `relaxdays-tippt`, and `ehonda-ai-arena`; `ehonda-dev-buli-2627` is the safe
-  development target. ADR-0052 fixes the model/challenger matrix and ADR-0054
-  changes ordinary `schadensfresse` Bundesliga work to copy `pes-squad`.
+  development target. ADR-0052 fixes the model/challenger matrix, ADR-0054
+  changes ordinary `schadensfresse` Bundesliga work to copy `pes-squad`, and
+  ADR-0055 places that validated copy in the strict production-live lane.
 - Historical data is not deleted. A future historical experiment must opt into an explicit competition, prompt, and context setup.
 
 ## P0 tasks
@@ -51,7 +52,7 @@ The accepted [execution strategy](execution-strategy.md) defines gated orchestra
 | [P0-19 arena Luna/medium](tasks/p0-19-arena-luna-medium-self-contained-workflow-triad.md) | Complete: manual-only self-contained challenger triad | P0-06, P0-17, P0-18 |
 | [P0-19 arena Terra/xhigh](tasks/p0-19-arena-terra-xhigh-self-contained-workflow-triad.md) | Complete: manual-only self-contained challenger triad | P0-06, P0-17, P0-18 |
 | [P0-20](tasks/p0-20-seed-and-development-validation.md) | Seed context and validate dev plus arena plumbing | P0-02 through P0-18, P0-22, local dev path, Luna/none arena P0-19 entrypoints |
-| [P0-21](tasks/p0-21-production-activation.md) | Observe the active ready-row schedule and onboard the pending `schadensfresse` row | P0-06, P0-20, P0-24, P0-25, production P0-19 entrypoints |
+| [P0-21](tasks/p0-21-production-activation.md) | Observe the active eight-row schedule; `schadensfresse` manual onboarding and topology are prepared | P0-06, P0-20, P0-24, P0-25, production P0-19 entrypoints |
 | [P0-22](tasks/p0-22-history-played-dates.md) | Reconstruct exact played dates for recent, home, and away history | P0-02, P0-04 |
 | [P0-23](tasks/p0-23-gpt-5-6-production-candidate-evidence.md) | Complete: publish cutoff-safe GPT-5.6 cost/quality evidence with Luna/`max` incomplete; post-hoc Sol/`xhigh` and the later Sol/`max` extension remain explicitly exploratory | P0-05, P0-12, P0-20 |
 | [P0-24](tasks/p0-24-bonus-copy-post-compatibility.md) | Complete: exact bonus question and complete-option-set copy compatibility is implemented and integrated | P0-16, P0-17, P0-18 |
@@ -82,27 +83,30 @@ opening Bundesliga fixtures as `pes-squad`, plus five compatible Bundesliga
 bonus questions due `2026-08-28T18:30:00Z` and three CL questions due
 `2026-09-09T10:00:00Z`. ADR-0054 makes ordinary Bundesliga work a copy path,
 adds exact scoped question aliases and a deadline-bounded initial bonus run,
-and records mixed DFB/CL routing as P1-08. The row remains manual-only pending
-its context/copy/inspection ladder. The Owner accepted ADR-0053's cadence, operating
+and records mixed DFB/CL routing as P1-08. Its ordered context/match/bonus
+ladder is now green on exact pushed head `3dd93d5`; ADR-0055 adds target context
+then ordinary match copy to the recurring lane while leaving bonus and P1-08
+work outside it. The Owner accepted ADR-0053's cadence, operating
 ownership, rollback contract, and ready-row schedule on 2026-08-27. Exact
 activation commit `56238e5fd3615e11d0be2c462516e819dfded1db` is now on
 `main`, and exact-head GitHub run
 [`33100581641`](https://github.com/ehonda/KicktippAi/actions/runs/33100581641)
-succeeded. Only the first actual scheduled observation and `schadensfresse`
-remain open.
+succeeded. The natural scheduled observation, including the ADR-0055 topology
+after it reaches the default branch, remains open.
 
 P0-19 is instantiated for every ADR-0052 deployable row. The development row
 remains a local CLI path; every production/copy/challenger leaf entrypoint is
 explicit, manual-only, and schedule-free. P0-21 completed live validation for
-every ready row; the prepared `schadensfresse` leaf triad remains handed off
-but unrun.
+all rows, including the `schadensfresse` ladder recorded in P0-21.
 P0-21's production outer matchday lane was prepared at exact
 commit `992af5a63c788c0cc066dce92dd1319a91e5083d` after independent exact-SHA
 approval with no findings. Its contract/actionlint/Release/`1142/1142`
 Orchestrator validation passed, and exact-head GitHub run
 [`33058783532`](https://github.com/ehonda/KicktippAi/actions/runs/33058783532)
 succeeded including Pages. The lane has strict context-before-matchday ordering
-and shared non-cancelling concurrency, with no bonus or `schadensfresse`.
+and shared non-cancelling concurrency, with no bonus or `schadensfresse` at
+that historical checkpoint. ADR-0055 extends the lane to 16 jobs/eight pairs by
+inserting `schadensfresse` after `pes-squad`; bonus remains excluded.
 ADR-0053's sole recurring cron is active through the outer workflow while every
 leaf caller remains manual-only. This activation evidence does not claim the
 still-unobserved first scheduled result.
@@ -161,15 +165,11 @@ P0 is complete only when:
   exact-pinned overlay step before normal profile collection; arena callers
   preserve their already verified shared enriched head without redownloading;
 - autonomous Luna/none validation passes in development and through the arena local, `workflow_dispatch`, and schedule ladder;
-- manual production runs and opening writes succeed for every ready ADR-0052
-  row: `pes-squad`, `relaxdays-tippt`, and all selected arena participants,
+- manual production runs and opening writes succeed for every ADR-0052 row,
   including P0-24-compatible copy-posting without an extra model call;
-  `schadensfresse` remains a visible manual-only exception until its complete
-  context/copy/inspection ladder succeeds;
-- ADR-0053's ready-row schedule is enabled only after its accepted launch
-  decision and successful manual evidence reach the default branch; the first
-  scheduled sequence is then observed. `schadensfresse` remains excluded and
-  manual-only until its own later readiness and topology decision.
+- ADR-0053's schedule, as extended by ADR-0055 with `schadensfresse`, is enabled
+  only after accepted launch decisions and successful manual evidence reach
+  the default branch; the first natural scheduled sequence is then observed.
 
 ## Decision index
 
@@ -227,3 +227,4 @@ P0 is complete only when:
 - [ADR-0052: Select the production model, community matrix, and match prompt v3](decisions/0052-select-production-model-community-matrix-and-match-prompt-v3.md)
 - [ADR-0053: Schedule the production-live matchday lane](decisions/0053-schedule-the-production-live-matchday-lane.md)
 - [ADR-0054: Copy schadensfresse Bundesliga predictions from pes-squad](decisions/0054-copy-schadensfresse-bundesliga-from-pes-squad.md)
+- [ADR-0055: Add schadensfresse to the production-live matchday lane](decisions/0055-add-schadensfresse-to-production-live-lane.md)

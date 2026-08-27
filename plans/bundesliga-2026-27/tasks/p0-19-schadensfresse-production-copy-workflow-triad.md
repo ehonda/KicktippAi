@@ -1,18 +1,18 @@
 # P0-19 — Add the `schadensfresse` production-copy workflow triad
 
-- Status: Complete — the revised manual-only copy triad is ready for P0-21 live validation
+- Status: Complete — the manual-only copy triad is validated; P0-21 owns its ADR-0055 schedule observation
 - Priority: P0
 - Matrix row: `schadensfresse-production-copy`
 - Depends on: [P0-06](p0-06-model-ledger-and-cost-baseline.md), [P0-17](p0-17-community-scope.md), [P0-18](p0-18-base-workflow-support.md), and [P0-24](p0-24-bonus-copy-post-compatibility.md)
-- Decisions: [ADR-0039](../decisions/0039-record-bundesliga-community-and-credential-topology.md), [ADR-0048](../decisions/0048-verify-bonus-compatibility-before-reference-copy.md), [ADR-0052](../decisions/0052-select-production-model-community-matrix-and-match-prompt-v3.md), [ADR-0053](../decisions/0053-schedule-the-production-live-matchday-lane.md), and [ADR-0054](../decisions/0054-copy-schadensfresse-bundesliga-from-pes-squad.md)
+- Decisions: [ADR-0039](../decisions/0039-record-bundesliga-community-and-credential-topology.md), [ADR-0048](../decisions/0048-verify-bonus-compatibility-before-reference-copy.md), [ADR-0052](../decisions/0052-select-production-model-community-matrix-and-match-prompt-v3.md), [ADR-0053](../decisions/0053-schedule-the-production-live-matchday-lane.md), [ADR-0054](../decisions/0054-copy-schadensfresse-bundesliga-from-pes-squad.md), and [ADR-0055](../decisions/0055-add-schadensfresse-to-production-live-lane.md)
 
 ## Outcome
 
 The current `schadensfresse` matchday and opening Bundesliga bonus workflows
 copy the exact Owner-selected Sol/`xhigh` prediction identity from `pes-squad`.
 They post with the target community's own credentials and remain manual-only;
-the existing recurring outer workflow is deliberately unchanged until P0-21
-completes the live ladder.
+ADR-0055 places only their target context and ordinary match copy in P0-21's
+recurring outer workflow after the live ladder completed.
 
 The target's live 2026/27 rules now match `pes-squad` for Bundesliga matches
 and the five opening Bundesliga bonus questions. The checked-in P0 prompt rules
@@ -114,6 +114,6 @@ Run the following only from a reviewed, pushed, green exact head:
 
 ## Complete when
 
-The repository contract and tests above are green and handed to P0-21. Live
-dispatches, payload-safe inspection, and the separate schedule inclusion are
-P0-21 work, not evidence claimed by this task.
+The repository contract and tests above are green and handed to P0-21. The
+manual ladder and ADR-0055 topology are recorded in P0-21; natural scheduled
+observation remains P0-21 work, not evidence claimed by this task.

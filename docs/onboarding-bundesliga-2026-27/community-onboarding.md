@@ -77,8 +77,9 @@ Existing Bundesliga 2025/26 and WM26 community entrypoints remain
 `workflow_call`-only historical files. P0-19 now prepares every selected row as
 an exact manual-only entrypoint/triad; `dev-luna` remains a local CLI path.
 Every leaf remains schedule-free and exposes no `workflow_call`. The sole
-scheduled caller is ADR-0053's outer ready-row matchday lane. P0-21 owns the
-first scheduled observation.
+scheduled caller is ADR-0053's outer ready-row matchday lane. ADR-0055 extends
+that lane with the validated ordinary Bundesliga `schadensfresse`
+context/copy pair. P0-21 owns the first scheduled observation.
 
 The reusable context workflow's launch-roster input is false by default.
 `pes-squad`, `relaxdays-tippt`, and prepared `schadensfresse` callers opt in to
@@ -86,17 +87,19 @@ the exact audited SHA/revision/date overlay before normal profile collection;
 the shared arena context callers omit it and preserve verified enriched head
 `591adbc3cbc99ee93591f074ad218703c9badb2af4e267142898145825b77ea2`.
 The exact run evidence is recorded in the P0-21 task and activation
-preregistration. `pes-squad` and `relaxdays-tippt` have exercised this path;
-`schadensfresse` has not. The arena callers preserved the already enriched
-shared head and did not download the overlay artifact.
+preregistration. `pes-squad`, `relaxdays-tippt`, and `schadensfresse` have
+exercised this initial path. The `schadensfresse` run's 86 present documents
+are the complete current nine-fixture scope, not a strict pass of the 401-item
+full-season inventory. The arena callers preserved the already enriched shared
+head and did not download the overlay artifact.
 
 Administrator setup is now visible: read-only preflight found the current
 marker, exactly nine `pes-squad`-matching fixtures, five Bundesliga questions
 due 2026-08-28 18:30 UTC, and three CL questions due 2026-09-09 10:00 UTC.
-Context overlay/profile, copied match, deadline-scoped copied bonus, and
-payload-safe inspection now run in order. It remains outside the scheduled
-outer lane until that evidence is green. The
-outer lane still exposes `workflow_dispatch`, but its exact 14-job topology has
-no `schadensfresse` job; the separate manual leaf callers must not be dispatched
-before the context gate. P1-08 owns CL-specific bonus routing before September
-9 and later DFB/CL primary match routing.
+Context overlay/profile, copied match, and deadline-scoped copied bonus have
+completed in order. ADR-0055 inserts target context then ordinary match copy
+immediately after `pes-squad` in the 16-job outer lane. The outer lane retains
+`workflow_dispatch` as a YAML trigger but must not be dispatched manually; all
+leaf callers remain manual-only. No bonus job is scheduled. P1-08 owns
+CL-specific bonus routing before September 9 and later DFB/CL primary match
+routing.

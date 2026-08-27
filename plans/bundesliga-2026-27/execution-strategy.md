@@ -1,8 +1,8 @@
 # Bundesliga 2026/27 execution strategy
 
 - Status: Accepted execution strategy; P0-06 and schedule-free P0-19 complete, P0-21 is the active gate
-- Last updated: 2026-08-27
-- Implementation state: P0 implementation through P0-20 and P0-23 through P0-25 is validated; P0-06 and schedule-free P0-19 are complete; ADR-0053 settles ready-row activation while P0-21's first scheduled observation and the revised `schadensfresse` copy ladder remain open
+- Last updated: 2026-08-28
+- Implementation state: P0 implementation through P0-20 and P0-23 through P0-25 is validated; P0-06 and schedule-free P0-19 are complete; the `schadensfresse` manual ladder is green and ADR-0055 extends ADR-0053's outer topology; P0-21's natural scheduled observation remains open
 
 This document describes how to deliver the accepted P0 scope quickly while preserving the project owner's control over the few deliberately late production choices. Task files and accepted ADRs are the implementation contracts.
 
@@ -13,8 +13,9 @@ This document describes how to deliver the accepted P0 scope quickly while prese
 - Delegate bounded work only, with explicit owned paths, inputs, outputs, tests, and completion criteria.
 - Start each task with a short plan audit, then implement in the same thread unless a missing durable decision requires owner direction and an ADR.
 - Treat P0-15 context hygiene and P0-16 bonus-context budgeting as launch work. Other P1 tasks do not delay go-live.
-- Do not add a schedule outside Accepted ADR-0053. Preserve its ready-row scope,
-  serial topology, and rollback contract; keep `schadensfresse` manual-only.
+- Do not add a schedule outside Accepted ADR-0053 as extended by ADR-0055.
+  Preserve the eight-pair serial topology, no-bonus boundary, and rollback
+  contract; every leaf remains manual-only.
 
 ## Execution waves
 
@@ -26,7 +27,7 @@ This document describes how to deliver the accepted P0 scope quickly while prese
 | Development and arena validation | P0-20 | Dev and arena ladder evidence passes, including fail-closed cases |
 | Production evidence and copy safety | P0-23 and P0-24 complete | Owner-authorized GPT-5.6 cost/quality evidence is published with Luna/`max` explicitly incomplete and post-hoc Sol/`xhigh` exploratory; P0-24 proves compatible bonus copy is zero-model and ordinary incompatibility produces exactly one independent target prediction |
 | Launch roster remediation | P0-25 complete | ADR-0051's explicit overlay republish passed the final reconstructed 18-team / 18-derived-row / 464-age / 464-position / 450-value gate from exact-green main; the headed snapshot remained unchanged, and exactly one authorized Luna/none index-0 replacement round passed payload-safe pre/post and trace validation |
-| Production selection and activation | P0-06 and schedule-free P0-19 are complete; execute P0-21 | Ordered ready-row manual validation is green and ADR-0053 accepts the outer schedule; observe the first scheduled sequence and later onboard `schadensfresse` |
+| Production selection and activation | P0-06 and schedule-free P0-19 are complete; execute P0-21 | All ordered manual validation is green and ADR-0053/0055 accept the outer schedule; observe the natural scheduled sequence |
 
 The implementation path through P0-20 and P0-23 through P0-25 is complete;
 ADR-0052 also closes P0-06 and every schedule-free P0-19 row. P0-21 retains
@@ -120,7 +121,7 @@ The repository currently builds/tests PRs and pushes to `main`; native auto-merg
 | Club Elo | Implement provider/cache/gates now; a complete dated seed is launch-safe; network use remains an owner gate |
 | Production identity | `gpt-5.6-sol` / `xhigh` / cap `10000`, Flex-first with Standard fallback; USD 35 is planning orientation only |
 | Arena challengers | Sol/high, Luna/medium, Terra/xhigh, Luna/none; cap `10000`, match v3 / bonus v1 |
-| Activation | Every leaf caller remains manual-only; ADR-0053 schedules the strict outer ready-row matchday lane at `7 2,9 * * *`; first observation and `schadensfresse` remain P0-21 |
+| Activation | Every leaf caller remains manual-only; ADR-0053/0055 schedule the strict eight-pair outer matchday lane at `7 2,9 * * *`; natural observation remains P0-21 |
 
 ## Prerequisite state
 

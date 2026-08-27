@@ -679,7 +679,6 @@ function Assert-ProductionLiveMatchdayWorkflow {
         'matrix:',
         'retry',
         'bonus',
-        'schadensfresse',
         'force_prediction: true',
         'publish_launch_roster_overlay: true',
         'timeout-minutes'
@@ -696,7 +695,9 @@ function Assert-ProductionLiveMatchdayWorkflow {
     $jobs = @(
         @{ Id = 'pes-squad-context'; Needs = $null; Kind = 'context'; Context = 'pes-squad'; SecretStem = 'PES_SQUAD' },
         @{ Id = 'pes-squad-matchday'; Needs = 'pes-squad-context'; Kind = 'match'; Community = 'pes-squad'; Context = 'pes-squad'; Model = 'gpt-5.6-sol'; Effort = 'xhigh'; SecretStem = 'PES_SQUAD' },
-        @{ Id = 'relaxdays-tippt-context'; Needs = 'pes-squad-matchday'; Kind = 'context'; Context = 'relaxdays-tippt'; SecretStem = 'RELAXDAYS_TIPPT' },
+        @{ Id = 'schadensfresse-context'; Needs = 'pes-squad-matchday'; Kind = 'context'; Context = 'schadensfresse'; SecretStem = 'SCHADENSFRESSE' },
+        @{ Id = 'schadensfresse-matchday'; Needs = 'schadensfresse-context'; Kind = 'match'; Community = 'schadensfresse'; Context = 'pes-squad'; Model = 'gpt-5.6-sol'; Effort = 'xhigh'; SecretStem = 'SCHADENSFRESSE' },
+        @{ Id = 'relaxdays-tippt-context'; Needs = 'schadensfresse-matchday'; Kind = 'context'; Context = 'relaxdays-tippt'; SecretStem = 'RELAXDAYS_TIPPT' },
         @{ Id = 'relaxdays-tippt-matchday'; Needs = 'relaxdays-tippt-context'; Kind = 'match'; Community = 'relaxdays-tippt'; Context = 'pes-squad'; Model = 'gpt-5.6-sol'; Effort = 'xhigh'; SecretStem = 'RELAXDAYS_TIPPT' },
         @{ Id = 'arena-sol-xhigh-context'; Needs = 'relaxdays-tippt-matchday'; Kind = 'context'; Context = 'ehonda-ai-arena'; SecretStem = 'EHONDA_AI_ARENA_GPT_5_6_SOL_XHIGH' },
         @{ Id = 'arena-sol-xhigh-matchday'; Needs = 'arena-sol-xhigh-context'; Kind = 'match'; Community = 'ehonda-ai-arena'; Context = 'pes-squad'; Model = 'gpt-5.6-sol'; Effort = 'xhigh'; SecretStem = 'EHONDA_AI_ARENA_GPT_5_6_SOL_XHIGH' },
@@ -712,8 +713,8 @@ function Assert-ProductionLiveMatchdayWorkflow {
 
     $expectedJobIds = @($jobs | ForEach-Object { $_.Id })
     Assert-True (($actualJobIds -join ',') -ceq ($expectedJobIds -join ',')) "$FileName job order differs. Expected $($expectedJobIds -join ', '); got $($actualJobIds -join ', ')."
-    Assert-True ([regex]::Matches($content, '(?m)^    uses: \./\.github/workflows/base-context-collection\.yml\s*$').Count -eq 7) "$FileName must contain exactly seven context jobs."
-    Assert-True ([regex]::Matches($content, '(?m)^    uses: \./\.github/workflows/base-matchday-predictions\.yml\s*$').Count -eq 7) "$FileName must contain exactly seven matchday jobs."
+    Assert-True ([regex]::Matches($content, '(?m)^    uses: \./\.github/workflows/base-context-collection\.yml\s*$').Count -eq 8) "$FileName must contain exactly eight context jobs."
+    Assert-True ([regex]::Matches($content, '(?m)^    uses: \./\.github/workflows/base-matchday-predictions\.yml\s*$').Count -eq 8) "$FileName must contain exactly eight matchday jobs."
 
     foreach ($job in $jobs) {
         $block = Get-WorkflowJobBlock $content $job.Id $FileName

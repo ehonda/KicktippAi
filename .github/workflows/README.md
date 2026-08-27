@@ -4,7 +4,7 @@ This directory contains GitHub Actions workflows that automate the process of ge
 
 ## Current activation status
 
-As of 2026-08-27, Bundesliga 2025/26 and WM26 community entrypoints are
+As of 2026-08-28, Bundesliga 2025/26 and WM26 community entrypoints are
 historical and inert: they retain `workflow_call` only, with no active
 `workflow_dispatch` or `schedule` trigger. Former schedule and model
 descriptions later in this document are historical evidence, not activation
@@ -28,11 +28,12 @@ Luna/none validation schedule from ADR-0047 is no longer present.
 P0-21 also prepares `buli2627-production-live-matchday.yml` as the single
 production-live outer caller. Its strict default-success `needs`
 chain runs context immediately before each matchday row in this order:
-`pes-squad`, `relaxdays-tippt`, arena Sol/`xhigh`, Sol/`high`, Luna/`medium`,
-Terra/`xhigh`, and Luna/`none`. Accepted ADR-0053 retains `workflow_dispatch`
+`pes-squad`, `schadensfresse`, `relaxdays-tippt`, arena Sol/`xhigh`,
+Sol/`high`, Luna/`medium`, Terra/`xhigh`, and Luna/`none`. Accepted ADR-0055
+extends ADR-0053's topology while retaining `workflow_dispatch`
 and activates the exact cron `7 2,9 * * *`; it contains no bonus or
-`schadensfresse` job. The outer caller and all current or pending Bundesliga
-production leaf callers share the non-cancelling
+scheduled leaf job. The outer caller and all current Bundesliga production
+leaf callers share the non-cancelling
 `bundesliga-2026-27-production-live-lane` concurrency group, so a manual leaf
 dispatch cannot overlap the outer lane. Reusable bases and historical/dev
 workflows deliberately do not use that group.
@@ -54,10 +55,12 @@ The workflow system is built on a **reusable workflow architecture** that suppor
     profile. Any failure stops before profile collection. Arena callers omit
     the input and preserve their already enriched shared last-known-good head.
 - **`buli2627-production-live-matchday.yml`**: Serial matchday orchestration
-  with `workflow_dispatch` plus ADR-0053's accepted `02:07` / `09:07` UTC
+  with `workflow_dispatch` plus ADR-0053/0055's accepted `02:07` / `09:07` UTC
   schedule. Every
   context job explicitly disables the one-time launch roster overlay; every
   prediction job pins `force_prediction: false` and `max_repredictions: 2`.
+  Its eight context/match pairs place the `schadensfresse` copy immediately
+  after its `pes-squad` source and before the other copies and challengers.
   Its trigger classification evaluates to `manual` for dispatches and
   `scheduled` for cron events. The first actual scheduled execution remains
   P0-21's open runtime-observation gate.

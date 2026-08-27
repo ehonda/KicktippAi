@@ -2,8 +2,8 @@
 
 - Handoff ID: `buli-2627-p0-closeout-ready-2026-08-25`
 - Created: 2026-08-25
-- Last advanced: 2026-08-27
-- Status: **Active P0 closeout handoff; ready-row schedule active; first observation and `schadensfresse` remain in P0-21**
+- Last advanced: 2026-08-28
+- Status: **Active P0 closeout handoff; all manual rows are green, the eight-row schedule topology is prepared, and natural observation remains in P0-21**
 - Repository: `ehonda/KicktippAi`
 - Historical branch/remote baseline at creation: `main` / `origin/main`
 - Historical exact clean baseline at creation: `78ee2c0aa1b4e1b0093b7ef442936cf042ad2681`
@@ -13,7 +13,29 @@
 
 Close P0 through [P0-21](../tasks/p0-21-production-activation.md). Do not
 fabricate first-schedule runtime evidence. P0-06 and every schedule-free P0-19
-repository row are complete; the revised `schadensfresse` live ladder remains.
+repository row are complete; ADR-0055 prepares the validated `schadensfresse`
+ordinary Bundesliga row for the strict outer lane.
+
+## Schadensfresse activation addendum — 2026-08-28
+
+This subsection supersedes older statements in this handoff that
+`schadensfresse` is pending setup, unrun, or excluded from every prepared
+schedule. Exact pushed head
+`3dd93d51a98d29f4927c59642d084f12897c7285` completed context run
+[`33121916551`](https://github.com/ehonda/KicktippAi/actions/runs/33121916551),
+9/9 zero-generation match-copy run
+[`33122627130`](https://github.com/ehonda/KicktippAi/actions/runs/33122627130),
+and five-of-eight cutoff-bounded bonus-copy run
+[`33123422316`](https://github.com/ehonda/KicktippAi/actions/runs/33123422316).
+The 86 present context documents are the complete current nine-fixture scope,
+not a strict pass of the 401-document full-season inventory.
+
+ADR-0055 keeps cron `7 2,9 * * *` UTC and the shared non-cancelling lane, then
+inserts `schadensfresse` context and ordinary match copy immediately after
+`pes-squad`. The resulting topology is 16 jobs/eight context→match pairs. It
+contains no bonus job, and the retained outer `workflow_dispatch` trigger must
+not be used for validation. Natural scheduled observation remains open; no
+statement in this handoff claims it has occurred.
 
 ## Schadensfresse copy-onboarding addendum — 2026-08-27
 

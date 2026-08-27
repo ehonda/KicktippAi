@@ -34,11 +34,12 @@ These instructions apply to every file and implementation task under this direct
 - Never promote the validation model to production. The project owner controls the final model/prompt/cost decision, Club Elo unattended-network decision, and final schedule activation.
 - Load community-specific sibling `.env.<community>` credentials for local writes without printing values or replacing the base development `.env`.
 - Production bonus callers remain manual-only. Match predictions for the ready
-  `pes-squad`, `relaxdays-tippt`, and `ehonda-ai-arena` rows run only through
-  [ADR-0053](decisions/0053-schedule-the-production-live-matchday-lane.md)'s
-  strict outer schedule; their leaf callers remain manual-only.
-  `schadensfresse` remains excluded and manual-only until its external setup,
-  full validation ladder, and a later Accepted topology decision pass. See
+  `pes-squad`, `schadensfresse`, `relaxdays-tippt`, and `ehonda-ai-arena` rows
+  run only through [ADR-0053](decisions/0053-schedule-the-production-live-matchday-lane.md)
+  as extended by
+  [ADR-0055](decisions/0055-add-schadensfresse-to-production-live-lane.md)'s
+  strict outer schedule; their leaf callers remain manual-only. P1-08's later
+  mixed-competition `schadensfresse` work remains outside that lane. See
   [ADR-0006](decisions/0006-stage-validation-with-a-cheap-test-model.md).
 
 ## Task records

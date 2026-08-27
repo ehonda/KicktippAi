@@ -3,7 +3,7 @@
 - Status: Not started
 - Priority: P1
 - Depends on: [P0-21](p0-21-production-activation.md)
-- Decisions: [ADR-0054](../decisions/0054-copy-schadensfresse-bundesliga-from-pes-squad.md)
+- Decisions: [ADR-0054](../decisions/0054-copy-schadensfresse-bundesliga-from-pes-squad.md), [ADR-0055](../decisions/0055-add-schadensfresse-to-production-live-lane.md)
 
 ## Outcome
 

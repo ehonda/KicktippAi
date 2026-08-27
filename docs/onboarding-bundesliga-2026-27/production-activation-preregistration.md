@@ -75,9 +75,11 @@ participants, prompt v3, callers, or secret presence unresolved. It does not
 close any live P0-21 gate. Before a caller is dispatched, P0-21 still requires
 participant authentication and current-season readiness, POST permission,
 exact deadlines, enriched roster publication, context-before-prediction order,
-and inspection. `schadensfresse` still awaits external new-season setup. No
-schedule was enabled before the final Owner activation gate. That gate passed
-on 2026-08-27 for the ready rows only; `schadensfresse` remains excluded.
+and inspection. No schedule was enabled before the final Owner activation
+gate. That gate passed on 2026-08-27 for the originally ready rows. The
+administrator later completed `schadensfresse` setup; its Owner-authorized
+manual ladder succeeded, and ADR-0055 records its subsequent schedule
+inclusion without changing the cron or operations contract.
 
 ### Owner dispatch authorization — 2026-08-27
 
@@ -88,6 +90,17 @@ primaries before dependent secondaries and an immediate stop of an affected
 chain on failure. The authorization includes the resulting initial prediction
 writes for rows that pass their runtime checks. `schadensfresse` remains
 unrun/manual-only until its administrator finishes new-season setup.
+
+### schadensfresse dispatch and schedule authorization — 2026-08-28
+
+After administrator setup, the Owner authorized the complete ordered
+`schadensfresse` context, match-copy, and cutoff-bounded bonus ladder, including
+the resulting target writes and the later schedule inclusion if green. The
+three runs succeeded on exact pushed head `3dd93d5`. Context's 86 present
+documents are complete for the current nine fixtures but are not a strict
+401-document full-season inventory pass. ADR-0055 adds only context then
+ordinary match copy to the outer lane; no bonus or P1-08 mixed-competition work
+is scheduled.
 
 Successful inspected manual evidence permitted the Owner to accept ADR-0053.
 This activation change schedules only the outer ready-row matchday lane; every
@@ -489,21 +502,23 @@ same external lane.
 
 Required success behavior:
 
-1. The one strict serial chain contains exactly these seven context→matchday
-   pairs in order: `pes-squad`, `relaxdays-tippt`, arena Sol/`xhigh`, arena
-   Sol/`high`, arena Luna/`medium`, arena Terra/`xhigh`, and arena Luna/`none`.
-   Each context job immediately precedes its matching matchday job.
+1. The one strict serial chain contains exactly these eight context→matchday
+   pairs in order: `pes-squad`, `schadensfresse`, `relaxdays-tippt`, arena
+   Sol/`xhigh`, arena Sol/`high`, arena Luna/`medium`, arena Terra/`xhigh`, and
+   arena Luna/`none`. Each context job immediately precedes its matching
+   matchday job.
 2. Any job result other than success blocks every descendant. No later pair
    starts after an upstream context, matchday, copy, or verification failure.
-3. Compatible `relaxdays-tippt` and arena Sol/`xhigh` match copies make zero
-   model calls. Any unexpected incompatibility, fallback, or extra model call
-   is surfaced by the matchday contract and triggers ADR-0053 rollback;
+3. Compatible `schadensfresse`, `relaxdays-tippt`, and arena Sol/`xhigh` match
+   copies make zero model calls. Any unexpected incompatibility, fallback, or
+   extra model call is surfaced by the matchday contract and triggers
+   ADR-0053/ADR-0055 rollback;
    P0-24's bonus-copy fallback semantics do not apply to this match-only lane.
 4. The four self-contained arena challengers generate only when the matchday
    contract requires a new prediction for final verification, using their exact
    accepted model, reasoning, prompt, and cap identities.
-5. The outer workflow contains no bonus or `schadensfresse` job, automatic
-   workflow retry loop, `always()` continuation, or matrix. Its accepted
+5. The outer workflow contains no bonus job, automatic workflow retry loop,
+   `always()` continuation, or matrix. Its accepted
    `max_repredictions: 2` persistence bound is not an automatic workflow retry.
 6. Each matchday job's final Kicktipp and Firestore verification succeeds before
    its downstream context job may start.
@@ -528,14 +543,14 @@ exact repository change.
 
 ## Remaining factual gaps
 
-- Complete the revised `schadensfresse` context, copied match, bounded copied
-  bonus, and payload-safe inspection ladder, then integrate its context+match
-  recurring jobs if all evidence is green.
+- Integrate the reviewed ADR-0055 context+match topology, pass exact-head CI,
+  and retain bonus plus all P1-08 mixed-competition work outside the lane.
 - Recheck the ready-community deadlines if a fixture is rescheduled or an
   administrator changes the zero-minute rule.
 - Observe and record the first actual scheduled ready-row sequence after the
   accepted change reaches the default branch.
 
-ADR-0053 closes the ready-row schedule decision. The first scheduled runtime
-observation and revised `schadensfresse` ladder remain P0-21 completion gates;
-`schadensfresse` stays absent from every schedule until a later Accepted change.
+ADR-0053 closes the original ready-row schedule decision and ADR-0055 adds the
+validated `schadensfresse` ordinary Bundesliga pair. The first natural
+scheduled runtime observation remains a P0-21 completion gate; this document
+does not claim it has occurred.
