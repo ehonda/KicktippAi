@@ -112,6 +112,24 @@ function Assert-ManualDispatchOnly {
     }
 }
 
+function Assert-ManualDispatchAndExactProductionSchedule {
+    param(
+        [string] $Content,
+        [string] $FileName
+    )
+
+    $triggerBlock = Get-TriggerBlock $Content $FileName
+    $actualLines = @($triggerBlock -split '\r?\n' |
+        Where-Object { -not [string]::IsNullOrWhiteSpace($_) })
+    $expectedLines = @(
+        '  workflow_dispatch:',
+        '  schedule:',
+        '    - cron: "7 2,9 * * *"'
+    )
+    Assert-True (($actualLines -join "`n") -ceq ($expectedLines -join "`n")) "$FileName must expose exactly workflow_dispatch and cron 7 2,9 * * * in that order."
+    Assert-True (-not [regex]::IsMatch($triggerBlock, '(?m)^    inputs:\s*$')) "$FileName dispatch must not expose runtime inputs."
+}
+
 function Assert-AdditionalManualTriggersRejected {
     foreach ($mutation in @(
         @{ Name = 'bare-push'; Entry = '  push:' },
@@ -534,7 +552,11 @@ function Assert-BundesligaProductionCallerConcurrency {
     foreach ($fileName in $expectedFileNames) {
         $path = Join-Path $WorkflowDirectory $fileName
         Assert-True (Test-Path -LiteralPath $path -PathType Leaf) "$fileName must exist for the production-live concurrency contract."
-        Assert-ExactProductionLiveConcurrency (Get-Content -Raw -LiteralPath $path) $fileName
+        $content = Get-Content -Raw -LiteralPath $path
+        Assert-ExactProductionLiveConcurrency $content $fileName
+        if ($fileName -cne $OuterFileName) {
+            Assert-NoYamlScheduleKey $content $fileName
+        }
     }
 
     $actualFileNames = @(Get-ChildItem -LiteralPath $WorkflowDirectory -File |
@@ -600,7 +622,10 @@ function Assert-ArenaScheduleScannerSelfTests {
 }
 
 function Assert-NoActiveArenaLunaSchedule {
-    param([string] $WorkflowDirectory)
+    param(
+        [string] $WorkflowDirectory,
+        [string] $ProductionOuterFileName
+    )
 
     $temporaryFileName = 'buli2627-ehonda-ai-arena-gpt-5-6-luna-none-scheduled-cycle.yml'
     Assert-True (-not (Test-Path -LiteralPath (Join-Path $WorkflowDirectory $temporaryFileName))) "$temporaryFileName must be removed after the one authorized scheduled cycle."
@@ -608,6 +633,10 @@ function Assert-NoActiveArenaLunaSchedule {
     $scheduledArenaFiles = [Collections.Generic.List[string]]::new()
     foreach ($workflowFile in Get-ChildItem -LiteralPath $WorkflowDirectory -File |
         Where-Object { Test-IsWorkflowYamlFileName $_.Name }) {
+        if ($workflowFile.Name -ceq $ProductionOuterFileName) {
+            continue
+        }
+
         $content = Get-Content -Raw -LiteralPath $workflowFile.FullName
         $isArenaBundesligaScope =
             $workflowFile.Name.StartsWith('buli2627-ehonda-ai-arena', [StringComparison]::Ordinal) -or
@@ -625,7 +654,7 @@ function Assert-NoActiveArenaLunaSchedule {
         }
     }
 
-    Assert-True ($scheduledArenaFiles.Count -eq 0) "No Bundesliga arena validation schedule may remain after teardown; found: $($scheduledArenaFiles -join ', ')."
+    Assert-True ($scheduledArenaFiles.Count -eq 0) "No historical Bundesliga arena validation schedule may remain after teardown; found: $($scheduledArenaFiles -join ', ')."
 }
 
 function Assert-ProductionLiveMatchdayWorkflow {
@@ -638,8 +667,7 @@ function Assert-ProductionLiveMatchdayWorkflow {
     Assert-True (Test-Path -LiteralPath $path -PathType Leaf) "$FileName must exist."
     $content = Get-Content -Raw -LiteralPath $path
 
-    Assert-ManualDispatchOnly $content $FileName $false
-    Assert-NoYamlScheduleKey $content $FileName
+    Assert-ManualDispatchAndExactProductionSchedule $content $FileName
     Assert-True (-not $content.Contains('workflow_call:', [StringComparison]::Ordinal)) "$FileName must not expose workflow_call."
     Assert-True ([regex]::Matches($content, '(?m)^concurrency:\s*$').Count -eq 1) "$FileName must contain exactly one top-level concurrency block."
     Assert-True ([regex]::Matches($content, '(?m)^  group: bundesliga-2026-27-production-live-lane\s*$').Count -eq 1) "$FileName must use the exact production-live concurrency group."
@@ -653,7 +681,8 @@ function Assert-ProductionLiveMatchdayWorkflow {
         'bonus',
         'schadensfresse',
         'force_prediction: true',
-        'publish_launch_roster_overlay: true'
+        'publish_launch_roster_overlay: true',
+        'timeout-minutes'
     )) {
         Assert-True (-not $content.Contains($forbidden, [StringComparison]::OrdinalIgnoreCase)) "$FileName must not contain forbidden production-live token '$forbidden'."
     }
@@ -874,7 +903,7 @@ Assert-LaunchRosterOverlayBaseContract $workflowDirectory
 Assert-ProductionContextEntrypoints $workflowDirectory
 Assert-ArenaParticipantContextEntrypoints $workflowDirectory
 Assert-ArenaScheduleScannerSelfTests
-Assert-NoActiveArenaLunaSchedule $workflowDirectory
+Assert-NoActiveArenaLunaSchedule $workflowDirectory $productionLiveFileName
 Assert-ProductionLiveMatchdayWorkflow $workflowDirectory $productionLiveFileName
 Assert-BundesligaProductionCallerConcurrency $workflowDirectory $productionLiveFileName
 

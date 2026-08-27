@@ -2,7 +2,7 @@
 
 - Status: Accepted execution strategy; P0-06 and schedule-free P0-19 complete, P0-21 is the active gate
 - Last updated: 2026-08-27
-- Implementation state: P0 implementation through P0-20 and P0-23 through P0-25 is validated; P0-06 and schedule-free P0-19 are complete, while P0-21's external-setup, runtime-evidence, and activation gates remain open
+- Implementation state: P0 implementation through P0-20 and P0-23 through P0-25 is validated; P0-06 and schedule-free P0-19 are complete; ADR-0053 settles ready-row activation while P0-21's first scheduled observation and external `schadensfresse` setup remain open
 
 This document describes how to deliver the accepted P0 scope quickly while preserving the project owner's control over the few deliberately late production choices. Task files and accepted ADRs are the implementation contracts.
 
@@ -13,7 +13,8 @@ This document describes how to deliver the accepted P0 scope quickly while prese
 - Delegate bounded work only, with explicit owned paths, inputs, outputs, tests, and completion criteria.
 - Start each task with a short plan audit, then implement in the same thread unless a missing durable decision requires owner direction and an ADR.
 - Treat P0-15 context hygiene and P0-16 bonus-context budgeting as launch work. Other P1 tasks do not delay go-live.
-- Do not enable final production schedules before P0-21.
+- Do not add a schedule outside Accepted ADR-0053. Preserve its ready-row scope,
+  serial topology, and rollback contract; keep `schadensfresse` manual-only.
 
 ## Execution waves
 
@@ -21,11 +22,11 @@ This document describes how to deliver the accepted P0 scope quickly while prese
 |---|---|---|
 | Foundations | P0-01 through P0-11 in dependency-safe lanes, leaving P0-06's final production choice open | Identity, storage, prompt, model-test, roster, and Club Elo contracts are fixed; targeted tests pass |
 | Context integration | P0-12 through P0-16 plus P0-22 | Match/bonus allowlists, exact history played dates, and budgets pass; no WM26, old-season, stale, duplicate, or transfer context leaks |
-| Community workflows | P0-17 through P0-19 for the fixed Luna/none path and production templates | Community matrix is complete; test entrypoints are explicit; final schedules remain disabled |
+| Community workflows | P0-17 through P0-19 for the fixed Luna/none path and production templates | Community matrix is complete; leaf entrypoints are explicit and manual-only |
 | Development and arena validation | P0-20 | Dev and arena ladder evidence passes, including fail-closed cases |
 | Production evidence and copy safety | P0-23 and P0-24 complete | Owner-authorized GPT-5.6 cost/quality evidence is published with Luna/`max` explicitly incomplete and post-hoc Sol/`xhigh` exploratory; P0-24 proves compatible bonus copy is zero-model and ordinary incompatibility produces exactly one independent target prediction |
 | Launch roster remediation | P0-25 complete | ADR-0051's explicit overlay republish passed the final reconstructed 18-team / 18-derived-row / 464-age / 464-position / 450-value gate from exact-green main; the headed snapshot remained unchanged, and exactly one authorized Luna/none index-0 replacement round passed payload-safe pre/post and trace validation |
-| Production selection and activation | P0-06 and schedule-free P0-19 are complete; execute P0-21 | Run the Owner-authorized ordered manual validation for ready rows, record Club Elo/operating decisions, then schedule and observe only successful rows |
+| Production selection and activation | P0-06 and schedule-free P0-19 are complete; execute P0-21 | Ordered ready-row manual validation is green and ADR-0053 accepts the outer schedule; observe the first scheduled sequence and later onboard `schadensfresse` |
 
 The implementation path through P0-20 and P0-23 through P0-25 is complete;
 ADR-0052 also closes P0-06 and every schedule-free P0-19 row. P0-21 retains
@@ -119,7 +120,7 @@ The repository currently builds/tests PRs and pushes to `main`; native auto-merg
 | Club Elo | Implement provider/cache/gates now; a complete dated seed is launch-safe; network use remains an owner gate |
 | Production identity | `gpt-5.6-sol` / `xhigh` / cap `10000`, Flex-first with Standard fallback; USD 35 is planning orientation only |
 | Arena challengers | Sol/high, Luna/medium, Terra/xhigh, Luna/none; cap `10000`, match v3 / bonus v1 |
-| Activation | All repository callers remain manual-only; P0-21 performs production dispatch and inspection, then obtains the final Owner schedule decision and observes the enabled sequence |
+| Activation | Every leaf caller remains manual-only; ADR-0053 schedules the strict outer ready-row matchday lane at `7 2,9 * * *`; first observation and `schadensfresse` remain P0-21 |
 
 ## Prerequisite state
 
@@ -137,7 +138,7 @@ The connected GitHub token could not enumerate Actions secret names. On
 provisioned; that confirmation remains the planning source of truth and does
 not replace P0-21 authentication, readiness, or POST evidence.
 
-## Remaining deliberately late Owner gates
+## Remaining deliberately late gates
 
 These are not ambiguities agents may decide on their own:
 
@@ -145,8 +146,8 @@ These are not ambiguities agents may decide on their own:
 |---|---|---|
 | Final production model, reasoning, output cap, service/fallback policy, arena challengers, and planning ceiling | Resolved by ADR-0052 on 2026-08-27 | Production and challenger callers are now prepared; P0-21 retains live use |
 | Whether Club Elo terms permit unattended network refresh, or which permitted alternative to use | Late before go-live | Provider boundary, validation, cache, dated seed, and last-known-good behavior |
-| Exact production schedules, spacing, rollback trigger, and activation | P0-21 after manual evidence | Manual-only workflows and the arena validation schedule |
-| `pes-squad` and `schadensfresse` season setup | Later, before their production validation | All foundations, dev/arena validation, and workflow templates |
+| Exact production schedules, spacing, rollback trigger, and activation | Resolved by ADR-0053 on 2026-08-27 for ready rows | First actual scheduled observation remains runtime evidence |
+| `schadensfresse` season setup | External administrator gate before its production validation | Ready-row schedule proceeds without it; its leaf triad stays manual-only |
 
 Final model selection will mix experiments and whole-season cost estimates. New-season outcomes do not exist, older-season evaluation may be training-contaminated, and the retired o3 configuration is not a season-long option; a GPT-5.6 variant is the tentative direction, not an implementation default.
 
@@ -157,4 +158,5 @@ also closes P0-06 and every schedule-free P0-19 repository row. Continue with
 P0-21 only. It may publish the pinned enriched v2 roster to each ready
 production context only through ADR-0051's paired explicit overlay mode and
 must retain every posting, deadline, manual-evidence, Owner, and activation
-gate. No schedule exists in the prepared callers.
+gate. ADR-0053 schedules only the strict outer ready-row matchday lane; every
+leaf caller remains schedule-free.

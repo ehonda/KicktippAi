@@ -1,14 +1,15 @@
 # Bundesliga 2026/27 production activation preregistration
 
-**Status:** DRAFT activation design — Owner-authorized manual validation is in
-progress; schedules remain disabled and exact cadence is unresolved.
+**Status:** Activation contract accepted on 2026-08-27; ready-row schedule
+prepared, with first scheduled runtime observation still open.
 
 **Prepared:** 2026-08-25
 
-This preregistration makes the remaining P0-21 facts, owner gates, sequence,
-and rollback expectations reviewable before production activation. It does not
-replace the required Accepted activation ADR and does not satisfy any manual or
-scheduled evidence item in [P0-21](../../plans/bundesliga-2026-27/tasks/p0-21-production-activation.md).
+This preregistration preserves the P0-21 facts, sequence, and evidence that led
+to [Accepted ADR-0053](../../plans/bundesliga-2026-27/decisions/0053-schedule-the-production-live-matchday-lane.md).
+It does not claim the first scheduled execution has occurred; only runtime
+evidence can satisfy that remaining item in
+[P0-21](../../plans/bundesliga-2026-27/tasks/p0-21-production-activation.md).
 
 ## Owner-selection and repository-preparation addendum — 2026-08-27
 
@@ -50,7 +51,8 @@ close any live P0-21 gate. Before a caller is dispatched, P0-21 still requires
 participant authentication and current-season readiness, POST permission,
 exact deadlines, enriched roster publication, context-before-prediction order,
 and inspection. `schadensfresse` still awaits external new-season setup. No
-schedule may be enabled until the final Owner activation gate.
+schedule was enabled before the final Owner activation gate. That gate passed
+on 2026-08-27 for the ready rows only; `schadensfresse` remains excluded.
 
 ### Owner dispatch authorization — 2026-08-27
 
@@ -62,18 +64,19 @@ chain on failure. The authorization includes the resulting initial prediction
 writes for rows that pass their runtime checks. `schadensfresse` remains
 unrun/manual-only until its administrator finishes new-season setup.
 
-Successful inspected manual evidence permits a later activation lane to author
-the schedule ADR and schedules for ready rows. The current callers remain
-manual-only and schedule-free; no schedule is preregistered as already active.
+Successful inspected manual evidence permitted the Owner to accept ADR-0053.
+This activation change schedules only the outer ready-row matchday lane; every
+leaf caller remains manual-only and schedule-free.
 
-### Manual-only outer-lane integration — 2026-08-27
+### Production-live outer-lane integration — 2026-08-27
 
 Exact commit `992af5a63c788c0cc066dce92dd1319a91e5083d` prepares one
-manual-only production-live outer matchday caller. Its strict default-success
+production-live outer matchday caller. Its strict default-success
 `needs` chain runs context immediately before `pes-squad`, `relaxdays-tippt`,
 arena Sol/`xhigh`, Sol/`high`, Luna/`medium`, Terra/`xhigh`, and Luna/`none`
-matchday rows. It has no bonus or `schadensfresse` job and no cron. The outer
-caller and production leaves share a non-cancelling concurrency group.
+matchday rows. It has no bonus or `schadensfresse` job. The outer caller and
+production leaves share a non-cancelling concurrency group. ADR-0053's later
+activation change adds the sole production cron without changing that topology.
 
 Independent exact-SHA review approved the commit with no findings. The
 prediction-workflow contract passed; actionlint passed with only pre-existing
@@ -82,9 +85,9 @@ warnings; Release build completed with zero errors; and Orchestrator passed
 GitHub run
 [`33058783532`](https://github.com/ehonda/KicktippAi/actions/runs/33058783532)
 succeeded including Pages. Integrated writer/reviewer worktrees were cleaned.
-This evidence neither dispatches the lane nor settles cadence, ownership,
-schedule activation, first observation, or
-`schadensfresse` onboarding.
+This evidence did not dispatch the lane. Cadence, ownership, and rollback are
+now settled by ADR-0053; first scheduled observation and `schadensfresse`
+onboarding remain open.
 
 For the original preregistration-writing pass, no authenticated community
 lookup, workflow dispatch, model or Langfuse call, schedule change, prediction
@@ -188,9 +191,9 @@ and preceded the successful retry above.
 The green workflow/final-verifier and payload-safe evidence establishes working
 credentials, current-season readiness, posting behavior, exact generated
 identity, and zero extra model generations on compatible copy paths for every
-ready row. The Luna/`none` forced-recovery gate is complete. `schadensfresse`,
-operating ownership, the activation ADR, exact schedule cadence, schedule enablement, and
-first scheduled observation remain open.
+ready row. The Luna/`none` forced-recovery gate is complete and must not be
+repeated. `schadensfresse` and the first scheduled observation remain open;
+ADR-0053 now settles operating ownership, rollback, and the exact cadence.
 
 ## Official opening matchday facts
 
@@ -234,7 +237,8 @@ evidence.
 
 ## Accepted activation boundaries
 
-The draft inherits, but does not modify, these accepted repository contracts:
+The activation contract inherits, but does not modify, these accepted
+repository contracts:
 
 - [ADR-0005](../../plans/bundesliga-2026-27/decisions/0005-launch-community-and-prediction-topology.md)
   is superseded by ADR-0052's exact four-community/challenger matrix.
@@ -263,8 +267,9 @@ P0-06 has recorded the final production model, reasoning effort, output cap,
 service-tier/fallback policy, planning orientation, arena participants, and
 match v3 / bonus v1 prompt versions. P0-21 consumes those exact identities.
 The launch Club Elo mode is the accepted dated seed with network fetching
-disabled unless a later Accepted decision authorizes another source path. Exact
-schedules and rollback authority remain Owner-controlled P0-21 inputs.
+disabled unless a later Accepted decision authorizes another source path.
+ADR-0053 records the exact ready-row schedule and Project Owner rollback
+authority.
 
 ## Repository preparation versus live authorization
 
@@ -278,8 +283,9 @@ permission:
 - After reviewed/integrated/pushed/green preparation, the separate Owner
   authorization above permits P0-21's ordered initial dispatch/writes for ready
   rows. Authentication/current-season readiness, failures, deadlines,
-  row-specific recovery/onboarding inspection, monitoring, rollback, and the
-  later schedule ADR remain live gates.
+  row-specific recovery/onboarding inspection, monitoring, and rollback remain
+  live duties under ADR-0053. The first scheduled observation is not yet
+  evidence-complete.
 
 The `schadensfresse` setup request is external and pending with its community
 administrator. The agent is not authorized or expected to administer that
@@ -341,12 +347,12 @@ official opening kickoff. It is not safe merely because it precedes kickoff.
 Activation must first prove that every applicable Kicktipp match cutoff and the
 bonus deadline occur after the corresponding successful final verification.
 
-The exact activation date and durable cadence remain an **OWNER GATE**. A new
-Accepted activation ADR must use the final ready-row topology, exclude recurring
-bonus work, record a deliberate UTC/DST policy, and derive its timing from the
-completed manual ladder. Nothing in the historical table selects `02:00 UTC`.
+The historical draft never selected an activation cadence. Accepted ADR-0053
+later selects the final ready-row topology, excludes recurring bonus work,
+records the deliberate UTC/DST policy, and derives timing from the completed
+manual ladder. Nothing in the historical table selects `02:00 UTC`.
 
-## Current activation-audit recommendation — not accepted yet
+## Accepted activation contract — 2026-08-27
 
 Do not manually dispatch the integrated outer lane merely to prove its
 orchestration. The completed leaf live ladder plus workflow contracts,
@@ -354,7 +360,7 @@ independent review, local validation, and exact-head CI are sufficient; another
 outer run could consume match reprediction index `1` or `2` without
 proportional evidence.
 
-The current recommendation is cron `7 2,9 * * *`. Both values are fixed UTC and
+ADR-0053 selects cron `7 2,9 * * *`. Both values are fixed UTC and
 avoid the top of the hour because
 [GitHub documents possible high-load delay, especially at that time](https://docs.github.com/en/actions/reference/workflows-and-actions/events-that-trigger-workflows#schedule):
 
@@ -371,12 +377,12 @@ pending run is retained, and a newer queued run may replace the pending one.
 This is not FIFO serialization. Do not overlap any manual operation with a
 running or pending production-live run.
 
-Activation still requires an Owner-approved minimal patch: a new Accepted ADR,
-the selected cron on the outer workflow, its exact contract-test update, and
-matching docs. The Owner must also accept cadence, operator/monitor/on-call and
-rollback ownership, Luna/`none` schedule treatment, and the first-observation
-procedure. The forced recovery is already complete; this recommendation changes
-no workflow.
+The Project Owner accepted the exact cadence, operator/monitor/on-call and
+rollback ownership, Luna/`none` schedule treatment, and first-observation
+procedure on 2026-08-27. This activation change adds the selected cron, exact
+contract-test update, and matching documentation. The forced recovery is
+already complete and must not be repeated. The first actual `schedule` event
+remains unobserved and therefore open.
 
 ## Activation gates and current live status
 
@@ -398,54 +404,55 @@ invalidate successful final-verifier evidence.
 - [ ] **OWNER GATE — schadensfresse deadlines:** the 2026-08-27 11:41 CEST
       audit is NOT READY; repeat the same audit after its administrator creates
       the 2026/27 season.
-- [ ] **OWNER GATE — operator:** name the activation owner, schedule merger,
-      first-cycle monitor, on-call responder, community administrators, and
-      rollback operator. Record one reachable escalation path and response SLO.
-- [ ] **OWNER GATE — rollback:** accept exact stop triggers, repository rollback
-      change, manual-only fallback, and authority to disable before activation.
+- [x] **OWNER GATE — operator:** ADR-0053 names the Project Owner as activation
+      owner, first-cycle monitor, on-call responder, and rollback operator,
+      with 30-minute acknowledgement and 60-minute schedule-disable targets.
+- [x] **OWNER GATE — rollback:** ADR-0053 accepts exact stop triggers, the
+      visible cron-removal change, manual-only fallback, and authority to
+      disable after activation.
 - [x] Production P0-19 entrypoints exist on the exact selected identity, are
       reviewed and green, expose manual dispatch only, and map only accepted
       credentials.
 - [x] The three non-arena context callers are wired to the exact pinned
       launch-overlay step before normal profile collection; arena callers omit
       the download and retain their accepted enriched LKG path.
-- [ ] All per-community readiness gates below pass.
-- [ ] Manual context collection succeeds and its exact run ID/completion is
-      recorded before each matching prediction dispatch. For non-arena rows,
-      the same run must record the successful overlay and preserved enriched
-      head; for arena rows it must record preservation of the verified shared
-      enriched head.
-- [ ] Manual match and required bonus runs post the expected Kicktipp values,
-      persist exact Firestore identities, use exact hosted prompts without local
-      fallback, and pass payload-safe Langfuse/cost/error inspection.
-- [ ] No 2025/26 identity, WM26 collector/document, transfer document, wrong
-      community context, extra model call, unexpected/non-zero reprediction
-      index, or unintended reprediction is observed.
+- [ ] All per-community readiness gates below pass. Every scheduled ready row
+      is green; only externally pending `schadensfresse` remains.
+- [x] Manual context collection succeeded and its exact run ID/completion was
+      recorded before each ready-row prediction dispatch, including the pinned
+      non-arena overlay and preserved arena enriched head.
+- [x] Ready-row manual match and required bonus runs posted the expected
+      Kicktipp values, persisted exact Firestore identities, used exact hosted
+      prompts without local fallback, and passed payload-safe inspection.
+- [x] No 2025/26 identity, WM26 collector/document, transfer document, wrong
+      community context, extra copy-row model call, unexpected/non-zero
+      reprediction index, or unintended reprediction was observed in ready-row
+      evidence.
 
-## Per-community readiness — manual ladder in progress
+## Per-community readiness — ready-row ladder complete
 
 The current facts below incorporate the separate read-only
 [production prerequisite audit](production-prerequisite-audit-2026-08-25.md).
 That audit established authentication/read evidence only; it did not prove any
-posting right or authorize production. These are P0-21 live gates, not blockers
-to the schedule-free repository preparation described above.
+posting right or authorize production. The later evidence below closes those
+gates for every ready row; `schadensfresse` remains the explicit exception.
 
 | Matrix row | Current evidence | Remaining evidence | Schedule state |
 |---|---|---|---|
-| `pes-production-reference` | Context `33046582867`, match `33046770442`, and bonus `33047217909` succeeded with final verification; pinned overlay and payload-safe audit passed | Schedule ownership/rollback | No active schedule |
+| `pes-production-reference` | Context `33046582867`, match `33046770442`, and bonus `33047217909` succeeded with final verification; pinned overlay and payload-safe audit passed | First scheduled observation | Included in ADR-0053 outer schedule |
 | `schadensfresse-production-independent` | Authenticated GET returned HTTP 200 at 2026-08-27 11:41 CEST, but there was no Bundesliga 2026/27 marker, zero open match controls, only closed 30 May PSG–Arsenal, zero open bonus questions, eight closed 2025/26 rows, and a still-2025/26 zero-minute rules page | Administrator setup; then require the current marker, 9 open matches, open bonus definitions, and current rules/deadlines before context overlay/profile, independent match, bonus, and payload-safe inspection | NOT READY; absent from schedule and do not dispatch |
-| `relaxdays-production-copy` | Initial context run `33047564359` found the missing rules source; exact repair `eedf330` passed CI, then context `33049949393`, match `33050188533`, and bonus `33050549422` succeeded; payload audit proves 9/9 match plus 5/5 bonus copies and zero generation/fallback | Schedule ownership/rollback | No active schedule |
-| `arena-production-copy` | Context `33050848544`, match `33051066657`, and bonus `33051557046` succeeded; payload audit proves 9/9 match plus 5/5 bonus copies, zero generation/fallback, and shared-roster preservation | Schedule ownership/rollback | No active schedule |
-| Arena Sol/`high` | Context `33051863137`, match `33052087407`, and bonus `33052537217` succeeded with final verification and payload-safe audit | Schedule ownership/rollback | No active schedule |
-| Arena Luna/`medium` | Context `33052882246`, match `33053095243`, and bonus `33053423396` succeeded with final verification and payload-safe audit | Schedule ownership/rollback | No active schedule |
-| Arena Terra/`xhigh` | Context `33053664914`, match `33053888656`, and bonus `33054314209` succeeded with final verification and payload-safe audit | Schedule ownership/rollback | No active schedule |
-| Arena Luna/`none` | Context `33054637395` and match `33054826152` succeeded; bonus `33055144574` failed closed with zero side effects, then Owner-approved forced recovery `33089097055` replaced the same five index-0 records, posted all five selections, passed final 5/5 verification, and passed payload-safe audit | Schedule ownership/rollback | No active schedule; manual triad green |
+| `relaxdays-production-copy` | Initial context run `33047564359` found the missing rules source; exact repair `eedf330` passed CI, then context `33049949393`, match `33050188533`, and bonus `33050549422` succeeded; payload audit proves 9/9 match plus 5/5 bonus copies and zero generation/fallback | First scheduled observation | Included in ADR-0053 outer schedule |
+| `arena-production-copy` | Context `33050848544`, match `33051066657`, and bonus `33051557046` succeeded; payload audit proves 9/9 match plus 5/5 bonus copies, zero generation/fallback, and shared-roster preservation | First scheduled observation | Included in ADR-0053 outer schedule |
+| Arena Sol/`high` | Context `33051863137`, match `33052087407`, and bonus `33052537217` succeeded with final verification and payload-safe audit | First scheduled observation | Included in ADR-0053 outer schedule |
+| Arena Luna/`medium` | Context `33052882246`, match `33053095243`, and bonus `33053423396` succeeded with final verification and payload-safe audit | First scheduled observation | Included in ADR-0053 outer schedule |
+| Arena Terra/`xhigh` | Context `33053664914`, match `33053888656`, and bonus `33054314209` succeeded with final verification and payload-safe audit | First scheduled observation | Included in ADR-0053 outer schedule |
+| Arena Luna/`none` | Context `33054637395` and match `33054826152` succeeded; bonus `33055144574` failed closed with zero side effects, then Owner-approved forced recovery `33089097055` replaced the same five index-0 records, posted all five selections, passed final 5/5 verification, and passed payload-safe audit | First scheduled observation | Included in ADR-0053 outer schedule; do not repeat recovery |
 
 One community passing does not activate another. P0-21 may enable only a row
 whose own manual evidence passes; failed or unverified rows remain manual-only
 or nondeployable.
 
-## First scheduled observation and monitoring — OWNER GATE
+## First scheduled observation and monitoring — runtime gate open
 
 The named monitor must watch the first outer run from creation through terminal
 completion and record the exact event, ref, commit SHA, run/job IDs, dependency
@@ -456,29 +463,42 @@ same external lane.
 
 Required success behavior:
 
-1. Context failure skips every dependent prediction for that context.
-2. Reference prediction failure skips arena copy and all later dependent work.
-3. Match failure skips bonus; no `always()` or automatic retry bypasses the
-   dependency chain.
-4. Copy compatibility is machine-verified. An ordinary mismatch takes exactly
-   the P0-24 independent target-context path; invalid target/context safety fails.
-5. Final verification agrees across Kicktipp and Firestore before the next stage.
+1. The one strict serial chain contains exactly these seven context→matchday
+   pairs in order: `pes-squad`, `relaxdays-tippt`, arena Sol/`xhigh`, arena
+   Sol/`high`, arena Luna/`medium`, arena Terra/`xhigh`, and arena Luna/`none`.
+   Each context job immediately precedes its matching matchday job.
+2. Any job result other than success blocks every descendant. No later pair
+   starts after an upstream context, matchday, copy, or verification failure.
+3. Compatible `relaxdays-tippt` and arena Sol/`xhigh` match copies make zero
+   model calls. Any unexpected incompatibility, fallback, or extra model call
+   is surfaced by the matchday contract and triggers ADR-0053 rollback;
+   P0-24's bonus-copy fallback semantics do not apply to this match-only lane.
+4. The four self-contained arena challengers generate only when the matchday
+   contract requires a new prediction for final verification, using their exact
+   accepted model, reasoning, prompt, and cap identities.
+5. The outer workflow contains no bonus or `schadensfresse` job, automatic
+   workflow retry loop, `always()` continuation, or matrix. Its accepted
+   `max_repredictions: 2` persistence bound is not an automatic workflow retry.
+6. Each matchday job's final Kicktipp and Firestore verification succeeds before
+   its downstream context job may start.
 
-## Rollback proposal — OWNER GATE
+## Accepted rollback contract
 
 Any context-quality failure, authentication/permission failure, deadline-risking
 delay, prompt identity drift or local fallback, unexpected model/configuration,
 output-cap hit, uncontrolled service fallback, cost anomaly, Kicktipp/Firestore
-mismatch, wrong competition/context, extra model call, reprediction, or ordering
-violation triggers rollback.
+mismatch, wrong competition/context, extra model call, unexpected or unintended
+reprediction, reprediction-index violation, or ordering violation triggers
+rollback.
 
-The proposed response is: stop later jobs through dependencies; preserve run and
+The accepted response is: stop later jobs through dependencies; preserve run and
 trace evidence without payloads or secrets; disable/remove the production outer
 schedule in a visible reviewed commit; keep all affected entrypoints manual-only;
 and do not force, automatically retry, substitute Luna, or change a deadline.
 Resume only after the named owner accepts the diagnosis, repair, new manual
-evidence, green exact-head CI, and a revised activation decision. The Accepted
-activation ADR must name the rollback operator and exact repository change.
+evidence, green exact-head CI, and a revised activation decision. ADR-0053 names
+the Project Owner as rollback operator and removal of the outer cron as the
+exact repository change.
 
 ## Remaining factual gaps
 
@@ -490,8 +510,9 @@ activation ADR must name the rollback operator and exact repository change.
   community.
 - Recheck the ready-community deadlines if a fixture is rescheduled or an
   administrator changes the zero-minute rule.
-- Record exact schedule/cadence, named monitor/on-call/rollback owners, and
-  rollback trigger acceptance in a new Accepted activation ADR.
+- Observe and record the first actual scheduled ready-row sequence after the
+  accepted change reaches the default branch.
 
-Until every applicable gate is closed through manual evidence and an Accepted
-activation ADR, all final production schedules remain disabled.
+ADR-0053 closes the ready-row schedule decision. The first scheduled runtime
+observation and external `schadensfresse` ladder remain P0-21 completion gates;
+`schadensfresse` stays absent from every schedule until a later Accepted change.

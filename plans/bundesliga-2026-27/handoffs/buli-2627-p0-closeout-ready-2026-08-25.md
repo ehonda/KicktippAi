@@ -11,9 +11,10 @@
 
 ## Resume objective
 
-Close P0 through [P0-21](../tasks/p0-21-production-activation.md) without
-crossing its remaining community-administrator, runtime-write, or schedule
-activation gates. P0-06 and every ADR-0052 P0-19 repository row are complete.
+Close P0 through [P0-21](../tasks/p0-21-production-activation.md). Preserve the
+remaining `schadensfresse` community-administrator gate and do not fabricate
+first-schedule runtime evidence. P0-06 and every ADR-0052 P0-19 repository row
+are complete.
 
 ## Owner-selection and workflow closeout addendum — 2026-08-27
 
@@ -44,38 +45,41 @@ activation gates. P0-06 and every ADR-0052 P0-19 repository row are complete.
   enumeration, authentication, current-season readiness, or POST evidence.
 - Resume only with P0-21: wait for external `schadensfresse` setup, then repeat
   its readiness/deadline audit and complete its ordered context/prediction
-  ladder. Separately settle the Owner cadence, operating ownership, activation,
-  and first-observation decision. The Luna/`none` recovery is complete and its
-  one-run authorization is consumed; do not dispatch a duplicate recovery.
+  ladder. ADR-0053 now settles the Owner cadence, operating ownership, rollback,
+  and activation decision; the first actual scheduled observation remains
+  open. The Luna/`none` recovery is complete and its one-run authorization is
+  consumed; do not dispatch a duplicate recovery.
 - After this repository change is independently reviewed, integrated, pushed,
   and green, the Owner authorizes manual context-then-prediction dispatch and
   initial writes for `pes-squad`, `relaxdays-tippt`, and every selected arena
   participant. Run primaries before dependent secondaries and stop on failure.
-  Keep `schadensfresse` unrun/manual-only. Successful evidence authorizes a
-  later root-owned schedule ADR/trigger lane for ready rows; no schedule is
-  active.
-- Manual-only production-live preparation is integrated at exact commit
+  Keep `schadensfresse` unrun/manual-only. The successful evidence later led to
+  Owner acceptance of ADR-0053's ready-row schedule.
+- The schedule-free production-live precursor is integrated at exact commit
   `992af5a63c788c0cc066dce92dd1319a91e5083d`. The outer matchday caller
   serializes context immediately before each ready matchday row, contains no
-  bonus or `schadensfresse` job and no cron, and shares a non-cancelling lane
-  with the leaves. Independent exact-SHA review approved it with no findings;
+  bonus or `schadensfresse` job, and shares a non-cancelling lane with the
+  leaves. Independent exact-SHA review approved it with no findings;
   the workflow contract and actionlint passed with only pre-existing actionlint
   warnings, Release build completed with zero errors, and Orchestrator passed
   `1142/1142`. It was pushed/integrated to `main`; exact-head run
   [`33058783532`](https://github.com/ehonda/KicktippAi/actions/runs/33058783532)
   succeeded including Pages, and both integrated writer/reviewer worktrees were
   cleaned. This proves preparation/CI, not a dispatch or schedule outcome.
-- The read-only activation audit recommends no manual outer-lane dispatch:
+- The accepted activation contract permits no manual outer-lane pre-dispatch:
   leaf live evidence plus static/review/CI coverage suffices, while another run
-  could consume index `1` or `2` repredictions. Its unaccepted schedule proposal
-  is `7 2,9 * * *` (02:07/09:07 UTC; 04:07/11:07 CEST;
+  could consume index `1` or `2` repredictions. ADR-0053 selects
+  `7 2,9 * * *` (02:07/09:07 UTC; 04:07/11:07 CEST;
   03:07/10:07 CET), offset from the top of the hour because GitHub documents
   possible high-load schedule delay. The observed serialized leaf ladder took
   51m04s; use 90 minutes as monitoring/escalation—not a timeout—and preserve a
   three-hour later-pass completion margin. Non-cancelling concurrency protects
   the running run but retains only one pending run, so no manual operation may
-  overlap. A minimal Accepted ADR/workflow-contract/docs schedule patch remains
-  an Owner gate.
+  overlap. On 2026-08-27 the Owner accepted the Project Owner as activation
+  owner, first-cycle monitor, operational on-call contact, and rollback owner,
+  with 30-minute acknowledgement and 60-minute schedule-disable targets. The
+  activation change is prepared; first actual scheduled observation remains
+  open.
 - An authenticated GET-only `schadensfresse` audit at 2026-08-27 11:41 CEST
   (09:41 UTC) returned HTTP 200 but found no 2026/27 marker, zero open matches,
   only closed 30 May PSG–Arsenal, zero open bonus questions, eight closed
@@ -194,9 +198,9 @@ This closes the manual workflow/authentication/posting and payload-safe
 inspection rungs for every currently ready row, including proof of zero extra
 generations on the compatible copy paths and the exact Luna/`none` recovery.
 `schadensfresse` remains unrun, NOT READY,
-and manual-only pending its administrator's season setup and full ladder. Exact cadence,
-operator/monitor/rollback ownership, the activation ADR, schedule enablement,
-and first scheduled observation remain unresolved Owner gates.
+and manual-only pending its administrator's season setup and full ladder.
+ADR-0053 settles cadence, operator/monitor/rollback ownership, and the accepted
+ready-row schedule. The first scheduled observation remains unproven.
 
 This addendum supersedes later stale statements in this dated handoff that call
 the Owner selection, production callers, challenger rows, prompt v3, or secret
@@ -437,11 +441,10 @@ historical pool/manifest provenance remain execution-date fail-closed gates.
   task and fresh cumulative gate.
 - Do not rerun the completed Luna cost row; it is reusable evidence and is not
   production selection.
-- Continue production dispatches only inside the Owner-authorized P0-21 ordered
-  ladder, stopping the affected chain on failure. Do not add or enable a
-  production schedule before the remaining activation gates pass and a new
-  Accepted activation ADR records the exact decision. The Luna/`none` recovery
-  authorization is consumed and grants no schedule authority.
+- Do not manually dispatch or write while ADR-0053's production-live lane is
+  running or pending. Preserve its exact ready-row topology and rollback
+  contract; `schadensfresse` remains excluded. The Luna/`none` recovery
+  authorization is consumed and independently grants no schedule authority.
 - P0-25's authorization for exactly one arena-only Luna/none replacement round
   is consumed. Do not repeat that publish/override ladder or infer authority for
   a production-community prediction, bonus round, schedule, or P0-23 quality
@@ -476,9 +479,9 @@ historical pool/manifest provenance remain execution-date fail-closed gates.
 
 Report exact main/origin SHA and CI state, worktree inventory, the ordered
 manual-run table and payload-safe audit above, the completed Luna/`none`
-recovery, the integrated manual-only outer-lane commit/run, the external
-`schadensfresse` state, the unaccepted `7 2,9 * * *` recommendation, and the
-still-unresolved operator/schedule inputs.
+recovery, the integrated schedule-free outer-lane precursor commit/run, the
+external `schadensfresse` state, Accepted ADR-0053's `7 2,9 * * *` contract,
+and the still-unobserved first scheduled execution.
 Do not assign a new P0-23 or P0-25 live lane and do not perform another P0-23
 external or model action. Resume P0-21 from the activation decision; do not
 repeat already green rows without new Owner authorization.

@@ -33,7 +33,13 @@ These instructions apply to every file and implementation task under this direct
 - After its configured participant and credentials are available, the same Luna/none path may be validated in `ehonda-ai-arena` through local CLI, `workflow_dispatch`, and an arena-only schedule. Inspect Kicktipp writes, Firestore state, Langfuse traces, and workflow ordering at each stage.
 - Never promote the validation model to production. The project owner controls the final model/prompt/cost decision, Club Elo unattended-network decision, and final schedule activation.
 - Load community-specific sibling `.env.<community>` credentials for local writes without printing values or replacing the base development `.env`.
-- Production bonus and match predictions for `pes-squad`, `schadensfresse`, and `ehonda-ai-arena` remain manual-only until P0-21 passes. See [ADR-0005](decisions/0005-launch-community-and-prediction-topology.md) and [ADR-0006](decisions/0006-stage-validation-with-a-cheap-test-model.md).
+- Production bonus callers remain manual-only. Match predictions for the ready
+  `pes-squad`, `relaxdays-tippt`, and `ehonda-ai-arena` rows run only through
+  [ADR-0053](decisions/0053-schedule-the-production-live-matchday-lane.md)'s
+  strict outer schedule; their leaf callers remain manual-only.
+  `schadensfresse` remains excluded and manual-only until its external setup,
+  full validation ladder, and a later Accepted topology decision pass. See
+  [ADR-0006](decisions/0006-stage-validation-with-a-cheap-test-model.md).
 
 ## Task records
 

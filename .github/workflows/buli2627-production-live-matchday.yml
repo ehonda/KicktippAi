@@ -2,6 +2,8 @@ name: Bundesliga 2026/27 production live - Matchday
 
 on:
   workflow_dispatch:
+  schedule:
+    - cron: "7 2,9 * * *"
 
 concurrency:
   group: bundesliga-2026-27-production-live-lane

@@ -10,7 +10,7 @@ historical and inert: they retain `workflow_call` only, with no active
 descriptions later in this document are historical evidence, not activation
 evidence.
 
-The current Bundesliga 2026/27 Actions entrypoints implement ADR-0052's exact
+The current Bundesliga 2026/27 leaf entrypoints implement ADR-0052's exact
 manual-only matrix. Independent Sol/`xhigh` primary triads target `pes-squad`
 and `schadensfresse`; Sol/`xhigh` copy triads target `relaxdays-tippt` and its
 arena participant with `community_context: "pes-squad"`; self-contained arena
@@ -18,20 +18,20 @@ triads target Sol/`high`, Luna/`medium`, Terra/`xhigh`, and Luna/`none`. All
 generation rows pin cap `10000`, match v3 / bonus v1, and the reusable
 Flex-first / Standard-fallback policy. P0-17 records the
 [authoritative community matrix](../../docs/onboarding-bundesliga-2026-27/community-onboarding.md),
-P0-18 established the reusable workflow contract, and P0-21 alone enables
-final schedules. Every current caller exposes only `workflow_dispatch`; no
-current caller contains `schedule` or `workflow_call`. The Owner confirmed the
-canonical Kicktipp Actions pairs provisioned, but runtime readiness, POST
-permission, dispatch, and activation remain P0-21. The separately authorized
+P0-18 established the reusable workflow contract, and ADR-0053 authorizes the
+P0-21 production-live schedule. Every current leaf caller exposes only
+`workflow_dispatch`;
+no leaf contains `schedule` or `workflow_call`. The separately authorized
 Luna/none validation schedule from ADR-0047 is no longer present.
 
 P0-21 also prepares `buli2627-production-live-matchday.yml` as the single
-manual-only production-live outer caller. Its strict default-success `needs`
+production-live outer caller. Its strict default-success `needs`
 chain runs context immediately before each matchday row in this order:
 `pes-squad`, `relaxdays-tippt`, arena Sol/`xhigh`, Sol/`high`, Luna/`medium`,
-Terra/`xhigh`, and Luna/`none`. It contains no bonus or `schadensfresse` job
-and no cron. The outer caller and all current or pending Bundesliga production
-leaf callers share the non-cancelling
+Terra/`xhigh`, and Luna/`none`. Accepted ADR-0053 retains `workflow_dispatch`
+and activates the exact cron `7 2,9 * * *`; it contains no bonus or
+`schadensfresse` job. The outer caller and all current or pending Bundesliga
+production leaf callers share the non-cancelling
 `bundesliga-2026-27-production-live-lane` concurrency group, so a manual leaf
 dispatch cannot overlap the outer lane. Reusable bases and historical/dev
 workflows deliberately do not use that group.
@@ -52,12 +52,14 @@ The workflow system is built on a **reusable workflow architecture** that suppor
     runs the paired launch-coverage/enrichment-overlay mode before the normal
     profile. Any failure stops before profile collection. Arena callers omit
     the input and preserve their already enriched shared last-known-good head.
-- **`buli2627-production-live-matchday.yml`**: Manual-only, serial matchday
-  orchestration prepared for later Owner-controlled schedule activation. Every
+- **`buli2627-production-live-matchday.yml`**: Serial matchday orchestration
+  with `workflow_dispatch` plus ADR-0053's accepted `02:07` / `09:07` UTC
+  schedule. Every
   context job explicitly disables the one-time launch roster overlay; every
   prediction job pins `force_prediction: false` and `max_repredictions: 2`.
-  Its trigger classification evaluates to `manual` now and `scheduled` only if
-  a future accepted change adds a cron.
+  Its trigger classification evaluates to `manual` for dispatches and
+  `scheduled` for cron events. The first actual scheduled execution remains
+  P0-21's open runtime-observation gate.
 
 ### Community-Specific Workflows
 
@@ -258,11 +260,12 @@ valid until context collection has completed successfully for that exact
 `competition` and `community_context`; a successful run for another community,
 competition, or an old WM26/unscoped partition does not satisfy this dependency.
 
-P0-19 entrypoints remain `workflow_dispatch`-only. During P0-21, record the
-successful context run ID and completion before dispatching matchday or bonus
-validation. P0-21 must preserve context-before-prediction spacing when enabling
-production schedules and must observe the first scheduled sequence. A failed or
-cancelled context run blocks the corresponding prediction dispatch.
+P0-19 entrypoints remain `workflow_dispatch`-only. During manual validation,
+record the successful context run ID and completion before dispatching matchday
+or bonus. Accepted ADR-0053 preserves context-before-prediction ordering in the
+single outer production schedule; P0-21 must observe its first actual scheduled
+sequence. A failed or cancelled context run blocks the corresponding prediction
+dispatch.
 
 For `pes-squad`, `relaxdays-tippt`, and eventually `schadensfresse`, the same
 successful context run must show the pinned launch-overlay step before ordinary

@@ -9,6 +9,8 @@ supersedes this audit's unresolved model/participant statements. The Owner
 selected Sol/`xhigh` production, four exact arena challengers, and the added
 `relaxdays-tippt` production copy. All corresponding repository callers are
 prepared as manual-only entrypoints; no schedule or dispatch was added.
+Accepted ADR-0053 later schedules only the strict outer ready-row matchday lane;
+the leaf callers remain manual-only.
 
 The Owner also confirmed every canonical Actions Kicktipp username/password
 pair provisioned:
@@ -33,29 +35,28 @@ later exact workflow evidence below establishes successful use for the rows
 already exercised; it still does not enumerate secret metadata or expose a
 value.
 
-The later manual-only production-live lane is independently approved, pushed,
+The later production-live lane is independently approved, pushed,
 and integrated at exact commit
 `992af5a63c788c0cc066dce92dd1319a91e5083d`. Its workflow contract and
 actionlint passed with only pre-existing actionlint warnings; Release build had
 zero errors; Orchestrator passed `1142/1142`; and exact-head GitHub run
 [`33058783532`](https://github.com/ehonda/KicktippAi/actions/runs/33058783532)
 succeeded including Pages. The integrated writer/reviewer worktrees were
-cleaned. The outer caller remains manual-only and has no bonus,
-`schadensfresse`, or cron path, so this repository evidence does not change any
-remaining activation gate.
+cleaned. The outer caller has no bonus or `schadensfresse` path. ADR-0053 now
+accepts its sole cron; first scheduled runtime observation remains open.
 
 Current runtime conclusions are:
 
 | Posting target/participant | Current evidence | Remaining P0-21 gate |
 | --- | --- | --- |
-| `pes-squad` | Context `33046582867`, Sol/`xhigh` match `33046770442`, and bonus `33047217909` succeeded with final verification and payload-safe audit | Activation ownership |
+| `pes-squad` | Context `33046582867`, Sol/`xhigh` match `33046770442`, and bonus `33047217909` succeeded with final verification and payload-safe audit | First scheduled observation under ADR-0053 |
 | `schadensfresse` | Exact secrets Owner-confirmed present; authenticated HTTP-200 GET audit at 2026-08-27 11:41 CEST found no 2026/27 marker, 0 open matches, 0 open bonus questions, and only closed historical rows | NOT READY: external season setup, current marker/exact-nine/open-bonus/current-deadline gates, POST permission, context, independent match/bonus, and payload-safe evidence |
-| `relaxdays-tippt` | Context retry `33049949393`, Sol/`xhigh` match copy `33050188533`, and bonus copy `33050549422` succeeded after exact rules-source repair `eedf330`; payload audit proves zero generation/fallback | Activation ownership |
-| Arena Sol/`xhigh` copy | Context `33050848544`, match copy `33051066657`, and bonus copy `33051557046` succeeded; payload audit proves zero generation/fallback and shared-roster preservation | Activation ownership |
-| Arena Sol/`high` | Context `33051863137`, match `33052087407`, and bonus `33052537217` succeeded with payload-safe audit | Activation ownership |
-| Arena Luna/`medium` | Context `33052882246`, match `33053095243`, and bonus `33053423396` succeeded with payload-safe audit | Activation ownership |
-| Arena Terra/`xhigh` | Context `33053664914`, match `33053888656`, and bonus `33054314209` succeeded with payload-safe audit | Activation ownership; no schedule is active |
-| Arena Luna/`none` | Context `33054637395` and match `33054826152` succeeded; bonus `33055144574` failed closed with zero side effects, then Owner-approved forced index-0 recovery `33089097055` regenerated/saved the same five IDs, posted all five selections, passed final 5/5 verification, and passed payload-safe audit | Activation ownership; no schedule is active |
+| `relaxdays-tippt` | Context retry `33049949393`, Sol/`xhigh` match copy `33050188533`, and bonus copy `33050549422` succeeded after exact rules-source repair `eedf330`; payload audit proves zero generation/fallback | First scheduled observation under ADR-0053 |
+| Arena Sol/`xhigh` copy | Context `33050848544`, match copy `33051066657`, and bonus copy `33051557046` succeeded; payload audit proves zero generation/fallback and shared-roster preservation | First scheduled observation under ADR-0053 |
+| Arena Sol/`high` | Context `33051863137`, match `33052087407`, and bonus `33052537217` succeeded with payload-safe audit | First scheduled observation under ADR-0053 |
+| Arena Luna/`medium` | Context `33052882246`, match `33053095243`, and bonus `33053423396` succeeded with payload-safe audit | First scheduled observation under ADR-0053 |
+| Arena Terra/`xhigh` | Context `33053664914`, match `33053888656`, and bonus `33054314209` succeeded with payload-safe audit | First scheduled observation under ADR-0053 |
+| Arena Luna/`none` | Context `33054637395` and match `33054826152` succeeded; bonus `33055144574` failed closed with zero side effects, then Owner-approved forced index-0 recovery `33089097055` regenerated/saved the same five IDs, posted all five selections, passed final 5/5 verification, and passed payload-safe audit | First scheduled observation under ADR-0053; do not repeat recovery |
 
 The completed-row audit found four real generated configurations through
 Terra/`xhigh`, comprising eight match/bonus trace families and 56 successful
@@ -223,7 +224,11 @@ received `OTEL_SDK_DISABLED=true` before startup, so neither refresh used a
 Langfuse path. This is telemetry-boundary evidence only and does not weaken any
 production trace-inspection requirement.
 
-## Workflow readiness and next gates
+## Historical workflow-readiness snapshot at audit time
+
+The statements in this section preserve the 2026-08-25 audit-time state. The
+2026-08-27 addendum above supersedes them for current workflow and activation
+status.
 
 The current Bundesliga 2026/27 entrypoints are the manual arena Luna validation
 triad plus `pes-squad-context-collection.yml` and

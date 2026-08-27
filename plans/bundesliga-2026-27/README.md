@@ -79,32 +79,36 @@ An authenticated 2026-08-27 11:41 CEST GET audit returned HTTP 200 for
 `schadensfresse` but found no 2026/27 marker, zero open match/bonus controls,
 and only historical rows/rules. It is an explicit NOT READY manual-only
 exception pending external setup and its complete readiness/context/prediction/
-inspection ladder. Exact schedule cadence/ownership, the activation
-ADR, deliberate schedule enablement, and first scheduled observation remain
-open.
+inspection ladder. The Owner accepted ADR-0053's exact cadence, operating
+ownership, rollback contract, and ready-row schedule on 2026-08-27. Default-
+branch activation, exact-head CI, and the first actual scheduled observation
+remain open in this prepared commit.
 
 P0-19 is instantiated for every ADR-0052 deployable row. The development row
 remains a local CLI path; every production/copy/challenger entrypoint is
 explicit, manual-only, schedule-free, and handed to P0-21 for live validation.
-P0-21's manual-only production outer matchday lane is integrated at exact
+P0-21's production outer matchday lane was prepared at exact
 commit `992af5a63c788c0cc066dce92dd1319a91e5083d` after independent exact-SHA
 approval with no findings. Its contract/actionlint/Release/`1142/1142`
 Orchestrator validation passed, and exact-head GitHub run
 [`33058783532`](https://github.com/ehonda/KicktippAi/actions/runs/33058783532)
 succeeded including Pages. The lane has strict context-before-matchday ordering
-and shared non-cancelling concurrency, but no bonus, `schadensfresse`, or cron;
-its integrated writer/reviewer worktrees are cleaned. This preparation does not
-close the remaining P0-21 owner gates.
+and shared non-cancelling concurrency, with no bonus or `schadensfresse`.
+ADR-0053 now accepts its sole recurring cron while keeping every leaf caller
+manual-only. This prepared activation does not claim the still-unobserved first
+scheduled result.
 
-The read-only activation audit recommends not dispatching the outer lane again:
+The activation contract forbids dispatching the outer lane before activation:
 completed leaf validation plus static/review/CI evidence is sufficient, while a
-new run could consume index `1` or `2` repredictions. Its proposed, unaccepted
-cron is `7 2,9 * * *`, with fixed UTC times mapped to 04:07/11:07 CEST and
+new run could consume index `1` or `2` repredictions. Its accepted cron is
+`7 2,9 * * *`, with fixed UTC times mapped to 04:07/11:07 CEST and
 03:07/10:07 CET. The 51m04s observed serialized duration supports a 90-minute
 monitoring/escalation envelope—not a timeout—and a three-hour later-pass
-completion margin. The minimal Accepted ADR/test/workflow/docs activation
-patch, operators/rollback, Luna/`none` schedule treatment, and first observation
-remain Owner gates. Its forced recovery is complete and must not be repeated.
+completion margin. The Project Owner owns activation, first-cycle monitoring,
+on-call response, and rollback under 30-minute acknowledgement and 60-minute
+schedule-disable targets. Only the default-branch activation, exact-head CI,
+and first scheduled observation remain for this ready-row schedule. The forced
+Luna/`none` recovery is complete and must not be repeated.
 
 ## Handoffs
 
@@ -149,7 +153,10 @@ P0 is complete only when:
   including P0-24-compatible copy-posting without an extra model call;
   `schadensfresse` remains a visible manual-only exception until its external
   season setup completes;
-- final schedules remain disabled until P0-21 records the launch decision and successful manual evidence, then the first scheduled sequence is observed.
+- ADR-0053's ready-row schedule is enabled only after its accepted launch
+  decision and successful manual evidence reach the default branch; the first
+  scheduled sequence is then observed. `schadensfresse` remains excluded and
+  manual-only until its own later readiness and topology decision.
 
 ## Decision index
 
@@ -205,3 +212,4 @@ P0 is complete only when:
 - [ADR-0050: Publish enriched launch rosters with derived team subtotals](decisions/0050-publish-enriched-launch-rosters-with-derived-team-subtotals.md)
 - [ADR-0051: Require an explicit launch roster enrichment overlay](decisions/0051-require-explicit-launch-roster-enrichment-overlay.md)
 - [ADR-0052: Select the production model, community matrix, and match prompt v3](decisions/0052-select-production-model-community-matrix-and-match-prompt-v3.md)
+- [ADR-0053: Schedule the production-live matchday lane](decisions/0053-schedule-the-production-live-matchday-lane.md)
