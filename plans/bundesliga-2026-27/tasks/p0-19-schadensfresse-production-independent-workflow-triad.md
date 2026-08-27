@@ -1,10 +1,10 @@
 # P0-19 — Add the `schadensfresse` independent-production workflow triad
 
-- Status: Complete — the exact manual-only, schedule-free triad is prepared; external setup and all live gates remain P0-21
+- Status: Complete — the exact manual-only, schedule-free triad is handed off; external setup and every row-specific live/topology gate remain P0-21
 - Priority: P0
 - Matrix row: `schadensfresse-production-independent`
 - Depends on: [P0-06](p0-06-model-ledger-and-cost-baseline.md), [P0-17](p0-17-community-scope.md), and [P0-18](p0-18-base-workflow-support.md)
-- Decisions: [ADR-0001](../decisions/0001-current-bundesliga-season-only.md), [ADR-0005](../decisions/0005-launch-community-and-prediction-topology.md) (superseded), [ADR-0006](../decisions/0006-stage-validation-with-a-cheap-test-model.md), [ADR-0039](../decisions/0039-record-bundesliga-community-and-credential-topology.md), and [ADR-0052](../decisions/0052-select-production-model-community-matrix-and-match-prompt-v3.md)
+- Decisions: [ADR-0001](../decisions/0001-current-bundesliga-season-only.md), [ADR-0005](../decisions/0005-launch-community-and-prediction-topology.md) (superseded), [ADR-0006](../decisions/0006-stage-validation-with-a-cheap-test-model.md), [ADR-0039](../decisions/0039-record-bundesliga-community-and-credential-topology.md), [ADR-0052](../decisions/0052-select-production-model-community-matrix-and-match-prompt-v3.md), and [ADR-0053](../decisions/0053-schedule-the-production-live-matchday-lane.md)
 - Readiness evidence: [production prerequisite audit](../../../docs/onboarding-bundesliga-2026-27/production-prerequisite-audit-2026-08-25.md) and [production activation preregistration](../../../docs/onboarding-bundesliga-2026-27/production-activation-preregistration.md)
 
 ## Outcome
@@ -15,14 +15,14 @@ context, matchday, and bonus workflow triad for competition
 `schadensfresse`; every match and bonus prediction is generated independently
 with the exact owner-approved `production-primary` identity.
 
-The model-independent context entrypoint is prepared from the
-accepted target/context topology and credential names. Final matchday and bonus
-caller construction waits only for the exact P0-06 `production-primary`
-identity. Secret presence, authentication/readiness, POST permission, Kicktipp
-deadlines, live writes, and activation remain open P0-21 pre-dispatch gates;
-they do not block schedule-free repository preparation. This task authorizes no
-community request, prediction, workflow dispatch, schedule, or production POST.
-P0-21 exclusively owns manual production evidence and activation.
+The model-independent context entrypoint was prepared from the accepted
+target/context topology and credential names. The dated construction boundary
+below preceded the exact P0-06 `production-primary` decision and is preserved
+as historical task evidence; ADR-0052 supersedes it for the current model and
+community matrix. Secret presence and authenticated GET access are now proven,
+but external season setup, current readiness/deadlines, administrator POST
+permission, live writes, payload-safe inspection, and any later topology or
+schedule decision remain open P0-21 gates.
 
 ## Repository closeout — 2026-08-27
 
@@ -66,12 +66,12 @@ return the row to a later Accepted schedule decision.
       versions, service-tier/fallback policy, whole-season cost ceiling, and
       estimator evidence after P0-23 evidence or an explicit accepted waiver.
 
-That unchecked P0-06 item blocks only the model-bound matchday and bonus
-callers. It does not block the model-independent context caller. Terra and Sol
-were provisional P0-23 examples and are not the selected experiment surface.
-Later owner-specified cost evidence informs the model, cost-ceiling, and
-quality-budget decisions, but this clarification authorizes no exact paid
-matrix, preflight, dataset mutation, or model call.
+Historically, that then-open P0-06 item blocked only the model-bound matchday
+and bonus callers, not the model-independent context caller. The following
+pre-selection wording is superseded by ADR-0052: Terra and Sol were provisional
+P0-23 examples rather than a selected experiment surface. It is retained only
+to explain the earlier preparation boundary and does not describe current
+configuration.
 
 The `schadensfresse` setup request is external and pending with its community
 administrator. The agent is neither authorized nor expected to administer the
@@ -156,14 +156,18 @@ gate, or treat successful authentication as season readiness.
 - [ ] P0-21 obtains community-administrator confirmation of Bundesliga 2026/27
       POST permission. The audit made no POST request, and this task authorizes
       none.
-- [ ] P0-21 records the exact Kicktipp match and bonus deadlines, operator,
-      monitor/on-call, schedule proposal, and rollback authority.
-- [ ] Hand the reviewed, green, manual-only triad to P0-21 without dispatching it.
+- [ ] P0-21 records the exact current Kicktipp match and bonus deadlines after
+      administrator setup.
+- [x] ADR-0053 records the ready-row Project Owner operator/on-call/rollback
+      contract while explicitly excluding `schadensfresse`; adding this row
+      still requires its own later Accepted topology/schedule decision.
+- [x] Hand the reviewed, green, manual-only triad to P0-21 without dispatching
+      it. The repository handoff is complete; the external/live ladder is not.
 - [ ] P0-21 manually collects and inspects `schadensfresse` context, then
       records the exact successful context workflow run ID and completion before
       dispatching and verifying match and required bonus predictions. The
-      integrated manual-only outer workflow intentionally excludes this row;
-      adding it requires a later Accepted topology/schedule decision with
+      active ready-row outer workflow intentionally excludes this row; adding
+      it requires a later Accepted topology/schedule decision with
       machine-enforced `needs` ordering.
 - [ ] P0-21 verifies exact Kicktipp, Firestore, hosted-prompt, model, context,
       telemetry, usage/cost, and error evidence for the independent-generation
@@ -186,5 +190,6 @@ gate, or treat successful authentication as season readiness.
   decision. External community remediation and the other open P0-21
   pre-dispatch gates do not block repository closeout.
 - The superseded 2025/26 callers cannot be mistaken for a live path.
-- P0-21—not this task—owns the first production dispatch, opening writes,
-  schedule activation, first scheduled observation, and rollback decision.
+- P0-21—not this task—owns the first `schadensfresse` production dispatch,
+  opening writes, payload-safe inspection, and any later topology, schedule,
+  observation, or rollback decision for this row.

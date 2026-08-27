@@ -1,7 +1,8 @@
 # Bundesliga 2026/27 production activation preregistration
 
-**Status:** Activation contract accepted on 2026-08-27; ready-row schedule
-prepared, with first scheduled runtime observation still open.
+**Status:** Ready-row schedule active on `main` at exact commit `56238e5`; exact-head
+CI run `33100581641` is green, with first scheduled runtime observation still
+open.
 
 **Prepared:** 2026-08-25
 
@@ -379,17 +380,18 @@ running or pending production-live run.
 
 The Project Owner accepted the exact cadence, operator/monitor/on-call and
 rollback ownership, Luna/`none` schedule treatment, and first-observation
-procedure on 2026-08-27. This activation change adds the selected cron, exact
-contract-test update, and matching documentation. The forced recovery is
-already complete and must not be repeated. The first actual `schedule` event
-remains unobserved and therefore open.
+procedure on 2026-08-27. Exact activation commit `56238e5` is on `main`, and
+exact-head CI run `33100581641` is green. The forced recovery is already
+complete and must not be repeated. The first actual `schedule` event remains
+unobserved and therefore open.
 
 ## Activation gates and current live status
 
 The Owner's separate 2026-08-27 authorization permitted the ordered manual
-writes recorded above after each runtime check passed. Unchecked items below are
-now schedule-activation or remaining-row gates; they do not retroactively
-invalidate successful final-verifier evidence.
+writes recorded above after each runtime check passed. Repository activation is
+complete; unchecked items below are the first scheduled observation or
+`schadensfresse` gates and do not retroactively invalidate successful
+final-verifier evidence.
 
 - [x] **OWNER GATE — configuration:** record the exact `production-primary`
       model, reasoning, cap, prompt versions, service/fallback policy, cost

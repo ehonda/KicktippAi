@@ -3,7 +3,7 @@
 - Handoff ID: `buli-2627-p0-closeout-ready-2026-08-25`
 - Created: 2026-08-25
 - Last advanced: 2026-08-27
-- Status: **Active P0 closeout handoff; P0-06 and schedule-free P0-19 are complete; P0-21 remains**
+- Status: **Active P0 closeout handoff; ready-row schedule active; first observation and `schadensfresse` remain in P0-21**
 - Repository: `ehonda/KicktippAi`
 - Historical branch/remote baseline at creation: `main` / `origin/main`
 - Historical exact clean baseline at creation: `78ee2c0aa1b4e1b0093b7ef442936cf042ad2681`
@@ -77,9 +77,16 @@ are complete.
   the running run but retains only one pending run, so no manual operation may
   overlap. On 2026-08-27 the Owner accepted the Project Owner as activation
   owner, first-cycle monitor, operational on-call contact, and rollback owner,
-  with 30-minute acknowledgement and 60-minute schedule-disable targets. The
-  activation change is prepared; first actual scheduled observation remains
-  open.
+  with 30-minute acknowledgement and 60-minute schedule-disable targets. Exact
+  activation commit `56238e5fd3615e11d0be2c462516e819dfded1db` is on
+  `main`, and exact-head GitHub run
+  [`33100581641`](https://github.com/ehonda/KicktippAi/actions/runs/33100581641)
+  succeeded. The first actual scheduled observation remains open.
+- GitHub workflow `343638152` is active. At the pre-observation readiness
+  snapshot it had no outer run yet; the next natural occurrence was
+  `2026-08-28T02:07:00Z` / 04:07 CEST, monitoring was due from 02:02 UTC, all
+  nine matches were still open, and the first cutoff was 18:30 UTC. These
+  facts prepare observation and do not claim runtime success.
 - An authenticated GET-only `schadensfresse` audit at 2026-08-27 11:41 CEST
   (09:41 UTC) returned HTTP 200 but found no 2026/27 marker, zero open matches,
   only closed 30 May PSG–Arsenal, zero open bonus questions, eight closed
@@ -483,5 +490,7 @@ recovery, the integrated schedule-free outer-lane precursor commit/run, the
 external `schadensfresse` state, Accepted ADR-0053's `7 2,9 * * *` contract,
 and the still-unobserved first scheduled execution.
 Do not assign a new P0-23 or P0-25 live lane and do not perform another P0-23
-external or model action. Resume P0-21 from the activation decision; do not
-repeat already green rows without new Owner authorization.
+external or model action. Resume P0-21 at the first natural scheduled
+observation and, independently, the pending `schadensfresse` readiness,
+context, prediction, and inspection ladder; do not repeat already green rows
+without new Owner authorization.

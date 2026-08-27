@@ -1,10 +1,10 @@
 # P0-19 — Add the `pes-squad` production-reference workflow triad
 
-- Status: Complete — the exact manual-only, schedule-free triad is prepared; P0-21 owns every live gate
+- Status: Complete — the exact leaf triad remains manual-only and schedule-free while ADR-0053's outer lane owns the active recurring schedule
 - Priority: P0
 - Matrix row: `pes-production-reference`
 - Depends on: [P0-06](p0-06-model-ledger-and-cost-baseline.md), [P0-17](p0-17-community-scope.md), and [P0-18](p0-18-base-workflow-support.md)
-- Decisions: [ADR-0001](../decisions/0001-current-bundesliga-season-only.md), [ADR-0005](../decisions/0005-launch-community-and-prediction-topology.md) (superseded), [ADR-0006](../decisions/0006-stage-validation-with-a-cheap-test-model.md), [ADR-0039](../decisions/0039-record-bundesliga-community-and-credential-topology.md), and [ADR-0052](../decisions/0052-select-production-model-community-matrix-and-match-prompt-v3.md)
+- Decisions: [ADR-0001](../decisions/0001-current-bundesliga-season-only.md), [ADR-0005](../decisions/0005-launch-community-and-prediction-topology.md) (superseded), [ADR-0006](../decisions/0006-stage-validation-with-a-cheap-test-model.md), [ADR-0039](../decisions/0039-record-bundesliga-community-and-credential-topology.md), [ADR-0052](../decisions/0052-select-production-model-community-matrix-and-match-prompt-v3.md), and [ADR-0053](../decisions/0053-schedule-the-production-live-matchday-lane.md)
 - Readiness evidence: [production prerequisite audit](../../../docs/onboarding-bundesliga-2026-27/production-prerequisite-audit-2026-08-25.md) and [production activation preregistration](../../../docs/onboarding-bundesliga-2026-27/production-activation-preregistration.md)
 
 ## Outcome
@@ -16,14 +16,13 @@ predictions are generated independently using the exact owner-approved
 `production-primary` identity and stored as the reference for compatible arena
 copy-posting.
 
-The model-independent context entrypoint is prepared from the
-accepted target/context topology and credential names. Final matchday and bonus
-caller construction waits only for the exact P0-06 `production-primary`
-identity. Secret presence, authentication/readiness, POST permission, Kicktipp
-deadlines, live writes, and activation remain open P0-21 pre-dispatch gates;
-they do not block schedule-free repository preparation. This task authorizes no
-community request, prediction, workflow dispatch, schedule, or production POST.
-P0-21 exclusively owns manual production evidence and activation.
+The model-independent context entrypoint was prepared from the accepted
+target/context topology and credential names. The dated construction boundary
+below preceded the exact P0-06 `production-primary` decision and is preserved
+as historical task evidence; ADR-0052 supersedes it for the current model and
+community matrix. P0-21 has since closed the ready-row secret, authentication,
+readiness, POST, deadline, and manual-write gates and activated only the strict
+outer matchday schedule. This leaf triad itself remains manual-only.
 
 ## Repository closeout — 2026-08-27
 
@@ -48,12 +47,12 @@ later prediction dispatch; the live publication evidence remains P0-21.
       versions, service-tier/fallback policy, whole-season cost ceiling, and
       estimator evidence after P0-23 evidence or an explicit accepted waiver.
 
-That unchecked P0-06 item blocks only the model-bound matchday and bonus
-callers. It does not block the model-independent context caller. Terra and Sol
-were provisional P0-23 examples and are not the selected experiment surface.
-Later owner-specified cost evidence informs the model, cost-ceiling, and
-quality-budget decisions, but this clarification authorizes no exact paid
-matrix, preflight, dataset mutation, or model call.
+Historically, that then-open P0-06 item blocked only the model-bound matchday
+and bonus callers, not the model-independent context caller. The following
+pre-selection wording is superseded by ADR-0052: Terra and Sol were provisional
+P0-23 examples rather than a selected experiment surface. It is retained only
+to explain the earlier preparation boundary and does not describe current
+configuration.
 
 Do not infer any unresolved value from Luna/none validation, a historical
 Bundesliga or WM26 caller, a model default, a local environment file, or an old
@@ -112,7 +111,7 @@ schedule. Do not invent a replacement secret name.
       separate manual callers, require the P0-21 operator to record the exact
       successful context workflow run ID and completion before manually
       dispatching either prediction workflow. Machine-enforced `needs` ordering
-      belongs only to a later Accepted outer workflow.
+      now belongs only to ADR-0053's Accepted outer workflow.
 
 ## Activation boundary
 
@@ -124,14 +123,15 @@ schedule. Do not invent a replacement secret name.
       verification, establishing working posting behavior for this exact row.
 - [x] P0-21 records the exact Kicktipp match and bonus deadline rule and first
       cutoff through the timestamped GET-only ready-community audit.
-- [ ] P0-21 records operator, monitor/on-call, schedule proposal, and rollback
-      authority.
+- [x] ADR-0053 records the Project Owner as operator, first-cycle monitor,
+      on-call responder, and rollback owner, with the accepted schedule and
+      response targets.
 - [x] Hand the reviewed, green, manual-only triad to P0-21 without dispatching it.
 - [x] P0-21 manually collects `pes-squad` context, then manually
       records the exact successful context workflow run ID and completion before
-      dispatching and verifying match and required bonus predictions. A later
-      Accepted outer workflow must use machine-enforced `needs` ordering before
-      any schedule is enabled.
+      dispatching and verifying match and required bonus predictions. Accepted
+      ADR-0053's active outer workflow now supplies machine-enforced `needs`
+      ordering while this leaf caller remains schedule-free.
 - [x] P0-21 verifies exact Kicktipp, Firestore, hosted-prompt, model, context,
       telemetry, usage/cost, and error evidence and confirms the stored reference
       is eligible for the separately gated arena copy path.
@@ -160,14 +160,16 @@ schedule. Do not invent a replacement secret name.
   `1+` or errors, and its stored references were subsequently copied by both
   compatible targets without a model call. The GET-only 2026-08-27 deadline
   audit found zero minutes lead time and first cutoff 2026-08-28 20:30 CEST /
-  18:30 UTC; recheck after rescheduling or a rule change. All schedule decisions
-  remain open.
+  18:30 UTC; recheck after rescheduling or a rule change. ADR-0053's outer
+  ready-row schedule is active on exact `main` commit `56238e5`; this leaf
+  remains schedule-free and the first scheduled observation remains open.
 
 ## Complete when
 
 - Every repository work item has evidence, the triad is manually callable and
   schedule-free, and every model-bound production field equals the P0-06 owner
-  decision. The open P0-21 pre-dispatch gates do not block repository closeout.
+  decision. P0-21's still-open first-observation and rollback boundary does not
+  block this leaf's repository closeout.
 - The superseded 2025/26 callers cannot be mistaken for a live path.
-- P0-21—not this task—owns the first production dispatch, opening writes,
-  schedule activation, first scheduled observation, and rollback decision.
+- P0-21—not this task—owns the active outer schedule, first scheduled
+  observation, and any rollback decision.

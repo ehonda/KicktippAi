@@ -1,13 +1,15 @@
 # P0-21 — Validate production and activate schedules
 
-- Status: In progress — every ready-community manual cycle is green, ADR-0053 is Owner-accepted, and its ready-row schedule is prepared; the first scheduled observation and `schadensfresse` remain
+- Status: In progress — every ready-community manual cycle is green and ADR-0053's ready-row schedule is active on `main`; the first scheduled observation and `schadensfresse` remain
 - Priority: P0
 - Depends on: [P0-06](p0-06-model-ledger-and-cost-baseline.md), [P0-20](p0-20-seed-and-development-validation.md), [P0-24](p0-24-bonus-copy-post-compatibility.md), [P0-25](p0-25-roster-enrichment-and-team-total.md), and every required production entrypoint copied from [P0-19](p0-19-community-workflow-triad.md)
 - Decisions: [ADR-0005](../decisions/0005-launch-community-and-prediction-topology.md) (superseded), [ADR-0006](../decisions/0006-stage-validation-with-a-cheap-test-model.md), [ADR-0007](../decisions/0007-require-context-hygiene-before-launch.md), [ADR-0008](../decisions/0008-launch-club-elo-from-a-dated-seed.md), [ADR-0013](../decisions/0013-club-elo-snapshot-and-freshness-contract.md), [ADR-0039](../decisions/0039-record-bundesliga-community-and-credential-topology.md), [ADR-0045](../decisions/0045-verify-versioned-prompt-promotion-before-validation.md), [ADR-0050](../decisions/0050-publish-enriched-launch-rosters-with-derived-team-subtotals.md), [ADR-0051](../decisions/0051-require-explicit-launch-roster-enrichment-overlay.md), [ADR-0052](../decisions/0052-select-production-model-community-matrix-and-match-prompt-v3.md), [ADR-0053](../decisions/0053-schedule-the-production-live-matchday-lane.md)
 
 ## Outcome
 
-Each selected production community succeeds manually before its context and prediction schedules are deliberately enabled.
+Each selected production community succeeds manually before recurring
+activation. The ready-row outer matchday schedule is active; its first natural
+execution and the externally pending `schadensfresse` row remain P0 gates.
 
 ## Owner dispatch authorization — 2026-08-27
 
@@ -69,8 +71,11 @@ avoid overlapping manual operations and inspect running/pending state before
 dispatch or activation. The Project Owner is the activation owner, first-cycle
 monitor, operational on-call contact, and rollback owner. The accepted targets
 are acknowledgement within 30 minutes and schedule removal within 60 minutes
-when a rollback trigger fires. This commit prepares the accepted schedule and
-its exact contract; only an actual `schedule` event can satisfy the still-open
+when a rollback trigger fires. Exact commit
+`56238e5fd3615e11d0be2c462516e819dfded1db` activated the accepted schedule
+on `main`; exact-head GitHub run
+[`33100581641`](https://github.com/ehonda/KicktippAi/actions/runs/33100581641)
+succeeded. Only an actual `schedule` event can satisfy the still-open
 first-observation gate. The separately approved Luna/`none` forced recovery is
 complete and must not be repeated.
 
@@ -99,8 +104,9 @@ complete and must not be repeated.
       has the verified exact enriched head.
 - [x] Record the late Club Elo decision: use the accepted dated launch seed with network fetching disabled unless a separately authorized successor decision changes it. The completed context runs reported `LaunchSeed` / `NetworkDisabled`.
 - [x] Record the schedule and activation gate in Accepted ADR-0053.
-- [ ] Before any initial prediction in each non-arena production community,
-      dispatch its prepared context caller and record the pinned overlay's
+- [x] Before initial prediction for the ready non-arena production rows,
+      dispatch the prepared `pes-squad` and `relaxdays-tippt` context callers
+      and record the pinned overlay's
       `NotEvaluated` DuckDB membership gates plus
       `LAUNCH_ENRICHMENT_OVERLAY`, v2 headed snapshot/disposition/document
       versions, reconstructed-final totals at or above 464 ages / 464
@@ -109,12 +115,18 @@ complete and must not be repeated.
       enriched snapshot `591adbc3cbc99ee93591f074ad218703c9badb2af4e267142898145825b77ea2`
       with no regression. Roster publication alone is not prediction-posting
       or schedule authority.
+- [ ] After `schadensfresse` exposes the current season and passes its read-only
+      readiness gates, dispatch its prepared context caller and prove the same
+      pinned overlay, v2 snapshot, minimum enrichment counts, and exact 18-row
+      team-total contract before any prediction dispatch.
 - [x] Manually dispatch production context collection and inspect all publication dispositions for every currently ready community; `schadensfresse` remains an explicit external-setup exception.
 - [x] Manually dispatch one production matchday run and required bonus run for every currently ready row; confirm the expected Kicktipp writes, including the approved Luna/`none` recovery.
-- [ ] Verify `pes-squad` and `schadensfresse` generated independently and the
-      accepted `pes-squad` prediction was copy-posted to both
+- [x] Verify `pes-squad` generated independently and the accepted `pes-squad`
+      prediction was copy-posted to both
       `relaxdays-tippt` and the arena Sol/`xhigh` participant without an extra
       model call.
+- [ ] After its external and manual gates pass, verify `schadensfresse`
+      generates independently with its exact production identity.
 - [x] Validate self-contained arena Sol/`high`, Luna/`medium`, Terra/`xhigh`,
       and Luna/`none` in context-before-prediction order.
       Luna/`none` initially failed closed at bonus provenance, then completed
@@ -127,15 +139,22 @@ complete and must not be repeated.
 - [x] Confirm no 2025/26 identity, WM26 collector/document, or transfer
       document appears in the current successful trace families. Repeat this
       gate for `schadensfresse` onboarding if and when it runs.
-- [x] Prepare the single outer schedule only for rows whose manual evidence
-      passed. Keep `schadensfresse` excluded and every leaf caller manual-only.
+- [x] Activate the single outer schedule only for rows whose manual evidence
+      passed. Exact `main` commit `56238e5` and exact-head CI run `33100581641`
+      are green; `schadensfresse` remains excluded and every leaf caller remains
+      manual-only.
 - [ ] Observe the first scheduled context and prediction sequence and record run links/results.
 
 ## Validation evidence
 
 Production activation validation is incomplete, but the ordered live ladder is
-green for every ready row. Every terminal run below used an exact pushed main
-commit. Initial prediction runs used `force_prediction=false` and
+green for every ready row and repository activation is complete. GitHub
+workflow `343638152` was active with no outer run yet at the pre-observation
+snapshot. Its next natural occurrence was `2026-08-28T02:07:00Z` / 04:07 CEST;
+monitoring begins at 02:02 UTC. Nine matches remained open and the first cutoff
+was 18:30 UTC. This is readiness evidence only, not the still-missing scheduled
+runtime observation. Every terminal run below used an exact pushed main commit.
+Initial prediction runs used `force_prediction=false` and
 `max_repredictions=0`; the single approved Luna/`none` bonus recovery used
 `force_prediction=true` / `max_repredictions=0`. Every completed row passed its
 final verification step:
@@ -298,8 +317,14 @@ under `NetworkDisabled`, and the 18-club fallback roster path.
 at the exact-nine gate and skipped later profile stages. Neither refresh exposed
 deadlines or proved POST permission. A repeated names-only GitHub check remained
 blocked by HTTP 403; the later Owner provisioning confirmation is authoritative
-for presence only. External remediation, runtime authentication/permission,
-roster publication, manual writes, and activation remain open.
+for presence only. This paragraph is historical 2026-08-26 evidence: the later
+ready-row manual ladder and exact activation evidence above supersede its
+then-open ready-row authentication, permission, roster, write, and activation
+gates. The remaining items from this boundary apply only to `schadensfresse`:
+current-season readiness and administrator POST permission, manual context then
+match/bonus evidence, payload-safe inspection, and a later row-specific
+topology, activation, and observation decision. The ready-row first scheduled
+observation remains separately open as recorded above.
 
 ## Complete when
 

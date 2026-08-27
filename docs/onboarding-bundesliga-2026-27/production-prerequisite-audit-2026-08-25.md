@@ -42,8 +42,10 @@ actionlint passed with only pre-existing actionlint warnings; Release build had
 zero errors; Orchestrator passed `1142/1142`; and exact-head GitHub run
 [`33058783532`](https://github.com/ehonda/KicktippAi/actions/runs/33058783532)
 succeeded including Pages. The integrated writer/reviewer worktrees were
-cleaned. The outer caller has no bonus or `schadensfresse` path. ADR-0053 now
-accepts its sole cron; first scheduled runtime observation remains open.
+cleaned. The outer caller has no bonus or `schadensfresse` path. Exact
+activation commit `56238e5` is on `main`, exact-head CI run `33100581641` is
+green, and ADR-0053's sole cron is active; first scheduled runtime observation
+remains open.
 
 Current runtime conclusions are:
 

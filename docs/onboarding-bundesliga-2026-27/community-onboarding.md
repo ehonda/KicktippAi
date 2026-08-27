@@ -27,7 +27,10 @@ group with the production leaves, and contains no bonus or `schadensfresse`
 path. Exact-head GitHub run
 [`33058783532`](https://github.com/ehonda/KicktippAi/actions/runs/33058783532)
 succeeded including Pages after independent exact-SHA approval with no
-findings. ADR-0053 now accepts `7 2,9 * * *` as the sole outer cron. First
+findings. Exact activation commit `56238e5fd3615e11d0be2c462516e819dfded1db`
+is on `main`, exact-head CI run
+[`33100581641`](https://github.com/ehonda/KicktippAi/actions/runs/33100581641)
+is green, and ADR-0053's `7 2,9 * * *` is the sole active outer cron. First
 scheduled runtime observation remains open.
 
 ## Exact validation identity

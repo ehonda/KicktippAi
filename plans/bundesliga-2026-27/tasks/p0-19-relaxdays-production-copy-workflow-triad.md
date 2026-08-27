@@ -1,10 +1,10 @@
 # P0-19 — Add the `relaxdays-tippt` production-copy workflow triad
 
-- Status: Complete — repository preparation is manual-only and schedule-free
+- Status: Complete — the leaf triad remains manual-only and schedule-free while ADR-0053's outer lane owns the active recurring schedule
 - Priority: P0
 - Matrix row: `relaxdays-production-copy`
 - Depends on: [P0-06](p0-06-model-ledger-and-cost-baseline.md), [P0-18](p0-18-base-workflow-support.md), and the [`pes-squad` reference triad](p0-19-pes-squad-production-reference-workflow-triad.md)
-- Decisions: [ADR-0052](../decisions/0052-select-production-model-community-matrix-and-match-prompt-v3.md)
+- Decisions: [ADR-0052](../decisions/0052-select-production-model-community-matrix-and-match-prompt-v3.md), [ADR-0053](../decisions/0053-schedule-the-production-live-matchday-lane.md)
 
 ## Outcome
 
@@ -48,7 +48,9 @@ authentication nor POST permission.
 - [x] Record the timestamped community deadline audit: zero minutes lead time;
       first match and bonus cutoff 2026-08-28 20:30 CEST / 18:30 UTC, subject
       to a fresh read after rescheduling or an administrator rule change.
-- [ ] Enable no schedule until the final Owner activation decision.
+- [x] Keep this leaf triad schedule-free. Accepted ADR-0053's active outer
+      ready-row lane owns recurring scheduling; its first natural observation
+      remains an open P0-21 runtime gate.
 
 The first authorized context attempt, Actions run
 [`33047564359`](https://github.com/ehonda/KicktippAi/actions/runs/33047564359),

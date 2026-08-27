@@ -64,6 +64,10 @@ P0-06 had already settled independently.
 
 ## Evidence — 2026-08-21 and 2026-08-25
 
+This section preserves the historical pre-selection cost and identity evidence.
+ADR-0052 and the Owner-selected launch ledger above supersede it for current
+production configuration; nothing below reopens or replaces that decision.
+
 - Validation ledger: `docs/onboarding-bundesliga-2026-27/model-config-onboarding.md`.
 - Runtime identity includes competition, model, reasoning, cap, and exact prompt name/version; legacy incomplete identities do not match pinned configurations.
 - Default Bundesliga production routes auto-pin match v2 and bonus v1, explicit candidate labels remain label-resolved, and explicit numeric versions take precedence.

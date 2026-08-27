@@ -50,7 +50,7 @@ The accepted [execution strategy](execution-strategy.md) defines gated orchestra
 | [P0-19 arena Luna/medium](tasks/p0-19-arena-luna-medium-self-contained-workflow-triad.md) | Complete: manual-only self-contained challenger triad | P0-06, P0-17, P0-18 |
 | [P0-19 arena Terra/xhigh](tasks/p0-19-arena-terra-xhigh-self-contained-workflow-triad.md) | Complete: manual-only self-contained challenger triad | P0-06, P0-17, P0-18 |
 | [P0-20](tasks/p0-20-seed-and-development-validation.md) | Seed context and validate dev plus arena plumbing | P0-02 through P0-18, P0-22, local dev path, Luna/none arena P0-19 entrypoints |
-| [P0-21](tasks/p0-21-production-activation.md) | Validate production, submit opening predictions, and enable schedules | P0-06, P0-20, P0-24, P0-25, production P0-19 entrypoints |
+| [P0-21](tasks/p0-21-production-activation.md) | Observe the active ready-row schedule and onboard the pending `schadensfresse` row | P0-06, P0-20, P0-24, P0-25, production P0-19 entrypoints |
 | [P0-22](tasks/p0-22-history-played-dates.md) | Reconstruct exact played dates for recent, home, and away history | P0-02, P0-04 |
 | [P0-23](tasks/p0-23-gpt-5-6-production-candidate-evidence.md) | Complete: publish cutoff-safe GPT-5.6 cost/quality evidence with Luna/`max` incomplete; post-hoc Sol/`xhigh` and the later Sol/`max` extension remain explicitly exploratory | P0-05, P0-12, P0-20 |
 | [P0-24](tasks/p0-24-bonus-copy-post-compatibility.md) | Complete: exact bonus question and complete-option-set copy compatibility is implemented and integrated | P0-16, P0-17, P0-18 |
@@ -80,13 +80,18 @@ An authenticated 2026-08-27 11:41 CEST GET audit returned HTTP 200 for
 and only historical rows/rules. It is an explicit NOT READY manual-only
 exception pending external setup and its complete readiness/context/prediction/
 inspection ladder. The Owner accepted ADR-0053's exact cadence, operating
-ownership, rollback contract, and ready-row schedule on 2026-08-27. Default-
-branch activation, exact-head CI, and the first actual scheduled observation
-remain open in this prepared commit.
+ownership, rollback contract, and ready-row schedule on 2026-08-27. Exact
+activation commit `56238e5fd3615e11d0be2c462516e819dfded1db` is now on
+`main`, and exact-head GitHub run
+[`33100581641`](https://github.com/ehonda/KicktippAi/actions/runs/33100581641)
+succeeded. Only the first actual scheduled observation and `schadensfresse`
+remain open.
 
 P0-19 is instantiated for every ADR-0052 deployable row. The development row
-remains a local CLI path; every production/copy/challenger entrypoint is
-explicit, manual-only, schedule-free, and handed to P0-21 for live validation.
+remains a local CLI path; every production/copy/challenger leaf entrypoint is
+explicit, manual-only, and schedule-free. P0-21 completed live validation for
+every ready row; the prepared `schadensfresse` leaf triad remains handed off
+but unrun.
 P0-21's production outer matchday lane was prepared at exact
 commit `992af5a63c788c0cc066dce92dd1319a91e5083d` after independent exact-SHA
 approval with no findings. Its contract/actionlint/Release/`1142/1142`
@@ -94,9 +99,9 @@ Orchestrator validation passed, and exact-head GitHub run
 [`33058783532`](https://github.com/ehonda/KicktippAi/actions/runs/33058783532)
 succeeded including Pages. The lane has strict context-before-matchday ordering
 and shared non-cancelling concurrency, with no bonus or `schadensfresse`.
-ADR-0053 now accepts its sole recurring cron while keeping every leaf caller
-manual-only. This prepared activation does not claim the still-unobserved first
-scheduled result.
+ADR-0053's sole recurring cron is active through the outer workflow while every
+leaf caller remains manual-only. This activation evidence does not claim the
+still-unobserved first scheduled result.
 
 The activation contract forbids dispatching the outer lane before activation:
 completed leaf validation plus static/review/CI evidence is sufficient, while a
@@ -106,8 +111,11 @@ new run could consume index `1` or `2` repredictions. Its accepted cron is
 monitoring/escalation envelope—not a timeout—and a three-hour later-pass
 completion margin. The Project Owner owns activation, first-cycle monitoring,
 on-call response, and rollback under 30-minute acknowledgement and 60-minute
-schedule-disable targets. Only the default-branch activation, exact-head CI,
-and first scheduled observation remain for this ready-row schedule. The forced
+schedule-disable targets. The outer workflow is active as GitHub workflow
+`343638152`; before any outer run existed, the next natural occurrence was
+`2026-08-28T02:07:00Z` / 04:07 CEST, with monitoring due from 02:02 UTC. The
+readiness snapshot still contained nine open matches and a first cutoff at
+18:30 UTC. These are pre-observation facts, not runtime evidence. The forced
 Luna/`none` recovery is complete and must not be repeated.
 
 ## Handoffs

@@ -1,10 +1,10 @@
 # P0-19 — Add the arena production-copy workflow triad
 
-- Status: Complete — reviewed and integrated; the first manual copy triad and payload-safe copy audit are green while schedules remain P0-21
+- Status: Complete — the manual copy triad and audit are green; the leaf stays schedule-free while ADR-0053's outer lane owns the active recurring schedule
 - Priority: P0
 - Matrix row: `arena-production-copy`
 - Depends on: [P0-06](p0-06-model-ledger-and-cost-baseline.md), [P0-17](p0-17-community-scope.md), [P0-18](p0-18-base-workflow-support.md), [P0-24](p0-24-bonus-copy-post-compatibility.md), and the separately instantiated [`pes-production-reference` P0-19 task](p0-19-pes-squad-production-reference-workflow-triad.md) with reviewed, green callers
-- Decisions: [ADR-0001](../decisions/0001-current-bundesliga-season-only.md), [ADR-0005](../decisions/0005-launch-community-and-prediction-topology.md) (superseded), [ADR-0006](../decisions/0006-stage-validation-with-a-cheap-test-model.md), [ADR-0039](../decisions/0039-record-bundesliga-community-and-credential-topology.md), [ADR-0045](../decisions/0045-verify-versioned-prompt-promotion-before-validation.md), [ADR-0048](../decisions/0048-verify-bonus-compatibility-before-reference-copy.md), [ADR-0052](../decisions/0052-select-production-model-community-matrix-and-match-prompt-v3.md)
+- Decisions: [ADR-0001](../decisions/0001-current-bundesliga-season-only.md), [ADR-0005](../decisions/0005-launch-community-and-prediction-topology.md) (superseded), [ADR-0006](../decisions/0006-stage-validation-with-a-cheap-test-model.md), [ADR-0039](../decisions/0039-record-bundesliga-community-and-credential-topology.md), [ADR-0045](../decisions/0045-verify-versioned-prompt-promotion-before-validation.md), [ADR-0048](../decisions/0048-verify-bonus-compatibility-before-reference-copy.md), [ADR-0052](../decisions/0052-select-production-model-community-matrix-and-match-prompt-v3.md), [ADR-0053](../decisions/0053-schedule-the-production-live-matchday-lane.md)
 
 ## Outcome
 
@@ -14,11 +14,10 @@ to `ehonda-ai-arena`, read the reference prediction with
 `community_context: "pes-squad"`, and use the exact same owner-approved
 `production-primary` identity as `pes-production-reference`.
 
-This task record does not resolve any gated value. Schedule-free repository
-preparation becomes available only after the preparation prerequisites below;
-it authorizes no dispatch, model call, prediction write, credential use,
-production POST, or schedule change. Current prerequisite facts and activation
-gates are recorded in the
+This task record's preparation boundary is historical. Schedule-free repository
+preparation became available only after the prerequisites below and authorized
+no dispatch, model call, prediction write, credential use, production POST, or
+schedule change. Current runtime and activation facts are recorded in the
 [production prerequisite audit](../../../docs/onboarding-bundesliga-2026-27/production-prerequisite-audit-2026-08-25.md)
 and [production activation preregistration](../../../docs/onboarding-bundesliga-2026-27/production-activation-preregistration.md).
 
@@ -34,16 +33,16 @@ and [production activation preregistration](../../../docs/onboarding-bundesliga-
 No placeholder participant, model value, local profile, or Actions credential
 name may be invented to close a prerequisite.
 
-Terra and Sol were provisional P0-23 examples and are not the selected
-experiment surface. Later owner-specified cost evidence informs the model,
-cost-ceiling, and quality-budget decisions, but this clarification authorizes no
-exact paid matrix, preflight, dataset mutation, or model call.
+At that pre-selection checkpoint, Terra and Sol were provisional P0-23 examples
+rather than a selected experiment surface. ADR-0052 supersedes that historical
+wording with the current exact production and challenger matrix; the old text
+does not reopen model selection.
 
 Repository secret presence, participant authentication and Bundesliga 2026/27
 readiness, POST permission, exact Kicktipp match-submission and bonus deadlines,
-live writes, and schedule activation are P0-21 live-dispatch gates. They are not
-prerequisites to constructing this manual-only triad after the owner has selected
-the participant/profile/exact credential names and P0-06 identity.
+live writes, and schedule activation were P0-21 live-dispatch gates rather than
+construction prerequisites. P0-21 has since closed them for this ready row and
+activated only the Accepted outer lane; this leaf remains manual-only.
 
 ## Repository closeout — 2026-08-27
 
@@ -70,7 +69,7 @@ without establishing runtime readiness or POST permission.
 - [x] Expose `workflow_dispatch` only and keep the triad schedule-free. Do not add `workflow_call`, `schedule`, automatic retry, or `always()`. The three independent manual workflows cannot use `needs` to enforce cross-workflow order and must not imply that they can.
 - [x] Record the arena prediction dispatch precondition: P0-21 must hold exact successful `pes-production-reference` evidence for the same runtime identity and target item before either arena prediction workflow is dispatched; the arena caller still revalidates source identity and compatibility at runtime.
 - [x] Keep every Bundesliga 2025/26 and historical arena caller retired. Add new explicitly named Bundesliga 2026/27 callers rather than repurposing an old entrypoint.
-- [x] Leave deadline verification, live dispatch, posting verification, trace inspection, first production copy evidence, and any deliberate schedule activation exclusively to [P0-21](p0-21-production-activation.md). Machine-enforced reference-before-copy ordering belongs only to P0-21's later owner-approved Accepted activation ADR and outer workflow with explicit `needs` dependencies.
+- [x] Leave deadline verification, live dispatch, posting verification, trace inspection, first production copy evidence, and deliberate schedule activation exclusively to [P0-21](p0-21-production-activation.md). ADR-0053 now records that Owner-approved activation and gives only the outer workflow machine-enforced reference-before-copy `needs` dependencies.
 
 ## Activation boundary
 
@@ -81,9 +80,9 @@ without establishing runtime readiness or POST permission.
       the timestamped community audit records zero minutes lead time and first
       match/bonus cutoff 2026-08-28 20:30 CEST / 18:30 UTC, subject to a fresh
       read after rescheduling or an administrator rule change.
-- [x] P0-21 obtains and inspects the first production reference/copy evidence,
-      retains all live-write gates, and alone decides schedule activation and
-      rollback.
+- [x] P0-21 obtained and inspected the first production reference/copy evidence
+      and recorded the active outer schedule plus rollback contract in
+      ADR-0053. This leaf remains schedule-free.
 
 ## Validation
 
@@ -112,14 +111,15 @@ and bonus copy run
 all completed successfully with final verification. Payload-safe evidence
 proves the compatible path copied 9/9 matches and 5/5 bonus answers, generated
 zero calls, used no independent fallback, and preserved enriched roster head
-`591adbc3cbc99ee93591f074ad218703c9badb2af4e267142898145825b77ea2`;
-no schedule is active.
+`591adbc3cbc99ee93591f074ad218703c9badb2af4e267142898145825b77ea2`.
+This leaf remains schedule-free; ADR-0053's outer ready-row schedule is active,
+with its first natural observation still open.
 
 ## Complete when
 
 - [x] The owner-selected participant and exact credential names are recorded, the `production-primary` slot is resolved, the matching `pes-production-reference` task and callers are prepared, and the arena callers mirror their exact `production-primary` configuration byte for byte.
 - [x] The triad is fully explicit, manually callable, schedule-free, and protected by workflow, copy-compatibility, persistence, telemetry, and retired-caller contracts.
 - [x] No unresolved model, participant, profile, credential, compatibility, or activation gate is deployed or marked complete by this task record.
-- [x] Open P0-21 secret-presence, authentication/readiness, POST, deadline,
-      live-write, and activation gates remain recorded for handoff and do not
-      block repository closeout.
+- [x] P0-21 secret-presence, authentication/readiness, POST, deadline,
+      live-write, copy-audit, and outer-activation evidence is recorded. The
+      leaf remains schedule-free and the first outer observation remains open.

@@ -3,7 +3,7 @@
 - Status: Complete
 - Priority: P0
 - Depends on: [P0-17](p0-17-community-scope.md), [P0-18](p0-18-base-workflow-support.md)
-- Decisions: [ADR-0001](../decisions/0001-current-bundesliga-season-only.md), [ADR-0005](../decisions/0005-launch-community-and-prediction-topology.md) (superseded), [ADR-0006](../decisions/0006-stage-validation-with-a-cheap-test-model.md), [ADR-0033](../decisions/0033-pin-validation-model-ledger-and-reserve-production-selection.md), [ADR-0039](../decisions/0039-record-bundesliga-community-and-credential-topology.md), [ADR-0052](../decisions/0052-select-production-model-community-matrix-and-match-prompt-v3.md)
+- Decisions: [ADR-0001](../decisions/0001-current-bundesliga-season-only.md), [ADR-0005](../decisions/0005-launch-community-and-prediction-topology.md) (superseded), [ADR-0006](../decisions/0006-stage-validation-with-a-cheap-test-model.md), [ADR-0033](../decisions/0033-pin-validation-model-ledger-and-reserve-production-selection.md), [ADR-0039](../decisions/0039-record-bundesliga-community-and-credential-topology.md), [ADR-0052](../decisions/0052-select-production-model-community-matrix-and-match-prompt-v3.md), [ADR-0053](../decisions/0053-schedule-the-production-live-matchday-lane.md)
 
 ## Outcome
 
@@ -47,8 +47,9 @@ The `arena-luna-self-contained` matrix row has context, matchday, and bonus entr
 
 ADR-0052 additionally admits this exact Luna/`none` / cap-`10000` row as a
 cheap arena challenger. The Owner confirmed its existing Actions pair remains
-provisioned. Future dispatch and any schedule remain P0-21; the prior plumbing
-ladder does not silently activate it.
+provisioned. The leaf triad remains manual-only and schedule-free; Accepted
+ADR-0053's active outer ready-row lane now owns recurring scheduling. The prior
+plumbing ladder did not silently activate it.
 
 The ordered P0-21 challenger cycle initially stopped partial on exact head
 `eedf33052591beb5bbdc51c9e0ebe9869d5ab64d`: context
@@ -98,4 +99,5 @@ actual cost. Context contains only Club Elo, team-squad summary, and 18 roster
 documents, with the exact accepted roster and Club Elo snapshots and no WM26,
 Bundesliga 2025/26, experiment, or transfer name. The Luna/`none` manual triad
 and forced-recovery gate are complete; no production-live operation overlapped
-the recovery, and every schedule gate remains.
+the recovery. Repository activation is complete, while the first natural outer
+observation remains an open P0-21 runtime gate.
