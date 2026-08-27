@@ -238,6 +238,74 @@ public class KicktippClient_PlaceBonusPredictions_Tests : KicktippClientTests_Ba
     }
 
     [Test]
+    public async Task Placing_deadline_scoped_bonus_predictions_preserves_later_non_target_selects()
+    {
+        var html = """
+            <!DOCTYPE html>
+            <html>
+            <body>
+            <form action="/test-community/tippabgabe">
+                <input type="hidden" name="_charset_" value="UTF-8" />
+                <table id="tippabgabeFragen">
+                    <tbody>
+                        <tr>
+                            <td>Bundesliga question</td>
+                            <td>Description</td>
+                            <td>
+                                <select name="bonus.bundesliga">
+                                    <option value="">---</option>
+                                    <option value="buli-old" selected>Old Bundesliga answer</option>
+                                    <option value="buli-new">New Bundesliga answer</option>
+                                </select>
+                            </td>
+                        </tr>
+                        <tr>
+                            <td>Later Champions League question</td>
+                            <td>Description</td>
+                            <td>
+                                <select name="bonus.cl.one">
+                                    <option value="">---</option>
+                                    <option value="cl-one" selected>Existing CL answer one</option>
+                                </select>
+                                <select name="bonus.cl.two">
+                                    <option value="">---</option>
+                                    <option value="cl-two" selected>Existing CL answer two</option>
+                                </select>
+                            </td>
+                        </tr>
+                    </tbody>
+                </table>
+                <button type="submit" name="savebtn" value="save-now">Save</button>
+            </form>
+            </body>
+            </html>
+            """;
+        StubHtmlResponseWithParams(
+            "/test-community/tippabgabe",
+            html,
+            new Dictionary<string, string> { ["bonus"] = "true" });
+        StubPostResponseWithParams(
+            "/test-community/tippabgabe",
+            new Dictionary<string, string> { ["bonus"] = "true" });
+        StubPostResponse("/test-community/tippabgabe");
+        var client = CreateClient();
+        var predictions = new Dictionary<string, BonusPrediction>
+        {
+            ["bonus.bundesliga"] = new BonusPrediction(["buli-new"])
+        };
+
+        var result = await client.PlaceBonusPredictionsAsync("test-community", predictions);
+
+        await Assert.That(result).IsTrue();
+        var request = GetRequestsForPath("/test-community/tippabgabe")
+            .Single(entry => entry.RequestMessage.Method == "POST");
+        var formData = ParseFormData(request.RequestMessage.Body);
+        await Assert.That(formData["bonus.bundesliga"]).IsEqualTo("buli-new");
+        await Assert.That(formData["bonus.cl.one"]).IsEqualTo("cl-one");
+        await Assert.That(formData["bonus.cl.two"]).IsEqualTo("cl-two");
+    }
+
+    [Test]
     public async Task Placing_bonus_predictions_uses_fallback_submit_and_skips_unknown_options()
     {
         var html = """

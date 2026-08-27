@@ -2,7 +2,7 @@
 
 - Status: Accepted execution strategy; P0-06 and schedule-free P0-19 complete, P0-21 is the active gate
 - Last updated: 2026-08-27
-- Implementation state: P0 implementation through P0-20 and P0-23 through P0-25 is validated; P0-06 and schedule-free P0-19 are complete; ADR-0053 settles ready-row activation while P0-21's first scheduled observation and external `schadensfresse` setup remain open
+- Implementation state: P0 implementation through P0-20 and P0-23 through P0-25 is validated; P0-06 and schedule-free P0-19 are complete; ADR-0053 settles ready-row activation while P0-21's first scheduled observation and the revised `schadensfresse` copy ladder remain open
 
 This document describes how to deliver the accepted P0 scope quickly while preserving the project owner's control over the few deliberately late production choices. Task files and accepted ADRs are the implementation contracts.
 
@@ -110,7 +110,7 @@ The repository currently builds/tests PRs and pushes to `main`; native auto-merg
 | Git and isolation | Hybrid direct-main/PR integration; worktrees for simultaneous writers; routine merges autonomous |
 | Capacity | At most two task agents and two writable worktrees; lane-local builds/tests may overlap, with concurrency reduced only on measured pressure |
 | Communities | Dev: `ehonda-dev-buli-2627`; production: `pes-squad`, `schadensfresse`, `relaxdays-tippt`, `ehonda-ai-arena` |
-| Prediction topology | Independent primaries `pes-squad` and `schadensfresse`; `relaxdays-tippt` and arena Sol/xhigh copy `pes-squad`; four arena challengers are independent |
+| Prediction topology | Independent primary `pes-squad`; ordinary Bundesliga `schadensfresse`, `relaxdays-tippt`, and arena Sol/xhigh copy `pes-squad`; four arena challengers are independent; P1-08 owns schadensfresse mixed DFB/CL primary routing |
 | Rosters | DuckDB primary per valid 2026/27 club; complete one-time fallback seed; last-known-good on invalid data; `N/A` enrichment gaps |
 | Launch roster publication | ADR-0050 v2 adds one final known-value subtotal row per team; ADR-0051's paired explicit overlay preserves authoritative seed/LKG membership, adds supplemental fields only by exact stable ID, and gates the strictly reconstructed final payload at 18 teams / 18 derived rows / 464 ages / 464 positions / 450 values before write. ADR-0052 prepares a false-by-default workflow input enabled for pes/relaxdays/schadens before normal profile collection; arena preserves its verified enriched head; recurring automation stays P1-05 |
 | Prompts | Accepted hosted match v3 and bonus v1, with required `production` membership for live routes; historical P0-23 remains on v2; checked-in local mirrors remain the ordinary outage fallback |
@@ -147,7 +147,7 @@ These are not ambiguities agents may decide on their own:
 | Final production model, reasoning, output cap, service/fallback policy, arena challengers, and planning ceiling | Resolved by ADR-0052 on 2026-08-27 | Production and challenger callers are now prepared; P0-21 retains live use |
 | Whether Club Elo terms permit unattended network refresh, or which permitted alternative to use | Late before go-live | Provider boundary, validation, cache, dated seed, and last-known-good behavior |
 | Exact production schedules, spacing, rollback trigger, and activation | Resolved by ADR-0053 on 2026-08-27 for ready rows | First actual scheduled observation remains runtime evidence |
-| `schadensfresse` season setup | External administrator gate before its production validation | Ready-row schedule proceeds without it; its leaf triad stays manual-only |
+| `schadensfresse` mixed DFB/CL routing | P1-08 before the CL bonus deadline and later cup finals | P0 validates only context plus copied Bundesliga match/opening bonus paths; its leaves stay manual-only until green |
 
 Final model selection will mix experiments and whole-season cost estimates. New-season outcomes do not exist, older-season evaluation may be training-contaminated, and the retired o3 configuration is not a season-long option; a GPT-5.6 variant is the tentative direction, not an implementation default.
 

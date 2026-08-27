@@ -57,6 +57,11 @@ on:
         required: false
         type: number
         default: 32000
+      bonus_deadline_at_or_before:
+        description: 'Optional exact UTC deadline ceiling for selected open bonus questions'
+        required: false
+        type: string
+        default: ''
       retired_configuration:
         description: 'Explicitly fail a historical unversioned caller before any prediction work'
         required: false
@@ -116,6 +121,7 @@ jobs:
       LANGFUSE_PROMPT_VERSION: ${{ inputs.langfuse_prompt_version }}
       BONUS_CONTEXT_DOCUMENT_BUDGET: ${{ inputs.bonus_context_document_budget }}
       BONUS_CONTEXT_TOKEN_BUDGET: ${{ inputs.bonus_context_token_budget }}
+      BONUS_DEADLINE_AT_OR_BEFORE: ${{ inputs.bonus_deadline_at_or_before }}
       RETIRED_CONFIGURATION: ${{ inputs.retired_configuration }}
       TRIGGER_TYPE: ${{ inputs.trigger_type }}
       FORCE_PREDICTION: ${{ inputs.force_prediction }}
@@ -175,6 +181,10 @@ jobs:
             echo "::error::BONUS_CONTEXT_TOKEN_BUDGET must be at least 256."
             exit 1
           fi
+          if [ -n "$BONUS_DEADLINE_AT_OR_BEFORE" ] && [[ ! "$BONUS_DEADLINE_AT_OR_BEFORE" =~ ^[0-9]{4}-[0-9]{2}-[0-9]{2}T[0-9]{2}:[0-9]{2}:[0-9]{2}Z$ ]]; then
+            echo "::error::BONUS_DEADLINE_AT_OR_BEFORE must be an exact UTC instant such as 2026-08-28T18:30:00Z."
+            exit 1
+          fi
 
       - name: Checkout repository
         uses: actions/checkout@v7
@@ -205,6 +215,9 @@ jobs:
           PROMPT_LABEL_FLAGS=()
           if [ -n "$LANGFUSE_PROMPT_LABEL" ]; then
             PROMPT_LABEL_FLAGS+=(--langfuse-prompt-label "$LANGFUSE_PROMPT_LABEL")
+          fi
+          if [ -n "$BONUS_DEADLINE_AT_OR_BEFORE" ]; then
+            PROMPT_LABEL_FLAGS+=(--bonus-deadline-at-or-before "$BONUS_DEADLINE_AT_OR_BEFORE")
           fi
           dotnet run --project src/Orchestrator --configuration Release -- verify-bonus "$MODEL" --community "$COMMUNITY" --community-context "$COMMUNITY_CONTEXT" --competition "$COMPETITION" --reasoning-effort "$REASONING_EFFORT" --max-output-tokens "$MAX_OUTPUT_TOKENS" --prompt-source "$PROMPT_SOURCE" --langfuse-prompt-name "$LANGFUSE_PROMPT_NAME" --langfuse-prompt-version "$LANGFUSE_PROMPT_VERSION" --check-outdated --agent --verbose "${PROMPT_LABEL_FLAGS[@]}"
         env:
@@ -238,6 +251,9 @@ jobs:
           if [ -n "$LANGFUSE_PROMPT_LABEL" ]; then
             PREDICTION_FLAGS+=(--langfuse-prompt-label "$LANGFUSE_PROMPT_LABEL")
           fi
+          if [ -n "$BONUS_DEADLINE_AT_OR_BEFORE" ]; then
+            PREDICTION_FLAGS+=(--bonus-deadline-at-or-before "$BONUS_DEADLINE_AT_OR_BEFORE")
+          fi
 
           dotnet run --project src/Orchestrator --configuration Release -- bonus "$MODEL" --community "$COMMUNITY" --community-context "$COMMUNITY_CONTEXT" --competition "$COMPETITION" --reasoning-effort "$REASONING_EFFORT" --max-output-tokens "$MAX_OUTPUT_TOKENS" --prompt-source "$PROMPT_SOURCE" --langfuse-prompt-name "$LANGFUSE_PROMPT_NAME" --langfuse-prompt-version "$LANGFUSE_PROMPT_VERSION" --bonus-context-document-budget "$BONUS_CONTEXT_DOCUMENT_BUDGET" --bonus-context-token-budget "$BONUS_CONTEXT_TOKEN_BUDGET" --override-kicktipp --verbose --agent "${PREDICTION_FLAGS[@]}"
         env:
@@ -256,6 +272,9 @@ jobs:
           PROMPT_LABEL_FLAGS=()
           if [ -n "$LANGFUSE_PROMPT_LABEL" ]; then
             PROMPT_LABEL_FLAGS+=(--langfuse-prompt-label "$LANGFUSE_PROMPT_LABEL")
+          fi
+          if [ -n "$BONUS_DEADLINE_AT_OR_BEFORE" ]; then
+            PROMPT_LABEL_FLAGS+=(--bonus-deadline-at-or-before "$BONUS_DEADLINE_AT_OR_BEFORE")
           fi
           dotnet run --project src/Orchestrator --configuration Release -- verify-bonus "$MODEL" --community "$COMMUNITY" --community-context "$COMMUNITY_CONTEXT" --competition "$COMPETITION" --reasoning-effort "$REASONING_EFFORT" --max-output-tokens "$MAX_OUTPUT_TOKENS" --prompt-source "$PROMPT_SOURCE" --langfuse-prompt-name "$LANGFUSE_PROMPT_NAME" --langfuse-prompt-version "$LANGFUSE_PROMPT_VERSION" --check-outdated --agent --verbose "${PROMPT_LABEL_FLAGS[@]}"
         env:
@@ -286,6 +305,7 @@ jobs:
           printf '%s\n' "- **Prompt Version**: $LANGFUSE_PROMPT_VERSION" >> "$GITHUB_STEP_SUMMARY"
           printf '%s\n' "- **Bonus Context Document Budget**: $BONUS_CONTEXT_DOCUMENT_BUDGET" >> "$GITHUB_STEP_SUMMARY"
           printf '%s\n' "- **Bonus Context Token Budget**: $BONUS_CONTEXT_TOKEN_BUDGET" >> "$GITHUB_STEP_SUMMARY"
+          printf '%s\n' "- **Bonus Deadline At Or Before**: ${BONUS_DEADLINE_AT_OR_BEFORE:-all open questions}" >> "$GITHUB_STEP_SUMMARY"
           printf '%s\n' "- **Max Repredictions**: $MAX_REPREDICTIONS" >> "$GITHUB_STEP_SUMMARY"
           printf '%s\n' "- **Trigger**: $TRIGGER_TYPE" >> "$GITHUB_STEP_SUMMARY"
           printf '%s\n' "- **Initial Verify Result**: $INITIAL_VERIFY_RESULT" >> "$GITHUB_STEP_SUMMARY"

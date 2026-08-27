@@ -961,13 +961,16 @@ Assert-CommandIdentity $bonusBase 'bonus' 1 'base-bonus-predictions.yml'
 Assert-True ([regex]::Matches($bonusBase, '(?m)^\s*dotnet run .* -- verify-bonus\b.*--check-outdated').Count -eq 2) 'Both bonus verification commands must restore ADR-0037 outdated checking.'
 Assert-True $bonusBase.Contains('default: 20', [StringComparison]::Ordinal) 'The accepted 20-document bonus context budget must be surfaced.'
 Assert-True $bonusBase.Contains('default: 32000', [StringComparison]::Ordinal) 'The accepted 32,000-token bonus context budget must be surfaced.'
+Assert-True ([regex]::IsMatch($bonusBase, '(?m)^      bonus_deadline_at_or_before:\r?$')) 'The reusable bonus workflow must expose the optional deadline ceiling.'
+Assert-True $bonusBase.Contains("        default: ''", [StringComparison]::Ordinal) 'The reusable bonus deadline ceiling must default to the unchanged unfiltered behavior.'
 Assert-True $bonusBase.Contains('--bonus-context-document-budget "$BONUS_CONTEXT_DOCUMENT_BUDGET"', [StringComparison]::Ordinal) 'The bonus document budget must reach generation.'
 Assert-True $bonusBase.Contains('--bonus-context-token-budget "$BONUS_CONTEXT_TOKEN_BUDGET"', [StringComparison]::Ordinal) 'The bonus token budget must reach generation.'
+Assert-True ([regex]::Matches($bonusBase, '--bonus-deadline-at-or-before "\$BONUS_DEADLINE_AT_OR_BEFORE"').Count -eq 3) 'The exact deadline ceiling must reach initial verification, generation, and final verification.'
 
 $currentBundesligaCallers = @{}
 foreach ($row in @(
     @{ BaseName = 'buli2627-pes-squad-gpt-5-6-sol-xhigh'; Community = 'pes-squad'; Context = 'pes-squad'; Model = 'gpt-5.6-sol'; Effort = 'xhigh'; SecretStem = 'PES_SQUAD' },
-    @{ BaseName = 'buli2627-schadensfresse-gpt-5-6-sol-xhigh'; Community = 'schadensfresse'; Context = 'schadensfresse'; Model = 'gpt-5.6-sol'; Effort = 'xhigh'; SecretStem = 'SCHADENSFRESSE' },
+    @{ BaseName = 'buli2627-schadensfresse-gpt-5-6-sol-xhigh'; Community = 'schadensfresse'; Context = 'pes-squad'; Model = 'gpt-5.6-sol'; Effort = 'xhigh'; SecretStem = 'SCHADENSFRESSE' },
     @{ BaseName = 'buli2627-relaxdays-tippt-gpt-5-6-sol-xhigh'; Community = 'relaxdays-tippt'; Context = 'pes-squad'; Model = 'gpt-5.6-sol'; Effort = 'xhigh'; SecretStem = 'RELAXDAYS_TIPPT' },
     @{ BaseName = 'buli2627-ehonda-ai-arena-gpt-5-6-sol-xhigh'; Community = 'ehonda-ai-arena'; Context = 'pes-squad'; Model = 'gpt-5.6-sol'; Effort = 'xhigh'; SecretStem = 'EHONDA_AI_ARENA_GPT_5_6_SOL_XHIGH' },
     @{ BaseName = 'buli2627-ehonda-ai-arena-gpt-5-6-sol-high'; Community = 'ehonda-ai-arena'; Context = 'ehonda-ai-arena'; Model = 'gpt-5.6-sol'; Effort = 'high'; SecretStem = 'EHONDA_AI_ARENA_GPT_5_6_SOL_HIGH' },
@@ -1099,6 +1102,14 @@ foreach ($caller in $callerFiles) {
         if ($isBonus) {
             Assert-True ((Get-WithValue $content 'bonus_context_document_budget' $caller.Name) -eq '20') "$($caller.Name) must pin the accepted 20-document bonus budget."
             Assert-True ((Get-WithValue $content 'bonus_context_token_budget' $caller.Name) -eq '32000') "$($caller.Name) must pin the accepted 32000-token bonus budget."
+            $deadlineCeiling = Get-WithValue $content 'bonus_deadline_at_or_before' $caller.Name $false
+            if ($caller.Name -ceq 'buli2627-schadensfresse-gpt-5-6-sol-xhigh-bonus.yml') {
+                Assert-True ($deadlineCeiling -eq '${{ inputs.bonus_deadline_at_or_before }}') "$($caller.Name) must pass through its audited initial Bundesliga deadline ceiling."
+                Assert-True $content.Contains("        default: '2026-08-28T18:30:00Z'", [StringComparison]::Ordinal) "$($caller.Name) must default to the exact initial Bundesliga bonus cutoff."
+            }
+            else {
+                Assert-True ($null -eq $deadlineCeiling) "$($caller.Name) must retain the reusable workflow's unfiltered default."
+            }
         }
 
         Assert-ExactSecretMappings $content @(

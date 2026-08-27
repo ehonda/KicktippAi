@@ -82,4 +82,25 @@ public class KicktippContextProvider_CommunityScoringRules_Tests : KicktippConte
         await Assert.That(relaxdaysRules.Content.ReplaceLineEndings("\n"))
             .IsEqualTo(pesRules.Content.ReplaceLineEndings("\n"));
     }
+
+    [Test]
+    public async Task Schadensfresse_Bundesliga_rules_use_target_identity_and_match_pes_squad()
+    {
+        using var rulesFileProvider = (PhysicalFileProvider)CommunityRulesFileProvider.Create();
+        var schadensfresseProvider = CreateProvider(
+            communityRulesFileProvider: Option.Some<IFileProvider>(rulesFileProvider),
+            community: "schadensfresse",
+            communityContext: "schadensfresse");
+        var pesProvider = CreateProvider(
+            communityRulesFileProvider: Option.Some<IFileProvider>(rulesFileProvider),
+            community: "pes-squad",
+            communityContext: "pes-squad");
+
+        var rules = await schadensfresseProvider.CommunityScoringRules();
+        var pesRules = await pesProvider.CommunityScoringRules();
+
+        await Assert.That(rules.Name).IsEqualTo("community-rules-schadensfresse.md");
+        await Assert.That(rules.Content.ReplaceLineEndings("\n"))
+            .IsEqualTo(pesRules.Content.ReplaceLineEndings("\n"));
+    }
 }

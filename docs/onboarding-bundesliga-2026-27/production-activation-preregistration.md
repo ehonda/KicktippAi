@@ -12,6 +12,29 @@ It does not claim the first scheduled execution has occurred; only runtime
 evidence can satisfy that remaining item in
 [P0-21](../../plans/bundesliga-2026-27/tasks/p0-21-production-activation.md).
 
+## Schadensfresse readiness and topology addendum — 2026-08-27
+
+The administrator has now completed setup. Read-only preflight found the same
+nine opening Bundesliga fixtures as `pes-squad`; pre-context Firestore hygiene
+is expected 401 / present 0 / missing 401 / unexpected 0 / conflicts 0, with
+roster and Club Elo heads absent. Context workflow `181809317` must therefore
+run first with the pinned launch overlay and be inspected before predictions.
+
+[ADR-0054](../../plans/bundesliga-2026-27/decisions/0054-copy-schadensfresse-bundesliga-from-pes-squad.md)
+supersedes every older statement here that calls `schadensfresse` an
+independent primary or externally pending. Ordinary Bundesliga match workflow
+`343525557` copies `pes-squad`. Bonus workflow `343525555` defaults an inclusive
+ceiling of `2026-08-28T18:30:00Z`, selecting the five audited Bundesliga
+questions through exact scoped aliases and excluding three CL questions due
+`2026-09-09T10:00:00Z`. A complete-form POST preserves non-target selections.
+
+The Owner authorizes the ordered manual context, match, and bounded bonus
+ladder once this repository change is reviewed, integrated, pushed, and green,
+then schedule inclusion if the evidence is green. The schedule change is not
+part of this preparation commit: context and copied matchday must be added
+after `pes-squad`, with launch overlay false; bonus remains unscheduled. P1-08
+owns CL bonus routing before September 9 and later DFB/CL primary match routing.
+
 ## Owner-selection and repository-preparation addendum — 2026-08-27
 
 [ADR-0052](../../plans/bundesliga-2026-27/decisions/0052-select-production-model-community-matrix-and-match-prompt-v3.md)
@@ -22,8 +45,9 @@ settles the previously open configuration and topology gates:
 - match prompt v3 is promoted at normalized SHA-256
   `7c223c0765024e52b542bbdb8093ab9b8fcaad505de0c5f8d6c92f4044e175f3`;
   bonus remains v1;
-- `pes-squad` and `schadensfresse` are independent primaries;
-  `relaxdays-tippt` and arena Sol/`xhigh` copy the `pes-squad` reference; and
+- `pes-squad` is the independent primary; ADR-0054 later changed ordinary
+  `schadensfresse` Bundesliga work, `relaxdays-tippt`, and arena Sol/`xhigh` to
+  copy the `pes-squad` reference; and
 - self-contained arena challengers are Sol/`high`, Luna/`medium`,
   Terra/`xhigh`, and Luna/`none`, all cap `10000`.
 
@@ -504,17 +528,14 @@ exact repository change.
 
 ## Remaining factual gaps
 
-- Complete external `schadensfresse` 2026/27 setup; then establish readiness,
-  require the current marker / exactly nine open matches / open bonus
-  definitions / current rules and deadlines, then establish POST permission,
-  enriched context, independent match and bonus predictions, and payload-safe
-  evidence. The agent neither administers nor is expected to administer the
-  community.
+- Complete the revised `schadensfresse` context, copied match, bounded copied
+  bonus, and payload-safe inspection ladder, then integrate its context+match
+  recurring jobs if all evidence is green.
 - Recheck the ready-community deadlines if a fixture is rescheduled or an
   administrator changes the zero-minute rule.
 - Observe and record the first actual scheduled ready-row sequence after the
   accepted change reaches the default branch.
 
 ADR-0053 closes the ready-row schedule decision. The first scheduled runtime
-observation and external `schadensfresse` ladder remain P0-21 completion gates;
+observation and revised `schadensfresse` ladder remain P0-21 completion gates;
 `schadensfresse` stays absent from every schedule until a later Accepted change.

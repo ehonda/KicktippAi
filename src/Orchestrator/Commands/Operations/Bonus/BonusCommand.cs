@@ -291,7 +291,23 @@ public class BonusCommand : AsyncCommand<BonusSettings>
         _console.MarkupLine("[blue]Getting open bonus questions from Kicktipp...[/]");
         
         // Step 1: Get open bonus questions from Kicktipp
-        var bonusQuestions = await kicktippClient.GetOpenBonusQuestionsAsync(settings.Community);
+        var openBonusQuestions = await kicktippClient.GetOpenBonusQuestionsAsync(settings.Community);
+        var deadlineAtOrBefore = (settings as BonusSettings)?.BonusDeadlineAtOrBefore;
+        var bonusQuestions = BonusQuestionExecutionScope.SelectAtOrBefore(
+            openBonusQuestions,
+            deadlineAtOrBefore);
+
+        if (!string.IsNullOrWhiteSpace(deadlineAtOrBefore))
+        {
+            _console.MarkupLine(
+                $"[blue]Selected {bonusQuestions.Count} of {openBonusQuestions.Count} open bonus questions with deadline at or before[/] [yellow]{Markup.Escape(deadlineAtOrBefore)}[/]");
+        }
+
+        if (!string.IsNullOrEmpty(deadlineAtOrBefore) && bonusQuestions.Count == 0)
+        {
+            throw new InvalidOperationException(
+                $"The explicit bonus deadline ceiling '{deadlineAtOrBefore}' selected zero open questions.");
+        }
         
         if (!bonusQuestions.Any())
         {
@@ -319,8 +335,12 @@ public class BonusCommand : AsyncCommand<BonusSettings>
         var predictions = new Dictionary<string, BonusPrediction>();
         var traceRepredictionIndices = new HashSet<string>(StringComparer.Ordinal);
         var copyCompatibilityHashes = new HashSet<string>(StringComparer.Ordinal);
+        var copyProjectedCompatibilityHashes = new HashSet<string>(StringComparer.Ordinal);
         var copySourcePredictionIdentities = new HashSet<string>(StringComparer.Ordinal);
         var copyFallbackReasons = new HashSet<string>(StringComparer.Ordinal);
+        var copyQuestionAliasIds = new HashSet<string>(StringComparer.Ordinal);
+        var copySourceQuestionTextHashes = new HashSet<string>(StringComparer.Ordinal);
+        var copyTargetQuestionTextHashes = new HashSet<string>(StringComparer.Ordinal);
         var copiedPredictionCount = 0;
         var independentFallbackCount = 0;
         
@@ -353,9 +373,22 @@ public class BonusCommand : AsyncCommand<BonusSettings>
 
                 if (isReferenceCopyMode)
                 {
+                    var referenceProjection = BonusQuestionExecutionScope.ResolveReferenceProjection(
+                        competition,
+                        settings.Community,
+                        communityContext,
+                        question);
+                    var referenceQuestion = referenceProjection.Question;
+                    if (referenceProjection.AliasId is not null)
+                    {
+                        copyQuestionAliasIds.Add(referenceProjection.AliasId);
+                        copySourceQuestionTextHashes.Add(referenceProjection.SourceNormalizedTextSha256);
+                        copyTargetQuestionTextHashes.Add(referenceProjection.TargetNormalizedTextSha256);
+                    }
+
                     var copyCandidate = await ReadCachedValueSafelyAsync(
                         () => bonusPredictionCopyRepository!.GetBonusPredictionCopyCandidateAsync(
-                            question,
+                            referenceQuestion,
                             modelConfig,
                             communityContext),
                         question,
@@ -379,18 +412,21 @@ public class BonusCommand : AsyncCommand<BonusSettings>
                             try
                             {
                                 var compatibility = copyCandidate.QuestionCompatibilityManifest.TryMapPrediction(
-                                    question,
+                                    referenceQuestion,
                                     copyCandidate.BonusPrediction,
                                     out var mappedPrediction,
                                     out var mappedTargetManifest);
-                                targetCompatibilityManifest = mappedTargetManifest;
                                 fallbackReason = ToCopyFallbackReason(compatibility);
 
                                 if (compatibility == BonusPredictionCopyCompatibility.Compatible)
                                 {
+                                    if (referenceProjection.AliasId is not null)
+                                    {
+                                        copyProjectedCompatibilityHashes.Add(mappedTargetManifest.CompatibilitySha256);
+                                    }
                                     if (await CheckBonusPredictionMetadataOutdated(
                                             publicationRepository!,
-                                            question,
+                                            referenceQuestion,
                                             copyCandidate,
                                             communityContext,
                                             settings.Verbose))
@@ -402,9 +438,12 @@ public class BonusCommand : AsyncCommand<BonusSettings>
                                     prediction = mappedPrediction
                                         ?? throw new BundesligaBonusSafetyException(
                                             "Compatible Bundesliga bonus copy did not produce a mapped target prediction.");
+                                    var compatibleTargetManifest = targetCompatibilityManifest
+                                        ?? throw new BundesligaBonusSafetyException(
+                                            "Compatible Bundesliga bonus copy lacks the validated raw target manifest.");
                                     fromDatabase = true;
                                     copiedPredictionCount++;
-                                    copyCompatibilityHashes.Add(targetCompatibilityManifest.CompatibilitySha256);
+                                    copyCompatibilityHashes.Add(compatibleTargetManifest.CompatibilitySha256);
                                     _console.MarkupLine(
                                         "[green]  ✓ Reused compatible reference prediction[/] [dim](mapped to target options)[/]");
                                 }
@@ -822,6 +861,34 @@ public class BonusCommand : AsyncCommand<BonusSettings>
                 "bonusIndependentFallbackCount",
                 independentFallbackCount.ToString(System.Globalization.CultureInfo.InvariantCulture),
                 propagateToObservations: false);
+            if (copyQuestionAliasIds.Count > 0)
+            {
+                LangfuseActivityPropagation.SetTraceMetadata(
+                    activity,
+                    "bonusCopyQuestionAliasCount",
+                    copyQuestionAliasIds.Count.ToString(System.Globalization.CultureInfo.InvariantCulture),
+                    propagateToObservations: false);
+                LangfuseActivityPropagation.SetTraceMetadata(
+                    activity,
+                    "bonusCopyAliasIds",
+                    PredictionTelemetryMetadata.BuildDelimitedFilterValue(copyQuestionAliasIds),
+                    propagateToObservations: false);
+                LangfuseActivityPropagation.SetTraceMetadata(
+                    activity,
+                    "bonusCopySourceQuestionTextHashes",
+                    PredictionTelemetryMetadata.BuildDelimitedFilterValue(copySourceQuestionTextHashes),
+                    propagateToObservations: false);
+                LangfuseActivityPropagation.SetTraceMetadata(
+                    activity,
+                    "bonusCopyTargetQuestionTextHashes",
+                    PredictionTelemetryMetadata.BuildDelimitedFilterValue(copyTargetQuestionTextHashes),
+                    propagateToObservations: false);
+                LangfuseActivityPropagation.SetTraceMetadata(
+                    activity,
+                    "bonusCopyProjectedCompatibilityHashes",
+                    PredictionTelemetryMetadata.BuildDelimitedFilterValue(copyProjectedCompatibilityHashes),
+                    propagateToObservations: false);
+            }
             if (copyCompatibilityHashes.Count > 0)
             {
                 LangfuseActivityPropagation.SetTraceMetadata(

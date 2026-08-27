@@ -16,6 +16,10 @@ public sealed class BonusSettings : BaseSettings
     [Description("Maximum deterministic estimated tokens for the Bundesliga bonus context section")]
     public int? BonusContextEstimatedTokenBudget { get; set; }
 
+    [CommandOption("--bonus-deadline-at-or-before")]
+    [Description("Optional exact UTC deadline ceiling for selected open bonus questions (for example 2026-08-28T18:30:00Z)")]
+    public string? BonusDeadlineAtOrBefore { get; set; }
+
     public override ValidationResult Validate()
     {
         var baseResult = base.Validate();
@@ -34,6 +38,14 @@ public sealed class BonusSettings : BaseSettings
         {
             return ValidationResult.Error(
                 $"--bonus-context-token-budget must be at least {BonusContextBudget.MinimumMaximumEstimatedTokens} when provided");
+        }
+
+        if (!BonusQuestionExecutionScope.TryParseDeadlineAtOrBefore(
+                BonusDeadlineAtOrBefore,
+                out _,
+                out var validationError))
+        {
+            return ValidationResult.Error(validationError!);
         }
 
         return ValidationResult.Success();

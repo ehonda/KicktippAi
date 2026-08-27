@@ -3,12 +3,19 @@
 ## Workflow Activation Status
 
 As of 2026-08-27, ADR-0052's complete Bundesliga 2026/27 caller matrix is
-present. `pes-squad` and `schadensfresse` are independent Sol/`xhigh`
-primaries; `relaxdays-tippt` and arena Sol/`xhigh` copy `pes-squad`; arena
+present. `pes-squad` is the independent Sol/`xhigh` primary;
+`schadensfresse`, `relaxdays-tippt`, and arena Sol/`xhigh` copy `pes-squad` for
+ordinary Bundesliga work; arena
 Sol/`high`, Luna/`medium`, Terra/`xhigh`, and Luna/`none` are self-contained.
 All rows pin cap `10000`, match v3 / bonus v1, and Flex-first / Standard-
 fallback. Every current caller exposes only `workflow_dispatch`; no current
 caller has `schedule` or `workflow_call`. P0-21 owns all dispatch and activation.
+
+The manual `schadensfresse` bonus leaf defaults its inclusive strict-UTC scope
+to `2026-08-28T18:30:00Z`. Its exact five-question alias policy is not generic
+normalization; the three CL questions due September 9 remain P1-08. Do not add
+the row to the recurring outer lane before its manual context/copy ladder is
+green, and do not add bonus to that lane.
 
 The reusable context workflow's `publish_launch_roster_overlay` input is false
 by default. Set it only for an accepted initial Bundesliga production roster

@@ -3,7 +3,7 @@
 - Status: Complete
 - Priority: P0
 - Depends on: [P0-05](p0-05-prompt-route.md), [P0-16](p0-16-question-aware-bonus-context.md)
-- Decisions: [ADR-0005](../decisions/0005-launch-community-and-prediction-topology.md) (superseded), [ADR-0006](../decisions/0006-stage-validation-with-a-cheap-test-model.md), [ADR-0033](../decisions/0033-pin-validation-model-ledger-and-reserve-production-selection.md), [ADR-0039](../decisions/0039-record-bundesliga-community-and-credential-topology.md), [ADR-0052](../decisions/0052-select-production-model-community-matrix-and-match-prompt-v3.md)
+- Decisions: [ADR-0005](../decisions/0005-launch-community-and-prediction-topology.md) (superseded), [ADR-0006](../decisions/0006-stage-validation-with-a-cheap-test-model.md), [ADR-0033](../decisions/0033-pin-validation-model-ledger-and-reserve-production-selection.md), [ADR-0039](../decisions/0039-record-bundesliga-community-and-credential-topology.md), [ADR-0052](../decisions/0052-select-production-model-community-matrix-and-match-prompt-v3.md), and [ADR-0054](../decisions/0054-copy-schadensfresse-bundesliga-from-pes-squad.md)
 
 ## Outcome
 
@@ -12,7 +12,9 @@ The exact development and production communities, context-sharing relationships,
 ## Work items
 
 - [x] Record `ehonda-dev-buli-2627` as the safe overwrite-capable development community and `pes-squad`, `schadensfresse`, and `ehonda-ai-arena` as required production communities.
-- [x] Record `pes-squad` as the reference production context, `schadensfresse` as independently generated, and the selected production configuration as copy-posted from `pes-squad` into `ehonda-ai-arena`.
+- [x] Record `pes-squad` as the reference production context. ADR-0054 later
+      supersedes the initial independent `schadensfresse` classification for
+      ordinary Bundesliga work and copies it from `pes-squad` too.
 - [x] Keep arena challenger configurations self-contained and require exact question/option compatibility before copy-posting bonus predictions.
 - [x] Map each community to community context, model-ledger entry, prompt route, secret names, and Langfuse environment.
 - [x] Mark final production and challenger model values as the explicit P0-06 owner gate; do not fill them from agent preference or inherit Luna/none.
@@ -35,7 +37,9 @@ ADR-0052 extends this completed topology with `relaxdays-tippt` as a secondary
 production copy of `pes-squad`, resolves the production arena participant to
 Sol/`xhigh`, and admits self-contained arena challengers Sol/`high`,
 Luna/`medium`, Terra/`xhigh`, and Luna/`none`. `pes-squad` and
-`schadensfresse` remain independent primaries. All generation rows pin 10000
+`schadensfresse` were initially independent primaries. ADR-0054 supersedes the
+ordinary Bundesliga classification: `schadensfresse` now copies `pes-squad`,
+while P1-08 owns mixed DFB/CL primary routing. All generation rows pin 10000
 maximum output tokens and match v3 / bonus v1.
 
 The local credential selector now supports one isolated

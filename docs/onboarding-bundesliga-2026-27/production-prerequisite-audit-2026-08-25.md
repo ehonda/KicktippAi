@@ -2,6 +2,27 @@
 
 This read-only audit records which production prerequisites can be verified before the owner selects the final model and arena participants. It is prerequisite evidence for [P0-21](../../plans/bundesliga-2026-27/tasks/p0-21-production-activation.md), not production validation or authorization to post predictions.
 
+## Schadensfresse current-readiness addendum — 2026-08-27
+
+The earlier NOT READY rows below remain historical evidence. After the
+administrator completed setup, authenticated read-only preflight found the
+2026/27 marker and exactly the same nine opening fixtures as `pes-squad`.
+Firestore hygiene before context is expected 401 / present 0 / missing 401 /
+unexpected 0 / conflicts 0; roster and Club Elo heads are absent.
+
+Eight bonus questions are open: five audited Bundesliga questions due
+`2026-08-28T18:30:00Z`, and three CL questions due
+`2026-09-09T10:00:00Z`. The Bundesliga option IDs/text/limits match
+`pes-squad`; five exact `1.BL: ` target texts require ADR-0054's scoped alias
+projection. Current live rules are hidden/exact/zero-minute, Bundesliga after
+90 minutes, DFB/CL after penalties, matchday-win tie break, 2/3/4 (win) and
+2/-/4 (draw), and four points per correct bonus answer.
+
+This replaces the old independent/external-pending next step: run target-owned
+context first, then copied match, then copied bonus with the inclusive
+2026-08-28 ceiling. P1-08 owns the excluded CL questions and later DFB/CL
+primary routing.
+
 ## Owner-selection and provisioning addendum — 2026-08-27
 
 [ADR-0052](../../plans/bundesliga-2026-27/decisions/0052-select-production-model-community-matrix-and-match-prompt-v3.md)

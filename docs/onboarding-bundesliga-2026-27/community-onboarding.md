@@ -11,7 +11,7 @@ This is the authoritative community, context, configuration, credential-name, an
 | `dev-luna` | `ehonda-dev-buli-2627` | `ehonda-dev-buli-2627` | Self-contained; overwrite-capable plumbing validation | `validation-luna-none`: exact Luna/none identity below | Base `.env`; no sibling is required | No Actions participant pair is assigned by P0-17; the safe path is local CLI | `development` | Project owner; configured and authorized for validation |
 | `arena-luna-self-contained` | `ehonda-ai-arena` | `ehonda-ai-arena` | Self-contained plumbing validation and admitted cheap challenger | Luna/`none`, cap `10000`, match v3, bonus v1 | `.env.ehonda-ai-arena`; reserved for this participant | `EHONDA_AI_ARENA_GPT_5_6_LUNA_NONE_KICKTIPP_USERNAME` / `EHONDA_AI_ARENA_GPT_5_6_LUNA_NONE_KICKTIPP_PASSWORD` | `production` | Owner-selected; context/match green and payload-audited; the Owner-approved forced bonus recovery replaced the same five index-0 rows, passed final 5/5 verification, and completed the manual triad; included in ADR-0053's match-only lane; do not repeat recovery |
 | `pes-production-reference` | `pes-squad` | `pes-squad` | Independent reference production generation | Sol/`xhigh`, cap `10000`, match v3, bonus v1 | `.env.pes-squad` | `PES_SQUAD_KICKTIPP_USERNAME` / `PES_SQUAD_KICKTIPP_PASSWORD` | `production` | Owner-selected; context/match/bonus manual cycle and payload-safe audit green; included in ADR-0053's match-only lane |
-| `schadensfresse-production-independent` | `schadensfresse` | `schadensfresse` | Independent production generation | Sol/`xhigh`, cap `10000`, match v3, bonus v1 | `.env.schadensfresse` | `SCHADENSFRESSE_KICKTIPP_USERNAME` / `SCHADENSFRESSE_KICKTIPP_PASSWORD` | `production` | Owner-selected; authenticated GET audit at 2026-08-27 11:41 CEST is NOT READY: no 2026/27 marker, 0 open matches/bonus questions, historical rows/rules only; absent from schedule pending full readiness ladder |
+| `schadensfresse-production-copy` | `schadensfresse` | `pes-squad` for match/bonus; target-owned context collection | Reference copy with bounded fallback | Sol/`xhigh`, cap `10000`, match v3, bonus v1 | `.env.schadensfresse` | `SCHADENSFRESSE_KICKTIPP_USERNAME` / `SCHADENSFRESSE_KICKTIPP_PASSWORD` | `production` | ADR-0054; nine matching fixtures ready; initial bonus pins `2026-08-28T18:30:00Z` and exact five-question aliases; manual ladder required before schedule inclusion |
 | `relaxdays-production-copy` | `relaxdays-tippt` | `pes-squad` | Guarded copy of stored `pes-squad` production prediction; target context exists for ADR-0048 bonus fallback | Exact `production-primary` Sol/`xhigh` identity | `.env.relaxdays-tippt` | `RELAXDAYS_TIPPT_KICKTIPP_USERNAME` / `RELAXDAYS_TIPPT_KICKTIPP_PASSWORD` | `production` | Owner-selected; repaired context retry and 9/9 match plus 5/5 bonus copy cycle green; zero generations/fallback; included in ADR-0053's match-only lane |
 | `arena-production-copy` | `ehonda-ai-arena` | `pes-squad` | Guarded production copy; arena context exists for ADR-0048 bonus fallback | Exact `production-primary` Sol/`xhigh` identity | `.env.ehonda-ai-arena.gpt-5-6-sol-xhigh` | `EHONDA_AI_ARENA_GPT_5_6_SOL_XHIGH_KICKTIPP_USERNAME` / `EHONDA_AI_ARENA_GPT_5_6_SOL_XHIGH_KICKTIPP_PASSWORD` | `production` | Owner-selected; context and 9/9 match plus 5/5 bonus copy cycle green; zero generations/fallback; included in ADR-0053's match-only lane |
 | `arena-challenger-sol-high` | `ehonda-ai-arena` | `ehonda-ai-arena` | Self-contained independent generation | Sol/`high`, cap `10000`, match v3, bonus v1 | `.env.ehonda-ai-arena.gpt-5-6-sol-high` | `EHONDA_AI_ARENA_GPT_5_6_SOL_HIGH_KICKTIPP_USERNAME` / `EHONDA_AI_ARENA_GPT_5_6_SOL_HIGH_KICKTIPP_PASSWORD` | `production` | Owner-selected; context/match/bonus manual cycle and payload-safe audit green; included in ADR-0053's match-only lane |
@@ -52,7 +52,7 @@ This identity remains the plumbing identity and is now also an explicitly admitt
 
 ## Fixed configuration topology
 
-`production-primary` is Sol/`xhigh` with cap `10000`, match v3, bonus v1, and the existing Flex-first/Standard-fallback policy. `pes-production-reference`, `schadensfresse-production-independent`, `relaxdays-production-copy`, and `arena-production-copy` use that exact stored identity. The four admitted arena challengers are the exact self-contained rows above; no unresolved challenger template is deployed.
+`production-primary` is Sol/`xhigh` with cap `10000`, match v3, bonus v1, and the existing Flex-first/Standard-fallback policy. `pes-production-reference`, `schadensfresse-production-copy`, `relaxdays-production-copy`, and `arena-production-copy` use that exact stored identity. The four admitted arena challengers are the exact self-contained rows above; no unresolved challenger template is deployed.
 
 ## Credential resolution
 
@@ -90,12 +90,13 @@ preregistration. `pes-squad` and `relaxdays-tippt` have exercised this path;
 `schadensfresse` has not. The arena callers preserved the already enriched
 shared head and did not download the overlay artifact.
 
-After administrator setup, `schadensfresse` must repeat authenticated GET-only
-readiness and require the 2026/27 marker, exactly nine open matches, current
-open bonus definitions, and current rules/deadlines. Context overlay/profile,
-independent match, independent bonus, and payload-safe inspection then run in
-order. It remains outside the scheduled outer lane and every schedule. The
+Administrator setup is now visible: read-only preflight found the current
+marker, exactly nine `pes-squad`-matching fixtures, five Bundesliga questions
+due 2026-08-28 18:30 UTC, and three CL questions due 2026-09-09 10:00 UTC.
+Context overlay/profile, copied match, deadline-scoped copied bonus, and
+payload-safe inspection now run in order. It remains outside the scheduled
+outer lane until that evidence is green. The
 outer lane still exposes `workflow_dispatch`, but its exact 14-job topology has
 no `schadensfresse` job; the separate manual leaf callers must not be dispatched
-until the whole ladder is green and a later Accepted topology/schedule decision
-includes it.
+before the context gate. P1-08 owns CL-specific bonus routing before September
+9 and later DFB/CL primary match routing.

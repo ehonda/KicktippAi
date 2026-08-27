@@ -1,5 +1,6 @@
 using System.ComponentModel;
 using EHonda.KicktippAi.Core;
+using Orchestrator.Commands.Operations.Bonus;
 using Spectre.Console;
 using Spectre.Console.Cli;
 
@@ -94,5 +95,28 @@ public class VerifySettings : CommandSettings
         }
 
         return ValidationResult.Success();
+    }
+}
+
+public sealed class VerifyBonusSettings : VerifySettings
+{
+    [CommandOption("--bonus-deadline-at-or-before")]
+    [Description("Optional exact UTC deadline ceiling for selected open bonus questions (for example 2026-08-28T18:30:00Z)")]
+    public string? BonusDeadlineAtOrBefore { get; set; }
+
+    public override ValidationResult Validate()
+    {
+        var baseResult = base.Validate();
+        if (!baseResult.Successful)
+        {
+            return baseResult;
+        }
+
+        return BonusQuestionExecutionScope.TryParseDeadlineAtOrBefore(
+            BonusDeadlineAtOrBefore,
+            out _,
+            out var validationError)
+            ? ValidationResult.Success()
+            : ValidationResult.Error(validationError!);
     }
 }

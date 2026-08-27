@@ -15,7 +15,8 @@ The accepted [execution strategy](execution-strategy.md) defines gated orchestra
 - Langfuse-hosted prompts are primary. Checked-in mirrors are the outage or first-fetch fallback.
 - The required production scope is `pes-squad`, `schadensfresse`,
   `relaxdays-tippt`, and `ehonda-ai-arena`; `ehonda-dev-buli-2627` is the safe
-  development target. ADR-0052 fixes the exact primary/copy/challenger matrix.
+  development target. ADR-0052 fixes the model/challenger matrix and ADR-0054
+  changes ordinary `schadensfresse` Bundesliga work to copy `pes-squad`.
 - Historical data is not deleted. A future historical experiment must opt into an explicit competition, prompt, and context setup.
 
 ## P0 tasks
@@ -43,7 +44,7 @@ The accepted [execution strategy](execution-strategy.md) defines gated orchestra
 | [P0-19 template](tasks/p0-19-community-workflow-triad.md) | Copy an explicit workflow-triad task per deployable matrix row | P0-17, P0-18 |
 | [P0-19 arena Luna/none](tasks/p0-19-arena-luna-self-contained-workflow-triad.md) | Complete: manual-only self-contained challenger/validation triad on match v3 | P0-17, P0-18 |
 | [P0-19 pes-squad production reference](tasks/p0-19-pes-squad-production-reference-workflow-triad.md) | Complete: manual-only Sol/xhigh primary triad; P0-21 owns runtime evidence | P0-06, P0-17, P0-18 |
-| [P0-19 schadensfresse independent production](tasks/p0-19-schadensfresse-production-independent-workflow-triad.md) | Complete: manual-only Sol/xhigh primary triad; external setup and runtime remain P0-21 | P0-06, P0-17, P0-18 |
+| [P0-19 schadensfresse production copy](tasks/p0-19-schadensfresse-production-copy-workflow-triad.md) | Complete: manual-only Sol/xhigh copy triad with audited bonus aliases/deadline scope; runtime remains P0-21 | P0-06, P0-17, P0-18, P0-24 |
 | [P0-19 relaxdays production copy](tasks/p0-19-relaxdays-production-copy-workflow-triad.md) | Complete: manual-only Sol/xhigh copy triad sourced from `pes-squad` | P0-06, P0-17, P0-18, P0-24 |
 | [P0-19 arena production copy](tasks/p0-19-arena-production-copy-workflow-triad.md) | Complete: manual-only Sol/xhigh production-copy triad sourced from `pes-squad` | P0-06, P0-17, P0-18, P0-24 |
 | [P0-19 arena Sol/high](tasks/p0-19-arena-sol-high-self-contained-workflow-triad.md) | Complete: manual-only self-contained challenger triad | P0-06, P0-17, P0-18 |
@@ -75,11 +76,14 @@ prompt/model/context identities, zero document contamination, and zero model
 calls on both compatible copy rows. The recovery's five clean Flex generations
 cost `$0.0043837`; the original failed attempt still records zero generation,
 cost, or prediction mutation.
-An authenticated 2026-08-27 11:41 CEST GET audit returned HTTP 200 for
-`schadensfresse` but found no 2026/27 marker, zero open match/bonus controls,
-and only historical rows/rules. It is an explicit NOT READY manual-only
-exception pending external setup and its complete readiness/context/prediction/
-inspection ladder. The Owner accepted ADR-0053's exact cadence, operating
+The earlier 2026-08-27 11:41 CEST NOT READY audit is historical. After the
+administrator completed setup, read-only preflight found the exact same nine
+opening Bundesliga fixtures as `pes-squad`, plus five compatible Bundesliga
+bonus questions due `2026-08-28T18:30:00Z` and three CL questions due
+`2026-09-09T10:00:00Z`. ADR-0054 makes ordinary Bundesliga work a copy path,
+adds exact scoped question aliases and a deadline-bounded initial bonus run,
+and records mixed DFB/CL routing as P1-08. The row remains manual-only pending
+its context/copy/inspection ladder. The Owner accepted ADR-0053's cadence, operating
 ownership, rollback contract, and ready-row schedule on 2026-08-27. Exact
 activation commit `56238e5fd3615e11d0be2c462516e819dfded1db` is now on
 `main`, and exact-head GitHub run
@@ -135,6 +139,7 @@ P1-01 and P1-02 were promoted to P0-15 and P0-16 because both affect predictions
 | [P1-05](tasks/p1-05-roster-refresh.md) | Automatically adopt valid current-season DuckDB membership | P0-21 |
 | [P1-06](tasks/p1-06-observability-datasets.md) | Make experiment preparation explicitly 2026/27-capable | P0-12, P0-21 |
 | [P1-07](tasks/p1-07-cost-calibration.md) | Recalculate season cost from live usage evidence | P0-16, P1-04, P1-05 |
+| [P1-08](tasks/p1-08-schadensfresse-mixed-competition-routing.md) | Route schadensfresse CL bonus and DFB/CL matches through competition-correct primary paths | P0-21 |
 
 There is intentionally no transfer-document automation task in P1.
 
@@ -159,8 +164,8 @@ P0 is complete only when:
 - manual production runs and opening writes succeed for every ready ADR-0052
   row: `pes-squad`, `relaxdays-tippt`, and all selected arena participants,
   including P0-24-compatible copy-posting without an extra model call;
-  `schadensfresse` remains a visible manual-only exception until its external
-  season setup completes;
+  `schadensfresse` remains a visible manual-only exception until its complete
+  context/copy/inspection ladder succeeds;
 - ADR-0053's ready-row schedule is enabled only after its accepted launch
   decision and successful manual evidence reach the default branch; the first
   scheduled sequence is then observed. `schadensfresse` remains excluded and
@@ -221,3 +226,4 @@ P0 is complete only when:
 - [ADR-0051: Require an explicit launch roster enrichment overlay](decisions/0051-require-explicit-launch-roster-enrichment-overlay.md)
 - [ADR-0052: Select the production model, community matrix, and match prompt v3](decisions/0052-select-production-model-community-matrix-and-match-prompt-v3.md)
 - [ADR-0053: Schedule the production-live matchday lane](decisions/0053-schedule-the-production-live-matchday-lane.md)
+- [ADR-0054: Copy schadensfresse Bundesliga predictions from pes-squad](decisions/0054-copy-schadensfresse-bundesliga-from-pes-squad.md)

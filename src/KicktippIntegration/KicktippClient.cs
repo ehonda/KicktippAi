@@ -2845,10 +2845,10 @@ public class KicktippClient : IKicktippClient, IDisposable
                         var selectArray = selectElements.Cast<IHtmlSelectElement>().ToArray();
                         
                         // Check if we have a prediction for this question based on form field name match
-                        var matchingPrediction = predictions.FirstOrDefault(p => 
-                            selectArray.Any(sel => sel.Name == p.Key) || 
+                        var matchingPrediction = predictions.FirstOrDefault(p =>
+                            selectArray.Any(sel => sel.Name == p.Key) ||
                             selectArray.Any(sel => sel.Name?.Contains(p.Key) == true));
-                        
+
                         if (matchingPrediction.Value != null && matchingPrediction.Value.SelectedOptionIds.Any())
                         {
                             var selectedOptions = matchingPrediction.Value.SelectedOptionIds;
@@ -2877,6 +2877,39 @@ public class KicktippClient : IKicktippClient, IDisposable
                                 {
                                     _logger.LogWarning("Option {OptionId} not found for field {FieldName}", selectedOptionId, fieldName);
                                 }
+                            }
+                        }
+                        else
+                        {
+                            // A bonus submission posts the complete form. Preserve every
+                            // current select value outside this invocation's target scope so
+                            // a deadline-filtered run cannot clear later questions.
+                            foreach (var selectElement in selectArray)
+                            {
+                                var fieldName = selectElement.Name;
+                                var selectedOptionId = selectElement.Value;
+                                if (string.IsNullOrEmpty(fieldName) || string.IsNullOrEmpty(selectedOptionId))
+                                {
+                                    continue;
+                                }
+
+                                var optionExists = selectElement.QuerySelectorAll("option")
+                                    .Cast<IHtmlOptionElement>()
+                                    .Any(option => option.Value == selectedOptionId);
+                                if (!optionExists)
+                                {
+                                    _logger.LogWarning(
+                                        "Existing bonus option {OptionId} not found for non-target field {FieldName}",
+                                        selectedOptionId,
+                                        fieldName);
+                                    continue;
+                                }
+
+                                formData.Add(new KeyValuePair<string, string>(fieldName, selectedOptionId));
+                                _logger.LogDebug(
+                                    "Preserved existing bonus selection for non-target field {FieldName}: {OptionId}",
+                                    fieldName,
+                                    selectedOptionId);
                             }
                         }
                     }

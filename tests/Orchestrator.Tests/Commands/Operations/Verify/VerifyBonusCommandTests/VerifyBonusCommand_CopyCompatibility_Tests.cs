@@ -46,6 +46,52 @@ public sealed class VerifyBonusCommand_CopyCompatibility_Tests : VerifyBonusComm
     }
 
     [Test]
+    public async Task Schadensfresse_exact_Bundesliga_alias_verifies_source_copy_against_real_target()
+    {
+        var targetQuestion = CreateTargetQuestion() with
+        {
+            Text = "1.BL: Wer wird Deutscher Meister?"
+        };
+        var sourceQuestion = CreateSourceQuestion() with
+        {
+            Text = "Wer wird Deutscher Meister?"
+        };
+        var sourcePrediction = new BonusPrediction(["source-fcb"]);
+        var mappedTargetPrediction = new BonusPrediction(["target-fcb"]);
+        var repository = CreateMockPredictionRepository(
+            getBonusPredictionCopyCandidateResult: CreateCanonicalBundesligaBonusPredictionMetadata(
+                sourceQuestion,
+                sourcePrediction,
+                communityContext: SourceCommunityContext));
+        var context = CreateContext(repository, targetQuestion, mappedTargetPrediction);
+
+        var exitCode = await context.App.RunAsync(
+        [
+            "verify-bonus", "test-model",
+            "--community", "schadensfresse",
+            "--community-context", SourceCommunityContext,
+            "--competition", CompetitionIds.Bundesliga2026_27,
+            "--check-outdated",
+            "--agent"
+        ]);
+
+        await Assert.That(exitCode).IsEqualTo(0);
+        repository.As<IBonusPredictionCopyRepository>().Verify(candidateRepository =>
+            candidateRepository.GetBonusPredictionCopyCandidateAsync(
+                It.Is<BonusQuestion>(question =>
+                    question.Text == sourceQuestion.Text
+                    && question.FormFieldName == targetQuestion.FormFieldName),
+                It.IsAny<PredictionModelConfig>(),
+                SourceCommunityContext,
+                It.IsAny<CancellationToken>()), Times.Once);
+        repository.Verify(candidateRepository => candidateRepository.GetBonusPredictionByTextAsync(
+            It.IsAny<string>(),
+            It.IsAny<PredictionModelConfig>(),
+            "schadensfresse",
+            It.IsAny<CancellationToken>()), Times.Never);
+    }
+
+    [Test]
     public async Task Incompatible_reference_source_verifies_exact_target_context_fallback()
     {
         var targetQuestion = CreateTargetQuestion();

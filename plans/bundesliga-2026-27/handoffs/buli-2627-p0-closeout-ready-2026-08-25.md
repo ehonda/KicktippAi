@@ -11,18 +11,37 @@
 
 ## Resume objective
 
-Close P0 through [P0-21](../tasks/p0-21-production-activation.md). Preserve the
-remaining `schadensfresse` community-administrator gate and do not fabricate
-first-schedule runtime evidence. P0-06 and every ADR-0052 P0-19 repository row
-are complete.
+Close P0 through [P0-21](../tasks/p0-21-production-activation.md). Do not
+fabricate first-schedule runtime evidence. P0-06 and every schedule-free P0-19
+repository row are complete; the revised `schadensfresse` live ladder remains.
+
+## Schadensfresse copy-onboarding addendum — 2026-08-27
+
+The administrator setup gate is now resolved. Read-only preflight found the
+same nine Bundesliga fixtures as `pes-squad`, five Bundesliga bonus questions
+due `2026-08-28T18:30:00Z`, and three CL questions due
+`2026-09-09T10:00:00Z`. ADR-0054 supersedes the older independent-primary
+statements in this handoff: ordinary Bundesliga match and opening bonus work
+copies `pes-squad`, using exact five-question aliases and an inclusive initial
+bonus ceiling. The P0 rules document is deliberately identical to `pes-squad`;
+the live DFB/CL after-penalties exceptions and CL-specific September routing
+are explicit P1-08 work.
+
+After exact-head review/CI, run context workflow `181809317` first with the
+pinned overlay, then match `343525557`, then bonus `343525555` with the pinned
+ceiling. Require zero model calls/fallbacks on copy paths, final 9/9 and 5/5
+verification, exact target writes, alias telemetry, and no CL-answer mutation.
+Only then add target context plus copied match after `pes-squad` to the outer
+lane with overlay false. Bonus stays unscheduled.
 
 ## Owner-selection and workflow closeout addendum — 2026-08-27
 
 - [ADR-0052](../decisions/0052-select-production-model-community-matrix-and-match-prompt-v3.md)
   selects production `gpt-5.6-sol` / `xhigh` / cap `10000`, Flex-first /
   Standard-fallback, and the non-enforced USD 35 planning orientation.
-- `pes-squad` and `schadensfresse` are independent primaries;
-  `relaxdays-tippt` and the arena Sol/`xhigh` participant copy the exact
+- `pes-squad` is the independent primary; ADR-0054 later changed ordinary
+  `schadensfresse` Bundesliga work to copy it. `relaxdays-tippt` and the arena
+  Sol/`xhigh` participant also copy the exact
   `pes-squad` production identity. Self-contained arena challengers are
   Sol/`high`, Luna/`medium`, Terra/`xhigh`, and Luna/`none`, all cap `10000`.
 - Match prompt v3 is hosted and checked in at normalized SHA-256
@@ -410,7 +429,7 @@ objective and completion addendum above, not from its pending P0-23 steps.
    path for each non-arena production community before its first prediction,
    preservation inspection of the exact already enriched arena head,
    external
-   `schadensfresse` setup, names-only repository secret presence,
+   the revised `schadensfresse` ladder, names-only repository secret presence,
    authentication/current-season readiness, POST permission, exact match and
    bonus deadlines, the Club Elo operating decision, named
    operator/monitor/rollback ownership, manual context and prediction evidence,
@@ -491,6 +510,6 @@ external `schadensfresse` state, Accepted ADR-0053's `7 2,9 * * *` contract,
 and the still-unobserved first scheduled execution.
 Do not assign a new P0-23 or P0-25 live lane and do not perform another P0-23
 external or model action. Resume P0-21 at the first natural scheduled
-observation and, independently, the pending `schadensfresse` readiness,
-context, prediction, and inspection ladder; do not repeat already green rows
+observation and, independently, the revised `schadensfresse` context, copy,
+and inspection ladder; do not repeat already green rows
 without new Owner authorization.

@@ -1,15 +1,15 @@
 # P0-21 — Validate production and activate schedules
 
-- Status: In progress — every ready-community manual cycle is green and ADR-0053's ready-row schedule is active on `main`; the first scheduled observation and `schadensfresse` remain
+- Status: In progress — ready-row activation is green; revised `schadensfresse` copy onboarding remains
 - Priority: P0
 - Depends on: [P0-06](p0-06-model-ledger-and-cost-baseline.md), [P0-20](p0-20-seed-and-development-validation.md), [P0-24](p0-24-bonus-copy-post-compatibility.md), [P0-25](p0-25-roster-enrichment-and-team-total.md), and every required production entrypoint copied from [P0-19](p0-19-community-workflow-triad.md)
-- Decisions: [ADR-0005](../decisions/0005-launch-community-and-prediction-topology.md) (superseded), [ADR-0006](../decisions/0006-stage-validation-with-a-cheap-test-model.md), [ADR-0007](../decisions/0007-require-context-hygiene-before-launch.md), [ADR-0008](../decisions/0008-launch-club-elo-from-a-dated-seed.md), [ADR-0013](../decisions/0013-club-elo-snapshot-and-freshness-contract.md), [ADR-0039](../decisions/0039-record-bundesliga-community-and-credential-topology.md), [ADR-0045](../decisions/0045-verify-versioned-prompt-promotion-before-validation.md), [ADR-0050](../decisions/0050-publish-enriched-launch-rosters-with-derived-team-subtotals.md), [ADR-0051](../decisions/0051-require-explicit-launch-roster-enrichment-overlay.md), [ADR-0052](../decisions/0052-select-production-model-community-matrix-and-match-prompt-v3.md), [ADR-0053](../decisions/0053-schedule-the-production-live-matchday-lane.md)
+- Decisions: [ADR-0005](../decisions/0005-launch-community-and-prediction-topology.md) (superseded), [ADR-0006](../decisions/0006-stage-validation-with-a-cheap-test-model.md), [ADR-0007](../decisions/0007-require-context-hygiene-before-launch.md), [ADR-0008](../decisions/0008-launch-club-elo-from-a-dated-seed.md), [ADR-0013](../decisions/0013-club-elo-snapshot-and-freshness-contract.md), [ADR-0039](../decisions/0039-record-bundesliga-community-and-credential-topology.md), [ADR-0045](../decisions/0045-verify-versioned-prompt-promotion-before-validation.md), [ADR-0050](../decisions/0050-publish-enriched-launch-rosters-with-derived-team-subtotals.md), [ADR-0051](../decisions/0051-require-explicit-launch-roster-enrichment-overlay.md), [ADR-0052](../decisions/0052-select-production-model-community-matrix-and-match-prompt-v3.md), [ADR-0053](../decisions/0053-schedule-the-production-live-matchday-lane.md), and [ADR-0054](../decisions/0054-copy-schadensfresse-bundesliga-from-pes-squad.md)
 
 ## Outcome
 
 Each selected production community succeeds manually before recurring
 activation. The ready-row outer matchday schedule is active; its first natural
-execution and the externally pending `schadensfresse` row remain P0 gates.
+execution and the revised manual `schadensfresse` copy ladder remain P0 gates.
 
 ## Owner dispatch authorization — 2026-08-27
 
@@ -20,7 +20,9 @@ participant. Run independent primaries before dependent secondary copies and
 stop the affected chain on failure. This explicitly authorizes the resulting
 initial prediction writes for those ready rows, subject to the runtime gates
 below. `schadensfresse` remains unrun and manual-only pending administrator
-setup.
+setup. After setup became available, the Owner authorized its complete ordered
+manual ladder and schedule inclusion if green. ADR-0054 and P0-19 define the
+bounded copy implementation; do not use the earlier independent path.
 
 All ready-row manual evidence passed. On 2026-08-27 the Owner explicitly
 accepted ADR-0053's cadence, operating ownership, rollback contract, and
@@ -115,18 +117,24 @@ complete and must not be repeated.
       enriched snapshot `591adbc3cbc99ee93591f074ad218703c9badb2af4e267142898145825b77ea2`
       with no regression. Roster publication alone is not prediction-posting
       or schedule authority.
-- [ ] After `schadensfresse` exposes the current season and passes its read-only
-      readiness gates, dispatch its prepared context caller and prove the same
+- [x] Confirm `schadensfresse` exposes the current season, exactly nine matching
+      Bundesliga fixtures, five Bundesliga bonus questions due
+      `2026-08-28T18:30:00Z`, and three later CL questions due
+      `2026-09-09T10:00:00Z`.
+- [ ] Dispatch its prepared context caller and prove the same
       pinned overlay, v2 snapshot, minimum enrichment counts, and exact 18-row
       team-total contract before any prediction dispatch.
-- [x] Manually dispatch production context collection and inspect all publication dispositions for every currently ready community; `schadensfresse` remains an explicit external-setup exception.
+- [x] Manually dispatch production context collection and inspect all publication dispositions for the originally ready rows. `schadensfresse` now has its separate current ladder below.
 - [x] Manually dispatch one production matchday run and required bonus run for every currently ready row; confirm the expected Kicktipp writes, including the approved Luna/`none` recovery.
 - [x] Verify `pes-squad` generated independently and the accepted `pes-squad`
       prediction was copy-posted to both
       `relaxdays-tippt` and the arena Sol/`xhigh` participant without an extra
       model call.
-- [ ] After its external and manual gates pass, verify `schadensfresse`
-      generates independently with its exact production identity.
+- [ ] Verify `schadensfresse` copies all nine match predictions from
+      `pes-squad` with zero model generations and exact target writes.
+- [ ] Run its initial bonus workflow with the inclusive ceiling
+      `2026-08-28T18:30:00Z`; verify five exact alias-projected copies, zero
+      fallback/model calls, and no mutation of the three later CL questions.
 - [x] Validate self-contained arena Sol/`high`, Luna/`medium`, Terra/`xhigh`,
       and Luna/`none` in context-before-prediction order.
       Luna/`none` initially failed closed at bonus provenance, then completed
@@ -144,6 +152,10 @@ complete and must not be repeated.
       are green; `schadensfresse` remains excluded and every leaf caller remains
       manual-only.
 - [ ] Observe the first scheduled context and prediction sequence and record run links/results.
+- [ ] After the schadensfresse manual ladder and exact-head CI are green, add
+      its context then matchday copy after `pes-squad` in the recurring outer
+      lane with launch overlay false. Keep bonus out of the schedule; P1-08
+      owns the CL-specific September operation.
 
 ## Validation evidence
 
@@ -286,13 +298,14 @@ the 2025/26 competition with a zero-minute rule. This is definitive NOT READY
 evidence, not a current deadline result, and `schadensfresse` must remain absent
 from any schedule.
 
-After the administrator completes setup, repeat the authenticated GET-only
-audit and require a Bundesliga 2026/27 marker, exactly nine open current match
-controls, the current open bonus questions/options, and current rules/deadlines.
-Only then dispatch its pinned-overlay context caller and inspect the exact
-publication; if green, dispatch and verify independent match then bonus callers
-and complete the payload-safe Firestore/Langfuse audit. Only a fully green row
-may return to a later Accepted schedule decision.
+The administrator subsequently completed setup. Current preflight now has the
+2026/27 marker, exactly nine `pes-squad`-matching fixtures, five audited
+Bundesliga bonus questions due `2026-08-28T18:30:00Z`, and three CL questions
+due `2026-09-09T10:00:00Z`. ADR-0054 replaces the independent path: first
+inspect pinned-overlay context publication; if green, verify copied match and
+deadline-bounded copied bonus with no model calls, then complete the payload-
+safe audit. Only a fully green row may enter a separately reviewed schedule
+change, and bonus remains outside the recurring lane.
 
 The first authorized `relaxdays-tippt` context dispatch, Actions run
 [`33047564359`](https://github.com/ehonda/KicktippAi/actions/runs/33047564359),

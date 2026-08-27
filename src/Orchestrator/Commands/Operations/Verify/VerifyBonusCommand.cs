@@ -4,12 +4,13 @@ using Spectre.Console.Cli;
 using Spectre.Console;
 using KicktippIntegration;
 using Orchestrator.Commands.Shared;
+using Orchestrator.Commands.Operations.Bonus;
 using Orchestrator.Infrastructure;
 using Orchestrator.Infrastructure.Factories;
 
 namespace Orchestrator.Commands.Operations.Verify;
 
-public class VerifyBonusCommand : AsyncCommand<VerifySettings>
+public class VerifyBonusCommand : AsyncCommand<VerifyBonusSettings>
 {
     private readonly IAnsiConsole _console;
     private readonly IFirebaseServiceFactory _firebaseServiceFactory;
@@ -31,7 +32,7 @@ public class VerifyBonusCommand : AsyncCommand<VerifySettings>
         _logger = logger;
     }
 
-    protected override async Task<int> ExecuteAsync(CommandContext context, VerifySettings settings, CancellationToken cancellationToken)
+    protected override async Task<int> ExecuteAsync(CommandContext context, VerifyBonusSettings settings, CancellationToken cancellationToken)
     {
         
         try
@@ -71,7 +72,7 @@ public class VerifyBonusCommand : AsyncCommand<VerifySettings>
         }
     }
     
-    private async Task<bool> ExecuteVerificationWorkflow(VerifySettings settings)
+    private async Task<bool> ExecuteVerificationWorkflow(VerifyBonusSettings settings)
     {
         string communityContext = settings.CommunityContext ?? settings.Community;
         var competition = CompetitionResolver.ResolveCompetition(settings.Competition, settings.Community, communityContext);
@@ -131,7 +132,23 @@ public class VerifyBonusCommand : AsyncCommand<VerifySettings>
         _console.MarkupLine("[blue]Getting open bonus questions from Kicktipp...[/]");
         
         // Step 1: Get open bonus questions from Kicktipp
-        var bonusQuestions = await kicktippClient.GetOpenBonusQuestionsAsync(settings.Community);
+        var openBonusQuestions = await kicktippClient.GetOpenBonusQuestionsAsync(settings.Community);
+        var bonusQuestions = BonusQuestionExecutionScope.SelectAtOrBefore(
+            openBonusQuestions,
+            settings.BonusDeadlineAtOrBefore);
+
+        if (!string.IsNullOrWhiteSpace(settings.BonusDeadlineAtOrBefore))
+        {
+            _console.MarkupLine(
+                $"[blue]Selected {bonusQuestions.Count} of {openBonusQuestions.Count} open bonus questions with deadline at or before[/] [yellow]{Markup.Escape(settings.BonusDeadlineAtOrBefore)}[/]");
+        }
+
+        if (!string.IsNullOrEmpty(settings.BonusDeadlineAtOrBefore) && bonusQuestions.Count == 0)
+        {
+            _console.MarkupLine(
+                $"[red]The explicit bonus deadline ceiling '{Markup.Escape(settings.BonusDeadlineAtOrBefore)}' selected zero open questions.[/]");
+            return true;
+        }
         
         if (!bonusQuestions.Any())
         {
@@ -356,9 +373,15 @@ public class VerifyBonusCommand : AsyncCommand<VerifySettings>
         // Validate the target before inspecting source provenance. An ambiguous target is
         // never an ordinary copy mismatch and must fail closed.
         _ = BonusQuestionCompatibilityManifest.Create(targetQuestion);
+        var referenceProjection = BonusQuestionExecutionScope.ResolveReferenceProjection(
+            CompetitionIds.Bundesliga2026_27,
+            targetCommunityContext,
+            sourceCommunityContext,
+            targetQuestion);
+        var referenceQuestion = referenceProjection.Question;
 
         var copyCandidate = await bonusPredictionCopyRepository.GetBonusPredictionCopyCandidateAsync(
-            targetQuestion,
+            referenceQuestion,
             modelConfig,
             sourceCommunityContext);
 
@@ -369,7 +392,7 @@ public class VerifyBonusCommand : AsyncCommand<VerifySettings>
             try
             {
                 var compatibility = copyCandidate.QuestionCompatibilityManifest.TryMapPrediction(
-                    targetQuestion,
+                    referenceQuestion,
                     copyCandidate.BonusPrediction,
                     out var mappedPrediction,
                     out _);
@@ -378,7 +401,7 @@ public class VerifyBonusCommand : AsyncCommand<VerifySettings>
                 {
                     var isOutdated = await CheckBundesligaBonusPredictionMetadataOutdated(
                         publicationRepository,
-                        targetQuestion,
+                        referenceQuestion,
                         copyCandidate.BonusPrediction,
                         copyCandidate,
                         sourceCommunityContext,

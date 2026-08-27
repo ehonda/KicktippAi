@@ -24,7 +24,7 @@ To add rules for a new community:
 - `ehonda-test-buli.md` - Test community rules
 - `ehonda-ai-arena.md` - AI arena community rules
 - `pes-squad.md` - PES squad production-community rules
-- `schadensfresse.md` - Schadensfresse production-community rules
+- `schadensfresse.md` - Schadensfresse Bundesliga 2026/27 prompt rules, intentionally identical to `pes-squad.md`; the mixed DFB-Pokal/Champions-League contract is recorded in ADR-0054 and P1-08
 - `relaxdays-tippt.md` - Relaxdays production-copy rules, intentionally identical to `pes-squad.md`
 - `rabetrabauken2026.md` - WM26 reference community rules
 

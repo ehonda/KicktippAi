@@ -11,9 +11,10 @@ descriptions later in this document are historical evidence, not activation
 evidence.
 
 The current Bundesliga 2026/27 leaf entrypoints implement ADR-0052's exact
-manual-only matrix. Independent Sol/`xhigh` primary triads target `pes-squad`
-and `schadensfresse`; Sol/`xhigh` copy triads target `relaxdays-tippt` and its
-arena participant with `community_context: "pes-squad"`; self-contained arena
+manual-only matrix as amended by ADR-0054. The independent Sol/`xhigh` primary
+triad targets `pes-squad`; Sol/`xhigh` copy triads target `schadensfresse`,
+`relaxdays-tippt`, and the arena participant with
+`community_context: "pes-squad"`; self-contained arena
 triads target Sol/`high`, Luna/`medium`, Terra/`xhigh`, and Luna/`none`. All
 generation rows pin cap `10000`, match v3 / bonus v1, and the reusable
 Flex-first / Standard-fallback policy. P0-17 records the
@@ -97,6 +98,15 @@ participant-specific context/copy pair, and participant-specific context plus
 prediction pairs for Sol/`high`, Luna/`medium`, and Terra/`xhigh`. Every bonus
 caller pins budgets `20` / `32000`.
 
+The `schadensfresse` bonus caller additionally defaults
+`bonus_deadline_at_or_before` to `2026-08-28T18:30:00Z`. The reusable input is
+optional and empty for every other caller. Generate and both verification
+passes use the same inclusive ceiling, and an explicit ceiling selecting zero
+open questions fails visibly. Five exact target-to-source question aliases
+permit the audited Bundesliga copy; the three later CL questions are excluded
+and remain P1-08 work. Complete-form bonus POSTs preserve current values for
+non-target selects.
+
 ### Context Collection Workflows
 
 - **`pes-squad-context-collection.yml`**: Current manual context caller for `pes-squad`
@@ -104,8 +114,8 @@ caller pins budgets `20` / `32000`.
     exact pinned launch-roster overlay, and has no schedule or dispatch inputs
 - **`schadensfresse-context-collection.yml`**: Current manual context caller for `schadensfresse`
   - Exposes `workflow_dispatch` only, pins `bundesliga-2026-27`, and is prepared
-    with the exact pinned launch-roster overlay; it remains unrun pending
-    community-admin setup
+    with the exact pinned launch-roster overlay; it must complete before the
+    now-ready manual copy prediction leaves
 - **`relaxdays-tippt-context-collection.yml`**: Current manual context caller for `relaxdays-tippt`
   - Exposes `workflow_dispatch` only, pins `bundesliga-2026-27`, and opts into
     the exact pinned launch-roster overlay
@@ -267,7 +277,7 @@ single outer production schedule; P0-21 must observe its first actual scheduled
 sequence. A failed or cancelled context run blocks the corresponding prediction
 dispatch.
 
-For `pes-squad`, `relaxdays-tippt`, and eventually `schadensfresse`, the same
+For `pes-squad`, `relaxdays-tippt`, and `schadensfresse`, the same
 successful context run must show the pinned launch-overlay step before ordinary
 profile collection. Verify `NotEvaluated` membership gates,
 `LAUNCH_ENRICHMENT_OVERLAY`, the v2 head, 464/464/450 minimum enrichment, and
@@ -276,9 +286,9 @@ enriched head and must not redownload the artifact on each participant run.
 
 ### Bundesliga 2026/27 topology
 
-ADR-0052 fixes nine stable rows: the local `dev-luna` path; independent
-`pes-production-reference` and `schadensfresse-production-independent`;
-`relaxdays-production-copy` and `arena-production-copy`; and self-contained
+ADR-0052 plus ADR-0054 fix nine stable rows: the local `dev-luna` path;
+independent `pes-production-reference`; `schadensfresse-production-copy`,
+`relaxdays-production-copy`, and `arena-production-copy`; and self-contained
 arena Sol/`high`, Luna/`medium`, Terra/`xhigh`, and Luna/`none`. No unresolved
 challenger slot is deployed.
 
