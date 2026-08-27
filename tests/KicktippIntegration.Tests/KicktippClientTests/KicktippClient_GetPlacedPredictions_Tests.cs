@@ -1,4 +1,7 @@
 using EHonda.KicktippAi.Core;
+using WireMock.Matchers;
+using WireMock.RequestBuilders;
+using WireMock.ResponseBuilders;
 
 namespace KicktippIntegration.Tests.KicktippClientTests;
 
@@ -139,7 +142,81 @@ public class KicktippClient_GetPlacedPredictions_Tests : KicktippClientTests_Bas
     }
 
     [Test]
-    public async Task Getting_placed_predictions_retries_explicit_current_season_and_matchday_when_default_table_is_missing()
+    public async Task Getting_placed_predictions_uses_final_redirected_overview_identity_when_default_redirects_to_bonus()
+    {
+        const string seasonId = "season+2026/27 & current";
+        const string encodedSeasonId = "season%2B2026%2F27+%26+current";
+        const int matchday = 6;
+        var bonusHtml = """
+            <!DOCTYPE html><html><body><table id="tippabgabeBonus"><tbody><tr><td>Bonus</td></tr></tbody></table></body></html>
+            """;
+        var overviewHtml = """
+            <!DOCTYPE html><html><body><p>Current overview without duplicated selection controls</p></body></html>
+            """;
+
+        Server
+            .Given(Request.Create()
+                .WithPath("/test-community/tippabgabe")
+                .WithParam("bonus", new ExactMatcher("true"))
+                .UsingGet())
+            .RespondWith(Response.Create()
+                .WithStatusCode(200)
+                .WithHeader("Content-Type", "text/html; charset=utf-8")
+                .WithBody(bonusHtml));
+        StubWithSyntheticFixtureAndParams(
+            "/test-community/tippabgabe",
+            "test-community",
+            "tippabgabe-with-predictions",
+            ("spieltagIndex", matchday.ToString()),
+            ("tippsaisonId", seasonId));
+        Server
+            .Given(Request.Create()
+                .WithUrl($"{ServerUrl}/test-community/tippabgabe")
+                .UsingGet())
+            .RespondWith(Response.Create()
+                .WithStatusCode(302)
+                .WithHeader("Location", "/test-community/tippabgabe?bonus=true"));
+
+        Server
+            .Given(Request.Create()
+                .WithPath("/test-community/tippuebersicht")
+                .WithParam("spieltagIndex", new ExactMatcher(matchday.ToString()))
+                .WithParam("tippsaisonId", new ExactMatcher(seasonId))
+                .UsingGet())
+            .RespondWith(Response.Create()
+                .WithStatusCode(200)
+                .WithHeader("Content-Type", "text/html; charset=utf-8")
+                .WithBody(overviewHtml));
+        Server
+            .Given(Request.Create()
+                .WithUrl($"{ServerUrl}/test-community/tippuebersicht")
+                .UsingGet())
+            .RespondWith(Response.Create()
+                .WithStatusCode(302)
+                .WithHeader(
+                    "Location",
+                    $"/test-community/tippuebersicht?tippsaisonId={encodedSeasonId}&spieltagIndex={matchday}#current"));
+        var client = CreateClient();
+
+        var predictions = await client.GetPlacedPredictionsAsync("test-community");
+
+        var bonusRequest = GetRequestsForPath("/test-community/tippabgabe")
+            .Single(entry => entry.RequestMessage.Query?.ContainsKey("bonus") == true);
+        await Assert.That(bonusRequest.RequestMessage.Query!["bonus"].Single()).IsEqualTo("true");
+        var redirectedOverviewRequest = GetRequestsForPath("/test-community/tippuebersicht")
+            .Single(entry => entry.RequestMessage.Query?.ContainsKey("spieltagIndex") == true);
+        await Assert.That(redirectedOverviewRequest.RequestMessage.Query!["spieltagIndex"].Single()).IsEqualTo(matchday.ToString());
+        await Assert.That(redirectedOverviewRequest.RequestMessage.Query!["tippsaisonId"].Single()).IsEqualTo(seasonId);
+        var explicitRequest = GetRequestsForPath("/test-community/tippabgabe")
+            .Single(entry => entry.RequestMessage.Query?.ContainsKey("spieltagIndex") == true);
+        await Assert.That(explicitRequest.RequestMessage.Query!["spieltagIndex"].Single()).IsEqualTo(matchday.ToString());
+        await Assert.That(explicitRequest.RequestMessage.Query!["tippsaisonId"].Single()).IsEqualTo(seasonId);
+        await Assert.That(predictions).HasCount().EqualTo(3);
+        await Assert.That(predictions.Values.Count(prediction => prediction != null)).IsEqualTo(2);
+    }
+
+    [Test]
+    public async Task Getting_placed_predictions_distinguishes_real_matchday_one_from_unresolved_matchday()
     {
         var smartDefaultHtml = """
             <!DOCTYPE html><html><body><p>No current tippabgabe table</p></body></html>
@@ -166,9 +243,31 @@ public class KicktippClient_GetPlacedPredictions_Tests : KicktippClientTests_Bas
         await Assert.That(predictions).HasCount().EqualTo(3);
         await Assert.That(predictions.Values.Count(prediction => prediction != null)).IsEqualTo(2);
         var explicitRequest = GetRequestsForPath("/test-community/tippabgabe")
-            .Single(entry => entry.RequestMessage.Query != null && entry.RequestMessage.Query.Count > 0);
+            .Single(entry => entry.RequestMessage.Query?.ContainsKey("spieltagIndex") == true);
         await Assert.That(explicitRequest.RequestMessage.Query!["spieltagIndex"].Single()).IsEqualTo("1");
         await Assert.That(explicitRequest.RequestMessage.Query!["tippsaisonId"].Single()).IsEqualTo("5746822");
+    }
+
+    [Test]
+    public async Task Getting_placed_predictions_refuses_ambiguous_retry_when_current_matchday_is_missing()
+    {
+        var smartDefaultHtml = """
+            <!DOCTYPE html><html><body><p>No current tippabgabe table</p></body></html>
+            """;
+        var overviewHtml = """
+            <!DOCTYPE html><html><body>
+            <select name="tippsaisonId"><option value="5746822" selected>2026/27</option></select>
+            </body></html>
+            """;
+
+        StubHtmlResponse("/test-community/tippabgabe", smartDefaultHtml);
+        StubHtmlResponse("/test-community/tippuebersicht", overviewHtml);
+        var client = CreateClient();
+
+        var predictions = await client.GetPlacedPredictionsAsync("test-community");
+
+        await Assert.That(predictions).IsEmpty();
+        await Assert.That(GetRequestsForPath("/test-community/tippabgabe").Count()).IsEqualTo(1);
     }
 
     [Test]
@@ -179,6 +278,29 @@ public class KicktippClient_GetPlacedPredictions_Tests : KicktippClientTests_Bas
             """;
         var overviewHtml = """
             <!DOCTYPE html><html><body><input type="hidden" name="spieltagIndex" value="1" /></body></html>
+            """;
+
+        StubHtmlResponse("/test-community/tippabgabe", smartDefaultHtml);
+        StubHtmlResponse("/test-community/tippuebersicht", overviewHtml);
+        var client = CreateClient();
+
+        var predictions = await client.GetPlacedPredictionsAsync("test-community");
+
+        await Assert.That(predictions).IsEmpty();
+        await Assert.That(GetRequestsForPath("/test-community/tippabgabe").Count()).IsEqualTo(1);
+    }
+
+    [Test]
+    public async Task Getting_placed_predictions_rejects_malformed_season_escape_without_throwing_or_retrying()
+    {
+        var smartDefaultHtml = """
+            <!DOCTYPE html><html><body><p>No current tippabgabe table</p></body></html>
+            """;
+        var overviewHtml = """
+            <!DOCTYPE html><html><body>
+            <input type="hidden" name="spieltagIndex" value="4" />
+            <a href="/test-community/tippuebersicht?tippsaisonId=invalid%ZZ#ignored">Current season</a>
+            </body></html>
             """;
 
         StubHtmlResponse("/test-community/tippabgabe", smartDefaultHtml);

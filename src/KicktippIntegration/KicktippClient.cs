@@ -2397,7 +2397,14 @@ public class KicktippClient : IKicktippClient, IDisposable
             return null;
         }
 
-        var matchday = ExtractMatchdayFromPage(overviewDocument);
+        if (!TryExtractMatchdayFromPage(overviewDocument, out var matchday, preferFinalUrl: true))
+        {
+            _logger.LogWarning(
+                "Could not resolve the current spieltagIndex from tippuebersicht for {Community}; refusing an ambiguous tippabgabe fallback",
+                community);
+            return null;
+        }
+
         var seasonId = ExtractTippsaisonIdFromPage(overviewDocument);
         if (string.IsNullOrWhiteSpace(seasonId))
         {
@@ -2436,6 +2443,14 @@ public class KicktippClient : IKicktippClient, IDisposable
 
     private static string? ExtractTippsaisonIdFromPage(IDocument document)
     {
+        // HttpClient exposes the final RequestUri after redirects. Prefer it
+        // because it is Kicktipp's explicit current-season selection even when
+        // the returned overview contains no season control.
+        if (TryGetQueryParameter(document.Url, "tippsaisonId", out var redirectedSeasonId))
+        {
+            return redirectedSeasonId;
+        }
+
         foreach (var input in document.QuerySelectorAll("input"))
         {
             if (string.Equals(input.GetAttribute("name"), "tippsaisonId", StringComparison.OrdinalIgnoreCase))
@@ -2471,11 +2486,6 @@ public class KicktippClient : IKicktippClient, IDisposable
             }
         }
 
-        if (TryGetQueryParameter(document.Url, "tippsaisonId", out var redirectedSeasonId))
-        {
-            return redirectedSeasonId;
-        }
-
         return null;
     }
 
@@ -2487,23 +2497,58 @@ public class KicktippClient : IKicktippClient, IDisposable
             return false;
         }
 
+        var fragmentStart = target.IndexOf('#');
         var queryStart = target.IndexOf('?');
-        if (queryStart < 0 || queryStart == target.Length - 1)
+        if (queryStart < 0 ||
+            (fragmentStart >= 0 && queryStart > fragmentStart))
         {
             return false;
         }
 
-        foreach (var pair in target[(queryStart + 1)..].Split('&', StringSplitOptions.RemoveEmptyEntries))
+        var queryEnd = fragmentStart >= 0 ? fragmentStart : target.Length;
+        if (queryStart + 1 >= queryEnd)
         {
-            var parts = pair.Split('=', 2);
-            if (parts.Length != 2 ||
-                !string.Equals(Uri.UnescapeDataString(parts[0]), parameterName, StringComparison.OrdinalIgnoreCase))
+            return false;
+        }
+
+        var query = target[(queryStart + 1)..queryEnd];
+        if (ContainsMalformedPercentEncoding(query))
+        {
+            return false;
+        }
+
+        // URLSearchParams follows application/x-www-form-urlencoded rules:
+        // percent escapes are decoded once and '+' represents a space.
+        // Invalid escapes were rejected above so they cannot become an
+        // accidental identifier or throw through Uri.UnescapeDataString.
+        var formEncodedQuery = query.Replace("+", "%20", StringComparison.Ordinal);
+        var decodedValue = new UrlSearchParams(formEncodedQuery).Get(parameterName)?.Trim();
+        if (string.IsNullOrWhiteSpace(decodedValue))
+        {
+            return false;
+        }
+
+        value = decodedValue;
+        return true;
+    }
+
+    private static bool ContainsMalformedPercentEncoding(string query)
+    {
+        for (var index = 0; index < query.Length; index++)
+        {
+            if (query[index] != '%')
             {
                 continue;
             }
 
-            value = Uri.UnescapeDataString(parts[1]).Trim();
-            return !string.IsNullOrWhiteSpace(value);
+            if (index + 2 >= query.Length ||
+                !Uri.IsHexDigit(query[index + 1]) ||
+                !Uri.IsHexDigit(query[index + 2]))
+            {
+                return true;
+            }
+
+            index += 2;
         }
 
         return false;
@@ -2652,8 +2697,36 @@ public class KicktippClient : IKicktippClient, IDisposable
 
     private int ExtractMatchdayFromPage(IDocument document)
     {
+        if (TryExtractMatchdayFromPage(document, out var matchday))
+        {
+            return matchday;
+        }
+
+        _logger.LogWarning("Could not extract matchday from page, defaulting to 1");
+        return 1;
+    }
+
+    private bool TryExtractMatchdayFromPage(
+        IDocument document,
+        out int matchday,
+        bool preferFinalUrl = false)
+    {
+        matchday = 0;
+
         try
         {
+            // The explicit-current fallback must prefer the final redirected
+            // overview URI because it is Kicktipp's current selection. Other
+            // callers retain DOM-first behavior so a displayed round can
+            // correct a stale or mismatched requested URL.
+            if (preferFinalUrl &&
+                TryGetQueryParameter(document.Url, "spieltagIndex", out var redirectedMatchday) &&
+                TryParsePositiveInteger(redirectedMatchday, out matchday))
+            {
+                _logger.LogDebug("Extracted matchday from final page URL: {Matchday}", matchday);
+                return true;
+            }
+
             // Hidden fields are the most stable source across league and tournament pages.
             foreach (var input in document.QuerySelectorAll("input"))
             {
@@ -2663,7 +2736,8 @@ public class KicktippClient : IKicktippClient, IDisposable
                     TryParsePositiveInteger(value, out var matchdayFromHiddenInput))
                 {
                     _logger.LogDebug("Extracted matchday from hidden input {InputName}: {Matchday}", name, matchdayFromHiddenInput);
-                    return matchdayFromHiddenInput;
+                    matchday = matchdayFromHiddenInput;
+                    return true;
                 }
             }
 
@@ -2680,7 +2754,8 @@ public class KicktippClient : IKicktippClient, IDisposable
                 if (TryParsePositiveInteger(selectedRoundValue, out var matchdayFromSelectedOption))
                 {
                     _logger.LogDebug("Extracted matchday from selected round option: {Matchday}", matchdayFromSelectedOption);
-                    return matchdayFromSelectedOption;
+                    matchday = matchdayFromSelectedOption;
+                    return true;
                 }
             }
 
@@ -2691,17 +2766,26 @@ public class KicktippClient : IKicktippClient, IDisposable
                 if (TryExtractFirstPositiveInteger(text, out var matchdayFromNavigation))
                 {
                     _logger.LogDebug("Extracted matchday from navigation text '{NavigationText}': {Matchday}", text, matchdayFromNavigation);
-                    return matchdayFromNavigation;
+                    matchday = matchdayFromNavigation;
+                    return true;
                 }
             }
 
-            _logger.LogWarning("Could not extract matchday from page, defaulting to 1");
-            return 1;
+            if (!preferFinalUrl &&
+                TryGetQueryParameter(document.Url, "spieltagIndex", out var requestedMatchday) &&
+                TryParsePositiveInteger(requestedMatchday, out matchday))
+            {
+                _logger.LogDebug("Extracted matchday from final page URL: {Matchday}", matchday);
+                return true;
+            }
+
+            return false;
         }
         catch (Exception ex)
         {
-            _logger.LogError(ex, "Error extracting matchday from page, defaulting to 1");
-            return 1;
+            _logger.LogError(ex, "Error extracting matchday from page");
+            matchday = 0;
+            return false;
         }
     }
 
