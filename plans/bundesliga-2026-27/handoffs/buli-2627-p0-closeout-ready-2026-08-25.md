@@ -490,16 +490,17 @@ historical pool/manifest provenance remain execution-date fail-closed gates.
 - Do not rerun the completed Luna cost row; it is reusable evidence and is not
   production selection.
 - Do not manually dispatch or write while ADR-0053's production-live lane is
-  running or pending. Preserve its exact ready-row topology and rollback
-  contract; `schadensfresse` remains excluded. The Luna/`none` recovery
-  authorization is consumed and independently grants no schedule authority.
+  running or pending. Preserve ADR-0053/ADR-0055's exact 16-job/eight-pair
+  topology and rollback contract; `schadensfresse` bonus and P1-08
+  mixed-competition work remain excluded. The Luna/`none` recovery authorization
+  is consumed and independently grants no schedule authority.
 - P0-25's authorization for exactly one arena-only Luna/none replacement round
   is consumed. Do not repeat that publish/override ladder or infer authority for
   a production-community prediction, bonus round, schedule, or P0-23 quality
   claim.
-- The `schadensfresse` setup request remains external and pending. Agents do not
-  administer that community or treat authentication as current-season
-  readiness or POST permission.
+- The `schadensfresse` setup and ordered manual ladder are complete. Agents still
+  do not administer that community or infer authority for its unscheduled bonus
+  and P1-08 mixed-competition work from ordinary match schedule inclusion.
 - Do not invent a production selection, participant, local profile, credential
   name or value, challenger, topology, budget, permission, deadline, cadence,
   rollback rule, or schedule.
@@ -528,10 +529,9 @@ historical pool/manifest provenance remain execution-date fail-closed gates.
 Report exact main/origin SHA and CI state, worktree inventory, the ordered
 manual-run table and payload-safe audit above, the completed Luna/`none`
 recovery, the integrated schedule-free outer-lane precursor commit/run, the
-external `schadensfresse` state, Accepted ADR-0053's `7 2,9 * * *` contract,
-and the still-unobserved first scheduled execution.
+completed `schadensfresse` ladder and ADR-0055 topology, Accepted ADR-0053's
+`7 2,9 * * *` contract, and the still-unobserved first scheduled execution.
 Do not assign a new P0-23 or P0-25 live lane and do not perform another P0-23
-external or model action. Resume P0-21 at the first natural scheduled
-observation and, independently, the revised `schadensfresse` context, copy,
-and inspection ladder; do not repeat already green rows
-without new Owner authorization.
+external or model action. Resume P0-21 at default-branch exact-head CI for the
+ADR-0055 successor and the first natural scheduled observation; do not
+repeat already green rows without new Owner authorization.

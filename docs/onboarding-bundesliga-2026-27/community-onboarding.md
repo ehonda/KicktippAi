@@ -1,6 +1,6 @@
 # Bundesliga 2026/27 Community Onboarding
 
-Updated: 2026-08-27
+Updated: 2026-08-28
 
 This is the authoritative community, context, configuration, credential-name, and Langfuse-environment matrix selected by [ADR-0052](../../plans/bundesliga-2026-27/decisions/0052-select-production-model-community-matrix-and-match-prompt-v3.md). Every row uses competition `bundesliga-2026-27`. Leaf entrypoints remain manual-only; [ADR-0053](../../plans/bundesliga-2026-27/decisions/0053-schedule-the-production-live-matchday-lane.md) schedules one strict outer matchday lane for the ready rows only.
 
@@ -11,7 +11,7 @@ This is the authoritative community, context, configuration, credential-name, an
 | `dev-luna` | `ehonda-dev-buli-2627` | `ehonda-dev-buli-2627` | Self-contained; overwrite-capable plumbing validation | `validation-luna-none`: exact Luna/none identity below | Base `.env`; no sibling is required | No Actions participant pair is assigned by P0-17; the safe path is local CLI | `development` | Project owner; configured and authorized for validation |
 | `arena-luna-self-contained` | `ehonda-ai-arena` | `ehonda-ai-arena` | Self-contained plumbing validation and admitted cheap challenger | Luna/`none`, cap `10000`, match v3, bonus v1 | `.env.ehonda-ai-arena`; reserved for this participant | `EHONDA_AI_ARENA_GPT_5_6_LUNA_NONE_KICKTIPP_USERNAME` / `EHONDA_AI_ARENA_GPT_5_6_LUNA_NONE_KICKTIPP_PASSWORD` | `production` | Owner-selected; context/match green and payload-audited; the Owner-approved forced bonus recovery replaced the same five index-0 rows, passed final 5/5 verification, and completed the manual triad; included in ADR-0053's match-only lane; do not repeat recovery |
 | `pes-production-reference` | `pes-squad` | `pes-squad` | Independent reference production generation | Sol/`xhigh`, cap `10000`, match v3, bonus v1 | `.env.pes-squad` | `PES_SQUAD_KICKTIPP_USERNAME` / `PES_SQUAD_KICKTIPP_PASSWORD` | `production` | Owner-selected; context/match/bonus manual cycle and payload-safe audit green; included in ADR-0053's match-only lane |
-| `schadensfresse-production-copy` | `schadensfresse` | `pes-squad` for match/bonus; target-owned context collection | Reference copy with bounded fallback | Sol/`xhigh`, cap `10000`, match v3, bonus v1 | `.env.schadensfresse` | `SCHADENSFRESSE_KICKTIPP_USERNAME` / `SCHADENSFRESSE_KICKTIPP_PASSWORD` | `production` | ADR-0054; nine matching fixtures ready; initial bonus pins `2026-08-28T18:30:00Z` and exact five-question aliases; manual ladder required before schedule inclusion |
+| `schadensfresse-production-copy` | `schadensfresse` | `pes-squad` for match/bonus; target-owned context collection | Reference copy with bounded fallback | Sol/`xhigh`, cap `10000`, match v3, bonus v1 | `.env.schadensfresse` | `SCHADENSFRESSE_KICKTIPP_USERNAME` / `SCHADENSFRESSE_KICKTIPP_PASSWORD` | `production` | ADR-0054/ADR-0055; context, 9/9 zero-generation match copy, and cutoff-bounded 5/5 bonus copy are green; target context plus ordinary match copy are included in the match-only lane; bonus remains unscheduled and P1-08 owns mixed-competition routing |
 | `relaxdays-production-copy` | `relaxdays-tippt` | `pes-squad` | Guarded copy of stored `pes-squad` production prediction; target context exists for ADR-0048 bonus fallback | Exact `production-primary` Sol/`xhigh` identity | `.env.relaxdays-tippt` | `RELAXDAYS_TIPPT_KICKTIPP_USERNAME` / `RELAXDAYS_TIPPT_KICKTIPP_PASSWORD` | `production` | Owner-selected; repaired context retry and 9/9 match plus 5/5 bonus copy cycle green; zero generations/fallback; included in ADR-0053's match-only lane |
 | `arena-production-copy` | `ehonda-ai-arena` | `pes-squad` | Guarded production copy; arena context exists for ADR-0048 bonus fallback | Exact `production-primary` Sol/`xhigh` identity | `.env.ehonda-ai-arena.gpt-5-6-sol-xhigh` | `EHONDA_AI_ARENA_GPT_5_6_SOL_XHIGH_KICKTIPP_USERNAME` / `EHONDA_AI_ARENA_GPT_5_6_SOL_XHIGH_KICKTIPP_PASSWORD` | `production` | Owner-selected; context and 9/9 match plus 5/5 bonus copy cycle green; zero generations/fallback; included in ADR-0053's match-only lane |
 | `arena-challenger-sol-high` | `ehonda-ai-arena` | `ehonda-ai-arena` | Self-contained independent generation | Sol/`high`, cap `10000`, match v3, bonus v1 | `.env.ehonda-ai-arena.gpt-5-6-sol-high` | `EHONDA_AI_ARENA_GPT_5_6_SOL_HIGH_KICKTIPP_USERNAME` / `EHONDA_AI_ARENA_GPT_5_6_SOL_HIGH_KICKTIPP_PASSWORD` | `production` | Owner-selected; context/match/bonus manual cycle and payload-safe audit green; included in ADR-0053's match-only lane |
@@ -20,7 +20,7 @@ This is the authoritative community, context, configuration, credential-name, an
 
 An arena validation trace uses Langfuse environment `production` because the posting target is a production community. That telemetry classification does not promote `validation-luna-none` to the production model or to a challenger slot.
 
-The production-live outer matchday caller was prepared at exact
+The historical seven-pair production-live outer precursor was prepared at exact
 commit `992af5a63c788c0cc066dce92dd1319a91e5083d`. It serializes context before
 the seven ready matchday rows shown above, shares a non-cancelling concurrency
 group with the production leaves, and contains no bonus or `schadensfresse`
@@ -30,8 +30,9 @@ succeeded including Pages after independent exact-SHA approval with no
 findings. Exact activation commit `56238e5fd3615e11d0be2c462516e819dfded1db`
 is on `main`, exact-head CI run
 [`33100581641`](https://github.com/ehonda/KicktippAi/actions/runs/33100581641)
-is green, and ADR-0053's `7 2,9 * * *` is the sole active outer cron. First
-scheduled runtime observation remains open.
+is green, and ADR-0053's `7 2,9 * * *` is the sole active outer cron. ADR-0055
+subsequently prepares the eight-pair successor described below; first scheduled
+runtime observation remains open.
 
 ## Exact validation identity
 

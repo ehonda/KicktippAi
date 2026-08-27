@@ -105,11 +105,12 @@ complete and must not be repeated.
       ordering, shared non-cancelling concurrency, and no bonus,
       `schadensfresse`, or cron.
 - [x] Prepare the reusable context workflow's false-by-default, fail-closed
-      launch-roster input. `pes-squad`, `relaxdays-tippt`, and the pending
-      `schadensfresse` caller opt in to download the exact public artifact and
-      run the SHA/revision/date-gated paired overlay before normal profile
-      collection. Arena callers omit it because their shared context already
-      has the verified exact enriched head.
+      launch-roster input. `pes-squad`, `relaxdays-tippt`, and `schadensfresse`
+      callers opt in to download the exact public artifact and run the
+      SHA/revision/date-gated paired overlay before normal profile collection;
+      `schadensfresse` was still pending at preparation time. Arena callers omit
+      it because their shared context already has the verified exact enriched
+      head.
 - [x] Record the late Club Elo decision: use the accepted dated launch seed with network fetching disabled unless a separately authorized successor decision changes it. The completed context runs reported `LaunchSeed` / `NetworkDisabled`.
 - [x] Record the schedule and activation gate in Accepted ADR-0053.
 - [x] Before initial prediction for the ready non-arena production rows,
@@ -159,11 +160,11 @@ complete and must not be repeated.
 - [x] For bonus copy-posting, enforce P0-24's exact normalized question and complete-option-set compatibility; every ordinary source/provenance/question/option mismatch generates and persists exactly one independent prediction under the posting target's community context in the same invocation, never the requested `pes-squad` copy-source context, while invalid target selection or immutable-context safety violations fail closed. Final `verify-bonus` maps a compatible source selection to target-local option IDs, or exact-reads the independently persisted target-context fallback for an ordinary incompatibility, without creating or calling a prediction service.
 - [x] Inspect the current successful production traces through the Luna/`none`
       recovery for competition, prompt/model identity, context documents,
-      tokens, costs, service tier, and errors. Repeat this gate for
-      `schadensfresse` if and when it runs.
+      tokens, costs, service tier, and errors. The later `schadensfresse`
+      payload-safe audit repeated and passed this gate.
 - [x] Confirm no 2025/26 identity, WM26 collector/document, or transfer
-      document appears in the current successful trace families. Repeat this
-      gate for `schadensfresse` onboarding if and when it runs.
+      document appears in the current successful trace families, including the
+      completed `schadensfresse` onboarding evidence.
 - [x] Activate the single outer schedule only for rows whose manual evidence
       passed. Exact `main` commit `56238e5` and exact-head CI run `33100581641`
       are green for the original rows; ADR-0055 adds the now-green
@@ -295,10 +296,11 @@ Build and Test run
 [`33049482431`](https://github.com/ehonda/KicktippAi/actions/runs/33049482431).
 The recovery used exact head `89b875125fdae207b6f6f72cff8f968a718b112f`.
 These terminal workflow, final-verifier, and payload-safe audit results
-establish working credentials, readiness, posting behavior, exact generation
-identity, and compatible-copy behavior for every ready row. They do not
-substitute for ADR-0053's separate schedule decision or satisfy the still-unrun
-`schadensfresse` gate.
+established working credentials, readiness, posting behavior, exact generation
+identity, and compatible-copy behavior for every originally ready row. At that
+checkpoint they did not substitute for ADR-0053's separate schedule decision
+or satisfy the then-unrun `schadensfresse` gate; the subsequent evidence below
+does.
 
 An authenticated GET-only deadline audit at 2026-08-27 10:19:52 CEST
 (08:19:52 UTC) used each matching sibling profile and found identical
@@ -308,16 +310,17 @@ five bonus questions / seven selection controls, all open, with the same first
 deadline: 2026-08-28 20:30 CEST / 18:30 UTC. The arena check used the
 Luna/`none` profile because the rule and deadlines are community-scoped. This
 is a point-in-time launch audit; fixture rescheduling or an administrator rule
-change requires a fresh read. `schadensfresse` remains outside this evidence
-until its new season exists.
+change requires a fresh read. `schadensfresse` was outside this particular
+evidence set until the subsequent setup and dedicated audit below.
 
 A separate authenticated GET-only `schadensfresse` audit at 2026-08-27 11:41
 CEST (09:41 UTC) returned HTTP 200 but found no Bundesliga 2026/27 marker, zero
 open match controls, and only the closed 30 May PSG–Arsenal match. It found zero
 open bonus questions and eight closed 2025/26 rows; `/spielregeln` still showed
-the 2025/26 competition with a zero-minute rule. This is definitive NOT READY
-evidence, not a current deadline result, and `schadensfresse` must remain absent
-from any schedule.
+the 2025/26 competition with a zero-minute rule. This was definitive NOT READY
+evidence at that time, not a current deadline result, and correctly required
+`schadensfresse` to remain absent from any schedule until the subsequent setup
+and green ladder below.
 
 The administrator subsequently completed setup. Current preflight now has the
 2026/27 marker, exactly nine `pes-squad`-matching fixtures, five audited

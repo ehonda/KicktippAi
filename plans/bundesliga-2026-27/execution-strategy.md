@@ -148,7 +148,7 @@ These are not ambiguities agents may decide on their own:
 | Final production model, reasoning, output cap, service/fallback policy, arena challengers, and planning ceiling | Resolved by ADR-0052 on 2026-08-27 | Production and challenger callers are now prepared; P0-21 retains live use |
 | Whether Club Elo terms permit unattended network refresh, or which permitted alternative to use | Late before go-live | Provider boundary, validation, cache, dated seed, and last-known-good behavior |
 | Exact production schedules, spacing, rollback trigger, and activation | Resolved by ADR-0053 on 2026-08-27 for ready rows | First actual scheduled observation remains runtime evidence |
-| `schadensfresse` mixed DFB/CL routing | P1-08 before the CL bonus deadline and later cup finals | P0 validates only context plus copied Bundesliga match/opening bonus paths; its leaves stay manual-only until green |
+| `schadensfresse` mixed DFB/CL routing | P1-08 before the CL bonus deadline and later cup finals | P0 validated target context plus copied Bundesliga match/opening bonus paths; every leaf remains manual-only, while ADR-0055 schedules only target context plus ordinary match copy in the outer lane |
 
 Final model selection will mix experiments and whole-season cost estimates. New-season outcomes do not exist, older-season evaluation may be training-contaminated, and the retired o3 configuration is not a season-long option; a GPT-5.6 variant is the tentative direction, not an implementation default.
 
