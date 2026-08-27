@@ -30,8 +30,8 @@ activation gates. P0-06 and every ADR-0052 P0-19 repository row are complete.
   bonus remains version 1. Historical P0-23 runs remain immutable on v2.
 - All primary/copy/challenger workflow triads are prepared as independent
   `workflow_dispatch` entrypoints with no schedules. The repository-preparation
-  lane itself dispatched nothing; P0-21 has since exercised the first six
-  ordered live rows recorded below.
+  lane itself dispatched nothing; P0-21 has since exercised every currently
+  ready ordered live row recorded below.
 - The reusable context workflow now has a false-by-default pinned launch-roster
   input. `pes-squad`, `relaxdays-tippt`, and the pending `schadensfresse`
   caller opt in: their context job downloads the exact audited public artifact,
@@ -42,10 +42,11 @@ activation gates. P0-06 and every ADR-0052 P0-19 repository row are complete.
 - The Owner confirmed every exact canonical Kicktipp Actions username/password
   pair in the community ledger provisioned on 2026-08-27. This is not API
   enumeration, authentication, current-season readiness, or POST evidence.
-- Resume only with P0-21: repair and revalidate the failed Luna/`none` bonus
-  rung, remediate `schadensfresse` externally and audit its deadlines, record operating
-  ownership, then return to the final Owner schedule gate and observe the first
-  deliberately enabled sequence.
+- Resume only with P0-21: wait for external `schadensfresse` setup, then repeat
+  its readiness/deadline audit and complete its ordered context/prediction
+  ladder. Separately settle the Owner cadence, operating ownership, activation,
+  and first-observation decision. The Luna/`none` recovery is complete and its
+  one-run authorization is consumed; do not dispatch a duplicate recovery.
 - After this repository change is independently reviewed, integrated, pushed,
   and green, the Owner authorizes manual context-then-prediction dispatch and
   initial writes for `pes-squad`, `relaxdays-tippt`, and every selected arena
@@ -98,8 +99,10 @@ activation gates. P0-06 and every ADR-0052 P0-19 repository row are complete.
 
 ### Ordered manual-live checkpoint — 2026-08-27
 
-Every prediction run below used `force_prediction=false`,
-`max_repredictions=0`, and ended with a successful final verification:
+Initial prediction runs below used `force_prediction=false` /
+`max_repredictions=0`; the single Owner-approved Luna/`none` bonus recovery used
+`force_prediction=true` / `max_repredictions=0`. Every completed row ended with
+a successful final verification:
 
 | Row | Context | Matchday | Bonus |
 | --- | --- | --- | --- |
@@ -109,8 +112,9 @@ Every prediction run below used `force_prediction=false`,
 | `arena-challenger-sol-high` | [`33051863137`](https://github.com/ehonda/KicktippAi/actions/runs/33051863137) | [`33052087407`](https://github.com/ehonda/KicktippAi/actions/runs/33052087407) | [`33052537217`](https://github.com/ehonda/KicktippAi/actions/runs/33052537217) |
 | `arena-challenger-luna-medium` | [`33052882246`](https://github.com/ehonda/KicktippAi/actions/runs/33052882246) | [`33053095243`](https://github.com/ehonda/KicktippAi/actions/runs/33053095243) | [`33053423396`](https://github.com/ehonda/KicktippAi/actions/runs/33053423396) |
 | `arena-challenger-terra-xhigh` | [`33053664914`](https://github.com/ehonda/KicktippAi/actions/runs/33053664914) | [`33053888656`](https://github.com/ehonda/KicktippAi/actions/runs/33053888656) | [`33054314209`](https://github.com/ehonda/KicktippAi/actions/runs/33054314209) |
+| `arena-challenger-luna-none` | [`33054637395`](https://github.com/ehonda/KicktippAi/actions/runs/33054637395) | [`33054826152`](https://github.com/ehonda/KicktippAi/actions/runs/33054826152) | Initial fail-closed [`33055144574`](https://github.com/ehonda/KicktippAi/actions/runs/33055144574); forced recovery [`33089097055`](https://github.com/ehonda/KicktippAi/actions/runs/33089097055) |
 
-The final Luna/`none` row stopped partial: context
+The Luna/`none` row initially stopped partial: context
 [`33054637395`](https://github.com/ehonda/KicktippAi/actions/runs/33054637395)
 is green on exact `eedf330`, matchday
 [`33054826152`](https://github.com/ehonda/KicktippAi/actions/runs/33054826152)
@@ -120,15 +124,14 @@ failed. The bonus caller authenticated and found five open questions, then
 stopped on the first question because its stored Bundesliga bonus prediction
 lacked current immutable provenance and could not be reused with
 `force_prediction=false` / `max_repredictions=0`. No model call is evidenced;
-final verification was skipped. The ordered ladder stopped here. Do not retry
-or treat the triad as green before a deliberate remediation decision.
+final verification was skipped. This remains fail-closed evidence.
 
 Across four real generated configurations through Terra/`xhigh`, the
 completed-row payload audit found eight match/bonus trace families containing
 exactly 56 generations (`36` match / `20` bonus), all index `0`, none at index
 `1+`, no errors, and `$0.5683818` actual cost. Luna/`none` match trace
 `45fc73cb82fc28c0366a6476a8127e4f` adds nine clean v3/index-0 generations at
-`$0.0039741`, so the current successful P0-21 total is 65 generations and
+`$0.0039741`, so the pre-recovery P0-21 total was 65 generations and
 `$0.5723559`. Every generated observation has its exact selected
 model/reasoning/cap-`10000` identity and exact hosted prompt. The audited
 document sets retain roster snapshot
@@ -144,9 +147,40 @@ bonus answers without independent fallback. Failed Luna bonus trace
 `0cf1515e96813b42b4625f61d5350d73` has one root span and zero generations,
 usage, or cost. Its pre/post prediction inventory is byte-identical at SHA-256
 `02ce5533a1fbaec39555f7b4f55fe399d541ee6b17fa9612383a4b26ac86f4d0`;
-the five old P0-25 v1/index-0 bonus records are unchanged and no index `1+`
-exists. The audited exact recovery is a forced index-0 replacement, but fresh
-Owner approval is pending and no retry is claimed.
+the five old P0-25 v1/index-0 bonus records were unchanged and no index `1+`
+existed.
+
+The Owner approved the exact forced recovery. Bonus run
+[`33089097055`](https://github.com/ehonda/KicktippAi/actions/runs/33089097055)
+completed successfully on exact head
+`89b875125fdae207b6f6f72cff8f968a718b112f`,
+`force_prediction=true`, `max_repredictions=0`, exact `ehonda-ai-arena`
+posting/context, competition `bundesliga-2026-27`, Luna/`none`, cap `10000`,
+hosted `production` bonus prompt version `1`, and accepted 20-document /
+32000-token budgets. Initial verification expectedly found 0/5
+current-provenance rows. The run saved five, posted all five Kicktipp selections
+together, and passed final verification 5/5. Inventory SHA-256 changed from
+`0ab5df24cc2ac909e7b0f230427de28245334a40dab90a08402550c1a5ac2be2` to
+`9f824612b8d4e98c2fb314708ef886597904b607cc704c4a3d940c4521601c94`.
+The same five document IDs remain, all at index `0`, with none at index `1+`;
+created/updated timestamps refreshed into
+`2026-08-27T15:42:47Z`–`15:43:33Z`. Resolved manifests stayed 5/5;
+compatibility manifests advanced 0/5 to 5/5. Three selection hashes stayed
+unchanged and two changed.
+
+Trace `0510f8a12d3d95c5923c89abff118ded` started at
+`2026-08-27T15:42:33.502Z`, took `60.904s`, and contains one root plus five
+clean `predict-bonus` generations with zero errors, warnings, or status
+messages. It records independent behavior, repredict mode false, indices `|0|`,
+no repredictions, exact Luna/`none` / cap `10000` / bonus-v1 hash
+`332bac6d654871d843fc8a47345ff3e2b1f902fa8d1d2243166283304bb005e9`,
+and Flex-to-Flex without fallback. Usage is `43,249` input + `98` output =
+`43,347` total, zero cache-read/reasoning, at `$0.0043837` total
+(`$0.0043249` input + `$0.0000588` output). Context contains only Club Elo,
+team-squad summary, and 18 rosters with the accepted roster/Club Elo snapshots;
+no WM26, Bundesliga 2025/26, experiment, or transfer name occurs. Successful
+P0-21 evidence is now 70 generations / `$0.5767396`. No production-live
+operation overlapped the recovery.
 
 An authenticated GET-only audit at 2026-08-27 10:19:52 CEST found identical
 zero-minute lead-time rules in `pes-squad`, `relaxdays-tippt`, and
@@ -157,10 +191,9 @@ Luna/`none` profile. Recheck after any fixture rescheduling or administrator
 rule change. `schadensfresse` is not covered until its season setup completes.
 
 This closes the manual workflow/authentication/posting and payload-safe
-inspection rungs for those exact completed rows, including proof of zero extra
-generations on the compatible copy paths. Arena Luna/`none` stopped the
-serialized ladder at its failed bonus rung and requires a deliberate
-remediation/revalidation decision. `schadensfresse` remains unrun, NOT READY,
+inspection rungs for every currently ready row, including proof of zero extra
+generations on the compatible copy paths and the exact Luna/`none` recovery.
+`schadensfresse` remains unrun, NOT READY,
 and manual-only pending its administrator's season setup and full ladder. Exact cadence,
 operator/monitor/rollback ownership, the activation ADR, schedule enablement,
 and first scheduled observation remain unresolved Owner gates.
@@ -406,8 +439,9 @@ historical pool/manifest provenance remain execution-date fail-closed gates.
   production selection.
 - Continue production dispatches only inside the Owner-authorized P0-21 ordered
   ladder, stopping the affected chain on failure. Do not add or enable a
-  production schedule before the remaining Luna recovery and activation gates
-  pass and a new Accepted activation ADR records the exact decision.
+  production schedule before the remaining activation gates pass and a new
+  Accepted activation ADR records the exact decision. The Luna/`none` recovery
+  authorization is consumed and grants no schedule authority.
 - P0-25's authorization for exactly one arena-only Luna/none replacement round
   is consumed. Do not repeat that publish/override ladder or infer authority for
   a production-community prediction, bonus round, schedule, or P0-23 quality
@@ -441,10 +475,10 @@ historical pool/manifest provenance remain execution-date fail-closed gates.
 ## Current resume checkpoint
 
 Report exact main/origin SHA and CI state, worktree inventory, the ordered
-manual-run table and payload-safe audit above, the failed Luna/`none` recovery
-rung, the integrated manual-only outer-lane commit/run, the external
+manual-run table and payload-safe audit above, the completed Luna/`none`
+recovery, the integrated manual-only outer-lane commit/run, the external
 `schadensfresse` state, the unaccepted `7 2,9 * * *` recommendation, and the
 still-unresolved operator/schedule inputs.
 Do not assign a new P0-23 or P0-25 live lane and do not perform another P0-23
-external or model action. Resume P0-21 from the first incomplete serialized
-arena row; do not repeat already green rows without new Owner authorization.
+external or model action. Resume P0-21 from the activation decision; do not
+repeat already green rows without new Owner authorization.

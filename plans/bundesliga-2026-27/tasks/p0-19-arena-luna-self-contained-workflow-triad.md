@@ -50,7 +50,7 @@ cheap arena challenger. The Owner confirmed its existing Actions pair remains
 provisioned. Future dispatch and any schedule remain P0-21; the prior plumbing
 ladder does not silently activate it.
 
-The ordered P0-21 challenger cycle stopped partial on exact head
+The ordered P0-21 challenger cycle initially stopped partial on exact head
 `eedf33052591beb5bbdc51c9e0ebe9869d5ab64d`: context
 [`33054637395`](https://github.com/ehonda/KicktippAi/actions/runs/33054637395)
 succeeded, matchday
@@ -61,15 +61,41 @@ failed closed on the first question: the stored Bundesliga bonus prediction
 lacked current immutable provenance and could not be reused with
 `force_prediction=false` / `max_repredictions=0`. The run evidenced no model
 call and skipped final verification. This preserves the strict stop-on-failure
-contract. Do not retry or infer a complete manual challenger triad before a
-deliberate remediation decision; every schedule gate remains.
+contract. Failed trace `0cf1515e96813b42b4625f61d5350d73` contains one root
+span and zero generations, usage, or cost; its pre/post inventory was
+byte-identical at SHA-256
+`02ce5533a1fbaec39555f7b4f55fe399d541ee6b17fa9612383a4b26ac86f4d0`.
+
+The Owner then approved one exact forced index-0 recovery. Bonus run
+[`33089097055`](https://github.com/ehonda/KicktippAi/actions/runs/33089097055)
+completed successfully on exact head
+`89b875125fdae207b6f6f72cff8f968a718b112f`,
+`force_prediction=true`, and `max_repredictions=0`, with the exact
+`ehonda-ai-arena` Luna/`none` / cap-`10000` / hosted bonus-v1 identity. Initial
+verification expectedly found 0/5 current-provenance rows. Generation saved all
+five, posted all five selections to Kicktipp together, and final verification
+passed 5/5. The pre/post inventory SHA-256 changed from
+`0ab5df24cc2ac909e7b0f230427de28245334a40dab90a08402550c1a5ac2be2` to
+`9f824612b8d4e98c2fb314708ef886597904b607cc704c4a3d940c4521601c94`:
+the same five document IDs remain at index `0`, none exists at index `1+`, and
+their created/updated timestamps were refreshed into
+`2026-08-27T15:42:47Z`–`15:43:33Z`. Resolved manifests stayed present 5/5;
+compatibility manifests advanced 0/5 to 5/5. Three selection hashes were
+unchanged and two changed.
 
 Payload-safe inspection proves match trace
 `45fc73cb82fc28c0366a6476a8127e4f` contains exactly nine v3/index-0 Luna/`none`
-generations at `$0.0039741` with clean exact snapshots/documents. Failed bonus
-trace `0cf1515e96813b42b4625f61d5350d73` contains one root span and zero
-generations, usage, or cost. Pre/post prediction inventory is byte-identical at
-SHA-256 `02ce5533a1fbaec39555f7b4f55fe399d541ee6b17fa9612383a4b26ac86f4d0`;
-the five prior P0-25 v1/index-0 bonus records are unchanged and no index `1+`
-exists. The audited safe recovery is a forced index-0 replacement; fresh Owner
-approval is pending, and this record claims no retry.
+generations at `$0.0039741` with clean exact snapshots/documents. Recovery trace
+`0510f8a12d3d95c5923c89abff118ded` started at
+`2026-08-27T15:42:33.502Z`, took `60.904s`, and contains one root plus five
+clean `predict-bonus` generations with zero errors, warnings, or status
+messages. All five are independent, repredict mode false, index `0`,
+Luna/`none`, cap `10000`, bonus v1 hash
+`332bac6d654871d843fc8a47345ff3e2b1f902fa8d1d2243166283304bb005e9`,
+and Flex-to-Flex without fallback. They used `43,249` input plus `98` output
+tokens (`43,347` total), zero cache-read/reasoning tokens, and `$0.0043837`
+actual cost. Context contains only Club Elo, team-squad summary, and 18 roster
+documents, with the exact accepted roster and Club Elo snapshots and no WM26,
+Bundesliga 2025/26, experiment, or transfer name. The Luna/`none` manual triad
+and forced-recovery gate are complete; no production-live operation overlapped
+the recovery, and every schedule gate remains.

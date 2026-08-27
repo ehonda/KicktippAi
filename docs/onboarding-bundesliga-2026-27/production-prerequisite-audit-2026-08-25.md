@@ -55,12 +55,13 @@ Current runtime conclusions are:
 | Arena Sol/`high` | Context `33051863137`, match `33052087407`, and bonus `33052537217` succeeded with payload-safe audit | Activation ownership |
 | Arena Luna/`medium` | Context `33052882246`, match `33053095243`, and bonus `33053423396` succeeded with payload-safe audit | Activation ownership |
 | Arena Terra/`xhigh` | Context `33053664914`, match `33053888656`, and bonus `33054314209` succeeded with payload-safe audit | Activation ownership; no schedule is active |
-| Arena Luna/`none` | Context `33054637395` and match `33054826152` succeeded and are payload-audited; bonus `33055144574` failed closed on stale immutable provenance at `max_repredictions=0`, with zero model call/cost/write and final verification skipped | Decide remediation, authorize and complete a new bonus validation, then audit that recovery; no schedule is active |
+| Arena Luna/`none` | Context `33054637395` and match `33054826152` succeeded; bonus `33055144574` failed closed with zero side effects, then Owner-approved forced index-0 recovery `33089097055` regenerated/saved the same five IDs, posted all five selections, passed final 5/5 verification, and passed payload-safe audit | Activation ownership; no schedule is active |
 
 The completed-row audit found four real generated configurations through
 Terra/`xhigh`, comprising eight match/bonus trace families and 56 successful
 generations (`36` match / `20` bonus) at `$0.5683818`. Nine Luna/`none` match
-generations at `$0.0039741` bring the total to 65 / `$0.5723559`. All are exact
+generations at `$0.0039741` bring the pre-recovery total to 65 / `$0.5723559`.
+All are exact
 index `0` with no index `1+` or errors, exact selected
 model/reasoning/cap-`10000`, hosted match v3 or bonus v1, roster snapshot
 `591adbc3cbc99ee93591f074ad218703c9badb2af4e267142898145825b77ea2`,
@@ -73,6 +74,35 @@ generation or independent fallback. Failed Luna bonus trace
 `0cf1515e96813b42b4625f61d5350d73` has one root span and zero
 generation/usage/cost; its pre/post inventory is byte-identical at SHA-256
 `02ce5533a1fbaec39555f7b4f55fe399d541ee6b17fa9612383a4b26ac86f4d0`.
+
+The Owner-approved recovery run
+[`33089097055`](https://github.com/ehonda/KicktippAi/actions/runs/33089097055)
+used exact head `89b875125fdae207b6f6f72cff8f968a718b112f`,
+`force_prediction=true`, `max_repredictions=0`, and the exact Luna/`none` /
+cap-`10000` / hosted bonus-v1 identity. Initial verification expectedly found
+0/5 current-provenance rows. The run saved five predictions, posted all five
+Kicktipp selections together, and passed final 5/5 verification. Inventory
+SHA-256 changed from
+`0ab5df24cc2ac909e7b0f230427de28245334a40dab90a08402550c1a5ac2be2` to
+`9f824612b8d4e98c2fb314708ef886597904b607cc704c4a3d940c4521601c94`:
+the same five document IDs remain at index `0`, none exists at index `1+`, and
+timestamps refreshed into `2026-08-27T15:42:47Z`–`15:43:33Z`. Resolved
+manifests remained 5/5 while compatibility manifests advanced from 0/5 to 5/5;
+three selection hashes stayed unchanged and two changed.
+
+Recovery trace `0510f8a12d3d95c5923c89abff118ded` started at
+`2026-08-27T15:42:33.502Z`, took `60.904s`, and contains one root plus five
+clean `predict-bonus` generations, with no error/warning/status message. All
+five are independent, repredict mode false, index `0`, exact Luna/`none` /
+cap-`10000` / production bonus-v1 hash
+`332bac6d654871d843fc8a47345ff3e2b1f902fa8d1d2243166283304bb005e9`,
+and Flex-to-Flex without fallback. They consumed `43,249` input and `98` output
+tokens (`43,347` total), zero cache-read/reasoning tokens, for `$0.0043837`:
+`$0.0043249` input plus `$0.0000588` output. Context contains only Club Elo,
+team-squad summary, and 18 roster documents with the exact accepted snapshots;
+no WM26, Bundesliga 2025/26, experiment, or transfer name appears. P0-21's
+successful total is therefore 70 generations / `$0.5767396`, and the
+Luna/`none` manual triad and recovery gate are complete.
 
 The ready-community deadline uncertainty is also closed for this launch
 checkpoint. An authenticated GET-only audit at 2026-08-27 10:19:52 CEST

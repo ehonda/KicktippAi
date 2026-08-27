@@ -60,19 +60,21 @@ The implementation path through P0-20 and P0-23 through P0-25 is complete.
 ADR-0052 closes P0-06 and every schedule-free P0-19 repository row. At the
 2026-08-27 live-validation checkpoint, the exact manual context, matchday, and
 bonus triads succeeded for `pes-squad`, the `relaxdays-tippt` production copy,
-the arena Sol/`xhigh` production copy, and the self-contained arena Sol/`high`
-Luna/`medium`, and Terra/`xhigh` challengers. The first `relaxdays-tippt` context attempt
+the arena Sol/`xhigh` production copy, and the self-contained arena challengers
+Sol/`high`, Luna/`medium`, Terra/`xhigh`, and Luna/`none`. The first
+`relaxdays-tippt` context attempt
 exposed a missing target-owned rules source; exact-head repair `eedf330` and
 green CI run `33049482431` preceded the successful retry. P0-21 remains the active P0
-closeout gate: the Luna/`none` context and matchday runs succeeded, but bonus
-run `33055144574` failed closed on stale immutable provenance at the zero-
-reprediction limit before a model call. That row requires a deliberate
-remediation decision and a new authorized bonus validation. Payload-safe
-inspection is complete for every successful row through the Luna/`none` match:
-65 real generations / `$0.5723559`, exact index-0 prompt/model/context
-identities, zero index `1+` or document contamination, and zero model calls on
-both compatible copy rows. The failed Luna bonus added no generation, cost, or
-prediction mutation.
+closeout gate. Luna/`none` bonus run `33055144574` first failed closed on stale
+immutable provenance at the zero-reprediction limit before a model call. The
+Owner-approved forced index-0 recovery `33089097055` then saved and posted the
+same five IDs, passed final 5/5 verification, and completed the manual triad
+without creating index `1+`. Payload-safe inspection is complete for every
+ready row: 70 real generations / `$0.5767396`, exact index-0
+prompt/model/context identities, zero document contamination, and zero model
+calls on both compatible copy rows. The recovery's five clean Flex generations
+cost `$0.0043837`; the original failed attempt still records zero generation,
+cost, or prediction mutation.
 An authenticated 2026-08-27 11:41 CEST GET audit returned HTTP 200 for
 `schadensfresse` but found no 2026/27 marker, zero open match/bonus controls,
 and only historical rows/rules. It is an explicit NOT READY manual-only
@@ -101,8 +103,8 @@ cron is `7 2,9 * * *`, with fixed UTC times mapped to 04:07/11:07 CEST and
 03:07/10:07 CET. The 51m04s observed serialized duration supports a 90-minute
 monitoring/escalation envelope—not a timeout—and a three-hour later-pass
 completion margin. The minimal Accepted ADR/test/workflow/docs activation
-patch, operators/rollback, Luna/`none` forced recovery/schedule treatment, and
-first observation remain Owner gates.
+patch, operators/rollback, Luna/`none` schedule treatment, and first observation
+remain Owner gates. Its forced recovery is complete and must not be repeated.
 
 ## Handoffs
 
