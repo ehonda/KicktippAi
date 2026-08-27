@@ -14,6 +14,10 @@ on:
         default: 2
         type: number
 
+concurrency:
+  group: bundesliga-2026-27-production-live-lane
+  cancel-in-progress: false
+
 jobs:
   call-base-workflow:
     name: Run Matchday Predictions

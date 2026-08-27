@@ -3,6 +3,10 @@ name: pes-squad ⚽ Context Collection
 on:
   workflow_dispatch:
 
+concurrency:
+  group: bundesliga-2026-27-production-live-lane
+  cancel-in-progress: false
+
 jobs:
   call-base-workflow:
     name: Context Collection - pes-squad

@@ -25,6 +25,17 @@ canonical Kicktipp Actions pairs provisioned, but runtime readiness, POST
 permission, dispatch, and activation remain P0-21. The separately authorized
 Luna/none validation schedule from ADR-0047 is no longer present.
 
+P0-21 also prepares `buli2627-production-live-matchday.yml` as the single
+manual-only production-live outer caller. Its strict default-success `needs`
+chain runs context immediately before each matchday row in this order:
+`pes-squad`, `relaxdays-tippt`, arena Sol/`xhigh`, Sol/`high`, Luna/`medium`,
+Terra/`xhigh`, and Luna/`none`. It contains no bonus or `schadensfresse` job
+and no cron. The outer caller and all current or pending Bundesliga production
+leaf callers share the non-cancelling
+`bundesliga-2026-27-production-live-lane` concurrency group, so a manual leaf
+dispatch cannot overlap the outer lane. Reusable bases and historical/dev
+workflows deliberately do not use that group.
+
 ## Architecture Overview
 
 The workflow system is built on a **reusable workflow architecture** that supports multiple communities with individual configurations and schedules:
@@ -41,6 +52,12 @@ The workflow system is built on a **reusable workflow architecture** that suppor
     runs the paired launch-coverage/enrichment-overlay mode before the normal
     profile. Any failure stops before profile collection. Arena callers omit
     the input and preserve their already enriched shared last-known-good head.
+- **`buli2627-production-live-matchday.yml`**: Manual-only, serial matchday
+  orchestration prepared for later Owner-controlled schedule activation. Every
+  context job explicitly disables the one-time launch roster overlay; every
+  prediction job pins `force_prediction: false` and `max_repredictions: 2`.
+  Its trigger classification evaluates to `manual` now and `scheduled` only if
+  a future accepted change adds a cron.
 
 ### Community-Specific Workflows
 

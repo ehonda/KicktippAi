@@ -62,9 +62,26 @@ function Get-TriggerBlock {
         [string] $FileName
     )
 
-    $match = [regex]::Match($Content, '(?ms)^on:\r?\n(?<body>.*?)^jobs:')
+    $match = [regex]::Match($Content, '(?ms)^on:\r?\n(?<body>.*?)(?=^\S[^:\r\n]*:\s*\r?$)')
     Assert-True $match.Success "$FileName does not contain a readable top-level trigger block."
     return $match.Groups['body'].Value
+}
+
+function Get-WorkflowJobBlock {
+    param(
+        [string] $Content,
+        [string] $JobId,
+        [string] $FileName
+    )
+
+    $jobs = [regex]::Match($Content, '(?ms)^jobs:\r?\n(?<body>.*)\z')
+    Assert-True $jobs.Success "$FileName does not contain a readable jobs block."
+
+    $job = [regex]::Match(
+        $jobs.Groups['body'].Value,
+        "(?ms)^  $([regex]::Escape($JobId)):\r?\n(?<body>.*?)(?=^  [a-z0-9][a-z0-9-]*:\s*\r?$|\z)")
+    Assert-True $job.Success "$FileName does not contain job '$JobId'."
+    return $job.Groups['body'].Value
 }
 
 function Assert-ManualDispatchOnly {
@@ -259,11 +276,11 @@ function Assert-ProductionContextEntrypoints {
 
         $topLevelKeys = @([regex]::Matches($content, '(?m)^(?<key>\S[^:\r\n]*):\s*') |
             ForEach-Object { $_.Groups['key'].Value.Trim() })
-        Assert-True (($topLevelKeys -join ',') -ceq 'name,on,jobs') "$($caller.FileName) must contain exactly the name, on, and jobs top-level keys in order; got $($topLevelKeys -join ', ')."
+        Assert-True (($topLevelKeys -join ',') -ceq 'name,on,concurrency,jobs') "$($caller.FileName) must contain exactly the name, on, concurrency, and jobs top-level keys in order; got $($topLevelKeys -join ', ')."
 
         $jobKeys = @([regex]::Matches($content, '(?m)^  (?<key>\S[^:\r\n]*):\s*') |
             ForEach-Object { $_.Groups['key'].Value.Trim() })
-        Assert-True (($jobKeys -join ',') -ceq 'workflow_dispatch,call-base-workflow') "$($caller.FileName) must expose only workflow_dispatch and the call-base-workflow job at two-space indentation; got $($jobKeys -join ', ')."
+        Assert-True (($jobKeys -join ',') -ceq 'workflow_dispatch,group,cancel-in-progress,call-base-workflow') "$($caller.FileName) must expose only workflow_dispatch, the exact concurrency fields, and the call-base-workflow job at two-space indentation; got $($jobKeys -join ', ')."
 
         $jobPropertyKeys = @([regex]::Matches($content, '(?m)^    (?<key>\S[^:\r\n]*):\s*') |
             ForEach-Object { $_.Groups['key'].Value.Trim() })
@@ -463,6 +480,75 @@ function Assert-NoYamlScheduleKey {
     Assert-True (-not [regex]::IsMatch($Content, $scheduleKeyPattern)) "$FileName must not contain a quoted or unquoted YAML schedule mapping key."
 }
 
+function Assert-ExactProductionLiveConcurrency {
+    param(
+        [string] $Content,
+        [string] $FileName
+    )
+
+    $blocks = [regex]::Matches($Content, '(?ms)^concurrency:\r?\n(?<body>.*?)(?=^\S[^:\r\n]*:\s*\r?$)')
+    Assert-True ($blocks.Count -eq 1) "$FileName must contain exactly one top-level concurrency block."
+    $lines = @($blocks[0].Groups['body'].Value -split '\r?\n' |
+        Where-Object { -not [string]::IsNullOrWhiteSpace($_) })
+    $expected = @(
+        '  group: bundesliga-2026-27-production-live-lane',
+        '  cancel-in-progress: false'
+    )
+    Assert-True (($lines -join "`n") -ceq ($expected -join "`n")) "$FileName must use only the exact non-cancelling production-live concurrency contract."
+}
+
+function Assert-BundesligaProductionCallerConcurrency {
+    param(
+        [string] $WorkflowDirectory,
+        [string] $OuterFileName
+    )
+
+    $callerFileNames = @(
+        'pes-squad-context-collection.yml',
+        'schadensfresse-context-collection.yml',
+        'relaxdays-tippt-context-collection.yml',
+        'buli2627-ehonda-ai-arena-context-collection.yml',
+        'buli2627-ehonda-ai-arena-gpt-5-6-sol-xhigh-context-collection.yml',
+        'buli2627-ehonda-ai-arena-gpt-5-6-sol-high-context-collection.yml',
+        'buli2627-ehonda-ai-arena-gpt-5-6-luna-medium-context-collection.yml',
+        'buli2627-ehonda-ai-arena-gpt-5-6-terra-xhigh-context-collection.yml',
+        'buli2627-pes-squad-gpt-5-6-sol-xhigh-matchday.yml',
+        'buli2627-pes-squad-gpt-5-6-sol-xhigh-bonus.yml',
+        'buli2627-schadensfresse-gpt-5-6-sol-xhigh-matchday.yml',
+        'buli2627-schadensfresse-gpt-5-6-sol-xhigh-bonus.yml',
+        'buli2627-relaxdays-tippt-gpt-5-6-sol-xhigh-matchday.yml',
+        'buli2627-relaxdays-tippt-gpt-5-6-sol-xhigh-bonus.yml',
+        'buli2627-ehonda-ai-arena-gpt-5-6-sol-xhigh-matchday.yml',
+        'buli2627-ehonda-ai-arena-gpt-5-6-sol-xhigh-bonus.yml',
+        'buli2627-ehonda-ai-arena-gpt-5-6-sol-high-matchday.yml',
+        'buli2627-ehonda-ai-arena-gpt-5-6-sol-high-bonus.yml',
+        'buli2627-ehonda-ai-arena-gpt-5-6-luna-medium-matchday.yml',
+        'buli2627-ehonda-ai-arena-gpt-5-6-luna-medium-bonus.yml',
+        'buli2627-ehonda-ai-arena-gpt-5-6-terra-xhigh-matchday.yml',
+        'buli2627-ehonda-ai-arena-gpt-5-6-terra-xhigh-bonus.yml',
+        'buli2627-ehonda-ai-arena-gpt-5-6-luna-none-matchday.yml',
+        'buli2627-ehonda-ai-arena-gpt-5-6-luna-none-bonus.yml'
+    )
+    $expectedFileNames = @($callerFileNames + $OuterFileName | Sort-Object)
+
+    foreach ($fileName in $expectedFileNames) {
+        $path = Join-Path $WorkflowDirectory $fileName
+        Assert-True (Test-Path -LiteralPath $path -PathType Leaf) "$fileName must exist for the production-live concurrency contract."
+        Assert-ExactProductionLiveConcurrency (Get-Content -Raw -LiteralPath $path) $fileName
+    }
+
+    $actualFileNames = @(Get-ChildItem -LiteralPath $WorkflowDirectory -File |
+        Where-Object { Test-IsWorkflowYamlFileName $_.Name } |
+        Where-Object {
+            (Get-Content -Raw -LiteralPath $_.FullName).Contains(
+                'group: bundesliga-2026-27-production-live-lane',
+                [StringComparison]::Ordinal)
+        } |
+        ForEach-Object { $_.Name } |
+        Sort-Object)
+    Assert-True (($actualFileNames -join ',') -ceq ($expectedFileNames -join ',')) "The production-live concurrency group must appear only in the exact outer and current production caller set. Expected $($expectedFileNames -join ', '); got $($actualFileNames -join ', ')."
+}
+
 function Assert-ArenaScheduleScannerSelfTests {
     Assert-True (Test-IsWorkflowYamlFileName 'arena-control.yml') 'The arena schedule scanner must enumerate .yml workflows.'
     Assert-True (Test-IsWorkflowYamlFileName 'arena-control.yaml') 'The arena schedule scanner must enumerate .yaml workflows.'
@@ -540,6 +626,129 @@ function Assert-NoActiveArenaLunaSchedule {
     }
 
     Assert-True ($scheduledArenaFiles.Count -eq 0) "No Bundesliga arena validation schedule may remain after teardown; found: $($scheduledArenaFiles -join ', ')."
+}
+
+function Assert-ProductionLiveMatchdayWorkflow {
+    param(
+        [string] $WorkflowDirectory,
+        [string] $FileName
+    )
+
+    $path = Join-Path $WorkflowDirectory $FileName
+    Assert-True (Test-Path -LiteralPath $path -PathType Leaf) "$FileName must exist."
+    $content = Get-Content -Raw -LiteralPath $path
+
+    Assert-ManualDispatchOnly $content $FileName $false
+    Assert-NoYamlScheduleKey $content $FileName
+    Assert-True (-not $content.Contains('workflow_call:', [StringComparison]::Ordinal)) "$FileName must not expose workflow_call."
+    Assert-True ([regex]::Matches($content, '(?m)^concurrency:\s*$').Count -eq 1) "$FileName must contain exactly one top-level concurrency block."
+    Assert-True ([regex]::Matches($content, '(?m)^  group: bundesliga-2026-27-production-live-lane\s*$').Count -eq 1) "$FileName must use the exact production-live concurrency group."
+    Assert-True ([regex]::Matches($content, '(?m)^  cancel-in-progress: false\s*$').Count -eq 1) "$FileName concurrency must be non-cancelling."
+
+    foreach ($forbidden in @(
+        'always(',
+        'strategy:',
+        'matrix:',
+        'retry',
+        'bonus',
+        'schadensfresse',
+        'force_prediction: true',
+        'publish_launch_roster_overlay: true'
+    )) {
+        Assert-True (-not $content.Contains($forbidden, [StringComparison]::OrdinalIgnoreCase)) "$FileName must not contain forbidden production-live token '$forbidden'."
+    }
+
+    $jobsMatch = [regex]::Match($content, '(?ms)^jobs:\r?\n(?<body>.*)\z')
+    Assert-True $jobsMatch.Success "$FileName must contain a jobs block."
+    $actualJobIds = @([regex]::Matches($jobsMatch.Groups['body'].Value, '(?m)^  (?<id>[a-z0-9][a-z0-9-]*):\s*\r?$') |
+        ForEach-Object { $_.Groups['id'].Value })
+
+    $triggerType = '${{ github.event_name == ''schedule'' && ''scheduled'' || ''manual'' }}'
+    $jobs = @(
+        @{ Id = 'pes-squad-context'; Needs = $null; Kind = 'context'; Context = 'pes-squad'; SecretStem = 'PES_SQUAD' },
+        @{ Id = 'pes-squad-matchday'; Needs = 'pes-squad-context'; Kind = 'match'; Community = 'pes-squad'; Context = 'pes-squad'; Model = 'gpt-5.6-sol'; Effort = 'xhigh'; SecretStem = 'PES_SQUAD' },
+        @{ Id = 'relaxdays-tippt-context'; Needs = 'pes-squad-matchday'; Kind = 'context'; Context = 'relaxdays-tippt'; SecretStem = 'RELAXDAYS_TIPPT' },
+        @{ Id = 'relaxdays-tippt-matchday'; Needs = 'relaxdays-tippt-context'; Kind = 'match'; Community = 'relaxdays-tippt'; Context = 'pes-squad'; Model = 'gpt-5.6-sol'; Effort = 'xhigh'; SecretStem = 'RELAXDAYS_TIPPT' },
+        @{ Id = 'arena-sol-xhigh-context'; Needs = 'relaxdays-tippt-matchday'; Kind = 'context'; Context = 'ehonda-ai-arena'; SecretStem = 'EHONDA_AI_ARENA_GPT_5_6_SOL_XHIGH' },
+        @{ Id = 'arena-sol-xhigh-matchday'; Needs = 'arena-sol-xhigh-context'; Kind = 'match'; Community = 'ehonda-ai-arena'; Context = 'pes-squad'; Model = 'gpt-5.6-sol'; Effort = 'xhigh'; SecretStem = 'EHONDA_AI_ARENA_GPT_5_6_SOL_XHIGH' },
+        @{ Id = 'arena-sol-high-context'; Needs = 'arena-sol-xhigh-matchday'; Kind = 'context'; Context = 'ehonda-ai-arena'; SecretStem = 'EHONDA_AI_ARENA_GPT_5_6_SOL_HIGH' },
+        @{ Id = 'arena-sol-high-matchday'; Needs = 'arena-sol-high-context'; Kind = 'match'; Community = 'ehonda-ai-arena'; Context = 'ehonda-ai-arena'; Model = 'gpt-5.6-sol'; Effort = 'high'; SecretStem = 'EHONDA_AI_ARENA_GPT_5_6_SOL_HIGH' },
+        @{ Id = 'arena-luna-medium-context'; Needs = 'arena-sol-high-matchday'; Kind = 'context'; Context = 'ehonda-ai-arena'; SecretStem = 'EHONDA_AI_ARENA_GPT_5_6_LUNA_MEDIUM' },
+        @{ Id = 'arena-luna-medium-matchday'; Needs = 'arena-luna-medium-context'; Kind = 'match'; Community = 'ehonda-ai-arena'; Context = 'ehonda-ai-arena'; Model = 'gpt-5.6-luna'; Effort = 'medium'; SecretStem = 'EHONDA_AI_ARENA_GPT_5_6_LUNA_MEDIUM' },
+        @{ Id = 'arena-terra-xhigh-context'; Needs = 'arena-luna-medium-matchday'; Kind = 'context'; Context = 'ehonda-ai-arena'; SecretStem = 'EHONDA_AI_ARENA_GPT_5_6_TERRA_XHIGH' },
+        @{ Id = 'arena-terra-xhigh-matchday'; Needs = 'arena-terra-xhigh-context'; Kind = 'match'; Community = 'ehonda-ai-arena'; Context = 'ehonda-ai-arena'; Model = 'gpt-5.6-terra'; Effort = 'xhigh'; SecretStem = 'EHONDA_AI_ARENA_GPT_5_6_TERRA_XHIGH' },
+        @{ Id = 'arena-luna-none-context'; Needs = 'arena-terra-xhigh-matchday'; Kind = 'context'; Context = 'ehonda-ai-arena'; SecretStem = 'EHONDA_AI_ARENA_GPT_5_6_LUNA_NONE' },
+        @{ Id = 'arena-luna-none-matchday'; Needs = 'arena-luna-none-context'; Kind = 'match'; Community = 'ehonda-ai-arena'; Context = 'ehonda-ai-arena'; Model = 'gpt-5.6-luna'; Effort = 'none'; SecretStem = 'EHONDA_AI_ARENA_GPT_5_6_LUNA_NONE' }
+    )
+
+    $expectedJobIds = @($jobs | ForEach-Object { $_.Id })
+    Assert-True (($actualJobIds -join ',') -ceq ($expectedJobIds -join ',')) "$FileName job order differs. Expected $($expectedJobIds -join ', '); got $($actualJobIds -join ', ')."
+    Assert-True ([regex]::Matches($content, '(?m)^    uses: \./\.github/workflows/base-context-collection\.yml\s*$').Count -eq 7) "$FileName must contain exactly seven context jobs."
+    Assert-True ([regex]::Matches($content, '(?m)^    uses: \./\.github/workflows/base-matchday-predictions\.yml\s*$').Count -eq 7) "$FileName must contain exactly seven matchday jobs."
+
+    foreach ($job in $jobs) {
+        $block = Get-WorkflowJobBlock $content $job.Id $FileName
+        Assert-True (-not [regex]::IsMatch($block, '(?m)^    if:')) "$FileName job $($job.Id) must use default-success dependency semantics without if."
+
+        $propertyKeys = @([regex]::Matches($block, '(?m)^    (?<key>[a-z][a-z_-]*):\s*') |
+            ForEach-Object { $_.Groups['key'].Value })
+        $expectedPropertyKeys = if ($null -eq $job.Needs) {
+            @('name', 'uses', 'with', 'secrets')
+        }
+        else {
+            @('name', 'needs', 'uses', 'with', 'secrets')
+        }
+        Assert-True (($propertyKeys -join ',') -ceq ($expectedPropertyKeys -join ',')) "$FileName job $($job.Id) has unexpected properties: $($propertyKeys -join ', ')."
+
+        if ($null -eq $job.Needs) {
+            Assert-True (-not [regex]::IsMatch($block, '(?m)^    needs:')) "$FileName first job must not have a predecessor."
+        }
+        else {
+            Assert-True ([regex]::IsMatch($block, "(?m)^    needs: $([regex]::Escape($job.Needs))\s*$")) "$FileName job $($job.Id) must need exactly $($job.Needs)."
+        }
+
+        if ($job.Kind -eq 'context') {
+            Assert-True ([regex]::IsMatch($block, '(?m)^    uses: \./\.github/workflows/base-context-collection\.yml\s*$')) "$FileName job $($job.Id) must call the base context workflow."
+            Assert-ExactReusableMappingBlock $block 'with' @(
+                "community_context=`"$($job.Context)`"",
+                'competition="bundesliga-2026-27"',
+                "trigger_type=$triggerType",
+                'publish_launch_roster_overlay=false'
+            ) "$FileName/$($job.Id)"
+            Assert-ExactReusableMappingBlock $block 'secrets' @(
+                ('kicktipp_username=${{ secrets.' + $job.SecretStem + '_KICKTIPP_USERNAME }}'),
+                ('kicktipp_password=${{ secrets.' + $job.SecretStem + '_KICKTIPP_PASSWORD }}'),
+                'firebase_project_id=${{ secrets.FIREBASE_PROJECT_ID }}',
+                'firebase_service_account_json=${{ secrets.FIREBASE_SERVICE_ACCOUNT_JSON }}'
+            ) "$FileName/$($job.Id)"
+        }
+        else {
+            Assert-True ([regex]::IsMatch($block, '(?m)^    uses: \./\.github/workflows/base-matchday-predictions\.yml\s*$')) "$FileName job $($job.Id) must call the base matchday workflow."
+            Assert-ExactReusableMappingBlock $block 'with' @(
+                "community=`"$($job.Community)`"",
+                "community_context=`"$($job.Context)`"",
+                'competition="bundesliga-2026-27"',
+                "model=`"$($job.Model)`"",
+                "reasoning_effort=`"$($job.Effort)`"",
+                'max_output_tokens=10000',
+                'prompt_source="langfuse"',
+                'langfuse_prompt_name="kicktippai/bundesliga-2026-27/predict-one-match"',
+                'langfuse_prompt_label="production"',
+                'langfuse_prompt_version=3',
+                "trigger_type=$triggerType",
+                'force_prediction=false',
+                'max_repredictions=2'
+            ) "$FileName/$($job.Id)"
+            Assert-ExactReusableMappingBlock $block 'secrets' @(
+                ('kicktipp_username=${{ secrets.' + $job.SecretStem + '_KICKTIPP_USERNAME }}'),
+                ('kicktipp_password=${{ secrets.' + $job.SecretStem + '_KICKTIPP_PASSWORD }}'),
+                'firebase_project_id=${{ secrets.FIREBASE_PROJECT_ID }}',
+                'firebase_service_account_json=${{ secrets.FIREBASE_SERVICE_ACCOUNT_JSON }}',
+                'openai_api_key=${{ secrets.OPENAI_API_KEY }}',
+                'langfuse_secret_key=${{ secrets.LANGFUSE_SECRET_KEY }}'
+            ) "$FileName/$($job.Id)"
+        }
+    }
 }
 
 function Assert-CommandIdentity {
@@ -657,6 +866,7 @@ $matchBasePath = Join-Path $workflowDirectory 'base-matchday-predictions.yml'
 $bonusBasePath = Join-Path $workflowDirectory 'base-bonus-predictions.yml'
 $matchBase = Get-Content -Raw -LiteralPath $matchBasePath
 $bonusBase = Get-Content -Raw -LiteralPath $bonusBasePath
+$productionLiveFileName = 'buli2627-production-live-matchday.yml'
 $arenaLunaMatchFileName = 'buli2627-ehonda-ai-arena-gpt-5-6-luna-none-matchday.yml'
 $arenaLunaBonusFileName = 'buli2627-ehonda-ai-arena-gpt-5-6-luna-none-bonus.yml'
 $arenaLunaTriadPresent = Assert-ArenaLunaTriad $workflowDirectory -AllowMissing:$AllowMissingArenaLunaTriad
@@ -665,6 +875,8 @@ Assert-ProductionContextEntrypoints $workflowDirectory
 Assert-ArenaParticipantContextEntrypoints $workflowDirectory
 Assert-ArenaScheduleScannerSelfTests
 Assert-NoActiveArenaLunaSchedule $workflowDirectory
+Assert-ProductionLiveMatchdayWorkflow $workflowDirectory $productionLiveFileName
+Assert-BundesligaProductionCallerConcurrency $workflowDirectory $productionLiveFileName
 
 foreach ($base in @(
     @{ Path = $matchBasePath; Content = $matchBase },
@@ -750,8 +962,9 @@ foreach ($row in @(
 $callerFiles = Get-ChildItem -LiteralPath $workflowDirectory -Filter '*.yml' |
     Where-Object {
         $content = Get-Content -Raw -LiteralPath $_.FullName
-        $content.Contains('uses: ./.github/workflows/base-matchday-predictions.yml', [StringComparison]::Ordinal) -or
-        $content.Contains('uses: ./.github/workflows/base-bonus-predictions.yml', [StringComparison]::Ordinal)
+        $_.Name -ne $productionLiveFileName -and (
+            $content.Contains('uses: ./.github/workflows/base-matchday-predictions.yml', [StringComparison]::Ordinal) -or
+            $content.Contains('uses: ./.github/workflows/base-bonus-predictions.yml', [StringComparison]::Ordinal))
     } |
     Sort-Object Name
 

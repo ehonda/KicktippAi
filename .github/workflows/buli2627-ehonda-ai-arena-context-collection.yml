@@ -3,6 +3,10 @@ name: Bundesliga 2026/27 ehonda-ai-arena Luna validation - Context
 on:
   workflow_dispatch:
 
+concurrency:
+  group: bundesliga-2026-27-production-live-lane
+  cancel-in-progress: false
+
 jobs:
   call-base-workflow:
     name: Context Collection - ehonda-ai-arena

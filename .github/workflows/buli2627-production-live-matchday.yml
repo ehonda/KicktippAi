@@ -1,0 +1,295 @@
+name: Bundesliga 2026/27 production live - Matchday
+
+on:
+  workflow_dispatch:
+
+concurrency:
+  group: bundesliga-2026-27-production-live-lane
+  cancel-in-progress: false
+
+jobs:
+  pes-squad-context:
+    name: Context - pes-squad
+    uses: ./.github/workflows/base-context-collection.yml
+    with:
+      community_context: "pes-squad"
+      competition: "bundesliga-2026-27"
+      trigger_type: ${{ github.event_name == 'schedule' && 'scheduled' || 'manual' }}
+      publish_launch_roster_overlay: false
+    secrets:
+      kicktipp_username: ${{ secrets.PES_SQUAD_KICKTIPP_USERNAME }}
+      kicktipp_password: ${{ secrets.PES_SQUAD_KICKTIPP_PASSWORD }}
+      firebase_project_id: ${{ secrets.FIREBASE_PROJECT_ID }}
+      firebase_service_account_json: ${{ secrets.FIREBASE_SERVICE_ACCOUNT_JSON }}
+
+  pes-squad-matchday:
+    name: Matchday - pes-squad Sol xhigh production
+    needs: pes-squad-context
+    uses: ./.github/workflows/base-matchday-predictions.yml
+    with:
+      community: "pes-squad"
+      community_context: "pes-squad"
+      competition: "bundesliga-2026-27"
+      model: "gpt-5.6-sol"
+      reasoning_effort: "xhigh"
+      max_output_tokens: 10000
+      prompt_source: "langfuse"
+      langfuse_prompt_name: "kicktippai/bundesliga-2026-27/predict-one-match"
+      langfuse_prompt_label: "production"
+      langfuse_prompt_version: 3
+      trigger_type: ${{ github.event_name == 'schedule' && 'scheduled' || 'manual' }}
+      force_prediction: false
+      max_repredictions: 2
+    secrets:
+      kicktipp_username: ${{ secrets.PES_SQUAD_KICKTIPP_USERNAME }}
+      kicktipp_password: ${{ secrets.PES_SQUAD_KICKTIPP_PASSWORD }}
+      firebase_project_id: ${{ secrets.FIREBASE_PROJECT_ID }}
+      firebase_service_account_json: ${{ secrets.FIREBASE_SERVICE_ACCOUNT_JSON }}
+      openai_api_key: ${{ secrets.OPENAI_API_KEY }}
+      langfuse_secret_key: ${{ secrets.LANGFUSE_SECRET_KEY }}
+
+  relaxdays-tippt-context:
+    name: Context - relaxdays-tippt
+    needs: pes-squad-matchday
+    uses: ./.github/workflows/base-context-collection.yml
+    with:
+      community_context: "relaxdays-tippt"
+      competition: "bundesliga-2026-27"
+      trigger_type: ${{ github.event_name == 'schedule' && 'scheduled' || 'manual' }}
+      publish_launch_roster_overlay: false
+    secrets:
+      kicktipp_username: ${{ secrets.RELAXDAYS_TIPPT_KICKTIPP_USERNAME }}
+      kicktipp_password: ${{ secrets.RELAXDAYS_TIPPT_KICKTIPP_PASSWORD }}
+      firebase_project_id: ${{ secrets.FIREBASE_PROJECT_ID }}
+      firebase_service_account_json: ${{ secrets.FIREBASE_SERVICE_ACCOUNT_JSON }}
+
+  relaxdays-tippt-matchday:
+    name: Matchday - relaxdays-tippt Sol xhigh copy
+    needs: relaxdays-tippt-context
+    uses: ./.github/workflows/base-matchday-predictions.yml
+    with:
+      community: "relaxdays-tippt"
+      community_context: "pes-squad"
+      competition: "bundesliga-2026-27"
+      model: "gpt-5.6-sol"
+      reasoning_effort: "xhigh"
+      max_output_tokens: 10000
+      prompt_source: "langfuse"
+      langfuse_prompt_name: "kicktippai/bundesliga-2026-27/predict-one-match"
+      langfuse_prompt_label: "production"
+      langfuse_prompt_version: 3
+      trigger_type: ${{ github.event_name == 'schedule' && 'scheduled' || 'manual' }}
+      force_prediction: false
+      max_repredictions: 2
+    secrets:
+      kicktipp_username: ${{ secrets.RELAXDAYS_TIPPT_KICKTIPP_USERNAME }}
+      kicktipp_password: ${{ secrets.RELAXDAYS_TIPPT_KICKTIPP_PASSWORD }}
+      firebase_project_id: ${{ secrets.FIREBASE_PROJECT_ID }}
+      firebase_service_account_json: ${{ secrets.FIREBASE_SERVICE_ACCOUNT_JSON }}
+      openai_api_key: ${{ secrets.OPENAI_API_KEY }}
+      langfuse_secret_key: ${{ secrets.LANGFUSE_SECRET_KEY }}
+
+  arena-sol-xhigh-context:
+    name: Context - arena Sol xhigh production
+    needs: relaxdays-tippt-matchday
+    uses: ./.github/workflows/base-context-collection.yml
+    with:
+      community_context: "ehonda-ai-arena"
+      competition: "bundesliga-2026-27"
+      trigger_type: ${{ github.event_name == 'schedule' && 'scheduled' || 'manual' }}
+      publish_launch_roster_overlay: false
+    secrets:
+      kicktipp_username: ${{ secrets.EHONDA_AI_ARENA_GPT_5_6_SOL_XHIGH_KICKTIPP_USERNAME }}
+      kicktipp_password: ${{ secrets.EHONDA_AI_ARENA_GPT_5_6_SOL_XHIGH_KICKTIPP_PASSWORD }}
+      firebase_project_id: ${{ secrets.FIREBASE_PROJECT_ID }}
+      firebase_service_account_json: ${{ secrets.FIREBASE_SERVICE_ACCOUNT_JSON }}
+
+  arena-sol-xhigh-matchday:
+    name: Matchday - arena Sol xhigh production copy
+    needs: arena-sol-xhigh-context
+    uses: ./.github/workflows/base-matchday-predictions.yml
+    with:
+      community: "ehonda-ai-arena"
+      community_context: "pes-squad"
+      competition: "bundesliga-2026-27"
+      model: "gpt-5.6-sol"
+      reasoning_effort: "xhigh"
+      max_output_tokens: 10000
+      prompt_source: "langfuse"
+      langfuse_prompt_name: "kicktippai/bundesliga-2026-27/predict-one-match"
+      langfuse_prompt_label: "production"
+      langfuse_prompt_version: 3
+      trigger_type: ${{ github.event_name == 'schedule' && 'scheduled' || 'manual' }}
+      force_prediction: false
+      max_repredictions: 2
+    secrets:
+      kicktipp_username: ${{ secrets.EHONDA_AI_ARENA_GPT_5_6_SOL_XHIGH_KICKTIPP_USERNAME }}
+      kicktipp_password: ${{ secrets.EHONDA_AI_ARENA_GPT_5_6_SOL_XHIGH_KICKTIPP_PASSWORD }}
+      firebase_project_id: ${{ secrets.FIREBASE_PROJECT_ID }}
+      firebase_service_account_json: ${{ secrets.FIREBASE_SERVICE_ACCOUNT_JSON }}
+      openai_api_key: ${{ secrets.OPENAI_API_KEY }}
+      langfuse_secret_key: ${{ secrets.LANGFUSE_SECRET_KEY }}
+
+  arena-sol-high-context:
+    name: Context - arena Sol high challenger
+    needs: arena-sol-xhigh-matchday
+    uses: ./.github/workflows/base-context-collection.yml
+    with:
+      community_context: "ehonda-ai-arena"
+      competition: "bundesliga-2026-27"
+      trigger_type: ${{ github.event_name == 'schedule' && 'scheduled' || 'manual' }}
+      publish_launch_roster_overlay: false
+    secrets:
+      kicktipp_username: ${{ secrets.EHONDA_AI_ARENA_GPT_5_6_SOL_HIGH_KICKTIPP_USERNAME }}
+      kicktipp_password: ${{ secrets.EHONDA_AI_ARENA_GPT_5_6_SOL_HIGH_KICKTIPP_PASSWORD }}
+      firebase_project_id: ${{ secrets.FIREBASE_PROJECT_ID }}
+      firebase_service_account_json: ${{ secrets.FIREBASE_SERVICE_ACCOUNT_JSON }}
+
+  arena-sol-high-matchday:
+    name: Matchday - arena Sol high challenger
+    needs: arena-sol-high-context
+    uses: ./.github/workflows/base-matchday-predictions.yml
+    with:
+      community: "ehonda-ai-arena"
+      community_context: "ehonda-ai-arena"
+      competition: "bundesliga-2026-27"
+      model: "gpt-5.6-sol"
+      reasoning_effort: "high"
+      max_output_tokens: 10000
+      prompt_source: "langfuse"
+      langfuse_prompt_name: "kicktippai/bundesliga-2026-27/predict-one-match"
+      langfuse_prompt_label: "production"
+      langfuse_prompt_version: 3
+      trigger_type: ${{ github.event_name == 'schedule' && 'scheduled' || 'manual' }}
+      force_prediction: false
+      max_repredictions: 2
+    secrets:
+      kicktipp_username: ${{ secrets.EHONDA_AI_ARENA_GPT_5_6_SOL_HIGH_KICKTIPP_USERNAME }}
+      kicktipp_password: ${{ secrets.EHONDA_AI_ARENA_GPT_5_6_SOL_HIGH_KICKTIPP_PASSWORD }}
+      firebase_project_id: ${{ secrets.FIREBASE_PROJECT_ID }}
+      firebase_service_account_json: ${{ secrets.FIREBASE_SERVICE_ACCOUNT_JSON }}
+      openai_api_key: ${{ secrets.OPENAI_API_KEY }}
+      langfuse_secret_key: ${{ secrets.LANGFUSE_SECRET_KEY }}
+
+  arena-luna-medium-context:
+    name: Context - arena Luna medium challenger
+    needs: arena-sol-high-matchday
+    uses: ./.github/workflows/base-context-collection.yml
+    with:
+      community_context: "ehonda-ai-arena"
+      competition: "bundesliga-2026-27"
+      trigger_type: ${{ github.event_name == 'schedule' && 'scheduled' || 'manual' }}
+      publish_launch_roster_overlay: false
+    secrets:
+      kicktipp_username: ${{ secrets.EHONDA_AI_ARENA_GPT_5_6_LUNA_MEDIUM_KICKTIPP_USERNAME }}
+      kicktipp_password: ${{ secrets.EHONDA_AI_ARENA_GPT_5_6_LUNA_MEDIUM_KICKTIPP_PASSWORD }}
+      firebase_project_id: ${{ secrets.FIREBASE_PROJECT_ID }}
+      firebase_service_account_json: ${{ secrets.FIREBASE_SERVICE_ACCOUNT_JSON }}
+
+  arena-luna-medium-matchday:
+    name: Matchday - arena Luna medium challenger
+    needs: arena-luna-medium-context
+    uses: ./.github/workflows/base-matchday-predictions.yml
+    with:
+      community: "ehonda-ai-arena"
+      community_context: "ehonda-ai-arena"
+      competition: "bundesliga-2026-27"
+      model: "gpt-5.6-luna"
+      reasoning_effort: "medium"
+      max_output_tokens: 10000
+      prompt_source: "langfuse"
+      langfuse_prompt_name: "kicktippai/bundesliga-2026-27/predict-one-match"
+      langfuse_prompt_label: "production"
+      langfuse_prompt_version: 3
+      trigger_type: ${{ github.event_name == 'schedule' && 'scheduled' || 'manual' }}
+      force_prediction: false
+      max_repredictions: 2
+    secrets:
+      kicktipp_username: ${{ secrets.EHONDA_AI_ARENA_GPT_5_6_LUNA_MEDIUM_KICKTIPP_USERNAME }}
+      kicktipp_password: ${{ secrets.EHONDA_AI_ARENA_GPT_5_6_LUNA_MEDIUM_KICKTIPP_PASSWORD }}
+      firebase_project_id: ${{ secrets.FIREBASE_PROJECT_ID }}
+      firebase_service_account_json: ${{ secrets.FIREBASE_SERVICE_ACCOUNT_JSON }}
+      openai_api_key: ${{ secrets.OPENAI_API_KEY }}
+      langfuse_secret_key: ${{ secrets.LANGFUSE_SECRET_KEY }}
+
+  arena-terra-xhigh-context:
+    name: Context - arena Terra xhigh challenger
+    needs: arena-luna-medium-matchday
+    uses: ./.github/workflows/base-context-collection.yml
+    with:
+      community_context: "ehonda-ai-arena"
+      competition: "bundesliga-2026-27"
+      trigger_type: ${{ github.event_name == 'schedule' && 'scheduled' || 'manual' }}
+      publish_launch_roster_overlay: false
+    secrets:
+      kicktipp_username: ${{ secrets.EHONDA_AI_ARENA_GPT_5_6_TERRA_XHIGH_KICKTIPP_USERNAME }}
+      kicktipp_password: ${{ secrets.EHONDA_AI_ARENA_GPT_5_6_TERRA_XHIGH_KICKTIPP_PASSWORD }}
+      firebase_project_id: ${{ secrets.FIREBASE_PROJECT_ID }}
+      firebase_service_account_json: ${{ secrets.FIREBASE_SERVICE_ACCOUNT_JSON }}
+
+  arena-terra-xhigh-matchday:
+    name: Matchday - arena Terra xhigh challenger
+    needs: arena-terra-xhigh-context
+    uses: ./.github/workflows/base-matchday-predictions.yml
+    with:
+      community: "ehonda-ai-arena"
+      community_context: "ehonda-ai-arena"
+      competition: "bundesliga-2026-27"
+      model: "gpt-5.6-terra"
+      reasoning_effort: "xhigh"
+      max_output_tokens: 10000
+      prompt_source: "langfuse"
+      langfuse_prompt_name: "kicktippai/bundesliga-2026-27/predict-one-match"
+      langfuse_prompt_label: "production"
+      langfuse_prompt_version: 3
+      trigger_type: ${{ github.event_name == 'schedule' && 'scheduled' || 'manual' }}
+      force_prediction: false
+      max_repredictions: 2
+    secrets:
+      kicktipp_username: ${{ secrets.EHONDA_AI_ARENA_GPT_5_6_TERRA_XHIGH_KICKTIPP_USERNAME }}
+      kicktipp_password: ${{ secrets.EHONDA_AI_ARENA_GPT_5_6_TERRA_XHIGH_KICKTIPP_PASSWORD }}
+      firebase_project_id: ${{ secrets.FIREBASE_PROJECT_ID }}
+      firebase_service_account_json: ${{ secrets.FIREBASE_SERVICE_ACCOUNT_JSON }}
+      openai_api_key: ${{ secrets.OPENAI_API_KEY }}
+      langfuse_secret_key: ${{ secrets.LANGFUSE_SECRET_KEY }}
+
+  arena-luna-none-context:
+    name: Context - arena Luna none challenger
+    needs: arena-terra-xhigh-matchday
+    uses: ./.github/workflows/base-context-collection.yml
+    with:
+      community_context: "ehonda-ai-arena"
+      competition: "bundesliga-2026-27"
+      trigger_type: ${{ github.event_name == 'schedule' && 'scheduled' || 'manual' }}
+      publish_launch_roster_overlay: false
+    secrets:
+      kicktipp_username: ${{ secrets.EHONDA_AI_ARENA_GPT_5_6_LUNA_NONE_KICKTIPP_USERNAME }}
+      kicktipp_password: ${{ secrets.EHONDA_AI_ARENA_GPT_5_6_LUNA_NONE_KICKTIPP_PASSWORD }}
+      firebase_project_id: ${{ secrets.FIREBASE_PROJECT_ID }}
+      firebase_service_account_json: ${{ secrets.FIREBASE_SERVICE_ACCOUNT_JSON }}
+
+  arena-luna-none-matchday:
+    name: Matchday - arena Luna none challenger
+    needs: arena-luna-none-context
+    uses: ./.github/workflows/base-matchday-predictions.yml
+    with:
+      community: "ehonda-ai-arena"
+      community_context: "ehonda-ai-arena"
+      competition: "bundesliga-2026-27"
+      model: "gpt-5.6-luna"
+      reasoning_effort: "none"
+      max_output_tokens: 10000
+      prompt_source: "langfuse"
+      langfuse_prompt_name: "kicktippai/bundesliga-2026-27/predict-one-match"
+      langfuse_prompt_label: "production"
+      langfuse_prompt_version: 3
+      trigger_type: ${{ github.event_name == 'schedule' && 'scheduled' || 'manual' }}
+      force_prediction: false
+      max_repredictions: 2
+    secrets:
+      kicktipp_username: ${{ secrets.EHONDA_AI_ARENA_GPT_5_6_LUNA_NONE_KICKTIPP_USERNAME }}
+      kicktipp_password: ${{ secrets.EHONDA_AI_ARENA_GPT_5_6_LUNA_NONE_KICKTIPP_PASSWORD }}
+      firebase_project_id: ${{ secrets.FIREBASE_PROJECT_ID }}
+      firebase_service_account_json: ${{ secrets.FIREBASE_SERVICE_ACCOUNT_JSON }}
+      openai_api_key: ${{ secrets.OPENAI_API_KEY }}
+      langfuse_secret_key: ${{ secrets.LANGFUSE_SECRET_KEY }}
