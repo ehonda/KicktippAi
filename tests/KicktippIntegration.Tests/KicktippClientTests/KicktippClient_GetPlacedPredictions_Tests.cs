@@ -139,6 +139,59 @@ public class KicktippClient_GetPlacedPredictions_Tests : KicktippClientTests_Bas
     }
 
     [Test]
+    public async Task Getting_placed_predictions_retries_explicit_current_season_and_matchday_when_default_table_is_missing()
+    {
+        var smartDefaultHtml = """
+            <!DOCTYPE html><html><body><p>No current tippabgabe table</p></body></html>
+            """;
+        var overviewHtml = """
+            <!DOCTYPE html><html><body>
+            <input type="hidden" name="spieltagIndex" value="1" />
+            <select name="tippsaisonId"><option value="5746822" selected>2026/27</option></select>
+            </body></html>
+            """;
+
+        StubHtmlResponse("/test-community/tippabgabe", smartDefaultHtml);
+        StubHtmlResponse("/test-community/tippuebersicht", overviewHtml);
+        StubWithSyntheticFixtureAndParams(
+            "/test-community/tippabgabe",
+            "test-community",
+            "tippabgabe-with-predictions",
+            ("spieltagIndex", "1"),
+            ("tippsaisonId", "5746822"));
+        var client = CreateClient();
+
+        var predictions = await client.GetPlacedPredictionsAsync("test-community");
+
+        await Assert.That(predictions).HasCount().EqualTo(3);
+        await Assert.That(predictions.Values.Count(prediction => prediction != null)).IsEqualTo(2);
+        var explicitRequest = GetRequestsForPath("/test-community/tippabgabe")
+            .Single(entry => entry.RequestMessage.Query != null && entry.RequestMessage.Query.Count > 0);
+        await Assert.That(explicitRequest.RequestMessage.Query!["spieltagIndex"].Single()).IsEqualTo("1");
+        await Assert.That(explicitRequest.RequestMessage.Query!["tippsaisonId"].Single()).IsEqualTo("5746822");
+    }
+
+    [Test]
+    public async Task Getting_placed_predictions_refuses_ambiguous_retry_when_current_season_is_missing()
+    {
+        var smartDefaultHtml = """
+            <!DOCTYPE html><html><body><p>No current tippabgabe table</p></body></html>
+            """;
+        var overviewHtml = """
+            <!DOCTYPE html><html><body><input type="hidden" name="spieltagIndex" value="1" /></body></html>
+            """;
+
+        StubHtmlResponse("/test-community/tippabgabe", smartDefaultHtml);
+        StubHtmlResponse("/test-community/tippuebersicht", overviewHtml);
+        var client = CreateClient();
+
+        var predictions = await client.GetPlacedPredictionsAsync("test-community");
+
+        await Assert.That(predictions).IsEmpty();
+        await Assert.That(GetRequestsForPath("/test-community/tippabgabe").Count()).IsEqualTo(1);
+    }
+
+    [Test]
     public async Task Getting_placed_predictions_extracts_existing_predictions()
     {
         // Arrange

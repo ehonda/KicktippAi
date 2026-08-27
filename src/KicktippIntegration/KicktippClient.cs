@@ -1920,7 +1920,8 @@ public class KicktippClient : IKicktippClient, IDisposable
             }
 
             var content = await response.Content.ReadAsStringAsync();
-            return await _browsingContext.OpenAsync(req => req.Content(content));
+            var responseUrl = response.RequestMessage?.RequestUri?.ToString();
+            return await _browsingContext.OpenAsync(req => req.Content(content).Address(responseUrl));
         }
         catch (Exception ex)
         {
@@ -2243,6 +2244,11 @@ public class KicktippClient : IKicktippClient, IDisposable
             var content = await response.Content.ReadAsStringAsync();
             var document = await _browsingContext.OpenAsync(req => req.Content(content));
 
+            if (document.QuerySelector("#tippabgabeSpiele tbody") == null)
+            {
+                document = await GetExplicitCurrentTippabgabeDocumentAsync(community) ?? document;
+            }
+
             var placedPredictions = new Dictionary<Match, BetPrediction?>();
             
             // Extract matchday from the page
@@ -2377,6 +2383,130 @@ public class KicktippClient : IKicktippClient, IDisposable
             _logger.LogError(ex, "Exception in GetPlacedPredictionsAsync");
             return new Dictionary<Match, BetPrediction?>();
         }
+    }
+
+    private async Task<IDocument?> GetExplicitCurrentTippabgabeDocumentAsync(string community)
+    {
+        _logger.LogWarning(
+            "The default tippabgabe page for {Community} did not contain a match table; resolving the current season and matchday from tippuebersicht",
+            community);
+
+        var overviewDocument = await GetTippuebersichtDocumentAsync(community, matchday: null);
+        if (overviewDocument == null)
+        {
+            return null;
+        }
+
+        var matchday = ExtractMatchdayFromPage(overviewDocument);
+        var seasonId = ExtractTippsaisonIdFromPage(overviewDocument);
+        if (string.IsNullOrWhiteSpace(seasonId))
+        {
+            _logger.LogWarning(
+                "Could not resolve the current tippsaisonId from tippuebersicht for {Community}; refusing an ambiguous tippabgabe fallback",
+                community);
+            return null;
+        }
+
+        var explicitUrl = $"{community}/tippabgabe?spieltagIndex={matchday.ToString(CultureInfo.InvariantCulture)}&tippsaisonId={Uri.EscapeDataString(seasonId)}";
+        var response = await _httpClient.GetAsync(explicitUrl);
+        if (!response.IsSuccessStatusCode)
+        {
+            _logger.LogError(
+                "Failed to fetch explicitly selected tippabgabe page for {Community}, season {SeasonId}, matchday {Matchday}. Status: {StatusCode}",
+                community,
+                seasonId,
+                matchday,
+                response.StatusCode);
+            return null;
+        }
+
+        var content = await response.Content.ReadAsStringAsync();
+        var document = await _browsingContext.OpenAsync(req => req.Content(content));
+        if (document.QuerySelector("#tippabgabeSpiele tbody") == null)
+        {
+            _logger.LogWarning(
+                "The explicitly selected tippabgabe page for {Community}, season {SeasonId}, matchday {Matchday} did not contain a match table",
+                community,
+                seasonId,
+                matchday);
+        }
+
+        return document;
+    }
+
+    private static string? ExtractTippsaisonIdFromPage(IDocument document)
+    {
+        foreach (var input in document.QuerySelectorAll("input"))
+        {
+            if (string.Equals(input.GetAttribute("name"), "tippsaisonId", StringComparison.OrdinalIgnoreCase))
+            {
+                var value = input.GetAttribute("value")?.Trim();
+                if (!string.IsNullOrWhiteSpace(value))
+                {
+                    return value;
+                }
+            }
+        }
+
+        foreach (var select in document.QuerySelectorAll("select"))
+        {
+            if (!string.Equals(select.GetAttribute("name"), "tippsaisonId", StringComparison.OrdinalIgnoreCase))
+            {
+                continue;
+            }
+
+            var selectedValue = (select as IHtmlSelectElement)?.Value?.Trim();
+            if (!string.IsNullOrWhiteSpace(selectedValue))
+            {
+                return selectedValue;
+            }
+        }
+
+        foreach (var element in document.QuerySelectorAll("a[href*='tippsaisonId='], form[action*='tippsaisonId=']"))
+        {
+            var target = element.GetAttribute("href") ?? element.GetAttribute("action");
+            if (TryGetQueryParameter(target, "tippsaisonId", out var seasonId))
+            {
+                return seasonId;
+            }
+        }
+
+        if (TryGetQueryParameter(document.Url, "tippsaisonId", out var redirectedSeasonId))
+        {
+            return redirectedSeasonId;
+        }
+
+        return null;
+    }
+
+    private static bool TryGetQueryParameter(string? target, string parameterName, out string value)
+    {
+        value = string.Empty;
+        if (string.IsNullOrWhiteSpace(target))
+        {
+            return false;
+        }
+
+        var queryStart = target.IndexOf('?');
+        if (queryStart < 0 || queryStart == target.Length - 1)
+        {
+            return false;
+        }
+
+        foreach (var pair in target[(queryStart + 1)..].Split('&', StringSplitOptions.RemoveEmptyEntries))
+        {
+            var parts = pair.Split('=', 2);
+            if (parts.Length != 2 ||
+                !string.Equals(Uri.UnescapeDataString(parts[0]), parameterName, StringComparison.OrdinalIgnoreCase))
+            {
+                continue;
+            }
+
+            value = Uri.UnescapeDataString(parts[1]).Trim();
+            return !string.IsNullOrWhiteSpace(value);
+        }
+
+        return false;
     }
 
     private static string? ExtractKicktippRoundName(IDocument document)

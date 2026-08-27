@@ -234,7 +234,7 @@ jobs:
           if [ -n "$LANGFUSE_PROMPT_LABEL" ]; then
             PROMPT_LABEL_FLAGS+=(--langfuse-prompt-label "$LANGFUSE_PROMPT_LABEL")
           fi
-          dotnet run --project src/Orchestrator --configuration Release -- verify "$MODEL" --community "$COMMUNITY" --community-context "$COMMUNITY_CONTEXT" --competition "$COMPETITION" --reasoning-effort "$REASONING_EFFORT" --max-output-tokens "$MAX_OUTPUT_TOKENS" --prompt-source "$PROMPT_SOURCE" --langfuse-prompt-name "$LANGFUSE_PROMPT_NAME" --langfuse-prompt-version "$LANGFUSE_PROMPT_VERSION" --check-outdated --agent --verbose "${PROMPT_LABEL_FLAGS[@]}"
+          dotnet run --project src/Orchestrator --configuration Release -- verify "$MODEL" --community "$COMMUNITY" --community-context "$COMMUNITY_CONTEXT" --competition "$COMPETITION" --reasoning-effort "$REASONING_EFFORT" --max-output-tokens "$MAX_OUTPUT_TOKENS" --prompt-source "$PROMPT_SOURCE" --langfuse-prompt-name "$LANGFUSE_PROMPT_NAME" --langfuse-prompt-version "$LANGFUSE_PROMPT_VERSION" --require-matches --check-outdated --agent --verbose "${PROMPT_LABEL_FLAGS[@]}"
         env:
           KICKTIPP_USERNAME: ${{ secrets.kicktipp_username }}
           KICKTIPP_PASSWORD: ${{ secrets.kicktipp_password }}

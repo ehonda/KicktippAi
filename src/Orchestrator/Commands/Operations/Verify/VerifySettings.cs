@@ -67,6 +67,11 @@ public class VerifySettings : CommandSettings
     [DefaultValue(false)]
     public bool InitMatchday { get; set; }
 
+    [CommandOption("--require-matches")]
+    [Description("Return an error when Kicktipp exposes no match table (required for post-write verification)")]
+    [DefaultValue(false)]
+    public bool RequireMatches { get; set; }
+
     [CommandOption("--check-outdated")]
     [Description("Check if predictions are outdated based on context document changes")]
     [DefaultValue(false)]

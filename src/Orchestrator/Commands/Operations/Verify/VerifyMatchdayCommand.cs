@@ -125,6 +125,12 @@ public class VerifyMatchdayCommand : AsyncCommand<VerifySettings>
 
         if (!placedPredictions.Any())
         {
+            if (settings.RequireMatches)
+            {
+                _console.MarkupLine("[red]No matches found on Kicktipp; post-write verification requires a populated match table[/]");
+                return true;
+            }
+
             _console.MarkupLine("[yellow]No matches found on Kicktipp[/]");
             return false;
         }

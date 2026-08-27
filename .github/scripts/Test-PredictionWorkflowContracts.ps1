@@ -955,6 +955,11 @@ Assert-HostileSummaryValueIsLiteral -Skip:$SkipHostileShellSimulation
 Assert-CommandIdentity $matchBase 'verify' 2 'base-matchday-predictions.yml'
 Assert-CommandIdentity $matchBase 'matchday' 1 'base-matchday-predictions.yml'
 Assert-True ([regex]::Matches($matchBase, '(?m)^\s*dotnet run .* -- verify\b.*--check-outdated').Count -eq 2) 'Both matchday verification commands must check outdated predictions.'
+Assert-True ([regex]::Matches($matchBase, '(?m)^\s*dotnet run .* -- verify\b.*--require-matches').Count -eq 1) 'Only final matchday verification must fail closed when Kicktipp exposes no match table.'
+$finalMatchVerificationIndex = $matchBase.IndexOf('- name: Final verification', [StringComparison]::Ordinal)
+$requireMatchesIndex = $matchBase.IndexOf('--require-matches', [StringComparison]::Ordinal)
+$successNotificationIndex = $matchBase.IndexOf('- name: Success notification', [StringComparison]::Ordinal)
+Assert-True ($finalMatchVerificationIndex -ge 0 -and $requireMatchesIndex -gt $finalMatchVerificationIndex -and $requireMatchesIndex -lt $successNotificationIndex) 'The fail-closed empty-table guard must belong to final matchday verification.'
 
 Assert-CommandIdentity $bonusBase 'verify-bonus' 2 'base-bonus-predictions.yml'
 Assert-CommandIdentity $bonusBase 'bonus' 1 'base-bonus-predictions.yml'

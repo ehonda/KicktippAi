@@ -217,6 +217,25 @@ public class VerifyMatchdayCommand_Comparison_Tests : VerifyMatchdayCommandTests
     }
 
     [Test]
+    public async Task Required_matches_missing_from_kicktipp_returns_error()
+    {
+        var ctx = CreateVerifyMatchdayCommandApp(
+            placedPredictions: new Dictionary<EHonda.KicktippAi.Core.Match, BetPrediction?>());
+
+        var (exitCode, output) = await RunCommandAsync(
+            ctx.App,
+            ctx.Console,
+            "verify-matchday",
+            "gpt-4o",
+            "-c",
+            "test-community",
+            "--require-matches");
+
+        await Assert.That(exitCode).IsEqualTo(1);
+        await Assert.That(output).Contains("post-write verification requires a populated match");
+    }
+
+    [Test]
     public async Task Verification_displays_community_info()
     {
         // Arrange
