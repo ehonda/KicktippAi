@@ -52,22 +52,57 @@ The accepted [execution strategy](execution-strategy.md) defines gated orchestra
 | [P0-20](tasks/p0-20-seed-and-development-validation.md) | Seed context and validate dev plus arena plumbing | P0-02 through P0-18, P0-22, local dev path, Luna/none arena P0-19 entrypoints |
 | [P0-21](tasks/p0-21-production-activation.md) | Validate production, submit opening predictions, and enable schedules | P0-06, P0-20, P0-24, P0-25, production P0-19 entrypoints |
 | [P0-22](tasks/p0-22-history-played-dates.md) | Reconstruct exact played dates for recent, home, and away history | P0-02, P0-04 |
-| [P0-23](tasks/p0-23-gpt-5-6-production-candidate-evidence.md) | Complete: publish cutoff-safe GPT-5.6 cost/quality evidence with Luna/`max` incomplete and post-hoc Sol/`xhigh` exploratory | P0-05, P0-12, P0-20 |
+| [P0-23](tasks/p0-23-gpt-5-6-production-candidate-evidence.md) | Complete: publish cutoff-safe GPT-5.6 cost/quality evidence with Luna/`max` incomplete; post-hoc Sol/`xhigh` and the later Sol/`max` extension remain explicitly exploratory | P0-05, P0-12, P0-20 |
 | [P0-24](tasks/p0-24-bonus-copy-post-compatibility.md) | Complete: exact bonus question and complete-option-set copy compatibility is implemented and integrated | P0-16, P0-17, P0-18 |
 | [P0-25](tasks/p0-25-roster-enrichment-and-team-total.md) | Complete: pinned enriched v2 arena rosters, deterministic team known-value subtotals, and one exact Luna/none replacement trace round are validated | P0-09, P0-20 |
 
 The implementation path through P0-20 and P0-23 through P0-25 is complete.
-ADR-0052 closes P0-06 and every schedule-free P0-19 repository row. All exact
-production and challenger callers are manual-only and have not been dispatched.
-The Owner confirmed their canonical Actions Kicktipp pairs provisioned, without
-claiming authentication or POST permission. P0-21 is now the active P0 closeout
-gate: it retains `schadensfresse` external setup, runtime readiness/permission,
-deadlines, enriched production roster publication, inspected manual runs and
-opening writes, the final schedule decision, and first scheduled observation.
+ADR-0052 closes P0-06 and every schedule-free P0-19 repository row. At the
+2026-08-27 live-validation checkpoint, the exact manual context, matchday, and
+bonus triads succeeded for `pes-squad`, the `relaxdays-tippt` production copy,
+the arena Sol/`xhigh` production copy, and the self-contained arena Sol/`high`
+Luna/`medium`, and Terra/`xhigh` challengers. The first `relaxdays-tippt` context attempt
+exposed a missing target-owned rules source; exact-head repair `eedf330` and
+green CI run `33049482431` preceded the successful retry. P0-21 remains the active P0
+closeout gate: the Luna/`none` context and matchday runs succeeded, but bonus
+run `33055144574` failed closed on stale immutable provenance at the zero-
+reprediction limit before a model call. That row requires a deliberate
+remediation decision and a new authorized bonus validation. Payload-safe
+inspection is complete for every successful row through the Luna/`none` match:
+65 real generations / `$0.5723559`, exact index-0 prompt/model/context
+identities, zero index `1+` or document contamination, and zero model calls on
+both compatible copy rows. The failed Luna bonus added no generation, cost, or
+prediction mutation.
+An authenticated 2026-08-27 11:41 CEST GET audit returned HTTP 200 for
+`schadensfresse` but found no 2026/27 marker, zero open match/bonus controls,
+and only historical rows/rules. It is an explicit NOT READY manual-only
+exception pending external setup and its complete readiness/context/prediction/
+inspection ladder. Exact schedule cadence/ownership, the activation
+ADR, deliberate schedule enablement, and first scheduled observation remain
+open.
 
 P0-19 is instantiated for every ADR-0052 deployable row. The development row
 remains a local CLI path; every production/copy/challenger entrypoint is
 explicit, manual-only, schedule-free, and handed to P0-21 for live validation.
+P0-21's manual-only production outer matchday lane is integrated at exact
+commit `992af5a63c788c0cc066dce92dd1319a91e5083d` after independent exact-SHA
+approval with no findings. Its contract/actionlint/Release/`1142/1142`
+Orchestrator validation passed, and exact-head GitHub run
+[`33058783532`](https://github.com/ehonda/KicktippAi/actions/runs/33058783532)
+succeeded including Pages. The lane has strict context-before-matchday ordering
+and shared non-cancelling concurrency, but no bonus, `schadensfresse`, or cron;
+its integrated writer/reviewer worktrees are cleaned. This preparation does not
+close the remaining P0-21 owner gates.
+
+The read-only activation audit recommends not dispatching the outer lane again:
+completed leaf validation plus static/review/CI evidence is sufficient, while a
+new run could consume index `1` or `2` repredictions. Its proposed, unaccepted
+cron is `7 2,9 * * *`, with fixed UTC times mapped to 04:07/11:07 CEST and
+03:07/10:07 CET. The 51m04s observed serialized duration supports a 90-minute
+monitoring/escalation envelope—not a timeout—and a three-hour later-pass
+completion margin. The minimal Accepted ADR/test/workflow/docs activation
+patch, operators/rollback, Luna/`none` forced recovery/schedule treatment, and
+first observation remain Owner gates.
 
 ## Handoffs
 

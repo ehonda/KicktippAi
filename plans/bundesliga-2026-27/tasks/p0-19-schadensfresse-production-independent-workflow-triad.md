@@ -32,13 +32,32 @@ matchday and bonus callers use that exact identity and the existing context
 caller, expose only `workflow_dispatch`, and contain no schedule. The Owner
 confirmed the exact `SCHADENSFRESSE_KICKTIPP_USERNAME` /
 `SCHADENSFRESSE_KICKTIPP_PASSWORD` pair is
-provisioned; current-season setup, authentication/readiness, and POST evidence
+provisioned; authenticated GET access now passes, while current-season
+setup/readiness and POST evidence
 remain P0-21.
 
 The context caller is prepared with ADR-0052's false-by-default launch-roster
 opt-in. Once administrator setup lands, one dispatch downloads the exact
 audited artifact, runs the pinned P0-25 enrichment overlay, and stops before
 normal profile collection on any failure. It remains unrun in this lane.
+
+## Read-only readiness audit — 2026-08-27
+
+At 11:41 CEST (09:41 UTC), the matching sibling profile authenticated and an
+HTTP GET returned 200. The community still exposed no Bundesliga 2026/27
+marker, zero open match controls, and only the closed 30 May PSG–Arsenal match.
+Bonus exposed zero open questions and eight closed 2025/26 rows. Its rules page
+still identified 2025/26 with a zero-minute lead rule. This is NOT READY
+evidence; the historical rule is not a current-season deadline. Do not dispatch
+this row or include it in a schedule.
+
+The exact next ladder is: wait for administrator setup; repeat the authenticated
+GET-only audit; require the 2026/27 marker, exactly nine open current match
+controls, current open bonus questions/options, and current rules/deadlines;
+then run and inspect the pinned-overlay context workflow; only if green, run
+independent match then bonus validation and complete payload-safe
+Kicktipp/Firestore/Langfuse inspection. Only that fully green evidence may
+return the row to a later Accepted schedule decision.
 
 ## Repository-preparation boundary
 
@@ -127,11 +146,13 @@ gate, or treat successful authentication as season readiness.
 - [ ] The external `schadensfresse` community administrator completes the
       pending Bundesliga 2026/27 setup request. P0-21 then re-runs the supported
       read-only profile and requires exactly nine current prediction inputs;
-      the agent does not administer the community.
-- [ ] P0-21 confirms names-only Actions presence for
+      the 2026-08-27 11:41 CEST audit remained NOT READY, and the agent does not
+      administer the community.
+- [x] P0-21 confirms names-only Actions presence for
       `SCHADENSFRESSE_KICKTIPP_USERNAME` and
       `SCHADENSFRESSE_KICKTIPP_PASSWORD`, then authenticates without displaying
-      secret values.
+      secret values. Owner confirmation establishes presence; the 2026-08-27
+      HTTP-200 GET establishes authentication only.
 - [ ] P0-21 obtains community-administrator confirmation of Bundesliga 2026/27
       POST permission. The audit made no POST request, and this task authorizes
       none.
@@ -140,9 +161,10 @@ gate, or treat successful authentication as season readiness.
 - [ ] Hand the reviewed, green, manual-only triad to P0-21 without dispatching it.
 - [ ] P0-21 manually collects and inspects `schadensfresse` context, then
       records the exact successful context workflow run ID and completion before
-      dispatching and verifying match and required bonus predictions. A later
-      Accepted outer workflow must use machine-enforced `needs` ordering before
-      any schedule is enabled.
+      dispatching and verifying match and required bonus predictions. The
+      integrated manual-only outer workflow intentionally excludes this row;
+      adding it requires a later Accepted topology/schedule decision with
+      machine-enforced `needs` ordering.
 - [ ] P0-21 verifies exact Kicktipp, Firestore, hosted-prompt, model, context,
       telemetry, usage/cost, and error evidence for the independent-generation
       path.

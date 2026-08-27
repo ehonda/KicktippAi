@@ -1,6 +1,6 @@
 # P0-19 — Add the arena production-copy workflow triad
 
-- Status: Repository implementation complete — awaiting independent exact-SHA review/integration; P0-21 owns all live gates
+- Status: Complete — reviewed and integrated; the first manual copy triad and payload-safe copy audit are green while schedules remain P0-21
 - Priority: P0
 - Matrix row: `arena-production-copy`
 - Depends on: [P0-06](p0-06-model-ledger-and-cost-baseline.md), [P0-17](p0-17-community-scope.md), [P0-18](p0-18-base-workflow-support.md), [P0-24](p0-24-bonus-copy-post-compatibility.md), and the separately instantiated [`pes-production-reference` P0-19 task](p0-19-pes-squad-production-reference-workflow-triad.md) with reviewed, green callers
@@ -74,12 +74,14 @@ without establishing runtime readiness or POST permission.
 
 ## Activation boundary
 
-- [ ] P0-21 confirms names-only Actions presence for the exact owner-selected
+- [x] P0-21 confirms names-only Actions presence for the exact owner-selected
       credential names without exposing values, authenticates that participant,
       and verifies Bundesliga 2026/27 community readiness.
-- [ ] P0-21 confirms POST permission and records exact Kicktipp match and bonus
-      deadlines before the first manual dispatch. This task authorizes no POST.
-- [ ] P0-21 obtains and inspects the first production reference/copy evidence,
+- [x] Successful match/bonus final verification establishes posting behavior;
+      the timestamped community audit records zero minutes lead time and first
+      match/bonus cutoff 2026-08-28 20:30 CEST / 18:30 UTC, subject to a fresh
+      read after rescheduling or an administrator rule change.
+- [x] P0-21 obtains and inspects the first production reference/copy evidence,
       retains all live-write gates, and alone decides schedule activation and
       rollback.
 
@@ -93,7 +95,7 @@ without establishing runtime readiness or POST permission.
 - [x] Add telemetry coverage for posting-target environment `production`, payload-safe copy source and stored prediction identity, compatible no-model behavior, and independent fallback effective context `ehonda-ai-arena`.
 - [x] Verify the new callers contain no Bundesliga 2025/26 identity, WM26 identity, transfer document, Luna participant credential, unresolved placeholder, secret value, or schedule, and verify historical callers remain retired.
 - [x] Run the repository prediction-workflow contract, focused copy/telemetry tests, affected full suites, link checks, secret scans, and `git diff --check`.
-- [ ] Obtain independent exact-SHA review before integration.
+- [x] Obtain independent exact-SHA review before integration.
 
 ## Current state
 
@@ -101,8 +103,17 @@ ADR-0052 resolved the historical blockers recorded by the dated
 [production prerequisite audit](../../../docs/onboarding-bundesliga-2026-27/production-prerequisite-audit-2026-08-25.md)
 and [activation preregistration](../../../docs/onboarding-bundesliga-2026-27/production-activation-preregistration.md).
 The exact participant, credential names, identity, and three manual-only callers
-are prepared and covered. No live production copy-post or independent fallback
-has run; P0-21 owns that evidence after every pre-dispatch gate passes.
+are prepared and covered. P0-21 context run
+[`33050848544`](https://github.com/ehonda/KicktippAi/actions/runs/33050848544),
+match copy run
+[`33051066657`](https://github.com/ehonda/KicktippAi/actions/runs/33051066657),
+and bonus copy run
+[`33051557046`](https://github.com/ehonda/KicktippAi/actions/runs/33051557046)
+all completed successfully with final verification. Payload-safe evidence
+proves the compatible path copied 9/9 matches and 5/5 bonus answers, generated
+zero calls, used no independent fallback, and preserved enriched roster head
+`591adbc3cbc99ee93591f074ad218703c9badb2af4e267142898145825b77ea2`;
+no schedule is active.
 
 ## Complete when
 

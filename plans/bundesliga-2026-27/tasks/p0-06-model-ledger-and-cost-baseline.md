@@ -84,13 +84,16 @@ P0-06 had already settled independently.
 - Focused tests: Core identity 4/4, Orchestrator routing/provider 49/49, OpenAI cost/telemetry/runtime identity 50/50, Firebase exact identity 8/8, matchday/bonus/verify commands 112/112, and reconstruction/export/cost exact selectors 21/21.
 - Full affected suites: Core 142/142, OpenAI integration 218/218, Firebase adapter 261/261, Orchestrator 916/916, Integration 3/3. One timing-sensitive Langfuse retry test failed during an earlier contended run (three requests observed instead of two), then passed 1/1 in isolation and in the clean 916/916 rerun.
 
-## P0-23 comparative-evidence handoff — 2026-08-26
+## Historical P0-23 comparative-evidence handoff — 2026-08-26
+
+This section preserves the checkpoint before the Owner selection recorded in
+the launch ledger above.
 
 - [P0-23](p0-23-gpt-5-6-production-candidate-evidence.md) is complete. Its
   [quality-results report](../../../docs/experiments/gpt-5-6-bundesliga-2025-26-production-candidate-quality-results.md)
   and
   [cost-results report](../../../docs/experiments/gpt-5-6-bundesliga-2025-26-production-candidate-cost-results.md)
-  provide the evidence for the still-unchecked Owner selection item above.
+  provided the evidence for the now-complete Owner selection item above.
 - Eight original configurations completed the frozen paired quality sample.
   Luna/`max` remains incomplete after two transient capacity failures and the
   Owner's explicit p1-stop override; it has no imputed score or rank.
@@ -110,8 +113,8 @@ P0-06 had already settled independently.
   `$4.204649100000` and Luna/`medium` at `$0.105573060000` /
   `$0.170089930000`.
 - No production model, cap, fallback policy, participant topology, community
-  prediction, workflow, or schedule changed. The Owner selection and new
-  Accepted ADR remain the sole active P0-06 decision gate.
+  prediction, workflow, or schedule changed in the P0-23 evidence lane. The
+  later Owner selection and ADR-0052 closed that P0-06 decision gate.
 
 ## Sol/`max` cost-only follow-up — 2026-08-26
 
@@ -158,9 +161,11 @@ P0-06 had already settled independently.
   gate requires a candidate and therefore included one authoritative-row
   `$0.016031200000` sentinel. That sentinel is conservative one-more-call
   headroom, not spent, in flight, or reserved.
-- Sol/`max` now has reproducible season-cost evidence, but no quality result and
-  no recommendation. The unchecked Owner production-model and arena-participant
-  decision remains unchanged.
+- At this checkpoint Sol/`max` had reproducible season-cost evidence but no
+  quality result or recommendation. The later separately authorized post-hoc
+  quality extension is recorded in the launch-ledger section above and the
+  canonical quality-results report; it did not reopen the completed Owner
+  production-model decision.
 
 ## Complete when
 

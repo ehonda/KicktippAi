@@ -28,24 +28,82 @@ pair provisioned:
   `EHONDA_AI_ARENA_GPT_5_6_LUNA_NONE_KICKTIPP_PASSWORD` pair.
 
 The [community ledger](community-onboarding.md) records the same exact names.
-This Owner confirmation replaces the generic secret-presence uncertainty for
-those exact names. It does not claim successful API enumeration,
-authentication, current-season readiness, POST permission, or a workflow run.
+This Owner confirmation replaced the generic secret-presence uncertainty. The
+later exact workflow evidence below establishes successful use for the rows
+already exercised; it still does not enumerate secret metadata or expose a
+value.
+
+The later manual-only production-live lane is independently approved, pushed,
+and integrated at exact commit
+`992af5a63c788c0cc066dce92dd1319a91e5083d`. Its workflow contract and
+actionlint passed with only pre-existing actionlint warnings; Release build had
+zero errors; Orchestrator passed `1142/1142`; and exact-head GitHub run
+[`33058783532`](https://github.com/ehonda/KicktippAi/actions/runs/33058783532)
+succeeded including Pages. The integrated writer/reviewer worktrees were
+cleaned. The outer caller remains manual-only and has no bonus,
+`schadensfresse`, or cron path, so this repository evidence does not change any
+remaining activation gate.
 
 Current runtime conclusions are:
 
 | Posting target/participant | Current evidence | Remaining P0-21 gate |
 | --- | --- | --- |
-| `pes-squad` | Prior authentication/read readiness passed; exact secrets Owner-confirmed present | Reauthenticate, POST permission, deadlines, enriched roster publication, manual context/prediction/bonus evidence |
-| `schadensfresse` | Exact secrets Owner-confirmed present; prior authentication passed | External season setup, exact-nine read gate, POST permission, deadlines, roster/manual evidence |
-| `relaxdays-tippt` | Exact secrets Owner-confirmed present; schedule-free copy callers prepared | Authentication/readiness, default-rule compatibility confirmation, POST permission, deadlines, roster/manual copy evidence |
-| Arena Sol/`xhigh` copy | Exact participant and secrets Owner-confirmed; callers prepared | Authentication/readiness, POST permission, deadlines, roster/manual production-copy evidence |
-| Arena Sol/`high`, Luna/`medium`, Terra/`xhigh` | Exact participants and secrets Owner-confirmed; callers prepared | Authentication/readiness, POST permission, deadlines, roster/manual self-contained evidence |
-| Arena Luna/`none` | Existing validation ladder passed and secrets remain provisioned | Future challenger dispatch remains manual; prior evidence does not activate a schedule |
+| `pes-squad` | Context `33046582867`, Sol/`xhigh` match `33046770442`, and bonus `33047217909` succeeded with final verification and payload-safe audit | Activation ownership |
+| `schadensfresse` | Exact secrets Owner-confirmed present; authenticated HTTP-200 GET audit at 2026-08-27 11:41 CEST found no 2026/27 marker, 0 open matches, 0 open bonus questions, and only closed historical rows | NOT READY: external season setup, current marker/exact-nine/open-bonus/current-deadline gates, POST permission, context, independent match/bonus, and payload-safe evidence |
+| `relaxdays-tippt` | Context retry `33049949393`, Sol/`xhigh` match copy `33050188533`, and bonus copy `33050549422` succeeded after exact rules-source repair `eedf330`; payload audit proves zero generation/fallback | Activation ownership |
+| Arena Sol/`xhigh` copy | Context `33050848544`, match copy `33051066657`, and bonus copy `33051557046` succeeded; payload audit proves zero generation/fallback and shared-roster preservation | Activation ownership |
+| Arena Sol/`high` | Context `33051863137`, match `33052087407`, and bonus `33052537217` succeeded with payload-safe audit | Activation ownership |
+| Arena Luna/`medium` | Context `33052882246`, match `33053095243`, and bonus `33053423396` succeeded with payload-safe audit | Activation ownership |
+| Arena Terra/`xhigh` | Context `33053664914`, match `33053888656`, and bonus `33054314209` succeeded with payload-safe audit | Activation ownership; no schedule is active |
+| Arena Luna/`none` | Context `33054637395` and match `33054826152` succeeded and are payload-audited; bonus `33055144574` failed closed on stale immutable provenance at `max_repredictions=0`, with zero model call/cost/write and final verification skipped | Decide remediation, authorize and complete a new bonus validation, then audit that recovery; no schedule is active |
+
+The completed-row audit found four real generated configurations through
+Terra/`xhigh`, comprising eight match/bonus trace families and 56 successful
+generations (`36` match / `20` bonus) at `$0.5683818`. Nine Luna/`none` match
+generations at `$0.0039741` bring the total to 65 / `$0.5723559`. All are exact
+index `0` with no index `1+` or errors, exact selected
+model/reasoning/cap-`10000`, hosted match v3 or bonus v1, roster snapshot
+`591adbc3cbc99ee93591f074ad218703c9badb2af4e267142898145825b77ea2`,
+and Club Elo snapshot
+`1f63ba33cb4f46bf37d21000743ca1e86b035a7ffe5792e64dddfea2336a653e`;
+no WM26, Bundesliga 2025/26, or transfer-document names appear. Terra used two
+successful Standard fallbacks among 14 calls; all others used Flex. Each
+compatible copy path copied 9/9 matches and 5/5 bonus answers with zero
+generation or independent fallback. Failed Luna bonus trace
+`0cf1515e96813b42b4625f61d5350d73` has one root span and zero
+generation/usage/cost; its pre/post inventory is byte-identical at SHA-256
+`02ce5533a1fbaec39555f7b4f55fe399d541ee6b17fa9612383a4b26ac86f4d0`.
+
+The ready-community deadline uncertainty is also closed for this launch
+checkpoint. An authenticated GET-only audit at 2026-08-27 10:19:52 CEST
+(08:19:52 UTC) found identical zero-minute lead-time rules in `pes-squad`,
+`relaxdays-tippt`, and `ehonda-ai-arena`; all nine match controls and all five
+bonus questions / seven selection controls were open. Their first common cutoff
+is 2026-08-28 20:30 CEST / 18:30 UTC. The arena result is community-scoped and
+was read with the Luna/`none` profile. Recheck after any fixture rescheduling or
+administrator rule change. `schadensfresse` still needs its own audit after
+season setup.
+
+The latest `schadensfresse` audit occurred at 2026-08-27 11:41 CEST
+(09:41 UTC). Authentication succeeded and its GET returned HTTP 200, but the
+page contained no Bundesliga 2026/27 marker and zero open match controls; the
+only match was closed 30 May PSG–Arsenal. Bonus exposed zero open questions and
+eight closed 2025/26 rows. `/spielregeln` still identified 2025/26 and the
+historical zero-minute lead rule. Therefore the community is NOT READY. The
+zero-minute value is not a current-season deadline, and the row remains absent
+from every schedule.
+
+After external setup, repeat the same authenticated GET-only audit. Require the
+Bundesliga 2026/27 marker, exactly nine open match controls, current open bonus
+questions/options, and current rules/deadlines. Then and only then run the
+pinned-overlay context workflow; inspect its publication; run independent match
+then bonus validation; and inspect Kicktipp, Firestore, hosted prompt, model,
+context, usage/cost, service-tier, and error evidence. Schedule eligibility is
+a later Accepted decision after that entire ladder is green.
 
 The dated sections below remain the read-only evidence as observed on
-2026-08-25/26. Where they call the model, participants, names, or callers
-unresolved, this addendum is authoritative.
+2026-08-25/26. Where they call the model, participants, names, callers, or later
+runtime state unresolved, this addendum is authoritative.
 
 ## Result
 

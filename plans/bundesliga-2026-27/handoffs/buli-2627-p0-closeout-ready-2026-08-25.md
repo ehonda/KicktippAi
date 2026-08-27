@@ -29,8 +29,9 @@ activation gates. P0-06 and every ADR-0052 P0-19 repository row are complete.
   `production`, `staging`, and automatic `latest` each resolve version 3;
   bonus remains version 1. Historical P0-23 runs remain immutable on v2.
 - All primary/copy/challenger workflow triads are prepared as independent
-  `workflow_dispatch` entrypoints with no schedules. No workflow was dispatched
-  and no prediction was posted during preparation.
+  `workflow_dispatch` entrypoints with no schedules. The repository-preparation
+  lane itself dispatched nothing; P0-21 has since exercised the first six
+  ordered live rows recorded below.
 - The reusable context workflow now has a false-by-default pinned launch-roster
   input. `pes-squad`, `relaxdays-tippt`, and the pending `schadensfresse`
   caller opt in: their context job downloads the exact audited public artifact,
@@ -41,18 +42,47 @@ activation gates. P0-06 and every ADR-0052 P0-19 repository row are complete.
 - The Owner confirmed every exact canonical Kicktipp Actions username/password
   pair in the community ledger provisioned on 2026-08-27. This is not API
   enumeration, authentication, current-season readiness, or POST evidence.
-- Resume only with P0-21: remediate `schadensfresse` externally, validate every
-  participant/community manually, dispatch and inspect the prepared launch-
-  overlay/profile context path where applicable, record
-  deadlines and permissions, perform opening writes, then return to the final
-  Owner schedule gate and observe the first deliberately enabled sequence.
+- Resume only with P0-21: repair and revalidate the failed Luna/`none` bonus
+  rung, remediate `schadensfresse` externally and audit its deadlines, record operating
+  ownership, then return to the final Owner schedule gate and observe the first
+  deliberately enabled sequence.
 - After this repository change is independently reviewed, integrated, pushed,
   and green, the Owner authorizes manual context-then-prediction dispatch and
   initial writes for `pes-squad`, `relaxdays-tippt`, and every selected arena
   participant. Run primaries before dependent secondaries and stop on failure.
   Keep `schadensfresse` unrun/manual-only. Successful evidence authorizes a
-  later root-owned schedule ADR/workflow lane for ready rows; this lane remains
-  schedule-free.
+  later root-owned schedule ADR/trigger lane for ready rows; no schedule is
+  active.
+- Manual-only production-live preparation is integrated at exact commit
+  `992af5a63c788c0cc066dce92dd1319a91e5083d`. The outer matchday caller
+  serializes context immediately before each ready matchday row, contains no
+  bonus or `schadensfresse` job and no cron, and shares a non-cancelling lane
+  with the leaves. Independent exact-SHA review approved it with no findings;
+  the workflow contract and actionlint passed with only pre-existing actionlint
+  warnings, Release build completed with zero errors, and Orchestrator passed
+  `1142/1142`. It was pushed/integrated to `main`; exact-head run
+  [`33058783532`](https://github.com/ehonda/KicktippAi/actions/runs/33058783532)
+  succeeded including Pages, and both integrated writer/reviewer worktrees were
+  cleaned. This proves preparation/CI, not a dispatch or schedule outcome.
+- The read-only activation audit recommends no manual outer-lane dispatch:
+  leaf live evidence plus static/review/CI coverage suffices, while another run
+  could consume index `1` or `2` repredictions. Its unaccepted schedule proposal
+  is `7 2,9 * * *` (02:07/09:07 UTC; 04:07/11:07 CEST;
+  03:07/10:07 CET), offset from the top of the hour because GitHub documents
+  possible high-load schedule delay. The observed serialized leaf ladder took
+  51m04s; use 90 minutes as monitoring/escalation—not a timeout—and preserve a
+  three-hour later-pass completion margin. Non-cancelling concurrency protects
+  the running run but retains only one pending run, so no manual operation may
+  overlap. A minimal Accepted ADR/workflow-contract/docs schedule patch remains
+  an Owner gate.
+- An authenticated GET-only `schadensfresse` audit at 2026-08-27 11:41 CEST
+  (09:41 UTC) returned HTTP 200 but found no 2026/27 marker, zero open matches,
+  only closed 30 May PSG–Arsenal, zero open bonus questions, eight closed
+  2025/26 rows, and a still-2025/26 zero-minute rules page. It is NOT READY and
+  remains absent from every schedule. After administrator setup, require the
+  current marker, exactly nine open matches, current open bonus definitions,
+  and current rules/deadlines before context overlay/profile, independent
+  match, independent bonus, and payload-safe inspection in that order.
 - The first authorized `relaxdays-tippt` context attempt
   ([Actions run `33047564359`](https://github.com/ehonda/KicktippAi/actions/runs/33047564359))
   proved authentication, current-season/match access, and successful pinned
@@ -60,9 +90,80 @@ activation gates. P0-06 and every ADR-0052 P0-19 repository row are complete.
   because `community-rules/relaxdays-tippt.md` was not tracked. The bounded
   repository repair adds the exact target document with content identical to
   `pes-squad.md` plus deterministic coverage for every current Bundesliga
-  production community. The failed run still requires a later authorized retry
-  after review, integration, push, and green CI; no prediction or schedule
-  authority is inferred.
+  production community. Exact repair commit
+  `eedf33052591beb5bbdc51c9e0ebe9869d5ab64d` passed exact-head Build and Test
+  run `33049482431`; the authorized context retry and both copy-prediction
+  callers then succeeded. The original run remains failure evidence and no
+  schedule authority is inferred.
+
+### Ordered manual-live checkpoint — 2026-08-27
+
+Every prediction run below used `force_prediction=false`,
+`max_repredictions=0`, and ended with a successful final verification:
+
+| Row | Context | Matchday | Bonus |
+| --- | --- | --- | --- |
+| `pes-production-reference` | [`33046582867`](https://github.com/ehonda/KicktippAi/actions/runs/33046582867) | [`33046770442`](https://github.com/ehonda/KicktippAi/actions/runs/33046770442) | [`33047217909`](https://github.com/ehonda/KicktippAi/actions/runs/33047217909) |
+| `relaxdays-production-copy` | [`33049949393`](https://github.com/ehonda/KicktippAi/actions/runs/33049949393) | [`33050188533`](https://github.com/ehonda/KicktippAi/actions/runs/33050188533) | [`33050549422`](https://github.com/ehonda/KicktippAi/actions/runs/33050549422) |
+| `arena-production-copy` | [`33050848544`](https://github.com/ehonda/KicktippAi/actions/runs/33050848544) | [`33051066657`](https://github.com/ehonda/KicktippAi/actions/runs/33051066657) | [`33051557046`](https://github.com/ehonda/KicktippAi/actions/runs/33051557046) |
+| `arena-challenger-sol-high` | [`33051863137`](https://github.com/ehonda/KicktippAi/actions/runs/33051863137) | [`33052087407`](https://github.com/ehonda/KicktippAi/actions/runs/33052087407) | [`33052537217`](https://github.com/ehonda/KicktippAi/actions/runs/33052537217) |
+| `arena-challenger-luna-medium` | [`33052882246`](https://github.com/ehonda/KicktippAi/actions/runs/33052882246) | [`33053095243`](https://github.com/ehonda/KicktippAi/actions/runs/33053095243) | [`33053423396`](https://github.com/ehonda/KicktippAi/actions/runs/33053423396) |
+| `arena-challenger-terra-xhigh` | [`33053664914`](https://github.com/ehonda/KicktippAi/actions/runs/33053664914) | [`33053888656`](https://github.com/ehonda/KicktippAi/actions/runs/33053888656) | [`33054314209`](https://github.com/ehonda/KicktippAi/actions/runs/33054314209) |
+
+The final Luna/`none` row stopped partial: context
+[`33054637395`](https://github.com/ehonda/KicktippAi/actions/runs/33054637395)
+is green on exact `eedf330`, matchday
+[`33054826152`](https://github.com/ehonda/KicktippAi/actions/runs/33054826152)
+is also green with final verification, and bonus
+[`33055144574`](https://github.com/ehonda/KicktippAi/actions/runs/33055144574)
+failed. The bonus caller authenticated and found five open questions, then
+stopped on the first question because its stored Bundesliga bonus prediction
+lacked current immutable provenance and could not be reused with
+`force_prediction=false` / `max_repredictions=0`. No model call is evidenced;
+final verification was skipped. The ordered ladder stopped here. Do not retry
+or treat the triad as green before a deliberate remediation decision.
+
+Across four real generated configurations through Terra/`xhigh`, the
+completed-row payload audit found eight match/bonus trace families containing
+exactly 56 generations (`36` match / `20` bonus), all index `0`, none at index
+`1+`, no errors, and `$0.5683818` actual cost. Luna/`none` match trace
+`45fc73cb82fc28c0366a6476a8127e4f` adds nine clean v3/index-0 generations at
+`$0.0039741`, so the current successful P0-21 total is 65 generations and
+`$0.5723559`. Every generated observation has its exact selected
+model/reasoning/cap-`10000` identity and exact hosted prompt. The audited
+document sets retain roster snapshot
+`591adbc3cbc99ee93591f074ad218703c9badb2af4e267142898145825b77ea2`
+and Club Elo snapshot
+`1f63ba33cb4f46bf37d21000743ca1e86b035a7ffe5792e64dddfea2336a653e`,
+with no WM26, Bundesliga 2025/26, or transfer-document names. Terra/`xhigh`
+used two successful Standard fallbacks among its 14 calls; every other call
+used Flex.
+
+Both compatible copy rows generated zero calls and copied 9/9 matches plus 5/5
+bonus answers without independent fallback. Failed Luna bonus trace
+`0cf1515e96813b42b4625f61d5350d73` has one root span and zero generations,
+usage, or cost. Its pre/post prediction inventory is byte-identical at SHA-256
+`02ce5533a1fbaec39555f7b4f55fe399d541ee6b17fa9612383a4b26ac86f4d0`;
+the five old P0-25 v1/index-0 bonus records are unchanged and no index `1+`
+exists. The audited exact recovery is a forced index-0 replacement, but fresh
+Owner approval is pending and no retry is claimed.
+
+An authenticated GET-only audit at 2026-08-27 10:19:52 CEST found identical
+zero-minute lead-time rules in `pes-squad`, `relaxdays-tippt`, and
+`ehonda-ai-arena`; all nine match controls and all five bonus questions / seven
+selection controls were open. Their first common cutoff is 2026-08-28 20:30
+CEST / 18:30 UTC. The arena result is community-scoped and was read through the
+Luna/`none` profile. Recheck after any fixture rescheduling or administrator
+rule change. `schadensfresse` is not covered until its season setup completes.
+
+This closes the manual workflow/authentication/posting and payload-safe
+inspection rungs for those exact completed rows, including proof of zero extra
+generations on the compatible copy paths. Arena Luna/`none` stopped the
+serialized ladder at its failed bonus rung and requires a deliberate
+remediation/revalidation decision. `schadensfresse` remains unrun, NOT READY,
+and manual-only pending its administrator's season setup and full ladder. Exact cadence,
+operator/monitor/rollback ownership, the activation ADR, schedule enablement,
+and first scheduled observation remain unresolved Owner gates.
 
 This addendum supersedes later stale statements in this dated handoff that call
 the Owner selection, production callers, challenger rows, prompt v3, or secret
@@ -94,8 +195,9 @@ provisioning unresolved.
   `git diff --check` passed.
 - No workflow dispatch, model call, Kicktipp post, prediction write, schedule,
   bonus-prompt mutation, or roster publication was performed by this lane.
-  Independent exact-SHA review and integration remain the orchestrator's next
-  repository gates.
+  Its independent exact-SHA review, integration as `c9dd22e` plus verifier
+  repair `e095276`, explicit push, and exact-head CI run `33046305604` are now
+  complete. Later P0-21 live work is recorded separately above.
 
 ## P0-23 completion addendum — 2026-08-26
 
@@ -121,6 +223,26 @@ provisioning unresolved.
   Owner stop or Sol/xhigh addition had been planned originally. Do not perform
   another P0-23 dataset sync, model call, or experiment mutation without a new
   Owner-authorized task and fresh budget gate.
+
+## Post-closeout Sol/`max` evidence addendum — 2026-08-27
+
+- Under a separate Owner-authorized post-hoc extension, Sol/`max` completed the
+  exact existing `10 × 20` paired sample: `200/200`, `552` total points,
+  `27.6` average, and `$3.449498200000` observed run cost.
+- Sol/`xhigh` remained first at `27.8`; xhigh-minus-max was `+0.2` with 95%
+  bootstrap CI `[-1.2, 1.6]` and Holm-adjusted `p = 0.8918`. The extension is
+  exploratory arena evidence only because it followed both prior scores and the
+  production decision; it corroborates rather than reopens the Owner's
+  Sol/`xhigh` selection.
+- The authoritative Sol/`max` 493-call season estimate is
+  `$7.903381600000`. Cumulative experiment spend after the extension is
+  `$8.527485270000` observed and `$8.643116470000` bounded under the unchanged
+  USD 30 ceiling.
+- Exact lane commit `f7dd2aee6c35fec26a5f09df0f1a68d82495f01b` and the
+  [quality-results](../../../docs/experiments/gpt-5-6-bundesliga-2025-26-production-candidate-quality-results.md)
+  plus [cost-results](../../../docs/experiments/gpt-5-6-bundesliga-2025-26-production-candidate-cost-results.md)
+  reports retain the immutable provenance. Do not rerun this extension without
+  a new explicit authorization and fresh gate.
 
 ## Historical durable state at handoff creation
 
@@ -282,8 +404,10 @@ historical pool/manifest provenance remain execution-date fail-closed gates.
   task and fresh cumulative gate.
 - Do not rerun the completed Luna cost row; it is reusable evidence and is not
   production selection.
-- Do not make a production POST, dispatch a production workflow, or add/enable
-  a production schedule before the applicable P0-21 gates pass.
+- Continue production dispatches only inside the Owner-authorized P0-21 ordered
+  ladder, stopping the affected chain on failure. Do not add or enable a
+  production schedule before the remaining Luna recovery and activation gates
+  pass and a new Accepted activation ADR records the exact decision.
 - P0-25's authorization for exactly one arena-only Luna/none replacement round
   is consumed. Do not repeat that publish/override ladder or infer authority for
   a production-community prediction, bonus round, schedule, or P0-23 quality
@@ -314,10 +438,13 @@ historical pool/manifest provenance remain execution-date fail-closed gates.
 6. After integration, remove the helper-created worktree, prune stale metadata,
    and verify that no temporary worktrees remain.
 
-## First resume checkpoint
+## Current resume checkpoint
 
-Report the exact main/origin SHA and CI state, clean worktree inventory,
-P0-23 publication/integration state, the pending P0-06 Owner-selection state,
-the completed P0-25 evidence state, and bounded lane assignment. Do not assign
-a new P0-23 or P0-25 live lane, and do not perform another P0-23 external or
-model action while resuming the P0-06 decision gate.
+Report exact main/origin SHA and CI state, worktree inventory, the ordered
+manual-run table and payload-safe audit above, the failed Luna/`none` recovery
+rung, the integrated manual-only outer-lane commit/run, the external
+`schadensfresse` state, the unaccepted `7 2,9 * * *` recommendation, and the
+still-unresolved operator/schedule inputs.
+Do not assign a new P0-23 or P0-25 live lane and do not perform another P0-23
+external or model action. Resume P0-21 from the first incomplete serialized
+arena row; do not repeat already green rows without new Owner authorization.

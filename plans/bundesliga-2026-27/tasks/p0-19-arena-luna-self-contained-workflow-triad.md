@@ -49,3 +49,27 @@ ADR-0052 additionally admits this exact Luna/`none` / cap-`10000` row as a
 cheap arena challenger. The Owner confirmed its existing Actions pair remains
 provisioned. Future dispatch and any schedule remain P0-21; the prior plumbing
 ladder does not silently activate it.
+
+The ordered P0-21 challenger cycle stopped partial on exact head
+`eedf33052591beb5bbdc51c9e0ebe9869d5ab64d`: context
+[`33054637395`](https://github.com/ehonda/KicktippAi/actions/runs/33054637395)
+succeeded, matchday
+[`33054826152`](https://github.com/ehonda/KicktippAi/actions/runs/33054826152)
+also succeeded with final verification, and bonus
+[`33055144574`](https://github.com/ehonda/KicktippAi/actions/runs/33055144574)
+failed closed on the first question: the stored Bundesliga bonus prediction
+lacked current immutable provenance and could not be reused with
+`force_prediction=false` / `max_repredictions=0`. The run evidenced no model
+call and skipped final verification. This preserves the strict stop-on-failure
+contract. Do not retry or infer a complete manual challenger triad before a
+deliberate remediation decision; every schedule gate remains.
+
+Payload-safe inspection proves match trace
+`45fc73cb82fc28c0366a6476a8127e4f` contains exactly nine v3/index-0 Luna/`none`
+generations at `$0.0039741` with clean exact snapshots/documents. Failed bonus
+trace `0cf1515e96813b42b4625f61d5350d73` contains one root span and zero
+generations, usage, or cost. Pre/post prediction inventory is byte-identical at
+SHA-256 `02ce5533a1fbaec39555f7b4f55fe399d541ee6b17fa9612383a4b26ac86f4d0`;
+the five prior P0-25 v1/index-0 bonus records are unchanged and no index `1+`
+exists. The audited safe recovery is a forced index-0 replacement; fresh Owner
+approval is pending, and this record claims no retry.

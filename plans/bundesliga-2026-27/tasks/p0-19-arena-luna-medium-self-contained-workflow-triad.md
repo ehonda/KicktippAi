@@ -19,6 +19,18 @@ match v3 / bonus v1, Flex-first / Standard-fallback, and bonus budgets `20` /
 
 ## Remaining P0-21 gates
 
-- [ ] Authenticate, verify competition readiness and POST permission, record
-      deadlines, and inspect one context-before-prediction manual cycle.
+- [x] Authenticate, verify competition readiness and working posting behavior,
+      and complete one context-before-prediction manual cycle: context
+      [`33052882246`](https://github.com/ehonda/KicktippAi/actions/runs/33052882246),
+      matchday [`33053095243`](https://github.com/ehonda/KicktippAi/actions/runs/33053095243),
+      and bonus [`33053423396`](https://github.com/ehonda/KicktippAi/actions/runs/33053423396)
+      all passed final verification on exact head
+      `eedf33052591beb5bbdc51c9e0ebe9869d5ab64d`.
+- [x] Complete payload-safe prompt/context/model/cost/error inspection. The
+      aggregate P0-21 audit found exactly 9 match and 5 bonus index-0
+      generations for this exact Luna/`medium` / cap-`10000` row, with no
+      index `1+`, fallback, or errors.
+- [x] Record the community-scoped deadline audit: zero minutes lead time; first
+      match and bonus cutoff 2026-08-28 20:30 CEST / 18:30 UTC, subject to a
+      fresh read after rescheduling or an administrator rule change.
 - [ ] Enable no schedule until the final Owner activation decision.

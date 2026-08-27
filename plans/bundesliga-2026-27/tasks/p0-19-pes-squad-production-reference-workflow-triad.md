@@ -116,22 +116,23 @@ schedule. Do not invent a replacement secret name.
 
 ## Activation boundary
 
-- [ ] P0-21 confirms names-only Actions presence for
+- [x] P0-21 confirms Owner-provisioned Actions presence for
       `PES_SQUAD_KICKTIPP_USERNAME` and
       `PES_SQUAD_KICKTIPP_PASSWORD`, then authenticates and rechecks current
       community readiness without displaying secret values.
-- [ ] P0-21 obtains community-administrator confirmation of Bundesliga 2026/27
-      POST permission. The read-only audit made no POST request, and this task
-      authorizes none.
-- [ ] P0-21 records the exact Kicktipp match and bonus deadlines, operator,
-      monitor/on-call, schedule proposal, and rollback authority.
-- [ ] Hand the reviewed, green, manual-only triad to P0-21 without dispatching it.
-- [ ] P0-21 manually collects and inspects `pes-squad` context, then manually
+- [x] P0-21's Owner-authorized match and bonus runs post and pass final
+      verification, establishing working posting behavior for this exact row.
+- [x] P0-21 records the exact Kicktipp match and bonus deadline rule and first
+      cutoff through the timestamped GET-only ready-community audit.
+- [ ] P0-21 records operator, monitor/on-call, schedule proposal, and rollback
+      authority.
+- [x] Hand the reviewed, green, manual-only triad to P0-21 without dispatching it.
+- [x] P0-21 manually collects `pes-squad` context, then manually
       records the exact successful context workflow run ID and completion before
       dispatching and verifying match and required bonus predictions. A later
       Accepted outer workflow must use machine-enforced `needs` ordering before
       any schedule is enabled.
-- [ ] P0-21 verifies exact Kicktipp, Firestore, hosted-prompt, model, context,
+- [x] P0-21 verifies exact Kicktipp, Firestore, hosted-prompt, model, context,
       telemetry, usage/cost, and error evidence and confirms the stored reference
       is eligible for the separately gated arena copy path.
 
@@ -144,6 +145,23 @@ schedule. Do not invent a replacement secret name.
 - Confirm no schedule or non-manual trigger, 2025/26 identity, WM26 route, transfer document,
   Luna/none production inference, unresolved model slot, placeholder credential,
   or external write is introduced.
+
+## Manual P0-21 evidence — 2026-08-27
+
+- Context run [`33046582867`](https://github.com/ehonda/KicktippAi/actions/runs/33046582867)
+  completed the pinned launch-roster overlay and normal profile collection.
+- Matchday run [`33046770442`](https://github.com/ehonda/KicktippAi/actions/runs/33046770442)
+  and bonus run [`33047217909`](https://github.com/ehonda/KicktippAi/actions/runs/33047217909)
+  completed successfully with final verification on exact pushed head
+  `e09527616aff9522d533d5e846d4543f08f9b7d8`.
+- Payload-safe roster, Firestore, prompt/context/model, usage/cost, fallback, and
+  error inspection passed in the aggregate P0-21 audit. This row contributes
+  exactly 9 match and 5 bonus index-0 Sol/`xhigh` generations, with no index
+  `1+` or errors, and its stored references were subsequently copied by both
+  compatible targets without a model call. The GET-only 2026-08-27 deadline
+  audit found zero minutes lead time and first cutoff 2026-08-28 20:30 CEST /
+  18:30 UTC; recheck after rescheduling or a rule change. All schedule decisions
+  remain open.
 
 ## Complete when
 

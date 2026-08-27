@@ -1,6 +1,6 @@
 # P0-23 — Collect GPT-5.6 production-candidate evidence
 
-- Status: Complete — cost and cutoff-safe quality evidence published; the Owner's production-model and arena-participant selection remains in P0-06
+- Status: Complete — cost and cutoff-safe quality evidence published; P0-06 later recorded the Owner's selection, and a separate post-hoc Sol/`max` extension did not reopen this task
 - Priority: P0
 - Depends on: [P0-05](p0-05-prompt-route.md), [P0-12](p0-12-match-context-and-transfer-retirement.md), and [P0-20](p0-20-seed-and-development-validation.md)
 - Reuses: the completed cost/provenance foundation recorded in [P0-06](p0-06-model-ledger-and-cost-baseline.md)
@@ -280,7 +280,22 @@ rerun.
   distributions, caps, tiers/fallbacks, costs, timings, statistical output, and
   caveats are in the
   [quality-results report](../../../docs/experiments/gpt-5-6-bundesliga-2025-26-production-candidate-quality-results.md).
-  Production and arena choices remain explicitly pending in P0-06.
+  At this immutable P0-23 checkpoint, production and arena choices remained
+  pending in P0-06. ADR-0052 later recorded the Owner's Sol/`xhigh` production
+  and challenger selection.
+
+## Separate post-closeout Sol/`max` extension — 2026-08-27
+
+After P0-23 and the production decision closed, the Owner separately authorized
+one Sol/`max` run on the same exact `10 × 20` sample as exploratory arena
+evidence. It completed `200/200` at `552` total / `27.6` average points and
+`$3.449498200000` observed cost. Sol/`xhigh` remained descriptively first at
+`27.8`; xhigh-minus-max was `+0.2`, 95% bootstrap CI `[-1.2, 1.6]`,
+Holm-adjusted `p = 0.8918`. The extension is not preregistered P0-23 evidence,
+does not impute Luna/`max`, and does not reopen the Owner's Sol/`xhigh`
+selection. The canonical quality and cost reports contain its exact provenance
+and the final `$8.527485270000` observed / `$8.643116470000` bounded global
+experiment accounting.
 
 ## Complete when
 

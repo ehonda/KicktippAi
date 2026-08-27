@@ -18,6 +18,18 @@ the exact `EHONDA_AI_ARENA_GPT_5_6_SOL_HIGH_KICKTIPP_USERNAME` and
 
 ## Remaining P0-21 gates
 
-- [ ] Authenticate, verify competition readiness and POST permission, record
-      deadlines, and inspect one context-before-prediction manual cycle.
+- [x] Authenticate, verify competition readiness and working posting behavior,
+      and complete one context-before-prediction manual cycle: context
+      [`33051863137`](https://github.com/ehonda/KicktippAi/actions/runs/33051863137),
+      matchday [`33052087407`](https://github.com/ehonda/KicktippAi/actions/runs/33052087407),
+      and bonus [`33052537217`](https://github.com/ehonda/KicktippAi/actions/runs/33052537217)
+      all passed final verification on exact head
+      `eedf33052591beb5bbdc51c9e0ebe9869d5ab64d`.
+- [x] Complete payload-safe prompt/context/model/cost/error inspection. The
+      aggregate P0-21 audit found exactly 9 match and 5 bonus index-0
+      generations for this exact Sol/`high` / cap-`10000` row, with no index
+      `1+`, fallback, or errors.
+- [x] Record the community-scoped deadline audit: zero minutes lead time; first
+      match and bonus cutoff 2026-08-28 20:30 CEST / 18:30 UTC, subject to a
+      fresh read after rescheduling or an administrator rule change.
 - [ ] Enable no schedule until the final Owner activation decision.

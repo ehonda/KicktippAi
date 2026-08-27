@@ -9,11 +9,11 @@ This is the source-of-truth ledger for Bundesliga 2026/27 prediction configurati
 | Use | Competition | Model | Reasoning | Max output tokens | Exact prompts | Runtime policy | Status |
 | --- | --- | --- | --- | ---: | --- | --- | --- |
 | `validation-luna-none` — `ehonda-dev-buli-2627` self-contained plumbing | `bundesliga-2026-27` | `gpt-5.6-luna` | `none` | `10000` | Match `kicktippai/bundesliga-2026-27/predict-one-match` v3; bonus `kicktippai/bundesliga-2026-27/predict-bonus` v1 | Existing Flex-first/Standard-fallback policy; every invocation passes the complete identity | Authorized for development plumbing validation only; not a production default |
-| `production-primary` — `pes-squad` / `schadensfresse` generation and compatible copies | `bundesliga-2026-27` | `gpt-5.6-sol` | `xhigh` | `10000` | Match v3; bonus v1; exact names/hashes below | Existing Flex-first/Standard-fallback policy; USD 35 season orientation is planning-only and not enforced | Owner-selected; repository callers are manual-only pending P0-21 live gates |
-| `arena-challenger-sol-high` | `bundesliga-2026-27` | `gpt-5.6-sol` | `high` | `10000` | Match v3; bonus v1 | Self-contained arena context; existing Flex-first/Standard-fallback policy | Owner-admitted; manual-only |
-| `arena-challenger-luna-medium` | `bundesliga-2026-27` | `gpt-5.6-luna` | `medium` | `10000` | Match v3; bonus v1 | Self-contained arena context; existing Flex-first/Standard-fallback policy | Owner-admitted; manual-only |
-| `arena-challenger-terra-xhigh` | `bundesliga-2026-27` | `gpt-5.6-terra` | `xhigh` | `10000` | Match v3; bonus v1 | Self-contained arena context; existing Flex-first/Standard-fallback policy | Owner-admitted; manual-only |
-| `arena-challenger-luna-none` / `validation-luna-none` — `ehonda-ai-arena` | `bundesliga-2026-27` | `gpt-5.6-luna` | `none` | `10000` | Match v3; bonus v1 | Self-contained arena context; existing Flex-first/Standard-fallback policy | Owner-admitted challenger and retained plumbing identity; manual-only |
+| `production-primary` — `pes-squad` / `schadensfresse` generation and compatible copies | `bundesliga-2026-27` | `gpt-5.6-sol` | `xhigh` | `10000` | Match v3; bonus v1; exact names/hashes below | Existing Flex-first/Standard-fallback policy; USD 35 season orientation is planning-only and not enforced | Owner-selected; manual cycles and payload-safe audit are green for `pes-squad`, `relaxdays-tippt`, and the arena copy, while schedules and `schadensfresse` remain |
+| `arena-challenger-sol-high` | `bundesliga-2026-27` | `gpt-5.6-sol` | `high` | `10000` | Match v3; bonus v1 | Self-contained arena context; existing Flex-first/Standard-fallback policy | Owner-admitted; manual triad and payload-safe audit green; schedule pending |
+| `arena-challenger-luna-medium` | `bundesliga-2026-27` | `gpt-5.6-luna` | `medium` | `10000` | Match v3; bonus v1 | Self-contained arena context; existing Flex-first/Standard-fallback policy | Owner-admitted; manual triad and payload-safe audit green; schedule pending |
+| `arena-challenger-terra-xhigh` | `bundesliga-2026-27` | `gpt-5.6-terra` | `xhigh` | `10000` | Match v3; bonus v1 | Self-contained arena context; existing Flex-first/Standard-fallback policy | Owner-admitted; manual triad and payload-safe audit green; schedule pending |
+| `arena-challenger-luna-none` / `validation-luna-none` — `ehonda-ai-arena` | `bundesliga-2026-27` | `gpt-5.6-luna` | `none` | `10000` | Match v3; bonus v1 | Self-contained arena context; existing Flex-first/Standard-fallback policy | Owner-admitted challenger and retained plumbing identity; context/match green and audited, bonus failed closed with zero side effects on stale immutable provenance at the zero-reprediction limit |
 
 The current match v3 mirror/version has normalized SHA-256 `7c223c0765024e52b542bbdb8093ab9b8fcaad505de0c5f8d6c92f4044e175f3`. The bonus v1 mirror/version has normalized SHA-256 `332bac6d654871d843fc8a47345ff3e2b1f902fa8d1d2243166283304bb005e9`. Hosted v3 carries `production` and `staging`, with `latest` maintained automatically. Production automation passes `--langfuse-prompt-version` explicitly and requires `production` membership. Historical P0-23 artifacts remain bound to match v2 and its hash `94a7aa775546028d3ded89f626873d7dfce162d1f08bb9573e102dd427ac08c1`.
 
@@ -132,7 +132,12 @@ only as an orientation and is not enforced.
 ## Remaining activation gate
 
 The production model, cap, prompts, arena matrix, service policy, and planning
-orientation are settled. P0-21 still requires community/runtime readiness,
-POST permission, exact deadlines, roster publication, manual evidence, the
-activation ADR, deliberate schedules, and first scheduled observation. The
-repository's manual-only callers do not grant those live permissions.
+orientation are settled. P0-21's ordered manual cycles are green through
+`pes-squad`, `relaxdays-tippt`, the arena production copy, Sol/`high`,
+Luna/`medium`, and Terra/`xhigh`. Luna/`none` context and matchday are green,
+but its bonus caller failed closed on stale immutable provenance at the zero-
+reprediction limit and requires a deliberate remediation decision. The current
+successful/failure boundary is payload-audited; operating ownership,
+`schadensfresse`, the activation ADR, deliberate schedules,
+and first scheduled observation remain. The repository's manual-only callers
+do not themselves grant schedule authority.

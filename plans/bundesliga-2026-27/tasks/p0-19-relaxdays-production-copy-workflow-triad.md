@@ -42,9 +42,12 @@ authentication nor POST permission.
 
 ## Remaining P0-21 gates
 
-- [ ] Authenticate, establish current competition/read readiness and POST
-      permission, record deadlines and rule compatibility, and inspect one
-      context-before-prediction manual cycle.
+- [x] Authenticate, establish current competition/read readiness and working
+      posting behavior, and complete one context-before-prediction manual cycle.
+- [x] Complete payload-safe copy/no-extra-generation inspection.
+- [x] Record the timestamped community deadline audit: zero minutes lead time;
+      first match and bonus cutoff 2026-08-28 20:30 CEST / 18:30 UTC, subject
+      to a fresh read after rescheduling or an administrator rule change.
 - [ ] Enable no schedule until the final Owner activation decision.
 
 The first authorized context attempt, Actions run
@@ -53,5 +56,16 @@ authenticated, found the current season and matches, and published the pinned
 roster overlay. Normal profile collection then failed closed because the
 required checked-in `relaxdays-tippt.md` rules source was missing. The tracked
 source and deterministic production-community coverage remediate that
-repository defect; the failed run is not successful evidence and has not been
-retried by this repair.
+repository defect. Exact repair commit
+`eedf33052591beb5bbdc51c9e0ebe9869d5ab64d` passed exact-head CI run
+[`33049482431`](https://github.com/ehonda/KicktippAi/actions/runs/33049482431).
+The authorized context retry
+[`33049949393`](https://github.com/ehonda/KicktippAi/actions/runs/33049949393),
+match copy
+[`33050188533`](https://github.com/ehonda/KicktippAi/actions/runs/33050188533),
+and bonus copy
+[`33050549422`](https://github.com/ehonda/KicktippAi/actions/runs/33050549422)
+then completed successfully with final verification. The original failed run is
+preserved as failure evidence. The payload-safe audit proves this compatible
+path copied 9/9 matches and 5/5 bonus answers, generated zero model calls, and
+used no independent fallback.
