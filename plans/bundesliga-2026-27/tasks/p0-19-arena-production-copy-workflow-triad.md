@@ -113,7 +113,7 @@ proves the compatible path copied 9/9 matches and 5/5 bonus answers, generated
 zero calls, used no independent fallback, and preserved enriched roster head
 `591adbc3cbc99ee93591f074ad218703c9badb2af4e267142898145825b77ea2`.
 This leaf remains schedule-free; ADR-0053's outer ready-row schedule is active,
-with its first natural observation still open.
+and P0-21 natural run `33143114280` later completed its first observation.
 
 ## Complete when
 
@@ -122,4 +122,5 @@ with its first natural observation still open.
 - [x] No unresolved model, participant, profile, credential, compatibility, or activation gate is deployed or marked complete by this task record.
 - [x] P0-21 secret-presence, authentication/readiness, POST, deadline,
       live-write, copy-audit, and outer-activation evidence is recorded. The
-      leaf remains schedule-free and the first outer observation remains open.
+      leaf remains schedule-free; natural run `33143114280` completed P0-21's
+      first outer observation.

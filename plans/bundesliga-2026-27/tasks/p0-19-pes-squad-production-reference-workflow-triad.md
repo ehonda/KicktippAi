@@ -162,14 +162,15 @@ schedule. Do not invent a replacement secret name.
   audit found zero minutes lead time and first cutoff 2026-08-28 20:30 CEST /
   18:30 UTC; recheck after rescheduling or a rule change. ADR-0053's outer
   ready-row schedule is active on exact `main` commit `56238e5`; this leaf
-  remains schedule-free and the first scheduled observation remains open.
+  remains schedule-free. P0-21's natural run `33143114280` later completed the
+  first scheduled observation.
 
 ## Complete when
 
 - Every repository work item has evidence, the triad is manually callable and
   schedule-free, and every model-bound production field equals the P0-06 owner
-  decision. P0-21's still-open first-observation and rollback boundary does not
-  block this leaf's repository closeout.
+  decision. P0-21's completed first-observation evidence and continuing rollback
+  boundary do not alter this leaf's repository closeout.
 - The superseded 2025/26 callers cannot be mistaken for a live path.
-- P0-21—not this task—owns the active outer schedule, first scheduled
-  observation, and any rollback decision.
+- P0-21—not this task—owns the active outer schedule, the completed first
+  scheduled-observation evidence, and any rollback decision.

@@ -17,7 +17,7 @@ match v3 / bonus v1, Flex-first / Standard-fallback, and bonus budgets `20` /
 `EHONDA_AI_ARENA_GPT_5_6_TERRA_XHIGH_KICKTIPP_USERNAME` and
 `EHONDA_AI_ARENA_GPT_5_6_TERRA_XHIGH_KICKTIPP_PASSWORD` pair is provisioned.
 
-## Remaining P0-21 gates
+## Completed P0-21 gates
 
 - [x] Complete the context-before-prediction manual cycle. Context
       [`33053664914`](https://github.com/ehonda/KicktippAi/actions/runs/33053664914)
@@ -36,5 +36,5 @@ match v3 / bonus v1, Flex-first / Standard-fallback, and bonus budgets `20` /
       match and bonus cutoff 2026-08-28 20:30 CEST / 18:30 UTC, subject to a
       fresh read after rescheduling or an administrator rule change.
 - [x] Keep this leaf triad schedule-free. Accepted ADR-0053's active outer
-      ready-row lane owns recurring scheduling; its first natural observation
-      remains an open P0-21 runtime gate.
+      ready-row lane owns recurring scheduling; P0-21 natural run `33143114280`
+      later completed its first observation.

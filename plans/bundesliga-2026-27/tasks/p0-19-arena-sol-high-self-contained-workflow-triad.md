@@ -16,7 +16,7 @@ Local use selects `.env.ehonda-ai-arena.gpt-5-6-sol-high`. The Owner confirmed
 the exact `EHONDA_AI_ARENA_GPT_5_6_SOL_HIGH_KICKTIPP_USERNAME` and
 `EHONDA_AI_ARENA_GPT_5_6_SOL_HIGH_KICKTIPP_PASSWORD` pair is provisioned.
 
-## Remaining P0-21 gates
+## Completed P0-21 gates
 
 - [x] Authenticate, verify competition readiness and working posting behavior,
       and complete one context-before-prediction manual cycle: context
@@ -33,5 +33,5 @@ the exact `EHONDA_AI_ARENA_GPT_5_6_SOL_HIGH_KICKTIPP_USERNAME` and
       match and bonus cutoff 2026-08-28 20:30 CEST / 18:30 UTC, subject to a
       fresh read after rescheduling or an administrator rule change.
 - [x] Keep this leaf triad schedule-free. Accepted ADR-0053's active outer
-      ready-row lane owns recurring scheduling; its first natural observation
-      remains an open P0-21 runtime gate.
+      ready-row lane owns recurring scheduling; P0-21 natural run `33143114280`
+      later completed its first observation.

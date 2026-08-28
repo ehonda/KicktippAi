@@ -1,6 +1,6 @@
 # P0-19 — Add the `schadensfresse` production-copy workflow triad
 
-- Status: Complete — the manual-only copy triad is validated; P0-21 owns its ADR-0055 schedule observation
+- Status: Complete — the manual-only copy triad is validated and P0-21's ADR-0055 natural schedule observation is green
 - Priority: P0
 - Matrix row: `schadensfresse-production-copy`
 - Depends on: [P0-06](p0-06-model-ledger-and-cost-baseline.md), [P0-17](p0-17-community-scope.md), [P0-18](p0-18-base-workflow-support.md), and [P0-24](p0-24-bonus-copy-post-compatibility.md)
@@ -115,5 +115,6 @@ Run the following only from a reviewed, pushed, green exact head:
 ## Complete when
 
 The repository contract and tests above are green and handed to P0-21. The
-manual ladder and ADR-0055 topology are recorded in P0-21; natural scheduled
-observation remains P0-21 work, not evidence claimed by this task.
+manual ladder and ADR-0055 topology are recorded in P0-21; its natural run
+`33143114280` later completed the scheduled observation. P0-21—not this leaf
+task—continues to own the outer schedule and rollback boundary.

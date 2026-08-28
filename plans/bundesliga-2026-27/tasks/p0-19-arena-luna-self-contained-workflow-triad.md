@@ -99,5 +99,6 @@ actual cost. Context contains only Club Elo, team-squad summary, and 18 roster
 documents, with the exact accepted roster and Club Elo snapshots and no WM26,
 Bundesliga 2025/26, experiment, or transfer name. The Luna/`none` manual triad
 and forced-recovery gate are complete; no production-live operation overlapped
-the recovery. Repository activation is complete, while the first natural outer
-observation remains an open P0-21 runtime gate.
+the recovery. Repository activation is complete, and P0-21 natural run
+`33143114280` later completed the first outer observation. The leaf remains
+manual-only and schedule-free.
