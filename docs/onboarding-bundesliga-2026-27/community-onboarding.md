@@ -4,6 +4,20 @@ Updated: 2026-08-28
 
 This is the authoritative community, context, configuration, credential-name, and Langfuse-environment matrix selected by [ADR-0052](../../plans/bundesliga-2026-27/decisions/0052-select-production-model-community-matrix-and-match-prompt-v3.md). Every row uses competition `bundesliga-2026-27`. Leaf entrypoints remain manual-only; [ADR-0053](../../plans/bundesliga-2026-27/decisions/0053-schedule-the-production-live-matchday-lane.md) schedules one strict outer matchday lane for the ready rows only.
 
+## P0 activation closeout — 2026-08-28
+
+All production rows below are onboarded and scheduled through the single outer
+lane. Natural `schedule` run
+[`33143114280`](https://github.com/ehonda/KicktippAi/actions/runs/33143114280)
+succeeded on exact head
+`50f3ed148891977b5909659f9986c9c9958d7875` with all eight context→match pairs
+in strict order. Each match row verified 9/9 current predictions and skipped
+generation/posting, so the observation produced no write, generation,
+reprediction, usage, or cost. This supersedes later statements that call the
+first scheduled observation open. The leaves remain manual-only and bonus
+remains unscheduled. P1-08 still owns `schadensfresse` CL bonus and DFB/CL
+primary routing.
+
 ## Community matrix
 
 | Row ID | Posting target | Community context | Prediction behavior | Model and prompt slot | Local Kicktipp source | Actions Kicktipp names | Langfuse environment | Owner and state |
@@ -31,8 +45,8 @@ findings. Exact activation commit `56238e5fd3615e11d0be2c462516e819dfded1db`
 is on `main`, exact-head CI run
 [`33100581641`](https://github.com/ehonda/KicktippAi/actions/runs/33100581641)
 is green, and ADR-0053's `7 2,9 * * *` is the sole active outer cron. ADR-0055
-subsequently prepares the eight-pair successor described below; first scheduled
-runtime observation remains open.
+subsequently prepared the eight-pair successor, which natural run `33143114280`
+validated.
 
 ## Exact validation identity
 
@@ -80,7 +94,7 @@ an exact manual-only entrypoint/triad; `dev-luna` remains a local CLI path.
 Every leaf remains schedule-free and exposes no `workflow_call`. The sole
 scheduled caller is ADR-0053's outer ready-row matchday lane. ADR-0055 extends
 that lane with the validated ordinary Bundesliga `schadensfresse`
-context/copy pair. P0-21 owns the first scheduled observation.
+context/copy pair. P0-21 records the completed first scheduled observation.
 
 The reusable context workflow's launch-roster input is false by default.
 `pes-squad`, `relaxdays-tippt`, and prepared `schadensfresse` callers opt in to

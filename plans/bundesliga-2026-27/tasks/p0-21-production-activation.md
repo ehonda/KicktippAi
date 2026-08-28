@@ -1,16 +1,89 @@
 # P0-21 — Validate production and activate schedules
 
-- Status: In progress — the manual `schadensfresse` ladder is green and its schedule extension is prepared; natural scheduled observation remains
+- Status: Complete — the complete manual ladder and the first natural 16-job scheduled sequence are green
 - Priority: P0
 - Depends on: [P0-06](p0-06-model-ledger-and-cost-baseline.md), [P0-20](p0-20-seed-and-development-validation.md), [P0-24](p0-24-bonus-copy-post-compatibility.md), [P0-25](p0-25-roster-enrichment-and-team-total.md), and every required production entrypoint copied from [P0-19](p0-19-community-workflow-triad.md)
 - Decisions: [ADR-0005](../decisions/0005-launch-community-and-prediction-topology.md) (superseded), [ADR-0006](../decisions/0006-stage-validation-with-a-cheap-test-model.md), [ADR-0007](../decisions/0007-require-context-hygiene-before-launch.md), [ADR-0008](../decisions/0008-launch-club-elo-from-a-dated-seed.md), [ADR-0013](../decisions/0013-club-elo-snapshot-and-freshness-contract.md), [ADR-0039](../decisions/0039-record-bundesliga-community-and-credential-topology.md), [ADR-0045](../decisions/0045-verify-versioned-prompt-promotion-before-validation.md), [ADR-0050](../decisions/0050-publish-enriched-launch-rosters-with-derived-team-subtotals.md), [ADR-0051](../decisions/0051-require-explicit-launch-roster-enrichment-overlay.md), [ADR-0052](../decisions/0052-select-production-model-community-matrix-and-match-prompt-v3.md), [ADR-0053](../decisions/0053-schedule-the-production-live-matchday-lane.md), [ADR-0054](../decisions/0054-copy-schadensfresse-bundesliga-from-pes-squad.md), and [ADR-0055](../decisions/0055-add-schadensfresse-to-production-live-lane.md)
 
 ## Outcome
 
-Each selected production community succeeds manually before recurring
+Each selected production community succeeded manually before recurring
 activation. The outer matchday schedule is active, and ADR-0055 extends its
 strict chain with the validated ordinary Bundesliga `schadensfresse` copy.
-Natural scheduled execution remains the final runtime evidence gate.
+The first natural scheduled execution succeeded on 2026-08-28 and closes the
+final P0 runtime evidence gate.
+
+## P0 closeout observation — 2026-08-28
+
+The first natural outer-lane run
+[`33143114280`](https://github.com/ehonda/KicktippAi/actions/runs/33143114280)
+was a GitHub Actions `schedule` event on `main` at exact head
+`50f3ed148891977b5909659f9986c9c9958d7875`. GitHub created and started it at
+`2026-08-28T04:53:22Z`; it completed successfully at
+`2026-08-28T05:32:08Z` in 38m46s. Delivery of the nominal 02:07 UTC occurrence
+was 2h46m22s late, beyond the 90-minute monitoring envelope, but the run
+finished before the second 09:07 UTC occurrence. There was no manual dispatch,
+retry, state mutation, relevant queued run, or overlap: the lane was empty
+before the event, uniquely active while it ran, and empty afterward.
+
+All 16 jobs succeeded in strict predecessor-complete-before-successor-start
+order:
+
+| Order | Job | Job ID | UTC interval |
+| ---: | --- | ---: | --- |
+| 1 | `pes-squad` context | [`98758150372`](https://github.com/ehonda/KicktippAi/actions/runs/33143114280/job/98758150372) | 04:53:26–04:55:13 |
+| 2 | `pes-squad` Sol/`xhigh` match | [`98758432301`](https://github.com/ehonda/KicktippAi/actions/runs/33143114280/job/98758432301) | 04:55:17–04:57:52 |
+| 3 | `schadensfresse` context | [`98758831083`](https://github.com/ehonda/KicktippAi/actions/runs/33143114280/job/98758831083) | 04:57:55–05:00:02 |
+| 4 | `schadensfresse` copy match | [`98759163336`](https://github.com/ehonda/KicktippAi/actions/runs/33143114280/job/98759163336) | 05:00:05–05:03:07 |
+| 5 | `relaxdays-tippt` context | [`98759673897`](https://github.com/ehonda/KicktippAi/actions/runs/33143114280/job/98759673897) | 05:03:11–05:05:15 |
+| 6 | `relaxdays-tippt` copy match | [`98759998698`](https://github.com/ehonda/KicktippAi/actions/runs/33143114280/job/98759998698) | 05:05:18–05:07:36 |
+| 7 | arena Sol/`xhigh` context | [`98760375292`](https://github.com/ehonda/KicktippAi/actions/runs/33143114280/job/98760375292) | 05:07:39–05:09:29 |
+| 8 | arena Sol/`xhigh` copy match | [`98760666402`](https://github.com/ehonda/KicktippAi/actions/runs/33143114280/job/98760666402) | 05:09:33–05:12:21 |
+| 9 | arena Sol/`high` context | [`98761110474`](https://github.com/ehonda/KicktippAi/actions/runs/33143114280/job/98761110474) | 05:12:24–05:14:37 |
+| 10 | arena Sol/`high` match | [`98761465833`](https://github.com/ehonda/KicktippAi/actions/runs/33143114280/job/98761465833) | 05:14:41–05:17:43 |
+| 11 | arena Luna/`medium` context | [`98761943996`](https://github.com/ehonda/KicktippAi/actions/runs/33143114280/job/98761943996) | 05:17:46–05:19:52 |
+| 12 | arena Luna/`medium` match | [`98762267578`](https://github.com/ehonda/KicktippAi/actions/runs/33143114280/job/98762267578) | 05:19:56–05:22:06 |
+| 13 | arena Terra/`xhigh` context | [`98762613058`](https://github.com/ehonda/KicktippAi/actions/runs/33143114280/job/98762613058) | 05:22:09–05:23:59 |
+| 14 | arena Terra/`xhigh` match | [`98762897952`](https://github.com/ehonda/KicktippAi/actions/runs/33143114280/job/98762897952) | 05:24:02–05:27:02 |
+| 15 | arena Luna/`none` context | [`98763357562`](https://github.com/ehonda/KicktippAi/actions/runs/33143114280/job/98763357562) | 05:27:05–05:28:54 |
+| 16 | arena Luna/`none` match | [`98763631759`](https://github.com/ehonda/KicktippAi/actions/runs/33143114280/job/98763631759) | 05:28:57–05:32:07 |
+
+Every context job ran the Bundesliga 2026/27
+Kicktipp→played-dates→Club-Elo→rosters profile with
+`publish_launch_roster_overlay: false`. Each observed 18 teams, 306 fixtures,
+nine fixtures per matchday, the nine matchday-1 fixtures, the 288-row
+played-date gate, and 47 unique ordinary context documents. All 47 ordinary
+documents were unchanged (`Saved 0` / `Skipped 47`). Club Elo remained
+`LaunchSeed` / `NetworkDisabled` at snapshot
+`1f63ba33cb4f46bf37d21000743ca1e86b035a7ffe5792e64dddfea2336a653e`,
+and rosters remained at enriched snapshot
+`591adbc3cbc99ee93591f074ad218703c9badb2af4e267142898145825b77ea2`.
+The effective approved current scope was 86 documents: 47 ordinary, 18 Elo,
+18 rosters, and three aggregate documents. This is not a strict pass of the
+401-document full-season inventory.
+
+Every match job passed configuration and initial verification with 9 total,
+9 Kicktipp, 9 Firestore, and 9 matching predictions. Both generation/posting
+and final-verification steps then skipped because the current predictions were
+already complete. Thus `force_prediction=false` and `max_repredictions=2`
+were unused: the scheduled observation made no write, model generation,
+reprediction, token use, or cost. The exact cap-`10000`, production-labelled
+hosted match-v3 identities matched ADR-0052: the three copies used
+`pes-squad` context and Sol/`xhigh`; the production reference used
+`pes-squad` Sol/`xhigh`; and the challengers used self-contained Sol/`high`,
+Luna/`medium`, Terra/`xhigh`, and Luna/`none` contexts.
+
+The payload-safe Langfuse production-environment query for
+`2026-08-28T04:53:00Z` through `05:33:00Z`, limited to core and metrics fields,
+returned no observations (`data: []`, `totalItems: 0`), consistent with zero
+generation, usage, and cost; service tier and fallback are therefore not
+applicable, and no trace error exists. Runtime log scans after the actual
+execution markers found zero WM26, Bundesliga 2025/26, transfer-context, or
+error lines. One WM26 literal existed only in the pre-runtime generic shell
+validation case table and is not runtime contamination. This evidence closes
+P0-21 and the central P0 release train. P1 is next; in particular, P1-08 still
+owns `schadensfresse` CL bonus and DFB/CL primary routing, while unattended
+Club Elo network refresh and exploratory model follow-ups remain non-P0.
 
 ## Owner dispatch authorization — 2026-08-27
 
@@ -170,7 +243,10 @@ complete and must not be repeated.
       are green for the original rows; ADR-0055 adds the now-green
       `schadensfresse` context/copy pair while every leaf caller remains
       manual-only.
-- [ ] Observe the first scheduled context and prediction sequence and record run links/results.
+- [x] Observe the first scheduled context and prediction sequence and record
+      run links/results. Natural run `33143114280` succeeded on exact head
+      `50f3ed148891977b5909659f9986c9c9958d7875`; the complete 16-job evidence
+      is recorded above.
 - [x] After the schadensfresse manual ladder and exact-head CI are green, add
       its context then matchday copy after `pes-squad` in the recurring outer
       lane with launch overlay false. Keep bonus out of the schedule; P1-08
@@ -180,13 +256,11 @@ complete and must not be repeated.
 
 ## Validation evidence
 
-Production activation validation is incomplete, but the ordered live ladder is
-green for every ready row and repository activation is complete. GitHub
-workflow `343638152` was active with no outer run yet at the pre-observation
-snapshot. Its next natural occurrence was `2026-08-28T02:07:00Z` / 04:07 CEST;
-monitoring begins at 02:02 UTC. Nine matches remained open and the first cutoff
-was 18:30 UTC. This is readiness evidence only, not the still-missing scheduled
-runtime observation. Every terminal run below used an exact pushed main commit.
+Production activation validation is complete. The ordered live ladder is green
+for every ready row, repository activation is complete, and natural scheduled
+run `33143114280` closes the final runtime observation as recorded above. The
+following manual-run table remains the prerequisite evidence that preceded
+schedule activation. Every terminal run below used an exact pushed main commit.
 Initial prediction runs used `force_prediction=false` and
 `max_repredictions=0`; the single approved Luna/`none` bonus recovery used
 `force_prediction=true` / `max_repredictions=0`. Every completed row passed its

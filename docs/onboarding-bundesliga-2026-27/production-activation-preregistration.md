@@ -1,17 +1,35 @@
 # Bundesliga 2026/27 production activation preregistration
 
-**Status:** The original seven-pair schedule is active on `main` at exact commit
-`56238e5`, and exact-head CI run `33100581641` is green. ADR-0055's
-eight-pair successor is prepared; its default-branch CI and first natural
-scheduled runtime observation remain open.
+**Status:** Activated and observed; P0-21 is complete.
 
 **Prepared:** 2026-08-25
 
 This preregistration preserves the P0-21 facts, sequence, and evidence that led
 to [Accepted ADR-0053](../../plans/bundesliga-2026-27/decisions/0053-schedule-the-production-live-matchday-lane.md).
-It does not claim the first scheduled execution has occurred; only runtime
-evidence can satisfy that remaining item in
+Its dated sections preserve the evidence available before activation. The
+closeout addendum below records the later runtime result.
+
+## Activation closeout addendum — 2026-08-28
+
+Natural GitHub Actions `schedule` run
+[`33143114280`](https://github.com/ehonda/KicktippAi/actions/runs/33143114280)
+succeeded on `main` at exact head
+`50f3ed148891977b5909659f9986c9c9958d7875`, from
+`2026-08-28T04:53:22Z` to `05:32:08Z`. All 16 jobs succeeded in the exact
+ADR-0053/0055 serial order, with every context predecessor complete before its
+match job and every match job complete before the next community context.
+Context preserved the accepted snapshots with overlay false; every match row
+verified 9/9 current predictions and skipped generation/posting and final
+verification. There was no write, generation, reprediction, usage, cost,
+runtime identity contamination, retry, queued relevant run, or overlap.
+
+GitHub delivered the nominal 02:07 UTC occurrence 2h46m22s late, beyond the
+90-minute observation envelope, but its 38m46s execution completed before the
+second daily occurrence. The exact job IDs and payload-safe evidence are in
 [P0-21](../../plans/bundesliga-2026-27/tasks/p0-21-production-activation.md).
+This addendum supersedes later pre-observation statements and closes the
+preregistered P0 runtime gate. Bonus remains outside the outer lane. P1-08 is
+still open and non-P0 for `schadensfresse` mixed-competition routing.
 
 ## Schadensfresse readiness and topology addendum — 2026-08-27
 
@@ -235,8 +253,8 @@ credentials, current-season readiness, posting behavior, exact generated
 identity, and zero extra model generations on compatible copy paths for every
 ready row. The Luna/`none` forced-recovery gate is complete and must not be
 repeated. At that ready-row checkpoint, `schadensfresse` and the first scheduled
-observation remained open; the former later completed its manual ladder and is
-included by ADR-0055, while natural scheduled observation remains open.
+observation remained open. The former later completed its manual ladder and was
+included by ADR-0055; natural run `33143114280` later closed the observation.
 
 ## Official opening matchday facts
 
@@ -488,20 +506,20 @@ posting right or authorize production. The later evidence below closes those
 gates for every row, including the separately authorized `schadensfresse`
 ladder.
 
-| Matrix row | Current evidence | Remaining evidence | Schedule state |
+| Matrix row | Current evidence | P0 conclusion | Schedule state |
 |---|---|---|---|
-| `pes-production-reference` | Context `33046582867`, match `33046770442`, and bonus `33047217909` succeeded with final verification; pinned overlay and payload-safe audit passed | First scheduled observation | Included in ADR-0053 outer schedule |
-| `schadensfresse-production-copy` | After the historical NOT READY audit, administrator setup passed current-season/deadline preflight. Context `33121916551` published the accepted enriched snapshot and the complete 86-document current nine-fixture scope; this is not a strict 401-document full-season pass. Match `33122627130` copied 9/9 with zero generation/usage/cost and exact target verification. Bonus `33123422316` selected and copied the five Bundesliga questions at zero generation/usage/cost, passed final 5/5 verification, and left the three later CL questions untouched. | Default-branch exact-head CI for ADR-0055 and first natural scheduled observation; P1-08 separately owns CL bonus and DFB/CL match routing | Included by ADR-0055 as target context plus ordinary match copy immediately after `pes-squad`; leaf callers remain manual-only and bonus remains unscheduled |
-| `relaxdays-production-copy` | Initial context run `33047564359` found the missing rules source; exact repair `eedf330` passed CI, then context `33049949393`, match `33050188533`, and bonus `33050549422` succeeded; payload audit proves 9/9 match plus 5/5 bonus copies and zero generation/fallback | First scheduled observation | Included in ADR-0053 outer schedule |
-| `arena-production-copy` | Context `33050848544`, match `33051066657`, and bonus `33051557046` succeeded; payload audit proves 9/9 match plus 5/5 bonus copies, zero generation/fallback, and shared-roster preservation | First scheduled observation | Included in ADR-0053 outer schedule |
-| Arena Sol/`high` | Context `33051863137`, match `33052087407`, and bonus `33052537217` succeeded with final verification and payload-safe audit | First scheduled observation | Included in ADR-0053 outer schedule |
-| Arena Luna/`medium` | Context `33052882246`, match `33053095243`, and bonus `33053423396` succeeded with final verification and payload-safe audit | First scheduled observation | Included in ADR-0053 outer schedule |
-| Arena Terra/`xhigh` | Context `33053664914`, match `33053888656`, and bonus `33054314209` succeeded with final verification and payload-safe audit | First scheduled observation | Included in ADR-0053 outer schedule |
-| Arena Luna/`none` | Context `33054637395` and match `33054826152` succeeded; bonus `33055144574` failed closed with zero side effects, then Owner-approved forced recovery `33089097055` replaced the same five index-0 records, posted all five selections, passed final 5/5 verification, and passed payload-safe audit | First scheduled observation | Included in ADR-0053 outer schedule; do not repeat recovery |
+| `pes-production-reference` | Context `33046582867`, match `33046770442`, and bonus `33047217909` succeeded with final verification; pinned overlay and payload-safe audit passed | Complete; natural run `33143114280` verified 9/9 current | Included in ADR-0053 outer schedule |
+| `schadensfresse-production-copy` | After the historical NOT READY audit, administrator setup passed current-season/deadline preflight. Context `33121916551` published the accepted enriched snapshot and the complete 86-document current nine-fixture scope; this is not a strict 401-document full-season pass. Match `33122627130` copied 9/9 with zero generation/usage/cost and exact target verification. Bonus `33123422316` selected and copied the five Bundesliga questions at zero generation/usage/cost, passed final 5/5 verification, and left the three later CL questions untouched. | Complete for P0; natural run `33143114280` verified 9/9 current. P1-08 separately owns CL bonus and DFB/CL routing | Included by ADR-0055 as target context plus ordinary match copy immediately after `pes-squad`; leaf callers remain manual-only and bonus remains unscheduled |
+| `relaxdays-production-copy` | Initial context run `33047564359` found the missing rules source; exact repair `eedf330` passed CI, then context `33049949393`, match `33050188533`, and bonus `33050549422` succeeded; payload audit proves 9/9 match plus 5/5 bonus copies and zero generation/fallback | Complete; natural run `33143114280` verified 9/9 current | Included in ADR-0053 outer schedule |
+| `arena-production-copy` | Context `33050848544`, match `33051066657`, and bonus `33051557046` succeeded; payload audit proves 9/9 match plus 5/5 bonus copies, zero generation/fallback, and shared-roster preservation | Complete; natural run `33143114280` verified 9/9 current | Included in ADR-0053 outer schedule |
+| Arena Sol/`high` | Context `33051863137`, match `33052087407`, and bonus `33052537217` succeeded with final verification and payload-safe audit | Complete; natural run `33143114280` verified 9/9 current | Included in ADR-0053 outer schedule |
+| Arena Luna/`medium` | Context `33052882246`, match `33053095243`, and bonus `33053423396` succeeded with final verification and payload-safe audit | Complete; natural run `33143114280` verified 9/9 current | Included in ADR-0053 outer schedule |
+| Arena Terra/`xhigh` | Context `33053664914`, match `33053888656`, and bonus `33054314209` succeeded with final verification and payload-safe audit | Complete; natural run `33143114280` verified 9/9 current | Included in ADR-0053 outer schedule |
+| Arena Luna/`none` | Context `33054637395` and match `33054826152` succeeded; bonus `33055144574` failed closed with zero side effects, then Owner-approved forced recovery `33089097055` replaced the same five index-0 records, posted all five selections, passed final 5/5 verification, and passed payload-safe audit | Complete; natural run `33143114280` verified 9/9 current | Included in ADR-0053 outer schedule; do not repeat recovery |
 
-One community passing does not activate another. P0-21 may enable only a row
-whose own manual evidence passes; failed or unverified rows remain manual-only
-or nondeployable.
+One community passing did not activate another. P0-21 enabled only rows whose
+own manual evidence passed; all eight scheduled rows now also have the natural
+observation above.
 
 ## First scheduled observation and monitoring — runtime gate open
 
@@ -553,16 +571,15 @@ evidence, green exact-head CI, and a revised activation decision. ADR-0053 names
 the Project Owner as rollback operator and removal of the outer cron as the
 exact repository change.
 
-## Remaining factual gaps
+## Post-P0 factual follow-up
 
-- Integrate the ADR-0055 context+match successor after review, pass exact-head
-  CI, and retain bonus plus all P1-08 mixed-competition work outside the lane.
 - Recheck the ready-community deadlines if a fixture is rescheduled or an
   administrator changes the zero-minute rule.
-- Observe and record the first actual scheduled ready-row sequence after the
-  accepted change reaches the default branch.
+- Monitor GitHub schedule delivery latency operationally; the first occurrence
+  exceeded the 90-minute observation envelope without causing overlap or
+  missing the later daily occurrence.
+- Complete P1-08 before the relevant CL bonus and DFB/CL match deadlines.
 
 ADR-0053 closes the original ready-row schedule decision and ADR-0055 adds the
-validated `schadensfresse` ordinary Bundesliga pair. The first natural
-scheduled runtime observation remains a P0-21 completion gate; this document
-does not claim it has occurred.
+validated `schadensfresse` ordinary Bundesliga pair. Natural run `33143114280`
+closed the P0-21 completion gate.

@@ -1,15 +1,24 @@
 # Bundesliga 2026/27 Model Configuration Onboarding
 
-Updated: 2026-08-27
+Updated: 2026-08-28
 
 This is the source-of-truth ledger for Bundesliga 2026/27 prediction configurations. A row is not onboarded unless its competition, model, reasoning effort, maximum output cap, and numbered prompt versions are all present. Labels are useful for candidate routing, but they are not a substitute for the numbered version in a production or persisted exact identity. [The community onboarding matrix](community-onboarding.md) maps these configuration slots to posting targets, community contexts, credential names, and Langfuse environments.
+
+P0 activation is complete. Natural scheduled run
+[`33143114280`](https://github.com/ehonda/KicktippAi/actions/runs/33143114280)
+validated every exact ledger identity on head
+`50f3ed148891977b5909659f9986c9c9958d7875`. All eight rows already had 9/9
+current predictions, so generation/posting skipped and the run used no tokens
+or cost. This supersedes the pre-observation activation state below; later
+model experiments remain exploratory, non-P0 work and do not change this
+Owner-selected ledger.
 
 ## Current ledger
 
 | Use | Competition | Model | Reasoning | Max output tokens | Exact prompts | Runtime policy | Status |
 | --- | --- | --- | --- | ---: | --- | --- | --- |
 | `validation-luna-none` — `ehonda-dev-buli-2627` self-contained plumbing | `bundesliga-2026-27` | `gpt-5.6-luna` | `none` | `10000` | Match `kicktippai/bundesliga-2026-27/predict-one-match` v3; bonus `kicktippai/bundesliga-2026-27/predict-bonus` v1 | Existing Flex-first/Standard-fallback policy; every invocation passes the complete identity | Authorized for development plumbing validation only; not a production default |
-| `production-primary` — `pes-squad` generation and compatible copies including `schadensfresse` Bundesliga | `bundesliga-2026-27` | `gpt-5.6-sol` | `xhigh` | `10000` | Match v3; bonus v1; exact names/hashes below | Existing Flex-first/Standard-fallback policy; USD 35 season orientation is planning-only and not enforced | Owner-selected; existing ready rows are live; schadensfresse manual context/copy ladder remains before schedule inclusion, while P1-08 owns mixed DFB/CL primary routing |
+| `production-primary` — `pes-squad` generation and compatible copies including `schadensfresse` Bundesliga | `bundesliga-2026-27` | `gpt-5.6-sol` | `xhigh` | `10000` | Match v3; bonus v1; exact names/hashes below | Existing Flex-first/Standard-fallback policy; USD 35 season orientation is planning-only and not enforced | Owner-selected; manual ladders and the first natural scheduled sequence are green; P1-08 owns mixed DFB/CL primary routing |
 | `arena-challenger-sol-high` | `bundesliga-2026-27` | `gpt-5.6-sol` | `high` | `10000` | Match v3; bonus v1 | Self-contained arena context; existing Flex-first/Standard-fallback policy | Owner-admitted; manual triad and payload-safe audit green; included in ADR-0053's match-only lane |
 | `arena-challenger-luna-medium` | `bundesliga-2026-27` | `gpt-5.6-luna` | `medium` | `10000` | Match v3; bonus v1 | Self-contained arena context; existing Flex-first/Standard-fallback policy | Owner-admitted; manual triad and payload-safe audit green; included in ADR-0053's match-only lane |
 | `arena-challenger-terra-xhigh` | `bundesliga-2026-27` | `gpt-5.6-terra` | `xhigh` | `10000` | Match v3; bonus v1 | Self-contained arena context; existing Flex-first/Standard-fallback policy | Owner-admitted; manual triad and payload-safe audit green; included in ADR-0053's match-only lane |
@@ -129,13 +138,12 @@ match-only projection excludes bonus calls, the richer live 11-document input,
 Standard fallback premiums, and retry variance. USD `35` is therefore retained
 only as an orientation and is not enforced.
 
-## Remaining activation gate
+## P0 activation result
 
 The production model, cap, prompts, arena matrix, service policy, and planning
-orientation are settled. P0-21's ordered manual cycles are green through
-`pes-squad`, `relaxdays-tippt`, the arena production copy, Sol/`high`,
-Luna/`medium`, Terra/`xhigh`, and Luna/`none`; the latter completed its manual
-triad through the Owner-approved forced index-0 bonus recovery. Every ready row
-is payload-audited. ADR-0053 settles operating ownership, rollback, and the
-exact outer schedule. `schadensfresse` and the first scheduled observation
-remain; the leaf callers do not themselves grant schedule authority.
+orientation are settled. All ordered manual cycles, including
+`schadensfresse`, are green and payload-audited. ADR-0053/0055 settle operating
+ownership, rollback, and the exact outer schedule; natural run `33143114280`
+validated every row without requiring a generation. The leaf callers still do
+not themselves grant schedule authority, and P1-08 remains the separate owner
+of mixed-competition routing.

@@ -3,7 +3,7 @@
 - Handoff ID: `buli-2627-p0-closeout-ready-2026-08-25`
 - Created: 2026-08-25
 - Last advanced: 2026-08-28
-- Status: **Active P0 closeout handoff; all manual rows are green, the eight-row schedule topology is prepared, and natural observation remains in P0-21**
+- Status: **Closed; P0 is complete and P1 is next**
 - Repository: `ehonda/KicktippAi`
 - Historical branch/remote baseline at creation: `main` / `origin/main`
 - Historical exact clean baseline at creation: `78ee2c0aa1b4e1b0093b7ef442936cf042ad2681`
@@ -11,10 +11,32 @@
 
 ## Resume objective
 
-Close P0 through [P0-21](../tasks/p0-21-production-activation.md). Do not
-fabricate first-schedule runtime evidence. P0-06 and every schedule-free P0-19
-repository row are complete; ADR-0055 prepares the validated `schadensfresse`
-ordinary Bundesliga row for the strict outer lane.
+P0 is closed through [P0-21](../tasks/p0-21-production-activation.md). Resume
+from the P1 task ledger; do not repeat completed P0 live or experiment work.
+
+## Final P0 closeout addendum — 2026-08-28
+
+This addendum supersedes every later statement in this dated handoff that calls
+P0-21, default-branch CI, or the first scheduled observation open. Natural
+GitHub Actions `schedule` run
+[`33143114280`](https://github.com/ehonda/KicktippAi/actions/runs/33143114280)
+succeeded on `main` at exact head
+`50f3ed148891977b5909659f9986c9c9958d7875`. Its 16 jobs ran in the accepted
+strict context→match order from `2026-08-28T04:53:22Z` through
+`05:32:08Z`. All eight context passes retained the approved Club Elo and roster
+snapshots, and all eight match passes verified 9/9 current predictions before
+skipping generation/posting. The run therefore made no write, generation,
+reprediction, usage, or cost and introduced no runtime WM26, Bundesliga
+2025/26, or transfer-context identity. No manual dispatch, retry, queued
+relevant run, or overlap occurred.
+
+GitHub delivered the nominal 02:07 UTC occurrence 2h46m22s late, beyond the
+90-minute monitoring envelope; the 38m46s lane nevertheless succeeded before
+the second occurrence. The complete per-job IDs, timestamps, context
+dispositions, prediction counts, and payload-safe Langfuse/log audit are in
+P0-21. The central P0 release train is complete. P1-08 remains open for
+`schadensfresse` mixed-competition routing; unattended Club Elo network refresh
+and exploratory model loose ends remain non-P0.
 
 ## Schadensfresse activation addendum — 2026-08-28
 
@@ -242,13 +264,14 @@ CEST / 18:30 UTC. The arena result is community-scoped and was read through the
 Luna/`none` profile. Recheck after any fixture rescheduling or administrator
 rule change. `schadensfresse` is not covered until its season setup completes.
 
-This closes the manual workflow/authentication/posting and payload-safe
-inspection rungs for every currently ready row, including proof of zero extra
-generations on the compatible copy paths and the exact Luna/`none` recovery.
-`schadensfresse` remains unrun, NOT READY,
-and manual-only pending its administrator's season setup and full ladder.
-ADR-0053 settles cadence, operator/monitor/rollback ownership, and the accepted
-ready-row schedule. The first scheduled observation remains unproven.
+At that 2026-08-27 checkpoint, this closed the manual
+workflow/authentication/posting and payload-safe inspection rungs for every
+then-ready row, including proof of zero extra generations on the compatible
+copy paths and the exact Luna/`none` recovery. `schadensfresse` was still
+unrun, NOT READY, and manual-only pending its administrator's season setup and
+full ladder. ADR-0053 had settled cadence, operator/monitor/rollback ownership,
+and the accepted ready-row schedule; the first scheduled observation was not
+yet proven. The final closeout addendum supersedes that runtime state.
 
 This addendum supersedes later stale statements in this dated handoff that call
 the Owner selection, production callers, challenger rows, prompt v3, or secret
@@ -505,7 +528,7 @@ historical pool/manifest provenance remain execution-date fail-closed gates.
   name or value, challenger, topology, budget, permission, deadline, cadence,
   rollback rule, or schedule.
 
-## Resume protocol
+## Historical resume protocol (superseded)
 
 1. Read [`../AGENTS.md`](../AGENTS.md), [`../README.md`](../README.md), and
    [`../execution-strategy.md`](../execution-strategy.md), then the active task
@@ -524,14 +547,16 @@ historical pool/manifest provenance remain execution-date fail-closed gates.
 6. After integration, remove the helper-created worktree, prune stale metadata,
    and verify that no temporary worktrees remain.
 
-## Current resume checkpoint
+## Historical resume checkpoint (superseded)
 
-Report exact main/origin SHA and CI state, worktree inventory, the ordered
+The superseded checkpoint instructed the next agent to report exact main/origin
+SHA and CI state, worktree inventory, the ordered
 manual-run table and payload-safe audit above, the completed Luna/`none`
 recovery, the integrated schedule-free outer-lane precursor commit/run, the
 completed `schadensfresse` ladder and ADR-0055 topology, Accepted ADR-0053's
-`7 2,9 * * *` contract, and the still-unobserved first scheduled execution.
+`7 2,9 * * *` contract, and the then-unobserved first scheduled execution.
 Do not assign a new P0-23 or P0-25 live lane and do not perform another P0-23
-external or model action. Resume P0-21 at default-branch exact-head CI for the
-ADR-0055 successor and the first natural scheduled observation; do not
+external or model action. It then directed resumption of P0-21 at
+default-branch exact-head CI for the ADR-0055 successor and the first natural
+scheduled observation; do not
 repeat already green rows without new Owner authorization.

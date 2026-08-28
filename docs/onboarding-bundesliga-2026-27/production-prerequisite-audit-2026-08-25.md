@@ -2,6 +2,28 @@
 
 This read-only audit records which production prerequisites can be verified before the owner selects the final model and arena participants. It is prerequisite evidence for [P0-21](../../plans/bundesliga-2026-27/tasks/p0-21-production-activation.md), not production validation or authorization to post predictions.
 
+## Final closeout addendum — 2026-08-28
+
+P0-21 is complete. The later authenticated manual ladders superseded this
+audit's unresolved readiness and posting-right rows, and natural GitHub Actions
+`schedule` run
+[`33143114280`](https://github.com/ehonda/KicktippAi/actions/runs/33143114280)
+then succeeded on exact `main` head
+`50f3ed148891977b5909659f9986c9c9958d7875`. All 16 jobs ran in strict
+context→match order. Context retained the accepted snapshots; each match row
+verified 9/9 current predictions, then skipped generation/posting and final
+verification. The run made no write, generation, reprediction, token use, or
+cost and had no runtime WM26, Bundesliga 2025/26, transfer-context, error, or
+overlap evidence.
+
+GitHub delivered the nominal 02:07 UTC event 2h46m22s late, beyond the
+90-minute monitoring envelope, but the 38m46s run completed before the next
+daily occurrence. [P0-21](../../plans/bundesliga-2026-27/tasks/p0-21-production-activation.md)
+contains the authoritative per-job and payload-safe evidence. The dated
+read-only rows below remain historical, not current blockers. P1 is next;
+P1-08 remains open for `schadensfresse` mixed-competition routing, and Club Elo
+network refresh plus exploratory model follow-ups remain non-P0.
+
 ## Schadensfresse current-readiness addendum — 2026-08-27
 
 The earlier NOT READY rows below remain historical evidence. After the
@@ -66,11 +88,11 @@ succeeded including Pages. The integrated writer/reviewer worktrees were
 cleaned. The outer caller has no bonus or `schadensfresse` path. Exact
 activation commit `56238e5` is on `main`, exact-head CI run `33100581641` is
 green, and ADR-0053's sole cron is active; first scheduled runtime observation
-remains open.
+was still open at that checkpoint.
 
-Current runtime conclusions are:
+Pre-closeout runtime conclusions at that checkpoint were:
 
-| Posting target/participant | Current evidence | Remaining P0-21 gate |
+| Posting target/participant | Then-current evidence | Then-remaining P0-21 gate |
 | --- | --- | --- |
 | `pes-squad` | Context `33046582867`, Sol/`xhigh` match `33046770442`, and bonus `33047217909` succeeded with final verification and payload-safe audit | First scheduled observation under ADR-0053 |
 | `schadensfresse` | Exact secrets Owner-confirmed present; authenticated HTTP-200 GET audit at 2026-08-27 11:41 CEST found no 2026/27 marker, 0 open matches, 0 open bonus questions, and only closed historical rows | NOT READY: external season setup, current marker/exact-nine/open-bonus/current-deadline gates, POST permission, context, independent match/bonus, and payload-safe evidence |

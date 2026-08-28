@@ -1,10 +1,29 @@
 # Bundesliga 2026/27 execution strategy
 
-- Status: Accepted execution strategy; P0-06 and schedule-free P0-19 complete, P0-21 is the active gate
+- Status: Accepted execution strategy; P0 complete, P1 next
 - Last updated: 2026-08-28
-- Implementation state: P0 implementation through P0-20 and P0-23 through P0-25 is validated; P0-06 and schedule-free P0-19 are complete; the `schadensfresse` manual ladder is green and ADR-0055 extends ADR-0053's outer topology; P0-21's natural scheduled observation remains open
+- Implementation state: P0-01 through P0-25 are complete; P0-21 closed on the first natural 16-job scheduled observation
 
 This document describes how to deliver the accepted P0 scope quickly while preserving the project owner's control over the few deliberately late production choices. Task files and accepted ADRs are the implementation contracts.
+
+## P0 closeout — 2026-08-28
+
+Natural scheduled run
+[`33143114280`](https://github.com/ehonda/KicktippAi/actions/runs/33143114280)
+succeeded on exact `main` head
+`50f3ed148891977b5909659f9986c9c9958d7875`. All 16 jobs followed the accepted
+eight-pair serial topology. Context remained on the approved dated Club Elo and
+enriched roster snapshots; all match jobs verified 9/9 current predictions and
+skipped generation/posting, so the run produced no write, reprediction, usage,
+or cost. GitHub delivered the nominal 02:07 UTC event 2h46m22s late, outside
+the 90-minute monitoring envelope, but the 38m46s execution succeeded before
+the 09:07 UTC occurrence with no overlap. [P0-21](tasks/p0-21-production-activation.md)
+holds the complete job-level evidence.
+
+This section supersedes later execution-state text that directs agents to
+continue P0-21. The central P0 train is closed and P1 is next. P1-08 remains
+open and non-P0; Club Elo network refresh and exploratory model follow-ups also
+remain outside P0.
 
 ## Operating principles
 
@@ -27,14 +46,13 @@ This document describes how to deliver the accepted P0 scope quickly while prese
 | Development and arena validation | P0-20 | Dev and arena ladder evidence passes, including fail-closed cases |
 | Production evidence and copy safety | P0-23 and P0-24 complete | Owner-authorized GPT-5.6 cost/quality evidence is published with Luna/`max` explicitly incomplete and post-hoc Sol/`xhigh` exploratory; P0-24 proves compatible bonus copy is zero-model and ordinary incompatibility produces exactly one independent target prediction |
 | Launch roster remediation | P0-25 complete | ADR-0051's explicit overlay republish passed the final reconstructed 18-team / 18-derived-row / 464-age / 464-position / 450-value gate from exact-green main; the headed snapshot remained unchanged, and exactly one authorized Luna/none index-0 replacement round passed payload-safe pre/post and trace validation |
-| Production selection and activation | P0-06 and schedule-free P0-19 are complete; execute P0-21 | All ordered manual validation is green and ADR-0053/0055 accept the outer schedule; observe the natural scheduled sequence |
+| Production selection and activation | Complete through P0-21 | Ordered manual validation and the first natural ADR-0053/0055 scheduled sequence are green |
 
-The implementation path through P0-20 and P0-23 through P0-25 is complete;
-ADR-0052 also closes P0-06 and every schedule-free P0-19 row. P0-21 retains
-P0-25's enriched-publication precondition and the exact context-first,
-primary-before-secondary manual order. Prompt work is fixed at match v3 / bonus
-v1. Club Elo network reuse remains independently Owner-gated and the dated-seed
-path remains launch-safe.
+The implementation path through P0-25 is complete, including P0-06 and every
+schedule-free P0-19 row. P0-21 preserved P0-25's enriched-publication
+precondition and the exact context-first, primary-before-secondary order.
+Prompt work is fixed at match v3 / bonus v1. Club Elo network reuse remains
+independently Owner-gated P1 work and the dated-seed path remains launch-safe.
 
 ## Agent roles and task loop
 
@@ -121,7 +139,7 @@ The repository currently builds/tests PRs and pushes to `main`; native auto-merg
 | Club Elo | Implement provider/cache/gates now; a complete dated seed is launch-safe; network use remains an owner gate |
 | Production identity | `gpt-5.6-sol` / `xhigh` / cap `10000`, Flex-first with Standard fallback; USD 35 is planning orientation only |
 | Arena challengers | Sol/high, Luna/medium, Terra/xhigh, Luna/none; cap `10000`, match v3 / bonus v1 |
-| Activation | Every leaf caller remains manual-only; ADR-0053/0055 schedule the strict eight-pair outer matchday lane at `7 2,9 * * *`; natural observation remains P0-21 |
+| Activation | Every leaf caller remains manual-only; ADR-0053/0055 schedule the strict eight-pair outer matchday lane at `7 2,9 * * *`; natural observation `33143114280` closed P0-21 |
 
 ## Prerequisite state
 
@@ -137,27 +155,29 @@ P0-17 recorded posting-target credential resolution and the implementation now l
 The connected GitHub token could not enumerate Actions secret names. On
 2026-08-27 the Owner confirmed every canonical ADR-0052 Kicktipp pair
 provisioned; that confirmation remains the planning source of truth and does
-not replace P0-21 authentication, readiness, or POST evidence.
+not itself replace authentication, readiness, or POST evidence. P0-21 later
+recorded that runtime evidence.
 
-## Remaining deliberately late gates
+## Post-P0 deliberately late gates
 
 These are not ambiguities agents may decide on their own:
 
 | Decision | Timing | Work that may proceed first |
 |---|---|---|
-| Final production model, reasoning, output cap, service/fallback policy, arena challengers, and planning ceiling | Resolved by ADR-0052 on 2026-08-27 | Production and challenger callers are now prepared; P0-21 retains live use |
-| Whether Club Elo terms permit unattended network refresh, or which permitted alternative to use | Late before go-live | Provider boundary, validation, cache, dated seed, and last-known-good behavior |
-| Exact production schedules, spacing, rollback trigger, and activation | Resolved by ADR-0053 on 2026-08-27 for ready rows | First actual scheduled observation remains runtime evidence |
+| Final production model, reasoning, output cap, service/fallback policy, arena challengers, and planning ceiling | Resolved by ADR-0052 on 2026-08-27 | Configuration is live and its first natural scheduled verification is green |
+| Whether Club Elo terms permit unattended network refresh, or which permitted alternative to use | P1-04 after launch | Continue the accepted dated seed and last-known-good behavior until resolved |
+| Exact production schedules, spacing, rollback trigger, and activation | Resolved by ADR-0053/0055; first natural observation succeeded on 2026-08-28 | Continue normal operations under the accepted rollback contract |
 | `schadensfresse` mixed DFB/CL routing | P1-08 before the CL bonus deadline and later cup finals | P0 validated target context plus copied Bundesliga match/opening bonus paths; every leaf remains manual-only, while ADR-0055 schedules only target context plus ordinary match copy in the outer lane |
 
-Final model selection will mix experiments and whole-season cost estimates. New-season outcomes do not exist, older-season evaluation may be training-contaminated, and the retired o3 configuration is not a season-long option; a GPT-5.6 variant is the tentative direction, not an implementation default.
+ADR-0052 settled final model selection from the completed experiments and
+whole-season estimates. New-season outcomes did not exist at selection time,
+and older-season evaluation may be training-contaminated; later exploratory
+evidence does not silently alter the accepted production default.
 
-## Orchestration start condition
+## P1 start condition
 
-Implementation through P0-20 and P0-23 through P0-25 is complete. ADR-0052
-also closes P0-06 and every schedule-free P0-19 repository row. Continue with
-P0-21 only. It may publish the pinned enriched v2 roster to each ready
-production context only through ADR-0051's paired explicit overlay mode and
-must retain every posting, deadline, manual-evidence, Owner, and activation
-gate. ADR-0053 schedules only the strict outer ready-row matchday lane; every
-leaf caller remains schedule-free.
+P0 is complete, including P0-21's natural scheduled observation. Begin bounded
+P1 work from the task ledger. Preserve ADR-0053/0055's strict outer matchday
+lane and manual-only leaves; do not infer bonus or mixed-competition schedule
+authority. P1-08 owns `schadensfresse` CL bonus and DFB/CL routing, and P1-04
+owns any unattended Club Elo network refresh decision.

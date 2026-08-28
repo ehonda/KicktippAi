@@ -6,6 +6,24 @@ P0 ends with successful manual production runs, the opening bonus and match pred
 
 The accepted [execution strategy](execution-strategy.md) defines gated orchestration, bounded worktree parallelism, hybrid Git integration, Codex usage discipline, and the remaining owner-controlled launch decisions.
 
+## P0 closeout — 2026-08-28
+
+P0 is complete. Natural GitHub Actions `schedule` run
+[`33143114280`](https://github.com/ehonda/KicktippAi/actions/runs/33143114280)
+succeeded on exact `main` head
+`50f3ed148891977b5909659f9986c9c9958d7875`: all eight
+context→match pairs ran serially, each context pass preserved the approved
+snapshots, and every match pass verified 9/9 current predictions without a
+write, generation, reprediction, token, or cost. The 2h46m22s GitHub delivery
+delay exceeded the 90-minute monitoring envelope, but the 38m46s run completed
+before the second daily occurrence and without overlap. The complete 16-job
+evidence is in [P0-21](tasks/p0-21-production-activation.md).
+
+This closeout supersedes later statements in this plan that call P0-21 or the
+first scheduled observation open. Work now proceeds in P1. P1-08 remains open
+for `schadensfresse` CL bonus and DFB/CL primary routing; unattended Club Elo
+network refresh and exploratory model follow-ups are also non-P0 work.
+
 ## Accepted direction
 
 - Bundesliga 2026/27 is the only live Bundesliga runtime target in scope. We are not preserving 2025/26 workflows, prompt routes, defaults, or implicit storage behavior.
@@ -52,7 +70,7 @@ The accepted [execution strategy](execution-strategy.md) defines gated orchestra
 | [P0-19 arena Luna/medium](tasks/p0-19-arena-luna-medium-self-contained-workflow-triad.md) | Complete: manual-only self-contained challenger triad | P0-06, P0-17, P0-18 |
 | [P0-19 arena Terra/xhigh](tasks/p0-19-arena-terra-xhigh-self-contained-workflow-triad.md) | Complete: manual-only self-contained challenger triad | P0-06, P0-17, P0-18 |
 | [P0-20](tasks/p0-20-seed-and-development-validation.md) | Seed context and validate dev plus arena plumbing | P0-02 through P0-18, P0-22, local dev path, Luna/none arena P0-19 entrypoints |
-| [P0-21](tasks/p0-21-production-activation.md) | Observe the active eight-row schedule; `schadensfresse` manual onboarding and topology are prepared | P0-06, P0-20, P0-24, P0-25, production P0-19 entrypoints |
+| [P0-21](tasks/p0-21-production-activation.md) | Complete: manual activation and the first natural eight-row scheduled sequence are green | P0-06, P0-20, P0-24, P0-25, production P0-19 entrypoints |
 | [P0-22](tasks/p0-22-history-played-dates.md) | Reconstruct exact played dates for recent, home, and away history | P0-02, P0-04 |
 | [P0-23](tasks/p0-23-gpt-5-6-production-candidate-evidence.md) | Complete: publish cutoff-safe GPT-5.6 cost/quality evidence with Luna/`max` incomplete; post-hoc Sol/`xhigh` and the later Sol/`max` extension remain explicitly exploratory | P0-05, P0-12, P0-20 |
 | [P0-24](tasks/p0-24-bonus-copy-post-compatibility.md) | Complete: exact bonus question and complete-option-set copy compatibility is implemented and integrated | P0-16, P0-17, P0-18 |
@@ -66,8 +84,8 @@ the arena Sol/`xhigh` production copy, and the self-contained arena challengers
 Sol/`high`, Luna/`medium`, Terra/`xhigh`, and Luna/`none`. The first
 `relaxdays-tippt` context attempt
 exposed a missing target-owned rules source; exact-head repair `eedf330` and
-green CI run `33049482431` preceded the successful retry. P0-21 remains the active P0
-closeout gate. Luna/`none` bonus run `33055144574` first failed closed on stale
+green CI run `33049482431` preceded the successful retry. P0-21 later closed the
+final P0 gate. Luna/`none` bonus run `33055144574` first failed closed on stale
 immutable provenance at the zero-reprediction limit before a model call. The
 Owner-approved forced index-0 recovery `33089097055` then saved and posted the
 same five IDs, passed final 5/5 verification, and completed the manual triad
@@ -91,8 +109,8 @@ ownership, rollback contract, and ready-row schedule on 2026-08-27. Exact
 activation commit `56238e5fd3615e11d0be2c462516e819dfded1db` is now on
 `main`, and exact-head GitHub run
 [`33100581641`](https://github.com/ehonda/KicktippAi/actions/runs/33100581641)
-succeeded. The natural scheduled observation, including the ADR-0055 topology
-after it reaches the default branch, remains open.
+succeeded. The later closeout observation above supersedes this pre-observation
+checkpoint.
 
 P0-19 is instantiated for every ADR-0052 deployable row. The development row
 remains a local CLI path; every production/copy/challenger leaf entrypoint is
@@ -108,8 +126,8 @@ and shared non-cancelling concurrency, with no bonus or `schadensfresse` at
 that historical checkpoint. ADR-0055 extends the lane to 16 jobs/eight pairs by
 inserting `schadensfresse` after `pes-squad`; bonus remains excluded.
 ADR-0053's sole recurring cron is active through the outer workflow while every
-leaf caller remains manual-only. This activation evidence does not claim the
-still-unobserved first scheduled result.
+leaf caller remains manual-only. Natural run `33143114280` subsequently proved
+the complete ADR-0055 topology.
 
 The activation contract forbids dispatching the outer lane before activation:
 completed leaf validation plus static/review/CI evidence is sufficient, while a
@@ -128,7 +146,7 @@ Luna/`none` recovery is complete and must not be repeated.
 
 ## Handoffs
 
-- [`buli-2627-p0-closeout-ready-2026-08-25`](handoffs/buli-2627-p0-closeout-ready-2026-08-25.md) — current closeout handoff; its 2026-08-27 addendum closes P0-06 and schedule-free P0-19, leaving P0-21.
+- [`buli-2627-p0-closeout-ready-2026-08-25`](handoffs/buli-2627-p0-closeout-ready-2026-08-25.md) — closed P0 handoff with the final natural-schedule evidence and P1 boundary.
 - [`buli-2627-p0-foundations-green-2026-08-16`](handoffs/buli-2627-p0-foundations-green-2026-08-16.md) — historical foundation pause; superseded by the current task ledger and execution strategy.
 - [`buli-2627-p0-12-open-review-2026-08-19`](handoffs/buli-2627-p0-12-open-review-2026-08-19.md) — historical interrupted-review checkpoint; P0-12 is now complete, so its resume instructions are no longer active.
 
@@ -149,7 +167,8 @@ There is intentionally no transfer-document automation task in P1.
 
 ## Launch gates
 
-P0 is complete only when:
+P0 is complete. The following gates are retained as the satisfied closeout
+contract:
 
 - all 18 teams map one-to-one across Kicktipp, document slugs, roster sources, and the accepted Club Elo snapshot;
 - all production reads and writes use `bundesliga-2026-27` and cannot fall back to the old unscoped Bundesliga identity;
