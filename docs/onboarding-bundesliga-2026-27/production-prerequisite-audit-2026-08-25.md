@@ -13,8 +13,8 @@ then succeeded on exact `main` head
 context→match order. Context retained the accepted snapshots; each match row
 verified 9/9 current predictions, then skipped generation/posting and final
 verification. The run made no write, generation, reprediction, token use, or
-cost and had no runtime WM26, Bundesliga 2025/26, transfer-context, error, or
-overlap evidence.
+cost and had no runtime WM26, Bundesliga 2025/26, or transfer-context identity,
+actual error outcome, or overlap evidence.
 
 GitHub delivered the nominal 02:07 UTC event 2h46m22s late, beyond the
 90-minute monitoring envelope, but the 38m46s run completed before the next

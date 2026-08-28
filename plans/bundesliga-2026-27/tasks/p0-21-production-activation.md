@@ -78,9 +78,12 @@ The payload-safe Langfuse production-environment query for
 returned no observations (`data: []`, `totalItems: 0`), consistent with zero
 generation, usage, and cost; service tier and fallback are therefore not
 applicable, and no trace error exists. Runtime log scans after the actual
-execution markers found zero WM26, Bundesliga 2025/26, transfer-context, or
-error lines. One WM26 literal existed only in the pre-runtime generic shell
-validation case table and is not runtime contamination. This evidence closes
+execution markers found zero WM26, Bundesliga 2025/26, or transfer-context
+identities and zero actual error outcomes. The benign configuration sentence
+`Init matchday mode enabled - will return error if no predictions exist.`
+contains the only runtime `error` literal and is not an error-level failure.
+One WM26 literal existed only in the pre-runtime generic shell validation case
+table and is not runtime contamination. This evidence closes
 P0-21 and the central P0 release train. P1 is next; in particular, P1-08 still
 owns `schadensfresse` CL bonus and DFB/CL primary routing, while unattended
 Club Elo network refresh and exploratory model follow-ups remain non-P0.
@@ -156,9 +159,10 @@ when a rollback trigger fires. Exact commit
 `56238e5fd3615e11d0be2c462516e819dfded1db` activated the accepted schedule
 on `main`; exact-head GitHub run
 [`33100581641`](https://github.com/ehonda/KicktippAi/actions/runs/33100581641)
-succeeded. Only an actual `schedule` event can satisfy the still-open
-first-observation gate. The separately approved Luna/`none` forced recovery is
-complete and must not be repeated.
+succeeded. At that activation checkpoint, only an actual `schedule` event could
+satisfy the then-open first-observation gate. Natural run `33143114280` later
+satisfied it. The separately approved Luna/`none` forced recovery is complete
+and must not be repeated.
 
 ## Work items
 
@@ -251,8 +255,8 @@ complete and must not be repeated.
       its context then matchday copy after `pes-squad` in the recurring outer
       lane with launch overlay false. Keep bonus out of the schedule; P1-08
       owns the CL-specific September operation. ADR-0055 and the exact workflow
-      contract prepare the 16-job/eight-pair topology; default-branch CI and
-      natural observation are separate remaining gates.
+      contract prepared the 16-job/eight-pair topology. Default-branch CI later
+      passed, and natural run `33143114280` proved the complete topology.
 
 ## Validation evidence
 
@@ -414,7 +418,8 @@ confirmed all nine submitted score pairs. Bonus selected five of eight open
 questions under the inclusive cutoff, copied all five at zero usage/cost, and
 left the later Champions-League scope excluded. ADR-0055 consequently adds
 only target context then ordinary match copy to the recurring lane. It does not
-schedule bonus and does not claim a natural scheduled observation.
+schedule bonus. This manual-onboarding evidence alone did not claim a natural
+scheduled observation; the later closeout run above supplied it.
 
 The first authorized `relaxdays-tippt` context dispatch, Actions run
 [`33047564359`](https://github.com/ehonda/KicktippAi/actions/runs/33047564359),
@@ -442,11 +447,12 @@ blocked by HTTP 403; the later Owner provisioning confirmation is authoritative
 for presence only. This paragraph is historical 2026-08-26 evidence: the later
 ready-row manual ladder and exact activation evidence above supersede its
 then-open ready-row authentication, permission, roster, write, and activation
-gates. The remaining items from this boundary apply only to `schadensfresse`:
+gates. At that boundary, the remaining items applied only to `schadensfresse`:
 current-season readiness and administrator POST permission, manual context then
 match/bonus evidence, payload-safe inspection, and a later row-specific
-topology, activation, and observation decision. The ready-row first scheduled
-observation remains separately open as recorded above.
+topology, activation, and observation decision. The later manual ladder and
+ADR-0055 closed those items. The ready-row scheduled observation was then open;
+natural run `33143114280` later closed it as recorded above.
 
 ## Complete when
 

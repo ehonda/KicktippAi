@@ -56,8 +56,10 @@ ADR-0055 keeps cron `7 2,9 * * *` UTC and the shared non-cancelling lane, then
 inserts `schadensfresse` context and ordinary match copy immediately after
 `pes-squad`. The resulting topology is 16 jobs/eight context→match pairs. It
 contains no bonus job, and the retained outer `workflow_dispatch` trigger must
-not be used for validation. Natural scheduled observation remains open; no
-statement in this handoff claims it has occurred.
+not be used for validation. At that post-manual, pre-observation checkpoint,
+natural scheduled observation remained open and this subsection made no claim
+that it had occurred. The final P0 closeout addendum above records its later
+completion.
 
 ## Schadensfresse copy-onboarding addendum — 2026-08-27
 
@@ -106,12 +108,13 @@ lane with overlay false. Bonus stays unscheduled.
 - The Owner confirmed every exact canonical Kicktipp Actions username/password
   pair in the community ledger provisioned on 2026-08-27. This is not API
   enumeration, authentication, current-season readiness, or POST evidence.
-- Resume only with P0-21: wait for external `schadensfresse` setup, then repeat
-  its readiness/deadline audit and complete its ordered context/prediction
-  ladder. ADR-0053 now settles the Owner cadence, operating ownership, rollback,
-  and activation decision; the first actual scheduled observation remains
-  open. The Luna/`none` recovery is complete and its one-run authorization is
-  consumed; do not dispatch a duplicate recovery.
+- At that 2026-08-27 checkpoint, the resume path was P0-21: wait for external
+  `schadensfresse` setup, then repeat its readiness/deadline audit and complete
+  its ordered context/prediction ladder. ADR-0053 had settled the Owner cadence,
+  operating ownership, rollback, and activation decision; the first actual
+  scheduled observation was then open. The later addenda close both items. The
+  Luna/`none` recovery was complete and its one-run authorization consumed; do
+  not dispatch a duplicate recovery.
 - After this repository change is independently reviewed, integrated, pushed,
   and green, the Owner authorizes manual context-then-prediction dispatch and
   initial writes for `pes-squad`, `relaxdays-tippt`, and every selected arena
@@ -144,7 +147,8 @@ lane with overlay false. Bonus stays unscheduled.
   activation commit `56238e5fd3615e11d0be2c462516e819dfded1db` is on
   `main`, and exact-head GitHub run
   [`33100581641`](https://github.com/ehonda/KicktippAi/actions/runs/33100581641)
-  succeeded. The first actual scheduled observation remains open.
+  succeeded. At that activation checkpoint, the first actual scheduled
+  observation was still open; final natural run `33143114280` later closed it.
 - GitHub workflow `343638152` is active. At the pre-observation readiness
   snapshot it had no outer run yet; the next natural occurrence was
   `2026-08-28T02:07:00Z` / 04:07 CEST, monitoring was due from 02:02 UTC, all

@@ -147,7 +147,8 @@ succeeded including Pages. Integrated writer/reviewer worktrees were cleaned.
 This evidence did not dispatch the lane. At that precursor checkpoint, cadence,
 ownership, and rollback were settled by ADR-0053 while first scheduled
 observation and `schadensfresse` onboarding remained open. The later completed
-ladder and ADR-0055 supersede only the latter state.
+ladder and ADR-0055 closed the onboarding state; natural run `33143114280`
+closed the observation state.
 
 For the original preregistration-writing pass, no authenticated community
 lookup, workflow dispatch, model or Langfuse call, schedule change, prediction
@@ -343,11 +344,12 @@ permission:
 - The Owner confirmed all canonical Kicktipp Actions pairs provisioned, without
   API enumeration or runtime proof.
 - After reviewed/integrated/pushed/green preparation, the separate Owner
-  authorization above permits P0-21's ordered initial dispatch/writes for ready
-  rows. Authentication/current-season readiness, failures, deadlines,
-  row-specific recovery/onboarding inspection, monitoring, and rollback remain
-  live duties under ADR-0053. The first scheduled observation is not yet
-  evidence-complete.
+  authorization above permitted P0-21's ordered initial dispatch/writes for
+  ready rows. At that pre-observation checkpoint, authentication/current-season
+  readiness, failures, deadlines, row-specific recovery/onboarding inspection,
+  monitoring, and rollback remained live duties under ADR-0053. The first
+  scheduled observation was not yet evidence-complete; natural run
+  `33143114280` later closed it.
 
 The `schadensfresse` administrator setup and ordered manual ladder are complete.
 Context run `33121916551`, 9/9 zero-generation match-copy run `33122627130`,
@@ -445,16 +447,18 @@ The Project Owner accepted the exact cadence, operator/monitor/on-call and
 rollback ownership, Luna/`none` schedule treatment, and first-observation
 procedure on 2026-08-27. Exact activation commit `56238e5` is on `main`, and
 exact-head CI run `33100581641` is green. The forced recovery is already
-complete and must not be repeated. The first actual `schedule` event remains
-unobserved and therefore open.
+complete and must not be repeated. At that acceptance checkpoint, the first
+actual `schedule` event was unobserved and open; natural run `33143114280`
+later closed it.
 
-## Activation gates and current live status
+## Activation gates and live-status closeout
 
 The Owner's separate authorizations permitted the ordered manual writes
-recorded above after each runtime check passed. The original repository
-activation is complete and ADR-0055's extension is prepared; the only unchecked
-item below is natural scheduled observation. This does not retroactively
-invalidate successful final-verifier evidence.
+recorded above after each runtime check passed. The repository activation and
+ADR-0055 extension are complete, and natural run `33143114280` closed the last
+runtime observation. The pre-observation ordering below remains the historical
+gate sequence and does not retroactively invalidate successful final-verifier
+evidence.
 
 - [x] **OWNER GATE — configuration:** record the exact `production-primary`
       model, reasoning, cap, prompt versions, service/fallback policy, cost
@@ -484,8 +488,8 @@ invalidate successful final-verifier evidence.
       launch-overlay step before normal profile collection; arena callers omit
       the download and retain their accepted enriched LKG path.
 - [x] All per-community readiness gates below pass. Every scheduled row's
-      manual ladder is green; first natural outer-lane observation remains a
-      separate runtime gate.
+      manual ladder is green; natural outer-lane run `33143114280` later closed
+      the separate runtime observation gate.
 - [x] Manual context collection succeeded and its exact run ID/completion was
       recorded before each ready-row prediction dispatch, including the pinned
       non-arena overlay and preserved arena enriched head.
@@ -521,14 +525,16 @@ One community passing did not activate another. P0-21 enabled only rows whose
 own manual evidence passed; all eight scheduled rows now also have the natural
 observation above.
 
-## First scheduled observation and monitoring — runtime gate open
+## First scheduled observation and monitoring — completed
 
-The named monitor must watch the first outer run from creation through terminal
-completion and record the exact event, ref, commit SHA, run/job IDs, dependency
-order, timestamps, context publication dispositions, Kicktipp/Firestore final
-verification, hosted prompt/model identity, usage/cost, fallback behavior, and
-errors. The monitor must confirm no concurrent manual/live operation uses the
-same external lane.
+The named monitor's retained contract was to watch the first outer run from
+creation through terminal completion and record the exact event, ref, commit
+SHA, run/job IDs, dependency order, timestamps, context publication
+dispositions, Kicktipp/Firestore final verification, hosted prompt/model
+identity, usage/cost, fallback behavior, and error outcomes. The monitor also
+had to confirm that no concurrent manual/live operation used the same external
+lane. Natural run `33143114280` satisfied this contract; P0-21 holds the exact
+evidence.
 
 Required success behavior:
 
