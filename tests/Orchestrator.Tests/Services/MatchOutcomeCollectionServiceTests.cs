@@ -47,6 +47,11 @@ public class MatchOutcomeCollectionServiceTests
         await Assert.That(summary.CreatedCount).IsEqualTo(0);
         await Assert.That(summary.UpdatedCount).IsEqualTo(0);
         await Assert.That(summary.UnchangedCount).IsEqualTo(0);
+        await Assert.That(summary.Outcomes.Select(outcome => outcome.TippSpielId!))
+            .IsEquivalentTo([
+                "24-FC Bayern München-Borussia Dortmund",
+                "24-RB Leipzig-1. FSV Mainz 05"
+            ]);
 
         outcomeRepository.Verify(
             r => r.UpsertMatchOutcomeAsync(It.IsAny<CollectedMatchOutcome>(), It.IsAny<string>(), It.IsAny<CancellationToken>()),
@@ -104,6 +109,7 @@ public class MatchOutcomeCollectionServiceTests
         await Assert.That(firstSummary.CreatedCount).IsEqualTo(1);
         await Assert.That(firstSummary.UpdatedCount).IsEqualTo(1);
         await Assert.That(firstSummary.UnchangedCount).IsEqualTo(0);
+        await Assert.That(firstSummary.Outcomes).IsEquivalentTo([day24Created, day24Updated]);
 
         var secondSummary = result.MatchdaySummaries[1];
         await Assert.That(secondSummary.Matchday).IsEqualTo(25);
@@ -113,6 +119,7 @@ public class MatchOutcomeCollectionServiceTests
         await Assert.That(secondSummary.CreatedCount).IsEqualTo(0);
         await Assert.That(secondSummary.UpdatedCount).IsEqualTo(0);
         await Assert.That(secondSummary.UnchangedCount).IsEqualTo(1);
+        await Assert.That(secondSummary.Outcomes).IsEquivalentTo([day25Unchanged]);
 
         outcomeRepository.Verify(r => r.GetIncompleteMatchdaysAsync(communityContext, 25, cancellationToken), Times.Once);
         outcomeRepository.Verify(r => r.UpsertMatchOutcomeAsync(day24Created, communityContext, cancellationToken), Times.Once);

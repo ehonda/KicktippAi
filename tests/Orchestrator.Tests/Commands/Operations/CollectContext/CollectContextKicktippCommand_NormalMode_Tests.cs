@@ -14,6 +14,19 @@ namespace Orchestrator.Tests.Commands.Operations.CollectContext;
 /// </summary>
 public class CollectContextKicktippCommand_NormalMode_Tests : CollectContextKicktippCommandTests_Base
 {
+    private static readonly IReadOnlyList<(string HomeTeam, string AwayTeam)> MatchdayOneFixtures =
+    [
+        ("FC Bayern München", "VfB Stuttgart"),
+        ("RB Leipzig", "Bor. Mönchengladbach"),
+        ("FSV Mainz 05", "SC Paderborn 07"),
+        ("1. FC Union Berlin", "Eintracht Frankfurt"),
+        ("1. FC Köln", "1899 Hoffenheim"),
+        ("SV Elversberg", "Bayer 04 Leverkusen"),
+        ("Borussia Dortmund", "Hamburger SV"),
+        ("SC Freiburg", "Werder Bremen"),
+        ("FC Augsburg", "FC Schalke 04")
+    ];
+
     [Test]
     public async Task Running_command_displays_initialization_message()
     {
@@ -70,25 +83,11 @@ public class CollectContextKicktippCommand_NormalMode_Tests : CollectContextKick
     [Test]
     public async Task Profile_owned_expected_match_count_fails_before_context_collection_or_publication()
     {
-        var matches = Enumerable.Range(1, 8)
-            .Select(_ => CreateBayernVsDortmundMatchWithHistory())
-            .ToList();
+        var matches = CreateCurrentOpenMatches();
         var ctx = CreateCollectContextCommandApp(matchesWithHistory: matches);
-        var outcomeService = new MatchOutcomeCollectionService(
-            ctx.FirebaseServiceFactory.Object,
-            ctx.KicktippClientFactory.Object,
-            new FakeLogger<MatchOutcomeCollectionService>());
-        var command = new CollectContextKicktippCommand(
-            ctx.Console,
-            ctx.FirebaseServiceFactory.Object,
-            ctx.KicktippClientFactory.Object,
-            ctx.ContextProviderFactory.Object,
-            outcomeService,
-            ctx.HistoryCollector.Object,
-            TimeProvider.System,
-            new FakeLogger<CollectContextKicktippCommand>());
+        ConfigureOutcomeCollection(ctx, CreateMatchdayOutcomes(9, completedCount: 0));
 
-        var exitCode = await command.ExecuteWithSettingsAsync(new CollectContextKicktippSettings
+        var exitCode = await CreateCommand(ctx).ExecuteWithSettingsAsync(new CollectContextKicktippSettings
         {
             CommunityContext = "ehonda-dev-buli-2627",
             Competition = CompetitionIds.Bundesliga2026_27,
@@ -110,6 +109,163 @@ public class CollectContextKicktippCommand_NormalMode_Tests : CollectContextKick
             It.IsAny<string>(), It.IsAny<string>(), It.IsAny<string>(), It.IsAny<CancellationToken>()), Times.Never);
         ctx.ContextRepository.Verify(repository => repository.SaveContextDocumentsAtomicallyAsync(
             It.IsAny<IReadOnlyList<ContextDocumentWrite>>(), It.IsAny<string>(), It.IsAny<CancellationToken>()), Times.Never);
+    }
+
+    [Test]
+    public async Task Explained_reduced_current_open_match_count_succeeds()
+    {
+        var matches = CreateCurrentOpenMatches();
+        var ctx = CreateCollectContextCommandApp(matchesWithHistory: matches);
+        ConfigureOutcomeCollection(ctx, CreateMatchdayOutcomes(9, completedCount: 1));
+
+        var exitCode = await CreateCommand(ctx).ExecuteWithSettingsAsync(new CollectContextKicktippSettings
+        {
+            CommunityContext = "ehonda-dev-buli-2627",
+            Competition = CompetitionIds.Bundesliga2026_27,
+            ExpectedMatchesPerMatchday = 9,
+            DryRun = true
+        });
+
+        await Assert.That(exitCode).IsEqualTo(0);
+        await Assert.That(ctx.Console.Output).Contains("Found 8 matches for current matchday");
+        ctx.ContextProviderFactory.Verify(factory => factory.CreateKicktippContextProvider(
+            It.IsAny<IKicktippClient>(),
+            "ehonda-dev-buli-2627",
+            CompetitionIds.Bundesliga2026_27,
+            "ehonda-dev-buli-2627",
+            null), Times.Once);
+        foreach (var fixture in MatchdayOneFixtures.Skip(1))
+        {
+            ctx.ContextProvider.Verify(provider => provider.GetMatchContextAsync(
+                fixture.HomeTeam,
+                fixture.AwayTeam,
+                It.IsAny<CancellationToken>()), Times.Once);
+        }
+    }
+
+    [Test]
+    public async Task Explained_reduced_count_fails_when_an_open_fixture_has_a_different_matchday()
+    {
+        var matches = CreateCurrentOpenMatches(matchday: 2);
+        var ctx = CreateCollectContextCommandApp(matchesWithHistory: matches);
+        ConfigureOutcomeCollection(ctx, CreateMatchdayOutcomes(9, completedCount: 1));
+
+        var exitCode = await CreateCommand(ctx).ExecuteWithSettingsAsync(new CollectContextKicktippSettings
+        {
+            CommunityContext = "ehonda-dev-buli-2627",
+            Competition = CompetitionIds.Bundesliga2026_27,
+            ExpectedMatchesPerMatchday = 9,
+            DryRun = true
+        });
+
+        await Assert.That(exitCode).IsEqualTo(1);
+        await Assert.That(ctx.Console.Output).Contains("expected exactly 9 matches").And.Contains("found 8");
+        ctx.ContextProviderFactory.Verify(factory => factory.CreateKicktippContextProvider(
+            It.IsAny<IKicktippClient>(),
+            It.IsAny<string>(),
+            It.IsAny<string>(),
+            It.IsAny<string>(),
+            It.IsAny<int?>()), Times.Never);
+    }
+
+    [Test]
+    public async Task Explained_reduced_count_does_not_relax_an_explicit_target_matchday()
+    {
+        var matches = CreateCurrentOpenMatches();
+        var ctx = CreateCollectContextCommandApp(matchesWithHistory: matches);
+        ConfigureOutcomeCollection(ctx, CreateMatchdayOutcomes(9, completedCount: 1));
+
+        var exitCode = await CreateCommand(ctx).ExecuteWithSettingsAsync(new CollectContextKicktippSettings
+        {
+            CommunityContext = "ehonda-dev-buli-2627",
+            Competition = CompetitionIds.Bundesliga2026_27,
+            Matchdays = "1",
+            ExpectedMatchesPerMatchday = 9,
+            DryRun = true
+        });
+
+        await Assert.That(exitCode).IsEqualTo(1);
+        await Assert.That(ctx.Console.Output)
+            .Contains("expected exactly 9 matches")
+            .And.Contains("Getting matchday 1 matches")
+            .And.Contains("but found 8");
+        ctx.ContextProviderFactory.Verify(factory => factory.CreateKicktippContextProvider(
+            It.IsAny<IKicktippClient>(),
+            It.IsAny<string>(),
+            It.IsAny<string>(),
+            It.IsAny<string>(),
+            It.IsAny<int?>()), Times.Never);
+    }
+
+    [Test]
+    [Arguments(false)]
+    [Arguments(true)]
+    public async Task Reduced_count_fails_for_blank_or_duplicate_outcome_tippSpielId(bool duplicateId)
+    {
+        var matches = CreateCurrentOpenMatches();
+        var outcomes = CreateMatchdayOutcomes(9, completedCount: 1).ToArray();
+        outcomes[1] = outcomes[1] with
+        {
+            TippSpielId = duplicateId ? outcomes[0].TippSpielId : " "
+        };
+        var ctx = CreateCollectContextCommandApp(matchesWithHistory: matches);
+        ConfigureOutcomeCollection(ctx, outcomes);
+
+        var exitCode = await ExecuteProfileCountCommand(ctx);
+
+        await Assert.That(exitCode).IsEqualTo(1);
+        VerifyNoContextCollectionOrPublication(ctx);
+    }
+
+    [Test]
+    [Arguments(false)]
+    [Arguments(true)]
+    public async Task Reduced_count_fails_for_duplicate_or_wrong_matchday_outcome_identity(bool wrongMatchday)
+    {
+        var matches = CreateCurrentOpenMatches();
+        var outcomes = CreateMatchdayOutcomes(9, completedCount: 1).ToArray();
+        outcomes[1] = wrongMatchday
+            ? outcomes[1] with { Matchday = 2 }
+            : outcomes[1] with
+            {
+                HomeTeam = outcomes[0].HomeTeam,
+                AwayTeam = outcomes[0].AwayTeam
+            };
+        var ctx = CreateCollectContextCommandApp(matchesWithHistory: matches);
+        ConfigureOutcomeCollection(ctx, outcomes);
+
+        var exitCode = await ExecuteProfileCountCommand(ctx);
+
+        await Assert.That(exitCode).IsEqualTo(1);
+        VerifyNoContextCollectionOrPublication(ctx);
+    }
+
+    [Test]
+    public async Task Reduced_count_fails_for_a_duplicate_open_fixture_identity()
+    {
+        var matches = CreateCurrentOpenMatches();
+        matches[^1] = matches[0];
+        var ctx = CreateCollectContextCommandApp(matchesWithHistory: matches);
+        ConfigureOutcomeCollection(ctx, CreateMatchdayOutcomes(9, completedCount: 1));
+
+        var exitCode = await ExecuteProfileCountCommand(ctx);
+
+        await Assert.That(exitCode).IsEqualTo(1);
+        VerifyNoContextCollectionOrPublication(ctx);
+    }
+
+    [Test]
+    public async Task Reduced_count_fails_when_the_open_set_omits_a_pending_fixture()
+    {
+        var matches = CreateCurrentOpenMatches();
+        matches[^1] = CreateFixture(MatchdayOneFixtures[0], matchday: 1);
+        var ctx = CreateCollectContextCommandApp(matchesWithHistory: matches);
+        ConfigureOutcomeCollection(ctx, CreateMatchdayOutcomes(9, completedCount: 1));
+
+        var exitCode = await ExecuteProfileCountCommand(ctx);
+
+        await Assert.That(exitCode).IsEqualTo(1);
+        VerifyNoContextCollectionOrPublication(ctx);
     }
 
     [Test]
@@ -300,5 +456,97 @@ public class CollectContextKicktippCommand_NormalMode_Tests : CollectContextKick
                 "test-community",
                 3),
             Times.Once);
+    }
+
+    private static CollectContextKicktippCommand CreateCommand(CollectContextKicktippCommandTestContext context)
+    {
+        var outcomeService = new MatchOutcomeCollectionService(
+            context.FirebaseServiceFactory.Object,
+            context.KicktippClientFactory.Object,
+            new FakeLogger<MatchOutcomeCollectionService>());
+        return new CollectContextKicktippCommand(
+            context.Console,
+            context.FirebaseServiceFactory.Object,
+            context.KicktippClientFactory.Object,
+            context.ContextProviderFactory.Object,
+            outcomeService,
+            context.HistoryCollector.Object,
+            TimeProvider.System,
+            new FakeLogger<CollectContextKicktippCommand>());
+    }
+
+    private static void ConfigureOutcomeCollection(
+        CollectContextKicktippCommandTestContext context,
+        IReadOnlyList<CollectedMatchOutcome> outcomes)
+    {
+        var outcomeRepository = CreateMockMatchOutcomeRepository(incompleteMatchdays: new[] { 1 });
+        context.FirebaseServiceFactory
+            .Setup(factory => factory.CreateMatchOutcomeRepository(CompetitionIds.Bundesliga2026_27))
+            .Returns(outcomeRepository.Object);
+        context.KicktippClient
+            .Setup(client => client.GetCurrentTippuebersichtMatchdayAsync("ehonda-dev-buli-2627"))
+            .ReturnsAsync(1);
+        context.KicktippClient
+            .Setup(client => client.GetMatchdayOutcomesAsync("ehonda-dev-buli-2627", 1))
+            .ReturnsAsync(outcomes);
+    }
+
+    private static List<MatchWithHistory> CreateCurrentOpenMatches(int matchday = 1)
+    {
+        return MatchdayOneFixtures
+            .Skip(1)
+            .Select(fixture => CreateFixture(fixture, matchday))
+            .ToList();
+    }
+
+    private static MatchWithHistory CreateFixture(
+        (string HomeTeam, string AwayTeam) fixture,
+        int matchday)
+    {
+        return CreateMatchWithHistory(match: CreateMatch(
+            homeTeam: fixture.HomeTeam,
+            awayTeam: fixture.AwayTeam,
+            matchday: matchday));
+    }
+
+    private static IReadOnlyList<CollectedMatchOutcome> CreateMatchdayOutcomes(int count, int completedCount)
+    {
+        return MatchdayOneFixtures
+            .Take(count)
+            .Select((fixture, index) => new CollectedMatchOutcome(
+                fixture.HomeTeam,
+                fixture.AwayTeam,
+                CreateBayernVsDortmundMatch().StartsAt,
+                1,
+                index < completedCount ? 1 : null,
+                index < completedCount ? 0 : null,
+                index < completedCount ? MatchOutcomeAvailability.Completed : MatchOutcomeAvailability.Pending,
+                $"fixture-{index + 1}"))
+            .ToArray();
+    }
+
+    private static async Task<int> ExecuteProfileCountCommand(CollectContextKicktippCommandTestContext context)
+    {
+        return await CreateCommand(context).ExecuteWithSettingsAsync(new CollectContextKicktippSettings
+        {
+            CommunityContext = "ehonda-dev-buli-2627",
+            Competition = CompetitionIds.Bundesliga2026_27,
+            ExpectedMatchesPerMatchday = 9,
+            DryRun = true
+        });
+    }
+
+    private static void VerifyNoContextCollectionOrPublication(CollectContextKicktippCommandTestContext context)
+    {
+        context.ContextProviderFactory.Verify(factory => factory.CreateKicktippContextProvider(
+            It.IsAny<IKicktippClient>(),
+            It.IsAny<string>(),
+            It.IsAny<string>(),
+            It.IsAny<string>(),
+            It.IsAny<int?>()), Times.Never);
+        context.ContextRepository.Verify(repository => repository.SaveContextDocumentAsync(
+            It.IsAny<string>(), It.IsAny<string>(), It.IsAny<string>(), It.IsAny<CancellationToken>()), Times.Never);
+        context.ContextRepository.Verify(repository => repository.SaveContextDocumentsAtomicallyAsync(
+            It.IsAny<IReadOnlyList<ContextDocumentWrite>>(), It.IsAny<string>(), It.IsAny<CancellationToken>()), Times.Never);
     }
 }

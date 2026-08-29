@@ -162,6 +162,7 @@ P1-01 and P1-02 were promoted to P0-15 and P0-16 because both affect predictions
 | [P1-06](tasks/p1-06-observability-datasets.md) | Make experiment preparation explicitly 2026/27-capable | P0-12, P0-21 |
 | [P1-07](tasks/p1-07-cost-calibration.md) | Recalculate season cost from live usage evidence | P0-16, P1-04, P1-05 |
 | [P1-08](tasks/p1-08-schadensfresse-mixed-competition-routing.md) | Route schadensfresse CL bonus and DFB/CL matches through competition-correct primary paths | P0-21 |
+| [P1-09](tasks/p1-09-current-open-matchday-context.md) | Reconcile reduced current open fixtures with the complete outcome view | P0-14, P0-21 |
 
 There is intentionally no transfer-document automation task in P1.
 
@@ -247,3 +248,4 @@ contract:
 - [ADR-0053: Schedule the production-live matchday lane](decisions/0053-schedule-the-production-live-matchday-lane.md)
 - [ADR-0054: Copy schadensfresse Bundesliga predictions from pes-squad](decisions/0054-copy-schadensfresse-bundesliga-from-pes-squad.md)
 - [ADR-0055: Add schadensfresse to the production-live matchday lane](decisions/0055-add-schadensfresse-to-production-live-lane.md)
+- [ADR-0056: Reconcile current open fixtures with outcomes](decisions/0056-reconcile-current-open-fixtures-with-outcomes.md) — supersedes only ADR-0034's exact-count requirement for the implicit current open view

@@ -163,6 +163,7 @@ public class CollectContextKicktippCommand : AsyncCommand<CollectContextKicktipp
                 settings,
                 competition,
                 targetMatchday,
+                outcomeCollectionResult,
                 cancellationToken);
             if (page is not null)
             {
@@ -404,6 +405,7 @@ public class CollectContextKicktippCommand : AsyncCommand<CollectContextKicktipp
         CollectContextKicktippSettings settings,
         string competition,
         int? targetMatchday,
+        MatchOutcomeCollectionResult? outcomeCollectionResult,
         CancellationToken cancellationToken)
     {
         cancellationToken.ThrowIfCancellationRequested();
@@ -428,7 +430,13 @@ public class CollectContextKicktippCommand : AsyncCommand<CollectContextKicktipp
             return null;
         }
 
-        if (settings.ExpectedMatchesPerMatchday is int expectedMatchCount && matches.Count != expectedMatchCount)
+        if (settings.ExpectedMatchesPerMatchday is int expectedMatchCount
+            && matches.Count != expectedMatchCount
+            && !IsExplainedCurrentOpenMatchdayCount(
+                matches,
+                expectedMatchCount,
+                targetMatchday,
+                outcomeCollectionResult))
         {
             throw new InvalidDataException(
                 $"The {competition} profile expected exactly {expectedMatchCount} matches for {matchdayLabel}, " +
@@ -437,6 +445,67 @@ public class CollectContextKicktippCommand : AsyncCommand<CollectContextKicktipp
 
         _console.MarkupLine($"[green]Found {matches.Count} matches for {matchdayLabel}[/]");
         return new TargetMatchdayCollection(targetMatchday, matches);
+    }
+
+    private static bool IsExplainedCurrentOpenMatchdayCount(
+        IReadOnlyList<MatchWithHistory> matches,
+        int expectedMatchCount,
+        int? targetMatchday,
+        MatchOutcomeCollectionResult? outcomeCollectionResult)
+    {
+        if (targetMatchday.HasValue
+            || outcomeCollectionResult is null
+            || matches.Count >= expectedMatchCount
+            || matches.Any(match => match.Match.Matchday != outcomeCollectionResult.CurrentMatchday))
+        {
+            return false;
+        }
+
+        var currentMatchdaySummaries = outcomeCollectionResult.MatchdaySummaries
+            .Where(summary => summary.Matchday == outcomeCollectionResult.CurrentMatchday)
+            .ToArray();
+        if (currentMatchdaySummaries.Length != 1)
+        {
+            return false;
+        }
+
+        var summary = currentMatchdaySummaries[0];
+        if (summary.FetchedMatches != expectedMatchCount
+            || summary.Outcomes.Count != expectedMatchCount
+            || summary.CompletedMatches != expectedMatchCount - matches.Count
+            || summary.PendingMatches != matches.Count
+            || summary.Outcomes.Any(outcome => outcome.Matchday != outcomeCollectionResult.CurrentMatchday)
+            || summary.Outcomes.Any(outcome => string.IsNullOrWhiteSpace(outcome.TippSpielId))
+            || summary.Outcomes
+                .Select(outcome => outcome.TippSpielId!)
+                .Distinct(StringComparer.Ordinal)
+                .Count() != expectedMatchCount)
+        {
+            return false;
+        }
+
+        var outcomeFixtureIdentities = summary.Outcomes
+            .Select(outcome => new LeagueFixtureIdentity(outcome.HomeTeam, outcome.AwayTeam))
+            .ToHashSet(LeagueFixtureIdentityComparer.Instance);
+        if (outcomeFixtureIdentities.Count != expectedMatchCount)
+        {
+            return false;
+        }
+
+        var openFixtureIdentities = matches
+            .Select(match => new LeagueFixtureIdentity(match.Match.HomeTeam, match.Match.AwayTeam))
+            .ToHashSet(LeagueFixtureIdentityComparer.Instance);
+        if (openFixtureIdentities.Count != matches.Count)
+        {
+            return false;
+        }
+
+        var pendingOutcomeFixtureIdentities = summary.Outcomes
+            .Where(outcome => !outcome.HasOutcome)
+            .Select(outcome => new LeagueFixtureIdentity(outcome.HomeTeam, outcome.AwayTeam))
+            .ToHashSet(LeagueFixtureIdentityComparer.Instance);
+        return pendingOutcomeFixtureIdentities.Count == matches.Count
+            && pendingOutcomeFixtureIdentities.SetEquals(openFixtureIdentities);
     }
 
     private async Task<TargetMatchdayCollection> FetchRequiredFullSeasonMatchdayAsync(
@@ -451,6 +520,7 @@ public class CollectContextKicktippCommand : AsyncCommand<CollectContextKicktipp
             settings,
             competition,
             matchday,
+            outcomeCollectionResult: null,
             cancellationToken)
             ?? throw new InvalidDataException($"Full-season matchday {matchday} returned no fixtures.");
         var identities = page.Matches.Select(match => GetFixtureIdentity(match.Match)).ToArray();
@@ -1050,6 +1120,26 @@ public class CollectContextKicktippCommand : AsyncCommand<CollectContextKicktipp
     private sealed record TargetMatchdayCollection(
         int? Matchday,
         IReadOnlyList<MatchWithHistory> Matches);
+
+    private readonly record struct LeagueFixtureIdentity(string HomeTeam, string AwayTeam);
+
+    private sealed class LeagueFixtureIdentityComparer : IEqualityComparer<LeagueFixtureIdentity>
+    {
+        public static LeagueFixtureIdentityComparer Instance { get; } = new();
+
+        public bool Equals(LeagueFixtureIdentity x, LeagueFixtureIdentity y)
+        {
+            return string.Equals(x.HomeTeam, y.HomeTeam, StringComparison.Ordinal)
+                && string.Equals(x.AwayTeam, y.AwayTeam, StringComparison.Ordinal);
+        }
+
+        public int GetHashCode(LeagueFixtureIdentity obj)
+        {
+            return HashCode.Combine(
+                StringComparer.Ordinal.GetHashCode(obj.HomeTeam),
+                StringComparer.Ordinal.GetHashCode(obj.AwayTeam));
+        }
+    }
 
     private sealed record CollectedContextDocuments(
         Dictionary<string, string> Documents,

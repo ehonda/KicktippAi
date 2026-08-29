@@ -11,7 +11,8 @@ public record MatchdayOutcomeCollectionSummary(
     int PendingMatches,
     int CreatedCount,
     int UpdatedCount,
-    int UnchangedCount);
+    int UnchangedCount,
+    IReadOnlyList<CollectedMatchOutcome> Outcomes);
 
 public record MatchOutcomeCollectionResult(
     int CurrentMatchday,
@@ -87,7 +88,8 @@ public class MatchOutcomeCollectionService
                 outcomes.Count(outcome => !outcome.HasOutcome),
                 createdCount,
                 updatedCount,
-                unchangedCount));
+                unchangedCount,
+                Array.AsReadOnly(outcomes.ToArray())));
         }
 
         _logger.LogInformation(
