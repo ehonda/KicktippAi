@@ -10,6 +10,31 @@ When a workflow says to run independent commands in parallel, do not place the c
 
 For Langfuse experiment run families, create one shared `$runStamp` before launching jobs, pass that stamp into every job's run name, and start all jobs before waiting for any one of them.
 
+## Subagent Model Allocation
+
+This section explicitly authorizes model and reasoning-effort overrides for subagent spawns.
+
+Before the first spawn in a workflow or work wave, classify each planned role and record its model, reasoning effort, fork strategy, and a concise justification. A role mapping may be recorded once and reused for equivalent tasks in the same wave.
+
+Use these starting points:
+
+- Mechanical CI/status/exact-SHA checks and deterministic lookups: `gpt-5.6-luna` / `low`.
+- Bounded, well-defined read-only exploration: `gpt-5.6-luna` / `medium` or `gpt-5.6-terra` / `medium`, depending on breadth and ambiguity.
+- Normal bounded implementation and deterministic fixes: `gpt-5.6-terra` / `medium`; raise to `high` when the implementation has substantial ambiguity, integration risk, or difficult edge cases.
+- Independent correctness, security, or regression review: prefer `gpt-5.6-sol` / `high`. Review establishes whether work is safe to accept, so do not routinely assign it to the cheapest adequate tier.
+- Open-ended or complex research whose conclusions will guide later design or implementation: prefer `gpt-5.6-sol` / `high`. Use a lighter model only when the question is bounded, evidence gathering is mechanical, and the result will receive stronger independent synthesis or review.
+- Ambiguous cross-cutting work, launch gates, architecture decisions, or difficult failure analysis: `gpt-5.6-sol` / `high`.
+
+`gpt-5.6-sol` / `xhigh` is exceptional for task agents. Before selecting it, state why `gpt-5.6-sol` / `high` is insufficient for the task's difficulty or risk.
+
+Every override-compatible spawn must explicitly set both `model` and `reasoning_effort`. Omitting either field is a protocol violation.
+
+Use `fork_turns: "none"` or the smallest bounded positive history when the child should differ from the parent. Do not choose a full-history fork merely for convenience. A full-history fork is allowed only when the child intentionally needs the parent's exact model and reasoning effort; record that reason explicitly.
+
+Before repeating an allocation pattern, verify that the first realized child used the intended model and reasoning effort. If it unexpectedly inherited the orchestrator configuration, stop that pattern and correct the spawn strategy.
+
+When a task changes role materially—for example, from mechanical evidence collection to open-ended analysis—reclassify it before assigning a follow-up turn or reuse a differently configured agent.
+
 ## Gathering Information
 
 We use different external dependencies, some of which are partially or fully available locally via git submodules.
