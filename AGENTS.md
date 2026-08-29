@@ -10,9 +10,58 @@ When a workflow says to run independent commands in parallel, do not place the c
 
 For Langfuse experiment run families, create one shared `$runStamp` before launching jobs, pass that stamp into every job's run name, and start all jobs before waiting for any one of them.
 
+## Orchestration Control Plane And Compaction Recovery
+
+These rules apply when the user or an applicable instruction requests multi-agent work. The root orchestrator is the original user-facing thread, identified by the canonical agent path `/root` when agent paths are available. A task agent is any spawned child such as `/root/<task>`.
+
+Task agents also receive applicable repository instructions, so role boundaries are explicit:
+
+- Only the root orchestrator owns decomposition, agent and model allocation, scheduling, cross-task scope decisions, integration order, and user communication.
+- Task agents own only their bounded assignment. They must not adopt root control-plane duties, update the shared orchestration ledger, reassign work, or recursively delegate unless the root explicitly authorizes that in their assignment.
+- Task agents should return concise checkpoints and final evidence to the root. The root decides follow-up ownership, acceptance, integration, and release gates.
+- The root-only rules in this section and in [Subagent Model Allocation](#subagent-model-allocation) do not instruct task agents to spawn or manage other agents.
+
+The root orchestrator should remain a control plane rather than becoming an implementation worker. Delegate substantive implementation, open-ended or complex research, independent review, and CI or log analysis whenever that work can be expressed as a bounded assignment.
+
+The root may perform only:
+
+- small read-only checks needed to define, route, verify, or integrate delegated work;
+- cross-agent coordination and resolution of ownership, dependency, or scope conflicts;
+- primary-checkout worktree setup and serialized Git integration operations;
+- substantive task work that cannot reasonably be delegated, after recording why delegation is unavailable or inappropriate.
+
+Compaction, automatic continuation, agent delay, an idle agent, or the convenience of already having context does not transfer task-agent work back to the root.
+
+### Durable Orchestration Ledger
+
+For a long-running multi-agent workflow, the root must maintain the ignored `.tmp/orchestration-state.md` file as the compact source of current session state. Initialize it before the first work wave and update it after every spawn, material handoff, ownership or scope change, agent completion, integration, push, and gate decision.
+
+Keep the ledger concise and include:
+
+- the current objective and work wave;
+- each active or recently completed lane's task, agent path, role, model and reasoning effort, worktree or owned paths, status, and next action;
+- root-only decisions, pending owner gates, blockers, and available agent capacity;
+- the latest integrated and pushed commit; and
+- the next root action and the next actions that must remain delegated.
+
+The root owns this shared ledger. Task agents report the evidence needed to update it but do not edit it unless explicitly assigned that file.
+
+### Recovery Preflight
+
+After any compaction or automatic continuation, or whenever current ownership is uncertain, the root must complete this recovery preflight before substantive task work:
+
+1. Re-read the repository-root `AGENTS.md` and every applicable nested `AGENTS.md`, task record, execution strategy, and active decision document. During the current Bundesliga 2026/27 work, this includes `plans/bundesliga-2026-27/AGENTS.md`, `plans/bundesliga-2026-27/execution-strategy.md`, the active task file, and its linked ADRs.
+2. Read `.tmp/orchestration-state.md`. If it is missing or stale, reconstruct and update it before continuing.
+3. Inspect live agent state and Git/worktree state rather than relying on the compacted summary alone.
+4. Reconcile every active lane's owner, status, model allocation, owned paths, and next action.
+5. State in a concise commentary update which next actions belong to the root and which remain delegated.
+6. Delegate worker work before doing it inline. If an allowed exception applies, record the reason before starting that work.
+
+Recovery reads, agent-status inspection, Git/worktree inspection, and ledger repair are control-plane work. Do not edit source or planning artifacts, run task validation, or perform substantive research until the preflight is complete.
+
 ## Subagent Model Allocation
 
-This section explicitly authorizes model and reasoning-effort overrides for subagent spawns.
+This root-only section explicitly authorizes model and reasoning-effort overrides for subagent spawns. It applies to a task agent only when the root explicitly authorizes that agent to delegate.
 
 Before the first spawn in a workflow or work wave, classify each planned role and record its model, reasoning effort, fork strategy, and a concise justification. A role mapping may be recorded once and reused for equivalent tasks in the same wave.
 
