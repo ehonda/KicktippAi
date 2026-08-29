@@ -2,6 +2,7 @@ using System.Collections.Immutable;
 using EHonda.KicktippAi.Core;
 using FirebaseAdapter.Models;
 using Google.Cloud.Firestore;
+using Grpc.Core;
 using Microsoft.Extensions.Logging;
 
 namespace FirebaseAdapter;
@@ -42,91 +43,104 @@ public sealed class FirebaseDocumentPublicationRepository : IDocumentPublication
         var ordered = DocumentPublicationContract.ValidateAndOrder(request.Documents);
         var targetId = DocumentPublicationContract.ComputeSnapshotId(ordered);
 
-        return await _db.RunTransactionAsync(async transaction =>
+        try
         {
-            // Read and validate only the head envelope first. A stale caller must fail before
-            // corrupt current or target graphs are inspected.
-            var currentSnapshotId = await LoadHeadSnapshotIdAsync(transaction, scope);
+            return await _db.RunTransactionAsync(async transaction =>
+            {
+                // Read and validate only the head envelope first. A stale caller must fail before
+                // corrupt current or target graphs are inspected.
+                var currentSnapshotId = await LoadHeadSnapshotIdAsync(transaction, scope);
+                DocumentPublicationContract.EnsureExpectedHead(
+                    scope,
+                    request.ExpectedPreviousSnapshotId,
+                    currentSnapshotId);
+
+                var current = currentSnapshotId is null
+                    ? null
+                    : await LoadSnapshotAsync(transaction, scope, definition, currentSnapshotId)
+                      ?? throw new InvalidDataException("Publication head references a missing snapshot.");
+                var target = string.Equals(targetId, currentSnapshotId, StringComparison.Ordinal)
+                    ? current
+                    : await LoadSnapshotAsync(transaction, scope, definition, targetId);
+                var disposition = DocumentPublicationContract.DecideTransition(
+                    scope,
+                    request.ExpectedPreviousSnapshotId,
+                    currentSnapshotId,
+                    targetId,
+                    target is not null);
+
+                if (disposition == DocumentPublicationDisposition.Unchanged)
+                {
+                    return new DocumentPublicationResult(disposition, current!.Snapshot);
+                }
+
+                if (disposition == DocumentPublicationDisposition.Reactivated)
+                {
+                    transaction.Set(HeadReference(scope), ToHead(scope, targetId));
+                    return new DocumentPublicationResult(disposition, target!.Snapshot);
+                }
+
+                var changed = ordered
+                    .Where(payload =>
+                    {
+                        var existing = current?.Snapshot.Documents.SingleOrDefault(entry => entry.Key == payload.Key);
+                        return existing is null
+                               || !string.Equals(
+                                   existing.ContentSha256,
+                                   DocumentPublicationContract.ComputeContentSha256(payload.Content),
+                                   StringComparison.Ordinal);
+                    })
+                    .ToArray();
+                var nextVersions = new Dictionary<DocumentPublicationKey, int>();
+                foreach (var payload in changed)
+                {
+                    nextVersions[payload.Key] = await GetNextVersionAsync(transaction, scope, payload.Key);
+                }
+
+                // One timestamp is deliberately allocated after every read. Firestore may retry this
+                // callback, but each successful attempt gives all newly-created rows one instant.
+                var createdAt = Timestamp.GetCurrentTimestamp();
+
+                var entries = ImmutableArray.CreateBuilder<DocumentPublicationEntry>(ordered.Length);
+                foreach (var payload in ordered)
+                {
+                    var existing = current?.Snapshot.Documents.SingleOrDefault(entry => entry.Key == payload.Key);
+                    var contentHash = DocumentPublicationContract.ComputeContentSha256(payload.Content);
+                    if (existing is not null && string.Equals(existing.ContentSha256, contentHash, StringComparison.Ordinal))
+                    {
+                        entries.Add(existing);
+                        continue;
+                    }
+
+                    var version = nextVersions[payload.Key];
+                    entries.Add(new DocumentPublicationEntry(payload.Kind, payload.Name, version, contentHash));
+                    WritePayload(transaction, scope, payload, version, createdAt);
+                }
+
+                var snapshot = new DocumentPublicationSnapshot(
+                    scope.Competition,
+                    scope.CommunityContext,
+                    scope.PublicationSet,
+                    targetId,
+                    current?.Snapshot.SnapshotId,
+                    createdAt.ToDateTimeOffset(),
+                    request.MetadataJson,
+                    entries);
+                transaction.Create(SnapshotReference(scope, targetId), ToFirestoreSnapshot(snapshot));
+                transaction.Set(HeadReference(scope), ToHead(scope, targetId));
+                return new DocumentPublicationResult(disposition, snapshot);
+            }, cancellationToken: cancellationToken);
+        }
+        catch (RpcException exception) when (exception.StatusCode == StatusCode.Aborted)
+        {
+            var currentSnapshotId = await LoadHeadSnapshotIdAsync(scope, cancellationToken);
             DocumentPublicationContract.EnsureExpectedHead(
                 scope,
                 request.ExpectedPreviousSnapshotId,
                 currentSnapshotId);
 
-            var current = currentSnapshotId is null
-                ? null
-                : await LoadSnapshotAsync(transaction, scope, definition, currentSnapshotId)
-                  ?? throw new InvalidDataException("Publication head references a missing snapshot.");
-            var target = string.Equals(targetId, currentSnapshotId, StringComparison.Ordinal)
-                ? current
-                : await LoadSnapshotAsync(transaction, scope, definition, targetId);
-            var disposition = DocumentPublicationContract.DecideTransition(
-                scope,
-                request.ExpectedPreviousSnapshotId,
-                currentSnapshotId,
-                targetId,
-                target is not null);
-
-            if (disposition == DocumentPublicationDisposition.Unchanged)
-            {
-                return new DocumentPublicationResult(disposition, current!.Snapshot);
-            }
-
-            if (disposition == DocumentPublicationDisposition.Reactivated)
-            {
-                transaction.Set(HeadReference(scope), ToHead(scope, targetId));
-                return new DocumentPublicationResult(disposition, target!.Snapshot);
-            }
-
-            var changed = ordered
-                .Where(payload =>
-                {
-                    var existing = current?.Snapshot.Documents.SingleOrDefault(entry => entry.Key == payload.Key);
-                    return existing is null
-                           || !string.Equals(
-                               existing.ContentSha256,
-                               DocumentPublicationContract.ComputeContentSha256(payload.Content),
-                               StringComparison.Ordinal);
-                })
-                .ToArray();
-            var nextVersions = new Dictionary<DocumentPublicationKey, int>();
-            foreach (var payload in changed)
-            {
-                nextVersions[payload.Key] = await GetNextVersionAsync(transaction, scope, payload.Key);
-            }
-
-            // One timestamp is deliberately allocated after every read. Firestore may retry this
-            // callback, but each successful attempt gives all newly-created rows one instant.
-            var createdAt = Timestamp.GetCurrentTimestamp();
-
-            var entries = ImmutableArray.CreateBuilder<DocumentPublicationEntry>(ordered.Length);
-            foreach (var payload in ordered)
-            {
-                var existing = current?.Snapshot.Documents.SingleOrDefault(entry => entry.Key == payload.Key);
-                var contentHash = DocumentPublicationContract.ComputeContentSha256(payload.Content);
-                if (existing is not null && string.Equals(existing.ContentSha256, contentHash, StringComparison.Ordinal))
-                {
-                    entries.Add(existing);
-                    continue;
-                }
-
-                var version = nextVersions[payload.Key];
-                entries.Add(new DocumentPublicationEntry(payload.Kind, payload.Name, version, contentHash));
-                WritePayload(transaction, scope, payload, version, createdAt);
-            }
-
-            var snapshot = new DocumentPublicationSnapshot(
-                scope.Competition,
-                scope.CommunityContext,
-                scope.PublicationSet,
-                targetId,
-                current?.Snapshot.SnapshotId,
-                createdAt.ToDateTimeOffset(),
-                request.MetadataJson,
-                entries);
-            transaction.Create(SnapshotReference(scope, targetId), ToFirestoreSnapshot(snapshot));
-            transaction.Set(HeadReference(scope), ToHead(scope, targetId));
-            return new DocumentPublicationResult(disposition, snapshot);
-        }, cancellationToken: cancellationToken);
+            throw;
+        }
     }
 
     public async Task<LoadedDocumentPublication?> GetLastKnownGoodAsync(
@@ -176,6 +190,23 @@ public sealed class FirebaseDocumentPublicationRepository : IDocumentPublication
     {
         var reference = HeadReference(scope);
         var headSnapshot = await transaction.GetSnapshotAsync(reference);
+        return LoadHeadSnapshotId(scope, reference, headSnapshot);
+    }
+
+    private async Task<string?> LoadHeadSnapshotIdAsync(
+        DocumentPublicationScope scope,
+        CancellationToken cancellationToken)
+    {
+        var reference = HeadReference(scope);
+        var headSnapshot = await reference.GetSnapshotAsync(cancellationToken);
+        return LoadHeadSnapshotId(scope, reference, headSnapshot);
+    }
+
+    private static string? LoadHeadSnapshotId(
+        DocumentPublicationScope scope,
+        DocumentReference reference,
+        DocumentSnapshot headSnapshot)
+    {
         if (!headSnapshot.Exists)
         {
             return null;
