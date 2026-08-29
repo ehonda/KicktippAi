@@ -1,0 +1,125 @@
+sha,short_sha,authored_at,committed_at,author,subject
+870701dc7fcb59c1d4a82c69ea497bdf437ed9a5,870701d,2026-08-21T16:16:12+02:00,2026-08-21T16:17:54+02:00,Dennis Renz,feat: select Bundesliga bonus context
+700a8709dc14ed6e18497bfc728624a65050a82d,700a870,2026-08-21T16:18:18+02:00,2026-08-21T16:18:18+02:00,Dennis Renz,docs: index Bundesliga bonus context decision
+2583ed3e43054b6f4430d76b368a0429117611e2,2583ed3,2026-08-21T17:06:44+02:00,2026-08-21T17:16:48+02:00,Dennis Renz,feat: add Bundesliga hosted prompt route
+63058c0bed7a05c340fad3c8da05a8f57e734967,63058c0,2026-08-21T17:15:07+02:00,2026-08-21T17:16:48+02:00,Dennis Renz,docs: close Bundesliga prompt route
+d37cdf68a00b099b2030432b55537ecb3f87632d,d37cdf6,2026-08-21T17:39:46+02:00,2026-08-21T17:41:01+02:00,Dennis Renz,test: preserve historical local prompt integration
+6541e1fe44c7f7548d1d96b8a29584b75e304624,6541e1f,2026-08-21T17:20:58+02:00,2026-08-21T18:34:03+02:00,Dennis Renz,Complete P0-22 history played-date reconstruction
+c99e0c8ea9c4ab21344abf7c3ec649a8050de524,c99e0c8,2026-08-21T17:28:02+02:00,2026-08-21T18:34:03+02:00,Dennis Renz,Restrict Kicktipp history evidence to league rows
+7a3b4c725de70c24f32f914a8182499cd26466e5,7a3b4c7,2026-08-21T17:40:38+02:00,2026-08-21T18:34:03+02:00,Dennis Renz,Honor requested matchday for home-away history
+9339f2bcd06f8072f830f5cff1dfa8bca5d97f16,9339f2b,2026-08-21T17:48:09+02:00,2026-08-21T18:34:03+02:00,Dennis Renz,Freeze complete Bundesliga preseason history map
+9d7960367f8920a547bb032030dfbe154849663f,9d79603,2026-08-21T18:05:00+02:00,2026-08-21T18:34:04+02:00,Dennis Renz,Publish complete Bundesliga history sets atomically
+f9cf608a491e388e6cdd461b7b3558cff6d7cd89,f9cf608,2026-08-21T18:31:11+02:00,2026-08-21T18:34:04+02:00,Dennis Renz,Close Bundesliga history publication safety gaps
+b451bd2e088b9b69efcca51b4bf3ca038ddf3b72,b451bd2,2026-08-21T18:35:21+02:00,2026-08-21T18:35:21+02:00,Dennis Renz,docs: index Bundesliga history decisions
+3481fd3ddfc727c159ca3b947f4c10eee32a4368,3481fd3,2026-08-21T18:55:46+02:00,2026-08-21T18:59:55+02:00,Dennis Renz,Implement P0-06 no-spend model ledger checkpoint
+6ece80929a049486540caeeaac39f1bd6670983e,6ece809,2026-08-21T19:01:54+02:00,2026-08-21T19:01:54+02:00,Dennis Renz,docs: index validation model decision
+ff6a8adc620ce132ec4eac0b12a3af00fa409e07,ff6a8ad,2026-08-21T19:07:24+02:00,2026-08-21T19:08:09+02:00,Dennis Renz,Isolate process-wide path utility tests
+268b3768406b4ff510122d013105407490bc62bd,268b376,2026-08-21T19:47:02+02:00,2026-08-21T19:48:12+02:00,Dennis Renz,Automate agent worktree locator setup
+13ba418798080313191c70794e0926c5e5c0897c,13ba418,2026-08-21T19:56:49+02:00,2026-08-21T20:00:23+02:00,Dennis Renz,Harden agent worktree setup rollback
+3f5f886da5e3358942aacaab4a381d6a02735e79,3f5f886,2026-08-21T19:59:03+02:00,2026-08-21T20:00:23+02:00,Dennis Renz,Verify exact worktree start commit
+3cabd429e01e13e6755bfe2cf12cee9c1912cb17,3cabd42,2026-08-21T19:37:29+02:00,2026-08-21T20:07:15+02:00,Dennis Renz,feat: drive context collection from profiles
+af3086f01207409ba25d832e009206d0ccc4aeaa,af3086f,2026-08-21T20:05:10+02:00,2026-08-21T20:07:15+02:00,Dennis Renz,fix: add verified Bundesliga development rules
+b69d55b8ccf0663674d30a7f730de94466c1d51d,b69d55b,2026-08-21T20:32:17+02:00,2026-08-21T20:42:11+02:00,Dennis Renz,fix: advance live DFB history dates
+78512dcac648050e9ed62c3496d098cc2ee0e1b3,78512dc,2026-08-21T20:39:50+02:00,2026-08-21T20:42:11+02:00,Dennis Renz,fix: reject empty completed history sets
+c5153bdd7fffd036eb9101ccdfbb84f998ef1792,c5153bd,2026-08-21T20:44:35+02:00,2026-08-21T20:44:35+02:00,Dennis Renz,docs: close profile-driven collection
+8a440da12ffcdd4e1b61d56bde8b9767a25b7cdd,8a440da,2026-08-21T21:12:13+02:00,2026-08-21T21:38:20+02:00,Dennis Renz,Implement P0-15 context hygiene policy
+3464efcb1d8cbe0e428fbae9920d9f187b0632ea,3464efc,2026-08-21T21:34:51+02:00,2026-08-21T21:38:20+02:00,Dennis Renz,Fix P0-15 hygiene review gaps
+0002028cfaf18007ca5aa4055cd77fa732554d80,0002028,2026-08-21T21:25:47+02:00,2026-08-21T21:53:00+02:00,Dennis Renz,Implement immutable Bundesliga bonus provenance
+ecb70e8f69ec3401368bfeb08e7c18e0fe2d706e,ecb70e8,2026-08-21T21:49:57+02:00,2026-08-21T21:53:01+02:00,Dennis Renz,Fail closed on incoherent bonus provenance
+6901bc7c59b67da2aa05c88e5938d6ec679daa79,6901bc7,2026-08-21T22:00:42+02:00,2026-08-21T22:00:42+02:00,Dennis Renz,docs: close P0 context hygiene
+fe48c8270320efd1d1c27d042cbea5bfa3ca708d,fe48c82,2026-08-21T23:05:39+02:00,2026-08-21T23:05:39+02:00,Dennis Renz,feat: bound Bundesliga bonus context
+cfe5a5204dfe72f66a08b731e40109bba53bcb59,cfe5a52,2026-08-21T23:07:22+02:00,2026-08-21T23:07:22+02:00,Dennis Renz,docs: record P0 wave validation
+70502024c6c102d4c5b81058e5e9bb9524b0e6f7,7050202,2026-08-21T23:25:35+02:00,2026-08-21T23:47:00+02:00,Dennis Renz,Add community-scoped Kicktipp credential loading
+b457897ede703532acc7d0d00b5f4a71da5eacc2,b457897,2026-08-21T23:44:22+02:00,2026-08-21T23:47:00+02:00,Dennis Renz,Isolate community credential file parsing
+99d0ceaeb590a56bb257c5b13c11b89c8e6832f9,99d0cea,2026-08-21T23:14:58+02:00,2026-08-21T23:47:01+02:00,Dennis Renz,Record Bundesliga community topology
+9c467d52e65beb561b87c6753f5b5b9ddf6c4cb6,9c467d5,2026-08-21T23:23:39+02:00,2026-08-21T23:47:01+02:00,Dennis Renz,Link community topology decision
+5b231f252931a6b7d5d4ccc281ebd510259070bf,5b231f2,2026-08-21T23:52:14+02:00,2026-08-21T23:52:14+02:00,Dennis Renz,Close Bundesliga community scope
+316c34c6acc43ed32ac817b1198549876f26ffe0,316c34c,2026-08-22T00:00:43+02:00,2026-08-22T00:00:43+02:00,Dennis Renz,Register credential loader in integration harness
+d9a15a5331b0f688e93f9f0c44b31b2002247953,d9a15a5,2026-08-22T00:12:54+02:00,2026-08-22T00:12:54+02:00,Dennis Renz,Drive context workflows from competition profiles
+e23d553e0a1ade77a6bebb4ecb49e962a3e93abb,e23d553,2026-08-22T00:13:39+02:00,2026-08-22T00:29:34+02:00,Dennis Renz,Pin reusable prediction workflow identities
+220c93c0bb73a4ad9dba77401efa0382ad0692c8,220c93c,2026-08-22T00:27:18+02:00,2026-08-22T00:29:34+02:00,Dennis Renz,Harden prediction workflow shell rendering
+481fac53bb1a6bf0d8b3c651d2179c11efad0bc9,481fac5,2026-08-22T00:38:33+02:00,2026-08-22T00:38:33+02:00,Dennis Renz,Close Bundesliga reusable workflow support
+20ebe78e47f935caee2e178a14408ede9990527e,20ebe78,2026-08-22T00:44:30+02:00,2026-08-22T00:44:30+02:00,Dennis Renz,Add Bundesliga arena validation workflow triad
+2336cfa2106348366caea7965d32498b20e54a4a,2336cfa,2026-08-25T00:23:02+02:00,2026-08-25T00:23:51+02:00,Dennis Renz,Validate Bundesliga arena workflow contracts
+1dc299af17819a36ff8679874dcd1fd27b741b34,1dc299a,2026-08-25T00:30:08+02:00,2026-08-25T00:30:08+02:00,Dennis Renz,Close Bundesliga arena workflow triad
+d110b19e2076621eace8f4ebc0b7680bdea31e0d,d110b19,2026-08-25T00:41:58+02:00,2026-08-25T00:41:58+02:00,Dennis Renz,Load profile-scoped Kicktipp credentials
+4810de8eb5eeb3faac2aaa2e8212866a6c785acd,4810de8,2026-08-25T00:58:08+02:00,2026-08-25T01:22:12+02:00,Dennis Renz,Add content-safe Bundesliga CSV audit
+a2204c823812b087717b19ab64051b068cdf9136,a2204c8,2026-08-25T01:18:56+02:00,2026-08-25T01:22:12+02:00,Dennis Renz,Fail CSV audits on missing or malformed heads
+0434f310ba4407b501687cbe876d79dc0b5037b1,0434f31,2026-08-25T02:10:14+02:00,2026-08-25T02:10:14+02:00,Dennis Renz,Freeze completed DFB first-round history
+478806219585172d2d7f46516f64a58c39aa1ef2,4788062,2026-08-25T03:11:17+02:00,2026-08-25T03:11:17+02:00,Dennis Renz,Integrate approved historical cost workflow
+27ba1b4dd60e964543a58d02e73a02f96e4807f2,27ba1b4,2026-08-25T03:29:29+02:00,2026-08-25T03:40:25+02:00,Dennis Renz,Add atomic full-season Bundesliga context collection
+dc978d1ffd92f5d79453d1f771051d988a7e8e1a,dc978d1,2026-08-25T03:54:07+02:00,2026-08-25T04:02:07+02:00,Dennis Renz,Fix historical cost fixture preparation
+85d2e2aa538901ff0a4fd6bdd3a118835afc81b4,85d2e2a,2026-08-25T04:33:14+02:00,2026-08-25T04:47:17+02:00,Dennis Renz,Select canonical Bundesliga preseason history
+980f0e2d6ef6fd776ba236ff897f3c65565c4372,980f0e2,2026-08-25T04:44:34+02:00,2026-08-25T04:47:18+02:00,Dennis Renz,Record canonical preseason history decision
+fac93d27a8c5012a0e66b590806bebde21c91747,fac93d2,2026-08-25T05:37:30+02:00,2026-08-25T05:39:29+02:00,Dennis Renz,Integrate historical cost sample eligibility
+59212665c5f079a9cc2b15409d502ac7cd0db0a5,5921266,2026-08-25T05:57:55+02:00,2026-08-25T06:13:24+02:00,Dennis Renz,Fix versioned Langfuse prompt validation
+579619b382ee48bfa65666bc1182b1f0bbf4e0b8,579619b,2026-08-25T06:37:10+02:00,2026-08-25T06:42:08+02:00,Dennis Renz,Record successful hosted local dev validation
+106adb8baa13a61c9a36290c6de4e0fde1421237,106adb8,2026-08-25T07:45:10+02:00,2026-08-25T07:47:48+02:00,Dennis Renz,Integrate exact dataset-run cost usage binding
+1d93935cb84ccc0dc31d040a618b822acb4587c6,1d93935,2026-08-25T08:09:06+02:00,2026-08-25T08:20:54+02:00,Dennis Renz,Record Luna none cost baseline evidence
+a25c0ca0c131dbb500d9abba1998d73c4540a790,a25c0ca,2026-08-25T08:54:07+02:00,2026-08-25T08:57:42+02:00,Dennis Renz,Coerce arena reprediction workflow input
+50cfb05d7bee245fb2ab4d77c6f86185b9f9d348,50cfb05,2026-08-25T10:07:30+02:00,2026-08-25T10:09:40+02:00,Dennis Renz,Add temporary arena Luna scheduled validation cycle
+08c9e39aa920fd47094bbb603f5bfcccb3f56cfa,08c9e39,2026-08-25T11:49:09+02:00,2026-08-25T11:49:09+02:00,Dennis Renz,Record arena schedule validation and tear down
+c2e32c91e73ff11a2e5c1a9b765e2c87fd65b2ff,c2e32c9,2026-08-25T12:16:48+02:00,2026-08-25T12:18:16+02:00,Dennis Renz,docs: add P0 closeout evidence gates
+f0f0399779847754d58a1f01440259f48219fd8a,f0f0399,2026-08-25T12:36:10+02:00,2026-08-25T12:38:08+02:00,Dennis Renz,Add GPT-5.6 Sol and Terra pricing
+5fae2b11fa65b3f74adb8bb9139bba8724c8a2a8,5fae2b1,2026-08-25T12:46:23+02:00,2026-08-25T13:36:32+02:00,Dennis Renz,feat: validate Bundesliga bonus copy compatibility
+0de314de7fb80b0023a029cc1f9fe2a1828929d7,0de314d,2026-08-25T13:21:10+02:00,2026-08-25T13:36:33+02:00,Dennis Renz,fix: fail closed on invalid Bundesliga bonus output
+e927564e634d62f9e1630dfb26764f55a1e17a2f,e927564,2026-08-25T13:33:08+02:00,2026-08-25T13:36:33+02:00,Dennis Renz,test: complete bonus copy compatibility coverage
+ece6b509bc0a2d74ad2205100193d709c77bc098,ece6b50,2026-08-25T13:46:32+02:00,2026-08-25T13:49:56+02:00,Dennis Renz,docs: close P0-24 compatibility task
+fef3225a346e53f266dc88347f63f48c53c87015,fef3225,2026-08-25T13:52:36+02:00,2026-08-25T13:54:27+02:00,Dennis Renz,docs: refresh Bundesliga P0 closeout state
+2cb307bb9b1696dcf42ecf09bf86a317bed90ebe,2cb307b,2026-08-25T14:18:33+02:00,2026-08-25T14:20:24+02:00,Dennis Renz,test: isolate bonus telemetry activity capture
+f40746e8e724946238d5f55d959dfa07a5cdfd7d,f40746e,2026-08-25T14:33:05+02:00,2026-08-25T14:35:09+02:00,Dennis Renz,test: isolate OpenAI telemetry activity capture
+c72e7b096cc7f2c43b24e6ace70cfb104a5e59f9,c72e7b0,2026-08-25T14:55:55+02:00,2026-08-25T14:55:55+02:00,Dennis Renz,docs: preregister GPT-5.6 candidate evidence
+1d6a81bdad0b08852d41dbd42a56e6ae06eb6fea,1d6a81b,2026-08-25T15:08:02+02:00,2026-08-25T15:08:02+02:00,Dennis Renz,docs: record production prerequisite audit
+d0963683f43e17ed05a3e2ab44914d8f041e65be,d096368,2026-08-25T15:21:44+02:00,2026-08-25T15:21:44+02:00,Dennis Renz,docs: preregister Bundesliga production activation
+9c85b77ead84c721d4e814bb4ae57b4d5de0cc17,9c85b77,2026-08-25T15:28:57+02:00,2026-08-25T15:28:57+02:00,Dennis Renz,docs: correct activation preregistration gates
+6448e10b1ede2d6dd7db1ebbdd4e06befe93c00d,6448e10,2026-08-25T15:46:16+02:00,2026-08-25T15:46:16+02:00,Dennis Renz,docs: add blocked production workflow tasks
+8986692476a838fe3b6212ba446b9788e4fb7306,8986692,2026-08-25T15:53:45+02:00,2026-08-25T15:53:45+02:00,Dennis Renz,docs: correct production workflow task gates
+2c1371730d792b8b58d8fd2f4a291dc21b266231,2c13717,2026-08-25T16:28:26+02:00,2026-08-25T16:28:26+02:00,Dennis Renz,test: isolate experiment activity assertions
+fd02dc2d51949665e2ff0bfd17bb2dea958a9d01,fd02dc2,2026-08-25T16:42:56+02:00,2026-08-25T16:42:56+02:00,Dennis Renz,docs: add arena production-copy workflow task
+1be322c0907cb59bb8798864d6c082199ea21b7e,1be322c,2026-08-25T16:48:29+02:00,2026-08-25T16:48:29+02:00,Dennis Renz,docs: clarify arena production-copy gates
+c47e86e7fcf81cb1ecb7285080bde10668886f7b,c47e86e,2026-08-25T22:02:17+02:00,2026-08-25T22:02:17+02:00,Dennis Renz,Clarify P0 preparation and live gates
+177bc0bf9c9fbf4e888991eebecd7bc82243d069,177bc0b,2026-08-25T22:00:54+02:00,2026-08-25T22:19:56+02:00,Dennis Renz,Add manual production context entrypoints
+56e8722af6b33d7933b4d67cc8cb363653880248,56e8722,2026-08-25T22:40:31+02:00,2026-08-25T22:40:31+02:00,Dennis Renz,Reconcile remaining P0 gate evidence
+78ee2c0aa1b4e1b0093b7ef442936cf042ad2681,78ee2c0,2026-08-25T22:41:41+02:00,2026-08-25T22:49:56+02:00,Dennis Renz,Cover schadensfresse production telemetry
+779a5e4442c6a69434a1fdac6e4339cf84da2006,779a5e4,2026-08-25T23:07:13+02:00,2026-08-25T23:07:13+02:00,Dennis Renz,Add current P0 closeout handoff
+ef54e4e0f411efe958a9b86c481274b03fa334c6,ef54e4e,2026-08-26T00:19:34+02:00,2026-08-26T00:55:23+02:00,Dennis Renz,Preregister GPT-5.6 candidate evidence
+78f4d3b3b2eab132fe88d7b1f636629a7f45212a,78f4d3b,2026-08-26T00:48:30+02:00,2026-08-26T00:55:23+02:00,Dennis Renz,Correct GPT-5.6 evidence preregistration
+71373a0193c81062622cb40ef69cf07dfa3be74b,71373a0,2026-08-26T00:38:50+02:00,2026-08-26T01:24:24+02:00,Dennis Renz,Add cumulative experiment budget gate
+53a7961b1b27c162eb5735a5bafa6ca7c923dd89,53a7961,2026-08-26T00:57:35+02:00,2026-08-26T01:24:25+02:00,Dennis Renz,Harden cumulative budget admission evidence
+0b86b11564b9cc7500b7bfaf94301e4e83263f73,0b86b11,2026-08-26T01:19:55+02:00,2026-08-26T01:24:25+02:00,Dennis Renz,Support missing-row preflight budget bootstrap
+2b3d99f4ce40aa939615d921387ee638fc2eaa8f,2b3d99f,2026-08-26T01:42:50+02:00,2026-08-26T01:46:28+02:00,Dennis Renz,Document P0-23 cumulative budget commands
+281b18181409e6be38d72eebae63a6e00ccdd41a,281b181,2026-08-26T01:33:21+02:00,2026-08-26T01:50:23+02:00,Dennis Renz,feat: publish enriched v2 roster context
+517db42ce66cb9554848230e176e104ddc87bb64,517db42,2026-08-26T01:47:17+02:00,2026-08-26T01:50:23+02:00,Dennis Renz,docs: harden arena roster validation ladder
+c6caa6a998893193b097e152cd4cce588a6efb5c,c6caa6a,2026-08-26T02:00:15+02:00,2026-08-26T02:05:14+02:00,Dennis Renz,test: update roster v2 bonus context golden
+647dae2f1ed1f979b751c50b56533f6311217cb3,647dae2,2026-08-26T02:15:59+02:00,2026-08-26T02:22:53+02:00,Dennis Renz,Correct P0-23 budget gate status
+0836c2f0c0afa6410b301ceb7638b0a58be5fa39,0836c2f,2026-08-26T02:19:55+02:00,2026-08-26T02:22:53+02:00,Dennis Renz,Record P0-23 dataset egress blocker
+f1cfddeb6e2f7ba376856c0843a196af104b9a5c,f1cfdde,2026-08-26T02:52:02+02:00,2026-08-26T03:00:14+02:00,Dennis Renz,fix: make launch roster enrichment explicit
+22e8693a267313a9bfb0f5738f4e214b74282038,22e8693,2026-08-26T03:26:57+02:00,2026-08-26T03:33:42+02:00,Dennis Renz,docs: close p0-25 live roster validation
+34cb6fd5a334b9feca334ac1a12d1f8f40a4d654,34cb6fd,2026-08-26T03:31:51+02:00,2026-08-26T03:33:42+02:00,Dennis Renz,docs: record p0-25 exact-head ci evidence
+20a2b45af90835e73a6a701c419a6335031cf2a3,20a2b45,2026-08-26T03:52:24+02:00,2026-08-26T03:56:30+02:00,Dennis Renz,docs: reconcile p0-23 readiness status
+9572eb2621dc45158249e9bfb634e00bc509b23a,9572eb2,2026-08-26T04:26:30+02:00,2026-08-26T04:33:12+02:00,Dennis Renz,Document P0-23 local dataset checkpoint
+ef9221c4ca694158afa1600c3074c9bc83c94df6,ef9221c,2026-08-26T09:41:59+02:00,2026-08-26T09:53:39+02:00,Dennis Renz,Record P0-23 Luna max cap stop
+f694b844e77fcbd2e178cc9667d6d2a948463283,f694b84,2026-08-26T10:19:34+02:00,2026-08-26T10:32:10+02:00,Dennis Renz,Record P0-23 Luna max cap remediation
+2bef485f66f32bbbde6bfe0b18cfd0bd7467bdb5,2bef485,2026-08-26T11:52:29+02:00,2026-08-26T11:52:29+02:00,Dennis Renz,docs: complete P0-23 cost evidence
+cba48df4ca9d92ff12fd433f96a2ced9b4e94b8e,cba48df,2026-08-26T12:33:23+02:00,2026-08-26T12:47:11+02:00,Dennis Renz,Freeze P0-23 quality experiment execution
+ec5a4f4c31c0f31b61f505946b2ce37201eb5b71,ec5a4f4,2026-08-26T13:30:39+02:00,2026-08-26T14:01:31+02:00,Dennis Renz,Improve repeated experiment analysis reports
+abb4dc21a8a52113b8a0f3c9848fecf6610e0ff4,abb4dc2,2026-08-26T18:35:47+02:00,2026-08-26T18:57:50+02:00,Dennis Renz,docs: publish P0-23 candidate quality evidence
+94224b23ad35e16f5fd6c4b68a70815d3b9b3e3f,94224b2,2026-08-26T22:54:31+02:00,2026-08-26T22:54:31+02:00,Dennis Renz,Add Sol max season cost estimate
+ea1de0ffdb6edb9d0b8e9d5ce62a281681d604fc,ea1de0f,2026-08-26T23:26:22+02:00,2026-08-26T23:29:27+02:00,Dennis Renz,docs: refresh P0-21 production readiness evidence
+f7dd2aee6c35fec26a5f09df0f1a68d82495f01b,f7dd2ae,2026-08-27T01:14:32+02:00,2026-08-27T01:14:32+02:00,Dennis Renz,docs: publish post-hoc Sol max quality results
+c9dd22e918bdd1547aff06567271cf8c09be6b28,c9dd22e,2026-08-27T01:48:52+02:00,2026-08-27T08:33:06+02:00,Dennis Renz,Close Bundesliga P0 model and workflow preparation
+e09527616aff9522d533d5e846d4543f08f9b7d8,e095276,2026-08-27T08:21:55+02:00,2026-08-27T08:33:06+02:00,Dennis Renz,Fix Bundesliga bonus copy verification
+eedf33052591beb5bbdc51c9e0ebe9869d5ab64d,eedf330,2026-08-27T09:11:03+02:00,2026-08-27T09:11:03+02:00,Dennis Renz,Add relaxdays community rules source
+992af5a63c788c0cc066dce92dd1319a91e5083d,992af5a,2026-08-27T11:18:04+02:00,2026-08-27T11:18:04+02:00,Dennis Renz,Prepare Bundesliga production live lane
+89b875125fdae207b6f6f72cff8f968a718b112f,89b8751,2026-08-27T11:50:38+02:00,2026-08-27T12:03:21+02:00,Dennis Renz,Reconcile P0 live-validation evidence
+bdd64aef4c0d56505b23fa854c0287e3637a4ffe,bdd64ae,2026-08-27T18:08:45+02:00,2026-08-27T18:20:16+02:00,Dennis Renz,Record Luna bonus recovery evidence
+56238e5fd3615e11d0be2c462516e819dfded1db,56238e5,2026-08-27T12:02:13+02:00,2026-08-27T19:38:08+02:00,Dennis Renz,Activate Bundesliga production schedule
+493847937e13382a3e850c4a4063045d4cbe114d,4938479,2026-08-27T20:16:49+02:00,2026-08-27T20:32:24+02:00,Dennis Renz,Reconcile P0 activation documentation
+3dd93d51a98d29f4927c59642d084f12897c7285,3dd93d5,2026-08-27T23:42:26+02:00,2026-08-27T23:58:41+02:00,Dennis Renz,Onboard schadensfresse as Bundesliga copy target
+d5644bd8ad53a8ecf3f099967f8f886b0a182d85,d5644bd,2026-08-28T01:01:24+02:00,2026-08-28T01:42:52+02:00,Dennis Renz,Fix matchday verification smart default
+919e916d1e93afb22c4aa20d1f4a8952bce38ab6,919e916,2026-08-28T01:35:46+02:00,2026-08-28T01:42:52+02:00,Dennis Renz,Harden smart-default matchday resolution
+72ec41a756dbecdca38259b4d215403efbf185db,72ec41a,2026-08-28T01:07:20+02:00,2026-08-28T01:42:52+02:00,Dennis Renz,Schedule schadensfresse production copies
+50f3ed148891977b5909659f9986c9c9958d7875,50f3ed1,2026-08-28T01:21:36+02:00,2026-08-28T01:42:52+02:00,Dennis Renz,Correct schadensfresse schedule status docs
+dd4d56377c400c69ddf04f2b154e7425e72040af,dd4d563,2026-08-28T07:51:05+02:00,2026-08-28T08:50:04+02:00,Dennis Renz,Record final P0 schedule evidence
+740d7cf461699bd57a652d37d3d7cf1e8eaae660,740d7cf,2026-08-28T08:13:34+02:00,2026-08-28T08:50:04+02:00,Dennis Renz,Clarify final P0 closeout state
+2c824c8c82bcc157d1db9ae94dce0b27ec87db87,2c824c8,2026-08-28T08:31:47+02:00,2026-08-28T08:50:04+02:00,Dennis Renz,Reconcile P0-19 observation status

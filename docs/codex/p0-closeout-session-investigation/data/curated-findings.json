@@ -1,0 +1,113 @@
+{
+  "schema_version": 1,
+  "timezone": "Europe/Berlin",
+  "phases": [
+    {
+      "id": "foundation-wave",
+      "start_local": "2026-08-21T15:34:24+02:00",
+      "end_local": "2026-08-22T01:05:06+02:00",
+      "focus": "P0 audit, hosted prompt route, played-date reconstruction, context/provenance, community topology, reusable workflows",
+      "outcome": "P0-05 and P0-13 through P0-18 reached their ledger completion transitions; P0-22 entered later repair/audit work"
+    },
+    {
+      "id": "development-and-cost",
+      "start_local": "2026-08-25T00:18:51+02:00",
+      "end_local": "2026-08-25T23:59:12+02:00",
+      "focus": "P0-20 live validation, P0-24 bonus compatibility, P0-06 historical cost evidence, experiment specification",
+      "outcome": "Development ladder and temporary schedule validated; cutoff-safe candidate program authorized"
+    },
+    {
+      "id": "candidate-evidence-and-rosters",
+      "start_local": "2026-08-26T00:00:10+02:00",
+      "end_local": "2026-08-26T22:54:31+02:00",
+      "focus": "P0-23 bounded model experiments and P0-25 enriched roster context",
+      "outcome": "P0-23 and P0-25 completed; slow Luna max stopped; additional Sol evidence remained within the owner ceiling"
+    },
+    {
+      "id": "production-activation",
+      "start_local": "2026-08-27T08:33:06+02:00",
+      "end_local": "2026-08-28T01:42:52+02:00",
+      "focus": "Owner selection, ordered manual validation, centralized scheduling, Schadensfresse onboarding",
+      "outcome": "Sol/xhigh production matrix closed; production schedule and copy target activated with exact-head CI"
+    },
+    {
+      "id": "natural-observation-closeout",
+      "start_local": "2026-08-28T04:53:22+02:00",
+      "end_local": "2026-08-28T09:02:32+02:00",
+      "focus": "First natural scheduled run and completion audit",
+      "outcome": "All 16 jobs green; eight participants retained 9/9 predictions; P0 closed at 2c824c8"
+    }
+  ],
+  "autonomous_solutions": [
+    {
+      "id": "hosted-prompt-regression",
+      "task": "P0-05",
+      "discovery": "Historical fixtures implicitly selected Langfuse and failed without a client",
+      "resolution": "Preserve an explicit local prompt source for historical integration while retaining the hosted production route",
+      "commits": ["d37cdf6"]
+    },
+    {
+      "id": "played-date-safety",
+      "task": "P0-22",
+      "discovery": "Partial, empty, cup-contaminated, or wrong-matchday histories could appear complete",
+      "resolution": "Enforce league-only evidence, requested-matchday semantics, canonical completeness, and atomic publication",
+      "commits": ["6541e1f", "c99e0c8", "7a3b4c7", "9339f2b", "9d79603", "f9cf608", "78512dc"]
+    },
+    {
+      "id": "provenance-coherence",
+      "task": "P0-15",
+      "discovery": "Publication-kind shadowing and cached-content races could produce incoherent provenance",
+      "resolution": "Immutable identities plus equality and integrity checks that fail closed",
+      "commits": ["8a440da", "3464efc", "0002028", "ecb70e8"]
+    },
+    {
+      "id": "unicode-bonus-classifier",
+      "task": "P0-16",
+      "discovery": "Supplementary Unicode boundaries and global Champions League suppression misclassified questions",
+      "resolution": "Unicode-scalar phrase boundaries and span-local exclusion",
+      "commits": ["fe48c82", "cfe5a52"]
+    },
+    {
+      "id": "live-validation-repairs",
+      "task": "P0-20",
+      "discovery": "The non-dry ladder exposed DFB transition, empty CSV, versioned prompt, and reprediction-input failures",
+      "resolution": "Repair each reusable path and rerun the validation ladder",
+      "commits": ["0434f31", "5921266", "a25c0ca"]
+    },
+    {
+      "id": "exact-experiment-accounting",
+      "task": "P0-23",
+      "discovery": "Session-level usage could be contaminated and first-row estimation was circular",
+      "resolution": "Exact dataset-run binding, conservative missing-row bootstrap, decimal observed-plus-reserved gates, immutable provenance",
+      "commits": ["106adb8", "2bef485"]
+    },
+    {
+      "id": "roster-enrichment",
+      "task": "P0-25",
+      "discovery": "Valid launch rosters were contextually thin in Luna traces",
+      "resolution": "Versioned enrichment overlay, derived team subtotals, atomic validation, and trace verification",
+      "commits": ["281b181", "f1cfdde", "22e8693"]
+    },
+    {
+      "id": "copy-aware-bonus-verifier",
+      "task": "P0-24",
+      "discovery": "Reference-copy verification assumed source option IDs and unsafe context fallback",
+      "resolution": "Resolve target semantics and fail closed before any model call",
+      "commits": ["e095276"]
+    },
+    {
+      "id": "smart-default-matchday",
+      "task": "P0-21",
+      "discovery": "Strict verification assumed matchday 2 while matchday 1 was still unplayed",
+      "resolution": "Derive and harden the currently verifiable matchday",
+      "commits": ["d5644bd", "919e916"]
+    },
+    {
+      "id": "delayed-schedule-observation",
+      "task": "P0-21",
+      "discovery": "The first natural occurrence was delivered 2h46m22s late",
+      "resolution": "Separate queue latency from execution correctness, continue monitoring, and audit all 16 jobs before closeout",
+      "commits": ["dd4d563", "740d707", "2c824c8"]
+    }
+  ]
+}
