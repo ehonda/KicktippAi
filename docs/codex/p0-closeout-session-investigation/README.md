@@ -8,6 +8,8 @@
 
 **Analysis generated:** 2026-08-29
 
+**Interactive visualization:** [open the self-contained Pages report](../../../session-analysis/p0-closeout/index.html)
+
 ## Executive conclusion
 
 The session achieved an unusually large, deadline-critical outcome: it moved 22 concrete P0 task files to `Complete`, left all 32 instantiated P0 tasks complete, integrated 124 first-parent commits, activated the deliberately gated production schedule, and audited the first natural 16-job run to green. It did so without silently promoting the plumbing model or bypassing owner-controlled production and experiment gates.

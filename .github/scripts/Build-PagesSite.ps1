@@ -2,6 +2,7 @@
 param(
     [string]$CoverageReportDir = "coverage-report",
     [string]$ExperimentAnalysisDir = "experiment-analysis",
+    [string]$SessionAnalysisDir = "session-analysis",
     [string]$OutputDir = "pages-site"
 )
 
@@ -426,13 +427,16 @@ Initialize-Directory -Path $OutputDir
 
 $coverageTarget = Join-Path $OutputDir "coverage"
 $experimentTarget = Join-Path $OutputDir "experiment-analysis"
+$sessionAnalysisTarget = Join-Path $OutputDir "session-analysis"
 
 Copy-DirectoryContents -SourceDir $CoverageReportDir -DestinationDir $coverageTarget
 Copy-DirectoryContents -SourceDir $ExperimentAnalysisDir -DestinationDir $experimentTarget
+Copy-DirectoryContents -SourceDir $SessionAnalysisDir -DestinationDir $sessionAnalysisTarget
 New-ExperimentAnalysisIndex -ExperimentRoot $experimentTarget
 
 $hasCoverage = Test-Path -Path (Join-Path $coverageTarget "index.html")
 $hasExperimentAnalysis = Test-Path -Path (Join-Path $experimentTarget "index.html")
+$hasSessionAnalysis = Test-Path -Path (Join-Path $sessionAnalysisTarget "p0-closeout/index.html")
 
 $coverageCard = if ($hasCoverage)
 {
@@ -450,6 +454,15 @@ $experimentCard = if ($hasExperimentAnalysis)
 else
 {
     "<section class='card card-disabled'><span class='eyebrow'>Experiment analysis</span><strong>Published experiment reports</strong><p>No experiment reports have been published yet.</p></section>"
+}
+
+$sessionAnalysisCard = if ($hasSessionAnalysis)
+{
+    "<a class='card' href='session-analysis/p0-closeout/index.html'><span class='eyebrow'>Codex investigation</span><strong>P0 closeout session</strong><p>Explore orchestration, cost, interventions, task timing, and autonomous repair.</p></a>"
+}
+else
+{
+    "<section class='card card-disabled'><span class='eyebrow'>Codex investigation</span><strong>P0 closeout session</strong><p>No session investigation has been published yet.</p></section>"
 }
 
 $rootIndex = @"
@@ -571,11 +584,12 @@ $rootIndex = @"
     <section class="hero">
       <span class="eyebrow">KicktippAi</span>
       <h1>Published Reports</h1>
-      <p>Coverage and experiment analysis artifacts published from the repository's GitHub Pages workflow.</p>
+      <p>Coverage, experiment analysis, and engineering-session investigations published from the repository's GitHub Pages workflow.</p>
     </section>
     <section class="grid">
       $coverageCard
       $experimentCard
+      $sessionAnalysisCard
     </section>
   </main>
 </body>

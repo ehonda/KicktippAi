@@ -16,6 +16,8 @@ This directory contains normalized, publication-oriented data for the [P0 closeo
 | `task-groups.csv` | Transcript-attributed task timing envelopes and child worker totals. |
 | `curated-findings.json` | Report-level phase and autonomous-solution records that require human interpretation. |
 
+The publication-ready visualization is generated at [`session-analysis/p0-closeout/index.html`](../../../../session-analysis/p0-closeout/index.html). It embeds a compact projection of these records, together with all styles and interaction code, so the deployed page has no runtime data or framework dependency.
+
 `analysis.json` uses schema version 2. Token usage is reconstructed from cumulative counter deltas. When a descendant transcript starts a new counter segment, the new segment is added once; repeated counter emissions add zero. `reasoning_output_tokens` is a subset of `output_tokens`.
 
 ## Reproduction
@@ -24,6 +26,7 @@ From the repository root:
 
 ```powershell
 uv --cache-dir .uv-cache run python docs/codex/p0-closeout-session-investigation/analyze.py --quiet
+uv --cache-dir .uv-cache run python docs/codex/p0-closeout-session-investigation/build_html.py
 ```
 
 The command requires:
@@ -44,4 +47,4 @@ The `generated_at` value changes on each run. All source transcript paths are st
 - Task groups are inferred from agent paths and final summaries. They are useful for investigation, not billing.
 - `api_cost_equivalent_usd` applies public API list prices to logged tokens. It is not an actual Codex charge. Internal `codex-auto-review` usage remains unpriced.
 
-The report can be published later by generating HTML from `analysis.json` and `curated-findings.json`; the CSVs exist for spreadsheet inspection and simple chart tooling.
+The CSVs exist for spreadsheet inspection and simple chart tooling. `build_html.py` reads `analysis.json` and `curated-findings.json` and deterministically rebuilds the self-contained HTML report.
