@@ -879,7 +879,7 @@ public class MatchdayCommand_AdditionalCoverage_Tests : MatchdayCommandTests_Bas
     }
 
     [Test]
-    public async Task Bundesliga_repredict_at_limit_with_same_version_ordinary_content_mutation_blocks_without_submission()
+    public async Task Bundesliga_repredict_at_limit_with_same_version_standings_mutation_blocks_reuse()
     {
         var match = CreateBayernVsDortmundMatch();
         var prediction = CreatePrediction(homeGoals: 1, awayGoals: 0);
@@ -907,6 +907,44 @@ public class MatchdayCommand_AdditionalCoverage_Tests : MatchdayCommandTests_Bas
 
         await Assert.That(exitCode).IsEqualTo(1);
         await Assert.That(output).Contains("cannot be reused");
+        ctx.KicktippClient.Verify(client => client.PlaceBetsAsync(
+            It.IsAny<string>(), It.IsAny<Dictionary<Match, BetPrediction>>(), It.IsAny<bool>()), Times.Never);
+    }
+
+    [Test]
+    public async Task Bundesliga_repredict_at_limit_with_recorded_standings_exact_read_error_blocks_before_model_save_or_submission()
+    {
+        var match = CreateBayernVsDortmundMatch();
+        var prediction = CreatePrediction(homeGoals: 1, awayGoals: 0);
+        var recordedDocuments = CreateBayernVsDortmundContextDocuments();
+        var recordedStandings = recordedDocuments["bundesliga-standings.csv"];
+        var contextRepository = CreateMockContextRepositoryWithDocuments(recordedDocuments);
+        contextRepository.Setup(repository => repository.GetContextDocumentAsync(
+                "bundesliga-standings.csv", recordedStandings.Version, "test-community", It.IsAny<CancellationToken>()))
+            .ThrowsAsync(new InvalidDataException("Recorded standings scope is corrupt."));
+        var predictionRepository = CreateMockPredictionRepository(
+            getPredictionResult: prediction,
+            getPredictionMetadataResult: CreateCanonicalBundesligaPredictionMetadata(prediction, match, recordedDocuments),
+            getRepredictionIndexResult: 2);
+        var ctx = CreateMatchdayCommandApp(
+            firebaseServiceFactory: CreateMockFirebaseServiceFactoryFull(
+                predictionRepository: predictionRepository,
+                contextRepository: contextRepository));
+
+        var (exitCode, output) = await RunCommandAsync(
+            ctx.App, ctx.Console, "matchday", "gpt-4o", "-c", "test-community", "--repredict", "--max-repredictions", "2",
+            "--competition", CompetitionIds.Bundesliga2026_27);
+
+        await Assert.That(exitCode).IsEqualTo(1);
+        await Assert.That(output).Contains("cannot be reused");
+        ctx.PredictionService.Verify(service => service.PredictMatchAsync(
+            It.IsAny<Match>(), It.IsAny<IEnumerable<DocumentContext>>(), It.IsAny<bool>(),
+            It.IsAny<OpenAiIntegration.PredictionTelemetryMetadata?>(), It.IsAny<CancellationToken>()), Times.Never);
+        predictionRepository.As<IResolvedMatchContextPredictionRepository>().Verify(repository =>
+            repository.SaveRepredictionWithResolvedContextAsync(
+                It.IsAny<Match>(), It.IsAny<Prediction>(), It.IsAny<PredictionModelConfig>(),
+                It.IsAny<string>(), It.IsAny<double>(), It.IsAny<string>(), It.IsAny<IEnumerable<string>>(),
+                It.IsAny<int>(), It.IsAny<int>(), It.IsAny<ResolvedMatchContextManifest>(), It.IsAny<CancellationToken>()), Times.Never);
         ctx.KicktippClient.Verify(client => client.PlaceBetsAsync(
             It.IsAny<string>(), It.IsAny<Dictionary<Match, BetPrediction>>(), It.IsAny<bool>()), Times.Never);
     }

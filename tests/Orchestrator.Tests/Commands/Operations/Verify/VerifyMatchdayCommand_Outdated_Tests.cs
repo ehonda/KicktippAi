@@ -98,7 +98,7 @@ public class VerifyMatchdayCommand_Outdated_Tests : VerifyMatchdayCommandTests_B
     }
 
     [Test]
-    public async Task Bundesliga_prediction_with_same_version_ordinary_content_mutation_is_outdated()
+    public async Task Bundesliga_prediction_with_same_version_standings_mutation_is_outdated()
     {
         var match = CreateTestMatch();
         var recordedDocuments = CreateBundesligaOrdinaryDocuments(match);
@@ -114,16 +114,18 @@ public class VerifyMatchdayCommand_Outdated_Tests : VerifyMatchdayCommandTests_B
         var metadata = CreateCanonicalBundesligaPredictionMetadata(prediction, match, recordedDocuments, communityContext: "test-community");
         var ctx = CreateVerifyMatchdayCommandApp(
             placedPredictions: CreatePlacedPredictions(match, CreateBetPrediction(homeGoals: 2, awayGoals: 1)),
-            databasePrediction: prediction,
-            predictionMetadata: metadata,
-            contextDocumentsByName: currentDocuments);
+            firebaseServiceFactory: CreateMockFirebaseServiceFactoryFull(
+                predictionRepository: CreateMockPredictionRepository(
+                    getPredictionResult: prediction,
+                    getPredictionMetadataResult: metadata),
+                contextRepository: CreateMockContextRepositoryWithDocuments(currentDocuments)));
 
         var (exitCode, output) = await RunCommandAsync(
             ctx.App, ctx.Console, "verify-matchday", "gpt-4o", "-c", "test-community",
             "--competition", CompetitionIds.Bundesliga2026_27, "--check-outdated");
 
         await Assert.That(exitCode).IsEqualTo(1);
-        await Assert.That(output).Contains("Status:").And.Contains("Outdated");
+        await Assert.That(output).Contains("Status: Outdated");
     }
 
     [Test]

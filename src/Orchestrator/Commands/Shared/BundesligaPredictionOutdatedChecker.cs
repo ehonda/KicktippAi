@@ -22,9 +22,48 @@ public static class BundesligaPredictionOutdatedChecker
         }
 
         // The seven ordinary documents use exact versions. Neither timestamps nor payload equality can
-        // turn a later version into the version that actually entered the prompt.
+        // turn a later version into the version that actually entered the prompt. Standings is the one
+        // comparison exemption: its recorded immutable input is still read and validated exactly, but a
+        // valid later current version does not by itself make the prediction stale (ADR-0057).
         foreach (var entry in manifest.Documents.Where(entry => !IsReserved(entry.Name)))
         {
+            if (IsStandings(entry.Name))
+            {
+                var recorded = await contextRepository.GetContextDocumentAsync(
+                    entry.Name,
+                    entry.Version,
+                    communityContext,
+                    cancellationToken);
+                if (recorded is null
+                    || !string.Equals(recorded.DocumentName, entry.Name, StringComparison.Ordinal)
+                    || recorded.Version != entry.Version
+                    || !string.Equals(
+                        DocumentPublicationContract.ComputeContentSha256(recorded.Content),
+                        entry.ContentSha256,
+                        StringComparison.Ordinal))
+                {
+                    return true;
+                }
+
+                var latestStandings = await contextRepository.GetLatestContextDocumentAsync(
+                    entry.Name,
+                    communityContext,
+                    cancellationToken);
+                if (latestStandings is null
+                    || !string.Equals(latestStandings.DocumentName, entry.Name, StringComparison.Ordinal)
+                    || latestStandings.Version < entry.Version
+                    || (latestStandings.Version == entry.Version
+                        && !string.Equals(
+                            DocumentPublicationContract.ComputeContentSha256(latestStandings.Content),
+                            entry.ContentSha256,
+                            StringComparison.Ordinal)))
+                {
+                    return true;
+                }
+
+                continue;
+            }
+
             var latest = await contextRepository.GetLatestContextDocumentAsync(entry.Name, communityContext, cancellationToken);
             if (latest is null
                 || !string.Equals(latest.DocumentName, entry.Name, StringComparison.Ordinal)
@@ -74,4 +113,7 @@ public static class BundesligaPredictionOutdatedChecker
 
     private static bool IsReserved(string name) =>
         name.StartsWith("roster-", StringComparison.Ordinal) || name.StartsWith("club-elo-", StringComparison.Ordinal);
+
+    private static bool IsStandings(string name) =>
+        string.Equals(name, "bundesliga-standings.csv", StringComparison.Ordinal);
 }

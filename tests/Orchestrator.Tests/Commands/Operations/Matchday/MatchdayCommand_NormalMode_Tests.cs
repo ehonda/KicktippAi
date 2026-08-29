@@ -178,7 +178,7 @@ public class MatchdayCommand_NormalMode_Tests : MatchdayCommandTests_Base
     }
 
     [Test]
-    public async Task Cancelled_Bundesliga_cached_prediction_with_same_version_ordinary_content_mutation_is_blocked()
+    public async Task Cancelled_Bundesliga_cached_prediction_with_same_version_standings_mutation_is_blocked()
     {
         var cancelledMatch = CreateMatch(
             homeTeam: "FC Bayern München",
@@ -247,7 +247,7 @@ public class MatchdayCommand_NormalMode_Tests : MatchdayCommandTests_Base
     }
 
     [Test]
-    public async Task Bundesliga_cached_prediction_with_same_version_ordinary_content_mutation_is_blocked_without_submission()
+    public async Task Bundesliga_cached_prediction_with_same_version_standings_mutation_is_blocked_without_generation()
     {
         var match = CreateBayernVsDortmundMatch();
         var prediction = CreatePrediction(homeGoals: 3, awayGoals: 0);
@@ -274,6 +274,9 @@ public class MatchdayCommand_NormalMode_Tests : MatchdayCommandTests_Base
 
         await Assert.That(exitCode).IsEqualTo(1);
         await Assert.That(output).Contains("lacks valid immutable provenance");
+        ctx.PredictionService.Verify(service => service.PredictMatchAsync(
+            It.IsAny<Match>(), It.IsAny<IEnumerable<DocumentContext>>(), It.IsAny<bool>(),
+            It.IsAny<OpenAiIntegration.PredictionTelemetryMetadata?>(), It.IsAny<CancellationToken>()), Times.Never);
         ctx.KicktippClient.Verify(client => client.PlaceBetsAsync(
             It.IsAny<string>(), It.IsAny<Dictionary<Match, BetPrediction>>(), It.IsAny<bool>()), Times.Never);
     }
