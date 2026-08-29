@@ -5,6 +5,12 @@
 - Depends on: [P0-21](p0-21-production-activation.md)
 - Decisions: [ADR-0054](../decisions/0054-copy-schadensfresse-bundesliga-from-pes-squad.md), [ADR-0055](../decisions/0055-add-schadensfresse-to-production-live-lane.md)
 
+> **Scope update:** The later community-wide scoring-rule change is tracked by
+> [P1-10](p1-10-schadensfresse-primary-community.md). P1-10 converts
+> `schadensfresse` to a primary community and absorbs this task's DFB-Pokal and
+> Champions-League primary-routing requirements; do not implement P1-08 as a
+> new exception layer on top of the obsolete Bundesliga copy premise.
+
 ## Outcome
 
 `schadensfresse` continues to copy ordinary Bundesliga predictions from
