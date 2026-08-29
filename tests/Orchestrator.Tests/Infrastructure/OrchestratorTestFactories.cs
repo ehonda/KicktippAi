@@ -995,6 +995,14 @@ public static class OrchestratorTestFactories
                     documentsByName.TryGetValue(docName, out var doc) ? doc : null);
         }
 
+        mock.Setup(r => r.GetContextDocumentAsync(
+                It.IsAny<string>(),
+                It.IsAny<int>(),
+                It.IsAny<string>(),
+                It.IsAny<CancellationToken>()))
+            .ReturnsAsync((string docName, int version, string _, CancellationToken _) =>
+                documentsByName.TryGetValue(docName, out var doc) && doc.Version == version ? doc : null);
+
         return mock;
     }
 

@@ -1,3 +1,4 @@
+using System.Diagnostics;
 using EHonda.KicktippAi.Core;
 using KicktippIntegration;
 using Moq;
@@ -127,6 +128,111 @@ public class MatchdayCommand_RepredictMode_Tests : MatchdayCommandTests_Base
     }
 
     [Test]
+    [Arguments("Friday")]
+    [Arguments("Saturday")]
+    [NotInParallel("Telemetry")]
+    public async Task Weekend_standings_refresh_reuses_remaining_open_fixture_without_model_call_or_new_index(string completedFixtureDay)
+    {
+        const string communityContext = "pes-squad";
+        var match = CreateBayernVsDortmundMatch();
+        var prediction = CreatePrediction(homeGoals: 2, awayGoals: 1);
+        var recordedDocuments = CreateBayernVsDortmundContextDocuments(communityContext: communityContext);
+        var currentDocuments = new Dictionary<string, ContextDocument>(recordedDocuments, StringComparer.Ordinal)
+        {
+            ["bundesliga-standings.csv"] = new ContextDocument(
+                "bundesliga-standings.csv",
+                $"Position,Team,Points\n1,FC Bayern München,3 after {completedFixtureDay}",
+                recordedDocuments["bundesliga-standings.csv"].Version + 1,
+                recordedDocuments["bundesliga-standings.csv"].CreatedAt.AddHours(1))
+        };
+        var predictionRepository = CreateMockPredictionRepository(
+            getPredictionResult: prediction,
+            getPredictionMetadataResult: CreateCanonicalBundesligaPredictionMetadata(
+                prediction, match, recordedDocuments, communityContext: communityContext),
+            getRepredictionIndexResult: 0);
+        var predictionService = CreateMockPredictionService();
+        var contextRepository = CreateMockContextRepositoryWithDocuments(currentDocuments);
+        ConfigureRecordedStandings(contextRepository, recordedDocuments["bundesliga-standings.csv"], communityContext);
+        var ctx = CreateMatchdayCommandApp(
+            firebaseServiceFactory: CreateMockFirebaseServiceFactoryFull(
+                predictionRepository: predictionRepository,
+                contextRepository: contextRepository),
+            openAiServiceFactory: CreateMockOpenAiServiceFactory(predictionService: predictionService));
+        var activities = new List<Activity>();
+        using var listener = CreateActivityListener(activities);
+
+        var (exitCode, output) = await RunCommandAsync(
+            ctx.App, ctx.Console, "matchday", "gpt-5.6-sol", "-c", communityContext,
+            "--community-context", communityContext,
+            "--competition", CompetitionIds.Bundesliga2026_27,
+            "--repredict", "--max-repredictions", "2");
+
+        await Assert.That(exitCode).IsEqualTo(0);
+        await Assert.That(output).Contains("Skipped reprediction").And.Contains("reprediction 0");
+        predictionService.Verify(service => service.PredictMatchAsync(
+            It.IsAny<Match>(), It.IsAny<IEnumerable<DocumentContext>>(), It.IsAny<bool>(),
+            It.IsAny<OpenAiIntegration.PredictionTelemetryMetadata?>(), It.IsAny<CancellationToken>()), Times.Never);
+        predictionRepository.As<IResolvedMatchContextPredictionRepository>().Verify(repository =>
+            repository.SaveRepredictionWithResolvedContextAsync(
+                It.IsAny<Match>(), It.IsAny<Prediction>(), It.IsAny<PredictionModelConfig>(), It.IsAny<string>(),
+                It.IsAny<double>(), It.IsAny<string>(), It.IsAny<IEnumerable<string>>(), It.IsAny<int>(), It.IsAny<int>(),
+                It.IsAny<ResolvedMatchContextManifest>(), It.IsAny<CancellationToken>()), Times.Never);
+        var rootActivity = activities.Last(activity => activity.OperationName == "matchday");
+        await Assert.That(rootActivity.GetTagItem("langfuse.trace.metadata.repredictionIndices") as string).IsEqualTo("|0|");
+        await Assert.That(rootActivity.GetTagItem("langfuse.trace.metadata.hasRepredictions") as string).IsEqualTo("false");
+    }
+
+    [Test]
+    [Arguments("schadensfresse")]
+    [Arguments("relaxdays-tippt")]
+    [Arguments("ehonda-ai-arena")]
+    public async Task Copy_posting_lane_reuses_pes_squad_context_prediction_after_standings_refresh(string targetCommunity)
+    {
+        const string communityContext = "pes-squad";
+        var match = CreateBayernVsDortmundMatch();
+        var prediction = CreatePrediction(homeGoals: 2, awayGoals: 1);
+        var recordedDocuments = CreateBayernVsDortmundContextDocuments(communityContext: communityContext);
+        var currentDocuments = new Dictionary<string, ContextDocument>(recordedDocuments, StringComparer.Ordinal)
+        {
+            ["bundesliga-standings.csv"] = new ContextDocument(
+                "bundesliga-standings.csv",
+                "Position,Team,Points\n1,FC Bayern München,6",
+                recordedDocuments["bundesliga-standings.csv"].Version + 1,
+                recordedDocuments["bundesliga-standings.csv"].CreatedAt.AddHours(1))
+        };
+        var predictionRepository = CreateMockPredictionRepository(
+            getPredictionResult: prediction,
+            getPredictionMetadataResult: CreateCanonicalBundesligaPredictionMetadata(
+                prediction, match, recordedDocuments, communityContext: communityContext),
+            getRepredictionIndexResult: 0);
+        var predictionService = CreateMockPredictionService();
+        var contextRepository = CreateMockContextRepositoryWithDocuments(currentDocuments);
+        ConfigureRecordedStandings(contextRepository, recordedDocuments["bundesliga-standings.csv"], communityContext);
+        var ctx = CreateMatchdayCommandApp(
+            firebaseServiceFactory: CreateMockFirebaseServiceFactoryFull(
+                predictionRepository: predictionRepository,
+                contextRepository: contextRepository),
+            openAiServiceFactory: CreateMockOpenAiServiceFactory(predictionService: predictionService));
+
+        var (exitCode, output) = await RunCommandAsync(
+            ctx.App, ctx.Console, "matchday", "gpt-5.6-sol", "-c", targetCommunity,
+            "--community-context", communityContext,
+            "--competition", CompetitionIds.Bundesliga2026_27,
+            "--repredict", "--max-repredictions", "2");
+
+        await Assert.That(exitCode).IsEqualTo(0);
+        await Assert.That(output).Contains("Skipped reprediction").And.Contains("reprediction 0");
+        predictionService.Verify(service => service.PredictMatchAsync(
+            It.IsAny<Match>(), It.IsAny<IEnumerable<DocumentContext>>(), It.IsAny<bool>(),
+            It.IsAny<OpenAiIntegration.PredictionTelemetryMetadata?>(), It.IsAny<CancellationToken>()), Times.Never);
+        predictionRepository.As<IResolvedMatchContextPredictionRepository>().Verify(repository =>
+            repository.SaveRepredictionWithResolvedContextAsync(
+                It.IsAny<Match>(), It.IsAny<Prediction>(), It.IsAny<PredictionModelConfig>(), It.IsAny<string>(),
+                It.IsAny<double>(), It.IsAny<string>(), It.IsAny<IEnumerable<string>>(), It.IsAny<int>(), It.IsAny<int>(),
+                It.IsAny<ResolvedMatchContextManifest>(), It.IsAny<CancellationToken>()), Times.Never);
+    }
+
+    [Test]
     public async Task Running_command_with_max_repredictions_blocks_unsafe_cached_prediction_at_limit()
     {
         var existingPrediction = CreatePrediction(homeGoals: 1, awayGoals: 1);
@@ -143,6 +249,19 @@ public class MatchdayCommand_RepredictMode_Tests : MatchdayCommandTests_Base
 
         await Assert.That(exitCode).IsEqualTo(1);
         await Assert.That(output).Contains("cannot be reused");
+    }
+
+    private static void ConfigureRecordedStandings(
+        Mock<IContextRepository> contextRepository,
+        ContextDocument recordedStandings,
+        string communityContext)
+    {
+        contextRepository.Setup(repository => repository.GetContextDocumentAsync(
+                "bundesliga-standings.csv",
+                recordedStandings.Version,
+                communityContext,
+                It.IsAny<CancellationToken>()))
+            .ReturnsAsync(recordedStandings);
     }
 
     [Test]

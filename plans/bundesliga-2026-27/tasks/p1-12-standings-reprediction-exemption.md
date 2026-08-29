@@ -1,6 +1,6 @@
 # P1-12 — Exempt standings-only changes from repredictions
 
-- Status: Not started
+- Status: In progress — implementation and automated validation complete; representative dev persistence/trace evidence awaits safe confirmation of the base credential identity
 - Priority: P1 — High
 - Depends on: [P0-12](p0-12-match-context-and-transfer-retirement.md), [P0-21](p0-21-production-activation.md)
 - Decisions: [ADR-0057](../decisions/0057-exempt-standings-from-reprediction-staleness.md)
@@ -37,22 +37,22 @@ exemption.
 
 ## Work items
 
-- [ ] Exclude the exact canonical `bundesliga-standings.csv` entry from the
+- [x] Exclude the exact canonical `bundesliga-standings.csv` entry from the
       ordinary-document version/content comparison in the Bundesliga match
       prediction outdated checker.
-- [ ] Keep standings in manifest construction, validation, prompt
+- [x] Keep standings in manifest construction, validation, prompt
       reconstruction, experiment export, and newly generated prompts.
-- [ ] Preserve exact version and content checks for every other ordinary
+- [x] Preserve exact version and content checks for every other ordinary
       document and preserve roster/Club Elo publication-head checks.
-- [ ] Add focused regressions proving that a standings-only update keeps an
+- [x] Add focused regressions proving that a standings-only update keeps an
       existing prediction current while history, rules, roster, and Club Elo
       changes still classify it as outdated.
-- [ ] Add command-level coverage for the Friday-to-weekend pattern: after one
+- [x] Add command-level coverage for the Friday-to-weekend pattern: after one
       fixture completes and standings refresh, the remaining open fixtures are
       reused without model calls or new reprediction indices.
-- [ ] Cover the analogous Saturday-to-Sunday transition and copy-posting lanes
+- [x] Cover the analogous Saturday-to-Sunday transition and copy-posting lanes
       so reuse does not allocate or propagate an unnecessary new index.
-- [ ] Verify trace metadata for a representative no-op cycle reports
+- [x] Verify trace metadata for a representative no-op cycle reports
       `hasRepredictions=false` and retains the existing index.
 - [ ] Verify the exact Git target, commit the scoped changes intentionally, and
       push the explicit remote and branch.
@@ -68,6 +68,39 @@ exemption.
   index allocation.
 - Inspect the resulting Langfuse root observation and Firestore prediction set
   without promoting the validation configuration to production.
+
+## Validation evidence
+
+- 2026-08-30 — focused `BundesligaPredictionOutdatedCheckerTests` passed:
+  16/16. It proves that the recorded standings row is exact-read and validates
+  missing, hash-tampered, version-tampered, malformed, scope-corrupt, missing
+  latest, and latest-version rollback states fail closed before a valid newer
+  current standings version is exempted; retained history, rules, roster, and
+  Club Elo staleness checks also pass.
+- 2026-08-30 — focused affected `MatchdayCommand_AdditionalCoverage_Tests`
+  passed: 33/33. An exact-read standings `InvalidDataException` is classified
+  unsafe before a model call, resolved-context reprediction save, or Kicktipp
+  submission when the cached prediction is at the configured index limit.
+- 2026-08-30 — focused affected `MatchdayCommand_*` classes passed: 163/163,
+  including the
+  Friday-to-weekend and Saturday-to-Sunday no-op cases, three `pes-squad`
+  context copy-posting targets, no model calls/no reprediction save, and root
+  trace metadata `repredictionIndices=|0|` / `hasRepredictions=false`.
+- 2026-08-30 — focused `VerifyMatchdayCommand_Outdated_Tests` passed: 21/21.
+  The matcher verifies the exact canonical standings entry can advance in both
+  version and content while current verification succeeds.
+- 2026-08-30 — complete affected TUnit project passed:
+  `dotnet run --project tests/Orchestrator.Tests`; 1190/1190 passed in
+  2m16.660s. Pre-existing compile warnings were emitted but no test failed.
+- 2026-08-30 — live development validation was not run. The sibling secrets
+  base `.env` and `firebase.json` are present with relevant nonblank
+  assignments, while `.env.ehonda-dev-buli-2627` is absent. The base Kicktipp
+  identity was not safely established, so do not substitute credentials or
+  create an unbounded fixture. Remaining evidence is one isolated
+  `ehonda-dev-buli-2627` index-0 `gpt-5.6-luna` / `none` prediction with a
+  pinned output cap, publication of only a newer standings document, a
+  repredict-mode no-op with no OpenAI call/index allocation, followed by
+  Firestore prediction-set and Langfuse root-observation inspection.
 
 ## Complete when
 
