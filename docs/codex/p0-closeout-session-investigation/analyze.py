@@ -328,6 +328,7 @@ def parse_thread(meta: dict[str, Any], root_turn_ids: set[str]) -> dict[str, Any
     compactions = 0
     max_input_tokens_per_response = 0
     responses_over_272k_input = 0
+    spawn_agent_calls: list[dict[str, Any]] = []
 
     with path.open("r", encoding="utf-8") as handle:
         for line_number, line in enumerate(handle, 1):
@@ -463,7 +464,31 @@ def parse_thread(meta: dict[str, Any], root_turn_ids: set[str]) -> dict[str, Any
                     meta["kind"] in {"root", "guardian"}
                     or first_actual_line is None or line_number >= first_actual_line
                 ):
-                    function_calls[payload.get("name", "unknown")] += 1
+                    function_name = payload.get("name", "unknown")
+                    function_calls[function_name] += 1
+                    if meta["kind"] == "root" and function_name == "spawn_agent":
+                        raw_arguments = payload.get("arguments") or {}
+                        try:
+                            arguments = (
+                                json.loads(raw_arguments)
+                                if isinstance(raw_arguments, str)
+                                else raw_arguments
+                            )
+                        except json.JSONDecodeError:
+                            arguments = {}
+                        if not isinstance(arguments, dict):
+                            arguments = {}
+                        spawn_agent_calls.append({
+                            "timestamp": iso_utc(record_time),
+                            "timestamp_local": iso_local(record_time),
+                            "call_id": payload.get("call_id"),
+                            "task_name": arguments.get("task_name"),
+                            "fork_turns": str(arguments.get("fork_turns", "all")),
+                            "explicit_model": "model" in arguments,
+                            "model": arguments.get("model"),
+                            "explicit_reasoning_effort": "reasoning_effort" in arguments,
+                            "reasoning_effort": arguments.get("reasoning_effort"),
+                        })
                 elif subtype == "custom_tool_call" and (
                     meta["kind"] in {"root", "guardian"}
                     or first_actual_line is None or line_number >= first_actual_line
@@ -575,6 +600,7 @@ def parse_thread(meta: dict[str, Any], root_turn_ids: set[str]) -> dict[str, Any
         },
         "api_cost_equivalent_usd": round(total_cost, 6) if all_priced else None,
         "user_messages": user_messages,
+        "spawn_agent_calls": spawn_agent_calls,
     }
 
 
@@ -958,6 +984,13 @@ def main() -> None:
 
     annotate_user_messages(root["user_messages"])
     message_metrics = user_message_metrics(root["user_messages"])
+    spawn_calls = root["spawn_agent_calls"]
+    spawn_fork_turns = collections.Counter(call["fork_turns"] for call in spawn_calls)
+    dedicated_ci_threads = [
+        thread
+        for thread in subagents
+        if re.search(r"(?:^|/)ci_|_ci$", thread["agent_path"])
+    ]
     guardian_usage = zero_usage()
     for guardian in guardians:
         add_usage(guardian_usage, guardian["usage"])
@@ -985,6 +1018,30 @@ def main() -> None:
         "root_function_calls": root["function_calls"],
         "root_custom_tool_calls": root["custom_tool_calls"],
         "root_nested_tool_calls": root["nested_tool_calls"],
+        "subagent_spawn_selection": {
+            "calls": len(spawn_calls),
+            "fork_turns_counts": dict(spawn_fork_turns),
+            "full_history_inheriting_calls": spawn_fork_turns.get("all", 0),
+            "override_compatible_calls": len(spawn_calls) - spawn_fork_turns.get("all", 0),
+            "explicit_model_overrides": sum(call["explicit_model"] for call in spawn_calls),
+            "explicit_reasoning_effort_overrides": sum(
+                call["explicit_reasoning_effort"] for call in spawn_calls
+            ),
+        },
+        "dedicated_ci_agent_lower_bound": {
+            "classification": "Agent paths matching (?:^|/)ci_|_ci$ only",
+            "threads": len(dedicated_ci_threads),
+            "turns": sum(thread["turn_count"] for thread in dedicated_ci_threads),
+            "usage": {
+                key: sum(thread["usage"][key] for thread in dedicated_ci_threads)
+                for key in zero_usage()
+            },
+            "api_cost_equivalent_usd": round(
+                sum(thread["api_cost_equivalent_usd"] or 0 for thread in dedicated_ci_threads),
+                6,
+            ),
+            "agent_paths": [thread["agent_path"] for thread in dedicated_ci_threads],
+        },
         "root_usage": root["usage"],
         "root_api_cost_equivalent_usd": root["api_cost_equivalent_usd"],
         "subagent_usage": subagent_usage,
@@ -1000,7 +1057,7 @@ def main() -> None:
     }
 
     output = {
-        "schema_version": 2,
+        "schema_version": 3,
         "generated_at": datetime.now(timezone.utc).isoformat().replace("+00:00", "Z"),
         "source": {
             "root_thread_id": ROOT_THREAD_ID,

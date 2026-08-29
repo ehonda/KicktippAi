@@ -6,7 +6,7 @@ This directory contains normalized, publication-oriented data for the [P0 closeo
 
 | File | Contents |
 |---|---|
-| `analysis.json` | Canonical nested dataset: source and pricing metadata, summary, user-message metadata, commits, task files/groups, real thread records, and guardian records. |
+| `analysis.json` | Canonical nested dataset: source and pricing metadata, summary, spawn-model-selection evidence, dedicated-CI lower bound, user-message metadata, commits, task files/groups, real thread records, and guardian records. |
 | `agents.csv` | One row per realized descendant task-agent thread. |
 | `agent-turns.csv` | One row per task-agent turn with timing, outcome, model context, result hash, and bounded result excerpt. |
 | `model-usage.csv` | Per-thread model/effort usage, including the root and internal guardians. |
@@ -14,11 +14,11 @@ This directory contains normalized, publication-oriented data for the [P0 closeo
 | `commits.csv` | First-parent commits in `6d0fca3..2c824c8`. |
 | `task-files.csv` | Base/final task status and completion transitions. |
 | `task-groups.csv` | Transcript-attributed task timing envelopes and child worker totals. |
-| `curated-findings.json` | Report-level phase and autonomous-solution records that require human interpretation. |
+| `curated-findings.json` | Report-level phase, model-allocation, source-pivot, and autonomous-solution records that require human interpretation. |
 
 The publication-ready visualization is generated at [`session-analysis/p0-closeout/index.html`](../../../../session-analysis/p0-closeout/index.html). It embeds a compact projection of these records, together with all styles and interaction code, so the deployed page has no runtime data or framework dependency.
 
-`analysis.json` uses schema version 2. Token usage is reconstructed from cumulative counter deltas. When a descendant transcript starts a new counter segment, the new segment is added once; repeated counter emissions add zero. `reasoning_output_tokens` is a subset of `output_tokens`.
+`analysis.json` uses schema version 3. Token usage is reconstructed from cumulative counter deltas. When a descendant transcript starts a new counter segment, the new segment is added once; repeated counter emissions add zero. `reasoning_output_tokens` is a subset of `output_tokens`.
 
 ## Reproduction
 
@@ -45,6 +45,8 @@ The `generated_at` value changes on each run. All source transcript paths are st
 - `ledger_completed_at` is the latest non-complete-to-complete Git transition in a task group.
 - `observed_finish` includes later task-attributed review or repair evidence.
 - Task groups are inferred from agent paths and final summaries. They are useful for investigation, not billing.
+- `subagent_spawn_selection` is derived from the root's 105 `spawn_agent` argument objects. It records only task name, fork mode, and explicit model/effort presence—not assignment messages.
+- `dedicated_ci_agent_lower_bound` includes only paths matching `(?:^|/)ci_|_ci$`. Mixed status/audit agents can also perform CI work, so this is deliberately conservative.
 - `api_cost_equivalent_usd` applies public API list prices to logged tokens. It is not an actual Codex charge. Internal `codex-auto-review` usage remains unpriced.
 
 The CSVs exist for spreadsheet inspection and simple chart tooling. `build_html.py` reads `analysis.json` and `curated-findings.json` and deterministically rebuilds the self-contained HTML report.

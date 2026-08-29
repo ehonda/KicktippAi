@@ -1,6 +1,49 @@
 {
-  "schema_version": 1,
+  "schema_version": 2,
   "timezone": "Europe/Berlin",
+  "model_allocation_investigation": {
+    "conclusion": "The uniform Sol/xhigh result was deterministic inheritance, but the failure to choose lighter lanes was avoidable.",
+    "runtime_rule": "The historical spawn contract said full-history forks inherit the parent model and reasoning effort and do not accept overrides. It allowed an explicit model or effort only when requested by the user, applicable AGENTS.md instructions, or a skill, and then required a limited-history or no-history fork.",
+    "authorization_evidence": "The kickoff explicitly invoked the newly adopted orchestration improvements. The applicable Bundesliga AGENTS.md required capability-tier matching and lightweight agents for read-only research, status, and CI evidence. The execution strategy likewise said the top tier was not the routine default.",
+    "assessment": "The root used fork_turns=all for 85 of 105 spawn calls, locking those calls to its own Sol/xhigh context. The remaining 20 calls could carry overrides but did not. No spawn specified a model or reasoning effort, including after the user's orchestration-protocol recheck. This is a missed model-allocation preflight, not evidence that every task warranted Sol/xhigh.",
+    "prior_portfolio": [
+      {
+        "role": "Exact-SHA CI",
+        "model_effort": "Luna / low",
+        "note": "The preceding measured session used this for routine read-only reconciliation."
+      },
+      {
+        "role": "Read-only audit",
+        "model_effort": "Luna / medium or Terra / medium",
+        "note": "Used for Club Elo, roster, and P0-12 look-ahead."
+      },
+      {
+        "role": "Implementation writer",
+        "model_effort": "Terra / high",
+        "note": "Used for the publication, Club Elo, roster, and P0-12 writers."
+      },
+      {
+        "role": "Risk-based reviewer",
+        "model_effort": "Sol / high",
+        "note": "Reserved for publication, Club Elo, and roster review."
+      },
+      {
+        "role": "Policy documentation",
+        "model_effort": "GPT-5.4 / medium",
+        "note": "One bounded policy-writing turn."
+      }
+    ],
+    "sources": [
+      {
+        "label": "Official Codex subagent settings",
+        "url": "https://learn.chatgpt.com/docs/agent-configuration/subagents#global-settings"
+      },
+      {
+        "label": "Earlier orchestration investigation",
+        "url": "https://github.com/ehonda/KicktippAi/blob/main/plans/bundesliga-2026-27/subagent-orchestration-investigation.md"
+      }
+    ]
+  },
   "phases": [
     {
       "id": "foundation-wave",
@@ -49,9 +92,23 @@
     {
       "id": "played-date-safety",
       "task": "P0-22",
-      "discovery": "Partial, empty, cup-contaminated, or wrong-matchday histories could appear complete",
-      "resolution": "Enforce league-only evidence, requested-matchday semantics, canonical completeness, and atomic publication",
+      "discovery": "The pinned DuckDB lacked second-division and final-match coverage; DFB terms ruled out automated ingestion; the initially selected CC0 openfootball file proved incomplete; and OpenLigaDB's Europa League record was a stale 0:0 placeholder.",
+      "resolution": "Agents pivoted source by source: frozen and hashed OpenLigaDB captures for 2. Bundesliga, relegation, and DFB-Pokal; the exact UEFA match record plus independent SC Freiburg corroboration for the Europa League final; then exact identity joins, canonical completeness, and atomic publication.",
       "commits": ["6541e1f", "c99e0c8", "7a3b4c7", "9339f2b", "9d79603", "f9cf608", "78512dc"]
+    },
+    {
+      "id": "clubelo-source-discovery",
+      "task": "Prelude · outside closeout totals",
+      "discovery": "The Bundesliga needed a club-strength analogue for FIFA rankings. The research agent compared Club Elo, Opta Power Rankings, UEFA coefficients, and aggregate Transfermarkt value, then tested Club Elo's dated CSV/API surface and coverage.",
+      "resolution": "It selected Club Elo as the closest result-based all-club analogue, while documenting Opta as an unstable-export fallback, UEFA coefficients and market value as poor substitutes, and a locally computed cross-division Elo as the robust contingency. This happened August 13–18, before the analyzed closeout family, so its tokens and commits are not counted in the closeout totals.",
+      "commits": ["4bdca76", "343929f"]
+    },
+    {
+      "id": "roster-source-split",
+      "task": "Prelude · outside closeout totals",
+      "discovery": "The apparently ideal Transfermarkt DuckDB had fresh valuations and transfer rows but stale 2025/26 Bundesliga membership, leaving promoted Elversberg, Schalke, and Paderborn incomplete.",
+      "resolution": "The research agent split the contract: authoritative checked membership first, DuckDB only for stable-ID enrichment such as age, position, and value. That avoided silently treating a fresh artifact as a fresh roster source.",
+      "commits": ["4bdca76", "60612fa"]
     },
     {
       "id": "provenance-coherence",
@@ -108,6 +165,13 @@
       "discovery": "The first natural occurrence was delivered 2h46m22s late",
       "resolution": "Separate queue latency from execution correctness, continue monitoring, and audit all 16 jobs before closeout",
       "commits": ["dd4d563", "740d707", "2c824c8"]
+    },
+    {
+      "id": "read-only-telemetry-isolation",
+      "task": "P0-21 prerequisite audit",
+      "discovery": "A nominally read-only production-community profile check still emitted an OTLP batch because normal process telemetry initialized the Langfuse exporter.",
+      "resolution": "Agents traced the pinned OpenTelemetry .NET 1.17 source, found its process-start OTEL_SDK_DISABLED guard, reran both audits without constructing an exporter, and recorded that boundary for future read-only checks.",
+      "commits": ["1d6a81b"]
     }
   ]
 }

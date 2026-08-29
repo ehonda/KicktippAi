@@ -150,7 +150,6 @@ def build_payload(analysis: dict[str, Any], curated: dict[str, Any]) -> dict[str
             "end": summary["session_last_event_at_local"],
             "baseCommit": "6d0fca3",
             "finalCommit": "2c824c8",
-            "reportCommit": "092d854",
             "pricingAsOf": analysis["pricing"]["as_of"],
         },
         "summary": {
@@ -169,6 +168,8 @@ def build_payload(analysis: dict[str, Any], curated: dict[str, Any]) -> dict[str
             "user": summary["user_messages"],
             "rootCalls": summary["root_function_calls"],
             "rootTools": summary["root_nested_tool_calls"],
+            "spawnSelection": summary["subagent_spawn_selection"],
+            "ciLowerBound": summary["dedicated_ci_agent_lower_bound"],
             "rootUsage": compact_usage(summary["root_usage"]),
             "subagentUsage": compact_usage(summary["subagent_usage"]),
             "familyUsage": compact_usage(summary["usage"]),
@@ -186,6 +187,7 @@ def build_payload(analysis: dict[str, Any], curated: dict[str, Any]) -> dict[str
         "interventions": interventions,
         "phases": curated["phases"],
         "findings": curated["autonomous_solutions"],
+        "modelInvestigation": curated["model_allocation_investigation"],
     }
 
 
@@ -417,6 +419,27 @@ HTML_TEMPLATE = r'''<!doctype html>
     .model-glyph { display: grid; place-items: center; width: 54px; height: 54px; border-radius: 16px; background: var(--violet-soft); color: var(--violet); font: 800 1.1rem/1 var(--mono); }
     .model-card strong { display: block; }
     .model-card p { margin: 4px 0 0; color: var(--muted); font-size: .76rem; }
+    .model-investigation { margin-top: 16px; padding: 24px; }
+    .model-proof { display: grid; grid-template-columns: repeat(4, 1fr); gap: 9px; margin: 18px 0; }
+    .model-proof div { padding: 14px; border: 1px solid var(--line); border-radius: 13px; background: var(--panel-2); }
+    .model-proof strong { display: block; color: var(--amber); font: 760 1.45rem/1 var(--mono); letter-spacing: -.04em; }
+    .model-proof span { display: block; margin-top: 8px; color: var(--muted); font-size: .7rem; }
+    .model-explanation { display: grid; grid-template-columns: 1.08fr .92fr; gap: 14px; }
+    .model-explanation > div { padding: 18px; border: 1px solid var(--line); border-radius: 14px; background: var(--panel-2); }
+    .model-explanation h4 { margin: 0 0 10px; font-size: .85rem; }
+    .model-explanation p { margin: 0; color: var(--muted); font-size: .76rem; }
+    .allocation-flow { display: grid; gap: 8px; margin-top: 14px; }
+    .allocation-flow div { display: grid; grid-template-columns: 30px 1fr; gap: 9px; align-items: start; }
+    .allocation-flow b { display: grid; place-items: center; width: 26px; height: 26px; border-radius: 8px; background: var(--violet-soft); color: var(--violet); font: 750 .7rem/1 var(--mono); }
+    .allocation-flow span { color: var(--muted); font-size: .72rem; }
+    .portfolio-list { display: grid; gap: 7px; margin-top: 12px; }
+    .portfolio-row { display: grid; grid-template-columns: 1fr auto; gap: 10px; padding: 9px 0; border-bottom: 1px solid var(--line); }
+    .portfolio-row:last-child { border-bottom: 0; }
+    .portfolio-row span { color: var(--muted); font-size: .7rem; }
+    .portfolio-row strong { color: var(--mint); font: 700 .68rem/1.3 var(--mono); text-align: end; }
+    .ci-lower-bound { margin: 14px 0 0; padding: 12px 14px; border-left: 3px solid var(--amber); background: var(--amber-soft); color: var(--muted); font-size: .73rem; }
+    .model-source-links { display: flex; flex-wrap: wrap; gap: 8px; margin-top: 14px; }
+    .model-source-links a { color: var(--blue); font-size: .7rem; font-weight: 700; }
 
     .agent-panel { margin-top: 16px; overflow: hidden; }
     .agent-toolbar { display: grid; grid-template-columns: minmax(220px, 1fr) 190px 180px auto; gap: 10px; padding: 16px; border-bottom: 1px solid var(--line); }
@@ -476,6 +499,7 @@ HTML_TEMPLATE = r'''<!doctype html>
     .findings { display: grid; grid-template-columns: repeat(2, 1fr); gap: 12px; }
     .finding { border: 1px solid var(--line); border-radius: 16px; background: var(--panel); overflow: hidden; }
     .finding[open] { border-color: var(--line-strong); }
+    .finding.prelude { border-inline-start: 3px solid var(--violet); }
     .finding summary { list-style: none; display: grid; grid-template-columns: auto 1fr auto; gap: 12px; align-items: center; padding: 17px; cursor: pointer; }
     .finding summary::-webkit-details-marker { display: none; }
     .finding-index { color: var(--amber); font: 800 .73rem/1 var(--mono); }
@@ -515,7 +539,7 @@ HTML_TEMPLATE = r'''<!doctype html>
       .hero { min-height: auto; padding: 52px 0 30px; }
       .hero::after, .hero-orbit { display: none; }
       h1 { font-size: clamp(3.3rem, 17vw, 5.2rem); }
-      .section-head, .two-col, .verdict, .cost-layout, .intervention-layout { grid-template-columns: 1fr; }
+      .section-head, .two-col, .verdict, .cost-layout, .intervention-layout, .model-explanation { grid-template-columns: 1fr; }
       .section-head { gap: 8px; }
       .kpi-grid { grid-template-columns: 1fr 1fr; margin-top: 0; }
       .phase-strip { grid-template-columns: 1fr; }
@@ -524,6 +548,7 @@ HTML_TEMPLATE = r'''<!doctype html>
       .agent-toolbar input { grid-column: span 2; }
       .agent-summary { text-align: start; }
       .findings, .method-grid { grid-template-columns: 1fr; }
+      .model-proof { grid-template-columns: repeat(2, 1fr); }
       .cost-layout { gap: 4px; }
     }
     @media (max-width: 500px) {
@@ -609,8 +634,19 @@ HTML_TEMPLATE = r'''<!doctype html>
         <article class="panel card"><div class="card-head"><div><h3>Concurrency while agents were active</h3><p>57h29m with at least one descendant working</p></div><span class="badge">average 1.51</span></div><div class="stack" id="concurrency-stack" aria-label="Concurrency distribution"></div><div class="legend"><span><i class="swatch" style="--swatch:var(--amber)"></i>one agent</span><span><i class="swatch" style="--swatch:var(--mint)"></i>two agents</span><span><i class="swatch" style="--swatch:var(--violet)"></i>three agents</span></div></article>
         <article class="panel card"><div class="card-head"><div><h3>Versus the earlier baseline</h3><p>Directional comparison; task scope differs</p></div><span class="badge">max 3 vs 2</span></div><div class="comparison" id="baseline-comparison"></div></article>
         <article class="panel card"><div class="card-head"><div><h3>Root collaboration traffic</h3><p>39 root turns · 1,600 assistant-message records</p></div><span class="badge">32 compactions</span></div><div class="call-grid" id="call-grid"></div></article>
-        <article class="panel card"><div class="card-head"><div><h3>Agent model allocation</h3><p>Application experiment models are a separate domain</p></div><span class="badge">no tiering</span></div><div class="model-card"><div class="model-glyph">S/x</div><div><strong>gpt-5.6-sol · xhigh</strong><p>Root plus all 102 realized task-agent threads. The auto-review guardian used an internal <code>codex-auto-review/low</code> model.</p></div></div></article>
+        <article class="panel card"><div class="card-head"><div><h3>Agent model allocation</h3><p>Application experiment models are a separate domain</p></div><span class="badge">inherited</span></div><div class="model-card"><div class="model-glyph">S/x</div><div><strong>gpt-5.6-sol · xhigh</strong><p>Root plus all 102 realized task-agent threads. This was the parent default propagated by spawn calls, not 102 recorded task-by-task selections.</p></div></div></article>
       </div>
+
+      <article class="panel model-investigation">
+        <div class="card-head"><div><h3>Why every subagent became Sol/xhigh</h3><p id="model-conclusion"></p></div><span class="badge">allocation audit</span></div>
+        <div class="model-proof" id="model-proof"></div>
+        <div class="model-explanation">
+          <div><h4>The causal chain</h4><p id="model-assessment"></p><div class="allocation-flow" id="allocation-flow"></div></div>
+          <div><h4>The preceding session was deliberately diverse</h4><p>That measured portfolio shows the runtime could tier work when assignments carried an explicit choice.</p><div class="portfolio-list" id="portfolio-list"></div></div>
+        </div>
+        <p class="ci-lower-bound" id="ci-lower-bound"></p>
+        <div class="model-source-links" id="model-source-links"></div>
+      </article>
 
       <div class="agent-panel panel">
         <div class="agent-toolbar">
@@ -641,7 +677,7 @@ HTML_TEMPLATE = r'''<!doctype html>
     </section>
 
     <section id="discoveries">
-      <div class="section-head"><div><p class="eyebrow">05 · Autonomous repair</p><h2>The best autonomy happened inside bounded loops.</h2></div><p>Agents found concrete failures in tests, traces, live workflows, or independent review—then carried them through repair and durable evidence.</p></div>
+      <div class="section-head"><div><p class="eyebrow">05 · Autonomous discovery &amp; repair</p><h2>The best autonomy included source pivots.</h2></div><p>Closeout agents found failures in sources, tests, traces, and live workflows. Two explicitly labeled prelude discoveries happened before this session family and are excluded from its token and commit totals.</p></div>
       <div class="findings" id="findings"></div>
     </section>
 
@@ -652,10 +688,10 @@ HTML_TEMPLATE = r'''<!doctype html>
         <article class="method-card"><strong>Time boundary</strong><p>Turn duration includes tool execution and waits. Task windows overlap and are evidence envelopes, not timesheets.</p></article>
         <article class="method-card"><strong>Price boundary</strong><p>Normal Sol rates apply because the largest logged input was 237,299 tokens, below the 272K long-context threshold.</p></article>
       </div>
-      <div class="source-box"><code id="source-line"></code><div class="source-links"><a href="https://github.com/ehonda/KicktippAi/tree/main/docs/codex/p0-closeout-session-investigation">Source &amp; normalized data</a><a href="https://developers.openai.com/api/docs/models/gpt-5.6-sol">Official Sol pricing</a><a href="https://github.com/ehonda/KicktippAi/actions/runs/33143114280">Natural 16-job run</a></div></div>
+      <div class="source-box"><code id="source-line"></code><div class="source-links"><a href="https://github.com/ehonda/KicktippAi/tree/main/docs/codex/p0-closeout-session-investigation">Source &amp; normalized data</a><a href="https://learn.chatgpt.com/docs/agent-configuration/subagents#global-settings">Official subagent settings</a><a href="https://developers.openai.com/api/docs/models/gpt-5.6-sol">Official Sol pricing</a><a href="https://github.com/ehonda/KicktippAi/actions/runs/33143114280">Natural 16-job run</a></div></div>
     </section>
 
-    <footer><span>KicktippAi · P0 closeout session investigation</span><span>Generated from schema v2 normalized evidence · 2026-08-29</span></footer>
+    <footer><span>KicktippAi · P0 closeout session investigation</span><span>Generated from schema v3 normalized evidence · 2026-08-29</span></footer>
   </main>
 
   <script id="report-data" type="application/json">__REPORT_DATA__</script>
@@ -755,6 +791,30 @@ HTML_TEMPLATE = r'''<!doctype html>
         $("#call-grid").innerHTML = calls.map(([key, label]) => `<div class="call"><strong>${number.format(data.summary.rootCalls[key])}</strong><span>${esc(label)}</span></div>`).join("");
       };
 
+      const renderModelInvestigation = () => {
+        const selection = data.summary.spawnSelection;
+        const investigation = data.modelInvestigation;
+        const ci = data.summary.ciLowerBound;
+        $("#model-conclusion").textContent = investigation.conclusion;
+        const proof = [
+          [selection.calls, "spawn calls inspected"],
+          [selection.full_history_inheriting_calls, "full-history forks; inheritance locked"],
+          [selection.override_compatible_calls, "limited/no-history forks; override-compatible"],
+          [`${selection.explicit_model_overrides} / ${selection.explicit_reasoning_effort_overrides}`, "explicit model / effort overrides"],
+        ];
+        $("#model-proof").innerHTML = proof.map(([value, label]) => `<div><strong>${esc(typeof value === "number" ? number.format(value) : value)}</strong><span>${esc(label)}</span></div>`).join("");
+        $("#model-assessment").textContent = investigation.assessment;
+        const flow = [
+          investigation.runtime_rule,
+          investigation.authorization_evidence,
+          "The orchestrator never converted that authorization into spawn parameters or verified the first child model before scaling the pattern.",
+        ];
+        $("#allocation-flow").innerHTML = flow.map((item, index) => `<div><b>${index + 1}</b><span>${esc(item)}</span></div>`).join("");
+        $("#portfolio-list").innerHTML = investigation.prior_portfolio.map(item => `<div class="portfolio-row" title="${esc(item.note)}"><span>${esc(item.role)}</span><strong>${esc(item.model_effort)}</strong></div>`).join("");
+        $("#ci-lower-bound").innerHTML = `<strong>Concrete low-complexity lower bound:</strong> ${number.format(ci.threads)} explicitly CI-labeled threads ran ${number.format(ci.turns)} turns on Sol/xhigh, consuming ${compact.format(ci.usage.total_tokens)} tokens and ${money.format(ci.api_cost_equivalent_usd)} at Sol list rates. The actual routine status/CI surface was larger because mixed-role agents also reconciled runs. This is an addressable-cost surface, not a counterfactual savings estimate.`;
+        $("#model-source-links").innerHTML = investigation.sources.map(source => `<a href="${esc(source.url)}">${esc(source.label)}</a>`).join("");
+      };
+
       let agentExpanded = false;
       const renderAgents = () => {
         const query = $("#agent-search").value.trim().toLowerCase();
@@ -814,7 +874,7 @@ HTML_TEMPLATE = r'''<!doctype html>
       };
 
       const renderFindings = () => {
-        $("#findings").innerHTML = data.findings.map((finding, index) => `<details class="finding"${index === 0 ? " open" : ""}><summary><span class="finding-index">${String(index + 1).padStart(2, "0")}</span><span class="finding-title">${esc(finding.id.replaceAll("-", " "))}</span><span class="finding-task">${esc(finding.task)}</span></summary><div class="finding-body"><dl><dt>Discovery</dt><dd>${esc(finding.discovery)}</dd><dt>Resolution</dt><dd>${esc(finding.resolution)}</dd></dl><div class="commit-list">${finding.commits.map(commit => `<a href="https://github.com/ehonda/KicktippAi/commit/${esc(commit)}">${esc(commit)}</a>`).join("")}</div></div></details>`).join("");
+        $("#findings").innerHTML = data.findings.map((finding, index) => `<details class="finding${finding.task.startsWith("Prelude") ? " prelude" : ""}"${finding.id === "clubelo-source-discovery" ? " open" : ""}><summary><span class="finding-index">${String(index + 1).padStart(2, "0")}</span><span class="finding-title">${esc(finding.id.replaceAll("-", " "))}</span><span class="finding-task">${esc(finding.task)}</span></summary><div class="finding-body"><dl><dt>Discovery</dt><dd>${esc(finding.discovery)}</dd><dt>Resolution</dt><dd>${esc(finding.resolution)}</dd></dl><div class="commit-list">${finding.commits.map(commit => `<a href="https://github.com/ehonda/KicktippAi/commit/${esc(commit)}">${esc(commit)}</a>`).join("")}</div></div></details>`).join("");
       };
 
       const initNavigation = () => {
@@ -833,7 +893,7 @@ HTML_TEMPLATE = r'''<!doctype html>
         $("#source-line").textContent = `${data.meta.thread} · ${data.meta.baseCommit}..${data.meta.finalCommit} · pricing ${data.meta.pricingAsOf}`;
       };
 
-      initTheme(); renderHeadline(); renderPhases(); renderTimeline(); renderOrchestration(); initAgents(); renderCost(); initMessages(); renderFindings(); renderSource(); initNavigation();
+      initTheme(); renderHeadline(); renderPhases(); renderTimeline(); renderOrchestration(); renderModelInvestigation(); initAgents(); renderCost(); initMessages(); renderFindings(); renderSource(); initNavigation();
     })();
   </script>
 </body>

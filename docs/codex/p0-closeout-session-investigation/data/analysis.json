@@ -1,6 +1,6 @@
 {
-  "schema_version": 2,
-  "generated_at": "2026-08-29T09:07:19.969835Z",
+  "schema_version": 3,
+  "generated_at": "2026-08-29T12:51:03.672292Z",
   "source": {
     "root_thread_id": "01a02485-f0b3-7241-a6c7-c6f58fe44509",
     "root_log": "2026\\08\\21\\rollout-2026-08-21T15-32-33-01a02485-f0b3-7241-a6c7-c6f58fe44509.jsonl",
@@ -84,6 +84,42 @@
       "get_goal": 17,
       "update_goal": 9,
       "mcp__langfuse_docs__searchLangfuseDocs": 1
+    },
+    "subagent_spawn_selection": {
+      "calls": 105,
+      "fork_turns_counts": {
+        "all": 85,
+        "4": 5,
+        "3": 3,
+        "2": 1,
+        "none": 11
+      },
+      "full_history_inheriting_calls": 85,
+      "override_compatible_calls": 20,
+      "explicit_model_overrides": 0,
+      "explicit_reasoning_effort_overrides": 0
+    },
+    "dedicated_ci_agent_lower_bound": {
+      "classification": "Agent paths matching (?:^|/)ci_|_ci$ only",
+      "threads": 6,
+      "turns": 12,
+      "usage": {
+        "input_tokens": 14814311,
+        "cached_input_tokens": 13851776,
+        "cache_write_input_tokens": 0,
+        "output_tokens": 34583,
+        "reasoning_output_tokens": 5978,
+        "total_tokens": 14848894
+      },
+      "api_cost_equivalent_usd": 10.08251,
+      "agent_paths": [
+        "/root/p0_17_ci",
+        "/root/p0_19_ci",
+        "/root/p0_20_ci",
+        "/root/ci_78f4d3b_reconcile",
+        "/root/p0_doc_ci",
+        "/root/p0_23_checkpoint_ci"
+      ]
     },
     "root_usage": {
       "input_tokens": 975947047,
@@ -5217,6 +5253,1163 @@
           "sha256": "cfbb825dada5e3b9f5d330e921b7d8066909606305ba3fbb516d4744d7022fd7",
           "excerpt": null
         }
+      ],
+      "spawn_agent_calls": [
+        {
+          "timestamp": "2026-08-21T13:35:25.863000Z",
+          "timestamp_local": "2026-08-21T15:35:25.863000+02:00",
+          "call_id": "call_9UZxT83U2aEJuiqfQFM9KgjK",
+          "task_name": "p0_status_audit",
+          "fork_turns": "all",
+          "explicit_model": false,
+          "model": null,
+          "explicit_reasoning_effort": false,
+          "reasoning_effort": null
+        },
+        {
+          "timestamp": "2026-08-21T13:35:32.417000Z",
+          "timestamp_local": "2026-08-21T15:35:32.417000+02:00",
+          "call_id": "call_D5wEv81hQLelfVc5rfwKapKj",
+          "task_name": "p0_code_seams",
+          "fork_turns": "all",
+          "explicit_model": false,
+          "model": null,
+          "explicit_reasoning_effort": false,
+          "reasoning_effort": null
+        },
+        {
+          "timestamp": "2026-08-21T14:21:10.345000Z",
+          "timestamp_local": "2026-08-21T16:21:10.345000+02:00",
+          "call_id": "call_5A2o3VkiMqvVTHpHcPjShPrn",
+          "task_name": "p0_05_prompt_route",
+          "fork_turns": "all",
+          "explicit_model": false,
+          "model": null,
+          "explicit_reasoning_effort": false,
+          "reasoning_effort": null
+        },
+        {
+          "timestamp": "2026-08-21T21:53:27.847000Z",
+          "timestamp_local": "2026-08-21T23:53:27.847000+02:00",
+          "call_id": "call_gRYCQs0JVWBCXNyRyrhJ4oze",
+          "task_name": "p0_18_context",
+          "fork_turns": "all",
+          "explicit_model": false,
+          "model": null,
+          "explicit_reasoning_effort": false,
+          "reasoning_effort": null
+        },
+        {
+          "timestamp": "2026-08-21T21:53:37.283000Z",
+          "timestamp_local": "2026-08-21T23:53:37.283000+02:00",
+          "call_id": "call_04v5zxlCOJy3MhCPW4tg7UB3",
+          "task_name": "p0_18_prediction",
+          "fork_turns": "all",
+          "explicit_model": false,
+          "model": null,
+          "explicit_reasoning_effort": false,
+          "reasoning_effort": null
+        },
+        {
+          "timestamp": "2026-08-21T21:53:42.935000Z",
+          "timestamp_local": "2026-08-21T23:53:42.935000+02:00",
+          "call_id": "call_adF60acRdXzzCf590ChU44bS",
+          "task_name": "p0_17_ci",
+          "fork_turns": "all",
+          "explicit_model": false,
+          "model": null,
+          "explicit_reasoning_effort": false,
+          "reasoning_effort": null
+        },
+        {
+          "timestamp": "2026-08-21T21:59:00.998000Z",
+          "timestamp_local": "2026-08-21T23:59:00.998000+02:00",
+          "call_id": "call_XdykMjA3yx0T4UkvHroEjgET",
+          "task_name": "p0_19_audit",
+          "fork_turns": "all",
+          "explicit_model": false,
+          "model": null,
+          "explicit_reasoning_effort": false,
+          "reasoning_effort": null
+        },
+        {
+          "timestamp": "2026-08-21T22:15:14.350000Z",
+          "timestamp_local": "2026-08-22T00:15:14.350000+02:00",
+          "call_id": "call_Ydj3329GJVWgzZKmEysa7YHV",
+          "task_name": "p0_18_prediction_review",
+          "fork_turns": "all",
+          "explicit_model": false,
+          "model": null,
+          "explicit_reasoning_effort": false,
+          "reasoning_effort": null
+        },
+        {
+          "timestamp": "2026-08-21T22:39:57.654000Z",
+          "timestamp_local": "2026-08-22T00:39:57.654000+02:00",
+          "call_id": "call_boRgL3vBgQv7FMUL3XwO6MlN",
+          "task_name": "p0_19_arena_writer",
+          "fork_turns": "all",
+          "explicit_model": false,
+          "model": null,
+          "explicit_reasoning_effort": false,
+          "reasoning_effort": null
+        },
+        {
+          "timestamp": "2026-08-21T22:40:09.931000Z",
+          "timestamp_local": "2026-08-22T00:40:09.931000+02:00",
+          "call_id": "call_gxBmTrq2cdBEiH1g3srvcwSq",
+          "task_name": "p0_19_support_writer",
+          "fork_turns": "all",
+          "explicit_model": false,
+          "model": null,
+          "explicit_reasoning_effort": false,
+          "reasoning_effort": null
+        },
+        {
+          "timestamp": "2026-08-24T22:30:44.644000Z",
+          "timestamp_local": "2026-08-25T00:30:44.644000+02:00",
+          "call_id": "call_whMwlRSzpuNDt6mAc9b7De4t",
+          "task_name": "p0_19_ci",
+          "fork_turns": "all",
+          "explicit_model": false,
+          "model": null,
+          "explicit_reasoning_effort": false,
+          "reasoning_effort": null
+        },
+        {
+          "timestamp": "2026-08-24T22:32:20.915000Z",
+          "timestamp_local": "2026-08-25T00:32:20.915000+02:00",
+          "call_id": "call_mLnAIU2zu3FdWtjpetLJtebQ",
+          "task_name": "p0_20_credentials_writer",
+          "fork_turns": "all",
+          "explicit_model": false,
+          "model": null,
+          "explicit_reasoning_effort": false,
+          "reasoning_effort": null
+        },
+        {
+          "timestamp": "2026-08-24T22:32:36.404000Z",
+          "timestamp_local": "2026-08-25T00:32:36.404000+02:00",
+          "call_id": "call_X6vQzPjXwCfa52PC9P2ou08l",
+          "task_name": "p0_20_csv_writer",
+          "fork_turns": "all",
+          "explicit_model": false,
+          "model": null,
+          "explicit_reasoning_effort": false,
+          "reasoning_effort": null
+        },
+        {
+          "timestamp": "2026-08-24T22:56:59.364000Z",
+          "timestamp_local": "2026-08-25T00:56:59.364000+02:00",
+          "call_id": "call_SO6SsGG76UNEgnB2BYKZTvl3",
+          "task_name": "p0_06_luna_cost",
+          "fork_turns": "4",
+          "explicit_model": false,
+          "model": null,
+          "explicit_reasoning_effort": false,
+          "reasoning_effort": null
+        },
+        {
+          "timestamp": "2026-08-24T22:59:07.855000Z",
+          "timestamp_local": "2026-08-25T00:59:07.855000+02:00",
+          "call_id": "call_EIj1F0vf9z543kQuWjA3dZ0Q",
+          "task_name": "p0_20_csv_review",
+          "fork_turns": "3",
+          "explicit_model": false,
+          "model": null,
+          "explicit_reasoning_effort": false,
+          "reasoning_effort": null
+        },
+        {
+          "timestamp": "2026-08-24T23:27:40.685000Z",
+          "timestamp_local": "2026-08-25T01:27:40.685000+02:00",
+          "call_id": "call_wsJleezyKFUbDBZOU0rKwX8C",
+          "task_name": "p0_20_ci",
+          "fork_turns": "2",
+          "explicit_model": false,
+          "model": null,
+          "explicit_reasoning_effort": false,
+          "reasoning_effort": null
+        },
+        {
+          "timestamp": "2026-08-24T23:33:20.173000Z",
+          "timestamp_local": "2026-08-25T01:33:20.173000+02:00",
+          "call_id": "call_x61lVxpC8PyszRSPE2GV8wkk",
+          "task_name": "p0_20_live_validation",
+          "fork_turns": "4",
+          "explicit_model": false,
+          "model": null,
+          "explicit_reasoning_effort": false,
+          "reasoning_effort": null
+        },
+        {
+          "timestamp": "2026-08-25T00:05:19.865000Z",
+          "timestamp_local": "2026-08-25T02:05:19.865000+02:00",
+          "call_id": "call_z07iQ6N9ghoKZtnD2EzbBdxa",
+          "task_name": "p0_06_historical_review",
+          "fork_turns": "4",
+          "explicit_model": false,
+          "model": null,
+          "explicit_reasoning_effort": false,
+          "reasoning_effort": null
+        },
+        {
+          "timestamp": "2026-08-25T00:11:32.880000Z",
+          "timestamp_local": "2026-08-25T02:11:32.880000+02:00",
+          "call_id": "call_WecA8HDXZ96s7Fbj1u56dZpE",
+          "task_name": "p0_20_history_review",
+          "fork_turns": "3",
+          "explicit_model": false,
+          "model": null,
+          "explicit_reasoning_effort": false,
+          "reasoning_effort": null
+        },
+        {
+          "timestamp": "2026-08-25T00:42:17.972000Z",
+          "timestamp_local": "2026-08-25T02:42:17.972000+02:00",
+          "call_id": "call_OHViBms0ltgxpMZ77v8wwf4l",
+          "task_name": "p0_06_remediation_review",
+          "fork_turns": "all",
+          "explicit_model": false,
+          "model": null,
+          "explicit_reasoning_effort": false,
+          "reasoning_effort": null
+        },
+        {
+          "timestamp": "2026-08-25T01:30:32.205000Z",
+          "timestamp_local": "2026-08-25T03:30:32.205000+02:00",
+          "call_id": "call_pM2iMNiKWAYlTxiJ8k2YmLsB",
+          "task_name": "p0_20_fullseason_review",
+          "fork_turns": "all",
+          "explicit_model": false,
+          "model": null,
+          "explicit_reasoning_effort": false,
+          "reasoning_effort": null
+        },
+        {
+          "timestamp": "2026-08-25T03:06:16.196000Z",
+          "timestamp_local": "2026-08-25T05:06:16.196000+02:00",
+          "call_id": "call_PDovwRFXpny2vVEKFG8E148K",
+          "task_name": "p0_06_cutoff_review",
+          "fork_turns": "all",
+          "explicit_model": false,
+          "model": null,
+          "explicit_reasoning_effort": false,
+          "reasoning_effort": null
+        },
+        {
+          "timestamp": "2026-08-25T03:59:12.598000Z",
+          "timestamp_local": "2026-08-25T05:59:12.598000+02:00",
+          "call_id": "call_lPWEKfopgnIxSJxKPwm2XjAx",
+          "task_name": "p0_20_prompt_review",
+          "fork_turns": "all",
+          "explicit_model": false,
+          "model": null,
+          "explicit_reasoning_effort": false,
+          "reasoning_effort": null
+        },
+        {
+          "timestamp": "2026-08-25T06:05:58.029000Z",
+          "timestamp_local": "2026-08-25T08:05:58.029000+02:00",
+          "call_id": "call_wtec3A1UOwVSWhs89jsf6vT0",
+          "task_name": "p0_20_arena_validation",
+          "fork_turns": "all",
+          "explicit_model": false,
+          "model": null,
+          "explicit_reasoning_effort": false,
+          "reasoning_effort": null
+        },
+        {
+          "timestamp": "2026-08-25T06:42:08.392000Z",
+          "timestamp_local": "2026-08-25T08:42:08.392000+02:00",
+          "call_id": "call_E7I0ANB5rxShWu2hAi3xEFZh",
+          "task_name": "p0_20_workflow_failure_review",
+          "fork_turns": "all",
+          "explicit_model": false,
+          "model": null,
+          "explicit_reasoning_effort": false,
+          "reasoning_effort": null
+        },
+        {
+          "timestamp": "2026-08-25T20:02:51.691000Z",
+          "timestamp_local": "2026-08-25T22:02:51.691000+02:00",
+          "call_id": "call_7vsbvza1luC7Lbcs4JTeMPf6",
+          "task_name": "p0_gate_boundaries_review",
+          "fork_turns": "all",
+          "explicit_model": false,
+          "model": null,
+          "explicit_reasoning_effort": false,
+          "reasoning_effort": null
+        },
+        {
+          "timestamp": "2026-08-25T22:05:26.234000Z",
+          "timestamp_local": "2026-08-26T00:05:26.234000+02:00",
+          "call_id": "call_0RpDr71LCF8Q3K9KXF5g3qEf",
+          "task_name": "p0_23_gpt56_evidence",
+          "fork_turns": "all",
+          "explicit_model": false,
+          "model": null,
+          "explicit_reasoning_effort": false,
+          "reasoning_effort": null
+        },
+        {
+          "timestamp": "2026-08-25T22:05:37.900000Z",
+          "timestamp_local": "2026-08-26T00:05:37.900000+02:00",
+          "call_id": "call_SNXsvYZslk8wJ42oT7pEITj9",
+          "task_name": "p0_23_cost_audit",
+          "fork_turns": "all",
+          "explicit_model": false,
+          "model": null,
+          "explicit_reasoning_effort": false,
+          "reasoning_effort": null
+        },
+        {
+          "timestamp": "2026-08-25T22:20:22.486000Z",
+          "timestamp_local": "2026-08-26T00:20:22.486000+02:00",
+          "call_id": "call_gbIAMh2E5kq1nXLaqcy2Wolg",
+          "task_name": "p0_23_prereg_review",
+          "fork_turns": "all",
+          "explicit_model": false,
+          "model": null,
+          "explicit_reasoning_effort": false,
+          "reasoning_effort": null
+        },
+        {
+          "timestamp": "2026-08-25T22:25:40.705000Z",
+          "timestamp_local": "2026-08-26T00:25:40.705000+02:00",
+          "call_id": "call_5t3pCc7dZvM7SfQMHBfJqQhn",
+          "task_name": "p0_23_budget_tool",
+          "fork_turns": "all",
+          "explicit_model": false,
+          "model": null,
+          "explicit_reasoning_effort": false,
+          "reasoning_effort": null
+        },
+        {
+          "timestamp": "2026-08-25T22:30:41.071000Z",
+          "timestamp_local": "2026-08-26T00:30:41.071000+02:00",
+          "call_id": "call_8m5nwUdcWqLKBkLfcCOCSzvN",
+          "task_name": "p0_roster_enrichment_audit",
+          "fork_turns": "all",
+          "explicit_model": false,
+          "model": null,
+          "explicit_reasoning_effort": false,
+          "reasoning_effort": null
+        },
+        {
+          "timestamp": "2026-08-25T22:39:26.569000Z",
+          "timestamp_local": "2026-08-26T00:39:26.569000+02:00",
+          "call_id": "call_IeatgfBMy0kyRc3t3dcoC9cj",
+          "task_name": "p0_23_budget_tool_review",
+          "fork_turns": "all",
+          "explicit_model": false,
+          "model": null,
+          "explicit_reasoning_effort": false,
+          "reasoning_effort": null
+        },
+        {
+          "timestamp": "2026-08-25T22:49:15.628000Z",
+          "timestamp_local": "2026-08-26T00:49:15.628000+02:00",
+          "call_id": "call_3vOCXDeyM8XO2ll5osHQI0S3",
+          "task_name": "p0_23_prereg_rereview",
+          "fork_turns": "all",
+          "explicit_model": false,
+          "model": null,
+          "explicit_reasoning_effort": false,
+          "reasoning_effort": null
+        },
+        {
+          "timestamp": "2026-08-25T22:56:00.310000Z",
+          "timestamp_local": "2026-08-26T00:56:00.310000+02:00",
+          "call_id": "call_bJmvsSi4Nd8gotKAiDP5DgJP",
+          "task_name": "ci_78f4d3b_reconcile",
+          "fork_turns": "all",
+          "explicit_model": false,
+          "model": null,
+          "explicit_reasoning_effort": false,
+          "reasoning_effort": null
+        },
+        {
+          "timestamp": "2026-08-25T22:58:14.580000Z",
+          "timestamp_local": "2026-08-26T00:58:14.580000+02:00",
+          "call_id": "call_aty5oHC0jjBnjw3eKYY1FXis",
+          "task_name": "p0_23_budget_tool_rereview",
+          "fork_turns": "all",
+          "explicit_model": false,
+          "model": null,
+          "explicit_reasoning_effort": false,
+          "reasoning_effort": null
+        },
+        {
+          "timestamp": "2026-08-25T23:34:35.872000Z",
+          "timestamp_local": "2026-08-26T01:34:35.872000+02:00",
+          "call_id": "call_5sGZmHivWasQHci9XQd3YBuW",
+          "task_name": "p0_25_roster_review",
+          "fork_turns": "all",
+          "explicit_model": false,
+          "model": null,
+          "explicit_reasoning_effort": false,
+          "reasoning_effort": null
+        },
+        {
+          "timestamp": "2026-08-26T01:43:20.212000Z",
+          "timestamp_local": "2026-08-26T03:43:20.212000+02:00",
+          "call_id": "call_xVb6O4R1wWdZr9rwVSVhfxgR",
+          "task_name": "p0_23_live_readiness",
+          "fork_turns": "all",
+          "explicit_model": false,
+          "model": null,
+          "explicit_reasoning_effort": false,
+          "reasoning_effort": null
+        },
+        {
+          "timestamp": "2026-08-26T01:43:27.624000Z",
+          "timestamp_local": "2026-08-26T03:43:27.624000+02:00",
+          "call_id": "call_v3fUQsRmnjybiDm1WhDilLZj",
+          "task_name": "p0_remaining_audit",
+          "fork_turns": "all",
+          "explicit_model": false,
+          "model": null,
+          "explicit_reasoning_effort": false,
+          "reasoning_effort": null
+        },
+        {
+          "timestamp": "2026-08-26T01:49:28.199000Z",
+          "timestamp_local": "2026-08-26T03:49:28.199000+02:00",
+          "call_id": "call_jHKDNFo1a7UdL6TDZxSxAFlY",
+          "task_name": "p0_doc_consistency",
+          "fork_turns": "all",
+          "explicit_model": false,
+          "model": null,
+          "explicit_reasoning_effort": false,
+          "reasoning_effort": null
+        },
+        {
+          "timestamp": "2026-08-26T01:52:55.918000Z",
+          "timestamp_local": "2026-08-26T03:52:55.918000+02:00",
+          "call_id": "call_VaOcnWv7zmWABSVjvBXLGQXe",
+          "task_name": "p0_doc_review",
+          "fork_turns": "all",
+          "explicit_model": false,
+          "model": null,
+          "explicit_reasoning_effort": false,
+          "reasoning_effort": null
+        },
+        {
+          "timestamp": "2026-08-26T01:57:37.892000Z",
+          "timestamp_local": "2026-08-26T03:57:37.892000+02:00",
+          "call_id": "call_XjosUKzQDaerrILzp0JBJFAq",
+          "task_name": "p0_doc_ci",
+          "fork_turns": "all",
+          "explicit_model": false,
+          "model": null,
+          "explicit_reasoning_effort": false,
+          "reasoning_effort": null
+        },
+        {
+          "timestamp": "2026-08-26T02:09:20.340000Z",
+          "timestamp_local": "2026-08-26T04:09:20.340000+02:00",
+          "call_id": "call_N2OuicbwjveI8dzV0PE8RPaH",
+          "task_name": "p0_23_local_artifacts",
+          "fork_turns": "all",
+          "explicit_model": false,
+          "model": null,
+          "explicit_reasoning_effort": false,
+          "reasoning_effort": null
+        },
+        {
+          "timestamp": "2026-08-26T02:27:03.715000Z",
+          "timestamp_local": "2026-08-26T04:27:03.715000+02:00",
+          "call_id": "call_BnOJUf9sDRnyFMCxScCyukuu",
+          "task_name": "p0_23_checkpoint_review",
+          "fork_turns": "all",
+          "explicit_model": false,
+          "model": null,
+          "explicit_reasoning_effort": false,
+          "reasoning_effort": null
+        },
+        {
+          "timestamp": "2026-08-26T02:33:42.402000Z",
+          "timestamp_local": "2026-08-26T04:33:42.402000+02:00",
+          "call_id": "call_t4nnDJqlC8RkcZwfmI0ahn3Z",
+          "task_name": "p0_23_checkpoint_ci",
+          "fork_turns": "all",
+          "explicit_model": false,
+          "model": null,
+          "explicit_reasoning_effort": false,
+          "reasoning_effort": null
+        },
+        {
+          "timestamp": "2026-08-26T06:59:33.669000Z",
+          "timestamp_local": "2026-08-26T08:59:33.669000+02:00",
+          "call_id": "call_mN5TwcmMxvoPtzVLD21JrJRW",
+          "task_name": "p0_23_live_cost_rows",
+          "fork_turns": "all",
+          "explicit_model": false,
+          "model": null,
+          "explicit_reasoning_effort": false,
+          "reasoning_effort": null
+        },
+        {
+          "timestamp": "2026-08-26T09:21:53.649000Z",
+          "timestamp_local": "2026-08-26T11:21:53.649000+02:00",
+          "call_id": "call_GEX9JvcazwCEMoAnQ9xMCt6F",
+          "task_name": "p0_23_cost_evidence_audit",
+          "fork_turns": "none",
+          "explicit_model": false,
+          "model": null,
+          "explicit_reasoning_effort": false,
+          "reasoning_effort": null
+        },
+        {
+          "timestamp": "2026-08-26T09:38:24.218000Z",
+          "timestamp_local": "2026-08-26T11:38:24.218000+02:00",
+          "call_id": "call_qPkYqXT7e21N5eeH04Ps8Aa4",
+          "task_name": "p0_23_quality_topology",
+          "fork_turns": "none",
+          "explicit_model": false,
+          "model": null,
+          "explicit_reasoning_effort": false,
+          "reasoning_effort": null
+        },
+        {
+          "timestamp": "2026-08-26T09:53:20.303000Z",
+          "timestamp_local": "2026-08-26T11:53:20.303000+02:00",
+          "call_id": "call_6oSJdaOOP7poCFpMyz1TCRDJ",
+          "task_name": "p0_23_cost_checkpoint_review",
+          "fork_turns": "none",
+          "explicit_model": false,
+          "model": null,
+          "explicit_reasoning_effort": false,
+          "reasoning_effort": null
+        },
+        {
+          "timestamp": "2026-08-26T10:14:13.850000Z",
+          "timestamp_local": "2026-08-26T12:14:13.850000+02:00",
+          "call_id": "call_LOmH3WcusIXag9wSKsCDOIy6",
+          "task_name": "p0_23_quality_freeze_writer",
+          "fork_turns": "all",
+          "explicit_model": false,
+          "model": null,
+          "explicit_reasoning_effort": false,
+          "reasoning_effort": null
+        },
+        {
+          "timestamp": "2026-08-26T10:14:24.559000Z",
+          "timestamp_local": "2026-08-26T12:14:24.559000+02:00",
+          "call_id": "call_ABJ9qXTRVe1epvJf1Dnei2wA",
+          "task_name": "p0_23_quality_execution_audit",
+          "fork_turns": "none",
+          "explicit_model": false,
+          "model": null,
+          "explicit_reasoning_effort": false,
+          "reasoning_effort": null
+        },
+        {
+          "timestamp": "2026-08-26T10:33:57.342000Z",
+          "timestamp_local": "2026-08-26T12:33:57.342000+02:00",
+          "call_id": "call_0Y19cKC5sHV1fm2mo3gZAKLK",
+          "task_name": "p0_23_quality_freeze_review",
+          "fork_turns": "none",
+          "explicit_model": false,
+          "model": null,
+          "explicit_reasoning_effort": false,
+          "reasoning_effort": null
+        },
+        {
+          "timestamp": "2026-08-26T10:59:47.053000Z",
+          "timestamp_local": "2026-08-26T12:59:47.053000+02:00",
+          "call_id": "call_zPwfNt1NiC5ZnYq97rR7QhNf",
+          "task_name": "p0_23_quality_live",
+          "fork_turns": "all",
+          "explicit_model": false,
+          "model": null,
+          "explicit_reasoning_effort": false,
+          "reasoning_effort": null
+        },
+        {
+          "timestamp": "2026-08-26T11:00:07.648000Z",
+          "timestamp_local": "2026-08-26T13:00:07.648000+02:00",
+          "call_id": "call_g9TfSgE8D5qPg2xPcBuengT5",
+          "task_name": "p0_23_quality_report_plan",
+          "fork_turns": "none",
+          "explicit_model": false,
+          "model": null,
+          "explicit_reasoning_effort": false,
+          "reasoning_effort": null
+        },
+        {
+          "timestamp": "2026-08-26T11:12:24.474000Z",
+          "timestamp_local": "2026-08-26T13:12:24.474000+02:00",
+          "call_id": "call_QZIMyAwqjio0jAX8bwm6gMQQ",
+          "task_name": "p0_23_analysis_tooling_writer",
+          "fork_turns": "all",
+          "explicit_model": false,
+          "model": null,
+          "explicit_reasoning_effort": false,
+          "reasoning_effort": null
+        },
+        {
+          "timestamp": "2026-08-26T11:24:21.903000Z",
+          "timestamp_local": "2026-08-26T13:24:21.903000+02:00",
+          "call_id": "call_IIjOXyaw5iHZyAP7moLC9n3y",
+          "task_name": "p0_23_phase1_review",
+          "fork_turns": "none",
+          "explicit_model": false,
+          "model": null,
+          "explicit_reasoning_effort": false,
+          "reasoning_effort": null
+        },
+        {
+          "timestamp": "2026-08-26T11:31:14.063000Z",
+          "timestamp_local": "2026-08-26T13:31:14.063000+02:00",
+          "call_id": "call_CGkJfGrDwTMOD1J2EaM1mFwl",
+          "task_name": "p0_23_analysis_tooling_review",
+          "fork_turns": "none",
+          "explicit_model": false,
+          "model": null,
+          "explicit_reasoning_effort": false,
+          "reasoning_effort": null
+        },
+        {
+          "timestamp": "2026-08-26T11:51:26.659000Z",
+          "timestamp_local": "2026-08-26T13:51:26.659000+02:00",
+          "call_id": "call_nb64H97gc7hTbsFe49VEisAQ",
+          "task_name": "p0_23_phase2_review",
+          "fork_turns": "none",
+          "explicit_model": false,
+          "model": null,
+          "explicit_reasoning_effort": false,
+          "reasoning_effort": null
+        },
+        {
+          "timestamp": "2026-08-26T14:04:41.364000Z",
+          "timestamp_local": "2026-08-26T16:04:41.364000+02:00",
+          "call_id": "call_8UCEMc4YgrNsw1Q9saCwVIRx",
+          "task_name": "p0_23_luna_retry_review",
+          "fork_turns": "none",
+          "explicit_model": false,
+          "model": null,
+          "explicit_reasoning_effort": false,
+          "reasoning_effort": null
+        },
+        {
+          "timestamp": "2026-08-26T16:05:40.972000Z",
+          "timestamp_local": "2026-08-26T18:05:40.972000+02:00",
+          "call_id": "call_uJZpD501q5JZE4PqWH4lQLgu",
+          "task_name": "p0_23_final_evidence_audit",
+          "fork_turns": "none",
+          "explicit_model": false,
+          "model": null,
+          "explicit_reasoning_effort": false,
+          "reasoning_effort": null
+        },
+        {
+          "timestamp": "2026-08-26T20:16:43.979000Z",
+          "timestamp_local": "2026-08-26T22:16:43.979000+02:00",
+          "call_id": "call_CdC5TY7i855MIIXYeegYWO1N",
+          "task_name": "p0_06_sol_max_cost_writer",
+          "fork_turns": "all",
+          "explicit_model": false,
+          "model": null,
+          "explicit_reasoning_effort": false,
+          "reasoning_effort": null
+        },
+        {
+          "timestamp": "2026-08-26T20:16:53.102000Z",
+          "timestamp_local": "2026-08-26T22:16:53.102000+02:00",
+          "call_id": "call_7h17mFtEAkVrZOFTj2mmi5I4",
+          "task_name": "p0_06_sol_max_gate_review",
+          "fork_turns": "all",
+          "explicit_model": false,
+          "model": null,
+          "explicit_reasoning_effort": false,
+          "reasoning_effort": null
+        },
+        {
+          "timestamp": "2026-08-26T21:08:14.548000Z",
+          "timestamp_local": "2026-08-26T23:08:14.548000+02:00",
+          "call_id": "call_ntsrD4QUYRX9GU3J5GiS3ggl",
+          "task_name": "p0_06_owner_gate_audit",
+          "fork_turns": "all",
+          "explicit_model": false,
+          "model": null,
+          "explicit_reasoning_effort": false,
+          "reasoning_effort": null
+        },
+        {
+          "timestamp": "2026-08-26T21:08:20.929000Z",
+          "timestamp_local": "2026-08-26T23:08:20.929000+02:00",
+          "call_id": "call_HPkblsb2KcddwB901JkFWxEJ",
+          "task_name": "p0_19_p0_21_closeout_audit",
+          "fork_turns": "all",
+          "explicit_model": false,
+          "model": null,
+          "explicit_reasoning_effort": false,
+          "reasoning_effort": null
+        },
+        {
+          "timestamp": "2026-08-26T21:19:28.052000Z",
+          "timestamp_local": "2026-08-26T23:19:28.052000+02:00",
+          "call_id": "call_D33HzpyJYFk2hIBZwECT6XaX",
+          "task_name": "p0_21_pes_readiness_refresh",
+          "fork_turns": "all",
+          "explicit_model": false,
+          "model": null,
+          "explicit_reasoning_effort": false,
+          "reasoning_effort": null
+        },
+        {
+          "timestamp": "2026-08-26T21:19:35.357000Z",
+          "timestamp_local": "2026-08-26T23:19:35.357000+02:00",
+          "call_id": "call_OwfcRkIsjaI5VIu4fmFDAiuq",
+          "task_name": "p0_21_schadens_readiness_refresh",
+          "fork_turns": "all",
+          "explicit_model": false,
+          "model": null,
+          "explicit_reasoning_effort": false,
+          "reasoning_effort": null
+        },
+        {
+          "timestamp": "2026-08-26T22:13:43.405000Z",
+          "timestamp_local": "2026-08-27T00:13:43.405000+02:00",
+          "call_id": "call_Pi2xkLzFJhE9bDYZMDfapN6f",
+          "task_name": "p0_closeout_owner_selection",
+          "fork_turns": "all",
+          "explicit_model": false,
+          "model": null,
+          "explicit_reasoning_effort": false,
+          "reasoning_effort": null
+        },
+        {
+          "timestamp": "2026-08-26T22:13:57.087000Z",
+          "timestamp_local": "2026-08-27T00:13:57.087000+02:00",
+          "call_id": "call_NXcNnQfInxtoi7nWyRKxw9bw",
+          "task_name": "sol_max_quality",
+          "fork_turns": "all",
+          "explicit_model": false,
+          "model": null,
+          "explicit_reasoning_effort": false,
+          "reasoning_effort": null
+        },
+        {
+          "timestamp": "2026-08-26T23:15:12.024000Z",
+          "timestamp_local": "2026-08-27T01:15:12.024000+02:00",
+          "call_id": "call_ft2aIcOKkUy5RYHGrP5OVwtS",
+          "task_name": "sol_max_exact_review",
+          "fork_turns": "4",
+          "explicit_model": false,
+          "model": null,
+          "explicit_reasoning_effort": false,
+          "reasoning_effort": null
+        },
+        {
+          "timestamp": "2026-08-26T23:23:39.517000Z",
+          "timestamp_local": "2026-08-27T01:23:39.517000+02:00",
+          "call_id": "call_UotlOGYBoyMtEerhUhryDCct",
+          "task_name": "p0_21_activation_runbook",
+          "fork_turns": "4",
+          "explicit_model": false,
+          "model": null,
+          "explicit_reasoning_effort": false,
+          "reasoning_effort": null
+        },
+        {
+          "timestamp": "2026-08-27T00:08:07.063000Z",
+          "timestamp_local": "2026-08-27T02:08:07.063000+02:00",
+          "call_id": "call_17apUTaXt5bhaJH6x9ayXG5Y",
+          "task_name": "p0_schedule_activation_audit",
+          "fork_turns": "all",
+          "explicit_model": false,
+          "model": null,
+          "explicit_reasoning_effort": false,
+          "reasoning_effort": null
+        },
+        {
+          "timestamp": "2026-08-27T08:05:17.250000Z",
+          "timestamp_local": "2026-08-27T10:05:17.250000+02:00",
+          "call_id": "call_URnrWY0kiduaIdhq2qW02soJ",
+          "task_name": "p0_live_arena_ladder",
+          "fork_turns": "all",
+          "explicit_model": false,
+          "model": null,
+          "explicit_reasoning_effort": false,
+          "reasoning_effort": null
+        },
+        {
+          "timestamp": "2026-08-27T08:05:32.450000Z",
+          "timestamp_local": "2026-08-27T10:05:32.450000+02:00",
+          "call_id": "call_FXAgV1LMGN5kXl5BRTgIMk8Q",
+          "task_name": "p0_closeout_docs_audit",
+          "fork_turns": "all",
+          "explicit_model": false,
+          "model": null,
+          "explicit_reasoning_effort": false,
+          "reasoning_effort": null
+        },
+        {
+          "timestamp": "2026-08-27T08:06:33.938000Z",
+          "timestamp_local": "2026-08-27T10:06:33.938000+02:00",
+          "call_id": "call_fr9rX72vwSVniOZKocX1W73C",
+          "task_name": "p0_schedule_input_audit",
+          "fork_turns": "all",
+          "explicit_model": false,
+          "model": null,
+          "explicit_reasoning_effort": false,
+          "reasoning_effort": null
+        },
+        {
+          "timestamp": "2026-08-27T08:15:40.965000Z",
+          "timestamp_local": "2026-08-27T10:15:40.965000+02:00",
+          "call_id": "call_HKTmxXw8ijY7xK0BwfG599rR",
+          "task_name": "p0_deadline_audit",
+          "fork_turns": "all",
+          "explicit_model": false,
+          "model": null,
+          "explicit_reasoning_effort": false,
+          "reasoning_effort": null
+        },
+        {
+          "timestamp": "2026-08-27T08:23:05.343000Z",
+          "timestamp_local": "2026-08-27T10:23:05.343000+02:00",
+          "call_id": "call_4edHXDP8IteJOcb0bsBQwDrZ",
+          "task_name": "p0_live_evidence_audit",
+          "fork_turns": "all",
+          "explicit_model": false,
+          "model": null,
+          "explicit_reasoning_effort": false,
+          "reasoning_effort": null
+        },
+        {
+          "timestamp": "2026-08-27T08:59:30.710000Z",
+          "timestamp_local": "2026-08-27T10:59:30.710000+02:00",
+          "call_id": "call_I1EzoT4hM5tL0hJZsxW7Tt1q",
+          "task_name": "p0_outer_lane_writer",
+          "fork_turns": "all",
+          "explicit_model": false,
+          "model": null,
+          "explicit_reasoning_effort": false,
+          "reasoning_effort": null
+        },
+        {
+          "timestamp": "2026-08-27T08:59:59.527000Z",
+          "timestamp_local": "2026-08-27T10:59:59.527000+02:00",
+          "call_id": "call_GLHnaFZRdTvR7c0dpwjKdIDM",
+          "task_name": "p0_completion_audit",
+          "fork_turns": "all",
+          "explicit_model": false,
+          "model": null,
+          "explicit_reasoning_effort": false,
+          "reasoning_effort": null
+        },
+        {
+          "timestamp": "2026-08-27T09:18:49.870000Z",
+          "timestamp_local": "2026-08-27T11:18:49.870000+02:00",
+          "call_id": "call_qjmH7vY4CyRczlWG65tT7P41",
+          "task_name": "p0_outer_lane_review",
+          "fork_turns": "all",
+          "explicit_model": false,
+          "model": null,
+          "explicit_reasoning_effort": false,
+          "reasoning_effort": null
+        },
+        {
+          "timestamp": "2026-08-27T09:34:23.252000Z",
+          "timestamp_local": "2026-08-27T11:34:23.252000+02:00",
+          "call_id": "call_4oZz8QykzJuh5VAMsmm7yOfO",
+          "task_name": "p0_schadens_readiness",
+          "fork_turns": "all",
+          "explicit_model": false,
+          "model": null,
+          "explicit_reasoning_effort": false,
+          "reasoning_effort": null
+        },
+        {
+          "timestamp": "2026-08-27T09:34:29.418000Z",
+          "timestamp_local": "2026-08-27T11:34:29.418000+02:00",
+          "call_id": "call_0yMFUz2AysyZTEPmhOsip50Y",
+          "task_name": "p0_schedule_activation_audit",
+          "fork_turns": "all",
+          "explicit_model": false,
+          "model": null,
+          "explicit_reasoning_effort": false,
+          "reasoning_effort": null
+        },
+        {
+          "timestamp": "2026-08-27T09:50:03.164000Z",
+          "timestamp_local": "2026-08-27T11:50:03.164000+02:00",
+          "call_id": "call_gyqpwqXPcR6Db19HzHFAshgM",
+          "task_name": "p0_schedule_activation_writer",
+          "fork_turns": "all",
+          "explicit_model": false,
+          "model": null,
+          "explicit_reasoning_effort": false,
+          "reasoning_effort": null
+        },
+        {
+          "timestamp": "2026-08-27T09:51:24.525000Z",
+          "timestamp_local": "2026-08-27T11:51:24.525000+02:00",
+          "call_id": "call_SvjcTaeKXgQuPponE9YMPVgq",
+          "task_name": "p0_closeout_docs_review",
+          "fork_turns": "all",
+          "explicit_model": false,
+          "model": null,
+          "explicit_reasoning_effort": false,
+          "reasoning_effort": null
+        },
+        {
+          "timestamp": "2026-08-27T10:04:30.203000Z",
+          "timestamp_local": "2026-08-27T12:04:30.203000+02:00",
+          "call_id": "call_xGQgNyTrAANew2RYxqc5tvfO",
+          "task_name": "p0_schedule_activation_review",
+          "fork_turns": "all",
+          "explicit_model": false,
+          "model": null,
+          "explicit_reasoning_effort": false,
+          "reasoning_effort": null
+        },
+        {
+          "timestamp": "2026-08-27T15:31:44.312000Z",
+          "timestamp_local": "2026-08-27T17:31:44.312000+02:00",
+          "call_id": "call_dRlnmiL1u4BQR3kJbEGP9pk1",
+          "task_name": "p0_luna_bonus_recovery_audit",
+          "fork_turns": "all",
+          "explicit_model": false,
+          "model": null,
+          "explicit_reasoning_effort": false,
+          "reasoning_effort": null
+        },
+        {
+          "timestamp": "2026-08-27T15:59:32.091000Z",
+          "timestamp_local": "2026-08-27T17:59:32.091000+02:00",
+          "call_id": "call_jD4o3veYtY2EJu33GkiDoMXb",
+          "task_name": "p0_luna_recovery_docs_writer",
+          "fork_turns": "all",
+          "explicit_model": false,
+          "model": null,
+          "explicit_reasoning_effort": false,
+          "reasoning_effort": null
+        },
+        {
+          "timestamp": "2026-08-27T16:27:38.158000Z",
+          "timestamp_local": "2026-08-27T18:27:38.158000+02:00",
+          "call_id": "call_5m6qNE19MSZdnlaoypSsKAuM",
+          "task_name": "p0_schedule_proposal_refresh_writer",
+          "fork_turns": "all",
+          "explicit_model": false,
+          "model": null,
+          "explicit_reasoning_effort": false,
+          "reasoning_effort": null
+        },
+        {
+          "timestamp": "2026-08-27T16:37:28.867000Z",
+          "timestamp_local": "2026-08-27T18:37:28.867000+02:00",
+          "call_id": "call_hDD8eGYv30DWGi4smiwFRMzN",
+          "task_name": "p0_schedule_proposal_refresh_review",
+          "fork_turns": "all",
+          "explicit_model": false,
+          "model": null,
+          "explicit_reasoning_effort": false,
+          "reasoning_effort": null
+        },
+        {
+          "timestamp": "2026-08-27T17:07:11.574000Z",
+          "timestamp_local": "2026-08-27T19:07:11.574000+02:00",
+          "call_id": "call_GJc3CIjYdi7lFK6KeFI8L3jp",
+          "task_name": "p0_schedule_activation_final_writer",
+          "fork_turns": "all",
+          "explicit_model": false,
+          "model": null,
+          "explicit_reasoning_effort": false,
+          "reasoning_effort": null
+        },
+        {
+          "timestamp": "2026-08-27T17:08:44.992000Z",
+          "timestamp_local": "2026-08-27T19:08:44.992000+02:00",
+          "call_id": "call_hXRzvXKTUf2D5vRbss801dAB",
+          "task_name": "p0_schedule_activation_preflight",
+          "fork_turns": "all",
+          "explicit_model": false,
+          "model": null,
+          "explicit_reasoning_effort": false,
+          "reasoning_effort": null
+        },
+        {
+          "timestamp": "2026-08-27T17:28:31.568000Z",
+          "timestamp_local": "2026-08-27T19:28:31.568000+02:00",
+          "call_id": "call_IDUXpMyH1YzdyKNsKutTKY1E",
+          "task_name": "p0_schedule_activation_final_review",
+          "fork_turns": "all",
+          "explicit_model": false,
+          "model": null,
+          "explicit_reasoning_effort": false,
+          "reasoning_effort": null
+        },
+        {
+          "timestamp": "2026-08-27T17:38:46.023000Z",
+          "timestamp_local": "2026-08-27T19:38:46.023000+02:00",
+          "call_id": "call_iRIaZmbTlyvL2cUGKf4EZftK",
+          "task_name": "p0_schedule_activation_final_review_v2",
+          "fork_turns": "all",
+          "explicit_model": false,
+          "model": null,
+          "explicit_reasoning_effort": false,
+          "reasoning_effort": null
+        },
+        {
+          "timestamp": "2026-08-27T17:59:14.792000Z",
+          "timestamp_local": "2026-08-27T19:59:14.792000+02:00",
+          "call_id": "call_29rgtDNkjwCjgIepHb83hz5F",
+          "task_name": "p0_final_completion_audit",
+          "fork_turns": "all",
+          "explicit_model": false,
+          "model": null,
+          "explicit_reasoning_effort": false,
+          "reasoning_effort": null
+        },
+        {
+          "timestamp": "2026-08-27T17:59:23.278000Z",
+          "timestamp_local": "2026-08-27T19:59:23.278000+02:00",
+          "call_id": "call_2nUZ9cf9ZPDDqfHf4LohoJdX",
+          "task_name": "p0_runtime_observation_readiness",
+          "fork_turns": "all",
+          "explicit_model": false,
+          "model": null,
+          "explicit_reasoning_effort": false,
+          "reasoning_effort": null
+        },
+        {
+          "timestamp": "2026-08-27T18:08:08.367000Z",
+          "timestamp_local": "2026-08-27T20:08:08.367000+02:00",
+          "call_id": "call_J9Sdrcsd0EuztABh96kYiZOE",
+          "task_name": "p0_preobservation_doc_writer",
+          "fork_turns": "all",
+          "explicit_model": false,
+          "model": null,
+          "explicit_reasoning_effort": false,
+          "reasoning_effort": null
+        },
+        {
+          "timestamp": "2026-08-27T18:18:12.295000Z",
+          "timestamp_local": "2026-08-27T20:18:12.295000+02:00",
+          "call_id": "call_qLTx43JGbfDWi5UcPz6gm6C2",
+          "task_name": "p0_preobservation_doc_review",
+          "fork_turns": "all",
+          "explicit_model": false,
+          "model": null,
+          "explicit_reasoning_effort": false,
+          "reasoning_effort": null
+        },
+        {
+          "timestamp": "2026-08-27T18:25:41.820000Z",
+          "timestamp_local": "2026-08-27T20:25:41.820000+02:00",
+          "call_id": "call_8IN0fu8WcuESMojSOLoD8nIP",
+          "task_name": "p0_preobservation_doc_review_v2",
+          "fork_turns": "all",
+          "explicit_model": false,
+          "model": null,
+          "explicit_reasoning_effort": false,
+          "reasoning_effort": null
+        },
+        {
+          "timestamp": "2026-08-27T18:33:10.560000Z",
+          "timestamp_local": "2026-08-27T20:33:10.560000+02:00",
+          "call_id": "call_6mAhzzp4uQd97C63EK6hqpO0",
+          "task_name": "p0_preobservation_doc_review_v3",
+          "fork_turns": "all",
+          "explicit_model": false,
+          "model": null,
+          "explicit_reasoning_effort": false,
+          "reasoning_effort": null
+        },
+        {
+          "timestamp": "2026-08-27T20:54:06.731000Z",
+          "timestamp_local": "2026-08-27T22:54:06.731000+02:00",
+          "call_id": "call_Rv7IY0U8zjdCnehcJQ5cvzL9",
+          "task_name": "p0_schadens_preflight",
+          "fork_turns": "all",
+          "explicit_model": false,
+          "model": null,
+          "explicit_reasoning_effort": false,
+          "reasoning_effort": null
+        },
+        {
+          "timestamp": "2026-08-27T20:54:20.771000Z",
+          "timestamp_local": "2026-08-27T22:54:20.771000+02:00",
+          "call_id": "call_W0dV6o74fA03gBOebT7K1tl7",
+          "task_name": "p0_schadens_onboarding_writer",
+          "fork_turns": "all",
+          "explicit_model": false,
+          "model": null,
+          "explicit_reasoning_effort": false,
+          "reasoning_effort": null
+        },
+        {
+          "timestamp": "2026-08-27T21:00:08.788000Z",
+          "timestamp_local": "2026-08-27T23:00:08.788000+02:00",
+          "call_id": "call_KWS1THV86yXCOJmibVjZ0OgO",
+          "task_name": "p0_schadens_bonus_design_audit",
+          "fork_turns": "all",
+          "explicit_model": false,
+          "model": null,
+          "explicit_reasoning_effort": false,
+          "reasoning_effort": null
+        },
+        {
+          "timestamp": "2026-08-27T21:43:26.205000Z",
+          "timestamp_local": "2026-08-27T23:43:26.205000+02:00",
+          "call_id": "call_a327EzecWcXJougJQjqrg5Ze",
+          "task_name": "p0_schadens_onboarding_review",
+          "fork_turns": "all",
+          "explicit_model": false,
+          "model": null,
+          "explicit_reasoning_effort": false,
+          "reasoning_effort": null
+        },
+        {
+          "timestamp": "2026-08-27T21:59:28.567000Z",
+          "timestamp_local": "2026-08-27T23:59:28.567000+02:00",
+          "call_id": "call_Wd1LmudwfGjxgRyTWFxgMnCy",
+          "task_name": "p0_schadens_onboarding_review_v2",
+          "fork_turns": "all",
+          "explicit_model": false,
+          "model": null,
+          "explicit_reasoning_effort": false,
+          "reasoning_effort": null
+        },
+        {
+          "timestamp": "2026-08-27T22:37:02.033000Z",
+          "timestamp_local": "2026-08-28T00:37:02.033000+02:00",
+          "call_id": "call_VUEPBqPPNg3SVA7Vuki08yUP",
+          "task_name": "p0_schadens_verifier_fix",
+          "fork_turns": "all",
+          "explicit_model": false,
+          "model": null,
+          "explicit_reasoning_effort": false,
+          "reasoning_effort": null
+        },
+        {
+          "timestamp": "2026-08-27T22:52:31.376000Z",
+          "timestamp_local": "2026-08-28T00:52:31.376000+02:00",
+          "call_id": "call_lsBJLmKex7lCNqmgbToejrEs",
+          "task_name": "p0_schadens_schedule_writer",
+          "fork_turns": "3",
+          "explicit_model": false,
+          "model": null,
+          "explicit_reasoning_effort": false,
+          "reasoning_effort": null
+        },
+        {
+          "timestamp": "2026-08-28T05:42:06.068000Z",
+          "timestamp_local": "2026-08-28T07:42:06.068000+02:00",
+          "call_id": "call_fnhUN72znwYCAxBDnHhfDKO6",
+          "task_name": "p0_final_evidence_writer",
+          "fork_turns": "all",
+          "explicit_model": false,
+          "model": null,
+          "explicit_reasoning_effort": false,
+          "reasoning_effort": null
+        }
       ]
     },
     {
@@ -6001,7 +7194,8 @@
         "total_tokens": 0
       },
       "api_cost_equivalent_usd": 54.516201,
-      "user_messages": []
+      "user_messages": [],
+      "spawn_agent_calls": []
     },
     {
       "thread_id": "01a02488-b13a-7fa1-a545-73aa69b4249a",
@@ -6391,7 +7585,8 @@
         "total_tokens": 0
       },
       "api_cost_equivalent_usd": 98.159386,
-      "user_messages": []
+      "user_messages": [],
+      "spawn_agent_calls": []
     },
     {
       "thread_id": "01a024b2-75a7-7641-b92d-26c09af395d3",
@@ -6705,7 +7900,8 @@
         "total_tokens": 0
       },
       "api_cost_equivalent_usd": 56.549963,
-      "user_messages": []
+      "user_messages": [],
+      "spawn_agent_calls": []
     },
     {
       "thread_id": "01a02650-8d02-7820-bd93-ed7c5918abbe",
@@ -6837,7 +8033,8 @@
         "total_tokens": 0
       },
       "api_cost_equivalent_usd": 5.30215,
-      "user_messages": []
+      "user_messages": [],
+      "spawn_agent_calls": []
     },
     {
       "thread_id": "01a02650-b096-7af3-a4ee-d47491a59cc5",
@@ -7042,7 +8239,8 @@
         "total_tokens": 14853229
       },
       "api_cost_equivalent_usd": 11.768831,
-      "user_messages": []
+      "user_messages": [],
+      "spawn_agent_calls": []
     },
     {
       "thread_id": "01a02650-c849-7402-98f1-5954cbd21219",
@@ -7172,7 +8370,8 @@
         "total_tokens": 0
       },
       "api_cost_equivalent_usd": 0.540372,
-      "user_messages": []
+      "user_messages": [],
+      "spawn_agent_calls": []
     },
     {
       "thread_id": "01a02655-a0f8-7ef0-bac2-418101f7ff2f",
@@ -7376,7 +8575,8 @@
         "total_tokens": 0
       },
       "api_cost_equivalent_usd": 9.95855,
-      "user_messages": []
+      "user_messages": [],
+      "spawn_agent_calls": []
     },
     {
       "thread_id": "01a02664-7cc3-7511-ab5b-658c08477791",
@@ -7562,7 +8762,8 @@
         "total_tokens": 0
       },
       "api_cost_equivalent_usd": 8.176527,
-      "user_messages": []
+      "user_messages": [],
+      "spawn_agent_calls": []
     },
     {
       "thread_id": "01a0267b-1d6f-7f62-952f-5e702ee5ad77",
@@ -7691,7 +8892,8 @@
         "total_tokens": 0
       },
       "api_cost_equivalent_usd": 0.941602,
-      "user_messages": []
+      "user_messages": [],
+      "spawn_agent_calls": []
     },
     {
       "thread_id": "01a035e5-c0ea-7143-a3b9-2e1db065deda",
@@ -7839,7 +9041,8 @@
         "total_tokens": 0
       },
       "api_cost_equivalent_usd": 2.056366,
-      "user_messages": []
+      "user_messages": [],
+      "spawn_agent_calls": []
     },
     {
       "thread_id": "01a035e7-38e9-7c91-8b1e-32a4e292c231",
@@ -7970,7 +9173,8 @@
         "total_tokens": 0
       },
       "api_cost_equivalent_usd": 1.949378,
-      "user_messages": []
+      "user_messages": [],
+      "spawn_agent_calls": []
     },
     {
       "thread_id": "01a035e7-7584-7192-83ac-e8299d4e4247",
@@ -8119,7 +9323,8 @@
         "total_tokens": 8733156
       },
       "api_cost_equivalent_usd": 7.837891,
-      "user_messages": []
+      "user_messages": [],
+      "spawn_agent_calls": []
     },
     {
       "thread_id": "01a035fd-c866-7f93-bec7-7c441e44dfed",
@@ -8924,7 +10129,8 @@
         "total_tokens": 137170186
       },
       "api_cost_equivalent_usd": 104.434074,
-      "user_messages": []
+      "user_messages": [],
+      "spawn_agent_calls": []
     },
     {
       "thread_id": "01a035ff-be81-7783-a58d-d36f2f3c7e90",
@@ -9069,7 +10275,8 @@
         "total_tokens": 0
       },
       "api_cost_equivalent_usd": 2.416491,
-      "user_messages": []
+      "user_messages": [],
+      "spawn_agent_calls": []
     },
     {
       "thread_id": "01a03619-e18d-74d1-a7d6-5c87eb10f210",
@@ -9198,7 +10405,8 @@
         "total_tokens": 0
       },
       "api_cost_equivalent_usd": 0.48354,
-      "user_messages": []
+      "user_messages": [],
+      "spawn_agent_calls": []
     },
     {
       "thread_id": "01a0361f-0f24-7280-a922-d0ffc383ffad",
@@ -9458,7 +10666,8 @@
         "total_tokens": 13540543
       },
       "api_cost_equivalent_usd": 50.08907,
-      "user_messages": []
+      "user_messages": [],
+      "spawn_agent_calls": []
     },
     {
       "thread_id": "01a0363c-59de-7f92-bcf5-2326ef83807f",
@@ -9585,7 +10794,8 @@
         "total_tokens": 0
       },
       "api_cost_equivalent_usd": 2.712762,
-      "user_messages": []
+      "user_messages": [],
+      "spawn_agent_calls": []
     },
     {
       "thread_id": "01a03642-0aec-7822-998b-4518af8c0642",
@@ -9712,7 +10922,8 @@
         "total_tokens": 0
       },
       "api_cost_equivalent_usd": 1.389578,
-      "user_messages": []
+      "user_messages": [],
+      "spawn_agent_calls": []
     },
     {
       "thread_id": "01a0365e-32ad-7ea0-ba2e-5ad8b6634c2b",
@@ -9878,7 +11089,8 @@
         "total_tokens": 3583137
       },
       "api_cost_equivalent_usd": 4.988642,
-      "user_messages": []
+      "user_messages": [],
+      "spawn_agent_calls": []
     },
     {
       "thread_id": "01a0368a-5c01-7f91-b371-b17d0b3eb5b1",
@@ -10044,7 +11256,8 @@
         "total_tokens": 2218605
       },
       "api_cost_equivalent_usd": 3.130058,
-      "user_messages": []
+      "user_messages": [],
+      "spawn_agent_calls": []
     },
     {
       "thread_id": "01a036e2-01b7-7780-abac-9eb5e0232f5a",
@@ -10264,7 +11477,8 @@
         "total_tokens": 5361024
       },
       "api_cost_equivalent_usd": 9.490408,
-      "user_messages": []
+      "user_messages": [],
+      "spawn_agent_calls": []
     },
     {
       "thread_id": "01a03712-79a9-7223-a580-e50d58d09ed4",
@@ -10430,7 +11644,8 @@
         "total_tokens": 0
       },
       "api_cost_equivalent_usd": 4.077974,
-      "user_messages": []
+      "user_messages": [],
+      "spawn_agent_calls": []
     },
     {
       "thread_id": "01a03786-86a8-76b3-90c1-b2986fcbd4d7",
@@ -11087,7 +12302,8 @@
         "total_tokens": 156832061
       },
       "api_cost_equivalent_usd": 85.20566,
-      "user_messages": []
+      "user_messages": [],
+      "spawn_agent_calls": []
     },
     {
       "thread_id": "01a037a7-a448-7f92-9e87-eeb75171335d",
@@ -11889,7 +13105,8 @@
         "total_tokens": 72432538
       },
       "api_cost_equivalent_usd": 47.287523,
-      "user_messages": []
+      "user_messages": [],
+      "spawn_agent_calls": []
     },
     {
       "thread_id": "01a03a84-b94c-76e0-81bf-10f00ca9028b",
@@ -12109,7 +13326,8 @@
         "total_tokens": 0
       },
       "api_cost_equivalent_usd": 5.355297,
-      "user_messages": []
+      "user_messages": [],
+      "spawn_agent_calls": []
     },
     {
       "thread_id": "01a03af4-f233-7d92-af46-9bd71771f681",
@@ -12262,7 +13480,8 @@
         "total_tokens": 6113132
       },
       "api_cost_equivalent_usd": 7.404778,
-      "user_messages": []
+      "user_messages": [],
+      "spawn_agent_calls": []
     },
     {
       "thread_id": "01a03af5-1fc1-7240-9b81-baa331b4aaad",
@@ -12392,7 +13611,8 @@
         "total_tokens": 0
       },
       "api_cost_equivalent_usd": 4.192622,
-      "user_messages": []
+      "user_messages": [],
+      "spawn_agent_calls": []
     },
     {
       "thread_id": "01a03b02-9ee7-7323-b8b6-9eab7fff09ce",
@@ -12522,7 +13742,8 @@
         "total_tokens": 0
       },
       "api_cost_equivalent_usd": 2.011285,
-      "user_messages": []
+      "user_messages": [],
+      "spawn_agent_calls": []
     },
     {
       "thread_id": "01a03b07-79ef-7da1-8970-431827f3f4c7",
@@ -12746,7 +13967,8 @@
         "total_tokens": 21466233
       },
       "api_cost_equivalent_usd": 16.782363,
-      "user_messages": []
+      "user_messages": [],
+      "spawn_agent_calls": []
     },
     {
       "thread_id": "01a03b0c-0ef5-7321-9c9c-fb0d2ce86122",
@@ -12986,7 +14208,8 @@
         "total_tokens": 20642282
       },
       "api_cost_equivalent_usd": 24.06848,
-      "user_messages": []
+      "user_messages": [],
+      "spawn_agent_calls": []
     },
     {
       "thread_id": "01a03b14-141c-71d0-b361-5ae76ca31a9a",
@@ -13115,7 +14338,8 @@
         "total_tokens": 0
       },
       "api_cost_equivalent_usd": 0.581255,
-      "user_messages": []
+      "user_messages": [],
+      "spawn_agent_calls": []
     },
     {
       "thread_id": "01a03b1d-10db-79b3-a0c7-ef6e86b6dc94",
@@ -13245,7 +14469,8 @@
         "total_tokens": 0
       },
       "api_cost_equivalent_usd": 1.120386,
-      "user_messages": []
+      "user_messages": [],
+      "spawn_agent_calls": []
     },
     {
       "thread_id": "01a03b23-3d77-77d1-bf12-84d22ad77396",
@@ -13374,7 +14599,8 @@
         "total_tokens": 0
       },
       "api_cost_equivalent_usd": 0.489056,
-      "user_messages": []
+      "user_messages": [],
+      "spawn_agent_calls": []
     },
     {
       "thread_id": "01a03b25-49f6-7250-89b5-41b09ff4fa69",
@@ -13630,7 +14856,8 @@
         "total_tokens": 7301196
       },
       "api_cost_equivalent_usd": 6.381522,
-      "user_messages": []
+      "user_messages": [],
+      "spawn_agent_calls": []
     },
     {
       "thread_id": "01a03b46-92c5-73b2-be3d-81b14e4a6e22",
@@ -13922,7 +15149,8 @@
         "total_tokens": 9034542
       },
       "api_cost_equivalent_usd": 10.142784,
-      "user_messages": []
+      "user_messages": [],
+      "spawn_agent_calls": []
     },
     {
       "thread_id": "01a03bbc-7022-79d0-a79e-b04eafea77cc",
@@ -14050,7 +15278,8 @@
         "total_tokens": 0
       },
       "api_cost_equivalent_usd": 1.61143,
-      "user_messages": []
+      "user_messages": [],
+      "spawn_agent_calls": []
     },
     {
       "thread_id": "01a03bbc-8cf7-7ed1-a7c7-9f68e32aca7a",
@@ -14179,7 +15408,8 @@
         "total_tokens": 0
       },
       "api_cost_equivalent_usd": 0.875598,
-      "user_messages": []
+      "user_messages": [],
+      "spawn_agent_calls": []
     },
     {
       "thread_id": "01a03bc2-0d81-72a1-838a-315f6e31ba73",
@@ -14345,7 +15575,8 @@
         "total_tokens": 0
       },
       "api_cost_equivalent_usd": 3.275602,
-      "user_messages": []
+      "user_messages": [],
+      "spawn_agent_calls": []
     },
     {
       "thread_id": "01a03bc5-38cc-77c0-9bdf-cc330d909f3d",
@@ -14473,7 +15704,8 @@
         "total_tokens": 0
       },
       "api_cost_equivalent_usd": 0.257252,
-      "user_messages": []
+      "user_messages": [],
+      "spawn_agent_calls": []
     },
     {
       "thread_id": "01a03bc9-8659-72f1-8c41-261cd1a02c2b",
@@ -14603,7 +15835,8 @@
         "total_tokens": 0
       },
       "api_cost_equivalent_usd": 0.325419,
-      "user_messages": []
+      "user_messages": [],
+      "spawn_agent_calls": []
     },
     {
       "thread_id": "01a03bd4-3e4d-7ba2-80c1-37d8fadca527",
@@ -14753,7 +15986,8 @@
         "total_tokens": 0
       },
       "api_cost_equivalent_usd": 2.520708,
-      "user_messages": []
+      "user_messages": [],
+      "spawn_agent_calls": []
     },
     {
       "thread_id": "01a03be4-77d7-7521-bf0e-88a2f20cf3c1",
@@ -15063,7 +16297,8 @@
         "total_tokens": 1073856
       },
       "api_cost_equivalent_usd": 8.698357,
-      "user_messages": []
+      "user_messages": [],
+      "spawn_agent_calls": []
     },
     {
       "thread_id": "01a03bea-8d4d-7792-83cc-46abe558ae9e",
@@ -15283,7 +16518,8 @@
         "total_tokens": 6590280
       },
       "api_cost_equivalent_usd": 6.187757,
-      "user_messages": []
+      "user_messages": [],
+      "spawn_agent_calls": []
     },
     {
       "thread_id": "01a03cdd-f2f5-76f1-bb67-d40f9ee4aa73",
@@ -15488,7 +16724,8 @@
         "total_tokens": 0
       },
       "api_cost_equivalent_usd": 27.28324,
-      "user_messages": []
+      "user_messages": [],
+      "spawn_agent_calls": []
     },
     {
       "thread_id": "01a03d60-421e-70b1-9569-2e59addb3896",
@@ -15617,7 +16854,8 @@
         "total_tokens": 0
       },
       "api_cost_equivalent_usd": 6.769281,
-      "user_messages": []
+      "user_messages": [],
+      "spawn_agent_calls": []
     },
     {
       "thread_id": "01a03d6f-5f8a-78b2-8261-d577d83b9fdb",
@@ -15745,7 +16983,8 @@
         "total_tokens": 0
       },
       "api_cost_equivalent_usd": 3.43537,
-      "user_messages": []
+      "user_messages": [],
+      "spawn_agent_calls": []
     },
     {
       "thread_id": "01a03d7d-0be1-7f93-b3c6-2828da9cfa96",
@@ -15875,7 +17114,8 @@
         "total_tokens": 0
       },
       "api_cost_equivalent_usd": 4.265747,
-      "user_messages": []
+      "user_messages": [],
+      "spawn_agent_calls": []
     },
     {
       "thread_id": "01a03d90-2cc4-7f63-8e84-fd70f050837a",
@@ -16025,7 +17265,8 @@
         "total_tokens": 0
       },
       "api_cost_equivalent_usd": 7.681704,
-      "user_messages": []
+      "user_messages": [],
+      "spawn_agent_calls": []
     },
     {
       "thread_id": "01a03d90-5655-7e70-b80b-0a3c5f4c9ac8",
@@ -16152,7 +17393,8 @@
         "total_tokens": 0
       },
       "api_cost_equivalent_usd": 4.17628,
-      "user_messages": []
+      "user_messages": [],
+      "spawn_agent_calls": []
     },
     {
       "thread_id": "01a03da2-3bc2-7a31-b966-8d8309371c94",
@@ -16297,7 +17539,8 @@
         "total_tokens": 0
       },
       "api_cost_equivalent_usd": 3.89553,
-      "user_messages": []
+      "user_messages": [],
+      "spawn_agent_calls": []
     },
     {
       "thread_id": "01a03db9-e193-7702-a87c-fc72b47c14be",
@@ -16489,7 +17732,8 @@
         "total_tokens": 17250200
       },
       "api_cost_equivalent_usd": 63.987742,
-      "user_messages": []
+      "user_messages": [],
+      "spawn_agent_calls": []
     },
     {
       "thread_id": "01a03dba-3193-7900-af6e-747092ee619f",
@@ -16611,7 +17855,8 @@
         "total_tokens": 0
       },
       "api_cost_equivalent_usd": 2.244949,
-      "user_messages": []
+      "user_messages": [],
+      "spawn_agent_calls": []
     },
     {
       "thread_id": "01a03dc5-7002-7642-9cb2-46b03d0fd419",
@@ -16778,7 +18023,8 @@
         "total_tokens": 14351479
       },
       "api_cost_equivalent_usd": 8.868779,
-      "user_messages": []
+      "user_messages": [],
+      "spawn_agent_calls": []
     },
     {
       "thread_id": "01a03dd0-622e-7d10-8a05-8af9395afa89",
@@ -16904,7 +18150,8 @@
         "total_tokens": 0
       },
       "api_cost_equivalent_usd": 2.33653,
-      "user_messages": []
+      "user_messages": [],
+      "spawn_agent_calls": []
     },
     {
       "thread_id": "01a03dd6-ac32-7d23-a5c1-ff2fc8aad30e",
@@ -17066,7 +18313,8 @@
         "total_tokens": 6866356
       },
       "api_cost_equivalent_usd": 4.97804,
-      "user_messages": []
+      "user_messages": [],
+      "spawn_agent_calls": []
     },
     {
       "thread_id": "01a03de9-2cec-7c50-a6a1-33f22067e214",
@@ -17192,7 +18440,8 @@
         "total_tokens": 0
       },
       "api_cost_equivalent_usd": 1.398743,
-      "user_messages": []
+      "user_messages": [],
+      "spawn_agent_calls": []
     },
     {
       "thread_id": "01a03e63-2a4d-7f91-be84-cb71d6618f73",
@@ -17393,7 +18642,8 @@
         "total_tokens": 0
       },
       "api_cost_equivalent_usd": 8.888286,
-      "user_messages": []
+      "user_messages": [],
+      "spawn_agent_calls": []
     },
     {
       "thread_id": "01a03ed1-f04c-7d40-b710-d501c02b8ed0",
@@ -17541,7 +18791,8 @@
         "total_tokens": 0
       },
       "api_cost_equivalent_usd": 11.793973,
-      "user_messages": []
+      "user_messages": [],
+      "spawn_agent_calls": []
     },
     {
       "thread_id": "01a03fb7-c8b3-7e52-9036-77bc31ea42bb",
@@ -17673,7 +18924,8 @@
         "total_tokens": 0
       },
       "api_cost_equivalent_usd": 10.050153,
-      "user_messages": []
+      "user_messages": [],
+      "spawn_agent_calls": []
     },
     {
       "thread_id": "01a03fb7-ebf6-7442-bcb4-e46614eba5c8",
@@ -17804,7 +19056,8 @@
         "total_tokens": 0
       },
       "api_cost_equivalent_usd": 9.653686,
-      "user_messages": []
+      "user_messages": [],
+      "spawn_agent_calls": []
     },
     {
       "thread_id": "01a03fe6-f090-7313-8615-b976ab81c100",
@@ -17987,7 +19240,8 @@
         "total_tokens": 4120812
       },
       "api_cost_equivalent_usd": 3.512678,
-      "user_messages": []
+      "user_messages": [],
+      "spawn_agent_calls": []
     },
     {
       "thread_id": "01a03fe7-097d-7343-84a5-ff6d6f58de18",
@@ -18152,7 +19406,8 @@
         "total_tokens": 3847355
       },
       "api_cost_equivalent_usd": 4.499814,
-      "user_messages": []
+      "user_messages": [],
+      "spawn_agent_calls": []
     },
     {
       "thread_id": "01a03ff1-3776-7d62-b533-53172f424aea",
@@ -18300,7 +19555,8 @@
         "total_tokens": 556252
       },
       "api_cost_equivalent_usd": 0.647319,
-      "user_messages": []
+      "user_messages": [],
+      "spawn_agent_calls": []
     },
     {
       "thread_id": "01a04022-e4c9-7872-8d10-cf32679b156e",
@@ -18506,7 +19762,8 @@
         "total_tokens": 0
       },
       "api_cost_equivalent_usd": 36.503973,
-      "user_messages": []
+      "user_messages": [],
+      "spawn_agent_calls": []
     },
     {
       "thread_id": "01a04023-1a7e-7c43-842c-9af6086869c3",
@@ -18637,7 +19894,8 @@
         "total_tokens": 0
       },
       "api_cost_equivalent_usd": 10.352233,
-      "user_messages": []
+      "user_messages": [],
+      "spawn_agent_calls": []
     },
     {
       "thread_id": "01a0405b-2e0c-74a2-8532-224986dab264",
@@ -18823,7 +20081,8 @@
         "total_tokens": 0
       },
       "api_cost_equivalent_usd": 11.051364,
-      "user_messages": []
+      "user_messages": [],
+      "spawn_agent_calls": []
     },
     {
       "thread_id": "01a04240-7c20-79a2-83a8-2f5b44d69a6a",
@@ -18970,7 +20229,8 @@
         "total_tokens": 0
       },
       "api_cost_equivalent_usd": 4.853025,
-      "user_messages": []
+      "user_messages": [],
+      "spawn_agent_calls": []
     },
     {
       "thread_id": "01a04240-b710-7913-9261-71bcbf0834f0",
@@ -19172,7 +20432,8 @@
         "total_tokens": 0
       },
       "api_cost_equivalent_usd": 15.551126,
-      "user_messages": []
+      "user_messages": [],
+      "spawn_agent_calls": []
     },
     {
       "thread_id": "01a04241-a739-71d3-a145-34d6c29f8d89",
@@ -19300,7 +20561,8 @@
         "total_tokens": 0
       },
       "api_cost_equivalent_usd": 1.320932,
-      "user_messages": []
+      "user_messages": [],
+      "spawn_agent_calls": []
     },
     {
       "thread_id": "01a04249-fff7-77f3-a927-6b88be6ba68f",
@@ -19430,7 +20692,8 @@
         "total_tokens": 0
       },
       "api_cost_equivalent_usd": 1.003431,
-      "user_messages": []
+      "user_messages": [],
+      "spawn_agent_calls": []
     },
     {
       "thread_id": "01a04250-c7d5-71d2-9138-c5bdf423af98",
@@ -19559,7 +20822,8 @@
         "total_tokens": 0
       },
       "api_cost_equivalent_usd": 4.55669,
-      "user_messages": []
+      "user_messages": [],
+      "spawn_agent_calls": []
     },
     {
       "thread_id": "01a04272-207f-7ab0-9ac9-3a47f76ec1af",
@@ -19690,7 +20954,8 @@
         "total_tokens": 0
       },
       "api_cost_equivalent_usd": 3.351936,
-      "user_messages": []
+      "user_messages": [],
+      "spawn_agent_calls": []
     },
     {
       "thread_id": "01a04272-9169-7820-8c61-eaba1a9fa403",
@@ -19814,7 +21079,8 @@
         "total_tokens": 0
       },
       "api_cost_equivalent_usd": 2.473136,
-      "user_messages": []
+      "user_messages": [],
+      "spawn_agent_calls": []
     },
     {
       "thread_id": "01a04283-d085-7213-98d9-cdc4bec015b2",
@@ -19944,7 +21210,8 @@
         "total_tokens": 0
       },
       "api_cost_equivalent_usd": 1.205366,
-      "user_messages": []
+      "user_messages": [],
+      "spawn_agent_calls": []
     },
     {
       "thread_id": "01a04292-0e7a-7e91-a76b-79fd132bf520",
@@ -20073,7 +21340,8 @@
         "total_tokens": 0
       },
       "api_cost_equivalent_usd": 1.520738,
-      "user_messages": []
+      "user_messages": [],
+      "spawn_agent_calls": []
     },
     {
       "thread_id": "01a04292-2667-7c43-bd85-009dcd5b3ee6",
@@ -20202,7 +21470,8 @@
         "total_tokens": 0
       },
       "api_cost_equivalent_usd": 1.201696,
-      "user_messages": []
+      "user_messages": [],
+      "spawn_agent_calls": []
     },
     {
       "thread_id": "01a042a0-6633-7983-a6af-40f60b3e3821",
@@ -20352,7 +21621,8 @@
         "total_tokens": 0
       },
       "api_cost_equivalent_usd": 5.383465,
-      "user_messages": []
+      "user_messages": [],
+      "spawn_agent_calls": []
     },
     {
       "thread_id": "01a042a1-a39d-72d3-8da3-271bd96c52f0",
@@ -20480,7 +21750,8 @@
         "total_tokens": 0
       },
       "api_cost_equivalent_usd": 4.009962,
-      "user_messages": []
+      "user_messages": [],
+      "spawn_agent_calls": []
     },
     {
       "thread_id": "01a042ad-a0dc-7e71-b313-a7c5382dace2",
@@ -20629,7 +21900,8 @@
         "total_tokens": 0
       },
       "api_cost_equivalent_usd": 4.768215,
-      "user_messages": []
+      "user_messages": [],
+      "spawn_agent_calls": []
     },
     {
       "thread_id": "01a043d9-38de-7080-b855-0b32c75d2005",
@@ -20811,7 +22083,8 @@
         "total_tokens": 0
       },
       "api_cost_equivalent_usd": 7.334155,
-      "user_messages": []
+      "user_messages": [],
+      "spawn_agent_calls": []
     },
     {
       "thread_id": "01a043f2-ab72-7931-aa48-09010bf0d207",
@@ -20958,7 +22231,8 @@
         "total_tokens": 0
       },
       "api_cost_equivalent_usd": 3.591369,
-      "user_messages": []
+      "user_messages": [],
+      "spawn_agent_calls": []
     },
     {
       "thread_id": "01a0440c-6621-7573-8a9d-54b4cb57e309",
@@ -21089,7 +22363,8 @@
         "total_tokens": 0
       },
       "api_cost_equivalent_usd": 1.537502,
-      "user_messages": []
+      "user_messages": [],
+      "spawn_agent_calls": []
     },
     {
       "thread_id": "01a04415-69ad-7c82-9a7f-d32350f585a4",
@@ -21219,7 +22494,8 @@
         "total_tokens": 0
       },
       "api_cost_equivalent_usd": 1.478366,
-      "user_messages": []
+      "user_messages": [],
+      "spawn_agent_calls": []
     },
     {
       "thread_id": "01a04430-9d2c-7611-80ce-b08ca7351fd8",
@@ -21403,7 +22679,8 @@
         "total_tokens": 0
       },
       "api_cost_equivalent_usd": 8.514302,
-      "user_messages": []
+      "user_messages": [],
+      "spawn_agent_calls": []
     },
     {
       "thread_id": "01a04432-099e-7a72-be40-6e979315d8b4",
@@ -21533,7 +22810,8 @@
         "total_tokens": 0
       },
       "api_cost_equivalent_usd": 1.877899,
-      "user_messages": []
+      "user_messages": [],
+      "spawn_agent_calls": []
     },
     {
       "thread_id": "01a04444-24b2-74a2-b04a-0bf9652b9469",
@@ -21662,7 +22940,8 @@
         "total_tokens": 0
       },
       "api_cost_equivalent_usd": 2.528051,
-      "user_messages": []
+      "user_messages": [],
+      "spawn_agent_calls": []
     },
     {
       "thread_id": "01a0444d-84cb-7750-8da7-8bb0cc8c968b",
@@ -21793,7 +23072,8 @@
         "total_tokens": 0
       },
       "api_cost_equivalent_usd": 3.266052,
-      "user_messages": []
+      "user_messages": [],
+      "spawn_agent_calls": []
     },
     {
       "thread_id": "01a04460-44b6-75e0-b209-9b1f87ce59b1",
@@ -21921,7 +23201,8 @@
         "total_tokens": 0
       },
       "api_cost_equivalent_usd": 2.812494,
-      "user_messages": []
+      "user_messages": [],
+      "spawn_agent_calls": []
     },
     {
       "thread_id": "01a04460-65f2-7d31-b87c-bf235516cc1b",
@@ -22049,7 +23330,8 @@
         "total_tokens": 0
       },
       "api_cost_equivalent_usd": 2.07416,
-      "user_messages": []
+      "user_messages": [],
+      "spawn_agent_calls": []
     },
     {
       "thread_id": "01a04468-68ec-7e52-a033-7c1e86c390a1",
@@ -22214,7 +23496,8 @@
         "total_tokens": 0
       },
       "api_cost_equivalent_usd": 4.576314,
-      "user_messages": []
+      "user_messages": [],
+      "spawn_agent_calls": []
     },
     {
       "thread_id": "01a04471-a000-7bb1-b349-99966256ea1a",
@@ -22343,7 +23626,8 @@
         "total_tokens": 0
       },
       "api_cost_equivalent_usd": 1.334617,
-      "user_messages": []
+      "user_messages": [],
+      "spawn_agent_calls": []
     },
     {
       "thread_id": "01a04478-7bfd-7640-95ac-7bfd47175e43",
@@ -22471,7 +23755,8 @@
         "total_tokens": 0
       },
       "api_cost_equivalent_usd": 2.014932,
-      "user_messages": []
+      "user_messages": [],
+      "spawn_agent_calls": []
     },
     {
       "thread_id": "01a0447f-54de-7cb2-b0bc-9dcdb2327709",
@@ -22599,7 +23884,8 @@
         "total_tokens": 0
       },
       "api_cost_equivalent_usd": 1.957534,
-      "user_messages": []
+      "user_messages": [],
+      "spawn_agent_calls": []
     },
     {
       "thread_id": "01a04500-5d07-73d3-9ddd-0e373ed79475",
@@ -22746,7 +24032,8 @@
         "total_tokens": 0
       },
       "api_cost_equivalent_usd": 6.689926,
-      "user_messages": []
+      "user_messages": [],
+      "spawn_agent_calls": []
     },
     {
       "thread_id": "01a04500-942f-71d0-b221-5055e18810db",
@@ -22895,7 +24182,8 @@
         "total_tokens": 0
       },
       "api_cost_equivalent_usd": 13.222206,
-      "user_messages": []
+      "user_messages": [],
+      "spawn_agent_calls": []
     },
     {
       "thread_id": "01a04505-e42d-7901-8c38-8b9080ac4ceb",
@@ -23060,7 +24348,8 @@
         "total_tokens": 0
       },
       "api_cost_equivalent_usd": 5.276067,
-      "user_messages": []
+      "user_messages": [],
+      "spawn_agent_calls": []
     },
     {
       "thread_id": "01a0452d-866f-7d53-a034-dddb31ac89a3",
@@ -23189,7 +24478,8 @@
         "total_tokens": 0
       },
       "api_cost_equivalent_usd": 3.193095,
-      "user_messages": []
+      "user_messages": [],
+      "spawn_agent_calls": []
     },
     {
       "thread_id": "01a0453c-3555-7b63-9cd7-d8edce68dc0d",
@@ -23465,7 +24755,8 @@
         "total_tokens": 0
       },
       "api_cost_equivalent_usd": 27.633964,
-      "user_messages": []
+      "user_messages": [],
+      "spawn_agent_calls": []
     },
     {
       "thread_id": "01a0455e-97d0-7451-9e70-dec3dd9e6950",
@@ -23649,7 +24940,8 @@
         "total_tokens": 17728245
       },
       "api_cost_equivalent_usd": 14.585418,
-      "user_messages": []
+      "user_messages": [],
+      "spawn_agent_calls": []
     },
     {
       "thread_id": "01a0456c-c6e8-7000-930d-8356747922b6",
@@ -23816,7 +25108,8 @@
         "total_tokens": 16736251
       },
       "api_cost_equivalent_usd": 15.054585,
-      "user_messages": []
+      "user_messages": [],
+      "spawn_agent_calls": []
     },
     {
       "thread_id": "01a046e3-c138-7480-80fb-cae9be51bf1d",
@@ -23982,7 +25275,8 @@
         "total_tokens": 0
       },
       "api_cost_equivalent_usd": 5.325225,
-      "user_messages": []
+      "user_messages": [],
+      "spawn_agent_calls": []
     },
     {
       "thread_id": "01a03613-1385-76f1-b400-997e7ae9143d",
@@ -24110,7 +25404,8 @@
         "total_tokens": 0
       },
       "api_cost_equivalent_usd": 3.038971,
-      "user_messages": []
+      "user_messages": [],
+      "spawn_agent_calls": []
     }
   ],
   "guardians": [
@@ -26372,7 +27667,8 @@
         "total_tokens": 0
       },
       "api_cost_equivalent_usd": null,
-      "user_messages": []
+      "user_messages": [],
+      "spawn_agent_calls": []
     },
     {
       "thread_id": "01a02488-9bec-70f2-8ae8-7e8bf53258fe",
@@ -28260,7 +29556,8 @@
         "total_tokens": 0
       },
       "api_cost_equivalent_usd": null,
-      "user_messages": []
+      "user_messages": [],
+      "spawn_agent_calls": []
     },
     {
       "thread_id": "01a02488-b463-7232-a24c-329ec1d5702a",
@@ -33256,7 +34553,8 @@
         "total_tokens": 0
       },
       "api_cost_equivalent_usd": null,
-      "user_messages": []
+      "user_messages": [],
+      "spawn_agent_calls": []
     },
     {
       "thread_id": "01a024b2-77a9-7711-a64c-98504362c496",
@@ -36362,7 +37660,8 @@
         "total_tokens": 0
       },
       "api_cost_equivalent_usd": null,
-      "user_messages": []
+      "user_messages": [],
+      "spawn_agent_calls": []
     },
     {
       "thread_id": "01a02650-8ec8-7e63-b735-04c15774fea7",
@@ -36784,7 +38083,8 @@
         "total_tokens": 0
       },
       "api_cost_equivalent_usd": null,
-      "user_messages": []
+      "user_messages": [],
+      "spawn_agent_calls": []
     },
     {
       "thread_id": "01a02650-b570-7053-8e5e-22881db0657b",
@@ -37212,7 +38512,8 @@
         "total_tokens": 0
       },
       "api_cost_equivalent_usd": null,
-      "user_messages": []
+      "user_messages": [],
+      "spawn_agent_calls": []
     },
     {
       "thread_id": "01a02650-ca2b-79d3-b8e0-e9abcfa48a05",
@@ -37382,7 +38683,8 @@
         "total_tokens": 0
       },
       "api_cost_equivalent_usd": null,
-      "user_messages": []
+      "user_messages": [],
+      "spawn_agent_calls": []
     },
     {
       "thread_id": "01a02655-a2ab-7733-b183-79b27b4a5902",
@@ -37678,7 +38980,8 @@
         "total_tokens": 0
       },
       "api_cost_equivalent_usd": null,
-      "user_messages": []
+      "user_messages": [],
+      "spawn_agent_calls": []
     },
     {
       "thread_id": "01a02664-831b-7972-9b62-4e17b332c614",
@@ -37866,7 +39169,8 @@
         "total_tokens": 0
       },
       "api_cost_equivalent_usd": null,
-      "user_messages": []
+      "user_messages": [],
+      "spawn_agent_calls": []
     },
     {
       "thread_id": "01a0267b-1f2d-7a32-8412-6ba080766c1c",
@@ -38018,7 +39322,8 @@
         "total_tokens": 0
       },
       "api_cost_equivalent_usd": null,
-      "user_messages": []
+      "user_messages": [],
+      "spawn_agent_calls": []
     },
     {
       "thread_id": "01a035da-45a0-7ae0-b3c1-b218497dc3da",
@@ -49908,7 +51213,8 @@
         "total_tokens": 0
       },
       "api_cost_equivalent_usd": null,
-      "user_messages": []
+      "user_messages": [],
+      "spawn_agent_calls": []
     },
     {
       "thread_id": "01a035e5-c2d2-7e32-b782-c2abcecf6663",
@@ -50168,7 +51474,8 @@
         "total_tokens": 0
       },
       "api_cost_equivalent_usd": null,
-      "user_messages": []
+      "user_messages": [],
+      "spawn_agent_calls": []
     },
     {
       "thread_id": "01a035e7-3ad4-7c10-9c52-d8771a442621",
@@ -50428,7 +51735,8 @@
         "total_tokens": 0
       },
       "api_cost_equivalent_usd": null,
-      "user_messages": []
+      "user_messages": [],
+      "spawn_agent_calls": []
     },
     {
       "thread_id": "01a035e7-77ef-7ac0-bc02-0a549938b3bc",
@@ -50796,7 +52104,8 @@
         "total_tokens": 0
       },
       "api_cost_equivalent_usd": null,
-      "user_messages": []
+      "user_messages": [],
+      "spawn_agent_calls": []
     },
     {
       "thread_id": "01a035fd-cb23-7e53-8825-3ce21cde0760",
@@ -51254,7 +52563,8 @@
         "total_tokens": 0
       },
       "api_cost_equivalent_usd": null,
-      "user_messages": []
+      "user_messages": [],
+      "spawn_agent_calls": []
     },
     {
       "thread_id": "01a03606-e1bb-79a1-a6f7-2f9a97d472d5",
@@ -51478,7 +52788,8 @@
         "total_tokens": 0
       },
       "api_cost_equivalent_usd": null,
-      "user_messages": []
+      "user_messages": [],
+      "spawn_agent_calls": []
     },
     {
       "thread_id": "01a03619-e5e2-73d2-9a4c-2ce73dbd0b28",
@@ -51630,7 +52941,8 @@
         "total_tokens": 0
       },
       "api_cost_equivalent_usd": null,
-      "user_messages": []
+      "user_messages": [],
+      "spawn_agent_calls": []
     },
     {
       "thread_id": "01a0361f-18dc-7ef1-b67a-1101a2ea3eaf",
@@ -52070,7 +53382,8 @@
         "total_tokens": 0
       },
       "api_cost_equivalent_usd": null,
-      "user_messages": []
+      "user_messages": [],
+      "spawn_agent_calls": []
     },
     {
       "thread_id": "01a03646-5f3f-7032-a9af-f794286476b9",
@@ -53014,7 +54327,8 @@
         "total_tokens": 0
       },
       "api_cost_equivalent_usd": null,
-      "user_messages": []
+      "user_messages": [],
+      "spawn_agent_calls": []
     },
     {
       "thread_id": "01a03650-fa52-74e0-8b17-0c9a593040d1",
@@ -55238,7 +56552,8 @@
         "total_tokens": 0
       },
       "api_cost_equivalent_usd": null,
-      "user_messages": []
+      "user_messages": [],
+      "spawn_agent_calls": []
     },
     {
       "thread_id": "01a0365e-34bf-7720-ae50-2a29a5a9520a",
@@ -55552,7 +56867,8 @@
         "total_tokens": 0
       },
       "api_cost_equivalent_usd": null,
-      "user_messages": []
+      "user_messages": [],
+      "spawn_agent_calls": []
     },
     {
       "thread_id": "01a0368a-5dc7-7bb3-ba76-c87d6bb48c56",
@@ -55667,7 +56983,8 @@
         "total_tokens": 0
       },
       "api_cost_equivalent_usd": null,
-      "user_messages": []
+      "user_messages": [],
+      "spawn_agent_calls": []
     },
     {
       "thread_id": "01a036a1-40be-7d43-b0b5-3d2ce346d3e0",
@@ -55873,7 +57190,8 @@
         "total_tokens": 0
       },
       "api_cost_equivalent_usd": null,
-      "user_messages": []
+      "user_messages": [],
+      "spawn_agent_calls": []
     },
     {
       "thread_id": "01a036ae-533d-7422-a57f-4fdc1781cf89",
@@ -57359,7 +58677,8 @@
         "total_tokens": 0
       },
       "api_cost_equivalent_usd": null,
-      "user_messages": []
+      "user_messages": [],
+      "spawn_agent_calls": []
     },
     {
       "thread_id": "01a036e2-0304-7490-932d-88528587d76f",
@@ -57547,7 +58866,8 @@
         "total_tokens": 0
       },
       "api_cost_equivalent_usd": null,
-      "user_messages": []
+      "user_messages": [],
+      "spawn_agent_calls": []
     },
     {
       "thread_id": "01a03712-7afa-7950-9754-96946eb1afec",
@@ -57717,7 +59037,8 @@
         "total_tokens": 0
       },
       "api_cost_equivalent_usd": null,
-      "user_messages": []
+      "user_messages": [],
+      "spawn_agent_calls": []
     },
     {
       "thread_id": "01a0375d-d4d0-78b2-8025-456b997557f8",
@@ -57832,7 +59153,8 @@
         "total_tokens": 0
       },
       "api_cost_equivalent_usd": null,
-      "user_messages": []
+      "user_messages": [],
+      "spawn_agent_calls": []
     },
     {
       "thread_id": "01a03786-880c-7d31-baff-cac09f9a3ede",
@@ -62954,7 +64276,8 @@
         "total_tokens": 0
       },
       "api_cost_equivalent_usd": null,
-      "user_messages": []
+      "user_messages": [],
+      "spawn_agent_calls": []
     },
     {
       "thread_id": "01a037a7-a5e7-7561-b687-fcaf95a51988",
@@ -64458,7 +65781,8 @@
         "total_tokens": 0
       },
       "api_cost_equivalent_usd": null,
-      "user_messages": []
+      "user_messages": [],
+      "spawn_agent_calls": []
     },
     {
       "thread_id": "01a03857-cf54-7972-9b77-2c250e3c7b97",
@@ -65998,7 +67322,8 @@
         "total_tokens": 0
       },
       "api_cost_equivalent_usd": null,
-      "user_messages": []
+      "user_messages": [],
+      "spawn_agent_calls": []
     },
     {
       "thread_id": "01a03a84-bb7e-72f1-8862-3fb0b9ff0980",
@@ -66132,7 +67457,8 @@
         "total_tokens": 0
       },
       "api_cost_equivalent_usd": null,
-      "user_messages": []
+      "user_messages": [],
+      "spawn_agent_calls": []
     },
     {
       "thread_id": "01a03a8c-8128-7113-8cb6-5569ac2cd434",
@@ -66392,7 +67718,8 @@
         "total_tokens": 0
       },
       "api_cost_equivalent_usd": null,
-      "user_messages": []
+      "user_messages": [],
+      "spawn_agent_calls": []
     },
     {
       "thread_id": "01a03a8e-acb1-7d82-8f3a-e8fed21151b1",
@@ -66652,7 +67979,8 @@
         "total_tokens": 0
       },
       "api_cost_equivalent_usd": null,
-      "user_messages": []
+      "user_messages": [],
+      "spawn_agent_calls": []
     },
     {
       "thread_id": "01a03af4-f492-7ae3-86e0-8ae104044e07",
@@ -66786,7 +68114,8 @@
         "total_tokens": 0
       },
       "api_cost_equivalent_usd": null,
-      "user_messages": []
+      "user_messages": [],
+      "spawn_agent_calls": []
     },
     {
       "thread_id": "01a03b07-7c6f-7d51-9af8-3a7fe998ac7c",
@@ -66956,7 +68285,8 @@
         "total_tokens": 0
       },
       "api_cost_equivalent_usd": null,
-      "user_messages": []
+      "user_messages": [],
+      "spawn_agent_calls": []
     },
     {
       "thread_id": "01a03b0c-1137-7571-bdc0-056c640a74c0",
@@ -67090,7 +68420,8 @@
         "total_tokens": 0
       },
       "api_cost_equivalent_usd": null,
-      "user_messages": []
+      "user_messages": [],
+      "spawn_agent_calls": []
     },
     {
       "thread_id": "01a03b0c-7817-78f3-bf3f-d612824c6e46",
@@ -67224,7 +68555,8 @@
         "total_tokens": 0
       },
       "api_cost_equivalent_usd": null,
-      "user_messages": []
+      "user_messages": [],
+      "spawn_agent_calls": []
     },
     {
       "thread_id": "01a03b14-1886-78b3-8204-9d00fdc20a16",
@@ -67358,7 +68690,8 @@
         "total_tokens": 0
       },
       "api_cost_equivalent_usd": null,
-      "user_messages": []
+      "user_messages": [],
+      "spawn_agent_calls": []
     },
     {
       "thread_id": "01a03b18-3521-7b12-abc2-be423b145752",
@@ -67654,7 +68987,8 @@
         "total_tokens": 0
       },
       "api_cost_equivalent_usd": null,
-      "user_messages": []
+      "user_messages": [],
+      "spawn_agent_calls": []
     },
     {
       "thread_id": "01a03b23-3f49-7a03-84ad-c2793d9d3ea5",
@@ -67878,7 +69212,8 @@
         "total_tokens": 0
       },
       "api_cost_equivalent_usd": null,
-      "user_messages": []
+      "user_messages": [],
+      "spawn_agent_calls": []
     },
     {
       "thread_id": "01a03b25-4bd3-7a53-a281-e669c9bc5d80",
@@ -68030,7 +69365,8 @@
         "total_tokens": 0
       },
       "api_cost_equivalent_usd": null,
-      "user_messages": []
+      "user_messages": [],
+      "spawn_agent_calls": []
     },
     {
       "thread_id": "01a03b29-5ecc-77b0-9750-ad4a36be9477",
@@ -68362,7 +69698,8 @@
         "total_tokens": 0
       },
       "api_cost_equivalent_usd": null,
-      "user_messages": []
+      "user_messages": [],
+      "spawn_agent_calls": []
     },
     {
       "thread_id": "01a03b46-94df-7872-866e-14b46c33c2bf",
@@ -68477,7 +69814,8 @@
         "total_tokens": 0
       },
       "api_cost_equivalent_usd": null,
-      "user_messages": []
+      "user_messages": [],
+      "spawn_agent_calls": []
     },
     {
       "thread_id": "01a03b4c-ec42-7bd1-a840-46697696630d",
@@ -68611,7 +69949,8 @@
         "total_tokens": 0
       },
       "api_cost_equivalent_usd": null,
-      "user_messages": []
+      "user_messages": [],
+      "spawn_agent_calls": []
     },
     {
       "thread_id": "01a03b4e-76e3-75c0-b8ff-a86d55b2fe9d",
@@ -68763,7 +70102,8 @@
         "total_tokens": 0
       },
       "api_cost_equivalent_usd": null,
-      "user_messages": []
+      "user_messages": [],
+      "spawn_agent_calls": []
     },
     {
       "thread_id": "01a03b52-a89b-7173-b592-1199047dbe19",
@@ -69005,7 +70345,8 @@
         "total_tokens": 0
       },
       "api_cost_equivalent_usd": null,
-      "user_messages": []
+      "user_messages": [],
+      "spawn_agent_calls": []
     },
     {
       "thread_id": "01a03b59-c120-7e71-aa7e-426d7253273c",
@@ -69589,7 +70930,8 @@
         "total_tokens": 0
       },
       "api_cost_equivalent_usd": null,
-      "user_messages": []
+      "user_messages": [],
+      "spawn_agent_calls": []
     },
     {
       "thread_id": "01a03b5b-5407-7272-87e5-e174685a7adf",
@@ -70011,7 +71353,8 @@
         "total_tokens": 0
       },
       "api_cost_equivalent_usd": null,
-      "user_messages": []
+      "user_messages": [],
+      "spawn_agent_calls": []
     },
     {
       "thread_id": "01a03b6c-aaac-7211-b215-570d41fe8c98",
@@ -70181,7 +71524,8 @@
         "total_tokens": 0
       },
       "api_cost_equivalent_usd": null,
-      "user_messages": []
+      "user_messages": [],
+      "spawn_agent_calls": []
     },
     {
       "thread_id": "01a03b8d-f0a3-75d1-9e2e-fdac24b03f49",
@@ -70423,7 +71767,8 @@
         "total_tokens": 0
       },
       "api_cost_equivalent_usd": null,
-      "user_messages": []
+      "user_messages": [],
+      "spawn_agent_calls": []
     },
     {
       "thread_id": "01a03bbc-717f-7cf0-8a9b-c018aac8eef7",
@@ -70593,7 +71938,8 @@
         "total_tokens": 0
       },
       "api_cost_equivalent_usd": null,
-      "user_messages": []
+      "user_messages": [],
+      "spawn_agent_calls": []
     },
     {
       "thread_id": "01a03bc2-0f5f-75b0-b858-6b6673ab3bc1",
@@ -70727,7 +72073,8 @@
         "total_tokens": 0
       },
       "api_cost_equivalent_usd": null,
-      "user_messages": []
+      "user_messages": [],
+      "spawn_agent_calls": []
     },
     {
       "thread_id": "01a03bc9-87d6-7ec2-9ad4-3c8ca7e1d8cc",
@@ -70897,7 +72244,8 @@
         "total_tokens": 0
       },
       "api_cost_equivalent_usd": null,
-      "user_messages": []
+      "user_messages": [],
+      "spawn_agent_calls": []
     },
     {
       "thread_id": "01a03bd4-4038-7642-8846-c151eecaa8bd",
@@ -71085,7 +72433,8 @@
         "total_tokens": 0
       },
       "api_cost_equivalent_usd": null,
-      "user_messages": []
+      "user_messages": [],
+      "spawn_agent_calls": []
     },
     {
       "thread_id": "01a03be4-79e7-7853-8902-edd89b0647c4",
@@ -71237,7 +72586,8 @@
         "total_tokens": 0
       },
       "api_cost_equivalent_usd": null,
-      "user_messages": []
+      "user_messages": [],
+      "spawn_agent_calls": []
     },
     {
       "thread_id": "01a03bea-8f04-75d2-b52c-0c1f96d1fe3d",
@@ -71389,7 +72739,8 @@
         "total_tokens": 0
       },
       "api_cost_equivalent_usd": null,
-      "user_messages": []
+      "user_messages": [],
+      "spawn_agent_calls": []
     },
     {
       "thread_id": "01a03cdd-f472-7e31-b087-8b02ce71506d",
@@ -72587,7 +73938,8 @@
         "total_tokens": 0
       },
       "api_cost_equivalent_usd": null,
-      "user_messages": []
+      "user_messages": [],
+      "spawn_agent_calls": []
     },
     {
       "thread_id": "01a03cde-2ea5-7b80-9158-0799b2e1f37f",
@@ -73117,7 +74469,8 @@
         "total_tokens": 0
       },
       "api_cost_equivalent_usd": null,
-      "user_messages": []
+      "user_messages": [],
+      "spawn_agent_calls": []
     },
     {
       "thread_id": "01a03d14-de69-7761-b40c-5870ceba4595",
@@ -73359,7 +74712,8 @@
         "total_tokens": 0
       },
       "api_cost_equivalent_usd": null,
-      "user_messages": []
+      "user_messages": [],
+      "spawn_agent_calls": []
     },
     {
       "thread_id": "01a03d7d-0d4f-74d3-b73b-17725946eccf",
@@ -73474,7 +74828,8 @@
         "total_tokens": 0
       },
       "api_cost_equivalent_usd": null,
-      "user_messages": []
+      "user_messages": [],
+      "spawn_agent_calls": []
     },
     {
       "thread_id": "01a03d89-7696-76f1-97d2-b1b2737531ef",
@@ -73644,7 +74999,8 @@
         "total_tokens": 0
       },
       "api_cost_equivalent_usd": null,
-      "user_messages": []
+      "user_messages": [],
+      "spawn_agent_calls": []
     },
     {
       "thread_id": "01a03d90-2ece-7913-b731-1070da705200",
@@ -73904,7 +75260,8 @@
         "total_tokens": 0
       },
       "api_cost_equivalent_usd": null,
-      "user_messages": []
+      "user_messages": [],
+      "spawn_agent_calls": []
     },
     {
       "thread_id": "01a03da2-3d66-7481-802f-39a294f66108",
@@ -74074,7 +75431,8 @@
         "total_tokens": 0
       },
       "api_cost_equivalent_usd": null,
-      "user_messages": []
+      "user_messages": [],
+      "spawn_agent_calls": []
     },
     {
       "thread_id": "01a03db3-33a6-7f82-aaeb-4c9c5e23d055",
@@ -74244,7 +75602,8 @@
         "total_tokens": 0
       },
       "api_cost_equivalent_usd": null,
-      "user_messages": []
+      "user_messages": [],
+      "spawn_agent_calls": []
     },
     {
       "thread_id": "01a03db9-e3f4-7b91-b012-1397c60f610f",
@@ -74630,7 +75989,8 @@
         "total_tokens": 0
       },
       "api_cost_equivalent_usd": null,
-      "user_messages": []
+      "user_messages": [],
+      "spawn_agent_calls": []
     },
     {
       "thread_id": "01a03dc5-71be-7641-8f3f-951ff80994ef",
@@ -74836,7 +76196,8 @@
         "total_tokens": 0
       },
       "api_cost_equivalent_usd": null,
-      "user_messages": []
+      "user_messages": [],
+      "spawn_agent_calls": []
     },
     {
       "thread_id": "01a03dd6-adc7-73e0-ae0a-a460531b4a5c",
@@ -75030,7 +76391,8 @@
         "total_tokens": 0
       },
       "api_cost_equivalent_usd": null,
-      "user_messages": []
+      "user_messages": [],
+      "spawn_agent_calls": []
     },
     {
       "thread_id": "01a03de0-d279-7412-8f3f-ee25c2718b24",
@@ -75200,7 +76562,8 @@
         "total_tokens": 0
       },
       "api_cost_equivalent_usd": null,
-      "user_messages": []
+      "user_messages": [],
+      "spawn_agent_calls": []
     },
     {
       "thread_id": "01a03dea-8f9c-7c90-b611-b70917b15f3a",
@@ -75442,7 +76805,8 @@
         "total_tokens": 0
       },
       "api_cost_equivalent_usd": null,
-      "user_messages": []
+      "user_messages": [],
+      "spawn_agent_calls": []
     },
     {
       "thread_id": "01a03df1-1eed-79c3-a3f5-6f6cfbd898af",
@@ -78008,7 +79372,8 @@
         "total_tokens": 0
       },
       "api_cost_equivalent_usd": null,
-      "user_messages": []
+      "user_messages": [],
+      "spawn_agent_calls": []
     },
     {
       "thread_id": "01a03df2-da79-7130-afff-b8ff42c2aad3",
@@ -78142,7 +79507,8 @@
         "total_tokens": 0
       },
       "api_cost_equivalent_usd": null,
-      "user_messages": []
+      "user_messages": [],
+      "spawn_agent_calls": []
     },
     {
       "thread_id": "01a03df6-8a84-7990-9eb4-eeec78932906",
@@ -78312,7 +79678,8 @@
         "total_tokens": 0
       },
       "api_cost_equivalent_usd": null,
-      "user_messages": []
+      "user_messages": [],
+      "spawn_agent_calls": []
     },
     {
       "thread_id": "01a03fb7-caf4-7953-b815-a0c7780760d6",
@@ -78788,7 +80155,8 @@
         "total_tokens": 0
       },
       "api_cost_equivalent_usd": null,
-      "user_messages": []
+      "user_messages": [],
+      "spawn_agent_calls": []
     },
     {
       "thread_id": "01a03fb7-f49a-7df2-b65b-039d64627e40",
@@ -78903,7 +80271,8 @@
         "total_tokens": 0
       },
       "api_cost_equivalent_usd": null,
-      "user_messages": []
+      "user_messages": [],
+      "spawn_agent_calls": []
     },
     {
       "thread_id": "01a03fe6-f284-7df3-8664-476d295a18e4",
@@ -79018,7 +80387,8 @@
         "total_tokens": 0
       },
       "api_cost_equivalent_usd": null,
-      "user_messages": []
+      "user_messages": [],
+      "spawn_agent_calls": []
     },
     {
       "thread_id": "01a03ff1-38e7-7a60-9da0-4fca235282e4",
@@ -79133,7 +80503,8 @@
         "total_tokens": 0
       },
       "api_cost_equivalent_usd": null,
-      "user_messages": []
+      "user_messages": [],
+      "spawn_agent_calls": []
     },
     {
       "thread_id": "01a03ff3-e7d8-77d0-a4b8-d4ebed5f93bc",
@@ -79303,7 +80674,8 @@
         "total_tokens": 0
       },
       "api_cost_equivalent_usd": null,
-      "user_messages": []
+      "user_messages": [],
+      "spawn_agent_calls": []
     },
     {
       "thread_id": "01a03ff4-15e7-77c3-8181-e9787c8942bc",
@@ -79437,7 +80809,8 @@
         "total_tokens": 0
       },
       "api_cost_equivalent_usd": null,
-      "user_messages": []
+      "user_messages": [],
+      "spawn_agent_calls": []
     },
     {
       "thread_id": "01a04022-e712-7df1-9a91-e688c2101061",
@@ -80381,7 +81754,8 @@
         "total_tokens": 0
       },
       "api_cost_equivalent_usd": null,
-      "user_messages": []
+      "user_messages": [],
+      "spawn_agent_calls": []
     },
     {
       "thread_id": "01a04023-23ed-7ea1-a570-37492ed9a359",
@@ -80713,7 +82087,8 @@
         "total_tokens": 0
       },
       "api_cost_equivalent_usd": null,
-      "user_messages": []
+      "user_messages": [],
+      "spawn_agent_calls": []
     },
     {
       "thread_id": "01a0405b-3334-7c82-9743-3eb1c9c30475",
@@ -81045,7 +82420,8 @@
         "total_tokens": 0
       },
       "api_cost_equivalent_usd": null,
-      "user_messages": []
+      "user_messages": [],
+      "spawn_agent_calls": []
     },
     {
       "thread_id": "01a04240-7db6-75b0-a12a-35411ced0090",
@@ -82403,7 +83779,8 @@
         "total_tokens": 0
       },
       "api_cost_equivalent_usd": null,
-      "user_messages": []
+      "user_messages": [],
+      "spawn_agent_calls": []
     },
     {
       "thread_id": "01a04240-bb21-72a1-8f95-0fb0f4af456f",
@@ -82771,7 +84148,8 @@
         "total_tokens": 0
       },
       "api_cost_equivalent_usd": null,
-      "user_messages": []
+      "user_messages": [],
+      "spawn_agent_calls": []
     },
     {
       "thread_id": "01a0424a-01af-7a11-a0c9-9cd2b3f7fa34",
@@ -82905,7 +84283,8 @@
         "total_tokens": 0
       },
       "api_cost_equivalent_usd": null,
-      "user_messages": []
+      "user_messages": [],
+      "spawn_agent_calls": []
     },
     {
       "thread_id": "01a04250-c9d8-76d1-aab0-e4ad763a76f1",
@@ -83561,7 +84940,8 @@
         "total_tokens": 0
       },
       "api_cost_equivalent_usd": null,
-      "user_messages": []
+      "user_messages": [],
+      "spawn_agent_calls": []
     },
     {
       "thread_id": "01a04272-224c-7332-b67a-656e460bdd2b",
@@ -83863,7 +85243,8 @@
         "total_tokens": 0
       },
       "api_cost_equivalent_usd": null,
-      "user_messages": []
+      "user_messages": [],
+      "spawn_agent_calls": []
     },
     {
       "thread_id": "01a04272-940e-7bc0-b0f5-b362a579994e",
@@ -83978,7 +85359,8 @@
         "total_tokens": 0
       },
       "api_cost_equivalent_usd": null,
-      "user_messages": []
+      "user_messages": [],
+      "spawn_agent_calls": []
     },
     {
       "thread_id": "01a04283-d2a4-7593-8108-b95d689e95df",
@@ -84238,7 +85620,8 @@
         "total_tokens": 0
       },
       "api_cost_equivalent_usd": null,
-      "user_messages": []
+      "user_messages": [],
+      "spawn_agent_calls": []
     },
     {
       "thread_id": "01a04292-10a9-7ce2-9598-f274d9892e27",
@@ -84516,7 +85899,8 @@
         "total_tokens": 0
       },
       "api_cost_equivalent_usd": null,
-      "user_messages": []
+      "user_messages": [],
+      "spawn_agent_calls": []
     },
     {
       "thread_id": "01a04292-2842-7342-983d-d0307bfcf1ca",
@@ -84631,7 +86015,8 @@
         "total_tokens": 0
       },
       "api_cost_equivalent_usd": null,
-      "user_messages": []
+      "user_messages": [],
+      "spawn_agent_calls": []
     },
     {
       "thread_id": "01a042a0-687c-7083-9cad-da930f887006",
@@ -84999,7 +86384,8 @@
         "total_tokens": 0
       },
       "api_cost_equivalent_usd": null,
-      "user_messages": []
+      "user_messages": [],
+      "spawn_agent_calls": []
     },
     {
       "thread_id": "01a042a1-a56f-71a3-88e5-a32d6ef52016",
@@ -85169,7 +86555,8 @@
         "total_tokens": 0
       },
       "api_cost_equivalent_usd": null,
-      "user_messages": []
+      "user_messages": [],
+      "spawn_agent_calls": []
     },
     {
       "thread_id": "01a042ad-a2ca-7aa1-afa2-1e36c3f614dd",
@@ -85447,7 +86834,8 @@
         "total_tokens": 0
       },
       "api_cost_equivalent_usd": null,
-      "user_messages": []
+      "user_messages": [],
+      "spawn_agent_calls": []
     },
     {
       "thread_id": "01a043d9-3b23-7ad2-b3bd-31e4e9fbc1fd",
@@ -86139,7 +87527,8 @@
         "total_tokens": 0
       },
       "api_cost_equivalent_usd": null,
-      "user_messages": []
+      "user_messages": [],
+      "spawn_agent_calls": []
     },
     {
       "thread_id": "01a043f2-ada0-7823-8ff7-2e72295ab69c",
@@ -86309,7 +87698,8 @@
         "total_tokens": 0
       },
       "api_cost_equivalent_usd": null,
-      "user_messages": []
+      "user_messages": [],
+      "spawn_agent_calls": []
     },
     {
       "thread_id": "01a0440c-6812-7d01-8332-f3d73190479f",
@@ -86641,7 +88031,8 @@
         "total_tokens": 0
       },
       "api_cost_equivalent_usd": null,
-      "user_messages": []
+      "user_messages": [],
+      "spawn_agent_calls": []
     },
     {
       "thread_id": "01a04415-6bf8-7f71-8904-6ad53d25c8aa",
@@ -86829,7 +88220,8 @@
         "total_tokens": 0
       },
       "api_cost_equivalent_usd": null,
-      "user_messages": []
+      "user_messages": [],
+      "spawn_agent_calls": []
     },
     {
       "thread_id": "01a04430-9ede-7b41-9109-b897e3fd4597",
@@ -87149,7 +88541,8 @@
         "total_tokens": 0
       },
       "api_cost_equivalent_usd": null,
-      "user_messages": []
+      "user_messages": [],
+      "spawn_agent_calls": []
     },
     {
       "thread_id": "01a04432-0b72-7a00-9e49-58e7028fd881",
@@ -87283,7 +88676,8 @@
         "total_tokens": 0
       },
       "api_cost_equivalent_usd": null,
-      "user_messages": []
+      "user_messages": [],
+      "spawn_agent_calls": []
     },
     {
       "thread_id": "01a04444-26d2-78f3-98bb-74e83f004aae",
@@ -87549,7 +88943,8 @@
         "total_tokens": 0
       },
       "api_cost_equivalent_usd": null,
-      "user_messages": []
+      "user_messages": [],
+      "spawn_agent_calls": []
     },
     {
       "thread_id": "01a0444d-86e7-7aa2-a51e-7232c53171c5",
@@ -87755,7 +89150,8 @@
         "total_tokens": 0
       },
       "api_cost_equivalent_usd": null,
-      "user_messages": []
+      "user_messages": [],
+      "spawn_agent_calls": []
     },
     {
       "thread_id": "01a04460-46c2-74e0-acde-bd35ff3636d3",
@@ -87889,7 +89285,8 @@
         "total_tokens": 0
       },
       "api_cost_equivalent_usd": null,
-      "user_messages": []
+      "user_messages": [],
+      "spawn_agent_calls": []
     },
     {
       "thread_id": "01a04460-6900-7dd2-b3f3-d90760ffec6d",
@@ -88059,7 +89456,8 @@
         "total_tokens": 0
       },
       "api_cost_equivalent_usd": null,
-      "user_messages": []
+      "user_messages": [],
+      "spawn_agent_calls": []
     },
     {
       "thread_id": "01a04468-6ace-7501-8c42-f29c37d84bbb",
@@ -88265,7 +89663,8 @@
         "total_tokens": 0
       },
       "api_cost_equivalent_usd": null,
-      "user_messages": []
+      "user_messages": [],
+      "spawn_agent_calls": []
     },
     {
       "thread_id": "01a04471-a1ec-7101-b0f3-4bbd54f11281",
@@ -88399,7 +89798,8 @@
         "total_tokens": 0
       },
       "api_cost_equivalent_usd": null,
-      "user_messages": []
+      "user_messages": [],
+      "spawn_agent_calls": []
     },
     {
       "thread_id": "01a04478-7de8-7c51-b536-d81003f17825",
@@ -88551,7 +89951,8 @@
         "total_tokens": 0
       },
       "api_cost_equivalent_usd": null,
-      "user_messages": []
+      "user_messages": [],
+      "spawn_agent_calls": []
     },
     {
       "thread_id": "01a0447f-56d1-7253-a072-f44e622111a3",
@@ -88703,7 +90104,8 @@
         "total_tokens": 0
       },
       "api_cost_equivalent_usd": null,
-      "user_messages": []
+      "user_messages": [],
+      "spawn_agent_calls": []
     },
     {
       "thread_id": "01a04500-5e73-7612-b3de-4a773b758c1e",
@@ -88963,7 +90365,8 @@
         "total_tokens": 0
       },
       "api_cost_equivalent_usd": null,
-      "user_messages": []
+      "user_messages": [],
+      "spawn_agent_calls": []
     },
     {
       "thread_id": "01a04500-9d02-7723-97e5-72745efee0b2",
@@ -89403,7 +90806,8 @@
         "total_tokens": 0
       },
       "api_cost_equivalent_usd": null,
-      "user_messages": []
+      "user_messages": [],
+      "spawn_agent_calls": []
     },
     {
       "thread_id": "01a04505-f2fd-71e3-9340-92f903f074b8",
@@ -89609,7 +91013,8 @@
         "total_tokens": 0
       },
       "api_cost_equivalent_usd": null,
-      "user_messages": []
+      "user_messages": [],
+      "spawn_agent_calls": []
     },
     {
       "thread_id": "01a0452d-8aaf-7961-8a08-f20cb8e8918d",
@@ -89869,7 +91274,8 @@
         "total_tokens": 0
       },
       "api_cost_equivalent_usd": null,
-      "user_messages": []
+      "user_messages": [],
+      "spawn_agent_calls": []
     },
     {
       "thread_id": "01a0453c-3915-7d70-a385-ce4fed7ab61a",
@@ -90855,7 +92261,8 @@
         "total_tokens": 0
       },
       "api_cost_equivalent_usd": null,
-      "user_messages": []
+      "user_messages": [],
+      "spawn_agent_calls": []
     },
     {
       "thread_id": "01a0455e-9a53-7950-8be9-a6a553cb1323",
@@ -91205,7 +92612,8 @@
         "total_tokens": 0
       },
       "api_cost_equivalent_usd": null,
-      "user_messages": []
+      "user_messages": [],
+      "spawn_agent_calls": []
     },
     {
       "thread_id": "01a0456c-d491-7db2-9bbb-8e4a4555e0b7",
@@ -91717,7 +93125,8 @@
         "total_tokens": 0
       },
       "api_cost_equivalent_usd": null,
-      "user_messages": []
+      "user_messages": [],
+      "spawn_agent_calls": []
     },
     {
       "thread_id": "01a046e3-c338-7781-b749-52d3a6ba4149",
@@ -91869,7 +93278,8 @@
         "total_tokens": 0
       },
       "api_cost_equivalent_usd": null,
-      "user_messages": []
+      "user_messages": [],
+      "spawn_agent_calls": []
     },
     {
       "thread_id": "01a046ec-c0d4-74f1-95cb-bc4f0cedd51e",
@@ -92219,7 +93629,8 @@
         "total_tokens": 0
       },
       "api_cost_equivalent_usd": null,
-      "user_messages": []
+      "user_messages": [],
+      "spawn_agent_calls": []
     },
     {
       "thread_id": "01a04712-c70c-7823-b179-1b703f4d5a76",
@@ -92809,7 +94220,8 @@
         "total_tokens": 0
       },
       "api_cost_equivalent_usd": null,
-      "user_messages": []
+      "user_messages": [],
+      "spawn_agent_calls": []
     }
   ]
 }

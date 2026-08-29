@@ -14,7 +14,7 @@
 
 The session achieved an unusually large, deadline-critical outcome: it moved 22 concrete P0 task files to `Complete`, left all 32 instantiated P0 tasks complete, integrated 124 first-parent commits, activated the deliberately gated production schedule, and audited the first natural 16-job run to green. It did so without silently promoting the plumbing model or bypassing owner-controlled production and experiment gates.
 
-The orchestration was effective but expensive. The root plus its real task agents consumed 2.975 billion logged tokens, 97.7% of input tokens were cached, and the public API list-price equivalent is **$1,582.11**. This is not an actual Codex subscription charge. Every real task thread used `gpt-5.6-sol` at `xhigh`; the accepted model-tiering guidance was not applied. The root alone represented 977.2 million tokens and $467.98 of the equivalent cost.
+The orchestration was effective but expensive. The root plus its real task agents consumed 2.975 billion logged tokens, 97.7% of input tokens were cached, and the public API list-price equivalent is **$1,582.11**. This is not an actual Codex subscription charge. Every real task thread used `gpt-5.6-sol` at `xhigh`. The new spawn-level audit shows why: all 105 calls omitted both model and effort, while 85 used full-history forks that were required to inherit the Sol/`xhigh` parent. The other 20 calls were override-compatible but still omitted a selection. The root alone represented 977.2 million tokens and $467.98 of the equivalent cost.
 
 Delegation improved materially over the preceding orchestration baseline. Useful subagent work overlapped for 24h52m, compared with 7 minutes in the earlier session, and average concurrency while any subagent was active rose from 1.02 to 1.51. The session reached the observed ceiling of three simultaneous subagents. The tradeoff was a very noisy control plane: 102 realized descendant threads, 3,527 root `wait_agent` calls, 830 messages to running agents, 330 follow-up assignments, 235 agent-list polls, 2,784 root execution-tool calls, and 32 root compactions.
 
@@ -98,6 +98,33 @@ The root made 105 `spawn_agent` calls and 102 descendant task-agent logs materia
 
 Every root and task-agent model context was `gpt-5.6-sol` with `xhigh` reasoning. References to Luna, Terra, Sol/`high`, and Sol/`max` elsewhere in the session describe models exercised by the KicktippAi application experiments, not Codex subagent models.
 
+### Why every subagent was Sol/xhigh
+
+This was deterministic inheritance, not 102 independent judgments that Sol/`xhigh` fit the task.
+
+| Spawn evidence | Count |
+|---|---:|
+| Root `spawn_agent` calls | 105 |
+| `fork_turns: "all"` | 85 / 81.0% |
+| Limited-history or no-history forks | 20 / 19.0% |
+| Calls with an explicit `model` | 0 |
+| Calls with an explicit `reasoning_effort` | 0 |
+
+The historical runtime instruction embedded at root-transcript ordinal 3 said that full-history forks inherit the parent's model and reasoning effort and do not accept overrides. An explicit override was permitted only when requested by the user, an applicable `AGENTS.md`, or a skill, and it had to use a limited-history or no-history fork. Current [official Codex subagent settings documentation](https://learn.chatgpt.com/docs/agent-configuration/subagents#global-settings) independently confirms the underlying selection mechanism: global default subagent model/effort settings exist, and explicit spawn values override those defaults.
+
+There was sufficient project authority to tier this run. The kickoff explicitly asked to use the newly adopted orchestration improvements. The applicable [`plans/bundesliga-2026-27/AGENTS.md`](../../../plans/bundesliga-2026-27/AGENTS.md) says that the strongest agent is the control plane rather than the routine default, and assigns lightweight tiers to read-only research, status, and CI evidence. The execution strategy says the same. Therefore the runtime rule explains *how* Sol/`xhigh` propagated, but it does not make the result unavoidable.
+
+The likely failure chain is:
+
+1. The root itself ran as Sol/`xhigh`.
+2. It chose the context-convenient full-history fork for 85 calls, which structurally locked inheritance.
+3. It never translated the qualitative role guidance into explicit model/effort spawn fields for the other 20 calls either.
+4. It did not verify the first child model before repeating the pattern. Even the user's later orchestration-protocol recheck corrected root-versus-worker ownership but did not catch model allocation.
+
+The prior investigation supports this interpretation. That session used a deliberately varied portfolio—Luna/`low` for exact-SHA CI, Luna/`medium` or Terra/`medium` for bounded audit, Terra/`high` for writers, Sol/`high` for risk-based reviewers, and GPT-5.4/`medium` for one policy task. The user had explicitly interrupted an overpowered Sol/`xhigh` writer, so exact allocation was visibly supervised. The new closeout retained the role language but not the spawn parameters or an allocation preflight.
+
+The clearest concrete mismatch is CI. Six conservatively classified, explicitly CI-named threads ran 12 turns, consumed 14,848,894 tokens, and represented **$10.08** at Sol list rates. This is only a lower bound: mixed-role paths such as `/root/p0_status_audit` also reconciled status and CI but cannot be cleanly priced as routine work. The $10.08 is an addressable Sol-cost surface, not a claimed savings figure; a lighter model would have different token behavior.
+
 | Cohort | Input tokens | Cached input | Cache share | Output tokens | Total tokens | API equivalent |
 |---|---:|---:|---:|---:|---:|---:|
 | Root orchestrator | 975,947,047 | 961,524,864 | 98.52% | 1,283,836 | 977,230,883 | $467.98 |
@@ -133,7 +160,7 @@ Several of these paths handled follow-up work outside their original task label.
 | Defect discovery | Independent reviews repeatedly found correctness, provenance, Unicode, workflow, and live-validation defects before closeout | Strong |
 | Parallelism | Average active concurrency 1.51; two-plus agents active for 43.3%; maximum three | Major improvement over the prior baseline |
 | Delegation discipline | 102 task threads did most worker time, but the root still absorbed substantial P0-06 implementation/analysis until corrected | Mixed |
-| Model allocation | Root and every child used the strongest `Sol/xhigh` configuration | Poor cost-to-task matching |
+| Model allocation | 105/105 spawns omitted model and effort; 85 full-history calls locked parent inheritance despite explicit lightweight-lane guidance | Poor; avoidable preflight failure |
 | Coordination efficiency | 3,527 waits, 830 messages, 330 follow-ups, 235 polls, 12 interrupts, and 32 compactions | Too chatty and state-heavy |
 | Auditability | Exact session family, commits, task transitions, run evidence, and costs are recoverable | Strong after post-hoc extraction; weak during the run |
 
@@ -166,7 +193,17 @@ The accepted [subagent orchestration investigation](../../../plans/bundesliga-20
 | Root waits per assigned turn | about 6.0 | 8.52 |
 | Root + subagent logged tokens | 165.4M | 2,975.4M |
 
-The intended parallelism improvement clearly worked. Two isolated or read-only lanes overlapped for meaningful periods, and three-agent occupancy was exercised for more than four hours. The remaining optimization target is no longer “use concurrency at all”; it is to reduce coordination overhead and use cheaper models for bounded status, research, and routine review work.
+The earlier model portfolio also makes the contrast explicit:
+
+| Role | Earlier measured session | P0 closeout |
+|---|---|---|
+| Exact-SHA CI | Luna / `low` | Sol / `xhigh` |
+| Read-only audit/look-ahead | Luna / `medium`, Terra / `medium` | Sol / `xhigh` |
+| Normal implementation writer | Terra / `high` | Sol / `xhigh` |
+| Risk-based reviewer | Sol / `high` | Sol / `xhigh` |
+| Bounded policy documentation | GPT-5.4 / `medium` | Sol / `xhigh` |
+
+The intended parallelism improvement clearly worked. Two isolated or read-only lanes overlapped for meaningful periods, and three-agent occupancy was exercised for more than four hours. Model allocation did not survive the transition. The next optimization target is an explicit allocation preflight plus lower coordination overhead, not simply more parallel agents.
 
 ## Task completion and timing
 
@@ -211,12 +248,17 @@ The first natural run was [GitHub Actions run 33143114280](https://github.com/eh
 
 ## Autonomous problem solving
 
-The strongest autonomy appeared inside a bounded writer-review-repair loop. The root did not know these concrete failures when work began; agents discovered them from code, tests, traces, live workflows, or independent review and then produced durable fixes.
+The strongest autonomy appeared inside bounded research and writer-review-repair loops. The root did not know these concrete failures when work began; agents discovered them from sources, code, tests, traces, live workflows, or independent review and then produced durable fixes.
+
+One especially strong episode predates the analyzed closeout boundary and was therefore absent from the first report. On August 13, the onboarding research request called the missing FIFA-ranking analogue “the tougher one” and left the replacement open. The research agent compared Club Elo, Opta Power Rankings, UEFA coefficients, and aggregate Transfermarkt squad value in one candidate pass, then narrowed into Club Elo's dated CSV/API behavior and coverage. It chose Club Elo as the closest result-based all-club analogue, documented why the alternatives were weaker, and retained a locally computed cross-division Elo as the robust contingency. The implementation landed by August 18. Those prelude commits and their transcript evidence are shown below, but their agents, tokens, and commits are deliberately **not** added to the August 21–28 closeout totals.
 
 | Episode | What was unclear or failed | Agent-discovered resolution | Evidence |
 |---|---|---|---|
+| **Prelude: Club Elo source discovery** | No one-to-one FIFA-ranking replacement was specified. Opta had no stable open export; UEFA coefficients cover only UEFA participation and lag domestic form; squad value is subjective and roster-dependent. | After comparing the alternatives and probing the dated endpoint, the agent selected Club Elo, required source-dated snapshots and last-known-good behavior, and documented locally computed cross-division Elo as the fallback. | `4bdca76`, `343929f`; [readiness research](../../research/bundesliga-2026-27-onboarding-readiness.md) |
+| **Prelude: roster source split** | The Transfermarkt DuckDB looked current because it contained fresh values/transfers, but its Bundesliga membership still represented 2025/26 and could not reconstruct all promoted squads. | The agent split authoritative membership from enrichment: checked membership/seed first, then stable-ID DuckDB enrichment for age, position, and value. | `4bdca76`, `60612fa`; [readiness research](../../research/bundesliga-2026-27-onboarding-readiness.md) |
 | Hosted prompt migration | Historical integration fixtures began selecting Langfuse implicitly and failed without a client. | A review agent isolated the selection regression; the repair made historical fixtures explicitly local without weakening the new hosted production route. | `d37cdf6`; [P0-05](../../../plans/bundesliga-2026-27/tasks/p0-05-prompt-route.md) |
-| Played-date history | A nominally complete collector could mix cup rows, ignore the requested matchday, or publish partial/empty sets. | Agents enforced league-only evidence, the requested matchday, a canonical full schedule, and atomic publication; later review rejected empty completed histories. | `6541e1f` through `f9cf608`, then `78512dc`; [ADR-0042](../../../plans/bundesliga-2026-27/decisions/0042-publish-complete-preseason-context-atomically.md) |
+| Played-date source ladder | The pinned DuckDB lacked 2. Bundesliga and final-match coverage. DFB terms ruled out ingestion. The initially accepted CC0 openfootball file then proved incomplete, and OpenLigaDB's Europa League final was an unfinished 0:0 placeholder. | Agents replaced openfootball with frozen, hashed OpenLigaDB captures for 2. Bundesliga/relegation/DFB-Pokal, then used exact UEFA match 2047743 plus SC Freiburg corroboration for the remaining final. No guessed dates or floating runtime fetches entered the system. | `6541e1f`; [ADRs 0027–0030](../../../plans/bundesliga-2026-27/decisions/0027-add-openfootball-for-second-bundesliga-history.md); [source ledger](../../../data/bundesliga-2026-27/history/SOURCES.md) |
+| Played-date publication safety | A nominally complete collector could mix cup rows, ignore the requested matchday, or publish partial/empty sets. | Agents enforced league-only evidence, the requested matchday, a canonical full schedule, and atomic publication; later review rejected empty completed histories. | `6541e1f` through `f9cf608`, then `78512dc`; [ADR-0042](../../../plans/bundesliga-2026-27/decisions/0042-publish-complete-preseason-context-atomically.md) |
 | Context provenance | Shadowing and cached-content races could pair a prediction with incoherent or mutable provenance. | Independent review led to immutable publication identity and fail-closed equality/integrity checks. | `8a440da`, `3464efc`, `0002028`, `ecb70e8`; [P0-15](../../../plans/bundesliga-2026-27/tasks/p0-15-context-document-hygiene.md) |
 | Bonus classifier | Ordinary string boundaries mishandled supplementary Unicode, while Champions League suppression was too global. | Agents implemented Unicode-scalar phrase boundaries and span-local exclusion so unrelated “champion” text does not suppress Bundesliga intent. | `fe48c82`, `cfe5a52`; [ADR-0038](../../../plans/bundesliga-2026-27/decisions/0038-bound-bonus-context-by-question-policy.md) |
 | Development ladder | Non-dry validation exposed completed DFB history, empty-CSV/head safety, versioned-prompt validation, and reprediction-input failures. | Agents diagnosed each live failure, fixed the reusable path, and reran the ladder instead of documenting exceptions. | `0434f31`, `5921266`, `a25c0ca`; [P0-20](../../../plans/bundesliga-2026-27/tasks/p0-20-seed-and-development-validation.md) |
@@ -225,6 +267,7 @@ The strongest autonomy appeared inside a bounded writer-review-repair loop. The 
 | Bonus reference copies | Live validation showed the verifier assumed source option IDs and did not safely resolve target context. | Agents made verification copy-aware and fail-closed before any model call. | `e095276`; [P0-24](../../../plans/bundesliga-2026-27/tasks/p0-24-bonus-copy-post-compatibility.md) |
 | Schadensfresse verifier | The strict command assumed matchday 2 although matchday 1 was still unplayed. | Agents implemented and hardened a smart default that derives the currently verifiable matchday. | `d5644bd`, `919e916` |
 | Natural schedule evidence | The first cron occurrence arrived almost three hours late, so “no run yet” could have been mistaken for broken activation. | Agents continued observation, separated delivery latency from execution correctness, audited all 16 jobs, and closed the task only after exact-head evidence. | `dd4d563`, `740d707`, `2c824c8`; [closeout handoff](../../../plans/bundesliga-2026-27/handoffs/buli-2627-p0-closeout-ready-2026-08-25.md) |
+| Read-only telemetry boundary | A dry-run production-community audit still emitted an OTLP batch because normal process telemetry initialized the Langfuse exporter. | Agents traced the pinned OpenTelemetry .NET 1.17 source, found the process-start `OTEL_SDK_DISABLED` no-op guard, and reran both audits without constructing an exporter. | `1d6a81b`; [production prerequisite audit](../../onboarding-bundesliga-2026-27/production-prerequisite-audit-2026-08-25.md) |
 
 Two other important solutions were collaborative rather than independently discovered:
 
@@ -237,11 +280,11 @@ The P0-23 Langfuse experiment program is distinct from the Codex task-agent cost
 
 ## Recommendations
 
-1. **Keep the parallel shape, change the model allocation.** Two isolated writers plus an independent reviewer/status lane worked. Use `Sol/xhigh` for architecture, high-risk integration, and final synthesis; assign bounded status, CI inspection, routine research, and simple reviews to cheaper capable tiers.
+1. **Add a model-allocation preflight before the first spawn.** Record the exact writer, audit, reviewer, and CI model/effort mapping; use limited/no-history forks where overrides are required; inspect the first realized child context; and stop if it inherited the orchestrator unexpectedly. Repository defaults can encode the normal subagent model/effort, while risk-based calls override explicitly.
 2. **Make task ownership stable.** Prefer a small number of task-specific agents with explicit checkpoints over paths that drift across P0 codes. Rotate only when context quality degrades or ownership changes materially.
 3. **Replace polling with event-oriented waits and backoff.** The concurrency gain is real, but 3,527 waits for 414 turns is excessive. Longer waits, fewer `list_agents` calls, and consolidated progress messages should reduce root tokens without reducing autonomy.
 4. **Collect owner gates in batches.** A preregistered decision sheet for hosted writes, budget, candidate matrix, production topology, and schedules could preserve safety while reducing the 24 authorization/external-control messages.
 5. **Generate this telemetry during long goals.** Persist a lightweight task/agent/event ledger at checkpoints so completion reports do not require post-hoc reconstruction from roughly a gigabyte of forked logs.
-6. **Keep Markdown as the canonical narrative for now.** A later HTML page can read `analysis.json` plus the curated findings and render filters, expandable agent rows, cost charts, and a task timeline without changing the evidence model.
+6. **Keep one evidence model for both formats.** Markdown remains the reviewable narrative; `analysis.json` and `curated-findings.json` feed the self-contained HTML so future publication changes do not fork the facts.
 
 The session was a successful emergency closeout and a convincing proof that the improved worktree/concurrency approach works. Its next evolution should target efficiency: fewer control-plane loops, clearer ownership, and intentional model tiering—not more parallel agents for their own sake.
