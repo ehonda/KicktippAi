@@ -92,6 +92,24 @@ public class KicktippClient_GetOpenBonusQuestions_Tests : KicktippClientTests_Ba
     }
 
     [Test]
+    public async Task Getting_open_bonus_questions_retains_exact_stable_question_id_without_classifying_by_text()
+    {
+        var html = """
+            <table id="tippabgabeFragen"><tbody><tr>
+              <td>08.09.26 18:45</td><td>CL: Display text is not routing evidence</td><td>
+              <select name="fragetippForms[1662326752].antwortIds[1795788]"><option value="-1">Choose</option><option value="15413244">AEK Athen</option></select>
+              </td></tr></tbody></table>
+            """;
+        StubHtmlResponseWithParams("/test-community/tippabgabe", html, ("bonus", "true"));
+        var client = CreateClient();
+
+        var question = (await client.GetOpenBonusQuestionsAsync("test-community")).Single();
+
+        await Assert.That(question.KicktippQuestionId).IsEqualTo("1662326752");
+        await Assert.That(question.BundesligaSeasonSubcompetition).IsNull();
+    }
+
+    [Test]
     public async Task Getting_open_bonus_questions_with_real_fixture_returns_questions()
     {
         // Arrange - use encrypted real fixture for the ehonda-test-buli community

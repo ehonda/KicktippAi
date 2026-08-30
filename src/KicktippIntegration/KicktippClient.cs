@@ -2631,17 +2631,26 @@ public class KicktippClient : IKicktippClient, IDisposable
         string? kicktippRoundName,
         IElement matchRow)
     {
-        var match = new Match(homeTeam, awayTeam, startsAt, matchday, isCancelled);
+        var hasPenaltyShootoutMarker = HasPenaltyShootoutMarker(matchRow);
+        var match = new Match(homeTeam, awayTeam, startsAt, matchday, isCancelled)
+        {
+            // These are intentionally only source facts. Fixture IDs and typed subcompetitions are
+            // unavailable on this page and must not be inferred from team names or display prefixes.
+            KicktippRoundName = kicktippRoundName,
+            ResultBasis = hasPenaltyShootoutMarker
+                ? ResultBasis.FinalScoreIncludingExtraTimeAndPenaltyShootout
+                : null
+        };
         if (!string.Equals(competition, CompetitionIds.FifaWorldCup2026, StringComparison.OrdinalIgnoreCase))
         {
             return match;
         }
 
-        var hasPenaltyShootoutMarker = HasPenaltyShootoutMarker(matchRow);
         if (TryMapWorldCupKnockoutStage(kicktippRoundName, out var stage))
         {
             return match with
             {
+                ResultBasis = ResultBasis.FinalScoreIncludingExtraTimeAndPenaltyShootout,
                 CompetitionSpecificData = new FifaWorldCup2026MatchData(
                     kicktippRoundName,
                     stage,
@@ -2656,6 +2665,7 @@ public class KicktippClient : IKicktippClient, IDisposable
 
         return match with
         {
+            ResultBasis = ResultBasis.FinalScoreIncludingExtraTimeAndPenaltyShootout,
             CompetitionSpecificData = new FifaWorldCup2026MatchData(
                 kicktippRoundName,
                 FifaWorldCup2026KnockoutStage.Unknown,
@@ -2881,13 +2891,16 @@ public class KicktippClient : IKicktippClient, IDisposable
                 
                 if (options.Any())
                 {
+                    var kicktippQuestionId = ExtractKicktippQuestionId(formFieldName);
                     bonusQuestions.Add(new BonusQuestion(
                         Text: questionText,
                         Deadline: deadline,
                         Options: options,
                         MaxSelections: maxSelections,
-                        FormFieldName: formFieldName
-                    ));
+                        FormFieldName: formFieldName)
+                    {
+                        KicktippQuestionId = kicktippQuestionId
+                    });
                 }
             }
 
@@ -2899,6 +2912,17 @@ public class KicktippClient : IKicktippClient, IDisposable
             _logger.LogError(ex, "Exception in GetOpenBonusQuestionsAsync");
             return new List<BonusQuestion>();
         }
+    }
+
+    private static string? ExtractKicktippQuestionId(string? formFieldName)
+    {
+        if (string.IsNullOrWhiteSpace(formFieldName))
+        {
+            return null;
+        }
+
+        var match = Regex.Match(formFieldName, @"^fragetippForms\[(?<id>\d+)\]\.antwortIds\[\d+\]$");
+        return match.Success ? match.Groups["id"].Value : null;
     }
 
     /// <inheritdoc />

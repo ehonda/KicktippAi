@@ -68,15 +68,15 @@ existing competition-specific model. No path copies or falls back to
 
 ### 1. Typed identity and classifier
 
-- [ ] Add Bundesliga-partition-only `BundesligaSeasonSubcompetition` with the
+- [x] Add Bundesliga-partition-only `BundesligaSeasonSubcompetition` with the
       exact ADR-0058 values/serialization. Do not place WM26 in that enum or
       replace `CompetitionSpecificMatchData`/`FifaWorldCup2026MatchData`.
-- [ ] Add generic `KicktippFixtureId`, exact `KicktippRoundName`, and typed
+- [x] Add generic `KicktippFixtureId`, exact `KicktippRoundName`, and typed
       `ResultBasis` to `Match`, allowing coexistence with WM26-specific data.
-- [ ] Add `KicktippQuestionId` and `BundesligaSeasonSubcompetition` to
+- [x] Add `KicktippQuestionId` and `BundesligaSeasonSubcompetition` to
       Bundesliga-season `BonusQuestion` identity, bound to exact text, ordered
       option ID/text array, `MaxSelections`, and deadline.
-- [ ] Check in a deterministic schadensfresse routing seed/config containing
+- [x] Check in a deterministic schadensfresse routing seed/config containing
       every exact fixture→subcompetition→round→result-basis mapping plus all
       three question definitions and 111 option ID/text bindings represented
       by ADR-0058's hashes. Do not promote the two inferred current fixture IDs
@@ -172,6 +172,22 @@ existing competition-specific model. No path copies or falls back to
 - This planning slice makes no external write, prompt promotion, production
   model call, forced prediction, POST, or schedule mutation. ADR-0058 separately
   authorizes the immediate fail-safe repository workflow removal only.
+
+## Typed-foundation evidence — 2026-08-30
+
+- The checked-in `data/bundesliga-2026-27/schadensfresse-routing-seed.json`
+  records the exact three evidenced CL question identities, all 111 ordered
+  option ID/text bindings, source option-set hashes, and canonical seed hash
+  `52ce7ba4430d07ed71528a7ce48fee499e25b9dd303bd7bce22eed17a1921660`.
+  It intentionally contains no fixture entries: `1662323362` and `1662323366`
+  remain unseeded until exact structured round/subcompetition evidence exists.
+- Core loader/classifier validation and captured parser tests reject missing,
+  duplicate, unknown, and drifted identities. Parsing retains a source round,
+  penalty result basis, and stable bonus-question ID when exposed, without
+  deriving a fixture ID or subcompetition from text, teams, or partition.
+- Focused Core and KicktippIntegration TUnit gates passed locally; the full
+  affected project gates also passed. Existing unrelated nullable warnings
+  remain in the test projects.
 
 ## Complete when
 

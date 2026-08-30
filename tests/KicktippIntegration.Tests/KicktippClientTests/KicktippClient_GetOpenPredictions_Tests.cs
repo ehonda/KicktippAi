@@ -450,6 +450,21 @@ public class KicktippClient_GetOpenPredictions_Tests : KicktippClientTests_Base
     }
 
     [Test]
+    public async Task Getting_non_world_cup_open_predictions_retains_source_round_and_penalty_basis_without_guessing_a_subcompetition()
+    {
+        StubHtmlResponse("/test-community/tippabgabe", CreateKnockoutTippabgabe("DFB-Pokal 2026/27", includeMarker: true));
+        var client = CreateClient();
+
+        var match = (await client.GetOpenPredictionsAsync("test-community", CompetitionIds.Bundesliga2026_27)).Single();
+
+        await Assert.That(match.CompetitionSpecificData).IsNull();
+        await Assert.That(match.KicktippFixtureId).IsNull();
+        await Assert.That(match.KicktippRoundName).IsEqualTo("DFB-Pokal 2026/27");
+        await Assert.That(match.ResultBasis).IsEqualTo(ResultBasis.FinalScoreIncludingExtraTimeAndPenaltyShootout);
+        await Assert.That(match.BundesligaSeasonSubcompetition).IsNull();
+    }
+
+    [Test]
     public async Task Getting_world_cup_open_predictions_allows_unknown_round_with_penalty_marker()
     {
         StubHtmlResponse("/test-community/tippabgabe", CreateKnockoutTippabgabe("Neue K.-o.-Runde", includeMarker: true));
