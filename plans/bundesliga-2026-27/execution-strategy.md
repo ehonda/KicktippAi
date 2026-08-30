@@ -76,10 +76,12 @@ credential.
 
 DFB/CL implementation uses ADR-0058's Accepted rules-only profiles: exact typed
 fixture/question inputs plus only the hash-bound target rules document, with a
-one-document/2048-estimated-token budget, no-older-than-24-hours authenticated
-rules evidence, canonical provenance, and no Bundesliga team, Club Elo, roster,
-history, generic-latest, or cross-community leakage. This is deliberately safe
-but evidence-poor; richer cross-competition context needs an Accepted successor.
+one-document/2048-estimated-token budget and no Bundesliga team, Club Elo,
+roster, history, generic-latest, or cross-community leakage. ADR-0059 makes the
+typed `schadensfresse-live-rules-v1` record/hash—not ADR-0058's legacy
+keyword-array hash—the no-older-than-24-hours semantic publication, freshness,
+and canonical provenance gate. This is deliberately safe but evidence-poor;
+richer cross-competition context needs an Accepted successor.
 
 ## Agent roles and task loop
 
@@ -162,7 +164,7 @@ The repository currently builds/tests PRs and pushes to `main`; native auto-merg
 | Prompts | Accepted hosted match v3 and bonus v1, with required `production` membership for live routes; historical P0-23 remains on v2; checked-in local mirrors remain the ordinary outage fallback |
 | Plumbing model | `gpt-5.6-luna`, `none` reasoning, pinned output cap; never promote silently to production |
 | P0-23 candidate evidence | Complete under ADR-0049 and the Owner's execution-time amendments: eight original paired runs completed, Luna/`max` is incomplete after two transient capacity failures and an explicit p1 stop, and post-hoc Sol/`xhigh` is exploratory; this is evidence, not production selection |
-| Context | Bundesliga retains explicit live allowlists; schadensfresse DFB/CL uses ADR-0058's Accepted target-rules-only profiles with exact typed inputs and no Bundesliga context leakage |
+| Context | Bundesliga retains explicit live allowlists; schadensfresse DFB/CL uses ADR-0058's Accepted target-rules-only profiles with exact typed inputs and no Bundesliga context leakage, while ADR-0059 binds publication/freshness to the structured v1 rules record and preserves the legacy hash only as historical evidence |
 | Club Elo | Implement provider/cache/gates now; a complete dated seed is launch-safe; network use remains an owner gate |
 | Production identity | `gpt-5.6-sol` / `xhigh` / cap `10000`, Flex-first with Standard fallback; USD 35 is planning orientation only |
 | Arena challengers | Sol/high, Luna/medium, Terra/xhigh, Luna/none; cap `10000`, match v3 / bonus v1 |

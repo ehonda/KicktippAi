@@ -4,7 +4,7 @@
 - Priority: P1 — deadline-critical
 - Depends on: [P0-21](p0-21-production-activation.md)
 - Absorbs: [P1-08](p1-08-schadensfresse-mixed-competition-routing.md)
-- Decisions: [ADR-0052](../decisions/0052-select-production-model-community-matrix-and-match-prompt-v3.md), [ADR-0054](../decisions/0054-copy-schadensfresse-bundesliga-from-pes-squad.md), [ADR-0055](../decisions/0055-add-schadensfresse-to-production-live-lane.md), [ADR-0058](../decisions/0058-make-schadensfresse-a-competition-typed-primary.md)
+- Decisions: [ADR-0052](../decisions/0052-select-production-model-community-matrix-and-match-prompt-v3.md), [ADR-0054](../decisions/0054-copy-schadensfresse-bundesliga-from-pes-squad.md), [ADR-0055](../decisions/0055-add-schadensfresse-to-production-live-lane.md), [ADR-0058](../decisions/0058-make-schadensfresse-a-competition-typed-primary.md), [ADR-0059](../decisions/0059-bind-schadensfresse-rules-to-a-structured-semantic-record.md)
 
 ## Trigger and live evidence
 
@@ -89,8 +89,16 @@ existing competition-specific model. No path copies or falls back to
 
 ### 2. Target-owned routes and persistence
 
+- [x] Accept ADR-0059's implementation-ready authenticated DOM, typed
+      `schadensfresse-live-rules-v1`, canonical JSON, markdown binding,
+      immutable publication, 24-hour freshness, and legacy-rejection contract.
+      This decision unblocks the validator/publication implementation only; it
+      completes no source, publication, production, prompt, or schedule work.
 - [ ] Replace the wrong checked-in rules with the verified target scoring,
       visibility, deadline, bonus-order/tie-break, and result-basis contract.
+      Validate its semantic projection against ADR-0059's structured hash and
+      bind its separate exact content hash through seed, immutable publication,
+      readback, and resolved-manifest provenance.
 - [ ] Remove or reject every `schadensfresse` → `pes-squad` match/bonus alias,
       copy lookup, source context, and immutable copy-provenance path.
 - [ ] Persist Bundesliga-season subcompetition, Kicktipp fixture/question
@@ -108,9 +116,16 @@ existing competition-specific model. No path copies or falls back to
 - [ ] Implement the exact three ADR-0058 rules-only profiles: sole allowlisted
       `community-rules-schadensfresse.md`, current validated repo publication,
       24-hour authenticated rules freshness, one-document/2048-token budget,
-      canonical `resolvedTypedContextManifest`, and explicit rejection of all
+      ADR-0059's canonical structured rules identity and successor
+      `resolvedTypedContextManifest` fields, and explicit rejection of all
       Bundesliga/Club-Elo/roster/history/latest/generic leakage. Record the
-      rules-only quality limitation in trace/validation evidence.
+      rules-only quality limitation in trace/validation evidence. The legacy
+      `b6d27eba00e58ba7e98613f24d4669d115302a92c26f83c153b69c97d4949c03`
+      hash and diagnostic
+      `4ea1a5203ec2870141e59aa5573559a3945741984411f0d5cd3c66fb3a5f473e`
+      table hash cannot substitute for the canonical
+      `1fac1a26a539a8c20b5f71be6e6e6dccb622528fc8aa40cdea22e6b21d994d90`
+      semantic gate.
 - [ ] Retain ADR-0052's `gpt-5.6-sol` / `xhigh` / cap `10000`, Flex-first with
       one Standard fallback identity unless an accepted successor replaces it.
 
@@ -188,6 +203,24 @@ existing competition-specific model. No path copies or falls back to
 - Focused Core and KicktippIntegration TUnit gates passed locally; the full
   affected project gates also passed. Existing unrelated nullable warnings
   remain in the test projects.
+
+## Rules-contract evidence — 2026-08-30
+
+- Payload-safe authenticated evidence at SHA-256
+  `4503636dba2e6d14cd276733dffd12a3d3acd344c85368417d0f9d50e7869e95`
+  exactly reproduced ADR-0058's legacy normalized hash
+  `b6d27eba00e58ba7e98613f24d4669d115302a92c26f83c153b69c97d4949c03`
+  and proved that its keyword filter omits both numeric scoring rows.
+- Accepted ADR-0059 now fixes the exact authenticated source/DOM failure gates,
+  every v1 field/type/value, canonical System.Text.Json bytes and 822-byte
+  contract, structured SHA-256
+  `1fac1a26a539a8c20b5f71be6e6e6dccb622528fc8aa40cdea22e6b21d994d90`,
+  and diagnostic scoring-table SHA-256
+  `4ea1a5203ec2870141e59aa5573559a3945741984411f0d5cd3c66fb3a5f473e`.
+- The rules validator/publication slice is unblocked only by that Accepted
+  contract. The historical digest remains regression evidence and no source,
+  live publication, prompt, production, or schedule mutation occurred in this
+  decision slice.
 
 ## Complete when
 
