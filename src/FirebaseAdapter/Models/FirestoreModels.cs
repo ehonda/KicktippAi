@@ -41,6 +41,18 @@ public class FirestoreMatchPrediction
     [FirestoreProperty("matchday")]
     public int Matchday { get; set; }
 
+    [FirestoreProperty("kicktippFixtureId")]
+    public string? KicktippFixtureId { get; set; }
+
+    [FirestoreProperty("kicktippRoundName")]
+    public string? KicktippRoundName { get; set; }
+
+    [FirestoreProperty("resultBasis")]
+    public string? ResultBasis { get; set; }
+
+    [FirestoreProperty("bundesligaSeasonSubcompetition")]
+    public string? BundesligaSeasonSubcompetition { get; set; }
+
     [FirestoreProperty("competitionSpecificData")]
     public FirestoreCompetitionSpecificMatchData? CompetitionSpecificData { get; set; }
 
@@ -190,6 +202,17 @@ public class FirestoreMatch
     [FirestoreProperty("matchday")]
     public int Matchday { get; set; }
 
+    [FirestoreProperty("kicktippFixtureId")]
+    public string? KicktippFixtureId { get; set; }
+
+    [FirestoreProperty("kicktippRoundName")]
+    public string? KicktippRoundName { get; set; }
+
+    [FirestoreProperty("resultBasis")]
+    public string? ResultBasis { get; set; }
+
+    [FirestoreProperty("bundesligaSeasonSubcompetition")]
+    public string? BundesligaSeasonSubcompetition { get; set; }
     /// <summary>
     /// Competition/season identifier.
     /// </summary>
@@ -244,6 +267,15 @@ public class FirestoreBonusPrediction
     /// </summary>
     [FirestoreProperty("questionText")]
     public string QuestionText { get; set; } = string.Empty;
+
+    [FirestoreProperty("kicktippQuestionId")]
+    public string? KicktippQuestionId { get; set; }
+
+    [FirestoreProperty("bundesligaSeasonSubcompetition")]
+    public string? BundesligaSeasonSubcompetition { get; set; }
+
+    [FirestoreProperty("bundesligaSeasonBonusIdentitySha256")]
+    public string? BundesligaSeasonBonusIdentitySha256 { get; set; }
 
     /// <summary>
     /// Selected option IDs for the bonus question.

@@ -222,6 +222,30 @@ existing competition-specific model. No path copies or falls back to
   live publication, prompt, production, or schedule mutation occurred in this
   decision slice.
 
+## Persistence-hardening evidence — 2026-08-30
+
+- Typed match and bonus rows now bind exact canonical season identity. Bonus
+  identity includes question text, deadline, maximum selections, and every
+  ordered option ID/text pair; typed current reads require complete immutable
+  provenance, while legacy APIs retain their old behavior and exclude typed
+  rows.
+- Typed DFB-Pokal and Champions League persistence remains fail closed until
+  `resolvedTypedContextManifest` exists. Typed cancelled-match lookup is
+  available explicitly, without changing the legacy cancelled-match contract.
+- Typed initial match saves plus typed initial and repredicted bonus saves use
+  transactional deterministic allocation. Concurrent writers cannot create a
+  duplicate semantic index, approved reprediction limits remain enforceable,
+  and subcompetition, stable identity, and model-configuration scopes remain
+  isolated. Any pre-existing duplicate full-provenance exact-config typed index
+  fails closed across current, cancelled, copy, and reprediction paths. Legacy
+  and WM26 persistence paths are unchanged.
+- Focused Firebase identity/concurrency and duplicate-corruption coverage
+  passed `9/9`. The exact full Firebase gate passed with
+  `dotnet run --project tests/FirebaseAdapter.Tests`
+  (`301/301`, `0` failed, `0` skipped, `1m 12s 712ms`) and
+  `dotnet run --project tests/Core.Tests` (`311/311`, `0` failed, `0` skipped,
+  `3s 477ms`).
+
 ## Complete when
 
 - Every current `schadensfresse` match and bonus operation is classified by a
