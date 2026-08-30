@@ -66,6 +66,58 @@ public sealed class SchadensfresseRulesPreflight
             expectedVersion,
             expectedContentSha256);
 
+    /// <summary>
+    /// Builds all three canonical ADR-0060 bindings from one authenticated observation and one
+    /// exact immutable-document readback. Persistence remains the caller's explicit boundary.
+    /// </summary>
+    public static IReadOnlyList<ResolvedTypedContextPublicationBinding> CreatePublicationBindingCandidates(
+        SchadensfresseLiveRulesObservation observation,
+        BundesligaSeasonRoutingSeed seed,
+        SchadensfresseRulesPublicationReadback immutableReadback,
+        string expectedContentSha256,
+        DateTimeOffset now)
+    {
+        ArgumentNullException.ThrowIfNull(observation);
+        ArgumentNullException.ThrowIfNull(seed);
+        ArgumentNullException.ThrowIfNull(immutableReadback);
+        ArgumentException.ThrowIfNullOrWhiteSpace(expectedContentSha256);
+        ValidateImmutableReadback(
+            immutableReadback,
+            SchadensfresseRulesPublicationGate.DocumentName,
+            immutableReadback.Version,
+            expectedContentSha256);
+        return CreatePublicationBindings(
+            observation,
+            seed,
+            new ResolvedTypedContextDocument(
+                SchadensfresseTypedContextProfiles.RulesDocumentKind,
+                immutableReadback.DocumentName,
+                immutableReadback.Version,
+                immutableReadback.ContentSha256),
+            now);
+    }
+
+    /// <summary>Validates all mandatory profiles without a binding write, for dry-run use.</summary>
+    public static void ValidatePublicationBindingProfiles(
+        SchadensfresseLiveRulesObservation observation,
+        BundesligaSeasonRoutingSeed seed,
+        string expectedContentSha256,
+        DateTimeOffset now)
+    {
+        ArgumentNullException.ThrowIfNull(observation);
+        ArgumentNullException.ThrowIfNull(seed);
+        ArgumentException.ThrowIfNullOrWhiteSpace(expectedContentSha256);
+        _ = CreatePublicationBindings(
+            observation,
+            seed,
+            new ResolvedTypedContextDocument(
+                SchadensfresseTypedContextProfiles.RulesDocumentKind,
+                SchadensfresseRulesPublicationGate.DocumentName,
+                version: 0,
+                expectedContentSha256),
+            now);
+    }
+
     /// <summary>Tests and callers with an already authenticated observation can exercise the no-network gate.</summary>
     public static void ValidateObservation(
         SchadensfresseLiveRulesObservation observation,
@@ -90,4 +142,54 @@ public sealed class SchadensfresseRulesPreflight
             expectedVersion,
             immutableReadback);
     }
+
+    private static IReadOnlyList<ResolvedTypedContextPublicationBinding> CreatePublicationBindings(
+        SchadensfresseLiveRulesObservation observation,
+        BundesligaSeasonRoutingSeed seed,
+        ResolvedTypedContextDocument document,
+        DateTimeOffset now)
+    {
+        if (!string.Equals(seed.RulesSchemaVersion, SchadensfresseRulesCanonicalJson.SchemaVersion, StringComparison.Ordinal)
+            || !string.Equals(seed.CanonicalRulesSha256, SchadensfresseRulesCanonicalJson.CanonicalSha256, StringComparison.Ordinal))
+        {
+            throw new InvalidDataException("Schadensfresse rules seed does not pin the accepted v1 semantic identity.");
+        }
+
+        var bindings = RequiredProfileIds.Select(profileId =>
+        {
+            if (!SchadensfresseTypedContextProfiles.TryGetSubcompetition(profileId, out var subcompetition))
+            {
+                throw new InvalidDataException($"Required schadensfresse publication-binding profile '{profileId}' is absent or malformed.");
+            }
+
+            var binding = new ResolvedTypedContextPublicationBinding(
+                SchadensfresseTypedContextProfiles.SeasonPartition,
+                SchadensfresseTypedContextProfiles.CommunityContext,
+                profileId,
+                seed.CanonicalSha256,
+                subcompetition,
+                observation.ObservedAt,
+                seed.RulesSchemaVersion,
+                seed.CanonicalRulesSha256,
+                document);
+            SchadensfresseTypedContextProfiles.ValidateBindingStructure(binding);
+            SchadensfresseTypedContextProfiles.ValidateBindingFreshness(binding, now);
+            return binding;
+        }).ToArray();
+
+        if (bindings.Length != RequiredProfileIds.Length
+            || bindings.Select(binding => binding.Key).Distinct().Count() != RequiredProfileIds.Length)
+        {
+            throw new InvalidDataException("Schadensfresse publication-binding profile set is partial or contains duplicate exact keys.");
+        }
+
+        return bindings;
+    }
+
+    private static readonly string[] RequiredProfileIds =
+    [
+        "schadensfresse-dfb-pokal-rules-only-v1",
+        "schadensfresse-champions-league-match-rules-only-v1",
+        "schadensfresse-champions-league-bonus-rules-only-v1"
+    ];
 }

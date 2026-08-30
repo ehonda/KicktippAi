@@ -786,6 +786,14 @@ public class CollectContextKicktippCommand : AsyncCommand<CollectContextKicktipp
             .ToArray();
         if (settings.DryRun)
         {
+            if (schadensfresseRules is not null)
+            {
+                SchadensfresseRulesPreflight.ValidatePublicationBindingProfiles(
+                    schadensfresseRules.Observation,
+                    BundesligaSeasonRoutingSeed.Default,
+                    schadensfresseRules.ContentSha256,
+                    _timeProvider.GetUtcNow());
+            }
             _console.MarkupLine(
                 $"[magenta]✓ Full-season dry run completed - would atomically publish {writes.Length} documents[/]");
             return;
@@ -809,11 +817,19 @@ public class CollectContextKicktippCommand : AsyncCommand<CollectContextKicktipp
                 ?? throw new InvalidDataException("Immutable schadensfresse rules publication has no selected version.");
             var readback = await contextRepository.GetContextDocumentAsync(saved.DocumentName, expectedVersion, settings.CommunityContext, cancellationToken)
                 ?? throw new InvalidDataException("Immutable schadensfresse rules publication readback is missing.");
+            var immutableReadback = new SchadensfresseRulesPublicationReadback(
+                readback.DocumentName,
+                readback.Version,
+                DocumentPublicationContract.ComputeContentSha256(readback.Content));
             SchadensfresseRulesPreflight.ValidateImmutableReadback(
-                new SchadensfresseRulesPublicationReadback(readback.DocumentName, readback.Version, DocumentPublicationContract.ComputeContentSha256(readback.Content)),
+                immutableReadback,
                 SchadensfresseRulesPublicationGate.DocumentName,
                 expectedVersion,
                 schadensfresseRules.ContentSha256);
+            await PublishSchadensfressePublicationBindingsAsync(
+                schadensfresseRules,
+                immutableReadback,
+                cancellationToken);
         }
 
         _console.MarkupLine("[green]✓ Full-season context collection completed atomically![/]");
@@ -856,6 +872,11 @@ public class CollectContextKicktippCommand : AsyncCommand<CollectContextKicktipp
 
             if (settings.DryRun)
             {
+                SchadensfresseRulesPreflight.ValidatePublicationBindingProfiles(
+                    schadensfresseRules.Observation,
+                    BundesligaSeasonRoutingSeed.Default,
+                    schadensfresseRules.ContentSha256,
+                    _timeProvider.GetUtcNow());
                 _console.MarkupLine($"[magenta]  Dry run - would atomically save:[/] {Markup.Escape(rulesDocument.Value.Key)}");
             }
             else
@@ -880,14 +901,19 @@ public class CollectContextKicktippCommand : AsyncCommand<CollectContextKicktipp
                     settings.CommunityContext,
                     cancellationToken)
                     ?? throw new InvalidDataException("Immutable schadensfresse rules publication readback is missing.");
+                var immutableReadback = new SchadensfresseRulesPublicationReadback(
+                    readback.DocumentName,
+                    readback.Version,
+                    DocumentPublicationContract.ComputeContentSha256(readback.Content));
                 SchadensfresseRulesPreflight.ValidateImmutableReadback(
-                    new SchadensfresseRulesPublicationReadback(
-                        readback.DocumentName,
-                        readback.Version,
-                        DocumentPublicationContract.ComputeContentSha256(readback.Content)),
+                    immutableReadback,
                     SchadensfresseRulesPublicationGate.DocumentName,
                     expectedVersion,
                     schadensfresseRules.ContentSha256);
+                await PublishSchadensfressePublicationBindingsAsync(
+                    schadensfresseRules,
+                    immutableReadback,
+                    cancellationToken);
                 savedCount += rulesResult.CreatedVersion.HasValue ? 1 : 0;
                 skippedCount += rulesResult.CreatedVersion.HasValue ? 0 : 1;
             }
@@ -1162,7 +1188,45 @@ public class CollectContextKicktippCommand : AsyncCommand<CollectContextKicktipp
             BundesligaSeasonRoutingSeed.Default,
             new UTF8Encoding(false).GetBytes(markdown),
             _timeProvider.GetUtcNow());
-        return new SchadensfresseRulesPublicationCandidate(contentSha256);
+        return new SchadensfresseRulesPublicationCandidate(observation, contentSha256);
+    }
+
+    private async Task PublishSchadensfressePublicationBindingsAsync(
+        SchadensfresseRulesPublicationCandidate rulesPublication,
+        SchadensfresseRulesPublicationReadback immutableReadback,
+        CancellationToken cancellationToken)
+    {
+        var evaluationInstant = _timeProvider.GetUtcNow();
+        var candidates = SchadensfresseRulesPreflight.CreatePublicationBindingCandidates(
+            rulesPublication.Observation,
+            BundesligaSeasonRoutingSeed.Default,
+            immutableReadback,
+            rulesPublication.ContentSha256,
+            evaluationInstant);
+        var repository = _firebaseServiceFactory.CreateResolvedTypedContextPublicationBindingRepository()
+            ?? throw new InvalidDataException("Firebase service factory did not create the exact schadensfresse publication-binding repository.");
+
+        foreach (var candidate in candidates)
+        {
+            var upsert = await repository.UpsertExactAsync(candidate, cancellationToken);
+            if (upsert is null || !upsert.Succeeded)
+            {
+                throw new InvalidDataException(
+                    $"Exact schadensfresse publication binding upsert failed for profile '{candidate.ProfileId}'.");
+            }
+
+            var readback = await repository.GetExactAsync(candidate.Key, cancellationToken);
+            if (readback is null)
+            {
+                throw new InvalidDataException(
+                    $"Exact schadensfresse publication binding readback is missing for profile '{candidate.ProfileId}'.");
+            }
+            ResolvedTypedContextPublicationBindingContract.ValidateExactReadback(
+                candidate.Key,
+                upsert.EffectiveBinding,
+                readback,
+                evaluationInstant);
+        }
     }
 
     private static IReadOnlyList<int> ParseMatchdays(string? matchdays)
@@ -1271,5 +1335,7 @@ public class CollectContextKicktippCommand : AsyncCommand<CollectContextKicktipp
         Dictionary<string, string> Documents,
         HashSet<string> ExpectedSelectedHistoryDocumentNames);
 
-    private sealed record SchadensfresseRulesPublicationCandidate(string ContentSha256);
+    private sealed record SchadensfresseRulesPublicationCandidate(
+        SchadensfresseLiveRulesObservation Observation,
+        string ContentSha256);
 }

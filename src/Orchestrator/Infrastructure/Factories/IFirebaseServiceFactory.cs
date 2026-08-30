@@ -44,6 +44,9 @@ public interface IFirebaseServiceFactory
     /// <summary>Creates the atomic mixed context/KPI publication repository.</summary>
     IDocumentPublicationRepository CreateDocumentPublicationRepository(string competition);
 
+    /// <summary>Creates the directly addressed current resolved-typed-context publication binding repository.</summary>
+    IResolvedTypedContextPublicationBindingRepository CreateResolvedTypedContextPublicationBindingRepository();
+
     /// <summary>
     /// Creates a match outcome repository instance.
     /// </summary>

@@ -82,6 +82,7 @@ public class CollectContextKicktippCommand_FullSeason_Tests : CollectContextKick
             "schadensfresse.md"));
         var schedule = CreateFullSeasonSchedule();
         var repository = CreateMockContextRepositoryWithPreviousDocuments([]);
+        var bindingRepository = CreateMockResolvedTypedContextPublicationBindingRepository();
         repository.Setup(value => value.SaveContextDocumentsAtomicallyAsync(
                 It.Is<IReadOnlyList<ContextDocumentWrite>>(writes => writes.Count == 362),
                 community,
@@ -105,7 +106,8 @@ public class CollectContextKicktippCommand_FullSeason_Tests : CollectContextKick
                 DateTimeOffset.UnixEpoch));
         var context = CreateCollectContextCommandApp(
             firebaseServiceFactory: OrchestratorTestFactories.CreateMockFirebaseServiceFactoryFull(
-                contextRepository: repository));
+                contextRepository: repository,
+                resolvedTypedContextPublicationBindingRepository: bindingRepository));
         ConfigureSchedule(context, schedule, community);
         ConfigureExactProvider(context, includeHeadToHead: true, community: community);
         ConfigureCompleteFrozenHistoryGate(context);
@@ -126,6 +128,41 @@ public class CollectContextKicktippCommand_FullSeason_Tests : CollectContextKick
             SchadensfresseRulesPublicationGate.DocumentName,
             community,
             It.IsAny<CancellationToken>()), Times.Never);
+        bindingRepository.Verify(value => value.UpsertExactAsync(
+            It.Is<ResolvedTypedContextPublicationBinding>(candidate =>
+                candidate.Document.Version == effectiveVersion
+                && candidate.Document.Name == SchadensfresseRulesPublicationGate.DocumentName),
+            It.IsAny<CancellationToken>()), Times.Exactly(3));
+        bindingRepository.Verify(value => value.GetExactAsync(
+            It.IsAny<ResolvedTypedContextPublicationBindingKey>(),
+            It.IsAny<CancellationToken>()), Times.Exactly(3));
+    }
+
+    [Test]
+    public async Task Schadensfresse_full_season_dry_run_validates_without_binding_repository_activity()
+    {
+        const string community = "schadensfresse";
+        var bindingRepository = new Mock<IResolvedTypedContextPublicationBindingRepository>(MockBehavior.Strict);
+        var context = CreateCollectContextCommandApp(
+            firebaseServiceFactory: OrchestratorTestFactories.CreateMockFirebaseServiceFactoryFull(
+                resolvedTypedContextPublicationBindingRepository: bindingRepository));
+        ConfigureSchedule(context, CreateFullSeasonSchedule(), community);
+        ConfigureExactProvider(context, includeHeadToHead: true, community: community);
+        ConfigureCompleteFrozenHistoryGate(context);
+        context.KicktippClientFactory.Setup(factory => factory.CreateAuthenticatedHttpClient())
+            .Returns(new HttpClient(new RulesResponseHandler(SanitizedRulesFixture)));
+        var settings = CreateSettings(community);
+        settings.DryRun = true;
+
+        var exitCode = await CreateCommand(context).ExecuteWithSettingsAsync(settings);
+
+        await Assert.That(exitCode).IsEqualTo(0);
+        bindingRepository.Verify(value => value.UpsertExactAsync(
+            It.IsAny<ResolvedTypedContextPublicationBinding>(), It.IsAny<CancellationToken>()), Times.Never);
+        bindingRepository.Verify(value => value.GetExactAsync(
+            It.IsAny<ResolvedTypedContextPublicationBindingKey>(), It.IsAny<CancellationToken>()), Times.Never);
+        context.ContextRepository.Verify(value => value.SaveContextDocumentsAtomicallyAsync(
+            It.IsAny<IReadOnlyList<ContextDocumentWrite>>(), community, It.IsAny<CancellationToken>()), Times.Never);
     }
 
     [Test]
