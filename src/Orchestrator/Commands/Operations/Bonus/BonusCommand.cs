@@ -68,6 +68,8 @@ public class BonusCommand : AsyncCommand<BonusSettings>
         
         try
         {
+            SchadensfressePrimaryRouteGate.EnsureAvailable(settings.Community);
+
             var bonusContextBudget = ResolveBonusContextBudget(settings);
             var initialModel = string.IsNullOrWhiteSpace(settings.Model) ? "(competition default)" : settings.Model;
             _console.MarkupLine($"[green]Bonus command initialized with model:[/] [yellow]{initialModel}[/]");

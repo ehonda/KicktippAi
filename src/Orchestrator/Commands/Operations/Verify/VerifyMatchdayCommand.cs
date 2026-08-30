@@ -36,6 +36,8 @@ public class VerifyMatchdayCommand : AsyncCommand<VerifySettings>
 
         try
         {
+            SchadensfressePrimaryRouteGate.EnsureAvailable(settings.Community);
+
             _console.MarkupLine($"[green]Verify matchday command initialized[/]");
 
             if (settings.Verbose)

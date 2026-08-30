@@ -1,4 +1,4 @@
-name: Bundesliga 2026/27 schadensfresse Sol xhigh copy - Bonus
+name: Bundesliga 2026/27 schadensfresse Sol xhigh - Bonus
 
 on:
   workflow_dispatch:
@@ -25,11 +25,11 @@ concurrency:
 
 jobs:
   call-base-workflow:
-    name: Copy Bonus Predictions
+    name: Run Bonus Predictions
     uses: ./.github/workflows/base-bonus-predictions.yml
     with:
       community: "schadensfresse"
-      community_context: "pes-squad"
+      community_context: "schadensfresse"
       competition: "bundesliga-2026-27"
       model: "gpt-5.6-sol"
       reasoning_effort: "xhigh"

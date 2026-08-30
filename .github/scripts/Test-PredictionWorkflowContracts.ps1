@@ -977,7 +977,7 @@ Assert-True ([regex]::Matches($bonusBase, '--bonus-deadline-at-or-before "\$BONU
 $currentBundesligaCallers = @{}
 foreach ($row in @(
     @{ BaseName = 'buli2627-pes-squad-gpt-5-6-sol-xhigh'; Community = 'pes-squad'; Context = 'pes-squad'; Model = 'gpt-5.6-sol'; Effort = 'xhigh'; SecretStem = 'PES_SQUAD' },
-    @{ BaseName = 'buli2627-schadensfresse-gpt-5-6-sol-xhigh'; Community = 'schadensfresse'; Context = 'pes-squad'; Model = 'gpt-5.6-sol'; Effort = 'xhigh'; SecretStem = 'SCHADENSFRESSE' },
+    @{ BaseName = 'buli2627-schadensfresse-gpt-5-6-sol-xhigh'; Community = 'schadensfresse'; Context = 'schadensfresse'; Model = 'gpt-5.6-sol'; Effort = 'xhigh'; SecretStem = 'SCHADENSFRESSE' },
     @{ BaseName = 'buli2627-relaxdays-tippt-gpt-5-6-sol-xhigh'; Community = 'relaxdays-tippt'; Context = 'pes-squad'; Model = 'gpt-5.6-sol'; Effort = 'xhigh'; SecretStem = 'RELAXDAYS_TIPPT' },
     @{ BaseName = 'buli2627-ehonda-ai-arena-gpt-5-6-sol-xhigh'; Community = 'ehonda-ai-arena'; Context = 'pes-squad'; Model = 'gpt-5.6-sol'; Effort = 'xhigh'; SecretStem = 'EHONDA_AI_ARENA_GPT_5_6_SOL_XHIGH' },
     @{ BaseName = 'buli2627-ehonda-ai-arena-gpt-5-6-sol-high'; Community = 'ehonda-ai-arena'; Context = 'ehonda-ai-arena'; Model = 'gpt-5.6-sol'; Effort = 'high'; SecretStem = 'EHONDA_AI_ARENA_GPT_5_6_SOL_HIGH' },
@@ -1094,6 +1094,10 @@ foreach ($caller in $callerFiles) {
         Assert-True ($reasoningEffort -eq $expectedCaller.Effort) "$($caller.Name) must pin reasoning_effort=$($expectedCaller.Effort)."
         Assert-True ((Get-WithValue $content 'community' $caller.Name) -eq $expectedCaller.Community) "$($caller.Name) must pin community=$($expectedCaller.Community)."
         Assert-True ((Get-WithValue $content 'community_context' $caller.Name) -eq $expectedCaller.Context) "$($caller.Name) must pin community_context=$($expectedCaller.Context)."
+        if ($expectedCaller.Community -ceq 'schadensfresse') {
+            Assert-True (-not $content.Contains('pes-squad', [StringComparison]::OrdinalIgnoreCase)) "$($caller.Name) must not select pes-squad as a schadensfresse copy source."
+            Assert-True (-not $content.Contains('copy', [StringComparison]::OrdinalIgnoreCase)) "$($caller.Name) must remain target-owned rather than advertising a copy route."
+        }
         Assert-True ((Get-WithValue $content 'model' $caller.Name) -eq $expectedCaller.Model) "$($caller.Name) must pin model=$($expectedCaller.Model)."
         Assert-True ($maxOutputTokens -eq '10000') "$($caller.Name) must pin the accepted 10000 output cap."
         $isBonus = $caller.Name.EndsWith('-bonus.yml', [StringComparison]::Ordinal)

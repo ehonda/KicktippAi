@@ -1,4 +1,4 @@
-name: Bundesliga 2026/27 schadensfresse Sol xhigh copy - Matchday
+name: Bundesliga 2026/27 schadensfresse Sol xhigh - Matchday
 
 on:
   workflow_dispatch:
@@ -20,11 +20,11 @@ concurrency:
 
 jobs:
   call-base-workflow:
-    name: Copy Matchday Predictions
+    name: Run Matchday Predictions
     uses: ./.github/workflows/base-matchday-predictions.yml
     with:
       community: "schadensfresse"
-      community_context: "pes-squad"
+      community_context: "schadensfresse"
       competition: "bundesliga-2026-27"
       model: "gpt-5.6-sol"
       reasoning_effort: "xhigh"

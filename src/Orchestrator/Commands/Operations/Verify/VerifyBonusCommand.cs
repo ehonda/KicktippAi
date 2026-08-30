@@ -37,6 +37,8 @@ public class VerifyBonusCommand : AsyncCommand<VerifyBonusSettings>
         
         try
         {
+            SchadensfressePrimaryRouteGate.EnsureAvailable(settings.Community);
+
             _console.MarkupLine($"[green]Verify bonus command initialized[/]");
             
             if (settings.Verbose)
