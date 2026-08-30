@@ -20,9 +20,10 @@ before the second daily occurrence and without overlap. The complete 16-job
 evidence is in [P0-21](tasks/p0-21-production-activation.md).
 
 This closeout supersedes later statements in this plan that call P0-21 or the
-first scheduled observation open. Work now proceeds in P1. P1-08 remains open
-for `schadensfresse` CL bonus and DFB/CL primary routing; unattended Club Elo
-network refresh and exploratory model follow-ups are also non-P0 work.
+first scheduled observation open. Work now proceeds in P1. ADR-0058 makes
+P1-10 the deadline-critical `schadensfresse` primary conversion and fully
+absorbs/supersedes P1-08; unattended Club Elo network refresh and exploratory
+model follow-ups are also non-P0 work.
 
 ## Accepted direction
 
@@ -33,9 +34,12 @@ network refresh and exploratory model follow-ups are also non-P0 work.
 - Langfuse-hosted prompts are primary. Checked-in mirrors are the outage or first-fetch fallback.
 - The required production scope is `pes-squad`, `schadensfresse`,
   `relaxdays-tippt`, and `ehonda-ai-arena`; `ehonda-dev-buli-2627` is the safe
-  development target. ADR-0052 fixes the model/challenger matrix, ADR-0054
-  changes ordinary `schadensfresse` Bundesliga work to copy `pes-squad`, and
-  ADR-0055 places that validated copy in the strict production-live lane.
+  development target. ADR-0052 fixes the model/challenger matrix. ADR-0058
+  makes `schadensfresse` a target-owned primary for every match and bonus,
+  superseding ADR-0054's copy topology and ADR-0055's schadensfresse
+  context/copy pair. That pair is quarantined from the outer schedule
+  immediately; it remains absent until P1-10's reviewed primary-activation gate
+  passes.
 - Historical data is not deleted. A future historical experiment must opt into an explicit competition, prompt, and context setup.
 
 ## P0 tasks
@@ -99,18 +103,32 @@ The earlier 2026-08-27 11:41 CEST NOT READY audit is historical. After the
 administrator completed setup, read-only preflight found the exact same nine
 opening Bundesliga fixtures as `pes-squad`, plus five compatible Bundesliga
 bonus questions due `2026-08-28T18:30:00Z` and three CL questions due
-`2026-09-09T10:00:00Z`. ADR-0054 makes ordinary Bundesliga work a copy path,
-adds exact scoped question aliases and a deadline-bounded initial bonus run,
-and records mixed DFB/CL routing as P1-08. Its ordered context/match/bonus
-ladder is now green on exact pushed head `3dd93d5`; ADR-0055 adds target context
-then ordinary match copy to the recurring lane while leaving bonus and P1-08
-work outside it. The Owner accepted ADR-0053's cadence, operating
+`2026-09-09T10:00:00Z`. ADR-0054 historically made ordinary Bundesliga work a
+copy path, added exact scoped question aliases and a deadline-bounded initial
+bonus run, and recorded mixed DFB/CL routing as P1-08. Its ordered
+context/match/bonus ladder was green on exact pushed head `3dd93d5`; ADR-0055
+then added target context and ordinary match copy to the recurring lane while
+leaving bonus and P1-08 work outside it. The Owner accepted ADR-0053's cadence,
+operating
 ownership, rollback contract, and ready-row schedule on 2026-08-27. Exact
 activation commit `56238e5fd3615e11d0be2c462516e819dfded1db` is now on
 `main`, and exact-head GitHub run
 [`33100581641`](https://github.com/ehonda/KicktippAi/actions/runs/33100581641)
 succeeded. The later closeout observation above supersedes this pre-observation
 checkpoint.
+
+Those copy, `2/3/4`, four-point bonus, and September 9 statements remain
+historical P0 evidence, not the current contract. Authenticated read-only
+retrieval at `2026-08-30T07:35:21.9308276Z` verified target match scoring
+`2/3/5` for wins and `3/-/5` for draws, nine points per correct bonus answer,
+and a corrected common deadline `2026-09-08T16:45:00Z` for the three open CL
+questions. ADR-0058 preserves `bundesliga-2026-27` as the season/storage
+partition, adds a Bundesliga-partition-only typed subcompetition plus generic
+fixture/round/result-basis identity without changing WM26's specific model,
+and makes P1-10 the single target-owned implementation and staged-activation
+contract. It authorizes only immediate repository removal of the unsafe
+schadensfresse scheduled context/copy pair; no production force/model call,
+prediction/POST mutation, prompt promotion, or dispatch follows.
 
 P0-19 is instantiated for every ADR-0052 deployable row. The development row
 remains a local CLI path; every production/copy/challenger leaf entrypoint is
@@ -128,6 +146,12 @@ inserting `schadensfresse` after `pes-squad`; bonus remains excluded.
 ADR-0053's sole recurring cron is active through the outer workflow while every
 leaf caller remains manual-only. Natural run `33143114280` subsequently proved
 the complete ADR-0055 topology.
+
+ADR-0058 now quarantines both `schadensfresse-context` and
+`schadensfresse-matchday`, reconnecting `relaxdays-tippt-context` directly to
+`pes-squad-matchday`. The resulting active contract is seven pairs/14 jobs at
+the unchanged cron/concurrency/order/failure/no-bonus boundary. Schadensfresse
+remains absent until a separately reviewed target-owned primary activation.
 
 The activation contract forbids dispatching the outer lane before activation:
 completed leaf validation plus static/review/CI evidence is sufficient, while a
@@ -161,9 +185,9 @@ P1-01 and P1-02 were promoted to P0-15 and P0-16 because both affect predictions
 | [P1-05](tasks/p1-05-roster-refresh.md) | Automatically adopt valid current-season DuckDB membership | P0-21 |
 | [P1-06](tasks/p1-06-observability-datasets.md) | Make experiment preparation explicitly 2026/27-capable | P0-12, P0-21 |
 | [P1-07](tasks/p1-07-cost-calibration.md) | Recalculate season cost from live usage evidence | P0-16, P1-04, P1-05 |
-| [P1-08](tasks/p1-08-schadensfresse-mixed-competition-routing.md) | Route schadensfresse CL bonus and DFB/CL matches through competition-correct primary paths | P0-21 |
+| [P1-08](tasks/p1-08-schadensfresse-mixed-competition-routing.md) | Superseded and fully absorbed by P1-10; do not build the former copy-plus-exceptions route | P0-21 |
 | [P1-09](tasks/p1-09-current-open-matchday-context.md) | Reconcile reduced current open fixtures with the complete outcome view | P0-14, P0-21 |
-| [P1-10](tasks/p1-10-schadensfresse-primary-community.md) | Convert schadensfresse from a pes-squad copy to its own production-model primary | P0-21 |
+| [P1-10](tasks/p1-10-schadensfresse-primary-community.md) **Deadline-critical, in progress** | Quarantine the unsafe scheduled copy, then convert schadensfresse to a Bundesliga-subcompetition-typed target-owned primary; CL bonus deadline is `2026-09-08T16:45:00Z` | P0-21; absorbs P1-08 |
 | [P1-11](tasks/p1-11-langfuse-v4-migration.md) | Migrate the Langfuse project and repository API consumers to v4 | P0-21 |
 | [P1-12](tasks/p1-12-standings-reprediction-exemption.md) **High priority** | Exempt standings-only changes from match repredictions | P0-12, P0-21 |
 
@@ -253,3 +277,4 @@ contract:
 - [ADR-0055: Add schadensfresse to the production-live matchday lane](decisions/0055-add-schadensfresse-to-production-live-lane.md)
 - [ADR-0056: Reconcile current open fixtures with outcomes](decisions/0056-reconcile-current-open-fixtures-with-outcomes.md) — supersedes only ADR-0034's exact-count requirement for the implicit current open view
 - [ADR-0057: Exempt standings from reprediction staleness](decisions/0057-exempt-standings-from-reprediction-staleness.md) — supersedes only ADR-0020's current-ordinary-identity comparison for standings
+- [ADR-0058: Make schadensfresse a Bundesliga-subcompetition-typed primary](decisions/0058-make-schadensfresse-a-competition-typed-primary.md) — supersedes ADR-0054's schadensfresse copy topology and ADR-0055's scheduled schadensfresse context/copy pair, which is quarantined pending reviewed primary activation; P1-10 absorbs P1-08
