@@ -146,6 +146,26 @@ existing competition-specific model. No path copies or falls back to
 - [ ] Run targeted TUnit projects with `dotnet run`, then the affected full
       solution/test gate and `actionlint`; record exact commands and results.
 
+### Blocking successor — runtime provenance and DFB/CL invocation
+
+The local rules-publication slice now authenticates and semantically validates
+the source before accepting the target-owned markdown candidate, and reads the
+exact saved immutable rules version back by name/version/content hash. It is
+not runtime-ready: do not mark the rules-publication/profile item complete
+until the persistence/call-site owner completes all of the following.
+
+- [ ] Persist and read back the `resolvedTypedContextManifest` successor schema
+      with ordered `rulesSchemaVersion` and `canonicalRulesSha256` fields.
+- [ ] Add Firebase persistence/readback coverage that rejects legacy
+      `normalizedRulesSha256`-only manifests and legacy/table hashes as current
+      semantic identities.
+- [ ] Invoke the shared fail-closed rules generation preflight from the actual
+      DFB-Pokal and Champions-League command paths before prompt/model-service
+      construction. Those commands/routes do not exist yet; this is blocked
+      work, not runtime readiness.
+- [ ] Re-run the full persistence/call-site validation matrix and record the
+      reviewed immutable-manifest evidence before any manual generation.
+
 ### 4. Ordered manual transition
 
 - [ ] Validate applicable Bundesliga primary plumbing in
@@ -221,6 +241,35 @@ existing competition-specific model. No path copies or falls back to
   contract. The historical digest remains regression evidence and no source,
   live publication, prompt, production, or schedule mutation occurred in this
   decision slice.
+- Local validator/publication evidence (no authenticated production collection
+  was invoked) now covers the complete ADR-0059 negative matrix through
+  systematic source, DOM, semantic-value, numeric, canonical-JSON, Markdown,
+  publication-identity, freshness, and numeric-drift mutations. Focused gates
+  passed for the provider matrix (21/21, 1.169s), Core rules contract (5/5,
+  0.864s), ordinary publication including unchanged and interleaved
+  different-to-original concurrency (3/3, 2.495s), full atomic publication
+  (1/1, 2.701s), future-generation preflight (1/1, 0.790s), and Firebase atomic
+  result/concurrency behavior (8/8, 36.391s).
+- Full affected suites passed via `dotnet run --project tests/Core.Tests`
+  (316/316, 0 failed, 0 skipped, 3.233s), `dotnet run --project
+  tests/ContextProviders.Kicktipp.Tests` (74/74, 0 failed, 0 skipped, 1.899s),
+  `dotnet run --project tests/Orchestrator.Tests` (1195/1195, 0 failed,
+  0 skipped, 1m 54.711s), and `dotnet run --project
+  tests/FirebaseAdapter.Tests` (302/302, 0 failed, 0 skipped, 54.935s). Each
+  report is under its project `bin/Debug/net10.0/TestResults/` directory; no
+  Integration project source was affected by this slice.
+- The command path authenticates/extracts before target markdown collection,
+  validates the checked-in semantic/content identities before publication, and
+  publishes the target through an atomic transaction in both ordinary and full
+  modes. That transaction returns the independently selected effective immutable
+  version even for unchanged content while retaining created-version/null
+  compatibility, and the command reads back only that exact version by expected
+  name and content hash; it never resolves the target through floating latest.
+  The checked-in Markdown is pinned to repository LF bytes by an exact-path
+  attribute and verifies as 763 bytes with SHA-256
+  `f943f4b8f19d69dd1fc378d5684a2fdf7f59596accab4aa25866f81889b3e709`.
+  The blocking successor above deliberately keeps this non-Firebase slice from
+  claiming resolved-manifest persistence or DFB/CL generation readiness.
 
 ## Persistence-hardening evidence — 2026-08-30
 

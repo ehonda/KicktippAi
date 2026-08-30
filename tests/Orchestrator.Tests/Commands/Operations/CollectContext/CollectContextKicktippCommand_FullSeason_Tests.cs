@@ -1,4 +1,6 @@
 using ContextProviders.Kicktipp;
+using System.Net;
+using System.Text;
 using EHonda.KicktippAi.Core;
 using KicktippIntegration;
 using Microsoft.Extensions.Logging.Testing;
@@ -67,6 +69,63 @@ public class CollectContextKicktippCommand_FullSeason_Tests : CollectContextKick
             It.IsAny<IReadOnlyList<PersistedMatchOutcome>>(),
             It.Is<IReadOnlySet<string>>(names =>
                 names.SetEquals(BundesligaHistoryPlayedDateMap.ExpectedDocumentNames))), Times.Once);
+    }
+
+    [Test]
+    public async Task Schadensfresse_full_atomic_publication_reads_back_only_the_transaction_effective_version()
+    {
+        const string community = "schadensfresse";
+        const int effectiveVersion = 11;
+        var rulesMarkdown = File.ReadAllText(Path.Combine(
+            SolutionPathUtility.FindSolutionRoot(),
+            "community-rules",
+            "schadensfresse.md"));
+        var schedule = CreateFullSeasonSchedule();
+        var repository = CreateMockContextRepositoryWithPreviousDocuments([]);
+        repository.Setup(value => value.SaveContextDocumentsAtomicallyAsync(
+                It.Is<IReadOnlyList<ContextDocumentWrite>>(writes => writes.Count == 362),
+                community,
+                It.IsAny<CancellationToken>()))
+            .ReturnsAsync((IReadOnlyList<ContextDocumentWrite> writes, string _, CancellationToken _) =>
+                writes.Select(write => new ContextDocumentSaveResult(
+                    write.DocumentName,
+                    null,
+                    write.DocumentName == SchadensfresseRulesPublicationGate.DocumentName
+                        ? effectiveVersion
+                        : 1)).ToArray());
+        repository.Setup(value => value.GetContextDocumentAsync(
+                SchadensfresseRulesPublicationGate.DocumentName,
+                effectiveVersion,
+                community,
+                It.IsAny<CancellationToken>()))
+            .ReturnsAsync(new ContextDocument(
+                SchadensfresseRulesPublicationGate.DocumentName,
+                rulesMarkdown,
+                effectiveVersion,
+                DateTimeOffset.UnixEpoch));
+        var context = CreateCollectContextCommandApp(
+            firebaseServiceFactory: OrchestratorTestFactories.CreateMockFirebaseServiceFactoryFull(
+                contextRepository: repository));
+        ConfigureSchedule(context, schedule, community);
+        ConfigureExactProvider(context, includeHeadToHead: true, community: community);
+        ConfigureCompleteFrozenHistoryGate(context);
+        context.KicktippClientFactory.Setup(factory => factory.CreateAuthenticatedHttpClient())
+            .Returns(new HttpClient(new RulesResponseHandler(SanitizedRulesFixture)));
+        var command = CreateCommand(context);
+
+        var exitCode = await command.ExecuteWithSettingsAsync(CreateSettings(community));
+
+        await Assert.That(exitCode).IsEqualTo(0);
+        await Assert.That(context.Console.Output).Contains("completed atomically");
+        repository.Verify(value => value.GetContextDocumentAsync(
+            SchadensfresseRulesPublicationGate.DocumentName,
+            effectiveVersion,
+            community,
+            It.IsAny<CancellationToken>()), Times.Once);
+        repository.Verify(value => value.GetLatestContextDocumentAsync(
+            SchadensfresseRulesPublicationGate.DocumentName,
+            community,
+            It.IsAny<CancellationToken>()), Times.Never);
     }
 
     [Test]
@@ -299,9 +358,9 @@ public class CollectContextKicktippCommand_FullSeason_Tests : CollectContextKick
             .And.Contains(CompetitionIds.Bundesliga2026_27);
     }
 
-    private static CollectContextKicktippSettings CreateSettings() => new()
+    private static CollectContextKicktippSettings CreateSettings(string community = Community) => new()
     {
-        CommunityContext = Community,
+        CommunityContext = community,
         Competition = CompetitionIds.Bundesliga2026_27,
         FullSeason = true,
         ExpectedMatchCount = 306,
@@ -378,10 +437,11 @@ public class CollectContextKicktippCommand_FullSeason_Tests : CollectContextKick
 
     private static void ConfigureSchedule(
         CollectContextKicktippCommandTestContext context,
-        IReadOnlyDictionary<int, List<MatchWithHistory>> schedule)
+        IReadOnlyDictionary<int, List<MatchWithHistory>> schedule,
+        string community = Community)
     {
         context.KicktippClient.Setup(client => client.GetMatchesWithHistoryAsync(
-                Community,
+                community,
                 It.IsAny<int>(),
                 CompetitionIds.Bundesliga2026_27))
             .ReturnsAsync((string _, int matchday, string _) => schedule[matchday]);
@@ -389,13 +449,18 @@ public class CollectContextKicktippCommand_FullSeason_Tests : CollectContextKick
 
     private static void ConfigureExactProvider(
         CollectContextKicktippCommandTestContext context,
-        bool includeHeadToHead)
+        bool includeHeadToHead,
+        string community = Community)
     {
         var manifest = BundesligaTeamManifest.Default;
         context.ContextProvider.Setup(provider => provider.CurrentStandings())
             .ReturnsAsync(new DocumentContext("bundesliga-standings.csv", "standings"));
         context.ContextProvider.Setup(provider => provider.CommunityScoringRules())
-            .ReturnsAsync(new DocumentContext($"community-rules-{Community}.md", "rules"));
+            .ReturnsAsync(new DocumentContext(
+                $"community-rules-{community}.md",
+                community == "schadensfresse"
+                    ? File.ReadAllText(Path.Combine(SolutionPathUtility.FindSolutionRoot(), "community-rules", "schadensfresse.md"))
+                    : "rules"));
         context.ContextProvider.Setup(provider => provider.RecentHistory(It.IsAny<string>()))
             .ReturnsAsync((string teamName) =>
             {
@@ -488,5 +553,19 @@ public class CollectContextKicktippCommand_FullSeason_Tests : CollectContextKick
         context.FirebaseServiceFactory.Verify(factory => factory.CreatePredictionRepository(
             It.IsAny<string>()), Times.Never);
     }
+
+    private sealed class RulesResponseHandler(string html) : HttpMessageHandler
+    {
+        protected override Task<HttpResponseMessage> SendAsync(HttpRequestMessage request, CancellationToken cancellationToken) =>
+            Task.FromResult(new HttpResponseMessage(HttpStatusCode.OK)
+            {
+                RequestMessage = new HttpRequestMessage(HttpMethod.Get, SchadensfresseLiveRulesExtractor.RulesUri),
+                Content = new StringContent(html, Encoding.UTF8, "text/html")
+            });
+    }
+
+    private const string SanitizedRulesFixture = """
+<!doctype html><html><head><title>Schadensfresse</title></head><body><div class="pagecontent"><h2>Sichtbarkeit der Tipps</h2><p>Die Tipps sind erst sichtbar, wenn die Tippzeit abgelaufen ist.</p><h2>Tippmodus</h2><p>Es wird das genaue Ergebnis getippt.</p><p>Es wird das jeweils folgende Ergebnis gewertet:</p><ul><li>DFB-Pokal 2026/27: nach Elfmeterschießen</li><li>Champions League 2026/27: nach Elfmeterschießen</li><li>1. Bundesliga 2026/27: 90 Minuten</li></ul><h2>Punktegleichstand</h2><p>Soweit nicht etwas anderes vereinbart wurde, entscheidet bei Gleichstand in der Gesamtpunktzahl die Anzahl der Spieltagssiege ("Siege") über die Platzierung der Tipper.</p><h2>Tippabgaberegel: 0 Minuten Vorlaufzeit</h2><p>Die Tippzeit endet 0 Minuten vor dem Termin des jeweiligen Ereignisses.</p><h2>Punkteregel: 2 - 5 Punkte</h2><div><table class="ktable"><thead><tr><th></th><th>Tendenz</th><th>Tordifferenz</th><th>Ergebnis</th></tr></thead><tbody><tr><td>Sieg</td><td>2</td><td>3</td><td>5</td></tr><tr><td>Unentschieden</td><td>3</td><td>-</td><td>5</td></tr></tbody></table></div><h2>Punkteregel: 9 Punkte</h2><div><p>Punkte pro richtiger Antwort: 9</p><p>Punkte gibt es für jeden richtigen Tipp. Bei dieser Regel hat die Reihenfolge keine Bedeutung.</p></div></div></body></html>
+""";
 
 }

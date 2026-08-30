@@ -18,9 +18,9 @@ public sealed class BundesligaSeasonRoutingSeed
     private readonly IReadOnlyDictionary<string, BundesligaSeasonFixtureRoutingIdentity> _fixtures;
     private readonly IReadOnlyDictionary<string, BundesligaSeasonBonusRoutingIdentity> _questions;
 
-    private BundesligaSeasonRoutingSeed(IReadOnlyList<BundesligaSeasonFixtureRoutingIdentity> fixtures, IReadOnlyList<BundesligaSeasonBonusRoutingIdentity> questions, string canonicalSha256)
+    private BundesligaSeasonRoutingSeed(IReadOnlyList<BundesligaSeasonFixtureRoutingIdentity> fixtures, IReadOnlyList<BundesligaSeasonBonusRoutingIdentity> questions, string canonicalSha256, string rulesSchemaVersion, string canonicalRulesSha256, string communityRulesContentSha256)
     {
-        Fixtures = fixtures; Questions = questions; CanonicalSha256 = canonicalSha256;
+        Fixtures = fixtures; Questions = questions; CanonicalSha256 = canonicalSha256; RulesSchemaVersion = rulesSchemaVersion; CanonicalRulesSha256 = canonicalRulesSha256; CommunityRulesContentSha256 = communityRulesContentSha256;
         _fixtures = fixtures.ToDictionary(item => item.KicktippFixtureId, StringComparer.Ordinal);
         _questions = questions.ToDictionary(item => item.KicktippQuestionId, StringComparer.Ordinal);
     }
@@ -29,6 +29,9 @@ public sealed class BundesligaSeasonRoutingSeed
     public IReadOnlyList<BundesligaSeasonFixtureRoutingIdentity> Fixtures { get; }
     public IReadOnlyList<BundesligaSeasonBonusRoutingIdentity> Questions { get; }
     public string CanonicalSha256 { get; }
+    public string RulesSchemaVersion { get; }
+    public string CanonicalRulesSha256 { get; }
+    public string CommunityRulesContentSha256 { get; }
     public bool TryGetFixture(string? id, [NotNullWhen(true)] out BundesligaSeasonFixtureRoutingIdentity? identity)
     {
         if (string.IsNullOrWhiteSpace(id))
@@ -58,6 +61,10 @@ public sealed class BundesligaSeasonRoutingSeed
         {
             var document = JsonSerializer.Deserialize<SeedDocument>(content, JsonOptions) ?? throw Invalid(sourceName, "JSON content is empty");
             if (document.SchemaVersion != 1 || document.SeasonPartition != CompetitionIds.Bundesliga2026_27) throw Invalid(sourceName, "schemaVersion must be 1 and seasonPartition must be bundesliga-2026-27");
+            if (!string.Equals(document.RulesSchemaVersion, SchadensfresseRulesCanonicalJson.SchemaVersion, StringComparison.Ordinal)
+                || !string.Equals(document.CanonicalRulesSha256, SchadensfresseRulesCanonicalJson.CanonicalSha256, StringComparison.Ordinal)
+                || !IsLowercaseSha256(document.CommunityRulesContentSha256 ?? string.Empty))
+                throw Invalid(sourceName, "rules schema, canonical rules SHA-256, or pinned community-rules content SHA-256 is invalid");
             var fixtures = (document.Fixtures ?? []).Select(item => new BundesligaSeasonFixtureRoutingIdentity(Required(item.KicktippFixtureId, sourceName, "fixture ID"), ParseSubcompetition(item.BundesligaSeasonSubcompetition, sourceName), Required(item.KicktippRoundName, sourceName, "fixture round"), ParseResultBasis(item.ResultBasis, sourceName))).ToArray();
             EnsureUnique(fixtures.Select(item => item.KicktippFixtureId), sourceName, "fixture ID");
             var questions = (document.Questions ?? []).Select(item => new BundesligaSeasonBonusRoutingIdentity(Required(item.KicktippQuestionId, sourceName, "question ID"), Required(item.Text, sourceName, "question text"), ParseInstant(item.Deadline, sourceName), item.MaxSelections, ParseSubcompetition(item.BundesligaSeasonSubcompetition, sourceName), ParseOptions(item.Options, sourceName), Required(item.EvidenceOptionSetSha256, sourceName, "option set evidence SHA-256"))).ToArray();
@@ -78,7 +85,7 @@ public sealed class BundesligaSeasonRoutingSeed
             }
             var actualHash = ComputeCanonicalSha256(fixtures, questions);
             if (!string.Equals(actualHash, document.CanonicalSha256, StringComparison.Ordinal)) throw Invalid(sourceName, $"canonicalSha256 does not match exact seed content (expected {actualHash})");
-            return new BundesligaSeasonRoutingSeed(fixtures, questions, actualHash);
+            return new BundesligaSeasonRoutingSeed(fixtures, questions, actualHash, document.RulesSchemaVersion!, document.CanonicalRulesSha256!, document.CommunityRulesContentSha256!);
         }
         catch (JsonException exception) { throw Invalid(sourceName, "JSON parsing failed", exception); }
     }
@@ -107,7 +114,7 @@ public sealed class BundesligaSeasonRoutingSeed
     private static BundesligaSeasonRoutingSeed LoadEmbedded() { using var stream = typeof(BundesligaSeasonRoutingSeed).Assembly.GetManifestResourceStream(ResourceName) ?? throw new InvalidOperationException($"Embedded routing seed '{ResourceName}' was not found."); using var reader = new StreamReader(stream, Encoding.UTF8, true); return Parse(reader.ReadToEnd()); }
     private static InvalidDataException Invalid(string sourceName, string reason, Exception? inner = null) => new($"Invalid Bundesliga season routing seed '{sourceName}': {reason}.", inner);
     private static readonly JsonSerializerOptions JsonOptions = new() { PropertyNameCaseInsensitive = true };
-    private sealed record SeedDocument(int SchemaVersion, string? SeasonPartition, SeedFixture[]? Fixtures, SeedQuestion[]? Questions, string? CanonicalSha256);
+    private sealed record SeedDocument(int SchemaVersion, string? SeasonPartition, string? RulesSchemaVersion, string? CanonicalRulesSha256, string? CommunityRulesContentSha256, SeedFixture[]? Fixtures, SeedQuestion[]? Questions, string? CanonicalSha256);
     private sealed record SeedFixture(string? KicktippFixtureId, string? BundesligaSeasonSubcompetition, string? KicktippRoundName, string? ResultBasis);
     private sealed record SeedQuestion(string? KicktippQuestionId, string? Text, string? Deadline, int MaxSelections, string? BundesligaSeasonSubcompetition, SeedOption[]? Options, string? EvidenceOptionSetSha256);
     private sealed record SeedOption(string? Id, string? Text);

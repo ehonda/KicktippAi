@@ -1,6 +1,9 @@
 {
   "schemaVersion": 1,
   "seasonPartition": "bundesliga-2026-27",
+  "rulesSchemaVersion": "schadensfresse-live-rules-v1",
+  "canonicalRulesSha256": "1fac1a26a539a8c20b5f71be6e6e6dccb622528fc8aa40cdea22e6b21d994d90",
+  "communityRulesContentSha256": "f943f4b8f19d69dd1fc378d5684a2fdf7f59596accab4aa25866f81889b3e709",
   "fixtures": [],
   "questions": [
     { "kicktippQuestionId": "1662326752", "text": "CL: Welche Mannschaft stellt den Spieler mit den meisten Toren?", "deadline": "2026-09-08T16:45:00Z", "maxSelections": 1, "bundesligaSeasonSubcompetition": "uefa-champions-league", "evidenceOptionSetSha256": "e29a9636d4d2e4fd7ac48a371dfe650c242e041b006cc3d3fc31986a539f1c55", "options": [
