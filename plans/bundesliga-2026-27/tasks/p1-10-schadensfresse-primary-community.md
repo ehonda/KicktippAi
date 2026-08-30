@@ -4,7 +4,7 @@
 - Priority: P1 — deadline-critical
 - Depends on: [P0-21](p0-21-production-activation.md)
 - Absorbs: [P1-08](p1-08-schadensfresse-mixed-competition-routing.md)
-- Decisions: [ADR-0052](../decisions/0052-select-production-model-community-matrix-and-match-prompt-v3.md), [ADR-0054](../decisions/0054-copy-schadensfresse-bundesliga-from-pes-squad.md), [ADR-0055](../decisions/0055-add-schadensfresse-to-production-live-lane.md), [ADR-0058](../decisions/0058-make-schadensfresse-a-competition-typed-primary.md), [ADR-0059](../decisions/0059-bind-schadensfresse-rules-to-a-structured-semantic-record.md)
+- Decisions: [ADR-0052](../decisions/0052-select-production-model-community-matrix-and-match-prompt-v3.md), [ADR-0054](../decisions/0054-copy-schadensfresse-bundesliga-from-pes-squad.md), [ADR-0055](../decisions/0055-add-schadensfresse-to-production-live-lane.md), [ADR-0058](../decisions/0058-make-schadensfresse-a-competition-typed-primary.md), [ADR-0059](../decisions/0059-bind-schadensfresse-rules-to-a-structured-semantic-record.md), [ADR-0060](../decisions/0060-separate-generation-manifest-from-current-rules-attestation.md)
 
 ## Trigger and live evidence
 
@@ -94,6 +94,11 @@ existing competition-specific model. No path copies or falls back to
       immutable publication, 24-hour freshness, and legacy-rejection contract.
       This decision unblocks the validator/publication implementation only; it
       completes no source, publication, production, prompt, or schedule work.
+- [x] Accept ADR-0060's exact UTC timestamp, immutable generation-manifest,
+      directly keyed current-publication-binding, and zero-call/zero-mutation
+      re-attestation contract. This decision unblocks persistence and reuse
+      tests only; it grants no production, prompt, model, seed, or activation
+      authority.
 - [ ] Replace the wrong checked-in rules with the verified target scoring,
       visibility, deadline, bonus-order/tie-break, and result-basis contract.
       Validate its semantic projection against ADR-0059's structured hash and
@@ -155,16 +160,34 @@ not runtime-ready: do not mark the rules-publication/profile item complete
 until the persistence/call-site owner completes all of the following.
 
 - [ ] Persist and read back the `resolvedTypedContextManifest` successor schema
-      with ordered `rulesSchemaVersion` and `canonicalRulesSha256` fields.
+      with ordered `rulesSchemaVersion` and `canonicalRulesSha256` fields, and
+      keep its generation-time `rulesObservedAt` immutable under ADR-0060.
+- [ ] Persist and address `resolvedTypedContextPublicationBinding` only by the
+      exact `(seasonPartition, communityContext, profileId,
+      routingSeedSha256)` key using the canonical injective physical encoding.
+      Prove deterministic create/newer-update/equal-or-older-no-op/drift-fail
+      transaction results and schedule-independent effective bindings under
+      equal-creator and both older/newer concurrency interleavings, plus drift
+      conflicts and cross-key separation.
+- [ ] Keep publication refresh scoped to rules/profile/seed/document identity.
+      Separately validate prediction reuse by comparing the current typed
+      invocation, exact hosted prompt name/immutable version/read-back
+      normalized hash/required label membership, and exact model/reasoning/
+      output-cap/Flex-first-with-one-Standard-fallback identity against the
+      immutable prediction provenance. Prove zero model call and zero
+      prediction mutation only after both checks pass.
 - [ ] Add Firebase persistence/readback coverage that rejects legacy
       `normalizedRulesSha256`-only manifests and legacy/table hashes as current
       semantic identities.
 - [ ] Invoke the shared fail-closed rules generation preflight from the actual
-      DFB-Pokal and Champions-League command paths before prompt/model-service
-      construction. Those commands/routes do not exist yet; this is blocked
-      work, not runtime readiness.
+      DFB-Pokal and Champions-League command paths before prompt fetch. After
+      every prompt-independent gate passes, fetch and verify the exact pinned
+      prompt name/version/read-back normalized hash/required label before
+      model-service construction. Those commands/routes do not exist yet;
+      this is blocked work, not runtime readiness.
 - [ ] Re-run the full persistence/call-site validation matrix and record the
-      reviewed immutable-manifest evidence before any manual generation.
+      reviewed immutable-manifest, current-binding, and distinct generation/
+      current observation evidence before any manual generation.
 
 ### 4. Ordered manual transition
 
@@ -294,6 +317,26 @@ until the persistence/call-site owner completes all of the following.
   (`301/301`, `0` failed, `0` skipped, `1m 12s 712ms`) and
   `dotnet run --project tests/Core.Tests` (`311/311`, `0` failed, `0` skipped,
   `3s 477ms`).
+
+## Manifest-lifecycle decision evidence — 2026-08-30
+
+- Accepted ADR-0060 preserves the exact field
+  `bundesligaSeasonSubcompetition`, fixes `rulesObservedAt` to canonical
+  100-nanosecond UTC text, and defines freshness as the inclusive interval
+  from the evaluation instant through exactly 24 hours old.
+- The prediction's generation-time resolved manifest is immutable. A separate
+  publication binding is directly addressed by the exact season/community/
+  profile/routing-seed tuple and binds one exact immutable document plus the
+  structured rules schema, hash, and current authenticated observation.
+- Re-attestation refreshes only binding-scoped rules/profile/seed/document
+  identity. Per-prediction reuse separately compares the current typed
+  invocation, exact pinned prompt route, and model/service configuration with
+  immutable prediction provenance before allowing zero model calls and zero
+  prediction mutation. Trace and verification distinguish generation from
+  current observation; drift and legacy state fail closed, and ADR-0058's
+  Owner replacement/cost/force/cutoff gate remains.
+- This accepted planning decision makes no fixture seed or prompt decision,
+  performs no production or external write, and does not activate a schedule.
 
 ## Complete when
 
