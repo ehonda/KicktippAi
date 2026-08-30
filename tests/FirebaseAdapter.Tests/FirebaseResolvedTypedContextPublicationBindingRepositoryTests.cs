@@ -177,20 +177,35 @@ public sealed class FirebaseResolvedTypedContextPublicationBindingRepositoryTest
     }
 
     [Test]
-    public async Task Concurrent_losing_candidates_return_only_a_committed_effective_binding_and_observe_retry_callbacks()
+    public async Task Concurrent_older_and_newer_creators_converge_without_returning_a_value_ahead_of_the_committed_winner()
     {
         var selections = new ConcurrentQueue<TypedContextPublicationBindingUpsertResult>();
         var repository = CreateRepository(selections.Enqueue);
         var seed = NewSeed();
-        var candidates = Enumerable.Range(1, 12).Select(i => Binding(seed, Now.AddMinutes(-20 + i))).ToArray();
-        var results = await Task.WhenAll(candidates.Select(candidate => repository.UpsertExactAsync(candidate)));
-        var committed = await repository.GetExactAsync(candidates[0].Key);
+        var older = Binding(seed, Now.AddMinutes(-12));
+        var newer = Binding(seed, Now.AddMinutes(-1));
+        // Two genuinely concurrent writers exercise the same direct document and the SDK's
+        // transaction retry path without the emulator-only lock storm caused by twelve
+        // simultaneous mutations of one document.
+        var results = await Task.WhenAll(repository.UpsertExactAsync(older), repository.UpsertExactAsync(newer));
+        var olderResult = results[0];
+        var newerResult = results[1];
+        var committed = await repository.GetExactAsync(older.Key);
 
-        await Assert.That(committed).IsEqualTo(candidates[^1]);
+        foreach (var result in results)
+        {
+            await Assert.That(result.Succeeded).IsTrue();
+            await Assert.That(ResolvedTypedContextPublicationBindingContract.IdentityEquals(result.EffectiveBinding, older)).IsTrue();
+            await Assert.That(result.EffectiveBinding.Equals(older) || result.EffectiveBinding.Equals(newer)).IsTrue();
+        }
+        // The older contender can commit and read back before the newer contender updates,
+        // or can read the newer committed winner. The newer contender cannot legitimately
+        // observe the older value after its complete transaction/readback has finished.
+        await Assert.That(olderResult.EffectiveBinding.Equals(older) || olderResult.EffectiveBinding.Equals(newer)).IsTrue();
+        await Assert.That(newerResult.EffectiveBinding).IsEqualTo(newer);
+        await Assert.That(committed).IsEqualTo(newer);
         await Assert.That(results.All(result => result.EffectiveBinding.RulesObservedAt <= committed!.RulesObservedAt)).IsTrue();
-        // The observer is invoked inside the actual Firestore transaction callback, so any
-        // SDK retry is observable as another selection and cannot leak an uncommitted candidate.
-        await Assert.That(selections.Count).IsGreaterThanOrEqualTo(candidates.Length);
+        await Assert.That(selections.Count).IsGreaterThanOrEqualTo(2);
     }
 
     [Test]
