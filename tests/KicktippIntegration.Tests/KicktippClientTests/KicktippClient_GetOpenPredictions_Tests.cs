@@ -537,6 +537,174 @@ public class KicktippClient_GetOpenPredictions_Tests : KicktippClientTests_Base
         await Assert.That(matches.Single().CompetitionSpecificData).IsNull();
     }
 
+    [Test]
+    public async Task Getting_schadensfresse_Bundesliga_open_predictions_joins_both_canonical_fixture_IDs_from_sanitized_outcome_details()
+    {
+        StubSchadensfresseFixtureIdentitySurfaces();
+        var client = CreateClient();
+
+        var matches = await client.GetOpenPredictionsAsync("schadensfresse", CompetitionIds.Bundesliga2026_27);
+
+        await Assert.That(matches.Select(match => match.KicktippFixtureId)).IsEquivalentTo(["1662323362", "1662323366"]);
+        foreach (var match in matches)
+        {
+            await Assert.That(match.KicktippRoundName).IsEqualTo("1. Spieltag");
+            await Assert.That(match.BundesligaSeasonSubcompetition).IsEqualTo(BundesligaSeasonSubcompetition.Bundesliga);
+            await Assert.That(match.ResultBasis).IsEqualTo(ResultBasis.RegularTime90Minutes);
+        }
+        await Assert.That(GetRequestsForPath("/schadensfresse/tippabgabe")).Count().IsEqualTo(1);
+        await Assert.That(GetRequestsForPath("/schadensfresse/tippuebersicht")).Count().IsEqualTo(1);
+        await Assert.That(GetRequestsForPath("/schadensfresse/tippuebersicht/spiel")).Count().IsEqualTo(2);
+    }
+
+    [Test]
+    [Arguments("missing-id")]
+    [Arguments("duplicate-id")]
+    [Arguments("missing-label")]
+    [Arguments("duplicate-label")]
+    [Arguments("wrong-label")]
+    [Arguments("wrong-competition")]
+    [Arguments("wrong-round")]
+    [Arguments("detail-id-mismatch")]
+    [Arguments("status")]
+    [Arguments("login")]
+    [Arguments("missing-table")]
+    [Arguments("extra-source-query")]
+    [Arguments("duplicate-source-query")]
+    [Arguments("missing-termin")]
+    [Arguments("duplicate-termin")]
+    [Arguments("unknown-structured-field")]
+    [Arguments("outcome-open-ambiguity")]
+    [Arguments("form-conflict")]
+    [Arguments("unknown-seed")]
+    [Arguments("inference-only")]
+    public async Task Getting_schadensfresse_Bundesliga_open_predictions_fails_visibly_before_returning_a_partial_typed_set(string mutation)
+    {
+        StubSchadensfresseFixtureIdentitySurfaces(mutation);
+        var client = CreateClient();
+
+        await Assert.That(async () => await client.GetOpenPredictionsAsync("schadensfresse", CompetitionIds.Bundesliga2026_27))
+            .Throws<KicktippFixtureIdentityException>();
+    }
+
+    [Test]
+    public async Task Getting_schadensfresse_Bundesliga_open_predictions_returns_empty_only_for_a_present_authenticated_table_without_betting_controls()
+    {
+        StubSchadensfresseFixtureIdentitySurfaces("true-empty");
+        var client = CreateClient();
+
+        var matches = await client.GetOpenPredictionsAsync("schadensfresse", CompetitionIds.Bundesliga2026_27);
+
+        await Assert.That(matches).IsEmpty();
+        await Assert.That(GetRequestsForPath("/schadensfresse/tippuebersicht")).IsEmpty();
+    }
+
+    [Test]
+    public async Task Getting_schadensfresse_Bundesliga_open_predictions_propagates_a_cancelled_request()
+    {
+        StubSchadensfresseFixtureIdentitySurfaces();
+        var client = CreateClient();
+        using var cancellation = new CancellationTokenSource();
+        cancellation.Cancel();
+
+        await Assert.That(async () => await client.GetOpenPredictionsAsync(
+                "schadensfresse", CompetitionIds.Bundesliga2026_27, cancellation.Token))
+            .Throws<OperationCanceledException>();
+    }
+
+    [Test]
+    [Arguments("https://www.kicktipp.de/schadensfresse/tippabgabe", true)]
+    [Arguments("http://www.kicktipp.de/schadensfresse/tippabgabe", false)]
+    [Arguments("https://kicktipp.de/schadensfresse/tippabgabe", false)]
+    [Arguments("https://user@www.kicktipp.de/schadensfresse/tippabgabe", false)]
+    public async Task Schadensfresse_fixture_authority_requires_the_canonical_production_origin(string value, bool expected)
+    {
+        await Assert.That(KicktippClient.IsCanonicalKicktippAuthority(new Uri(value))).IsEqualTo(expected);
+    }
+
+    private void StubSchadensfresseFixtureIdentitySurfaces(string? mutation = null)
+    {
+        const string firstId = "1662323362";
+        const string secondId = "1662323366";
+        if (mutation == "status")
+        {
+            StubStatusCode("/schadensfresse/tippabgabe", 500);
+            return;
+        }
+        if (mutation == "login")
+        {
+            StubHtmlResponse("/schadensfresse/tippabgabe", "<html><head><title>Login</title></head><body><form id=\"loginFormular\"></form></body></html>");
+            return;
+        }
+        if (mutation == "missing-table")
+        {
+            StubHtmlResponse("/schadensfresse/tippabgabe", "<html><head><title>Kicktipp</title></head><body></body></html>");
+            return;
+        }
+
+        var firstOutcomeId = mutation is "missing-id" or "unknown-seed" ? "unknown-id" : firstId;
+        var secondOutcomeId = mutation == "duplicate-id" ? firstOutcomeId : secondId;
+        var firstFormId = mutation is "detail-id-mismatch" or "unknown-seed" ? firstOutcomeId : firstId;
+        var secondFormId = mutation == "form-conflict" ? firstId : secondId;
+        var outcomeRows = OutcomeRow(firstOutcomeId, "30.08.26 15:30", "SC Freiburg", "Werder Bremen") +
+            OutcomeRow(secondOutcomeId, "30.08.26 17:30", "FC Augsburg", "FC Schalke 04");
+        if (mutation == "missing-id") outcomeRows = outcomeRows.Replace("data-url=\"/schadensfresse/tippuebersicht/spiel?tippsaisonId=5746822&amp;spieltagIndex=1&amp;tippspielId=unknown-id\"", "", StringComparison.Ordinal);
+        if (mutation == "outcome-open-ambiguity") outcomeRows += OutcomeRow(firstOutcomeId, "30.08.26 15:30", "SC Freiburg", "Werder Bremen");
+        if (mutation == "inference-only") outcomeRows = string.Empty;
+        if (mutation == "extra-source-query") outcomeRows = outcomeRows.Replace($"tippspielId={firstId}", $"tippspielId={firstId}&amp;unexpected=1", StringComparison.Ordinal);
+        if (mutation == "duplicate-source-query") outcomeRows = outcomeRows.Replace($"tippspielId={firstId}", $"tippspielId={firstId}&amp;tippspielId={firstId}", StringComparison.Ordinal);
+
+        var tippabgabe = $$"""
+            <html><head><title>Kicktipp</title></head><body><input name="spieltagIndex" value="1" />
+            <table id="tippabgabeSpiele"><tbody>
+              <tr><td>30.08.26 15:30</td><td>SC Freiburg</td><td>Werder Bremen</td><td><input type="text" name="spieltippForms[{{firstFormId}}][heim]" /><input type="text" name="spieltippForms[{{firstFormId}}][gast]" /></td></tr>
+              <tr><td>30.08.26 17:30</td><td>FC Augsburg</td><td>FC Schalke 04</td><td><input type="text" name="spieltippForms[{{secondFormId}}][heim]" /><input type="text" name="spieltippForms[{{secondFormId}}][gast]" /></td></tr>
+            </tbody></table></body></html>
+            """;
+        if (mutation == "true-empty")
+        {
+            tippabgabe = tippabgabe.Replace("<input type=\"text\"", "<input type=\"hidden\"", StringComparison.Ordinal);
+        }
+        var outcomes = $"<html><head><title>Kicktipp</title></head><body><table id=\"spielplanSpiele\"><tbody>{outcomeRows}</tbody></table></body></html>";
+        StubHtmlResponse("/schadensfresse/tippabgabe", tippabgabe);
+        StubHtmlResponseWithParams("/schadensfresse/tippuebersicht", outcomes, ("spieltagIndex", "1"));
+        if (mutation is "true-empty" or "inference-only" or "unknown-seed" or "missing-id" or "duplicate-id" or "outcome-open-ambiguity" or "form-conflict" or "extra-source-query" or "duplicate-source-query") return;
+
+        var firstDetail = Detail("1. Bundesliga 2026/27", "1. Spieltag", "30.08.26 15:30");
+        if (mutation == "missing-label") firstDetail = firstDetail.Replace("<span class=\"spieldaten-infos-label\">Wettbewerb</span><span class=\"spieldaten-infos-value\">1. Bundesliga 2026/27</span>", "", StringComparison.Ordinal);
+        if (mutation == "duplicate-label") firstDetail = firstDetail.Replace("</body>", "<span class=\"spieldaten-infos-label\">Wettbewerb</span><span class=\"spieldaten-infos-value\">1. Bundesliga 2026/27</span></body>", StringComparison.Ordinal);
+        if (mutation == "wrong-label") firstDetail = firstDetail.Replace("Spieltag</span>", "Spielrunde</span>", StringComparison.Ordinal);
+        if (mutation == "wrong-competition") firstDetail = Detail("Bundesliga", "1. Spieltag", "30.08.26 15:30");
+        if (mutation == "wrong-round") firstDetail = Detail("1. Bundesliga 2026/27", "1. Runde", "30.08.26 15:30");
+        if (mutation == "missing-termin") firstDetail = firstDetail.Replace("<div><span class=\"spieldaten-infos-label\">Termin</span><span class=\"spieldaten-infos-value\">30.08.26 15:30</span></div>", "", StringComparison.Ordinal);
+        if (mutation == "duplicate-termin") firstDetail = firstDetail.Replace("</body>", "<div><span class=\"spieldaten-infos-label\">Termin</span><span class=\"spieldaten-infos-value\">30.08.26 15:30</span></div></body>", StringComparison.Ordinal);
+        if (mutation == "unknown-structured-field") firstDetail = firstDetail.Replace("</body>", "<div><span class=\"spieldaten-infos-label\">Unbekannt</span><span class=\"spieldaten-infos-value\">x</span></div></body>", StringComparison.Ordinal);
+        if (mutation == "detail-id-mismatch")
+        {
+            Server
+                .Given(WireMock.RequestBuilders.Request.Create()
+                    .WithPath("/schadensfresse/tippuebersicht/spiel")
+                    .WithParam("tippsaisonId", new WireMock.Matchers.ExactMatcher("5746822"))
+                    .WithParam("spieltagIndex", new WireMock.Matchers.ExactMatcher("1"))
+                    .WithParam("tippspielId", new WireMock.Matchers.ExactMatcher(firstId))
+                    .UsingGet())
+                .RespondWith(WireMock.ResponseBuilders.Response.Create()
+                    .WithStatusCode(302)
+                    .WithHeader("Location", $"{ServerUrl}/schadensfresse/tippuebersicht/spiel?tippsaisonId=5746822&spieltagIndex=1&tippspielId={secondId}"));
+        }
+        else
+        {
+            StubHtmlResponseWithParams("/schadensfresse/tippuebersicht/spiel", firstDetail, ("tippsaisonId", "5746822"), ("spieltagIndex", "1"), ("tippspielId", firstId));
+        }
+        StubHtmlResponseWithParams("/schadensfresse/tippuebersicht/spiel", Detail("1. Bundesliga 2026/27", "1. Spieltag", "30.08.26 17:30"), ("tippsaisonId", "5746822"), ("spieltagIndex", "1"), ("tippspielId", secondId));
+    }
+
+    private static string OutcomeRow(string id, string time, string home, string away) =>
+        $"<tr class=\"clickable\" data-url=\"/schadensfresse/tippuebersicht/spiel?tippsaisonId=5746822&amp;spieltagIndex=1&amp;tippspielId={id}\"><td>{time}</td><td>{home}</td><td>{away}</td><td>-</td></tr>";
+
+    private static string Detail(string competition, string round, string time) =>
+        $"<html><head><title>Kicktipp</title></head><body><div><span class=\"spieldaten-infos-label\">Wettbewerb</span><span class=\"spieldaten-infos-value\">{competition}</span></div><div><span class=\"spieldaten-infos-label\">Spieltag</span><span class=\"spieldaten-infos-value\">{round}</span></div><div><span class=\"spieldaten-infos-label\">Termin</span><span class=\"spieldaten-infos-value\">{time}</span></div><div><span class=\"spieldaten-infos-label\">Tipptermin</span><span class=\"spieldaten-infos-value\">{time}</span></div></body></html>";
+
     private static string CreateKnockoutTippabgabe(string roundName, bool includeMarker)
     {
         var marker = includeMarker

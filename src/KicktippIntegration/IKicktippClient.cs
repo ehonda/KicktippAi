@@ -21,6 +21,18 @@ public interface IKicktippClient
     Task<List<Match>> GetOpenPredictionsAsync(string community, string competition);
 
     /// <summary>
+    /// Get open predictions for a resolved competition while allowing the caller to cancel
+    /// any required fail-closed fixture identity join.
+    /// </summary>
+    Task<List<Match>> GetOpenPredictionsAsync(
+        string community,
+        string competition,
+        CancellationToken cancellationToken) =>
+        cancellationToken.IsCancellationRequested
+            ? Task.FromCanceled<List<Match>>(cancellationToken)
+            : GetOpenPredictionsAsync(community, competition);
+
+    /// <summary>
     /// Place a bet for a specific match in a community
     /// </summary>
     /// <param name="community">The community name</param>

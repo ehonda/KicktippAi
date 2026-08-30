@@ -1,5 +1,6 @@
 using System.Net;
 using System.Globalization;
+using System.Text;
 using Regex = System.Text.RegularExpressions.Regex;
 using AngleSharp;
 using AngleSharp.Dom;
@@ -13,23 +14,39 @@ using NodaTime.Extensions;
 namespace KicktippIntegration;
 
 /// <summary>
+/// Signals that the authenticated schadensfresse Bundesliga fixture identity surfaces
+/// cannot prove a complete exact seed-backed mapping. Callers must not treat this as
+/// an empty matchday.
+/// </summary>
+public sealed class KicktippFixtureIdentityException(string message, Exception? innerException = null)
+    : InvalidOperationException(message, innerException);
+
+/// <summary>
 /// Implementation of IKicktippClient for interacting with kicktipp.de website
 /// Authentication is handled automatically via KicktippAuthenticationHandler
 /// </summary>
 public class KicktippClient : IKicktippClient, IDisposable
 {
     private static readonly DateTimeZone BerlinTimeZone = DateTimeZoneProviders.Tzdb["Europe/Berlin"];
+    private const int SchadensfresseBundesligaMaximumMatchdayFixtures = 9;
 
     private readonly HttpClient _httpClient;
     private readonly ILogger<KicktippClient> _logger;
     private readonly IBrowsingContext _browsingContext;
     private readonly IMemoryCache _cache;
+    private readonly Func<Uri, bool> _finalAuthorityValidator;
 
     public KicktippClient(HttpClient httpClient, ILogger<KicktippClient> logger, IMemoryCache cache)
+        : this(httpClient, logger, cache, IsCanonicalKicktippAuthority)
+    {
+    }
+
+    internal KicktippClient(HttpClient httpClient, ILogger<KicktippClient> logger, IMemoryCache cache, Func<Uri, bool> finalAuthorityValidator)
     {
         _httpClient = httpClient ?? throw new ArgumentNullException(nameof(httpClient));
         _logger = logger ?? throw new ArgumentNullException(nameof(logger));
         _cache = cache ?? throw new ArgumentNullException(nameof(cache));
+        _finalAuthorityValidator = finalAuthorityValidator ?? throw new ArgumentNullException(nameof(finalAuthorityValidator));
         
         var config = Configuration.Default.WithDefaultLoader();
         _browsingContext = BrowsingContext.New(config);
@@ -85,29 +102,52 @@ public class KicktippClient : IKicktippClient, IDisposable
     /// <inheritdoc />
     public Task<List<Match>> GetOpenPredictionsAsync(string community)
     {
-        return GetOpenPredictionsInternalAsync(community, competition: null);
+        return GetOpenPredictionsInternalAsync(community, competition: null, CancellationToken.None);
     }
 
     public Task<List<Match>> GetOpenPredictionsAsync(string community, string competition)
     {
-        return GetOpenPredictionsInternalAsync(community, competition);
+        return GetOpenPredictionsInternalAsync(community, competition, CancellationToken.None);
     }
 
-    private async Task<List<Match>> GetOpenPredictionsInternalAsync(string community, string? competition)
+    public Task<List<Match>> GetOpenPredictionsAsync(
+        string community,
+        string competition,
+        CancellationToken cancellationToken) =>
+        GetOpenPredictionsInternalAsync(community, competition, cancellationToken);
+
+    private async Task<List<Match>> GetOpenPredictionsInternalAsync(
+        string community,
+        string? competition,
+        CancellationToken cancellationToken)
     {
+        var requiresSchadensfresseBundesligaIdentity = IsSchadensfresseBundesligaRoute(community, competition);
         try
         {
             var url = $"{community}/tippabgabe";
-            var response = await _httpClient.GetAsync(url);
+            var response = await _httpClient.GetAsync(url, cancellationToken);
             
-            if (!response.IsSuccessStatusCode)
+            if (!response.IsSuccessStatusCode || (requiresSchadensfresseBundesligaIdentity && response.StatusCode != HttpStatusCode.OK))
             {
                 _logger.LogError("Failed to fetch tippabgabe page. Status: {StatusCode}", response.StatusCode);
+                if (requiresSchadensfresseBundesligaIdentity)
+                {
+                    throw new KicktippFixtureIdentityException("The authenticated schadensfresse tippabgabe surface did not return HTTP 200.");
+                }
                 return new List<Match>();
             }
 
-            var content = await response.Content.ReadAsStringAsync();
+            var content = await response.Content.ReadAsStringAsync(cancellationToken);
             var document = await _browsingContext.OpenAsync(req => req.Content(content));
+
+            if (requiresSchadensfresseBundesligaIdentity &&
+                (!IsExpectedCommunityFinalUri(response.RequestMessage?.RequestUri, community, "/tippabgabe") ||
+                 !HasExactQuerySet(response.RequestMessage?.RequestUri) ||
+                 IsLoginDocument(document)))
+            {
+                _logger.LogWarning("Refusing schadensfresse Bundesliga fixture identity join because tippabgabe did not reach the authenticated target.");
+                throw new KicktippFixtureIdentityException("The authenticated schadensfresse tippabgabe surface did not reach its exact target.");
+            }
 
             var matches = new List<Match>();
             
@@ -121,6 +161,10 @@ public class KicktippClient : IKicktippClient, IDisposable
             if (matchTable == null)
             {
                 _logger.LogWarning("Could not find tippabgabe table");
+                if (requiresSchadensfresseBundesligaIdentity)
+                {
+                    throw new KicktippFixtureIdentityException("The authenticated schadensfresse tippabgabe surface is missing its match table.");
+                }
                 return matches;
             }
             
@@ -210,8 +254,35 @@ public class KicktippClient : IKicktippClient, IDisposable
 
             matches = NormalizeWorldCupFinalRoundMatches(matches);
 
+            if (requiresSchadensfresseBundesligaIdentity &&
+                !await TryJoinSchadensfresseBundesligaFixtureIdentitiesAsync(
+                    community,
+                    currentMatchday,
+                    document,
+                    matches,
+                    cancellationToken))
+            {
+                throw new KicktippFixtureIdentityException("The schadensfresse Bundesliga fixture identity join is incomplete, ambiguous, or drifted.");
+            }
+
             _logger.LogInformation("Successfully parsed {MatchCount} open matches", matches.Count);
             return matches;
+        }
+        catch (OperationCanceledException) when (cancellationToken.IsCancellationRequested)
+        {
+            throw;
+        }
+        catch (KicktippFixtureIdentityException)
+        {
+            throw;
+        }
+        catch (OperationCanceledException) when (requiresSchadensfresseBundesligaIdentity)
+        {
+            throw;
+        }
+        catch (Exception exception) when (requiresSchadensfresseBundesligaIdentity)
+        {
+            throw new KicktippFixtureIdentityException("The schadensfresse Bundesliga fixture identity retrieval failed.", exception);
         }
         catch (Exception ex)
         {
@@ -776,6 +847,7 @@ public class KicktippClient : IKicktippClient, IDisposable
         int? matchday,
         string? competition)
     {
+        var requiresSchadensfresseBundesligaIdentity = IsSchadensfresseBundesligaRoute(community, competition);
         // Create cache key based on community
         var competitionCacheKey = string.IsNullOrWhiteSpace(competition) ? "generic" : competition;
         var cacheKey = matchday.HasValue
@@ -798,15 +870,47 @@ public class KicktippClient : IKicktippClient, IDisposable
                 ? $"{community}/tippabgabe?spieltagIndex={matchday.Value}"
                 : $"{community}/tippabgabe";
             var response = await _httpClient.GetAsync(tippabgabeUrl);
-            
-            if (!response.IsSuccessStatusCode)
+
+            if (!response.IsSuccessStatusCode ||
+                (requiresSchadensfresseBundesligaIdentity && response.StatusCode != HttpStatusCode.OK))
             {
                 _logger.LogError("Failed to fetch tippabgabe page. Status: {StatusCode}", response.StatusCode);
+                if (requiresSchadensfresseBundesligaIdentity)
+                {
+                    throw new KicktippFixtureIdentityException("The authenticated schadensfresse history tippabgabe surface did not return HTTP 200.");
+                }
                 return matches;
             }
 
             var content = await response.Content.ReadAsStringAsync();
             var document = await _browsingContext.OpenAsync(req => req.Content(content));
+
+            var expectedTippabgabeQuery = matchday.HasValue
+                ? new[] { (Key: "spieltagIndex", Value: (string?)matchday.Value.ToString(CultureInfo.InvariantCulture)) }
+                : Array.Empty<(string Key, string? Value)>();
+            if (requiresSchadensfresseBundesligaIdentity &&
+                (!IsExpectedCommunityFinalUri(response.RequestMessage?.RequestUri, community, "/tippabgabe") ||
+                 !HasExactQuerySet(response.RequestMessage?.RequestUri, expectedTippabgabeQuery) ||
+                 IsLoginDocument(document)))
+            {
+                throw new KicktippFixtureIdentityException("The authenticated schadensfresse history tippabgabe surface did not reach its exact target.");
+            }
+
+            HashSet<FixtureTuple>? openFixtureTuples = null;
+            if (requiresSchadensfresseBundesligaIdentity)
+            {
+                if (!TryExtractSchadensfresseOpenFixtureTuples(document, out var extractedOpenFixtureTuples))
+                {
+                    throw new KicktippFixtureIdentityException("The authenticated schadensfresse history tippabgabe surface is missing or has malformed betting controls.");
+                }
+
+                if (extractedOpenFixtureTuples.Count == 0)
+                {
+                    return matches;
+                }
+
+                openFixtureTuples = extractedOpenFixtureTuples;
+            }
 
             // Extract matchday from the tippabgabe page
             var currentMatchday = ExtractMatchdayFromPage(document);
@@ -822,6 +926,10 @@ public class KicktippClient : IKicktippClient, IDisposable
             if (spielinfoLink == null)
             {
                 _logger.LogWarning("Could not find Spielinfo link on tippabgabe page");
+                if (requiresSchadensfresseBundesligaIdentity)
+                {
+                    throw new KicktippFixtureIdentityException("The authenticated schadensfresse history tippabgabe surface is missing its Spielinfo link.");
+                }
                 return matches;
             }
 
@@ -829,6 +937,10 @@ public class KicktippClient : IKicktippClient, IDisposable
             if (string.IsNullOrEmpty(spielinfoUrl))
             {
                 _logger.LogWarning("Spielinfo link has no href attribute");
+                if (requiresSchadensfresseBundesligaIdentity)
+                {
+                    throw new KicktippFixtureIdentityException("The authenticated schadensfresse history Spielinfo link has no target.");
+                }
                 return matches;
             }
 
@@ -843,20 +955,46 @@ public class KicktippClient : IKicktippClient, IDisposable
             // Navigate through all matches using the right arrow navigation
             var currentUrl = spielinfoUrl;
             var matchCount = 0;
-            
+            var seenSpielinfoFixtureIds = new HashSet<string>(StringComparer.Ordinal);
+            var historyFixtureIdsByTuple = new Dictionary<FixtureTuple, string>();
+
             while (!string.IsNullOrEmpty(currentUrl))
             {
                 try
                 {
-                    var spielinfoResponse = await _httpClient.GetAsync(currentUrl);
-                    if (!spielinfoResponse.IsSuccessStatusCode)
+                    Uri? expectedSpielinfoUri = null;
+                    var expectedSpielinfoFixtureId = string.Empty;
+                    if (requiresSchadensfresseBundesligaIdentity &&
+                        (!TryCreateSchadensfresseSpielinfoUri(currentUrl, community, out expectedSpielinfoUri, out expectedSpielinfoFixtureId) ||
+                         !seenSpielinfoFixtureIds.Add(expectedSpielinfoFixtureId) ||
+                         seenSpielinfoFixtureIds.Count > SchadensfresseBundesligaMaximumMatchdayFixtures))
+                    {
+                        throw new KicktippFixtureIdentityException("A schadensfresse history Spielinfo link is malformed, repeated, or exceeds the matchday bound.");
+                    }
+
+                    var spielinfoResponse = await _httpClient.GetAsync(expectedSpielinfoUri ?? new Uri(_httpClient.BaseAddress!, currentUrl));
+                    if (!spielinfoResponse.IsSuccessStatusCode ||
+                        (requiresSchadensfresseBundesligaIdentity &&
+                         (spielinfoResponse.StatusCode != HttpStatusCode.OK ||
+                          !IsExpectedSchadensfresseSpielinfoFinalUri(
+                              spielinfoResponse.RequestMessage?.RequestUri,
+                              community,
+                              expectedSpielinfoFixtureId))))
                     {
                         _logger.LogWarning("Failed to fetch spielinfo page: {Url}. Status: {StatusCode}", currentUrl, spielinfoResponse.StatusCode);
+                        if (requiresSchadensfresseBundesligaIdentity)
+                        {
+                            throw new KicktippFixtureIdentityException("A schadensfresse history Spielinfo surface did not return a success status.");
+                        }
                         break;
                     }
 
                     var spielinfoContent = await spielinfoResponse.Content.ReadAsStringAsync();
                     var spielinfoDocument = await _browsingContext.OpenAsync(req => req.Content(spielinfoContent));
+                    if (requiresSchadensfresseBundesligaIdentity && IsLoginDocument(spielinfoDocument))
+                    {
+                        throw new KicktippFixtureIdentityException("A schadensfresse history Spielinfo response reached a login surface.");
+                    }
 
                     // Extract match information
                     var matchWithHistory = ExtractMatchWithHistoryFromSpielinfoPage(
@@ -864,6 +1002,33 @@ public class KicktippClient : IKicktippClient, IDisposable
                         currentMatchday,
                         competition,
                         kicktippRoundName);
+                    if (matchWithHistory != null)
+                    {
+                        if (requiresSchadensfresseBundesligaIdentity)
+                        {
+                            var tuple = new FixtureTuple(
+                                matchWithHistory.Match.StartsAt.ToInstant(),
+                                NormalizeStructuredMetadata(matchWithHistory.Match.HomeTeam),
+                                NormalizeStructuredMetadata(matchWithHistory.Match.AwayTeam));
+                            if (openFixtureTuples is null || !openFixtureTuples.Contains(tuple))
+                            {
+                                // History navigation can expose closed rows. They never enter the open-item join.
+                                matchWithHistory = null;
+                            }
+                            else if (!historyFixtureIdsByTuple.TryAdd(tuple, expectedSpielinfoFixtureId))
+                            {
+                                throw new KicktippFixtureIdentityException("Multiple Schadensfresse history pages describe one open fixture tuple.");
+                            }
+                            else
+                            {
+                                matchWithHistory = matchWithHistory with
+                                {
+                                    Match = matchWithHistory.Match with { KicktippFixtureId = expectedSpielinfoFixtureId }
+                                };
+                            }
+                        }
+                    }
+
                     if (matchWithHistory != null)
                     {
                         matches.Add(matchWithHistory);
@@ -880,6 +1045,11 @@ public class KicktippClient : IKicktippClient, IDisposable
                         {
                             currentUrl = currentUrl.Substring(1); // Remove leading slash
                         }
+                        if (requiresSchadensfresseBundesligaIdentity &&
+                            !TryCreateSchadensfresseSpielinfoUri(currentUrl, community, out _, out _))
+                        {
+                            throw new KicktippFixtureIdentityException("A schadensfresse history next-page link is malformed or outside the exact target contract.");
+                        }
                     }
                     else
                     {
@@ -889,12 +1059,50 @@ public class KicktippClient : IKicktippClient, IDisposable
                 }
                 catch (Exception ex)
                 {
+                    if (requiresSchadensfresseBundesligaIdentity)
+                    {
+                        throw new KicktippFixtureIdentityException("A schadensfresse history Spielinfo surface could not be retrieved or parsed.", ex);
+                    }
                     _logger.LogError(ex, "Error processing spielinfo page: {Url}", currentUrl);
                     break;
                 }
             }
 
             matches = NormalizeWorldCupFinalRoundMatches(matches);
+
+            if (requiresSchadensfresseBundesligaIdentity)
+            {
+                var joinedMatches = matches.Select(item => item.Match).ToList();
+                if (!await TryJoinSchadensfresseBundesligaFixtureIdentitiesAsync(
+                        community,
+                        currentMatchday,
+                        document,
+                        joinedMatches,
+                        CancellationToken.None))
+                {
+                    throw new KicktippFixtureIdentityException("The schadensfresse Bundesliga history fixture identity join is incomplete, ambiguous, or drifted.");
+                }
+
+                if (historyFixtureIdsByTuple.Count != joinedMatches.Count ||
+                    joinedMatches.Any(item =>
+                        !historyFixtureIdsByTuple.TryGetValue(
+                            new FixtureTuple(item.StartsAt.ToInstant(), NormalizeStructuredMetadata(item.HomeTeam), NormalizeStructuredMetadata(item.AwayTeam)),
+                            out var historyFixtureId) ||
+                        !string.Equals(historyFixtureId, item.KicktippFixtureId, StringComparison.Ordinal)))
+                {
+                    throw new KicktippFixtureIdentityException("The Schadensfresse history-page fixture ID does not agree with the exact outcome/detail fixture ID.");
+                }
+
+                var joinedByTuple = joinedMatches.ToDictionary(
+                    item => new FixtureTuple(item.StartsAt.ToInstant(), NormalizeStructuredMetadata(item.HomeTeam), NormalizeStructuredMetadata(item.AwayTeam)));
+                matches = matches.Select(item => item with
+                {
+                    Match = joinedByTuple[new FixtureTuple(
+                        item.Match.StartsAt.ToInstant(),
+                        NormalizeStructuredMetadata(item.Match.HomeTeam),
+                        NormalizeStructuredMetadata(item.Match.AwayTeam))]
+                }).ToList();
+            }
 
             _logger.LogInformation("Successfully extracted {MatchCount} matches with history", matches.Count);
             
@@ -908,6 +1116,14 @@ public class KicktippClient : IKicktippClient, IDisposable
             _logger.LogDebug("Cached matches with history for {Community} for 15 minutes", community);
             
             return matches;
+        }
+        catch (KicktippFixtureIdentityException)
+        {
+            throw;
+        }
+        catch (Exception ex) when (requiresSchadensfresseBundesligaIdentity)
+        {
+            throw new KicktippFixtureIdentityException("The schadensfresse Bundesliga history retrieval failed.", ex);
         }
         catch (Exception ex)
         {
@@ -1879,6 +2095,534 @@ public class KicktippClient : IKicktippClient, IDisposable
             ? string.Empty
             : Regex.Replace(value.Trim(), @"\s+", " ");
     }
+
+    private static bool IsSchadensfresseBundesligaRoute(string community, string? competition) =>
+        string.Equals(community, "schadensfresse", StringComparison.Ordinal) &&
+        string.Equals(competition, CompetitionIds.Bundesliga2026_27, StringComparison.Ordinal);
+
+    /// <summary>
+    /// Resolves the only two source surfaces that can establish a current schadensfresse
+    /// Bundesliga match identity: the outcome table's stable ID and its ID-addressed detail.
+    /// The bounded nine-detail maximum is the accepted Bundesliga matchday size; it avoids
+    /// turning a table parser into an unbounded request-per-row crawler.
+    /// </summary>
+    private async Task<bool> TryJoinSchadensfresseBundesligaFixtureIdentitiesAsync(
+        string community,
+        int matchday,
+        IDocument tippabgabeDocument,
+        List<Match> matches,
+        CancellationToken cancellationToken)
+    {
+        if (matches.Count == 0)
+        {
+            return tippabgabeDocument.QuerySelectorAll("#tippabgabeSpiele tbody input[type='text']").Length == 0;
+        }
+
+        if (!TryExtractOpenFixtureReferences(tippabgabeDocument, matches, out var openFixtures) || openFixtures.Count > 9)
+        {
+            _logger.LogWarning("Refusing schadensfresse Bundesliga fixture identity join because open rows are malformed or exceed the nine-fixture bound.");
+            return false;
+        }
+
+        var outcomeDocument = await GetTippuebersichtDocumentForFixtureJoinAsync(community, matchday, cancellationToken);
+        if (outcomeDocument is null ||
+            !TryExtractOutcomeFixtureReferences(outcomeDocument, community, matchday, out var outcomeFixtures) ||
+            outcomeFixtures.Count > 9)
+        {
+            _logger.LogWarning("Refusing schadensfresse Bundesliga fixture identity join because the outcome surface is incomplete or ambiguous.");
+            return false;
+        }
+
+        var outcomesByTuple = outcomeFixtures.GroupBy(item => item.Tuple).ToDictionary(group => group.Key, group => group.ToArray());
+        var outcomesById = outcomeFixtures.GroupBy(item => item.KicktippFixtureId, StringComparer.Ordinal).ToDictionary(group => group.Key, group => group.ToArray(), StringComparer.Ordinal);
+        if (outcomesById.Values.Any(group => group.Length != 1))
+        {
+            _logger.LogWarning("Refusing schadensfresse Bundesliga fixture identity join because the outcome surface repeats a fixture ID.");
+            return false;
+        }
+
+        var matched = new List<(OpenFixtureReference Open, OutcomeFixtureReference Outcome)>();
+        foreach (var openFixture in openFixtures)
+        {
+            if (!outcomesByTuple.TryGetValue(openFixture.Tuple, out var candidates) || candidates.Length != 1)
+            {
+                _logger.LogWarning("Refusing schadensfresse Bundesliga fixture identity join because an open row does not map one-to-one to an outcome row.");
+                return false;
+            }
+
+            var outcome = candidates[0];
+            if (openFixture.FormFixtureId is not null &&
+                !string.Equals(openFixture.FormFixtureId, outcome.KicktippFixtureId, StringComparison.Ordinal))
+            {
+                _logger.LogWarning("Refusing schadensfresse Bundesliga fixture identity join because the open form fixture ID disagrees with the outcome ID.");
+                return false;
+            }
+
+            matched.Add((openFixture, outcome));
+        }
+
+        if (matched.GroupBy(item => item.Outcome.KicktippFixtureId, StringComparer.Ordinal).Any(group => group.Count() != 1))
+        {
+            _logger.LogWarning("Refusing schadensfresse Bundesliga fixture identity join because multiple open rows map to one outcome ID.");
+            return false;
+        }
+
+        var seed = BundesligaSeasonRoutingSeed.Default;
+        foreach (var (_, outcome) in matched)
+        {
+            if (!seed.TryGetFixture(outcome.KicktippFixtureId, out _))
+            {
+                _logger.LogWarning("Refusing schadensfresse Bundesliga fixture identity join because outcome ID {FixtureId} is not in the routing seed.", outcome.KicktippFixtureId);
+                return false;
+            }
+        }
+
+        var detailsById = new Dictionary<string, StructuredFixtureDetail>(StringComparer.Ordinal);
+        foreach (var (_, outcome) in matched.OrderBy(item => item.Outcome.KicktippFixtureId, StringComparer.Ordinal))
+        {
+            var detail = await GetStructuredFixtureDetailAsync(community, matchday, outcome, cancellationToken);
+            if (detail is null || !detailsById.TryAdd(outcome.KicktippFixtureId, detail))
+            {
+                _logger.LogWarning("Refusing schadensfresse Bundesliga fixture identity join because structured detail is missing, invalid, or duplicated.");
+                return false;
+            }
+        }
+
+        for (var index = 0; index < matched.Count; index++)
+        {
+            var (openFixture, outcome) = matched[index];
+            var detail = detailsById[outcome.KicktippFixtureId];
+            if (!TryMapSchadensfresseStructuredCompetition(detail.Competition, out var subcompetition, out var resultBasis) ||
+                !seed.TryGetFixture(outcome.KicktippFixtureId, out var expected) ||
+                !string.Equals(detail.RoundName, expected.KicktippRoundName, StringComparison.Ordinal) ||
+                subcompetition != expected.BundesligaSeasonSubcompetition ||
+                resultBasis != expected.ResultBasis ||
+                detail.StartsAt != openFixture.Tuple.StartsAt ||
+                detail.Deadline != openFixture.Tuple.StartsAt)
+            {
+                _logger.LogWarning("Refusing schadensfresse Bundesliga fixture identity join because detail metadata drifts from the exact routing seed or open row.");
+                return false;
+            }
+
+            matches[matches.IndexOf(openFixture.Match)] = openFixture.Match with
+            {
+                KicktippFixtureId = outcome.KicktippFixtureId,
+                KicktippRoundName = detail.RoundName,
+                BundesligaSeasonSubcompetition = subcompetition,
+                ResultBasis = resultBasis
+            };
+        }
+
+        return true;
+    }
+
+    private async Task<IDocument?> GetTippuebersichtDocumentForFixtureJoinAsync(
+        string community,
+        int matchday,
+        CancellationToken cancellationToken)
+    {
+        var url = $"{community}/tippuebersicht?spieltagIndex={matchday.ToString(CultureInfo.InvariantCulture)}";
+        var response = await _httpClient.GetAsync(url, cancellationToken);
+        if (response.StatusCode != HttpStatusCode.OK ||
+            !IsExpectedCommunityFinalUri(response.RequestMessage?.RequestUri, community, "/tippuebersicht") ||
+            !HasExactQuerySet(response.RequestMessage?.RequestUri, ("spieltagIndex", matchday.ToString(CultureInfo.InvariantCulture))))
+        {
+            return null;
+        }
+
+        var content = await response.Content.ReadAsStringAsync(cancellationToken);
+        var document = await _browsingContext.OpenAsync(req => req.Content(content));
+        return IsLoginDocument(document) ? null : document;
+    }
+
+    private async Task<StructuredFixtureDetail?> GetStructuredFixtureDetailAsync(
+        string community,
+        int matchday,
+        OutcomeFixtureReference outcome,
+        CancellationToken cancellationToken)
+    {
+        if (!TryCreateOutcomeDetailUri(outcome.DetailUrl, community, matchday, outcome.KicktippFixtureId, out var detailUri))
+        {
+            return null;
+        }
+
+        var response = await _httpClient.GetAsync(detailUri, cancellationToken);
+        if (response.StatusCode != HttpStatusCode.OK ||
+            !IsExpectedCommunityFinalUri(response.RequestMessage?.RequestUri, community, "/tippuebersicht/spiel") ||
+            !HasExactQuerySet(response.RequestMessage?.RequestUri,
+                ("tippspielId", outcome.KicktippFixtureId),
+                ("tippsaisonId", outcome.TippsaisonId),
+                ("spieltagIndex", matchday.ToString(CultureInfo.InvariantCulture))))
+        {
+            return null;
+        }
+
+        var content = await response.Content.ReadAsStringAsync(cancellationToken);
+        var document = await _browsingContext.OpenAsync(req => req.Content(content));
+        if (IsLoginDocument(document) ||
+            !TryGetExactStructuredDetailValue(document, "Wettbewerb", out var competition) ||
+            !TryGetExactStructuredDetailValue(document, "Spieltag", out var roundName) ||
+            !TryGetExactStructuredDetailValue(document, "Termin", out var termin) ||
+            !TryGetExactStructuredDetailValue(document, "Tipptermin", out var deadline) ||
+            !HasOnlyRequiredStructuredDetailLabels(document))
+        {
+            return null;
+        }
+
+        if (TryParseStructuredDateTime(termin, out var startsAt) && TryParseStructuredDateTime(deadline, out var deadlineAt))
+        {
+            return new StructuredFixtureDetail(competition, roundName, startsAt, deadlineAt);
+        }
+        return null;
+    }
+
+    private bool TryExtractSchadensfresseOpenFixtureTuples(
+        IDocument document,
+        out HashSet<FixtureTuple> fixtures)
+    {
+        fixtures = [];
+        var table = document.QuerySelector("#tippabgabeSpiele tbody");
+        if (table is null)
+        {
+            return false;
+        }
+
+        foreach (var row in table.QuerySelectorAll("tr"))
+        {
+            var cells = row.QuerySelectorAll("td");
+            if (cells.Length < 4)
+            {
+                continue;
+            }
+
+            var bettingControls = cells[3].QuerySelectorAll("input[type='text']");
+            if (bettingControls.Length == 0)
+            {
+                continue;
+            }
+            if (bettingControls.Length < 2)
+            {
+                return false;
+            }
+
+            var timeText = NormalizeStructuredMetadata(cells[0].TextContent);
+            var homeTeam = NormalizeStructuredMetadata(cells[1].TextContent);
+            var awayTeam = NormalizeStructuredMetadata(cells[2].TextContent);
+            if (string.IsNullOrWhiteSpace(homeTeam) ||
+                string.IsNullOrWhiteSpace(awayTeam) ||
+                !TryParseStructuredDateTime(timeText, out var startsAt) ||
+                !fixtures.Add(new FixtureTuple(startsAt, homeTeam, awayTeam)))
+            {
+                return false;
+            }
+        }
+
+        return true;
+    }
+
+    private bool TryCreateSchadensfresseSpielinfoUri(
+        string? sourceUrl,
+        string community,
+        out Uri spielinfoUri,
+        out string fixtureId)
+    {
+        spielinfoUri = null!;
+        fixtureId = string.Empty;
+        if (string.IsNullOrWhiteSpace(sourceUrl) ||
+            _httpClient.BaseAddress is null ||
+            !Uri.TryCreate(_httpClient.BaseAddress, sourceUrl, out var parsed) ||
+            !IsExpectedCommunityFinalUri(parsed, community, "/spielinfo") ||
+            !HasExactQuerySet(parsed, ("tippspielId", null)) ||
+            !TryReadSingleQueryValue(parsed, "tippspielId", out fixtureId))
+        {
+            return false;
+        }
+
+        spielinfoUri = parsed;
+        return true;
+    }
+
+    private bool IsExpectedSchadensfresseSpielinfoFinalUri(Uri? uri, string community, string fixtureId) =>
+        IsExpectedCommunityFinalUri(uri, community, "/spielinfo") &&
+        HasExactQuerySet(uri, ("tippspielId", fixtureId));
+
+    private bool TryExtractOpenFixtureReferences(
+        IDocument document,
+        IReadOnlyList<Match> matches,
+        out List<OpenFixtureReference> fixtures)
+    {
+        fixtures = [];
+        var expected = matches.GroupBy(match => new FixtureTuple(
+                match.StartsAt.ToInstant(),
+                NormalizeStructuredMetadata(match.HomeTeam),
+                NormalizeStructuredMetadata(match.AwayTeam)))
+            .ToDictionary(group => group.Key, group => group.ToArray());
+        if (expected.Values.Any(group => group.Length != 1))
+        {
+            return false;
+        }
+
+        var table = document.QuerySelector("#tippabgabeSpiele tbody");
+        if (table is null)
+        {
+            return false;
+        }
+
+        var seen = new HashSet<FixtureTuple>();
+        var lastValidTimeText = string.Empty;
+        foreach (var row in table.QuerySelectorAll("tr"))
+        {
+            var cells = row.QuerySelectorAll("td");
+            if (cells.Length < 4 || cells[3].QuerySelectorAll("input[type='text']").Length < 2)
+            {
+                continue;
+            }
+
+            var timeText = NormalizeStructuredMetadata(cells[0].TextContent);
+            if (string.IsNullOrWhiteSpace(timeText) || IsCancelledTimeText(timeText))
+            {
+                timeText = lastValidTimeText;
+            }
+            else
+            {
+                lastValidTimeText = timeText;
+            }
+
+            if (!TryParseStructuredDateTime(timeText, out var startsAt))
+            {
+                return false;
+            }
+
+            try
+            {
+                var tuple = new FixtureTuple(
+                    startsAt,
+                    NormalizeStructuredMetadata(cells[1].TextContent),
+                    NormalizeStructuredMetadata(cells[2].TextContent));
+                if (!expected.TryGetValue(tuple, out var match) || !TryExtractFormFixtureId(row, out var formFixtureId) || !seen.Add(tuple))
+                {
+                    return false;
+                }
+
+                fixtures.Add(new OpenFixtureReference(match[0], tuple, formFixtureId));
+            }
+            catch (FormatException)
+            {
+                return false;
+            }
+        }
+
+        return fixtures.Count == matches.Count;
+    }
+
+    private static bool TryExtractFormFixtureId(IElement row, out string? fixtureId)
+    {
+        fixtureId = null;
+        var ids = row.QuerySelectorAll("input[name]")
+            .Select(item => item.GetAttribute("name"))
+            .Where(name => name?.StartsWith("spieltippForms[", StringComparison.Ordinal) == true)
+            .Select(name => Regex.Match(name!, @"^spieltippForms\[([^\]]+)\]"))
+            .Where(match => match.Success && !string.IsNullOrWhiteSpace(match.Groups[1].Value))
+            .Select(match => match.Groups[1].Value)
+            .Distinct(StringComparer.Ordinal)
+            .ToArray();
+        if (ids.Length > 1)
+        {
+            return false;
+        }
+
+        fixtureId = ids.Length == 1 ? ids[0] : null;
+        return true;
+    }
+
+    private bool TryExtractOutcomeFixtureReferences(
+        IDocument document,
+        string community,
+        int matchday,
+        out List<OutcomeFixtureReference> fixtures)
+    {
+        fixtures = [];
+        var table = document.QuerySelector("#spielplanSpiele tbody");
+        if (table is null)
+        {
+            return false;
+        }
+
+        foreach (var row in table.QuerySelectorAll("tr.clickable"))
+        {
+            var cells = row.QuerySelectorAll("td");
+            var detailUrl = row.GetAttribute("data-url");
+            var homeTeam = cells.Length >= 3 ? NormalizeStructuredMetadata(cells[1].TextContent) : string.Empty;
+            var awayTeam = cells.Length >= 3 ? NormalizeStructuredMetadata(cells[2].TextContent) : string.Empty;
+            var timeText = cells.Length >= 1 ? NormalizeStructuredMetadata(cells[0].TextContent) : string.Empty;
+            var fixtureId = ExtractTippSpielId(detailUrl);
+            if (string.IsNullOrWhiteSpace(homeTeam) || string.IsNullOrWhiteSpace(awayTeam) || string.IsNullOrWhiteSpace(fixtureId) ||
+                !TryCreateOutcomeDetailUri(detailUrl, community, matchday, fixtureId, out _))
+            {
+                return false;
+            }
+
+            if (!TryParseStructuredDateTime(timeText, out var startsAt))
+            {
+                return false;
+            }
+
+            try
+            {
+                if (!TryCreateOutcomeDetailUri(detailUrl, community, matchday, fixtureId, out var detailUri) ||
+                    !TryReadSingleQueryValue(detailUri, "tippsaisonId", out var seasonId))
+                {
+                    return false;
+                }
+                fixtures.Add(new OutcomeFixtureReference(
+                    fixtureId,
+                    detailUrl!,
+                    seasonId,
+                    new FixtureTuple(startsAt, homeTeam, awayTeam)));
+            }
+            catch (FormatException)
+            {
+                return false;
+            }
+        }
+
+        return fixtures.Count > 0;
+    }
+
+    private bool TryCreateOutcomeDetailUri(
+        string? detailUrl,
+        string community,
+        int matchday,
+        string expectedFixtureId,
+        out Uri detailUri)
+    {
+        detailUri = null!;
+        if (string.IsNullOrWhiteSpace(detailUrl) || _httpClient.BaseAddress is null ||
+            !Uri.TryCreate(_httpClient.BaseAddress, detailUrl, out var parsed) ||
+            !IsExpectedCommunityFinalUri(parsed, community, "/tippuebersicht/spiel") ||
+            !HasExactQuerySet(parsed,
+                ("tippspielId", expectedFixtureId),
+                ("tippsaisonId", null),
+                ("spieltagIndex", matchday.ToString(CultureInfo.InvariantCulture))))
+        {
+            return false;
+        }
+
+        detailUri = parsed;
+        return true;
+    }
+
+    private static bool TryGetExactStructuredDetailValue(IDocument document, string label, out string value)
+    {
+        var values = document.QuerySelectorAll(".spieldaten-infos-label")
+            .Where(item => string.Equals(NormalizeStructuredMetadata(item.TextContent), label, StringComparison.Ordinal))
+            .Select(item => item.NextElementSibling)
+            .Where(item => item is not null && item.ClassList.Contains("spieldaten-infos-value"))
+            .Select(item => NormalizeStructuredMetadata(item!.TextContent))
+            .ToArray();
+        value = values.Length == 1 ? values[0] : string.Empty;
+        return values.Length == 1 && !string.IsNullOrWhiteSpace(value);
+    }
+
+    private static bool TryMapSchadensfresseStructuredCompetition(
+        string competition,
+        out BundesligaSeasonSubcompetition subcompetition,
+        out ResultBasis resultBasis)
+    {
+        subcompetition = default;
+        resultBasis = default;
+        var mapping = SchadensfresseRulesCanonicalJson.Expected.ResultBases
+            .Where(item => string.Equals(item.SourceLabel, competition, StringComparison.Ordinal))
+            .ToArray();
+        return mapping.Length == 1 &&
+            BundesligaSeasonRoutingIdentityValues.TryParseBundesligaSeasonSubcompetition(mapping[0].Subcompetition, out subcompetition) &&
+            BundesligaSeasonRoutingIdentityValues.TryParseResultBasis(mapping[0].ResultBasis, out resultBasis);
+    }
+
+    private bool IsExpectedCommunityFinalUri(Uri? uri, string community, string expectedPath) =>
+        uri is not null && _finalAuthorityValidator(uri) &&
+        string.Equals(uri.AbsolutePath, $"/{community}{expectedPath}", StringComparison.Ordinal) &&
+        string.IsNullOrEmpty(uri.Fragment) && string.IsNullOrEmpty(uri.UserInfo);
+
+    public static bool IsCanonicalKicktippAuthority(Uri uri) =>
+        uri.IsAbsoluteUri &&
+        string.Equals(uri.Scheme, Uri.UriSchemeHttps, StringComparison.Ordinal) &&
+        string.Equals(uri.Host, "www.kicktipp.de", StringComparison.OrdinalIgnoreCase) &&
+        uri.Port == 443 &&
+        string.IsNullOrEmpty(uri.UserInfo);
+
+    private static bool HasExactQuerySet(Uri? uri, params (string Key, string? Value)[] expected)
+    {
+        if (uri is null || (string.IsNullOrEmpty(uri.Query) && expected.Length == 0)) return uri is not null;
+        if (uri is null || string.IsNullOrEmpty(uri.Query) || ContainsMalformedPercentEncoding(uri.Query[1..])) return false;
+        var actual = uri.Query[1..].Split('&', StringSplitOptions.None).Select(part => part.Split('=', 2)).ToArray();
+        if (actual.Length != expected.Length || actual.Any(parts => parts.Length != 2)) return false;
+        return expected.All(item => TryReadSingleQueryValue(uri, item.Key, out var value) &&
+            (item.Value is null ? !string.IsNullOrWhiteSpace(value) : string.Equals(value, item.Value, StringComparison.Ordinal)));
+    }
+
+    private static bool TryReadSingleQueryValue(Uri? uri, string key, out string value)
+    {
+        value = string.Empty;
+        if (uri is null || string.IsNullOrEmpty(uri.Query))
+        {
+            return false;
+        }
+
+        var query = uri.Query[1..];
+        if (ContainsMalformedPercentEncoding(query))
+        {
+            return false;
+        }
+
+        var matches = query.Split('&', StringSplitOptions.None)
+            .Select(part => part.Split('=', 2))
+            .Where(parts => parts.Length == 2 && string.Equals(Uri.UnescapeDataString(parts[0].Replace("+", " ", StringComparison.Ordinal)), key, StringComparison.Ordinal))
+            .Select(parts => Uri.UnescapeDataString(parts[1].Replace("+", " ", StringComparison.Ordinal)))
+            .ToArray();
+        if (matches.Length != 1)
+        {
+            return false;
+        }
+
+        value = matches[0];
+        return true;
+    }
+
+    private static bool IsLoginDocument(IDocument document) =>
+        document.QuerySelector("form#loginFormular") is not null ||
+        NormalizeStructuredMetadata(document.Title).Contains("Login", StringComparison.OrdinalIgnoreCase);
+
+    private static string NormalizeStructuredMetadata(string? value) =>
+        NormalizeWhitespace(value).Normalize(NormalizationForm.FormC);
+
+    private static bool HasOnlyRequiredStructuredDetailLabels(IDocument document)
+    {
+        var labelElements = document.QuerySelectorAll(".spieldaten-infos-label");
+        var labels = labelElements.Select(item => NormalizeStructuredMetadata(item.TextContent)).ToArray();
+        var required = new[] { "Wettbewerb", "Spieltag", "Termin", "Tipptermin" };
+        var values = document.QuerySelectorAll(".spieldaten-infos-value");
+        return labels.Length == required.Length &&
+            values.Length == required.Length &&
+            required.All(label => labels.Count(value => string.Equals(value, label, StringComparison.Ordinal)) == 1) &&
+            labelElements.All(label =>
+                label.NextElementSibling is { } value &&
+                value.ClassList.Contains("spieldaten-infos-value") &&
+                !string.IsNullOrWhiteSpace(NormalizeStructuredMetadata(value.TextContent)));
+    }
+
+    private static bool TryParseStructuredDateTime(string value, out Instant instant)
+    {
+        instant = default;
+        if (!DateTime.TryParseExact(value, ["dd.MM.yy HH:mm", "dd.MM.yyyy HH:mm"], CultureInfo.InvariantCulture, DateTimeStyles.None, out var parsed)) return false;
+        instant = BerlinTimeZone.AtLeniently(LocalDateTime.FromDateTime(DateTime.SpecifyKind(parsed, DateTimeKind.Unspecified))).ToInstant();
+        return true;
+    }
+
+    private sealed record FixtureTuple(Instant StartsAt, string HomeTeam, string AwayTeam);
+    private sealed record OpenFixtureReference(Match Match, FixtureTuple Tuple, string? FormFixtureId);
+    private sealed record OutcomeFixtureReference(string KicktippFixtureId, string DetailUrl, string TippsaisonId, FixtureTuple Tuple);
+    private sealed record StructuredFixtureDetail(string Competition, string RoundName, Instant StartsAt, Instant Deadline);
 
     /// <summary>
     /// Determines if the given time text indicates a cancelled match.

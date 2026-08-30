@@ -14,10 +14,12 @@ public class BundesligaSeasonRoutingSeedTests
     {
         var seed = BundesligaSeasonRoutingSeed.Default;
 
-        await Assert.That(seed.Fixtures).IsEmpty();
+        await Assert.That(seed.Fixtures).IsEquivalentTo([
+            new BundesligaSeasonFixtureRoutingIdentity("1662323362", BundesligaSeasonSubcompetition.Bundesliga, "1. Spieltag", ResultBasis.RegularTime90Minutes),
+            new BundesligaSeasonFixtureRoutingIdentity("1662323366", BundesligaSeasonSubcompetition.Bundesliga, "1. Spieltag", ResultBasis.RegularTime90Minutes)]);
         await Assert.That(seed.Questions).Count().IsEqualTo(3);
         await Assert.That(seed.Questions.Sum(question => question.Options.Count)).IsEqualTo(111);
-        await Assert.That(seed.CanonicalSha256).IsEqualTo("52ce7ba4430d07ed71528a7ce48fee499e25b9dd303bd7bce22eed17a1921660");
+        await Assert.That(seed.CanonicalSha256).IsEqualTo("81b1c6ab0a6ad3159fcafebcbf1e3525df2cdf8e1279369f2515f001176008e5");
         await Assert.That(seed.Questions.Select(question => question.KicktippQuestionId)).IsEquivalentTo(["1662326752", "1662326753", "1662326754"]);
         await Assert.That(seed.Questions.Select(question => (question.Text, question.MaxSelections, question.Deadline))).IsEquivalentTo([
             ("CL: Welche Mannschaft stellt den Spieler mit den meisten Toren?", 1, Instant.FromUtc(2026, 9, 8, 16, 45)),
@@ -80,13 +82,18 @@ public class BundesligaSeasonRoutingSeedTests
     }
 
     [Test]
-    public async Task Incomplete_or_unseeded_match_identity_fails_closed()
+    public async Task Exact_seeded_match_identity_classifies_and_every_incomplete_unknown_or_drifted_value_fails_closed()
     {
-        var classifier = new BundesligaSeasonRoutingClassifier(BundesligaSeasonRoutingSeed.Default);
-        var match = new Match("SC Freiburg", "Werder Bremen", SystemClock.Instance.GetCurrentInstant().InZone(DateTimeZone.Utc), 1) { KicktippFixtureId = "1662323362", KicktippRoundName = "1. Bundesliga 2026/27", ResultBasis = ResultBasis.RegularTime90Minutes, BundesligaSeasonSubcompetition = BundesligaSeasonSubcompetition.Bundesliga };
+        var seed = BundesligaSeasonRoutingSeed.Default;
+        var classifier = new BundesligaSeasonRoutingClassifier(seed);
+        var match = new Match("SC Freiburg", "Werder Bremen", SystemClock.Instance.GetCurrentInstant().InZone(DateTimeZone.Utc), 1) { KicktippFixtureId = "1662323362", KicktippRoundName = "1. Spieltag", ResultBasis = ResultBasis.RegularTime90Minutes, BundesligaSeasonSubcompetition = BundesligaSeasonSubcompetition.Bundesliga };
 
-        await Assert.That(classifier.TryClassifyMatch(CompetitionIds.Bundesliga2026_27, match, out _)).IsFalse();
+        await Assert.That(classifier.TryClassifyMatch(CompetitionIds.Bundesliga2026_27, match, out var identity)).IsTrue();
+        await Assert.That(identity).IsEqualTo(seed.Fixtures[0]);
         await Assert.That(classifier.TryClassifyMatch(CompetitionIds.Bundesliga2026_27, match with { KicktippFixtureId = null }, out _)).IsFalse();
+        await Assert.That(classifier.TryClassifyMatch(CompetitionIds.Bundesliga2026_27, match with { KicktippFixtureId = "unknown" }, out _)).IsFalse();
+        await Assert.That(classifier.TryClassifyMatch(CompetitionIds.Bundesliga2026_27, match with { KicktippRoundName = "1. Spiel" }, out _)).IsFalse();
+        await Assert.That(classifier.TryClassifyMatch(CompetitionIds.Bundesliga2026_27, match with { ResultBasis = ResultBasis.FinalScoreIncludingExtraTimeAndPenaltyShootout }, out _)).IsFalse();
     }
 
     [Test]

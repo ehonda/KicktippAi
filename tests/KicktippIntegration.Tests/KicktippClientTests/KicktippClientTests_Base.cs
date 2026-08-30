@@ -25,6 +25,13 @@ public abstract class KicktippClientTests_Base : WireMockTestBase
         var actualLogger = logger.Or(() => new FakeLogger<KicktippClient>());
         var actualCache = cache.Or(() => new MemoryCache(new MemoryCacheOptions()));
 
-        return new KicktippClient(actualHttpClient!, actualLogger!, actualCache!);
+        var testAuthority = new Uri(ServerUrl);
+        return new KicktippClient(
+            actualHttpClient!,
+            actualLogger!,
+            actualCache!,
+            uri => string.Equals(uri.Scheme, testAuthority.Scheme, StringComparison.OrdinalIgnoreCase) &&
+                   string.Equals(uri.Host, testAuthority.Host, StringComparison.OrdinalIgnoreCase) &&
+                   uri.Port == testAuthority.Port);
     }
 }
