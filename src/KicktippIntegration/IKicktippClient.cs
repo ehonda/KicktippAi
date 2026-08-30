@@ -176,6 +176,14 @@ public interface IKicktippClient
     Task<List<BonusQuestion>> GetOpenBonusQuestionsAsync(string community);
 
     /// <summary>
+    /// Gets open bonus questions while honoring a caller cancellation request. The bridge keeps
+    /// existing one-argument implementations source-compatible; target-owned callers use this
+    /// overload and the concrete client propagates the token to every source stage.
+    /// </summary>
+    Task<List<BonusQuestion>> GetOpenBonusQuestionsAsync(string community, CancellationToken cancellationToken) =>
+        GetOpenBonusQuestionsAsync(community);
+
+    /// <summary>
     /// Place bonus predictions for a community
     /// </summary>
     /// <param name="community">The community name</param>

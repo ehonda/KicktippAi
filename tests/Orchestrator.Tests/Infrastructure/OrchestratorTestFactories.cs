@@ -218,6 +218,9 @@ public static class OrchestratorTestFactories
         mock.Setup(c => c.GetOpenBonusQuestionsAsync(It.IsAny<string>()))
             .ReturnsAsync(bonusQuestions);
 
+        mock.Setup(c => c.GetOpenBonusQuestionsAsync(It.IsAny<string>(), It.IsAny<CancellationToken>()))
+            .ReturnsAsync(bonusQuestions);
+
         mock.Setup(c => c.PlaceBonusPredictionsAsync(
                 It.IsAny<string>(),
                 It.IsAny<Dictionary<string, BonusPrediction>>(),

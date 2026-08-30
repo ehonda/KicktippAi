@@ -5,6 +5,10 @@ using Regex = System.Text.RegularExpressions.Regex;
 using AngleSharp;
 using AngleSharp.Dom;
 using AngleSharp.Html.Dom;
+using AngleSharp.Html.Dom.Events;
+using AngleSharp.Html.Parser;
+using AngleSharp.Html.Parser.Tokens;
+using AngleSharp.Text;
 using EHonda.KicktippAi.Core;
 using Microsoft.Extensions.Caching.Memory;
 using Microsoft.Extensions.Logging;
@@ -19,6 +23,13 @@ namespace KicktippIntegration;
 /// an empty matchday.
 /// </summary>
 public sealed class KicktippFixtureIdentityException(string message, Exception? innerException = null)
+    : InvalidOperationException(message, innerException);
+
+/// <summary>
+/// Signals that the target-owned schadensfresse bonus source cannot establish stable
+/// question identities. This is never equivalent to a normal empty bonus page.
+/// </summary>
+public sealed class KicktippBonusQuestionIdentityException(string message, Exception? innerException = null)
     : InvalidOperationException(message, innerException);
 
 /// <summary>
@@ -3561,48 +3572,139 @@ public class KicktippClient : IKicktippClient, IDisposable
     }
 
     /// <inheritdoc />
-    public async Task<List<BonusQuestion>> GetOpenBonusQuestionsAsync(string community)
+    public Task<List<BonusQuestion>> GetOpenBonusQuestionsAsync(string community) =>
+        GetOpenBonusQuestionsAsync(community, CancellationToken.None);
+
+    public async Task<List<BonusQuestion>> GetOpenBonusQuestionsAsync(string community, CancellationToken cancellationToken)
     {
+        var isSchadensfresse = string.Equals(community, "schadensfresse", StringComparison.Ordinal);
         try
         {
             var url = $"{community}/tippabgabe?bonus=true";
-            var response = await _httpClient.GetAsync(url);
-            
-            if (!response.IsSuccessStatusCode)
+            var response = await _httpClient.GetAsync(url, cancellationToken);
+
+            if (!response.IsSuccessStatusCode || (isSchadensfresse && response.StatusCode != HttpStatusCode.OK))
             {
+                if (isSchadensfresse)
+                {
+                    throw new KicktippBonusQuestionIdentityException(
+                        "schadensfresse open bonus questions could not be retrieved as an exact identity set.");
+                }
+
                 _logger.LogError("Failed to fetch tippabgabe page for bonus questions. Status: {StatusCode}", response.StatusCode);
                 return new List<BonusQuestion>();
             }
 
-            var content = await response.Content.ReadAsStringAsync();
-            var document = await _browsingContext.OpenAsync(req => req.Content(content));
+            if (isSchadensfresse && !IsExactSchadensfresseBonusFinalUri(response.RequestMessage?.RequestUri))
+            {
+                throw new KicktippBonusQuestionIdentityException(
+                    "schadensfresse open bonus questions did not reach the exact authenticated target.");
+            }
+
+            var content = await response.Content.ReadAsStringAsync(cancellationToken);
+            cancellationToken.ThrowIfCancellationRequested();
+            // Preserve the command token through AngleSharp parsing; target cancellation is never an empty source state.
+            TargetBonusTableTokenValidator? targetStructure = null;
+            IDocument document;
+            if (isSchadensfresse)
+            {
+                targetStructure = new TargetBonusTableTokenValidator();
+                var parser = new HtmlParser(new HtmlParserOptions { OnToken = targetStructure.ObserveToken }, _browsingContext);
+                parser.Error += (_, error) => targetStructure.ObserveError(error as HtmlErrorEvent);
+                document = await parser.ParseDocumentAsync(content, cancellationToken);
+            }
+            else
+            {
+                document = await _browsingContext.OpenAsync(req => req.Content(content), cancellationToken);
+            }
+            cancellationToken.ThrowIfCancellationRequested();
+
+            if (isSchadensfresse && IsLoginDocument(document))
+            {
+                throw new KicktippBonusQuestionIdentityException(
+                    "schadensfresse open bonus questions resolved to a login surface.");
+            }
+            if (isSchadensfresse && !targetStructure!.HasExactTargetStructure())
+            {
+                throw new KicktippBonusQuestionIdentityException(
+                    "schadensfresse open bonus questions contain non-direct target table markup.");
+            }
 
             var bonusQuestions = new List<BonusQuestion>();
             
             // Parse bonus questions from the tippabgabeFragen table
-            var bonusTable = document.QuerySelector("#tippabgabeFragen tbody");
+            var targetTables = isSchadensfresse ? document.QuerySelectorAll("#tippabgabeFragen").ToArray() : [];
+            var targetBodies = isSchadensfresse ? document.QuerySelectorAll("#tippabgabeFragen > tbody").ToArray() : [];
+            if (isSchadensfresse && (targetTables.Length != 1 || targetBodies.Length != 1))
+            {
+                throw new KicktippBonusQuestionIdentityException(
+                    "schadensfresse open bonus questions have an ambiguous question table.");
+            }
+
+            var bonusTable = isSchadensfresse ? targetBodies[0] : document.QuerySelector("#tippabgabeFragen tbody");
             if (bonusTable == null)
             {
+                if (isSchadensfresse)
+                {
+                    throw new KicktippBonusQuestionIdentityException(
+                        "schadensfresse open bonus questions have no unambiguous question table.");
+                }
+
                 _logger.LogDebug("No bonus questions table found - this is normal if no bonus questions are available");
                 return bonusQuestions;
             }
             
-            var questionRows = bonusTable.QuerySelectorAll("tr");
+            var questionRows = isSchadensfresse ? bonusTable.Children.ToArray() : bonusTable.QuerySelectorAll("tr").ToArray();
+            if (isSchadensfresse && questionRows.Any(row => !string.Equals(row.LocalName, "tr", StringComparison.Ordinal)))
+            {
+                throw new KicktippBonusQuestionIdentityException(
+                    "schadensfresse open bonus questions contain an unexpected table child.");
+            }
+            if (isSchadensfresse && questionRows.Length == 0)
+            {
+                throw new KicktippBonusQuestionIdentityException(
+                    "schadensfresse open bonus questions have no exact question rows.");
+            }
             _logger.LogDebug("Found {QuestionRowCount} potential bonus question rows", questionRows.Length);
             
             foreach (var row in questionRows)
             {
-                var cells = row.QuerySelectorAll("td");
-                if (cells.Length < 3) continue;
+                var cells = isSchadensfresse ? row.Children.ToArray() : row.QuerySelectorAll("td").ToArray();
+                if (cells.Length < 3 || (isSchadensfresse && (cells.Length != 3 || cells.Any(cell => !string.Equals(cell.LocalName, "td", StringComparison.Ordinal)))))
+                {
+                    if (isSchadensfresse)
+                    {
+                        throw new KicktippBonusQuestionIdentityException(
+                            "schadensfresse open bonus questions contain a malformed question row.");
+                    }
+
+                    continue;
+                }
                 
                 // Extract deadline and question text
                 var deadlineText = cells[0]?.TextContent?.Trim();
                 var questionText = cells[1]?.TextContent?.Trim();
                 
-                if (string.IsNullOrEmpty(questionText)) continue;
+                if (string.IsNullOrEmpty(questionText))
+                {
+                    if (isSchadensfresse)
+                    {
+                        throw new KicktippBonusQuestionIdentityException(
+                            "schadensfresse open bonus questions contain a question without exact text.");
+                    }
+
+                    continue;
+                }
                 
-                // Parse deadline
-                var deadline = ParseMatchDateTime(deadlineText ?? "");
+                // The generic parser preserves its historical MinValue fallback. The target
+                // identity contract instead requires a real, exact source deadline.
+                var targetDeadline = default(ZonedDateTime);
+                if (isSchadensfresse && !TryParseExactBonusQuestionDeadline(deadlineText, out targetDeadline))
+                {
+                    throw new KicktippBonusQuestionIdentityException(
+                        "schadensfresse open bonus questions contain a missing or malformed deadline.");
+                }
+                var deadline = isSchadensfresse ? targetDeadline : ParseMatchDateTime(deadlineText ?? "");
                 
                 // Extract options from select elements
                 var tipCell = cells[2];
@@ -3631,11 +3733,22 @@ public class KicktippClient : IKicktippClient, IDisposable
                             }
                         }
                     }
+
+                    if (isSchadensfresse)
+                    {
+                        ValidateExactSchadensfresseQuestionSelects(selectElements, options, out formFieldName);
+                    }
                 }
                 
                 if (options.Any())
                 {
                     var kicktippQuestionId = ExtractKicktippQuestionId(formFieldName);
+                    if (isSchadensfresse && string.IsNullOrWhiteSpace(kicktippQuestionId))
+                    {
+                        throw new KicktippBonusQuestionIdentityException(
+                            "schadensfresse open bonus questions contain a missing or malformed stable question ID.");
+                    }
+
                     bonusQuestions.Add(new BonusQuestion(
                         Text: questionText,
                         Deadline: deadline,
@@ -3646,13 +3759,40 @@ public class KicktippClient : IKicktippClient, IDisposable
                         KicktippQuestionId = kicktippQuestionId
                     });
                 }
+                else if (isSchadensfresse)
+                {
+                    throw new KicktippBonusQuestionIdentityException(
+                        "schadensfresse open bonus questions contain a question without a complete option set.");
+                }
+            }
+
+            if (isSchadensfresse
+                && bonusQuestions.GroupBy(question => question.KicktippQuestionId, StringComparer.Ordinal)
+                    .Any(group => group.Count() != 1))
+            {
+                throw new KicktippBonusQuestionIdentityException(
+                    "schadensfresse open bonus questions contain duplicate stable question IDs.");
             }
 
             _logger.LogInformation("Successfully parsed {QuestionCount} bonus questions", bonusQuestions.Count);
             return bonusQuestions;
         }
+        catch (OperationCanceledException) when (isSchadensfresse)
+        {
+            throw;
+        }
+        catch (KicktippBonusQuestionIdentityException)
+        {
+            throw;
+        }
         catch (Exception ex)
         {
+            if (isSchadensfresse)
+            {
+                throw new KicktippBonusQuestionIdentityException(
+                    "schadensfresse open bonus questions could not be parsed as an exact identity set.", ex);
+            }
+
             _logger.LogError(ex, "Exception in GetOpenBonusQuestionsAsync");
             return new List<BonusQuestion>();
         }
@@ -3667,6 +3807,318 @@ public class KicktippClient : IKicktippClient, IDisposable
 
         var match = Regex.Match(formFieldName, @"^fragetippForms\[(?<id>\d+)\]\.antwortIds\[\d+\]$");
         return match.Success ? match.Groups["id"].Value : null;
+    }
+
+    private static bool TryParseExactBonusQuestionDeadline(string? value, out ZonedDateTime deadline)
+    {
+        deadline = default;
+        if (string.IsNullOrWhiteSpace(value)
+            || !DateTime.TryParseExact(
+                value.Trim(),
+                ["dd.MM.yy HH:mm", "dd.MM.yyyy HH:mm"],
+                CultureInfo.InvariantCulture,
+                DateTimeStyles.None,
+                out var parsed))
+        {
+            return false;
+        }
+
+        deadline = BerlinTimeZone.AtLeniently(
+            LocalDateTime.FromDateTime(DateTime.SpecifyKind(parsed, DateTimeKind.Unspecified)));
+        return true;
+    }
+
+    private sealed class TargetBonusTableTokenValidator
+    {
+        private const string TargetId = "tippabgabeFragen";
+        private const int MaximumTargetNesting = 64;
+        private readonly List<string> _targetStack = [];
+        private int _targetTableCount;
+        private int _targetStart = -1;
+        private int _targetEnd = -1;
+        private int _tbodyCount;
+        private int _rowCount;
+        private int _cellCount;
+        private bool _targetClosed;
+        private bool _structureInvalid;
+        private bool _onlyIgnorableAfterTargetClose = true;
+        private ParseErrorSnapshot? _pendingStructuralError;
+        private ParseErrorSnapshot? _targetStructuralError;
+
+        public void ObserveToken(HtmlToken token, TextRange range)
+        {
+            if (token.Type == HtmlTokenType.StartTag && token.Name == "table" && HasExactTargetTableId(token))
+            {
+                _targetTableCount++;
+                if (_targetTableCount == 1)
+                {
+                    _targetStart = range.Start.Index;
+                    if (_pendingStructuralError is { } pending && pending.Position >= _targetStart)
+                    {
+                        _targetStructuralError = pending;
+                    }
+                }
+                else
+                {
+                    _structureInvalid = true;
+                }
+            }
+
+            if (_targetStart < 0 || _structureInvalid)
+            {
+                return;
+            }
+
+            if (_targetClosed)
+            {
+                ObserveAfterTargetClose(token);
+                return;
+            }
+
+            ObserveTargetSubtreeToken(token, range);
+        }
+
+        public void ObserveError(HtmlErrorEvent? error)
+        {
+            if (error is null || !IsTargetStructuralError((HtmlParseError)error.Code))
+            {
+                return;
+            }
+
+            var snapshot = new ParseErrorSnapshot((HtmlParseError)error.Code, error.Position.Index);
+            if (_targetStart < 0)
+            {
+                // Tokenization/parser errors can precede the start-tag callback. Retaining only the
+                // latest candidate is sufficient: a later target start can only be relevant to an
+                // error at or after its own source position.
+                _pendingStructuralError = snapshot;
+            }
+            else if (_targetStructuralError is null)
+            {
+                _targetStructuralError = snapshot;
+            }
+        }
+
+        public bool HasExactTargetStructure()
+        {
+            return _targetTableCount == 1 &&
+                   !_structureInvalid &&
+                   _targetClosed &&
+                   _targetStack.Count == 0 &&
+                   _tbodyCount == 1 &&
+                   _rowCount > 0 &&
+                   _cellCount > 0 &&
+                   (_targetStructuralError is not { } error ||
+                    error.Position < _targetStart || error.Position >= _targetEnd);
+        }
+
+        private void ObserveAfterTargetClose(HtmlToken token)
+        {
+            if (token.Type == HtmlTokenType.Comment ||
+                (token.Type == HtmlTokenType.Character && IsAsciiHtmlWhitespace(token.Data)))
+            {
+                return;
+            }
+
+            if (_onlyIgnorableAfterTargetClose && token.Type == HtmlTokenType.EndTag && token.Name == "table")
+            {
+                _structureInvalid = true;
+            }
+            _onlyIgnorableAfterTargetClose = false;
+        }
+
+        private void ObserveTargetSubtreeToken(HtmlToken token, TextRange range)
+        {
+            switch (token.Type)
+            {
+                case HtmlTokenType.Comment:
+                    return;
+                case HtmlTokenType.Character:
+                    if (TryPeekTarget(out var characterParent) &&
+                        (characterParent == "tbody" || characterParent == "tr") &&
+                        !IsAsciiHtmlWhitespace(token.Data))
+                    {
+                        _structureInvalid = true;
+                    }
+                    return;
+                case HtmlTokenType.StartTag:
+                    if (TryPeekTarget(out var parent) && !IsAllowedDirectTargetChild(parent, token.Name))
+                    {
+                        _structureInvalid = true;
+                        return;
+                    }
+
+                    if (token.Name == "tbody" && TryPeekTarget(out var bodyParent) && bodyParent == "table") _tbodyCount++;
+                    if (token.Name == "tr" && TryPeekTarget(out var rowParent) && rowParent == "tbody") _rowCount++;
+                    if (token.Name == "td" && TryPeekTarget(out var cellParent) && cellParent == "tr") _cellCount++;
+                    if (!IsSelfClosing(token) && !IsHtmlVoidElement(token.Name))
+                    {
+                        if (_targetStack.Count == MaximumTargetNesting)
+                        {
+                            _structureInvalid = true;
+                            return;
+                        }
+                        _targetStack.Add(token.Name);
+                    }
+                    return;
+                case HtmlTokenType.EndTag:
+                    if (IsSelfClosing(token) || !TryPeekTarget(out var expected))
+                    {
+                        _structureInvalid = true;
+                        return;
+                    }
+
+                    if (expected != token.Name)
+                    {
+                        _structureInvalid = true;
+                        return;
+                    }
+
+                    _targetStack.RemoveAt(_targetStack.Count - 1);
+                    if (token.Name == "table")
+                    {
+                        _targetClosed = true;
+                        _targetEnd = range.End.Index;
+                    }
+                    return;
+            }
+        }
+
+        private static bool HasExactTargetTableId(HtmlToken token) =>
+            token is HtmlTagToken tag && tag.Attributes.Any(attribute => attribute.Name == "id" && attribute.Value == TargetId);
+
+        private static bool IsSelfClosing(HtmlToken token) => token is HtmlTagToken tag && tag.IsSelfClosing;
+
+        private bool TryPeekTarget(out string name)
+        {
+            if (_targetStack.Count > 0)
+            {
+                name = _targetStack[^1];
+                return true;
+            }
+
+            name = string.Empty;
+            return false;
+        }
+
+        private static bool IsAllowedDirectTargetChild(string parent, string child) =>
+            parent is not ("table" or "tbody" or "tr") ||
+            (parent == "table" && child == "tbody") ||
+            (parent == "tbody" && child == "tr") ||
+            (parent == "tr" && child == "td");
+
+        private static bool IsAsciiHtmlWhitespace(string value) =>
+            value.All(character => character is '\t' or '\n' or '\f' or '\r' or ' ');
+
+        private static bool IsTargetStructuralError(HtmlParseError error) => error is
+            HtmlParseError.AttributeDuplicateOmitted or
+            HtmlParseError.EndTagCannotHaveAttributes or
+            HtmlParseError.EndTagCannotBeSelfClosed or
+            HtmlParseError.TagClosingMismatch or
+            HtmlParseError.TagDoesNotMatchCurrentNode or
+            HtmlParseError.TagClosedWrong or
+            HtmlParseError.TagCannotEndHere or
+            HtmlParseError.EOF;
+
+        private static bool IsHtmlVoidElement(string name) => name is "area" or "base" or "br" or "col" or "embed" or "hr" or "img" or "input" or "link" or "meta" or "param" or "source" or "track" or "wbr";
+        private sealed record ParseErrorSnapshot(HtmlParseError Code, int Position);
+    }
+
+    private bool IsExactSchadensfresseBonusFinalUri(Uri? uri) =>
+        uri is not null &&
+        _finalAuthorityValidator(uri) &&
+        string.Equals(uri.AbsolutePath, "/schadensfresse/tippabgabe", StringComparison.Ordinal) &&
+        string.IsNullOrEmpty(uri.Fragment) &&
+        HasExactQuerySet(uri, ("bonus", "true"));
+
+    private static void ValidateExactSchadensfresseQuestionSelects(
+        IHtmlCollection<IElement> selectElements,
+        List<BonusQuestionOption> firstOptions,
+        out string? canonicalFormFieldName)
+    {
+        canonicalFormFieldName = null;
+        if (selectElements.Length == 0)
+        {
+            throw new KicktippBonusQuestionIdentityException(
+                "schadensfresse open bonus questions contain a question without selects.");
+        }
+
+        string? questionId = null;
+        var selectionIndexes = new HashSet<string>(StringComparer.Ordinal);
+        foreach (var element in selectElements)
+        {
+            if (element is not IHtmlSelectElement select
+                || !TryExtractExactKicktippQuestionSelectIdentity(select.Name, out var currentId, out var selectionIndex)
+                || !selectionIndexes.Add(selectionIndex))
+            {
+                throw new KicktippBonusQuestionIdentityException(
+                    "schadensfresse open bonus questions contain a malformed or conflicting select identity.");
+            }
+
+            if (questionId is not null && !string.Equals(questionId, currentId, StringComparison.Ordinal))
+            {
+                throw new KicktippBonusQuestionIdentityException(
+                    "schadensfresse open bonus questions contain conflicting question IDs in one row.");
+            }
+
+            questionId = currentId;
+            var currentOptions = ExtractExactQuestionOptions(select);
+            if (currentOptions.Count == 0 || !currentOptions.SequenceEqual(firstOptions))
+            {
+                throw new KicktippBonusQuestionIdentityException(
+                    "schadensfresse open bonus questions contain conflicting select option sets.");
+            }
+        }
+
+        canonicalFormFieldName = selectElements[0].GetAttribute("name");
+    }
+
+    private static List<BonusQuestionOption> ExtractExactQuestionOptions(IHtmlSelectElement select)
+    {
+        var options = new List<BonusQuestionOption>();
+        foreach (var option in select.QuerySelectorAll("option"))
+        {
+            if (option is not IHtmlOptionElement typedOption)
+            {
+                throw new KicktippBonusQuestionIdentityException(
+                    "schadensfresse open bonus questions contain a malformed select option.");
+            }
+
+            var text = typedOption.Text.Trim();
+            if (typedOption.Value == "-1")
+            {
+                continue;
+            }
+
+            if (!typedOption.HasAttribute("value") || string.IsNullOrEmpty(typedOption.Value) || string.IsNullOrEmpty(text))
+            {
+                throw new KicktippBonusQuestionIdentityException(
+                    "schadensfresse open bonus questions contain a missing option identity.");
+            }
+
+            options.Add(new BonusQuestionOption(typedOption.Value, text));
+        }
+
+        if (options.GroupBy(option => option.Id, StringComparer.Ordinal).Any(group => group.Count() != 1)
+            || options.GroupBy(option => option.Text, StringComparer.Ordinal).Any(group => group.Count() != 1))
+        {
+            throw new KicktippBonusQuestionIdentityException(
+                "schadensfresse open bonus questions contain duplicate option identities.");
+        }
+
+        return options;
+    }
+
+    private static bool TryExtractExactKicktippQuestionSelectIdentity(string? formFieldName, out string questionId, out string selectionIndex)
+    {
+        questionId = string.Empty;
+        selectionIndex = string.Empty;
+        if (string.IsNullOrWhiteSpace(formFieldName)) return false;
+        var match = Regex.Match(formFieldName, @"^fragetippForms\[(?<id>\d+)\]\.antwortIds\[(?<index>\d+)\]$");
+        if (!match.Success) return false;
+        questionId = match.Groups["id"].Value;
+        selectionIndex = match.Groups["index"].Value;
+        return true;
     }
 
     /// <inheritdoc />
@@ -3895,6 +4347,7 @@ public class KicktippClient : IKicktippClient, IDisposable
                             }
                         }
                     }
+
                 }
             }
             

@@ -68,6 +68,12 @@ public class BonusCommand : AsyncCommand<BonusSettings>
         
         try
         {
+            if (SchadensfresseChampionsLeagueBonusPreflight.IsTargetCommunity(settings.Community))
+            {
+                await ExecuteSchadensfresseChampionsLeaguePreflightAsync(settings, cancellationToken).ConfigureAwait(false);
+                throw new InvalidOperationException(SchadensfresseChampionsLeagueBonusPreflight.MissingPromptProvenanceReason);
+            }
+
             SchadensfressePrimaryRouteGate.EnsureAvailable(settings.Community);
 
             var bonusContextBudget = ResolveBonusContextBudget(settings);
@@ -128,12 +134,59 @@ public class BonusCommand : AsyncCommand<BonusSettings>
             
             return 0;
         }
+        catch (OperationCanceledException) when (SchadensfresseChampionsLeagueBonusPreflight.IsTargetCommunity(settings.Community))
+        {
+            throw;
+        }
         catch (Exception ex)
         {
             _logger.LogError(ex, "Error executing bonus command");
             _console.MarkupLine($"[red]Error:[/] {ex.Message}");
             return 1;
         }
+    }
+
+    private async Task ExecuteSchadensfresseChampionsLeaguePreflightAsync(
+        BaseSettings settings,
+        CancellationToken cancellationToken)
+    {
+        // Exact settings are intentionally checked before credentials, factories, or a source request.
+        SchadensfresseChampionsLeagueBonusPreflight.EnsureCanonicalInvocation(
+            settings.Community,
+            settings.CommunityContext,
+            settings.Competition);
+        cancellationToken.ThrowIfCancellationRequested();
+
+        if (string.IsNullOrWhiteSpace(settings.KicktippCredentialProfile))
+        {
+            _credentialLoader.Load(settings.Community);
+        }
+        else
+        {
+            _credentialLoader.Load(settings.Community, settings.KicktippCredentialProfile);
+        }
+
+        var kicktippClient = _kicktippClientFactory.CreateClient();
+        var openQuestions = await kicktippClient
+            .GetOpenBonusQuestionsAsync(settings.Community, cancellationToken)
+            .ConfigureAwait(false);
+        _ = SchadensfresseChampionsLeagueBonusPreflight.EnrichAndClassifyCompleteOpenSet(
+            openQuestions,
+            BundesligaSeasonRoutingSeed.Default);
+
+        cancellationToken.ThrowIfCancellationRequested();
+        var resolver = new SchadensfresseTypedContextResolver(
+            _firebaseServiceFactory.CreateResolvedTypedContextPublicationBindingRepository(),
+            _firebaseServiceFactory.CreateContextRepository(CompetitionIds.Bundesliga2026_27),
+            TimeProvider.System);
+        _ = await resolver.ResolveAsync(
+            new SchadensfresseTypedContextResolutionRequest(
+                CompetitionIds.Bundesliga2026_27,
+                SchadensfressePrimaryRouteGate.Community,
+                BundesligaSeasonSubcompetition.ChampionsLeague,
+                SchadensfresseChampionsLeagueBonusPreflight.ProfileId,
+                BundesligaSeasonRoutingSeed.Default.CanonicalSha256),
+            cancellationToken).ConfigureAwait(false);
     }
     
     /// <summary>
