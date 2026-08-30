@@ -18,7 +18,8 @@ session store and are not committed.
   result excerpts.
 - `tool-timings.csv`: completed transcript tool calls, elapsed time, nested tool
   class, and patch-target classification.
-- `derived-metrics.json`: aggregates used by the HTML report.
+- `derived-metrics.json`: aggregates used by the HTML report, with separate
+  whole-session and exact P1-10 Git/CI boundaries.
 - `curated-findings.json`: concise interpretations tied to measured evidence.
 - `ci-runs.csv`: read-only GitHub Build-and-Test run metadata captured for the
   session's main-push boundary.

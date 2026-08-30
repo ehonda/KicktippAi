@@ -1,10 +1,15 @@
 # P1-10 — Convert schadensfresse to a subcompetition-typed primary community
 
-- Status: In progress
+- Status: In progress; remaining work requires restarted ADR-0061 intake
 - Priority: P1 — deadline-critical
 - Depends on: [P0-21](p0-21-production-activation.md)
 - Absorbs: [P1-08](p1-08-schadensfresse-mixed-competition-routing.md)
-- Decisions: [ADR-0052](../decisions/0052-select-production-model-community-matrix-and-match-prompt-v3.md), [ADR-0054](../decisions/0054-copy-schadensfresse-bundesliga-from-pes-squad.md), [ADR-0055](../decisions/0055-add-schadensfresse-to-production-live-lane.md), [ADR-0058](../decisions/0058-make-schadensfresse-a-competition-typed-primary.md), [ADR-0059](../decisions/0059-bind-schadensfresse-rules-to-a-structured-semantic-record.md), [ADR-0060](../decisions/0060-separate-generation-manifest-from-current-rules-attestation.md)
+- Decisions: [ADR-0052](../decisions/0052-select-production-model-community-matrix-and-match-prompt-v3.md), [ADR-0054](../decisions/0054-copy-schadensfresse-bundesliga-from-pes-squad.md), [ADR-0055](../decisions/0055-add-schadensfresse-to-production-live-lane.md), [ADR-0058](../decisions/0058-make-schadensfresse-a-competition-typed-primary.md), [ADR-0059](../decisions/0059-bind-schadensfresse-rules-to-a-structured-semantic-record.md), [ADR-0060](../decisions/0060-separate-generation-manifest-from-current-rules-attestation.md), [ADR-0061](../decisions/0061-preview-and-milestone-orchestration.md)
+
+- Orchestration readiness: The completed checkboxes are historical integrated
+  evidence, not a frozen design for the remaining cross-cutting work. The next
+  explicit `$orchestrate P1` invocation must preview the whole phase and fully
+  grill P1-10's next cohesive milestone before assigning writers.
 
 ## Trigger and live evidence
 
@@ -36,7 +41,11 @@ contract without recording prediction contents or selected answers:
 
 The earlier September 9 deadline, four-point bonus score, `2/3/4` match score,
 and ordinary Bundesliga copy premise are historical and superseded. The
-September 8 CL deadline is the critical path.
+restarted intake must first plan restoration of typed scheduled target-owned
+context plus matchday execution by `2026-09-04`, because quarantine also
+removed the automatic copy path. The Owner may perform the copies manually as
+a last resort. The separate September 8 CL bonus deadline remains the final
+critical path.
 
 ## Outcome
 

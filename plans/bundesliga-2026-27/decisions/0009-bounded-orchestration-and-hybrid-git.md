@@ -1,6 +1,6 @@
 # ADR-0009: Use bounded orchestration and hybrid Git integration
 
-- Status: Accepted
+- Status: Superseded by [ADR-0061](0061-preview-and-milestone-orchestration.md)
 - Date: 2026-08-16
 
 ## Context

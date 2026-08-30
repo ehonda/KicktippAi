@@ -120,15 +120,16 @@ def build_payload(analysis: dict[str, Any], derived: dict[str, Any], data_dir: p
     remote_p1_10 = [row for row in branches if row["ref"].startswith("origin/codex/p1-10-")]
     local_p1_10 = [row for row in branches if row["ref"].startswith("codex/p1-10-")]
     p1_10_threads = [thread for thread in subagents if thread["task_group"] == "P1-10"]
-    p1_10_review_threads = [thread for thread in p1_10_threads if "review" in thread["agent_path"]]
 
     summary = analysis["summary"]
     ci_seconds = sum(int(row["duration_seconds"]) for row in ci_runs)
     p1_10_seconds = sum(thread["active_seconds"] for thread in p1_10_threads)
     p1_10_tokens = sum(thread["usage"]["total_tokens"] for thread in p1_10_threads)
-    repeated_review_lanes = sum(thread["completed_turns"] > 1 for thread in p1_10_review_threads)
-    completed_review_lanes = sum(thread["completed_turns"] > 0 for thread in p1_10_review_threads)
     root_ledger_updates = derived["root_patch_target_counts"].get("orchestration-ledger", 0)
+    p1_10_changes = derived["net_changes"]["p1_10"]
+    session_changes = derived["net_changes"]["session"]
+    review_lanes = derived["review_lane_counts"]
+    ci_counts = derived["ci_run_counts"]
 
     return {
         "meta": {
@@ -150,6 +151,7 @@ def build_payload(analysis: dict[str, Any], derived: dict[str, Any], data_dir: p
             "guardians": summary["guardian_threads"],
             "guardianTokens": summary["guardian_usage"]["total_tokens"],
             "commits": summary["session_commits"],
+            "p1_10Commits": derived["p1_10_commits"],
             "concurrency": summary["concurrency"],
             "spawnSelection": summary["subagent_spawn_selection"],
             "rootCalls": summary["root_function_calls"],
@@ -162,20 +164,27 @@ def build_payload(analysis: dict[str, Any], derived: dict[str, Any], data_dir: p
             "toolSeconds": derived["subagent_tool_elapsed_seconds"],
             "dotnetCalls": derived["tool_time_by_class"]["dotnet"]["calls"],
             "dotnetSeconds": derived["tool_time_by_class"]["dotnet"]["elapsed_seconds"],
-            "ciRuns": len(ci_runs),
+            "ciRuns": ci_counts["session"]["runs"],
             "ciSeconds": ci_seconds,
-            "ciFailures": sum(row["conclusion"] != "success" for row in ci_runs),
+            "ciFailures": ci_counts["session"]["failures"],
+            "p1_10CiRuns": ci_counts["p1_10"]["runs"],
+            "p1_10CiSeconds": ci_counts["p1_10"]["seconds"],
+            "p1_10CiFailures": ci_counts["p1_10"]["failures"],
             "remoteP110Branches": len(remote_p1_10),
             "localP110Branches": len(local_p1_10),
             "ledgerUpdates": root_ledger_updates,
             "ledgerSeconds": derived["root_ledger_elapsed_seconds"],
             "reviewApprovals": derived["review_verdict_counts"].get("approved", 0),
             "reviewFindings": derived["review_verdict_counts"].get("rejected-or-findings", 0),
-            "repeatedReviewLanes": repeated_review_lanes,
-            "completedReviewLanes": completed_review_lanes,
-            "netFiles": 100,
-            "netInsertions": 9578,
-            "netDeletions": 922,
+            "repeatedReviewLanes": review_lanes["approval_complete_with_multiple_turns"],
+            "completedReviewLanes": review_lanes["approval_complete"],
+            "reviewLanesWithCompletedTurn": review_lanes["with_completed_turn"],
+            "netFiles": p1_10_changes["files"],
+            "netInsertions": p1_10_changes["insertions"],
+            "netDeletions": p1_10_changes["deletions"],
+            "sessionNetFiles": session_changes["files"],
+            "sessionNetInsertions": session_changes["insertions"],
+            "sessionNetDeletions": session_changes["deletions"],
             "specBaseLines": 65,
             "specFinalLines": 326,
         },
@@ -241,7 +250,7 @@ HTML = r'''<!doctype html>
     </section>
     <section class="kpis">
       <article class="kpi"><strong id="k-wall"></strong><span>observed wall span</span></article>
-      <article class="kpi"><strong id="k-scope"></strong><span>net files changed</span></article>
+      <article class="kpi"><strong id="k-scope"></strong><span>P1-10 net files changed</span></article>
       <article class="kpi"><strong id="k-workers"></strong><span>task-agent threads</span></article>
       <article class="kpi"><strong id="k-p110"></strong><span>P1-10 worker time</span></article>
       <article class="kpi"><strong id="k-reject"></strong><span>review turns with findings</span></article>
@@ -302,11 +311,11 @@ HTML = r'''<!doctype html>
   $("#theme").onclick=()=>{document.documentElement.dataset.theme=document.documentElement.dataset.theme==="dark"?"light":"dark"};
   $("#snapshot").innerHTML=`<strong>Snapshot:</strong> ${esc(date(d.meta.end))}`;$("#pause-chip").innerHTML=`<strong>Authorization pause:</strong> ${dur(d.summary.authorizationPause)}`;$("#boundary").textContent=`${d.meta.base.slice(0,7)}..${d.meta.final.slice(0,7)}`;
   $("#k-wall").textContent=dur(d.summary.wall);$("#k-scope").textContent=num.format(d.summary.netFiles);$("#k-workers").textContent=num.format(d.summary.threads);$("#k-p110").textContent=dur(d.summary.p1_10Seconds);$("#k-reject").textContent=num.format(d.summary.reviewFindings);$("#k-ci").textContent=num.format(d.summary.ciRuns);
-  $("#complexity-text").textContent=`The session changed ${num.format(d.summary.netFiles)} files (+${num.format(d.summary.netInsertions)} / −${num.format(d.summary.netDeletions)} net), introduced typed routing/storage/rules/manifest contracts, and still had a resolver lane in flight at cutoff.`;$("#net-lines").textContent=compact.format(d.summary.netInsertions+d.summary.netDeletions);$("#spec-multiple").textContent=`${(d.summary.specFinalLines/d.summary.specBaseLines).toFixed(1)}×`;
+  $("#complexity-text").textContent=`P1-10 changed ${num.format(d.summary.netFiles)} files (+${num.format(d.summary.netInsertions)} / −${num.format(d.summary.netDeletions)} net), introduced typed routing/storage/rules/manifest contracts, and still had a resolver lane in flight at cutoff. The wider session changed ${num.format(d.summary.sessionNetFiles)} files.`;$("#net-lines").textContent=compact.format(d.summary.netInsertions+d.summary.netDeletions);$("#spec-multiple").textContent=`${(d.summary.specFinalLines/d.summary.specBaseLines).toFixed(1)}×`;
   $("#machine-text").textContent=`Measured subagent tool calls occupied ${dur(d.summary.toolSeconds)} in aggregate, ${Math.round(100*d.summary.toolShare)}% of worker-active time. ${num.format(d.summary.dotnetCalls)} dotnet cells alone accounted for ${dur(d.summary.dotnetSeconds)} before continuation polling. The wall span also contains a ${dur(d.summary.authorizationPause)} overnight no-agent interval ending with explicit push authorization; excluding it leaves about ${dur(d.summary.wall-d.summary.authorizationPause)}.`;$("#tool-meter").style.width=`${100*d.summary.toolShare}%`;
-  $("#fragment-text").textContent=`P1-10 used ${num.format(d.summary.localP110Branches)} local task branches and ${num.format(d.summary.remoteP110Branches)} remote recovery refs. Main received ${num.format(d.summary.ciRuns)} CI-triggering pushes; ${num.format(d.summary.ciFailures)} failed and required a follow-up.`;$("#branch-count").textContent=num.format(d.summary.localP110Branches);$("#ci-minutes").textContent=dur(d.summary.ciSeconds);const ciRole=d.roles.find(x=>x.role==="CI / reconciliation");$("#ci-agents").textContent=num.format(ciRole?.threads||0);
+  $("#fragment-text").textContent=`P1-10 used ${num.format(d.summary.localP110Branches)} local task branches and ${num.format(d.summary.remoteP110Branches)} remote recovery refs. Main received ${num.format(d.summary.p1_10CiRuns)} P1-10 CI-triggering pushes (${num.format(d.summary.ciRuns)} across the full snapshot); ${num.format(d.summary.p1_10CiFailures)} failed and required a follow-up.`;$("#branch-count").textContent=num.format(d.summary.localP110Branches);$("#ci-minutes").textContent=dur(d.summary.p1_10CiSeconds);const ciRole=d.roles.find(x=>x.role==="CI / reconciliation");$("#ci-agents").textContent=num.format(ciRole?.threads||0);
   $("#ledger-text").textContent=`The durable state mechanism worked and made recovery auditable. But ${num.format(d.summary.ledgerUpdates)} completed ledger patches—about one every ${(d.summary.wall/d.summary.ledgerUpdates/60).toFixed(1)} minutes—show checkpoint-level interpretation of “material handoff.” Direct patch execution was only ${dur(d.summary.ledgerSeconds)}; the larger cost is root context and compaction pressure.`;$("#ledger-count").textContent=num.format(d.summary.ledgerUpdates);$("#ledger-time").textContent=dur(d.summary.ledgerSeconds);$("#compactions").textContent=num.format(d.summary.rootCompactions);
-  const funnel=[[d.summary.localP110Branches,"local P1-10 branches"],[d.summary.reviewFindings+d.summary.reviewApprovals,"completed review turns"],[d.summary.reviewFindings,"turns with findings"],[d.summary.ciRuns,"main CI runs"],[d.commits.filter(c=>String(c.subject).toLowerCase().includes("schadensfresse")||new Date(c.committed_at)>=new Date("2026-08-30T07:56:00Z")).length,"P1-10-era commits"]];$("#funnel").innerHTML=funnel.map(([v,l])=>`<div class="step"><strong>${num.format(v)}</strong><span>${esc(l)}</span></div>`).join("");
+  const funnel=[[d.summary.localP110Branches,"local P1-10 branches"],[d.summary.reviewFindings+d.summary.reviewApprovals,"completed review turns"],[d.summary.reviewFindings,"turns with findings"],[d.summary.p1_10CiRuns,"P1-10 main CI runs"],[d.summary.p1_10Commits,"P1-10 commits"]];$("#funnel").innerHTML=funnel.map(([v,l])=>`<div class="step"><strong>${num.format(v)}</strong><span>${esc(l)}</span></div>`).join("");
   $("#review-bad").textContent=num.format(d.summary.reviewFindings);$("#review-good").textContent=num.format(d.summary.reviewApprovals);$("#review-note").textContent=`${d.summary.repeatedReviewLanes} of ${d.summary.completedReviewLanes} completed P1-10 review lanes required more than one review turn. The findings were substantive—compile failures, missing fail-closed paths, concurrency semantics, and contract contradictions—not style churn.`;$("#spec-before").style.height="40px";$("#spec-after").style.height="200px";$("#spec-before-label").textContent=num.format(d.summary.specBaseLines);$("#spec-after-label").textContent=num.format(d.summary.specFinalLines);
   const maxModel=Math.max(...d.models.map(x=>x.tokens));const colors={"gpt-5.6-sol":"var(--violet)","gpt-5.6-terra":"var(--blue)","gpt-5.6-luna":"var(--mint)"};$("#model-bars").innerHTML=d.models.map(x=>`<div class="bar-row"><small>${esc(x.model.replace("gpt-5.6-","") + "/" + x.effort)}</small><div class="track"><i style="width:${100*x.tokens/maxModel}%;background:${colors[x.model]||"var(--orange)"}"></i></div><strong>${compact.format(x.tokens)}</strong></div>`).join("");const observed=x=>x.model.includes("luna")?(x.effort==="low"?"Mechanical CI / exact-SHA":"Bounded lookup"):x.model.includes("terra")?(x.effort==="medium"?"Narrow deterministic fix":"Implementation writer"):"Review, architecture, difficult audit";$("#model-body").innerHTML=d.models.map(x=>`<tr><td class="mono">${esc(x.model)}/${esc(x.effort)}</td><td class="num">${num.format(x.threads)}</td><td class="num">${num.format(x.turns)}</td><td class="num">${dur(x.seconds)}</td><td class="num">${compact.format(x.tokens)}</td><td>${esc(observed(x))}</td></tr>`).join("");
   $("#role-cards").innerHTML=d.roles.slice(0,3).map(x=>`<article class="card"><span class="signal ${x.role.includes("Review")?"avoidable":x.role.includes("Implementation")?"material":"minor"}">${esc(x.role)}</span><h3>${num.format(x.threads)} threads · ${dur(x.seconds)}</h3><p>${compact.format(x.tokens)} tokens across ${num.format(x.turns)} turns.</p></article>`).join("");const roles=[...new Set(d.agents.map(x=>x.role))].sort();$("#agent-role").insertAdjacentHTML("beforeend",roles.map(x=>`<option>${esc(x)}</option>`).join(""));const renderAgents=()=>{const q=$("#agent-search").value.toLowerCase(),r=$("#agent-role").value;$("#agent-body").innerHTML=d.agents.filter(x=>(!q||x.path.toLowerCase().includes(q))&&(r==="all"||x.role===r)).slice(0,40).map(x=>`<tr><td class="mono">${esc(x.path)}</td><td>${esc(x.role)}</td><td class="mono">${esc(x.model)}</td><td class="num">${num.format(x.turns)}</td><td class="num">${dur(x.seconds)}</td><td class="num">${compact.format(x.tokens)}</td></tr>`).join("")};$("#agent-search").oninput=renderAgents;$("#agent-role").onchange=renderAgents;renderAgents();$("#commit-body").innerHTML=d.commits.slice().reverse().map(x=>`<tr><td class="mono"><a href="https://github.com/ehonda/KicktippAi/commit/${esc(x.sha)}">${esc(x.short_sha)}</a></td><td>${esc(x.subject)}</td><td>${esc(date(x.committed_at))}</td><td class="num">${num.format(x.files_changed)}</td><td class="num">${num.format(x.insertions)}</td><td class="num">${num.format(x.deletions)}</td></tr>`).join("");

@@ -6,8 +6,8 @@
       "id": "complexity-is-real",
       "assessment": "dominant",
       "evidence": [
-        "100 net files changed",
-        "+9578/-922 net lines",
+        "83 P1-10 net files changed; 100 across the wider session",
+        "+8803/-724 P1-10 net lines; +9578/-922 across the wider session",
         "three new P1-10 ADRs",
         "P1-10 task record grew from 65 to 326 lines"
       ]
@@ -29,7 +29,7 @@
         "14 local P1-10 task branches at cutoff",
         "14 remote P1-10 branch refs",
         "26 CI-only task-agent threads across the run",
-        "14 main Build-and-Test runs totaling 3375 seconds"
+        "13 P1-10 main Build-and-Test runs totaling 3124 seconds; 14 runs and 3375 seconds across the wider session"
       ]
     },
     {
@@ -38,7 +38,7 @@
       "evidence": [
         "19 completed P1-10 review turns returned findings or rejection",
         "14 completed P1-10 review turns returned approval",
-        "11 of 13 completed P1-10 review lanes needed multiple review turns",
+        "11 of 13 approval-complete P1-10 review lanes needed multiple review turns; a fourteenth lane had not reached approval",
         "both Terra/high implementation and Sol/high contract/ADR lanes had first-review findings"
       ]
     },

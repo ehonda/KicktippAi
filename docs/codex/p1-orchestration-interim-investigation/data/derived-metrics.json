@@ -1,8 +1,12 @@
 {
-  "schema_version": 1,
+  "schema_version": 2,
   "source_analysis_generated_at": "2026-08-30T18:23:17.606877Z",
   "session_boundary": {
     "base_commit": "c4669aaa1badcccbedbbc1f63c35c412c06a34e8",
+    "final_commit": "04a6d855bac305c0e35c39d747a5b140a2b65fff"
+  },
+  "p1_10_boundary": {
+    "base_commit": "3a2ba35529b262327a3ec08e6bde47b186c8e5b2",
     "final_commit": "04a6d855bac305c0e35c39d747a5b140a2b65fff"
   },
   "tool_calls": 3968,
@@ -100,7 +104,37 @@
     "rejected-or-findings": 19,
     "approved": 14
   },
+  "review_lane_counts": {
+    "with_completed_turn": 14,
+    "approval_complete": 13,
+    "approval_complete_with_multiple_turns": 11
+  },
   "commits": 17,
+  "p1_10_commits": 14,
+  "net_changes": {
+    "session": {
+      "files": 100,
+      "insertions": 9578,
+      "deletions": 922
+    },
+    "p1_10": {
+      "files": 83,
+      "insertions": 8803,
+      "deletions": 724
+    }
+  },
+  "ci_run_counts": {
+    "session": {
+      "runs": 14,
+      "seconds": 3375,
+      "failures": 1
+    },
+    "p1_10": {
+      "runs": 13,
+      "seconds": 3124,
+      "failures": 1
+    }
+  },
   "commit_files_changed_sum": 129,
   "commit_insertions_sum": 9666,
   "commit_deletions_sum": 1010,

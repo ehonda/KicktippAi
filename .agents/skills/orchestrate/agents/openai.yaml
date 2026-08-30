@@ -1,7 +1,7 @@
 interface:
   display_name: "Orchestrate"
-  short_description: "Activate the full orchestration workflow"
-  default_prompt: "Use $orchestrate to run this objective with the repository's full orchestration workflow."
+  short_description: "Preview, grill, and execute an objective"
+  default_prompt: "Use $orchestrate to preview, grill where needed, and execute this objective with the repository's full orchestration workflow."
 
 policy:
   allow_implicit_invocation: false

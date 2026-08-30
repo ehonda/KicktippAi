@@ -8,13 +8,17 @@
 
 **Interactive report:** [open the self-contained HTML report](../../../session-analysis/p1-orchestration-interim/index.html)
 
+**Implemented successor design:** [orchestration workflow rationale and policy](../orchestration-workflow.md)
+
 ## Executive conclusion
 
 The slow progress is not explained by one cause. P1-10 is genuinely much
-larger than its task label suggested: by the cutoff, the run had changed 100
-files with a net +9,578/-922 lines, added three ADRs, integrated 13 P1-10-era
-commits, and still had a typed resolver lane in progress. The P1-10 task record
-itself grew from 65 to 326 lines while implementation was underway.
+larger than its task label suggested: from the exact P1-10 boundary
+`3a2ba35..04a6d85`, it changed 83 files with a net +8,803/-724 lines, added
+three ADRs, integrated 14 commits, and still had a typed resolver lane in
+progress. The wider investigated session changed 100 files with a net
++9,578/-922 lines. The P1-10 task record itself grew from 65 to 326 lines while
+implementation was underway.
 
 The local machine and external tools are material but not dominant. Subagent
 tool calls occupied 8.07 aggregate worker-hours, 42.8% of worker-active time;
@@ -26,10 +30,12 @@ authorization arrived. Excluding that pause leaves about 13h13m.
 The avoidable slowdown is workflow fragmentation. P1-10 used 14 local task
 branches by the snapshot, all 14 already pushed remotely. The whole run
 created 26 CI-only agents and triggered 14 main Build-and-Test runs totaling
-56m15s of serial CI compute. Independent review was valuable—it found real
-compile, fail-closed, concurrency, and contract defects—but 19 completed P1-10
-review turns returned findings/rejection versus 14 approval turns, and 11 of
-13 completed review lanes required more than one review turn.
+56m15s of serial CI compute; 13 runs and 52m04s were after the P1-10 boundary.
+Independent review was valuable—it found real compile, fail-closed,
+concurrency, and contract defects—but 19 completed P1-10 review turns returned
+findings/rejection versus 14 approval turns. Eleven of the 13 lanes that
+reached approval required more than one review turn; a fourteenth lane had one
+findings turn and had not reached approval at cutoff.
 
 Model allocation is substantially improved from P0: all 78 spawns explicitly
 selected a model and effort and all used `fork_turns: none`. Luna/low handled

@@ -1,0 +1,16 @@
+{
+  "schemaVersion": 1,
+  "worktree": {
+    "maximumLinkedTaskWorktrees": 2,
+    "reservedGiBPerNewWorktree": 1.25,
+    "minimumFreeGiBAfterReservation": 10.0,
+    "minimumFreeDiskPercentWarning": 15.0
+  },
+  "heavyOperation": {
+    "defaultConcurrentLimit": 1,
+    "expandedConcurrentLimit": 2,
+    "minimumAvailableMemoryGiB": 1.5,
+    "minimumLogicalProcessorsForExpandedLimit": 6,
+    "minimumAvailableMemoryGiBForExpandedLimit": 4.0
+  }
+}

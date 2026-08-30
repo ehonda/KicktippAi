@@ -12,6 +12,9 @@ For Langfuse experiment run families, create one shared `$runStamp` before launc
 
 ## Explicit Orchestration Workflow And Compaction Recovery
 
+The rationale, terminology, pilot assumptions, and first-P1 evidence for this
+workflow are recorded in [docs/codex/orchestration-workflow.md](docs/codex/orchestration-workflow.md).
+
 ### Activation Boundary
 
 This workflow is inactive by default. It becomes active only when the repository's explicit-only `$orchestrate` skill is invoked in the current root user-facing thread. Requesting subagents, asking for parallel work, task complexity, available agent capacity, a prior orchestrated session, an existing ledger, or the presence of these instructions does not activate it. Mentioning, discussing, reviewing, or editing `$orchestrate` or this workflow also does not activate it.
@@ -19,6 +22,8 @@ This workflow is inactive by default. It becomes active only when the repository
 While this workflow is inactive, the root acts as a normal Codex working agent. It may use subagents under the ordinary applicable rules, but the control-plane role restrictions, orchestration ledger, recovery preflight, and subagent model-allocation protocol below do not apply.
 
 Once `$orchestrate` is explicitly invoked, the workflow remains active for that objective in the current root thread until the objective is complete or the user explicitly stops the workflow. The root orchestrator is the original user-facing thread, identified by the canonical agent path `/root` when agent paths are available. A task agent is any spawned child such as `/root/<task>`.
+
+The explicit invocation also authorizes the bounded repository publication work needed to finish that objective: staging owned in-scope paths, creating scoped commits, and non-force pushing reviewed or frozen commits to the startup-verified canonical repository and allowlisted branch family. It authorizes the draft-PR and CI operations in [Bounded Git And GitHub Authorization](#bounded-git-and-github-authorization). It does not authorize unrelated repositories or remotes, force pushes, history rewrites, tags or releases, secrets, destructive Git, spending, production activation, or other external scope expansion. Platform approval boundaries still apply and must not be bypassed.
 
 A task agent participates in an active orchestration workflow only when its root assignment explicitly supplies the orchestration run ID and ledger path. That assignment activates only the task-agent responsibilities below; it does not authorize the task agent to assume root duties, edit the ledger, or delegate further unless the root explicitly says otherwise.
 
@@ -40,30 +45,76 @@ The root may perform only:
 
 Compaction, automatic continuation, agent delay, an idle agent, or the convenience of already having context does not transfer task-agent work back to the root.
 
+### Initial Intake Preflight
+
+Every orchestration run begins in `preview`. Before the first implementation writer, the root must audit the entire supplied objective rather than only the next task. A phase or priority label is a valid objective, but the preview must expand it into its current tasks and dependencies before work begins.
+
+The root may delegate bounded read-only preview audits. It must then freeze a reviewed execution packet that records:
+
+- current task status, dependencies, seams, milestones, and the runnable subgraph;
+- unresolved ADRs, owner decisions, evidence prerequisites, deadlines, external actions, and authority envelopes;
+- architecture and production-continuity risk, including current behavior, proposed behavior, fallback or its absence, rollback, recovery owner, and restoration gate for any live-impacting change;
+- proposed writer ownership, review and CI gates, publication topology, and predicted milestone/push counts;
+- the verified canonical repository, remote URL, integration branch, allowed run-branch prefix, initial local/remote SHA, and whether direct-main, draft-PR, or milestone-branch publication is permitted; and
+- the resource snapshot, worktree reservation, heavy-operation budget, and throttle rules.
+
+Cross-cutting or high-risk work requires one `gpt-5.6-sol` / `xhigh` architecture lead to produce the seam map, invariants, non-goals, dependency graph, owned paths, and verification strategy, followed by a different `gpt-5.6-sol` / `xhigh` specification reviewer. Keep the accepted lead idle and recallable between implementation waves so it does not consume an active slot while waiting.
+
+When preview exposes genuine owner decisions, invocation of `$orchestrate` is explicit consent to invoke the installed explicit-only `$grill-me` skill. Complete the phase-wide foundation first, then interview one whole task or cohesive milestone at a time. The owner may timebox the session and stop between those complete units. Freeze the interview-complete independent graph, mark the rest `needs-interview`, and execute the ready work without guessing the deferred decisions. Preserve the design tree and frontier in `.tmp/orchestration/<run-id>/preview.md`; stop clearly if `$grill-me` is unavailable.
+
+Transition `preview -> ready -> active` automatically when the frozen packet contains no owner blocker and stays within existing authority. Use `awaiting-owner` when it does not. A new cross-cutting invariant, missing ADR, dependency seam, invalidated architecture, or material scope expansion pauses only the affected lane, recalls the architecture lead, requires independent review, and re-freezes the affected graph. The root may approve the re-freeze when it preserves the accepted outcome, durable decisions, and authority envelope; otherwise return to `awaiting-owner` while independent ready work continues.
+
 ### Durable Orchestration Ledger
 
 When `$orchestrate` activates the workflow, the root must resolve a run ID from `CODEX_THREAD_ID`, falling back to `CODEX_SESSION_ID`. If neither is available, generate a UUID and preserve it explicitly in commentary, the ledger, and subsequent compacted state.
 
-The root must maintain `.tmp/orchestration/<run-id>/state.md` as the compact source of current session state. Initialize it before the first work wave and update it after every spawn, material handoff, ownership or scope change, agent completion, integration, push, and gate decision. Never use the former shared `.tmp/orchestration-state.md` path, a shared `current` pointer, or another run's ledger. Existing ledgers from other runs do not activate this workflow and must not be selected by recency.
+The root must maintain `.tmp/orchestration/<run-id>/state.md` as the compact source of current session state and `.tmp/orchestration/<run-id>/preview.md` as the design-tree and frozen-graph source. Initialize them before the first preview lane. Update the ledger only at recovery-relevant transitions: preview verdict, owner or authority gate, ownership or scope change, blocker, frozen milestone SHA, resource admission/release or threshold crossing, integration/publication result, release gate, and completion. Coalesce near-simultaneous events. Routine spawns, messages, polls, test output, and ordinary agent completions do not require their own patch when the current recovery state is unchanged. Never use the former shared `.tmp/orchestration-state.md` path, a shared `current` pointer, or another run's ledger. Existing ledgers from other runs do not activate this workflow and must not be selected by recency.
 
 Keep the ledger concise and include:
 
 - the current objective and work wave;
 - each active or recently completed lane's task, agent path, role, model and reasoning effort, worktree or owned paths, status, and next action;
 - root-only decisions, pending owner gates, blockers, and available agent capacity;
+- preview status (`preview`, `awaiting-owner`, `ready`, `active`, or `complete`), frozen-artifact paths and exact SHAs, deferred `needs-interview` nodes, and the Git allowlist;
+- latest resource sample time, free disk/memory, logical processors, linked-worktree count and reservation, active heavy-operation lease owner, and throttle reason;
 - the latest integrated and pushed commit; and
 - the next root action and the next actions that must remain delegated.
 
-The root exclusively owns its run-scoped ledger. Include the run ID and ledger path in every task-agent assignment. Task agents report the evidence needed to update it but do not edit any orchestration ledger. Record `active` or `complete` status in the ledger so recovery cannot mistake a completed run for active work.
+The root exclusively owns its run-scoped files. Include the run ID and ledger path in every task-agent assignment. Task agents report evidence but do not edit orchestration state. Mark the ledger `complete` only when the objective is complete; recovery must preserve any non-complete preview or execution status.
+
+### Resource Admission
+
+Agent capacity, writable-worktree capacity, and heavy-operation capacity are separate budgets. Before creating a worktree or launching a heavy local gate, run `.agents/skills/orchestrate/scripts/Get-OrchestrationResourceSnapshot.ps1` with the applicable admission mode and the checked-in `.agents/skills/orchestrate/resources/resource-policy.json` profile. Record admission and lease transitions in the ledger.
+
+- Keep at most two writable task worktrees. Reuse a clean admitted worktree for sequential work only after its prior commit is integrated or safely published; remove idle recoverable worktrees promptly.
+- On the current four-logical-processor/eight-GiB class host, admit only one full build/test or other heavy job family at once. A second agent may edit, research, or review while that lease is occupied.
+- The helper's disk and memory gates fail closed. A run-scoped owner override must state the measured shortfall and reserved capacity; a task agent cannot override admission itself.
+- PowerShell `Start-Job` children share the same global heavy-operation lease. Admit the whole job family before launching it.
+- Under pressure, queue new heavy work and allow the current bounded command to finish. Do not kill unrelated host processes or delete caches, build trees, worktrees, or user files merely to regain capacity.
+
+### Bounded Git And GitHub Authorization
+
+At initial intake, verify and record the canonical repository identity, remote name and push URL, authenticated account and repository permission, default integration branch, run-scoped branch prefix, and initial local/remote SHA. For this repository the canonical target is `origin` at `https://github.com/ehonda/KicktippAi.git`; fail closed if the observed target differs.
+
+The `$orchestrate` invocation authorizes, for its objective and run only:
+
+- staging owned in-scope paths and creating scoped local commits;
+- non-force pushes of exact reviewed or frozen commits to allowlisted `main` or `codex/<run-or-objective>-*` refs using an explicit remote and refspec;
+- creating and updating draft PRs for those refs; marking ready or merging only when the frozen packet names the exact base/head and required green checks; and
+- one rerun of a failed milestone workflow and cancellation of a superseded run for an allowlisted exact SHA. Repeated failure requires diagnosis, not another retry.
+
+Before every push, record `git branch --show-current`, `git remote -v`, `git status --short --branch`, and `git log -1 --oneline`; verify the exact SHA contains only scoped paths, no secrets, and is a non-force fast-forward to the allowlisted ref. Keep ordinary lane commits local. Publish cohesive milestone commits and recovery-critical long lanes. If publication is rejected, record the exact SHA and reason, continue independent local work only within resource and recovery budgets, and stop admitting new writers before unpublished state becomes unsafe. Never evade or reshape a rejected operation to bypass review.
+
+Authorization expires when the objective completes or stops, or when repository identity, remote URL, branch family, publication topology, or scope changes. Another remote or repository, force or lease-force push, tag/release publication, remote deletion outside agreed temporary-branch cleanup, history rewrite, credential/remote change, unrelated user change, destructive reset/clean/checkout, secrets, and unplanned PR merge require new approval.
 
 ### Recovery Preflight
 
 Only while the `$orchestrate` workflow is active, after any compaction or automatic continuation, or whenever current ownership is uncertain, the root must complete this recovery preflight before substantive task work:
 
 1. Re-read `.agents/skills/orchestrate/SKILL.md`, the repository-root `AGENTS.md`, and every applicable nested `AGENTS.md`, task record, execution strategy, and active decision document. During the current Bundesliga 2026/27 work, this includes `plans/bundesliga-2026-27/AGENTS.md`, `plans/bundesliga-2026-27/execution-strategy.md`, the active task file, and its linked ADRs.
-2. Resolve the active run ID and read only `.tmp/orchestration/<run-id>/state.md`. If the active run ID cannot be recovered, do not choose a ledger by recency; request user direction. If the exact ledger is missing or stale, reconstruct and update it before continuing.
+2. Resolve the active run ID and read only `.tmp/orchestration/<run-id>/state.md` plus its sibling `preview.md`. If the active run ID cannot be recovered, do not choose a ledger by recency; request user direction. If the exact state is missing or stale, reconstruct and update it before continuing.
 3. Inspect live agent state and Git/worktree state rather than relying on the compacted summary alone.
-4. Reconcile every active lane's owner, status, model allocation, owned paths, and next action.
+4. Reconcile every active lane's owner, status, model allocation, owned paths, and next action; re-sample resource admission and reconcile the active heavy-operation lease.
 5. State in a concise commentary update which next actions belong to the root and which remain delegated.
 6. Delegate worker work before doing it inline. If an allowed exception applies, record the reason before starting that work.
 
@@ -84,7 +135,7 @@ Use these starting points:
 - Open-ended or complex research whose conclusions will guide later design or implementation: prefer `gpt-5.6-sol` / `high`. Use a lighter model only when the question is bounded, evidence gathering is mechanical, and the result will receive stronger independent synthesis or review.
 - Ambiguous cross-cutting work, launch gates, architecture decisions, or difficult failure analysis: `gpt-5.6-sol` / `high`.
 
-`gpt-5.6-sol` / `xhigh` is exceptional for task agents. Before selecting it, state why `gpt-5.6-sol` / `high` is insufficient for the task's difficulty or risk.
+Phase-wide or cross-cutting architecture and its independent specification review are a deliberate exception: both roles always use different `gpt-5.6-sol` / `xhigh` agents in the current pilot because architecture drift multiplies downstream rework. For every other task-agent role, `gpt-5.6-sol` / `xhigh` remains exceptional; before selecting it, state why `gpt-5.6-sol` / `high` is insufficient.
 
 Every override-compatible spawn must explicitly set both `model` and `reasoning_effort`. Omitting either field is a protocol violation.
 

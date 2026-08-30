@@ -34,12 +34,12 @@ These instructions apply to every file and implementation task under this direct
 - Never promote the validation model to production. The project owner controls the final model/prompt/cost decision, Club Elo unattended-network decision, and final schedule activation.
 - Load community-specific sibling `.env.<community>` credentials for local writes without printing values or replacing the base development `.env`.
 - Production bonus callers remain manual-only. Match predictions for the ready
-  `pes-squad`, `schadensfresse`, `relaxdays-tippt`, and `ehonda-ai-arena` rows
-  run only through [ADR-0053](decisions/0053-schedule-the-production-live-matchday-lane.md)
-  as extended by
-  [ADR-0055](decisions/0055-add-schadensfresse-to-production-live-lane.md)'s
-  strict outer schedule; their leaf callers remain manual-only. P1-08's later
-  mixed-competition `schadensfresse` work remains outside that lane. See
+  `pes-squad`, `relaxdays-tippt`, and `ehonda-ai-arena` rows run only through
+  [ADR-0053](decisions/0053-schedule-the-production-live-matchday-lane.md)'s
+  strict outer schedule; their leaf callers remain manual-only. ADR-0058
+  supersedes ADR-0055's schadensfresse copy topology and currently keeps both
+  schadensfresse scheduled jobs absent. P1-10 may restore only the separately
+  reviewed typed target-owned context/match path. See
   [ADR-0006](decisions/0006-stage-validation-with-a-cheap-test-model.md).
 
 ## Task records
@@ -47,5 +47,8 @@ These instructions apply to every file and implementation task under this direct
 - Keep each task's status, checklist, validation evidence, and ADR links current while implementing it.
 - Do not mark a task complete until every completion criterion and listed automated check passes, or a linked ADR explicitly changes the criterion.
 - Add newly discovered work as a small task with dependencies instead of expanding an existing task without bound.
-- Treat the strongest, highest-reasoning agent as the orchestration control plane for this plan, not as the routine implementation or review default. Assign bounded implementation to a task agent whose capability tier matches the task, use lightweight agents for read-only research/status/CI evidence, and use a separate dedicated reviewer only when the task's risk justifies it. Each checkout/worktree has one writer; under ADR-0009 the orchestrator may run up to two isolated writers with non-overlapping ownership in separate worktrees.
-- The final execution step for every implementation task is to verify the exact Git target, commit the scoped changes intentionally, and push the explicit remote/branch according to the repository-level instructions.
+- Keep task records as compact execution contracts: status, outcome, dependencies, owner gates, milestone checklist, completion criteria, evidence links, and ADR/design links. Put cross-cutting invariants and seam maps in `designs/`, phase order/resources/authority in the frozen phase execution packet, and high-volume run evidence in dedicated evidence artifacts or CI links.
+- Under [ADR-0061](decisions/0061-preview-and-milestone-orchestration.md), a phase-scale `$orchestrate` run must finish whole-phase intake before writers start. Cross-cutting or high-risk architecture and its independent specification review always use different `gpt-5.6-sol` / `xhigh` agents during this pilot. Bounded implementation uses the capability tier appropriate to the frozen task; read-only status/CI evidence stays lightweight.
+- Each checkout/worktree has one writer. The orchestrator may admit at most two isolated writable worktrees with non-overlapping ownership, but the checked-in resource profile may reduce writer or heavy-operation concurrency. A new cross-cutting invariant, missing ADR, dependency seam, invalidated architecture, or material expansion pauses the affected lane for redesign and re-freeze instead of growing the task silently.
+- A milestone that disables or regresses active production behavior must stay on an integration branch or draft PR until the safe release unit is ready. A separate safety quarantine needs explicit owner approval, documented impact/fallback/rollback/recovery owner, and a restoration deadline.
+- Every implementation task ends with a scoped local commit. Push cohesive reviewed milestones and recovery-critical long lanes—not every local lane—after verifying the exact Git target according to the repository-level authorization contract.

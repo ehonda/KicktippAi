@@ -16,6 +16,7 @@ from typing import Any
 
 RUN_ID = "01a04fd8-ffcf-7263-944f-98d1bc53c645"
 BASE_COMMIT = "c4669aaa1badcccbedbbc1f63c35c412c06a34e8"
+P1_10_BASE_COMMIT = "3a2ba35529b262327a3ec08e6bde47b186c8e5b2"
 FINAL_COMMIT = "04a6d855bac305c0e35c39d747a5b140a2b65fff"
 PATCH_TARGET = re.compile(r"\*\*\* (?:Add|Update|Delete) File: (.+?)(?:\\n|\r?\n)")
 NESTED_TOOL = re.compile(r"\btools\.([A-Za-z0-9_]+)\s*\(")
@@ -85,6 +86,20 @@ def git(repo: pathlib.Path, *arguments: str) -> str:
     if result.returncode:
         raise RuntimeError(result.stderr.strip())
     return result.stdout
+
+
+def git_diff_metrics(repo: pathlib.Path, base: str, final: str) -> dict[str, int]:
+    files = insertions = deletions = 0
+    for line in git(repo, "diff", "--numstat", f"{base}..{final}").splitlines():
+        parts = line.split("\t", 2)
+        if len(parts) != 3:
+            continue
+        files += 1
+        if parts[0].isdigit():
+            insertions += int(parts[0])
+        if parts[1].isdigit():
+            deletions += int(parts[1])
+    return {"files": files, "insertions": insertions, "deletions": deletions}
 
 
 def main() -> None:
@@ -183,6 +198,8 @@ def main() -> None:
         if not line:
             continue
         ref, sha, committed_at, subject = line.split("\t", 3)
+        if parse_time(committed_at) > cutoff:
+            continue
         branch_rows.append({"ref": ref, "sha": sha, "committed_at": committed_at, "subject": subject})
     write_csv(args.output_dir / "branches.csv", branch_rows, ["ref", "sha", "committed_at", "subject"])
 
@@ -227,10 +244,35 @@ def main() -> None:
     subagent_tool_seconds = sum(row["elapsed_seconds"] or 0 for row in tool_rows if row["role"] != "root")
     subagent_active_seconds = analysis["summary"]["concurrency"]["aggregate_worker_seconds"]
     review_verdicts = Counter(row["verdict"] for row in review_rows)
+    reviews_by_lane: dict[str, list[dict[str, Any]]] = defaultdict(list)
+    for row in review_rows:
+        reviews_by_lane[row["agent_path"]].append(row)
+    approval_complete_lanes = [
+        rows for rows in reviews_by_lane.values()
+        if any(row["verdict"] == "approved" for row in rows)
+    ]
+
+    session_net_changes = git_diff_metrics(args.repo, BASE_COMMIT, FINAL_COMMIT)
+    p1_10_net_changes = git_diff_metrics(args.repo, P1_10_BASE_COMMIT, FINAL_COMMIT)
+    p1_10_commits = set(
+        git(args.repo, "rev-list", f"{P1_10_BASE_COMMIT}..{FINAL_COMMIT}").splitlines()
+    )
+    with (args.output_dir / "ci-runs.csv").open(encoding="utf-8", newline="") as handle:
+        ci_rows = list(csv.DictReader(handle))
+    p1_10_ci_rows = [row for row in ci_rows if row["head_sha"] in p1_10_commits]
+
+    def ci_metrics(rows: list[dict[str, str]]) -> dict[str, int]:
+        return {
+            "runs": len(rows),
+            "seconds": sum(int(row["duration_seconds"]) for row in rows),
+            "failures": sum(row["conclusion"] != "success" for row in rows),
+        }
+
     derived = {
-        "schema_version": 1,
+        "schema_version": 2,
         "source_analysis_generated_at": analysis["generated_at"],
         "session_boundary": {"base_commit": BASE_COMMIT, "final_commit": FINAL_COMMIT},
+        "p1_10_boundary": {"base_commit": P1_10_BASE_COMMIT, "final_commit": FINAL_COMMIT},
         "tool_calls": len(tool_rows),
         "tool_time_by_class": {
             key: {
@@ -248,7 +290,23 @@ def main() -> None:
         "subagent_active_seconds": subagent_active_seconds,
         "subagent_tool_share_of_active_time": round(subagent_tool_seconds / subagent_active_seconds, 4) if subagent_active_seconds else None,
         "review_verdict_counts": dict(review_verdicts),
+        "review_lane_counts": {
+            "with_completed_turn": len(reviews_by_lane),
+            "approval_complete": len(approval_complete_lanes),
+            "approval_complete_with_multiple_turns": sum(
+                len(rows) > 1 for rows in approval_complete_lanes
+            ),
+        },
         "commits": len(commit_rows),
+        "p1_10_commits": len(p1_10_commits),
+        "net_changes": {
+            "session": session_net_changes,
+            "p1_10": p1_10_net_changes,
+        },
+        "ci_run_counts": {
+            "session": ci_metrics(ci_rows),
+            "p1_10": ci_metrics(p1_10_ci_rows),
+        },
         "commit_files_changed_sum": sum(row["files_changed"] for row in commit_rows),
         "commit_insertions_sum": sum(row["insertions"] for row in commit_rows),
         "commit_deletions_sum": sum(row["deletions"] for row in commit_rows),

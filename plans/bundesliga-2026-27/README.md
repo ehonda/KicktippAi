@@ -4,7 +4,11 @@ This directory decomposes the P0 and P1 proposals in [the readiness research](..
 
 P0 ends with successful manual production runs, the opening bonus and match predictions, deliberately enabled schedules, and observation of the first scheduled sequence. P1 then improves maintainability, freshness, experiment tooling, and live cost evidence.
 
-The accepted [execution strategy](execution-strategy.md) defines gated orchestration, bounded worktree parallelism, hybrid Git integration, Codex usage discipline, and the remaining owner-controlled launch decisions.
+The accepted [execution strategy](execution-strategy.md) and
+[ADR-0061](decisions/0061-preview-and-milestone-orchestration.md) define
+whole-phase readiness preview, fully grilled runnable milestones, resource-
+admitted worktree parallelism, production-safe Git integration, Codex usage
+discipline, and the remaining owner-controlled launch decisions.
 
 ## P0 closeout — 2026-08-28
 
@@ -178,6 +182,12 @@ Luna/`none` recovery is complete and must not be repeated.
 
 P1-01 and P1-02 were promoted to P0-15 and P0-16 because both affect predictions that exist only at or before go-live. Numbering of the remaining P1 tasks stays stable.
 
+The next explicit `$orchestrate P1` invocation must begin with ADR-0061's
+read-only phase preview and task-complete grilling. That intake creates the
+tracked P1 execution plan from then-current evidence; this index does not
+pre-freeze its design. Fully grilled runnable milestones may proceed while the
+remaining frontier stays `needs-interview`.
+
 | Task | Outcome | Depends on |
 |---|---|---|
 | [P1-03](tasks/p1-03-generic-onboarding-skill.md) | Extract generic competition onboarding tooling | P0-21 |
@@ -187,7 +197,7 @@ P1-01 and P1-02 were promoted to P0-15 and P0-16 because both affect predictions
 | [P1-07](tasks/p1-07-cost-calibration.md) | Recalculate season cost from live usage evidence | P0-16, P1-04, P1-05 |
 | [P1-08](tasks/p1-08-schadensfresse-mixed-competition-routing.md) | Superseded and fully absorbed by P1-10; do not build the former copy-plus-exceptions route | P0-21 |
 | [P1-09](tasks/p1-09-current-open-matchday-context.md) | Reconcile reduced current open fixtures with the complete outcome view | P0-14, P0-21 |
-| [P1-10](tasks/p1-10-schadensfresse-primary-community.md) **Deadline-critical, in progress** | Quarantine the unsafe scheduled copy, then convert schadensfresse to a Bundesliga-subcompetition-typed target-owned primary; CL bonus deadline is `2026-09-08T16:45:00Z` | P0-21; absorbs P1-08 |
+| [P1-10](tasks/p1-10-schadensfresse-primary-community.md) **Deadline-critical, requires restarted intake** | Restore typed scheduled target-owned context and matchday operation by `2026-09-04`, then complete the remaining Bundesliga/DFB/CL primary conversion; CL bonus deadline is `2026-09-08T16:45:00Z` | P0-21; absorbs P1-08 |
 | [P1-11](tasks/p1-11-langfuse-v4-migration.md) | Migrate the Langfuse project and repository API consumers to v4 | P0-21 |
 | [P1-12](tasks/p1-12-standings-reprediction-exemption.md) **High priority** | Exempt standings-only changes from match repredictions | P0-12, P0-21 |
 
@@ -228,7 +238,7 @@ contract:
 - [ADR-0006: Stage validation with a cheap test model](decisions/0006-stage-validation-with-a-cheap-test-model.md)
 - [ADR-0007: Require context hygiene before launch](decisions/0007-require-context-hygiene-before-launch.md)
 - [ADR-0008: Launch Club Elo from a dated seed when necessary](decisions/0008-launch-club-elo-from-a-dated-seed.md)
-- [ADR-0009: Use bounded orchestration and hybrid Git integration](decisions/0009-bounded-orchestration-and-hybrid-git.md)
+- [ADR-0009: Use bounded orchestration and hybrid Git integration](decisions/0009-bounded-orchestration-and-hybrid-git.md) — superseded by ADR-0061
 - [ADR-0010: Use a season-scoped strict team identity manifest](decisions/0010-season-scoped-team-identity-manifest.md)
 - [ADR-0011: Fix roster snapshots and atomic publication](decisions/0011-roster-snapshot-and-publication-contract.md)
 - [ADR-0012: Make matchday completion competition aware](decisions/0012-competition-aware-matchday-completion.md)
@@ -242,7 +252,7 @@ contract:
 - [ADR-0020: Record immutable match-context manifests](decisions/0020-record-immutable-match-context-manifests.md)
 - [ADR-0021: Bind ordinary context content and prepare provenance](decisions/0021-bind-ordinary-context-content-and-prepare-provenance.md) — supersedes only ADR-0020's ordinary-document version/content portions
 - [ADR-0022: Allocate Bundesliga repredictions transactionally](decisions/0022-transactional-bundesliga-reprediction-allocation.md) — supersedes only ADR-0020's Bundesliga prediction-save portion
-- [ADR-0023: Use orchestrator-created CLI worktrees for parallel writers](decisions/0023-use-orchestrator-created-cli-worktrees.md)
+- [ADR-0023: Use orchestrator-created CLI worktrees for parallel writers](decisions/0023-use-orchestrator-created-cli-worktrees.md) — superseded by ADR-0061
 - [ADR-0024: Select bonus context by competition and question](decisions/0024-select-bonus-context-by-competition-and-question.md)
 - [ADR-0025: Reconstruct Bundesliga history played dates from fixed sources](decisions/0025-reconstruct-bundesliga-history-played-dates.md)
 - [ADR-0026: Exclude incomplete rows from selected match history](decisions/0026-exclude-incomplete-history-rows.md)
@@ -280,3 +290,4 @@ contract:
 - [ADR-0058: Make schadensfresse a Bundesliga-subcompetition-typed primary](decisions/0058-make-schadensfresse-a-competition-typed-primary.md) — supersedes ADR-0054's schadensfresse copy topology and ADR-0055's scheduled schadensfresse context/copy pair, which is quarantined pending reviewed primary activation; P1-10 absorbs P1-08
 - [ADR-0059: Bind schadensfresse rules to a structured semantic record](decisions/0059-bind-schadensfresse-rules-to-a-structured-semantic-record.md) — narrowly supersedes ADR-0058's legacy normalized rules hash as the semantic publication/freshness gate; preserves it as historical evidence and makes the structured v1 record canonical
 - [ADR-0060: Separate generation provenance from current rules attestation](decisions/0060-separate-generation-manifest-from-current-rules-attestation.md) — keeps generation manifests immutable while a directly keyed, exact-publication binding may refresh unchanged authenticated rules evidence for zero-call, zero-mutation reuse
+- [ADR-0061: Preview, grill, and publish orchestration milestones](decisions/0061-preview-and-milestone-orchestration.md) — replaces the earlier fixed-capacity orchestration/Git rules with phase preview, fully grilled runnable milestones, semantic scope gates, resource admission, and production-safe milestone publication

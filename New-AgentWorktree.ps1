@@ -40,6 +40,17 @@ if (Test-Path -LiteralPath $worktreePath) {
     throw "Worktree path already exists: $worktreePath"
 }
 
+$resourceHelperPath = Join-Path $repositoryRoot '.agents/skills/orchestrate/scripts/Get-OrchestrationResourceSnapshot.ps1'
+if (-not (Test-Path -LiteralPath $resourceHelperPath -PathType Leaf)) {
+    throw "The orchestration resource admission helper is missing: $resourceHelperPath"
+}
+
+$resourceSnapshot = & $resourceHelperPath -Admission Worktree -RepositoryRoot $repositoryRoot
+if (-not $resourceSnapshot.WorktreeAdmission.Allowed) {
+    throw "Worktree resource admission failed. $($resourceSnapshot.WorktreeAdmission.Reason)"
+}
+Write-Verbose $resourceSnapshot.WorktreeAdmission.Reason
+
 & git check-ref-format --branch $Branch | Out-Null
 if ($LASTEXITCODE -ne 0) {
     throw "Invalid Git branch name: $Branch"

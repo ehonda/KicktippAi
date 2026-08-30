@@ -6,44 +6,91 @@ description: Activate KicktippAi's full root-orchestrator control-plane workflow
 # Orchestrate
 
 Activate the repository's explicit orchestration workflow for the objective in
-the user's invocation. The invocation is the user's opt-in to the full
-control-plane, delegation, model-allocation, durable-ledger, and recovery
-protocol in the repository-root `AGENTS.md`.
+the user's invocation. The invocation opts into phase-scale intake, grilling,
+delegation, model allocation, recovery state, and the bounded Git publication
+contract in the repository-root `AGENTS.md`.
 
 ## Activate The Workflow
 
-- Activate the workflow only in the root user-facing thread. A task agent must
-  follow its bounded assignment and must not activate or initialize the
-  workflow itself.
-- Read and follow the complete **Explicit Orchestration Workflow And
-  Compaction Recovery** section in the repository-root `AGENTS.md` before the
-  first spawn.
-- Use the objective supplied with `$orchestrate`. If the invocation does not
-  contain a concrete objective, use the current user request when it is
-  unambiguous; otherwise ask the user what should be orchestrated.
-- Keep the workflow active for that objective until it is complete or the user
-  explicitly stops the workflow.
+- Activate only in the root user-facing thread. A task agent follows its
+  bounded assignment and must not initialize orchestration itself.
+- Read the complete **Explicit Orchestration Workflow And Compaction
+  Recovery** section in the repository-root `AGENTS.md` before the first
+  preview agent or writer.
+- Require the installed explicit-only `$grill-me` skill. Invocation of
+  `$orchestrate` explicitly opts into its use for readiness defects. Stop with
+  a clear dependency error if it is unavailable.
+- Use the supplied objective. If it is absent, use the current request only
+  when unambiguous; otherwise ask what should be orchestrated.
+- Keep the workflow active until the objective is complete or the user stops
+  it. A phase or priority objective is valid; expand it during intake before
+  admitting writers.
 
-## Establish Run Identity
+## Establish Run Identity And Preview State
 
-Before the first spawn, resolve a root-run ID from `CODEX_THREAD_ID`, falling
-back to `CODEX_SESSION_ID`. If neither is available, generate a UUID, state it
-in commentary, and preserve it in the ledger and subsequent compacted state.
+Resolve a root-run ID from `CODEX_THREAD_ID`, falling back to
+`CODEX_SESSION_ID`. If neither exists, generate a UUID, state it in commentary,
+and preserve it in compacted state.
 
-Use only this run-scoped ledger:
+Use only these run-scoped files:
 
-`.tmp/orchestration/<run-id>/state.md`
+- `.tmp/orchestration/<run-id>/state.md` for compact recovery state;
+- `.tmp/orchestration/<run-id>/preview.md` for the design tree, readiness
+  findings, settled decisions, deferred nodes, and frozen runnable graph.
 
-Initialize it with the run ID, objective, creation time, and `active` status.
-Pass the run ID and ledger path in every task-agent assignment, while making
-clear that only the root may edit the ledger. Mark the ledger `complete` when
-the objective is finished.
+Initialize the ledger with `preview` status. Pass the run ID and ledger path
+in every task-agent assignment and state that only the root edits them. Never
+use a shared ledger, a `current` pointer, or another run's files.
 
-Never use `.tmp/orchestration-state.md`, a shared `current` pointer, or another
-run's ledger.
+## Complete Intake Before Writers
 
-## Preserve Scope
+Audit the entire objective before admitting implementation writers. Apply the
+Initial Intake Preflight in `AGENTS.md`, including task/dependency expansion,
+architecture risk, owner and external gates, production continuity, Git
+targets, resource admission, and proposed milestones.
 
-Invoking this skill changes how the authorized work is coordinated. It does
-not authorize unrelated work, destructive actions, external writes, spending,
-or other scope expansion.
+- If the objective is coherent and within existing authority, freeze the
+  runnable graph and transition `preview -> ready -> active` automatically.
+- If owner decisions are open, invoke `$grill-me`. Finish the phase-wide
+  foundation first, then grill one complete task or cohesive milestone at a
+  time. The owner may stop only between those units and start the already
+  frozen independent graph; mark the remainder `needs-interview`.
+- Require a `gpt-5.6-sol` / `xhigh` architecture lead and a different
+  `gpt-5.6-sol` / `xhigh` specification reviewer for cross-cutting or high-risk
+  work. Keep the lead recallable for scope discoveries and re-freezes.
+- Writers may start only from a frozen contract. A new cross-cutting
+  invariant, missing ADR, dependency seam, invalidated architecture, or
+  material scope expansion pauses the affected lane for redesign and review.
+
+For Bundesliga 2026/27, follow the accepted execution strategy and create the
+tracked phase execution packet and detailed design artifacts only after their
+grilling and review. Do not treat an earlier task file as a frozen packet.
+
+## Admit Resources And Publish Deliberately
+
+Before creating a worktree or launching a heavy local gate, run
+`scripts/Get-OrchestrationResourceSnapshot.ps1` with the applicable admission
+mode. Respect its fail-closed verdict and the resource lease recorded in the
+ledger. Resource pressure queues work; it never authorizes killing unrelated
+processes or deleting caches or user files.
+
+Choose cohesive integration milestones from the frozen graph. Keep ordinary
+lane branches local; publish milestone commits and only recovery-critical lane
+commits. Direct `main` is permitted only for independently production-safe
+milestones. Any intermediate change that disables or regresses live behavior
+uses an integration branch or draft PR until the safe release unit is ready,
+except for an explicitly owner-approved safety quarantine.
+
+## Preserve Scope And Authorization
+
+Invocation authorizes, for this objective and run only, staging owned paths,
+creating scoped local commits, and non-force pushing reviewed/frozen commits to
+the startup-verified canonical repository and allowlisted branch family. It
+also authorizes the bounded draft-PR and CI operations defined in `AGENTS.md`
+and `AUTO-REVIEW.md`.
+
+It does not authorize another repository or remote, force pushes, history
+rewrites, tags or releases, remote deletion outside agreed cleanup, unrelated
+changes, secrets, spending, production activation, or other scope expansion.
+The frozen preview packet may request a more specific external authority
+envelope. Platform approval boundaries still apply and must never be bypassed.

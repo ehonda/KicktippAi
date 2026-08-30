@@ -1,6 +1,6 @@
 # ADR-0023: Use orchestrator-created CLI worktrees for parallel writers
 
-- Status: Accepted
+- Status: Superseded by [ADR-0061](0061-preview-and-milestone-orchestration.md)
 - Date: 2026-08-21
 
 ## Context
