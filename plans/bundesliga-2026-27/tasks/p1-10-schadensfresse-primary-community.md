@@ -53,15 +53,15 @@ existing competition-specific model. No path copies or falls back to
 
 ### 0. Immediate schedule quarantine
 
-- [ ] Before the next nominal `2026-08-30T09:07:00Z` occurrence, remove
+- [x] Before the next nominal `2026-08-30T09:07:00Z` occurrence, remove
       `schadensfresse-context` and `schadensfresse-matchday` from
       `.github/workflows/buli2627-production-live-matchday.yml`, and reconnect
       `relaxdays-tippt-context.needs` directly to `pes-squad-matchday`.
-- [ ] Prove the outer lane has exactly seven remaining context/match pairs and
+- [x] Prove the outer lane has exactly seven remaining context/match pairs and
       14 jobs while retaining cron `7 2,9 * * *`, non-cancelling concurrency,
       serial/default-success ordering, leaf-manual-only operation, no bonus,
       monitoring/on-call ownership, and rollback behavior.
-- [ ] Keep both schadensfresse jobs absent until the separately reviewed
+- [x] Keep both schadensfresse jobs absent until the separately reviewed
       primary activation. The quarantine authorizes no dispatch, model call,
       force, prediction mutation, POST, Firestore/Langfuse write, prompt
       promotion, or credential change.
