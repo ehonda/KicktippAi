@@ -1,0 +1,35 @@
+ref,sha,committed_at,subject
+codex/p1-03-competition-onboarding-skill,7a321d12263b1a8e5b4a88cfe5c87ec5c2a62de2,2026-08-30T03:01:21+02:00,Add competition onboarding skill profiles
+codex/p1-10-fixture-id-join,b0fd6b6ed986c9515e367c3e6c3b0cbe1148b8c5,2026-08-30T17:18:25+02:00,Add exact schadensfresse fixture ID join
+codex/p1-10-manifest-lifecycle-adr,252c2e204df87d92ba5214083d8b393588e5f01a,2026-08-30T15:07:13+02:00,docs: define typed manifest attestation lifecycle
+codex/p1-10-persistence,a0842635edc3bfbb3edd3880f0b4d0515b1fd25a,2026-08-30T13:12:25+02:00,feat: bind Bundesliga prediction storage identity
+codex/p1-10-primary-contract,9372013dc54836214de4fd1be14c36bdaf160fa8,2026-08-30T10:16:49+02:00,docs: define schadensfresse primary contract
+codex/p1-10-publication-binding-bridge,04a6d855bac305c0e35c39d747a5b140a2b65fff,2026-08-30T19:35:31+02:00,Add exact schadensfresse publication bindings
+codex/p1-10-quarantine,ae8fc465a4f0c8338cb17f380a91241254134bd4,2026-08-30T10:25:40+02:00,fix: quarantine schadensfresse live lane
+codex/p1-10-random-match-quarantine,05d38e905cbd2354a1d13670908c435019cecfdc,2026-08-30T18:59:37+02:00,Quarantine schadensfresse random-match command
+codex/p1-10-rules-contract,bd6123357b6c4f3533807e02066201f7b33b591e,2026-08-30T12:09:21+02:00,docs: bind schadensfresse rules semantics
+codex/p1-10-rules-validator,1fb69577025b656d8f706d2e9cb5327e5b2040b4,2026-08-30T14:03:34+02:00,feat: validate schadensfresse live rules v1
+codex/p1-10-runtime-copy-removal,2b91958970dff437674e185f69ad650abaafc372,2026-08-30T15:38:05+02:00,Fail closed schadensfresse copy entrypoints
+codex/p1-10-typed-context-core,86cb5a5dde6266f5346d5fa83311eccd446dc894,2026-08-30T16:24:35+02:00,Add strict typed context contracts
+codex/p1-10-typed-context-firebase,25fbb56e4a93ae2c9148d0a8b62a9745a70edf63,2026-08-30T18:21:29+02:00,Stabilize typed context binding concurrency test
+codex/p1-10-typed-context-resolver,552dd078f576ca8ab0073e19ac19bdd8be99a728,2026-08-30T20:21:22+02:00,Add schadensfresse typed context resolver
+codex/p1-10-typed-foundation,18ba8413e9a9df54932b574eedc7642e8e8990df,2026-08-30T11:10:56+02:00,feat: add typed Bundesliga routing foundation
+codex/p1-12-closeout-evidence,c89374f9bf4f367c5218f84b08deb3e230325def,2026-08-30T09:33:44+02:00,docs: close P1-12 standings exemption
+codex/p1-12-standings-exemption,6e1be19a40a7fc2130b81472d107de747a9f0c98,2026-08-30T02:30:36+02:00,Exempt standings-only changes from reprediction
+origin/codex/p1-03-competition-onboarding-skill,7a321d12263b1a8e5b4a88cfe5c87ec5c2a62de2,2026-08-30T03:01:21+02:00,Add competition onboarding skill profiles
+origin/codex/p1-10-fixture-id-join,b0fd6b6ed986c9515e367c3e6c3b0cbe1148b8c5,2026-08-30T17:18:25+02:00,Add exact schadensfresse fixture ID join
+origin/codex/p1-10-manifest-lifecycle-adr,252c2e204df87d92ba5214083d8b393588e5f01a,2026-08-30T15:07:13+02:00,docs: define typed manifest attestation lifecycle
+origin/codex/p1-10-persistence,a0842635edc3bfbb3edd3880f0b4d0515b1fd25a,2026-08-30T13:12:25+02:00,feat: bind Bundesliga prediction storage identity
+origin/codex/p1-10-primary-contract,9372013dc54836214de4fd1be14c36bdaf160fa8,2026-08-30T10:16:49+02:00,docs: define schadensfresse primary contract
+origin/codex/p1-10-publication-binding-bridge,04a6d855bac305c0e35c39d747a5b140a2b65fff,2026-08-30T19:35:31+02:00,Add exact schadensfresse publication bindings
+origin/codex/p1-10-quarantine,ae8fc465a4f0c8338cb17f380a91241254134bd4,2026-08-30T10:25:40+02:00,fix: quarantine schadensfresse live lane
+origin/codex/p1-10-random-match-quarantine,05d38e905cbd2354a1d13670908c435019cecfdc,2026-08-30T18:59:37+02:00,Quarantine schadensfresse random-match command
+origin/codex/p1-10-rules-contract,bd6123357b6c4f3533807e02066201f7b33b591e,2026-08-30T12:09:21+02:00,docs: bind schadensfresse rules semantics
+origin/codex/p1-10-rules-validator,1fb69577025b656d8f706d2e9cb5327e5b2040b4,2026-08-30T14:03:34+02:00,feat: validate schadensfresse live rules v1
+origin/codex/p1-10-runtime-copy-removal,2b91958970dff437674e185f69ad650abaafc372,2026-08-30T15:38:05+02:00,Fail closed schadensfresse copy entrypoints
+origin/codex/p1-10-typed-context-core,86cb5a5dde6266f5346d5fa83311eccd446dc894,2026-08-30T16:24:35+02:00,Add strict typed context contracts
+origin/codex/p1-10-typed-context-firebase,25fbb56e4a93ae2c9148d0a8b62a9745a70edf63,2026-08-30T18:21:29+02:00,Stabilize typed context binding concurrency test
+origin/codex/p1-10-typed-context-resolver,552dd078f576ca8ab0073e19ac19bdd8be99a728,2026-08-30T20:21:22+02:00,Add schadensfresse typed context resolver
+origin/codex/p1-10-typed-foundation,18ba8413e9a9df54932b574eedc7642e8e8990df,2026-08-30T11:10:56+02:00,feat: add typed Bundesliga routing foundation
+origin/codex/p1-12-closeout-evidence,c89374f9bf4f367c5218f84b08deb3e230325def,2026-08-30T09:33:44+02:00,docs: close P1-12 standings exemption
+origin/codex/p1-12-standings-exemption,6e1be19a40a7fc2130b81472d107de747a9f0c98,2026-08-30T02:30:36+02:00,Exempt standings-only changes from reprediction

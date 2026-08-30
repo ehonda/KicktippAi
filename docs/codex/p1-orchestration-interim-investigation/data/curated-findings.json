@@ -1,0 +1,66 @@
+{
+  "schema_version": 1,
+  "snapshot_generated_at": "2026-08-30T18:23:17.606877Z",
+  "findings": [
+    {
+      "id": "complexity-is-real",
+      "assessment": "dominant",
+      "evidence": [
+        "100 net files changed",
+        "+9578/-922 net lines",
+        "three new P1-10 ADRs",
+        "P1-10 task record grew from 65 to 326 lines"
+      ]
+    },
+    {
+      "id": "machine-and-tools-are-material-not-dominant",
+      "assessment": "material",
+      "evidence": [
+        "29060.351 aggregate seconds in completed subagent tool calls",
+        "42.79% of aggregate worker-active time",
+        "382 directly classified dotnet cells and 8481.707 seconds",
+        "a 5h42m54s no-agent interval ended with explicit push authorization"
+      ]
+    },
+    {
+      "id": "release-gates-are-too-fine-grained",
+      "assessment": "avoidable",
+      "evidence": [
+        "14 local P1-10 task branches at cutoff",
+        "14 remote P1-10 branch refs",
+        "26 CI-only task-agent threads across the run",
+        "14 main Build-and-Test runs totaling 3375 seconds"
+      ]
+    },
+    {
+      "id": "review-is-valuable-but-specification-is-late",
+      "assessment": "mixed",
+      "evidence": [
+        "19 completed P1-10 review turns returned findings or rejection",
+        "14 completed P1-10 review turns returned approval",
+        "11 of 13 completed P1-10 review lanes needed multiple review turns",
+        "both Terra/high implementation and Sol/high contract/ADR lanes had first-review findings"
+      ]
+    },
+    {
+      "id": "model-allocation-protocol-worked",
+      "assessment": "strong",
+      "evidence": [
+        "78 of 78 spawn calls explicitly selected model",
+        "78 of 78 spawn calls explicitly selected reasoning effort",
+        "78 of 78 spawn calls used fork_turns none",
+        "Luna/low concentrated on mechanical CI and reconciliation"
+      ]
+    },
+    {
+      "id": "ledger-is-wall-cheap-but-chatty",
+      "assessment": "optimize",
+      "evidence": [
+        "375 completed root ledger patches",
+        "691.520 seconds of direct ledger patch elapsed time",
+        "roughly one completed ledger edit every three minutes",
+        "seven root compactions by the snapshot"
+      ]
+    }
+  ]
+}

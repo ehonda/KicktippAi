@@ -437,6 +437,7 @@ New-ExperimentAnalysisIndex -ExperimentRoot $experimentTarget
 $hasCoverage = Test-Path -Path (Join-Path $coverageTarget "index.html")
 $hasExperimentAnalysis = Test-Path -Path (Join-Path $experimentTarget "index.html")
 $hasSessionAnalysis = Test-Path -Path (Join-Path $sessionAnalysisTarget "p0-closeout/index.html")
+$hasP1SessionAnalysis = Test-Path -Path (Join-Path $sessionAnalysisTarget "p1-orchestration-interim/index.html")
 
 $coverageCard = if ($hasCoverage)
 {
@@ -463,6 +464,15 @@ $sessionAnalysisCard = if ($hasSessionAnalysis)
 else
 {
     "<section class='card card-disabled'><span class='eyebrow'>Codex investigation</span><strong>P0 closeout session</strong><p>No session investigation has been published yet.</p></section>"
+}
+
+$p1SessionAnalysisCard = if ($hasP1SessionAnalysis)
+{
+    "<a class='card' href='session-analysis/p1-orchestration-interim/index.html'><span class='eyebrow'>Codex investigation</span><strong>P1 orchestration interim</strong><p>Examine task complexity, machine/tool time, model allocation, review churn, branch gates, and protocol overhead.</p></a>"
+}
+else
+{
+    "<section class='card card-disabled'><span class='eyebrow'>Codex investigation</span><strong>P1 orchestration interim</strong><p>No P1 orchestration investigation has been published yet.</p></section>"
 }
 
 $rootIndex = @"
@@ -590,6 +600,7 @@ $rootIndex = @"
       $coverageCard
       $experimentCard
       $sessionAnalysisCard
+      $p1SessionAnalysisCard
     </section>
   </main>
 </body>

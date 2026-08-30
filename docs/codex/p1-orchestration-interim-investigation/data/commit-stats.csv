@@ -1,0 +1,18 @@
+sha,short_sha,authored_at,committed_at,author,subject,files_changed,insertions,deletions
+4a5709e173a165613025887dcf75ba9d6f5d149b,4a5709e,2026-08-30T01:52:07+02:00,2026-08-30T08:47:52+02:00,Dennis Renz,Exempt standings-only changes from reprediction,8,510,18
+050b946055a8fb690af94b15344adfe4dd4c950a,050b946,2026-08-30T02:21:52+02:00,2026-08-30T08:49:37+02:00,Dennis Renz,Add competition onboarding skill profiles,11,233,172
+3a2ba35529b262327a3ec08e6bde47b186c8e5b2,3a2ba35,2026-08-30T09:27:20+02:00,2026-08-30T09:38:30+02:00,Dennis Renz,docs: close P1-12 standings exemption,1,64,40
+9372013dc54836214de4fd1be14c36bdaf160fa8,9372013,2026-08-30T09:56:43+02:00,2026-08-30T10:16:49+02:00,Dennis Renz,docs: define schadensfresse primary contract,5,629,149
+ae8fc465a4f0c8338cb17f380a91241254134bd4,ae8fc46,2026-08-30T10:25:40+02:00,2026-08-30T10:25:40+02:00,Dennis Renz,fix: quarantine schadensfresse live lane,4,25,66
+18ba8413e9a9df54932b574eedc7642e8e8990df,18ba841,2026-08-30T10:52:40+02:00,2026-08-30T11:10:56+02:00,Dennis Renz,feat: add typed Bundesliga routing foundation,11,564,41
+bd6123357b6c4f3533807e02066201f7b33b591e,bd61233,2026-08-30T11:59:50+02:00,2026-08-30T12:09:21+02:00,Dennis Renz,docs: bind schadensfresse rules semantics,4,425,8
+a0842635edc3bfbb3edd3880f0b4d0515b1fd25a,a084263,2026-08-30T11:43:17+02:00,2026-08-30T13:12:25+02:00,Dennis Renz,feat: bind Bundesliga prediction storage identity,10,1737,105
+1fb69577025b656d8f706d2e9cb5327e5b2040b4,1fb6957,2026-08-30T12:45:15+02:00,2026-08-30T14:03:34+02:00,Dennis Renz,feat: validate schadensfresse live rules v1,20,1840,66
+252c2e204df87d92ba5214083d8b393588e5f01a,252c2e2,2026-08-30T14:47:49+02:00,2026-08-30T15:07:13+02:00,Dennis Renz,docs: define typed manifest attestation lifecycle,4,392,7
+2b91958970dff437674e185f69ad650abaafc372,2b91958,2026-08-30T15:17:43+02:00,2026-08-30T15:38:05+02:00,Dennis Renz,Fail closed schadensfresse copy entrypoints,19,179,184
+86cb5a5dde6266f5346d5fa83311eccd446dc894,86cb5a5,2026-08-30T15:56:35+02:00,2026-08-30T16:24:35+02:00,Dennis Renz,Add strict typed context contracts,2,226,0
+b0fd6b6ed986c9515e367c3e6c3b0cbe1148b8c5,b0fd6b6,2026-08-30T16:22:40+02:00,2026-08-30T17:18:25+02:00,Dennis Renz,Add exact schadensfresse fixture ID join,8,1236,129
+d5157263055a92fd15bdb0c99074bcc7dd0545da,d515726,2026-08-30T17:01:39+02:00,2026-08-30T17:49:22+02:00,Dennis Renz,Add typed context Firebase binding persistence,11,925,8
+25fbb56e4a93ae2c9148d0a8b62a9745a70edf63,25fbb56,2026-08-30T18:08:39+02:00,2026-08-30T18:21:29+02:00,Dennis Renz,Stabilize typed context binding concurrency test,1,23,8
+05d38e905cbd2354a1d13670908c435019cecfdc,05d38e9,2026-08-30T18:59:37+02:00,2026-08-30T18:59:37+02:00,Dennis Renz,Quarantine schadensfresse random-match command,2,69,0
+04a6d855bac305c0e35c39d747a5b140a2b65fff,04a6d85,2026-08-30T19:04:08+02:00,2026-08-30T19:35:31+02:00,Dennis Renz,Add exact schadensfresse publication bindings,8,589,9

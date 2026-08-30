@@ -1,0 +1,8 @@
+timestamp,timestamp_local,line,category,characters,sha256,user_message_ordinal,intervention_kind,excerpt
+2026-08-29T23:27:29.615000Z,2026-08-30T01:27:29.615000+02:00,6,injected-repository-context,22416,d75845c75ad24b3302db9d90169078d6d90f3df009185a137968312b55b7ca40,,,
+2026-08-29T23:27:29.787000Z,2026-08-30T01:27:29.787000+02:00,9,user,15,d4728c6e9e34561c51cec9f70b38a8fab1266c84d1e767366215105a866cf792,1,kickoff,$orchestrate P1
+2026-08-29T23:27:29.838000Z,2026-08-30T01:27:29.838000+02:00,11,injected-skill-context,2222,c1c45211eff94fb3cfb4bde3326a7dfe81fa2fe31d3f1acc0211651102f1b912,,,
+2026-08-30T01:08:56.903000Z,2026-08-30T03:08:56.903000+02:00,1344,automatic-goal-continuation,5326,45c52a7f3920271ac1bdb6678507549d4d06c19e11d7203acf3350e2f731dee5,,,
+2026-08-30T01:13:04.500000Z,2026-08-30T03:13:04.500000+02:00,1455,automatic-goal-continuation,5326,d01f3d831a9a948860926a68e263a1a81744e8cdfb3a2032651217bc7712a4c5,,,
+2026-08-30T06:44:33.274000Z,2026-08-30T08:44:33.274000+02:00,1589,user,237,f5d3fe2bc8bd390fde202429392dfcc6887e67a0a8dddbec28fa6e1940474c1d,2,user-intervention,"Explicit approval granted to continue autonomously and, to that end, publish commits and branches, and take actions necessary to fulfill the goal that have evidence that they are required and sanctioned (e.g. from docs / AGENTS.md / etc)"
+2026-08-30T10:52:31.566000Z,2026-08-30T12:52:31.566000+02:00,5076,user,299,502cd66220260d8ac2f6a1781d705aca11b80ff3dcb9612fef86bc03dd0de490,3,user-intervention,"One more P1 item, for later: schadensfresse is the only community that has open bonus predictions left. The others only had buli predictions, which had to be placed pre-season, and that is done and over. So we can deactivate the bonus sched"
