@@ -158,6 +158,13 @@ public class FirestoreMatchPrediction
     public string? ResolvedContextManifest { get; set; }
 
     /// <summary>
+    /// Canonical immutable ADR-0060 rules-only generation provenance. This is
+    /// intentionally separate from the ordinary Bundesliga context manifest.
+    /// </summary>
+    [FirestoreProperty("resolvedTypedContextManifest")]
+    public string? ResolvedTypedContextManifest { get; set; }
+
+    /// <summary>
     /// Reprediction index for tracking prediction versions.
     /// Starts at 0 for the first prediction, increments for each reprediction.
     /// </summary>
@@ -371,6 +378,13 @@ public class FirestoreBonusPrediction
     /// <summary>Canonical JSON resolved-context provenance for Bundesliga bonus prompts.</summary>
     [FirestoreProperty("resolvedBonusContextManifest")]
     public string? ResolvedBonusContextManifest { get; set; }
+
+    /// <summary>
+    /// Canonical immutable ADR-0060 rules-only generation provenance. This is
+    /// intentionally separate from the ordinary Bundesliga bonus-context manifest.
+    /// </summary>
+    [FirestoreProperty("resolvedTypedContextManifest")]
+    public string? ResolvedTypedContextManifest { get; set; }
 
     /// <summary>
     /// Canonical JSON provenance for the complete normalized question and source option set.

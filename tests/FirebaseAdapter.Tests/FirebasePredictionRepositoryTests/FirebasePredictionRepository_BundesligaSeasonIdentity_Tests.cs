@@ -125,6 +125,250 @@ public sealed class FirebasePredictionRepository_BundesligaSeasonIdentity_Tests(
     }
 
     [Test]
+    public async Task Typed_Dfb_match_and_champions_bonus_rows_round_trip_their_row_bound_canonical_generation_manifests()
+    {
+        var repository = CreateBundesligaRepository();
+        var typed = (IResolvedTypedContextPredictionRepository)repository;
+        var config = PredictionModelConfig.Create("gpt-5");
+        var match = Match("typed-dfb-roundtrip", BundesligaSeasonSubcompetition.DfbPokal,
+            ResultBasis.FinalScoreIncludingExtraTimeAndPenaltyShootout, 5);
+        var championsLeagueMatch = Match("typed-cl-roundtrip", BundesligaSeasonSubcompetition.ChampionsLeague,
+            ResultBasis.FinalScoreIncludingExtraTimeAndPenaltyShootout, 10);
+        var question = Question("typed-cl-roundtrip") with
+        {
+            BundesligaSeasonSubcompetition = BundesligaSeasonSubcompetition.ChampionsLeague
+        };
+        var matchManifest = TypedManifest(BundesligaSeasonSubcompetition.DfbPokal, isBonus: false);
+        var championsLeagueMatchManifest = TypedManifest(BundesligaSeasonSubcompetition.ChampionsLeague, isBonus: false);
+        var bonusManifest = TypedManifest(BundesligaSeasonSubcompetition.ChampionsLeague, isBonus: true);
+
+        await typed.SavePredictionWithResolvedTypedContextAsync(match, new Prediction(2, 1), config, "{}", 0.01,
+            "schadensfresse", matchManifest.Documents.Select(x => x.Name), matchManifest);
+        await typed.SavePredictionWithResolvedTypedContextAsync(championsLeagueMatch, new Prediction(2, 1), config, "{}", 0.01,
+            "schadensfresse", championsLeagueMatchManifest.Documents.Select(x => x.Name), championsLeagueMatchManifest);
+        await typed.SaveBonusPredictionWithResolvedTypedContextAsync(question, new BonusPrediction(["option-1"]), config, "{}", 0.01,
+            "schadensfresse", bonusManifest.Documents.Select(x => x.Name), bonusManifest);
+
+        var matchMetadata = await typed.GetCurrentTypedPredictionMetadataAsync(match, config, "schadensfresse");
+        var championsLeagueMatchMetadata = await typed.GetCurrentTypedPredictionMetadataAsync(championsLeagueMatch, config, "schadensfresse");
+        var bonusMetadata = await typed.GetCurrentTypedBonusPredictionMetadataAsync(question, config, "schadensfresse");
+        await Assert.That(matchMetadata!.ResolvedTypedContextManifest).IsEqualTo(matchManifest);
+        await Assert.That(matchMetadata.ResolvedContextManifest).IsNull();
+        await Assert.That(championsLeagueMatchMetadata!.ResolvedTypedContextManifest).IsEqualTo(championsLeagueMatchManifest);
+        await Assert.That(bonusMetadata!.ResolvedTypedContextManifest).IsEqualTo(bonusManifest);
+        await Assert.That(bonusMetadata.ResolvedContextManifest).IsNull();
+
+        var matchRow = (await Fixture.Db.Collection("match-predictions").WhereEqualTo("kicktippFixtureId", match.KicktippFixtureId).GetSnapshotAsync()).Documents.Single();
+        var championsLeagueMatchRow = (await Fixture.Db.Collection("match-predictions").WhereEqualTo("kicktippFixtureId", championsLeagueMatch.KicktippFixtureId).GetSnapshotAsync()).Documents.Single();
+        var bonusRow = (await Fixture.Db.Collection("bonus-predictions").WhereEqualTo("kicktippQuestionId", question.KicktippQuestionId).GetSnapshotAsync()).Documents.Single();
+        await Assert.That(matchRow.GetValue<string>("resolvedTypedContextManifest"))
+            .IsEqualTo(System.Text.Encoding.UTF8.GetString(matchManifest.SerializeCanonical()));
+        await Assert.That(championsLeagueMatchRow.GetValue<string>("resolvedTypedContextManifest"))
+            .IsEqualTo(System.Text.Encoding.UTF8.GetString(championsLeagueMatchManifest.SerializeCanonical()));
+        await Assert.That(bonusRow.GetValue<string>("resolvedTypedContextManifest"))
+            .IsEqualTo(System.Text.Encoding.UTF8.GetString(bonusManifest.SerializeCanonical()));
+        await Assert.That(matchRow.ConvertTo<FirestoreMatchPrediction>().ResolvedContextManifest).IsNull();
+        await Assert.That(bonusRow.ConvertTo<FirestoreBonusPrediction>().ResolvedBonusContextManifest).IsNull();
+
+        var changedBonusManifest = TypedManifest(BundesligaSeasonSubcompetition.ChampionsLeague, isBonus: true,
+            observedAt: DateTimeOffset.UtcNow.AddMinutes(-2), documentVersion: bonusManifest.Documents[0].Version + 1);
+        await Assert.That(() => typed.SaveBonusPredictionWithResolvedTypedContextAsync(question, new BonusPrediction(["option-1"]), config, "{}", 0.01,
+                "schadensfresse", changedBonusManifest.Documents.Select(x => x.Name), changedBonusManifest)).Throws<InvalidDataException>();
+        var staleBonusManifest = TypedManifest(BundesligaSeasonSubcompetition.ChampionsLeague, isBonus: true,
+            observedAt: DateTimeOffset.UtcNow.AddHours(-25));
+        await bonusRow.Reference.UpdateAsync("resolvedTypedContextManifest", System.Text.Encoding.UTF8.GetString(staleBonusManifest.SerializeCanonical()));
+        await Assert.That((await typed.GetCurrentTypedBonusPredictionMetadataAsync(question, config, "schadensfresse"))!.ResolvedTypedContextManifest)
+            .IsEqualTo(staleBonusManifest);
+    }
+
+    [Test]
+    public async Task Typed_generation_manifests_are_immutable_and_stale_historical_bytes_remain_row_bound_audit_data()
+    {
+        var repository = CreateBundesligaRepository();
+        var typed = (IResolvedTypedContextPredictionRepository)repository;
+        var config = PredictionModelConfig.Create("gpt-5");
+        var match = Match("typed-dfb-immutable", BundesligaSeasonSubcompetition.DfbPokal,
+            ResultBasis.FinalScoreIncludingExtraTimeAndPenaltyShootout, 6);
+        var manifest = TypedManifest(BundesligaSeasonSubcompetition.DfbPokal, isBonus: false);
+        await typed.SavePredictionWithResolvedTypedContextAsync(match, new Prediction(2, 1), config, "{}", 0.01,
+            "schadensfresse", manifest.Documents.Select(x => x.Name), manifest);
+
+        var changed = TypedManifest(BundesligaSeasonSubcompetition.DfbPokal, isBonus: false,
+            observedAt: DateTimeOffset.UtcNow.AddMinutes(-2), documentVersion: manifest.Documents[0].Version + 1);
+        await Assert.That(() => typed.SavePredictionWithResolvedTypedContextAsync(match, new Prediction(2, 1), config, "{}", 0.01,
+                "schadensfresse", changed.Documents.Select(x => x.Name), changed)).Throws<InvalidDataException>();
+
+        var stale = TypedManifest(BundesligaSeasonSubcompetition.DfbPokal, isBonus: false,
+            observedAt: DateTimeOffset.UtcNow.AddHours(-25));
+        var row = (await Fixture.Db.Collection("match-predictions").WhereEqualTo("kicktippFixtureId", match.KicktippFixtureId).GetSnapshotAsync()).Documents.Single();
+        await row.Reference.UpdateAsync("resolvedTypedContextManifest", System.Text.Encoding.UTF8.GetString(stale.SerializeCanonical()));
+        var auditMetadata = await typed.GetCurrentTypedPredictionMetadataAsync(match, config, "schadensfresse");
+        await Assert.That(auditMetadata!.ResolvedTypedContextManifest).IsEqualTo(stale);
+    }
+
+    [Test]
+    public async Task Typed_current_rows_fail_closed_for_missing_noncanonical_wrong_profile_and_legacy_hash_manifests()
+    {
+        var repository = CreateBundesligaRepository();
+        var typed = (IResolvedTypedContextPredictionRepository)repository;
+        var config = PredictionModelConfig.Create("gpt-5");
+        var match = Match("typed-cl-corrupt", BundesligaSeasonSubcompetition.ChampionsLeague,
+            ResultBasis.FinalScoreIncludingExtraTimeAndPenaltyShootout, 7);
+        var manifest = TypedManifest(BundesligaSeasonSubcompetition.ChampionsLeague, isBonus: false);
+        await typed.SavePredictionWithResolvedTypedContextAsync(match, new Prediction(2, 1), config, "{}", 0.01,
+            "schadensfresse", manifest.Documents.Select(x => x.Name), manifest);
+        var row = (await Fixture.Db.Collection("match-predictions").WhereEqualTo("kicktippFixtureId", match.KicktippFixtureId).GetSnapshotAsync()).Documents.Single();
+
+        foreach (var corrupt in new[]
+                 {
+                     "{}",
+                     "{\"normalizedRulesSha256\":\"" + new string('a', 64) + "\"}",
+                     "{\"canonicalRulesSha256\":123}",
+                     System.Text.Encoding.UTF8.GetString(TypedManifest(BundesligaSeasonSubcompetition.ChampionsLeague, isBonus: true).SerializeCanonical())
+                 })
+        {
+            await row.Reference.UpdateAsync("resolvedTypedContextManifest", corrupt);
+            await Assert.That(() => typed.GetCurrentTypedPredictionMetadataAsync(match, config, "schadensfresse"))
+                .Throws<InvalidDataException>();
+        }
+
+        await row.Reference.UpdateAsync("resolvedTypedContextManifest", FieldValue.Delete);
+        await Assert.That(() => typed.GetCurrentTypedPredictionMetadataAsync(match, config, "schadensfresse"))
+            .Throws<InvalidDataException>();
+    }
+
+    [Test]
+    public async Task Typed_save_materializes_match_context_names_once_and_rejects_wrong_row_profile()
+    {
+        var repository = CreateBundesligaRepository();
+        var typed = (IResolvedTypedContextPredictionRepository)repository;
+        var config = PredictionModelConfig.Create("gpt-5");
+        var match = Match("typed-dfb-stateful", BundesligaSeasonSubcompetition.DfbPokal,
+            ResultBasis.FinalScoreIncludingExtraTimeAndPenaltyShootout, 8);
+        var manifest = TypedManifest(BundesligaSeasonSubcompetition.DfbPokal, isBonus: false);
+        var enumerations = 0;
+        IEnumerable<string> Names()
+        {
+            enumerations++;
+            yield return enumerations == 1 ? manifest.Documents[0].Name : "changed-on-second-enumeration";
+        }
+
+        await typed.SavePredictionWithResolvedTypedContextAsync(match, new Prediction(2, 1), config, "{}", 0.01,
+            "schadensfresse", Names(), manifest);
+        await Assert.That(enumerations).IsEqualTo(1);
+
+        var clMatch = Match("typed-cl-wrong-profile", BundesligaSeasonSubcompetition.ChampionsLeague,
+            ResultBasis.FinalScoreIncludingExtraTimeAndPenaltyShootout, 9);
+        var bonusProfile = TypedManifest(BundesligaSeasonSubcompetition.ChampionsLeague, isBonus: true);
+        await Assert.That(() => typed.SavePredictionWithResolvedTypedContextAsync(clMatch, new Prediction(2, 1), config, "{}", 0.01,
+                "schadensfresse", bonusProfile.Documents.Select(x => x.Name), bonusProfile)).Throws<InvalidDataException>();
+
+        var clQuestion = Question("typed-cl-bonus-wrong-profile") with
+        {
+            BundesligaSeasonSubcompetition = BundesligaSeasonSubcompetition.ChampionsLeague
+        };
+        var matchProfile = TypedManifest(BundesligaSeasonSubcompetition.ChampionsLeague, isBonus: false);
+        await Assert.That(() => typed.SaveBonusPredictionWithResolvedTypedContextAsync(clQuestion, new BonusPrediction(["option-1"]), config, "{}", 0.01,
+                "schadensfresse", matchProfile.Documents.Select(x => x.Name), matchProfile)).Throws<InvalidDataException>();
+    }
+
+    [Test]
+    public async Task Typed_bonus_current_rows_fail_closed_for_missing_malformed_and_cross_profile_generation_manifests()
+    {
+        var repository = CreateBundesligaRepository();
+        var typed = (IResolvedTypedContextPredictionRepository)repository;
+        var config = PredictionModelConfig.Create("gpt-5");
+        var question = Question("typed-cl-bonus-corrupt") with
+        {
+            BundesligaSeasonSubcompetition = BundesligaSeasonSubcompetition.ChampionsLeague
+        };
+        var manifest = TypedManifest(BundesligaSeasonSubcompetition.ChampionsLeague, isBonus: true);
+        await typed.SaveBonusPredictionWithResolvedTypedContextAsync(question, new BonusPrediction(["option-1"]), config, "{}", 0.01,
+            "schadensfresse", manifest.Documents.Select(x => x.Name), manifest);
+        var row = (await Fixture.Db.Collection("bonus-predictions").WhereEqualTo("kicktippQuestionId", question.KicktippQuestionId).GetSnapshotAsync()).Documents.Single();
+
+        foreach (var corrupt in new[]
+                 {
+                     "{\"tableHash\":\"" + new string('a', 64) + "\"}",
+                     "{\"rulesObservedAt\":123}",
+                     System.Text.Encoding.UTF8.GetString(TypedManifest(BundesligaSeasonSubcompetition.ChampionsLeague, isBonus: false).SerializeCanonical())
+                 })
+        {
+            await row.Reference.UpdateAsync("resolvedTypedContextManifest", corrupt);
+            await Assert.That(() => typed.GetCurrentTypedBonusPredictionMetadataAsync(question, config, "schadensfresse"))
+                .Throws<InvalidDataException>();
+        }
+
+        await row.Reference.UpdateAsync("resolvedTypedContextManifest", FieldValue.Delete);
+        await Assert.That(() => typed.GetCurrentTypedBonusPredictionMetadataAsync(question, config, "schadensfresse"))
+            .Throws<InvalidDataException>();
+    }
+
+    [Test]
+    public async Task Typed_Dfb_bonus_save_and_current_read_are_not_supported()
+    {
+        var repository = CreateBundesligaRepository();
+        var typed = (IResolvedTypedContextPredictionRepository)repository;
+        var config = PredictionModelConfig.Create("gpt-5");
+        var question = Question("typed-dfb-bonus-unsupported") with
+        {
+            BundesligaSeasonSubcompetition = BundesligaSeasonSubcompetition.DfbPokal
+        };
+        var manifest = TypedManifest(BundesligaSeasonSubcompetition.DfbPokal, isBonus: false);
+
+        await Assert.That(() => typed.SaveBonusPredictionWithResolvedTypedContextAsync(question, new BonusPrediction(["option-1"]), config, "{}", 0.01,
+                "schadensfresse", manifest.Documents.Select(x => x.Name), manifest)).Throws<InvalidOperationException>();
+        await Assert.That(() => typed.GetCurrentTypedBonusPredictionMetadataAsync(question, config, "schadensfresse"))
+            .Throws<InvalidOperationException>();
+    }
+
+    [Test]
+    public async Task Typed_current_generation_observation_accepts_exact_and_stale_but_rejects_future_by_one_tick_for_match_and_bonus()
+    {
+        var repository = CreateBundesligaRepository();
+        var typed = (IResolvedTypedContextPredictionRepository)repository;
+        var config = PredictionModelConfig.Create("gpt-5");
+        var evaluationInstant = DateTimeOffset.UtcNow.AddMinutes(-1);
+        var match = Match("typed-dfb-observation-boundary", BundesligaSeasonSubcompetition.DfbPokal,
+            ResultBasis.FinalScoreIncludingExtraTimeAndPenaltyShootout, 11);
+        var question = Question("typed-cl-bonus-observation-boundary") with
+        {
+            BundesligaSeasonSubcompetition = BundesligaSeasonSubcompetition.ChampionsLeague
+        };
+        var exactMatch = TypedManifest(BundesligaSeasonSubcompetition.DfbPokal, isBonus: false, observedAt: evaluationInstant);
+        var exactBonus = TypedManifest(BundesligaSeasonSubcompetition.ChampionsLeague, isBonus: true, observedAt: evaluationInstant);
+        await typed.SavePredictionWithResolvedTypedContextAsync(match, new Prediction(2, 1), config, "{}", 0.01,
+            "schadensfresse", exactMatch.Documents.Select(x => x.Name), exactMatch);
+        await typed.SaveBonusPredictionWithResolvedTypedContextAsync(question, new BonusPrediction(["option-1"]), config, "{}", 0.01,
+            "schadensfresse", exactBonus.Documents.Select(x => x.Name), exactBonus);
+
+        await Assert.That((await typed.GetCurrentTypedPredictionMetadataAsync(match, config, "schadensfresse", evaluationInstant: evaluationInstant))!.ResolvedTypedContextManifest)
+            .IsEqualTo(exactMatch);
+        await Assert.That((await typed.GetCurrentTypedBonusPredictionMetadataAsync(question, config, "schadensfresse", evaluationInstant: evaluationInstant))!.ResolvedTypedContextManifest)
+            .IsEqualTo(exactBonus);
+
+        var staleMatch = TypedManifest(BundesligaSeasonSubcompetition.DfbPokal, isBonus: false, observedAt: evaluationInstant.AddHours(-48));
+        var staleBonus = TypedManifest(BundesligaSeasonSubcompetition.ChampionsLeague, isBonus: true, observedAt: evaluationInstant.AddHours(-48));
+        var matchRow = (await Fixture.Db.Collection("match-predictions").WhereEqualTo("kicktippFixtureId", match.KicktippFixtureId).GetSnapshotAsync()).Documents.Single();
+        var bonusRow = (await Fixture.Db.Collection("bonus-predictions").WhereEqualTo("kicktippQuestionId", question.KicktippQuestionId).GetSnapshotAsync()).Documents.Single();
+        await matchRow.Reference.UpdateAsync("resolvedTypedContextManifest", System.Text.Encoding.UTF8.GetString(staleMatch.SerializeCanonical()));
+        await bonusRow.Reference.UpdateAsync("resolvedTypedContextManifest", System.Text.Encoding.UTF8.GetString(staleBonus.SerializeCanonical()));
+        await Assert.That((await typed.GetCurrentTypedPredictionMetadataAsync(match, config, "schadensfresse", evaluationInstant: evaluationInstant))!.ResolvedTypedContextManifest)
+            .IsEqualTo(staleMatch);
+        await Assert.That((await typed.GetCurrentTypedBonusPredictionMetadataAsync(question, config, "schadensfresse", evaluationInstant: evaluationInstant))!.ResolvedTypedContextManifest)
+            .IsEqualTo(staleBonus);
+
+        var futureMatch = TypedManifest(BundesligaSeasonSubcompetition.DfbPokal, isBonus: false, observedAt: evaluationInstant.AddTicks(1));
+        var futureBonus = TypedManifest(BundesligaSeasonSubcompetition.ChampionsLeague, isBonus: true, observedAt: evaluationInstant.AddTicks(1));
+        await matchRow.Reference.UpdateAsync("resolvedTypedContextManifest", System.Text.Encoding.UTF8.GetString(futureMatch.SerializeCanonical()));
+        await bonusRow.Reference.UpdateAsync("resolvedTypedContextManifest", System.Text.Encoding.UTF8.GetString(futureBonus.SerializeCanonical()));
+        await Assert.That(() => typed.GetCurrentTypedPredictionMetadataAsync(match, config, "schadensfresse", evaluationInstant: evaluationInstant))
+            .Throws<InvalidDataException>();
+        await Assert.That(() => typed.GetCurrentTypedBonusPredictionMetadataAsync(question, config, "schadensfresse", evaluationInstant: evaluationInstant))
+            .Throws<InvalidDataException>();
+    }
+
+    [Test]
     public async Task Concurrent_typed_initial_match_saves_share_one_semantic_index_zero_row()
     {
         var firstRepository = CreateBundesligaRepository();
@@ -403,6 +647,23 @@ public sealed class FirebasePredictionRepository_BundesligaSeasonIdentity_Tests(
              new ResolvedBonusContextDocument("Kpi", "team-squad-summary", 1, DocumentPublicationContract.ComputeContentSha256("summary"))],
             new string('a', DocumentPublicationContract.Sha256HexLength),
             new string('b', DocumentPublicationContract.Sha256HexLength));
+
+    private static ResolvedTypedContextManifest TypedManifest(
+        BundesligaSeasonSubcompetition subcompetition,
+        bool isBonus,
+        DateTimeOffset? observedAt = null,
+        int documentVersion = 7) =>
+        new(CompetitionIds.Bundesliga2026_27, "schadensfresse",
+            subcompetition,
+            subcompetition == BundesligaSeasonSubcompetition.DfbPokal
+                ? "schadensfresse-dfb-pokal-rules-only-v1"
+                : isBonus
+                    ? "schadensfresse-champions-league-bonus-rules-only-v1"
+                    : "schadensfresse-champions-league-match-rules-only-v1",
+            new string('a', 64), observedAt ?? DateTimeOffset.UtcNow.AddMinutes(-1),
+            SchadensfresseRulesCanonicalJson.SchemaVersion,
+            SchadensfresseRulesCanonicalJson.CanonicalSha256,
+            [new ResolvedTypedContextDocument("Context", "community-rules-schadensfresse.md", documentVersion, new string('b', 64))]);
 
     private static BonusQuestion Question(string id) =>
         new("Exact typed question", Instant.FromUtc(2026, 9, 8, 16, 45).InUtc(),
