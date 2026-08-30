@@ -1,0 +1,4 @@
+interface:
+  display_name: "Bundesliga 2026/27 Onboarding"
+  short_description: "Onboard Bundesliga 2026/27 safely"
+  default_prompt: "Use $bundesliga-2026-27-onboarding to prepare a Bundesliga 2026/27 onboarding step."

@@ -1,0 +1,4 @@
+interface:
+  display_name: "Competition Onboarding"
+  short_description: "Onboard a football competition safely"
+  default_prompt: "Use $competition-onboarding to onboard a football competition with an explicit profile."

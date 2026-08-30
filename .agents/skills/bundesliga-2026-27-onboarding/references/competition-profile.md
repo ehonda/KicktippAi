@@ -1,0 +1,25 @@
+# Bundesliga 2026/27 Competition Profile
+
+Use this profile only for `bundesliga-2026-27`. Read [the plan](../../../../plans/bundesliga-2026-27/README.md), [execution strategy](../../../../plans/bundesliga-2026-27/execution-strategy.md), [P0-06 cost/model evidence](../../../../plans/bundesliga-2026-27/tasks/p0-06-model-ledger-and-cost-baseline.md), [P0-21 activation evidence](../../../../plans/bundesliga-2026-27/tasks/p0-21-production-activation.md), and the linked accepted ADRs before altering a contract. The runtime source is `CompetitionCollectionProfileResolver`.
+
+## Contract
+
+- **Identity and teams:** Development community `ehonda-dev-buli-2627`; 18 teams; 306 matches; exactly 9 fixtures per matchday; season `2026-08-28` through `2027-05-22`. Use `data/bundesliga-2026-27/team-manifest.csv`, `data/bundesliga-2026-27/history/history-played-dates.csv`, `data/bundesliga-2026-27/rosters/roster-membership-seed.csv`, and `data/bundesliga-2026-27/club-elo-launch-seed.csv`; preserve the roster fallback/last-known-good gates in [ADR-0003](../../../../plans/bundesliga-2026-27/decisions/0003-duckdb-primary-rosters-with-fallback.md).
+- **Collectors:** Run `Kicktipp` → embedded `BundesligaHistoryPlayedDates` → `ClubElo` → `Rosters` through `collect-context profile` or the explicit profile command. The history phase is included in Kicktipp's atomic publication and must not run separately. Do not invoke `Wm26HistoryPlayedDates`, `FifaRankings`, or `NationalLineups`.
+- **Required context:** Bundesliga standings, community rules, recent/home/away history, head-to-head, paired team rosters and Club Elo documents; aggregate `team-rosters`; KPIs `club-elo-rankings` and `team-squad-summary`. Home/away and head-to-head are enabled; knockout and transfer context are prohibited. Apply the CSV and source-provenance contracts from the linked plan/ADRs.
+- **Prompts/models:** Hosted routes are `kicktippai/bundesliga-2026-27/predict-one-match` v3 and `kicktippai/bundesliga-2026-27/predict-bonus` v1, each requiring `production` membership; checked-in fallback model is `bundesliga-2026-27`. Validation is only `gpt-5.6-luna` / `none` / cap `10000`; production and challenger identities, including Sol/`xhigh`, are fixed by [ADR-0052](../../../../plans/bundesliga-2026-27/decisions/0052-select-production-model-community-matrix-and-match-prompt-v3.md), never inferred from validation. Every generation row is Flex-first with one Standard fallback under the accepted matrix.
+- **Costs and communities:** Use the authoritative [community matrix](../../../../docs/onboarding-bundesliga-2026-27/community-onboarding.md), including all posting-target credential, copy-compatibility, Langfuse-environment, secret/variable, membership, and model-row rules. Estimate 306 and 493 calls with `uv --cache-dir .uv-cache run python .agents/skills/estimate-experiment-cost-skill/scripts/experiment_cost_estimator.py estimate --counts 306,493 --model <model> --reasoning-effort <effort>`; on a missing base row, stop for the `estimate-experiment-cost-skill` approval/base-row/`upsert-row` procedure rather than calculating manually. P0-06 fixes the USD 35 orientation, not a runtime gate.
+- **Validation and activation:** Dry-run the full profile, prove exact-nine fixtures and required documents, then use only Luna/none/cap-10000 for an authorized development write. Verify final Firestore/Kicktipp state plus Langfuse competition, prompt/model/cap, document, usage, cost, service-tier, and error evidence. The project owner controls membership, credentials, production selection, activation, monitoring, and rollback. The sole scheduled production matchday lane, its serial topology, no-bonus boundary, monitoring, and rollback authority remain [ADR-0053](../../../../plans/bundesliga-2026-27/decisions/0053-schedule-the-production-live-matchday-lane.md) as extended by [ADR-0055](../../../../plans/bundesliga-2026-27/decisions/0055-add-schadensfresse-to-production-live-lane.md); P1-08 retains mixed `schadensfresse` work.
+
+## Safe profile dry-run
+
+Run this before changing collector topology or onboarding a development community:
+
+```powershell
+dotnet run --project src/Orchestrator -- collect-context-dev --community ehonda-dev-buli-2627 --competition bundesliga-2026-27 --full-season --dry-run --verbose
+dotnet run --project src/Orchestrator -- bundesliga-history audit --community-context ehonda-dev-buli-2627 --competition bundesliga-2026-27
+```
+
+Run the focused collection-profile tests after an implementation change. P0-14 already proves the expected `Kicktipp`, embedded `BundesligaHistoryPlayedDates`, `ClubElo`, `Rosters` order and proves that WM26 collectors are neither resolved nor written. P0-21 provides the completed live manual and scheduled evidence; do not replay it merely to validate this documentation.
+
+This profile never calls WM26 collectors, `data/wm26/`, WM26 prompts, communities, or activation schedules. A future domestic season must create its own profile under the generic contract; it must not repurpose this 2026/27 profile.
