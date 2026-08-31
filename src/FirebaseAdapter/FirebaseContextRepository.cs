@@ -330,7 +330,7 @@ public class FirebaseContextRepository : IContextRepository
         {
             var results = await _firestoreDb.RunTransactionAsync(async transaction =>
             {
-                var pending = new List<(ContextDocumentWrite Document, int? Version, DocumentReference? Reference)>();
+                var pending = new List<(ContextDocumentWrite Document, int? CreatedVersion, int EffectiveVersion, DocumentReference? Reference)>();
 
                 // Firestore transactions require every read to happen before the first write. Build the entire batch
                 // and validate every ordinary row before staging any create operation.
@@ -354,7 +354,7 @@ public class FirebaseContextRepository : IContextRepository
                     var existing = ordinaryRows.FirstOrDefault();
                     if (existing is not null && string.Equals(existing.Content, document.Content, StringComparison.Ordinal))
                     {
-                        pending.Add((document, null, null));
+                        pending.Add((document, null, existing.Version, null));
                         continue;
                     }
 
@@ -362,12 +362,12 @@ public class FirebaseContextRepository : IContextRepository
                         ? 0
                         : checked(matchingRows.Documents.Max(snapshot => snapshot.GetValue<int>("version")) + 1);
                     var documentId = BuildDocumentId(document.DocumentName, communityContext, nextVersion);
-                    pending.Add((document, nextVersion,
+                    pending.Add((document, nextVersion, nextVersion,
                         _firestoreDb.Collection(_contextDocumentsCollection).Document(documentId)));
                 }
 
                 var createdAt = Timestamp.GetCurrentTimestamp();
-                foreach (var item in pending.Where(item => item.Version.HasValue))
+                foreach (var item in pending.Where(item => item.CreatedVersion.HasValue))
                 {
                     var documentId = item.Reference!.Id;
                     transaction.Create(item.Reference, new FirestoreContextDocument
@@ -375,7 +375,7 @@ public class FirebaseContextRepository : IContextRepository
                         Id = documentId,
                         DocumentName = item.Document.DocumentName,
                         Content = item.Document.Content,
-                        Version = item.Version!.Value,
+                        Version = item.CreatedVersion!.Value,
                         CreatedAt = createdAt,
                         Competition = _competition,
                         CommunityContext = communityContext
@@ -383,7 +383,10 @@ public class FirebaseContextRepository : IContextRepository
                 }
 
                 return (IReadOnlyList<ContextDocumentSaveResult>)pending
-                    .Select(item => new ContextDocumentSaveResult(item.Document.DocumentName, item.Version))
+                    .Select(item => new ContextDocumentSaveResult(
+                        item.Document.DocumentName,
+                        item.CreatedVersion,
+                        item.EffectiveVersion))
                     .ToArray();
             }, cancellationToken: cancellationToken);
 

@@ -44,6 +44,8 @@ public class RandomMatchCommand : AsyncCommand<RandomMatchSettings>
     {
         try
         {
+            SchadensfressePrimaryRouteGate.EnsureAvailable(settings.Community);
+
             var initialModel = string.IsNullOrWhiteSpace(settings.Model) ? "(competition default)" : settings.Model;
             _console.MarkupLine($"[green]Random match command initialized with model:[/] [yellow]{initialModel}[/]");
 

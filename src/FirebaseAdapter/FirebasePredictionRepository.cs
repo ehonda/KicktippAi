@@ -17,7 +17,10 @@ public class FirebasePredictionRepository :
     IPredictionRepository,
     IResolvedMatchContextPredictionRepository,
     IResolvedBonusContextPredictionRepository,
-    IBonusPredictionCopyRepository
+    IResolvedTypedContextPredictionRepository,
+    IBonusPredictionCopyRepository,
+    IBundesligaSeasonTypedBonusPredictionRepository,
+    IBundesligaSeasonTypedCancelledMatchPredictionRepository
 {
     private static readonly JsonSerializerOptions JustificationSerializerOptions = new()
     {
@@ -145,6 +148,268 @@ public class FirebasePredictionRepository :
             .FirstOrDefault();
     }
 
+    private FirestoreMatchPrediction? SelectLatestTypedAwareForModelConfig(
+        IEnumerable<FirestoreMatchPrediction> predictions,
+        Match match,
+        PredictionModelConfig modelConfig)
+    {
+        var candidates = predictions.ToArray();
+        if (IsBundesliga2026_27 && BundesligaSeasonStorageIdentity.IsTypedMatch(match))
+        {
+            EnsureOneTypedMatchRowPerIndex(
+                candidates
+                    .Where(prediction => GetConfigMatchKind(prediction, modelConfig) == PredictionConfigMatchKind.Exact)
+                    .ToArray(),
+                match);
+        }
+
+        return SelectLatestForModelConfig(candidates, modelConfig);
+    }
+
+    private FirestoreBonusPrediction? SelectLatestTypedAwareForModelConfig(
+        IEnumerable<FirestoreBonusPrediction> predictions,
+        BonusQuestion question,
+        PredictionModelConfig modelConfig)
+    {
+        var candidates = predictions.ToArray();
+        if (IsBundesliga2026_27 && BundesligaSeasonStorageIdentity.IsTypedBonusQuestion(question))
+        {
+            EnsureOneTypedBonusRowPerIndex(
+                candidates
+                    .Where(prediction => GetConfigMatchKind(prediction, modelConfig) == PredictionConfigMatchKind.Exact)
+                    .ToArray(),
+                question,
+                BundesligaSeasonStorageIdentity.ComputeBonusQuestionIdentitySha256(question));
+        }
+
+        return SelectLatestForModelConfig(candidates, modelConfig);
+    }
+
+    private bool IsBundesliga2026_27 => string.Equals(
+        _competition,
+        CompetitionIds.Bundesliga2026_27,
+        StringComparison.Ordinal);
+
+    private void ValidateCurrentMatchIdentity(Match match) =>
+        BundesligaSeasonStorageIdentity.ValidateMatch(_competition, match);
+
+    private bool CanLookupCurrentMatchIdentity(Match match)
+    {
+        if (!IsBundesliga2026_27)
+        {
+            ValidateCurrentMatchIdentity(match);
+            return true;
+        }
+
+        if (!BundesligaSeasonStorageIdentity.IsTypedMatch(match))
+        {
+            return true;
+        }
+
+        ValidateCurrentMatchIdentity(match);
+        return true;
+    }
+
+    private void ValidateCurrentBonusIdentity(BonusQuestion question) =>
+        BundesligaSeasonStorageIdentity.ValidateBonusQuestion(_competition, question);
+
+    private void ValidateTypedContextAvailability(Match match)
+    {
+        if (IsBundesliga2026_27 && BundesligaSeasonStorageIdentity.IsTypedMatch(match)
+            && match.BundesligaSeasonSubcompetition != BundesligaSeasonSubcompetition.Bundesliga)
+        {
+            throw new InvalidOperationException(
+                "Typed DFB-Pokal and Champions League match rows require resolvedTypedContextManifest support before they can be current or persisted.");
+        }
+    }
+
+    private void ValidateTypedContextAvailability(BonusQuestion question)
+    {
+        if (IsBundesliga2026_27 && BundesligaSeasonStorageIdentity.IsTypedBonusQuestion(question)
+            && question.BundesligaSeasonSubcompetition != BundesligaSeasonSubcompetition.Bundesliga)
+        {
+            throw new InvalidOperationException(
+                "Typed DFB-Pokal and Champions League bonus rows require resolvedTypedContextManifest support before they can be current or persisted.");
+        }
+    }
+
+    private void ValidateResolvedTypedContextManifest(
+        BundesligaSeasonSubcompetition subcompetition,
+        string communityContext,
+        IEnumerable<string> contextDocumentNames,
+        ResolvedTypedContextManifest manifest,
+        string expectedProfileId,
+        bool requireFreshObservation = true)
+    {
+        ArgumentNullException.ThrowIfNull(manifest);
+        if (!IsBundesliga2026_27 || subcompetition == BundesligaSeasonSubcompetition.Bundesliga)
+        {
+            throw new InvalidOperationException("Resolved typed context manifests are only valid for typed DFB-Pokal and Champions League rows.");
+        }
+
+        SchadensfresseTypedContextProfiles.ValidateManifestStructure(manifest, 0);
+        if (requireFreshObservation)
+        {
+            SchadensfresseTypedContextProfiles.ValidateManifestFreshness(manifest, DateTimeOffset.UtcNow);
+        }
+        if (!string.Equals(manifest.SeasonPartition, _competition, StringComparison.Ordinal)
+            || !string.Equals(manifest.CommunityContext, communityContext, StringComparison.Ordinal)
+            || manifest.BundesligaSeasonSubcompetition != subcompetition
+            || !string.Equals(manifest.ProfileId, expectedProfileId, StringComparison.Ordinal)
+            || !contextDocumentNames.SequenceEqual(manifest.Documents.Select(document => document.Name), StringComparer.Ordinal))
+        {
+            throw new InvalidDataException("Resolved typed context manifest does not match the typed prediction identity and exact document list.");
+        }
+    }
+
+    private static string TypedContextProfileId(BundesligaSeasonSubcompetition subcompetition, bool isBonus) =>
+        subcompetition switch
+        {
+            // ADR-0058's DFB profile is fixture/match-only; there is no DFB bonus route.
+            BundesligaSeasonSubcompetition.DfbPokal when isBonus => throw new InvalidOperationException(
+                "Resolved typed context manifests do not support DFB-Pokal bonus rows."),
+            BundesligaSeasonSubcompetition.DfbPokal => "schadensfresse-dfb-pokal-rules-only-v1",
+            BundesligaSeasonSubcompetition.ChampionsLeague when isBonus => "schadensfresse-champions-league-bonus-rules-only-v1",
+            BundesligaSeasonSubcompetition.ChampionsLeague => "schadensfresse-champions-league-match-rules-only-v1",
+            _ => throw new InvalidOperationException("Resolved typed context manifests are only valid for DFB-Pokal and Champions League rows.")
+        };
+
+    private static string SerializeResolvedTypedContextManifest(ResolvedTypedContextManifest manifest) =>
+        System.Text.Encoding.UTF8.GetString(manifest.SerializeCanonical());
+
+    private static ResolvedTypedContextManifest? DeserializeResolvedTypedContextManifest(string? serialized)
+    {
+        if (string.IsNullOrWhiteSpace(serialized)) return null;
+        try { return ResolvedTypedContextManifest.DeserializeCanonical(System.Text.Encoding.UTF8.GetBytes(serialized)); }
+        catch (Exception exception) when (exception is InvalidDataException or JsonException)
+        {
+            throw new InvalidDataException("Stored resolved typed-context manifest is invalid.", exception);
+        }
+    }
+
+    private Query AddCurrentMatchIdentityFilters(Query query, Match match)
+    {
+        if (!IsBundesliga2026_27 || !BundesligaSeasonStorageIdentity.IsTypedMatch(match))
+        {
+            return query;
+        }
+
+        return query
+            .WhereEqualTo("kicktippFixtureId", match.KicktippFixtureId)
+            .WhereEqualTo("kicktippRoundName", match.KicktippRoundName)
+            .WhereEqualTo("resultBasis", match.ResultBasis!.Value.ToSerializedValue())
+            .WhereEqualTo("bundesligaSeasonSubcompetition", match.BundesligaSeasonSubcompetition!.Value.ToSerializedValue());
+    }
+
+    private Query AddCurrentBonusIdentityFilters(Query query, BonusQuestion question)
+    {
+        if (!IsBundesliga2026_27)
+        {
+            return query;
+        }
+
+        return query
+            .WhereEqualTo("kicktippQuestionId", question.KicktippQuestionId)
+            .WhereEqualTo("bundesligaSeasonSubcompetition", question.BundesligaSeasonSubcompetition!.Value.ToSerializedValue());
+    }
+
+    private bool MatchesCurrentMatchIdentity(FirestoreMatchPrediction stored, Match requested)
+    {
+        if (!IsBundesliga2026_27)
+        {
+            return true;
+        }
+
+        if (!BundesligaSeasonStorageIdentity.IsTypedMatch(requested))
+        {
+            return IsLegacyBundesligaMatchRow(stored);
+        }
+
+        return string.Equals(stored.KicktippFixtureId, requested.KicktippFixtureId, StringComparison.Ordinal)
+            && string.Equals(stored.KicktippRoundName, requested.KicktippRoundName, StringComparison.Ordinal)
+            && string.Equals(stored.ResultBasis, requested.ResultBasis!.Value.ToSerializedValue(), StringComparison.Ordinal)
+            && string.Equals(stored.BundesligaSeasonSubcompetition,
+                requested.BundesligaSeasonSubcompetition!.Value.ToSerializedValue(), StringComparison.Ordinal);
+    }
+
+    private bool IsLegacyBundesligaMatchRow(FirestoreMatchPrediction stored) =>
+        !IsBundesliga2026_27 ||
+        string.IsNullOrWhiteSpace(stored.KicktippFixtureId)
+        && string.IsNullOrWhiteSpace(stored.KicktippRoundName)
+        && string.IsNullOrWhiteSpace(stored.ResultBasis)
+        && string.IsNullOrWhiteSpace(stored.BundesligaSeasonSubcompetition);
+
+    private bool MatchesCurrentBonusIdentity(FirestoreBonusPrediction stored, BonusQuestion requested) =>
+        !IsBundesliga2026_27 ||
+        string.Equals(stored.KicktippQuestionId, requested.KicktippQuestionId, StringComparison.Ordinal)
+        && string.Equals(stored.BundesligaSeasonSubcompetition,
+            requested.BundesligaSeasonSubcompetition!.Value.ToSerializedValue(), StringComparison.Ordinal)
+        && string.Equals(stored.QuestionText, requested.Text, StringComparison.Ordinal)
+        && string.Equals(stored.BundesligaSeasonBonusIdentitySha256,
+            BundesligaSeasonStorageIdentity.ComputeBonusQuestionIdentitySha256(requested),
+            StringComparison.Ordinal);
+
+    private bool IsLegacyBundesligaBonusRow(FirestoreBonusPrediction stored) =>
+        !IsBundesliga2026_27 ||
+        string.IsNullOrWhiteSpace(stored.KicktippQuestionId)
+        && string.IsNullOrWhiteSpace(stored.BundesligaSeasonSubcompetition)
+        && string.IsNullOrWhiteSpace(stored.BundesligaSeasonBonusIdentitySha256);
+
+    private bool HasCompleteTypedMatchProvenance(
+        FirestoreMatchPrediction stored,
+        Match match,
+        string communityContext)
+    {
+        if (!IsBundesliga2026_27 || !BundesligaSeasonStorageIdentity.IsTypedMatch(match))
+        {
+            return true;
+        }
+
+        try
+        {
+            var manifest = DeserializeResolvedContextManifest(stored.ResolvedContextManifest);
+            if (manifest is null)
+            {
+                return false;
+            }
+
+            ValidateResolvedContextManifest(match, communityContext, stored.ContextDocumentNames ?? [], manifest);
+            return true;
+        }
+        catch (Exception)
+        {
+            return false;
+        }
+    }
+
+    private bool HasCompleteTypedBonusProvenance(
+        FirestoreBonusPrediction stored,
+        BonusQuestion question,
+        string communityContext)
+    {
+        try
+        {
+            if (!IsBundesliga2026_27 || !BundesligaSeasonStorageIdentity.IsTypedBonusQuestion(question))
+            {
+                return true;
+            }
+
+            var manifest = DeserializeResolvedBonusContextManifest(stored.ResolvedBonusContextManifest);
+            if (manifest is null)
+            {
+                return false;
+            }
+
+            ValidateResolvedBonusContextManifestForWrite(
+                communityContext, stored.ContextDocumentNames ?? [], manifest);
+            return true;
+        }
+        catch (Exception)
+        {
+            return false;
+        }
+    }
+
     public Task SavePredictionAsync(Match match, Prediction prediction, string model, string tokenUsage, double cost, string communityContext, IEnumerable<string> contextDocumentNames, bool overrideCreatedAt = false, CancellationToken cancellationToken = default)
     {
         return SavePredictionAsync(
@@ -171,11 +436,36 @@ public class FirebasePredictionRepository :
         SavePredictionInternalAsync(match, prediction, modelConfig, tokenUsage, cost, communityContext, contextDocumentNames,
             resolvedContextManifest, overrideCreatedAt, cancellationToken);
 
+    public Task SavePredictionWithResolvedTypedContextAsync(
+        Match match, Prediction prediction, PredictionModelConfig modelConfig, string tokenUsage, double cost,
+        string communityContext, IEnumerable<string> contextDocumentNames, ResolvedTypedContextManifest resolvedTypedContextManifest,
+        bool overrideCreatedAt = false, CancellationToken cancellationToken = default)
+    {
+        ValidateCurrentMatchIdentity(match);
+        if (!IsBundesliga2026_27 || !BundesligaSeasonStorageIdentity.IsTypedMatch(match))
+            throw new InvalidOperationException("Resolved typed context persistence requires a typed Bundesliga-season match.");
+        var documentNames = contextDocumentNames.ToArray();
+        ValidateResolvedTypedContextManifest(match.BundesligaSeasonSubcompetition!.Value, communityContext, documentNames,
+            resolvedTypedContextManifest, TypedContextProfileId(match.BundesligaSeasonSubcompetition!.Value, isBonus: false));
+        return SaveTypedInitialMatchPredictionAsync(match, prediction, modelConfig, tokenUsage, cost, communityContext,
+            documentNames, null, resolvedTypedContextManifest, overrideCreatedAt, cancellationToken);
+    }
+
     private async Task SavePredictionInternalAsync(Match match, Prediction prediction, PredictionModelConfig modelConfig, string tokenUsage, double cost, string communityContext, IEnumerable<string> contextDocumentNames, ResolvedMatchContextManifest? resolvedContextManifest, bool overrideCreatedAt, CancellationToken cancellationToken)
     {
         try
         {
+            ValidateCurrentMatchIdentity(match);
+            ValidateTypedContextAvailability(match);
             ValidateResolvedContextManifest(match, communityContext, contextDocumentNames, resolvedContextManifest);
+            if (IsBundesliga2026_27 && BundesligaSeasonStorageIdentity.IsTypedMatch(match))
+            {
+                await SaveTypedInitialMatchPredictionAsync(
+                    match, prediction, modelConfig, tokenUsage, cost, communityContext,
+                    contextDocumentNames, resolvedContextManifest!, null, overrideCreatedAt, cancellationToken);
+                return;
+            }
+
             var now = Timestamp.GetCurrentTimestamp();
 
             // Check if a prediction already exists for this match, model, and community context
@@ -186,8 +476,8 @@ public class FirebasePredictionRepository :
                 .WhereEqualTo("startsAt", ConvertToTimestamp(match.StartsAt))
                 .WhereEqualTo("competition", _competition)
                 .WhereEqualTo("model", modelConfig.Model)
-                .WhereEqualTo("communityContext", communityContext)
-                .OrderByDescending("repredictionIndex");
+                .WhereEqualTo("communityContext", communityContext);
+            query = AddCurrentMatchIdentityFilters(query, match).OrderByDescending("repredictionIndex");
 
             var snapshot = await query.GetSnapshotAsync(cancellationToken);
 
@@ -198,7 +488,11 @@ public class FirebasePredictionRepository :
 
             var existingDoc = snapshot.Documents
                 .FirstOrDefault(document =>
-                    GetConfigMatchKind(document.ConvertTo<FirestoreMatchPrediction>(), modelConfig) == PredictionConfigMatchKind.Exact);
+                {
+                    var stored = document.ConvertTo<FirestoreMatchPrediction>();
+                    return MatchesCurrentMatchIdentity(stored, match)
+                        && GetConfigMatchKind(stored, modelConfig) == PredictionConfigMatchKind.Exact;
+                });
 
             if (existingDoc is not null)
             {
@@ -232,6 +526,10 @@ public class FirebasePredictionRepository :
                 AwayTeam = match.AwayTeam,
                 StartsAt = ConvertToTimestamp(match.StartsAt),
                 Matchday = match.Matchday,
+                KicktippFixtureId = match.KicktippFixtureId,
+                KicktippRoundName = match.KicktippRoundName,
+                ResultBasis = match.ResultBasis?.ToSerializedValue(),
+                BundesligaSeasonSubcompetition = match.BundesligaSeasonSubcompetition?.ToSerializedValue(),
                 CompetitionSpecificData = ToFirestoreCompetitionSpecificData(match.CompetitionSpecificData),
                 HomeGoals = prediction.HomeGoals,
                 AwayGoals = prediction.AwayGoals,
@@ -276,7 +574,8 @@ public class FirebasePredictionRepository :
 
     public async Task<Prediction?> GetPredictionAsync(Match match, PredictionModelConfig modelConfig, string communityContext, CancellationToken cancellationToken = default)
     {
-        return await GetPredictionAsync(match.HomeTeam, match.AwayTeam, match.StartsAt, modelConfig, communityContext, cancellationToken);
+        var metadata = await GetPredictionMetadataAsync(match, modelConfig, communityContext, cancellationToken);
+        return metadata?.Prediction;
     }
 
     public Task<Prediction?> GetPredictionAsync(string homeTeam, string awayTeam, ZonedDateTime startsAt, string model, string communityContext, CancellationToken cancellationToken = default)
@@ -301,7 +600,8 @@ public class FirebasePredictionRepository :
 
             var snapshot = await query.GetSnapshotAsync(cancellationToken);
             var firestorePrediction = SelectLatestForModelConfig(
-                snapshot.Documents.Select(document => document.ConvertTo<FirestoreMatchPrediction>()),
+                snapshot.Documents.Select(document => document.ConvertTo<FirestoreMatchPrediction>())
+                    .Where(IsLegacyBundesligaMatchRow),
                 modelConfig);
 
             if (firestorePrediction is null)
@@ -339,13 +639,15 @@ public class FirebasePredictionRepository :
                 .WhereEqualTo("communityContext", normalizedCommunityContext)
                 .WhereEqualTo("homeTeam", normalizedHomeTeam)
                 .WhereEqualTo("awayTeam", normalizedAwayTeam)
-                .OrderByDescending("startsAt")
-                .Limit(1);
+                .OrderByDescending("startsAt");
 
             var snapshot = await query.GetSnapshotAsync(cancellationToken);
             var firestorePrediction = snapshot.Documents
-                .FirstOrDefault()
-                ?.ConvertTo<FirestoreMatchPrediction>();
+                .Select(document => document.ConvertTo<FirestoreMatchPrediction>())
+                .Where(IsLegacyBundesligaMatchRow)
+                .OrderByDescending(prediction => prediction.StartsAt.ToDateTimeOffset())
+                .ThenBy(prediction => prediction.Id, StringComparer.Ordinal)
+                .FirstOrDefault();
 
             if (firestorePrediction is null)
             {
@@ -380,6 +682,11 @@ public class FirebasePredictionRepository :
     {
         try
         {
+            if (!CanLookupCurrentMatchIdentity(match))
+            {
+                return null;
+            }
+            ValidateTypedContextAvailability(match);
             // Query by match characteristics, model, community context, and competition.
             // Order by repredictionIndex descending to keep metadata reads aligned with latest prediction retrieval.
             var query = _firestoreDb.Collection(_predictionsCollection)
@@ -388,12 +695,15 @@ public class FirebasePredictionRepository :
                 .WhereEqualTo("startsAt", ConvertToTimestamp(match.StartsAt))
                 .WhereEqualTo("competition", _competition)
                 .WhereEqualTo("model", modelConfig.Model)
-                .WhereEqualTo("communityContext", communityContext)
-                .OrderByDescending("repredictionIndex");
+                .WhereEqualTo("communityContext", communityContext);
+            query = AddCurrentMatchIdentityFilters(query, match).OrderByDescending("repredictionIndex");
 
             var snapshot = await query.GetSnapshotAsync(cancellationToken);
-            var firestorePrediction = SelectLatestForModelConfig(
-                snapshot.Documents.Select(document => document.ConvertTo<FirestoreMatchPrediction>()),
+            var firestorePrediction = SelectLatestTypedAwareForModelConfig(
+                snapshot.Documents.Select(document => document.ConvertTo<FirestoreMatchPrediction>())
+                    .Where(prediction => MatchesCurrentMatchIdentity(prediction, match))
+                    .Where(prediction => HasCompleteTypedMatchProvenance(prediction, match, communityContext)),
+                match,
                 modelConfig);
 
             if (firestorePrediction is null)
@@ -636,6 +946,11 @@ public class FirebasePredictionRepository :
     {
         try
         {
+            if (!CanLookupCurrentMatchIdentity(match))
+            {
+                return false;
+            }
+            ValidateTypedContextAvailability(match);
             // Query by match characteristics, model, and community context instead of using deterministic ID
             var query = _firestoreDb.Collection(_predictionsCollection)
                 .WhereEqualTo("homeTeam", match.HomeTeam)
@@ -644,11 +959,14 @@ public class FirebasePredictionRepository :
                 .WhereEqualTo("competition", _competition)
                 .WhereEqualTo("model", modelConfig.Model)
                 .WhereEqualTo("communityContext", communityContext);
+            query = AddCurrentMatchIdentityFilters(query, match);
 
             var snapshot = await query.GetSnapshotAsync(cancellationToken);
-            return snapshot.Documents
+            var candidates = snapshot.Documents
                 .Select(document => document.ConvertTo<FirestoreMatchPrediction>())
-                .Any(prediction => GetConfigMatchKind(prediction, modelConfig) != PredictionConfigMatchKind.None);
+                .Where(prediction => MatchesCurrentMatchIdentity(prediction, match))
+                .Where(prediction => HasCompleteTypedMatchProvenance(prediction, match, communityContext));
+            return SelectLatestTypedAwareForModelConfig(candidates, match, modelConfig) is not null;
         }
         catch (Exception ex)
         {
@@ -712,6 +1030,22 @@ public class FirebasePredictionRepository :
             cancellationToken);
     }
 
+    public Task SaveBonusPredictionWithResolvedTypedContextAsync(
+        BonusQuestion bonusQuestion, BonusPrediction bonusPrediction, PredictionModelConfig modelConfig,
+        string tokenUsage, double cost, string communityContext, IEnumerable<string> contextDocumentNames,
+        ResolvedTypedContextManifest resolvedTypedContextManifest, bool overrideCreatedAt = false,
+        CancellationToken cancellationToken = default)
+    {
+        ValidateCurrentBonusIdentity(bonusQuestion);
+        if (!IsBundesliga2026_27 || !BundesligaSeasonStorageIdentity.IsTypedBonusQuestion(bonusQuestion))
+            throw new InvalidOperationException("Resolved typed context persistence requires a typed Bundesliga-season bonus question.");
+        var documentNames = contextDocumentNames.ToArray();
+        ValidateResolvedTypedContextManifest(bonusQuestion.BundesligaSeasonSubcompetition!.Value, communityContext, documentNames,
+            resolvedTypedContextManifest, TypedContextProfileId(bonusQuestion.BundesligaSeasonSubcompetition!.Value, isBonus: true));
+        return SaveTypedInitialBonusPredictionAsync(bonusQuestion, bonusPrediction, modelConfig, tokenUsage, cost, communityContext,
+            documentNames, null, resolvedTypedContextManifest, overrideCreatedAt, cancellationToken);
+    }
+
     private async Task SaveBonusPredictionInternalAsync(
         BonusQuestion bonusQuestion,
         BonusPrediction bonusPrediction,
@@ -726,12 +1060,22 @@ public class FirebasePredictionRepository :
     {
         try
         {
+            ValidateCurrentBonusIdentity(bonusQuestion);
+            ValidateTypedContextAvailability(bonusQuestion);
             var documentNames = contextDocumentNames?.ToArray()
                 ?? throw new ArgumentNullException(nameof(contextDocumentNames));
             ValidateResolvedBonusContextManifestForWrite(
                 communityContext,
                 documentNames,
                 resolvedContextManifest);
+            if (IsBundesliga2026_27 && BundesligaSeasonStorageIdentity.IsTypedBonusQuestion(bonusQuestion))
+            {
+                await SaveTypedInitialBonusPredictionAsync(
+                    bonusQuestion, bonusPrediction, modelConfig, tokenUsage, cost, communityContext,
+                    documentNames, resolvedContextManifest!, null, overrideCreatedAt, cancellationToken);
+                return;
+            }
+
             var now = Timestamp.GetCurrentTimestamp();
 
             // Check if a prediction already exists for this question, model, and community context
@@ -740,8 +1084,8 @@ public class FirebasePredictionRepository :
                 .WhereEqualTo("questionText", bonusQuestion.Text)
                 .WhereEqualTo("competition", _competition)
                 .WhereEqualTo("model", modelConfig.Model)
-                .WhereEqualTo("communityContext", communityContext)
-                .OrderByDescending("repredictionIndex");
+                .WhereEqualTo("communityContext", communityContext);
+            query = AddCurrentBonusIdentityFilters(query, bonusQuestion).OrderByDescending("repredictionIndex");
 
             var snapshot = await query.GetSnapshotAsync(cancellationToken);
 
@@ -752,7 +1096,11 @@ public class FirebasePredictionRepository :
 
             var existingDoc = snapshot.Documents
                 .FirstOrDefault(document =>
-                    GetConfigMatchKind(document.ConvertTo<FirestoreBonusPrediction>(), modelConfig) == PredictionConfigMatchKind.Exact);
+                {
+                    var stored = document.ConvertTo<FirestoreBonusPrediction>();
+                    return MatchesCurrentBonusIdentity(stored, bonusQuestion)
+                        && GetConfigMatchKind(stored, modelConfig) == PredictionConfigMatchKind.Exact;
+                });
 
             if (existingDoc is not null)
             {
@@ -789,6 +1137,11 @@ public class FirebasePredictionRepository :
             {
                 Id = docRef.Id,
                 QuestionText = bonusQuestion.Text,
+                KicktippQuestionId = bonusQuestion.KicktippQuestionId,
+                BundesligaSeasonSubcompetition = bonusQuestion.BundesligaSeasonSubcompetition?.ToSerializedValue(),
+                BundesligaSeasonBonusIdentitySha256 = IsBundesliga2026_27
+                    ? BundesligaSeasonStorageIdentity.ComputeBonusQuestionIdentitySha256(bonusQuestion)
+                    : null,
                 SelectedOptionIds = bonusPrediction.SelectedOptionIds.ToArray(),
                 SelectedOptionTexts = selectedOptionTexts,
                 UpdatedAt = now,
@@ -852,7 +1205,8 @@ public class FirebasePredictionRepository :
             }
 
             var firestoreBonusPrediction = SelectLatestForModelConfig(
-                snapshot.Documents.Select(document => document.ConvertTo<FirestoreBonusPrediction>()),
+                snapshot.Documents.Select(document => document.ConvertTo<FirestoreBonusPrediction>())
+                    .Where(IsLegacyBundesligaBonusRow),
                 modelConfig);
 
             if (firestoreBonusPrediction is null)
@@ -889,7 +1243,8 @@ public class FirebasePredictionRepository :
 
             var snapshot = await query.GetSnapshotAsync(cancellationToken);
             var firestoreBonusPrediction = SelectLatestForModelConfig(
-                snapshot.Documents.Select(document => document.ConvertTo<FirestoreBonusPrediction>()),
+                snapshot.Documents.Select(document => document.ConvertTo<FirestoreBonusPrediction>())
+                    .Where(IsLegacyBundesligaBonusRow),
                 modelConfig);
 
             if (firestoreBonusPrediction is null)
@@ -932,7 +1287,8 @@ public class FirebasePredictionRepository :
 
             var snapshot = await query.GetSnapshotAsync(cancellationToken);
             var firestoreBonusPrediction = SelectLatestForModelConfig(
-                snapshot.Documents.Select(document => document.ConvertTo<FirestoreBonusPrediction>()),
+                snapshot.Documents.Select(document => document.ConvertTo<FirestoreBonusPrediction>())
+                    .Where(IsLegacyBundesligaBonusRow),
                 modelConfig);
 
             if (firestoreBonusPrediction is null)
@@ -953,6 +1309,337 @@ public class FirebasePredictionRepository :
         }
     }
 
+    private async Task SaveTypedInitialBonusPredictionAsync(
+        BonusQuestion bonusQuestion,
+        BonusPrediction bonusPrediction,
+        PredictionModelConfig modelConfig,
+        string tokenUsage,
+        double cost,
+        string communityContext,
+        IReadOnlyList<string> contextDocumentNames,
+        ResolvedBonusContextManifest? resolvedContextManifest,
+        ResolvedTypedContextManifest? resolvedTypedContextManifest,
+        bool overrideCreatedAt,
+        CancellationToken cancellationToken)
+    {
+        var identitySha256 = BundesligaSeasonStorageIdentity.ComputeBonusQuestionIdentitySha256(bonusQuestion);
+        var serializedManifest = resolvedContextManifest is null ? null : SerializeResolvedBonusContextManifest(resolvedContextManifest);
+        var serializedTypedManifest = resolvedTypedContextManifest is null ? null : SerializeResolvedTypedContextManifest(resolvedTypedContextManifest);
+        var compatibilityManifest = SerializeBonusQuestionCompatibilityManifest(
+            BonusQuestionCompatibilityManifest.Create(bonusQuestion));
+        var optionTextsLookup = bonusQuestion.Options.ToDictionary(option => option.Id, option => option.Text);
+        var selectedOptionTexts = bonusPrediction.SelectedOptionIds
+            .Select(id => optionTextsLookup.TryGetValue(id, out var text) ? text : $"Unknown option: {id}")
+            .ToArray();
+
+        var savedIndex = await _firestoreDb.RunTransactionAsync(async transaction =>
+        {
+            var candidates = await transaction.GetSnapshotAsync(BuildTypedBonusSemanticQuery(
+                bonusQuestion, modelConfig, communityContext));
+            var exactConfigRows = candidates.Documents
+                .Select(document => (Document: document, Row: document.ConvertTo<FirestoreBonusPrediction>()))
+                .Where(candidate => GetConfigMatchKind(candidate.Row, modelConfig) == PredictionConfigMatchKind.Exact)
+                .ToArray();
+            EnsureOneTypedBonusRowPerIndex(
+                exactConfigRows.Select(candidate => candidate.Row).ToArray(), bonusQuestion, identitySha256);
+
+            var current = exactConfigRows
+                .OrderByDescending(candidate => candidate.Row.RepredictionIndex)
+                .ThenByDescending(candidate => candidate.Row.CreatedAt.ToDateTimeOffset())
+                .ThenBy(candidate => candidate.Row.Id, StringComparer.Ordinal)
+                .FirstOrDefault();
+            var repredictionIndex = current.Row?.RepredictionIndex ?? 0;
+            var docRef = current.Document?.Reference
+                ?? _firestoreDb.Collection(_bonusPredictionsCollection).Document(
+                    BuildTypedBonusDocumentId(bonusQuestion, modelConfig, communityContext, repredictionIndex));
+            var deterministicSnapshot = current.Document is null
+                ? await transaction.GetSnapshotAsync(docRef)
+                : null;
+            if (deterministicSnapshot?.Exists == true)
+            {
+                throw new InvalidOperationException(
+                    "Typed Bundesliga bonus storage identity collides with an existing document outside its semantic scope.");
+            }
+
+            if (current.Row is not null && !string.Equals(current.Row.ResolvedTypedContextManifest, serializedTypedManifest, StringComparison.Ordinal))
+            {
+                throw new InvalidDataException("Typed bonus generation manifest is immutable and cannot be replaced.");
+            }
+
+            var now = Timestamp.GetCurrentTimestamp();
+            var stored = new FirestoreBonusPrediction
+            {
+                Id = docRef.Id,
+                QuestionText = bonusQuestion.Text,
+                KicktippQuestionId = bonusQuestion.KicktippQuestionId,
+                BundesligaSeasonSubcompetition = bonusQuestion.BundesligaSeasonSubcompetition!.Value.ToSerializedValue(),
+                BundesligaSeasonBonusIdentitySha256 = identitySha256,
+                SelectedOptionIds = bonusPrediction.SelectedOptionIds.ToArray(),
+                SelectedOptionTexts = selectedOptionTexts,
+                CreatedAt = overrideCreatedAt || current.Row is null ? now : current.Row.CreatedAt,
+                UpdatedAt = now,
+                Competition = _competition,
+                Model = modelConfig.Model,
+                ModelConfigKey = modelConfig.IdentityKey,
+                ReasoningEffort = modelConfig.ReasoningEffort,
+                MaxOutputTokenCount = modelConfig.MaxOutputTokenCount,
+                PromptName = modelConfig.PromptName,
+                PromptVersion = modelConfig.PromptVersion,
+                TokenUsage = tokenUsage,
+                Cost = cost,
+                CommunityContext = communityContext,
+                ContextDocumentNames = contextDocumentNames.ToArray(),
+                ResolvedBonusContextManifest = serializedManifest,
+                ResolvedTypedContextManifest = serializedTypedManifest,
+                BonusQuestionCompatibilityManifest = compatibilityManifest,
+                RepredictionIndex = repredictionIndex
+            };
+            if (current.Document is null)
+            {
+                transaction.Create(docRef, stored);
+            }
+            else
+            {
+                transaction.Set(docRef, stored);
+            }
+
+            return repredictionIndex;
+        }, cancellationToken: cancellationToken);
+
+        _logger.LogInformation(
+            "Saved transactionally allocated typed Bundesliga bonus prediction for question {QuestionId} (reprediction index: {RepredictionIndex})",
+            bonusQuestion.KicktippQuestionId, savedIndex);
+    }
+
+    private async Task SaveTypedInitialMatchPredictionAsync(
+        Match match,
+        Prediction prediction,
+        PredictionModelConfig modelConfig,
+        string tokenUsage,
+        double cost,
+        string communityContext,
+        IEnumerable<string> contextDocumentNames,
+        ResolvedMatchContextManifest? resolvedContextManifest,
+        ResolvedTypedContextManifest? resolvedTypedContextManifest,
+        bool overrideCreatedAt,
+        CancellationToken cancellationToken)
+    {
+        var storedNames = contextDocumentNames.ToArray();
+        var serializedManifest = resolvedContextManifest is null ? null : SerializeResolvedContextManifest(resolvedContextManifest);
+        var serializedTypedManifest = resolvedTypedContextManifest is null ? null : SerializeResolvedTypedContextManifest(resolvedTypedContextManifest);
+        var savedIndex = await _firestoreDb.RunTransactionAsync(async transaction =>
+        {
+            var candidates = await transaction.GetSnapshotAsync(BuildTypedMatchSemanticQuery(
+                match, modelConfig, communityContext));
+            var exactConfigRows = candidates.Documents
+                .Select(document => (Document: document, Row: document.ConvertTo<FirestoreMatchPrediction>()))
+                .Where(candidate => GetConfigMatchKind(candidate.Row, modelConfig) == PredictionConfigMatchKind.Exact)
+                .ToArray();
+            EnsureOneTypedMatchRowPerIndex(exactConfigRows.Select(candidate => candidate.Row).ToArray(), match);
+
+            var current = exactConfigRows
+                .OrderByDescending(candidate => candidate.Row.RepredictionIndex)
+                .ThenByDescending(candidate => candidate.Row.CreatedAt.ToDateTimeOffset())
+                .ThenBy(candidate => candidate.Row.Id, StringComparer.Ordinal)
+                .FirstOrDefault();
+            var repredictionIndex = current.Row?.RepredictionIndex ?? 0;
+            var docRef = current.Document?.Reference
+                ?? _firestoreDb.Collection(_predictionsCollection).Document(
+                    BuildTypedMatchDocumentId(match, modelConfig, communityContext, repredictionIndex));
+            var deterministicSnapshot = current.Document is null
+                ? await transaction.GetSnapshotAsync(docRef)
+                : null;
+            if (deterministicSnapshot?.Exists == true)
+            {
+                throw new InvalidOperationException(
+                    "Typed Bundesliga match storage identity collides with an existing document outside its semantic scope.");
+            }
+
+            if (current.Row is not null && !string.Equals(current.Row.ResolvedTypedContextManifest, serializedTypedManifest, StringComparison.Ordinal))
+            {
+                throw new InvalidDataException("Typed prediction generation manifest is immutable and cannot be replaced.");
+            }
+
+            var now = Timestamp.GetCurrentTimestamp();
+            var stored = new FirestoreMatchPrediction
+            {
+                Id = docRef.Id,
+                HomeTeam = match.HomeTeam,
+                AwayTeam = match.AwayTeam,
+                StartsAt = ConvertToTimestamp(match.StartsAt),
+                Matchday = match.Matchday,
+                KicktippFixtureId = match.KicktippFixtureId,
+                KicktippRoundName = match.KicktippRoundName,
+                ResultBasis = match.ResultBasis!.Value.ToSerializedValue(),
+                BundesligaSeasonSubcompetition = match.BundesligaSeasonSubcompetition!.Value.ToSerializedValue(),
+                CompetitionSpecificData = ToFirestoreCompetitionSpecificData(match.CompetitionSpecificData),
+                HomeGoals = prediction.HomeGoals,
+                AwayGoals = prediction.AwayGoals,
+                Justification = SerializeJustification(prediction.Justification),
+                CreatedAt = overrideCreatedAt || current.Row is null ? now : current.Row.CreatedAt,
+                UpdatedAt = now,
+                Competition = _competition,
+                Model = modelConfig.Model,
+                ModelConfigKey = modelConfig.IdentityKey,
+                ReasoningEffort = modelConfig.ReasoningEffort,
+                MaxOutputTokenCount = modelConfig.MaxOutputTokenCount,
+                PromptName = modelConfig.PromptName,
+                PromptVersion = modelConfig.PromptVersion,
+                TokenUsage = tokenUsage,
+                Cost = cost,
+                CommunityContext = communityContext,
+                ContextDocumentNames = storedNames,
+                ResolvedContextManifest = serializedManifest,
+                ResolvedTypedContextManifest = serializedTypedManifest,
+                RepredictionIndex = repredictionIndex
+            };
+            if (current.Document is null)
+            {
+                transaction.Create(docRef, stored);
+            }
+            else
+            {
+                transaction.Set(docRef, stored);
+            }
+
+            return repredictionIndex;
+        }, cancellationToken: cancellationToken);
+
+        _logger.LogInformation(
+            "Saved transactionally allocated typed Bundesliga prediction for match {HomeTeam} vs {AwayTeam} on matchday {Matchday} (reprediction index: {RepredictionIndex})",
+            match.HomeTeam, match.AwayTeam, match.Matchday, savedIndex);
+    }
+
+    public async Task<PredictionMetadata?> GetCurrentTypedPredictionMetadataAsync(
+        Match match, PredictionModelConfig modelConfig, string communityContext,
+        CancellationToken cancellationToken = default, DateTimeOffset? evaluationInstant = null)
+    {
+        ValidateCurrentMatchIdentity(match);
+        if (!IsBundesliga2026_27 || !BundesligaSeasonStorageIdentity.IsTypedMatch(match)
+            || match.BundesligaSeasonSubcompetition == BundesligaSeasonSubcompetition.Bundesliga)
+            return null;
+        var currentEvaluationInstant = evaluationInstant ?? DateTimeOffset.UtcNow;
+        var expectedProfileId = TypedContextProfileId(match.BundesligaSeasonSubcompetition!.Value, isBonus: false);
+        var snapshot = await BuildTypedMatchSemanticQuery(match, modelConfig, communityContext).GetSnapshotAsync(cancellationToken);
+        var stored = SelectLatestTypedAwareForModelConfig(
+            snapshot.Documents.Select(document => document.ConvertTo<FirestoreMatchPrediction>())
+                .Where(row => MatchesCurrentMatchIdentity(row, match)), match, modelConfig);
+        if (stored is null) return null;
+        var manifest = ReadTypedManifest(stored.ResolvedTypedContextManifest, match.BundesligaSeasonSubcompetition!.Value, communityContext,
+            stored.ContextDocumentNames ?? [], expectedProfileId, currentEvaluationInstant);
+        if (manifest is null) throw new InvalidDataException("Typed current match row is missing its resolved typed-context manifest.");
+        return new PredictionMetadata(new Prediction(stored.HomeGoals, stored.AwayGoals, DeserializeJustification(stored.Justification)),
+            stored.CreatedAt.ToDateTimeOffset(), stored.ContextDocumentNames?.ToList() ?? [], null, manifest);
+    }
+
+    public async Task<BonusPredictionMetadata?> GetCurrentTypedBonusPredictionMetadataAsync(
+        BonusQuestion bonusQuestion, PredictionModelConfig modelConfig, string communityContext,
+        CancellationToken cancellationToken = default, DateTimeOffset? evaluationInstant = null)
+    {
+        ValidateCurrentBonusIdentity(bonusQuestion);
+        if (!IsBundesliga2026_27 || !BundesligaSeasonStorageIdentity.IsTypedBonusQuestion(bonusQuestion)
+            || bonusQuestion.BundesligaSeasonSubcompetition == BundesligaSeasonSubcompetition.Bundesliga)
+            return null;
+        var currentEvaluationInstant = evaluationInstant ?? DateTimeOffset.UtcNow;
+        var expectedProfileId = TypedContextProfileId(bonusQuestion.BundesligaSeasonSubcompetition!.Value, isBonus: true);
+        var snapshot = await BuildTypedBonusSemanticQuery(bonusQuestion, modelConfig, communityContext).GetSnapshotAsync(cancellationToken);
+        var stored = SelectLatestTypedAwareForModelConfig(
+            snapshot.Documents.Select(document => document.ConvertTo<FirestoreBonusPrediction>())
+                .Where(row => MatchesCurrentBonusIdentity(row, bonusQuestion)), bonusQuestion, modelConfig);
+        if (stored is null) return null;
+        var manifest = ReadTypedManifest(stored.ResolvedTypedContextManifest, bonusQuestion.BundesligaSeasonSubcompetition!.Value, communityContext,
+            stored.ContextDocumentNames ?? [], expectedProfileId, currentEvaluationInstant);
+        if (manifest is null) throw new InvalidDataException("Typed current bonus row is missing its resolved typed-context manifest.");
+        return new BonusPredictionMetadata(new BonusPrediction(stored.SelectedOptionIds.ToList()), stored.CreatedAt.ToDateTimeOffset(),
+            stored.ContextDocumentNames?.ToList() ?? [], null, null, stored.Id, manifest);
+    }
+
+    private ResolvedTypedContextManifest? ReadTypedManifest(
+        string? serialized, BundesligaSeasonSubcompetition subcompetition, string communityContext, IEnumerable<string> documentNames,
+        string expectedProfileId, DateTimeOffset currentEvaluationInstant)
+    {
+        var manifest = DeserializeResolvedTypedContextManifest(serialized);
+        if (manifest is not null)
+            ValidateResolvedTypedContextManifest(subcompetition, communityContext, documentNames, manifest, expectedProfileId,
+                requireFreshObservation: false);
+        if (manifest is not null && manifest.RulesObservedAt.ToUniversalTime() > currentEvaluationInstant.ToUniversalTime())
+            throw new InvalidDataException("Typed current generation manifest has a future rules observation.");
+        return manifest;
+    }
+
+    public async Task<BonusPrediction?> GetCurrentBonusPredictionAsync(
+        BonusQuestion question,
+        PredictionModelConfig modelConfig,
+        string communityContext,
+        CancellationToken cancellationToken = default)
+    {
+        var metadata = await GetCurrentBonusPredictionMetadataAsync(
+            question, modelConfig, communityContext, cancellationToken);
+        return metadata?.BonusPrediction;
+    }
+
+    public async Task<BonusPredictionMetadata?> GetCurrentBonusPredictionMetadataAsync(
+        BonusQuestion question,
+        PredictionModelConfig modelConfig,
+        string communityContext,
+        CancellationToken cancellationToken = default)
+    {
+        try
+        {
+            ValidateCurrentBonusIdentity(question);
+            ValidateTypedContextAvailability(question);
+            var query = _firestoreDb.Collection(_bonusPredictionsCollection)
+                .WhereEqualTo("competition", _competition)
+                .WhereEqualTo("model", modelConfig.Model)
+                .WhereEqualTo("communityContext", communityContext);
+            query = AddCurrentBonusIdentityFilters(query, question).OrderByDescending("repredictionIndex");
+
+            var snapshot = await query.GetSnapshotAsync(cancellationToken);
+            var stored = SelectLatestTypedAwareForModelConfig(
+                snapshot.Documents.Select(document => document.ConvertTo<FirestoreBonusPrediction>())
+                    .Where(prediction => MatchesCurrentBonusIdentity(prediction, question))
+                    .Where(prediction => HasCompleteTypedBonusProvenance(prediction, question, communityContext)),
+                question,
+                modelConfig);
+            return stored is null ? null : CreateBonusPredictionMetadata(stored, communityContext);
+        }
+        catch (Exception ex)
+        {
+            _logger.LogError(ex,
+                "Failed to retrieve typed current bonus prediction {QuestionId} using model {Model} and community context {CommunityContext}",
+                question.KicktippQuestionId, modelConfig.DisplayName, communityContext);
+            throw;
+        }
+    }
+
+    public async Task<bool> HasCurrentBonusPredictionAsync(
+        BonusQuestion question,
+        PredictionModelConfig modelConfig,
+        string communityContext,
+        CancellationToken cancellationToken = default) =>
+        await GetCurrentBonusPredictionAsync(question, modelConfig, communityContext, cancellationToken) is not null;
+
+    public async Task<int> GetCurrentBonusRepredictionIndexAsync(
+        BonusQuestion question,
+        PredictionModelConfig modelConfig,
+        string communityContext,
+        CancellationToken cancellationToken = default)
+    {
+        var metadata = await GetCurrentBonusPredictionMetadataAsync(
+            question, modelConfig, communityContext, cancellationToken);
+        if (metadata?.PredictionIdentity is null)
+        {
+            return -1;
+        }
+
+        var document = await _firestoreDb.Collection(_bonusPredictionsCollection)
+            .Document(metadata.PredictionIdentity)
+            .GetSnapshotAsync(cancellationToken);
+        return document.Exists
+            ? document.ConvertTo<FirestoreBonusPrediction>().RepredictionIndex
+            : -1;
+    }
+
     public async Task<BonusPredictionMetadata?> GetBonusPredictionCopyCandidateAsync(
         BonusQuestion targetQuestion,
         PredictionModelConfig modelConfig,
@@ -965,20 +1652,31 @@ public class FirebasePredictionRepository :
 
         try
         {
+            var typedTarget = IsBundesliga2026_27 && BundesligaSeasonStorageIdentity.IsTypedBonusQuestion(targetQuestion);
+            if (typedTarget)
+            {
+                ValidateCurrentBonusIdentity(targetQuestion);
+                ValidateTypedContextAvailability(targetQuestion);
+            }
             var normalizedQuestionText = BonusQuestionCompatibilityManifest.NormalizeText(targetQuestion.Text);
             var query = _firestoreDb.Collection(_bonusPredictionsCollection)
                 .WhereEqualTo("competition", _competition)
                 .WhereEqualTo("model", modelConfig.Model)
                 .WhereEqualTo("communityContext", sourceCommunityContext);
             var snapshot = await query.GetSnapshotAsync(cancellationToken);
-            var firestoreBonusPrediction = SelectLatestForModelConfig(
-                snapshot.Documents
-                    .Select(document => document.ConvertTo<FirestoreBonusPrediction>())
-                    .Where(prediction => string.Equals(
-                        BonusQuestionCompatibilityManifest.NormalizeText(prediction.QuestionText),
-                        normalizedQuestionText,
-                        StringComparison.Ordinal)),
-                modelConfig);
+            var candidates = snapshot.Documents
+                .Select(document => document.ConvertTo<FirestoreBonusPrediction>())
+                .Where(prediction => !typedTarget
+                    ? IsLegacyBundesligaBonusRow(prediction)
+                    : MatchesCurrentBonusIdentity(prediction, targetQuestion)
+                       && HasCompleteTypedBonusProvenance(prediction, targetQuestion, sourceCommunityContext))
+                .Where(prediction => string.Equals(
+                    BonusQuestionCompatibilityManifest.NormalizeText(prediction.QuestionText),
+                    normalizedQuestionText,
+                    StringComparison.Ordinal));
+            var firestoreBonusPrediction = typedTarget
+                ? SelectLatestTypedAwareForModelConfig(candidates, targetQuestion, modelConfig)
+                : SelectLatestForModelConfig(candidates, modelConfig);
 
             if (firestoreBonusPrediction is null)
             {
@@ -1068,7 +1766,8 @@ public class FirebasePredictionRepository :
             var snapshot = await query.GetSnapshotAsync(cancellationToken);
             return snapshot.Documents
                 .Select(document => document.ConvertTo<FirestoreBonusPrediction>())
-                .Any(prediction => GetConfigMatchKind(prediction, modelConfig) != PredictionConfigMatchKind.None);
+                .Any(prediction => IsLegacyBundesligaBonusRow(prediction)
+                    && GetConfigMatchKind(prediction, modelConfig) != PredictionConfigMatchKind.None);
         }
         catch (Exception ex)
         {
@@ -1085,6 +1784,7 @@ public class FirebasePredictionRepository :
     {
         try
         {
+            ValidateCurrentMatchIdentity(match);
             var documentId = Guid.NewGuid().ToString();
 
             var firestoreMatch = new FirestoreMatch
@@ -1094,6 +1794,10 @@ public class FirebasePredictionRepository :
                 AwayTeam = match.AwayTeam,
                 StartsAt = ConvertToTimestamp(match.StartsAt),
                 Matchday = match.Matchday,
+                KicktippFixtureId = match.KicktippFixtureId,
+                KicktippRoundName = match.KicktippRoundName,
+                ResultBasis = match.ResultBasis?.ToSerializedValue(),
+                BundesligaSeasonSubcompetition = match.BundesligaSeasonSubcompetition?.ToSerializedValue(),
                 Competition = _competition,
                 IsCancelled = match.IsCancelled,
                 CompetitionSpecificData = ToFirestoreCompetitionSpecificData(match.CompetitionSpecificData)
@@ -1128,6 +1832,10 @@ public class FirebasePredictionRepository :
             ConvertFromTimestamp(firestorePrediction.StartsAt),
             firestorePrediction.Matchday)
         {
+            KicktippFixtureId = firestorePrediction.KicktippFixtureId,
+            KicktippRoundName = firestorePrediction.KicktippRoundName,
+            ResultBasis = ParseResultBasis(firestorePrediction.ResultBasis),
+            BundesligaSeasonSubcompetition = ParseBundesligaSeasonSubcompetition(firestorePrediction.BundesligaSeasonSubcompetition),
             CompetitionSpecificData = FromFirestoreCompetitionSpecificData(
                 firestorePrediction.CompetitionSpecificData)
         };
@@ -1142,6 +1850,10 @@ public class FirebasePredictionRepository :
             firestoreMatch.Matchday,
             firestoreMatch.IsCancelled)
         {
+            KicktippFixtureId = firestoreMatch.KicktippFixtureId,
+            KicktippRoundName = firestoreMatch.KicktippRoundName,
+            ResultBasis = ParseResultBasis(firestoreMatch.ResultBasis),
+            BundesligaSeasonSubcompetition = ParseBundesligaSeasonSubcompetition(firestoreMatch.BundesligaSeasonSubcompetition),
             CompetitionSpecificData = FromFirestoreCompetitionSpecificData(
                 firestoreMatch.CompetitionSpecificData)
         };
@@ -1193,6 +1905,12 @@ public class FirebasePredictionRepository :
         return instant.InUtc();
     }
 
+    private static ResultBasis? ParseResultBasis(string? value) =>
+        BundesligaSeasonRoutingIdentityValues.TryParseResultBasis(value, out var parsed) ? parsed : null;
+
+    private static BundesligaSeasonSubcompetition? ParseBundesligaSeasonSubcompetition(string? value) =>
+        BundesligaSeasonRoutingIdentityValues.TryParseBundesligaSeasonSubcompetition(value, out var parsed) ? parsed : null;
+
     public Task<int> GetMatchRepredictionIndexAsync(Match match, string model, string communityContext, CancellationToken cancellationToken = default)
     {
         return GetMatchRepredictionIndexAsync(match, PredictionModelConfig.Create(model), communityContext, cancellationToken);
@@ -1202,6 +1920,11 @@ public class FirebasePredictionRepository :
     {
         try
         {
+            if (!CanLookupCurrentMatchIdentity(match))
+            {
+                return -1;
+            }
+            ValidateTypedContextAvailability(match);
             // Query by match characteristics, model, community context, and competition
             // Order by repredictionIndex descending to get the latest version
             var query = _firestoreDb.Collection(_predictionsCollection)
@@ -1210,12 +1933,15 @@ public class FirebasePredictionRepository :
                 .WhereEqualTo("startsAt", ConvertToTimestamp(match.StartsAt))
                 .WhereEqualTo("competition", _competition)
                 .WhereEqualTo("model", modelConfig.Model)
-                .WhereEqualTo("communityContext", communityContext)
-                .OrderByDescending("repredictionIndex");
+                .WhereEqualTo("communityContext", communityContext);
+            query = AddCurrentMatchIdentityFilters(query, match).OrderByDescending("repredictionIndex");
 
             var snapshot = await query.GetSnapshotAsync(cancellationToken);
-            var firestorePrediction = SelectLatestForModelConfig(
-                snapshot.Documents.Select(document => document.ConvertTo<FirestoreMatchPrediction>()),
+            var firestorePrediction = SelectLatestTypedAwareForModelConfig(
+                snapshot.Documents.Select(document => document.ConvertTo<FirestoreMatchPrediction>())
+                    .Where(prediction => MatchesCurrentMatchIdentity(prediction, match))
+                    .Where(prediction => HasCompleteTypedMatchProvenance(prediction, match, communityContext)),
+                match,
                 modelConfig);
 
             if (firestorePrediction is null)
@@ -1236,6 +1962,64 @@ public class FirebasePredictionRepository :
     // See IPredictionRepository.cs for detailed documentation on why these methods exist.
     // In short: cancelled matches have inconsistent startsAt values across different Kicktipp pages,
     // so we query by team names only to find predictions regardless of which startsAt was used.
+
+    public async Task<Prediction?> GetCurrentCancelledMatchPredictionAsync(
+        Match match, PredictionModelConfig modelConfig, string communityContext, CancellationToken cancellationToken = default)
+    {
+        var metadata = await GetCurrentCancelledMatchPredictionMetadataAsync(match, modelConfig, communityContext, cancellationToken);
+        return metadata?.Prediction;
+    }
+
+    public async Task<PredictionMetadata?> GetCurrentCancelledMatchPredictionMetadataAsync(
+        Match match, PredictionModelConfig modelConfig, string communityContext, CancellationToken cancellationToken = default)
+    {
+        ValidateCurrentMatchIdentity(match);
+        ValidateTypedContextAvailability(match);
+        var query = _firestoreDb.Collection(_predictionsCollection)
+            .WhereEqualTo("homeTeam", match.HomeTeam)
+            .WhereEqualTo("awayTeam", match.AwayTeam)
+            .WhereEqualTo("competition", _competition)
+            .WhereEqualTo("model", modelConfig.Model)
+            .WhereEqualTo("communityContext", communityContext);
+        query = AddCurrentMatchIdentityFilters(query, match).OrderByDescending("repredictionIndex");
+        var snapshot = await query.GetSnapshotAsync(cancellationToken);
+        var stored = SelectLatestTypedAwareForModelConfig(
+            snapshot.Documents.Select(document => document.ConvertTo<FirestoreMatchPrediction>())
+                .Where(prediction => MatchesCurrentMatchIdentity(prediction, match))
+                .Where(prediction => HasCompleteTypedMatchProvenance(prediction, match, communityContext)),
+            match,
+            modelConfig);
+        if (stored is null)
+        {
+            return null;
+        }
+
+        var manifest = DeserializeResolvedContextManifest(stored.ResolvedContextManifest);
+        return new PredictionMetadata(
+            new Prediction(stored.HomeGoals, stored.AwayGoals, DeserializeJustification(stored.Justification)),
+            stored.CreatedAt.ToDateTimeOffset(), stored.ContextDocumentNames?.ToList() ?? [], manifest);
+    }
+
+    public async Task<int> GetCurrentCancelledMatchRepredictionIndexAsync(
+        Match match, PredictionModelConfig modelConfig, string communityContext, CancellationToken cancellationToken = default)
+    {
+        var metadata = await GetCurrentCancelledMatchPredictionMetadataAsync(match, modelConfig, communityContext, cancellationToken);
+        if (metadata is null)
+        {
+            return -1;
+        }
+
+        // The semantic index is selected by the same typed predicate as metadata.
+        var query = _firestoreDb.Collection(_predictionsCollection)
+            .WhereEqualTo("homeTeam", match.HomeTeam).WhereEqualTo("awayTeam", match.AwayTeam)
+            .WhereEqualTo("competition", _competition).WhereEqualTo("model", modelConfig.Model)
+            .WhereEqualTo("communityContext", communityContext);
+        query = AddCurrentMatchIdentityFilters(query, match);
+        var snapshot = await query.GetSnapshotAsync(cancellationToken);
+        return SelectLatestTypedAwareForModelConfig(snapshot.Documents.Select(document => document.ConvertTo<FirestoreMatchPrediction>())
+            .Where(prediction => MatchesCurrentMatchIdentity(prediction, match))
+            .Where(prediction => HasCompleteTypedMatchProvenance(prediction, match, communityContext)), match, modelConfig)?.RepredictionIndex ?? -1;
+    }
 
     /// <inheritdoc />
     public Task<Prediction?> GetCancelledMatchPredictionAsync(string homeTeam, string awayTeam, string model, string communityContext, CancellationToken cancellationToken = default)
@@ -1259,7 +2043,8 @@ public class FirebasePredictionRepository :
 
             var snapshot = await query.GetSnapshotAsync(cancellationToken);
             var firestorePrediction = SelectLatestForModelConfig(
-                snapshot.Documents.Select(document => document.ConvertTo<FirestoreMatchPrediction>()),
+                snapshot.Documents.Select(document => document.ConvertTo<FirestoreMatchPrediction>())
+                    .Where(IsLegacyBundesligaMatchRow),
                 modelConfig);
 
             if (firestorePrediction is null)
@@ -1305,7 +2090,8 @@ public class FirebasePredictionRepository :
 
             var snapshot = await query.GetSnapshotAsync(cancellationToken);
             var firestorePrediction = SelectLatestForModelConfig(
-                snapshot.Documents.Select(document => document.ConvertTo<FirestoreMatchPrediction>()),
+                snapshot.Documents.Select(document => document.ConvertTo<FirestoreMatchPrediction>())
+                    .Where(IsLegacyBundesligaMatchRow),
                 modelConfig);
 
             if (firestorePrediction is null)
@@ -1366,7 +2152,8 @@ public class FirebasePredictionRepository :
 
             var snapshot = await query.GetSnapshotAsync(cancellationToken);
             var firestorePrediction = SelectLatestForModelConfig(
-                snapshot.Documents.Select(document => document.ConvertTo<FirestoreMatchPrediction>()),
+                snapshot.Documents.Select(document => document.ConvertTo<FirestoreMatchPrediction>())
+                    .Where(IsLegacyBundesligaMatchRow),
                 modelConfig);
 
             if (firestorePrediction is null)
@@ -1408,7 +2195,8 @@ public class FirebasePredictionRepository :
 
             var snapshot = await query.GetSnapshotAsync(cancellationToken);
             var firestorePrediction = SelectLatestForModelConfig(
-                snapshot.Documents.Select(document => document.ConvertTo<FirestoreBonusPrediction>()),
+                snapshot.Documents.Select(document => document.ConvertTo<FirestoreBonusPrediction>())
+                    .Where(IsLegacyBundesligaBonusRow),
                 modelConfig);
 
             if (firestorePrediction is null)
@@ -1476,6 +2264,8 @@ public class FirebasePredictionRepository :
         ResolvedMatchContextManifest resolvedContextManifest,
         CancellationToken cancellationToken)
     {
+        ValidateCurrentMatchIdentity(match);
+        ValidateTypedContextAvailability(match);
         ValidateResolvedContextManifest(match, communityContext, contextDocumentNames, resolvedContextManifest);
         if (expectedCurrentRepredictionIndex < -1 || maxRepredictions < 0 || expectedCurrentRepredictionIndex > maxRepredictions)
         {
@@ -1495,6 +2285,7 @@ public class FirebasePredictionRepository :
                     .WhereEqualTo("competition", _competition)
                     .WhereEqualTo("model", modelConfig.Model)
                     .WhereEqualTo("communityContext", communityContext);
+                query = AddCurrentMatchIdentityFilters(query, match);
                 if (!match.IsCancelled)
                 {
                     query = query.WhereEqualTo("startsAt", ConvertToTimestamp(match.StartsAt));
@@ -1504,9 +2295,11 @@ public class FirebasePredictionRepository :
                 // index observed before generation. Firestore retries on a concurrent matching
                 // write, making this compare-and-swap serializable for this prediction identity.
                 var candidates = await transaction.GetSnapshotAsync(query);
-                var current = SelectLatestForModelConfig(
-                    candidates.Documents.Select(document => document.ConvertTo<FirestoreMatchPrediction>()),
-                    modelConfig);
+                var semanticRows = candidates.Documents
+                    .Select(document => document.ConvertTo<FirestoreMatchPrediction>())
+                    .Where(prediction => MatchesCurrentMatchIdentity(prediction, match))
+                    .ToArray();
+                var current = SelectLatestTypedAwareForModelConfig(semanticRows, match, modelConfig);
                 var actualCurrentIndex = current?.RepredictionIndex ?? -1;
                 if (actualCurrentIndex != expectedCurrentRepredictionIndex)
                 {
@@ -1544,6 +2337,10 @@ public class FirebasePredictionRepository :
                     AwayTeam = match.AwayTeam,
                     StartsAt = ConvertToTimestamp(match.StartsAt),
                     Matchday = match.Matchday,
+                    KicktippFixtureId = match.KicktippFixtureId,
+                    KicktippRoundName = match.KicktippRoundName,
+                    ResultBasis = match.ResultBasis?.ToSerializedValue(),
+                    BundesligaSeasonSubcompetition = match.BundesligaSeasonSubcompetition?.ToSerializedValue(),
                     CompetitionSpecificData = ToFirestoreCompetitionSpecificData(match.CompetitionSpecificData),
                     HomeGoals = prediction.HomeGoals,
                     AwayGoals = prediction.AwayGoals,
@@ -1586,6 +2383,8 @@ public class FirebasePredictionRepository :
     {
         try
         {
+            ValidateCurrentMatchIdentity(match);
+            ValidateTypedContextAvailability(match);
             ValidateResolvedContextManifest(match, communityContext, contextDocumentNames, resolvedContextManifest);
             var now = Timestamp.GetCurrentTimestamp();
 
@@ -1603,6 +2402,10 @@ public class FirebasePredictionRepository :
                 AwayTeam = match.AwayTeam,
                 StartsAt = ConvertToTimestamp(match.StartsAt),
                 Matchday = match.Matchday,
+                KicktippFixtureId = match.KicktippFixtureId,
+                KicktippRoundName = match.KicktippRoundName,
+                ResultBasis = match.ResultBasis?.ToSerializedValue(),
+                BundesligaSeasonSubcompetition = match.BundesligaSeasonSubcompetition?.ToSerializedValue(),
                 CompetitionSpecificData = ToFirestoreCompetitionSpecificData(match.CompetitionSpecificData),
                 HomeGoals = prediction.HomeGoals,
                 AwayGoals = prediction.AwayGoals,
@@ -1705,12 +2508,22 @@ public class FirebasePredictionRepository :
     {
         try
         {
+            ValidateCurrentBonusIdentity(bonusQuestion);
+            ValidateTypedContextAvailability(bonusQuestion);
             var documentNames = contextDocumentNames?.ToArray()
                 ?? throw new ArgumentNullException(nameof(contextDocumentNames));
             ValidateResolvedBonusContextManifestForWrite(
                 communityContext,
                 documentNames,
                 resolvedContextManifest);
+            if (IsBundesliga2026_27 && BundesligaSeasonStorageIdentity.IsTypedBonusQuestion(bonusQuestion))
+            {
+                await SaveTypedBonusRepredictionAsync(
+                    bonusQuestion, bonusPrediction, modelConfig, tokenUsage, cost, communityContext,
+                    documentNames, repredictionIndex, resolvedContextManifest!, cancellationToken);
+                return;
+            }
+
             var now = Timestamp.GetCurrentTimestamp();
 
             // Create new document for this reprediction
@@ -1730,6 +2543,11 @@ public class FirebasePredictionRepository :
             {
                 Id = docRef.Id,
                 QuestionText = bonusQuestion.Text,
+                KicktippQuestionId = bonusQuestion.KicktippQuestionId,
+                BundesligaSeasonSubcompetition = bonusQuestion.BundesligaSeasonSubcompetition?.ToSerializedValue(),
+                BundesligaSeasonBonusIdentitySha256 = IsBundesliga2026_27
+                    ? BundesligaSeasonStorageIdentity.ComputeBonusQuestionIdentitySha256(bonusQuestion)
+                    : null,
                 SelectedOptionIds = bonusPrediction.SelectedOptionIds.ToArray(),
                 SelectedOptionTexts = selectedOptionTexts,
                 CreatedAt = now,
@@ -1764,6 +2582,103 @@ public class FirebasePredictionRepository :
                 bonusQuestion.Text);
             throw;
         }
+    }
+
+    private async Task SaveTypedBonusRepredictionAsync(
+        BonusQuestion bonusQuestion,
+        BonusPrediction bonusPrediction,
+        PredictionModelConfig modelConfig,
+        string tokenUsage,
+        double cost,
+        string communityContext,
+        IReadOnlyList<string> contextDocumentNames,
+        int repredictionIndex,
+        ResolvedBonusContextManifest resolvedContextManifest,
+        CancellationToken cancellationToken)
+    {
+        if (repredictionIndex < 1)
+        {
+            throw new ArgumentOutOfRangeException(
+                nameof(repredictionIndex),
+                "A typed Bundesliga bonus reprediction index must be positive.");
+        }
+
+        var identitySha256 = BundesligaSeasonStorageIdentity.ComputeBonusQuestionIdentitySha256(bonusQuestion);
+        var serializedManifest = SerializeResolvedBonusContextManifest(resolvedContextManifest);
+        var compatibilityManifest = SerializeBonusQuestionCompatibilityManifest(
+            BonusQuestionCompatibilityManifest.Create(bonusQuestion));
+        var optionTextsLookup = bonusQuestion.Options.ToDictionary(option => option.Id, option => option.Text);
+        var selectedOptionTexts = bonusPrediction.SelectedOptionIds
+            .Select(id => optionTextsLookup.TryGetValue(id, out var text) ? text : $"Unknown option: {id}")
+            .ToArray();
+
+        await _firestoreDb.RunTransactionAsync(async transaction =>
+        {
+            var candidates = await transaction.GetSnapshotAsync(BuildTypedBonusSemanticQuery(
+                bonusQuestion, modelConfig, communityContext));
+            var exactConfigRows = candidates.Documents
+                .Select(document => document.ConvertTo<FirestoreBonusPrediction>())
+                .Where(row => GetConfigMatchKind(row, modelConfig) == PredictionConfigMatchKind.Exact)
+                .ToArray();
+            EnsureOneTypedBonusRowPerIndex(exactConfigRows, bonusQuestion, identitySha256);
+            var currentIndex = exactConfigRows.Length == 0
+                ? -1
+                : exactConfigRows.Max(row => row.RepredictionIndex);
+            if (currentIndex == int.MaxValue)
+            {
+                throw new InvalidOperationException(
+                    "Typed Bundesliga bonus reprediction index overflow: no index can be allocated after Int32.MaxValue.");
+            }
+
+            var nextIndex = checked(currentIndex + 1);
+            if (nextIndex != repredictionIndex)
+            {
+                throw new InvalidOperationException(
+                    $"Typed Bundesliga bonus reprediction concurrency conflict: requested index {repredictionIndex}, next available index is {nextIndex}.");
+            }
+
+            var docRef = _firestoreDb.Collection(_bonusPredictionsCollection).Document(
+                BuildTypedBonusDocumentId(bonusQuestion, modelConfig, communityContext, nextIndex));
+            var existing = await transaction.GetSnapshotAsync(docRef);
+            if (existing.Exists)
+            {
+                throw new InvalidOperationException(
+                    $"Typed Bundesliga bonus reprediction concurrency conflict: index {nextIndex} is already allocated.");
+            }
+
+            var now = Timestamp.GetCurrentTimestamp();
+            transaction.Create(docRef, new FirestoreBonusPrediction
+            {
+                Id = docRef.Id,
+                QuestionText = bonusQuestion.Text,
+                KicktippQuestionId = bonusQuestion.KicktippQuestionId,
+                BundesligaSeasonSubcompetition = bonusQuestion.BundesligaSeasonSubcompetition!.Value.ToSerializedValue(),
+                BundesligaSeasonBonusIdentitySha256 = identitySha256,
+                SelectedOptionIds = bonusPrediction.SelectedOptionIds.ToArray(),
+                SelectedOptionTexts = selectedOptionTexts,
+                CreatedAt = now,
+                UpdatedAt = now,
+                Competition = _competition,
+                Model = modelConfig.Model,
+                ModelConfigKey = modelConfig.IdentityKey,
+                ReasoningEffort = modelConfig.ReasoningEffort,
+                MaxOutputTokenCount = modelConfig.MaxOutputTokenCount,
+                PromptName = modelConfig.PromptName,
+                PromptVersion = modelConfig.PromptVersion,
+                TokenUsage = tokenUsage,
+                Cost = cost,
+                CommunityContext = communityContext,
+                ContextDocumentNames = contextDocumentNames.ToArray(),
+                ResolvedBonusContextManifest = serializedManifest,
+                BonusQuestionCompatibilityManifest = compatibilityManifest,
+                RepredictionIndex = nextIndex
+            });
+            return nextIndex;
+        }, cancellationToken: cancellationToken);
+
+        _logger.LogInformation(
+            "Saved transactionally allocated typed Bundesliga bonus reprediction for question {QuestionId} (reprediction index: {RepredictionIndex})",
+            bonusQuestion.KicktippQuestionId, repredictionIndex);
     }
 
     /// <summary>
@@ -2306,7 +3221,76 @@ public class FirebasePredictionRepository :
         }
     }
 
-    private string BuildBundesligaRepredictionDocumentId(
+    private Query BuildTypedMatchSemanticQuery(
+        Match match,
+        PredictionModelConfig modelConfig,
+        string communityContext) =>
+        _firestoreDb.Collection(_predictionsCollection)
+            .WhereEqualTo("competition", _competition)
+            .WhereEqualTo("kicktippFixtureId", match.KicktippFixtureId)
+            .WhereEqualTo("bundesligaSeasonSubcompetition", match.BundesligaSeasonSubcompetition!.Value.ToSerializedValue())
+            .WhereEqualTo("model", modelConfig.Model)
+            .WhereEqualTo("communityContext", communityContext);
+
+    private Query BuildTypedBonusSemanticQuery(
+        BonusQuestion question,
+        PredictionModelConfig modelConfig,
+        string communityContext) =>
+        _firestoreDb.Collection(_bonusPredictionsCollection)
+            .WhereEqualTo("competition", _competition)
+            .WhereEqualTo("kicktippQuestionId", question.KicktippQuestionId)
+            .WhereEqualTo("bundesligaSeasonSubcompetition", question.BundesligaSeasonSubcompetition!.Value.ToSerializedValue())
+            .WhereEqualTo("model", modelConfig.Model)
+            .WhereEqualTo("communityContext", communityContext);
+
+    private void EnsureOneTypedMatchRowPerIndex(
+        IReadOnlyCollection<FirestoreMatchPrediction> rows,
+        Match match)
+    {
+        if (rows.Any(row =>
+                !MatchesCurrentMatchIdentity(row, match)
+                || !string.Equals(row.HomeTeam, match.HomeTeam, StringComparison.Ordinal)
+                || !string.Equals(row.AwayTeam, match.AwayTeam, StringComparison.Ordinal)
+                || row.Matchday != match.Matchday
+                || !match.IsCancelled && row.StartsAt != ConvertToTimestamp(match.StartsAt)))
+        {
+            throw new InvalidOperationException(
+                "Stored typed Bundesliga match identity conflicts with the requested canonical fixture identity.");
+        }
+
+        if (rows.GroupBy(row => row.RepredictionIndex).Any(group => group.Count() != 1))
+        {
+            throw new InvalidOperationException(
+                "Stored typed Bundesliga match identity has duplicate semantic reprediction indices.");
+        }
+    }
+
+    private void EnsureOneTypedBonusRowPerIndex(
+        IReadOnlyCollection<FirestoreBonusPrediction> rows,
+        BonusQuestion question,
+        string identitySha256)
+    {
+        if (rows.Any(row =>
+                !string.Equals(row.KicktippQuestionId, question.KicktippQuestionId, StringComparison.Ordinal)
+                || !string.Equals(
+                    row.BundesligaSeasonSubcompetition,
+                    question.BundesligaSeasonSubcompetition!.Value.ToSerializedValue(),
+                    StringComparison.Ordinal)
+                || !string.Equals(row.QuestionText, question.Text, StringComparison.Ordinal)
+                || !string.Equals(row.BundesligaSeasonBonusIdentitySha256, identitySha256, StringComparison.Ordinal)))
+        {
+            throw new InvalidOperationException(
+                "Stored typed Bundesliga bonus identity conflicts with the requested canonical question identity.");
+        }
+
+        if (rows.GroupBy(row => row.RepredictionIndex).Any(group => group.Count() != 1))
+        {
+            throw new InvalidOperationException(
+                "Stored typed Bundesliga bonus identity has duplicate semantic reprediction indices.");
+        }
+    }
+
+    private string BuildTypedMatchDocumentId(
         Match match,
         PredictionModelConfig modelConfig,
         string communityContext,
@@ -2314,15 +3298,43 @@ public class FirebasePredictionRepository :
     {
         var identity = string.Join("\n", new[]
         {
+            "typed-bundesliga-match-v1",
             _competition,
-            match.HomeTeam,
-            match.AwayTeam,
-            match.IsCancelled ? "cancelled" : ConvertToTimestamp(match.StartsAt).ToString(),
+            match.KicktippFixtureId!,
+            match.BundesligaSeasonSubcompetition!.Value.ToSerializedValue(),
             modelConfig.IdentityKey,
             communityContext,
             repredictionIndex.ToString(System.Globalization.CultureInfo.InvariantCulture)
         });
-        return $"bundesliga-reprediction-{DocumentPublicationContract.ComputeContentSha256(identity)}";
+        return $"bundesliga-typed-match-{DocumentPublicationContract.ComputeContentSha256(identity)}";
+    }
+
+    private string BuildTypedBonusDocumentId(
+        BonusQuestion question,
+        PredictionModelConfig modelConfig,
+        string communityContext,
+        int repredictionIndex)
+    {
+        var identity = string.Join("\n", new[]
+        {
+            "typed-bundesliga-bonus-v1",
+            _competition,
+            question.KicktippQuestionId!,
+            question.BundesligaSeasonSubcompetition!.Value.ToSerializedValue(),
+            modelConfig.IdentityKey,
+            communityContext,
+            repredictionIndex.ToString(System.Globalization.CultureInfo.InvariantCulture)
+        });
+        return $"bundesliga-typed-bonus-{DocumentPublicationContract.ComputeContentSha256(identity)}";
+    }
+
+    private string BuildBundesligaRepredictionDocumentId(
+        Match match,
+        PredictionModelConfig modelConfig,
+        string communityContext,
+        int repredictionIndex)
+    {
+        return BuildTypedMatchDocumentId(match, modelConfig, communityContext, repredictionIndex);
     }
 
     private static ResolvedMatchContextManifest? DeserializeResolvedContextManifest(string? serialized)

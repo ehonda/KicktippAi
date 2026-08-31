@@ -111,7 +111,8 @@ public record PredictionMetadata(
     Prediction Prediction,
     DateTimeOffset CreatedAt,
     List<string> ContextDocumentNames,
-    ResolvedMatchContextManifest? ResolvedContextManifest = null);
+    ResolvedMatchContextManifest? ResolvedContextManifest = null,
+    ResolvedTypedContextManifest? ResolvedTypedContextManifest = null);
 
 /// <summary>Optional capability for prediction stores that preserve immutable context provenance.</summary>
 public interface IResolvedMatchContextPredictionRepository
@@ -146,4 +147,46 @@ public interface IResolvedMatchContextPredictionRepository
         PredictionModelConfig modelConfig,
         string communityContext,
         CancellationToken cancellationToken = default);
+}
+
+/// <summary>Optional capability for immutable ADR-0060 rules-only generation provenance.</summary>
+public interface IResolvedTypedContextPredictionRepository
+{
+    Task SavePredictionWithResolvedTypedContextAsync(
+        Match match,
+        Prediction prediction,
+        PredictionModelConfig modelConfig,
+        string tokenUsage,
+        double cost,
+        string communityContext,
+        IEnumerable<string> contextDocumentNames,
+        ResolvedTypedContextManifest resolvedTypedContextManifest,
+        bool overrideCreatedAt = false,
+        CancellationToken cancellationToken = default);
+
+    Task SaveBonusPredictionWithResolvedTypedContextAsync(
+        BonusQuestion bonusQuestion,
+        BonusPrediction bonusPrediction,
+        PredictionModelConfig modelConfig,
+        string tokenUsage,
+        double cost,
+        string communityContext,
+        IEnumerable<string> contextDocumentNames,
+        ResolvedTypedContextManifest resolvedTypedContextManifest,
+        bool overrideCreatedAt = false,
+        CancellationToken cancellationToken = default);
+
+    Task<PredictionMetadata?> GetCurrentTypedPredictionMetadataAsync(
+        Match match,
+        PredictionModelConfig modelConfig,
+        string communityContext,
+        CancellationToken cancellationToken = default,
+        DateTimeOffset? evaluationInstant = null);
+
+    Task<BonusPredictionMetadata?> GetCurrentTypedBonusPredictionMetadataAsync(
+        BonusQuestion bonusQuestion,
+        PredictionModelConfig modelConfig,
+        string communityContext,
+        CancellationToken cancellationToken = default,
+        DateTimeOffset? evaluationInstant = null);
 }

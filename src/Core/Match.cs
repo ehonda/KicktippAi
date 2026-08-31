@@ -1,4 +1,5 @@
 using NodaTime;
+using System.Text.Json.Serialization;
 
 namespace EHonda.KicktippAi.Core;
 
@@ -38,6 +39,24 @@ public record Match(
     int Matchday,
     bool IsCancelled = false)
 {
+    /// <summary>Stable Kicktipp fixture identity when the source surface exposes it.</summary>
+    [JsonPropertyName("kicktippFixtureId")]
+    public string? KicktippFixtureId { get; init; }
+
+    /// <summary>Exact, source-provided Kicktipp round name when available.</summary>
+    [JsonPropertyName("kicktippRoundName")]
+    public string? KicktippRoundName { get; init; }
+
+    /// <summary>How the prediction result is evaluated when the source supplies that meaning.</summary>
+    [JsonPropertyName("resultBasis")]
+    public ResultBasis? ResultBasis { get; init; }
+
+    /// <summary>
+    /// Bundesliga-season-only routing partition. It is intentionally absent for WM26 and other competitions.
+    /// </summary>
+    [JsonPropertyName("bundesligaSeasonSubcompetition")]
+    public BundesligaSeasonSubcompetition? BundesligaSeasonSubcompetition { get; init; }
+
     /// <summary>
     /// Optional data whose meaning is scoped to a specific competition.
     /// </summary>

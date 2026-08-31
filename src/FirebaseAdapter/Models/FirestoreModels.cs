@@ -41,6 +41,18 @@ public class FirestoreMatchPrediction
     [FirestoreProperty("matchday")]
     public int Matchday { get; set; }
 
+    [FirestoreProperty("kicktippFixtureId")]
+    public string? KicktippFixtureId { get; set; }
+
+    [FirestoreProperty("kicktippRoundName")]
+    public string? KicktippRoundName { get; set; }
+
+    [FirestoreProperty("resultBasis")]
+    public string? ResultBasis { get; set; }
+
+    [FirestoreProperty("bundesligaSeasonSubcompetition")]
+    public string? BundesligaSeasonSubcompetition { get; set; }
+
     [FirestoreProperty("competitionSpecificData")]
     public FirestoreCompetitionSpecificMatchData? CompetitionSpecificData { get; set; }
 
@@ -146,6 +158,13 @@ public class FirestoreMatchPrediction
     public string? ResolvedContextManifest { get; set; }
 
     /// <summary>
+    /// Canonical immutable ADR-0060 rules-only generation provenance. This is
+    /// intentionally separate from the ordinary Bundesliga context manifest.
+    /// </summary>
+    [FirestoreProperty("resolvedTypedContextManifest")]
+    public string? ResolvedTypedContextManifest { get; set; }
+
+    /// <summary>
     /// Reprediction index for tracking prediction versions.
     /// Starts at 0 for the first prediction, increments for each reprediction.
     /// </summary>
@@ -190,6 +209,17 @@ public class FirestoreMatch
     [FirestoreProperty("matchday")]
     public int Matchday { get; set; }
 
+    [FirestoreProperty("kicktippFixtureId")]
+    public string? KicktippFixtureId { get; set; }
+
+    [FirestoreProperty("kicktippRoundName")]
+    public string? KicktippRoundName { get; set; }
+
+    [FirestoreProperty("resultBasis")]
+    public string? ResultBasis { get; set; }
+
+    [FirestoreProperty("bundesligaSeasonSubcompetition")]
+    public string? BundesligaSeasonSubcompetition { get; set; }
     /// <summary>
     /// Competition/season identifier.
     /// </summary>
@@ -244,6 +274,15 @@ public class FirestoreBonusPrediction
     /// </summary>
     [FirestoreProperty("questionText")]
     public string QuestionText { get; set; } = string.Empty;
+
+    [FirestoreProperty("kicktippQuestionId")]
+    public string? KicktippQuestionId { get; set; }
+
+    [FirestoreProperty("bundesligaSeasonSubcompetition")]
+    public string? BundesligaSeasonSubcompetition { get; set; }
+
+    [FirestoreProperty("bundesligaSeasonBonusIdentitySha256")]
+    public string? BundesligaSeasonBonusIdentitySha256 { get; set; }
 
     /// <summary>
     /// Selected option IDs for the bonus question.
@@ -339,6 +378,13 @@ public class FirestoreBonusPrediction
     /// <summary>Canonical JSON resolved-context provenance for Bundesliga bonus prompts.</summary>
     [FirestoreProperty("resolvedBonusContextManifest")]
     public string? ResolvedBonusContextManifest { get; set; }
+
+    /// <summary>
+    /// Canonical immutable ADR-0060 rules-only generation provenance. This is
+    /// intentionally separate from the ordinary Bundesliga bonus-context manifest.
+    /// </summary>
+    [FirestoreProperty("resolvedTypedContextManifest")]
+    public string? ResolvedTypedContextManifest { get; set; }
 
     /// <summary>
     /// Canonical JSON provenance for the complete normalized question and source option set.

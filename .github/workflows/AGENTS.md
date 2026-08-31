@@ -2,24 +2,23 @@
 
 ## Workflow Activation Status
 
-As of 2026-08-28, ADR-0052's complete Bundesliga 2026/27 caller matrix is
-present. `pes-squad` is the independent Sol/`xhigh` primary;
-`schadensfresse`, `relaxdays-tippt`, and arena Sol/`xhigh` copy `pes-squad` for
-ordinary Bundesliga work; arena
-Sol/`high`, Luna/`medium`, Terra/`xhigh`, and Luna/`none` are self-contained.
-All rows pin cap `10000`, match v3 / bonus v1, and Flex-first / Standard-
-fallback. Every current leaf caller exposes only `workflow_dispatch`; no leaf
-has `schedule` or `workflow_call`. The single production-live outer caller has
-the UTC cron `7 2,9 * * *` and a strict 16-job chain: `pes-squad`,
-`schadensfresse`, `relaxdays-tippt`, and the five arena rows, each as context
+As of 2026-08-30, ADR-0058 quarantines the unsafe scheduled
+`schadensfresse` context/copy pair. `pes-squad` is the independent
+Sol/`xhigh` primary; `relaxdays-tippt` and arena Sol/`xhigh` copy `pes-squad`
+for ordinary Bundesliga work; arena Sol/`high`, Luna/`medium`, Terra/`xhigh`,
+and Luna/`none` are self-contained. The `schadensfresse` leaf callers remain
+manual-only but have no scheduled outer-lane jobs until separately reviewed
+target-owned primary activation. All rows pin cap `10000`, match v3 / bonus v1,
+and Flex-first / Standard-fallback. Every current leaf caller exposes only
+`workflow_dispatch`; no leaf has `schedule` or `workflow_call`. The single
+production-live outer caller has the UTC cron `7 2,9 * * *` and a strict 14-job
+chain: `pes-squad`, `relaxdays-tippt`, and the five arena rows, each as context
 then matchday. P0-21 owns observation and any live recovery.
 
-The manual `schadensfresse` bonus leaf defaults its inclusive strict-UTC scope
-to `2026-08-28T18:30:00Z`. Its exact five-question alias policy is not generic
-normalization; the three CL questions due September 9 remain P1-08. Do not add
-bonus to the recurring outer lane. ADR-0055 adds only the green ordinary
-Bundesliga context/copy pair immediately after `pes-squad`; mixed-competition
-bonus and final routes remain outside that lane.
+The manual `schadensfresse` bonus leaf's August 28 copy scope is historical.
+ADR-0058 supersedes its copy/alias premises, absorbs P1-08 into P1-10, and
+quarantines the scheduled `schadensfresse` pair pending separately reviewed
+target-owned primary activation. Do not add bonus to the recurring outer lane.
 
 The reusable context workflow's `publish_launch_roster_overlay` input is false
 by default. Set it only for an accepted initial Bundesliga production roster
