@@ -36,7 +36,7 @@ public sealed class KicktippBonusQuestionIdentityException(string message, Excep
 /// Implementation of IKicktippClient for interacting with kicktipp.de website
 /// Authentication is handled automatically via KicktippAuthenticationHandler
 /// </summary>
-public class KicktippClient : IKicktippClient, IDisposable
+public partial class KicktippClient : IKicktippClient, IBundesligaTypedKicktippClient, IDisposable
 {
     private static readonly DateTimeZone BerlinTimeZone = DateTimeZoneProviders.Tzdb["Europe/Berlin"];
     private const int SchadensfresseBundesligaMaximumMatchdayFixtures = 9;

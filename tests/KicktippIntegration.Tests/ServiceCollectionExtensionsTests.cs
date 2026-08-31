@@ -50,6 +50,18 @@ public class ServiceCollectionExtensionsTests
     }
 
     [Test]
+    public async Task AddKicktippClient_registers_the_typed_Bundesliga_authority_capability()
+    {
+        var services = CreateServices();
+
+        services.AddKicktippClient();
+
+        var descriptor = services.FirstOrDefault(d =>
+            d.ServiceType == typeof(IBundesligaTypedKicktippClient));
+        await Assert.That(descriptor).IsNotNull();
+    }
+
+    [Test]
     public async Task AddKicktippClient_registers_KicktippAuthenticationHandler_as_singleton()
     {
         // Arrange
