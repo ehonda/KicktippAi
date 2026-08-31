@@ -1,3 +1,4 @@
+using System.Collections.Concurrent;
 using System.Diagnostics;
 using EHonda.KicktippAi.Core;
 using KicktippIntegration;
@@ -134,6 +135,7 @@ public class MatchdayCommand_RepredictMode_Tests : MatchdayCommandTests_Base
     public async Task Weekend_standings_refresh_reuses_remaining_open_fixture_without_model_call_or_new_index(string completedFixtureDay)
     {
         const string communityContext = "pes-squad";
+        var model = $"telemetry-standings-reuse-{completedFixtureDay.ToLowerInvariant()}";
         var match = CreateBayernVsDortmundMatch();
         var prediction = CreatePrediction(homeGoals: 2, awayGoals: 1);
         var recordedDocuments = CreateBayernVsDortmundContextDocuments(communityContext: communityContext);
@@ -158,14 +160,19 @@ public class MatchdayCommand_RepredictMode_Tests : MatchdayCommandTests_Base
                 predictionRepository: predictionRepository,
                 contextRepository: contextRepository),
             openAiServiceFactory: CreateMockOpenAiServiceFactory(predictionService: predictionService));
-        var activities = new List<Activity>();
-        using var listener = CreateActivityListener(activities);
-
-        var (exitCode, output) = await RunCommandAsync(
-            ctx.App, ctx.Console, "matchday", "gpt-5.6-sol", "-c", communityContext,
-            "--community-context", communityContext,
-            "--competition", CompetitionIds.Bundesliga2026_27,
-            "--repredict", "--max-repredictions", "2");
+        var activities = new ConcurrentQueue<Activity>();
+        int exitCode;
+        string output;
+        Activity? capturedTarget;
+        using (var listener = CreateActivityListener(activities))
+        {
+            (exitCode, output) = await RunCommandAsync(
+                ctx.App, ctx.Console, "matchday", model, "-c", communityContext,
+                "--community-context", communityContext,
+                "--competition", CompetitionIds.Bundesliga2026_27,
+                "--repredict", "--max-repredictions", "2");
+            capturedTarget = FindMatchdayActivity(activities, communityContext, model);
+        }
 
         await Assert.That(exitCode).IsEqualTo(0);
         await Assert.That(output).Contains("Skipped reprediction").And.Contains("reprediction 0");
@@ -177,7 +184,14 @@ public class MatchdayCommand_RepredictMode_Tests : MatchdayCommandTests_Base
                 It.IsAny<Match>(), It.IsAny<Prediction>(), It.IsAny<PredictionModelConfig>(), It.IsAny<string>(),
                 It.IsAny<double>(), It.IsAny<string>(), It.IsAny<IEnumerable<string>>(), It.IsAny<int>(), It.IsAny<int>(),
                 It.IsAny<ResolvedMatchContextManifest>(), It.IsAny<CancellationToken>()), Times.Never);
-        var rootActivity = activities.Last(activity => activity.OperationName == "matchday");
+        await Assert.That(capturedTarget).IsNotNull();
+
+        using var foreignActivity = new Activity("matchday");
+        foreignActivity.SetTag("langfuse.trace.metadata.community", communityContext);
+        foreignActivity.SetTag("langfuse.trace.metadata.model", "foreign-telemetry-model");
+        var stableActivities = new[] { capturedTarget!, foreignActivity };
+
+        var rootActivity = FindMatchdayActivity(stableActivities, communityContext, model);
         await Assert.That(rootActivity.GetTagItem("langfuse.trace.metadata.repredictionIndices") as string).IsEqualTo("|0|");
         await Assert.That(rootActivity.GetTagItem("langfuse.trace.metadata.hasRepredictions") as string).IsEqualTo("false");
     }
@@ -407,4 +421,19 @@ public class MatchdayCommand_RepredictMode_Tests : MatchdayCommandTests_Base
         await Assert.That(exitCode).IsEqualTo(0);
         await Assert.That(output).Contains("Saved as reprediction 1");
     }
+
+    private static Activity? FindMatchdayActivity(
+        IEnumerable<Activity> activities,
+        string community,
+        string model) =>
+        activities.SingleOrDefault(activity =>
+            activity.OperationName == "matchday"
+            && string.Equals(
+                activity.GetTagItem("langfuse.trace.metadata.community") as string,
+                community,
+                StringComparison.Ordinal)
+            && string.Equals(
+                activity.GetTagItem("langfuse.trace.metadata.model") as string,
+                model,
+                StringComparison.Ordinal));
 }
