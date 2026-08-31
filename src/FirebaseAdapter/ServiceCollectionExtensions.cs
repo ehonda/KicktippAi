@@ -92,6 +92,20 @@ public static class ServiceCollectionExtensions
             return new FirebasePredictionRepository(firestoreDb, logger, competition);
         });
 
+        if (string.Equals(competition, CompetitionIds.Bundesliga2026_27, StringComparison.Ordinal))
+        {
+            services.AddScoped<IBundesligaTypedPredictionAuthorityRepository>(serviceProvider =>
+                new FirebaseBundesligaTypedPredictionAuthorityRepository(
+                    serviceProvider.GetRequiredService<FirestoreDb>(),
+                    FirebaseBundesligaTypedPredictionCollections.AuthorityEpoch));
+            services.AddScoped<ILegacyFirebasePredictionAuditCostReader>(serviceProvider =>
+                new FirebaseLegacyPredictionAuditCostReader(
+                    serviceProvider.GetRequiredService<FirestoreDb>()));
+            services.AddScoped<ITypedFirebasePredictionAuditCostReader>(serviceProvider =>
+                new FirebaseTypedPredictionAuditCostReader(
+                    serviceProvider.GetRequiredService<FirestoreDb>()));
+        }
+
         // Register the KPI repository
         services.AddScoped<IKpiRepository>(serviceProvider =>
         {

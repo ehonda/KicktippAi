@@ -89,6 +89,39 @@ public class ServiceCollectionExtensionsTests
     }
 
     [Test]
+    public async Task AddFirebaseDatabase_registers_separate_typed_and_audit_capabilities_only_for_Bundesliga_2026_27()
+    {
+        var bundesligaServices = CreateServices();
+        AddDefaultFirebaseDatabase(bundesligaServices);
+
+        foreach (var serviceType in new[]
+        {
+            typeof(IBundesligaTypedPredictionAuthorityRepository),
+            typeof(ILegacyFirebasePredictionAuditCostReader),
+            typeof(ITypedFirebasePredictionAuditCostReader)
+        })
+        {
+            var descriptor = bundesligaServices.SingleOrDefault(entry => entry.ServiceType == serviceType);
+            await Assert.That(descriptor).IsNotNull()
+                .And.Member(entry => entry!.Lifetime, lifetime => lifetime.IsEqualTo(ServiceLifetime.Scoped));
+        }
+
+        var wm26Services = CreateServices();
+        wm26Services.AddFirebaseDatabase(CompetitionIds.FifaWorldCup2026, options =>
+        {
+            options.ProjectId = "test-project";
+            options.ServiceAccountJson = "{}";
+        });
+
+        await Assert.That(wm26Services.Any(entry =>
+            entry.ServiceType == typeof(IBundesligaTypedPredictionAuthorityRepository))).IsFalse();
+        await Assert.That(wm26Services.Any(entry =>
+            entry.ServiceType == typeof(ILegacyFirebasePredictionAuditCostReader))).IsFalse();
+        await Assert.That(wm26Services.Any(entry =>
+            entry.ServiceType == typeof(ITypedFirebasePredictionAuditCostReader))).IsFalse();
+    }
+
+    [Test]
     public async Task AddFirebaseDatabase_registers_IKpiRepository_as_scoped()
     {
         // Arrange
