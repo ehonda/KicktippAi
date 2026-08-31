@@ -1,15 +1,16 @@
 # P1-10 — Convert schadensfresse to a subcompetition-typed primary community
 
-- Status: In progress; remaining work requires restarted ADR-0061 intake
+- Status: In progress; recovery runtime is frozen, target-primary completion remains an atomic future PR
 - Priority: P1 — deadline-critical
 - Depends on: [P0-21](p0-21-production-activation.md)
 - Absorbs: [P1-08](p1-08-schadensfresse-mixed-competition-routing.md)
-- Decisions: [ADR-0052](../decisions/0052-select-production-model-community-matrix-and-match-prompt-v3.md), [ADR-0054](../decisions/0054-copy-schadensfresse-bundesliga-from-pes-squad.md), [ADR-0055](../decisions/0055-add-schadensfresse-to-production-live-lane.md), [ADR-0058](../decisions/0058-make-schadensfresse-a-competition-typed-primary.md), [ADR-0059](../decisions/0059-bind-schadensfresse-rules-to-a-structured-semantic-record.md), [ADR-0060](../decisions/0060-separate-generation-manifest-from-current-rules-attestation.md), [ADR-0061](../decisions/0061-preview-and-milestone-orchestration.md)
+- Decisions: [ADR-0052](../decisions/0052-select-production-model-community-matrix-and-match-prompt-v3.md), [ADR-0054](../decisions/0054-copy-schadensfresse-bundesliga-from-pes-squad.md), [ADR-0055](../decisions/0055-add-schadensfresse-to-production-live-lane.md), [ADR-0058](../decisions/0058-make-schadensfresse-a-competition-typed-primary.md), [ADR-0059](../decisions/0059-bind-schadensfresse-rules-to-a-structured-semantic-record.md), [ADR-0060](../decisions/0060-separate-generation-manifest-from-current-rules-attestation.md), [ADR-0061](../decisions/0061-preview-and-milestone-orchestration.md), [ADR-0062](../decisions/0062-temporarily-restore-schadensfresse-copy.md)
 
 - Orchestration readiness: The completed checkboxes are historical integrated
-  evidence, not a frozen design for the remaining cross-cutting work. The next
-  explicit `$orchestrate P1` invocation must preview the whole phase and fully
-  grill P1-10's next cohesive milestone before assigning writers.
+  evidence. The resumed recovery's frozen artifacts are the
+  [P1 execution packet](../p1-execution-packet.md) and
+  [production recovery design](../designs/p1-10-production-recovery-and-atomic-delivery.md).
+  They govern recovery only; they do not mark the target-primary route done.
 
 ## Trigger and live evidence
 
@@ -28,11 +29,11 @@ contract without recording prediction contents or selected answers:
   `f788efe448ce538d530baf74ce66f5ef03a61faab5a527d965dcd8d314d2e9c0`;
   the checked-in `schadensfresse` and `pes-squad` rules are currently
   byte-identical and the target copy is wrong;
-- open fixture IDs `1662323362` and `1662323366` were joined from the outcome
-  surface. Their teams, numeric matchday, and rules context support a
-  Bundesliga inference, but both current `Match` objects have null competition-
-  specific data and the safe evidence captured no exact round or result basis;
-  they are not yet canonical route entries; and
+- P1-10 commit `b0fd6b6` later added fixture IDs `1662323362` and `1662323366`
+  to the canonical routing seed as `bundesliga` / `1. Spieltag` /
+  `regularTime90Minutes`. That typed implementation/evidence is preserved on
+  the archival/full P1-10 PR route and is intentionally absent from temporary
+  recovered runtime after aggregate revert B; and
 - open CL questions `1662326752`, `1662326753`, and `1662326754` each have 37
   options, maxima `1/4/1`, and the exact common deadline
   `2026-09-08T16:45:00Z`. Their full texts and per-question option hashes are
@@ -40,17 +41,17 @@ contract without recording prediction contents or selected answers:
   `80def7b217a382ed95450c2a8f8db227ba13a2f55ca72513a8897f86fa511ef9`.
 
 The earlier September 9 deadline, four-point bonus score, `2/3/4` match score,
-and ordinary Bundesliga copy premise are historical and superseded. The
-restarted intake must first plan restoration of typed scheduled target-owned
-context plus matchday execution by `2026-09-04`, because quarantine also
-removed the automatic copy path. The Owner may perform the copies manually as
-a last resort. The separate September 8 CL bonus deadline remains the final
-critical path.
+and ordinary Bundesliga copy premise are historical for the final target route.
+ADR-0062 temporarily restores source-compatible copy on recovery `main` while
+the full target-primary implementation is preserved for an atomic PR. This
+temporary route expires at `2026-09-08T12:00:00Z`; it creates no manual-copy
+contingency. The separate September 8 CL bonus deadline remains a final-route
+gate, not recovery authority.
 
 ## Outcome
 
-`schadensfresse` is an independent target-owned primary for every match and
-bonus question. The explicit `bundesliga-2026-27` storage partition remains,
+The completed P1-10 PR will make `schadensfresse` an independent target-owned
+primary for every match and bonus question. The explicit `bundesliga-2026-27` storage partition remains,
 while `BundesligaSeasonSubcompetition` distinguishes Bundesliga, DFB-Pokal,
 and Champions League only inside it. Stable Kicktipp identities, exact
 rounds/questions, correct result bases, competition-specific prompt/context
@@ -58,9 +59,35 @@ routes, and fail-closed storage/provenance are mandatory. WM26 retains its
 existing competition-specific model. No path copies or falls back to
 `pes-squad`.
 
+## Frozen recovery route — 2026-08-31
+
+The current failing head is `71637cc154cfdcbe2436069470b5e04b0d4f753d`.
+Build-and-Test run `33340578338` is green, while production-live runs
+`33350964121` and `33377913801` fail before model/post in ordinary blank
+typed-fixture validation. ADR-0062 selects
+`3a2ba35529b262327a3ec08e6bde47b186c8e5b2` as the recovery runtime baseline,
+retaining P1-09/P1-12, and its packet/design require exact path comparison,
+the blank-fixture regression, 8 pairs/16 jobs, source/target credential
+separation, zero-copy-generation/fail-closed evidence, WM26 isolation, full
+affected TUnit/Release/workflow-contract/actionlint gates, independent
+exact-SHA review, exact-head CI, and first natural-run observation.
+
+Recovery `main` temporarily runs target-owned Schadensfresse context followed
+by `pes-squad`-source copy matching after `pes-squad`; relaxdays follows it.
+The route preserves the cron, non-cancelling concurrency, default-success
+serial chain, manual-only leaves, and no scheduled bonus. It expires at
+`2026-09-08T12:00:00Z`: the atomic P1-10 PR must merge and replace/terminate
+it, or Schadensfresse is re-quarantined while seven pairs remain. Project
+Owner/on-call inherits ADR-0053's 30-minute acknowledgement and 60-minute
+whole-cron-disable trigger. No manual dispatch, force, reprediction, prompt or
+model change/call, prediction mutation, external write, credential change, or
+other activation is authorized. Natural runs caused by the restored declarative
+schedule may perform only ADR-0053/0054/0055's already-authorized operations;
+observing them is read-only reconciliation, not additional authority.
+
 ## Implementation slices
 
-### 0. Immediate schedule quarantine
+### 0. Historical schedule quarantine (temporarily superseded on recovery main)
 
 - [x] Before the next nominal `2026-08-30T09:07:00Z` occurrence, remove
       `schadensfresse-context` and `schadensfresse-matchday` from
@@ -70,10 +97,10 @@ existing competition-specific model. No path copies or falls back to
       14 jobs while retaining cron `7 2,9 * * *`, non-cancelling concurrency,
       serial/default-success ordering, leaf-manual-only operation, no bonus,
       monitoring/on-call ownership, and rollback behavior.
-- [x] Keep both schadensfresse jobs absent until the separately reviewed
-      primary activation. The quarantine authorizes no dispatch, model call,
-      force, prediction mutation, POST, Firestore/Langfuse write, prompt
-      promotion, or credential change.
+- [x] The historical quarantine kept both Schadensfresse jobs absent. ADR-0062
+      now temporarily restores the reviewed copy pair on recovery `main`; it
+      still authorizes no dispatch, model call, force, prediction mutation,
+      POST, Firestore/Langfuse write, prompt promotion, or credential change.
 
 ### 1. Typed identity and classifier
 
@@ -85,11 +112,13 @@ existing competition-specific model. No path copies or falls back to
 - [x] Add `KicktippQuestionId` and `BundesligaSeasonSubcompetition` to
       Bundesliga-season `BonusQuestion` identity, bound to exact text, ordered
       option ID/text array, `MaxSelections`, and deadline.
-- [x] Check in a deterministic schadensfresse routing seed/config containing
-      every exact fixture→subcompetition→round→result-basis mapping plus all
-      three question definitions and 111 option ID/text bindings represented
-      by ADR-0058's hashes. Do not promote the two inferred current fixture IDs
-      into the seed until exact round/subcompetition evidence is recorded.
+- [x] P1-10 commit `b0fd6b6` checks in a deterministic routing seed with
+      fixture IDs `1662323362` and `1662323366` mapped exactly to
+      `bundesliga` / `1. Spieltag` / `regularTime90Minutes`, plus three
+      question definitions and 111 option ID/text bindings. Its canonical seed
+      hash is `81b1c6ab0a6ad3159fcafebcbf1e3525df2cdf8e1279369f2515f001176008e5`.
+      This belongs to archival/full-PR P1-10 evidence and is intentionally
+      absent from temporary recovery `main` after B.
 - [ ] Parse and retain the stable IDs and structured round/competition signals.
       Join fixture IDs from the outcome surface until the open-prediction DTO
       exposes them directly. Fail before model creation on missing, unknown,
@@ -232,22 +261,25 @@ until the persistence/call-site owner completes all of the following.
 
 - ADR-0058 is accepted from evidence-backed decisions the Owner authorized on
   2026-08-30; it does not claim that the Owner reviewed a draft.
-- Current code inspection confirms `Match` lacks a stable fixture ID and
-  generic round/result-basis fields, `BonusQuestion` lacks a typed Bundesliga-
-  season subcompetition, and the parser discards round/penalty meaning outside
-  WM26.
+- Pre-`b0fd6b6` code inspection confirmed `Match` lacked a stable fixture ID
+  and generic round/result-basis fields, `BonusQuestion` lacked a typed
+  Bundesliga-season subcompetition, and the parser discarded round/penalty
+  meaning outside WM26. The later typed implementation is preserved on the
+  archival/full PR, not temporary recovered runtime after B.
 - This planning slice makes no external write, prompt promotion, production
   model call, forced prediction, POST, or schedule mutation. ADR-0058 separately
   authorizes the immediate fail-safe repository workflow removal only.
 
 ## Typed-foundation evidence — 2026-08-30
 
-- The checked-in `data/bundesliga-2026-27/schadensfresse-routing-seed.json`
-  records the exact three evidenced CL question identities, all 111 ordered
-  option ID/text bindings, source option-set hashes, and canonical seed hash
-  `52ce7ba4430d07ed71528a7ce48fee499e25b9dd303bd7bce22eed17a1921660`.
-  It intentionally contains no fixture entries: `1662323362` and `1662323366`
-  remain unseeded until exact structured round/subcompetition evidence exists.
+- P1-10 commit `b0fd6b6` updates the checked-in
+  `data/bundesliga-2026-27/schadensfresse-routing-seed.json` with exact
+  `1662323362` and `1662323366` entries (`bundesliga` / `1. Spieltag` /
+  `regularTime90Minutes`), the three evidenced CL question identities, all 111
+  ordered option ID/text bindings, and canonical hash
+  `81b1c6ab0a6ad3159fcafebcbf1e3525df2cdf8e1279369f2515f001176008e5`.
+  This is truthful preserved archival/full-PR implementation evidence, not
+  temporary recovered-runtime state after B.
 - Core loader/classifier validation and captured parser tests reject missing,
   duplicate, unknown, and drifted identities. Parsing retains a source round,
   penalty result basis, and stable bonus-question ID when exposed, without
@@ -360,9 +392,10 @@ until the persistence/call-site owner completes all of the following.
 - Local and applicable dev/arena evidence is green; the approved production
   replacement stays within its exact budget/cutoff and passes payload-safe
   Kicktipp/Firestore/Langfuse inspection.
-- The unsafe schadensfresse context/copy pair is absent from the active outer
-  lane before any primary activation, with all unaffected schedule contracts
-  preserved.
+- Until the final P1-10 merge, ADR-0062's temporary source-compatible pair is
+  the active recovery route and its eight-pair operating contract is preserved.
+  The final merge replaces or terminates it atomically; any missed sunset
+  re-quarantines Schadensfresse while preserving seven unaffected pairs.
 - A separately reviewed primary-activation commit reintroduces target context
   plus the primary match job, preserves the outer operating contract, and its
   first natural execution is green.

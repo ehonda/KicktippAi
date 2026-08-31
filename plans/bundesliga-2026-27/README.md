@@ -39,11 +39,11 @@ model follow-ups are also non-P0 work.
 - The required production scope is `pes-squad`, `schadensfresse`,
   `relaxdays-tippt`, and `ehonda-ai-arena`; `ehonda-dev-buli-2627` is the safe
   development target. ADR-0052 fixes the model/challenger matrix. ADR-0058
-  makes `schadensfresse` a target-owned primary for every match and bonus,
-  superseding ADR-0054's copy topology and ADR-0055's schadensfresse
-  context/copy pair. That pair is quarantined from the outer schedule
-  immediately; it remains absent until P1-10's reviewed primary-activation gate
-  passes.
+  remains the target-primary final architecture, but
+  [ADR-0062](decisions/0062-temporarily-restore-schadensfresse-copy.md)
+  temporarily restores the ADR-0054/0055 source-compatible copy pair on
+  recovery `main` while P1-10 is completed atomically. This is temporary
+  scoring/provenance debt, not a claim that target-primary P1-10 is active.
 - Historical data is not deleted. A future historical experiment must opt into an explicit competition, prompt, and context setup.
 
 ## P0 tasks
@@ -151,11 +151,14 @@ ADR-0053's sole recurring cron is active through the outer workflow while every
 leaf caller remains manual-only. Natural run `33143114280` subsequently proved
 the complete ADR-0055 topology.
 
-ADR-0058 now quarantines both `schadensfresse-context` and
-`schadensfresse-matchday`, reconnecting `relaxdays-tippt-context` directly to
-`pes-squad-matchday`. The resulting active contract is seven pairs/14 jobs at
-the unchanged cron/concurrency/order/failure/no-bonus boundary. Schadensfresse
-remains absent until a separately reviewed target-owned primary activation.
+ADR-0062 temporarily restores `schadensfresse-context` and
+`schadensfresse-matchday` after `pes-squad-matchday`, with
+`relaxdays-tippt-context` depending on the Schadensfresse match. The active
+recovery contract is eight pairs/16 jobs at the unchanged
+cron/concurrency/order/failure/no-bonus boundary. It uses target-owned context,
+`pes-squad` source context, target credentials, zero expected copy model calls,
+and fail-closed compatibility. It sunsets at `2026-09-08T12:00:00Z`; it is not
+manual-copy authority or target-primary activation.
 
 The activation contract forbids dispatching the outer lane before activation:
 completed leaf validation plus static/review/CI evidence is sufficient, while a
@@ -182,11 +185,12 @@ Luna/`none` recovery is complete and must not be repeated.
 
 P1-01 and P1-02 were promoted to P0-15 and P0-16 because both affect predictions that exist only at or before go-live. Numbering of the remaining P1 tasks stays stable.
 
-The next explicit `$orchestrate P1` invocation must begin with ADR-0061's
-read-only phase preview and task-complete grilling. That intake creates the
-tracked P1 execution plan from then-current evidence; this index does not
-pre-freeze its design. Fully grilled runnable milestones may proceed while the
-remaining frontier stays `needs-interview`.
+The resumed P1-10 recovery is frozen in the
+[P1 execution packet](p1-execution-packet.md) and
+[production recovery design](designs/p1-10-production-recovery-and-atomic-delivery.md).
+They govern the temporary recovery and atomic PR delivery; they do not claim
+that the full P1-10 primary implementation is complete. Fully grilled runnable
+milestones may proceed while the remaining frontier stays `needs-interview`.
 
 | Task | Outcome | Depends on |
 |---|---|---|
@@ -197,7 +201,7 @@ remaining frontier stays `needs-interview`.
 | [P1-07](tasks/p1-07-cost-calibration.md) | Recalculate season cost from live usage evidence | P0-16, P1-04, P1-05 |
 | [P1-08](tasks/p1-08-schadensfresse-mixed-competition-routing.md) | Superseded and fully absorbed by P1-10; do not build the former copy-plus-exceptions route | P0-21 |
 | [P1-09](tasks/p1-09-current-open-matchday-context.md) | Reconcile reduced current open fixtures with the complete outcome view | P0-14, P0-21 |
-| [P1-10](tasks/p1-10-schadensfresse-primary-community.md) **Deadline-critical, requires restarted intake** | Restore typed scheduled target-owned context and matchday operation by `2026-09-04`, then complete the remaining Bundesliga/DFB/CL primary conversion; CL bonus deadline is `2026-09-08T16:45:00Z` | P0-21; absorbs P1-08 |
+| [P1-10](tasks/p1-10-schadensfresse-primary-community.md) **Deadline-critical** | Recovery `main` temporarily restores the 8-pair source-copy lane through `2026-09-08T12:00:00Z`; preserve the full implementation for an atomic target-primary PR that replaces/terminates it | P0-21; absorbs P1-08 |
 | [P1-11](tasks/p1-11-langfuse-v4-migration.md) | Migrate the Langfuse project and repository API consumers to v4 | P0-21 |
 | [P1-12](tasks/p1-12-standings-reprediction-exemption.md) **High priority** | Exempt standings-only changes from match repredictions | P0-12, P0-21 |
 
@@ -287,7 +291,8 @@ contract:
 - [ADR-0055: Add schadensfresse to the production-live matchday lane](decisions/0055-add-schadensfresse-to-production-live-lane.md)
 - [ADR-0056: Reconcile current open fixtures with outcomes](decisions/0056-reconcile-current-open-fixtures-with-outcomes.md) — supersedes only ADR-0034's exact-count requirement for the implicit current open view
 - [ADR-0057: Exempt standings from reprediction staleness](decisions/0057-exempt-standings-from-reprediction-staleness.md) — supersedes only ADR-0020's current-ordinary-identity comparison for standings
-- [ADR-0058: Make schadensfresse a Bundesliga-subcompetition-typed primary](decisions/0058-make-schadensfresse-a-competition-typed-primary.md) — supersedes ADR-0054's schadensfresse copy topology and ADR-0055's scheduled schadensfresse context/copy pair, which is quarantined pending reviewed primary activation; P1-10 absorbs P1-08
+- [ADR-0058: Make schadensfresse a Bundesliga-subcompetition-typed primary](decisions/0058-make-schadensfresse-a-competition-typed-primary.md) — final target-primary architecture; P1-10 absorbs P1-08
 - [ADR-0059: Bind schadensfresse rules to a structured semantic record](decisions/0059-bind-schadensfresse-rules-to-a-structured-semantic-record.md) — narrowly supersedes ADR-0058's legacy normalized rules hash as the semantic publication/freshness gate; preserves it as historical evidence and makes the structured v1 record canonical
 - [ADR-0060: Separate generation provenance from current rules attestation](decisions/0060-separate-generation-manifest-from-current-rules-attestation.md) — keeps generation manifests immutable while a directly keyed, exact-publication binding may refresh unchanged authenticated rules evidence for zero-call, zero-mutation reuse
 - [ADR-0061: Preview, grill, and publish orchestration milestones](decisions/0061-preview-and-milestone-orchestration.md) — replaces the earlier fixed-capacity orchestration/Git rules with phase preview, fully grilled runnable milestones, semantic scope gates, resource admission, and production-safe milestone publication
+- [ADR-0062: Temporarily restore schadensfresse copy while completing P1-10 atomically](decisions/0062-temporarily-restore-schadensfresse-copy.md) — temporary eight-pair source-copy recovery through `2026-09-08T12:00:00Z`; preserves the final P1-10 implementation for an atomic PR

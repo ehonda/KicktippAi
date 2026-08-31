@@ -2,7 +2,10 @@
 
 - Status: Accepted execution strategy; P0 complete, P1 restarts under ADR-0061
 - Last updated: 2026-08-31
-- Implementation state: P0-01 through P0-25 are complete; the first P1 run left P1-10 in progress and quarantined the unsafe schadensfresse scheduled pair. The next P1 orchestration begins with phase preview and grilling rather than resuming its former slice loop.
+- Implementation state: P0-01 through P0-25 are complete. The failing P1-10
+  runtime is preserved for an atomic future PR; recovery `main` temporarily
+  restores the eight-pair source-copy lane under ADR-0062 through
+  `2026-09-08T12:00:00Z`.
 
 This document describes how to deliver the accepted P0 scope quickly while preserving the project owner's control over the few deliberately late production choices. Task files and accepted ADRs are the implementation contracts.
 
@@ -34,17 +37,13 @@ model follow-ups also remain outside P0.
 - Use `$grill-me` automatically for readiness defects. Finish the phase foundation first, then fully grill one task or cohesive milestone at a time; a timeboxed owner session may release the completed independent subgraph and defer the rest as `needs-interview`.
 - Give cross-cutting or high-risk architecture and independent specification review to different `gpt-5.6-sol` / `xhigh` agents. Recall the architecture lead when a semantic scope-growth trigger invalidates a frozen seam.
 - Treat P0-15 context hygiene and P0-16 bonus-context budgeting as launch work. Other P1 tasks do not delay go-live.
-- Apply ADR-0058's immediate quarantine before other P1-10 implementation:
-  remove both scheduled schadensfresse jobs and reconnect relaxdays directly
-  after `pes-squad-matchday`. Preserve the resulting seven-pair serial
-  topology, exact ADR-0053 cadence/concurrency/failure/no-bonus/rollback
-  contract, and manual-only leaves until reviewed primary activation.
-
-The next P1 preview treats restoration of the typed Schadensfresse scheduled
-context and matchday path by 2026-09-04 as an operational target. Manual copy
-is an Owner-operated last resort, not autonomous orchestration authority. The
-three Champions League bonus questions retain the separate
-`2026-09-08T16:45:00Z` deadline.
+- Apply [ADR-0062](decisions/0062-temporarily-restore-schadensfresse-copy.md)'s
+  temporary recovery: restore target-owned Schadensfresse context and its
+  `pes-squad` source-compatible copy match after `pes-squad-matchday`, then
+  make relaxdays depend on it. Preserve the eight-pair serial topology, exact
+  ADR-0053 cadence/concurrency/failure/no-bonus/rollback contract, and
+  manual-only leaves. The route expires at `2026-09-08T12:00:00Z`; no manual
+  copy contingency or primary activation follows from it.
 
 ## Execution waves
 
@@ -66,7 +65,7 @@ DFB/CL prompt routes remain fail closed until immutable promotion. Club Elo
 network reuse remains independently Owner-gated P1 work and the dated-seed path
 remains launch-safe.
 
-## P1-10 current safety boundary — 2026-08-30
+## P1-10 recovery safety boundary — 2026-08-31
 
 Authenticated read-only evidence invalidated schadensfresse's copy premise:
 match scoring is now `2/3/5` for wins and `3/-/5` for draws, bonus answers score
@@ -74,13 +73,16 @@ nine points, and three open CL questions are due
 `2026-09-08T16:45:00Z`. [ADR-0058](decisions/0058-make-schadensfresse-a-competition-typed-primary.md)
 makes P1-10 the sole primary-routing owner and supersedes P1-08.
 
-Before the next nominal `2026-08-30T09:07:00Z` outer occurrence, the repository
-schedule must delete `schadensfresse-context` and `schadensfresse-matchday` and
-set `relaxdays-tippt-context.needs: pes-squad-matchday`. Every other outer-lane
-contract remains unchanged. This fail-safe authorization removes execution
-only; it does not dispatch, cancel a run, call a model, replace/delete a
-prediction, POST, mutate Firestore/Langfuse, promote a prompt, or change a
-credential.
+The failing head `71637cc154cfdcbe2436069470b5e04b0d4f753d` has green
+Build-and-Test run `33340578338`, but production-live runs `33350964121` and
+`33377913801` fail on the `pes-squad` ordinary blank typed-fixture validation
+before model/post work. ADR-0062 restores the eight-pair/16-job copy lane from
+the `3a2ba35529b262327a3ec08e6bde47b186c8e5b2` runtime baseline, retaining
+P1-09/P1-12. It uses target context, `pes-squad` source context, target
+credentials, zero expected copy model calls, and fail-closed compatibility.
+The resulting checked-in recovery grants no dispatch, cancellation, model call,
+replacement/delete, POST, Firestore/Langfuse mutation, prompt promotion, or
+credential change.
 
 DFB/CL implementation uses ADR-0058's Accepted rules-only profiles: exact typed
 fixture/question inputs plus only the hash-bound target rules document, with a
@@ -196,7 +198,7 @@ The repository currently builds/tests PRs and pushes to `main`; native auto-merg
 | Git and isolation | ADR-0061 production-safe direct-main/PR integration; mandatory integration branch for temporary production regression; reusable worktrees for simultaneous writers; bounded routine draft-PR lifecycle autonomous |
 | Capacity | Admit at most two linked task worktrees and use a separate heavy-operation lease; the checked-in resource policy and live snapshot may reduce concurrency before any new worktree or heavy operation |
 | Communities | Dev: `ehonda-dev-buli-2627`; production: `pes-squad`, `schadensfresse`, `relaxdays-tippt`, `ehonda-ai-arena` |
-| Prediction topology | Independent primary `pes-squad`; relaxdays and arena Sol/xhigh copy `pes-squad`; four arena challengers are independent; schadensfresse is quarantined from recurring execution while P1-10 implements one target-owned primary for Bundesliga/DFB/CL match and bonus work |
+| Prediction topology | Independent primary `pes-squad`; relaxdays and arena Sol/xhigh copy `pes-squad`; four arena challengers are independent; recovery `main` temporarily uses target-context Schadensfresse copy from `pes-squad` in the eight-pair lane, while P1-10's target-primary route remains PR-only |
 | Rosters | DuckDB primary per valid 2026/27 club; complete one-time fallback seed; last-known-good on invalid data; `N/A` enrichment gaps |
 | Launch roster publication | ADR-0050 v2 adds one final known-value subtotal row per team; ADR-0051's paired explicit overlay preserves authoritative seed/LKG membership, adds supplemental fields only by exact stable ID, and gates the strictly reconstructed final payload at 18 teams / 18 derived rows / 464 ages / 464 positions / 450 values before write. ADR-0052 prepares a false-by-default workflow input enabled for pes/relaxdays/schadens before normal profile collection; arena preserves its verified enriched head; recurring automation stays P1-05 |
 | Prompts | Accepted hosted match v3 and bonus v1, with required `production` membership for live routes; historical P0-23 remains on v2; checked-in local mirrors remain the ordinary outage fallback |
@@ -206,7 +208,7 @@ The repository currently builds/tests PRs and pushes to `main`; native auto-merg
 | Club Elo | Implement provider/cache/gates now; a complete dated seed is launch-safe; network use remains an owner gate |
 | Production identity | `gpt-5.6-sol` / `xhigh` / cap `10000`, Flex-first with Standard fallback; USD 35 is planning orientation only |
 | Arena challengers | Sol/high, Luna/medium, Terra/xhigh, Luna/none; cap `10000`, match v3 / bonus v1 |
-| Activation | Every leaf caller remains manual-only; ADR-0058 quarantines the scheduled schadensfresse context/copy pair, leaving seven pairs/14 jobs at `7 2,9 * * *` until separately reviewed primary activation; historical natural observation `33143114280` closed P0-21 |
+| Activation | Every leaf caller remains manual-only; ADR-0062 temporarily restores the scheduled Schadensfresse context/copy pair, giving eight pairs/16 jobs at `7 2,9 * * *` through `2026-09-08T12:00:00Z`; historical natural observation `33143114280` closed P0-21 |
 
 ## Prerequisite state
 
@@ -233,8 +235,8 @@ These are not ambiguities agents may decide on their own:
 |---|---|---|
 | Final production model, reasoning, output cap, service/fallback policy, arena challengers, and planning ceiling | Resolved by ADR-0052 on 2026-08-27 | Configuration is live and its first natural scheduled verification is green |
 | Whether Club Elo terms permit unattended network refresh, or which permitted alternative to use | P1-04 after launch | Continue the accepted dated seed and last-known-good behavior until resolved |
-| Exact production schedules, spacing, rollback trigger, and activation | ADR-0053/0055 remain historical launch decisions; ADR-0058 immediately quarantines the schadensfresse pair while preserving every unaffected schedule contract | Run the seven safe pairs only; schadensfresse primary reactivation needs separate review and manual evidence |
-| `schadensfresse` primary routing | P1-10 before the corrected `2026-09-08T16:45:00Z` CL bonus deadline and later cup finals; P1-08 is superseded | Implement typed identities plus Accepted rules-only DFB/CL profiles while schadensfresse remains absent from recurring execution |
+| Exact production schedules, spacing, rollback trigger, and activation | ADR-0062 temporarily restores ADR-0054/0055's eight-pair copy lane while preserving ADR-0053's operating contract | Observe the recovered natural lane; final P1-10 primary activation remains separately reviewed and owner-controlled |
+| `schadensfresse` primary routing | P1-10 atomic PR must replace/terminate temporary copy mode by `2026-09-08T12:00:00Z`; P1-08 is superseded | Implement typed identities and Accepted rules-only DFB/CL profiles on the future PR; do not treat recovery copy as primary activation |
 
 ADR-0052 settled final model selection from the completed experiments and
 whole-season estimates. New-season outcomes did not exist at selection time,
@@ -250,13 +252,12 @@ milestones in the resulting tracked P1 execution plan; leave the remaining
 frontier explicitly `needs-interview` and allow the runnable subgraph to proceed
 overnight.
 
-Apply ADR-0058's schadensfresse quarantine while preserving
-ADR-0053/0055's unaffected outer-lane and manual-only contracts; do not infer
-bonus or mixed-competition schedule authority. The restarted preview must make
-restoration of typed scheduled schadensfresse context plus matchday execution
-by `2026-09-04` its first deadline gate, because the current quarantine removed
-the automatic copy path as well. The Owner may perform the copies manually as
-a last resort. P1-10 continues to own every `schadensfresse`
-Bundesliga/DFB/CL match and bonus route, fully absorbs P1-08, and retains the
-separate `2026-09-08T16:45:00Z` CL bonus deadline. P1-04 owns any unattended
-Club Elo network refresh decision.
+Apply ADR-0062's temporary recovery while preserving ADR-0053's outer-lane and
+manual-only contracts; do not infer bonus or mixed-competition schedule
+authority. The frozen [P1 recovery execution packet](p1-execution-packet.md)
+and [P1-10 production recovery design](designs/p1-10-production-recovery-and-atomic-delivery.md)
+require an atomic P1-10 PR to replace or terminate copy mode by
+`2026-09-08T12:00:00Z`. P1-10 continues to own every `schadensfresse`
+Bundesliga/DFB/CL match and bonus route, fully absorbs P1-08, and retains later
+owner-controlled prompt/replacement/cost/force/cutoff/activation gates. P1-04
+owns any unattended Club Elo network refresh decision.
