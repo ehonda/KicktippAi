@@ -400,6 +400,7 @@ public sealed class FirebaseBundesligaTypedPredictionAuthorityRepository
         var data = row.ToDictionary();
         var provenance = DeserializeProvenance(data);
         ValidateProvenance(request, provenance, index, envelope.PredictionCollection);
+        ValidatePredictionRowProvenance(data, provenance);
         if (!string.Equals(
                 ReadString(head.ToDictionary(), "currentPredictionIdentity"),
                 provenance.PredictionIdentity,
@@ -458,6 +459,23 @@ public sealed class FirebaseBundesligaTypedPredictionAuthorityRepository
         {
             throw new InvalidDataException(
                 "Typed provenance reprediction index or physical namespace does not match the addressed row.");
+        }
+    }
+
+    private static void ValidatePredictionRowProvenance(
+        IReadOnlyDictionary<string, object> data,
+        PredictionGenerationProvenanceV2 provenance)
+    {
+        if (!string.Equals(
+                ReadString(data, "predictionIdentity"),
+                provenance.PredictionIdentity,
+                StringComparison.Ordinal)
+            || !data.TryGetValue("createdAt", out var rawCreatedAt)
+            || rawCreatedAt is not Timestamp createdAt
+            || Instant.FromDateTimeOffset(createdAt.ToDateTimeOffset()) != provenance.GenerationTime)
+        {
+            throw new InvalidDataException(
+                "Typed prediction row identity or creation time contradicts its canonical provenance.");
         }
     }
 

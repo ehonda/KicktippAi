@@ -425,6 +425,80 @@ public sealed class FirebaseBundesligaTypedPredictionAuthorityRepositoryTests(Fi
     }
 
     [Test]
+    public async Task Current_reads_and_repredictions_reject_independent_row_identity_and_time_drift_without_writing()
+    {
+        var repository = CreateRepository();
+
+        async Task AssertMatchRejectedAsync(string field)
+        {
+            var scenario = field == "predictionIdentity" ? "identity" : "time";
+            var current = FirebaseBundesligaTypedPredictionContractTestData.MatchCurrent($"current-match-{scenario}");
+            await repository.SaveCurrentTypedMatchPredictionAsync(
+                current, new Prediction(1, 0),
+                FirebaseBundesligaTypedPredictionContractTestData.MatchProvenance(current));
+            var fingerprint = repository.CurrentFingerprint(current);
+            var collection = fixture.Db.Collection(FirebaseBundesligaTypedPredictionCollections.MatchPredictions);
+            var row = collection.Document($"{fingerprint}-r0");
+            if (field == "predictionIdentity")
+            {
+                await row.UpdateAsync(field, "independently-drifted-match-row");
+            }
+            else
+            {
+                await row.UpdateAsync(field, Timestamp.FromDateTimeOffset(
+                    new DateTimeOffset(2026, 9, 1, 0, 0, 0, TimeSpan.Zero)));
+            }
+
+            await Assert.That(async () => await repository.GetCurrentTypedMatchPredictionAsync(current))
+                .Throws<InvalidDataException>();
+            await Assert.That(async () => await repository.SaveCurrentTypedMatchRepredictionAsync(
+                    current, new Prediction(2, 0),
+                    FirebaseBundesligaTypedPredictionContractTestData.MatchProvenance(current, 1),
+                    0, 2))
+                .Throws<InvalidDataException>();
+            await Assert.That((await collection.Document($"{fingerprint}-r1").GetSnapshotAsync()).Exists)
+                .IsFalse();
+        }
+
+        async Task AssertBonusRejectedAsync(string field)
+        {
+            var scenario = field == "predictionIdentity" ? "identity" : "time";
+            var current = FirebaseBundesligaTypedPredictionContractTestData.BonusCurrent($"current-bonus-{scenario}");
+            await repository.SaveCurrentTypedBonusPredictionAsync(
+                current, new BonusPrediction(["a"]),
+                FirebaseBundesligaTypedPredictionContractTestData.BonusProvenance(current));
+            var fingerprint = repository.CurrentFingerprint(current);
+            var collection = fixture.Db.Collection(FirebaseBundesligaTypedPredictionCollections.BonusPredictions);
+            var row = collection.Document($"{fingerprint}-r0");
+            if (field == "predictionIdentity")
+            {
+                await row.UpdateAsync(field, "independently-drifted-bonus-row");
+            }
+            else
+            {
+                await row.UpdateAsync(field, Timestamp.FromDateTimeOffset(
+                    new DateTimeOffset(2026, 9, 1, 0, 0, 0, TimeSpan.Zero)));
+            }
+
+            await Assert.That(async () => await repository.GetCurrentTypedBonusPredictionAsync(current))
+                .Throws<InvalidDataException>();
+            await Assert.That(async () => await repository.SaveCurrentTypedBonusRepredictionAsync(
+                    current, new BonusPrediction(["b"]),
+                    FirebaseBundesligaTypedPredictionContractTestData.BonusProvenance(current, 1),
+                    0, 2))
+                .Throws<InvalidDataException>();
+            await Assert.That((await collection.Document($"{fingerprint}-r1").GetSnapshotAsync()).Exists)
+                .IsFalse();
+        }
+
+        foreach (var field in new[] { "predictionIdentity", "createdAt" })
+        {
+            await AssertMatchRejectedAsync(field);
+            await AssertBonusRejectedAsync(field);
+        }
+    }
+
+    [Test]
     public async Task Initial_and_reprediction_persist_factory_defensive_match_and_bonus_payloads()
     {
         var repository = CreateRepository();
