@@ -44,7 +44,7 @@ public class FirebasePredictionRepository_MatchPrediction_Tests(FirestoreFixture
     {
         // Arrange
         var repository = CreateRepository(competition: Option.Some(CompetitionIds.Bundesliga2026_27));
-        var match = CreateMatch(homeTeam: "FC Bayern München", awayTeam: "Borussia Dortmund", matchday: 1);
+        var match = CreateMatch();
         var prediction = CreatePrediction(homeGoals: 2, awayGoals: 1);
         var config = PredictionModelConfig.Create("gpt-5.6");
         var manifest = ResolvedMatchContextManifest.Create(
@@ -82,14 +82,7 @@ public class FirebasePredictionRepository_MatchPrediction_Tests(FirestoreFixture
         await Assert.That(metadata!.Prediction).IsEqualTo(prediction);
         await Assert.That(metadata.ContextDocumentNames)
             .IsEquivalentTo(manifest.Documents.Select(document => document.Name));
-        await Assert.That(metadata.ResolvedContextManifest).IsNotNull();
-        await Assert.That(metadata.ResolvedContextManifest!.Competition).IsEqualTo(manifest.Competition);
-        await Assert.That(metadata.ResolvedContextManifest.CommunityContext).IsEqualTo(manifest.CommunityContext);
-        await Assert.That(metadata.ResolvedContextManifest.RosterPublicationSnapshotId)
-            .IsEqualTo(manifest.RosterPublicationSnapshotId);
-        await Assert.That(metadata.ResolvedContextManifest.ClubEloPublicationSnapshotId)
-            .IsEqualTo(manifest.ClubEloPublicationSnapshotId);
-        await Assert.That(metadata.ResolvedContextManifest.Documents).IsEquivalentTo(manifest.Documents);
+        await Assert.That(metadata.ResolvedContextManifest).IsEqualTo(manifest);
     }
 
     [Test]
