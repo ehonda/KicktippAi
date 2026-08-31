@@ -174,8 +174,12 @@ public sealed class BundesligaTypedKicktippClient : IBundesligaTypedKicktippClie
         var submissions = predictions.Predictions.ToDictionary(
             item => item.Snapshot.Key.KicktippItemId, StringComparer.Ordinal);
         var expectedPostState = new Dictionary<string, ImmutableArray<string>>(StringComparer.Ordinal);
+        var expectedMixedMatchState = CaptureExactMixedMatchControlState(loaded.Form);
         var formData = CopyExactHiddenInputs(loaded.Form);
-        CopyExactMatchValuesForBonusForm(loaded.Form, formData);
+        foreach (var control in expectedMixedMatchState)
+        {
+            AddExactFormValue(formData, control.Key, control.Value);
+        }
         foreach (var row in loaded.Rows)
         {
             var existing = ParseExactBonusSelection(row);
@@ -221,8 +225,16 @@ public sealed class BundesligaTypedKicktippClient : IBundesligaTypedKicktippClie
                 authority.PostingCommunity, loaded.Form, formData, cancellationToken);
         }
 
-        var readback = await GetTypedPlacedBonusPredictionsAsync(
-            authority, predictions.Scope, cancellationToken);
+        var readbackInventory = await LoadTypedBonusInventoryAsync(
+            authority,
+            predictions.Scope.Items.Select(item => item.SourceIdentity).ToArray(),
+            cancellationToken);
+        RequireExpectedBonusSnapshots(predictions.Scope, readbackInventory.Rows);
+        RequireExactMixedMatchPostState(
+            expectedMixedMatchState,
+            CaptureExactMixedMatchControlState(readbackInventory.Form));
+        var readback = readbackInventory.Rows.Select(row => new BundesligaTypedPlacedBonusPrediction(
+            row.Snapshot, ParseExactBonusSelection(row))).ToImmutableArray();
         foreach (var expected in expectedPostState)
         {
             var matches = readback.Where(item =>
@@ -743,14 +755,80 @@ public sealed class BundesligaTypedKicktippClient : IBundesligaTypedKicktippClie
         return result;
     }
 
-    private static void CopyExactMatchValuesForBonusForm(
-        IHtmlFormElement form,
-        ICollection<KeyValuePair<string, string>> formData)
+    private static ImmutableSortedDictionary<string, string> CaptureExactMixedMatchControlState(
+        IHtmlFormElement form)
     {
-        foreach (var input in form.QuerySelectorAll("#tippabgabeSpiele input[type='text'], #tippabgabeSpiele input[type='number']")
-                     .OfType<IHtmlInputElement>())
+        var tables = form.QuerySelectorAll("#tippabgabeSpiele").ToArray();
+        if (tables.Length > 1)
         {
-            AddExactFormValue(formData, input.Name, input.Value ?? string.Empty);
+            throw new KicktippTypedAuthorityException(
+                "Typed bonus form has multiple mixed match-control tables.");
+        }
+        if (tables.Length == 0)
+        {
+            return ImmutableSortedDictionary<string, string>.Empty.WithComparers(StringComparer.Ordinal);
+        }
+
+        var state = ImmutableSortedDictionary.CreateBuilder<string, string>(StringComparer.Ordinal);
+        var fixtureFields = new Dictionary<string, HashSet<string>>(StringComparer.Ordinal);
+        foreach (var input in tables[0].QuerySelectorAll("input").OfType<IHtmlInputElement>())
+        {
+            var name = input.Name ?? string.Empty;
+            var match = Regex.Match(
+                name,
+                @"^spieltippForms\[(?<id>[^\]]+)\]\.(?<field>heimTipp|gastTipp)$",
+                RegexOptions.CultureInvariant);
+            var isPredictionControl = string.Equals(input.Type, "text", StringComparison.OrdinalIgnoreCase)
+                || string.Equals(input.Type, "number", StringComparison.OrdinalIgnoreCase);
+            if (!match.Success)
+            {
+                if (isPredictionControl)
+                {
+                    throw new KicktippTypedAuthorityException(
+                        "Typed bonus form has a renamed or non-exact mixed match control.");
+                }
+                continue;
+            }
+            if (!isPredictionControl || state.ContainsKey(name))
+            {
+                throw new KicktippTypedAuthorityException(
+                    "Typed bonus form has a duplicate or malformed mixed match control.");
+            }
+            state.Add(name, input.Value ?? string.Empty);
+
+            var id = match.Groups["id"].Value;
+            var field = match.Groups["field"].Value;
+            if (!fixtureFields.TryGetValue(id, out var fields))
+            {
+                fields = new HashSet<string>(StringComparer.Ordinal);
+                fixtureFields.Add(id, fields);
+            }
+            if (!fields.Add(field))
+            {
+                throw new KicktippTypedAuthorityException(
+                    $"Typed bonus form repeats mixed match control '{name}'.");
+            }
+        }
+
+        if (fixtureFields.Values.Any(fields =>
+                fields.Count != 2 || !fields.Contains("heimTipp") || !fields.Contains("gastTipp")))
+        {
+            throw new KicktippTypedAuthorityException(
+                "Typed bonus form has an incomplete mixed match-control pair.");
+        }
+        return state.ToImmutable();
+    }
+
+    private static void RequireExactMixedMatchPostState(
+        IReadOnlyDictionary<string, string> expected,
+        IReadOnlyDictionary<string, string> actual)
+    {
+        if (actual.Count != expected.Count || expected.Any(item =>
+                !actual.TryGetValue(item.Key, out var value)
+                || !string.Equals(value, item.Value, StringComparison.Ordinal)))
+        {
+            throw new KicktippTypedAuthorityException(
+                "Typed bonus readback changed the exact mixed match-control set or values.");
         }
     }
 

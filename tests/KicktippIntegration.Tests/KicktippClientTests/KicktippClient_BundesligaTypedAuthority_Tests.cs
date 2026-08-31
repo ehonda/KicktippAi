@@ -242,6 +242,53 @@ public class KicktippClient_BundesligaTypedAuthority_Tests : KicktippClientTests
     }
 
     [Test]
+    [Arguments("readback-mixed-match-missing")]
+    [Arguments("readback-mixed-match-extra")]
+    [Arguments("readback-mixed-match-duplicate")]
+    [Arguments("readback-mixed-match-renamed")]
+    [Arguments("readback-mixed-match-changed")]
+    public async Task Typed_bonus_POST_rejects_post_only_mixed_match_control_drift(string mutation)
+    {
+        var handler = BonusHandler(mutation, statefulPost: true);
+        var client = CreateTypedClient(handler);
+        var snapshots = await client.GetTypedOpenBonusSnapshotsAsync(Authority(), BonusInventory());
+        var batch = BundesligaTypedBonusPlacementBatch.Create(
+            BonusRead(snapshots),
+            [BundesligaTypedBonusSubmission.Create(snapshots[1], ["c", "d"])]);
+
+        await Assert.That(async () => await client.PlaceTypedBonusPredictionsAsync(
+                Authority(), batch, overrideExisting: true))
+            .Throws<KicktippTypedAuthorityException>();
+        await Assert.That(handler.Requests.Count(request => request.Method == HttpMethod.Post)).IsEqualTo(1);
+
+        var unchangedBonuses = await client.GetTypedPlacedBonusPredictionsAsync(
+            Authority(), BonusRead(snapshots));
+        await Assert.That(unchangedBonuses.Single(item => item.Snapshot.Key.KicktippItemId == "201")
+            .SelectedOptionIds).IsEquivalentTo(["a"]);
+        await Assert.That(unchangedBonuses.Single(item => item.Snapshot.Key.KicktippItemId == "202")
+            .SelectedOptionIds).IsEquivalentTo(["c", "d"]);
+    }
+
+    [Test]
+    [Arguments("mixed-match-missing")]
+    [Arguments("mixed-match-duplicate")]
+    [Arguments("mixed-match-renamed")]
+    public async Task Typed_bonus_POST_rejects_malformed_mixed_match_controls_before_POST(string mutation)
+    {
+        var handler = BonusHandler(mutation, statefulPost: true);
+        var client = CreateTypedClient(handler);
+        var snapshots = await client.GetTypedOpenBonusSnapshotsAsync(Authority(), BonusInventory());
+        var batch = BundesligaTypedBonusPlacementBatch.Create(
+            BonusRead(snapshots),
+            [BundesligaTypedBonusSubmission.Create(snapshots[1], ["c", "d"])]);
+
+        await Assert.That(async () => await client.PlaceTypedBonusPredictionsAsync(
+                Authority(), batch, overrideExisting: true))
+            .Throws<KicktippTypedAuthorityException>();
+        await Assert.That(handler.Requests.Any(request => request.Method == HttpMethod.Post)).IsFalse();
+    }
+
+    [Test]
     public async Task Typed_contracts_defensively_copy_scopes_and_bonus_selections()
     {
         var identities = new List<BundesligaTypedBonusSourceIdentity>
@@ -567,13 +614,40 @@ public class KicktippClient_BundesligaTypedAuthority_Tests : KicktippClientTests
             rows.Append(BonusRow("999", "Extra", "30.08.26 13:00",
                 $"<select name=\"fragetippForms[999].antwortIds[0]\">{Options(("x", "Extra"), selected: null)}</select>"));
         }
+        var mixedMatchControls = mutation switch
+        {
+            "mixed-match-missing" or "readback-mixed-match-missing" =>
+                "<input name=\"spieltippForms[501].heimTipp\" type=\"text\" value=\"4\" />",
+            "readback-mixed-match-extra" => """
+                <input name="spieltippForms[501].heimTipp" type="text" value="4" />
+                <input name="spieltippForms[501].gastTipp" type="text" value="2" />
+                <input name="spieltippForms[502].heimTipp" type="text" value="1" />
+                <input name="spieltippForms[502].gastTipp" type="text" value="0" />
+                """,
+            "mixed-match-duplicate" or "readback-mixed-match-duplicate" => """
+                <input name="spieltippForms[501].heimTipp" type="text" value="4" />
+                <input name="spieltippForms[501].heimTipp" type="text" value="4" />
+                <input name="spieltippForms[501].gastTipp" type="text" value="2" />
+                """,
+            "mixed-match-renamed" or "readback-mixed-match-renamed" => """
+                <input name="spieltippForms[501].homeTipp" type="text" value="4" />
+                <input name="spieltippForms[501].gastTipp" type="text" value="2" />
+                """,
+            "readback-mixed-match-changed" => """
+                <input name="spieltippForms[501].heimTipp" type="text" value="5" />
+                <input name="spieltippForms[501].gastTipp" type="text" value="2" />
+                """,
+            _ => """
+                <input name="spieltippForms[501].heimTipp" type="text" value="4" />
+                <input name="spieltippForms[501].gastTipp" type="text" value="2" />
+                """
+        };
         return $"""
             <html><body><form action="/{Community}/tippabgabe" method="post">
             <input type="hidden" name="bonus" value="true" />
             <table id="tippabgabeSpiele"><tbody>
             <tr><td>30.08.26 14:00</td><td>Mixed A</td><td>Mixed B</td><td>
-            <input name="spieltippForms[501].heimTipp" type="text" value="4" />
-            <input name="spieltippForms[501].gastTipp" type="text" value="2" />
+            {mixedMatchControls}
             </td></tr></tbody></table>
             <table id="tippabgabeFragen"><tbody>{rows}</tbody></table>
             <button type="submit" name="submitbutton" value="save">save</button>
