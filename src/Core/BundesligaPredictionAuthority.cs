@@ -172,6 +172,8 @@ public sealed record BundesligaPredictionRouteContract
         BundesligaSeasonSubcompetition subcompetition)
     {
         BundesligaPredictionContractValidation.Identifier(routeId, nameof(routeId));
+        BundesligaPredictionContractValidation.EnumValue(itemKind, nameof(itemKind));
+        BundesligaPredictionContractValidation.EnumValue(subcompetition, nameof(subcompetition));
         RouteId = routeId;
         ItemKind = itemKind;
         Subcompetition = subcompetition;
@@ -190,7 +192,7 @@ public sealed class BundesligaPredictionRouteCatalog
     {
         ArgumentNullException.ThrowIfNull(contracts);
         var materialized = contracts.ToArray();
-        if (materialized.Length == 0)
+        if (materialized.Length == 0 || materialized.Any(contract => contract is null))
         {
             throw new InvalidDataException("At least one explicit prediction route contract is required.");
         }
@@ -211,6 +213,9 @@ public sealed class BundesligaPredictionRouteCatalog
         BundesligaPredictionItemKind itemKind,
         BundesligaSeasonSubcompetition subcompetition)
     {
+        BundesligaPredictionContractValidation.Identifier(routeId, nameof(routeId));
+        BundesligaPredictionContractValidation.EnumValue(itemKind, nameof(itemKind));
+        BundesligaPredictionContractValidation.EnumValue(subcompetition, nameof(subcompetition));
         if (!_contracts.TryGetValue(routeId, out var contract)
             || contract.ItemKind != itemKind
             || contract.Subcompetition != subcompetition)
@@ -225,6 +230,15 @@ public sealed class BundesligaPredictionRouteCatalog
 
 internal static class BundesligaPredictionContractValidation
 {
+    public static void EnumValue<TEnum>(TEnum value, string parameterName)
+        where TEnum : struct, Enum
+    {
+        if (!Enum.IsDefined(value))
+        {
+            throw new ArgumentOutOfRangeException(parameterName, value, $"Unknown {typeof(TEnum).Name} value.");
+        }
+    }
+
     public static void Generation(int value, string parameterName)
     {
         if (value < 1)

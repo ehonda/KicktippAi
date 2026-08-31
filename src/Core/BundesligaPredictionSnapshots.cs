@@ -34,6 +34,7 @@ public sealed record StableLocalItemKey
         }
 
         BundesligaPredictionContractValidation.Community(postingCommunity, nameof(postingCommunity));
+        BundesligaPredictionContractValidation.EnumValue(itemKind, nameof(itemKind));
         BundesligaPredictionContractValidation.Identifier(kicktippItemId, nameof(kicktippItemId));
         return new StableLocalItemKey(seasonPartition, postingCommunity, itemKind, kicktippItemId);
     }
@@ -175,6 +176,8 @@ public sealed class TypedMatchSnapshot : IEquatable<TypedMatchSnapshot>
     {
         ArgumentNullException.ThrowIfNull(key);
         ArgumentNullException.ThrowIfNull(scheduledInstant);
+        BundesligaPredictionContractValidation.EnumValue(subcompetition, nameof(subcompetition));
+        BundesligaPredictionContractValidation.EnumValue(resultBasis, nameof(resultBasis));
         if (key.ItemKind != BundesligaPredictionItemKind.Match
             || !string.Equals(key.KicktippItemId, scheduledInstant.KicktippFixtureId, StringComparison.Ordinal))
         {
@@ -273,6 +276,7 @@ public sealed class TypedBonusSnapshot : IEquatable<TypedBonusSnapshot>
     {
         ArgumentNullException.ThrowIfNull(key);
         ArgumentNullException.ThrowIfNull(options);
+        BundesligaPredictionContractValidation.EnumValue(subcompetition, nameof(subcompetition));
         if (key.ItemKind != BundesligaPredictionItemKind.Bonus)
         {
             throw new InvalidDataException("Bonus snapshot requires a bonus Stable Local Item Key.");

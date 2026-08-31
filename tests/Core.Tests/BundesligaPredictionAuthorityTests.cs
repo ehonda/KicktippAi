@@ -5,6 +5,32 @@ namespace Core.Tests;
 public class BundesligaPredictionAuthorityTests
 {
     [Test]
+    public async Task Every_public_domain_enum_rejects_undefined_values_at_its_factory_boundary()
+    {
+        await Assert.That(() => StableLocalItemKey.Create(
+            CompetitionIds.Bundesliga2026_27, "pes-squad",
+            (BundesligaPredictionItemKind)999, "42")).Throws<ArgumentOutOfRangeException>();
+        await Assert.That(() => new BundesligaPredictionRouteContract(
+            "route", BundesligaPredictionItemKind.Match,
+            (BundesligaSeasonSubcompetition)999)).Throws<ArgumentOutOfRangeException>();
+
+        var resolved = BundesligaScheduledInstantResolver.Resolve(
+            new BundesligaFixtureScheduleEvidence("42", false, BundesligaPredictionContractTestData.MatchTime),
+            [new BundesligaFixtureDetailScheduleEvidence("42", BundesligaPredictionContractTestData.MatchTime)]);
+        await Assert.That(() => TypedMatchSnapshot.Create(
+            BundesligaPredictionContractTestData.MatchKey(),
+            BundesligaSeasonSubcompetition.Bundesliga, "round", (ResultBasis)999,
+            "home", "away", 1, resolved)).Throws<ArgumentOutOfRangeException>();
+        await Assert.That(() => PredictionPromptProvenanceV2.Create(
+            (PredictionPromptSourceV2)999, BundesligaPredictionContractTestData.MatchPrompt, 3,
+            BundesligaPredictionContractTestData.ShaA, "production", true))
+            .Throws<ArgumentOutOfRangeException>();
+        await Assert.That(() => PredictionResultBasisIdentityV2.Create(
+            (ResultBasis)999, "basis", BundesligaPredictionContractTestData.ShaA))
+            .Throws<ArgumentOutOfRangeException>();
+    }
+
+    [Test]
     public async Task Direct_and_copy_authority_require_exact_fixed_scope_and_complete_references()
     {
         var direct = BundesligaPredictionContractTestData.DirectAuthority();

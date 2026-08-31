@@ -11,11 +11,16 @@ public class BundesligaPredictionCopyBindingTests
         var posting = BundesligaPredictionContractTestData.Seed("relaxdays-tippt");
         var source = BundesligaPredictionContractTestData.Seed("pes-squad");
         var binding = BundesligaPredictionContractTestData.Binding(posting, source);
+        var reversed = BundesligaCopyBindingGeneration.Create(
+            binding.PostingCommunity, binding.SourceCommunity, binding.Generation, binding.Predecessor,
+            binding.SourceEvidenceIdentity, posting, source, binding.Entries.Reverse());
         var restored = BundesligaCopyBindingGeneration.DeserializeCanonical(
             binding.SerializeCanonical(), posting, source, BundesligaPredictionContractTestData.Routes());
 
         await Assert.That(restored.SerializeCanonical()).IsEquivalentTo(binding.SerializeCanonical());
         await Assert.That(binding.CanonicalSha256).IsEqualTo("da84af867d286ccdfbbae005c484c529c8f85f342d599563773dd1c5c2ab7397");
+        await Assert.That(reversed.SerializeCanonical()).IsEquivalentTo(binding.SerializeCanonical());
+        await Assert.That(reversed.CanonicalSha256).IsEqualTo(binding.CanonicalSha256);
         await Assert.That(restored.PostingSeed).IsEqualTo(posting.Reference);
         await Assert.That(restored.SourceSeed).IsEqualTo(source.Reference);
         await Assert.That(restored.RequirePostingItem(BundesligaPredictionContractTestData.BonusKey("relaxdays-tippt")).OptionProjection.Count)
@@ -40,6 +45,17 @@ public class BundesligaPredictionCopyBindingTests
         await Assert.That(() => BundesligaCopyBindingEntry.CreateMatch(
             "unknown-route", posting, BundesligaPredictionContractTestData.MatchKey("relaxdays-tippt"),
             source, BundesligaPredictionContractTestData.MatchKey("pes-squad"), routes))
+            .Throws<InvalidDataException>();
+
+        var aliasRoutes = new BundesligaPredictionRouteCatalog(
+        [
+            new BundesligaPredictionRouteContract(
+                "alias-match-route", BundesligaPredictionItemKind.Match,
+                BundesligaSeasonSubcompetition.Bundesliga)
+        ]);
+        await Assert.That(() => BundesligaCopyBindingEntry.CreateMatch(
+            "alias-match-route", posting, BundesligaPredictionContractTestData.MatchKey("relaxdays-tippt"),
+            source, BundesligaPredictionContractTestData.MatchKey("pes-squad"), aliasRoutes))
             .Throws<InvalidDataException>();
     }
 

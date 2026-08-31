@@ -187,6 +187,106 @@ internal static class BundesligaPredictionContractTestData
             MatchPrompt,
             3);
 
+    public static BundesligaGenerationInputContractReference GenerationInput(
+        string id = "synthetic-generation-input-v1",
+        string sha256 = ShaC) =>
+        BundesligaGenerationInputContractReference.Create(id, sha256);
+
+    public static BundesligaTypedCurrentIdentity CurrentIdentity(
+        string routeId = MatchRoute,
+        string profileId = "bundesliga-match-primary-v1",
+        BundesligaGenerationInputContractReference? generationInput = null) =>
+        BundesligaTypedCurrentIdentity.Create(routeId, profileId, generationInput ?? GenerationInput());
+
+    public static PredictionCopyCompatibilityContractV2 MatchCompatibilityContract(
+        string communityContext = "pes-squad",
+        string routeId = MatchRoute,
+        PredictionRulesIdentityV2? rules = null,
+        PredictionScoringIdentityV2? scoring = null,
+        PredictionResultBasisIdentityV2? resultBasis = null,
+        PredictionPromptProvenanceV2? prompt = null,
+        PredictionModelConfig? model = null,
+        PredictionCopyPolicyIdentityV2? policy = null) =>
+        PredictionCopyCompatibilityContractV2.CreateMatch(
+            communityContext,
+            routeId,
+            BundesligaSeasonSubcompetition.Bundesliga,
+            rules ?? PredictionRulesIdentityV2.Create("synthetic-rules-v1", ShaA),
+            scoring ?? PredictionScoringIdentityV2.Create("synthetic-scoring-v1", ShaB),
+            resultBasis ?? PredictionResultBasisIdentityV2.Create(
+                ResultBasis.RegularTime90Minutes, "regular-time-result-v1", ShaC),
+            prompt ?? Prompt(),
+            model ?? Model(),
+            policy ?? PredictionCopyPolicyIdentityV2.Create(
+                "synthetic-copy-policy-v1", ShaA, MatchRoute, MatchRoute,
+                communityContext, communityContext));
+
+    public static PredictionCopyCompatibilityContractV2 BonusCompatibilityContract(
+        string communityContext = "pes-squad",
+        PredictionRulesIdentityV2? rules = null,
+        PredictionScoringIdentityV2? scoring = null,
+        PredictionOptionMeaningIdentityV2? optionMeaning = null) =>
+        PredictionCopyCompatibilityContractV2.CreateBonus(
+            communityContext,
+            BonusRoute,
+            BundesligaSeasonSubcompetition.Bundesliga,
+            rules ?? PredictionRulesIdentityV2.Create("synthetic-rules-v1", ShaA),
+            scoring ?? PredictionScoringIdentityV2.Create("synthetic-scoring-v1", ShaB),
+            Prompt(),
+            Model(),
+            PredictionCopyPolicyIdentityV2.Create(
+                "synthetic-bonus-copy-policy-v1", ShaC, BonusRoute, BonusRoute,
+                communityContext, communityContext),
+            optionMeaning ?? PredictionOptionMeaningIdentityV2.Create("synthetic-option-meaning-v1", ShaA));
+
+    public static PredictionCopyCompatibilityV2Input<TypedMatchSnapshot> MatchCopyInput(
+        BundesligaIdentitySeedGeneration? postingSeed = null,
+        BundesligaIdentitySeedGeneration? sourceSeed = null,
+        BundesligaCopyBindingGeneration? binding = null,
+        PredictionCopyCompatibilityContractV2? targetContract = null,
+        PredictionCopyCompatibilityContractV2? sourceContract = null,
+        BundesligaPredictionAuthority? sourceAuthority = null)
+    {
+        postingSeed ??= Seed("relaxdays-tippt");
+        sourceSeed ??= Seed("pes-squad");
+        binding ??= Binding(postingSeed, sourceSeed);
+        var target = BundesligaTypedCurrentRequest<TypedMatchSnapshot>.Create(
+            CopyAuthority(postingSeed, sourceSeed, binding),
+            postingSeed.RequireEntry(MatchKey(postingSeed.PostingCommunity)).MatchSnapshot!,
+            Model(), CurrentIdentity(), Routes());
+        var source = BundesligaTypedCurrentRequest<TypedMatchSnapshot>.Create(
+            sourceAuthority ?? DirectAuthority(sourceSeed),
+            sourceSeed.RequireEntry(MatchKey(sourceSeed.PostingCommunity)).MatchSnapshot!,
+            Model(), CurrentIdentity(), Routes());
+        return PredictionCopyCompatibilityV2Input<TypedMatchSnapshot>.Create(
+            target, source, postingSeed, sourceSeed, binding,
+            binding.RequirePostingItem(MatchKey(postingSeed.PostingCommunity)),
+            targetContract ?? MatchCompatibilityContract(target.Authority.CommunityContext),
+            sourceContract ?? MatchCompatibilityContract(source.Authority.CommunityContext));
+    }
+
+    public static PredictionCopyCompatibilityV2Input<TypedBonusSnapshot> BonusCopyInput(
+        PredictionCopyCompatibilityContractV2? targetContract = null,
+        PredictionCopyCompatibilityContractV2? sourceContract = null)
+    {
+        var postingSeed = Seed("relaxdays-tippt");
+        var sourceSeed = Seed("pes-squad");
+        var binding = Binding(postingSeed, sourceSeed);
+        var target = BundesligaTypedCurrentRequest<TypedBonusSnapshot>.Create(
+            CopyAuthority(postingSeed, sourceSeed, binding),
+            postingSeed.RequireEntry(BonusKey(postingSeed.PostingCommunity)).BonusSnapshot!,
+            Model(), CurrentIdentity(BonusRoute, "bundesliga-bonus-primary-v1"), Routes());
+        var source = BundesligaTypedCurrentRequest<TypedBonusSnapshot>.Create(
+            DirectAuthority(sourceSeed),
+            sourceSeed.RequireEntry(BonusKey(sourceSeed.PostingCommunity)).BonusSnapshot!,
+            Model(), CurrentIdentity(BonusRoute, "bundesliga-bonus-primary-v1"), Routes());
+        return PredictionCopyCompatibilityV2Input<TypedBonusSnapshot>.Create(
+            target, source, postingSeed, sourceSeed, binding,
+            binding.RequirePostingItem(BonusKey(postingSeed.PostingCommunity)),
+            targetContract ?? BonusCompatibilityContract(target.Authority.CommunityContext),
+            sourceContract ?? BonusCompatibilityContract(source.Authority.CommunityContext));
+    }
+
     public static PredictionContextProvenanceV2 Context() =>
         PredictionContextProvenanceV2.Create(
             "context-manifest-v1",
@@ -209,6 +309,7 @@ internal static class BundesligaPredictionContractTestData
             snapshot.SnapshotHash,
             MatchRoute,
             "bundesliga-match-primary-v1",
+            GenerationInput(),
             null,
             Prompt(),
             Model(),
@@ -218,5 +319,31 @@ internal static class BundesligaPredictionContractTestData
             "prediction-42-r0",
             0,
             usage ?? new PredictionGenerationUsageV2(1200, 200, 0.01m));
+    }
+
+    public static PredictionGenerationProvenanceV2 CopyProvenance(
+        PredictionCopyCompatibilityV2Input<TypedMatchSnapshot> input)
+    {
+        var target = input.TargetCurrent;
+        var source = input.SourceCurrent;
+        return PredictionGenerationProvenanceV2.Create(
+            target.Authority,
+            "match-predictions-bundesliga-2026-27-typed-v1",
+            target.Snapshot.Key,
+            target.Snapshot.SnapshotHash,
+            source.Snapshot.Key,
+            source.Snapshot.SnapshotHash,
+            target.Identity.RouteId,
+            target.Identity.ProfileId,
+            target.Identity.GenerationInputContract,
+            "source-prediction-42",
+            Prompt(),
+            target.ModelConfig,
+            PredictionServiceTierProvenanceV2.Create("standard", "standard", false),
+            Context(),
+            Instant.FromUtc(2026, 8, 31, 12, 0),
+            "copied-prediction-42",
+            0,
+            new PredictionGenerationUsageV2(0, 0, 0));
     }
 }

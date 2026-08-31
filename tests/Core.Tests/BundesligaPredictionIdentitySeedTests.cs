@@ -9,10 +9,15 @@ public class BundesligaPredictionIdentitySeedTests
     public async Task Canonical_seed_round_trips_and_is_independent_of_input_order()
     {
         var seed = BundesligaPredictionContractTestData.Seed();
+        var reversed = BundesligaIdentitySeedGeneration.Create(
+            seed.PostingCommunity, seed.Generation, seed.Predecessor, seed.SourceEvidenceIdentity,
+            seed.Entries.Reverse(), BundesligaPredictionContractTestData.Routes());
         var restored = BundesligaIdentitySeedGeneration.DeserializeCanonical(seed.SerializeCanonical(), BundesligaPredictionContractTestData.Routes());
 
         await Assert.That(restored.SerializeCanonical()).IsEquivalentTo(seed.SerializeCanonical());
         await Assert.That(restored.CanonicalSha256).IsEqualTo(seed.CanonicalSha256);
+        await Assert.That(reversed.SerializeCanonical()).IsEquivalentTo(seed.SerializeCanonical());
+        await Assert.That(reversed.CanonicalSha256).IsEqualTo(seed.CanonicalSha256);
         await Assert.That(seed.CanonicalSha256).IsEqualTo("78850c80996acccb10d7ccde1da750ea5ad939595b960174fc67eadc2fb6fc66");
         await Assert.That(seed.Entries.Select(entry => entry.Key.ItemKind).ToArray())
             .IsEquivalentTo([BundesligaPredictionItemKind.Bonus, BundesligaPredictionItemKind.Match]);

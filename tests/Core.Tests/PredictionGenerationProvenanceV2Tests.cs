@@ -14,7 +14,7 @@ public class PredictionGenerationProvenanceV2Tests
 
         await Assert.That(restored.SerializeCanonical()).IsEquivalentTo(provenance.SerializeCanonical());
         await Assert.That(restored.CanonicalSha256).IsEqualTo(provenance.CanonicalSha256);
-        await Assert.That(provenance.CanonicalSha256).IsEqualTo("bdcf9ad505816ae2aba0af20c6c85b45bc6a42c47d42407e34851b3eff1002ce");
+        await Assert.That(provenance.CanonicalSha256).IsEqualTo("a66a236f78a0991f2ce3018171b976bbfc95397d09794773d89db00b58dffdcc");
         await Assert.That(restored.Authority.Mode).IsEqualTo(BundesligaPredictionAuthorityMode.Direct);
 
         var json = Encoding.UTF8.GetString(provenance.SerializeCanonical());
@@ -44,7 +44,8 @@ public class PredictionGenerationProvenanceV2Tests
             PredictionGenerationProvenanceV2.Create(
                 authority, "match-predictions-bundesliga-2026-27-typed-v1",
                 posting.Key, posting.SnapshotHash, source.Key, source.SnapshotHash,
-                BundesligaPredictionContractTestData.MatchRoute, "copy-profile-v1", sourceIdentity,
+                BundesligaPredictionContractTestData.MatchRoute, "copy-profile-v1",
+                BundesligaPredictionContractTestData.GenerationInput(), sourceIdentity,
                 BundesligaPredictionContractTestData.Prompt(), BundesligaPredictionContractTestData.Model(),
                 PredictionServiceTierProvenanceV2.Create("standard", "standard", false),
                 BundesligaPredictionContractTestData.Context(), Instant.FromUtc(2026, 8, 31, 12, 0),
@@ -77,7 +78,8 @@ public class PredictionGenerationProvenanceV2Tests
             BundesligaPredictionContractTestData.DirectAuthority(),
             "bonus-predictions-bundesliga-2026-27-typed-v1",
             snapshot.Key, snapshot.SnapshotHash, snapshot.Key, snapshot.SnapshotHash,
-            BundesligaPredictionContractTestData.MatchRoute, "profile", "forbidden-source",
+            BundesligaPredictionContractTestData.MatchRoute, "profile",
+            BundesligaPredictionContractTestData.GenerationInput(), "forbidden-source",
             BundesligaPredictionContractTestData.Prompt(), BundesligaPredictionContractTestData.Model(),
             PredictionServiceTierProvenanceV2.Create("standard", "standard", false),
             BundesligaPredictionContractTestData.Context(), Instant.FromUtc(2026, 8, 31, 12, 0),

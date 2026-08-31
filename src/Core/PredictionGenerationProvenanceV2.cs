@@ -51,6 +51,7 @@ public sealed record PredictionPromptProvenanceV2
         string? actualFallbackFile = null,
         string? actualFallbackSha256 = null)
     {
+        BundesligaPredictionContractValidation.EnumValue(actualSource, nameof(actualSource));
         BundesligaPredictionContractValidation.Identifier(hostedName, nameof(hostedName));
         BundesligaPredictionContractValidation.Generation(hostedVersion, nameof(hostedVersion));
         BundesligaPredictionContractValidation.Sha256(
@@ -241,6 +242,7 @@ public sealed class PredictionGenerationProvenanceV2
         BundesligaPredictionSnapshotHash sourceSnapshotHash,
         string routeId,
         string profileId,
+        BundesligaGenerationInputContractReference generationInputContract,
         string? sourcePredictionIdentity,
         PredictionPromptProvenanceV2 prompt,
         PredictionModelConfig modelConfig,
@@ -259,6 +261,7 @@ public sealed class PredictionGenerationProvenanceV2
         SourceSnapshotHash = sourceSnapshotHash;
         RouteId = routeId;
         ProfileId = profileId;
+        GenerationInputContract = generationInputContract;
         SourcePredictionIdentity = sourcePredictionIdentity;
         Prompt = prompt;
         ModelConfig = modelConfig;
@@ -280,6 +283,7 @@ public sealed class PredictionGenerationProvenanceV2
     public BundesligaPredictionSnapshotHash SourceSnapshotHash { get; }
     public string RouteId { get; }
     public string ProfileId { get; }
+    public BundesligaGenerationInputContractReference GenerationInputContract { get; }
     public string? SourcePredictionIdentity { get; }
     public PredictionPromptProvenanceV2 Prompt { get; }
     public PredictionModelConfig ModelConfig { get; }
@@ -300,6 +304,7 @@ public sealed class PredictionGenerationProvenanceV2
         BundesligaPredictionSnapshotHash sourceSnapshotHash,
         string routeId,
         string profileId,
+        BundesligaGenerationInputContractReference generationInputContract,
         string? sourcePredictionIdentity,
         PredictionPromptProvenanceV2 prompt,
         PredictionModelConfig modelConfig,
@@ -315,6 +320,7 @@ public sealed class PredictionGenerationProvenanceV2
         ArgumentNullException.ThrowIfNull(postingSnapshotHash);
         ArgumentNullException.ThrowIfNull(sourceKey);
         ArgumentNullException.ThrowIfNull(sourceSnapshotHash);
+        ArgumentNullException.ThrowIfNull(generationInputContract);
         ArgumentNullException.ThrowIfNull(prompt);
         ArgumentNullException.ThrowIfNull(modelConfig);
         ArgumentNullException.ThrowIfNull(serviceTier);
@@ -364,6 +370,7 @@ public sealed class PredictionGenerationProvenanceV2
             sourceSnapshotHash,
             routeId,
             profileId,
+            generationInputContract,
             sourcePredictionIdentity,
             prompt,
             modelConfig,
@@ -444,6 +451,8 @@ internal static class PredictionGenerationProvenanceV2CanonicalJson
             BundesligaPredictionSnapshotCanonicalJson.WriteHash(writer, provenance.SourceSnapshotHash);
             writer.WriteString("routeId", provenance.RouteId);
             writer.WriteString("profileId", provenance.ProfileId);
+            writer.WritePropertyName("generationInputContract");
+            WriteGenerationInputContract(writer, provenance.GenerationInputContract);
             writer.WriteString("sourcePredictionIdentity", provenance.SourcePredictionIdentity);
             writer.WritePropertyName("prompt");
             WritePrompt(writer, provenance.Prompt);
@@ -479,6 +488,7 @@ internal static class PredictionGenerationProvenanceV2CanonicalJson
             "sourceSnapshotHash",
             "routeId",
             "profileId",
+            "generationInputContract",
             "sourcePredictionIdentity",
             "prompt",
             "modelConfig",
@@ -505,6 +515,7 @@ internal static class PredictionGenerationProvenanceV2CanonicalJson
             BundesligaPredictionSnapshotCanonicalJson.ReadHash(root.GetProperty("sourceSnapshotHash")),
             BundesligaPredictionCanonicalJson.String(root, "routeId"),
             BundesligaPredictionCanonicalJson.String(root, "profileId"),
+            ReadGenerationInputContract(root.GetProperty("generationInputContract")),
             BundesligaPredictionCanonicalJson.NullableString(root, "sourcePredictionIdentity"),
             ReadPrompt(root.GetProperty("prompt")),
             ReadModel(root.GetProperty("modelConfig")),
@@ -516,6 +527,24 @@ internal static class PredictionGenerationProvenanceV2CanonicalJson
             ReadUsage(root.GetProperty("targetGenerationUsage")));
         BundesligaPredictionCanonicalJson.RequireCanonical(bytes, Serialize(provenance), "Generation provenance v2");
         return provenance;
+    }
+
+    private static void WriteGenerationInputContract(
+        Utf8JsonWriter writer,
+        BundesligaGenerationInputContractReference reference)
+    {
+        writer.WriteStartObject();
+        writer.WriteString("contractId", reference.ContractId);
+        writer.WriteString("sha256", reference.Sha256);
+        writer.WriteEndObject();
+    }
+
+    private static BundesligaGenerationInputContractReference ReadGenerationInputContract(JsonElement element)
+    {
+        BundesligaPredictionCanonicalJson.Properties(element, "contractId", "sha256");
+        return BundesligaGenerationInputContractReference.Create(
+            BundesligaPredictionCanonicalJson.String(element, "contractId"),
+            BundesligaPredictionCanonicalJson.String(element, "sha256"));
     }
 
     private static void WriteAuthority(Utf8JsonWriter writer, BundesligaPredictionAuthority authority)

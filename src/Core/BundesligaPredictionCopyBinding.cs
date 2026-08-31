@@ -3,7 +3,19 @@ using System.Text.Json;
 
 namespace EHonda.KicktippAi.Core;
 
-public sealed record BundesligaBonusOptionProjection(string SourceOptionId, string PostingOptionId);
+public sealed record BundesligaBonusOptionProjection
+{
+    public BundesligaBonusOptionProjection(string sourceOptionId, string postingOptionId)
+    {
+        BundesligaPredictionContractValidation.Identifier(sourceOptionId, nameof(sourceOptionId));
+        BundesligaPredictionContractValidation.Identifier(postingOptionId, nameof(postingOptionId));
+        SourceOptionId = sourceOptionId;
+        PostingOptionId = postingOptionId;
+    }
+
+    public string SourceOptionId { get; }
+    public string PostingOptionId { get; }
+}
 
 public sealed class BundesligaCopyBindingEntry
 {
@@ -53,6 +65,10 @@ public sealed class BundesligaCopyBindingEntry
         }
 
         routes.Require(routeId, BundesligaPredictionItemKind.Match, pair.Posting.Subcompetition);
+        if (!string.Equals(routeId, pair.Posting.RouteId, StringComparison.Ordinal))
+        {
+            throw new InvalidDataException("Copy Binding route must equal the posting seed entry route.");
+        }
         if (pair.Posting.Subcompetition != pair.Source.Subcompetition)
         {
             throw new InvalidDataException("Match Copy Binding endpoints have different subcompetitions.");
@@ -87,6 +103,10 @@ public sealed class BundesligaCopyBindingEntry
         }
 
         routes.Require(routeId, BundesligaPredictionItemKind.Bonus, posting.Subcompetition);
+        if (!string.Equals(routeId, pair.Posting.RouteId, StringComparison.Ordinal))
+        {
+            throw new InvalidDataException("Copy Binding route must equal the posting seed entry route.");
+        }
         if (posting.Subcompetition != source.Subcompetition)
         {
             throw new InvalidDataException("Bonus Copy Binding endpoints have different subcompetitions.");
