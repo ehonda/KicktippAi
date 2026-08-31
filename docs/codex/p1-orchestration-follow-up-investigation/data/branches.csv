@@ -1,0 +1,7 @@
+ref,sha,committed_at,subject
+codex/01a054ee-p1-10-recovery-ci-fix,d47c1b2b8f47b2755d9c382c46b830876efccbaf,2026-08-31T14:26:44+02:00,test: isolate standings reuse telemetry activity
+codex/01a054ee-p1-10-recovery-docs,1c970d40a465b77c0247b59f9b6749e75dec3c54,2026-08-31T13:15:12+02:00,docs: freeze P1-10 production recovery
+codex/01a054ee-p1-10-recovery-runtime,67b729c94808a5b28123cf7f2ac8659a0a377d0f,2026-08-31T13:22:35+02:00,"Revert ""fix: quarantine schadensfresse live lane"""
+codex/01a054ee-p1-10-recovery-runtime-v2,22a0c6d5bba812e469885d784c4578cea96ad925,2026-08-31T13:59:20+02:00,test: cover ordinary Bundesliga recovery persistence
+origin/codex/01a054ee-p1-10-full,5891d480ed1ac117c955a29b02dd940fd2d6187f,2026-08-31T21:40:30+02:00,fix: validate copy source provenance
+origin/codex/01a054ee-p1-10-preserve-71637cc,71637cc154cfdcbe2436069470b5e04b0d4f753d,2026-08-31T00:58:31+02:00,Improve phase orchestration workflow

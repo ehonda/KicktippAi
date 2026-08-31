@@ -1,0 +1,141 @@
+{
+  "schema_version": 2,
+  "source_analysis_generated_at": "2026-08-31T20:05:11.408139Z",
+  "session_boundary": {
+    "base_commit": "71637cc154cfdcbe2436069470b5e04b0d4f753d",
+    "final_commit": "5891d480ed1ac117c955a29b02dd940fd2d6187f"
+  },
+  "p1_10_boundary": {
+    "base_commit": "71637cc154cfdcbe2436069470b5e04b0d4f753d",
+    "final_commit": "5891d480ed1ac117c955a29b02dd940fd2d6187f"
+  },
+  "tool_calls": 1556,
+  "tool_time_by_class": {
+    "dotnet": {
+      "calls": 43,
+      "elapsed_seconds": 782.475,
+      "reported_wall_seconds": 779.8
+    },
+    "exec_command": {
+      "calls": 40,
+      "elapsed_seconds": 305.84,
+      "reported_wall_seconds": 303.9
+    },
+    "git-read": {
+      "calls": 298,
+      "elapsed_seconds": 1546.32,
+      "reported_wall_seconds": 1514.3
+    },
+    "git-worktree-release": {
+      "calls": 58,
+      "elapsed_seconds": 474.548,
+      "reported_wall_seconds": 469.8
+    },
+    "github-ci": {
+      "calls": 118,
+      "elapsed_seconds": 1058.49,
+      "reported_wall_seconds": 1052.3
+    },
+    "other": {
+      "calls": 4,
+      "elapsed_seconds": 0.59,
+      "reported_wall_seconds": 0.1
+    },
+    "patch": {
+      "calls": 219,
+      "elapsed_seconds": 232.5,
+      "reported_wall_seconds": 225.1
+    },
+    "read-search": {
+      "calls": 681,
+      "elapsed_seconds": 2524.007,
+      "reported_wall_seconds": 2455.1
+    },
+    "resource-admission": {
+      "calls": 38,
+      "elapsed_seconds": 120.687,
+      "reported_wall_seconds": 119.2
+    },
+    "send_message": {
+      "calls": 1,
+      "elapsed_seconds": 0.178,
+      "reported_wall_seconds": 0.0
+    },
+    "update_goal": {
+      "calls": 1,
+      "elapsed_seconds": 0.072,
+      "reported_wall_seconds": 0.0
+    },
+    "update_plan": {
+      "calls": 19,
+      "elapsed_seconds": 2.639,
+      "reported_wall_seconds": 0.4
+    },
+    "write_stdin": {
+      "calls": 36,
+      "elapsed_seconds": 777.358,
+      "reported_wall_seconds": 775.3
+    }
+  },
+  "root_patch_target_counts": {
+    "orchestration-ledger": 106,
+    "repository-or-other": 4
+  },
+  "root_ledger_elapsed_seconds": 109.026,
+  "subagent_tool_elapsed_seconds": 5990.766,
+  "subagent_active_seconds": 31365.103,
+  "subagent_tool_share_of_active_time": 0.191,
+  "review_verdict_counts": {
+    "accept-with-fixes": 6,
+    "findings": 7,
+    "accepted": 8
+  },
+  "review_lane_counts": {
+    "with_completed_turn": 1,
+    "approval_complete": 0,
+    "approval_complete_with_multiple_turns": 0
+  },
+  "commits": 15,
+  "p1_10_commits": 15,
+  "net_changes": {
+    "session": {
+      "files": 35,
+      "insertions": 7587,
+      "deletions": 137
+    },
+    "p1_10": {
+      "files": 35,
+      "insertions": 7587,
+      "deletions": 137
+    }
+  },
+  "ci_run_counts": {
+    "session": {
+      "runs": 5,
+      "seconds": 1121,
+      "failures": 1
+    },
+    "p1_10": {
+      "runs": 5,
+      "seconds": 1121,
+      "failures": 1
+    }
+  },
+  "commit_files_changed_sum": 242,
+  "commit_insertions_sum": 18428,
+  "commit_deletions_sum": 10978,
+  "local_and_remote_branch_refs": 36,
+  "current_run_branches": 6,
+  "review_kind_counts": {
+    "design-specification": 6,
+    "recovery-docs-artifact": 2,
+    "recovery-runtime-artifact": 3,
+    "P1-12-artifact": 1,
+    "full-branch-seed-artifact": 2,
+    "portable-test-artifact": 1,
+    "R0-artifact": 2,
+    "R1-artifact": 4
+  },
+  "resource_admission_calls": 38,
+  "maximum_overlapping_classified_dotnet_calls": 1
+}

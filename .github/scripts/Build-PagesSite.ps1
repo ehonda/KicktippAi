@@ -438,6 +438,7 @@ $hasCoverage = Test-Path -Path (Join-Path $coverageTarget "index.html")
 $hasExperimentAnalysis = Test-Path -Path (Join-Path $experimentTarget "index.html")
 $hasSessionAnalysis = Test-Path -Path (Join-Path $sessionAnalysisTarget "p0-closeout/index.html")
 $hasP1SessionAnalysis = Test-Path -Path (Join-Path $sessionAnalysisTarget "p1-orchestration-interim/index.html")
+$hasP1FollowUpAnalysis = Test-Path -Path (Join-Path $sessionAnalysisTarget "p1-orchestration-follow-up/index.html")
 
 $coverageCard = if ($hasCoverage)
 {
@@ -473,6 +474,15 @@ $p1SessionAnalysisCard = if ($hasP1SessionAnalysis)
 else
 {
     "<section class='card card-disabled'><span class='eyebrow'>Codex investigation</span><strong>P1 orchestration interim</strong><p>No P1 orchestration investigation has been published yet.</p></section>"
+}
+
+$p1FollowUpAnalysisCard = if ($hasP1FollowUpAnalysis)
+{
+    "<a class='card' href='session-analysis/p1-orchestration-follow-up/index.html'><span class='eyebrow'>Codex investigation</span><strong>P1 orchestration follow-up</strong><p>Compare parallelism, quota-efficiency proxies, machine admission, role behavior, milestone publication, and control-plane overhead.</p></a>"
+}
+else
+{
+    "<section class='card card-disabled'><span class='eyebrow'>Codex investigation</span><strong>P1 orchestration follow-up</strong><p>No P1 follow-up investigation has been published yet.</p></section>"
 }
 
 $rootIndex = @"
@@ -601,6 +611,7 @@ $rootIndex = @"
       $experimentCard
       $sessionAnalysisCard
       $p1SessionAnalysisCard
+      $p1FollowUpAnalysisCard
     </section>
   </main>
 </body>

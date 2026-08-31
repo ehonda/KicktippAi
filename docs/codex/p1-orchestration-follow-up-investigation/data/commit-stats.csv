@@ -1,0 +1,16 @@
+sha,short_sha,authored_at,committed_at,author,subject,files_changed,insertions,deletions
+c0aa524ef75cb69a9b587e1750c8b4a836345a2a,c0aa524,2026-08-31T13:01:19+02:00,2026-08-31T13:18:06+02:00,Dennis Renz,docs: freeze P1-10 production recovery,7,441,94
+68af9e1c4f52860c23cd5d88e948115841badb3e,68af9e1,2026-08-31T13:29:11+02:00,2026-08-31T13:53:31+02:00,Dennis Renz,revert: restore pre-P1-10 production behavior,80,676,9572
+22a0c6d5bba812e469885d784c4578cea96ad925,22a0c6d,2026-08-31T13:59:20+02:00,2026-08-31T13:59:20+02:00,Dennis Renz,test: cover ordinary Bundesliga recovery persistence,1,9,2
+d47c1b2b8f47b2755d9c382c46b830876efccbaf,d47c1b2,2026-08-31T14:26:44+02:00,2026-08-31T14:26:44+02:00,Dennis Renz,test: isolate standings reuse telemetry activity,1,38,9
+0e4f3a9bd853faccd468054c8876e411c787b6a4,0e4f3a9,2026-08-31T15:03:21+02:00,2026-08-31T15:03:21+02:00,Dennis Renz,"Revert ""test: cover ordinary Bundesliga recovery persistence""",1,2,9
+dc29899ba32ad11c6a8b2f0c815c176308b2d9a5,dc29899,2026-08-31T15:03:42+02:00,2026-08-31T15:03:42+02:00,Dennis Renz,"Revert ""revert: restore pre-P1-10 production behavior""",80,9638,742
+300ae2dc675f553acb33b8f1d58d19d0824e6ca4,300ae2d,2026-08-31T15:09:58+02:00,2026-08-31T15:11:03+02:00,Dennis Renz,docs: construct P1-10 full recovery branch,5,105,10
+798fb890843ccbf9cdb4a84cf1357c2540a2375e,798fb89,2026-08-31T15:30:49+02:00,2026-08-31T15:30:49+02:00,Dennis Renz,test: normalize schadensfresse rules fixture line endings,1,2,1
+efe3ea0906568aefb505f94ab20f016f64810f0a,efe3ea0,2026-08-31T16:00:53+02:00,2026-08-31T16:00:53+02:00,Dennis Renz,docs: permit portable P1-10 rules fixture test,5,93,3
+d0854f370ca66c08b9f75302f0d8aa883a27c9bb,d0854f3,2026-08-31T18:31:05+02:00,2026-08-31T18:31:05+02:00,Dennis Renz,docs: freeze global Bundesliga typed authority,14,1144,31
+d0578a157693667f9d61bab7334c36d4432c69c3,d0578a1,2026-08-31T19:11:08+02:00,2026-08-31T19:11:08+02:00,Dennis Renz,docs: tighten typed authority contracts,11,260,41
+b9e6077d946affb53423594ec64ce71cb3b6c612,b9e6077,2026-08-31T20:03:39+02:00,2026-08-31T20:03:39+02:00,Dennis Renz,feat: add Bundesliga typed authority contracts,16,3794,0
+711595a4a50694912fc56eddf4c9f600698fd3fb,711595a,2026-08-31T20:47:39+02:00,2026-08-31T20:47:39+02:00,Dennis Renz,fix: bind Bundesliga typed copy authority,13,1168,377
+426fc4faecb2132f8043b7cb267feaf0356da12e,426fc4f,2026-08-31T21:23:20+02:00,2026-08-31T21:23:20+02:00,Dennis Renz,fix: canonicalize typed copy decisions,5,934,85
+5891d480ed1ac117c955a29b02dd940fd2d6187f,5891d48,2026-08-31T21:40:30+02:00,2026-08-31T21:40:30+02:00,Dennis Renz,fix: validate copy source provenance,2,124,2

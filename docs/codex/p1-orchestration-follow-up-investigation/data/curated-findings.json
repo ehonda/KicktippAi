@@ -1,0 +1,86 @@
+{
+  "schema_version": 1,
+  "snapshot_generated_at": "2026-08-31T20:05:11.408139Z",
+  "findings": [
+    {
+      "id": "parallelism-declined-but-did-not-collapse",
+      "assessment": "mixed",
+      "evidence": [
+        "average active concurrency fell from 1.521 to 1.1213",
+        "two-plus occupancy fell from 52.10% to 11.82%",
+        "maximum concurrency increased from two to three, but only briefly",
+        "worker-seconds per pause-adjusted wall-second fell from 1.4281 to 0.8379"
+      ]
+    },
+    {
+      "id": "efficiency-signal-is-real-but-not-quota-conversion",
+      "assessment": "strong",
+      "evidence": [
+        "logged tokens per pause-adjusted hour fell 42.22%",
+        "non-cached input plus output per adjusted hour fell 41.59%",
+        "worker tokens per worker-hour fell from 21.88M to 14.14M",
+        "Codex weekly quota units are unavailable in transcript telemetry"
+      ]
+    },
+    {
+      "id": "machine-admission-traded-heavy-overlap-for-less-waiting",
+      "assessment": "strong",
+      "evidence": [
+        "38 resource-admission calls cost 120.687 direct seconds",
+        "43 classified dotnet calls had maximum overlap one",
+        "subagent tool share fell from 42.79% to 19.10% of worker-active time",
+        "the latest 1.25 GiB memory sample correctly denied another heavy operation"
+      ]
+    },
+    {
+      "id": "milestone-publication-worked",
+      "assessment": "strong",
+      "evidence": [
+        "five Build-and-Test runs replaced fourteen in the baseline",
+        "two main runs plus three draft-PR milestone runs totaled 1121 seconds",
+        "two remote run branches replaced fourteen remote P1-10 lane branches",
+        "three rejected R1 commits remained local before the accepted milestone push"
+      ]
+    },
+    {
+      "id": "architecture-roles-caught-real-defects",
+      "assessment": "valuable-expensive",
+      "evidence": [
+        "six design/specification review turns all returned concrete accept-with-fixes findings",
+        "Sol/xhigh architecture and specification threads consumed 45.58M tokens",
+        "the roles shaped recovery topology, global typing, and milestone boundaries",
+        "R1 still required three artifact rejections before acceptance"
+      ]
+    },
+    {
+      "id": "persistent-roles-exhausted-agent-capacity",
+      "assessment": "tune",
+      "evidence": [
+        "architecture, specification-review, and writer threads occupied the three task-agent slots",
+        "a Luna/low production-run monitor could not be admitted",
+        "the root performed the polling as a recorded delegation-unavailable exception",
+        "root token share rose from 37.58% to 59.06%"
+      ]
+    },
+    {
+      "id": "ledger-coalescing-worked-polling-did-not",
+      "assessment": "mixed",
+      "evidence": [
+        "ledger patches fell from 375 to 106",
+        "ledger patches per adjusted hour fell from 28.39 to 10.19",
+        "state size fell from about 141k to 45k characters",
+        "wait_agent calls remained 46.7 versus 46.6 per adjusted hour"
+      ]
+    },
+    {
+      "id": "production-continuity-is-the-strongest-new-gate",
+      "assessment": "strong",
+      "evidence": [
+        "production-safe main was restored with non-rewriting commits",
+        "a 16-job production-live run completed successfully on exact recovered main",
+        "the incomplete replacement remained isolated in draft PR 97",
+        "no blind CI rerun or unsafe merge occurred"
+      ]
+    }
+  ]
+}
