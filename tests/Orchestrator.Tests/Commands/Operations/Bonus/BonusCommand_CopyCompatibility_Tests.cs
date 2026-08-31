@@ -67,6 +67,78 @@ public sealed class BonusCommand_CopyCompatibility_Tests : BonusCommandTests_Bas
     }
 
     [Test]
+    [NotInParallel("Telemetry")]
+    public async Task Schadensfresse_exact_Bundesliga_alias_copies_without_model_and_traces_both_identities()
+    {
+        var activities = new ConcurrentQueue<Activity>();
+        using var listener = CreateConcurrentActivityListener(activities);
+        var targetQuestion = CreateTargetQuestion() with
+        {
+            Text = "1.BL: Wer wird Deutscher Meister?"
+        };
+        var sourceQuestion = CreateSourceQuestion() with
+        {
+            Text = "Wer wird Deutscher Meister?"
+        };
+        var candidate = CreateCanonicalBundesligaBonusPredictionMetadata(
+            sourceQuestion,
+            new BonusPrediction(["source-fcb"]),
+            communityContext: SourceCommunityContext);
+        var context = CreateBonusCommandApp(
+            openBonusQuestions: new List<BonusQuestion> { targetQuestion },
+            bonusPredictionCopyCandidate: candidate);
+
+        var exitCode = await context.App.RunAsync(
+        [
+            "bonus", "test-model",
+            "--community", "schadensfresse",
+            "--community-context", SourceCommunityContext,
+            "--competition", CompetitionIds.Bundesliga2026_27
+        ]);
+
+        await Assert.That(exitCode).IsEqualTo(0);
+        await Assert.That(CountPredictionServiceConstructions(context)).IsEqualTo(0);
+        context.PredictionRepository.As<IBonusPredictionCopyRepository>().Verify(repository =>
+            repository.GetBonusPredictionCopyCandidateAsync(
+                It.Is<BonusQuestion>(question =>
+                    question.Text == sourceQuestion.Text
+                    && question.FormFieldName == targetQuestion.FormFieldName),
+                It.IsAny<PredictionModelConfig>(),
+                SourceCommunityContext,
+                It.IsAny<CancellationToken>()), Times.Once);
+        context.KicktippClient.Verify(client => client.PlaceBonusPredictionsAsync(
+            "schadensfresse",
+            It.Is<Dictionary<string, BonusPrediction>>(predictions =>
+                predictions[targetQuestion.FormFieldName!].SelectedOptionIds.SequenceEqual(
+                    new[] { "target-fcb" },
+                    StringComparer.Ordinal)),
+            false), Times.Once);
+
+        var projection = BonusQuestionExecutionScope.ResolveReferenceProjection(
+            CompetitionIds.Bundesliga2026_27,
+            "schadensfresse",
+            SourceCommunityContext,
+            targetQuestion);
+        var rawTargetHash = BonusQuestionCompatibilityManifest.Create(targetQuestion).CompatibilitySha256;
+        var projectedHash = BonusQuestionCompatibilityManifest.Create(projection.Question).CompatibilitySha256;
+        var rootActivity = activities.Single(activity =>
+            string.Equals(
+                activity.GetTagItem("langfuse.trace.metadata.bonusCopyAliasIds") as string,
+                "|schadensfresse-buli-champion-v1|",
+                StringComparison.Ordinal));
+        await Assert.That(rootActivity.GetTagItem("langfuse.trace.metadata.bonusCopyAliasIds") as string)
+            .IsEqualTo("|schadensfresse-buli-champion-v1|");
+        await Assert.That(rootActivity.GetTagItem("langfuse.trace.metadata.bonusCopySourceQuestionTextHashes") as string)
+            .IsEqualTo($"|{projection.SourceNormalizedTextSha256}|");
+        await Assert.That(rootActivity.GetTagItem("langfuse.trace.metadata.bonusCopyTargetQuestionTextHashes") as string)
+            .IsEqualTo($"|{projection.TargetNormalizedTextSha256}|");
+        await Assert.That(rootActivity.GetTagItem("langfuse.trace.metadata.bonusCopyCompatibilityHashes") as string)
+            .IsEqualTo($"|{rawTargetHash}|");
+        await Assert.That(rootActivity.GetTagItem("langfuse.trace.metadata.bonusCopyProjectedCompatibilityHashes") as string)
+            .IsEqualTo($"|{projectedHash}|");
+    }
+
+    [Test]
     public async Task Reference_copy_topology_reads_pes_squad_and_posts_to_arena()
     {
         var sourceQuestion = CreateSourceQuestion();

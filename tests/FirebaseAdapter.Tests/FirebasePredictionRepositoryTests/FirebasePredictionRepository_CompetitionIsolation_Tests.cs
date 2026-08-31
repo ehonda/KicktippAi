@@ -50,18 +50,8 @@ public class FirebasePredictionRepository_CompetitionIsolation_Tests(FirestoreFi
     public async Task Current_bundesliga_predictions_store_explicit_competition_and_community_fields()
     {
         var repository = CreateRepository(competition: NullableOption.Some(CompetitionIds.Bundesliga2026_27));
-        var match = CreateMatch(homeTeam: "FC Bayern München", awayTeam: "Borussia Dortmund", matchday: 1) with
-        {
-            KicktippFixtureId = "fixture-competition-isolation",
-            KicktippRoundName = "Bundesliga exact round",
-            ResultBasis = ResultBasis.RegularTime90Minutes,
-            BundesligaSeasonSubcompetition = BundesligaSeasonSubcompetition.Bundesliga
-        };
-        var question = CreateBonusQuestion(text: "Who will win?") with
-        {
-            KicktippQuestionId = "question-competition-isolation",
-            BundesligaSeasonSubcompetition = BundesligaSeasonSubcompetition.Bundesliga
-        };
+        var match = CreateMatch(homeTeam: "FC Bayern München", awayTeam: "Borussia Dortmund", matchday: 1);
+        var question = CreateBonusQuestion(text: "Who will win?");
         var modelConfig = PredictionModelConfig.Create("gpt-5");
         var bonusManifest = CreateBonusManifest("community-b");
         var manifest = ResolvedMatchContextManifest.Create(
@@ -99,14 +89,14 @@ public class FirebasePredictionRepository_CompetitionIsolation_Tests(FirestoreFi
         var bonusSnapshot = await Fixture.Db.Collection("bonus-predictions").GetSnapshotAsync();
 
         await Assert.That(matchSnapshot.Count).IsEqualTo(1);
-        await Assert.That(matchSnapshot.Documents[0].Id).StartsWith("bundesliga-typed-match-");
+        await Assert.That(Guid.TryParse(matchSnapshot.Documents[0].Id, out _)).IsTrue();
         await Assert.That(matchSnapshot.Documents[0].GetValue<string>("competition"))
             .IsEqualTo(CompetitionIds.Bundesliga2026_27);
         await Assert.That(matchSnapshot.Documents[0].GetValue<string>("communityContext"))
             .IsEqualTo("community-a");
 
         await Assert.That(bonusSnapshot.Count).IsEqualTo(1);
-        await Assert.That(bonusSnapshot.Documents[0].Id).StartsWith("bundesliga-typed-bonus-");
+        await Assert.That(Guid.TryParse(bonusSnapshot.Documents[0].Id, out _)).IsTrue();
         await Assert.That(bonusSnapshot.Documents[0].GetValue<string>("competition"))
             .IsEqualTo(CompetitionIds.Bundesliga2026_27);
         await Assert.That(bonusSnapshot.Documents[0].GetValue<string>("communityContext"))

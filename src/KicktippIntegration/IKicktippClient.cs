@@ -21,18 +21,6 @@ public interface IKicktippClient
     Task<List<Match>> GetOpenPredictionsAsync(string community, string competition);
 
     /// <summary>
-    /// Get open predictions for a resolved competition while allowing the caller to cancel
-    /// any required fail-closed fixture identity join.
-    /// </summary>
-    Task<List<Match>> GetOpenPredictionsAsync(
-        string community,
-        string competition,
-        CancellationToken cancellationToken) =>
-        cancellationToken.IsCancellationRequested
-            ? Task.FromCanceled<List<Match>>(cancellationToken)
-            : GetOpenPredictionsAsync(community, competition);
-
-    /// <summary>
     /// Place a bet for a specific match in a community
     /// </summary>
     /// <param name="community">The community name</param>
@@ -174,14 +162,6 @@ public interface IKicktippClient
     /// <param name="community">The community name</param>
     /// <returns>List of bonus questions with open predictions</returns>
     Task<List<BonusQuestion>> GetOpenBonusQuestionsAsync(string community);
-
-    /// <summary>
-    /// Gets open bonus questions while honoring a caller cancellation request. The bridge keeps
-    /// existing one-argument implementations source-compatible; target-owned callers use this
-    /// overload and the concrete client propagates the token to every source stage.
-    /// </summary>
-    Task<List<BonusQuestion>> GetOpenBonusQuestionsAsync(string community, CancellationToken cancellationToken) =>
-        GetOpenBonusQuestionsAsync(community);
 
     /// <summary>
     /// Place bonus predictions for a community

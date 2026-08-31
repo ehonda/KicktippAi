@@ -218,9 +218,6 @@ public static class OrchestratorTestFactories
         mock.Setup(c => c.GetOpenBonusQuestionsAsync(It.IsAny<string>()))
             .ReturnsAsync(bonusQuestions);
 
-        mock.Setup(c => c.GetOpenBonusQuestionsAsync(It.IsAny<string>(), It.IsAny<CancellationToken>()))
-            .ReturnsAsync(bonusQuestions);
-
         mock.Setup(c => c.PlaceBonusPredictionsAsync(
                 It.IsAny<string>(),
                 It.IsAny<Dictionary<string, BonusPrediction>>(),
@@ -1020,8 +1017,7 @@ public static class OrchestratorTestFactories
         Option<Mock<IPredictionRepository>> predictionRepository = default,
         Option<Mock<IContextRepository>> contextRepository = default,
         Option<Mock<IMatchOutcomeRepository>> matchOutcomeRepository = default,
-        Option<Mock<IDocumentPublicationRepository>> documentPublicationRepository = default,
-        Option<Mock<IResolvedTypedContextPublicationBindingRepository>> resolvedTypedContextPublicationBindingRepository = default)
+        Option<Mock<IDocumentPublicationRepository>> documentPublicationRepository = default)
     {
         var mockFactory = new Mock<IFirebaseServiceFactory>();
         var mockKpiRepo = kpiRepository.Or(() => new Mock<IKpiRepository>());
@@ -1029,52 +1025,14 @@ public static class OrchestratorTestFactories
         var mockContextRepo = contextRepository.Or(() => CreateMockContextRepository());
         var mockMatchOutcomeRepo = matchOutcomeRepository.Or(() => CreateMockMatchOutcomeRepository());
         var mockDocumentPublicationRepo = documentPublicationRepository.Or(CreateMockBundesligaDocumentPublicationRepository);
-        var mockResolvedTypedContextPublicationBindingRepo = resolvedTypedContextPublicationBindingRepository
-            .Or(CreateMockResolvedTypedContextPublicationBindingRepository);
 
         mockFactory.Setup(f => f.CreateKpiRepository(It.IsAny<string>())).Returns(mockKpiRepo.Object);
         mockFactory.Setup(f => f.CreatePredictionRepository(It.IsAny<string>())).Returns(mockPredictionRepo.Object);
         mockFactory.Setup(f => f.CreateContextRepository(It.IsAny<string>())).Returns(mockContextRepo.Object);
         mockFactory.Setup(f => f.CreateMatchOutcomeRepository(It.IsAny<string>())).Returns(mockMatchOutcomeRepo.Object);
         mockFactory.Setup(f => f.CreateDocumentPublicationRepository(It.IsAny<string>())).Returns(mockDocumentPublicationRepo.Object);
-        mockFactory.Setup(f => f.CreateResolvedTypedContextPublicationBindingRepository())
-            .Returns(mockResolvedTypedContextPublicationBindingRepo.Object);
 
         return mockFactory;
-    }
-
-    /// <summary>
-    /// Creates an in-memory exact-key binding fake with ADR-0060 create/update/no-op/drift
-    /// selection semantics. It deliberately exposes no latest or enumeration operation.
-    /// </summary>
-    public static Mock<IResolvedTypedContextPublicationBindingRepository>
-        CreateMockResolvedTypedContextPublicationBindingRepository()
-    {
-        var bindings = new Dictionary<ResolvedTypedContextPublicationBindingKey, ResolvedTypedContextPublicationBinding>();
-        var mock = new Mock<IResolvedTypedContextPublicationBindingRepository>();
-        mock.Setup(repository => repository.UpsertExactAsync(
-                It.IsAny<ResolvedTypedContextPublicationBinding>(),
-                It.IsAny<CancellationToken>()))
-            .Returns((ResolvedTypedContextPublicationBinding candidate, CancellationToken _) =>
-            {
-                bindings.TryGetValue(candidate.Key, out var current);
-                var result = ResolvedTypedContextPublicationBindingContract.SelectEffective(
-                    current,
-                    candidate,
-                    DateTimeOffset.UtcNow);
-                if (result.Succeeded)
-                {
-                    bindings[candidate.Key] = result.EffectiveBinding;
-                }
-
-                return Task.FromResult(result);
-            });
-        mock.Setup(repository => repository.GetExactAsync(
-                It.IsAny<ResolvedTypedContextPublicationBindingKey>(),
-                It.IsAny<CancellationToken>()))
-            .Returns((ResolvedTypedContextPublicationBindingKey key, CancellationToken _) =>
-                Task.FromResult(bindings.TryGetValue(key, out var binding) ? binding : null));
-        return mock;
     }
 
     /// <summary>

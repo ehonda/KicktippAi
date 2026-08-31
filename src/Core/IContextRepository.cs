@@ -2,33 +2,7 @@ namespace EHonda.KicktippAi.Core;
 
 public sealed record ContextDocumentWrite(string DocumentName, string Content);
 
-/// <summary>
-/// Describes one document selected by an atomic publication transaction.
-/// <see cref="Version"/> retains the legacy created-version/null contract, while
-/// <see cref="EffectiveVersion"/> identifies the immutable row selected by the transaction
-/// whether the row was created or already contained the requested bytes.
-/// </summary>
-public sealed record ContextDocumentSaveResult(string DocumentName, int? Version)
-{
-    public ContextDocumentSaveResult(string documentName, int? version, int effectiveVersion)
-        : this(documentName, version)
-    {
-        if (effectiveVersion < 0)
-        {
-            throw new ArgumentOutOfRangeException(nameof(effectiveVersion));
-        }
-
-        EffectiveVersion = effectiveVersion;
-    }
-
-    public int? CreatedVersion => Version;
-
-    /// <summary>
-    /// The exact immutable version selected inside the transaction. Legacy implementations may
-    /// leave this null; publication gates that need immutable identity must require a value.
-    /// </summary>
-    public int? EffectiveVersion { get; init; }
-}
+public sealed record ContextDocumentSaveResult(string DocumentName, int? Version);
 
 /// <summary>
 /// Repository interface for persisting and retrieving versioned context documents.
@@ -52,9 +26,7 @@ public interface IContextRepository
 
     /// <summary>
     /// Atomically saves a complete set of ordinary context documents. The operation either publishes every changed
-    /// document or publishes none; unchanged documents retain their existing versions. Every result identifies the
-    /// effective immutable version selected inside the transaction while preserving the legacy created-version/null
-    /// value in <see cref="ContextDocumentSaveResult.Version"/>.
+    /// document or publishes none; unchanged documents retain their existing versions.
     /// </summary>
     Task<IReadOnlyList<ContextDocumentSaveResult>> SaveContextDocumentsAtomicallyAsync(
         IReadOnlyList<ContextDocumentWrite> documents,

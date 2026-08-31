@@ -12,7 +12,6 @@
     </ItemGroup>
 
     <ItemGroup>
-      <PackageReference Include="AngleSharp" />
       <PackageReference Include="CsvHelper" />
       <PackageReference Include="Microsoft.Extensions.FileProviders.Physical" />
     </ItemGroup>

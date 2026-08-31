@@ -57,6 +57,7 @@ public class MatchdayCommand_Telemetry_Tests : MatchdayCommandTests_Base
 
     [Test]
     [Arguments("pes-squad")]
+    [Arguments("schadensfresse")]
     [Arguments("relaxdays-tippt")]
     [NotInParallel("Telemetry")]
     public async Task Production_community_sets_environment_to_production(string community)

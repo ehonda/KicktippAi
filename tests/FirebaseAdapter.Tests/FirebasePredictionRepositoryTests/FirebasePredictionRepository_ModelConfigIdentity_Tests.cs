@@ -171,13 +171,7 @@ public class FirebasePredictionRepository_ModelConfigIdentity_Tests(FirestoreFix
     public async Task Match_prediction_identity_persists_and_isolates_cap_and_exact_prompt_version()
     {
         var repository = CreateRepository(competition: NullableOption.Some(CompetitionIds.Bundesliga2026_27));
-        var match = CreateMatch(homeTeam: "FC Bayern München", awayTeam: "Borussia Dortmund", matchday: 1) with
-        {
-            KicktippFixtureId = "fixture-model-config",
-            KicktippRoundName = "Bundesliga exact round",
-            ResultBasis = ResultBasis.RegularTime90Minutes,
-            BundesligaSeasonSubcompetition = BundesligaSeasonSubcompetition.Bundesliga
-        };
+        var match = CreateMatch(homeTeam: "FC Bayern München", awayTeam: "Borussia Dortmund", matchday: 1);
         var version2 = PredictionModelConfig.Create(
             "gpt-5.6-luna",
             "none",
@@ -224,11 +218,7 @@ public class FirebasePredictionRepository_ModelConfigIdentity_Tests(FirestoreFix
     public async Task Bonus_prediction_identity_persists_and_reconstructs_exact_config()
     {
         var repository = CreateRepository(competition: NullableOption.Some(CompetitionIds.Bundesliga2026_27));
-        var question = CreateBonusQuestion(text: "Exact bonus?") with
-        {
-            KicktippQuestionId = "question-model-config",
-            BundesligaSeasonSubcompetition = BundesligaSeasonSubcompetition.Bundesliga
-        };
+        var question = CreateBonusQuestion(text: "Exact bonus?");
         var config = PredictionModelConfig.Create(
             "gpt-5.6-luna",
             "none",

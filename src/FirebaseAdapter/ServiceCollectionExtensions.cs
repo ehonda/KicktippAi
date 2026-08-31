@@ -115,13 +115,6 @@ public static class ServiceCollectionExtensions
             return new FirebaseDocumentPublicationRepository(firestoreDb, logger, competition);
         });
 
-        services.AddScoped<IResolvedTypedContextPublicationBindingRepository>(serviceProvider =>
-        {
-            var firestoreDb = serviceProvider.GetRequiredService<FirestoreDb>();
-            var logger = serviceProvider.GetRequiredService<ILogger<FirebaseResolvedTypedContextPublicationBindingRepository>>();
-            return new FirebaseResolvedTypedContextPublicationBindingRepository(firestoreDb, logger);
-        });
-
         services.AddScoped<IMatchOutcomeRepository>(serviceProvider =>
         {
             var firestoreDb = serviceProvider.GetRequiredService<FirestoreDb>();

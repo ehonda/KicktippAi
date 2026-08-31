@@ -73,13 +73,6 @@ public sealed class FirebaseServiceFactory : IFirebaseServiceFactory
     }
 
     /// <inheritdoc />
-    public IResolvedTypedContextPublicationBindingRepository CreateResolvedTypedContextPublicationBindingRepository()
-    {
-        var logger = _loggerFactory.CreateLogger<FirebaseResolvedTypedContextPublicationBindingRepository>();
-        return new FirebaseResolvedTypedContextPublicationBindingRepository(FirestoreDb, logger);
-    }
-
-    /// <inheritdoc />
     public IMatchOutcomeRepository CreateMatchOutcomeRepository(string competition)
     {
         ArgumentException.ThrowIfNullOrWhiteSpace(competition);

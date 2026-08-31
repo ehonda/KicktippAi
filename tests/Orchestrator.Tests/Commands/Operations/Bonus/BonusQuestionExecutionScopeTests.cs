@@ -44,12 +44,15 @@ public sealed class BonusQuestionExecutionScopeTests
     }
 
     [Test]
-    [Arguments("1.BL: Welche Mannschaften belegen die Plätze 16-18?")]
-    [Arguments("1.BL: Welche Mannschaft stellt den Spieler mit den meisten Toren?")]
-    [Arguments("1.BL: Wer wird Deutscher Meister?")]
-    [Arguments("1.BL: Wer wird Herbstmeister?")]
-    [Arguments("1.BL: Wo findet der erste Trainerwechsel statt?")]
-    public async Task Schadensfresse_never_normalizes_a_pes_squad_bonus_alias(string targetText)
+    [Arguments("1.BL: Welche Mannschaften belegen die Plätze 16-18?", "Welche Mannschaften belegen die Plätze 16-18?", "schadensfresse-buli-places-16-18-v1")]
+    [Arguments("1.BL: Welche Mannschaft stellt den Spieler mit den meisten Toren?", "Welche Mannschaft stellt den Spieler mit den meisten Toren?", "schadensfresse-buli-top-scorer-v1")]
+    [Arguments("1.BL: Wer wird Deutscher Meister?", "Wer wird Deutscher Meister?", "schadensfresse-buli-champion-v1")]
+    [Arguments("1.BL: Wer wird Herbstmeister?", "Wer wird Herbstmeister?", "schadensfresse-buli-autumn-champion-v1")]
+    [Arguments("1.BL: Wo findet der erste Trainerwechsel statt?", "Wo findet der erste Trainerwechsel statt?", "schadensfresse-buli-first-coach-change-v1")]
+    public async Task Exact_schadensfresse_Bundesliga_alias_projects_only_source_text(
+        string targetText,
+        string sourceText,
+        string aliasId)
     {
         var target = CreateBonusQuestion(
             text: targetText,
@@ -61,25 +64,32 @@ public sealed class BonusQuestionExecutionScopeTests
             "pes-squad",
             target);
 
-        await Assert.That(projection.Question).IsSameReferenceAs(target);
-        await Assert.That(projection.Question.Text).IsEqualTo(targetText);
+        await Assert.That(projection.Question.Text).IsEqualTo(sourceText);
         await Assert.That(projection.Question.FormFieldName).IsEqualTo(target.FormFieldName);
         await Assert.That(projection.Question.Options).IsSameReferenceAs(target.Options);
-        await Assert.That(projection.AliasId).IsNull();
+        await Assert.That(projection.AliasId).IsEqualTo(aliasId);
         await Assert.That(projection.SourceNormalizedTextSha256)
-            .IsEqualTo(projection.TargetNormalizedTextSha256);
+            .IsNotEqualTo(projection.TargetNormalizedTextSha256);
         await Assert.That(target.Text).IsEqualTo(targetText);
     }
 
     [Test]
-    public async Task Reference_projection_preserves_target_question_for_other_copy_communities()
+    [Arguments("bundesliga-2026-27", "another-community", "pes-squad", "1.BL: Wer wird Deutscher Meister?")]
+    [Arguments("bundesliga-2026-27", "schadensfresse", "another-source", "1.BL: Wer wird Deutscher Meister?")]
+    [Arguments("fifa-world-cup-2026", "schadensfresse", "pes-squad", "1.BL: Wer wird Deutscher Meister?")]
+    [Arguments("bundesliga-2026-27", "schadensfresse", "pes-squad", "1.BL: Unmapped question?")]
+    public async Task Alias_policy_does_not_strip_prefix_outside_exact_tuple_and_full_text_map(
+        string competition,
+        string targetCommunity,
+        string sourceCommunityContext,
+        string text)
     {
-        var target = CreateBonusQuestion(text: "1.BL: Wer wird Deutscher Meister?");
+        var target = CreateBonusQuestion(text: text);
 
         var projection = BonusQuestionExecutionScope.ResolveReferenceProjection(
-            CompetitionIds.Bundesliga2026_27,
-            "ehonda-ai-arena",
-            "pes-squad",
+            competition,
+            targetCommunity,
+            sourceCommunityContext,
             target);
 
         await Assert.That(projection.Question).IsSameReferenceAs(target);

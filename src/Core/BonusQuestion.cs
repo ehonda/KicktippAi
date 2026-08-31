@@ -1,5 +1,4 @@
 using NodaTime;
-using System.Text.Json.Serialization;
 
 namespace EHonda.KicktippAi.Core;
 
@@ -11,16 +10,8 @@ public record BonusQuestion(
     ZonedDateTime Deadline,
     List<BonusQuestionOption> Options,
     int MaxSelections,
-    string? FormFieldName = null)
-{
-    /// <summary>Stable Kicktipp question identity when exposed by the source form.</summary>
-    [JsonPropertyName("kicktippQuestionId")]
-    public string? KicktippQuestionId { get; init; }
-
-    /// <summary>Bundesliga-season-only routing partition; absent for legacy and non-Bundesliga rows.</summary>
-    [JsonPropertyName("bundesligaSeasonSubcompetition")]
-    public BundesligaSeasonSubcompetition? BundesligaSeasonSubcompetition { get; init; }
-}
+    string? FormFieldName = null
+);
 
 /// <summary>
 /// Represents an option for a bonus question.
@@ -76,5 +67,4 @@ public record BonusPredictionMetadata(
     List<string> ContextDocumentNames,
     ResolvedBonusContextManifest? ResolvedContextManifest = null,
     BonusQuestionCompatibilityManifest? QuestionCompatibilityManifest = null,
-    string? PredictionIdentity = null,
-    ResolvedTypedContextManifest? ResolvedTypedContextManifest = null);
+    string? PredictionIdentity = null);

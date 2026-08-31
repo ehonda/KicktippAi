@@ -47,13 +47,6 @@ internal sealed class TestFirebaseServiceFactory(FirestoreDb firestoreDb) : IFir
             competition);
     }
 
-    public IResolvedTypedContextPublicationBindingRepository CreateResolvedTypedContextPublicationBindingRepository()
-    {
-        return new FirebaseResolvedTypedContextPublicationBindingRepository(
-            FirestoreDb,
-            new FakeLogger<FirebaseResolvedTypedContextPublicationBindingRepository>());
-    }
-
     public IMatchOutcomeRepository CreateMatchOutcomeRepository(string competition)
     {
         return new FirebaseMatchOutcomeRepository(FirestoreDb, new FakeLogger<FirebaseMatchOutcomeRepository>(), competition);

@@ -54,8 +54,6 @@ public class MatchdayCommand : AsyncCommand<BaseSettings>
 
         try
         {
-            SchadensfressePrimaryRouteGate.EnsureAvailable(settings.Community);
-
             var initialModel = string.IsNullOrWhiteSpace(settings.Model) ? "(competition default)" : settings.Model;
             _console.MarkupLine($"[green]Matchday command initialized with model:[/] [yellow]{initialModel}[/]");
 

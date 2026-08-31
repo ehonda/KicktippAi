@@ -30,45 +30,10 @@ public class FirebaseContextRepository_SaveContextDocumentsAtomicallyAsync_Tests
                 ("recent-history-fcb.csv", (int?)0)
             });
         await Assert.That(unchanged.All(result => result.Version is null)).IsTrue();
-        await Assert.That(saved.Select(result => result.EffectiveVersion)).IsEquivalentTo([(int?)0, (int?)0]);
-        await Assert.That(unchanged.Select(result => result.EffectiveVersion)).IsEquivalentTo([(int?)0, (int?)0]);
         await Assert.That((await repository.GetLatestContextDocumentAsync("away-history-bvb.csv", Community))!.Content)
             .IsEqualTo("away-v0");
         await Assert.That((await repository.GetLatestContextDocumentAsync("recent-history-fcb.csv", Community))!.Content)
             .IsEqualTo("recent-v0");
-    }
-
-    [Test]
-    public async Task Unchanged_result_keeps_transaction_selected_version_across_different_then_original_interleaving()
-    {
-        const string documentName = "community-rules-schadensfresse.md";
-        const string original = "original rules";
-        var repository = CreateRepository();
-        await repository.SaveContextDocumentsAtomicallyAsync(
-            [new ContextDocumentWrite(documentName, original)],
-            Community);
-
-        var selected = await repository.SaveContextDocumentsAtomicallyAsync(
-            [new ContextDocumentWrite(documentName, original)],
-            Community);
-        await repository.SaveContextDocumentsAtomicallyAsync(
-            [new ContextDocumentWrite(documentName, "different rules")],
-            Community);
-        await repository.SaveContextDocumentsAtomicallyAsync(
-            [new ContextDocumentWrite(documentName, original)],
-            Community);
-
-        await Assert.That(selected[0].CreatedVersion).IsNull();
-        await Assert.That(selected[0].EffectiveVersion).IsEqualTo(0);
-        var exact = await repository.GetContextDocumentAsync(
-            documentName,
-            selected[0].EffectiveVersion!.Value,
-            Community);
-        var latest = await repository.GetLatestContextDocumentAsync(documentName, Community);
-        await Assert.That(exact!.Version).IsEqualTo(0);
-        await Assert.That(exact.Content).IsEqualTo(original);
-        await Assert.That(latest!.Version).IsEqualTo(2);
-        await Assert.That(latest.Content).IsEqualTo(original);
     }
 
     [Test]
@@ -190,9 +155,7 @@ public class FirebaseContextRepository_SaveContextDocumentsAtomicallyAsync_Tests
             [new ContextDocumentWrite("recent-history-fcb.csv", "same")], Community);
 
         await Assert.That(saved[0].Version).IsEqualTo(5);
-        await Assert.That(saved[0].EffectiveVersion).IsEqualTo(5);
         await Assert.That(unchanged[0].Version).IsNull();
-        await Assert.That(unchanged[0].EffectiveVersion).IsEqualTo(5);
     }
 
     [Test]

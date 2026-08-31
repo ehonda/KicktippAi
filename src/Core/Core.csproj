@@ -28,9 +28,6 @@
       <EmbeddedResource Include="..\..\data\bundesliga-2026-27\history\history-played-dates.csv">
         <LogicalName>EHonda.KicktippAi.Core.Data.Bundesliga2026_27HistoryPlayedDates.csv</LogicalName>
       </EmbeddedResource>
-      <EmbeddedResource Include="..\..\data\bundesliga-2026-27\schadensfresse-routing-seed.json">
-        <LogicalName>EHonda.KicktippAi.Core.Data.Bundesliga2026_27SchadensfresseRoutingSeed.json</LogicalName>
-      </EmbeddedResource>
     </ItemGroup>
 
 </Project>

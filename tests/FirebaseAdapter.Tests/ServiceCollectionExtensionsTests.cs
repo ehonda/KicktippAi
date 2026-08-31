@@ -129,18 +129,6 @@ public class ServiceCollectionExtensionsTests
     }
 
     [Test]
-    public async Task AddFirebaseDatabase_registers_IResolvedTypedContextPublicationBindingRepository_as_scoped()
-    {
-        var services = CreateServices();
-        AddDefaultFirebaseDatabase(services);
-
-        var descriptor = services.FirstOrDefault(d => d.ServiceType == typeof(IResolvedTypedContextPublicationBindingRepository));
-
-        await Assert.That(descriptor).IsNotNull()
-            .And.Member(d => d!.Lifetime, lifetime => lifetime.IsEqualTo(ServiceLifetime.Scoped));
-    }
-
-    [Test]
     public async Task AddFirebaseDatabase_registers_FirebaseKpiContextProvider_as_scoped()
     {
         // Arrange

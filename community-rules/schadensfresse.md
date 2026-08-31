@@ -1,26 +1,43 @@
-# Schadensfresse Live Rules
+# Kicktipp Community Scoring Rules
 
-Schema version: `schadensfresse-live-rules-v1`
+These are the points provided for different prediction outcomes in the Kicktipp community you are participating in.
 
-- Tips are visible before the deadline: `false`
-- Prediction mode: `exact-score`
-- Tie break: `matchday-wins-unless-otherwise-agreed`
-- Lead time minutes: `0`
+## Scoring System
 
-## Result bases
+| Result Type | Tendency | Goal Difference | Exact Result |
+|-------------|----------|-----------------|--------------|
+| Win         | 2        | 3               | 4            |
+| Draw        | 2        | -               | 4            |
 
-1. `bundesliga` | `1. Bundesliga 2026/27` | `regularTime90Minutes`
-2. `dfb-pokal` | `DFB-Pokal 2026/27` | `finalScoreIncludingExtraTimeAndPenaltyShootout`
-3. `uefa-champions-league` | `Champions League 2026/27` | `finalScoreIncludingExtraTimeAndPenaltyShootout`
+* Tendency: Predicting the winner or a draw
+* Goal Difference: Predicting the winner and the goal difference
+* Exact Result: Predicting the exact score
 
-## Match scoring
+## Examples
 
-| result | tendencyPoints | goalDifferencePoints | exactResultPoints |
-| --- | ---: | ---: | ---: |
-| win | 2 | 3 | 5 |
-| draw | 3 | null | 5 |
+### Tendency
 
-## Bonus scoring
+```text
+Prediction: 2:1
+Outcome:    3:1
 
-- Points per correct answer: `9`
-- Answer order matters: `false`
+Prediction: 1:1
+Outcome:    2:2
+```
+
+### Goal Difference
+
+```text
+Prediction: 2:1
+Outcome:    3:2
+```
+
+### Exact Result
+
+```text
+Prediction: 2:1
+Outcome:    2:1
+
+Prediction: 1:1
+Outcome:    1:1
+```
