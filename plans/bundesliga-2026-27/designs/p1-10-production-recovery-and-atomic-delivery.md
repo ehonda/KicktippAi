@@ -1,7 +1,10 @@
 # P1-10 production recovery and atomic delivery design
 
 - Status: Frozen recovery design, not completion evidence
-- Authority: [ADR-0062](../decisions/0062-temporarily-restore-schadensfresse-copy.md)
+- Authorities: [ADR-0062](../decisions/0062-temporarily-restore-schadensfresse-copy.md)
+  owns recovery runtime; [ADR-0063](../decisions/0063-construct-p1-10-full-branch-after-recovery.md)
+  owns construction; [ADR-0064](../decisions/0064-permit-portable-rules-fixture-test-in-p1-10-seed.md)
+  permits E's test-harness exception only.
 - Baseline: `3a2ba35529b262327a3ec08e6bde47b186c8e5b2`
 
 ## Seam map
@@ -61,6 +64,13 @@ named in ADR-0062. ADR-0063 replaces the stale branch step: branch from D
 order avoids modify/delete while restoring the archival P1-10 tree for a
 reviewable draft PR; it is preservation, not merge readiness. The draft stays
 live-broken until ordinary fixture typing and all P1-10/Owner gates pass.
+
+ADR-0064 admits E (`798fb89`, parent `300ae2d`) as the sole additional test
+exception: `.ReplaceLineEndings("\n")` in the rules-extractor test makes its
+fixture read portable without changing fixture bytes, runtime, rules, or any
+operational authority. Final preservation compares runtime paths exactly with
+A/original `71637cc`, tests with D+E only, and planning with the six allowed
+paths; ADR-0063 remains byte-identical and Accepted.
 
 The PR must replace or terminate temporary copy mode atomically by
 `2026-09-08T12:00:00Z`; otherwise re-quarantine Schadensfresse and keep seven

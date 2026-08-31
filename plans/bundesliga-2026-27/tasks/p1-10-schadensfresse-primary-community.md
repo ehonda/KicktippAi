@@ -4,7 +4,7 @@
 - Priority: P1 — deadline-critical
 - Depends on: [P0-21](p0-21-production-activation.md)
 - Absorbs: [P1-08](p1-08-schadensfresse-mixed-competition-routing.md)
-- Decisions: [ADR-0052](../decisions/0052-select-production-model-community-matrix-and-match-prompt-v3.md), [ADR-0054](../decisions/0054-copy-schadensfresse-bundesliga-from-pes-squad.md), [ADR-0055](../decisions/0055-add-schadensfresse-to-production-live-lane.md), [ADR-0058](../decisions/0058-make-schadensfresse-a-competition-typed-primary.md), [ADR-0059](../decisions/0059-bind-schadensfresse-rules-to-a-structured-semantic-record.md), [ADR-0060](../decisions/0060-separate-generation-manifest-from-current-rules-attestation.md), [ADR-0061](../decisions/0061-preview-and-milestone-orchestration.md), [ADR-0062](../decisions/0062-temporarily-restore-schadensfresse-copy.md), [ADR-0063](../decisions/0063-construct-p1-10-full-branch-after-recovery.md)
+- Decisions: [ADR-0052](../decisions/0052-select-production-model-community-matrix-and-match-prompt-v3.md), [ADR-0054](../decisions/0054-copy-schadensfresse-bundesliga-from-pes-squad.md), [ADR-0055](../decisions/0055-add-schadensfresse-to-production-live-lane.md), [ADR-0058](../decisions/0058-make-schadensfresse-a-competition-typed-primary.md), [ADR-0059](../decisions/0059-bind-schadensfresse-rules-to-a-structured-semantic-record.md), [ADR-0060](../decisions/0060-separate-generation-manifest-from-current-rules-attestation.md), [ADR-0061](../decisions/0061-preview-and-milestone-orchestration.md), [ADR-0062](../decisions/0062-temporarily-restore-schadensfresse-copy.md), [ADR-0063](../decisions/0063-construct-p1-10-full-branch-after-recovery.md), [ADR-0064](../decisions/0064-permit-portable-rules-fixture-test-in-p1-10-seed.md)
 
 - Orchestration readiness: The completed checkboxes are historical integrated
   evidence. The resumed recovery's frozen artifacts are the
@@ -15,6 +15,8 @@
   C-then-B inverses. Its A-equivalence is preservation, not merge readiness:
   this draft branch remains live-broken until ordinary fixture typing and every
   remaining P1-10 and Owner gate passes.
+  ADR-0064 admits only E's portable fixture-test normalization; it does not
+  change ADR-0062 recovery runtime, ADR-0063 construction, or any Owner gate.
 
 ## Trigger and live evidence
 
