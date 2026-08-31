@@ -29,12 +29,16 @@ PR history. The recovery's temporary copy route sunsets at
    `d515726`, `b0fd6b6`, `86cb5a5`, `2b91958`, `1fb6957`, `a084263`,
    `18ba841`, and `ae8fc46`.
 4. Validate and independently exact-SHA review A+B, then push them to `main`.
-5. Create `codex/01a054ee-p1-10-full` from recovered `main`, revert B on that
-   branch, push it, and open a draft PR. Complete P1-10 atomically there.
+5. ADR-0063 supersedes this stale step: construct
+   `codex/01a054ee-p1-10-full` from D
+   (`d47c1b2b8f47b2755d9c382c46b830876efccbaf`, green CI `33393738486`) by
+   reverting C (`22a0c6d`) first as `0e4f3a9`, then B (`68af9e1`) as
+   `dc29899`; preserve D. Push and open only a draft PR after the ADR-0063
+   preservation and exact-head gates pass.
 
-This topology is non-rewriting: no reset, force push, rebase, or history
-rewrite. A later regression in the completed PR is recovered by reverting its
-merge to the ADR-0062 baseline.
+This topology is non-rewriting: no reset, force push, rebase, squash, or
+history rewrite. A later regression in the completed PR is recovered by
+reverting its merge to the ADR-0062 baseline.
 
 `ae8fc46`, `18ba841`, `a084263`, and `1fb6957` touch
 `plans/bundesliga-2026-27/tasks/p1-10-schadensfresse-primary-community.md`.

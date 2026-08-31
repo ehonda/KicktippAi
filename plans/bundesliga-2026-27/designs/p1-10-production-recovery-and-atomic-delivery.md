@@ -54,10 +54,14 @@ have been inspected.
 
 ## Atomic completion path
 
-Commit A adds the recovery metadata. Commit B is the explicit aggregate revert
-set named in ADR-0062. After A+B is reviewed and pushed to `main`, branch
-`codex/01a054ee-p1-10-full` from recovered main and revert B on that branch so
-the full P1-10 implementation appears as a branch-unique, reviewable diff.
+Commit A adds the recovery metadata and B is the explicit aggregate revert set
+named in ADR-0062. ADR-0063 replaces the stale branch step: branch from D
+(`d47c1b2`), revert recovery-only C (`22a0c6d`) first as `0e4f3a9`, then B
+(`68af9e1`) as `dc29899`, and retain D's telemetry patch. This C-before-B
+order avoids modify/delete while restoring the archival P1-10 tree for a
+reviewable draft PR; it is preservation, not merge readiness. The draft stays
+live-broken until ordinary fixture typing and all P1-10/Owner gates pass.
+
 The PR must replace or terminate temporary copy mode atomically by
 `2026-09-08T12:00:00Z`; otherwise re-quarantine Schadensfresse and keep seven
 unaffected pairs. A later regression reverts the P1-10 merge to the recovery

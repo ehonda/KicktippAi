@@ -4,13 +4,17 @@
 - Priority: P1 — deadline-critical
 - Depends on: [P0-21](p0-21-production-activation.md)
 - Absorbs: [P1-08](p1-08-schadensfresse-mixed-competition-routing.md)
-- Decisions: [ADR-0052](../decisions/0052-select-production-model-community-matrix-and-match-prompt-v3.md), [ADR-0054](../decisions/0054-copy-schadensfresse-bundesliga-from-pes-squad.md), [ADR-0055](../decisions/0055-add-schadensfresse-to-production-live-lane.md), [ADR-0058](../decisions/0058-make-schadensfresse-a-competition-typed-primary.md), [ADR-0059](../decisions/0059-bind-schadensfresse-rules-to-a-structured-semantic-record.md), [ADR-0060](../decisions/0060-separate-generation-manifest-from-current-rules-attestation.md), [ADR-0061](../decisions/0061-preview-and-milestone-orchestration.md), [ADR-0062](../decisions/0062-temporarily-restore-schadensfresse-copy.md)
+- Decisions: [ADR-0052](../decisions/0052-select-production-model-community-matrix-and-match-prompt-v3.md), [ADR-0054](../decisions/0054-copy-schadensfresse-bundesliga-from-pes-squad.md), [ADR-0055](../decisions/0055-add-schadensfresse-to-production-live-lane.md), [ADR-0058](../decisions/0058-make-schadensfresse-a-competition-typed-primary.md), [ADR-0059](../decisions/0059-bind-schadensfresse-rules-to-a-structured-semantic-record.md), [ADR-0060](../decisions/0060-separate-generation-manifest-from-current-rules-attestation.md), [ADR-0061](../decisions/0061-preview-and-milestone-orchestration.md), [ADR-0062](../decisions/0062-temporarily-restore-schadensfresse-copy.md), [ADR-0063](../decisions/0063-construct-p1-10-full-branch-after-recovery.md)
 
 - Orchestration readiness: The completed checkboxes are historical integrated
   evidence. The resumed recovery's frozen artifacts are the
   [P1 execution packet](../p1-execution-packet.md) and
   [production recovery design](../designs/p1-10-production-recovery-and-atomic-delivery.md).
   They govern recovery only; they do not mark the target-primary route done.
+  ADR-0063 records that the full branch was constructed from D by the dedicated
+  C-then-B inverses. Its A-equivalence is preservation, not merge readiness:
+  this draft branch remains live-broken until ordinary fixture typing and every
+  remaining P1-10 and Owner gate passes.
 
 ## Trigger and live evidence
 
