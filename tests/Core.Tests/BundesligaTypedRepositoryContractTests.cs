@@ -122,6 +122,23 @@ public class BundesligaTypedRepositoryContractTests
             BundesligaPredictionContractTestData.BonusCopyProvenance(copyInput));
         targetSelections[0] = "b";
         await Assert.That(save.SelectedOptionIds).IsEquivalentTo(new[] { "a" });
+
+        var wrongBonusSourceKey = CreateForgedBonusCopyProvenance(
+            copyInput,
+            BundesligaPredictionContractTestData.BonusKey("pes-squad", "85"),
+            copyInput.SourceCurrent.Snapshot.SnapshotHash);
+        var wrongBonusSourceHash = CreateForgedBonusCopyProvenance(
+            copyInput,
+            copyInput.SourceCurrent.Snapshot.Key,
+            BundesligaPredictionSnapshotHash.Create(
+                TypedBonusSnapshot.SchemaVersionValue,
+                BundesligaPredictionContractTestData.ShaA));
+        await Assert.That(() => TypedBonusCopySaveRequest.Create(
+            copyRequest, candidate, new BonusPrediction(new List<string> { "a" }), wrongBonusSourceKey))
+            .Throws<InvalidDataException>();
+        await Assert.That(() => TypedBonusCopySaveRequest.Create(
+            copyRequest, candidate, new BonusPrediction(new List<string> { "a" }), wrongBonusSourceHash))
+            .Throws<InvalidDataException>();
     }
 
     [Test]
@@ -208,6 +225,22 @@ public class BundesligaTypedRepositoryContractTests
         await Assert.That(() => TypedMatchCopySaveRequest.Create(
             request, candidate, new Prediction(2, 0), targetProvenance))
             .Throws<InvalidDataException>();
+        var wrongMatchSourceKey = CreateForgedMatchCopyProvenance(
+            input,
+            BundesligaPredictionContractTestData.MatchKey("pes-squad", "43"),
+            input.SourceCurrent.Snapshot.SnapshotHash);
+        var wrongMatchSourceHash = CreateForgedMatchCopyProvenance(
+            input,
+            input.SourceCurrent.Snapshot.Key,
+            BundesligaPredictionSnapshotHash.Create(
+                TypedMatchSnapshot.SchemaVersionValue,
+                BundesligaPredictionContractTestData.ShaA));
+        await Assert.That(() => TypedMatchCopySaveRequest.Create(
+            request, candidate, new Prediction(1, 0), wrongMatchSourceKey))
+            .Throws<InvalidDataException>();
+        await Assert.That(() => TypedMatchCopySaveRequest.Create(
+            request, candidate, new Prediction(1, 0), wrongMatchSourceHash))
+            .Throws<InvalidDataException>();
 
         var posting = input.PostingSeed;
         var source = input.SourceSeed;
@@ -222,5 +255,71 @@ public class BundesligaTypedRepositoryContractTests
             nextRequest, candidate, new Prediction(1, 0),
             BundesligaPredictionContractTestData.CopyProvenance(nextInput)))
             .Throws<InvalidDataException>();
+    }
+
+    private static PredictionGenerationProvenanceV2 CreateForgedMatchCopyProvenance(
+        PredictionCopyCompatibilityV2Input<TypedMatchSnapshot> input,
+        StableLocalItemKey sourceKey,
+        BundesligaPredictionSnapshotHash sourceHash) =>
+        CreateForgedCopyProvenance(
+            input.TargetCurrent,
+            sourceKey,
+            sourceHash,
+            input.SourceCurrent.Snapshot.Key,
+            "match-predictions-bundesliga-2026-27-typed-v1",
+            "prediction-42-r0",
+            "forged-match-copy");
+
+    private static PredictionGenerationProvenanceV2 CreateForgedBonusCopyProvenance(
+        PredictionCopyCompatibilityV2Input<TypedBonusSnapshot> input,
+        StableLocalItemKey sourceKey,
+        BundesligaPredictionSnapshotHash sourceHash) =>
+        CreateForgedCopyProvenance(
+            input.TargetCurrent,
+            sourceKey,
+            sourceHash,
+            input.SourceCurrent.Snapshot.Key,
+            "bonus-predictions-bundesliga-2026-27-typed-v1",
+            "bonus-prediction-84",
+            "forged-bonus-copy");
+
+    private static PredictionGenerationProvenanceV2 CreateForgedCopyProvenance<TSnapshot>(
+        BundesligaTypedCurrentRequest<TSnapshot> target,
+        StableLocalItemKey sourceKey,
+        BundesligaPredictionSnapshotHash sourceHash,
+        StableLocalItemKey expectedSourceKey,
+        string physicalNamespace,
+        string sourcePredictionIdentity,
+        string predictionIdentity) where TSnapshot : class
+    {
+        var (targetKey, targetHash) = target.Snapshot switch
+        {
+            TypedMatchSnapshot match => (match.Key, match.SnapshotHash),
+            TypedBonusSnapshot bonus => (bonus.Key, bonus.SnapshotHash),
+            _ => throw new InvalidDataException("Unsupported forged target snapshot.")
+        };
+        if (!string.Equals(sourceKey.PostingCommunity, expectedSourceKey.PostingCommunity, StringComparison.Ordinal))
+        {
+            throw new InvalidDataException("Hostile source key must stay within the valid source community.");
+        }
+        return PredictionGenerationProvenanceV2.Create(
+            target.Authority,
+            physicalNamespace,
+            targetKey,
+            targetHash,
+            sourceKey,
+            sourceHash,
+            target.Identity.RouteId,
+            target.Identity.ProfileId,
+            target.Identity.GenerationInputContract,
+            sourcePredictionIdentity,
+            BundesligaPredictionContractTestData.Prompt(),
+            target.ModelConfig,
+            PredictionServiceTierProvenanceV2.Create("standard", "standard", false),
+            BundesligaPredictionContractTestData.Context(),
+            Instant.FromUtc(2026, 8, 31, 12, 0),
+            predictionIdentity,
+            0,
+            new PredictionGenerationUsageV2(0, 0, 0));
     }
 }

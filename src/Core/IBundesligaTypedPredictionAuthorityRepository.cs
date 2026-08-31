@@ -169,6 +169,29 @@ public sealed class BundesligaTypedCopyRequest<TSnapshot>
     public void RequireMatchingTargetProvenance(PredictionGenerationProvenanceV2 provenance) =>
         TargetCurrent.RequireMatchingProvenance(provenance);
 
+    public void RequireMatchingCopyProvenance(PredictionGenerationProvenanceV2 provenance)
+    {
+        ArgumentNullException.ThrowIfNull(provenance);
+        TargetCurrent.RequireMatchingProvenance(provenance);
+        var sourceKey = BundesligaTypedCurrentRequest<TSnapshot>.SnapshotIdentity(SourceCurrent.Snapshot).Key;
+        var sourceHash = SourceCurrent.Snapshot switch
+        {
+            TypedMatchSnapshot match => match.SnapshotHash,
+            TypedBonusSnapshot bonus => bonus.SnapshotHash,
+            _ => throw new InvalidDataException("Unsupported copy source snapshot.")
+        };
+        if (provenance.PostingKey != BindingEntry.PostingKey
+            || provenance.PostingSnapshotHash != BindingEntry.PostingSnapshotHash
+            || provenance.SourceKey != sourceKey
+            || provenance.SourceSnapshotHash != sourceHash
+            || provenance.SourceKey != BindingEntry.SourceKey
+            || provenance.SourceSnapshotHash != BindingEntry.SourceSnapshotHash)
+        {
+            throw new InvalidDataException(
+                "Copy provenance source/posting identity must match both exact current snapshots and the binding entry.");
+        }
+    }
+
     internal void RequireMatchingSourceProvenance(PredictionGenerationProvenanceV2 provenance) =>
         SourceCurrent.RequireMatchingProvenance(provenance);
 }
@@ -374,7 +397,7 @@ public sealed class TypedMatchCopySaveRequest
         ArgumentNullException.ThrowIfNull(sourceCandidate);
         ArgumentNullException.ThrowIfNull(prediction);
         ArgumentNullException.ThrowIfNull(targetProvenance);
-        copyRequest.RequireMatchingTargetProvenance(targetProvenance);
+        copyRequest.RequireMatchingCopyProvenance(targetProvenance);
         copyRequest.RequireMatchingSourceProvenance(sourceCandidate.SourcePrediction.Provenance);
         if (!ReferenceEquals(sourceCandidate.SourceCurrent, copyRequest.SourceCurrent)
             || !string.Equals(sourceCandidate.CopyRequestFingerprint, copyRequest.Decision.BoundFingerprint, StringComparison.Ordinal)
@@ -417,7 +440,7 @@ public sealed class TypedBonusCopySaveRequest
         ArgumentNullException.ThrowIfNull(sourceCandidate);
         ArgumentNullException.ThrowIfNull(prediction);
         ArgumentNullException.ThrowIfNull(targetProvenance);
-        copyRequest.RequireMatchingTargetProvenance(targetProvenance);
+        copyRequest.RequireMatchingCopyProvenance(targetProvenance);
         copyRequest.RequireMatchingSourceProvenance(sourceCandidate.SourcePrediction.Provenance);
         if (!ReferenceEquals(sourceCandidate.SourceCurrent, copyRequest.SourceCurrent)
             || !string.Equals(sourceCandidate.CopyRequestFingerprint, copyRequest.Decision.BoundFingerprint, StringComparison.Ordinal)
