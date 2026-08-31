@@ -40,6 +40,34 @@ resource admission are requirements. A universal milestone count or numeric
 productivity target is not. The orchestrator retains judgment and records its
 chosen parameters during preview.
 
+## First follow-up correction — 2026-09-01
+
+The first successor analysis initially described lower token throughput as
+improved efficiency and over-weighted machine admission as a cause of reduced
+parallelism. The preserved snapshot supports a narrower conclusion:
+
+- average active concurrency fell from 1.521 to 1.121 and two-plus occupancy
+  from 52.1% to 11.8%;
+- only P1-10 had completed grilling, while P1-04/05/06/07/11 remained
+  `needs-interview`, so the narrower runnable graph is the dominant cause;
+- logged tokens per adjusted hour fell 42.2%, but worker activity per adjusted
+  wall-second fell 41.3%; and
+- uncached input plus output per worker-hour fell only about 5.6%, from 771k to
+  728k, which does not establish accepted-work-per-token efficiency.
+
+The safer headline is **less parallel, less wasteful, efficiency unproven**.
+Milestone publication, production continuity, and ledger coalescing reduced
+observable waste. Output productivity remains unmeasured. Subscription quota
+is intentionally not an orchestration signal: rapid quota use is acceptable
+when it buys useful accepted work, and reset timing must not govern dispatch.
+
+Post-cutoff evidence identified secondary constraints. The first
+concurrent-ready R2 siblings ran sequentially because three reusable threads
+occupied the spawned-agent limit, and a heavy gate was denied at 1.48 GiB
+against the 1.50 GiB floor. The normalized correction and separated addendum
+are in
+[`p1-orchestration-follow-up-investigation/data/corrections.json`](p1-orchestration-follow-up-investigation/data/corrections.json).
+
 ## Lifecycle and canonical terms
 
 An **orchestration run** owns one explicit objective and may span a whole
@@ -74,7 +102,9 @@ Phase-wide or cross-cutting architecture always uses a
 `gpt-5.6-sol` / `xhigh` lead and a different `gpt-5.6-sol` / `xhigh` reviewer
 during this pilot. Getting the seam map, invariants, non-goals, dependency
 graph, owned paths, and verification strategy right is cheaper than correcting
-downstream drift. The accepted lead stays idle and recallable between waves.
+downstream drift. The accepted lead remains recallable only with a concrete
+near-term retention reason and release trigger, and never when retention blocks
+useful ready work merely to preserve optional continuity.
 
 A semantic discovery—not a line-count threshold—reopens design: a new
 cross-cutting invariant, missing ADR, new dependency seam, invalidated
@@ -90,6 +120,17 @@ available agent slots. Ordinary lane branches remain local. Focused lane checks
 happen before handoff; independent review and full CI attach to frozen
 milestones and exceptional high-risk lanes. A reconciliation thread may be
 reused while its context remains applicable.
+
+The project config allows eight spawned-agent threads, excluding the primary.
+This does not create a target occupancy or replace the separate limits of two
+writers/worktrees and one heavy operation. Useful independent ready work should
+be admitted; speculative work should not be invented to fill capacity.
+
+Sol/xhigh remains the independent-review default during this pilot. Sol/high
+may review a frozen exact artifact only when the root records bounded paths and
+deterministic acceptance criteria and confirms there is no open ADR, invariant,
+ownership, architecture, or production-continuity question. Retained reviewers
+need the same reason/release-trigger discipline as architecture specialists.
 
 Direct `main` integration remains useful for independently production-safe
 milestones. A change that temporarily disables or regresses active workflow
@@ -146,19 +187,41 @@ The checked-in resource helper separates three limits:
 
 The default profile admits at most two linked task worktrees and reserves 1.25
 GiB for each new one. It requires at least 10 GiB free after reservation and
-warns below 15% disk free. Heavy work requires at least 1.5 GiB available
-memory. Its default concurrency limit is one and expands to two only when the
-host has at least six logical processors and four GiB available memory. These
-are conservative pilot defaults, configurable per repository or explicit
-run-scoped owner override. Missing required measurements fail closed.
+warns below 15% disk free. Heavy work has one lease on every host, requires at
+least 1.10 GiB available memory, and warns below 1.50 GiB. The warning is
+calibration evidence rather than a denial. At admission/release transitions,
+the ledger records operation type, start/post memory, duration, and outcome.
+Missing required measurements still fail closed; an explicit run-scoped owner
+override remains available for a measured exceptional shortfall.
+
+## Specialist release prerequisite
+
+The workflow now defines when a specialist should stop being retained, but the
+current client surface did not expose the documented explicit thread-closure
+operation. Merging and activating this revision is blocked until the separate
+fresh-session experiment in
+[`agent-closure-prerequisite.md`](agent-closure-prerequisite.md) establishes the
+actual mechanism and the owner chooses a policy. No missing-tool fallback is
+assumed in this draft.
+
+The immediate preview-to-execution UX remains intentionally small: one
+`EXECUTION START` commentary marker before the first writer. A durable,
+discoverable status surface that does not require scrolling the root thread is
+a future improvement, not a reason to build ad-hoc high-frequency telemetry in
+the ledger now.
 
 ## Evaluation
 
 Do not add a telemetry service or turn the ledger into an event stream. The
-owner will stop the old P1 run, restart P1 under this workflow, let it perform
-useful work, and trigger another analysis at a useful checkpoint. That review
+current P1 run may finish under its existing workflow; after the merge gates
+pass, a fresh run will use this revision and trigger another analysis at a
+useful checkpoint. That review
 will reconstruct normalized evidence from native Codex transcripts, Git,
-branches, PRs, and CI, examining productive unattended time, completed ready
-work, re-freezes, review turns per milestone, publication and CI count,
-resource throttling, owner waits, and escaped defects. Early results guide
-parameter changes; they are not hard pass/fail targets.
+branches, PRs, and CI. It should examine accepted milestones/review closures,
+ready-lane utilization, root work per accepted milestone, correction turns and
+tokens, blocker time by the fixed categories, explicit releases and
+agent-slot-blocked time, resource start/post/outcome calibration, re-freezes,
+publication and CI count, owner waits, and escaped defects. Generic event-wait
+frequency and raw token burn are contextual utilization measures, not
+standalone efficiency KPIs. Early results guide parameter changes; they are not
+hard pass/fail targets.

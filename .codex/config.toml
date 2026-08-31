@@ -1,1 +1,4 @@
 #:schema https://developers.openai.com/codex/config-schema.json
+
+[agents]
+max_concurrent_threads_per_session = 8

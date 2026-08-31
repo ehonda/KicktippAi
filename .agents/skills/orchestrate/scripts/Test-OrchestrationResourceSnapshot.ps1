@@ -53,6 +53,26 @@ $lowMemory = & $helper -Admission Heavy -Sample @{
 }
 Assert-True (-not $lowMemory.HeavyOperationAdmission.Allowed) 'low memory must deny a heavy operation'
 
+$hardFloor = & $helper -Admission Heavy -Sample @{
+    FreeDiskGiB = 30
+    TotalDiskGiB = 200
+    AvailableMemoryGiB = 1.1
+    LogicalProcessors = 4
+    LinkedTaskWorktrees = 0
+}
+Assert-True $hardFloor.HeavyOperationAdmission.Allowed 'the 1.10 GiB hard floor must admit one heavy operation'
+Assert-True ($hardFloor.Warnings.Count -eq 1) 'memory below 1.50 GiB should produce a warning'
+
+$formerCliff = & $helper -Admission Heavy -Sample @{
+    FreeDiskGiB = 30
+    TotalDiskGiB = 200
+    AvailableMemoryGiB = 1.48
+    LogicalProcessors = 4
+    LinkedTaskWorktrees = 0
+}
+Assert-True $formerCliff.HeavyOperationAdmission.Allowed '1.48 GiB must no longer fail heavy admission'
+Assert-True ($formerCliff.Warnings.Count -eq 1) '1.48 GiB should retain the low-memory warning'
+
 $singleLease = & $helper -Admission Heavy -ActiveHeavyOperations 1 -Sample @{
     FreeDiskGiB = 30
     TotalDiskGiB = 200
@@ -62,15 +82,15 @@ $singleLease = & $helper -Admission Heavy -ActiveHeavyOperations 1 -Sample @{
 }
 Assert-True (-not $singleLease.HeavyOperationAdmission.Allowed) 'one active operation must fill the default lease'
 
-$expandedLease = & $helper -Admission Heavy -ActiveHeavyOperations 1 -Sample @{
+$largeHostLease = & $helper -Admission Heavy -ActiveHeavyOperations 1 -Sample @{
     FreeDiskGiB = 30
     TotalDiskGiB = 200
     AvailableMemoryGiB = 8.0
     LogicalProcessors = 8
     LinkedTaskWorktrees = 0
 }
-Assert-True $expandedLease.HeavyOperationAdmission.Allowed 'a well-provisioned sample should admit the second lease'
-Assert-True ($expandedLease.HeavyOperationAdmission.CurrentLimit -eq 2) 'the expanded lease limit should be two'
+Assert-True (-not $largeHostLease.HeavyOperationAdmission.Allowed) 'a well-provisioned sample must still keep one heavy lease'
+Assert-True ($largeHostLease.HeavyOperationAdmission.CurrentLimit -eq 1) 'the heavy-operation limit should remain one'
 
 $missingMemory = & $helper -Admission Heavy -Sample @{
     FreeDiskGiB = 30
@@ -90,5 +110,7 @@ $json = & $helper -Admission Snapshot -AsJson -Sample @{
 } | ConvertFrom-Json
 Assert-True ($json.AdmissionMode -eq 'Snapshot') 'JSON output must preserve the admission mode'
 Assert-True ($null -ne $json.WorktreeAdmission.Allowed) 'JSON output must preserve the admission verdicts'
+Assert-True ($json.HeavyOperationAdmission.HardFloorGiB -eq 1.1) 'JSON output must expose the calibrated hard floor'
+Assert-True ($json.HeavyOperationAdmission.WarningThresholdGiB -eq 1.5) 'JSON output must expose the warning threshold'
 
 Write-Output 'Orchestration resource snapshot tests passed.'

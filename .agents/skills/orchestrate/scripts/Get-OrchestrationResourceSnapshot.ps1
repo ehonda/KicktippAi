@@ -32,7 +32,7 @@ if (-not (Test-Path -LiteralPath $ConfigPath -PathType Leaf)) {
 }
 
 $policy = Get-Content -LiteralPath $ConfigPath -Raw | ConvertFrom-Json
-if ($policy.schemaVersion -ne 1) {
+if ($policy.schemaVersion -ne 2) {
     throw "Unsupported orchestration resource policy schema: $($policy.schemaVersion)"
 }
 
@@ -40,22 +40,18 @@ $maximumLinkedTaskWorktrees = [int] $policy.worktree.maximumLinkedTaskWorktrees
 $reservedGiBPerNewWorktree = [double] $policy.worktree.reservedGiBPerNewWorktree
 $minimumFreeGiBAfterReservation = [double] $policy.worktree.minimumFreeGiBAfterReservation
 $minimumFreeDiskPercentWarning = [double] $policy.worktree.minimumFreeDiskPercentWarning
-$defaultHeavyLimit = [int] $policy.heavyOperation.defaultConcurrentLimit
-$expandedHeavyLimit = [int] $policy.heavyOperation.expandedConcurrentLimit
+$heavyLimit = [int] $policy.heavyOperation.concurrentLimit
 $minimumAvailableMemoryGiB = [double] $policy.heavyOperation.minimumAvailableMemoryGiB
-$minimumLogicalProcessorsForExpandedLimit = [int] $policy.heavyOperation.minimumLogicalProcessorsForExpandedLimit
-$minimumAvailableMemoryGiBForExpandedLimit = [double] $policy.heavyOperation.minimumAvailableMemoryGiBForExpandedLimit
+$warningAvailableMemoryGiB = [double] $policy.heavyOperation.warningAvailableMemoryGiB
 
 if (
     $maximumLinkedTaskWorktrees -lt 1 -or
     $reservedGiBPerNewWorktree -le 0 -or
     $minimumFreeGiBAfterReservation -le 0 -or
     $minimumFreeDiskPercentWarning -le 0 -or
-    $defaultHeavyLimit -lt 1 -or
-    $expandedHeavyLimit -lt $defaultHeavyLimit -or
+    $heavyLimit -lt 1 -or
     $minimumAvailableMemoryGiB -le 0 -or
-    $minimumLogicalProcessorsForExpandedLimit -lt 1 -or
-    $minimumAvailableMemoryGiBForExpandedLimit -lt $minimumAvailableMemoryGiB) {
+    $warningAvailableMemoryGiB -lt $minimumAvailableMemoryGiB) {
     throw 'The orchestration resource policy contains invalid limits.'
 }
 
@@ -133,6 +129,12 @@ if ($null -ne $freeDiskPercent -and $freeDiskPercent -lt $minimumFreeDiskPercent
     $warnings.Add(
         "Disk free space is $freeDiskPercent%, below the $minimumFreeDiskPercentWarning% warning threshold.")
 }
+if (
+    $null -ne $availableMemoryGiB -and
+    [double] $availableMemoryGiB -lt $warningAvailableMemoryGiB) {
+    $warnings.Add(
+        "Available memory is $availableMemoryGiB GiB, below the $warningAvailableMemoryGiB GiB warning threshold; the hard floor is $minimumAvailableMemoryGiB GiB.")
+}
 
 $worktreeAllowed = $false
 $worktreeReason = ''
@@ -152,15 +154,6 @@ else {
         $worktreeAllowed = $true
         $worktreeReason = "Allowed: reservation leaves $postReservationFreeGiB GiB and uses $linkedTaskWorktrees of $maximumLinkedTaskWorktrees linked task-worktree slots."
     }
-}
-
-$heavyLimit = $defaultHeavyLimit
-if (
-    $null -ne $logicalProcessors -and
-    $null -ne $availableMemoryGiB -and
-    [int] $logicalProcessors -ge $minimumLogicalProcessorsForExpandedLimit -and
-    [double] $availableMemoryGiB -ge $minimumAvailableMemoryGiBForExpandedLimit) {
-    $heavyLimit = $expandedHeavyLimit
 }
 
 $heavyAllowed = $false
@@ -214,6 +207,8 @@ $snapshot = [pscustomobject] [ordered] @{
         Reason = $heavyReason
         ActiveLeases = $ActiveHeavyOperations
         CurrentLimit = $heavyLimit
+        HardFloorGiB = $minimumAvailableMemoryGiB
+        WarningThresholdGiB = $warningAvailableMemoryGiB
     }
     Warnings = @($warnings)
 }
