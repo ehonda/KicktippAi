@@ -1,9 +1,81 @@
+using System.Text;
+using System.Text.Json;
 using EHonda.KicktippAi.Core;
 
 namespace Core.Tests;
 
 public class PredictionCopyCompatibilityV2Tests
 {
+    [Test]
+    public async Task Bound_input_is_versioned_strict_canonical_named_json_with_fixed_fingerprint()
+    {
+        var decision = PredictionCopyCompatibilityV2.Evaluate(BundesligaPredictionContractTestData.MatchCopyInput());
+        var bytes = decision.CanonicalInput.SerializeCanonical();
+        var restored = PredictionCopyCompatibilityV2CanonicalInput.DeserializeCanonical(bytes);
+        using var document = JsonDocument.Parse(bytes);
+
+        await Assert.That(decision.CanonicalInputSchemaVersion)
+            .IsEqualTo("prediction-copy-compatibility-input-v2");
+        await Assert.That(document.RootElement.EnumerateObject().Select(property => property.Name).SequenceEqual(new[]
+            {
+                "schemaVersion", "targetCurrent", "sourceCurrent", "postingSeed", "sourceSeed",
+                "binding", "bindingEntry", "targetContract", "sourceContract"
+            }, StringComparer.Ordinal)).IsTrue();
+        await Assert.That(restored.SerializeCanonical()).IsEquivalentTo(bytes);
+        await Assert.That(decision.BoundFingerprint).IsEqualTo("5be3bee90cf35e8d9bed80ce94d5f002ac9340c73dfb6adaf8b30c8b248649b1");
+
+        var json = Encoding.UTF8.GetString(bytes);
+        foreach (var mutation in new[]
+        {
+            json.Replace("\"schemaVersion\":\"prediction-copy-compatibility-input-v2\"", "\"schemaVersion\":\"other\"", StringComparison.Ordinal),
+            json.Replace("\"targetCurrent\":", "\"extra\":true,\"targetCurrent\":", StringComparison.Ordinal),
+            json.Replace("\"hostedVersion\":3", "\"hostedVersion\":\"3\"", StringComparison.Ordinal),
+            json.Replace(BundesligaPredictionContractTestData.ShaA, "not-a-hash", StringComparison.Ordinal),
+            " " + json
+        })
+        {
+            await Assert.That(() => PredictionCopyCompatibilityV2CanonicalInput.DeserializeCanonical(
+                Encoding.UTF8.GetBytes(mutation))).Throws<Exception>();
+        }
+    }
+
+    [Test]
+    public async Task Named_prompt_fields_prevent_delimiter_collision_and_prompt_must_match_pinned_model()
+    {
+        static PredictionPromptProvenanceV2 Fallback(string label, string file) =>
+            PredictionPromptProvenanceV2.Create(
+                PredictionPromptSourceV2.CheckedInFallback,
+                BundesligaPredictionContractTestData.MatchPrompt,
+                3,
+                BundesligaPredictionContractTestData.ShaA,
+                label,
+                true,
+                file,
+                BundesligaPredictionContractTestData.ShaB);
+
+        var firstPrompt = Fallback("prod:x", "f");
+        var secondPrompt = Fallback("prod", "x:f");
+        var firstInput = BundesligaPredictionContractTestData.MatchCopyInput(
+            targetContract: BundesligaPredictionContractTestData.MatchCompatibilityContract(prompt: firstPrompt),
+            sourceContract: BundesligaPredictionContractTestData.MatchCompatibilityContract(prompt: firstPrompt));
+        var secondInput = BundesligaPredictionContractTestData.MatchCopyInput(
+            targetContract: BundesligaPredictionContractTestData.MatchCompatibilityContract(prompt: secondPrompt),
+            sourceContract: BundesligaPredictionContractTestData.MatchCompatibilityContract(prompt: secondPrompt));
+
+        await Assert.That(PredictionCopyCompatibilityV2.Evaluate(firstInput).BoundFingerprint)
+            .IsNotEqualTo(PredictionCopyCompatibilityV2.Evaluate(secondInput).BoundFingerprint);
+
+        var internallySharedButWrong = PredictionPromptProvenanceV2.Create(
+            PredictionPromptSourceV2.Hosted,
+            "different/prompt",
+            4,
+            BundesligaPredictionContractTestData.ShaA,
+            "production",
+            true);
+        await Assert.That(() => BundesligaPredictionContractTestData.MatchCompatibilityContract(
+            prompt: internallySharedButWrong)).Throws<InvalidDataException>();
+    }
+
     [Test]
     public async Task Typed_match_and_bonus_contracts_produce_exact_bound_decisions_and_requests()
     {

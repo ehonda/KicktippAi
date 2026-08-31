@@ -1,4 +1,5 @@
 using System.Collections.Immutable;
+using System.Text.Json;
 
 namespace EHonda.KicktippAi.Core;
 
@@ -199,6 +200,12 @@ public sealed record PredictionCopyCompatibilityContractV2
         ArgumentNullException.ThrowIfNull(prompt);
         ArgumentNullException.ThrowIfNull(model);
         ArgumentNullException.ThrowIfNull(copyPolicy);
+        if (!string.Equals(prompt.HostedName, model.PromptName, StringComparison.Ordinal)
+            || prompt.HostedVersion != model.PromptVersion)
+        {
+            throw new InvalidDataException(
+                "Compatibility prompt name/version must equal the pinned model prompt name/version.");
+        }
     }
 }
 
@@ -331,6 +338,237 @@ public sealed class PredictionCopyCompatibilityV2Input<TSnapshot>
         };
 }
 
+public sealed class PredictionCopyCompatibilityV2CanonicalInput
+{
+    public const string SchemaVersionValue = "prediction-copy-compatibility-input-v2";
+    private readonly byte[] _canonicalBytes;
+
+    private PredictionCopyCompatibilityV2CanonicalInput(byte[] canonicalBytes)
+    {
+        _canonicalBytes = canonicalBytes.ToArray();
+        Sha256 = BundesligaPredictionCanonicalJson.Sha256(_canonicalBytes);
+    }
+
+    public string SchemaVersion => SchemaVersionValue;
+    public string Sha256 { get; }
+    public byte[] SerializeCanonical() => _canonicalBytes.ToArray();
+
+    internal static PredictionCopyCompatibilityV2CanonicalInput Create<TSnapshot>(
+        PredictionCopyCompatibilityV2Input<TSnapshot> input) where TSnapshot : class =>
+        new(PredictionCopyCompatibilityV2.SerializeCanonicalInput(input));
+
+    public static PredictionCopyCompatibilityV2CanonicalInput DeserializeCanonical(ReadOnlySpan<byte> bytes)
+    {
+        using var document = BundesligaPredictionCanonicalJson.Parse(bytes, "Copy compatibility canonical input");
+        ValidateRoot(document.RootElement);
+        var canonical = BundesligaPredictionCanonicalJson.Write(writer => document.RootElement.WriteTo(writer));
+        BundesligaPredictionCanonicalJson.RequireCanonical(bytes, canonical, "Copy compatibility canonical input");
+        return new PredictionCopyCompatibilityV2CanonicalInput(canonical);
+    }
+
+    private static void ValidateRoot(JsonElement root)
+    {
+        BundesligaPredictionCanonicalJson.Properties(root,
+            "schemaVersion", "targetCurrent", "sourceCurrent", "postingSeed", "sourceSeed",
+            "binding", "bindingEntry", "targetContract", "sourceContract");
+        if (!string.Equals(BundesligaPredictionCanonicalJson.String(root, "schemaVersion"), SchemaVersionValue, StringComparison.Ordinal))
+        {
+            throw new InvalidDataException("Unknown copy compatibility canonical input schema.");
+        }
+        ValidateCurrent(root.GetProperty("targetCurrent"));
+        ValidateCurrent(root.GetProperty("sourceCurrent"));
+        ValidateSeed(root.GetProperty("postingSeed"));
+        ValidateSeed(root.GetProperty("sourceSeed"));
+        ValidateBinding(root.GetProperty("binding"));
+        ValidateEntry(root.GetProperty("bindingEntry"));
+        ValidateContract(root.GetProperty("targetContract"));
+        ValidateContract(root.GetProperty("sourceContract"));
+    }
+
+    private static void ValidateCurrent(JsonElement value)
+    {
+        BundesligaPredictionCanonicalJson.Properties(value,
+            "authority", "key", "snapshotHash", "routeId", "profileId", "generationInputContract", "model");
+        ValidateAuthority(value.GetProperty("authority"));
+        ValidateKey(value.GetProperty("key"));
+        ValidateSnapshotHash(value.GetProperty("snapshotHash"));
+        BundesligaPredictionContractValidation.Identifier(BundesligaPredictionCanonicalJson.String(value, "routeId"), "routeId");
+        BundesligaPredictionContractValidation.Identifier(BundesligaPredictionCanonicalJson.String(value, "profileId"), "profileId");
+        ValidateContractIdentity(value.GetProperty("generationInputContract"), "contractId");
+        ValidateModel(value.GetProperty("model"));
+    }
+
+    private static void ValidateAuthority(JsonElement value)
+    {
+        BundesligaPredictionCanonicalJson.Properties(value,
+            "seasonPartition", "authorityEpoch", "mode", "postingCommunity",
+            "predictionSourceCommunity", "communityContext", "postingSeed", "sourceSeed", "copyBinding");
+        if (!string.Equals(BundesligaPredictionCanonicalJson.String(value, "seasonPartition"), BundesligaPredictionAuthority.SeasonPartitionValue, StringComparison.Ordinal)
+            || !string.Equals(BundesligaPredictionCanonicalJson.String(value, "authorityEpoch"), BundesligaPredictionAuthority.AuthorityEpochValue, StringComparison.Ordinal))
+        {
+            throw new InvalidDataException("Canonical authority has the wrong fixed scope.");
+        }
+        _ = BundesligaPredictionCanonicalJson.ParseAuthorityMode(BundesligaPredictionCanonicalJson.String(value, "mode"));
+        BundesligaPredictionContractValidation.Community(BundesligaPredictionCanonicalJson.String(value, "postingCommunity"), "postingCommunity");
+        BundesligaPredictionContractValidation.Community(BundesligaPredictionCanonicalJson.String(value, "predictionSourceCommunity"), "predictionSourceCommunity");
+        BundesligaPredictionContractValidation.Community(BundesligaPredictionCanonicalJson.String(value, "communityContext"), "communityContext");
+        ValidateSeed(value.GetProperty("postingSeed"));
+        ValidateSeed(value.GetProperty("sourceSeed"));
+        ValidateNullableReference(value.GetProperty("copyBinding"));
+    }
+
+    private static void ValidateKey(JsonElement value)
+    {
+        BundesligaPredictionCanonicalJson.Properties(value, "seasonPartition", "postingCommunity", "itemKind", "kicktippItemId");
+        _ = StableLocalItemKey.Create(
+            BundesligaPredictionCanonicalJson.String(value, "seasonPartition"),
+            BundesligaPredictionCanonicalJson.String(value, "postingCommunity"),
+            BundesligaPredictionCanonicalJson.ParseItemKind(BundesligaPredictionCanonicalJson.String(value, "itemKind")),
+            BundesligaPredictionCanonicalJson.String(value, "kicktippItemId"));
+    }
+
+    private static void ValidateSnapshotHash(JsonElement value)
+    {
+        BundesligaPredictionCanonicalJson.Properties(value, "schemaVersion", "sha256");
+        _ = BundesligaPredictionSnapshotHash.Create(
+            BundesligaPredictionCanonicalJson.String(value, "schemaVersion"),
+            BundesligaPredictionCanonicalJson.String(value, "sha256"));
+    }
+
+    private static void ValidateSeed(JsonElement value)
+    {
+        BundesligaPredictionCanonicalJson.Properties(value, "generation", "sha256");
+        _ = BundesligaIdentitySeedReference.Create(
+            BundesligaPredictionCanonicalJson.Int32(value, "generation"),
+            BundesligaPredictionCanonicalJson.String(value, "sha256"));
+    }
+
+    private static void ValidateNullableReference(JsonElement value)
+    {
+        if (value.ValueKind == JsonValueKind.Null) return;
+        BundesligaPredictionCanonicalJson.Properties(value, "generation", "sha256");
+        _ = BundesligaCopyBindingReference.Create(
+            BundesligaPredictionCanonicalJson.Int32(value, "generation"),
+            BundesligaPredictionCanonicalJson.String(value, "sha256"));
+    }
+
+    private static void ValidateBinding(JsonElement value)
+    {
+        BundesligaPredictionCanonicalJson.Properties(value, "generation", "sha256");
+        _ = BundesligaCopyBindingReference.Create(
+            BundesligaPredictionCanonicalJson.Int32(value, "generation"),
+            BundesligaPredictionCanonicalJson.String(value, "sha256"));
+    }
+
+    private static void ValidateEntry(JsonElement value)
+    {
+        BundesligaPredictionCanonicalJson.Properties(value,
+            "routeId", "postingKey", "postingSnapshotHash", "postingSeed",
+            "sourceKey", "sourceSnapshotHash", "sourceSeed", "optionProjection");
+        BundesligaPredictionContractValidation.Identifier(BundesligaPredictionCanonicalJson.String(value, "routeId"), "routeId");
+        ValidateKey(value.GetProperty("postingKey"));
+        ValidateSnapshotHash(value.GetProperty("postingSnapshotHash"));
+        ValidateSeed(value.GetProperty("postingSeed"));
+        ValidateKey(value.GetProperty("sourceKey"));
+        ValidateSnapshotHash(value.GetProperty("sourceSnapshotHash"));
+        ValidateSeed(value.GetProperty("sourceSeed"));
+        var options = value.GetProperty("optionProjection");
+        if (options.ValueKind != JsonValueKind.Array) throw new InvalidDataException("Option projection must be an array.");
+        foreach (var option in options.EnumerateArray())
+        {
+            BundesligaPredictionCanonicalJson.Properties(option, "sourceOptionId", "postingOptionId");
+            _ = new BundesligaBonusOptionProjection(
+                BundesligaPredictionCanonicalJson.String(option, "sourceOptionId"),
+                BundesligaPredictionCanonicalJson.String(option, "postingOptionId"));
+        }
+    }
+
+    private static void ValidateContract(JsonElement value)
+    {
+        BundesligaPredictionCanonicalJson.Properties(value,
+            "communityContext", "routeId", "itemKind", "subcompetition", "rules", "scoring",
+            "resultBasis", "prompt", "model", "copyPolicy", "optionMeaning");
+        BundesligaPredictionContractValidation.Community(BundesligaPredictionCanonicalJson.String(value, "communityContext"), "communityContext");
+        BundesligaPredictionContractValidation.Identifier(BundesligaPredictionCanonicalJson.String(value, "routeId"), "routeId");
+        _ = BundesligaPredictionCanonicalJson.ParseItemKind(BundesligaPredictionCanonicalJson.String(value, "itemKind"));
+        if (!BundesligaSeasonRoutingIdentityValues.TryParseBundesligaSeasonSubcompetition(
+            BundesligaPredictionCanonicalJson.String(value, "subcompetition"), out _))
+        {
+            throw new InvalidDataException("Unknown compatibility subcompetition.");
+        }
+        ValidateContractIdentity(value.GetProperty("rules"), "identity");
+        ValidateContractIdentity(value.GetProperty("scoring"), "identity");
+        var basis = value.GetProperty("resultBasis");
+        if (basis.ValueKind != JsonValueKind.Null)
+        {
+            BundesligaPredictionCanonicalJson.Properties(basis, "resultBasis", "identity", "sha256");
+            if (!BundesligaSeasonRoutingIdentityValues.TryParseResultBasis(
+                BundesligaPredictionCanonicalJson.String(basis, "resultBasis"), out _))
+            {
+                throw new InvalidDataException("Unknown compatibility result basis.");
+            }
+            ValidateIdentityFields(basis, "identity");
+        }
+        ValidatePrompt(value.GetProperty("prompt"));
+        ValidateModel(value.GetProperty("model"));
+        var policy = value.GetProperty("copyPolicy");
+        BundesligaPredictionCanonicalJson.Properties(policy,
+            "identity", "sha256", "targetRouteId", "sourceRouteId", "targetCommunityContext", "sourceCommunityContext");
+        ValidateIdentityFields(policy, "identity");
+        BundesligaPredictionContractValidation.Identifier(BundesligaPredictionCanonicalJson.String(policy, "targetRouteId"), "targetRouteId");
+        BundesligaPredictionContractValidation.Identifier(BundesligaPredictionCanonicalJson.String(policy, "sourceRouteId"), "sourceRouteId");
+        BundesligaPredictionContractValidation.Community(BundesligaPredictionCanonicalJson.String(policy, "targetCommunityContext"), "targetCommunityContext");
+        BundesligaPredictionContractValidation.Community(BundesligaPredictionCanonicalJson.String(policy, "sourceCommunityContext"), "sourceCommunityContext");
+        var optionMeaning = value.GetProperty("optionMeaning");
+        if (optionMeaning.ValueKind != JsonValueKind.Null) ValidateContractIdentity(optionMeaning, "identity");
+    }
+
+    private static void ValidatePrompt(JsonElement value)
+    {
+        BundesligaPredictionCanonicalJson.Properties(value,
+            "actualSource", "hostedName", "hostedVersion", "hostedNormalizedReadbackSha256",
+            "requiredLabel", "requiredLabelMembership", "actualFallbackFile", "actualFallbackSha256");
+        var source = BundesligaPredictionCanonicalJson.String(value, "actualSource") switch
+        {
+            "hosted" => PredictionPromptSourceV2.Hosted,
+            "checked-in-fallback" => PredictionPromptSourceV2.CheckedInFallback,
+            _ => throw new InvalidDataException("Unknown prompt source.")
+        };
+        _ = PredictionPromptProvenanceV2.Create(source,
+            BundesligaPredictionCanonicalJson.String(value, "hostedName"),
+            BundesligaPredictionCanonicalJson.Int32(value, "hostedVersion"),
+            BundesligaPredictionCanonicalJson.String(value, "hostedNormalizedReadbackSha256"),
+            BundesligaPredictionCanonicalJson.String(value, "requiredLabel"),
+            BundesligaPredictionCanonicalJson.Boolean(value, "requiredLabelMembership"),
+            BundesligaPredictionCanonicalJson.NullableString(value, "actualFallbackFile"),
+            BundesligaPredictionCanonicalJson.NullableString(value, "actualFallbackSha256"));
+    }
+
+    private static void ValidateModel(JsonElement value)
+    {
+        BundesligaPredictionCanonicalJson.Properties(value,
+            "model", "reasoningEffort", "maxOutputTokenCount", "promptName", "promptVersion");
+        _ = PredictionModelConfig.Create(
+            BundesligaPredictionCanonicalJson.String(value, "model"),
+            BundesligaPredictionCanonicalJson.String(value, "reasoningEffort"),
+            BundesligaPredictionCanonicalJson.Int32(value, "maxOutputTokenCount"),
+            BundesligaPredictionCanonicalJson.String(value, "promptName"),
+            BundesligaPredictionCanonicalJson.Int32(value, "promptVersion"));
+    }
+
+    private static void ValidateContractIdentity(JsonElement value, string identityName)
+    {
+        BundesligaPredictionCanonicalJson.Properties(value, identityName, "sha256");
+        ValidateIdentityFields(value, identityName);
+    }
+
+    private static void ValidateIdentityFields(JsonElement value, string identityName)
+    {
+        BundesligaPredictionContractValidation.Identifier(BundesligaPredictionCanonicalJson.String(value, identityName), identityName);
+        BundesligaPredictionContractValidation.Sha256(BundesligaPredictionCanonicalJson.String(value, "sha256"), "sha256");
+    }
+}
+
 public sealed class PredictionCopyCompatibilityV2Decision
 {
     private readonly ImmutableArray<BundesligaBonusOptionProjection> _optionProjection;
@@ -338,14 +576,14 @@ public sealed class PredictionCopyCompatibilityV2Decision
     private PredictionCopyCompatibilityV2Decision(
         bool succeeded,
         PredictionCopyCompatibilityV2Failure failure,
-        string boundFingerprint,
+        PredictionCopyCompatibilityV2CanonicalInput canonicalInput,
         BundesligaCopyBindingReference binding,
         string bindingEntrySha256,
         IEnumerable<BundesligaBonusOptionProjection> optionProjection)
     {
         Succeeded = succeeded;
         Failure = failure;
-        BoundFingerprint = boundFingerprint;
+        CanonicalInput = canonicalInput;
         Binding = binding;
         BindingEntrySha256 = bindingEntrySha256;
         _optionProjection = optionProjection.ToImmutableArray();
@@ -353,7 +591,9 @@ public sealed class PredictionCopyCompatibilityV2Decision
 
     public bool Succeeded { get; }
     public PredictionCopyCompatibilityV2Failure Failure { get; }
-    public string BoundFingerprint { get; }
+    public PredictionCopyCompatibilityV2CanonicalInput CanonicalInput { get; }
+    public string CanonicalInputSchemaVersion => CanonicalInput.SchemaVersion;
+    public string BoundFingerprint => CanonicalInput.Sha256;
     public BundesligaCopyBindingReference Binding { get; }
     public string BindingEntrySha256 { get; }
     public IReadOnlyList<BundesligaBonusOptionProjection> OptionProjection => _optionProjection;
@@ -362,7 +602,8 @@ public sealed class PredictionCopyCompatibilityV2Decision
         where TSnapshot : class =>
         Binding == input.Binding.Reference
         && string.Equals(BindingEntrySha256, PredictionCopyCompatibilityV2.EntryFingerprint(input.BindingEntry), StringComparison.Ordinal)
-        && string.Equals(BoundFingerprint, PredictionCopyCompatibilityV2.InputFingerprint(input), StringComparison.Ordinal);
+        && CanonicalInput.SerializeCanonical().SequenceEqual(
+            PredictionCopyCompatibilityV2CanonicalInput.Create(input).SerializeCanonical());
 
     internal static PredictionCopyCompatibilityV2Decision Create<TSnapshot>(
         PredictionCopyCompatibilityV2Input<TSnapshot> input,
@@ -370,7 +611,7 @@ public sealed class PredictionCopyCompatibilityV2Decision
         IEnumerable<BundesligaBonusOptionProjection> optionProjection)
         where TSnapshot : class =>
         new(failure == PredictionCopyCompatibilityV2Failure.None, failure,
-            PredictionCopyCompatibilityV2.InputFingerprint(input), input.Binding.Reference,
+            PredictionCopyCompatibilityV2CanonicalInput.Create(input), input.Binding.Reference,
             PredictionCopyCompatibilityV2.EntryFingerprint(input.BindingEntry), optionProjection);
 }
 
@@ -472,79 +713,81 @@ public static class PredictionCopyCompatibilityV2
 
     internal static string EntryFingerprint(BundesligaCopyBindingEntry entry) =>
         BundesligaPredictionCanonicalJson.Sha256(BundesligaPredictionCanonicalJson.Write(writer =>
-        {
-            writer.WriteStartObject();
-            writer.WriteString("routeId", entry.RouteId);
-            WriteKey(writer, "postingKey", entry.PostingKey);
-            writer.WriteString("postingSnapshotHash", entry.PostingSnapshotHash.Sha256);
-            WriteSeed(writer, "postingSeed", entry.PostingSeed);
-            WriteKey(writer, "sourceKey", entry.SourceKey);
-            writer.WriteString("sourceSnapshotHash", entry.SourceSnapshotHash.Sha256);
-            WriteSeed(writer, "sourceSeed", entry.SourceSeed);
-            writer.WritePropertyName("optionProjection");
-            writer.WriteStartArray();
-            foreach (var option in entry.OptionProjection)
-            {
-                writer.WriteStartObject();
-                writer.WriteString("source", option.SourceOptionId);
-                writer.WriteString("posting", option.PostingOptionId);
-                writer.WriteEndObject();
-            }
-            writer.WriteEndArray();
-            writer.WriteEndObject();
-        }));
+            WriteEntry(writer, entry)));
 
-    internal static string InputFingerprint<TSnapshot>(PredictionCopyCompatibilityV2Input<TSnapshot> input)
-        where TSnapshot : class =>
-        BundesligaPredictionCanonicalJson.Sha256(BundesligaPredictionCanonicalJson.Write(writer =>
+    internal static byte[] SerializeCanonicalInput<TSnapshot>(PredictionCopyCompatibilityV2Input<TSnapshot> input)
+        where TSnapshot : class => BundesligaPredictionCanonicalJson.Write(writer =>
         {
             writer.WriteStartObject();
-            WriteCurrent(writer, "target", input.TargetCurrent);
-            WriteCurrent(writer, "source", input.SourceCurrent);
-            writer.WriteString("postingSeedHash", input.PostingSeed.CanonicalSha256);
-            writer.WriteString("sourceSeedHash", input.SourceSeed.CanonicalSha256);
-            writer.WriteNumber("bindingGeneration", input.Binding.Generation);
-            writer.WriteString("bindingHash", input.Binding.CanonicalSha256);
-            writer.WriteString("bindingEntryHash", EntryFingerprint(input.BindingEntry));
+            writer.WriteString("schemaVersion", PredictionCopyCompatibilityV2CanonicalInput.SchemaVersionValue);
+            WriteCurrent(writer, "targetCurrent", input.TargetCurrent);
+            WriteCurrent(writer, "sourceCurrent", input.SourceCurrent);
+            WriteSeed(writer, "postingSeed", input.PostingSeed.Reference);
+            WriteSeed(writer, "sourceSeed", input.SourceSeed.Reference);
+            writer.WritePropertyName("binding");
+            writer.WriteStartObject();
+            writer.WriteNumber("generation", input.Binding.Generation);
+            writer.WriteString("sha256", input.Binding.CanonicalSha256);
+            writer.WriteEndObject();
+            writer.WritePropertyName("bindingEntry");
+            WriteEntry(writer, input.BindingEntry);
             WriteContract(writer, "targetContract", input.TargetContract);
             WriteContract(writer, "sourceContract", input.SourceContract);
             writer.WriteEndObject();
-        }));
+        });
 
     private static void WriteCurrent<TSnapshot>(System.Text.Json.Utf8JsonWriter writer, string name,
         BundesligaTypedCurrentRequest<TSnapshot> current) where TSnapshot : class
     {
         writer.WritePropertyName(name);
         writer.WriteStartObject();
+        writer.WritePropertyName("authority");
+        writer.WriteStartObject();
         WriteAuthority(writer, current.Authority);
+        writer.WriteEndObject();
         var (key, _, _) = BundesligaTypedCurrentRequest<TSnapshot>.SnapshotIdentity(current.Snapshot);
         WriteKey(writer, "key", key);
-        writer.WriteString("snapshotHash", current.Snapshot switch
+        writer.WritePropertyName("snapshotHash");
+        WriteSnapshotHash(writer, current.Snapshot switch
         {
-            TypedMatchSnapshot match => match.SnapshotHash.Sha256,
-            TypedBonusSnapshot bonus => bonus.SnapshotHash.Sha256,
+            TypedMatchSnapshot match => match.SnapshotHash,
+            TypedBonusSnapshot bonus => bonus.SnapshotHash,
             _ => throw new InvalidDataException("Unsupported current snapshot.")
         });
         writer.WriteString("routeId", current.Identity.RouteId);
         writer.WriteString("profileId", current.Identity.ProfileId);
-        writer.WriteString("generationInputId", current.Identity.GenerationInputContract.ContractId);
-        writer.WriteString("generationInputHash", current.Identity.GenerationInputContract.Sha256);
-        writer.WriteString("model", current.ModelConfig.IdentityKey);
+        writer.WritePropertyName("generationInputContract");
+        writer.WriteStartObject();
+        writer.WriteString("contractId", current.Identity.GenerationInputContract.ContractId);
+        writer.WriteString("sha256", current.Identity.GenerationInputContract.Sha256);
+        writer.WriteEndObject();
+        writer.WritePropertyName("model");
+        WriteModel(writer, current.ModelConfig);
         writer.WriteEndObject();
     }
 
     private static void WriteAuthority(System.Text.Json.Utf8JsonWriter writer, BundesligaPredictionAuthority authority)
     {
-        writer.WriteString("mode", authority.Mode.ToString());
-        writer.WriteString("season", authority.SeasonPartition);
-        writer.WriteString("epoch", authority.AuthorityEpoch);
-        writer.WriteString("posting", authority.PostingCommunity);
-        writer.WriteString("source", authority.PredictionSourceCommunity);
-        writer.WriteString("context", authority.CommunityContext);
+        writer.WriteString("seasonPartition", authority.SeasonPartition);
+        writer.WriteString("authorityEpoch", authority.AuthorityEpoch);
+        writer.WriteString("mode", BundesligaPredictionCanonicalJson.AuthorityMode(authority.Mode));
+        writer.WriteString("postingCommunity", authority.PostingCommunity);
+        writer.WriteString("predictionSourceCommunity", authority.PredictionSourceCommunity);
+        writer.WriteString("communityContext", authority.CommunityContext);
         WriteSeed(writer, "postingSeed", authority.PostingSeed);
         WriteSeed(writer, "sourceSeed", authority.SourceSeed);
-        writer.WriteString("copyBinding", authority.CopyBinding is null
-            ? null : $"{authority.CopyBinding.Generation}:{authority.CopyBinding.Sha256}");
+        writer.WritePropertyName("copyBinding");
+        if (authority.CopyBinding is null)
+        {
+            writer.WriteNullValue();
+        }
+        else
+        {
+            writer.WriteStartObject();
+            writer.WriteNumber("generation", authority.CopyBinding.Generation);
+            writer.WriteString("sha256", authority.CopyBinding.Sha256);
+            writer.WriteEndObject();
+        }
     }
 
     private static void WriteContract(System.Text.Json.Utf8JsonWriter writer, string name,
@@ -552,19 +795,44 @@ public static class PredictionCopyCompatibilityV2
     {
         writer.WritePropertyName(name);
         writer.WriteStartObject();
-        writer.WriteString("context", contract.CommunityContext);
-        writer.WriteString("route", contract.RouteId);
-        writer.WriteString("kind", contract.ItemKind.ToString());
+        writer.WriteString("communityContext", contract.CommunityContext);
+        writer.WriteString("routeId", contract.RouteId);
+        writer.WriteString("itemKind", BundesligaPredictionCanonicalJson.ItemKind(contract.ItemKind));
         writer.WriteString("subcompetition", contract.Subcompetition.ToSerializedValue());
-        writer.WriteString("rules", $"{contract.Rules.Identity}:{contract.Rules.Sha256}");
-        writer.WriteString("scoring", $"{contract.Scoring.Identity}:{contract.Scoring.Sha256}");
-        writer.WriteString("resultBasis", contract.ResultBasis is null ? null
-            : $"{contract.ResultBasis.ResultBasis.ToSerializedValue()}:{contract.ResultBasis.Identity}:{contract.ResultBasis.Sha256}");
-        writer.WriteString("prompt", $"{contract.Prompt.ActualSource}:{contract.Prompt.HostedName}:{contract.Prompt.HostedVersion}:{contract.Prompt.HostedNormalizedReadbackSha256}:{contract.Prompt.RequiredLabel}:{contract.Prompt.ActualFallbackFile}:{contract.Prompt.ActualFallbackSha256}");
-        writer.WriteString("model", contract.Model.IdentityKey);
-        writer.WriteString("copyPolicy", $"{contract.CopyPolicy.Identity}:{contract.CopyPolicy.Sha256}:{contract.CopyPolicy.TargetRouteId}:{contract.CopyPolicy.SourceRouteId}:{contract.CopyPolicy.TargetCommunityContext}:{contract.CopyPolicy.SourceCommunityContext}");
-        writer.WriteString("optionMeaning", contract.OptionMeaning is null ? null
-            : $"{contract.OptionMeaning.Identity}:{contract.OptionMeaning.Sha256}");
+        WriteIdentity(writer, "rules", contract.Rules.Identity, contract.Rules.Sha256);
+        WriteIdentity(writer, "scoring", contract.Scoring.Identity, contract.Scoring.Sha256);
+        writer.WritePropertyName("resultBasis");
+        if (contract.ResultBasis is null) writer.WriteNullValue();
+        else
+        {
+            writer.WriteStartObject();
+            writer.WriteString("resultBasis", contract.ResultBasis.ResultBasis.ToSerializedValue());
+            writer.WriteString("identity", contract.ResultBasis.Identity);
+            writer.WriteString("sha256", contract.ResultBasis.Sha256);
+            writer.WriteEndObject();
+        }
+        writer.WritePropertyName("prompt");
+        WritePrompt(writer, contract.Prompt);
+        writer.WritePropertyName("model");
+        WriteModel(writer, contract.Model);
+        writer.WritePropertyName("copyPolicy");
+        writer.WriteStartObject();
+        writer.WriteString("identity", contract.CopyPolicy.Identity);
+        writer.WriteString("sha256", contract.CopyPolicy.Sha256);
+        writer.WriteString("targetRouteId", contract.CopyPolicy.TargetRouteId);
+        writer.WriteString("sourceRouteId", contract.CopyPolicy.SourceRouteId);
+        writer.WriteString("targetCommunityContext", contract.CopyPolicy.TargetCommunityContext);
+        writer.WriteString("sourceCommunityContext", contract.CopyPolicy.SourceCommunityContext);
+        writer.WriteEndObject();
+        writer.WritePropertyName("optionMeaning");
+        if (contract.OptionMeaning is null) writer.WriteNullValue();
+        else
+        {
+            writer.WriteStartObject();
+            writer.WriteString("identity", contract.OptionMeaning.Identity);
+            writer.WriteString("sha256", contract.OptionMeaning.Sha256);
+            writer.WriteEndObject();
+        }
         writer.WriteEndObject();
     }
 
@@ -572,10 +840,10 @@ public static class PredictionCopyCompatibilityV2
     {
         writer.WritePropertyName(name);
         writer.WriteStartObject();
-        writer.WriteString("season", key.SeasonPartition);
-        writer.WriteString("community", key.PostingCommunity);
-        writer.WriteString("kind", key.ItemKind.ToString());
-        writer.WriteString("id", key.KicktippItemId);
+        writer.WriteString("seasonPartition", key.SeasonPartition);
+        writer.WriteString("postingCommunity", key.PostingCommunity);
+        writer.WriteString("itemKind", BundesligaPredictionCanonicalJson.ItemKind(key.ItemKind));
+        writer.WriteString("kicktippItemId", key.KicktippItemId);
         writer.WriteEndObject();
     }
 
@@ -585,6 +853,73 @@ public static class PredictionCopyCompatibilityV2
         writer.WriteStartObject();
         writer.WriteNumber("generation", seed.Generation);
         writer.WriteString("sha256", seed.Sha256);
+        writer.WriteEndObject();
+    }
+
+    private static void WriteSnapshotHash(Utf8JsonWriter writer, BundesligaPredictionSnapshotHash hash)
+    {
+        writer.WriteStartObject();
+        writer.WriteString("schemaVersion", hash.SchemaVersion);
+        writer.WriteString("sha256", hash.Sha256);
+        writer.WriteEndObject();
+    }
+
+    private static void WriteEntry(Utf8JsonWriter writer, BundesligaCopyBindingEntry entry)
+    {
+        writer.WriteStartObject();
+        writer.WriteString("routeId", entry.RouteId);
+        WriteKey(writer, "postingKey", entry.PostingKey);
+        writer.WritePropertyName("postingSnapshotHash");
+        WriteSnapshotHash(writer, entry.PostingSnapshotHash);
+        WriteSeed(writer, "postingSeed", entry.PostingSeed);
+        WriteKey(writer, "sourceKey", entry.SourceKey);
+        writer.WritePropertyName("sourceSnapshotHash");
+        WriteSnapshotHash(writer, entry.SourceSnapshotHash);
+        WriteSeed(writer, "sourceSeed", entry.SourceSeed);
+        writer.WritePropertyName("optionProjection");
+        writer.WriteStartArray();
+        foreach (var option in entry.OptionProjection)
+        {
+            writer.WriteStartObject();
+            writer.WriteString("sourceOptionId", option.SourceOptionId);
+            writer.WriteString("postingOptionId", option.PostingOptionId);
+            writer.WriteEndObject();
+        }
+        writer.WriteEndArray();
+        writer.WriteEndObject();
+    }
+
+    private static void WriteIdentity(Utf8JsonWriter writer, string name, string identity, string sha256)
+    {
+        writer.WritePropertyName(name);
+        writer.WriteStartObject();
+        writer.WriteString("identity", identity);
+        writer.WriteString("sha256", sha256);
+        writer.WriteEndObject();
+    }
+
+    private static void WritePrompt(Utf8JsonWriter writer, PredictionPromptProvenanceV2 prompt)
+    {
+        writer.WriteStartObject();
+        writer.WriteString("actualSource", prompt.ActualSource == PredictionPromptSourceV2.Hosted ? "hosted" : "checked-in-fallback");
+        writer.WriteString("hostedName", prompt.HostedName);
+        writer.WriteNumber("hostedVersion", prompt.HostedVersion);
+        writer.WriteString("hostedNormalizedReadbackSha256", prompt.HostedNormalizedReadbackSha256);
+        writer.WriteString("requiredLabel", prompt.RequiredLabel);
+        writer.WriteBoolean("requiredLabelMembership", prompt.RequiredLabelMembership);
+        writer.WriteString("actualFallbackFile", prompt.ActualFallbackFile);
+        writer.WriteString("actualFallbackSha256", prompt.ActualFallbackSha256);
+        writer.WriteEndObject();
+    }
+
+    private static void WriteModel(Utf8JsonWriter writer, PredictionModelConfig model)
+    {
+        writer.WriteStartObject();
+        writer.WriteString("model", model.Model);
+        writer.WriteString("reasoningEffort", model.ReasoningEffort);
+        writer.WriteNumber("maxOutputTokenCount", model.MaxOutputTokenCount!.Value);
+        writer.WriteString("promptName", model.PromptName);
+        writer.WriteNumber("promptVersion", model.PromptVersion!.Value);
         writer.WriteEndObject();
     }
 }

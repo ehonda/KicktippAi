@@ -322,7 +322,8 @@ internal static class BundesligaPredictionContractTestData
     }
 
     public static PredictionGenerationProvenanceV2 CopyProvenance(
-        PredictionCopyCompatibilityV2Input<TypedMatchSnapshot> input)
+        PredictionCopyCompatibilityV2Input<TypedMatchSnapshot> input,
+        string sourcePredictionIdentity = "prediction-42-r0")
     {
         var target = input.TargetCurrent;
         var source = input.SourceCurrent;
@@ -336,7 +337,7 @@ internal static class BundesligaPredictionContractTestData
             target.Identity.RouteId,
             target.Identity.ProfileId,
             target.Identity.GenerationInputContract,
-            "source-prediction-42",
+            sourcePredictionIdentity,
             Prompt(),
             target.ModelConfig,
             PredictionServiceTierProvenanceV2.Create("standard", "standard", false),
@@ -346,4 +347,50 @@ internal static class BundesligaPredictionContractTestData
             0,
             new PredictionGenerationUsageV2(0, 0, 0));
     }
+
+    public static PredictionGenerationProvenanceV2 BonusDirectProvenance(
+        BundesligaTypedCurrentRequest<TypedBonusSnapshot> current,
+        string predictionIdentity = "bonus-prediction-84") =>
+        PredictionGenerationProvenanceV2.Create(
+            current.Authority,
+            "bonus-predictions-bundesliga-2026-27-typed-v1",
+            current.Snapshot.Key,
+            current.Snapshot.SnapshotHash,
+            current.Snapshot.Key,
+            current.Snapshot.SnapshotHash,
+            current.Identity.RouteId,
+            current.Identity.ProfileId,
+            current.Identity.GenerationInputContract,
+            null,
+            Prompt(),
+            current.ModelConfig,
+            PredictionServiceTierProvenanceV2.Create("standard", "standard", false),
+            Context(),
+            Instant.FromUtc(2026, 8, 31, 12, 0),
+            predictionIdentity,
+            0,
+            new PredictionGenerationUsageV2(100, 20, 0.001m));
+
+    public static PredictionGenerationProvenanceV2 BonusCopyProvenance(
+        PredictionCopyCompatibilityV2Input<TypedBonusSnapshot> input,
+        string sourcePredictionIdentity = "bonus-prediction-84") =>
+        PredictionGenerationProvenanceV2.Create(
+            input.TargetCurrent.Authority,
+            "bonus-predictions-bundesliga-2026-27-typed-v1",
+            input.TargetCurrent.Snapshot.Key,
+            input.TargetCurrent.Snapshot.SnapshotHash,
+            input.SourceCurrent.Snapshot.Key,
+            input.SourceCurrent.Snapshot.SnapshotHash,
+            input.TargetCurrent.Identity.RouteId,
+            input.TargetCurrent.Identity.ProfileId,
+            input.TargetCurrent.Identity.GenerationInputContract,
+            sourcePredictionIdentity,
+            Prompt(),
+            input.TargetCurrent.ModelConfig,
+            PredictionServiceTierProvenanceV2.Create("standard", "standard", false),
+            Context(),
+            Instant.FromUtc(2026, 8, 31, 12, 0),
+            "copied-bonus-prediction-84",
+            0,
+            new PredictionGenerationUsageV2(0, 0, 0));
 }

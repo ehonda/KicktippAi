@@ -1,3 +1,4 @@
+using System.Collections.Immutable;
 using NodaTime;
 
 namespace EHonda.KicktippAi.Core;
@@ -167,17 +168,275 @@ public sealed class BundesligaTypedCopyRequest<TSnapshot>
 
     public void RequireMatchingTargetProvenance(PredictionGenerationProvenanceV2 provenance) =>
         TargetCurrent.RequireMatchingProvenance(provenance);
+
+    internal void RequireMatchingSourceProvenance(PredictionGenerationProvenanceV2 provenance) =>
+        SourceCurrent.RequireMatchingProvenance(provenance);
 }
 
-public sealed record TypedMatchPredictionRecord(Prediction Prediction, PredictionGenerationProvenanceV2 Provenance);
-public sealed record TypedBonusPredictionRecord(BonusPrediction Prediction, PredictionGenerationProvenanceV2 Provenance);
-public sealed record TypedPredictionMetadataV2(
-    string PredictionIdentity,
-    int RepredictionIndex,
-    Instant CreatedAt,
-    PredictionGenerationProvenanceV2 Provenance);
-public sealed record TypedMatchCopyCandidate(TypedMatchSnapshot SourceSnapshot, TypedMatchPredictionRecord SourcePrediction);
-public sealed record TypedBonusCopyCandidate(TypedBonusSnapshot SourceSnapshot, TypedBonusPredictionRecord SourcePrediction);
+public sealed class TypedMatchPredictionRecord
+{
+    private TypedMatchPredictionRecord(Prediction prediction, PredictionGenerationProvenanceV2 provenance) =>
+        (Prediction, Provenance) = (prediction, provenance);
+
+    public Prediction Prediction { get; }
+    public PredictionGenerationProvenanceV2 Provenance { get; }
+
+    public static TypedMatchPredictionRecord Create(
+        BundesligaTypedCurrentRequest<TypedMatchSnapshot> current,
+        Prediction prediction,
+        PredictionGenerationProvenanceV2 provenance)
+    {
+        ArgumentNullException.ThrowIfNull(current);
+        ArgumentNullException.ThrowIfNull(prediction);
+        ArgumentNullException.ThrowIfNull(provenance);
+        current.RequireMatchingProvenance(provenance);
+        if (prediction.HomeGoals < 0 || prediction.AwayGoals < 0)
+        {
+            throw new InvalidDataException("Typed match prediction goals cannot be negative.");
+        }
+        return new TypedMatchPredictionRecord(CopyPrediction(prediction), provenance);
+    }
+
+    private static Prediction CopyPrediction(Prediction prediction)
+    {
+        if (prediction.Justification is not { } justification) return new Prediction(prediction.HomeGoals, prediction.AwayGoals);
+        ArgumentNullException.ThrowIfNull(justification.ContextSources);
+        ArgumentNullException.ThrowIfNull(justification.ContextSources.MostValuable);
+        ArgumentNullException.ThrowIfNull(justification.ContextSources.LeastValuable);
+        ArgumentNullException.ThrowIfNull(justification.Uncertainties);
+        BundesligaPredictionContractValidation.ExactText(justification.KeyReasoning, "keyReasoning");
+        var most = CopySources(justification.ContextSources.MostValuable);
+        var least = CopySources(justification.ContextSources.LeastValuable);
+        var uncertainties = justification.Uncertainties.Select(value =>
+        {
+            BundesligaPredictionContractValidation.ExactText(value, "uncertainty");
+            return value;
+        }).ToImmutableArray();
+        return new Prediction(prediction.HomeGoals, prediction.AwayGoals,
+            new PredictionJustification(justification.KeyReasoning,
+                new PredictionJustificationContextSources(most, least), uncertainties));
+    }
+
+    private static ImmutableArray<PredictionJustificationContextSource> CopySources(
+        IReadOnlyList<PredictionJustificationContextSource> sources) => sources.Select(source =>
+        {
+            if (source is null) throw new InvalidDataException("Prediction context source cannot be null.");
+            BundesligaPredictionContractValidation.Identifier(source.DocumentName, "documentName");
+            BundesligaPredictionContractValidation.ExactText(source.Details, "details");
+            return new PredictionJustificationContextSource(source.DocumentName, source.Details);
+        }).ToImmutableArray();
+}
+
+public sealed class TypedBonusPredictionRecord
+{
+    private readonly ImmutableArray<string> _selectedOptionIds;
+    private TypedBonusPredictionRecord(IEnumerable<string> selectedOptionIds, PredictionGenerationProvenanceV2 provenance)
+    {
+        _selectedOptionIds = selectedOptionIds.ToImmutableArray();
+        Provenance = provenance;
+    }
+
+    public IReadOnlyList<string> SelectedOptionIds => _selectedOptionIds;
+    public PredictionGenerationProvenanceV2 Provenance { get; }
+    public BonusPrediction ToBonusPrediction() => new(_selectedOptionIds.ToList());
+
+    public static TypedBonusPredictionRecord Create(
+        BundesligaTypedCurrentRequest<TypedBonusSnapshot> current,
+        BonusPrediction prediction,
+        PredictionGenerationProvenanceV2 provenance)
+    {
+        ArgumentNullException.ThrowIfNull(current);
+        ArgumentNullException.ThrowIfNull(prediction);
+        ArgumentNullException.ThrowIfNull(prediction.SelectedOptionIds);
+        ArgumentNullException.ThrowIfNull(provenance);
+        current.RequireMatchingProvenance(provenance);
+        var selected = prediction.SelectedOptionIds.ToArray();
+        if (selected.Length == 0 || selected.Length > current.Snapshot.MaxSelections
+            || selected.Any(string.IsNullOrWhiteSpace)
+            || selected.Distinct(StringComparer.Ordinal).Count() != selected.Length
+            || selected.Any(id => current.Snapshot.Options.All(option => !string.Equals(option.Id, id, StringComparison.Ordinal))))
+        {
+            throw new InvalidDataException("Typed bonus prediction selections must be exact, unique, and within the snapshot limit.");
+        }
+        return new TypedBonusPredictionRecord(selected, provenance);
+    }
+}
+
+public sealed class TypedPredictionMetadataV2
+{
+    private TypedPredictionMetadataV2(
+        string predictionIdentity, int repredictionIndex, Instant createdAt,
+        PredictionGenerationProvenanceV2 provenance) =>
+        (PredictionIdentity, RepredictionIndex, CreatedAt, Provenance) =
+        (predictionIdentity, repredictionIndex, createdAt, provenance);
+
+    public string PredictionIdentity { get; }
+    public int RepredictionIndex { get; }
+    public Instant CreatedAt { get; }
+    public PredictionGenerationProvenanceV2 Provenance { get; }
+
+    public static TypedPredictionMetadataV2 Create<TSnapshot>(
+        BundesligaTypedCurrentRequest<TSnapshot> current,
+        string predictionIdentity,
+        int repredictionIndex,
+        Instant createdAt,
+        Instant observedAt,
+        PredictionGenerationProvenanceV2 provenance) where TSnapshot : class
+    {
+        ArgumentNullException.ThrowIfNull(current);
+        ArgumentNullException.ThrowIfNull(provenance);
+        BundesligaPredictionContractValidation.Identifier(predictionIdentity, nameof(predictionIdentity));
+        current.RequireMatchingProvenance(provenance);
+        if (repredictionIndex < 0 || repredictionIndex == int.MaxValue
+            || repredictionIndex != provenance.RepredictionIndex)
+        {
+            throw new InvalidDataException("Typed prediction metadata has an invalid or inconsistent reprediction index.");
+        }
+        if (!string.Equals(predictionIdentity, provenance.PredictionIdentity, StringComparison.Ordinal)
+            || createdAt == default || createdAt == Instant.MinValue || createdAt == Instant.MaxValue
+            || createdAt != provenance.GenerationTime || createdAt > observedAt)
+        {
+            throw new InvalidDataException("Typed prediction metadata identity or timestamp is not current-authoritative.");
+        }
+        return new TypedPredictionMetadataV2(predictionIdentity, repredictionIndex, createdAt, provenance);
+    }
+}
+
+public sealed class TypedMatchCopyCandidate
+{
+    private TypedMatchCopyCandidate(
+        BundesligaTypedCurrentRequest<TypedMatchSnapshot> sourceCurrent,
+        TypedMatchPredictionRecord sourcePrediction, string copyRequestFingerprint) =>
+        (SourceCurrent, SourcePrediction, CopyRequestFingerprint) =
+        (sourceCurrent, sourcePrediction, copyRequestFingerprint);
+    public BundesligaTypedCurrentRequest<TypedMatchSnapshot> SourceCurrent { get; }
+    public TypedMatchSnapshot SourceSnapshot => SourceCurrent.Snapshot;
+    public TypedMatchPredictionRecord SourcePrediction { get; }
+    public string CopyRequestFingerprint { get; }
+
+    public static TypedMatchCopyCandidate Create(
+        BundesligaTypedCopyRequest<TypedMatchSnapshot> request,
+        TypedMatchPredictionRecord sourcePrediction)
+    {
+        ArgumentNullException.ThrowIfNull(request);
+        ArgumentNullException.ThrowIfNull(sourcePrediction);
+        request.RequireMatchingSourceProvenance(sourcePrediction.Provenance);
+        return new TypedMatchCopyCandidate(
+            request.SourceCurrent, sourcePrediction, request.Decision.BoundFingerprint);
+    }
+}
+
+public sealed class TypedBonusCopyCandidate
+{
+    private TypedBonusCopyCandidate(
+        BundesligaTypedCurrentRequest<TypedBonusSnapshot> sourceCurrent,
+        TypedBonusPredictionRecord sourcePrediction, string copyRequestFingerprint) =>
+        (SourceCurrent, SourcePrediction, CopyRequestFingerprint) =
+        (sourceCurrent, sourcePrediction, copyRequestFingerprint);
+    public BundesligaTypedCurrentRequest<TypedBonusSnapshot> SourceCurrent { get; }
+    public TypedBonusSnapshot SourceSnapshot => SourceCurrent.Snapshot;
+    public TypedBonusPredictionRecord SourcePrediction { get; }
+    public string CopyRequestFingerprint { get; }
+
+    public static TypedBonusCopyCandidate Create(
+        BundesligaTypedCopyRequest<TypedBonusSnapshot> request,
+        TypedBonusPredictionRecord sourcePrediction)
+    {
+        ArgumentNullException.ThrowIfNull(request);
+        ArgumentNullException.ThrowIfNull(sourcePrediction);
+        request.RequireMatchingSourceProvenance(sourcePrediction.Provenance);
+        return new TypedBonusCopyCandidate(
+            request.SourceCurrent, sourcePrediction, request.Decision.BoundFingerprint);
+    }
+}
+
+public sealed class TypedMatchCopySaveRequest
+{
+    private TypedMatchCopySaveRequest(
+        BundesligaTypedCopyRequest<TypedMatchSnapshot> copyRequest,
+        TypedMatchCopyCandidate sourceCandidate,
+        Prediction prediction,
+        PredictionGenerationProvenanceV2 targetProvenance) =>
+        (CopyRequest, SourceCandidate, Prediction, TargetProvenance) =
+        (copyRequest, sourceCandidate, prediction, targetProvenance);
+    public BundesligaTypedCopyRequest<TypedMatchSnapshot> CopyRequest { get; }
+    public TypedMatchCopyCandidate SourceCandidate { get; }
+    public Prediction Prediction { get; }
+    public PredictionGenerationProvenanceV2 TargetProvenance { get; }
+
+    public static TypedMatchCopySaveRequest Create(
+        BundesligaTypedCopyRequest<TypedMatchSnapshot> copyRequest,
+        TypedMatchCopyCandidate sourceCandidate,
+        Prediction prediction,
+        PredictionGenerationProvenanceV2 targetProvenance)
+    {
+        ArgumentNullException.ThrowIfNull(copyRequest);
+        ArgumentNullException.ThrowIfNull(sourceCandidate);
+        ArgumentNullException.ThrowIfNull(prediction);
+        ArgumentNullException.ThrowIfNull(targetProvenance);
+        copyRequest.RequireMatchingTargetProvenance(targetProvenance);
+        copyRequest.RequireMatchingSourceProvenance(sourceCandidate.SourcePrediction.Provenance);
+        if (!ReferenceEquals(sourceCandidate.SourceCurrent, copyRequest.SourceCurrent)
+            || !string.Equals(sourceCandidate.CopyRequestFingerprint, copyRequest.Decision.BoundFingerprint, StringComparison.Ordinal)
+            || !string.Equals(targetProvenance.SourcePredictionIdentity,
+                sourceCandidate.SourcePrediction.Provenance.PredictionIdentity, StringComparison.Ordinal)
+            || !PredictionContentEquality.Equals(prediction, sourceCandidate.SourcePrediction.Prediction))
+        {
+            throw new InvalidDataException("Copy save source row or source prediction identity is inconsistent.");
+        }
+        var validated = TypedMatchPredictionRecord.Create(copyRequest.TargetCurrent, prediction, targetProvenance);
+        return new TypedMatchCopySaveRequest(copyRequest, sourceCandidate, validated.Prediction, targetProvenance);
+    }
+}
+
+public sealed class TypedBonusCopySaveRequest
+{
+    private TypedBonusCopySaveRequest(
+        BundesligaTypedCopyRequest<TypedBonusSnapshot> copyRequest,
+        TypedBonusCopyCandidate sourceCandidate,
+        IEnumerable<string> selectedOptionIds,
+        PredictionGenerationProvenanceV2 targetProvenance)
+    {
+        CopyRequest = copyRequest;
+        SourceCandidate = sourceCandidate;
+        SelectedOptionIds = selectedOptionIds.ToImmutableArray();
+        TargetProvenance = targetProvenance;
+    }
+    public BundesligaTypedCopyRequest<TypedBonusSnapshot> CopyRequest { get; }
+    public TypedBonusCopyCandidate SourceCandidate { get; }
+    public IReadOnlyList<string> SelectedOptionIds { get; }
+    public PredictionGenerationProvenanceV2 TargetProvenance { get; }
+
+    public static TypedBonusCopySaveRequest Create(
+        BundesligaTypedCopyRequest<TypedBonusSnapshot> copyRequest,
+        TypedBonusCopyCandidate sourceCandidate,
+        BonusPrediction prediction,
+        PredictionGenerationProvenanceV2 targetProvenance)
+    {
+        ArgumentNullException.ThrowIfNull(copyRequest);
+        ArgumentNullException.ThrowIfNull(sourceCandidate);
+        ArgumentNullException.ThrowIfNull(prediction);
+        ArgumentNullException.ThrowIfNull(targetProvenance);
+        copyRequest.RequireMatchingTargetProvenance(targetProvenance);
+        copyRequest.RequireMatchingSourceProvenance(sourceCandidate.SourcePrediction.Provenance);
+        if (!ReferenceEquals(sourceCandidate.SourceCurrent, copyRequest.SourceCurrent)
+            || !string.Equals(sourceCandidate.CopyRequestFingerprint, copyRequest.Decision.BoundFingerprint, StringComparison.Ordinal)
+            || !string.Equals(targetProvenance.SourcePredictionIdentity,
+                sourceCandidate.SourcePrediction.Provenance.PredictionIdentity, StringComparison.Ordinal))
+        {
+            throw new InvalidDataException("Bonus copy save source row or source prediction identity is inconsistent.");
+        }
+        var validated = TypedBonusPredictionRecord.Create(copyRequest.TargetCurrent, prediction, targetProvenance);
+        var mapped = sourceCandidate.SourcePrediction.SelectedOptionIds.Select(sourceId =>
+            copyRequest.Decision.OptionProjection.Single(mapping =>
+                string.Equals(mapping.SourceOptionId, sourceId, StringComparison.Ordinal)).PostingOptionId);
+        if (!validated.SelectedOptionIds.SequenceEqual(mapped, StringComparer.Ordinal))
+        {
+            throw new InvalidDataException("Bonus copy save payload does not equal the exact bound option projection.");
+        }
+        return new TypedBonusCopySaveRequest(copyRequest, sourceCandidate, validated.SelectedOptionIds, targetProvenance);
+    }
+}
 
 public interface IBundesligaTypedPredictionAuthorityRepository
 {
@@ -199,8 +458,7 @@ public interface IBundesligaTypedPredictionAuthorityRepository
     Task<TypedMatchCopyCandidate?> GetTypedMatchCopyCandidateAsync(
         BundesligaTypedCopyRequest<TypedMatchSnapshot> request, CancellationToken cancellationToken = default);
     Task SaveCurrentTypedMatchCopyAsync(
-        BundesligaTypedCopyRequest<TypedMatchSnapshot> request,
-        Prediction prediction, PredictionGenerationProvenanceV2 provenance, CancellationToken cancellationToken = default);
+        TypedMatchCopySaveRequest request, CancellationToken cancellationToken = default);
 
     Task<TypedBonusPredictionRecord?> GetCurrentTypedBonusPredictionAsync(
         BundesligaTypedCurrentRequest<TypedBonusSnapshot> request, CancellationToken cancellationToken = default);
@@ -220,6 +478,5 @@ public interface IBundesligaTypedPredictionAuthorityRepository
     Task<TypedBonusCopyCandidate?> GetTypedBonusCopyCandidateAsync(
         BundesligaTypedCopyRequest<TypedBonusSnapshot> request, CancellationToken cancellationToken = default);
     Task SaveCurrentTypedBonusCopyAsync(
-        BundesligaTypedCopyRequest<TypedBonusSnapshot> request,
-        BonusPrediction prediction, PredictionGenerationProvenanceV2 provenance, CancellationToken cancellationToken = default);
+        TypedBonusCopySaveRequest request, CancellationToken cancellationToken = default);
 }
