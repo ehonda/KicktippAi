@@ -1,5 +1,5 @@
 {
-  "schema_version": 1,
+  "schema_version": 2,
   "snapshot": {
     "old_run": "01a04fd8-ffcf-7263-944f-98d1bc53c645",
     "new_run": "01a054ee-67b4-7ab2-a0b4-c9ffabc2da2e",
@@ -29,6 +29,9 @@
     "non_cached_plus_output_rate_change": -0.4159,
     "old_worker_tokens_per_worker_hour": 21884211,
     "new_worker_tokens_per_worker_hour": 14136052,
+    "old_worker_non_cached_plus_output_tokens_per_worker_hour": 771080,
+    "new_worker_non_cached_plus_output_tokens_per_worker_hour": 728054,
+    "worker_non_cached_plus_output_rate_change": -0.0558,
     "root_share_old": 0.3758,
     "root_share_new": 0.5906,
     "old_root_tokens_per_effective_hour": 18816758,

@@ -3,33 +3,37 @@
   "snapshot_generated_at": "2026-08-31T20:05:11.408139Z",
   "findings": [
     {
-      "id": "parallelism-declined-but-did-not-collapse",
+      "id": "parallelism-declined-mostly-because-the-ready-graph-was-narrow",
       "assessment": "mixed",
       "evidence": [
         "average active concurrency fell from 1.521 to 1.1213",
         "two-plus occupancy fell from 52.10% to 11.82%",
         "maximum concurrency increased from two to three, but only briefly",
-        "worker-seconds per pause-adjusted wall-second fell from 1.4281 to 0.8379"
+        "worker-seconds per pause-adjusted wall-second fell from 1.4281 to 0.8379",
+        "only P1-10 was interview-complete; P1-04, P1-05, P1-06, P1-07, and P1-11 remained needs-interview",
+        "machine admission and occupied reusable-agent slots were secondary constraints, not the demonstrated primary cause"
       ]
     },
     {
-      "id": "efficiency-signal-is-real-but-not-quota-conversion",
-      "assessment": "strong",
+      "id": "lower-token-throughput-does-not-establish-efficiency",
+      "assessment": "unproven",
       "evidence": [
         "logged tokens per pause-adjusted hour fell 42.22%",
-        "non-cached input plus output per adjusted hour fell 41.59%",
-        "worker tokens per worker-hour fell from 21.88M to 14.14M",
-        "Codex weekly quota units are unavailable in transcript telemetry"
+        "worker-seconds per pause-adjusted wall-second fell 41.33%, so lower activity explains most of the wall-clock token-rate change",
+        "worker-normalized non-cached input plus output fell only 5.58%, from 771080 to 728054 tokens per worker-hour",
+        "accepted-work-per-token and accepted-work-per-quota are not measured",
+        "Codex weekly quota units are unavailable in transcript telemetry and are not a workflow throttle"
       ]
     },
     {
-      "id": "machine-admission-traded-heavy-overlap-for-less-waiting",
-      "assessment": "strong",
+      "id": "machine-admission-prevented-heavy-overlap-but-the-memory-cliff-needs-calibration",
+      "assessment": "mixed",
       "evidence": [
         "38 resource-admission calls cost 120.687 direct seconds",
         "43 classified dotnet calls had maximum overlap one",
         "subagent tool share fell from 42.79% to 19.10% of worker-active time",
-        "the latest 1.25 GiB memory sample correctly denied another heavy operation"
+        "the cutoff sample denied below the conservative 1.50 GiB memory floor",
+        "a separate post-cutoff 1.48 GiB sample shows the floor can block on a 0.02 GiB shortfall and should be calibrated"
       ]
     },
     {
@@ -63,13 +67,14 @@
       ]
     },
     {
-      "id": "ledger-coalescing-worked-polling-did-not",
+      "id": "ledger-coalescing-worked-while-polling-frequency-is-inconclusive",
       "assessment": "mixed",
       "evidence": [
         "ledger patches fell from 375 to 106",
         "ledger patches per adjusted hour fell from 28.39 to 10.19",
         "state size fell from about 141k to 45k characters",
-        "wait_agent calls remained 46.7 versus 46.6 per adjusted hour"
+        "wait_agent calls remained 46.7 versus 46.6 per adjusted hour",
+        "generic event-wait cadence is a weak efficiency measure; root-owned CI polling caused by a blocked monitor slot is the actionable case"
       ]
     },
     {

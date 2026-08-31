@@ -26,6 +26,9 @@ store and are not committed.
 - `task-files.csv`, `task-groups.csv`, `user-messages.csv`: task and user-event
   context.
 - `curated-findings.json`: concise interpretations tied to measured evidence.
+- `corrections.json`: the dated interpretation correction and a strictly
+  separated post-cutoff addendum. Later analyses should read this before
+  reusing the original report's conclusions.
 
 ## Reproduction
 
@@ -50,6 +53,9 @@ recorded successor commits.
   preview-agent turn at `2026-08-30T23:37:08Z` to the owner's resume message at
   `2026-08-31T10:07:26.245Z`.
 - The baseline retains its previously published 5h42m54s authorization pause.
+- The original successor cutoff remains unchanged. Evidence in
+  `corrections.json.post_cutoff_addendum` is hypothesis-forming context only
+  and is excluded from the normalized comparison metrics.
 - Complete prompts, reasoning, private payloads, secrets, and complete tool
   output are excluded.
 - Public API price is not aggregated because public prices are not established
