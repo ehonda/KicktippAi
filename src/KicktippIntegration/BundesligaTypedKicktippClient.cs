@@ -1,16 +1,44 @@
 using System.Globalization;
 using System.Net;
+using System.Collections.Immutable;
+using System.Text;
+using System.Text.RegularExpressions;
 using AngleSharp;
 using AngleSharp.Dom;
 using AngleSharp.Html.Dom;
 using EHonda.KicktippAi.Core;
 using NodaTime;
 using NodaTime.Text;
+using Microsoft.Extensions.Logging;
 
 namespace KicktippIntegration;
 
-public partial class KicktippClient
+public sealed class BundesligaTypedKicktippClient : IBundesligaTypedKicktippClient, IDisposable
 {
+    private static readonly DateTimeZone BerlinTimeZone = DateTimeZoneProviders.Tzdb["Europe/Berlin"];
+    private readonly HttpClient _httpClient;
+    private readonly ILogger<BundesligaTypedKicktippClient> _logger;
+    private readonly IBrowsingContext _browsingContext;
+    private readonly Func<Uri, bool> _finalAuthorityValidator;
+
+    public BundesligaTypedKicktippClient(
+        HttpClient httpClient,
+        ILogger<BundesligaTypedKicktippClient> logger)
+        : this(httpClient, logger, IsCanonicalKicktippAuthority)
+    {
+    }
+
+    internal BundesligaTypedKicktippClient(
+        HttpClient httpClient,
+        ILogger<BundesligaTypedKicktippClient> logger,
+        Func<Uri, bool> finalAuthorityValidator)
+    {
+        _httpClient = httpClient ?? throw new ArgumentNullException(nameof(httpClient));
+        _logger = logger ?? throw new ArgumentNullException(nameof(logger));
+        _finalAuthorityValidator = finalAuthorityValidator ?? throw new ArgumentNullException(nameof(finalAuthorityValidator));
+        _browsingContext = BrowsingContext.New(Configuration.Default.WithDefaultLoader());
+    }
+
     public async Task<IReadOnlyList<TypedMatchSnapshot>> GetTypedOpenMatchSnapshotsAsync(
         BundesligaPredictionAuthority authority,
         BundesligaTypedMatchInventoryScope scope,
@@ -20,7 +48,7 @@ public partial class KicktippClient
         ArgumentNullException.ThrowIfNull(scope);
         ValidatePostingKeys(authority, scope.Items.Select(item => item.Key));
         var loaded = await LoadTypedMatchInventoryAsync(authority, scope.Items, cancellationToken);
-        return loaded.Rows.Select(row => row.Snapshot).ToArray();
+        return loaded.Rows.Select(row => row.Snapshot).ToImmutableArray();
     }
 
     public async Task<IReadOnlyList<BundesligaTypedPlacedMatchPrediction>> GetTypedPlacedMatchPredictionsAsync(
@@ -35,7 +63,7 @@ public partial class KicktippClient
             authority, scope.Items.Select(item => item.SourceIdentity).ToArray(), cancellationToken);
         RequireExpectedMatchSnapshots(scope, loaded.Rows);
         return loaded.Rows.Select(row => new BundesligaTypedPlacedMatchPrediction(
-            row.Snapshot, ParseExactMatchPrediction(row.HomeInput, row.AwayInput))).ToArray();
+            row.Snapshot, ParseExactMatchPrediction(row.HomeInput, row.AwayInput))).ToImmutableArray();
     }
 
     public async Task<IReadOnlyList<BundesligaTypedPlacedMatchPrediction>> PlaceTypedMatchPredictionsAsync(
@@ -55,6 +83,7 @@ public partial class KicktippClient
 
         var submissions = predictions.Predictions.ToDictionary(
             item => item.Snapshot.Key.KicktippItemId, StringComparer.Ordinal);
+        var expectedPostState = new Dictionary<string, BetPrediction?>(StringComparer.Ordinal);
         var formData = CopyExactHiddenInputs(loaded.Form);
         foreach (var row in loaded.Rows)
         {
@@ -66,11 +95,13 @@ public partial class KicktippClient
                     throw new KicktippTypedAuthorityException(
                         $"Fixture '{row.Snapshot.Key.KicktippItemId}' already has a different exact prediction.");
                 }
+                expectedPostState.Add(row.Snapshot.Key.KicktippItemId, submission.Prediction);
                 AddExactFormValue(formData, row.HomeInput.Name, submission.Prediction.HomeGoals.ToString(CultureInfo.InvariantCulture));
                 AddExactFormValue(formData, row.AwayInput.Name, submission.Prediction.AwayGoals.ToString(CultureInfo.InvariantCulture));
             }
             else
             {
+                expectedPostState.Add(row.Snapshot.Key.KicktippItemId, existing);
                 AddExactFormValue(formData, row.HomeInput.Name, row.HomeInput.Value ?? string.Empty);
                 AddExactFormValue(formData, row.AwayInput.Name, row.AwayInput.Value ?? string.Empty);
             }
@@ -85,14 +116,14 @@ public partial class KicktippClient
 
         var readback = await GetTypedPlacedMatchPredictionsAsync(
             authority, predictions.Scope, cancellationToken);
-        foreach (var submission in predictions.Predictions)
+        foreach (var expected in expectedPostState)
         {
-            var matches = readback.Where(item => item.Snapshot.Key == submission.Snapshot.Key).ToArray();
-            if (matches.Length != 1 || !matches[0].Snapshot.Equals(submission.Snapshot)
-                || matches[0].Prediction != submission.Prediction)
+            var matches = readback.Where(item =>
+                string.Equals(item.Snapshot.Key.KicktippItemId, expected.Key, StringComparison.Ordinal)).ToArray();
+            if (matches.Length != 1 || matches[0].Prediction != expected.Value)
             {
                 throw new KicktippTypedAuthorityException(
-                    $"Exact match readback changed or omitted fixture '{submission.Snapshot.Key.KicktippItemId}'.");
+                    $"Exact match readback changed or omitted fixture '{expected.Key}'.");
             }
         }
         return readback;
@@ -107,7 +138,7 @@ public partial class KicktippClient
         ArgumentNullException.ThrowIfNull(scope);
         ValidatePostingKeys(authority, scope.Items.Select(item => item.Key));
         var loaded = await LoadTypedBonusInventoryAsync(authority, scope.Items, cancellationToken);
-        return loaded.Rows.Select(row => row.Snapshot).ToArray();
+        return loaded.Rows.Select(row => row.Snapshot).ToImmutableArray();
     }
 
     public async Task<IReadOnlyList<BundesligaTypedPlacedBonusPrediction>> GetTypedPlacedBonusPredictionsAsync(
@@ -122,7 +153,7 @@ public partial class KicktippClient
             authority, scope.Items.Select(item => item.SourceIdentity).ToArray(), cancellationToken);
         RequireExpectedBonusSnapshots(scope, loaded.Rows);
         return loaded.Rows.Select(row => new BundesligaTypedPlacedBonusPrediction(
-            row.Snapshot, ParseExactBonusSelection(row))).ToArray();
+            row.Snapshot, ParseExactBonusSelection(row))).ToImmutableArray();
     }
 
     public async Task<IReadOnlyList<BundesligaTypedPlacedBonusPrediction>> PlaceTypedBonusPredictionsAsync(
@@ -142,6 +173,7 @@ public partial class KicktippClient
 
         var submissions = predictions.Predictions.ToDictionary(
             item => item.Snapshot.Key.KicktippItemId, StringComparer.Ordinal);
+        var expectedPostState = new Dictionary<string, ImmutableArray<string>>(StringComparer.Ordinal);
         var formData = CopyExactHiddenInputs(loaded.Form);
         CopyExactMatchValuesForBonusForm(loaded.Form, formData);
         foreach (var row in loaded.Rows)
@@ -155,6 +187,9 @@ public partial class KicktippClient
                     throw new KicktippTypedAuthorityException(
                         $"Bonus item '{row.Snapshot.Key.KicktippItemId}' already has a different exact prediction.");
                 }
+                expectedPostState.Add(
+                    row.Snapshot.Key.KicktippItemId,
+                    submission.SelectedOptionIds.ToImmutableArray());
                 for (var index = 0; index < row.Selects.Count; index++)
                 {
                     AddExactFormValue(
@@ -167,6 +202,7 @@ public partial class KicktippClient
             }
             else
             {
+                expectedPostState.Add(row.Snapshot.Key.KicktippItemId, existing.ToImmutableArray());
                 foreach (var select in row.Selects)
                 {
                     AddExactFormValue(
@@ -187,15 +223,15 @@ public partial class KicktippClient
 
         var readback = await GetTypedPlacedBonusPredictionsAsync(
             authority, predictions.Scope, cancellationToken);
-        foreach (var submission in predictions.Predictions)
+        foreach (var expected in expectedPostState)
         {
-            var matches = readback.Where(item => item.Snapshot.Key == submission.Snapshot.Key).ToArray();
-            if (matches.Length != 1 || !matches[0].Snapshot.Equals(submission.Snapshot)
-                || !matches[0].SelectedOptionIds.SequenceEqual(
-                    submission.SelectedOptionIds, StringComparer.Ordinal))
+            var matches = readback.Where(item =>
+                string.Equals(item.Snapshot.Key.KicktippItemId, expected.Key, StringComparison.Ordinal)).ToArray();
+            if (matches.Length != 1 || !matches[0].SelectedOptionIds.SequenceEqual(
+                    expected.Value, StringComparer.Ordinal))
             {
                 throw new KicktippTypedAuthorityException(
-                    $"Exact bonus readback changed or omitted item '{submission.Snapshot.Key.KicktippItemId}'.");
+                    $"Exact bonus readback changed or omitted item '{expected.Key}'.");
             }
         }
         return readback;
@@ -525,8 +561,8 @@ public partial class KicktippClient
         }
         var competition = ExactStructuredValues(document, "Wettbewerb");
         var round = ExactStructuredValues(document, "Spieltag");
-        var termini = ExactStructuredValues(document, "Termin", requireSingle: false);
-        if (competition.Length != 1 || round.Length != 1 || termini.Length == 0)
+        var termini = ExactStructuredValues(document, "Termin");
+        if (competition.Length != 1 || round.Length != 1 || termini.Length != 1)
         {
             throw new KicktippTypedAuthorityException(
                 $"Fixture '{reference.KicktippFixtureId}' detail metadata is missing or ambiguous.");
@@ -543,19 +579,19 @@ public partial class KicktippClient
         return new TypedFixtureDetails(competition[0], round[0], canonicalTermini);
     }
 
-    private static string[] ExactStructuredValues(IDocument document, string label, bool requireSingle = true)
+    private static string[] ExactStructuredValues(IDocument document, string label)
     {
-        var values = document.QuerySelectorAll(".spieldaten-infos-label")
+        var labels = document.QuerySelectorAll(".spieldaten-infos-label")
             .Where(item => string.Equals(NormalizeStructuredMetadata(item.TextContent), label, StringComparison.Ordinal))
-            .Select(item => item.NextElementSibling)
-            .Where(item => item is not null && item.ClassList.Contains("spieldaten-infos-value"))
-            .Select(item => NormalizeStructuredMetadata(item!.TextContent))
             .ToArray();
-        if (values.Any(string.IsNullOrWhiteSpace) || (requireSingle && values.Length != 1))
+        if (labels.Length != 1
+            || labels[0].NextElementSibling is not { } value
+            || !value.ClassList.Contains("spieldaten-infos-value"))
         {
             return [];
         }
-        return values;
+        var normalized = NormalizeStructuredMetadata(value.TextContent);
+        return string.IsNullOrWhiteSpace(normalized) ? [] : [normalized];
     }
 
     private static List<ParsedTypedBonusRow> ParseExactTypedBonusRows(IElement body)
@@ -818,6 +854,218 @@ public partial class KicktippClient
         {
             throw new KicktippTypedAuthorityException("Typed Kicktipp scope contains a key from another authority.");
         }
+    }
+
+    private bool IsExpectedCommunityFinalUri(Uri? uri, string community, string expectedPath) =>
+        uri is not null && _finalAuthorityValidator(uri)
+        && string.Equals(uri.AbsolutePath, $"/{community}{expectedPath}", StringComparison.Ordinal)
+        && string.IsNullOrEmpty(uri.Fragment) && string.IsNullOrEmpty(uri.UserInfo);
+
+    private static bool IsCanonicalKicktippAuthority(Uri uri) =>
+        uri.IsAbsoluteUri
+        && string.Equals(uri.Scheme, Uri.UriSchemeHttps, StringComparison.Ordinal)
+        && string.Equals(uri.Host, "www.kicktipp.de", StringComparison.OrdinalIgnoreCase)
+        && uri.Port == 443 && string.IsNullOrEmpty(uri.UserInfo);
+
+    private static bool HasExactQuerySet(Uri? uri, params (string Key, string? Value)[] expected)
+    {
+        if (uri is null)
+        {
+            return false;
+        }
+        if (string.IsNullOrEmpty(uri.Query))
+        {
+            return expected.Length == 0;
+        }
+        if (expected.Length == 0 || ContainsMalformedPercentEncoding(uri.Query[1..]))
+        {
+            return false;
+        }
+        var actual = uri.Query[1..].Split('&', StringSplitOptions.None)
+            .Select(part => part.Split('=', 2)).ToArray();
+        return actual.Length == expected.Length && actual.All(parts => parts.Length == 2)
+            && expected.All(item => TryReadSingleQueryValue(uri, item.Key, out var value)
+                && (item.Value is null ? !string.IsNullOrWhiteSpace(value)
+                    : string.Equals(value, item.Value, StringComparison.Ordinal)));
+    }
+
+    private static bool TryReadSingleQueryValue(Uri? uri, string key, out string value)
+    {
+        value = string.Empty;
+        if (uri is null || string.IsNullOrEmpty(uri.Query)
+            || ContainsMalformedPercentEncoding(uri.Query[1..]))
+        {
+            return false;
+        }
+        var values = uri.Query[1..].Split('&', StringSplitOptions.None)
+            .Select(part => part.Split('=', 2))
+            .Where(parts => parts.Length == 2
+                && string.Equals(DecodeQuery(parts[0]), key, StringComparison.Ordinal))
+            .Select(parts => DecodeQuery(parts[1])).ToArray();
+        if (values.Length != 1)
+        {
+            return false;
+        }
+        value = values[0];
+        return true;
+    }
+
+    private static string DecodeQuery(string value) =>
+        Uri.UnescapeDataString(value.Replace("+", " ", StringComparison.Ordinal));
+
+    private static bool ContainsMalformedPercentEncoding(string query)
+    {
+        for (var index = 0; index < query.Length; index++)
+        {
+            if (query[index] != '%')
+            {
+                continue;
+            }
+            if (index + 2 >= query.Length || !Uri.IsHexDigit(query[index + 1]) || !Uri.IsHexDigit(query[index + 2]))
+            {
+                return true;
+            }
+            index += 2;
+        }
+        return false;
+    }
+
+    private static bool IsLoginDocument(IDocument document) =>
+        document.QuerySelector("form#loginFormular") is not null
+        || NormalizeStructuredMetadata(document.Title).Contains("Login", StringComparison.OrdinalIgnoreCase);
+
+    private static string NormalizeStructuredMetadata(string? value) =>
+        NormalizeWhitespace(value).Normalize(NormalizationForm.FormC);
+
+    private static string NormalizeWhitespace(string? value) =>
+        string.IsNullOrWhiteSpace(value) ? string.Empty : Regex.Replace(value.Trim(), @"\s+", " ");
+
+    private static bool IsCancelledTimeText(string value) =>
+        string.Equals(value, "Abgesagt", StringComparison.OrdinalIgnoreCase);
+
+    private static bool TryParseStructuredDateTime(string value, out Instant instant)
+    {
+        instant = default;
+        if (!DateTime.TryParseExact(
+                value,
+                ["dd.MM.yy HH:mm", "dd.MM.yyyy HH:mm"],
+                CultureInfo.InvariantCulture,
+                DateTimeStyles.None,
+                out var parsed))
+        {
+            return false;
+        }
+        var local = LocalDateTime.FromDateTime(DateTime.SpecifyKind(parsed, DateTimeKind.Unspecified));
+        var mapping = BerlinTimeZone.MapLocal(local);
+        if (mapping.Count != 1)
+        {
+            return false;
+        }
+        instant = mapping.First().ToInstant();
+        return instant != Instant.MinValue;
+    }
+
+    private static bool TryExtractMatchdayFromPage(IDocument document, out int matchday)
+    {
+        matchday = 0;
+        var values = document.QuerySelectorAll("input[name]").OfType<IHtmlInputElement>()
+            .Where(input => string.Equals(input.Name, "spieltagIndex", StringComparison.Ordinal))
+            .Select(input => input.Value).ToArray();
+        return values.Length == 1
+            && int.TryParse(values[0], NumberStyles.None, CultureInfo.InvariantCulture, out matchday)
+            && matchday > 0;
+    }
+
+    private bool TryCreateOutcomeDetailUri(
+        string? detailUrl,
+        string community,
+        int matchday,
+        string expectedFixtureId,
+        out Uri detailUri)
+    {
+        detailUri = null!;
+        if (string.IsNullOrWhiteSpace(detailUrl) || _httpClient.BaseAddress is null
+            || !Uri.TryCreate(_httpClient.BaseAddress, detailUrl, out var parsed)
+            || !IsExpectedCommunityFinalUri(parsed, community, "/tippuebersicht/spiel")
+            || !HasExactQuerySet(
+                parsed,
+                ("tippspielId", expectedFixtureId),
+                ("tippsaisonId", null),
+                ("spieltagIndex", matchday.ToString(CultureInfo.InvariantCulture))))
+        {
+            return false;
+        }
+        detailUri = parsed;
+        return true;
+    }
+
+    private static string? ExtractTippSpielId(string? dataUrl)
+    {
+        if (string.IsNullOrWhiteSpace(dataUrl))
+        {
+            return null;
+        }
+        var match = Regex.Match(dataUrl, @"(?:\?|&)tippspielId=(\d+)");
+        return match.Success ? match.Groups[1].Value : null;
+    }
+
+    private static bool TryExtractExactKicktippQuestionSelectIdentity(
+        string? formFieldName,
+        out string questionId,
+        out string selectionIndex)
+    {
+        questionId = string.Empty;
+        selectionIndex = string.Empty;
+        if (string.IsNullOrWhiteSpace(formFieldName))
+        {
+            return false;
+        }
+        var match = Regex.Match(
+            formFieldName,
+            @"^fragetippForms\[(?<id>\d+)\]\.antwortIds\[(?<index>\d+)\]$");
+        if (!match.Success)
+        {
+            return false;
+        }
+        questionId = match.Groups["id"].Value;
+        selectionIndex = match.Groups["index"].Value;
+        return true;
+    }
+
+    private static List<BonusQuestionOption> ExtractExactQuestionOptions(IHtmlSelectElement select)
+    {
+        var options = new List<BonusQuestionOption>();
+        foreach (var option in select.QuerySelectorAll("option"))
+        {
+            if (option is not IHtmlOptionElement typedOption)
+            {
+                throw new KicktippTypedAuthorityException("Typed bonus select contains a malformed option.");
+            }
+            if (string.Equals(typedOption.Value, "-1", StringComparison.Ordinal))
+            {
+                continue;
+            }
+            var text = NormalizeStructuredMetadata(typedOption.Text);
+            if (!typedOption.HasAttribute("value") || string.IsNullOrWhiteSpace(typedOption.Value)
+                || string.IsNullOrWhiteSpace(text))
+            {
+                throw new KicktippTypedAuthorityException("Typed bonus select contains a missing option identity.");
+            }
+            options.Add(new BonusQuestionOption(typedOption.Value, text));
+        }
+        if (options.Count == 0
+            || options.GroupBy(item => item.Id, StringComparer.Ordinal).Any(group => group.Count() != 1)
+            || options.GroupBy(item => item.Text, StringComparer.Ordinal).Any(group => group.Count() != 1))
+        {
+            throw new KicktippTypedAuthorityException("Typed bonus select contains duplicate or empty option identity.");
+        }
+        return options;
+    }
+
+    public void Dispose()
+    {
+        _httpClient.Dispose();
+        _browsingContext.Dispose();
     }
 
     private sealed record ParsedTypedMatchRow(

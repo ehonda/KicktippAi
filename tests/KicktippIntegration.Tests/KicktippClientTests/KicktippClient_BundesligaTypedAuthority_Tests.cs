@@ -1,6 +1,7 @@
 using System.Net;
 using System.Text;
 using EHonda.KicktippAi.Core;
+using Microsoft.Extensions.Logging.Testing;
 
 namespace KicktippIntegration.Tests.KicktippClientTests;
 
@@ -51,7 +52,10 @@ public class KicktippClient_BundesligaTypedAuthority_Tests : KicktippClientTests
     [Arguments("detail-id-conflict")]
     [Arguments("missing-detail")]
     [Arguments("duplicate-termin")]
+    [Arguments("duplicate-termin-malformed-sibling")]
     [Arguments("unparsable-termin")]
+    [Arguments("dst-overlap-termin")]
+    [Arguments("dst-gap-termin")]
     [Arguments("fixture-detail-conflict")]
     public async Task Typed_match_inventory_rejects_hostile_identity_and_schedule_evidence_atomically(string mutation)
     {
@@ -62,6 +66,16 @@ public class KicktippClient_BundesligaTypedAuthority_Tests : KicktippClientTests
                 await client.GetTypedOpenMatchSnapshotsAsync(Authority(), MatchInventory()))
             .Throws<KicktippTypedAuthorityException>();
         await Assert.That(handler.Requests.Any(request => request.Method == HttpMethod.Post)).IsFalse();
+    }
+
+    [Test]
+    [Arguments("25.10.26 02:30")]
+    [Arguments("28.03.27 02:30")]
+    public async Task Typed_match_fixture_time_rejects_Berlin_DST_overlap_and_gap(string localTime)
+    {
+        await Assert.That(async () => await CreateTypedClient(MatchHandler(firstTime: localTime))
+                .GetTypedOpenMatchSnapshotsAsync(Authority(), MatchInventory()))
+            .Throws<KicktippTypedAuthorityException>();
     }
 
     [Test]
@@ -118,6 +132,7 @@ public class KicktippClient_BundesligaTypedAuthority_Tests : KicktippClientTests
     [Arguments("readback-duplicate-id")]
     [Arguments("readback-changed-value")]
     [Arguments("readback-changed-snapshot")]
+    [Arguments("readback-non-target-changed-value")]
     public async Task Typed_match_POST_rejects_missing_extra_duplicate_or_changed_exact_readback(string mutation)
     {
         var handler = MatchHandler(mutation: mutation, statefulPost: true);
@@ -169,6 +184,8 @@ public class KicktippClient_BundesligaTypedAuthority_Tests : KicktippClientTests
     [Arguments("partial-select-options")]
     [Arguments("sparse-select-indices")]
     [Arguments("unparsable-deadline")]
+    [Arguments("dst-overlap-deadline")]
+    [Arguments("dst-gap-deadline")]
     public async Task Typed_bonus_inventory_rejects_ambiguous_or_drifted_exact_identity(string mutation)
     {
         var handler = BonusHandler(mutation);
@@ -196,6 +213,8 @@ public class KicktippClient_BundesligaTypedAuthority_Tests : KicktippClientTests
         await Assert.That(post.Body).Contains("fragetippForms%5B202%5D.antwortIds%5B0%5D=c");
         await Assert.That(post.Body).Contains("fragetippForms%5B202%5D.antwortIds%5B1%5D=d");
         await Assert.That(post.Body).Contains("fragetippForms%5B201%5D.antwortIds%5B0%5D=a");
+        await Assert.That(post.Body).Contains("spieltippForms%5B501%5D.heimTipp=4");
+        await Assert.That(post.Body).Contains("spieltippForms%5B501%5D.gastTipp=2");
         await Assert.That(post.Body).DoesNotContain("Question+Two");
         await Assert.That(readback.Single(item => item.Snapshot.Key.KicktippItemId == "202").SelectedOptionIds)
             .IsEquivalentTo(["c", "d"]);
@@ -207,6 +226,7 @@ public class KicktippClient_BundesligaTypedAuthority_Tests : KicktippClientTests
     [Arguments("readback-duplicate-id")]
     [Arguments("readback-changed-value")]
     [Arguments("readback-changed-snapshot")]
+    [Arguments("readback-non-target-changed-value")]
     public async Task Typed_bonus_POST_rejects_missing_extra_duplicate_or_changed_exact_readback(string mutation)
     {
         var handler = BonusHandler(mutation, statefulPost: true);
@@ -241,6 +261,30 @@ public class KicktippClient_BundesligaTypedAuthority_Tests : KicktippClientTests
     }
 
     [Test]
+    public async Task Typed_inventory_and_placed_results_are_runtime_immutable()
+    {
+        var matchClient = CreateTypedClient(MatchHandler());
+        var matches = await matchClient.GetTypedOpenMatchSnapshotsAsync(Authority(), MatchInventory());
+        var placedMatches = await matchClient.GetTypedPlacedMatchPredictionsAsync(Authority(), MatchRead(matches));
+        var bonusClient = CreateTypedClient(BonusHandler());
+        var bonuses = await bonusClient.GetTypedOpenBonusSnapshotsAsync(Authority(), BonusInventory());
+        var placedBonuses = await bonusClient.GetTypedPlacedBonusPredictionsAsync(Authority(), BonusRead(bonuses));
+
+        await Assert.That(matches.GetType().IsArray).IsFalse();
+        await Assert.That(bonuses.GetType().IsArray).IsFalse();
+        await Assert.That(placedMatches.GetType().IsArray).IsFalse();
+        await Assert.That(placedBonuses.GetType().IsArray).IsFalse();
+        await Assert.That(() => ((IList<TypedMatchSnapshot>)matches).Add(matches[0]))
+            .Throws<NotSupportedException>();
+        await Assert.That(() => ((IList<TypedBonusSnapshot>)bonuses).Clear())
+            .Throws<NotSupportedException>();
+        await Assert.That(() => ((IList<BundesligaTypedPlacedMatchPrediction>)placedMatches).RemoveAt(0))
+            .Throws<NotSupportedException>();
+        await Assert.That(() => ((IList<BundesligaTypedPlacedBonusPrediction>)placedBonuses)[0] = placedBonuses[0])
+            .Throws<NotSupportedException>();
+    }
+
+    [Test]
     public async Task Typed_client_interface_exposes_only_the_six_exact_authority_operations()
     {
         var methods = typeof(IBundesligaTypedKicktippClient).GetMethods()
@@ -257,10 +301,16 @@ public class KicktippClient_BundesligaTypedAuthority_Tests : KicktippClientTests
         });
     }
 
-    private KicktippClient CreateTypedClient(SyntheticHandler handler)
+    private BundesligaTypedKicktippClient CreateTypedClient(SyntheticHandler handler)
     {
         var httpClient = new HttpClient(handler) { BaseAddress = new Uri(ServerUrl) };
-        return CreateClient(httpClient: httpClient);
+        var testAuthority = new Uri(ServerUrl);
+        return new BundesligaTypedKicktippClient(
+            httpClient,
+            new FakeLogger<BundesligaTypedKicktippClient>(),
+            uri => string.Equals(uri.Scheme, testAuthority.Scheme, StringComparison.OrdinalIgnoreCase)
+                && string.Equals(uri.Host, testAuthority.Host, StringComparison.OrdinalIgnoreCase)
+                && uri.Port == testAuthority.Port);
     }
 
     private static BundesligaPredictionAuthority Authority() =>
@@ -355,7 +405,9 @@ public class KicktippClient_BundesligaTypedAuthority_Tests : KicktippClientTests
             {
                 var id = ReadQueryValue(request.RequestUri, "tippspielId");
                 var time = id == "101" ? firstTime : "30.08.26 18:30";
-                var effectiveMutation = mutation is "missing-detail" or "duplicate-termin" or "unparsable-termin"
+                var effectiveMutation = mutation is "missing-detail" or "duplicate-termin"
+                    or "duplicate-termin-malformed-sibling" or "unparsable-termin"
+                    or "dst-overlap-termin" or "dst-gap-termin"
                     or "fixture-detail-conflict" or "competition-drift" or "round-drift"
                     ? mutation : posted && mutation == "readback-changed-snapshot" ? mutation : null;
                 var response = Html(request, MatchDetail(id, time, effectiveMutation));
@@ -415,8 +467,8 @@ public class KicktippClient_BundesligaTypedAuthority_Tests : KicktippClientTests
             secondDate,
             mutation == "team-drift" ? "Changed Team" : "Team C",
             "Team D",
-            "3",
-            "2"));
+            mutation == "readback-non-target-changed-value" ? "8" : "3",
+            mutation == "readback-non-target-changed-value" ? "8" : "2"));
         if (mutation is "unknown-extra-id" or "readback-extra-id")
         {
             rows.Append(MatchRow("999", "30.08.26 20:30", "Team X", "Team Y", "", ""));
@@ -460,6 +512,10 @@ public class KicktippClient_BundesligaTypedAuthority_Tests : KicktippClientTests
             "fixture-detail-conflict" => Detail("Termin", "31.08.26 15:30"),
             "readback-changed-snapshot" => Detail("Termin", "31.08.26 15:30"),
             "duplicate-termin" => Detail("Termin", time) + Detail("Termin", time),
+            "duplicate-termin-malformed-sibling" =>
+                Detail("Termin", time) + "<div><span class=\"spieldaten-infos-label\">Termin</span><em>broken</em></div>",
+            "dst-overlap-termin" => Detail("Termin", "25.10.26 02:30"),
+            "dst-gap-termin" => Detail("Termin", "28.03.27 02:30"),
             _ => Detail("Termin", time)
         };
         var competition = mutation == "competition-drift" ? "DFB-Pokal 2026/27" : "1. Bundesliga 2026/27";
@@ -474,11 +530,12 @@ public class KicktippClient_BundesligaTypedAuthority_Tests : KicktippClientTests
     {
         var firstId = mutation is "missing-question-id" ? "bad" : "201";
         var secondId = mutation is "duplicate-question-id" or "readback-duplicate-id" ? "201" : "202";
+        var firstSelected = posted && mutation == "readback-non-target-changed-value" ? "b" : "a";
         var firstOptions = mutation == "duplicate-option-id"
             ? Options(("a", "Alpha"), ("a", "Beta"), selected: "a")
             : mutation == "reordered-options"
                 ? Options(("b", "Beta"), ("a", "Alpha"), selected: "a")
-            : Options(("a", "Alpha"), ("b", "Beta"), selected: "a");
+            : Options(("a", "Alpha"), ("b", "Beta"), selected: firstSelected);
         var secondFirstOptions = Options(("c", "Gamma"), ("d", "Delta"),
             posted ? (mutation == "readback-changed-value" ? "d" : "c") : null);
         var secondSecondOptions = mutation == "partial-select-options"
@@ -488,8 +545,15 @@ public class KicktippClient_BundesligaTypedAuthority_Tests : KicktippClientTests
         var rows = new StringBuilder();
         if (mutation != "readback-missing-id" || singleQuestion)
         {
+            var deadline = mutation switch
+            {
+                "unparsable-deadline" => "never",
+                "dst-overlap-deadline" => "25.10.26 02:30",
+                "dst-gap-deadline" => "28.03.27 02:30",
+                _ => "30.08.26 12:00"
+            };
             rows.Append(BonusRow(firstId, mutation == "readback-changed-snapshot" ? "Changed Question" : "Question One",
-                mutation == "unparsable-deadline" ? "never" : "30.08.26 12:00",
+                deadline,
                 $"<select name=\"fragetippForms[{firstId}].antwortIds[0]\">{firstOptions}</select>"));
         }
         if (!singleQuestion)
@@ -506,6 +570,11 @@ public class KicktippClient_BundesligaTypedAuthority_Tests : KicktippClientTests
         return $"""
             <html><body><form action="/{Community}/tippabgabe" method="post">
             <input type="hidden" name="bonus" value="true" />
+            <table id="tippabgabeSpiele"><tbody>
+            <tr><td>30.08.26 14:00</td><td>Mixed A</td><td>Mixed B</td><td>
+            <input name="spieltippForms[501].heimTipp" type="text" value="4" />
+            <input name="spieltippForms[501].gastTipp" type="text" value="2" />
+            </td></tr></tbody></table>
             <table id="tippabgabeFragen"><tbody>{rows}</tbody></table>
             <button type="submit" name="submitbutton" value="save">save</button>
             </form></body></html>

@@ -59,6 +59,11 @@ public class ServiceCollectionExtensionsTests
         var descriptor = services.FirstOrDefault(d =>
             d.ServiceType == typeof(IBundesligaTypedKicktippClient));
         await Assert.That(descriptor).IsNotNull();
+
+        using var provider = services.BuildServiceProvider();
+        var typed = provider.GetRequiredService<IBundesligaTypedKicktippClient>();
+        await Assert.That(typed).IsTypeOf<BundesligaTypedKicktippClient>();
+        await Assert.That(typed is IKicktippClient).IsFalse();
     }
 
     [Test]
