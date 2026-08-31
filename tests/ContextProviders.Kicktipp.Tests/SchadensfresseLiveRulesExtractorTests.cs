@@ -15,7 +15,8 @@ public class SchadensfresseLiveRulesExtractorTests
         "tests",
         "ContextProviders.Kicktipp.Tests",
         "Fixtures",
-        "schadensfresse-live-rules-sanitized.html"));
+        "schadensfresse-live-rules-sanitized.html"))
+        .ReplaceLineEndings("\n");
 
     [Test]
     public async Task Sanitized_captured_live_semantic_page_reproduces_all_three_ADR_hashes()
