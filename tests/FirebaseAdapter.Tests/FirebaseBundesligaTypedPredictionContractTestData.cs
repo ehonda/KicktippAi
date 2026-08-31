@@ -212,7 +212,9 @@ internal static class FirebaseBundesligaTypedPredictionContractTestData
 
     public static PredictionGenerationProvenanceV2 MatchCopyProvenance(
         PredictionCopyCompatibilityV2Input<TypedMatchSnapshot> input,
-        string sourcePredictionIdentity) =>
+        string sourcePredictionIdentity,
+        int index = 0,
+        string? predictionIdentity = null) =>
         Provenance(
             input.TargetCurrent.Authority,
             FirebaseBundesligaTypedPredictionCollections.MatchPredictions,
@@ -223,13 +225,15 @@ internal static class FirebaseBundesligaTypedPredictionContractTestData
             input.TargetCurrent.Identity,
             input.TargetCurrent.ModelConfig,
             sourcePredictionIdentity,
-            0,
-            "copied-match-r0",
+            index,
+            predictionIdentity ?? $"copied-match-r{index}",
             new PredictionGenerationUsageV2(0, 0, 0));
 
     public static PredictionGenerationProvenanceV2 BonusCopyProvenance(
         PredictionCopyCompatibilityV2Input<TypedBonusSnapshot> input,
-        string sourcePredictionIdentity) =>
+        string sourcePredictionIdentity,
+        int index = 0,
+        string? predictionIdentity = null) =>
         Provenance(
             input.TargetCurrent.Authority,
             FirebaseBundesligaTypedPredictionCollections.BonusPredictions,
@@ -240,8 +244,8 @@ internal static class FirebaseBundesligaTypedPredictionContractTestData
             input.TargetCurrent.Identity,
             input.TargetCurrent.ModelConfig,
             sourcePredictionIdentity,
-            0,
-            "copied-bonus-r0",
+            index,
+            predictionIdentity ?? $"copied-bonus-r{index}",
             new PredictionGenerationUsageV2(0, 0, 0));
 
     private static PredictionGenerationProvenanceV2 Provenance(

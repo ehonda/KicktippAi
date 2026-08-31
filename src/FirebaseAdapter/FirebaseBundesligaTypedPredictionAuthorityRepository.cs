@@ -80,8 +80,9 @@ public sealed class FirebaseBundesligaTypedPredictionAuthorityRepository
         PredictionGenerationProvenanceV2 provenance,
         CancellationToken cancellationToken = default)
     {
-        _ = TypedMatchPredictionRecord.Create(request, prediction, provenance);
-        return SaveInitialAsync(request, prediction, provenance, cancellationToken);
+        RequireDirectAuthority(request.Authority);
+        var validated = TypedMatchPredictionRecord.Create(request, prediction, provenance);
+        return SaveInitialAsync(request, validated.Prediction, provenance, cancellationToken);
     }
 
     public Task SaveCurrentTypedMatchRepredictionAsync(
@@ -92,10 +93,11 @@ public sealed class FirebaseBundesligaTypedPredictionAuthorityRepository
         int maximumRepredictions,
         CancellationToken cancellationToken = default)
     {
-        _ = TypedMatchPredictionRecord.Create(request, prediction, provenance);
+        RequireDirectAuthority(request.Authority);
+        var validated = TypedMatchPredictionRecord.Create(request, prediction, provenance);
         return SaveRepredictionAsync(
             request,
-            prediction,
+            validated.Prediction,
             provenance,
             expectedCurrentRepredictionIndex,
             maximumRepredictions,
@@ -186,8 +188,9 @@ public sealed class FirebaseBundesligaTypedPredictionAuthorityRepository
         PredictionGenerationProvenanceV2 provenance,
         CancellationToken cancellationToken = default)
     {
-        _ = TypedBonusPredictionRecord.Create(request, prediction, provenance);
-        return SaveInitialAsync(request, prediction, provenance, cancellationToken);
+        RequireDirectAuthority(request.Authority);
+        var validated = TypedBonusPredictionRecord.Create(request, prediction, provenance);
+        return SaveInitialAsync(request, validated.SelectedOptionIds, provenance, cancellationToken);
     }
 
     public Task SaveCurrentTypedBonusRepredictionAsync(
@@ -198,10 +201,11 @@ public sealed class FirebaseBundesligaTypedPredictionAuthorityRepository
         int maximumRepredictions,
         CancellationToken cancellationToken = default)
     {
-        _ = TypedBonusPredictionRecord.Create(request, prediction, provenance);
+        RequireDirectAuthority(request.Authority);
+        var validated = TypedBonusPredictionRecord.Create(request, prediction, provenance);
         return SaveRepredictionAsync(
             request,
-            prediction,
+            validated.SelectedOptionIds,
             provenance,
             expectedCurrentRepredictionIndex,
             maximumRepredictions,
@@ -311,22 +315,14 @@ public sealed class FirebaseBundesligaTypedPredictionAuthorityRepository
             cancellationToken.ThrowIfCancellationRequested();
             var headReference = HeadReference(envelope);
             var rowReference = PredictionReference(envelope, nextIndex);
-            var head = await transaction.GetSnapshotAsync(headReference);
-            var snapshot = envelope.HasSeparateItemSnapshot
-                ? await transaction.GetSnapshotAsync(SnapshotReference(envelope))
-                : null;
+            var current = await ReadCurrentAsync(transaction, request);
             var row = await transaction.GetSnapshotAsync(rowReference);
 
-            if (!head.Exists)
+            if (current is null)
             {
                 throw new InvalidOperationException("Typed reprediction requires an existing current head.");
             }
-            ValidateStoredEnvelope(head, envelope, HeadKind);
-            if (snapshot is not null)
-            {
-                ValidateStoredEnvelope(snapshot, envelope, SnapshotKind);
-            }
-            if (ReadIndex(head, "currentRepredictionIndex") != expectedCurrentRepredictionIndex)
+            if (current.RepredictionIndex != expectedCurrentRepredictionIndex)
             {
                 throw new InvalidOperationException("Typed reprediction lost its expected-current concurrency gate.");
             }
@@ -482,6 +478,16 @@ public sealed class FirebaseBundesligaTypedPredictionAuthorityRepository
         }
     }
 
+    private static void RequireDirectAuthority(BundesligaPredictionAuthority authority)
+    {
+        ArgumentNullException.ThrowIfNull(authority);
+        if (authority.Mode != BundesligaPredictionAuthorityMode.Direct)
+        {
+            throw new InvalidDataException(
+                "Generic typed initial and reprediction saves require Direct authority; copy writes require the dedicated copy-save operation.");
+        }
+    }
+
     private CurrentEnvelope CreateEnvelope<TSnapshot>(
         BundesligaTypedCurrentRequest<TSnapshot> request) where TSnapshot : class
     {
@@ -506,7 +512,41 @@ public sealed class FirebaseBundesligaTypedPredictionAuthorityRepository
             _ => throw new InvalidDataException("Only typed match and bonus snapshots can address Firebase typed authority.")
         };
 
-        var authority = request.Authority;
+        var fields = BuildCanonicalIdentityFields(
+            request.Authority,
+            key,
+            snapshotHash,
+            canonicalSnapshot,
+            itemKind,
+            request.Identity,
+            request.ModelConfig);
+        return new CurrentEnvelope(
+            collection,
+            fields["currentFingerprint"],
+            fields,
+            hasSeparateItemSnapshot);
+    }
+
+    internal static ImmutableSortedDictionary<string, string> BuildCanonicalIdentityFields(
+        BundesligaPredictionAuthority authority,
+        StableLocalItemKey key,
+        BundesligaPredictionSnapshotHash snapshotHash,
+        ReadOnlySpan<byte> canonicalSnapshot,
+        BundesligaPredictionItemKind itemKind,
+        BundesligaTypedCurrentIdentity identity,
+        PredictionModelConfig modelConfig)
+    {
+        ArgumentNullException.ThrowIfNull(authority);
+        ArgumentNullException.ThrowIfNull(key);
+        ArgumentNullException.ThrowIfNull(snapshotHash);
+        ArgumentNullException.ThrowIfNull(identity);
+        ArgumentNullException.ThrowIfNull(modelConfig);
+        var itemKindValue = itemKind switch
+        {
+            BundesligaPredictionItemKind.Match => "match",
+            BundesligaPredictionItemKind.Bonus => "bonus",
+            _ => throw new InvalidDataException("Unknown typed Firebase item kind.")
+        };
         var fields = new SortedDictionary<string, string>(StringComparer.Ordinal)
         {
             ["authorityEpoch"] = authority.AuthorityEpoch,
@@ -521,32 +561,32 @@ public sealed class FirebaseBundesligaTypedPredictionAuthorityRepository
             ["sourceSeedSha256"] = authority.SourceSeed.Sha256,
             ["copyBindingGeneration"] = authority.CopyBinding?.Generation.ToString(System.Globalization.CultureInfo.InvariantCulture) ?? string.Empty,
             ["copyBindingSha256"] = authority.CopyBinding?.Sha256 ?? string.Empty,
-            ["itemKind"] = itemKind == BundesligaPredictionItemKind.Match ? "match" : "bonus",
+            ["itemKind"] = itemKindValue,
             ["keySeasonPartition"] = key.SeasonPartition,
             ["keyPostingCommunity"] = key.PostingCommunity,
-            ["keyItemKind"] = itemKind == BundesligaPredictionItemKind.Match ? "match" : "bonus",
+            ["keyItemKind"] = itemKindValue,
             ["kicktippItemId"] = key.KicktippItemId,
             ["snapshotSchemaVersion"] = snapshotHash.SchemaVersion,
             ["snapshotSha256"] = snapshotHash.Sha256,
             ["snapshotCanonicalBase64"] = Convert.ToBase64String(canonicalSnapshot),
-            ["routeId"] = request.Identity.RouteId,
-            ["profileId"] = request.Identity.ProfileId,
-            ["generationInputContractId"] = request.Identity.GenerationInputContract.ContractId,
-            ["generationInputContractSha256"] = request.Identity.GenerationInputContract.Sha256,
-            ["model"] = request.ModelConfig.Model,
-            ["reasoningEffort"] = request.ModelConfig.ReasoningEffort!,
-            ["maxOutputTokenCount"] = request.ModelConfig.MaxOutputTokenCount!.Value.ToString(System.Globalization.CultureInfo.InvariantCulture),
-            ["promptName"] = request.ModelConfig.PromptName!,
-            ["promptVersion"] = request.ModelConfig.PromptVersion!.Value.ToString(System.Globalization.CultureInfo.InvariantCulture)
+            ["routeId"] = identity.RouteId,
+            ["profileId"] = identity.ProfileId,
+            ["generationInputContractId"] = identity.GenerationInputContract.ContractId,
+            ["generationInputContractSha256"] = identity.GenerationInputContract.Sha256,
+            ["model"] = modelConfig.Model,
+            ["reasoningEffort"] = modelConfig.ReasoningEffort
+                ?? throw new InvalidDataException("Typed Firebase identity requires explicit reasoning effort."),
+            ["maxOutputTokenCount"] = modelConfig.MaxOutputTokenCount?.ToString(System.Globalization.CultureInfo.InvariantCulture)
+                ?? throw new InvalidDataException("Typed Firebase identity requires an output-token cap."),
+            ["promptName"] = modelConfig.PromptName
+                ?? throw new InvalidDataException("Typed Firebase identity requires a prompt name."),
+            ["promptVersion"] = modelConfig.PromptVersion?.ToString(System.Globalization.CultureInfo.InvariantCulture)
+                ?? throw new InvalidDataException("Typed Firebase identity requires a prompt version.")
         };
         var canonicalIdentity = JsonSerializer.SerializeToUtf8Bytes(fields);
         var fingerprint = Convert.ToHexStringLower(SHA256.HashData(canonicalIdentity));
         fields["currentFingerprint"] = fingerprint;
-        return new CurrentEnvelope(
-            collection,
-            fingerprint,
-            fields.ToImmutableSortedDictionary(StringComparer.Ordinal),
-            hasSeparateItemSnapshot);
+        return fields.ToImmutableSortedDictionary(StringComparer.Ordinal);
     }
 
     private async Task<InitialReads> ReadInitialDocumentsAsync(
@@ -750,7 +790,8 @@ public sealed class FirebaseBundesligaTypedPredictionAuthorityRepository
         PredictionCollection(envelope).Document($"{envelope.Fingerprint}-head");
 
     private DocumentReference PredictionReference(CurrentEnvelope envelope, int index) =>
-        PredictionCollection(envelope).Document($"{envelope.Fingerprint}-r{index:D10}");
+        PredictionCollection(envelope).Document(
+            $"{envelope.Fingerprint}-r{index.ToString(System.Globalization.CultureInfo.InvariantCulture)}");
 
     private DocumentReference SnapshotReference(CurrentEnvelope envelope) =>
         _db.Collection(FirebaseBundesligaTypedPredictionCollections.ItemSnapshots)

@@ -95,102 +95,133 @@ public sealed class FirebasePredictionAuditCostRow
     }
 }
 
-public interface ILegacyFirebasePredictionAuditCostReader
+public interface IFirebasePredictionAuditCostReader
 {
     string AuthorityLabel { get; }
+    string PhysicalCollection { get; }
+    string ItemKind { get; }
     Task<IReadOnlyList<FirebasePredictionAuditCostRow>> ReadAsync(
         CancellationToken cancellationToken = default);
 }
 
-public interface ITypedFirebasePredictionAuditCostReader
+public interface ILegacyFirebaseMatchPredictionAuditCostReader : IFirebasePredictionAuditCostReader
 {
-    string AuthorityLabel { get; }
-    Task<IReadOnlyList<FirebasePredictionAuditCostRow>> ReadAsync(
-        CancellationToken cancellationToken = default);
 }
 
-/// <summary>Reads only the retained legacy Bundesliga authority.</summary>
-public sealed class FirebaseLegacyPredictionAuditCostReader
-    : ILegacyFirebasePredictionAuditCostReader
+public interface ILegacyFirebaseBonusPredictionAuditCostReader : IFirebasePredictionAuditCostReader
 {
-    public const string LegacyAuthorityLabel = "legacy:bundesliga-2026-27";
-    private readonly FirestoreDb _db;
-
-    public FirebaseLegacyPredictionAuditCostReader(FirestoreDb db) =>
-        _db = db ?? throw new ArgumentNullException(nameof(db));
-
-    public string AuthorityLabel => LegacyAuthorityLabel;
-
-    public async Task<IReadOnlyList<FirebasePredictionAuditCostRow>> ReadAsync(
-        CancellationToken cancellationToken = default)
-    {
-        cancellationToken.ThrowIfCancellationRequested();
-        var matchTask = _db.Collection("match-predictions")
-            .WhereEqualTo("competition", CompetitionIds.Bundesliga2026_27)
-            .GetSnapshotAsync(cancellationToken);
-        var bonusTask = _db.Collection("bonus-predictions")
-            .WhereEqualTo("competition", CompetitionIds.Bundesliga2026_27)
-            .GetSnapshotAsync(cancellationToken);
-        await Task.WhenAll(matchTask, bonusTask);
-        return matchTask.Result.Documents
-            .Select(document => FirebasePredictionAuditCostRow.FromLegacy(
-                AuthorityLabel, "match-predictions", document, "match"))
-            .Concat(bonusTask.Result.Documents.Select(document =>
-                FirebasePredictionAuditCostRow.FromLegacy(
-                    AuthorityLabel, "bonus-predictions", document, "bonus")))
-            .OrderBy(row => row.PhysicalCollection, StringComparer.Ordinal)
-            .ThenBy(row => row.DocumentId, StringComparer.Ordinal)
-            .ToImmutableArray();
-    }
 }
 
-/// <summary>Reads only the exact typed-v1 authority and exposes no current capability.</summary>
-public sealed class FirebaseTypedPredictionAuditCostReader
-    : ITypedFirebasePredictionAuditCostReader
+public interface ITypedFirebaseMatchPredictionAuditCostReader : IFirebasePredictionAuditCostReader
+{
+}
+
+public interface ITypedFirebaseBonusPredictionAuditCostReader : IFirebasePredictionAuditCostReader
+{
+}
+
+public sealed class FirebaseLegacyMatchPredictionAuditCostReader
+    : ILegacyFirebaseMatchPredictionAuditCostReader
 {
     private readonly FirestoreDb _db;
-
-    public FirebaseTypedPredictionAuditCostReader(FirestoreDb db) =>
+    public FirebaseLegacyMatchPredictionAuditCostReader(FirestoreDb db) =>
         _db = db ?? throw new ArgumentNullException(nameof(db));
+    public string AuthorityLabel => FirebasePredictionAuditCostReaderSupport.LegacyAuthorityLabel;
+    public string PhysicalCollection => "match-predictions";
+    public string ItemKind => "match";
+    public Task<IReadOnlyList<FirebasePredictionAuditCostRow>> ReadAsync(
+        CancellationToken cancellationToken = default) =>
+        FirebasePredictionAuditCostReaderSupport.ReadLegacyAsync(
+            _db, AuthorityLabel, PhysicalCollection, ItemKind, cancellationToken);
+}
 
+public sealed class FirebaseLegacyBonusPredictionAuditCostReader
+    : ILegacyFirebaseBonusPredictionAuditCostReader
+{
+    private readonly FirestoreDb _db;
+    public FirebaseLegacyBonusPredictionAuditCostReader(FirestoreDb db) =>
+        _db = db ?? throw new ArgumentNullException(nameof(db));
+    public string AuthorityLabel => FirebasePredictionAuditCostReaderSupport.LegacyAuthorityLabel;
+    public string PhysicalCollection => "bonus-predictions";
+    public string ItemKind => "bonus";
+    public Task<IReadOnlyList<FirebasePredictionAuditCostRow>> ReadAsync(
+        CancellationToken cancellationToken = default) =>
+        FirebasePredictionAuditCostReaderSupport.ReadLegacyAsync(
+            _db, AuthorityLabel, PhysicalCollection, ItemKind, cancellationToken);
+}
+
+public sealed class FirebaseTypedMatchPredictionAuditCostReader
+    : ITypedFirebaseMatchPredictionAuditCostReader
+{
+    private readonly FirestoreDb _db;
+    public FirebaseTypedMatchPredictionAuditCostReader(FirestoreDb db) =>
+        _db = db ?? throw new ArgumentNullException(nameof(db));
     public string AuthorityLabel => FirebaseBundesligaTypedPredictionCollections.AuthorityEpoch;
+    public string PhysicalCollection => FirebaseBundesligaTypedPredictionCollections.MatchPredictions;
+    public string ItemKind => "match";
+    public Task<IReadOnlyList<FirebasePredictionAuditCostRow>> ReadAsync(
+        CancellationToken cancellationToken = default) =>
+        FirebasePredictionAuditCostReaderSupport.ReadTypedAsync(
+            _db, AuthorityLabel, PhysicalCollection, ItemKind, cancellationToken);
+}
 
-    public async Task<IReadOnlyList<FirebasePredictionAuditCostRow>> ReadAsync(
-        CancellationToken cancellationToken = default)
-    {
-        cancellationToken.ThrowIfCancellationRequested();
-        var matchTask = ReadCollectionAsync(
-            FirebaseBundesligaTypedPredictionCollections.MatchPredictions,
-            "match",
-            cancellationToken);
-        var bonusTask = ReadCollectionAsync(
-            FirebaseBundesligaTypedPredictionCollections.BonusPredictions,
-            "bonus",
-            cancellationToken);
-        await Task.WhenAll(matchTask, bonusTask);
-        return matchTask.Result.Concat(bonusTask.Result)
-            .OrderBy(row => row.PhysicalCollection, StringComparer.Ordinal)
-            .ThenBy(row => row.DocumentId, StringComparer.Ordinal)
-            .ToImmutableArray();
-    }
+public sealed class FirebaseTypedBonusPredictionAuditCostReader
+    : ITypedFirebaseBonusPredictionAuditCostReader
+{
+    private readonly FirestoreDb _db;
+    public FirebaseTypedBonusPredictionAuditCostReader(FirestoreDb db) =>
+        _db = db ?? throw new ArgumentNullException(nameof(db));
+    public string AuthorityLabel => FirebaseBundesligaTypedPredictionCollections.AuthorityEpoch;
+    public string PhysicalCollection => FirebaseBundesligaTypedPredictionCollections.BonusPredictions;
+    public string ItemKind => "bonus";
+    public Task<IReadOnlyList<FirebasePredictionAuditCostRow>> ReadAsync(
+        CancellationToken cancellationToken = default) =>
+        FirebasePredictionAuditCostReaderSupport.ReadTypedAsync(
+            _db, AuthorityLabel, PhysicalCollection, ItemKind, cancellationToken);
+}
 
-    private async Task<IReadOnlyList<FirebasePredictionAuditCostRow>> ReadCollectionAsync(
+internal static class FirebasePredictionAuditCostReaderSupport
+{
+    internal const string LegacyAuthorityLabel = "legacy:bundesliga-2026-27";
+
+    internal static async Task<IReadOnlyList<FirebasePredictionAuditCostRow>> ReadLegacyAsync(
+        FirestoreDb db,
+        string authorityLabel,
         string collection,
         string itemKind,
         CancellationToken cancellationToken)
     {
-        var snapshot = await _db.Collection(collection).GetSnapshotAsync(cancellationToken);
+        cancellationToken.ThrowIfCancellationRequested();
+        var snapshot = await db.Collection(collection)
+            .WhereEqualTo("competition", CompetitionIds.Bundesliga2026_27)
+            .GetSnapshotAsync(cancellationToken);
+        return snapshot.Documents
+            .Select(document => FirebasePredictionAuditCostRow.FromLegacy(
+                authorityLabel, collection, document, itemKind))
+            .OrderBy(row => row.DocumentId, StringComparer.Ordinal)
+            .ToImmutableArray();
+    }
+
+    internal static async Task<IReadOnlyList<FirebasePredictionAuditCostRow>> ReadTypedAsync(
+        FirestoreDb db,
+        string authorityLabel,
+        string collection,
+        string itemKind,
+        CancellationToken cancellationToken)
+    {
+        cancellationToken.ThrowIfCancellationRequested();
+        var snapshot = await db.Collection(collection).GetSnapshotAsync(cancellationToken);
         var rows = ImmutableArray.CreateBuilder<FirebasePredictionAuditCostRow>();
         foreach (var document in snapshot.Documents)
         {
             var data = document.ToDictionary();
             if (!string.Equals(
                     FirebaseBundesligaTypedPredictionAuthorityRepository.ReadString(data, "epoch"),
-                    AuthorityLabel,
+                    authorityLabel,
                     StringComparison.Ordinal)
                 || !string.Equals(
                     FirebaseBundesligaTypedPredictionAuthorityRepository.ReadString(data, "authorityEpoch"),
-                    AuthorityLabel,
+                    authorityLabel,
                     StringComparison.Ordinal))
             {
                 throw new InvalidDataException("Typed audit row is outside its configured authority epoch.");
@@ -211,22 +242,27 @@ public sealed class FirebaseTypedPredictionAuditCostReader
                 throw new InvalidDataException("Typed audit row item kind does not match its physical collection.");
             }
 
+            byte[] provenanceBytes;
             PredictionGenerationProvenanceV2 provenance;
             try
             {
-                provenance = PredictionGenerationProvenanceV2.DeserializeCanonical(
-                    Convert.FromBase64String(
-                        FirebaseBundesligaTypedPredictionAuthorityRepository.ReadString(
-                            data,
-                            "provenanceCanonicalBase64")));
+                provenanceBytes = Convert.FromBase64String(
+                    FirebaseBundesligaTypedPredictionAuthorityRepository.ReadString(
+                        data,
+                        "provenanceCanonicalBase64"));
+                provenance = PredictionGenerationProvenanceV2.DeserializeCanonical(provenanceBytes);
             }
             catch (FormatException exception)
             {
                 throw new InvalidDataException("Typed audit row provenance is malformed.", exception);
             }
-            ValidateRepeatedTypedIdentity(data, provenance, collection, itemKind);
+            if (!provenanceBytes.SequenceEqual(provenance.SerializeCanonical()))
+            {
+                throw new InvalidDataException("Typed audit row provenance is not canonical.");
+            }
+            ValidateRepeatedTypedIdentity(document, data, provenance, collection, itemKind);
             rows.Add(FirebasePredictionAuditCostRow.FromTyped(
-                AuthorityLabel,
+                authorityLabel,
                 collection,
                 document.Id,
                 provenance));
@@ -235,29 +271,124 @@ public sealed class FirebaseTypedPredictionAuditCostReader
     }
 
     private static void ValidateRepeatedTypedIdentity(
+        DocumentSnapshot document,
         IReadOnlyDictionary<string, object> data,
         PredictionGenerationProvenanceV2 provenance,
         string collection,
         string itemKind)
     {
-        var authority = provenance.Authority;
-        var expectedKind = provenance.PostingKey.ItemKind == BundesligaPredictionItemKind.Match
-            ? "match"
-            : "bonus";
-        if (!string.Equals(authority.AuthorityEpoch, FirebaseBundesligaTypedPredictionCollections.AuthorityEpoch, StringComparison.Ordinal)
+        var expectedKind = provenance.PostingKey.ItemKind switch
+        {
+            BundesligaPredictionItemKind.Match => "match",
+            BundesligaPredictionItemKind.Bonus => "bonus",
+            _ => throw new InvalidDataException("Typed audit row provenance has an unknown item kind.")
+        };
+        if (!string.Equals(provenance.Authority.AuthorityEpoch, FirebaseBundesligaTypedPredictionCollections.AuthorityEpoch, StringComparison.Ordinal)
             || !string.Equals(provenance.PhysicalStorageNamespace, collection, StringComparison.Ordinal)
-            || !string.Equals(itemKind, expectedKind, StringComparison.Ordinal)
-            || !string.Equals(FirebaseBundesligaTypedPredictionAuthorityRepository.ReadString(data, "postingCommunity"), authority.PostingCommunity, StringComparison.Ordinal)
-            || !string.Equals(FirebaseBundesligaTypedPredictionAuthorityRepository.ReadString(data, "predictionSourceCommunity"), authority.PredictionSourceCommunity, StringComparison.Ordinal)
-            || !string.Equals(FirebaseBundesligaTypedPredictionAuthorityRepository.ReadString(data, "communityContext"), authority.CommunityContext, StringComparison.Ordinal)
-            || !string.Equals(FirebaseBundesligaTypedPredictionAuthorityRepository.ReadString(data, "kicktippItemId"), provenance.PostingKey.KicktippItemId, StringComparison.Ordinal)
-            || !string.Equals(FirebaseBundesligaTypedPredictionAuthorityRepository.ReadString(data, "snapshotSha256"), provenance.PostingSnapshotHash.Sha256, StringComparison.Ordinal)
-            || !string.Equals(FirebaseBundesligaTypedPredictionAuthorityRepository.ReadString(data, "routeId"), provenance.RouteId, StringComparison.Ordinal)
-            || !string.Equals(FirebaseBundesligaTypedPredictionAuthorityRepository.ReadString(data, "profileId"), provenance.ProfileId, StringComparison.Ordinal)
-            || !string.Equals(FirebaseBundesligaTypedPredictionAuthorityRepository.ReadString(data, "generationInputContractId"), provenance.GenerationInputContract.ContractId, StringComparison.Ordinal)
-            || !string.Equals(FirebaseBundesligaTypedPredictionAuthorityRepository.ReadString(data, "generationInputContractSha256"), provenance.GenerationInputContract.Sha256, StringComparison.Ordinal))
+            || !string.Equals(itemKind, expectedKind, StringComparison.Ordinal))
         {
             throw new InvalidDataException("Typed audit row repeated identity contradicts its canonical provenance.");
         }
+
+        byte[] snapshotBytes;
+        try
+        {
+            snapshotBytes = Convert.FromBase64String(
+                FirebaseBundesligaTypedPredictionAuthorityRepository.ReadString(
+                    data, "snapshotCanonicalBase64"));
+        }
+        catch (FormatException exception)
+        {
+            throw new InvalidDataException("Typed audit row snapshot is malformed.", exception);
+        }
+
+        var (snapshotKey, snapshotHash) = itemKind switch
+        {
+            "match" => ReadMatchSnapshot(snapshotBytes),
+            "bonus" => ReadBonusSnapshot(snapshotBytes),
+            _ => throw new InvalidDataException("Typed audit reader has an unknown item kind.")
+        };
+        if (snapshotKey != provenance.PostingKey || snapshotHash != provenance.PostingSnapshotHash)
+        {
+            throw new InvalidDataException("Typed audit row snapshot contradicts its canonical provenance.");
+        }
+
+        var identity = BundesligaTypedCurrentIdentity.Create(
+            provenance.RouteId,
+            provenance.ProfileId,
+            provenance.GenerationInputContract);
+        var expectedFields = FirebaseBundesligaTypedPredictionAuthorityRepository.BuildCanonicalIdentityFields(
+            provenance.Authority,
+            snapshotKey,
+            snapshotHash,
+            snapshotBytes,
+            provenance.PostingKey.ItemKind,
+            identity,
+            provenance.ModelConfig);
+        foreach (var field in expectedFields)
+        {
+            if (!string.Equals(
+                    FirebaseBundesligaTypedPredictionAuthorityRepository.ReadString(data, field.Key),
+                    field.Value,
+                    StringComparison.Ordinal))
+            {
+                throw new InvalidDataException(
+                    $"Typed audit row repeated identity field '{field.Key}' contradicts its canonical provenance.");
+            }
+        }
+
+        var index = ReadIndex(data, "repredictionIndex");
+        var expectedAddress = $"{expectedFields["currentFingerprint"]}-r{index.ToString(System.Globalization.CultureInfo.InvariantCulture)}";
+        if (index != provenance.RepredictionIndex
+            || !string.Equals(document.Id, expectedAddress, StringComparison.Ordinal)
+            || !string.Equals(
+                FirebaseBundesligaTypedPredictionAuthorityRepository.ReadString(data, "predictionIdentity"),
+                provenance.PredictionIdentity,
+                StringComparison.Ordinal)
+            || !string.Equals(
+                FirebaseBundesligaTypedPredictionAuthorityRepository.ReadString(data, "predictionPayloadKind"),
+                itemKind,
+                StringComparison.Ordinal)
+            || !data.TryGetValue("createdAt", out var rawCreatedAt)
+            || rawCreatedAt is not Timestamp createdAt
+            || Instant.FromDateTimeOffset(createdAt.ToDateTimeOffset()) != provenance.GenerationTime)
+        {
+            throw new InvalidDataException(
+                "Typed audit row address, index, prediction identity, payload kind, or creation time contradicts its canonical provenance.");
+        }
+    }
+
+    private static (StableLocalItemKey Key, BundesligaPredictionSnapshotHash Hash) ReadMatchSnapshot(
+        byte[] bytes)
+    {
+        var snapshot = TypedMatchSnapshot.DeserializeCanonical(bytes);
+        if (!bytes.SequenceEqual(snapshot.SerializeCanonical()))
+        {
+            throw new InvalidDataException("Typed audit match snapshot is not canonical.");
+        }
+        return (snapshot.Key, snapshot.SnapshotHash);
+    }
+
+    private static (StableLocalItemKey Key, BundesligaPredictionSnapshotHash Hash) ReadBonusSnapshot(
+        byte[] bytes)
+    {
+        var snapshot = TypedBonusSnapshot.DeserializeCanonical(bytes);
+        if (!bytes.SequenceEqual(snapshot.SerializeCanonical()))
+        {
+            throw new InvalidDataException("Typed audit bonus snapshot is not canonical.");
+        }
+        return (snapshot.Key, snapshot.SnapshotHash);
+    }
+
+    private static int ReadIndex(IReadOnlyDictionary<string, object> data, string name)
+    {
+        if (!data.TryGetValue(name, out var value)
+            || value is not long raw
+            || raw < 0
+            || raw >= int.MaxValue)
+        {
+            throw new InvalidDataException($"Typed audit row index '{name}' is missing or invalid.");
+        }
+        return checked((int)raw);
     }
 }

@@ -98,11 +98,17 @@ public static class ServiceCollectionExtensions
                 new FirebaseBundesligaTypedPredictionAuthorityRepository(
                     serviceProvider.GetRequiredService<FirestoreDb>(),
                     FirebaseBundesligaTypedPredictionCollections.AuthorityEpoch));
-            services.AddScoped<ILegacyFirebasePredictionAuditCostReader>(serviceProvider =>
-                new FirebaseLegacyPredictionAuditCostReader(
+            services.AddScoped<ILegacyFirebaseMatchPredictionAuditCostReader>(serviceProvider =>
+                new FirebaseLegacyMatchPredictionAuditCostReader(
                     serviceProvider.GetRequiredService<FirestoreDb>()));
-            services.AddScoped<ITypedFirebasePredictionAuditCostReader>(serviceProvider =>
-                new FirebaseTypedPredictionAuditCostReader(
+            services.AddScoped<ILegacyFirebaseBonusPredictionAuditCostReader>(serviceProvider =>
+                new FirebaseLegacyBonusPredictionAuditCostReader(
+                    serviceProvider.GetRequiredService<FirestoreDb>()));
+            services.AddScoped<ITypedFirebaseMatchPredictionAuditCostReader>(serviceProvider =>
+                new FirebaseTypedMatchPredictionAuditCostReader(
+                    serviceProvider.GetRequiredService<FirestoreDb>()));
+            services.AddScoped<ITypedFirebaseBonusPredictionAuditCostReader>(serviceProvider =>
+                new FirebaseTypedBonusPredictionAuditCostReader(
                     serviceProvider.GetRequiredService<FirestoreDb>()));
         }
 

@@ -97,8 +97,10 @@ public class ServiceCollectionExtensionsTests
         foreach (var serviceType in new[]
         {
             typeof(IBundesligaTypedPredictionAuthorityRepository),
-            typeof(ILegacyFirebasePredictionAuditCostReader),
-            typeof(ITypedFirebasePredictionAuditCostReader)
+            typeof(ILegacyFirebaseMatchPredictionAuditCostReader),
+            typeof(ILegacyFirebaseBonusPredictionAuditCostReader),
+            typeof(ITypedFirebaseMatchPredictionAuditCostReader),
+            typeof(ITypedFirebaseBonusPredictionAuditCostReader)
         })
         {
             var descriptor = bundesligaServices.SingleOrDefault(entry => entry.ServiceType == serviceType);
@@ -115,10 +117,16 @@ public class ServiceCollectionExtensionsTests
 
         await Assert.That(wm26Services.Any(entry =>
             entry.ServiceType == typeof(IBundesligaTypedPredictionAuthorityRepository))).IsFalse();
-        await Assert.That(wm26Services.Any(entry =>
-            entry.ServiceType == typeof(ILegacyFirebasePredictionAuditCostReader))).IsFalse();
-        await Assert.That(wm26Services.Any(entry =>
-            entry.ServiceType == typeof(ITypedFirebasePredictionAuditCostReader))).IsFalse();
+        foreach (var serviceType in new[]
+        {
+            typeof(ILegacyFirebaseMatchPredictionAuditCostReader),
+            typeof(ILegacyFirebaseBonusPredictionAuditCostReader),
+            typeof(ITypedFirebaseMatchPredictionAuditCostReader),
+            typeof(ITypedFirebaseBonusPredictionAuditCostReader)
+        })
+        {
+            await Assert.That(wm26Services.Any(entry => entry.ServiceType == serviceType)).IsFalse();
+        }
     }
 
     [Test]

@@ -128,6 +128,84 @@ public sealed class FirebaseBundesligaTypedPredictionAuthorityRepositoryTests(Fi
     }
 
     [Test]
+    public async Task Generic_initial_and_reprediction_saves_reject_copy_authority_without_writing_match_or_bonus_rows()
+    {
+        var repository = CreateRepository();
+        var matchInput = FirebaseBundesligaTypedPredictionContractTestData.MatchCopyInput();
+        var bonusInput = FirebaseBundesligaTypedPredictionContractTestData.BonusCopyInput();
+        var initialMatchCopy = FirebaseBundesligaTypedPredictionContractTestData.MatchCopyProvenance(
+            matchInput, "source-match-r0");
+        var initialBonusCopy = FirebaseBundesligaTypedPredictionContractTestData.BonusCopyProvenance(
+            bonusInput, "source-bonus-r0");
+        var targetMatchFingerprint = repository.CurrentFingerprint(matchInput.TargetCurrent);
+        var targetBonusFingerprint = repository.CurrentFingerprint(bonusInput.TargetCurrent);
+
+        await Assert.That(async () => await repository.SaveCurrentTypedMatchPredictionAsync(
+                matchInput.TargetCurrent, new Prediction(1, 0), initialMatchCopy))
+            .Throws<InvalidDataException>();
+        await Assert.That(async () => await repository.SaveCurrentTypedBonusPredictionAsync(
+                bonusInput.TargetCurrent, new BonusPrediction(["a"]), initialBonusCopy))
+            .Throws<InvalidDataException>();
+        await Assert.That((await fixture.Db.Collection(
+                FirebaseBundesligaTypedPredictionCollections.MatchPredictions)
+            .Document($"{targetMatchFingerprint}-head").GetSnapshotAsync()).Exists).IsFalse();
+        await Assert.That((await fixture.Db.Collection(
+                FirebaseBundesligaTypedPredictionCollections.BonusPredictions)
+            .Document($"{targetBonusFingerprint}-head").GetSnapshotAsync()).Exists).IsFalse();
+
+        var sourceMatchProvenance = FirebaseBundesligaTypedPredictionContractTestData.MatchProvenance(
+            matchInput.SourceCurrent);
+        await repository.SaveCurrentTypedMatchPredictionAsync(
+            matchInput.SourceCurrent, new Prediction(1, 0), sourceMatchProvenance);
+        var matchCopy = BundesligaTypedCopyRequest<TypedMatchSnapshot>.Create(
+            matchInput, PredictionCopyCompatibilityV2.Evaluate(matchInput));
+        var matchCandidate = await repository.GetTypedMatchCopyCandidateAsync(matchCopy);
+        await repository.SaveCurrentTypedMatchCopyAsync(TypedMatchCopySaveRequest.Create(
+            matchCopy, matchCandidate!, new Prediction(1, 0),
+            FirebaseBundesligaTypedPredictionContractTestData.MatchCopyProvenance(
+                matchInput, sourceMatchProvenance.PredictionIdentity)));
+
+        var sourceBonusProvenance = FirebaseBundesligaTypedPredictionContractTestData.BonusProvenance(
+            bonusInput.SourceCurrent);
+        await repository.SaveCurrentTypedBonusPredictionAsync(
+            bonusInput.SourceCurrent, new BonusPrediction(["a"]), sourceBonusProvenance);
+        var bonusCopy = BundesligaTypedCopyRequest<TypedBonusSnapshot>.Create(
+            bonusInput, PredictionCopyCompatibilityV2.Evaluate(bonusInput));
+        var bonusCandidate = await repository.GetTypedBonusCopyCandidateAsync(bonusCopy);
+        await repository.SaveCurrentTypedBonusCopyAsync(TypedBonusCopySaveRequest.Create(
+            bonusCopy, bonusCandidate!, new BonusPrediction(["a"]),
+            FirebaseBundesligaTypedPredictionContractTestData.BonusCopyProvenance(
+                bonusInput, sourceBonusProvenance.PredictionIdentity)));
+
+        await Assert.That(async () => await repository.SaveCurrentTypedMatchRepredictionAsync(
+                matchInput.TargetCurrent,
+                new Prediction(2, 0),
+                FirebaseBundesligaTypedPredictionContractTestData.MatchCopyProvenance(
+                    matchInput, sourceMatchProvenance.PredictionIdentity, 1),
+                0,
+                2))
+            .Throws<InvalidDataException>();
+        await Assert.That(async () => await repository.SaveCurrentTypedBonusRepredictionAsync(
+                bonusInput.TargetCurrent,
+                new BonusPrediction(["b"]),
+                FirebaseBundesligaTypedPredictionContractTestData.BonusCopyProvenance(
+                    bonusInput, sourceBonusProvenance.PredictionIdentity, 1),
+                0,
+                2))
+            .Throws<InvalidDataException>();
+        await Assert.That((await fixture.Db.Collection(
+                FirebaseBundesligaTypedPredictionCollections.MatchPredictions)
+            .Document($"{targetMatchFingerprint}-r1").GetSnapshotAsync()).Exists).IsFalse();
+        await Assert.That((await fixture.Db.Collection(
+                FirebaseBundesligaTypedPredictionCollections.BonusPredictions)
+            .Document($"{targetBonusFingerprint}-r1").GetSnapshotAsync()).Exists).IsFalse();
+        await Assert.That(await repository.GetCurrentTypedMatchRepredictionIndexAsync(
+            matchInput.TargetCurrent)).IsEqualTo(0);
+        await Assert.That(await repository.GetCurrentTypedBonusRepredictionIndexAsync(
+            bonusInput.TargetCurrent)).IsEqualTo(0);
+    }
+
+    [Test]
     [Arguments("head-epoch")]
     [Arguments("head-authority")]
     [Arguments("row-route")]
@@ -151,7 +229,7 @@ public sealed class FirebaseBundesligaTypedPredictionAuthorityRepositoryTests(Fi
                 $"{fingerprint}-head", "postingCommunity", "other-community"),
             "row-route" => (
                 FirebaseBundesligaTypedPredictionCollections.MatchPredictions,
-                $"{fingerprint}-r0000000000", "routeId", "wrong-route"),
+                $"{fingerprint}-r0", "routeId", "wrong-route"),
             _ => (
                 FirebaseBundesligaTypedPredictionCollections.ItemSnapshots,
                 $"{fingerprint}-snapshot", "snapshotSha256",
@@ -274,6 +352,147 @@ public sealed class FirebaseBundesligaTypedPredictionAuthorityRepositoryTests(Fi
     }
 
     [Test]
+    public async Task Reprediction_validates_the_complete_existing_match_and_bonus_rows_before_any_advance()
+    {
+        var repository = CreateRepository();
+
+        async Task AssertMatchRejectedAsync(string community, string mutation)
+        {
+            var current = FirebaseBundesligaTypedPredictionContractTestData.MatchCurrent(community);
+            await repository.SaveCurrentTypedMatchPredictionAsync(
+                current, new Prediction(1, 0),
+                FirebaseBundesligaTypedPredictionContractTestData.MatchProvenance(current));
+            var fingerprint = repository.CurrentFingerprint(current);
+            var collection = fixture.Db.Collection(FirebaseBundesligaTypedPredictionCollections.MatchPredictions);
+            if (mutation == "missing-row")
+            {
+                await collection.Document($"{fingerprint}-r0").DeleteAsync();
+            }
+            else if (mutation == "malformed-row")
+            {
+                await collection.Document($"{fingerprint}-r0").UpdateAsync("predictionJson", "{");
+            }
+            else
+            {
+                await collection.Document($"{fingerprint}-head")
+                    .UpdateAsync("currentPredictionIdentity", "another-valid-identity");
+            }
+            await Assert.That(async () => await repository.SaveCurrentTypedMatchRepredictionAsync(
+                    current, new Prediction(2, 0),
+                    FirebaseBundesligaTypedPredictionContractTestData.MatchProvenance(current, 1),
+                    0, 2))
+                .Throws<InvalidDataException>();
+            await Assert.That((await collection.Document($"{fingerprint}-r1").GetSnapshotAsync()).Exists)
+                .IsFalse();
+        }
+
+        async Task AssertBonusRejectedAsync(string community, string mutation)
+        {
+            var current = FirebaseBundesligaTypedPredictionContractTestData.BonusCurrent(community);
+            await repository.SaveCurrentTypedBonusPredictionAsync(
+                current, new BonusPrediction(["a"]),
+                FirebaseBundesligaTypedPredictionContractTestData.BonusProvenance(current));
+            var fingerprint = repository.CurrentFingerprint(current);
+            var collection = fixture.Db.Collection(FirebaseBundesligaTypedPredictionCollections.BonusPredictions);
+            if (mutation == "missing-row")
+            {
+                await collection.Document($"{fingerprint}-r0").DeleteAsync();
+            }
+            else if (mutation == "malformed-row")
+            {
+                await collection.Document($"{fingerprint}-r0")
+                    .UpdateAsync("selectedOptionIds", new object[] { 7L });
+            }
+            else
+            {
+                await collection.Document($"{fingerprint}-head")
+                    .UpdateAsync("currentPredictionIdentity", "another-valid-identity");
+            }
+            await Assert.That(async () => await repository.SaveCurrentTypedBonusRepredictionAsync(
+                    current, new BonusPrediction(["b"]),
+                    FirebaseBundesligaTypedPredictionContractTestData.BonusProvenance(current, 1),
+                    0, 2))
+                .Throws<InvalidDataException>();
+            await Assert.That((await collection.Document($"{fingerprint}-r1").GetSnapshotAsync()).Exists)
+                .IsFalse();
+        }
+
+        foreach (var mutation in new[] { "missing-row", "malformed-row", "head-identity-drift" })
+        {
+            await AssertMatchRejectedAsync($"match-{mutation}", mutation);
+            await AssertBonusRejectedAsync($"bonus-{mutation}", mutation);
+        }
+    }
+
+    [Test]
+    public async Task Initial_and_reprediction_persist_factory_defensive_match_and_bonus_payloads()
+    {
+        var repository = CreateRepository();
+        var match = FirebaseBundesligaTypedPredictionContractTestData.MatchCurrent("payload-match");
+        var most = new List<PredictionJustificationContextSource>
+        {
+            new("rules.md", "initial evidence")
+        };
+        var least = new List<PredictionJustificationContextSource>
+        {
+            new("history.csv", "initial uncertainty")
+        };
+        var uncertainties = new List<string> { "initial uncertainty" };
+        var initialMatch = new Prediction(1, 0, new PredictionJustification(
+            "initial reasoning",
+            new PredictionJustificationContextSources(most, least),
+            uncertainties));
+        var initialMatchSave = repository.SaveCurrentTypedMatchPredictionAsync(
+            match, initialMatch,
+            FirebaseBundesligaTypedPredictionContractTestData.MatchProvenance(match));
+        most[0] = new PredictionJustificationContextSource("tampered.md", "tampered");
+        least.Clear();
+        uncertainties[0] = "tampered";
+        await initialMatchSave;
+        var storedInitialMatch = (await repository.GetCurrentTypedMatchPredictionAsync(match))!.Prediction;
+        await Assert.That(storedInitialMatch.Justification!.ContextSources.MostValuable[0].DocumentName)
+            .IsEqualTo("rules.md");
+        await Assert.That(storedInitialMatch.Justification.ContextSources.LeastValuable).HasCount().EqualTo(1);
+        await Assert.That(storedInitialMatch.Justification.Uncertainties[0]).IsEqualTo("initial uncertainty");
+
+        var laterUncertainties = new List<string> { "later uncertainty" };
+        var laterMatch = new Prediction(2, 0, new PredictionJustification(
+            "later reasoning",
+            new PredictionJustificationContextSources(
+                new List<PredictionJustificationContextSource> { new("elo.csv", "later evidence") },
+                new List<PredictionJustificationContextSource>()),
+            laterUncertainties));
+        var laterMatchSave = repository.SaveCurrentTypedMatchRepredictionAsync(
+            match, laterMatch,
+            FirebaseBundesligaTypedPredictionContractTestData.MatchProvenance(match, 1),
+            0, 2);
+        laterUncertainties[0] = "tampered later";
+        await laterMatchSave;
+        await Assert.That((await repository.GetCurrentTypedMatchPredictionAsync(match))!
+            .Prediction.Justification!.Uncertainties[0]).IsEqualTo("later uncertainty");
+
+        var bonus = FirebaseBundesligaTypedPredictionContractTestData.BonusCurrent("payload-bonus");
+        var initialSelections = new List<string> { "a" };
+        var initialBonusSave = repository.SaveCurrentTypedBonusPredictionAsync(
+            bonus, new BonusPrediction(initialSelections),
+            FirebaseBundesligaTypedPredictionContractTestData.BonusProvenance(bonus));
+        initialSelections[0] = "b";
+        await initialBonusSave;
+        await Assert.That((await repository.GetCurrentTypedBonusPredictionAsync(bonus))!.SelectedOptionIds)
+            .IsEquivalentTo(["a"]);
+
+        var laterSelections = new List<string> { "b" };
+        var laterBonusSave = repository.SaveCurrentTypedBonusRepredictionAsync(
+            bonus, new BonusPrediction(laterSelections),
+            FirebaseBundesligaTypedPredictionContractTestData.BonusProvenance(bonus, 1),
+            0, 2);
+        laterSelections[0] = "a";
+        await laterBonusSave;
+        await Assert.That((await repository.GetCurrentTypedBonusPredictionAsync(bonus))!.SelectedOptionIds)
+            .IsEquivalentTo(["b"]);
+    }
+
+    [Test]
     public async Task Match_and_bonus_copy_require_the_exact_typed_source_and_create_new_target_rows()
     {
         var repository = CreateRepository();
@@ -371,7 +590,7 @@ public sealed class FirebaseBundesligaTypedPredictionAuthorityRepositoryTests(Fi
     }
 
     [Test]
-    public async Task Legacy_and_typed_audit_cost_readers_are_independent_labelled_and_non_current()
+    public async Task Audit_cost_reader_capabilities_are_independent_labelled_non_current_and_one_collection_each()
     {
         await fixture.Db.Collection("match-predictions").Document("legacy-match").SetAsync(
             new Dictionary<string, object>
@@ -390,34 +609,142 @@ public sealed class FirebaseBundesligaTypedPredictionAuthorityRepositoryTests(Fi
                 ["repredictionIndex"] = 0,
                 ["cost"] = 99.0
             });
+        await fixture.Db.Collection("bonus-predictions").Document("legacy-bonus").SetAsync(
+            new Dictionary<string, object>
+            {
+                ["competition"] = CompetitionIds.Bundesliga2026_27,
+                ["createdAt"] = Timestamp.FromDateTimeOffset(
+                    new DateTimeOffset(2026, 8, 31, 11, 0, 0, TimeSpan.Zero)),
+                ["repredictionIndex"] = 0,
+                ["cost"] = 0.10
+            });
         var repository = CreateRepository();
         var current = FirebaseBundesligaTypedPredictionContractTestData.MatchCurrent();
+        var bonus = FirebaseBundesligaTypedPredictionContractTestData.BonusCurrent();
         await repository.SaveCurrentTypedMatchPredictionAsync(
             current,
             new Prediction(1, 0),
             FirebaseBundesligaTypedPredictionContractTestData.MatchProvenance(current));
+        await repository.SaveCurrentTypedBonusPredictionAsync(
+            bonus,
+            new BonusPrediction(["a"]),
+            FirebaseBundesligaTypedPredictionContractTestData.BonusProvenance(bonus));
 
-        ILegacyFirebasePredictionAuditCostReader legacy =
-            new FirebaseLegacyPredictionAuditCostReader(fixture.Db);
-        ITypedFirebasePredictionAuditCostReader typed =
-            new FirebaseTypedPredictionAuditCostReader(fixture.Db);
-        var legacyRows = await legacy.ReadAsync();
-        var typedRows = await typed.ReadAsync();
+        IFirebasePredictionAuditCostReader[] readers =
+        [
+            new FirebaseLegacyMatchPredictionAuditCostReader(fixture.Db),
+            new FirebaseLegacyBonusPredictionAuditCostReader(fixture.Db),
+            new FirebaseTypedMatchPredictionAuditCostReader(fixture.Db),
+            new FirebaseTypedBonusPredictionAuditCostReader(fixture.Db)
+        ];
+        var results = new List<FirebasePredictionAuditCostRow>();
+        foreach (var reader in readers)
+        {
+            var rows = await reader.ReadAsync();
+            await Assert.That(rows).HasCount().EqualTo(1);
+            await Assert.That(rows[0].PhysicalCollection).IsEqualTo(reader.PhysicalCollection);
+            await Assert.That(rows[0].ItemKind).IsEqualTo(reader.ItemKind);
+            await Assert.That(rows[0].AuthorityLabel).IsEqualTo(reader.AuthorityLabel);
+            results.Add(rows[0]);
+        }
 
-        await Assert.That(legacyRows).HasCount().EqualTo(1);
-        await Assert.That(typedRows).HasCount().EqualTo(1);
-        await Assert.That(legacyRows[0].AuthorityLabel)
-            .IsEqualTo(FirebaseLegacyPredictionAuditCostReader.LegacyAuthorityLabel);
-        await Assert.That(legacyRows[0].PhysicalCollection).IsEqualTo("match-predictions");
-        await Assert.That(legacyRows[0].CostUsd).IsEqualTo(0.25m);
-        await Assert.That(typedRows[0].AuthorityLabel)
-            .IsEqualTo(FirebaseBundesligaTypedPredictionCollections.AuthorityEpoch);
-        await Assert.That(typedRows[0].PhysicalCollection)
-            .IsEqualTo(FirebaseBundesligaTypedPredictionCollections.MatchPredictions);
-        await Assert.That(typedRows[0].InputTokens).IsEqualTo(100);
-        await Assert.That(legacyRows.Concat(typedRows).All(row => !row.IsCurrentAuthoritative)).IsTrue();
-        await Assert.That(legacy is IBundesligaTypedPredictionAuthorityRepository).IsFalse();
-        await Assert.That(typed is IBundesligaTypedPredictionAuthorityRepository).IsFalse();
+        await Assert.That(results.Single(row => row.PhysicalCollection == "match-predictions").CostUsd)
+            .IsEqualTo(0.25m);
+        await Assert.That(results.Single(row => row.PhysicalCollection ==
+            FirebaseBundesligaTypedPredictionCollections.MatchPredictions).InputTokens).IsEqualTo(100);
+        await Assert.That(results.All(row => !row.IsCurrentAuthoritative)).IsTrue();
+        await Assert.That(readers.All(reader => reader is not IBundesligaTypedPredictionAuthorityRepository))
+            .IsTrue();
+        await Assert.That(readers.Select(reader => reader.PhysicalCollection).Distinct(StringComparer.Ordinal))
+            .HasCount().EqualTo(4);
+    }
+
+    [Test]
+    public async Task One_collection_audit_capability_never_queries_its_sibling_collection()
+    {
+        await fixture.Db.Collection(FirebaseBundesligaTypedPredictionCollections.BonusPredictions)
+            .Document("foreign")
+            .SetAsync(new Dictionary<string, object>
+            {
+                ["epoch"] = "bundesliga-2026-27-typed-v2",
+                ["authorityEpoch"] = "bundesliga-2026-27-typed-v2",
+                ["documentKind"] = "prediction"
+            });
+        var matchReader = new FirebaseTypedMatchPredictionAuditCostReader(fixture.Db);
+        var bonusReader = new FirebaseTypedBonusPredictionAuditCostReader(fixture.Db);
+
+        await Assert.That(await matchReader.ReadAsync()).HasCount().EqualTo(0);
+        await Assert.That(async () => await bonusReader.ReadAsync()).Throws<InvalidDataException>();
+    }
+
+    [Test]
+    public async Task Typed_match_audit_validates_every_repeated_identity_field_and_exact_row_address()
+    {
+        var repository = CreateRepository();
+        var current = FirebaseBundesligaTypedPredictionContractTestData.MatchCurrent("audit-match");
+        await repository.SaveCurrentTypedMatchPredictionAsync(
+            current, new Prediction(1, 0),
+            FirebaseBundesligaTypedPredictionContractTestData.MatchProvenance(current));
+        var fingerprint = repository.CurrentFingerprint(current);
+        var collection = fixture.Db.Collection(FirebaseBundesligaTypedPredictionCollections.MatchPredictions);
+        var rowReference = collection.Document($"{fingerprint}-r0");
+        var original = (await rowReference.GetSnapshotAsync()).ToDictionary();
+        var reader = new FirebaseTypedMatchPredictionAuditCostReader(fixture.Db);
+        var repeatedIdentityFields = new[]
+        {
+            "authorityEpoch", "authorityMode", "seasonPartition", "postingCommunity",
+            "predictionSourceCommunity", "communityContext", "postingSeedGeneration",
+            "postingSeedSha256", "sourceSeedGeneration", "sourceSeedSha256",
+            "copyBindingGeneration", "copyBindingSha256", "itemKind", "keySeasonPartition",
+            "keyPostingCommunity", "keyItemKind", "kicktippItemId", "snapshotSchemaVersion",
+            "snapshotSha256", "snapshotCanonicalBase64", "routeId", "profileId",
+            "generationInputContractId", "generationInputContractSha256", "model",
+            "reasoningEffort", "maxOutputTokenCount", "promptName", "promptVersion",
+            "currentFingerprint"
+        };
+        foreach (var field in repeatedIdentityFields)
+        {
+            await rowReference.UpdateAsync(field, "independently-tampered");
+            await Assert.That(async () => await reader.ReadAsync()).Throws<InvalidDataException>();
+            await rowReference.UpdateAsync(field, original[field]);
+        }
+
+        await rowReference.UpdateAsync("predictionIdentity", "another-prediction");
+        await Assert.That(async () => await reader.ReadAsync()).Throws<InvalidDataException>();
+        await rowReference.UpdateAsync("predictionIdentity", original["predictionIdentity"]);
+        await rowReference.UpdateAsync("repredictionIndex", 7L);
+        await Assert.That(async () => await reader.ReadAsync()).Throws<InvalidDataException>();
+        await rowReference.UpdateAsync("repredictionIndex", original["repredictionIndex"]);
+        await rowReference.UpdateAsync("createdAt", Timestamp.FromDateTimeOffset(
+            new DateTimeOffset(2026, 9, 1, 0, 0, 0, TimeSpan.Zero)));
+        await Assert.That(async () => await reader.ReadAsync()).Throws<InvalidDataException>();
+        await rowReference.UpdateAsync("createdAt", original["createdAt"]);
+
+        await collection.Document($"{fingerprint}-r9").SetAsync(original);
+        await Assert.That(async () => await reader.ReadAsync()).Throws<InvalidDataException>();
+    }
+
+    [Test]
+    public async Task Typed_bonus_audit_rejects_independent_snapshot_mutation_and_duplicate_wrong_address()
+    {
+        var repository = CreateRepository();
+        var current = FirebaseBundesligaTypedPredictionContractTestData.BonusCurrent("audit-bonus");
+        await repository.SaveCurrentTypedBonusPredictionAsync(
+            current, new BonusPrediction(["a"]),
+            FirebaseBundesligaTypedPredictionContractTestData.BonusProvenance(current));
+        var fingerprint = repository.CurrentFingerprint(current);
+        var collection = fixture.Db.Collection(FirebaseBundesligaTypedPredictionCollections.BonusPredictions);
+        var rowReference = collection.Document($"{fingerprint}-r0");
+        var original = (await rowReference.GetSnapshotAsync()).ToDictionary();
+        var reader = new FirebaseTypedBonusPredictionAuditCostReader(fixture.Db);
+
+        await rowReference.UpdateAsync(
+            "snapshotCanonicalBase64",
+            Convert.ToBase64String(FirebaseBundesligaTypedPredictionContractTestData.Match("audit-bonus").SerializeCanonical()));
+        await Assert.That(async () => await reader.ReadAsync()).Throws<InvalidDataException>();
+        await rowReference.UpdateAsync("snapshotCanonicalBase64", original["snapshotCanonicalBase64"]);
+        await collection.Document($"{fingerprint}-r1").SetAsync(original);
+        await Assert.That(async () => await reader.ReadAsync()).Throws<InvalidDataException>();
     }
 
     [Test]
@@ -431,7 +758,7 @@ public sealed class FirebaseBundesligaTypedPredictionAuthorityRepositoryTests(Fi
                 ["authorityEpoch"] = "bundesliga-2026-27-typed-v2",
                 ["documentKind"] = "prediction"
             });
-        var reader = new FirebaseTypedPredictionAuditCostReader(fixture.Db);
+        var reader = new FirebaseTypedMatchPredictionAuditCostReader(fixture.Db);
 
         await Assert.That(async () => await reader.ReadAsync()).Throws<InvalidDataException>();
     }
