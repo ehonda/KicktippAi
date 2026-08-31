@@ -107,10 +107,20 @@ observing them is read-only reconciliation, not additional authority.
       Community, Community Context, Stable Local Item Key, Snapshot Hash,
       Copy Binding, Generation Provenance, and Authority Epoch contracts; it
       must not implement a target-only compatibility firewall.
+      **Prediction-source Community**: The community under which the
+      candidate prediction was generated and stored. It equals the Posting
+      Community for self-contained generation; for an accepted copy it may
+      differ and is identified by the Copy Binding.
 - [ ] Keep P1-10's real Schadensfresse seeds/bindings, typed staging, and
       atomic activation in P1-13 R5b's all-community evidence/cutover gate.
       P1-10 still owns the exact target replacement set, prompt promotion,
       calls/cost, force/reprediction, UTC cutoff, and primary activation.
+- [ ] Accept only a scheduled instant derived from exact ID-bearing fixture
+      evidence and the same-ID structured detail `Termin`. Any cancelled,
+      empty, inherited, sentinel, duplicate, unparsable, or conflicting item
+      fails the complete selected operation before current read or downstream
+      call; a same-ID reschedule keeps the Stable Local Item Key but requires a
+      new additive seed generation and Snapshot Hash.
 
 ### 0. Historical schedule quarantine (temporarily superseded on recovery main)
 
@@ -176,11 +186,15 @@ observing them is read-only reconciliation, not additional authority.
       rejecting untyped legacy Bundesliga rows as current.
 - [ ] Route Bundesliga through target-owned context and ADR-0052's production
       match v3/bonus v1 identities. Add explicit DFB-Pokal match, CL match, and
-      CL bonus prompt/context routes under ADR-0058's names; never use the
-      Bundesliga routes as a temporary fallback.
-- [ ] Prepare checked-in DFB/CL prompt mirrors and tests now, but keep live
-      routes fail closed until their immutable hosted versions, hashes, and
-      `production` promotion receive review and are recorded.
+      CL bonus route IDs/contracts and fail-closed context dispatch under
+      ADR-0058's names; never use the Bundesliga routes as a temporary
+      fallback.
+- [ ] In R4b add only DFB/CL route IDs/contracts, fail-closed dispatch, and
+      synthetic tests. Do not add prompt bodies or mirrors, assert an
+      unverified hash, or imply fallback. A later slice may add a checked-in
+      mirror and equality test only after evidence records the exact hosted
+      name, numbered immutable version, normalized readback hash, and required
+      `production` membership; then prove normalized mirror/readback equality.
 - [ ] Implement the exact three ADR-0058 rules-only profiles: sole allowlisted
       `community-rules-schadensfresse.md`, current validated repo publication,
       24-hour authenticated rules freshness, one-document/2048-token budget,
@@ -208,6 +222,10 @@ observing them is read-only reconciliation, not additional authority.
       untyped legacy rows, cross-partition subcompetition, context allowlist or
       budget violations, stale rules evidence, and any attempted `pes-squad`
       copy/fallback.
+- [ ] Add hostile scheduled-instant tests for a cancelled first row, a
+      cancelled row after a valid row, fixture/detail conflict, and same-ID
+      reschedule. Each invalid selected inventory must prove atomic
+      no-current-read/no-prompt-or-service-or-model-call/no-mutation/no-POST.
 - [ ] Add persistence, freshness, provenance, command, workflow-contract, and
       schedule tests proving target-owned primary generation while preserving
       the outer lane's cadence/concurrency/failure/monitoring/no-bonus contract.

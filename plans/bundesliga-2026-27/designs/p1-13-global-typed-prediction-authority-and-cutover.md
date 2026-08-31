@@ -38,9 +38,16 @@ authenticated posting-community inventory
 - Posting Community, Prediction-source Community, and Community Context are
   three independent identities. Credential selection follows Posting
   Community and never Community Context or Prediction-source Community.
+- **Prediction-source Community**: The community under which the candidate
+  prediction was generated and stored. It equals the Posting Community for
+  self-contained generation; for an accepted copy it may differ and is
+  identified by the Copy Binding.
 - A Stable Local Item Key does not change when an item is rescheduled or its
   semantic snapshot changes. Snapshot drift changes the Snapshot Hash and
   invalidates current reuse.
+- A match scheduled instant is authoritative only when exact ID-bearing
+  fixture evidence and the same-ID structured detail `Termin` agree. It is
+  never inherited from another row or represented by a missing-value sentinel.
 - IDs are local to a Posting Community. All `ehonda-ai-arena` participants
   share one posting-community seed, irrespective of model or credentials.
 - Every current operation stays inside one Authority Epoch and one physical
@@ -65,7 +72,7 @@ prediction data. New calls must enter one row before implementation.
 | Current-authoritative match | `matchday`, `random-match`, `verify`; their development wrappers; shared match copy route; typed match snapshot/current/save/reprediction/copy APIs; exact-ID match POST/readback | One pinned Authority Epoch; complete posting/source item keys and Snapshot Hashes; complete Generation Provenance | Any legacy current read, team/time or team-only selection, latest-row selection, cross-epoch query, or text/default classification |
 | Current-authoritative bonus | `bonus`, `verify-bonus`; its development wrapper; shared bonus copy route; typed bonus snapshot/current/save/reprediction/copy APIs; exact-ID bonus POST/readback | Same typed authority, plus exact question identity and ordered option-ID projection | Question-text/form-name lookup, partial option mapping, latest-row selection, cross-epoch query, or legacy fallback |
 | Historical and context | `collect-context*`, match-outcome/history collection, context/KPI resolution, historical experiment reconstruction, and explicit stored-item inventory APIs | Raw authenticated/history/context items and legacy records when clearly labelled | Selecting a current prediction, computing a current reprediction index, supplying a copy candidate, or posting |
-| Audit and cost | `cost`, context/history audits, prediction inventories, experiment export/prepare/analysis, available-model/matchday/community discovery, and explicit all-row/cost APIs | Typed and legacy rows with authority class exposed | Returning a row to a production command, treating newest as current, modifying a prediction, or posting |
+| Audit and cost | `cost`, context/history audits, prediction inventories, experiment export/prepare/analysis, available-model/matchday/community discovery, and separate explicitly authority-labelled audit/cost reads | Non-current audit/cost DTOs retrieved independently from one configured authority, retaining authority labels and per-authority subtotals through later combination | Any cross-authority repository query/enumeration, current lookup/fallback/copy/reprediction, unlabeled union, or return to a production command |
 | WM26 and other partitions | Existing competition-specific APIs | Their accepted competition contracts | Receiving `BundesligaSeasonSubcompetition`, P1-13 Authority Epoch, or Bundesliga seed/binding semantics |
 
 `reconstruct-prompt` and experiment commands may reconstruct historical
@@ -99,6 +106,27 @@ Stable Local Item Key, Snapshot Hash, subcompetition, exact text, canonical
 deadline, maximum selections, and complete ordered option ID/text array.
 Snapshot hashes use separately versioned canonical records; equality of the
 hash and byte-identical canonical record is required.
+
+### Scheduled-instant evidence
+
+The match scheduled instant is materialized only by joining exact ID-bearing
+fixture evidence with the structured detail `Termin` for that same fixture ID.
+The join requires exactly one parseable, non-sentinel value and agreement
+between all same-ID evidence. The inventory gate rejects:
+
+- a cancelled or empty fixture, including a cancelled first row;
+- a cancelled row after a valid row, even if a prior timestamp is available;
+- inherited prior-row state, `Instant.MinValue`, or any other missing-value
+  sentinel;
+- missing, duplicate, or unparsable detail `Termin`; and
+- any fixture/detail ID or scheduled-instant conflict.
+
+One rejected item rejects the complete selected command scope before typed
+current read, prompt fetch, service construction, model call, mutation, or
+POST. A reschedule for the same exact Kicktipp ID keeps the Stable Local Item
+Key and produces a new Snapshot Hash in a new additive Identity Seed
+Generation. The prior generation remains immutable and its old snapshot is no
+longer current.
 
 ### Kicktipp capability
 
@@ -149,6 +177,22 @@ The existing string, team/time, team-only cancelled, question-text,
 all-predictions, stored-match, and latest methods remain outside this
 interface. They are explicitly historical/context/audit/cost APIs even if
 their current names do not yet say `Legacy`.
+
+### Non-current audit and cost reads
+
+Physical isolation applies to reads as well as current writes. R2b supplies
+separate configured read capabilities for legacy and each typed Authority
+Epoch. Each capability addresses exactly one physical namespace and emits
+explicitly authority-labelled, non-current audit/cost DTOs. It cannot expose a
+current prediction capability, accept multiple authorities, enumerate another
+namespace, or participate in current lookup, fallback, copy, or reprediction.
+
+The later shared slice owns a pure combiner. It invokes the isolated reads
+independently and only after retrieval may concatenate, sort, or total their
+DTOs. Combined output retains every authority label and a subtotal for each
+authority; an overall total may be derived only from those labelled subtotals.
+No repository method, database query, or collection enumeration spans
+authorities, and no combined DTO can be converted back into a current record.
 
 ## Identity seeds and copy bindings
 
@@ -218,6 +262,21 @@ preserved as an immutable identity, and mapped target values are recorded.
 Prompt fallback provenance records what actually ran; merely configuring a
 fallback is not equivalent to using it.
 
+### DFB/CL prompt admission
+
+R4b defines DFB-Pokal match, Champions-League match, and Champions-League
+bonus route IDs/contracts, fail-closed dispatch, and synthetic routing tests
+only. No DFB/CL prompt body, checked-in mirror, mirror hash assertion, or
+fallback availability claim belongs to R4b.
+
+A later prompt-evidence slice may add a checked-in mirror and equality test
+only after payload-safe evidence records the exact hosted prompt name, exact
+numbered immutable version, normalized hosted readback hash, and membership of
+the required `production` label for that same version. The test then proves the
+normalized checked-in mirror equals the authenticated hosted readback and its
+recorded hash. Until that gate passes, dispatch remains fail closed and no
+fallback exists for the DFB/CL route.
+
 ADR-0060's generation rules observation remains immutable while its current
 publication binding may refresh independently. A refresh can validate current
 rules evidence but cannot change any field above.
@@ -278,6 +337,11 @@ whole-cron disablement.
 |---|---|
 | `RandomMatch` has eight bound candidates and one unknown fixture that random selection would not choose | Fail before random selection or current database access |
 | A match keeps its Kicktipp ID but moves by one day | Stable Local Item Key stays fixed; Snapshot Hash changes; old prediction is not current |
+| The first fixture row is cancelled and has no `Termin` | Fail the whole selected operation; never use `Instant.MinValue`, a sentinel, or another row's time |
+| A valid fixture row is followed by a cancelled row | Fail on the cancelled row; never inherit the valid row's scheduled instant |
+| Exact fixture evidence and same-ID detail `Termin` disagree | Fail the whole selected operation before any current read or downstream call |
+| A same-ID fixture is rescheduled | Preserve the Stable Local Item Key, add a new immutable seed generation with a new Snapshot Hash, and reject the old snapshot as current |
+| One selected item has invalid scheduled-instant evidence | Atomically perform no current read, prompt/service/model call, mutation, or POST for the complete operation |
 | Two communities expose the same numeric Kicktipp ID | Produce distinct keys and seed entries; never cross-read |
 | Two arena model participants use the same community | Use the same posting-community item seed and different model provenance |
 | Bonus source/posting texts match but one option ID is missing from the binding | Reject the complete binding and the whole copy batch |
@@ -316,10 +380,10 @@ R0 tracked specification freeze
 | R0 | Specification writer: ADR-0065, glossary, this design, P1-13 task/packet, and listed linkage docs only | Link/scope/terminology, glossary purity, accepted-ADR immutability, diff check, sensitive-token scan, exact commit, independent Sol/high acceptance |
 | R1 | Core/data-contract writer: `src/Core`, `tests/Core.Tests`, synthetic schema fixtures only | Canonical key/snapshot/seed/binding/provenance/authority tests, including all hostile serialization and inventory cases |
 | R2a | Kicktipp writer: `src/KicktippIntegration`, `tests/KicktippIntegration.Tests` | Complete typed snapshot parsing, exact-ID POST/readback, duplicate/drift/mixed inventory rejection; no live call |
-| R2b | Firebase writer: `src/FirebaseAdapter`, `tests/FirebaseAdapter.Tests` | Physical/query isolation, exact typed current/read/save/repredict/copy concurrency, legacy audit-only behavior, cross-epoch rejection |
-| R3 | Shared route writer: shared Core/Orchestrator registration, provenance, copy-policy kernel and focused tests | One registration path, complete pre-model inventory gate, exact prompt/service/context/source provenance, no command-specific fallback |
+| R2b | Firebase writer: `src/FirebaseAdapter`, `tests/FirebaseAdapter.Tests` | Physical/query isolation, exact typed current/read/save/repredict/copy concurrency, separate authority-labelled non-current audit/cost reads and DTOs, cross-epoch rejection |
+| R3 | Shared route writer: shared Core/Orchestrator registration, provenance, copy-policy kernel, audit/cost combiner, and focused tests | One registration path, complete pre-model inventory gate, exact prompt/service/context/source provenance, no command-specific fallback; combine only retrieved labelled DTOs and preserve per-authority subtotals |
 | R4a | Match command writer: Matchday, RandomMatch, VerifyMatchday and tests | All three commands use only typed capabilities; complete-scope and exact-ID post/readback cases pass |
-| R4b | Bonus/P1-10 writer: Bonus, VerifyBonus, Schadensfresse DFB/CL composition and tests | Typed bonus/copy boundary, exact option projection, ADR-0058/0059/0060 profiles and preflight; no activation |
+| R4b | Bonus/P1-10 writer: Bonus, VerifyBonus, Schadensfresse DFB/CL route contracts and synthetic tests | Typed bonus/copy boundary, exact option projection, fail-closed DFB/CL dispatch, ADR-0058/0059/0060 profiles and preflight; no prompt body/mirror/hash assertion, implied fallback, or activation |
 | R5a | Tooling/workflow writer: deterministic generators/validators, synthetic fixtures, workflow shape and contract tests | No floating generations, all rows wired to the typed epoch as one future cutover unit, recovery remains active |
 | R5b | Evidence/data/staging owner after gates: real immutable seed/binding files and isolated typed staging | Complete authenticated coverage, Owner-approved calls/cost/replacement/cutoff, payload-safe staging audit; no POST before cutover gate |
 

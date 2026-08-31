@@ -31,13 +31,19 @@ prompt source, prompt name, or prompt label.
 
 [ADR-0065](../../plans/bundesliga-2026-27/decisions/0065-require-global-typed-prediction-authority-and-isolated-cutover.md) and the [P1-13 design](../../plans/bundesliga-2026-27/designs/p1-13-global-typed-prediction-authority-and-cutover.md) define the season-wide authority boundary. Use these terms consistently:
 
-- **Posting Community:** the Kicktipp community whose form is read or written;
-- **Prediction-source Community:** the stored-prediction source, equal to the Posting Community for self-generation; and
+- **Posting Community:** the Kicktipp community whose form is read or written.
+- **Prediction-source Community:** The community under which the candidate prediction was generated and stored. It equals the Posting Community for self-contained generation; for an accepted copy it may differ and is identified by the Copy Binding.
 - **Community Context:** the community whose rules and prediction context govern generation.
 
 Every current Matchday, RandomMatch, VerifyMatchday, Bonus, and VerifyBonus item must resolve through the Posting Community's immutable identity-seed generation to a Stable Local Item Key and matching Snapshot Hash. Arena participants share one Posting Community namespace; participant credentials or model identity do not create new item identity. A copy requires an immutable, versioned, one-to-one Copy Binding with exact posting/source identities and exact bonus option identities. Correspondence does not prove scoring or prediction compatibility.
 
+A match scheduled instant comes only from exact ID-bearing fixture evidence and the same-ID structured detail `Termin`. Cancelled/empty evidence, inherited prior-row state, `Instant.MinValue` or another sentinel, missing/duplicate/unparsable detail, and fixture/detail conflict reject the whole selected operation before any current read or downstream call. A same-ID reschedule preserves the Stable Local Item Key but creates a new additive seed generation and Snapshot Hash; the old snapshot is not current.
+
 The boundary covers typed current reads, saves, reprediction, copy, exact-ID POST, and exact readback. It rejects team-only, time-only, team-and-time-only, question-text, form-order, prefix, `latest`, partition, and default-based current authority. An unsupported, unknown, mixed-authority, or unbound selected item fails the entire batch before a current database read, prompt or service call, model call, mutation, or POST. Legacy Rows remain historical, audit, and cost evidence only after cutover.
+
+Audit/cost access uses separate configured reads for each physical authority and returns explicitly authority-labelled non-current DTOs. A later shared combiner may combine, sort, or total only after independent retrieval and must retain row labels and per-authority subtotals. No repository method, query, enumeration, current lookup, fallback, copy, or reprediction may span authorities.
+
+P1-10 R4b may add DFB/CL route IDs/contracts, fail-closed dispatch, and synthetic tests only. It may not add a prompt body or mirror, assert an unverified hash, or imply fallback. A checked-in mirror/test follows only after evidence records the exact hosted name, numbered immutable version, normalized readback hash, and required `production` membership; the test then proves normalized mirror/readback equality.
 
 P1-13 owns this global foundation and its atomic deployed-runtime/storage cutover. P1-10 retains Schadensfresse-specific primary composition and activation. Credentials continue to follow the Posting Community, never the Prediction-source Community or Community Context.
 

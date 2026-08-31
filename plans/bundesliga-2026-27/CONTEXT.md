@@ -10,8 +10,9 @@ The Kicktipp community whose live prediction form is read and written.
 _Avoid_: Posting target, target community, credential community
 
 **Prediction-source Community**:
-The community whose stored prediction is considered for reuse by another
-community; it is the Posting Community for self-contained generation.
+The community under which the candidate prediction was generated and stored.
+It equals the Posting Community for self-contained generation; for an accepted
+copy it may differ and is identified by the Copy Binding.
 _Avoid_: Source context, reference context, copy community
 
 **Community Context**:

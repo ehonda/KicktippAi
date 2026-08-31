@@ -22,9 +22,22 @@ Rows are sorted by `Team_Slug` using ordinal comparison. The file is UTF-8 witho
 - `prediction-authority/identity-seeds/<posting-community>/generation-<NNNN>.json` for an immutable identity-seed generation owned by one Posting Community; and
 - `prediction-authority/copy-bindings/<posting-community>--from--<source-community>/generation-<NNNN>.json` for an immutable Copy Binding between one Posting Community and one Prediction-source Community.
 
+**Prediction-source Community**: The community under which the candidate
+prediction was generated and stored. It equals the Posting Community for
+self-contained generation; for an accepted copy it may differ and is
+identified by the Copy Binding.
+
 Arena participants share the `ehonda-ai-arena` Posting Community namespace. Kicktipp IDs are local to a Posting Community and item kind, never globally unique. A Stable Local Item Key fixes the season, Posting Community, item kind, and exact Kicktipp ID. Its Snapshot Hash separately fixes the item's semantic state: subcompetition, round, result basis, teams, and schedule for a match; question text, deadline, prediction limit, and exact option identities for a bonus question.
 
 Generations are additive and immutable. A consumer must pin an exact generation and content hash; directory enumeration, a `latest` convention, or an implicit default is not authority. Each Copy Binding records the exact posting and source keys, Snapshot Hashes, seed generations, and one-to-one option mapping where applicable. It proves correspondence, not prediction compatibility, and cannot clone or backfill a source record into the Posting Community namespace.
+
+For a match, the canonical scheduled instant comes only from exact ID-bearing
+fixture evidence plus the same-ID structured detail `Termin`. Cancelled or
+empty evidence, inherited prior-row state, `Instant.MinValue` or another
+sentinel, missing/duplicate/unparsable detail, and fixture/detail conflict
+cannot enter a seed generation. A same-ID reschedule preserves the Stable
+Local Item Key and is recorded in a new additive generation with a new Snapshot
+Hash; the prior generation remains immutable and its snapshot is not current.
 
 Real-community seed and binding content requires P1-13 R5b's existing Owner-controlled authenticated evidence and external-read authority. It must contain identifiers and provenance only—never credentials, cookies, or form payloads. This R0 specification creates no seed generation and changes no runtime data.
 

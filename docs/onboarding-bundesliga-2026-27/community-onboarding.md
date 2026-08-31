@@ -23,10 +23,11 @@ primary composition; P1-13 owns its shared global typed-authority prerequisite.
 [ADR-0065](../../plans/bundesliga-2026-27/decisions/0065-require-global-typed-prediction-authority-and-isolated-cutover.md)
 uses three distinct identities for every row below: **Posting Community** is
 the Kicktipp form/credentials being read or written; **Prediction-source
-Community** supplies a stored prediction considered for reuse; **Community
-Context** owns the rules/evidence used for generation. A self-contained row
-uses its Posting Community as its Prediction-source Community. Arena model
-participants share one posting-community item namespace.
+Community**: The community under which the candidate prediction was
+generated and stored. It equals the Posting Community for self-contained
+generation; for an accepted copy it may differ and is identified by the Copy
+Binding. **Community Context** owns the rules/evidence used for generation.
+Arena model participants share one posting-community item namespace.
 
 P1-13 must provide every row with a complete immutable identity-seed
 generation, Stable Local Item Keys and Snapshot Hashes, exact copy bindings
@@ -36,6 +37,13 @@ switches deployed runtime/workflow plus storage authority together; Git merge
 alone, a single community, or a match-only/bonus-only switch is not cutover.
 Until the existing Owner/evidence gates pass, ADR-0062 recovery remains the
 active production authority and its sunset/fallback is unchanged.
+
+Match scheduled instants require exact ID-bearing fixture evidence and the
+same-ID structured detail `Termin`. Cancelled/empty/inherited/sentinel,
+missing/duplicate/unparsable, or conflicting evidence fails the whole selected
+operation before current read or downstream call. Audit/cost reads remain
+separately configured and authority-labelled; cross-authority current lookup,
+fallback, copy, and reprediction are forbidden.
 
 ## Community matrix
 
@@ -127,9 +135,11 @@ are the complete current nine-fixture scope, not a strict pass of the 401-item
 full-season inventory. The arena callers preserved the already enriched shared
 head and did not download the overlay artifact.
 
-Administrator setup is now visible: read-only preflight found the current
-marker, exactly nine `pes-squad`-matching fixtures, five Bundesliga questions
-due 2026-08-28 18:30 UTC, and three CL questions due 2026-09-09 10:00 UTC.
+The following administrator/preflight observation is stale historical evidence:
+it found the then-current marker, exactly nine `pes-squad`-matching fixtures,
+five Bundesliga questions due 2026-08-28 18:30 UTC, and three CL questions due
+`2026-09-09T10:00:00Z`. It must not be used as the current CL bonus contract.
+The current accepted CL bonus deadline is exactly `2026-09-08T16:45:00Z`.
 Context overlay/profile, copied match, and deadline-scoped copied bonus have
 completed in order. ADR-0055 inserts target context then ordinary match copy
 immediately after `pes-squad` in the 16-job outer lane. The outer lane retains
@@ -137,5 +147,8 @@ immediately after `pes-squad` in the 16-job outer lane. The outer lane retains
 leaf callers remain manual-only. No bonus job is scheduled. P1-13 owns the
 global typed prediction-authority foundation; P1-10 retains the
 Schadensfresse-specific primary composition and activation, including
-CL-specific bonus routing before September 9 and later DFB/CL primary match
-routing.
+CL-specific bonus routing before `2026-09-08T16:45:00Z` and later DFB/CL
+primary match routing. R4b adds route contracts and fail-closed synthetic tests
+only; DFB/CL prompt mirrors remain blocked pending exact hosted name, numbered
+immutable version, normalized readback hash, and required
+`production`-membership evidence followed by a mirror/readback equality test.

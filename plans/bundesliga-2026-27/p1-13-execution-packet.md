@@ -28,6 +28,10 @@ Prediction-source Community; Community Context; Stable Local Item Key and
 Snapshot Hash; Identity Seed Generation; Copy Binding; Generation Provenance;
 and one Authority Epoch.
 A Legacy Row is never a Typed Current Prediction.
+**Prediction-source Community**: The community under which the candidate
+prediction was generated and stored. It equals the Posting Community for
+self-contained generation; for an accepted copy it may differ and is
+identified by the Copy Binding.
 
 ## Frozen call-surface decision
 
@@ -36,13 +40,26 @@ A Legacy Row is never a Typed Current Prediction.
 | Current match | Matchday, RandomMatch, VerifyMatchday, dev/copy wrappers, typed match repository and exact-ID Kicktipp operations | Complete posting-community inventory, pinned seed, one typed epoch, exact current/save/repredict/copy, exact-ID POST/readback only |
 | Current bonus | Bonus, VerifyBonus, dev/copy wrappers, typed bonus repository and exact-ID Kicktipp operations | Same, plus complete question snapshot and one-to-one option-ID projection |
 | Historical/context | Collection, outcomes/history/context, explicit historical reconstruction/inventory | May read labelled legacy/typed evidence; cannot select current, copy, repredict, mutate, or post |
-| Audit/cost/experiments | Cost, inventory, export/prepare/analysis, available-value discovery | May aggregate all authority classes; cannot return a current row to a production command |
+| Audit/cost/experiments | Cost, inventory, export/prepare/analysis, available-value discovery | Separate configured reads each materialize explicitly authority-labelled non-current DTOs from one physical namespace; only a later shared combiner may sort/combine/total after retrieval while preserving labels and per-authority subtotals |
 | Other competitions | Existing WM26/other APIs | Remain isolated; never accept P1-13 subcompetition, epoch, seed, or binding |
 
 Team/time, team-only, question-text, form-name, prefix, substring, newest,
 partition-only, and default lookup are never current-authoritative. Any
 unsupported or unbound item fails the complete selected command scope before
 current database selection or any prompt/model/mutation/POST work.
+
+The canonical scheduled instant for a match comes only from exact ID-bearing
+fixture evidence plus the same-ID structured detail `Termin`. Cancelled or
+empty evidence, inherited prior-row state, `Instant.MinValue` or another
+sentinel, missing/duplicate/unparsable detail, and fixture/detail conflict fail
+the whole selected operation before current read, prompt/service/model call,
+mutation, or POST. A same-ID reschedule preserves the Stable Local Item Key but
+creates a new additive seed generation and Snapshot Hash; the prior snapshot
+is not current.
+
+No repository method, query, enumeration, current lookup, fallback, copy, or
+reprediction spans authorities. Combined audit/cost output remains non-current
+and cannot be converted back into a current row.
 
 ## Dependency graph and admission
 
@@ -72,16 +89,22 @@ R0 -> R1 -> (R2a || R2b) -> R3 -> (R4a || R4b) -> R5a
 | R0 | ADR-0065, season `CONTEXT.md`, P1-13 design/task/packet, and the exact linkage/current-contract documents listed in the orchestration re-freeze |
 | R1 | `src/Core`, `tests/Core.Tests`, and synthetic schema fixtures; no real `data/` generation |
 | R2a | `src/KicktippIntegration`, `tests/KicktippIntegration.Tests`, encrypted/synthetic fixtures only |
-| R2b | `src/FirebaseAdapter`, `tests/FirebaseAdapter.Tests` |
-| R3 | shared route/provenance/copy-policy kernel in Core/Orchestrator and narrowly owned focused tests |
+| R2b | `src/FirebaseAdapter`, `tests/FirebaseAdapter.Tests`, isolated configured audit/cost reads, and authority-labelled non-current DTOs |
+| R3 | shared route/provenance/copy-policy kernel plus the post-retrieval audit/cost combiner in Core/Orchestrator and narrowly owned focused tests |
 | R4a | Matchday, RandomMatch, VerifyMatchday command paths and their Orchestrator tests |
-| R4b | Bonus, VerifyBonus, P1-10 DFB/CL composition and their Orchestrator/ContextProviders tests |
+| R4b | Bonus, VerifyBonus, P1-10 DFB/CL route IDs/contracts, fail-closed dispatch, and synthetic Orchestrator/ContextProviders tests; no prompt bodies/mirrors/hash claims/fallbacks |
 | R5a | deterministic seed/binding tooling, synthetic fixtures, configuration/workflow shape, workflow-contract tests |
 | R5b | reviewed real files below `data/bundesliga-2026-27/prediction-authority`, isolated staging evidence, and approved cutover artifacts |
 
 One writer owns a path at a time. A new cross-cutting invariant, missing ADR,
 or scope expansion pauses the affected lane for architecture recall,
 independent review, and re-freeze.
+
+R4b cannot create a DFB/CL checked-in prompt mirror. A later evidence slice may
+do so only after recording the exact hosted name, numbered immutable version,
+normalized readback hash, and required `production` membership; its test must
+then prove normalized mirror/readback equality. Until then the route has no
+fallback and dispatch remains fail closed.
 
 ## Production-continuity and cutover gate
 

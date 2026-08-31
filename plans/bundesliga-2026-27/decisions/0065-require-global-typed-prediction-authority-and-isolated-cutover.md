@@ -33,9 +33,10 @@ Use these terms consistently:
 
 - **Posting Community** is the Kicktipp community whose live form is read and
   written.
-- **Prediction-source Community** is the community whose stored prediction is
-  considered for reuse. It equals the Posting Community for self-contained
-  generation.
+- **Prediction-source Community**: The community under which the candidate
+  prediction was generated and stored. It equals the Posting Community for
+  self-contained generation; for an accepted copy it may differ and is
+  identified by the Copy Binding.
 - **Community Context** is the explicit rules and context owner used for
   generation. It is not a posting or prediction-source identity.
 - **Posting Item Identity** and **Source Item Identity** are the exact local
@@ -59,6 +60,16 @@ Semantic drift changes the snapshot hash and invalidates reuse. It never
 fabricates a new stable item key or permits lookup by teams, time, text, form
 name, prefix, or partition alone.
 
+The canonical match scheduled instant comes only from exact ID-bearing
+fixture evidence joined to the same fixture ID's structured detail `Termin`.
+Cancelled or empty evidence, an inherited prior-row value, `Instant.MinValue`,
+another missing-value sentinel, duplicate evidence, an unparsable `Termin`, or
+conflicting fixture/detail evidence is not a scheduled instant. Any such item
+fails the whole selected operation before current read, prompt fetch, service
+construction, model activity, mutation, or POST. A same-ID reschedule preserves
+the Stable Local Item Key, rotates the Snapshot Hash in a new additive Identity
+Seed Generation, and makes the prior snapshot non-current.
+
 ### Prediction-authoritative boundary
 
 Every Bundesliga 2026/27 `Matchday`, `RandomMatch`, `VerifyMatchday`, `Bonus`,
@@ -78,9 +89,9 @@ That boundary requires:
 The five operations may not call legacy current APIs. Team/start, team-only,
 question-text, form-name, substring, prefix, newest-row, cancelled-match
 team-only, top-level partition, or default classification cannot select a
-current prediction or Posting Item Identity. Repository methods that retain those
-shapes are historical, context, audit, or cost surfaces only. They cannot feed
-a current operation, a copy candidate, a reprediction index, or a POST.
+current prediction or Posting Item Identity. Repository methods that retain
+those shapes are historical, context, audit, or cost surfaces only. They cannot
+feed a current operation, a copy candidate, a reprediction index, or a POST.
 
 Each command first materializes and classifies its complete selected
 inventory. `RandomMatch` classifies the complete candidate set before random
@@ -99,8 +110,8 @@ subcompetition, and route classification. Generations are additive and never
 rewritten; runtime configuration pins one exact generation and content hash.
 An ID missing from the pinned generation is not current-authoritative.
 
-The **Copy Binding** is a separate immutable, versioned, one-to-one mapping between
-one exact posting item identity and one exact source item identity. It binds
+The **Copy Binding** is a separate immutable, versioned, one-to-one mapping
+between one exact posting item identity and one exact source item identity. It binds
 both stable item keys, both snapshot hashes, both pinned seed generations,
 the prediction route, and, for bonus questions, a total one-to-one projection
 between exact source and posting option IDs. Duplicate targets, duplicate
@@ -148,8 +159,14 @@ is rejected if it does not match the repository's configured namespace.
 Recovery `main` continues to read only the existing legacy collections. The
 draft route reads and writes only the typed epoch. No query, fallback,
 enumeration, copy, or reprediction operation spans the two authorities. Legacy
-**Legacy Rows** remain available through explicit historical/audit/cost APIs and are
-never mutated, deleted, backfilled, or promoted into the typed epoch.
+Rows remain available through separate configured, explicitly
+authority-labelled historical/audit/cost reads that materialize non-current
+DTOs. Each authority is retrieved independently; only a later shared combiner
+may combine, sort, or total the results, and it must retain every row's
+authority label plus per-authority subtotals. No cross-authority repository
+method, query, enumeration, current lookup, fallback, copy, or reprediction is
+permitted. Legacy Rows are never mutated, deleted, backfilled, or promoted into
+the typed epoch.
 
 Cutover is one reviewed operational unit: complete typed staging and
 read-only evidence first; confirm no active or pending affected run; freeze
@@ -172,6 +189,13 @@ repository, exact-ID Kicktipp, command-kernel, staging, and atomic-cutover
 foundation. P1-10 depends on P1-13 and retains all Schadensfresse-specific
 rules, target-owned context, prompt routes, DFB/CL composition, replacement
 set, cost/call limits, UTC cutoff, and primary activation.
+
+R4b may add only DFB/CL route IDs and contracts, fail-closed dispatch, and
+synthetic tests. It may not add a DFB/CL prompt body or mirror, assert an
+unverified prompt hash, or imply fallback availability. A checked-in mirror
+and equality test are admitted only after evidence records the exact hosted
+prompt name, numbered immutable version, normalized readback hash, and required
+`production` membership; the later test must prove mirror/readback equality.
 
 Repository-only implementation after this Accepted decision needs no further
 Owner choice. Real authenticated seed/binding evidence, immutable prompt

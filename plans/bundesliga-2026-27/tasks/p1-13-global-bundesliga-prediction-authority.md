@@ -28,6 +28,10 @@ The canonical authority is the relationship among Posting Community,
 Prediction-source Community, Community Context, Stable Local Item Key,
 Snapshot Hash, Identity Seed Generation, Copy Binding, Generation Provenance,
 and Authority Epoch. A Legacy Row can serve only explicit non-current uses.
+**Prediction-source Community**: The community under which the candidate
+prediction was generated and stored. It equals the Posting Community for
+self-contained generation; for an accepted copy it may differ and is
+identified by the Copy Binding.
 
 ## Current production boundary
 
@@ -61,6 +65,10 @@ partial typed cutover.
 - [ ] Add canonical authority, stable-key, typed match/bonus snapshot,
       Snapshot Hash, identity-seed generation, Copy Binding,
       `PredictionGenerationProvenanceV2`, and compatibility contracts.
+- [ ] Make the canonical match scheduled instant require exact ID-bearing
+      fixture evidence plus the same-ID structured detail `Termin`. Represent
+      no cancelled/empty/unparsable/conflicting/inherited/sentinel state as a
+      valid scheduled instant.
 - [ ] Add strict canonical serializers/loaders and complete-inventory
       validation using synthetic fixtures only. Reject duplicate/local-ID
       ambiguity, snapshot drift, partial option maps, unknown routes, and all
@@ -73,6 +81,11 @@ partial typed cutover.
 - [ ] Produce complete typed posting-community match and bonus snapshots from
       exact source identities. Retain every field needed to recompute the
       canonical snapshot.
+- [ ] Reject cancelled first rows, cancelled rows after valid rows, missing or
+      duplicate detail rows, inherited prior-row timestamps,
+      `Instant.MinValue`/sentinels, unparsable `Termin`, and fixture/detail
+      conflicts for the whole selected operation before any current read or
+      prompt/service/model/mutation/POST work.
 - [ ] Add exact-ID POST and exact-ID placed-prediction readback. Missing,
       duplicate, changed, or extra IDs fail closed; no team/text/form fallback
       exists.
@@ -88,6 +101,11 @@ partial typed cutover.
       item, snapshot, route, model, and provenance identity.
 - [ ] Keep legacy APIs explicit and audit-only for current commands. Prove no
       cross-epoch query, fallback, migration, deletion, mutation, or backfill.
+- [ ] Add separate configured reads for legacy and each typed Authority Epoch
+      that each address one physical namespace and materialize explicitly
+      authority-labelled non-current audit/cost DTOs. Forbid a cross-authority
+      repository method, query, enumeration, current lookup, fallback, copy,
+      or reprediction.
 
 ### R3 — Shared route and provenance kernel
 
@@ -99,6 +117,10 @@ partial typed cutover.
       provenance without command-specific defaults.
 - [ ] Implement compatibility as a separate explicit decision after exact copy
       correspondence and source-current validation.
+- [ ] Add the shared audit/cost combiner only after R2b's isolated DTO reads.
+      Combine, sort, and total only after independent retrieval; preserve each
+      row's authority label and per-authority subtotals, and never convert the
+      combined view into current authority.
 
 ### R4a — Match commands
 
@@ -117,6 +139,12 @@ partial typed cutover.
 - [ ] Compose P1-10's Schadensfresse rules-only DFB/CL routes on the shared
       kernel while preserving ADR-0058/0059/0060 preflight, provenance, and
       activation gates.
+- [ ] In R4b add DFB/CL route IDs/contracts, fail-closed dispatch, and
+      synthetic tests only. Add no prompt body or mirror, unverified hash
+      assertion, or implied fallback. A later slice may add a mirror/test only
+      after evidence records exact hosted name, numbered immutable version,
+      normalized readback hash, and required `production` membership, then
+      proves normalized mirror/readback equality.
 - [ ] Reject partial option maps, text-only matches, unsupported mixed batches,
       legacy copy candidates, and every context/prompt fallback outside an
       accepted route.
@@ -126,6 +154,9 @@ partial typed cutover.
 - [ ] Add deterministic immutable generation tooling, validators, synthetic
       hostile fixtures, and pinning configuration for the exact data paths in
       the design. Do not add real evidence rows yet.
+- [ ] Prove a same-ID reschedule preserves its Stable Local Item Key, creates a
+      new additive seed generation and Snapshot Hash, and leaves the old
+      snapshot non-current without rewriting the prior generation.
 - [ ] Update workflow shape so every future Bundesliga current row selects the
       same typed epoch as one cutover unit. Keep recovery runtime active and
       unchanged.
@@ -172,6 +203,9 @@ Build-and-Test CI.
 
 - Every current-authoritative call surface uses the exact P1-13 typed boundary
   and every historical/context/audit/cost surface is unable to feed it.
+- Audit/cost reads remain physically isolated by configured authority and
+  expose only labelled non-current DTOs; shared totals preserve authority
+  labels and per-authority subtotals after independent retrieval.
 - Every Posting Community has a complete pinned immutable identity generation;
   every copy row has a complete one-to-one binding and compatibility decision.
 - Typed match, bonus, copy, and reprediction rows have complete immutable

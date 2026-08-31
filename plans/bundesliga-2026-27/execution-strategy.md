@@ -118,6 +118,28 @@ prompt/service/model/POST work. Historical/context and audit/cost APIs remain
 explicitly non-authoritative. Team/time, team-only, question-text, prefix,
 latest, partition-only, and default lookups cannot satisfy a current operation.
 
+The match scheduled instant comes only from exact ID-bearing fixture evidence
+plus the same-ID structured detail `Termin`. Cancelled/empty evidence,
+inherited prior-row state, `Instant.MinValue` or another sentinel,
+missing/duplicate/unparsable detail, and fixture/detail conflict reject the
+complete selected operation atomically before current read or downstream call.
+A same-ID reschedule preserves the Stable Local Item Key but rotates the
+Snapshot Hash in a new additive seed generation; the prior snapshot is not
+current.
+
+Physical/query isolation also governs audit and cost. R2b owns separate
+configured reads and explicitly authority-labelled non-current DTOs for one
+physical authority at a time. A later shared slice may combine, sort, and total
+only after independent retrieval while preserving labels and per-authority
+subtotals. No repository method/query/enumeration/current lookup/fallback/copy/
+reprediction spans authorities.
+
+R4b may add DFB/CL route IDs/contracts, fail-closed dispatch, and synthetic
+tests only. Prompt bodies, mirrors, hash assertions, and implied fallback are
+blocked until a later evidence slice records the exact hosted name, numbered
+immutable version, normalized readback hash, and required `production`
+membership, then proves normalized mirror/readback equality.
+
 P1-10 now depends on P1-13 but retains every Schadensfresse-specific rules,
 context, prompt-route, DFB/CL composition, replacement, call/cost, cutoff, and
 activation decision. Recovery `main`, the draft PR, ADR-0062 sunset/fallback,
@@ -224,10 +246,10 @@ The repository currently builds/tests PRs and pushes to `main`; native auto-merg
 | Capacity | Admit at most two linked task worktrees and use a separate heavy-operation lease; the checked-in resource policy and live snapshot may reduce concurrency before any new worktree or heavy operation |
 | Communities | Dev: `ehonda-dev-buli-2627`; production: `pes-squad`, `schadensfresse`, `relaxdays-tippt`, `ehonda-ai-arena` |
 | Prediction topology | Independent primary `pes-squad`; relaxdays and arena Sol/xhigh copy `pes-squad`; four arena challengers are independent; recovery `main` temporarily uses target-context Schadensfresse copy from `pes-squad` in the eight-pair lane, while P1-10's target-primary route remains PR-only |
-| Prediction authority | ADR-0065 requires complete Posting Community-local item identity and Snapshot Hashes for every Bundesliga current operation; immutable seed/copy bindings and Generation Provenance live in one isolated Authority Epoch; legacy rows are historical/audit/cost only; cutover is all-community and cannot be implied by Git merge |
+| Prediction authority | ADR-0065 requires complete Posting Community-local item identity and Snapshot Hashes for every Bundesliga current operation; scheduled instants require exact ID-bearing fixture plus same-ID `Termin` evidence; immutable seed/copy bindings and Generation Provenance live in one isolated Authority Epoch; separately configured audit/cost reads expose labelled non-current DTOs only; cutover is all-community and cannot be implied by Git merge |
 | Rosters | DuckDB primary per valid 2026/27 club; complete one-time fallback seed; last-known-good on invalid data; `N/A` enrichment gaps |
 | Launch roster publication | ADR-0050 v2 adds one final known-value subtotal row per team; ADR-0051's paired explicit overlay preserves authoritative seed/LKG membership, adds supplemental fields only by exact stable ID, and gates the strictly reconstructed final payload at 18 teams / 18 derived rows / 464 ages / 464 positions / 450 values before write. ADR-0052 prepares a false-by-default workflow input enabled for pes/relaxdays/schadens before normal profile collection; arena preserves its verified enriched head; recurring automation stays P1-05 |
-| Prompts | Accepted hosted match v3 and bonus v1, with required `production` membership for live routes; historical P0-23 remains on v2; checked-in local mirrors remain the ordinary outage fallback |
+| Prompts | Accepted hosted Bundesliga match v3 and bonus v1, with required `production` membership for live routes; historical P0-23 remains on v2; their evidenced checked-in local mirrors remain the ordinary outage fallback; DFB/CL has no mirror or fallback until the separate exact hosted-evidence/equality gate passes |
 | Plumbing model | `gpt-5.6-luna`, `none` reasoning, pinned output cap; never promote silently to production |
 | P0-23 candidate evidence | Complete under ADR-0049 and the Owner's execution-time amendments: eight original paired runs completed, Luna/`max` is incomplete after two transient capacity failures and an explicit p1 stop, and post-hoc Sol/`xhigh` is exploratory; this is evidence, not production selection |
 | Context | Bundesliga retains explicit live allowlists; schadensfresse DFB/CL uses ADR-0058's Accepted target-rules-only profiles with exact typed inputs and no Bundesliga context leakage, ADR-0059 binds publication to the structured v1 rules record, and ADR-0060 separates immutable generation provenance from the exact-key current rules attestation used for reuse |
