@@ -99,3 +99,13 @@ decisions remain owner-controlled.
 Natural runs caused by the restored declarative schedule can perform only the
 already-authorized ADR-0053/0054/0055 operations. Observation is read-only
 reconciliation; it grants no direct/manual or expanded operational authority.
+
+## Successor implementation boundary
+
+This packet remains the unchanged recovery and branch-preservation contract.
+[ADR-0065](decisions/0065-require-global-typed-prediction-authority-and-isolated-cutover.md)
+and the [P1-13 execution packet](p1-13-execution-packet.md) now own the
+season-wide typed identity, exact-ID current API, isolated staging, and atomic
+cutover prerequisite for P1-10. P1-10 retains Schadensfresse-specific
+rules/context/prompt composition and activation. The successor creates no
+recovery authority, sunset extension, partial cutover, or evidence rewrite.

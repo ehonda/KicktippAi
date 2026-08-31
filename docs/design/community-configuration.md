@@ -27,6 +27,20 @@ context path.
 Tune this when a new community needs a different competition, dev/test default,
 prompt source, prompt name, or prompt label.
 
+## Bundesliga 2026/27 Prediction Authority
+
+[ADR-0065](../../plans/bundesliga-2026-27/decisions/0065-require-global-typed-prediction-authority-and-isolated-cutover.md) and the [P1-13 design](../../plans/bundesliga-2026-27/designs/p1-13-global-typed-prediction-authority-and-cutover.md) define the season-wide authority boundary. Use these terms consistently:
+
+- **Posting Community:** the Kicktipp community whose form is read or written;
+- **Prediction-source Community:** the stored-prediction source, equal to the Posting Community for self-generation; and
+- **Community Context:** the community whose rules and prediction context govern generation.
+
+Every current Matchday, RandomMatch, VerifyMatchday, Bonus, and VerifyBonus item must resolve through the Posting Community's immutable identity-seed generation to a Stable Local Item Key and matching Snapshot Hash. Arena participants share one Posting Community namespace; participant credentials or model identity do not create new item identity. A copy requires an immutable, versioned, one-to-one Copy Binding with exact posting/source identities and exact bonus option identities. Correspondence does not prove scoring or prediction compatibility.
+
+The boundary covers typed current reads, saves, reprediction, copy, exact-ID POST, and exact readback. It rejects team-only, time-only, team-and-time-only, question-text, form-order, prefix, `latest`, partition, and default-based current authority. An unsupported, unknown, mixed-authority, or unbound selected item fails the entire batch before a current database read, prompt or service call, model call, mutation, or POST. Legacy Rows remain historical, audit, and cost evidence only after cutover.
+
+P1-13 owns this global foundation and its atomic deployed-runtime/storage cutover. P1-10 retains Schadensfresse-specific primary composition and activation. Credentials continue to follow the Posting Community, never the Prediction-source Community or Community Context.
+
 ## Development Shortcuts
 
 Locations:
@@ -116,7 +130,15 @@ Locations:
 - `src/FirebaseAdapter/FirebaseKpiRepository.cs`
 - `src/FirebaseAdapter/FirebaseMatchOutcomeRepository.cs`
 
-Bundesliga keeps legacy document IDs for compatibility. Non-Bundesliga competitions use competition-scoped IDs so WM26 data does not collide with Bundesliga data.
+The current recovery deployment keeps Bundesliga legacy document IDs for compatibility and reads only the legacy collections. P1-13 stages the initial `bundesliga-2026-27-typed-v1` authority epoch in physically and query-isolated collections:
+
+- `match-predictions-bundesliga-2026-27-typed-v1`;
+- `bonus-predictions-bundesliga-2026-27-typed-v1`; and
+- `matches-bundesliga-2026-27-typed-v1`.
+
+The typed draft reads only those staging collections. It may not mutate, delete, backfill, or treat a Legacy Row as current. Runtime/workflow routing and storage authority cut over atomically for every participating Bundesliga community after the existing Owner gates; merging the Git implementation is not activation. If a post-cutover POST has occurred, rollback disables the affected lane and reconciles exact Kicktipp and typed-storage state before reuse. Schadensfresse returns to quarantine if required while the seven unaffected recovery pairs retain their accepted fallback.
+
+Non-Bundesliga competitions use competition-scoped IDs so WM26 data does not collide with Bundesliga data. P1-13 changes no WM26 storage contract.
 
 Tune these only when changing Firestore compatibility or adding a new storage collection shape.
 

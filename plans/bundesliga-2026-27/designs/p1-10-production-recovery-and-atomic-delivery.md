@@ -76,3 +76,13 @@ The PR must replace or terminate temporary copy mode atomically by
 `2026-09-08T12:00:00Z`; otherwise re-quarantine Schadensfresse and keep seven
 unaffected pairs. A later regression reverts the P1-10 merge to the recovery
 baseline.
+
+## Successor design boundary
+
+This recovery design remains authoritative for recovery topology, branch
+preservation, sunset, fallback, and rollback only. [ADR-0065](../decisions/0065-require-global-typed-prediction-authority-and-isolated-cutover.md)
+and the [P1-13 design](p1-13-global-typed-prediction-authority-and-cutover.md)
+own the global typed prediction-authority and isolated all-community cutover
+foundation that P1-10 must consume. P1-10 retains target-specific
+Schadensfresse composition and activation; neither successor rewrites the
+recovery evidence or permits a partial cutover.

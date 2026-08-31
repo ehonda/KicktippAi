@@ -2,9 +2,10 @@
 
 - Status: In progress; recovery runtime is frozen, target-primary completion remains an atomic future PR
 - Priority: P1 — deadline-critical
-- Depends on: [P0-21](p0-21-production-activation.md)
+- Depends on: [P0-21](p0-21-production-activation.md),
+  [P1-13](p1-13-global-bundesliga-prediction-authority.md)
 - Absorbs: [P1-08](p1-08-schadensfresse-mixed-competition-routing.md)
-- Decisions: [ADR-0052](../decisions/0052-select-production-model-community-matrix-and-match-prompt-v3.md), [ADR-0054](../decisions/0054-copy-schadensfresse-bundesliga-from-pes-squad.md), [ADR-0055](../decisions/0055-add-schadensfresse-to-production-live-lane.md), [ADR-0058](../decisions/0058-make-schadensfresse-a-competition-typed-primary.md), [ADR-0059](../decisions/0059-bind-schadensfresse-rules-to-a-structured-semantic-record.md), [ADR-0060](../decisions/0060-separate-generation-manifest-from-current-rules-attestation.md), [ADR-0061](../decisions/0061-preview-and-milestone-orchestration.md), [ADR-0062](../decisions/0062-temporarily-restore-schadensfresse-copy.md), [ADR-0063](../decisions/0063-construct-p1-10-full-branch-after-recovery.md), [ADR-0064](../decisions/0064-permit-portable-rules-fixture-test-in-p1-10-seed.md)
+- Decisions: [ADR-0052](../decisions/0052-select-production-model-community-matrix-and-match-prompt-v3.md), [ADR-0054](../decisions/0054-copy-schadensfresse-bundesliga-from-pes-squad.md), [ADR-0055](../decisions/0055-add-schadensfresse-to-production-live-lane.md), [ADR-0058](../decisions/0058-make-schadensfresse-a-competition-typed-primary.md), [ADR-0059](../decisions/0059-bind-schadensfresse-rules-to-a-structured-semantic-record.md), [ADR-0060](../decisions/0060-separate-generation-manifest-from-current-rules-attestation.md), [ADR-0061](../decisions/0061-preview-and-milestone-orchestration.md), [ADR-0062](../decisions/0062-temporarily-restore-schadensfresse-copy.md), [ADR-0063](../decisions/0063-construct-p1-10-full-branch-after-recovery.md), [ADR-0064](../decisions/0064-permit-portable-rules-fixture-test-in-p1-10-seed.md), [ADR-0065](../decisions/0065-require-global-typed-prediction-authority-and-isolated-cutover.md)
 
 - Orchestration readiness: The completed checkboxes are historical integrated
   evidence. The resumed recovery's frozen artifacts are the
@@ -17,6 +18,11 @@
   remaining P1-10 and Owner gate passes.
   ADR-0064 admits only E's portable fixture-test normalization; it does not
   change ADR-0062 recovery runtime, ADR-0063 construction, or any Owner gate.
+  ADR-0065 and P1-13 now own the season-wide typed prediction-authority,
+  per-community seed/copy-binding, exact-ID API, isolated-storage, and atomic-
+  cutover foundation. This task consumes that foundation while retaining all
+  Schadensfresse-specific rules, context/prompt composition, replacement, and
+  activation ownership.
 
 ## Trigger and live evidence
 
@@ -92,6 +98,19 @@ schedule may perform only ADR-0053/0054/0055's already-authorized operations;
 observing them is read-only reconciliation, not additional authority.
 
 ## Implementation slices
+
+### Global typed-authority prerequisite
+
+- [ ] Complete and independently accept P1-13 R1-R5a before treating any
+      P1-10 current read/save/reprediction/copy/verify/post path as merge-ready.
+      P1-10 must use the shared Posting Community, Prediction-source
+      Community, Community Context, Stable Local Item Key, Snapshot Hash,
+      Copy Binding, Generation Provenance, and Authority Epoch contracts; it
+      must not implement a target-only compatibility firewall.
+- [ ] Keep P1-10's real Schadensfresse seeds/bindings, typed staging, and
+      atomic activation in P1-13 R5b's all-community evidence/cutover gate.
+      P1-10 still owns the exact target replacement set, prompt promotion,
+      calls/cost, force/reprediction, UTC cutoff, and primary activation.
 
 ### 0. Historical schedule quarantine (temporarily superseded on recovery main)
 

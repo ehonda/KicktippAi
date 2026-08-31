@@ -15,6 +15,19 @@
 
 Rows are sorted by `Team_Slug` using ordinal comparison. The file is UTF-8 without a byte-order mark, uses CRLF line endings, has no leading blank line, and ends with a final CRLF.
 
+## Prediction-authority generations
+
+[ADR-0065](../../plans/bundesliga-2026-27/decisions/0065-require-global-typed-prediction-authority-and-isolated-cutover.md) reserves these season-scoped paths for P1-13:
+
+- `prediction-authority/identity-seeds/<posting-community>/generation-<NNNN>.json` for an immutable identity-seed generation owned by one Posting Community; and
+- `prediction-authority/copy-bindings/<posting-community>--from--<source-community>/generation-<NNNN>.json` for an immutable Copy Binding between one Posting Community and one Prediction-source Community.
+
+Arena participants share the `ehonda-ai-arena` Posting Community namespace. Kicktipp IDs are local to a Posting Community and item kind, never globally unique. A Stable Local Item Key fixes the season, Posting Community, item kind, and exact Kicktipp ID. Its Snapshot Hash separately fixes the item's semantic state: subcompetition, round, result basis, teams, and schedule for a match; question text, deadline, prediction limit, and exact option identities for a bonus question.
+
+Generations are additive and immutable. A consumer must pin an exact generation and content hash; directory enumeration, a `latest` convention, or an implicit default is not authority. Each Copy Binding records the exact posting and source keys, Snapshot Hashes, seed generations, and one-to-one option mapping where applicable. It proves correspondence, not prediction compatibility, and cannot clone or backfill a source record into the Posting Community namespace.
+
+Real-community seed and binding content requires P1-13 R5b's existing Owner-controlled authenticated evidence and external-read authority. It must contain identifiers and provenance only—never credentials, cookies, or form payloads. This R0 specification creates no seed generation and changes no runtime data.
+
 ## Source evidence
 
 - Kicktipp names: a read-only dry run on 2026-08-16 using `collect-context kicktipp --community-context ehonda-dev-buli-2627 --competition bundesliga-2026-27 --matchdays 1 --dry-run` returned nine fixtures and all 18 unique names represented here.

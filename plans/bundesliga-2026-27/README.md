@@ -192,6 +192,13 @@ They govern the temporary recovery and atomic PR delivery; they do not claim
 that the full P1-10 primary implementation is complete. Fully grilled runnable
 milestones may proceed while the remaining frontier stays `needs-interview`.
 
+The Owner's 2026-08-31 season-wide typing decision is a separate cross-cutting
+[P1-13](tasks/p1-13-global-bundesliga-prediction-authority.md) foundation with
+its own [execution packet](p1-13-execution-packet.md). P1-13 owns global item
+identity, immutable seed/copy bindings, typed current APIs, isolated staging,
+and all-community cutover. P1-10 depends on it and retains target-specific
+Schadensfresse rules, context/prompt composition, and activation.
+
 | Task | Outcome | Depends on |
 |---|---|---|
 | [P1-03](tasks/p1-03-generic-onboarding-skill.md) | Extract generic competition onboarding tooling | P0-21 |
@@ -201,9 +208,10 @@ milestones may proceed while the remaining frontier stays `needs-interview`.
 | [P1-07](tasks/p1-07-cost-calibration.md) | Recalculate season cost from live usage evidence | P0-16, P1-04, P1-05 |
 | [P1-08](tasks/p1-08-schadensfresse-mixed-competition-routing.md) | Superseded and fully absorbed by P1-10; do not build the former copy-plus-exceptions route | P0-21 |
 | [P1-09](tasks/p1-09-current-open-matchday-context.md) | Reconcile reduced current open fixtures with the complete outcome view | P0-14, P0-21 |
-| [P1-10](tasks/p1-10-schadensfresse-primary-community.md) **Deadline-critical** | Recovery `main` temporarily restores the 8-pair source-copy lane through `2026-09-08T12:00:00Z`; preserve the full implementation for an atomic target-primary PR that replaces/terminates it | P0-21; absorbs P1-08 |
+| [P1-10](tasks/p1-10-schadensfresse-primary-community.md) **Deadline-critical** | Recovery `main` temporarily restores the 8-pair source-copy lane through `2026-09-08T12:00:00Z`; compose and activate the target-primary route on P1-13's global typed foundation | P0-21, P1-13; absorbs P1-08 |
 | [P1-11](tasks/p1-11-langfuse-v4-migration.md) | Migrate the Langfuse project and repository API consumers to v4 | P0-21 |
 | [P1-12](tasks/p1-12-standings-reprediction-exemption.md) **High priority** | Exempt standings-only changes from match repredictions | P0-12, P0-21 |
+| [P1-13](tasks/p1-13-global-bundesliga-prediction-authority.md) **Blocking foundation** | Require season-wide exact item identity, immutable copy/provenance, isolated typed storage, and an all-community authority cutover | P0-21, P1-09, P1-12 |
 
 There is intentionally no transfer-document automation task in P1.
 
@@ -298,3 +306,4 @@ contract:
 - [ADR-0062: Temporarily restore schadensfresse copy while completing P1-10 atomically](decisions/0062-temporarily-restore-schadensfresse-copy.md) — temporary eight-pair source-copy recovery through `2026-09-08T12:00:00Z`; preserves the final P1-10 implementation for an atomic PR
 - [ADR-0063: Construct the P1-10 full branch after recovery](decisions/0063-construct-p1-10-full-branch-after-recovery.md) — preserves D and reconstructs the archival P1-10 branch through dedicated C-then-B inverses; it is draft-only preservation, not merge readiness
 - [ADR-0064: Permit portable rules-fixture test in the P1-10 seed](decisions/0064-permit-portable-rules-fixture-test-in-p1-10-seed.md) — admits E's line-ending normalization as the sole additional test-harness exception; recovery and branch-construction authority remain separate
+- [ADR-0065: Require global typed prediction authority and isolated cutover](decisions/0065-require-global-typed-prediction-authority-and-isolated-cutover.md) — applies complete community-local item identity and provenance to every Bundesliga 2026/27 current operation, with immutable per-community seeds/copy bindings and one isolated all-community cutover

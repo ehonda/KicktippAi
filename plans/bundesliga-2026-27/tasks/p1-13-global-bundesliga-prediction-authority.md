@@ -1,0 +1,184 @@
+# P1-13 — Establish global Bundesliga prediction authority
+
+- Status: R0 specification authored; implementation blocked pending independent
+  exact-commit acceptance
+- Priority: P1 — blocking foundation for P1-10 completion
+- Depends on: [P0-21](p0-21-production-activation.md),
+  [P1-09](p1-09-current-open-matchday-context.md), and
+  [P1-12](p1-12-standings-reprediction-exemption.md)
+- Blocks: [P1-10](p1-10-schadensfresse-primary-community.md)
+- Decision: [ADR-0065](../decisions/0065-require-global-typed-prediction-authority-and-isolated-cutover.md)
+- Design: [global typed prediction authority and cutover](../designs/p1-13-global-typed-prediction-authority-and-cutover.md)
+- Execution packet: [P1-13 execution packet](../p1-13-execution-packet.md)
+
+## Outcome
+
+Every prediction-authoritative Bundesliga 2026/27 match and bonus operation
+uses exact community-local item identities, versioned semantic snapshots,
+immutable seed/copy bindings, complete generation provenance, isolated typed
+storage, and exact-ID Kicktipp POST/readback. Legacy rows remain available for
+explicit history, context, audit, and cost use but cannot feed current
+selection, reuse, reprediction, copy, verification, or posting.
+
+P1-13 owns the global foundation. P1-10 remains the owner of Schadensfresse's
+target rules, contexts, DFB/CL prompts/routes, replacement plan, and primary
+activation.
+
+The canonical authority is the relationship among Posting Community,
+Prediction-source Community, Community Context, Stable Local Item Key,
+Snapshot Hash, Identity Seed Generation, Copy Binding, Generation Provenance,
+and Authority Epoch. A Legacy Row can serve only explicit non-current uses.
+
+## Current production boundary
+
+Recovery `main` remains on ADR-0062's eight-pair source-copy authority through
+`2026-09-08T12:00:00Z`. P1-13 work stays on the draft route and uses only
+synthetic fixtures or a physically isolated typed epoch until the later Owner
+gates pass. It does not modify recovery data, workflows, cadence, prompts,
+predictions, credentials, or external state. Missing the sunset re-quarantines
+Schadensfresse and preserves seven unaffected pairs; it does not permit a
+partial typed cutover.
+
+## Milestones
+
+### R0 — Tracked specification freeze
+
+- [x] Record the Owner's season-wide typing decision and rejected target-only
+      compatibility firewall in Accepted ADR-0065.
+- [x] Define the canonical season glossary without implementation details.
+- [x] Freeze the call-surface matrix, exact typed API boundary, stable key and
+      Snapshot Hash distinction, immutable seed/copy/provenance contracts,
+      hostile scenarios, isolated epoch, atomic cutover, rollback, ownership,
+      gates, and non-goals in the design and execution packet.
+- [x] Link the global foundation from P1-10, the P1 recovery artifacts, plan,
+      execution strategy, onboarding profile/guide, data contract, and
+      community-configuration design without rewriting recovery evidence.
+- [ ] Obtain independent `gpt-5.6-sol` / `high` acceptance of the exact R0
+      commit before admitting R1.
+
+### R1 — Core authority contracts
+
+- [ ] Add canonical authority, stable-key, typed match/bonus snapshot,
+      Snapshot Hash, identity-seed generation, Copy Binding,
+      `PredictionGenerationProvenanceV2`, and compatibility contracts.
+- [ ] Add strict canonical serializers/loaders and complete-inventory
+      validation using synthetic fixtures only. Reject duplicate/local-ID
+      ambiguity, snapshot drift, partial option maps, unknown routes, and all
+      cross-community/global-ID assumptions.
+- [ ] Freeze `IBundesligaTypedPredictionAuthorityRepository` request/result
+      contracts before provider or persistence work begins.
+
+### R2a — Kicktipp exact identity boundary
+
+- [ ] Produce complete typed posting-community match and bonus snapshots from
+      exact source identities. Retain every field needed to recompute the
+      canonical snapshot.
+- [ ] Add exact-ID POST and exact-ID placed-prediction readback. Missing,
+      duplicate, changed, or extra IDs fail closed; no team/text/form fallback
+      exists.
+- [ ] Prove complete-scope classification and hostile parser/readback behavior
+      with encrypted/synthetic fixtures only; make no live request.
+
+### R2b — Isolated typed persistence
+
+- [ ] Implement exact epoch `bundesliga-2026-27-typed-v1` in the three frozen
+      collections with repository construction bound to one authority only.
+- [ ] Implement typed current/read/save/reprediction/copy operations and
+      transactional duplicate/concurrency gates using the complete authority,
+      item, snapshot, route, model, and provenance identity.
+- [ ] Keep legacy APIs explicit and audit-only for current commands. Prove no
+      cross-epoch query, fallback, migration, deletion, mutation, or backfill.
+
+### R3 — Shared route and provenance kernel
+
+- [ ] Register one shared match/bonus route kernel that validates the complete
+      command inventory before current database selection or prompt/service
+      construction.
+- [ ] Resolve and persist exact posting/source/context, seed/binding,
+      prompt/fallback, model/service, manifest, and source-prediction
+      provenance without command-specific defaults.
+- [ ] Implement compatibility as a separate explicit decision after exact copy
+      correspondence and source-current validation.
+
+### R4a — Match commands
+
+- [ ] Move Matchday, RandomMatch, and VerifyMatchday, including applicable dev
+      and copy wrappers, entirely to typed capabilities.
+- [ ] Make RandomMatch classify its complete candidate scope before selection;
+      make matchday/verify fail the complete selected scope on one unsupported
+      item.
+- [ ] Require exact-ID POST/readback and deterministic reconciliation on any
+      partial or changed remote result.
+
+### R4b — Bonus commands and P1-10 composition
+
+- [ ] Move Bonus and VerifyBonus, including applicable dev and copy wrappers,
+      entirely to typed capabilities and exact option-ID mappings.
+- [ ] Compose P1-10's Schadensfresse rules-only DFB/CL routes on the shared
+      kernel while preserving ADR-0058/0059/0060 preflight, provenance, and
+      activation gates.
+- [ ] Reject partial option maps, text-only matches, unsupported mixed batches,
+      legacy copy candidates, and every context/prompt fallback outside an
+      accepted route.
+
+### R5a — Deterministic tooling and cutover shape
+
+- [ ] Add deterministic immutable generation tooling, validators, synthetic
+      hostile fixtures, and pinning configuration for the exact data paths in
+      the design. Do not add real evidence rows yet.
+- [ ] Update workflow shape so every future Bundesliga current row selects the
+      same typed epoch as one cutover unit. Keep recovery runtime active and
+      unchanged.
+- [ ] Pass focused and cohesive repository gates plus independent exact-SHA
+      review and exact-head CI before requesting real evidence authority.
+
+### R5b — Real evidence, staging, and cutover
+
+- [ ] Collect payload-safe authenticated complete inventories for every
+      Posting Community and exact source/posting Copy Binding, including every
+      bonus option mapping. Check in reviewed immutable generations only.
+- [ ] Reconcile pinned prompts, contexts/rules, existing legacy rows, exact
+      replacement set, earliest cutoff, maximum calls/cost, force limits, and
+      rollback ownership under the existing Owner gates.
+- [ ] Create and verify the complete typed prediction set in the isolated epoch
+      without POST. No mixed/missing item may pass staging.
+- [ ] Obtain Owner approval and execute the all-community atomic runtime/storage
+      cutover protocol. After any typed POST, disable and reconcile before any
+      rollback; never mix authorities.
+- [ ] Observe the first natural run on the exact deployed SHA. Keep P1-10's
+      separate target-primary activation evidence and final ADR-0062
+      replacement/termination decision.
+
+## Required validation
+
+R0 requires link and scope checks, accepted-ADR immutability, glossary purity,
+terminology consistency, `git diff --check`, sensitive-token review, a scoped
+exact commit, and independent Sol/high review. It requires no build, test,
+external fetch, or live operation.
+
+Focused implementation gates are Core for R1, KicktippIntegration for R2a,
+FirebaseAdapter for R2b, shared Core/Orchestrator tests for R3, Orchestrator
+match tests for R4a, Orchestrator bonus plus ContextProviders tests for R4b,
+and workflow-contract/`actionlint` gates for R5a.
+
+The cohesive gate runs TUnit with `dotnet run` for Core,
+KicktippIntegration, FirebaseAdapter, OpenAiIntegration,
+ContextProviders.Kicktipp, Orchestrator, and Integration; a Release build;
+workflow-contract validation; `actionlint`; independent exact-SHA scope,
+security, authority-isolation, and rollback review; and exact-head
+Build-and-Test CI.
+
+## Complete when
+
+- Every current-authoritative call surface uses the exact P1-13 typed boundary
+  and every historical/context/audit/cost surface is unable to feed it.
+- Every Posting Community has a complete pinned immutable identity generation;
+  every copy row has a complete one-to-one binding and compatibility decision.
+- Typed match, bonus, copy, and reprediction rows have complete immutable
+  provenance and reside only in one physically/query-isolated epoch.
+- The all-community cutover and exact-ID readback pass under Owner authority,
+  with rollback and natural-run evidence recorded.
+- P1-10 can complete target-owned Schadensfresse composition and activation
+  without owning or bypassing the global foundation.
+- Scoped commits are reviewed, the final exact head is green, and changes are
+  pushed only through the explicit approved remote/branch topology.
