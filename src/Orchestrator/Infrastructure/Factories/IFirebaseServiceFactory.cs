@@ -1,4 +1,5 @@
 using EHonda.KicktippAi.Core;
+using FirebaseAdapter;
 using Google.Cloud.Firestore;
 
 namespace Orchestrator.Infrastructure.Factories;
@@ -52,4 +53,12 @@ public interface IFirebaseServiceFactory
     /// </summary>
     /// <returns>A match outcome repository instance.</returns>
     IMatchOutcomeRepository CreateMatchOutcomeRepository(string competition);
+
+    /// <summary>Creates the fixed Bundesliga typed-v1 current authority repository.</summary>
+    IBundesligaTypedPredictionAuthorityRepository CreateBundesligaTypedPredictionAuthorityRepository();
+
+    ILegacyFirebaseMatchPredictionAuditCostReader CreateLegacyBundesligaMatchAuditCostReader();
+    ILegacyFirebaseBonusPredictionAuditCostReader CreateLegacyBundesligaBonusAuditCostReader();
+    ITypedFirebaseMatchPredictionAuditCostReader CreateTypedBundesligaMatchAuditCostReader();
+    ITypedFirebaseBonusPredictionAuditCostReader CreateTypedBundesligaBonusAuditCostReader();
 }

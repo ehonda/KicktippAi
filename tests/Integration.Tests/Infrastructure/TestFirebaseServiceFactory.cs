@@ -58,4 +58,31 @@ internal sealed class TestFirebaseServiceFactory(FirestoreDb firestoreDb) : IFir
     {
         return new FirebaseMatchOutcomeRepository(FirestoreDb, new FakeLogger<FirebaseMatchOutcomeRepository>(), competition);
     }
+
+    public IBundesligaTypedPredictionAuthorityRepository CreateBundesligaTypedPredictionAuthorityRepository()
+    {
+        return new FirebaseBundesligaTypedPredictionAuthorityRepository(
+            FirestoreDb,
+            FirebaseBundesligaTypedPredictionCollections.AuthorityEpoch);
+    }
+
+    public ILegacyFirebaseMatchPredictionAuditCostReader CreateLegacyBundesligaMatchAuditCostReader()
+    {
+        return new FirebaseLegacyMatchPredictionAuditCostReader(FirestoreDb);
+    }
+
+    public ILegacyFirebaseBonusPredictionAuditCostReader CreateLegacyBundesligaBonusAuditCostReader()
+    {
+        return new FirebaseLegacyBonusPredictionAuditCostReader(FirestoreDb);
+    }
+
+    public ITypedFirebaseMatchPredictionAuditCostReader CreateTypedBundesligaMatchAuditCostReader()
+    {
+        return new FirebaseTypedMatchPredictionAuditCostReader(FirestoreDb);
+    }
+
+    public ITypedFirebaseBonusPredictionAuditCostReader CreateTypedBundesligaBonusAuditCostReader()
+    {
+        return new FirebaseTypedBonusPredictionAuditCostReader(FirestoreDb);
+    }
 }

@@ -18,6 +18,7 @@ public sealed class KicktippClientFactory : IKicktippClientFactory
     private readonly IMemoryCache _memoryCache;
     private readonly ILoggerFactory _loggerFactory;
     private readonly Lazy<IKicktippClient> _client;
+    private readonly Lazy<IBundesligaTypedKicktippClient> _typedPredictionClient;
     private readonly Lazy<KicktippOptions> _credentials;
 
     public KicktippClientFactory(
@@ -28,10 +29,15 @@ public sealed class KicktippClientFactory : IKicktippClientFactory
         _loggerFactory = loggerFactory;
         _credentials = new Lazy<KicktippOptions>(LoadCredentials);
         _client = new Lazy<IKicktippClient>(InitializeClient);
+        _typedPredictionClient = new Lazy<IBundesligaTypedKicktippClient>(InitializeTypedPredictionClient);
     }
 
     /// <inheritdoc />
     public IKicktippClient CreateClient() => _client.Value;
+
+    /// <inheritdoc />
+    public IBundesligaTypedKicktippClient CreateBundesligaTypedPredictionClient() =>
+        _typedPredictionClient.Value;
 
     /// <inheritdoc />
     public HttpClient CreateAuthenticatedHttpClient()
@@ -110,5 +116,11 @@ public sealed class KicktippClientFactory : IKicktippClientFactory
         // Create and return the client
         var clientLogger = _loggerFactory.CreateLogger<KicktippClient>();
         return new KicktippClient(httpClient, clientLogger, _memoryCache);
+    }
+
+    private IBundesligaTypedKicktippClient InitializeTypedPredictionClient()
+    {
+        var logger = _loggerFactory.CreateLogger<BundesligaTypedKicktippClient>();
+        return new BundesligaTypedKicktippClient(CreateAuthenticatedHttpClient(), logger);
     }
 }

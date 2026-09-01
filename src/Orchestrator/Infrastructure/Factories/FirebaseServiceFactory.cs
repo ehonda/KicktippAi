@@ -87,6 +87,28 @@ public sealed class FirebaseServiceFactory : IFirebaseServiceFactory
         return new FirebaseMatchOutcomeRepository(FirestoreDb, logger, competition);
     }
 
+    /// <inheritdoc />
+    public IBundesligaTypedPredictionAuthorityRepository CreateBundesligaTypedPredictionAuthorityRepository() =>
+        new FirebaseBundesligaTypedPredictionAuthorityRepository(
+            FirestoreDb,
+            FirebaseBundesligaTypedPredictionCollections.AuthorityEpoch);
+
+    /// <inheritdoc />
+    public ILegacyFirebaseMatchPredictionAuditCostReader CreateLegacyBundesligaMatchAuditCostReader() =>
+        new FirebaseLegacyMatchPredictionAuditCostReader(FirestoreDb);
+
+    /// <inheritdoc />
+    public ILegacyFirebaseBonusPredictionAuditCostReader CreateLegacyBundesligaBonusAuditCostReader() =>
+        new FirebaseLegacyBonusPredictionAuditCostReader(FirestoreDb);
+
+    /// <inheritdoc />
+    public ITypedFirebaseMatchPredictionAuditCostReader CreateTypedBundesligaMatchAuditCostReader() =>
+        new FirebaseTypedMatchPredictionAuditCostReader(FirestoreDb);
+
+    /// <inheritdoc />
+    public ITypedFirebaseBonusPredictionAuditCostReader CreateTypedBundesligaBonusAuditCostReader() =>
+        new FirebaseTypedBonusPredictionAuditCostReader(FirestoreDb);
+
     private FirestoreDb InitializeFirestoreDb()
     {
         var projectId = Environment.GetEnvironmentVariable("FIREBASE_PROJECT_ID");

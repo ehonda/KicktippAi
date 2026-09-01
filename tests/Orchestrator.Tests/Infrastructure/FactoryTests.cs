@@ -96,7 +96,12 @@ public class FactoryTests
         await Assert.That(httpClient.Timeout).IsEqualTo(TimeSpan.FromMinutes(2));
         await Assert.That(httpClient.DefaultRequestHeaders.UserAgent.ToString()).Contains("Mozilla/5.0");
         await Assert.That(sut.CreateClient()).IsSameReferenceAs(sut.CreateClient());
+        var typed = sut.CreateBundesligaTypedPredictionClient();
+        await Assert.That(typed).IsSameReferenceAs(sut.CreateBundesligaTypedPredictionClient());
+        await Assert.That(typed).IsTypeOf<BundesligaTypedKicktippClient>();
+        await Assert.That(typed is IKicktippClient).IsFalse();
         await Assert.That(sut.CreateSnapshotClient()).IsTypeOf<SnapshotClient>();
+        ((IDisposable)typed).Dispose();
     }
 
     [Test]
@@ -177,6 +182,35 @@ public class FactoryTests
         await Assert.That(() => missingCredentialsFactory.CreatePredictionRepository(" "))
             .Throws<ArgumentException>()
             .WithParameterName("competition");
+    }
+
+    [Test]
+    public async Task Typed_factories_expose_only_fixed_nonparameterized_authority_capabilities()
+    {
+        var kicktipp = typeof(IKicktippClientFactory).GetMethod(
+            nameof(IKicktippClientFactory.CreateBundesligaTypedPredictionClient))!;
+        var firebaseMethods = new Dictionary<string, Type>
+        {
+            [nameof(IFirebaseServiceFactory.CreateBundesligaTypedPredictionAuthorityRepository)] =
+                typeof(IBundesligaTypedPredictionAuthorityRepository),
+            [nameof(IFirebaseServiceFactory.CreateLegacyBundesligaMatchAuditCostReader)] =
+                typeof(ILegacyFirebaseMatchPredictionAuditCostReader),
+            [nameof(IFirebaseServiceFactory.CreateLegacyBundesligaBonusAuditCostReader)] =
+                typeof(ILegacyFirebaseBonusPredictionAuditCostReader),
+            [nameof(IFirebaseServiceFactory.CreateTypedBundesligaMatchAuditCostReader)] =
+                typeof(ITypedFirebaseMatchPredictionAuditCostReader),
+            [nameof(IFirebaseServiceFactory.CreateTypedBundesligaBonusAuditCostReader)] =
+                typeof(ITypedFirebaseBonusPredictionAuditCostReader)
+        };
+
+        await Assert.That(kicktipp.ReturnType).IsEqualTo(typeof(IBundesligaTypedKicktippClient));
+        await Assert.That(kicktipp.GetParameters()).Count().IsEqualTo(0);
+        foreach (var (name, returnType) in firebaseMethods)
+        {
+            var method = typeof(IFirebaseServiceFactory).GetMethod(name)!;
+            await Assert.That(method.ReturnType).IsEqualTo(returnType);
+            await Assert.That(method.GetParameters()).Count().IsEqualTo(0);
+        }
     }
 
     private static ILoggerFactory CreateLoggerFactory()
