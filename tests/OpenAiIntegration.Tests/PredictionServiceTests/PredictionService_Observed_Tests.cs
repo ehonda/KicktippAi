@@ -29,7 +29,7 @@ public sealed class PredictionService_Observed_Tests : PredictionServiceTests_Ba
             .Returns(0.0123m);
         var service = CreateObservedService(model, provider.Object, cost.Object);
         var activities = new ConcurrentQueue<Activity>();
-        using var listener = Capture(activities);
+        using var capture = Capture(activities);
 
         var result = await service.PredictObservedMatchAsync(
             CreateTestMatch(), CreateTestContextDocuments(), requirement,
@@ -42,7 +42,7 @@ public sealed class PredictionService_Observed_Tests : PredictionServiceTests_Ba
         await Assert.That(result.Evidence.ServiceTier.FinalTier).IsEqualTo("flex");
         await Assert.That(result.Evidence.Usage.InputTokens).IsEqualTo(1000);
         await Assert.That(result.Evidence.Usage.CostUsd).IsEqualTo(0.0123m);
-        var activity = activities.Single(value => value.OperationName == "predict-match");
+        var activity = capture.Single(activities, "predict-match");
         await Assert.That(activity.Status).IsEqualTo(ActivityStatusCode.Ok);
         await Assert.That(activity.GetTagItem("langfuse.observation.prompt.name"))
             .IsEqualTo(PromptName);
@@ -70,12 +70,12 @@ public sealed class PredictionService_Observed_Tests : PredictionServiceTests_Ba
             .Returns((decimal?)null);
         var service = CreateObservedService(model, provider.Object, cost.Object);
         var activities = new ConcurrentQueue<Activity>();
-        using var listener = Capture(activities);
+        using var capture = Capture(activities);
 
         async Task Act() => await service.PredictObservedMatchAsync(
             CreateTestMatch(), CreateTestContextDocuments(), requirement);
         await Assert.That(Act).Throws<ObservedPredictionException>();
-        var activity = activities.Single(value => value.OperationName == "predict-match");
+        var activity = capture.Single(activities, "predict-match");
         await Assert.That(activity.Status).IsEqualTo(ActivityStatusCode.Error);
         await Assert.That(activity.StatusDescription).IsEqualTo("observed-prediction-failed");
         await Assert.That(activity.GetTagItem("langfuse.observation.input")).IsNull();
@@ -156,13 +156,13 @@ public sealed class PredictionService_Observed_Tests : PredictionServiceTests_Ba
         var service = CreateObservedService(
             model, provider.Object, CreateMockCostCalculationService().Object);
         var activities = new ConcurrentQueue<Activity>();
-        using var listener = Capture(activities);
+        using var capture = Capture(activities);
 
         async Task Act() => await service.PredictObservedMatchAsync(
             CreateTestMatch(), CreateTestContextDocuments(), requirement,
             cancellationToken: source.Token);
         await Assert.That(Act).Throws<OperationCanceledException>();
-        var activity = activities.Single(value => value.OperationName == "predict-match");
+        var activity = capture.Single(activities, "predict-match");
         await Assert.That(activity.Status).IsEqualTo(ActivityStatusCode.Error);
         await Assert.That(activity.StatusDescription).IsEqualTo("observed-prediction-cancelled");
         await Assert.That(activity.GetTagItem("langfuse.observation.input")).IsNull();
@@ -219,7 +219,7 @@ public sealed class PredictionService_Observed_Tests : PredictionServiceTests_Ba
         var service = CreateObservedService(
             model, provider.Object, cost.Object, client.Object, legacy.Object);
         var activities = new ConcurrentQueue<Activity>();
-        using var listener = Capture(activities);
+        using var capture = Capture(activities);
 
         var results = await Task.WhenAll(
             service.PredictObservedMatchAsync(
@@ -237,9 +237,9 @@ public sealed class PredictionService_Observed_Tests : PredictionServiceTests_Ba
         await Assert.That(results[1].Evidence.ServiceTier.FinalTier).IsEqualTo("default");
         await Assert.That(results[1].Evidence.Usage.InputTokens).IsEqualTo(200);
         await Assert.That(results[1].Evidence.Usage.CostUsd).IsEqualTo(0.02m);
-        var firstActivity = activities.Single(value =>
+        var firstActivity = capture.Owned(activities, "predict-match").Single(value =>
             Equals(value.GetTagItem("langfuse.observation.metadata.homeTeam"), "first-meta"));
-        var secondActivity = activities.Single(value =>
+        var secondActivity = capture.Owned(activities, "predict-match").Single(value =>
             Equals(value.GetTagItem("langfuse.observation.metadata.homeTeam"), "second-meta"));
         await Assert.That(firstActivity.GetTagItem("gen_ai.response.service_tier"))
             .IsEqualTo("flex");
@@ -270,7 +270,7 @@ public sealed class PredictionService_Observed_Tests : PredictionServiceTests_Ba
         var service = CreateObservedService(model, provider.Object, cost.Object,
             CreateMockChatClient("""{"selectedOptionIds":["opt1"]}"""));
         var activities = new ConcurrentQueue<Activity>();
-        using var listener = Capture(activities);
+        using var capture = Capture(activities);
 
         var result = await service.PredictObservedBonusQuestionAsync(
             CreateTestBonusQuestion(), [], requirement);
@@ -279,10 +279,52 @@ public sealed class PredictionService_Observed_Tests : PredictionServiceTests_Ba
 
         await Assert.That(result.SelectedOptionIds).IsEquivalentTo(["opt1"]);
         await Assert.That(result.Evidence.Usage.CostUsd).IsEqualTo(0.02m);
-        var activity = activities.Single(value => value.OperationName == "predict-bonus");
+        var activity = capture.Single(activities, "predict-bonus");
         await Assert.That(activity.Status).IsEqualTo(ActivityStatusCode.Ok);
         await Assert.That(activity.GetTagItem("langfuse.observation.output"))
             .IsEqualTo("""{"selectedOptionIds":["opt1"]}""");
+    }
+
+    [Test]
+    public async Task Bonus_capture_ignores_a_foreign_same_name_activity_from_another_trace()
+    {
+        var model = Model();
+        var requirement = Requirement(model);
+        var provider = new Mock<IObservedInstructionsTemplateProvider>();
+        provider.Setup(value => value.LoadObservedBonusTemplateAsync(
+                requirement, It.IsAny<CancellationToken>()))
+            .ReturnsAsync(Hosted(requirement));
+        var cost = CreateMockCostCalculationService();
+        cost.Setup(value => value.CalculateCost(
+                model.Model, It.IsAny<OpenAI.Chat.ChatTokenUsage>(), "flex"))
+            .Returns(0.02m);
+        var service = CreateObservedService(
+            model, provider.Object, cost.Object,
+            CreateMockChatClient("""{"selectedOptionIds":["opt1"]}"""));
+        var activities = new ConcurrentQueue<Activity>();
+        using var capture = Capture(activities);
+        var foreignTraceId = ActivityTraceId.CreateRandom();
+        var foreignParent = new ActivityContext(
+            foreignTraceId,
+            ActivitySpanId.CreateRandom(),
+            ActivityTraceFlags.Recorded);
+
+        using (var foreign = Telemetry.Source.StartActivity(
+                   "predict-bonus", ActivityKind.Internal, foreignParent)
+               ?? throw new InvalidOperationException("Expected foreign capture activity."))
+        {
+            foreign.SetStatus(ActivityStatusCode.Ok);
+        }
+        var result = await service.PredictObservedBonusQuestionAsync(
+            CreateTestBonusQuestion(), [], requirement);
+
+        var owned = capture.Single(activities, "predict-bonus");
+        var foreignStopped = activities.Single(value =>
+            value.TraceId == foreignTraceId && value.OperationName == "predict-bonus");
+        await Assert.That(result.SelectedOptionIds).IsEquivalentTo(["opt1"]);
+        await Assert.That(owned.TraceId).IsEqualTo(capture.TraceId);
+        await Assert.That(foreignStopped.TraceId).IsEqualTo(foreignTraceId);
+        await Assert.That(foreignStopped.TraceId == owned.TraceId).IsFalse();
     }
 
     [Test]
@@ -299,7 +341,7 @@ public sealed class PredictionService_Observed_Tests : PredictionServiceTests_Ba
         var service = CreateObservedService(
             model, provider.Object, CreateMockCostCalculationService().Object);
         var activities = new ConcurrentQueue<Activity>();
-        using var listener = Capture(activities);
+        using var capture = Capture(activities);
 
         ObservedPredictionException? caught = null;
         try
@@ -315,7 +357,7 @@ public sealed class PredictionService_Observed_Tests : PredictionServiceTests_Ba
 
         await Assert.That(caught).IsNotNull();
         await Assert.That(caught!.InnerException).IsSameReferenceAs(failure);
-        var activity = activities.Single(value => value.OperationName == "predict-match");
+        var activity = capture.Single(activities, "predict-match");
         await Assert.That(activity.Status).IsEqualTo(ActivityStatusCode.Error);
         await Assert.That(activity.StatusDescription).IsEqualTo("observed-prediction-failed");
         await Assert.That(ActivityText(activity)).DoesNotContain(secret);
@@ -344,7 +386,7 @@ public sealed class PredictionService_Observed_Tests : PredictionServiceTests_Ba
         await Assert.That(withoutListener.InnerException).IsSameReferenceAs(failure);
 
         var activities = new ConcurrentQueue<Activity>();
-        using var listener = Capture(activities);
+        using var capture = Capture(activities);
         var matchFailure = await CaptureFailure(bonus: false);
         var bonusFailure = await CaptureFailure(bonus: true);
 
@@ -353,7 +395,7 @@ public sealed class PredictionService_Observed_Tests : PredictionServiceTests_Ba
         provider.VerifyNoOtherCalls();
         foreach (var operationName in new[] { "predict-match", "predict-bonus" })
         {
-            var activity = activities.Single(value => value.OperationName == operationName);
+            var activity = capture.Single(activities, operationName);
             await Assert.That(activity.Status).IsEqualTo(ActivityStatusCode.Error);
             await Assert.That(activity.StatusDescription).IsEqualTo("observed-prediction-failed");
             await Assert.That(ActivityText(activity)).DoesNotContain(secret);
@@ -413,17 +455,66 @@ public sealed class PredictionService_Observed_Tests : PredictionServiceTests_Ba
         return provider;
     }
 
-    private static ActivityListener Capture(ConcurrentQueue<Activity> activities)
+    private static ActivityCaptureScope Capture(ConcurrentQueue<Activity> activities) =>
+        ActivityCaptureScope.Create(activities);
+
+    private sealed class ActivityCaptureScope : IDisposable
     {
-        var listener = new ActivityListener
+        private readonly Activity _parent;
+        private readonly ActivityListener _listener;
+
+        private ActivityCaptureScope(Activity parent, ActivityListener listener)
         {
-            ShouldListenTo = source => source.Name == "KicktippAi",
-            Sample = static (ref ActivityCreationOptions<ActivityContext> _) =>
-                ActivitySamplingResult.AllData,
-            ActivityStopped = activities.Enqueue
-        };
-        ActivitySource.AddActivityListener(listener);
-        return listener;
+            _parent = parent;
+            _listener = listener;
+            TraceId = parent.TraceId;
+        }
+
+        public ActivityTraceId TraceId { get; }
+
+        public static ActivityCaptureScope Create(ConcurrentQueue<Activity> activities)
+        {
+            var listener = new ActivityListener
+            {
+                ShouldListenTo = source => source.Name == "KicktippAi",
+                Sample = static (ref ActivityCreationOptions<ActivityContext> _) =>
+                    ActivitySamplingResult.AllData,
+                ActivityStopped = activities.Enqueue
+            };
+            ActivitySource.AddActivityListener(listener);
+            var expectedTraceId = ActivityTraceId.CreateRandom();
+            var parent = new Activity("observed-prediction-test-capture")
+                .SetIdFormat(ActivityIdFormat.W3C)
+                .SetParentId(
+                    expectedTraceId,
+                    ActivitySpanId.CreateRandom(),
+                    ActivityTraceFlags.Recorded)
+                .Start();
+            if (parent.TraceId != expectedTraceId)
+            {
+                parent.Stop();
+                listener.Dispose();
+                throw new InvalidOperationException("Observed test capture trace could not be isolated.");
+            }
+
+            return new ActivityCaptureScope(parent, listener);
+        }
+
+        public IEnumerable<Activity> Owned(
+            ConcurrentQueue<Activity> activities,
+            string operationName) => activities.Where(value =>
+            value.TraceId == TraceId
+            && string.Equals(value.OperationName, operationName, StringComparison.Ordinal));
+
+        public Activity Single(
+            ConcurrentQueue<Activity> activities,
+            string operationName) => Owned(activities, operationName).Single();
+
+        public void Dispose()
+        {
+            _parent.Stop();
+            _listener.Dispose();
+        }
     }
 
     private static string ActivityText(Activity activity) => string.Join('|',
