@@ -111,7 +111,10 @@ def main() -> None:
     args = parser.parse_args()
 
     analysis = json.loads(args.analysis.read_text(encoding="utf-8"))
-    cutoff = parse_time(analysis["generated_at"])
+    cutoff = parse_time(
+        analysis.get("source", {}).get("event_cutoff_at")
+        or analysis["generated_at"]
+    )
     tool_rows: list[dict[str, Any]] = []
     for thread in analysis["threads"]:
         log = args.sessions_dir / thread["log_file"]
@@ -120,7 +123,7 @@ def main() -> None:
             for line in handle:
                 record = json.loads(line)
                 record_timestamp = record.get("timestamp")
-                if record_timestamp and parse_time(record_timestamp) > cutoff:
+                if not record_timestamp or parse_time(record_timestamp) > cutoff:
                     continue
                 if record.get("type") != "response_item":
                     continue

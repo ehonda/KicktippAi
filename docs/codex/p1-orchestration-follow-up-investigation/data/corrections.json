@@ -27,7 +27,7 @@
     "worker_normalized_change": -0.0558,
     "conclusion": "The wall-clock token-rate reduction mostly tracks reduced worker activity. Accepted-work-per-token or accepted-work-per-quota efficiency is not established by this snapshot."
   },
-  "quota_interpretation": "Quota consumption is not an orchestration throttle. Faster quota use is acceptable when it buys useful accepted work, especially near resets; the workflow must not introspect or schedule around subscription quota.",
+  "quota_interpretation": "Quota consumption is not an orchestration throttle. Faster quota use is acceptable when it buys useful accepted work; the workflow must not introspect or schedule around subscription quota.",
   "polling_interpretation": "The nearly unchanged wait_agent rate is a weak headline metric. Root-owned external CI polling caused by the unavailable monitor slot is actionable; generic event-wait cadence is not evidence of inefficiency by itself.",
   "post_cutoff_addendum": {
     "separate_from_snapshot": true,

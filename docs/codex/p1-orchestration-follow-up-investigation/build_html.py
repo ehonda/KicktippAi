@@ -12,6 +12,8 @@ import pathlib
 import re
 from typing import Any
 
+from verify_snapshot import verify_data_dir
+
 
 class Inspector(HTMLParser):
     def __init__(self) -> None:
@@ -121,10 +123,10 @@ def build_payload(data_dir: pathlib.Path, old_data_dir: pathlib.Path) -> dict[st
         {"name": "Whole-phase preview", "verdict": "Worked", "tone": "good", "evidence": "Architecture, status, and independent specification audits ran before implementation; five later P1 nodes remained needs-interview.", "caveat": "The owner still had to ask whether implementation had begun, so the preview-to-execution boundary was not sufficiently visible."},
         {"name": "Production continuity", "verdict": "Strongest win", "tone": "good", "evidence": "Recovered main stayed separate from draft PR #97, and the exact recovered SHA passed a full 16-job production-live run.", "caveat": "Much of this snapshot is recovery work caused by the earlier run, so it is valuable output but not ordinary feature throughput."},
         {"name": "Milestone publication", "verdict": "Worked", "tone": "good", "evidence": "Two main CI runs and three PR milestone runs replaced fourteen baseline main runs; flawed R1 commits stayed local.", "caveat": "The draft branch is not merge-ready, so the final release cadence remains untested."},
-        {"name": "Machine admission", "verdict": "Useful, over-conservative", "tone": "mixed", "evidence": "One heavy lease, no classified dotnet overlap, at most two linked task worktrees, and fail-closed low-memory denial.", "caveat": "A post-cutoff 1.48 GiB sample missed the 1.50 GiB floor by 0.02 GiB. Lower the hard floor to 1.10 GiB, keep 1.50 GiB as a warning, and calibrate from operation outcomes."},
+        {"name": "Machine admission", "verdict": "Useful, calibration needed", "tone": "mixed", "evidence": "One heavy lease, no classified dotnet overlap, at most two linked task worktrees, and fail-closed low-memory denial.", "caveat": "The cutoff establishes serialization and a low-memory denial, but not whether the 1.50 GiB floor optimized useful output. Calibrate the new 1.10 GiB floor from operation outcomes."},
         {"name": "Ledger coalescing", "verdict": "Material gain", "tone": "good", "evidence": "106 versus 375 patches; 10.2 versus 28.4 patches per adjusted hour; current state is roughly one-third the prior size.", "caveat": "Six compactions still occurred and root wait frequency was unchanged."},
         {"name": "Architecture + spec roles", "verdict": "Valuable, costly", "tone": "mixed", "evidence": "All six design-review turns found concrete corrections; architecture/review prevented unsafe or underspecified work from crossing gates.", "caveat": "The xhigh portfolio used 45.6M tokens and later absorbed artifact review, while R1 still needed three correction cycles."},
-        {"name": "Persistent role reuse", "verdict": "Needs explicit release", "tone": "warn", "evidence": "Turns per thread rose from 1.90 to 2.59 and realized threads fell from 78 to 27; continuity was valuable in several correction cycles.", "caveat": "Three retained threads exhausted task-agent capacity, blocked a Luna monitor, and later serialized concurrent-ready R2 siblings. Retention needs a reason and release trigger."},
+        {"name": "Persistent role reuse", "verdict": "Needs explicit release", "tone": "warn", "evidence": "Turns per thread rose from 1.90 to 2.59 and realized threads fell from 78 to 27; continuity was valuable in several correction cycles.", "caveat": "Three retained threads exhausted task-agent capacity and blocked a Luna monitor. Retention needs a reason and release trigger."},
         {"name": "Bounded Git authority", "verdict": "Worked", "tone": "good", "evidence": "Pushes and draft-PR updates proceeded without the baseline's surprise publication-approval pause, with explicit exact-target preflights.", "caveat": "This evaluates the allowed main/branch/PR path only; merge authority was correctly not exercised."},
         {"name": "Compaction recovery", "verdict": "Worked", "tone": "good", "evidence": "Six root compactions did not lose run identity, ownership, exact SHAs, resource leases, or the deferred interview frontier.", "caveat": "Compactions per adjusted hour increased slightly, so recovery became safer rather than rarer."},
         {"name": "Root control plane", "verdict": "Disciplined, attribution unclear", "tone": "mixed", "evidence": "Root source changes stayed at orchestration/integration boundaries and worker work remained delegated.", "caveat": "Root share rose from 37.6% to 59.1%, but lower worker concurrency mechanically raises that share. Root-owned CI polling caused by the blocked monitor is the concrete waste signal."},
@@ -157,7 +159,8 @@ def build_payload(data_dir: pathlib.Path, old_data_dir: pathlib.Path) -> dict[st
     }
 
 
-def validate(output: str, payload: dict[str, Any]) -> None:
+def validate(output: str, payload: dict[str, Any], data_dir: pathlib.Path) -> None:
+    verify_data_dir(data_dir)
     if "__REPORT_DATA__" in output:
         raise ValueError("Report payload was not embedded")
     inspector = Inspector()
@@ -220,10 +223,10 @@ HTML = r'''<!doctype html>
       <div class="section-head"><h2>Parallelism declined—substantially.</h2><p>The successor occasionally reached three task agents, but most useful work ran as one dependency-bound lane. That is primarily a comparison of runnable-graph width, not a clean machine-policy experiment.</p></div>
       <div class="grid2">
         <article class="card"><span class="signal mixed">Measured tradeoff</span><h3>Concurrency comparison</h3><div class="legend"><span><i class="old"></i>first P1 sample</span><span><i class="new"></i>successor</span></div><div class="compare" id="parallel-bars"></div></article>
-        <article class="card"><span class="signal good">Machine discipline</span><h3>Heavy work stopped competing</h3><p>Resource checks gated every worktree/heavy transition. Directly classified dotnet calls never overlapped, and the cutoff's low-memory sample denied another heavy family.</p><div class="facts"><div class="fact"><strong>38</strong><span>resource samples</span></div><div class="fact"><strong>1</strong><span>max dotnet overlap</span></div><div class="fact"><strong>19.1%</strong><span>worker time in tools · was 42.8%</span></div></div><div class="callout">Keep the single heavy lease. Calibrate the memory cliff separately: the post-cutoff 1.48 GiB denial shows that the old 1.50 GiB hard floor was too brittle.</div></article>
+        <article class="card"><span class="signal good">Machine discipline</span><h3>Heavy work stopped competing</h3><p>Resource checks gated every worktree/heavy transition. Directly classified dotnet calls never overlapped, and the cutoff's low-memory sample denied another heavy family.</p><div class="facts"><div class="fact"><strong>38</strong><span>resource samples</span></div><div class="fact"><strong>1</strong><span>max dotnet overlap</span></div><div class="fact"><strong>19.1%</strong><span>worker time in tools · was 42.8%</span></div></div><div class="callout">Keep the single heavy lease. Treat the 1.50 GiB cutoff floor as an uncalibrated policy choice and measure outcomes under the new 1.10 GiB floor.</div></article>
       </div>
       <div class="grid3" style="margin-top:14px">
-        <article class="card"><span class="signal warn">Capacity seam</span><h3>“Idle and recallable” still used a slot</h3><p>Architecture, specification review, and the writer occupied all three spawned-agent slots. A Luna monitor could not start, so root polled CI itself; later, concurrent-ready R2 siblings were serialized.</p></article>
+        <article class="card"><span class="signal warn">Capacity seam</span><h3>“Idle and recallable” still used a slot</h3><p>Architecture, specification review, and the writer occupied all three spawned-agent slots. A Luna monitor could not start, so root polled CI itself.</p></article>
         <article class="card"><span class="signal mixed">Dominant constraint</span><h3>Only one task had been grilled</h3><p>Recovery, exact review, CI, R0 specification, R1 contract code, and three remediation cycles formed one gated P1-10 chain. The rest of the P1 frontier was intentionally not ready to execute.</p></article>
         <article class="card"><span class="signal good">No collapse</span><h3>Burst concurrency reached three</h3><p>The runtime and policy can still overlap read/review work. The problem is lane availability and slot reservation, not a universal one-agent cap.</p></article>
       </div>
@@ -304,7 +307,7 @@ def main() -> None:
     payload = build_payload(args.data_dir, args.old_data_dir)
     encoded = json.dumps(payload, ensure_ascii=False, separators=(",", ":")).replace("</", "<\\/")
     output = HTML.replace("__REPORT_DATA__", encoded)
-    validate(output, payload)
+    validate(output, payload, args.data_dir)
     args.output.parent.mkdir(parents=True, exist_ok=True)
     args.output.write_text(output, encoding="utf-8", newline="\n")
     print(f"Wrote {args.output} ({args.output.stat().st_size:,} bytes)")

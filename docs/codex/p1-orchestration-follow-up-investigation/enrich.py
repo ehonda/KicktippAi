@@ -4,6 +4,7 @@
 from __future__ import annotations
 
 import csv
+import argparse
 import importlib.util
 import json
 import pathlib
@@ -113,8 +114,14 @@ def pct_change(old: float, new: float) -> float:
 
 
 def main() -> None:
-    data_dir = pathlib.Path(__file__).parent / "data"
-    repo = pathlib.Path(__file__).resolve().parents[3]
+    parser = argparse.ArgumentParser()
+    parser.add_argument("--analysis", type=pathlib.Path, default=pathlib.Path(__file__).parent / "data" / "analysis.json")
+    parser.add_argument("--output-dir", type=pathlib.Path, default=pathlib.Path(__file__).parent / "data")
+    parser.add_argument("--repo", type=pathlib.Path, default=pathlib.Path(__file__).resolve().parents[3])
+    parser.add_argument("--sessions-dir", type=pathlib.Path, default=pathlib.Path.home() / ".codex" / "sessions")
+    args = parser.parse_args()
+    data_dir = args.output_dir
+    repo = args.repo
     old_data = pathlib.Path(__file__).parents[1] / "p1-orchestration-interim-investigation" / "data"
 
     module = load_shared_enricher()
@@ -134,23 +141,22 @@ def main() -> None:
     module.main()
 
     analysis = json.loads((data_dir / "analysis.json").read_text(encoding="utf-8"))
-    cutoff = parse_time(analysis["generated_at"])
+    cutoff = parse_time(
+        analysis.get("source", {}).get("event_cutoff_at")
+        or analysis["generated_at"]
+    )
     old_analysis = json.loads((old_data / "analysis.json").read_text(encoding="utf-8"))
     derived = json.loads((data_dir / "derived-metrics.json").read_text(encoding="utf-8"))
     old_derived = json.loads((old_data / "derived-metrics.json").read_text(encoding="utf-8"))
 
-    refs = git(
-        repo, "for-each-ref",
-        "--format=%(refname:short)%09%(objectname)%09%(committerdate:iso-strict)%09%(subject)",
-        "refs/remotes/origin/codex/01a054ee-*", "refs/heads/codex/01a054ee-*",
-    )
-    branch_rows = []
-    for line in refs.splitlines():
-        if not line:
-            continue
-        ref, sha, committed_at, subject = line.split("\t", 3)
-        if parse_time(committed_at) <= cutoff:
-            branch_rows.append({"ref": ref, "sha": sha, "committed_at": committed_at, "subject": subject})
+    branch_snapshot = json.loads((data_dir / "branch-snapshot.json").read_text(encoding="utf-8"))
+    branch_rows = branch_snapshot["rows"]
+    if branch_snapshot.get("schema_version") != 1:
+        raise ValueError("branch-snapshot.json must use schema 1")
+    if parse_time(branch_snapshot["captured_at"]) < cutoff:
+        raise ValueError("branch snapshot predates the event cutoff")
+    if any(parse_time(row["committed_at"]) > cutoff for row in branch_rows):
+        raise ValueError("branch snapshot contains a post-cutoff commit")
     write_csv(data_dir / "branches.csv", branch_rows, ["ref", "sha", "committed_at", "subject"])
 
     review_rows = []
@@ -183,6 +189,12 @@ def main() -> None:
     new_usage = new_summary["usage"]
     old_non_cached = old_usage["input_tokens"] - old_usage["cached_input_tokens"] + old_usage["output_tokens"]
     new_non_cached = new_usage["input_tokens"] - new_usage["cached_input_tokens"] + new_usage["output_tokens"]
+    old_worker_usage = old_summary["subagent_usage"]
+    new_worker_usage = new_summary["subagent_usage"]
+    old_worker_non_cached = old_worker_usage["input_tokens"] - old_worker_usage["cached_input_tokens"] + old_worker_usage["output_tokens"]
+    new_worker_non_cached = new_worker_usage["input_tokens"] - new_worker_usage["cached_input_tokens"] + new_worker_usage["output_tokens"]
+    old_worker_active_seconds = sum(thread["active_seconds"] for thread in old_analysis["threads"] if thread["kind"] == "subagent")
+    new_worker_active_seconds = sum(thread["active_seconds"] for thread in analysis["threads"] if thread["kind"] == "subagent")
 
     with (data_dir / "tool-timings.csv").open(encoding="utf-8", newline="") as handle:
         tools = list(csv.DictReader(handle))
@@ -211,9 +223,11 @@ def main() -> None:
     new_tokens_per_hour = rate(new_usage["total_tokens"], new_effective)
     old_non_cached_per_hour = rate(old_non_cached, old_effective)
     new_non_cached_per_hour = rate(new_non_cached, new_effective)
+    old_worker_non_cached_per_hour = rate(old_worker_non_cached, old_worker_active_seconds)
+    new_worker_non_cached_per_hour = rate(new_worker_non_cached, new_worker_active_seconds)
 
     comparison = {
-        "schema_version": 1,
+        "schema_version": 2,
         "snapshot": {
             "old_run": old_summary["root_thread_id"],
             "new_run": new_summary["root_thread_id"],
@@ -243,6 +257,9 @@ def main() -> None:
             "non_cached_plus_output_rate_change": round(pct_change(old_non_cached_per_hour, new_non_cached_per_hour), 4),
             "old_worker_tokens_per_worker_hour": round(rate(old_summary["subagent_usage"]["total_tokens"], old_summary["concurrency"]["aggregate_worker_seconds"])),
             "new_worker_tokens_per_worker_hour": round(rate(new_summary["subagent_usage"]["total_tokens"], new_summary["concurrency"]["aggregate_worker_seconds"])),
+            "old_worker_non_cached_plus_output_tokens_per_worker_hour": round(old_worker_non_cached_per_hour),
+            "new_worker_non_cached_plus_output_tokens_per_worker_hour": round(new_worker_non_cached_per_hour),
+            "worker_non_cached_plus_output_rate_change": round(pct_change(old_worker_non_cached_per_hour, new_worker_non_cached_per_hour), 4),
             "root_share_old": round(old_summary["root_usage"]["total_tokens"] / old_usage["total_tokens"], 4),
             "root_share_new": round(new_summary["root_usage"]["total_tokens"] / new_usage["total_tokens"], 4),
             "old_root_tokens_per_effective_hour": round(rate(old_summary["root_usage"]["total_tokens"], old_effective)),

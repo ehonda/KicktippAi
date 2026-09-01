@@ -73,6 +73,16 @@ $formerCliff = & $helper -Admission Heavy -Sample @{
 Assert-True $formerCliff.HeavyOperationAdmission.Allowed '1.48 GiB must no longer fail heavy admission'
 Assert-True ($formerCliff.Warnings.Count -eq 1) '1.48 GiB should retain the low-memory warning'
 
+$warningBoundary = & $helper -Admission Heavy -Sample @{
+    FreeDiskGiB = 30
+    TotalDiskGiB = 200
+    AvailableMemoryGiB = 1.5
+    LogicalProcessors = 4
+    LinkedTaskWorktrees = 0
+}
+Assert-True $warningBoundary.HeavyOperationAdmission.Allowed 'the 1.50 GiB warning boundary must admit one heavy operation'
+Assert-True ($warningBoundary.Warnings.Count -eq 0) 'the exact 1.50 GiB warning boundary must not warn'
+
 $singleLease = & $helper -Admission Heavy -ActiveHeavyOperations 1 -Sample @{
     FreeDiskGiB = 30
     TotalDiskGiB = 200

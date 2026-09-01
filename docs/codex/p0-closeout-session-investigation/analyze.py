@@ -30,6 +30,8 @@ ROOT_LOG_NAME = (
 LOCAL_ZONE = ZoneInfo("Europe/Berlin")
 SESSION_BASE_COMMIT = "6d0fca3"
 SESSION_FINAL_COMMIT = "2c824c8"
+EVENT_CUTOFF_UTC: datetime | None = None
+ANALYSIS_GENERATED_AT_UTC: str | None = None
 
 # Filled from official OpenAI model pages and intentionally date-stamped in
 # the generated output. Rates are USD per one million tokens.
@@ -151,6 +153,10 @@ def discover_family(
             meta = read_related_meta(path)
         except (json.JSONDecodeError, OSError, ValueError):
             continue
+        if meta and EVENT_CUTOFF_UTC is not None:
+            spawned_at = parse_time(meta.get("spawned_at"))
+            if spawned_at is None or spawned_at > EVENT_CUTOFF_UTC:
+                continue
         if meta and meta["kind"] == "subagent":
             children_by_parent[meta["parent_thread_id"]].append(meta)
         elif meta and meta["kind"] == "guardian":
@@ -324,17 +330,23 @@ def parse_thread(meta: dict[str, Any], root_turn_ids: set[str]) -> dict[str, Any
     first_timestamp: datetime | None = None
     last_timestamp: datetime | None = None
     line_count = 0
+    included_log_bytes = 0
     inbound_agent_messages = 0
     compactions = 0
     max_input_tokens_per_response = 0
     responses_over_272k_input = 0
     spawn_agent_calls: list[dict[str, Any]] = []
 
-    with path.open("r", encoding="utf-8") as handle:
-        for line_number, line in enumerate(handle, 1):
-            line_count = line_number
-            record = json.loads(line)
+    with path.open("rb") as handle:
+        for line_number, raw_line in enumerate(handle, 1):
+            record = json.loads(raw_line.decode("utf-8"))
             record_time = parse_time(record.get("timestamp"))
+            if EVENT_CUTOFF_UTC is not None and (
+                record_time is None or record_time > EVENT_CUTOFF_UTC
+            ):
+                continue
+            line_count += 1
+            included_log_bytes += len(raw_line)
             if record_time:
                 first_timestamp = min(first_timestamp, record_time) if first_timestamp else record_time
                 last_timestamp = max(last_timestamp, record_time) if last_timestamp else record_time
@@ -348,6 +360,10 @@ def parse_thread(meta: dict[str, Any], root_turn_ids: set[str]) -> dict[str, Any
                 if subtype == "task_started":
                     turn_id = payload.get("turn_id")
                     started_at = parse_time(payload.get("started_at")) or record_time
+                    if EVENT_CUTOFF_UTC is not None and (
+                        started_at is None or started_at > EVENT_CUTOFF_UTC
+                    ):
+                        continue
                     is_actual = meta["kind"] in {"root", "guardian"} or (
                         turn_id not in root_turn_ids
                         and started_at is not None
@@ -366,9 +382,16 @@ def parse_thread(meta: dict[str, Any], root_turn_ids: set[str]) -> dict[str, Any
                         first_actual_line = first_actual_line or line_number
                 elif subtype == "task_complete":
                     turn_id = payload.get("turn_id")
-                    if turn_id in actual_starts:
+                    completed_at = parse_time(payload.get("completed_at")) or record_time
+                    if (
+                        turn_id in actual_starts
+                        and not (
+                            EVENT_CUTOFF_UTC is not None
+                            and (completed_at is None or completed_at > EVENT_CUTOFF_UTC)
+                        )
+                    ):
                         completions[turn_id] = {
-                            "completed_at": parse_time(payload.get("completed_at")) or record_time,
+                            "completed_at": completed_at,
                             "duration_ms": payload.get("duration_ms"),
                             "time_to_first_token_ms": payload.get("time_to_first_token_ms"),
                             "error": payload.get("error"),
@@ -566,7 +589,7 @@ def parse_thread(meta: dict[str, Any], root_turn_ids: set[str]) -> dict[str, Any
         "role": meta["role"],
         "task_group": task_group(meta["agent_path"]),
         "log_file": str(path.relative_to(pathlib.Path.home() / ".codex" / "sessions")),
-        "log_bytes": path.stat().st_size,
+        "log_bytes": included_log_bytes,
         "log_lines": line_count,
         "spawned_at": iso_utc(spawn_time or first_timestamp),
         "spawned_at_local": iso_local(spawn_time or first_timestamp),
@@ -1058,11 +1081,13 @@ def main() -> None:
 
     output = {
         "schema_version": 3,
-        "generated_at": datetime.now(timezone.utc).isoformat().replace("+00:00", "Z"),
+        "generated_at": ANALYSIS_GENERATED_AT_UTC
+        or datetime.now(timezone.utc).isoformat().replace("+00:00", "Z"),
         "source": {
             "root_thread_id": ROOT_THREAD_ID,
             "root_log": str(root_log.relative_to(args.sessions_dir)),
             "session_family_rule": "Recursive thread_spawn.parent_thread_id descendants only",
+            "event_cutoff_at": iso_utc(EVENT_CUTOFF_UTC),
             "complete_message_bodies_included": False,
         },
         "pricing": {

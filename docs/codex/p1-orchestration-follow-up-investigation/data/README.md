@@ -17,6 +17,8 @@ store and are not committed.
 - `commits.csv`, `commit-stats.csv`: first-parent history for
   `71637cc..5891d48` and per-commit file/line counts.
 - `branches.csv`: local and remote `codex/01a054ee-*` refs visible at cutoff.
+- `branch-snapshot.json`: immutable source rows for those refs; unlike current
+  refs, these cannot move after the cutoff.
 - `review-turns.csv`: bounded verdict excerpts for design/specification and
   exact-artifact review turns.
 - `tool-timings.csv`: completed tool calls, elapsed time, role, nested tool
@@ -35,10 +37,15 @@ store and are not committed.
 From the repository root:
 
 ```powershell
-uv --cache-dir .uv-cache run python docs/codex/p1-orchestration-follow-up-investigation/analyze.py --output-dir docs/codex/p1-orchestration-follow-up-investigation/data --repo . --quiet
-uv --cache-dir .uv-cache run python docs/codex/p1-orchestration-follow-up-investigation/enrich.py --analysis docs/codex/p1-orchestration-follow-up-investigation/data/analysis.json --output-dir docs/codex/p1-orchestration-follow-up-investigation/data --repo .
-uv --cache-dir .uv-cache run python docs/codex/p1-orchestration-follow-up-investigation/build_html.py
+uv --cache-dir .uv-cache run --no-project --with tzdata python docs/codex/p1-orchestration-follow-up-investigation/analyze.py --output-dir docs/codex/p1-orchestration-follow-up-investigation/data --repo . --quiet
+uv --cache-dir .uv-cache run --no-project python docs/codex/p1-orchestration-follow-up-investigation/enrich.py --analysis docs/codex/p1-orchestration-follow-up-investigation/data/analysis.json --output-dir docs/codex/p1-orchestration-follow-up-investigation/data --repo .
+uv --cache-dir .uv-cache run --no-project python docs/codex/p1-orchestration-follow-up-investigation/verify_snapshot.py
+uv --cache-dir .uv-cache run --no-project python docs/codex/p1-orchestration-follow-up-investigation/build_html.py
 ```
+
+The adapter fixes an immutable transcript-event cutoff. The verifier rejects a
+live-log rerun if root, descendant, guardian, turn, tool, commit-boundary, or
+comparison metrics escape or drift from that frozen snapshot.
 
 The authenticated GitHub evidence was collected with read-only `gh run list`
 and `gh pr list` calls against `ehonda/KicktippAi` and then restricted to the

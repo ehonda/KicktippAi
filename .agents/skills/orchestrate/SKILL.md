@@ -88,7 +88,7 @@ machine budgets permit it; never manufacture work simply to fill slots.
 
 - Keep at most two concurrent writers with disjoint ownership and at most two
   admitted writable task worktrees.
-- Keep exactly one heavy-operation family. Read, review, research, or bounded
+- Keep at most one active heavy-operation family. Read, review, research, or bounded
   editing may overlap it.
 - Give every retained specialist a retention reason and release trigger. Mark
   release due at acceptance, freeze, review-surface change, or the recorded

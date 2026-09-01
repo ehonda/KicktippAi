@@ -22,6 +22,8 @@ ROOT_LOG_NAME = (
 )
 SESSION_BASE_COMMIT = "71637cc154cfdcbe2436069470b5e04b0d4f753d"
 SESSION_FINAL_COMMIT = "5891d48"
+SESSION_EVENT_CUTOFF = "2026-08-31T20:04:43.872Z"
+SNAPSHOT_GENERATED_AT = "2026-08-31T20:05:11.408139Z"
 
 
 def load_shared_extractor() -> Any:
@@ -153,6 +155,8 @@ def main() -> None:
     module.ROOT_LOG_NAME = ROOT_LOG_NAME
     module.SESSION_BASE_COMMIT = SESSION_BASE_COMMIT
     module.SESSION_FINAL_COMMIT = SESSION_FINAL_COMMIT
+    module.EVENT_CUTOFF_UTC = module.parse_time(SESSION_EVENT_CUTOFF)
+    module.ANALYSIS_GENERATED_AT_UTC = SNAPSHOT_GENERATED_AT
     module.task_group = classify_task_group
     module.turn_task_group = classify_turn_task_group
     module.classify_root_user_message = classify_root_user_message

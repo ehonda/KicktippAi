@@ -33,7 +33,7 @@
         "43 classified dotnet calls had maximum overlap one",
         "subagent tool share fell from 42.79% to 19.10% of worker-active time",
         "the cutoff sample denied below the conservative 1.50 GiB memory floor",
-        "a separate post-cutoff 1.48 GiB sample shows the floor can block on a 0.02 GiB shortfall and should be calibrated"
+        "the cutoff establishes that the floor denied work, but operation outcomes are needed to calibrate whether the threshold was useful"
       ]
     },
     {

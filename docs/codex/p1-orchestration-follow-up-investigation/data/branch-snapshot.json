@@ -1,0 +1,42 @@
+{
+  "schema_version": 1,
+  "captured_at": "2026-08-31T20:05:11.408139Z",
+  "rows": [
+    {
+      "ref": "codex/01a054ee-p1-10-recovery-ci-fix",
+      "sha": "d47c1b2b8f47b2755d9c382c46b830876efccbaf",
+      "committed_at": "2026-08-31T14:26:44+02:00",
+      "subject": "test: isolate standings reuse telemetry activity"
+    },
+    {
+      "ref": "codex/01a054ee-p1-10-recovery-docs",
+      "sha": "1c970d40a465b77c0247b59f9b6749e75dec3c54",
+      "committed_at": "2026-08-31T13:15:12+02:00",
+      "subject": "docs: freeze P1-10 production recovery"
+    },
+    {
+      "ref": "codex/01a054ee-p1-10-recovery-runtime",
+      "sha": "67b729c94808a5b28123cf7f2ac8659a0a377d0f",
+      "committed_at": "2026-08-31T13:22:35+02:00",
+      "subject": "Revert \"fix: quarantine schadensfresse live lane\""
+    },
+    {
+      "ref": "codex/01a054ee-p1-10-recovery-runtime-v2",
+      "sha": "22a0c6d5bba812e469885d784c4578cea96ad925",
+      "committed_at": "2026-08-31T13:59:20+02:00",
+      "subject": "test: cover ordinary Bundesliga recovery persistence"
+    },
+    {
+      "ref": "origin/codex/01a054ee-p1-10-full",
+      "sha": "5891d480ed1ac117c955a29b02dd940fd2d6187f",
+      "committed_at": "2026-08-31T21:40:30+02:00",
+      "subject": "fix: validate copy source provenance"
+    },
+    {
+      "ref": "origin/codex/01a054ee-p1-10-preserve-71637cc",
+      "sha": "71637cc154cfdcbe2436069470b5e04b0d4f753d",
+      "committed_at": "2026-08-31T00:58:31+02:00",
+      "subject": "Improve phase orchestration workflow"
+    }
+  ]
+}

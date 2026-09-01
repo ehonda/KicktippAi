@@ -37,11 +37,10 @@ work, and subscription quota must not become an orchestration throttle.
 Machine discipline still did useful work. The run sampled resources 38 times,
 admitted only one heavy local operation at a time, and never overlapped directly
 classified `dotnet` calls. Subagent tool time fell from `42.8%` to `19.1%` of
-worker-active time. Three retained architecture/review/writer threads also
-occupied the available task-agent slots, blocking a lightweight monitor and,
-after the cutoff, forcing the first concurrent-ready R2 siblings to run
-sequentially. A post-cutoff sample at `1.48 GiB` additionally exposed the
-volatility of the conservative `1.50 GiB` heavy-operation floor.
+worker-active time. Three retained architecture/review/writer threads occupied
+the available task-agent slots and blocked a lightweight monitor. The cutoff's
+low-memory sample shows that the conservative `1.50 GiB` floor denied work, but
+does not by itself establish the best safe threshold.
 
 The clearest workflow wins are publication and continuity. The first P1 sample
 used 14 main CI runs and 14 remote P1-10 lane branches. The successor used two
@@ -68,6 +67,15 @@ weak efficiency measure. The actionable polling case is the root-owned external
 CI loop caused by the unavailable monitor slot. Root share rose to 59.1% of
 logged tokens from 37.6%, but accepted-work attribution is needed before
 calling that overhead.
+
+## Post-cutoff addendum (excluded from snapshot)
+
+After R1 froze shared contracts, the first explicitly concurrent-ready R2
+siblings ran sequentially because the three reusable threads occupied the
+spawned-agent limit. A later sample at `1.48 GiB` also missed the old `1.50 GiB`
+hard floor by only `0.02 GiB`. These observations sharpen the lifecycle and
+memory-calibration hypotheses; they are excluded from every cutoff metric and
+ordinary scorecard above.
 
 ## Early recommendations
 
