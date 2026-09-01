@@ -7,7 +7,7 @@ namespace Orchestrator.Services;
 public interface IBundesligaPredictionProvenanceAssembler
 {
     TypedMatchPredictionRecord AssembleDirectMatch(
-        BundesligaTypedCurrentRequest<TypedMatchSnapshot> current,
+        BundesligaPreparedCurrent<TypedMatchSnapshot> prepared,
         ObservedMatchPredictionResult observed,
         BundesligaPredictionContextObservationV2 context,
         Instant generationTime,
@@ -15,7 +15,7 @@ public interface IBundesligaPredictionProvenanceAssembler
         int repredictionIndex);
 
     TypedBonusPredictionRecord AssembleDirectBonus(
-        BundesligaTypedCurrentRequest<TypedBonusSnapshot> current,
+        BundesligaPreparedCurrent<TypedBonusSnapshot> prepared,
         ObservedBonusPredictionResult observed,
         BundesligaPredictionContextObservationV2 context,
         Instant generationTime,
@@ -43,33 +43,35 @@ public sealed class BundesligaPredictionProvenanceAssembler : IBundesligaPredict
     private const string BonusNamespace = "bonus-predictions-bundesliga-2026-27-typed-v1";
 
     public TypedMatchPredictionRecord AssembleDirectMatch(
-        BundesligaTypedCurrentRequest<TypedMatchSnapshot> current,
+        BundesligaPreparedCurrent<TypedMatchSnapshot> prepared,
         ObservedMatchPredictionResult observed,
         BundesligaPredictionContextObservationV2 context,
         Instant generationTime,
         string predictionIdentity,
         int repredictionIndex)
     {
-        ArgumentNullException.ThrowIfNull(current);
+        ArgumentNullException.ThrowIfNull(prepared);
         ArgumentNullException.ThrowIfNull(observed);
+        var current = prepared.Current;
         var provenance = AssembleDirect(
-            current, current.Snapshot.Key, current.Snapshot.SnapshotHash, observed.Evidence,
+            prepared, current.Snapshot.Key, current.Snapshot.SnapshotHash, observed.Evidence,
             context, MatchNamespace, generationTime, predictionIdentity, repredictionIndex);
         return TypedMatchPredictionRecord.Create(current, observed.Prediction, provenance);
     }
 
     public TypedBonusPredictionRecord AssembleDirectBonus(
-        BundesligaTypedCurrentRequest<TypedBonusSnapshot> current,
+        BundesligaPreparedCurrent<TypedBonusSnapshot> prepared,
         ObservedBonusPredictionResult observed,
         BundesligaPredictionContextObservationV2 context,
         Instant generationTime,
         string predictionIdentity,
         int repredictionIndex)
     {
-        ArgumentNullException.ThrowIfNull(current);
+        ArgumentNullException.ThrowIfNull(prepared);
         ArgumentNullException.ThrowIfNull(observed);
+        var current = prepared.Current;
         var provenance = AssembleDirect(
-            current, current.Snapshot.Key, current.Snapshot.SnapshotHash, observed.Evidence,
+            prepared, current.Snapshot.Key, current.Snapshot.SnapshotHash, observed.Evidence,
             context, BonusNamespace, generationTime, predictionIdentity, repredictionIndex);
         return TypedBonusPredictionRecord.Create(current, observed.ToBonusPrediction(), provenance);
     }
@@ -105,7 +107,7 @@ public sealed class BundesligaPredictionProvenanceAssembler : IBundesligaPredict
     }
 
     private static PredictionGenerationProvenanceV2 AssembleDirect<TSnapshot>(
-        BundesligaTypedCurrentRequest<TSnapshot> current,
+        BundesligaPreparedCurrent<TSnapshot> prepared,
         StableLocalItemKey key,
         BundesligaPredictionSnapshotHash hash,
         ObservedPredictionCallEvidence observed,
@@ -115,8 +117,11 @@ public sealed class BundesligaPredictionProvenanceAssembler : IBundesligaPredict
         string predictionIdentity,
         int repredictionIndex) where TSnapshot : class
     {
+        var current = prepared.Current;
         ArgumentNullException.ThrowIfNull(observed);
         ArgumentNullException.ThrowIfNull(context);
+        prepared.PromptRequirement.RequireExactPolicy(observed.PromptRequirement);
+        prepared.PromptRequirement.RequireResolved(observed.Prompt);
         if (current.Authority.Mode != BundesligaPredictionAuthorityMode.Direct
             || observed.ModelConfig != current.ModelConfig)
             throw new InvalidDataException("Direct assembly requires the exact prepared direct model identity.");

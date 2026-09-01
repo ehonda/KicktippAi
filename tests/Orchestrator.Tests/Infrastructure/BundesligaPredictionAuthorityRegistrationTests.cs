@@ -1,5 +1,6 @@
 using EHonda.KicktippAi.Core;
 using Microsoft.Extensions.DependencyInjection;
+using OpenAiIntegration;
 using Orchestrator.Infrastructure;
 using Orchestrator.Services;
 using Orchestrator.Tests.Services;
@@ -67,7 +68,7 @@ public sealed class BundesligaPredictionAuthorityRegistrationTests
             BundesligaPredictionAuthorityKernelTestData.SourceCommunity,
             "bonus-profile-v1",
             BundesligaPredictionAuthorityKernelTestData.GenerationInput(),
-            BundesligaPredictionAuthorityKernelTestData.Model());
+            BundesligaPredictionAuthorityKernelTestData.PromptRequirement());
         await Assert.That(() => new BundesligaPredictionRouteRegistry([selection, conflictingKind]))
             .Throws<InvalidDataException>();
         await Assert.That(() => BundesligaPredictionRouteSelection.Create(
@@ -76,10 +77,18 @@ public sealed class BundesligaPredictionAuthorityRegistrationTests
                 BundesligaPredictionAuthorityKernelTestData.SourceCommunity,
                 "profile-v1",
                 BundesligaPredictionAuthorityKernelTestData.GenerationInput(),
-                BundesligaPredictionAuthorityKernelTestData.Model()))
+                BundesligaPredictionAuthorityKernelTestData.PromptRequirement()))
             .Throws<ArgumentException>();
         await Assert.That(typeof(BundesligaPredictionRouteSelection).GetConstructors())
             .Count().IsEqualTo(0);
+        var factoryParameters = typeof(BundesligaPredictionRouteSelection)
+            .GetMethod(nameof(BundesligaPredictionRouteSelection.Create))!
+            .GetParameters();
+        await Assert.That(factoryParameters.Any(parameter => parameter.ParameterType
+            == typeof(PredictionPromptExecutionRequirement))).IsTrue();
+        await Assert.That(factoryParameters.Any(parameter => parameter.ParameterType
+            == typeof(PredictionModelConfig))).IsFalse();
+        await Assert.That(selection.PromptRequirement).IsNotNull();
 
         var items = BundesligaPredictionAuthorityKernelTestData.MatchItems();
         var wrongRoute = BundesligaPredictionAuthorityKernelTestData.BonusSelection(
@@ -87,6 +96,26 @@ public sealed class BundesligaPredictionAuthorityRegistrationTests
         var registry = new BundesligaPredictionRouteRegistry([wrongRoute]);
         await Assert.That(() => registry.GetRequiredSelection(
                 wrongRoute.SelectionId, items.TargetAuthority, items.Target))
+            .Throws<InvalidDataException>();
+    }
+
+    [Test]
+    public async Task Selection_rejects_copy_contract_prompt_inconsistent_with_registered_requirement()
+    {
+        var compatibility = BundesligaPredictionAuthorityKernelTestData.MatchCompatibility(
+            BundesligaPredictionAuthorityKernelTestData.SourceCommunity,
+            BundesligaPredictionAuthorityKernelTestData.SourceCommunity,
+            BundesligaPredictionAuthorityKernelTestData.SourceCommunity);
+        var wrongRequirement = PredictionPromptExecutionRequirement.Create(
+            BundesligaPredictionAuthorityKernelTestData.Model(),
+            BundesligaPredictionAuthorityKernelTestData.ShaA,
+            "production");
+
+        await Assert.That(() => BundesligaPredictionAuthorityKernelTestData.MatchSelection(
+                "inconsistent-prompt",
+                BundesligaPredictionAuthorityKernelTestData.SourceCommunity,
+                compatibility,
+                wrongRequirement))
             .Throws<InvalidDataException>();
     }
 }

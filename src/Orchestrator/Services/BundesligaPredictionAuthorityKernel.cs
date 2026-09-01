@@ -15,32 +15,34 @@ public sealed class BundesligaPredictionAuthorityKernel : IBundesligaPredictionA
         _repository = repository ?? throw new ArgumentNullException(nameof(repository));
     }
 
-    public BundesligaTypedCurrentRequest<TypedMatchSnapshot> PrepareCurrent(
+    public BundesligaPreparedCurrent<TypedMatchSnapshot> PrepareCurrent(
         BundesligaValidatedMatchItem item,
         string selectionId)
     {
         ArgumentNullException.ThrowIfNull(item);
         var selection = _routes.GetRequiredSelection(selectionId, item.Authority, item);
-        return BundesligaTypedCurrentRequest<TypedMatchSnapshot>.Create(
+        var current = BundesligaTypedCurrentRequest<TypedMatchSnapshot>.Create(
             item.Authority,
             item.Snapshot,
             selection.ModelConfig,
             selection.CreateCurrentIdentity(),
             _routes.Routes);
+        return BundesligaPreparedCurrent<TypedMatchSnapshot>.Create(current, selection);
     }
 
-    public BundesligaTypedCurrentRequest<TypedBonusSnapshot> PrepareCurrent(
+    public BundesligaPreparedCurrent<TypedBonusSnapshot> PrepareCurrent(
         BundesligaValidatedBonusItem item,
         string selectionId)
     {
         ArgumentNullException.ThrowIfNull(item);
         var selection = _routes.GetRequiredSelection(selectionId, item.Authority, item);
-        return BundesligaTypedCurrentRequest<TypedBonusSnapshot>.Create(
+        var current = BundesligaTypedCurrentRequest<TypedBonusSnapshot>.Create(
             item.Authority,
             item.Snapshot,
             selection.ModelConfig,
             selection.CreateCurrentIdentity(),
             _routes.Routes);
+        return BundesligaPreparedCurrent<TypedBonusSnapshot>.Create(current, selection);
     }
 
     public async Task<BundesligaMatchCopyPlan> PrepareMatchCopyAsync(
@@ -56,15 +58,15 @@ public sealed class BundesligaPredictionAuthorityKernel : IBundesligaPredictionA
         ArgumentNullException.ThrowIfNull(sourceItem);
         cancellationToken.ThrowIfCancellationRequested();
 
-        var targetCurrent = PrepareCurrent(targetItem, targetSelectionId);
-        var targetSelection = _routes.GetRequiredSelection(
-            targetSelectionId, targetItem.Authority, targetItem);
+        var targetPrepared = PrepareCurrent(targetItem, targetSelectionId);
+        var targetCurrent = targetPrepared.Current;
+        var targetSelection = targetPrepared.RegisteredSelection;
         var bindingEntry = RequireBindingEntry(
             binding, targetItem.Key, sourceItem.Key, BundesligaPredictionItemKind.Match);
         RequireCopyAuthorities(targetItem, sourceItem, binding);
-        var sourceCurrent = PrepareCurrent(sourceItem, sourceSelectionId);
-        var sourceSelection = _routes.GetRequiredSelection(
-            sourceSelectionId, sourceItem.Authority, sourceItem);
+        var sourcePrepared = PrepareCurrent(sourceItem, sourceSelectionId);
+        var sourceCurrent = sourcePrepared.Current;
+        var sourceSelection = sourcePrepared.RegisteredSelection;
 
         var sourceRow = await _repository.GetCurrentTypedMatchPredictionAsync(
             sourceCurrent, cancellationToken)
@@ -117,15 +119,15 @@ public sealed class BundesligaPredictionAuthorityKernel : IBundesligaPredictionA
         ArgumentNullException.ThrowIfNull(sourceItem);
         cancellationToken.ThrowIfCancellationRequested();
 
-        var targetCurrent = PrepareCurrent(targetItem, targetSelectionId);
-        var targetSelection = _routes.GetRequiredSelection(
-            targetSelectionId, targetItem.Authority, targetItem);
+        var targetPrepared = PrepareCurrent(targetItem, targetSelectionId);
+        var targetCurrent = targetPrepared.Current;
+        var targetSelection = targetPrepared.RegisteredSelection;
         var bindingEntry = RequireBindingEntry(
             binding, targetItem.Key, sourceItem.Key, BundesligaPredictionItemKind.Bonus);
         RequireCopyAuthorities(targetItem, sourceItem, binding);
-        var sourceCurrent = PrepareCurrent(sourceItem, sourceSelectionId);
-        var sourceSelection = _routes.GetRequiredSelection(
-            sourceSelectionId, sourceItem.Authority, sourceItem);
+        var sourcePrepared = PrepareCurrent(sourceItem, sourceSelectionId);
+        var sourceCurrent = sourcePrepared.Current;
+        var sourceSelection = sourcePrepared.RegisteredSelection;
 
         var sourceRow = await _repository.GetCurrentTypedBonusPredictionAsync(
             sourceCurrent, cancellationToken)

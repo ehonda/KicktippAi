@@ -1,4 +1,5 @@
 using EHonda.KicktippAi.Core;
+using OpenAiIntegration;
 
 namespace Orchestrator.Services;
 
@@ -10,7 +11,7 @@ public sealed class BundesligaPredictionRouteSelection
         string communityContext,
         string profileId,
         BundesligaGenerationInputContractReference generationInputContract,
-        PredictionModelConfig modelConfig,
+        PredictionPromptExecutionRequirement promptRequirement,
         PredictionCopyCompatibilityContractV2? copyCompatibility)
     {
         SelectionId = selectionId;
@@ -18,7 +19,7 @@ public sealed class BundesligaPredictionRouteSelection
         CommunityContext = communityContext;
         ProfileId = profileId;
         GenerationInputContract = generationInputContract;
-        ModelConfig = modelConfig;
+        PromptRequirement = promptRequirement;
         CopyCompatibility = copyCompatibility;
     }
 
@@ -27,7 +28,8 @@ public sealed class BundesligaPredictionRouteSelection
     public string CommunityContext { get; }
     public string ProfileId { get; }
     public BundesligaGenerationInputContractReference GenerationInputContract { get; }
-    public PredictionModelConfig ModelConfig { get; }
+    public PredictionPromptExecutionRequirement PromptRequirement { get; }
+    public PredictionModelConfig ModelConfig => PromptRequirement.ModelConfig;
     public PredictionCopyCompatibilityContractV2? CopyCompatibility { get; }
 
     public static BundesligaPredictionRouteSelection Create(
@@ -36,7 +38,7 @@ public sealed class BundesligaPredictionRouteSelection
         string communityContext,
         string profileId,
         BundesligaGenerationInputContractReference generationInputContract,
-        PredictionModelConfig modelConfig,
+        PredictionPromptExecutionRequirement promptRequirement,
         PredictionCopyCompatibilityContractV2? copyCompatibility = null)
     {
         RequireIdentifier(selectionId, nameof(selectionId));
@@ -44,25 +46,21 @@ public sealed class BundesligaPredictionRouteSelection
         RequireCommunity(communityContext, nameof(communityContext));
         RequireIdentifier(profileId, nameof(profileId));
         ArgumentNullException.ThrowIfNull(generationInputContract);
-        ArgumentNullException.ThrowIfNull(modelConfig);
-        if (!modelConfig.HasPinnedRuntimeIdentity
-            || modelConfig.ReasoningEffort is null
-            || modelConfig.MaxOutputTokenCount is null
-            || modelConfig.PromptName is null
-            || modelConfig.PromptVersion is null)
-        {
-            throw new InvalidDataException("Registered route selection requires a fully pinned model and prompt.");
-        }
+        ArgumentNullException.ThrowIfNull(promptRequirement);
 
         if (copyCompatibility is not null
             && (!string.Equals(copyCompatibility.RouteId, route.RouteId, StringComparison.Ordinal)
                 || copyCompatibility.ItemKind != route.ItemKind
                 || copyCompatibility.Subcompetition != route.Subcompetition
                 || !string.Equals(copyCompatibility.CommunityContext, communityContext, StringComparison.Ordinal)
-                || copyCompatibility.Model != modelConfig))
+                || copyCompatibility.Model != promptRequirement.ModelConfig))
         {
             throw new InvalidDataException(
                 "Registered copy compatibility contract conflicts with its route selection.");
+        }
+        if (copyCompatibility is not null)
+        {
+            promptRequirement.RequireProvenance(copyCompatibility.Prompt);
         }
 
         return new BundesligaPredictionRouteSelection(
@@ -71,7 +69,7 @@ public sealed class BundesligaPredictionRouteSelection
             communityContext,
             profileId,
             generationInputContract,
-            modelConfig,
+            promptRequirement,
             copyCompatibility);
     }
 

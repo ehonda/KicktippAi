@@ -1,5 +1,6 @@
 using EHonda.KicktippAi.Core;
 using Moq;
+using OpenAiIntegration;
 using Orchestrator.Services;
 
 namespace Orchestrator.Tests.Services;
@@ -16,12 +17,14 @@ public sealed class BundesligaPredictionAuthorityKernelTests
         var kernel = new BundesligaPredictionAuthorityKernel(
             new BundesligaPredictionRouteRegistry([selection]), repository.Object);
 
-        var current = kernel.PrepareCurrent(items.Source, selection.SelectionId);
+        var prepared = kernel.PrepareCurrent(items.Source, selection.SelectionId);
+        var current = prepared.Current;
 
         await Assert.That(current.Authority).IsEqualTo(items.SourceAuthority);
         await Assert.That(current.Snapshot).IsSameReferenceAs(items.Source.Snapshot);
         await Assert.That(current.Identity.RouteId)
             .IsEqualTo(BundesligaPredictionAuthorityKernelTestData.MatchRoute);
+        await Assert.That(prepared.PromptRequirement).IsSameReferenceAs(selection.PromptRequirement);
         await Assert.That(() => kernel.PrepareCurrent(items.Target, "unregistered-selection"))
             .Throws<InvalidDataException>();
         repository.VerifyNoOtherCalls();
@@ -37,7 +40,7 @@ public sealed class BundesligaPredictionAuthorityKernelTests
         var repository = new Mock<IBundesligaTypedPredictionAuthorityRepository>(MockBehavior.Strict);
         var kernel = new BundesligaPredictionAuthorityKernel(
             new BundesligaPredictionRouteRegistry(selections), repository.Object);
-        var sourceCurrent = kernel.PrepareCurrent(items.Source, "source-match");
+        var sourceCurrent = kernel.PrepareCurrent(items.Source, "source-match").Current;
         var sourceRow = TypedMatchPredictionRecord.Create(
             sourceCurrent,
             new Prediction(2, 1),
@@ -77,7 +80,7 @@ public sealed class BundesligaPredictionAuthorityKernelTests
         var repository = new Mock<IBundesligaTypedPredictionAuthorityRepository>(MockBehavior.Strict);
         var kernel = new BundesligaPredictionAuthorityKernel(
             new BundesligaPredictionRouteRegistry(selections), repository.Object);
-        var sourceCurrent = kernel.PrepareCurrent(items.Source, "source-match");
+        var sourceCurrent = kernel.PrepareCurrent(items.Source, "source-match").Current;
         var sourceRow = TypedMatchPredictionRecord.Create(
             sourceCurrent,
             new Prediction(1, 0),
@@ -128,7 +131,7 @@ public sealed class BundesligaPredictionAuthorityKernelTests
                     "source-match", BundesligaPredictionAuthorityKernelTestData.SourceCommunity, sourceContract)
             ]),
             repository.Object);
-        var sourceCurrent = kernel.PrepareCurrent(items.Source, "source-match");
+        var sourceCurrent = kernel.PrepareCurrent(items.Source, "source-match").Current;
         var sourceRow = TypedMatchPredictionRecord.Create(
             sourceCurrent,
             new Prediction(1, 1),
@@ -152,7 +155,7 @@ public sealed class BundesligaPredictionAuthorityKernelTests
         var driftRepository = new Mock<IBundesligaTypedPredictionAuthorityRepository>(MockBehavior.Strict);
         var acceptedKernel = new BundesligaPredictionAuthorityKernel(
             new BundesligaPredictionRouteRegistry(acceptedSelections), driftRepository.Object);
-        var acceptedCurrent = acceptedKernel.PrepareCurrent(items.Source, "source-match");
+        var acceptedCurrent = acceptedKernel.PrepareCurrent(items.Source, "source-match").Current;
         var acceptedRow = TypedMatchPredictionRecord.Create(
             acceptedCurrent,
             new Prediction(1, 1),
@@ -204,7 +207,7 @@ public sealed class BundesligaPredictionAuthorityKernelTests
                     "source-bonus", BundesligaPredictionAuthorityKernelTestData.SourceCommunity, sourceContract)
             ]),
             repository.Object);
-        var sourceCurrent = kernel.PrepareCurrent(items.Source, "source-bonus");
+        var sourceCurrent = kernel.PrepareCurrent(items.Source, "source-bonus").Current;
         var sourceRow = TypedBonusPredictionRecord.Create(
             sourceCurrent,
             new BonusPrediction(["b", "a"]),
@@ -228,6 +231,68 @@ public sealed class BundesligaPredictionAuthorityKernelTests
         await Assert.That(plan.MappedPostingOptionIds is IList<string>).IsTrue();
         await Assert.That(() => ((IList<string>)plan.MappedPostingOptionIds)[0] = "changed")
             .Throws<NotSupportedException>();
+    }
+
+    [Test]
+    public async Task Prepared_current_proof_rejects_every_registered_selection_drift_and_has_no_public_bypass()
+    {
+        var items = BundesligaPredictionAuthorityKernelTestData.MatchItems();
+        var exact = BundesligaPredictionAuthorityKernelTestData.MatchSelection(
+            "source-match", BundesligaPredictionAuthorityKernelTestData.SourceCommunity);
+        var kernel = new BundesligaPredictionAuthorityKernel(
+            new BundesligaPredictionRouteRegistry([exact]),
+            new Mock<IBundesligaTypedPredictionAuthorityRepository>().Object);
+        var current = kernel.PrepareCurrent(items.Source, exact.SelectionId).Current;
+        var wrongModel = PredictionModelConfig.Create(
+            "gpt-5.6-luna", "none", 10_000,
+            BundesligaPredictionAuthorityKernelTestData.PromptName, 3);
+        var wrongRequirement = PredictionPromptExecutionRequirement.Create(
+            wrongModel,
+            BundesligaPredictionAuthorityKernelTestData.PromptRequirement()
+                .HostedNormalizedReadbackSha256,
+            "production");
+        BundesligaPredictionRouteSelection Selection(
+            BundesligaPredictionRouteContract? route = null,
+            string? context = null,
+            string? profile = null,
+            BundesligaGenerationInputContractReference? generation = null,
+            PredictionPromptExecutionRequirement? prompt = null) =>
+            BundesligaPredictionRouteSelection.Create(
+                "drifted", route ?? exact.Route,
+                context ?? exact.CommunityContext,
+                profile ?? exact.ProfileId,
+                generation ?? exact.GenerationInputContract,
+                prompt ?? exact.PromptRequirement);
+        Action[] hostiles =
+        [
+            () => BundesligaPreparedCurrent<TypedMatchSnapshot>.Create(
+                current, Selection(prompt: wrongRequirement)),
+            () => BundesligaPreparedCurrent<TypedMatchSnapshot>.Create(
+                current, Selection(route: new BundesligaPredictionRouteContract(
+                    BundesligaPredictionAuthorityKernelTestData.MatchRoute,
+                    BundesligaPredictionItemKind.Bonus,
+                    BundesligaSeasonSubcompetition.Bundesliga))),
+            () => BundesligaPreparedCurrent<TypedMatchSnapshot>.Create(
+                current, Selection(profile: "wrong-profile-v1")),
+            () => BundesligaPreparedCurrent<TypedMatchSnapshot>.Create(
+                current, Selection(generation: BundesligaGenerationInputContractReference.Create(
+                    "wrong-generation-input-v1", BundesligaPredictionAuthorityKernelTestData.ShaA))),
+            () => BundesligaPreparedCurrent<TypedMatchSnapshot>.Create(
+                current, Selection(context: BundesligaPredictionAuthorityKernelTestData.TargetCommunity))
+        ];
+
+        foreach (var hostile in hostiles)
+            await Assert.That(hostile).Throws<InvalidDataException>();
+
+        await Assert.That(typeof(BundesligaPreparedCurrent<TypedMatchSnapshot>).GetConstructors())
+            .IsEmpty();
+        await Assert.That(typeof(BundesligaPreparedCurrent<TypedMatchSnapshot>)
+                .GetMethods(System.Reflection.BindingFlags.Public
+                    | System.Reflection.BindingFlags.Static
+                    | System.Reflection.BindingFlags.DeclaredOnly))
+            .IsEmpty();
+        await Assert.That(typeof(BundesligaPreparedCurrent<TypedMatchSnapshot>)
+            .GetMethod("Deconstruct")).IsNull();
     }
 
     [Test]

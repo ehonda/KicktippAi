@@ -66,17 +66,33 @@ public sealed class PredictionPromptExecutionRequirement
     public void RequireResolved(ResolvedPredictionPromptTemplate resolved)
     {
         ArgumentNullException.ThrowIfNull(resolved);
-        var provenance = resolved.Provenance;
+        RequireProvenance(resolved.Provenance);
+    }
+
+    public void RequireExactPolicy(PredictionPromptExecutionRequirement actual)
+    {
+        ArgumentNullException.ThrowIfNull(actual);
+        if (ModelConfig != actual.ModelConfig
+            || HostedNormalizedReadbackSha256 != actual.HostedNormalizedReadbackSha256
+            || RequiredLabel != actual.RequiredLabel
+            || FallbackFile != actual.FallbackFile
+            || FallbackSha256 != actual.FallbackSha256)
+            throw new InvalidDataException("Prompt execution requirement does not match the exact registered policy.");
+    }
+
+    public void RequireProvenance(PredictionPromptProvenanceV2 provenance)
+    {
+        ArgumentNullException.ThrowIfNull(provenance);
         if (provenance.HostedName != HostedName
             || provenance.HostedVersion != HostedVersion
             || provenance.HostedNormalizedReadbackSha256 != HostedNormalizedReadbackSha256
             || provenance.RequiredLabel != RequiredLabel
             || !provenance.RequiredLabelMembership)
-            throw new InvalidDataException("Resolved prompt evidence does not match the exact execution requirement.");
+            throw new InvalidDataException("Prompt provenance does not match the exact execution requirement.");
         if (provenance.ActualSource == PredictionPromptSourceV2.CheckedInFallback
             && (provenance.ActualFallbackFile != FallbackFile
                 || provenance.ActualFallbackSha256 != FallbackSha256))
-            throw new InvalidDataException("Resolved fallback evidence does not match the exact pinned fallback.");
+            throw new InvalidDataException("Prompt provenance does not match the exact pinned fallback.");
     }
 
     internal static void RequireSha256(string value, string name)
@@ -157,31 +173,31 @@ public interface IObservedInstructionsTemplateProvider
 public sealed class ObservedPredictionCallEvidence
 {
     private ObservedPredictionCallEvidence(
-        PredictionModelConfig modelConfig,
+        PredictionPromptExecutionRequirement promptRequirement,
         ResolvedPredictionPromptTemplate prompt,
         PredictionServiceTierProvenanceV2 serviceTier,
         PredictionGenerationUsageV2 usage) =>
-        (ModelConfig, Prompt, ServiceTier, Usage) = (modelConfig, prompt, serviceTier, usage);
+        (PromptRequirement, Prompt, ServiceTier, Usage) =
+        (promptRequirement, prompt, serviceTier, usage);
 
-    public PredictionModelConfig ModelConfig { get; }
+    public PredictionPromptExecutionRequirement PromptRequirement { get; }
+    public PredictionModelConfig ModelConfig => PromptRequirement.ModelConfig;
     public ResolvedPredictionPromptTemplate Prompt { get; }
     public PredictionServiceTierProvenanceV2 ServiceTier { get; }
     public PredictionGenerationUsageV2 Usage { get; }
 
     public static ObservedPredictionCallEvidence Create(
-        PredictionModelConfig modelConfig,
+        PredictionPromptExecutionRequirement promptRequirement,
         ResolvedPredictionPromptTemplate prompt,
         PredictionServiceTierProvenanceV2 serviceTier,
         PredictionGenerationUsageV2 usage)
     {
-        ArgumentNullException.ThrowIfNull(modelConfig);
+        ArgumentNullException.ThrowIfNull(promptRequirement);
         ArgumentNullException.ThrowIfNull(prompt);
         ArgumentNullException.ThrowIfNull(serviceTier);
         ArgumentNullException.ThrowIfNull(usage);
-        if (modelConfig.PromptName != prompt.Provenance.HostedName
-            || modelConfig.PromptVersion != prompt.Provenance.HostedVersion)
-            throw new InvalidDataException("Observed prompt does not match the exact model configuration.");
-        return new(modelConfig, prompt, serviceTier, usage);
+        promptRequirement.RequireResolved(prompt);
+        return new(promptRequirement, prompt, serviceTier, usage);
     }
 }
 

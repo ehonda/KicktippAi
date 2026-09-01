@@ -1,5 +1,6 @@
 using EHonda.KicktippAi.Core;
 using NodaTime;
+using OpenAiIntegration;
 using Orchestrator.Services;
 
 namespace Orchestrator.Tests.Services;
@@ -12,6 +13,7 @@ internal static class BundesligaPredictionAuthorityKernelTestData
     internal const string MatchRoute = "synthetic-bundesliga-match-v1";
     internal const string BonusRoute = "synthetic-bundesliga-bonus-v1";
     internal const string PromptName = "kicktippai/bundesliga-2026-27/predict-one-match";
+    internal const string PromptTemplate = "Observed exact prompt\n";
     internal const string SourceCommunity = "pes-squad";
     internal const string TargetCommunity = "relaxdays-tippt";
 
@@ -159,12 +161,19 @@ internal static class BundesligaPredictionAuthorityKernelTestData
             PredictionPromptSourceV2.Hosted,
             PromptName,
             3,
-            ShaA,
+            PromptTemplateContentHash.ComputeSha256(PromptTemplate),
             "production",
             true);
 
     internal static PredictionModelConfig Model() =>
         PredictionModelConfig.Create("gpt-5.6-sol", "xhigh", 10_000, PromptName, 3);
+
+    internal static PredictionPromptExecutionRequirement PromptRequirement(
+        string? fallbackFile = null,
+        string? fallbackSha256 = null) =>
+        PredictionPromptExecutionRequirement.Create(
+            Model(), PromptTemplateContentHash.ComputeSha256(PromptTemplate), "production",
+            fallbackFile, fallbackSha256);
 
     internal static BundesligaGenerationInputContractReference GenerationInput() =>
         BundesligaGenerationInputContractReference.Create("synthetic-generation-input-v1", ShaC);
@@ -234,27 +243,29 @@ internal static class BundesligaPredictionAuthorityKernelTestData
     internal static BundesligaPredictionRouteSelection MatchSelection(
         string id,
         string context,
-        PredictionCopyCompatibilityContractV2? compatibility = null) =>
+        PredictionCopyCompatibilityContractV2? compatibility = null,
+        PredictionPromptExecutionRequirement? promptRequirement = null) =>
         BundesligaPredictionRouteSelection.Create(
             id,
             MatchRouteContract(),
             context,
             "bundesliga-match-primary-v1",
             GenerationInput(),
-            Model(),
+            promptRequirement ?? PromptRequirement(),
             compatibility);
 
     internal static BundesligaPredictionRouteSelection BonusSelection(
         string id,
         string context,
-        PredictionCopyCompatibilityContractV2? compatibility = null) =>
+        PredictionCopyCompatibilityContractV2? compatibility = null,
+        PredictionPromptExecutionRequirement? promptRequirement = null) =>
         BundesligaPredictionRouteSelection.Create(
             id,
             BonusRouteContract(),
             context,
             "bundesliga-bonus-primary-v1",
             GenerationInput(),
-            Model(),
+            promptRequirement ?? PromptRequirement(),
             compatibility);
 
     internal static PredictionGenerationProvenanceV2 MatchProvenance(

@@ -56,7 +56,7 @@ public sealed class ObservedPredictionContractsTests
         var prompt = ResolvedPredictionPromptTemplate.CreateHosted(
             requirement, template, "langfuse://prompt/3", Name, 3, ["production"]);
         var evidence = ObservedPredictionCallEvidence.Create(
-            model, prompt, PredictionServiceTierProvenanceV2.Create("flex", "default", true, "fallback"),
+            requirement, prompt, PredictionServiceTierProvenanceV2.Create("flex", "default", true, "fallback"),
             new PredictionGenerationUsageV2(100, 20, 0.01m));
         var selected = new List<string> { "a" };
         var bonus = ObservedBonusPredictionResult.Create(new BonusPrediction(selected), evidence);
@@ -64,8 +64,13 @@ public sealed class ObservedPredictionContractsTests
 
         await Assert.That(bonus.SelectedOptionIds).IsEquivalentTo(["a"]);
         await Assert.That(bonus.ToBonusPrediction().SelectedOptionIds).IsEquivalentTo(["a"]);
+        await Assert.That(evidence.PromptRequirement).IsSameReferenceAs(requirement);
         await Assert.That(() => ObservedPredictionCallEvidence.Create(
-            PredictionModelConfig.Create("gpt-5.6-sol", "high", 1000, Name, 4), prompt,
+            PredictionPromptExecutionRequirement.Create(
+                PredictionModelConfig.Create("gpt-5.6-sol", "high", 1000, Name, 4),
+                requirement.HostedNormalizedReadbackSha256,
+                requirement.RequiredLabel),
+            prompt,
             evidence.ServiceTier, evidence.Usage)).Throws<InvalidDataException>();
 
         var uncertainties = new List<string> { "weather" };
@@ -75,6 +80,39 @@ public sealed class ObservedPredictionContractsTests
         uncertainties[0] = "mutated";
         await Assert.That(match.Prediction.Justification!.Uncertainties)
             .IsEquivalentTo(["weather"]);
+    }
+
+    [Test]
+    public async Task Exact_policy_preserves_hash_label_and_configured_fallback_even_for_hosted_resolution()
+    {
+        const string template = "Observed policy prompt\n";
+        const string fallback = "Pinned fallback\n";
+        var hash = PromptTemplateContentHash.ComputeSha256(template);
+        var fallbackHash = PromptTemplateContentHash.ComputeSha256(fallback);
+        var expected = PredictionPromptExecutionRequirement.Create(
+            Model(), hash, "production", "prompts/pinned.md", fallbackHash);
+        var exact = PredictionPromptExecutionRequirement.Create(
+            Model(), hash, "production", "prompts/pinned.md", fallbackHash);
+        var hosted = ResolvedPredictionPromptTemplate.CreateHosted(
+            exact, template, "langfuse://prompt/3", Name, 3, ["production"]);
+
+        expected.RequireExactPolicy(exact);
+        expected.RequireResolved(hosted);
+        await Assert.That(() => expected.RequireExactPolicy(
+                PredictionPromptExecutionRequirement.Create(Model(), ShaA, "production",
+                    "prompts/pinned.md", fallbackHash)))
+            .Throws<InvalidDataException>();
+        await Assert.That(() => expected.RequireExactPolicy(
+                PredictionPromptExecutionRequirement.Create(Model(), hash, "staging",
+                    "prompts/pinned.md", fallbackHash)))
+            .Throws<InvalidDataException>();
+        await Assert.That(() => expected.RequireExactPolicy(
+                PredictionPromptExecutionRequirement.Create(Model(), hash, "production")))
+            .Throws<InvalidDataException>();
+        await Assert.That(() => expected.RequireExactPolicy(
+                PredictionPromptExecutionRequirement.Create(Model(), hash, "production",
+                    "prompts/other.md", fallbackHash)))
+            .Throws<InvalidDataException>();
     }
 
     [Test]

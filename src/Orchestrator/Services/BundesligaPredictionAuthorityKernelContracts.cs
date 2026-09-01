@@ -1,15 +1,16 @@
 using System.Collections.Immutable;
 using EHonda.KicktippAi.Core;
+using OpenAiIntegration;
 
 namespace Orchestrator.Services;
 
 public interface IBundesligaPredictionAuthorityKernel
 {
-    BundesligaTypedCurrentRequest<TypedMatchSnapshot> PrepareCurrent(
+    BundesligaPreparedCurrent<TypedMatchSnapshot> PrepareCurrent(
         BundesligaValidatedMatchItem item,
         string selectionId);
 
-    BundesligaTypedCurrentRequest<TypedBonusSnapshot> PrepareCurrent(
+    BundesligaPreparedCurrent<TypedBonusSnapshot> PrepareCurrent(
         BundesligaValidatedBonusItem item,
         string selectionId);
 
@@ -28,6 +29,51 @@ public interface IBundesligaPredictionAuthorityKernel
         BundesligaValidatedBonusItem sourceItem,
         string sourceSelectionId,
         CancellationToken cancellationToken = default);
+}
+
+public sealed class BundesligaPreparedCurrent<TSnapshot> where TSnapshot : class
+{
+    private readonly BundesligaPredictionRouteSelection _registeredSelection;
+
+    private BundesligaPreparedCurrent(
+        BundesligaTypedCurrentRequest<TSnapshot> current,
+        BundesligaPredictionRouteSelection registeredSelection) =>
+        (Current, _registeredSelection) = (current, registeredSelection);
+
+    public BundesligaTypedCurrentRequest<TSnapshot> Current { get; }
+    public PredictionPromptExecutionRequirement PromptRequirement =>
+        _registeredSelection.PromptRequirement;
+
+    internal BundesligaPredictionRouteSelection RegisteredSelection => _registeredSelection;
+
+    internal static BundesligaPreparedCurrent<TSnapshot> Create(
+        BundesligaTypedCurrentRequest<TSnapshot> current,
+        BundesligaPredictionRouteSelection registeredSelection)
+    {
+        ArgumentNullException.ThrowIfNull(current);
+        ArgumentNullException.ThrowIfNull(registeredSelection);
+        if (current.ModelConfig != registeredSelection.ModelConfig
+            || !string.Equals(current.Identity.RouteId, registeredSelection.Route.RouteId, StringComparison.Ordinal)
+            || !RouteMatchesSnapshot(current.Snapshot, registeredSelection.Route)
+            || !string.Equals(current.Identity.ProfileId, registeredSelection.ProfileId, StringComparison.Ordinal)
+            || current.Identity.GenerationInputContract != registeredSelection.GenerationInputContract
+            || !string.Equals(current.Authority.CommunityContext,
+                registeredSelection.CommunityContext, StringComparison.Ordinal))
+            throw new InvalidDataException(
+                "Prepared current does not match its exact registered selection proof.");
+        return new BundesligaPreparedCurrent<TSnapshot>(current, registeredSelection);
+    }
+
+    private static bool RouteMatchesSnapshot(
+        TSnapshot snapshot,
+        BundesligaPredictionRouteContract route) => snapshot switch
+    {
+        TypedMatchSnapshot match => route.ItemKind == BundesligaPredictionItemKind.Match
+            && route.Subcompetition == match.Subcompetition,
+        TypedBonusSnapshot bonus => route.ItemKind == BundesligaPredictionItemKind.Bonus
+            && route.Subcompetition == bonus.Subcompetition,
+        _ => false
+    };
 }
 
 public sealed class BundesligaMatchCopyPlan
