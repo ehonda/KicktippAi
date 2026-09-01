@@ -238,6 +238,113 @@ compatibility requires equal selection meaning and a total option projection.
 The source record must be current under its own authority before compatibility
 is evaluated.
 
+## R3 shared-kernel slices
+
+R3 is serialized as `R3a -> R3b -> (R4a || R4b)`. Both slices are required
+before any R4 command migration. They use one writer in one worktree because
+their Orchestrator registration and test ownership overlaps. Every API added
+by R3 is opt-in, has no default route, and remains unwired from current
+commands until R4.
+
+### R3a inventory, route, copy, factory, and audit boundary
+
+`BundesligaPredictionInventoryGate.ValidateMatches` and `ValidateBonus` are
+the only factories for private-constructor validated inventories. Each takes
+the exact authority, posting seed, expected keys from the same R2a inventory
+scope, observed snapshots, and registered route catalog. It rejects duplicate
+expected or observed keys before set comparison and requires one-to-one scope,
+the exact authority seed and Posting Community, byte-identical pinned
+canonical snapshot, Snapshot Hash, item kind, subcompetition, and route.
+Results are immutable and ordered by exact Kicktipp ID. Empty expected and
+observed inventories are valid only together. Raw snapshots cannot enter a
+current or copy API.
+
+A registered route selection contains a stable selection ID, accepted Core
+route contract, Community Context, profile ID, generation-input contract,
+pinned model config, and optional registered copy-compatibility contract.
+`GetRequiredSelection(selectionId, authority, validatedItem)` returns exactly
+one matching registered selection. Empty, duplicate, conflicting, default,
+wrong-route, wrong-kind, wrong-subcompetition, or wrong-context selection
+fails. `PrepareCurrent` accepts only a validated item and registered selection
+ID and delegates to the R1 typed-current factory. The kernel never accepts a
+caller-created route or copy policy.
+
+Copy planning first validates posting inventory and its target selection, then
+the exact Copy Binding, source seed, direct source authority, and registered
+source selection. It constructs and reads the exact source typed current row
+before compatibility. A missing row fails before compatibility or candidate
+read. The actual row's complete prompt, model, route, Community Context,
+profile, generation-input, and rules identities/hashes must match the
+registered source policy; target context/profile must match its prepared
+authority. Compatibility is constructed only from those registered source and
+target selections. R1 rejection performs no candidate read. Acceptance then
+constructs the typed copy request, reads the candidate, and requires exact
+payload bytes, canonical provenance, and decision fingerprint equality with
+the pre-evaluation source row. R2b save remains the final transactional drift
+guard. Match payload is unchanged. Bonus projection enumerates selected source
+option IDs in source-candidate order and maps each through the accepted
+one-to-one projection; target option order never reorders the result.
+
+R3a factory seams expose only the dedicated R2a typed Kicktipp client, the
+fixed typed repository, and the four separate legacy/typed match/bonus audit
+readers. No generic epoch, community, collection, list, cast, legacy fallback,
+or cross-authority method is permitted. Registration is opt-in and idempotent.
+The audit report reader fully materializes all four isolated readers before a
+pure combine and returns no partial report on failure or cancellation. It:
+
+- uses checked `long` arithmetic for row counts, known input/output token
+  totals, and unknown input/output counts;
+- uses checked `decimal` arithmetic for costs;
+- reports count, known tokens, unknown counts, and cost as zero for an empty
+  authority subtotal;
+- reports an input or output token total as null exactly when any contributing
+  row has unknown usage;
+- derives checked overall values only from authority subtotals and never
+  recomputes overall cost from rows; and
+- atomically rejects authority/collection/kind label disagreement,
+  current-authority claims, duplicate
+  `(authority, collection, documentId)` identities, and overflow.
+
+Output is immutable, deterministically sorted, preserves every label and
+subtotal, and has no conversion to current authority.
+
+### R3b observed call and provenance boundary
+
+OpenAiIntegration adds opt-in `PredictionPromptExecutionRequirement`,
+`ResolvedPredictionPromptTemplate`, and
+`IObservedInstructionsTemplateProvider`. Observed match/bonus loading returns
+the exact template/path and complete immutable prompt provenance atomically.
+Hosted resolution verifies exact name, numbered immutable version, required
+label, and normalized readback hash. Fallback is valid only for the exact
+pinned file/hash. This path never reads or writes mutable last-prompt metadata;
+existing prompt-provider interfaces stay unchanged.
+
+OpenAiIntegration also adds opt-in `IObservedPredictionService`, immutable
+observed match/bonus results, `ObservedPredictionCallEvidence`, and an observed
+exception. A successful result defensively contains the prediction, exact
+model config, resolved prompt evidence returned for that same invocation,
+requested and final service tier, fallback fact and stable reason, usage, and
+exact calculated cost. It is created only from that invocation's resolved
+prompt/template pair, OpenAI response usage, execution telemetry, and cost
+service. Mutable token-tracker or prompt-provider last-call state is forbidden.
+Missing prompt evidence, usage, final tier, or cost fails without a partial
+result; cancellation propagates. `PredictionService` implements both legacy
+and observed interfaces, and the OpenAI factory exposes the observed service,
+but R3 wires no command to it.
+
+Core adds immutable `BundesligaPredictionContextObservationV2`, which binds
+the exact Community Context and profile to context provenance. The provenance
+assembler stays in Orchestrator to avoid a Core-to-OpenAiIntegration cycle.
+Direct assembly accepts only prepared current identity, one complete observed
+result, bound context observation, generation time, and prediction
+identity/index; it validates prompt/model against the registered selection and
+context/profile against the prepared authority/current. Copy assembly derives
+prompt, model, service, and source-prediction identity from the accepted actual
+source row, uses the bound target context and new target identity/time/index,
+forces target usage and cost to zero, and delegates to the R1 provenance/copy
+validators. Neither path accepts raw caller-supplied prompt, service, usage,
+or provenance fields.
+
 ## Generation provenance
 
 `PredictionGenerationProvenanceV2` is canonical and immutable. It includes:
@@ -346,9 +453,17 @@ whole-cron disablement.
 | Two arena model participants use the same community | Use the same posting-community item seed and different model provenance |
 | Bonus source/posting texts match but one option ID is missing from the binding | Reject the complete binding and the whole copy batch |
 | One source option maps to two posting options | Reject as non-one-to-one; do not map by text at runtime |
+| Posting inventory contains a duplicate, missing, extra, drifted, or cross-community key | Reject before current/copy/prompt/service activity; raw snapshots cannot bypass the validated inventory |
+| Actual typed source row disagrees with its registered prompt, model, rules, route, context, or profile policy | Reject before compatibility or candidate read |
+| A bonus source candidate selects options in an order different from target option order | Preserve source-candidate order while applying the exact accepted option projection |
+| One isolated audit reader fails or two readers return the same authority/collection/document identity | Return no partial report and reject atomically |
+| An audit authority has no rows, unknown token usage, or a checked sum overflow | Emit a zero empty subtotal; emit null for the affected token total when usage is unknown; reject overflow without a report |
 | A current typed query returns one typed and one legacy candidate | Treat this as an authority/query defect and fail; never choose newest |
 | A copy source row is legacy but payload-compatible | Reject it as a copy candidate |
 | Prompt label resolves to a newer version than the pinned version | Fail immutable prompt verification before service construction |
+| Prompt template succeeds but immutable prompt evidence is missing or mutable last-call state changes concurrently | Return no observed prompt/result and never reconstruct evidence from last-call state |
+| Observed prediction lacks final tier, response usage, or calculated cost | Fail without a partial result; never assemble provenance |
+| Observed result model or bound Community Context/profile differs from the registered prepared current selection | Reject Orchestrator provenance assembly |
 | Configured Flex falls back to Standard | Record requested/final tiers and fallback result in immutable provenance |
 | Remote POST reports success but exact-ID readback is missing one item | Stop the lane and reconcile; do not retry through team/text lookup |
 | Cutover deployment selects typed runtime while a command still points at legacy storage | Fail startup/readiness; no command executes |
@@ -360,19 +475,12 @@ Tests keep these as concrete scenarios; they do not belong in the glossary.
 ## Milestones, ownership, and dependencies
 
 ```text
-R0 tracked specification freeze
-  -> R1 Core identity/seed/copy/provenance/authority contracts
-       -> R2a Kicktipp typed snapshots + exact-ID POST/readback
-       -> R2b Firebase isolated staging + global current enforcement
-            -> R3 shared route/provenance/copy-policy kernel
-                 -> R4a Matchday/RandomMatch/VerifyMatchday integration
-                 -> R4b Bonus/VerifyBonus + Schadensfresse CL composition
-                      -> R5a deterministic seed/binding tooling + workflow shape
-                           -> existing Owner/evidence gates
-                                -> R5b real seeds/bindings + isolated typed staging
-                                     -> exact-SHA review/CI
-                                          -> Owner atomic cutover
-                                               -> natural-run evidence
+R0 -> R1 -> (R2a || R2b) -> R3a -> R3b -> (R4a || R4b) -> R5a
+                                                                  -> existing Owner/evidence gates
+                                                                  -> R5b real seeds/bindings + isolated typed staging
+                                                                  -> exact-SHA review/CI
+                                                                  -> Owner atomic cutover
+                                                                  -> natural-run evidence
 ```
 
 | Milestone | Owner and paths | Completion gate |
@@ -381,22 +489,27 @@ R0 tracked specification freeze
 | R1 | Core/data-contract writer: `src/Core`, `tests/Core.Tests`, synthetic schema fixtures only | Canonical key/snapshot/seed/binding/provenance/authority tests, including all hostile serialization and inventory cases |
 | R2a | Kicktipp writer: `src/KicktippIntegration`, `tests/KicktippIntegration.Tests` | Complete typed snapshot parsing, exact-ID POST/readback, duplicate/drift/mixed inventory rejection; no live call |
 | R2b | Firebase writer: `src/FirebaseAdapter`, `tests/FirebaseAdapter.Tests` | Physical/query isolation, exact typed current/read/save/repredict/copy concurrency, separate authority-labelled non-current audit/cost reads and DTOs, cross-epoch rejection |
-| R3 | Shared route writer: shared Core/Orchestrator registration, provenance, copy-policy kernel, audit/cost combiner, and focused tests | One registration path, complete pre-model inventory gate, exact prompt/service/context/source provenance, no command-specific fallback; combine only retrieved labelled DTOs and preserve per-authority subtotals |
+| R3a | Shared inventory/kernel writer: Core inventory proof; Orchestrator route, copy, audit, registration services; fixed Firebase/Kicktipp factory methods; and corresponding Core/Orchestrator tests | Complete inventory and registered-selection gates; actual typed source-row/policy binding before compatibility; source-order bonus mapping; four-reader isolation and checked label/duplicate/null/empty/overflow arithmetic |
+| R3b | Observed-call/provenance writer: Core context observation; opt-in OpenAiIntegration prompt/service evidence and tests; observed Langfuse prompt implementation; OpenAI factory method; Orchestrator provenance assembler and serialized registration/tests | Atomic prompt evidence; same-invocation prediction/model/tier/fallback/usage/cost result; context/profile binding; direct/copy provenance including zero copy usage; Core, OpenAiIntegration, and Orchestrator focused gates |
 | R4a | Match command writer: Matchday, RandomMatch, VerifyMatchday and tests | All three commands use only typed capabilities; complete-scope and exact-ID post/readback cases pass |
 | R4b | Bonus/P1-10 writer: Bonus, VerifyBonus, Schadensfresse DFB/CL route contracts and synthetic tests | Typed bonus/copy boundary, exact option projection, fail-closed DFB/CL dispatch, ADR-0058/0059/0060 profiles and preflight; no prompt body/mirror/hash assertion, implied fallback, or activation |
 | R5a | Tooling/workflow writer: deterministic generators/validators, synthetic fixtures, workflow shape and contract tests | No floating generations, all rows wired to the typed epoch as one future cutover unit, recovery remains active |
 | R5b | Evidence/data/staging owner after gates: real immutable seed/binding files and isolated typed staging | Complete authenticated coverage, Owner-approved calls/cost/replacement/cutoff, payload-safe staging audit; no POST before cutover gate |
 
-R2a and R2b may proceed concurrently only after R1 is accepted. R4a and R4b
-may proceed concurrently only after R3 is accepted. Writers own disjoint paths;
-the root serializes integration. One heavy-operation lease covers the whole
+R2a and R2b may proceed concurrently only after R1 is accepted. R3a and R3b
+are serialized in one writer/worktree because registration and tests overlap.
+R4a and R4b may proceed concurrently only after both R3 slices are accepted.
+The root serializes integration. One heavy-operation lease covers the whole
 host, including parallel PowerShell children.
 
 ## Verification strategy
 
-Focused gates follow the table above. Every integrated implementation
-milestone runs its affected TUnit project with `dotnet run`. The cohesive
-implementation gate runs:
+Focused gates follow the table above. R3a runs full Core and Orchestrator
+focused gates. R3b runs full Core, OpenAiIntegration, and Orchestrator focused
+gates. Both independently reviewed commits and their combined milestone gate
+must pass before R4. Every integrated implementation milestone runs its
+affected TUnit project with `dotnet run`. The cohesive implementation gate
+runs:
 
 - Core, KicktippIntegration, FirebaseAdapter, OpenAiIntegration,
   ContextProviders.Kicktipp, Orchestrator, and Integration TUnit projects;

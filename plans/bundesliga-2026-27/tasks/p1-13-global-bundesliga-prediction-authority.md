@@ -107,20 +107,67 @@ partial typed cutover.
       repository method, query, enumeration, current lookup, fallback, copy,
       or reprediction.
 
-### R3 — Shared route and provenance kernel
+### R3a — Inventory, route, copy, factory, and audit kernel
 
-- [ ] Register one shared match/bonus route kernel that validates the complete
-      command inventory before current database selection or prompt/service
-      construction.
-- [ ] Resolve and persist exact posting/source/context, seed/binding,
-      prompt/fallback, model/service, manifest, and source-prediction
-      provenance without command-specific defaults.
-- [ ] Implement compatibility as a separate explicit decision after exact copy
-      correspondence and source-current validation.
-- [ ] Add the shared audit/cost combiner only after R2b's isolated DTO reads.
-      Combine, sort, and total only after independent retrieval; preserve each
-      row's authority label and per-authority subtotals, and never convert the
-      combined view into current authority.
+- [ ] Add private-constructor validated match/bonus inventories created only
+      by the inventory gate from exact authority, posting seed, same-scope
+      expected keys, observed R2a snapshots, and the registered route catalog.
+      Reject duplicate/missing/extra/cross-community/drifted items before any
+      current, prompt, service, candidate, or mutation activity; allow only
+      exactly empty/empty and order accepted items by Kicktipp ID.
+- [ ] Register opt-in stable route selections containing the accepted Core
+      route and optional copy contracts, Community Context, profile,
+      generation-input contract, and pinned model. Accept no caller-created or
+      default route/copy policy. Prepare typed current requests only from a
+      validated item and exact registered selection ID.
+- [ ] Read the actual typed source current row before compatibility and bind
+      its prompt, model, route, context/profile, generation-input, and rules
+      provenance to the registered source policy. Require the registered
+      target selection and prepared authority, preserve exact R1 rejection
+      before candidate read, and retain R2b save as the final drift guard.
+      Map bonus selections in source-candidate order through the exact
+      one-to-one option projection.
+- [ ] Add only fixed factory seams for the dedicated typed Kicktipp client,
+      typed repository, and four isolated audit readers. Registration is
+      opt-in, idempotent, default-free, and unwired from commands.
+- [ ] Fully materialize all four audit reads before pure combination and
+      return no partial result on failure/cancellation. Use checked `long` and
+      `decimal` arithmetic; zero all empty-subtotal values; expose token totals
+      as null exactly when any contributing usage is unknown; derive overall
+      values only from subtotals; reject duplicate identities, overflow,
+      current claims, or label disagreement atomically; preserve immutable
+      deterministic rows, labels, and per-authority subtotals.
+- [ ] Run full Core and Orchestrator focused gates and obtain independent
+      exact-commit acceptance before R3b.
+
+### R3b — Observed call, context, and provenance seams
+
+- [ ] Add opt-in OpenAiIntegration prompt requirements, resolved template, and
+      observed provider APIs. Return exact template/path and immutable hosted
+      or pinned-fallback evidence atomically; verify hosted name, numbered
+      version, required label, and normalized readback hash; never consult or
+      mutate last-prompt metadata. Preserve legacy interfaces.
+- [ ] Add opt-in observed match/bonus prediction results containing a
+      defensive prediction plus the same invocation's exact model, prompt,
+      requested/final tier, fallback fact/reason, usage, and calculated cost.
+      Construct only from that invocation's prompt/template pair, response
+      usage, execution telemetry, and cost service. Missing evidence, usage,
+      final tier, or cost fails without a partial result; cancellation
+      propagates. Keep the observed service unwired from commands.
+- [ ] Add the immutable Core Community Context/profile observation and the
+      Orchestrator provenance assembler. Direct assembly accepts only prepared
+      current identity, one complete observed result, bound context
+      observation, time, and prediction identity/index. Copy assembly derives
+      source prompt/model/service/identity from the accepted actual source
+      row, binds target context, forces target usage/cost zero, and delegates
+      to R1 validators. Accept no raw caller provenance fields.
+- [ ] Run full Core, OpenAiIntegration, and Orchestrator focused gates, obtain
+      independent exact-commit acceptance, and pass the combined R3 milestone
+      gate before R4.
+
+The exact dependency is `R3a -> R3b -> (R4a || R4b)`. Both R3 slices use one
+writer/worktree because registration and tests overlap. All R3 APIs remain
+opt-in, default-free, and unwired until R4.
 
 ### R4a — Match commands
 
@@ -188,9 +235,11 @@ exact commit, and independent Sol/high review. It requires no build, test,
 external fetch, or live operation.
 
 Focused implementation gates are Core for R1, KicktippIntegration for R2a,
-FirebaseAdapter for R2b, shared Core/Orchestrator tests for R3, Orchestrator
-match tests for R4a, Orchestrator bonus plus ContextProviders tests for R4b,
-and workflow-contract/`actionlint` gates for R5a.
+FirebaseAdapter for R2b, full Core/Orchestrator for R3a, full Core/
+OpenAiIntegration/Orchestrator for R3b, Orchestrator match tests for R4a,
+Orchestrator bonus plus ContextProviders tests for R4b, and workflow-contract/
+`actionlint` gates for R5a. Both R3 focused gates and the combined R3 review
+must pass before either R4 slice starts.
 
 The cohesive gate runs TUnit with `dotnet run` for Core,
 KicktippIntegration, FirebaseAdapter, OpenAiIntegration,

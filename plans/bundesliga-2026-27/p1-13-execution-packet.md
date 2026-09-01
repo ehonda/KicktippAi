@@ -64,17 +64,19 @@ and cannot be converted back into a current row.
 ## Dependency graph and admission
 
 ```text
-R0 -> R1 -> (R2a || R2b) -> R3 -> (R4a || R4b) -> R5a
-                                                        -> Owner/evidence gates
-                                                        -> R5b -> review/CI
-                                                        -> Owner atomic cutover
-                                                        -> natural-run evidence
+R0 -> R1 -> (R2a || R2b) -> R3a -> R3b -> (R4a || R4b) -> R5a
+                                                                  -> Owner/evidence gates
+                                                                  -> R5b -> review/CI
+                                                                  -> Owner atomic cutover
+                                                                  -> natural-run evidence
 ```
 
 - R0 exact commit receives independent Sol/high review before R1.
 - R2a/R2b start only after R1's canonical contracts are frozen and may run in
   parallel with disjoint paths.
-- R3 integrates the provider/persistence seams before R4a/R4b start.
+- R3a integrates inventory, registered route/copy, fixed factories, and audit
+  combination. R3b then adds observed prompt/service results, bound context,
+  and provenance assembly. Both slices pass review before R4a/R4b start.
 - R4a/R4b may run in parallel with disjoint match/bonus command ownership.
 - R5a freezes deterministic tooling and future workflow shape without real
   evidence or production mutation.
@@ -90,15 +92,85 @@ R0 -> R1 -> (R2a || R2b) -> R3 -> (R4a || R4b) -> R5a
 | R1 | `src/Core`, `tests/Core.Tests`, and synthetic schema fixtures; no real `data/` generation |
 | R2a | `src/KicktippIntegration`, `tests/KicktippIntegration.Tests`, encrypted/synthetic fixtures only |
 | R2b | `src/FirebaseAdapter`, `tests/FirebaseAdapter.Tests`, isolated configured audit/cost reads, and authority-labelled non-current DTOs |
-| R3 | shared route/provenance/copy-policy kernel plus the post-retrieval audit/cost combiner in Core/Orchestrator and narrowly owned focused tests |
+| R3a | Core inventory proof; Orchestrator registered route/copy/audit services; fixed Firebase/Kicktipp factory methods; registration; corresponding Core/Orchestrator tests |
+| R3b | Core context observation; opt-in OpenAiIntegration prompt/service evidence and tests; observed Langfuse prompt implementation; OpenAI factory method; Orchestrator provenance assembler and serialized registration/tests |
 | R4a | Matchday, RandomMatch, VerifyMatchday command paths and their Orchestrator tests |
 | R4b | Bonus, VerifyBonus, P1-10 DFB/CL route IDs/contracts, fail-closed dispatch, and synthetic Orchestrator/ContextProviders tests; no prompt bodies/mirrors/hash claims/fallbacks |
 | R5a | deterministic seed/binding tooling, synthetic fixtures, configuration/workflow shape, workflow-contract tests |
 | R5b | reviewed real files below `data/bundesliga-2026-27/prediction-authority`, isolated staging evidence, and approved cutover artifacts |
 
-One writer owns a path at a time. A new cross-cutting invariant, missing ADR,
-or scope expansion pauses the affected lane for architecture recall,
-independent review, and re-freeze.
+One writer owns a path at a time. R3a and R3b deliberately use one writer and
+one worktree in sequence because their Orchestrator registration and tests
+overlap. A new cross-cutting invariant, missing ADR, or scope expansion pauses
+the affected lane for architecture recall, independent review, and re-freeze.
+
+## Corrected R3 implementation boundary
+
+The exact graph is `R3a -> R3b -> (R4a || R4b)`. R3a first creates immutable
+validated match/bonus inventories only through the inventory gate. The gate
+takes exact authority, posting seed, expected keys from the same R2a scope,
+observed snapshots, and registered route catalog; rejects duplicate expected
+or observed keys before comparison; requires exact community/seed, one-to-one
+scope, canonical snapshot bytes/hash, kind, subcompetition, and route; orders
+by Kicktipp ID; and accepts only exactly empty/empty. Raw snapshots cannot
+enter current or copy APIs.
+
+Registered route selections bind stable selection ID, accepted route contract,
+Community Context, profile, generation-input contract, pinned model, and
+optional copy contract. Selection and current preparation accept no default or
+caller-created route/policy. Copy planning reads the exact typed source current
+row before compatibility and binds that actual row's prompt, model, route,
+context/profile, generation-input, and rules identity/hash to the registered
+source policy. It binds target context/profile to the prepared target
+authority, preserves R1 rejection before candidate read, verifies an accepted
+candidate against the source payload/provenance/decision fingerprint, and
+leaves R2b save as the last drift guard. Bonus mapping preserves selected
+source-option order through the exact accepted projection.
+
+R3a exposes only fixed factory methods for the dedicated typed Kicktipp client,
+typed repository, and four separate legacy/typed match/bonus audit readers.
+There is no generic authority, epoch, community, collection, list, cast, or
+fallback seam. Registration is opt-in, idempotent, default-free, and unwired.
+The audit reader materializes all four reads before combining and returns no
+partial report on failure/cancellation. Counts, known tokens, unknown counts,
+and decimal costs use checked arithmetic. Empty authority subtotals are all
+zero. A token total is null exactly when any contributing value is unknown.
+Overall values are checked sums of subtotals, and overall cost is never
+recomputed from rows. Label disagreement, current claims, overflow, and
+duplicate `(authority, collection, documentId)` fail atomically; output is
+immutable, labelled, deterministically sorted, subtotalled, and non-current.
+
+R3b adds opt-in OpenAiIntegration prompt requirements, resolved templates, and
+observed prompt provider APIs. Each observed resolution returns exact
+template/path and immutable prompt provenance atomically. Hosted evidence must
+match exact name, numbered immutable version, label, and normalized readback
+hash; fallback must match the exact pinned file/hash. It never uses mutable
+last-prompt state, and legacy interfaces remain unchanged.
+
+The opt-in observed prediction service returns an immutable defensive match or
+bonus prediction together with that same invocation's exact model and prompt,
+requested/final service tier, fallback fact/reason, response usage, and
+calculated cost. It derives only from that invocation's resolved prompt pair,
+response, telemetry, and cost service—not tracker/provider last-call state.
+Missing prompt evidence, usage, final tier, or cost yields no partial result;
+cancellation propagates. `PredictionService` and the OpenAI factory may expose
+the new capability, but R3 wires no command to it.
+
+Core's immutable context observation binds exact Community Context and profile
+to context provenance. Orchestrator owns provenance assembly. Direct assembly
+validates one complete observed result against the registered selection and
+the context observation against prepared current authority. Copy assembly
+derives prompt/model/service/source identity from the accepted actual source
+row, binds target context and new target identity/time/index, forces target
+usage/cost to zero, and delegates to R1 validators. Neither accepts raw caller
+prompt, service, usage, or provenance. Full Core and Orchestrator focused gates
+close R3a; full Core, OpenAiIntegration, and Orchestrator gates close R3b. Both
+reviewed slices and the combined milestone gate are prerequisites to R4.
+
+All R3 APIs are opt-in and unwired. R3 changes no command, actual DFB/CL route,
+prompt body or mirror, real seed/binding or other data, workflow, WM26 behavior,
+production/live state, staging, cutover, or rollback. It does not modify R1/R2
+provider implementations or create a new Owner/ADR decision.
 
 R4b cannot create a DFB/CL checked-in prompt mirror. A later evidence slice may
 do so only after recording the exact hosted name, numbered immutable version,
@@ -137,11 +209,14 @@ R0:
 - `git diff --check` and sensitive-token review pass;
 - one scoped local commit and independent Sol/high exact-commit verdict.
 
-R1-R5a focused gates follow the task/design ownership table. The cohesive
-repository gate is Release build; Core, KicktippIntegration, FirebaseAdapter,
-OpenAiIntegration, ContextProviders.Kicktipp, Orchestrator, and Integration
-TUnit projects via `dotnet run`; workflow contracts; `actionlint`; exact-SHA
-scope/security/authority/rollback review; and exact-head Build-and-Test CI.
+R1-R5a focused gates follow the task/design ownership table. R3a runs full
+Core and Orchestrator focused gates; R3b runs full Core, OpenAiIntegration, and
+Orchestrator focused gates. Both receive independent review, then pass their
+combined milestone gate before R4. The cohesive repository gate is Release
+build; Core, KicktippIntegration, FirebaseAdapter, OpenAiIntegration,
+ContextProviders.Kicktipp, Orchestrator, and Integration TUnit projects via
+`dotnet run`; workflow contracts; `actionlint`; exact-SHA scope/security/
+authority/rollback review; and exact-head Build-and-Test CI.
 
 R5b/cutover adds authenticated payload-safe inventories, real immutable
 generation/binding coverage, production staging and exact-ID readback,
