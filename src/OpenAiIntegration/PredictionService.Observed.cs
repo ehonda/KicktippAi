@@ -42,9 +42,9 @@ public partial class PredictionService
         ArgumentNullException.ThrowIfNull(contextDocuments);
         ValidateObservedRequirement(requirement);
         using var activity = Telemetry.Source.StartActivity("predict-match");
-        telemetryMetadata?.ApplyToObservation(activity);
         try
         {
+            ApplyObservedTelemetryMetadata(activity, telemetryMetadata);
             cancellationToken.ThrowIfCancellationRequested();
             var resolved = await _observedTemplateProvider!.LoadObservedMatchTemplateAsync(
                 requirement, includeJustification, cancellationToken);
@@ -93,9 +93,9 @@ public partial class PredictionService
         ArgumentNullException.ThrowIfNull(contextDocuments);
         ValidateObservedRequirement(requirement);
         using var activity = Telemetry.Source.StartActivity("predict-bonus");
-        telemetryMetadata?.ApplyToObservation(activity);
         try
         {
+            ApplyObservedTelemetryMetadata(activity, telemetryMetadata);
             cancellationToken.ThrowIfCancellationRequested();
             var resolved = await _observedTemplateProvider!.LoadObservedBonusTemplateAsync(
                 requirement, cancellationToken);
@@ -230,5 +230,23 @@ public partial class PredictionService
             total = evidence.Usage.CostUsd
         }));
         activity.SetStatus(ActivityStatusCode.Ok);
+    }
+
+    private static void ApplyObservedTelemetryMetadata(
+        Activity? activity,
+        PredictionTelemetryMetadata? metadata)
+    {
+        if (metadata is null)
+            return;
+
+        var invocationMetadata = metadata with
+        {
+            ContextDocumentNames = Copy(metadata.ContextDocumentNames),
+            BonusContextSelectedDocuments = Copy(metadata.BonusContextSelectedDocuments),
+            BonusContextExcludedDocuments = Copy(metadata.BonusContextExcludedDocuments)
+        };
+        invocationMetadata.ApplyToObservation(activity);
+
+        static IReadOnlyList<string>? Copy(IReadOnlyList<string>? values) => values?.ToArray();
     }
 }

@@ -327,6 +327,66 @@ public sealed class PredictionService_Observed_Tests : PredictionServiceTests_Ba
         await Assert.That(activity.GetTagItem("langfuse.observation.cost_details")).IsNull();
     }
 
+    [Test]
+    public async Task Throwing_metadata_is_listener_independent_and_match_bonus_fail_before_provider_work()
+    {
+        const string secret = "throwing-metadata-secret-do-not-record";
+        var model = Model();
+        var requirement = Requirement(model);
+        var failure = new InvalidOperationException(secret);
+        var metadata = new PredictionTelemetryMetadata(
+            ContextDocumentNames: new ThrowingReadOnlyList(failure));
+        var provider = new Mock<IObservedInstructionsTemplateProvider>(MockBehavior.Strict);
+        var service = CreateObservedService(
+            model, provider.Object, CreateMockCostCalculationService().Object);
+
+        var withoutListener = await CaptureFailure(bonus: false);
+        await Assert.That(withoutListener.InnerException).IsSameReferenceAs(failure);
+
+        var activities = new ConcurrentQueue<Activity>();
+        using var listener = Capture(activities);
+        var matchFailure = await CaptureFailure(bonus: false);
+        var bonusFailure = await CaptureFailure(bonus: true);
+
+        await Assert.That(matchFailure.InnerException).IsSameReferenceAs(failure);
+        await Assert.That(bonusFailure.InnerException).IsSameReferenceAs(failure);
+        provider.VerifyNoOtherCalls();
+        foreach (var operationName in new[] { "predict-match", "predict-bonus" })
+        {
+            var activity = activities.Single(value => value.OperationName == operationName);
+            await Assert.That(activity.Status).IsEqualTo(ActivityStatusCode.Error);
+            await Assert.That(activity.StatusDescription).IsEqualTo("observed-prediction-failed");
+            await Assert.That(ActivityText(activity)).DoesNotContain(secret);
+            await Assert.That(activity.GetTagItem("langfuse.observation.input")).IsNull();
+            await Assert.That(activity.GetTagItem("langfuse.observation.output")).IsNull();
+            await Assert.That(activity.GetTagItem("langfuse.observation.usage_details")).IsNull();
+            await Assert.That(activity.GetTagItem("langfuse.observation.cost_details")).IsNull();
+        }
+
+        async Task<ObservedPredictionException> CaptureFailure(bool bonus)
+        {
+            try
+            {
+                if (bonus)
+                {
+                    await service.PredictObservedBonusQuestionAsync(
+                        CreateTestBonusQuestion(), [], requirement, telemetryMetadata: metadata);
+                }
+                else
+                {
+                    await service.PredictObservedMatchAsync(
+                        CreateTestMatch(), [], requirement, telemetryMetadata: metadata);
+                }
+            }
+            catch (ObservedPredictionException exception)
+            {
+                return exception;
+            }
+
+            throw new InvalidOperationException("Expected observed metadata failure.");
+        }
+    }
+
     private static PredictionService CreateObservedService(
         PredictionModelConfig model,
         IObservedInstructionsTemplateProvider observedProvider,
@@ -369,9 +429,19 @@ public sealed class PredictionService_Observed_Tests : PredictionServiceTests_Ba
     private static string ActivityText(Activity activity) => string.Join('|',
         new[] { activity.StatusDescription ?? string.Empty }
             .Concat(activity.TagObjects.Select(value => $"{value.Key}={value.Value}"))
+            .Concat(activity.Events.Select(value => value.Name))
             .Concat(activity.Events.SelectMany(value =>
                 value.Tags.Select(tag => $"{tag.Key}={tag.Value}")))
             .Concat(activity.Baggage.Select(value => $"{value.Key}={value.Value}")));
+
+    private sealed class ThrowingReadOnlyList(Exception exception) : IReadOnlyList<string>
+    {
+        public int Count => 1;
+        public string this[int index] => throw exception;
+        public IEnumerator<string> GetEnumerator() => throw exception;
+        System.Collections.IEnumerator System.Collections.IEnumerable.GetEnumerator() =>
+            GetEnumerator();
+    }
 
     private static PredictionModelConfig Model() =>
         PredictionModelConfig.Create("gpt-5", "high", 1000, PromptName, 3);
