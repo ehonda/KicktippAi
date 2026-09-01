@@ -81,6 +81,26 @@ public sealed class OpenAiServiceFactory : IOpenAiServiceFactory
     }
 
     /// <inheritdoc />
+    public IObservedPredictionService CreateObservedPredictionService(
+        PredictionModelConfig modelConfig,
+        PredictionServiceOptions options,
+        IInstructionsTemplateProvider legacyTemplateProvider,
+        IObservedInstructionsTemplateProvider observedTemplateProvider)
+    {
+        ArgumentNullException.ThrowIfNull(modelConfig);
+        ArgumentNullException.ThrowIfNull(options);
+        ArgumentNullException.ThrowIfNull(legacyTemplateProvider);
+        ArgumentNullException.ThrowIfNull(observedTemplateProvider);
+
+        var logger = _loggerFactory.CreateLogger<PredictionService>();
+        var responsesClient = new ResponsesClient(
+            new ApiKeyCredential(_apiKey.Value), CreateResponsesClientOptions());
+        return new PredictionService(
+            responsesClient, logger, GetOrCreateCostCalculationService(), GetTokenUsageTracker(),
+            legacyTemplateProvider, observedTemplateProvider, modelConfig, options);
+    }
+
+    /// <inheritdoc />
     public ITokenUsageTracker GetTokenUsageTracker()
     {
         if (_tokenUsageTracker == null)

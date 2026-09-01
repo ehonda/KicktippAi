@@ -113,6 +113,22 @@ public static class ServiceRegistrationExtensions
         return services;
     }
 
+    /// <summary>
+    /// Opts into the serialized R3b provenance assembler. No observed provider,
+    /// service, command, or route default is registered by this method.
+    /// </summary>
+    public static IServiceCollection AddBundesligaPredictionAuthorityR3b(
+        this IServiceCollection services,
+        IEnumerable<BundesligaPredictionRouteSelection> selections,
+        LogLevel minimumLogLevel = LogLevel.Information)
+    {
+        ArgumentNullException.ThrowIfNull(services);
+        services.AddBundesligaPredictionAuthorityR3a(selections, minimumLogLevel);
+        services.TryAddSingleton<IBundesligaPredictionProvenanceAssembler,
+            BundesligaPredictionProvenanceAssembler>();
+        return services;
+    }
+
     private static IServiceCollection AddOpenAiHttpClientIfMissing(this IServiceCollection services)
     {
         if (services.Any(descriptor => descriptor.ServiceType == typeof(OpenAiHttpClientRegistrationMarker)))
