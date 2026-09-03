@@ -2,7 +2,7 @@
 
 **Status:** unresolved merge and activation blocker
 
-**Recorded:** 2026-09-01
+**Recorded:** 2026-09-03
 
 This prerequisite blocks merging the orchestration follow-up PR and starting a
 new `$orchestrate` run under its workflow. It does not block preparing,
@@ -17,28 +17,40 @@ fresh-session investigation.
 
 ## Current state of knowledge
 
-The following observations were made in the session that prepared the draft:
+The following observations were made while checking out the PR branch:
 
 - The injected collaboration surface exposed `spawn_agent`, `followup_task`,
   `send_message`, `interrupt_agent`, `list_agents`, and `wait_agent`, but not
   `close_agent`.
-- `codex --version` reported `codex-cli 0.151.0`.
-- `codex features list` reported stable `multi_agent` support enabled.
-- Neither the inspected repository config nor user config disabled multi-agent
-  tools. Adding `features.multi_agent = true` would therefore be redundant.
-- A string inspection of the installed executable found `close_agent` and
-  `CloseAgent`, which shows that some closure implementation is present but
-  does not prove that this host negotiated or exposed it.
-- The configured CLI path appeared to reference an older cached executable
-  than the current desktop launchers. It is a possible influence, not an
-  established cause.
-- Collaboration tools appear to be selected when a session starts. No
-  repository setting discovered during the audit can add a missing operation
-  to the already-running session.
+- Current command path observed in this session:
+  `C:\Users\dennis\AppData\Local\Programs\OpenAI\Codex\bin\codex.exe`
+  (version `0.153.0`).
+- `codex features list` reports `multi_agent` as `stable true` on that binary.
+- User-level config (`C:\Users\dennis\.codex\config.toml`) still sets:
+  `CODEX_CLI_PATH = 'C:\Users\dennis\AppData\Local\OpenAI\Codex\bin\7dea4a003bc76627\codex.exe'`.
+- Running that pinned executable directly reports:
+  `codex-cli 0.135.0-alpha.1`.
+- Repo-scoped `.codex/config.toml` only contains:
+  `[agents] max_concurrent_threads_per_session = 8`.
+- The highest-probability root cause is therefore stale CLI path/version skew
+  between launch binary and pinned binary, not repository config.
+- This is still hypothesis-level; the fresh-session reproduction that
+  confirms capability negotiation is pending.
+- Official docs still state subagent closure support exists, which keeps the gap
+  at host/client-level behavior rather than a known policy gap.
+
+Additional checks and external evidence:
+
+- `openai/codex` issue `#36211` is an active report explicitly titled
+  `close_agent is missing from the VS Code multi-agent tool schema`.
+- Adjacent historical reports (`#24389`, `#35435`, `#37761`) also describe
+  lifecycle, leak, or stale-complete-agent behavior around subagent teardown.
+- Current GitHub API access from this environment is blocked by local proxy
+  settings, so no new issue/release refresh was possible in this exact run.
 
 Official OpenAI documentation currently says that:
 
-- stable `features.multi_agent` includes `close_agent`; and
+- stable `features.multi_agent` includes `close_agent`, and
 - the app, CLI, and IDE can be asked to close completed subagent threads.
 
 Sources:
@@ -46,8 +58,17 @@ Sources:
 - [Codex configuration reference](https://learn.chatgpt.com/docs/config-file/config-reference#configtoml)
 - [Codex subagents: managing subagents](https://learn.chatgpt.com/docs/agent-configuration/subagents#managing-subagents)
 
-The mismatch could be a stale client or launch path, host/tool-generation
-issue, managed capability difference, or staged defect. None is proven yet.
+The mismatch could be stale client/version skew, host/tool-generation variance, or
+staged feature-path differences. None is proven yet.
+
+## Checkpoint status (this branch check)
+
+- ✅ `codex/orchestration-follow-up-fixes` checked out in isolated worktree.
+- ✅ CLI version/path/config evidence captured.
+- ✅ Evidence shows stale configured CLI path remains present.
+- ⚠️ No fresh desktop session was started in this environment to repro
+  `close_agent` missing/present under a clean start.
+- ☐ GitHub issue/release re-check blocked by local network/proxy access.
 
 ## Fresh-session investigation
 
