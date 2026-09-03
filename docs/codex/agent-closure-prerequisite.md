@@ -26,16 +26,19 @@ The following observations were made while checking out the PR branch:
   `C:\Users\dennis\AppData\Local\Programs\OpenAI\Codex\bin\codex.exe`
   (version `0.153.0`).
 - `codex features list` reports `multi_agent` as `stable true` on that binary.
-- User-level config (`C:\Users\dennis\.codex\config.toml`) still sets:
-  `CODEX_CLI_PATH = 'C:\Users\dennis\AppData\Local\OpenAI\Codex\bin\7dea4a003bc76627\codex.exe'`.
-- Running that pinned executable directly reports:
-  `codex-cli 0.135.0-alpha.1`.
+- User-level config (`C:\Users\dennis\.codex\config.toml`) now points
+  `CODEX_CLI_PATH` at:
+  `C:\Users\dennis\AppData\Local\Programs\OpenAI\Codex\bin\codex.exe`.
+- Running that configured executable directly reports:
+  `codex-cli 0.153.0`.
 - Repo-scoped `.codex/config.toml` only contains:
   `[agents] max_concurrent_threads_per_session = 8`.
-- The highest-probability root cause is therefore stale CLI path/version skew
-  between launch binary and pinned binary, not repository config.
-- This is still hypothesis-level; the fresh-session reproduction that
-  confirms capability negotiation is pending.
+- The highest-probability root cause remains the negotiated per-session tool
+  surface; the repository config is not the blocker.
+- User has already done a full restart before this update.
+- This run re-generated the app-server protocol schema and still did not find
+  `close_agent` anywhere in the tool schema, so capability exposure is still
+  inconsistent with docs and expected `multi_agent` tool list.
 - Official docs still state subagent closure support exists, which keeps the gap
   at host/client-level behavior rather than a known policy gap.
 
@@ -65,9 +68,11 @@ staged feature-path differences. None is proven yet.
 
 - ✅ `codex/orchestration-follow-up-fixes` checked out in isolated worktree.
 - ✅ CLI version/path/config evidence captured.
-- ✅ Evidence shows stale configured CLI path remains present.
-- ⚠️ No fresh desktop session was started in this environment to repro
-  `close_agent` missing/present under a clean start.
+- ✅ User-level configured CLI path now points to updated launcher path (`bin\codex.exe`).
+- ✅ User reports a fresh restart was already performed before this checkpoint
+  update.
+- ⚠️ Missing `close_agent` exposure is still not yet demonstrated end-to-end in a
+  fresh user session transcript.
 - ☐ GitHub issue/release re-check blocked by local network/proxy access.
 
 ## Fresh-session investigation
